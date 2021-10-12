@@ -13,7 +13,7 @@ affichageGMSH = False
 
 plotResult = True
 
-type = "T6"
+type = "T3"
 maillageOrganisé = True
 
 # Paramètres géométrie
@@ -24,7 +24,7 @@ b = 13
 P = -800 #N
 
 # Paramètres maillage
-taille = h/4
+taille = L
 
 
 # Construction GMSH --------------------------------------------------------------------------------

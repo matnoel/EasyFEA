@@ -33,7 +33,7 @@ class Materiau:
         
         self.C = None
         
-        # Construction matrice d'élasticité C 
+        # Construction matrice de comportement C (S=C*Epsilon)
         if dim == 2:                       
             if contraintesPlanes:
                 # isotrope + contraintes planes

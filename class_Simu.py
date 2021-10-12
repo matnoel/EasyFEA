@@ -131,6 +131,10 @@ class Simu:
         for e in self.mesh.elements:            
             e = cast(Element, e)
             
+            Ke = e.ConstruitKe(self.materiau.C)
+            
+            test = Ke[:,0]
+
             # Assemble Ke dans Kglob 
             nPe = e.nPe
             vect = e.assembly
@@ -142,18 +146,27 @@ class Simu:
                     colonne = vect[j]
                     
                     if self.dim == 2:
-                        self.__Kglob[ligne, colonne] += epaisseur * e.Ke[i, j]
+                        self.__Kglob[ligne, colonne] += epaisseur * Ke[i, j]
                     elif self.dim ==3:
-                        self.__Kglob[ligne, colonne] += e.Ke[i, j]
+                        self.__Kglob[ligne, colonne] += Ke[i, j]
                     j += 1                                  
                 i += 1
            
-            # # todo a essayer            
+            # # todo a essayer
+            # Kglob = np.zeros((taille, taille))            
             # vect = e.assembly                                
-                    
-            # # Kglob[vect,:][:,vect] = Kglob[vect,:][:,vect] + Ke
-            # Kglob[vect,:][:,vect] = Kglob[vect,:][:,vect] + [111111]
-            # ancienK = Kglob[vect,:][:,vect]  
+            # if self.dim == 2:
+            #     K1 = self.__Kglob
+            #     K2 = self.__Kglob[vect,:][:,vect]                 
+            #     # Kglob[vect,:][:,vect] += Kglob[vect,:][:,vect] + epaisseur * Ke[:,:]
+            #     Kglob[vect,vect] += Ke
+            #     pass
+            # elif self.dim == 3:    
+            #     Kglob[vect,:][:,vect] = Kglob[vect,:][:,vect] + Ke
+                
+        
+
+            
         
         END = START - time.time()
         if self.verbosity:
@@ -296,9 +309,7 @@ class Simu:
                         
             for element in noeud.elements:
                 element = cast(Element, element)
-                
-                element.listJacobien
-                
+                            
                 listIdNoeuds = list(self.mesh.connection[element.id])
                 index = listIdNoeuds.index(noeud.id)
                 BeDuNoeud = element.listBeAuNoeuds[index]

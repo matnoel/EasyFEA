@@ -37,10 +37,9 @@ class Mesh:
         t = type(cc)
                 
         # Vérfication
-        assert isinstance(coordo, np.ndarray) ,"Doit fournir une liste de ndarray' !"
-        assert isinstance(coordo[0], np.ndarray) ,"Doit fournir une liste de ndarray' !"
-        # assert isinstance(coordo, np.ndarray) and ,"Doit fournir une liste de ndarray' !"
-        assert isinstance(connection, list) and isinstance(connection[0], list),"Doit fournir une liste de liste !"
+        assert isinstance(coordo, np.ndarray) and isinstance(coordo[0], np.ndarray),"Doit fournir une liste de ndarray de ndarray !"
+        
+        assert isinstance(connection, list) and isinstance(connection[0], list),"Doit fournir une liste de liste"
 
         self.coordo = np.array(coordo)
         self.connection = connection
@@ -79,7 +78,7 @@ class Mesh:
                 listNoeudsElement.append(self.noeuds[n])
             
             # Création de l'élement
-            element = Element(e, listNoeudsElement, dim, C)
+            element = Element(e, listNoeudsElement, dim)
             
             # Ajoute l'element dans la liste d'élement de la simu
             self.elements.append(element)
@@ -96,17 +95,17 @@ class Test_Mesh(unittest.TestCase):
         
         coordo = []
         
-        coordo.append(array([0, 0, 0]))
-        coordo.append(array([1, 0, 0]))
-        coordo.append(array([0, 1, 0]))
+        coordo.append(np.array([0, 0, 0]))
+        coordo.append(np.array([1, 0, 0]))
+        coordo.append(np.array([0, 1, 0]))
         
-        connect = [0, 1, 2]
+        connect = [[0, 1, 2]]
         
         C = 2/((1+0.2)*(1-2*0.2)) * np.array([  [1-0.2, 0.2, 0],
                                                 [0.2, 1-0.2, 0],
                                                 [0, 0, (1-2*0.2)/2]   ])
         
-        self.mesh = Mesh(coordo, connect, 2, C)
+        self.mesh = Mesh(np.array(coordo), connect, 2, C)
 
     def test_BienCree(self):
         self.assertIsInstance(self.mesh, Mesh)

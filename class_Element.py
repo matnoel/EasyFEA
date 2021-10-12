@@ -3,6 +3,7 @@ from typing import cast
 from scipy.special.orthogonal import jacobi
 from class_Noeud import Noeud
 import numpy as np
+import scipy
 
 class Element:    
 
@@ -18,7 +19,7 @@ class Element:
     nPe = property(get_nPe)
 
 
-    def __init__(self,id: int, noeuds: list, dim: int, C: np.array):
+    def __init__(self,id: int, noeuds: list, dim: int):
         """Constructeur d'element, on construit Be et le jacobien !
 
         Parameters
@@ -44,23 +45,7 @@ class Element:
         self.id = id        
         self.noeuds = noeuds
         self.type = Element.getElementType(self.dim, self.nPe)
-        self.listJacobien = []        
-        self.listBeAuNoeuds = []
-        self.C = C
         
-        # Construiction Ke        
-        self.Ke = np.zeros((self.nPe*dim, self.nPe*dim))        
-        if dim == 2:        
-            # Triangle à 3 noeuds ou 6 noeuds Application linéaire
-            if self.nPe == 3 or self.nPe == 6:
-                self.ConstruitKeTriangle()
-            elif self.nPe == 4 or self.nPe == 8:
-                self.ConstruitKeQuadrangle()
-        elif dim == 3:
-            if self.nPe == 4:
-                self.ConstruitKeTetraedre()
-                pass
-
         # Construit la matrice assembly
         self.assembly = []
         for n in self.noeuds:            
@@ -74,7 +59,31 @@ class Element:
                 self.assembly.append(n.id * 3 + 1)
                 self.assembly.append(n.id * 3 + 2)
         
-    def ConstruitKeTriangle(self):
+    def ConstruitKe(self, C: np.array):
+        
+        self.__listJacobien = []
+        self.listBeAuNoeuds = []
+        self.__C = C
+        
+        # Construiction Ke        
+        taille = self.nPe*self.dim        
+        self.__Ke = np.zeros((taille, taille))
+
+        if self.dim == 2:        
+            # Triangle à 3 noeuds ou 6 noeuds Application linéaire
+            if self.nPe == 3 or self.nPe == 6:
+                self.__ConstruitKeTriangle()
+            elif self.nPe == 4 or self.nPe == 8:
+                self.__ConstruitKeQuadrangle()
+        elif self.dim == 3:
+            if self.nPe == 4:
+                self.__ConstruitKeTetraedre()
+
+        return self.__Ke
+
+        
+        
+    def __ConstruitKeTriangle(self):
         """Construit la matrice Ke d'un element triangulaire
         """
             
@@ -85,7 +94,7 @@ class Element:
                                     [1, 0, 1],
                                     [0, 1, 1]])
 
-            constX, constY = self.CalculLesConstantes(matriceCoef, self.noeuds)
+            constX, constY = self.CalculLesConstantes(matriceCoef)
                 
             alpha = constX[0]
             beta = constX[1]
@@ -95,27 +104,27 @@ class Element:
             b = constY[1]
             c = constY[2]
 
-            F = np.array([  [alpha, a],
-                            [beta, b]   ])
+            F = np.array([  [alpha, beta],
+                            [a, b]   ])
             
-            # jacobien = np.linalg.det(F)
-            jacobien = alpha * b - beta * a 
-            # invF = np.linalg.inv(F)
-            invF = 1/jacobien * np.array([  [b, -a],
-                                            [-beta, alpha]  ])
+            jacobien = np.linalg.det(F)
+            # jacobien = alpha * b - beta * a 
+            invF = np.linalg.inv(F)
+            # invF = 1/jacobien * np.array([  [b, -beta],
+            #                                 [-a, alpha]  ])
             
             # Calcul de Be
             dN1t = np.array([-1, -1])
             dN2t = np.array([1, 0])
             dN3t = np.array([0, 1])
             
-            self.listJacobien.append(jacobien)
+            self.__listJacobien.append(jacobien)
             
             Be = self.ConstruitBe([dN1t, dN2t, dN3t], invF)
             
-            self.Ke = jacobien * 1/2 * Be.T.dot(self.C).dot(Be)
+            self.__Ke = jacobien * 1/2 * Be.T.dot(self.__C).dot(Be)
             
-            self.listBeAuNoeuds = [Be] * 3
+            self.listBeAuNoeuds = [Be] * 3            
             
         if self.nPe == 6:
             
@@ -126,7 +135,7 @@ class Element:
                                     [1/4, 1/4, 1/4, 1/2, 1/2, 1],
                                     [0, 1/4, 0, 0, 1/2, 1]])
             
-            constX, constY = self.CalculLesConstantes(matriceCoef, self.noeuds)
+            constX, constY = self.CalculLesConstantes(matriceCoef)
             
             alpha = constX[0]
             beta = constX[1]
@@ -152,8 +161,8 @@ class Element:
                 return [N1t, N2t, N3t, N4t, N5t, N6t]
             
             def ConstruitF(ksi, eta):
-                F = np.array([[alpha*2*ksi+gamma*eta+delta, a*2*ksi+c*eta+d],
-                              [beta*2*eta+gamma*ksi+epsilon, b*2*eta+c*ksi+e]])                  
+                F = np.array([[alpha*2*ksi+gamma*eta+delta, beta*2*eta+gamma*ksi+epsilon],
+                              [a*2*ksi+c*eta+d, b*2*eta+c*ksi+e]])                  
                 return F               
             
             # Pour chaque point d'integration on calcul Be
@@ -172,12 +181,14 @@ class Element:
                 
                 F = ConstruitF(ksi, eta)
                 
+                invF = np.linalg.inv(F)
+
                 jacobien = np.linalg.det(F)
                 
-                Be = self.ConstruitBe(Ntild, np.linalg.inv(F))
+                Be = self.ConstruitBe(Ntild, invF)
                 
-                self.listJacobien.append(jacobien)
-                self.Ke = self.Ke + jacobien * poid * Be.T.dot(self.C).dot(Be)
+                self.__listJacobien.append(jacobien)
+                self.__Ke = self.__Ke + jacobien * poid * Be.T.dot(self.__C).dot(Be)
                 
                 pg += 1
             
@@ -194,13 +205,15 @@ class Element:
                 Ntild = ConstruitNtild(ksi, eta)               
                 
                 F = ConstruitF(ksi, eta)
-                                             
-                Be = self.ConstruitBe(Ntild, np.linalg.inv(F))
+
+                invF = np.linalg.inv(F)
+
+                Be = self.ConstruitBe(Ntild, invF)
                 self.listBeAuNoeuds.append(Be)
                 
                 i += 1
     
-    def ConstruitKeQuadrangle(self):
+    def __ConstruitKeQuadrangle(self):
         """Construit la matrice Be d'un element quadrillatère
         """
         if self.nPe == 4:
@@ -209,7 +222,7 @@ class Element:
                                     [1, 1, 1, 1],
                                     [-1, -1, 1, 1]])
             
-            constX, constY = self.CalculLesConstantes(matriceCoef, self.noeuds)
+            constX, constY = self.CalculLesConstantes(matriceCoef)
             
             alpha = constX[0]
             beta = constX[1]
@@ -229,8 +242,8 @@ class Element:
                 return [N1t, N2t, N3t, N4t]
             
             def ConstruitF(ksi, eta):
-                F = np.array([[alpha*eta+beta, a*eta+b],
-                              [alpha*ksi+gamma, a*ksi+c]])                  
+                F = np.array([[alpha*eta+beta, alpha*ksi+gamma],
+                              [a*eta+b, a*ksi+c]])                  
                 return F                              
             
             # Pour chaque point d'integration on calcul Be
@@ -246,17 +259,18 @@ class Element:
                 eta = etas[pg]
                 poid = poids[pg]
                 
-                
                 Ntild = ConstruitNtild(ksi, eta)
                 
                 F = ConstruitF(ksi, eta)    
                 
+                invF = np.linalg.inv(F)
+
                 jacobien = np.linalg.det(F)
                 
-                Be = self.ConstruitBe(Ntild, np.linalg.inv(F))
+                Be = self.ConstruitBe(Ntild, invF)
                 
-                self.listJacobien.append(jacobien)                
-                self.Ke = self.Ke + jacobien * poid * Be.T.dot(self.C).dot(Be)
+                self.__listJacobien.append(jacobien)                
+                self.__Ke = self.__Ke + jacobien * poid * Be.T.dot(self.__C).dot(Be)
                 
                 pg += 1
                 
@@ -274,8 +288,10 @@ class Element:
                 Ntild = ConstruitNtild(ksi, eta)               
                 
                 F = ConstruitF(ksi, eta)
+
+                invF = np.linalg.inv(F)
                                              
-                Be = self.ConstruitBe(Ntild, np.linalg.inv(F))
+                Be = self.ConstruitBe(Ntild, invF)
                 self.listBeAuNoeuds.append(Be)
                 
                 i += 1  
@@ -291,7 +307,7 @@ class Element:
                                     [0, 0, 0, 1, 0, 0, 1, 1],
                                     [0, 0, 1, 0, 0, -1, 0, 1]])
             
-            constX, constY = self.CalculLesConstantes(matriceCoef, self.noeuds)
+            constX, constY = self.CalculLesConstantes(matriceCoef)
             
             a = constX[0]
             b = constX[1]
@@ -325,8 +341,8 @@ class Element:
                 
             
             def ConstruitF(ksi, eta):
-                F = np.array([[2*a*ksi*eta+b*eta**2+2*c*ksi+e*eta+f, 2*a2*ksi*eta+b2*eta**2+2*c2*ksi+e2*eta+f2],
-                              [a*ksi**2+2*b*eta*ksi+2*d*eta+e*ksi+g, a2*ksi**2+2*b2*eta*ksi+2*d2*eta+e2*ksi+g2]])                  
+                F = np.array([[2*a*ksi*eta+b*eta**2+2*c*ksi+e*eta+f, a*ksi**2+2*b*eta*ksi+2*d*eta+e*ksi+g],
+                              [2*a2*ksi*eta+b2*eta**2+2*c2*ksi+e2*eta+f2, a2*ksi**2+2*b2*eta*ksi+2*d2*eta+e2*ksi+g2]])                 
                 return F                              
             
             # Pour chaque point d'integration on calcul Be            
@@ -346,12 +362,14 @@ class Element:
                 
                 F = ConstruitF(ksi, eta)    
                 
+                invF = np.linalg.inv(F)
+                
                 jacobien = np.linalg.det(F)
                 
-                Be = self.ConstruitBe(Ntild, np.linalg.inv(F))
+                Be = self.ConstruitBe(Ntild, invF)
                 
-                self.listJacobien.append(jacobien)
-                self.Ke = self.Ke + jacobien * poid * Be.T.dot(self.C).dot(Be)
+                self.__listJacobien.append(jacobien)
+                self.__Ke = self.__Ke + jacobien * poid * Be.T.dot(self.__C).dot(Be)
                 
                 pg += 1
                 
@@ -369,21 +387,21 @@ class Element:
                 
                 F = ConstruitF(ksi, eta)
                 
-                dt = np.linalg.det(F)
-                                             
-                Be = self.ConstruitBe(Ntild, np.linalg.inv(F))
+                invF = np.linalg.inv(F)
+   
+                Be = self.ConstruitBe(Ntild, invF)
                 self.listBeAuNoeuds.append(Be)
                 
                 i += 1
     
-    def ConstruitKeTetraedre(self):
+    def __ConstruitKeTetraedre(self):
         if self.nPe == 4:
             matriceCoef = np.array([[0, 0, 0, 1],
                                     [1, 0, 0, 1],
                                     [0, 1, 0, 1],
                                     [0, 0, 1, 1]])        
            
-            constX, constY, constZ = self.CalculLesConstantes(matriceCoef, self.noeuds)
+            constX, constY, constZ = self.CalculLesConstantes(matriceCoef)
             
             a1 = constX[0]
             b1 = constX[1]
@@ -400,45 +418,49 @@ class Element:
             c3 = constZ[2]
             d3 = constZ[3]
             
-            F = np.array([[a1, a2, a3],
-                          [b1, b2, b3],                              
-                          [c1, c2, c3]])
+            # F = np.array([[a1, a2, a3],
+            #               [b1, b2, b3],                              
+            #               [c1, c2, c3]])
+
+            F = np.array([[a1, b1, c1],
+                          [a2, b2, c2],                              
+                          [a3, b3, c3]])                          
             
+            invF = np.linalg.inv(F)
+
             jacobien = np.linalg.det(F)
             
-            self.listJacobien.append(jacobien)
+            self.__listJacobien.append(jacobien)
             
             N1t = np.array([-1, -1, -1])
             N2t = np.array([1, 0, 0])
             N3t = np.array([0, 1, 0])
             N4t = np.array([0, 0, 1])
             
-            Be = self.ConstruitBe([N1t, N2t, N3t, N4t], np.linalg.inv(F))
+            Be = self.ConstruitBe([N1t, N2t, N3t, N4t], invF)
             
-            self.Ke = jacobien * 1/6 * Be.T.dot(self.C).dot(Be)
+            self.__Ke = jacobien * 1/6 * Be.T.dot(self.__C).dot(Be)
             
             self.listBeAuNoeuds = [Be] * 4
     
-    def CalculLesConstantes(self, matriceCoef: np.ndarray, noeuds: list):
+    def CalculLesConstantes(self, matriceCoef: np.ndarray):
         """Determine les constantes pour passer de l'element de reference a lelement reele
 
         Parameters
         ----------
         matriceCoef
             Matrice de coef
-        noeuds : list
-            Liste de noeuds
 
         Returns
         -------
         tuple
-            Retourne deux vecteurs de constantes 
+            Retourne les vecteurs de constantes 
         """
         vectX = []
         vectY = []
         vectZ = []
-        for noeud in noeuds:
-            
+        for noeud in self.noeuds:
+            noeud = cast(Noeud, noeud)
             
             vectX.append(noeud.x)
             vectY.append(noeud.y)
@@ -481,15 +503,16 @@ class Element:
         """
         
         list_Ntild = np.array(list_Ntild)
-        invF = np.array(invF)
+        # Transpose la matrice F inversé
+        invFT = np.array(invF).T
         
         if self.dim == 2:            
             Be = np.zeros((3,len(list_Ntild)*2))      
 
             i = 0
             for nt in list_Ntild:            
-                dNdx = invF[0].dot(nt)
-                dNdy = invF[1].dot(nt)
+                dNdx = invFT[0].dot(nt)
+                dNdy = invFT[1].dot(nt)
                 
                 Be[0, i] = dNdx
                 Be[1, i+1] = dNdy
@@ -500,9 +523,9 @@ class Element:
 
             i = 0
             for nt in list_Ntild:            
-                dNdx = invF[0].dot(nt)
-                dNdy = invF[1].dot(nt)
-                dNdz = invF[2].dot(nt)
+                dNdx = invFT[0].dot(nt)
+                dNdy = invFT[1].dot(nt)
+                dNdz = invFT[2].dot(nt)
                 
                 Be[0, i] = dNdx
                 Be[1, i+1] = dNdy
