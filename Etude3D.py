@@ -55,7 +55,7 @@ simu.Assemblage(epaisseur=b)
 
 noeuds_en_L = []
 noeuds_en_0 = []
-for n in simu.mesh.noeuds:
+for n in mesh.noeuds:
         n = cast(Noeud, n)        
         if n.coordo[0] == L:
                 noeuds_en_L.append(n)

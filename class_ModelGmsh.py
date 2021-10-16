@@ -1,7 +1,10 @@
+from typing import cast
 import gmsh
 import sys
 import time
 import numpy as np
+
+from class_Materiau import Materiau
 
 class ModelGmsh:
         
@@ -156,6 +159,45 @@ class ModelGmsh:
                         print("\nimportation du fichier step ({:.3f} s)".format(np.abs(end)))
                 
                 return self.__ConstructionCoordoConnect()
+
+# TEST ==============================
+
+import unittest
+import os
+
+class Test_ModelGmsh(unittest.TestCase):
+        def setUp(self):
+                pass
+        
+        def test_ConstructionRectangle(self):
+                
+                dim = 2
+
+                L = 120
+                h = 13
+
+                # Pour chaque type d'element 2D
+                for type in ModelGmsh.get_typesMaillage2D():
+                        modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=L, verbosity=False)
+                        modelGmsh.ConstructionRectangle(L, h)
+        
+        def test_Importation3D(self):
+            
+            dim = 3
+
+            # Pour chaque type d'element 2D
+            for type in ModelGmsh.get_typesMaillage3D():
+                    modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=120, verbosity=False)
+                    modelGmsh.Importation3D("part.stp")
+
+    
+           
+if __name__ == '__main__':        
+    try:
+        os.system("cls")
+        unittest.main(verbosity=2)
+    except:
+        print("")   
                 
         
         

@@ -33,13 +33,13 @@ class Simu:
         assert isinstance(materiau, Materiau) and materiau.get_dim() == dim, "Doit etre un materiau et doit avoir la meme dimension que dim"
 
 
-        self.dim = dim
+        self.__dim = dim
       
-        self.verbosity = verbosity
+        self.__verbosity = verbosity
         
-        self.mesh = mesh
+        self.__mesh = mesh
         
-        self.materiau = materiau
+        self.__materiau = materiau
         
         self.resultats = {}
     
@@ -52,18 +52,18 @@ class Simu:
 
         START = time.time()
         
-        if self.dim == 2:        
+        if self.__dim == 2:        
             assert epaisseur>0,"Doit être supérieur à 0"
 
-        taille = self.mesh.get_Nn()*self.dim
+        taille = self.__mesh.get_Nn()*self.__dim
 
         self.__Kglob = np.zeros((taille, taille))
         self.__Fglob = np.zeros(taille)
         
-        for e in self.mesh.elements:            
+        for e in self.__mesh.elements:            
             e = cast(Element, e)
             
-            Ke = e.ConstruitKe(self.materiau.C)
+            Ke = e.ConstruitKe(self.__materiau.C)
             
             test = Ke[:,0]
 
@@ -71,15 +71,15 @@ class Simu:
             nPe = e.nPe
             vect = e.assembly
             i = 0
-            while i<nPe*self.dim:
+            while i<nPe*self.__dim:
                 ligne = vect[i] 
                 j=0
-                while j<nPe*self.dim:
+                while j<nPe*self.__dim:
                     colonne = vect[j]
                     
-                    if self.dim == 2:
+                    if self.__dim == 2:
                         self.__Kglob[ligne, colonne] += epaisseur * Ke[i, j]
-                    elif self.dim ==3:
+                    elif self.__dim ==3:
                         self.__Kglob[ligne, colonne] += Ke[i, j]
                     j += 1                                  
                 i += 1
@@ -101,7 +101,7 @@ class Simu:
             
         
         END = START - time.time()
-        if self.verbosity:
+        if self.__verbosity:
             print("\nAssemblage ({:.3f} s)".format(np.abs(END)))
 
 
@@ -120,19 +120,19 @@ class Simu:
             n = cast(Noeud, n)
             
             if direction == "X":
-                ligne = n.id * self.dim
+                ligne = n.id * self.__dim
                 
             if direction == "Y":
-                ligne = n.id * self.dim + 1
+                ligne = n.id * self.__dim + 1
                 
             if direction == "Z":
-                assert self.dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant Z"
-                ligne = n.id * self.dim + 2
+                assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant Z"
+                ligne = n.id * self.__dim + 2
                 
             self.__Fglob[ligne] += force/nbn
             
         END = START - time.time()
-        if self.verbosity:
+        if self.__verbosity:
             print("\nCondition en force ({:.3f} s)".format(np.abs(END)))
 
     def ConditionEnDeplacement(self, noeuds=[], direction="", deplacement=0):
@@ -142,13 +142,13 @@ class Simu:
             n = cast(Noeud, n)
             
             if direction == "X":
-                ligne = n.id * self.dim
+                ligne = n.id * self.__dim
                 
             if direction == "Y":
-                ligne = n.id * self.dim + 1
+                ligne = n.id * self.__dim + 1
                 
             if direction == "Z":
-                ligne = n.id * self.dim + 2
+                ligne = n.id * self.__dim + 2
             
             self.__Fglob[ligne] = deplacement
             self.__Kglob[ligne,:] = 0.0
@@ -156,7 +156,7 @@ class Simu:
             
             
         END = START - time.time()
-        if self.verbosity:
+        if self.__verbosity:
             print("\nCondition en deplacement ({:.3f} s)".format(np.abs(END)))   
 
     def Solve(self):
@@ -179,14 +179,14 @@ class Simu:
         dx = []
         dy = []
         dz = []
-        for n in self.mesh.noeuds:
+        for n in self.__mesh.noeuds:
             n = cast(Noeud, n)
             
             idNoeud = n.id 
-            if self.dim == 2:
+            if self.__dim == 2:
                 dx.append(Uglob[idNoeud * 2][0])
                 dy.append(Uglob[idNoeud * 2 + 1][0])
-            elif self.dim == 3:
+            elif self.__dim == 3:
                 dx.append(Uglob[idNoeud * 3][0])
                 dy.append(Uglob[idNoeud * 3 + 1][0])
                 dz.append(Uglob[idNoeud * 3 + 2][0])
@@ -197,13 +197,13 @@ class Simu:
         
         self.resultats["dx"] = dx
         self.resultats["dy"] = dy        
-        if self.dim == 3:
+        if self.__dim == 3:
             self.resultats["dz"] = dz
         
         self.__ExtrapolationAuxNoeuds(dx, dy, dz)        
         
         END = START - time.time()
-        if self.verbosity:
+        if self.__verbosity:
             print("\nRésolution ({:.3f} s)".format(np.abs(END)))
 
     def __ExtrapolationAuxNoeuds(self, dx, dy, dz, option = 'mean'):
@@ -225,7 +225,7 @@ class Simu:
         
         Svm_n = []
         
-        for noeud in self.mesh.noeuds:            
+        for noeud in self.__mesh.noeuds:            
             noeud = cast(Noeud, noeud)
             
             list_Exx = []
@@ -238,7 +238,7 @@ class Simu:
             
             list_Svm = []      
                 
-            if self.dim == 3:                
+            if self.__dim == 3:                
                 list_Ezz = []
                 list_Eyz = []
                 list_Exz = []
@@ -250,7 +250,7 @@ class Simu:
             for element in noeud.elements:
                 element = cast(Element, element)
                             
-                listIdNoeuds = list(self.mesh.connection[element.id])
+                listIdNoeuds = list(self.__mesh.connection[element.id])
                 index = listIdNoeuds.index(noeud.id)
                 BeDuNoeud = element.listBeAuNoeuds[index]
                 
@@ -259,10 +259,10 @@ class Simu:
                 for noeudDeLelement in element.noeuds:
                     noeudDeLelement = cast(Noeud, noeudDeLelement)
                     
-                    if self.dim == 2:
+                    if self.__dim == 2:
                         deplacement.append(dx[noeudDeLelement.id])
                         deplacement.append(dy[noeudDeLelement.id])
-                    if self.dim == 3:
+                    if self.__dim == 3:
                         deplacement.append(dx[noeudDeLelement.id])
                         deplacement.append(dy[noeudDeLelement.id])
                         deplacement.append(dz[noeudDeLelement.id])
@@ -270,9 +270,9 @@ class Simu:
                 deplacement = np.array(deplacement)
                 
                 vect_Epsilon = BeDuNoeud.dot(deplacement)
-                vect_Sigma = self.materiau.C.dot(vect_Epsilon)
+                vect_Sigma = self.__materiau.C.dot(vect_Epsilon)
                 
-                if self.dim == 2:                
+                if self.__dim == 2:                
                     list_Exx.append(vect_Epsilon[0])
                     list_Eyy.append(vect_Epsilon[1])
                     list_Exy.append(vect_Epsilon[2])
@@ -286,7 +286,7 @@ class Simu:
                     list_Sxy.append(Sxy)
                     list_Svm.append(np.sqrt(Sxx**2+Syy**2-Sxx*Syy+3*Sxy**2))
                     
-                elif self.dim == 3:
+                elif self.__dim == 3:
                     list_Exx.append(vect_Epsilon[0]) 
                     list_Eyy.append(vect_Epsilon[1])
                     list_Ezz.append(vect_Epsilon[2])                    
@@ -341,7 +341,7 @@ class Simu:
             
             Svm_n.append(TrieValeurs(list_Svm, option))
         
-            if self.dim == 3:
+            if self.__dim == 3:
                 Ezz_n.append(TrieValeurs(list_Ezz, option))
                 Eyz_n.append(TrieValeurs(list_Eyz, option))
                 Exz_n.append(TrieValeurs(list_Exz, option))
@@ -359,7 +359,7 @@ class Simu:
         self.resultats["Sxy"] = Sxy_n      
         self.resultats["Svm"] = Svm_n
         
-        if self.dim == 3:            
+        if self.__dim == 3:            
             self.resultats["Ezz"] = Ezz_n
             self.resultats["Eyz"] = Eyz_n
             self.resultats["Exz"] = Exz_n
@@ -387,16 +387,16 @@ class Simu:
         
         # Construit la nouvelle matrice de connection 
         # ou de coordonnées si elle n'ont pas deja ete faite
-        if len(self.mesh.connectionPourAffichage) == 0:
+        if len(self.__mesh.connectionPourAffichage) == 0:
             self.__ConstruitConnectPourAffichage()        
-        if len(self.mesh.new_coordo) == 0:
+        if len(self.__mesh.new_coordo) == 0:
             self.__ConstruitNouvelleCoordo()
         
         # Va chercher les valeurs
         
         valeurs = self.resultats[resultat]
         
-        if self.dim == 2:
+        if self.__dim == 2:
             
             fig, ax = plt.subplots()
             
@@ -407,11 +407,11 @@ class Simu:
             coordo = []
             
             if deformation:
-                coordo = self.mesh.new_coordo
+                coordo = self.__mesh.new_coordo
             else:
-                coordo = self.mesh.coordo
+                coordo = self.__mesh.coordo
                 
-            pc = ax.tricontourf(coordo[:,0], coordo[:,1], self.mesh.connectionPourAffichage, valeurs,
+            pc = ax.tricontourf(coordo[:,0], coordo[:,1], self.__mesh.connectionPourAffichage, valeurs,
                                 cmap='jet', antialiased=True)
             
             fig.colorbar(pc, ax=ax)
@@ -420,13 +420,13 @@ class Simu:
             ax.set_ylabel('y [mm]')
             
         
-        elif self.dim == 3:
+        elif self.__dim == 3:
             fig = plt.figure()            
             ax = fig.add_subplot(projection="3d")
             
             valeursAuFaces = []
             
-            for face in self.mesh.connectionPourAffichage:
+            for face in self.__mesh.connectionPourAffichage:
                 somme = 0
                 i = 1
                 for id in face:
@@ -442,14 +442,14 @@ class Simu:
             colors = plt.cm.jet(norm(valeursAuFaces))
             
             if affichageMaillage:            
-                pc = Poly3DCollection(self.mesh.new_coordo[self.mesh.connectionPourAffichage],
+                pc = Poly3DCollection(self.__mesh.new_coordo[self.__mesh.connectionPourAffichage],
                                     alpha=1,
                                     cmap='jet',
                                     facecolors=colors,
                                     lw=0.5,
                                     edgecolor='black')
             else:
-                pc = Poly3DCollection(self.mesh.new_coordo[self.mesh.connectionPourAffichage],
+                pc = Poly3DCollection(self.__mesh.new_coordo[self.__mesh.connectionPourAffichage],
                                     alpha=1,
                                     cmap='jet',
                                     facecolors=colors,
@@ -476,13 +476,13 @@ class Simu:
         
         # Construit la nouvelle matrice de connection 
         # ou de coordonnées si elle n'ont pas deja ete faite
-        if len(self.mesh.connectionPourAffichage) == 0:
+        if len(self.__mesh.connectionPourAffichage) == 0:
             self.__ConstruitConnectPourAffichage()
-        if len(self.mesh.new_coordo) == 0 and deformation:
+        if len(self.__mesh.new_coordo) == 0 and deformation:
             self.__ConstruitNouvelleCoordo()
         
         # ETUDE 2D
-        if self.dim == 2:
+        if self.__dim == 2:
             
             fig, ax = plt.subplots()
             
@@ -490,14 +490,14 @@ class Simu:
             ax.axis('equal')
             ax.set_xlabel("x [mm]")
             ax.set_ylabel("y [mm]")
-            ax.set_title("Ne = {} et Nn = {}".format(self.mesh.Ne, self.mesh.Nn))
+            ax.set_title("Ne = {} et Nn = {}".format(self.__mesh.Ne, self.__mesh.Nn))
         # ETUDE 3D    
-        if self.dim == 3:
+        if self.__dim == 3:
             
             fig = plt.figure()            
             ax = fig.add_subplot(projection="3d")
             
-            pc = Poly3DCollection(self.mesh.new_coordo[self.mesh.connectionPourAffichage],
+            pc = Poly3DCollection(self.__mesh.new_coordo[self.__mesh.connectionPourAffichage],
                                   alpha=1,
                                   facecolors='c',
                                   lw=0.5,
@@ -507,7 +507,7 @@ class Simu:
             ax.set_xlabel("x [mm]")
             ax.set_ylabel("y [mm]")
             ax.set_zlabel("y [mm]")
-            ax.set_title("Ne = {} et Nn = {}".format(self.mesh.Ne, self.mesh.Nn))
+            ax.set_title("Ne = {} et Nn = {}".format(self.__mesh.Ne, self.__mesh.Nn))
             
             self.__ChangeEchelle(ax)
 
@@ -516,16 +516,16 @@ class Simu:
                         deformation: bool,
                         fill: bool):
                 
-        for element in self.mesh.elements:
+        for element in self.__mesh.elements:
             element = cast(Element, element)
             numérosNoeudsTriés = list(element.RenvoieLesNumsDeNoeudsTriés())
             
             if deformation:                
-                x = self.mesh.new_coordo[numérosNoeudsTriés,0]
-                y = self.mesh.new_coordo[numérosNoeudsTriés,1]                    
+                x = self.__mesh.new_coordo[numérosNoeudsTriés,0]
+                y = self.__mesh.new_coordo[numérosNoeudsTriés,1]                    
             else:
-                x = self.mesh.coordo[numérosNoeudsTriés,0]
-                y = self.mesh.coordo[numérosNoeudsTriés,1]
+                x = self.__mesh.coordo[numérosNoeudsTriés,0]
+                y = self.__mesh.coordo[numérosNoeudsTriés,1]
             
             ax.fill(x, y, 'c', edgecolor='black', fill=fill, lw=0.5)
         
@@ -539,13 +539,13 @@ class Simu:
         POur la 3D on construit des faces pour passer en Poly3DCollection
         """
         
-        connection = self.mesh.connection
+        connection = self.__mesh.connection
         new_connection = []
         
         for listIdNoeuds in connection:
             npe = len(listIdNoeuds)
             
-            if self.dim == 2:            
+            if self.__dim == 2:            
                 # Tri3
                 if npe == 3:
                     new_connection = connection
@@ -590,7 +590,7 @@ class Simu:
                     new_connection.append([n6, n3, n7])
                     new_connection.append([n7, n4, n8])                    
                 
-            elif self.dim ==3:
+            elif self.__dim ==3:
                 # Tetra4
                 if npe == 4:
                     n1 = listIdNoeuds[0]
@@ -603,23 +603,23 @@ class Simu:
                     new_connection.append([n1, n3, n4])
                     new_connection.append([n2, n3, n4])
         
-        self.mesh.connectionPourAffichage = new_connection
+        self.__mesh.connectionPourAffichage = new_connection
     
     def __ConstruitNouvelleCoordo(self, facteurDef=2):
         # Calcul des nouvelles coordonnées
         nouvelleCoordo = []        
         x = self.resultats["dx"]*facteurDef
         y = self.resultats["dy"]*facteurDef
-        if self.dim == 2:
+        if self.__dim == 2:
             z = np.zeros(len(x))
-        elif self.dim == 3:
+        elif self.__dim == 3:
             z = self.resultats["dz"]*facteurDef
             
         dxyz = np.array([x, y, z]).T
 
-        nouvelleCoordo = self.mesh.coordo + dxyz
+        nouvelleCoordo = self.__mesh.coordo + dxyz
         
-        self.mesh.new_coordo = nouvelleCoordo
+        self.__mesh.new_coordo = nouvelleCoordo
        
     def __ChangeEchelle(self, ax):
         """Change la taille des axes pour l'affichage 3D
@@ -630,9 +630,9 @@ class Simu:
             Axes dans lequel on va creer la figure
         """
         # Change la taille des axes
-        xmin = np.min(self.mesh.new_coordo[:,0]); xmax = np.max(self.mesh.new_coordo[:,0])
-        ymin = np.min(self.mesh.new_coordo[:,1]); ymax = np.max(self.mesh.new_coordo[:,1])
-        zmin = np.min(self.mesh.new_coordo[:,2]); zmax = np.max(self.mesh.new_coordo[:,2])
+        xmin = np.min(self.__mesh.new_coordo[:,0]); xmax = np.max(self.__mesh.new_coordo[:,0])
+        ymin = np.min(self.__mesh.new_coordo[:,1]); ymax = np.max(self.__mesh.new_coordo[:,1])
+        zmin = np.min(self.__mesh.new_coordo[:,2]); zmax = np.max(self.__mesh.new_coordo[:,2])
         
         max = np.max(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
         
@@ -688,7 +688,7 @@ class Test_Simu(unittest.TestCase):
 
             noeud_en_L = []
             noeud_en_0 = []
-            for n in simu.mesh.noeuds:            
+            for n in mesh.noeuds:            
                     n = cast(Noeud, n)
                     if n.coordo[0] == L:
                             noeud_en_L.append(n)
@@ -709,8 +709,8 @@ class Test_Simu(unittest.TestCase):
         dim = 3
 
         # Paramètres géométrie
-        L = 120;  #mm
-        h = 13;    
+        L = 120  #mm
+        h = 13    
         b = 13
 
         P = -800 #N
@@ -734,7 +734,7 @@ class Test_Simu(unittest.TestCase):
 
             noeuds_en_L = []
             noeuds_en_0 = []
-            for n in simu.mesh.noeuds:
+            for n in mesh.noeuds:
                     n = cast(Noeud, n)        
                     if n.coordo[0] == L:
                             noeuds_en_L.append(n)

@@ -99,7 +99,7 @@ simu.Assemblage(epaisseur=1)
 noeuds_B = []
 noeuds_H = []
 noeuds_F = []
-for n in simu.mesh.noeuds:
+for n in simu.__mesh.noeuds:
         n = cast(Noeud, n)                
         if n.y == 0:
                 noeuds_B.append(n.id)
@@ -112,7 +112,7 @@ for n in simu.mesh.noeuds:
 
 # Calcul H
 
-Nn = simu.mesh.get_Nn()
+Nn = simu.__mesh.get_Nn()
 
 d = np.zeros((Nn, 1))
 
