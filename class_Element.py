@@ -462,9 +462,9 @@ class Element:
         for noeud in self.noeuds:
             noeud = cast(Noeud, noeud)
             
-            vectX.append(noeud.x)
-            vectY.append(noeud.y)
-            vectZ.append(noeud.z)
+            vectX.append(noeud.coordo[0])
+            vectY.append(noeud.coordo[1])
+            vectZ.append(noeud.coordo[2])
         
         vectX = np.array(vectX)
         vectY = np.array(vectY)
@@ -602,9 +602,9 @@ class Test_Element(unittest.TestCase):
     
     def setUp(self):
 
-        n1 = Noeud(0, x=0, y=0, z=0)
-        n2 = Noeud(1, x=1, y=0, z=0)
-        n3 = Noeud(3, x=0, y=1, z=0)
+        n1 = Noeud(0, [0, 0, 0])
+        n2 = Noeud(1, [1, 0, 0])
+        n3 = Noeud(3, [0, 1, 0])
 
         noeuds = [n1, n2, n3]
 

@@ -7,6 +7,7 @@ import numpy as np
 import gmsh
 import os
 import time
+from class_ModelGmsh import ModelGmsh
 
 from class_Noeud import Noeud
 from class_Element import Element
@@ -15,7 +16,7 @@ from class_Materiau import Materiau
 
 class Simu:
     
-    def __init__(self, dim: int, verbosity=False):
+    def __init__(self, dim: int,mesh: Mesh, materiau: Materiau, verbosity=True):
         """Creation d'une simulation
 
         Parameters
@@ -28,94 +29,25 @@ class Simu:
         
         # Vérification des valeurs
         assert dim == 2 or dim == 3, "Dimesion compris entre 2D et 3D"
-        
+        assert isinstance(mesh, Mesh) and mesh.get_dim() == dim, "Doit etre un maillage et doit avoir la meme dimension que dim"
+        assert isinstance(materiau, Materiau) and materiau.get_dim() == dim, "Doit etre un materiau et doit avoir la meme dimension que dim"
+
+
         self.dim = dim
       
         self.verbosity = verbosity
         
-        self.mesh = None
+        self.mesh = mesh
         
-        self.materiau = None
+        self.materiau = materiau
         
         self.resultats = {}
-        
-    def CreationMateriau(self, E=210000.0, v=0.3, ro=8100, isotrope=True, contraintesPlanes=True):
-        """Creer un materiau
-
-        Parameters
-        ----------
-        E : float, optional
-            Module d'elasticité du matériau en MPa (> 0), by default 210 000.0
-        v : float, optional
-            Coef de poisson ]-1;0.5], by default 0.3
-        ro : int, optional
-            Masse volumique en kg.m^-3, by default 8100
-        isotrope : bool, optional
-            Matériau isotrope, by default True
-        contraintesPlanes : bool, optional
-            Contraintes planes si dim = 2 et True, by default True
-        """
-        
-        # Vérification des valeurs
-        assert E > 0.0, "Le module élastique doit être > 0 !"
-        
-        poisson = "Le coef de poisson doit être compris entre ]-1;0.5]"
-        assert v > -1.0, poisson
-        assert v <= 0.5, poisson
-
-        assert ro > 0 , "Doit être supérieur à 0"
-        
-        self.materiau = Materiau(self.dim, E, v, ro, isotrope, contraintesPlanes)
     
-    def ConstructionMaillageGMSH(self, mesh :gmsh.model.mesh):
-        """Construit le maillage provenant de gmsh et le charge dans la simulation
-
-        Parameters
-        ----------
-        mesh : gmsh.model.mesh
-            Maillage construit par gmsh
-        affichageMaillage : bool, optional
-            Affichage après la construction du maillage, by default False
-        """       
-        
-        assert self.materiau != None, "Le matériau doit être crée avant de construire le maillage"
-        
-        START = time.time()
-        
-        # Récupère la liste d'élément correspondant a la bonne dimension
-        types, elements, nodeTags = mesh.getElements(dim=self.dim)        
-
-        # Construit la matrice connection
-        Ne = len(elements[0])
-        connection = []
-        
-        e = 0
-        while e < Ne:
-            type, noeuds = mesh.getElement(elements[0][e])
-            noeuds = list(noeuds - 1)            
-            connection.append(noeuds)
-            e += 1        
-
-        # Construit la matrice coordonée
-        noeuds, coord, parametricCoord = mesh.getNodes()
-        Nn = noeuds.shape[0]
-        coordo = []
-        
-        n = 0
-        while n < Nn:            
-            coord, parametricCoord = mesh.getNode(noeuds[n])            
-            coordo.append(coord)
-            n += 1        
-        
-        # Charge le maillage
-        self.mesh = Mesh(np.array(coordo), connection, self.dim, self.materiau.C)
-        
-        END = START - time.time()
-        if self.verbosity:
-            print("\nImportation du maillage gmsh ({:.3f} s)".format(np.abs(END)))  
-
     def Assemblage(self, epaisseur=0):
         """Construit Kglobal
+
+        mettre en option u ou d ?
+
         """
 
         START = time.time()
@@ -171,6 +103,14 @@ class Simu:
         END = START - time.time()
         if self.verbosity:
             print("\nAssemblage ({:.3f} s)".format(np.abs(END)))
+
+
+    def ConstruitH(self, d, u):
+        # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
+
+        pass
+
+
 
     def ConditionEnForce(self, noeuds=[], direction="", force=0):
         START = time.time()
@@ -538,7 +478,7 @@ class Simu:
         # ou de coordonnées si elle n'ont pas deja ete faite
         if len(self.mesh.connectionPourAffichage) == 0:
             self.__ConstruitConnectPourAffichage()
-        if len(self.mesh.new_coordo) == 0:
+        if len(self.mesh.new_coordo) == 0 and deformation:
             self.__ConstruitNouvelleCoordo()
         
         # ETUDE 2D
@@ -665,10 +605,9 @@ class Simu:
         
         self.mesh.connectionPourAffichage = new_connection
     
-    def __ConstruitNouvelleCoordo(self):
+    def __ConstruitNouvelleCoordo(self, facteurDef=2):
         # Calcul des nouvelles coordonnées
-        nouvelleCoordo = []
-        facteurDef = 1.5
+        nouvelleCoordo = []        
         x = self.resultats["dx"]*facteurDef
         y = self.resultats["dy"]*facteurDef
         if self.dim == 2:
@@ -714,84 +653,117 @@ class Simu:
 import unittest
 import os
 
-class Test_Simu2D(unittest.TestCase):
+class Test_Simu(unittest.TestCase):
     
-    def setUp(self):        
-        self.simu = Simu(2)
-        self.simu.CreationMateriau()
-
-    def test_BienCree(self):
-        self.assertIsInstance(self.simu, Simu)    
-        # self.assertEqual(self.simu.E, 10)
-        # self.assertEqual(self.simu.v, 0.2)
-
-    def test_Construction_Maillage_GMSH(self): 
+    def CreationDesSimusElastique2D(self):
         
+        dim = 2
+
         # Paramètres géométrie
         L = 120;  #mm
         h = 13;    
-        b = 13; 
+        b = 13
 
-        P = -800   
+        # Charge a appliquer
+        P = -800 #N
 
         # Paramètres maillage
-        taille = L/2
-        nPe = 3
-        maillageOrganisé = True
+        taille = L
 
-        # GMSH        
+        materiau = Materiau(dim)
 
-        gmsh.initialize()
-        gmsh.model.add("model")
+        self.simulations2DElastique = []
 
-        # Créer les points
-        p1 = gmsh.model.geo.addPoint(0, 0, 0, taille)
-        p2 = gmsh.model.geo.addPoint(L, 0, 0, taille)
-        p3 = gmsh.model.geo.addPoint(L, h, 0, taille)
-        p4 = gmsh.model.geo.addPoint(0, h, 0, taille)
+        # Pour chaque type d'element 2D
+        for type in ModelGmsh.get_typesMaillage2D():
+            # Construction du modele et du maillage 
+            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, verbosity=False)
 
-        # Créer les lignes reliants les points
-        l1 = gmsh.model.geo.addLine(p1, p2)
-        l2 = gmsh.model.geo.addLine(p2, p3)
-        l3 = gmsh.model.geo.addLine(p3, p4)
-        l4 = gmsh.model.geo.addLine(p4, p1)
+            (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
+            mesh = Mesh(dim, coordo, connect)
 
-        # Créer une boucle fermée reliant les lignes     
-        cl = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
+            simu = Simu(dim, mesh, materiau, verbosity=False)
 
-        # Créer une surface
-        pl = gmsh.model.geo.addPlaneSurface([cl])
+            simu.Assemblage(epaisseur=b)
 
-        # Impose que le maillage soit organisé
-        if maillageOrganisé:
-                gmsh.model.geo.mesh.setTransfiniteSurface(pl)
+            noeud_en_L = []
+            noeud_en_0 = []
+            for n in simu.mesh.noeuds:            
+                    n = cast(Noeud, n)
+                    if n.coordo[0] == L:
+                            noeud_en_L.append(n)
+                    if n.coordo[0] == 0:
+                            noeud_en_0.append(n)
 
-        gmsh.model.geo.synchronize()
+            simu.ConditionEnForce(noeuds=noeud_en_L, force=P, direction="Y")
 
-        if nPe in [4, 8]:
-                gmsh.model.mesh.setRecombine(2, pl)      
+            simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="X")
+            simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="Y")
+
+            self.simulations2DElastique.append(simu)
+
+    def CreationDesSimusElastique3D(self):
+
+        fichier = "part.stp"
+
+        dim = 3
+
+        # Paramètres géométrie
+        L = 120;  #mm
+        h = 13;    
+        b = 13
+
+        P = -800 #N
+
+        # Paramètres maillage        
+        taille = L
+
+        materiau = Materiau(dim)
         
-        gmsh.option.setNumber('General.Verbosity', 0)
-        gmsh.model.mesh.generate(2)
-       
-        self.simu.ConstructionMaillageGMSH(gmsh.model.mesh)
+        self.simulations3DElastique = []
 
-        gmsh.finalize()
+        for type in ModelGmsh.get_typesMaillage3D():
+            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
 
-        self.simu.Assemblage(epaisseur=b)
+            (coordo, connect) = modelGmsh.Importation3D(fichier)
+            mesh = Mesh(dim, coordo, connect)
 
-        noeud_en_L = []
-        noeud_en_0 = []
-        for n in self.simu.mesh.noeuds:            
-                if n.x == L:
-                        noeud_en_L.append(n)
-                if n.x == 0:
-                        noeud_en_0.append(n)
+            simu = Simu(dim,mesh, materiau, verbosity=False)
 
-        self.simu.ConditionEnForce(noeuds=noeud_en_L, force=P, direction="Y")
+            simu.Assemblage(epaisseur=b)
 
-        self.simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="X")
-        self.simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="Y")
+            noeuds_en_L = []
+            noeuds_en_0 = []
+            for n in simu.mesh.noeuds:
+                    n = cast(Noeud, n)        
+                    if n.coordo[0] == L:
+                            noeuds_en_L.append(n)
+                    if n.coordo[0] == 0:
+                            noeuds_en_0.append(n)
+
+            simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, direction="Z")
+
+            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="X")
+            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Y")
+            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Z")
+
+            self.simulations3DElastique.append(simu)
+    
+    def setUp(self):
+        self.CreationDesSimusElastique2D()
+        self.CreationDesSimusElastique3D()  
+
+    def test_ResolutionDesSimulationsElastique2D(self):
+        # Pour chaque type de maillage on simule
+        for simu in self.simulations2DElastique:
+            simu = cast(Simu, simu)
+            simu.Solve()
+
+    def test_ResolutionDesSimulationsElastique3D(self):
+        # Pour chaque type de maillage on simule
+        for simu in self.simulations3DElastique:
+            simu = cast(Simu, simu)
+            simu.Solve()
 
 
 if __name__ == '__main__':        

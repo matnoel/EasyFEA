@@ -2,7 +2,10 @@ import numpy as np
 
 class Materiau:
     
-    def __init__(self, dim: int, E: float, v: float, ro: float, isotrope: bool, contraintesPlanes: bool):
+    def get_dim(self):
+        return self.__dim
+
+    def __init__(self, dim: int, E=210000.0, v=0.3, ro=8100, isotrope=True, contraintesPlanes=True):
         """Creer un materiau
 
         Parameters
@@ -21,7 +24,19 @@ class Materiau:
             Contraintes planes si dim = 2 et True, by default True
         """
         
+        # Vérification des valeurs
+        assert E > 0.0, "Le module élastique doit être > 0 !"
+        
+        poisson = "Le coef de poisson doit être compris entre ]-1;0.5]"
+        assert v > -1.0, poisson
+        assert v <= 0.5, poisson
+
+        assert ro > 0 , "Doit être supérieur à 0"
+
+
         # Initialisation des variables de la classe
+
+        self.__dim = dim
 
         self.E = E
         self.v = v
