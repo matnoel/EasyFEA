@@ -1,13 +1,21 @@
 import os
 import sys
-import gmsh
+from typing import cast
+from class_Noeud import Noeud
+
 from class_Simu import Simu
+from class_Materiau import Materiau
+from class_ModelGmsh import ModelGmsh
+from class_Mesh import Mesh
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 os.system("cls")    #nettoie terminal
 
 # Data --------------------------------------------------------------------------------------------
+
+dim = 3
 
 affichageGMSH = False
 
@@ -24,70 +32,34 @@ b = 13
 P = -800 #N
 
 # Paramètres maillage
-taille = h/5
+type = "TETRA4"
+taille = L
 
+materiau = Materiau(dim)
 
-# Construction GMSH --------------------------------------------------------------------------------
+# Construction du modele et du maillage --------------------------------------------------------------------------------
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
 
-print("==========================================================")
-print("Gmsh : \n")
+fichier = "part.stp"
 
-print("Elements {} \n".format(type))
-
-gmsh.initialize()
-gmsh.option.setNumber('General.Verbosity', 0)
-gmsh.model.add("model")
-
-gmsh.model.occ.importShapes('part.stp')
-gmsh.model.occ.synchronize()
-
-gmsh.option.setNumber("Mesh.MeshSizeMin", taille)
-gmsh.option.setNumber("Mesh.MeshSizeMax", taille)
-gmsh.model.mesh.generate(3)
-
-# if maillageOrganisé:
-#         gmsh.model.geo.mesh.setTransfiniteSurface(pl)
-
-# gmsh.model.geo.synchronize()
-
-# if type in ["Q4","Q8"]:
-#         gmsh.model.mesh.setRecombine(3, v)
-
-# gmsh.model.mesh.generate(2) 
-
-# if type in ["Q8"]:
-#         gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
-
-# if type in ["T3","Q4"]:
-#         gmsh.model.mesh.set_order(1)
-# elif type in ["T6","Q8"]:
-#         gmsh.model.mesh.set_order(2)
-
-
-
-if '-nopopup' not in sys.argv and affichageGMSH:
-    gmsh.fltk.run()
+(coordo, connect) = modelGmsh.Importation3D(fichier)
+mesh = Mesh(dim, coordo, connect)
 
 # ------------------------------------------------------------------------------------------------------
 print("==========================================================")
 print("Traitement :")
 
-simu = Simu(3, verbosity=True)
-
-simu.CreationMateriau()
-
-simu.ConstructionMaillageGMSH(gmsh.model.mesh)
-gmsh.finalize()
-
+simu = Simu(dim,mesh, materiau, verbosity=True)
 
 simu.Assemblage(epaisseur=b)
 
 noeuds_en_L = []
 noeuds_en_0 = []
-for n in simu.mesh.noeuds:        
-        if n.x == L:
+for n in simu.mesh.noeuds:
+        n = cast(Noeud, n)        
+        if n.coordo[0] == L:
                 noeuds_en_L.append(n)
-        if n.x == 0:
+        if n.coordo[0] == 0:
                 noeuds_en_0.append(n)
 
 simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, direction="Z")
