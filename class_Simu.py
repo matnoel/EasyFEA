@@ -1,10 +1,8 @@
 from typing import cast
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import *
+
 import scipy.sparse as sp
 from scipy.sparse.linalg import inv
 import numpy as np
-import gmsh
 import os
 import time
 from class_ModelGmsh import ModelGmsh
@@ -179,6 +177,7 @@ class Simu:
         dx = []
         dy = []
         dz = []
+
         for n in self.__mesh.noeuds:
             n = cast(Noeud, n)
             
@@ -195,16 +194,194 @@ class Simu:
         dy  = np.array(dy)
         dz  = np.array(dz)
         
-        self.resultats["dx"] = dx
-        self.resultats["dy"] = dy        
+        self.resultats["dx_n"] = dx
+        self.resultats["dy_n"] = dy        
         if self.__dim == 3:
-            self.resultats["dz"] = dz
+            self.resultats["dz_n"] = dz
+
+        # Construit nouvelle coordo
+        deplacementCoordo = []
+        if self.__dim == 2:
+            deplacementCoordo = np.array([dx, dy, np.zeros(self.__mesh.Nn)]).T
+        elif self.__dim == 3:
+            deplacementCoordo = np.array([dx, dy, dz]).T
         
+        self.resultats["deplacementCoordo"] = deplacementCoordo
+        
+        self.__ExtrapolationAuxElements(deplacementCoordo)
+
         self.__ExtrapolationAuxNoeuds(dx, dy, dz)        
         
         END = START - time.time()
         if self.__verbosity:
             print("\nRésolution ({:.3f} s)".format(np.abs(END)))
+
+    
+    def __ExtrapolationAuxElements(self, deplacementCoordo: np.ndarray):
+        
+        # Vecteurs pour chaque element
+        list_dx_e = []
+        list_dy_e = []
+        list_dz_e = []
+        
+        list_Exx_e = []
+        list_Eyy_e = []
+        list_Ezz_e = []
+        list_Exy_e = []
+        list_Eyz_e = []
+        list_Exz_e = []
+        
+        list_Sxx_e = []
+        list_Syy_e = []
+        list_Szz_e = []
+        list_Sxy_e = []
+        list_Syz_e = []
+        list_Sxz_e = []
+
+        list_Svm_e = []
+        
+        # Pour chaque element on va caluler ces valeurs en déplacement deformation et contraintes
+        for e in self.__mesh.elements:
+            e = cast(Element, e)
+
+            dx_n = []
+            dy_n = []
+            dz_n = []
+            
+            Exx_n = []
+            Eyy_n = []
+            Ezz_n = []
+            Exy_n = []
+            Eyz_n = []
+            Exz_n = []
+            
+            Sxx_n = []
+            Syy_n = []
+            Szz_n = []
+            Sxy_n = []
+            Syz_n = []
+            Sxz_n = []
+            
+            Svm_n = []
+
+            # Construit ue
+            ue = []
+            for n in e.noeuds:
+                n = cast(Noeud, n)
+                id = n.id
+                
+                # Pour chaque noeud on récupère dx, dy, dz
+                dx = deplacementCoordo[id,0]
+                dy = deplacementCoordo[id,1]
+                dz = deplacementCoordo[id,2]
+                
+                # On ajoute dans les listes
+                ue.append(dx), dx_n.append(dx)
+                ue.append(dy), dy_n.append(dy)
+                
+                if self.__dim == 3:                    
+                    ue.append(dz), dz_n.append(dz)
+
+            
+
+            ue = np.array(ue)
+
+            # Pour chaques matrice Be aux Noeuds de l'element on va calculer deformation puis contraintes
+
+            for B in e.listBeAuNoeuds:
+                vect_Epsilon = B.dot(ue)
+                vect_Sigma = self.__materiau.C.dot(vect_Epsilon)
+                
+                if self.__dim == 2:                
+                    Exx_n.append(vect_Epsilon[0])
+                    Eyy_n.append(vect_Epsilon[1])
+                    Exy_n.append(vect_Epsilon[2])
+                    
+                    Sxx = vect_Sigma[0]
+                    Syy = vect_Sigma[1]
+                    Sxy = vect_Sigma[2]                    
+                    
+                    Sxx_n.append(Sxx)
+                    Syy_n.append(Syy)
+                    Sxy_n.append(Sxy)
+                    Svm_n.append(np.sqrt(Sxx**2+Syy**2-Sxx*Syy+3*Sxy**2))
+                    
+                elif self.__dim == 3:
+                    Exx_n.append(vect_Epsilon[0]) 
+                    Eyy_n.append(vect_Epsilon[1])
+                    Ezz_n.append(vect_Epsilon[2])                    
+                    Exy_n.append(vect_Epsilon[3])
+                    Eyz_n.append(vect_Epsilon[4])
+                    Exz_n.append(vect_Epsilon[5])
+                    
+                    Sxx = vect_Sigma[0]
+                    Syy = vect_Sigma[1]
+                    Szz = vect_Sigma[2]                    
+                    Sxy = vect_Sigma[3]
+                    Syz = vect_Sigma[4]
+                    Sxz = vect_Sigma[5]
+                    
+                    Sxx_n.append(Sxx)
+                    Syy_n.append(Syy)
+                    Szz_n.append(Szz)
+                    
+                    Sxy_n.append(Sxy)
+                    Syz_n.append(Syz)
+                    Sxz_n.append(Sxz)
+                    
+                    Svm = np.sqrt(((Sxx-Syy)**2+(Syy-Szz)**2+(Szz-Sxx)**2+6*(Sxy**2+Syz**2+Sxz**2))/2)
+                    
+                    Svm_n.append(Svm)
+            
+
+            # Récupère la moyenne des résultats aux noeuds
+            list_dx_e.append(np.mean(dx_n))
+            list_dy_e.append(np.mean(dy_n))
+
+            list_Exx_e.append(np.mean(Exx_n))
+            list_Eyy_e.append(np.mean(Eyy_n))
+            list_Exy_e.append(np.mean(Exy_n))
+
+            list_Sxx_e.append(np.mean(Sxx_n))
+            list_Syy_e.append(np.mean(Syy_n))
+            list_Sxy_e.append(np.mean(Sxy_n))
+
+            list_Svm_e.append(np.mean(Svm_n))
+
+            if self.__dim == 3:
+                list_dz_e.append(np.mean(dz_n))
+
+                list_Ezz_e.append(np.mean(Ezz_n))
+                list_Eyz_e.append(np.mean(Eyz_n))
+                list_Exz_e.append(np.mean(Exz_n))
+
+                list_Szz_e.append(np.mean(Szz_n))
+                list_Syz_e.append(np.mean(Syz_n))
+                list_Sxz_e.append(np.mean(Sxz_n))
+
+        self.resultats["dx_e"] = list_dx_e
+        self.resultats["dy_e"] = list_dy_e
+
+        self.resultats["Exx_e"] = list_Exx_e
+        self.resultats["Eyy_e"] = list_Eyy_e
+        self.resultats["Exy_e"] = list_Exy_e
+
+        self.resultats["Sxx_e"] = list_Sxx_e
+        self.resultats["Syy_e"] = list_Syy_e
+        self.resultats["Sxy_e"] = list_Sxy_e
+
+        self.resultats["Svm_e"] = list_Svm_e
+        
+        if self.__dim == 3: 
+            self.resultats["dz_e"] = list_dz_e
+
+            self.resultats["Ezz_e"] = list_Ezz_e
+            self.resultats["Eyz_e"] = list_Eyz_e
+            self.resultats["Exz_e"] = list_Exz_e
+            
+            self.resultats["Szz_e"] = list_Szz_e
+            self.resultats["Syz_e"] = list_Syz_e
+            self.resultats["Sxz_e"] = list_Sxz_e
 
     def __ExtrapolationAuxNoeuds(self, dx, dy, dz, option = 'mean'):
         # Extrapolation des valeurs aux noeuds  
@@ -225,7 +402,7 @@ class Simu:
         
         Svm_n = []
         
-        for noeud in self.__mesh.noeuds:            
+        for noeud in self.__mesh.noeuds:
             noeud = cast(Noeud, noeud)
             
             list_Exx = []
@@ -250,7 +427,7 @@ class Simu:
             for element in noeud.elements:
                 element = cast(Element, element)
                             
-                listIdNoeuds = list(self.__mesh.connection[element.id])
+                listIdNoeuds = list(self.__mesh.connect[element.id])
                 index = listIdNoeuds.index(noeud.id)
                 BeDuNoeud = element.listBeAuNoeuds[index]
                 
@@ -351,300 +528,24 @@ class Simu:
                 Sxz_n.append(TrieValeurs(list_Sxz, option))
             
         
-        self.resultats["Exx"] = Exx_n
-        self.resultats["Eyy"] = Eyy_n
-        self.resultats["Exy"] = Exy_n
-        self.resultats["Sxx"] = Sxx_n
-        self.resultats["Syy"] = Syy_n
-        self.resultats["Sxy"] = Sxy_n      
-        self.resultats["Svm"] = Svm_n
+        self.resultats["Exx_n"] = Exx_n
+        self.resultats["Eyy_n"] = Eyy_n
+        self.resultats["Exy_n"] = Exy_n
+        self.resultats["Sxx_n"] = Sxx_n
+        self.resultats["Syy_n"] = Syy_n
+        self.resultats["Sxy_n"] = Sxy_n      
+        self.resultats["Svm_n"] = Svm_n
         
         if self.__dim == 3:            
-            self.resultats["Ezz"] = Ezz_n
-            self.resultats["Eyz"] = Eyz_n
-            self.resultats["Exz"] = Exz_n
+            self.resultats["Ezz_n"] = Ezz_n
+            self.resultats["Eyz_n"] = Eyz_n
+            self.resultats["Exz_n"] = Exz_n
             
-            self.resultats["Szz"] = Szz_n
-            self.resultats["Syz"] = Syz_n
-            self.resultats["Sxz"] = Sxz_n
+            self.resultats["Szz_n"] = Szz_n
+            self.resultats["Syz_n"] = Syz_n
+            self.resultats["Sxz_n"] = Sxz_n
     
-    def PlotResult(self, resultat="", deformation=False, affichageMaillage=False):
-        """Affiche le resultat de la simulation 
-
-        Parameters
-        ----------
-        resultat : str, optional 
-            dx, dy, dz \n
-            Exx, Eyy, Ezz, Exy, Exz, Eyz \n
-            Sxx, Syy, Szz, Sxy, Sxz, Syz \n
-            Svm\n
-            by default ""
-        deformation : bool, optional
-            Affichage de la deformation, by default False
-        affichageMaillage : bool, optional
-            Affichage du maillage, by default False        
-        """
-        
-        # Construit la nouvelle matrice de connection 
-        # ou de coordonnées si elle n'ont pas deja ete faite
-        if len(self.__mesh.connectionPourAffichage) == 0:
-            self.__ConstruitConnectPourAffichage()        
-        if len(self.__mesh.new_coordo) == 0:
-            self.__ConstruitNouvelleCoordo()
-        
-        # Va chercher les valeurs
-        
-        valeurs = self.resultats[resultat]
-        
-        if self.__dim == 2:
-            
-            fig, ax = plt.subplots()
-            
-            # Trace le maillage
-            if affichageMaillage:
-                ax = self.__PlotMesh2D(ax, deformation, False)
-            
-            coordo = []
-            
-            if deformation:
-                coordo = self.__mesh.new_coordo
-            else:
-                coordo = self.__mesh.coordo
-                
-            pc = ax.tricontourf(coordo[:,0], coordo[:,1], self.__mesh.connectionPourAffichage, valeurs,
-                                cmap='jet', antialiased=True)
-            
-            fig.colorbar(pc, ax=ax)
-            ax.axis('equal')
-            ax.set_xlabel('x [mm]')
-            ax.set_ylabel('y [mm]')
-            
-        
-        elif self.__dim == 3:
-            fig = plt.figure()            
-            ax = fig.add_subplot(projection="3d")
-            
-            valeursAuFaces = []
-            
-            for face in self.__mesh.connectionPourAffichage:
-                somme = 0
-                i = 1
-                for id in face:
-                    somme += valeurs[id]
-                    i += 1
-                valeursAuFaces.append(somme/i)
-            
-            valeursAuFaces = np.array(valeursAuFaces)
-            
-            # norm = colors.BoundaryNorm(boundaries=valeursAuFaces, ncolors=256)                        
-
-            norm = plt.Normalize(valeursAuFaces.min(), valeursAuFaces.max())
-            colors = plt.cm.jet(norm(valeursAuFaces))
-            
-            if affichageMaillage:            
-                pc = Poly3DCollection(self.__mesh.new_coordo[self.__mesh.connectionPourAffichage],
-                                    alpha=1,
-                                    cmap='jet',
-                                    facecolors=colors,
-                                    lw=0.5,
-                                    edgecolor='black')
-            else:
-                pc = Poly3DCollection(self.__mesh.new_coordo[self.__mesh.connectionPourAffichage],
-                                    alpha=1,
-                                    cmap='jet',
-                                    facecolors=colors,
-                                    lw=0.5)
-            
-            fig.colorbar(pc, ax=ax)       
-            ax.add_collection(pc)            
-            ax.set_xlabel("x [mm]")
-            ax.set_ylabel("y [mm]")
-            ax.set_zlabel("y [mm]")            
-            
-            self.__ChangeEchelle(ax)
-            
-        unite = ""
-        if "S" in resultat:
-            unite = " en Mpa"
-        if "d" in resultat:
-            unite = " en mm"
-        ax.set_title(resultat+unite)
     
-    def PlotMesh(self, deformation=False):
-        """Dessine le maillage de la simulation
-        """
-        
-        # Construit la nouvelle matrice de connection 
-        # ou de coordonnées si elle n'ont pas deja ete faite
-        if len(self.__mesh.connectionPourAffichage) == 0:
-            self.__ConstruitConnectPourAffichage()
-        if len(self.__mesh.new_coordo) == 0 and deformation:
-            self.__ConstruitNouvelleCoordo()
-        
-        # ETUDE 2D
-        if self.__dim == 2:
-            
-            fig, ax = plt.subplots()
-            
-            ax = self.__PlotMesh2D(ax, deformation, True)      
-            ax.axis('equal')
-            ax.set_xlabel("x [mm]")
-            ax.set_ylabel("y [mm]")
-            ax.set_title("Ne = {} et Nn = {}".format(self.__mesh.Ne, self.__mesh.Nn))
-        # ETUDE 3D    
-        if self.__dim == 3:
-            
-            fig = plt.figure()            
-            ax = fig.add_subplot(projection="3d")
-            
-            pc = Poly3DCollection(self.__mesh.new_coordo[self.__mesh.connectionPourAffichage],
-                                  alpha=1,
-                                  facecolors='c',
-                                  lw=0.5,
-                                  edgecolor='black')            
-            ax.add_collection(pc)
-            
-            ax.set_xlabel("x [mm]")
-            ax.set_ylabel("y [mm]")
-            ax.set_zlabel("y [mm]")
-            ax.set_title("Ne = {} et Nn = {}".format(self.__mesh.Ne, self.__mesh.Nn))
-            
-            self.__ChangeEchelle(ax)
-
-    def __PlotMesh2D(self,
-                        ax: plt.Axes,
-                        deformation: bool,
-                        fill: bool):
-                
-        for element in self.__mesh.elements:
-            element = cast(Element, element)
-            numérosNoeudsTriés = list(element.RenvoieLesNumsDeNoeudsTriés())
-            
-            if deformation:                
-                x = self.__mesh.new_coordo[numérosNoeudsTriés,0]
-                y = self.__mesh.new_coordo[numérosNoeudsTriés,1]                    
-            else:
-                x = self.__mesh.coordo[numérosNoeudsTriés,0]
-                y = self.__mesh.coordo[numérosNoeudsTriés,1]
-            
-            ax.fill(x, y, 'c', edgecolor='black', fill=fill, lw=0.5)
-        
-        return ax
-    
-    def __ConstruitConnectPourAffichage(self):
-        """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D
-        ou construit les faces pour la 3D
-        Par exemple pour un quadrangle on construit deux triangles
-        pour un triangle à 6 noeuds on construit 4 triangles
-        POur la 3D on construit des faces pour passer en Poly3DCollection
-        """
-        
-        connection = self.__mesh.connection
-        new_connection = []
-        
-        for listIdNoeuds in connection:
-            npe = len(listIdNoeuds)
-            
-            if self.__dim == 2:            
-                # Tri3
-                if npe == 3:
-                    new_connection = connection
-                    break            
-                # Tri6
-                elif npe == 6:
-                    n1 = listIdNoeuds[0]
-                    n2 = listIdNoeuds[1]
-                    n3 = listIdNoeuds[2]
-                    n4 = listIdNoeuds[3]
-                    n5 = listIdNoeuds[4]
-                    n6 = listIdNoeuds[5]
-
-                    new_connection.append([n1, n4, n6])
-                    new_connection.append([n4, n2, n5])
-                    new_connection.append([n6, n5, n3])
-                    new_connection.append([n4, n5, n6])                    
-                # Quad4
-                elif npe == 4:
-                    n1 = listIdNoeuds[0]
-                    n2 = listIdNoeuds[1]
-                    n3 = listIdNoeuds[2]
-                    n4 = listIdNoeuds[3]                
-
-                    new_connection.append([n1, n2, n4])
-                    new_connection.append([n2, n3, n4])                    
-                # Quad8
-                elif npe == 8:
-                    n1 = listIdNoeuds[0]
-                    n2 = listIdNoeuds[1]
-                    n3 = listIdNoeuds[2]
-                    n4 = listIdNoeuds[3]
-                    n5 = listIdNoeuds[4]
-                    n6 = listIdNoeuds[5]
-                    n7 = listIdNoeuds[6]
-                    n8 = listIdNoeuds[7]
-
-                    new_connection.append([n5, n6, n8])
-                    new_connection.append([n6, n7, n8])
-                    new_connection.append([n1, n5, n8])
-                    new_connection.append([n5, n2, n6])
-                    new_connection.append([n6, n3, n7])
-                    new_connection.append([n7, n4, n8])                    
-                
-            elif self.__dim ==3:
-                # Tetra4
-                if npe == 4:
-                    n1 = listIdNoeuds[0]
-                    n2 = listIdNoeuds[1]
-                    n3 = listIdNoeuds[2]
-                    n4 = listIdNoeuds[3]
-                                    
-                    new_connection.append([n1 ,n2, n3])
-                    new_connection.append([n1, n2, n4])
-                    new_connection.append([n1, n3, n4])
-                    new_connection.append([n2, n3, n4])
-        
-        self.__mesh.connectionPourAffichage = new_connection
-    
-    def __ConstruitNouvelleCoordo(self, facteurDef=2):
-        # Calcul des nouvelles coordonnées
-        nouvelleCoordo = []        
-        x = self.resultats["dx"]*facteurDef
-        y = self.resultats["dy"]*facteurDef
-        if self.__dim == 2:
-            z = np.zeros(len(x))
-        elif self.__dim == 3:
-            z = self.resultats["dz"]*facteurDef
-            
-        dxyz = np.array([x, y, z]).T
-
-        nouvelleCoordo = self.__mesh.coordo + dxyz
-        
-        self.__mesh.new_coordo = nouvelleCoordo
-       
-    def __ChangeEchelle(self, ax):
-        """Change la taille des axes pour l'affichage 3D
-
-        Parameters
-        ----------
-        ax : plt.Axes
-            Axes dans lequel on va creer la figure
-        """
-        # Change la taille des axes
-        xmin = np.min(self.__mesh.new_coordo[:,0]); xmax = np.max(self.__mesh.new_coordo[:,0])
-        ymin = np.min(self.__mesh.new_coordo[:,1]); ymax = np.max(self.__mesh.new_coordo[:,1])
-        zmin = np.min(self.__mesh.new_coordo[:,2]); zmax = np.max(self.__mesh.new_coordo[:,2])
-        
-        max = np.max(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
-        
-        ax.set_xlim3d(xmin, xmax)
-        ax.set_ylim3d(ymin, ymax)
-        ax.set_zlim3d(zmin, zmax)
-        
-        factX = np.max(np.abs([xmin, xmax]))/max
-        factY = np.max(np.abs([ymin, ymax]))/max
-        factZ = np.max(np.abs([zmin, zmax]))/max
-        
-        ax.set_box_aspect((factX, factY, factZ))
                 
     
          

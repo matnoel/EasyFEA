@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import cast
+from Affichage import Affichage
 from class_Noeud import Noeud
 
 from class_Simu import Simu
@@ -17,12 +18,7 @@ os.system("cls")    #nettoie terminal
 
 dim = 3
 
-affichageGMSH = False
-
 plotResult = True
-
-type = "T4"
-maillageOrganisé = False
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -33,7 +29,7 @@ P = -800 #N
 
 # Paramètres maillage
 type = "TETRA4"
-taille = L
+taille = h
 
 materiau = Materiau(dim)
 
@@ -76,37 +72,31 @@ print("Résultats :")
 
 print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"]))
 
-print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm"])))
+print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_n"])))
 
-print("\nSxx max = {:.6f} MPa".format(np.max(simu.resultats["Sxx"])))
-print("Syy max = {:.6f} MPa".format(np.max(simu.resultats["Syy"])))
-print("Szz max = {:.6f} MPa".format(np.max(simu.resultats["Szz"])))
-print("Sxy max = {:.6f} MPa".format(np.max(simu.resultats["Sxy"])))
-print("Syz max = {:.6f} MPa".format(np.max(simu.resultats["Syz"])))
-print("Sxz max = {:.6f} MPa".format(np.max(simu.resultats["Sxz"])))
+print("\nSxx max = {:.6f} MPa".format(np.max(simu.resultats["Sxx_n"])))
+print("Syy max = {:.6f} MPa".format(np.max(simu.resultats["Syy_n"])))
+print("Szz max = {:.6f} MPa".format(np.max(simu.resultats["Szz_n"])))
+print("Sxy max = {:.6f} MPa".format(np.max(simu.resultats["Sxy_n"])))
+print("Syz max = {:.6f} MPa".format(np.max(simu.resultats["Syz_n"])))
+print("Sxz max = {:.6f} MPa".format(np.max(simu.resultats["Sxz_n"])))
 
-print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx"])))
-print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx"])))
+print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"])))
+print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"])))
 
-print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy"])))
-print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy"])))
+print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"])))
+print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
 
-print("\nUz max = {:.6f} mm".format(np.max(simu.resultats["dz"])))
-print("Uz min = {:.6f} mm".format(np.min(simu.resultats["dz"])))
+print("\nUz max = {:.6f} mm".format(np.max(simu.resultats["dz_n"])))
+print("Uz min = {:.6f} mm".format(np.min(simu.resultats["dz_n"])))
 
 
 if plotResult:
 
-        simu.PlotMesh(deformation=True)
-        simu.PlotResult(resultat="dx", deformation=True)
-        # simu.PlotResult(resultat="dy")
-        # simu.PlotResult(resultat="dz", affichageMaillage=True)
+        Affichage.PlotMesh(mesh, simu.resultats, deformation=False)
+        Affichage.PlotMesh(mesh, simu.resultats, deformation=True, facteurDef=20)
+        Affichage.PlotResult(mesh, simu.resultats, "Svm_e", deformation=True, affichageMaillage=True)
 
-        # simu.PlotResult(resultat="Sxx")
-        # simu.PlotResult(resultat="Syy")
-        # simu.PlotResult(resultat="Sxy")
-        simu.PlotResult(resultat="Svm", affichageMaillage=True, deformation=True)
-        
         plt.show()
 
 print("\n==========================================================")

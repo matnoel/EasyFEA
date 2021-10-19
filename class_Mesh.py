@@ -21,7 +21,138 @@ class Mesh:
     def get_dim(self):
         return self.__dim
 
+    def get_connectTriangle(self):
+        """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D
+            ou construit les faces pour la 3D
+            Par exemple pour un quadrangle on construit deux triangles
+            pour un triangle à 6 noeuds on construit 4 triangles
+            POur la 3D on construit des faces pour passer en Poly3DCollection
+            """
+
+        if len(self.__connectPourTriangle) == 0:
+            
+            connection = self.connect
+            new_connection = []
+            
+            for listIdNoeuds in self.connect:
+                npe = len(listIdNoeuds)
+                
+                if self.__dim == 2:            
+                    # TRI3
+                    if npe == 3:
+                        self.__connectPourTriangle = connection
+                        break            
+                    # TRI6
+                    elif npe == 6:
+                        n1 = listIdNoeuds[0]
+                        n2 = listIdNoeuds[1]
+                        n3 = listIdNoeuds[2]
+                        n4 = listIdNoeuds[3]
+                        n5 = listIdNoeuds[4]
+                        n6 = listIdNoeuds[5]
+
+                        self.__connectPourTriangle.append([n1, n4, n6])
+                        self.__connectPourTriangle.append([n4, n2, n5])
+                        self.__connectPourTriangle.append([n6, n5, n3])
+                        self.__connectPourTriangle.append([n4, n5, n6])                    
+                    # QUAD4
+                    elif npe == 4:
+                        n1 = listIdNoeuds[0]
+                        n2 = listIdNoeuds[1]
+                        n3 = listIdNoeuds[2]
+                        n4 = listIdNoeuds[3]                
+
+                        self.__connectPourTriangle.append([n1, n2, n4])
+                        self.__connectPourTriangle.append([n2, n3, n4])                    
+                    # QUAD8
+                    elif npe == 8:
+                        n1 = listIdNoeuds[0]
+                        n2 = listIdNoeuds[1]
+                        n3 = listIdNoeuds[2]
+                        n4 = listIdNoeuds[3]
+                        n5 = listIdNoeuds[4]
+                        n6 = listIdNoeuds[5]
+                        n7 = listIdNoeuds[6]
+                        n8 = listIdNoeuds[7]
+
+                        self.__connectPourTriangle.append([n5, n6, n8])
+                        self.__connectPourTriangle.append([n6, n7, n8])
+                        self.__connectPourTriangle.append([n1, n5, n8])
+                        self.__connectPourTriangle.append([n5, n2, n6])
+                        self.__connectPourTriangle.append([n6, n3, n7])
+                        self.__connectPourTriangle.append([n7, n4, n8])                    
+                    
+                elif self.__dim ==3:
+                    pass
+
+        return self.__connectPourTriangle
     
+    def get_connectPolygon(self):
+        """Construit les faces pour chaque element
+
+        Returns
+        -------
+        list de list
+            Renvoie une liste de face
+        """
+        if len(self.__connectPolygon) == 0:            
+            for listIdNoeuds in self.connect:
+                npe = len(listIdNoeuds)
+
+                if self.__dim == 2:
+                    # TRI3
+                    if npe == 3:
+                        n1 = listIdNoeuds[0]
+                        n2 = listIdNoeuds[1]
+                        n3 = listIdNoeuds[2]
+
+                        self.__connectPolygon.append([n1, n2, n3, n1])
+                    # TRI6
+                    elif npe == 6:
+                        n1 = listIdNoeuds[0]
+                        n2 = listIdNoeuds[1]
+                        n3 = listIdNoeuds[2]
+                        n4 = listIdNoeuds[3]
+                        n5 = listIdNoeuds[4]
+                        n6 = listIdNoeuds[5]
+
+                        self.__connectPolygon.append([n1, n4, n2, n5, n3, n6, n1])
+                    # QUAD4
+                    elif npe == 4:
+                        # self.__connectPolygon = self.connect
+                        # break
+                        n1 = listIdNoeuds[0]
+                        n2 = listIdNoeuds[1]
+                        n3 = listIdNoeuds[2]
+                        n4 = listIdNoeuds[3]
+
+                        self.__connectPolygon.append([n1, n2, n3, n4, n1])
+                    # QUAD8
+                    elif npe == 8:
+                        n1 = listIdNoeuds[0]
+                        n2 = listIdNoeuds[1]
+                        n3 = listIdNoeuds[2]
+                        n4 = listIdNoeuds[3]
+                        n5 = listIdNoeuds[4]
+                        n6 = listIdNoeuds[5]
+                        n7 = listIdNoeuds[6]
+                        n8 = listIdNoeuds[7]
+
+                        self.__connectPolygon.append([n1, n5, n2, n6, n3, n7, n4, n8, n1])
+                elif self.__dim == 3:
+                    # TETRA4
+                    if npe == 4:
+                        n1 = listIdNoeuds[0]
+                        n2 = listIdNoeuds[1]
+                        n3 = listIdNoeuds[2]
+                        n4 = listIdNoeuds[3]
+                                        
+                        self.__connectPolygon.append([n1 ,n2, n3])
+                        self.__connectPolygon.append([n1, n2, n4])
+                        self.__connectPolygon.append([n1, n3, n4])
+                        self.__connectPolygon.append([n2, n3, n4])        
+        return self.__connectPolygon
+
     def __init__(self, dim: int, coordo: np.ndarray, connect: list, verbosity=False):
         """Création du maillage depuis coordo et connection
 
@@ -46,10 +177,10 @@ class Mesh:
 
         # self.coordo = np.array(coordo)
         self.coordo = coordo
-        self.connection = connect
+        self.connect = connect
         
-        self.connectionPourAffichage = []
-        self.new_coordo = []
+        self.__connectPourTriangle = []
+        self.__connectPolygon =[]
         
         self.noeuds = []
         self.elements = []

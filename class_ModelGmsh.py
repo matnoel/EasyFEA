@@ -1,10 +1,8 @@
-from typing import cast
 import gmsh
 import sys
 import time
 import numpy as np
 
-from class_Materiau import Materiau
 
 class ModelGmsh:
         
@@ -42,7 +40,7 @@ class ModelGmsh:
                                 
                 type = self.__typeElement
                 if self.__verbosity:
-                        print("Type d'elements: {} \n".format(type))
+                        print("Type d'elements: {}".format(type))
 
                 if type in ModelGmsh.get_typesMaillage2D():
                         # Impose que le maillage soit organisé                        
@@ -185,7 +183,7 @@ class Test_ModelGmsh(unittest.TestCase):
             
             dim = 3
 
-            # Pour chaque type d'element 2D
+            # Pour chaque type d'element 3D
             for type in ModelGmsh.get_typesMaillage3D():
                     modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=120, verbosity=False)
                     modelGmsh.Importation3D("part.stp")

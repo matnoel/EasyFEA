@@ -1,5 +1,6 @@
 import os
 from typing import cast
+from Affichage import Affichage
 from class_Materiau import Materiau
 from class_ModelGmsh import ModelGmsh
 from class_Noeud import Noeud
@@ -25,9 +26,8 @@ b = 13
 P = -800 #N
 
 # Paramètres maillage
-type = "QUAD8"
-taille = h/2
-
+type = ModelGmsh.get_typesMaillage2D()[3]
+taille = h
 materiau = Materiau(dim)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
@@ -67,24 +67,27 @@ print("Post traitement :")
 
 print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
 
-print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm"]))) 
+print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"]))) 
 
-print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx"]))) 
-print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx"]))) 
+print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_e"]))) 
+print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_e"]))) 
 
-print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy"]))) 
-print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy"]))) 
+print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_e"]))) 
+print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_e"]))) 
 
 if plotResult:
+        
+        # Affichage.PlotMesh(mesh, simu.resultats, deformation=False)
+        Affichage.PlotMesh(mesh, simu.resultats, deformation=True)
+        # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=True)
+        # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
+        # Affichage.PlotResult(mesh, simu.resultats, "Svm_n")
+        # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
 
-        simu.PlotMesh()
-        simu.PlotResult(resultat="dx",affichageMaillage=True, deformation=True)
-        # simu.PlotResult(resultat="dy")
-
-        # simu.PlotResult(resultat="Sxx")
-        # simu.PlotResult(resultat="Syy")
-        # simu.PlotResult(resultat="Sxy")
-        simu.PlotResult(resultat="Svm", affichageMaillage=True, deformation=True)
+        Affichage.PlotResult(mesh, simu.resultats, "dy_n")
+        Affichage.PlotResult(mesh, simu.resultats, "dy_e")
+        
+                
         
         plt.show()
 

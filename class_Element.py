@@ -17,7 +17,14 @@ class Element:
         """
         return int(len(self.noeuds))
     nPe = property(get_nPe)
-
+    
+    def get_nbFaces(self):
+        if self.__dim == 2:
+            return 1
+        else:
+            # TETRA4
+            if self.nPe == 4:
+                return 4 
 
     def __init__(self,id: int, noeuds: list, dim: int):
         """Constructeur d'element, on construit Be et le jacobien !
@@ -41,10 +48,10 @@ class Element:
         assert dim in [2,3], "Dimesion compris entre 2D et 3D"
         
         # Création des variables de la classe        
-        self.dim = dim
+        self.__dim = dim
         self.id = id        
         self.noeuds = noeuds
-        self.type = Element.getElementType(self.dim, self.nPe)
+        self.type = Element.getElementType(self.__dim, self.nPe)
         
         # Construit la matrice assembly
         self.assembly = []
@@ -66,16 +73,16 @@ class Element:
         self.__C = C
         
         # Construiction Ke        
-        taille = self.nPe*self.dim        
+        taille = self.nPe*self.__dim        
         self.__Ke = np.zeros((taille, taille))
 
-        if self.dim == 2:        
+        if self.__dim == 2:        
             # Triangle à 3 noeuds ou 6 noeuds Application linéaire
             if self.nPe == 3 or self.nPe == 6:
                 self.__ConstruitKeTriangle()
             elif self.nPe == 4 or self.nPe == 8:
                 self.__ConstruitKeQuadrangle()
-        elif self.dim == 3:
+        elif self.__dim == 3:
             if self.nPe == 4:
                 self.__ConstruitKeTetraedre()
 
@@ -476,9 +483,9 @@ class Element:
         constY = inv_matriceCoef.dot(vectY)
         constZ = inv_matriceCoef.dot(vectZ)
 
-        if self.dim == 2:
+        if self.__dim == 2:
             return constX, constY
-        elif self.dim == 3:
+        elif self.__dim == 3:
             return constX, constY, constZ
 
     def ConstruitBe(self, list_Ntild: list, invF: np.ndarray):  
@@ -506,7 +513,7 @@ class Element:
         # Transpose la matrice F inversé
         invFT = np.array(invF).T
         
-        if self.dim == 2:            
+        if self.__dim == 2:            
             Be = np.zeros((3,len(list_Ntild)*2))      
 
             i = 0
@@ -518,7 +525,7 @@ class Element:
                 Be[1, i+1] = dNdy
                 Be[2, i] = dNdy; Be[2, i+1] = dNdx    
                 i += 2
-        elif self.dim == 3:
+        elif self.__dim == 3:
             Be = np.zeros((6,len(list_Ntild)*3))      
 
             i = 0
