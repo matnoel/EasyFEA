@@ -47,7 +47,7 @@ print("Traitement :")
 
 simu = Simu(dim,mesh, materiau, verbosity=True)
 
-simu.Assemblage(epaisseur=b)
+simu.AssemblageKglobFglob(epaisseur=b)
 
 noeuds_en_L = []
 noeuds_en_0 = []
@@ -58,11 +58,11 @@ for n in mesh.noeuds:
         if n.coordo[0] == 0:
                 noeuds_en_0.append(n)
 
-simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, direction="Z")
+simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, directions=["z"])
 
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="X")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Y")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Z")
+simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="x")
+simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="y")
+simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="z")
 
 simu.Solve()
 

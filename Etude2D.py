@@ -1,11 +1,15 @@
 import os
+import time
+
 from typing import cast
+
 from Affichage import Affichage
 from class_Materiau import Materiau
 from class_ModelGmsh import ModelGmsh
 from class_Noeud import Noeud
 from class_Simu import Simu
 from class_Mesh import Mesh
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -26,14 +30,20 @@ b = 13
 P = -800 #N
 
 # Paramètres maillage
-type = ModelGmsh.get_typesMaillage2D()[3]
-taille = h
+type = ModelGmsh.get_typesMaillage2D()[0]
+taille = h/4
+
+# Materiau
 materiau = Materiau(dim)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
+
+# Récupère les noeuds qui m'interessent
+noeuds_en_L = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == L]
+noeuds_en_0 = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == 0]
 
 # ------------------------------------------------------------------------------------------------------
 
@@ -42,22 +52,12 @@ print("Traitement :")
 
 simu = Simu(dim, mesh, materiau)
 
-simu.Assemblage(epaisseur=b)
+simu.AssemblageKglobFglob(epaisseur=b)
 
-# Récupère la coordonnées des noeuds qui m'interesse
-noeuds_en_L = []
-noeuds_en_0 = []
-for n in mesh.noeuds:
-        n = cast(Noeud, n)        
-        if n.coordo[0] == L:
-                noeuds_en_L.append(n)
-        if n.coordo[0] == 0:
-                noeuds_en_0.append(n)
+simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, directions=["y"])
 
-simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, direction="Y")
-
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="X")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Y")
+simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="x")
+simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="y")
 
 simu.Solve()
 

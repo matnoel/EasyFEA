@@ -1,12 +1,11 @@
-from typing import cast
-
-import scipy.sparse as sp
-from scipy.sparse.linalg import inv
-import numpy as np
 import os
 import time
-from class_ModelGmsh import ModelGmsh
 
+from typing import cast
+
+import numpy as np
+
+from class_ModelGmsh import ModelGmsh
 from class_Noeud import Noeud
 from class_Element import Element
 from class_Mesh import Mesh
@@ -41,66 +40,49 @@ class Simu:
         
         self.resultats = {}
     
-    def Assemblage(self, epaisseur=0):
+    def AssemblageKglobFglob(self, epaisseur=0):
         """Construit Kglobal
 
         mettre en option u ou d ?
 
         """
 
-        START = time.time()
+        start = time.time()
         
         if self.__dim == 2:        
             assert epaisseur>0,"Doit être supérieur à 0"
 
-        taille = self.__mesh.get_Nn()*self.__dim
+        taille = self.__mesh.Nn*self.__dim
 
         self.__Kglob = np.zeros((taille, taille))
         self.__Fglob = np.zeros(taille)
         
         for e in self.__mesh.elements:            
             e = cast(Element, e)
-            
-            Ke = e.ConstruitKe(self.__materiau.C)
-            
-            test = Ke[:,0]
-
-            # Assemble Ke dans Kglob 
             nPe = e.nPe
             vect = e.assembly
-            i = 0
-            while i<nPe*self.__dim:
-                ligne = vect[i] 
-                j=0
-                while j<nPe*self.__dim:
+            Ke = e.ConstruitKe(self.__materiau.C)
+            
+            self.__Kglob[vect, :][:, vect] += epaisseur*Ke
+
+            verif = self.__Kglob[vect, :][:, vect]
+
+            # Assemble Ke dans Kglob 
+            
+            for i in range(nPe*self.__dim):
+                ligne = vect[i]
+                for j in range(nPe*self.__dim):
                     colonne = vect[j]
-                    
                     if self.__dim == 2:
                         self.__Kglob[ligne, colonne] += epaisseur * Ke[i, j]
                     elif self.__dim ==3:
                         self.__Kglob[ligne, colonne] += Ke[i, j]
-                    j += 1                                  
-                i += 1
-           
-            # # todo a essayer
-            # Kglob = np.zeros((taille, taille))            
-            # vect = e.assembly                                
-            # if self.dim == 2:
-            #     K1 = self.__Kglob
-            #     K2 = self.__Kglob[vect,:][:,vect]                 
-            #     # Kglob[vect,:][:,vect] += Kglob[vect,:][:,vect] + epaisseur * Ke[:,:]
-            #     Kglob[vect,vect] += Ke
-            #     pass
-            # elif self.dim == 3:    
-            #     Kglob[vect,:][:,vect] = Kglob[vect,:][:,vect] + Ke
-                
-        
 
-            
-        
-        END = START - time.time()
+        end = start - time.time()
         if self.__verbosity:
-            print("\nAssemblage ({:.3f} s)".format(np.abs(END)))
+            print("\nAssemblage ({:.3f} s)".format(np.abs(end)))
+
+        pass
 
 
     def ConstruitH(self, d, u):
@@ -110,25 +92,30 @@ class Simu:
 
 
 
-    def ConditionEnForce(self, noeuds=[], direction="", force=0):
+    def ConditionEnForce(self, noeuds=[], force=None, directions=[]):
+        
+        assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"
+        assert not force == 0, "Doit être différent de 0"
+        assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
+
         START = time.time()
         
         nbn = len(noeuds)
-        for n in noeuds:
-            n = cast(Noeud, n)
-            
-            if direction == "X":
-                ligne = n.id * self.__dim
-                
-            if direction == "Y":
-                ligne = n.id * self.__dim + 1
-                
-            if direction == "Z":
-                assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant Z"
-                ligne = n.id * self.__dim + 2
-                
-            self.__Fglob[ligne] += force/nbn
-            
+
+        for direction in directions:
+            for n in noeuds:
+                n = cast(Noeud, n)
+
+                if direction == "x":
+                    ligne = n.id * self.__dim
+                if direction == "y":
+                    ligne = n.id * self.__dim + 1
+                if direction == "z":
+                    assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant Z"
+                    ligne = n.id * self.__dim + 2
+                    
+                self.__Fglob[ligne] += force/nbn
+        
         END = START - time.time()
         if self.__verbosity:
             print("\nCondition en force ({:.3f} s)".format(np.abs(END)))
@@ -139,19 +126,19 @@ class Simu:
         for n in noeuds:
             n = cast(Noeud, n)
             
-            if direction == "X":
+            if direction == "x":
                 ligne = n.id * self.__dim
                 
-            if direction == "Y":
+            if direction == "y":
                 ligne = n.id * self.__dim + 1
                 
-            if direction == "Z":
+            if direction == "z":
                 ligne = n.id * self.__dim + 2
             
             self.__Fglob[ligne] = deplacement
             self.__Kglob[ligne,:] = 0.0
             self.__Kglob[ligne, ligne] = 1
-            
+
             
         END = START - time.time()
         if self.__verbosity:
@@ -160,36 +147,37 @@ class Simu:
     def Solve(self):
         START = time.time()
         
-        # Transformatoion en matrice creuse
-        self.__Kglob = sp.csc_matrix(self.__Kglob)
-        self.__Fglob = sp.lil_matrix(self.__Fglob).T
+        # Résolution
+        self.__Uglob = np.linalg.solve(self.__Kglob, self.__Fglob)
         
-        # Résolution 
-        Uglob = inv(self.__Kglob).dot(self.__Fglob)
-        
-        # Récupération des données
-        self.resultats["Wdef"] = 1/2 * Uglob.T.dot(self.__Kglob).dot(Uglob).data[0]
+        END = START - time.time()
+        if self.__verbosity:
+            print("\nRésolution ({:.3f} s)".format(np.abs(END)))
 
-        # Récupère les déplacements
+        self.__CalculDeformationEtContrainte()
 
-        Uglob = Uglob.toarray()
-                
+    def __CalculDeformationEtContrainte(self):
+        dim = self.__dim
+        # Reconstruit Uglob les déplacements        
         dx = []
         dy = []
         dz = []
-
+        
         for n in self.__mesh.noeuds:
             n = cast(Noeud, n)
-            
             idNoeud = n.id 
-            if self.__dim == 2:
-                dx.append(Uglob[idNoeud * 2][0])
-                dy.append(Uglob[idNoeud * 2 + 1][0])
-            elif self.__dim == 3:
-                dx.append(Uglob[idNoeud * 3][0])
-                dy.append(Uglob[idNoeud * 3 + 1][0])
-                dz.append(Uglob[idNoeud * 3 + 2][0])
-                
+
+            if dim == 2:
+                dx.append(self.__Uglob[idNoeud * 2])
+                dy.append(self.__Uglob[idNoeud * 2 + 1])
+            elif dim == 3:
+                dx.append(self.__Uglob[idNoeud * 3])
+                dy.append(self.__Uglob[idNoeud * 3 + 1])
+                dz.append(self.__Uglob[idNoeud * 3 + 2])
+
+        # Energie de deformation
+        self.resultats["Wdef"] = 1/2 * self.__Uglob.T.dot(self.__Kglob).dot(self.__Uglob)
+
         dx  = np.array(dx)
         dy  = np.array(dy)
         dz  = np.array(dz)
@@ -210,12 +198,7 @@ class Simu:
         
         self.__ExtrapolationAuxElements(deplacementCoordo)
 
-        self.__ExtrapolationAuxNoeuds(dx, dy, dz)        
-        
-        END = START - time.time()
-        if self.__verbosity:
-            print("\nRésolution ({:.3f} s)".format(np.abs(END)))
-
+        self.__ExtrapolationAuxNoeuds(dx, dy, dz)
     
     def __ExtrapolationAuxElements(self, deplacementCoordo: np.ndarray):
         
@@ -585,7 +568,7 @@ class Test_Simu(unittest.TestCase):
 
             simu = Simu(dim, mesh, materiau, verbosity=False)
 
-            simu.Assemblage(epaisseur=b)
+            simu.AssemblageKglobFglob(epaisseur=b)
 
             noeud_en_L = []
             noeud_en_0 = []
@@ -596,10 +579,10 @@ class Test_Simu(unittest.TestCase):
                     if n.coordo[0] == 0:
                             noeud_en_0.append(n)
 
-            simu.ConditionEnForce(noeuds=noeud_en_L, force=P, direction="Y")
+            simu.ConditionEnForce(noeuds=noeud_en_L, force=P, directions=["y"])
 
-            simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="X")
-            simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="Y")
+            simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="x")
+            simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="y")
 
             self.simulations2DElastique.append(simu)
 
@@ -631,7 +614,7 @@ class Test_Simu(unittest.TestCase):
 
             simu = Simu(dim,mesh, materiau, verbosity=False)
 
-            simu.Assemblage(epaisseur=b)
+            simu.AssemblageKglobFglob(epaisseur=b)
 
             noeuds_en_L = []
             noeuds_en_0 = []
@@ -642,11 +625,11 @@ class Test_Simu(unittest.TestCase):
                     if n.coordo[0] == 0:
                             noeuds_en_0.append(n)
 
-            simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, direction="Z")
+            simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, directions=["z"])
 
-            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="X")
-            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Y")
-            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Z")
+            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="x")
+            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="y")
+            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="z")
 
             self.simulations3DElastique.append(simu)
     

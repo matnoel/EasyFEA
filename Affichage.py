@@ -51,8 +51,7 @@ class Affichage:
             # Valeur aux noeuds
             elif "_n" in val and mesh.Nn == len(valeurs):
                 pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, cmap='jet', antialiased=True)
-                # pc = ax.tricontour(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, cmap='jet', antialiased=True)
-                ax.add_collection(pc)
+                # pc = ax.tricontour(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, cmap='jet', antialiased=True)                
   
             fig.colorbar(pc, ax=ax)
             ax.axis('equal')

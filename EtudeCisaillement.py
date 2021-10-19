@@ -91,7 +91,7 @@ simu.CreationMateriau()
 simu.ConstructionMaillageGMSH(gmsh.model.mesh)
 gmsh.finalize()
 
-simu.Assemblage(epaisseur=1)
+simu.AssemblageKglobFglob(epaisseur=1)
 
 
 
