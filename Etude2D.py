@@ -31,7 +31,7 @@ P = -800 #N
 
 # Paramètres maillage
 type = ModelGmsh.get_typesMaillage2D()[0]
-taille = h/4
+taille = h/10
 
 # Materiau
 materiau = Materiau(dim)

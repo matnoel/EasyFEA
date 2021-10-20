@@ -4,12 +4,15 @@ import time
 from typing import cast
 
 import numpy as np
+import scipy as sp
+from scipy.sparse.linalg import spsolve
 
 from class_ModelGmsh import ModelGmsh
 from class_Noeud import Noeud
 from class_Element import Element
 from class_Mesh import Mesh
 from class_Materiau import Materiau
+from class_TicTac import TicTac
 
 class Simu:
     
@@ -47,7 +50,7 @@ class Simu:
 
         """
 
-        start = time.time()
+        TicTac.Tic()
         
         if self.__dim == 2:        
             assert epaisseur>0,"Doit être supérieur à 0"
@@ -78,11 +81,7 @@ class Simu:
                     elif self.__dim ==3:
                         self.__Kglob[ligne, colonne] += Ke[i, j]
 
-        end = start - time.time()
-        if self.__verbosity:
-            print("\nAssemblage ({:.3f} s)".format(np.abs(end)))
-
-        pass
+        TicTac.Tac("Assemblage", self.__verbosity)
 
 
     def ConstruitH(self, d, u):
@@ -98,7 +97,7 @@ class Simu:
         assert not force == 0, "Doit être différent de 0"
         assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
 
-        START = time.time()
+        TicTac.Tic()
         
         nbn = len(noeuds)
 
@@ -116,12 +115,11 @@ class Simu:
                     
                 self.__Fglob[ligne] += force/nbn
         
-        END = START - time.time()
-        if self.__verbosity:
-            print("\nCondition en force ({:.3f} s)".format(np.abs(END)))
+        TicTac.Tac("Condition en force", self.__verbosity)
 
     def ConditionEnDeplacement(self, noeuds=[], direction="", deplacement=0):
-        START = time.time()
+        
+        TicTac.Tic()
                
         for n in noeuds:
             n = cast(Noeud, n)
@@ -139,24 +137,32 @@ class Simu:
             self.__Kglob[ligne,:] = 0.0
             self.__Kglob[ligne, ligne] = 1
 
-            
-        END = START - time.time()
-        if self.__verbosity:
-            print("\nCondition en deplacement ({:.3f} s)".format(np.abs(END)))   
+        TicTac.Tac("Condition en déplacement", self.__verbosity)
 
     def Solve(self):
-        START = time.time()
-        
-        # Résolution
-        self.__Uglob = np.linalg.solve(self.__Kglob, self.__Fglob)
-        
-        END = START - time.time()
-        if self.__verbosity:
-            print("\nRésolution ({:.3f} s)".format(np.abs(END)))
 
+        TicTac.Tic()
+        
+        # Résolution du plus rapide au plus lent        
+        
+        # 1
+        Uglob = spsolve(sp.sparse.csr_matrix(self.__Kglob), self.__Fglob)
+        self.__Uglob = np.array(Uglob)
+        
+        # 2
+        # self.__Uglob = np.linalg.solve(self.__Kglob, self.__Fglob)
+        
+        # 3 
+        # self.__Uglob = sp.linalg.solve(self.__Kglob, self.__Fglob)
+
+        TicTac.Tac("Résolution", self.__verbosity)
+        
         self.__CalculDeformationEtContrainte()
 
     def __CalculDeformationEtContrainte(self):
+        
+        TicTac.Tic()
+        
         dim = self.__dim
         # Reconstruit Uglob les déplacements        
         dx = []
@@ -199,6 +205,8 @@ class Simu:
         self.__ExtrapolationAuxElements(deplacementCoordo)
 
         self.__ExtrapolationAuxNoeuds(dx, dy, dz)
+
+        TicTac.Tac("Calcul deformations et contraintes", self.__verbosity)
     
     def __ExtrapolationAuxElements(self, deplacementCoordo: np.ndarray):
         
