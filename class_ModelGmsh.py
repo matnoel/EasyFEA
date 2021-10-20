@@ -1,7 +1,8 @@
 import gmsh
 import sys
-import time
 import numpy as np
+
+from class_TicTac import TicTac
 
 
 class ModelGmsh:
@@ -37,10 +38,12 @@ class ModelGmsh:
                 gmsh.model.add("model")
 
         def __ConstructionMaillageGmsh(self, surface=None):
-                                
+
+                TicTac.Tic()
+
                 type = self.__typeElement
                 if self.__verbosity:
-                        print("Type d'elements: {}".format(type))
+                        print("\nType d'elements: {}".format(type))
 
                 if type in ModelGmsh.get_typesMaillage2D():
                         # Impose que le maillage soit organisé                        
@@ -75,11 +78,13 @@ class ModelGmsh:
                 # Ouvre l'interface de gmsh si necessaire
                 if '-nopopup' not in sys.argv and self.__affichageGmsh:
                         gmsh.fltk.run()   
+                
+                TicTac.Tac("Construction du maillage gmsh", self.__verbosity)
 
         def __ConstructionCoordoConnect(self):
                 
-                start = time.time()
-                
+                TicTac.Tic()
+
                 # Récupère la liste d'élément correspondant a la bonne dimension
                 types, elements, nodeTags = gmsh.model.mesh.getElements(dim=self.__dim)        
 
@@ -105,17 +110,15 @@ class ModelGmsh:
                         coordo.append(coord)
                         n += 1        
                 
-                end = start - time.time()
-                if self.__verbosity:
-                        print("\nConstruction Coordo et Connect ({:.3f} s)".format(np.abs(end)))
-
                 gmsh.finalize()
+
+                TicTac.Tac("Construction Coordo et Connect", self.__verbosity)
 
                 return (np.array(coordo), connect)
 
         def ConstructionRectangle(self, largeur, hauteur):
                 
-                start = time.time()
+                TicTac.Tic()
 
                 # Créer les points
                 p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
@@ -135,27 +138,23 @@ class ModelGmsh:
                 # Créer une surface
                 surface = gmsh.model.geo.addPlaneSurface([boucle])
                 
+                TicTac.Tac("Construction Rectangle", self.__verbosity)
+                
                 self.__ConstructionMaillageGmsh(surface)
-
-                end = start - time.time()
-                if self.__verbosity:
-                        print("\nConstruction Rectangle ({:.3f} s)".format(np.abs(end)))
                 
                 return self.__ConstructionCoordoConnect()
 
         def Importation3D(self,fichier=""):
                 
-                start = time.time()
+                TicTac.Tic()
 
                 # Importation du fichier
                 gmsh.model.occ.importShapes(fichier)
 
+                TicTac.Tac("Importation du fichier step", self.__verbosity)
+
                 self.__ConstructionMaillageGmsh()
 
-                end = start - time.time()
-                if self.__verbosity:
-                        print("\nimportation du fichier step ({:.3f} s)".format(np.abs(end)))
-                
                 return self.__ConstructionCoordoConnect()
 
 # TEST ==============================

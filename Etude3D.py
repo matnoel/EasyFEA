@@ -1,5 +1,5 @@
 import os
-import sys
+
 from typing import cast
 from Affichage import Affichage
 from class_Noeud import Noeud
@@ -49,14 +49,8 @@ simu = Simu(dim,mesh, materiau, verbosity=True)
 
 simu.AssemblageKglobFglob(epaisseur=b)
 
-noeuds_en_L = []
-noeuds_en_0 = []
-for n in mesh.noeuds:
-        n = cast(Noeud, n)        
-        if n.coordo[0] == L:
-                noeuds_en_L.append(n)
-        if n.coordo[0] == 0:
-                noeuds_en_0.append(n)
+noeuds_en_L = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == L]
+noeuds_en_0 = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == 0]
 
 simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, directions=["z"])
 

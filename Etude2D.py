@@ -1,6 +1,4 @@
 import os
-import time
-
 from typing import cast
 
 from Affichage import Affichage
@@ -38,7 +36,9 @@ materiau = Materiau(dim)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille)
+
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
+
 mesh = Mesh(dim, coordo, connect)
 
 # Récupère les noeuds qui m'interessent

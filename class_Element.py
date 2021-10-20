@@ -1,9 +1,7 @@
 from typing import cast
 
-from scipy.special.orthogonal import jacobi
 from class_Noeud import Noeud
 import numpy as np
-import scipy
 
 class Element:    
 
