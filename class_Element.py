@@ -85,11 +85,26 @@ class Element:
         
         self.__Construit_B_N()
 
+    def Construit_Ke_deplacement(self, C: np.array):
+        
+        # Pour chaque poing de gauss on construit Ke
+        taille = self.nPe*self.__dim        
+        Ke = np.zeros((taille, taille))
+
+        for pg in range(len(self.__listB_pg)):
+            jacobien = self.__listJacobien_pg[pg]
+            poid = self.__listPoid_pg[pg]
+            B_pg = self.__listB_pg[pg]
+            Ke = Ke + jacobien * poid * B_pg.T.dot(C).dot(B_pg)
+
+        return Ke
+
     def __Construit_B_N(self):
         
         self.__listJacobien_pg = []
         self.__listB_pg = []
-        self.listB_n = []        
+        self.listB_n = []
+        self.__listN_pg = []
 
         if self.__dim == 2:        
             # Triangle à 3 noeuds ou 6 noeuds Application linéaire
@@ -103,11 +118,14 @@ class Element:
 
     def __Construit_B_N_Triangle(self):
 
-        if self.nPe == 3:        
+        if self.nPe == 3:  
             
+            # Points de gauss
+            ksi = 1/3
+            eta = 1/3
             self.__listPoid_pg = [1/2]
 
-            # Calul du jacobien pour une application lineaire
+            # Calul du jacobien pour chaque point de gauss
             matriceCoef = np.array([[0, 0, 1],
                                     [1, 0, 1],
                                     [0, 1, 1]])
@@ -127,18 +145,27 @@ class Element:
             
             jacobien = np.linalg.det(F)
             # jacobien = alpha * b - beta * a 
-            invF = np.linalg.inv(F)
-            # invF = 1/jacobien * np.array([  [b, -beta],
-            #                                 [-a, alpha]  ])
             
-            # Calcul de Be
+            self.__listJacobien_pg.append(jacobien)
+
+            # Calcul N aux points de gauss
+            N1t = 1-ksi-eta
+            N2t = ksi
+            N3t = eta
+
+            N_pg = self.__ConstruitN_pg([N1t, N2t, N3t])
+            self.__listN_pg.append(N_pg)
+
+            # Calcul de B au points de gauss
             dN1t = np.array([-1, -1])
             dN2t = np.array([1, 0])
             dN3t = np.array([0, 1])
             
-            self.__listJacobien_pg.append(jacobien)
-            
-            B_pg = self.__ConstruitB([dN1t, dN2t, dN3t], invF)
+            invF = np.linalg.inv(F)
+            # invF = 1/jacobien * np.array([  [b, -beta],
+            #                                 [-a, alpha]  ])
+
+            B_pg = self.__ConstruitB_pg([dN1t, dN2t, dN3t], invF)
 
             self.__listB_pg.append(B_pg)
 
@@ -146,6 +173,11 @@ class Element:
             
         if self.nPe == 6:
             
+            # Points de gauss
+            ksis = [1/6, 2/3, 1/6]
+            etas = [1/6, 1/6, 2/3]
+            self.__listPoid_pg = [1/6] * 3
+
             matriceCoef = np.array([[0, 0, 0, 0, 0, 1],
                                     [1, 0, 0, 1, 0, 1],
                                     [0, 1, 0, 0, 1, 1],
@@ -169,42 +201,50 @@ class Element:
             e = constY[4]
             f = constY[5]
             
-            def ConstruitNtild(ksi, eta):
-                N1t = np.array([4*ksi+4*eta-3] *2)
-                N2t = np.array([4*ksi-1, 0])
-                N3t = np.array([0, 4*eta-1])
-                N4t = np.array([4-8*ksi-4*eta, -4*ksi])
-                N5t = np.array([4*eta, 4*ksi])
-                N6t = np.array([-4*eta, 4-4*ksi-8*eta])
+            def Construit_Ntild(ksi, eta):
+                # Code aster (Fonctions de forme et points d'intégration des élé[...])
+                N1t = -(1-ksi-eta)*(1-2*(1-ksi-eta))
+                N2t = -ksi*(1-2*ksi)
+                N3t = -eta*(1-2*eta)
+                N4t = 4*ksi*(1-ksi-eta)
+                N5t = 4*ksi*eta
+                N6t = 4*eta*(1-ksi-eta)
                 return [N1t, N2t, N3t, N4t, N5t, N6t]
+
+            def Construit_dNtild(ksi, eta):
+                dN1t = np.array([4*ksi+4*eta-3] *2)
+                dN2t = np.array([4*ksi-1, 0])
+                dN3t = np.array([0, 4*eta-1])
+                dN4t = np.array([4-8*ksi-4*eta, -4*ksi])
+                dN5t = np.array([4*eta, 4*ksi])
+                dN6t = np.array([-4*eta, 4-4*ksi-8*eta])
+                return [dN1t, dN2t, dN3t, dN4t, dN5t, dN6t]
             
             def ConstruitF(ksi, eta):
                 F = np.array([[alpha*2*ksi+gamma*eta+delta, beta*2*eta+gamma*ksi+epsilon],
                               [a*2*ksi+c*eta+d, b*2*eta+c*ksi+e]])                  
-                return F               
-            
-            # Pour chaque point d'integration on calcul Be
-            ksis = [1/6, 2/3, 1/6]
-            etas = [1/6, 1/6, 2/3]
-            self.__listPoid_pg = [1/6] * 3
+                return F   
 
+            # Pour chaque pg on calcul jacobien B et N
             for pg in range(len(ksis)):
                 
                 ksi = ksis[pg] 
                 eta = etas[pg]
                 
-                Ntild = ConstruitNtild(ksi, eta)
-                
-                F = ConstruitF(ksi, eta)
-                
+                Ntild = Construit_Ntild(ksi, eta)
+                dNtild = Construit_dNtild(ksi, eta)                
+                F = ConstruitF(ksi, eta)                
                 invF = np.linalg.inv(F)
 
                 jacobien = np.linalg.det(F)
-                
-                B_pg = self.__ConstruitB(Ntild, invF)
-
-                self.__listB_pg.append(B_pg)                
                 self.__listJacobien_pg.append(jacobien)
+                
+                B_pg = self.__ConstruitB_pg(dNtild, invF)
+                self.__listB_pg.append(B_pg)
+
+                N_pg = self.__ConstruitN_pg(Ntild)
+                self.__listN_pg.append(N_pg)
+                
 
             
             # Pour chaque noeuds on calcul Be  
@@ -216,13 +256,13 @@ class Element:
                 ksi = ksis[p]
                 eta = etas[p]
                 
-                Ntild = ConstruitNtild(ksi, eta)               
+                dNtild = Construit_dNtild(ksi, eta)               
                 
                 F = ConstruitF(ksi, eta)
 
                 invF = np.linalg.inv(F)
 
-                B_n = self.__ConstruitB(Ntild, invF)
+                B_n = self.__ConstruitB_pg(dNtild, invF)
                 self.listB_n.append(B_n)
 
     def __Construit_B_N_Quadrangle(self):
@@ -245,13 +285,20 @@ class Element:
             b = constY[1]
             c = constY[2]
             d = constY[3]
-            
-            def ConstruitNtild(ksi, eta):
-                N1t = np.array([(eta-1)/4, (ksi-1)/4])
-                N2t = np.array([(1-eta)/4, (-ksi-1)/4])
-                N3t = np.array([(1+eta)/4, (1+ksi)/4])
-                N4t = np.array([(-eta-1)/4, (1-ksi)/4])                
+
+            def Construit_Ntild(ksi, eta):
+                N1t = (1-ksi)*(1-eta)/4
+                N2t = (1+ksi)*(1-eta)/4
+                N3t = (1+ksi)*(1+eta)/4
+                N4t = (1-ksi)*(1+eta)/4
                 return [N1t, N2t, N3t, N4t]
+            
+            def Construit_dNtild(ksi, eta):
+                dN1t = np.array([(eta-1)/4, (ksi-1)/4])
+                dN2t = np.array([(1-eta)/4, (-ksi-1)/4])
+                dN3t = np.array([(1+eta)/4, (1+ksi)/4])
+                dN4t = np.array([(-eta-1)/4, (1-ksi)/4])                
+                return [dN1t, dN2t, dN3t, dN4t]
             
             def ConstruitF(ksi, eta):
                 F = np.array([[alpha*eta+beta, alpha*ksi+gamma],
@@ -269,18 +316,21 @@ class Element:
                 ksi = ksis[pg] 
                 eta = etas[pg]
                 
-                Ntild = ConstruitNtild(ksi, eta)
-                
-                F = ConstruitF(ksi, eta)    
-                
+                Ntild = Construit_Ntild(ksi, eta)
+                dNtild = Construit_dNtild(ksi, eta)                
+                F = ConstruitF(ksi, eta)                    
                 invF = np.linalg.inv(F)
 
                 jacobien = np.linalg.det(F)
-                
-                B_pg = self.__ConstruitB(Ntild, invF)
-
-                self.__listB_pg.append(B_pg)
                 self.__listJacobien_pg.append(jacobien)
+
+                B_pg = self.__ConstruitB_pg(dNtild, invF)
+                self.__listB_pg.append(B_pg)
+
+                N_pg = self.__ConstruitN_pg(Ntild)
+                self.__listN_pg.append(N_pg)
+
+                
                 
             # Pour chaque noeuds on calcul Be    
             
@@ -292,13 +342,13 @@ class Element:
                 ksi = ksis[i]
                 eta = etas[i]
                 
-                Ntild = ConstruitNtild(ksi, eta)               
+                dNtild = Construit_dNtild(ksi, eta)               
                 
                 F = ConstruitF(ksi, eta)
 
                 invF = np.linalg.inv(F)
                                              
-                B_n = self.__ConstruitB(Ntild, invF)
+                B_n = self.__ConstruitB_pg(dNtild, invF)
                 self.listB_n.append(B_n)
             
               
@@ -332,17 +382,29 @@ class Element:
             g2 = constY[6]
             h2 = constY[7]
             
-            def ConstruitNtild(ksi, eta):
-                N1t = np.array([(1-eta)*(2*ksi+eta)/4, (1-ksi)*(ksi+2*eta)/4])
-                N2t = np.array([(1-eta)*(2*ksi-eta)/4, -(1+ksi)*(ksi-2*eta)/4])
-                N3t = np.array([(1+eta)*(2*ksi+eta)/4, (1+ksi)*(ksi+2*eta)/4])
-                N4t = np.array([-(1+eta)*(-2*ksi+eta)/4, (1-ksi)*(-ksi+2*eta)/4])
-                N5t = np.array([-ksi*(1-eta), -(1-ksi**2)/2])
-                N6t = np.array([(1-eta**2)/2, -eta*(1+ksi)])
-                N7t = np.array([-ksi*(1+eta), (1-ksi**2)/2])                
-                N8t = np.array([-(1-eta**2)/2, -eta*(1-ksi)])
-                                
+            def Construit_Ntild(Ksi, eta):
+                N1t = (1-ksi)*(1-eta)*(-1-ksi-eta)/4
+                N2t = (1+ksi)*(1-eta)*(-1+ksi-eta)/4
+                N3t = (1+ksi)*(1+eta)*(-1+ksi+eta)/4
+                N4t = (1-ksi)*(1+eta)*(-1-ksi+eta)/4
+                N5t = (1-ksi**2)*(1-eta)/2
+                N6t = (1+ksi)*(1-eta**2)/2
+                N7t = (1-ksi**2)*(1+eta)/2
+                N8t = (1-ksi)*(1-eta**2)/2
                 return [N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t]                               
+                
+
+            def Construit_dNtild(ksi, eta):
+                dN1t = np.array([(1-eta)*(2*ksi+eta)/4, (1-ksi)*(ksi+2*eta)/4])
+                dN2t = np.array([(1-eta)*(2*ksi-eta)/4, -(1+ksi)*(ksi-2*eta)/4])
+                dN3t = np.array([(1+eta)*(2*ksi+eta)/4, (1+ksi)*(ksi+2*eta)/4])
+                dN4t = np.array([-(1+eta)*(-2*ksi+eta)/4, (1-ksi)*(-ksi+2*eta)/4])
+                dN5t = np.array([-ksi*(1-eta), -(1-ksi**2)/2])
+                dN6t = np.array([(1-eta**2)/2, -eta*(1+ksi)])
+                dN7t = np.array([-ksi*(1+eta), (1-ksi**2)/2])                
+                dN8t = np.array([-(1-eta**2)/2, -eta*(1-ksi)])
+                                
+                return [dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t]                               
                 
             
             def ConstruitF(ksi, eta):
@@ -361,18 +423,20 @@ class Element:
                 ksi = ksis[pg] 
                 eta = etas[pg]
                 
-                Ntild = ConstruitNtild(ksi, eta)
-                
-                F = ConstruitF(ksi, eta)    
-                
+                Ntild = Construit_Ntild(ksi, eta)
+                dNtild = Construit_dNtild(ksi, eta)                
+                F = ConstruitF(ksi, eta)                    
                 invF = np.linalg.inv(F)
                 
                 jacobien = np.linalg.det(F)
-                
-                B_pg = self.__ConstruitB(Ntild, invF)
-                
-                self.__listB_pg.append(B_pg)
                 self.__listJacobien_pg.append(jacobien)
+
+                B_pg = self.__ConstruitB_pg(dNtild, invF)                
+                self.__listB_pg.append(B_pg)
+
+                N_pg = self.__ConstruitN_pg(Ntild)
+                self.__listN_pg.append(N_pg)
+                
                 
             # Pour chaque noeuds on calcul Be               
             ksis = [-1, 1, 1, -1, 0, 1, 0, -1]
@@ -383,13 +447,13 @@ class Element:
                 ksi = ksis[i]
                 eta = etas[i]
                 
-                Ntild = ConstruitNtild(ksi, eta)               
+                dNtild = Construit_dNtild(ksi, eta)               
                 
                 F = ConstruitF(ksi, eta)
                 
                 invF = np.linalg.inv(F)
    
-                B_n = self.__ConstruitB(Ntild, invF)
+                B_n = self.__ConstruitB_pg(dNtild, invF)
                 self.listB_n.append(B_n)
     
     def __Construit_B_N_Tetraedre(self):
@@ -422,39 +486,36 @@ class Element:
             
             invF = np.linalg.inv(F)
 
-            jacobien = np.linalg.det(F)
-            
+            jacobien = np.linalg.det(F)            
             self.__listJacobien_pg.append(jacobien)
             
-            N1t = np.array([-1, -1, -1])
-            N2t = np.array([1, 0, 0])
-            N3t = np.array([0, 1, 0])
-            N4t = np.array([0, 0, 1])
-            
+            # Points de gauss
+            x = 1/4
+            y = 1/4
+            z = 1/4
             self.__listPoid_pg = [1/6]
 
-            B_pg = self.__ConstruitB([N1t, N2t, N3t, N4t], invF)
+            # Construit Ntild
+            N1t = 1-x-y-z
+            N2t = x
+            N3t = y
+            N4t = z            
+            Ntild = [N1t, N2t, N3t, N4t]
 
+            # Construit dNtild
+            dN1t = np.array([-1, -1, -1])
+            dN2t = np.array([1, 0, 0])
+            dN3t = np.array([0, 1, 0])
+            dN4t = np.array([0, 0, 1])
+            dNtild = [dN1t, dN2t, dN3t, dN4t]            
+            
+            B_pg = self.__ConstruitB_pg(dNtild, invF)
             self.__listB_pg.append(B_pg)
+            
             self.listB_n = [B_pg] * 4
-
-    def Construit_Ke_deplacement(self, C: np.array):
-        
-        # Pour chaque poing de gauss on construit Ke
-        taille = self.nPe*self.__dim        
-        Ke = np.zeros((taille, taille))
-
-        for pg in range(len(self.__listB_pg)):
-            jacobien = self.__listJacobien_pg[pg]
-            poid = self.__listPoid_pg[pg]
-            B_pg = self.__listB_pg[pg]
-            Ke = Ke + jacobien * poid * B_pg.T.dot(C).dot(B_pg)
-
-        return Ke
-    
-    
-    
-    
+            
+            N_pg = self.__ConstruitN_pg(Ntild)
+            self.__listN_pg.append()
     
     def __CalculLesConstantes(self, matriceCoef: np.ndarray):
         """Determine les constantes pour passer de l'element de reference a lelement reele
@@ -494,7 +555,7 @@ class Element:
         elif self.__dim == 3:
             return constX, constY, constZ
 
-    def __ConstruitB(self, list_Ntild: list, invF: np.ndarray):  
+    def __ConstruitB_pg(self, list_dNtild: list, invF: np.ndarray):  
         """Construit la matrice Be depuis les fonctions de formes de l'element
         de reference et l'inverserse de la matrice F
 
@@ -515,69 +576,54 @@ class Element:
             Renvoie une matrice de dim (6,len(list_Ntild)*3)
         """
         
-        list_Ntild = np.array(list_Ntild)
+        list_dNtild = np.array(list_dNtild)
         # Transpose la matrice F inversé
-        invFT = np.array(invF).T
+        invF_T = np.array(invF).T
         
         if self.__dim == 2:            
-            Be = np.zeros((3,len(list_Ntild)*2))      
+            B_pg = np.zeros((3,len(list_dNtild)*2))      
 
             i = 0
-            for nt in list_Ntild:            
-                dNdx = invFT[0].dot(nt)
-                dNdy = invFT[1].dot(nt)
+            for nt in list_dNtild:            
+                dNdx = invF_T[0].dot(nt)
+                dNdy = invF_T[1].dot(nt)
                 
-                Be[0, i] = dNdx
-                Be[1, i+1] = dNdy
-                Be[2, i] = dNdy; Be[2, i+1] = dNdx    
+                B_pg[0, i] = dNdx
+                B_pg[1, i+1] = dNdy
+                B_pg[2, i] = dNdy; B_pg[2, i+1] = dNdx    
                 i += 2
         elif self.__dim == 3:
-            Be = np.zeros((6,len(list_Ntild)*3))      
+            B_pg = np.zeros((6,len(list_dNtild)*3))      
 
             i = 0
-            for nt in list_Ntild:            
-                dNdx = invFT[0].dot(nt)
-                dNdy = invFT[1].dot(nt)
-                dNdz = invFT[2].dot(nt)
+            for nt in list_dNtild:            
+                dNdx = invF_T[0].dot(nt)
+                dNdy = invF_T[1].dot(nt)
+                dNdz = invF_T[2].dot(nt)
                 
-                Be[0, i] = dNdx
-                Be[1, i+1] = dNdy
-                Be[2, i+2] = dNdz
-                Be[3, i] = dNdy; Be[3, i+1] = dNdx
-                Be[4, i+1] = dNdz; Be[4, i+2] = dNdy
-                Be[5, i] = dNdz; Be[5, i+2] = dNdx
+                B_pg[0, i] = dNdx
+                B_pg[1, i+1] = dNdy
+                B_pg[2, i+2] = dNdz
+                B_pg[3, i] = dNdy; B_pg[3, i+1] = dNdx
+                B_pg[4, i+1] = dNdz; B_pg[4, i+2] = dNdy
+                B_pg[5, i] = dNdz; B_pg[5, i+2] = dNdx
                 i += 3
             pass
                 
                 
-        return Be   
+        return B_pg   
     
-    
+    def __ConstruitN_pg(self, list_Ntild: list):
+        
+        N_pg = np.zeros((self.__dim, len(list_Ntild)*self.__dim))
+        
+        colonne = 0
+        for nt in list_Ntild:
+            for ligne in range(self.__dim):
+                N_pg[ligne, colonne] = nt
+                colonne += 1
 
-    def RenvoieLesNumsDeNoeudsTriés(self):
-        """Trie les noeuds de l'element et les renvoie dessiner le maillage
-
-        Returns
-        -------
-        liste de Noeud
-            Renvoie le numéro des noeuds triés
-        """
-
-        assert len(self.noeuds)>0, "L'élément n'a pas de noeuds"       
-
-        noeuds = []
-
-        if self.nPe == 3 or self.nPe == 4:
-            for n in self.noeuds:
-                noeuds.append(n.id) 
-        elif self.nPe == 6:
-            for i in [0, 3, 1, 4, 2, 5]:
-                noeuds.append(self.noeuds[i].id)        
-        elif self.nPe == 8:
-            for i in [0, 4, 1, 5, 2, 6, 3, 7]:
-                noeuds.append(self.noeuds[i].id)
-                
-        return list(noeuds)
+        return N_pg
 
 # ====================================
 
@@ -600,11 +646,6 @@ class Test_Element(unittest.TestCase):
         self.assertIsInstance(self.element, Element)
         self.assertEqual(len(self.element.noeuds), 3)
         self.assertListEqual(self.element.assembly, [0, 1, 2, 3, 6, 7])
-
-    def test_RenvoiePolygon(self):
-        numTrie  = self.element.RenvoieLesNumsDeNoeudsTriés()                    
-        self.assertIsInstance(numTrie, list)        
-        self.assertListEqual(numTrie,[0,1,3])
 
 if __name__ == '__main__':        
     try:
