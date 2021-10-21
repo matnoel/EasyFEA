@@ -62,7 +62,7 @@ class Simu:
             e = cast(Element, e)
             nPe = e.nPe
             assembly = e.assembly
-            Ke = e.Construit_Ke_u(self.__materiau.C)
+            Ke = e.Construit_Ke_deplacement(self.__materiau.C)
             
             # Assemble Ke dans Kglob 
             
@@ -292,7 +292,7 @@ class Simu:
 
             # Pour chaques matrice Be aux Noeuds de l'element on va calculer deformation puis contraintes
 
-            for B in e.listBeAuNoeuds:
+            for B in e.listB_n:
                 vect_Epsilon = B.dot(ue)
                 vect_Sigma = self.__materiau.C.dot(vect_Epsilon)
                 
@@ -433,7 +433,7 @@ class Simu:
                             
                 listIdNoeuds = list(self.__mesh.connect[element.id])
                 index = listIdNoeuds.index(noeud.id)
-                BeDuNoeud = element.listBeAuNoeuds[index]
+                BeDuNoeud = element.listB_n[index]
                 
                 # Construit ue
                 deplacement = []
@@ -585,7 +585,7 @@ class Test_Simu(unittest.TestCase):
             modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, verbosity=False)
 
             (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
-            mesh = Mesh(dim, coordo, connect)
+            mesh = Mesh(dim, coordo, connect, verbosity=False)
 
             simu = Simu(dim, mesh, materiau, verbosity=False)
 
@@ -631,7 +631,7 @@ class Test_Simu(unittest.TestCase):
             modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
 
             (coordo, connect) = modelGmsh.Importation3D(fichier)
-            mesh = Mesh(dim, coordo, connect)
+            mesh = Mesh(dim, coordo, connect, verbosity=False)
 
             simu = Simu(dim,mesh, materiau, verbosity=False)
 

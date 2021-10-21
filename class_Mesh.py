@@ -3,6 +3,7 @@ import numpy as np
 from class_Element import Element
 from class_Materiau import Materiau
 from class_Noeud import Noeud
+from class_TicTac import TicTac
 
 class Mesh:
     
@@ -153,7 +154,7 @@ class Mesh:
                         self.__connectPolygon.append([n2, n3, n4])        
         return self.__connectPolygon
 
-    def __init__(self, dim: int, coordo: np.ndarray, connect: list, verbosity=False):
+    def __init__(self, dim: int, coordo: np.ndarray, connect: list, verbosity=True):
         """Création du maillage depuis coordo et connection
 
         Parameters
@@ -163,13 +164,15 @@ class Mesh:
         connection : list
             Matrice de connection dim(Ne,nPe), by default []
         affichageMaillage : bool, optional
-            Affichage après la construction du maillage, by default False
+            Affichage après la construction du maillage, by default True
         """
     
         # Vérfication
         assert isinstance(coordo, np.ndarray) and isinstance(coordo[0], np.ndarray),"Doit fournir une liste de ndarray de ndarray !"
         
         assert isinstance(connect, list) and isinstance(connect[0], list),"Doit fournir une liste de liste"
+
+        TicTac.Tic()
 
         self.__dim = dim
 
@@ -215,6 +218,8 @@ class Mesh:
             self.elements.append(element)
             
             e += 1
+        
+        TicTac.Tac("Importation du maillage", self.__verbosity)
             
 # TEST ==============================
 
