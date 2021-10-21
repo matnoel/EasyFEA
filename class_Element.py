@@ -91,10 +91,10 @@ class Element:
         taille = self.nPe*self.__dim        
         Ke = np.zeros((taille, taille))
 
-        for pg in range(len(self.__listB_pg)):
+        for pg in range(len(self.listB_pg)):
             jacobien = self.__listJacobien_pg[pg]
             poid = self.__listPoid_pg[pg]
-            B_pg = self.__listB_pg[pg]
+            B_pg = self.listB_pg[pg]
             Ke = Ke + jacobien * poid * B_pg.T.dot(C).dot(B_pg)
 
         return Ke
@@ -102,7 +102,7 @@ class Element:
     def __Construit_B_N(self):
         
         self.__listJacobien_pg = []
-        self.__listB_pg = []
+        self.listB_pg = []
         self.listB_n = []
         self.__listNv_pg = []
         self.__listNs_pg = []
@@ -172,7 +172,7 @@ class Element:
 
             B_pg = self.__ConstruitB_pg([dN1t, dN2t, dN3t], invF)
 
-            self.__listB_pg.append(B_pg)
+            self.listB_pg.append(B_pg)
 
             self.listB_n = [B_pg] * 3
             
@@ -245,7 +245,7 @@ class Element:
                 self.__listJacobien_pg.append(jacobien)
                 
                 B_pg = self.__ConstruitB_pg(dNtild, invF)
-                self.__listB_pg.append(B_pg)
+                self.listB_pg.append(B_pg)
 
                 Nv_pg = self.__ConstruitN_pg(Ntild)
                 Ns_pg = self.__ConstruitN_pg(Ntild, vecteur=False)
@@ -332,7 +332,7 @@ class Element:
                 self.__listJacobien_pg.append(jacobien)
 
                 B_pg = self.__ConstruitB_pg(dNtild, invF)
-                self.__listB_pg.append(B_pg)
+                self.listB_pg.append(B_pg)
 
                 Nv_pg = self.__ConstruitN_pg(Ntild)
                 Ns_pg = self.__ConstruitN_pg(Ntild, vecteur=False)
@@ -441,7 +441,7 @@ class Element:
                 self.__listJacobien_pg.append(jacobien)
 
                 B_pg = self.__ConstruitB_pg(dNtild, invF)                
-                self.__listB_pg.append(B_pg)
+                self.listB_pg.append(B_pg)
 
                 Nv_pg = self.__ConstruitN_pg(Ntild)
                 Ns_pg = self.__ConstruitN_pg(Ntild, vecteur=False)
@@ -521,7 +521,7 @@ class Element:
             dNtild = [dN1t, dN2t, dN3t, dN4t]            
             
             B_pg = self.__ConstruitB_pg(dNtild, invF)
-            self.__listB_pg.append(B_pg)
+            self.listB_pg.append(B_pg)
             
             self.listB_n = [B_pg] * 4
             
@@ -569,7 +569,7 @@ class Element:
         elif self.__dim == 3:
             return constX, constY, constZ
 
-    def __ConstruitB_pg(self, list_dNtild: list, invF: np.ndarray):  
+    def __ConstruitB_pg(self, list_dNtild: list, invF: np.ndarray, vecteur=True):  
         """Construit la matrice Be depuis les fonctions de formes de l'element
         de reference et l'inverserse de la matrice F
 
@@ -590,7 +590,7 @@ class Element:
             Renvoie une matrice de dim (6,len(list_Ntild)*3)
         """
         
-        list_dNtild = np.array(list_dNtild)
+        # list_dNtild = np.array(list_dNtild)
         # Transpose la matrice F inversé
         invF_T = np.array(invF).T
         

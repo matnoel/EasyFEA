@@ -156,17 +156,36 @@ class Simu:
 
         TicTac.Tic()
         
-        # Résolution du plus rapide au plus lent        
-        
-        # 1
-        Uglob = spsolve(sp.sparse.csr_matrix(self.__Kglob), self.__Fglob)
-        self.__Uglob = np.array(Uglob)
-        
-        # 2
+        # Méthodes moints rapide
         # self.__Uglob = np.linalg.solve(self.__Kglob, self.__Fglob)
-        
-        # 3 
         # self.__Uglob = sp.linalg.solve(self.__Kglob, self.__Fglob)
+
+        # Résolution du plus rapide au plus lent  
+        Uglob = spsolve(sp.sparse.csr_matrix(self.__Kglob), self.__Fglob)
+        
+        # Reconstruit Uglob
+        self.__Uglob = np.array(Uglob)
+
+        # Energie de deformation
+        self.resultats["Wdef"] = 1/2 * self.__Uglob.T.dot(self.__Kglob).dot(self.__Uglob)
+
+        # Reconstruit Uglob les déplacements        
+        dim = self.__dim
+        Nn = self.__mesh.Nn
+
+        dx = np.array([self.__Uglob[i*dim] for i in range(Nn)])
+        dy = np.array([self.__Uglob[i*dim+1] for i in range(Nn)])
+        if dim == 2:
+            dz = np.zeros(Nn)
+        else:
+            dz = np.array([self.__Uglob[i*dim+2] for i in range(Nn)])
+        
+        self.resultats["dx_n"] = dx
+        self.resultats["dy_n"] = dy        
+        if self.__dim == 3:
+            self.resultats["dz_n"] = dz
+
+        self.resultats["deplacementCoordo"] = np.array([dx, dy, dz]).T
 
         TicTac.Tac("Résolution", self.__verbosity)
         
@@ -174,55 +193,14 @@ class Simu:
 
     def __CalculDeformationEtContrainte(self):
         
-        TicTac.Tic()
-        
-        dim = self.__dim
-        # Reconstruit Uglob les déplacements        
-        dx = []
-        dy = []
-        dz = []
-        
-        for n in self.__mesh.noeuds:
-            n = cast(Noeud, n)
-            idNoeud = n.id 
+        self.__ExtrapolationAuxElements(self.resultats["deplacementCoordo"])
 
-            if dim == 2:
-                dx.append(self.__Uglob[idNoeud * 2])
-                dy.append(self.__Uglob[idNoeud * 2 + 1])
-            elif dim == 3:
-                dx.append(self.__Uglob[idNoeud * 3])
-                dy.append(self.__Uglob[idNoeud * 3 + 1])
-                dz.append(self.__Uglob[idNoeud * 3 + 2])
-
-        # Energie de deformation
-        self.resultats["Wdef"] = 1/2 * self.__Uglob.T.dot(self.__Kglob).dot(self.__Uglob)
-
-        dx  = np.array(dx)
-        dy  = np.array(dy)
-        dz  = np.array(dz)
-        
-        self.resultats["dx_n"] = dx
-        self.resultats["dy_n"] = dy        
-        if self.__dim == 3:
-            self.resultats["dz_n"] = dz
-
-        # Construit nouvelle coordo
-        deplacementCoordo = []
-        if self.__dim == 2:
-            deplacementCoordo = np.array([dx, dy, np.zeros(self.__mesh.Nn)]).T
-        elif self.__dim == 3:
-            deplacementCoordo = np.array([dx, dy, dz]).T
-        
-        self.resultats["deplacementCoordo"] = deplacementCoordo
-        
-        self.__ExtrapolationAuxElements(deplacementCoordo)
-
-        self.__ExtrapolationAuxNoeuds(dx, dy, dz)
-
-        TicTac.Tac("Calcul deformations et contraintes", self.__verbosity)
+        self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
     
     def __ExtrapolationAuxElements(self, deplacementCoordo: np.ndarray):
         
+        TicTac.Tic()
+
         # Vecteurs pour chaque element
         list_dx_e = []
         list_dy_e = []
@@ -286,13 +264,10 @@ class Simu:
                 if self.__dim == 3:                    
                     ue.append(dz), dz_n.append(dz)
 
-            
-
             ue = np.array(ue)
 
             # Pour chaques matrice Be aux Noeuds de l'element on va calculer deformation puis contraintes
-
-            for B in e.listB_n:
+            for B in e.listB_pg:
                 vect_Epsilon = B.dot(ue)
                 vect_Sigma = self.__materiau.C.dot(vect_Epsilon)
                 
@@ -363,6 +338,8 @@ class Simu:
                 list_Syz_e.append(np.mean(Syz_n))
                 list_Sxz_e.append(np.mean(Sxz_n))
 
+
+        # Enregistre les valeurs dans résultats
         self.resultats["dx_e"] = list_dx_e
         self.resultats["dy_e"] = list_dy_e
 
@@ -386,10 +363,19 @@ class Simu:
             self.resultats["Szz_e"] = list_Szz_e
             self.resultats["Syz_e"] = list_Syz_e
             self.resultats["Sxz_e"] = list_Sxz_e
-
-    def __ExtrapolationAuxNoeuds(self, dx, dy, dz, option = 'mean'):
-        # Extrapolation des valeurs aux noeuds  
         
+        TicTac.Tac("Calcul contraintes et deformations aux elements", self.__verbosity)
+
+    def __ExtrapolationAuxNoeuds(self, deplacementCoordo: np.ndarray, option = 'mean'):
+        
+        TicTac.Tic()
+
+        # Extrapolation des valeurs aux noeuds  
+
+        dx = deplacementCoordo[:,0]
+        dy = deplacementCoordo[:,1]
+        dz = deplacementCoordo[:,2]
+
         Exx_n = []
         Eyy_n = []
         Ezz_n = []
@@ -549,7 +535,7 @@ class Simu:
             self.resultats["Syz_n"] = Syz_n
             self.resultats["Sxz_n"] = Sxz_n
     
-    
+        TicTac.Tac("Calcul contraintes et deformations aux noeuds", self.__verbosity)
                 
     
          

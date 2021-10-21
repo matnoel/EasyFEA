@@ -29,7 +29,7 @@ P = -800 #N
 
 # Paramètres maillage
 type = ModelGmsh.get_typesMaillage2D()[1]
-taille = h/10
+taille = h/5
 
 # Materiau
 materiau = Materiau(dim)
@@ -84,8 +84,8 @@ if plotResult:
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_n")
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
 
-        Affichage.PlotResult(mesh, simu.resultats, "dy_n")
-        Affichage.PlotResult(mesh, simu.resultats, "dy_e")
+        # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
+        Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True)
         
                 
         
