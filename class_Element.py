@@ -64,7 +64,7 @@ class Element:
                 self.assembly.append(n.id * 3 + 1)
                 self.assembly.append(n.id * 3 + 2)
         
-    def ConstruitKe(self, C: np.array):
+    def Construit_Ke_u(self, C: np.array):
         
         self.__listJacobien = []
         self.listBeAuNoeuds = []
@@ -77,18 +77,18 @@ class Element:
         if self.__dim == 2:        
             # Triangle à 3 noeuds ou 6 noeuds Application linéaire
             if self.nPe == 3 or self.nPe == 6:
-                self.__ConstruitKeTriangle()
+                self.__Construit_Ke_u_Triangle()
             elif self.nPe == 4 or self.nPe == 8:
-                self.__ConstruitKeQuadrangle()
+                self.__Construit_Ke_u_Quadrangle()
         elif self.__dim == 3:
             if self.nPe == 4:
-                self.__ConstruitKeTetraedre()
+                self.__Construit_Ke_u_Tetraedre()
 
         return self.__Ke
 
         
         
-    def __ConstruitKeTriangle(self):
+    def __Construit_Ke_u_Triangle(self):
         """Construit la matrice Ke d'un element triangulaire
         """
             
@@ -218,7 +218,7 @@ class Element:
                 
                 i += 1
     
-    def __ConstruitKeQuadrangle(self):
+    def __Construit_Ke_u_Quadrangle(self):
         """Construit la matrice Be d'un element quadrillatère
         """
         if self.nPe == 4:
@@ -399,7 +399,7 @@ class Element:
                 
                 i += 1
     
-    def __ConstruitKeTetraedre(self):
+    def __Construit_Ke_u_Tetraedre(self):
         if self.nPe == 4:
             matriceCoef = np.array([[0, 0, 0, 1],
                                     [1, 0, 0, 1],
