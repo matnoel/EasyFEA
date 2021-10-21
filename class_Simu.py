@@ -61,23 +61,38 @@ class Simu:
         for e in self.__mesh.elements:            
             e = cast(Element, e)
             nPe = e.nPe
-            vect = e.assembly
-            Ke = e.ConstruitKe(self.__materiau.C)
+            assembly = e.assembly
+            Ke = e.Construit_Ke_u(self.__materiau.C)
             
-            self.__Kglob[vect, :][:, vect] += epaisseur*Ke
-
-            verif = self.__Kglob[vect, :][:, vect]
-
             # Assemble Ke dans Kglob 
             
-            for i in range(nPe*self.__dim):
-                ligne = vect[i]
-                for j in range(nPe*self.__dim):
-                    colonne = vect[j]
-                    if self.__dim == 2:
-                        self.__Kglob[ligne, colonne] += epaisseur * Ke[i, j]
-                    elif self.__dim ==3:
-                        self.__Kglob[ligne, colonne] += Ke[i, j]
+            # # Méthode 1
+            # for i in range(nPe*self.__dim):
+            #     ligne = assembly[i]
+            #     for j in range(nPe*self.__dim):
+            #         colonne = assembly[j]
+            #         if self.__dim == 2:
+            #             self.__Kglob[ligne, colonne] += epaisseur * Ke[i, j]
+            #         elif self.__dim ==3:
+            #             self.__Kglob[ligne, colonne] += Ke[i, j]
+
+            # Méthode 2
+            vect1 = []
+            vect2 = []
+            for i in assembly:
+                vect1.extend(assembly)
+                for j in range(len(assembly)):
+                    vect2.append(i)
+
+            if self.__dim == 2:
+                self.__Kglob[vect1, vect2] = self.__Kglob[vect1, vect2] + np.ravel(epaisseur * Ke)
+            elif self.__dim == 3:
+                self.__Kglob[vect1, vect2] = self.__Kglob[vect1, vect2] + np.ravel(Ke)
+
+
+
+            test = self.__Kglob[assembly, :][:, assembly]
+            pass
 
         TicTac.Tac("Assemblage", self.__verbosity)
 
