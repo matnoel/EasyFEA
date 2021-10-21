@@ -2,6 +2,7 @@ import os
 from typing import cast
 
 import numpy as np
+from numpy.core.records import array
 import scipy as sp
 from scipy.sparse.linalg import spsolve
 
@@ -164,21 +165,21 @@ class Simu:
         Uglob = spsolve(sp.sparse.csr_matrix(self.__Kglob), self.__Fglob)
         
         # Reconstruit Uglob
-        self.__Uglob = np.array(Uglob)
+        Uglob = np.array(Uglob)
 
         # Energie de deformation
-        self.resultats["Wdef"] = 1/2 * self.__Uglob.T.dot(self.__Kglob).dot(self.__Uglob)
+        self.resultats["Wdef"] = 1/2 * Uglob.T.dot(self.__Kglob).dot(Uglob)
 
-        # Reconstruit Uglob les déplacements        
+        # Récupère les déplacements       
         dim = self.__dim
         Nn = self.__mesh.Nn
 
-        dx = np.array([self.__Uglob[i*dim] for i in range(Nn)])
-        dy = np.array([self.__Uglob[i*dim+1] for i in range(Nn)])
+        dx = np.array([Uglob[i*dim] for i in range(Nn)])
+        dy = np.array([Uglob[i*dim+1] for i in range(Nn)])
         if dim == 2:
             dz = np.zeros(Nn)
         else:
-            dz = np.array([self.__Uglob[i*dim+2] for i in range(Nn)])
+            dz = np.array([Uglob[i*dim+2] for i in range(Nn)])
         
         self.resultats["dx_n"] = dx
         self.resultats["dy_n"] = dy        
@@ -189,183 +190,134 @@ class Simu:
 
         TicTac.Tac("Résolution", self.__verbosity)
         
-        self.__CalculDeformationEtContrainte()
+        self.CalculDeformationEtContrainte(Uglob)
 
-    def __CalculDeformationEtContrainte(self):
-        
-        self.__ExtrapolationAuxElements(self.resultats["deplacementCoordo"])
 
-        self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
-    
-    def __ExtrapolationAuxElements(self, deplacementCoordo: np.ndarray):
+
+    def CalculDeformationEtContrainte(self, Uglob: np.ndarray, sauvegarde=True):
         
         TicTac.Tic()
 
-        # Vecteurs pour chaque element
-        list_dx_e = []
-        list_dy_e = []
-        list_dz_e = []
+        list_Epsilon_e = []
+        list_Sigma_e = []
+        dim = self.__dim
         
-        list_Exx_e = []
-        list_Eyy_e = []
-        list_Ezz_e = []
-        list_Exy_e = []
-        list_Eyz_e = []
-        list_Exz_e = []
-        
-        list_Sxx_e = []
-        list_Syy_e = []
-        list_Szz_e = []
-        list_Sxy_e = []
-        list_Syz_e = []
-        list_Sxz_e = []
+        # Prépare les vecteurs de stockage par element
+        dx_e = []
+        dy_e = []
 
-        list_Svm_e = []
-        
-        # Pour chaque element on va caluler ces valeurs en déplacement deformation et contraintes
+        Exx_e = []
+        Eyy_e = []
+        Exy_e = []
+
+        Sxx_e = []
+        Syy_e = []
+        Sxy_e = []
+
+        Svm_e = []
+
+        if dim == 3:
+            dz_e = []
+
+            Ezz_e = []
+            Eyz_e = []
+            Exz_e = []
+
+            Szz_e = []
+            Syz_e = []
+            Sxz_e = []
+
+        # Pour chaque element on va calculer pour chaque point de gauss Epsilon et Sigma
         for e in self.__mesh.elements:
             e = cast(Element, e)
 
-            dx_n = []
-            dy_n = []
-            dz_n = []
-            
-            Exx_n = []
-            Eyy_n = []
-            Ezz_n = []
-            Exy_n = []
-            Eyz_n = []
-            Exz_n = []
-            
-            Sxx_n = []
-            Syy_n = []
-            Szz_n = []
-            Sxy_n = []
-            Syz_n = []
-            Sxz_n = []
-            
-            Svm_n = []
+            dx = []
+            dy = []
+            if dim == 3:
+                dz = []
 
             # Construit ue
             ue = []
             for n in e.noeuds:
                 n = cast(Noeud, n)
-                id = n.id
-                
-                # Pour chaque noeud on récupère dx, dy, dz
-                dx = deplacementCoordo[id,0]
-                dy = deplacementCoordo[id,1]
-                dz = deplacementCoordo[id,2]
-                
-                # On ajoute dans les listes
-                ue.append(dx), dx_n.append(dx)
-                ue.append(dy), dy_n.append(dy)
-                
-                if self.__dim == 3:                    
-                    ue.append(dz), dz_n.append(dz)
+                for j in range(self.__dim):
+                    valeur = Uglob[n.id*self.__dim+j]
+                    ue.append(valeur)
+                    if j == 0:
+                        dx.append(valeur)
+                    if j == 1:
+                        dy.append(valeur)
+                    if j == 2:
+                        dz.append(valeur)
 
-            ue = np.array(ue)
+            list_epsilon_pg = []
+            list_sigma_pg = []
 
-            # Pour chaques matrice Be aux Noeuds de l'element on va calculer deformation puis contraintes
-            for B in e.listB_pg:
-                vect_Epsilon = B.dot(ue)
-                vect_Sigma = self.__materiau.C.dot(vect_Epsilon)
+            # Récupère B pour chaque pt de gauss
+            for B_pg in e.listB_pg:
+                epsilon_pg = B_pg.dot(ue)
+                list_epsilon_pg.append(epsilon_pg)
+
+                sigma_pg = self.__materiau.C.dot(list(epsilon_pg))
+                list_sigma_pg.append(list(sigma_pg))
+
+            list_epsilon_pg = np.array(list_epsilon_pg)
+            list_sigma_pg = np.array(list_sigma_pg)
+
+            list_Epsilon_e.append(list_epsilon_pg)
+            list_Sigma_e.append(list_sigma_pg)
+
+            if dim == 2:
+                dx_e.append(np.mean(dx))
+                dy_e.append(np.mean(dy))
                 
-                if self.__dim == 2:                
-                    Exx_n.append(vect_Epsilon[0])
-                    Eyy_n.append(vect_Epsilon[1])
-                    Exy_n.append(vect_Epsilon[2])
-                    
-                    Sxx = vect_Sigma[0]
-                    Syy = vect_Sigma[1]
-                    Sxy = vect_Sigma[2]                    
-                    
-                    Sxx_n.append(Sxx)
-                    Syy_n.append(Syy)
-                    Sxy_n.append(Sxy)
-                    Svm_n.append(np.sqrt(Sxx**2+Syy**2-Sxx*Syy+3*Sxy**2))
-                    
-                elif self.__dim == 3:
-                    Exx_n.append(vect_Epsilon[0]) 
-                    Eyy_n.append(vect_Epsilon[1])
-                    Ezz_n.append(vect_Epsilon[2])                    
-                    Exy_n.append(vect_Epsilon[3])
-                    Eyz_n.append(vect_Epsilon[4])
-                    Exz_n.append(vect_Epsilon[5])
-                    
-                    Sxx = vect_Sigma[0]
-                    Syy = vect_Sigma[1]
-                    Szz = vect_Sigma[2]                    
-                    Sxy = vect_Sigma[3]
-                    Syz = vect_Sigma[4]
-                    Sxz = vect_Sigma[5]
-                    
-                    Sxx_n.append(Sxx)
-                    Syy_n.append(Syy)
-                    Szz_n.append(Szz)
-                    
-                    Sxy_n.append(Sxy)
-                    Syz_n.append(Syz)
-                    Sxz_n.append(Sxz)
-                    
-                    Svm = np.sqrt(((Sxx-Syy)**2+(Syy-Szz)**2+(Szz-Sxx)**2+6*(Sxy**2+Syz**2+Sxz**2))/2)
-                    
-                    Svm_n.append(Svm)
+                Exx_e.append(np.mean(list_epsilon_pg[:, 0])), Sxx_e.append(np.mean(list_sigma_pg[:, 0]))
+                Eyy_e.append(np.mean(list_epsilon_pg[:, 1])), Syy_e.append(np.mean(list_sigma_pg[:, 1]))
+                Exy_e.append(np.mean(list_epsilon_pg[:, 2])), Sxy_e.append(np.mean(list_sigma_pg[:, 2]))
+
+                Svm_e.append(np.sqrt(Sxx_e[-1]**2+Syy_e[-1]**2-Sxx_e[-1]*Syy_e[-1]+3*Sxy_e[-1]**2))
+
+            elif dim == 3:
+                dz_e.append(np.mean(dz))
+
+                Exx_e.append(np.mean(list_epsilon_pg[:, 0])), Sxx_e.append(np.mean(list_sigma_pg[:, 0]))
+                Eyy_e.append(np.mean(list_epsilon_pg[:, 1])), Syy_e.append(np.mean(list_sigma_pg[:, 1]))
+                Ezz_e.append(np.mean(list_epsilon_pg[:, 2])), Szz_e.append(np.mean(list_sigma_pg[:, 2]))
+                Exy_e.append(np.mean(list_epsilon_pg[:, 3])), Sxy_e.append(np.mean(list_sigma_pg[:, 3]))
+                Eyz_e.append(np.mean(list_epsilon_pg[:, 4])), Syz_e.append(np.mean(list_sigma_pg[:, 4]))
+                Exz_e.append(np.mean(list_epsilon_pg[:, 5])), Sxz_e.append(np.mean(list_sigma_pg[:, 5]))
+
+                Svm_e.append(np.sqrt(((Sxx_e[-1]-Syy_e[-1])**2+(Syy_e[-1]-Szz_e[-1])**2+(Szz_e[-1]-Sxx_e[-1])**2+6*(Sxy_e[-1]**2+Syz_e[-1]**2+Sxz_e[-1]**2))/2)) 
+
+        if sauvegarde:
+            self.resultats["dx_e"]=np.array(dx_e)
+            self.resultats["dy_e"]=np.array(dy_e)
+
+            self.resultats["Exx_e"]=np.array(Exx_e)
+            self.resultats["Eyy_e"]=np.array(Eyy_e)
+            self.resultats["Exy_e"]=np.array(Exy_e)
             
+            self.resultats["Sxx_e"]=np.array(Sxx_e)
+            self.resultats["Syy_e"]=np.array(Syy_e)
+            self.resultats["Sxy_e"]=np.array(Sxy_e)
 
-            # Récupère la moyenne des résultats aux noeuds
-            list_dx_e.append(np.mean(dx_n))
-            list_dy_e.append(np.mean(dy_n))
+            self.resultats["Svm_e"]=np.array(Svm_e)
 
-            list_Exx_e.append(np.mean(Exx_n))
-            list_Eyy_e.append(np.mean(Eyy_n))
-            list_Exy_e.append(np.mean(Exy_n))
+            if dim == 3:
+                self.resultats["dz_e"]=np.array(dz_e)
 
-            list_Sxx_e.append(np.mean(Sxx_n))
-            list_Syy_e.append(np.mean(Syy_n))
-            list_Sxy_e.append(np.mean(Sxy_n))
+                self.resultats["Ezz_e"]=np.array(Ezz_e)
+                self.resultats["Eyz_e"]=np.array(Eyz_e)
+                self.resultats["Exz_e"]=np.array(Exz_e)
+                
+                self.resultats["Szz_e"]=np.array(Szz_e)
+                self.resultats["Syz_e"]=np.array(Syz_e)
+                self.resultats["Sxz_e"]=np.array(Sxz_e)
 
-            list_Svm_e.append(np.mean(Svm_n))
-
-            if self.__dim == 3:
-                list_dz_e.append(np.mean(dz_n))
-
-                list_Ezz_e.append(np.mean(Ezz_n))
-                list_Eyz_e.append(np.mean(Eyz_n))
-                list_Exz_e.append(np.mean(Exz_n))
-
-                list_Szz_e.append(np.mean(Szz_n))
-                list_Syz_e.append(np.mean(Syz_n))
-                list_Sxz_e.append(np.mean(Sxz_n))
-
-
-        # Enregistre les valeurs dans résultats
-        self.resultats["dx_e"] = list_dx_e
-        self.resultats["dy_e"] = list_dy_e
-
-        self.resultats["Exx_e"] = list_Exx_e
-        self.resultats["Eyy_e"] = list_Eyy_e
-        self.resultats["Exy_e"] = list_Exy_e
-
-        self.resultats["Sxx_e"] = list_Sxx_e
-        self.resultats["Syy_e"] = list_Syy_e
-        self.resultats["Sxy_e"] = list_Sxy_e
-
-        self.resultats["Svm_e"] = list_Svm_e
+        TicTac.Tac("Calcul deformations et contraintes aux elements", self.__verbosity)
         
-        if self.__dim == 3: 
-            self.resultats["dz_e"] = list_dz_e
-
-            self.resultats["Ezz_e"] = list_Ezz_e
-            self.resultats["Eyz_e"] = list_Eyz_e
-            self.resultats["Exz_e"] = list_Exz_e
-            
-            self.resultats["Szz_e"] = list_Szz_e
-            self.resultats["Syz_e"] = list_Syz_e
-            self.resultats["Sxz_e"] = list_Sxz_e
-        
-        TicTac.Tac("Calcul contraintes et deformations aux elements", self.__verbosity)
-
+        self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
+    
     def __ExtrapolationAuxNoeuds(self, deplacementCoordo: np.ndarray, option = 'mean'):
         
         TicTac.Tic()
