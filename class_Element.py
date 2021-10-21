@@ -104,7 +104,8 @@ class Element:
         self.__listJacobien_pg = []
         self.__listB_pg = []
         self.listB_n = []
-        self.__listN_pg = []
+        self.__listNv_pg = []
+        self.__listNs_pg = []
 
         if self.__dim == 2:        
             # Triangle à 3 noeuds ou 6 noeuds Application linéaire
@@ -120,10 +121,7 @@ class Element:
 
         if self.nPe == 3:  
             
-            # Points de gauss
-            ksi = 1/3
-            eta = 1/3
-            self.__listPoid_pg = [1/2]
+            
 
             # Calul du jacobien pour chaque point de gauss
             matriceCoef = np.array([[0, 0, 1],
@@ -144,17 +142,24 @@ class Element:
                             [a, b]   ])
             
             jacobien = np.linalg.det(F)
-            # jacobien = alpha * b - beta * a 
-            
+            # jacobien = alpha * b - beta * a             
             self.__listJacobien_pg.append(jacobien)
+
+            # Points de gauss
+            ksi = 1/3
+            eta = 1/3
+            self.__listPoid_pg = [1/2]
 
             # Calcul N aux points de gauss
             N1t = 1-ksi-eta
             N2t = ksi
             N3t = eta
+            Ntild = [N1t, N2t, N3t]
 
-            N_pg = self.__ConstruitN_pg([N1t, N2t, N3t])
-            self.__listN_pg.append(N_pg)
+            Nv_pg = self.__ConstruitN_pg(Ntild)
+            Ns_pg = self.__ConstruitN_pg(Ntild, vecteur=False)
+            self.__listNv_pg.append(Nv_pg)
+            self.__listNs_pg.append(Ns_pg)
 
             # Calcul de B au points de gauss
             dN1t = np.array([-1, -1])
@@ -242,8 +247,10 @@ class Element:
                 B_pg = self.__ConstruitB_pg(dNtild, invF)
                 self.__listB_pg.append(B_pg)
 
-                N_pg = self.__ConstruitN_pg(Ntild)
-                self.__listN_pg.append(N_pg)
+                Nv_pg = self.__ConstruitN_pg(Ntild)
+                Ns_pg = self.__ConstruitN_pg(Ntild, vecteur=False)
+                self.__listNv_pg.append(Nv_pg)
+                self.__listNs_pg.append(Ns_pg)
                 
 
             
@@ -327,8 +334,10 @@ class Element:
                 B_pg = self.__ConstruitB_pg(dNtild, invF)
                 self.__listB_pg.append(B_pg)
 
-                N_pg = self.__ConstruitN_pg(Ntild)
-                self.__listN_pg.append(N_pg)
+                Nv_pg = self.__ConstruitN_pg(Ntild)
+                Ns_pg = self.__ConstruitN_pg(Ntild, vecteur=False)
+                self.__listNv_pg.append(Nv_pg)
+                self.__listNs_pg.append(Ns_pg)
 
                 
                 
@@ -434,8 +443,10 @@ class Element:
                 B_pg = self.__ConstruitB_pg(dNtild, invF)                
                 self.__listB_pg.append(B_pg)
 
-                N_pg = self.__ConstruitN_pg(Ntild)
-                self.__listN_pg.append(N_pg)
+                Nv_pg = self.__ConstruitN_pg(Ntild)
+                Ns_pg = self.__ConstruitN_pg(Ntild, vecteur=False)
+                self.__listNv_pg.append(Nv_pg)
+                self.__listNs_pg.append(Ns_pg)
                 
                 
             # Pour chaque noeuds on calcul Be               
@@ -514,8 +525,11 @@ class Element:
             
             self.listB_n = [B_pg] * 4
             
-            N_pg = self.__ConstruitN_pg(Ntild)
-            self.__listN_pg.append()
+            Nv_pg = self.__ConstruitN_pg(Ntild)
+            Ns_pg = self.__ConstruitN_pg(Ntild, vecteur=False)
+            self.__listNv_pg.append(Nv_pg)
+            self.__listNs_pg.append(Ns_pg)
+
     
     def __CalculLesConstantes(self, matriceCoef: np.ndarray):
         """Determine les constantes pour passer de l'element de reference a lelement reele
@@ -613,15 +627,22 @@ class Element:
                 
         return B_pg   
     
-    def __ConstruitN_pg(self, list_Ntild: list):
+    def __ConstruitN_pg(self, list_Ntild: list, vecteur=True):
         
-        N_pg = np.zeros((self.__dim, len(list_Ntild)*self.__dim))
-        
-        colonne = 0
-        for nt in list_Ntild:
-            for ligne in range(self.__dim):
-                N_pg[ligne, colonne] = nt
-                colonne += 1
+        if vecteur:
+            N_pg = np.zeros((self.__dim, len(list_Ntild)*self.__dim))
+            
+            colonne = 0
+            for nt in list_Ntild:
+                for ligne in range(self.__dim):
+                    N_pg[ligne, colonne] = nt
+                    colonne += 1
+        else:
+            N_pg = np.zeros((1, len(list_Ntild)))
+            colonne = 0
+            for nt in list_Ntild:
+                N_pg[0, colonne] = nt
+                colonne += 1            
 
         return N_pg
 
