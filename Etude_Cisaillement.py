@@ -21,15 +21,11 @@ plotResult = True
 dim = 2
 
 # Paramètres géométrie
-L = 120;  #mm
-h = 13;    
-b = 13
-
-P = -800 #N
+L = 1;  #mm
 
 # Paramètres maillage
 type = ModelGmsh.get_typesMaillage2D()[2]
-taille = h/10
+taille = L/3
 
 # Materiau
 materiau = Materiau(dim)
@@ -37,13 +33,20 @@ materiau = Materiau(dim)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille)
 
-(coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
+(coordo, connect) = modelGmsh.ConstructionRectangle(L, L)
 
 mesh = Mesh(dim, coordo, connect)
 
 # Récupère les noeuds qui m'interessent
-noeuds_en_L = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == L]
-noeuds_en_0 = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == 0]
+noeuds_Haut = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[1] == L]
+noeuds_Milieu = [mesh.noeuds[i] for i in range(mesh.Nn) if np.isclose(mesh.noeuds[i].coordo[1], L/2) and (mesh.noeuds[i].coordo[0] <= L/2 or np.isclose(mesh.noeuds[i].coordo[0], L/2))]
+noeuds_Bas = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[1] == 0]
+
+fig, ax = Affichage.PlotMesh(mesh, None)
+ax.scatter([noeuds_Haut[i].coordo[0] for i in range(len(noeuds_Haut))], [noeuds_Haut[i].coordo[1] for i in range(len(noeuds_Haut))], marker='*', c='blue')
+ax.scatter([noeuds_Milieu[i].coordo[0] for i in range(len(noeuds_Milieu))], [noeuds_Milieu[i].coordo[1] for i in range(len(noeuds_Milieu))], marker='o', c='blue')
+ax.scatter([noeuds_Bas[i].coordo[0] for i in range(len(noeuds_Bas))], [noeuds_Bas[i].coordo[1] for i in range(len(noeuds_Bas))], marker='*', c='red')
+# plt.show()
 
 # ------------------------------------------------------------------------------------------------------
 
@@ -51,6 +54,13 @@ print("\n==========================================================")
 print("Traitement :")
 
 simu = Simu(dim, mesh, materiau)
+
+u = np.zeros((mesh.Nn*dim, 1))
+d = np.zeros((mesh.Nn, 1))
+
+simu.ConstruitH(u, d)
+
+simu.AssemblageKdFd()
 
 simu.AssemblageKglobFglob(epaisseur=b)
 

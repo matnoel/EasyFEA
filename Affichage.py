@@ -186,6 +186,8 @@ class Affichage:
             ax.set_title("Ne = {} et Nn = {}".format(mesh.Ne, mesh.Nn))
 
             Affichage.__ChangeEchelle(ax, coordo)
+        
+        return fig, ax
 
     def __ChangeEchelle(ax, coordo: np.ndarray):
         """Change la taille des axes pour l'affichage 3D

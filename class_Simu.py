@@ -41,6 +41,8 @@ class Simu:
         self.__materiau = materiau
         
         self.resultats = {}
+
+        self.lastH = []
     
     def AssemblageKglobFglob(self, epaisseur=0):
         """Construit Kglobal
@@ -97,10 +99,97 @@ class Simu:
 
         TicTac.Tac("Assemblage", self.__verbosity)
 
+    def AssemblageKdFd(self, Gc=1, l=0.001):
+        """Construit Kglobal
 
-    def ConstruitH(self, d, u):
+        mettre en option u ou d ?
+
+        """
+
+        TicTac.Tic()
+        
+        taille = self.__mesh.Nn
+
+        Kd_glob = np.zeros((taille, taille))
+        Fd_glob = np.zeros((taille, 1))
+        
+        for e in self.__mesh.elements:            
+            e = cast(Element, e)
+            nPe = e.nPe
+            assembly = e.assembly
+            
+            
+            for pg in range(len(e.listJacobien_pg)):
+
+                jacobien = e.listJacobien_pg[pg]
+                poid = e.listPoid_pg[pg]
+                h = float(self.lastH[e.id][pg])
+                Nd = e.listN_d_pg[pg]
+                
+                # Bd pas encore crée par element
+                # Bd = e.li
+                
+                # Kd = Kd + jacobien * poid * ((Gc/l+2*h)*)
+
+                fe = fe + jacobien * poid * 2 * (Nd.T*h)
+                
+            list_IdNoeuds = [e.noeuds[i].id for i in range(len(e.noeuds))]
+
+            # Méthode 2
+            vect1 = []
+            vect2 = []
+            for i in list_IdNoeuds:
+                vect1.extend(list_IdNoeuds)
+                for j in range(len(assembly)):
+                    vect2.append(i)
+
+            Fd_glob[vect1, vect2] = Fd_glob[vect1, vect2] + fe
+                
+            
+            
+
+
+
+            test = self.__Kglob[assembly, :][:, assembly]
+            pass
+
+        TicTac.Tac("Assemblage", self.__verbosity)
+
+    def ConstruitH(self, u: np.ndarray, d: np.ndarray):
         # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
 
+        list_H = []
+        for e in self.__mesh.elements:
+            e = cast(Element, e)
+
+            h_pg = []
+            
+            for pg in range(len(e.listB_u_pg)):
+                # Construit ui di
+                ui = []
+                di = []
+                for n in e.noeuds:
+                    n = cast(Noeud, n)
+                    di.append(d[n.id])
+                    for j in range(self.__dim):
+                        valeur = u[n.id*self.__dim+j]
+                        ui.append(valeur)
+                
+                ui = np.array(ui)
+                di = np.array(di)
+
+                B_pg = np.array(e.listB_u_pg[pg])
+
+                h = (1-e.listN_d_pg[pg].dot(di))**2 *1/2 * (B_pg.dot(ui)).T.dot(self.__materiau.C).dot(B_pg.dot(ui))
+                
+                if(len(self.lastH)==0):
+                    h_pg.append(h)
+                else:
+                    h_pg.append(np.max(h, list_H[e][pg]))
+ 
+            list_H.append(h_pg)
+            
+        self.lastH = list_H
         pass
 
 
@@ -124,7 +213,7 @@ class Simu:
                 if direction == "y":
                     ligne = n.id * self.__dim + 1
                 if direction == "z":
-                    assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant Z"
+                    assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
                     ligne = n.id * self.__dim + 2
                     
                 self.__Fglob[ligne] += force/nbn
@@ -153,7 +242,7 @@ class Simu:
 
         TicTac.Tac("Condition en déplacement", self.__verbosity)
 
-    def Solve(self):
+    def Solve(self, calculAuxNoeuds=False):
 
         TicTac.Tic()
         
@@ -194,7 +283,7 @@ class Simu:
 
 
 
-    def CalculDeformationEtContrainte(self, Uglob: np.ndarray, sauvegarde=True):
+    def CalculDeformationEtContrainte(self, Uglob: np.ndarray, calculAuxNoeuds=True, sauvegarde=True):
         
         TicTac.Tic()
 
@@ -254,7 +343,7 @@ class Simu:
             list_sigma_pg = []
 
             # Récupère B pour chaque pt de gauss
-            for B_pg in e.listB_pg:
+            for B_pg in e.listB_u_pg:
                 epsilon_pg = B_pg.dot(ue)
                 list_epsilon_pg.append(epsilon_pg)
 
@@ -316,7 +405,10 @@ class Simu:
 
         TicTac.Tac("Calcul deformations et contraintes aux elements", self.__verbosity)
         
-        self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
+        if calculAuxNoeuds:
+            self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
+
+        return list_Epsilon_e, list_Sigma_e 
     
     def __ExtrapolationAuxNoeuds(self, deplacementCoordo: np.ndarray, option = 'mean'):
         
@@ -328,19 +420,9 @@ class Simu:
         dy = deplacementCoordo[:,1]
         dz = deplacementCoordo[:,2]
 
-        Exx_n = []
-        Eyy_n = []
-        Ezz_n = []
-        Exy_n = []
-        Eyz_n = []
-        Exz_n = []
+        Exx_n = []; Eyy_n = []; Ezz_n = []; Exy_n = []; Eyz_n = []; Exz_n = []
         
-        Sxx_n = []
-        Syy_n = []
-        Szz_n = []
-        Sxy_n = []
-        Syz_n = []
-        Sxz_n = []
+        Sxx_n = []; Syy_n = []; Szz_n = []; Sxy_n = []; Syz_n = []; Sxz_n = []
         
         Svm_n = []
         
@@ -371,7 +453,7 @@ class Simu:
                             
                 listIdNoeuds = list(self.__mesh.connect[element.id])
                 index = listIdNoeuds.index(noeud.id)
-                BeDuNoeud = element.listB_n[index]
+                BeDuNoeud = element.listB_u_n[index]
                 
                 # Construit ue
                 deplacement = []

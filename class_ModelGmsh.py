@@ -30,7 +30,7 @@ class ModelGmsh:
 
                 if verbosity:
                         print("==========================================================")
-                        print("Gmsh : \n")
+                        print("Gmsh : ")
 
                 gmsh.initialize()
                 if gmshVerbosity == False:
