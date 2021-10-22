@@ -63,17 +63,22 @@ class Simu:
         
         for e in self.__mesh.elements:            
             e = cast(Element, e)
-            nPe = e.nPe
-            assembly = e.assembly
-            Ke = e.Construit_Ke_deplacement(self.__materiau.C)
-            
+
+            # Pour chaque poing de gauss on construit Ke            
+            Ke = np.zeros((e.nPe*self.__dim, e.nPe*self.__dim))
+            for pg in range(len(e.listB_u_pg)):
+                jacobien = e.listJacobien_pg[pg]
+                poid = e.listPoid_pg[pg]
+                B_pg = e.listB_u_pg[pg]
+                Ke = Ke + jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
+
             # Assemble Ke dans Kglob 
             
             # # Méthode 1
-            # for i in range(nPe*self.__dim):
-            #     ligne = assembly[i]
-            #     for j in range(nPe*self.__dim):
-            #         colonne = assembly[j]
+            # for i in range(e.nPe*self.__dim):
+            #     ligne = e.assembly[i]
+            #     for j in range(e.nPe*self.__dim):
+            #         colonne = e.assembly[j]
             #         if self.__dim == 2:
             #             self.__Kglob[ligne, colonne] += epaisseur * Ke[i, j]
             #         elif self.__dim ==3:
@@ -82,9 +87,9 @@ class Simu:
             # Méthode 2
             vect1 = []
             vect2 = []
-            for i in assembly:
-                vect1.extend(assembly)
-                for j in range(len(assembly)):
+            for i in e.assembly:
+                vect1.extend(e.assembly)
+                for j in range(len(e.assembly)):
                     vect2.append(i)
 
             if self.__dim == 2:
@@ -92,9 +97,7 @@ class Simu:
             elif self.__dim == 3:
                 self.__Kglob[vect1, vect2] = self.__Kglob[vect1, vect2] + np.ravel(Ke)
 
-
-
-            test = self.__Kglob[assembly, :][:, assembly]
+            # test = self.__Kglob[e.assembly, :][:, e.assembly]
             pass
 
         TicTac.Tac("Assemblage", self.__verbosity)
@@ -115,42 +118,30 @@ class Simu:
         
         for e in self.__mesh.elements:            
             e = cast(Element, e)
-            nPe = e.nPe
-            assembly = e.assembly
-            
             
             for pg in range(len(e.listJacobien_pg)):
-
                 jacobien = e.listJacobien_pg[pg]
                 poid = e.listPoid_pg[pg]
                 h = float(self.lastH[e.id][pg])
                 Nd = e.listN_d_pg[pg]
+                Bd = e.listB_d_pg[pg]
                 
-                # Bd pas encore crée par element
-                # Bd = e.li
-                
-                # Kd = Kd + jacobien * poid * ((Gc/l+2*h)*)
+                Kd = Kd + jacobien * poid * ((Gc/l+2*h)*Nd.T.dot(Nd)+Gc*l*Bd.T.dot(Bd))
 
                 fe = fe + jacobien * poid * 2 * (Nd.T*h)
                 
-            list_IdNoeuds = [e.noeuds[i].id for i in range(len(e.noeuds))]
+            # list_IdNoeuds = [e.noeuds[i].id for i in range(len(e.noeuds))]
 
-            # Méthode 2
-            vect1 = []
-            vect2 = []
-            for i in list_IdNoeuds:
-                vect1.extend(list_IdNoeuds)
-                for j in range(len(assembly)):
-                    vect2.append(i)
+            # # Méthode 2
+            # vect1 = []
+            # vect2 = []
+            # for i in list_IdNoeuds:
+            #     vect1.extend(list_IdNoeuds)
+            #     for j in range(len(e.assembly)):
+            #         vect2.append(i)
 
-            Fd_glob[vect1, vect2] = Fd_glob[vect1, vect2] + fe
-                
+            # Fd_glob[vect1, vect2] = Fd_glob[vect1, vect2] + fe
             
-            
-
-
-
-            test = self.__Kglob[assembly, :][:, assembly]
             pass
 
         TicTac.Tac("Assemblage", self.__verbosity)
@@ -194,10 +185,23 @@ class Simu:
 
 
 
-    def ConditionEnForce(self, noeuds=[], force=None, directions=[]):
+    def ConditionEnForce(self, noeuds=[], directions=[], force=0.0):
+        """Applique les conditions en force
+
+
+        Parameters
+        ----------
+        noeuds : list, optional
+            Liste de noeuds, by default []
+        force : float, optional
+            Force que l'on veut appliquer aux noeuds, by default 0.0
+        directions : list, optional
+            ["x", "y", "z"] vecteurs sur lesquelles on veut appliquer la force , by default [] 
+        """
+
         
         assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"
-        assert not force == 0, "Doit être différent de 0"
+        assert not force == 0.0, "Doit être différent de 0"
         assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
 
         TicTac.Tic()
@@ -207,7 +211,7 @@ class Simu:
         for direction in directions:
             for n in noeuds:
                 n = cast(Noeud, n)
-
+                # Récupère la ligne sur laquelle on veut appliquer la force
                 if direction == "x":
                     ligne = n.id * self.__dim
                 if direction == "y":
@@ -220,7 +224,7 @@ class Simu:
         
         TicTac.Tac("Condition en force", self.__verbosity)
 
-    def ConditionEnDeplacement(self, noeuds=[], direction="", deplacement=0):
+    def ConditionEnDeplacement(self, noeuds=[], direction="", deplacement=0.0):
         
         TicTac.Tic()
                

@@ -75,29 +75,10 @@ class Element:
             n = cast(Noeud, n)
             # Pour chaque noeud on ajoute lelement    
             n.AddElement(self)            
-            if dim == 2:
-                self.assembly.append(n.id * 2)
-                self.assembly.append(n.id * 2 + 1)                
-            elif dim ==3:
-                self.assembly.append(n.id * 3)
-                self.assembly.append(n.id * 3 + 1)
-                self.assembly.append(n.id * 3 + 2)
+            for d in range(dim):
+                self.assembly.append(n.id * dim + d)
         
         self.__Construit_B_N()
-
-    def Construit_Ke_deplacement(self, C: np.array):
-        
-        # Pour chaque poing de gauss on construit Ke
-        taille = self.nPe*self.__dim        
-        Ke = np.zeros((taille, taille))
-
-        for pg in range(len(self.listB_u_pg)):
-            jacobien = self.listJacobien_pg[pg]
-            poid = self.listPoid_pg[pg]
-            B_pg = self.listB_u_pg[pg]
-            Ke = Ke + jacobien * poid * B_pg.T.dot(C).dot(B_pg)
-
-        return Ke
 
     def __Construit_B_N(self):
         
@@ -121,9 +102,8 @@ class Element:
 
     def __Construit_B_N_Triangle(self):
 
+        # TRI3
         if self.nPe == 3:  
-            
-            
 
             # Calul du jacobien pour chaque point de gauss
             matriceCoef = np.array([[0, 0, 1],
@@ -182,7 +162,7 @@ class Element:
 
             B_d_pg = self.__ConstruitB_pg(dNtild, invF, vecteur=False)
             self.listB_d_pg.append(B_d_pg)
-            
+        # TRI6  
         if self.nPe == 6:
             
             # Points de gauss
@@ -567,25 +547,13 @@ class Element:
         tuple
             Retourne les vecteurs de constantes 
         """
-        vectX = []
-        vectY = []
-        vectZ = []
-        for noeud in self.noeuds:
-            noeud = cast(Noeud, noeud)
-            
-            vectX.append(noeud.coordo[0])
-            vectY.append(noeud.coordo[1])
-            vectZ.append(noeud.coordo[2])
-        
-        vectX = np.array(vectX)
-        vectY = np.array(vectY)
-        vectZ = np.array(vectZ)
+        vectX = np.array([self.noeuds[i].coordo[0] for i in range(self.nPe)])
+        vectY = np.array([self.noeuds[i].coordo[1] for i in range(self.nPe)])
+        vectZ = np.array([self.noeuds[i].coordo[2] for i in range(self.nPe)])
 
-        inv_matriceCoef = np.linalg.inv(matriceCoef)
-        
-        constX = inv_matriceCoef.dot(vectX)
-        constY = inv_matriceCoef.dot(vectY)
-        constZ = inv_matriceCoef.dot(vectZ)
+        constX = np.linalg.solve(matriceCoef, vectX)
+        constY = np.linalg.solve(matriceCoef, vectY)
+        constZ = np.linalg.solve(matriceCoef, vectZ)
 
         if self.__dim == 2:
             return constX, constY
@@ -660,7 +628,20 @@ class Element:
         return B_pg   
     
     def __ConstruitN_pg(self, list_Ntild: list, vecteur=True):
-        
+        """Construit la matrice de fonction de forme
+
+        Parameters
+        ----------
+        list_Ntild : list des fonctions Ntild
+            Fonctions Ntild
+        vecteur : bool, optional
+            Option qui permet de construire N pour un probleme de déplacement ou un problème thermique, by default True
+
+        Returns
+        -------
+        ndarray
+            Renvoie la matrice Ntild
+        """
         if vecteur:
             N_pg = np.zeros((self.__dim, len(list_Ntild)*self.__dim))
             
