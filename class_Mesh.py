@@ -1,3 +1,4 @@
+from typing import cast
 from matplotlib.pyplot import connect
 import numpy as np
 from class_Element import Element
@@ -220,6 +221,39 @@ class Mesh:
             e += 1
         
         TicTac.Tac("Importation du maillage", self.__verbosity)
+    
+    # def ChercheNoeuds(self, CondX=[], CondY=[], CondZ=[]):
+        
+    #     assert self.__dim == 2 and len(CondZ) == 0, "Pas de condition suivant Z dans une étude 2D" 
+
+    #     def Conditions(i, coordonnée: float, valeur: float):
+    #         switcher ={
+    #                 "=": np.isclose(coordonnée, valeur),
+    #                 "<": coordonnée < valeur,
+    #                 "<=": coordonnée < valeur or np.isclose(coordonnée, valeur),
+    #                 ">": coordonnée > valeur,
+    #                 ">=": coordonnée > valeur or np.isclose(coordonnée, valeur),
+    #             }
+    #         return switcher.get(i, "Invalid")
+
+    #     noeuds = []
+
+    #     for n in self.noeuds:
+    #         n = cast(Noeud, n)
+    #         conditions = [CondX, CondY, CondZ]
+    #         tests = []
+    #         for c in range(len(conditions)):
+    #             cond = conditions[c]
+    #             if(len(cond)==0):
+    #                 tests.append(True)
+    #             else:
+    #                 tests.append(Conditions(cond[0], n.coordo[c], cond[1]))
+            
+    #         if not False in tests:
+    #             noeuds.append(n)
+
+    #     return noeuds
+
             
 # TEST ==============================
 

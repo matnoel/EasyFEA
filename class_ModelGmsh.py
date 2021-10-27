@@ -1,6 +1,7 @@
 import gmsh
 import sys
 import numpy as np
+from Affichage import Affichage
 
 from class_TicTac import TicTac
 
@@ -29,8 +30,7 @@ class ModelGmsh:
                 self.__verbosity = verbosity
 
                 if verbosity:
-                        print("==========================================================")
-                        print("Gmsh : ")
+                        Affichage.NouvelleSection("Gmsh")
 
                 gmsh.initialize()
                 if gmshVerbosity == False:

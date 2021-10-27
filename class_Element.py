@@ -120,8 +120,8 @@ class Element:
             b = constY[1]
             c = constY[2]
 
-            F = np.array([  [alpha, beta],
-                            [a, b]   ])
+            F = np.array([  [alpha, a],
+                            [beta, b]   ])
             
             jacobien = np.linalg.det(F)
             # jacobien = alpha * b - beta * a             
@@ -213,8 +213,8 @@ class Element:
                 return [dN1t, dN2t, dN3t, dN4t, dN5t, dN6t]
             
             def ConstruitF(ksi, eta):
-                F = np.array([[alpha*2*ksi+gamma*eta+delta, beta*2*eta+gamma*ksi+epsilon],
-                              [a*2*ksi+c*eta+d, b*2*eta+c*ksi+e]])                  
+                F = np.array([[alpha*2*ksi+gamma*eta+delta, a*2*ksi+c*eta+d],
+                              [beta*2*eta+gamma*ksi+epsilon, b*2*eta+c*ksi+e]])
                 return F   
 
             # Pour chaque pg on calcul jacobien B et N
@@ -299,8 +299,8 @@ class Element:
                 return [dN1t, dN2t, dN3t, dN4t]
             
             def ConstruitF(ksi, eta):
-                F = np.array([[alpha*eta+beta, alpha*ksi+gamma],
-                              [a*eta+b, a*ksi+c]])                  
+                F = np.array([[alpha*eta+beta, a*eta+b],
+                              [alpha*ksi+gamma, a*ksi+c]])
                 return F                              
             
             # Pour chaque point d'integration on calcul Be
@@ -412,9 +412,9 @@ class Element:
                 
             
             def ConstruitF(ksi, eta):
-                F = np.array([[2*a*ksi*eta+b*eta**2+2*c*ksi+e*eta+f, a*ksi**2+2*b*eta*ksi+2*d*eta+e*ksi+g],
-                              [2*a2*ksi*eta+b2*eta**2+2*c2*ksi+e2*eta+f2, a2*ksi**2+2*b2*eta*ksi+2*d2*eta+e2*ksi+g2]])                 
-                return F                              
+                F = np.array([[2*a*ksi*eta+b*eta**2+2*c*ksi+e*eta+f, 2*a2*ksi*eta+b2*eta**2+2*c2*ksi+e2*eta+f2],
+                              [a*ksi**2+2*b*eta*ksi+2*d*eta+e*ksi+g, a2*ksi**2+2*b2*eta*ksi+2*d2*eta+e2*ksi+g2]])
+                return F
             
             # Pour chaque point d'integration on calcul Be            
             UnSurRacine3 = 1/np.sqrt(3) 
@@ -490,9 +490,9 @@ class Element:
             c3 = constZ[2]
             d3 = constZ[3]
             
-            F = np.array([[a1, b1, c1],
-                          [a2, b2, c2],                              
-                          [a3, b3, c3]])                          
+            F = np.array([[a1, a2, a3],
+                          [b1, b2, b3],
+                          [c1, c2, c3]])
             
             invF = np.linalg.inv(F)
 
@@ -582,8 +582,6 @@ class Element:
         """
         
         # list_dNtild = np.array(list_dNtild)
-        # Transpose la matrice F inversé
-        invF_T = np.array(invF).T
         
         if vecteur:
             if self.__dim == 2:            
@@ -591,8 +589,8 @@ class Element:
 
                 colonne = 0
                 for dNt in list_dNtild:            
-                    dNdx = invF_T[0].dot(dNt)
-                    dNdy = invF_T[1].dot(dNt)
+                    dNdx = invF[0].dot(dNt)
+                    dNdy = invF[1].dot(dNt)
                     
                     B_pg[0, colonne] = dNdx
                     B_pg[1, colonne+1] = dNdy
@@ -603,9 +601,9 @@ class Element:
 
                 colonne = 0
                 for dNt in list_dNtild:            
-                    dNdx = invF_T[0].dot(dNt)
-                    dNdy = invF_T[1].dot(dNt)
-                    dNdz = invF_T[2].dot(dNt)
+                    dNdx = invF[0].dot(dNt)
+                    dNdy = invF[1].dot(dNt)
+                    dNdz = invF[2].dot(dNt)
                     
                     B_pg[0, colonne] = dNdx
                     B_pg[1, colonne+1] = dNdy
@@ -622,7 +620,7 @@ class Element:
                 dNt = list_dNtild[i]
                 for j in range(self.__dim):
                     # j=0 dNdx, j=1 dNdy, j=2 dNdz
-                    dNdj = invF_T[j].dot(dNt)
+                    dNdj = invF[j].dot(dNt)
                     B_pg[j, i] = dNdj
 
         return B_pg   

@@ -29,7 +29,7 @@ P = -800 #N
 
 # Paramètres maillage
 type = "TETRA4"
-taille = h
+taille = h/5
 
 materiau = Materiau(dim)
 
@@ -47,18 +47,16 @@ print("Traitement :")
 
 simu = Simu(dim,mesh, materiau, verbosity=True)
 
-simu.AssemblageKglobFglob(epaisseur=b)
+simu.Assemblage_u(epaisseur=b)
 
 noeuds_en_L = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == L]
 noeuds_en_0 = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == 0]
 
-simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, directions=["z"])
+simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["z"])
 
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="x")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="y")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="z")
+simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y", "z"])
 
-simu.Solve()
+simu.Solve_u()
 
 # Post traitement --------------------------------------------------------------------------------------
 print("\n==========================================================")

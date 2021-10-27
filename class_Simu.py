@@ -42,67 +42,68 @@ class Simu:
         
         self.resultats = {}
 
-        self.lastH = []
+        self.list_H = []
     
-    def AssemblageKglobFglob(self, epaisseur=0):
+    def Assemblage_u(self, epaisseur=0, d=[]):
         """Construit Kglobal
 
         mettre en option u ou d ?
 
         """
-
-        TicTac.Tic()
         
         if self.__dim == 2:        
             assert epaisseur>0,"Doit être supérieur à 0"
 
+        TicTac.Tic()
+        
         taille = self.__mesh.Nn*self.__dim
 
-        self.__Kglob = np.zeros((taille, taille))
-        self.__Fglob = np.zeros(taille)
+        self.__Ku = np.zeros((taille, taille))
+        self.__Fu = np.zeros(taille)
+        self.__ddl_Inconnues = [i for i in range(taille)]
+        self.__ddl_Connues = []
+        self.__uc = []
         
         for e in self.__mesh.elements:            
             e = cast(Element, e)
 
-            # Pour chaque poing de gauss on construit Ke            
-            Ke = np.zeros((e.nPe*self.__dim, e.nPe*self.__dim))
+            # Pour chaque poing de gauss on construit Ke
+            Ke = 0
             for pg in range(len(e.listB_u_pg)):
                 jacobien = e.listJacobien_pg[pg]
                 poid = e.listPoid_pg[pg]
                 B_pg = e.listB_u_pg[pg]
-                Ke = Ke + jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
 
-            # Assemble Ke dans Kglob 
+                if len(d)==0:
+                    # probleme standart
+                    Ke += jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
+                else:
+                    # probleme endomagement
+                    de = np.array([d[n.id] for n in e.noeuds])
+                    Ke += jacobien * poid * (1-e.listN_d_pg[pg].dot(de))**2 *B_pg.T.dot(self.__materiau.C).dot(B_pg)
             
-            # # Méthode 1
-            # for i in range(e.nPe*self.__dim):
-            #     ligne = e.assembly[i]
-            #     for j in range(e.nPe*self.__dim):
-            #         colonne = e.assembly[j]
-            #         if self.__dim == 2:
-            #             self.__Kglob[ligne, colonne] += epaisseur * Ke[i, j]
-            #         elif self.__dim ==3:
-            #             self.__Kglob[ligne, colonne] += Ke[i, j]
-
-            # Méthode 2
-            vect1 = []
-            vect2 = []
+            # Assemble Ke dans Kglob
+            lignes = []
+            colonnes = []
             for i in e.assembly:
-                vect1.extend(e.assembly)
+                lignes.extend(e.assembly)
                 for j in range(len(e.assembly)):
-                    vect2.append(i)
+                    colonnes.append(i)
 
-            if self.__dim == 2:
-                self.__Kglob[vect1, vect2] = self.__Kglob[vect1, vect2] + np.ravel(epaisseur * Ke)
+            if self.__dim == 2:                
+                self.__Ku[lignes, colonnes] += np.ravel(epaisseur * Ke)
             elif self.__dim == 3:
-                self.__Kglob[vect1, vect2] = self.__Kglob[vect1, vect2] + np.ravel(Ke)
+                self.__Ku[lignes, colonnes] += np.ravel(Ke)
 
-            # test = self.__Kglob[e.assembly, :][:, e.assembly]
-            pass
+        TicTac.Tac("Assemblage u", self.__verbosity)
 
-        TicTac.Tac("Assemblage", self.__verbosity)
+        self.__KuSave = self.__Ku
 
-    def AssemblageKdFd(self, Gc=1, l=0.001):
+        
+
+        return self.__Ku, self.__Fu
+
+    def Assemblage_d(self, Gc=1, l=0.001):
         """Construit Kglobal
 
         mettre en option u ou d ?
@@ -113,79 +114,54 @@ class Simu:
         
         taille = self.__mesh.Nn
 
-        Kd_glob = np.zeros((taille, taille))
-        Fd_glob = np.zeros((taille, 1))
+        self.__Kd = np.zeros((taille, taille))
+        self.__Fd = np.zeros(taille)
+        self.__d_Inconnues = [i for i in range(self.__mesh.Nn)]
+        self.__d_Connues = []
+        self.__dc = []
         
         for e in self.__mesh.elements:            
             e = cast(Element, e)
             
+            Ke = 0
+            fe = 0
+            # Pour chaque point de gauss construit Ke et fe
             for pg in range(len(e.listJacobien_pg)):
                 jacobien = e.listJacobien_pg[pg]
                 poid = e.listPoid_pg[pg]
-                h = float(self.lastH[e.id][pg])
+                h = self.list_H[e.id][pg]
                 Nd = e.listN_d_pg[pg]
                 Bd = e.listB_d_pg[pg]
                 
-                Kd = Kd + jacobien * poid * ((Gc/l+2*h)*Nd.T.dot(Nd)+Gc*l*Bd.T.dot(Bd))
+                nTn = Nd.T.dot(Nd)
+                bTb = Bd.T.dot(Bd)
 
-                fe = fe + jacobien * poid * 2 * (Nd.T*h)
+                Ke += jacobien * poid * ((Gc/l+2*h)*nTn+Gc*l*bTb)
+
+                fe += jacobien * poid * 2 * (Nd.T*h)
                 
-            # list_IdNoeuds = [e.noeuds[i].id for i in range(len(e.noeuds))]
+            list_IdNoeuds = [e.noeuds[i].id for i in range(e.nPe)]
 
-            # # Méthode 2
-            # vect1 = []
-            # vect2 = []
-            # for i in list_IdNoeuds:
-            #     vect1.extend(list_IdNoeuds)
-            #     for j in range(len(e.assembly)):
-            #         vect2.append(i)
+            # Assemblage Kd_glob et Fd_glob
+            lignes = []
+            colonnes = []
+            for i in list_IdNoeuds:
+                lignes.extend(list_IdNoeuds)
+                for j in range(e.nPe):
+                    colonnes.append(i)
 
-            # Fd_glob[vect1, vect2] = Fd_glob[vect1, vect2] + fe
+            self.__Kd[lignes, colonnes] += np.ravel(Ke)
+            self.__Fd[list_IdNoeuds] += np.ravel(fe)
             
-            pass
+        TicTac.Tac("Assemblage d", self.__verbosity)
 
-        TicTac.Tac("Assemblage", self.__verbosity)
+        self.__KdSave = self.__Kd
 
-    def ConstruitH(self, u: np.ndarray, d: np.ndarray):
-        # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
+        return self.__Kd, self.__Fd
 
-        list_H = []
-        for e in self.__mesh.elements:
-            e = cast(Element, e)
+    
 
-            h_pg = []
-            
-            for pg in range(len(e.listB_u_pg)):
-                # Construit ui di
-                ui = []
-                di = []
-                for n in e.noeuds:
-                    n = cast(Noeud, n)
-                    di.append(d[n.id])
-                    for j in range(self.__dim):
-                        valeur = u[n.id*self.__dim+j]
-                        ui.append(valeur)
-                
-                ui = np.array(ui)
-                di = np.array(di)
-
-                B_pg = np.array(e.listB_u_pg[pg])
-
-                h = (1-e.listN_d_pg[pg].dot(di))**2 *1/2 * (B_pg.dot(ui)).T.dot(self.__materiau.C).dot(B_pg.dot(ui))
-                
-                if(len(self.lastH)==0):
-                    h_pg.append(h)
-                else:
-                    h_pg.append(np.max(h, list_H[e][pg]))
- 
-            list_H.append(h_pg)
-            
-        self.lastH = list_H
-        pass
-
-
-
-    def ConditionEnForce(self, noeuds=[], directions=[], force=0.0):
+    def Condition_Neumann(self, noeuds: list, directions: list, valeur=0.0, option="u"):
         """Applique les conditions en force
 
 
@@ -199,80 +175,152 @@ class Simu:
             ["x", "y", "z"] vecteurs sur lesquelles on veut appliquer la force , by default [] 
         """
 
-        
         assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"
-        assert not force == 0.0, "Doit être différent de 0"
+        assert option in ["u", "d"], "Mauvaise option"
+        assert not valeur == 0.0, "Doit être différent de 0"
         assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
 
         TicTac.Tic()
         
         nbn = len(noeuds)
 
-        for direction in directions:
+        if option == "d":
             for n in noeuds:
                 n = cast(Noeud, n)
-                # Récupère la ligne sur laquelle on veut appliquer la force
-                if direction == "x":
-                    ligne = n.id * self.__dim
-                if direction == "y":
-                    ligne = n.id * self.__dim + 1
-                if direction == "z":
-                    assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                    ligne = n.id * self.__dim + 2
+                self.__Fd[n.id] += valeur/nbn
+        elif option == "u":
+            for direction in directions:
+                for n in noeuds:
+                    n = cast(Noeud, n)
+
+                    # Récupère la ligne sur laquelle on veut appliquer la force
+                    if direction == "x":
+                        ligne = n.id * self.__dim
+                    if direction == "y":
+                        ligne = n.id * self.__dim + 1
+                    if direction == "z":
+                        assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
+                        ligne = n.id * self.__dim + 2
+                        
+                    self.__Fu[ligne] += valeur/nbn                   
+                
+        
+        TicTac.Tac("Condition Neumann", self.__verbosity)
+
+    def Condition_Dirichlet(self, noeuds: list, directions=[] , valeur=0.0, option="u"):
+        
+        assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"        
+        assert option in ["u", "d"], "Mauvaise option"
+        if option == "d":
+            assert valeur >= 0 or valeur <= 1, "d doit etre compris entre [0;1]"        
+        elif option == "u":
+            assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
+
+        TicTac.Tic()
+
+        if option == "d":
+            for n in noeuds:
+                n = cast(Noeud, n)
+                ligne = n.id
+
+                if ligne in self.__d_Inconnues:
+                    self.__d_Inconnues.remove(ligne)
+                if ligne not in self.__d_Connues:
+                    self.__dc.append(valeur) 
+                    self.__d_Connues.append(ligne)
+
+                self.__Fd[ligne] = valeur
+                self.__Kd[ligne,:] = 0.0
+                self.__Kd[ligne, ligne] = 1
+
+        elif option == "u":
+            for n in noeuds:
+                n = cast(Noeud, n)
+                for direction in directions:
+                    if direction == "x":
+                        ligne = n.id * self.__dim
+                        
+                    if direction == "y":
+                        ligne = n.id * self.__dim + 1
+                        
+                    if direction == "z":
+                        ligne = n.id * self.__dim + 2
                     
-                self.__Fglob[ligne] += force/nbn
-        
-        TicTac.Tac("Condition en force", self.__verbosity)
+                    if ligne in self.__ddl_Inconnues:
+                        self.__ddl_Inconnues.remove(ligne)
+                    if ligne not in self.__ddl_Connues:
+                        self.__uc.append(valeur) 
+                        self.__ddl_Connues.append(ligne)
 
-    def ConditionEnDeplacement(self, noeuds=[], direction="", deplacement=0.0):
+                    self.__Fu[ligne] = valeur
+                    self.__Ku[ligne,:] = 0.0
+                    self.__Ku[ligne, ligne] = 1
         
-        TicTac.Tic()
-               
-        for n in noeuds:
-            n = cast(Noeud, n)
-            
-            if direction == "x":
-                ligne = n.id * self.__dim
                 
-            if direction == "y":
-                ligne = n.id * self.__dim + 1
-                
-            if direction == "z":
-                ligne = n.id * self.__dim + 2
+
+        TicTac.Tac("Condition Dirichlet", self.__verbosity)
+
+    def Solve_u(self, resolution=1, save=True):
+        
+        def ConstruitUglob():
+            # Reconstruit Uglob
+            Uglob = []
+            cc_connues = 0
+            cc_inconnues = 0
+            for i in range(self.__mesh.Nn*self.__dim):
+                if i in self.__ddl_Connues:
+                    Uglob.append(self.__uc[cc_connues])
+                    cc_connues += 1
+                elif i in self.__ddl_Inconnues:
+                    Uglob.append(ui[cc_inconnues])
+                    cc_inconnues += 1
             
-            self.__Fglob[ligne] = deplacement
-            self.__Kglob[ligne,:] = 0.0
-            self.__Kglob[ligne, ligne] = 1
-
-        TicTac.Tac("Condition en déplacement", self.__verbosity)
-
-    def Solve(self, calculAuxNoeuds=False):
+            return np.array(Uglob)
 
         TicTac.Tic()
-        
-        # Méthodes moints rapide
-        # self.__Uglob = np.linalg.solve(self.__Kglob, self.__Fglob)
-        # self.__Uglob = sp.linalg.solve(self.__Kglob, self.__Fglob)
 
-        # Résolution du plus rapide au plus lent  
-        Uglob = spsolve(sp.sparse.csr_matrix(self.__Kglob), self.__Fglob)
-        
-        # Reconstruit Uglob
-        Uglob = np.array(Uglob)
+        # Résolution du plus rapide au plus lent
+        if resolution == 1:
+            Uglob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Ku), self.__Fu)            
+        elif resolution == 2:
+            ddl_Connues = self.__ddl_Connues
+            ddl_Inconnues = self.__ddl_Inconnues
 
+            assert len(ddl_Connues) + len(ddl_Inconnues) == self.__mesh.Nn*self.__dim, "Problème dans les conditions"
+
+            Kii = self.__KuSave[ddl_Inconnues, :][:, ddl_Inconnues]
+            Kic = self.__KuSave[ddl_Inconnues, :][:, ddl_Connues]
+            uc = self.__uc
+            Fi = self.__Fu[ddl_Inconnues]
+
+            ui = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(Kii), Fi-Kic.dot(uc))            
+            Uglob = ConstruitUglob()            
+        elif resolution == 3:
+            ui = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Ku[self.__ddl_Inconnues, :][:, self.__ddl_Inconnues]), self.__Fu[self.__ddl_Inconnues])
+            Uglob = ConstruitUglob()
+        elif resolution == 4:            
+            Uglob = sp.linalg.solve(self.__Ku, self.__Fu)
+        elif resolution == 5:            
+            Uglob = np.linalg.solve(self.__Ku, self.__Fu)
+
+        TicTac.Tac("Résolution", self.__verbosity)        
+        
+        if save:
+            self.__Save_u(Uglob)
+
+        return Uglob
+
+    def __Save_u(self, Uglob: np.ndarray):
         # Energie de deformation
-        self.resultats["Wdef"] = 1/2 * Uglob.T.dot(self.__Kglob).dot(Uglob)
+        self.resultats["Wdef"] = 1/2 * Uglob.T.dot(self.__Ku).dot(Uglob)
 
-        # Récupère les déplacements       
-        dim = self.__dim
-        Nn = self.__mesh.Nn
-
-        dx = np.array([Uglob[i*dim] for i in range(Nn)])
-        dy = np.array([Uglob[i*dim+1] for i in range(Nn)])
-        if dim == 2:
-            dz = np.zeros(Nn)
+        # Récupère les déplacements
+        dx = np.array([Uglob[i*self.__dim] for i in range(self.__mesh.Nn)])
+        dy = np.array([Uglob[i*self.__dim+1] for i in range(self.__mesh.Nn)])
+        if self.__dim == 2:
+            dz = np.zeros(self.__mesh.Nn)
         else:
-            dz = np.array([Uglob[i*dim+2] for i in range(Nn)])
+            dz = np.array([Uglob[i*self.__dim+2] for i in range(self.__mesh.Nn)])
         
         self.resultats["dx_n"] = dx
         self.resultats["dy_n"] = dy        
@@ -280,14 +328,11 @@ class Simu:
             self.resultats["dz_n"] = dz
 
         self.resultats["deplacementCoordo"] = np.array([dx, dy, dz]).T
-
-        TicTac.Tac("Résolution", self.__verbosity)
         
-        self.CalculDeformationEtContrainte(Uglob)
+        self.__CalculDeformationEtContrainte(Uglob)
+            
 
-
-
-    def CalculDeformationEtContrainte(self, Uglob: np.ndarray, calculAuxNoeuds=True, sauvegarde=True):
+    def __CalculDeformationEtContrainte(self, Uglob: np.ndarray, calculAuxNoeuds=True):
         
         TicTac.Tic()
 
@@ -296,29 +341,15 @@ class Simu:
         dim = self.__dim
         
         # Prépare les vecteurs de stockage par element
-        dx_e = []
-        dy_e = []
-
-        Exx_e = []
-        Eyy_e = []
-        Exy_e = []
-
-        Sxx_e = []
-        Syy_e = []
-        Sxy_e = []
-
+        dx_e = []; dy_e = []
+        Exx_e = []; Eyy_e = []; Exy_e = []
+        Sxx_e = []; Syy_e = []; Sxy_e = []
         Svm_e = []
 
         if dim == 3:
             dz_e = []
-
-            Ezz_e = []
-            Eyz_e = []
-            Exz_e = []
-
-            Szz_e = []
-            Syz_e = []
-            Sxz_e = []
+            Ezz_e = []; Eyz_e = []; Exz_e = []
+            Szz_e = []; Syz_e = []; Sxz_e = []
 
         # Pour chaque element on va calculer pour chaque point de gauss Epsilon et Sigma
         for e in self.__mesh.elements:
@@ -382,30 +413,16 @@ class Simu:
 
                 Svm_e.append(np.sqrt(((Sxx_e[-1]-Syy_e[-1])**2+(Syy_e[-1]-Szz_e[-1])**2+(Szz_e[-1]-Sxx_e[-1])**2+6*(Sxy_e[-1]**2+Syz_e[-1]**2+Sxz_e[-1]**2))/2)) 
 
-        if sauvegarde:
-            self.resultats["dx_e"]=np.array(dx_e)
-            self.resultats["dy_e"]=np.array(dy_e)
+        self.resultats["dx_e"]=np.array(dx_e); self.resultats["dy_e"]=np.array(dy_e)
+        self.resultats["Exx_e"]=np.array(Exx_e); self.resultats["Eyy_e"]=np.array(Eyy_e); self.resultats["Exy_e"]=np.array(Exy_e)
+        self.resultats["Sxx_e"]=np.array(Sxx_e); self.resultats["Syy_e"]=np.array(Syy_e); self.resultats["Sxy_e"]=np.array(Sxy_e)
+        self.resultats["Svm_e"]=np.array(Svm_e)
 
-            self.resultats["Exx_e"]=np.array(Exx_e)
-            self.resultats["Eyy_e"]=np.array(Eyy_e)
-            self.resultats["Exy_e"]=np.array(Exy_e)
+        if dim == 3:
+            self.resultats["dz_e"]=np.array(dz_e)
+            self.resultats["Ezz_e"]=np.array(Ezz_e); self.resultats["Eyz_e"]=np.array(Eyz_e); self.resultats["Exz_e"]=np.array(Exz_e)                
+            self.resultats["Szz_e"]=np.array(Szz_e); self.resultats["Syz_e"]=np.array(Syz_e); self.resultats["Sxz_e"]=np.array(Sxz_e)
             
-            self.resultats["Sxx_e"]=np.array(Sxx_e)
-            self.resultats["Syy_e"]=np.array(Syy_e)
-            self.resultats["Sxy_e"]=np.array(Sxy_e)
-
-            self.resultats["Svm_e"]=np.array(Svm_e)
-
-            if dim == 3:
-                self.resultats["dz_e"]=np.array(dz_e)
-
-                self.resultats["Ezz_e"]=np.array(Ezz_e)
-                self.resultats["Eyz_e"]=np.array(Eyz_e)
-                self.resultats["Exz_e"]=np.array(Exz_e)
-                
-                self.resultats["Szz_e"]=np.array(Szz_e)
-                self.resultats["Syz_e"]=np.array(Syz_e)
-                self.resultats["Sxz_e"]=np.array(Sxz_e)
 
         TicTac.Tac("Calcul deformations et contraintes aux elements", self.__verbosity)
         
@@ -420,37 +437,22 @@ class Simu:
 
         # Extrapolation des valeurs aux noeuds  
 
-        dx = deplacementCoordo[:,0]
-        dy = deplacementCoordo[:,1]
-        dz = deplacementCoordo[:,2]
+        dx = deplacementCoordo[:,0]; dy = deplacementCoordo[:,1]; dz = deplacementCoordo[:,2]
 
         Exx_n = []; Eyy_n = []; Ezz_n = []; Exy_n = []; Eyz_n = []; Exz_n = []
-        
         Sxx_n = []; Syy_n = []; Szz_n = []; Sxy_n = []; Syz_n = []; Sxz_n = []
-        
         Svm_n = []
         
         for noeud in self.__mesh.noeuds:
             noeud = cast(Noeud, noeud)
             
-            list_Exx = []
-            list_Eyy = []
-            list_Exy = []
-            
-            list_Sxx = []
-            list_Syy = []
-            list_Sxy = []
-            
-            list_Svm = []      
+            list_Exx = []; list_Eyy = []; list_Exy = []
+            list_Sxx = []; list_Syy = []; list_Sxy = []
+            list_Svm = []
                 
-            if self.__dim == 3:                
-                list_Ezz = []
-                list_Eyz = []
-                list_Exz = []
-                                
-                list_Szz = []                
-                list_Syz = []
-                list_Sxz = []
+            if self.__dim == 3:
+                list_Ezz = []; list_Eyz = []; list_Exz = []                                
+                list_Szz = []; list_Syz = []; list_Sxz = []
                         
             for element in noeud.elements:
                 element = cast(Element, element)
@@ -460,62 +462,37 @@ class Simu:
                 BeDuNoeud = element.listB_u_n[index]
                 
                 # Construit ue
-                deplacement = []
+                ue = []
                 for noeudDeLelement in element.noeuds:
                     noeudDeLelement = cast(Noeud, noeudDeLelement)
                     
                     if self.__dim == 2:
-                        deplacement.append(dx[noeudDeLelement.id])
-                        deplacement.append(dy[noeudDeLelement.id])
+                        ue.append(dx[noeudDeLelement.id])
+                        ue.append(dy[noeudDeLelement.id])
                     if self.__dim == 3:
-                        deplacement.append(dx[noeudDeLelement.id])
-                        deplacement.append(dy[noeudDeLelement.id])
-                        deplacement.append(dz[noeudDeLelement.id])
+                        ue.append(dx[noeudDeLelement.id])
+                        ue.append(dy[noeudDeLelement.id])
+                        ue.append(dz[noeudDeLelement.id])
                         
-                deplacement = np.array(deplacement)
+                ue = np.array(ue)
                 
-                vect_Epsilon = BeDuNoeud.dot(deplacement)
+                vect_Epsilon = BeDuNoeud.dot(ue)
                 vect_Sigma = self.__materiau.C.dot(vect_Epsilon)
                 
                 if self.__dim == 2:                
-                    list_Exx.append(vect_Epsilon[0])
-                    list_Eyy.append(vect_Epsilon[1])
-                    list_Exy.append(vect_Epsilon[2])
-                    
-                    Sxx = vect_Sigma[0]
-                    Syy = vect_Sigma[1]
-                    Sxy = vect_Sigma[2]                    
-                    
-                    list_Sxx.append(Sxx)
-                    list_Syy.append(Syy)
-                    list_Sxy.append(Sxy)
+                    list_Exx.append(vect_Epsilon[0]); list_Eyy.append(vect_Epsilon[1]); list_Exy.append(vect_Epsilon[2])
+                    Sxx = vect_Sigma[0]; Syy = vect_Sigma[1]; Sxy = vect_Sigma[2]
+                    list_Sxx.append(Sxx); list_Syy.append(Syy); list_Sxy.append(Sxy)
                     list_Svm.append(np.sqrt(Sxx**2+Syy**2-Sxx*Syy+3*Sxy**2))
                     
                 elif self.__dim == 3:
-                    list_Exx.append(vect_Epsilon[0]) 
-                    list_Eyy.append(vect_Epsilon[1])
-                    list_Ezz.append(vect_Epsilon[2])                    
-                    list_Exy.append(vect_Epsilon[3])
-                    list_Eyz.append(vect_Epsilon[4])
-                    list_Exz.append(vect_Epsilon[5])
-                    
-                    Sxx = vect_Sigma[0]
-                    Syy = vect_Sigma[1]
-                    Szz = vect_Sigma[2]                    
-                    Sxy = vect_Sigma[3]
-                    Syz = vect_Sigma[4]
-                    Sxz = vect_Sigma[5]
-                    
-                    list_Sxx.append(Sxx)
-                    list_Syy.append(Syy)
-                    list_Szz.append(Szz)
-                    
-                    list_Sxy.append(Sxy)
-                    list_Syz.append(Syz)
-                    list_Sxz.append(Sxz)
-                    
+                    list_Exx.append(vect_Epsilon[0]); list_Eyy.append(vect_Epsilon[1]); list_Ezz.append(vect_Epsilon[2])                    
+                    list_Exy.append(vect_Epsilon[3]); list_Eyz.append(vect_Epsilon[4]); list_Exz.append(vect_Epsilon[5])                    
+                    Sxx = vect_Sigma[0]; Syy = vect_Sigma[1]; Szz = vect_Sigma[2]
+                    Sxy = vect_Sigma[3]; Syz = vect_Sigma[4]; Sxz = vect_Sigma[5]                    
+                    list_Sxx.append(Sxx); list_Syy.append(Syy); list_Szz.append(Szz)
+                    list_Sxy.append(Sxy); list_Syz.append(Syz); list_Sxz.append(Sxz)                    
                     Svm = np.sqrt(((Sxx-Syy)**2+(Syy-Szz)**2+(Szz-Sxx)**2+6*(Sxy**2+Syz**2+Sxz**2))/2)
-                    
                     list_Svm.append(Svm)
             
             def TrieValeurs(source:list, option: str):
@@ -556,26 +533,110 @@ class Simu:
                 Sxz_n.append(TrieValeurs(list_Sxz, option))
             
         
-        self.resultats["Exx_n"] = Exx_n
-        self.resultats["Eyy_n"] = Eyy_n
-        self.resultats["Exy_n"] = Exy_n
-        self.resultats["Sxx_n"] = Sxx_n
-        self.resultats["Syy_n"] = Syy_n
-        self.resultats["Sxy_n"] = Sxy_n      
+        self.resultats["Exx_n"] = Exx_n; self.resultats["Eyy_n"] = Eyy_n; self.resultats["Exy_n"] = Exy_n
+        self.resultats["Sxx_n"] = Sxx_n; self.resultats["Syy_n"] = Syy_n; self.resultats["Sxy_n"] = Sxy_n      
         self.resultats["Svm_n"] = Svm_n
         
         if self.__dim == 3:            
-            self.resultats["Ezz_n"] = Ezz_n
-            self.resultats["Eyz_n"] = Eyz_n
-            self.resultats["Exz_n"] = Exz_n
-            
-            self.resultats["Szz_n"] = Szz_n
-            self.resultats["Syz_n"] = Syz_n
-            self.resultats["Sxz_n"] = Sxz_n
+            self.resultats["Ezz_n"] = Ezz_n; self.resultats["Eyz_n"] = Eyz_n; self.resultats["Exz_n"] = Exz_n
+            self.resultats["Szz_n"] = Szz_n; self.resultats["Syz_n"] = Syz_n; self.resultats["Sxz_n"] = Sxz_n
     
         TicTac.Tac("Calcul contraintes et deformations aux noeuds", self.__verbosity)
+
+    def ConstruitH(self, u: np.ndarray, d:np.ndarray):
+            # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
+
+            list_new_H = []
+            for e in self.__mesh.elements:
+                e = cast(Element, e)
+
+                # Construit ui
+                ui = []
+                di = []
+                for n in e.noeuds:
+                    n = cast(Noeud, n)
+                    di.append(d[n.id])
+                    for j in range(self.__dim):
+                        valeur = u[n.id*self.__dim+j]
+                        ui.append(valeur)            
+                ui = np.array(ui)
+                di = np.array(di)
+
+                h_pg = []
                 
-    
+                for pg in range(len(e.listB_u_pg)):
+                    B_pg = np.array(e.listB_u_pg[pg])                    
+                    N_pg = e.listN_d_pg[pg]
+
+                    h = (1-N_pg.dot(di))**2 * 1/2 * (B_pg.dot(ui)).T.dot(self.__materiau.C).dot(B_pg.dot(ui))
+                    # h = 1/2 * (B_pg.dot(ui)).T.dot(self.__materiau.C).dot(B_pg.dot(ui))
+                    
+                    h=float(h)
+
+                    if(len(self.list_H)==0):
+                        h_pg.append(h)
+                    else:                        
+                        h_pg.append(max(h, self.list_H[e.id][pg]))
+                
+                list_new_H.append(h_pg)
+                
+            self.list_H = list_new_H    
+
+    def Solve_d(self, resolution=1):
+            
+            # Reconstruit dglob
+            def Construit_Dglob():                
+                dGlob = []
+                cc_connues = 0
+                cc_inconnues = 0
+                for i in range(self.__mesh.Nn):
+                    if i in self.__d_Connues:
+                        dGlob.append(self.__dc[cc_connues])
+                        cc_connues += 1
+                    elif i in self.__d_Inconnues:
+                        dGlob.append(di[cc_inconnues])
+                        cc_inconnues += 1
+                
+                return np.array(dGlob)
+
+            TicTac.Tic()
+
+            # Résolution du plus rapide au plus lent
+            if resolution == 1:
+                dGlob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Kd), self.__Fd)            
+            elif resolution == 2:
+                d_Connues = self.__d_Connues
+                d_Inconnues = self.__d_Inconnues
+
+                assert len(d_Connues) + len(d_Inconnues) == self.__mesh.Nn, "Problème dans les conditions"
+
+                Kii = self.__KdSave[d_Inconnues, :][:, d_Inconnues]
+                Kic = self.__KdSave[d_Inconnues, :][:, d_Connues]
+                dc = self.__dc
+                Fi = self.__Fd[d_Inconnues]
+
+                di = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(Kii), Fi-Kic.dot(dc))            
+                dGlob = Construit_Dglob()            
+            elif resolution == 3:
+                di = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Kd[self.__ddl_Inconnues, :][:, self.__ddl_Inconnues]), self.__Fd[self.__ddl_Inconnues])
+                dGlob = Construit_Dglob()
+            elif resolution == 4:            
+                dGlob = sp.linalg.solve(self.__Kd, self.__Fd)
+            elif resolution == 5:            
+                dGlob = np.linalg.solve(self.__Kd, self.__Fd)
+
+            TicTac.Tac("Résolution d", self.__verbosity)        
+            
+            # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
+            # assert dGlob.min() >= 0, "Doit etre supérieur 0"
+
+            if(dGlob.max() > 1):
+                print("dmax = {}".format(dGlob.max()))
+
+            if(dGlob.min() < 0):
+                print("dmin = {}".format(dGlob.min()))
+
+            return dGlob   
          
 # ====================================
 
@@ -613,7 +674,7 @@ class Test_Simu(unittest.TestCase):
 
             simu = Simu(dim, mesh, materiau, verbosity=False)
 
-            simu.AssemblageKglobFglob(epaisseur=b)
+            simu.Assemblage_u(epaisseur=b)
 
             noeud_en_L = []
             noeud_en_0 = []
@@ -624,10 +685,9 @@ class Test_Simu(unittest.TestCase):
                     if n.coordo[0] == 0:
                             noeud_en_0.append(n)
 
-            simu.ConditionEnForce(noeuds=noeud_en_L, force=P, directions=["y"])
+            simu.Condition_Neumann(noeuds=noeud_en_L, valeur=P, directions=["y"])
 
-            simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="x")
-            simu.ConditionEnDeplacement(noeuds=noeud_en_0, deplacement=0, direction="y")
+            simu.Condition_Dirichlet(noeuds=noeud_en_0, valeur=0, directions=["x", "y"])
 
             self.simulations2DElastique.append(simu)
 
@@ -659,7 +719,7 @@ class Test_Simu(unittest.TestCase):
 
             simu = Simu(dim,mesh, materiau, verbosity=False)
 
-            simu.AssemblageKglobFglob(epaisseur=b)
+            simu.Assemblage_u(epaisseur=b)
 
             noeuds_en_L = []
             noeuds_en_0 = []
@@ -670,11 +730,9 @@ class Test_Simu(unittest.TestCase):
                     if n.coordo[0] == 0:
                             noeuds_en_0.append(n)
 
-            simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, directions=["z"])
+            simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["z"])
 
-            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="x")
-            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="y")
-            simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="z")
+            simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y", "z"])
 
             self.simulations3DElastique.append(simu)
     
@@ -686,13 +744,13 @@ class Test_Simu(unittest.TestCase):
         # Pour chaque type de maillage on simule
         for simu in self.simulations2DElastique:
             simu = cast(Simu, simu)
-            simu.Solve()
+            simu.Solve_u()
 
     def test_ResolutionDesSimulationsElastique3D(self):
         # Pour chaque type de maillage on simule
         for simu in self.simulations3DElastique:
             simu = cast(Simu, simu)
-            simu.Solve()
+            simu.Solve_u()
 
 
 if __name__ == '__main__':        

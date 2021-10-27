@@ -29,29 +29,33 @@ class Affichage:
 
         connectPolygon = mesh.get_connectPolygon()
 
+        levels = 200
+
         if dim == 2:
             # Construit les vertices
             coord_xy = coordo[:,[0,1]]            
             vertices = [[coord_xy[connectPolygon[ix][iy]] for iy in range(len(connectPolygon[0]))] for ix in range(len(connectPolygon))]
 
             fig, ax = plt.subplots()
-
+                
             # Trace le maillage
             if affichageMaillage:
                 pc = matplotlib.collections.LineCollection(vertices, edgecolor='black', lw=0.5)
                 ax.add_collection(pc)
 
             # Valeurs aux element
-            if "_e" in val and mesh.Ne == len(valeurs):                
+            if mesh.Ne == len(valeurs):                
                 pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap='jet')                
                 pc.set_clim(valeurs.min(), valeurs.max())
                 pc.set_array(valeurs)
                 ax.add_collection(pc)
 
             # Valeur aux noeuds
-            elif "_n" in val and mesh.Nn == len(valeurs):
-                pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, cmap='jet', antialiased=True)
-                # pc = ax.tricontour(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, cmap='jet', antialiased=True)                
+            elif mesh.Nn == len(valeurs):
+                pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, levels ,cmap='jet')
+                # pc = ax.tripcolor(coordo[:,0], coordo[:,1], valeurs, levels ,cmap='jet')
+                # pc = ax.tricontour(coordo[:,0], coordo[:,1], valeurs, levels ,cmap='jet')
+                
   
             fig.colorbar(pc, ax=ax)
             ax.axis('equal')
@@ -62,7 +66,6 @@ class Affichage:
         elif mesh.get_dim() == 3:
 
             assert "_e" in val, "Pour une étude 3D on ne trace qua partir des valeurs de l'élément"
-
 
             # Construit les vertices
             coord_xyz = coordo            
@@ -188,6 +191,19 @@ class Affichage:
             Affichage.__ChangeEchelle(ax, coordo)
         
         return fig, ax
+
+    def AfficheNoeudsMaillage(dim:int, ax: plt.Axes, noeuds=[], marker='*', c='blue'):
+        list_x = [noeuds[i].coordo[0] for i in range(len(noeuds))]
+        list_y = [noeuds[i].coordo[1] for i in range(len(noeuds))]
+        if dim == 2:
+            ax.scatter(list_x, list_y, marker=marker, c=c)
+        elif dim == 3:
+            list_z = [noeuds[i].coordo[2] for i in range(len(noeuds))]
+            ax.scatter(list_x, list_y, list_z, marker=marker, c=c)
+    
+    def NouvelleSection(text: str):
+        print("\n==========================================================")
+        print("{} :".format(text))
 
     def __ChangeEchelle(ax, coordo: np.ndarray):
         """Change la taille des axes pour l'affichage 3D

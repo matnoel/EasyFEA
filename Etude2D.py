@@ -29,7 +29,7 @@ P = -800 #N
 
 # Paramètres maillage
 type = ModelGmsh.get_typesMaillage2D()[2]
-taille = h/10
+taille = h/5
 
 # Materiau
 materiau = Materiau(dim)
@@ -46,24 +46,20 @@ noeuds_en_L = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0
 noeuds_en_0 = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == 0]
 
 # ------------------------------------------------------------------------------------------------------
-
-print("\n==========================================================")
-print("Traitement :")
+Affichage.NouvelleSection("Traitement")
 
 simu = Simu(dim, mesh, materiau)
 
-simu.AssemblageKglobFglob(epaisseur=b)
+simu.Assemblage_u(epaisseur=b)
 
-simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, directions=["y"])
+simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
 
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="x")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="y")
+simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y"])
 
-simu.Solve()
+simu.Solve_u(resolution=5)
 
 # Post traitement --------------------------------------------------------------------------------------
-print("\n==========================================================")
-print("Post traitement :")
+Affichage.NouvelleSection("Post traitement")
 
 print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
 
@@ -91,8 +87,7 @@ if plotResult:
         
         plt.show()
 
-print("\n==========================================================")
-print("\n FIN DU PROGRAMME \n")
+Affichage.NouvelleSection("Fin du programme")
 
 
 
