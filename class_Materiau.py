@@ -49,7 +49,11 @@ class Materiau:
         self.C = None
         
         # Construction matrice de comportement C (S=C*Epsilon)
-        if dim == 2:                       
+        if dim == 2:
+
+            self.lamb = v*E/((1+v)*(1-2*v))
+            self.mu = E/(2+2*v)
+
             if contraintesPlanes:
                 # isotrope + contraintes planes
                 self.C =  E/(1-v**2) * np.array([   [1, v, 0],

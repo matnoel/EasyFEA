@@ -60,10 +60,11 @@ class Simu:
 
         self.__Ku = np.zeros((taille, taille))
         self.__Fu = np.zeros(taille)
+        
         self.__ddl_Inconnues = [i for i in range(taille)]
         self.__ddl_Connues = []
-        self.__uc = []
-        
+        self.__Uc = np.zeros(taille)
+
         for e in self.__mesh.elements:            
             e = cast(Element, e)
 
@@ -80,6 +81,7 @@ class Simu:
                 else:
                     # probleme endomagement
                     de = np.array([d[n.id] for n in e.noeuds])
+                    # Bourdin
                     Ke += jacobien * poid * (1-e.listN_d_pg[pg].dot(de))**2 *B_pg.T.dot(self.__materiau.C).dot(B_pg)
             
             # Assemble Ke dans Kglob
@@ -97,9 +99,8 @@ class Simu:
 
         TicTac.Tac("Assemblage u", self.__verbosity)
 
-        self.__KuSave = self.__Ku
-
-        
+        self.__Ku_penal = np.copy(self.__Ku)
+        self.__Fu_penal = np.copy(self.__Fu)
 
         return self.__Ku, self.__Fu
 
@@ -116,9 +117,10 @@ class Simu:
 
         self.__Kd = np.zeros((taille, taille))
         self.__Fd = np.zeros(taille)
+        
         self.__d_Inconnues = [i for i in range(self.__mesh.Nn)]
         self.__d_Connues = []
-        self.__dc = []
+        self.__dc = np.zeros(taille)
         
         for e in self.__mesh.elements:            
             e = cast(Element, e)
@@ -127,6 +129,7 @@ class Simu:
             fe = 0
             # Pour chaque point de gauss construit Ke et fe
             for pg in range(len(e.listJacobien_pg)):
+                
                 jacobien = e.listJacobien_pg[pg]
                 poid = e.listPoid_pg[pg]
                 h = self.list_H[e.id][pg]
@@ -136,11 +139,11 @@ class Simu:
                 nTn = Nd.T.dot(Nd)
                 bTb = Bd.T.dot(Bd)
 
-                Ke += jacobien * poid * ((Gc/l+2*h)*nTn+Gc*l*bTb)
+                Ke += jacobien * poid * ((Gc/l+2*h) * nTn + Gc * l * bTb)
 
-                fe += jacobien * poid * 2 * (Nd.T*h)
+                fe += jacobien * poid * 2 * Nd.T * h
                 
-            list_IdNoeuds = [e.noeuds[i].id for i in range(e.nPe)]
+            list_IdNoeuds = [n.id for n in e.noeuds]
 
             # Assemblage Kd_glob et Fd_glob
             lignes = []
@@ -151,11 +154,12 @@ class Simu:
                     colonnes.append(i)
 
             self.__Kd[lignes, colonnes] += np.ravel(Ke)
-            self.__Fd[list_IdNoeuds] += np.ravel(fe)
+            self.__Fd[list_IdNoeuds] += np.ravel(fe)            
             
         TicTac.Tac("Assemblage d", self.__verbosity)
 
-        self.__KdSave = self.__Kd
+        self.__Kd_penal = np.copy(self.__Kd)
+        self.__Fd_penal = np.copy(self.__Fd)
 
         return self.__Kd, self.__Fd
 
@@ -175,24 +179,29 @@ class Simu:
             ["x", "y", "z"] vecteurs sur lesquelles on veut appliquer la force , by default [] 
         """
 
-        assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"
-        assert option in ["u", "d"], "Mauvaise option"
-        assert not valeur == 0.0, "Doit être différent de 0"
-        assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
-
         TicTac.Tic()
-        
+
         nbn = len(noeuds)
 
+        assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"
+        assert option in ["u", "d"], "Mauvaise option"        
         if option == "d":
+            assert len(directions) == 0, "lorsque on renseigne d on a pas besoin de direction"
+            assert not valeur == 0.0, "Doit être différent de 0"
+
             for n in noeuds:
                 n = cast(Noeud, n)
                 self.__Fd[n.id] += valeur/nbn
+                self.__Fd_penal[n.id] += valeur/nbn
+
         elif option == "u":
+            assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
+            for direction in directions:
+                assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
+
             for direction in directions:
                 for n in noeuds:
                     n = cast(Noeud, n)
-
                     # Récupère la ligne sur laquelle on veut appliquer la force
                     if direction == "x":
                         ligne = n.id * self.__dim
@@ -202,8 +211,8 @@ class Simu:
                         assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
                         ligne = n.id * self.__dim + 2
                         
-                    self.__Fu[ligne] += valeur/nbn                   
-                
+                    self.__Fu[ligne] += valeur/nbn
+                    self.__Fu_penal[ligne] += valeur/nbn                    
         
         TicTac.Tac("Condition Neumann", self.__verbosity)
 
@@ -212,9 +221,12 @@ class Simu:
         assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"        
         assert option in ["u", "d"], "Mauvaise option"
         if option == "d":
-            assert valeur >= 0 or valeur <= 1, "d doit etre compris entre [0;1]"        
+            assert len(directions) == 0, "lorsque on renseigne d on a pas besoin de direction"
+            assert valeur >= 0 or valeur <= 1, "d doit etre compris entre [0;1]"
         elif option == "u":
             assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
+            for direction in directions:
+                assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
 
         TicTac.Tic()
 
@@ -226,12 +238,12 @@ class Simu:
                 if ligne in self.__d_Inconnues:
                     self.__d_Inconnues.remove(ligne)
                 if ligne not in self.__d_Connues:
-                    self.__dc.append(valeur) 
+                    self.__dc[ligne] = valeur
                     self.__d_Connues.append(ligne)
 
-                self.__Fd[ligne] = valeur
-                self.__Kd[ligne,:] = 0.0
-                self.__Kd[ligne, ligne] = 1
+                self.__Fd_penal[ligne] = valeur
+                self.__Kd_penal[ligne,:] = 0.0
+                self.__Kd_penal[ligne, ligne] = 1
 
         elif option == "u":
             for n in noeuds:
@@ -239,22 +251,22 @@ class Simu:
                 for direction in directions:
                     if direction == "x":
                         ligne = n.id * self.__dim
-                        
                     if direction == "y":
                         ligne = n.id * self.__dim + 1
-                        
                     if direction == "z":
                         ligne = n.id * self.__dim + 2
                     
+                    # Decomposition
                     if ligne in self.__ddl_Inconnues:
                         self.__ddl_Inconnues.remove(ligne)
                     if ligne not in self.__ddl_Connues:
-                        self.__uc.append(valeur) 
+                        self.__Uc[ligne] = valeur
                         self.__ddl_Connues.append(ligne)
 
-                    self.__Fu[ligne] = valeur
-                    self.__Ku[ligne,:] = 0.0
-                    self.__Ku[ligne, ligne] = 1
+                    # Pénalisation
+                    self.__Fu_penal[ligne] = valeur
+                    self.__Ku_penal[ligne,:] = 0.0
+                    self.__Ku_penal[ligne, ligne] = 1
         
                 
 
@@ -264,44 +276,39 @@ class Simu:
         
         def ConstruitUglob():
             # Reconstruit Uglob
-            Uglob = []
-            cc_connues = 0
-            cc_inconnues = 0
-            for i in range(self.__mesh.Nn*self.__dim):
+            taille = self.__mesh.Nn*self.__dim
+            Uglob = np.zeros(taille)
+            for i in range(taille):
                 if i in self.__ddl_Connues:
-                    Uglob.append(self.__uc[cc_connues])
-                    cc_connues += 1
+                    Uglob[i] = self.__Uc[i]
                 elif i in self.__ddl_Inconnues:
-                    Uglob.append(ui[cc_inconnues])
-                    cc_inconnues += 1
+                    ligne = self.__ddl_Inconnues.index(i)
+                    Uglob[i] = ui[ligne]
             
-            return np.array(Uglob)
+            return Uglob
 
         TicTac.Tic()
 
         # Résolution du plus rapide au plus lent
         if resolution == 1:
-            Uglob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Ku), self.__Fu)            
+            Uglob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Ku_penal), self.__Fu_penal)
         elif resolution == 2:
             ddl_Connues = self.__ddl_Connues
             ddl_Inconnues = self.__ddl_Inconnues
 
             assert len(ddl_Connues) + len(ddl_Inconnues) == self.__mesh.Nn*self.__dim, "Problème dans les conditions"
 
-            Kii = self.__KuSave[ddl_Inconnues, :][:, ddl_Inconnues]
-            Kic = self.__KuSave[ddl_Inconnues, :][:, ddl_Connues]
-            uc = self.__uc
+            Kii = self.__Ku[ddl_Inconnues, :][:, ddl_Inconnues]
+            Kic = self.__Ku[ddl_Inconnues, :][:, ddl_Connues]
+            uc = self.__Uc[ddl_Connues]  
             Fi = self.__Fu[ddl_Inconnues]
 
             ui = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(Kii), Fi-Kic.dot(uc))            
-            Uglob = ConstruitUglob()            
+            Uglob = ConstruitUglob() 
         elif resolution == 3:
-            ui = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Ku[self.__ddl_Inconnues, :][:, self.__ddl_Inconnues]), self.__Fu[self.__ddl_Inconnues])
-            Uglob = ConstruitUglob()
-        elif resolution == 4:            
-            Uglob = sp.linalg.solve(self.__Ku, self.__Fu)
-        elif resolution == 5:            
-            Uglob = np.linalg.solve(self.__Ku, self.__Fu)
+            Uglob = np.linalg.solve(self.__Ku_penal, self.__Fu_penal)
+        elif resolution == 4:
+            Uglob = sp.linalg.solve(self.__Ku_penal, self.__Fu_penal)
 
         TicTac.Tac("Résolution", self.__verbosity)        
         
@@ -543,7 +550,7 @@ class Simu:
     
         TicTac.Tac("Calcul contraintes et deformations aux noeuds", self.__verbosity)
 
-    def ConstruitH(self, u: np.ndarray, d:np.ndarray):
+    def ConstruitH(self, u: np.ndarray):
             # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
 
             list_new_H = []
@@ -552,26 +559,36 @@ class Simu:
 
                 # Construit ui
                 ui = []
-                di = []
                 for n in e.noeuds:
                     n = cast(Noeud, n)
-                    di.append(d[n.id])
                     for j in range(self.__dim):
                         valeur = u[n.id*self.__dim+j]
                         ui.append(valeur)            
                 ui = np.array(ui)
-                di = np.array(di)
 
                 h_pg = []
                 
                 for pg in range(len(e.listB_u_pg)):
-                    B_pg = np.array(e.listB_u_pg[pg])                    
-                    N_pg = e.listN_d_pg[pg]
-
-                    h = (1-N_pg.dot(di))**2 * 1/2 * (B_pg.dot(ui)).T.dot(self.__materiau.C).dot(B_pg.dot(ui))
-                    # h = 1/2 * (B_pg.dot(ui)).T.dot(self.__materiau.C).dot(B_pg.dot(ui))
                     
-                    h=float(h)
+                    B_pg = np.array(e.listB_u_pg[pg])                    
+                    # N_pg = e.listN_d_pg[pg]
+                    # jacobien = e.listJacobien_pg[pg]
+                    # poid = e.listPoid_pg[pg]
+                    
+                    epsilon = B_pg.dot(ui)
+
+                    h = 1/2 * epsilon.T.dot(self.__materiau.C).dot(epsilon)
+
+                    tr = epsilon[0] + epsilon[1]
+
+                    lamb = self.__materiau.lamb
+                    mu = self.__materiau.mu
+
+                    h2 = 1/2*lamb*tr**2+mu*epsilon.T.dot(epsilon)
+
+                    # assert np.isclose(h,h2), "Erreur"
+
+                    h=float(h2)
 
                     if(len(self.list_H)==0):
                         h_pg.append(h)
@@ -579,64 +596,62 @@ class Simu:
                         h_pg.append(max(h, self.list_H[e.id][pg]))
                 
                 list_new_H.append(h_pg)
-                
-            self.list_H = list_new_H    
+            
+            new = np.linalg.norm(list_new_H)
+            old = np.linalg.norm(self.list_H)
+            assert new >= old, "Erreur"
+            self.list_H = list_new_H
+
 
     def Solve_d(self, resolution=1):
             
-            # Reconstruit dglob
-            def Construit_Dglob():                
-                dGlob = []
-                cc_connues = 0
-                cc_inconnues = 0
-                for i in range(self.__mesh.Nn):
-                    if i in self.__d_Connues:
-                        dGlob.append(self.__dc[cc_connues])
-                        cc_connues += 1
-                    elif i in self.__d_Inconnues:
-                        dGlob.append(di[cc_inconnues])
-                        cc_inconnues += 1
-                
-                return np.array(dGlob)
+        def Construit_Dglob():                
+            taille = self.__mesh.Nn
+            dGlob = np.zeros(taille)
+            for i in range(taille):
+                if i in self.__d_Connues:
+                    dGlob[i] = self.__dc[i]
+                elif i in self.__d_Inconnues:
+                    ligne = self.__d_Inconnues.index(i)
+                    dGlob[i] = di[ligne]
 
-            TicTac.Tic()
+            return dGlob
 
-            # Résolution du plus rapide au plus lent
-            if resolution == 1:
-                dGlob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Kd), self.__Fd)            
-            elif resolution == 2:
-                d_Connues = self.__d_Connues
-                d_Inconnues = self.__d_Inconnues
+        TicTac.Tic()
 
-                assert len(d_Connues) + len(d_Inconnues) == self.__mesh.Nn, "Problème dans les conditions"
+        # Résolution du plus rapide au plus lent
+        if resolution == 1:
+            dGlob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Kd_penal), self.__Fd_penal)
+        elif resolution == 2:
+            d_Connues = self.__d_Connues
+            d_Inconnues = self.__d_Inconnues
 
-                Kii = self.__KdSave[d_Inconnues, :][:, d_Inconnues]
-                Kic = self.__KdSave[d_Inconnues, :][:, d_Connues]
-                dc = self.__dc
-                Fi = self.__Fd[d_Inconnues]
+            assert len(d_Connues) + len(d_Inconnues) == self.__mesh.Nn, "Problème dans les conditions"
 
-                di = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(Kii), Fi-Kic.dot(dc))            
-                dGlob = Construit_Dglob()            
-            elif resolution == 3:
-                di = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Kd[self.__ddl_Inconnues, :][:, self.__ddl_Inconnues]), self.__Fd[self.__ddl_Inconnues])
-                dGlob = Construit_Dglob()
-            elif resolution == 4:            
-                dGlob = sp.linalg.solve(self.__Kd, self.__Fd)
-            elif resolution == 5:            
-                dGlob = np.linalg.solve(self.__Kd, self.__Fd)
+            Kii = self.__Kd[d_Inconnues, :][:, d_Inconnues]
+            Kic = self.__Kd[d_Inconnues, :][:, d_Connues]
+            dc = self.__dc[d_Connues]
+            Fi = self.__Fd[d_Inconnues]
 
-            TicTac.Tac("Résolution d", self.__verbosity)        
-            
-            # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
-            # assert dGlob.min() >= 0, "Doit etre supérieur 0"
+            di = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(Kii), Fi-Kic.dot(dc))
+            dGlob = Construit_Dglob()
+        elif resolution == 3:            
+            dGlob = sp.linalg.solve(self.__Kd_penal, self.__Fd_penal)
+        elif resolution == 4:            
+            dGlob = np.linalg.solve(self.__Kd_penal, self.__Fd_penal)
 
-            if(dGlob.max() > 1):
-                print("dmax = {}".format(dGlob.max()))
+        TicTac.Tac("Résolution d", self.__verbosity)        
+        
+        # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
+        # assert dGlob.min() >= 0, "Doit etre supérieur 0"
 
-            if(dGlob.min() < 0):
-                print("dmin = {}".format(dGlob.min()))
+        if(dGlob.max() > 1):
+            print("dmax = {}".format(dGlob.max()))
 
-            return dGlob   
+        if(dGlob.min() < 0):
+            print("dmin = {}".format(dGlob.min()))
+
+        return dGlob   
          
 # ====================================
 

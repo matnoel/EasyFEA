@@ -28,8 +28,8 @@ b = 13
 P = -800 #N
 
 # Paramètres maillage
-type = ModelGmsh.get_typesMaillage2D()[2]
-taille = h/5
+type = ModelGmsh.get_typesMaillage2D()[3]
+taille = L/5
 
 # Materiau
 materiau = Materiau(dim)
@@ -53,17 +53,18 @@ simu = Simu(dim, mesh, materiau)
 simu.Assemblage_u(epaisseur=b)
 
 simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
+# simu.Condition_Dirichlet(noeuds_en_L, valeur=1, directions=["y"])
 
 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y"])
 
-simu.Solve_u(resolution=5)
+simu.Solve_u(resolution=2)
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
 print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
 
-print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"]))) 
+print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_n"]))) 
 
 print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_e"]))) 
 print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_e"]))) 
