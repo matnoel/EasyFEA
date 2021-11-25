@@ -28,8 +28,8 @@ b = 13
 P = -800 #N
 
 # Paramètres maillage
-type = ModelGmsh.get_typesMaillage2D()[3]
-taille = L/5
+type = ModelGmsh.get_typesMaillage2D()[0]
+taille = h/5
 
 # Materiau
 materiau = Materiau(dim)
@@ -57,7 +57,7 @@ simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
 
 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y"])
 
-simu.Solve_u(resolution=2)
+simu.Solve_u(resolution=1)
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
@@ -79,7 +79,7 @@ if plotResult:
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
         Affichage.PlotResult(mesh, simu.resultats, "Svm_n")
-        Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
+        # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
 
         # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
         Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True)

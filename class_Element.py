@@ -120,8 +120,8 @@ class Element:
             b = constY[1]
             c = constY[2]
 
-            F = np.array([  [alpha, a],
-                            [beta, b]   ])
+            F = np.array([  [alpha, beta],
+                            [a, b]   ]).T
             
             jacobien = np.linalg.det(F)
             # jacobien = alpha * b - beta * a             
@@ -150,18 +150,20 @@ class Element:
             dN3t = np.array([0, 1])
             dNtild = [dN1t, dN2t, dN3t]
 
-
             invF = np.linalg.inv(F)
+
+            # print(invF.dot(F).T)
             # invF = 1/jacobien * np.array([  [b, -beta],
-            #                                 [-a, alpha]  ])
+            #                                 [-a, alpha]  ]).T
 
             B_u_pg = self.__ConstruitB_pg(dNtild, invF)
             self.listB_u_pg.append(B_u_pg)
 
             self.listB_u_n = [B_u_pg] * 3
 
-            B_d_pg = self.__ConstruitB_pg(dNtild, invF, vecteur=False)
+            B_d_pg = self.__ConstruitB_pg(dNtild, F, vecteur=False)
             self.listB_d_pg.append(B_d_pg)
+
         # TRI6  
         if self.nPe == 6:
             
@@ -213,9 +215,9 @@ class Element:
                 return [dN1t, dN2t, dN3t, dN4t, dN5t, dN6t]
             
             def ConstruitF(ksi, eta):
-                F = np.array([[alpha*2*ksi+gamma*eta+delta, a*2*ksi+c*eta+d],
-                              [beta*2*eta+gamma*ksi+epsilon, b*2*eta+c*ksi+e]])
-                return F   
+                F = np.array([[alpha*2*ksi+gamma*eta+delta, beta*2*eta+gamma*ksi+epsilon],
+                              [a*2*ksi+c*eta+d, b*2*eta+c*ksi+e]])
+                return F.T
 
             # Pour chaque pg on calcul jacobien B et N
             for pg in range(len(ksis)):
@@ -299,9 +301,9 @@ class Element:
                 return [dN1t, dN2t, dN3t, dN4t]
             
             def ConstruitF(ksi, eta):
-                F = np.array([[alpha*eta+beta, a*eta+b],
-                              [alpha*ksi+gamma, a*ksi+c]])
-                return F                              
+                F = np.array([[alpha*eta+beta, alpha*ksi+gamma],
+                              [a*eta+b, a*ksi+c]])
+                return F.T
             
             # Pour chaque point d'integration on calcul Be
             UnSurRacine3 = 1/np.sqrt(3) 
@@ -412,9 +414,9 @@ class Element:
                 
             
             def ConstruitF(ksi, eta):
-                F = np.array([[2*a*ksi*eta+b*eta**2+2*c*ksi+e*eta+f, 2*a2*ksi*eta+b2*eta**2+2*c2*ksi+e2*eta+f2],
-                              [a*ksi**2+2*b*eta*ksi+2*d*eta+e*ksi+g, a2*ksi**2+2*b2*eta*ksi+2*d2*eta+e2*ksi+g2]])
-                return F
+                F = np.array([[2*a*ksi*eta+b*eta**2+2*c*ksi+e*eta+f, a*ksi**2+2*b*eta*ksi+2*d*eta+e*ksi+g],
+                              [2*a2*ksi*eta+b2*eta**2+2*c2*ksi+e2*eta+f2, a2*ksi**2+2*b2*eta*ksi+2*d2*eta+e2*ksi+g2]])
+                return F.T
             
             # Pour chaque point d'integration on calcul Be            
             UnSurRacine3 = 1/np.sqrt(3) 
@@ -435,10 +437,10 @@ class Element:
                 jacobien = np.linalg.det(F)
                 self.listJacobien_pg.append(jacobien)
 
-                B_pg = self.__ConstruitB_pg(dNtild, invF)                
+                B_pg = self.__ConstruitB_pg(dNtild, invF.T)                
                 self.listB_u_pg.append(B_pg)
 
-                B_d_pg = self.__ConstruitB_pg(dNtild, invF, vecteur=False)
+                B_d_pg = self.__ConstruitB_pg(dNtild, invF.T, vecteur=False)
                 self.listB_d_pg.append(B_d_pg)
 
                 N_u_pg = self.__ConstruitN_pg(Ntild)
@@ -463,7 +465,7 @@ class Element:
                 
                 invF = np.linalg.inv(F)
    
-                B_n = self.__ConstruitB_pg(dNtild, invF)
+                B_n = self.__ConstruitB_pg(dNtild, invF.T)
                 self.listB_u_n.append(B_n)
     
     def __Construit_B_N_Tetraedre(self):
@@ -490,9 +492,9 @@ class Element:
             c3 = constZ[2]
             d3 = constZ[3]
             
-            F = np.array([[a1, a2, a3],
-                          [b1, b2, b3],
-                          [c1, c2, c3]])
+            F = np.array([[a1, b1, c1],
+                          [a2, b2, c2],
+                          [a3, b3, c3]]).T
             
             invF = np.linalg.inv(F)
 

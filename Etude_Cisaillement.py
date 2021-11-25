@@ -32,7 +32,8 @@ l0 = 0.015
 
 # Paramètres maillage
 type = ModelGmsh.get_typesMaillage2D()[0]
-taille = l0/2
+# taille = l0/2
+taille = L/50
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille)
@@ -60,7 +61,7 @@ Affichage.AfficheNoeudsMaillage(dim, ax, noeuds=noeuds_Milieu, marker='o', c='re
 Affichage.AfficheNoeudsMaillage(dim, ax, noeuds=noeuds_Bas, marker='.', c='blue')
 Affichage.AfficheNoeudsMaillage(dim, ax, noeuds=noeuds_Gauche, marker='.', c='black')
 Affichage.AfficheNoeudsMaillage(dim, ax, noeuds=noeuds_Droite, marker='.', c='black')        
-plt.show()
+# plt.show()
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Simulations")
@@ -123,7 +124,7 @@ for iter in range(N):
         
         coordos.append(np.array([ux, uy, np.zeros(mesh.Nn)]).T)
 
-        print(iter+1," : nomr d = {:.5f} ".format(np.linalg.norm(d_tn)))
+        print(iter+1," : norm d = {:.5f} ".format(np.linalg.norm(d_tn)))
        
         # if d_tn.max()>1:
         #         break

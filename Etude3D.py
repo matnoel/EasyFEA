@@ -1,4 +1,8 @@
+from ntpath import join
 import os
+
+from gmsh import model
+import models
 
 from typing import cast
 from Affichage import Affichage
@@ -36,7 +40,8 @@ materiau = Materiau(dim)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
 
-fichier = "part.stp"
+dir_path = os.path.dirname(os.path.realpath(__file__))
+fichier = dir_path + '\\models\\part.stp'
 
 (coordo, connect) = modelGmsh.Importation3D(fichier)
 mesh = Mesh(dim, coordo, connect)
