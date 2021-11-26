@@ -3,7 +3,7 @@ import numpy as np
 
 class TicTac:
 
-    __start = None
+    __start = 0
 
     @staticmethod
     def Tic():
@@ -12,4 +12,6 @@ class TicTac:
     @staticmethod
     def Tac(texte: str, affichage: bool):
         if affichage:
-            print("\n{} ({:.3f} s)".format(texte, np.abs(TicTac.__start - time.time())))
+            tf = np.abs(TicTac.__start - time.time())
+            print("\n{} ({:.3f} s)".format(texte, tf))
+        return tf

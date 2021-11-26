@@ -1,17 +1,14 @@
 from ntpath import join
 import os
 
-from gmsh import model
-import models
-
 from typing import cast
-from Affichage import Affichage
-from class_Noeud import Noeud
+from classes.Affichage import Affichage
+from classes.Noeud import Noeud
 
-from class_Simu import Simu
-from class_Materiau import Materiau
-from class_ModelGmsh import ModelGmsh
-from class_Mesh import Mesh
+from classes.Simu import Simu
+from classes.Materiau import Materiau
+from classes.ModelGmsh import ModelGmsh
+from classes.Mesh import Mesh
 
 import numpy as np
 import matplotlib.pyplot as plt

@@ -1,10 +1,10 @@
 from typing import cast
 from matplotlib.pyplot import connect
 import numpy as np
-from class_Element import Element
-from class_Materiau import Materiau
-from class_Noeud import Noeud
-from class_TicTac import TicTac
+from classes.Element import Element
+from classes.Materiau import Materiau
+from classes.Noeud import Noeud
+from classes.TicTac import TicTac
 
 class Mesh:
     
@@ -220,7 +220,7 @@ class Mesh:
             
             e += 1
         
-        TicTac.Tac("Importation du maillage", self.__verbosity)
+        t = TicTac.Tac("Importation du maillage", self.__verbosity)
     
     # def ChercheNoeuds(self, CondX=[], CondY=[], CondZ=[]):
         

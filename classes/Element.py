@@ -1,6 +1,6 @@
 from typing import cast
 
-from class_Noeud import Noeud
+from classes.Noeud import Noeud
 import numpy as np
 
 class Element:    
@@ -122,7 +122,7 @@ class Element:
 
             F = np.array([  [alpha, beta],
                             [a, b]   ]).T
-            
+
             jacobien = np.linalg.det(F)
             # jacobien = alpha * b - beta * a             
             self.listJacobien_pg.append(jacobien)

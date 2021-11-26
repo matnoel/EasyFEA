@@ -1,9 +1,9 @@
 import gmsh
 import sys
 import numpy as np
-from Affichage import Affichage
+from classes.Affichage import Affichage
 
-from class_TicTac import TicTac
+from classes.TicTac import TicTac
 
 
 class ModelGmsh:

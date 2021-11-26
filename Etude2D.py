@@ -1,12 +1,12 @@
 import os
 from typing import cast
 
-from Affichage import Affichage
-from class_Materiau import Materiau
-from class_ModelGmsh import ModelGmsh
-from class_Noeud import Noeud
-from class_Simu import Simu
-from class_Mesh import Mesh
+from classes.Affichage import Affichage
+from classes.Materiau import Materiau
+from classes.ModelGmsh import ModelGmsh
+from classes.Noeud import Noeud
+from classes.Simu import Simu
+from classes.Mesh import Mesh
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,7 +28,7 @@ b = 13
 P = -800 #N
 
 # Paramètres maillage
-type = ModelGmsh.get_typesMaillage2D()[0]
+type = ModelGmsh.get_typesMaillage2D()[1]
 taille = h/5
 
 # Materiau
