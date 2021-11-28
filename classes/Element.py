@@ -1,9 +1,12 @@
 from typing import cast
 
-from classes.Noeud import Noeud
 import numpy as np
+try:
+    from classes.Noeud import Noeud
+except:
+    from Noeud import Noeud
 
-class Element:    
+class Element:
 
     def get_nPe(self):
         """Renvoie le nombre de noeud par element
@@ -104,24 +107,35 @@ class Element:
 
         # TRI3
         if self.nPe == 3:  
+            
+            option = 1
+            if option == 1:
+                # Calul du jacobien pour chaque point de gauss
+                matriceCoef = np.array([[0, 0, 1],
+                                        [1, 0, 1],
+                                        [0, 1, 1]])
 
-            # Calul du jacobien pour chaque point de gauss
-            matriceCoef = np.array([[0, 0, 1],
-                                    [1, 0, 1],
-                                    [0, 1, 1]])
+                constX, constY = self.__CalculLesConstantes(matriceCoef)
+                    
+                alpha = constX[0]
+                beta = constX[1]
+                gamma = constX[2]                    
 
-            constX, constY = self.__CalculLesConstantes(matriceCoef)
-                
-            alpha = constX[0]
-            beta = constX[1]
-            gamma = constX[2]                    
+                a = constY[0]
+                b = constY[1]
+                c = constY[2]
 
-            a = constY[0]
-            b = constY[1]
-            c = constY[2]
+                F = np.array([  [alpha, beta],
+                                [a, b]   ]).T
+            else:
+                # [xi . . . 
+                #  yi . . .]
+                xi_yi = np.array([[n.coordo[0] for n in self.noeuds],[n.coordo[1] for n in self.noeuds]])
+                dNt = np.array([[-1, 1, 0],[-1, 0, 1]])
 
-            F = np.array([  [alpha, beta],
-                            [a, b]   ]).T
+                F = xi_yi.dot(dNt.T).T
+
+                # print(F-F2.T)
 
             jacobien = np.linalg.det(F)
             # jacobien = alpha * b - beta * a             

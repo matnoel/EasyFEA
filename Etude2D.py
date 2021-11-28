@@ -1,18 +1,20 @@
+# %%
+
 import os
+
 from typing import cast
 
 from classes.Affichage import Affichage
 from classes.Materiau import Materiau
 from classes.ModelGmsh import ModelGmsh
+from classes.Mesh import Mesh
 from classes.Noeud import Noeud
 from classes.Simu import Simu
-from classes.Mesh import Mesh
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-os.system("cls")    #nettoie le terminal
+# os.system("cls")    #nettoie le terminal
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -22,20 +24,20 @@ dim = 2
 
 # Paramètres géométrie
 L = 120;  #mm
-h = 13;    
+h = 13    
 b = 13
 
 P = -800 #N
 
 # Paramètres maillage
-type = ModelGmsh.get_typesMaillage2D()[1]
-taille = h/5
+typeElement = ModelGmsh.get_typesMaillage2D()[1]
+taille = h/10
 
 # Materiau
 materiau = Materiau(dim)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille)
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=typeElement, tailleElement=taille)
 
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 
@@ -82,13 +84,11 @@ if plotResult:
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
 
         # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
-        Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True)
-        
-                
+        Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)
         
         plt.show()
 
 Affichage.NouvelleSection("Fin du programme")
+d = 1
 
-
-
+# %%

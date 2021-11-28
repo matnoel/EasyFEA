@@ -1,11 +1,14 @@
 import gmsh
 import sys
 import numpy as np
-from classes.Affichage import Affichage
 
-from classes.TicTac import TicTac
-
-
+try:
+    from Affichage import Affichage
+    from TicTac import TicTac
+except:
+    from classes.Affichage import Affichage
+    from classes.TicTac import TicTac
+    
 class ModelGmsh:
         
         def get_typesMaillage2D():

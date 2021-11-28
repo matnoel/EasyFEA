@@ -6,12 +6,20 @@ from numpy.core.records import array
 import scipy as sp
 from scipy.sparse.linalg import spsolve
 
-from classes.ModelGmsh import ModelGmsh
-from classes.Noeud import Noeud
-from classes.Element import Element
-from classes.Mesh import Mesh
-from classes.Materiau import Materiau
-from classes.TicTac import TicTac
+try:
+    from classes.ModelGmsh import ModelGmsh
+    from classes.Noeud import Noeud
+    from classes.Element import Element
+    from classes.Mesh import Mesh
+    from classes.Materiau import Materiau
+    from classes.TicTac import TicTac
+except:
+    from ModelGmsh import ModelGmsh
+    from Noeud import Noeud
+    from Element import Element
+    from Mesh import Mesh
+    from Materiau import Materiau
+    from TicTac import TicTac
 
 class Simu:
     

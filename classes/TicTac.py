@@ -11,7 +11,7 @@ class TicTac:
     
     @staticmethod
     def Tac(texte: str, affichage: bool):
+        tf = np.abs(TicTac.__start - time.time())
         if affichage:
-            tf = np.abs(TicTac.__start - time.time())
             print("\n{} ({:.3f} s)".format(texte, tf))
         return tf

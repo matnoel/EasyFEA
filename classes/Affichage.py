@@ -8,10 +8,16 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import *
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-from classes.Noeud import Noeud
-from classes.Element import Element
-from classes.Mesh import Mesh
-from classes.Materiau import Materiau
+try:
+    from Noeud import Noeud
+    from Element import Element
+    from Mesh import Mesh
+    from Materiau import Materiau    
+except:
+    from classes.Noeud import Noeud
+    from classes.Element import Element
+    from classes.Mesh import Mesh
+    from classes.Materiau import Materiau
 
 class Affichage:
 

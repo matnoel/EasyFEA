@@ -1,10 +1,16 @@
-from typing import cast
-from matplotlib.pyplot import connect
 import numpy as np
-from classes.Element import Element
-from classes.Materiau import Materiau
-from classes.Noeud import Noeud
-from classes.TicTac import TicTac
+
+try:
+    from Noeud import Noeud
+    from Element import Element
+    from Materiau import Materiau
+    from TicTac import TicTac
+except:
+    from classes.Noeud import Noeud
+    from classes.Element import Element
+    from classes.Materiau import Materiau
+    from classes.TicTac import TicTac
+
 
 class Mesh:
     

@@ -5,16 +5,16 @@ import matplotlib
 from numpy.core.arrayprint import dtype_is_implied
 from numpy.core.function_base import linspace
 
-from Affichage import Affichage
-from class_Materiau import Materiau
-from class_ModelGmsh import ModelGmsh
-from class_Simu import Simu
-from class_Mesh import Mesh
+from classes.Affichage import Affichage
+from classes.Materiau import Materiau
+from classes.ModelGmsh import ModelGmsh
+from classes.Simu import Simu
+from classes.Mesh import Mesh
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from class_TicTac import TicTac
+from classes.TicTac import TicTac
 
 
 os.system("cls")    #nettoie le terminal
@@ -27,13 +27,13 @@ dim = 2
 
 # Paramètres géométrie
 L = 1;  #mm
-l0 = 0.015
+l0 = 2.5e-2/2
 
 
 # Paramètres maillage
 type = ModelGmsh.get_typesMaillage2D()[0]
 # taille = l0/2
-taille = L/50
+taille = l0/2
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille)
