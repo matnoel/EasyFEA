@@ -108,7 +108,7 @@ class Element:
         # TRI3
         if self.nPe == 3:  
             
-            option = 1
+            option = 2
             if option == 1:
                 # Calul du jacobien pour chaque point de gauss
                 matriceCoef = np.array([[0, 0, 1],

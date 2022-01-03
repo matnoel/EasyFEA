@@ -58,7 +58,7 @@ class Simu:
         mettre en option u ou d ?
 
         """
-        
+
         if self.__dim == 2:        
             assert epaisseur>0,"Doit être supérieur à 0"
 
@@ -66,45 +66,45 @@ class Simu:
         
         taille = self.__mesh.Nn*self.__dim
 
-        self.__Ku = np.zeros((taille, taille))
-        self.__Fu = np.zeros(taille)
+        # self.__Ku = np.zeros((taille, taille))
+        # self.__Fu = np.zeros(taille)
+
+        self.__Ku = sp.sparse.lil_matrix((taille, taille))
+        self.__Fu = sp.sparse.lil_matrix((taille,1))
         
         self.__ddl_Inconnues = [i for i in range(taille)]
         self.__ddl_Connues = []
-        self.__Uc = np.zeros(taille)
-
-
-        # if len(d)==0:
-        #     listeKe = [[e.listJacobien_pg[pg] * e.listPoid_pg[pg] * e.listB_u_pg[pg].T.dot(self.__materiau.C).dot(e.listB_u_pg[pg]) for pg in range(len(e.listB_u_pg))] for e in self.__mesh.elements]    
-        # else:
-        #     listeKe = [[e.listJacobien_pg[pg] * e.listPoid_pg[pg] - (1-e.listN_d_pg[pg].dot(np.array([d[n.id] for n in e.noeuds])))**2* e.listB_u_pg[pg].T.dot(self.__materiau.C).dot(e.listB_u_pg[pg]) for pg in range(len(e.listB_u_pg))] for e in self.__mesh.elements]    
-
-        
+        self.__Uc = np.zeros((taille,1))
 
         for e in self.__mesh.elements:            
             e = cast(Element, e)
 
-            # Pour chaque poing de gauss on construit Ke
+           # Pour chaque poing de gauss on construit Ke
             Ke = 0
             for pg in range(len(e.listB_u_pg)):
                 jacobien = e.listJacobien_pg[pg]
                 poid = e.listPoid_pg[pg]
                 B_pg = e.listB_u_pg[pg]
 
+                K = jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
+
                 if len(d)==0:
                     # probleme standart
-                    Ke += jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
-
+                    Ke += K
                 else:
                     # probleme endomagement
                     de = np.array([d[n.id] for n in e.noeuds])
+                    
                     # Bourdin
-                    Ke += jacobien * poid * (1-e.listN_d_pg[pg].dot(de))**2 *B_pg.T.dot(self.__materiau.C).dot(B_pg)
+                    # g = (1-e.listN_d_pg[pg].dot(de))**2
+                    g = (1-de)**2
+                    
+                    Ke += g.dot(K)
+                
+                
 
             # # print(Ke-listeKe[e.id])
             
-            # Ke = np.array(listeKe[e.id])
-
             # Assemble Ke dans Kglob
             lignes = []
             colonnes = []
@@ -113,18 +113,22 @@ class Simu:
                 for j in range(len(e.assembly)):
                     colonnes.append(i)
 
-            if self.__dim == 2:                
-                self.__Ku[lignes, colonnes] += np.ravel(epaisseur * Ke)
+            
+            # lignes = [id for id in e.assembly]*len(e.assembly)
+            # colonnes = [id for list in [[i]*len(e.assembly) for i in e.assembly] for id in list]
+
+
+            if self.__dim == 2:
+                # test = np.ravel(epaisseur * Ke)
+                # self.__Ku[lignes, colonnes] = self.__Ku[lignes, colonnes] + np.ravel(epaisseur * Ke)
+                self.__Ku[lignes, colonnes] = self.__Ku[lignes, colonnes] + (epaisseur * Ke).reshape(-1)
             elif self.__dim == 3:
-                self.__Ku[lignes, colonnes] += np.ravel(Ke)
+                self.__Ku[lignes, colonnes] =  self.__Ku[lignes, colonnes] + np.ravel(Ke)
 
         TicTac.Tac("Assemblage u", self.__verbosity)
         
-        self.__Ku = sp.sparse.lil_matrix(self.__Ku).T
-        self.__Fu = sp.sparse.lil_matrix(self.__Fu).T
-
-        # self.__Ku_penal = np.copy(self.__Ku)
-        # self.__Fu_penal = np.copy(self.__Fu)
+        # self.__Ku = sp.sparse.lil_matrix(self.__Ku).T
+        # self.__Fu = sp.sparse.lil_matrix(self.__Fu).T
 
         self.__Ku_penal = self.__Ku.copy()
         self.__Fu_penal = self.__Fu.copy()
@@ -323,23 +327,28 @@ class Simu:
         if resolution == 1:
             Uglob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Ku_penal), self.__Fu_penal)
         elif resolution == 2:
+
+            TicTac.Tic()
+
             ddl_Connues = self.__ddl_Connues
             ddl_Inconnues = self.__ddl_Inconnues
 
             assert len(ddl_Connues) + len(ddl_Inconnues) == self.__mesh.Nn*self.__dim, "Problème dans les conditions"
 
-            Kii = self.__Ku.toarray()[ddl_Inconnues, :][:, ddl_Inconnues]
-            Kic = self.__Ku.toarray()[ddl_Inconnues, :][:, ddl_Connues]
-            Fi = self.__Fu.toarray()[ddl_Inconnues]
+            # Kii = self.__Ku.toarray()[ddl_Inconnues, :][:, ddl_Inconnues]
+            # Kic = self.__Ku.toarray()[ddl_Inconnues, :][:, ddl_Connues]
+            # Fi = self.__Fu.toarray()[ddl_Inconnues]
             
-            # Kii = self.__Ku[ddl_Inconnues, :][:, ddl_Inconnues]
-            # Kic = self.__Ku[ddl_Inconnues, :][:, ddl_Connues]
-            # Fi = self.__Fu[ddl_Inconnues]
+            Kii = self.__Ku[ddl_Inconnues, :][:, ddl_Inconnues]
+            Kic = self.__Ku[ddl_Inconnues, :][:, ddl_Connues]
+            Fi = self.__Fu[ddl_Inconnues]
 
             uc = self.__Uc[ddl_Connues]  
             
             ui = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(Kii), Fi-Kic.dot(uc))
             
+            TicTac.Tac("2",True)
+
             Uglob = ConstruitUglob() 
         elif resolution == 3:
             Uglob = np.linalg.solve(self.__Ku_penal, self.__Fu_penal)
