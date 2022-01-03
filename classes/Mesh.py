@@ -17,13 +17,13 @@ class Mesh:
     def get_Ne(self):
         """Renvoie le nombre d'éléments du maillage        
         """
-        return int(len(self.elements))
+        return int(len(self.connect))
     Ne = property(get_Ne)
     
     def get_Nn(self):
         """Renvoie le nombre d'éléments du maillage        
         """
-        return int(len(self.noeuds))
+        return int(len(self.coordo))
     Nn = property(get_Nn)
 
     def get_dim(self):
@@ -185,46 +185,117 @@ class Mesh:
 
         self.__verbosity = verbosity
 
-        # self.coordo = np.array(coordo)
-        self.coordo = coordo
-        self.connect = connect
+        self.coordo = np.array(coordo)
+        # self.coordo = coordo
+        self.connect = connect 
         
+        listElement = range(self.Ne)
+
+        listNoeud = range(self.Nn)
+
+        # Construit la matrice de connection pour les noeuds
+        self.connectNoeuds = [[e for e in listElement if n in self.connect[e]] for n in listNoeud]
+
+        # Construit la matrice assembly
+        self.listAssembly = [[int(n * dim + d)for n in connect[e] for d in range(dim)] for e in listElement]
+        
+        self.element = Element(dim, len(connect[0]))
+        
+        self.list_poid_pg = self.element.listPoid_pg
+        # ligne -> elements et colonne -> points de gauss
+        self.list_F_e_pg = [] 
+        self.list_invF_e_pg = []
+        self.list_jacobien_e_pg = []
+        self.list_dN_e_pg = []
+        self.list_B_rigi_e_pg = []
+        self.list_B_mass_e_pg = []
+
+        xi_yi = coordo[:,[0, 1]]
+        for e in range(self.Ne):
+            list_F_pg = []
+            list_invF_pg = []
+            list_invF_pg = []
+            list_jacobien_pg = []
+            list_dN_pg = []
+            for pg in range(self.element.nPg):
+                F = self.element.listdN_pg[pg].dot(xi_yi[connect[e], :])
+                list_F_pg.append(F)
+
+                invF = np.linalg.inv(F)
+                list_invF_pg.append(invF)
+
+                jacobien = np.linalg.det(F)
+                list_jacobien_pg.append(jacobien)
+
+                dN = invF.dot(self.element.listdN_pg[pg])
+                list_dN_pg.append(dN)
+
+                list_B_rigi_pg = []
+                list_B_mass_pg = []
+
+                nPe = self.element.nPe
+                if dim == 2:
+                    B_rigi_pg = np.zeros((3, nPe*dim))
+                    B_mass_pg = np.zeros((dim, nPe))
+                    colonne = 0
+                    for n in range(nPe):
+                        dNdx = dN[0, n]
+                        dNdy = dN[1, n]
+                        
+                        # B rigi
+                        B_rigi_pg[0, colonne] = dNdx
+                        B_rigi_pg[1, colonne+1] = dNdy
+                        B_rigi_pg[2, colonne] = dNdy; B_rigi_pg[2, colonne+1] = dNdx    
+
+                        # B mass
+                        B_mass_pg[0,n] = dNdx
+                        B_mass_pg[1,n] = dNdy
+
+                        colonne += 2
+                    list_B_rigi_pg.append(B_rigi_pg)
+                    list_B_mass_pg.append(B_mass_pg)
+                else:
+                    B_rigi_pg = np.zeros((6, nPe*dim))
+                    B_mass_pg = np.zeros((dim, nPe))
+
+                    colonne = 0
+                    for n in range(nPe):
+                        dNdx = dN[0, n]
+                        dNdy = dN[1, n]
+                        dNdz = dN[2, n]
+                        
+                        # B rigi
+                        B_rigi_pg[0, colonne] = dNdx
+                        B_rigi_pg[1, colonne+1] = dNdy
+                        B_rigi_pg[2, colonne+2] = dNdz
+                        B_rigi_pg[3, colonne] = dNdy; B_rigi_pg[3, colonne+1] = dNdx
+                        B_rigi_pg[4, colonne+1] = dNdz; B_rigi_pg[4, colonne+2] = dNdy
+                        B_rigi_pg[5, colonne] = dNdz; B_rigi_pg[5, colonne+2] = dNdx
+                        colonne += 3
+
+                        # B mass
+                        B_mass_pg[0,n] = dNdx
+                        B_mass_pg[1,n] = dNdy
+                        B_mass_pg[2,n] = dNdz
+
+                    list_B_rigi_pg.append(B_rigi_pg)
+                    list_B_mass_pg.append(B_mass_pg)
+                        
+            self.list_F_e_pg.append(list_F_pg)
+            self.list_invF_e_pg.append(list_invF_pg)
+            self.list_jacobien_e_pg.append(list_jacobien_pg)
+            self.list_dN_e_pg.append(list_dN_pg)
+            self.list_B_rigi_e_pg.append(list_B_rigi_pg)
+            self.list_B_mass_e_pg.append(list_B_mass_pg)
+
+         
+
+        # Creation de l'élement
+        # L'element permet de calculer les fonctions de formes et ses dérivées
+
         self.__connectPourTriangle = []
         self.__connectPolygon =[]
-        
-        self.noeuds = []
-        self.elements = []
-                
-        # Création des noeuds
-        n = 0
-        for c in coordo:     
-            if self.__dim ==2:
-                assert c[2] == 0 or c[2] == 0.0,"Pour une étude 2D tout les noeuds doivent être dans le plan x, y"
-            
-            # Création du noeud
-            noeud = Noeud(n, c)
-            self.noeuds.append(noeud)
-            
-            n += 1
-        
-        Ne = len(connect)
 
-        # Créations des éléments
-        e = 0              
-        while e < Ne:
-                                   
-            # Construit la liste de noeuds de l'element 
-            listNoeudsElement = []
-            for n in connect[e]:
-                listNoeudsElement.append(self.noeuds[n])
-            
-            # Création de l'élement
-            element = Element(e, listNoeudsElement, self.__dim)
-            
-            # Ajoute l'element dans la liste d'élement de la simu
-            self.elements.append(element)
-            
-            e += 1
         
         t = TicTac.Tac("Importation du maillage", self.__verbosity)
     

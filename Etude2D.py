@@ -31,7 +31,7 @@ P = -800 #N
 
 # Paramètres maillage
 typeElement = ModelGmsh.get_typesMaillage2D()[0]
-taille = h/20
+taille = h/10
 
 # Materiau
 materiau = Materiau(dim)
@@ -44,8 +44,8 @@ modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=typeElement, t
 mesh = Mesh(dim, coordo, connect)
 
 # Récupère les noeuds qui m'interessent
-noeuds_en_L = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == L]
-noeuds_en_0 = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == 0]
+noeuds_en_L = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == L]
+noeuds_en_0 = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == 0]
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
@@ -66,13 +66,13 @@ Affichage.NouvelleSection("Post traitement")
 
 print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
 
-print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_n"]))) 
+# print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_n"]))) 
 
-print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_e"]))) 
-print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_e"]))) 
+print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"]))) 
+print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"]))) 
 
-print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_e"]))) 
-print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_e"]))) 
+print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"]))) 
+print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"]))) 
 
 if plotResult:
         
@@ -80,7 +80,7 @@ if plotResult:
         Affichage.PlotMesh(mesh, simu.resultats, deformation=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
-        Affichage.PlotResult(mesh, simu.resultats, "Svm_n")
+        Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
 
         # Affichage.PlotResult(mesh, simu.resultats, "dy_n")

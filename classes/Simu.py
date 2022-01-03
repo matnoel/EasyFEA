@@ -76,15 +76,14 @@ class Simu:
         self.__ddl_Connues = []
         self.__Uc = np.zeros((taille,1))
 
-        for e in self.__mesh.elements:            
-            e = cast(Element, e)
-
-           # Pour chaque poing de gauss on construit Ke
+        for e in range(self.__mesh.Ne):
+            
+            # Pour chaque poing de gauss on construit Ke
             Ke = 0
-            for pg in range(len(e.listB_u_pg)):
-                jacobien = e.listJacobien_pg[pg]
-                poid = e.listPoid_pg[pg]
-                B_pg = e.listB_u_pg[pg]
+            for pg in range(len(self.__mesh.list_jacobien_e_pg[0])):
+                jacobien = self.__mesh.list_jacobien_e_pg[e][pg]
+                poid = self.__mesh.list_poid_pg[pg]
+                B_pg = self.__mesh.list_B_rigi_e_pg[e][pg]
 
                 K = jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
 
@@ -93,11 +92,11 @@ class Simu:
                     Ke += K
                 else:
                     # probleme endomagement
-                    de = np.array([d[n.id] for n in e.noeuds])
+                    de = np.array([d[self.__mesh.connect[e]]])
                     
                     # Bourdin
-                    # g = (1-e.listN_d_pg[pg].dot(de))**2
-                    g = (1-de)**2
+                    g = (1-self.__mesh.element.listN_mass_pg[pg].dot(de))**2
+                    # g = (1-de)**2
                     
                     Ke += g.dot(K)
                 
@@ -108,9 +107,10 @@ class Simu:
             # Assemble Ke dans Kglob
             lignes = []
             colonnes = []
-            for i in e.assembly:
-                lignes.extend(e.assembly)
-                for j in range(len(e.assembly)):
+            assembly = self.__mesh.listAssembly[e]
+            for i in assembly:
+                lignes.extend(assembly)
+                for j in range(len(assembly)):
                     colonnes.append(i)
 
             
@@ -203,7 +203,7 @@ class Simu:
         Parameters
         ----------
         noeuds : list, optional
-            Liste de noeuds, by default []
+            Liste de int, by default []
         force : float, optional
             Force que l'on veut appliquer aux noeuds, by default 0.0
         directions : list, optional
@@ -214,16 +214,15 @@ class Simu:
 
         nbn = len(noeuds)
 
-        assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"
+        assert isinstance(noeuds[0], int), "Doit être une liste d'indices'"
         assert option in ["u", "d"], "Mauvaise option"        
         if option == "d":
             assert len(directions) == 0, "lorsque on renseigne d on a pas besoin de direction"
             assert not valeur == 0.0, "Doit être différent de 0"
 
-            for n in noeuds:
-                n = cast(Noeud, n)
-                self.__Fd[n.id] += valeur/nbn
-                self.__Fd_penal[n.id] += valeur/nbn
+            for n in noeuds:                
+                self.__Fd[n] += valeur/nbn
+                self.__Fd_penal[n] += valeur/nbn
 
         elif option == "u":
             assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
@@ -231,16 +230,15 @@ class Simu:
                 assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
 
             for direction in directions:
-                for n in noeuds:
-                    n = cast(Noeud, n)
+                for n in noeuds:                    
                     # Récupère la ligne sur laquelle on veut appliquer la force
                     if direction == "x":
-                        ligne = n.id * self.__dim
+                        ligne = n * self.__dim
                     if direction == "y":
-                        ligne = n.id * self.__dim + 1
+                        ligne = n * self.__dim + 1
                     if direction == "z":
                         assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                        ligne = n.id * self.__dim + 2
+                        ligne = n * self.__dim + 2
                         
                     # self.__Fu[ligne] += valeur/nbn
                     # self.__Fu_penal[ligne] += valeur/nbn
@@ -252,7 +250,7 @@ class Simu:
 
     def Condition_Dirichlet(self, noeuds: list, directions=[] , valeur=0.0, option="u"):
         
-        assert isinstance(noeuds[0], Noeud), "Doit être une liste de Noeuds"        
+        assert isinstance(noeuds[0], int), "Doit être une liste d'indices"        
         assert option in ["u", "d"], "Mauvaise option"
         if option == "d":
             assert len(directions) == 0, "lorsque on renseigne d on a pas besoin de direction"
@@ -265,9 +263,8 @@ class Simu:
         TicTac.Tic()
 
         if option == "d":
-            for n in noeuds:
-                n = cast(Noeud, n)
-                ligne = n.id
+            for n in noeuds:                
+                ligne = n
 
                 if ligne in self.__d_Inconnues:
                     self.__d_Inconnues.remove(ligne)
@@ -280,15 +277,14 @@ class Simu:
                 self.__Kd_penal[ligne, ligne] = 1
 
         elif option == "u":
-            for n in noeuds:
-                n = cast(Noeud, n)
+            for n in noeuds:                
                 for direction in directions:
                     if direction == "x":
-                        ligne = n.id * self.__dim
+                        ligne = n * self.__dim
                     if direction == "y":
-                        ligne = n.id * self.__dim + 1
+                        ligne = n * self.__dim + 1
                     if direction == "z":
-                        ligne = n.id * self.__dim + 2
+                        ligne = n * self.__dim + 2
                     
                     # Decomposition
                     if ligne in self.__ddl_Inconnues:
@@ -405,8 +401,7 @@ class Simu:
             Szz_e = []; Syz_e = []; Sxz_e = []
 
         # Pour chaque element on va calculer pour chaque point de gauss Epsilon et Sigma
-        for e in self.__mesh.elements:
-            e = cast(Element, e)
+        for e in range(self.__mesh.Ne):
 
             dx = []
             dy = []
@@ -415,10 +410,10 @@ class Simu:
 
             # Construit ue
             ue = []
-            for n in e.noeuds:
-                n = cast(Noeud, n)
+            for n in self.__mesh.connect[e]:
+                
                 for j in range(self.__dim):
-                    valeur = Uglob[n.id*self.__dim+j]
+                    valeur = Uglob[int(n)*self.__dim+j]
                     ue.append(valeur)
                     if j == 0:
                         dx.append(valeur)
@@ -431,7 +426,7 @@ class Simu:
             list_sigma_pg = []
 
             # Récupère B pour chaque pt de gauss
-            for B_pg in e.listB_u_pg:
+            for B_pg in self.__mesh.list_B_rigi_e_pg[e]:
                 epsilon_pg = B_pg.dot(ue)
                 list_epsilon_pg.append(epsilon_pg)
 
@@ -479,8 +474,8 @@ class Simu:
 
         TicTac.Tac("Calcul deformations et contraintes aux elements", self.__verbosity)
         
-        if calculAuxNoeuds:
-            self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
+        # if calculAuxNoeuds:
+        #     self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
 
         return list_Epsilon_e, list_Sigma_e 
     
