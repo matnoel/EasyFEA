@@ -59,14 +59,14 @@ class Element:
 
         # [N1 0 ... Nn 0
         #  0 N1 ... 0 Nn]
-        self.listN_rigi_pg = []
+        self.N_rigi_pg = []
 
         # [N1 ... Nn]
-        self.listN_mass_pg = []
+        self.N_mass_pg = []
 
         # [N1,ksi ... Nn,ksi
         #  N1,eta ... Nn,eta]
-        self.listdN_pg = []
+        self.dN_pg = []
                      
         self.__Construit_B_N()
 
@@ -101,11 +101,11 @@ class Element:
             N3t = eta
             Ntild = [N1t, N2t, N3t]
 
-            self.listN_rigi_pg.append(self.__ConstruitN(Ntild))
+            self.N_rigi_pg.append(self.__ConstruitN(Ntild))
 
-            self.listN_mass_pg.append(np.array(Ntild))
+            self.N_mass_pg.append(np.array(Ntild))
 
-            self.listdN_pg.append(np.array([[-1, 1, 0],[-1, 0, 1]]))
+            self.dN_pg.append(np.array([[-1, 1, 0],[-1, 0, 1]]))
 
         # TRI6  
         if self.nPe == 6:
@@ -134,7 +134,7 @@ class Element:
                 dN4t = np.array([4-8*ksi-4*eta, -4*ksi])
                 dN5t = np.array([4*eta, 4*ksi])
                 dN6t = np.array([-4*eta, 4-4*ksi-8*eta])
-                return [dN1t, dN2t, dN3t, dN4t, dN5t, dN6t]
+                return np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t]).T
             
             for pg in range(len(ksis)):
                 
@@ -144,13 +144,13 @@ class Element:
                 Ntild = Construit_Ntild(ksi, eta)                
                 
                 N_rigi = self.__ConstruitN(Ntild)
-                self.listN_rigi_pg.append(N_rigi)
+                self.N_rigi_pg.append(N_rigi)
 
                 N_mass = self.__ConstruitN(Ntild, vecteur=False)
-                self.listN_mass_pg.append(N_mass)
+                self.N_mass_pg.append(N_mass)
                 
                 dNtild = Construit_dNtild(ksi, eta)
-                self.listdN_pg.append(dNtild)
+                self.dN_pg.append(dNtild)
 
     def __Construit_B_N_Quadrangle(self):
         """Construit la matrice Be d'un element quadrillatère
@@ -176,7 +176,7 @@ class Element:
                 dN2t = np.array([(1-eta)/4, (-ksi-1)/4])
                 dN3t = np.array([(1+eta)/4, (1+ksi)/4])
                 dN4t = np.array([(-eta-1)/4, (1-ksi)/4])                
-                return [dN1t, dN2t, dN3t, dN4t]
+                return np.array([dN1t, dN2t, dN3t, dN4t]).T
             
             for pg in range(len(ksis)):
                 
@@ -186,13 +186,13 @@ class Element:
                 Ntild = Construit_Ntild(ksi, eta)
                 
                 N_rigi = self.__ConstruitN(Ntild)
-                self.listN_rigi_pg.append(N_rigi)
+                self.N_rigi_pg.append(N_rigi)
 
                 N_mass = self.__ConstruitN(Ntild, vecteur=False)                
-                self.listN_mass_pg.append(N_mass)
+                self.N_mass_pg.append(N_mass)
 
                 dNtild = Construit_dNtild(ksi, eta)
-                self.listdN_pg.append(dNtild)            
+                self.dN_pg.append(dNtild)            
               
         elif self.nPe ==8:
             
@@ -224,7 +224,7 @@ class Element:
                 dN7t = np.array([-ksi*(1+eta), (1-ksi**2)/2])                
                 dN8t = np.array([-(1-eta**2)/2, -eta*(1-ksi)])
                                 
-                return [dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t]
+                return np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t]).T
 
             for pg in range(len(ksis)):
                 
@@ -234,13 +234,13 @@ class Element:
                 Ntild = Construit_Ntild(ksi, eta)
                 
                 N_rigi = self.__ConstruitN(Ntild)
-                self.listN_rigi_pg.append(N_rigi)
+                self.N_rigi_pg.append(N_rigi)
 
                 N_mass = self.__ConstruitN(Ntild, vecteur=False)
-                self.listN_mass_pg.append(N_mass)
+                self.N_mass_pg.append(N_mass)
 
                 dNtild = Construit_dNtild(ksi, eta)
-                self.listdN_pg.append(dNtild)
+                self.dN_pg.append(dNtild)
             
     def __Construit_B_N_Tetraedre(self):
         if self.nPe == 4:                       
@@ -259,9 +259,9 @@ class Element:
             N4t = z            
             Ntild = [N1t, N2t, N3t, N4t]
             
-            self.listN_rigi_pg.append(self.__ConstruitN(Ntild))
+            self.N_rigi_pg.append(self.__ConstruitN(Ntild))
 
-            self.listN_mass_pg.append(self.__ConstruitN(Ntild, vecteur=False))
+            self.N_mass_pg.append(self.__ConstruitN(Ntild, vecteur=False))
 
             # Construit dNtild
             dN1t = np.array([-1, -1, -1])
@@ -269,7 +269,7 @@ class Element:
             dN3t = np.array([0, 1, 0])
             dN4t = np.array([0, 0, 1])
             dNtild = [dN1t, dN2t, dN3t, dN4t]
-            self.listdN_pg.append(dNtild)
+            self.dN_pg.append(dNtild)
     
     def ConstruitB_pg(self, list_dNtild: list, invF: np.ndarray, vecteur=True):  
         """Construit la matrice Be depuis les fonctions de formes de l'element
@@ -334,7 +334,7 @@ class Element:
                     dNdj = invF[j].dot(dNt)
                     B_pg[j, i] = dNdj
 
-        return B_pg   
+        return B_pg
     
     def __ConstruitN(self, list_Ntild: list, vecteur=True):
         """Construit la matrice de fonction de forme

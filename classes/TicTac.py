@@ -14,4 +14,5 @@ class TicTac:
         tf = np.abs(TicTac.__start - time.time())
         if affichage:
             print("\n{} ({:.3f} s)".format(texte, tf))
+        TicTac.__start = time.time()
         return tf

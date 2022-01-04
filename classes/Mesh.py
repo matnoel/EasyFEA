@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.lib.twodim_base import triu_indices_from
 
 try:
     from Noeud import Noeud
@@ -186,109 +187,9 @@ class Mesh:
         self.__verbosity = verbosity
 
         self.coordo = np.array(coordo)
-        # self.coordo = coordo
         self.connect = connect 
         
-        listElement = range(self.Ne)
-
-        listNoeud = range(self.Nn)
-
-        # Construit la matrice de connection pour les noeuds
-        self.connectNoeuds = [[e for e in listElement if n in self.connect[e]] for n in listNoeud]
-
-        # Construit la matrice assembly
-        self.listAssembly = [[int(n * dim + d)for n in connect[e] for d in range(dim)] for e in listElement]
-        
-        self.element = Element(dim, len(connect[0]))
-        
-        self.list_poid_pg = self.element.listPoid_pg
-        # ligne -> elements et colonne -> points de gauss
-        self.list_F_e_pg = [] 
-        self.list_invF_e_pg = []
-        self.list_jacobien_e_pg = []
-        self.list_dN_e_pg = []
-        self.list_B_rigi_e_pg = []
-        self.list_B_mass_e_pg = []
-
-        xi_yi = coordo[:,[0, 1]]
-        for e in range(self.Ne):
-            list_F_pg = []
-            list_invF_pg = []
-            list_invF_pg = []
-            list_jacobien_pg = []
-            list_dN_pg = []
-            for pg in range(self.element.nPg):
-                F = self.element.listdN_pg[pg].dot(xi_yi[connect[e], :])
-                list_F_pg.append(F)
-
-                invF = np.linalg.inv(F)
-                list_invF_pg.append(invF)
-
-                jacobien = np.linalg.det(F)
-                list_jacobien_pg.append(jacobien)
-
-                dN = invF.dot(self.element.listdN_pg[pg])
-                list_dN_pg.append(dN)
-
-                list_B_rigi_pg = []
-                list_B_mass_pg = []
-
-                nPe = self.element.nPe
-                if dim == 2:
-                    B_rigi_pg = np.zeros((3, nPe*dim))
-                    B_mass_pg = np.zeros((dim, nPe))
-                    colonne = 0
-                    for n in range(nPe):
-                        dNdx = dN[0, n]
-                        dNdy = dN[1, n]
-                        
-                        # B rigi
-                        B_rigi_pg[0, colonne] = dNdx
-                        B_rigi_pg[1, colonne+1] = dNdy
-                        B_rigi_pg[2, colonne] = dNdy; B_rigi_pg[2, colonne+1] = dNdx    
-
-                        # B mass
-                        B_mass_pg[0,n] = dNdx
-                        B_mass_pg[1,n] = dNdy
-
-                        colonne += 2
-                    list_B_rigi_pg.append(B_rigi_pg)
-                    list_B_mass_pg.append(B_mass_pg)
-                else:
-                    B_rigi_pg = np.zeros((6, nPe*dim))
-                    B_mass_pg = np.zeros((dim, nPe))
-
-                    colonne = 0
-                    for n in range(nPe):
-                        dNdx = dN[0, n]
-                        dNdy = dN[1, n]
-                        dNdz = dN[2, n]
-                        
-                        # B rigi
-                        B_rigi_pg[0, colonne] = dNdx
-                        B_rigi_pg[1, colonne+1] = dNdy
-                        B_rigi_pg[2, colonne+2] = dNdz
-                        B_rigi_pg[3, colonne] = dNdy; B_rigi_pg[3, colonne+1] = dNdx
-                        B_rigi_pg[4, colonne+1] = dNdz; B_rigi_pg[4, colonne+2] = dNdy
-                        B_rigi_pg[5, colonne] = dNdz; B_rigi_pg[5, colonne+2] = dNdx
-                        colonne += 3
-
-                        # B mass
-                        B_mass_pg[0,n] = dNdx
-                        B_mass_pg[1,n] = dNdy
-                        B_mass_pg[2,n] = dNdz
-
-                    list_B_rigi_pg.append(B_rigi_pg)
-                    list_B_mass_pg.append(B_mass_pg)
-                        
-            self.list_F_e_pg.append(list_F_pg)
-            self.list_invF_e_pg.append(list_invF_pg)
-            self.list_jacobien_e_pg.append(list_jacobien_pg)
-            self.list_dN_e_pg.append(list_dN_pg)
-            self.list_B_rigi_e_pg.append(list_B_rigi_pg)
-            self.list_B_mass_e_pg.append(list_B_mass_pg)
-
-         
+        self.__ConstruitMatricesPourCalculEf()
 
         # Creation de l'élement
         # L'element permet de calculer les fonctions de formes et ses dérivées
@@ -299,6 +200,111 @@ class Mesh:
         
         t = TicTac.Tac("Importation du maillage", self.__verbosity)
     
+    def __ConstruitMatricesPourCalculEf(self):
+        
+        verification = False
+
+        dim = self.__dim
+        connect = self.connect
+        coordo = self.coordo
+        listElement = range(self.Ne)
+
+        # Construit la matrice de connection pour les noeuds
+        # self.connectNoeuds = [[e for e in listElement if n in self.connect[e]] for n in listNoeud]
+
+        # Construit la matrice assembly
+        self.assembly_e = [[int(n * dim + d)for n in connect[e] for d in range(dim)] for e in listElement]
+        
+        element = Element(dim, len(connect[0]))
+
+        listElement = list(range(self.Ne))
+        nPe = element.nPe;  listnPe = list(range(nPe))
+        nPg = element.nPg;  listPg = list(range(nPg))
+        nodes = coordo[:,range(dim)]        
+        
+        self.poid_pg = element.listPoid_pg
+        self.F_e_pg = np.array([[element.dN_pg[pg].dot(nodes[connect[e], :]) for pg in listPg] for e in listElement])
+        self.invF_e_pg = np.linalg.inv(self.F_e_pg)       
+        self.jacobien_e_pg = np.linalg.det(self.F_e_pg)
+        self.N_rigi_pg = element.N_rigi_pg
+        self.N_mass_pg = element.N_mass_pg
+        self.dN_e_pg = np.array([[self.invF_e_pg[e,pg,:,:].dot(element.dN_pg[pg]) for pg in listPg] for e in listElement])        
+        self.B_mass_e_pg = self.dN_e_pg
+
+        colonnes0 = list(range(0, nPe*dim, dim))
+        colonnes1 = list(range(1, nPe*dim, dim))
+
+        if self.__dim == 2:
+            self.B_rigi_e_pg = np.array([[np.zeros((3, nPe*dim))]*element.nPg]*self.Ne)
+            
+            dNdx = self.dN_e_pg[:,:,0,listnPe]
+            dNdy = self.dN_e_pg[:,:,1,listnPe]
+
+            self.B_rigi_e_pg[:,:,0,colonnes0] = dNdx
+            self.B_rigi_e_pg[:,:,1,colonnes1] = dNdy
+            self.B_rigi_e_pg[:,:,2,colonnes0] = dNdy; self.B_rigi_e_pg[:,:,2,colonnes1] = dNdx
+            
+        else:
+            self.B_rigi_e_pg = np.array([[np.zeros((6, nPe*dim))]*element.nPg]*self.Ne)
+
+            dNdx = self.dN_e_pg[:,:,0,listnPe]
+            dNdy = self.dN_e_pg[:,:,1,listnPe]
+            dNdz = self.dN_e_pg[:,:,2,listnPe]
+
+            colonnes2 = list(range(2, nPe*dim, dim))
+
+            self.B_rigi_e_pg[:,:,0,colonnes0] = dNdx
+            self.B_rigi_e_pg[:,:,1,colonnes1] = dNdy
+            self.B_rigi_e_pg[:,:,2,colonnes2] = dNdz
+            self.B_rigi_e_pg[:,:,3,colonnes0] = dNdy; self.B_rigi_e_pg[:,:,3,colonnes1] = dNdx
+            self.B_rigi_e_pg[:,:,4,colonnes1] = dNdz; self.B_rigi_e_pg[:,:,4,colonnes2] = dNdy
+            self.B_rigi_e_pg[:,:,4,colonnes0] = dNdz; self.B_rigi_e_pg[:,:,5,colonnes2] = dNdx
+
+        if verification:
+            list_B_rigi_e_pg = []
+
+            for e in listElement:
+                list_B_rigi_pg = []
+                for pg in listPg:
+                    if dim == 2:
+                        B_rigi_pg = np.zeros((3, nPe*dim))
+                        colonne = 0
+                        dN = self.dN_e_pg[e][pg]
+                        for n in range(nPe):
+                            dNdx = dN[0, n]
+                            dNdy = dN[1, n]
+                            
+                            # B rigi
+                            B_rigi_pg[0, colonne] = dNdx
+                            B_rigi_pg[1, colonne+1] = dNdy
+                            B_rigi_pg[2, colonne] = dNdy; B_rigi_pg[2, colonne+1] = dNdx
+                            
+                            colonne += 2
+                        list_B_rigi_pg.append(B_rigi_pg)    
+                    else:
+                        B_rigi_pg = np.zeros((6, nPe*dim))
+                        
+                        colonne = 0
+                        for n in range(nPe):
+                            dNdx = dN[0, n]
+                            dNdy = dN[1, n]
+                            dNdz = dN[2, n]                        
+                            
+                            B_rigi_pg[0, colonne] = dNdx
+                            B_rigi_pg[1, colonne+1] = dNdy
+                            B_rigi_pg[2, colonne+2] = dNdz
+                            B_rigi_pg[3, colonne] = dNdy; B_rigi_pg[3, colonne+1] = dNdx
+                            B_rigi_pg[4, colonne+1] = dNdz; B_rigi_pg[4, colonne+2] = dNdy
+                            B_rigi_pg[5, colonne] = dNdz; B_rigi_pg[5, colonne+2] = dNdx
+                            colonne += 3
+                        list_B_rigi_pg.append(B_rigi_pg)
+                        
+                    
+                list_B_rigi_e_pg.append(list_B_rigi_pg)
+            
+            test = np.array(list_B_rigi_e_pg)-self.B_rigi_e_pg
+            assert test.max() == 0 and test.min() == 0, "Erreur dans la construiction de B"
+
     # def ChercheNoeuds(self, CondX=[], CondY=[], CondZ=[]):
         
     #     assert self.__dim == 2 and len(CondZ) == 0, "Pas de condition suivant Z dans une étude 2D" 

@@ -1,3 +1,4 @@
+from ctypes import memset
 import os
 from typing import cast
 
@@ -62,68 +63,127 @@ class Simu:
         if self.__dim == 2:        
             assert epaisseur>0,"Doit être supérieur à 0"
 
-        TicTac.Tic()
+        # options
+        verification = False
+        assemblage = 1
+        mesh = cast(Mesh, self.__mesh)
+        listElement = list(range(mesh.Ne))
+        listPg = list(range(len(mesh.poid_pg)))
+
+        TicTac.Tic()       
+       
+        # Calcul Ke
         
-        taille = self.__mesh.Nn*self.__dim
+        if verification:
+            listKe_e = []
+            for e in listElement:            
+                # Pour chaque poing de gauss on construit Ke
+                Ke = 0
+                for pg in listPg:
+                    jacobien = mesh.jacobien_e_pg[e][pg]
+                    poid = mesh.poid_pg[pg]
+                    B_pg = mesh.B_rigi_e_pg[e][pg]
 
-        # self.__Ku = np.zeros((taille, taille))
-        # self.__Fu = np.zeros(taille)
+                    K = jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
 
-        self.__Ku = sp.sparse.lil_matrix((taille, taille))
-        self.__Fu = sp.sparse.lil_matrix((taille,1))
+                    if len(d)==0:   # probleme standart
+                        
+                        Ke += K
+                    else:   # probleme endomagement
+                        
+                        de = np.array([d[mesh.connect[e]]])
+                        
+                        # Bourdin
+                        g = (1-mesh.N_mass_pg[pg].dot(de))**2
+                        # g = (1-de)**2
+                        
+                        Ke += g * K
+                # # print(Ke-listeKe[e.id])
+                listKe_e.append(Ke)
+            TicTac.Tac("1", True)
+
+        
+        # Ecriture condensée
+        Ke_e_pg = np.array([[mesh.jacobien_e_pg[e,pg] * mesh.poid_pg[pg] * mesh.B_rigi_e_pg[e,pg].T.dot(self.__materiau.C).dot(mesh.B_rigi_e_pg[e,pg]) for pg in listPg] for e in listElement])
+        # Ke_e_pg = mesh.jacobien_e_pg * mesh.poid_pg * mesh.B_rigi_e_pg.T.dot(self.__materiau.C).dot(mesh.B_rigi_e_pg)
+
+        if len(d) !=0 :   # probleme endomagement
+
+            # Bourdin
+            g = (1-mesh.N_mass_pg[pg].dot(np.array([d[mesh.connect[e]]])))**2
+
+            Ke_e_pg = Ke_e_pg[e][pg]*g
+        
+        Ke_e = np.sum(Ke_e_pg, axis=1)
+
+        if verification:
+            TicTac.Tac("2",True)
+            test = Ke_e - np.array(listKe_e)
+            max = test.max()
+            min = test.min()
+            assert max == 0 and min == 0, "Problème"
+
+        if self.__dim == 2:
+            Ke_e = epaisseur * Ke_e
+
+        # Assemblage Kglob
+
+        taille = self.__mesh.Nn*self.__dim       
+        self.__Ku = sp.sparse.lil_matrix((taille, taille))  # self.__Ku = np.zeros((taille, taille))
+        self.__Fu = sp.sparse.lil_matrix((taille,1))    # self.__Fu = np.zeros(taille)
         
         self.__ddl_Inconnues = [i for i in range(taille)]
         self.__ddl_Connues = []
         self.__Uc = np.zeros((taille,1))
 
-        for e in range(self.__mesh.Ne):
+        if assemblage == 1:
+
+            # lignes_e = np.array([[id for id in mesh.assembly_e[e]]*len(mesh.assembly_e[e])for e in listElement])
+            lignes_e = np.array([[i for j in mesh.assembly_e[e] for i in mesh.assembly_e[e]] for e in listElement])
+            colonnes_e = np.array([[j for j in mesh.assembly_e[e] for i in mesh.assembly_e[e]] for e in listElement])
+
+            KeRaveld_e = np.array([np.ravel(Ke_e[e]) for e in listElement])
             
-            # Pour chaque poing de gauss on construit Ke
-            Ke = 0
-            for pg in range(len(self.__mesh.list_jacobien_e_pg[0])):
-                jacobien = self.__mesh.list_jacobien_e_pg[e][pg]
-                poid = self.__mesh.list_poid_pg[pg]
-                B_pg = self.__mesh.list_B_rigi_e_pg[e][pg]
+            # for e in listElement:
+            #     self.__Ku[lignes_e[e], colonnes_e[e]] =  self.__Ku[lignes_e[e], colonnes_e[e]] + KeRaveld_e[e]
+            #     # self.__Ku[lignes_e[e], colonnes_e[e]] += KeRaveld_e[e]
 
-                K = jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
-
-                if len(d)==0:
-                    # probleme standart
-                    Ke += K
-                else:
-                    # probleme endomagement
-                    de = np.array([d[self.__mesh.connect[e]]])
-                    
-                    # Bourdin
-                    g = (1-self.__mesh.element.listN_mass_pg[pg].dot(de))**2
-                    # g = (1-de)**2
-                    
-                    Ke += g.dot(K)
-                
-                
-
-            # # print(Ke-listeKe[e.id])
-            
-            # Assemble Ke dans Kglob
-            lignes = []
-            colonnes = []
-            assembly = self.__mesh.listAssembly[e]
-            for i in assembly:
-                lignes.extend(assembly)
-                for j in range(len(assembly)):
-                    colonnes.append(i)
+            self.__Ku = [self.__Ku[lignes_e[e], colonnes_e[e]] + KeRaveld_e[e] for e in listElement]
 
             
-            # lignes = [id for id in e.assembly]*len(e.assembly)
-            # colonnes = [id for list in [[i]*len(e.assembly) for i in e.assembly] for id in list]
+            if verification:
 
+                verif_lignes_e = []
+                verif_colonnes_e = []
 
-            if self.__dim == 2:
-                # test = np.ravel(epaisseur * Ke)
-                # self.__Ku[lignes, colonnes] = self.__Ku[lignes, colonnes] + np.ravel(epaisseur * Ke)
-                self.__Ku[lignes, colonnes] = self.__Ku[lignes, colonnes] + (epaisseur * Ke).reshape(-1)
-            elif self.__dim == 3:
-                self.__Ku[lignes, colonnes] =  self.__Ku[lignes, colonnes] + np.ravel(Ke)
+                for e in listElement:
+                    # Assemble Ke dans Kglob
+
+                    lignes = []
+                    colonnes = []
+                    assembly = mesh.assembly_e[e]
+                    for i in assembly:
+                        lignes.extend(assembly)
+                        for j in range(len(assembly)):
+                            colonnes.append(i)
+
+                    verif_lignes_e.append(lignes)
+                    verif_colonnes_e.append(colonnes)
+
+                test1 = lignes_e - np.array(verif_lignes_e)
+                assert test1.max() == 0 and test1.min() == 0, "Problème"
+                test2 = colonnes_e - np.array(verif_colonnes_e)
+                assert test2.max() == 0 and test2.min() == 0, "Problème"    
+ 
+        else:
+
+            indices = range(0, len(Ke_e[0]))
+            for e in listElement:
+                for i in indices:
+                    ligne = mesh.assembly_e[e][i]
+                    for j in indices:
+                        colonne = mesh.assembly_e[e][j]
+                        self.__Ku[ligne, colonne] =  self.__Ku[ligne, colonne] + Ke_e[e][i,j]
 
         TicTac.Tac("Assemblage u", self.__verbosity)
         
@@ -426,7 +486,7 @@ class Simu:
             list_sigma_pg = []
 
             # Récupère B pour chaque pt de gauss
-            for B_pg in self.__mesh.list_B_rigi_e_pg[e]:
+            for B_pg in self.__mesh.B_rigi_e_pg[e]:
                 epsilon_pg = B_pg.dot(ue)
                 list_epsilon_pg.append(epsilon_pg)
 
