@@ -64,7 +64,7 @@ class Simu:
             assert epaisseur>0,"Doit être supérieur à 0"
 
         # options
-        verification = False
+        verification = True
         assemblage = 1
         mesh = cast(Mesh, self.__mesh)
         listElement = list(range(mesh.Ne))
@@ -128,7 +128,7 @@ class Simu:
 
         # Assemblage Kglob
 
-        taille = self.__mesh.Nn*self.__dim       
+        taille = self.__mesh.Nn*self.__dim
         self.__Ku = sp.sparse.lil_matrix((taille, taille))  # self.__Ku = np.zeros((taille, taille))
         self.__Fu = sp.sparse.lil_matrix((taille,1))    # self.__Fu = np.zeros(taille)
         
@@ -136,23 +136,50 @@ class Simu:
         self.__ddl_Connues = []
         self.__Uc = np.zeros((taille,1))
 
-        if assemblage == 1:
+        if assemblage == 2:
 
-            # lignes_e = np.array([[id for id in mesh.assembly_e[e]]*len(mesh.assembly_e[e])for e in listElement])
             lignes_e = np.array([[i for j in mesh.assembly_e[e] for i in mesh.assembly_e[e]] for e in listElement])
             colonnes_e = np.array([[j for j in mesh.assembly_e[e] for i in mesh.assembly_e[e]] for e in listElement])
 
-            KeRaveld_e = np.array([np.ravel(Ke_e[e]) for e in listElement])
+            lignesRaveld = np.ravel(lignes_e)
+            colonnesRaveld = np.ravel(colonnes_e)
+
+
+            KeRaveld_e = np.ravel([np.ravel(Ke_e[e]) for e in listElement])
             
             # for e in listElement:
+                
+            #     indices = mesh.assembly_e[e]
+                
+            #     # self.__Ku[mesh.assembly_e[e], :][:, mesh.assembly_e[e]] += Ke_e[e]
+
+            #     # test = self.__Ku[indices, indices] + Ke_e[e]
+
+            #     # test = self.__Ku[indices, :][:, indices] + Ke_e[e]
+            
+            #     # self.__Ku[indices, :][:, indices] = test
+
+            #     # self.__Ku[indices, indices] += Ke_e[e]
+
             #     self.__Ku[lignes_e[e], colonnes_e[e]] =  self.__Ku[lignes_e[e], colonnes_e[e]] + KeRaveld_e[e]
             #     # self.__Ku[lignes_e[e], colonnes_e[e]] += KeRaveld_e[e]
 
-            self.__Ku = [self.__Ku[lignes_e[e], colonnes_e[e]] + KeRaveld_e[e] for e in listElement]
+            # self.__Ku[lignes_e, colonnes_e] +=  KeRaveld_e
+
+            
+
+
+            # self.__Ku[mesh.assembly_e, :][:, mesh.assembly_e] =  Ke_e
+
+            self.__Ku[lignesRaveld, colonnesRaveld] = self.__Ku[lignesRaveld, colonnesRaveld]+ KeRaveld_e
+
+            # self.__Ku = self.__Ku[lignes_e[e], colonnes_e[e]] + KeRaveld_e[e] 
+            # self.__Ku[lignes_e, colonnes_e] = self.__Ku[lignes_e, colonnes_e] + KeRaveld_e
 
             
             if verification:
-
+                
+                # verification calcul des lignes
                 verif_lignes_e = []
                 verif_colonnes_e = []
 
@@ -176,14 +203,24 @@ class Simu:
                 assert test2.max() == 0 and test2.min() == 0, "Problème"    
  
         else:
+            
+            length = Ke_e[0].shape[0]
+            indices = range(0, length)
 
-            indices = range(0, len(Ke_e[0]))
+            nE = taille**2
+
+            assembly = mesh.assembly_e[0]
+
+            
+
+
             for e in listElement:
                 for i in indices:
                     ligne = mesh.assembly_e[e][i]
                     for j in indices:
                         colonne = mesh.assembly_e[e][j]
                         self.__Ku[ligne, colonne] =  self.__Ku[ligne, colonne] + Ke_e[e][i,j]
+
 
         TicTac.Tac("Assemblage u", self.__verbosity)
         
