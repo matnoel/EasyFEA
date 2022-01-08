@@ -3,20 +3,20 @@ import os
 from typing import cast
 
 import numpy as np
+from numpy import matrixlib, zeros
 from numpy.core.records import array
+from numpy.random.mtrand import rand
 import scipy as sp
 from scipy.sparse.linalg import spsolve
 
 try:
     from classes.ModelGmsh import ModelGmsh
-    from classes.Noeud import Noeud
     from classes.Element import Element
     from classes.Mesh import Mesh
     from classes.Materiau import Materiau
     from classes.TicTac import TicTac
 except:
     from ModelGmsh import ModelGmsh
-    from Noeud import Noeud
     from Element import Element
     from Mesh import Mesh
     from Materiau import Materiau
@@ -24,6 +24,10 @@ except:
 
 class Simu:
     
+    def get_listElement(self):
+        return list(range(self.__mesh.Ne))        
+    listElement = property(get_listElement)
+
     def __init__(self, dim: int,mesh: Mesh, materiau: Materiau, verbosity=True):
         """Creation d'une simulation
 
@@ -41,39 +45,50 @@ class Simu:
         assert isinstance(materiau, Materiau) and materiau.get_dim() == dim, "Doit etre un materiau et doit avoir la meme dimension que dim"
 
 
-        self.__dim = dim
-      
-        self.__verbosity = verbosity
-        
-        self.__mesh = mesh
-        
-        self.__materiau = materiau
-        
+        self.__dim = dim      
+        self.__verbosity = verbosity        
+        self.__mesh = mesh        
+        self.__materiau = materiau        
         self.resultats = {}
-
         self.list_H = []
+
+        # Conditions Limites
+        self.__BC_Neuman_u = [[],[]]
+        self.__BC_Dirichlet_u = [[],[]]
+        self.__BC_Neuman_d = [[],[]]
+        self.__BC_Dirichlet_d = [[],[]]
+
+
     
-    def Assemblage_u(self, epaisseur=0, d=[]):
-        """Construit Kglobal
+    def __Construit_Ke(self, epaisseur, d, verification=False):
 
-        mettre en option u ou d ?
-
-        """
-
-        if self.__dim == 2:        
-            assert epaisseur>0,"Doit être supérieur à 0"
-
-        # options
-        verification = True
-        assemblage = 1
         mesh = cast(Mesh, self.__mesh)
-        listElement = list(range(mesh.Ne))
-        listPg = list(range(len(mesh.poid_pg)))
-
-        TicTac.Tic()       
-       
-        # Calcul Ke
+        nPg = len(mesh.poid_pg)
+        listPg = list(range(nPg))
+        listElement = self.listElement
         
+        # Calcul Ke        
+        ticKe = TicTac()
+        jacobien = mesh.jacobien_e_pg
+        poid = mesh.poid_pg
+        B_rigi = mesh.B_rigi_e_pg
+        mat = self.__materiau.C
+        Ke_e_pg = [[jacobien[e,pg]*poid[pg]*B_rigi[e,pg].T.dot(mat).dot(B_rigi[e,pg]) for pg in listPg] for e in listElement]
+
+        if len(d) !=0 :   # probleme endomagement            
+            print("Non implémenté")
+            # # Bourdin
+            # g = (1-mesh.N_mass_pg[pg].dot(np.array([d[mesh.connect[e]]])))**2
+
+            # Ke_e_pg = Ke_e_pg[e][pg]*g
+        
+        Ke_e = np.sum(Ke_e_pg, axis=1)
+        
+        if self.__dim == 2:
+            Ke_e = epaisseur * Ke_e
+
+        ticKe.Tac("Calcul des matrices elementaires", self.__verbosity)
+
         if verification:
             listKe_e = []
             for e in listElement:            
@@ -99,138 +114,62 @@ class Simu:
                         
                         Ke += g * K
                 # # print(Ke-listeKe[e.id])
-                listKe_e.append(Ke)
-            TicTac.Tac("1", True)
+                if self.__dim == 2:
+                    listKe_e.append(epaisseur * Ke)
+                else:
+                    listKe_e.append(Ke)                
 
+            ticKe.Tac("Calcul des matrices elementaires (boucle)", True)
+            
+            # Verification
+            Ke_comparaison = np.array(listKe_e)
+            test = Ke_e - Ke_comparaison           
+            assert test.max() == 0 and test.min() == 0, "Problème"
         
-        # Ecriture condensée
-        Ke_e_pg = np.array([[mesh.jacobien_e_pg[e,pg] * mesh.poid_pg[pg] * mesh.B_rigi_e_pg[e,pg].T.dot(self.__materiau.C).dot(mesh.B_rigi_e_pg[e,pg]) for pg in listPg] for e in listElement])
-        # Ke_e_pg = mesh.jacobien_e_pg * mesh.poid_pg * mesh.B_rigi_e_pg.T.dot(self.__materiau.C).dot(mesh.B_rigi_e_pg)
+        return Ke_e
 
-        if len(d) !=0 :   # probleme endomagement
+    def Assemblage_u(self, epaisseur=1, d=[], verification=False):
+        """Construit Kglobal
 
-            # Bourdin
-            g = (1-mesh.N_mass_pg[pg].dot(np.array([d[mesh.connect[e]]])))**2
+        mettre en option u ou d ?
 
-            Ke_e_pg = Ke_e_pg[e][pg]*g
+        """
+
+        if self.__dim == 2:        
+            assert epaisseur>0,"Doit être supérieur à 0"
+
+        tic = TicTac()
+
+        # Construit Ke
+        Ke_e = self.__Construit_Ke(epaisseur, d)
+        self.__Ke_e = Ke_e # Sauvegarde Ke pour calculer Energie plus rapidement
         
-        Ke_e = np.sum(Ke_e_pg, axis=1)
-
-        if verification:
-            TicTac.Tac("2",True)
-            test = Ke_e - np.array(listKe_e)
-            max = test.max()
-            min = test.min()
-            assert max == 0 and min == 0, "Problème"
-
-        if self.__dim == 2:
-            Ke_e = epaisseur * Ke_e
-
-        # Assemblage Kglob
-
-        taille = self.__mesh.Nn*self.__dim
+        # Assemblage
+        mesh = self.__mesh
+        listElement = self.listElement
+        taille = mesh.Nn*self.__dim
+        
+        # Matrices du système
         self.__Ku = sp.sparse.lil_matrix((taille, taille))  # self.__Ku = np.zeros((taille, taille))
         self.__Fu = sp.sparse.lil_matrix((taille,1))    # self.__Fu = np.zeros(taille)
+        self.__Uc = sp.sparse.lil_matrix((taille,1))
         
-        self.__ddl_Inconnues = [i for i in range(taille)]
-        self.__ddl_Connues = []
-        self.__Uc = np.zeros((taille,1))
 
-        if assemblage == 2:
-
-            lignes_e = np.array([[i for j in mesh.assembly_e[e] for i in mesh.assembly_e[e]] for e in listElement])
-            colonnes_e = np.array([[j for j in mesh.assembly_e[e] for i in mesh.assembly_e[e]] for e in listElement])
-
-            lignesRaveld = np.ravel(lignes_e)
-            colonnesRaveld = np.ravel(colonnes_e)
-
-
-            KeRaveld_e = np.ravel([np.ravel(Ke_e[e]) for e in listElement])
-            
-            # for e in listElement:
-                
-            #     indices = mesh.assembly_e[e]
-                
-            #     # self.__Ku[mesh.assembly_e[e], :][:, mesh.assembly_e[e]] += Ke_e[e]
-
-            #     # test = self.__Ku[indices, indices] + Ke_e[e]
-
-            #     # test = self.__Ku[indices, :][:, indices] + Ke_e[e]
-            
-            #     # self.__Ku[indices, :][:, indices] = test
-
-            #     # self.__Ku[indices, indices] += Ke_e[e]
-
-            #     self.__Ku[lignes_e[e], colonnes_e[e]] =  self.__Ku[lignes_e[e], colonnes_e[e]] + KeRaveld_e[e]
-            #     # self.__Ku[lignes_e[e], colonnes_e[e]] += KeRaveld_e[e]
-
-            # self.__Ku[lignes_e, colonnes_e] +=  KeRaveld_e
-
-            
-
-
-            # self.__Ku[mesh.assembly_e, :][:, mesh.assembly_e] =  Ke_e
-
-            self.__Ku[lignesRaveld, colonnesRaveld] = self.__Ku[lignesRaveld, colonnesRaveld]+ KeRaveld_e
-
-            # self.__Ku = self.__Ku[lignes_e[e], colonnes_e[e]] + KeRaveld_e[e] 
-            # self.__Ku[lignes_e, colonnes_e] = self.__Ku[lignes_e, colonnes_e] + KeRaveld_e
-
-            
-            if verification:
-                
-                # verification calcul des lignes
-                verif_lignes_e = []
-                verif_colonnes_e = []
-
-                for e in listElement:
-                    # Assemble Ke dans Kglob
-
-                    lignes = []
-                    colonnes = []
-                    assembly = mesh.assembly_e[e]
-                    for i in assembly:
-                        lignes.extend(assembly)
-                        for j in range(len(assembly)):
-                            colonnes.append(i)
-
-                    verif_lignes_e.append(lignes)
-                    verif_colonnes_e.append(colonnes)
-
-                test1 = lignes_e - np.array(verif_lignes_e)
-                assert test1.max() == 0 and test1.min() == 0, "Problème"
-                test2 = colonnes_e - np.array(verif_colonnes_e)
-                assert test2.max() == 0 and test2.min() == 0, "Problème"    
- 
-        else:
-            
-            length = Ke_e[0].shape[0]
-            indices = range(0, length)
-
-            nE = taille**2
-
-            assembly = mesh.assembly_e[0]
-
-            
-
-
-            for e in listElement:
-                for i in indices:
-                    ligne = mesh.assembly_e[e][i]
-                    for j in indices:
-                        colonne = mesh.assembly_e[e][j]
-                        self.__Ku[ligne, colonne] =  self.__Ku[ligne, colonne] + Ke_e[e][i,j]
-
-
-        TicTac.Tac("Assemblage u", self.__verbosity)
+        lignes_e = np.array([[i for i in mesh.assembly_e[e] for j in mesh.assembly_e[e]] for e in listElement])
+        colonnes_e = np.array([[j for i in mesh.assembly_e[e] for j in mesh.assembly_e[e]] for e in listElement])
         
-        # self.__Ku = sp.sparse.lil_matrix(self.__Ku).T
-        # self.__Fu = sp.sparse.lil_matrix(self.__Fu).T
+        # V0 Plus rapide
+        taille = self.__mesh.Nn*self.__dim
+        self.__Ku = sp.sparse.csr_matrix((Ke_e.reshape(-1), (lignes_e.reshape(-1), colonnes_e.reshape(-1))), shape = (taille, taille)).tolil()
 
+        if verification: self.__AssembleMatrice(lignes_e, colonnes_e, Ke_e)
+        
         self.__Ku_penal = self.__Ku.copy()
         self.__Fu_penal = self.__Fu.copy()
 
-        return self.__Ku, self.__Fu
+        tic.Tac("Assemblage du syteme en déplacement", self.__verbosity)
+
+
 
     def Assemblage_d(self, Gc=1, l=0.001):
         """Construit Kglobal
@@ -239,7 +178,7 @@ class Simu:
 
         """
 
-        TicTac.Tic()
+        ticAssemblage = TicTac()
         
         taille = self.__mesh.Nn
 
@@ -284,18 +223,116 @@ class Simu:
             self.__Kd[lignes, colonnes] += np.ravel(Ke)
             self.__Fd[list_IdNoeuds] += np.ravel(fe)            
             
-        TicTac.Tac("Assemblage d", self.__verbosity)
+        ticAssemblage.Tac("Assemblage d", self.__verbosity)
 
         self.__Kd_penal = np.copy(self.__Kd)
         self.__Fd_penal = np.copy(self.__Fd)
 
         return self.__Kd, self.__Fd
 
+    def __AssembleMatrice(self,lignes_e, colonnes_e, valeurs_e):
+        
+        lignes = np.ravel(lignes_e)
+        colonnes = np.ravel(colonnes_e)
+        valeurs = valeurs_e.reshape(-1)
+        
+        indincesOrdo = np.lexsort((colonnes, lignes))
+
+        coord = np.array([lignes,colonnes]).T
+        coord = coord[indincesOrdo]
+
+        lignesRaveldSorted = lignes[indincesOrdo]
+        colonnesRaveldSorted = colonnes[indincesOrdo]        
+        KeRaveldSorted = valeurs[indincesOrdo]
+
+        ticVersion = TicTac()
+        taille = self.__mesh.Nn*self.__dim
+        Ku = sp.sparse.lil_matrix((taille, taille))
+        version = 0
+
+        if version == 0:
+            # V0 Plus rapide            
+            Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted, (lignesRaveldSorted, colonnesRaveldSorted)), shape = (taille, taille)))
+        elif version == 1:
+            # V1            
+            for i in range(len(indincesOrdo)-1):
+                if i+1 != coord.shape[0] and (coord[i][0] == coord[i+1][0] and coord[i][1] == coord[i+1][1]):                
+                    KeRaveldSorted[i+1] += KeRaveldSorted[i]
+                    KeRaveldSorted[i]=0                
+            Ku[lignesRaveldSorted, colonnesRaveldSorted] += KeRaveldSorted
+        elif version == 2:
+            # # V2
+            # Il faut d'abord réussir à construire la liste suivante sans boucle !
+            listIndices = np.array([i for i in range(len(indincesOrdo)-1) if i+1 != coord.shape[0] and (coord[i,0] == coord[i+1,0] and coord[i,1] == coord[i+1,1])])
+            # Construit la liste sans la boucle
+            unique, unique_indices, unique_inverse, unique_counts  = np.unique(coord,axis=0,return_index=True, return_inverse=True, return_counts=True)
+            list_i = np.array(range(len(unique_inverse)-1))        
+            listIndicesRapide = np.where(unique_inverse[list_i] == unique_inverse[list_i+1])[0]
+            # Verification que la liste est bien construite
+            assert np.sum(listIndices - listIndicesRapide)==0,"Erreur dans la construction de la liste" 
+            # Somme des valeurs pour les coordonnées identiques
+            for i in listIndicesRapide:
+                KeRaveldSorted[i+1] += KeRaveldSorted[i]
+                KeRaveldSorted[i] = 0
+            # KeRaveldSorted[listIndicesRapide+1] = KeRaveldSorted[listIndicesRapide+1] + KeRaveldSorted[listIndicesRapide]
+            # KeRaveldSorted[listIndicesRapide] = 0
+            # Assemblage
+            Ku[lignesRaveldSorted, colonnesRaveldSorted] += KeRaveldSorted
+        elif version == 3:
+            # V3
+            unique, unique_indices, unique_inverse, unique_counts  = np.unique(coord,axis=0,return_index=True, return_inverse=True, return_counts=True)
+            list_i = np.array(range(len(unique_inverse)-1))        
+            listIndicesRapide = np.flipud(np.where(unique_inverse[list_i] == unique_inverse[list_i+1])[0])
+            # V3.1
+            for i in listIndicesRapide:
+                KeRaveldSorted[i] += KeRaveldSorted[i+1]
+                KeRaveldSorted[i+1] = 0
+            # # V3.2
+            # KeRaveldSorted[listIndicesRapide] += KeRaveldSorted[listIndicesRapide+1]
+            # KeRaveldSorted[listIndicesRapide+1] = 0
+            taille = self.__mesh.Nn*self.__dim
+            Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted[unique_indices], (unique[:,0],unique[:,1])), shape = (taille, taille)))
+       
+        ticVersion.Tac("Assemblage version {}".format(version), True)
+
+        # Verification de l'assemblage
+        ticVerification = TicTac()
+        taille = self.__mesh.Nn*self.__dim
+        mesh = self.__mesh
+        listElement = self.listElement
+        indices = range(0, valeurs_e[0].shape[0])
+
+        Ku_comparaison = sp.sparse.lil_matrix((taille, taille))
+
+        liste_ligne = []
+        liste_colonne = []
+        liste_Ke = []
+        
+        for e in listElement:
+            for i in indices:
+                ligne = mesh.assembly_e[e][i]
+                for j in indices:
+                    colonne = mesh.assembly_e[e][j]
+                    Ku_comparaison[ligne, colonne] =  Ku_comparaison[ligne, colonne] + valeurs_e[e][i,j]
+                    
+                    liste_ligne.append(ligne)
+                    liste_colonne.append(colonne)
+                    liste_Ke.append(valeurs_e[e][i,j])
+        
+        # Tests
+        test1 = np.array(liste_ligne) - lignes
+        assert test1.max() == 0 and test1.min() == 0, "Erreur dans la liste d'assemblage"
+        test2 = np.array(liste_colonne) - colonnes
+        assert test2.max() == 0 and test2.min() == 0, "Erreur dans la liste d'assemblage"
+        test3 = np.array(liste_Ke) - valeurs
+        assert test3.max() == 0 and test3.min() == 0, "Erreur dans Ke_e Ravel"
+        test4 = Ku_comparaison - self.__Ku
+        assert test4.max() == 0 and test4.min() == 0, "Erreur dans l'assemblage"
+
+        ticVerification.Tac("Assemblage lent avec verification", True)
     
-
-    def Condition_Neumann(self, noeuds: list, directions: list, valeur=0.0, option="u"):
+    def Condition_Neumann(self, noeuds: np.ndarray, directions: list, valeur=0.0, option="u"):
         """Applique les conditions en force
-
 
         Parameters
         ----------
@@ -307,167 +344,167 @@ class Simu:
             ["x", "y", "z"] vecteurs sur lesquelles on veut appliquer la force , by default [] 
         """
 
-        TicTac.Tic()
-
-        nbn = len(noeuds)
+        tic = TicTac()
 
         assert isinstance(noeuds[0], int), "Doit être une liste d'indices'"
-        assert option in ["u", "d"], "Mauvaise option"        
+        assert option in ["u", "d"], "Mauvaise option"
+
+        noeuds = np.array(noeuds)
+        nbn = len(noeuds)
+
         if option == "d":
             assert len(directions) == 0, "lorsque on renseigne d on a pas besoin de direction"
             assert not valeur == 0.0, "Doit être différent de 0"
 
-            for n in noeuds:                
-                self.__Fd[n] += valeur/nbn
-                self.__Fd_penal[n] += valeur/nbn
+            if noeuds not in self.__BC_Neuman_d[0]:
+                self.__BC_Neuman_d[0].extend(noeuds)
+                self.__BC_Neuman_d[1].extend([valeur/nbn]*nbn)                
 
         elif option == "u":
             assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
+            ddl = []
             for direction in directions:
                 assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
+                if direction == "x":
+                    ddl.extend(noeuds * self.__dim)
+                if direction == "y":
+                    ddl.extend(noeuds * self.__dim + 1)
+                if direction == "z":
+                    assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
+                    ddl.extend(noeuds * self.__dim + 2)
 
-            for direction in directions:
-                for n in noeuds:                    
-                    # Récupère la ligne sur laquelle on veut appliquer la force
-                    if direction == "x":
-                        ligne = n * self.__dim
-                    if direction == "y":
-                        ligne = n * self.__dim + 1
-                    if direction == "z":
-                        assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                        ligne = n * self.__dim + 2
-                        
-                    # self.__Fu[ligne] += valeur/nbn
-                    # self.__Fu_penal[ligne] += valeur/nbn
-
-                    self.__Fu[ligne,0] += valeur/nbn
-                    self.__Fu_penal[ligne,0] += valeur/nbn
+        if ddl not in self.__BC_Neuman_u[0]:
+            self.__BC_Neuman_u[0].extend(ddl)
+            self.__BC_Neuman_u[1].extend([valeur/nbn]*len(ddl))    
         
-        TicTac.Tac("Condition Neumann", self.__verbosity)
+        tic.Tac("Condition Neumann", self.__verbosity)
 
-    def Condition_Dirichlet(self, noeuds: list, directions=[] , valeur=0.0, option="u"):
+    def Condition_Dirichlet(self, noeuds: np.ndarray, directions=[] , valeur=0.0, option="u"):
         
-        assert isinstance(noeuds[0], int), "Doit être une liste d'indices"        
+        # assert isinstance(noeuds[0], int), "Doit être une liste d'indices"        
         assert option in ["u", "d"], "Mauvaise option"
+
+        tic = TicTac()
+        
+        noeuds = np.array(noeuds)
+        nbn = len(noeuds)
+
         if option == "d":
             assert len(directions) == 0, "lorsque on renseigne d on a pas besoin de direction"
             assert valeur >= 0 or valeur <= 1, "d doit etre compris entre [0;1]"
+           
+            if noeuds not in self.__BC_Dirichlet_d[0]:
+                self.__BC_Dirichlet_d[0].extend(noeuds)
+                self.__BC_Dirichlet_d[1].extend([valeur]*nbn)      
+
         elif option == "u":
             assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
+            ddl = []
             for direction in directions:
                 assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
+                if direction == "x":
+                    ddl.extend(noeuds * self.__dim)
+                if direction == "y":
+                    ddl.extend(noeuds * self.__dim + 1)
+                if direction == "z":
+                    assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
+                    ddl.extend(noeuds * self.__dim + 2)                
 
-        TicTac.Tic()
+            if ddl not in self.__BC_Dirichlet_u[0]:
+                self.__BC_Dirichlet_u[0].extend(ddl)
+                self.__BC_Dirichlet_u[1].extend([valeur]*len(ddl))
 
-        if option == "d":
-            for n in noeuds:                
-                ligne = n
-
-                if ligne in self.__d_Inconnues:
-                    self.__d_Inconnues.remove(ligne)
-                if ligne not in self.__d_Connues:
-                    self.__dc[ligne] = valeur
-                    self.__d_Connues.append(ligne)
-
-                self.__Fd_penal[ligne] = valeur
-                self.__Kd_penal[ligne,:] = 0.0
-                self.__Kd_penal[ligne, ligne] = 1
-
-        elif option == "u":
-            for n in noeuds:                
-                for direction in directions:
-                    if direction == "x":
-                        ligne = n * self.__dim
-                    if direction == "y":
-                        ligne = n * self.__dim + 1
-                    if direction == "z":
-                        ligne = n * self.__dim + 2
-                    
-                    # Decomposition
-                    if ligne in self.__ddl_Inconnues:
-                        self.__ddl_Inconnues.remove(ligne)
-                    if ligne not in self.__ddl_Connues:
-                        self.__Uc[ligne] = valeur
-                        self.__ddl_Connues.append(ligne)
-
-                    # Pénalisation
-                    self.__Fu_penal[ligne] = valeur
-                    self.__Ku_penal[ligne,:] = 0.0
-                    self.__Ku_penal[ligne, ligne] = 1
-        
-                
-
-        TicTac.Tac("Condition Dirichlet", self.__verbosity)
+        tic.Tac("Condition Dirichlet", self.__verbosity)
 
     def Solve_u(self, resolution=1, save=True):
         
-        def ConstruitUglob():
-            # Reconstruit Uglob
-            taille = self.__mesh.Nn*self.__dim
-            Uglob = np.zeros(taille)
-            for i in range(taille):
-                if i in self.__ddl_Connues:
-                    Uglob[i] = self.__Uc[i]
-                elif i in self.__ddl_Inconnues:
-                    ligne = self.__ddl_Inconnues.index(i)
-                    Uglob[i] = ui[ligne]
-            
-            return Uglob
-
-        TicTac.Tic()
+        tic = TicTac()
 
         # Résolution du plus rapide au plus lent
         if resolution == 1:
-            Uglob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Ku_penal), self.__Fu_penal)
+
+            # Renseigne les conditions de Neumman
+            
+            BC_Neuman = np.array(self.__BC_Neuman_u).T
+            BC_Dirichlet = np.array(self.__BC_Dirichlet_u).T
+
+            self.__Fu_penal[BC_Neuman[:,0]] += BC_Neuman[:,1].reshape(BC_Neuman.shape[0],1)
+            # Renseigne les conditions de Dirichlet
+            self.__Fu_penal[BC_Dirichlet[:,0]] = BC_Dirichlet[:,1]
+            self.__Ku_penal[BC_Dirichlet[:,0]] = 0.0
+            self.__Ku_penal[BC_Dirichlet[:,0], BC_Dirichlet[:,0]] = 1
+
+
+            Uglob = sp.sparse.linalg.spsolve(self.__Ku_penal.tocsr(), self.__Fu_penal.tocsr())
+
         elif resolution == 2:
 
-            TicTac.Tic()
+            taille = self.__mesh.Nn*self.__dim
+            ddl_Connues = []
+            ddl_Connues.extend(self.__BC_Dirichlet_u[0])
+            # ddl_Connues.extend(self.__BC_Neuman_u[0])
+            ddl_Inconnues = list(range(taille))
+            for ddl in ddl_Connues: ddl_Inconnues.remove(ddl)
 
-            ddl_Connues = self.__ddl_Connues
-            ddl_Inconnues = self.__ddl_Inconnues
-
-            assert len(ddl_Connues) + len(ddl_Inconnues) == self.__mesh.Nn*self.__dim, "Problème dans les conditions"
-
-            # Kii = self.__Ku.toarray()[ddl_Inconnues, :][:, ddl_Inconnues]
-            # Kic = self.__Ku.toarray()[ddl_Inconnues, :][:, ddl_Connues]
-            # Fi = self.__Fu.toarray()[ddl_Inconnues]
             
-            Kii = self.__Ku[ddl_Inconnues, :][:, ddl_Inconnues]
-            Kic = self.__Ku[ddl_Inconnues, :][:, ddl_Connues]
-            Fi = self.__Fu[ddl_Inconnues]
+            assert len(ddl_Connues) + len(ddl_Inconnues) == taille, "Problème dans les conditions"
 
-            uc = self.__Uc[ddl_Connues]  
+            Kligne = self.__Ku.tocsr()[ddl_Inconnues, :]
+
+            Kii = Kligne.tocsc()[:, ddl_Inconnues].tocsr()
+            Kic = Kligne.tocsc()[:, ddl_Connues].tocsr()
+            Fi = self.__Fu[ddl_Inconnues].tocsr()
+
+            uc = self.__Uc[ddl_Connues].tocsr()
             
-            ui = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(Kii), Fi-Kic.dot(uc))
+            ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc))
             
-            TicTac.Tac("2",True)
+            Uglob = np.zeros(taille)
+            
+            Uglob[ddl_Inconnues] = ui
+            uc = uc.toarray().reshape(-1)
+            Uglob[ddl_Connues] = uc
 
-            Uglob = ConstruitUglob() 
-        elif resolution == 3:
-            Uglob = np.linalg.solve(self.__Ku_penal, self.__Fu_penal)
-        elif resolution == 4:
-            Uglob = sp.linalg.solve(self.__Ku_penal, self.__Fu_penal)
-
-        TicTac.Tac("Résolution {}".format(resolution) , self.__verbosity)        
+        tic.Tac("Résolution {}".format(resolution) , self.__verbosity)        
         
         if save:
             self.__Save_u(Uglob)
 
         return Uglob
 
-    def __Save_u(self, Uglob: np.ndarray):
+    def __Save_u(self, Uglob: np.ndarray, verification=False):
+        
+        tic = TicTac()
+
+        mesh = self.__mesh
+        listElement = self.listElement
+        
         # Energie de deformation
-        Kglob = np.array(self.__Ku.todense())
-        self.resultats["Wdef"] = 1/2 * Uglob.T.dot(Kglob).dot(Uglob)
+        ue_e = np.array([Uglob[mesh.assembly_e[e]] for e in listElement])
+        Ke_e = self.__Ke_e
+        Wdef = 1/2*np.sum([ue_e[e].T.dot(Ke_e[e]).dot(ue_e[e]) for e in listElement])
+        tic.Tac("Calcul de l'energie de deformation", verification)
+
+        if verification:
+            Kglob = self.__Ku.todense()
+            WdefVerif = 1/2 * Uglob.T.dot(Kglob).dot(Uglob)
+            tic.Tac("Wdef verif", True)
+            diff = float(WdefVerif) - Wdef
+            assert np.isclose(diff, 0,10**-6),"Erreur" 
+        self.resultats["Wdef"] = Wdef
 
         # Récupère les déplacements
-        dx = np.array([Uglob[i*self.__dim] for i in range(self.__mesh.Nn)])
-        dy = np.array([Uglob[i*self.__dim+1] for i in range(self.__mesh.Nn)])
+        ddlx = list(range(0, mesh.Nn*self.__dim, self.__dim))
+        ddly = list(range(1, mesh.Nn*self.__dim, self.__dim))
+        ddlz = list(range(2, mesh.Nn*self.__dim, self.__dim))
+
+        dx = Uglob[ddlx]
+        dy = Uglob[ddly]
         if self.__dim == 2:
             dz = np.zeros(self.__mesh.Nn)
         else:
-            dz = np.array([Uglob[i*self.__dim+2] for i in range(self.__mesh.Nn)])
-        
+            dy = Uglob[ddlz]
+                
         self.resultats["dx_n"] = dx
         self.resultats["dy_n"] = dy        
         if self.__dim == 3:
@@ -475,12 +512,14 @@ class Simu:
 
         self.resultats["deplacementCoordo"] = np.array([dx, dy, dz]).T
         
-        self.__CalculDeformationEtContrainte(Uglob)
+        # self.__CalculDeformationEtContrainte(Uglob)
+
+        tic.Tac("Sauvegarde", self.__verbosity)
             
 
     def __CalculDeformationEtContrainte(self, Uglob: np.ndarray, calculAuxNoeuds=True):
         
-        TicTac.Tic()
+        tic = TicTac()
 
         list_Epsilon_e = []
         list_Sigma_e = []
@@ -569,7 +608,7 @@ class Simu:
             self.resultats["Szz_e"]=np.array(Szz_e); self.resultats["Syz_e"]=np.array(Syz_e); self.resultats["Sxz_e"]=np.array(Sxz_e)
             
 
-        TicTac.Tac("Calcul deformations et contraintes aux elements", self.__verbosity)
+        tic.Tac("Calcul deformations et contraintes aux elements", self.__verbosity)
         
         # if calculAuxNoeuds:
         #     self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
@@ -578,7 +617,7 @@ class Simu:
     
     def __ExtrapolationAuxNoeuds(self, deplacementCoordo: np.ndarray, option = 'mean'):
         
-        TicTac.Tic()
+        tic = TicTac()
 
         # Extrapolation des valeurs aux noeuds  
 
@@ -589,7 +628,7 @@ class Simu:
         Svm_n = []
         
         for noeud in self.__mesh.noeuds:
-            noeud = cast(Noeud, noeud)
+            # noeud = cast(Noeud, noeud)
             
             list_Exx = []; list_Eyy = []; list_Exy = []
             list_Sxx = []; list_Syy = []; list_Sxy = []
@@ -609,7 +648,7 @@ class Simu:
                 # Construit ue
                 ue = []
                 for noeudDeLelement in element.noeuds:
-                    noeudDeLelement = cast(Noeud, noeudDeLelement)
+                    # noeudDeLelement = cast(Noeud, noeudDeLelement)
                     
                     if self.__dim == 2:
                         ue.append(dx[noeudDeLelement.id])
@@ -686,7 +725,7 @@ class Simu:
             self.resultats["Ezz_n"] = Ezz_n; self.resultats["Eyz_n"] = Eyz_n; self.resultats["Exz_n"] = Exz_n
             self.resultats["Szz_n"] = Szz_n; self.resultats["Syz_n"] = Syz_n; self.resultats["Sxz_n"] = Sxz_n
     
-        TicTac.Tac("Calcul contraintes et deformations aux noeuds", self.__verbosity)
+        tic.Tac("Calcul contraintes et deformations aux noeuds", self.__verbosity)
 
     def ConstruitH(self, u: np.ndarray):
             # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
@@ -698,7 +737,7 @@ class Simu:
                 # Construit ui
                 ui = []
                 for n in e.noeuds:
-                    n = cast(Noeud, n)
+                    # n = cast(Noeud, n)
                     for j in range(self.__dim):
                         valeur = u[n.id*self.__dim+j]
                         ui.append(valeur)            
@@ -755,7 +794,7 @@ class Simu:
 
             return dGlob
 
-        TicTac.Tic()
+        tic = TicTac()
 
         # Résolution du plus rapide au plus lent
         if resolution == 1:
@@ -778,7 +817,7 @@ class Simu:
         elif resolution == 4:            
             dGlob = np.linalg.solve(self.__Kd_penal, self.__Fd_penal)
 
-        TicTac.Tac("Résolution d", self.__verbosity)        
+        tic.Tac("Résolution d", self.__verbosity)        
         
         # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
         # assert dGlob.min() >= 0, "Doit etre supérieur 0"
@@ -818,9 +857,9 @@ class Test_Simu(unittest.TestCase):
         self.simulations2DElastique = []
 
         # Pour chaque type d'element 2D
-        for type in ModelGmsh.get_typesMaillage2D():
+        for i in range(len(Element.get_Types(dim))):
             # Construction du modele et du maillage 
-            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, verbosity=False)
+            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, verbosity=False)
 
             (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
             mesh = Mesh(dim, coordo, connect, verbosity=False)
@@ -829,24 +868,19 @@ class Test_Simu(unittest.TestCase):
 
             simu.Assemblage_u(epaisseur=b)
 
-            noeud_en_L = []
-            noeud_en_0 = []
-            for n in mesh.noeuds:            
-                    n = cast(Noeud, n)
-                    if n.coordo[0] == L:
-                            noeud_en_L.append(n)
-                    if n.coordo[0] == 0:
-                            noeud_en_0.append(n)
+            noeuds_en_L = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == L]
+            noeuds_en_0 = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == 0]  
 
-            simu.Condition_Neumann(noeuds=noeud_en_L, valeur=P, directions=["y"])
+            simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["y"])
 
-            simu.Condition_Dirichlet(noeuds=noeud_en_0, valeur=0, directions=["x", "y"])
+            simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y"])
 
             self.simulations2DElastique.append(simu)
 
     def CreationDesSimusElastique3D(self):
 
-        fichier = "part.stp"
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        fichier = dir_path + '\\models\\part.stp'
 
         dim = 3
 
@@ -864,8 +898,8 @@ class Test_Simu(unittest.TestCase):
         
         self.simulations3DElastique = []
 
-        for type in ModelGmsh.get_typesMaillage3D():
-            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
+        for i in range(len(Element.get_Types(dim))):
+            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
 
             (coordo, connect) = modelGmsh.Importation3D(fichier)
             mesh = Mesh(dim, coordo, connect, verbosity=False)
@@ -874,14 +908,8 @@ class Test_Simu(unittest.TestCase):
 
             simu.Assemblage_u(epaisseur=b)
 
-            noeuds_en_L = []
-            noeuds_en_0 = []
-            for n in mesh.noeuds:
-                    n = cast(Noeud, n)        
-                    if n.coordo[0] == L:
-                            noeuds_en_L.append(n)
-                    if n.coordo[0] == 0:
-                            noeuds_en_0.append(n)
+            noeuds_en_L = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == L]
+            noeuds_en_0 = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == 0]
 
             simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["z"])
 

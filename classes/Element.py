@@ -1,12 +1,16 @@
-from typing import cast
-
 import numpy as np
-try:
-    from classes.Noeud import Noeud
-except:
-    from Noeud import Noeud
 
 class Element:
+
+    @staticmethod
+    def get_Types(dim):
+        if dim == 2:
+            return Element.__listElement2D.copy()
+        else:
+            return Element.__listElement3D.copy()
+
+    __listElement2D = ["TRI3", "TRI6", "QUAD4", "QUAD8"]    
+    __listElement3D = ["TETRA4"]
 
     def get_nbFaces(self):
         if self.__dim == 2:
@@ -15,8 +19,8 @@ class Element:
             # TETRA4
             if self.nPe == 4:
                 return 4
-    
-    def get_ElementType(self):
+
+    def __get_ElementType(self):
         """Renvoie le type de l'élément en fonction du nombre de noeuds par élement
         """        
         if self.__dim == 2:        
@@ -32,7 +36,7 @@ class Element:
                 4 : "TETRA4",                
             }                
             return switch[self.nPe]
-    type = property(get_ElementType) 
+    type = property(__get_ElementType) 
 
     def __init__(self, dim: int, nPe: int):
         """Constructeur d'element, on construit Be et le jacobien !
@@ -376,19 +380,10 @@ import os
 class Test_Element(unittest.TestCase):
     
     def setUp(self):
-
-        n1 = Noeud(0, [0, 0, 0])
-        n2 = Noeud(1, [1, 0, 0])
-        n3 = Noeud(3, [0, 1, 0])
-
-        noeuds = [n1, n2, n3]
-
-        self.element = Element(1,noeuds,2)  
+        self.element = Element(1,3)  
 
     def test_BienCree(self):
-        self.assertIsInstance(self.element, Element)
-        self.assertEqual(len(self.element.noeuds), 3)
-        self.assertListEqual(self.element.assembly, [0, 1, 2, 3, 6, 7])
+        self.assertIsInstance(self.element, Element)        
 
 if __name__ == '__main__':        
     try:

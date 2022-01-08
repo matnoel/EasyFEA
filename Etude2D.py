@@ -8,7 +8,6 @@ from classes.Affichage import Affichage
 from classes.Materiau import Materiau
 from classes.ModelGmsh import ModelGmsh
 from classes.Mesh import Mesh
-from classes.Noeud import Noeud
 from classes.Simu import Simu
 
 import numpy as np
@@ -30,17 +29,14 @@ b = 13
 P = -800 #N
 
 # Paramètres maillage
-typeElement = ModelGmsh.get_typesMaillage2D()[1]
 taille = h/20
 
 # Materiau
 materiau = Materiau(dim)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=typeElement, tailleElement=taille)
-
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
-
 mesh = Mesh(dim, coordo, connect)
 
 # Récupère les noeuds qui m'interessent
@@ -52,14 +48,16 @@ Affichage.NouvelleSection("Traitement")
 
 simu = Simu(dim, mesh, materiau)
 
-simu.Assemblage_u(epaisseur=b)
-
 simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
-# simu.Condition_Dirichlet(noeuds_en_L, valeur=1, directions=["y"])
 
+# simu.Condition_Dirichlet(noeuds_en_L, valeur=1, directions=["y"])
 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y"])
 
-simu.Solve_u(resolution=1)
+simu.Assemblage_u(epaisseur=b)
+
+
+
+simu.Solve_u(resolution=2)
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
@@ -80,11 +78,11 @@ if plotResult:
         Affichage.PlotMesh(mesh, simu.resultats, deformation=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
-        Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
+        # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
 
         # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
-        Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)
+        # Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)
         
         plt.show()
 

@@ -2,12 +2,10 @@ import numpy as np
 from numpy.lib.twodim_base import triu_indices_from
 
 try:
-    from Noeud import Noeud
     from Element import Element
     from Materiau import Materiau
     from TicTac import TicTac
 except:
-    from classes.Noeud import Noeud
     from classes.Element import Element
     from classes.Materiau import Materiau
     from classes.TicTac import TicTac
@@ -180,15 +178,15 @@ class Mesh:
         
         assert isinstance(connect, list) and isinstance(connect[0], list),"Doit fournir une liste de liste"
 
-        TicTac.Tic()
+        tic = TicTac()
 
         self.__dim = dim
 
         self.__verbosity = verbosity
 
         self.coordo = np.array(coordo)
-        self.connect = connect 
-        
+        self.connect = connect
+
         self.__ConstruitMatricesPourCalculEf()
 
         # Creation de l'élement
@@ -198,19 +196,21 @@ class Mesh:
         self.__connectPolygon =[]
 
         
-        t = TicTac.Tac("Importation du maillage", self.__verbosity)
+        tic.Tac("Importation du maillage", self.__verbosity)
+        if verbosity:
+            print("\nNe = {}, Nn = {}, nbDdl = {}".format(self.Ne,self.Nn,self.Nn*self.__dim)) 
     
     def __ConstruitMatricesPourCalculEf(self):
         
+        tic = TicTac()
+
         verification = False
 
         dim = self.__dim
         connect = self.connect
         coordo = self.coordo
         listElement = range(self.Ne)
-
-        # Construit la matrice de connection pour les noeuds
-        # self.connectNoeuds = [[e for e in listElement if n in self.connect[e]] for n in listNoeud]
+        listNoeud = range(self.Nn)
 
         # Construit la matrice assembly
         self.assembly_e = [[int(n * dim + d)for n in connect[e] for d in range(dim)] for e in listElement]
@@ -243,7 +243,6 @@ class Mesh:
             self.B_rigi_e_pg[:,:,0,colonnes0] = dNdx
             self.B_rigi_e_pg[:,:,1,colonnes1] = dNdy
             self.B_rigi_e_pg[:,:,2,colonnes0] = dNdy; self.B_rigi_e_pg[:,:,2,colonnes1] = dNdx
-            
         else:
             self.B_rigi_e_pg = np.array([[np.zeros((6, nPe*dim))]*element.nPg]*self.Ne)
 
@@ -302,8 +301,10 @@ class Mesh:
                     
                 list_B_rigi_e_pg.append(list_B_rigi_pg)
             
-            test = np.array(list_B_rigi_e_pg)-self.B_rigi_e_pg
-            assert test.max() == 0 and test.min() == 0, "Erreur dans la construiction de B"
+                test = np.array(list_B_rigi_e_pg)-self.B_rigi_e_pg
+                assert test.max() == 0 and test.min() == 0, "Erreur dans la construiction de B"
+            
+        tic.Tac("Construit les matrices EF", self.__verbosity)
 
     # def ChercheNoeuds(self, CondX=[], CondY=[], CondZ=[]):
         

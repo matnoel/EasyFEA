@@ -3,29 +3,23 @@ import sys
 import numpy as np
 
 try:
-    from Affichage import Affichage
-    from TicTac import TicTac
+        from Element import Element
+        from Affichage import Affichage
+        from TicTac import TicTac
 except:
-    from classes.Affichage import Affichage
-    from classes.TicTac import TicTac
-    
+        from classes.Element import Element
+        from classes.Affichage import Affichage
+        from classes.TicTac import TicTac
+        
 class ModelGmsh:
         
-        def get_typesMaillage2D():
-                return ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-        
-        def get_typesMaillage3D():
-                return ["TETRA4"]
-
-        def __init__(self,dim: int, organisationMaillage=False, affichageGmsh=False, gmshVerbosity=False, verbosity=True, typeElement="", tailleElement=0.0):
+        def __init__(self,dim: int, organisationMaillage=False, affichageGmsh=False, gmshVerbosity=False, verbosity=True, typeElement=0, tailleElement=0.0):
                 
-                assert typeElement in ModelGmsh.get_typesMaillage2D() or typeElement in ModelGmsh.get_typesMaillage3D(), "Le type d'element est inconnue"
-
                 assert tailleElement > 0.0 , "La taille de maille doit être > 0"
                 
                 self.__dim = dim
 
-                self.__typeElement = typeElement
+                self.__typeElement = Element.get_Types(dim)[typeElement]
                 self.__tailleElement = tailleElement
                 
                 self.__organisationMaillage = organisationMaillage
@@ -42,13 +36,13 @@ class ModelGmsh:
 
         def __ConstructionMaillageGmsh(self, surface=None):
 
-                TicTac.Tic()
+                tic = TicTac()
 
                 type = self.__typeElement
                 if self.__verbosity:
                         print("\nType d'elements: {}".format(type))
 
-                if type in ModelGmsh.get_typesMaillage2D():
+                if type in Element.get_Types(self.__dim):
                         # Impose que le maillage soit organisé                        
                         if self.__organisationMaillage:
                                 gmsh.model.geo.mesh.setTransfiniteSurface(surface)
@@ -70,7 +64,7 @@ class ModelGmsh:
                         elif type in ["TRI6","QUAD8"]:
                                 gmsh.model.mesh.set_order(2)
 
-                elif type in ModelGmsh.get_typesMaillage3D():
+                elif Element.get_Types(self.__dim):
 
                         gmsh.model.occ.synchronize()
 
@@ -82,11 +76,11 @@ class ModelGmsh:
                 if '-nopopup' not in sys.argv and self.__affichageGmsh:
                         gmsh.fltk.run()   
                 
-                TicTac.Tac("Construction du maillage gmsh", self.__verbosity)
+                tic.Tac("Construction du maillage gmsh", self.__verbosity)
 
         def __ConstructionCoordoConnect(self):
                 
-                TicTac.Tic()
+                tic = TicTac()
 
                 # Récupère la liste d'élément correspondant a la bonne dimension
                 types, elements, nodeTags = gmsh.model.mesh.getElements(dim=self.__dim)        
@@ -94,34 +88,29 @@ class ModelGmsh:
                 # Construit la matrice connection
                 Ne = len(elements[0])
                 connect = []
-                
-                e = 0
-                while e < Ne:
+                for e in range(Ne):
                         type, noeuds = gmsh.model.mesh.getElement(elements[0][e])
                         noeuds = list(noeuds - 1)            
-                        connect.append(noeuds)
-                        e += 1        
+                        connect.append(noeuds)                        
 
                 # Construit la matrice coordonée
                 noeuds, coord, parametricCoord = gmsh.model.mesh.getNodes()
                 Nn = noeuds.shape[0]
                 coordo = []
-                
-                n = 0
-                while n < Nn:            
-                        coord, parametricCoord = gmsh.model.mesh.getNode(noeuds[n])            
+                for n in range(Nn):
+                        coord, parametricCoord = gmsh.model.mesh.getNode(noeuds[n])
                         coordo.append(coord)
-                        n += 1        
+                # coordo = [gmsh.model.mesh.getNode(noeuds[n])[0] for n in range(Nn)]        
                 
                 gmsh.finalize()
 
-                TicTac.Tac("Construction Coordo et Connect", self.__verbosity)
+                tic.Tac("Récupération du maillage gmsh", self.__verbosity)
 
-                return (np.array(coordo), connect)
+                return [np.array(np.array(coordo)), connect]
 
         def ConstructionRectangle(self, largeur, hauteur):
                 
-                TicTac.Tic()
+                tic = TicTac()
 
                 # Créer les points
                 p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
@@ -141,7 +130,7 @@ class ModelGmsh:
                 # Créer une surface
                 surface = gmsh.model.geo.addPlaneSurface([boucle])
                 
-                TicTac.Tac("Construction Rectangle", self.__verbosity)
+                tic.Tac("Construction Rectangle", self.__verbosity)
                 
                 self.__ConstructionMaillageGmsh(surface)
                 
@@ -149,12 +138,12 @@ class ModelGmsh:
 
         def Importation3D(self,fichier=""):
                 
-                TicTac.Tic()
+                tic = TicTac()
 
                 # Importation du fichier
                 gmsh.model.occ.importShapes(fichier)
 
-                TicTac.Tac("Importation du fichier step", self.__verbosity)
+                tic.Tac("Importation du fichier step", self.__verbosity)
 
                 self.__ConstructionMaillageGmsh()
 

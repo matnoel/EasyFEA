@@ -3,7 +3,6 @@ import os
 
 from typing import cast
 from classes.Affichage import Affichage
-from classes.Noeud import Noeud
 
 from classes.Simu import Simu
 from classes.Materiau import Materiau
