@@ -8,15 +8,15 @@ from mpl_toolkits.mplot3d.art3d import *
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 try:
-    from Simu import Simu
     from Element import Element
     from Mesh import Mesh
-    from Materiau import Materiau
-except:
-    from classes.Simu import Simu
+    from Materiau import Materiau    
+    from Simu import Simu
+except:    
     from classes.Element import Element
     from classes.Mesh import Mesh
     from classes.Materiau import Materiau
+    from classes.Simu import Simu
     
     
     
@@ -29,15 +29,18 @@ class Affichage:
 
         resultats = simu.resultats
         mesh = simu.get_mesh()
+        coordo = mesh.coordo
 
         valeurs = np.array(resultats[val])
         
-        dim = mesh.get_dim()
+        dim = mesh.dim
 
         if deformation:
-                coordo = mesh.coordo + (resultats["deplacementCoordo"]*facteurDef)
-        else:
-            coordo = mesh.coordo
+            try:
+                coordoDeforme = mesh.coordo + resultats["deplacementCoordo"]*facteurDef                
+            except:
+                # print("La simulation n'a pas de solution. Impossible de réaliser le maillage deformé")
+                deformation = False        
 
         connectPolygon = mesh.get_connectPolygon()
 
@@ -128,7 +131,7 @@ class Affichage:
         ax.set_title(val+unite)
         
         
-    def PlotMesh(simu: Simu, facteurDef=4, deformation=False):
+    def PlotMesh(simu: Simu, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
         """Dessine le maillage de la simulation
         """
         
@@ -136,17 +139,16 @@ class Affichage:
 
         resultats = simu.resultats
         mesh = simu.get_mesh()
+        coordo = mesh.coordo
 
-        dim = mesh.get_dim()
+        dim = mesh.dim
 
         if deformation:
             try:
-                coordoDeforme = resultats["deplacementCoordo"]*facteurDef
+                coordoDeforme = coordo + resultats["deplacementCoordo"]*facteurDef
             except:
-                print("La simulation n'a pas de solution. Impossible de réaliser le maillage deformé")
-            coordo = mesh.coordo + coordoDeforme
-        else:
-            coordo = mesh.coordo
+                # print("La simulation n'a pas de solution. Impossible de réaliser le maillage deformé")
+                deformation = False            
 
         connectPolygon = mesh.get_connectPolygon()
 
@@ -161,17 +163,20 @@ class Affichage:
             if deformation:
                 # Superpose maillage non deformé et deformé
                 # Maillage non deformés
-                pc = matplotlib.collections.LineCollection(verticesNonDeforme, edgecolor='black', lw=0.5)
+                pc = matplotlib.collections.LineCollection(verticesNonDeforme, edgecolor='black', lw=lw)
                 ax.add_collection(pc)
 
                 # Maillage deformé                
                 coordo_xyDeforme = coordoDeforme[:,[0,1]]                    
                 new_faces = [[coordo_xyDeforme[connectPolygon[ix][iy]] for iy in range(len(connectPolygon[0]))] for ix in range(len(connectPolygon))]
-                pc = matplotlib.collections.LineCollection(new_faces, edgecolor='red', lw=0.5)
+                pc = matplotlib.collections.LineCollection(new_faces, edgecolor='red', lw=lw)
                 ax.add_collection(pc)
             else:
                 # Maillage non deformé
-                pc = matplotlib.collections.PolyCollection(verticesNonDeforme, facecolors='c', edgecolor='black', lw=0.5)
+                if alpha == 0:
+                    pc = matplotlib.collections.LineCollection(verticesNonDeforme, edgecolor='black', lw=lw)
+                else:
+                    pc = matplotlib.collections.PolyCollection(verticesNonDeforme, facecolors='c', edgecolor='black', lw=lw)
                 ax.add_collection(pc)
             
             ax.autoscale()
@@ -181,7 +186,7 @@ class Affichage:
             ax.set_title("Ne = {} et Nn = {}".format(mesh.Ne, mesh.Nn))
         
         # ETUDE 3D    
-        if mesh.get_dim() == 3:
+        if mesh.dim == 3:
             
             fig = plt.figure()            
             ax = fig.add_subplot(projection="3d")
@@ -221,7 +226,7 @@ class Affichage:
         mesh = simu.get_mesh()
 
         if ax == None:
-            fig, ax = Affichage.PlotMesh(simu)
+            fig, ax = Affichage.PlotMesh(simu, alpha=0)
         
         if len(noeuds) == 0:
             noeuds = list(range(mesh.Nn))

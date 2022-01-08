@@ -4,16 +4,20 @@ import os
 
 from typing import cast
 
-from classes.Affichage import Affichage
 from classes.Materiau import Materiau
 from classes.ModelGmsh import ModelGmsh
 from classes.Mesh import Mesh
 from classes.Simu import Simu
+from classes.Affichage import Affichage
 
 import numpy as np
 import matplotlib.pyplot as plt
 
+from classes.TicTac import TicTac
+
 os.system("cls")    #nettoie le terminal
+
+tic = TicTac()
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -40,13 +44,21 @@ modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=1, tailleEleme
 mesh = Mesh(dim, coordo, connect)
 
 # Récupère les noeuds qui m'interessent
-noeuds_en_L = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == L]
-noeuds_en_0 = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == 0]
+coordo = mesh.coordo
+noeuds_en_L = [n for n in range(mesh.Nn) if coordo[n,0] == L]
+noeuds_en_0 = [n for n in range(mesh.Nn) if coordo[n,0] == 0]
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
 
 simu = Simu(dim, mesh, materiau)
+
+# # Affichage etc
+# fig, ax = Affichage.PlotMesh(simu, deformation=True)
+# Affichage.AfficheNoeudsMaillage(simu, ax, noeuds_en_0, c='red')
+# Affichage.AfficheNoeudsMaillage(simu, ax, noeuds_en_L, c='blue', showId=True)
+# Affichage.PlotMesh(simu, deformation=True)
+# Affichage.AfficheNoeudsMaillage(simu, showId=True)
 
 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
 
@@ -59,14 +71,11 @@ simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
 simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 # simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
 
-
-
-
 simu.Assemblage_u(epaisseur=b)
 
+simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=True)
 
-
-simu.Solve_u(resolution=2)
+tic.Tac("Temps total", True)
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")

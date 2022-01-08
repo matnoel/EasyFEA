@@ -13,20 +13,29 @@ except:
 
 class Mesh:
     
-    def get_Ne(self):
+    def __get_Ne(self):
         """Renvoie le nombre d'éléments du maillage        
         """
-        return int(len(self.connect))
-    Ne = property(get_Ne)
+        return int(len(self.__connect))
+    Ne = property(__get_Ne)
     
-    def get_Nn(self):
+    def __get_Nn(self):
         """Renvoie le nombre d'éléments du maillage        
         """
-        return int(len(self.coordo))
-    Nn = property(get_Nn)
+        return int(len(self.__coordo))
+    Nn = property(__get_Nn)
 
-    def get_dim(self):
+    def __get_dim(self):
         return self.__dim
+    dim = property(__get_dim)
+
+    def __get_coordo(self):
+        return self.__coordo.copy()
+    coordo = property(__get_coordo)
+
+    def __get_connect(self):
+        return self.__connect.copy()
+    connect = property(__get_connect)
 
     def get_connectTriangle(self):
         """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D
@@ -38,10 +47,10 @@ class Mesh:
 
         if len(self.__connectPourTriangle) == 0:
             
-            connection = self.connect
+            connection = self.__connect
             new_connection = []
             
-            for listIdNoeuds in self.connect:
+            for listIdNoeuds in self.__connect:
                 npe = len(listIdNoeuds)
                 
                 if self.__dim == 2:            
@@ -103,7 +112,7 @@ class Mesh:
             Renvoie une liste de face
         """
         if len(self.__connectPolygon) == 0:            
-            for listIdNoeuds in self.connect:
+            for listIdNoeuds in self.__connect:
                 npe = len(listIdNoeuds)
 
                 if self.__dim == 2:
@@ -126,7 +135,7 @@ class Mesh:
                         self.__connectPolygon.append([n1, n4, n2, n5, n3, n6, n1])
                     # QUAD4
                     elif npe == 4:
-                        # self.__connectPolygon = self.connect
+                        # self.__connectPolygon = self.__connect
                         # break
                         n1 = listIdNoeuds[0]
                         n2 = listIdNoeuds[1]
@@ -184,19 +193,16 @@ class Mesh:
 
         self.__verbosity = verbosity
 
-        self.coordo = np.array(coordo)
-        self.connect = connect
-
-        self.__ConstruitMatricesPourCalculEf()
-
-        # Creation de l'élement
-        # L'element permet de calculer les fonctions de formes et ses dérivées
+        self.__coordo = np.array(coordo)
+        self.__connect = connect        
+       
+        self.__ConstruitMatricesPourCalculEf()        
 
         self.__connectPourTriangle = []
-        self.__connectPolygon =[]
+        self.__connectPolygon = []
 
         
-        tic.Tac("Importation du maillage", self.__verbosity)
+        tic.Tac("Creation de la simulation", self.__verbosity)
         if verbosity:
             print("\nNe = {}, Nn = {}, nbDdl = {}".format(self.Ne,self.Nn,self.Nn*self.__dim)) 
     
@@ -207,8 +213,8 @@ class Mesh:
         verification = False
 
         dim = self.__dim
-        connect = self.connect
-        coordo = self.coordo
+        connect = self.__connect
+        coordo = self.__coordo
         listElement = range(self.Ne)
         listNoeud = range(self.Nn)
 
