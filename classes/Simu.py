@@ -1,13 +1,9 @@
-from ctypes import DllCanUnloadNow, memset
 import os
 from typing import cast
 
 import numpy as np
-from numpy import dtype, float64, matrixlib, zeros
-from numpy.core.records import array
-from numpy.random.mtrand import rand
+from numpy import float64
 import scipy as sp
-from scipy.sparse.linalg import spsolve
 
 try:
     from classes.ModelGmsh import ModelGmsh
@@ -27,6 +23,9 @@ class Simu:
     def get_listElement(self):
         return list(range(self.__mesh.Ne))        
     listElement = property(get_listElement)
+
+    def get_mesh(self):
+        return self.__mesh
 
     def __init__(self, dim: int,mesh: Mesh, materiau: Materiau, verbosity=True):
         """Creation d'une simulation
@@ -509,9 +508,9 @@ class Simu:
         listElement = self.listElement
         
         # Energie de deformation
-        ue_e = np.array([Uglob[mesh.assembly_e[e]] for e in listElement])
+        u_e = np.array([Uglob[mesh.assembly_e[e]] for e in listElement])
         Ke_e = self.__Ke_e
-        Wdef = 1/2*np.sum([ue_e[e].T.dot(Ke_e[e]).dot(ue_e[e]) for e in listElement])
+        Wdef = 1/2*np.sum([u_e[e].T.dot(Ke_e[e]).dot(u_e[e]) for e in listElement])
         tic.Tac("Calcul de l'energie de deformation", verification)
         self.resultats["Wdef"] = Wdef
 
@@ -538,25 +537,30 @@ class Simu:
         self.resultats["dy_n"] = dy        
         if self.__dim == 3:
             self.resultats["dz_n"] = dz
+            
+        self.resultats["amplitude"] = np.sqrt(dx**2+dy**2+dz**2)
+        
 
         self.resultats["deplacementCoordo"] = np.array([dx, dy, dz]).T
         
-        self.__CalculDeformationEtContrainte(Uglob, ue_e)
+        self.__CalculDeformationEtContrainte(Uglob, u_e)
 
         tic.Tac("Sauvegarde", self.__verbosity)
             
 
-    def __CalculDeformationEtContrainte(self, Uglob, ue_e, calculAuxNoeuds=True):
+    def __CalculDeformationEtContrainte(self, Uglob, u_e, calculAuxNoeuds=True):
         
         tic = TicTac()
 
         B_rigi_e_pg = self.__mesh.B_rigi_e_pg
 
 
+        # xpg = self.__mesh.coordo[self.__mesh.connect[0][:],0] + self.__mesh.jacobien_e_pg[0,:] * self.__mesh.coordo[self.__mesh.connect[0][:],0]
+
         listElement = list(range(self.__mesh.Ne))
         nPg = B_rigi_e_pg.shape[1];  listPg = list(range(nPg))
         
-        Epsilon_e_pg = np.array([[B_rigi_e_pg[e,pg].dot(ue_e[e]) for pg in listPg] for e in listElement])        
+        Epsilon_e_pg = np.array([[B_rigi_e_pg[e,pg].dot(u_e[e]) for pg in listPg] for e in listElement])        
         Sigma_e_pg = np.array([[self.__materiau.C.dot(Epsilon_e_pg[e,pg]) for pg in listPg] for e in listElement])
         if nPg == 1:
             Epsilon_e = Epsilon_e_pg[:,0]
@@ -564,13 +568,12 @@ class Simu:
         else:
             Epsilon_e = np.mean(Epsilon_e_pg, axis=2)
             Sigma_e = np.mean(Sigma_e_pg, axis=2)
-        
 
-        listCoordX = np.array(range(0, ue_e.shape[1], self.__dim))        
-        dx_e_n = ue_e[:,listCoordX]; dx_e = np.mean(dx_e_n, axis=1)
-        dy_e_n = ue_e[:,listCoordX+1]; dy_e = np.mean(dy_e_n, axis=1)
+        listCoordX = np.array(range(0, u_e.shape[1], self.__dim))        
+        dx_e_n = u_e[:,listCoordX]; dx_e = np.mean(dx_e_n, axis=1)
+        dy_e_n = u_e[:,listCoordX+1]; dy_e = np.mean(dy_e_n, axis=1)
         if self.__dim == 3:
-            dz_e_n = ue_e[:,listCoordX+2]; dz_e = np.mean(dz_e_n, axis=1)
+            dz_e_n = u_e[:,listCoordX+2]; dz_e = np.mean(dz_e_n, axis=1)
 
         if self.__dim == 2 :
             Exx_e = Epsilon_e[:,0]; Sxx_e = Sigma_e[:,0]
@@ -600,120 +603,163 @@ class Simu:
         
         tic.Tac("Calcul deformations et contraintes aux elements", self.__verbosity)
         
-        # if calculAuxNoeuds:
-        #     self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
+        if calculAuxNoeuds:
+            self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
 
         return Epsilon_e, Sigma_e 
     
-    def __ExtrapolationAuxNoeuds(self, deplacementCoordo: np.ndarray, option = 'mean'):
+    def __ExtrapolationAuxNoeuds(self, deplacementCoordo, option = 'mean'):
         
         tic = TicTac()
 
+        # for n=1:Nn
+        #     Somme_Ae=0;
+        #     Somme_Prod=0;
+        #     for e=1:Connect_node_element(n,1)
+        #         element=Connect_node_element(n,e+1);
+        #         Somme_Ae=Somme_Ae+list_Ae(element);
+        #         Somme_Prod=Somme_Prod+list_Ae(element)*SVM_e(element);
+        #     end
+        #     Svm_n(n)=Somme_Prod/Somme_Ae;
+        # end
+
+        connect = np.array(self.__mesh.connect)
+
+        listNoeud = list(range(self.__mesh.Nn))
+        listElement = list(range(self.__mesh.Ne))
+        Svm_e = self.resultats["Svm_e"]
+        Svm_n = []
+        connectNoeud = []
+        for n in listNoeud:
+            # nElement = [e for e in listElement if  n in connect[e]]
+            # indexTest = [e for e in listElement if  n in connect[e]]
+            # indexTest2 = connect.index(n)
+            index = np.where(n == connect)[0]
+            connectNoeud.append(list(index))
+
+        # connectNoeud = np.array(connectNoeud)        
+
+        # Svm_n_e = Svm_e[connectNoeud[:]]
+
+        # Svm_n = np.mean(Svm_n_e, axis=1)
+
+        def InterPolation(valeurs_e):
+            return [np.mean(valeurs_e[connectNoeud[n]]) for n in listNoeud]
+
+        self.resultats["Exx_n"] = InterPolation(self.resultats["Exx_e"]); self.resultats["Eyy_n"] = InterPolation(self.resultats["Eyy_e"]); self.resultats["Exy_n"] = InterPolation(self.resultats["Exy_e"])
+        self.resultats["Sxx_n"] = InterPolation(self.resultats["Sxx_e"]); self.resultats["Syy_n"] = InterPolation(self.resultats["Syy_e"]); self.resultats["Sxy_n"] = InterPolation(self.resultats["Sxy_e"])
+        self.resultats["Svm_n"] = InterPolation(self.resultats["Svm_e"])
+
+        if self.__dim == 3:            
+            self.resultats["Ezz_n"] = InterPolation(self.resultats["Ezz_e"]); self.resultats["Eyz_n"] = InterPolation(self.resultats["Eyz_e"]); self.resultats["Exz_n"] = InterPolation(self.resultats["Exz_e"])
+            self.resultats["Szz_n"] = InterPolation(self.resultats["Szz_e"]); self.resultats["Syz_n"] = InterPolation(self.resultats["Syz_e"]); self.resultats["Sxz_n"] = InterPolation(self.resultats["Sxz_e"])
+
+        
         # Extrapolation des valeurs aux noeuds  
 
-        dx = deplacementCoordo[:,0]; dy = deplacementCoordo[:,1]; dz = deplacementCoordo[:,2]
+        # dx = deplacementCoordo[:,0]; dy = deplacementCoordo[:,1]; dz = deplacementCoordo[:,2]
 
-        Exx_n = []; Eyy_n = []; Ezz_n = []; Exy_n = []; Eyz_n = []; Exz_n = []
-        Sxx_n = []; Syy_n = []; Szz_n = []; Sxy_n = []; Syz_n = []; Sxz_n = []
-        Svm_n = []
+        # Exx_n = []; Eyy_n = []; Ezz_n = []; Exy_n = []; Eyz_n = []; Exz_n = []
+        # Sxx_n = []; Syy_n = []; Szz_n = []; Sxy_n = []; Syz_n = []; Sxz_n = []
+        # Svm_n = []
         
-        for noeud in self.__mesh.noeuds:
-            # noeud = cast(Noeud, noeud)
+        # for noeud in self.__mesh.noeuds:
+        #     # noeud = cast(Noeud, noeud)
             
-            list_Exx = []; list_Eyy = []; list_Exy = []
-            list_Sxx = []; list_Syy = []; list_Sxy = []
-            list_Svm = []
+        #     list_Exx = []; list_Eyy = []; list_Exy = []
+        #     list_Sxx = []; list_Syy = []; list_Sxy = []
+        #     list_Svm = []
                 
-            if self.__dim == 3:
-                list_Ezz = []; list_Eyz = []; list_Exz = []                                
-                list_Szz = []; list_Syz = []; list_Sxz = []
+        #     if self.__dim == 3:
+        #         list_Ezz = []; list_Eyz = []; list_Exz = []                                
+        #         list_Szz = []; list_Syz = []; list_Sxz = []
                         
-            for element in noeud.elements:
-                element = cast(Element, element)
+        #     for element in noeud.elements:
+        #         element = cast(Element, element)
                             
-                listIdNoeuds = list(self.__mesh.connect[element.id])
-                index = listIdNoeuds.index(noeud.id)
-                BeDuNoeud = element.listB_u_n[index]
+        #         listIdNoeuds = list(self.__mesh.connect[element.id])
+        #         index = listIdNoeuds.index(noeud.id)
+        #         BeDuNoeud = element.listB_u_n[index]
                 
-                # Construit ue
-                ue = []
-                for noeudDeLelement in element.noeuds:
-                    # noeudDeLelement = cast(Noeud, noeudDeLelement)
+        #         # Construit ue
+        #         ue = []
+        #         for noeudDeLelement in element.noeuds:
+        #             # noeudDeLelement = cast(Noeud, noeudDeLelement)
                     
-                    if self.__dim == 2:
-                        ue.append(dx[noeudDeLelement.id])
-                        ue.append(dy[noeudDeLelement.id])
-                    if self.__dim == 3:
-                        ue.append(dx[noeudDeLelement.id])
-                        ue.append(dy[noeudDeLelement.id])
-                        ue.append(dz[noeudDeLelement.id])
+        #             if self.__dim == 2:
+        #                 ue.append(dx[noeudDeLelement.id])
+        #                 ue.append(dy[noeudDeLelement.id])
+        #             if self.__dim == 3:
+        #                 ue.append(dx[noeudDeLelement.id])
+        #                 ue.append(dy[noeudDeLelement.id])
+        #                 ue.append(dz[noeudDeLelement.id])
                         
-                ue = np.array(ue)
+        #         ue = np.array(ue)
                 
-                vect_Epsilon = BeDuNoeud.dot(ue)
-                vect_Sigma = self.__materiau.C.dot(vect_Epsilon)
+        #         vect_Epsilon = BeDuNoeud.dot(ue)
+        #         vect_Sigma = self.__materiau.C.dot(vect_Epsilon)
                 
-                if self.__dim == 2:                
-                    list_Exx.append(vect_Epsilon[0]); list_Eyy.append(vect_Epsilon[1]); list_Exy.append(vect_Epsilon[2])
-                    Sxx = vect_Sigma[0]; Syy = vect_Sigma[1]; Sxy = vect_Sigma[2]
-                    list_Sxx.append(Sxx); list_Syy.append(Syy); list_Sxy.append(Sxy)
-                    list_Svm.append(np.sqrt(Sxx**2+Syy**2-Sxx*Syy+3*Sxy**2))
+        #         if self.__dim == 2:                
+        #             list_Exx.append(vect_Epsilon[0]); list_Eyy.append(vect_Epsilon[1]); list_Exy.append(vect_Epsilon[2])
+        #             Sxx = vect_Sigma[0]; Syy = vect_Sigma[1]; Sxy = vect_Sigma[2]
+        #             list_Sxx.append(Sxx); list_Syy.append(Syy); list_Sxy.append(Sxy)
+        #             list_Svm.append(np.sqrt(Sxx**2+Syy**2-Sxx*Syy+3*Sxy**2))
                     
-                elif self.__dim == 3:
-                    list_Exx.append(vect_Epsilon[0]); list_Eyy.append(vect_Epsilon[1]); list_Ezz.append(vect_Epsilon[2])                    
-                    list_Exy.append(vect_Epsilon[3]); list_Eyz.append(vect_Epsilon[4]); list_Exz.append(vect_Epsilon[5])                    
-                    Sxx = vect_Sigma[0]; Syy = vect_Sigma[1]; Szz = vect_Sigma[2]
-                    Sxy = vect_Sigma[3]; Syz = vect_Sigma[4]; Sxz = vect_Sigma[5]                    
-                    list_Sxx.append(Sxx); list_Syy.append(Syy); list_Szz.append(Szz)
-                    list_Sxy.append(Sxy); list_Syz.append(Syz); list_Sxz.append(Sxz)                    
-                    Svm = np.sqrt(((Sxx-Syy)**2+(Syy-Szz)**2+(Szz-Sxx)**2+6*(Sxy**2+Syz**2+Sxz**2))/2)
-                    list_Svm.append(Svm)
+        #         elif self.__dim == 3:
+        #             list_Exx.append(vect_Epsilon[0]); list_Eyy.append(vect_Epsilon[1]); list_Ezz.append(vect_Epsilon[2])                    
+        #             list_Exy.append(vect_Epsilon[3]); list_Eyz.append(vect_Epsilon[4]); list_Exz.append(vect_Epsilon[5])                    
+        #             Sxx = vect_Sigma[0]; Syy = vect_Sigma[1]; Szz = vect_Sigma[2]
+        #             Sxy = vect_Sigma[3]; Syz = vect_Sigma[4]; Sxz = vect_Sigma[5]                    
+        #             list_Sxx.append(Sxx); list_Syy.append(Syy); list_Szz.append(Szz)
+        #             list_Sxy.append(Sxy); list_Syz.append(Syz); list_Sxz.append(Sxz)                    
+        #             Svm = np.sqrt(((Sxx-Syy)**2+(Syy-Szz)**2+(Szz-Sxx)**2+6*(Sxy**2+Syz**2+Sxz**2))/2)
+        #             list_Svm.append(Svm)
             
-            def TrieValeurs(source:list, option: str):
-                # Verifie si il ny a pas une valeur bizzare
-                max = np.max(source)
-                min = np.min(source)
-                mean = np.mean(source)
+        #     def TrieValeurs(source:list, option: str):
+        #         # Verifie si il ny a pas une valeur bizzare
+        #         max = np.max(source)
+        #         min = np.min(source)
+        #         mean = np.mean(source)
                     
-                valeurAuNoeud = 0
-                if option == 'max':
-                    valeurAuNoeud = max
-                elif option == 'min':
-                    valeurAuNoeud = min
-                elif option == 'mean':
-                    valeurAuNoeud = mean
-                elif option == 'first':
-                    valeurAuNoeud = source[0]
+        #         valeurAuNoeud = 0
+        #         if option == 'max':
+        #             valeurAuNoeud = max
+        #         elif option == 'min':
+        #             valeurAuNoeud = min
+        #         elif option == 'mean':
+        #             valeurAuNoeud = mean
+        #         elif option == 'first':
+        #             valeurAuNoeud = source[0]
                     
-                return valeurAuNoeud
+        #         return valeurAuNoeud
             
-            Exx_n.append(TrieValeurs(list_Exx, option))
-            Eyy_n.append(TrieValeurs(list_Eyy, option)) 
-            Exy_n.append(TrieValeurs(list_Exy, option))
+        #     Exx_n.append(TrieValeurs(list_Exx, option))
+        #     Eyy_n.append(TrieValeurs(list_Eyy, option)) 
+        #     Exy_n.append(TrieValeurs(list_Exy, option))
             
-            Sxx_n.append(TrieValeurs(list_Sxx, option))
-            Syy_n.append(TrieValeurs(list_Syy, option))
-            Sxy_n.append(TrieValeurs(list_Sxy, option))
+        #     Sxx_n.append(TrieValeurs(list_Sxx, option))
+        #     Syy_n.append(TrieValeurs(list_Syy, option))
+        #     Sxy_n.append(TrieValeurs(list_Sxy, option))
             
-            Svm_n.append(TrieValeurs(list_Svm, option))
+        #     Svm_n.append(TrieValeurs(list_Svm, option))
         
-            if self.__dim == 3:
-                Ezz_n.append(TrieValeurs(list_Ezz, option))
-                Eyz_n.append(TrieValeurs(list_Eyz, option))
-                Exz_n.append(TrieValeurs(list_Exz, option))
+        #     if self.__dim == 3:
+        #         Ezz_n.append(TrieValeurs(list_Ezz, option))
+        #         Eyz_n.append(TrieValeurs(list_Eyz, option))
+        #         Exz_n.append(TrieValeurs(list_Exz, option))
                 
-                Szz_n.append(TrieValeurs(list_Szz, option))
-                Syz_n.append(TrieValeurs(list_Syz, option))
-                Sxz_n.append(TrieValeurs(list_Sxz, option))
+        #         Szz_n.append(TrieValeurs(list_Szz, option))
+        #         Syz_n.append(TrieValeurs(list_Syz, option))
+        #         Sxz_n.append(TrieValeurs(list_Sxz, option))
             
         
-        self.resultats["Exx_n"] = Exx_n; self.resultats["Eyy_n"] = Eyy_n; self.resultats["Exy_n"] = Exy_n
-        self.resultats["Sxx_n"] = Sxx_n; self.resultats["Syy_n"] = Syy_n; self.resultats["Sxy_n"] = Sxy_n      
-        self.resultats["Svm_n"] = Svm_n
+        # self.resultats["Exx_n"] = Exx_n; self.resultats["Eyy_n"] = Eyy_n; self.resultats["Exy_n"] = Exy_n
+        # self.resultats["Sxx_n"] = Sxx_n; self.resultats["Syy_n"] = Syy_n; self.resultats["Sxy_n"] = Sxy_n      
+        # self.resultats["Svm_n"] = Svm_n
         
-        if self.__dim == 3:            
-            self.resultats["Ezz_n"] = Ezz_n; self.resultats["Eyz_n"] = Eyz_n; self.resultats["Exz_n"] = Exz_n
-            self.resultats["Szz_n"] = Szz_n; self.resultats["Syz_n"] = Syz_n; self.resultats["Sxz_n"] = Sxz_n
+        # if self.__dim == 3:            
+        #     self.resultats["Ezz_n"] = Ezz_n; self.resultats["Eyz_n"] = Eyz_n; self.resultats["Exz_n"] = Exz_n
+        #     self.resultats["Szz_n"] = Szz_n; self.resultats["Syz_n"] = Syz_n; self.resultats["Sxz_n"] = Sxz_n
     
         tic.Tac("Calcul contraintes et deformations aux noeuds", self.__verbosity)
 

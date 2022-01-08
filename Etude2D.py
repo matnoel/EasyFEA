@@ -29,13 +29,13 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/20
+taille = h/3
 
 # Materiau
 materiau = Materiau(dim)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=3, tailleElement=taille)
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=1, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
 
@@ -84,11 +84,14 @@ print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
 if plotResult:
         
         # Affichage.PlotMesh(mesh, simu.resultats, deformation=False)
-        Affichage.PlotMesh(mesh, simu.resultats, deformation=True)
+        fig, ax = Affichage.PlotMesh(simu, deformation=True)
+        # Affichage.AfficheNoeudsMaillage(simu, showId=True)
+        Affichage.PlotResult(simu, "amplitude", deformation=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=False)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
-        Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
+        Affichage.PlotResult(simu, "Svm_n")
+        Affichage.PlotResult(simu, "Svm_n", affichageMaillage=True, deformation=True)
 
         # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
         # Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)

@@ -3,13 +3,14 @@ import sys
 import numpy as np
 
 try:
-        from Element import Element
-        from Affichage import Affichage
-        from TicTac import TicTac
-except:
         from classes.Element import Element
         from classes.Affichage import Affichage
         from classes.TicTac import TicTac
+except:
+        from Element import Element
+        from Affichage import Affichage
+        from TicTac import TicTac
+        
         
 class ModelGmsh:
         

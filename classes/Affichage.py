@@ -1,5 +1,4 @@
 from typing import cast
-from matplotlib.colors import Colormap
 import numpy as np
 
 import matplotlib as plt
@@ -9,18 +8,27 @@ from mpl_toolkits.mplot3d.art3d import *
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 try:
+    from Simu import Simu
     from Element import Element
     from Mesh import Mesh
-    from Materiau import Materiau    
+    from Materiau import Materiau
 except:
+    from classes.Simu import Simu
     from classes.Element import Element
     from classes.Mesh import Mesh
     from classes.Materiau import Materiau
+    
+    
+    
+    
 
 class Affichage:
 
-    def PlotResult(mesh: Mesh, resultats: dict, val: str , deformation=False, facteurDef=4, affichageMaillage=False):     
+    def PlotResult(simu: Simu, val: str , deformation=False, facteurDef=4, affichageMaillage=False):     
         # Va chercher les valeurs 0 a affciher
+
+        resultats = simu.resultats
+        mesh = simu.get_mesh()
 
         valeurs = np.array(resultats[val])
         
@@ -48,11 +56,18 @@ class Affichage:
                 ax.add_collection(pc)
 
             # Valeurs aux element
-            if mesh.Ne == len(valeurs):                
-                pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap='jet')                
+            if mesh.Ne == len(valeurs):
+                pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap='jet')
                 pc.set_clim(valeurs.min(), valeurs.max())
                 pc.set_array(valeurs)
                 ax.add_collection(pc)
+                                
+                # dx_e = resultats["dx_e"]
+                # dy_e = resultats["dy_e"]
+                # # x,y=np.meshgrid(dx_e,dy_e)
+                # pc = ax.tricontourf(dx_e, dy_e, valeurs, levels ,cmap='jet')
+
+                
 
             # Valeur aux noeuds
             elif mesh.Nn == len(valeurs):
@@ -113,16 +128,23 @@ class Affichage:
         ax.set_title(val+unite)
         
         
-    def PlotMesh(mesh: Mesh ,resultats: dict, facteurDef=4, deformation=False):
+    def PlotMesh(simu: Simu, facteurDef=4, deformation=False):
         """Dessine le maillage de la simulation
         """
         
         assert facteurDef >= 1, "Le facteur de deformation doit être >= 1"
 
+        resultats = simu.resultats
+        mesh = simu.get_mesh()
+
         dim = mesh.get_dim()
 
         if deformation:
-            coordo = mesh.coordo + (resultats["deplacementCoordo"]*facteurDef)
+            try:
+                coordoDeforme = resultats["deplacementCoordo"]*facteurDef
+            except:
+                print("La simulation n'a pas de solution. Impossible de réaliser le maillage deformé")
+            coordo = mesh.coordo + coordoDeforme
         else:
             coordo = mesh.coordo
 
@@ -142,8 +164,7 @@ class Affichage:
                 pc = matplotlib.collections.LineCollection(verticesNonDeforme, edgecolor='black', lw=0.5)
                 ax.add_collection(pc)
 
-                # Maillage deformé
-                coordoDeforme = mesh.coordo + (resultats["deplacementCoordo"]*facteurDef)
+                # Maillage deformé                
                 coordo_xyDeforme = coordoDeforme[:,[0,1]]                    
                 new_faces = [[coordo_xyDeforme[connectPolygon[ix][iy]] for iy in range(len(connectPolygon[0]))] for ix in range(len(connectPolygon))]
                 pc = matplotlib.collections.LineCollection(new_faces, edgecolor='red', lw=0.5)
@@ -177,8 +198,7 @@ class Affichage:
                 # ax.scatter(x,y,z, linewidth=0, alpha=0)
                 ax.add_collection3d(Poly3DCollection(verticesNonDeforme, edgecolor='black', linewidths=0.5, alpha=0))
 
-                # Maillage deformé
-                coordoDeforme = mesh.coordo + (resultats["deplacementCoordo"]*facteurDef)
+                # Maillage deformé                
                 verticesDeforme = [[coordoDeforme[connectPolygon[ix][iy]] for iy in range(len(connectPolygon[0]))] for ix in range(len(connectPolygon))]
                 ax.add_collection3d(Poly3DCollection(verticesDeforme, edgecolor='red', linewidths=0.5, alpha=0))
             else:
@@ -196,14 +216,27 @@ class Affichage:
         
         return fig, ax
 
-    def AfficheNoeudsMaillage(dim:int, ax: plt.Axes, noeuds=[], marker='*', c='blue'):
-        list_x = [noeuds[i].coordo[0] for i in range(len(noeuds))]
-        list_y = [noeuds[i].coordo[1] for i in range(len(noeuds))]
-        if dim == 2:
-            ax.scatter(list_x, list_y, marker=marker, c=c)
-        elif dim == 3:
-            list_z = [noeuds[i].coordo[2] for i in range(len(noeuds))]
-            ax.scatter(list_x, list_y, list_z, marker=marker, c=c)
+    def AfficheNoeudsMaillage(simu: Simu, ax=None, noeuds=[], marker='.', c='blue', showId=False):        
+        
+        mesh = simu.get_mesh()
+
+        if ax == None:
+            fig, ax = Affichage.PlotMesh(simu)
+        
+        if len(noeuds) == 0:
+            noeuds = list(range(mesh.Nn))
+
+        if mesh.get_dim() == 2:
+            ax.scatter(mesh.coordo[noeuds,0], mesh.coordo[noeuds,1], marker=marker, c=c)
+            if showId:
+                for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], str(n))
+        elif  mesh.get_dim() == 3:            
+            ax.scatter(mesh.coordo[noeuds,0], mesh.coordo[noeuds,1], mesh.coordo[noeuds,2], marker=marker, c=c)
+            if showId:
+                for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], str(n))
+        
+        return ax
+            
     
     def NouvelleSection(text: str):
         print("\n==========================================================")

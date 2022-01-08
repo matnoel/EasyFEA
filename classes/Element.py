@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.core.fromnumeric import shape
 
 class Element:
 
@@ -38,6 +39,10 @@ class Element:
             return switch[self.nPe]
     type = property(__get_ElementType) 
 
+    def __get_nPg(self):
+        return self.gauss.shape[0]
+    nPg = property(__get_nPg)
+
     def __init__(self, dim: int, nPe: int):
         """Constructeur d'element, on construit Be et le jacobien !
 
@@ -55,11 +60,9 @@ class Element:
         self.__dim = dim
         
         self.nPe = nPe
-
-        self.nPg = 0
-
-        # définit aux points de gauss
-        self.listPoid_pg = []
+        
+        # ksi eta poid
+        self.gauss = np.zeros((0,3))
 
         # [N1 0 ... Nn 0
         #  0 N1 ... 0 Nn]
@@ -96,8 +99,8 @@ class Element:
             # Points de gauss
             ksi = 1/3
             eta = 1/3
-            self.listPoid_pg = [1/2]
-            self.nPg = len(self.listPoid_pg)
+            poid = 1/2
+            self.gauss = np.array([ksi, eta, poid]).reshape((1,3))
 
             # Calcul N aux points de gauss
             N1t = 1-ksi-eta
@@ -117,9 +120,8 @@ class Element:
             # Points de gauss
             ksis = [1/6, 2/3, 1/6]
             etas = [1/6, 1/6, 2/3]
-
-            self.listPoid_pg = [1/6] * 3
-            self.nPg = len(self.listPoid_pg)           
+            poids = [1/6] * 3
+            self.gauss = np.array([ksis, etas, poids]).T
             
             def Construit_Ntild(ksi, eta):
                 # Code aster (Fonctions de forme et points d'intégration des élé[...])
@@ -165,8 +167,8 @@ class Element:
             UnSurRacine3 = 1/np.sqrt(3) 
             ksis = [-UnSurRacine3, UnSurRacine3, UnSurRacine3, -UnSurRacine3]
             etas = [-UnSurRacine3, -UnSurRacine3, UnSurRacine3, UnSurRacine3]
-            self.listPoid_pg = [1] * 4
-            self.nPg = len(self.listPoid_pg)
+            poids = [1]*4
+            self.gauss = np.array([ksis, etas, poids]).T
 
             def Construit_Ntild(ksi, eta):
                 N1t = (1-ksi)*(1-eta)/4
@@ -204,8 +206,8 @@ class Element:
             UnSurRacine3 = 1/np.sqrt(3) 
             ksis = [-UnSurRacine3, UnSurRacine3, UnSurRacine3, -UnSurRacine3]
             etas = [-UnSurRacine3, -UnSurRacine3, UnSurRacine3, UnSurRacine3]
-            self.listPoid_pg = [1] * 4
-            self.nPg = len(self.listPoid_pg)
+            poids = [1]*4
+            self.gauss = np.array([ksis, etas, poids]).T
 
             def Construit_Ntild(Ksi, eta):
                 N1t = (1-ksi)*(1-eta)*(-1-ksi-eta)/4
@@ -253,8 +255,8 @@ class Element:
             x = 1/4
             y = 1/4
             z = 1/4
-            self.listPoid_pg = [1/6]
-            self.nPg = len(self.listPoid_pg)
+            poid = 1/6
+            self.gauss = np.array([x, y, z, poid]).reshape((1,4))
 
             # Construit Ntild
             N1t = 1-x-y-z

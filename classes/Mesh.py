@@ -220,9 +220,11 @@ class Mesh:
         listElement = list(range(self.Ne))
         nPe = element.nPe;  listnPe = list(range(nPe))
         nPg = element.nPg;  listPg = list(range(nPg))
-        nodes = coordo[:,range(dim)]        
+        nodes = coordo[:,range(dim)]
         
-        self.poid_pg = element.listPoid_pg
+        self.gauss = element.gauss
+
+        self.poid_pg = self.gauss[:,-1]
         self.F_e_pg = np.array([[element.dN_pg[pg].dot(nodes[connect[e], :]) for pg in listPg] for e in listElement])
         self.invF_e_pg = np.linalg.inv(self.F_e_pg)       
         self.jacobien_e_pg = np.linalg.det(self.F_e_pg)
@@ -305,40 +307,7 @@ class Mesh:
                 assert test.max() == 0 and test.min() == 0, "Erreur dans la construiction de B"
             
         tic.Tac("Construit les matrices EF", self.__verbosity)
-
-    # def ChercheNoeuds(self, CondX=[], CondY=[], CondZ=[]):
-        
-    #     assert self.__dim == 2 and len(CondZ) == 0, "Pas de condition suivant Z dans une étude 2D" 
-
-    #     def Conditions(i, coordonnée: float, valeur: float):
-    #         switcher ={
-    #                 "=": np.isclose(coordonnée, valeur),
-    #                 "<": coordonnée < valeur,
-    #                 "<=": coordonnée < valeur or np.isclose(coordonnée, valeur),
-    #                 ">": coordonnée > valeur,
-    #                 ">=": coordonnée > valeur or np.isclose(coordonnée, valeur),
-    #             }
-    #         return switcher.get(i, "Invalid")
-
-    #     noeuds = []
-
-    #     for n in self.noeuds:
-    #         n = cast(Noeud, n)
-    #         conditions = [CondX, CondY, CondZ]
-    #         tests = []
-    #         for c in range(len(conditions)):
-    #             cond = conditions[c]
-    #             if(len(cond)==0):
-    #                 tests.append(True)
-    #             else:
-    #                 tests.append(Conditions(cond[0], n.coordo[c], cond[1]))
-            
-    #         if not False in tests:
-    #             noeuds.append(n)
-
-    #     return noeuds
-
-            
+      
 # TEST ==============================
 
 import unittest
