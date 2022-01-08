@@ -1,9 +1,9 @@
-from ctypes import memset
+from ctypes import DllCanUnloadNow, memset
 import os
 from typing import cast
 
 import numpy as np
-from numpy import matrixlib, zeros
+from numpy import dtype, float64, matrixlib, zeros
 from numpy.core.records import array
 from numpy.random.mtrand import rand
 import scipy as sp
@@ -149,25 +149,15 @@ class Simu:
         listElement = self.listElement
         taille = mesh.Nn*self.__dim
         
-        # Matrices du système
-        self.__Ku = sp.sparse.lil_matrix((taille, taille))  # self.__Ku = np.zeros((taille, taille))
-        self.__Fu = sp.sparse.lil_matrix((taille,1))    # self.__Fu = np.zeros(taille)
-        self.__Uc = sp.sparse.lil_matrix((taille,1))
-        
-
         lignes_e = np.array([[i for i in mesh.assembly_e[e] for j in mesh.assembly_e[e]] for e in listElement])
         colonnes_e = np.array([[j for i in mesh.assembly_e[e] for j in mesh.assembly_e[e]] for e in listElement])
         
-        # V0 Plus rapide
-        taille = self.__mesh.Nn*self.__dim
+        # V0 Plus rapide Construit Kglob
         self.__Ku = sp.sparse.csr_matrix((Ke_e.reshape(-1), (lignes_e.reshape(-1), colonnes_e.reshape(-1))), shape = (taille, taille)).tolil()
 
         if verification: self.__AssembleMatrice(lignes_e, colonnes_e, Ke_e)
         
-        self.__Ku_penal = self.__Ku.copy()
-        self.__Fu_penal = self.__Fu.copy()
-
-        tic.Tac("Assemblage du syteme en déplacement", self.__verbosity)
+        tic.Tac("Assemblage du systême en déplacement", self.__verbosity)
 
 
 
@@ -224,9 +214,6 @@ class Simu:
             self.__Fd[list_IdNoeuds] += np.ravel(fe)            
             
         ticAssemblage.Tac("Assemblage d", self.__verbosity)
-
-        self.__Kd_penal = np.copy(self.__Kd)
-        self.__Fd_penal = np.copy(self.__Fd)
 
         return self.__Kd, self.__Fd
 
@@ -373,9 +360,9 @@ class Simu:
                     assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
                     ddl.extend(noeuds * self.__dim + 2)
 
-        if ddl not in self.__BC_Neuman_u[0]:
-            self.__BC_Neuman_u[0].extend(ddl)
-            self.__BC_Neuman_u[1].extend([valeur/nbn]*len(ddl))    
+        for d in ddl: assert d not in self.__BC_Dirichlet_u[0], "Impossible d'appliquer un déplacement et un effort au meme noeud"        
+        self.__BC_Neuman_u[0].extend(ddl)
+        self.__BC_Neuman_u[1].extend([valeur/nbn]*len(ddl))
         
         tic.Tac("Condition Neumann", self.__verbosity)
 
@@ -408,62 +395,104 @@ class Simu:
                     ddl.extend(noeuds * self.__dim + 1)
                 if direction == "z":
                     assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                    ddl.extend(noeuds * self.__dim + 2)                
+                    ddl.extend(noeuds * self.__dim + 2)
 
-            if ddl not in self.__BC_Dirichlet_u[0]:
-                self.__BC_Dirichlet_u[0].extend(ddl)
-                self.__BC_Dirichlet_u[1].extend([valeur]*len(ddl))
+            for d in ddl: assert d not in self.__BC_Neuman_u[0], "Impossible d'appliquer un déplacement et un effort au meme noeud"            
+            self.__BC_Dirichlet_u[0].extend(ddl)
+            self.__BC_Dirichlet_u[1].extend([valeur]*len(ddl))
 
         tic.Tac("Condition Dirichlet", self.__verbosity)
 
-    def Solve_u(self, resolution=1, save=True):
+    def Solve_u(self, resolution=2, save=True):
         
-        tic = TicTac()
+        taille = self.__mesh.Nn*self.__dim
 
-        # Résolution du plus rapide au plus lent
-        if resolution == 1:
-
-            # Renseigne les conditions de Neumman
+        def Construit_ddl_connues_inconnues():
             
-            BC_Neuman = np.array(self.__BC_Neuman_u).T
-            BC_Dirichlet = np.array(self.__BC_Dirichlet_u).T
+            ddl_Connues = self.__BC_Dirichlet_u[0]
+            
+            ddl_ConnuesNouveau = []
+            for ddl in ddl_Connues:
+                if ddl not in ddl_ConnuesNouveau:
+                    ddl_ConnuesNouveau.append(ddl)
+            
+            ddl_Connues = ddl_ConnuesNouveau
 
-            self.__Fu_penal[BC_Neuman[:,0]] += BC_Neuman[:,1].reshape(BC_Neuman.shape[0],1)
-            # Renseigne les conditions de Dirichlet
-            self.__Fu_penal[BC_Dirichlet[:,0]] = BC_Dirichlet[:,1]
-            self.__Ku_penal[BC_Dirichlet[:,0]] = 0.0
-            self.__Ku_penal[BC_Dirichlet[:,0], BC_Dirichlet[:,0]] = 1
-
-
-            Uglob = sp.sparse.linalg.spsolve(self.__Ku_penal.tocsr(), self.__Fu_penal.tocsr())
-
-        elif resolution == 2:
-
-            taille = self.__mesh.Nn*self.__dim
-            ddl_Connues = []
-            ddl_Connues.extend(self.__BC_Dirichlet_u[0])
-            # ddl_Connues.extend(self.__BC_Neuman_u[0])
             ddl_Inconnues = list(range(taille))
             for ddl in ddl_Connues: ddl_Inconnues.remove(ddl)
 
-            
             assert len(ddl_Connues) + len(ddl_Inconnues) == taille, "Problème dans les conditions"
 
-            Kligne = self.__Ku.tocsr()[ddl_Inconnues, :]
+            return ddl_Connues, ddl_Inconnues
 
-            Kii = Kligne.tocsc()[:, ddl_Inconnues].tocsr()
-            Kic = Kligne.tocsc()[:, ddl_Connues].tocsr()
-            Fi = self.__Fu[ddl_Inconnues].tocsr()
+        def Application_Conditions_Neuman():
+            # Renseigne les conditions de Neuman (en force)
+            BC_Neuman = np.array(self.__BC_Neuman_u).T
 
-            uc = self.__Uc[ddl_Connues].tocsr()
+            lignes = BC_Neuman[:,0]
+            valeurs = BC_Neuman[:,1]
+            Fu = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1)).tolil()
+
+            return Fu
+
+        def Application_Conditions_Dirichlet(Fu):
+            # Renseigne les conditions de Dirichlet
+            BC_Dirichlet = np.array(self.__BC_Dirichlet_u).T
+
+            if resolution == 1:                
+                Fu[BC_Dirichlet[:,0]] = BC_Dirichlet[:,1]
+                self.__Ku[BC_Dirichlet[:,0]] = 0.0
+                self.__Ku[BC_Dirichlet[:,0], BC_Dirichlet[:,0]] = 1
+            else:
+
+                lignes = BC_Dirichlet[:,0]
+                valeurs = BC_Dirichlet[:,1]
+                Uglob = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1), dtype=float64)
+
+                return Uglob
+
+        tic = TicTac()
+
+        # Résolution du plus rapide au plus lent 2, 3, 1
+        if resolution == 1:
+            
+            Fu = Application_Conditions_Neuman()
+            Application_Conditions_Dirichlet(Fu)
+
+            Uglob = sp.sparse.linalg.spsolve(self.__Ku.tocsr(), Fu)
+
+        elif resolution == 2:
+            
+            ddl_Connues, ddl_Inconnues = Construit_ddl_connues_inconnues()
+            Fu = Application_Conditions_Neuman()
+            Uglob = Application_Conditions_Dirichlet(Fu)
+
+            Kii = self.__Ku.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
+            Kic = self.__Ku.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Connues].tocsr()
+            Fi = Fu.tocsr()[ddl_Inconnues,0]
+
+            uc = Uglob[ddl_Connues,0]
             
             ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc))
             
-            Uglob = np.zeros(taille)
-            
+            # Reconstruction de Uglob
+            Uglob = Uglob.toarray().reshape(Uglob.shape[0])
             Uglob[ddl_Inconnues] = ui
-            uc = uc.toarray().reshape(-1)
-            Uglob[ddl_Connues] = uc
+
+        elif resolution == 3:
+
+            ddl_Connues, ddl_Inconnues = Construit_ddl_connues_inconnues()
+            Fu = Application_Conditions_Neuman()
+            Uglob = Application_Conditions_Dirichlet(Fu)
+
+            KuFree = self.__Ku.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
+            FuFree = Fu.tocsr()[ddl_Inconnues]
+
+            ui = sp.sparse.linalg.spsolve(KuFree, FuFree)
+
+            # Reconstruction de Uglob
+            Uglob = Uglob.toarray().reshape(Uglob.shape[0])
+            Uglob[ddl_Inconnues] = ui
 
         tic.Tac("Résolution {}".format(resolution) , self.__verbosity)        
         
@@ -472,7 +501,7 @@ class Simu:
 
         return Uglob
 
-    def __Save_u(self, Uglob: np.ndarray, verification=False):
+    def __Save_u(self, Uglob, verification=False):
         
         tic = TicTac()
 
@@ -484,14 +513,14 @@ class Simu:
         Ke_e = self.__Ke_e
         Wdef = 1/2*np.sum([ue_e[e].T.dot(Ke_e[e]).dot(ue_e[e]) for e in listElement])
         tic.Tac("Calcul de l'energie de deformation", verification)
+        self.resultats["Wdef"] = Wdef
 
         if verification:
             Kglob = self.__Ku.todense()
             WdefVerif = 1/2 * Uglob.T.dot(Kglob).dot(Uglob)
             tic.Tac("Wdef verif", True)
-            diff = float(WdefVerif) - Wdef
-            assert np.isclose(diff, 0,10**-6),"Erreur" 
-        self.resultats["Wdef"] = Wdef
+            diff = np.round(float(WdefVerif) - Wdef,0)
+            assert np.isclose(diff, 0),"Erreur"
 
         # Récupère les déplacements
         ddlx = list(range(0, mesh.Nn*self.__dim, self.__dim))
@@ -512,108 +541,69 @@ class Simu:
 
         self.resultats["deplacementCoordo"] = np.array([dx, dy, dz]).T
         
-        # self.__CalculDeformationEtContrainte(Uglob)
+        self.__CalculDeformationEtContrainte(Uglob, ue_e)
 
         tic.Tac("Sauvegarde", self.__verbosity)
             
 
-    def __CalculDeformationEtContrainte(self, Uglob: np.ndarray, calculAuxNoeuds=True):
+    def __CalculDeformationEtContrainte(self, Uglob, ue_e, calculAuxNoeuds=True):
         
         tic = TicTac()
 
-        list_Epsilon_e = []
-        list_Sigma_e = []
-        dim = self.__dim
+        B_rigi_e_pg = self.__mesh.B_rigi_e_pg
+
+
+        listElement = list(range(self.__mesh.Ne))
+        nPg = B_rigi_e_pg.shape[1];  listPg = list(range(nPg))
         
-        # Prépare les vecteurs de stockage par element
-        dx_e = []; dy_e = []
-        Exx_e = []; Eyy_e = []; Exy_e = []
-        Sxx_e = []; Syy_e = []; Sxy_e = []
-        Svm_e = []
+        Epsilon_e_pg = np.array([[B_rigi_e_pg[e,pg].dot(ue_e[e]) for pg in listPg] for e in listElement])        
+        Sigma_e_pg = np.array([[self.__materiau.C.dot(Epsilon_e_pg[e,pg]) for pg in listPg] for e in listElement])
+        if nPg == 1:
+            Epsilon_e = Epsilon_e_pg[:,0]
+            Sigma_e = Sigma_e_pg[:,0]
+        else:
+            Epsilon_e = np.mean(Epsilon_e_pg, axis=2)
+            Sigma_e = np.mean(Sigma_e_pg, axis=2)
+        
 
-        if dim == 3:
-            dz_e = []
-            Ezz_e = []; Eyz_e = []; Exz_e = []
-            Szz_e = []; Syz_e = []; Sxz_e = []
+        listCoordX = np.array(range(0, ue_e.shape[1], self.__dim))        
+        dx_e_n = ue_e[:,listCoordX]; dx_e = np.mean(dx_e_n, axis=1)
+        dy_e_n = ue_e[:,listCoordX+1]; dy_e = np.mean(dy_e_n, axis=1)
+        if self.__dim == 3:
+            dz_e_n = ue_e[:,listCoordX+2]; dz_e = np.mean(dz_e_n, axis=1)
 
-        # Pour chaque element on va calculer pour chaque point de gauss Epsilon et Sigma
-        for e in range(self.__mesh.Ne):
-
-            dx = []
-            dy = []
-            if dim == 3:
-                dz = []
-
-            # Construit ue
-            ue = []
-            for n in self.__mesh.connect[e]:
-                
-                for j in range(self.__dim):
-                    valeur = Uglob[int(n)*self.__dim+j]
-                    ue.append(valeur)
-                    if j == 0:
-                        dx.append(valeur)
-                    if j == 1:
-                        dy.append(valeur)
-                    if j == 2:
-                        dz.append(valeur)
-
-            list_epsilon_pg = []
-            list_sigma_pg = []
-
-            # Récupère B pour chaque pt de gauss
-            for B_pg in self.__mesh.B_rigi_e_pg[e]:
-                epsilon_pg = B_pg.dot(ue)
-                list_epsilon_pg.append(epsilon_pg)
-
-                sigma_pg = self.__materiau.C.dot(list(epsilon_pg))
-                list_sigma_pg.append(list(sigma_pg))
-
-            list_epsilon_pg = np.array(list_epsilon_pg)
-            list_sigma_pg = np.array(list_sigma_pg)
-
-            list_Epsilon_e.append(list_epsilon_pg)
-            list_Sigma_e.append(list_sigma_pg)
-
-            if dim == 2:
-                dx_e.append(np.mean(dx))
-                dy_e.append(np.mean(dy))
-                
-                Exx_e.append(np.mean(list_epsilon_pg[:, 0])), Sxx_e.append(np.mean(list_sigma_pg[:, 0]))
-                Eyy_e.append(np.mean(list_epsilon_pg[:, 1])), Syy_e.append(np.mean(list_sigma_pg[:, 1]))
-                Exy_e.append(np.mean(list_epsilon_pg[:, 2])), Sxy_e.append(np.mean(list_sigma_pg[:, 2]))
-
-                Svm_e.append(np.sqrt(Sxx_e[-1]**2+Syy_e[-1]**2-Sxx_e[-1]*Syy_e[-1]+3*Sxy_e[-1]**2))
-
-            elif dim == 3:
-                dz_e.append(np.mean(dz))
-
-                Exx_e.append(np.mean(list_epsilon_pg[:, 0])), Sxx_e.append(np.mean(list_sigma_pg[:, 0]))
-                Eyy_e.append(np.mean(list_epsilon_pg[:, 1])), Syy_e.append(np.mean(list_sigma_pg[:, 1]))
-                Ezz_e.append(np.mean(list_epsilon_pg[:, 2])), Szz_e.append(np.mean(list_sigma_pg[:, 2]))
-                Exy_e.append(np.mean(list_epsilon_pg[:, 3])), Sxy_e.append(np.mean(list_sigma_pg[:, 3]))
-                Eyz_e.append(np.mean(list_epsilon_pg[:, 4])), Syz_e.append(np.mean(list_sigma_pg[:, 4]))
-                Exz_e.append(np.mean(list_epsilon_pg[:, 5])), Sxz_e.append(np.mean(list_sigma_pg[:, 5]))
-
-                Svm_e.append(np.sqrt(((Sxx_e[-1]-Syy_e[-1])**2+(Syy_e[-1]-Szz_e[-1])**2+(Szz_e[-1]-Sxx_e[-1])**2+6*(Sxy_e[-1]**2+Syz_e[-1]**2+Sxz_e[-1]**2))/2)) 
-
-        self.resultats["dx_e"]=np.array(dx_e); self.resultats["dy_e"]=np.array(dy_e)
-        self.resultats["Exx_e"]=np.array(Exx_e); self.resultats["Eyy_e"]=np.array(Eyy_e); self.resultats["Exy_e"]=np.array(Exy_e)
-        self.resultats["Sxx_e"]=np.array(Sxx_e); self.resultats["Syy_e"]=np.array(Syy_e); self.resultats["Sxy_e"]=np.array(Sxy_e)
-        self.resultats["Svm_e"]=np.array(Svm_e)
-
-        if dim == 3:
-            self.resultats["dz_e"]=np.array(dz_e)
-            self.resultats["Ezz_e"]=np.array(Ezz_e); self.resultats["Eyz_e"]=np.array(Eyz_e); self.resultats["Exz_e"]=np.array(Exz_e)                
-            self.resultats["Szz_e"]=np.array(Szz_e); self.resultats["Syz_e"]=np.array(Syz_e); self.resultats["Sxz_e"]=np.array(Sxz_e)
+        if self.__dim == 2 :
+            Exx_e = Epsilon_e[:,0]; Sxx_e = Sigma_e[:,0]
+            Eyy_e = Epsilon_e[:,1]; Syy_e = Sigma_e[:,1]
+            Exy_e = Epsilon_e[:,2]; Sxy_e = Sigma_e[:,2]
             
+            Svm_e = np.sqrt(Sxx_e**2+Syy_e**2-Sxx_e*Syy_e+3*Sxy_e**2)
+        else :
+            Exx_e = Epsilon_e[:,0]; Sxx_e = Epsilon_e[:,0]
+            Eyy_e = Epsilon_e[:,1]; Syy_e = Epsilon_e[:,1]
+            Ezz_e = Epsilon_e[:,2]; Szz_e = Epsilon_e[:,2]
+            Exy_e = Epsilon_e[:,3]; Sxy_e = Epsilon_e[:,3]
+            Eyz_e = Epsilon_e[:,4]; Syz_e = Epsilon_e[:,4]
+            Exz_e = Epsilon_e[:,5]; Sxz_e = Epsilon_e[:,5]
 
+            Svm_e = np.sqrt(((Sxx_e-Syy_e)**2+(Syy_e-Szz_e)**2+(Szz_e-Sxx_e)**2+6*(Sxy_e**2+Syz_e**2+Sxz_e**2))/2)
+
+        self.resultats["dx_e"] = dx_e; self.resultats["dy_e"] = dy_e
+        self.resultats["Exx_e"] = Exx_e; self.resultats["Eyy_e"] = Eyy_e; self.resultats["Exy_e"] = Exy_e
+        self.resultats["Sxx_e"] = Sxx_e; self.resultats["Syy_e"] = Syy_e; self.resultats["Sxy_e"] = Sxy_e
+        self.resultats["Svm_e"] = Svm_e
+
+        if self.__dim == 3:
+            self.resultats["dz_e"] = dz_e
+            self.resultats["Ezz_e"] = Ezz_e; self.resultats["Eyz_e"] = Eyz_e; self.resultats["Exz_e"] = Exz_e
+            self.resultats["Szz_e"] = Szz_e; self.resultats["Syz_e"] = Syz_e; self.resultats["Sxz_e"] = Sxz_e
+        
         tic.Tac("Calcul deformations et contraintes aux elements", self.__verbosity)
         
         # if calculAuxNoeuds:
         #     self.__ExtrapolationAuxNoeuds(self.resultats["deplacementCoordo"])
 
-        return list_Epsilon_e, list_Sigma_e 
+        return Epsilon_e, Sigma_e 
     
     def __ExtrapolationAuxNoeuds(self, deplacementCoordo: np.ndarray, option = 'mean'):
         
