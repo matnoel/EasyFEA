@@ -33,20 +33,20 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/3
+taille = h/20
 
 # Materiau
 materiau = Materiau(dim)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=1, tailleElement=taille)
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
 
 # Récupère les noeuds qui m'interessent
-coordo = mesh.coordo
-noeuds_en_L = [n for n in range(mesh.Nn) if coordo[n,0] == L]
-noeuds_en_0 = [n for n in range(mesh.Nn) if coordo[n,0] == 0]
+
+noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
+noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
@@ -60,6 +60,7 @@ simu = Simu(dim, mesh, materiau)
 # Affichage.PlotMesh(simu, deformation=True)
 # Affichage.AfficheNoeudsMaillage(simu, showId=True)
 
+# Renseigne les condtions limites
 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
 
 # simu.Condition_Dirichlet(noeuds_en_L, valeur=-10, directions=["x"])
@@ -67,10 +68,11 @@ simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
 # simu.Condition_Dirichlet(noeuds_en_L, valeur=1, directions=["x","y"])
 # simu.Condition_Dirichlet(noeuds_en_L, valeur=-1, directions=["x","y"])
 
-
 simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 # simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
 
+
+# Assemblage du système matricielle
 simu.Assemblage_u(epaisseur=b)
 
 simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=True)
@@ -99,6 +101,7 @@ if plotResult:
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=False)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
+        Affichage.PlotResult(simu, "Svm_e")
         Affichage.PlotResult(simu, "Svm_n")
         Affichage.PlotResult(simu, "Svm_n", affichageMaillage=True, deformation=True)
 

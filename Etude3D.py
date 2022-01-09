@@ -29,12 +29,12 @@ P = -800 #N
 
 # Paramètres maillage
 type = "TETRA4"
-taille = h/5
+taille = h/2
 
 materiau = Materiau(dim)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 fichier = dir_path + '\\models\\part.stp'
@@ -50,14 +50,15 @@ simu = Simu(dim,mesh, materiau, verbosity=True)
 
 simu.Assemblage_u(epaisseur=b)
 
-noeuds_en_L = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == L]
-noeuds_en_0 = [mesh.noeuds[i] for i in range(mesh.Nn) if mesh.noeuds[i].coordo[0] == 0]
+coordo = mesh.coordo
+noeuds_en_L = [n for n in range(mesh.Nn) if coordo[n,0] == L]
+noeuds_en_0 = [n for n in range(mesh.Nn) if coordo[n,0] == 0]
 
-simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["z"])
+simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["z"])
 
-simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y", "z"])
+simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y", "z"])
 
-simu.Solve_u()
+simu.Solve_u(calculContraintesEtDeformation=True, interpolation=True)
 
 # Post traitement --------------------------------------------------------------------------------------
 print("\n==========================================================")
@@ -86,9 +87,9 @@ print("Uz min = {:.6f} mm".format(np.min(simu.resultats["dz_n"])))
 
 if plotResult:
 
-        Affichage.PlotMesh(mesh, simu.resultats, deformation=False)
-        Affichage.PlotMesh(mesh, simu.resultats, deformation=True, facteurDef=20)
-        Affichage.PlotResult(mesh, simu.resultats, "Svm_e", deformation=True, affichageMaillage=True)
+        Affichage.PlotMesh(simu, deformation=False)
+        Affichage.PlotMesh(simu, deformation=True, facteurDef=20)
+        Affichage.PlotResult(simu, "Svm_e", deformation=True, affichageMaillage=True)
 
         plt.show()
 

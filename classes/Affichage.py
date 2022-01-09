@@ -85,7 +85,7 @@ class Affichage:
             ax.set_ylabel('y [mm]')
 
         
-        elif mesh.get_dim() == 3:
+        elif mesh.dim == 3:
 
             assert "_e" in val, "Pour une étude 3D on ne trace qua partir des valeurs de l'élément"
 
@@ -105,7 +105,7 @@ class Affichage:
 
             # Construit le vecteur qui contient
             valeursAuFaces = []
-            for e in mesh.elements:
+            for e in range(simu.get_mesh().Ne):
                 e = cast(Element, e)
                 for i in range(e.get_nbFaces()):
                     valeursAuFaces.append(valeurs[e.id])
@@ -231,7 +231,7 @@ class Affichage:
         if len(noeuds) == 0:
             noeuds = list(range(mesh.Nn))
 
-        if mesh.get_dim() == 2:
+        if mesh.dim == 2:
             ax.scatter(mesh.coordo[noeuds,0], mesh.coordo[noeuds,1], marker=marker, c=c)
             if showId:
                 for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], str(n))

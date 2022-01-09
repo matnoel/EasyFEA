@@ -1,5 +1,6 @@
 import gmsh
 import sys
+from matplotlib.pyplot import axis
 import numpy as np
 
 try:
@@ -21,7 +22,11 @@ class ModelGmsh:
                 
                 self.__dim = dim
 
-                self.__typeElement = Element.get_Types(dim)[typeElement]
+                if dim == 2:
+                        self.__typeElement = Element.get_Types2D()[typeElement]
+                elif dim == 3:
+                        self.__typeElement = Element.get_Types3D()[typeElement]
+
                 self.__tailleElement = tailleElement
                 
                 self.__organisationMaillage = organisationMaillage
@@ -44,7 +49,7 @@ class ModelGmsh:
                 if self.__verbosity:
                         print("\nType d'elements: {}".format(type))
 
-                if type in Element.get_Types(self.__dim):
+                if self.__dim == 2:
                         # Impose que le maillage soit organisé                        
                         if self.__organisationMaillage:
                                 gmsh.model.geo.mesh.setTransfiniteSurface(surface)
@@ -66,7 +71,7 @@ class ModelGmsh:
                         elif type in ["TRI6","QUAD8"]:
                                 gmsh.model.mesh.set_order(2)
 
-                elif Element.get_Types(self.__dim):
+                elif self.__dim == 3:
 
                         gmsh.model.occ.synchronize()
 
@@ -84,26 +89,16 @@ class ModelGmsh:
                 
                 tic = TicTac()
 
-                # Récupère la liste d'élément correspondant a la bonne dimension
-                types, elements, nodeTags = gmsh.model.mesh.getElements(dim=self.__dim)        
-
-                # Construit la matrice connection
+                # Construit Connect
+                types, elements, nodeTags = gmsh.model.mesh.getElements(self.__dim)
                 Ne = len(elements[0])
-                connect = []
-                for e in range(Ne):
-                        type, noeuds = gmsh.model.mesh.getElement(elements[0][e])
-                        noeuds = list(noeuds - 1)            
-                        connect.append(noeuds)                        
+                connect = np.array(nodeTags).reshape(Ne,-1)-1
 
                 # Construit la matrice coordonée
                 noeuds, coord, parametricCoord = gmsh.model.mesh.getNodes()
-                Nn = noeuds.shape[0]
-                coordo = []
-                for n in range(Nn):
-                        coord, parametricCoord = gmsh.model.mesh.getNode(noeuds[n])
-                        coordo.append(coord)
-                # coordo = [gmsh.model.mesh.getNode(noeuds[n])[0] for n in range(Nn)]        
-                
+                Nn = noeuds.shape[0]                
+                coordo = coord.reshape(Nn,-1)
+                                
                 gmsh.finalize()
 
                 tic.Tac("Récupération du maillage gmsh", self.__verbosity)

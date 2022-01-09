@@ -3,15 +3,19 @@ from numpy.core.fromnumeric import shape
 
 class Element:
 
-    @staticmethod
-    def get_Types(dim):
-        if dim == 2:
-            return Element.__listElement2D.copy()
-        else:
-            return Element.__listElement3D.copy()
-
-    __listElement2D = ["TRI3", "TRI6", "QUAD4", "QUAD8"]    
+    __listElement2D = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
     __listElement3D = ["TETRA4"]
+
+    @staticmethod
+    def get_Types2D():
+        return Element.__listElement2D.copy()
+    
+    @staticmethod
+    def get_Types3D():
+        return Element.__listElement3D.copy()
+        
+
+    
 
     def get_nbFaces(self):
         if self.__dim == 2:
@@ -274,7 +278,7 @@ class Element:
             dN2t = np.array([1, 0, 0])
             dN3t = np.array([0, 1, 0])
             dN4t = np.array([0, 0, 1])
-            dNtild = [dN1t, dN2t, dN3t, dN4t]
+            dNtild = np.array([dN1t, dN2t, dN3t, dN4t]).T
             self.dN_pg.append(dNtild)
     
     def ConstruitB_pg(self, list_dNtild: list, invF: np.ndarray, vecteur=True):  

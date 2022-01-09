@@ -37,6 +37,14 @@ class Mesh:
         return self.__connect.copy()
     connect = property(__get_connect)
 
+    def __get_lignes_e(self):
+        return self.__lignes_e.copy()
+    lignes_e=property(__get_lignes_e)
+
+    def __get_colonnes_e(self):
+        return self.__colonnes_e.copy()
+    colonnes_e=property(__get_colonnes_e)
+
     def get_connectTriangle(self):
         """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D
             ou construit les faces pour la 3D
@@ -169,7 +177,7 @@ class Mesh:
                         self.__connectPolygon.append([n2, n3, n4])        
         return self.__connectPolygon
 
-    def __init__(self, dim: int, coordo: np.ndarray, connect: list, verbosity=True):
+    def __init__(self, dim: int, coordo, connect, verbosity=True):
         """Création du maillage depuis coordo et connection
 
         Parameters
@@ -185,7 +193,7 @@ class Mesh:
         # Vérfication
         assert isinstance(coordo, np.ndarray) and isinstance(coordo[0], np.ndarray),"Doit fournir une liste de ndarray de ndarray !"
         
-        assert isinstance(connect, list) and isinstance(connect[0], list),"Doit fournir une liste de liste"
+        assert isinstance(connect, np.ndarray) and isinstance(connect[0], np.ndarray),"Doit fournir une liste de liste"
 
         tic = TicTac()
 
@@ -194,7 +202,7 @@ class Mesh:
         self.__verbosity = verbosity
 
         self.__coordo = np.array(coordo)
-        self.__connect = connect        
+        self.__connect = np.array(connect)
        
         self.__ConstruitMatricesPourCalculEf()        
 
@@ -206,39 +214,84 @@ class Mesh:
         if verbosity:
             print("\nNe = {}, Nn = {}, nbDdl = {}".format(self.Ne,self.Nn,self.Nn*self.__dim)) 
     
-    def __ConstruitMatricesPourCalculEf(self):
+    def __ConstruitMatricesPourCalculEf(self, verification = False):
+        """Construit les matrices nécessaire au calcul des matrices elementaire
+        
+        F_e_pg : Matrice jacobienne
+        
+        invF_e_pg : Inverse matrice jacobienne
+        
+        jacobien_e_pg : Jacobien
+        
+        N_rigi_pg : Matrice des fonctions de forme dans element de référence (ksi, eta)
+        exemple : [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0
+                        0 N1(ksi,eta) 0 N2(ksi,eta) 0Nn(ksi,eta)]        
+        
+        N_mass_pg : Matrice des fonctions de forme dans element de référence
+        dN_e_pg : Derivé des fonctions de forme dans la base réele
+        exemple : [dN1,x dN2,x dNn,x
+                        dN1,y dN2,y dNn,y]
+        
+        B_mass_pg : dN_e_pg
+
+        B_rigi_pg : [dN1,x 0 dN2,x 0 dNn,x 0
+                    0 dN1,y 0 dN2,y 0 dNn,y
+                    dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]
+        """
         
         tic = TicTac()
 
-        verification = False
-
+        # Data
         dim = self.__dim
         connect = self.__connect
         coordo = self.__coordo
         listElement = range(self.Ne)
         listNoeud = range(self.Nn)
 
-        # Construit la matrice assembly
-        self.assembly_e = [[int(n * dim + d)for n in connect[e] for d in range(dim)] for e in listElement]
-        
         element = Element(dim, len(connect[0]))
-
-        listElement = list(range(self.Ne))
         nPe = element.nPe;  listnPe = list(range(nPe))
         nPg = element.nPg;  listPg = list(range(nPg))
+        gauss = element.gauss
         nodes = coordo[:,range(dim)]
-        
-        self.gauss = element.gauss
+        taille = nPe*dim
 
-        self.poid_pg = self.gauss[:,-1]
+        ddlZ = np.array(self.connect) * dim + 2
+
+        # Construit la matrice d'assemblage
+        self.assembly_e = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
+        self.assembly_e[:, list(range(0, taille, dim))] = np.array(self.connect) * dim
+        self.assembly_e[:, list(range(1, taille, dim))] = np.array(self.connect) * dim + 1            
+        if dim == 3:            
+            self.assembly_e[:, list(range(2, taille, dim))] = np.array(self.connect) * dim + 1
+
+        # Construit les lignes et colonnes ou il y aura des valeurs dans la matrice d'assemblage
+        self.__lignes_e = np.array([[[i]*taille for i in self.assembly_e[e]] for e in listElement]).reshape(self.Ne,-1)
+        self.__colonnes_e = np.array([[[self.assembly_e[e]]*taille] for e in listElement]).reshape(self.Ne,-1)
+
+        # Poid
+        self.poid_pg = gauss[:,-1]
+        
+        # Matrice jacobienne
         self.F_e_pg = np.array([[element.dN_pg[pg].dot(nodes[connect[e], :]) for pg in listPg] for e in listElement])
+        
+        # Inverse Matrice jacobienne
         self.invF_e_pg = np.linalg.inv(self.F_e_pg)       
+
+        # jacobien
         self.jacobien_e_pg = np.linalg.det(self.F_e_pg)
+
+        # Fonctions de formes dans l'element isoparamétrique pour un scalaire ou un vecteur
         self.N_rigi_pg = element.N_rigi_pg
         self.N_mass_pg = element.N_mass_pg
+
+        # Derivé des fonctions de formes dans la base réele
         self.dN_e_pg = np.array([[self.invF_e_pg[e,pg,:,:].dot(element.dN_pg[pg]) for pg in listPg] for e in listElement])        
+
+        # Assemble les matrice Epsilons pour un scalaire
         self.B_mass_e_pg = self.dN_e_pg
 
+
+        # Assemble les matrice Epsilons pour un vecteur
         colonnes0 = list(range(0, nPe*dim, dim))
         colonnes1 = list(range(1, nPe*dim, dim))
 
@@ -268,6 +321,22 @@ class Mesh:
             self.B_rigi_e_pg[:,:,4,colonnes0] = dNdz; self.B_rigi_e_pg[:,:,5,colonnes2] = dNdx
 
         if verification:
+
+            # Verification assemblage
+            assembly_e_test = np.array([[int(n * dim + d)for n in connect[e] for d in range(dim)] for e in listElement])
+            testAssembly = self.assembly_e - assembly_e_test
+            assert testAssembly.mean() == 0, "Erreur dans la construction de la matrice d'assemblage"
+            
+            # Verification lignes_e 
+            lignes_e_test = np.array([[i for i in self.assembly_e[e] for j in self.assembly_e[e]] for e in listElement])
+            testLignes = lignes_e_test - self.__lignes_e
+            assert testLignes.mean() == 0, "Erreur dans la constuction de lignes_e"
+
+            # Verification lignes_e 
+            colonnes_e_test = np.array([[j for i in self.assembly_e[e] for j in self.assembly_e[e]] for e in listElement])
+            testColonnes = colonnes_e_test - self.colonnes_e
+            assert testColonnes.mean() == 0, "Erreur dans la constuction de lignes_e"
+
             list_B_rigi_e_pg = []
 
             for e in listElement:
@@ -276,7 +345,7 @@ class Mesh:
                     if dim == 2:
                         B_rigi_pg = np.zeros((3, nPe*dim))
                         colonne = 0
-                        dN = self.dN_e_pg[e][pg]
+                        dN = self.dN_e_pg[e,pg]
                         for n in range(nPe):
                             dNdx = dN[0, n]
                             dNdy = dN[1, n]
@@ -313,7 +382,74 @@ class Mesh:
                 assert test.max() == 0 and test.min() == 0, "Erreur dans la construiction de B"
             
         tic.Tac("Construit les matrices EF", self.__verbosity)
-      
+
+    def Get_Nodes(self, conditionX=True, conditionY=True, conditionZ=True):
+        """Renvoie la liste de noeuds qui respectent la les condtions
+
+        Args:
+            conditionX (bool, optional): Conditions suivant x. Defaults to True.
+            conditionY (bool, optional): Conditions suivant y. Defaults to True.
+            conditionZ (bool, optional): Conditions suivant z. Defaults to True.
+
+        Exemples de contitions:
+            x ou toto ça n'a pas d'importance
+            condition = lambda x: x < 40 and x > 20
+            condition = lambda x: x == 40
+            condition = lambda x: x >= 0
+
+        Returns:
+            list(int): lite des noeuds qui respectent les conditions
+        """
+
+        verifX = isinstance(conditionX, bool)
+        verifY = isinstance(conditionY, bool)
+        verifZ = isinstance(conditionZ, bool)
+
+        listNoeud = list(range(self.Nn))
+        if verifX and verifY and verifZ:
+            return listNoeud
+
+        coordoX = self.__coordo[:,0]
+        coordoY = self.__coordo[:,1]
+        coordoZ = self.__coordo[:,2]
+        
+        arrayVrai = np.array([True]*self.Nn)
+        
+        # Verification suivant X
+        if verifX:
+            valideConditionX = arrayVrai
+        else:
+            try:
+                valideConditionX = conditionX(coordoX)
+            except:
+                valideConditionX = [conditionX(coordoX[n]) for n in listNoeud]
+
+        # Verification suivant Y
+        if verifY:
+            valideConditionY = arrayVrai
+        else:
+            try:
+                valideConditionY = conditionY(coordoY)
+            except:
+                valideConditionY = [conditionY(coordoY[n]) for n in listNoeud]
+        
+        # Verification suivant Z
+        if verifZ:
+            valideConditionZ = arrayVrai
+        else:
+            try:
+                valideConditionZ = conditionZ(coordoZ)
+            except:
+                valideConditionZ = [conditionZ(coordoZ[n]) for n in listNoeud]
+        
+        conditionsTotal = valideConditionX * valideConditionY * valideConditionZ
+
+        noeuds = list(np.where(conditionsTotal)[0])
+        
+        return noeuds
+
+
+
 # TEST ==============================
 
 import unittest
