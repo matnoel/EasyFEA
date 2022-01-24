@@ -208,9 +208,7 @@ class Mesh:
 
         self.__connectPourTriangle = []
         self.__connectPolygon = []
-
         
-        tic.Tac("Creation de la simulation", self.__verbosity)
         if verbosity:
             print("\nNe = {}, Nn = {}, nbDdl = {}".format(self.Ne,self.Nn,self.Nn*self.__dim)) 
     
@@ -252,17 +250,15 @@ class Mesh:
         nPe = element.nPe;  listnPe = list(range(nPe))
         nPg = element.nPg;  listPg = list(range(nPg))
         gauss = element.gauss
-        nodes = coordo[:,range(dim)]
+        nodes_n = coordo[:,range(dim)]
         taille = nPe*dim
-
-        ddlZ = np.array(self.connect) * dim + 2
 
         # Construit la matrice d'assemblage
         self.assembly_e = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
         self.assembly_e[:, list(range(0, taille, dim))] = np.array(self.connect) * dim
         self.assembly_e[:, list(range(1, taille, dim))] = np.array(self.connect) * dim + 1            
         if dim == 3:            
-            self.assembly_e[:, list(range(2, taille, dim))] = np.array(self.connect) * dim + 1
+            self.assembly_e[:, list(range(2, taille, dim))] = np.array(self.connect) * dim + 2
 
         # Construit les lignes et colonnes ou il y aura des valeurs dans la matrice d'assemblage
         self.__lignes_e = np.array([[[i]*taille for i in self.assembly_e[e]] for e in listElement]).reshape(self.Ne,-1)
@@ -270,9 +266,20 @@ class Mesh:
 
         # Poid
         self.poid_pg = gauss[:,-1]
-        
+
+        nodes_e = np.array(nodes_n[connect])
+        nodes_e_pg = nodes_e.reshape(self.Ne, 1, nPe, 2)
+        if nPg > 1:
+            nodes_e_pg = np.repeat(nodes_e_pg, nPg, axis=1)            
+
+        # dN_pg = np.array([element.dN_pg])
+        # # dN_pg.reshape(1, dN_pg.shape[1], dN_pg.shape[2])
+        # dN_e_pg = np.repeat(dN_pg, self.Ne, axis=0)        
+        # tset = dN_pg[0,0,:,:].dot(nodes_e_pg[:,0,:,:])        
+        # F_e_pg = np.array([dN_e_pg[:,pg].dot(nodes_e_pg[:,pg]) for pg in listPg])
+
         # Matrice jacobienne
-        self.F_e_pg = np.array([[element.dN_pg[pg].dot(nodes[connect[e], :]) for pg in listPg] for e in listElement])
+        self.F_e_pg = np.array([[element.dN_pg[pg].dot(nodes_n[connect[e]]) for pg in listPg] for e in listElement])
         
         # Inverse Matrice jacobienne
         self.invF_e_pg = np.linalg.inv(self.F_e_pg)       

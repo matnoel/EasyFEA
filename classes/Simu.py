@@ -506,8 +506,13 @@ class Simu:
 
             uc = Uglob[ddl_Connues,0]
             
+            # ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc))
+            # ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc), use_umfpack=True)
+
             ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc))
+
             
+
             # Reconstruction de Uglob
             Uglob = Uglob.toarray().reshape(Uglob.shape[0])
             Uglob[ddl_Inconnues] = ui

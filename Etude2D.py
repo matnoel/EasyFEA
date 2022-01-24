@@ -33,7 +33,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/20
+taille = h/200
 
 # Materiau
 materiau = Materiau(dim)
@@ -50,6 +50,8 @@ noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
+
+
 
 simu = Simu(dim, mesh, materiau)
 
@@ -75,7 +77,7 @@ simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 # Assemblage du système matricielle
 simu.Assemblage_u(epaisseur=b)
 
-simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=True)
+simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=False)
 
 tic.Tac("Temps total", True)
 
@@ -90,10 +92,11 @@ print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"])))
 print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"]))) 
 
 print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"]))) 
-print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"]))) 
+print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
 
 if plotResult:
         
+        # Affichage.AfficheNoeudsMaillage(simu, showId=False)
         # Affichage.PlotMesh(mesh, simu.resultats, deformation=False)
         fig, ax = Affichage.PlotMesh(simu, deformation=True)
         # Affichage.AfficheNoeudsMaillage(simu, showId=True)
@@ -102,14 +105,12 @@ if plotResult:
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
         Affichage.PlotResult(simu, "Svm_e")
-        Affichage.PlotResult(simu, "Svm_n")
-        Affichage.PlotResult(simu, "Svm_n", affichageMaillage=True, deformation=True)
+        # Affichage.PlotResult(simu, "Svm_n")
+        # Affichage.PlotResult(simu, "Svm_n", affichageMaillage=True, deformation=True)
 
         # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
         # Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)
         
         plt.show()
-
-Affichage.NouvelleSection("Fin du programme")
 
 # %%
