@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.lib.twodim_base import triu_indices_from
 
 try:
     from Element import Element
@@ -37,13 +36,26 @@ class Mesh:
         return self.__connect.copy()
     connect = property(__get_connect)
 
-    def __get_lignes_e(self):
-        return self.__lignes_e.copy()
-    lignes_e=property(__get_lignes_e)
+    def __get_assembly(self):
+        return self.__assembly_e.copy()
+    assembly_e = property(__get_assembly)        
 
-    def __get_colonnes_e(self):
-        return self.__colonnes_e.copy()
-    colonnes_e=property(__get_colonnes_e)
+    def __get_lignesVector_e(self):
+        return self.__lignesVector_e.copy()
+    lignesVector_e=property(__get_lignesVector_e)
+
+    def __get_colonnesVector_e(self):
+        return self.__colonnesVector_e.copy()
+    colonnesVector_e=property(__get_colonnesVector_e)
+
+    def __get_lignesScalar_e(self):
+        return self.__lignesScalar_e.copy()
+    lignesScalar_e=property(__get_lignesScalar_e)
+
+    def __get_colonnesScalar_e(self):
+        return self.__colonnesScalar_e.copy()
+    colonnesScalar_e=property(__get_colonnesScalar_e)
+
 
     def get_connectTriangle(self):
         """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D
@@ -243,8 +255,7 @@ class Mesh:
         dim = self.__dim
         connect = self.__connect
         coordo = self.__coordo
-        listElement = range(self.Ne)
-        listNoeud = range(self.Nn)
+        listElement = range(self.Ne)        
 
         element = Element(dim, len(connect[0]))
         nPe = element.nPe;  listnPe = list(range(nPe))
@@ -254,32 +265,30 @@ class Mesh:
         taille = nPe*dim
 
         # Construit la matrice d'assemblage
-        self.assembly_e = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
-        self.assembly_e[:, list(range(0, taille, dim))] = np.array(self.connect) * dim
-        self.assembly_e[:, list(range(1, taille, dim))] = np.array(self.connect) * dim + 1            
+        self.__assembly_e = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
+        self.__assembly_e[:, list(range(0, taille, dim))] = np.array(self.connect) * dim
+        self.__assembly_e[:, list(range(1, taille, dim))] = np.array(self.connect) * dim + 1            
         if dim == 3:            
-            self.assembly_e[:, list(range(2, taille, dim))] = np.array(self.connect) * dim + 2
+            self.__assembly_e[:, list(range(2, taille, dim))] = np.array(self.connect) * dim + 2
 
         # Construit les lignes et colonnes ou il y aura des valeurs dans la matrice d'assemblage
-        self.__lignes_e = np.array([[[i]*taille for i in self.assembly_e[e]] for e in listElement]).reshape(self.Ne,-1)
-        self.__colonnes_e = np.array([[[self.assembly_e[e]]*taille] for e in listElement]).reshape(self.Ne,-1)
+        
+        # lignes_e = np.array([[i]*taille for i in self.__assembly_e]).reshape(self.Ne,-1)
+        self.__lignesVector_e = np.array([[[i]*taille for i in self.__assembly_e[e]] for e in listElement]).reshape(self.Ne,-1)
+        self.__lignesScalar_e = np.array([[[i]*nPe for i in self.__connect[e]] for e in listElement]).reshape(self.Ne,-1)
+
+        # colonnes_e = np.array([[i]*taille for i in self.__assembly_e]).reshape(self.Ne,-1)
+        # colonnes_e = np.array([[self.__assembly_e]*taille]).reshape(self.Ne,-1)
+        self.__colonnesVector_e = np.array([[[self.__assembly_e[e]]*taille] for e in listElement]).reshape(self.Ne,-1)
+        self.__colonnesScalar_e = np.array([[[self.__connect[e]]*nPe] for e in listElement]).reshape(self.Ne,-1)
 
         # Poid
         self.poid_pg = gauss[:,-1]
 
         nodes_e = np.array(nodes_n[connect])
-        nodes_e_pg = nodes_e.reshape(self.Ne, 1, nPe, 2)
-        if nPg > 1:
-            nodes_e_pg = np.repeat(nodes_e_pg, nPg, axis=1)            
-
-        # dN_pg = np.array([element.dN_pg])
-        # # dN_pg.reshape(1, dN_pg.shape[1], dN_pg.shape[2])
-        # dN_e_pg = np.repeat(dN_pg, self.Ne, axis=0)        
-        # tset = dN_pg[0,0,:,:].dot(nodes_e_pg[:,0,:,:])        
-        # F_e_pg = np.array([dN_e_pg[:,pg].dot(nodes_e_pg[:,pg]) for pg in listPg])
 
         # Matrice jacobienne
-        self.F_e_pg = np.array([[element.dN_pg[pg].dot(nodes_n[connect[e]]) for pg in listPg] for e in listElement])
+        self.F_e_pg = np.einsum('pik,ekj->epij', element.dN_pg, nodes_e, optimize=True)
         
         # Inverse Matrice jacobienne
         self.invF_e_pg = np.linalg.inv(self.F_e_pg)       
@@ -292,15 +301,15 @@ class Mesh:
         self.N_mass_pg = element.N_mass_pg
 
         # Derivé des fonctions de formes dans la base réele
-        self.dN_e_pg = np.array([[self.invF_e_pg[e,pg,:,:].dot(element.dN_pg[pg]) for pg in listPg] for e in listElement])        
+        self.dN_e_pg = np.einsum('epik,pkj->epij', self.invF_e_pg, element.dN_pg, optimize=True)
 
         # Assemble les matrice Epsilons pour un scalaire
         self.B_mass_e_pg = self.dN_e_pg
 
 
         # Assemble les matrice Epsilons pour un vecteur
-        colonnes0 = list(range(0, nPe*dim, dim))
-        colonnes1 = list(range(1, nPe*dim, dim))
+        colonnes0 = np.arange(0, nPe*dim, dim)
+        colonnes1 = np.arange(1, nPe*dim, dim)
 
         if self.__dim == 2:
             self.B_rigi_e_pg = np.array([[np.zeros((3, nPe*dim))]*element.nPg]*self.Ne)
@@ -318,7 +327,7 @@ class Mesh:
             dNdy = self.dN_e_pg[:,:,1,listnPe]
             dNdz = self.dN_e_pg[:,:,2,listnPe]
 
-            colonnes2 = list(range(2, nPe*dim, dim))
+            colonnes2 = np.arange(2, nPe*dim, dim)
 
             self.B_rigi_e_pg[:,:,0,colonnes0] = dNdx
             self.B_rigi_e_pg[:,:,1,colonnes1] = dNdy
@@ -331,17 +340,17 @@ class Mesh:
 
             # Verification assemblage
             assembly_e_test = np.array([[int(n * dim + d)for n in connect[e] for d in range(dim)] for e in listElement])
-            testAssembly = self.assembly_e - assembly_e_test
+            testAssembly = self.__assembly_e - assembly_e_test
             assert testAssembly.mean() == 0, "Erreur dans la construction de la matrice d'assemblage"
             
             # Verification lignes_e 
-            lignes_e_test = np.array([[i for i in self.assembly_e[e] for j in self.assembly_e[e]] for e in listElement])
-            testLignes = lignes_e_test - self.__lignes_e
+            lignes_e_test = np.array([[i for i in self.__assembly_e[e] for j in self.__assembly_e[e]] for e in listElement])
+            testLignes = lignes_e_test - self.__lignesVector_e
             assert testLignes.mean() == 0, "Erreur dans la constuction de lignes_e"
 
             # Verification lignes_e 
-            colonnes_e_test = np.array([[j for i in self.assembly_e[e] for j in self.assembly_e[e]] for e in listElement])
-            testColonnes = colonnes_e_test - self.colonnes_e
+            colonnes_e_test = np.array([[j for i in self.__assembly_e[e] for j in self.__assembly_e[e]] for e in listElement])
+            testColonnes = colonnes_e_test - self.colonnesVector_e
             assert testColonnes.mean() == 0, "Erreur dans la constuction de lignes_e"
 
             list_B_rigi_e_pg = []

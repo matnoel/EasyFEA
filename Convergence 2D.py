@@ -46,7 +46,7 @@ listDdl_e_nb = []
 
 # Listes pour les boucles
 listElem = list(range(len(Element.get_Types2D())))
-listNbElement = list(range(1,30,1))
+listNbElement = list(range(1,30,5))
 # listNbElement = list(range(1,10))
 
 tic = TicTac()

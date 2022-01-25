@@ -1,6 +1,5 @@
 import gmsh
 import sys
-from matplotlib.pyplot import axis
 import numpy as np
 
 try:
@@ -120,6 +119,40 @@ class ModelGmsh:
                 l2 = gmsh.model.geo.addLine(p2, p3)
                 l3 = gmsh.model.geo.addLine(p3, p4)
                 l4 = gmsh.model.geo.addLine(p4, p1)
+
+                # Créer une boucle fermée reliant les lignes     
+                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
+
+                # Créer une surface
+                surface = gmsh.model.geo.addPlaneSurface([boucle])
+                
+                tic.Tac("Construction Rectangle", self.__verbosity)
+                
+                self.__ConstructionMaillageGmsh(surface)
+                
+                return self.__ConstructionCoordoConnect()
+
+        def ConstructionRectangleAvecFissure(self, largeur, hauteur):
+                
+                tic = TicTac()
+
+                # Créer les points
+                p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
+                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, self.__tailleElement)
+                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, self.__tailleElement)
+                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, self.__tailleElement)
+
+                p5 = gmsh.model.geo.addPoint(0, hauteur/2, 0, self.__tailleElement)
+                p6 = gmsh.model.geo.addPoint(largeur/2, hauteur/2, 0, self.__tailleElement)        
+                
+
+                # Créer les lignes reliants les points
+                l1 = gmsh.model.geo.addLine(p1, p2)
+                l2 = gmsh.model.geo.addLine(p2, p3)
+                l3 = gmsh.model.geo.addLine(p3, p4)
+                l4 = gmsh.model.geo.addLine(p4, p1)
+                
+                l5 = gmsh.model.geo.addLine(p5, p6)
 
                 # Créer une boucle fermée reliant les lignes     
                 boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])

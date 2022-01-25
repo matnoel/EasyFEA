@@ -1,6 +1,6 @@
 import os
 from typing import cast
-from matplotlib.pyplot import axis
+from matplotlib.pyplot import axis, connect
 
 import numpy as np
 from numpy import float64, ndarray
@@ -39,6 +39,8 @@ class Simu:
         """
         return self.__mesh
 
+# ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
+
     def __init__(self, dim: int,mesh: Mesh, materiau: Materiau, verbosity=True):
         """Creation d'une simulation
 
@@ -60,15 +62,20 @@ class Simu:
         self.__mesh = mesh        
         self.__materiau = materiau        
         self.resultats = {}
-        self.list_H = []
+        self.H_e_pg = []
 
-        # Conditions Limites
+        # Conditions Limites en déplacement
         self.__BC_Neuman_u = [[],[]]
         self.__BC_Dirichlet_u = [[],[]]
+
+        # Conditions Limites en endommagement
+        self.__BC_Neuman_u = [[],[]]
         self.__BC_Neuman_d = [[],[]]
         self.__BC_Dirichlet_d = [[],[]]
     
-    def __Construit_Ke(self, epaisseur, d, verification=False):
+# ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
+
+    def __ConstruitMatElem_Dep(self, epaisseur, d, verification=False):
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
 
         Args:
@@ -80,7 +87,7 @@ class Simu:
             array de dim e: les matrices elementaires pour chaque element
         """
 
-        ticKe = TicTac()
+        tic = TicTac()
 
         # Data
         mesh = cast(Mesh, self.__mesh)
@@ -88,70 +95,49 @@ class Simu:
         listPg = list(range(nPg))
         listElement = self.listElement
         
-        # Calcul Ke
-        jacobien = mesh.jacobien_e_pg
-        poid = mesh.poid_pg
-        B_rigi = mesh.B_rigi_e_pg
+        # Recupère les matrices pour travailler
+        jacobien_e_pg = mesh.jacobien_e_pg
+        poid_pg = mesh.poid_pg
+        B_rigi_e_pg = mesh.B_rigi_e_pg
         mat = self.__materiau.C
         # Ici on le materiau est homogène
-        # Il est possible de stpcker ça pour ne plus avoir à recalculer
-        Ke_e_pg = [[jacobien[e,pg]*poid[pg]*B_rigi[e,pg].T.dot(mat).dot(B_rigi[e,pg]) for pg in listPg] for e in listElement]
+        # Il est possible de stpcker ça pour ne plus avoir à recalculer        
 
-        if len(d) !=0 :   # probleme endomagement            
-            print("Non implémenté")
-            # # Bourdin
-            # g = (1-mesh.N_mass_pg[pg].dot(np.array([d[mesh.connect[e]]])))**2
+        if len(d) !=0 :   # probleme endomagement
+            
+            N_mass_pg = np.array(mesh.N_mass_pg).reshape(nPg,1,-1)
 
-            # Ke_e_pg = Ke_e_pg[e][pg]*g
+            d_e_n = d[mesh.connect] 
+
+            d_e_pg = np.einsum('pij,ej->ep', N_mass_pg, d_e_n)
+
+            g_e_pg = (1-d_e_pg)**2
+
+            # Bourdin
+            mat_e_pg = np.einsum('ep,ij->epij', g_e_pg, mat)
+
+            Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, mat_e_pg, B_rigi_e_pg, optimize=True)
+            
+        else:
+
+            Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, mat, B_rigi_e_pg, optimize=True)
+
+            if verification :
+                Ke_e_pg_v = np.array([[jacobien_e_pg[e,pg]*poid_pg[pg]*B_rigi_e_pg[e,pg].T.dot(mat).dot(B_rigi_e_pg[e,pg]) for pg in listPg] for e in listElement])
+                verif = Ke_e_pg_v - Ku_e_pg
+                assert np.round(verif.mean(),6) == 0, "Erreur"
         
-        Ke_e = np.sum(Ke_e_pg, axis=1)
+        Ku_e = np.sum(Ku_e_pg, axis=1)
         
         if self.__dim == 2:
-            Ke_e = epaisseur * Ke_e
+            Ku_e = epaisseur * Ku_e
 
-        ticKe.Tac("Calcul des matrices elementaires", self.__verbosity)
+        tic.Tac("Calcul des matrices elementaires (déplacement)", self.__verbosity)
 
-        if verification:
-            # Ici on verifie quon obtient le meme resultat quavant 
-            # verification vectorisation
-            listKe_e = []
-            for e in listElement:            
-                # Pour chaque poing de gauss on construit Ke
-                Ke = 0
-                for pg in listPg:
-                    jacobien = mesh.jacobien_e_pg[e][pg]
-                    poid = mesh.poid_pg[pg]
-                    B_pg = mesh.B_rigi_e_pg[e][pg]
+        if verification : self.__VerificationConstructionKe(Ku_e, epaisseur, d)
 
-                    K = jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
-
-                    if len(d)==0:   # probleme standart
-                        
-                        Ke += K
-                    else:   # probleme endomagement
-                        
-                        de = np.array([d[mesh.connect[e]]])
-                        
-                        # Bourdin
-                        g = (1-mesh.N_mass_pg[pg].dot(de))**2
-                        # g = (1-de)**2
-                        
-                        Ke += g * K
-                # # print(Ke-listeKe[e.id])
-                if self.__dim == 2:
-                    listKe_e.append(epaisseur * Ke)
-                else:
-                    listKe_e.append(Ke)                
-
-            ticKe.Tac("Calcul des matrices elementaires (boucle)", True)
-            
-            # Verification
-            Ke_comparaison = np.array(listKe_e)
-            test = Ke_e - Ke_comparaison           
-            assert test.max() == 0 and test.min() == 0, "Problème"
-        
-        return Ke_e
-
+        return Ku_e    
+ 
     def Assemblage_u(self, epaisseur=1, d=[], verification=False):
         """Construit K global pour le problème en deplacement
 
@@ -164,137 +150,123 @@ class Simu:
         if self.__dim == 2:        
             assert epaisseur>0,"Doit être supérieur à 0"
 
-        
-
         # Data
-        mesh = self.__mesh
-        listElement = self.listElement
+        mesh = self.__mesh        
         taille = mesh.Nn*self.__dim
 
         # Construit Ke
-        Ke_e = self.__Construit_Ke(epaisseur, d)
-        self.__Ke_e = Ke_e # Sauvegarde Ke pour calculer Energie plus rapidement
+        Ku_e = self.__ConstruitMatElem_Dep(epaisseur, d)
+        self.__Ku_e = Ku_e # Sauvegarde Ke pour calculer Energie plus rapidement
         
-        # Assemblage
-        lignes_e = mesh.lignes_e
-        colonnes_e = mesh.colonnes_e
+        # Prépare assemblage
+        lignesVector_e = mesh.lignesVector_e
+        colonnesVector_e = mesh.colonnesVector_e
         
         tic = TicTac()
-        # V0 Plus rapide Construit Kglob
-        self.__Ku = sp.sparse.csr_matrix((Ke_e.reshape(-1), (lignes_e.reshape(-1), colonnes_e.reshape(-1))), shape = (taille, taille)).tolil()
 
-        if verification: self.__VerificationAssembleMatriceLaPlusRapide(lignes_e, colonnes_e, Ke_e)
-        
+        # Assemblage
+        self.__Ku = sp.sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape = (taille, taille)).tolil()
+
         tic.Tac("Assemblage du systême en déplacement", self.__verbosity)
+        
+        if verification: self.__VerificationAssembleMatriceLaPlusRapide(lignesVector_e, colonnesVector_e, Ku_e)
 
-    def __VerificationAssembleMatriceLaPlusRapide(self,lignes_e, colonnes_e, Ke_e):
-        """Procédure que j'ai utiliser pour trouver la méthode d'assemblage la plus rapide
+    def Solve_u(self, resolution=2, calculContraintesEtDeformation=False, interpolation=False):
+        """Resolution du système matricielle A * x = b -> K * u = f
+         
 
         Args:
-            lignes_e (list(int)): liste des lignes par element
-            colonnes_e (list(int)): liste des lignes par element
-            valeurs_e (list(Ke_e)): [description]
+            resolution (int, optional): Mode de résolution. Defaults to 2.
+            calculContraintesEtDeformation (bool, optional): Calcul les Contraintes et les deformations. Defaults to False.
+            interpolation (bool, optional): Interpolation aux noeuds. Defaults to False.
+       
         """
 
+        tic = TicTac()
+
+        Uglob = self.__Solveur(vector=True, resolution=resolution)
+
+        tic.Tac("Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)        
         
-        lignes = np.ravel(lignes_e)
-        colonnes = np.ravel(colonnes_e)
-        Ke = Ke_e.reshape(-1)
+        self.__Save_u(Uglob, calculContraintesEtDeformation, interpolation)
+
+        return Uglob
+
+    
+# ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
+
+    def ConstruitH(self, u: np.ndarray):
+            # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
+
+            # Data
+            listElement = self.listElement
+            listPg = list(range(len(self.__mesh.poid_pg)))
+
+            # Récupère les matrices
+            B_rigi_e_pg = self.__mesh.B_rigi_e_pg
+
+            # Localise les deplacement par element
+            u_e = u[self.__mesh.assembly_e]
+
+            # Construit epsilon pour chaque element et chaque points de gauss
+            epsilon_e_pg = np.array([[B_rigi_e_pg[e, pg].dot(u_e[e]) for pg in listPg] for e in listElement])
+
+            
+            # Calcul l'energie
+
+            h = np.array([[1/2 * epsilon_e_pg[e,pg].T.dot(self.__materiau.C).dot(epsilon_e_pg[e,pg]) for pg in listPg] for e in listElement])
+
+            # trace_e_pg = np.array([[epsilon_e_pg[e,pg,0] + epsilon_e_pg[e,pg,1]for pg in listPg]for e in listElement])
+            # lamb = self.__materiau.lamb
+            # mu = self.__materiau.mu
+            # h2 = np.array([[1/2*lamb*trace_e_pg[e,pg]**2+mu*epsilon_e_pg[e,pg].T.dot(epsilon_e_pg[e,pg]) for pg in listPg]for e in listElement])
+
+            list_new_H = h
+            
+            new = np.linalg.norm(list_new_H)
+            old = np.linalg.norm(self.H_e_pg)
+            assert new >= old, "Erreur"
+            self.H_e_pg = list_new_H
+    
+    def __ConstruitMatElem_Pfm(self, Gc, l):
         
-        indincesOrdo = np.lexsort((colonnes, lignes))
+        tic = TicTac()
 
-        coord = np.array([lignes,colonnes]).T
-        coord = coord[indincesOrdo]
+        # Data
+        K = Gc*l
+        H_e_pg = self.H_e_pg
+        r_e_pg = 2*H_e_pg + Gc/l
 
-        lignesRaveldSorted = lignes[indincesOrdo]
-        colonnesRaveldSorted = colonnes[indincesOrdo]        
-        KeRaveldSorted = Ke[indincesOrdo]
-
-        ticVersion = TicTac()
-        taille = self.__mesh.Nn*self.__dim
-        Ku = sp.sparse.lil_matrix((taille, taille))
-        version = 0
-
-        if version == 0:
-            # V0 Plus rapide            
-            Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted, (lignesRaveldSorted, colonnesRaveldSorted)), shape = (taille, taille)))
-        elif version == 1:
-            # V1            
-            for i in range(len(indincesOrdo)-1):
-                if i+1 != coord.shape[0] and (coord[i][0] == coord[i+1][0] and coord[i][1] == coord[i+1][1]):                
-                    KeRaveldSorted[i+1] += KeRaveldSorted[i]
-                    KeRaveldSorted[i]=0                
-            Ku[lignesRaveldSorted, colonnesRaveldSorted] += KeRaveldSorted
-        elif version == 2:
-            # # V2
-            # Il faut d'abord réussir à construire la liste suivante sans boucle !
-            listIndices = np.array([i for i in range(len(indincesOrdo)-1) if i+1 != coord.shape[0] and (coord[i,0] == coord[i+1,0] and coord[i,1] == coord[i+1,1])])
-            # Construit la liste sans la boucle
-            unique, unique_indices, unique_inverse, unique_counts  = np.unique(coord,axis=0,return_index=True, return_inverse=True, return_counts=True)
-            list_i = np.array(range(len(unique_inverse)-1))        
-            listIndicesRapide = np.where(unique_inverse[list_i] == unique_inverse[list_i+1])[0]
-            # Verification que la liste est bien construite
-            assert np.sum(listIndices - listIndicesRapide)==0,"Erreur dans la construction de la liste" 
-            # Somme des valeurs pour les coordonnées identiques
-            for i in listIndicesRapide:
-                KeRaveldSorted[i+1] += KeRaveldSorted[i]
-                KeRaveldSorted[i] = 0
-            # KeRaveldSorted[listIndicesRapide+1] = KeRaveldSorted[listIndicesRapide+1] + KeRaveldSorted[listIndicesRapide]
-            # KeRaveldSorted[listIndicesRapide] = 0
-            # Assemblage
-            Ku[lignesRaveldSorted, colonnesRaveldSorted] += KeRaveldSorted
-        elif version == 3:
-            # V3
-            unique, unique_indices, unique_inverse, unique_counts  = np.unique(coord,axis=0,return_index=True, return_inverse=True, return_counts=True)
-            list_i = np.array(range(len(unique_inverse)-1))        
-            listIndicesRapide = np.flipud(np.where(unique_inverse[list_i] == unique_inverse[list_i+1])[0])
-            # V3.1
-            for i in listIndicesRapide:
-                KeRaveldSorted[i] += KeRaveldSorted[i+1]
-                KeRaveldSorted[i+1] = 0
-            # # V3.2
-            # KeRaveldSorted[listIndicesRapide] += KeRaveldSorted[listIndicesRapide+1]
-            # KeRaveldSorted[listIndicesRapide+1] = 0
-            taille = self.__mesh.Nn*self.__dim
-            Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted[unique_indices], (unique[:,0],unique[:,1])), shape = (taille, taille)))
-       
-        ticVersion.Tac("Assemblage version {}".format(version), True)
-
-        # Verification de l'assemblage
-        ticVerification = TicTac()
-        taille = self.__mesh.Nn*self.__dim
+        # Recupère les matrices pour travailler
         mesh = self.__mesh
-        listElement = self.listElement
-        indices = range(0, Ke_e[0].shape[0])
+        jacobien_e_pg = mesh.jacobien_e_pg
+        poid_pg = mesh.poid_pg
+        npG = len(poid_pg)
+        Nd_pg = np.array(self.__mesh.N_mass_pg).reshape(npG, 1, -1)
+        Bd_e_pg = self.__mesh.B_mass_e_pg
 
-        Ku_comparaison = sp.sparse.lil_matrix((taille, taille))
 
-        liste_ligne = []
-        liste_colonne = []
-        liste_Ke = []
+        # Construit Kd_e
+
+        # Partie qui fait intervenir r_e_pg
+        Kdr_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True) 
+        # Partie qui fait intervenir K
+        KdK_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, K, Bd_e_pg, Bd_e_pg, optimize=True)
+
+        Kd_e_pg = Kdr_e_pg+KdK_e_pg
         
-        for e in listElement:
-            for i in indices:
-                ligne = mesh.assembly_e[e][i]
-                for j in indices:
-                    colonne = mesh.assembly_e[e][j]
-                    Ku_comparaison[ligne, colonne] =  Ku_comparaison[ligne, colonne] + Ke_e[e][i,j]
-                    
-                    liste_ligne.append(ligne)
-                    liste_colonne.append(colonne)
-                    liste_Ke.append(Ke_e[e][i,j])
-        
-        # Tests
-        test1 = np.array(liste_ligne) - lignes
-        assert test1.max() == 0 and test1.min() == 0, "Erreur dans la liste d'assemblage"
-        test2 = np.array(liste_colonne) - colonnes
-        assert test2.max() == 0 and test2.min() == 0, "Erreur dans la liste d'assemblage"
-        test3 = np.array(liste_Ke) - Ke
-        assert test3.max() == 0 and test3.min() == 0, "Erreur dans Ke_e Ravel"
-        test4 = np.round(Ku_comparaison - self.__Ku)
-        assert test4.max() == 0 and test4.min() == 0, "Erreur dans l'assemblage"
+        Kd_e = np.sum(Kd_e_pg, axis=1)
 
-        ticVerification.Tac("Assemblage lent avec verification", True)
+        # Construit Fd_e
+        Energie_e_pg = 2*H_e_pg
+
+        Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, Energie_e_pg, Nd_pg) 
+
+        Fd_e = np.sum(Fd_e_pg, axis=1)
+
+        tic.Tac("Calcul des matrices elementaires (endommagement)", self.__verbosity)
+
+        return Kd_e, Fd_e
 
     def Assemblage_d(self, Gc=1, l=0.001):
         """Construit Kglobal
@@ -302,55 +274,203 @@ class Simu:
         mettre en option u ou d ?
 
         """
+       
+        # Data
+        mesh = self.__mesh
+        taille = mesh.Nn
+        lignesScalar_e = mesh.lignesScalar_e
+        colonnesScalar_e = mesh.colonnesScalar_e
+        
+        # Calul les matrices elementaires
+        Kd_e, Fd_e = self.__ConstruitMatElem_Pfm(Gc, l)
 
-        ticAssemblage = TicTac()
+        # Assemblage
+        tic = TicTac()        
+
+        self.__Kd = sp.sparse.csr_matrix((Kd_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille)).tolil()
+        
+        lignes = mesh.connect.reshape(-1)
+        self.__Fd = sp.sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1)).tolil()
+
+        tic.Tac("Assemblage du systême en endormmagement", self.__verbosity)       
+
+        return self.__Kd, self.__Fd
+    
+    def Solve_d(self, resolution=2):
+         
+        tic = TicTac()
+
+        dGlob = self.__Solveur(vector=False, resolution=resolution)
+
+        tic.Tac("Résolution d", self.__verbosity)        
+        
+        # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
+        # assert dGlob.min() >= 0, "Doit etre supérieur 0"
+
+        if(dGlob.max() > 1):
+            print("dmax = {}".format(dGlob.max()))
+
+        if(dGlob.min() < 0):
+            print("dmin = {}".format(dGlob.min()))
+
+        return dGlob   
+
+# ------------------------------------------------- SOLVEUR -------------------------------------------------
+
+    def __Construit_ddl_connues_inconnues(self, vector: bool):
+        """Récupère les ddl Connues et Inconnues
+
+        Args:
+            vector (bool, optional): Travail sur un vecteur ou un scalaire. Defaults to True.
+
+        Returns:
+            list(int), list(int): ddl_Connues, ddl_Inconnues
+        """
+
+        taille = self.__mesh.Nn
+
+        if vector :
+            taille = taille*self.__dim
+            ddl_Connues = self.__BC_Dirichlet_u[0]
+        else:                
+            ddl_Connues = self.__BC_Dirichlet_d[0]
+
+        ddl_ConnuesNouveau = []
+        for ddl in ddl_Connues:
+            if ddl not in ddl_ConnuesNouveau:
+                ddl_ConnuesNouveau.append(ddl)
+        
+        ddl_Connues = ddl_ConnuesNouveau
+
+        ddl_Inconnues = list(range(taille))
+        for ddl in ddl_Connues: ddl_Inconnues.remove(ddl)
+
+        assert len(ddl_Connues) + len(ddl_Inconnues) == taille, "Problème dans les conditions"
+
+        return ddl_Connues, ddl_Inconnues
+
+    def __Application_Conditions_Neuman(self, vector: bool):
+
+        taille = self.__mesh.Nn
+
+        if vector :
+            taille = taille*self.__dim
+            BC_Neuman = np.array(self.__BC_Neuman_u).T
+        else:                
+            BC_Neuman = np.array(self.__BC_Neuman_d).T
+
+        # Renseigne les conditions de Neuman
+        lignes = BC_Neuman[:,0]
+        valeurs = BC_Neuman[:,1]
+        b = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1)).tolil()
+
+        return b
+
+    def __Application_Conditions_Dirichlet(self, vector: bool, b, resolution):
         
         taille = self.__mesh.Nn
 
-        self.__Kd = np.zeros((taille, taille))
-        self.__Fd = np.zeros(taille)
-        
-        self.__d_Inconnues = [i for i in range(self.__mesh.Nn)]
-        self.__d_Connues = []
-        self.__dc = np.zeros(taille)
-        
-        for e in self.__mesh.elements:            
-            e = cast(Element, e)
+        if vector :
+            taille = taille*self.__dim
+            BC_Dirichlet = np.array(self.__BC_Dirichlet_u).T
+            A = self.__Ku.copy()
+        else:                
+            BC_Dirichlet = np.array(self.__BC_Dirichlet_d).T
+            A = self.__Kd.copy()
+
+        # Renseigne les conditions de Dirichlet
+
+        lignes = BC_Dirichlet[:,0].astype('int')
+        valeurs = BC_Dirichlet[:,1]
+
+        if resolution == 1:
+
+            b[lignes] = valeurs
+            A[lignes] = 0.0
+            A[lignes, lignes] = 1
+
+            return A, b
+
+        else:
             
-            Ke = 0
-            fe = 0
-            # Pour chaque point de gauss construit Ke et fe
-            for pg in range(len(e.listJacobien_pg)):
-                
-                jacobien = e.listJacobien_pg[pg]
-                poid = e.listPoid_pg[pg]
-                h = self.list_H[e.id][pg]
-                Nd = e.listN_d_pg[pg]
-                Bd = e.listB_d_pg[pg]
-                
-                nTn = Nd.T.dot(Nd)
-                bTb = Bd.T.dot(Bd)
+            x = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1), dtype=float64)
 
-                Ke += jacobien * poid * ((Gc/l+2*h) * nTn + Gc * l * bTb)
+            return A, x
 
-                fe += jacobien * poid * 2 * Nd.T * h
-                
-            list_IdNoeuds = [n.id for n in e.noeuds]
+    def __Solveur(self, vector: bool, resolution=2):
+        """Resolution du système matricielle A * x = b
 
-            # Assemblage Kd_glob et Fd_glob
-            lignes = []
-            colonnes = []
-            for i in list_IdNoeuds:
-                lignes.extend(list_IdNoeuds)
-                for j in range(e.nPe):
-                    colonnes.append(i)
+        Args:
+            vector (bool): Système vectorielle ou sclaire
+            resolution (int, optional): Type de résolution. Defaults to 2.
+        resolution=[1,2,3] -> [Pénalisation, Décomposition, FreeMatrix]
 
-            self.__Kd[lignes, colonnes] += np.ravel(Ke)
-            self.__Fd[list_IdNoeuds] += np.ravel(fe)            
+        Returns:
+            nd.array: Renvoie la solution (x)
+        """
+
+        # Résolution du plus rapide au plus lent 2, 3, 1
+        if resolution == 1:
+            # Résolution par la méthode des pénalisations
+
+            # Construit le système matricielle pénalisé
+            b = self.__Application_Conditions_Neuman(vector)
+            A, b = self.__Application_Conditions_Dirichlet(vector, b, resolution)
+
+            # Résolution du système matricielle pénalisé
+            x = sp.sparse.linalg.spsolve(A.tocsr(), b)
+
+        elif resolution == 2:
             
-        ticAssemblage.Tac("Assemblage d", self.__verbosity)
+            # Construit le système matricielle
+            b = self.__Application_Conditions_Neuman(vector)
+            A, x = self.__Application_Conditions_Dirichlet(vector, b, resolution)
 
-        return self.__Kd, self.__Fd
+            # Récupère les ddls
+            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(vector)
+
+            # Décomposition du système matricielle en connues et inconnues 
+            # Résout : Aii * ui = bi - Aic * xc
+            Aii = A.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
+            Aic = A.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Connues].tocsr()
+            bi = b.tocsr()[ddl_Inconnues,0]
+            xc = x[ddl_Connues,0]
+            
+            # # Option pour lancer sur C ?
+            # ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc))
+            # ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc), use_umfpack=True)
+
+            # Résolution du sytème sur les ddl inconnues
+            xi = sp.sparse.linalg.spsolve(Aii, bi-Aic.dot(xc))
+
+            # Reconstruction de la solution
+            x = x.toarray().reshape(x.shape[0])
+            x[ddl_Inconnues] = xi
+
+        elif resolution == 3:
+
+            # Récupère les constantes
+            b = self.__Application_Conditions_Neuman(vector)
+            A, x = self.__Application_Conditions_Dirichlet(resolution, b)
+
+            # Récupère les ddls
+            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(vector)
+
+            # Construit le système matricielle libéré
+            Aii = A.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
+            bi = b.tocsr()[ddl_Inconnues]
+
+            # Résolution du sytème
+            xi = sp.sparse.linalg.spsolve(Aii, bi)
+
+            # Reconstruction de la solution
+            x = x.toarray().reshape(x.shape[0])
+            x[ddl_Inconnues] = xi
+
+        return x
+
+
+# ------------------------------------------- CONDITIONS LIMITES ------------------------------------------- 
 
     def Condition_Neumann(self, noeuds: list, directions: list, valeur=0.0, option="u"):
         """Applique les conditions en force
@@ -436,107 +556,9 @@ class Simu:
 
         tic.Tac("Condition Dirichlet", self.__verbosity)
 
-    def Solve_u(self, resolution=2, calculContraintesEtDeformation=False, interpolation=False):
-        
-        taille = self.__mesh.Nn*self.__dim
-
-        def Construit_ddl_connues_inconnues():
-            
-            ddl_Connues = self.__BC_Dirichlet_u[0]
-            
-            ddl_ConnuesNouveau = []
-            for ddl in ddl_Connues:
-                if ddl not in ddl_ConnuesNouveau:
-                    ddl_ConnuesNouveau.append(ddl)
-            
-            ddl_Connues = ddl_ConnuesNouveau
-
-            ddl_Inconnues = list(range(taille))
-            for ddl in ddl_Connues: ddl_Inconnues.remove(ddl)
-
-            assert len(ddl_Connues) + len(ddl_Inconnues) == taille, "Problème dans les conditions"
-
-            return ddl_Connues, ddl_Inconnues
-
-        def Application_Conditions_Neuman():
-            # Renseigne les conditions de Neuman (en force)
-            BC_Neuman = np.array(self.__BC_Neuman_u).T
-
-            lignes = BC_Neuman[:,0]
-            valeurs = BC_Neuman[:,1]
-            Fu = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1)).tolil()
-
-            return Fu
-
-        def Application_Conditions_Dirichlet(Fu):
-            # Renseigne les conditions de Dirichlet
-            BC_Dirichlet = np.array(self.__BC_Dirichlet_u).T
-
-            if resolution == 1:                
-                Fu[BC_Dirichlet[:,0]] = BC_Dirichlet[:,1]
-                self.__Ku[BC_Dirichlet[:,0]] = 0.0
-                self.__Ku[BC_Dirichlet[:,0], BC_Dirichlet[:,0]] = 1
-            else:
-
-                lignes = BC_Dirichlet[:,0]
-                valeurs = BC_Dirichlet[:,1]
-                Uglob = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1), dtype=float64)
-
-                return Uglob
-
-        tic = TicTac()
-
-        # Résolution du plus rapide au plus lent 2, 3, 1
-        if resolution == 1:
-            
-            Fu = Application_Conditions_Neuman()
-            Application_Conditions_Dirichlet(Fu)
-
-            Uglob = sp.sparse.linalg.spsolve(self.__Ku.tocsr(), Fu)
-
-        elif resolution == 2:
-            
-            ddl_Connues, ddl_Inconnues = Construit_ddl_connues_inconnues()
-            Fu = Application_Conditions_Neuman()
-            Uglob = Application_Conditions_Dirichlet(Fu)
-
-            Kii = self.__Ku.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
-            Kic = self.__Ku.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Connues].tocsr()
-            Fi = Fu.tocsr()[ddl_Inconnues,0]
-
-            uc = Uglob[ddl_Connues,0]
-            
-            # ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc))
-            # ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc), use_umfpack=True)
-
-            ui = sp.sparse.linalg.spsolve(Kii, Fi-Kic.dot(uc))
-
-            
-
-            # Reconstruction de Uglob
-            Uglob = Uglob.toarray().reshape(Uglob.shape[0])
-            Uglob[ddl_Inconnues] = ui
-
-        elif resolution == 3:
-
-            ddl_Connues, ddl_Inconnues = Construit_ddl_connues_inconnues()
-            Fu = Application_Conditions_Neuman()
-            Uglob = Application_Conditions_Dirichlet(Fu)
-
-            KuFree = self.__Ku.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
-            FuFree = Fu.tocsr()[ddl_Inconnues]
-
-            ui = sp.sparse.linalg.spsolve(KuFree, FuFree)
-
-            # Reconstruction de Uglob
-            Uglob = Uglob.toarray().reshape(Uglob.shape[0])
-            Uglob[ddl_Inconnues] = ui
-
-        tic.Tac("Résolution {}".format(resolution) , self.__verbosity)        
-        
-        self.__Save_u(Uglob, calculContraintesEtDeformation, interpolation)
-                  
-
+    
+# ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
+    
     def __Save_u(self, Uglob, calculContraintesEtDeformation, interpolation=False, verification=False):
         
         tic = TicTac()
@@ -545,8 +567,8 @@ class Simu:
         listElement = self.listElement
         
         # Energie de deformation
-        u_e = np.array([Uglob[mesh.assembly_e[e]] for e in listElement])
-        Ke_e = self.__Ke_e
+        u_e = Uglob[mesh.assembly_e]
+        Ke_e = self.__Ku_e
         Wdef = 1/2*np.sum([u_e[e].T.dot(Ke_e[e]).dot(u_e[e]) for e in listElement])
         tic.Tac("Calcul de l'energie de deformation", verification)
         self.resultats["Wdef"] = Wdef
@@ -584,7 +606,6 @@ class Simu:
 
         tic.Tac("Sauvegarde", self.__verbosity)
             
-
     def __CalculDeformationEtContrainte(self, u_e: ndarray, interpolation=False):
         """Calcul les deformations et contraints sur chaque element
         Si interpolation == True on fait l'interpolation aux noeuds
@@ -721,109 +742,177 @@ class Simu:
 
         tic.Tac("Calcul deformations et contraintse aux noeuds", self.__verbosity)
 
-    def ConstruitH(self, u: np.ndarray):
-            # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
+# ------------------------------------------- Vérifications -------------------------------------------
 
-            list_new_H = []
-            for e in self.__mesh.elements:
-                e = cast(Element, e)
+    def __VerificationAssembleMatriceLaPlusRapide(self,lignes_e, colonnes_e, Ke_e):
+        """Procédure que j'ai utiliser pour trouver la méthode d'assemblage la plus rapide
 
-                # Construit ui
-                ui = []
-                for n in e.noeuds:
-                    # n = cast(Noeud, n)
-                    for j in range(self.__dim):
-                        valeur = u[n.id*self.__dim+j]
-                        ui.append(valeur)            
-                ui = np.array(ui)
+        Args:
+            lignes_e (list(int)): liste des lignes par element
+            colonnes_e (list(int)): liste des lignes par element
+            valeurs_e (list(Ke_e)): [description]
+        """
 
-                h_pg = []
-                
-                for pg in range(len(e.listB_u_pg)):
+        
+        lignes = np.ravel(lignes_e)
+        colonnes = np.ravel(colonnes_e)
+        Ke = Ke_e.reshape(-1)
+        
+        indincesOrdo = np.lexsort((colonnes, lignes))
+
+        coord = np.array([lignes,colonnes]).T
+        coord = coord[indincesOrdo]
+
+        lignesRaveldSorted = lignes[indincesOrdo]
+        colonnesRaveldSorted = colonnes[indincesOrdo]        
+        KeRaveldSorted = Ke[indincesOrdo]
+
+        ticVersion = TicTac()
+        taille = self.__mesh.Nn*self.__dim
+        Ku = sp.sparse.lil_matrix((taille, taille))
+        version = 0
+
+        if version == 0:
+            # V0 Plus rapide            
+            Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted, (lignesRaveldSorted, colonnesRaveldSorted)), shape = (taille, taille)))
+        elif version == 1:
+            # V1            
+            for i in range(len(indincesOrdo)-1):
+                if i+1 != coord.shape[0] and (coord[i][0] == coord[i+1][0] and coord[i][1] == coord[i+1][1]):                
+                    KeRaveldSorted[i+1] += KeRaveldSorted[i]
+                    KeRaveldSorted[i]=0                
+            Ku[lignesRaveldSorted, colonnesRaveldSorted] += KeRaveldSorted
+        elif version == 2:
+            # # V2
+            # Il faut d'abord réussir à construire la liste suivante sans boucle !
+            listIndices = np.array([i for i in range(len(indincesOrdo)-1) if i+1 != coord.shape[0] and (coord[i,0] == coord[i+1,0] and coord[i,1] == coord[i+1,1])])
+            # Construit la liste sans la boucle
+            unique, unique_indices, unique_inverse, unique_counts  = np.unique(coord,axis=0,return_index=True, return_inverse=True, return_counts=True)
+            list_i = np.array(range(len(unique_inverse)-1))        
+            listIndicesRapide = np.where(unique_inverse[list_i] == unique_inverse[list_i+1])[0]
+            # Verification que la liste est bien construite
+            assert np.sum(listIndices - listIndicesRapide)==0,"Erreur dans la construction de la liste" 
+            # Somme des valeurs pour les coordonnées identiques
+            for i in listIndicesRapide:
+                KeRaveldSorted[i+1] += KeRaveldSorted[i]
+                KeRaveldSorted[i] = 0
+            # KeRaveldSorted[listIndicesRapide+1] = KeRaveldSorted[listIndicesRapide+1] + KeRaveldSorted[listIndicesRapide]
+            # KeRaveldSorted[listIndicesRapide] = 0
+            # Assemblage
+            Ku[lignesRaveldSorted, colonnesRaveldSorted] += KeRaveldSorted
+        elif version == 3:
+            # V3
+            unique, unique_indices, unique_inverse, unique_counts  = np.unique(coord,axis=0,return_index=True, return_inverse=True, return_counts=True)
+            list_i = np.array(range(len(unique_inverse)-1))        
+            listIndicesRapide = np.flipud(np.where(unique_inverse[list_i] == unique_inverse[list_i+1])[0])
+            # V3.1
+            for i in listIndicesRapide:
+                KeRaveldSorted[i] += KeRaveldSorted[i+1]
+                KeRaveldSorted[i+1] = 0
+            # # V3.2
+            # KeRaveldSorted[listIndicesRapide] += KeRaveldSorted[listIndicesRapide+1]
+            # KeRaveldSorted[listIndicesRapide+1] = 0
+            taille = self.__mesh.Nn*self.__dim
+            Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted[unique_indices], (unique[:,0],unique[:,1])), shape = (taille, taille)))
+       
+        ticVersion.Tac("Assemblage version {}".format(version), True)
+
+        # Verification de l'assemblage
+        ticVerification = TicTac()
+        taille = self.__mesh.Nn*self.__dim
+        mesh = self.__mesh
+        listElement = self.listElement
+        indices = range(0, Ke_e[0].shape[0])
+
+        Ku_comparaison = sp.sparse.lil_matrix((taille, taille))
+
+        liste_ligne = []
+        liste_colonne = []
+        liste_Ke = []
+        
+        for e in listElement:
+            for i in indices:
+                ligne = mesh.__assembly_e[e][i]
+                for j in indices:
+                    colonne = mesh.__assembly_e[e][j]
+                    Ku_comparaison[ligne, colonne] =  Ku_comparaison[ligne, colonne] + Ke_e[e][i,j]
                     
-                    B_pg = np.array(e.listB_u_pg[pg])                    
-                    # N_pg = e.listN_d_pg[pg]
-                    # jacobien = e.listJacobien_pg[pg]
-                    # poid = e.listPoid_pg[pg]
-                    
-                    epsilon = B_pg.dot(ui)
+                    liste_ligne.append(ligne)
+                    liste_colonne.append(colonne)
+                    liste_Ke.append(Ke_e[e][i,j])
+        
+        # Tests
+        test1 = np.array(liste_ligne) - lignes
+        assert test1.max() == 0 and test1.min() == 0, "Erreur dans la liste d'assemblage"
+        test2 = np.array(liste_colonne) - colonnes
+        assert test2.max() == 0 and test2.min() == 0, "Erreur dans la liste d'assemblage"
+        test3 = np.array(liste_Ke) - Ke
+        assert test3.max() == 0 and test3.min() == 0, "Erreur dans Ke_e Ravel"
+        test4 = np.round(Ku_comparaison - self.__Ku)
+        assert test4.max() == 0 and test4.min() == 0, "Erreur dans l'assemblage"
 
-                    h = 1/2 * epsilon.T.dot(self.__materiau.C).dot(epsilon)
+        ticVerification.Tac("Assemblage lent avec verification", True)
 
-                    tr = epsilon[0] + epsilon[1]
+    def __VerificationConstructionKe(self, Ke_e, epaisseur, d):        
+        """Ici on verifie quon obtient le meme resultat quavant verification vectorisation
 
-                    lamb = self.__materiau.lamb
-                    mu = self.__materiau.mu
-
-                    h2 = 1/2*lamb*tr**2+mu*epsilon.T.dot(epsilon)
-
-                    # assert np.isclose(h,h2), "Erreur"
-
-                    h=float(h2)
-
-                    if(len(self.list_H)==0):
-                        h_pg.append(h)
-                    else:                        
-                        h_pg.append(max(h, self.list_H[e.id][pg]))
-                
-                list_new_H.append(h_pg)
-            
-            new = np.linalg.norm(list_new_H)
-            old = np.linalg.norm(self.list_H)
-            assert new >= old, "Erreur"
-            self.list_H = list_new_H
-
-
-    def Solve_d(self, resolution=1):
-            
-        def Construit_Dglob():                
-            taille = self.__mesh.Nn
-            dGlob = np.zeros(taille)
-            for i in range(taille):
-                if i in self.__d_Connues:
-                    dGlob[i] = self.__dc[i]
-                elif i in self.__d_Inconnues:
-                    ligne = self.__d_Inconnues.index(i)
-                    dGlob[i] = di[ligne]
-
-            return dGlob
+        Parameters
+        ----------
+        Ke_e : nd.array par element
+            Matrice calculé en vectorisant
+        epaisseur : float
+            epaisseur de la pièce si on fait du 2D
+        d : ndarray
+            Champ d'endommagement
+        """
 
         tic = TicTac()
 
-        # Résolution du plus rapide au plus lent
-        if resolution == 1:
-            dGlob = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(self.__Kd_penal), self.__Fd_penal)
-        elif resolution == 2:
-            d_Connues = self.__d_Connues
-            d_Inconnues = self.__d_Inconnues
+        # Data
+        mesh = cast(Mesh, self.__mesh)
+        nPg = len(mesh.poid_pg)
+        listPg = list(range(nPg))
+        listElement = self.listElement
 
-            assert len(d_Connues) + len(d_Inconnues) == self.__mesh.Nn, "Problème dans les conditions"
+        listKe_e = []
 
-            Kii = self.__Kd[d_Inconnues, :][:, d_Inconnues]
-            Kic = self.__Kd[d_Inconnues, :][:, d_Connues]
-            dc = self.__dc[d_Connues]
-            Fi = self.__Fd[d_Inconnues]
+        for e in listElement:            
+            # Pour chaque poing de gauss on construit Ke
+            Ke = 0
+            for pg in listPg:
+                jacobien = mesh.jacobien_e_pg[e][pg]
+                poid = mesh.poid_pg[pg]
+                B_pg = mesh.B_rigi_e_pg[e][pg]
 
-            di = sp.sparse.linalg.spsolve(sp.sparse.csr_matrix(Kii), Fi-Kic.dot(dc))
-            dGlob = Construit_Dglob()
-        elif resolution == 3:            
-            dGlob = sp.linalg.solve(self.__Kd_penal, self.__Fd_penal)
-        elif resolution == 4:            
-            dGlob = np.linalg.solve(self.__Kd_penal, self.__Fd_penal)
+                K = jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
 
-        tic.Tac("Résolution d", self.__verbosity)        
+                if len(d)==0:   # probleme standart
+                    
+                    Ke += K
+                else:   # probleme endomagement
+                    
+                    de = np.array([d[mesh.connect[e]]])
+                    
+                    # Bourdin
+                    g = (1-mesh.N_mass_pg[pg].dot(de))**2
+                    # g = (1-de)**2
+                    
+                    Ke += g * K
+            # # print(Ke-listeKe[e.id])
+            if self.__dim == 2:
+
+                listKe_e.append(epaisseur * Ke)
+            else:
+                listKe_e.append(Ke)                
+
+        tic.Tac("Calcul des matrices elementaires (boucle)", True)
         
-        # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
-        # assert dGlob.min() >= 0, "Doit etre supérieur 0"
+        # Verification
+        Ke_comparaison = np.array(listKe_e)
+        test = Ke_e - Ke_comparaison           
+        assert np.round(test.max()) == 0 and np.round(test.min()) == 0, "Problème"
 
-        if(dGlob.max() > 1):
-            print("dmax = {}".format(dGlob.max()))
-
-        if(dGlob.min() < 0):
-            print("dmin = {}".format(dGlob.min()))
-
-        return dGlob   
-         
+    
 # ====================================
 
 import unittest

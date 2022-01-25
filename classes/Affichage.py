@@ -135,7 +135,7 @@ class Affichage:
         """Dessine le maillage de la simulation
         """
         
-        assert facteurDef >= 1, "Le facteur de deformation doit être >= 1"
+        assert facteurDef >1, "Le facteur de deformation doit être >= 1"
 
         resultats = simu.resultats
         mesh = simu.get_mesh()
