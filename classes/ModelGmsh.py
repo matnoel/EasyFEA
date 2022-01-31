@@ -87,17 +87,37 @@ class ModelGmsh:
         def __ConstructionCoordoConnect(self):
                 
                 tic = TicTac()
+                
+                option = 2
 
-                # Construit Connect
-                types, elements, nodeTags = gmsh.model.mesh.getElements(self.__dim)
-                Ne = len(elements[0])
-                connect = np.array(nodeTags).reshape(Ne,-1)-1
+                if option == 1:
+                        # Construit Connect
+                        types, elements, nodeTags = gmsh.model.mesh.getElements(self.__dim)
+                        Ne = len(elements[0])
+                        connect = np.array(nodeTags).reshape(Ne,-1)-1
 
-                # Construit la matrice coordonée
-                noeuds, coord, parametricCoord = gmsh.model.mesh.getNodes()
-                Nn = noeuds.shape[0]                
-                coordo = coord.reshape(Nn,-1)
-                                
+                        # Construit la matrice coordonée
+                        noeuds, coord, parametricCoord = gmsh.model.mesh.getNodes()
+                        Nn = noeuds.shape[0]                
+                        coordo = coord.reshape(Nn,-1)
+
+                else:
+                        # type = gmsh.model.mesh.getElementTypes(self.__dim)[-1]
+
+                        # Construit Connect
+                        # elements, nodeTags = gmsh.model.mesh.getElementsByType(type)
+                        types, elements, nodeTags = gmsh.model.mesh.getElements(self.__dim)
+                        Ne = len(elements[-1])
+                        connect = nodeTags[-1].reshape(Ne,-1)-1
+
+                        # Construit la matrice coordonée
+                        # noeuds, coord, parametricCoord = gmsh.model.mesh.getNodesByElementType(type)
+                        noeuds, coord, parametricCoord = gmsh.model.mesh.getNodes()
+                        Nn = noeuds.shape[0]                
+                        coordo = coord.reshape(Nn,-1)
+
+                assert connect.max()+1 == Nn, "Erreur dans la récupération"
+
                 gmsh.finalize()
 
                 tic.Tac("Récupération du maillage gmsh", self.__verbosity)
@@ -150,17 +170,22 @@ class ModelGmsh:
                 l1 = gmsh.model.geo.addLine(p1, p2)
                 l2 = gmsh.model.geo.addLine(p2, p3)
                 l3 = gmsh.model.geo.addLine(p3, p4)
-                l4 = gmsh.model.geo.addLine(p4, p1)
+                l4 = gmsh.model.geo.addLine(p4, p5)
+                l5 = gmsh.model.geo.addLine(p5, p1)
                 
-                l5 = gmsh.model.geo.addLine(p5, p6)
+                l6 = gmsh.model.geo.addLine(p5, p6)
 
                 # Créer une boucle fermée reliant les lignes     
-                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
+                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4, l5])
 
                 # Créer une surface
                 surface = gmsh.model.geo.addPlaneSurface([boucle])
+
+                gmsh.model.geo.synchronize()
+
+                gmsh.model.mesh.embed(1, [l6], 2, surface)
                 
-                tic.Tac("Construction Rectangle", self.__verbosity)
+                tic.Tac("Construction Rectangle Fissuré", self.__verbosity)
                 
                 self.__ConstructionMaillageGmsh(surface)
                 

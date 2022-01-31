@@ -13,17 +13,6 @@ class Element:
     @staticmethod
     def get_Types3D():
         return Element.__listElement3D.copy()
-        
-
-    
-
-    def get_nbFaces(self):
-        if self.__dim == 2:
-            return 1
-        else:
-            # TETRA4
-            if self.nPe == 4:
-                return 4
 
     def __get_ElementType(self):
         """Renvoie le type de l'élément en fonction du nombre de noeuds par élement
@@ -280,71 +269,6 @@ class Element:
             dN4t = np.array([0, 0, 1])
             dNtild = np.array([dN1t, dN2t, dN3t, dN4t]).T
             self.dN_pg.append(dNtild)
-    
-    def ConstruitB_pg(self, list_dNtild: list, invF: np.ndarray, vecteur=True):  
-        """Construit la matrice Be depuis les fonctions de formes de l'element
-        de reference et l'inverserse de la matrice F
-
-        Parameters
-        ----------
-        list_Ntild : list
-            Liste des vecteurs Ntildix et y
-        invF : np.ndarray
-            Inverse de la matrice F
-
-        Returns
-        -------
-        np.ndarray
-            si dim = 2
-            Renvoie une matrice de dim (3,len(list_Ntild)*2)
-            
-            si dim = 3
-            Renvoie une matrice de dim (6,len(list_Ntild)*3)
-        """
-        
-        # list_dNtild = np.array(list_dNtild)
-        
-        if vecteur:
-            if self.__dim == 2:            
-                B_pg = np.zeros((3,len(list_dNtild)*2))      
-
-                colonne = 0
-                for dNt in list_dNtild:            
-                    dNdx = invF[0].dot(dNt)
-                    dNdy = invF[1].dot(dNt)
-                    
-                    B_pg[0, colonne] = dNdx
-                    B_pg[1, colonne+1] = dNdy
-                    B_pg[2, colonne] = dNdy; B_pg[2, colonne+1] = dNdx    
-                    colonne += 2
-            elif self.__dim == 3:
-                B_pg = np.zeros((6,len(list_dNtild)*3))
-
-                colonne = 0
-                for dNt in list_dNtild:            
-                    dNdx = invF[0].dot(dNt)
-                    dNdy = invF[1].dot(dNt)
-                    dNdz = invF[2].dot(dNt)
-                    
-                    B_pg[0, colonne] = dNdx
-                    B_pg[1, colonne+1] = dNdy
-                    B_pg[2, colonne+2] = dNdz
-                    B_pg[3, colonne] = dNdy; B_pg[3, colonne+1] = dNdx
-                    B_pg[4, colonne+1] = dNdz; B_pg[4, colonne+2] = dNdy
-                    B_pg[5, colonne] = dNdz; B_pg[5, colonne+2] = dNdx
-                    colonne += 3
-        else:
-            # Construit B comme pour un probleme de thermique
-            B_pg = np.zeros((self.__dim, len(list_dNtild)))
-            
-            for i in range(len(list_dNtild)):
-                dNt = list_dNtild[i]
-                for j in range(self.__dim):
-                    # j=0 dNdx, j=1 dNdy, j=2 dNdz
-                    dNdj = invF[j].dot(dNt)
-                    B_pg[j, i] = dNdj
-
-        return B_pg
     
     def __ConstruitN(self, list_Ntild: list, vecteur=True):
         """Construit la matrice de fonction de forme

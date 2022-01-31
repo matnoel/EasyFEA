@@ -34,7 +34,7 @@ P = 800 #N
 
 
 # Materiau
-materiau = Materiau(dim)
+materiau = Materiau(dim, epaisseur=b)
 
 # Pour chaque type d'element et plusieurs taille d'element on va calculer l'energie de deformation pour verifier la convergence
 
@@ -81,7 +81,7 @@ for elem in listElem:
                 simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 
                 # Assemblage du système matricielle
-                simu.Assemblage_u(epaisseur=b)
+                simu.Assemblage_u()
 
                 simu.Solve_u()
 

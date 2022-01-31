@@ -2,8 +2,6 @@
 
 import os
 
-from typing import cast
-
 from classes.Materiau import Materiau
 from classes.ModelGmsh import ModelGmsh
 from classes.Mesh import Mesh
@@ -33,10 +31,10 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/20
+taille = h/100
 
 # Materiau
-materiau = Materiau(dim)
+materiau = Materiau(dim, epaisseur=b, contraintesPlanes=True)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
@@ -50,8 +48,6 @@ noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
-
-
 
 simu = Simu(dim, mesh, materiau)
 
@@ -75,7 +71,7 @@ simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 
 
 # Assemblage du système matricielle
-simu.Assemblage_u(epaisseur=b)
+simu.Assemblage_u()
 
 simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=False)
 
@@ -84,9 +80,11 @@ tic.Tac("Temps total", True)
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
+
+
 print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
 
-# print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_n"]))) 
+print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"]))) 
 
 print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"]))) 
 print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"]))) 
@@ -95,22 +93,31 @@ print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"])))
 print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
 
 if plotResult:
+
+        tic = TicTac()
         
         # Affichage.AfficheNoeudsMaillage(simu, showId=False)
         # Affichage.PlotMesh(mesh, simu.resultats, deformation=False)
-        fig, ax = Affichage.PlotMesh(simu, deformation=True)
+        fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
         # Affichage.AfficheNoeudsMaillage(simu, showId=True)
-        Affichage.PlotResult(simu, "amplitude", deformation=True)
+        Affichage.Plot_Result(simu, "amplitude", deformation=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=False)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
-        Affichage.PlotResult(simu, "Svm_e")
+        Affichage.Plot_Result(simu, "Svm_e")
         # Affichage.PlotResult(simu, "Svm_n")
         # Affichage.PlotResult(simu, "Svm_n", affichageMaillage=True, deformation=True)
 
         # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
         # Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)
         
+        tic.Tac("Affichage des figures", plotResult)
+
         plt.show()
+
+        
+
+
+
 
 # %%

@@ -1,4 +1,5 @@
 import numpy as np
+from pandas import array
 
 try:
     from Element import Element
@@ -42,20 +43,51 @@ class Mesh:
 
     def __get_lignesVector_e(self):
         return self.__lignesVector_e.copy()
-    lignesVector_e=property(__get_lignesVector_e)
+    lignesVector_e = property(__get_lignesVector_e)
 
     def __get_colonnesVector_e(self):
         return self.__colonnesVector_e.copy()
-    colonnesVector_e=property(__get_colonnesVector_e)
+    colonnesVector_e = property(__get_colonnesVector_e)
 
     def __get_lignesScalar_e(self):
         return self.__lignesScalar_e.copy()
-    lignesScalar_e=property(__get_lignesScalar_e)
+    lignesScalar_e = property(__get_lignesScalar_e)
 
     def __get_colonnesScalar_e(self):
         return self.__colonnesScalar_e.copy()
-    colonnesScalar_e=property(__get_colonnesScalar_e)
+    colonnesScalar_e = property(__get_colonnesScalar_e)
 
+    def __get_poid_pg(self):
+        return self.__poid_pg.copy()
+    poid_pg = property(__get_poid_pg)
+
+    def __get_jacobien_e_pg(self):
+        return self.__jacobien_e_pg.copy()
+    jacobien_e_pg = property(__get_jacobien_e_pg)
+
+    def __get_N_mass_pg(self):
+        return self.__N_mass_pg.copy()
+    N_mass_pg = property(__get_N_mass_pg)
+
+    def __get_N_rigi_pg(self):
+        return self.__N_rigi_pg.copy()
+    N_rigi_pg = property(__get_N_rigi_pg)
+
+    def __get_B_mass_e_pg(self):
+        return self.__B_mass_e_pg.copy()
+    B_mass_e_pg = property(__get_B_mass_e_pg)
+
+    def __get_B_rigi_e_pg(self):
+        return self.__B_rigi_e_pg.copy()
+    B_rigi_e_pg = property(__get_B_rigi_e_pg)
+
+    def get_nbFaces(self):
+        if self.__dim == 2:
+            return 1
+        else:
+            # TETRA4
+            if self.__connect.shape[1] == 4:
+                return 4
 
     def get_connectTriangle(self):
         """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D
@@ -123,7 +155,7 @@ class Mesh:
 
         return self.__connectPourTriangle
     
-    def get_connectPolygon(self):
+    def get_connect_Faces(self):
         """Construit les faces pour chaque element
 
         Returns
@@ -283,58 +315,60 @@ class Mesh:
         self.__colonnesScalar_e = np.array([[[self.__connect[e]]*nPe] for e in listElement]).reshape(self.Ne,-1)
 
         # Poid
-        self.poid_pg = gauss[:,-1]
+        self.__poid_pg = np.array(gauss[:,-1])
 
+        # coordo localisé
         nodes_e = np.array(nodes_n[connect])
 
+        dN_pg = np.array(element.dN_pg)
+
         # Matrice jacobienne
-        self.F_e_pg = np.einsum('pik,ekj->epij', element.dN_pg, nodes_e, optimize=True)
-        
+        self.__F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=False))
+
         # Inverse Matrice jacobienne
-        self.invF_e_pg = np.linalg.inv(self.F_e_pg)       
+        self.__invF_e_pg = np.array(np.linalg.inv(self.__F_e_pg))
 
         # jacobien
-        self.jacobien_e_pg = np.linalg.det(self.F_e_pg)
+        self.__jacobien_e_pg = np.array(np.linalg.det(self.__F_e_pg))
 
         # Fonctions de formes dans l'element isoparamétrique pour un scalaire ou un vecteur
-        self.N_rigi_pg = element.N_rigi_pg
-        self.N_mass_pg = element.N_mass_pg
+        self.__N_rigi_pg = np.array(element.N_rigi_pg)
+        self.__N_mass_pg = np.array(element.N_mass_pg).reshape(nPg, 1,-1)
 
         # Derivé des fonctions de formes dans la base réele
-        self.dN_e_pg = np.einsum('epik,pkj->epij', self.invF_e_pg, element.dN_pg, optimize=True)
+        dN_e_pg = np.array(np.einsum('epik,pkj->epij', self.__invF_e_pg, element.dN_pg, optimize=True))
 
         # Assemble les matrice Epsilons pour un scalaire
-        self.B_mass_e_pg = self.dN_e_pg
-
+        self.__B_mass_e_pg = dN_e_pg
 
         # Assemble les matrice Epsilons pour un vecteur
         colonnes0 = np.arange(0, nPe*dim, dim)
         colonnes1 = np.arange(1, nPe*dim, dim)
 
         if self.__dim == 2:
-            self.B_rigi_e_pg = np.array([[np.zeros((3, nPe*dim))]*element.nPg]*self.Ne)
+            self.__B_rigi_e_pg = np.array([[np.zeros((3, nPe*dim))]*element.nPg]*self.Ne)
             
-            dNdx = self.dN_e_pg[:,:,0,listnPe]
-            dNdy = self.dN_e_pg[:,:,1,listnPe]
+            dNdx = dN_e_pg[:,:,0,listnPe]
+            dNdy = dN_e_pg[:,:,1,listnPe]
 
-            self.B_rigi_e_pg[:,:,0,colonnes0] = dNdx
-            self.B_rigi_e_pg[:,:,1,colonnes1] = dNdy
-            self.B_rigi_e_pg[:,:,2,colonnes0] = dNdy; self.B_rigi_e_pg[:,:,2,colonnes1] = dNdx
+            self.__B_rigi_e_pg[:,:,0,colonnes0] = dNdx
+            self.__B_rigi_e_pg[:,:,1,colonnes1] = dNdy
+            self.__B_rigi_e_pg[:,:,2,colonnes0] = dNdy; self.__B_rigi_e_pg[:,:,2,colonnes1] = dNdx
         else:
-            self.B_rigi_e_pg = np.array([[np.zeros((6, nPe*dim))]*element.nPg]*self.Ne)
+            self.__B_rigi_e_pg = np.array([[np.zeros((6, nPe*dim))]*element.nPg]*self.Ne)
 
-            dNdx = self.dN_e_pg[:,:,0,listnPe]
-            dNdy = self.dN_e_pg[:,:,1,listnPe]
-            dNdz = self.dN_e_pg[:,:,2,listnPe]
+            dNdx = dN_e_pg[:,:,0,listnPe]
+            dNdy = dN_e_pg[:,:,1,listnPe]
+            dNdz = dN_e_pg[:,:,2,listnPe]
 
             colonnes2 = np.arange(2, nPe*dim, dim)
 
-            self.B_rigi_e_pg[:,:,0,colonnes0] = dNdx
-            self.B_rigi_e_pg[:,:,1,colonnes1] = dNdy
-            self.B_rigi_e_pg[:,:,2,colonnes2] = dNdz
-            self.B_rigi_e_pg[:,:,3,colonnes0] = dNdy; self.B_rigi_e_pg[:,:,3,colonnes1] = dNdx
-            self.B_rigi_e_pg[:,:,4,colonnes1] = dNdz; self.B_rigi_e_pg[:,:,4,colonnes2] = dNdy
-            self.B_rigi_e_pg[:,:,4,colonnes0] = dNdz; self.B_rigi_e_pg[:,:,5,colonnes2] = dNdx
+            self.__B_rigi_e_pg[:,:,0,colonnes0] = dNdx
+            self.__B_rigi_e_pg[:,:,1,colonnes1] = dNdy
+            self.__B_rigi_e_pg[:,:,2,colonnes2] = dNdz
+            self.__B_rigi_e_pg[:,:,3,colonnes1] = dNdz; self.__B_rigi_e_pg[:,:,3,colonnes2] = dNdy
+            self.__B_rigi_e_pg[:,:,4,colonnes0] = dNdz; self.__B_rigi_e_pg[:,:,4,colonnes2] = dNdx
+            self.__B_rigi_e_pg[:,:,5,colonnes0] = dNdy; self.__B_rigi_e_pg[:,:,5,colonnes1] = dNdx
 
         if verification:
 
@@ -361,7 +395,7 @@ class Mesh:
                     if dim == 2:
                         B_rigi_pg = np.zeros((3, nPe*dim))
                         colonne = 0
-                        dN = self.dN_e_pg[e,pg]
+                        dN = self.__dN_e_pg[e,pg]
                         for n in range(nPe):
                             dNdx = dN[0, n]
                             dNdy = dN[1, n]
@@ -394,7 +428,7 @@ class Mesh:
                     
                 list_B_rigi_e_pg.append(list_B_rigi_pg)
             
-                test = np.array(list_B_rigi_e_pg)-self.B_rigi_e_pg
+                test = np.array(list_B_rigi_e_pg)-self.__B_rigi_e_pg
                 assert test.max() == 0 and test.min() == 0, "Erreur dans la construiction de B"
             
         tic.Tac("Construit les matrices EF", self.__verbosity)
@@ -464,7 +498,19 @@ class Mesh:
         
         return noeuds
 
+    def Localise_e(self, sol: np.ndarray):
+        tailleVecteur = self.Nn * self.__dim
+        tailleScalaire = self.Nn
 
+        if sol.shape[0] == tailleVecteur:
+            sol_e = sol[self.__assembly_e]
+        else:
+            sol_e = sol[self.__connect]
+        
+        return sol_e
+        
+
+            
 
 # TEST ==============================
 
