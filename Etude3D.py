@@ -1,102 +1,67 @@
+# %%
+
 import os
-import sys
-import gmsh
-from class_Simu import Simu
+
+from classes.Simu import Simu
+from classes.Materiau import Materiau
+from classes.ModelGmsh import ModelGmsh
+from classes.Mesh import Mesh
+from classes.Affichage import Affichage
+
 import numpy as np
 import matplotlib.pyplot as plt
+
+from classes.TicTac import TicTac
 
 os.system("cls")    #nettoie terminal
 
 # Data --------------------------------------------------------------------------------------------
 
-affichageGMSH = False
+dim = 3
 
 plotResult = True
-
-type = "T4"
-maillageOrganisé = False
 
 # Paramètres géométrie
 L = 120;  #mm
 h = 13;    
 b = 13
 
-P = -800 #N
+P = 800 #N
 
 # Paramètres maillage
-taille = h/5
+nBe = 2
+taille = h/nBe
+
+if nBe > 3:
+        plotResult = False
 
 
-# Construction GMSH --------------------------------------------------------------------------------
+materiau = Materiau(dim)
 
-print("==========================================================")
-print("Gmsh : \n")
+# Construction du modele et du maillage --------------------------------------------------------------------------------
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
 
-print("Elements {} \n".format(type))
+dir_path = os.path.dirname(os.path.realpath(__file__))
+fichier = dir_path + '\\models\\part.stp'
 
-gmsh.initialize()
-gmsh.option.setNumber('General.Verbosity', 0)
-gmsh.model.add("model")
+(coordo, connect) = modelGmsh.Importation3D(fichier)
+mesh = Mesh(dim, coordo, connect)
 
-gmsh.model.occ.importShapes('part.stp')
-gmsh.model.occ.synchronize()
-
-gmsh.option.setNumber("Mesh.MeshSizeMin", taille)
-gmsh.option.setNumber("Mesh.MeshSizeMax", taille)
-gmsh.model.mesh.generate(3)
-
-# if maillageOrganisé:
-#         gmsh.model.geo.mesh.setTransfiniteSurface(pl)
-
-# gmsh.model.geo.synchronize()
-
-# if type in ["Q4","Q8"]:
-#         gmsh.model.mesh.setRecombine(3, v)
-
-# gmsh.model.mesh.generate(2) 
-
-# if type in ["Q8"]:
-#         gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
-
-# if type in ["T3","Q4"]:
-#         gmsh.model.mesh.set_order(1)
-# elif type in ["T6","Q8"]:
-#         gmsh.model.mesh.set_order(2)
-
-
-
-if '-nopopup' not in sys.argv and affichageGMSH:
-    gmsh.fltk.run()
+noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
+noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
-print("==========================================================")
+print("\n==========================================================")
 print("Traitement :")
 
-simu = Simu(3, verbosity=True)
+simu = Simu(dim,mesh, materiau, verbosity=True)
 
-simu.CreationMateriau()
+simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["z"])
+simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y", "z"])
 
-simu.ConstructionMaillageGMSH(gmsh.model.mesh)
-gmsh.finalize()
+simu.Assemblage_u()
 
-
-simu.Assemblage(epaisseur=b)
-
-noeuds_en_L = []
-noeuds_en_0 = []
-for n in simu.mesh.noeuds:        
-        if n.x == L:
-                noeuds_en_L.append(n)
-        if n.x == 0:
-                noeuds_en_0.append(n)
-
-simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, direction="Z")
-
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="X")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Y")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Z")
-
-simu.Solve()
+simu.Solve_u(calculContraintesEtDeformation=True, interpolation=False)
 
 # Post traitement --------------------------------------------------------------------------------------
 print("\n==========================================================")
@@ -104,37 +69,27 @@ print("Résultats :")
 
 print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"]))
 
-print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm"])))
+print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"])))
 
-print("\nSxx max = {:.6f} MPa".format(np.max(simu.resultats["Sxx"])))
-print("Syy max = {:.6f} MPa".format(np.max(simu.resultats["Syy"])))
-print("Szz max = {:.6f} MPa".format(np.max(simu.resultats["Szz"])))
-print("Sxy max = {:.6f} MPa".format(np.max(simu.resultats["Sxy"])))
-print("Syz max = {:.6f} MPa".format(np.max(simu.resultats["Syz"])))
-print("Sxz max = {:.6f} MPa".format(np.max(simu.resultats["Sxz"])))
+print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"])))
+print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"])))
 
-print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx"])))
-print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx"])))
+print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"])))
+print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
 
-print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy"])))
-print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy"])))
-
-print("\nUz max = {:.6f} mm".format(np.max(simu.resultats["dz"])))
-print("Uz min = {:.6f} mm".format(np.min(simu.resultats["dz"])))
-
+print("\nUz max = {:.6f} mm".format(np.max(simu.resultats["dz_n"])))
+print("Uz min = {:.6f} mm".format(np.min(simu.resultats["dz_n"])))
 
 if plotResult:
 
-        simu.PlotMesh(deformation=True)
-        simu.PlotResult(resultat="dx", deformation=True)
-        # simu.PlotResult(resultat="dy")
-        # simu.PlotResult(resultat="dz", affichageMaillage=True)
+        tic = TicTac()
 
-        # simu.PlotResult(resultat="Sxx")
-        # simu.PlotResult(resultat="Syy")
-        # simu.PlotResult(resultat="Sxy")
-        simu.PlotResult(resultat="Svm", affichageMaillage=True, deformation=True)
+        Affichage.Plot_Maillage(simu, deformation=False)
+        Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)
+        Affichage.Plot_Result(simu, "Svm_e", deformation=True, affichageMaillage=True)
         
+        tic.Tac("Affichage des figures", plotResult)
+
         plt.show()
 
 print("\n==========================================================")
@@ -142,3 +97,5 @@ print("\n FIN DU PROGRAMME \n")
 
 
 
+
+# %%

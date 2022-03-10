@@ -1,145 +1,123 @@
+# %%
+
 import os
-import sys
-import gmsh
-from class_Simu import Simu
+
+from classes.Materiau import Materiau
+from classes.ModelGmsh import ModelGmsh
+from classes.Mesh import Mesh
+from classes.Simu import Simu
+from classes.Affichage import Affichage
+
 import numpy as np
 import matplotlib.pyplot as plt
 
-os.system("cls")    #nettoie tèerminal
+from classes.TicTac import TicTac
+
+os.system("cls")    #nettoie le terminal
+
+tic = TicTac()
 
 # Data --------------------------------------------------------------------------------------------
 
-affichageGMSH = False
-
 plotResult = True
 
-type = "T6"
-maillageOrganisé = True
+dim = 2
 
 # Paramètres géométrie
 L = 120;  #mm
-h = 13;    
+h = 13    
 b = 13
 
-P = -800 #N
+P = 800 #N
 
 # Paramètres maillage
-taille = h/4
+taille = h/100
 
+# Materiau
+materiau = Materiau(dim, epaisseur=b, contraintesPlanes=True)
 
-# Construction GMSH --------------------------------------------------------------------------------
+# Construction du modele et du maillage --------------------------------------------------------------------------------
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
+(coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
+mesh = Mesh(dim, coordo, connect)
 
-print("==========================================================")
-print("Gmsh : \n")
+# Récupère les noeuds qui m'interessent
 
-print("Elements {} \n".format(type))
-
-gmsh.initialize()
-gmsh.option.setNumber('General.Verbosity', 0)
-gmsh.model.add("model")
-
-# Créer les points
-p1 = gmsh.model.geo.addPoint(0, 0, 0, taille)
-p2 = gmsh.model.geo.addPoint(L, 0, 0, taille)
-p3 = gmsh.model.geo.addPoint(L, h, 0, taille)
-p4 = gmsh.model.geo.addPoint(0, h, 0, taille)
-
-# Créer les lignes reliants les points
-l1 = gmsh.model.geo.addLine(p1, p2)
-l2 = gmsh.model.geo.addLine(p2, p3)
-l3 = gmsh.model.geo.addLine(p3, p4)
-l4 = gmsh.model.geo.addLine(p4, p1)
-
-# Créer une boucle fermée reliant les lignes     
-cl = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
-
-# Créer une surface
-pl = gmsh.model.geo.addPlaneSurface([cl])
-
-# Impose que le maillage soit organisé
-if maillageOrganisé:
-        gmsh.model.geo.mesh.setTransfiniteSurface(pl)
-
-gmsh.model.geo.synchronize()
-
-if type in ["Q4","Q8"]:
-        gmsh.model.mesh.setRecombine(2, pl)
-
-gmsh.model.mesh.generate(2) 
-
-if type in ["Q8"]:
-        gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
-
-if type in ["T3","Q4"]:
-        gmsh.model.mesh.set_order(1)
-elif type in ["T6","Q8"]:
-        gmsh.model.mesh.set_order(2)
-
-
-
-if '-nopopup' not in sys.argv and affichageGMSH:
-    gmsh.fltk.run()
+noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
+noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
+Affichage.NouvelleSection("Traitement")
 
-print("\n==========================================================")
-print("Traitement :")
+simu = Simu(dim, mesh, materiau)
 
-simu = Simu(2, verbosity=True)
+# # Affichage etc
+# fig, ax = Affichage.PlotMesh(simu, deformation=True)
+# Affichage.AfficheNoeudsMaillage(simu, ax, noeuds_en_0, c='red')
+# Affichage.AfficheNoeudsMaillage(simu, ax, noeuds_en_L, c='blue', showId=True)
+# Affichage.PlotMesh(simu, deformation=True)
+# Affichage.AfficheNoeudsMaillage(simu, showId=True)
 
-simu.CreationMateriau()
+# Renseigne les condtions limites
+simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
 
-simu.ConstructionMaillageGMSH(gmsh.model.mesh)
-gmsh.finalize()
+# simu.Condition_Dirichlet(noeuds_en_L, valeur=-10, directions=["x"])
+# simu.Condition_Dirichlet(noeuds_en_L, valeur=1, directions=["y"])
+# simu.Condition_Dirichlet(noeuds_en_L, valeur=1, directions=["x","y"])
+# simu.Condition_Dirichlet(noeuds_en_L, valeur=-1, directions=["x","y"])
 
-simu.Assemblage(epaisseur=b)
+simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
+# simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
 
-noeuds_en_L = []
-noeuds_en_0 = []
-for n in simu.mesh.noeuds:        
-        if n.x == L:
-                noeuds_en_L.append(n)
-        if n.x == 0:
-                noeuds_en_0.append(n)
 
-simu.ConditionEnForce(noeuds=noeuds_en_L, force=P, direction="Y")
+# Assemblage du système matricielle
+simu.Assemblage_u()
 
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="X")
-simu.ConditionEnDeplacement(noeuds=noeuds_en_0, deplacement=0, direction="Y")
+simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=False)
 
-simu.Solve()
+tic.Tac("Temps total", True)
 
 # Post traitement --------------------------------------------------------------------------------------
-print("\n==========================================================")
-print("Résultats :")
+Affichage.NouvelleSection("Post traitement")
+
+
 
 print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
 
-print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm"]))) 
+print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"]))) 
 
-print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx"]))) 
-print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx"]))) 
+print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"]))) 
+print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"]))) 
 
-print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy"]))) 
-print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy"]))) 
-
-
+print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"]))) 
+print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
 
 if plotResult:
 
-        simu.PlotMesh()
-        simu.PlotResult(resultat="dx",affichageMaillage=True)
-        # simu.PlotResult(resultat="dy")
-
-        # simu.PlotResult(resultat="Sxx")
-        # simu.PlotResult(resultat="Syy")
-        # simu.PlotResult(resultat="Sxy")
-        # simu.PlotResult(resultat="Svm", affichageMaillage=True, deformation=True, facteurDef=2)
+        tic = TicTac()
         
+        # Affichage.AfficheNoeudsMaillage(simu, showId=False)
+        # Affichage.PlotMesh(mesh, simu.resultats, deformation=False)
+        fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
+        # Affichage.AfficheNoeudsMaillage(simu, showId=True)
+        Affichage.Plot_Result(simu, "amplitude", deformation=True)
+        # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=False)
+        # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
+        # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
+        Affichage.Plot_Result(simu, "Svm_e")
+        # Affichage.PlotResult(simu, "Svm_n")
+        # Affichage.PlotResult(simu, "Svm_n", affichageMaillage=True, deformation=True)
+
+        # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
+        # Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)
+        
+        tic.Tac("Affichage des figures", plotResult)
+
         plt.show()
 
-print("\n==========================================================")
-print("\n FIN DU PROGRAMME \n")
+        
 
 
 
+
+# %%
