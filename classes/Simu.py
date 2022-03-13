@@ -1,23 +1,15 @@
 import os
 from typing import cast
-import matplotlib.pyplot as plt
-
 
 import numpy as np
 import scipy as sp
 from scipy.sparse.linalg import spsolve
+# from scikits.umfpack import spsolve
 
-
-try:    
-    from Element import Element
-    from Mesh import Mesh
-    from Materiau import Materiau
-    from TicTac import TicTac
-except:    
-    from classes.Element import Element    
-    from classes.Mesh import Mesh
-    from classes.Materiau import Materiau
-    from classes.TicTac import TicTac
+from Element import Element
+from Mesh import Mesh
+from Materiau import Materiau
+from TicTac import TicTac
     
 class Simu:
     
@@ -40,7 +32,7 @@ class Simu:
 
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
-    def __init__(self, dim: int,mesh: Mesh, materiau: Materiau, verbosity=True):
+    def __init__(self, dim: int, mesh: Mesh, materiau: Materiau, verbosity=True):
         """Creation d'une simulation
 
         Args:
@@ -52,8 +44,8 @@ class Simu:
 
         # Vérification des valeurs
         assert dim == 2 or dim == 3, "Dimesion compris entre 2D et 3D"
-        assert isinstance(mesh, Mesh) and mesh.dim == dim, "Doit etre un maillage et doit avoir la meme dimension que dim"
-        assert isinstance(materiau, Materiau) and materiau.get_dim() == dim, "Doit etre un materiau et doit avoir la meme dimension que dim"
+        assert mesh.dim == dim, "Doit avoir la meme dimension que dim"
+        assert materiau.get_dim() == dim, "Doit avoir la meme dimension que dim"
 
 
         self.__dim = dim      
@@ -107,12 +99,14 @@ class Simu:
 
             d_e_n = self.__mesh.Localise_e(d)
 
-            d_e_pg = np.einsum('pij,ej->ep', N_mass_pg, d_e_n)
+            d_e_pg = np.einsum('pij,ej->ep', N_mass_pg, d_e_n, optimize=True)
 
-            g_e_pg = (1-d_e_pg)**2
+            k_residu = 1e-10
+
+            g_e_pg = (1-d_e_pg)**2 + k_residu
 
             # Bourdin
-            mat_e_pg = np.einsum('ep,ij->epij', g_e_pg, mat)
+            mat_e_pg = np.einsum('ep,ij->epij', g_e_pg, mat, optimize=True)
 
             Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, mat_e_pg, B_rigi_e_pg, optimize=True)
             
@@ -130,7 +124,7 @@ class Simu:
         if self.__dim == 2:
             Ku_e = Ku_e * self.__materiau.epaisseur
         
-        tic.Tac("Calcul des matrices elementaires (déplacement)", self.__verbosity)
+        tic.Tac("Matrices","Calcul des matrices elementaires (déplacement)", self.__verbosity)
 
         if verification : self.__VerificationConstructionKe(Ku_e, d)
 
@@ -161,10 +155,13 @@ class Simu:
         # Assemblage
         self.__Ku = sp.sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
 
+        # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
+        self.__Fu = sp.sparse.csr_matrix((taille, 1))
+
         # plt.spy(self.__Ku)
         # plt.show()
 
-        tic.Tac("Assemblage du systême en déplacement", self.__verbosity)
+        tic.Tac("Matrices","Assemblage du systême en déplacement", self.__verbosity)
         
         if verification: self.__VerificationAssembleMatriceLaPlusRapide(lignesVector_e, colonnesVector_e, Ku_e)
 
@@ -183,7 +180,7 @@ class Simu:
 
         Uglob = self.__Solveur(vector=True, resolution=resolution)
 
-        tic.Tac("Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)
+        tic.Tac("Résolution deplacement","Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)
         
         self.__Save_u(Uglob, calculContraintesEtDeformation, interpolation)
 
@@ -214,24 +211,32 @@ class Simu:
         return Sigma_e_pg
 
 
-    def ConstruitH(self, u: np.ndarray):
-            # Pour chaque point de gauss de tout les elements du maillage on va calculer phi+
+    def CalcEnergyInt(self, u: np.ndarray):
+            # Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
+            # Calcul de la densité denergie de deformation en traction
             
             Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
             
             mat = self.__materiau.C
 
             # Calcul l'energie
+            old_H = self.H_e_pg
 
             # Bourdin
             h = 1/2 * np.einsum('epk,kl,epl->ep', Epsilon_e_pg, mat, Epsilon_e_pg, optimize=True)
             
-            list_new_H = h
-            
-            new = np.linalg.norm(list_new_H)
+            inc_H = h-old_H
+
+            noeuds = np.where(inc_H >= 0)[0]
+
+            if noeuds.shape[0] > 0:
+                old_H[noeuds] = h[noeuds]
+                h = old_H            
+
+            new = np.linalg.norm(h)
             old = np.linalg.norm(self.H_e_pg)
             assert new >= old, "Erreur"
-            self.H_e_pg = list_new_H
+            self.H_e_pg = h
     
     def __ConstruitMatElem_Pfm(self, Gc, l):
         
@@ -249,12 +254,10 @@ class Simu:
         Nd_pg = np.array(mesh.N_mass_pg)
         Bd_e_pg = mesh.B_mass_e_pg
 
+        # Partie qui fait intervenir le therme de reaction r
+        Kdr_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
 
-        # Construit Kd_e
-
-        # Partie qui fait intervenir r_e_pg
-        Kdr_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True) 
-        # Partie qui fait intervenir K
+        # Partie qui fait intervenir le therme de diffusion K
         KdK_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, K, Bd_e_pg, Bd_e_pg, optimize=True)
 
         Kd_e_pg = Kdr_e_pg+KdK_e_pg
@@ -268,7 +271,7 @@ class Simu:
 
         Fd_e = np.sum(Fd_e_pg, axis=1)
 
-        tic.Tac("Calcul des matrices elementaires (endommagement)", self.__verbosity)
+        tic.Tac("Matrices","Calcul des matrices elementaires (endommagement)", self.__verbosity)
 
         return Kd_e, Fd_e
 
@@ -296,7 +299,7 @@ class Simu:
         lignes = mesh.connect.reshape(-1)
         self.__Fd = sp.sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1))
 
-        tic.Tac("Assemblage du systême en endormmagement", self.__verbosity)       
+        tic.Tac("Matrices","Assemblage du systême en endommagement", self.__verbosity)       
 
         return self.__Kd, self.__Fd
     
@@ -306,7 +309,7 @@ class Simu:
 
         dGlob = self.__Solveur(vector=False, resolution=resolution)
 
-        tic.Tac("Résolution {} pour le problème de endommagement".format(resolution) , self.__verbosity)
+        tic.Tac("Résolution endommagement","Résolution {} pour le problème de endommagement".format(resolution) , self.__verbosity)
         
         # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
         # assert dGlob.min() >= 0, "Doit etre supérieur 0"
@@ -367,6 +370,11 @@ class Simu:
         lignes = BC_Neuman[:,0]
         valeurs = BC_Neuman[:,1]
         b = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1))
+
+        if vector:
+            b = b + self.__Fu.copy()
+        else:
+            b = b + self.__Fd.copy()
 
         return b
 
@@ -446,24 +454,13 @@ class Simu:
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
             
-            # # Option pour lancer sur C ?
-            # ui = spsolve(Kii, Fi-Kic.dot(uc))
-            # ui = spsolve(Kii, Fi-Kic.dot(uc), use_umfpack=True)            
-
-            # plt.spy(A)
-            # plt.show()
-
-            # from scipy.sparse.csgraph import reverse_cuthill_mckee
-            # A2 = reverse_cuthill_mckee(A.tocsr())
-            # A2 = reverse_cuthill_mckee(A)
-
-            # plt.spy(A2)
-            # plt.show()
+            # from scikits.umfpack import umfpack
+            # from scikits.umfpack import spsolve
+            # sp.sparse.linalg.use_solver(useUmfpack=True)
 
             # Résolution du sytème sur les ddl inconnues
-            # sp.sparse.linalg.use_solver(useUmfpack=True)
-            # xi = spsolve(Aii, bi-Aic.dot(xc), use_umfpack=True)
-            xi = spsolve(Aii, bi-Aic.dot(xc))
+            xi = spsolve(Aii, bi-Aic.dot(xc), use_umfpack=True)            
+            # xi = spsolve(Aii, bi-Aic.dot(xc))
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
@@ -545,7 +542,7 @@ class Simu:
         self.__BC_Neuman_u[0].extend(ddl)
         self.__BC_Neuman_u[1].extend([valeur/nbn]*len(ddl))
         
-        tic.Tac("Condition Neumann", self.__verbosity)
+        tic.Tac("Boundary Conditions","Condition Neumann", self.__verbosity)
 
     def Clear_Condition_Dirichlet(self, option="u"):
         if option == "u":
@@ -588,7 +585,7 @@ class Simu:
             self.__BC_Dirichlet_u[0].extend(ddl)
             self.__BC_Dirichlet_u[1].extend([valeur]*len(ddl))
 
-        tic.Tac("Condition Dirichlet", self.__verbosity)
+        tic.Tac("Boundary Conditions","Condition Dirichlet", self.__verbosity)
 
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
@@ -607,7 +604,7 @@ class Simu:
         if verification:
             Kglob = self.__Ku.todense()
             WdefVerif = 1/2 * Uglob.T.dot(Kglob).dot(Uglob)
-            tic.Tac("Wdef verif", True)
+            tic.Tac("Post Traitement","Wdef verif", True)
             diff = np.round(float(WdefVerif) - Wdef,0)
             assert np.isclose(diff, 0),"Erreur"
 
@@ -635,7 +632,7 @@ class Simu:
         if calculContraintesEtDeformation:
             self.__CalculDeformationEtContrainte(Uglob, interpolation=interpolation)
 
-        tic.Tac("Sauvegarde", self.__verbosity)
+        tic.Tac("Post Traitement","Sauvegarde", self.__verbosity)
             
     def __CalculDeformationEtContrainte(self, Uglob: np.ndarray, interpolation=False):
         """Calcul les deformations et contraints sur chaque element
@@ -763,7 +760,7 @@ class Simu:
             self.resultats["Ezz_n"] = InterPolation(self.resultats["Ezz_e"]); self.resultats["Eyz_n"] = InterPolation(self.resultats["Eyz_e"]); self.resultats["Exz_n"] = InterPolation(self.resultats["Exz_e"])
             self.resultats["Szz_n"] = InterPolation(self.resultats["Szz_e"]); self.resultats["Syz_n"] = InterPolation(self.resultats["Syz_e"]); self.resultats["Sxz_n"] = InterPolation(self.resultats["Sxz_e"])
 
-        tic.Tac("Calcul deformations et contraintse aux noeuds", self.__verbosity)
+        tic.Tac("Post Traitement","Calcul deformations et contraintse aux noeuds", self.__verbosity)
 
 # ------------------------------------------- Vérifications -------------------------------------------
 
@@ -838,7 +835,7 @@ class Simu:
             taille = self.__mesh.Nn*self.__dim
             Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted[unique_indices], (unique[:,0],unique[:,1])), shape = (taille, taille)))
        
-        ticVersion.Tac("Assemblage version {}".format(version), True)
+        ticVersion.Tac("Matrices","Assemblage version {}".format(version), True)
 
         # Verification de l'assemblage
         ticVerification = TicTac()
@@ -874,7 +871,7 @@ class Simu:
         test4 = np.round(Ku_comparaison - self.__Ku)
         assert test4.max() == 0 and test4.min() == 0, "Erreur dans l'assemblage"
 
-        ticVerification.Tac("Assemblage lent avec verification", True)
+        ticVerification.Tac("Matrices","Assemblage lent avec verification", True)
 
     def __VerificationConstructionKe(self, Ke_e, d):        
         """Ici on verifie quon obtient le meme resultat quavant verification vectorisation
@@ -926,7 +923,7 @@ class Simu:
             else:
                 listKe_e.append(Ke)                
 
-        tic.Tac("Calcul des matrices elementaires (boucle)", True)
+        tic.Tac("Matrices","Calcul des matrices elementaires (boucle)", True)
         
         # Verification
         Ke_comparaison = np.array(listKe_e)

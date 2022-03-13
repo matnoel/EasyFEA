@@ -2,18 +2,11 @@ import gmsh
 import sys
 import numpy as np
 
-try:
-        from Affichage import Affichage
-        from Element import Element
-        from TicTac import TicTac
-except: 
-        from classes.Element import Element
-        from classes.Affichage import Affichage
-        from classes.TicTac import TicTac       
-        
-        
-        
-class ModelGmsh:
+from Element import Element
+from TicTac import TicTac
+from Affichage import Affichage
+
+class ModelGmsh:        
         
         def __init__(self,dim: int, organisationMaillage=False, affichageGmsh=False, gmshVerbosity=False, verbosity=True, typeElement=0, tailleElement=0.0):
                 
@@ -39,6 +32,86 @@ class ModelGmsh:
                 if gmshVerbosity == False:
                         gmsh.option.setNumber('General.Verbosity', 0)
                 gmsh.model.add("model")
+
+        def ConstructionRectangle(self, largeur, hauteur):
+                
+                tic = TicTac()
+
+                # Créer les points
+                p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
+                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, self.__tailleElement)
+                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, self.__tailleElement)
+                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, self.__tailleElement)
+
+                # Créer les lignes reliants les points
+                l1 = gmsh.model.geo.addLine(p1, p2)
+                l2 = gmsh.model.geo.addLine(p2, p3)
+                l3 = gmsh.model.geo.addLine(p3, p4)
+                l4 = gmsh.model.geo.addLine(p4, p1)
+
+                # Créer une boucle fermée reliant les lignes     
+                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
+
+                # Créer une surface
+                surface = gmsh.model.geo.addPlaneSurface([boucle])
+                
+                tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
+                
+                self.__ConstructionMaillageGmsh(surface)
+                
+                return self.__ConstructionCoordoConnect()
+
+        def ConstructionRectangleAvecFissure(self, largeur, hauteur):
+                
+                tic = TicTac()
+
+                # Créer les points
+                p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
+                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, self.__tailleElement)
+                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, self.__tailleElement)
+                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, self.__tailleElement)
+
+                p5 = gmsh.model.geo.addPoint(0, hauteur/2, 0, self.__tailleElement)
+                p6 = gmsh.model.geo.addPoint(largeur/2, hauteur/2, 0, self.__tailleElement)        
+                
+
+                # Créer les lignes reliants les points
+                l1 = gmsh.model.geo.addLine(p1, p2)
+                l2 = gmsh.model.geo.addLine(p2, p3)
+                l3 = gmsh.model.geo.addLine(p3, p4)
+                l4 = gmsh.model.geo.addLine(p4, p5)
+                l5 = gmsh.model.geo.addLine(p5, p1)
+                
+                l6 = gmsh.model.geo.addLine(p5, p6)
+
+                # Créer une boucle fermée reliant les lignes     
+                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4, l5])
+
+                # Créer une surface
+                surface = gmsh.model.geo.addPlaneSurface([boucle])
+
+                gmsh.model.geo.synchronize()
+
+                gmsh.model.mesh.embed(1, [l6], 2, surface)
+                
+                tic.Tac("Mesh","Construction Rectangle Fissuré", self.__verbosity)
+                
+                self.__ConstructionMaillageGmsh(surface)
+                
+                return self.__ConstructionCoordoConnect()
+
+        def Importation3D(self,fichier=""):
+                
+                tic = TicTac()
+
+                # Importation du fichier
+                gmsh.model.occ.importShapes(fichier)
+
+                tic.Tac("Mesh","Importation du fichier step", self.__verbosity)
+
+                self.__ConstructionMaillageGmsh()
+
+                return self.__ConstructionCoordoConnect()
 
         def __ConstructionMaillageGmsh(self, surface=None):
 
@@ -82,13 +155,11 @@ class ModelGmsh:
                 if '-nopopup' not in sys.argv and self.__affichageGmsh:
                         gmsh.fltk.run()   
                 
-                tic.Tac("Construction du maillage gmsh", self.__verbosity)
+                tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
-        def __ConstructionCoordoConnect(self):
+        def __ConstructionCoordoConnect(self, option = 2):
                 
                 tic = TicTac()
-                
-                option = 2
 
                 if option == 1:
                         # Construit Connect
@@ -120,89 +191,11 @@ class ModelGmsh:
 
                 gmsh.finalize()
 
-                tic.Tac("Récupération du maillage gmsh", self.__verbosity)
+                tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
                 return [np.array(np.array(coordo)), connect]
 
-        def ConstructionRectangle(self, largeur, hauteur):
-                
-                tic = TicTac()
 
-                # Créer les points
-                p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
-                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, self.__tailleElement)
-                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, self.__tailleElement)
-                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, self.__tailleElement)
-
-                # Créer les lignes reliants les points
-                l1 = gmsh.model.geo.addLine(p1, p2)
-                l2 = gmsh.model.geo.addLine(p2, p3)
-                l3 = gmsh.model.geo.addLine(p3, p4)
-                l4 = gmsh.model.geo.addLine(p4, p1)
-
-                # Créer une boucle fermée reliant les lignes     
-                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
-
-                # Créer une surface
-                surface = gmsh.model.geo.addPlaneSurface([boucle])
-                
-                tic.Tac("Construction Rectangle", self.__verbosity)
-                
-                self.__ConstructionMaillageGmsh(surface)
-                
-                return self.__ConstructionCoordoConnect()
-
-        def ConstructionRectangleAvecFissure(self, largeur, hauteur):
-                
-                tic = TicTac()
-
-                # Créer les points
-                p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
-                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, self.__tailleElement)
-                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, self.__tailleElement)
-                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, self.__tailleElement)
-
-                p5 = gmsh.model.geo.addPoint(0, hauteur/2, 0, self.__tailleElement)
-                p6 = gmsh.model.geo.addPoint(largeur/2, hauteur/2, 0, self.__tailleElement)        
-                
-
-                # Créer les lignes reliants les points
-                l1 = gmsh.model.geo.addLine(p1, p2)
-                l2 = gmsh.model.geo.addLine(p2, p3)
-                l3 = gmsh.model.geo.addLine(p3, p4)
-                l4 = gmsh.model.geo.addLine(p4, p5)
-                l5 = gmsh.model.geo.addLine(p5, p1)
-                
-                l6 = gmsh.model.geo.addLine(p5, p6)
-
-                # Créer une boucle fermée reliant les lignes     
-                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4, l5])
-
-                # Créer une surface
-                surface = gmsh.model.geo.addPlaneSurface([boucle])
-
-                gmsh.model.geo.synchronize()
-
-                gmsh.model.mesh.embed(1, [l6], 2, surface)
-                
-                tic.Tac("Construction Rectangle Fissuré", self.__verbosity)
-                
-                self.__ConstructionMaillageGmsh(surface)
-                
-                return self.__ConstructionCoordoConnect()
-
-        def Importation3D(self,fichier=""):
-                
-                tic = TicTac()
-
-                # Importation du fichier
-                gmsh.model.occ.importShapes(fichier)
-
-                tic.Tac("Importation du fichier step", self.__verbosity)
-
-                self.__ConstructionMaillageGmsh()
-
-                return self.__ConstructionCoordoConnect()
 
 # TEST ==============================
 

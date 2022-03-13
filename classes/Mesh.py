@@ -1,15 +1,7 @@
 import numpy as np
-from pandas import array
 
-try:
-    from Element import Element
-    from Materiau import Materiau
-    from TicTac import TicTac
-except:
-    from classes.Element import Element
-    from classes.Materiau import Materiau
-    from classes.TicTac import TicTac
-
+from Element import Element
+from TicTac import TicTac
 
 class Mesh:
     
@@ -237,9 +229,7 @@ class Mesh:
         # Vérfication
         assert isinstance(coordo, np.ndarray) and isinstance(coordo[0], np.ndarray),"Doit fournir une liste de ndarray de ndarray !"
         
-        assert isinstance(connect, np.ndarray) and isinstance(connect[0], np.ndarray),"Doit fournir une liste de liste"
-
-        tic = TicTac()
+        assert isinstance(connect, np.ndarray) and isinstance(connect[0], np.ndarray),"Doit fournir une liste de liste"       
 
         self.__dim = dim
 
@@ -431,7 +421,7 @@ class Mesh:
                 test = np.array(list_B_rigi_e_pg)-self.__B_rigi_e_pg
                 assert test.max() == 0 and test.min() == 0, "Erreur dans la construiction de B"
             
-        tic.Tac("Construit les matrices EF", self.__verbosity)
+        tic.Tac("Mesh","Construit les matrices EF", self.__verbosity)
 
     def Get_Nodes(self, conditionX=True, conditionY=True, conditionZ=True):
         """Renvoie la liste de noeuds qui respectent la les condtions

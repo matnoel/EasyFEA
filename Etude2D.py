@@ -2,20 +2,20 @@
 
 import os
 
-from classes.Materiau import Materiau
-from classes.ModelGmsh import ModelGmsh
-from classes.Mesh import Mesh
-from classes.Simu import Simu
-from classes.Affichage import Affichage
+from Materiau import Materiau
+from ModelGmsh import ModelGmsh
+from Mesh import Mesh
+from Simu import Simu
+from Affichage import Affichage
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from classes.TicTac import TicTac
+from TicTac import TicTac
 
-os.system("cls")    #nettoie le terminal
+Affichage.Clear()
 
-tic = TicTac()
+ticTot = TicTac()
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -31,13 +31,13 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/100
+taille = h/10
 
 # Materiau
 materiau = Materiau(dim, epaisseur=b, contraintesPlanes=True)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=2, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
 
@@ -75,7 +75,7 @@ simu.Assemblage_u()
 
 simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=False)
 
-tic.Tac("Temps total", True)
+
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
@@ -96,10 +96,8 @@ if plotResult:
 
         tic = TicTac()
         
-        # Affichage.AfficheNoeudsMaillage(simu, showId=False)
-        # Affichage.PlotMesh(mesh, simu.resultats, deformation=False)
         fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
-        # Affichage.AfficheNoeudsMaillage(simu, showId=True)
+        # Affichage.Plot_NoeudsMaillage(simu, showId=False)
         Affichage.Plot_Result(simu, "amplitude", deformation=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=False)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
@@ -111,13 +109,14 @@ if plotResult:
         # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
         # Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)
         
-        tic.Tac("Affichage des figures", plotResult)
+        tic.Tac("Post Traitement","Affichage des figures", plotResult)
 
+ticTot.Tac("Temps script","Temps total", True)        
+
+TicTac.getResume()        
+
+if plotResult:
         plt.show()
-
-        
-
-
 
 
 # %%

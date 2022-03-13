@@ -1,4 +1,4 @@
-from typing import cast
+import os
 import numpy as np
 
 import matplotlib as plt
@@ -7,20 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import *
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-try:
-    from Element import Element
-    from Mesh import Mesh
-    from Materiau import Materiau    
-    from Simu import Simu
-except:    
-    from classes.Element import Element
-    from classes.Mesh import Mesh
-    from classes.Materiau import Materiau
-    from classes.Simu import Simu
-    
-    
-    
-    
+from Simu import Simu
 
 class Affichage:
 
@@ -81,8 +68,8 @@ class Affichage:
   
             fig.colorbar(pc, ax=ax)
             ax.axis('equal')
-            ax.set_xlabel('x [mm]')
-            ax.set_ylabel('y [mm]')
+            # ax.set_xlabel('x [mm]')
+            # ax.set_ylabel('y [mm]')
 
         
         elif mesh.dim == 3:
@@ -111,9 +98,9 @@ class Affichage:
 
             fig.colorbar(pc, ax=ax)       
             ax.add_collection(pc)            
-            ax.set_xlabel("x [mm]")
-            ax.set_ylabel("y [mm]")
-            ax.set_zlabel("z [mm]")            
+            # ax.set_xlabel("x [mm]")
+            # ax.set_ylabel("y [mm]")
+            # ax.set_zlabel("z [mm]")            
             
             Affichage.__ChangeEchelle(ax, coordo)
                 
@@ -129,7 +116,7 @@ class Affichage:
         """Dessine le maillage de la simulation
         """
         
-        assert facteurDef >1, "Le facteur de deformation doit être >= 1"
+        assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
 
         resultats = simu.resultats
         mesh = simu.get_mesh()
@@ -179,8 +166,8 @@ class Affichage:
             
             ax.autoscale()
             ax.axis('equal')
-            ax.set_xlabel("x [mm]")
-            ax.set_ylabel("y [mm]")
+            # ax.set_xlabel("x [mm]")
+            # ax.set_ylabel("y [mm]")
             ax.set_title("Ne = {} et Nn = {}".format(mesh.Ne, mesh.Nn))
         
         # ETUDE 3D    
@@ -205,9 +192,9 @@ class Affichage:
 
 
             # ax.autoscale()
-            ax.set_xlabel("x [mm]")
-            ax.set_ylabel("y [mm]")
-            ax.set_zlabel("z [mm]")
+            # ax.set_xlabel("x [mm]")
+            # ax.set_ylabel("y [mm]")
+            # ax.set_zlabel("z [mm]")
             ax.set_title("Ne = {} et Nn = {}".format(mesh.Ne, mesh.Nn))
 
             Affichage.__ChangeEchelle(ax, coordo)
@@ -263,8 +250,11 @@ class Affichage:
         # ax.set_box_aspect((factX, factY, factZ))
     
     def NouvelleSection(text: str):
-        print("\n==========================================================")
-        print("{} :".format(text))
+        # print("\n==========================================================")
+        # print("{} :".format(text))
+        bord = "======================="
+        print("\n{} {} {}".format(bord,text,bord))
 
-    
+    def Clear():
+        os.system("cls")    #nettoie le terminal    
         

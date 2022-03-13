@@ -1,19 +1,18 @@
 # %%
 
-from logging import error
 import os
 
-from classes.Element import Element
-from classes.Materiau import Materiau
-from classes.ModelGmsh import ModelGmsh
-from classes.Mesh import Mesh
-from classes.Simu import Simu
-from classes.Affichage import Affichage
+from Element import Element
+from Materiau import Materiau
+from ModelGmsh import ModelGmsh
+from Mesh import Mesh
+from Simu import Simu
+from Affichage import Affichage
+from TicTac import TicTac
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from classes.TicTac import TicTac
 
 os.system("cls")    #nettoie le terminal
 
@@ -86,7 +85,7 @@ for elem in listElem:
                 simu.Solve_u()
 
                 # Stockage des valeurs
-                listTemps_nb.append(tic.Tac("Temps total", False))
+                listTemps_nb.append(tic.Tac("Résolution","Temps total", False))
                 listWdef_nb.append(simu.resultats["Wdef"])
                 listDdl_nb.append(mesh.Nn*dim)
         
@@ -95,7 +94,6 @@ for elem in listElem:
         listDdl_e_nb.append(listDdl_nb)
 
 # Post traitement --------------------------------------------------------------------------------------
-Affichage.NouvelleSection("Post traitement")
 
 # Affiche la convergence d'energie
 
@@ -142,7 +140,7 @@ ax_Temps.set_ylabel('Temps [s]')
 ax_Temps.legend(Element.get_Types2D())
 
 
-
+TicTac.getResume()
 
 plt.show()
 
