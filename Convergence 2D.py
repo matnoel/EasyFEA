@@ -1,7 +1,5 @@
 # %%
 
-import os
-
 from Element import Element
 from Materiau import Materiau
 from ModelGmsh import ModelGmsh
@@ -14,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-os.system("cls")    #nettoie le terminal
+Affichage.Clear()
 
 # Data --------------------------------------------------------------------------------------------
 

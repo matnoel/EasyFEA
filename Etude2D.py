@@ -1,7 +1,5 @@
 # %%
 
-import os
-
 from Materiau import Materiau
 from ModelGmsh import ModelGmsh
 from Mesh import Mesh
