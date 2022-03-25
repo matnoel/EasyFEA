@@ -90,17 +90,54 @@ class Mesh:
             """
 
         if len(self.__connectPourTriangle) == 0:
-            
-            connection = self.__connect
-            new_connection = []
-            
+                     
+            # npe = self.__connect.shape[1]
+                
+            # if self.__dim == 2:            
+            #     # TRI3
+            #     if npe == 3:
+            #         self.__connectPourTriangle = self.__connect
+            #     # TRI6
+            #     elif npe == 6:
+            #         n1 = self.__connect[:,0]
+            #         n2 = self.__connect[:,1]
+            #         n3 = self.__connect[:,2]
+            #         n4 = self.__connect[:,3]
+            #         n5 = self.__connect[:,4]
+            #         n6 = self.__connect[:,5]
+
+            #         self.__connectPourTriangle = np.array([[n1, n4, n6],[n4, n2, n5],[n6, n5, n3],[n4, n5, n6]]).T.reshape((-1,3))
+            #     # QUAD4
+            #     elif npe == 4:
+            #         n1 = self.__connect[:,0]
+            #         n2 = self.__connect[:,1]
+            #         n3 = self.__connect[:,2]
+            #         n4 = self.__connect[:,3]
+
+            #         self.__connectPourTriangle = np.array([[n1, n2, n4],[n2, n3, n4]]).T.reshape((-1,3))
+            #     # QUAD8
+            #     elif npe == 8:
+            #         n1 = self.__connect[:,0]
+            #         n2 = self.__connect[:,1]
+            #         n3 = self.__connect[:,2]
+            #         n4 = self.__connect[:,3]
+            #         n5 = self.__connect[:,4]
+            #         n6 = self.__connect[:,5]
+            #         n7 = self.__connect[:,6]
+            #         n8 = self.__connect[:,7]
+
+            #         self.__connectPourTriangle = np.array([[n5, n6, n8],[n6, n7, n8],[n1, n5, n8],[n5, n2, n6],[n6, n3, n7],[n7, n4, n8]]).T.reshape((-1,3))
+                    
+            # elif self.__dim ==3:
+            #     pass
+
             for listIdNoeuds in self.__connect:
                 npe = len(listIdNoeuds)
                 
                 if self.__dim == 2:            
                     # TRI3
                     if npe == 3:
-                        self.__connectPourTriangle = connection
+                        self.__connectPourTriangle = self.__connect
                         break            
                     # TRI6
                     elif npe == 6:
@@ -173,7 +210,7 @@ class Mesh:
                     n2 = self.__connect[:,1]
                     n3 = self.__connect[:,2]
                     n4 = self.__connect[:,3]
-                    n5 = self.__connect[:,3]
+                    n5 = self.__connect[:,4]
                     n6 = self.__connect[:,5]
 
                     self.__connectPolygon = np.array([n1, n4, n2, n5, n3, n6, n1]).T
@@ -193,7 +230,7 @@ class Mesh:
                     n2 = self.__connect[:,1]
                     n3 = self.__connect[:,2]
                     n4 = self.__connect[:,3]
-                    n5 = self.__connect[:,3]
+                    n5 = self.__connect[:,4]
                     n6 = self.__connect[:,5]
                     n7 = self.__connect[:,6]
                     n8 = self.__connect[:,7]
@@ -208,7 +245,7 @@ class Mesh:
                     n4 = self.__connect[:,3]
                                     
                     self.__connectPolygon = np.array([[n1 ,n2, n3],[n1, n2, n4],[n1, n3, n4],[n2, n3, n4]]).T
-                 
+     
         return self.__connectPolygon
 
     def __init__(self, dim: int, coordo, connect, verbosity=True):
