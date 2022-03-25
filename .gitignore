@@ -1,4 +1,4 @@
 .vscode/launch.json
 .vscode/settings.json
 .vscode/extensions.json
-.classes/.__pycache__/./
+.classes/__pycache__/
