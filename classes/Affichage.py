@@ -62,8 +62,8 @@ class Affichage:
             # Valeur aux noeuds
             elif mesh.Nn == len(valeurs):
                 pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, levels ,cmap='jet')
-                # pc = ax.tripcolor(coordo[:,0], coordo[:,1], valeurs, levels ,cmap='jet')
-                # pc = ax.tricontour(coordo[:,0], coordo[:,1], valeurs, levels ,cmap='jet')
+                # tripcolor, tricontour, tricontourf
+                
                 
   
             fig.colorbar(pc, ax=ax)

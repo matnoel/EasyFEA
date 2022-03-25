@@ -29,13 +29,13 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/20
+taille = h/100
 
 # Materiau
 materiau = Materiau(dim, epaisseur=b, contraintesPlanes=True)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=3, tailleElement=taille)
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
 
@@ -96,7 +96,7 @@ if plotResult:
         
         fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
         # Affichage.Plot_NoeudsMaillage(simu, showId=False)
-        Affichage.Plot_Result(simu, "amplitude", deformation=True)
+        Affichage.Plot_Result(simu, "dy_n", deformation=True)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=False)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")

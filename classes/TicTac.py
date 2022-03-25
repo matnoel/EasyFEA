@@ -12,7 +12,7 @@ class TicTac:
 
         import Affichage
 
-        Affichage.Affichage.NouvelleSection("Résumé TicTac")
+        Affichage.Affichage.NouvelleSection("Résumé TicTac")        
 
         for categorie in TicTac.__Historique:
             histoCategorie = np.array(np.array(TicTac.__Historique[categorie])[:,0] , dtype=np.float64)

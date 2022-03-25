@@ -91,96 +91,75 @@ class Mesh:
 
         if len(self.__connectPourTriangle) == 0:
                      
-            # npe = self.__connect.shape[1]
-                
-            # if self.__dim == 2:            
-            #     # TRI3
-            #     if npe == 3:
-            #         self.__connectPourTriangle = self.__connect
-            #     # TRI6
-            #     elif npe == 6:
-            #         n1 = self.__connect[:,0]
-            #         n2 = self.__connect[:,1]
-            #         n3 = self.__connect[:,2]
-            #         n4 = self.__connect[:,3]
-            #         n5 = self.__connect[:,4]
-            #         n6 = self.__connect[:,5]
+            npe = self.__connect.shape[1]
 
-            #         self.__connectPourTriangle = np.array([[n1, n4, n6],[n4, n2, n5],[n6, n5, n3],[n4, n5, n6]]).T.reshape((-1,3))
-            #     # QUAD4
-            #     elif npe == 4:
-            #         n1 = self.__connect[:,0]
-            #         n2 = self.__connect[:,1]
-            #         n3 = self.__connect[:,2]
-            #         n4 = self.__connect[:,3]
 
-            #         self.__connectPourTriangle = np.array([[n1, n2, n4],[n2, n3, n4]]).T.reshape((-1,3))
-            #     # QUAD8
-            #     elif npe == 8:
-            #         n1 = self.__connect[:,0]
-            #         n2 = self.__connect[:,1]
-            #         n3 = self.__connect[:,2]
-            #         n4 = self.__connect[:,3]
-            #         n5 = self.__connect[:,4]
-            #         n6 = self.__connect[:,5]
-            #         n7 = self.__connect[:,6]
-            #         n8 = self.__connect[:,7]
+            if self.__dim == 2:
 
-            #         self.__connectPourTriangle = np.array([[n5, n6, n8],[n6, n7, n8],[n1, n5, n8],[n5, n2, n6],[n6, n3, n7],[n7, n4, n8]]).T.reshape((-1,3))
-                    
-            # elif self.__dim ==3:
-            #     pass
+                faces = []
 
-            for listIdNoeuds in self.__connect:
-                npe = len(listIdNoeuds)
-                
-                if self.__dim == 2:            
-                    # TRI3
-                    if npe == 3:
-                        self.__connectPourTriangle = self.__connect
-                        break            
-                    # TRI6
-                    elif npe == 6:
-                        n1 = listIdNoeuds[0]
-                        n2 = listIdNoeuds[1]
-                        n3 = listIdNoeuds[2]
-                        n4 = listIdNoeuds[3]
-                        n5 = listIdNoeuds[4]
-                        n6 = listIdNoeuds[5]
+                # TRI3
+                if npe == 3:
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
 
-                        self.__connectPourTriangle.append([n1, n4, n6])
-                        self.__connectPourTriangle.append([n4, n2, n5])
-                        self.__connectPourTriangle.append([n6, n5, n3])
-                        self.__connectPourTriangle.append([n4, n5, n6])                    
-                    # QUAD4
-                    elif npe == 4:
-                        n1 = listIdNoeuds[0]
-                        n2 = listIdNoeuds[1]
-                        n3 = listIdNoeuds[2]
-                        n4 = listIdNoeuds[3]                
+                    faces.append([n1,n2,n3])
+                # TRI6
+                elif npe == 6:
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
+                    n4 = self.__connect[:,3]
+                    n5 = self.__connect[:,4]
+                    n6 = self.__connect[:,5]
+                                        
+                    faces.append([n1, n4, n6])
+                    faces.append([n4, n2, n5])
+                    faces.append([n6, n5, n3])
+                    faces.append([n4, n5, n6])
 
-                        self.__connectPourTriangle.append([n1, n2, n4])
-                        self.__connectPourTriangle.append([n2, n3, n4])                    
-                    # QUAD8
-                    elif npe == 8:
-                        n1 = listIdNoeuds[0]
-                        n2 = listIdNoeuds[1]
-                        n3 = listIdNoeuds[2]
-                        n4 = listIdNoeuds[3]
-                        n5 = listIdNoeuds[4]
-                        n6 = listIdNoeuds[5]
-                        n7 = listIdNoeuds[6]
-                        n8 = listIdNoeuds[7]
+                # QUAD4
+                elif npe == 4:
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
+                    n4 = self.__connect[:,3]
 
-                        self.__connectPourTriangle.append([n5, n6, n8])
-                        self.__connectPourTriangle.append([n6, n7, n8])
-                        self.__connectPourTriangle.append([n1, n5, n8])
-                        self.__connectPourTriangle.append([n5, n2, n6])
-                        self.__connectPourTriangle.append([n6, n3, n7])
-                        self.__connectPourTriangle.append([n7, n4, n8])                    
-                    
-                elif self.__dim ==3:
-                    pass
+                    faces.append([n1, n2, n4])
+                    faces.append([n2, n3, n4])
+
+                # QUAD8
+                elif npe == 8:
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
+                    n4 = self.__connect[:,3]
+                    n5 = self.__connect[:,4]
+                    n6 = self.__connect[:,5]
+                    n7 = self.__connect[:,6]
+                    n8 = self.__connect[:,7]
+
+                    faces.append([n5, n6, n8])
+                    faces.append([n6, n7, n8])
+                    faces.append([n1, n5, n8])
+                    faces.append([n5, n2, n6])
+                    faces.append([n6, n3, n7])
+                    faces.append([n7, n4, n8])
+
+                # Remplie connect pour triangle
+                nbFaces = len(faces)
+                taille = self.Ne*nbFaces
+
+                self.__connectPourTriangle = np.zeros((taille, 3))
+
+                for face in range(nbFaces):
+                    lignes = np.arange(face, taille , nbFaces)
+                    nodes = np.array(faces[face]).T
+                    self.__connectPourTriangle[lignes,:] = nodes
+
+            elif self.__dim ==3:
+                pass            
 
         return self.__connectPourTriangle
     
