@@ -29,7 +29,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/10
+taille = h/20
 
 # Materiau
 materiau = Materiau(dim, epaisseur=b, contraintesPlanes=True)
