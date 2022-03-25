@@ -155,62 +155,60 @@ class Mesh:
         list de list
             Renvoie une liste de face
         """
-        if len(self.__connectPolygon) == 0:            
-            for listIdNoeuds in self.__connect:
-                npe = len(listIdNoeuds)
+        if len(self.__connectPolygon) == 0:
 
-                if self.__dim == 2:
-                    # TRI3
-                    if npe == 3:
-                        n1 = listIdNoeuds[0]
-                        n2 = listIdNoeuds[1]
-                        n3 = listIdNoeuds[2]
+            npe = self.__connect.shape[1]
 
-                        self.__connectPolygon.append([n1, n2, n3, n1])
-                    # TRI6
-                    elif npe == 6:
-                        n1 = listIdNoeuds[0]
-                        n2 = listIdNoeuds[1]
-                        n3 = listIdNoeuds[2]
-                        n4 = listIdNoeuds[3]
-                        n5 = listIdNoeuds[4]
-                        n6 = listIdNoeuds[5]
+            if self.__dim == 2:
+                # TRI3
+                if npe == 3:
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
 
-                        self.__connectPolygon.append([n1, n4, n2, n5, n3, n6, n1])
-                    # QUAD4
-                    elif npe == 4:
-                        # self.__connectPolygon = self.__connect
-                        # break
-                        n1 = listIdNoeuds[0]
-                        n2 = listIdNoeuds[1]
-                        n3 = listIdNoeuds[2]
-                        n4 = listIdNoeuds[3]
+                    self.__connectPolygon = np.array([n1, n2, n3, n1]).T
+                # TRI6
+                elif npe == 6:
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
+                    n4 = self.__connect[:,3]
+                    n5 = self.__connect[:,3]
+                    n6 = self.__connect[:,5]
 
-                        self.__connectPolygon.append([n1, n2, n3, n4, n1])
-                    # QUAD8
-                    elif npe == 8:
-                        n1 = listIdNoeuds[0]
-                        n2 = listIdNoeuds[1]
-                        n3 = listIdNoeuds[2]
-                        n4 = listIdNoeuds[3]
-                        n5 = listIdNoeuds[4]
-                        n6 = listIdNoeuds[5]
-                        n7 = listIdNoeuds[6]
-                        n8 = listIdNoeuds[7]
+                    self.__connectPolygon = np.array([n1, n4, n2, n5, n3, n6, n1]).T
+                # QUAD4
+                elif npe == 4:
+                    # self.__connectPolygon = self.__connect
+                    # break
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
+                    n4 = self.__connect[:,3]
 
-                        self.__connectPolygon.append([n1, n5, n2, n6, n3, n7, n4, n8, n1])
-                elif self.__dim == 3:
-                    # TETRA4
-                    if npe == 4:
-                        n1 = listIdNoeuds[0]
-                        n2 = listIdNoeuds[1]
-                        n3 = listIdNoeuds[2]
-                        n4 = listIdNoeuds[3]
-                                        
-                        self.__connectPolygon.append([n1 ,n2, n3])
-                        self.__connectPolygon.append([n1, n2, n4])
-                        self.__connectPolygon.append([n1, n3, n4])
-                        self.__connectPolygon.append([n2, n3, n4])        
+                    self.__connectPolygon = np.array([n1, n2, n3, n4, n1]).T
+                # QUAD8
+                elif npe == 8:
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
+                    n4 = self.__connect[:,3]
+                    n5 = self.__connect[:,3]
+                    n6 = self.__connect[:,5]
+                    n7 = self.__connect[:,6]
+                    n8 = self.__connect[:,7]
+
+                    self.__connectPolygon = np.array([n1, n5, n2, n6, n3, n7, n4, n8, n1]).T
+            elif self.__dim == 3:
+                # TETRA4
+                if npe == 4:
+                    n1 = self.__connect[:,0]
+                    n2 = self.__connect[:,1]
+                    n3 = self.__connect[:,2]
+                    n4 = self.__connect[:,3]
+                                    
+                    self.__connectPolygon = np.array([[n1 ,n2, n3],[n1, n2, n4],[n1, n3, n4],[n2, n3, n4]]).T
+                 
         return self.__connectPolygon
 
     def __init__(self, dim: int, coordo, connect, verbosity=True):

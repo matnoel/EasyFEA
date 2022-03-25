@@ -29,13 +29,13 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/10
+taille = h/100
 
 # Materiau
 materiau = Materiau(dim, epaisseur=b, contraintesPlanes=True)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=2, tailleElement=taille)
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
 
@@ -115,6 +115,5 @@ TicTac.getResume()
 
 if plotResult:
         plt.show()
-
 
 # %%
