@@ -78,17 +78,8 @@ simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=Fa
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
+Affichage.ResumeSimu(simu)
 
-
-print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
-
-print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"]))) 
-
-print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"]))) 
-print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"]))) 
-
-print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"]))) 
-print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
 
 if plotResult:
 
@@ -100,7 +91,7 @@ if plotResult:
         # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=False)
         # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
         # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
-        Affichage.Plot_Result(simu, "Svm_e")
+        Affichage.Plot_Result(simu, "Svm_e", deformation=True)
         # Affichage.PlotResult(simu, "Svm_n")
         # Affichage.PlotResult(simu, "Svm_n", affichageMaillage=True, deformation=True)
 

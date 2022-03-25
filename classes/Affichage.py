@@ -248,6 +248,18 @@ class Affichage:
         ax.set_zlim([zmin-ecartAuBord, zmax+ecartAuBord])
 
         # ax.set_box_aspect((factX, factY, factZ))
+
+    def ResumeSimu(simu):
+        print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
+
+        print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"]))) 
+
+        print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"]))) 
+        print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"]))) 
+
+        print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"]))) 
+        print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
+
     
     def NouvelleSection(text: str):
         # print("\n==========================================================")

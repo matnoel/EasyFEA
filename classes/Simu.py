@@ -454,13 +454,28 @@ class Simu:
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
             
-            # from scikits.umfpack import umfpack
-            # from scikits.umfpack import spsolve
-            # sp.sparse.linalg.use_solver(useUmfpack=True)
+            vector=False
 
-            # Résolution du sytème sur les ddl inconnues
-            xi = spsolve(Aii, bi-Aic.dot(xc), use_umfpack=True)            
-            # xi = spsolve(Aii, bi-Aic.dot(xc))
+            if vector:
+
+                from scipy.sparse.linalg import cholesky
+
+                L = cholesky(Aii, lower=True)
+                LT = L.T
+
+                x_chol =  spsolve(L, bi-Aic.dot(xc))
+
+                xi =  spsolve(LT, x_chol)
+
+            else:
+                # from scikits.umfpack import umfpack
+                # from scikits.umfpack import spsolve
+                # sp.sparse.linalg.use_solver(useUmfpack=True)
+
+                # Résolution du sytème sur les ddl inconnues
+                xi = spsolve(Aii, bi-Aic.dot(xc), use_umfpack=True)            
+                # xi = spsolve(Aii, bi-Aic.dot(xc))
+
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
