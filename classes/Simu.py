@@ -1,5 +1,6 @@
 import os
 from typing import cast
+from Affichage import Affichage
 
 import numpy as np
 import scipy as sp
@@ -10,25 +11,19 @@ from Element import Element
 from Mesh import Mesh
 from Materiau import Materiau
 from TicTac import TicTac
+from ModelGmsh import ModelGmsh
+import Dossier
     
 class Simu:
     
-    def get_listElement(self):
+    def __get_listElement(self):
         """Renvoie la liste d'element du maillage
 
         Returns:
             list(int): Element du maillage
         """
-        return list(range(self.__mesh.Ne))        
-    listElement = property(get_listElement)
-
-    def get_mesh(self):
-        """Renvoie le maillage de la simulation
-
-        Returns:
-            Mesh: Maillage de la simulation
-        """
-        return self.__mesh
+        return list(range(self.mesh.Ne))        
+    listElement = property(__get_listElement)    
 
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
@@ -49,11 +44,12 @@ class Simu:
 
 
         self.__dim = dim      
-        self.__verbosity = verbosity        
-        self.__mesh = mesh        
-        self.__materiau = materiau        
+        self.__verbosity = verbosity
+
+        self.mesh = mesh        
+        self.materiau = materiau        
         self.resultats = {}
-        self.H_e_pg = []
+        self.PsiP_e_pg = []
 
         # Conditions Limites en déplacement
         self.__BC_Neuman_u = [[],[]]
@@ -66,12 +62,14 @@ class Simu:
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
-    def __ConstruitMatElem_Dep(self, d, verification=False):
+    def ConstruitMatElem_Dep(self, d=[]):
+        return self.__ConstruitMatElem_Dep(d)
+
+    def __ConstruitMatElem_Dep(self, d):
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
 
         Args:
             d (list(float)): Endommagement aux noeuds
-            verification (bool, optional): Verification si la vectorisation des calculs est. Defaults to False.
 
         Returns:
             array de dim e: les matrices elementaires pour chaque element
@@ -80,7 +78,7 @@ class Simu:
         tic = TicTac()
 
         # Data
-        mesh = cast(Mesh, self.__mesh)
+        mesh = cast(Mesh, self.mesh)
         nPg = len(mesh.poid_pg)
         listPg = list(range(nPg))
         listElement = self.listElement
@@ -89,7 +87,7 @@ class Simu:
         jacobien_e_pg = mesh.jacobien_e_pg
         poid_pg = mesh.poid_pg
         B_rigi_e_pg = mesh.B_rigi_e_pg
-        mat = self.__materiau.C
+        mat = self.materiau.C
         # Ici on le materiau est homogène
         # Il est possible de stpcker ça pour ne plus avoir à recalculer        
 
@@ -97,7 +95,7 @@ class Simu:
             
             N_mass_pg = np.array(mesh.N_mass_pg)
 
-            d_e_n = self.__mesh.Localise_e(d)
+            d_e_n = self.mesh.Localise_e(d)
 
             d_e_pg = np.einsum('pij,ej->ep', N_mass_pg, d_e_n, optimize=True)
 
@@ -110,27 +108,21 @@ class Simu:
 
             Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, mat_e_pg, B_rigi_e_pg, optimize=True)
             
-        else:
+        else:   # probleme en déplacement simple
 
             Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, mat, B_rigi_e_pg, optimize=True)
-
-            if verification :
-                Ke_e_pg_v = np.array([[jacobien_e_pg[e,pg]*poid_pg[pg]*B_rigi_e_pg[e,pg].T.dot(mat).dot(B_rigi_e_pg[e,pg]) for pg in listPg] for e in listElement])
-                verif = Ke_e_pg_v - Ku_e_pg
-                assert np.round(verif.mean(),6) == 0, "Erreur"
         
+        # On somme sur les points d'intégrations
         Ku_e = np.sum(Ku_e_pg, axis=1)
 
         if self.__dim == 2:
-            Ku_e = Ku_e * self.__materiau.epaisseur
+            Ku_e = Ku_e * self.materiau.epaisseur
         
         tic.Tac("Matrices","Calcul des matrices elementaires (déplacement)", self.__verbosity)
 
-        if verification : self.__VerificationConstructionKe(Ku_e, d)
-
         return Ku_e    
  
-    def Assemblage_u(self, d=[], verification=False):
+    def Assemblage_u(self, d=[]):
         """Construit K global pour le problème en deplacement
 
         Args:            
@@ -139,7 +131,7 @@ class Simu:
         """
 
         # Data
-        mesh = self.__mesh        
+        mesh = self.mesh        
         taille = mesh.Nn*self.__dim
 
         # Construit Ke
@@ -163,7 +155,9 @@ class Simu:
 
         tic.Tac("Matrices","Assemblage du systême en déplacement", self.__verbosity)
         
-        if verification: self.__VerificationAssembleMatriceLaPlusRapide(lignesVector_e, colonnesVector_e, Ku_e)
+        # if verification: self.__VerificationAssembleMatriceLaPlusRapide(lignesVector_e, colonnesVector_e, Ku_e)
+
+        return self.__Ku
 
     def Solve_u(self, resolution=2, calculContraintesEtDeformation=False, interpolation=False):
         """Resolution du système matricielle A * x = b -> K * u = f
@@ -192,10 +186,10 @@ class Simu:
     def __CalculEpsilon_e_pg(self, u: np.ndarray):
         
         # Localise les deplacement par element
-        u_e = self.__mesh.Localise_e(u)
+        u_e = self.mesh.Localise_e(u)
         
         # Construit epsilon pour chaque element et chaque points de gauss
-        Epsilon_e_pg = np.einsum('epik,ek->epi', self.__mesh.B_rigi_e_pg, u_e, optimize=True)
+        Epsilon_e_pg = np.einsum('epik,ek->epi', self.mesh.B_rigi_e_pg, u_e, optimize=True)
 
         # Epsilon_e_pg = np.array([[self.__mesh.B_rigi_e_pg[e,pg].dot(u_e[e]) for pg in list(range(self.__mesh.B_rigi_e_pg.shape[1]))] for e in self.listElement])
 
@@ -203,7 +197,7 @@ class Simu:
 
     def __CalculSigma_e_pg(self, Epsilon_e_pg: np.ndarray):        
 
-        mat = self.__materiau.C
+        mat = self.materiau.C
 
         Sigma_e_pg = np.einsum('ik,epk->epi', mat, Epsilon_e_pg)
         # Sigma_e_pg = np.array([[self.__materiau.C.dot(Epsilon_e_pg[e,pg]) for pg in list(range(Epsilon_e_pg.shape[1]))] for e in self.listElement])
@@ -217,10 +211,10 @@ class Simu:
             
             Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
             
-            mat = self.__materiau.C
+            mat = self.materiau.C
 
             # Calcul l'energie
-            old_H = self.H_e_pg
+            old_H = self.PsiP_e_pg
 
             # Bourdin
             h = 1/2 * np.einsum('epk,kl,epl->ep', Epsilon_e_pg, mat, Epsilon_e_pg, optimize=True)
@@ -234,9 +228,9 @@ class Simu:
                 h = old_H            
 
             new = np.linalg.norm(h)
-            old = np.linalg.norm(self.H_e_pg)
+            old = np.linalg.norm(self.PsiP_e_pg)
             assert new >= old, "Erreur"
-            self.H_e_pg = h
+            self.PsiP_e_pg = h
     
     def __ConstruitMatElem_Pfm(self, Gc, l):
         
@@ -244,11 +238,11 @@ class Simu:
 
         # Data
         K = Gc*l
-        H_e_pg = self.H_e_pg
+        H_e_pg = self.PsiP_e_pg
         r_e_pg = 2*H_e_pg + Gc/l
 
         # Recupère les matrices pour travailler
-        mesh = self.__mesh
+        mesh = self.mesh
         jacobien_e_pg = mesh.jacobien_e_pg
         poid_pg = mesh.poid_pg
         Nd_pg = np.array(mesh.N_mass_pg)
@@ -283,7 +277,7 @@ class Simu:
         """
        
         # Data
-        mesh = self.__mesh
+        mesh = self.mesh
         taille = mesh.Nn
         lignesScalar_e = mesh.lignesScalar_e
         colonnesScalar_e = mesh.colonnesScalar_e
@@ -334,7 +328,7 @@ class Simu:
             list(int), list(int): ddl_Connues, ddl_Inconnues
         """
 
-        taille = self.__mesh.Nn
+        taille = self.mesh.Nn
 
         if vector :
             taille = taille*self.__dim
@@ -358,7 +352,7 @@ class Simu:
 
     def __Application_Conditions_Neuman(self, vector: bool):
 
-        taille = self.__mesh.Nn
+        taille = self.mesh.Nn
 
         if vector :
             taille = taille*self.__dim
@@ -380,7 +374,7 @@ class Simu:
 
     def __Application_Conditions_Dirichlet(self, vector: bool, b, resolution):
         
-        taille = self.__mesh.Nn
+        taille = self.mesh.Nn
 
         if vector :
             taille = taille*self.__dim
@@ -610,7 +604,7 @@ class Simu:
         tic = TicTac()
 
         # Energie de deformation
-        u_e = self.__mesh.Localise_e(Uglob)        
+        u_e = self.mesh.Localise_e(Uglob)        
         Ke_e = self.__Ku_e
         Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ke_e, u_e)
         
@@ -624,14 +618,14 @@ class Simu:
             assert np.isclose(diff, 0),"Erreur"
 
         # Récupère les déplacements
-        ddlx = np.arange(0, self.__mesh.Nn*self.__dim, self.__dim)
+        ddlx = np.arange(0, self.mesh.Nn*self.__dim, self.__dim)
         ddly = ddlx + 1 
         ddlz = ddlx + 2
         
         dx = Uglob[ddlx]
         dy = Uglob[ddly]
         if self.__dim == 2:
-            dz = np.zeros(self.__mesh.Nn)
+            dz = np.zeros(self.mesh.Nn)
         else:
             dz = Uglob[ddlz]
                 
@@ -662,7 +656,7 @@ class Simu:
         """
 
         # Data
-        u_e = self.__mesh.Localise_e(Uglob)
+        u_e = self.mesh.Localise_e(Uglob)
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob)
@@ -722,9 +716,9 @@ class Simu:
         tic = TicTac()
 
         # Data
-        listNoeud = list(range(self.__mesh.Nn))
-        listElement = list(range(self.__mesh.Ne))
-        connect = self.__mesh.connect
+        listNoeud = list(range(self.mesh.Nn))
+        listElement = list(range(self.mesh.Ne))
+        connect = self.mesh.connect
 
         # Consruit la matrice de connection Noeud
         # # connecNoeud = np.zeros((self.__mesh.Nn, self.__mesh.Ne))
@@ -735,7 +729,7 @@ class Simu:
         # Il faut encore optimiser la façon dont jobtient connecNoeud
         # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement
         # Construit connect des noeuds rapidement
-        connect_n_e = sp.sparse.lil_matrix((self.__mesh.Nn, self.__mesh.Ne))
+        connect_n_e = sp.sparse.lil_matrix((self.mesh.Nn, self.mesh.Ne))
 
         # connectNoeuds = [[e for e in listElement if n in self.connect[e]] for n in listNoeud]
 
@@ -751,18 +745,18 @@ class Simu:
         # tic.Tac("Temps boucle", True)
 
         connect_n_e.tocsr()
-        nombreApparition = np.array(1/np.sum(connect_n_e, axis=1)).reshape(self.__mesh.Nn,1)
+        nombreApparition = np.array(1/np.sum(connect_n_e, axis=1)).reshape(self.mesh.Nn,1)
 
         # Fonction d'interpolation
         def InterPolation(valeurs_e):
 
-            valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.__mesh.Ne,1))
+            valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.mesh.Ne,1))
             valeurs_n = valeurs_n_e*nombreApparition
             
             if verification:
                 connectNoeudVerif = np.array([np.where(n == connect)[0] for n in listNoeud])
                 valeurs_n2 = [np.mean(valeurs_e[connectNoeudVerif[n]]) for n in listNoeud]
-                test = np.round(np.array(valeurs_n2).reshape(self.__mesh.Nn,1) - valeurs_n)
+                test = np.round(np.array(valeurs_n2).reshape(self.mesh.Nn,1) - valeurs_n)
                 assert test.mean() == 0, "Erreur dans l'interpolation"
 
             return valeurs_n.reshape(-1)
@@ -777,7 +771,198 @@ class Simu:
 
         tic.Tac("Post Traitement","Calcul deformations et contraintse aux noeuds", self.__verbosity)
 
-# ------------------------------------------- Vérifications -------------------------------------------
+    def Resume(self):
+        print("\nW def = {:.6f} N.mm".format(self.resultats["Wdef"])) 
+
+        print("\nSvm max = {:.6f} MPa".format(np.max(self.resultats["Svm_e"]))) 
+
+        print("\nUx max = {:.6f} mm".format(np.max(self.resultats["dx_n"]))) 
+        print("Ux min = {:.6f} mm".format(np.min(self.resultats["dx_n"]))) 
+
+        print("\nUy max = {:.6f} mm".format(np.max(self.resultats["dy_n"]))) 
+        print("Uy min = {:.6f} mm".format(np.min(self.resultats["dy_n"])))
+
+        if self.__dim == 3:
+            print("\nUz max = {:.6f} mm".format(np.max(self.resultats["dz_n"])))
+            print("Uz min = {:.6f} mm".format(np.min(self.resultats["dz_n"])))
+
+# ====================================
+
+import unittest
+import os
+
+class Test_Simu(unittest.TestCase):    
+    
+    def CreationDesSimusElastique2D(self):
+        
+        dim = 2
+
+        # Paramètres géométrie
+        L = 120;  #mm
+        h = 13;    
+        b = 13
+
+        # Charge a appliquer
+        P = -800 #N
+
+        # Paramètres maillage
+        taille = L
+
+        materiau = Materiau(dim)
+
+        self.simulations2DElastique = []        
+
+        # Pour chaque type d'element 2D
+        for i in range(len(Element.get_Types2D())):
+            # Construction du modele et du maillage 
+            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, verbosity=False)
+
+            (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
+            mesh = Mesh(dim, coordo, connect, verbosity=False)
+
+            simu = Simu(dim, mesh, materiau, verbosity=False)
+
+            simu.Assemblage_u()
+
+            noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
+            noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
+
+            simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["y"])
+
+            simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y"])
+
+            self.simulations2DElastique.append(simu)
+
+    def CreationDesSimusElastique3D(self):
+
+        dir_path = Dossier.GetPath()
+        fichier = dir_path + '\\models\\part.stp'
+
+        dim = 3
+
+        # Paramètres géométrie
+        L = 120  #mm
+        h = 13    
+        b = 13
+
+        P = -800 #N
+
+        # Paramètres maillage        
+        taille = L
+
+        materiau = Materiau(dim)
+        
+        self.simulations3DElastique = []        
+
+        for i in range(len(Element.get_Types3D())):
+            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
+
+            (coordo, connect) = modelGmsh.Importation3D(fichier)
+            mesh = Mesh(dim, coordo, connect, verbosity=False)
+
+            simu = Simu(dim,mesh, materiau, verbosity=False)
+
+            simu.Assemblage_u()
+
+            noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
+            noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
+
+            simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["z"])
+
+            simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y", "z"])
+
+            self.simulations3DElastique.append(simu)
+    
+    def setUp(self):
+        self.CreationDesSimusElastique2D()
+        self.CreationDesSimusElastique3D()  
+
+    def test_ResolutionDesSimulationsElastique2D(self):
+        # Pour chaque type de maillage on simule
+        for simu in self.simulations2DElastique:
+            simu = cast(Simu, simu)
+            simu.Solve_u()
+
+    def test_ResolutionDesSimulationsElastique3D(self):
+        # Pour chaque type de maillage on simule
+        for simu in self.simulations3DElastique:
+            simu = cast(Simu, simu)
+            simu.Solve_u()
+
+    def test__ConstruitMatElem_Dep(self):
+        for simu in self.simulations2DElastique:
+            simu = cast(Simu, simu)
+            Ke_e = simu.ConstruitMatElem_Dep()
+            self.__VerificationConstructionKe(simu, Ke_e)
+    
+    def test_Assemblage_u(self):
+        for simu in self.simulations2DElastique:
+            simu = cast(Simu, simu)
+            Ku = simu.Assemblage_u()
+            self.__VerificationAssembleMatriceLaPlusRapide(simu, Ke_e)
+
+    # ------------------------------------------- Vérifications ------------------------------------------- 
+
+    def __VerificationConstructionKe(self, simu: Simu, Ke_e, d=[]):        
+            """Ici on verifie quon obtient le meme resultat quavant verification vectorisation
+
+            Parameters
+            ----------
+            Ke_e : nd.array par element
+                Matrice calculé en vectorisant        
+            d : ndarray
+                Champ d'endommagement
+            """
+
+            tic = TicTac()
+
+            # Data
+            mesh = cast(Mesh, simu.mesh)
+            nPg = len(mesh.poid_pg)
+            listPg = list(range(nPg))
+            listElement = simu.listElement
+            materiau = simu.materiau
+
+            listKe_e = []
+
+            for e in listElement:            
+                # Pour chaque poing de gauss on construit Ke
+                Ke = 0
+                for pg in listPg:
+                    jacobien = mesh.jacobien_e_pg[e][pg]
+                    poid = mesh.poid_pg[pg]
+                    B_pg = mesh.B_rigi_e_pg[e][pg]
+
+                    K = jacobien * poid * B_pg.T.dot(materiau.C).dot(B_pg)
+
+                    if len(d)==0:   # probleme standart
+                        
+                        Ke += K
+                    else:   # probleme endomagement
+                        
+                        de = np.array([d[mesh.connect[e]]])
+                        
+                        # Bourdin
+                        g = (1-mesh.N_mass_pg[pg].dot(de))**2
+                        # g = (1-de)**2
+                        
+                        Ke += g * K
+                # # print(Ke-listeKe[e.id])
+                if mesh.dim == 2:
+                    listKe_e.append(Ke)
+                else:
+                    listKe_e.append(Ke)                
+
+            tic.Tac("Matrices","Calcul des matrices elementaires (boucle)", False)
+            
+            # Verification
+            Ke_comparaison = np.array(listKe_e)
+            test = Ke_e - Ke_comparaison
+
+            test = np.testing.assert_array_almost_equal(Ke_e, Ke_comparaison, verbose=False)
+
+            self.assertIsNone(test)
+            
 
     def __VerificationAssembleMatriceLaPlusRapide(self,lignes_e, colonnes_e, Ke_e):
         """Procédure que j'ai utiliser pour trouver la méthode d'assemblage la plus rapide
@@ -849,7 +1034,7 @@ class Simu:
             # KeRaveldSorted[listIndicesRapide+1] = 0
             taille = self.__mesh.Nn*self.__dim
             Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted[unique_indices], (unique[:,0],unique[:,1])), shape = (taille, taille)))
-       
+        
         ticVersion.Tac("Matrices","Assemblage version {}".format(version), True)
 
         # Verification de l'assemblage
@@ -888,174 +1073,21 @@ class Simu:
 
         ticVerification.Tac("Matrices","Assemblage lent avec verification", True)
 
-    def __VerificationConstructionKe(self, Ke_e, d):        
-        """Ici on verifie quon obtient le meme resultat quavant verification vectorisation
 
-        Parameters
-        ----------
-        Ke_e : nd.array par element
-            Matrice calculé en vectorisant        
-        d : ndarray
-            Champ d'endommagement
-        """
 
-        tic = TicTac()
 
-        # Data
-        mesh = cast(Mesh, self.__mesh)
-        nPg = len(mesh.__poid_pg)
-        listPg = list(range(nPg))
-        listElement = self.listElement
 
-        listKe_e = []
 
-        for e in listElement:            
-            # Pour chaque poing de gauss on construit Ke
-            Ke = 0
-            for pg in listPg:
-                jacobien = mesh.__jacobien_e_pg[e][pg]
-                poid = mesh.__poid_pg[pg]
-                B_pg = mesh.__B_rigi_e_pg[e][pg]
 
-                K = jacobien * poid * B_pg.T.dot(self.__materiau.C).dot(B_pg)
 
-                if len(d)==0:   # probleme standart
-                    
-                    Ke += K
-                else:   # probleme endomagement
-                    
-                    de = np.array([d[mesh.connect[e]]])
-                    
-                    # Bourdin
-                    g = (1-mesh.__N_mass_pg[pg].dot(de))**2
-                    # g = (1-de)**2
-                    
-                    Ke += g * K
-            # # print(Ke-listeKe[e.id])
-            if self.__dim == 2:
 
-                listKe_e.append(Ke)
-            else:
-                listKe_e.append(Ke)                
 
-        tic.Tac("Matrices","Calcul des matrices elementaires (boucle)", True)
-        
-        # Verification
-        Ke_comparaison = np.array(listKe_e)
-        test = Ke_e - Ke_comparaison           
-        assert np.round(test.max()) == 0 and np.round(test.min()) == 0, "Problème"
-
-    
-# ====================================
-
-import unittest
-import os
-
-class Test_Simu(unittest.TestCase):
-    
-    def CreationDesSimusElastique2D(self):
-        
-        dim = 2
-
-        # Paramètres géométrie
-        L = 120;  #mm
-        h = 13;    
-        b = 13
-
-        # Charge a appliquer
-        P = -800 #N
-
-        # Paramètres maillage
-        taille = L
-
-        materiau = Materiau(dim)
-
-        self.simulations2DElastique = []
-
-        # Pour chaque type d'element 2D
-        for i in range(len(Element.get_Types(dim))):
-            # Construction du modele et du maillage 
-            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, verbosity=False)
-
-            (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
-            mesh = Mesh(dim, coordo, connect, verbosity=False)
-
-            simu = Simu(dim, mesh, materiau, verbosity=False)
-
-            simu.Assemblage_u()
-
-            noeuds_en_L = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == L]
-            noeuds_en_0 = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == 0]  
-
-            simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["y"])
-
-            simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y"])
-
-            self.simulations2DElastique.append(simu)
-
-    def CreationDesSimusElastique3D(self):
-
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        fichier = dir_path + '\\models\\part.stp'
-
-        dim = 3
-
-        # Paramètres géométrie
-        L = 120  #mm
-        h = 13    
-        b = 13
-
-        P = -800 #N
-
-        # Paramètres maillage        
-        taille = L
-
-        materiau = Materiau(dim)
-        
-        self.simulations3DElastique = []
-
-        for i in range(len(Element.get_Types(dim))):
-            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
-
-            (coordo, connect) = modelGmsh.Importation3D(fichier)
-            mesh = Mesh(dim, coordo, connect, verbosity=False)
-
-            simu = Simu(dim,mesh, materiau, verbosity=False)
-
-            simu.Assemblage_u()
-
-            noeuds_en_L = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == L]
-            noeuds_en_0 = [n for n in range(mesh.Nn) if mesh.coordo[n,0] == 0]
-
-            simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["z"])
-
-            simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y", "z"])
-
-            self.simulations3DElastique.append(simu)
-    
-    def setUp(self):
-        self.CreationDesSimusElastique2D()
-        self.CreationDesSimusElastique3D()  
-
-    def test_ResolutionDesSimulationsElastique2D(self):
-        # Pour chaque type de maillage on simule
-        for simu in self.simulations2DElastique:
-            simu = cast(Simu, simu)
-            simu.Solve_u()
-
-    def test_ResolutionDesSimulationsElastique3D(self):
-        # Pour chaque type de maillage on simule
-        for simu in self.simulations3DElastique:
-            simu = cast(Simu, simu)
-            simu.Solve_u()
 
 
 if __name__ == '__main__':        
     try:
-        os.system("cls")    #nettoie terminal
+        Affichage.Clear()
         unittest.main(verbosity=2)    
     except:
-        print("")    
+        print("")   
 
-        
-            

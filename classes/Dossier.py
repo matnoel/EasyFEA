@@ -1,15 +1,15 @@
 import os
 
-def GetPath(file: str):
-    """Renvoie la path du fichier renseigné
+def GetPath(filename=None): 
+    
+    if filename == None:
+        # Renvoie le path vers PythonEF
+        path = os.path.dirname(__file__)
+        path = os.path.dirname(path)
+    else:
+        # Renvoie le path vers le fichier
+        path = os.path.dirname(filename)    
 
-    Args:
-        file (str): fichier source
-
-    Returns:
-        path (str): Emplacement du fichier
-    """
-    path = os.path.dirname(file)
     return path
 
 def GetFile(file: str, filenameWithExtension: str):

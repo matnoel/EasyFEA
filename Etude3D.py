@@ -2,6 +2,8 @@
 
 import os
 
+from Dossier import GetPath
+
 from Simu import Simu
 from Materiau import Materiau
 from ModelGmsh import ModelGmsh
@@ -29,7 +31,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 10
+nBe = 2
 taille = h/nBe
 
 if nBe > 3:
@@ -41,7 +43,7 @@ materiau = Materiau(dim)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
+dir_path = GetPath()
 fichier = dir_path + '\\models\\part.stp'
 
 (coordo, connect) = modelGmsh.Importation3D(fichier)
@@ -65,20 +67,7 @@ simu.Solve_u(calculContraintesEtDeformation=True, interpolation=False)
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Résultats")
 
-print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"]))
-
-print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"])))
-
-print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"])))
-print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"])))
-
-print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"])))
-print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
-
-print("\nUz max = {:.6f} mm".format(np.max(simu.resultats["dz_n"])))
-print("Uz min = {:.6f} mm".format(np.min(simu.resultats["dz_n"])))
-
-
+simu.Resume()
 
 if plotResult:
 

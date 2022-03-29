@@ -171,7 +171,7 @@ class Mesh:
         list de list
             Renvoie une liste de face
         """
-        if len(self.__connectPolygon) == 0:
+        if len(self.__connect_Faces) == 0:
 
             npe = self.__connect.shape[1]
 
@@ -182,7 +182,7 @@ class Mesh:
                     n2 = self.__connect[:,1]
                     n3 = self.__connect[:,2]
 
-                    self.__connectPolygon = np.array([n1, n2, n3, n1]).T
+                    self.__connect_Faces = np.array([n1, n2, n3, n1]).T
                 # TRI6
                 elif npe == 6:
                     n1 = self.__connect[:,0]
@@ -192,7 +192,7 @@ class Mesh:
                     n5 = self.__connect[:,4]
                     n6 = self.__connect[:,5]
 
-                    self.__connectPolygon = np.array([n1, n4, n2, n5, n3, n6, n1]).T
+                    self.__connect_Faces = np.array([n1, n4, n2, n5, n3, n6, n1]).T
                 # QUAD4
                 elif npe == 4:
                     # self.__connectPolygon = self.__connect
@@ -202,7 +202,7 @@ class Mesh:
                     n3 = self.__connect[:,2]
                     n4 = self.__connect[:,3]
 
-                    self.__connectPolygon = np.array([n1, n2, n3, n4, n1]).T
+                    self.__connect_Faces = np.array([n1, n2, n3, n4, n1]).T
                 # QUAD8
                 elif npe == 8:
                     n1 = self.__connect[:,0]
@@ -214,18 +214,34 @@ class Mesh:
                     n7 = self.__connect[:,6]
                     n8 = self.__connect[:,7]
 
-                    self.__connectPolygon = np.array([n1, n5, n2, n6, n3, n7, n4, n8, n1]).T
+                    self.__connect_Faces = np.array([n1, n5, n2, n6, n3, n7, n4, n8, n1]).T
             elif self.__dim == 3:
+                faces=[]
                 # TETRA4
                 if npe == 4:
                     n1 = self.__connect[:,0]
                     n2 = self.__connect[:,1]
                     n3 = self.__connect[:,2]
                     n4 = self.__connect[:,3]
-                                    
-                    self.__connectPolygon = np.array([[n1 ,n2, n3],[n1, n2, n4],[n1, n3, n4],[n2, n3, n4]]).T
+
+                    faces.append([n1 ,n2, n3])
+                    faces.append([n1, n2, n4])
+                    faces.append([n1, n3, n4])
+                    faces.append([n2, n3, n4])
+
+                # Remplie connect pour triangle
+                nbFaces = len(faces)
+                taille = self.Ne*nbFaces
+
+                self.__connect_Faces = np.zeros((taille, len(faces[0])),dtype=np.uint64)
+
+                for face in range(nbFaces):
+                    lignes = np.arange(face, taille , nbFaces)
+                    nodes = np.array(faces[face]).T
+                    self.__connect_Faces[lignes,:] = nodes
+                    
      
-        return self.__connectPolygon
+        return self.__connect_Faces
 
     def __init__(self, dim: int, coordo, connect, verbosity=True):
         """Création du maillage depuis coordo et connection
@@ -255,7 +271,7 @@ class Mesh:
         self.__ConstruitMatricesPourCalculEf()        
 
         self.__connectPourTriangle = []
-        self.__connectPolygon = []
+        self.__connect_Faces = []
         
         if verbosity:
             print("\nNe = {}, Nn = {}, nbDdl = {}".format(self.Ne,self.Nn,self.Nn*self.__dim)) 

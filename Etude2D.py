@@ -29,7 +29,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/100
+taille = h/20
 
 # Materiau
 materiau = Materiau(dim, epaisseur=b, contraintesPlanes=True)
@@ -74,11 +74,10 @@ simu.Assemblage_u()
 simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=False)
 
 
-
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
-Affichage.ResumeSimu(simu)
+simu.Resume()
 
 
 if plotResult:

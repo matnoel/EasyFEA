@@ -1,18 +1,18 @@
+from typing import cast
 import os
 import numpy as np
 
-import matplotlib as plt
 import matplotlib.collections
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import *
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
-
-from Simu import Simu
 
 class Affichage:
 
-    def Plot_Result(simu: Simu, val: str , deformation=False, facteurDef=4, affichageMaillage=False):     
+    def Plot_Result(simu, val: str , deformation=False, facteurDef=4, affichageMaillage=False):     
         # Va chercher les valeurs 0 a affciher
+
+        from Simu import Simu
+        simu = cast(Simu, simu)
 
         resultats = simu.resultats
         mesh = simu.get_mesh()
@@ -112,10 +112,13 @@ class Affichage:
         ax.set_title(val+unite)
         
         
-    def Plot_Maillage(simu: Simu, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
+    def Plot_Maillage(simu, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
         """Dessine le maillage de la simulation
         """
         
+        from Simu import Simu
+        simu = cast(Simu, simu)
+
         assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
 
         resultats = simu.resultats
@@ -125,18 +128,18 @@ class Affichage:
         dim = mesh.dim
 
         # construit la matrice de connection pour les faces
-        connectPolygon = mesh.get_connect_Faces()
+        connect_Faces = mesh.get_connect_Faces()
 
         # Construit les faces non deformées
         coord_NonDeforme_redim = coordo[:,range(dim)]
-        coord_par_face = coord_NonDeforme_redim[connectPolygon]
+        coord_par_face = coord_NonDeforme_redim[connect_Faces]
 
         if deformation:
             try:
                 coordoDeforme = coordo + resultats["deplacementCoordo"]*facteurDef
                 # Construit les faces deformées
                 coordo_Deforme_redim = coordoDeforme[:,range(dim)]
-                coordo_par_face_deforme = coordo_Deforme_redim[connectPolygon]
+                coordo_par_face_deforme = coordo_Deforme_redim[connect_Faces]
             except:
                 # print("La simulation n'a pas de solution. Impossible de réaliser le maillage deformé")
                 deformation = False   
@@ -201,8 +204,11 @@ class Affichage:
         
         return fig, ax
 
-    def Plot_NoeudsMaillage(simu: Simu, ax=None, noeuds=[], marker='.', c='blue', showId=False):        
+    def Plot_NoeudsMaillage(simu, ax=None, noeuds=[], marker='.', c='blue', showId=False):        
         
+        from Simu import Simu
+        simu = cast(Simu, simu)
+
         mesh = simu.get_mesh()
 
         if ax == None:
@@ -249,18 +255,6 @@ class Affichage:
 
         # ax.set_box_aspect((factX, factY, factZ))
 
-    def ResumeSimu(simu):
-        print("\nW def = {:.6f} N.mm".format(simu.resultats["Wdef"])) 
-
-        print("\nSvm max = {:.6f} MPa".format(np.max(simu.resultats["Svm_e"]))) 
-
-        print("\nUx max = {:.6f} mm".format(np.max(simu.resultats["dx_n"]))) 
-        print("Ux min = {:.6f} mm".format(np.min(simu.resultats["dx_n"]))) 
-
-        print("\nUy max = {:.6f} mm".format(np.max(simu.resultats["dy_n"]))) 
-        print("Uy min = {:.6f} mm".format(np.min(simu.resultats["dy_n"])))
-
-    
     def NouvelleSection(text: str):
         # print("\n==========================================================")
         # print("{} :".format(text))
