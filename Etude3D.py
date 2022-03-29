@@ -5,7 +5,7 @@ import os
 from Dossier import GetPath
 
 from Simu import Simu
-from Materiau import Materiau
+from Materiau import Materiau, Elas_Isot
 from ModelGmsh import ModelGmsh
 from Mesh import Mesh
 from Affichage import Affichage
@@ -37,8 +37,10 @@ taille = h/nBe
 if nBe > 3:
         plotResult = False
 
+comportement = Elas_Isot(dim, contraintesPlanes=False)
 
-materiau = Materiau(dim)
+# Materiau
+materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)

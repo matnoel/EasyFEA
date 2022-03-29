@@ -1,6 +1,6 @@
 # %%
 
-from Materiau import Materiau
+from Materiau import Elas_Isot, LoiDeComportement, Materiau
 from ModelGmsh import ModelGmsh
 from Mesh import Mesh
 from Simu import Simu
@@ -31,8 +31,10 @@ P = 800 #N
 # Paramètres maillage
 taille = h/20
 
+comportement = Elas_Isot(dim, contraintesPlanes=False)
+
 # Materiau
-materiau = Materiau(dim, epaisseur=b, contraintesPlanes=True)
+materiau = Materiau(comportement, epaisseur=b)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)

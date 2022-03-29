@@ -1,4 +1,4 @@
-import os
+
 from typing import cast
 from Affichage import Affichage
 
@@ -87,7 +87,7 @@ class Simu:
         jacobien_e_pg = mesh.jacobien_e_pg
         poid_pg = mesh.poid_pg
         B_rigi_e_pg = mesh.B_rigi_e_pg
-        mat = self.materiau.C
+        mat = self.materiau.comportement.get_C()
         # Ici on le materiau est homogène
         # Il est possible de stpcker ça pour ne plus avoir à recalculer        
 
@@ -155,8 +155,6 @@ class Simu:
 
         tic.Tac("Matrices","Assemblage du systême en déplacement", self.__verbosity)
         
-        # if verification: self.__VerificationAssembleMatriceLaPlusRapide(lignesVector_e, colonnesVector_e, Ku_e)
-
         return self.__Ku
 
     def Solve_u(self, resolution=2, calculContraintesEtDeformation=False, interpolation=False):
@@ -238,8 +236,8 @@ class Simu:
 
         # Data
         K = Gc*l
-        H_e_pg = self.PsiP_e_pg
-        r_e_pg = 2*H_e_pg + Gc/l
+        PsiP_e_pg = self.PsiP_e_pg
+        r_e_pg = 2*PsiP_e_pg + Gc/l
 
         # Recupère les matrices pour travailler
         mesh = self.mesh
@@ -259,7 +257,7 @@ class Simu:
         Kd_e = np.sum(Kd_e_pg, axis=1)
 
         # Construit Fd_e
-        Energie_e_pg = 2*H_e_pg
+        Energie_e_pg = 2*PsiP_e_pg
 
         Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, Energie_e_pg, Nd_pg) 
 
@@ -894,12 +892,6 @@ class Test_Simu(unittest.TestCase):
             simu = cast(Simu, simu)
             Ke_e = simu.ConstruitMatElem_Dep()
             self.__VerificationConstructionKe(simu, Ke_e)
-    
-    def test_Assemblage_u(self):
-        for simu in self.simulations2DElastique:
-            simu = cast(Simu, simu)
-            Ku = simu.Assemblage_u()
-            self.__VerificationAssembleMatriceLaPlusRapide(simu, Ke_e)
 
     # ------------------------------------------- Vérifications ------------------------------------------- 
 
@@ -963,126 +955,6 @@ class Test_Simu(unittest.TestCase):
 
             self.assertIsNone(test)
             
-
-    def __VerificationAssembleMatriceLaPlusRapide(self,lignes_e, colonnes_e, Ke_e):
-        """Procédure que j'ai utiliser pour trouver la méthode d'assemblage la plus rapide
-
-        Args:
-            lignes_e (list(int)): liste des lignes par element
-            colonnes_e (list(int)): liste des lignes par element
-            valeurs_e (list(Ke_e)): [description]
-        """
-
-        
-        lignes = np.ravel(lignes_e)
-        colonnes = np.ravel(colonnes_e)
-        Ke = Ke_e.reshape(-1)
-        
-        indincesOrdo = np.lexsort((colonnes, lignes))
-
-        coord = np.array([lignes,colonnes]).T
-        coord = coord[indincesOrdo]
-
-        lignesRaveldSorted = lignes[indincesOrdo]
-        colonnesRaveldSorted = colonnes[indincesOrdo]        
-        KeRaveldSorted = Ke[indincesOrdo]
-
-        ticVersion = TicTac()
-        taille = self.__mesh.Nn*self.__dim
-        Ku = sp.sparse.lil_matrix((taille, taille))
-        version = 0
-
-        if version == 0:
-            # V0 Plus rapide            
-            Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted, (lignesRaveldSorted, colonnesRaveldSorted)), shape = (taille, taille)))
-        elif version == 1:
-            # V1            
-            for i in range(len(indincesOrdo)-1):
-                if i+1 != coord.shape[0] and (coord[i][0] == coord[i+1][0] and coord[i][1] == coord[i+1][1]):                
-                    KeRaveldSorted[i+1] += KeRaveldSorted[i]
-                    KeRaveldSorted[i]=0                
-            Ku[lignesRaveldSorted, colonnesRaveldSorted] += KeRaveldSorted
-        elif version == 2:
-            # # V2
-            # Il faut d'abord réussir à construire la liste suivante sans boucle !
-            listIndices = np.array([i for i in range(len(indincesOrdo)-1) if i+1 != coord.shape[0] and (coord[i,0] == coord[i+1,0] and coord[i,1] == coord[i+1,1])])
-            # Construit la liste sans la boucle
-            unique, unique_indices, unique_inverse, unique_counts  = np.unique(coord,axis=0,return_index=True, return_inverse=True, return_counts=True)
-            list_i = np.array(range(len(unique_inverse)-1))        
-            listIndicesRapide = np.where(unique_inverse[list_i] == unique_inverse[list_i+1])[0]
-            # Verification que la liste est bien construite
-            assert np.sum(listIndices - listIndicesRapide)==0,"Erreur dans la construction de la liste" 
-            # Somme des valeurs pour les coordonnées identiques
-            for i in listIndicesRapide:
-                KeRaveldSorted[i+1] += KeRaveldSorted[i]
-                KeRaveldSorted[i] = 0
-            # KeRaveldSorted[listIndicesRapide+1] = KeRaveldSorted[listIndicesRapide+1] + KeRaveldSorted[listIndicesRapide]
-            # KeRaveldSorted[listIndicesRapide] = 0
-            # Assemblage
-            Ku[lignesRaveldSorted, colonnesRaveldSorted] += KeRaveldSorted
-        elif version == 3:
-            # V3
-            unique, unique_indices, unique_inverse, unique_counts  = np.unique(coord,axis=0,return_index=True, return_inverse=True, return_counts=True)
-            list_i = np.array(range(len(unique_inverse)-1))        
-            listIndicesRapide = np.flipud(np.where(unique_inverse[list_i] == unique_inverse[list_i+1])[0])
-            # V3.1
-            for i in listIndicesRapide:
-                KeRaveldSorted[i] += KeRaveldSorted[i+1]
-                KeRaveldSorted[i+1] = 0
-            # # V3.2
-            # KeRaveldSorted[listIndicesRapide] += KeRaveldSorted[listIndicesRapide+1]
-            # KeRaveldSorted[listIndicesRapide+1] = 0
-            taille = self.__mesh.Nn*self.__dim
-            Ku = sp.sparse.lil_matrix(sp.sparse.csr_matrix((KeRaveldSorted[unique_indices], (unique[:,0],unique[:,1])), shape = (taille, taille)))
-        
-        ticVersion.Tac("Matrices","Assemblage version {}".format(version), True)
-
-        # Verification de l'assemblage
-        ticVerification = TicTac()
-        taille = self.__mesh.Nn*self.__dim
-        mesh = self.__mesh
-        listElement = self.listElement
-        indices = range(0, Ke_e[0].shape[0])
-
-        Ku_comparaison = sp.sparse.lil_matrix((taille, taille))
-
-        liste_ligne = []
-        liste_colonne = []
-        liste_Ke = []
-        
-        for e in listElement:
-            for i in indices:
-                ligne = mesh.__assembly_e[e][i]
-                for j in indices:
-                    colonne = mesh.__assembly_e[e][j]
-                    Ku_comparaison[ligne, colonne] =  Ku_comparaison[ligne, colonne] + Ke_e[e][i,j]
-                    
-                    liste_ligne.append(ligne)
-                    liste_colonne.append(colonne)
-                    liste_Ke.append(Ke_e[e][i,j])
-        
-        # Tests
-        test1 = np.array(liste_ligne) - lignes
-        assert test1.max() == 0 and test1.min() == 0, "Erreur dans la liste d'assemblage"
-        test2 = np.array(liste_colonne) - colonnes
-        assert test2.max() == 0 and test2.min() == 0, "Erreur dans la liste d'assemblage"
-        test3 = np.array(liste_Ke) - Ke
-        assert test3.max() == 0 and test3.min() == 0, "Erreur dans Ke_e Ravel"
-        test4 = np.round(Ku_comparaison - self.__Ku)
-        assert test4.max() == 0 and test4.min() == 0, "Erreur dans l'assemblage"
-
-        ticVerification.Tac("Matrices","Assemblage lent avec verification", True)
-
-
-
-
-
-
-
-
-
-
-
 
 if __name__ == '__main__':        
     try:
