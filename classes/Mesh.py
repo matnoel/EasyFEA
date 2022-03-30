@@ -546,9 +546,9 @@ class Test_Mesh(unittest.TestCase):
         coordo.append(np.array([1, 0, 0]))
         coordo.append(np.array([0, 1, 0]))
         
-        connect = [[0, 1, 2]]
+        connect = np.array([[0, 1, 2]])
         
-        self.mesh = Mesh(2, np.array(coordo), connect)
+        self.mesh = Mesh(2, np.array(coordo), connect, verbosity=False)
 
     def test_BienCree(self):
         self.assertIsInstance(self.mesh, Mesh)
