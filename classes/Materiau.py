@@ -8,22 +8,30 @@ class LoiDeComportement(object):
     def __init__(self, nom: str, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float):
 
         self.__nom = nom
+        """nom de la loi de comportement"""
         self.__dim = dim
+        """dimension lié a la loi de comportement"""
 
         if dim == 2:
             assert epaisseur > 0 , "Doit être supérieur à 0"
             self.__epaisseur = epaisseur
         
         self.__C = C
+        """Loi de comportement pour la loi de Lamé"""
+
         self.__S = S
+        """Loi de comportement pour la loi de Hooke"""
     
     def get_C(self):
+        """Renvoie une copie de la loi de comportement pour la loi de Lamé"""
         return self.__C.copy()
 
     def get_S(self):
+        """Renvoie une copie de la loi de comportement pour la loi de Hooke"""
         return self.__S.copy()
 
     def __getdim(self):
+        """Renvoie la loi de comportement pour la loi de Hooke"""
         return self.__dim
     dim = property(__getdim)
 
@@ -54,13 +62,16 @@ class Elas_Isot(LoiDeComportement):
         # Vérification des valeurs
         assert E > 0.0, "Le module élastique doit être > 0 !"
         self.E=E
+        """Module de Young"""
 
         poisson = "Le coef de poisson doit être compris entre ]-1;0.5["
         assert v > -1.0 and v < 0.5, poisson
         self.v=v
+        """Coef de poisson"""
 
         if dim == 2:
             self.contraintesPlanes = contraintesPlanes
+            """type de simplification 2D"""
 
         C, S = self.__Comportement_Elas_Isot(dim)
 
@@ -68,7 +79,7 @@ class Elas_Isot(LoiDeComportement):
 
 
     def __Comportement_Elas_Isot(self, dim):
-        # Construction matrice de comportement
+        """"Construit les matrices de comportement"""
 
         E=self.E
         v=self.v
@@ -131,12 +142,6 @@ class Materiau:
         # Initialisation des variables de la classe
 
         self.comportement = comportement
-
-
-    
-
-    
-        
 
 
 # TEST ==============================

@@ -1,6 +1,7 @@
 import os
 
-def GetPath(filename=None): 
+def GetPath(filename=None):
+    """Renvoie le path du fichier ou renvoie le path vers PythonEF"""
     
     if filename == None:
         # Renvoie le path vers PythonEF
@@ -13,6 +14,7 @@ def GetPath(filename=None):
     return path
 
 def GetFile(file: str, filenameWithExtension: str):
+    """Renvoie le path vers le fichier avec l'extension"""
     path = GetPath(file)
     filename = path + "\\" + filenameWithExtension
     return filename

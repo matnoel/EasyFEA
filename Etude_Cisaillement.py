@@ -2,7 +2,7 @@
 
 import Dossier
 from Affichage import Affichage
-from Materiau import Materiau
+from Materiau import Elas_Isot, Materiau
 from ModelGmsh import ModelGmsh
 from Simu import Simu
 from Mesh import Mesh
@@ -49,7 +49,9 @@ NoeudsBord.extend(noeuds_Bas); NoeudsBord.extend(noeuds_Droite); NoeudsBord.exte
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Simulations")
 
-materiau = Materiau(dim, E=210e9, v=0.3, contraintesPlanes=False)
+comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+
+materiau = Materiau(comportement, ro=1)
 
 simu = Simu(dim, mesh, materiau, verbosity=False)
 
@@ -91,7 +93,7 @@ tic = TicTac()
 for iter in range(N):
         
         # Construit H
-        simu.CalcEnergyInt(u_tn)
+        simu.CalcPsiPlus(u_tn)
 
         #-------------------------- PFM problem ------------------------------------
         

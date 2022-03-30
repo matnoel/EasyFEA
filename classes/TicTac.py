@@ -3,10 +3,12 @@ import numpy as np
 
 class TicTac:
     
-    __Historique = {} 
+    __Historique = {}
+    """historique des temps (catégorie, temps, texte)"""
        
     @staticmethod
     def getResume():
+        """Construit le résumé de TicTac"""
 
         # print("\n Résumé TicTac :")
 
@@ -23,6 +25,7 @@ class TicTac:
         self.__start = time.time()
 
     def Tac(self, categorie: str, texte: str, affichage: bool):
+        """calcul le temps et stock dans l'historique"""
 
         tf = np.abs(self.__start - time.time())
 

@@ -13,17 +13,24 @@ class ModelGmsh:
                 assert tailleElement > 0.0 , "La taille de maille doit être > 0"
                 
                 self.__dim = dim
+                """dimension du model Gmsh"""
 
                 if dim == 2:
                         self.__typeElement = Element.get_Types2D()[typeElement]
+                        """type d'element"""
                 elif dim == 3:
                         self.__typeElement = Element.get_Types3D()[typeElement]
+                        """type d'element"""
 
                 self.__tailleElement = tailleElement
+                """taille d'element pour le maillage"""
                 
                 self.__organisationMaillage = organisationMaillage
+                """organisation du maillage"""
                 self.__affichageGmsh = affichageGmsh
+                """affichage du maillage sur gmsh"""
                 self.__verbosity = verbosity
+                """modelGmsh peut ecrire dans la console"""
 
                 if verbosity:
                         Affichage.NouvelleSection("Gmsh")
@@ -92,9 +99,12 @@ class ModelGmsh:
 
                 gmsh.model.geo.synchronize()
 
+                # surface = gmsh.model.mesh.embed(1, [l6], 2, surface)
                 gmsh.model.mesh.embed(1, [l6], 2, surface)
                 
                 tic.Tac("Mesh","Construction Rectangle Fissuré", self.__verbosity)
+
+                self.__organisationMaillage=False
                 
                 self.__ConstructionMaillageGmsh(surface)
                 
@@ -125,6 +135,7 @@ class ModelGmsh:
                         # Impose que le maillage soit organisé                        
                         if self.__organisationMaillage:
                                 gmsh.model.geo.mesh.setTransfiniteSurface(surface)
+                                        
 
                         # Synchronisation
                         gmsh.model.geo.synchronize()
@@ -158,6 +169,7 @@ class ModelGmsh:
                 tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
         def __ConstructionCoordoConnect(self, option = 2):
+                """construit connect et coordo pour l'importation du maillage"""
                 
                 tic = TicTac()
 
@@ -206,26 +218,37 @@ class Test_ModelGmsh(unittest.TestCase):
         def setUp(self):
                 pass
         
-        def test_ConstructionRectangle(self):
+        def test_ConstructionS(self):
                 
                 dim = 2
 
                 L = 120
                 h = 13
 
-                # Pour chaque type d'element 2D
-                for type in ModelGmsh.get_typesMaillage2D():
-                        modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=L, verbosity=False)
-                        modelGmsh.ConstructionRectangle(L, h)
+                organisations=[True, False]
+
+                for organisationMaillage in organisations:
+                        # Pour chaque type d'element 2D
+                        for t, type in enumerate(Element.get_Types2D()):
+                                modelGmsh = ModelGmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
+                                modelGmsh.ConstructionRectangle(L, h)
+
+                                modelGmsh2 = ModelGmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
+                                modelGmsh2.ConstructionRectangleAvecFissure(L, h)
+
         
         def test_Importation3D(self):
-            
-            dim = 3
 
-            # Pour chaque type d'element 3D
-            for type in ModelGmsh.get_typesMaillage3D():
-                    modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=type, tailleElement=120, verbosity=False)
-                    modelGmsh.Importation3D("part.stp")
+                import Dossier        
+            
+                dim = 3
+
+                # Pour chaque type d'element 3D
+                for t, type in enumerate(Element.get_Types3D()):
+                        modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=t, tailleElement=120, verbosity=False)
+                        path = Dossier.GetPath()
+                        fichier = path + "\\models\\part.stp" 
+                        modelGmsh.Importation3D(fichier)
 
     
            

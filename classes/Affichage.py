@@ -9,6 +9,22 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 class Affichage:
 
     def Plot_Result(simu, val: str , deformation=False, facteurDef=4, affichageMaillage=False):     
+        """Affichage de la simulation
+
+        Parameters
+        ----------
+        simu : Simu
+            Simulation
+        val : str
+            Ce quil sera affiché
+        deformation : bool, optional
+            deformation du domaine, by default False
+        facteurDef : int, optional
+            facteur de deformation du domaine, by default 4
+        affichageMaillage : bool, optional
+            affcihe le mailllage, by default False
+        """
+        
         # Va chercher les valeurs 0 a affciher
 
         from Simu import Simu
@@ -114,6 +130,24 @@ class Affichage:
         
     def Plot_Maillage(simu, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
         """Dessine le maillage de la simulation
+
+        Parameters
+        ----------
+        simu : Simu
+            Simulation
+        facteurDef : int, optional
+            facteur de deformation, by default 4
+        deformation : bool, optional
+            affiche le maillage deformé, by default False
+        lw : float, optional
+            epaisseur des traits, by default 0.5
+        alpha : int, optional
+            transparence du maillage, by default 1
+
+        Returns
+        -------
+        ax : plt.Axes
+            Axes dans lequel on va creer la figure
         """
         
         from Simu import Simu
@@ -204,7 +238,8 @@ class Affichage:
         
         return fig, ax
 
-    def Plot_NoeudsMaillage(simu, ax=None, noeuds=[], marker='.', c='blue', showId=False):        
+    def Plot_NoeudsMaillage(simu, ax=None, noeuds=[], marker='.', c='blue', showId=False):
+        """Affiche les noeuds du maillage"""
         
         from Simu import Simu
         simu = cast(Simu, simu)
@@ -256,11 +291,13 @@ class Affichage:
         # ax.set_box_aspect((factX, factY, factZ))
 
     def NouvelleSection(text: str):
+        """Creer une nouvelle section dans la console"""
         # print("\n==========================================================")
         # print("{} :".format(text))
         bord = "======================="
         print("\n{} {} {}".format(bord,text,bord))
 
     def Clear():
-        os.system("cls")    #nettoie le terminal    
+        """Nettoie la console"""
+        os.system("cls")
         

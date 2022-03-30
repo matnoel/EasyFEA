@@ -1,7 +1,7 @@
 # %%
 
 from Element import Element
-from Materiau import Materiau
+from Materiau import Elas_Isot, Materiau
 from ModelGmsh import ModelGmsh
 from Mesh import Mesh
 from Simu import Simu
@@ -28,10 +28,10 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-
+comportement = Elas_Isot(dim, epaisseur=b)
 
 # Materiau
-materiau = Materiau(dim, epaisseur=b)
+materiau = Materiau(comportement)
 
 # Pour chaque type d'element et plusieurs taille d'element on va calculer l'energie de deformation pour verifier la convergence
 
@@ -42,14 +42,13 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listElem = list(range(len(Element.get_Types2D())))
 listNbElement = list(range(1,30,5))
 # listNbElement = list(range(1,10))
 
 tic = TicTac()
 
 # Pour chaque type d'element
-for elem in listElem:
+for elem, type in enumerate(Element.get_Types2D()):
         
         listTemps_nb = []
         listWdef_nb = []
@@ -103,7 +102,7 @@ fig_Temps, ax_Temps = plt.subplots()
 WdefRef = 371.5
 # WdefRef = 391.76
 
-for elem in listElem:
+for elem, type in enumerate(Element.get_Types2D()):
 
         # Convergence Energie
         ax_Wdef.plot(listDdl_e_nb[elem], listWdef_e_nb[elem])

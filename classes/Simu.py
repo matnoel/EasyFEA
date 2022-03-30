@@ -42,22 +42,31 @@ class Simu:
         assert mesh.dim == dim, "Doit avoir la meme dimension que dim"
         assert materiau.dim == dim, "Doit avoir la meme dimension que dim"
 
-        self.__dim = dim      
+        self.__dim = dim
+        """dimension de la simulation 2D ou 3D"""
         self.__verbosity = verbosity
+        """la simulation peut ecrire dans la console"""
 
-        self.mesh = mesh        
-        self.materiau = materiau        
+        self.mesh = mesh
+        """maillage de la simulation"""
+        self.materiau = materiau
+        """materiau de la simulation"""
         self.resultats = {}
+        """résultats de la simulation"""
         self.PsiP_e_pg = []
+        """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
 
         # Conditions Limites en déplacement
         self.__BC_Neuman_u = [[],[]]
+        """Conditions Limites Dirichlet pour le déplacement list((noeuds, conditions))"""
         self.__BC_Dirichlet_u = [[],[]]
+        """Conditions Limites Neumann pour le déplacement list((noeuds, conditions))"""
 
         # Conditions Limites en endommagement
-        self.__BC_Neuman_u = [[],[]]
         self.__BC_Neuman_d = [[],[]]
+        """Conditions Limites Neumann pour l'endommagement' list((noeuds, conditions))"""
         self.__BC_Dirichlet_d = [[],[]]
+        """Conditions Limites Drichlet pour l'endommagement' list((noeuds, conditions))"""
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
@@ -79,8 +88,6 @@ class Simu:
         # Data
         mesh = cast(Mesh, self.mesh)
         nPg = len(mesh.poid_pg)
-        listPg = list(range(nPg))
-        listElement = self.listElement
         
         # Recupère les matrices pour travailler
         jacobien_e_pg = mesh.jacobien_e_pg
@@ -145,9 +152,11 @@ class Simu:
 
         # Assemblage
         self.__Ku = sp.sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
+        """Matrice Kglob pour le problème en déplacement (Nn*dim, Nn*dim)"""
 
         # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
         self.__Fu = sp.sparse.csr_matrix((taille, 1))
+        """Vecteur Fglob pour le problème en déplacement (Nn*dim, 1)"""
 
         # plt.spy(self.__Ku)
         # plt.show()
@@ -187,7 +196,6 @@ class Simu:
         
         # Construit epsilon pour chaque element et chaque points de gauss
         Epsilon_e_pg = np.einsum('epik,ek->epi', self.mesh.B_rigi_e_pg, u_e, optimize=True)
-
         # Epsilon_e_pg = np.array([[self.__mesh.B_rigi_e_pg[e,pg].dot(u_e[e]) for pg in list(range(self.__mesh.B_rigi_e_pg.shape[1]))] for e in self.listElement])
 
         return Epsilon_e_pg
@@ -202,7 +210,7 @@ class Simu:
         return Sigma_e_pg
 
 
-    def CalcEnergyInt(self, u: np.ndarray):
+    def CalcPsiPlus(self, u: np.ndarray):
             # Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
             # Calcul de la densité denergie de deformation en traction
             
@@ -211,18 +219,24 @@ class Simu:
             mat = self.materiau.comportement.get_C()
 
             # Calcul l'energie
-            old_H = self.PsiP_e_pg
+            old_PsiP = self.PsiP_e_pg
+
+            if len(old_PsiP) == 0:
+                old_PsiP = np.zeros((self.mesh.Ne, self.mesh.nPg))
 
             # Bourdin
-            h = 1/2 * np.einsum('epk,kl,epl->ep', Epsilon_e_pg, mat, Epsilon_e_pg, optimize=True)
+            h = 1/2 * np.einsum('epk,kl,epl->ep', Epsilon_e_pg, mat, Epsilon_e_pg, optimize=True).reshape((self.mesh.Ne, self.mesh.nPg))
             
-            inc_H = h-old_H
+            inc_H = h-old_PsiP
 
-            noeuds = np.where(inc_H >= 0)[0]
+            # Pour chaque point d'intégration on verifie que la densité dernerie évolue
+            for pg in range(self.mesh.nPg):
+                
+                # Récupères les noeuds ou la densité d'energie diminue
+                noeuds = np.where(inc_H[:,pg] < 0)[0]
 
-            if noeuds.shape[0] > 0:
-                old_H[noeuds] = h[noeuds]
-                h = old_H            
+                if noeuds.shape[0] > 0:
+                    h[noeuds] = old_PsiP[noeuds]
 
             new = np.linalg.norm(h)
             old = np.linalg.norm(self.PsiP_e_pg)
@@ -267,10 +281,7 @@ class Simu:
         return Kd_e, Fd_e
 
     def Assemblage_d(self, Gc=1, l=0.001):
-        """Construit Kglobal
-
-        mettre en option u ou d ?
-
+        """Construit Kglobal pour le probleme d'endommagement
         """
        
         # Data
@@ -286,15 +297,18 @@ class Simu:
         tic = TicTac()        
 
         self.__Kd = sp.sparse.csr_matrix((Kd_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
+        """Kglob pour le probleme d'endommagement (Nn, Nn)"""
         
         lignes = mesh.connect.reshape(-1)
         self.__Fd = sp.sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1))
+        """Fglob pour le probleme d'endommagement (Nn, 1)"""        
 
         tic.Tac("Matrices","Assemblage du systême en endommagement", self.__verbosity)       
 
         return self.__Kd, self.__Fd
     
     def Solve_d(self, resolution=2):
+        """Resolution du problème d'endommagement"""
          
         tic = TicTac()
 
@@ -311,7 +325,7 @@ class Simu:
         if(dGlob.min() < 0):
             print("dmin = {}".format(dGlob.min()))
 
-        return dGlob   
+        return dGlob
 
 # ------------------------------------------------- SOLVEUR -------------------------------------------------
 
@@ -348,6 +362,7 @@ class Simu:
         return ddl_Connues, ddl_Inconnues
 
     def __Application_Conditions_Neuman(self, vector: bool):
+        """applique les conditions de Neumann"""
 
         taille = self.mesh.Nn
 
@@ -370,6 +385,7 @@ class Simu:
         return b
 
     def __Application_Conditions_Dirichlet(self, vector: bool, b, resolution):
+        """applique les conditions de dirichlet"""
         
         taille = self.mesh.Nn
 
@@ -498,6 +514,7 @@ class Simu:
 # ------------------------------------------- CONDITIONS LIMITES ------------------------------------------- 
 
     def Clear_Condition_Neuman(self, option="u"):
+        """Enlève les conditions limites de Neumann"""
         if option == "u":
             self.__BC_Neuman_d = [[],[]]
         else:
@@ -551,6 +568,7 @@ class Simu:
         tic.Tac("Boundary Conditions","Condition Neumann", self.__verbosity)
 
     def Clear_Condition_Dirichlet(self, option="u"):
+        """Enlève les conditions limites de Dirichlet"""
         if option == "u":
             self.__BC_Dirichlet_u = [[],[]]
         else:
