@@ -5,10 +5,15 @@ class LoiDeComportement(object):
     """Classe des lois de comportements C de (Sigma = C * Epsilon)
     (Elas_isot, ...)
     """
-    def __init__(self, nom: str, dim: int, C: np.ndarray, S: np.ndarray):
+    def __init__(self, nom: str, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float):
 
         self.__nom = nom
         self.__dim = dim
+
+        if dim == 2:
+            assert epaisseur > 0 , "Doit être supérieur à 0"
+            self.__epaisseur = epaisseur
+        
         self.__C = C
         self.__S = S
     
@@ -22,9 +27,16 @@ class LoiDeComportement(object):
         return self.__dim
     dim = property(__getdim)
 
+    def __getepaisseur(self):
+        if self.__dim == 2:
+            return self.__epaisseur
+        else:
+            return 1.0
+    epaisseur = property(__getepaisseur)
+
 class Elas_Isot(LoiDeComportement):   
 
-    def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True):
+    def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0):
         """Creer la matrice de comportement d'un matériau : Elastique isotrope
 
         Parameters
@@ -51,7 +63,7 @@ class Elas_Isot(LoiDeComportement):
 
         C, S = self.__Comportement_Elas_Isot(dim)
 
-        LoiDeComportement.__init__(self,"Elas_Isot", dim, C, S)
+        LoiDeComportement.__init__(self,"Elas_Isot", dim, C, S, epaisseur)
 
 
     def __Comportement_Elas_Isot(self, dim):
@@ -95,11 +107,11 @@ class Elas_Isot(LoiDeComportement):
 
 class Materiau:
     
-    def get_dim(self):
+    def __get_dim(self):
         return self.comportement.dim
-    dim = property(get_dim)
+    dim = property(__get_dim)    
 
-    def __init__(self, comportement: LoiDeComportement, ro=8100.0, epaisseur=1.0):
+    def __init__(self, comportement: LoiDeComportement, ro=8100.0):
         """Creer un materiau
 
         Parameters
@@ -111,11 +123,7 @@ class Materiau:
         """
         
         assert ro > 0 , "Doit être supérieur à 0"
-        self.ro = ro
-        
-        if comportement.dim == 2:
-            assert epaisseur > 0 , "Doit être supérieur à 0"
-            self.epaisseur = epaisseur
+        self.ro = ro               
 
         # Initialisation des variables de la classe
 

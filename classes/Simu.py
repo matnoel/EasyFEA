@@ -9,7 +9,7 @@ from scipy.sparse.linalg import spsolve
 
 from Element import Element
 from Mesh import Mesh
-from Materiau import Materiau
+from Materiau import Elas_Isot, Materiau
 from TicTac import TicTac
 from ModelGmsh import ModelGmsh
 import Dossier
@@ -40,8 +40,7 @@ class Simu:
         # Vérification des valeurs
         assert dim == 2 or dim == 3, "Dimesion compris entre 2D et 3D"
         assert mesh.dim == dim, "Doit avoir la meme dimension que dim"
-        assert materiau.get_dim() == dim, "Doit avoir la meme dimension que dim"
-
+        assert materiau.dim == dim, "Doit avoir la meme dimension que dim"
 
         self.__dim = dim      
         self.__verbosity = verbosity
@@ -116,7 +115,7 @@ class Simu:
         Ku_e = np.sum(Ku_e_pg, axis=1)
 
         if self.__dim == 2:
-            Ku_e = Ku_e * self.materiau.epaisseur
+            Ku_e = Ku_e * self.materiau.comportement.epaisseur
         
         tic.Tac("Matrices","Calcul des matrices elementaires (déplacement)", self.__verbosity)
 
@@ -806,7 +805,9 @@ class Test_Simu(unittest.TestCase):
         # Paramètres maillage
         taille = L
 
-        materiau = Materiau(dim)
+        comportement = Elas_Isot(dim)
+
+        materiau = Materiau(comportement)
 
         self.simulations2DElastique = []        
 
@@ -848,7 +849,9 @@ class Test_Simu(unittest.TestCase):
         # Paramètres maillage        
         taille = L
 
-        materiau = Materiau(dim)
+        comportement = Elas_Isot(dim)
+
+        materiau = Materiau(comportement)
         
         self.simulations3DElastique = []        
 
@@ -914,6 +917,7 @@ class Test_Simu(unittest.TestCase):
             listPg = list(range(nPg))
             listElement = simu.listElement
             materiau = simu.materiau
+            C = materiau.comportement.get_C()
 
             listKe_e = []
 
@@ -925,7 +929,7 @@ class Test_Simu(unittest.TestCase):
                     poid = mesh.poid_pg[pg]
                     B_pg = mesh.B_rigi_e_pg[e][pg]
 
-                    K = jacobien * poid * B_pg.T.dot(materiau.C).dot(B_pg)
+                    K = jacobien * poid * B_pg.T.dot(C).dot(B_pg)
 
                     if len(d)==0:   # probleme standart
                         
