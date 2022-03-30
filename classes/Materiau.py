@@ -17,7 +17,7 @@ class LoiDeComportement(object):
         self.__C = C
         self.__S = S
     
-    def get_C(self):        
+    def get_C(self):
         return self.__C.copy()
 
     def get_S(self):
@@ -59,7 +59,8 @@ class Elas_Isot(LoiDeComportement):
         assert v > -1.0 and v < 0.5, poisson
         self.v=v
 
-        self.contraintesPlanes = contraintesPlanes
+        if dim == 2:
+            self.contraintesPlanes = contraintesPlanes
 
         C, S = self.__Comportement_Elas_Isot(dim)
 
@@ -122,6 +123,8 @@ class Materiau:
             epaisseur du matériau si en 2D > 0 !
         """
         
+        assert isinstance(comportement, LoiDeComportement)
+
         assert ro > 0 , "Doit être supérieur à 0"
         self.ro = ro               
 
@@ -144,14 +147,17 @@ import os
 class Test_Materiau(unittest.TestCase):
     def setUp(self):
 
-        self.materiau_Isot_CP = Materiau(2, E=2, v=0.2, ro=700, isotrope=True, contraintesPlanes=True)
-        self.materiau_Isot_DP = Materiau(2, E=2, v=0.2, ro=700, isotrope=True, contraintesPlanes=False)
-        self.materiau_Isot = Materiau(3, E=2, v=0.2, ro=700, isotrope=True, contraintesPlanes=False)
+        self.E = 2
+        self.v = 0.2
+
+        self.materiau_Isot_CP = Materiau(Elas_Isot(2, E=self.E, v=self.v, contraintesPlanes=True), ro=700)
+        self.materiau_Isot_DP = Materiau(Elas_Isot(2, E=self.E, v=self.v, contraintesPlanes=False), ro=700)
+        self.materiau_Isot = Materiau(Elas_Isot(3, E=self.E, v=self.v), ro=700)
 
     def test_BienCree_Isotrope(self):
 
-        E = self.materiau_Isot_CP.E
-        v = self.materiau_Isot_CP.v
+        E = self.E
+        v = self.v
 
         self.assertIsInstance(self.materiau_Isot_CP, Materiau)
 
@@ -168,12 +174,12 @@ class Test_Materiau(unittest.TestCase):
                                             [v, v, 1-v, 0, 0, 0],
                                             [0, 0, 0, (1-2*v)/2, 0, 0],
                                             [0, 0, 0, 0, (1-2*v)/2, 0],
-                                            [0, 0, 0, 0, 0, (1-2*v)/2]  ])
+                                            [0, 0, 0, 0, 0, (1-2*v)/2]  ])        
         
 
-        self.assertTrue(np.allclose(C_CP, self.materiau_Isot_CP.C, 1e-8))
-        self.assertTrue(np.allclose(C_DP, self.materiau_Isot_DP.C, 1e-8))
-        self.assertTrue(np.allclose(C_3D, self.materiau_Isot.C, 1e-8))
+        self.assertTrue(np.allclose(C_CP, self.materiau_Isot_CP.comportement.get_C(), 1e-8))
+        self.assertTrue(np.allclose(C_DP, self.materiau_Isot_DP.comportement.get_C(), 1e-8))
+        self.assertTrue(np.allclose(C_3D, self.materiau_Isot.comportement.get_C(), 1e-8))
 
 
 if __name__ == '__main__':        
