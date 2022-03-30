@@ -1,7 +1,5 @@
 # %%
 
-import os
-
 from Dossier import GetPath
 
 from Simu import Simu

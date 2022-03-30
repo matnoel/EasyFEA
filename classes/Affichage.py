@@ -15,7 +15,7 @@ class Affichage:
         simu = cast(Simu, simu)
 
         resultats = simu.resultats
-        mesh = simu.get_mesh()
+        mesh = simu.mesh
         coordo = mesh.coordo
 
         valeurs = np.array(resultats[val])
@@ -122,7 +122,7 @@ class Affichage:
         assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
 
         resultats = simu.resultats
-        mesh = simu.get_mesh()
+        mesh = simu.mesh
         coordo = mesh.coordo
 
         dim = mesh.dim

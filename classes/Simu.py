@@ -195,7 +195,7 @@ class Simu:
 
     def __CalculSigma_e_pg(self, Epsilon_e_pg: np.ndarray):        
 
-        mat = self.materiau.C
+        mat = self.materiau.comportement.get_C()
 
         Sigma_e_pg = np.einsum('ik,epk->epi', mat, Epsilon_e_pg)
         # Sigma_e_pg = np.array([[self.__materiau.C.dot(Epsilon_e_pg[e,pg]) for pg in list(range(Epsilon_e_pg.shape[1]))] for e in self.listElement])
@@ -209,7 +209,7 @@ class Simu:
             
             Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
             
-            mat = self.materiau.C
+            mat = self.materiau.comportement.get_C()
 
             # Calcul l'energie
             old_H = self.PsiP_e_pg

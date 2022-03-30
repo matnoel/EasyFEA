@@ -5,12 +5,12 @@ class LoiDeComportement(object):
     """Classe des lois de comportements C de (Sigma = C * Epsilon)
     (Elas_isot, ...)
     """
-    def __init__(self, nom, dim):
+    def __init__(self, nom: str, dim: int, C: np.ndarray, S: np.ndarray):
 
         self.__nom = nom
         self.__dim = dim
-        self.__C: np.ndarray
-        self.__S: np.ndarray
+        self.__C = C
+        self.__S = S
     
     def get_C(self):        
         return self.__C.copy()
@@ -22,7 +22,8 @@ class LoiDeComportement(object):
         return self.__dim
     dim = property(__getdim)
 
-class Elas_Isot(LoiDeComportement):
+class Elas_Isot(LoiDeComportement):   
+
     def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True):
         """Creer la matrice de comportement d'un matériau : Elastique isotrope
 
@@ -36,9 +37,7 @@ class Elas_Isot(LoiDeComportement):
             Coef de poisson ]-1;0.5]
         contraintesPlanes : bool
             Contraintes planes si dim = 2 et True, by default True        
-        """
-        
-        LoiDeComportement.__init__(self,"Elas_Isot", dim)
+        """       
 
         # Vérification des valeurs
         assert E > 0.0, "Le module élastique doit être > 0 !"
@@ -50,12 +49,12 @@ class Elas_Isot(LoiDeComportement):
 
         self.contraintesPlanes = contraintesPlanes
 
-        self.__C, self.__S = self.__Comportement_Elas_Isot()
+        C, S = self.__Comportement_Elas_Isot(dim)
 
-        test = self.get_C()
+        LoiDeComportement.__init__(self,"Elas_Isot", dim, C, S)
 
 
-    def __Comportement_Elas_Isot(self):
+    def __Comportement_Elas_Isot(self, dim):
         # Construction matrice de comportement
 
         E=self.E
@@ -64,7 +63,7 @@ class Elas_Isot(LoiDeComportement):
         mu = E/(2*(1+v))        
         l = v*E/((1+v)*(1-2*v)) #E*v/(1-v**2)
 
-        if self.dim == 2:
+        if dim == 2:
             if self.contraintesPlanes:
                 # C = np.array([  [4*(mu+l), 2*l, 0],
                 #                 [2*l, 4*(mu+l), 0],
@@ -83,7 +82,7 @@ class Elas_Isot(LoiDeComportement):
                 #                 [v/(1-v), 1, 0],
                 #                 [0, 0, (1-2*v)/(2*(1-v))]]) * E*(1-v)/((1+v)*(1-2*v))
 
-        elif self.dim == 3:
+        elif dim == 3:
             
             C = np.array([  [l+2*mu, l, l, 0, 0, 0],
                             [l, l+2*mu, l, 0, 0, 0],
