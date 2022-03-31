@@ -1,5 +1,6 @@
 
 from typing import cast
+
 from Affichage import Affichage
 
 import numpy as np
@@ -51,7 +52,7 @@ class Simu:
         """maillage de la simulation"""
         self.materiau = materiau
         """materiau de la simulation"""
-        self.resultats = {}
+        self.__resultats = {}
         """résultats de la simulation"""
         self.PsiP_e_pg = []
         """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
@@ -182,7 +183,7 @@ class Simu:
 
         tic.Tac("Résolution deplacement","Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)
         
-        self.__Save_u(Uglob, calculContraintesEtDeformation, interpolation)
+        self.__Save_u(Uglob)
 
         return Uglob
 
@@ -614,114 +615,212 @@ class Simu:
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
-    def __Save_u(self, Uglob, calculContraintesEtDeformation, interpolation=False, verification=False):
-        
-        tic = TicTac()
+    def __Save_u(self, Uglob):
+        """Sauvegarde Uglob et calcul l'energie de deformation cinématiquement admissible"""
 
         # Energie de deformation
         u_e = self.mesh.Localise_e(Uglob)        
         Ke_e = self.__Ku_e
         Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ke_e, u_e)
         
-        self.resultats["Wdef"] = Wdef
+        self.__resultats["Wdef"] = Wdef
 
-        if verification:
-            Kglob = self.__Ku.todense()
-            WdefVerif = 1/2 * Uglob.T.dot(Kglob).dot(Uglob)
-            tic.Tac("Post Traitement","Wdef verif", True)
-            diff = np.round(float(WdefVerif) - Wdef,0)
-            assert np.isclose(diff, 0),"Erreur"
+        self.__resultats["Uglob"] = Uglob
 
-        # Récupère les déplacements
-        ddlx = np.arange(0, self.mesh.Nn*self.__dim, self.__dim)
-        ddly = ddlx + 1 
-        ddlz = ddlx + 2
+    def __VerificationResultat(self, option):
+        # Construit la liste d'otions pour les résultats en 2D ou 3D
+
+        # Verfie si la simulation à un résultat de déplacement
+        if "Uglob" not in self.__resultats.keys():
+            print("\nLa simulation n'a pas encore de résultats")
+            return False
+
+        dim = self.__dim
+        if dim == 2:
+            options = {
+                "Stress" : ["Sxx", "Syy", "Sxy", "Svm"],
+                "Strain" : ["Exx", "Eyy", "Exy", "Evm"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","Uglob"],
+                "Energie" :["Wdef"]
+            }
+        elif dim == 3:
+            options = {
+                "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm"],
+                "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","Uglob"],
+                "Energie" :["Wdef"]
+            }
+
+        # Verfication que l'option est dans dans les options
+        ContenueDansOptions=False
+        for opts in options:
+            if option in options[opts]:
+                ContenueDansOptions=True
+                break
         
-        dx = Uglob[ddlx]
-        dy = Uglob[ddly]
-        if self.__dim == 2:
-            dz = np.zeros(self.mesh.Nn)
-        else:
-            dz = Uglob[ddlz]
-                
-        self.resultats["dx_n"] = dx
-        self.resultats["dy_n"] = dy        
-        if self.__dim == 3:
-            self.resultats["dz_n"] = dz
-            
-        self.resultats["amplitude"] = np.sqrt(dx**2+dy**2+dz**2)        
+        if not ContenueDansOptions:
+            print("\nL'option doit etre dans : {}".format(options))
+            return False
 
-        self.resultats["deplacementCoordo"] = np.array([dx, dy, dz]).T
+        return ContenueDansOptions
 
-        if calculContraintesEtDeformation:
-            self.__CalculDeformationEtContrainte(Uglob, interpolation=interpolation)
+    def GetResultat(self, option: str, valeursAuxNoeuds=False): 
 
-        tic.Tac("Post Traitement","Sauvegarde", self.__verbosity)
-            
-    def __CalculDeformationEtContrainte(self, Uglob: np.ndarray, interpolation=False):
-        """Calcul les deformations et contraints sur chaque element
-        Si interpolation == True on fait l'interpolation aux noeuds
+        verif = self.__VerificationResultat(option)
+        if not verif:
+            return None
 
-        Args:
-            u_e (ndarray): déplacement pour chaque noeud de l'element [dx1 dy1 dx2 dy2 ... dxn dyn]
-            interpolation (bool, optional): Interpolation aux noeuds. Defaults to False.
+        if option == "Wdef":
+            return self.__resultats["Wdef"]
 
-        Returns:
-            [type]: [description]
-        """
+        Uglob = self.__resultats["Uglob"]
+        
 
-        # Data
-        u_e = self.mesh.Localise_e(Uglob)
+        dim = self.__dim
+
+        # Localisation 
+        u_e_n = self.mesh.Localise_e(Uglob)
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob)
-        Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg)        
+        Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg)
 
         # Moyenne sur l'élement
         Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
         Sigma_e = np.mean(Sigma_e_pg, axis=1)
 
+        if "d" in option or "amplitude" in option:
 
-        # On récupère les déplacements sur chaque element
-        listCoordX = np.array(range(0, u_e.shape[1], self.__dim))
-        dx_e_n = u_e[:,listCoordX]; dx_e = np.mean(dx_e_n, axis=1)
-        dy_e_n = u_e[:,listCoordX+1]; dy_e = np.mean(dy_e_n, axis=1)
-        if self.__dim == 3:
-            dz_e_n = u_e[:,listCoordX+2]; dz_e = np.mean(dz_e_n, axis=1)
+            coordoDef = self.GetCoordUglob()
+            dx = coordoDef[:,0]
+            dy = coordoDef[:,1]
+            dz = coordoDef[:,2]
 
-        # On récupère les deformations et contraintes puis on calcul la contraint de von Mises
-        if self.__dim == 2 :
-            Exx_e = Epsilon_e[:,0]; Sxx_e = Sigma_e[:,0]
-            Eyy_e = Epsilon_e[:,1]; Syy_e = Sigma_e[:,1]
-            Exy_e = Epsilon_e[:,2]; Sxy_e = Sigma_e[:,2]
+            if option == "dx":
+                resultat = dx
+            elif option == "dy":
+                resultat = dy
+            elif option == "dz":
+                resultat = dz
+            elif option == "amplitude":
+                resultat = np.sqrt(dx**2 + dy**2 + dz**2)
+
+            if not valeursAuxNoeuds:
+                # On récupère les déplacements sur chaque element
+                listCoordX = np.array(range(0, u_e_n.shape[1], self.__dim))
+                dx_e_n = u_e_n[:,listCoordX]; dx_e = np.mean(dx_e_n, axis=1)
+                dy_e_n = u_e_n[:,listCoordX+1]; dy_e = np.mean(dy_e_n, axis=1)
+                if self.__dim == 3:
+                    dz_e_n = u_e_n[:,listCoordX+2]; dz_e = np.mean(dz_e_n, axis=1)
+
+                if option == "dx":
+                    resultat = dx_e
+                elif option == "dy":
+                    resultat = dy_e
+                elif option == "dz":
+                    resultat = dz_e
+                elif option == "amplitude":
+                    resultat = np.sqrt(dx_e**2 + dy_e**2 + dz_e**2)
+
+        elif "S" in option:
+
+            if dim == 2:
+
+                Sxx_e = Sigma_e[:,0]
+                Syy_e = Sigma_e[:,1]
+                Sxy_e = Sigma_e[:,2]
+                
+                Svm_e = np.sqrt(Sxx_e**2+Syy_e**2-Sxx_e*Syy_e+3*Sxy_e**2)
+
+                if option == "Sxx":
+                    resultat = Sxx_e
+                elif option == "Syy":
+                    resultat = Syy_e
+                elif option == "Sxy":
+                    resultat = Sxy_e
+                elif option == "Svm":
+                    resultat = Svm_e
+
+            elif dim == 3:
+
+                Sxx_e = Sigma_e[:,0]
+                Syy_e = Sigma_e[:,1]
+                Szz_e = Sigma_e[:,2]
+                Syz_e = Sigma_e[:,3]
+                Sxz_e = Sigma_e[:,4]
+                Sxy_e = Sigma_e[:,5]
+
+                Svm_e = np.sqrt(((Sxx_e-Syy_e)**2+(Syy_e-Szz_e)**2+(Szz_e-Sxx_e)**2+6*(Sxy_e**2+Syz_e**2+Sxz_e**2))/2)
+
+                if option == "Sxx":
+                    resultat = Sxx_e
+                elif option == "Syy":
+                    resultat = Syy_e
+                elif option == "Szz":
+                    resultat = Szz_e
+                elif option == "Syz":
+                    resultat = Syz_e
+                elif option == "Sxz":
+                    resultat = Sxz_e
+                elif option == "Sxy":
+                    resultat = Sxy_e
+                elif option == "Svm":
+                    resultat = Svm_e
             
-            Svm_e = np.sqrt(Sxx_e**2+Syy_e**2-Sxx_e*Syy_e+3*Sxy_e**2)
-        else :
-            Exx_e = Epsilon_e[:,0]; Sxx_e = Sigma_e[:,0]
-            Eyy_e = Epsilon_e[:,1]; Syy_e = Sigma_e[:,1]
-            Ezz_e = Epsilon_e[:,2]; Szz_e = Sigma_e[:,2]
-            Eyz_e = Epsilon_e[:,3]/2; Syz_e = Sigma_e[:,3]
-            Exz_e = Epsilon_e[:,4]/2; Sxz_e = Sigma_e[:,4]
-            Exy_e = Epsilon_e[:,5]/2; Sxy_e = Sigma_e[:,5]
+            if valeursAuxNoeuds:
+                resultat = self.__InterpolationAuxNoeuds(resultat)
 
-            Svm_e = np.sqrt(((Sxx_e-Syy_e)**2+(Syy_e-Szz_e)**2+(Szz_e-Sxx_e)**2+6*(Sxy_e**2+Syz_e**2+Sxz_e**2))/2)
+        elif "E" in option:
 
-        # On stock les données dans resultats
-        self.resultats["dx_e"] = dx_e; self.resultats["dy_e"] = dy_e
-        self.resultats["Exx_e"] = Exx_e; self.resultats["Eyy_e"] = Eyy_e; self.resultats["Exy_e"] = Exy_e
-        self.resultats["Sxx_e"] = Sxx_e; self.resultats["Syy_e"] = Syy_e; self.resultats["Sxy_e"] = Sxy_e
-        self.resultats["Svm_e"] = Svm_e
-        if self.__dim == 3:
-            self.resultats["dz_e"] = dz_e
-            self.resultats["Ezz_e"] = Ezz_e; self.resultats["Eyz_e"] = Eyz_e; self.resultats["Exz_e"] = Exz_e
-            self.resultats["Szz_e"] = Szz_e; self.resultats["Syz_e"] = Syz_e; self.resultats["Sxz_e"] = Sxz_e
-        
-        if interpolation:
-            self.__InterpolationAuxNoeuds()
+            if dim == 2:
 
-        return Epsilon_e, Sigma_e 
+                Exx_e = Epsilon_e[:,0]
+                Eyy_e = Epsilon_e[:,1]
+                Exy_e = Epsilon_e[:,2]
+                
+                Evm_e = np.sqrt(Exx_e**2+Eyy_e**2-Exx_e*Eyy_e+3*Exy_e**2)
+
+                if option == "Exx":
+                    resultat = Exx_e
+                elif option == "Eyy":
+                    resultat = Eyy_e
+                elif option == "Exy":
+                    resultat = Exy_e
+                elif option == "Evm":
+                    resultat = Evm_e
+
+            elif dim == 3:
+
+                Exx_e = Epsilon_e[:,0]
+                Eyy_e = Epsilon_e[:,1]
+                Ezz_e = Epsilon_e[:,2]
+                Eyz_e = Epsilon_e[:,3]/2
+                Exz_e = Epsilon_e[:,4]/2
+                Exy_e = Epsilon_e[:,5]/2
+
+                Evm_e = np.sqrt(((Exx_e-Eyy_e)**2+(Eyy_e-Ezz_e)**2+(Ezz_e-Exx_e)**2+6*(Exy_e**2+Eyz_e**2+Exz_e**2))/2)
+
+                if option == "Exx":
+                    resultat = Exx_e
+                elif option == "Eyy":
+                    resultat = Eyy_e
+                elif option == "Ezz":
+                    resultat = Ezz_e
+                elif option == "Eyz":
+                    resultat = Eyz_e
+                elif option == "Exz":
+                    resultat = Exz_e
+                elif option == "Exy":
+                    resultat = Exy_e
+                elif option == "Evm":
+                    resultat = Evm_e
+            
+            if valeursAuxNoeuds:
+                resultat = self.__InterpolationAuxNoeuds(resultat)
+
+        return resultat        
     
-    def __InterpolationAuxNoeuds(self, verification=False):
+    def __InterpolationAuxNoeuds(self, valeurs_e):
         """Pour chaque noeuds on récupère les valeurs des élements autour de lui pour on en fait la moyenne
 
         Returns:
@@ -729,77 +828,74 @@ class Simu:
         """
 
         tic = TicTac()
-
-        # Data
-        listNoeud = list(range(self.mesh.Nn))
-        listElement = list(range(self.mesh.Ne))
-        connect = self.mesh.connect
-
-        # Consruit la matrice de connection Noeud
-        # # connecNoeud = np.zeros((self.__mesh.Nn, self.__mesh.Ne))
-        # Ici l'objectif est de construire une matrice qui lorsque quon va la multiplier a un vecteur valeurs_e de taille ( Ne x 1 ) va donner
-        # valeurs_n_e(Nn,1) = connecNoeud(Nn,Ne) valeurs_n_e(Ne,1)
-        # ou connecNoeud(Nn,:) est un vecteur ligne composé de 0 et de 1 qui permetra de sommer valeurs_e[noeuds]
-        # Ensuite, il suffit juste par divisier par le nombre de fois que le noeud apparait dans la ligne
-        # Il faut encore optimiser la façon dont jobtient connecNoeud
-        # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement
-        # Construit connect des noeuds rapidement
-        connect_n_e = sp.sparse.lil_matrix((self.mesh.Nn, self.mesh.Ne))
-
-        # connectNoeuds = [[e for e in listElement if n in self.connect[e]] for n in listNoeud]
-
-        connectNoeud = [list(np.where(n == connect)[0]) for n in listNoeud]
-        # connectNoeud = np.array([np.where(n == connect)[0] for n in listNoeud])
         
-        # colonnes = np.ravel(connectNoeud, axis=0)
-        # connect_n_e = sp.sparse.csr_matrix((1, (listNoeud, colonnes)), shape = (self.__mesh.Nn, self.__mesh.Ne)).tolil()
-        for n in listNoeud:
-            connect_n_e[n, connectNoeud[n]] = 1
-        # connect_n_e[listNoeud, connectNoeud] = 1
+        connect_n_e = self.mesh.connect_n_e
 
-        # tic.Tac("Temps boucle", True)
-
-        connect_n_e.tocsr()
         nombreApparition = np.array(1/np.sum(connect_n_e, axis=1)).reshape(self.mesh.Nn,1)
 
-        # Fonction d'interpolation
-        def InterPolation(valeurs_e):
+        valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.mesh.Ne,1))
 
-            valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.mesh.Ne,1))
-            valeurs_n = valeurs_n_e*nombreApparition
-            
-            if verification:
-                connectNoeudVerif = np.array([np.where(n == connect)[0] for n in listNoeud])
-                valeurs_n2 = [np.mean(valeurs_e[connectNoeudVerif[n]]) for n in listNoeud]
-                test = np.round(np.array(valeurs_n2).reshape(self.mesh.Nn,1) - valeurs_n)
-                assert test.mean() == 0, "Erreur dans l'interpolation"
+        valeurs_n = valeurs_n_e*nombreApparition            
 
-            return valeurs_n.reshape(-1)
+        tic.Tac("Post Traitement","Interpolation aux noeuds", self.__verbosity)
 
-        self.resultats["Exx_n"] = InterPolation(self.resultats["Exx_e"]); self.resultats["Eyy_n"] = InterPolation(self.resultats["Eyy_e"]); self.resultats["Exy_n"] = InterPolation(self.resultats["Exy_e"])
-        self.resultats["Sxx_n"] = InterPolation(self.resultats["Sxx_e"]); self.resultats["Syy_n"] = InterPolation(self.resultats["Syy_e"]); self.resultats["Sxy_n"] = InterPolation(self.resultats["Sxy_e"])
-        self.resultats["Svm_n"] = InterPolation(self.resultats["Svm_e"])
-
-        if self.__dim == 3:            
-            self.resultats["Ezz_n"] = InterPolation(self.resultats["Ezz_e"]); self.resultats["Eyz_n"] = InterPolation(self.resultats["Eyz_e"]); self.resultats["Exz_n"] = InterPolation(self.resultats["Exz_e"])
-            self.resultats["Szz_n"] = InterPolation(self.resultats["Szz_e"]); self.resultats["Syz_n"] = InterPolation(self.resultats["Syz_e"]); self.resultats["Sxz_n"] = InterPolation(self.resultats["Sxz_e"])
-
-        tic.Tac("Post Traitement","Calcul deformations et contraintse aux noeuds", self.__verbosity)
+        return valeurs_n.reshape(-1)
 
     def Resume(self):
-        print("\nW def = {:.6f} N.mm".format(self.resultats["Wdef"])) 
 
-        print("\nSvm max = {:.6f} MPa".format(np.max(self.resultats["Svm_e"]))) 
+        if not self.__VerificationResultat("Wdef"):
+            return
+        
+        Wdef = self.GetResultat("Wdef")
+        print("\nW def = {:.6f} N.mm".format(Wdef))
+        
+        Svm = self.GetResultat("Svm", valeursAuxNoeuds=False)
+        print("\nSvm max = {:.6f} MPa".format(Svm.max()))
 
-        print("\nUx max = {:.6f} mm".format(np.max(self.resultats["dx_n"]))) 
-        print("Ux min = {:.6f} mm".format(np.min(self.resultats["dx_n"]))) 
+        # Affichage des déplacements
+        dx = self.GetResultat("dx", valeursAuxNoeuds=True)
+        print("\nUx max = {:.6f} mm".format(dx.max()))
+        print("Ux min = {:.6f} mm".format(dx.min()))
 
-        print("\nUy max = {:.6f} mm".format(np.max(self.resultats["dy_n"]))) 
-        print("Uy min = {:.6f} mm".format(np.min(self.resultats["dy_n"])))
+        dy = self.GetResultat("dy", valeursAuxNoeuds=True)
+        print("\nUy max = {:.6f} mm".format(dy.max()))
+        print("Uy min = {:.6f} mm".format(dy.min()))
 
         if self.__dim == 3:
-            print("\nUz max = {:.6f} mm".format(np.max(self.resultats["dz_n"])))
-            print("Uz min = {:.6f} mm".format(np.min(self.resultats["dz_n"])))
+            dz = self.GetResultat("dz", valeursAuxNoeuds=True)
+            print("\nUz max = {:.6f} mm".format(dz.max()))
+            print("Uz min = {:.6f} mm".format(dz.min()))
+    
+    def GetCoordUglob(self):
+        """Renvoie les déplacements sous la forme [dx, dy, dz] (Nn,3)        """
+
+        Nn = self.mesh.Nn
+        dim = self.__dim
+
+        verif = self.__VerificationResultat("Uglob")
+
+        if verif:
+
+            Uglob = self.__resultats["Uglob"]
+
+            # Récupère les déplacements
+            ddlx = np.arange(0, Nn*dim, dim)
+            ddly = ddlx + 1 
+            ddlz = ddlx + 2
+            
+            dx = Uglob[ddlx]
+            dy = Uglob[ddly]
+            if dim == 2:
+                dz = np.zeros(Nn)
+            else:
+                dz = Uglob[ddlz]
+
+            coordo = np.array([dx, dy, dz]).T
+
+            return coordo
+        else:
+            return None
+            
 
 # ====================================
 
@@ -916,7 +1012,7 @@ class Test_Simu(unittest.TestCase):
 
     # ------------------------------------------- Vérifications ------------------------------------------- 
 
-    def __VerificationConstructionKe(self, simu: Simu, Ke_e, d=[]):        
+    def __VerificationConstructionKe(self, simu: Simu, Ke_e, d=[]):
             """Ici on verifie quon obtient le meme resultat quavant verification vectorisation
 
             Parameters

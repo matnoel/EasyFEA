@@ -83,7 +83,7 @@ for elem, type in enumerate(Element.get_Types2D()):
 
                 # Stockage des valeurs
                 listTemps_nb.append(tic.Tac("Résolution","Temps total", False))
-                listWdef_nb.append(simu.resultats["Wdef"])
+                listWdef_nb.append(simu.GetResultat("Wdef"))
                 listDdl_nb.append(mesh.Nn*dim)
         
         listTemps_e_nb.append(listTemps_nb)

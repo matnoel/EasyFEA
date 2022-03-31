@@ -75,7 +75,7 @@ if plotResult:
 
         Affichage.Plot_Maillage(simu, deformation=False)
         Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)
-        Affichage.Plot_Result(simu, "Svm_e", deformation=True, affichageMaillage=True)
+        Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True)
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)
 

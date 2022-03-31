@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 
 from Element import Element
 from TicTac import TicTac
@@ -33,7 +34,11 @@ class Mesh:
         self.__coordo = np.array(coordo)
         """matrice des coordonnées de noeuds (Nn,3)"""
         self.__connect = np.array(connect)
-        """connection des elements (Ne, nPe)"""
+        """connection des elements (Ne, nPe)"""        
+
+        self.__connect_n_e = []
+        """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
+           tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
        
         self.__ConstruitMatricesPourCalculEf()        
 
@@ -236,6 +241,7 @@ class Mesh:
         return noeuds
 
     def Localise_e(self, sol: np.ndarray):
+        """localise les valeurs de noeuds sur les elements"""
         tailleVecteur = self.Nn * self.__dim
 
         if sol.shape[0] == tailleVecteur:
@@ -273,6 +279,34 @@ class Mesh:
         return self.__connect.copy()
     connect = property(__get_connect)
     """connection des elements (Ne, nPe)"""
+    
+    def __get_connect_n_e(self):
+        # Ici l'objectif est de construire une matrice qui lorsque quon va la multiplier a un vecteur valeurs_e de taille ( Ne x 1 ) va donner
+        # valeurs_n_e(Nn,1) = connecNoeud(Nn,Ne) valeurs_n_e(Ne,1)
+        # ou connecNoeud(Nn,:) est un vecteur ligne composé de 0 et de 1 qui permetra de sommer valeurs_e[noeuds]
+        # Ensuite, il suffit juste par divisier par le nombre de fois que le noeud apparait dans la ligne        
+        # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement
+        if len(self.__connect_n_e) == 0:
+            Nn = self.Nn
+            Ne = self.Ne
+            nPe = self.__connect.shape[1]
+            listElem = np.arange(Ne)            
+
+            lignes = self.__connect.reshape(-1)
+            colonnes = np.zeros((nPe*Ne), dtype=int)
+
+            for n in range(nPe):
+                coord = np.arange(n,nPe*Ne,nPe)
+                colonnes[coord] = listElem
+
+            connect_n_e = sp.sparse.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
+
+            self.__connect_n_e = connect_n_e
+            
+        return self.__connect_n_e.copy()
+    connect_n_e = property(__get_connect_n_e) 
+    """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
+        tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
 
     def __get_assembly(self):
         return self.__assembly_e.copy()

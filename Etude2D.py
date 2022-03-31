@@ -29,7 +29,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/20
+taille = h/10
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -52,11 +52,11 @@ Affichage.NouvelleSection("Traitement")
 simu = Simu(dim, mesh, materiau)
 
 # # Affichage etc
-# fig, ax = Affichage.PlotMesh(simu, deformation=True)
-# Affichage.AfficheNoeudsMaillage(simu, ax, noeuds_en_0, c='red')
-# Affichage.AfficheNoeudsMaillage(simu, ax, noeuds_en_L, c='blue', showId=True)
-# Affichage.PlotMesh(simu, deformation=True)
-# Affichage.AfficheNoeudsMaillage(simu, showId=True)
+# fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
+# Affichage.Plot_NoeudsMaillage(simu, ax, noeuds_en_0, c='red')
+# Affichage.Plot_NoeudsMaillage(simu, ax, noeuds_en_L, c='blue', showId=True)
+# Affichage.Plot_Maillage(simu, deformation=True)
+# Affichage.Plot_NoeudsMaillage(simu, showId=True)
 
 # Renseigne les condtions limites
 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
@@ -87,17 +87,11 @@ if plotResult:
         tic = TicTac()
         
         fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
-        # Affichage.Plot_NoeudsMaillage(simu, showId=False)
-        Affichage.Plot_Result(simu, "dy_n", deformation=True)
-        # Affichage.PlotResult(mesh, simu.resultats, "dx_n", affichageMaillage=False)
-        # Affichage.PlotResult(mesh, simu.resultats, "dx_e", affichageMaillage=True)        
-        # Affichage.PlotResult(mesh, simu.resultats, "Svm_e")
-        Affichage.Plot_Result(simu, "Svm_e", deformation=True)
-        # Affichage.PlotResult(simu, "Svm_n")
-        # Affichage.PlotResult(simu, "Svm_n", affichageMaillage=True, deformation=True)
-
-        # Affichage.PlotResult(mesh, simu.resultats, "dy_n")
-        # Affichage.PlotResult(mesh, simu.resultats, "dy_e", deformation=True, affichageMaillage=True)
+        # Affichage.Plot_NoeudsMaillage(simu, showId=True)
+        Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)
+        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)
+        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=True)
+        
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)
 

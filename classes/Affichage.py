@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 class Affichage:
 
-    def Plot_Result(simu, val: str , deformation=False, facteurDef=4, affichageMaillage=False):     
+    def Plot_Result(simu, option: str , deformation=False, facteurDef=4, affichageMaillage=False, valeursAuxNoeuds=False):     
         """Affichage de la simulation
 
         Parameters
@@ -24,26 +24,25 @@ class Affichage:
         affichageMaillage : bool, optional
             affcihe le mailllage, by default False
         """
-        
+
         # Va chercher les valeurs 0 a affciher
 
         from Simu import Simu
+        from TicTac import TicTac
+
+        tic = TicTac()
         simu = cast(Simu, simu)
 
-        resultats = simu.resultats
         mesh = simu.mesh
-        coordo = mesh.coordo
-
-        valeurs = np.array(resultats[val])
         
         dim = mesh.dim
 
-        if deformation:
-            try:
-                coordo = coordo + resultats["deplacementCoordo"]*facteurDef                
-            except:
-                # print("La simulation n'a pas de solution. Impossible de réaliser le maillage deformé")
-                deformation = False        
+        if dim==3:
+            valeursAuxNoeuds=False
+
+        valeurs = simu.GetResultat(option, valeursAuxNoeuds)
+
+        coordo, deformation = Affichage.__GetCoordo(simu, deformation, facteurDef)
 
         # construit la matrice de connection pour les faces
         connect_Faces = mesh.get_connect_Faces()
@@ -79,8 +78,6 @@ class Affichage:
             elif mesh.Nn == len(valeurs):
                 pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, levels ,cmap='jet')
                 # tripcolor, tricontour, tricontourf
-                
-                
   
             fig.colorbar(pc, ax=ax)
             ax.axis('equal')
@@ -89,8 +86,6 @@ class Affichage:
 
         
         elif mesh.dim == 3:
-
-            assert "_e" in val, "Pour une étude 3D on ne trace qua partir des valeurs de l'élément"
 
             # Construit les vertices
             coord_xyz = coordo            
@@ -119,13 +114,21 @@ class Affichage:
             # ax.set_zlabel("z [mm]")            
             
             Affichage.__ChangeEchelle(ax, coordo)
-                
+
+        if valeursAuxNoeuds:
+            loc = "_n"
+        else:
+            loc = "_e"
+
         unite = ""
-        if "S" in val:
+        if "S" in option:
             unite = " en Mpa"
-        if "d" in val:
+        if "d" in option:
             unite = " en mm"
-        ax.set_title(val+unite)
+
+        ax.set_title(option+loc+unite)
+
+        tic.Tac("Post Traitement", "Affichage résultat", False)
         
         
     def Plot_Maillage(simu, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
@@ -155,7 +158,6 @@ class Affichage:
 
         assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
 
-        resultats = simu.resultats
         mesh = simu.mesh
         coordo = mesh.coordo
 
@@ -168,16 +170,11 @@ class Affichage:
         coord_NonDeforme_redim = coordo[:,range(dim)]
         coord_par_face = coord_NonDeforme_redim[connect_Faces]
 
-        if deformation:
-            try:
-                coordoDeforme = coordo + resultats["deplacementCoordo"]*facteurDef
-                # Construit les faces deformées
-                coordo_Deforme_redim = coordoDeforme[:,range(dim)]
-                coordo_par_face_deforme = coordo_Deforme_redim[connect_Faces]
-            except:
-                # print("La simulation n'a pas de solution. Impossible de réaliser le maillage deformé")
-                deformation = False   
+        coordoDeforme, deformation = Affichage.__GetCoordo(simu, deformation, facteurDef)
 
+        if deformation:
+            coordo_Deforme_redim = coordoDeforme[:,range(dim)]
+            coordo_par_face_deforme = coordo_Deforme_redim[connect_Faces]
 
         # ETUDE 2D
         if dim == 2:
@@ -244,7 +241,7 @@ class Affichage:
         from Simu import Simu
         simu = cast(Simu, simu)
 
-        mesh = simu.get_mesh()
+        mesh = simu.mesh
 
         if ax == None:
             fig, ax = Affichage.Plot_Maillage(simu, alpha=0)
@@ -262,6 +259,30 @@ class Affichage:
                 for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], str(n))
         
         return ax
+
+    def __GetCoordo(simu, deformation: bool, facteurDef: float):
+        
+        from Simu import Simu
+
+        simu = cast(Simu, simu)       
+
+        coordo = simu.mesh.coordo
+
+        if deformation:
+
+            coordoDef = simu.GetCoordUglob()
+
+            test = isinstance(coordoDef, np.ndarray)
+
+            if test:
+                coordo = coordo + coordoDef * facteurDef
+
+            return coordo, test
+        else:
+            return coordo, deformation
+
+        
+
 
     def __ChangeEchelle(ax, coordo: np.ndarray):
         """Change la taille des axes pour l'affichage 3D
