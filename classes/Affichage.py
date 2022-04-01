@@ -78,8 +78,14 @@ class Affichage:
             elif mesh.Nn == len(valeurs):
                 pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, levels ,cmap='jet')
                 # tripcolor, tricontour, tricontourf
-  
-            fig.colorbar(pc, ax=ax)
+
+            if option == "damage":
+                ticks = np.linspace(0,1,11)
+                fig.colorbar(pc, ax=ax, ticks=ticks)
+            else:
+                fig.colorbar(pc, ax=ax)
+                
+
             ax.axis('equal')
             # ax.set_xlabel('x [mm]')
             # ax.set_ylabel('y [mm]')
@@ -115,18 +121,24 @@ class Affichage:
             
             Affichage.__ChangeEchelle(ax, coordo)
 
-        if valeursAuxNoeuds:
-            loc = "_n"
+        
+        if option == "damage":
+            title = option
         else:
-            loc = "_e"
+            if valeursAuxNoeuds:
+                loc = "_n"
+            else:
+                loc = "_e"
+            
+            unite = ""
+            if "S" in option:
+                unite = " en Mpa"
+            if "d" in option:
+                unite = " en mm"
 
-        unite = ""
-        if "S" in option:
-            unite = " en Mpa"
-        if "d" in option:
-            unite = " en mm"
+            title = option+loc+unite
 
-        ax.set_title(option+loc+unite)
+        ax.set_title(title)
 
         tic.Tac("Post Traitement", "Affichage résultat", False)
         

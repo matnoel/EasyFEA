@@ -77,8 +77,8 @@ def RenseigneConditionsLimites():
 
 RenseigneConditionsLimites()
 
-N = 400
-# N = 10
+# N = 400
+N = 10
 
 u_tn = u_0
 
@@ -100,6 +100,10 @@ for iter in range(N):
         simu.Assemblage_d(Gc=Gc, l=l0)    # Assemblage
         
         d_tn = simu.Solve_d()   # resolution
+
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
+
+        plt.show()
 
         deteriorations.append(d_tn)
 

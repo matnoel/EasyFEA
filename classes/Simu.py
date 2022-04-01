@@ -133,7 +133,7 @@ class Simu:
         """Construit K global pour le problème en deplacement
 
         Args:            
-            d (list, optional): Endommagement à appliquer au matériau. Defaults to [].
+            d (np.ndarray, optional): Endommagement à appliquer au matériau. Defaults to [].
             verification (bool, optional): Verification de l'assemblage avec l'ancienne méthode bcp bcp bcp moin rapide. Defaults to False.
         """
 
@@ -308,7 +308,7 @@ class Simu:
 
         return self.__Kd, self.__Fd
     
-    def Solve_d(self, resolution=3):
+    def Solve_d(self, resolution=2):
         """Resolution du problème d'endommagement"""
          
         tic = TicTac()
@@ -325,6 +325,8 @@ class Simu:
 
         if(dGlob.min() < 0):
             print("dmin = {}".format(dGlob.min()))
+
+        self.__Save_d(dGlob)
 
         return dGlob
 
@@ -522,7 +524,7 @@ class Simu:
             x = x.toarray().reshape(x.shape[0])
             x[ddl_Inconnues] = xi
 
-        return x
+        return np.array(x)
 
 
 # ------------------------------------------- CONDITIONS LIMITES ------------------------------------------- 
@@ -628,7 +630,12 @@ class Simu:
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
-    def __Save_u(self, Uglob):
+    def __Save_d(self, dGlob: np.ndarray):
+        """Sauvegarde dGlob"""        
+
+        self.__resultats["damage"] = dGlob
+
+    def __Save_u(self, Uglob: np.ndarray):
         """Sauvegarde Uglob et calcul l'energie de deformation cinématiquement admissible"""
 
         # Energie de deformation
@@ -644,7 +651,7 @@ class Simu:
         # Construit la liste d'otions pour les résultats en 2D ou 3D
 
         # Verfie si la simulation à un résultat de déplacement
-        if "Uglob" not in self.__resultats.keys():
+        if "Uglob" not in self.__resultats.keys() and "damage" not in self.__resultats.keys():
             print("\nLa simulation n'a pas encore de résultats")
             return False
 
@@ -654,14 +661,15 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","Uglob"],
-                "Energie" :["Wdef"]
+                "Energie" :["Wdef"],
+                "Damage" :["damage","PsiP"]
             }
         elif dim == 3:
             options = {
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","Uglob"],
-                "Energie" :["Wdef"]
+                "Energie" :["Wdef"]                
             }
 
         # Verfication que l'option est dans dans les options
@@ -685,6 +693,9 @@ class Simu:
 
         if option == "Wdef":
             return self.__resultats["Wdef"]
+
+        if option == "damage":
+            return self.__resultats["damage"]
 
         Uglob = self.__resultats["Uglob"]
         
