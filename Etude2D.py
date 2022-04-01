@@ -29,7 +29,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/100
+taille = h/10
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -81,6 +81,7 @@ Affichage.NouvelleSection("Post traitement")
 
 simu.Resume()
 
+simu.SaveParaview()
 
 if plotResult:
 

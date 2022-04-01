@@ -660,7 +660,7 @@ class Simu:
             options = {
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","Uglob"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","Uglob","deplacement"],
                 "Energie" :["Wdef"],
                 "Damage" :["damage","PsiP"]
             }
@@ -668,7 +668,7 @@ class Simu:
             options = {
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","Uglob"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","Uglob","deplacement"],
                 "Energie" :["Wdef"]                
             }
 
@@ -698,7 +698,9 @@ class Simu:
             return self.__resultats["damage"]
 
         Uglob = self.__resultats["Uglob"]
-        
+
+        if option == "deplacement":
+            return self.GetCoordUglob().reshape(-1)        
 
         dim = self.__dim
 
@@ -919,6 +921,156 @@ class Simu:
             return coordo
         else:
             return None
+
+    def SaveParaview(self, options_n=["deplacement","Svm"], options_e=[]):
+        
+        # resultats_e=["Svm","Evm"]
+        options = options_n+options_e
+        # options = np.array([options_n, options_e], dtype=str).reshape(-1)
+        for option in options:
+            if not self.__VerificationResultat(option):
+                return
+
+        connect = self.mesh.connect
+        coordo = self.mesh.coordo
+        Ne = self.mesh.Ne
+        Nn = self.mesh.Nn
+        nPe = self.mesh.nPe
+
+        typesParaviewElement = {
+            "TRI3" : 5,
+            "TRI6" : 22,
+            "QUAD4" : 9,
+            "QUAD8" : 23,
+            "TETRA4" : 10
+        } # regarder vtkelemtype
+
+        typeParaviewElement = typesParaviewElement[self.mesh.elemType]
+
+        node = coordo.reshape(-1)
+        """coordonnées des noeuds en lignes"""
+
+        filename = Dossier.GetFile("results\\solution.vtu")
+
+        endian_paraview = 'LittleEndian'# 'LittleEndian' 'BigEndian'
+
+        with open(filename, "w") as file:
+            
+            file.write('<?xml version="1.0" ?>\n')
+            
+            file.write(f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n')
+
+            file.write('\t <UnstructuredGrid>\n')
+            file.write(f'\t\t <Piece NumberOfPoints="{Nn}" NumberOfCells="{Ne}">\n')
+
+            # Valeurs aux noeuds
+            file.write('\t\t\t <PointData scalars="scalar"> \n')
+            offset=0
+            list_valeurs_n=[]
+            for resultat_n in options_n:
+
+                valeurs_n = self.GetResultat(resultat_n, valeursAuxNoeuds=True)
+                list_valeurs_n.append(valeurs_n)
+
+                nombreDeComposantes = int(valeurs_n.shape[0]/Nn) # 1 ou 3
+                file.write(f'\t\t\t\t <DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
+                offset += 4 + 4 * valeurs_n.shape[0]
+
+            file.write('\t\t\t </PointData> \n')
+
+            # Valeurs aux elements
+            file.write('\t\t\t <CellData> \n')
+            list_valeurs_e=[]
+            for resultat_e in options_e:
+
+                valeurs_e = self.GetResultat(resultat_e, valeursAuxNoeuds=False)
+                list_valeurs_e.append(valeurs_e)
+
+                nombreDeComposantes = int(valeurs_e.shape[0]/Ne)
+                
+                file.write(f'\t\t\t\t <DataArray type="Float32" Name="{resultat_e}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
+                offset += 4 + 4 * valeurs_e.shape[0]
+            
+            file.write('\t\t\t </CellData> \n')
+
+            # Points
+            file.write('\t\t\t <Points>\n')
+            file.write(f'\t\t\t\t <DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n')
+            offset += 4 + 4 * Nn
+            file.write('\t\t\t </Points>\n')
+
+            # Elements
+            file.write('\t\t\t <Cells>\n')
+            file.write(f'\t\t\t\t <DataArray type="Int32" Name="connectivity" format="appended" offset="{offset}" />\n')
+            offset += 4 + 4 * connect.size
+            file.write(f'\t\t\t\t <DataArray type="Int32" Name="offsets" format="appended" offset="{offset}" />\n')
+            offset += 4 + 4*Ne
+            file.write(f'\t\t\t\t <DataArray type="Int8" Name="types" format="appended" offset="{offset}" />\n')
+            file.write('\t\t\t </Cells>\n')
+                    
+            
+            # END VTK FILE
+            file.write('\t\t </Piece>\n')
+            file.write('\t </UnstructuredGrid> \n')
+            
+            # Ajout des valeurs
+            file.write('\t <AppendedData encoding="raw"> \n _')
+
+        with open(filename, "ab") as file:
+
+            # Valeurs aux noeuds
+            for valeurs_n in list_valeurs_n:
+                # file.write(bytes(4*valeurs_n.shape[0]))
+                file.write(np.byte(4*valeurs_n.shape[0]))
+                
+                file.write(valeurs_n.tobytes())
+                # file.write(4*valeurs_n.shape[0],'uint32')
+                # file.write(valeurs_n,'float32')
+
+            # Valeurs aux elements
+            for valeurs_e in list_valeurs_e:                
+                file.write(np.byte(4*valeurs_e.shape[0]))
+                file.write(bytearray(valeurs_e))
+                # file.write(4*valeurs_e.shape[0],'uint32')
+                # file.write(valeurs_e,'float32')
+
+            # Noeuds
+            file.write(np.byte(4*node.shape[0]))
+            file.write(bytearray(node))
+            # file.write(4*node.shape[0],'uint32')
+            # file.write(node,'float32')
+
+            # Elements
+            file.write(np.byte(4*connect.size))
+            file.write(bytearray(connect.reshape(-1)))
+            file.write(np.byte(4*Ne))
+            offsets = np.arange(nPe,nPe*Ne,nPe, dtype=np.int32)
+            file.write(bytearray(offsets))
+            file.write(np.byte(1)) # pour l'instant q'un seul type d'élement
+            file.write(bytearray(typeParaviewElement))
+            # file.write(4*connect.size,'uint32')
+            # file.write(connect.reshape(-1),'int32')
+            # file.write(4*Ne,'uint32')
+            # file.write(np.arange(nPe,nPe*Ne,nPe),'int32')
+            # file.write(1,'uint32') # pour l'instant q'un seul type d'élement
+            # file.write(typeParaviewElement,'int8')
+
+        with open(filename, "a") as file:
+
+            # Fin de l'ajout des données
+            file.write('\n \t</AppendedData>\n')
+
+            # Fin du vtk
+            file.write('</VTKFile> \n')
+            
+
+
+
+
+
+
+        
+        pass
             
 
 # ====================================

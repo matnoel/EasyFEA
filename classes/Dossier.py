@@ -13,9 +13,9 @@ def GetPath(filename=None):
 
     return path
 
-def GetFile(file: str, filenameWithExtension: str):
+def GetFile(filenameWithExtension: str):
     """Renvoie le path vers le fichier avec l'extension"""
-    path = GetPath(file)
+    path = GetPath()
     filename = path + "\\" + filenameWithExtension
     return filename
 
