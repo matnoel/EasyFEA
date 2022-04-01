@@ -436,7 +436,7 @@ class Simu:
         """
 
         def Solve(A, b):
-            tic = TicTac()
+            # tic = TicTac()
             if useCholesky:
 
                 from sksparse.cholmod import cholesky, cholesky_AAt
@@ -463,7 +463,7 @@ class Simu:
                 # xi = spsolve(A, b, use_umfpack=True)            
                 xi = spsolve(A, b)
             
-            tac = tic.Tac("test","Resol",True)
+            # tac = tic.Tac("test","Resol",True)
 
             return xi
 
@@ -840,17 +840,17 @@ class Simu:
             [type]: [description]
         """
 
-        tic = TicTac()
+        # tic = TicTac()
         
         connect_n_e = self.mesh.connect_n_e
 
-        nombreApparition = np.array(1/np.sum(connect_n_e, axis=1)).reshape(self.mesh.Nn,1)
+        nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(self.mesh.Nn,1)
 
         valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.mesh.Ne,1))
 
-        valeurs_n = valeurs_n_e*nombreApparition            
+        valeurs_n = valeurs_n_e/nombreApparition
 
-        tic.Tac("Post Traitement","Interpolation aux noeuds", self.__verbosity)
+        # tic.Tac("Post Traitement","Interpolation aux noeuds", False)
 
         return valeurs_n.reshape(-1)
 

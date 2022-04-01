@@ -1,6 +1,6 @@
 # %%
 
-from Materiau import Elas_Isot, LoiDeComportement, Materiau
+from Materiau import Elas_Isot, Materiau
 from ModelGmsh import ModelGmsh
 from Mesh import Mesh
 from Simu import Simu
@@ -17,7 +17,7 @@ ticTot = TicTac()
 
 # Data --------------------------------------------------------------------------------------------
 
-plotResult = False
+plotResult = True
 
 dim = 2
 

@@ -98,18 +98,16 @@ class Mesh:
             self.__assembly_e[:, list(range(2, taille, dim))] = np.array(self.connect) * dim + 2
 
         # Construit les lignes et colonnes ou il y aura des valeurs dans la matrice d'assemblage
-        
-        # lignes_e = np.array([[i]*taille for i in self.__assembly_e]).reshape(self.Ne,-1)
-        self.__lignesVector_e = np.array([[[i]*taille for i in self.__assembly_e[e]] for e in listElement]).reshape(self.Ne,-1)
+        self.__lignesVector_e = np.repeat(self.__assembly_e.copy(), taille).reshape((self.Ne,-1))
         """lignes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
-        self.__lignesScalar_e = np.array([[[i]*nPe for i in self.__connect[e]] for e in listElement]).reshape(self.Ne,-1)
-        """lignes pour remplir la matrice d'assemblage en scalaire (endommagement)"""
 
-        # colonnes_e = np.array([[i]*taille for i in self.__assembly_e]).reshape(self.Ne,-1)
-        # colonnes_e = np.array([[self.__assembly_e]*taille]).reshape(self.Ne,-1)
-        self.__colonnesVector_e = np.array([[[self.__assembly_e[e]]*taille] for e in listElement]).reshape(self.Ne,-1)
+        self.__lignesScalar_e = np.repeat(self.__connect.copy(), nPe).reshape((self.Ne,-1))
+        """lignes pour remplir la matrice d'assemblage en scalaire (endommagement)"""
+        
+        self.__colonnesVector_e = np.repeat(self.__assembly_e.copy(), taille, axis=0).reshape((self.Ne,-1))
         """colonnes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
-        self.__colonnesScalar_e = np.array([[[self.__connect[e]]*nPe] for e in listElement]).reshape(self.Ne,-1)
+
+        self.__colonnesScalar_e = np.repeat(self.__connect.copy(), nPe, axis=0).reshape((self.Ne,-1))
         """colonnes pour remplir la matrice d'assemblage en scalaire (endommagement)"""
 
         # Poid
@@ -293,11 +291,8 @@ class Mesh:
             listElem = np.arange(Ne)            
 
             lignes = self.__connect.reshape(-1)
-            colonnes = np.zeros((nPe*Ne), dtype=int)
 
-            for n in range(nPe):
-                coord = np.arange(n,nPe*Ne,nPe)
-                colonnes[coord] = listElem
+            colonnes = np.repeat(listElem.copy(), nPe)            
 
             connect_n_e = sp.sparse.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
 
