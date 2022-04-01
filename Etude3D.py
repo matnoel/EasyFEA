@@ -62,7 +62,7 @@ simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y", "z"])
 
 simu.Assemblage_u()
 
-simu.Solve_u(calculContraintesEtDeformation=True, interpolation=False)
+simu.Solve_u(useCholesky=False)
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Résultats")

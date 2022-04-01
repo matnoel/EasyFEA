@@ -166,7 +166,7 @@ class Simu:
         
         return self.__Ku
 
-    def Solve_u(self, resolution=2, calculContraintesEtDeformation=False, interpolation=False):
+    def Solve_u(self, resolution=2, useCholesky=False):
         """Resolution du système matricielle A * x = b -> K * u = f
          
 
@@ -179,7 +179,7 @@ class Simu:
 
         tic = TicTac()
 
-        Uglob = self.__Solveur(vector=True, resolution=resolution)
+        Uglob = self.__Solveur(vector=True, resolution=resolution, useCholesky=useCholesky)
 
         tic.Tac("Résolution deplacement","Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)
         
@@ -308,12 +308,12 @@ class Simu:
 
         return self.__Kd, self.__Fd
     
-    def Solve_d(self, resolution=2):
+    def Solve_d(self, resolution=3):
         """Resolution du problème d'endommagement"""
          
         tic = TicTac()
 
-        dGlob = self.__Solveur(vector=False, resolution=resolution)
+        dGlob = self.__Solveur(vector=False, resolution=resolution, useCholesky=False)
 
         tic.Tac("Résolution endommagement","Résolution {} pour le problème de endommagement".format(resolution) , self.__verbosity)
         
@@ -423,7 +423,7 @@ class Simu:
 
             return A, x
 
-    def __Solveur(self, vector: bool, resolution=2):
+    def __Solveur(self, vector: bool, resolution=2, useCholesky=False):
         """Resolution du système matricielle A * x = b
 
         Args:
@@ -435,8 +435,42 @@ class Simu:
             nd.array: Renvoie la solution (x)
         """
 
+        def Solve(A, b):
+            tic = TicTac()
+            if useCholesky:
+
+                from sksparse.cholmod import cholesky, cholesky_AAt
+                # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
+                # doc : https://scikit-sparse.readthedocs.io/en/latest/cholmod.html#sksparse.cholmod.analyze
+                # Installation : https://www.programmersought.com/article/39168698851/                
+
+                factor = cholesky(A.tocsc())
+                # factor = cholesky_AAt(A.tocsc())
+                
+                # x_chol = factor(b.tocsc())
+                x_chol = factor.solve_A(b.tocsc())                
+
+                xi = x_chol.toarray().reshape(x_chol.shape[0])
+
+            else:
+                # import scikits.umfpack as um
+                # um.spsolve(A, b)
+
+                # from scikits.umfpack import spsolve, splu
+                # sp.sparse.linalg.use_solver(useUmfpack=True)
+
+                # Résolution du sytème sur les ddl inconnues
+                # xi = spsolve(A, b, use_umfpack=True)            
+                xi = spsolve(A, b)
+            
+            tac = tic.Tac("test","Resol",True)
+
+            return xi
+
+
         # Résolution du plus rapide au plus lent 2, 3, 1
         if resolution == 1:
+            useCholesky=False #la matrice ne sera pas symétrique definie positive
             # Résolution par la méthode des pénalisations
 
             # Construit le système matricielle pénalisé
@@ -444,7 +478,7 @@ class Simu:
             A, b = self.__Application_Conditions_Dirichlet(vector, b, resolution)
 
             # Résolution du système matricielle pénalisé
-            x = spsolve(A, b)
+            x = Solve(A, b)
 
         elif resolution == 2:
             
@@ -461,29 +495,8 @@ class Simu:
             Aic = A[ddl_Inconnues, :].tocsc()[:, ddl_Connues].tocsr()
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
-            
-            vector=False
 
-            if vector:
-
-                from scipy.sparse.linalg import cholesky
-
-                L = cholesky(Aii, lower=True)
-                LT = L.T
-
-                x_chol =  spsolve(L, bi-Aic.dot(xc))
-
-                xi =  spsolve(LT, x_chol)
-
-            else:
-                # from scikits.umfpack import umfpack
-                # from scikits.umfpack import spsolve
-                # sp.sparse.linalg.use_solver(useUmfpack=True)
-
-                # Résolution du sytème sur les ddl inconnues
-                xi = spsolve(Aii, bi-Aic.dot(xc), use_umfpack=True)            
-                # xi = spsolve(Aii, bi-Aic.dot(xc))
-
+            xi = Solve(Aii, bi-Aic.dot(xc))
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
@@ -493,7 +506,7 @@ class Simu:
 
             # Récupère les constantes
             b = self.__Application_Conditions_Neuman(vector)
-            A, x = self.__Application_Conditions_Dirichlet(resolution, b)
+            A, x = self.__Application_Conditions_Dirichlet(vector, b, resolution)
 
             # Récupère les ddls
             ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(vector)
@@ -503,7 +516,7 @@ class Simu:
             bi = b.tocsr()[ddl_Inconnues]
 
             # Résolution du sytème
-            xi = spsolve(Aii, bi)
+            xi = Solve(Aii, bi)
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])

@@ -111,7 +111,7 @@ for iter in range(N):
 
         simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
         
-        u_tn = simu.Solve_u()
+        u_tn = simu.Solve_u(useCholesky=False)
 
         simu.Clear_Condition_Dirichlet()
         RenseigneConditionsLimites()

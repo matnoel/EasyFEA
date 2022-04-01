@@ -17,7 +17,7 @@ ticTot = TicTac()
 
 # Data --------------------------------------------------------------------------------------------
 
-plotResult = True
+plotResult = False
 
 dim = 2
 
@@ -29,7 +29,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/10
+taille = h/100
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -37,7 +37,7 @@ comportement = Elas_Isot(dim, epaisseur=b)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=1, tailleElement=taille)
+modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
 
@@ -73,7 +73,7 @@ simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 # Assemblage du système matricielle
 simu.Assemblage_u()
 
-simu.Solve_u(resolution=2, calculContraintesEtDeformation=True, interpolation=False)
+simu.Solve_u(resolution=2, useCholesky=True)
 
 
 # Post traitement --------------------------------------------------------------------------------------
@@ -90,7 +90,7 @@ if plotResult:
         # Affichage.Plot_NoeudsMaillage(simu, showId=True)
         Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)
         Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)
-        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=True)
+        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False)
         
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)
