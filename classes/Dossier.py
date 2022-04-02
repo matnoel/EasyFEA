@@ -13,7 +13,7 @@ def GetPath(filename=None):
 
     return path
 
-def GetFile(filenameWithExtension: str):
+def NewFile(filenameWithExtension: str):
     """Renvoie le path vers le fichier avec l'extension"""
     path = GetPath()
     filename = path + "\\" + filenameWithExtension

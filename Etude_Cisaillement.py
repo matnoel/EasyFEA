@@ -101,9 +101,9 @@ for iter in range(N):
         
         d_tn = simu.Solve_d()   # resolution
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
+        # Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
 
-        plt.show()
+        # plt.show()
 
         deteriorations.append(d_tn)
 

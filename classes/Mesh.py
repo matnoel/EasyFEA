@@ -292,19 +292,20 @@ class Mesh:
         # ou connecNoeud(Nn,:) est un vecteur ligne composé de 0 et de 1 qui permetra de sommer valeurs_e[noeuds]
         # Ensuite, il suffit juste par divisier par le nombre de fois que le noeud apparait dans la ligne        
         # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement
-        Nn = self.Nn
-        Ne = self.Ne
-        nPe = self.__connect.shape[1]
-        listElem = np.arange(Ne)            
+        
+        if not isinstance(self.__connect_n_e,sp.sparse.csr_matrix):
+            Nn = self.Nn
+            Ne = self.Ne
+            nPe = self.__connect.shape[1]
+            listElem = np.arange(Ne)            
 
-        lignes = self.__connect.reshape(-1)
+            lignes = self.__connect.reshape(-1)
 
-        colonnes = np.repeat(listElem.copy(), nPe)            
+            colonnes = np.repeat(listElem.copy(), nPe)            
 
-        connect_n_e = sp.sparse.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
+            connect_n_e = sp.sparse.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
 
-        self.__connect_n_e = connect_n_e
-            
+            self.__connect_n_e = connect_n_e            
             
         return self.__connect_n_e.copy()
     connect_n_e = property(__get_connect_n_e) 

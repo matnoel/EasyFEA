@@ -922,7 +922,7 @@ class Simu:
         else:
             return None
 
-    def SaveParaview(self, options_n=["deplacement","Svm"], options_e=[]):
+    def SaveParaview(self, options_n=["Svm","deplacement"], options_e=[]):
         
         # resultats_e=["Svm","Evm"]
         options = options_n+options_e
@@ -950,9 +950,15 @@ class Simu:
         node = coordo.reshape(-1)
         """coordonnées des noeuds en lignes"""
 
-        filename = Dossier.GetFile("results\\solution.vtu")
+        filename = Dossier.NewFile("results\\solution.vtu")
 
-        endian_paraview = 'LittleEndian'# 'LittleEndian' 'BigEndian'
+        endian_paraview = 'LittleEndian' # 'LittleEndian' 'BigEndian'
+
+        const=4
+
+        def CalcOffset(offset, taille):
+            return offset + const + (const*taille)
+
 
         with open(filename, "w") as file:
             
@@ -974,7 +980,7 @@ class Simu:
 
                 nombreDeComposantes = int(valeurs_n.shape[0]/Nn) # 1 ou 3
                 file.write(f'\t\t\t\t <DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
-                offset += 4 + 4 * valeurs_n.shape[0]
+                offset = CalcOffset(offset, valeurs_n.shape[0])
 
             file.write('\t\t\t </PointData> \n')
 
@@ -989,22 +995,22 @@ class Simu:
                 nombreDeComposantes = int(valeurs_e.shape[0]/Ne)
                 
                 file.write(f'\t\t\t\t <DataArray type="Float32" Name="{resultat_e}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
-                offset += 4 + 4 * valeurs_e.shape[0]
+                offset = CalcOffset(offset, valeurs_e.shape[0])
             
             file.write('\t\t\t </CellData> \n')
 
             # Points
             file.write('\t\t\t <Points>\n')
             file.write(f'\t\t\t\t <DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n')
-            offset += 4 + 4 * Nn
+            offset = CalcOffset(offset, Nn)
             file.write('\t\t\t </Points>\n')
 
             # Elements
             file.write('\t\t\t <Cells>\n')
             file.write(f'\t\t\t\t <DataArray type="Int32" Name="connectivity" format="appended" offset="{offset}" />\n')
-            offset += 4 + 4 * connect.size
+            offset = CalcOffset(offset, connect.size)
             file.write(f'\t\t\t\t <DataArray type="Int32" Name="offsets" format="appended" offset="{offset}" />\n')
-            offset += 4 + 4*Ne
+            offset = CalcOffset(offset, Ne)
             file.write(f'\t\t\t\t <DataArray type="Int8" Name="types" format="appended" offset="{offset}" />\n')
             file.write('\t\t\t </Cells>\n')
                     
@@ -1016,58 +1022,70 @@ class Simu:
             # Ajout des valeurs
             file.write('\t <AppendedData encoding="raw"> \n _')
 
+        def Convert(valeur, type: str):
+            """Convertie en byte
+
+            Args:
+                valeur (_type_): valeur a convertir
+                type (str): type de conversion 'uint32','float32','int32','int8'
+            """
+
+            
+
+            if type not in ['uint32','float32','int32','int8']:
+                raise "Pas dans les options"
+
+            if type == "uint32":
+                valeur = np.uint32(valeur)
+            elif type == "float32":
+                valeur = np.float32(valeur)
+            elif type == "int32":
+                valeur = np.int32(valeur)
+            elif type == "int8":
+                valeur = np.int8(valeur)
+
+            if isinstance(valeur, np.ndarray):
+                convert = valeur.tobytes()
+            else:
+                # convert = np.byte(valeur)
+                convert = valeur.tobytes()
+            
+            return convert
+
+        import pickle
+
         with open(filename, "ab") as file:
 
             # Valeurs aux noeuds
             for valeurs_n in list_valeurs_n:
-                # file.write(bytes(4*valeurs_n.shape[0]))
-                file.write(np.byte(4*valeurs_n.shape[0]))
-                
-                file.write(valeurs_n.tobytes())
-                # file.write(4*valeurs_n.shape[0],'uint32')
-                # file.write(valeurs_n,'float32')
+                file.write(Convert(const*valeurs_n.shape[0],'uint32'))
+                file.write(Convert(valeurs_n,'float32'))               
 
             # Valeurs aux elements
             for valeurs_e in list_valeurs_e:                
-                file.write(np.byte(4*valeurs_e.shape[0]))
-                file.write(bytearray(valeurs_e))
-                # file.write(4*valeurs_e.shape[0],'uint32')
-                # file.write(valeurs_e,'float32')
+                file.write(Convert(const*valeurs_e.shape[0], 'uint32'))
+                file.write(Convert(valeurs_e,'float32'))
 
             # Noeuds
-            file.write(np.byte(4*node.shape[0]))
-            file.write(bytearray(node))
-            # file.write(4*node.shape[0],'uint32')
-            # file.write(node,'float32')
+            file.write(Convert(const*node.shape[0],'uint32'))
+            file.write(Convert(node,'float32'))
 
             # Elements
-            file.write(np.byte(4*connect.size))
-            file.write(bytearray(connect.reshape(-1)))
-            file.write(np.byte(4*Ne))
-            offsets = np.arange(nPe,nPe*Ne,nPe, dtype=np.int32)
-            file.write(bytearray(offsets))
-            file.write(np.byte(1)) # pour l'instant q'un seul type d'élement
-            file.write(bytearray(typeParaviewElement))
-            # file.write(4*connect.size,'uint32')
-            # file.write(connect.reshape(-1),'int32')
-            # file.write(4*Ne,'uint32')
-            # file.write(np.arange(nPe,nPe*Ne,nPe),'int32')
-            # file.write(1,'uint32') # pour l'instant q'un seul type d'élement
-            # file.write(typeParaviewElement,'int8')
+            file.write(Convert(const*connect.size,'uint32'))
+            file.write(Convert(connect.reshape(-1), 'int32'))
+            file.write(Convert(const*Ne, 'uint32'))
+            file.write(Convert(np.arange(nPe,nPe*Ne,nPe, dtype=np.int32), 'int32'))
+            file.write(Convert(1,'uint32')) # pour l'instant q'un seul type d'élement
+            file.write(Convert(typeParaviewElement,'int8'))
+            
 
         with open(filename, "a") as file:
 
             # Fin de l'ajout des données
-            file.write('\n \t</AppendedData>\n')
+            file.write('\n\t</AppendedData>\n')
 
             # Fin du vtk
             file.write('</VTKFile> \n')
-            
-
-
-
-
-
 
         
         pass
