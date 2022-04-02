@@ -1,6 +1,6 @@
 # %%
 
-from Dossier import GetPath
+import Dossier
 
 from Simu import Simu
 from Materiau import Materiau, Elas_Isot
@@ -29,7 +29,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 2
+nBe = 10
 taille = h/nBe
 
 if nBe > 3:
@@ -43,8 +43,7 @@ materiau = Materiau(comportement)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
 
-dir_path = GetPath()
-fichier = dir_path + '\\models\\part.stp'
+fichier = Dossier.NewFile('models\\part.stp')
 
 (coordo, connect) = modelGmsh.Importation3D(fichier)
 mesh = Mesh(dim, coordo, connect)
@@ -68,6 +67,10 @@ simu.Solve_u(useCholesky=False)
 Affichage.NouvelleSection("Résultats")
 
 simu.Resume()
+
+filename = Dossier.NewFile("Etude3D\\solution3D.vtu", results=True)
+
+simu.SaveParaview(filename)
 
 if plotResult:
 

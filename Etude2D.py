@@ -1,5 +1,6 @@
 # %%
 
+import Dossier
 from Materiau import Elas_Isot, Materiau
 from ModelGmsh import ModelGmsh
 from Mesh import Mesh
@@ -81,7 +82,9 @@ Affichage.NouvelleSection("Post traitement")
 
 simu.Resume()
 
-simu.SaveParaview()
+filename = Dossier.NewFile("Etude2D\\solution2D.vtu", results=True)
+
+simu.SaveParaview(filename=filename)
 
 if plotResult:
 

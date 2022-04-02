@@ -286,6 +286,8 @@ class Mesh:
     connect = property(__get_connect)
     """connection des elements (Ne, nPe)"""
     
+    
+    
     def __get_connect_n_e(self):
         # Ici l'objectif est de construire une matrice qui lorsque quon va la multiplier a un vecteur valeurs_e de taille ( Ne x 1 ) va donner
         # valeurs_n_e(Nn,1) = connecNoeud(Nn,Ne) valeurs_n_e(Ne,1)

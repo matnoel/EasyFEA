@@ -101,10 +101,6 @@ for iter in range(N):
         
         d_tn = simu.Solve_d()   # resolution
 
-        # Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
-
-        # plt.show()
-
         deteriorations.append(d_tn)
 
         #-------------------------- Dep problem ------------------------------------
@@ -131,6 +127,11 @@ for iter in range(N):
 
         tResolution = tic.Tac("Resolution Phase Field", "Resolution Phase field", False)
         print(iter+1," : sum d = {:.5f}, time = {:.3f}".format(norm, tResolution))
+
+        simu.SaveParaview(nodesField=["damage"])
+        # Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
+
+        # plt.show()
        
         # if d_tn.max()>1:
         #         break       

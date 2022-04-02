@@ -1,4 +1,4 @@
-
+import re
 from typing import cast
 
 from Affichage import Affichage
@@ -658,16 +658,16 @@ class Simu:
         dim = self.__dim
         if dim == 2:
             options = {
-                "Stress" : ["Sxx", "Syy", "Sxy", "Svm"],
-                "Strain" : ["Exx", "Eyy", "Exy", "Evm"],
+                "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
+                "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","Uglob","deplacement"],
                 "Energie" :["Wdef"],
                 "Damage" :["damage","PsiP"]
             }
         elif dim == 3:
             options = {
-                "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm"],
-                "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm"],
+                "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
+                "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","Uglob","deplacement"],
                 "Energie" :["Wdef"]                
             }
@@ -714,7 +714,7 @@ class Simu:
         # Moyenne sur l'élement
         Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
         Sigma_e = np.mean(Sigma_e_pg, axis=1)
-
+        
         if "d" in option or "amplitude" in option:
 
             coordoDef = self.GetCoordUglob()
@@ -747,8 +747,10 @@ class Simu:
                     resultat = dz_e
                 elif option == "amplitude":
                     resultat = np.sqrt(dx_e**2 + dy_e**2 + dz_e**2)
+            
+            return resultat
 
-        elif "S" in option:
+        elif "S" in option and not option == "Strain":
 
             if dim == 2:
 
@@ -792,11 +794,12 @@ class Simu:
                     resultat = Sxy_e
                 elif option == "Svm":
                     resultat = Svm_e
-            
-            if valeursAuxNoeuds:
-                resultat = self.__InterpolationAuxNoeuds(resultat)
 
-        elif "E" in option:
+            if option == "Stress":
+                resultat = np.append(Sigma_e, Svm_e.reshape((self.mesh.Ne,1)), axis=1)            
+            
+
+        elif option in ["E","Strain"]:
 
             if dim == 2:
 
@@ -839,9 +842,21 @@ class Simu:
                 elif option == "Exy":
                     resultat = Exy_e
                 elif option == "Evm":
-                    resultat = Evm_e
+                    resultat = Evm_e                
             
-            if valeursAuxNoeuds:
+            if option == "Strain":
+                resultat = np.append(Epsilon_e, Evm_e.reshape((self.mesh.Ne,1)), axis=1)
+
+        if valeursAuxNoeuds:
+
+            if resultat.size > self.mesh.Ne:
+
+                resultats_e = resultat.copy()
+                resultats_n = np.zeros((self.mesh.Nn, resultats_e.shape[1]))
+                for e in range(resultats_e.shape[1]):
+                    resultats_n[:,e] = self.__InterpolationAuxNoeuds(resultats_e[:,e])
+                resultat = resultats_n
+            else:
                 resultat = self.__InterpolationAuxNoeuds(resultat)
 
         return resultat        
@@ -922,14 +937,19 @@ class Simu:
         else:
             return None
 
-    def SaveParaview(self, options_n=["Svm","deplacement"], options_e=[]):
+    def SaveParaview(self, filename: str,nodesField=["deplacement","Stress"], elementsField=["Stress","Strain"]):
+
+        if not self.__VerificationResultat("Uglob"):
+            return
         
         # resultats_e=["Svm","Evm"]
-        options = options_n+options_e
+        options = nodesField+elementsField
         # options = np.array([options_n, options_e], dtype=str).reshape(-1)
         for option in options:
             if not self.__VerificationResultat(option):
                 return
+        
+        tic = TicTac()
 
         connect = self.mesh.connect
         coordo = self.mesh.coordo
@@ -946,19 +966,22 @@ class Simu:
         } # regarder vtkelemtype
 
         typeParaviewElement = typesParaviewElement[self.mesh.elemType]
+        
+        types = np.ones(Ne, dtype=int)*typeParaviewElement
 
         node = coordo.reshape(-1)
         """coordonnées des noeuds en lignes"""
 
-        filename = Dossier.NewFile("results\\solution.vtu")
+        connectivity = connect.reshape(-1)
+
+        offsets = np.arange(nPe,nPe*Ne+1,nPe, dtype=np.int32)-3
 
         endian_paraview = 'LittleEndian' # 'LittleEndian' 'BigEndian'
 
         const=4
 
         def CalcOffset(offset, taille):
-            return offset + const + (const*taille)
-
+            return offset + const + (const*taille)        
 
         with open(filename, "w") as file:
             
@@ -966,71 +989,69 @@ class Simu:
             
             file.write(f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n')
 
-            file.write('\t <UnstructuredGrid>\n')
-            file.write(f'\t\t <Piece NumberOfPoints="{Nn}" NumberOfCells="{Ne}">\n')
+            file.write('\t<UnstructuredGrid>\n')
+            file.write(f'\t\t<Piece NumberOfPoints="{Nn}" NumberOfCells="{Ne}">\n')
 
             # Valeurs aux noeuds
-            file.write('\t\t\t <PointData scalars="scalar"> \n')
+            file.write('\t\t\t<PointData scalars="scalar"> \n')
             offset=0
             list_valeurs_n=[]
-            for resultat_n in options_n:
+            for resultat_n in nodesField:
 
                 valeurs_n = self.GetResultat(resultat_n, valeursAuxNoeuds=True)
                 list_valeurs_n.append(valeurs_n)
 
-                nombreDeComposantes = int(valeurs_n.shape[0]/Nn) # 1 ou 3
-                file.write(f'\t\t\t\t <DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
-                offset = CalcOffset(offset, valeurs_n.shape[0])
+                nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
+                file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
+                offset = CalcOffset(offset, valeurs_n.size)
 
-            file.write('\t\t\t </PointData> \n')
+            file.write('\t\t\t</PointData> \n')
 
             # Valeurs aux elements
-            file.write('\t\t\t <CellData> \n')
+            file.write('\t\t\t<CellData> \n')
             list_valeurs_e=[]
-            for resultat_e in options_e:
+            for resultat_e in elementsField:
 
                 valeurs_e = self.GetResultat(resultat_e, valeursAuxNoeuds=False)
                 list_valeurs_e.append(valeurs_e)
 
-                nombreDeComposantes = int(valeurs_e.shape[0]/Ne)
+                nombreDeComposantes = int(valeurs_e.size/Ne)
                 
-                file.write(f'\t\t\t\t <DataArray type="Float32" Name="{resultat_e}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
-                offset = CalcOffset(offset, valeurs_e.shape[0])
+                file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_e}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
+                offset = CalcOffset(offset, valeurs_e.size)
             
-            file.write('\t\t\t </CellData> \n')
+            file.write('\t\t\t</CellData> \n')
 
             # Points
-            file.write('\t\t\t <Points>\n')
-            file.write(f'\t\t\t\t <DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n')
-            offset = CalcOffset(offset, Nn)
-            file.write('\t\t\t </Points>\n')
+            file.write('\t\t\t<Points>\n')
+            file.write(f'\t\t\t\t<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n')
+            offset = CalcOffset(offset, node.size)
+            file.write('\t\t\t</Points>\n')
 
             # Elements
-            file.write('\t\t\t <Cells>\n')
-            file.write(f'\t\t\t\t <DataArray type="Int32" Name="connectivity" format="appended" offset="{offset}" />\n')
-            offset = CalcOffset(offset, connect.size)
-            file.write(f'\t\t\t\t <DataArray type="Int32" Name="offsets" format="appended" offset="{offset}" />\n')
-            offset = CalcOffset(offset, Ne)
-            file.write(f'\t\t\t\t <DataArray type="Int8" Name="types" format="appended" offset="{offset}" />\n')
-            file.write('\t\t\t </Cells>\n')
+            file.write('\t\t\t<Cells>\n')
+            file.write(f'\t\t\t\t<DataArray type="Int32" Name="connectivity" format="appended" offset="{offset}" />\n')
+            offset = CalcOffset(offset, connectivity.size)
+            file.write(f'\t\t\t\t<DataArray type="Int32" Name="offsets" format="appended" offset="{offset}" />\n')
+            offset = CalcOffset(offset, offsets.size)
+            file.write(f'\t\t\t\t<DataArray type="Int8" Name="types" format="appended" offset="{offset}" />\n')
+            file.write('\t\t\t</Cells>\n')
                     
             
             # END VTK FILE
-            file.write('\t\t </Piece>\n')
-            file.write('\t </UnstructuredGrid> \n')
+            file.write('\t\t</Piece>\n')
+            file.write('\t</UnstructuredGrid> \n')
             
             # Ajout des valeurs
-            file.write('\t <AppendedData encoding="raw"> \n _')
+            file.write('\t<AppendedData encoding="raw"> \n_')        
 
-        def Convert(valeur, type: str):
+        def WriteBinary(valeur, type: str):
             """Convertie en byte
 
             Args:
                 valeur (_type_): valeur a convertir
                 type (str): type de conversion 'uint32','float32','int32','int8'
-            """
-
-            
+            """            
 
             if type not in ['uint32','float32','int32','int8']:
                 raise "Pas dans les options"
@@ -1049,35 +1070,39 @@ class Simu:
             else:
                 # convert = np.byte(valeur)
                 convert = valeur.tobytes()
+                # convert = sys
+                # convert = bytes(valeur, 'uint32')
+                # convert = valeur.to_bytes(valeur)
             
-            return convert
-
-        import pickle
+            file.write(convert)        
 
         with open(filename, "ab") as file:
 
             # Valeurs aux noeuds
             for valeurs_n in list_valeurs_n:
-                file.write(Convert(const*valeurs_n.shape[0],'uint32'))
-                file.write(Convert(valeurs_n,'float32'))               
+                WriteBinary(const*(valeurs_n.size), "uint32")
+                WriteBinary(valeurs_n, "float32")                
 
             # Valeurs aux elements
             for valeurs_e in list_valeurs_e:                
-                file.write(Convert(const*valeurs_e.shape[0], 'uint32'))
-                file.write(Convert(valeurs_e,'float32'))
+                WriteBinary(const*(valeurs_e.size), "uint32")
+                WriteBinary(valeurs_e, "float32")
 
             # Noeuds
-            file.write(Convert(const*node.shape[0],'uint32'))
-            file.write(Convert(node,'float32'))
+            WriteBinary(const*(node.size), "uint32")
+            WriteBinary(node, "float32")
 
-            # Elements
-            file.write(Convert(const*connect.size,'uint32'))
-            file.write(Convert(connect.reshape(-1), 'int32'))
-            file.write(Convert(const*Ne, 'uint32'))
-            file.write(Convert(np.arange(nPe,nPe*Ne,nPe, dtype=np.int32), 'int32'))
-            file.write(Convert(1,'uint32')) # pour l'instant q'un seul type d'élement
-            file.write(Convert(typeParaviewElement,'int8'))
-            
+            # Connectivity            
+            WriteBinary(const*(connectivity.size), "uint32")
+            WriteBinary(connectivity, "int32")
+
+            # Offsets
+            WriteBinary(const*Ne, "uint32")
+            WriteBinary(offsets+3, "int32")
+
+            # Type d'element
+            WriteBinary(types.size, "uint32")
+            WriteBinary(types, "int8")
 
         with open(filename, "a") as file:
 
@@ -1088,7 +1113,7 @@ class Simu:
             file.write('</VTKFile> \n')
 
         
-        pass
+        tParaview = tic.Tac("Post Traitement","SaveParaview", self.__verbosity)
             
 
 # ====================================
