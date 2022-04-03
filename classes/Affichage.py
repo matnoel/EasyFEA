@@ -41,6 +41,8 @@ class Affichage:
             valeursAuxNoeuds=False
 
         valeurs = simu.GetResultat(option, valeursAuxNoeuds)
+        if not isinstance(valeurs, np.ndarray):
+            return
 
         coordo, deformation = Affichage.__GetCoordo(simu, deformation, facteurDef)
 

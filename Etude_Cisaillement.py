@@ -2,7 +2,7 @@
 
 import Dossier
 from Affichage import Affichage
-from Materiau import Elas_Isot, Materiau
+from Materiau import PhaseFieldModel, Elas_Isot, Materiau
 from ModelGmsh import ModelGmsh
 from Simu import Simu
 from Mesh import Mesh
@@ -51,7 +51,9 @@ Affichage.NouvelleSection("Simulations")
 
 comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
-materiau = Materiau(comportement, ro=1)
+phaseFieldModel = PhaseFieldModel(comportement, "Bourdin", "AT2", Gc=Gc, l_0=l0)
+
+materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
 simu = Simu(dim, mesh, materiau, verbosity=False)
 
@@ -93,7 +95,7 @@ tic = TicTac()
 for iter in range(N):
         
         # Construit H
-        simu.CalcPsiPlus(u_tn)
+        simu.CalcPsiPlus_e_pg(u_tn)
 
         #-------------------------- PFM problem ------------------------------------
         
@@ -128,13 +130,18 @@ for iter in range(N):
         tResolution = tic.Tac("Resolution Phase Field", "Resolution Phase field", False)
         print(iter+1," : sum d = {:.5f}, time = {:.3f}".format(norm, tResolution))
 
-        simu.SaveParaview(nodesField=["damage"])
+        # simu.SaveParaview(nodesField=["damage"])
         # Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
 
         # plt.show()
        
         # if d_tn.max()>1:
-        #         break       
+        #         break
+        filename = Dossier.NewFile("EtudeCisaillement2D\\damage.vtu", results=True)
+        simu.SaveParaview(filename, nodesField=["damage"]) 
+        Stresses = simu.GetResultat("Sxx")
+
+
 
 
 # ------------------------------------------------------------------------------------------------------

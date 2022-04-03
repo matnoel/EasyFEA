@@ -20,6 +20,8 @@ ticTot = TicTac()
 
 plotResult = True
 
+saveParaview = True
+
 dim = 2
 
 # Paramètres géométrie
@@ -82,19 +84,24 @@ Affichage.NouvelleSection("Post traitement")
 
 simu.Resume()
 
-filename = Dossier.NewFile("Etude2D\\solution2D.vtu", results=True)
 
-simu.SaveParaview(filename=filename)
+if saveParaview:
+        filename = Dossier.NewFile("Etude2D\\solution2D.vtu", results=True)
+        simu.SaveParaview(filename=filename)
 
 if plotResult:
 
         tic = TicTac()
         
         fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
+        # plt.savefig(Dossier.NewFile("Etude2D\\maillage2D.png",results=True))
         # Affichage.Plot_NoeudsMaillage(simu, showId=True)
         Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)
+        # plt.savefig(Dossier.NewFile("Etude2D\\dy.png",results=True))
         Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)
+        # plt.savefig(Dossier.NewFile("Etude2D\\Svm_n.png",results=True))
         Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False)
+        # plt.savefig(Dossier.NewFile("Etude2D\\Svm_e.png",results=True))
         
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)

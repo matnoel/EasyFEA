@@ -1,3 +1,4 @@
+from Mesh import Mesh
 import numpy as np
 from typing import cast
 
@@ -117,13 +118,165 @@ class Elas_Isot(LoiDeComportement):
 
         return C, np.linalg.inv(C)
 
+
+class PhaseFieldModel:
+
+    __splits = ["Bourdin","Amor","Miehe"]
+
+    __regularizations = ["AT1","AT2"]
+
+    def __get_k(self):
+        if self.__regularization == "AT1":
+            return (3/4) * self.__Gc * self.__l_0
+        else:
+            return self.__Gc * self.__l_0
+    k = property(__get_k)
+
+    def get_r_e_pg(self, PsiP_e_pg: np.ndarray):
+        if self.__regularization == "AT1":
+            return 2 * PsiP_e_pg
+        else:
+            return 2 * PsiP_e_pg + (self.__Gc/self.__l_0)
+
+    def get_f_e_pg(self, PsiP_e_pg: np.ndarray):
+        if self.__regularization == "AT1":
+            f = 2 * PsiP_e_pg - (3*self.__Gc/(8*self.__l_0))
+            absF = (f+np.abs(f))/2
+            return absF
+        else:
+            return 2 * PsiP_e_pg
+
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, k_residu = 1e-10):
+        """Fonction de dégradation en energies / contraintes
+
+        Args:
+            d_n (np.ndarray): Endomagement localisé aux noeuds (Nn,1)
+            mesh (Mesh): maillage
+        """
+        d_e_n = mesh.Localise_e(d_n)
+        Nd_pg = np.array(mesh.N_mass_pg)
+
+        d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize=True)        
+
+        if self.__regularization in ["AT1","AT2"]:
+            g_e_pg = (1-d_e_pg)**2 + k_residu
+        else:
+            raise "Pas implémenté"
+        
+        return g_e_pg
+
+
+    def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float):
+        """Création d'un objet comportement Phase Field
+
+            Parameters
+            ----------
+            loiDeComportement : LoiDeComportement
+                Loi de comportement du matériau ["Elas_Isot"]
+            split : str
+                Split de la densité d'energie elastique ["Bourdin","Amor","Miehe"]
+            regularization : str
+                Modèle de régularisation de la fissure ["AT1","AT2"]
+            Gc : float
+                Taux de libération d'énergie critque [J/m^2]
+            l_0 : float
+                Largeur de régularisation de la fissure
+        """
+
+        assert isinstance(loiDeComportement, LoiDeComportement), "Doit être une loi de comportement"
+        self.__loiDeComportement = loiDeComportement
+
+        assert split in PhaseFieldModel.__splits, f"Doit être compris dans {PhaseFieldModel.__splits}"
+        self.__split =  split
+        """Split de la densité d'energie elastique ["Bourdin","Amor","Miehe"]"""
+        
+        assert regularization in PhaseFieldModel.__regularizations, f"Doit être compris dans {PhaseFieldModel.__regularizations}"
+        self.__regularization = regularization
+        """Modèle de régularisation de la fissure ["AT1","AT2"]"""
+
+        assert Gc > 0, "Doit être supérieur à 0" 
+        self.__Gc = Gc
+        """Taux de libération d'énergie critque [J/m^2]"""
+
+        assert l_0 > 0, "Doit être supérieur à 0" 
+        self.__l_0 = l_0
+        """Largeur de régularisation de la fissure"""
+
+        self.g = lambda d_e_pg: (1-d_e_pg)**2
+        """Fonction de dégradation en energies / contraintes"""
+
+    
+    def Calc_Psi_e_pg(self, Epsilon_e_pg: np.ndarray, g_e_pg=None):
+        """Calcul de la densité d'energie elastique
+
+        Args:
+            Epsilon_e_pg (np.ndarray): Deformation (Ne,pg,(3 ou 6))
+            g_e_pg (list, optional): Fonction d'endomagement enégétique (Ne, pg) . Defaults to [].
+        """
+        
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
+
+        if self.__split == "Bourdin":
+            
+            c = self.__loiDeComportement.get_C()
+
+            PsiP_e_pg = 1/2 * np.einsum('epk,kl,epl->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize=True).reshape((Ne,nPg))
+            PsiM_e_pg = 0*PsiP_e_pg
+
+        elif self.__split == "Amor":
+            raise "Pas encore implémenté"
+        elif self.__split == "Miehe":
+            raise "Pas encore implémenté"       
+        
+
+        if isinstance(g_e_pg, np.ndarray):
+            # Calcul de l'energie endommagé
+            PsiP_e_pg = np.einsum('epi,epi', g_e_pg, PsiP_e_pg)
+            """g * PsiP_e_pg """
+        
+        return PsiP_e_pg, PsiM_e_pg
+
+    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, g_e_pg: np.ndarray):
+
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
+
+        assert Ne == g_e_pg.shape[0]
+        assert nPg == g_e_pg.shape[1]
+
+        if self.__split == "Bourdin":
+            
+            c = self.__loiDeComportement.get_C()
+
+            # Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg)
+            # mat_e_pg = np.einsum('ep,ij->epij', g_e_pg, mat, optimize=True)
+
+            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True)
+            """Sigma_e_pg = c * Epsilon_e_pg"""
+
+            Sigma_e_pgP = np.einsum('ep,epi->epi', g_e_pg, Sigma_e_pg, optimize=True).reshape((Ne, nPg,-1))
+            """Sigma_e_pgP = g(d) * Sigma_e_pg"""            
+
+            Sigma_e_pgM = 0*Sigma_e_pgP
+            """Sigma_e_pgM = 0 * Sigma_e_pgP""" 
+
+        elif self.__split == "Amor":
+            raise "Pas encore implémenté"
+        elif self.__split == "Miehe":
+            raise "Pas encore implémenté"
+
+
+        return Sigma_e_pgP, Sigma_e_pgM
+
+
 class Materiau:
     
     def __get_dim(self):
         return self.comportement.dim
     dim = property(__get_dim)    
 
-    def __init__(self, comportement: LoiDeComportement, ro=8100.0):
+    def __init__(self, comportement: LoiDeComportement, ro=8100.0, phaseFieldModel=None):
         """Creer un materiau
 
         Parameters
@@ -142,6 +295,11 @@ class Materiau:
         # Initialisation des variables de la classe
 
         self.comportement = comportement
+        """Comportement du matériau"""
+
+        if isinstance(phaseFieldModel, PhaseFieldModel):
+            self.phaseFieldModel = phaseFieldModel
+            """Phase field model"""
 
 
 # TEST ==============================

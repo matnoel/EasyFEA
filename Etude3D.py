@@ -17,9 +17,11 @@ Affichage.Clear()
 
 # Data --------------------------------------------------------------------------------------------
 
-dim = 3
+dim = 3 
 
 plotResult = True
+
+saveParaview = True
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -56,7 +58,7 @@ Affichage.NouvelleSection("Traitement")
 
 simu = Simu(dim,mesh, materiau, verbosity=True)
 
-simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["z"])
+simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y", "z"])
 
 simu.Assemblage_u()
@@ -68,17 +70,20 @@ Affichage.NouvelleSection("Résultats")
 
 simu.Resume()
 
-filename = Dossier.NewFile("Etude3D\\solution3D.vtu", results=True)
-
-simu.SaveParaview(filename)
+if saveParaview:
+        filename = Dossier.NewFile("Etude3D\\solution3D.vtu", results=True)
+        simu.SaveParaview(filename)
 
 if plotResult:
 
         tic = TicTac()
 
         Affichage.Plot_Maillage(simu, deformation=False)
+        # plt.savefig(Dossier.NewFile("Etude3D\\Maillage.png", results=True))
         Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)
+        # plt.savefig(Dossier.NewFile("Etude3D\\MaillageDef.png", results=True))
         Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True)
+        # plt.savefig(Dossier.NewFile("Etude3D\\Svm_e.png", results=True))
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)
 

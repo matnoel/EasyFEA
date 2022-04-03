@@ -99,16 +99,8 @@ class Simu:
         # Il est possible de stpcker ça pour ne plus avoir à recalculer        
 
         if len(d) !=0 :   # probleme endomagement
-            
-            N_mass_pg = np.array(mesh.N_mass_pg)
-
-            d_e_n = self.mesh.Localise_e(d)
-
-            d_e_pg = np.einsum('pij,ej->ep', N_mass_pg, d_e_n, optimize=True)
-
-            k_residu = 1e-10
-
-            g_e_pg = (1-d_e_pg)**2 + k_residu
+           
+            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d, self.mesh)            
 
             # Bourdin
             mat_e_pg = np.einsum('ep,ij->epij', g_e_pg, mat, optimize=True)
@@ -203,21 +195,30 @@ class Simu:
 
     def __CalculSigma_e_pg(self, Epsilon_e_pg: np.ndarray):        
 
-        mat = self.materiau.comportement.get_C()
+        c = self.materiau.comportement.get_C()
 
-        Sigma_e_pg = np.einsum('ik,epk->epi', mat, Epsilon_e_pg)
-        # Sigma_e_pg = np.array([[self.__materiau.C.dot(Epsilon_e_pg[e,pg]) for pg in list(range(Epsilon_e_pg.shape[1]))] for e in self.listElement])
+        if "damage" in self.__resultats.keys():
+
+            d_n = self.GetResultat("damage")
+        
+            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d_n, self.mesh)
+
+            SigmaP_e_pg, SigmaM_e_pg = self.materiau.phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg, g_e_pg)
+
+            Sigma_e_pg = SigmaP_e_pg+SigmaM_e_pg
+            
+        else:
+            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg)
+            # Sigma_e_pg = np.array([[self.c.dot(Epsilon_e_pg[e,pg]) for pg in list(range(Epsilon_e_pg.shape[1]))] for e in self.listElement])
 
         return Sigma_e_pg
 
 
-    def CalcPsiPlus(self, u: np.ndarray):
+    def CalcPsiPlus_e_pg(self, u: np.ndarray):
             # Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
             # Calcul de la densité denergie de deformation en traction
             
             Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
-            
-            mat = self.materiau.comportement.get_C()
 
             # Calcul l'energie
             old_PsiP = self.PsiP_e_pg
@@ -225,10 +226,9 @@ class Simu:
             if len(old_PsiP) == 0:
                 old_PsiP = np.zeros((self.mesh.Ne, self.mesh.nPg))
 
-            # Bourdin
-            h = 1/2 * np.einsum('epk,kl,epl->ep', Epsilon_e_pg, mat, Epsilon_e_pg, optimize=True).reshape((self.mesh.Ne, self.mesh.nPg))
+            PsiP_e_pg, PsiM_e_pg = self.materiau.phaseFieldModel.Calc_Psi_e_pg(Epsilon_e_pg)            
             
-            inc_H = h-old_PsiP
+            inc_H = PsiP_e_pg - old_PsiP
 
             # Pour chaque point d'intégration on verifie que la densité dernerie évolue
             for pg in range(self.mesh.nPg):
@@ -237,21 +237,24 @@ class Simu:
                 noeuds = np.where(inc_H[:,pg] < 0)[0]
 
                 if noeuds.shape[0] > 0:
-                    h[noeuds] = old_PsiP[noeuds]
+                    PsiP_e_pg[noeuds] = old_PsiP[noeuds]
 
-            new = np.linalg.norm(h)
+            new = np.linalg.norm(PsiP_e_pg)
             old = np.linalg.norm(self.PsiP_e_pg)
             assert new >= old, "Erreur"
-            self.PsiP_e_pg = h
+            self.PsiP_e_pg = PsiP_e_pg
+
+            return self.PsiP_e_pg
     
     def __ConstruitMatElem_Pfm(self, Gc, l):
         
         tic = TicTac()
 
         # Data
-        K = Gc*l
+        k = self.materiau.phaseFieldModel.k
         PsiP_e_pg = self.PsiP_e_pg
-        r_e_pg = 2*PsiP_e_pg + Gc/l
+        r_e_pg = self.materiau.phaseFieldModel.get_r_e_pg(PsiP_e_pg)
+        f_e_pg = self.materiau.phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
         # Recupère les matrices pour travailler
         mesh = self.mesh
@@ -264,16 +267,14 @@ class Simu:
         Kdr_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
 
         # Partie qui fait intervenir le therme de diffusion K
-        KdK_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, K, Bd_e_pg, Bd_e_pg, optimize=True)
+        KdK_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize=True)
 
         Kd_e_pg = Kdr_e_pg+KdK_e_pg
         
         Kd_e = np.sum(Kd_e_pg, axis=1)
 
         # Construit Fd_e
-        Energie_e_pg = 2*PsiP_e_pg
-
-        Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, Energie_e_pg, Nd_pg) 
+        Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg) 
 
         Fd_e = np.sum(Fd_e_pg, axis=1)
 
@@ -650,10 +651,10 @@ class Simu:
     def __VerificationResultat(self, option):
         # Construit la liste d'otions pour les résultats en 2D ou 3D
 
-        # Verfie si la simulation à un résultat de déplacement
+        # Verfie si la simulation à un résultat de déplacement ou d'endommagement
         if "Uglob" not in self.__resultats.keys() and "damage" not in self.__resultats.keys():
             print("\nLa simulation n'a pas encore de résultats")
-            return False
+            return False 
 
         dim = self.__dim
         if dim == 2:
@@ -698,13 +699,15 @@ class Simu:
             return self.__resultats["damage"]
 
         Uglob = self.__resultats["Uglob"]
+        if option == "Uglob":
+            return Uglob
 
         if option == "deplacement":
             return self.GetCoordUglob().reshape(-1)        
 
         dim = self.__dim
 
-        # Localisation 
+        # Localisation        
         u_e_n = self.mesh.Localise_e(Uglob)
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
@@ -911,27 +914,16 @@ class Simu:
         """Renvoie les déplacements sous la forme [dx, dy, dz] (Nn,3)        """
 
         Nn = self.mesh.Nn
-        dim = self.__dim
+        dim = self.__dim        
 
-        verif = self.__VerificationResultat("Uglob")
-
-        if verif:
+        if self.__VerificationResultat("Uglob"):
 
             Uglob = self.__resultats["Uglob"]
 
-            # Récupère les déplacements
-            ddlx = np.arange(0, Nn*dim, dim)
-            ddly = ddlx + 1 
-            ddlz = ddlx + 2
-            
-            dx = Uglob[ddlx]
-            dy = Uglob[ddly]
+            coordo = Uglob.reshape((Nn,-1))
+           
             if dim == 2:
-                dz = np.zeros(Nn)
-            else:
-                dz = Uglob[ddlz]
-
-            coordo = np.array([dx, dy, dz]).T
+                coordo = np.append(coordo,np.zeros((Nn,1)), axis=1)                       
 
             return coordo
         else:
@@ -998,7 +990,7 @@ class Simu:
             list_valeurs_n=[]
             for resultat_n in nodesField:
 
-                valeurs_n = self.GetResultat(resultat_n, valeursAuxNoeuds=True)
+                valeurs_n = self.GetResultat(resultat_n, valeursAuxNoeuds=True).reshape(-1)
                 list_valeurs_n.append(valeurs_n)
 
                 nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
@@ -1012,7 +1004,7 @@ class Simu:
             list_valeurs_e=[]
             for resultat_e in elementsField:
 
-                valeurs_e = self.GetResultat(resultat_e, valeursAuxNoeuds=False)
+                valeurs_e = self.GetResultat(resultat_e, valeursAuxNoeuds=False).reshape(-1)
                 list_valeurs_e.append(valeurs_e)
 
                 nombreDeComposantes = int(valeurs_e.size/Ne)
