@@ -1,7 +1,9 @@
 # %%
 
+import Paraview
 import Dossier
 from Affichage import Affichage
+
 from Materiau import PhaseFieldModel, Elas_Isot, Materiau
 from ModelGmsh import ModelGmsh
 from Simu import Simu
@@ -16,6 +18,8 @@ Affichage.Clear()
 # Data --------------------------------------------------------------------------------------------
 
 plotResult = True
+saveParaview = True
+makeMovie = False
 save = False
 
 dim = 2
@@ -79,12 +83,13 @@ def RenseigneConditionsLimites():
 
 RenseigneConditionsLimites()
 
-# N = 400
-N = 10
+N = 400
+# N = 10
 
-u_tn = u_0
+uglob = u_0
 
-deteriorations=[]
+damage_t=[]
+uglob_t=[]
 
 u_inc = 5e-8
 # u_inc = 5e-7
@@ -95,54 +100,51 @@ tic = TicTac()
 for iter in range(N):
         
         # Construit H
-        simu.CalcPsiPlus_e_pg(u_tn)
+        simu.CalcPsiPlus_e_pg(uglob)
 
         #-------------------------- PFM problem ------------------------------------
         
         simu.Assemblage_d(Gc=Gc, l=l0)    # Assemblage
         
-        d_tn = simu.Solve_d()   # resolution
-
-        deteriorations.append(d_tn)
+        damage = simu.Solve_d()   # resolution
+        damage_t.append(damage)
 
         #-------------------------- Dep problem ------------------------------------
-        simu.Assemblage_u(d=d_tn)
+        simu.Assemblage_u(d=damage)
 
         # Déplacement en haut
         dep += u_inc
 
         simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
         
-        u_tn = simu.Solve_u(useCholesky=True)
+        uglob = simu.Solve_u(useCholesky=True)
+        uglob_t.append(uglob)
 
         simu.Clear_Condition_Dirichlet()
         RenseigneConditionsLimites()
 
-        ux = u_tn[np.arange(0, mesh.Nn*2, 2)]
-        uy = u_tn[np.arange(1, mesh.Nn*2, 2)]
-        
-        coordos_tn.append(np.array([ux, uy, np.zeros(mesh.Nn)]).T)
-
-        min = np.min(d_tn)
-        max = np.max(d_tn)
-        norm = np.sum(d_tn)
+        # Affiche dans la console
+        min = np.min(damage)
+        max = np.max(damage)
+        norm = np.sum(damage)
 
         tResolution = tic.Tac("Resolution Phase Field", "Resolution Phase field", False)
-        print(iter+1," : sum d = {:.5f}, time = {:.3f}".format(norm, tResolution))
-
-        # simu.SaveParaview(nodesField=["damage"])
-        # Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
-
-        # plt.show()
+        print(iter+1," : sum d = {:.5f}, time = {:.3f}".format(norm, tResolution))       
        
         # if d_tn.max()>1:
         #         break
-        filename = Dossier.NewFile("EtudeCisaillement2D\\damage.vtu", results=True)
-        simu.SaveParaview(filename, nodesField=["damage"]) 
-        Stresses = simu.GetResultat("Sxx")
+        
+if saveParaview:
+        vtuFiles=[]
+        for t, uglob in enumerate(uglob_t):
+                simu.Update(uglob, damage_t[t])
 
-
-
+                filename = Dossier.NewFile(f'EtudeCisaillement2D\\Paraview\\solution_{t}', results=True)
+                vtuFile = Paraview.SaveParaview(simu, filename, nodesField=["deplacement","damage"], elementsField=["Stress"])
+                vtuFiles.append(vtuFile)
+        
+        filenamePvd = Dossier.NewFile('EtudeCisaillement2D\\Paraview\\solutions', results=True)
+        Paraview.MakePvd(filenamePvd, vtuFiles)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Affichage")
@@ -156,11 +158,14 @@ def AffichageCL():
         Affichage.Plot_NoeudsMaillage(simu, ax, noeuds=noeuds_Gauche, marker='.', c='black')
         Affichage.Plot_NoeudsMaillage(simu, ax, noeuds=noeuds_Droite, marker='.', c='black')
 
-# AffichageCL()
-# if save:
-#         plt.savefig(Dossier.GetPath(__file__)+"\\results\\ConditionsLimites.pdf")
-
 if plotResult:
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
+        if save: plt.savefig(Dossier.NewFile("EtudeCisaillement2D\\damage.png",results=True))
+
+        AffichageCL()
+        if save: plt.savefig(Dossier.NewFile("EtudeCisaillement2D\\ConditionsLimites.png",results=True))
+
+if makeMovie:
 
         import matplotlib
         import matplotlib.animation as animation
@@ -185,7 +190,7 @@ if plotResult:
         writer = animation.FFMpegWriter(fps=30)
         with writer.saving(fig, filename, 200):
                 iter=0
-                for d in deteriorations:
+                for d in damage_t:
                         print(iter)
                         ax.clear()
                         image = ax.tricontourf(coord_xy[:,0], coord_xy[:,1], mesh.get_connectTriangle(), d, levels, cmap='jet')

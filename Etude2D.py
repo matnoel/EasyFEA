@@ -1,11 +1,14 @@
 # %%
 
 import Dossier
+import Paraview
+
 from Materiau import Elas_Isot, Materiau
 from ModelGmsh import ModelGmsh
 from Mesh import Mesh
 from Simu import Simu
 from Affichage import Affichage
+
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -86,8 +89,8 @@ simu.Resume()
 
 
 if saveParaview:
-        filename = Dossier.NewFile("Etude2D\\solution2D.vtu", results=True)
-        simu.SaveParaview(filename=filename)
+        filename = Dossier.NewFile("Etude2D\\solution2D", results=True)
+        Paraview.SaveParaview(simu, filename)
 
 if plotResult:
 

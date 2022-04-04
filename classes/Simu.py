@@ -648,7 +648,19 @@ class Simu:
 
         self.__resultats["Uglob"] = Uglob
 
-    def __VerificationResultat(self, option):
+    def VerificationOptions(self, option):
+        """Verification que l'option est bien calculable dans GetResultat
+
+        Parameters
+        ----------
+        option : str
+            option
+
+        Returns
+        -------
+        Bool
+            Réponse du test
+        """
         # Construit la liste d'otions pour les résultats en 2D ou 3D
 
         # Verfie si la simulation à un résultat de déplacement ou d'endommagement
@@ -688,7 +700,7 @@ class Simu:
 
     def GetResultat(self, option: str, valeursAuxNoeuds=False): 
 
-        verif = self.__VerificationResultat(option)
+        verif = self.VerificationOptions(option)
         if not verif:
             return None
 
@@ -887,7 +899,7 @@ class Simu:
 
     def Resume(self):
 
-        if not self.__VerificationResultat("Wdef"):
+        if not self.VerificationOptions("Wdef"):
             return
         
         Wdef = self.GetResultat("Wdef")
@@ -916,7 +928,7 @@ class Simu:
         Nn = self.mesh.Nn
         dim = self.__dim        
 
-        if self.__VerificationResultat("Uglob"):
+        if self.VerificationOptions("Uglob"):
 
             Uglob = self.__resultats["Uglob"]
 
@@ -929,184 +941,15 @@ class Simu:
         else:
             return None
 
-    def SaveParaview(self, filename: str,nodesField=["deplacement","Stress"], elementsField=["Stress","Strain"]):
+    def Update(self, uglob=None, damage=None):
 
-        if not self.__VerificationResultat("Uglob"):
-            return
-        
-        # resultats_e=["Svm","Evm"]
-        options = nodesField+elementsField
-        # options = np.array([options_n, options_e], dtype=str).reshape(-1)
-        for option in options:
-            if not self.__VerificationResultat(option):
-                return
-        
-        tic = TicTac()
+        if isinstance(uglob, np.ndarray):
+            assert uglob.size == self.mesh.Nn*self.__dim
+            self.__resultats["Uglob"] = uglob
 
-        connect = self.mesh.connect
-        coordo = self.mesh.coordo
-        Ne = self.mesh.Ne
-        Nn = self.mesh.Nn
-        nPe = self.mesh.nPe
-
-        typesParaviewElement = {
-            "TRI3" : 5,
-            "TRI6" : 22,
-            "QUAD4" : 9,
-            "QUAD8" : 23,
-            "TETRA4" : 10
-        } # regarder vtkelemtype
-
-        typeParaviewElement = typesParaviewElement[self.mesh.elemType]
-        
-        types = np.ones(Ne, dtype=int)*typeParaviewElement
-
-        node = coordo.reshape(-1)
-        """coordonnées des noeuds en lignes"""
-
-        connectivity = connect.reshape(-1)
-
-        offsets = np.arange(nPe,nPe*Ne+1,nPe, dtype=np.int32)-3
-
-        endian_paraview = 'LittleEndian' # 'LittleEndian' 'BigEndian'
-
-        const=4
-
-        def CalcOffset(offset, taille):
-            return offset + const + (const*taille)        
-
-        with open(filename, "w") as file:
-            
-            file.write('<?xml version="1.0" ?>\n')
-            
-            file.write(f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n')
-
-            file.write('\t<UnstructuredGrid>\n')
-            file.write(f'\t\t<Piece NumberOfPoints="{Nn}" NumberOfCells="{Ne}">\n')
-
-            # Valeurs aux noeuds
-            file.write('\t\t\t<PointData scalars="scalar"> \n')
-            offset=0
-            list_valeurs_n=[]
-            for resultat_n in nodesField:
-
-                valeurs_n = self.GetResultat(resultat_n, valeursAuxNoeuds=True).reshape(-1)
-                list_valeurs_n.append(valeurs_n)
-
-                nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
-                file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
-                offset = CalcOffset(offset, valeurs_n.size)
-
-            file.write('\t\t\t</PointData> \n')
-
-            # Valeurs aux elements
-            file.write('\t\t\t<CellData> \n')
-            list_valeurs_e=[]
-            for resultat_e in elementsField:
-
-                valeurs_e = self.GetResultat(resultat_e, valeursAuxNoeuds=False).reshape(-1)
-                list_valeurs_e.append(valeurs_e)
-
-                nombreDeComposantes = int(valeurs_e.size/Ne)
-                
-                file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_e}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
-                offset = CalcOffset(offset, valeurs_e.size)
-            
-            file.write('\t\t\t</CellData> \n')
-
-            # Points
-            file.write('\t\t\t<Points>\n')
-            file.write(f'\t\t\t\t<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n')
-            offset = CalcOffset(offset, node.size)
-            file.write('\t\t\t</Points>\n')
-
-            # Elements
-            file.write('\t\t\t<Cells>\n')
-            file.write(f'\t\t\t\t<DataArray type="Int32" Name="connectivity" format="appended" offset="{offset}" />\n')
-            offset = CalcOffset(offset, connectivity.size)
-            file.write(f'\t\t\t\t<DataArray type="Int32" Name="offsets" format="appended" offset="{offset}" />\n')
-            offset = CalcOffset(offset, offsets.size)
-            file.write(f'\t\t\t\t<DataArray type="Int8" Name="types" format="appended" offset="{offset}" />\n')
-            file.write('\t\t\t</Cells>\n')
-                    
-            
-            # END VTK FILE
-            file.write('\t\t</Piece>\n')
-            file.write('\t</UnstructuredGrid> \n')
-            
-            # Ajout des valeurs
-            file.write('\t<AppendedData encoding="raw"> \n_')        
-
-        def WriteBinary(valeur, type: str):
-            """Convertie en byte
-
-            Args:
-                valeur (_type_): valeur a convertir
-                type (str): type de conversion 'uint32','float32','int32','int8'
-            """            
-
-            if type not in ['uint32','float32','int32','int8']:
-                raise "Pas dans les options"
-
-            if type == "uint32":
-                valeur = np.uint32(valeur)
-            elif type == "float32":
-                valeur = np.float32(valeur)
-            elif type == "int32":
-                valeur = np.int32(valeur)
-            elif type == "int8":
-                valeur = np.int8(valeur)
-
-            if isinstance(valeur, np.ndarray):
-                convert = valeur.tobytes()
-            else:
-                # convert = np.byte(valeur)
-                convert = valeur.tobytes()
-                # convert = sys
-                # convert = bytes(valeur, 'uint32')
-                # convert = valeur.to_bytes(valeur)
-            
-            file.write(convert)        
-
-        with open(filename, "ab") as file:
-
-            # Valeurs aux noeuds
-            for valeurs_n in list_valeurs_n:
-                WriteBinary(const*(valeurs_n.size), "uint32")
-                WriteBinary(valeurs_n, "float32")                
-
-            # Valeurs aux elements
-            for valeurs_e in list_valeurs_e:                
-                WriteBinary(const*(valeurs_e.size), "uint32")
-                WriteBinary(valeurs_e, "float32")
-
-            # Noeuds
-            WriteBinary(const*(node.size), "uint32")
-            WriteBinary(node, "float32")
-
-            # Connectivity            
-            WriteBinary(const*(connectivity.size), "uint32")
-            WriteBinary(connectivity, "int32")
-
-            # Offsets
-            WriteBinary(const*Ne, "uint32")
-            WriteBinary(offsets+3, "int32")
-
-            # Type d'element
-            WriteBinary(types.size, "uint32")
-            WriteBinary(types, "int8")
-
-        with open(filename, "a") as file:
-
-            # Fin de l'ajout des données
-            file.write('\n\t</AppendedData>\n')
-
-            # Fin du vtk
-            file.write('</VTKFile> \n')
-
-        
-        tParaview = tic.Tac("Post Traitement","SaveParaview", self.__verbosity)
-            
+        if isinstance(damage, np.ndarray):
+            assert damage.size == self.mesh.Nn
+            self.__resultats["damage"] = damage        
 
 # ====================================
 

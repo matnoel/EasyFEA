@@ -13,8 +13,8 @@ def GetPath(filename=None):
 
     return path
 
-def NewFile(filenameWithExtension: str, path=GetPath(), results=False):
-    """Renvoie le path vers le fichier avec l'extension
+def NewFile(filename: str, path=GetPath(), results=False):
+    """Renvoie le path vers le fichier avec l'extension ou non
     
     exemple.toto
 
@@ -28,9 +28,9 @@ def NewFile(filenameWithExtension: str, path=GetPath(), results=False):
     path = path
 
     if results:
-        filename = path + "\\results\\" + filenameWithExtension
+        filename = path + "\\results\\" + filename
     else:
-        filename = path + "\\" + filenameWithExtension
+        filename = path + "\\" + filename
         
     destination = GetPath(filename)    
 
