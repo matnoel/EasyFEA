@@ -1,6 +1,6 @@
 # %%
 
-import Paraview
+import PostTraitement
 import Dossier
 from Affichage import Affichage
 
@@ -17,12 +17,14 @@ Affichage.Clear()
 
 # Data --------------------------------------------------------------------------------------------
 
+test = True
+
 solve = False
 
 plotResult = True
 saveParaview = True
 makeMovie = False
-save = False
+save = True
 
 dim = 2
 
@@ -32,8 +34,25 @@ l0 = 7.5e-6 # taille fissure test femobject
 Gc = 2.7e3
 
 # Paramètres maillage
-# taille = l0/2
-taille = 1e-5 #taille maille test fem object
+if test:
+        taille = 1e-5 #taille maille test fem object
+else:
+        taille = 2.5e-6 #l0/2
+
+folder = "Etude_Cisaillement"
+
+comportement = "Elas_Isot" # "Elas_Isot"
+
+split = "Bourdin" # "Bourdin","Amor","Miehe"
+
+regularisation = "AT2" # "AT1", "AT2"
+
+nameSimu = comportement+"_"+split+"_"+regularisation
+
+if test:
+        filename = Dossier.NewFile(f'{folder}\\Test\\{nameSimu}\\simulation.xml', results=True)
+else:
+        filename = Dossier.NewFile(f'{folder}\\{nameSimu}\\simulation.xml', results=True)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille, affichageGmsh=False)
@@ -87,8 +106,8 @@ if solve:
 
         RenseigneConditionsLimites()
 
-        # N = 400
-        N = 10
+        N = 400
+        # N = 10
 
         uglob = u_0
 
@@ -134,35 +153,40 @@ if solve:
 
                 tResolution = tic.Tac("Resolution PhaseField", "Resolution Phase field", False)
                 # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
-                print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s')
-        
-                # if d_tn.max()>1:
-                #         break
+                print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s')        
+                
 
         # Sauvegarde
 
         import pickle
 
+        struct = {
+                "simu" : simu,
+                "uglob_t" : uglob_t,
+                "damage_t" : damage_t
+        }
+
+        with open(filename, "wb") as file:
+                pickle.dump(struct, file)
         
-else:
-        pass
-
-
+else:   
+        import pickle
+        with open(filename, 'rb') as file:
+                struct = pickle.load(file)
+        
+        simu = struct["simu"]
+        uglob_t = struct["uglob_t"]
+        damage_t = struct["damage_t"]
+                
         
 if saveParaview:
-        vtuFiles=[]
-        for t, uglob in enumerate(uglob_t):
-                simu.Update(uglob, damage_t[t])
-
-                filename = Dossier.NewFile(f'EtudeCisaillement2D\\Paraview3\\solution_{t}', results=True)
-                vtuFile = Paraview.SaveParaview(simu, filename, nodesField=["deplacement","damage"], elementsField=["Stress"])
-                vtuFiles.append(vtuFile)
+        PostTraitement.Save_Phasefield_Simulation_in_Paraview(filename, simu, uglob_t, damage_t)
         
-        filenamePvd = Dossier.NewFile('EtudeCisaillement2D\\Paraview3\\solution', results=True)
-        Paraview.MakePvd(filenamePvd, vtuFiles)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Affichage")
+
+folder = Dossier.GetPath(filename)
 
 def AffichageCL():
         # Affichage noeuds du maillage
@@ -175,10 +199,10 @@ def AffichageCL():
 
 if plotResult:
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=False)
-        if save: plt.savefig(Dossier.NewFile("EtudeCisaillement2D\\damage.png",results=True))
+        if save: plt.savefig(f'{folder}\\damage.png')
 
         AffichageCL()
-        if save: plt.savefig(Dossier.NewFile("EtudeCisaillement2D\\ConditionsLimites.png",results=True))
+        if save: plt.savefig(f'{folder}\\conditionsLimites.png')
 
 if makeMovie:
 

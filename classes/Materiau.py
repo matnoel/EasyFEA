@@ -204,10 +204,6 @@ class PhaseFieldModel:
         assert l_0 > 0, "Doit être supérieur à 0" 
         self.__l_0 = l_0
         """Largeur de régularisation de la fissure"""
-
-        self.g = lambda d_e_pg: (1-d_e_pg)**2
-        """Fonction de dégradation en energies / contraintes"""
-
     
     def Calc_Psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique

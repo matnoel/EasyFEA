@@ -52,8 +52,11 @@ class Affichage:
         # Construit les faces non deformées
         coordo_redim = coordo[:,range(dim)]
         coord_par_face = coordo_redim[connect_Faces]
-
-        levels = 200
+        
+        if option == "damage":
+            levels = np.linspace(0, 1, 200)
+        else:
+            levels = 200
 
         if dim == 2:
             # Construit les vertices            
@@ -75,6 +78,8 @@ class Affichage:
                 # dy_e = resultats["dy_e"]
                 # # x,y=np.meshgrid(dx_e,dy_e)
                 # pc = ax.tricontourf(dx_e, dy_e, valeurs, levels ,cmap='jet')                
+
+            
 
             # Valeur aux noeuds
             elif mesh.Nn == len(valeurs):
@@ -125,7 +130,7 @@ class Affichage:
 
         
         if option == "damage":
-            title = option
+            title = option+"_n"
         else:
             if valeursAuxNoeuds:
                 loc = "_n"

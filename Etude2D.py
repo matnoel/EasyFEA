@@ -1,7 +1,7 @@
 # %%
 
 import Dossier
-import Paraview
+import PostTraitement
 
 from Materiau import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
@@ -90,7 +90,7 @@ simu.Resume()
 
 if saveParaview:
         filename = Dossier.NewFile("Etude2D\\solution2D", results=True)
-        Paraview.SaveParaview(simu, filename)
+        PostTraitement.SaveParaview(simu, filename)
 
 if plotResult:
 

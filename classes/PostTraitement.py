@@ -5,6 +5,103 @@ from Mesh import Mesh
 from TicTac import TicTac
 import numpy as np
 
+import matplotlib as plt
+    import matplotlib.animation as animation
+
+
+def Save_Phasefield_Simulation_in_Paraview(filename: str, simu: Simu, uglob_t: list, damage_t: list):
+    print('\n')
+
+    vtuFiles=[]
+    N = len(uglob_t)
+
+    folder = Dossier.GetPath(filename)
+    folder = Dossier.Append([folder,"Paraview"])
+
+    for t, uglob in enumerate(uglob_t):
+
+        assert simu.mesh.Nn == damage_t[t].size, "Erreur"
+        assert simu.mesh.Nn*simu.mesh.dim == uglob.size, "Erreur"
+
+        simu.Update(uglob, damage_t[t])
+
+        f = f'{folder}\\solution_{t}'
+
+        vtuFile = SaveParaview(simu, f, nodesField=["deplacement","damage"], elementsField=["Stress"])
+        
+        vtuFiles.append(vtuFile)
+
+        print(f"SaveParaview {t+1}/{N}", end='\r')
+    
+    print('\n')
+    filenamePvd = f'{folder}\\solution'
+    MakePvd(filenamePvd, vtuFiles)
+
+
+def Animation_Phasefield(filename: str, simu: Simu, damage_t):
+
+    
+    # Importations des données du maillage
+
+    # Nom de la vidéo
+
+    filename = f'{Dossier.GetPath(filename)}\\video.mp4'
+
+    fig, ax = plt.subplots()
+    # Paramètres colorbar
+    levels = np.linspace(0, 1, 500)
+    ticks = np.linspace(0,1,11)
+
+    ffmpegpath = "D:\\SOFT\\ffmpeg\\bin\\ffmpeg.exe"
+    matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
+
+    writer = animation.FFMpegWriter(fps=30)
+    with writer.saving(fig, filename, 200):
+            iter=0
+            for d in damage_t:
+                    print(iter)
+                    ax.clear()
+                    image = ax.tricontourf(coord_xy[:,0], coord_xy[:,1], mesh.get_connectTriangle(), d, levels, cmap='jet')
+                    
+                    if iter == 0:
+                            cb = plt.colorbar(image, ax=ax, ticks=ticks)
+
+                    ax.axis('equal')                
+                    ax.set_title(iter+1)
+
+                    writer.grab_frame()
+                    iter+=1
+
+    # anim = animation.ArtistAnimation(fig, images, interval=100, repeat_delay=3000, blit=True)
+
+    # histo = []
+
+    # def AnimationEndommagement(frame):        
+
+    #         print(frame)
+            
+    #         ax.clear()        
+            
+    #         d = deteriorations[frame]        
+    #         tri = ax.tricontourf(coord_xy[:,0], coord_xy[:,1], connectTriangle, d, levels, cmap='jet')
+    #         if len(histo)==0:
+    #                 cb = plt.colorbar(tri, ax=ax, ticks=ticks)
+    #                 histo.append(frame)
+            
+    #         ax.axis('equal')
+    #         ax.set_xlabel('x [mm]')
+    #         ax.set_ylabel('y [mm]')
+    #         ax.set_title(frame)
+
+    # writer = animation.FFMpegWriter(fps=10)
+    # anim = animation.FuncAnimation(fig, AnimationEndommagement, frames=N, repeat=False)
+
+
+    # if save:
+    #         anim.save(filename, writer=writer)
+
+# =========================================== Paraview ==================================================
+
 def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], elementsField=["Stress","Strain"]):
     """Creer le .vtu qui peut être lu sur paraview
     """
@@ -51,8 +148,6 @@ def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], 
     endian_paraview = 'LittleEndian' # 'LittleEndian' 'BigEndian'
 
     const=4
-
-    print('\n')
 
     def CalcOffset(offset, taille):
         return offset + const + (const*taille)
@@ -156,8 +251,7 @@ def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], 
         file.write('</VTKFile> \n')
     
     tParaview = tic.Tac("Paraview","SaveParaview", False)
-    print(f"SaveParaview in {np.round(tParaview,3)}", end='\r')
-
+    
     path = Dossier.GetPath(filename)
     vtuFile = str(filename).replace(path+'\\', '')
 
@@ -165,6 +259,8 @@ def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], 
 
 
 def MakePvd(filename: str, vtuFiles=[]):
+
+    tic = TicTac()
 
     endian_paraview = 'LittleEndian' # 'LittleEndian' 'BigEndian'
 
@@ -182,6 +278,8 @@ def MakePvd(filename: str, vtuFiles=[]):
         
         file.write('\t</Collection>\n')
         file.write('</VTKFile>\n')
+    
+    t = tic.Tac("Paraview","Paraview", False)
 
 def __WriteBinary(valeur, type: str, file):
         """Convertie en byte

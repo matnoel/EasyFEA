@@ -35,9 +35,24 @@ def NewFile(filename: str, path=GetPath(), results=False):
     destination = GetPath(filename)    
 
     if not os.path.isdir(destination):
-        os.mkdir(destination)
+        # os.mkdir(destination)
+        os.makedirs(destination)
 
     return filename
+
+def Append(list):
+    file = ""
+    for s, string in enumerate(list):
+        file += string
+        if s+1 < len(list):
+            file += "\\"
+    
+    if not os.path.isdir(file):
+        # os.mkdir(file)
+        os.makedirs(file)
+    
+    return file
+
 
 
 
