@@ -10,7 +10,7 @@ from scipy.sparse.linalg import spsolve
 
 from Element import Element
 from Mesh import Mesh
-from Materiau import Elas_Isot, Materiau
+from Materiau import Elas_Isot, Materiau, PhaseFieldModel
 from TicTac import TicTac
 from ModelGmsh import ModelGmsh
 import Dossier
@@ -71,10 +71,11 @@ class Simu:
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
-    def ConstruitMatElem_Dep(self, d=[]):
-        return self.__ConstruitMatElem_Dep(d)
+    def ConstruitMatElem_Dep(self):       
 
-    def __ConstruitMatElem_Dep(self, d):
+        return self.__ConstruitMatElem_Dep()
+
+    def __ConstruitMatElem_Dep(self):
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
 
         Args:
@@ -84,11 +85,13 @@ class Simu:
             array de dim e: les matrices elementaires pour chaque element
         """
 
+        isDamaged = "damage" in self.__resultats.keys()
+
         tic = TicTac()
 
         # Data
-        mesh = cast(Mesh, self.mesh)
-        nPg = len(mesh.poid_pg)
+        mesh = self.mesh
+        nPg = mesh.nPg
         
         # Recupère les matrices pour travailler
         jacobien_e_pg = mesh.jacobien_e_pg
@@ -98,14 +101,28 @@ class Simu:
         # Ici on le materiau est homogène
         # Il est possible de stpcker ça pour ne plus avoir à recalculer        
 
-        if len(d) !=0 :   # probleme endomagement
-           
-            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d, self.mesh)            
+        if isDamaged:   # probleme endomagement
 
-            # Bourdin
-            mat_e_pg = np.einsum('ep,ij->epij', g_e_pg, mat, optimize=True)
+            d = self.__resultats["damage"]
 
-            Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, mat_e_pg, B_rigi_e_pg, optimize=True)
+            if "Uglob" in self.__resultats.keys():
+                u = self.__resultats["Uglob"]
+            else:
+                u = np.zeros((mesh.Nn*mesh.dim))
+                
+            # Calcul la deformation nécessaire pour le split
+            Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
+
+            # Split de la loi de comportement
+            cP, cM = self.materiau.phaseFieldModel.Calc_C(Epsilon_e_pg)
+
+            # Endommage : c = g(d) * cP + cM
+            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d, mesh)
+            cP = np.einsum('ep,ij->epij', g_e_pg, cP, optimize=True)
+            c = cP + cM
+            
+            # Matrice de rigidité élementaire
+            Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, c, B_rigi_e_pg, optimize=True)
             
         else:   # probleme en déplacement simple
 
@@ -134,7 +151,7 @@ class Simu:
         taille = mesh.Nn*self.__dim
 
         # Construit Ke
-        Ku_e = self.__ConstruitMatElem_Dep(d)
+        Ku_e = self.__ConstruitMatElem_Dep()
         self.__Ku_e = Ku_e # Sauvegarde Ke pour calculer Energie plus rapidement
         
         # Prépare assemblage
@@ -182,41 +199,11 @@ class Simu:
     
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
-    def __CalculEpsilon_e_pg(self, u: np.ndarray):
-        
-        # Localise les deplacement par element
-        u_e = self.mesh.Localise_e(u)
-        
-        # Construit epsilon pour chaque element et chaque points de gauss
-        Epsilon_e_pg = np.einsum('epik,ek->epi', self.mesh.B_rigi_e_pg, u_e, optimize=True)
-        # Epsilon_e_pg = np.array([[self.__mesh.B_rigi_e_pg[e,pg].dot(u_e[e]) for pg in list(range(self.__mesh.B_rigi_e_pg.shape[1]))] for e in self.listElement])
-
-        return Epsilon_e_pg
-
-    def __CalculSigma_e_pg(self, Epsilon_e_pg: np.ndarray):        
-
-        c = self.materiau.comportement.get_C()
-
-        if "damage" in self.__resultats.keys():
-
-            d_n = self.GetResultat("damage")
-        
-            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d_n, self.mesh)
-
-            SigmaP_e_pg, SigmaM_e_pg = self.materiau.phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg, g_e_pg)
-
-            Sigma_e_pg = SigmaP_e_pg+SigmaM_e_pg
-            
-        else:
-            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg)
-            # Sigma_e_pg = np.array([[self.c.dot(Epsilon_e_pg[e,pg]) for pg in list(range(Epsilon_e_pg.shape[1]))] for e in self.listElement])
-
-        return Sigma_e_pg
-
-
     def CalcPsiPlus_e_pg(self, u: np.ndarray):
             # Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
             # Calcul de la densité denergie de deformation en traction
+
+            assert not self.materiau.phaseFieldModel == None, "pas de modèle d'endommagement"
             
             Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
 
@@ -241,6 +228,7 @@ class Simu:
 
             new = np.linalg.norm(PsiP_e_pg)
             old = np.linalg.norm(self.PsiP_e_pg)
+
             assert new >= old, "Erreur"
             self.PsiP_e_pg = PsiP_e_pg
 
@@ -631,6 +619,64 @@ class Simu:
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
+    def __CalculEpsilon_e_pg(self, u: np.ndarray):
+        """Construit epsilon pour chaque element et chaque points de gauss
+
+        Parameters
+        ----------
+        u : np.ndarray
+            Vecteur des déplacements
+
+        Returns
+        -------
+        np.ndarray
+            Deformations stockées aux elements et points de gauss (Ne,pg,(3 ou 6))
+        """
+        
+        # Localise les deplacement par element
+        u_e = self.mesh.Localise_e(u)        
+        
+        Epsilon_e_pg = np.einsum('epik,ek->epi', self.mesh.B_rigi_e_pg, u_e, optimize=True)        
+
+        return Epsilon_e_pg
+
+    def __CalculSigma_e_pg(self, Epsilon_e_pg: np.ndarray):
+        """Calcul les contraintes depuis les deformations
+
+        Parameters
+        ----------
+        Epsilon_e_pg : np.ndarray
+            Deformations stockées aux elements et points de gauss (Ne,pg,(3 ou 6))
+
+        Returns
+        -------
+        np.ndarray
+            Renvoie les contrainres endommagé ou non (Ne,pg,(3 ou 6))
+        """
+
+        assert Epsilon_e_pg.shape[0] == self.mesh.Ne
+        assert Epsilon_e_pg.shape[1] == self.mesh.nPg
+
+        c = self.materiau.comportement.get_C()
+
+        if "damage" in self.__resultats.keys():
+
+            SigmaP_e_pg, SigmaM_e_pg = self.materiau.phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
+
+            # Endommage Sigma_e_pgP = g(d) * Sigma_e_pg
+            d_n = self.GetResultat("damage")
+            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d_n, self.mesh)
+            SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize=True).reshape((self.mesh.Ne, self.mesh.nPg,-1))
+
+            Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
+            
+        else:
+
+            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True)
+            
+
+        return Sigma_e_pg
+
     def __Save_d(self, dGlob: np.ndarray):
         """Sauvegarde dGlob"""        
 
@@ -648,7 +694,7 @@ class Simu:
 
         self.__resultats["Uglob"] = Uglob
 
-    def VerificationOptions(self, option):
+    def VerificationOption(self, option):
         """Verification que l'option est bien calculable dans GetResultat
 
         Parameters
@@ -700,7 +746,7 @@ class Simu:
 
     def GetResultat(self, option: str, valeursAuxNoeuds=False): 
 
-        verif = self.VerificationOptions(option)
+        verif = self.VerificationOption(option)
         if not verif:
             return None
 
@@ -899,7 +945,7 @@ class Simu:
 
     def Resume(self):
 
-        if not self.VerificationOptions("Wdef"):
+        if not self.VerificationOption("Wdef"):
             return
         
         Wdef = self.GetResultat("Wdef")
@@ -928,7 +974,7 @@ class Simu:
         Nn = self.mesh.Nn
         dim = self.__dim        
 
-        if self.VerificationOptions("Uglob"):
+        if self.VerificationOption("Uglob"):
 
             Uglob = self.__resultats["Uglob"]
 
@@ -954,7 +1000,6 @@ class Simu:
 # ====================================
 
 import unittest
-import os
 
 class Test_Simu(unittest.TestCase):    
     

@@ -83,8 +83,8 @@ def RenseigneConditionsLimites():
 
 RenseigneConditionsLimites()
 
-N = 400
-# N = 10
+# N = 400
+N = 10
 
 uglob = u_0
 
@@ -139,11 +139,11 @@ if saveParaview:
         for t, uglob in enumerate(uglob_t):
                 simu.Update(uglob, damage_t[t])
 
-                filename = Dossier.NewFile(f'EtudeCisaillement2D\\Paraview\\solution_{t}', results=True)
+                filename = Dossier.NewFile(f'EtudeCisaillement2D\\Paraview2\\solution_{t}', results=True)
                 vtuFile = Paraview.SaveParaview(simu, filename, nodesField=["deplacement","damage"], elementsField=["Stress"])
                 vtuFiles.append(vtuFile)
         
-        filenamePvd = Dossier.NewFile('EtudeCisaillement2D\\Paraview\\solutions', results=True)
+        filenamePvd = Dossier.NewFile('EtudeCisaillement2D\\Paraview2\\solution', results=True)
         Paraview.MakePvd(filenamePvd, vtuFiles)
 
 # ------------------------------------------------------------------------------------------------------
@@ -159,7 +159,7 @@ def AffichageCL():
         Affichage.Plot_NoeudsMaillage(simu, ax, noeuds=noeuds_Droite, marker='.', c='black')
 
 if plotResult:
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=False)
         if save: plt.savefig(Dossier.NewFile("EtudeCisaillement2D\\damage.png",results=True))
 
         AffichageCL()

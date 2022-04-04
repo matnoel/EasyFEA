@@ -146,7 +146,7 @@ class PhaseFieldModel:
         else:
             return 2 * PsiP_e_pg
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, k_residu = 1e-10):
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, k_residu=1e-6):
         """Fonction de dégradation en energies / contraintes
 
         Args:
@@ -162,6 +162,9 @@ class PhaseFieldModel:
             g_e_pg = (1-d_e_pg)**2 + k_residu
         else:
             raise "Pas implémenté"
+
+        assert mesh.Ne == g_e_pg.shape[0]
+        assert mesh.nPg == g_e_pg.shape[1]
         
         return g_e_pg
 
@@ -206,7 +209,7 @@ class PhaseFieldModel:
         """Fonction de dégradation en energies / contraintes"""
 
     
-    def Calc_Psi_e_pg(self, Epsilon_e_pg: np.ndarray, g_e_pg=None):
+    def Calc_Psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique
 
         Args:
@@ -227,47 +230,71 @@ class PhaseFieldModel:
         elif self.__split == "Amor":
             raise "Pas encore implémenté"
         elif self.__split == "Miehe":
-            raise "Pas encore implémenté"       
-        
-
-        if isinstance(g_e_pg, np.ndarray):
-            # Calcul de l'energie endommagé
-            PsiP_e_pg = np.einsum('epi,epi', g_e_pg, PsiP_e_pg)
-            """g * PsiP_e_pg """
+            raise "Pas encore implémenté"
         
         return PsiP_e_pg, PsiM_e_pg
 
-    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, g_e_pg: np.ndarray):
+    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray):
+        """Calcul la contrainte en fonction de la deformation et du split
+
+        Parameters
+        ----------
+        Epsilon_e_pg : np.ndarray
+            deformations stockées aux elements et Points de Gauss
+
+        Returns
+        -------
+        np.ndarray
+            SigmaP_e_pg, SigmaM_e_pg : La matrice de comportement qui relie les deformation aux contraintes "Lamé"
+        """       
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
-        assert Ne == g_e_pg.shape[0]
-        assert nPg == g_e_pg.shape[1]
-
         if self.__split == "Bourdin":
             
             c = self.__loiDeComportement.get_C()
-
-            # Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg)
-            # mat_e_pg = np.einsum('ep,ij->epij', g_e_pg, mat, optimize=True)
-
-            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True)
-            """Sigma_e_pg = c * Epsilon_e_pg"""
-
-            Sigma_e_pgP = np.einsum('ep,epi->epi', g_e_pg, Sigma_e_pg, optimize=True).reshape((Ne, nPg,-1))
-            """Sigma_e_pgP = g(d) * Sigma_e_pg"""            
-
-            Sigma_e_pgM = 0*Sigma_e_pgP
-            """Sigma_e_pgM = 0 * Sigma_e_pgP""" 
+            
+            # Sigma_e_pg = c * Epsilon_e_pg
+            SigmaP_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True).reshape((Ne,nPg,-1))
+            
+            # Sigma_e_pgM = 0 * Sigma_e_pgP
+            SigmaP_e_pg = 0*SigmaP_e_pg
 
         elif self.__split == "Amor":
             raise "Pas encore implémenté"
         elif self.__split == "Miehe":
             raise "Pas encore implémenté"
 
+        return SigmaP_e_pg, SigmaP_e_pg
+    
+    def Calc_C(self, Epsilon_e_pg: np.ndarray):
+        """Calcul la loi de comportement en fonction du split
 
-        return Sigma_e_pgP, Sigma_e_pgM
+        Parameters
+        ----------
+        Epsilon_e_pg : np.ndarray
+            deformations stockées aux élements et points de gauss (Pas utilisé si bourdin)
+
+        Returns
+        -------
+        np.ndarray
+            Revoie cP, cM
+        """
+        
+        if self.__split == "Bourdin":
+            
+            c = self.__loiDeComportement.get_C()
+
+            cP = c
+            cM = 0*c
+
+        elif self.__split == "Amor":
+            raise "Pas encore implémenté"
+        elif self.__split == "Miehe":
+            raise "Pas encore implémenté"
+
+        return cP, cM
 
 
 class Materiau:
@@ -300,6 +327,8 @@ class Materiau:
         if isinstance(phaseFieldModel, PhaseFieldModel):
             self.phaseFieldModel = phaseFieldModel
             """Phase field model"""
+        else:
+            self.phaseFieldModel = None
 
 
 # TEST ==============================

@@ -9,14 +9,14 @@ def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], 
     """Creer le .vtu qui peut être lu sur paraview
     """
     
-    if not simu.VerificationOptions("Uglob"):
+    if not simu.VerificationOption("Uglob"):
         return
     
     # resultats_e=["Svm","Evm"]
     options = nodesField+elementsField
     # options = np.array([options_n, options_e], dtype=str).reshape(-1)
     for option in options:
-        if not simu.VerificationOptions(option):
+        if not simu.VerificationOption(option):
             return
     
     tic = TicTac()
