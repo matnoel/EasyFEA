@@ -2,5 +2,5 @@
 .vscode/settings.json
 .vscode/extensions.json
 classes/__pycache__/
-results/.
+results/
 *.pyc
