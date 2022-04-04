@@ -52,8 +52,10 @@ def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], 
 
     const=4
 
+    print('\n')
+
     def CalcOffset(offset, taille):
-        return offset + const + (const*taille)        
+        return offset + const + (const*taille)
 
     with open(filename, "w") as file:
         
@@ -153,7 +155,8 @@ def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], 
         # Fin du vtk
         file.write('</VTKFile> \n')
     
-    tParaview = tic.Tac("Post Traitement","SaveParaview", True)
+    tParaview = tic.Tac("Paraview","SaveParaview", False)
+    print(f"SaveParaview in {np.round(tParaview,3)}", end='\r')
 
     path = Dossier.GetPath(filename)
     vtuFile = str(filename).replace(path+'\\', '')
@@ -200,14 +203,7 @@ def __WriteBinary(valeur, type: str, file):
         elif type == "int8":
             valeur = np.int8(valeur)
 
-        if isinstance(valeur, np.ndarray):
-            convert = valeur.tobytes()
-        else:
-            # convert = np.byte(valeur)
-            convert = valeur.tobytes()
-            # convert = sys
-            # convert = bytes(valeur, 'uint32')
-            # convert = valeur.to_bytes(valeur)
+        convert = valeur.tobytes()
         
         file.write(convert)
 

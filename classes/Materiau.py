@@ -146,7 +146,7 @@ class PhaseFieldModel:
         else:
             return 2 * PsiP_e_pg
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, k_residu=1e-6):
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, k_residu=1e-10):
         """Fonction de dégradation en energies / contraintes
 
         Args:
@@ -259,14 +259,14 @@ class PhaseFieldModel:
             SigmaP_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True).reshape((Ne,nPg,-1))
             
             # Sigma_e_pgM = 0 * Sigma_e_pgP
-            SigmaP_e_pg = 0*SigmaP_e_pg
+            SigmaM_e_pg = 0*SigmaP_e_pg
 
         elif self.__split == "Amor":
             raise "Pas encore implémenté"
         elif self.__split == "Miehe":
             raise "Pas encore implémenté"
 
-        return SigmaP_e_pg, SigmaP_e_pg
+        return SigmaP_e_pg, SigmaM_e_pg
     
     def Calc_C(self, Epsilon_e_pg: np.ndarray):
         """Calcul la loi de comportement en fonction du split

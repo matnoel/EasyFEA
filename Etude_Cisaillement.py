@@ -5,7 +5,7 @@ import Dossier
 from Affichage import Affichage
 
 from Materiau import PhaseFieldModel, Elas_Isot, Materiau
-from ModelGmsh import ModelGmsh
+from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
 from Mesh import Mesh
 from TicTac import TicTac
@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 Affichage.Clear()
 
 # Data --------------------------------------------------------------------------------------------
+
+solve = False
 
 plotResult = True
 saveParaview = True
@@ -34,7 +36,7 @@ Gc = 2.7e3
 taille = 1e-5 #taille maille test fem object
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille, affichageGmsh=False)
+modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille, affichageGmsh=False)
 
 (coordos_tn, connect) = modelGmsh.ConstructionRectangleAvecFissure(L, L)
 
@@ -53,97 +55,110 @@ NoeudsBord.extend(noeuds_Bas); NoeudsBord.extend(noeuds_Droite); NoeudsBord.exte
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Simulations")
 
-comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+if solve:
 
-phaseFieldModel = PhaseFieldModel(comportement, "Bourdin", "AT2", Gc=Gc, l_0=l0)
+        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
-materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
+        phaseFieldModel = PhaseFieldModel(comportement, "Bourdin", "AT2", Gc=Gc, l_0=l0)
 
-simu = Simu(dim, mesh, materiau, verbosity=False)
+        materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
-u_0 = np.zeros(mesh.Nn*dim)
+        simu = Simu(dim, mesh, materiau, verbosity=False)
 
-coordos_tn = [np.zeros((mesh.Nn,3))]
+        u_0 = np.zeros(mesh.Nn*dim)
 
-# Renseignement des conditions limites
+        coordos_tn = [np.zeros((mesh.Nn,3))]
 
-# Endommagement initiale
-simu.Condition_Dirichlet(noeuds_Milieu, valeur=1, option="d")
+        # Renseignement des conditions limites
 
-def RenseigneConditionsLimites():
-        # # Conditions en déplacements à Gauche et droite
-        simu.Condition_Dirichlet(noeuds_Gauche, valeur=0.0, directions=["y"])
-        simu.Condition_Dirichlet(noeuds_Droite, valeur=0.0, directions=["y"])
+        # Endommagement initiale
+        simu.Condition_Dirichlet(noeuds_Milieu, valeur=1, option="d")
 
-        # Conditions en déplacements en Bas
-        simu.Condition_Dirichlet(noeuds_Bas, valeur=0.0, directions=["x", "y"])
+        def RenseigneConditionsLimites():
+                # # Conditions en déplacements à Gauche et droite
+                simu.Condition_Dirichlet(noeuds_Gauche, valeur=0.0, directions=["y"])
+                simu.Condition_Dirichlet(noeuds_Droite, valeur=0.0, directions=["y"])
 
-        # Conditions en déplacements en Haut
-        simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
+                # Conditions en déplacements en Bas
+                simu.Condition_Dirichlet(noeuds_Bas, valeur=0.0, directions=["x", "y"])
 
-RenseigneConditionsLimites()
+                # Conditions en déplacements en Haut
+                simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
 
-# N = 400
-N = 10
-
-uglob = u_0
-
-damage_t=[]
-uglob_t=[]
-
-u_inc = 5e-8
-# u_inc = 5e-7
-dep = 0
-
-tic = TicTac()
-
-for iter in range(N):
-        
-        # Construit H
-        simu.CalcPsiPlus_e_pg(uglob)
-
-        #-------------------------- PFM problem ------------------------------------
-        
-        simu.Assemblage_d(Gc=Gc, l=l0)    # Assemblage
-        
-        damage = simu.Solve_d()   # resolution
-        damage_t.append(damage)
-
-        #-------------------------- Dep problem ------------------------------------
-        simu.Assemblage_u(d=damage)
-
-        # Déplacement en haut
-        dep += u_inc
-
-        simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
-        
-        uglob = simu.Solve_u(useCholesky=True)
-        uglob_t.append(uglob)
-
-        simu.Clear_Condition_Dirichlet()
         RenseigneConditionsLimites()
 
-        # Affiche dans la console
-        min = np.min(damage)
-        max = np.max(damage)
-        norm = np.sum(damage)
+        # N = 400
+        N = 10
 
-        tResolution = tic.Tac("Resolution Phase Field", "Resolution Phase field", False)
-        print(iter+1," : sum d = {:.5f}, time = {:.3f}".format(norm, tResolution))       
-       
-        # if d_tn.max()>1:
-        #         break
+        uglob = u_0
+
+        damage_t=[]
+        uglob_t=[]
+
+        u_inc = 5e-8
+        # u_inc = 5e-7
+        dep = 0
+
+        tic = TicTac()
+
+        for iter in range(N):
+                
+                # Construit H
+                simu.CalcPsiPlus_e_pg(uglob)
+
+                #-------------------------- PFM problem ------------------------------------
+                
+                simu.Assemblage_d(Gc=Gc, l=l0)    # Assemblage
+                
+                damage = simu.Solve_d()   # resolution
+                damage_t.append(damage)
+
+                #-------------------------- Dep problem ------------------------------------
+                simu.Assemblage_u(d=damage)
+
+                # Déplacement en haut
+                dep += u_inc
+
+                simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
+                
+                uglob = simu.Solve_u(useCholesky=True)
+                uglob_t.append(uglob)
+
+                simu.Clear_Condition_Dirichlet()
+                RenseigneConditionsLimites()
+
+                # Affiche dans la console
+                min = np.round(np.min(damage),3)
+                max = np.round(np.max(damage),3)
+                norm = np.sum(damage)
+
+                tResolution = tic.Tac("Resolution PhaseField", "Resolution Phase field", False)
+                # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
+                print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s')
+        
+                # if d_tn.max()>1:
+                #         break
+
+        # Sauvegarde
+
+        import pickle
+
+        
+else:
+        pass
+
+
         
 if saveParaview:
         vtuFiles=[]
         for t, uglob in enumerate(uglob_t):
                 simu.Update(uglob, damage_t[t])
 
-                filename = Dossier.NewFile(f'EtudeCisaillement2D\\Paraview2\\solution_{t}', results=True)
+                filename = Dossier.NewFile(f'EtudeCisaillement2D\\Paraview3\\solution_{t}', results=True)
                 vtuFile = Paraview.SaveParaview(simu, filename, nodesField=["deplacement","damage"], elementsField=["Stress"])
                 vtuFiles.append(vtuFile)
         
-        filenamePvd = Dossier.NewFile('EtudeCisaillement2D\\Paraview2\\solution', results=True)
+        filenamePvd = Dossier.NewFile('EtudeCisaillement2D\\Paraview3\\solution', results=True)
         Paraview.MakePvd(filenamePvd, vtuFiles)
 
 # ------------------------------------------------------------------------------------------------------

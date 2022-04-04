@@ -558,12 +558,12 @@ class Test_Mesh(unittest.TestCase):
     
     def setUp(self):
         
-        from ModelGmsh import ModelGmsh
+        from Interface_Gmsh import Interface_Gmsh
 
         list_mesh = []
 
         for e, element in enumerate(Element.get_Types2D()):
-            modelGmsh = ModelGmsh(2, organisationMaillage=True, typeElement=e, tailleElement=1, verbosity=False)
+            modelGmsh = Interface_Gmsh(2, organisationMaillage=True, typeElement=e, tailleElement=1, verbosity=False)
             (coordo, connect) = modelGmsh.ConstructionRectangle(1, 1)
             mesh = Mesh(2, coordo, connect, verbosity=False)
             list_mesh.append(mesh)

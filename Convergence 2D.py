@@ -2,7 +2,7 @@
 
 from Element import Element
 from Materiau import Elas_Isot, Materiau
-from ModelGmsh import ModelGmsh
+from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 from Simu import Simu
 from Affichage import Affichage
@@ -60,7 +60,7 @@ for elem, type in enumerate(Element.get_Types2D()):
                 taille = b/nbElem
 
                 # Construction du modele et du maillage --------------------------------------------------------------------------------
-                modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=elem, tailleElement=taille, verbosity=False)
+                modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=elem, tailleElement=taille, verbosity=False)
                 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
                 mesh = Mesh(dim, coordo, connect, verbosity=False)
 

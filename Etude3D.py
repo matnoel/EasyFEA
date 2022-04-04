@@ -4,7 +4,7 @@ import Dossier
 
 from Simu import Simu
 from Materiau import Materiau, Elas_Isot
-from ModelGmsh import ModelGmsh
+from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 from Affichage import Affichage
 
@@ -43,7 +43,7 @@ comportement = Elas_Isot(dim, contraintesPlanes=False)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
+modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
 
 fichier = Dossier.NewFile('models\\part.stp')
 

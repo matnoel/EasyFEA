@@ -6,7 +6,7 @@ from Element import Element
 from TicTac import TicTac
 from Affichage import Affichage
 
-class ModelGmsh:        
+class Interface_Gmsh:        
         
         def __init__(self,dim: int, organisationMaillage=False, affichageGmsh=False, gmshVerbosity=False, verbosity=True, typeElement=0, tailleElement=0.0):
                 
@@ -230,10 +230,10 @@ class Test_ModelGmsh(unittest.TestCase):
                 for organisationMaillage in organisations:
                         # Pour chaque type d'element 2D
                         for t, type in enumerate(Element.get_Types2D()):
-                                modelGmsh = ModelGmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
+                                modelGmsh = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
                                 modelGmsh.ConstructionRectangle(L, h)
 
-                                modelGmsh2 = ModelGmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
+                                modelGmsh2 = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
                                 modelGmsh2.ConstructionRectangleAvecFissure(L, h)
 
         
@@ -245,7 +245,7 @@ class Test_ModelGmsh(unittest.TestCase):
 
                 # Pour chaque type d'element 3D
                 for t, type in enumerate(Element.get_Types3D()):
-                        modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=t, tailleElement=120, verbosity=False)
+                        modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=t, tailleElement=120, verbosity=False)
                         path = Dossier.GetPath()
                         fichier = path + "\\models\\part.stp" 
                         modelGmsh.Importation3D(fichier)

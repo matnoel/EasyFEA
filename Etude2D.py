@@ -4,7 +4,7 @@ import Dossier
 import Paraview
 
 from Materiau import Elas_Isot, Materiau
-from ModelGmsh import ModelGmsh
+from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 from Simu import Simu
 from Affichage import Affichage
@@ -43,7 +43,7 @@ comportement = Elas_Isot(dim, epaisseur=b)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
+modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
 

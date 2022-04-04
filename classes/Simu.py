@@ -12,7 +12,7 @@ from Element import Element
 from Mesh import Mesh
 from Materiau import Elas_Isot, Materiau, PhaseFieldModel
 from TicTac import TicTac
-from ModelGmsh import ModelGmsh
+from Interface_Gmsh import Interface_Gmsh
 import Dossier
     
 class Simu:
@@ -221,10 +221,10 @@ class Simu:
             for pg in range(self.mesh.nPg):
                 
                 # Récupères les noeuds ou la densité d'energie diminue
-                noeuds = np.where(inc_H[:,pg] < 0)[0]
+                elements = np.where(inc_H[:,pg] < 0)[0]
 
-                if noeuds.shape[0] > 0:
-                    PsiP_e_pg[noeuds] = old_PsiP[noeuds]
+                if elements.shape[0] > 0:
+                    PsiP_e_pg[elements,pg] = old_PsiP[elements,pg]
 
             new = np.linalg.norm(PsiP_e_pg)
             old = np.linalg.norm(self.PsiP_e_pg)
@@ -309,11 +309,11 @@ class Simu:
         # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
         # assert dGlob.min() >= 0, "Doit etre supérieur 0"
 
-        if(dGlob.max() > 1):
-            print("dmax = {}".format(dGlob.max()))
+        # if(dGlob.max() > 1):
+        #     print("dmax = {}".format(dGlob.max()))
 
-        if(dGlob.min() < 0):
-            print("dmin = {}".format(dGlob.min()))
+        # if(dGlob.min() < 0):
+        #     print("dmin = {}".format(dGlob.min()))
 
         self.__Save_d(dGlob)
 
@@ -1027,7 +1027,7 @@ class Test_Simu(unittest.TestCase):
         # Pour chaque type d'element 2D
         for i in range(len(Element.get_Types2D())):
             # Construction du modele et du maillage 
-            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, verbosity=False)
+            modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, verbosity=False)
 
             (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
             mesh = Mesh(dim, coordo, connect, verbosity=False)
@@ -1069,7 +1069,7 @@ class Test_Simu(unittest.TestCase):
         self.simulations3DElastique = []        
 
         for i in range(len(Element.get_Types3D())):
-            modelGmsh = ModelGmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
+            modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
 
             (coordo, connect) = modelGmsh.Importation3D(fichier)
             mesh = Mesh(dim, coordo, connect, verbosity=False)

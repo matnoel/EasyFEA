@@ -295,9 +295,6 @@ class Affichage:
         else:
             return coordo, deformation
 
-        
-
-
     def __ChangeEchelle(ax, coordo: np.ndarray):
         """Change la taille des axes pour l'affichage 3D
 
