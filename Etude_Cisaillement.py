@@ -22,8 +22,8 @@ test = True
 solve = False
 
 plotResult = False
-saveParaview = False
-makeMovie = True
+saveParaview = True
+makeMovie = False
 save = True
 
 dim = 2
@@ -183,7 +183,7 @@ else:
                 
         
 if saveParaview:
-        PostTraitement.Save_Phasefield_Simulation_in_Paraview(filename, simu, uglob_t, damage_t)
+        PostTraitement.Save_Simulations_in_Paraview(filename, simu, uglob_t, damage_t)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Affichage")

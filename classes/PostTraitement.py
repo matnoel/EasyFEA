@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 
-def Save_Phasefield_Simulation_in_Paraview(filename: str, simu: Simu, uglob_t: list, damage_t: list):
+def Save_Simulations_in_Paraview(filename: str, simu: Simu, uglob_t: list, damage_t=[]):
     print('\n')
 
     vtuFiles=[]
@@ -30,7 +30,10 @@ def Save_Phasefield_Simulation_in_Paraview(filename: str, simu: Simu, uglob_t: l
 
         f = f'{folder}\\solution_{t}'
 
-        vtuFile = SaveParaview(simu, f, nodesField=["deplacement","damage"], elementsField=["Stress"])
+        if len(damage_t) > 0:
+            vtuFile = SaveParaview(simu, f, nodesField=["deplacement","damage"], elementsField=["Stress"])
+        else:
+            vtuFile = SaveParaview(simu, f, nodesField=["deplacement"], elementsField=["Stress"])
         
         vtuFiles.append(vtuFile)
 
