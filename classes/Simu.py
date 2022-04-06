@@ -114,12 +114,12 @@ class Simu:
             Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
 
             # Split de la loi de comportement
-            cP, cM = self.materiau.phaseFieldModel.Calc_C(Epsilon_e_pg)
+            cP_e_pg, cM_e_pg = self.materiau.phaseFieldModel.Calc_C(Epsilon_e_pg)
 
             # Endommage : c = g(d) * cP + cM
             g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d, mesh)
-            cP = np.einsum('ep,ij->epij', g_e_pg, cP, optimize=True)
-            c = cP + cM
+            cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize=True)
+            c = cP_e_pg + cM_e_pg
             
             # Matrice de rigidité élementaire
             Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, c, B_rigi_e_pg, optimize=True)
@@ -234,7 +234,7 @@ class Simu:
 
             return self.PsiP_e_pg
     
-    def __ConstruitMatElem_Pfm(self, Gc, l):
+    def __ConstruitMatElem_Pfm(self):
         
         tic = TicTac()
 
@@ -270,7 +270,7 @@ class Simu:
 
         return Kd_e, Fd_e
 
-    def Assemblage_d(self, Gc=1, l=0.001):
+    def Assemblage_d(self):
         """Construit Kglobal pour le probleme d'endommagement
         """
        
@@ -281,7 +281,7 @@ class Simu:
         colonnesScalar_e = mesh.colonnesScalar_e
         
         # Calul les matrices elementaires
-        Kd_e, Fd_e = self.__ConstruitMatElem_Pfm(Gc, l)
+        Kd_e, Fd_e = self.__ConstruitMatElem_Pfm()
 
         # Assemblage
         tic = TicTac()        

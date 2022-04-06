@@ -1,4 +1,4 @@
-from sympy import compose
+
 from Mesh import Mesh
 import numpy as np
 
@@ -159,23 +159,30 @@ class PhaseFieldModel:
     __regularizations = ["AT1","AT2"]
 
     def __get_k(self):
+        Gc = self.__Gc
+        l0 = self.__l0
         if self.__regularization == "AT1":
-            return (3/4) * self.__Gc * self.__l_0
+            return 3/4 * Gc * l0
         else:
-            return self.__Gc * self.__l_0
+            return Gc * l0
     k = property(__get_k)
 
     def get_r_e_pg(self, PsiP_e_pg: np.ndarray):
+        Gc = self.__Gc
+        l0 = self.__l0
         if self.__regularization == "AT1":
             return 2 * PsiP_e_pg
         else:
-            return 2 * PsiP_e_pg + (self.__Gc/self.__l_0)
+            return 2 * PsiP_e_pg + (Gc/l0)
 
     def get_f_e_pg(self, PsiP_e_pg: np.ndarray):
+        Gc = self.__Gc
+        l0 = self.__l0
         if self.__regularization == "AT1":
-            f = 2 * PsiP_e_pg - (3*self.__Gc/(8*self.__l_0))
-            absF = (f+np.abs(f))/2
-            return absF
+            f = (2 * PsiP_e_pg) - ( (3*Gc) / (8*l0) )
+            absF = np.abs(f)
+            f = (f+absF)/2
+            return f
         else:
             return 2 * PsiP_e_pg
 
@@ -223,6 +230,8 @@ class PhaseFieldModel:
         self.__loiDeComportement = loiDeComportement
 
         assert split in PhaseFieldModel.__splits, f"Doit être compris dans {PhaseFieldModel.__splits}"
+        if not isinstance(loiDeComportement, Elas_Isot):
+            assert not split in ["Amor, Miehe"], "Ces splits ne sont implémentés que pour Elas_Isot"
         self.__split =  split
         """Split de la densité d'energie elastique ["Bourdin","Amor","Miehe"]"""
         
@@ -235,51 +244,34 @@ class PhaseFieldModel:
         """Taux de libération d'énergie critque [J/m^2]"""
 
         assert l_0 > 0, "Doit être supérieur à 0" 
-        self.__l_0 = l_0
+        self.__l0 = l_0
         """Largeur de régularisation de la fissure"""
     
     def Calc_Psi_e_pg(self, Epsilon_e_pg: np.ndarray):
-        """Calcul de la densité d'energie elastique
+        """Calcul de la densité d'energie elastique\n
+        Ici on va caluler PsiP_e_pg = 1/2 SigmaP_e_pg : Epsilon_e_pg et PsiM_e_pg = 1/2 SigmaM_e_pg : Epsilon_e_pg\n
+        Avec SigmaP_e_pg = CP * Epsilon_e_pg et SigmaM_e_pg = CM * Epsilon_e_pg
 
         Args:
             Epsilon_e_pg (np.ndarray): Deformation (Ne,pg,(3 ou 6))
             g_e_pg (list, optional): Fonction d'endomagement enégétique (Ne, pg) . Defaults to [].
         """
         
+        # Data
         Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
-        dim = self.__loiDeComportement.dim
+        nPg = Epsilon_e_pg.shape[1]        
 
-        if self.__split == "Bourdin":
-            
-            c = self.__loiDeComportement.get_C()
+        SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
 
-            PsiP_e_pg = 1/2 * np.einsum('epk,kl,epl->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize=True).reshape((Ne,nPg))
-            PsiM_e_pg = 0*PsiP_e_pg
+        PsiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
 
-        elif self.__split == "Amor":
-
-            if not isinstance(self.__loiDeComportement, Elas_Isot):
-                raise "Pas implémenté"
-
-            bulk = self.__loiDeComportement.get_bulk()
-            mu = self.__loiDeComportement.get_mu()
-
-            trP_Eps, trM_Eps, Eps_dev, Eps_dev_Eps_dev = self.__Amor(Epsilon_e_pg)
-
-            PsiP_e_pg = 1/2* bulk * trP_Eps**2 + mu * Eps_dev_Eps_dev
-
-            PsiM_e_pg = 1/2* bulk * trM_Eps**2
-
-            pass
-
-        elif self.__split == "Miehe":
-            raise "Pas encore implémenté"
+        PsiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
         
         return PsiP_e_pg, PsiM_e_pg
 
     def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul la contrainte en fonction de la deformation et du split
+        Ici on calcul SigmaP_e_pg = CP * Epsilon_e_pg et SigmaM_e_pg = CM * Epsilon_e_pg
 
         Parameters
         ----------
@@ -294,37 +286,12 @@ class PhaseFieldModel:
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
-        dim = self.__loiDeComportement.dim
+        comp = Epsilon_e_pg.shape[2]        
 
-        if self.__split == "Bourdin":
-            
-            c = self.__loiDeComportement.get_C()
-            
-            # Sigma_e_pg = c * Epsilon_e_pg
-            SigmaP_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True).reshape((Ne,nPg,-1))
-            
-            # Sigma_e_pgM = 0 * Sigma_e_pgP
-            SigmaM_e_pg = 0*SigmaP_e_pg
+        cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 
-        elif self.__split == "Amor":
-
-            if not isinstance(self.__loiDeComportement, Elas_Isot):
-                raise "Pas implémenté"
-
-            bulk = self.__loiDeComportement.get_bulk()
-            mu = self.__loiDeComportement.get_mu()
-
-            trP_Eps, trM_Eps, Eps_dev, Eps_dev_Eps_dev = self.__Amor(Epsilon_e_pg)
-
-            trP1 = np.einsum('ep,ij->epij', trP_Eps, np.eye(dim), optimize=True)
-            trM1 = np.einsum('ep,ij->epij', trM_Eps, np.eye(dim), optimize=True)
-
-            SigP = bulk * trP1 + 2*mu*Eps_dev
-
-            SigM = - bulk * trM1
-            
-        elif self.__split == "Miehe":
-            raise "Pas encore implémenté"
+        SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg, comp))
+        SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg, comp))        
 
         return SigmaP_e_pg, SigmaM_e_pg
     
@@ -339,90 +306,29 @@ class PhaseFieldModel:
         Returns
         -------
         np.ndarray
-            Revoie cP, cM
+            Revoie cP_e_pg, cM_e_pg
         """
+
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
+        comp = Epsilon_e_pg.shape[2]
         
         if self.__split == "Bourdin":
             
             c = self.__loiDeComportement.get_C()
+            c = c[np.newaxis, np.newaxis,:,:]
+            c = np.repeat(c, Ne, axis=0)
+            c = np.repeat(c, nPg, axis=1)
 
-            cP = c
-            cM = 0*c
+            cP_e_pg = c
+            cM_e_pg = 0*cP_e_pg
 
         elif self.__split == "Amor":
             raise "Pas encore implémenté"
         elif self.__split == "Miehe":
             raise "Pas encore implémenté"
 
-        return cP, cM
-    
-    def __Amor(self, Epsilon_e_pg: np.ndarray):
-
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
-        dim = self.__loiDeComportement.dim
-
-        if not isinstance(self.__loiDeComportement, Elas_Isot):
-            raise "Pas encore implémenté"
-
-        # Construit epsilon sous forme de matrice
-        Eps = np.zeros((Ne, nPg, dim, dim))
-
-        if dim == 2:
-            #Exx
-            Eps[:,:,0,0] = Epsilon_e_pg[:,:,0]
-            #Eyy
-            Eps[:,:,1,1] = Epsilon_e_pg[:,:,1]
-            #Exy
-            Eps[:,:,0,1] = Epsilon_e_pg[:,:,2]*2; Eps[:,:,1,0] = Epsilon_e_pg[:,:,2]*2
-        else: 
-            raise "Pas implémenté"
-        
-        tr_Eps = np.einsum('epii', Eps, optimize=True)
-
-        trP_Eps = (tr_Eps+np.abs(tr_Eps))/2
-        trM_Eps = (tr_Eps-np.abs(tr_Eps))/2
-
-        Eps_sph = 1/dim * np.einsum('ep,ij->epij', tr_Eps, np.eye(dim), optimize=True)
-
-        Eps_dev = Eps - Eps_sph
-
-        test = Eps_dev+Eps_sph - Eps
-        test2 = np.einsum('epij,epij->ep',Eps_sph, Eps_dev, optimize=True)
-
-        Eps_dev_Eps_dev = np.einsum('epij,epij->ep',Eps_dev, Eps_dev, optimize=True)
-
-        return trP_Eps, trM_Eps, Eps_dev, Eps_dev_Eps_dev
-
-    def __toVecteur(self, M_e_pg: np.ndarray, voigt=True):
-
-        if not voigt:
-            raise "Pas implémenté"
-
-        Ne = M_e_pg.shape[0]
-        nPg = M_e_pg.shape[1]
-        dim = self.__loiDeComportement.dim
-        
-        if dim == 2:
-            Vecteur_e_pg = np.zeros((Ne, nPg, 3))
-
-            Vecteur_e_pg[:,:,0] = M_e_pg[:,:,0,0]   #xx
-            Vecteur_e_pg[:,:,1] = M_e_pg[:,:,1,1]   #yy
-            Vecteur_e_pg[:,:,2] = M_e_pg[:,:,0,1]/2 #xy
-        else:
-            
-            Vecteur_e_pg = np.zeros((Ne, nPg, 6))
-
-            Vecteur_e_pg[:,:,0] = M_e_pg[:,:,0,0]   #xx
-            Vecteur_e_pg[:,:,1] = M_e_pg[:,:,1,1]   #yy
-            Vecteur_e_pg[:,:,2] = M_e_pg[:,:,2,2]   #zz
-            Vecteur_e_pg[:,:,3] = M_e_pg[:,:,1,2]/2 #yz
-            Vecteur_e_pg[:,:,4] = M_e_pg[:,:,0,2]/2 #xz
-            Vecteur_e_pg[:,:,5] = M_e_pg[:,:,0,1]/2 #xy
-
-
-        
-
+        return cP_e_pg, cM_e_pg    
 
 class Materiau:
     

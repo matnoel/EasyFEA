@@ -21,7 +21,7 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Amor" # "Bourdin","Amor","Miehe"
+split = "Bourdin" # "Bourdin","Amor","Miehe"
 
 regularisation = "AT1" # "AT1", "AT2"
 
@@ -132,7 +132,7 @@ if solve:
 
                 #-------------------------- PFM problem ------------------------------------
                 
-                simu.Assemblage_d(Gc=Gc, l=l0)    # Assemblage
+                simu.Assemblage_d()    # Assemblage
                 
                 damage = simu.Solve_d()   # resolution
                 damage_t.append(damage)
