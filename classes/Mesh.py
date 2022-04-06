@@ -48,7 +48,8 @@ class Mesh:
         """connection pour afficher les résultats aux elements (Ne,noeuds par faces)"""
         
         if verbosity:
-            print("\nNe = {}, Nn = {}, nbDdl = {}".format(self.Ne,self.Nn,self.Nn*self.__dim)) 
+            print(f"\nType d'elements: {self.elemType}")
+            print(f"Ne = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}") 
     
     def __ConstruitMatricesPourCalculEf(self):
         """Construit les matrices nécessaire au calcul des matrices elementaire

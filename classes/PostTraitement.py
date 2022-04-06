@@ -1,12 +1,15 @@
 
+import enum
+from Affichage import Affichage
 from Simu import Simu
 import Dossier
 from Mesh import Mesh
 from TicTac import TicTac
 import numpy as np
 
-import matplotlib as plt
-    import matplotlib.animation as animation
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 
 def Save_Phasefield_Simulation_in_Paraview(filename: str, simu: Simu, uglob_t: list, damage_t: list):
@@ -38,68 +41,67 @@ def Save_Phasefield_Simulation_in_Paraview(filename: str, simu: Simu, uglob_t: l
     MakePvd(filenamePvd, vtuFiles)
 
 
-def Animation_Phasefield(filename: str, simu: Simu, damage_t):
-
+def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
+    damage_t=[], deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
     
-    # Importations des données du maillage
+    # Verifie que l'option est dispo
+    if not simu.VerificationOption(option):
+        return
+    
+    # Verifie que si on demande d'afficher l'endommagement l'endommagement est donné
+    if option  == "damage" and len(damage_t) > 0:
+        raise "Impossible d'afficher car damage_t n'est pas renseigné"
 
-    # Nom de la vidéo
+    # Ajoute le caractère de fin
+    if valeursAuxNoeuds:
+        name = f'{option}_n'
+    else:
+        name = f'{option}_e'
+    
+    # Nom de la vidéo dans le dossier ou est communiqué le dossier
+    filename = f'{Dossier.GetPath(filename)}\\{name}.mp4'
 
-    filename = f'{Dossier.GetPath(filename)}\\video.mp4'
+    # Nombre d'iteration à afficher
+    N = len(uglob_t)
 
-    fig, ax = plt.subplots()
-    # Paramètres colorbar
-    levels = np.linspace(0, 1, 500)
-    ticks = np.linspace(0,1,11)
+    # Met à jour le matériau pour creer la première figure qui sera utilisée pour l'animation
+    simu.Update(uglob=uglob_t[0])
+    if len(damage_t) > 0:
+        simu.Update(damage=damage_t[0])
 
-    ffmpegpath = "D:\\SOFT\\ffmpeg\\bin\\ffmpeg.exe"
+    # Trace la première figure
+    fig, ax, cb = Affichage.Plot_Result(simu, option,
+    affichageMaillage=affichageMaillage, deformation=deformation, facteurDef=facteurDef)
+    
+    # Donne le lien vers ffmpeg.exe
+    ffmpegpath = "F:\\Pro\\ffmpeg\\bin\\ffmpeg.exe"
+    # ffmpegpath = "D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe"
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 
     writer = animation.FFMpegWriter(fps=30)
     with writer.saving(fig, filename, 200):
-            iter=0
-            for d in damage_t:
-                    print(iter)
-                    ax.clear()
-                    image = ax.tricontourf(coord_xy[:,0], coord_xy[:,1], mesh.get_connectTriangle(), d, levels, cmap='jet')
-                    
-                    if iter == 0:
-                            cb = plt.colorbar(image, ax=ax, ticks=ticks)
+    
+        tic = TicTac()
+        for t, damage in enumerate(damage_t):
+            simu.Update(damage=damage)
 
-                    ax.axis('equal')                
-                    ax.set_title(iter+1)
-
-                    writer.grab_frame()
-                    iter+=1
-
-    # anim = animation.ArtistAnimation(fig, images, interval=100, repeat_delay=3000, blit=True)
-
-    # histo = []
-
-    # def AnimationEndommagement(frame):        
-
-    #         print(frame)
+            cb.remove()
             
-    #         ax.clear()        
+            fig, ax, cb = Affichage.Plot_Result(simu, option, oldfig=fig, oldax=ax,
+            deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
+
+            title = ax.get_title()
+            ax.set_title(f'{title} : {t+1}/{N}')
+
+            plt.pause(0.00001)
+
+            writer.grab_frame()
+
             
-    #         d = deteriorations[frame]        
-    #         tri = ax.tricontourf(coord_xy[:,0], coord_xy[:,1], connectTriangle, d, levels, cmap='jet')
-    #         if len(histo)==0:
-    #                 cb = plt.colorbar(tri, ax=ax, ticks=ticks)
-    #                 histo.append(frame)
-            
-    #         ax.axis('equal')
-    #         ax.set_xlabel('x [mm]')
-    #         ax.set_ylabel('y [mm]')
-    #         ax.set_title(frame)
 
-    # writer = animation.FFMpegWriter(fps=10)
-    # anim = animation.FuncAnimation(fig, AnimationEndommagement, frames=N, repeat=False)
-
-
-    # if save:
-    #         anim.save(filename, writer=writer)
-
+            tf = tic.Tac("Post Traitement","Plot", False)
+            print(f'Plot {ax.get_title()} in {np.round(tf,3)}', end='\r')
+    
 # =========================================== Paraview ==================================================
 
 def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], elementsField=["Stress","Strain"]):

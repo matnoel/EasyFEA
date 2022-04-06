@@ -29,7 +29,7 @@ class TicTac:
 
         tf = np.abs(self.__start - time.time())
 
-        texteAvecLeTemps = "\n{} ({:.3f} s)".format(texte, tf)        
+        texteAvecLeTemps = "{} ({:.3f} s)".format(texte, tf)        
         
         value = [tf, texte]
 

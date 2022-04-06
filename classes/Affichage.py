@@ -5,10 +5,13 @@ import numpy as np
 import matplotlib.collections
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
+from urllib3 import Retry
 
 class Affichage:
 
-    def Plot_Result(simu, option: str , deformation=False, facteurDef=4, affichageMaillage=False, valeursAuxNoeuds=False):     
+    def Plot_Result(simu, option: str , deformation=False, facteurDef=4,
+        affichageMaillage=False, valeursAuxNoeuds=False, oldfig=None, oldax=None):
+
         """Affichage de la simulation
 
         Parameters
@@ -24,6 +27,12 @@ class Affichage:
         affichageMaillage : bool, optional
             affcihe le mailllage, by default False
         """
+
+        # Detecte si on donne bien ax et fig en meme temps
+        assert (oldfig == None) == (oldax == None), "Doit fournir oldax et oldfix ensemble"
+
+        if (not oldfig == None) and (not oldax == None):
+            assert isinstance(oldfig, plt.Figure) and isinstance(oldax, plt.Axes)           
 
         # Va chercher les valeurs 0 a affciher
 
@@ -59,8 +68,13 @@ class Affichage:
             levels = 200
 
         if dim == 2:
-            # Construit les vertices            
-            fig, ax = plt.subplots()
+            # Construit les vertices
+            if oldax == None:
+                fig, ax = plt.subplots()
+            else:
+                fig = oldfig
+                ax = oldax
+                ax.clear()
                 
             # Trace le maillage
             if affichageMaillage:
@@ -77,20 +91,19 @@ class Affichage:
                 # dx_e = resultats["dx_e"]
                 # dy_e = resultats["dy_e"]
                 # # x,y=np.meshgrid(dx_e,dy_e)
-                # pc = ax.tricontourf(dx_e, dy_e, valeurs, levels ,cmap='jet')                
-
-            
+                # pc = ax.tricontourf(dx_e, dy_e, valeurs, levels ,cmap='jet')            
 
             # Valeur aux noeuds
             elif mesh.Nn == len(valeurs):
-                pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, levels ,cmap='jet')
+                pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, levels ,
+                cmap='jet')
                 # tripcolor, tricontour, tricontourf
 
             if option == "damage":
                 ticks = np.linspace(0,1,11)
-                fig.colorbar(pc, ax=ax, ticks=ticks)
+                cb = plt.colorbar(pc, ax=ax, ticks=ticks)                    
             else:
-                fig.colorbar(pc, ax=ax)
+                cb = plt.colorbar(pc, ax=ax)
                 
 
             ax.axis('equal')
@@ -120,7 +133,7 @@ class Affichage:
             pc.set_clim(valeursAuFaces.min(), valeursAuFaces.max())
             pc.set_array(valeursAuFaces)
 
-            fig.colorbar(pc, ax=ax)       
+            cb = fig.colorbar(pc, ax=ax)       
             ax.add_collection(pc)            
             # ax.set_xlabel("x [mm]")
             # ax.set_ylabel("y [mm]")
@@ -148,6 +161,8 @@ class Affichage:
         ax.set_title(title)
 
         tic.Tac("Post Traitement", "Affichage résultat", False)
+
+        return fig, ax, cb
         
         
     def Plot_Maillage(simu, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
@@ -332,7 +347,7 @@ class Affichage:
         # print("\n==========================================================")
         # print("{} :".format(text))
         bord = "======================="
-        print("\n{} {} {}".format(bord,text,bord))
+        print("\n\n{} {} {}\n".format(bord,text,bord))
 
     def Clear():
         """Nettoie la console"""

@@ -125,11 +125,7 @@ class Interface_Gmsh:
 
         def __ConstructionMaillageGmsh(self, surface=None):
 
-                tic = TicTac()
-
-                type = self.__typeElement
-                if self.__verbosity:
-                        print("\nType d'elements: {}".format(type))
+                tic = TicTac()                
 
                 if self.__dim == 2:
                         # Impose que le maillage soit organisé                        

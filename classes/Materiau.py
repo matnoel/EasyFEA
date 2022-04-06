@@ -1,6 +1,5 @@
 from Mesh import Mesh
 import numpy as np
-from typing import cast
 
 class LoiDeComportement(object):
     """Classe des lois de comportements C de (Sigma = C * Epsilon)

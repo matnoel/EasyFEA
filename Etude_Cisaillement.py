@@ -21,9 +21,9 @@ test = True
 
 solve = False
 
-plotResult = True
-saveParaview = True
-makeMovie = False
+plotResult = False
+saveParaview = False
+makeMovie = True
 save = True
 
 dim = 2
@@ -54,7 +54,10 @@ if test:
 else:
         filename = Dossier.NewFile(f'{folder}\\{nameSimu}\\simulation.xml', results=True)
 
+
 # Construction du modele et du maillage --------------------------------------------------------------------------------
+
+
 modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille, affichageGmsh=False)
 
 (coordos_tn, connect) = modelGmsh.ConstructionRectangleAvecFissure(L, L)
@@ -71,7 +74,7 @@ noeuds_Droite = mesh.Get_Nodes(conditionX=lambda x: x == L, conditionY=lambda y:
 NoeudsBord=[]
 NoeudsBord.extend(noeuds_Bas); NoeudsBord.extend(noeuds_Droite); NoeudsBord.extend(noeuds_Gauche); NoeudsBord.extend(noeuds_Haut)
 
-# ------------------------------------------------------------------------------------------------------
+# Simulation  -------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Simulations")
 
 if solve:
@@ -181,7 +184,6 @@ else:
         
 if saveParaview:
         PostTraitement.Save_Phasefield_Simulation_in_Paraview(filename, simu, uglob_t, damage_t)
-        
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Affichage")
@@ -205,71 +207,8 @@ if plotResult:
         if save: plt.savefig(f'{folder}\\conditionsLimites.png')
 
 if makeMovie:
-
-        import matplotlib
-        import matplotlib.animation as animation
-
-        # Importations des données du maillage
-        connectFaces = mesh.get_connect_Faces()
-        connectTriangle = mesh.get_connectTriangle()
-        coord_xy = mesh.coordo[:,range(dim)]
-
-        # Creation figure et axes avec options
-        fig, ax = plt.subplots()
-        # Paramètres colorbar
-        levels = np.linspace(0, 1, 500)
-        ticks = np.linspace(0,1,11)
-
-        # Nom de la vidéo
-        filename = Dossier.GetPath(__file__) + "\\results\\video.mp4"
-
-        ffmpegpath = "D:\\SOFT\\ffmpeg\\bin\\ffmpeg.exe"
-        matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
-
-        writer = animation.FFMpegWriter(fps=30)
-        with writer.saving(fig, filename, 200):
-                iter=0
-                for d in damage_t:
-                        print(iter)
-                        ax.clear()
-                        image = ax.tricontourf(coord_xy[:,0], coord_xy[:,1], mesh.get_connectTriangle(), d, levels, cmap='jet')
-                        
-                        if iter == 0:
-                                cb = plt.colorbar(image, ax=ax, ticks=ticks)
-
-                        ax.axis('equal')                
-                        ax.set_title(iter+1)
-
-                        writer.grab_frame()
-                        iter+=1
-
-        # anim = animation.ArtistAnimation(fig, images, interval=100, repeat_delay=3000, blit=True)
-
-        # histo = []
-
-        # def AnimationEndommagement(frame):        
-
-        #         print(frame)
-                
-        #         ax.clear()        
-                
-        #         d = deteriorations[frame]        
-        #         tri = ax.tricontourf(coord_xy[:,0], coord_xy[:,1], connectTriangle, d, levels, cmap='jet')
-        #         if len(histo)==0:
-        #                 cb = plt.colorbar(tri, ax=ax, ticks=ticks)
-        #                 histo.append(frame)
-                
-        #         ax.axis('equal')
-        #         ax.set_xlabel('x [mm]')
-        #         ax.set_ylabel('y [mm]')
-        #         ax.set_title(frame)
-
-        # writer = animation.FFMpegWriter(fps=10)
-        # anim = animation.FuncAnimation(fig, AnimationEndommagement, frames=N, repeat=False)
-
-
-        # if save:
-        #         anim.save(filename, writer=writer)
+        # PostTraitement.MakeMovie(filename, "damage", simu, uglob_t, damage_t)
+        PostTraitement.MakeMovie(filename, "Syy", simu, uglob_t, damage_t, valeursAuxNoeuds=True, deformation=True)
 
 TicTac.getResume()
 
