@@ -17,11 +17,21 @@ Affichage.Clear()
 
 # Data --------------------------------------------------------------------------------------------
 
+folder = "Etude_Cisaillement"
+
+comportement = "Elas_Isot" # "Elas_Isot"
+
+split = "Amor" # "Bourdin","Amor","Miehe"
+
+regularisation = "AT1" # "AT1", "AT2"
+
+nameSimu = comportement+"_"+split+"_"+regularisation
+
 test = True
 
-solve = False
+solve = True
 
-plotResult = False
+plotResult = True
 saveParaview = True
 makeMovie = False
 save = True
@@ -39,15 +49,7 @@ if test:
 else:
         taille = 2.5e-6 #l0/2
 
-folder = "Etude_Cisaillement"
 
-comportement = "Elas_Isot" # "Elas_Isot"
-
-split = "Bourdin" # "Bourdin","Amor","Miehe"
-
-regularisation = "AT2" # "AT1", "AT2"
-
-nameSimu = comportement+"_"+split+"_"+regularisation
 
 if test:
         filename = Dossier.NewFile(f'{folder}\\Test\\{nameSimu}\\simulation.xml', results=True)
@@ -81,7 +83,7 @@ if solve:
 
         comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
-        phaseFieldModel = PhaseFieldModel(comportement, "Bourdin", "AT2", Gc=Gc, l_0=l0)
+        phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 
         materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
@@ -176,6 +178,8 @@ else:
         import pickle
         with open(filename, 'rb') as file:
                 struct = pickle.load(file)
+        
+        print(f'load of {filename}')
         
         simu = struct["simu"]
         uglob_t = struct["uglob_t"]
