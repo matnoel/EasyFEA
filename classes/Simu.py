@@ -104,11 +104,10 @@ class Simu:
 
             d = self.__resultats["damage"]
 
-            if "Uglob" in self.__resultats.keys():
-                u = self.__resultats["Uglob"]
-            else:
-                u = np.zeros((mesh.Nn*mesh.dim))
-            
+            assert "Uglob" in self.__resultats.keys(), "Le vecteur de déplacement uglob doit être initialisé"
+
+            u = self.__resultats["Uglob"]
+
             phaseFieldModel = self.materiau.phaseFieldModel
                 
             # Calcul la deformation nécessaire pour le split
@@ -479,7 +478,8 @@ class Simu:
                     if hideFacto:                        
                         x = sla.spsolve(A, b, permc_spec=permute, use_umfpack=True)
                     else:
-                        # https://portal.nersc.gov/project/sparse/superlu/ And Users' Guide
+                        # superlu : https://portal.nersc.gov/project/sparse/superlu/
+                        # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
                         lu = sla.splu(A.tocsc(), permc_spec=permute)
 
                         x = lu.solve(b.toarray()).reshape(-1)
@@ -796,6 +796,8 @@ class Simu:
         # Moyenne sur l'élement
         Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
         Sigma_e = np.mean(Sigma_e_pg, axis=1)
+
+        r2 = np.sqrt(2)
         
         if "d" in option or "amplitude" in option:
 
@@ -832,13 +834,13 @@ class Simu:
             
             return resultat
 
-        elif "S" in option and not option == "Strain":
+        elif "S" in option and not option == "Strain":            
 
             if dim == 2:
 
                 Sxx_e = Sigma_e[:,0]
                 Syy_e = Sigma_e[:,1]
-                Sxy_e = Sigma_e[:,2]
+                Sxy_e = Sigma_e[:,2]/r2
                 
                 Svm_e = np.sqrt(Sxx_e**2+Syy_e**2-Sxx_e*Syy_e+3*Sxy_e**2)
 
@@ -856,9 +858,9 @@ class Simu:
                 Sxx_e = Sigma_e[:,0]
                 Syy_e = Sigma_e[:,1]
                 Szz_e = Sigma_e[:,2]
-                Syz_e = Sigma_e[:,3]
-                Sxz_e = Sigma_e[:,4]
-                Sxy_e = Sigma_e[:,5]
+                Syz_e = Sigma_e[:,3]/r2
+                Sxz_e = Sigma_e[:,4]/r2
+                Sxy_e = Sigma_e[:,5]/r2
 
                 Svm_e = np.sqrt(((Sxx_e-Syy_e)**2+(Syy_e-Szz_e)**2+(Szz_e-Sxx_e)**2+6*(Sxy_e**2+Syz_e**2+Sxz_e**2))/2)
 
@@ -880,14 +882,13 @@ class Simu:
             if option == "Stress":
                 resultat = np.append(Sigma_e, Svm_e.reshape((self.mesh.Ne,1)), axis=1)            
             
-
         elif option in ["E","Strain"]:
 
             if dim == 2:
 
                 Exx_e = Epsilon_e[:,0]
                 Eyy_e = Epsilon_e[:,1]
-                Exy_e = Epsilon_e[:,2]
+                Exy_e = Epsilon_e[:,2]/r2
                 
                 Evm_e = np.sqrt(Exx_e**2+Eyy_e**2-Exx_e*Eyy_e+3*Exy_e**2)
 
@@ -905,9 +906,9 @@ class Simu:
                 Exx_e = Epsilon_e[:,0]
                 Eyy_e = Epsilon_e[:,1]
                 Ezz_e = Epsilon_e[:,2]
-                Eyz_e = Epsilon_e[:,3]/2
-                Exz_e = Epsilon_e[:,4]/2
-                Exy_e = Epsilon_e[:,5]/2
+                Eyz_e = Epsilon_e[:,3]/r2
+                Exz_e = Epsilon_e[:,4]/r2
+                Exy_e = Epsilon_e[:,5]/r2
 
                 Evm_e = np.sqrt(((Exx_e-Eyy_e)**2+(Eyy_e-Ezz_e)**2+(Ezz_e-Exx_e)**2+6*(Exy_e**2+Eyz_e**2+Exz_e**2))/2)
 
@@ -1011,12 +1012,12 @@ class Simu:
     def Update(self, uglob=None, damage=None):
 
         if isinstance(uglob, np.ndarray):
-            assert uglob.size == self.mesh.Nn*self.__dim
+            assert uglob.size == self.mesh.Nn*self.__dim, "Le vecteur n'a pas la bonne taille (Nn*dim)"
             self.__resultats["Uglob"] = uglob
 
         if isinstance(damage, np.ndarray):
             assert damage.size == self.mesh.Nn
-            self.__resultats["damage"] = damage        
+            self.__resultats["damage"] = damage, "Le vecteur n'a pas la bonne taille (Nn)"
 
 # ====================================
 

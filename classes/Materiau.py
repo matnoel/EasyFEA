@@ -25,11 +25,11 @@ class LoiDeComportement(object):
         """Loi de comportement pour la loi de Hooke"""
     
     def get_C(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Lamé"""
+        """Renvoie une copie de la loi de comportement pour la loi de Lamé en notation de kelvin mandel !"""
         return self.__C.copy()
 
     def get_S(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Hooke"""
+        """Renvoie une copie de la loi de comportement pour la loi de Hooke en notation de kelvin mandel !"""
         return self.__S.copy()
 
     def __getdim(self):
@@ -46,6 +46,29 @@ class LoiDeComportement(object):
     def __get_nom(self):
         return self.__nom
     nom = property(__get_nom)
+
+    @staticmethod
+    def ToKelvinMandelNotation(dim: int, voigtMatrice: np.ndarray):
+
+        r2 = np.sqrt(2)
+
+        if dim == 2:            
+            transform = np.array([  [1,1,r2],
+                                    [1,1,r2],
+                                    [r2, r2, 2]])
+        else:
+            transform = np.array([  [1,1,1,r2,r2,r2],
+                                    [1,1,1,r2,r2,r2],
+                                    [1,1,1,r2,r2,r2],
+                                    [r2,r2,r2,2,2,2],
+                                    [r2,r2,r2,2,2,2],
+                                    [r2,r2,r2,2,2,2]])            
+
+        mandelMatrice = voigtMatrice*transform
+
+        return mandelMatrice
+
+
 
 class Elas_Isot(LoiDeComportement):   
 
@@ -75,9 +98,7 @@ class Elas_Isot(LoiDeComportement):
         poisson = "Le coef de poisson doit être compris entre ]-1;0.5["
         assert v > -1.0 and v < 0.5, poisson
         self.v=v
-        """Coef de poisson"""
-
-        
+        """Coef de poisson"""        
 
         if dim == 2:
             self.contraintesPlanes = contraintesPlanes
@@ -92,9 +113,9 @@ class Elas_Isot(LoiDeComportement):
         E=self.E
         v=self.v
         
-        l = v*E/((1+v)*(1-2*v))
+        l = v*E/((1+v)*(1-2*v))        
 
-        if self.contraintesPlanes and self.__dim == 2:
+        if self.__dim == 2 and self.contraintesPlanes:
             l = E*v/(1-v**2)
         
         return l
@@ -159,8 +180,12 @@ class Elas_Isot(LoiDeComportement):
                             [0, 0, 0, mu, 0, 0],
                             [0, 0, 0, 0, mu, 0],
                             [0, 0, 0, 0, 0, mu]])
+        
+        # To kelvin mandel's notation
 
-        return C, np.linalg.inv(C)
+        Cmandel = LoiDeComportement.ToKelvinMandelNotation(dim, C)
+
+        return Cmandel, np.linalg.inv(Cmandel)
 
 
 class PhaseFieldModel:
