@@ -136,18 +136,18 @@ class Interface_Gmsh:
                         # Synchronisation
                         gmsh.model.geo.synchronize()
 
-                        if type in ["QUAD4","QUAD8"]:                        
+                        if self.__typeElement in ["QUAD4","QUAD8"]:                        
                                 gmsh.model.mesh.setRecombine(2, surface)
 
                         # Génère le maillage
                         gmsh.model.mesh.generate(2)
 
-                        if type in ["QUAD8"]:
+                        if self.__typeElement in ["QUAD8"]:
                                 gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
 
-                        if type in ["TRI3","QUAD4"]:
+                        if self.__typeElement in ["TRI3","QUAD4"]:
                                 gmsh.model.mesh.set_order(1)
-                        elif type in ["TRI6","QUAD8"]:
+                        elif self.__typeElement in ["TRI6","QUAD8"]:
                                 gmsh.model.mesh.set_order(2)
 
                 elif self.__dim == 3:
