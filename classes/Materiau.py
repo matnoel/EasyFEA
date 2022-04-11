@@ -7,10 +7,8 @@ class LoiDeComportement(object):
     """Classe des lois de comportements C de (Sigma = C * Epsilon)
     (Elas_isot, ...)
     """
-    def __init__(self, nom: str, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float):
-
-        self.__nom = nom
-        """nom de la loi de comportement"""
+    def __init__(self, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float, voigtNotation: bool):
+        
         self.__dim = dim
         """dimension lié a la loi de comportement"""
 
@@ -18,18 +16,33 @@ class LoiDeComportement(object):
             assert epaisseur > 0 , "Doit être supérieur à 0"
             self.__epaisseur = epaisseur
         
+        self.__voigtNotation = voigtNotation
+        """Notation de voigt True or False"""
+        
         self.__C = C
-        """Loi de comportement pour la loi de Lamé"""
+        """Loi de comportement pour la loi de Lamé en voigt"""
 
         self.__S = S
-        """Loi de comportement pour la loi de Hooke"""
+        """Loi de comportement pour la loi de Hooke en voigt"""
     
+    def __get_voigtNotation(self):
+        return self.__voigtNotation
+    voigtNotation = property(__get_voigtNotation)
+
+    def __get_coef_voigtNotation(self):
+        if self.__voigtNotation:
+            return 2
+        else:
+            return np.sqrt(2)
+    coef = property(__get_coef_voigtNotation)
+    """Coef lié à la notation utilisé voigt=2 kelvinMandel=racine(2)"""
+
     def get_C(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Lamé en notation de kelvin mandel !"""
+        """Renvoie une copie de la loi de comportement pour la loi de Lamé"""        
         return self.__C.copy()
 
     def get_S(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Hooke en notation de kelvin mandel !"""
+        """Renvoie une copie de la loi de comportement pour la loi de Hooke"""
         return self.__S.copy()
 
     def __getdim(self):
@@ -44,7 +57,7 @@ class LoiDeComportement(object):
     epaisseur = property(__getepaisseur)
 
     def __get_nom(self):
-        return self.__nom
+        return type(self).__name__
     nom = property(__get_nom)
 
     @staticmethod
@@ -56,23 +69,24 @@ class LoiDeComportement(object):
             transform = np.array([  [1,1,r2],
                                     [1,1,r2],
                                     [r2, r2, 2]])
-        else:
+        elif dim == 3:
             transform = np.array([  [1,1,1,r2,r2,r2],
                                     [1,1,1,r2,r2,r2],
                                     [1,1,1,r2,r2,r2],
                                     [r2,r2,r2,2,2,2],
                                     [r2,r2,r2,2,2,2],
-                                    [r2,r2,r2,2,2,2]])            
+                                    [r2,r2,r2,2,2,2]])
+        else:
+            raise "Pas implémenté"
 
         mandelMatrice = voigtMatrice*transform
 
         return mandelMatrice
 
-
-
 class Elas_Isot(LoiDeComportement):   
 
-    def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0):
+    def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0,
+    voigtNotation=False):
         """Creer la matrice de comportement d'un matériau : Elastique isotrope
 
         Parameters
@@ -104,9 +118,9 @@ class Elas_Isot(LoiDeComportement):
             self.contraintesPlanes = contraintesPlanes
             """type de simplification 2D"""
 
-        C, S = self.__Comportement_Elas_Isot()
+        C, S = self.__Comportement_Elas_Isot(voigtNotation)
 
-        LoiDeComportement.__init__(self,"Elas_Isot", dim, C, S, epaisseur)
+        LoiDeComportement.__init__(self, dim, C, S, epaisseur, voigtNotation)
 
     def get_lambda(self):
 
@@ -142,7 +156,7 @@ class Elas_Isot(LoiDeComportement):
 
         return bulk
 
-    def __Comportement_Elas_Isot(self):
+    def __Comportement_Elas_Isot(self, voigtNotation: bool):
         """"Construit les matrices de comportement"""
 
         E=self.E
@@ -150,7 +164,7 @@ class Elas_Isot(LoiDeComportement):
 
         dim = self.__dim
 
-        mu = E/(2*(1+v))
+        mu = self.get_mu()
         l = self.get_lambda()
 
         if dim == 2:
@@ -159,14 +173,14 @@ class Elas_Isot(LoiDeComportement):
                 #                 [2*l, 4*(mu+l), 0],
                 #                 [0, 0, 2*mu+l]]) * mu/(2*mu+l)
 
-                C = np.array([  [1, v, 0],
-                                [v, 1, 0],
-                                [0, 0, (1-v)/2]]) * E/(1-v**2)
+                cVoigt = np.array([ [1, v, 0],
+                                    [v, 1, 0],
+                                    [0, 0, (1-v)/2]]) * E/(1-v**2)
                 
             else:
-                C = np.array([  [l + 2*mu, l, 0],
-                                [l, l + 2*mu, 0],
-                                [0, 0, mu]])
+                cVoigt = np.array([ [l + 2*mu, l, 0],
+                                    [l, l + 2*mu, 0],
+                                    [0, 0, mu]])
 
                 # C = np.array([  [1, v/(1-v), 0],
                 #                 [v/(1-v), 1, 0],
@@ -174,18 +188,21 @@ class Elas_Isot(LoiDeComportement):
 
         elif dim == 3:
             
-            C = np.array([  [l+2*mu, l, l, 0, 0, 0],
-                            [l, l+2*mu, l, 0, 0, 0],
-                            [l, l, l+2*mu, 0, 0, 0],
-                            [0, 0, 0, mu, 0, 0],
-                            [0, 0, 0, 0, mu, 0],
-                            [0, 0, 0, 0, 0, mu]])
+            cVoigt = np.array([ [l+2*mu, l, l, 0, 0, 0],
+                                [l, l+2*mu, l, 0, 0, 0],
+                                [l, l, l+2*mu, 0, 0, 0],
+                                [0, 0, 0, mu, 0, 0],
+                                [0, 0, 0, 0, mu, 0],
+                                [0, 0, 0, 0, 0, mu]])
         
         # To kelvin mandel's notation
 
-        Cmandel = LoiDeComportement.ToKelvinMandelNotation(dim, C)
+        if voigtNotation:
+            c = cVoigt
+        else:
+            c = LoiDeComportement.ToKelvinMandelNotation(dim, cVoigt)
 
-        return Cmandel, np.linalg.inv(Cmandel)
+        return c, np.linalg.inv(c)
 
 
 class PhaseFieldModel:

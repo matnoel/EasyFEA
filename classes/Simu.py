@@ -96,7 +96,23 @@ class Simu:
         jacobien_e_pg = mesh.jacobien_e_pg
         poid_pg = mesh.poid_pg
         B_rigi_e_pg = mesh.B_rigi_e_pg
-        mat = self.materiau.comportement.get_C()
+
+        comportement = self.materiau.comportement
+
+        if not comportement.voigtNotation:
+            # Si on a pas une notation de voigt on doit divisier les lignes 3(2D) et [4,5,6](3D)
+            coef=comportement.coef
+
+            if self.__dim == 2:
+                coord=2
+            elif self.__dim == 3:
+                coord=[3,4,5]
+            else:
+                raise "Pas implémenté"
+
+            B_rigi_e_pg[:,:,coord,:] = B_rigi_e_pg[:,:,coord,:]/coef
+
+        mat = comportement.get_C()
         # Ici on le materiau est homogène
         # Il est possible de stpcker ça pour ne plus avoir à recalculer        
 
@@ -139,7 +155,7 @@ class Simu:
 
         return Ku_e    
  
-    def Assemblage_u(self, d=[]):
+    def Assemblage_u(self):
         """Construit K global pour le problème en deplacement
 
         Args:            
@@ -457,6 +473,8 @@ class Simu:
             else:
                 # il reste à faire le lien avec umfpack pour réorgraniser encore plus rapidement
 
+                # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
+                # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
                 useUmfpack = False
 
                 if useUmfpack:
@@ -707,9 +725,22 @@ class Simu:
         """Sauvegarde Uglob et calcul l'energie de deformation cinématiquement admissible"""
 
         # Energie de deformation
-        u_e = self.mesh.Localise_e(Uglob)        
+        u_e = self.mesh.Localise_e(Uglob)
         Ke_e = self.__Ku_e
         Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ke_e, u_e)
+
+        # Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega
+
+        jacobien_e_pg = self.mesh.jacobien_e_pg
+        poid_pg = self.mesh.poid_pg        
+        Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob)
+        Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg)
+
+        Wdef2 = 1/2 * np.einsum('ep,p,epi,epi->', jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
+        # Wdef3 = 0
+        # for e in range(self.mesh.Ne):
+        #     for p in range(self.mesh.nPg):
+        #         Wdef3 += 1/2 * jacobien_e_pg[e,p] * poid_pg[p] * Sigma_e_pg[e,p].T.dot(Epsilon_e_pg[e,p]) 
         
         self.__resultats["Wdef"] = Wdef
 
@@ -797,7 +828,7 @@ class Simu:
         Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
         Sigma_e = np.mean(Sigma_e_pg, axis=1)
 
-        r2 = np.sqrt(2)
+        coef = self.materiau.comportement.coef
         
         if "d" in option or "amplitude" in option:
 
@@ -840,7 +871,7 @@ class Simu:
 
                 Sxx_e = Sigma_e[:,0]
                 Syy_e = Sigma_e[:,1]
-                Sxy_e = Sigma_e[:,2]/r2
+                Sxy_e = Sigma_e[:,2]/coef
                 
                 Svm_e = np.sqrt(Sxx_e**2+Syy_e**2-Sxx_e*Syy_e+3*Sxy_e**2)
 
@@ -858,9 +889,9 @@ class Simu:
                 Sxx_e = Sigma_e[:,0]
                 Syy_e = Sigma_e[:,1]
                 Szz_e = Sigma_e[:,2]
-                Syz_e = Sigma_e[:,3]/r2
-                Sxz_e = Sigma_e[:,4]/r2
-                Sxy_e = Sigma_e[:,5]/r2
+                Syz_e = Sigma_e[:,3]/coef
+                Sxz_e = Sigma_e[:,4]/coef
+                Sxy_e = Sigma_e[:,5]/coef
 
                 Svm_e = np.sqrt(((Sxx_e-Syy_e)**2+(Syy_e-Szz_e)**2+(Szz_e-Sxx_e)**2+6*(Sxy_e**2+Syz_e**2+Sxz_e**2))/2)
 
@@ -888,7 +919,7 @@ class Simu:
 
                 Exx_e = Epsilon_e[:,0]
                 Eyy_e = Epsilon_e[:,1]
-                Exy_e = Epsilon_e[:,2]/r2
+                Exy_e = Epsilon_e[:,2]/coef
                 
                 Evm_e = np.sqrt(Exx_e**2+Eyy_e**2-Exx_e*Eyy_e+3*Exy_e**2)
 
@@ -906,9 +937,9 @@ class Simu:
                 Exx_e = Epsilon_e[:,0]
                 Eyy_e = Epsilon_e[:,1]
                 Ezz_e = Epsilon_e[:,2]
-                Eyz_e = Epsilon_e[:,3]/r2
-                Exz_e = Epsilon_e[:,4]/r2
-                Exy_e = Epsilon_e[:,5]/r2
+                Eyz_e = Epsilon_e[:,3]/coef
+                Exz_e = Epsilon_e[:,4]/coef
+                Exy_e = Epsilon_e[:,5]/coef
 
                 Evm_e = np.sqrt(((Exx_e-Eyy_e)**2+(Eyy_e-Ezz_e)**2+(Ezz_e-Exx_e)**2+6*(Exy_e**2+Eyz_e**2+Exz_e**2))/2)
 

@@ -42,7 +42,7 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = list(range(1,30,5))
+listNbElement = list(range(1,30,2))
 # listNbElement = list(range(1,10))
 
 tic = TicTac()
@@ -79,10 +79,10 @@ for elem, type in enumerate(Element.get_Types2D()):
                 # Assemblage du système matricielle
                 simu.Assemblage_u()
 
-                simu.Solve_u()
+                simu.Solve_u(useCholesky=False)
 
                 # Stockage des valeurs
-                listTemps_nb.append(tic.Tac("Résolution","Temps total", False))
+                listTemps_nb.append(tic.Tac("Résolutions","Temps total", False))
                 listWdef_nb.append(simu.GetResultat("Wdef"))
                 listDdl_nb.append(mesh.Nn*dim)
         
