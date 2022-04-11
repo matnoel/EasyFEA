@@ -1,12 +1,11 @@
-import re
+
 from typing import cast
 
 from Affichage import Affichage
 
 import numpy as np
-import scipy as sp
-from scipy.sparse.linalg import spsolve
-# from scikits.umfpack import spsolve
+import scipy.sparse as sparse
+import scipy.sparse.linalg as sla
 
 from Element import Element
 from Mesh import Mesh
@@ -54,7 +53,7 @@ class Simu:
         """materiau de la simulation"""
         self.__resultats = {}
         """résultats de la simulation"""
-        self.PsiP_e_pg = []
+        self.__PsiP_e_pg = []
         """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
 
         # Conditions Limites en déplacement
@@ -109,17 +108,20 @@ class Simu:
                 u = self.__resultats["Uglob"]
             else:
                 u = np.zeros((mesh.Nn*mesh.dim))
+            
+            phaseFieldModel = self.materiau.phaseFieldModel
                 
             # Calcul la deformation nécessaire pour le split
             Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
 
             # Split de la loi de comportement
-            cP_e_pg, cM_e_pg = self.materiau.phaseFieldModel.Calc_C(Epsilon_e_pg)
+            cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
 
             # Endommage : c = g(d) * cP + cM
-            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d, mesh)
+            g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh)
             cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize=True)
-            c = cP_e_pg + cM_e_pg
+
+            c = cP_e_pg+cM_e_pg
             
             # Matrice de rigidité élementaire
             Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, c, B_rigi_e_pg, optimize=True)
@@ -161,11 +163,11 @@ class Simu:
         tic = TicTac()
 
         # Assemblage
-        self.__Ku = sp.sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
+        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
         """Matrice Kglob pour le problème en déplacement (Nn*dim, Nn*dim)"""
 
         # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
-        self.__Fu = sp.sparse.csr_matrix((taille, 1))
+        self.__Fu = sparse.csr_matrix((taille, 1))
         """Vecteur Fglob pour le problème en déplacement (Nn*dim, 1)"""
 
         # plt.spy(self.__Ku)
@@ -188,7 +190,7 @@ class Simu:
 
         tic = TicTac()
 
-        Uglob = self.__Solveur(vector=True, resolution=resolution, useCholesky=useCholesky)
+        Uglob = self.__Solveur(vector=True, resolution=resolution, useCholesky=useCholesky, symetric=True)
 
         tic.Tac("Résolution deplacement","Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)
         
@@ -199,21 +201,30 @@ class Simu:
     
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
-    def CalcPsiPlus_e_pg(self, u: np.ndarray):
+    def CalcPsiPlus_e_pg(self):
             # Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
             # Calcul de la densité denergie de deformation en traction
 
             assert not self.materiau.phaseFieldModel == None, "pas de modèle d'endommagement"
             
+            u = self.GetResultat("Uglob")
+            d = self.GetResultat("damage")
+
+            testu = isinstance(u, np.ndarray) and (u.shape[0] == self.mesh.Nn*self.__dim )
+            testd = isinstance(d, np.ndarray) and (d.shape[0] == self.mesh.Nn )
+
+            assert testu or testd,"Il faut initialiser uglob et damage correctement"
+
             Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
 
             # Calcul l'energie
-            old_PsiP = self.PsiP_e_pg
+            old_PsiP = self.__PsiP_e_pg
 
             if len(old_PsiP) == 0:
+                # Pas encore d'endommagement disponible
                 old_PsiP = np.zeros((self.mesh.Ne, self.mesh.nPg))
 
-            PsiP_e_pg, PsiM_e_pg = self.materiau.phaseFieldModel.Calc_Psi_e_pg(Epsilon_e_pg)            
+            PsiP_e_pg, PsiM_e_pg = self.materiau.phaseFieldModel.Calc_Psi_e_pg(Epsilon_e_pg)
             
             inc_H = PsiP_e_pg - old_PsiP
 
@@ -227,12 +238,12 @@ class Simu:
                     PsiP_e_pg[elements,pg] = old_PsiP[elements,pg]
 
             new = np.linalg.norm(PsiP_e_pg)
-            old = np.linalg.norm(self.PsiP_e_pg)
+            old = np.linalg.norm(self.__PsiP_e_pg)
 
             assert new >= old, "Erreur"
-            self.PsiP_e_pg = PsiP_e_pg
+            self.__PsiP_e_pg = PsiP_e_pg
 
-            return self.PsiP_e_pg
+            return self.__PsiP_e_pg
     
     def __ConstruitMatElem_Pfm(self):
         
@@ -240,7 +251,7 @@ class Simu:
 
         # Data
         k = self.materiau.phaseFieldModel.k
-        PsiP_e_pg = self.PsiP_e_pg
+        PsiP_e_pg = self.CalcPsiPlus_e_pg()
         r_e_pg = self.materiau.phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = self.materiau.phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
@@ -286,11 +297,11 @@ class Simu:
         # Assemblage
         tic = TicTac()        
 
-        self.__Kd = sp.sparse.csr_matrix((Kd_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
+        self.__Kd = sparse.csr_matrix((Kd_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
         """Kglob pour le probleme d'endommagement (Nn, Nn)"""
         
         lignes = mesh.connect.reshape(-1)
-        self.__Fd = sp.sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1))
+        self.__Fd = sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1))
         """Fglob pour le probleme d'endommagement (Nn, 1)"""        
 
         tic.Tac("Matrices","Assemblage du systême en endommagement", self.__verbosity)       
@@ -302,7 +313,7 @@ class Simu:
          
         tic = TicTac()
 
-        dGlob = self.__Solveur(vector=False, resolution=resolution, useCholesky=False)
+        dGlob = self.__Solveur(vector=False, resolution=resolution, useCholesky=False, symetric=False)
 
         tic.Tac("Résolution endommagement","Résolution {} pour le problème de endommagement".format(resolution) , self.__verbosity)
         
@@ -351,7 +362,7 @@ class Simu:
 
         assert len(ddl_Connues) + len(ddl_Inconnues) == taille, "Problème dans les conditions"
 
-        return ddl_Connues, ddl_Inconnues
+        return np.array(ddl_Connues), np.array(ddl_Inconnues)
 
     def __Application_Conditions_Neuman(self, vector: bool):
         """applique les conditions de Neumann"""
@@ -367,7 +378,7 @@ class Simu:
         # Renseigne les conditions de Neuman
         lignes = BC_Neuman[:,0]
         valeurs = BC_Neuman[:,1]
-        b = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1))
+        b = sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1))
 
         if vector:
             b = b + self.__Fu.copy()
@@ -409,18 +420,18 @@ class Simu:
             return A.tocsr(), b.tocsr()
 
         else:
-            
-            x = sp.sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1), dtype=np.float64)
+
+            x = sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1), dtype=np.float64)
 
             return A, x
 
-    def __Solveur(self, vector: bool, resolution=2, useCholesky=False):
+    def __Solveur(self, vector: bool, resolution=2, useCholesky=False, symetric=False):
         """Resolution du système matricielle A * x = b
 
         Args:
             vector (bool): Système vectorielle ou sclaire
             resolution (int, optional): Type de résolution. Defaults to 2.
-        resolution=[1,2,3] -> [Pénalisation, Décomposition, FreeMatrix]
+        resolution=[1,2] -> [Pénalisation, Décomposition, FreeMatrix]        
 
         Returns:
             nd.array: Renvoie la solution (x)
@@ -429,6 +440,7 @@ class Simu:
         def Solve(A, b):
             # tic = TicTac()
             if useCholesky:
+                # il se trouve que c'est plus rapide de ne pas l'utiliser
 
                 from sksparse.cholmod import cholesky, cholesky_AAt
                 # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
@@ -441,22 +453,44 @@ class Simu:
                 # x_chol = factor(b.tocsc())
                 x_chol = factor.solve_A(b.tocsc())                
 
-                xi = x_chol.toarray().reshape(x_chol.shape[0])
+                x = x_chol.toarray().reshape(x_chol.shape[0])
 
             else:
-                # import scikits.umfpack as um
-                # um.spsolve(A, b)
+                # il reste à faire le lien avec umfpack pour réorgraniser encore plus rapidement
 
-                # from scikits.umfpack import spsolve, splu
-                # sp.sparse.linalg.use_solver(useUmfpack=True)
+                useUmfpack = False
 
-                # Résolution du sytème sur les ddl inconnues
-                # xi = spsolve(A, b, use_umfpack=True)            
-                xi = spsolve(A, b)
+                if useUmfpack:
+                    # from scikits.umfpack import spsolve, splu
+                    # sparse.linalg.use_solver(useUmfpack=True)
+                    import scikits.umfpack as um
+                    x = um.spsolve(A, b)
+                else:
+                    # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
+                    
+                    hideFacto = True
+
+                    # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
+                    if symetric and not "damage" in self.__resultats.keys():
+                        permute="MMD_AT_PLUS_A"
+                    else:
+                        permute="COLAMD"
+
+                    if hideFacto:                        
+                        x = sla.spsolve(A, b, permc_spec=permute, use_umfpack=True)
+                    else:
+                        # https://portal.nersc.gov/project/sparse/superlu/ And Users' Guide
+                        lu = sla.splu(A.tocsc(), permc_spec=permute)
+
+                        x = lu.solve(b.toarray()).reshape(-1)
+                        pass
+                    
+                # sp.__config__.show()
+                # from scipy.linalg import lapack
             
             # tac = tic.Tac("test","Resol",True)
 
-            return xi
+            return x
 
 
         # Résolution du plus rapide au plus lent 2, 3, 1
@@ -467,6 +501,8 @@ class Simu:
             # Construit le système matricielle pénalisé
             b = self.__Application_Conditions_Neuman(vector)
             A, b = self.__Application_Conditions_Dirichlet(vector, b, resolution)
+
+            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(vector)
 
             # Résolution du système matricielle pénalisé
             x = Solve(A, b)
@@ -487,31 +523,15 @@ class Simu:
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
 
-            xi = Solve(Aii, bi-Aic.dot(xc))
+            bDirichlet = Aic.dot(xc)
+
+            test = bi-bDirichlet
+
+            xi = Solve(Aii, bi-bDirichlet)
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
-            x[ddl_Inconnues] = xi
-
-        elif resolution == 3:
-
-            # Récupère les constantes
-            b = self.__Application_Conditions_Neuman(vector)
-            A, x = self.__Application_Conditions_Dirichlet(vector, b, resolution)
-
-            # Récupère les ddls
-            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(vector)
-
-            # Construit le système matricielle libéré
-            Aii = A.tocsr()[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
-            bi = b.tocsr()[ddl_Inconnues]
-
-            # Résolution du sytème
-            xi = Solve(Aii, bi)
-
-            # Reconstruction de la solution
-            x = x.toarray().reshape(x.shape[0])
-            x[ddl_Inconnues] = xi
+            x[ddl_Inconnues] = xi       
 
         return np.array(x)
 
@@ -661,12 +681,13 @@ class Simu:
 
         if "damage" in self.__resultats.keys():
 
+            d = self.__resultats["damage"]
+
             SigmaP_e_pg, SigmaM_e_pg = self.materiau.phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
 
-            # Endommage Sigma_e_pgP = g(d) * Sigma_e_pg
-            d_n = self.GetResultat("damage")
-            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d_n, self.mesh)
-            SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize=True).reshape((self.mesh.Ne, self.mesh.nPg,-1))
+            # Endommage : c = g(d) * cP + cM
+            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d, self.mesh)
+            SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize=True)
 
             Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
             

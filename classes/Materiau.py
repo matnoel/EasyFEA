@@ -1,4 +1,5 @@
 
+
 from Mesh import Mesh
 import numpy as np
 
@@ -32,7 +33,6 @@ class LoiDeComportement(object):
         return self.__S.copy()
 
     def __getdim(self):
-        """Renvoie la loi de comportement pour la loi de Hooke"""
         return self.__dim
     dim = property(__getdim)
 
@@ -42,6 +42,10 @@ class LoiDeComportement(object):
         else:
             return 1.0
     epaisseur = property(__getepaisseur)
+
+    def __get_nom(self):
+        return self.__nom
+    nom = property(__get_nom)
 
 class Elas_Isot(LoiDeComportement):   
 
@@ -61,6 +65,9 @@ class Elas_Isot(LoiDeComportement):
         """       
 
         # Vérification des valeurs
+        assert dim in [2,3], "doit être en 2 et 3"
+        self.__dim = dim
+
         assert E > 0.0, "Le module élastique doit être > 0 !"
         self.E=E
         """Module de Young"""
@@ -70,11 +77,13 @@ class Elas_Isot(LoiDeComportement):
         self.v=v
         """Coef de poisson"""
 
+        
+
         if dim == 2:
             self.contraintesPlanes = contraintesPlanes
             """type de simplification 2D"""
 
-        C, S = self.__Comportement_Elas_Isot(dim)
+        C, S = self.__Comportement_Elas_Isot()
 
         LoiDeComportement.__init__(self,"Elas_Isot", dim, C, S, epaisseur)
 
@@ -85,7 +94,7 @@ class Elas_Isot(LoiDeComportement):
         
         l = v*E/((1+v)*(1-2*v))
 
-        if self.contraintesPlanes and self.dim == 2:
+        if self.contraintesPlanes and self.__dim == 2:
             l = E*v/(1-v**2)
         
         return l
@@ -112,11 +121,13 @@ class Elas_Isot(LoiDeComportement):
 
         return bulk
 
-    def __Comportement_Elas_Isot(self, dim):
+    def __Comportement_Elas_Isot(self):
         """"Construit les matrices de comportement"""
 
         E=self.E
         v=self.v
+
+        dim = self.__dim
 
         mu = E/(2*(1+v))
         l = self.get_lambda()
@@ -161,30 +172,39 @@ class PhaseFieldModel:
     def __get_k(self):
         Gc = self.__Gc
         l0 = self.__l0
+
+        k = Gc * l0
+
         if self.__regularization == "AT1":
-            return 3/4 * Gc * l0
-        else:
-            return Gc * l0
+            k = 3/4 * k
+
+        return k
+        
     k = property(__get_k)
 
     def get_r_e_pg(self, PsiP_e_pg: np.ndarray):
         Gc = self.__Gc
         l0 = self.__l0
-        if self.__regularization == "AT1":
-            return 2 * PsiP_e_pg
-        else:
-            return 2 * PsiP_e_pg + (Gc/l0)
+
+        r = 2 * PsiP_e_pg
+
+        if self.__regularization == "AT2":
+            r = r + (Gc/l0)
+        
+        return r
 
     def get_f_e_pg(self, PsiP_e_pg: np.ndarray):
         Gc = self.__Gc
         l0 = self.__l0
-        if self.__regularization == "AT1":
-            f = (2 * PsiP_e_pg) - ( (3*Gc) / (8*l0) )
+
+        f = 2 * PsiP_e_pg
+
+        if self.__regularization == "AT1":            
+            f = f - ( (3*Gc) / (8*l0) )            
             absF = np.abs(f)
             f = (f+absF)/2
-            return f
-        else:
-            return 2 * PsiP_e_pg
+        
+        return f
 
     def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, k_residu=1e-10):
         """Fonction de dégradation en energies / contraintes
@@ -208,6 +228,11 @@ class PhaseFieldModel:
         
         return g_e_pg
 
+    def __resume(self):
+        print(f'\ncomportement : {self.__loiDeComportement.nom}')
+        print(f'split : {self.__split}')
+        print(f'regularisation : {self.__regularization}\n')
+    resume = property(__resume)
 
     def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float):
         """Création d'un objet comportement Phase Field
@@ -246,7 +271,7 @@ class PhaseFieldModel:
         assert l_0 > 0, "Doit être supérieur à 0" 
         self.__l0 = l_0
         """Largeur de régularisation de la fissure"""
-    
+            
     def Calc_Psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique\n
         Ici on va caluler PsiP_e_pg = 1/2 SigmaP_e_pg : Epsilon_e_pg et PsiM_e_pg = 1/2 SigmaM_e_pg : Epsilon_e_pg\n
@@ -264,7 +289,6 @@ class PhaseFieldModel:
         SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
 
         PsiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
-
         PsiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
         
         return PsiP_e_pg, PsiM_e_pg
@@ -281,12 +305,12 @@ class PhaseFieldModel:
         Returns
         -------
         np.ndarray
-            SigmaP_e_pg, SigmaM_e_pg : La matrice de comportement qui relie les deformation aux contraintes "Lamé"
+            SigmaP_e_pg, SigmaM_e_pg : les contraintes stockées aux elements et Points de Gauss
         """       
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
-        comp = Epsilon_e_pg.shape[2]        
+        comp = Epsilon_e_pg.shape[2]
 
         cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 

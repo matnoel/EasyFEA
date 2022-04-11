@@ -23,7 +23,7 @@ ticTot = TicTac()
 
 plotResult = True
 
-saveParaview = True
+saveParaview = False
 
 dim = 2
 
@@ -35,7 +35,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/10
+taille = h/100
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -79,7 +79,7 @@ simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 # Assemblage du système matricielle
 simu.Assemblage_u()
 
-simu.Solve_u(resolution=2, useCholesky=True)
+simu.Solve_u(resolution=2, useCholesky=False)
 
 
 # Post traitement --------------------------------------------------------------------------------------

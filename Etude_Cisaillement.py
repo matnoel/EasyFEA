@@ -23,7 +23,7 @@ comportement = "Elas_Isot" # "Elas_Isot"
 
 split = "Bourdin" # "Bourdin","Amor","Miehe"
 
-regularisation = "AT1" # "AT1", "AT2"
+regularisation = "AT2" # "AT1", "AT2"
 
 nameSimu = comportement+"_"+split+"_"+regularisation
 
@@ -40,15 +40,14 @@ dim = 2
 
 # Paramètres géométrie
 L = 1e-3;  #m
-l0 = 7.5e-6 # taille fissure test femobject
+l0 = 1e-5 # taille fissure test femobject ,7.5e-6, 1e-5
 Gc = 2.7e3
 
 # Paramètres maillage
 if test:
         taille = 1e-5 #taille maille test fem object
 else:
-        taille = 2.5e-6 #l0/2
-
+        taille = l0/2 #l0/2 2.5e-6
 
 
 if test:
@@ -59,8 +58,7 @@ else:
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
-
-modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille, affichageGmsh=False)
+modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille)
 
 (coordos_tn, connect) = modelGmsh.ConstructionRectangleAvecFissure(L, L)
 
@@ -85,13 +83,11 @@ if solve:
 
         phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 
+        phaseFieldModel.resume
+
         materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
         simu = Simu(dim, mesh, materiau, verbosity=False)
-
-        u_0 = np.zeros(mesh.Nn*dim)
-
-        coordos_tn = [np.zeros((mesh.Nn,3))]
 
         # Renseignement des conditions limites
 
@@ -107,14 +103,20 @@ if solve:
                 simu.Condition_Dirichlet(noeuds_Bas, valeur=0.0, directions=["x", "y"])
 
                 # Conditions en déplacements en Haut
-                simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
+                # simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
 
         RenseigneConditionsLimites()
 
         N = 400
         # N = 10
 
-        uglob = u_0
+        # Initalise uglob et damage
+        uglob = np.zeros(mesh.Nn*dim)
+
+        damage = np.zeros((mesh.Nn))
+        damage[noeuds_Milieu] = 1
+
+        simu.Update(damage=damage, uglob=uglob)
 
         damage_t=[]
         uglob_t=[]
@@ -126,15 +128,12 @@ if solve:
         tic = TicTac()
 
         for iter in range(N):
-                
-                # Construit H
-                simu.CalcPsiPlus_e_pg(uglob)
 
                 #-------------------------- PFM problem ------------------------------------
                 
-                simu.Assemblage_d()    # Assemblage
+                simu.Assemblage_d()     # Assemblage
                 
-                damage = simu.Solve_d()   # resolution
+                damage = simu.Solve_d() # resolution
                 damage_t.append(damage)
 
                 #-------------------------- Dep problem ------------------------------------
@@ -158,8 +157,8 @@ if solve:
 
                 tResolution = tic.Tac("Resolution PhaseField", "Resolution Phase field", False)
                 # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
-                print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s')        
-                
+                print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s') 
+
 
         # Sauvegarde
 
@@ -204,11 +203,15 @@ def AffichageCL():
         Affichage.Plot_NoeudsMaillage(simu, ax, noeuds=noeuds_Droite, marker='.', c='black')
 
 if plotResult:
+
+        # AffichageCL()
+        # if save: plt.savefig(f'{folder}\\conditionsLimites.png')
+
+
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=False)
         if save: plt.savefig(f'{folder}\\damage.png')
 
-        AffichageCL()
-        if save: plt.savefig(f'{folder}\\conditionsLimites.png')
+        
 
 if makeMovie:
         # PostTraitement.MakeMovie(filename, "damage", simu, uglob_t, damage_t)
