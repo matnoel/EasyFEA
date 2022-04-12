@@ -21,10 +21,13 @@ def Save_Simulations_in_Paraview(filename: str, simu: Simu, uglob_t: list, damag
     folder = Dossier.GetPath(filename)
     folder = Dossier.Append([folder,"Paraview"])
 
+    Nn = simu.mesh.Nn
+    dim = simu.mesh.dim
+
     for t, uglob in enumerate(uglob_t):
 
-        assert simu.mesh.Nn == damage_t[t].size, "Erreur"
-        assert simu.mesh.Nn*simu.mesh.dim == uglob.size, "Erreur"
+        assert Nn == damage_t[t].size, "Erreur"
+        assert Nn*dim == uglob.size, "Erreur"
 
         simu.Update(uglob, damage_t[t])
 

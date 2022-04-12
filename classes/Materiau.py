@@ -1,5 +1,5 @@
 
-
+from typing import cast
 from Mesh import Mesh
 import numpy as np
 
@@ -150,7 +150,6 @@ class Elas_Isot(LoiDeComportement):
 
         mu = self.get_mu()
         l = self.get_lambda()
-        
         
         bulk = l + 2*mu/self.dim        
 
@@ -377,7 +376,6 @@ class PhaseFieldModel:
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
-        comp = Epsilon_e_pg.shape[2]
         
         if self.__split == "Bourdin":
             
@@ -390,11 +388,101 @@ class PhaseFieldModel:
             cM_e_pg = 0*cP_e_pg
 
         elif self.__split == "Amor":
-            raise "Pas encore implémenté"
+
+            cP_e_pg, cM_e_pg = self.__AmorSplit(Epsilon_e_pg)
+
+            
         elif self.__split == "Miehe":
             raise "Pas encore implémenté"
 
-        return cP_e_pg, cM_e_pg    
+        return cP_e_pg, cM_e_pg
+
+    def __AmorSplit(self, Epsilon_e_pg: np.ndarray, verification=False):
+
+        assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
+
+        loiDeComportement = self.__loiDeComportement
+        
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
+
+        bulk = loiDeComportement.get_bulk()
+        mu = loiDeComportement.get_mu()
+
+        Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
+
+        dim = self.__loiDeComportement.dim
+
+        if dim == 2:
+            Ivoigt = np.array([1,1,0]).reshape((3,1))
+            taille = 3
+        else:
+            Ivoigt = np.array([1,1,1,0,0,0]).reshape((6,1))
+            taille = 6
+
+        IxI = Ivoigt.dot(Ivoigt.T)
+
+        # Projecteur deviatorique
+        if loiDeComportement.voigtNotation:
+            Pdev = np.eye(taille) + np.diagflat(Ivoigt) - IxI
+            partieDeviateur = mu*Pdev            
+        else:
+            Pdev = np.eye(taille) - 1/dim * IxI
+            partieDeviateur = 2*mu*Pdev
+
+        partieSpheriquePlus = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize=True)
+        partieSpheriqueMoin = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize=True)
+       
+        cP_e_pg = bulk*partieSpheriquePlus + partieDeviateur
+        cM_e_pg = bulk*partieSpheriqueMoin
+
+        if verification:
+            self.__VerificationDecomposition(Epsilon_e_pg, cP_e_pg, cM_e_pg)
+
+        return cP_e_pg, cM_e_pg
+
+    def __VerificationDecomposition(self, Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.ndarray):
+
+        tol = 1e-12
+        c = self.__loiDeComportement.get_C()
+
+        # Test que cP + cM = c
+        verif1 = np.linalg.norm(c-(cP_e_pg+cM_e_pg))/np.linalg.norm(c)
+        assert np.abs(verif1) < tol
+
+        # Test que SigP + SigM = Sig
+        Sig = np.einsum('ij,epj->epj', c, Epsilon_e_pg, optimize=True)
+        SigP = np.einsum('epij,epj->epj', cP_e_pg, Epsilon_e_pg, optimize=True)
+        SigM = np.einsum('epij,epj->epj', cM_e_pg, Epsilon_e_pg, optimize=True)
+        verif2 = np.linalg.norm(Sig-(SigP+SigM))/np.linalg.norm(Sig)
+        if np.linalg.norm(Sig)>0:
+            assert np.abs(verif2) < tol
+        
+        # Test que Eps:C:Eps = Eps:(cP+cM):Eps
+        energiec = np.einsum('epj,ij,epj->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize=True)
+        energiecPcM = np.einsum('epj,epij,epj->ep', Epsilon_e_pg, (cP_e_pg+cM_e_pg), Epsilon_e_pg, optimize=True)
+        verif3 = np.linalg.norm(energiec-energiecPcM)/np.linalg.norm(energiec)
+        if np.linalg.norm(energiec)>0:
+            assert np.abs(verif3) < tol
+
+    def __Rp_Rm(self, Epsilon_e_pg: np.ndarray):
+
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
+
+        dim = self.__loiDeComportement.dim
+
+        tr_Eps = np.zeros((Ne, nPg))
+
+        tr_Eps = Epsilon_e_pg[:,:,0] + Epsilon_e_pg[:,:,1]
+
+        if dim == 3:
+            tr_Eps += Epsilon_e_pg[:,:,2]
+
+        Rp_e_pg = (1+np.sign(tr_Eps))/2
+        Rm_e_pg = (1+np.sign(-tr_Eps))/2
+
+        return Rp_e_pg, Rm_e_pg
 
 class Materiau:
     

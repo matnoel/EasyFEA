@@ -1047,8 +1047,8 @@ class Simu:
             self.__resultats["Uglob"] = uglob
 
         if isinstance(damage, np.ndarray):
-            assert damage.size == self.mesh.Nn
-            self.__resultats["damage"] = damage, "Le vecteur n'a pas la bonne taille (Nn)"
+            assert damage.size == self.mesh.Nn, "Le vecteur n'a pas la bonne taille (Nn)"
+            self.__resultats["damage"] = damage
 
 # ====================================
 

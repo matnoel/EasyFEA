@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.collections
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
-from urllib3 import Retry
+
 
 class Affichage:
 

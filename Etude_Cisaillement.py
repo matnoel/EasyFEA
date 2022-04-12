@@ -15,18 +15,6 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-# Data --------------------------------------------------------------------------------------------
-
-folder = "Etude_Cisaillement"
-
-comportement = "Elas_Isot" # "Elas_Isot"
-
-split = "Bourdin" # "Bourdin","Amor","Miehe"
-
-regularisation = "AT2" # "AT1", "AT2"
-
-nameSimu = comportement+"_"+split+"_"+regularisation
-
 test = True
 
 solve = True
@@ -35,6 +23,18 @@ plotResult = True
 saveParaview = True
 makeMovie = False
 save = True
+
+# Data --------------------------------------------------------------------------------------------
+
+folder = "Etude_Cisaillement"
+
+comportement = "Elas_Isot" # "Elas_Isot"
+
+split = "Amor" # "Bourdin","Amor","Miehe"
+
+regularisation = "AT1" # "AT1", "AT2"
+
+nameSimu = comportement+"_"+split+"_"+regularisation
 
 dim = 2
 
@@ -79,7 +79,7 @@ Affichage.NouvelleSection("Simulations")
 
 if solve:
 
-        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False, voigtNotation=True)
 
         phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 
@@ -102,7 +102,7 @@ if solve:
                 # Conditions en déplacements en Bas
                 simu.Condition_Dirichlet(noeuds_Bas, valeur=0.0, directions=["x", "y"])
 
-                # Conditions en déplacements en Haut
+                # # Conditions en déplacements en Haut
                 # simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
 
         RenseigneConditionsLimites()
@@ -112,9 +112,7 @@ if solve:
 
         # Initalise uglob et damage
         uglob = np.zeros(mesh.Nn*dim)
-
-        damage = np.zeros((mesh.Nn))
-        damage[noeuds_Milieu] = 1
+        damage = np.zeros((mesh.Nn))        
 
         simu.Update(damage=damage, uglob=uglob)
 
@@ -137,14 +135,14 @@ if solve:
                 damage_t.append(damage)
 
                 #-------------------------- Dep problem ------------------------------------
-                simu.Assemblage_u(d=damage)
+                simu.Assemblage_u()
 
                 # Déplacement en haut
                 dep += u_inc
 
                 simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
                 
-                uglob = simu.Solve_u(useCholesky=True)
+                uglob = simu.Solve_u(useCholesky=False)
                 uglob_t.append(uglob)
 
                 simu.Clear_Condition_Dirichlet()
