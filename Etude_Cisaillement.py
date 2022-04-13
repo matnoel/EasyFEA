@@ -32,7 +32,7 @@ comportement = "Elas_Isot" # "Elas_Isot"
 
 split = "Amor" # "Bourdin","Amor","Miehe"
 
-regularisation = "AT1" # "AT1", "AT2"
+regularisation = "AT2" # "AT1", "AT2"
 
 nameSimu = comportement+"_"+split+"_"+regularisation
 
@@ -79,7 +79,7 @@ Affichage.NouvelleSection("Simulations")
 
 if solve:
 
-        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False, voigtNotation=True)
+        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False, useVoigtNotation=False)
 
         phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 
@@ -103,7 +103,7 @@ if solve:
                 simu.Condition_Dirichlet(noeuds_Bas, valeur=0.0, directions=["x", "y"])
 
                 # # Conditions en déplacements en Haut
-                # simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
+                simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
 
         RenseigneConditionsLimites()
 
@@ -142,7 +142,7 @@ if solve:
 
                 simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
                 
-                uglob = simu.Solve_u(useCholesky=False)
+                uglob = simu.Solve_u(useCholesky=True)
                 uglob_t.append(uglob)
 
                 simu.Clear_Condition_Dirichlet()

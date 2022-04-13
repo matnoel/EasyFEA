@@ -37,7 +37,7 @@ P = 800 #N
 # Paramètres maillage
 taille = h/1
 
-comportement = Elas_Isot(dim, epaisseur=b, voigtNotation=True)
+comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
 # Materiau
 materiau = Materiau(comportement)
