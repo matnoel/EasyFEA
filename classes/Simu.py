@@ -99,18 +99,8 @@ class Simu:
 
         comportement = self.materiau.comportement
 
-        if not comportement.voigtNotation:
-            # Si on a pas une notation de voigt on doit divisier les lignes 3(2D) et [4,5,6](3D)
-            coef=comportement.coef
-
-            if self.__dim == 2:
-                coord=2
-            elif self.__dim == 3:
-                coord=[3,4,5]
-            else:
-                raise "Pas implémenté"
-
-            B_rigi_e_pg[:,:,coord,:] = B_rigi_e_pg[:,:,coord,:]/coef
+        if not comportement.useVoigtNotation:
+            B_rigi_e_pg = comportement.AppliqueCoefSurBrigi(B_rigi_e_pg)
 
         mat = comportement.get_C()
         # Ici on le materiau est homogène
@@ -672,9 +662,14 @@ class Simu:
         """
         
         # Localise les deplacement par element
-        u_e = self.mesh.Localise_e(u)        
+        u_e = self.mesh.Localise_e(u)
+        comportement = self.materiau.comportement
+
+        B_rigi_e_pg = self.mesh.B_rigi_e_pg
+        if not comportement.useVoigtNotation:
+            B_rigi_e_pg = comportement.AppliqueCoefSurBrigi(B_rigi_e_pg)
         
-        Epsilon_e_pg = np.einsum('epik,ek->epi', self.mesh.B_rigi_e_pg, u_e, optimize=True)        
+        Epsilon_e_pg = np.einsum('epik,ek->epi', B_rigi_e_pg, u_e, optimize=True)        
 
         return Epsilon_e_pg
 
@@ -1187,13 +1182,19 @@ class Test_Simu(unittest.TestCase):
 
             listKe_e = []
 
+            B_rigi_e_pg = mesh.B_rigi_e_pg
+
+            if not materiau.comportement.useVoigtNotation:
+                B_rigi_e_pg = materiau.comportement.AppliqueCoefSurBrigi(B_rigi_e_pg)
+
             for e in listElement:            
                 # Pour chaque poing de gauss on construit Ke
                 Ke = 0
                 for pg in listPg:
                     jacobien = mesh.jacobien_e_pg[e][pg]
                     poid = mesh.poid_pg[pg]
-                    B_pg = mesh.B_rigi_e_pg[e][pg]
+                    B_pg = B_rigi_e_pg[e][pg]
+
 
                     K = jacobien * poid * B_pg.T.dot(C).dot(B_pg)
 
