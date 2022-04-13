@@ -7,7 +7,7 @@ class LoiDeComportement(object):
     """Classe des lois de comportements C de (Sigma = C * Epsilon)
     (Elas_isot, ...)
     """
-    def __init__(self, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float, voigtNotation: bool):
+    def __init__(self, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float, useVoigtNotation: bool):
         
         self.__dim = dim
         """dimension lié a la loi de comportement"""
@@ -16,7 +16,7 @@ class LoiDeComportement(object):
             assert epaisseur > 0 , "Doit être supérieur à 0"
             self.__epaisseur = epaisseur
         
-        self.__voigtNotation = voigtNotation
+        self.__useVoigtNotation = useVoigtNotation
         """Notation de voigt True or False"""
         
         self.__C = C
@@ -25,16 +25,16 @@ class LoiDeComportement(object):
         self.__S = S
         """Loi de comportement pour la loi de Hooke en voigt"""
     
-    def __get_voigtNotation(self):
-        return self.__voigtNotation
-    voigtNotation = property(__get_voigtNotation)
+    def __get_useVoigtNotation(self):
+        return self.__useVoigtNotation
+    useVoigtNotation = property(__get_useVoigtNotation)
 
-    def __get_coef_voigtNotation(self):
-        if self.__voigtNotation:
+    def __get_coef_notation(self):
+        if self.__useVoigtNotation:
             return 2
         else:
             return np.sqrt(2)
-    coef = property(__get_coef_voigtNotation)
+    coef = property(__get_coef_notation)
     """Coef lié à la notation utilisé voigt=2 kelvinMandel=racine(2)"""
 
     def get_C(self):
@@ -59,6 +59,23 @@ class LoiDeComportement(object):
     def __get_nom(self):
         return type(self).__name__
     nom = property(__get_nom)
+
+    def AppliqueCoefSurBrigi(self, B_rigi_e_pg: np.ndarray):
+
+        # Si on a pas une notation de voigt on doit divisier les lignes 3(2D) et [4,5,6](3D)
+        if self.__useVoigtNotation:
+            return
+
+        if self.__dim == 2:
+            coord=2
+        elif self.__dim == 3:
+            coord=[3,4,5]
+        else:
+            raise "Pas implémenté"
+
+        B_rigi_e_pg[:,:,coord,:] = B_rigi_e_pg[:,:,coord,:]/self.coef
+
+        return B_rigi_e_pg
 
     @staticmethod
     def ToKelvinMandelNotation(dim: int, voigtMatrice: np.ndarray):
@@ -86,7 +103,7 @@ class LoiDeComportement(object):
 class Elas_Isot(LoiDeComportement):   
 
     def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0,
-    voigtNotation=False):
+    useVoigtNotation=False):
         """Creer la matrice de comportement d'un matériau : Elastique isotrope
 
         Parameters
@@ -118,9 +135,9 @@ class Elas_Isot(LoiDeComportement):
             self.contraintesPlanes = contraintesPlanes
             """type de simplification 2D"""
 
-        C, S = self.__Comportement_Elas_Isot(voigtNotation)
+        C, S = self.__Comportement_Elas_Isot(useVoigtNotation)
 
-        LoiDeComportement.__init__(self, dim, C, S, epaisseur, voigtNotation)
+        LoiDeComportement.__init__(self, dim, C, S, epaisseur, useVoigtNotation)
 
     def get_lambda(self):
 
@@ -155,7 +172,7 @@ class Elas_Isot(LoiDeComportement):
 
         return bulk
 
-    def __Comportement_Elas_Isot(self, voigtNotation: bool):
+    def __Comportement_Elas_Isot(self, useVoigtNotation: bool):
         """"Construit les matrices de comportement"""
 
         E=self.E
@@ -194,11 +211,10 @@ class Elas_Isot(LoiDeComportement):
                                 [0, 0, 0, 0, mu, 0],
                                 [0, 0, 0, 0, 0, mu]])
         
-        # To kelvin mandel's notation
-
-        if voigtNotation:
+        if useVoigtNotation:
             c = cVoigt
         else:
+            # To kelvin mandel's notation
             c = LoiDeComportement.ToKelvinMandelNotation(dim, cVoigt)
 
         return c, np.linalg.inv(c)
@@ -397,7 +413,7 @@ class PhaseFieldModel:
 
         return cP_e_pg, cM_e_pg
 
-    def __AmorSplit(self, Epsilon_e_pg: np.ndarray, verification=False):
+    def __AmorSplit(self, Epsilon_e_pg: np.ndarray):
 
         assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
 
@@ -423,7 +439,7 @@ class PhaseFieldModel:
         IxI = Ivoigt.dot(Ivoigt.T)
 
         # Projecteur deviatorique
-        if loiDeComportement.voigtNotation:
+        if loiDeComportement.useVoigtNotation:
             Pdev = np.eye(taille) + np.diagflat(Ivoigt) - IxI
             partieDeviateur = mu*Pdev            
         else:
@@ -434,36 +450,9 @@ class PhaseFieldModel:
         partieSpheriqueMoin = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize=True)
        
         cP_e_pg = bulk*partieSpheriquePlus + partieDeviateur
-        cM_e_pg = bulk*partieSpheriqueMoin
+        cM_e_pg = bulk*partieSpheriqueMoin        
 
-        if verification:
-            self.__VerificationDecomposition(Epsilon_e_pg, cP_e_pg, cM_e_pg)
-
-        return cP_e_pg, cM_e_pg
-
-    def __VerificationDecomposition(self, Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.ndarray):
-
-        tol = 1e-12
-        c = self.__loiDeComportement.get_C()
-
-        # Test que cP + cM = c
-        verif1 = np.linalg.norm(c-(cP_e_pg+cM_e_pg))/np.linalg.norm(c)
-        assert np.abs(verif1) < tol
-
-        # Test que SigP + SigM = Sig
-        Sig = np.einsum('ij,epj->epj', c, Epsilon_e_pg, optimize=True)
-        SigP = np.einsum('epij,epj->epj', cP_e_pg, Epsilon_e_pg, optimize=True)
-        SigM = np.einsum('epij,epj->epj', cM_e_pg, Epsilon_e_pg, optimize=True)
-        verif2 = np.linalg.norm(Sig-(SigP+SigM))/np.linalg.norm(Sig)
-        if np.linalg.norm(Sig)>0:
-            assert np.abs(verif2) < tol
-        
-        # Test que Eps:C:Eps = Eps:(cP+cM):Eps
-        energiec = np.einsum('epj,ij,epj->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize=True)
-        energiecPcM = np.einsum('epj,epij,epj->ep', Epsilon_e_pg, (cP_e_pg+cM_e_pg), Epsilon_e_pg, optimize=True)
-        verif3 = np.linalg.norm(energiec-energiecPcM)/np.linalg.norm(energiec)
-        if np.linalg.norm(energiec)>0:
-            assert np.abs(verif3) < tol
+        return cP_e_pg, cM_e_pg    
 
     def __Rp_Rm(self, Epsilon_e_pg: np.ndarray):
 
@@ -529,36 +518,91 @@ class Test_Materiau(unittest.TestCase):
         self.E = 2
         self.v = 0.2
 
-        self.materiau_Isot_CP = Materiau(Elas_Isot(2, E=self.E, v=self.v, contraintesPlanes=True), ro=700)
-        self.materiau_Isot_DP = Materiau(Elas_Isot(2, E=self.E, v=self.v, contraintesPlanes=False), ro=700)
-        self.materiau_Isot = Materiau(Elas_Isot(3, E=self.E, v=self.v), ro=700)
+        # Comportement Elatique Isotrope
+        self.materiau_Isot_CP_voigt = Materiau(Elas_Isot(2, E=self.E, v=self.v, contraintesPlanes=True, useVoigtNotation=True), ro=700)
+        self.materiau_Isot_DP_voigt = Materiau(Elas_Isot(2, E=self.E, v=self.v, contraintesPlanes=False, useVoigtNotation=True), ro=700)
+        self.materiau_Isot_voigt = Materiau(Elas_Isot(3, E=self.E, v=self.v, useVoigtNotation=True), ro=700)
+
+        self.materiau_Isot_CP_mandel = Materiau(Elas_Isot(2, E=self.E, v=self.v, contraintesPlanes=True), ro=700)
+        self.materiau_Isot_DP_mandel = Materiau(Elas_Isot(2, E=self.E, v=self.v, contraintesPlanes=False), ro=700)
+        self.materiau_Isot_mandel = Materiau(Elas_Isot(3, E=self.E, v=self.v), ro=700)
+
+        # phasefieldModel
+        comportementPfms = self.materiau_Isot_CP_voigt.comportement
+        pfmBourdinAT1 = PhaseFieldModel(comportementPfms, "Bourdin", "AT1", 1, 1)
+        pfmBourdinAT2 = PhaseFieldModel(comportementPfms, "Bourdin", "AT2", 1, 1)
+        pfmAmorAT1 = PhaseFieldModel(comportementPfms, "Amor", "AT1", 1, 1)
+        pfmAmorAT2 = PhaseFieldModel(comportementPfms, "Amor", "AT2", 1, 1)
+
+        self.phaseFieldsModelsBourdinEtAmor = [pfmBourdinAT1, pfmBourdinAT2, pfmAmorAT1, pfmAmorAT2]
 
     def test_BienCree_Isotrope(self):
 
         E = self.E
         v = self.v
 
-        self.assertIsInstance(self.materiau_Isot_CP, Materiau)
+        self.assertIsInstance(self.materiau_Isot_CP_voigt, Materiau)
 
-        C_CP = E/(1-v**2) * np.array([  [1, v, 0],
+        C_CP_voigt = E/(1-v**2) * np.array([  [1, v, 0],
                                         [v, 1, 0],
                                         [0, 0, (1-v)/2]])
 
-        C_DP = E/((1+v)*(1-2*v)) * np.array([  [1-v, v, 0],
+        C_DP_voigt = E/((1+v)*(1-2*v)) * np.array([  [1-v, v, 0],
                                                 [v, 1-v, 0],
                                                 [0, 0, (1-2*v)/2]])
 
-        C_3D = E/((1+v)*(1-2*v))*np.array([ [1-v, v, v, 0, 0, 0],
+        C_3D_voigt = E/((1+v)*(1-2*v))*np.array([ [1-v, v, v, 0, 0, 0],
                                             [v, 1-v, v, 0, 0, 0],
                                             [v, v, 1-v, 0, 0, 0],
                                             [0, 0, 0, (1-2*v)/2, 0, 0],
                                             [0, 0, 0, 0, (1-2*v)/2, 0],
-                                            [0, 0, 0, 0, 0, (1-2*v)/2]  ])        
+                                            [0, 0, 0, 0, 0, (1-2*v)/2]  ])
+        
+        C_CP_mandel = LoiDeComportement.ToKelvinMandelNotation(2, C_CP_voigt)
+        C_DP_mandel = LoiDeComportement.ToKelvinMandelNotation(2, C_DP_voigt)
+        C_3D_mandel = LoiDeComportement.ToKelvinMandelNotation(3, C_3D_voigt)
         
 
-        self.assertTrue(np.allclose(C_CP, self.materiau_Isot_CP.comportement.get_C(), 1e-8))
-        self.assertTrue(np.allclose(C_DP, self.materiau_Isot_DP.comportement.get_C(), 1e-8))
-        self.assertTrue(np.allclose(C_3D, self.materiau_Isot.comportement.get_C(), 1e-8))
+        self.assertTrue(np.allclose(C_CP_voigt, self.materiau_Isot_CP_voigt.comportement.get_C(), 1e-8))
+        self.assertTrue(np.allclose(C_DP_voigt, self.materiau_Isot_DP_voigt.comportement.get_C(), 1e-8))
+        self.assertTrue(np.allclose(C_3D_voigt, self.materiau_Isot_voigt.comportement.get_C(), 1e-8))
+
+        self.assertTrue(np.allclose(C_CP_mandel, self.materiau_Isot_CP_mandel.comportement.get_C(), 1e-8))
+        self.assertTrue(np.allclose(C_DP_mandel, self.materiau_Isot_DP_mandel.comportement.get_C(), 1e-8))
+        self.assertTrue(np.allclose(C_3D_mandel, self.materiau_Isot_mandel.comportement.get_C(), 1e-8))
+    
+    def test_Decomposition_Bourdin_et_Amor(self):
+
+        # Création de 2 espilons quelconques 2D
+        Epsilon_e_pg = np.random.rand(1000,3,3)        
+        
+        tol = 1e-12
+
+        c = self.materiau_Isot_CP_voigt.comportement.get_C()
+
+        for pfm in self.phaseFieldsModelsBourdinEtAmor:
+            
+            cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg)
+
+            # Test que cP + cM = c
+            verif1 = np.linalg.norm(c-(cP_e_pg+cM_e_pg))/np.linalg.norm(c)
+            self.assertTrue(np.abs(verif1) < tol)
+
+            # Test que SigP + SigM = Sig
+            Sig = np.einsum('ij,epj->epj', c, Epsilon_e_pg, optimize=True)
+            SigP = np.einsum('epij,epj->epj', cP_e_pg, Epsilon_e_pg, optimize=True)
+            SigM = np.einsum('epij,epj->epj', cM_e_pg, Epsilon_e_pg, optimize=True)
+            verif2 = np.linalg.norm(Sig-(SigP+SigM))/np.linalg.norm(Sig)
+            if np.linalg.norm(Sig)>0:
+                self.assertTrue(np.abs(verif2) < tol)
+            
+            # Test que Eps:C:Eps = Eps:(cP+cM):Eps
+            energiec = np.einsum('epj,ij,epj->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize=True)
+            energiecPcM = np.einsum('epj,epij,epj->ep', Epsilon_e_pg, (cP_e_pg+cM_e_pg), Epsilon_e_pg, optimize=True)
+            verif3 = np.linalg.norm(energiec-energiecPcM)/np.linalg.norm(energiec)
+            if np.linalg.norm(energiec)>0:
+                self.assertTrue(np.abs(verif3) < tol)
+        
 
 
 if __name__ == '__main__':        
