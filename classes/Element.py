@@ -343,7 +343,7 @@ import os
 class Test_Element(unittest.TestCase):
     
     def setUp(self):
-        self.element = Element(1,3)  
+        self.element = Element(2,3)  
 
     def test_BienCree(self):
         self.assertIsInstance(self.element, Element)        
