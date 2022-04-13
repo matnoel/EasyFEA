@@ -30,7 +30,7 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Amor" # "Bourdin","Amor","Miehe"
+split = "Miehe" # "Bourdin","Amor","Miehe"
 
 regularisation = "AT2" # "AT1", "AT2"
 
@@ -87,7 +87,7 @@ if solve:
 
         materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
-        simu = Simu(dim, mesh, materiau, verbosity=False)
+        simu = Simu(dim, mesh, materiau, verbosity=False)        
 
         # Renseignement des conditions limites
 
@@ -102,8 +102,8 @@ if solve:
                 # Conditions en déplacements en Bas
                 simu.Condition_Dirichlet(noeuds_Bas, valeur=0.0, directions=["x", "y"])
 
-                # # Conditions en déplacements en Haut
-                simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
+                # # # Conditions en déplacements en Haut
+                # simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
 
         RenseigneConditionsLimites()
 
@@ -122,6 +122,8 @@ if solve:
         u_inc = 5e-8
         # u_inc = 5e-7
         dep = 0
+
+        print(phaseFieldModel.resume)
 
         tic = TicTac()
 
