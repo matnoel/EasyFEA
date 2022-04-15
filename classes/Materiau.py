@@ -436,10 +436,7 @@ class PhaseFieldModel:
 
         assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
 
-        loiDeComportement = self.__loiDeComportement
-        
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
+        loiDeComportement = self.__loiDeComportement                
 
         bulk = loiDeComportement.get_bulk()
         mu = loiDeComportement.get_mu()
@@ -500,93 +497,24 @@ class PhaseFieldModel:
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
-        Ne = Epsilon_e_pg.shape[0]
-        nPG = Epsilon_e_pg.shape[1]
-        coef = self.__loiDeComportement.coef
+        projP, projM = self.__DecompositionSpectrale(Epsilon_e_pg)
 
-        # Reconsruit le tenseur des deformations
-        Eps_e_pg = np.zeros((Ne,nPG,2,2))
-        Eps_e_pg[:,:,0,0] = Epsilon_e_pg[:,:,0]
-        Eps_e_pg[:,:,1,1] = Epsilon_e_pg[:,:,1]
-        Eps_e_pg[:,:,0,1] = Epsilon_e_pg[:,:,2]/coef; Eps_e_pg[:,:,1,0] = Epsilon_e_pg[:,:,2]/coef
+        # test decomposition
+        EpsP = np.einsum('epij,epj->epi', projP, Epsilon_e_pg, optimize=True)
+        EpsM = np.einsum('epij,epj->epi', projM, Epsilon_e_pg, optimize=True)
+
+        Epsi = Epsilon_e_pg 
+        if self.useVoigtNotation:
+            EpsP[:,:,2] = EpsP[:,:,2]*np.sqrt(2)
+            EpsM[:,:,2] = EpsM[:,:,2]*np.sqrt(2)
+            Epsi[:,:,2] = Epsi[:,:,2]/np.sqrt(2)
         
-        # invariants du tenseur des deformations
-        tr_Eps = np.trace(Eps_e_pg, axis1=2, axis2=3)
-        det_Eps = np.linalg.det(Eps_e_pg)
-        if np.linalg.det(Eps_e_pg[0,0]) > 0:
-            verif1 = (det_Eps[0,0] - np.linalg.det(Eps_e_pg[0,0]))/np.linalg.det(Eps_e_pg[0,0]) 
-            assert verif1 < 1e-12
-
-        # Calculs des valeurs propres
-        Eps1 = (tr_Eps-np.sqrt(tr_Eps**2-(4*det_Eps)))/2
-        Eps2 = (tr_Eps+np.sqrt(tr_Eps**2-(4*det_Eps)))/2
-
-        Eps2I= np.einsum('ep,ij->epij', Eps2, np.eye(2), optimize=True)
-
-        Eps1_m_Eps2 = Eps1 - Eps2
-        Eps_m_Eps2I = Eps_e_pg - Eps2I
-        
-        # identifications des lignes et colonnes ou Eps1 != Eps2
-        lignes, colonnes = np.where(Eps1_m_Eps2 != 0)
-
-        # construction des bases propres m1 et m2
-        m1 = np.zeros((Ne,nPG,2,2))
-        m1[:,:,0,0] = 1
-        if lignes.size > 0:
-            m1_tot = np.einsum('epij,ep->epij', Eps_m_Eps2I, 1/Eps1_m_Eps2, optimize=True)
-            m1[lignes, colonnes] = m1_tot[lignes, colonnes]            
-        m2 = np.eye(2) - m1
-
-        # # test ortho entre M1 et M2
-        # verifOrthoM1M2 = np.einsum('epij,epij->', m1, m2, optimize=True)
-        # assert np.linalg.norm(verifOrthoM1M2) < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
-        
-        # Passage des bases propres sous la forme de voigt 
-        m1Voigt = np.zeros((Ne,nPG,3)); m2Voigt = np.zeros((Ne,nPG,3))
-        m1Voigt[:,:,0] = m1[:,:,0,0];   m2Voigt[:,:,0] = m2[:,:,0,0]
-        m1Voigt[:,:,1] = m1[:,:,1,1];   m2Voigt[:,:,1] = m2[:,:,1,1]
-        # m1Voigt[:,:,2] = m1[:,:,0,1]*2/coef;   m2Voigt[:,:,2] = m2[:,:,0,1]*2/coef
-        m1Voigt[:,:,2] = m1[:,:,0,1];   m2Voigt[:,:,2] = m2[:,:,0,1]
-
-        # Récupération des parties positives et négatives des valeurs propres
-        Eps1P = (Eps1+np.abs(Eps1))/2;  Eps2P = (Eps2+np.abs(Eps2))/2
-        Eps1M = (Eps1-np.abs(Eps1))/2;  Eps2M = (Eps2-np.abs(Eps2))/2        
-
-        # Calcul de Beta Plus
-        BetaP = np.ones((Ne,nPG))*0.5        
-        BetaP[lignes, colonnes] = (Eps1P[lignes, colonnes]-Eps2P[lignes, colonnes])/Eps1_m_Eps2[lignes, colonnes]
-
-        # Calcul de Beta Moin
-        BetaM = np.ones((Ne,nPG))*0.5        
-        BetaM[lignes, colonnes] = (Eps1M[lignes, colonnes]-Eps2M[lignes, colonnes])/Eps1_m_Eps2[lignes, colonnes]
-
-        # Calcul de di
-        d1P = np.heaviside(Eps1,0.5);  d2P = np.heaviside(Eps2,0.5)
-        d1M = np.heaviside(-Eps1,0.5);  d2M = np.heaviside(-Eps2,0.5)
-
-        # Calcul de gamma
-        gamma1P = d1P - BetaP;  gamma2P = d2P - BetaP
-        gamma1M = d1M - BetaM;  gamma2M = d2M - BetaM
-
-        # Calcul de mixmi        
-        m1xm1 = np.einsum('epi,epj->epij', m1Voigt, m1Voigt, optimize=True)
-        m2xm2 = np.einsum('epi,epj->epij', m2Voigt, m2Voigt, optimize=True)
-        
-        matriceI = np.eye(3)
-        if self.__loiDeComportement.useVoigtNotation:
-            matriceI[2,2] = matriceI[2,2]/2
-
-        # Projecteur P tel que EpsP = projP : Eps
-        BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize=True)
-        gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gamma1P, m1xm1, optimize=True)
-        gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gamma2P, m2xm2, optimize=True)
-        projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
-
-        # Projecteur M tel que EpsM = projM : Eps
-        BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize=True)
-        gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gamma1M, m1xm1, optimize=True)
-        gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gamma2M, m2xm2, optimize=True)
-        projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
+        # verifDecomp = np.linalg.norm(Epsi-(EpsP+EpsM))/np.linalg.norm(Epsi)
+        # assert verifDecomp < 1e-12
+        # test = EpsP[0,0]*EpsM[0,0]
+        # orthoEpsPEpsM = np.einsum('epi,epi->epi',EpsP, EpsM, optimize=True)
+        # orthoEpsi = np.einsum('epi,epi->epi', Epsi, Epsi, optimize=True)
+        # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
 
         # Calcul Rp et Rm
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -616,6 +544,106 @@ class PhaseFieldModel:
         cM_e_pg = lamb*spherM + 2*mu*projM
 
         return cP_e_pg, cM_e_pg
+
+    def __DecompositionSpectrale(self, vecteur_e_pg: np.ndarray):
+
+        dim = self.__loiDeComportement.dim
+        assert dim == 2, "Implémenté que en 2D"
+
+        Ne = vecteur_e_pg.shape[0]
+        nPg = vecteur_e_pg.shape[1]
+        coef = self.__loiDeComportement.coef
+        
+        # Reconsruit le tenseur des deformations
+        matrice_e_pg = np.zeros((Ne,nPg,2,2))
+        matrice_e_pg[:,:,0,0] = vecteur_e_pg[:,:,0]
+        matrice_e_pg[:,:,1,1] = vecteur_e_pg[:,:,1]
+        matrice_e_pg[:,:,0,1] = vecteur_e_pg[:,:,2]/coef
+        matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,2]/coef        
+        
+        # invariants du tenseur des deformations
+        trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
+        determinant_e_pg = np.linalg.det(matrice_e_pg)
+
+        # Calculs des valeurs propres
+        delta = trace_e_pg**2 - (4*determinant_e_pg)
+        val1 = (trace_e_pg - np.sqrt(delta))/2
+        val2 = (trace_e_pg + np.sqrt(delta))/2
+        val = np.zeros((Ne,nPg,2))        
+        val[:,:,0] = val1;   val[:,:,1] = val2        
+
+        # Constantes pour calcul de m1 = (matrice_e_pg - vp2*I)/(vp1-vp2)
+        vp2I = np.einsum('ep,ij->epij', val2, np.eye(2), optimize=True)
+        vp1_m_vp2 = val1 - val2
+        
+        # identifications des elements et points de gauss ou vp1 != vp2
+        elements, pdgs = np.where(vp1_m_vp2 != 0)
+        # elements, pdgs = np.where(vp1 != vp2)
+
+        # construction des bases propres m1 et m2
+        m1 = np.zeros((Ne,nPg,2,2))
+        m1[:,:,0,0] = 1
+        if elements.size > 0:
+            m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-vp2I, 1/vp1_m_vp2, optimize=True)
+            m1[elements, pdgs] = m1_tot[elements, pdgs]            
+        m2 = np.eye(2) - m1
+        
+        # test ortho entre M1 et M2
+        verifOrthoM1M2 = np.einsum('epij,epij->ep', m1, m2, optimize=True)
+        assert np.abs(verifOrthoM1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
+        
+        # Passage des bases propres sous la forme de voigt 
+        m1Voigt = np.zeros((Ne,nPg,3)); m2Voigt = np.zeros((Ne,nPg,3))
+        m1Voigt[:,:,0] = m1[:,:,0,0];   m2Voigt[:,:,0] = m2[:,:,0,0]
+        m1Voigt[:,:,1] = m1[:,:,1,1];   m2Voigt[:,:,1] = m2[:,:,1,1]
+        # m1Voigt[:,:,2] = m1[:,:,0,1]*2/coef;   m2Voigt[:,:,2] = m2[:,:,0,1]*2/coef
+        m1Voigt[:,:,2] = m1[:,:,0,1];   m2Voigt[:,:,2] = m2[:,:,0,1]
+        # m1Voigt[:,:,2] = m1[:,:,0,1]*coef;   m2Voigt[:,:,2] = m2[:,:,0,1]*coef
+
+        # Récupération des parties positives et négatives des valeurs propres
+        valp = (val+np.abs(val))/2; valp1 = valp[:,:,0]; valp2 = valp[:,:,1]
+        valm = (val-np.abs(val))/2; valm1 = valm[:,:,0]; valm2 = valm[:,:,1]
+
+        # Calcul des di
+        dvalp = np.heaviside(val,0.5)
+        dvalm = np.heaviside(-val,0.5)
+
+        dvalp1 = np.heaviside(val1,0.5);    dvalp2 = np.heaviside(val2,0.5)
+        dvalm1 = np.heaviside(-val1,0.5);   dvalm2 = np.heaviside(-val2,0.5)
+
+        # Calcul des Beta Plus
+        BetaP = dvalp[:,:,0]
+        BetaP[elements, pdgs] = (valp1[elements, pdgs]-valp2[elements, pdgs])/vp1_m_vp2[elements, pdgs]
+        
+        # Calcul de Beta Moin
+        BetaM = dvalm[:,:,0]
+        BetaM[elements, pdgs] = (valm1[elements, pdgs]-valm2[elements, pdgs])/vp1_m_vp2[elements, pdgs]
+
+        # Calcul de gamma
+        gammap1 = dvalp[:,:,0] - BetaP;  gammap2 = dvalp[:,:,1] - BetaP
+        gammam1 = dvalm[:,:,0] - BetaM;  gammam2 = dvalm[:,:,1] - BetaM
+
+        # Calcul de mixmi        
+        m1xm1 = np.einsum('epi,epj->epij', m1Voigt, m1Voigt, optimize=True)
+        m2xm2 = np.einsum('epi,epj->epij', m2Voigt, m2Voigt, optimize=True)
+        
+        matriceI = np.eye(3)
+        if self.__loiDeComportement.useVoigtNotation:
+            matriceI[2,2] = matriceI[2,2]/2
+
+        # Projecteur P tel que EpsP = projP : Eps
+        BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize=True)
+        gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap1, m1xm1, optimize=True)
+        gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap2, m2xm2, optimize=True)
+        projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
+
+        # Projecteur M tel que EpsM = projM : Eps
+        BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize=True)
+        gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam1, m1xm1, optimize=True)
+        gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam2, m2xm2, optimize=True)
+        projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
+
+        return projP, projM
 
 
 class Materiau:
