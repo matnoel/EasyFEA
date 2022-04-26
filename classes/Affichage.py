@@ -40,7 +40,7 @@ class Affichage:
         from TicTac import TicTac
 
         tic = TicTac()
-        simu = cast(Simu, simu)
+        simu = cast(Simu, simu) # ne pas ecrire simu: Simu ça créer un appel circulaire
 
         mesh = simu.mesh
         

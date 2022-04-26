@@ -1,3 +1,4 @@
+from typing import cast
 from Mesh import Mesh
 import numpy as np
 
@@ -399,7 +400,7 @@ class PhaseFieldModel:
         cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 
         SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg, comp))
-        SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg, comp))        
+        SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg, comp))
 
         return SigmaP_e_pg, SigmaM_e_pg
     
@@ -468,7 +469,7 @@ class PhaseFieldModel:
         # Projecteur deviatorique
         if loiDeComportement.useVoigtNotation:
             Pdev_e_pg = np.eye(taille) + np.diagflat(Ivoigt) - IxI
-            partieDeviateur = mu*Pdev_e_pg            
+            partieDeviateur = mu*Pdev_e_pg
         else:
             Pdev_e_pg = np.eye(taille) - 1/dim * IxI
             partieDeviateur = 2*mu*Pdev_e_pg
@@ -514,7 +515,7 @@ class PhaseFieldModel:
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
-        projP_e_pg, projM_e_pg = self.__DecompositionSpectrale(Epsilon_e_pg)
+        projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg)
 
         # Calcul Rp et Rm
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -543,7 +544,7 @@ class PhaseFieldModel:
 
         return cP_e_pg, cM_e_pg, projecteurs
 
-    def __DecompositionSpectrale(self, vecteur_e_pg: np.ndarray):
+    def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray):
 
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
@@ -552,19 +553,25 @@ class PhaseFieldModel:
         nPg = vecteur_e_pg.shape[1]
         coef = self.__loiDeComportement.coef
 
-        # Ici si le vecteur est de la forme [1;1;sqrt(2)] ou [1;1;2
-        # Reconsruit le tenseur des deformations
-        matrice_e_pg = np.zeros((Ne,nPg,2,2))
-        matrice_e_pg[:,:,0,0] = vecteur_e_pg[:,:,0]
-        matrice_e_pg[:,:,1,1] = vecteur_e_pg[:,:,1]
-        matrice_e_pg[:,:,0,1] = vecteur_e_pg[:,:,2]/coef
-        matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,2]/coef
+        # transforme en matrice
+        def Vecteur_To_Matrice(vecteur: np.ndarray, coef):
+            matrice = np.zeros((Ne,nPg,2,2))
+            matrice[:,:,0,0] = vecteur[:,:,0]
+            matrice[:,:,1,1] = vecteur[:,:,1]
+            matrice[:,:,0,1] = vecteur[:,:,2]/coef
+            matrice[:,:,1,0] = vecteur[:,:,2]/coef
+
+            return matrice
+
+        # Ici si le vecteur est de la forme [1;1;sqrt(2)] ou [1;1;2]
+        # Reconsruit le tenseur des deformations [e,pg,dim,dim]
+        matrice_e_pg = Vecteur_To_Matrice(vecteur_e_pg, coef)
         
-        # invariants du tenseur des deformations
+        # invariants du tenseur des deformations [e,pg]
         trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
         determinant_e_pg = np.linalg.det(matrice_e_pg)
 
-        # Calculs des valeurs propres
+        # Calculs des valeurs propres [e,pg]
         delta = trace_e_pg**2 - (4*determinant_e_pg)
         val_e_pg = np.zeros((Ne,nPg,2))
         val_e_pg[:,:,0] = (trace_e_pg - np.sqrt(delta))/2
@@ -578,7 +585,7 @@ class PhaseFieldModel:
         elements, pdgs = np.where(v1_m_v2 != 0)
         # elements, pdgs = np.where(vp1 != vp2)
 
-        # construction des bases propres m1 et m2
+        # construction des bases propres m1 et m2 [e,pg,dim,dim]
         m1 = np.zeros((Ne,nPg,2,2))
         m1[:,:,0,0] = 1
         if elements.size > 0:
@@ -586,46 +593,46 @@ class PhaseFieldModel:
             m1[elements, pdgs] = m1_tot[elements, pdgs]            
         m2 = np.eye(2) - m1
         
-        # test ortho entre M1 et M2
-        verifOrthoM1M2 = np.einsum('epij,epij->ep', m1, m2, optimize=True)
-        assert np.abs(verifOrthoM1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
+        # # test ortho entre M1 et M2 
+        # verifOrthoM1M2 = np.einsum('epij,epij->ep', m1, m2, optimize=True)
+        # assert np.abs(verifOrthoM1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
         
-        # Passage des bases propres sous la forme de voigt 
+        # Passage des bases propres sous la forme de voigt [e,pg,3]  ou [e,pg,6]
         m1Voigt = np.zeros((Ne,nPg,3)); m2Voigt = np.zeros((Ne,nPg,3))
         m1Voigt[:,:,0] = m1[:,:,0,0];   m2Voigt[:,:,0] = m2[:,:,0,0]
         m1Voigt[:,:,1] = m1[:,:,1,1];   m2Voigt[:,:,1] = m2[:,:,1,1]
         # m1Voigt[:,:,2] = m1[:,:,0,1];   m2Voigt[:,:,2] = m2[:,:,0,1]
         m1Voigt[:,:,2] = m1[:,:,0,1]*coef;   m2Voigt[:,:,2] = m2[:,:,0,1]*coef        
 
-        # Récupération des parties positives et négatives des valeurs propres
+        # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
         valm = (val_e_pg-np.abs(val_e_pg))/2
 
-        # Calcul des di
+        # Calcul des di [e,pg,2]
         dvalp = np.heaviside(val_e_pg,0.5)
         dvalm = np.heaviside(-val_e_pg,0.5)        
 
-        # Calcul des Beta Plus
+        # Calcul des Beta Plus [e,pg,1]
         BetaP = dvalp[:,:,0]
         BetaP[elements,pdgs] = (valp[elements,pdgs,0]-valp[elements,pdgs,1])/v1_m_v2[elements,pdgs]
         
-        # Calcul de Beta Moin
+        # Calcul de Beta Moin [e,pg,1]
         BetaM = dvalm[:,:,0]
         BetaM[elements,pdgs] = (valm[elements,pdgs,0]-valm[elements,pdgs,1])/v1_m_v2[elements,pdgs]
 
-        # Calcul de gamma
+        # Calcul de gamma [e,pg,2]
         gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
         gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
 
-        # Calcul de mixmi        
+        # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6] 
         m1xm1 = np.einsum('epi,epj->epij', m1Voigt, m1Voigt, optimize=True)
         m2xm2 = np.einsum('epi,epj->epij', m2Voigt, m2Voigt, optimize=True)
         
         matriceI = np.eye(3)
-        if self.__loiDeComportement.useVoigtNotation:
-            matriceI[2,2] = matriceI[2,2]/2
+        # if self.__loiDeComportement.useVoigtNotation:
+        #     matriceI[2,2] = matriceI[2,2]/2
 
-        # Projecteur P tel que EpsP = projP : Eps
+        # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
         BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize=True)
         gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize=True)
         gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize=True)
@@ -636,6 +643,24 @@ class PhaseFieldModel:
         gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize=True)
         gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize=True)
         projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
+
+        # Verification de la décomposition
+        # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg 
+        vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
+        vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
+        
+        decomp = vecteur_e_pg-(vecteurP + vecteurM)
+        verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
+        # assert verifDecomp < 1e-12
+        
+        if self.__loiDeComportement.useVoigtNotation:
+            vecteurP[:,:,2] = vecteurP[:,:,2]/np.sqrt(2)
+            vecteurM[:,:,2] = vecteurM[:,:,2]/np.sqrt(2)
+
+        ortho_vP_vM = np.einsum('epi,epj->ep',vecteurP, vecteurM, optimize=True)
+        ortho_v_v = np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True)
+        vertifOrthoEps = np.abs(ortho_vP_vM)/np.abs(ortho_v_v)
+        # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
 
         return projP, projM
 
@@ -651,11 +676,11 @@ class Materiau:
             return self.__phaseFieldModel.loiDeComportement
         else:
             return self.__comportement
-    comportement = property(__get_comportement)
+    comportement = cast(LoiDeComportement, property(__get_comportement))
 
     def __get_phaseFieldModel(self):
-        return self.__phaseFieldModel
-    phaseFieldModel = property(__get_phaseFieldModel)
+        return self.__phaseFieldModel            
+    phaseFieldModel = cast(PhaseFieldModel, property(__get_phaseFieldModel))
 
     def __init__(self, comportement: LoiDeComportement, ro=8100.0, phaseFieldModel=None):
         """Creer un materiau
@@ -676,7 +701,6 @@ class Materiau:
         # Initialisation des variables de la classe
 
         if isinstance(phaseFieldModel, PhaseFieldModel):
-            self.__comportement = phaseFieldModel.loiDeComportement
             self.__phaseFieldModel = phaseFieldModel            
             """Phase field model"""
         else:
@@ -710,12 +734,13 @@ class Test_Materiau(unittest.TestCase):
         self.regularizations = PhaseFieldModel.get_regularisations()
         self.phaseFieldModels = []
         for vn in self.voigtNotations:
+            comportement = Elas_Isot(2,E=E,v=v, useVoigtNotation=vn)
             for s in self.splits:
                 for r in self.regularizations:
                     if vn:
-                        pfm = PhaseFieldModel(self.comportements[0],s,r,1,1)
+                        pfm = PhaseFieldModel(comportement,s,r,1,1)
                     else:
-                        pfm = PhaseFieldModel(self.comportements[0],s,r,1,1)
+                        pfm = PhaseFieldModel(comportement,s,r,1,1)
                     self.phaseFieldModels.append(pfm)
 
     def test_BienCree_Isotrope(self):
@@ -773,14 +798,13 @@ class Test_Materiau(unittest.TestCase):
                 raise "Pas implémenté"
             
             if pfm.split == "Miehe":
-                cP_e_pg, cM_e_pg, projecteurs = pfm.Calc_C(Epsilon_e_pg, getProjecteurs=True)
+                cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg)
             else:
                 cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg)
 
-            test = c-(cP_e_pg+cM_e_pg)
-
             # Test que cP + cM = c
-            verifC = np.linalg.norm(c-(cP_e_pg+cM_e_pg))/np.linalg.norm(c)
+            decompC = c-(cP_e_pg+cM_e_pg)
+            verifC = np.linalg.norm(decompC)/np.linalg.norm(c)
             self.assertTrue(np.abs(verifC) < tol)
 
             # Test que SigP + SigM = Sig
@@ -797,41 +821,6 @@ class Test_Materiau(unittest.TestCase):
             verifEnergie = np.linalg.norm(energiec-energiecPcM)/np.linalg.norm(energiec)
             if np.linalg.norm(energiec)>0:
                 self.assertTrue(np.abs(verifEnergie) < tol)
-
-            # test decomposition epsilon si Miehe
-            if pfm.split == "Miehe":
-                projP_e_pg = projecteurs["projP_e_pg"]
-                projM_e_pg = projecteurs["projM_e_pg"]
-
-                EpsP = np.einsum('epij,epj->epi', projP_e_pg, Epsilon_e_pg, optimize=True)
-                EpsM = np.einsum('epij,epj->epi', projM_e_pg, Epsilon_e_pg, optimize=True)
-
-                # transforme en matrice
-                def ToMatriceMandel(vecteur: np.ndarray, coef):
-                    matrice = np.zeros((Ne,nPg,2,2))
-                    matrice[:,:,0,0] = vecteur[:,:,0]
-                    matrice[:,:,1,1] = vecteur[:,:,1]
-                    matrice[:,:,0,1] = vecteur[:,:,2]*coef
-                    matrice[:,:,1,0] = vecteur[:,:,2]*coef
-
-                    return matrice
-
-                coef = np.sqrt(2)
-
-                matriceEpsP = ToMatriceMandel(EpsP, coef)
-                matriceEpsM = ToMatriceMandel(EpsM, coef)
-                matriceEps = ToMatriceMandel(Epsilon_e_pg,1/coef)
-
-                test = matriceEps-(matriceEpsP + matriceEpsM)
-                verifDecomp = np.linalg.norm(test)/np.linalg.norm(matriceEps)
-                assert verifDecomp < 1e-12
-                
-                orthoEpsPEpsM = np.einsum('epij,epij->ep',matriceEpsM, matriceEpsP, optimize=True)
-                orthoEps = np.einsum('epij,epij->ep', matriceEps, matriceEps, optimize=True)
-                vertifOrthoEps = np.abs(orthoEpsPEpsM)/np.abs(orthoEps)
-                # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
-
-                
 
 if __name__ == '__main__':
     try:

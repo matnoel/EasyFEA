@@ -20,7 +20,7 @@ test = True
 solve = True
 
 plotResult = True
-saveParaview = True
+saveParaview = False
 makeMovie = False
 save = True
 
@@ -30,7 +30,7 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Miehe" # "Bourdin","Amor","Miehe"
+split = "Amor" # "Bourdin","Amor","Miehe"
 
 regularisation = "AT2" # "AT1", "AT2"
 
@@ -144,7 +144,7 @@ if solve:
 
                 simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
                 
-                uglob = simu.Solve_u(useCholesky=True)
+                uglob = simu.Solve_u(useCholesky=False)
                 uglob_t.append(uglob)
 
                 simu.Clear_Condition_Dirichlet()

@@ -1,12 +1,11 @@
 
 from typing import cast
 
-from Affichage import Affichage
-
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
+from Affichage import Affichage
 from Element import Element
 from Mesh import Mesh
 from Materiau import Elas_Isot, Materiau, PhaseFieldModel
@@ -16,14 +15,13 @@ import Dossier
     
 class Simu:
     
-    def __get_listElement(self):
-        """Renvoie la liste d'element du maillage
-
-        Returns:
-            list(int): Element du maillage
-        """
+    def __get_listElement(self):        
         return list(range(self.mesh.Ne))        
-    listElement = property(__get_listElement)    
+    listElement = property(__get_listElement)
+
+    def __get_mesh(self):
+        return self.__mesh
+    mesh = cast(Mesh, property(__get_mesh))
 
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
@@ -47,7 +45,7 @@ class Simu:
         self.__verbosity = verbosity
         """la simulation peut ecrire dans la console"""
 
-        self.mesh = mesh
+        self.__mesh = mesh
         """maillage de la simulation"""
         self.materiau = materiau
         """materiau de la simulation"""
@@ -89,7 +87,7 @@ class Simu:
         tic = TicTac()
 
         # Data
-        mesh = self.mesh
+        mesh = self.__mesh
         nPg = mesh.nPg
         
         # Recupère les matrices pour travailler
@@ -154,7 +152,7 @@ class Simu:
         """
 
         # Data
-        mesh = self.mesh        
+        mesh = self.__mesh        
         taille = mesh.Nn*self.__dim
 
         # Construit Ke
@@ -211,12 +209,14 @@ class Simu:
             # Calcul de la densité denergie de deformation en traction
 
             assert not self.materiau.phaseFieldModel == None, "pas de modèle d'endommagement"
+
+            phaseFieldModel = self.materiau.phaseFieldModel
             
             u = self.GetResultat("Uglob")
             d = self.GetResultat("damage")
 
-            testu = isinstance(u, np.ndarray) and (u.shape[0] == self.mesh.Nn*self.__dim )
-            testd = isinstance(d, np.ndarray) and (d.shape[0] == self.mesh.Nn )
+            testu = isinstance(u, np.ndarray) and (u.shape[0] == self.__mesh.Nn*self.__dim )
+            testd = isinstance(d, np.ndarray) and (d.shape[0] == self.__mesh.Nn )
 
             assert testu or testd,"Il faut initialiser uglob et damage correctement"
 
@@ -227,14 +227,14 @@ class Simu:
 
             if len(old_PsiP) == 0:
                 # Pas encore d'endommagement disponible
-                old_PsiP = np.zeros((self.mesh.Ne, self.mesh.nPg))
+                old_PsiP = np.zeros((self.__mesh.Ne, self.__mesh.nPg))
 
-            PsiP_e_pg, PsiM_e_pg = self.materiau.phaseFieldModel.Calc_Psi_e_pg(Epsilon_e_pg)
+            PsiP_e_pg, PsiM_e_pg = phaseFieldModel.Calc_Psi_e_pg(Epsilon_e_pg)
             
             inc_H = PsiP_e_pg - old_PsiP
 
             # Pour chaque point d'intégration on verifie que la densité dernerie évolue
-            for pg in range(self.mesh.nPg):
+            for pg in range(self.__mesh.nPg):
                 
                 # Récupères les noeuds ou la densité d'energie diminue
                 elements = np.where(inc_H[:,pg] < 0)[0]
@@ -254,14 +254,16 @@ class Simu:
         
         tic = TicTac()
 
+        phaseFieldModel = self.materiau.phaseFieldModel
+
         # Data
-        k = self.materiau.phaseFieldModel.k
+        k = phaseFieldModel.k
         PsiP_e_pg = self.CalcPsiPlus_e_pg()
-        r_e_pg = self.materiau.phaseFieldModel.get_r_e_pg(PsiP_e_pg)
-        f_e_pg = self.materiau.phaseFieldModel.get_f_e_pg(PsiP_e_pg)
+        r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
+        f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
         # Recupère les matrices pour travailler
-        mesh = self.mesh
+        mesh = self.__mesh
         jacobien_e_pg = mesh.jacobien_e_pg
         poid_pg = mesh.poid_pg
         Nd_pg = np.array(mesh.N_mass_pg)
@@ -291,7 +293,7 @@ class Simu:
         """
        
         # Data
-        mesh = self.mesh
+        mesh = self.__mesh
         taille = mesh.Nn
         lignesScalar_e = mesh.lignesScalar_e
         colonnesScalar_e = mesh.colonnesScalar_e
@@ -347,7 +349,7 @@ class Simu:
             list(int), list(int): ddl_Connues, ddl_Inconnues
         """
 
-        taille = self.mesh.Nn
+        taille = self.__mesh.Nn
 
         if vector :
             taille = taille*self.__dim
@@ -372,7 +374,7 @@ class Simu:
     def __Application_Conditions_Neuman(self, vector: bool):
         """applique les conditions de Neumann"""
 
-        taille = self.mesh.Nn
+        taille = self.__mesh.Nn
 
         if vector :
             taille = taille*self.__dim
@@ -395,7 +397,7 @@ class Simu:
     def __Application_Conditions_Dirichlet(self, vector: bool, b, resolution):
         """applique les conditions de dirichlet"""
         
-        taille = self.mesh.Nn
+        taille = self.__mesh.Nn
 
         if vector :
             taille = taille*self.__dim
@@ -662,10 +664,10 @@ class Simu:
         """
         
         # Localise les deplacement par element
-        u_e = self.mesh.Localise_e(u)
+        u_e = self.__mesh.Localise_e(u)
         comportement = self.materiau.comportement
 
-        B_rigi_e_pg = self.mesh.B_rigi_e_pg
+        B_rigi_e_pg = self.__mesh.B_rigi_e_pg
         if not comportement.useVoigtNotation:
             B_rigi_e_pg = comportement.AppliqueCoefSurBrigi(B_rigi_e_pg)
         
@@ -687,8 +689,8 @@ class Simu:
             Renvoie les contrainres endommagé ou non (Ne,pg,(3 ou 6))
         """
 
-        assert Epsilon_e_pg.shape[0] == self.mesh.Ne
-        assert Epsilon_e_pg.shape[1] == self.mesh.nPg
+        assert Epsilon_e_pg.shape[0] == self.__mesh.Ne
+        assert Epsilon_e_pg.shape[1] == self.__mesh.nPg
 
         c = self.materiau.comportement.get_C()
 
@@ -696,10 +698,12 @@ class Simu:
 
             d = self.__resultats["damage"]
 
-            SigmaP_e_pg, SigmaM_e_pg = self.materiau.phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
+            phaseFieldModel = self.materiau.phaseFieldModel
+
+            SigmaP_e_pg, SigmaM_e_pg = phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
 
             # Endommage : c = g(d) * cP + cM
-            g_e_pg = self.materiau.phaseFieldModel.get_g_e_pg(d, self.mesh)
+            g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh)
             SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize=True)
 
             Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
@@ -720,21 +724,21 @@ class Simu:
         """Sauvegarde Uglob et calcul l'energie de deformation cinématiquement admissible"""
 
         # Energie de deformation
-        u_e = self.mesh.Localise_e(Uglob)
+        u_e = self.__mesh.Localise_e(Uglob)
         Ke_e = self.__Ku_e
         Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ke_e, u_e)
 
         # Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega
 
-        jacobien_e_pg = self.mesh.jacobien_e_pg
-        poid_pg = self.mesh.poid_pg        
+        jacobien_e_pg = self.__mesh.jacobien_e_pg
+        poid_pg = self.__mesh.poid_pg        
         Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob)
         Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg)
 
         Wdef2 = 1/2 * np.einsum('ep,p,epi,epi->', jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
         # Wdef3 = 0
-        # for e in range(self.mesh.Ne):
-        #     for p in range(self.mesh.nPg):
+        # for e in range(self.__mesh.Ne):
+        #     for p in range(self.__mesh.nPg):
         #         Wdef3 += 1/2 * jacobien_e_pg[e,p] * poid_pg[p] * Sigma_e_pg[e,p].T.dot(Epsilon_e_pg[e,p]) 
         
         self.__resultats["Wdef"] = Wdef
@@ -813,7 +817,7 @@ class Simu:
         dim = self.__dim
 
         # Localisation        
-        u_e_n = self.mesh.Localise_e(Uglob)
+        u_e_n = self.__mesh.Localise_e(Uglob)
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob)
@@ -824,6 +828,9 @@ class Simu:
         Sigma_e = np.mean(Sigma_e_pg, axis=1)
 
         coef = self.materiau.comportement.coef
+
+        Ne = self.__mesh.Ne
+        Nn = self.__mesh.Nn
         
         if "d" in option or "amplitude" in option:
 
@@ -915,7 +922,7 @@ class Simu:
                     resultat = Svm_e
 
             if option == "Stress":
-                resultat = np.append(Sigma_e, Svm_e.reshape((self.mesh.Ne,1)), axis=1)            
+                resultat = np.append(Sigma_e, Svm_e.reshape((Ne,1)), axis=1)            
             
         elif option in ["E","Strain"]:
 
@@ -963,14 +970,14 @@ class Simu:
                     resultat = Evm_e                
             
             if option == "Strain":
-                resultat = np.append(Epsilon_e, Evm_e.reshape((self.mesh.Ne,1)), axis=1)
+                resultat = np.append(Epsilon_e, Evm_e.reshape((Ne,1)), axis=1)
 
         if valeursAuxNoeuds:
 
-            if resultat.size > self.mesh.Ne:
+            if resultat.size > Ne:
 
                 resultats_e = resultat.copy()
-                resultats_n = np.zeros((self.mesh.Nn, resultats_e.shape[1]))
+                resultats_n = np.zeros((Nn, resultats_e.shape[1]))
                 for e in range(resultats_e.shape[1]):
                     resultats_n[:,e] = self.__InterpolationAuxNoeuds(resultats_e[:,e])
                 resultat = resultats_n
@@ -988,11 +995,11 @@ class Simu:
 
         # tic = TicTac()
         
-        connect_n_e = self.mesh.connect_n_e
+        connect_n_e = self.__mesh.connect_n_e
 
-        nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(self.mesh.Nn,1)
+        nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(self.__mesh.Nn,1)
 
-        valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.mesh.Ne,1))
+        valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.__mesh.Ne,1))
 
         valeurs_n = valeurs_n_e/nombreApparition
 
@@ -1028,7 +1035,7 @@ class Simu:
     def GetCoordUglob(self):
         """Renvoie les déplacements sous la forme [dx, dy, dz] (Nn,3)        """
 
-        Nn = self.mesh.Nn
+        Nn = self.__mesh.Nn
         dim = self.__dim        
 
         if self.VerificationOption("Uglob"):
@@ -1047,11 +1054,11 @@ class Simu:
     def Update(self, uglob=None, damage=None):
 
         if isinstance(uglob, np.ndarray):
-            assert uglob.size == self.mesh.Nn*self.__dim, "Le vecteur n'a pas la bonne taille (Nn*dim)"
+            assert uglob.size == self.__mesh.Nn*self.__dim, "Le vecteur n'a pas la bonne taille (Nn*dim)"
             self.__resultats["Uglob"] = uglob
 
         if isinstance(damage, np.ndarray):
-            assert damage.size == self.mesh.Nn, "Le vecteur n'a pas la bonne taille (Nn)"
+            assert damage.size == self.__mesh.Nn, "Le vecteur n'a pas la bonne taille (Nn)"
             self.__resultats["damage"] = damage
 
 # ====================================
@@ -1182,8 +1189,8 @@ class Test_Simu(unittest.TestCase):
             tic = TicTac()
 
             # Data
-            mesh = cast(Mesh, simu.mesh)
-            nPg = len(mesh.poid_pg)
+            mesh = simu.mesh
+            nPg = mesh.nPg
             listPg = list(range(nPg))
             listElement = simu.listElement
             materiau = simu.materiau

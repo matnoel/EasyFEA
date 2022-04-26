@@ -95,8 +95,8 @@ class Mesh:
         self.__assembly_e = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
         """matrice d'assemblage (Ne, nPe*dim)"""
         self.__assembly_e[:, list(range(0, taille, dim))] = np.array(self.connect) * dim
-        self.__assembly_e[:, list(range(1, taille, dim))] = np.array(self.connect) * dim + 1            
-        if dim == 3:            
+        self.__assembly_e[:, list(range(1, taille, dim))] = np.array(self.connect) * dim + 1
+        if dim == 3:
             self.__assembly_e[:, list(range(2, taille, dim))] = np.array(self.connect) * dim + 2
 
         # Construit les lignes et colonnes ou il y aura des valeurs dans la matrice d'assemblage
@@ -286,8 +286,6 @@ class Mesh:
         return self.__connect.copy()
     connect = property(__get_connect)
     """connection des elements (Ne, nPe)"""
-    
-    
     
     def __get_connect_n_e(self):
         # Ici l'objectif est de construire une matrice qui lorsque quon va la multiplier a un vecteur valeurs_e de taille ( Ne x 1 ) va donner
