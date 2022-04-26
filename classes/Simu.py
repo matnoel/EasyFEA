@@ -866,7 +866,10 @@ class Simu:
 
                 Sxx_e = Sigma_e[:,0]
                 Syy_e = Sigma_e[:,1]
-                Sxy_e = Sigma_e[:,2]/coef
+                Sxy_e = Sigma_e[:,2]
+                
+                if not self.materiau.comportement.useVoigtNotation:
+                    Sxy_e = Sxy_e/coef
                 
                 Svm_e = np.sqrt(Sxx_e**2+Syy_e**2-Sxx_e*Syy_e+3*Sxy_e**2)
 
@@ -884,9 +887,15 @@ class Simu:
                 Sxx_e = Sigma_e[:,0]
                 Syy_e = Sigma_e[:,1]
                 Szz_e = Sigma_e[:,2]
-                Syz_e = Sigma_e[:,3]/coef
-                Sxz_e = Sigma_e[:,4]/coef
-                Sxy_e = Sigma_e[:,5]/coef
+                Syz_e = Sigma_e[:,3]
+                Sxz_e = Sigma_e[:,4]
+                Sxy_e = Sigma_e[:,5]
+
+                if not self.materiau.comportement.useVoigtNotation:
+                    Syz_e = Syz_e/coef
+                    Sxz_e = Sxz_e/coef
+                    Sxy_e = Sxy_e/coef
+                    
 
                 Svm_e = np.sqrt(((Sxx_e-Syy_e)**2+(Syy_e-Szz_e)**2+(Szz_e-Sxx_e)**2+6*(Sxy_e**2+Syz_e**2+Sxz_e**2))/2)
 
