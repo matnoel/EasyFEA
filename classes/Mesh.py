@@ -58,14 +58,11 @@ class Mesh:
         
         jacobien_e_pg : Jacobien
         
-        N_rigi_pg : Matrice des fonctions de forme dans element de référence (ksi, eta)
-        exemple : [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0
-                        0 N1(ksi,eta) 0 N2(ksi,eta) 0Nn(ksi,eta)]        
-        
         N_mass_pg : Matrice des fonctions de forme dans element de référence
+
         dN_e_pg : Derivé des fonctions de forme dans la base réele
         exemple : [dN1,x dN2,x dNn,x
-                        dN1,y dN2,y dNn,y]
+                   dN1,y dN2,y dNn,y]
         
         B_mass_pg : dN_e_pg
 
@@ -304,14 +301,20 @@ class Mesh:
     """jacobien (e, pg)"""
 
     def __get_N_mass_pg(self):
-        return self.__element.N_mass_pg
+        return self.__element.N_scalaire_pg
     N_mass_pg = property(__get_N_mass_pg)
-    """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)"""
+    """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)
+    Matrice des fonctions de forme dans element de référence (ksi, eta)\n
+    [N1(ksi,eta) N2(ksi,eta) Nn(ksi,eta)] \n
+    """
 
     def __get_N_vecteur_pg(self):
-        return self.__element.N_rigi_pg
+        return self.__element.N_vecteur_pg
     N_vecteur_pg = property(__get_N_vecteur_pg)
-    """Fonctions de formes dans l'element isoparamétrique pour un vecteur (npg, dim, npe*dim)"""
+    """Fonctions de formes dans l'element isoparamétrique pour un vecteur (npg, dim, npe*dim)
+    Matrice des fonctions de forme dans element de référence (ksi, eta)\n
+    [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
+     0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]"""
 
     def __get_B_mass_e_pg(self):
         return self.__B_mass_e_pg.copy()
@@ -355,19 +358,6 @@ class Mesh:
             self.__B_rigi_e_pg[:,:,3,colonnes1] = dNdz; self.__B_rigi_e_pg[:,:,3,colonnes2] = dNdy
             self.__B_rigi_e_pg[:,:,4,colonnes0] = dNdz; self.__B_rigi_e_pg[:,:,4,colonnes2] = dNdx
             self.__B_rigi_e_pg[:,:,5,colonnes0] = dNdy; self.__B_rigi_e_pg[:,:,5,colonnes1] = dNdx
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         return self.__B_rigi_e_pg.copy()
     B_rigi_e_pg = property(__get_B_rigi_e_pg)
