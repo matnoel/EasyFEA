@@ -35,7 +35,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/1
+taille = h/100
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -43,7 +43,7 @@ comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=3, tailleElement=taille)
+modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille)
 (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
 mesh = Mesh(dim, coordo, connect)
 

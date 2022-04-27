@@ -1,5 +1,6 @@
+from typing import cast
 import numpy as np
-import scipy as sp
+import scipy.sparse as sp
 
 from Element import Element
 from TicTac import TicTac
@@ -23,7 +24,7 @@ class Mesh:
         # Vérfication
         assert isinstance(coordo, np.ndarray) and isinstance(coordo[0], np.ndarray),"Doit fournir une liste de ndarray de ndarray !"
         
-        assert isinstance(connect, np.ndarray) and isinstance(connect[0], np.ndarray),"Doit fournir une liste de liste"       
+        assert isinstance(connect, np.ndarray) and isinstance(connect[0], np.ndarray),"Doit fournir une liste de liste"
 
         self.__dim = dim
         """dimension du maillage"""
@@ -34,16 +35,13 @@ class Mesh:
         self.__coordo = np.array(coordo)
         """matrice des coordonnées de noeuds (Nn,3)"""
         self.__connect = np.array(connect)
-        """connection des elements (Ne, nPe)"""        
-
-        self.__connect_n_e = []
-        """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
-           tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
+        """connection des elements (Ne, nPe)"""
        
-        self.__ConstruitMatricesPourCalculEf()        
+        self.__ConstruitMatricesPourCalculEf()
 
+        # Matrices pour affichage des résultats
         self.__connectPourTriangle = []
-        """connecttion pour afficher les résultats aux noeuds avec tricontourf (face par element, 3)"""
+        """connection pour afficher les résultats aux noeuds avec tricontourf (face par element, 3)"""
         self.__connect_Faces = []
         """connection pour afficher les résultats aux elements (Ne,noeuds par faces)"""
         
@@ -73,7 +71,8 @@ class Mesh:
 
         B_rigi_pg : [dN1,x 0 dN2,x 0 dNn,x 0
                     0 dN1,y 0 dN2,y 0 dNn,y
-                    dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]        """
+                    dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]
+        """
         
         tic = TicTac()
 
@@ -85,32 +84,9 @@ class Mesh:
         self.__element = Element(dim, len(connect[0]))
         """Element utilisé dans le maillage"""
 
-        nPe = self.__element.nPe;  listnPe = list(range(nPe))
         nPg = self.__element.nPg
         gauss = self.__element.gauss
         nodes_n = coordo[:,range(dim)]
-        taille = nPe*dim
-
-        # Construit la matrice d'assemblage
-        self.__assembly_e = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
-        """matrice d'assemblage (Ne, nPe*dim)"""
-        self.__assembly_e[:, list(range(0, taille, dim))] = np.array(self.connect) * dim
-        self.__assembly_e[:, list(range(1, taille, dim))] = np.array(self.connect) * dim + 1
-        if dim == 3:
-            self.__assembly_e[:, list(range(2, taille, dim))] = np.array(self.connect) * dim + 2
-
-        # Construit les lignes et colonnes ou il y aura des valeurs dans la matrice d'assemblage
-        self.__lignesVector_e = np.repeat(self.__assembly_e.copy(), taille).reshape((self.Ne,-1))
-        """lignes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
-
-        self.__lignesScalar_e = np.repeat(self.__connect.copy(), nPe).reshape((self.Ne,-1))
-        """lignes pour remplir la matrice d'assemblage en scalaire (endommagement)"""
-        
-        self.__colonnesVector_e = np.repeat(self.__assembly_e.copy(), taille, axis=0).reshape((self.Ne,-1))
-        """colonnes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
-
-        self.__colonnesScalar_e = np.repeat(self.__connect.copy(), nPe, axis=0).reshape((self.Ne,-1))
-        """colonnes pour remplir la matrice d'assemblage en scalaire (endommagement)"""
 
         # Poid
         self.__poid_pg = np.array(gauss[:,-1])
@@ -121,7 +97,7 @@ class Mesh:
 
         dN_pg = np.array(self.__element.dN_pg)
 
-        self.__F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=False))
+        self.__F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=True))
         """Matrice jacobienne"""
 
         self.__invF_e_pg = np.array(np.linalg.inv(self.__F_e_pg))
@@ -130,12 +106,6 @@ class Mesh:
         self.__jacobien_e_pg = np.array(np.linalg.det(self.__F_e_pg))
         """jacobien"""
 
-        # Fonctions de formes dans l'element isoparamétrique pour un scalaire ou un vecteur
-        self.__N_rigi_pg = np.array(self.__element.N_rigi_pg)
-        """Fonctions de formes dans l'element isoparamétrique pour un vecteur (npg, dim, npe*dim)"""
-        self.__N_mass_pg = np.array(self.__element.N_mass_pg).reshape(nPg, 1,-1)
-        """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)"""
-
         # Derivé des fonctions de formes dans la base réele
         dN_e_pg = np.array(np.einsum('epik,pkj->epij', self.__invF_e_pg, self.__element.dN_pg, optimize=True))
 
@@ -143,35 +113,7 @@ class Mesh:
         self.__B_mass_e_pg = dN_e_pg
         """Derivé des fonctions de formes dans la base réele en sclaire"""
 
-        # Assemble les matrice Epsilons pour un vecteur
-        colonnes0 = np.arange(0, nPe*dim, dim)
-        colonnes1 = np.arange(1, nPe*dim, dim)
-
-        if self.__dim == 2:
-            self.__B_rigi_e_pg = np.array([[np.zeros((3, nPe*dim))]*self.__element.nPg]*self.Ne)
-            """Derivé des fonctions de formes dans la base réele en vecteur"""
-            
-            dNdx = dN_e_pg[:,:,0,listnPe]
-            dNdy = dN_e_pg[:,:,1,listnPe]
-
-            self.__B_rigi_e_pg[:,:,0,colonnes0] = dNdx
-            self.__B_rigi_e_pg[:,:,1,colonnes1] = dNdy
-            self.__B_rigi_e_pg[:,:,2,colonnes0] = dNdy; self.__B_rigi_e_pg[:,:,2,colonnes1] = dNdx
-        else:
-            self.__B_rigi_e_pg = np.array([[np.zeros((6, nPe*dim))]*self.__element.nPg]*self.Ne)
-
-            dNdx = dN_e_pg[:,:,0,listnPe]
-            dNdy = dN_e_pg[:,:,1,listnPe]
-            dNdz = dN_e_pg[:,:,2,listnPe]
-
-            colonnes2 = np.arange(2, nPe*dim, dim)
-
-            self.__B_rigi_e_pg[:,:,0,colonnes0] = dNdx
-            self.__B_rigi_e_pg[:,:,1,colonnes1] = dNdy
-            self.__B_rigi_e_pg[:,:,2,colonnes2] = dNdz
-            self.__B_rigi_e_pg[:,:,3,colonnes1] = dNdz; self.__B_rigi_e_pg[:,:,3,colonnes2] = dNdy
-            self.__B_rigi_e_pg[:,:,4,colonnes0] = dNdz; self.__B_rigi_e_pg[:,:,4,colonnes2] = dNdx
-            self.__B_rigi_e_pg[:,:,5,colonnes0] = dNdy; self.__B_rigi_e_pg[:,:,5,colonnes1] = dNdx        
+                
             
         tic.Tac("Mesh","Construit les matrices EF", self.__verbosity)
 
@@ -245,29 +187,23 @@ class Mesh:
         tailleVecteur = self.Nn * self.__dim
 
         if sol.shape[0] == tailleVecteur:
-            sol_e = sol[self.__assembly_e]
+            sol_e = sol[self.assembly_e]
         else:
             sol_e = sol[self.__connect]
         
         return sol_e    
         
     def __get_Ne(self):
-        """Renvoie le nombre d'éléments du maillage        
-        """
         return int(len(self.__connect))
     Ne = property(__get_Ne)
     """Nombre d'élements du maillage"""
     
-    def __get_Nn(self):
-        """Renvoie le nombre d'éléments du maillage        
-        """
+    def __get_Nn(self):        
         return int(len(self.__coordo))
     Nn = property(__get_Nn)
     """Nombre de noeuds du maillage"""
 
     def __get_nPe(self):
-        """Renvoie le nombre d'éléments du maillage        
-        """
         return self.__element.nPe
     nPe = property(__get_nPe)
     """noeuds par element"""
@@ -279,12 +215,12 @@ class Mesh:
 
     def __get_coordo(self):
         return self.__coordo.copy()
-    coordo = property(__get_coordo)
+    coordo = cast(np.ndarray, property(__get_coordo))
     """matrice des coordonnées de noeuds (Nn,3)"""
 
     def __get_connect(self):
         return self.__connect.copy()
-    connect = property(__get_connect)
+    connect = cast(np.ndarray, property(__get_connect))
     """connection des elements (Ne, nPe)"""
     
     def __get_connect_n_e(self):
@@ -294,49 +230,63 @@ class Mesh:
         # Ensuite, il suffit juste par divisier par le nombre de fois que le noeud apparait dans la ligne        
         # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement
         
-        if not isinstance(self.__connect_n_e,sp.sparse.csr_matrix):
-            Nn = self.Nn
-            Ne = self.Ne
-            nPe = self.__connect.shape[1]
-            listElem = np.arange(Ne)            
+        Nn = self.Nn
+        Ne = self.Ne
+        nPe = self.__connect.shape[1]
+        listElem = np.arange(Ne)
 
-            lignes = self.__connect.reshape(-1)
+        lignes = self.__connect.reshape(-1)
+        colonnes = np.repeat(listElem, nPe)            
 
-            colonnes = np.repeat(listElem.copy(), nPe)            
+        connect_n_e = sp.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
 
-            connect_n_e = sp.sparse.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
-
-            self.__connect_n_e = connect_n_e            
-            
-        return self.__connect_n_e.copy()
-    connect_n_e = property(__get_connect_n_e) 
+        return connect_n_e
+    connect_n_e = cast(sp.csr_matrix, property(__get_connect_n_e))
     """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
         tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
 
     def __get_assembly(self):
-        return self.__assembly_e.copy()
-    assembly_e = property(__get_assembly)
+        nPe = self.__element.nPe
+        dim = self.__dim
+        taille = nPe*dim
+
+        assembly = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
+        assembly[:, np.arange(0, taille, dim)] = np.array(self.connect) * dim
+        assembly[:, np.arange(1, taille, dim)] = np.array(self.connect) * dim + 1
+        if dim == 3:
+            assembly[:, np.arange(2, taille, dim)] = np.array(self.connect) * dim + 2
+
+        return assembly
+    assembly_e = cast(np.ndarray, property(__get_assembly))
     """matrice d'assemblage (Ne, nPe*dim)"""
 
     def __get_lignesVector_e(self):
-        return self.__lignesVector_e.copy()
-    lignesVector_e = property(__get_lignesVector_e)
+        taille = self.__element.nPe*self.__dim
+        lignes = np.repeat(self.assembly_e, taille).reshape((self.Ne,-1))        
+        return lignes
+    lignesVector_e = cast(np.ndarray, property(__get_lignesVector_e))
     """lignes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
 
     def __get_colonnesVector_e(self):
-        return self.__colonnesVector_e.copy()
-    colonnesVector_e = property(__get_colonnesVector_e)
+        taille = self.__element.nPe*self.__dim        
+        colonnes = np.repeat(self.assembly_e, taille, axis=0).reshape((self.Ne,-1))        
+        return colonnes
+    colonnesVector_e = cast(np.ndarray, property(__get_colonnesVector_e))
     """colonnes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
 
-    def __get_lignesScalar_e(self):
-        return self.__lignesScalar_e.copy()
-    lignesScalar_e = property(__get_lignesScalar_e)
-    """lignes pour remplir la matrice d'assemblage en scalaire (endommagement)"""
+    def __get_lignesScalar_e(self):        
+        nPe = self.__element.nPe
+        lignes = np.repeat(self.connect, nPe).reshape((self.Ne,-1))        
+        return lignes
+    lignesScalar_e = cast(np.ndarray, property(__get_lignesScalar_e))
+    """lignes pour remplir la matrice d'assemblage en scalaire (endommagement, ou thermique)"""
 
     def __get_colonnesScalar_e(self):
-        return self.__colonnesScalar_e.copy()
-    colonnesScalar_e = property(__get_colonnesScalar_e)
-    """colonnes pour remplir la matrice d'assemblage en scalaire (endommagement)"""
+        nPe = self.__element.nPe
+        colonnes = np.repeat(self.connect, nPe, axis=0).reshape((self.Ne,-1))
+        return colonnes
+    colonnesScalar_e = cast(np.ndarray, property(__get_colonnesScalar_e))
+    """colonnes pour remplir la matrice d'assemblage en scalaire (endommagement, ou thermique)"""
 
     def __get_nPg(self):
         return self.__poid_pg.shape[0]
@@ -354,13 +304,13 @@ class Mesh:
     """jacobien (e, pg)"""
 
     def __get_N_mass_pg(self):
-        return self.__N_mass_pg.copy()
+        return self.__element.N_mass_pg
     N_mass_pg = property(__get_N_mass_pg)
-    """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)"""    
+    """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)"""
 
-    def __get_N_rigi_pg(self):
-        return self.__N_rigi_pg.copy()
-    N_rigi_pg = property(__get_N_rigi_pg)
+    def __get_N_vecteur_pg(self):
+        return self.__element.N_rigi_pg
+    N_vecteur_pg = property(__get_N_vecteur_pg)
     """Fonctions de formes dans l'element isoparamétrique pour un vecteur (npg, dim, npe*dim)"""
 
     def __get_B_mass_e_pg(self):
@@ -369,6 +319,56 @@ class Mesh:
     """Derivé des fonctions de formes dans la base réele en sclaire"""
 
     def __get_B_rigi_e_pg(self):
+        # Assemble les matrice Epsilons pour un vecteur
+                
+        nPe = self.__element.nPe
+        dim = self.__dim
+        listnPe = np.arange(nPe)
+
+        # dN_e_pg = self.
+        
+        colonnes0 = np.arange(0, nPe*dim, dim)
+        colonnes1 = np.arange(1, nPe*dim, dim)
+
+        if self.__dim == 2:
+            self.__B_rigi_e_pg = np.array([[np.zeros((3, nPe*dim))]*self.__element.nPg]*self.Ne)
+            """Derivé des fonctions de formes dans la base réele en vecteur"""
+            
+            dNdx = dN_e_pg[:,:,0,listnPe]
+            dNdy = dN_e_pg[:,:,1,listnPe]
+
+            self.__B_rigi_e_pg[:,:,0,colonnes0] = dNdx
+            self.__B_rigi_e_pg[:,:,1,colonnes1] = dNdy
+            self.__B_rigi_e_pg[:,:,2,colonnes0] = dNdy; self.__B_rigi_e_pg[:,:,2,colonnes1] = dNdx
+        else:
+            self.__B_rigi_e_pg = np.array([[np.zeros((6, nPe*dim))]*self.__element.nPg]*self.Ne)
+
+            dNdx = dN_e_pg[:,:,0,listnPe]
+            dNdy = dN_e_pg[:,:,1,listnPe]
+            dNdz = dN_e_pg[:,:,2,listnPe]
+
+            colonnes2 = np.arange(2, nPe*dim, dim)
+
+            self.__B_rigi_e_pg[:,:,0,colonnes0] = dNdx
+            self.__B_rigi_e_pg[:,:,1,colonnes1] = dNdy
+            self.__B_rigi_e_pg[:,:,2,colonnes2] = dNdz
+            self.__B_rigi_e_pg[:,:,3,colonnes1] = dNdz; self.__B_rigi_e_pg[:,:,3,colonnes2] = dNdy
+            self.__B_rigi_e_pg[:,:,4,colonnes0] = dNdz; self.__B_rigi_e_pg[:,:,4,colonnes2] = dNdx
+            self.__B_rigi_e_pg[:,:,5,colonnes0] = dNdy; self.__B_rigi_e_pg[:,:,5,colonnes1] = dNdx
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         return self.__B_rigi_e_pg.copy()
     B_rigi_e_pg = property(__get_B_rigi_e_pg)
     """Derivé des fonctions de formes dans la base réele en vecteur (e, pg, (3 ou 6), nPe*dim)"""
@@ -396,7 +396,6 @@ class Mesh:
         if len(self.__connectPourTriangle) == 0:
                      
             npe = self.__connect.shape[1]
-
 
             if self.__dim == 2:
 
@@ -546,7 +545,6 @@ class Mesh:
                     
      
         return self.__connect_Faces
-            
 
 # TEST ==============================
 

@@ -1,21 +1,19 @@
 import numpy as np
+import scipy as sp
 
 class Element:
-
-    __listElement2D = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-    
-    __listElement3D = ["TETRA4"]
-    
 
     @staticmethod
     def get_Types2D():
         """type d'elements disponibles en 2D"""
-        return Element.__listElement2D.copy()
+        liste2D = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        return liste2D
     
     @staticmethod
     def get_Types3D():
         """type d'elements disponibles en 3D"""
-        return Element.__listElement3D.copy()
+        liste3D = ["TETRA4"]
+        return liste3D
 
     def __get_ElementType(self):
         """Renvoie le type de l'élément en fonction du nombre de noeuds par élement
@@ -31,8 +29,9 @@ class Element:
         if self.__dim == 3:
             switch = {
                 4 : "TETRA4",                
-            }                
-            return switch[self.nPe]
+            }
+
+        return switch[self.nPe]
     type = property(__get_ElementType) 
     """type de l'élement"""
 
@@ -40,6 +39,10 @@ class Element:
         return self.gauss.shape[0]
     nPg = property(__get_nPg)
     """nombre de points d'intégrations"""
+
+    def __get_nPe(self):
+        return self.__nPe
+    nPe = property(__get_nPe)
 
     def __init__(self, dim: int, nPe: int):
         """Constructeur d'element, on construit Be et le jacobien !
@@ -57,16 +60,46 @@ class Element:
         self.__dim = dim
         """dimension de l'élement [2,3]"""
         
-        self.nPe = nPe
+        self.__nPe = nPe
         """noeuds par élément"""
+
+        # Constuit la matrice jacobienne son inverser et le jacobien
+        # Pour ça il faut déterminer les fonctions de formes et ses dérivées
+
+
+        # dN_pg = np.array(self.__element.dN_pg)
+
+        # self.__F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=True))
+        # """Matrice jacobienne"""
+
+        # self.__invF_e_pg = np.array(np.linalg.inv(self.__F_e_pg))
+        # """Inverse Matrice jacobienne"""
+
+        # self.__jacobien_e_pg = np.array(np.linalg.det(self.__F_e_pg))
+        # """jacobien"""
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         
         self.gauss = np.zeros((0,3))
         """ points d'intégrations (pt ksi eta poid) """
         
         self.N_rigi_pg = np.zeros((dim, nPe*dim))
         """ Fonctions de formes vectorielles (pg, dim, nPe*dim) : \n 
-            [Ni 0 . . . Nn 0 \n
-             0 Ni . . . 0 Nn]"""
+        [Ni 0 . . . Nn 0 \n
+        0 Ni . . . 0 Nn]"""
 
         # [N1 ... Nn]
         self.N_mass_pg = np.zeros((1, nPe))
@@ -78,9 +111,9 @@ class Element:
         [Ni,ksi . . . Nn,ksi \n
         Ni,eta . . . Nn,eta]"""
                      
-        self.__Construit_B_N()
+        self.__Construit_N()
 
-    def __Construit_B_N(self):
+    def __Construit_N(self):
         """Construit les fonctions de forme et leur dérivée pour l'element de référence"""
         
         if self.__dim == 2:        
@@ -91,7 +124,7 @@ class Element:
                 self.__Construit_B_N_Quadrangle()
         elif self.__dim == 3:
             if self.nPe == 4:
-                self.__Construit_B_N_Tetraedre()                
+                self.__Construit_B_N_Tetraedre()
 
     def __Construit_B_N_Triangle(self):
 
