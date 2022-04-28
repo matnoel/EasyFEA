@@ -46,7 +46,7 @@ Gc = 2.7e3
 # Paramètres maillage
 if test:
         taille = 1e-5 #taille maille test fem object
-        taille *= 10
+        taille *= 40
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -60,7 +60,7 @@ else:
 
 if solve:
 
-        modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille, affichageGmsh=True)
+        modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille, affichageGmsh=False)
 
         (coordos_tn, connect) = modelGmsh.ConstructionRectangleAvecFissure(L, L, isEdgeCrack=True)
 
