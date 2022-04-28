@@ -17,7 +17,7 @@ Affichage.Clear()
 
 test = True
 
-solve = False
+solve = True
 
 plotResult = True
 saveParaview = True
@@ -46,9 +46,9 @@ Gc = 2.7e3
 # Paramètres maillage
 if test:
         taille = 1e-5 #taille maille test fem object
+        taille *= 10
 else:
         taille = l0/2 #l0/2 2.5e-6
-
 
 if test:
         filename = Dossier.NewFile(f'{folder}\\Test\\{nameSimu}\\simulation.xml', results=True)
@@ -58,21 +58,26 @@ else:
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
-modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille)
+if solve:
 
-(coordos_tn, connect) = modelGmsh.ConstructionRectangleAvecFissure(L, L)
+        modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille, affichageGmsh=True)
 
-mesh = Mesh(dim, coordos_tn, connect)
+        (coordos_tn, connect) = modelGmsh.ConstructionRectangleAvecFissure(L, L, isEdgeCrack=True)
 
-# Récupère les noeuds qui m'interessent
-noeuds_Milieu = mesh.Get_Nodes(conditionX=lambda x: x <= L/2, conditionY=lambda y: y == L/2)
-noeuds_Haut = mesh.Get_Nodes(conditionY=lambda y: y == L)
-noeuds_Bas = mesh.Get_Nodes(conditionY=lambda y: y == 0)
-noeuds_Gauche = mesh.Get_Nodes(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)
-noeuds_Droite = mesh.Get_Nodes(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
+        mesh = Mesh(dim, coordos_tn, connect)
 
-NoeudsBord=[]
-NoeudsBord.extend(noeuds_Bas); NoeudsBord.extend(noeuds_Droite); NoeudsBord.extend(noeuds_Gauche); NoeudsBord.extend(noeuds_Haut)
+        # Récupère les noeuds qui m'interessent
+        noeuds_Milieu = mesh.Get_Nodes(conditionX=lambda x: x <= L/2, conditionY=lambda y: y == L/2)
+        noeuds_Haut = mesh.Get_Nodes(conditionY=lambda y: y == L)
+        noeuds_Bas = mesh.Get_Nodes(conditionY=lambda y: y == 0)
+        noeuds_Gauche = mesh.Get_Nodes(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)
+        noeuds_Droite = mesh.Get_Nodes(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
+
+        NoeudsBord=[]
+        NoeudsBord.extend(noeuds_Bas)
+        NoeudsBord.extend(noeuds_Droite)
+        NoeudsBord.extend(noeuds_Gauche)
+        NoeudsBord.extend(noeuds_Haut)
 
 # Simulation  -------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Simulations")
@@ -87,7 +92,10 @@ if solve:
 
         materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
-        simu = Simu(dim, mesh, materiau, verbosity=False)        
+        simu = Simu(dim, mesh, materiau, verbosity=False)
+
+        Affichage.Plot_NoeudsMaillage(simu, showId=True)
+        plt.show()
 
         # Renseignement des conditions limites
 

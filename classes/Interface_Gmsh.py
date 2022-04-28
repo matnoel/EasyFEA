@@ -68,45 +68,124 @@ class Interface_Gmsh:
                 
                 return self.__ConstructionCoordoConnect()
 
-        def ConstructionRectangleAvecFissure(self, largeur, hauteur):
+        def ConstructionRectangleAvecFissure(self, largeur, hauteur, isEdgeCrack=False):
                 
                 tic = TicTac()
 
-                # Créer les points
-                p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
-                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, self.__tailleElement)
-                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, self.__tailleElement)
-                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, self.__tailleElement)
+                gmsh.model.add("square with cracks")
 
-                p5 = gmsh.model.geo.addPoint(0, hauteur/2, 0, self.__tailleElement)
-                p6 = gmsh.model.geo.addPoint(largeur/2, hauteur/2, 0, self.__tailleElement)        
-                
+                # surf1 = 1
+                # gmsh.model.occ.addRectangle(0, 0, 0, 2, 2, surf1)
 
-                # Créer les lignes reliants les points
-                l1 = gmsh.model.geo.addLine(p1, p2)
-                l2 = gmsh.model.geo.addLine(p2, p3)
-                l3 = gmsh.model.geo.addLine(p3, p4)
-                l4 = gmsh.model.geo.addLine(p4, p5)
-                l5 = gmsh.model.geo.addLine(p5, p1)
-                
-                l6 = gmsh.model.geo.addLine(p5, p6)
+                # pt1 = gmsh.model.occ.addPoint(0, 1, 0)
+                # pt2 = gmsh.model.occ.addPoint(1, 1, 0)
+                # line1 = gmsh.model.occ.addLine(pt1, pt2)
 
-                # Créer une boucle fermée reliant les lignes     
-                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4, l5])
+                # o, m = gmsh.model.occ.fragment([(2, surf1)], [(1, line1)])
+                # gmsh.model.occ.synchronize()
 
-                # Créer une surface
-                surface = gmsh.model.geo.addPlaneSurface([boucle])
+                # # m contains, for each input entity (surf1, line1 and line2), the child entities
+                # # (if any) after the fragmentation, as lists of tuples. To apply the crack
+                # # plugin we group all the intersecting lines in a physical group
 
-                gmsh.model.geo.synchronize()
+                # new_surf = m[0][0][1]
+                # new_lines = [item[1] for sublist in m[1:] for item in sublist]
 
-                # surface = gmsh.model.mesh.embed(1, [l6], 2, surface)
-                gmsh.model.mesh.embed(1, [l6], 2, surface)
+                # gmsh.model.addPhysicalGroup(2, [new_surf], 100)
+                # gmsh.model.addPhysicalGroup(1, new_lines, 101)
+
+                # gmsh.model.mesh.generate(2)
+
+                # gmsh.plugin.setNumber("Crack", "PhysicalGroup", 101)
+                # gmsh.plugin.run("Crack")
+
+                # if '-nopopup' not in sys.argv:
+                # gmsh.fltk.run()
+
+                # gmsh.finalize()
+
+                if isEdgeCrack:
+                        
+                        # Créer les points du rectangle
+                        p1 = gmsh.model.occ.addPoint(0, 0, 0, self.__tailleElement)
+                        p2 = gmsh.model.occ.addPoint(largeur, 0, 0, self.__tailleElement)
+                        p3 = gmsh.model.occ.addPoint(largeur, hauteur, 0, self.__tailleElement)
+                        p4 = gmsh.model.occ.addPoint(0, hauteur, 0, self.__tailleElement)
+
+                        # Creer les points de la fissure
+                        p5 = gmsh.model.occ.addPoint(0, hauteur/2, 0, self.__tailleElement)
+                        p6 = gmsh.model.occ.addPoint(largeur/2, hauteur/2, 0, self.__tailleElement)
+
+                        # Créer les lignes reliants les points pour la surface
+                        l1 = gmsh.model.occ.addLine(p1, p2)
+                        l2 = gmsh.model.occ.addLine(p2, p3)
+                        l3 = gmsh.model.occ.addLine(p3, p4)
+                        l4 = gmsh.model.occ.addLine(p4, p5)
+                        l5 = gmsh.model.occ.addLine(p5, p1)
+
+                        # Creer la ligne de fissure
+                        l6 = gmsh.model.occ.addLine(p5, p6)
+
+                        # Créer une boucle fermée reliant les lignes pour la surface
+                        boucle = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4, l5])
+
+                        # Créer une surface
+                        surface = gmsh.model.occ.addPlaneSurface([boucle])
+                        
+                        # Trouve l'intersection                        
+                        o, m = gmsh.model.occ.fragment([(2, surface)], [(1, l6)])
+                        gmsh.model.occ.synchronize()
+
+                        new_surf = m[0][0][1]
+                        new_lines = [item[1] for sublist in m[1:] for item in sublist]
+
+                        surface = 10101
+                        gmsh.model.addPhysicalGroup(2, [new_surf], surface)
+                        openCrack = 1000
+                        gmsh.model.addPhysicalGroup(1, new_lines, openCrack)
+                        openPoint = 302020
+                        gmsh.model.addPhysicalGroup(0, [p5], openPoint)
+                        
+                        
+                else:
+                        # Créer les points du rectangle
+                        p1 = gmsh.model.occ.addPoint(0, 0, 0, self.__tailleElement)
+                        p2 = gmsh.model.occ.addPoint(largeur, 0, 0, self.__tailleElement)
+                        p3 = gmsh.model.occ.addPoint(largeur, hauteur, 0, self.__tailleElement)
+                        p4 = gmsh.model.occ.addPoint(0, hauteur, 0, self.__tailleElement)
+
+                        # Creer les points de la fissure
+                        p5 = gmsh.model.occ.addPoint(0, hauteur/2, 0, self.__tailleElement)
+                        p6 = gmsh.model.occ.addPoint(largeur/2, hauteur/2, 0, self.__tailleElement)
+
+                        # Créer les lignes reliants les points
+                        l1 = gmsh.model.occ.addLine(p1, p2)
+                        l2 = gmsh.model.occ.addLine(p2, p3)
+                        l3 = gmsh.model.occ.addLine(p3, p4)
+                        l4 = gmsh.model.occ.addLine(p4, p5)
+                        l5 = gmsh.model.occ.addLine(p5, p1)
+
+                        l6 = gmsh.model.occ.addLine(p5, p6) # fissure
+
+                        # Créer une boucle fermée reliant les lignes
+                        boucle = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4, l5])
+
+                        # Créer une surface
+                        surface = gmsh.model.occ.addPlaneSurface([boucle])
+
+                        gmsh.model.occ.synchronize()
+                        
+                        # surface = gmsh.model.mesh.embed(1, [l6], 2, surface)
+                        gmsh.model.mesh.embed(1, [l6], 2, surface)
                 
                 tic.Tac("Mesh","Construction Rectangle Fissuré", self.__verbosity)
 
                 self.__organisationMaillage=False
                 
-                self.__ConstructionMaillageGmsh(surface)
+                if isEdgeCrack:
+                        self.__ConstructionMaillageGmsh(surface, openCrack=openCrack, openPoint=openPoint)
+                else:
+                        self.__ConstructionMaillageGmsh(surface)
                 
                 return self.__ConstructionCoordoConnect()
 
@@ -123,21 +202,20 @@ class Interface_Gmsh:
 
                 return self.__ConstructionCoordoConnect()
 
-        def __ConstructionMaillageGmsh(self, surface=None):
+        def __ConstructionMaillageGmsh(self, surface=None, openCrack=None, openPoint=None):
 
                 tic = TicTac()                
 
                 if self.__dim == 2:
                         # Impose que le maillage soit organisé                        
                         if self.__organisationMaillage:
-                                gmsh.model.geo.mesh.setTransfiniteSurface(surface)
-                                        
+                                gmsh.model.geo.mesh.setTransfiniteSurface(surface)                                        
 
                         # Synchronisation
                         gmsh.model.geo.synchronize()
 
                         if self.__typeElement in ["QUAD4","QUAD8"]:                        
-                                gmsh.model.mesh.setRecombine(2, surface)
+                                gmsh.model.mesh.setRecombine(2, surface)                        
 
                         # Génère le maillage
                         gmsh.model.mesh.generate(2)
@@ -149,6 +227,15 @@ class Interface_Gmsh:
                                 gmsh.model.mesh.set_order(1)
                         elif self.__typeElement in ["TRI6","QUAD8"]:
                                 gmsh.model.mesh.set_order(2)
+                        
+                        if not openCrack == None:
+                                gmsh.plugin.setNumber("Crack", "Dimension", self.__dim-1)
+                                gmsh.plugin.setNumber("Crack", "PhysicalGroup", openCrack)
+                                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openPoint)
+                                gmsh.plugin.setNumber("Crack", "NormalX", 0)
+                                # gmsh.plugin.setNumber("Crack", "NormalY", 0)
+                                # gmsh.plugin.setNumber("Crack", "NormalZ", 1)
+                                gmsh.plugin.run("Crack")
 
                 elif self.__dim == 3:
 
@@ -164,7 +251,7 @@ class Interface_Gmsh:
                 
                 tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
-        def __ConstructionCoordoConnect(self, option = 2):
+        def __ConstructionCoordoConnect(self, option=1):
                 """construit connect et coordo pour l'importation du maillage"""
                 
                 tic = TicTac()
@@ -172,8 +259,8 @@ class Interface_Gmsh:
                 if option == 1:
                         # Construit Connect
                         types, elements, nodeTags = gmsh.model.mesh.getElements(self.__dim)
-                        Ne = len(elements[0])
-                        connect = np.array(nodeTags).reshape(Ne,-1)-1
+                        Ne = len(elements[-1])
+                        connect = nodeTags[-1].reshape(Ne,-1)-1
 
                         # Construit la matrice coordonée
                         noeuds, coord, parametricCoord = gmsh.model.mesh.getNodes()
@@ -195,7 +282,8 @@ class Interface_Gmsh:
                         Nn = noeuds.shape[0]                
                         coordo = coord.reshape(Nn,-1)
 
-                assert connect.max()+1 == Nn, "Erreur dans la récupération"
+                testNn = int(connect.max()+1)
+                assert testNn == Nn, "Erreur dans la récupération"
 
                 gmsh.finalize()
 
