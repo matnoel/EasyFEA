@@ -24,7 +24,6 @@ dim = 2
 L = 120;  #mm
 h = 13    
 b = 13
-
 P = 800 #N
 
 # Paramètres maillage
@@ -42,7 +41,7 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = list(range(1,30,2))
+listNbElement = list(range(1,30,4))
 # listNbElement = list(range(1,10))
 
 tic = TicTac()

@@ -1,5 +1,6 @@
-from random import gauss
+
 from typing import cast
+from TicTac import TicTac
 import numpy as np
 import scipy as sp
 from Gauss import Gauss
@@ -17,6 +18,11 @@ class Element:
         """type d'elements disponibles en 3D"""
         liste3D = ["TETRA4"]
         return liste3D
+    
+    @staticmethod
+    def get_MatriceType():
+        liste = ["rigi", "masse"]
+        return liste
 
     def __get_ElementType(self):
         """Renvoie le type de l'élément en fonction du nombre de noeuds par élement
@@ -38,16 +44,55 @@ class Element:
     type = property(__get_ElementType) 
     """type de l'élement"""
 
-    def __get_nPg(self):
-        return self.gauss.shape[0]
-    nPg = property(__get_nPg)
-    """nombre de points d'intégrations"""
+    def get_nPg(self, matriceType: str):
+        """nombre de points d'intégrations"""
+        assert matriceType in Element.get_MatriceType()
+
+        if matriceType not in self.__dict_gauss.keys():
+            self.__Set_Matrices_ElemIso(matriceType)
+            
+        return int(cast(Gauss, self.__dict_gauss[matriceType]).nPg)
 
     def __get_nPe(self):
         return self.__nPe
     nPe = property(__get_nPe)
+    """Noeuds par elements"""
 
-    def __init__(self, dim: int, nPe: int):
+    def get_poid_pg(self, matriceType: str):
+        """poids des points d'intégrations"""
+        assert matriceType in Element.get_MatriceType()
+        if matriceType not in self.__dict_gauss.keys():
+            self.__Set_Matrices_ElemIso(matriceType)
+            
+        return cast(Gauss, self.__dict_gauss[matriceType]).poids
+
+    def get_jacobien_e_pg(self, nodes_e: np.ndarray, matriceType: str):
+        """jacobiens aux pts d'integration de chaque element"""
+        assert matriceType in Element.get_MatriceType()
+        if matriceType not in self.__dict_jacobien_e_pg.keys():
+            self.__Set_DetJ(nodes_e, matriceType)
+            
+        return cast(np.ndarray, self.__dict_jacobien_e_pg[matriceType])
+
+    def get_N_scalaire_pg(self, matriceType: str):
+        assert matriceType in Element.get_MatriceType()
+        if matriceType not in self.__dict_N_scalaire_pg.keys():
+            self.__Set_Matrices_ElemIso(matriceType)
+    
+        return cast(np.ndarray, self.__dict_N_scalaire_pg[matriceType])
+    
+    def get_N_vecteur_pg(self, matriceType: str):
+        assert matriceType in Element.get_MatriceType()
+        if matriceType not in self.__dict_N_vecteur_pg.keys():
+            self.__Set_Matrices_ElemIso(matriceType)
+    
+        return cast(np.ndarray, self.__dict_N_vecteur_pg[matriceType])
+
+    def get_dN_e_pg(self, nodes_e: np.ndarray, matriceType: str):
+        assert matriceType in Element.get_MatriceType()
+        return self.__get_dN_e_pg(nodes_e, matriceType)
+
+    def __init__(self, dim: int, nPe: int, verbosity=False):
         """Constructeur d'element, on construit Be et le jacobien !
 
         Parameters
@@ -66,67 +111,121 @@ class Element:
         self.__nPe = nPe
         """noeuds par élément"""
 
-        dict_N_scalaire_pg = {}
-        dict_N_vecteur_pg = {}        
-        dict_dN_pg = {}
-        dict_gauss = {}
+        self.__verbosity = verbosity
 
-        for matriceType in ["rigi","mass"]:
-            N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Construit_Matrices_Iso(matriceType)
-
-            dict_N_scalaire_pg[matriceType] = N_scalaire_pg
-            dict_N_vecteur_pg[matriceType] = N_vecteur_pg            
-            dict_dN_pg[matriceType] = dN_pg
-            dict_gauss[matriceType] = gauss
-
-        self.__dict_N_scalaire_pg = dict_N_scalaire_pg
+        # Pour chaque type de matrice élementaire (masse, rigi), on va construire
+        # leurs matrices évaluées au pts de gaus
+        self.__dict_N_scalaire_pg = {}
         """Fonctions de formes scalaires pour chaque type (masse, rigi...)\n
         "type" : (pg, 1, nPe) : \n
-            [Ni . . . Nn]"""
-        self.__dict_N_vecteur_pg = dict_N_vecteur_pg
+            [Ni . . . Nn]"""        
+        self.__dict_N_vecteur_pg = {}
         """Fonctions de formes scalaires pour chaque type (masse, rigi...)\n
         "type" : (pg, dim, nPe*dim) : \n
         [Ni 0 . . . Nn 0 \n
-        0 Ni . . . 0 Nn]"""
-
-        self.__dict_dN_pg = dict_dN_pg
+        0 Ni . . . 0 Nn]"""        
+        self.__dict_dN_pg = {}
         """ Dérivées des fonctions de formes dans l'element de référence pour chaque type (masse, rigi...)\n
         "type" : (pg, dim, nPe) : \n
         [Ni,ksi . . . Nn,ksi \n
-        Ni,eta . . . Nn,eta]"""
-        self.__dict_gauss = dict_gauss
+        Ni,eta . . . Nn,eta]"""        
+        self.__dict_gauss = {}
         """Points de gauss pour chaque type (masse, rigi...)"""
+        self.__dict_F_e_pg = {}
+        """Matrice jacobienne pour chaque type (masse, rigi...)"""
+        self.__dict_invF_e_pg = {}
+        """Inverse Matrice jacobienne pour chaque type (masse, rigi...)"""
+        self.__dict_jacobien_e_pg = {}
+        """jacobien"""
+        self.__dict_dN_e_pg = {}
+        """Derivé des fonctions de formes dans la base réele pour chaque type (masse, rigi...)"""
+    
+    def __get_dN_e_pg(self, nodes_e :np.ndarray, matriceType: str):
+        assert matriceType in Element.get_MatriceType()
 
-    def __Construit_Matrices_Iso(self, matriceType):
-        """Construit les fonctions de forme et leur dérivée pour l'element de référence et le type de matrice"""       
+        if matriceType not in self.__dict_dN_e_pg.keys():
+
+            self.__Set_DetJ(nodes_e, matriceType)
+
+            invF_e_pg = self.__dict_invF_e_pg[matriceType]
+            
+            dN_pg = self.__dict_dN_pg[matriceType]
+
+            # Derivé des fonctions de formes dans la base réele
+            dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize=True))
+            self.__dict_dN_e_pg[matriceType] = dN_e_pg
+
+        return self.__dict_dN_e_pg[matriceType]
+    
+    def __Set_DetJ(self, nodes_e: np.ndarray, matriceType: str):
+        """Construit les matrices de changement de base si nécessaire"""
+        assert matriceType in Element.get_MatriceType()
+
+        # Construit les matrices pour le changement de base si nécessaire
+        if matriceType not in self.__dict_invF_e_pg.keys():
+
+            tic = TicTac()
+
+            if matriceType not in self.__dict_dN_pg.keys():
+                self.__Set_Matrices_ElemIso(matriceType)
+            
+            dN_pg = self.__dict_dN_pg[matriceType]
+
+            # Matrice jacobienne
+            F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=True))
+            self.__dict_F_e_pg[matriceType] = F_e_pg
+            
+            # Inverse Matrice jacobienne
+            invF_e_pg = np.array(np.linalg.inv(F_e_pg))
+            self.__dict_invF_e_pg[matriceType] = invF_e_pg
+            
+            # jacobien
+            jacobien_e_pg = np.array(np.linalg.det(F_e_pg))
+            self.__dict_jacobien_e_pg[matriceType] = jacobien_e_pg
+
+            tic.Tac("Matrices", f"Calcul des matrices de changement de base de type : {matriceType}", self.__verbosity)
         
+    def __Set_Matrices_ElemIso(self, matriceType: str):
+        """Construit les fonctions de forme et leur dérivée pour l'element de référence et le type de matrice"""
+        
+        # Avec : dN = [Ni,ksi . . . Nn,ksi
+        #              Ni,eta . . . Nn,eta]
         # Dérivées des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...)
-        # dN = [Ni,ksi . . . Nn,ksi
-        #       Ni,eta . . . Nn,eta]
 
-        # Fonctions de formes vectorielles (pg, dim, nPe*dim), dans la base (ksi, eta ...)
+        
         # N_vecteur_pg = [Ni 0 . . . Nn 0
         #                 0 Ni . . . 0 Nn]
+        # Fonctions de formes vectorielles (pg, dim, nPe*dim), dans la base (ksi, eta ...)
 
-        # Fonctions de formes scalaires (pg, 1, nPe), dans la base (ksi, eta ...)
         # N_vecteur_pg = [Ni . . . Nn]
+        # Fonctions de formes scalaires (pg, 1, nPe), dans la base (ksi, eta ...)
+
+        tic = TicTac()
 
         if self.__dim == 2:
-                
+
             if self.type in ["TRI3", "TRI6"]:                
-                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Construit_B_N_Triangle(matriceType)
+                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Build_Matrices_ElemIso_Triangle(matriceType)
 
             elif self.type in ["QUAD4", "QUAD8"]:
-                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Construit_B_N_Quadrangle(matriceType)
+                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Build_Matrices_ElemIso_Quadrangle(matriceType)
 
         elif self.__dim == 3:
 
             if self.type in ["TETRA4"]:
-                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Construit_B_N_Tetraedre(matriceType)
+                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Build_Matrices_ElemIso_Tetraedre(matriceType)
 
-        return N_vecteur_pg, N_scalaire_pg, dN_pg, gauss
+        # Sauvegarde les valeurs
+        self.__dict_N_scalaire_pg[matriceType] = N_scalaire_pg
+        self.__dict_N_vecteur_pg[matriceType] = N_vecteur_pg
+        self.__dict_dN_pg[matriceType] = dN_pg
+        self.__dict_gauss[matriceType] = gauss
 
-    def __Matrices_Fonctions_De_Forme_Iso(self, Ntild: np.ndarray, gauss: Gauss):      
+        tic.Tac("Matrices",f"Calcul des matrices de l'element de référence de type : {matriceType}", self.__verbosity)
+
+    def __Matrices_Fonctions_De_Forme_Iso(self, Ntild: np.ndarray, gauss: Gauss):
+
+        # TODO A optimiser
 
         coord = gauss.coord
 
@@ -161,7 +260,9 @@ class Element:
         return Nt_scalaire_pg, Nt_vecteur_pg
 
     def __Matrices_Dérivées_Fonctions_De_Forme_Iso(self, dNtild: np.ndarray, gauss: Gauss):
-       
+        
+        # TODO A optimiser
+
         coord = gauss.coord
 
         nbtild = len(dNtild)
@@ -201,7 +302,7 @@ class Element:
 
         return dNt_pg
         
-    def __Construit_B_N_Triangle(self, matriceType: str):
+    def __Build_Matrices_ElemIso_Triangle(self, matriceType: str):
 
         gauss = Gauss(self.type, matriceType)
 
@@ -251,7 +352,7 @@ class Element:
 
         return Nt_scalaire_pg, Nt_vecteur_pg, dN_pg, gauss
 
-    def __Construit_B_N_Quadrangle(self, matriceType: str):
+    def __Build_Matrices_ElemIso_Quadrangle(self, matriceType: str):
 
         gauss = Gauss(self.type, matriceType)
         
@@ -306,7 +407,7 @@ class Element:
 
         return Nt_scalaire_pg, Nt_vecteur_pg, dN_pg, gauss
             
-    def __Construit_B_N_Tetraedre(self, matriceType: str):
+    def __Build_Matrices_ElemIso_Tetraedre(self, matriceType: str):
 
         gauss = Gauss(self.type, matriceType)
 

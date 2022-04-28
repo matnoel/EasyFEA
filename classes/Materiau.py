@@ -274,7 +274,7 @@ class PhaseFieldModel:
         
         return f
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, k_residu=1e-10):
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=1e-10):
         """Fonction de dégradation en energies / contraintes
 
         Args:
@@ -282,7 +282,7 @@ class PhaseFieldModel:
             mesh (Mesh): maillage
         """
         d_e_n = mesh.Localise_e(d_n)
-        Nd_pg = np.array(mesh.N_mass_pg)
+        Nd_pg = mesh.get_N_scalaire_pg(matriceType)
 
         d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize=True)        
 
@@ -292,7 +292,7 @@ class PhaseFieldModel:
             raise "Pas implémenté"
 
         assert mesh.Ne == g_e_pg.shape[0]
-        assert mesh.nPg == g_e_pg.shape[1]
+        assert mesh.get_nPg(matriceType) == g_e_pg.shape[1]
         
         return g_e_pg
 

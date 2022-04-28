@@ -19,13 +19,13 @@ class Gauss:
     poids = cast(np.ndarray, property(__get_poids))
 
     def __get_nPg(self):
-        return len(self.__poids)
+        return self.__poids.size
     nPg = property(__get_nPg)
 
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
 
-        assert matriceType in ["rigi", "mass"]
+        assert matriceType in ["rigi", "masse"]
 
         if elemType == "TRI3":
 
@@ -37,7 +37,7 @@ class Gauss:
                 etas = 1/3
                 poids = 1/2
 
-            elif matriceType == "mass":
+            elif matriceType == "masse":
 
                 nPg = 3
 
@@ -55,7 +55,7 @@ class Gauss:
                 etas = [1/6, 1/6, 2/3]
                 poids = [1/6] * 3
 
-            elif matriceType == "mass":
+            elif matriceType == "masse":
 
                 nPg = 6
 
@@ -70,7 +70,7 @@ class Gauss:
 
         elif elemType == "QUAD4":
 
-            if matriceType in ["rigi", "mass"]:
+            if matriceType in ["rigi", "masse"]:
                 nPg = 4
 
                 a = 1/np.sqrt(3)
@@ -81,7 +81,7 @@ class Gauss:
 
         elif elemType == "QUAD8":
 
-            if matriceType in ["rigi", "mass"]:
+            if matriceType in ["rigi", "masse"]:
 
                 nPg = 9
 
@@ -102,7 +102,7 @@ class Gauss:
                 z = 1/4
                 poids = 1/6
 
-            elif matriceType == "mass":
+            elif matriceType == "masse":
 
                 nPg = 4
 
@@ -116,12 +116,12 @@ class Gauss:
         
         if elemType == "TETRA4":
 
-            coord = np.array([x, y, z]).reshape((nPg, 3))
+            coord = np.array([x, y, z]).T.reshape((nPg,3))
 
         else:
 
-            coord = np.array([ksis, etas]).reshape((nPg, 2))
+            coord = np.array([ksis, etas]).T.reshape((nPg,2))
 
-        poids = np.array(poids).reshape((nPg, 1))
+        poids = np.array(poids).reshape(nPg)
 
         return coord, poids

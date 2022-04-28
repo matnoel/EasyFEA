@@ -17,10 +17,10 @@ Affichage.Clear()
 
 test = True
 
-solve = True
+solve = False
 
 plotResult = True
-saveParaview = False
+saveParaview = True
 makeMovie = False
 save = True
 
@@ -144,7 +144,7 @@ if solve:
 
                 simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
                 
-                uglob = simu.Solve_u(useCholesky=False)
+                uglob = simu.Solve_u(useCholesky=True)
                 uglob_t.append(uglob)
 
                 simu.Clear_Condition_Dirichlet()

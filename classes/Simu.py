@@ -86,19 +86,21 @@ class Simu:
 
         tic = TicTac()
 
+        matriceType="rigi"
+
         # Data
         mesh = self.__mesh
-        nPg = mesh.nPg
+        nPg = mesh.get_nPg(matriceType)
         
         # Recupère les matrices pour travailler
-        jacobien_e_pg = mesh.jacobien_e_pg
-        poid_pg = mesh.poid_pg
-        B_rigi_e_pg = mesh.B_rigi_e_pg
+        jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
+        poid_pg = mesh.get_poid_pg(matriceType)
+        B_dep_e_pg = mesh.get_B_dep_e_pg(matriceType)
 
         comportement = self.materiau.comportement
 
         if not comportement.useVoigtNotation:
-            B_rigi_e_pg = comportement.AppliqueCoefSurBrigi(B_rigi_e_pg)
+            B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
 
         mat = comportement.get_C()
         # Ici on le materiau est homogène
@@ -115,23 +117,23 @@ class Simu:
             phaseFieldModel = self.materiau.phaseFieldModel
                 
             # Calcul la deformation nécessaire pour le split
-            Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
+            Epsilon_e_pg = self.__CalculEpsilon_e_pg(u, matriceType)
 
             # Split de la loi de comportement
             cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
 
             # Endommage : c = g(d) * cP + cM
-            g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh)
+            g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matriceType)
             cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize=True)
 
             c = cP_e_pg+cM_e_pg
             
             # Matrice de rigidité élementaire
-            Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, c, B_rigi_e_pg, optimize=True)
+            Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize=True)
             
         else:   # probleme en déplacement simple
 
-            Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_rigi_e_pg, mat, B_rigi_e_pg, optimize=True)
+            Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize=True)
         
         # On somme sur les points d'intégrations
         Ku_e = np.sum(Ku_e_pg, axis=1)
@@ -220,21 +222,24 @@ class Simu:
 
             assert testu or testd,"Il faut initialiser uglob et damage correctement"
 
-            Epsilon_e_pg = self.__CalculEpsilon_e_pg(u)
+            Epsilon_e_pg = self.__CalculEpsilon_e_pg(u, "masse")
+            # ici le therme masse est important sinon on sous intègre
 
             # Calcul l'energie
             old_PsiP = self.__PsiP_e_pg
 
+            nPg = self.__mesh.get_nPg("masse")
+
             if len(old_PsiP) == 0:
                 # Pas encore d'endommagement disponible
-                old_PsiP = np.zeros((self.__mesh.Ne, self.__mesh.nPg))
+                old_PsiP = np.zeros((self.__mesh.Ne, nPg))
 
             PsiP_e_pg, PsiM_e_pg = phaseFieldModel.Calc_Psi_e_pg(Epsilon_e_pg)
             
             inc_H = PsiP_e_pg - old_PsiP
 
             # Pour chaque point d'intégration on verifie que la densité dernerie évolue
-            for pg in range(self.__mesh.nPg):
+            for pg in range(nPg):
                 
                 # Récupères les noeuds ou la densité d'energie diminue
                 elements = np.where(inc_H[:,pg] < 0)[0]
@@ -262,12 +267,14 @@ class Simu:
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
+        matriceType="masse"
+
         # Recupère les matrices pour travailler
         mesh = self.__mesh
-        jacobien_e_pg = mesh.jacobien_e_pg
-        poid_pg = mesh.poid_pg
-        Nd_pg = np.array(mesh.N_mass_pg)
-        Bd_e_pg = mesh.B_mass_e_pg
+        jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
+        poid_pg = mesh.get_poid_pg(matriceType)
+        Nd_pg = mesh.get_N_scalaire_pg(matriceType)
+        Bd_e_pg = mesh.get_B_sclaire_e_pg(matriceType)
 
         # Partie qui fait intervenir le therme de reaction r
         Kdr_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
@@ -649,7 +656,7 @@ class Simu:
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
-    def __CalculEpsilon_e_pg(self, u: np.ndarray):
+    def __CalculEpsilon_e_pg(self, u: np.ndarray, matriceType="rigi"):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -667,15 +674,15 @@ class Simu:
         u_e = self.__mesh.Localise_e(u)
         comportement = self.materiau.comportement
 
-        B_rigi_e_pg = self.__mesh.B_rigi_e_pg
+        B_dep_e_pg = self.__mesh.get_B_dep_e_pg(matriceType)
         if not comportement.useVoigtNotation:
-            B_rigi_e_pg = comportement.AppliqueCoefSurBrigi(B_rigi_e_pg)
+            B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
         
-        Epsilon_e_pg = np.einsum('epik,ek->epi', B_rigi_e_pg, u_e, optimize=True)        
+        Epsilon_e_pg = np.einsum('epik,ek->epi', B_dep_e_pg, u_e, optimize=True)        
 
         return Epsilon_e_pg
 
-    def __CalculSigma_e_pg(self, Epsilon_e_pg: np.ndarray):
+    def __CalculSigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType="rigi"):
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -690,7 +697,7 @@ class Simu:
         """
 
         assert Epsilon_e_pg.shape[0] == self.__mesh.Ne
-        assert Epsilon_e_pg.shape[1] == self.__mesh.nPg
+        assert Epsilon_e_pg.shape[1] == self.__mesh.get_nPg(matriceType)
 
         c = self.materiau.comportement.get_C()
 
@@ -703,7 +710,7 @@ class Simu:
             SigmaP_e_pg, SigmaM_e_pg = phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
 
             # Endommage : c = g(d) * cP + cM
-            g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh)
+            g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
             SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize=True)
 
             Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
@@ -713,7 +720,7 @@ class Simu:
             Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True)
             
 
-        return Sigma_e_pg
+        return cast(np.ndarray, Sigma_e_pg)
 
     def __Save_d(self, dGlob: np.ndarray):
         """Sauvegarde dGlob"""        
@@ -730,10 +737,12 @@ class Simu:
 
         # Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega
 
-        jacobien_e_pg = self.__mesh.jacobien_e_pg
-        poid_pg = self.__mesh.poid_pg        
-        Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob)
-        Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg)
+        matriceType = "rigi"
+
+        jacobien_e_pg = self.__mesh.get_jacobien_e_pg(matriceType)
+        poid_pg = self.__mesh.get_poid_pg(matriceType)
+        Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob, matriceType)
+        Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg, matriceType)
 
         Wdef2 = 1/2 * np.einsum('ep,p,epi,epi->', jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
         # Wdef3 = 0
@@ -1080,7 +1089,7 @@ class Test_Simu(unittest.TestCase):
         P = -800 #N
 
         # Paramètres maillage
-        taille = L
+        taille = L/2
 
         comportement = Elas_Isot(dim)
 
@@ -1124,7 +1133,7 @@ class Test_Simu(unittest.TestCase):
         P = -800 #N
 
         # Paramètres maillage        
-        taille = L
+        taille = L/2
 
         comportement = Elas_Isot(dim)
 
@@ -1188,9 +1197,11 @@ class Test_Simu(unittest.TestCase):
 
             tic = TicTac()
 
+            matriceType = "rigi"
+
             # Data
             mesh = simu.mesh
-            nPg = mesh.nPg
+            nPg = mesh.get_nPg(matriceType)
             listPg = list(range(nPg))
             listElement = simu.listElement
             materiau = simu.materiau
@@ -1198,19 +1209,20 @@ class Test_Simu(unittest.TestCase):
 
             listKe_e = []
 
-            B_rigi_e_pg = mesh.B_rigi_e_pg
+            B_dep_e_pg = mesh.get_B_dep_e_pg(matriceType)
 
             if not materiau.comportement.useVoigtNotation:
-                B_rigi_e_pg = materiau.comportement.AppliqueCoefSurBrigi(B_rigi_e_pg)
+                B_dep_e_pg = materiau.comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
 
+            jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
+            poid_pg = mesh.get_poid_pg(matriceType)
             for e in listElement:            
                 # Pour chaque poing de gauss on construit Ke
                 Ke = 0
                 for pg in listPg:
-                    jacobien = mesh.jacobien_e_pg[e][pg]
-                    poid = mesh.poid_pg[pg]
-                    B_pg = B_rigi_e_pg[e][pg]
-
+                    jacobien = jacobien_e_pg[e,pg]
+                    poid = poid_pg[pg]
+                    B_pg = B_dep_e_pg[e,pg]
 
                     K = jacobien * poid * B_pg.T.dot(C).dot(B_pg)
 
