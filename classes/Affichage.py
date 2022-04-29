@@ -212,9 +212,8 @@ class Affichage:
         coord_NonDeforme_redim = coordo[:,range(dim)]
         coord_par_face = coord_NonDeforme_redim[connect_Faces]
 
-        coordoDeforme, deformation = Affichage.__GetCoordo(simu, deformation, facteurDef)
-
         if deformation:
+            coordoDeforme, deformation = Affichage.__GetCoordo(simu, deformation, facteurDef)
             coordo_Deforme_redim = coordoDeforme[:,range(dim)]
             coordo_par_face_deforme = coordo_Deforme_redim[connect_Faces]
 
@@ -244,8 +243,7 @@ class Affichage:
             ax.axis('equal')
             # ax.set_xlabel("x [mm]")
             # ax.set_ylabel("y [mm]")
-            ax.set_title("Ne = {} et Nn = {}".format(mesh.Ne, mesh.Nn))
-        
+
         # ETUDE 3D    
         if mesh.dim == 3:
             
@@ -271,15 +269,15 @@ class Affichage:
             # ax.set_xlabel("x [mm]")
             # ax.set_ylabel("y [mm]")
             # ax.set_zlabel("z [mm]")
-            ax.set_title("Ne = {} et Nn = {}".format(mesh.Ne, mesh.Nn))
 
             Affichage.__ChangeEchelle(ax, coordo)
         
+        ax.set_title(f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}")
+
         return fig, ax
 
     def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], marker='.', c='blue', showId=False):
-        """Affiche les noeuds du maillage"""
-        
+        """Affiche les noeuds du maillage"""        
         
         from Mesh import Mesh
         mesh = cast(Mesh, mesh)
@@ -294,10 +292,10 @@ class Affichage:
             ax.scatter(mesh.coordo[noeuds,0], mesh.coordo[noeuds,1], marker=marker, c=c)
             if showId:
                 for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], str(n))
-        elif  mesh.get_dim() == 3:            
+        elif  mesh.dim == 3:            
             ax.scatter(mesh.coordo[noeuds,0], mesh.coordo[noeuds,1], mesh.coordo[noeuds,2], marker=marker, c=c)
             if showId:
-                for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], str(n))
+                for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], mesh.coordo[n,2], str(n))
         
         return ax
 

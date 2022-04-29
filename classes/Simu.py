@@ -1034,7 +1034,7 @@ class Simu:
 
         dy = self.GetResultat("dy", valeursAuxNoeuds=True)
         print("\nUy max = {:.6f} mm".format(dy.max()))
-        print("Uy min = {:.6f} mm".format(dy.min()))
+        print("Uy min = {:.6f} mm\n".format(dy.min()))
 
         if self.__dim == 3:
             dz = self.GetResultat("dz", valeursAuxNoeuds=True)

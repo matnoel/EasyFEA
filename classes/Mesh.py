@@ -346,11 +346,11 @@ class Mesh:
         nPe = self.nPe
         match self.elemType:
             case "TRI3":
-                return self.__connect[:, range(nPe)]
+                return self.__connect[:, [0,1,2,0]]
             case "TRI6":
                 return self.__connect[:, [0,3,1,4,2,5,0]]
             case "QUAD4":
-                return self.__connect[:, range(nPe)]
+                return self.__connect[:, [0,1,2,3,0]]
             case "QUAD8":
                 return self.__connect[:, [0,4,1,5,2,6,3,7,0]]
             case "TETRA4":
