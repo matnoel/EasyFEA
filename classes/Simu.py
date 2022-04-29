@@ -6,7 +6,7 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
 from Affichage import Affichage
-from Element import Element
+from Element import ElementIsoparametrique
 from Mesh import Mesh
 from Materiau import Elas_Isot, Materiau, PhaseFieldModel
 from TicTac import TicTac
@@ -1098,7 +1098,7 @@ class Test_Simu(unittest.TestCase):
         self.simulations2DElastique = []        
 
         # Pour chaque type d'element 2D
-        for i in range(len(Element.get_Types2D())):
+        for i in range(len(ElementIsoparametrique.get_Types2D())):
             # Construction du modele et du maillage 
             modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, verbosity=False)
 
@@ -1141,7 +1141,7 @@ class Test_Simu(unittest.TestCase):
         
         self.simulations3DElastique = []        
 
-        for i in range(len(Element.get_Types3D())):
+        for i in range(len(ElementIsoparametrique.get_Types3D())):
             modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
 
             (coordo, connect) = modelGmsh.Importation3D(fichier)

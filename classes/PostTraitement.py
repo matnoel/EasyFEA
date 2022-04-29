@@ -1,9 +1,7 @@
 
-import enum
 from Affichage import Affichage
 from Simu import Simu
 import Dossier
-from Mesh import Mesh
 from TicTac import TicTac
 import numpy as np
 

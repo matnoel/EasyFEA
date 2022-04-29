@@ -7,6 +7,7 @@ from Materiau import Materiau, Elas_Isot
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 from Affichage import Affichage
+import PostTraitement
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -63,7 +64,7 @@ simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y", "z"])
 
 simu.Assemblage_u()
 
-simu.Solve_u(useCholesky=False)
+simu.Solve_u(useCholesky=True)
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Résultats")
@@ -71,8 +72,8 @@ Affichage.NouvelleSection("Résultats")
 simu.Resume()
 
 if saveParaview:
-        filename = Dossier.NewFile("Etude3D\\solution3D.vtu", results=True)
-        simu.SaveParaview(filename)
+        filename = Dossier.NewFile("Etude3D\\solution3D", results=True)
+        PostTraitement.SaveParaview(simu, filename)
 
 if plotResult:
 
@@ -82,13 +83,10 @@ if plotResult:
         # plt.savefig(Dossier.NewFile("Etude3D\\Maillage.png", results=True))
         Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)
         # plt.savefig(Dossier.NewFile("Etude3D\\MaillageDef.png", results=True))
-        Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True)
+        Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
         # plt.savefig(Dossier.NewFile("Etude3D\\Svm_e.png", results=True))
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)
-
-        
-
 
 TicTac.getResume()
 

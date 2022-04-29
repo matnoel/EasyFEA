@@ -1,6 +1,6 @@
 # %%
 
-from Element import Element
+from Element import ElementIsoparametrique
 from Materiau import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
@@ -41,13 +41,13 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = list(range(1,30,4))
+listNbElement = list(range(1,10,5))
 # listNbElement = list(range(1,10))
 
 tic = TicTac()
 
 # Pour chaque type d'element
-for elem, type in enumerate(Element.get_Types2D()):
+for elem, type in enumerate(ElementIsoparametrique.get_Types2D()):
         
         listTemps_nb = []
         listWdef_nb = []
@@ -101,7 +101,7 @@ fig_Temps, ax_Temps = plt.subplots()
 WdefRef = 371.5
 # WdefRef = 391.76
 
-for elem, type in enumerate(Element.get_Types2D()):
+for elem, type in enumerate(ElementIsoparametrique.get_Types2D()):
 
         # Convergence Energie
         ax_Wdef.plot(listDdl_e_nb[elem], listWdef_e_nb[elem])
@@ -120,20 +120,20 @@ ax_Wdef.grid()
 ax_Wdef.set_xlim([-10,12000])
 ax_Wdef.set_xlabel('ddl')
 ax_Wdef.set_ylabel('Wdef [N.mm]')
-ax_Wdef.legend(Element.get_Types2D())
+ax_Wdef.legend(ElementIsoparametrique.get_Types2D())
 
 # Erreur
 ax_Temps_Erreur.grid()
 ax_Temps_Erreur.set_xlabel('ddl')
 ax_Temps_Erreur.set_ylabel('Erreur [%]')
-ax_Temps_Erreur.legend(Element.get_Types2D())
+ax_Temps_Erreur.legend(ElementIsoparametrique.get_Types2D())
 
 
 # Temps
 ax_Temps.grid()
 ax_Temps.set_xlabel('ddl')
 ax_Temps.set_ylabel('Temps [s]')
-ax_Temps.legend(Element.get_Types2D())
+ax_Temps.legend(ElementIsoparametrique.get_Types2D())
 
 
 TicTac.getResume()
