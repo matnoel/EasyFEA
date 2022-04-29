@@ -629,8 +629,8 @@ class PhaseFieldModel:
         m2xm2 = np.einsum('epi,epj->epij', m2Voigt, m2Voigt, optimize=True)
         
         matriceI = np.eye(3)
-        # if self.__loiDeComportement.useVoigtNotation:
-        #     matriceI[2,2] = matriceI[2,2]/2
+        if self.__loiDeComportement.useVoigtNotation:
+            matriceI[2,2] = matriceI[2,2]/2
 
         # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
         BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize=True)
