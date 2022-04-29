@@ -11,7 +11,15 @@ import matplotlib.pyplot as plt
 class GmshElem:
 
         @staticmethod
-        def __Get_ElemInFos(type):
+        def Get_ElemInFos(type: int):
+                """Renvoie le nom le nombre de noeuds par element et la dimension de l'élement en fonction du type
+
+                Args:
+                    type (int): type de l'identifiant sur gmsh
+
+                Returns:
+                    tuple: (name, nPe, dim)
+                """
 
                 match type:
                         case 1: 
@@ -60,15 +68,15 @@ class GmshElem:
         gmshType = property(__get_type)
 
         def __get_name(self):
-                return GmshElem.__Get_ElemInFos(self.__gmshId)[0]
+                return GmshElem.Get_ElemInFos(self.__gmshId)[0]
         name = property(__get_name)
 
         def __get_nPe(self):
-                return GmshElem.__Get_ElemInFos(self.__gmshId)[1]
+                return GmshElem.Get_ElemInFos(self.__gmshId)[1]
         nPe = property(__get_nPe)
 
         def __get_dim(self):
-                return GmshElem.__Get_ElemInFos(self.__gmshId)[2]
+                return GmshElem.Get_ElemInFos(self.__gmshId)[2]
         dim = property(__get_dim)
 
         def __get_Ne(self):
@@ -85,7 +93,7 @@ class GmshElem:
 
                 # Elements
                 self.__elements = elementTags-1
-                self.connect = (nodeTags-1).reshape(self.Ne,-1)
+                self.connect = (nodeTags-1).reshape(self.Ne,self.nPe)
                 
                 # Noeuds
                 self.__nodes = np.unique(nodeTags-1)
@@ -96,6 +104,7 @@ class GmshElem:
                 assert ecart == 0, f"Erreur dans la récupération, il ya {ecart} noeuds de trop"
 
                 self.coordo = np.array(coordo[self.__nodes])
+                pass
 
 class Interface_Gmsh:        
 
@@ -288,9 +297,36 @@ class Interface_Gmsh:
 
                 # Redimensionne sous la forme d'un tableau
                 coordo = coord.reshape(-1,3)
+                noeudMax = coordo.shape[0]
 
                 listGmshElem = {}
                 for t, type in enumerate(elementTypes):
+
+                        # Test si il n'existe pas un noeud en trop
+                        Nmax = (nodeTags[t]-1).max()
+                        ecart = Nmax - (noeudMax-1)
+                        if ecart != 0 and GmshElem.Get_ElemInFos(type)[2] == 1:
+                                # Si l'écart et différent de 0 alors il ya un noeud qui à été dédoublé
+                                # Il faut alors creer un nouveau noeud dans coordo
+                                # Pour connaitre les coordo du nouveau noeud on va utiliser les segments
+                                # si le noeud max est 14 et que dans la connectivité pour un segment il ya : (exemple SEG2)
+                                # [8, 3]
+                                # [3, 14]
+                                # [4, 0] ici on détecte une coupure, le noeud 14 aura donc pour coordo les coordo du noeud 4
+                                # Le nouveau noeud aura pour coordonnées les derniers noeuds avant l'apparition
+
+                                connectSEG = nodeTags[t].reshape(-1, GmshElem.Get_ElemInFos(type)[1])-1
+
+                                lignes, colonnes = np.where(connectSEG == noeudMax)
+
+                                coordo = np.append(coordo, [0,0,0]).reshape(-1,3)
+                                
+                                pass
+
+
+
+                        # assert ecart == 0, f"Erreur dans la récupération, il ya {ecart} noeuds de trop"
+
                         gmshElem = GmshElem(type, elementTags[t], nodeTags[t], coordo)
                         listGmshElem[gmshElem.dim] = gmshElem
 
@@ -321,8 +357,8 @@ class Test_ModelGmsh(unittest.TestCase):
                 
                 dim = 2
 
-                L = 120
-                h = 13
+                L = 10
+                
 
                 organisations=[True, False]
 
@@ -330,30 +366,41 @@ class Test_ModelGmsh(unittest.TestCase):
                         # Pour chaque type d'element 2D
                         for t, type in enumerate(ElementIsoparametrique.get_Types2D()):
                                 modelGmsh = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
-                                coordo, connect = modelGmsh.ConstructionRectangle(L, h)
+                                coordo, connect = modelGmsh.ConstructionRectangle(L, L)
                                 mesh = Mesh(2, coordo=coordo, connect=connect, verbosity=False)
 
-                                Affichage.Plot_NoeudsMaillage(mesh)
-                                plt.pause(0.5)
+                                Affichage.Plot_NoeudsMaillage(mesh, showId=True)
+                                plt.pause(0.005)
 
-                                modelGmsh2 = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
-                                modelGmsh2.ConstructionRectangleAvecFissure(L, h)
+                                modelGmsh2 = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L/2, verbosity=False)
+                                coordo2, connect2 = modelGmsh2.ConstructionRectangleAvecFissure(L, L)
+                                mesh2 = Mesh(2, coordo=coordo2, connect=connect2, verbosity=False)
+
+                                Affichage.Plot_NoeudsMaillage(mesh2, showId=True)
+                                plt.pause(0.005)
 
                                 # Affiche le maillage
+                
+                pass
 
         
         def test_Importation3D(self):
 
-                import Dossier        
+                import Dossier
+                from Mesh import Mesh
             
                 dim = 3
+
 
                 # Pour chaque type d'element 3D
                 for t, type in enumerate(ElementIsoparametrique.get_Types3D()):
                         modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=t, tailleElement=120, verbosity=False)
                         path = Dossier.GetPath()
                         fichier = path + "\\models\\part.stp" 
-                        modelGmsh.Importation3D(fichier)
+                        coordo, connect = modelGmsh.Importation3D(fichier)
+                        mesh = Mesh(3, coordo, connect, verbosity=False)
+                        Affichage.Plot_NoeudsMaillage(mesh, showId=True)
+                        plt.pause(0.005)
 
     
            
