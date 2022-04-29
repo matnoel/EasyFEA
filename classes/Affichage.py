@@ -164,14 +164,13 @@ class Affichage:
 
         return fig, ax, cb
         
-        
-    def Plot_Maillage(simu, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
+    def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
         """Dessine le maillage de la simulation
 
         Parameters
         ----------
-        simu : Simu
-            Simulation
+        obj : Simu or Mesh
+            obj that contains mesh
         facteurDef : int, optional
             facteur de deformation, by default 4
         deformation : bool, optional
@@ -186,13 +185,22 @@ class Affichage:
         ax : plt.Axes
             Axes dans lequel on va creer la figure
         """
-        
+
+
         from Simu import Simu
-        simu = cast(Simu, simu)
+        from Mesh import Mesh
+
+        match type(obj).__name__:
+            case Simu.__name__:
+                simu = cast(Simu, obj)
+                mesh = simu.mesh
+            case Mesh.__name__:
+                mesh = cast(Mesh, obj)
+                if deformation == True:
+                    print("Il faut donner la simulation pour afficher le maillage déformée")
 
         assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
 
-        mesh = simu.mesh
         coordo = mesh.coordo
 
         dim = mesh.dim
@@ -269,16 +277,15 @@ class Affichage:
         
         return fig, ax
 
-    def Plot_NoeudsMaillage(simu, ax=None, noeuds=[], marker='.', c='blue', showId=False):
+    def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], marker='.', c='blue', showId=False):
         """Affiche les noeuds du maillage"""
         
-        from Simu import Simu
-        simu = cast(Simu, simu)
-
-        mesh = simu.mesh
+        
+        from Mesh import Mesh
+        mesh = cast(Mesh, mesh)
 
         if ax == None:
-            fig, ax = Affichage.Plot_Maillage(simu, alpha=0)
+            fig, ax = Affichage.Plot_Maillage(mesh, alpha=0)
         
         if len(noeuds) == 0:
             noeuds = list(range(mesh.Nn))

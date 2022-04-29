@@ -6,6 +6,7 @@ import numpy as np
 from Element import ElementIsoparametrique
 from TicTac import TicTac
 from Affichage import Affichage
+import matplotlib.pyplot as plt
 
 class GmshElem:
 
@@ -296,62 +297,13 @@ class Interface_Gmsh:
                 gmshElem = cast(GmshElem, listGmshElem[self.__dim])
 
                 connect = gmshElem.connect
-                coordo = gmshElem.coordo
-                Ne = gmshElem.Ne
-                Nn = gmshElem.Nn
-
-
-
-                # import matplotlib.pyplot as plt
-
-                # fig, ax = plt.subplots()
-
-                # ax.scatter(coordo[:,0], coordo[:,1], marker='.')
-
-                # n1 = connect[:,0]
-                # n2 = connect[:,1]
-                # n3 = connect[:,2]
-                
-
-                # connectFace=np.array([n1,n2, n3, n1]).T
-
-                # import matplotlib.collections
-                # pc = matplotlib.collections.LineCollection(coordface, edgecolor='black', lw=0.5)
-                # ax.add_collection(pc)
-
-                # for e in range(Ne):
-                #         coordface = coordo[:,range(2)][connectFace[e]]
-                #         ax.plot(coordface[:,0], coordface[:,1])
-                #         plt.pause(0.5)
-
-                # coord_par_face = coordo[connectFace]
-
-                
-
-                
-
-                
-                # for n in range(Nn): ax.text(coordo[n,0], coordo[n,1], str(n))
-
-                # ax.scatter(coordo[-1,0], coordo[-1,1], marker='.', c='red')
-                # ax.text(coordo[-1,0], coordo[-1,1], str(Nn))
-                
-                # plt.show()
-
-                # lignes = np.where(np.max(connect, axis=1) != connect.max())                
-                # connect = connect[lignes,:].reshape(-1,nPe)
-                
-                # coordo = coordo[range(Nn-1),:]
-
-                
+                coordo = gmshElem.coordo                
 
                 gmsh.finalize()
 
                 tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
                 return coordo, connect
-
-        
 
 
 # TEST ==============================
@@ -364,6 +316,8 @@ class Test_ModelGmsh(unittest.TestCase):
                 pass
         
         def test_ConstructionS(self):
+
+                from Mesh import Mesh
                 
                 dim = 2
 
@@ -376,10 +330,16 @@ class Test_ModelGmsh(unittest.TestCase):
                         # Pour chaque type d'element 2D
                         for t, type in enumerate(ElementIsoparametrique.get_Types2D()):
                                 modelGmsh = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
-                                modelGmsh.ConstructionRectangle(L, h)
+                                coordo, connect = modelGmsh.ConstructionRectangle(L, h)
+                                mesh = Mesh(2, coordo=coordo, connect=connect, verbosity=False)
+
+                                Affichage.Plot_NoeudsMaillage(mesh)
+                                plt.pause(0.5)
 
                                 modelGmsh2 = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
                                 modelGmsh2.ConstructionRectangleAvecFissure(L, h)
+
+                                # Affiche le maillage
 
         
         def test_Importation3D(self):

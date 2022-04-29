@@ -79,9 +79,9 @@ if plotResult:
 
         tic = TicTac()
 
-        Affichage.Plot_Maillage(simu, deformation=False)
+        Affichage.Plot_Maillage(simu.mesh, deformation=False)
         # plt.savefig(Dossier.NewFile("Etude3D\\Maillage.png", results=True))
-        Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)
+        Affichage.Plot_Maillage(mesh, simu=simu, deformation=True, facteurDef=20)
         # plt.savefig(Dossier.NewFile("Etude3D\\MaillageDef.png", results=True))
         Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
         # plt.savefig(Dossier.NewFile("Etude3D\\Svm_e.png", results=True))
