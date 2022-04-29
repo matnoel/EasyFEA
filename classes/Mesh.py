@@ -2,7 +2,7 @@ from typing import cast
 import numpy as np
 import scipy.sparse as sp
 
-from Element import Element
+from Element import ElementIsoparametrique
 from TicTac import TicTac
 
 class Mesh:   
@@ -37,20 +37,10 @@ class Mesh:
         self.__connect = np.array(connect)
         """connection des elements (Ne, nPe)"""
 
-        self.__element = Element(dim, len(connect[0]), verbosity)
+        self.__elementIsoParametrique = ElementIsoparametrique(dim, connect.shape[1], verbosity)
         """Element utilisé dans le maillage"""
 
-        # matrices pour faciliter l'assemblage
-        self.__assembly = []
-        self.__lignesVector_e = []
-        self.__colonnesVector_e = []
-        self.__lignesScalar_e = []
-        self.__colonnesScalar_e = []
-
         # Matrices pour affichage des résultats
-        self.__connectPourTriangle = []
-        self.__connect_Faces = []
-        self.__connect_n_e = []
         
         if verbosity:
             print(f"\nType d'elements: {self.elemType}")
@@ -143,7 +133,7 @@ class Mesh:
     """Nombre de noeuds du maillage"""
 
     def __get_nPe(self):
-        return self.__element.nPe
+        return self.__elementIsoParametrique.nPe
     nPe = property(__get_nPe)
     """noeuds par element"""
 
@@ -169,97 +159,76 @@ class Mesh:
         # Ensuite, il suffit juste par divisier par le nombre de fois que le noeud apparait dans la ligne        
         # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement
         
-        if len(self.__connect_n_e) == 0:
-            Nn = self.Nn
-            Ne = self.Ne
-            nPe = self.__connect.shape[1]
-            listElem = np.arange(Ne)
+        Nn = self.Nn
+        Ne = self.Ne
+        nPe = self.__connect.shape[1]
+        listElem = np.arange(Ne)
 
-            lignes = self.__connect.reshape(-1)
-            colonnes = np.repeat(listElem, nPe)            
+        lignes = self.__connect.reshape(-1)
+        colonnes = np.repeat(listElem, nPe)
 
-            self.__connect_n_e = sp.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
-
-        return self.__connect_n_e.copy()
+        return sp.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
     connect_n_e = cast(sp.csr_matrix, property(__get_connect_n_e))
     """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
         tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
 
     def __get_assembly(self):
-        if len(self.__assembly) == 0:
-            nPe = self.__element.nPe
-            dim = self.__dim
-            taille = nPe*dim
+        nPe = self.__elementIsoParametrique.nPe
+        dim = self.__dim
+        taille = nPe*dim
 
-            assembly = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
-            assembly[:, np.arange(0, taille, dim)] = np.array(self.connect) * dim
-            assembly[:, np.arange(1, taille, dim)] = np.array(self.connect) * dim + 1
-            if dim == 3:
-                assembly[:, np.arange(2, taille, dim)] = np.array(self.connect) * dim + 2
+        assembly = np.zeros((self.Ne, nPe*dim), dtype=np.int64)
+        assembly[:, np.arange(0, taille, dim)] = np.array(self.connect) * dim
+        assembly[:, np.arange(1, taille, dim)] = np.array(self.connect) * dim + 1
+        if dim == 3:
+            assembly[:, np.arange(2, taille, dim)] = np.array(self.connect) * dim + 2
 
-            self.__assembly = assembly
-        return self.__assembly.copy()
+        return assembly
     assembly_e = cast(np.ndarray, property(__get_assembly))
     """matrice d'assemblage (Ne, nPe*dim)"""
 
     def __get_lignesVector_e(self):
-        if len(self.__lignesVector_e) == 0:
-            taille = self.__element.nPe*self.__dim
-            lignes = np.repeat(self.assembly_e, taille).reshape((self.Ne,-1))        
-            self.__lignesVector_e =  lignes
-        return self.__lignesVector_e
+        return np.repeat(self.assembly_e, self.__elementIsoParametrique.nPe*self.__dim).reshape((self.Ne,-1))
     lignesVector_e = cast(np.ndarray, property(__get_lignesVector_e))
     """lignes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
 
     def __get_colonnesVector_e(self):
-        if len(self.__colonnesVector_e) == 0:
-            taille = self.__element.nPe*self.__dim        
-            colonnes = np.repeat(self.assembly_e, taille, axis=0).reshape((self.Ne,-1))        
-            self.__colonnesVector_e = colonnes
-        return self.__colonnesVector_e
+        return np.repeat(self.assembly_e, self.__elementIsoParametrique.nPe*self.__dim, axis=0).reshape((self.Ne,-1))
     colonnesVector_e = cast(np.ndarray, property(__get_colonnesVector_e))
     """colonnes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
 
     def __get_lignesScalar_e(self):
-        if len(self.__lignesScalar_e) ==0:
-            nPe = self.__element.nPe
-            lignes = np.repeat(self.connect, nPe).reshape((self.Ne,-1))        
-            self.__lignesScalar_e = lignes
-        return self.__lignesScalar_e
+        return np.repeat(self.connect, self.__elementIsoParametrique.nPe).reshape((self.Ne,-1))         
     lignesScalar_e = cast(np.ndarray, property(__get_lignesScalar_e))
     """lignes pour remplir la matrice d'assemblage en scalaire (endommagement, ou thermique)"""
 
     def __get_colonnesScalar_e(self):
-        if len(self.__colonnesScalar_e) == 0:
-            nPe = self.__element.nPe
-            colonnes = np.repeat(self.connect, nPe, axis=0).reshape((self.Ne,-1))
-            self.__colonnesScalar_e = colonnes
-        return self.__colonnesScalar_e
+        return np.repeat(self.connect, self.__elementIsoParametrique.nPe, axis=0).reshape((self.Ne,-1))
     colonnesScalar_e = cast(np.ndarray, property(__get_colonnesScalar_e))
     """colonnes pour remplir la matrice d'assemblage en scalaire (endommagement, ou thermique)"""
 
     def get_nPg(self, matriceType: str):
         """nombre de point d'intégration par élement"""
-        return self.__element.get_nPg(matriceType)
+        return self.__elementIsoParametrique.get_nPg(matriceType)
 
     def get_poid_pg(self, matriceType: str):
         """Points d'intégration (pg, dim, poid)"""
-        return self.__element.get_poid_pg(matriceType)
+        return self.__elementIsoParametrique.get_poid_pg(matriceType)
 
     def get_jacobien_e_pg(self, matriceType: str):
         """jacobien (e, pg)"""
+        nodes_e = self.__get_nodes_e()
+        return self.__elementIsoParametrique.get_jacobien_e_pg(nodes_e, matriceType)
+
+    def __get_nodes_e(self):
         nodes_n = self.__coordo[:, range(self.__dim)]
         nodes_e = nodes_n[self.connect]
-        return self.__element.get_jacobien_e_pg(nodes_e, matriceType)
+        return nodes_e
     
     def get_dN(self, matriceType: str):
-        assert matriceType in Element.get_MatriceType()
-
-        nodes_n = self.__coordo[:, range(self.__dim)]
-        nodes_e = np.array(nodes_n[self.__connect])
-
-        dN_e_pg = self.__element.__get_dN_e_pg(nodes_e, matriceType)
-
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
+        nodes_e = self.__get_nodes_e()
+        dN_e_pg = self.__elementIsoParametrique.__get_dN_e_pg(nodes_e, matriceType)
         return dN_e_pg
     
     def get_N_scalaire_pg(self, matriceType: str):
@@ -267,14 +236,14 @@ class Mesh:
         Matrice des fonctions de forme dans element de référence (ksi, eta)\n
         [N1(ksi,eta) N2(ksi,eta) Nn(ksi,eta)] \n
         """
-        return self.__element.get_N_scalaire_pg(matriceType)
+        return self.__elementIsoParametrique.get_N_scalaire_pg(matriceType)
 
     def get_N_vecteur_pg(self, matriceType: str):
         """Fonctions de formes dans l'element isoparamétrique pour un vecteur (npg, dim, npe*dim)
         Matrice des fonctions de forme dans element de référence (ksi, eta)\n
         [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
         0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]"""
-        return self.__element.get_N_vecteur_pg(matriceType)
+        return self.__elementIsoParametrique.get_N_vecteur_pg(matriceType)
 
     def get_B_sclaire_e_pg(self, matriceType: str):
         """Derivé des fonctions de formes dans la base réele en sclaire"""
@@ -282,7 +251,7 @@ class Mesh:
         nodes_n = self.__coordo[:, range(self.__dim)]
         nodes_e = np.array(nodes_n[self.__connect])
 
-        return self.__element.get_dN_e_pg(nodes_e, matriceType)
+        return self.__elementIsoParametrique.get_dN_e_pg(nodes_e, matriceType)
 
     def get_B_dep_e_pg(self, matriceType: str):
         """Derivé des fonctions de formes dans la base réele pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n
@@ -291,14 +260,13 @@ class Mesh:
         0 dN1,y 0 dN2,y 0 dNn,y\n
         dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]
         """
-
         # get dN_e_pg
         nodes_n = self.__coordo[:, range(self.__dim)]
         nodes_e = np.array(nodes_n[self.__connect])
-        dN_e_pg = self.__element.get_dN_e_pg(nodes_e, matriceType)
+        dN_e_pg = self.__elementIsoParametrique.get_dN_e_pg(nodes_e, matriceType)
 
         nPg = self.get_nPg(matriceType)
-        nPe = self.__element.nPe
+        nPe = self.__elementIsoParametrique.nPe
         dim = self.__dim
         listnPe = np.arange(nPe)
         
@@ -344,169 +312,50 @@ class Mesh:
                 return 4
     
     def __get_elemenType(self):
-        return self.__element.type
-    elemType = property(__get_elemenType)
+        return self.__elementIsoParametrique.type
+    elemType = cast(str, property(__get_elemenType))
 
     def get_connectTriangle(self):
         """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D
-            ou construit les faces pour la 3D
-            Par exemple pour un quadrangle on construit deux triangles
-            pour un triangle à 6 noeuds on construit 4 triangles
-            POur la 3D on construit des faces pour passer en Poly3DCollection
-            """
+        ou construit les faces pour la 3D
+        Par exemple pour un quadrangle on construit deux triangles
+        pour un triangle à 6 noeuds on construit 4 triangles
+        POur la 3D on construit des faces pour passer en Poly3DCollection
+        """
 
-        if len(self.__connectPourTriangle) == 0:
-                     
-            npe = self.__connect.shape[1]
-
-            if self.__dim == 2:
-
-                faces = []
-
-                # TRI3
-                if npe == 3:
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-
-                    faces.append([n1,n2,n3])
-                # TRI6
-                elif npe == 6:
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-                    n4 = self.__connect[:,3]
-                    n5 = self.__connect[:,4]
-                    n6 = self.__connect[:,5]
-                                        
-                    faces.append([n1, n4, n6])
-                    faces.append([n4, n2, n5])
-                    faces.append([n6, n5, n3])
-                    faces.append([n4, n5, n6])
-
-                # QUAD4
-                elif npe == 4:
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-                    n4 = self.__connect[:,3]
-
-                    faces.append([n1, n2, n4])
-                    faces.append([n2, n3, n4])
-
-                # QUAD8
-                elif npe == 8:
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-                    n4 = self.__connect[:,3]
-                    n5 = self.__connect[:,4]
-                    n6 = self.__connect[:,5]
-                    n7 = self.__connect[:,6]
-                    n8 = self.__connect[:,7]
-
-                    faces.append([n5, n6, n8])
-                    faces.append([n6, n7, n8])
-                    faces.append([n1, n5, n8])
-                    faces.append([n5, n2, n6])
-                    faces.append([n6, n3, n7])
-                    faces.append([n7, n4, n8])
-
-                # Remplie connect pour triangle
-                nbFaces = len(faces)
-                taille = self.Ne*nbFaces
-
-                self.__connectPourTriangle = np.zeros((taille, 3))
-
-                for face in range(nbFaces):
-                    lignes = np.arange(face, taille , nbFaces)
-                    nodes = np.array(faces[face]).T
-                    self.__connectPourTriangle[lignes,:] = nodes
-
-            elif self.__dim ==3:
-                pass            
-
-        return self.__connectPourTriangle
+        match self.elemType:
+            case "TRI3":
+                return self.__connect[:,[0,1,2]]
+            case "TRI6":
+                return np.array(self.__connect[:, [0,3,5,3,1,4,5,4,2,3,4,5]]).reshape(-1,3)
+            case "QUAD4":
+                return np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
+            case "QUAD8":
+                return np.array(self.__connect[:, [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]]).reshape(-1,3)
     
     def get_connect_Faces(self):
         """Construit les faces pour chaque element
+
+        consruit les identifiants des noeud constuisant les faces
 
         Returns
         -------
         list de list
             Renvoie une liste de face
         """
-        if len(self.__connect_Faces) == 0:
-
-            npe = self.__connect.shape[1]
-
-            if self.__dim == 2:
-                # TRI3
-                if npe == 3:
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-
-                    self.__connect_Faces = np.array([n1, n2, n3, n1]).T
-                # TRI6
-                elif npe == 6:
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-                    n4 = self.__connect[:,3]
-                    n5 = self.__connect[:,4]
-                    n6 = self.__connect[:,5]
-
-                    self.__connect_Faces = np.array([n1, n4, n2, n5, n3, n6, n1]).T
-                # QUAD4
-                elif npe == 4:
-                    # self.__connectPolygon = self.__connect
-                    # break
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-                    n4 = self.__connect[:,3]
-
-                    self.__connect_Faces = np.array([n1, n2, n3, n4, n1]).T
-                # QUAD8
-                elif npe == 8:
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-                    n4 = self.__connect[:,3]
-                    n5 = self.__connect[:,4]
-                    n6 = self.__connect[:,5]
-                    n7 = self.__connect[:,6]
-                    n8 = self.__connect[:,7]
-
-                    self.__connect_Faces = np.array([n1, n5, n2, n6, n3, n7, n4, n8, n1]).T
-            elif self.__dim == 3:
-                faces=[]
-                # TETRA4
-                if npe == 4:
-                    n1 = self.__connect[:,0]
-                    n2 = self.__connect[:,1]
-                    n3 = self.__connect[:,2]
-                    n4 = self.__connect[:,3]
-
-                    faces.append([n1 ,n2, n3])
-                    faces.append([n1, n2, n4])
-                    faces.append([n1, n3, n4])
-                    faces.append([n2, n3, n4])
-
-                # Remplie connect pour triangle
-                nbFaces = len(faces)
-                taille = self.Ne*nbFaces
-
-                self.__connect_Faces = np.zeros((taille, len(faces[0])),dtype=np.uint64)
-
-                for face in range(nbFaces):
-                    lignes = np.arange(face, taille , nbFaces)
-                    nodes = np.array(faces[face]).T
-                    self.__connect_Faces[lignes,:] = nodes
-                    
-     
-        return self.__connect_Faces
+        nPe = self.nPe
+        match self.elemType:
+            case "TRI3":
+                return self.__connect[:, range(nPe)]
+            case "TRI6":
+                return self.__connect[:, [0,3,1,4,2,5,0]]
+            case "QUAD4":
+                return self.__connect[:, range(nPe)]
+            case "QUAD8":
+                return self.__connect[:, [0,4,1,5,2,6,3,7,0]]
+            case "TETRA4":
+                # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
+                return np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
 
 # TEST ==============================
 
@@ -521,7 +370,7 @@ class Test_Mesh(unittest.TestCase):
 
         list_mesh = []
 
-        for e, element in enumerate(Element.get_Types2D()):
+        for e, element in enumerate(ElementIsoparametrique.get_Types2D()):
             modelGmsh = Interface_Gmsh(2, organisationMaillage=True, typeElement=e, tailleElement=1, verbosity=False)
             (coordo, connect) = modelGmsh.ConstructionRectangle(1, 1)
             mesh = Mesh(2, coordo, connect, verbosity=False)
