@@ -2,10 +2,10 @@
 from typing import cast
 from TicTac import TicTac
 import numpy as np
-import scipy as sp
+
 from Gauss import Gauss
 
-class Element:
+class ElementIsoparametrique:
 
     @staticmethod
     def get_Types2D():
@@ -41,12 +41,12 @@ class Element:
             }
 
         return switch[self.nPe]
-    type = property(__get_ElementType) 
+    type = cast(str, property(__get_ElementType)) 
     """type de l'élement"""
 
     def get_nPg(self, matriceType: str):
         """nombre de points d'intégrations"""
-        assert matriceType in Element.get_MatriceType()
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
 
         if matriceType not in self.__dict_gauss.keys():
             self.__Set_Matrices_ElemIso(matriceType)
@@ -60,7 +60,7 @@ class Element:
 
     def get_poid_pg(self, matriceType: str):
         """poids des points d'intégrations"""
-        assert matriceType in Element.get_MatriceType()
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
         if matriceType not in self.__dict_gauss.keys():
             self.__Set_Matrices_ElemIso(matriceType)
             
@@ -68,28 +68,28 @@ class Element:
 
     def get_jacobien_e_pg(self, nodes_e: np.ndarray, matriceType: str):
         """jacobiens aux pts d'integration de chaque element"""
-        assert matriceType in Element.get_MatriceType()
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
         if matriceType not in self.__dict_jacobien_e_pg.keys():
             self.__Set_DetJ(nodes_e, matriceType)
             
         return cast(np.ndarray, self.__dict_jacobien_e_pg[matriceType])
 
     def get_N_scalaire_pg(self, matriceType: str):
-        assert matriceType in Element.get_MatriceType()
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
         if matriceType not in self.__dict_N_scalaire_pg.keys():
             self.__Set_Matrices_ElemIso(matriceType)
     
         return cast(np.ndarray, self.__dict_N_scalaire_pg[matriceType])
     
     def get_N_vecteur_pg(self, matriceType: str):
-        assert matriceType in Element.get_MatriceType()
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
         if matriceType not in self.__dict_N_vecteur_pg.keys():
             self.__Set_Matrices_ElemIso(matriceType)
     
         return cast(np.ndarray, self.__dict_N_vecteur_pg[matriceType])
 
     def get_dN_e_pg(self, nodes_e: np.ndarray, matriceType: str):
-        assert matriceType in Element.get_MatriceType()
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
         return self.__get_dN_e_pg(nodes_e, matriceType)
 
     def __init__(self, dim: int, nPe: int, verbosity=False):
@@ -141,7 +141,7 @@ class Element:
         """Derivé des fonctions de formes dans la base réele pour chaque type (masse, rigi...)"""
     
     def __get_dN_e_pg(self, nodes_e :np.ndarray, matriceType: str):
-        assert matriceType in Element.get_MatriceType()
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
 
         if matriceType not in self.__dict_dN_e_pg.keys():
 
@@ -159,7 +159,7 @@ class Element:
     
     def __Set_DetJ(self, nodes_e: np.ndarray, matriceType: str):
         """Construit les matrices de changement de base si nécessaire"""
-        assert matriceType in Element.get_MatriceType()
+        assert matriceType in ElementIsoparametrique.get_MatriceType()
 
         # Construit les matrices pour le changement de base si nécessaire
         if matriceType not in self.__dict_invF_e_pg.keys():
@@ -444,13 +444,13 @@ class Test_Element(unittest.TestCase):
     def setUp(self):
         self.elements = []
         for nPe in [3,4,6,8]:
-            self.elements.append(Element(2,nPe))
+            self.elements.append(ElementIsoparametrique(2,nPe))
         
-        self.elements.append(Element(3,4))
+        self.elements.append(ElementIsoparametrique(3,4))
 
     def test_BienCree(self):
         for element in self.elements:
-            self.assertIsInstance(element, Element)        
+            self.assertIsInstance(element, ElementIsoparametrique)        
 
 if __name__ == '__main__':        
     try:
