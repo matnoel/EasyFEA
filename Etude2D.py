@@ -35,7 +35,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-taille = h/10
+taille = h/20
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -43,8 +43,10 @@ comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=3, tailleElement=taille)
-(coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
+elemType = "TRI6" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+
+interfaceGmsh = Interface_Gmsh()
+(coordo, connect) = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille, isOrganised=True)
 mesh = Mesh(dim, coordo, connect)
 
 # Récupère les noeuds qui m'interessent

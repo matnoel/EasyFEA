@@ -3,152 +3,87 @@ import gmsh
 import sys
 import numpy as np
 
+from GroupElem import GroupElem
 from Element import ElementIsoparametrique
 from TicTac import TicTac
 from Affichage import Affichage
 import matplotlib.pyplot as plt
 
-class GmshElem:
-
-        @staticmethod
-        def Get_ElemInFos(type: int):
-                """Renvoie le nom le nombre de noeuds par element et la dimension de l'élement en fonction du type
-
-                Args:
-                    type (int): type de l'identifiant sur gmsh
-
-                Returns:
-                    tuple: (name, nPe, dim)
-                """
-
-                match type:
-                        case 1: 
-                                name = "SEG2"; nPe = 2; dim = 1
-                        case 2: 
-                                name = "TRI3"; nPe = 3; dim = 2
-                        case 3: 
-                                name = "QUAD4"; nPe = 4; dim = 2 
-                        case 4: 
-                                name = "TETRA4"; nPe = 4; dim = 3
-                        case 5: 
-                                name = "CUBE8"; nPe = 8; dim = 3
-                        case 6: 
-                                name = "PRISM6"; nPe = 6; dim = 3
-                        case 7: 
-                                name = "PYRA5"; nPe = 5; dim = 3
-                        case 8: 
-                                name = "SEG3"; nPe = 3; dim = 1
-                        case 9: 
-                                name = "TRI6"; nPe = 6; dim = 2
-                        case 10: 
-                                name = "QUAD9"; nPe = 9; dim = 2
-                        case 11: 
-                                name = "TETRA10"; nPe = 10; dim = 3
-                        case 12: 
-                                name = "CUBE27"; nPe = 27; dim = 3
-                        case 13: 
-                                name = "PRISM18"; nPe = 18; dim = 3
-                        case 14: 
-                                name = "PYRA14"; nPe = 17; dim = 3
-                        case 15: 
-                                name = "POINT"; nPe = 1; dim = 0
-                        case 16: 
-                                name = "QUAD8"; nPe = 8; dim = 2
-                        case 18: 
-                                name = "PRISM15"; nPe = 15; dim = 3
-                        case 19: 
-                                name = "PYRA13"; nPe = 13; dim = 3
-                        case _: 
-                                raise "Type inconnue"
-
-                return name, nPe, dim 
-        
-        def __get_type(self):
-                return self.__gmshId
-        gmshType = property(__get_type)
-
-        def __get_name(self):
-                return GmshElem.Get_ElemInFos(self.__gmshId)[0]
-        name = property(__get_name)
-
-        def __get_nPe(self):
-                return GmshElem.Get_ElemInFos(self.__gmshId)[1]
-        nPe = property(__get_nPe)
-
-        def __get_dim(self):
-                return GmshElem.Get_ElemInFos(self.__gmshId)[2]
-        dim = property(__get_dim)
-
-        def __get_Ne(self):
-                return self.__elements.shape[0]
-        Ne = property(__get_Ne)
-
-        def __get_Nn(self):
-                return self.__nodes.shape[0]
-        Nn = property(__get_Nn)
-
-        def __init__(self, gmshId: int, elementTags: np.ndarray, nodeTags: np.ndarray, coordo: np.ndarray):
-                
-                self.__gmshId = gmshId
-
-                # Elements
-                self.__elements = elementTags-1
-                self.connect = (nodeTags-1).reshape(self.Ne,self.nPe)
-                
-                # Noeuds
-                self.__nodes = np.unique(nodeTags-1)
-
-                # Test si il n'existe pas un noeud en trop
-                Nmax = int(self.connect.max())
-                ecart = Nmax - (self.Nn-1)
-                assert ecart == 0, f"Erreur dans la récupération, il ya {ecart} noeuds de trop"
-
-                self.coordo = np.array(coordo[self.__nodes])
-                pass
-
 class Interface_Gmsh:        
 
-        def __init__(self,dim: int, organisationMaillage=False, affichageGmsh=False, gmshVerbosity=False, verbosity=True, typeElement=0, tailleElement=0.0):
+        def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=True):                
                 
-                assert tailleElement > 0.0 , "La taille de maille doit être > 0"
-                
-                self.__dim = dim
-                """dimension du model Gmsh"""
-
-                if dim == 2:
-                        self.__typeElement = ElementIsoparametrique.get_Types2D()[typeElement]
-                        """type d'element"""
-                elif dim == 3:
-                        self.__typeElement = ElementIsoparametrique.get_Types3D()[typeElement]
-                        """type d'element"""
-
-                self.__tailleElement = tailleElement
-                """taille d'element pour le maillage"""
-                
-                self.__organisationMaillage = organisationMaillage
-                """organisation du maillage"""
                 self.__affichageGmsh = affichageGmsh
                 """affichage du maillage sur gmsh"""
+                self.__gmshVerbosity = gmshVerbosity
+                """gmsh peut ecrire dans la console"""
                 self.__verbosity = verbosity
                 """modelGmsh peut ecrire dans la console"""
 
                 if verbosity:
                         Affichage.NouvelleSection("Gmsh")
 
+        def __initGmsh(self):
                 gmsh.initialize()
-                if gmshVerbosity == False:
+                if self.__gmshVerbosity == False:
                         gmsh.option.setNumber('General.Verbosity', 0)
                 gmsh.model.add("model")
+        
+        def __CheckType(self, dim: int, elemType: str):
+                if dim == 2:
+                        assert elemType in ElementIsoparametrique.get_Types2D()                        
+                elif dim == 3:
+                        assert elemType in ElementIsoparametrique.get_Types3D()
 
-        def ConstructionRectangle(self, largeur, hauteur):
+        def Importation3D(self,fichier="", elemType="TETRA4", tailleElement=0.0):
+                """Importe depuis un 3D
+
+                elemTypes = ["TETRA4"]
+                
+                Returns:
+                    tuple: coordo, connect
+                """
+
+                self.__initGmsh()
+
+                assert tailleElement >= 0.0, "Doit être supérieur ou égale à 0"
+                self.__tailleElement3D = tailleElement
+                self.__CheckType(3, elemType)
                 
                 tic = TicTac()
 
+                # Importation du fichier
+                gmsh.model.occ.importShapes(fichier)
+
+                tic.Tac("Mesh","Importation du fichier step", self.__verbosity)
+
+                self.__ConstructionMaillageGmsh(3, elemType)
+
+                return self.__ConstructionCoordoConnect(3)
+
+        def ConstructionRectangle(self, largeur: float, hauteur: float,
+        elemType="TRI3", tailleElement=0.0, isOrganised=False):
+
+                """Construit un rectangle
+
+                elemTypes = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+                
+                Returns:
+                    tuple: coordo, connect
+                """
+
+                self.__initGmsh()
+                
+                assert tailleElement >= 0.0, "Doit être supérieur ou égale à 0"
+                self.__CheckType(2, elemType)
+
+                tic = TicTac()
+
                 # Créer les points
-                p1 = gmsh.model.geo.addPoint(0, 0, 0, self.__tailleElement)
-                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, self.__tailleElement)
-                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, self.__tailleElement)
-                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, self.__tailleElement)
+                p1 = gmsh.model.geo.addPoint(0, 0, 0, tailleElement)
+                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, tailleElement)
+                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, tailleElement)
+                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, tailleElement)
 
                 # Créer les lignes reliants les points
                 l1 = gmsh.model.geo.addLine(p1, p2)
@@ -164,119 +99,119 @@ class Interface_Gmsh:
                 
                 tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
                 
-                self.__ConstructionMaillageGmsh(surface)
+                self.__ConstructionMaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return self.__ConstructionCoordoConnect()
+                return self.__ConstructionCoordoConnect(2)
 
-        def ConstructionRectangleAvecFissure(self, largeur, hauteur, openCrack=False):
+        def ConstructionRectangleAvecFissure(self, largeur: float, hauteur: float,
+        elemType="TRI3", elementSize=0.0, openCrack=False, isOrganised=False):
+
+                """Construit un rectangle avec une fissure ouverte ou non
+
+                elemTypes = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
                 
-                tic = TicTac()
+                Returns:
+                    tuple: coordo, connect
+                """
 
-                gmsh.model.add("square with cracks")                
+                self.__initGmsh()
+                
+                assert elementSize >= 0.0, "Must be greater than or equal to 0"
+                self.__CheckType(2, elemType)
+                
+                tic = TicTac()               
 
-                # Créer les points du rectangle
-                p1 = gmsh.model.occ.addPoint(0, 0, 0, self.__tailleElement)
-                p2 = gmsh.model.occ.addPoint(largeur, 0, 0, self.__tailleElement)
-                p3 = gmsh.model.occ.addPoint(largeur, hauteur, 0, self.__tailleElement)
-                p4 = gmsh.model.occ.addPoint(0, hauteur, 0, self.__tailleElement)
+                # Create the points of the rectangle
+                p1 = gmsh.model.occ.addPoint(0, 0, 0, elementSize)
+                p2 = gmsh.model.occ.addPoint(largeur, 0, 0, elementSize)
+                p3 = gmsh.model.occ.addPoint(largeur, hauteur, 0, elementSize)
+                p4 = gmsh.model.occ.addPoint(0, hauteur, 0, elementSize)
 
-                # Creer les points de la fissure
-                p5 = gmsh.model.occ.addPoint(0, hauteur/2, 0, self.__tailleElement)
-                p6 = gmsh.model.occ.addPoint(largeur/2, hauteur/2, 0, self.__tailleElement)
+                # Create the crack points
+                p5 = gmsh.model.occ.addPoint(0, hauteur/2, 0, elementSize)
+                p6 = gmsh.model.occ.addPoint(largeur/2, hauteur/2, 0, elementSize)
 
-                # Créer les lignes reliants les points pour la surface
+                # Create the lines connecting the points for the surface
                 l1 = gmsh.model.occ.addLine(p1, p2)
                 l2 = gmsh.model.occ.addLine(p2, p3)
                 l3 = gmsh.model.occ.addLine(p3, p4)
                 l4 = gmsh.model.occ.addLine(p4, p5)
                 l5 = gmsh.model.occ.addLine(p5, p1)
 
-                # Créer une boucle fermée reliant les lignes pour la surface
-                boucle = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4, l5])
+                # Create a closed loop connecting the lines for the surface
+                loop = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4, l5])
 
-                # Créer une surface
-                surface = gmsh.model.occ.addPlaneSurface([boucle])
+                # Create a surface
+                surface = gmsh.model.occ.addPlaneSurface([loop])
                 
-                # Creer la ligne de fissure
+                # Create the crack line
                 line = gmsh.model.occ.addLine(p5, p6)
                 
                 gmsh.model.occ.synchronize()
 
-                # Ajoute la ligne dans la surface
+                # Adds the line to the surface
                 gmsh.model.mesh.embed(1, [line], 2, surface)
 
                 if openCrack:
                         point = gmsh.model.addPhysicalGroup(0, [p5])
                         crack = gmsh.model.addPhysicalGroup(1, [line])
                         surface = gmsh.model.addPhysicalGroup(2, [surface])
-                        
                 
                 tic.Tac("Mesh","Construction Rectangle Fissuré", self.__verbosity)
-
-                self.__organisationMaillage=False
                 
                 if openCrack:
-                        self.__ConstructionMaillageGmsh(surface, crack=crack, openBoundary=point)
+                        self.__ConstructionMaillageGmsh(2, elemType, surface=surface, crack=crack, openBoundary=point, isOrganised=isOrganised)
                 else:
-                        self.__ConstructionMaillageGmsh(surface)
+                        self.__ConstructionMaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return self.__ConstructionCoordoConnect()
+                return self.__ConstructionCoordoConnect(2)
 
-        def Importation3D(self,fichier=""):
-                
+        def __ConstructionMaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
+        surface=None, crack=None, openBoundary=None):
+
                 tic = TicTac()
 
-                # Importation du fichier
-                gmsh.model.occ.importShapes(fichier)
+                match dim:
+                        case 2:
+                                # Impose que le maillage soit organisé                        
+                                if isOrganised:
+                                        gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
-                tic.Tac("Mesh","Importation du fichier step", self.__verbosity)
+                                # Synchronisation
+                                gmsh.model.geo.synchronize()
 
-                self.__ConstructionMaillageGmsh()
+                                if elemType in ["QUAD4","QUAD8"]:
+                                        gmsh.model.mesh.setRecombine(2, surface)
+                                
+                                # Génère le maillage
+                                gmsh.model.mesh.generate(2)
 
-                return self.__ConstructionCoordoConnect()
+                                if elemType in ["QUAD8"]:
+                                        gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
 
-        def __ConstructionMaillageGmsh(self, surface=None, crack=None, openBoundary=None):
+                                if elemType in ["TRI3","QUAD4"]:
+                                        gmsh.model.mesh.set_order(1)
+                                elif elemType in ["TRI6","QUAD8"]:
+                                        gmsh.model.mesh.set_order(2)
 
-                tic = TicTac()                
-
-                if self.__dim == 2:
-                        # Impose que le maillage soit organisé                        
-                        if self.__organisationMaillage:
-                                gmsh.model.geo.mesh.setTransfiniteSurface(surface)
-
-                        # Synchronisation
-                        gmsh.model.geo.synchronize()
-
-                        if self.__typeElement in ["QUAD4","QUAD8"]:
-                                gmsh.model.mesh.setRecombine(2, surface)
+                                if crack != None:
+                                        gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
+                                        gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
+                                        gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openBoundary)
+                                        # gmsh.plugin.setNumber("Crack", "NormalX", 0)
+                                        # gmsh.plugin.setNumber("Crack", "NormalY", 0)
+                                        # gmsh.plugin.setNumber("Crack", "NormalZ", 1)
+                                        gmsh.plugin.run("Crack")
+                                        # gmsh.write("meshhh.msh")
+                                        # self.__initGmsh()
+                                        # gmsh.open("meshhh.msh")
                         
-                        # Génère le maillage
-                        gmsh.model.mesh.generate(2)
+                        case 3:
+                                gmsh.model.occ.synchronize()
 
-                        if self.__typeElement in ["QUAD8"]:
-                                gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
-
-                        if self.__typeElement in ["TRI3","QUAD4"]:
-                                gmsh.model.mesh.set_order(1)
-                        elif self.__typeElement in ["TRI6","QUAD8"]:
-                                gmsh.model.mesh.set_order(2)
-
-                        if crack != None:
-                                gmsh.plugin.setNumber("Crack", "Dimension", self.__dim-1)
-                                gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
-                                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openBoundary)
-                                gmsh.plugin.setNumber("Crack", "NormalX", 0)
-                                gmsh.plugin.setNumber("Crack", "NormalY", 0)
-                                gmsh.plugin.setNumber("Crack", "NormalZ", 1)
-                                gmsh.plugin.run("Crack")
-
-                elif self.__dim == 3:
-
-                        gmsh.model.occ.synchronize()
-
-                        gmsh.option.setNumber("Mesh.MeshSizeMin", self.__tailleElement)
-                        gmsh.option.setNumber("Mesh.MeshSizeMax", self.__tailleElement)
-                        gmsh.model.mesh.generate(3)
+                                gmsh.option.setNumber("Mesh.MeshSizeMin", self.__tailleElement3D)
+                                gmsh.option.setNumber("Mesh.MeshSizeMax", self.__tailleElement3D)
+                                gmsh.model.mesh.generate(3)
                 
                 # Ouvre l'interface de gmsh si necessaire
                 if '-nopopup' not in sys.argv and self.__affichageGmsh:
@@ -284,53 +219,28 @@ class Interface_Gmsh:
                 
                 tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
-        def __ConstructionCoordoConnect(self):
+        def __ConstructionCoordoConnect(self, dim: int):
                 """construit connect et coordo pour l'importation du maillage"""
                 
                 tic = TicTac()
 
                 physicalGroups = gmsh.model.getPhysicalGroups()
-                entities = np.array(gmsh.model.getEntities())
+                entities = gmsh.model.getEntities()
 
                 elementTypes, elementTags, nodeTags = gmsh.model.mesh.getElements()
                 nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
 
                 # Redimensionne sous la forme d'un tableau
                 coordo = coord.reshape(-1,3)
-                noeudMax = coordo.shape[0]
 
+                # Construit les elements
                 listGmshElem = {}
-                for t, type in enumerate(elementTypes):
+                for t, gmshId in enumerate(elementTypes):
 
-                        # Test si il n'existe pas un noeud en trop
-                        Nmax = (nodeTags[t]-1).max()
-                        ecart = Nmax - (noeudMax-1)
-                        if ecart != 0 and GmshElem.Get_ElemInFos(type)[2] == 1:
-                                # Si l'écart et différent de 0 alors il ya un noeud qui à été dédoublé
-                                # Il faut alors creer un nouveau noeud dans coordo
-                                # Pour connaitre les coordo du nouveau noeud on va utiliser les segments
-                                # si le noeud max est 14 et que dans la connectivité pour un segment il ya : (exemple SEG2)
-                                # [8, 3]
-                                # [3, 14]
-                                # [4, 0] ici on détecte une coupure, le noeud 14 aura donc pour coordo les coordo du noeud 4
-                                # Le nouveau noeud aura pour coordonnées les derniers noeuds avant l'apparition
-
-                                connectSEG = nodeTags[t].reshape(-1, GmshElem.Get_ElemInFos(type)[1])-1
-
-                                lignes, colonnes = np.where(connectSEG == noeudMax)
-
-                                coordo = np.append(coordo, [0,0,0]).reshape(-1,3)
-                                
-                                pass
-
-
-
-                        # assert ecart == 0, f"Erreur dans la récupération, il ya {ecart} noeuds de trop"
-
-                        gmshElem = GmshElem(type, elementTags[t], nodeTags[t], coordo)
+                        gmshElem = GroupElem(gmshId, elementTags[t]-1, nodeTags[t]-1, coordo)
                         listGmshElem[gmshElem.dim] = gmshElem
 
-                gmshElem = cast(GmshElem, listGmshElem[self.__dim])
+                gmshElem = cast(GroupElem, listGmshElem[dim])
 
                 connect = gmshElem.connect
                 coordo = gmshElem.coordo                
@@ -351,36 +261,37 @@ class Test_ModelGmsh(unittest.TestCase):
         def setUp(self):
                 pass
         
-        def test_ConstructionS(self):
+        def test_Construction2D(self):
 
                 from Mesh import Mesh
                 
                 dim = 2
 
                 L = 10
-                
+                taille = L/3
 
-                organisations=[True, False]
+                interfaceGmsh = Interface_Gmsh(verbosity=False)
 
-                for organisationMaillage in organisations:
-                        # Pour chaque type d'element 2D
-                        for t, type in enumerate(ElementIsoparametrique.get_Types2D()):
-                                modelGmsh = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L, verbosity=False)
-                                coordo, connect = modelGmsh.ConstructionRectangle(L, L)
+                # Pour chaque type d'element 2D
+                for t, elemType in enumerate(ElementIsoparametrique.get_Types2D()):
+                        for isOrganised in [True, False]:
+
+                                
+                                coordo, connect = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=L, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
                                 mesh = Mesh(2, coordo=coordo, connect=connect, verbosity=False)
 
                                 Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-                                plt.pause(0.005)
-
-                                modelGmsh2 = Interface_Gmsh(dim, organisationMaillage=organisationMaillage, typeElement=t, tailleElement=L/2, verbosity=False)
-                                coordo2, connect2 = modelGmsh2.ConstructionRectangleAvecFissure(L, L)
+                                plt.pause(0.00005)
+                                
+                                interfaceGmsh = Interface_Gmsh(verbosity=False)
+                                coordo2, connect2 = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=L, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
                                 mesh2 = Mesh(2, coordo=coordo2, connect=connect2, verbosity=False)
 
                                 Affichage.Plot_NoeudsMaillage(mesh2, showId=True)
-                                plt.pause(0.005)
+                                plt.pause(0.00005)
 
                                 # Affiche le maillage
-                
+
                 pass
 
         
@@ -388,19 +299,16 @@ class Test_ModelGmsh(unittest.TestCase):
 
                 import Dossier
                 from Mesh import Mesh
-            
-                dim = 3
-
-
+                
                 # Pour chaque type d'element 3D
-                for t, type in enumerate(ElementIsoparametrique.get_Types3D()):
-                        modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=t, tailleElement=120, verbosity=False)
+                for t, elemType in enumerate(ElementIsoparametrique.get_Types3D()):
+                        interfaceGmsh = Interface_Gmsh(verbosity=False)
                         path = Dossier.GetPath()
                         fichier = path + "\\models\\part.stp" 
-                        coordo, connect = modelGmsh.Importation3D(fichier)
+                        coordo, connect = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=120)
                         mesh = Mesh(3, coordo, connect, verbosity=False)
                         Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-                        plt.pause(0.005)
+                        plt.pause(0.00005)
 
     
            

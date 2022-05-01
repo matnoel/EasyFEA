@@ -46,7 +46,7 @@ Gc = 2.7e3
 # Paramètres maillage
 if test:
         taille = 1e-5 #taille maille test fem object
-        taille *= 50
+        taille *= 20
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -60,10 +60,14 @@ else:
 
 if solve:
 
-        modelGmsh = Interface_Gmsh(dim, organisationMaillage=False, typeElement=0, tailleElement=taille,
-        affichageGmsh=False)
+        elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-        (coordos_tn, connect) = modelGmsh.ConstructionRectangleAvecFissure(L, L, openCrack=True)
+        interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
+
+        openCrack = False
+
+        (coordos_tn, connect) = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=L, elemType=elemType,
+        elementSize=taille, isOrganised=True, openCrack=openCrack)
 
         mesh = Mesh(dim, coordos_tn, connect)
 
@@ -95,7 +99,7 @@ if solve:
 
         simu = Simu(dim, mesh, materiau, verbosity=False)
 
-        Affichage.Plot_NoeudsMaillage(simu, showId=True)
+        Affichage.Plot_NoeudsMaillage(simu.mesh, showId=True)
         plt.show()
 
         # Renseignement des conditions limites

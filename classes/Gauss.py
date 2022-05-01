@@ -25,102 +25,130 @@ class Gauss:
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
 
-        assert matriceType in ["rigi", "masse"]
+        from GroupElem import GroupElem
 
-        if elemType == "TRI3":
+        assert matriceType in GroupElem.get_MatriceType()
 
-            if matriceType == "rigi":
+        match elemType:
 
-                nPg = 1
+            case "SEG2":
+                dim = 1
+                match matriceType:
+                    case "rigi":
+                        nPg = 1
+                        x = 0
+                        poids = 2
+                    case "masse":
+                        nPg = 2
+                        x = [-np.sqrt(1/3), np.sqrt(1/3)]
+                        poids = [1]*2
 
-                ksis = 1/3
-                etas = 1/3
-                poids = 1/2
+            case "SEG3":
+                dim = 1
+                match matriceType:
+                    case "rigi":
+                        nPg = 2
+                        x = [-np.sqrt(1/3), np.sqrt(1/3)]
+                        poids = [1]*2
+                    case "masse":
+                        nPg = 3
+                        x = [-np.sqrt(3/5), 0, np.sqrt(3/5)]
+                        poids = [5/9, 8/9, 5/9]
 
-            elif matriceType == "masse":
+            case "TRI3":
+                dim = 2
+                match matriceType:
+                    case "rigi":
+                        nPg = 1
 
-                nPg = 3
+                        ksis = 1/3
+                        etas = 1/3
 
-                ksis = [1/6, 2/3, 1/6]
-                etas = [1/6, 1/6, 2/3]
-                poids = [1/6] * 3
+                        poids = 1/2
+                    case "masse":
+                        nPg = 3
 
-        elif elemType == "TRI6":
+                        ksis = [1/6, 2/3, 1/6]
+                        etas = [1/6, 1/6, 2/3]
 
-            if matriceType == "rigi":
+                        poids = [1/6] * 3
+            
+            case "TRI6":
+                dim = 2
+                match matriceType:
+                    case "rigi":
+                        nPg = 3
 
-                nPg = 3
+                        ksis = [1/6, 2/3, 1/6]
+                        etas = [1/6, 1/6, 2/3]
 
-                ksis = [1/6, 2/3, 1/6]
-                etas = [1/6, 1/6, 2/3]
-                poids = [1/6] * 3
+                        poids = [1/6] * 3
+                    case "masse":
+                        nPg = 6
 
-            elif matriceType == "masse":
+                        a = 0.445948490915965
+                        b = 0.091576213509771
+                        p1 = 0.111690794839005
+                        p2 = 0.054975871827661
+                        ksis = [b, 1-2*b, b, a, a, 1-2*a]
+                        etas = [b, b, 1-2*b, 1-2*a, a, a]
 
-                nPg = 6
+                        poids = [p2, p2, p2, p1, p1, p1]
+            
+            case "QUAD4":
+                dim = 2
+                match matriceType:
+                    case ("rigi"|"masse"):
+                        nPg = 4
 
-                a = 0.445948490915965
-                b = 0.091576213509771
-                p1 = 0.111690794839005
-                p2 = 0.054975871827661
+                        a = 1/np.sqrt(3)
+                        ksis = [-a, a, a, -a]
+                        etas = [-a, -a, a, a]
 
-                ksis = [b, 1-2*b, b, a, a, 1-2*a]
-                etas = [b, b, 1-2*b, 1-2*a, a, a]
-                poids = [p2, p2, p2, p1, p1, p1]
+                        poids = [1]*nPg
+            
+            case "QUAD8":
+                dim = 2
+                match matriceType:
+                    case ("rigi"|"masse"):
+                        nPg = 9
 
-        elif elemType == "QUAD4":
+                        a = 0.774596669241483
 
-            if matriceType in ["rigi", "masse"]:
-                nPg = 4
+                        ksis = [-a, a, a, -a, 0, a, 0, -a, 0]
+                        etas = [-a, -a, a, a, -a, 0, a, 0, 0]
+                        poids = [25/81, 25/81, 25/81, 25/81, 40/81, 40/81, 40/81, 40/81, 64/81]
+                    
+            case "TETRA4":
+                dim = 3
+                match matriceType:
+                    case "rigi":
+                        nPg = 1
 
-                a = 1/np.sqrt(3)
+                        x = 1/4
+                        y = 1/4
+                        z = 1/4
 
-                ksis = [-a, a, a, -a]
-                etas = [-a, -a, a, a]
-                poids = [1]*nPg
+                        poids = 1/6
+                    case "masse":
+                        nPg = 4
 
-        elif elemType == "QUAD8":
+                        a = (5-np.sqrt(5))/20
+                        b = (5+3*np.sqrt(5))/20
 
-            if matriceType in ["rigi", "masse"]:
+                        x = [a, a, a, b]
+                        y = [a, a, b, a]
+                        z = [a, b, a, a]
 
-                nPg = 9
+                        poids = [1/24]*nPg
 
-                a = 0.774596669241483
-
-                ksis = [-a, a, a, -a, 0, a, 0, -a, 0]
-                etas = [-a, -a, a, a, -a, 0, a, 0, 0]
-                poids = [25/81, 25/81, 25/81, 25/81, 40/81, 40/81, 40/81, 40/81, 64/81]
-
-        elif elemType == "TETRA4":
-
-            if matriceType == "rigi":
-
-                nPg = 1
-
-                x = 1/4
-                y = 1/4
-                z = 1/4
-                poids = 1/6
-
-            elif matriceType == "masse":
-
-                nPg = 4
-
-                a = (5-np.sqrt(5))/20
-                b = (5+3*np.sqrt(5))/20
-
-                x = [a, a, a, b]
-                y = [a, a, b, a]
-                z = [a, b, a, a]
-                poids = [1/24]*nPg
-        
-        if elemType == "TETRA4":
-
-            coord = np.array([x, y, z]).T.reshape((nPg,3))
-
-        else:
-
-            coord = np.array([ksis, etas]).T.reshape((nPg,2))
+        match dim:
+            case 1:
+                coord = np.array([x]).T.reshape((nPg,1))
+            case 2:
+                coord = np.array([ksis, etas]).T.reshape((nPg,2))
+            case 3:
+                coord = np.array([x, y, z]).T.reshape((nPg,3))
 
         poids = np.array(poids).reshape(nPg)
 

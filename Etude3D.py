@@ -32,7 +32,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 10
+nBe = 20
 taille = h/nBe
 
 if nBe > 3:
@@ -44,11 +44,11 @@ comportement = Elas_Isot(dim, contraintesPlanes=False)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=0, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False)
+interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 
 fichier = Dossier.NewFile('models\\part.stp')
 
-(coordo, connect) = modelGmsh.Importation3D(fichier)
+(coordo, connect) = interfaceGmsh.Importation3D(fichier, tailleElement=taille)
 mesh = Mesh(dim, coordo, connect)
 
 noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)

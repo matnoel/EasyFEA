@@ -33,8 +33,7 @@ class ElementIsoparametrique:
                 6 : "TRI6",
                 4 : "QUAD4",
                 8 : "QUAD8",
-            }                
-            return switch[self.nPe]
+            }
         if self.__dim == 3:
             switch = {
                 4 : "TETRA4",                
@@ -118,7 +117,7 @@ class ElementIsoparametrique:
         self.__dict_N_scalaire_pg = {}
         """Fonctions de formes scalaires pour chaque type (masse, rigi...)\n
         "type" : (pg, 1, nPe) : \n
-            [Ni . . . Nn]"""        
+            [Ni . . . Nn]"""
         self.__dict_N_vecteur_pg = {}
         """Fonctions de formes scalaires pour chaque type (masse, rigi...)\n
         "type" : (pg, dim, nPe*dim) : \n
@@ -138,7 +137,7 @@ class ElementIsoparametrique:
         self.__dict_jacobien_e_pg = {}
         """jacobien"""
         self.__dict_dN_e_pg = {}
-        """Derivé des fonctions de formes dans la base réele pour chaque type (masse, rigi...)"""
+        
     
     def __get_dN_e_pg(self, nodes_e :np.ndarray, matriceType: str):
         assert matriceType in ElementIsoparametrique.get_MatriceType()
@@ -174,14 +173,14 @@ class ElementIsoparametrique:
             # Matrice jacobienne
             F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=True))
             self.__dict_F_e_pg[matriceType] = F_e_pg
+
+            # jacobien
+            jacobien_e_pg = np.array(np.linalg.det(F_e_pg))
+            self.__dict_jacobien_e_pg[matriceType] = jacobien_e_pg
             
             # Inverse Matrice jacobienne
             invF_e_pg = np.array(np.linalg.inv(F_e_pg))
             self.__dict_invF_e_pg[matriceType] = invF_e_pg
-            
-            # jacobien
-            jacobien_e_pg = np.array(np.linalg.det(F_e_pg))
-            self.__dict_jacobien_e_pg[matriceType] = jacobien_e_pg
 
             tic.Tac("Matrices", f"Calcul des matrices de changement de base de type : {matriceType}", self.__verbosity)
         
@@ -202,18 +201,7 @@ class ElementIsoparametrique:
 
         tic = TicTac()
 
-        if self.__dim == 2:
-
-            if self.type in ["TRI3", "TRI6"]:                
-                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Build_Matrices_ElemIso_Triangle(matriceType)
-
-            elif self.type in ["QUAD4", "QUAD8"]:
-                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Build_Matrices_ElemIso_Quadrangle(matriceType)
-
-        elif self.__dim == 3:
-
-            if self.type in ["TETRA4"]:
-                N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Build_Matrices_ElemIso_Tetraedre(matriceType)
+        N_scalaire_pg, N_vecteur_pg, dN_pg, gauss = self.__Build_Matrices_ElemIso(matriceType)
 
         # Sauvegarde les valeurs
         self.__dict_N_scalaire_pg[matriceType] = N_scalaire_pg
@@ -260,8 +248,6 @@ class ElementIsoparametrique:
         return Nt_scalaire_pg, Nt_vecteur_pg
 
     def __Matrices_Dérivées_Fonctions_De_Forme_Iso(self, dNtild: np.ndarray, gauss: Gauss):
-        
-        # TODO A optimiser
 
         coord = gauss.coord
 
@@ -271,167 +257,122 @@ class ElementIsoparametrique:
 
         nPg = gauss.nPg
 
-        dNt_pg = np.zeros((nPg, dim, nbtild))
+        dN_pg = np.zeros((nPg, dim, nbtild))
 
         for pg in range(nPg):
+                for n, Nt in enumerate(dNtild):
+                    for d in range(dim):
+                        func = Nt[d]
+                        match coord.shape[1]:
+                            case 2:
+                                dN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1])
+                            case 3:
+                                dN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
 
-            for n, Nt in enumerate(dNtild):
+                        
 
-                if dim == 2:
-                    ksi = coord[pg, 0]
-                    eta = coord[pg, 1]
-
-                    dN_ksi = Nt[0](ksi, eta)
-                    dN_eta = Nt[1](ksi, eta)
-
-                    dNt_pg[pg, 0, n] = dN_ksi
-                    dNt_pg[pg, 1, n] = dN_eta
-
-                else:
-                    x = coord[pg, 0]
-                    y = coord[pg, 1]
-                    z = coord[pg, 2]
-
-                    dN_x = Nt[0](x, y, z)
-                    dN_y = Nt[1](x, y, z)
-                    dN_z = Nt[2](x, y, z)
-
-                    dNt_pg[pg, 0, n] = dN_x
-                    dNt_pg[pg, 1, n] = dN_y
-                    dNt_pg[pg, 2, n] = dN_z                    
-
-        return dNt_pg
+        return dN_pg
         
-    def __Build_Matrices_ElemIso_Triangle(self, matriceType: str):
+    def __Build_Matrices_ElemIso(self, matriceType: str):
 
         gauss = Gauss(self.type, matriceType)
 
-        # TRI3
-        if self.nPe == 3:
+        match self.type:
 
-            N1t = lambda ksi,eta: 1-ksi-eta
-            N2t = lambda ksi,eta: ksi
-            N3t = lambda ksi,eta: eta
-            
-            Ntild = np.array([N1t, N2t, N3t])
+            case "TRI3":
 
-            Nt_scalaire_pg, Nt_vecteur_pg = self.__Matrices_Fonctions_De_Forme_Iso(Ntild, gauss)
-            
-            dN1t = [lambda ksi,eta: -1, lambda ksi,eta:-1]
-            dN2t = [lambda ksi,eta: 1,  lambda ksi,eta: 0]
-            dN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 1]
-
-            dNtild = np.array([dN1t, dN2t, dN3t])
-
-            dN_pg = self.__Matrices_Dérivées_Fonctions_De_Forme_Iso(dNtild, gauss)
-
-        # TRI6  
-        if self.nPe == 6:
-            
-            N1t = lambda ksi,eta: -(1-ksi-eta)*(1-2*(1-ksi-eta))
-            N2t = lambda ksi,eta: -ksi*(1-2*ksi)
-            N3t = lambda ksi,eta: -eta*(1-2*eta)
-            N4t = lambda ksi,eta: 4*ksi*(1-ksi-eta)
-            N5t = lambda ksi,eta: 4*ksi*eta
-            N6t = lambda ksi,eta: 4*eta*(1-ksi-eta)
-            
-            Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t])
+                N1t = lambda ksi,eta: 1-ksi-eta
+                N2t = lambda ksi,eta: ksi
+                N3t = lambda ksi,eta: eta
                 
-            Nt_scalaire_pg, Nt_vecteur_pg = self.__Matrices_Fonctions_De_Forme_Iso(Ntild, gauss)
-
-            dN1t = [lambda ksi,eta: 4*ksi+4*eta-3,  lambda ksi,eta: 4*ksi+4*eta-3]
-            dN2t = [lambda ksi,eta: 4*ksi-1,        lambda ksi,eta: 0]
-            dN3t = [lambda ksi,eta: 0,              lambda ksi,eta: 4*eta-1]
-            dN4t = [lambda ksi,eta: 4-8*ksi-4*eta,  lambda ksi,eta: -4*ksi]
-            dN5t = [lambda ksi,eta: 4*eta,          lambda ksi,eta: 4*ksi]
-            dN6t = [lambda ksi,eta: -4*eta,         lambda ksi,eta: 4-4*ksi-8*eta]
-            
-            dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
-
-            dN_pg = self.__Matrices_Dérivées_Fonctions_De_Forme_Iso(dNtild, gauss)
-
-        return Nt_scalaire_pg, Nt_vecteur_pg, dN_pg, gauss
-
-    def __Build_Matrices_ElemIso_Quadrangle(self, matriceType: str):
-
-        gauss = Gauss(self.type, matriceType)
-        
-        if self.nPe == 4:
-            
-            N1t = lambda ksi,eta: (1-ksi)*(1-eta)/4
-            N2t = lambda ksi,eta: (1+ksi)*(1-eta)/4
-            N3t = lambda ksi,eta: (1+ksi)*(1+eta)/4
-            N4t = lambda ksi,eta: (1-ksi)*(1+eta)/4
-            
-            Ntild = np.array([N1t, N2t, N3t, N4t])
-
-            Nt_scalaire_pg, Nt_vecteur_pg = self.__Matrices_Fonctions_De_Forme_Iso(Ntild, gauss)
-            
-            dN1t = [lambda ksi,eta: (eta-1)/4,  lambda ksi,eta: (ksi-1)/4]
-            dN2t = [lambda ksi,eta: (1-eta)/4,  lambda ksi,eta: (-ksi-1)/4]
-            dN3t = [lambda ksi,eta: (1+eta)/4,  lambda ksi,eta: (1+ksi)/4]
-            dN4t = [lambda ksi,eta: (-eta-1)/4, lambda ksi,eta: (1-ksi)/4]
-            
-            dNtild = [dN1t, dN2t, dN3t, dN4t]
-            
-            dN_pg = self.__Matrices_Dérivées_Fonctions_De_Forme_Iso(dNtild, gauss)
-              
-        elif self.nPe ==8:
-            
-            N1t = lambda ksi,eta: (1-ksi)*(1-eta)*(-1-ksi-eta)/4
-            N2t = lambda ksi,eta: (1+ksi)*(1-eta)*(-1+ksi-eta)/4
-            N3t = lambda ksi,eta: (1+ksi)*(1+eta)*(-1+ksi+eta)/4
-            N4t = lambda ksi,eta: (1-ksi)*(1+eta)*(-1-ksi+eta)/4
-            N5t = lambda ksi,eta: (1-ksi**2)*(1-eta)/2
-            N6t = lambda ksi,eta: (1+ksi)*(1-eta**2)/2
-            N7t = lambda ksi,eta: (1-ksi**2)*(1+eta)/2
-            N8t = lambda ksi,eta: (1-ksi)*(1-eta**2)/2
-            
-            Ntild =  np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t])
-
-            Nt_scalaire_pg, Nt_vecteur_pg = self.__Matrices_Fonctions_De_Forme_Iso(Ntild, gauss)
+                Ntild = np.array([N1t, N2t, N3t])
                 
+                dN1t = [lambda ksi,eta: -1, lambda ksi,eta:-1]
+                dN2t = [lambda ksi,eta: 1,  lambda ksi,eta: 0]
+                dN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 1]
 
-            dN1t = [lambda ksi,eta: (1-eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1-ksi)*(ksi+2*eta)/4]
-            dN2t = [lambda ksi,eta: (1-eta)*(2*ksi-eta)/4,      lambda ksi,eta: -(1+ksi)*(ksi-2*eta)/4]
-            dN3t = [lambda ksi,eta: (1+eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1+ksi)*(ksi+2*eta)/4]
-            dN4t = [lambda ksi,eta: -(1+eta)*(-2*ksi+eta)/4,    lambda ksi,eta: (1-ksi)*(-ksi+2*eta)/4]
-            dN5t = [lambda ksi,eta: -ksi*(1-eta),               lambda ksi,eta: -(1-ksi**2)/2]
-            dN6t = [lambda ksi,eta: (1-eta**2)/2,               lambda ksi,eta: -eta*(1+ksi)]
-            dN7t = [lambda ksi,eta: -ksi*(1+eta),               lambda ksi,eta: (1-ksi**2)/2]
-            dN8t = [lambda ksi,eta: -(1-eta**2)/2,              lambda ksi,eta: -eta*(1-ksi)]
-                            
-            dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t])
+                dNtild = np.array([dN1t, dN2t, dN3t])
 
-            dN_pg = self.__Matrices_Dérivées_Fonctions_De_Forme_Iso(dNtild, gauss)
+            case "TRI6":
 
-        return Nt_scalaire_pg, Nt_vecteur_pg, dN_pg, gauss
+                N1t = lambda ksi,eta: -(1-ksi-eta)*(1-2*(1-ksi-eta))
+                N2t = lambda ksi,eta: -ksi*(1-2*ksi)
+                N3t = lambda ksi,eta: -eta*(1-2*eta)
+                N4t = lambda ksi,eta: 4*ksi*(1-ksi-eta)
+                N5t = lambda ksi,eta: 4*ksi*eta
+                N6t = lambda ksi,eta: 4*eta*(1-ksi-eta)
+                
+                Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t])
+
+                dN1t = [lambda ksi,eta: 4*ksi+4*eta-3,  lambda ksi,eta: 4*ksi+4*eta-3]
+                dN2t = [lambda ksi,eta: 4*ksi-1,        lambda ksi,eta: 0]
+                dN3t = [lambda ksi,eta: 0,              lambda ksi,eta: 4*eta-1]
+                dN4t = [lambda ksi,eta: 4-8*ksi-4*eta,  lambda ksi,eta: -4*ksi]
+                dN5t = [lambda ksi,eta: 4*eta,          lambda ksi,eta: 4*ksi]
+                dN6t = [lambda ksi,eta: -4*eta,         lambda ksi,eta: 4-4*ksi-8*eta]
+                
+                dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
             
-    def __Build_Matrices_ElemIso_Tetraedre(self, matriceType: str):
+            case "QUAD4":
 
-        gauss = Gauss(self.type, matriceType)
+                N1t = lambda ksi,eta: (1-ksi)*(1-eta)/4
+                N2t = lambda ksi,eta: (1+ksi)*(1-eta)/4
+                N3t = lambda ksi,eta: (1+ksi)*(1+eta)/4
+                N4t = lambda ksi,eta: (1-ksi)*(1+eta)/4
+                
+                Ntild = np.array([N1t, N2t, N3t, N4t])
+                
+                dN1t = [lambda ksi,eta: (eta-1)/4,  lambda ksi,eta: (ksi-1)/4]
+                dN2t = [lambda ksi,eta: (1-eta)/4,  lambda ksi,eta: (-ksi-1)/4]
+                dN3t = [lambda ksi,eta: (1+eta)/4,  lambda ksi,eta: (1+ksi)/4]
+                dN4t = [lambda ksi,eta: (-eta-1)/4, lambda ksi,eta: (1-ksi)/4]
+                
+                dNtild = [dN1t, dN2t, dN3t, dN4t]
 
-        if self.nPe == 4:
+            case "QUAD8":
 
-            N1t = lambda x,y,z: 1-x-y-z
-            N2t = lambda x,y,z: x
-            N3t = lambda x,y,z: y
-            N4t = lambda x,y,z: z
+                N1t = lambda ksi,eta: (1-ksi)*(1-eta)*(-1-ksi-eta)/4
+                N2t = lambda ksi,eta: (1+ksi)*(1-eta)*(-1+ksi-eta)/4
+                N3t = lambda ksi,eta: (1+ksi)*(1+eta)*(-1+ksi+eta)/4
+                N4t = lambda ksi,eta: (1-ksi)*(1+eta)*(-1-ksi+eta)/4
+                N5t = lambda ksi,eta: (1-ksi**2)*(1-eta)/2
+                N6t = lambda ksi,eta: (1+ksi)*(1-eta**2)/2
+                N7t = lambda ksi,eta: (1-ksi**2)*(1+eta)/2
+                N8t = lambda ksi,eta: (1-ksi)*(1-eta**2)/2
+                
+                Ntild =  np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t])
 
-            Ntild = np.array([N1t, N2t, N3t, N4t])
+                dN1t = [lambda ksi,eta: (1-eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1-ksi)*(ksi+2*eta)/4]
+                dN2t = [lambda ksi,eta: (1-eta)*(2*ksi-eta)/4,      lambda ksi,eta: -(1+ksi)*(ksi-2*eta)/4]
+                dN3t = [lambda ksi,eta: (1+eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1+ksi)*(ksi+2*eta)/4]
+                dN4t = [lambda ksi,eta: -(1+eta)*(-2*ksi+eta)/4,    lambda ksi,eta: (1-ksi)*(-ksi+2*eta)/4]
+                dN5t = [lambda ksi,eta: -ksi*(1-eta),               lambda ksi,eta: -(1-ksi**2)/2]
+                dN6t = [lambda ksi,eta: (1-eta**2)/2,               lambda ksi,eta: -eta*(1+ksi)]
+                dN7t = [lambda ksi,eta: -ksi*(1+eta),               lambda ksi,eta: (1-ksi**2)/2]
+                dN8t = [lambda ksi,eta: -(1-eta**2)/2,              lambda ksi,eta: -eta*(1-ksi)]
+                                
+                dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t])
 
-            Nt_scalaire_pg, Nt_vecteur_pg = self.__Matrices_Fonctions_De_Forme_Iso(Ntild, gauss)
-            
-            # Construit dNtild
-            dN1t = [lambda x,y,z: -1,   lambda x,y,z: -1,   lambda x,y,z: -1]
-            dN2t = [lambda x,y,z: 1,    lambda x,y,z: 0,    lambda x,y,z: 0]
-            dN3t = [lambda x,y,z: 0,    lambda x,y,z: 1,    lambda x,y,z: 0]
-            dN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 1]
+            case "TETRA4":
+                N1t = lambda x,y,z: 1-x-y-z
+                N2t = lambda x,y,z: x
+                N3t = lambda x,y,z: y
+                N4t = lambda x,y,z: z
 
-            dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
+                Ntild = np.array([N1t, N2t, N3t, N4t])
+                
+                # Construit dNtild
+                dN1t = [lambda x,y,z: -1,   lambda x,y,z: -1,   lambda x,y,z: -1]
+                dN2t = [lambda x,y,z: 1,    lambda x,y,z: 0,    lambda x,y,z: 0]
+                dN3t = [lambda x,y,z: 0,    lambda x,y,z: 1,    lambda x,y,z: 0]
+                dN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 1]
 
-            dN_pg = self.__Matrices_Dérivées_Fonctions_De_Forme_Iso(dNtild, gauss)
-        
+                dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
+
+        Nt_scalaire_pg, Nt_vecteur_pg = self.__Matrices_Fonctions_De_Forme_Iso(Ntild, gauss)
+
+        dN_pg = self.__Matrices_Dérivées_Fonctions_De_Forme_Iso(dNtild, gauss)    
+
         return Nt_scalaire_pg, Nt_vecteur_pg, dN_pg, gauss
 
 # ====================================
