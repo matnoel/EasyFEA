@@ -186,7 +186,6 @@ class Affichage:
             Axes dans lequel on va creer la figure
         """
 
-
         from Simu import Simu
         from Mesh import Mesh
 

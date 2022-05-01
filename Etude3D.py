@@ -22,7 +22,7 @@ dim = 3
 
 plotResult = True
 
-saveParaview = True
+saveParaview = False
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -32,7 +32,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 20
+nBe = 3
 taille = h/nBe
 
 if nBe > 3:
@@ -48,8 +48,7 @@ interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 
 fichier = Dossier.NewFile('models\\part.stp')
 
-(coordo, connect) = interfaceGmsh.Importation3D(fichier, tailleElement=taille)
-mesh = Mesh(dim, coordo, connect)
+mesh = interfaceGmsh.Importation3D(fichier, tailleElement=taille)
 
 noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
 noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
@@ -57,7 +56,7 @@ noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
 
-simu = Simu(dim,mesh, materiau, verbosity=True)
+simu = Simu(mesh, materiau, verbosity=True)
 
 simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y", "z"])
@@ -79,9 +78,9 @@ if plotResult:
 
         tic = TicTac()
 
-        Affichage.Plot_Maillage(simu.mesh, deformation=False)
+        Affichage.Plot_Maillage(simu, deformation=False)
         # plt.savefig(Dossier.NewFile("Etude3D\\Maillage.png", results=True))
-        Affichage.Plot_Maillage(mesh, simu=simu, deformation=True, facteurDef=20)
+        Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)
         # plt.savefig(Dossier.NewFile("Etude3D\\MaillageDef.png", results=True))
         Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
         # plt.savefig(Dossier.NewFile("Etude3D\\Svm_e.png", results=True))

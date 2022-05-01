@@ -1,10 +1,12 @@
+
 from typing import cast
+
 import gmsh
 import sys
 import numpy as np
 
+from Mesh import Mesh
 from GroupElem import GroupElem
-from Element import ElementIsoparametrique
 from TicTac import TicTac
 from Affichage import Affichage
 import matplotlib.pyplot as plt
@@ -31,9 +33,9 @@ class Interface_Gmsh:
         
         def __CheckType(self, dim: int, elemType: str):
                 if dim == 2:
-                        assert elemType in ElementIsoparametrique.get_Types2D()                        
+                        assert elemType in GroupElem.get_Types2D()                        
                 elif dim == 3:
-                        assert elemType in ElementIsoparametrique.get_Types3D()
+                        assert elemType in GroupElem.get_Types3D()
 
         def Importation3D(self,fichier="", elemType="TETRA4", tailleElement=0.0):
                 """Importe depuis un 3D
@@ -41,7 +43,7 @@ class Interface_Gmsh:
                 elemTypes = ["TETRA4"]
                 
                 Returns:
-                    tuple: coordo, connect
+                    Mesh: mesh
                 """
 
                 self.__initGmsh()
@@ -57,9 +59,9 @@ class Interface_Gmsh:
 
                 tic.Tac("Mesh","Importation du fichier step", self.__verbosity)
 
-                self.__ConstructionMaillageGmsh(3, elemType)
+                self.__Construction_MaillageGmsh(3, elemType)
 
-                return self.__ConstructionCoordoConnect(3)
+                return self.__Recuperation_Maillage()
 
         def ConstructionRectangle(self, largeur: float, hauteur: float,
         elemType="TRI3", tailleElement=0.0, isOrganised=False):
@@ -69,7 +71,7 @@ class Interface_Gmsh:
                 elemTypes = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
                 
                 Returns:
-                    tuple: coordo, connect
+                    Mesh: mesh
                 """
 
                 self.__initGmsh()
@@ -99,9 +101,9 @@ class Interface_Gmsh:
                 
                 tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
                 
-                self.__ConstructionMaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
+                self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return self.__ConstructionCoordoConnect(2)
+                return self.__Recuperation_Maillage()
 
         def ConstructionRectangleAvecFissure(self, largeur: float, hauteur: float,
         elemType="TRI3", elementSize=0.0, openCrack=False, isOrganised=False):
@@ -111,7 +113,7 @@ class Interface_Gmsh:
                 elemTypes = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
                 
                 Returns:
-                    tuple: coordo, connect
+                    Mesh: mesh
                 """
 
                 self.__initGmsh()
@@ -160,13 +162,13 @@ class Interface_Gmsh:
                 tic.Tac("Mesh","Construction Rectangle Fissuré", self.__verbosity)
                 
                 if openCrack:
-                        self.__ConstructionMaillageGmsh(2, elemType, surface=surface, crack=crack, openBoundary=point, isOrganised=isOrganised)
+                        self.__Construction_MaillageGmsh(2, elemType, surface=surface, crack=crack, openBoundary=point, isOrganised=isOrganised)
                 else:
-                        self.__ConstructionMaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
+                        self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return self.__ConstructionCoordoConnect(2)
+                return self.__Recuperation_Maillage()
 
-        def __ConstructionMaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
+        def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
         surface=None, crack=None, openBoundary=None):
 
                 tic = TicTac()
@@ -219,13 +221,15 @@ class Interface_Gmsh:
                 
                 tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
-        def __ConstructionCoordoConnect(self, dim: int):
-                """construit connect et coordo pour l'importation du maillage"""
+        def __Recuperation_Maillage(self):
+                """construit le maillage"""
                 
                 tic = TicTac()
 
                 physicalGroups = gmsh.model.getPhysicalGroups()
                 entities = gmsh.model.getEntities()
+
+                dim = entities[-1][0]
 
                 elementTypes, elementTags, nodeTags = gmsh.model.mesh.getElements()
                 nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
@@ -234,22 +238,17 @@ class Interface_Gmsh:
                 coordo = coord.reshape(-1,3)
 
                 # Construit les elements
-                listGmshElem = {}
+                dict_groupElem = {}
                 for t, gmshId in enumerate(elementTypes):
 
-                        gmshElem = GroupElem(gmshId, elementTags[t]-1, nodeTags[t]-1, coordo)
-                        listGmshElem[gmshElem.dim] = gmshElem
-
-                gmshElem = cast(GroupElem, listGmshElem[dim])
-
-                connect = gmshElem.connect
-                coordo = gmshElem.coordo                
+                        groupElem = GroupElem(gmshId, elementTags[t]-1, nodeTags[t]-1, coordo)
+                        dict_groupElem[groupElem.dim] = groupElem
 
                 gmsh.finalize()
 
                 tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
-                return coordo, connect
+                return Mesh(dim, dict_groupElem, self.__verbosity)
 
 
 # TEST ==============================
@@ -273,7 +272,7 @@ class Test_ModelGmsh(unittest.TestCase):
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
 
                 # Pour chaque type d'element 2D
-                for t, elemType in enumerate(ElementIsoparametrique.get_Types2D()):
+                for t, elemType in enumerate(GroupElem.get_Types2D()):
                         for isOrganised in [True, False]:
 
                                 

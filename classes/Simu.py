@@ -25,7 +25,7 @@ class Simu:
 
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
-    def __init__(self, dim: int, mesh: Mesh, materiau: Materiau, verbosity=True):
+    def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True):
         """Creation d'une simulation
 
         Args:
@@ -40,7 +40,7 @@ class Simu:
         assert mesh.dim == dim, "Doit avoir la meme dimension que dim"
         assert materiau.dim == dim, "Doit avoir la meme dimension que dim"
 
-        self.__dim = dim
+        self.__dim = mesh.dim
         """dimension de la simulation 2D ou 3D"""
         self.__verbosity = verbosity
         """la simulation peut ecrire dans la console"""
@@ -1105,7 +1105,7 @@ class Test_Simu(unittest.TestCase):
             (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
             mesh = Mesh(dim, coordo, connect, verbosity=False)
 
-            simu = Simu(dim, mesh, materiau, verbosity=False)
+            simu = Simu(mesh, materiau, verbosity=False)
 
             simu.Assemblage_u()
 
@@ -1147,7 +1147,7 @@ class Test_Simu(unittest.TestCase):
             (coordo, connect) = modelGmsh.Importation3D(fichier)
             mesh = Mesh(dim, coordo, connect, verbosity=False)
 
-            simu = Simu(dim,mesh, materiau, verbosity=False)
+            simu = Simu(mesh, materiau, verbosity=False)
 
             simu.Assemblage_u()
 

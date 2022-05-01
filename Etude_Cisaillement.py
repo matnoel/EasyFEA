@@ -17,11 +17,11 @@ Affichage.Clear()
 
 test = True
 
-solve = True
+solve = False
 
-plotResult = True
-saveParaview = True
-makeMovie = False
+plotResult = False
+saveParaview = False
+makeMovie = True
 save = True
 
 # Data --------------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ Gc = 2.7e3
 # Paramètres maillage
 if test:
         taille = 1e-5 #taille maille test fem object
-        taille *= 20
+        # taille *= 20
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -66,10 +66,8 @@ if solve:
 
         openCrack = False
 
-        (coordos_tn, connect) = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=L, elemType=elemType,
+        mesh = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=L, elemType=elemType,
         elementSize=taille, isOrganised=True, openCrack=openCrack)
-
-        mesh = Mesh(dim, coordos_tn, connect)
 
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Get_Nodes(conditionX=lambda x: x <= L/2, conditionY=lambda y: y == L/2)
@@ -97,10 +95,10 @@ if solve:
 
         materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
-        simu = Simu(dim, mesh, materiau, verbosity=False)
+        simu = Simu(mesh, materiau, verbosity=False)
 
-        Affichage.Plot_NoeudsMaillage(simu.mesh, showId=True)
-        plt.show()
+        # Affichage.Plot_NoeudsMaillage(simu.mesh, showId=True)
+        # plt.show()
 
         # Renseignement des conditions limites
 
@@ -221,14 +219,16 @@ if plotResult:
         # if save: plt.savefig(f'{folder}\\conditionsLimites.png')
 
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=False)
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
         if save: plt.savefig(f'{folder}\\damage.png')
+
+        Affichage.Plot_Result(simu, "dy")
 
         
 
 if makeMovie:
-        # PostTraitement.MakeMovie(filename, "damage", simu, uglob_t, damage_t)
-        PostTraitement.MakeMovie(filename, "Syy", simu, uglob_t, damage_t, valeursAuxNoeuds=True, deformation=True)
+        PostTraitement.MakeMovie(filename, "damage", simu, uglob_t, damage_t)
+        # PostTraitement.MakeMovie(filename, "Syy", simu, uglob_t, damage_t, valeursAuxNoeuds=True, deformation=True)
 
 TicTac.getResume()
 

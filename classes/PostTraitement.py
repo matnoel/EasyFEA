@@ -53,7 +53,7 @@ def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
         return
     
     # Verifie que si on demande d'afficher l'endommagement l'endommagement est donné
-    if option  == "damage" and len(damage_t) > 0:
+    if option  == "damage" and len(damage_t) == 0:
         raise "Impossible d'afficher car damage_t n'est pas renseigné"
 
     # Ajoute le caractère de fin
@@ -78,8 +78,8 @@ def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
     affichageMaillage=affichageMaillage, deformation=deformation, facteurDef=facteurDef)
     
     # Donne le lien vers ffmpeg.exe
-    ffmpegpath = "F:\\Pro\\ffmpeg\\bin\\ffmpeg.exe"
-    # ffmpegpath = "D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe"
+    # ffmpegpath = "F:\\Pro\\ffmpeg\\bin\\ffmpeg.exe"
+    ffmpegpath = "D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe"
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 
     writer = animation.FFMpegWriter(fps=30)

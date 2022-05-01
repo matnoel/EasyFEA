@@ -43,11 +43,10 @@ comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-elemType = "TRI6" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
 interfaceGmsh = Interface_Gmsh()
-(coordo, connect) = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille, isOrganised=True)
-mesh = Mesh(dim, coordo, connect)
+mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille, isOrganised=False)
 
 # Récupère les noeuds qui m'interessent
 
@@ -57,7 +56,7 @@ noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
 
-simu = Simu(dim, mesh, materiau)
+simu = Simu(mesh, materiau)
 
 # # Affichage etc
 # fig, ax = Affichage.Plot_Maillage(simu, deformation=True)

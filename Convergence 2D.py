@@ -41,13 +41,13 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = list(range(1,10,5))
+listNbElement = list(range(1,20,2))
 # listNbElement = list(range(1,10))
 
 tic = TicTac()
 
 # Pour chaque type d'element
-for elem, type in enumerate(ElementIsoparametrique.get_Types2D()):
+for t, elemType in enumerate(ElementIsoparametrique.get_Types2D()):
         
         listTemps_nb = []
         listWdef_nb = []
@@ -59,16 +59,15 @@ for elem, type in enumerate(ElementIsoparametrique.get_Types2D()):
                 taille = b/nbElem
 
                 # Construction du modele et du maillage --------------------------------------------------------------------------------
-                modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=elem, tailleElement=taille, verbosity=False)
-                (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
-                mesh = Mesh(dim, coordo, connect, verbosity=False)
+                interfaceGmsh = Interface_Gmsh(verbosity=False)
+                mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille, isOrganised=False)
 
                 # Récupère les noeuds qui m'interessent
                 noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
                 noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 
                 # Construit la simulation
-                simu = Simu(dim, mesh, materiau, verbosity=False)
+                simu = Simu(mesh, materiau, verbosity=False)
 
                 # Renseigne les condtions limites en deplacement
                 simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
@@ -101,19 +100,19 @@ fig_Temps, ax_Temps = plt.subplots()
 WdefRef = 371.5
 # WdefRef = 391.76
 
-for elem, type in enumerate(ElementIsoparametrique.get_Types2D()):
+for t, elemType in enumerate(ElementIsoparametrique.get_Types2D()):
 
         # Convergence Energie
-        ax_Wdef.plot(listDdl_e_nb[elem], listWdef_e_nb[elem])
+        ax_Wdef.plot(listDdl_e_nb[t], listWdef_e_nb[t])
         
         # Erreur
-        Wdef = np.array(listWdef_e_nb[elem])
+        Wdef = np.array(listWdef_e_nb[t])
         erreur = (WdefRef-Wdef)/WdefRef*100
-        ax_Temps_Erreur.loglog(listDdl_e_nb[elem],erreur)
+        ax_Temps_Erreur.loglog(listDdl_e_nb[t],erreur)
 
         # Temps
         # ax_Temps.plot(listDdl_e_nb[elem], listTemps_e_nb[elem])
-        ax_Temps.loglog(listDdl_e_nb[elem], listTemps_e_nb[elem])
+        ax_Temps.loglog(listDdl_e_nb[t], listTemps_e_nb[t])
 
 # Wdef
 ax_Wdef.grid()

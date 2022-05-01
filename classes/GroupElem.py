@@ -25,33 +25,29 @@ class GroupElem:
                 self.__verbosity = verbosity
 
                 # Dictionnaires pour chaque types de matrices
-                self.__dict_F_e_pg = {}                
-                self.__dict_invF_e_pg = {}                
-                self.__dict_jacobien_e_pg = {}
-
-                self.get_dN_pg("rigi")
-                self.__get_N_pg("rigi")
-                self.get_N_pg("rigi", False)
-                self.get_F_e_pg("rigi")
-                self.get_invF_e_pg("rigi")
+                if self.dim > 0:
+                    self.__dict_dN_e_pg = {}
+                    self.__dict_F_e_pg = {}                
+                    self.__dict_invF_e_pg = {}                
+                    self.__dict_jacobien_e_pg = {}                
         
-        ################################################ PUCLIC ##################################################
+        ################################################ METHODS ##################################################
 
         def __get_elemType(self):
             return GroupElem.Get_ElemInFos(self.__gmshId)[0]
-        elemType = property(__get_elemType)
+        elemType = cast(str, property(__get_elemType))
 
         def __get_nPe(self):
             return GroupElem.Get_ElemInFos(self.__gmshId)[1]
-        nPe = property(__get_nPe)
+        nPe = cast(int, property(__get_nPe))
 
         def __get_dim(self):
             return GroupElem.Get_ElemInFos(self.__gmshId)[2]
-        dim = property(__get_dim)
+        dim = cast(int, property(__get_dim))
 
         def __get_Ne(self):
             return self.__elementTags.shape[0]
-        Ne = property(__get_Ne)
+        Ne = cast(int, property(__get_Ne))
 
         def __get_nodes(self):
             return self.__nodes.copy()
@@ -66,16 +62,37 @@ class GroupElem:
         connect = cast(np.ndarray, property(__get_connect))
         """matrice de connection de l'element (Ne, nPe)"""
 
+        def __get_assembly(self):
+            nPe = self.nPe
+            dim = self.dim
+            taille = nPe*dim
+
+            connect = self.connect
+            assembly = np.zeros((self.Ne, taille), dtype=np.int64)
+
+            for d in range(dim):
+                assembly[:, np.arange(d, taille, dim)] = np.array(connect) * dim + d
+
+            return assembly
+        assembly_e = cast(np.ndarray, property(__get_assembly))
+        """matrice d'assemblage (Ne, nPe*dim)"""
+
         def __get_coordo(self):
             return self.__coordo.copy()
         coordo = cast(np.ndarray, property(__get_coordo))
         """matrice de coordonnées de l'element (Nn, 3)"""
 
-
-        
-        ################################################ METHODS ##################################################
-        
-        # Calculs elements iso paramétrique
+        def __get_nbFaces(self):
+            match self.dim:
+                case (0,1):
+                    return 0
+                case 2:
+                    return 1
+                case 3:
+                    match self.elemType:
+                        case "TETRA4":
+                            return 4
+        nbFaces = cast(int, property(__get_nbFaces))
 
         def get_gauss(self, matriceType: str):
             return Gauss(self.elemType, matriceType)
@@ -86,8 +103,6 @@ class GroupElem:
             Args:
                 matriceType (str): ["rigi","masse"]
                 isScalaire (bool): type de matrice N\n
-
-                    
 
             Returns:
                 np.ndarray: . Fonctions de formes vectorielles (pg, dim, nPe*dim), dans la base (ksi, eta ...)\n
@@ -114,6 +129,70 @@ class GroupElem:
                     N_vect_pg[:, d, np.arange(d, taille, dim)] = N_pg[:,0,:]
                 
                 return N_vect_pg
+        
+        def get_dN_e_pg(self, matriceType: str):
+            assert matriceType in GroupElem.get_MatriceType()
+
+            if matriceType not in self.__dict_dN_e_pg.keys():
+
+                invF_e_pg = self.get_invF_e_pg(matriceType)
+
+                dN_pg = self.get_dN_pg(matriceType)
+
+                # Derivé des fonctions de formes dans la base réele
+                dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize=True))
+                self.__dict_dN_e_pg[matriceType] = dN_e_pg
+
+            return self.__dict_dN_e_pg[matriceType]
+        
+        def get_F_e_pg(self, matriceType: str):
+            """Renvoie la matrice jacobienne
+            """
+            if self.dim == 0: return
+            if matriceType not in self.__dict_F_e_pg.keys():
+
+                nodes_n = self.coordo[:, range(self.dim)]
+                nodes_e = nodes_n[self.connect]
+
+                dN_pg = self.get_dN_pg(matriceType)
+
+                F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=True))                        
+                
+                self.__dict_F_e_pg[matriceType] = F_e_pg
+
+            return cast(np.ndarray, self.__dict_F_e_pg[matriceType])
+        
+        def get_jacobien_e_pg(self, matriceType:str):
+            """Renvoie les jacobiens
+            """
+            if self.dim == 0: return
+            if matriceType not in self.__dict_jacobien_e_pg.keys():
+
+                F_e_pg = self.get_F_e_pg(matriceType)
+
+                jacbobien_e_pg = np.array(np.linalg.det(F_e_pg))
+
+                self.__dict_jacobien_e_pg[matriceType] = jacbobien_e_pg
+
+            return cast(np.ndarray, self.__dict_jacobien_e_pg[matriceType])
+        
+        def get_invF_e_pg(self, matriceType: str):
+            """Renvoie l'inverse de la matrice jacobienne
+            """
+            if self.dim == 0: return
+            if matriceType not in self.__dict_invF_e_pg.keys():
+
+                F_e_pg = self.get_F_e_pg(matriceType)
+
+                match self.dim:
+                    case 1:
+                        invF_e_pg = 1/F_e_pg
+                    case (2|3):
+                        invF_e_pg = np.array(np.linalg.inv(F_e_pg))
+
+                self.__dict_invF_e_pg[matriceType] = invF_e_pg
+
+            return cast(np.ndarray, self.__dict_invF_e_pg[matriceType])
 
         def __get_N_pg(self, matriceType: str):
             """Fonctions de formes vectorielles (pg), dans la base (ksi, eta ...)\n
@@ -313,56 +392,121 @@ class GroupElem:
                             case 3:
                                 dN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
 
-            return dN_pg
+            return dN_pg        
 
-        def get_F_e_pg(self, matriceType: str):
-            """Renvoie la matrice jacobienne
+        def Get_Nodes(self, conditionX=True, conditionY=True, conditionZ=True):
+            """Renvoie la liste de noeuds qui respectent les condtions
+
+            Args:
+                conditionX (bool, optional): Conditions suivant x. Defaults to True.
+                conditionY (bool, optional): Conditions suivant y. Defaults to True.
+                conditionZ (bool, optional): Conditions suivant z. Defaults to True.
+
+            Exemples de contitions:
+                x ou toto ça n'a pas d'importance
+                condition = lambda x: x < 40 and x > 20
+                condition = lambda x: x == 40
+                condition = lambda x: x >= 0
+
+            Returns:
+                list(int): lite des noeuds qui respectent les conditions
             """
-            if self.dim == 0: return
-            if matriceType not in self.__dict_F_e_pg.keys():
+            verifX = isinstance(conditionX, bool)
+            verifY = isinstance(conditionY, bool)
+            verifZ = isinstance(conditionZ, bool)
 
-                nodes_n = self.coordo[:, range(self.dim)]
-                nodes_e = nodes_n[self.connect]
+            listNoeud = list(range(self.Nn))
+            if verifX and verifY and verifZ:
+                return listNoeud
 
-                dN_pg = self.get_dN_pg(matriceType)
+            coordoX = self.__coordo[:,0]
+            coordoY = self.__coordo[:,1]
+            coordoZ = self.__coordo[:,2]
+            
+            arrayVrai = np.array([True]*self.Nn)
+            
+            # Verification suivant X
+            if verifX:
+                valideConditionX = arrayVrai
+            else:
+                try:
+                    valideConditionX = conditionX(coordoX)
+                except:
+                    valideConditionX = [conditionX(coordoX[n]) for n in listNoeud]
 
-                F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=True))                        
-                
-                self.__dict_F_e_pg[matriceType] = F_e_pg
+            # Verification suivant Y
+            if verifY:
+                valideConditionY = arrayVrai
+            else:
+                try:
+                    valideConditionY = conditionY(coordoY)
+                except:
+                    valideConditionY = [conditionY(coordoY[n]) for n in listNoeud]
+            
+            # Verification suivant Z
+            if verifZ:
+                valideConditionZ = arrayVrai
+            else:
+                try:
+                    valideConditionZ = conditionZ(coordoZ)
+                except:
+                    valideConditionZ = [conditionZ(coordoZ[n]) for n in listNoeud]
+            
+            conditionsTotal = valideConditionX * valideConditionY * valideConditionZ
 
-            return cast(np.ndarray, self.__dict_F_e_pg[matriceType])
+            noeuds = list(np.where(conditionsTotal)[0])
+            
+            return noeuds
         
-        def get_jacobien_e_pg(self, matriceType:str):
-            """Renvoie les jacobiens
+        def Localise_e(self, sol: np.ndarray):
+            """localise les valeurs de noeuds sur les elements"""
+            tailleVecteur = self.Nn * self.dim
+
+            if sol.shape[0] == tailleVecteur:
+                sol_e = sol[self.assembly_e]
+            else:
+                sol_e = sol[self.__connect]
+            
+            return sol_e
+
+        def get_connectTriangle(self):
+            """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D\n
+            Par exemple pour un quadrangle on construit deux triangles
+            pour un triangle à 6 noeuds on construit 4 triangles
             """
-            if self.dim == 0: return
-            if matriceType not in self.__dict_jacobien_e_pg.keys():
+            assert self.dim == 2
+            match self.elemType:
+                case "TRI3":
+                    return self.__connect[:,[0,1,2]]
+                case "TRI6":
+                    return np.array(self.__connect[:, [0,3,5,3,1,4,5,4,2,3,4,5]]).reshape(-1,3)
+                case "QUAD4":
+                    return np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
+                case "QUAD8":
+                    return np.array(self.__connect[:, [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]]).reshape(-1,3)
 
-                F_e_pg = self.get_F_e_pg(matriceType)
+        def get_connect_Faces(self):
+            """Récupère les identifiants des noeud constuisant les faces
 
-                jacbobien_e_pg = np.array(np.linalg.det(F_e_pg))
-
-                self.__dict_jacobien_e_pg[matriceType] = jacbobien_e_pg
-
-            return cast(np.ndarray, self.__dict_jacobien_e_pg[matriceType])
-        
-        def get_invF_e_pg(self, matriceType: str):
-            """Renvoie l'inverse de la matrice jacobienne
+            Returns
+            -------
+            list de list
+                Renvoie une liste de face
             """
-            if self.dim == 0: return
-            if matriceType not in self.__dict_invF_e_pg.keys():
-
-                F_e_pg = self.get_F_e_pg(matriceType)
-
-                match self.dim:
-                    case 1:
-                        invF_e_pg = 1/F_e_pg
-                    case (2|3):
-                        invF_e_pg = np.array(np.linalg.inv(F_e_pg))
-
-                self.__dict_invF_e_pg[matriceType] = invF_e_pg
-
-            return cast(np.ndarray, self.__dict_invF_e_pg[matriceType])
+            assert self.dim in [2,3]
+            nPe = self.nPe
+            match self.elemType:
+                case "TRI3":
+                    return self.__connect[:, [0,1,2,0]]
+                case "TRI6":
+                    return self.__connect[:, [0,3,1,4,2,5,0]]
+                case "QUAD4":
+                    return self.__connect[:, [0,1,2,3,0]]
+                case "QUAD8":
+                    return self.__connect[:, [0,4,1,5,2,6,3,7,0]]
+                case "TETRA4":
+                    # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
+                    return np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
 
         def __TestImportation(self):
             """Test si il n'existe pas un noeud en trop
@@ -398,6 +542,18 @@ class GroupElem:
         def get_MatriceType():
             liste = ["rigi", "masse"]
             return liste
+
+        @staticmethod
+        def get_Types2D():
+            """type d'elements disponibles en 2D"""
+            liste2D = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+            return liste2D
+        
+        @staticmethod
+        def get_Types3D():
+            """type d'elements disponibles en 3D"""
+            liste3D = ["TETRA4"]
+            return liste3D
 
         @staticmethod
         def Get_ElemInFos(gmshId: int):
@@ -452,3 +608,35 @@ class GroupElem:
                 return type, nPe, dim
         
         
+# ====================================
+
+import unittest
+import os
+
+class Test_GroupElem(unittest.TestCase):
+    
+    def setUp(self):
+        self.elements = []
+    
+    def test_creation2D(self):
+        from Interface_Gmsh import Interface_Gmsh
+
+        list_mesh2D = []
+        for e, element in enumerate(GroupElem.get_Types2D()):
+            interfaceGmsh = Interface_Gmsh(verbosity=False)
+            mesh = interfaceGmsh.ConstructionRectangle(largeur=1, hauteur=1, elemType=element, tailleElement=0.5)
+            list_mesh2D.append(mesh)
+            
+            mesh.assembly_e
+            mesh.colonnesScalar_e
+            mesh.colonnesVector_e
+            mesh.colonnesScalar_e
+            mesh.get_N_scalaire_pg("rigi")
+            mesh.get_N_vecteur_pg("rigi")
+
+if __name__ == '__main__':        
+    try:
+        os.system("cls")    #nettoie terminal
+        unittest.main(verbosity=2)    
+    except:
+        print("")
