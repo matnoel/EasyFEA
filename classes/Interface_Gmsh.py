@@ -1,11 +1,13 @@
 
+
 import gmsh
 import sys
 import numpy as np
 
 import Dossier
-from Mesh import Mesh
+from Geom import *
 from GroupElem import GroupElem
+from Mesh import Mesh
 from TicTac import TicTac
 from Affichage import Affichage
 import matplotlib.pyplot as plt
@@ -62,8 +64,7 @@ class Interface_Gmsh:
 
                 return self.__Recuperation_Maillage()
 
-        def ConstructionRectangle(self, largeur: float, hauteur: float,
-        elemType="TRI3", tailleElement=0.0, isOrganised=False):
+        def ConstructionRectangle(self, domain: Domain, elemType="TRI3", tailleElement=0.0, isOrganised=False):
 
                 """Construit un rectangle
 
@@ -80,11 +81,16 @@ class Interface_Gmsh:
 
                 tic = TicTac()
 
+                pt1 = domain.pt1
+                pt2 = domain.pt2
+
+                assert pt1.z == 0 and pt2.z == 0
+
                 # Créer les points
-                p1 = gmsh.model.geo.addPoint(0, 0, 0, tailleElement)
-                p2 = gmsh.model.geo.addPoint(largeur, 0, 0, tailleElement)
-                p3 = gmsh.model.geo.addPoint(largeur, hauteur, 0, tailleElement)
-                p4 = gmsh.model.geo.addPoint(0, hauteur, 0, tailleElement)
+                p1 = gmsh.model.geo.addPoint(pt1.x, pt1.y, 0, tailleElement)
+                p2 = gmsh.model.geo.addPoint(pt2.x, pt1.y, 0, tailleElement)
+                p3 = gmsh.model.geo.addPoint(pt2.x, pt2.y, 0, tailleElement)
+                p4 = gmsh.model.geo.addPoint(pt1.x, pt2.y, 0, tailleElement)
 
                 # Créer les lignes reliants les points
                 l1 = gmsh.model.geo.addLine(p1, p2)
@@ -104,7 +110,7 @@ class Interface_Gmsh:
                 
                 return self.__Recuperation_Maillage()
 
-        def ConstructionRectangleAvecFissure(self, largeur: float, hauteur: float,
+        def ConstructionRectangleAvecFissure(self, domain: Domain, line: Line,
         elemType="TRI3", elementSize=0.0, openCrack=False, isOrganised=False):
 
                 """Construit un rectangle avec une fissure ouverte ou non
@@ -120,17 +126,27 @@ class Interface_Gmsh:
                 assert elementSize >= 0.0, "Must be greater than or equal to 0"
                 self.__CheckType(2, elemType)
                 
-                tic = TicTac()               
+                tic = TicTac()
+
+                # Domain
+                pt1 = domain.pt1
+                pt2 = domain.pt2
+                assert pt1.z == 0 and pt2.z == 0
+
+                # Crack
+                pt3 = line.pt1
+                pt4 = line.pt2
+                assert pt3.z == 0 and pt4.z == 0
 
                 # Create the points of the rectangle
-                p1 = gmsh.model.occ.addPoint(0, 0, 0, elementSize)
-                p2 = gmsh.model.occ.addPoint(largeur, 0, 0, elementSize)
-                p3 = gmsh.model.occ.addPoint(largeur, hauteur, 0, elementSize)
-                p4 = gmsh.model.occ.addPoint(0, hauteur, 0, elementSize)
+                p1 = gmsh.model.occ.addPoint(pt1.x, pt1.y, 0, elementSize)
+                p2 = gmsh.model.occ.addPoint(pt2.x, pt1.y, 0, elementSize)
+                p3 = gmsh.model.occ.addPoint(pt2.x, pt2.y, 0, elementSize)
+                p4 = gmsh.model.occ.addPoint(pt1.x, pt2.y, 0, elementSize)
 
                 # Create the crack points
-                p5 = gmsh.model.occ.addPoint(0, hauteur/2, 0, elementSize)
-                p6 = gmsh.model.occ.addPoint(largeur/2, hauteur/2, 0, elementSize)
+                p5 = gmsh.model.occ.addPoint(pt3.x, pt3.y, 0, elementSize)
+                p6 = gmsh.model.occ.addPoint(pt4.x, pt4.y, 0, elementSize)
 
                 # Create the lines connecting the points for the surface
                 l1 = gmsh.model.occ.addLine(p1, p2)
@@ -146,16 +162,16 @@ class Interface_Gmsh:
                 surface = gmsh.model.occ.addPlaneSurface([loop])
                 
                 # Create the crack line
-                line = gmsh.model.occ.addLine(p5, p6)
+                crack = gmsh.model.occ.addLine(p5, p6)
                 
                 gmsh.model.occ.synchronize()
 
                 # Adds the line to the surface
-                gmsh.model.mesh.embed(1, [line], 2, surface)
+                gmsh.model.mesh.embed(1, [crack], 2, surface)
 
                 if openCrack:
                         point = gmsh.model.addPhysicalGroup(0, [p5])
-                        crack = gmsh.model.addPhysicalGroup(1, [line])
+                        crack = gmsh.model.addPhysicalGroup(1, [crack])
                         surface = gmsh.model.addPhysicalGroup(2, [surface])
                 
                 tic.Tac("Mesh","Construction Rectangle Fissuré", self.__verbosity)
@@ -253,16 +269,20 @@ class Interface_Gmsh:
         
         @staticmethod
         def Construction2D(L=10, h=10, taille=5):
-                
+
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
 
                 list_mesh2D = []
+                
+                domain = Domain(Point(0,0,0), Point(L, h, 0))
+                line = Line(Point(x=0, y=h/2), Point(x=L/2, y=h/2))
 
                 # Pour chaque type d'element 2D
                 for t, elemType in enumerate(GroupElem.get_Types2D()):
                         for isOrganised in [True, False]:
-                                mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
-                                mesh2 = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=h, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
+                                
+                                mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
+                                mesh2 = interfaceGmsh.ConstructionRectangleAvecFissure(domain=domain, line=line, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
 
                                 list_mesh2D.append(mesh)
                                 list_mesh2D.append(mesh2)
@@ -279,10 +299,10 @@ class Interface_Gmsh:
                         path = Dossier.GetPath()
                         fichier = path + "\\models\\part.stp" 
                         mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=120)
-
                         list_mesh3D.append(mesh)
-                        Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-                        plt.pause(0.00005)
+        
+                return list_mesh3D
+                        
         
 
 

@@ -5,6 +5,7 @@ import Dossier
 from Affichage import Affichage
 
 from Materiau import PhaseFieldModel, Elas_Isot, Materiau
+from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
 from Mesh import Mesh
@@ -17,7 +18,7 @@ Affichage.Clear()
 
 test = True
 
-solve = False
+solve = True
 
 plotResult = False
 saveParaview = False
@@ -62,11 +63,14 @@ if solve:
 
         elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-        interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
+        interfaceGmsh = Interface_Gmsh(affichageGmsh=True)
 
         openCrack = False
 
-        mesh = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=L, elemType=elemType,
+        domain = Domain(Point(), Point(x=L, y=L))
+        line = Line(Point(y=L/2), Point(x=L/2, y=L/2))
+
+        mesh = interfaceGmsh.ConstructionRectangleAvecFissure(domain=domain, line=line, elemType=elemType,
         elementSize=taille, isOrganised=True, openCrack=openCrack)
 
         # Récupère les noeuds qui m'interessent

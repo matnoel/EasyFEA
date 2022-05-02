@@ -45,7 +45,7 @@ comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+elemType = "TRI6" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
 domain = Domain(Point(), Point(x=L, y=h))
 
