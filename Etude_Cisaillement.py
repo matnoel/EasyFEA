@@ -63,7 +63,7 @@ if solve:
 
         elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-        interfaceGmsh = Interface_Gmsh(affichageGmsh=True)
+        interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
 
         openCrack = False
 
@@ -74,11 +74,11 @@ if solve:
         elementSize=taille, isOrganised=True, openCrack=openCrack)
 
         # Récupère les noeuds qui m'interessent
-        noeuds_Milieu = mesh.Get_Nodes(conditionX=lambda x: x <= L/2, conditionY=lambda y: y == L/2)
-        noeuds_Haut = mesh.Get_Nodes(conditionY=lambda y: y == L)
-        noeuds_Bas = mesh.Get_Nodes(conditionY=lambda y: y == 0)
-        noeuds_Gauche = mesh.Get_Nodes(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)
-        noeuds_Droite = mesh.Get_Nodes(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
+        noeuds_Milieu = mesh.Get_Nodes_Line(line)
+        noeuds_Haut = mesh.Get_Nodes_Conditions(conditionY=lambda y: y == L)
+        noeuds_Bas = mesh.Get_Nodes_Conditions(conditionY=lambda y: y == 0)
+        noeuds_Gauche = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)
+        noeuds_Droite = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
 
         NoeudsBord=[]
         NoeudsBord.extend(noeuds_Bas)

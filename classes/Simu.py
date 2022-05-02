@@ -554,7 +554,13 @@ class Simu:
         return np.array(x)
 
 
-# ------------------------------------------- CONDITIONS LIMITES ------------------------------------------- 
+# ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
+
+    
+    
+
+
+
 
     def Clear_Condition_Neuman(self, option="u"):
         """Enlève les conditions limites de Neumann"""
@@ -672,7 +678,7 @@ class Simu:
         """
         
         # Localise les deplacement par element
-        u_e = self.__mesh.Localise_e(u)
+        u_e = self.__mesh.Localises_sol_e(u)
         comportement = self.materiau.comportement
 
         B_dep_e_pg = self.__mesh.get_B_dep_e_pg(matriceType)
@@ -732,7 +738,7 @@ class Simu:
         """Sauvegarde Uglob et calcul l'energie de deformation cinématiquement admissible"""
 
         # Energie de deformation
-        u_e = self.__mesh.Localise_e(Uglob)
+        u_e = self.__mesh.Localises_sol_e(Uglob)
         Ke_e = self.__Ku_e
         Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ke_e, u_e)
 
@@ -827,7 +833,7 @@ class Simu:
         dim = self.__dim
 
         # Localisation        
-        u_e_n = self.__mesh.Localise_e(Uglob)
+        u_e_n = self.__mesh.Localises_sol_e(Uglob)
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob)

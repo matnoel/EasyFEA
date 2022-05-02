@@ -54,8 +54,8 @@ mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tai
 
 # Récupère les noeuds qui m'interessent
 
-noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
-noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
+noeuds_en_0 = mesh.Get_Nodes_Line(Line(Point(x=L, y=0), Point(x=L, y=h)))  # noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
+noeuds_en_L = mesh.Get_Nodes_Line(Line(Point(), Point(y=h)))       # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")

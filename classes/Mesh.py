@@ -1,7 +1,9 @@
+
 from typing import cast
 import numpy as np
 import scipy.sparse as sp
 
+from Geom import *
 from GroupElem import GroupElem
 from TicTac import TicTac
 
@@ -28,7 +30,7 @@ class Mesh:
         
         if self.__verbosity:
             print(f"\nType d'elements: {self.elemType}")
-            print(f"Ne = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}") 
+            print(f"Ne = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}")
     
     
     def __get_groupElem(self, dim=None):
@@ -36,9 +38,9 @@ class Mesh:
             return self.__dict_groupElem[dim]
         else:
             return self.__dict_groupElem[self.__dim]
-    groupElem = cast(GroupElem, property(__get_groupElem))
+    groupElem = cast(GroupElem, property(__get_groupElem))   
 
-    def Get_Nodes(self, conditionX=True, conditionY=True, conditionZ=True):
+    def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True):
         """Renvoie la liste de noeuds qui respectent les condtions
 
         Args:
@@ -55,11 +57,19 @@ class Mesh:
         Returns:
             list(int): lite des noeuds qui respectent les conditions
         """
-        return self.groupElem.Get_Nodes(conditionX, conditionY, conditionZ)
+        return self.groupElem.Get_Nodes_Conditions(conditionX, conditionY, conditionZ)
+    
+    def Get_Nodes_Line(self, line: Line):
+        """Renvoie la liste de noeuds qui sont sur la ligne"""
+        return self.groupElem.Get_Nodes_Line(line)
 
-    def Localise_e(self, sol: np.ndarray):
-        """localise les valeurs de noeuds sur les elements"""
-        return self.groupElem.Localise_e(sol)
+    def Get_Nodes_Domain(self, domain: Domain):
+        """Renvoie la liste de noeuds qui sont dans le domaine"""
+        return self.groupElem.Get_Nodes_Domain(domain)
+
+    def Localises_sol_e(self, sol: np.ndarray):
+        """sur chaque elements on récupère les valeurs de sol"""
+        return self.groupElem.Localise_sol_e(sol)
         
     def __get_Ne(self, dim=None):
         if isinstance(dim,int):

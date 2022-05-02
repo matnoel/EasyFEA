@@ -281,7 +281,7 @@ class PhaseFieldModel:
             d_n (np.ndarray): Endomagement localisé aux noeuds (Nn,1)
             mesh (Mesh): maillage
         """
-        d_e_n = mesh.Localise_e(d_n)
+        d_e_n = mesh.Localises_sol_e(d_n)
         Nd_pg = mesh.get_N_scalaire_pg(matriceType)
 
         d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize=True)        

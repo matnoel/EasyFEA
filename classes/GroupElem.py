@@ -1,5 +1,6 @@
 from typing import cast
 
+from Geom import *
 from Gauss import Gauss
 from TicTac import TicTac
 from matplotlib import pyplot as plt
@@ -393,7 +394,7 @@ class GroupElem:
 
             return dN_pg        
 
-        def Get_Nodes(self, conditionX=True, conditionY=True, conditionZ=True):
+        def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True):
             """Renvoie la liste de noeuds qui respectent les condtions
 
             Args:
@@ -453,11 +454,42 @@ class GroupElem:
             
             conditionsTotal = valideConditionX * valideConditionY * valideConditionZ
 
-            noeuds = list(np.where(conditionsTotal)[0])
+            noeuds = np.where(conditionsTotal)[0]
             
             return noeuds
         
-        def Localise_e(self, sol: np.ndarray):
+        def Get_Nodes_Line(self, line: Line):
+            
+            vectUnitaire = line.vecteurUnitaire
+
+            coordo = self.__coordo
+
+            vect = coordo-line.coordo[0]
+
+            prodScalaire = np.einsum('i,ni-> n', vectUnitaire, vect, optimize=True)
+            prodVecteur = np.cross(vect, vectUnitaire)
+            norm = np.linalg.norm(prodVecteur, axis=1)
+
+            eps = np.finfo(float).eps
+
+            noeuds = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))            
+
+            return noeuds
+        
+        def Get_Nodes_Domain(self, domain: Domain):
+            """Renvoie la liste de noeuds qui sont dans le domaine"""
+
+            coordo = self.__coordo
+
+            eps = np.finfo(float).eps
+
+            noeuds = np.where(  (coordo[:,0] >= domain.pt1.x-eps) & (coordo[:,0] <= domain.pt2.x+eps) &
+                                (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
+                                (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))
+            
+            return noeuds
+        
+        def Localise_sol_e(self, sol: np.ndarray):
             """localise les valeurs de noeuds sur les elements"""
             tailleVecteur = self.Nn * self.dim
 
