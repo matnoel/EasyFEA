@@ -1083,7 +1083,7 @@ class Test_Simu(unittest.TestCase):
 
         # Paramètres géométrie
         L = 120;  #mm
-        h = 13;    
+        h = 120;    
         b = 13
 
         # Charge a appliquer
@@ -1098,14 +1098,13 @@ class Test_Simu(unittest.TestCase):
 
         self.simulations2DElastique = []
 
-        
-        interfaceGmsh = Interface_Gmsh(verbosity=False)
+        listMesh2D = Interface_Gmsh.Construction2D(L=L, h=h, taille=taille)
 
         # Pour chaque type d'element 2D
-        for t, elemType in enumerate(GroupElem.get_Types2D()):
-            # Construction du modele et du maillage
-            mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille)
+        for mesh in listMesh2D:
 
+            mesh = cast(Mesh, mesh)
+            
             simu = Simu(mesh, materiau, verbosity=False)
 
             simu.Assemblage_u()
