@@ -1,12 +1,13 @@
 
 from typing import cast
 
+
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
+from GroupElem import GroupElem
 from Affichage import Affichage
-from Element import ElementIsoparametrique
 from Mesh import Mesh
 from Materiau import Elas_Isot, Materiau, PhaseFieldModel
 from TicTac import TicTac
@@ -34,10 +35,10 @@ class Simu:
             materiau (Materiau): Materiau utilisé
             verbosity (bool, optional): La simulation ecrira dans la console. Defaults to True.
         """
+        dim = mesh.dim
 
         # Vérification des valeurs
         assert dim == 2 or dim == 3, "Dimesion compris entre 2D et 3D"
-        assert mesh.dim == dim, "Doit avoir la meme dimension que dim"
         assert materiau.dim == dim, "Doit avoir la meme dimension que dim"
 
         self.__dim = mesh.dim
@@ -1095,15 +1096,15 @@ class Test_Simu(unittest.TestCase):
 
         materiau = Materiau(comportement)
 
-        self.simulations2DElastique = []        
+        self.simulations2DElastique = []
+
+        
+        interfaceGmsh = Interface_Gmsh(verbosity=False)
 
         # Pour chaque type d'element 2D
-        for i in range(len(ElementIsoparametrique.get_Types2D())):
-            # Construction du modele et du maillage 
-            modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, verbosity=False)
-
-            (coordo, connect) = modelGmsh.ConstructionRectangle(L, h)
-            mesh = Mesh(dim, coordo, connect, verbosity=False)
+        for t, elemType in enumerate(GroupElem.get_Types2D()):
+            # Construction du modele et du maillage
+            mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille)
 
             simu = Simu(mesh, materiau, verbosity=False)
 
@@ -1139,13 +1140,13 @@ class Test_Simu(unittest.TestCase):
 
         materiau = Materiau(comportement)
         
-        self.simulations3DElastique = []        
+        self.simulations3DElastique = []
 
-        for i in range(len(ElementIsoparametrique.get_Types3D())):
-            modelGmsh = Interface_Gmsh(dim, organisationMaillage=True, typeElement=i, tailleElement=taille, gmshVerbosity=False, affichageGmsh=False, verbosity=False)
+        interfaceGmsh = Interface_Gmsh(verbosity=False)
 
-            (coordo, connect) = modelGmsh.Importation3D(fichier)
-            mesh = Mesh(dim, coordo, connect, verbosity=False)
+        for t, elemType in enumerate(GroupElem.get_Types3D()):
+
+            mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=taille)
 
             simu = Simu(mesh, materiau, verbosity=False)
 
