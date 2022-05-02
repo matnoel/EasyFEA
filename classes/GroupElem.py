@@ -17,10 +17,9 @@ class GroupElem:
                 
                 # Noeuds
                 self.__nodes = np.unique(nodeTags)
+                self.__coordo = cast(np.ndarray, coordo[self.__nodes])
 
                 self.__TestImportation()
-
-                self.__coordo = cast(np.ndarray, coordo[self.__nodes])
 
                 self.__verbosity = verbosity
 
@@ -620,12 +619,13 @@ class Test_GroupElem(unittest.TestCase):
     
     def test_creation2D(self):
         from Interface_Gmsh import Interface_Gmsh
+        from Mesh import Mesh
 
-        list_mesh2D = []
-        for e, element in enumerate(GroupElem.get_Types2D()):
-            interfaceGmsh = Interface_Gmsh(verbosity=False)
-            mesh = interfaceGmsh.ConstructionRectangle(largeur=1, hauteur=1, elemType=element, tailleElement=0.5)
-            list_mesh2D.append(mesh)
+        list_mesh2D = Interface_Gmsh.Construction2D(L=1, h=1, taille=0.5)
+
+        for mesh in list_mesh2D:
+
+            mesh = cast(Mesh, mesh)
             
             mesh.assembly_e
             mesh.colonnesScalar_e
