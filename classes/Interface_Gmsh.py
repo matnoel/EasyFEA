@@ -1,10 +1,9 @@
 
-from typing import cast
-
 import gmsh
 import sys
 import numpy as np
 
+import Dossier
 from Mesh import Mesh
 from GroupElem import GroupElem
 from TicTac import TicTac
@@ -248,7 +247,45 @@ class Interface_Gmsh:
 
                 tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
-                return Mesh(dim, dict_groupElem, self.__verbosity)
+                mesh = Mesh(dim, dict_groupElem, self.__verbosity)
+
+                return mesh
+        
+        @staticmethod
+        def Construction2D():
+                L = 10
+                taille = L/2
+
+                interfaceGmsh = Interface_Gmsh(verbosity=False)
+
+                list_mesh2D = []
+
+                # Pour chaque type d'element 2D
+                for t, elemType in enumerate(GroupElem.get_Types2D()):
+                        for isOrganised in [True, False]:
+                                mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=L, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
+                                mesh2 = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=L, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
+
+                                list_mesh2D.append(mesh)
+                                list_mesh2D.append(mesh2)
+                
+                return list_mesh2D
+
+        @staticmethod
+        def Construction3D():
+                # Pour chaque type d'element 3D
+
+                list_mesh3D = []
+                for t, elemType in enumerate(GroupElem.get_Types3D()):
+                        interfaceGmsh = Interface_Gmsh(verbosity=False)
+                        path = Dossier.GetPath()
+                        fichier = path + "\\models\\part.stp" 
+                        mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=120)
+
+                        list_mesh3D.append(mesh)
+                        Affichage.Plot_NoeudsMaillage(mesh, showId=True)
+                        plt.pause(0.00005)
+        
 
 
 # TEST ==============================
@@ -256,60 +293,24 @@ class Interface_Gmsh:
 import unittest
 import os
 
+
+
 class Test_ModelGmsh(unittest.TestCase):
+
+
         def setUp(self):
-                pass
+                self.list_mesh2D = Interface_Gmsh.Construction2D()
+                self.list_mesh3D = Interface_Gmsh.Construction3D()
         
         def test_Construction2D(self):
-
-                from Mesh import Mesh
-                
-                dim = 2
-
-                L = 10
-                taille = L/3
-
-                interfaceGmsh = Interface_Gmsh(verbosity=False)
-
-                # Pour chaque type d'element 2D
-                for t, elemType in enumerate(GroupElem.get_Types2D()):
-                        for isOrganised in [True, False]:
-
-                                
-                                coordo, connect = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=L, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
-                                mesh = Mesh(2, coordo=coordo, connect=connect, verbosity=False)
-
-                                Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-                                plt.pause(0.00005)
-                                
-                                interfaceGmsh = Interface_Gmsh(verbosity=False)
-                                coordo2, connect2 = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=L, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
-                                mesh2 = Mesh(2, coordo=coordo2, connect=connect2, verbosity=False)
-
-                                Affichage.Plot_NoeudsMaillage(mesh2, showId=True)
-                                plt.pause(0.00005)
-
-                                # Affiche le maillage
-
-                pass
-
+                for mesh2D in self.list_mesh2D:
+                        Affichage.Plot_NoeudsMaillage(mesh2D, showId=True)
+                        plt.pause(0.00005)
         
         def test_Importation3D(self):
-
-                import Dossier
-                from Mesh import Mesh
-                
-                # Pour chaque type d'element 3D
-                for t, elemType in enumerate(ElementIsoparametrique.get_Types3D()):
-                        interfaceGmsh = Interface_Gmsh(verbosity=False)
-                        path = Dossier.GetPath()
-                        fichier = path + "\\models\\part.stp" 
-                        coordo, connect = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=120)
-                        mesh = Mesh(3, coordo, connect, verbosity=False)
-                        Affichage.Plot_NoeudsMaillage(mesh, showId=True)
+                for mesh3D in self.list_mesh3D:
+                        Affichage.Plot_NoeudsMaillage(mesh3D, showId=True)
                         plt.pause(0.00005)
-
-    
            
 if __name__ == '__main__':        
     try:
