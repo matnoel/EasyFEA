@@ -252,10 +252,8 @@ class Interface_Gmsh:
                 return mesh
         
         @staticmethod
-        def Construction2D():
-                L = 10
-                taille = L/2
-
+        def Construction2D(L=10, h=10, taille=5):
+                
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
 
                 list_mesh2D = []
@@ -263,8 +261,8 @@ class Interface_Gmsh:
                 # Pour chaque type d'element 2D
                 for t, elemType in enumerate(GroupElem.get_Types2D()):
                         for isOrganised in [True, False]:
-                                mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=L, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
-                                mesh2 = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=L, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
+                                mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
+                                mesh2 = interfaceGmsh.ConstructionRectangleAvecFissure(largeur=L, hauteur=h, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
 
                                 list_mesh2D.append(mesh)
                                 list_mesh2D.append(mesh2)
