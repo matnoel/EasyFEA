@@ -5,8 +5,7 @@ import scipy.sparse as sp
 from GroupElem import GroupElem
 from TicTac import TicTac
 
-class Mesh:   
-    
+class Mesh:
 
     def __init__(self, dim: int, dict_groupElem: dict, verbosity=True):
         """Création du maillage depuis coordo et connection
@@ -258,20 +257,7 @@ class Test_Mesh(unittest.TestCase):
         
         from Interface_Gmsh import Interface_Gmsh
 
-        list_mesh = []
-
-        for e, element in enumerate(GroupElem.get_Types2D()):
-            modelGmsh = Interface_Gmsh(verbosity=False)
-            dict_groupElem = modelGmsh.ConstructionRectangle(largeur=1, hauteur=1, elemType=element, tailleElement=0.5)
-            mesh = Mesh(2, dict_groupElem, verbosity=False)
-            list_mesh.append(mesh)
-
-        self.list_Mesh2D = list_mesh
-
-    def test_BienCree(self):
-
-        for mesh in self.list_Mesh2D:
-            self.assertIsInstance(mesh, Mesh)
+        self.list_Mesh2D = Interface_Gmsh.Construction2D()
 
     def test_ConstructionMatrices(self):
         for mesh in self.list_Mesh2D:
