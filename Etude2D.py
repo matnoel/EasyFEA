@@ -1,9 +1,11 @@
 # %%
 
+from Geom import Domain, Point
 import Dossier
 import PostTraitement
 
 from Materiau import Elas_Isot, Materiau
+from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 from Simu import Simu
@@ -45,8 +47,10 @@ materiau = Materiau(comportement)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
+domain = Domain(Point(), Point(x=L, y=h))
+
 interfaceGmsh = Interface_Gmsh()
-mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille, isOrganised=False)
+mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=False)
 
 # Récupère les noeuds qui m'interessent
 
