@@ -10,9 +10,16 @@ class Point:
 
 class Line:
 
+    @staticmethod
     def distance(pt1: Point, pt2: Point):
         length = np.sqrt((pt1.x-pt2.x)**2 + (pt1.y-pt2.y)**2 + (pt1.z-pt2.z)**2)
         return length
+    
+    @staticmethod
+    def vecteurUnitaire(pt1: Point, pt2: Point):
+        length = Line.distance(pt1, pt2)        
+        v = np.array([pt2.x-pt1.x, pt2.y-pt1.y, pt2.z-pt1.z])/length
+        return v
 
     def __init__(self, pt1: Point, pt2: Point):
         self.pt1 = pt1
