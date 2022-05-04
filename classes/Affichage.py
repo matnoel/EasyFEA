@@ -275,7 +275,7 @@ class Affichage:
 
         return fig, ax
 
-    def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], marker='.', c='blue', showId=False):
+    def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='blue'):
         """Affiche les noeuds du maillage"""        
         
         from Mesh import Mesh

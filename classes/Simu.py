@@ -9,12 +9,17 @@ import scipy.sparse.linalg as sla
 from GroupElem import GroupElem
 from Affichage import Affichage
 from Mesh import Mesh
+from BoundaryConditions import BoundaryConditions
 from Materiau import Elas_Isot, Materiau, PhaseFieldModel
 from TicTac import TicTac
 from Interface_Gmsh import Interface_Gmsh
 import Dossier
     
 class Simu:
+
+    @staticmethod
+    def get_problems():
+        return ["displacement","damage"]
     
     def __get_listElement(self):        
         return list(range(self.mesh.Ne))        
@@ -56,6 +61,11 @@ class Simu:
         """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
 
         # Conditions Limites en déplacement
+        self.__Bc_Neuman = {}
+        """Conditions de Neumann dict (nom : BoundaryConditions)"""
+        self.__Bc_Dirichlet = {}
+        """Conditions de Dirichlet dict (nom : BoundaryConditions)"""
+
         self.__BC_Neuman_u = [[],[]]
         """Conditions Limites Dirichlet pour le déplacement list((noeuds, conditions))"""
         self.__BC_Dirichlet_u = [[],[]]
@@ -111,9 +121,9 @@ class Simu:
 
             d = self.__resultats["damage"]
 
-            assert "Uglob" in self.__resultats.keys(), "Le vecteur de déplacement uglob doit être initialisé"
+            assert "displacement" in self.__resultats.keys(), "Le vecteur de déplacement uglob doit être initialisé"
 
-            u = self.__resultats["Uglob"]
+            u = self.__resultats["displacement"]
 
             phaseFieldModel = self.materiau.phaseFieldModel
                 
@@ -215,7 +225,7 @@ class Simu:
 
             phaseFieldModel = self.materiau.phaseFieldModel
             
-            u = self.GetResultat("Uglob")
+            u = self.GetResultat("displacement")
             d = self.GetResultat("damage")
 
             testu = isinstance(u, np.ndarray) and (u.shape[0] == self.__mesh.Nn*self.__dim )
@@ -556,74 +566,74 @@ class Simu:
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
-    
-    
-
-
-
-
-    def Clear_Condition_Neuman(self, option="u"):
+    def Clear_Bc_Neuman(self):
         """Enlève les conditions limites de Neumann"""
-        if option == "u":
-            self.__BC_Neuman_d = [[],[]]
-        else:
-            self.__BC_Neuman_d = [[],[]]
+        self.__Bc_Neuman = {}
 
-    def Condition_Neumann(self, noeuds: list, directions: list, valeur=0.0, option="u"):
-        """Applique les conditions en force
-
-        Parameters
-        ----------
-        noeuds : list, optional
-            Liste de int, by default []
-        force : float, optional
-            Force que l'on veut appliquer aux noeuds, by default 0.0
-        directions : list, optional
-            ["x", "y", "z"] vecteurs sur lesquelles on veut appliquer la force , by default [] 
-        """
+    def Add_Bc_Neumann(self, problem: str, noeuds: np.ndarray, directions: list, valeurs=0.0, name=""):
+        """Ajoute les conditions de Neumann"""
 
         tic = TicTac()
         
-        assert option in ["u", "d"], "Mauvaise option"
+        assert problem in Simu.get_problems(), "Ce type de probleme n'est pas implémenté"
 
-        noeuds = np.array(noeuds)
         nbn = len(noeuds)
 
-        if option == "d":
-            assert len(directions) == 0, "lorsque on renseigne d on a pas besoin de direction"
-            assert not valeur == 0.0, "Doit être différent de 0"
+        match problem:
 
-            if noeuds not in self.__BC_Neuman_d[0]:
-                self.__BC_Neuman_d[0].extend(noeuds)
-                self.__BC_Neuman_d[1].extend([valeur/nbn]*nbn)                
+            case "damage":
+                assert len(directions) == 0, "lorsque on renseigne damage on a pas besoin de direction"
+                assert not valeurs == 0.0, "Doit être différent de 0"
 
-        elif option == "u":
-            assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
-            ddl = []
-            for direction in directions:
-                assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
-                if direction == "x":
-                    ddl.extend(noeuds * self.__dim)
-                if direction == "y":
-                    ddl.extend(noeuds * self.__dim + 1)
-                if direction == "z":
-                    assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                    ddl.extend(noeuds * self.__dim + 2)
+                # on verifie si les ddls sont déja renseignés
+                ddls_connues=[]
+                for prob, Bc_Neuman in self.__Bc_Neuman.items():
+                    if prob == "damage":
+                        Bc_Neuman = cast(BoundaryConditions, Bc_Neuman)
+                        ddls_connues.extend(Bc_Neuman.ddls)
+                        
+                if noeuds not in ddls_connues:
+                    new_Bc = BoundaryConditions(prob, name, noeuds, marker='.', color='red')
 
-        for d in ddl: assert d not in self.__BC_Dirichlet_u[0], "Impossible d'appliquer un déplacement et un effort au meme noeud"        
-        self.__BC_Neuman_u[0].extend(ddl)
-        self.__BC_Neuman_u[1].extend([valeur/nbn]*len(ddl))
+            case "displacement":
+                assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
+                ddls = []
+                directions = directions.sort()
+                for direction in directions:
+                    assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
+                    if direction == "x":
+                        ddls.extend(noeuds * self.__dim)
+                    if direction == "y":
+                        ddls.extend(noeuds * self.__dim + 1)
+                    if direction == "z":
+                        assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
+                        ddls.extend(noeuds * self.__dim + 2)
+
+                # on verifie si les ddls sont déja renseignés
+                ddls_connues=[]
+                for prob, Bc_Neuman in self.__Bc_Neuman.items():
+                    if prob == "displacement":
+                        Bc_Neuman = cast(BoundaryConditions, Bc_Neuman)
+                        ddls_connues.extend(Bc_Neuman.ddls)
+
+                
+
+                for d in ddls: assert d not in self.__BC_Dirichlet_u[0], "Impossible d'appliquer un déplacement et un effort au meme noeud"
+                self.__BC_Neuman_u[0].extend(ddls)
+                self.__BC_Neuman_u[1].extend([valeurs/nbn]*len(ddls))
+
+        if problem == "damage":
+            
+        elif problem == "displacement":
+            
         
         tic.Tac("Boundary Conditions","Condition Neumann", self.__verbosity)
 
-    def Clear_Condition_Dirichlet(self, option="u"):
+    def Clear_Bc_Dirichlet(self):
         """Enlève les conditions limites de Dirichlet"""
-        if option == "u":
-            self.__BC_Dirichlet_u = [[],[]]
-        else:
-            self.__BC_Dirichlet_d = [[],[]]
+        self.__Bc_Dirichlet = {}
 
-    def Condition_Dirichlet(self, noeuds: np.ndarray, directions=[] , valeur=0.0, option="u"):
+    def Add_Bc_Dirichlet(self, noeuds: np.ndarray, directions=[] , valeur=0.0, option="u"):
         
         # assert isinstance(noeuds[0], int), "Doit être une liste d'indices"        
         assert option in ["u", "d"], "Mauvaise option"
@@ -759,7 +769,7 @@ class Simu:
         
         self.__resultats["Wdef"] = Wdef
 
-        self.__resultats["Uglob"] = Uglob
+        self.__resultats["displacement"] = Uglob
 
     def VerificationOption(self, option):
         """Verification que l'option est bien calculable dans GetResultat
@@ -777,7 +787,7 @@ class Simu:
         # Construit la liste d'otions pour les résultats en 2D ou 3D
 
         # Verfie si la simulation à un résultat de déplacement ou d'endommagement
-        if "Uglob" not in self.__resultats.keys() and "damage" not in self.__resultats.keys():
+        if "displacement" not in self.__resultats.keys() and "damage" not in self.__resultats.keys():
             print("\nLa simulation n'a pas encore de résultats")
             return False 
 
@@ -786,7 +796,7 @@ class Simu:
             options = {
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","Uglob","deplacement"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement"],
                 "Energie" :["Wdef"],
                 "Damage" :["damage","PsiP"]
             }
@@ -794,7 +804,7 @@ class Simu:
             options = {
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","Uglob","deplacement"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement"],
                 "Energie" :["Wdef"]                
             }
 
@@ -823,12 +833,9 @@ class Simu:
         if option == "damage":
             return self.__resultats["damage"]
 
-        Uglob = self.__resultats["Uglob"]
-        if option == "Uglob":
-            return Uglob
-
-        if option == "deplacement":
-            return self.GetCoordUglob().reshape(-1)        
+        Uglob = self.__resultats["displacement"]
+        if option == "displacement":
+            return Uglob        
 
         dim = self.__dim
 
@@ -1054,9 +1061,9 @@ class Simu:
         Nn = self.__mesh.Nn
         dim = self.__dim        
 
-        if self.VerificationOption("Uglob"):
+        if self.VerificationOption("displacement"):
 
-            Uglob = self.__resultats["Uglob"]
+            Uglob = self.__resultats["displacement"]
 
             coordo = Uglob.reshape((Nn,-1))
            
@@ -1071,7 +1078,7 @@ class Simu:
 
         if isinstance(uglob, np.ndarray):
             assert uglob.size == self.__mesh.Nn*self.__dim, "Le vecteur n'a pas la bonne taille (Nn*dim)"
-            self.__resultats["Uglob"] = uglob
+            self.__resultats["displacement"] = uglob
 
         if isinstance(damage, np.ndarray):
             assert damage.size == self.__mesh.Nn, "Le vecteur n'a pas la bonne taille (Nn)"
@@ -1118,9 +1125,9 @@ class Test_Simu(unittest.TestCase):
             noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
             noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 
-            simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["y"])
+            simu.Add_Bc_Neumann(noeuds=noeuds_en_L, valeurs=P, directions=["y"])
 
-            simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y"])
+            simu.Add_Bc_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y"])
 
             self.simulations2DElastique.append(simu)
 
@@ -1160,9 +1167,9 @@ class Test_Simu(unittest.TestCase):
             noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
             noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
 
-            simu.Condition_Neumann(noeuds=noeuds_en_L, valeur=P, directions=["z"])
+            simu.Add_Bc_Neumann(noeuds=noeuds_en_L, valeurs=P, directions=["z"])
 
-            simu.Condition_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y", "z"])
+            simu.Add_Bc_Dirichlet(noeuds=noeuds_en_0, valeur=0, directions=["x", "y", "z"])
 
             self.simulations3DElastique.append(simu)
     
