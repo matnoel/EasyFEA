@@ -35,9 +35,10 @@ h = 13
 b = 13
 
 P = 800 #N
+lineLoad = P/h #N/mm
 
 # Paramètres maillage
-taille = h/20
+taille = h/10
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -70,12 +71,10 @@ simu = Simu(mesh, materiau)
 # Affichage.Plot_NoeudsMaillage(simu, showId=True)
 
 # Renseigne les condtions limites
-simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
 
-# simu.Condition_Dirichlet(noeuds_en_L, valeur=-10, directions=["x"])
-# simu.Condition_Dirichlet(noeuds_en_L, valeur=1, directions=["y"])
-# simu.Condition_Dirichlet(noeuds_en_L, valeur=1, directions=["x","y"])
-# simu.Condition_Dirichlet(noeuds_en_L, valeur=-1, directions=["x","y"])
+simu.Add_Bc_Dirichlet("displacement", noeuds_en_0, ["x","y"], 0.0, "Encastrement")
+
+simu.lineLoad("displacement", noeuds_en_L, ["y"], lineLoad)
 
 simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 # simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])

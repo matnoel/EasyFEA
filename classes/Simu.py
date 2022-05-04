@@ -5,11 +5,12 @@ from typing import cast
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
+from sympy import jacobi
 
 from GroupElem import GroupElem
 from Affichage import Affichage
 from Mesh import Mesh
-from BoundaryConditions import BoundaryConditions
+from BoundaryCondition import BoundaryCondition
 from Materiau import Elas_Isot, Materiau, PhaseFieldModel
 from TicTac import TicTac
 from Interface_Gmsh import Interface_Gmsh
@@ -18,7 +19,7 @@ import Dossier
 class Simu:
 
     @staticmethod
-    def get_problems():
+    def problemTypes():
         return ["displacement","damage"]
     
     def __get_listElement(self):        
@@ -60,22 +61,12 @@ class Simu:
         self.__PsiP_e_pg = []
         """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
 
-        # Conditions Limites en déplacement
-        self.__Bc_Neuman = {}
-        """Conditions de Neumann dict (nom : BoundaryConditions)"""
-        self.__Bc_Dirichlet = {}
-        """Conditions de Dirichlet dict (nom : BoundaryConditions)"""
-
-        self.__BC_Neuman_u = [[],[]]
-        """Conditions Limites Dirichlet pour le déplacement list((noeuds, conditions))"""
-        self.__BC_Dirichlet_u = [[],[]]
-        """Conditions Limites Neumann pour le déplacement list((noeuds, conditions))"""
-
-        # Conditions Limites en endommagement
-        self.__BC_Neuman_d = [[],[]]
-        """Conditions Limites Neumann pour l'endommagement' list((noeuds, conditions))"""
-        self.__BC_Dirichlet_d = [[],[]]
-        """Conditions Limites Drichlet pour l'endommagement' list((noeuds, conditions))"""
+        # Conditions Limites
+        self.__Bc_Neuman = []
+        """Conditions de Neumann list(BoundaryCondition)"""
+        self.__Bc_Dirichlet = []
+        """Conditions de Dirichlet list(BoundaryCondition)"""
+        
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
@@ -194,19 +185,11 @@ class Simu:
         return self.__Ku
 
     def Solve_u(self, resolution=2, useCholesky=False):
-        """Resolution du système matricielle A * x = b -> K * u = f
-         
-
-        Args:
-            resolution (int, optional): Mode de résolution. Defaults to 2.
-            calculContraintesEtDeformation (bool, optional): Calcul les Contraintes et les deformations. Defaults to False.
-            interpolation (bool, optional): Interpolation aux noeuds. Defaults to False.
-       
-        """
+        """Resolution du probleme de déplacement"""
 
         tic = TicTac()
 
-        Uglob = self.__Solveur(vector=True, resolution=resolution, useCholesky=useCholesky, symetric=True)
+        Uglob = self.__Solveur(problemType="displacement", resolution=resolution, useCholesky=useCholesky, A_isSymetric=True)
 
         tic.Tac("Résolution deplacement","Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)
         
@@ -338,7 +321,7 @@ class Simu:
          
         tic = TicTac()
 
-        dGlob = self.__Solveur(vector=False, resolution=resolution, useCholesky=False, symetric=False)
+        dGlob = self.__Solveur(problemType="damage", resolution=resolution, useCholesky=False, A_isSymetric=False)
 
         tic.Tac("Résolution endommagement","Résolution {} pour le problème de endommagement".format(resolution) , self.__verbosity)
         
@@ -357,7 +340,7 @@ class Simu:
 
 # ------------------------------------------------- SOLVEUR -------------------------------------------------
 
-    def __Construit_ddl_connues_inconnues(self, vector: bool):
+    def __Construit_ddl_connues_inconnues(self, problemType: str):
         """Récupère les ddl Connues et Inconnues
 
         Args:
@@ -366,69 +349,85 @@ class Simu:
         Returns:
             list(int), list(int): ddl_Connues, ddl_Inconnues
         """
+        
+        assert problemType in Simu.problemTypes()
 
         taille = self.__mesh.Nn
 
-        if vector :
-            taille = taille*self.__dim
-            ddl_Connues = self.__BC_Dirichlet_u[0]
-        else:                
-            ddl_Connues = self.__BC_Dirichlet_d[0]
+        # Construit les ddls connues
+        ddls_Connues = []
 
-        ddl_ConnuesNouveau = []
-        for ddl in ddl_Connues:
-            if ddl not in ddl_ConnuesNouveau:
-                ddl_ConnuesNouveau.append(ddl)
+        for bcDirichlet in self.__Bc_Dirichlet:
+            bcDirichlet = cast(BoundaryCondition, bcDirichlet)
+            if bcDirichlet.problemType == problemType:
+                ddls_Connues.extend(bcDirichlet.ddls)
         
-        ddl_Connues = ddl_ConnuesNouveau
+        ddls_Connues = np.array(ddls_Connues)
 
-        ddl_Inconnues = list(range(taille))
-        for ddl in ddl_Connues: ddl_Inconnues.remove(ddl)
+        # Construit les ddls inconnues
 
-        assert len(ddl_Connues) + len(ddl_Inconnues) == taille, "Problème dans les conditions"
+        match problemType:
+            case "damage":
+                taille = self.__mesh.Nn
+            case "displacement":
+                taille = self.__mesh.Nn*self.__dim
 
-        return np.array(ddl_Connues), np.array(ddl_Inconnues)
+        ddls_Inconnues = np.arange(taille)
+        ddls_Inconnues = np.array(np.where(ddls_Inconnues != ddls_Connues))
 
-    def __Application_Conditions_Neuman(self, vector: bool):
+        assert ddls_Connues.shape[0] + ddls_Inconnues.shape[0] == taille, "Problème dans les conditions"
+
+        return ddls_Connues, ddls_Inconnues
+
+    def __Application_Conditions_Neuman(self, problemType: str):
         """applique les conditions de Neumann"""
 
+        assert problemType in Simu.problemTypes()
+
+        lignes = []
+        valeurs = []
+        for bcNeumann in self.__Bc_Neuman:
+            bcNeumann = cast(BoundaryCondition, bcNeumann)
+            if bcNeumann.problemType == problemType:
+                lignes.extend(bcNeumann.ddls)
+                valeurs.extend(bcNeumann.valeurs)
+
         taille = self.__mesh.Nn
 
-        if vector :
-            taille = taille*self.__dim
-            BC_Neuman = np.array(self.__BC_Neuman_u).T
-        else:                
-            BC_Neuman = np.array(self.__BC_Neuman_d).T
+        if problemType == "displacement":
+            taille = self.__mesh.Nn*self.__dim
 
-        # Renseigne les conditions de Neuman
-        lignes = BC_Neuman[:,0]
-        valeurs = BC_Neuman[:,1]
         b = sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1))
 
-        if vector:
-            b = b + self.__Fu.copy()
-        else:
-            b = b + self.__Fd.copy()
+        match problemType:
+            case "damage":
+                b = b + self.__Fd.copy()                
+            case "displacement":
+                b = b + self.__Fu.copy()
 
         return b
 
-    def __Application_Conditions_Dirichlet(self, vector: bool, b, resolution):
+    def __Application_Conditions_Dirichlet(self, problemType: str, b, resolution):
         """applique les conditions de dirichlet"""
-        
+
+        assert problemType in Simu.problemTypes()
+
+        lignes = []
+        valeurs = []
+        for bcDirichlet in self.__Bc_Dirichlet:
+            bcDirichlet = cast(BoundaryCondition, bcDirichlet)
+            if bcDirichlet.problemType == problemType:
+                lignes.extend(bcDirichlet.ddls)
+                valeurs.extend(bcDirichlet.valeurs)
+
         taille = self.__mesh.Nn
 
-        if vector :
-            taille = taille*self.__dim
-            BC_Dirichlet = np.array(self.__BC_Dirichlet_u).T
-            A = self.__Ku.copy()
-        else:                
-            BC_Dirichlet = np.array(self.__BC_Dirichlet_d).T
-            A = self.__Kd.copy()
-
-        # Renseigne les conditions de Dirichlet
-
-        lignes = BC_Dirichlet[:,0].astype('int')
-        valeurs = BC_Dirichlet[:,1]
+        match problemType:
+            case "damage":
+                A = self.__Kd.copy()
+            case "displacement":
+                taille = taille*self.__dim
+                A = self.__Ku.copy()
 
         if resolution == 1:
             
@@ -442,84 +441,21 @@ class Simu:
             # Pénalisation b
             b[lignes] = valeurs
 
+            # ici on renvoie A pénalisé
             return A.tocsr(), b.tocsr()
 
         else:
-
+            
+            # ici on renvoir la solution avec les ddls connues
             x = sparse.csr_matrix((valeurs, (lignes,  np.zeros(len(lignes)))), shape = (taille,1), dtype=np.float64)
 
             return A, x
 
-    def __Solveur(self, vector: bool, resolution=2, useCholesky=False, symetric=False):
-        """Resolution du système matricielle A * x = b
+    def __Solveur(self, problemType: str, resolution=2, useCholesky=False, A_isSymetric=False):
+        """Resolution du de la simulation
+        renvoie la solution"""
 
-        Args:
-            vector (bool): Système vectorielle ou sclaire
-            resolution (int, optional): Type de résolution. Defaults to 2.
-        resolution=[1,2] -> [Pénalisation, Décomposition, FreeMatrix]        
-
-        Returns:
-            nd.array: Renvoie la solution (x)
-        """
-
-        def Solve(A, b):
-            # tic = TicTac()
-            if useCholesky:
-                # il se trouve que c'est plus rapide de ne pas l'utiliser
-
-                from sksparse.cholmod import cholesky, cholesky_AAt
-                # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
-                # doc : https://scikit-sparse.readthedocs.io/en/latest/cholmod.html#sksparse.cholmod.analyze
-                # Installation : https://www.programmersought.com/article/39168698851/                
-
-                factor = cholesky(A.tocsc())
-                # factor = cholesky_AAt(A.tocsc())
-                
-                # x_chol = factor(b.tocsc())
-                x_chol = factor.solve_A(b.tocsc())                
-
-                x = x_chol.toarray().reshape(x_chol.shape[0])
-
-            else:
-                # il reste à faire le lien avec umfpack pour réorgraniser encore plus rapidement
-
-                # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
-                # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
-                useUmfpack = False
-
-                if useUmfpack:
-                    # from scikits.umfpack import spsolve, splu
-                    # sparse.linalg.use_solver(useUmfpack=True)
-                    import scikits.umfpack as um
-                    x = um.spsolve(A, b)
-                else:
-                    # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
-                    
-                    hideFacto = True
-
-                    # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
-                    if symetric and not "damage" in self.__resultats.keys():
-                        permute="MMD_AT_PLUS_A"
-                    else:
-                        permute="COLAMD"
-
-                    if hideFacto:                        
-                        x = sla.spsolve(A, b, permc_spec=permute, use_umfpack=True)
-                    else:
-                        # superlu : https://portal.nersc.gov/project/sparse/superlu/
-                        # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
-                        lu = sla.splu(A.tocsc(), permc_spec=permute)
-
-                        x = lu.solve(b.toarray()).reshape(-1)
-                        pass
-                    
-                # sp.__config__.show()
-                # from scipy.linalg import lapack
-            
-            # tac = tic.Tac("test","Resol",True)
-
-            return x
-
+        assert problemType in Simu.problemTypes()
 
         # Résolution du plus rapide au plus lent 2, 3, 1
         if resolution == 1:
@@ -527,22 +463,22 @@ class Simu:
             # Résolution par la méthode des pénalisations
 
             # Construit le système matricielle pénalisé
-            b = self.__Application_Conditions_Neuman(vector)
-            A, b = self.__Application_Conditions_Dirichlet(vector, b, resolution)
+            b = self.__Application_Conditions_Neuman(problemType)
+            A, b = self.__Application_Conditions_Dirichlet(problemType, b, resolution)
 
-            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(vector)
+            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
 
             # Résolution du système matricielle pénalisé
-            x = Solve(A, b)
+            x = self.__Solve_Axb(A, b, useCholesky, A_isSymetric)
 
         elif resolution == 2:
             
             # Construit le système matricielle
-            b = self.__Application_Conditions_Neuman(vector)
-            A, x = self.__Application_Conditions_Dirichlet(vector, b, resolution)
+            b = self.__Application_Conditions_Neuman(problemType)
+            A, x = self.__Application_Conditions_Dirichlet(problemType, b, resolution)
 
             # Récupère les ddls
-            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(vector)
+            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
 
             # Décomposition du système matricielle en connues et inconnues 
             # Résout : Aii * ui = bi - Aic * xc
@@ -555,7 +491,7 @@ class Simu:
 
             test = bi-bDirichlet
 
-            xi = Solve(Aii, bi-bDirichlet)
+            xi = self.__Solve_Axb(Aii, bi-bDirichlet, useCholesky, A_isSymetric)
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
@@ -563,113 +499,179 @@ class Simu:
 
         return np.array(x)
 
+    def __Solve_Axb(self, A, b, useCholesky=False, A_isSymetric=False):
+        # tic = TicTac()
+        if useCholesky:
+            # il se trouve que c'est plus rapide de ne pas l'utiliser
+
+            from sksparse.cholmod import cholesky, cholesky_AAt
+            # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
+            # doc : https://scikit-sparse.readthedocs.io/en/latest/cholmod.html#sksparse.cholmod.analyze
+            # Installation : https://www.programmersought.com/article/39168698851/                
+
+            factor = cholesky(A.tocsc())
+            # factor = cholesky_AAt(A.tocsc())
+            
+            # x_chol = factor(b.tocsc())
+            x_chol = factor.solve_A(b.tocsc())                
+
+            x = x_chol.toarray().reshape(x_chol.shape[0])
+
+        else:
+            # il reste à faire le lien avec umfpack pour réorgraniser encore plus rapidement
+
+            # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
+            # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
+            useUmfpack = False
+
+            if useUmfpack:
+                # from scikits.umfpack import spsolve, splu
+                # sparse.linalg.use_solver(useUmfpack=True)
+                import scikits.umfpack as um
+                x = um.spsolve(A, b)
+            else:
+                # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
+                
+                hideFacto = True
+
+                # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
+                if A_isSymetric and not "damage" in self.__resultats.keys():
+                    permute="MMD_AT_PLUS_A"
+                else:
+                    permute="COLAMD"
+
+                if hideFacto:                        
+                    x = sla.spsolve(A, b, permc_spec=permute, use_umfpack=True)
+                else:
+                    # superlu : https://portal.nersc.gov/project/sparse/superlu/
+                    # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
+                    lu = sla.splu(A.tocsc(), permc_spec=permute)
+
+                    x = lu.solve(b.toarray()).reshape(-1)
+                    pass
+                
+            # sp.__config__.show()
+            # from scipy.linalg import lapack
+        
+        # tac = tic.Tac("test","Resol",True)
+
+        return x
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
+    def lineLoad(self, problemType: str, noeuds: np.ndarray, directions: list, valeurs: np.ndarray):
+        """applique le long de la ligne"""
+        assert problemType in Simu.problemTypes()
+
+        # Récupération des matrices pour le calcul
+        mesh = self.__mesh
+        groupElem = mesh.get_groupElem(1)
+        
+        jacobien_e_pg = groupElem.get_jacobien_e_pg("rigi")
+        gauss = groupElem.get_gauss("rigi")
+        poid_pg = gauss.poids
+
+        match problemType:
+            case "damage":
+                N_pg = groupElem.get_N_pg("rigi", True)
+            case "displacement":
+                N_pg = groupElem.get_N_pg("rigi", False)
+
+        # récupérations des élements
+
+        nodesGroup = groupElem.nodes
+        
+        nodes_e = mesh.coordo[mesh.connect][:,range(2)]
+        nodesPg_e = np.einsum('pn,n->pn', N_pg, )
+
+
+        # Construit Fd_e
+        Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, N_pg)         
+
+
+
+
+
+    def get_ddls_Dirichlet(self, problemType: str):
+        assert problemType in Simu.problemTypes()
+
+        ddls = []
+        for bc_Dirichlet in self.__Bc_Dirichlet:
+            bc_Dirichlet = cast(BoundaryCondition, bc_Dirichlet)
+            if bc_Dirichlet.problemType == problemType:
+                ddls.extend(bc_Dirichlet.ddls)
+        return np.array(ddls)
+    
+    def get_ddls_Neumann(self, problemType: str):
+        assert problemType in Simu.problemTypes()
+
+        ddls = []
+        for bc_Neumann in self.__Bc_Neuman:
+            bc_Neumann = cast(BoundaryCondition, bc_Neumann)
+            if bc_Neumann.problemType == problemType:
+                ddls.extend(bc_Neumann.ddls)
+        return np.array(ddls)
+
     def Clear_Bc_Neuman(self):
         """Enlève les conditions limites de Neumann"""
-        self.__Bc_Neuman = {}
+        self.__Bc_Neuman = []
 
-    def Add_Bc_Neumann(self, problem: str, noeuds: np.ndarray, directions: list, valeurs=0.0, name=""):
+    def Add_Bc_Neumann(self, problemType: str, noeuds: np.ndarray, directions: list, valeurs: np.ndarray,
+    description=""):
         """Ajoute les conditions de Neumann"""
 
         tic = TicTac()
         
-        assert problem in Simu.get_problems(), "Ce type de probleme n'est pas implémenté"
+        assert problemType in Simu.problemTypes(), "Ce type de probleme n'est pas implémenté"
 
-        nbn = len(noeuds)
-
-        match problem:
+        match problemType:
 
             case "damage":
-                assert len(directions) == 0, "lorsque on renseigne damage on a pas besoin de direction"
-                assert not valeurs == 0.0, "Doit être différent de 0"
-
-                # on verifie si les ddls sont déja renseignés
-                ddls_connues=[]
-                for prob, Bc_Neuman in self.__Bc_Neuman.items():
-                    if prob == "damage":
-                        Bc_Neuman = cast(BoundaryConditions, Bc_Neuman)
-                        ddls_connues.extend(Bc_Neuman.ddls)
-                        
-                if noeuds not in ddls_connues:
-                    new_Bc = BoundaryConditions(prob, name, noeuds, marker='.', color='red')
+                
+                new_Bc = BoundaryCondition(dim=self.__dim, problemType=problemType, noeuds=noeuds, valeurs=valeurs,
+                description=description, marker='.', color='red')
 
             case "displacement":
-                assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
-                ddls = []
-                directions = directions.sort()
-                for direction in directions:
-                    assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
-                    if direction == "x":
-                        ddls.extend(noeuds * self.__dim)
-                    if direction == "y":
-                        ddls.extend(noeuds * self.__dim + 1)
-                    if direction == "z":
-                        assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                        ddls.extend(noeuds * self.__dim + 2)
 
-                # on verifie si les ddls sont déja renseignés
-                ddls_connues=[]
-                for prob, Bc_Neuman in self.__Bc_Neuman.items():
-                    if prob == "displacement":
-                        Bc_Neuman = cast(BoundaryConditions, Bc_Neuman)
-                        ddls_connues.extend(Bc_Neuman.ddls)
+                new_Bc = BoundaryCondition(dim=self.__dim, problemType=problemType, noeuds=noeuds, valeurs=valeurs,
+                description=description, marker='.', color='blue')
 
-                
+                # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
+                assert new_Bc.ddls in self.get_ddls_Dirichlet(problemType), "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
 
-                for d in ddls: assert d not in self.__BC_Dirichlet_u[0], "Impossible d'appliquer un déplacement et un effort au meme noeud"
-                self.__BC_Neuman_u[0].extend(ddls)
-                self.__BC_Neuman_u[1].extend([valeurs/nbn]*len(ddls))
+        self.__Bc_Neuman.append(new_Bc)
 
-        if problem == "damage":
-            
-        elif problem == "displacement":
-            
-        
         tic.Tac("Boundary Conditions","Condition Neumann", self.__verbosity)
 
     def Clear_Bc_Dirichlet(self):
         """Enlève les conditions limites de Dirichlet"""
-        self.__Bc_Dirichlet = {}
+        self.__Bc_Dirichlet = []
 
-    def Add_Bc_Dirichlet(self, noeuds: np.ndarray, directions=[] , valeur=0.0, option="u"):
-        
-        # assert isinstance(noeuds[0], int), "Doit être une liste d'indices"        
-        assert option in ["u", "d"], "Mauvaise option"
+    def Add_Bc_Dirichlet(self, problemType: str, noeuds: np.ndarray, directions: list, valeurs: np.ndarray,
+    description=""):
 
         tic = TicTac()
-        
-        noeuds = np.array(noeuds)
-        nbn = len(noeuds)
 
-        if option == "d":
-            assert len(directions) == 0, "lorsque on renseigne d on a pas besoin de direction"
-            assert valeur >= 0 or valeur <= 1, "d doit etre compris entre [0;1]"
-           
-            if noeuds not in self.__BC_Dirichlet_d[0]:
-                self.__BC_Dirichlet_d[0].extend(noeuds)
-                self.__BC_Dirichlet_d[1].extend([valeur]*nbn)      
+        assert problemType in Simu.problemTypes(), "Ce type de probleme n'est pas implémenté"
 
-        elif option == "u":
-            assert isinstance(directions[0], str), "Doit être une liste de chaine de caractère"
-            ddl = []
-            for direction in directions:
-                assert direction in ["x", "y", "z"] , "direction doit etre x y ou z"
-                if direction == "x":
-                    ddl.extend(noeuds * self.__dim)
-                if direction == "y":
-                    ddl.extend(noeuds * self.__dim + 1)
-                if direction == "z":
-                    assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                    ddl.extend(noeuds * self.__dim + 2)
+        match problemType:
 
-            for d in ddl: assert d not in self.__BC_Dirichlet_u[0], "Impossible d'appliquer un déplacement et un effort au meme noeud"            
-            self.__BC_Dirichlet_u[0].extend(ddl)
-            self.__BC_Dirichlet_u[1].extend([valeur]*len(ddl))
+            case "damage":
+                
+                new_Bc = BoundaryCondition(dim=self.__dim, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions,
+                description=description, marker='.', color='red')
+
+            case "displacement":
+
+                new_Bc = BoundaryCondition(dim=self.__dim, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions,
+                description=description, marker='.', color='blue')
+
+                # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
+                assert not new_Bc.ddls in self.get_ddls_Neumann(problemType), "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
+
+        self.__Bc_Dirichlet.append(new_Bc)
 
         tic.Tac("Boundary Conditions","Condition Dirichlet", self.__verbosity)
-
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     

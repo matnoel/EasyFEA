@@ -33,12 +33,12 @@ class Mesh:
             print(f"Ne = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}")
     
     
-    def __get_groupElem(self, dim=None):
+    def get_groupElem(self, dim=None):
         if dim != None:
-            return self.__dict_groupElem[dim]
+            return cast(GroupElem, self.__dict_groupElem[dim])
         else:
-            return self.__dict_groupElem[self.__dim]
-    groupElem = cast(GroupElem, property(__get_groupElem))   
+            return cast(GroupElem, self.__dict_groupElem[self.__dim])
+    groupElem = cast(GroupElem, property(get_groupElem))   
 
     def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True):
         """Renvoie la liste de noeuds qui respectent les condtions
