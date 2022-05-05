@@ -62,9 +62,10 @@ class GroupElem:
         connect = cast(np.ndarray, property(__get_connect))
         """matrice de connection de l'element (Ne, nPe)"""
 
-        def __get_assembly(self):
+        def get_assembly(self, dim=None):
             nPe = self.nPe
-            dim = self.dim
+            if dim == None:
+                dim = self.dim
             taille = nPe*dim
 
             connect = self.connect
@@ -74,7 +75,7 @@ class GroupElem:
                 assembly[:, np.arange(d, taille, dim)] = np.array(connect) * dim + d
 
             return assembly
-        assembly_e = cast(np.ndarray, property(__get_assembly))
+        assembly_e = cast(np.ndarray, property(get_assembly))
         """matrice d'assemblage (Ne, nPe*dim)"""
 
         def __get_coordo(self):

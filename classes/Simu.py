@@ -5,7 +5,7 @@ from typing import cast
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
-from sympy import jacobi
+
 
 from GroupElem import GroupElem
 from Affichage import Affichage
@@ -565,28 +565,31 @@ class Simu:
 
         # Récupération des matrices pour le calcul
         mesh = self.__mesh
-        groupElem = mesh.get_groupElem(1)
+        groupElem1D = mesh.get_groupElem(1)
         
-        jacobien_e_pg = groupElem.get_jacobien_e_pg("rigi")
-        gauss = groupElem.get_gauss("rigi")
+        jacobien_e_pg = groupElem1D.get_jacobien_e_pg("rigi")
+        gauss = groupElem1D.get_gauss("rigi")
         poid_pg = gauss.poids
 
         match problemType:
             case "damage":
-                N_pg = groupElem.get_N_pg("rigi", True)
+                N_pg = groupElem1D.get_N_pg("rigi", True)
             case "displacement":
-                N_pg = groupElem.get_N_pg("rigi", False)
+                N_pg = groupElem1D.get_N_pg("rigi", False)
 
         # récupérations des élements
 
-        nodesGroup = groupElem.nodes
+        coordo = mesh.coordo[groupElem1D.nodes]
         
-        nodes_e = mesh.coordo[mesh.connect][:,range(2)]
-        nodesPg_e = np.einsum('pn,n->pn', N_pg, )
+        nodes_e =  coordo[groupElem1D.connect][:,:,range(2)]
+        nodesPg_e = np.einsum('pij,enj->epn', N_pg, nodes_e, optimize=True)
 
 
         # Construit Fd_e
-        Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, N_pg)         
+        Fd_e_pg = np.einsum('ep,p,,pji->epij', jacobien_e_pg, poid_pg, valeurs, N_pg)
+        # Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, valeurs, N_pg)
+
+        pass       
 
 
 
