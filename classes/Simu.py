@@ -1,4 +1,6 @@
 
+import enum
+from types import LambdaType
 from typing import cast
 
 
@@ -559,35 +561,57 @@ class Simu:
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
-    def lineLoad(self, problemType: str, noeuds: np.ndarray, directions: list, valeurs: np.ndarray):
+    def lineLoad(self, noeuds: np.ndarray, directions: list, valeurs: list):
         """applique le long de la ligne"""
-        assert problemType in Simu.problemTypes()
+
+        if self.__dim == 2:
+            assert "z" not in directions
+            assert len(valeurs) <= self.__dim
 
         # Récupération des matrices pour le calcul
         mesh = self.__mesh
         groupElem1D = mesh.get_groupElem(1)
-        
-        jacobien_e_pg = groupElem1D.get_jacobien_e_pg("rigi")
-        gauss = groupElem1D.get_gauss("rigi")
+
+        # Récupère les elements qui utilisent strictement les noeuds
+        elements = groupElem1D.get_elements(noeuds)
+        Ne = elements.shape[0]
+
+        # récupère les coordonnées des points de gauss
+        coordo_e_p = groupElem1D.get_coordo_e_p("masse",elements)
+        nPg = coordo_e_p.shape[1]
+
+        valeurs_e_p_dim = np.zeros((Ne, nPg, self.__dim))
+
+        N_pg = groupElem1D.get_N_pg("masse", 1)
+
+        for d, dir in enumerate(directions):
+            
+            v = valeurs[d]
+            
+            match dir:
+                case "x":
+                    index = 0
+                case "y":
+                    index = 1
+                case "z":
+                    index = 2
+
+            if isinstance(v, LambdaType):
+                # Evalue la fonction
+                valeurs_e_p_dim[:,:,index] = v(coordo_e_p[:,0], coordo_e_p[:,1], coordo_e_p[:,2])
+            else:
+                valeurs_e_p_dim[:,:,index] = v
+
+        jacobien_e_pg = groupElem1D.get_jacobien_e_pg("masse")[elements]
+        gauss = groupElem1D.get_gauss("masse")
         poid_pg = gauss.poids
 
-        match problemType:
-            case "damage":
-                N_pg = groupElem1D.get_N_pg("rigi", True)
-            case "displacement":
-                N_pg = groupElem1D.get_N_pg("rigi", False)
-
-        # récupérations des élements
-
-        coordo = mesh.coordo[groupElem1D.nodes]
-        
-        nodes_e =  coordo[groupElem1D.connect][:,:,range(2)]
-        nodesPg_e = np.einsum('pij,enj->epn', N_pg, nodes_e, optimize=True)
-
-
-        # Construit Fd_e
-        Fd_e_pg = np.einsum('ep,p,,pji->epij', jacobien_e_pg, poid_pg, valeurs, N_pg)
+        valeurs_e_p = np.einsum('ep,p,epi,pij->epij', jacobien_e_pg, poid_pg, valeurs_e_p_dim, N_pg)
         # Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, valeurs, N_pg)
+
+        valeurs_e = np.sum(valeurs_e_p, axis=1).reshape(Ne,-1)
+
+        # Il reste assembler le vecteur
 
         pass       
 

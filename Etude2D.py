@@ -38,7 +38,7 @@ P = 800 #N
 lineLoad = P/h #N/mm
 
 # Paramètres maillage
-taille = h/10
+taille = h/2
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -46,7 +46,7 @@ comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-elemType = "TRI6" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
 domain = Domain(Point(), Point(x=L, y=h))
 
@@ -56,7 +56,7 @@ mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tai
 # Récupère les noeuds qui m'interessent
 
 noeuds_en_0 = mesh.Get_Nodes_Line(Line(Point(x=L, y=0), Point(x=L, y=h)))  # noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-noeuds_en_L = mesh.Get_Nodes_Line(Line(Point(), Point(y=h)))       # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+noeuds_en_L = mesh.Get_Nodes_Line(Line(Point(x=L), Point(x=L, y=h)))       # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
@@ -72,9 +72,12 @@ simu = Simu(mesh, materiau)
 
 # Renseigne les condtions limites
 
+Affichage.Plot_NoeudsMaillage(simu.mesh, showId=True)
+plt.show()
+
 simu.Add_Bc_Dirichlet("displacement", noeuds_en_0, ["x","y"], 0.0, "Encastrement")
 
-simu.lineLoad("displacement", noeuds_en_L, ["y"], lineLoad)
+simu.lineLoad(noeuds_en_L, ["y"], [-lineLoad])
 
 simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
 # simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
