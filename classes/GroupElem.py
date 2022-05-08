@@ -4,7 +4,9 @@ from Geom import *
 from Gauss import Gauss
 from TicTac import TicTac
 from matplotlib import pyplot as plt
+
 import numpy as np
+import scipy.sparse as sp
 
 class GroupElem:
 
@@ -62,6 +64,39 @@ class GroupElem:
         connect = cast(np.ndarray, property(__get_connect))
         """matrice de connection de l'element (Ne, nPe)"""
 
+        def __get_connect_n_e(self):
+            # Ici l'objectif est de construire une matrice qui lorsque quon va la multiplier a un vecteur valeurs_e de taille ( Ne x 1 ) va donner
+            # valeurs_n_e(Nn,1) = connecNoeud(Nn,Ne) valeurs_n_e(Ne,1)
+            # ou connecNoeud(Nn,:) est un vecteur ligne composé de 0 et de 1 qui permetra de sommer valeurs_e[noeuds]
+            # Ensuite, il suffit juste par divisier par le nombre de fois que le noeud apparait dans la ligne        
+            # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement        
+            Nn = self.Nn
+            Ne = self.Ne
+            nPe = self.nPe
+            listElem = np.arange(Ne)
+
+            lignes = self.connect.reshape(-1)
+            colonnes = np.repeat(listElem, nPe)
+
+            return sp.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
+        connect_n_e = cast(sp.csr_matrix, property(__get_connect_n_e))
+        """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
+            tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
+
+        def get_elements(self, noeuds: np.ndarray, exclusivement=True):
+            "récupérations des élements pour utilise exclusivement ou non les noeuds renseigné"
+            connect = self.__connect
+            connect_n_e = self.connect_n_e
+
+            lignes, colonnes, valeurs = sp.find(connect_n_e[noeuds])
+            elements = np.unique(colonnes)
+
+            if exclusivement:
+                listElem = [e for e in elements if not False in [n in noeuds for n in connect[e]]]        
+                elements = np.array(listElem)
+
+            return elements
+
         def get_assembly(self, dim=None):
             nPe = self.nPe
             if dim == None:
@@ -97,8 +132,27 @@ class GroupElem:
 
         def get_gauss(self, matriceType: str):
             return Gauss(self.elemType, matriceType)
+        
+        def get_coordo_e_p(self, matriceType: str, elements=np.array([])):
+            """Renvoie les coordonnées des points de gauss chaque element"""
 
-        def get_N_pg(self, matriceType: str, isScalaire: bool):
+            N_scalaire = self.get_N_pg(matriceType)
+
+            # récupère les coordonnées des noeuds
+            coordo = self.__coordo
+
+            # coordonnées localisées sur l'elements
+            if elements.size == 0:
+                coordo_e =  coordo[self.__connect]
+            else:
+                coordo_e =  coordo[self.__connect[elements]]
+
+            # on localise les coordonnées sur les points de gauss
+            coordo_e_p = np.einsum('pij,ejn->epn', N_scalaire, coordo_e, optimize=True)
+
+            return np.array(coordo_e_p)
+
+        def get_N_pg(self, matriceType: str, repetition=0):
             """Fonctions de formes dans la base de réference
 
             Args:
@@ -115,19 +169,21 @@ class GroupElem:
             """
             if self.dim == 0: return
 
+            assert isinstance(repetition, int)
+            assert repetition >= 0
+
             N_pg = self.__get_N_pg(matriceType)
 
             if not isinstance(N_pg, np.ndarray): return
 
-            if isScalaire:
+            if repetition == 0:
                 return N_pg
             else:
-                dim = self.dim
-                taille = N_pg.shape[2]*dim
-                N_vect_pg = np.zeros((N_pg.shape[0] ,dim , taille))
+                taille = N_pg.shape[2]*(repetition+1)
+                N_vect_pg = np.zeros((N_pg.shape[0] ,repetition+1 , taille))
 
-                for d in range(dim):
-                    N_vect_pg[:, d, np.arange(d, taille, dim)] = N_pg[:,0,:]
+                for r in range(repetition+1):
+                    N_vect_pg[:, r, np.arange(r, taille, repetition+1)] = N_pg[:,0,:]
                 
                 return N_vect_pg
         
@@ -146,14 +202,83 @@ class GroupElem:
 
             return self.__dict_dN_e_pg[matriceType]
         
+        def __get_sysCoord_sysCoordLocal(self):
+            """Matrice de changement de base pour chaque element"""
+
+            match self.elemType:
+
+                case ("SEG2"|"SEG3"):
+
+                    points1 = self.coordo[self.__connect[:,0]]
+                    points2 = self.coordo[self.__connect[:,1]]
+
+                case ("TRI3"|"TRI6"):
+
+                    points1 = self.coordo[self.__connect[:,0]]
+                    points2 = self.coordo[self.__connect[:,1]]
+                    points3 = self.coordo[self.__connect[:,2]]
+
+                case ("QUAD4"|"QUAD8"):
+
+                    points1 = self.coordo[self.__connect[:,0]]
+                    points2 = self.coordo[self.__connect[:,1]]
+                    points3 = self.coordo[self.__connect[:,3]]
+
+            match self.dim:
+                case (0|3):
+                    sysCoord_e = np.eye(3)
+                    sysCoord_e = sysCoord_e[np.newaxis, :].repeat(self.Ne, axis=0)
+                    sysCoordLocal_e = sysCoord_e
+                
+                case (1|2):
+
+                    i = points2-points1
+                    i = np.einsum('ei,e->ei',i, 1/np.linalg.norm(i, axis=1), optimize=True)
+
+                    if self.dim == 1:
+                        theta = np.pi/2
+                        rot = np.array([[np.cos(theta), -np.sin(theta), 0],
+                                        [np.sin(theta), np.cos(theta), 0],
+                                        [0, 0, 1]])
+                        j = np.einsum('ij,ej->ei',rot, i, optimize=True)
+                    else:
+                        j = points3-points1
+                        j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize=True)
+                        
+                    k = np.cross(i, j, axis=1)
+
+                    sysCoord_e = np.zeros((self.Ne, 3, 3))
+                    sysCoord_e[:,0] = i
+                    sysCoord_e[:,1] = j
+                    sysCoord_e[:,2] = k
+
+                    sysCoordLocal_e = sysCoord_e[:,range(self.dim)]
+
+            return sysCoord_e, sysCoordLocal_e
+
+        def __get_sysCoord(self):
+            return self.__get_sysCoord_sysCoordLocal()[0]
+        sysCoord_e = cast(np.ndarray, property(__get_sysCoord))
+
+        def __get_sysCoordLocal(self):
+            return self.__get_sysCoord_sysCoordLocal()[1]
+        sysCoordLocal_e = cast(np.ndarray, property(__get_sysCoordLocal))
+
         def get_F_e_pg(self, matriceType: str):
             """Renvoie la matrice jacobienne
             """
             if self.dim == 0: return
             if matriceType not in self.__dict_F_e_pg.keys():
 
-                nodes_n = self.coordo[:, range(self.dim)]
+                nodes_n = self.coordo[:]
+
                 nodes_e = nodes_n[self.connect]
+
+                if nodes_e.shape[1] != self.dim:
+                    syscoord = self.sysCoordLocal_e
+                    nodes_e = np.einsum('eij,ekj->eik', nodes_e, syscoord, optimize=True)
+
+                nodes_e = nodes_e[:,:,range(self.dim)]
 
                 dN_pg = self.get_dN_pg(matriceType)
 
@@ -216,7 +341,7 @@ class GroupElem:
                     N2t = lambda x: 0.5*(1+x)*x
                     N3t = lambda x: (1+x)*(1-x)
 
-                    Ntild = np.array([N1t, N2t])
+                    Ntild = np.array([N1t, N2t, N3t])
 
                 case "TRI3":
 
@@ -473,7 +598,7 @@ class GroupElem:
 
             eps = np.finfo(float).eps
 
-            noeuds = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))            
+            noeuds = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
 
             return noeuds
         
@@ -486,7 +611,7 @@ class GroupElem:
 
             noeuds = np.where(  (coordo[:,0] >= domain.pt1.x-eps) & (coordo[:,0] <= domain.pt2.x+eps) &
                                 (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
-                                (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))
+                                (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))[0]
             
             return noeuds
         

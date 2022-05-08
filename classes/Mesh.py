@@ -117,20 +117,7 @@ class Mesh:
     """connection des elements (Ne, nPe)"""
     
     def __get_connect_n_e(self):
-        # Ici l'objectif est de construire une matrice qui lorsque quon va la multiplier a un vecteur valeurs_e de taille ( Ne x 1 ) va donner
-        # valeurs_n_e(Nn,1) = connecNoeud(Nn,Ne) valeurs_n_e(Ne,1)
-        # ou connecNoeud(Nn,:) est un vecteur ligne composé de 0 et de 1 qui permetra de sommer valeurs_e[noeuds]
-        # Ensuite, il suffit juste par divisier par le nombre de fois que le noeud apparait dans la ligne        
-        # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement        
-        Nn = self.Nn
-        Ne = self.Ne
-        nPe = self.nPe
-        listElem = np.arange(Ne)
-
-        lignes = self.connect.reshape(-1)
-        colonnes = np.repeat(listElem, nPe)
-
-        return sp.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
+        return self.groupElem.connect_n_e
     connect_n_e = cast(sp.csr_matrix, property(__get_connect_n_e))
     """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
         tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
@@ -177,14 +164,14 @@ class Mesh:
         Matrice des fonctions de forme dans element de référence (ksi, eta)\n
         [N1(ksi,eta) N2(ksi,eta) Nn(ksi,eta)] \n
         """
-        return self.groupElem.get_N_pg(matriceType, True)
+        return self.groupElem.get_N_pg(matriceType)
 
     def get_N_vecteur_pg(self, matriceType: str):
         """Fonctions de formes dans l'element de reférences pour un vecteur (npg, dim, npe*dim)
         Matrice des fonctions de forme dans element de référence (ksi, eta)\n
         [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
         0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]"""
-        return self.groupElem.get_N_pg(matriceType, False)
+        return self.groupElem.get_N_pg(matriceType, self.__dim)
 
     def get_B_sclaire_e_pg(self, matriceType: str):
         """Derivé des fonctions de formes dans la base réele en sclaire\n
