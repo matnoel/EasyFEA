@@ -274,7 +274,7 @@ class GroupElem:
 
                 nodes_e = nodes_n[self.connect]
 
-                if nodes_e.shape[1] != self.dim:
+                if self.dim in [1,2] and nodes_n[:,self.dim].max() != 0:
                     syscoord = self.sysCoordLocal_e
                     nodes_e = np.einsum('eij,ekj->eik', nodes_e, syscoord, optimize=True)
 

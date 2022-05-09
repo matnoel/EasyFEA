@@ -36,6 +36,7 @@ b = 13
 
 P = 800 #N
 lineLoad = P/h #N/mm
+surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
 taille = h/2
@@ -46,17 +47,19 @@ comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+elemType = "TRI6" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
 domain = Domain(Point(), Point(x=L, y=h))
+Line0 = Line(Point(), Point(y=h))
+LineL = Line(Point(x=L), Point(x=L, y=h))
 
 interfaceGmsh = Interface_Gmsh()
 mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=False)
 
 # Récupère les noeuds qui m'interessent
 
-noeuds_en_0 = mesh.Get_Nodes_Line(Line(Point(), Point(y=h)))  # noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-noeuds_en_L = mesh.Get_Nodes_Line(Line(Point(x=L), Point(x=L, y=h)))       # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+noeuds_en_0 = mesh.Get_Nodes_Line(Line0)        # noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
+noeuds_en_L = mesh.Get_Nodes_Line(LineL)        # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
@@ -75,13 +78,10 @@ simu = Simu(mesh, materiau)
 # Affichage.Plot_NoeudsMaillage(simu.mesh, showId=True)
 # plt.show()
 
-# simu.Add_Bc_Dirichlet("displacement", noeuds_en_0, ["x","y"], 0.0, "Encastrement")
+simu.add_dirichlet("displacement", noeuds_en_0, ["x","y"], [0, 0], description="Encastrement")
 
+# simu.add_surfLoad("displacement",noeuds_en_L, ["y"], [surfLoad])
 simu.add_lineLoad("displacement",noeuds_en_L, ["y"], [-lineLoad])
-
-simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
-# simu.Condition_Neumann(noeuds_en_L, valeur=P, directions=["y"])
-
 
 # Assemblage du système matricielle
 simu.Assemblage_u()

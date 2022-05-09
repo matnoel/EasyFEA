@@ -105,17 +105,15 @@ if solve:
         # plt.show()
 
         # Renseignement des conditions limites
-
-        # Endommagement initiale
-        simu.Condition_Dirichlet(noeuds_Milieu, valeur=1, option="d")
-
         def RenseigneConditionsLimites():
+                simu.add_dirichlet("damage",noeuds_Milieu, ["d"], [1])                        
+
                 # # Conditions en déplacements à Gauche et droite
-                simu.Condition_Dirichlet(noeuds_Gauche, valeur=0.0, directions=["y"])
-                simu.Condition_Dirichlet(noeuds_Droite, valeur=0.0, directions=["y"])
+                simu.add_dirichlet("displacement", noeuds_Gauche,["y"], [0])
+                simu.add_dirichlet("displacement", noeuds_Droite,["y"], [0])
 
                 # Conditions en déplacements en Bas
-                simu.Condition_Dirichlet(noeuds_Bas, valeur=0.0, directions=["x", "y"])
+                simu.add_dirichlet("displacement", noeuds_Bas,["x","y"], [0,0])
 
                 # # # Conditions en déplacements en Haut
                 # simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
@@ -157,12 +155,12 @@ if solve:
                 # Déplacement en haut
                 dep += u_inc
 
-                simu.Condition_Dirichlet(noeuds_Haut, valeur=dep, directions=["x"])
+                simu.add_dirichlet("displacement", noeuds_Haut, ["x"], [dep])
                 
                 uglob = simu.Solve_u(useCholesky=True)
                 uglob_t.append(uglob)
 
-                simu.Clear_Condition_Dirichlet()
+                simu.Clear_Bc_Dirichlet()
                 RenseigneConditionsLimites()
 
                 # Affiche dans la console

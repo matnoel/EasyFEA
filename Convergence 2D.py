@@ -1,5 +1,8 @@
 # %%
 
+from typing import cast
+
+from Geom import Domain, Point
 from GroupElem import GroupElem
 from Materiau import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
@@ -41,7 +44,7 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = list(range(1,20,2))
+listNbElement = list(range(1,40,2))
 # listNbElement = list(range(1,10))
 
 tic = TicTac()
@@ -58,31 +61,40 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
                 
                 taille = b/nbElem
 
+                
+
+                domain = Domain(Point(), Point(x=L, y=h))
+
                 # Construction du modele et du maillage --------------------------------------------------------------------------------
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
-                mesh = interfaceGmsh.ConstructionRectangle(largeur=L, hauteur=h, elemType=elemType, tailleElement=taille, isOrganised=False)
+                mesh = interfaceGmsh.ConstructionRectangle(domain, elemType=elemType, tailleElement=taille, isOrganised=False)
 
+                mesh = cast(Mesh, mesh)
                 # Récupère les noeuds qui m'interessent
-                noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
-                noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
+                
+                noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
+                noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
                 # Construit la simulation
                 simu = Simu(mesh, materiau, verbosity=False)
 
                 # Renseigne les condtions limites en deplacement
-                simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x","y"])
+                simu.add_dirichlet("displacement", noeuds_en_0, ["x","y"], [0,0])
                 # Renseigne les condtions limites en forces
-                simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
+                simu.add_lineLoad("displacement", noeuds_en_L, ["y"], [-P/h])
 
                 # Assemblage du système matricielle
                 simu.Assemblage_u()
 
-                simu.Solve_u(useCholesky=False)
+                simu.Solve_u(useCholesky=True)
+                Wdef = simu.GetResultat("Wdef")
 
                 # Stockage des valeurs
                 listTemps_nb.append(tic.Tac("Résolutions","Temps total", False))
-                listWdef_nb.append(simu.GetResultat("Wdef"))
+                listWdef_nb.append(Wdef)
                 listDdl_nb.append(mesh.Nn*dim)
+
+                print(f"Elem : {elemType}, taille : {np.round(taille, 3)}, Wdef = {np.round(Wdef, 3)}")
         
         listTemps_e_nb.append(listTemps_nb)
         listWdef_e_nb.append(listWdef_nb)
