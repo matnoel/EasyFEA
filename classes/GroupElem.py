@@ -152,7 +152,7 @@ class GroupElem:
 
             return np.array(coordo_e_p)
 
-        def get_N_pg(self, matriceType: str, repetition=0):
+        def get_N_pg(self, matriceType: str, repetition=1):
             """Fonctions de formes dans la base de réference
 
             Args:
@@ -160,30 +160,30 @@ class GroupElem:
                 isScalaire (bool): type de matrice N\n
 
             Returns:
-                np.ndarray: . Fonctions de formes vectorielles (pg, dim, nPe*dim), dans la base (ksi, eta ...)\n
+                np.ndarray: . Fonctions de formes vectorielles (pg, rep=2, rep=2*dim), dans la base (ksi, eta ...)\n
                                 [Ni 0 . . . Nn 0 \n
                                 0 Ni . . . 0 Nn]
 
-                            . Fonctions de formes scalaires (pg, 1, nPe), dans la base (ksi, eta ...)\n
+                            . Fonctions de formes scalaires (pg, rep=1, nPe), dans la base (ksi, eta ...)\n
                                 [Ni . . . Nn]
             """
             if self.dim == 0: return
 
             assert isinstance(repetition, int)
-            assert repetition >= 0
+            assert repetition >= 1
 
             N_pg = self.__get_N_pg(matriceType)
 
             if not isinstance(N_pg, np.ndarray): return
 
-            if repetition == 0:
+            if repetition <= 1:
                 return N_pg
             else:
-                taille = N_pg.shape[2]*(repetition+1)
-                N_vect_pg = np.zeros((N_pg.shape[0] ,repetition+1 , taille))
+                taille = N_pg.shape[2]*(repetition)
+                N_vect_pg = np.zeros((N_pg.shape[0] ,repetition , taille))
 
-                for r in range(repetition+1):
-                    N_vect_pg[:, r, np.arange(r, taille, repetition+1)] = N_pg[:,0,:]
+                for r in range(repetition):
+                    N_vect_pg[:, r, np.arange(r, taille, repetition)] = N_pg[:,0,:]
                 
                 return N_vect_pg
         
