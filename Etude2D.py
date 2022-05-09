@@ -39,7 +39,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/2
+taille = h/100
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -47,14 +47,14 @@ comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-elemType = "TRI6" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
 domain = Domain(Point(), Point(x=L, y=h))
 Line0 = Line(Point(), Point(y=h))
 LineL = Line(Point(x=L), Point(x=L, y=h))
 
 interfaceGmsh = Interface_Gmsh()
-mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=False)
+mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=True)
 
 # Récupère les noeuds qui m'interessent
 

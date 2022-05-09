@@ -16,14 +16,14 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-test = True
+test = False
 
 solve = True
 
 plotResult = False
 saveParaview = False
-makeMovie = True
-save = True
+makeMovie = False
+save = False
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -157,7 +157,7 @@ if solve:
 
                 simu.add_dirichlet("displacement", noeuds_Haut, ["x"], [dep])
                 
-                uglob = simu.Solve_u(useCholesky=True)
+                uglob = simu.Solve_u(useCholesky=False)
                 uglob_t.append(uglob)
 
                 simu.Clear_Bc_Dirichlet()
