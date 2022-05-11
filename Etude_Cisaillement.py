@@ -1,7 +1,5 @@
 # %%
 
-from importlib.resources import path
-
 import PostTraitement
 import Dossier
 from Affichage import Affichage
