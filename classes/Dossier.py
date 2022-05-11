@@ -1,7 +1,7 @@
 import os
 
 def GetPath(filename=None):
-    """Renvoie le path du fichier ou renvoie le path vers PythonEF"""
+    """Renvoie le path du fichier ou renvoie le path vers le fichier Dossier donc renvoie Python Ef"""
     
     if filename == None:
         # Renvoie le path vers PythonEF
