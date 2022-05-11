@@ -1,6 +1,7 @@
 
 
 import gmsh
+import meshio
 import sys
 import numpy as np
 
@@ -111,7 +112,7 @@ class Interface_Gmsh:
                 return self.__Recuperation_Maillage()
 
         def ConstructionRectangleAvecFissure(self, domain: Domain, line: Line,
-        elemType="TRI3", elementSize=0.0, openCrack=False, isOrganised=False):
+        elemType="TRI3", elementSize=0.0, openCrack=False, isOrganised=False, filename=""):
 
                 """Construit un rectangle avec une fissure ouverte ou non
 
@@ -181,7 +182,7 @@ class Interface_Gmsh:
                 else:
                         self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return self.__Recuperation_Maillage()
+                return self.__Recuperation_Maillage(filename)
 
         def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
         surface=None, crack=None, openBoundary=None):
@@ -236,7 +237,7 @@ class Interface_Gmsh:
                 
                 tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
-        def __Recuperation_Maillage(self):
+        def __Recuperation_Maillage(self, filename=""):
                 """construit le maillage"""
                 
                 tic = TicTac()
@@ -246,18 +247,85 @@ class Interface_Gmsh:
 
                 dim = entities[-1][0]
 
-                elementTypes, elementTags, nodeTags = gmsh.model.mesh.getElements()
-                nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
-
-                # Redimensionne sous la forme d'un tableau
-                coordo = coord.reshape(-1,3)
-
-                # Construit les elements
                 dict_groupElem = {}
-                for t, gmshId in enumerate(elementTypes):
+                if filename == "":
+                        # OLD
+                        elementTypes, elementTags, nodeTags = gmsh.model.mesh.getElements()
+                        nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
 
-                        groupElem = GroupElem(gmshId, elementTags[t]-1, nodeTags[t]-1, coordo)
-                        dict_groupElem[groupElem.dim] = groupElem
+                        coord = coord.reshape(-1,3)
+
+                        # Construit les elements
+                        
+                        for t, gmshId in enumerate(elementTypes):
+
+                                # Elements
+                                Ne = elementTags[t].shape[0]
+                                nPe = GroupElem.Get_ElemInFos(gmshId)[1]
+                                connect = nodeTags[t].reshape(Ne, nPe)-1 # nPe : number of nodes per elements
+                                
+                                # Noeuds            
+                                nodes = np.unique(nodeTags[t]-1)
+
+                                Nmax = nodes.max()
+                                assert Nmax <= (coord.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
+                                
+                                coordo = cast(np.ndarray, coord[nodes])
+
+                                groupElem = GroupElem(gmshId, connect, coordo)
+                                dict_groupElem[groupElem.dim] = groupElem
+                else:
+
+                        elementTypes = gmsh.model.mesh.getElementTypes()
+                        gmsh.write(filename)
+                        mesh = meshio.read(filename)
+
+                        points = mesh.points
+                        cells = mesh.cells
+
+                        cellsTypes = np.unique(np.array([c.type for c in cells], dtype=str))
+
+                        for gmshId in elementTypes:
+
+                                match GroupElem.Get_ElemInFos(gmshId)[0]:
+                                        case "SEG2":
+                                                cT = "line"
+                                        case "SEG3":
+                                                cT = "line3"
+                                        case "TRI3":
+                                                cT = "triangle"
+                                        case "TRI6":
+                                                cT =  "triangle6"
+                                        case "QUAD4":
+                                                cT =  "quad"
+                                        case "QUAD8":
+                                                cT =  "quad8"
+                                        case "POINT":
+                                                cT =  "vertex"
+                                        case _:
+                                                raise "Unknown type"
+
+                                assert cT in cellsTypes, "Type not used in the mesh"
+
+                                connect = mesh.get_cells_type(cT)
+
+                                noeuds = np.unique(connect)
+
+                                coordo = points[noeuds]
+
+
+                                groupElem = GroupElem(gmshId, connect, coordo)
+                                dict_groupElem[groupElem.dim] = groupElem
+
+                        
+                        
+
+
+                        pass
+
+
+
+                
 
                 gmsh.finalize()
 

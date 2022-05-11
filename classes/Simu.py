@@ -539,7 +539,7 @@ class Simu:
 
             # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
             # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
-            useUmfpack = True
+            useUmfpack = False
 
             if useUmfpack:
                 # from scikits.umfpack import umf
@@ -549,7 +549,7 @@ class Simu:
             else:
                 # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
                 
-                sparse.linalg.use_solver(useUmfpack=True)
+                # sparse.linalg.use_solver(useUmfpack=True)
                 hideFacto = True
 
                 # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"

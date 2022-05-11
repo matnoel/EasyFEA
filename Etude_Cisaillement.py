@@ -1,5 +1,7 @@
 # %%
 
+from importlib.resources import path
+
 import PostTraitement
 import Dossier
 from Affichage import Affichage
@@ -16,11 +18,11 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-test = False
+test = True
 
 solve = True
 
-plotResult = False
+plotResult = True
 saveParaview = False
 makeMovie = False
 save = False
@@ -33,7 +35,7 @@ comportement = "Elas_Isot" # "Elas_Isot"
 
 split = "Amor" # "Bourdin","Amor","Miehe"
 
-regularisation = "AT2" # "AT1", "AT2"
+regularisation = "AT1" # "AT1", "AT2"
 
 nameSimu = comportement+"_"+split+"_"+regularisation
 
@@ -47,7 +49,7 @@ Gc = 2.7e3
 # Paramètres maillage
 if test:
         taille = 1e-5 #taille maille test fem object
-        # taille *= 20
+        taille *= 20
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -55,6 +57,8 @@ if test:
         filename = Dossier.NewFile(f'{folder}\\Test\\{nameSimu}\\simulation.xml', results=True)
 else:
         filename = Dossier.NewFile(f'{folder}\\{nameSimu}\\simulation.xml', results=True)
+
+path = Dossier.GetPath(filename)
 
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
@@ -65,13 +69,24 @@ if solve:
 
         interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
 
-        openCrack = False
+        openCrack = True
+
+        if openCrack:
+                meshName = "carré avec fissure ouverte.msh"
+        else:
+                meshName = "carré avec fissure fermée.msh"
+
+        mshFileName = Dossier.NewFile(meshName, path)
+        # mshFileName = ""
 
         domain = Domain(Point(), Point(x=L, y=L))
         line = Line(Point(y=L/2), Point(x=L/2, y=L/2))
 
         mesh = interfaceGmsh.ConstructionRectangleAvecFissure(domain=domain, line=line, elemType=elemType,
-        elementSize=taille, isOrganised=True, openCrack=openCrack)
+        elementSize=taille, isOrganised=True, openCrack=openCrack, filename=mshFileName)
+
+        Affichage.Plot_NoeudsMaillage(mesh, showId=True)
+        plt.show()
 
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Get_Nodes_Line(line)
@@ -101,12 +116,9 @@ if solve:
 
         simu = Simu(mesh, materiau, verbosity=False)
 
-        # Affichage.Plot_NoeudsMaillage(simu.mesh, showId=True)
-        # plt.show()
-
         # Renseignement des conditions limites
         def RenseigneConditionsLimites():
-                simu.add_dirichlet("damage",noeuds_Milieu, ["d"], [1])                        
+                # simu.add_dirichlet("damage",noeuds_Milieu, ["d"], [1])                        
 
                 # # Conditions en déplacements à Gauche et droite
                 simu.add_dirichlet("displacement", noeuds_Gauche,["y"], [0])
@@ -114,9 +126,6 @@ if solve:
 
                 # Conditions en déplacements en Bas
                 simu.add_dirichlet("displacement", noeuds_Bas,["x","y"], [0,0])
-
-                # # # Conditions en déplacements en Haut
-                # simu.Condition_Dirichlet(noeuds_Haut, valeur=0.0, directions=["y"])
 
         RenseigneConditionsLimites()
 
@@ -155,9 +164,10 @@ if solve:
                 # Déplacement en haut
                 dep += u_inc
 
-                simu.add_dirichlet("displacement", noeuds_Haut, ["x"], [dep])
+                # simu.add_dirichlet("displacement", noeuds_Haut, ["x"], [dep])
+                simu.add_dirichlet("displacement", noeuds_Haut, ["x","y"], [dep,0])
                 
-                uglob = simu.Solve_u(useCholesky=False)
+                uglob = simu.Solve_u(useCholesky=True)
                 uglob_t.append(uglob)
 
                 simu.Clear_Bc_Dirichlet()
@@ -221,10 +231,10 @@ if plotResult:
         # if save: plt.savefig(f'{folder}\\conditionsLimites.png')
 
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True)
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True, deformation=False)
         if save: plt.savefig(f'{folder}\\damage.png')
 
-        Affichage.Plot_Result(simu, "dy")
+        # Affichage.Plot_Result(simu, "dy")
 
         
 

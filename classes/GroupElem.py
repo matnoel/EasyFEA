@@ -10,28 +10,24 @@ import scipy.sparse as sp
 
 class GroupElem:
 
-        def __init__(self, gmshId: int, elementTags: np.ndarray, nodeTags: np.ndarray, coordo: np.ndarray, verbosity=False):
-                
-                self.__gmshId = gmshId
+        def __init__(self, gmshId: int, connect: np.ndarray, coordo: np.ndarray, verbosity=False):
 
-                # Elements
-                self.__elementTags = elementTags
-                self.__connect = nodeTags.reshape(self.Ne, self.nPe)
-                
-                # Noeuds
-                self.__nodes = np.unique(nodeTags)
-                self.__coordo = cast(np.ndarray, coordo[self.__nodes])
+            self.__gmshId = gmshId            
+            
+            # Elements
+            self.__connect = connect
+            
+            # Noeuds            
+            self.__coordo = coordo
 
-                self.__TestImportation()
+            self.__verbosity = verbosity
 
-                self.__verbosity = verbosity
-
-                # Dictionnaires pour chaque types de matrices
-                if self.dim > 0:
-                    self.__dict_dN_e_pg = {}
-                    self.__dict_F_e_pg = {}                
-                    self.__dict_invF_e_pg = {}                
-                    self.__dict_jacobien_e_pg = {}                
+            # Dictionnaires pour chaque types de matrices
+            if self.dim > 0:
+                self.__dict_dN_e_pg = {}
+                self.__dict_F_e_pg = {}                
+                self.__dict_invF_e_pg = {}                
+                self.__dict_jacobien_e_pg = {}                
         
         ################################################ METHODS ##################################################
 
@@ -48,15 +44,15 @@ class GroupElem:
         dim = cast(int, property(__get_dim))
 
         def __get_Ne(self):
-            return self.__elementTags.shape[0]
+            return self.__connect.shape[0]
         Ne = cast(int, property(__get_Ne))
 
-        def __get_nodes(self):
-            return self.__nodes.copy()
-        nodes = cast(np.ndarray, property(__get_nodes))
+        # def __get_nodes(self):
+        #     return self.__nodes.copy()
+        # nodes = cast(np.ndarray, property(__get_nodes))
 
         def __get_Nn(self):
-            return self.__nodes.shape[0]
+            return self.__coordo.shape[0]
         Nn = property(__get_Nn)
 
         def __get_connect(self):
