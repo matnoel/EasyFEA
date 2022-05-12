@@ -199,7 +199,15 @@ class Interface_Gmsh:
                                 gmsh.model.geo.synchronize()
 
                                 if elemType in ["QUAD4","QUAD8"]:
-                                        gmsh.model.mesh.setRecombine(2, surface)
+                                        
+                                        try:
+                                                gmsh.model.mesh.setRecombine(2, surface)
+                                        except Exception:
+                                                entities = gmsh.model.getEntities()
+                                                surface = entities[-1][-1]
+                                                gmsh.model.mesh.setRecombine(2, surface)
+
+                                        
                                 
                                 # Génère le maillage
                                 gmsh.model.mesh.generate(2)
