@@ -30,7 +30,9 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-comportement = Elas_Isot(dim, epaisseur=b)
+E=210000
+v=0.25
+comportement = Elas_Isot(dim, epaisseur=b, E=E, v=v, contraintesPlanes=True)
 
 # Materiau
 materiau = Materiau(comportement)
@@ -44,7 +46,7 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = list(range(1,40,2))
+listNbElement = list(range(2,20,1))
 # listNbElement = list(range(1,10))
 
 tic = TicTac()
@@ -81,7 +83,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
                 # Renseigne les condtions limites en deplacement
                 simu.add_dirichlet("displacement", noeuds_en_0, ["x","y"], [0,0])
                 # Renseigne les condtions limites en forces
-                simu.add_lineLoad("displacement", noeuds_en_L, ["y"], [-P/h])
+                simu.add_surfLoad("displacement", noeuds_en_L, ["y"], [-P/h**2])
 
                 # Assemblage du système matricielle
                 simu.Assemblage_u()
@@ -109,7 +111,10 @@ fig_Erreur, ax_Temps_Erreur = plt.subplots()
 fig_Temps, ax_Temps = plt.subplots()
 
 # WdefRef = np.max(listWdef_e_nb)
-WdefRef = 371.5
+# WdefRef = 371.5
+WdefRef = 2*P**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5)
+print(f"Wef analytique = {WdefRef} mJ")
+
 # WdefRef = 391.76
 
 for t, elemType in enumerate(GroupElem.get_Types2D()):

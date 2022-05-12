@@ -39,7 +39,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/100
+taille = h/50
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 

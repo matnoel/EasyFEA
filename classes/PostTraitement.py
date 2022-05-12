@@ -32,9 +32,9 @@ def Save_Simulations_in_Paraview(filename: str, simu: Simu, uglob_t: list, damag
         f = f'{folder}\\solution_{t}'
 
         if len(damage_t) > 0:
-            vtuFile = SaveParaview(simu, f, nodesField=["deplacement","damage"], elementsField=["Stress"])
+            vtuFile = SaveParaview(simu, f, nodesField=["displacement","damage"], elementsField=["Stress"])
         else:
-            vtuFile = SaveParaview(simu, f, nodesField=["deplacement"], elementsField=["Stress"])
+            vtuFile = SaveParaview(simu, f, nodesField=["displacement"], elementsField=["Stress"])
         
         vtuFiles.append(vtuFile)
 
@@ -108,11 +108,11 @@ def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
     
 # =========================================== Paraview ==================================================
 
-def SaveParaview(simu: Simu, filename: str,nodesField=["deplacement","Stress"], elementsField=["Stress","Strain"]):
+def SaveParaview(simu: Simu, filename: str,nodesField=["displacement","Stress"], elementsField=["Stress","Strain"]):
     """Creer le .vtu qui peut être lu sur paraview
     """
     
-    if not simu.VerificationOption("Uglob"):
+    if not simu.VerificationOption("displacement"):
         return
     
     # resultats_e=["Svm","Evm"]
