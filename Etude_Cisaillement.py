@@ -1,7 +1,5 @@
 # %%
 
-from importlib.resources import path
-
 import PostTraitement
 import Dossier
 from Affichage import Affichage
@@ -20,12 +18,12 @@ Affichage.Clear()
 
 test = True
 
-solve = True
+solve = False
 
 plotResult = True
-saveParaview = False
+saveParaview = True
 makeMovie = False
-save = False
+save = True
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -33,11 +31,15 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Amor" # "Bourdin","Amor","Miehe"
+split = "Bourdin" # "Bourdin","Amor","Miehe"
 
 regularisation = "AT1" # "AT1", "AT2"
 
+openCrack = True
+
 nameSimu = comportement+"_"+split+"_"+regularisation
+if openCrack: 
+        nameSimu += '_openCrack'
 
 dim = 2
 
@@ -49,7 +51,7 @@ Gc = 2.7e3
 # Paramètres maillage
 if test:
         taille = 1e-5 #taille maille test fem object
-        taille *= 20
+        # taille *= 20
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -65,7 +67,7 @@ path = Dossier.GetPath(filename)
 
 if solve:
 
-        elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        elemType = "QUAD4" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
         interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
 
@@ -85,8 +87,8 @@ if solve:
         mesh = interfaceGmsh.ConstructionRectangleAvecFissure(domain=domain, line=line, elemType=elemType,
         elementSize=taille, isOrganised=True, openCrack=openCrack, filename=mshFileName)
 
-        Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-        plt.show()
+        # Affichage.Plot_NoeudsMaillage(mesh, showId=True)
+        # plt.show()
 
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Get_Nodes_Line(line)
@@ -229,6 +231,8 @@ if plotResult:
 
         # AffichageCL()
         # if save: plt.savefig(f'{folder}\\conditionsLimites.png')
+
+        Wdef = simu.GetResultat("Wdef")
 
 
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True, deformation=False)
