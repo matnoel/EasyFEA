@@ -357,7 +357,7 @@ class PhaseFieldModel:
         self.__l0 = l_0
         """Largeur de régularisation de la fissure"""
             
-    def Calc_Psi_e_pg(self, Epsilon_e_pg: np.ndarray):
+    def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique\n
         Ici on va caluler PsiP_e_pg = 1/2 SigmaP_e_pg : Epsilon_e_pg et PsiM_e_pg = 1/2 SigmaM_e_pg : Epsilon_e_pg\n
         Avec SigmaP_e_pg = CP * Epsilon_e_pg et SigmaM_e_pg = CM * Epsilon_e_pg
@@ -373,10 +373,10 @@ class PhaseFieldModel:
 
         SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
 
-        PsiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
-        PsiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
+        psiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
+        psiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
         
-        return PsiP_e_pg, PsiM_e_pg
+        return psiP_e_pg, psiM_e_pg
 
     def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul la contrainte en fonction de la deformation et du split
@@ -672,14 +672,26 @@ class Materiau:
     dim = property(__get_dim)
 
     def __get_comportement(self):
-        if isinstance(self.__phaseFieldModel, PhaseFieldModel):
+        if self.isDamaged:
             return self.__phaseFieldModel.loiDeComportement
         else:
             return self.__comportement
     comportement = cast(LoiDeComportement, property(__get_comportement))
 
+    def __get_isDamaged(self):
+        if self.__phaseFieldModel == None:
+            return False
+        else:
+            return True
+    isDamaged = property(__get_isDamaged)
+
     def __get_phaseFieldModel(self):
-        return self.__phaseFieldModel            
+        if self.isDamaged:
+            return self.__phaseFieldModel
+        else:
+            print("Le matériau n'est pas endommageable (pas de modèle PhaseField)")
+            return None
+            
     phaseFieldModel = cast(PhaseFieldModel, property(__get_phaseFieldModel))
 
     def __init__(self, comportement: LoiDeComportement, ro=8100.0, phaseFieldModel=None):
@@ -696,7 +708,7 @@ class Materiau:
         assert isinstance(comportement, LoiDeComportement)
 
         assert ro > 0 , "Doit être supérieur à 0"
-        self.ro = ro               
+        self.ro = ro
 
         # Initialisation des variables de la classe
 

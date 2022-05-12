@@ -1,5 +1,4 @@
 
-from pkgutil import ImpImporter
 from types import LambdaType
 from typing import cast
 
@@ -72,7 +71,7 @@ class Simu:
         """materiau de la simulation"""
         self.__resultats = {}
         """résultats de la simulation"""
-        self.__PsiP_e_pg = []
+        self.__psiP_e_pg = []
         """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
 
         # Conditions Limites
@@ -84,8 +83,8 @@ class Simu:
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
-    def ConstruitMatElem_Dep(self):       
-
+    def ConstruitMatElem_Dep(self):
+        """Construit pour chaque elements les matrices elementaires de rigidité en déplacement"""
         return self.__ConstruitMatElem_Dep()
 
     def __ConstruitMatElem_Dep(self):
@@ -97,8 +96,8 @@ class Simu:
         Returns:
             array de dim e: les matrices elementaires pour chaque element
         """
-
-        isDamaged = "damage" in self.__resultats.keys()
+        
+        isDamaged = self.materiau.isDamaged
 
         tic = TicTac()
 
@@ -124,10 +123,11 @@ class Simu:
 
         if isDamaged:   # probleme endomagement
 
-            d = self.__resultats["damage"]
+            d = self.GetResultat("damage", valeursAuxNoeuds=True)
 
-            assert "displacement" in self.__resultats.keys(), "Le vecteur de déplacement uglob doit être initialisé"
+            u = self.GetResultat("displacement", valeursAuxNoeuds=True)
 
+            
             u = self.__resultats["displacement"]
 
             phaseFieldModel = self.materiau.phaseFieldModel
@@ -175,8 +175,7 @@ class Simu:
 
         # Construit Ke
         Ku_e = self.__ConstruitMatElem_Dep()
-        self.__Ku_e = Ku_e # Sauvegarde Ke pour calculer Energie plus rapidement
-        
+
         # Prépare assemblage
         lignesVector_e = mesh.lignesVector_e
         colonnesVector_e = mesh.colonnesVector_e
@@ -218,7 +217,7 @@ class Simu:
             # Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
             # Calcul de la densité denergie de deformation en traction
 
-            assert not self.materiau.phaseFieldModel == None, "pas de modèle d'endommagement"
+            assert self.materiau.isDamaged, "pas de modèle d'endommagement"
 
             phaseFieldModel = self.materiau.phaseFieldModel
             
@@ -234,34 +233,29 @@ class Simu:
             # ici le therme masse est important sinon on sous intègre
 
             # Calcul l'energie
-            old_PsiP = self.__PsiP_e_pg
+            old_psiP = self.__psiP_e_pg
 
             nPg = self.__mesh.get_nPg("masse")
 
-            if len(old_PsiP) == 0:
+            if len(old_psiP) == 0:
                 # Pas encore d'endommagement disponible
-                old_PsiP = np.zeros((self.__mesh.Ne, nPg))
+                old_psiP = np.zeros((self.__mesh.Ne, nPg))
 
-            PsiP_e_pg, PsiM_e_pg = phaseFieldModel.Calc_Psi_e_pg(Epsilon_e_pg)
+            psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
             
-            inc_H = PsiP_e_pg - old_PsiP
+            inc_H = psiP_e_pg - old_psiP
 
-            # Pour chaque point d'intégration on verifie que la densité dernerie évolue
-            for pg in range(nPg):
-                
-                # Récupères les noeuds ou la densité d'energie diminue
-                elements = np.where(inc_H[:,pg] < 0)[0]
+            elements, pdGs = np.where(inc_H < 0)
 
-                if elements.shape[0] > 0:
-                    PsiP_e_pg[elements,pg] = old_PsiP[elements,pg]
+            psiP_e_pg[elements, pdGs] = old_psiP[elements,pdGs]           
 
-            new = np.linalg.norm(PsiP_e_pg)
-            old = np.linalg.norm(self.__PsiP_e_pg)
+            new = np.linalg.norm(psiP_e_pg)
+            old = np.linalg.norm(self.__psiP_e_pg)
 
             assert new >= old, "Erreur"
-            self.__PsiP_e_pg = PsiP_e_pg
+            self.__psiP_e_pg = psiP_e_pg
 
-            return self.__PsiP_e_pg
+            return self.__psiP_e_pg
     
     def __ConstruitMatElem_Pfm(self):
         
@@ -337,7 +331,7 @@ class Simu:
 
         dGlob = self.__Solveur(problemType="damage", resolution=resolution, useCholesky=False, A_isSymetric=False)
 
-        tic.Tac("Résolution endommagement","Résolution {} pour le problème de endommagement".format(resolution) , self.__verbosity)
+        tic.Tac("Résolution endommagement",f"Résolution {resolution} pour le problème de endommagement" , self.__verbosity)
         
         # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
         # assert dGlob.min() >= 0, "Doit etre supérieur 0"
@@ -553,7 +547,7 @@ class Simu:
                 hideFacto = True
 
                 # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
-                if A_isSymetric and not "damage" in self.__resultats.keys():
+                if A_isSymetric and not self.materiau.isDamaged:
                     permute="MMD_AT_PLUS_A"
                 else:
                     permute="COLAMD"
@@ -694,7 +688,7 @@ class Simu:
 
                 valeurs = valeurs*self.materiau.comportement.epaisseur
             case 3:
-                valeurs, ddls = self.__surfLoad(problemType=problemType,
+                valeurs, ddls = self.__surfload(problemType=problemType,
                 noeuds=noeuds, directions=directions, valeurs=valeurs)
 
 
@@ -753,7 +747,7 @@ class Simu:
 
         return valeurs_ddls, ddls
     
-    def __surfLoad(self,problemType:str, noeuds: np.ndarray, directions: list, valeurs: list):
+    def __surfload(self,problemType:str, noeuds: np.ndarray, directions: list, valeurs: list):
 
         assert problemType in self.problemTypes()
         self.problemDirections(problemType, directions)
@@ -881,6 +875,49 @@ class Simu:
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
+    def __CalculEnergieDef(self):
+        """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
+        Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
+
+        sol_u  = self.GetResultat("displacement", valeursAuxNoeuds=True)
+
+        matriceType = "rigi"
+        Epsilon_e_pg = self.__CalculEpsilon_e_pg(sol_u, matriceType)
+        jacobien_e_pg = self.__mesh.get_jacobien_e_pg(matriceType)
+        poid_pg = self.__mesh.get_poid_pg(matriceType)
+
+        if self.__dim == 2:
+            ep = self.materiau.comportement.epaisseur
+        else:
+            ep = 1
+
+        if self.materiau.isDamaged:
+
+            d = self.GetResultat("damage", valeursAuxNoeuds=True)
+
+            phaseFieldModel = self.materiau.phaseFieldModel
+            psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
+
+            # Endommage : psiP_e_pg = g(d) * PsiP_e_pg 
+            g_e_pg = phaseFieldModel.get_g_e_pg(d, self.__mesh, matriceType)
+            psiP_e_pg = np.einsum('ep,ep->ep', g_e_pg, psiP_e_pg, optimize=True)
+            psi_e_pg = psiP_e_pg + psiM_e_pg
+
+            Wdef = np.einsum(',ep,p,ep->', ep, jacobien_e_pg, poid_pg, psi_e_pg)
+
+        else:
+
+            Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg, matriceType)
+            
+            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
+
+            # # Calcul par Element fini
+            # u_e = self.__mesh.Localises_sol_e(sol_u)
+            # Ku_e = self.__ConstruitMatElem_Dep()
+            # Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ku_e, u_e)
+        
+        return Wdef
+
     def __CalculEpsilon_e_pg(self, u: np.ndarray, matriceType="rigi"):
         """Construit epsilon pour chaque element et chaque points de gauss
 
@@ -926,7 +963,7 @@ class Simu:
 
         c = self.materiau.comportement.get_C()
 
-        if "damage" in self.__resultats.keys():
+        if self.materiau.isDamaged:
 
             d = self.__resultats["damage"]
 
@@ -953,31 +990,10 @@ class Simu:
         self.__resultats["damage"] = dGlob
 
     def __Save_u(self, Uglob: np.ndarray):
-        """Sauvegarde Uglob et calcul l'energie de deformation cinématiquement admissible"""
-
-        # Energie de deformation
-        u_e = self.__mesh.Localises_sol_e(Uglob)
-        Ke_e = self.__Ku_e
-        Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ke_e, u_e)
-
-        # Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega
-
-        matriceType = "rigi"
-
-        jacobien_e_pg = self.__mesh.get_jacobien_e_pg(matriceType)
-        poid_pg = self.__mesh.get_poid_pg(matriceType)
-        Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob, matriceType)
-        Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg, matriceType)
-
-        Wdef2 = 1/2 * np.einsum('ep,p,epi,epi->', jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
-        # Wdef3 = 0
-        # for e in range(self.__mesh.Ne):
-        #     for p in range(self.__mesh.nPg):
-        #         Wdef3 += 1/2 * jacobien_e_pg[e,p] * poid_pg[p] * Sigma_e_pg[e,p].T.dot(Epsilon_e_pg[e,p]) 
-        
-        self.__resultats["Wdef"] = Wdef
+        """Sauvegarde Uglob"""
 
         self.__resultats["displacement"] = Uglob
+        
 
     def VerificationOption(self, option):
         """Verification que l'option est bien calculable dans GetResultat
@@ -1036,14 +1052,18 @@ class Simu:
             return None
 
         if option == "Wdef":
-            return self.__resultats["Wdef"]
+            return self.__CalculEnergieDef()
 
         if option == "damage":
+            if not self.materiau.isDamaged: print("Le matériau n'est pas endommageable")
+            assert "damage" in self.__resultats.keys(), "Le vecteur de d'endommagement dglob doit être calculé ou initialisé"
             return self.__resultats["damage"]
 
-        Uglob = self.__resultats["displacement"]
         if option == "displacement":
-            return Uglob        
+            assert "displacement" in self.__resultats.keys(), "Le vecteur de déplacement uglob doit être initialisé ou calculé"
+            return self.__resultats["displacement"]
+
+        Uglob = self.__resultats["displacement"]
 
         dim = self.__dim
 
