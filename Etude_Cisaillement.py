@@ -18,10 +18,10 @@ Affichage.Clear()
 
 test = True
 
-solve = False
+solve = True
 
 plotResult = True
-saveParaview = True
+saveParaview = False
 makeMovie = False
 save = True
 
@@ -31,11 +31,11 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Bourdin" # "Bourdin","Amor","Miehe"
+split = "Miehe" # "Bourdin","Amor","Miehe"
 
-regularisation = "AT1" # "AT1", "AT2"
+regularisation = "AT2" # "AT1", "AT2"
 
-openCrack = True
+openCrack = False
 
 nameSimu = comportement+"_"+split+"_"+regularisation
 if openCrack: 
@@ -71,8 +71,6 @@ if solve:
 
         interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
 
-        openCrack = True
-
         if openCrack:
                 meshName = "carré avec fissure ouverte.msh"
         else:
@@ -88,6 +86,7 @@ if solve:
         elementSize=taille, isOrganised=True, openCrack=openCrack, filename=mshFileName)
 
         # Affichage.Plot_NoeudsMaillage(mesh, showId=True)
+        # Affichage.Plot_Maillage(mesh)
         # plt.show()
 
         # Récupère les noeuds qui m'interessent
@@ -120,7 +119,8 @@ if solve:
 
         # Renseignement des conditions limites
         def RenseigneConditionsLimites():
-                # simu.add_dirichlet("damage",noeuds_Milieu, ["d"], [1])                        
+                if not openCrack:
+                        simu.add_dirichlet("damage",noeuds_Milieu, ["d"], [1])                        
 
                 # # Conditions en déplacements à Gauche et droite
                 simu.add_dirichlet("displacement", noeuds_Gauche,["y"], [0])
@@ -235,7 +235,8 @@ if plotResult:
         Wdef = simu.GetResultat("Wdef")
 
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=True, deformation=False)
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,
+        affichageMaillage=True, deformation=True)
         if save: plt.savefig(f'{folder}\\damage.png')
 
         # Affichage.Plot_Result(simu, "dy")
