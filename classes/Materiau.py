@@ -274,9 +274,9 @@ class PhaseFieldModel:
         
         return f
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=1e-10):
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=0):
         """Fonction de dégradation en energies / contraintes
-
+        k_residu=1e-10
         Args:
             d_n (np.ndarray): Endomagement localisé aux noeuds (Nn,1)
             mesh (Mesh): maillage
@@ -515,7 +515,17 @@ class PhaseFieldModel:
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
-        projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg)
+        # Il faut transformer si necessaire epsilon en voigt 
+        # La fonction decomposition spectrale ne prend que des vecteurs en Voigt
+        vecteur = Epsilon_e_pg
+        if self.__loiDeComportement.useVoigtNotation:
+            vecteur_voigt = vecteur
+        else:
+            # [1, 1, sqrt(2)]
+            vecteur[:,:,2] = vecteur[:,:,2] * np.sqrt(2)
+            vecteur_voigt = vecteur
+
+        projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(vecteur_voigt)
 
         # Calcul Rp et Rm
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -545,13 +555,15 @@ class PhaseFieldModel:
         return cP_e_pg, cM_e_pg, projecteurs
 
     def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray):
+        """Construit pour un vecteur en VOIGT  !!!\n
+        Eps = [Epsxx, Epsyy, 2 Epsxy]\n
+        Sig = [Sigxx, Sigyy, 2 Sigxy]"""
 
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
         Ne = vecteur_e_pg.shape[0]
         nPg = vecteur_e_pg.shape[1]
-        coef = self.__loiDeComportement.coef
 
         # transforme en matrice
         def Vecteur_To_Matrice(vecteur: np.ndarray, coef):
@@ -563,9 +575,8 @@ class PhaseFieldModel:
 
             return matrice
 
-        # Ici si le vecteur est de la forme [1;1;sqrt(2)] ou [1;1;2]
         # Reconsruit le tenseur des deformations [e,pg,dim,dim]
-        matrice_e_pg = Vecteur_To_Matrice(vecteur_e_pg, coef)
+        matrice_e_pg = Vecteur_To_Matrice(vecteur_e_pg, 2)
         
         # invariants du tenseur des deformations [e,pg]
         trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
@@ -593,16 +604,15 @@ class PhaseFieldModel:
             m1[elements, pdgs] = m1_tot[elements, pdgs]            
         m2 = np.eye(2) - m1
         
-        # # test ortho entre M1 et M2 
-        # verifOrthoM1M2 = np.einsum('epij,epij->ep', m1, m2, optimize=True)
-        # assert np.abs(verifOrthoM1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
+        # test ortho entre M1 et M2 
+        verifOrthoM1M2 = np.einsum('epij,epij->ep', m1, m2, optimize=True)
+        assert np.abs(verifOrthoM1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
         
         # Passage des bases propres sous la forme de voigt [e,pg,3]  ou [e,pg,6]
         m1Voigt = np.zeros((Ne,nPg,3)); m2Voigt = np.zeros((Ne,nPg,3))
         m1Voigt[:,:,0] = m1[:,:,0,0];   m2Voigt[:,:,0] = m2[:,:,0,0]
         m1Voigt[:,:,1] = m1[:,:,1,1];   m2Voigt[:,:,1] = m2[:,:,1,1]
-        # m1Voigt[:,:,2] = m1[:,:,0,1];   m2Voigt[:,:,2] = m2[:,:,0,1]
-        m1Voigt[:,:,2] = m1[:,:,0,1]*coef;   m2Voigt[:,:,2] = m2[:,:,0,1]*coef        
+        m1Voigt[:,:,2] = m1[:,:,0,1];   m2Voigt[:,:,2] = m2[:,:,0,1]
 
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
@@ -629,8 +639,7 @@ class PhaseFieldModel:
         m2xm2 = np.einsum('epi,epj->epij', m2Voigt, m2Voigt, optimize=True)
         
         matriceI = np.eye(3)
-        if self.__loiDeComportement.useVoigtNotation:
-            matriceI[2,2] = matriceI[2,2]/2
+        matriceI[2,2] = 1/2
 
         # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
         BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize=True)
@@ -648,18 +657,22 @@ class PhaseFieldModel:
         # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg 
         vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
         vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
-        
-        decomp = vecteur_e_pg-(vecteurP + vecteurM)
-        verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
-        # assert verifDecomp < 1e-12
-        
+
         if self.__loiDeComportement.useVoigtNotation:
-            vecteurP[:,:,2] = vecteurP[:,:,2]/np.sqrt(2)
-            vecteurM[:,:,2] = vecteurM[:,:,2]/np.sqrt(2)
+            vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
+            vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
+            vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)
+
+        decomp = vecteur_e_pg-(vecteurP + vecteurM)
+
+        if np.linalg.norm(vecteur_e_pg) > 0:
+            verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
+            assert verifDecomp < 1e-12
 
         ortho_vP_vM = np.einsum('epi,epj->ep',vecteurP, vecteurM, optimize=True)
         ortho_v_v = np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True)
-        vertifOrthoEps = np.abs(ortho_vP_vM)/np.abs(ortho_v_v)
+        if np.abs(ortho_v_v).min() > 0:
+            vertifOrthoEps = np.abs(ortho_vP_vM)/np.abs(ortho_v_v)
         # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
 
         return projP, projM
