@@ -48,6 +48,8 @@ def Append(list):
             file += "\\"
     
     if not os.path.isdir(file):
+        if not os.path.exists(file):
+            os.makedirs(file)
         path = GetPath(file)
         if not os.path.exists(path):
             # os.mkdir(file)
