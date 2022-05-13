@@ -191,6 +191,7 @@ class Interface_Gmsh:
 
                 match dim:
                         case 2:
+
                                 # Impose que le maillage soit organisé                        
                                 if isOrganised:
                                         gmsh.model.geo.mesh.setTransfiniteSurface(surface)
@@ -199,15 +200,13 @@ class Interface_Gmsh:
                                 gmsh.model.geo.synchronize()
 
                                 if elemType in ["QUAD4","QUAD8"]:
-                                        
                                         try:
                                                 gmsh.model.mesh.setRecombine(2, surface)
                                         except Exception:
+                                                # Récupère la surface
                                                 entities = gmsh.model.getEntities()
                                                 surface = entities[-1][-1]
                                                 gmsh.model.mesh.setRecombine(2, surface)
-
-                                        
                                 
                                 # Génère le maillage
                                 gmsh.model.mesh.generate(2)
