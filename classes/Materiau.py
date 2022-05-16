@@ -658,10 +658,9 @@ class PhaseFieldModel:
         vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
         vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
 
-        if self.__loiDeComportement.useVoigtNotation:
-            vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
-            vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
-            vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)
+        vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
+        vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
+        vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)            
 
         decomp = vecteur_e_pg-(vecteurP + vecteurM)
 
@@ -669,10 +668,11 @@ class PhaseFieldModel:
             verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
             assert verifDecomp < 1e-12
 
-        ortho_vP_vM = np.einsum('epi,epj->ep',vecteurP, vecteurM, optimize=True)
+        ortho_vP_vM = np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize=True)
         ortho_v_v = np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True)
         if np.abs(ortho_v_v).min() > 0:
-            vertifOrthoEps = np.abs(ortho_vP_vM)/np.abs(ortho_v_v)
+            vertifOrthoEps = np.einsum('ep,ep->ep',np.abs(ortho_vP_vM), 1/np.abs(ortho_v_v))
+            # vertifOrthoEps = np.abs(ortho_vP_vM)/np.abs(ortho_v_v)
         # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
 
         return projP, projM
