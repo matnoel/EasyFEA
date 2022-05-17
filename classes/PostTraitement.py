@@ -1,5 +1,5 @@
 
-from Affichage import Affichage
+import Affichage
 from Simu import Simu
 import Dossier
 from TicTac import TicTac

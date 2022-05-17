@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 
 from GroupElem import GroupElem
-from Affichage import Affichage
+import Affichage
 from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition
 from Materiau import Elas_Isot, Materiau, PhaseFieldModel

@@ -9,7 +9,7 @@ from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 from Simu import Simu
-from Affichage import Affichage
+import Affichage
 
 
 import numpy as np

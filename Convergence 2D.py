@@ -8,7 +8,7 @@ from Materiau import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 from Simu import Simu
-from Affichage import Affichage
+import Affichage
 from TicTac import TicTac
 
 import numpy as np
@@ -53,6 +53,7 @@ tic = TicTac()
 
 # Pour chaque type d'element
 for t, elemType in enumerate(GroupElem.get_Types2D()):
+# for t, elemType in enumerate(["TRI3"]):        
         
         listTemps_nb = []
         listWdef_nb = []
@@ -118,6 +119,7 @@ print(f"Wef analytique = {WdefRef} mJ")
 # WdefRef = 391.76
 
 for t, elemType in enumerate(GroupElem.get_Types2D()):
+# for t, elemType in enumerate(["TRI3"]):
 
         # Convergence Energie
         ax_Wdef.plot(listDdl_e_nb[t], listWdef_e_nb[t])

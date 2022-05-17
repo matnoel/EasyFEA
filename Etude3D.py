@@ -6,7 +6,7 @@ from Simu import Simu
 from Materiau import Materiau, Elas_Isot
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
-from Affichage import Affichage
+import Affichage
 import PostTraitement
 
 import numpy as np

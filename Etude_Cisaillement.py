@@ -2,7 +2,7 @@
 
 import PostTraitement
 import Dossier
-from Affichage import Affichage
+import Affichage
 
 from Materiau import PhaseFieldModel, Elas_Isot, Materiau
 from Geom import *

@@ -10,7 +10,7 @@ from Geom import *
 from GroupElem import GroupElem
 from Mesh import Mesh
 from TicTac import TicTac
-from Affichage import Affichage
+import Affichage
 import matplotlib.pyplot as plt
 
 class Interface_Gmsh:        
