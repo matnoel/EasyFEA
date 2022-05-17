@@ -67,7 +67,7 @@ path = Dossier.GetPath(filename)
 
 if solve:
 
-        elemType = "QUAD4" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
         interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
 

@@ -557,7 +557,11 @@ class PhaseFieldModel:
     def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray):
         """Construit pour un vecteur en VOIGT  !!!\n
         Eps = [Epsxx, Epsyy, 2 Epsxy]\n
-        Sig = [Sigxx, Sigyy, 2 Sigxy]"""
+        Sig = [Sigxx, Sigyy, 2 Sigxy]\n
+
+        Renvoie en [1, 1, 1]
+        
+        """
 
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
@@ -593,26 +597,26 @@ class PhaseFieldModel:
         v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1]
         
         # identifications des elements et points de gauss ou vp1 != vp2
-        elements, pdgs = np.where(v1_m_v2 != 0)
-        # elements, pdgs = np.where(vp1 != vp2)
+        # elements, pdgs = np.where(v1_m_v2 != 0)
+        elements, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
 
         # construction des bases propres m1 et m2 [e,pg,dim,dim]
-        m1 = np.zeros((Ne,nPg,2,2))
-        m1[:,:,0,0] = 1
+        M1 = np.zeros((Ne,nPg,2,2))
+        M1[:,:,0,0] = 1
         if elements.size > 0:
             m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize=True)
-            m1[elements, pdgs] = m1_tot[elements, pdgs]            
-        m2 = np.eye(2) - m1
+            M1[elements, pdgs] = m1_tot[elements, pdgs]            
+        M2 = np.eye(2) - M1
         
-        # test ortho entre M1 et M2 
-        verifOrthoM1M2 = np.einsum('epij,epij->ep', m1, m2, optimize=True)
-        assert np.abs(verifOrthoM1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
+        # # test ortho entre M1 et M2 
+        # verifOrthoM1M2 = np.einsum('epij,epij->ep', M1, M2, optimize=True)
+        # assert np.abs(verifOrthoM1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
         
         # Passage des bases propres sous la forme de voigt [e,pg,3]  ou [e,pg,6]
-        m1Voigt = np.zeros((Ne,nPg,3)); m2Voigt = np.zeros((Ne,nPg,3))
-        m1Voigt[:,:,0] = m1[:,:,0,0];   m2Voigt[:,:,0] = m2[:,:,0,0]
-        m1Voigt[:,:,1] = m1[:,:,1,1];   m2Voigt[:,:,1] = m2[:,:,1,1]
-        m1Voigt[:,:,2] = m1[:,:,0,1];   m2Voigt[:,:,2] = m2[:,:,0,1]
+        m1 = np.zeros((Ne,nPg,3)); m2 = np.zeros((Ne,nPg,3))
+        m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]
+        m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]
+        m1[:,:,2] = M1[:,:,0,1];   m2[:,:,2] = M2[:,:,0,1]
 
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
@@ -620,7 +624,7 @@ class PhaseFieldModel:
 
         # Calcul des di [e,pg,2]
         dvalp = np.heaviside(val_e_pg,0.5)
-        dvalm = np.heaviside(-val_e_pg,0.5)        
+        dvalm = np.heaviside(-val_e_pg,0.5)
 
         # Calcul des Beta Plus [e,pg,1]
         BetaP = dvalp[:,:,0]
@@ -633,10 +637,10 @@ class PhaseFieldModel:
         # Calcul de gamma [e,pg,2]
         gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
         gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
-
+   
         # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6] 
-        m1xm1 = np.einsum('epi,epj->epij', m1Voigt, m1Voigt, optimize=True)
-        m2xm2 = np.einsum('epi,epj->epij', m2Voigt, m2Voigt, optimize=True)
+        m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize=True)
+        m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize=True)
         
         matriceI = np.eye(3)
         matriceI[2,2] = 1/2
@@ -653,27 +657,28 @@ class PhaseFieldModel:
         gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize=True)
         projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
 
-        # Verification de la décomposition
-        # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg 
-        vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
-        vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
+        # # Verification de la décomposition
+        # # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg 
+        # vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
+        # vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
 
-        vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
-        vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
-        vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)            
+        # vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
+        # vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
+        # vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)            
 
-        decomp = vecteur_e_pg-(vecteurP + vecteurM)
+        # decomp = vecteur_e_pg-(vecteurP + vecteurM)
 
-        if np.linalg.norm(vecteur_e_pg) > 0:
-            verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
-            assert verifDecomp < 1e-12
+        # if np.linalg.norm(vecteur_e_pg) > 0:
+        #     verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
+        #     assert verifDecomp < 1e-12
 
-        ortho_vP_vM = np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize=True)
-        ortho_v_v = np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True)
-        if np.abs(ortho_v_v).min() > 0:
-            vertifOrthoEps = np.einsum('ep,ep->ep',np.abs(ortho_vP_vM), 1/np.abs(ortho_v_v))
-            # vertifOrthoEps = np.abs(ortho_vP_vM)/np.abs(ortho_v_v)
-        # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
+        # ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize=True))
+        # ortho_vM_vP = np.abs(np.einsum('epi,epi->ep',vecteurM, vecteurP, optimize=True))
+        # ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True))
+        # if ortho_v_v.min() > 0:
+        #     # vertifOrthoEps = np.einsum('ep,ep->ep',np.abs(ortho_vP_vM), 1/np.abs(ortho_v_v))
+        #     vertifOrthoEps = ortho_vP_vM/ortho_v_v
+        # # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
 
         return projP, projM
 
@@ -806,6 +811,12 @@ class Test_Materiau(unittest.TestCase):
 
         # Création de 2 espilons quelconques 2D
         Epsilon_e_pg = np.random.rand(Ne,nPg,3)
+        
+        # Epsilon_e_pg = np.random.rand(1,1,3)
+        # Epsilon_e_pg[0,:] = np.array([-100,500,0])
+        # # Epsilon_e_pg[1,:] = np.array([-100,500,0])
+
+
         # Epsilon_e_pg[0,0,:]=0
         # Epsilon_e_pg = np.zeros((Ne,1,nPg))
                 
@@ -822,10 +833,10 @@ class Test_Materiau(unittest.TestCase):
             else:
                 raise "Pas implémenté"
             
+            cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg)
+
             if pfm.split == "Miehe":
-                cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg)
-            else:
-                cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg)
+                pass
 
             # Test que cP + cM = c
             decompC = c-(cP_e_pg+cM_e_pg)
