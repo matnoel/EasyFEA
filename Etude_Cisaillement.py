@@ -33,9 +33,9 @@ comportement = "Elas_Isot" # "Elas_Isot"
 
 split = "Miehe" # "Bourdin","Amor","Miehe"
 
-regularisation = "AT2" # "AT1", "AT2"
+regularisation = "AT1" # "AT1", "AT2"
 
-openCrack = False
+openCrack = True
 
 nameSimu = comportement+"_"+split+"_"+regularisation
 if openCrack: 
@@ -107,7 +107,7 @@ Affichage.NouvelleSection("Simulations")
 
 if solve:
 
-        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False, useVoigtNotation=False)
+        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
         phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 

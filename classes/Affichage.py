@@ -51,7 +51,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4,
     if not isinstance(valeurs, np.ndarray):
         return
 
-    coordo, deformation = Affichage.__GetCoordo(simu, deformation, facteurDef)
+    coordo, deformation = __GetCoordo(simu, deformation, facteurDef)
 
     # construit la matrice de connection pour les faces
     connect_Faces = mesh.get_connect_Faces()
@@ -137,7 +137,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4,
         # ax.set_ylabel("y [mm]")
         # ax.set_zlabel("z [mm]")            
         
-        Affichage.__ChangeEchelle(ax, coordo)
+        __ChangeEchelle(ax, coordo)
 
     
     if option == "damage":
@@ -210,7 +210,7 @@ def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
     coord_par_face = coord_NonDeforme_redim[connect_Faces]
 
     if deformation:
-        coordoDeforme, deformation = Affichage.__GetCoordo(simu, deformation, facteurDef)
+        coordoDeforme, deformation = __GetCoordo(simu, deformation, facteurDef)
         coordo_Deforme_redim = coordoDeforme[:,range(dim)]
         coordo_par_face_deforme = coordo_Deforme_redim[connect_Faces]
 
@@ -267,7 +267,7 @@ def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
         # ax.set_ylabel("y [mm]")
         # ax.set_zlabel("z [mm]")
 
-        Affichage.__ChangeEchelle(ax, coordo)
+        __ChangeEchelle(ax, coordo)
     
     ax.set_title(f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}")
 
@@ -280,7 +280,7 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
     mesh = cast(Mesh, mesh)
 
     if ax == None:
-        fig, ax = Affichage.Plot_Maillage(mesh, alpha=0)
+        fig, ax = Plot_Maillage(mesh, alpha=0)
     
     if len(noeuds) == 0:
         noeuds = list(range(mesh.Nn))
