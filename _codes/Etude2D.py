@@ -54,7 +54,7 @@ Line0 = Line(Point(), Point(y=h))
 LineL = Line(Point(x=L), Point(x=L, y=h))
 
 interfaceGmsh = Interface_Gmsh()
-mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=True)
+mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=True)
 
 # Affichage.Plot_Maillage(mesh)
 # plt.show()

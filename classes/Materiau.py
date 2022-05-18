@@ -708,7 +708,7 @@ class Materiau:
             
     phaseFieldModel = cast(PhaseFieldModel, property(__get_phaseFieldModel))
 
-    def __init__(self, comportement: LoiDeComportement, ro=8100.0, phaseFieldModel=None):
+    def __init__(self, comportement: LoiDeComportement, phaseFieldModel=None, ro=8100.0):
         """Creer un materiau
 
         Parameters

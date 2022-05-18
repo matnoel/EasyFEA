@@ -65,7 +65,7 @@ class Interface_Gmsh:
 
                 return self.__Recuperation_Maillage()
 
-        def ConstructionRectangle(self, domain: Domain, elemType="TRI3", tailleElement=0.0, isOrganised=False):
+        def Rectangle(self, domain: Domain, elemType="TRI3", tailleElement=0.0, isOrganised=False):
 
                 """Construit un rectangle
 
@@ -88,22 +88,22 @@ class Interface_Gmsh:
                 assert pt1.z == 0 and pt2.z == 0
 
                 # Créer les points
-                p1 = gmsh.model.geo.addPoint(pt1.x, pt1.y, 0, tailleElement)
-                p2 = gmsh.model.geo.addPoint(pt2.x, pt1.y, 0, tailleElement)
-                p3 = gmsh.model.geo.addPoint(pt2.x, pt2.y, 0, tailleElement)
-                p4 = gmsh.model.geo.addPoint(pt1.x, pt2.y, 0, tailleElement)
+                p1 = gmsh.model.occ.addPoint(pt1.x, pt1.y, 0, tailleElement)
+                p2 = gmsh.model.occ.addPoint(pt2.x, pt1.y, 0, tailleElement)
+                p3 = gmsh.model.occ.addPoint(pt2.x, pt2.y, 0, tailleElement)
+                p4 = gmsh.model.occ.addPoint(pt1.x, pt2.y, 0, tailleElement)
 
                 # Créer les lignes reliants les points
-                l1 = gmsh.model.geo.addLine(p1, p2)
-                l2 = gmsh.model.geo.addLine(p2, p3)
-                l3 = gmsh.model.geo.addLine(p3, p4)
-                l4 = gmsh.model.geo.addLine(p4, p1)
+                l1 = gmsh.model.occ.addLine(p1, p2)
+                l2 = gmsh.model.occ.addLine(p2, p3)
+                l3 = gmsh.model.occ.addLine(p3, p4)
+                l4 = gmsh.model.occ.addLine(p4, p1)
 
                 # Créer une boucle fermée reliant les lignes     
-                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
+                boucle = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
 
                 # Créer une surface
-                surface = gmsh.model.geo.addPlaneSurface([boucle])
+                surface = gmsh.model.occ.addPlaneSurface([boucle])
                 
                 tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
                 
@@ -111,7 +111,7 @@ class Interface_Gmsh:
                 
                 return self.__Recuperation_Maillage()
 
-        def ConstructionRectangleAvecFissure(self, domain: Domain, line: Line,
+        def RectangleAvecFissure(self, domain: Domain, line: Line,
         elemType="TRI3", elementSize=0.0, openCrack=False, isOrganised=False, filename=""):
 
                 """Construit un rectangle avec une fissure ouverte ou non
@@ -175,7 +175,7 @@ class Interface_Gmsh:
                         crack = gmsh.model.addPhysicalGroup(1, [crack])
                         surface = gmsh.model.addPhysicalGroup(2, [surface])
                 
-                tic.Tac("Mesh","Construction Rectangle Fissuré", self.__verbosity)
+                tic.Tac("Mesh","Construction rectangle fissuré", self.__verbosity)
                 
                 if openCrack:
                         self.__Construction_MaillageGmsh(2, elemType, surface=surface, crack=crack, openBoundary=point, isOrganised=isOrganised)
@@ -183,6 +183,72 @@ class Interface_Gmsh:
                         self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
                 return self.__Recuperation_Maillage(filename)
+
+        def PlaqueTrouée(self, domain: Domain, circle: Circle, 
+        elemType="TRI3", isOrganised=False, filename=""):
+                
+                self.__initGmsh()
+                self.__CheckType(2, elemType)
+
+                tic = TicTac()
+
+                # Domain
+                pt1 = domain.pt1
+                pt2 = domain.pt2
+                assert pt1.z == 0 and pt2.z == 0
+
+                # Circle
+                center = circle.center
+                diam = circle.diam
+                rayon = diam/2
+                assert center.z == 0
+
+                # Create the points of the rectangle
+                p1 = gmsh.model.occ.addPoint(pt1.x, pt1.y, 0, domain.taille)
+                p2 = gmsh.model.occ.addPoint(pt2.x, pt1.y, 0, domain.taille)
+                p3 = gmsh.model.occ.addPoint(pt2.x, pt2.y, 0, domain.taille)
+                p4 = gmsh.model.occ.addPoint(pt1.x, pt2.y, 0, domain.taille)
+
+                # Créer les lignes reliants les points pour la surface
+                l1 = gmsh.model.occ.addLine(p1, p2)
+                l2 = gmsh.model.occ.addLine(p2, p3)
+                l3 = gmsh.model.occ.addLine(p3, p4)
+                l4 = gmsh.model.occ.addLine(p4, p1)
+
+                # Create a closed loop connecting the lines for the surface
+                loop = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
+
+                # Points cercle                
+                p5 = gmsh.model.occ.addPoint(center.x, center.y, 0, circle.taille) #centre
+                p6 = gmsh.model.occ.addPoint(center.x-rayon, center.y, 0, circle.taille)
+                p7 = gmsh.model.occ.addPoint(center.x+rayon, center.y, 0, circle.taille)
+
+                l5 = gmsh.model.occ.addCircleArc(p6, p5, p7)
+                l6 = gmsh.model.occ.addCircleArc(p7, p5, p6)
+                lignecercle = gmsh.model.occ.addCurveLoop([l5,l6])
+
+                # cercle = gmsh.model.occ.addCircle(center.x, center.y, center.z, diam/2)
+                # lignecercle = gmsh.model.occ.addCurveLoop([cercle])
+
+                # Create a surface
+                surface = gmsh.model.occ.addPlaneSurface([loop,lignecercle])
+                
+                surf = gmsh.model.addPhysicalGroup(2,[surface])
+
+
+                # surface = gmsh.model.addPhysicalGroup(2, [surface])
+
+                # gmsh.model.occ.synchronize()
+
+                # Adds the line to the surface
+                # gmsh.model.mesh.embed(1, [lignecercle], 2, surface)
+
+                tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
+
+                self.__Construction_MaillageGmsh(2, elemType, surface=surf, isOrganised=isOrganised)
+
+                return self.__Recuperation_Maillage(filename)
+                
 
         def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
         surface=None, crack=None, openBoundary=None):
@@ -197,7 +263,7 @@ class Interface_Gmsh:
                                         gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
                                 # Synchronisation
-                                gmsh.model.geo.synchronize()
+                                gmsh.model.occ.synchronize()
 
                                 if elemType in ["QUAD4","QUAD8"]:
                                         try:
@@ -323,16 +389,7 @@ class Interface_Gmsh:
 
                                 groupElem = GroupElem(gmshId, connect, coordo)
                                 dict_groupElem[groupElem.dim] = groupElem
-
-                        
-                        
-
-
-                        pass
-
-
-
-                
+ 
 
                 gmsh.finalize()
 
@@ -356,8 +413,8 @@ class Interface_Gmsh:
                 for t, elemType in enumerate(GroupElem.get_Types2D()):
                         for isOrganised in [True, False]:
                                 
-                                mesh = interfaceGmsh.ConstructionRectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
-                                mesh2 = interfaceGmsh.ConstructionRectangleAvecFissure(domain=domain, line=line, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
+                                mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=isOrganised)
+                                mesh2 = interfaceGmsh.RectangleAvecFissure(domain=domain, line=line, elemType=elemType, elementSize=taille, isOrganised=isOrganised)
 
                                 list_mesh2D.append(mesh)
                                 list_mesh2D.append(mesh2)

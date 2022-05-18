@@ -70,7 +70,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
 
                 # Construction du modele et du maillage --------------------------------------------------------------------------------
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
-                mesh = interfaceGmsh.ConstructionRectangle(domain, elemType=elemType, tailleElement=taille, isOrganised=False)
+                mesh = interfaceGmsh.Rectangle(domain, elemType=elemType, tailleElement=taille, isOrganised=False)
 
                 mesh = cast(Mesh, mesh)
                 # Récupère les noeuds qui m'interessent

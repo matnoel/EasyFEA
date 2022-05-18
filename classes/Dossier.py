@@ -47,9 +47,7 @@ def Append(list):
         if s+1 < len(list):
             file += "\\"
     
-    if not os.path.isdir(file):
-        if not os.path.exists(file):
-            os.makedirs(file)
+    if not os.path.isdir(file):        
         path = GetPath(file)
         if not os.path.exists(path):
             # os.mkdir(file)

@@ -82,12 +82,12 @@ if solve:
         domain = Domain(Point(), Point(x=L, y=L))
         line = Line(Point(y=L/2), Point(x=L/2, y=L/2))
 
-        mesh = interfaceGmsh.ConstructionRectangleAvecFissure(domain=domain, line=line, elemType=elemType,
+        mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, line=line, elemType=elemType,
         elementSize=taille, isOrganised=True, openCrack=openCrack, filename=mshFileName)
 
         # Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-        # Affichage.Plot_Maillage(mesh)
-        # plt.show()
+        Affichage.Plot_Maillage(mesh)
+        plt.show()
 
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Get_Nodes_Line(line)
