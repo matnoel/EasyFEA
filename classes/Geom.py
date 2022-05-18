@@ -22,10 +22,13 @@ class Line:
         v = np.array([pt2.x-pt1.x, pt2.y-pt1.y, pt2.z-pt1.z])/length
         return v   
 
-    def __init__(self, pt1: Point, pt2: Point):
+    def __init__(self, pt1: Point, pt2: Point, taille=0.0):
         self.pt1 = pt1
         self.pt2 = pt2
         self.coordo = np.array([[pt1.x, pt1.y, pt1.z], [pt2.x, pt2.y, pt2.z]]).reshape(2,3)
+
+        assert taille >= 0
+        self.taille = taille
     
     def __get_vecteurUnitaire(self):        
         return Line.get_vecteurUnitaire(self.pt1, self.pt2)
@@ -37,6 +40,21 @@ class Line:
 
 class Domain:
 
-    def __init__(self, pt1: Point, pt2: Point):
+    def __init__(self, pt1: Point, pt2: Point, taille=0.0):
         self.pt1 = pt1
         self.pt2 = pt2
+
+        assert taille >= 0
+        self.taille = taille
+
+class Circle:
+
+    def __init__(self, center: Point, diam: float, taille=0.0):
+        
+        assert diam > 0.0
+
+        self.center = center
+        self.diam = diam
+
+        assert taille >= 0
+        self.taille = taille
