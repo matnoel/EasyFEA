@@ -51,13 +51,15 @@ class Interface_Gmsh:
                 self.__initGmsh()
 
                 assert tailleElement >= 0.0, "Doit être supérieur ou égale à 0"
-                self.__tailleElement3D = tailleElement
                 self.__CheckType(3, elemType)
                 
                 tic = TicTac()
 
                 # Importation du fichier
                 gmsh.model.occ.importShapes(fichier)
+
+                gmsh.option.setNumber("Mesh.MeshSizeMin", tailleElement)
+                gmsh.option.setNumber("Mesh.MeshSizeMax", tailleElement)
 
                 tic.Tac("Mesh","Importation du fichier step", self.__verbosity)
 
@@ -218,34 +220,28 @@ class Interface_Gmsh:
                 # Create a closed loop connecting the lines for the surface
                 loop = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
 
-                # Points cercle                
-                p5 = gmsh.model.occ.addPoint(center.x, center.y, 0, circle.taille) #centre
-                p6 = gmsh.model.occ.addPoint(center.x-rayon, center.y, 0, circle.taille)
-                p7 = gmsh.model.occ.addPoint(center.x+rayon, center.y, 0, circle.taille)
+                # # Points cercle                
+                # p5 = gmsh.model.occ.addPoint(center.x, center.y, 0, circle.taille) #centre
+                # p6 = gmsh.model.occ.addPoint(center.x-rayon, center.y, 0, circle.taille)
+                # p7 = gmsh.model.occ.addPoint(center.x+rayon, center.y, 0, circle.taille)
 
-                l5 = gmsh.model.occ.addCircleArc(p6, p5, p7)
-                l6 = gmsh.model.occ.addCircleArc(p7, p5, p6)
-                lignecercle = gmsh.model.occ.addCurveLoop([l5,l6])
+                # l5 = gmsh.model.occ.addCircleArc(p6, p5, p7)
+                # l6 = gmsh.model.occ.addCircleArc(p7, p5, p6)
+                # lignecercle = gmsh.model.occ.addCurveLoop([l5,l6])
 
-                # cercle = gmsh.model.occ.addCircle(center.x, center.y, center.z, diam/2)
-                # lignecercle = gmsh.model.occ.addCurveLoop([cercle])
+                cercle = gmsh.model.occ.addCircle(center.x, center.y, center.z, diam/2)
+                lignecercle = gmsh.model.occ.addCurveLoop([cercle])
+                gmsh.option.setNumber("Mesh.MeshSizeMin", domain.taille)
+                gmsh.option.setNumber("Mesh.MeshSizeMax", circle.taille)
 
                 # Create a surface
-                surface = gmsh.model.occ.addPlaneSurface([loop,lignecercle])
-                
-                surf = gmsh.model.addPhysicalGroup(2,[surface])
-
-
-                # surface = gmsh.model.addPhysicalGroup(2, [surface])
+                surface = gmsh.model.occ.addPlaneSurface([loop,lignecercle])                
 
                 # gmsh.model.occ.synchronize()
 
-                # Adds the line to the surface
-                # gmsh.model.mesh.embed(1, [lignecercle], 2, surface)
-
                 tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-                self.__Construction_MaillageGmsh(2, elemType, surface=surf, isOrganised=isOrganised)
+                self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
 
                 return self.__Recuperation_Maillage(filename)
                 
@@ -298,10 +294,7 @@ class Interface_Gmsh:
                                         # gmsh.open("meshhh.msh")
                         
                         case 3:
-                                gmsh.model.occ.synchronize()
-
-                                gmsh.option.setNumber("Mesh.MeshSizeMin", self.__tailleElement3D)
-                                gmsh.option.setNumber("Mesh.MeshSizeMax", self.__tailleElement3D)
+                                gmsh.model.occ.synchronize()                                
                                 gmsh.model.mesh.generate(3)
                 
                 # Ouvre l'interface de gmsh si necessaire
@@ -328,8 +321,9 @@ class Interface_Gmsh:
 
                         coord = coord.reshape(-1,3)
 
+                        # fig, ax = plt.subplots()
+
                         # Construit les elements
-                        
                         for t, gmshId in enumerate(elementTypes):
 
                                 # Elements
@@ -344,6 +338,9 @@ class Interface_Gmsh:
                                 assert Nmax <= (coord.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
                                 
                                 coordo = cast(np.ndarray, coord[nodes])
+
+                                # ax.scatter(coordo[:,0], coordo[:,1])
+                                # plt.pause(2)
 
                                 groupElem = GroupElem(gmshId, connect, coordo)
                                 dict_groupElem[groupElem.dim] = groupElem
