@@ -1,3 +1,4 @@
+
 from typing import cast
 import os
 import numpy as np
@@ -8,7 +9,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 
 def Plot_Result(simu, option: str , deformation=False, facteurDef=4,
-    affichageMaillage=False, valeursAuxNoeuds=False, oldfig=None, oldax=None):
+    affichageMaillage=False, valeursAuxNoeuds=False, oldfig=None, oldax=None, coef=1, unite=""):
 
     """Affichage de la simulation
 
@@ -50,6 +51,8 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4,
     valeurs = simu.GetResultat(option, valeursAuxNoeuds)
     if not isinstance(valeurs, np.ndarray):
         return
+
+    valeurs *= coef
 
     coordo, deformation = __GetCoordo(simu, deformation, facteurDef)
 
@@ -140,21 +143,12 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4,
         __ChangeEchelle(ax, coordo)
 
     
-    if option == "damage":
-        title = option+"_n"
+    if valeursAuxNoeuds:
+        loc = "_n"
     else:
-        if valeursAuxNoeuds:
-            loc = "_n"
-        else:
-            loc = "_e"
-        
-        unite = ""
-        if "S" in option:
-            unite = " en Mpa"
-        if "d" in option:
-            unite = " en mm"
+        loc = "_e"
 
-        title = option+loc+unite
+    title = option+loc+unite
 
     ax.set_title(title)
 
