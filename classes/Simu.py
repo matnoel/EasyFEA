@@ -1022,7 +1022,7 @@ class Simu:
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement"],
                 "Energie" :["Wdef"],
-                "Damage" :["damage","PsiP"]
+                "Damage" :["damage","psiP"]
             }
         elif dim == 3:
             options = {
@@ -1064,6 +1064,10 @@ class Simu:
             return self.__resultats["displacement"]
 
         Uglob = self.__resultats["displacement"]
+
+        if option == "psiP":
+            resultat_e_pg = self.CalcPsiPlus_e_pg()
+            resultat = np.mean(resultat_e_pg, axis=1)
 
         dim = self.__dim
 
