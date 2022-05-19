@@ -8,15 +8,15 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import pickle
 
 
-def Save_Simulations_in_Paraview(filename: str, simu: Simu, uglob_t: list, damage_t=[]):
+def Save_Simulations_in_Paraview(folder: str, simu: Simu, uglob_t: list, damage_t=[]):
     print('\n')
 
     vtuFiles=[]
     N = len(uglob_t)
 
-    folder = Dossier.GetPath(filename)
     folder = Dossier.Append([folder,"Paraview"])
 
     Nn = simu.mesh.Nn
@@ -69,7 +69,7 @@ def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
     N = len(uglob_t)
 
     # Met à jour le matériau pour creer la première figure qui sera utilisée pour l'animation
-    simu.Update(uglob=uglob_t[0])
+    simu.Update(displacement=uglob_t[0])
     if len(damage_t) > 0:
         simu.Update(damage=damage_t[0])
 
@@ -310,5 +310,43 @@ def __WriteBinary(valeur, type: str, file):
         convert = valeur.tobytes()
         
         file.write(convert)
+
+# TODO Creation dune classe solution ?
+
+def Save_Simulations(filename:str, simu: Simu, displacement_t: np.ndarray, damage_t: np.ndarray):
+    "Sauvegarde la simulation avec ces solutions"
+    
+    struct = {
+            "simu" : simu,
+            "uglob_t" : displacement_t,
+            "damage_t" : damage_t
+    }
+
+    with open(filename, "wb") as file:
+            pickle.dump(struct, file)
+
+def Load_Simulations(filename:str):
+    """Charge la simulation et renvoie egalement les solutions enregistrer
+
+    Parameters
+    ----------
+    filename : str
+        nom du fichier
+
+    Returns
+    -------
+    tuple
+        simu, displacement_t, damage_t
+    """
+    with open(filename, 'rb') as file:
+        struct = pickle.load(file)
+
+    print(f'load of {filename}')
+
+    simu = struct["simu"]
+    uglob_t = struct["uglob_t"]
+    damage_t = struct["damage_t"]
+
+    return simu, uglob_t, damage_t
 
     
