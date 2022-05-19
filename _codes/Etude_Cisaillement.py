@@ -138,7 +138,7 @@ if solve:
         uglob = np.zeros(mesh.Nn*dim)
         damage = np.zeros((mesh.Nn))        
 
-        simu.Update(damage=damage, uglob=uglob)
+        simu.Update(damage=damage, displacement=uglob)
 
         damage_t=[]
         uglob_t=[]
@@ -211,7 +211,7 @@ else:
                 
         
 if saveParaview:
-        PostTraitement.Save_Simulations_in_Paraview(filename, simu, uglob_t, damage_t)
+        PostTraitement.Save_Simulations_in_Paraview(path, simu, uglob_t, damage_t)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Affichage")

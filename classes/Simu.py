@@ -1306,11 +1306,11 @@ class Simu:
         else:
             return None
 
-    def Update(self, uglob=None, damage=None):
+    def Update(self, displacement=None, damage=None):
 
-        if isinstance(uglob, np.ndarray):
-            assert uglob.size == self.__mesh.Nn*self.__dim, "Le vecteur n'a pas la bonne taille (Nn*dim)"
-            self.__resultats["displacement"] = uglob
+        if isinstance(displacement, np.ndarray):
+            assert displacement.size == self.__mesh.Nn*self.__dim, "Le vecteur n'a pas la bonne taille (Nn*dim)"
+            self.__resultats["displacement"] = displacement
 
         if isinstance(damage, np.ndarray):
             assert damage.size == self.__mesh.Nn, "Le vecteur n'a pas la bonne taille (Nn)"

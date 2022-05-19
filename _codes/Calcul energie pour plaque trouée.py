@@ -81,11 +81,11 @@ mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 # Affichage.Plot_Maillage(mesh)
 # plt.show()
 
-comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=False, epaisseur=ep)
+comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
 phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
-materiau = Materiau.Materiau(comportement, phaseFieldModel)
+materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 
-simu = Simu.Simu(mesh, materiau, verbosity=False)
+simu = Simu.Simu(mesh, materiau, verbosity=True)
 
 # Récupérations des noeuds
 
