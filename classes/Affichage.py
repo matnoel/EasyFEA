@@ -3,8 +3,6 @@ from typing import cast
 import os
 import numpy as np
 
-import PostTraitement
-
 import matplotlib.collections
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
@@ -155,6 +153,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
     ax.set_title(title)
 
     if folder != "":
+        import PostTraitement
         PostTraitement.Save_fig(folder, title)
 
     tic.Tac("Post Traitement", "Affichage résultat", False)
@@ -273,6 +272,7 @@ def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder=
     ax.set_title(title)
 
     if folder != "":
+        import PostTraitement
         PostTraitement.Save_fig(folder, title)
 
     return fig, ax
@@ -299,7 +299,8 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
             for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], mesh.coordo[n,2], str(n))
     
     if folder != "":
-        PostTraitement.Save_fig(folder, title)
+        import PostTraitement
+        PostTraitement.Save_fig(folder, "noeuds")
 
     return ax
     

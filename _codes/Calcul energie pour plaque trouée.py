@@ -113,8 +113,6 @@ simu.add_dirichlet("displacement", node00, ["x"], [0])
 
 simu.add_surfLoad("displacement", nodesh, ["y"], [-Sig])
 
-simu.Update(np.zeros(mesh.Nn*2), np.zeros(mesh.Nn))
-
 simu.Assemblage_u()
 
 simu.Solve_u(useCholesky=True)

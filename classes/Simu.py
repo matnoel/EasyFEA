@@ -4,6 +4,7 @@ from typing import cast
 
 import pandas as pd
 import numpy as np
+import pickle
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import matplotlib.pyplot as plt
@@ -23,6 +24,37 @@ class Simu:
     @staticmethod
     def problemTypes():
         return ["displacement","damage"]
+
+    def Save(self, folder:str):
+        "Sauvegarde la simulation dans le dossier"
+
+        filename = Dossier.Append([folder, "simulation.xml"])
+
+        with open(filename, "wb") as file:
+            pickle.dump(self, file)
+
+    @staticmethod
+    def Load(folder: str):
+        """Charge la simulation depuis le dossier
+
+        Parameters
+        ----------
+        folder : str
+            nom du dossier dans lequel simulation est sauvegardée
+
+        Returns
+        -------
+        Simu
+            simu
+        """
+        filename = Dossier.Append([folder, "simulation.xml"])
+
+        with open(filename, 'rb') as file:
+            simu = pickle.load(file)
+
+        print(f'load of {filename}')
+
+        return cast(Simu, simu)
     
     def problemDirections(self, probemType:str, directions:list):
         """Teste si les dimensions sont correctes"""
@@ -96,15 +128,18 @@ class Simu:
         self.__results = pd.DataFrame(columns=columns)
         """tableau panda qui contient les résultats"""
 
-        self.Save()
+        self.Save_solutions()
 
-    def get_result(self, index=-1):
-        return self.__results.loc[[index]]
+    def get_result(self, index=None):
+        if index == None:
+            return self.__results.loc[[self.__results.shape[0]]]
+        else:
+            return self.__results.loc[[index]]
 
     def get_results(self):
         return self.__results
 
-    def Save(self):
+    def Save_solutions(self):
 
         iter = self.__results.index.shape[0]
 
@@ -127,8 +162,8 @@ class Simu:
         results = self.get_result(iter)
 
         if self.materiau.isDamaged:            
-            self.__damage = results["damage"][0].values[0]
-            self.__displacement = results["displacement"][0].values[0]
+            self.__damage = results["damage"].values[0]
+            self.__displacement = results["displacement"].values[0]
         else:
             self.__displacement = results["displacement"].values[0]
         
@@ -176,9 +211,9 @@ class Simu:
 
         if isDamaged:   # probleme endomagement
 
-            d = self.Get_Resultat("damage", valeursAuxNoeuds=True)
+            d = self.__damage
 
-            u = self.Get_Resultat("displacement", valeursAuxNoeuds=True)
+            u = self.__displacement
 
             phaseFieldModel = self.materiau.phaseFieldModel
                 
@@ -272,8 +307,8 @@ class Simu:
 
             phaseFieldModel = self.materiau.phaseFieldModel
             
-            u = self.Get_Resultat("displacement")
-            d = self.Get_Resultat("damage")
+            u = self.__displacement
+            d = self.__damage
 
             testu = isinstance(u, np.ndarray) and (u.shape[0] == self.__mesh.Nn*self.__dim )
             testd = isinstance(d, np.ndarray) and (d.shape[0] == self.__mesh.Nn )
@@ -1055,7 +1090,7 @@ class Simu:
             options = {
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","displacement"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Energie" :["Wdef"],
                 "Damage" :["damage","psiP"]
             }
@@ -1063,8 +1098,8 @@ class Simu:
             options = {
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","displacement"],
-                "Energie" :["Wdef"]                
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Energie" :["Wdef"]
             }
 
         # Verfication que l'option est dans dans les options
@@ -1075,18 +1110,18 @@ class Simu:
                 break
         
         if not ContenueDansOptions:
-            print("\nL'option doit etre dans : {}".format(options))
+            print(f"\nL'option {option} doit etre dans : {options}")
             return False
 
         return ContenueDansOptions
 
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=False, iter=-1):              
+    def Get_Resultat(self, option: str, valeursAuxNoeuds=False, iter=None):              
 
         verif = self.VerificationOption(option)
         if not verif:
             return None
 
-        if iter != -1:
+        if iter != None:
             self.Update(iter)
 
         if option == "Wdef":
@@ -1100,6 +1135,9 @@ class Simu:
 
         if option == "displacement":
             return self.__displacement
+        
+        if option == 'coordoDef':
+            return self.GetCoordUglob()
 
         displacement = self.__displacement
 
@@ -1128,6 +1166,7 @@ class Simu:
         if "d" in option or "amplitude" in option:
 
             coordoDef = self.GetCoordUglob()
+
             dx = coordoDef[:,0]
             dy = coordoDef[:,1]
             dz = coordoDef[:,2]

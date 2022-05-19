@@ -22,8 +22,8 @@ solve = False
 
 plotResult = True
 saveParaview = True
-makeMovie = False
-save = True
+makeMovie = True
+save = False
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Miehe" # "Bourdin","Amor","Miehe"
+split = "Amor" # "Bourdin","Amor","Miehe"
 
 regularisation = "AT2" # "AT1", "AT2"
 
@@ -51,7 +51,7 @@ Gc = 2.7e3
 # Paramètres maillage
 if test:
         taille = 1e-5 #taille maille test fem object
-        # taille *= 20
+        taille *= 2
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -85,8 +85,8 @@ if solve:
         elementSize=taille, isOrganised=True, openCrack=openCrack, filename=mshFileName)
 
         # Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-        Affichage.Plot_Maillage(mesh)
-        plt.show()
+        # Affichage.Plot_Maillage(mesh)
+        # plt.show()
 
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Get_Nodes_Line(line)
@@ -133,12 +133,6 @@ if solve:
         N = 400
         # N = 10
 
-        # Initalise uglob et damage
-        uglob = np.zeros(mesh.Nn*dim)
-        damage = np.zeros((mesh.Nn))        
-
-        simu.Update(damage=damage, displacement=uglob)
-
         damage_t=[]
         uglob_t=[]
 
@@ -168,11 +162,13 @@ if solve:
                 # simu.add_dirichlet("displacement", noeuds_Haut, ["x"], [dep])
                 simu.add_dirichlet("displacement", noeuds_Haut, ["x","y"], [dep,0])
                 
-                uglob = simu.Solve_u(useCholesky=True)
+                uglob = simu.Solve_u(useCholesky=False)
                 uglob_t.append(uglob)
 
                 simu.Clear_Bc_Dirichlet()
                 RenseigneConditionsLimites()
+
+                simu.Save_solutions()
 
                 # Affiche dans la console
                 min = np.round(np.min(damage),3)
@@ -186,17 +182,21 @@ if solve:
 
         # Sauvegarde
 
-        PostTraitement.Save_Simulation(folder, simu, uglob_t, damage_t)
+        simu.Save(folder)
         
 else:   
 
-        simu, uglob_t, damage_t = PostTraitement.Load_Simulation(folder)
+        simu = Simu.Load(folder)
         
-if saveParaview:
-        PostTraitement.Save_Simulation_in_Paraview(folder, simu, uglob_t, damage_t)
+
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Affichage")
+
+if makeMovie:
+        # PostTraitement.MakeMovie(folder, "damage", simu)
+        PostTraitement.MakeMovie(folder, "Svm", simu)        
+        # PostTraitement.MakeMovie(filename, "Syy", simu, valeursAuxNoeuds=True, deformation=True)
 
 def AffichageCL():
         # Affichage noeuds du maillage
@@ -221,12 +221,11 @@ if plotResult:
 
         Affichage.Plot_Result(simu, "dy", folder=folder)
         
-
+if saveParaview:
+        PostTraitement.Save_Simulation_in_Paraview(folder, simu)
         
 
-if makeMovie:
-        PostTraitement.MakeMovie(folder, "damage", simu, uglob_t, damage_t)
-        # PostTraitement.MakeMovie(filename, "Syy", simu, uglob_t, damage_t, valeursAuxNoeuds=True, deformation=True)
+
 
 TicTac.getResume()
 

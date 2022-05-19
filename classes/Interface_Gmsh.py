@@ -65,7 +65,7 @@ class Interface_Gmsh:
 
                 self.__Construction_MaillageGmsh(3, elemType)
 
-                return self.__Recuperation_Maillage()
+                return cast(Mesh, self.__Recuperation_Maillage())
 
         def Rectangle(self, domain: Domain, elemType="TRI3", tailleElement=0.0, isOrganised=False):
 

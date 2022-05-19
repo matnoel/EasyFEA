@@ -85,8 +85,6 @@ if solve:
 
     simu = Simu.Simu(mesh, materiau, verbosity=False)
 
-    simu.Update(np.zeros(mesh.Nn*2), np.zeros(mesh.Nn))
-
     # Récupérations des noeuds
 
     B_lower = Line(point,Point(x=L))
@@ -117,9 +115,7 @@ if solve:
     # fig, ax = Affichage.Plot_Maillage(mesh)
 
     # for ns in [nodes0, nodesh, node00, nodesA, nodesB]:
-    #     Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)
-
-    simu.Update(np.zeros(mesh.Nn*2), np.zeros(mesh.Nn))
+    #     Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)   
 
     def Chargement():
         simu.Clear_Bc_Dirichlet()
@@ -175,11 +171,11 @@ if solve:
         resol += 1
     
     
-    PostTraitement.Save_Simulation(folder, simu, displacement_t, damage_t)
+    PostTraitement.Save_Simulation(folder, simu)
 
 else:
 
-    simu, displacement_t, damage_t = PostTraitement.Load_Simulation(folder)
+    simu = PostTraitement.Load_Simulation(folder)
 
 
 Affichage.Plot_Result(simu, "damage", folder=folder)

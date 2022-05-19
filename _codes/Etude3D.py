@@ -8,6 +8,7 @@ from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 import Affichage
 import PostTraitement
+from Geom import *
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,7 +23,7 @@ dim = 3
 
 plotResult = True
 
-saveParaview = False
+saveParaview = True
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -50,20 +51,22 @@ fichier = Dossier.NewFile('models\\part.stp')
 
 mesh = interfaceGmsh.Importation3D(fichier, tailleElement=taille)
 
-noeuds_en_0 = mesh.Get_Nodes(conditionX=lambda x: x == 0)
-noeuds_en_L = mesh.Get_Nodes(conditionX=lambda x: x == L)
+noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
+noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
 
 simu = Simu(mesh, materiau, verbosity=True)
 
-simu.Condition_Neumann(noeuds_en_L, valeur=-P, directions=["y"])
-simu.Condition_Dirichlet(noeuds_en_0, valeur=0, directions=["x", "y", "z"])
+simu.add_surfLoad("displacement",noeuds_en_L, ["y"], [-P/h/b])
+simu.add_dirichlet("displacement",noeuds_en_0, ["x","y","z"], [0,0,0])
 
 simu.Assemblage_u()
 
 simu.Solve_u(useCholesky=True)
+
+simu.Save_solutions()
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Résultats")
@@ -71,8 +74,8 @@ Affichage.NouvelleSection("Résultats")
 simu.Resume()
 
 if saveParaview:
-        filename = Dossier.NewFile("Etude3D\\solution3D", results=True)
-        PostTraitement.__SaveParaview(simu, filename)
+        folder = Dossier.NewFile("Etude3D", results=True)        
+        PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 if plotResult:
 

@@ -91,7 +91,7 @@ simu.Assemblage_u()
 
 dep = simu.Solve_u(resolution=2, useCholesky=False)
 
-simu.Save()
+simu.Save_solutions()
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
