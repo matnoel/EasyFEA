@@ -581,6 +581,14 @@ class GroupElem:
             
             return noeuds
         
+        def Get_Nodes_Point(self, point: Point):
+
+            coordo = self.__coordo
+
+            noeud = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
+
+            return noeud
+
         def Get_Nodes_Line(self, line: Line):
             
             vectUnitaire = line.vecteurUnitaire
