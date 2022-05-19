@@ -47,7 +47,7 @@ comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-elemType = "QUAD4" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
 domain = Domain(Point(), Point(x=L, y=h))
 Line0 = Line(Point(), Point(y=h))
@@ -89,8 +89,9 @@ simu.add_lineLoad("displacement",noeuds_en_L, ["y"], [-lineLoad])
 # Assemblage du système matricielle
 simu.Assemblage_u()
 
-simu.Solve_u(resolution=2, useCholesky=False)
+dep = simu.Solve_u(resolution=2, useCholesky=False)
 
+simu.Save()
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
@@ -101,22 +102,16 @@ folder = Dossier.NewFile("Etude2D", results=True)
 
 if saveParaview:
         filename = Dossier.NewFile("Etude2D\\solution2D", results=True)
-        PostTraitement.Save_Simulation_in_Paraview(simu, folder)
+        PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 if plotResult:
 
         tic = TicTac()
         
-        fig, ax = Affichage.Plot_Maillage(simu, deformation=True, folder)
-        # plt.savefig(Dossier.NewFile("Etude2D\\maillage2D.png",results=True))
-        # Affichage.Plot_NoeudsMaillage(simu, showId=True)
-        Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)
-        # plt.savefig(Dossier.NewFile("Etude2D\\dy.png",results=True))
-        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)
-        # plt.savefig(Dossier.NewFile("Etude2D\\Svm_n.png",results=True))
-        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False)
-        # plt.savefig(Dossier.NewFile("Etude2D\\Svm_e.png",results=True))
-        
+        Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
+        Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)        
+        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)        
+        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)
 

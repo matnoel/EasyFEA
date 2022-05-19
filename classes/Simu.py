@@ -2,6 +2,7 @@
 from types import LambdaType
 from typing import cast
 
+import pandas as pd
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
@@ -12,7 +13,7 @@ from GroupElem import GroupElem
 import Affichage
 from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition
-from Materiau import Elas_Isot, Materiau, PhaseFieldModel
+from Materiau import *
 from TicTac import TicTac
 from Interface_Gmsh import Interface_Gmsh
 import Dossier
@@ -69,17 +70,69 @@ class Simu:
         """maillage de la simulation"""
         self.materiau = materiau
         """materiau de la simulation"""
-        self.__resultats = {}
-        """résultats de la simulation"""
-        self.__psiP_e_pg = []
-        """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
+        
+        self.__init_results()
 
         # Conditions Limites
         self.__Bc_Neuman = []
         """Conditions de Neumann list(BoundaryCondition)"""
         self.__Bc_Dirichlet = []
         """Conditions de Dirichlet list(BoundaryCondition)"""
+
+    def __init_results(self):
+        self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
+        """déplacements"""
         
+        if self.materiau.isDamaged:
+            self.__damage = np.zeros(self.__mesh.Nn)
+            """endommagement"""
+            self.__psiP_e_pg = []
+            """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
+
+            columns = ['displacement', 'damage']
+        else:
+            columns = ['displacement']
+            
+        self.__results = pd.DataFrame(columns=columns)
+        """tableau panda qui contient les résultats"""
+
+        self.Save()
+
+    def get_result(self, index=-1):
+        return self.__results.loc[[index]]
+
+    def get_results(self):
+        return self.__results
+
+    def Save(self):
+
+        iter = self.__results.index.shape[0]
+
+        if self.materiau.isDamaged:
+            iter = {                
+                'displacement' : [self.__displacement],
+                'damage' : [self.__damage]
+            }
+        else:
+            iter = {                
+                'displacement' : [self.__displacement]
+            }
+
+        new = pd.DataFrame(iter)
+
+        self.__results = pd.concat([self.__results, new], ignore_index=True)
+
+    def Update(self, iter: int):
+
+        results = self.get_result(iter)
+
+        if self.materiau.isDamaged:            
+            self.__damage = results["damage"][0].values[0]
+            self.__displacement = results["displacement"][0].values[0]
+        else:
+            self.__displacement = results["displacement"].values[0]
+        
+        pass
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
@@ -123,12 +176,9 @@ class Simu:
 
         if isDamaged:   # probleme endomagement
 
-            d = self.GetResultat("damage", valeursAuxNoeuds=True)
+            d = self.Get_Resultat("damage", valeursAuxNoeuds=True)
 
-            u = self.GetResultat("displacement", valeursAuxNoeuds=True)
-
-            
-            u = self.__resultats["displacement"]
+            u = self.Get_Resultat("displacement", valeursAuxNoeuds=True)
 
             phaseFieldModel = self.materiau.phaseFieldModel
                 
@@ -206,11 +256,12 @@ class Simu:
 
         tic.Tac("Résolution deplacement","Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)
         
-        self.__Save_u(Uglob)
+        assert Uglob.shape[0] == self.mesh.Nn*self.__dim
+
+        self.__displacement = Uglob
 
         return Uglob
 
-    
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
     def CalcPsiPlus_e_pg(self):
@@ -221,8 +272,8 @@ class Simu:
 
             phaseFieldModel = self.materiau.phaseFieldModel
             
-            u = self.GetResultat("displacement")
-            d = self.GetResultat("damage")
+            u = self.Get_Resultat("displacement")
+            d = self.Get_Resultat("damage")
 
             testu = isinstance(u, np.ndarray) and (u.shape[0] == self.__mesh.Nn*self.__dim )
             testd = isinstance(d, np.ndarray) and (d.shape[0] == self.__mesh.Nn )
@@ -342,7 +393,9 @@ class Simu:
         # if(dGlob.min() < 0):
         #     print("dmin = {}".format(dGlob.min()))
 
-        self.__Save_d(dGlob)
+        assert dGlob.shape[0] == self.mesh.Nn
+
+        self.__damage = dGlob
 
         return dGlob
 
@@ -840,8 +893,7 @@ class Simu:
         ddls = self.__get_ddls_noeuds(problemType, noeuds, directions)
 
         self.__Add_Bc_Dirichlet(problemType, ddls, directions, valeurs_ddls, description)
-                
-
+     
     def __Add_Bc_Dirichlet(self, problemType: str,
         ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
         description=""):
@@ -879,7 +931,7 @@ class Simu:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
-        sol_u  = self.GetResultat("displacement", valeursAuxNoeuds=True)
+        sol_u  = self.Get_Resultat("displacement", valeursAuxNoeuds=True)
 
         matriceType = "rigi"
         Epsilon_e_pg = self.__CalculEpsilon_e_pg(sol_u, matriceType)
@@ -893,7 +945,7 @@ class Simu:
 
         if self.materiau.isDamaged:
 
-            d = self.GetResultat("damage", valeursAuxNoeuds=True)
+            d = self.Get_Resultat("damage", valeursAuxNoeuds=True)
 
             phaseFieldModel = self.materiau.phaseFieldModel
             psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
@@ -965,7 +1017,7 @@ class Simu:
 
         if self.materiau.isDamaged:
 
-            d = self.__resultats["damage"]
+            d = self.__damage
 
             phaseFieldModel = self.materiau.phaseFieldModel
 
@@ -979,21 +1031,10 @@ class Simu:
             
         else:
 
-            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True)
-            
+            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True)            
 
         return cast(np.ndarray, Sigma_e_pg)
 
-    def __Save_d(self, dGlob: np.ndarray):
-        """Sauvegarde dGlob"""        
-
-        self.__resultats["damage"] = dGlob
-
-    def __Save_u(self, Uglob: np.ndarray):
-        """Sauvegarde Uglob"""
-
-        self.__resultats["displacement"] = Uglob
-        
 
     def VerificationOption(self, option):
         """Verification que l'option est bien calculable dans GetResultat
@@ -1009,12 +1050,6 @@ class Simu:
             Réponse du test
         """
         # Construit la liste d'otions pour les résultats en 2D ou 3D
-
-        # Verfie si la simulation à un résultat de déplacement ou d'endommagement
-        if "displacement" not in self.__resultats.keys() and "damage" not in self.__resultats.keys():
-            print("\nLa simulation n'a pas encore de résultats")
-            return False 
-
         dim = self.__dim
         if dim == 2:
             options = {
@@ -1045,25 +1080,28 @@ class Simu:
 
         return ContenueDansOptions
 
-    def GetResultat(self, option: str, valeursAuxNoeuds=False): 
+    def Get_Resultat(self, option: str, valeursAuxNoeuds=False, iter=-1):              
 
         verif = self.VerificationOption(option)
         if not verif:
             return None
 
+        if iter != -1:
+            self.Update(iter)
+
         if option == "Wdef":
             return self.__CalculEnergieDef()
 
         if option == "damage":
-            if not self.materiau.isDamaged: print("Le matériau n'est pas endommageable")
-            assert "damage" in self.__resultats.keys(), "Le vecteur de d'endommagement dglob doit être calculé ou initialisé"
-            return self.__resultats["damage"]
+            if not self.materiau.isDamaged:
+                print("Le matériau n'est pas endommageable")
+                return
+            return self.__damage
 
         if option == "displacement":
-            assert "displacement" in self.__resultats.keys(), "Le vecteur de déplacement uglob doit être initialisé ou calculé"
-            return self.__resultats["displacement"]
+            return self.__displacement
 
-        Uglob = self.__resultats["displacement"]
+        displacement = self.__displacement
 
         if option == "psiP":
             resultat_e_pg = self.CalcPsiPlus_e_pg()
@@ -1072,10 +1110,10 @@ class Simu:
         dim = self.__dim
 
         # Localisation        
-        u_e_n = self.__mesh.Localises_sol_e(Uglob)
+        u_e_n = self.__mesh.Localises_sol_e(displacement)
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
-        Epsilon_e_pg = self.__CalculEpsilon_e_pg(Uglob)
+        Epsilon_e_pg = self.__CalculEpsilon_e_pg(displacement)
         Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg)
 
         # Moyenne sur l'élement
@@ -1267,23 +1305,23 @@ class Simu:
         if not self.VerificationOption("Wdef"):
             return
         
-        Wdef = self.GetResultat("Wdef")
+        Wdef = self.Get_Resultat("Wdef")
         print("\nW def = {:.6f} N.mm".format(Wdef))
         
-        Svm = self.GetResultat("Svm", valeursAuxNoeuds=False)
+        Svm = self.Get_Resultat("Svm", valeursAuxNoeuds=False)
         print("\nSvm max = {:.6f} MPa".format(Svm.max()))
 
         # Affichage des déplacements
-        dx = self.GetResultat("dx", valeursAuxNoeuds=True)
+        dx = self.Get_Resultat("dx", valeursAuxNoeuds=True)
         print("\nUx max = {:.6f} mm".format(dx.max()))
         print("Ux min = {:.6f} mm".format(dx.min()))
 
-        dy = self.GetResultat("dy", valeursAuxNoeuds=True)
+        dy = self.Get_Resultat("dy", valeursAuxNoeuds=True)
         print("\nUy max = {:.6f} mm".format(dy.max()))
         print("Uy min = {:.6f} mm\n".format(dy.min()))
 
         if self.__dim == 3:
-            dz = self.GetResultat("dz", valeursAuxNoeuds=True)
+            dz = self.Get_Resultat("dz", valeursAuxNoeuds=True)
             print("\nUz max = {:.6f} mm".format(dz.max()))
             print("Uz min = {:.6f} mm".format(dz.min()))
     
@@ -1295,7 +1333,7 @@ class Simu:
 
         if self.VerificationOption("displacement"):
 
-            Uglob = self.__resultats["displacement"]
+            Uglob = self.__displacement
 
             coordo = Uglob.reshape((Nn,-1))
            
@@ -1305,16 +1343,6 @@ class Simu:
             return coordo
         else:
             return None
-
-    def Update(self, displacement=None, damage=None):
-
-        if isinstance(displacement, np.ndarray):
-            assert displacement.size == self.__mesh.Nn*self.__dim, "Le vecteur n'a pas la bonne taille (Nn*dim)"
-            self.__resultats["displacement"] = displacement
-
-        if isinstance(damage, np.ndarray):
-            assert damage.size == self.__mesh.Nn, "Le vecteur n'a pas la bonne taille (Nn)"
-            self.__resultats["damage"] = damage
 
 # ====================================
 

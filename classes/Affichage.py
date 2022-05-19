@@ -50,7 +50,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
     if dim==3:
         valeursAuxNoeuds=False
 
-    valeurs = simu.GetResultat(option, valeursAuxNoeuds)
+    valeurs = simu.Get_Resultat(option, valeursAuxNoeuds)
     if not isinstance(valeurs, np.ndarray):
         return
 

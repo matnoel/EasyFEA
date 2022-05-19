@@ -90,7 +90,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
                 simu.Assemblage_u()
 
                 simu.Solve_u(useCholesky=True)
-                Wdef = simu.GetResultat("Wdef")
+                Wdef = simu.Get_Resultat("Wdef")
 
                 # Stockage des valeurs
                 listTemps_nb.append(tic.Tac("Résolutions","Temps total", False))

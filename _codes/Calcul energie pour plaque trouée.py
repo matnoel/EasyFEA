@@ -119,15 +119,15 @@ simu.Assemblage_u()
 
 simu.Solve_u(useCholesky=True)
 
-SxxA = np.mean(simu.GetResultat("Sxx", True)[nodesA])
-SyyA = np.mean(simu.GetResultat("Syy", True)[nodesA])
-SxyA = np.mean(simu.GetResultat("Sxy", True)[nodesA])
+SxxA = np.mean(simu.Get_Resultat("Sxx", True)[nodesA])
+SyyA = np.mean(simu.Get_Resultat("Syy", True)[nodesA])
+SxyA = np.mean(simu.Get_Resultat("Sxy", True)[nodesA])
 
 print(f"\nEn A : Sxx/Sig = {np.round(SxxA/Sig,2)}, Syy/Sig = {np.round(SyyA/Sig,2)}, Sxy/Sig = {np.round(SxyA/Sig,2)}")
 
-SxxB = np.mean(simu.GetResultat("Sxx", True)[nodesB])
-SyyB = np.mean(simu.GetResultat("Syy", True)[nodesB])
-SxyB = np.mean(simu.GetResultat("Sxy", True)[nodesB])
+SxxB = np.mean(simu.Get_Resultat("Sxx", True)[nodesB])
+SyyB = np.mean(simu.Get_Resultat("Syy", True)[nodesB])
+SxyB = np.mean(simu.Get_Resultat("Sxy", True)[nodesB])
 
 print(f"En B : Sxx/Sig = {np.round(SxxB/Sig,2)}, Syy/Sig = {np.round(SyyB/Sig,2)}, Sxy/Sig = {np.round(SxyB/Sig,2)}")
 
@@ -137,8 +137,8 @@ Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/Sig, unite="/Si
 
 Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=True, coef=E/Sig**2, unite=f"*E/Sig^2 pour v={v}")
 
-psipa = np.mean(simu.GetResultat("psiP", True)[nodesA])*E/Sig**2
-psipb = np.mean(simu.GetResultat("psiP", True)[nodesB])*E/Sig**2
+psipa = np.mean(simu.Get_Resultat("psiP", True)[nodesA])*E/Sig**2
+psipb = np.mean(simu.Get_Resultat("psiP", True)[nodesB])*E/Sig**2
 
 print(f"\nPour v={v} : psiP_A*E/Sig^2 = {np.round(psipa,3)} et psiP_B*E/Sig^2 = {np.round(psipb,3)}")
 

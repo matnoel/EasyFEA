@@ -12,43 +12,13 @@ import matplotlib.animation as animation
 import pickle
 
 def Save_fig(folder:str, title: str):
+
+    for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
+
     nom = Dossier.Append([folder, title+'.png'])
+
     # plt.savefig(nom, dpi=200)
     plt.savefig(nom, dpi=500)
-        
-
-def Save_Simulation_in_Paraview(folder: str, simu: Simu, uglob_t: list, damage_t=[]):
-    print('\n')
-
-    vtuFiles=[]
-    N = len(uglob_t)
-
-    folder = Dossier.Append([folder,"Paraview"])
-
-    Nn = simu.mesh.Nn
-    dim = simu.mesh.dim
-
-    for t, uglob in enumerate(uglob_t):
-
-        assert Nn == damage_t[t].size, "Erreur"
-        assert Nn*dim == uglob.size, "Erreur"
-
-        simu.Update(uglob, damage_t[t])
-
-        f = f'{folder}\\solution_{t}'
-
-        if len(damage_t) > 0:
-            vtuFile = __SaveParaview(simu, f, nodesField=["displacement","damage"], elementsField=["Stress"])
-        else:
-            vtuFile = __SaveParaview(simu, f, nodesField=["displacement"], elementsField=["Stress"])
-        
-        vtuFiles.append(vtuFile)
-
-        print(f"SaveParaview {t+1}/{N}", end='\r')
-    
-    print('\n')
-    filenamePvd = f'{folder}\\solution'
-    MakePvd(filenamePvd, vtuFiles)
 
 
 def MakeMovie(folder: str, option: str, simu: Simu, uglob_t: list,
@@ -75,9 +45,7 @@ def MakeMovie(folder: str, option: str, simu: Simu, uglob_t: list,
     N = len(uglob_t)
 
     # Met à jour le matériau pour creer la première figure qui sera utilisée pour l'animation
-    simu.Update(displacement=uglob_t[0])
-    if len(damage_t) > 0:
-        simu.Update(damage=damage_t[0])
+    simu.Update()
 
     # Trace la première figure
     fig, ax, cb = Affichage.Plot_Result(simu, option,
@@ -121,23 +89,50 @@ def MakeMovie(folder: str, option: str, simu: Simu, uglob_t: list,
     
 # =========================================== Paraview ==================================================
 
-def __SaveParaview(simu: Simu, filename: str,nodesField=["displacement","Stress"], elementsField=["Stress","Strain"]):
+def Save_Simulation_in_Paraview(folder: str, simu: Simu):
+    print('\n')
+
+    vtuFiles=[]
+
+    results = simu.get_results()
+
+    N = results.shape[0]
+
+    folder = Dossier.Append([folder,"Paraview"])
+
+    Nn = simu.mesh.Nn
+    dim = simu.mesh.dim
+
+    for iter in range(N):
+
+        f = Dossier.Append([folder,f'solution_{iter}.vtu'])
+
+        if simu.materiau.isDamaged:
+            vtuFile = __SaveParaview(simu, iter, f, nodesField=["displacement","damage"], elementsField=["Stress"])            
+        else:
+            vtuFile = __SaveParaview(simu, iter, f, nodesField=["displacement"], elementsField=["Stress"])
+        
+        vtuFiles.append(vtuFile)
+
+        print(f"SaveParaview {iter+1}/{N}", end='\r')
+    
+    print('\n')
+    filenamePvd = f'{folder}\\solution'
+    MakePvd(filenamePvd, vtuFiles)
+
+def __SaveParaview(simu: Simu, iter: int, filename: str,nodesField=["displacement","Stress"], elementsField=["Stress","Strain"]):
     """Creer le .vtu qui peut être lu sur paraview
     """
-    
-    if not simu.VerificationOption("displacement"):
-        return
-    
-    # resultats_e=["Svm","Evm"]
+
     options = nodesField+elementsField
-    # options = np.array([options_n, options_e], dtype=str).reshape(-1)
+   
+    simu.Update(iter)
+
     for option in options:
         if not simu.VerificationOption(option):
             return
     
-    tic = TicTac()
-
-    filename = filename+".vtu"
+    tic = TicTac()    
 
     connect = simu.mesh.connect
     coordo = simu.mesh.coordo
@@ -186,7 +181,7 @@ def __SaveParaview(simu: Simu, filename: str,nodesField=["displacement","Stress"
         list_valeurs_n=[]
         for resultat_n in nodesField:
 
-            valeurs_n = simu.GetResultat(resultat_n, valeursAuxNoeuds=True).reshape(-1)
+            valeurs_n = simu.Get_Resultat(resultat_n, valeursAuxNoeuds=True).reshape(-1)
             list_valeurs_n.append(valeurs_n)
 
             nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
@@ -200,7 +195,7 @@ def __SaveParaview(simu: Simu, filename: str,nodesField=["displacement","Stress"
         list_valeurs_e=[]
         for resultat_e in elementsField:
 
-            valeurs_e = simu.GetResultat(resultat_e, valeursAuxNoeuds=False).reshape(-1)
+            valeurs_e = simu.Get_Resultat(resultat_e, valeursAuxNoeuds=False).reshape(-1)
             list_valeurs_e.append(valeurs_e)
 
             nombreDeComposantes = int(valeurs_e.size/Ne)

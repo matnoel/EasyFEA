@@ -21,7 +21,7 @@ test = True
 solve = False
 
 plotResult = True
-saveParaview = False
+saveParaview = True
 makeMovie = False
 save = True
 
@@ -33,7 +33,7 @@ comportement = "Elas_Isot" # "Elas_Isot"
 
 split = "Miehe" # "Bourdin","Amor","Miehe"
 
-regularisation = "AT1" # "AT1", "AT2"
+regularisation = "AT2" # "AT1", "AT2"
 
 openCrack = True
 
@@ -212,7 +212,7 @@ if plotResult:
         # AffichageCL()
         # if save: plt.savefig(f'{folder}\\conditionsLimites.png')
 
-        Wdef = simu.GetResultat("Wdef")
+        Wdef = simu.Get_Resultat("Wdef")
 
 
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,

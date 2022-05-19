@@ -73,7 +73,7 @@ class Mesh:
 
     def Localises_sol_e(self, sol: np.ndarray):
         """sur chaque elements on récupère les valeurs de sol"""
-        return self.groupElem.Localise_sol_e(sol)
+        return cast(np.ndarray, self.groupElem.Localise_sol_e(sol))
         
     def __get_Ne(self, dim=None):
         if isinstance(dim,int):
