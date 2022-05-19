@@ -708,7 +708,7 @@ class Materiau:
             
     phaseFieldModel = cast(PhaseFieldModel, property(__get_phaseFieldModel))
 
-    def __init__(self, comportement: LoiDeComportement, phaseFieldModel=None, ro=8100.0):
+    def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0):
         """Creer un materiau
 
         Parameters
@@ -718,8 +718,8 @@ class Materiau:
         epaisseur : float, optional
             epaisseur du matériau si en 2D > 0 !
         """
-        
-        assert isinstance(comportement, LoiDeComportement)
+        if comportement != None:
+            assert isinstance(comportement, LoiDeComportement)
 
         assert ro > 0 , "Doit être supérieur à 0"
         self.ro = ro
