@@ -18,7 +18,7 @@ Affichage.Clear()
 
 test = True
 
-solve = True
+solve = False
 
 plotResult = True
 saveParaview = False
@@ -37,7 +37,7 @@ regularisation = "AT1" # "AT1", "AT2"
 
 openCrack = True
 
-nameSimu = comportement+"_"+split+"_"+regularisation
+nameSimu = '_'.join([comportement,split,regularisation])
 if openCrack: 
         nameSimu += '_openCrack'
 
@@ -56,12 +56,11 @@ else:
         taille = l0/2 #l0/2 2.5e-6
 
 if test:
-        filename = Dossier.NewFile(f'{folder}\\Test\\{nameSimu}\\simulation.xml', results=True)
+    folder = Dossier.Append([folder, "Test", nameSimu])
 else:
-        filename = Dossier.NewFile(f'{folder}\\{nameSimu}\\simulation.xml', results=True)
+    folder = Dossier.Append([folder, nameSimu])
 
-path = Dossier.GetPath(filename)
-
+folder = Dossier.NewFile(folder, results=True)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -76,7 +75,7 @@ if solve:
         else:
                 meshName = "carré avec fissure fermée.msh"
 
-        mshFileName = Dossier.NewFile(meshName, path)
+        mshFileName = Dossier.NewFile(meshName, folder)
         # mshFileName = ""
 
         domain = Domain(Point(), Point(x=L, y=L))
@@ -187,36 +186,17 @@ if solve:
 
         # Sauvegarde
 
-        import pickle
-
-        struct = {
-                "simu" : simu,
-                "uglob_t" : uglob_t,
-                "damage_t" : damage_t
-        }
-
-        with open(filename, "wb") as file:
-                pickle.dump(struct, file)
+        PostTraitement.Save_Simulation(folder, simu, uglob_t, damage_t)
         
 else:   
-        import pickle
-        with open(filename, 'rb') as file:
-                struct = pickle.load(file)
-        
-        print(f'load of {filename}')
-        
-        simu = struct["simu"]
-        uglob_t = struct["uglob_t"]
-        damage_t = struct["damage_t"]
-                
+
+        simu, uglob_t, damage_t = PostTraitement.Load_Simulation(folder)
         
 if saveParaview:
-        PostTraitement.Save_Simulations_in_Paraview(path, simu, uglob_t, damage_t)
+        PostTraitement.Save_Simulation_in_Paraview(folder, simu, uglob_t, damage_t)
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Affichage")
-
-folder = Dossier.GetPath(filename)
 
 def AffichageCL():
         # Affichage noeuds du maillage
@@ -236,15 +216,16 @@ if plotResult:
 
 
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,
-        affichageMaillage=True, deformation=True)
-        if save: plt.savefig(f'{folder}\\damage.png')
+        affichageMaillage=True, deformation=True, folder=folder)
+        
 
-        # Affichage.Plot_Result(simu, "dy")
+        Affichage.Plot_Result(simu, "dy", folder=folder)
+        
 
         
 
 if makeMovie:
-        PostTraitement.MakeMovie(filename, "damage", simu, uglob_t, damage_t)
+        PostTraitement.MakeMovie(folder, "damage", simu, uglob_t, damage_t)
         # PostTraitement.MakeMovie(filename, "Syy", simu, uglob_t, damage_t, valeursAuxNoeuds=True, deformation=True)
 
 TicTac.getResume()

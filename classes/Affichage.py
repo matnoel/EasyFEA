@@ -3,13 +3,15 @@ from typing import cast
 import os
 import numpy as np
 
+import PostTraitement
+
 import matplotlib.collections
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 
-def Plot_Result(simu, option: str , deformation=False, facteurDef=4,
-    affichageMaillage=False, valeursAuxNoeuds=False, oldfig=None, oldax=None, coef=1, unite=""):
+def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, unite="",
+    affichageMaillage=False, valeursAuxNoeuds=False, oldfig=None, oldax=None, folder=""):
 
     """Affichage de la simulation
 
@@ -152,11 +154,14 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4,
 
     ax.set_title(title)
 
-    tic.Tac("Post Traitement", "Affichage résultat", False)
+    if folder != "":
+        PostTraitement.Save_fig(folder, title)
 
+    tic.Tac("Post Traitement", "Affichage résultat", False)
+    
     return fig, ax, cb
     
-def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
+def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder=""):
     """Dessine le maillage de la simulation
 
     Parameters
@@ -263,11 +268,16 @@ def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1):
 
         __ChangeEchelle(ax, coordo)
     
-    ax.set_title(f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}")
+    title = f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}"
+
+    ax.set_title(title)
+
+    if folder != "":
+        PostTraitement.Save_fig(folder, title)
 
     return fig, ax
 
-def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='blue'):
+def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='blue', folder=""):
     """Affiche les noeuds du maillage"""        
     
     from Mesh import Mesh
@@ -288,8 +298,11 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
         if showId:
             for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], mesh.coordo[n,2], str(n))
     
-    return ax
+    if folder != "":
+        PostTraitement.Save_fig(folder, title)
 
+    return ax
+    
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
     
     from Simu import Simu

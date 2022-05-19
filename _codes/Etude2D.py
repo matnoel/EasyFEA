@@ -97,16 +97,17 @@ Affichage.NouvelleSection("Post traitement")
 
 simu.Resume()
 
+folder = Dossier.NewFile("Etude2D", results=True)
 
 if saveParaview:
         filename = Dossier.NewFile("Etude2D\\solution2D", results=True)
-        PostTraitement.SaveParaview(simu, filename)
+        PostTraitement.Save_Simulation_in_Paraview(simu, folder)
 
 if plotResult:
 
         tic = TicTac()
         
-        fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
+        fig, ax = Affichage.Plot_Maillage(simu, deformation=True, folder)
         # plt.savefig(Dossier.NewFile("Etude2D\\maillage2D.png",results=True))
         # Affichage.Plot_NoeudsMaillage(simu, showId=True)
         Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)

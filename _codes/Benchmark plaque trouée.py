@@ -34,8 +34,6 @@ else:
 
 folder = Dossier.NewFile(folder, results=True)
 
-filename = Dossier.Append([folder, "simulation.xml"])
-
 # Data
 
 L=15e-3
@@ -177,16 +175,16 @@ if solve:
         resol += 1
     
     
-    PostTraitement.Save_Simulations(filename, simu, displacement_t, damage_t)
+    PostTraitement.Save_Simulation(folder, simu, displacement_t, damage_t)
 
 else:
 
-    simu, displacement_t, damage_t = PostTraitement.Load_Simulations(filename)
+    simu, displacement_t, damage_t = PostTraitement.Load_Simulation(folder)
 
 
-Affichage.Plot_Result(simu, "damage")
+Affichage.Plot_Result(simu, "damage", folder=folder)
 
-PostTraitement.Save_Simulations_in_Paraview(folder, simu, displacement_t, damage_t)
+PostTraitement.Save_Simulation_in_Paraview(folder, simu, displacement_t, damage_t)
 
 
 

@@ -72,7 +72,7 @@ simu.Resume()
 
 if saveParaview:
         filename = Dossier.NewFile("Etude3D\\solution3D", results=True)
-        PostTraitement.SaveParaview(simu, filename)
+        PostTraitement.__SaveParaview(simu, filename)
 
 if plotResult:
 

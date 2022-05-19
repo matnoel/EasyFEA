@@ -1,4 +1,5 @@
 
+import os
 import Affichage
 from Simu import Simu
 import Dossier
@@ -10,8 +11,13 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import pickle
 
+def Save_fig(folder:str, title: str):
+    nom = Dossier.Append([folder, title+'.png'])
+    # plt.savefig(nom, dpi=200)
+    plt.savefig(nom, dpi=500)
+        
 
-def Save_Simulations_in_Paraview(folder: str, simu: Simu, uglob_t: list, damage_t=[]):
+def Save_Simulation_in_Paraview(folder: str, simu: Simu, uglob_t: list, damage_t=[]):
     print('\n')
 
     vtuFiles=[]
@@ -32,9 +38,9 @@ def Save_Simulations_in_Paraview(folder: str, simu: Simu, uglob_t: list, damage_
         f = f'{folder}\\solution_{t}'
 
         if len(damage_t) > 0:
-            vtuFile = SaveParaview(simu, f, nodesField=["displacement","damage"], elementsField=["Stress"])
+            vtuFile = __SaveParaview(simu, f, nodesField=["displacement","damage"], elementsField=["Stress"])
         else:
-            vtuFile = SaveParaview(simu, f, nodesField=["displacement"], elementsField=["Stress"])
+            vtuFile = __SaveParaview(simu, f, nodesField=["displacement"], elementsField=["Stress"])
         
         vtuFiles.append(vtuFile)
 
@@ -45,7 +51,7 @@ def Save_Simulations_in_Paraview(folder: str, simu: Simu, uglob_t: list, damage_
     MakePvd(filenamePvd, vtuFiles)
 
 
-def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
+def MakeMovie(folder: str, option: str, simu: Simu, uglob_t: list,
     damage_t=[], deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
     
     # Verifie que l'option est dispo
@@ -63,7 +69,7 @@ def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
         name = f'{option}_e'
     
     # Nom de la vidéo dans le dossier ou est communiqué le dossier
-    filename = f'{Dossier.GetPath(filename)}\\{name}.mp4'
+    filename = Dossier.Append([folder, f'{name}.mp4'])
 
     # Nombre d'iteration à afficher
     N = len(uglob_t)
@@ -78,9 +84,18 @@ def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
     affichageMaillage=affichageMaillage, deformation=deformation, facteurDef=facteurDef)
     
     # Donne le lien vers ffmpeg.exe
-    # ffmpegpath = "F:\\Pro\\ffmpeg\\bin\\ffmpeg.exe"
-    ffmpegpath = "D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe"
-    matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
+
+    def Get_ffmpegpath():
+        paths = ["D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe",
+                 "F:\\Pro\\ffmpeg\\bin\\ffmpeg.exe"]
+        
+        for p in paths:
+            if os.path.exists(p):
+                return p
+        
+        raise "Dossier inexistant"
+
+    ffmpegpath = Get_ffmpegpath()
 
     writer = animation.FFMpegWriter(fps=30)
     with writer.saving(fig, filename, 200):
@@ -101,14 +116,12 @@ def MakeMovie(filename: str, option: str, simu: Simu, uglob_t: list,
 
             writer.grab_frame()
 
-            
-
             tf = tic.Tac("Post Traitement","Plot", False)
             print(f'Plot {ax.get_title()} in {np.round(tf,3)}', end='\r')
     
 # =========================================== Paraview ==================================================
 
-def SaveParaview(simu: Simu, filename: str,nodesField=["displacement","Stress"], elementsField=["Stress","Strain"]):
+def __SaveParaview(simu: Simu, filename: str,nodesField=["displacement","Stress"], elementsField=["Stress","Strain"]):
     """Creer le .vtu qui peut être lu sur paraview
     """
     
@@ -313,8 +326,10 @@ def __WriteBinary(valeur, type: str, file):
 
 # TODO Creation dune classe solution ?
 
-def Save_Simulations(filename:str, simu: Simu, displacement_t: np.ndarray, damage_t: np.ndarray):
+def Save_Simulation(folder:str, simu: Simu, displacement_t: np.ndarray, damage_t: np.ndarray):
     "Sauvegarde la simulation avec ces solutions"
+
+    filename = Dossier.Append([folder, "simulation.xml"])
     
     struct = {
             "simu" : simu,
@@ -325,19 +340,21 @@ def Save_Simulations(filename:str, simu: Simu, displacement_t: np.ndarray, damag
     with open(filename, "wb") as file:
             pickle.dump(struct, file)
 
-def Load_Simulations(filename:str):
+def Load_Simulation(folder: str):
     """Charge la simulation et renvoie egalement les solutions enregistrer
 
     Parameters
     ----------
     filename : str
-        nom du fichier
+        nom du dossier dans lequel simulation.xml est sauvegardé
 
     Returns
     -------
     tuple
         simu, displacement_t, damage_t
     """
+    filename = Dossier.Append([folder, "simulation.xml"])
+
     with open(filename, 'rb') as file:
         struct = pickle.load(file)
 
