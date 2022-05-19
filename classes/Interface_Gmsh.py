@@ -111,7 +111,7 @@ class Interface_Gmsh:
                 
                 self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return self.__Recuperation_Maillage()
+                return cast(Mesh, self.__Recuperation_Maillage())
 
         def RectangleAvecFissure(self, domain: Domain, line: Line,
         elemType="TRI3", elementSize=0.0, openCrack=False, isOrganised=False, filename=""):
@@ -184,7 +184,7 @@ class Interface_Gmsh:
                 else:
                         self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return self.__Recuperation_Maillage(filename)
+                return cast(Mesh, self.__Recuperation_Maillage(filename))
 
         def PlaqueTrouée(self, domain: Domain, circle: Circle, 
         elemType="TRI3", isOrganised=False, filename=""):
@@ -243,7 +243,7 @@ class Interface_Gmsh:
 
                 self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
 
-                return self.__Recuperation_Maillage(filename)
+                return cast(Mesh, self.__Recuperation_Maillage(filename))
                 
 
         def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
@@ -304,7 +304,18 @@ class Interface_Gmsh:
                 tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
         def __Recuperation_Maillage(self, filename=""):
-                """construit le maillage"""
+                """Construction du maillage
+
+                Parameters
+                ----------
+                filename : str, optional
+                    nom du fichier mesh, by default ""
+
+                Returns
+                -------
+                Mesh
+                    Maillage crée
+                """     
                 
                 tic = TicTac()
 
