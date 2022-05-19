@@ -109,7 +109,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
         
         vtuFiles.append(vtuFile)
 
-        print(f"SaveParaview {iter}/{N}", end='\r')
+        print(f"SaveParaview {iter+1}/{N}", end='\r')
     
     print('\n')
     filenamePvd = f'{folder}\\solution'

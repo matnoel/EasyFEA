@@ -39,7 +39,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/10
+taille = h/100
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -89,7 +89,7 @@ simu.add_lineLoad("displacement",noeuds_en_L, ["y"], [-lineLoad])
 # Assemblage du système matricielle
 simu.Assemblage_u()
 
-dep = simu.Solve_u(resolution=2, useCholesky=False)
+dep = simu.Solve_u(useCholesky=True)
 
 simu.Save_solutions()
 

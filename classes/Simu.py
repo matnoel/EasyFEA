@@ -282,14 +282,14 @@ class Simu:
         
         return self.__Ku
 
-    def Solve_u(self, resolution=2, useCholesky=False):
+    def Solve_u(self, useCholesky=False):
         """Resolution du probleme de déplacement"""
 
         tic = TicTac()
 
-        Uglob = self.__Solveur(problemType="displacement", resolution=resolution, useCholesky=useCholesky, A_isSymetric=True)
+        Uglob = self.__Solveur(problemType="displacement", useCholesky=useCholesky, A_isSymetric=True)
 
-        tic.Tac("Résolution deplacement","Résolution {} pour le problème de déplacement".format(resolution) , self.__verbosity)
+        tic.Tac("Résolution deplacement","Résolution pour le problème de déplacement", self.__verbosity)
         
         assert Uglob.shape[0] == self.mesh.Nn*self.__dim
 
@@ -410,14 +410,14 @@ class Simu:
 
         return self.__Kd, self.__Fd
     
-    def Solve_d(self, resolution=2):
+    def Solve_d(self):
         """Resolution du problème d'endommagement"""
          
         tic = TicTac()
 
-        dGlob = self.__Solveur(problemType="damage", resolution=resolution, useCholesky=False, A_isSymetric=False)
+        dGlob = self.__Solveur(problemType="damage", useCholesky=False, A_isSymetric=False)
 
-        tic.Tac("Résolution endommagement",f"Résolution {resolution} pour le problème de endommagement" , self.__verbosity)
+        tic.Tac("Résolution endommagement",f"Résolution pour le problème de endommagement" , self.__verbosity)
         
         # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
         # assert dGlob.min() >= 0, "Doit etre supérieur 0"
@@ -556,7 +556,7 @@ class Simu:
 
         assert problemType in Simu.problemTypes()
 
-        # Résolution du plus rapide au plus lent 2, 3, 1
+        # Résolution du plus rapide au plus lent 2, 1
         if resolution == 1:
             useCholesky=False #la matrice ne sera pas symétrique definie positive
             # Résolution par la méthode des pénalisations
@@ -587,8 +587,6 @@ class Simu:
             xc = x[ddl_Connues,0]
 
             bDirichlet = Aic.dot(xc)
-
-            test = bi-bDirichlet
 
             xi = self.__Solve_Axb(Aii, bi-bDirichlet, useCholesky, A_isSymetric)
 
@@ -625,6 +623,7 @@ class Simu:
 
             if useUmfpack:
                 # from scikits.umfpack import umf
+                # import scikits.umfpack.umfpack as um
                 import scikits.umfpack as um
                 lu = um.splu(A)
                 x = um.spsolve(A, b)
@@ -640,8 +639,10 @@ class Simu:
                 else:
                     permute="COLAMD"
 
-                if hideFacto:                        
+                if hideFacto:
+                    tic = TicTac()
                     x = sla.spsolve(A, b, permc_spec=permute)
+                    tic.Tac("resol", "resol ax=b",True)
                 else:
                     # superlu : https://portal.nersc.gov/project/sparse/superlu/
                     # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf

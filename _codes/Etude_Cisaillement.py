@@ -22,7 +22,7 @@ solve = False
 
 plotResult = True
 saveParaview = True
-makeMovie = True
+makeMovie = False
 save = False
 
 # Data --------------------------------------------------------------------------------------------
@@ -31,9 +31,9 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Amor" # "Bourdin","Amor","Miehe"
+split = "Miehe" # "Bourdin","Amor","Miehe"
 
-regularisation = "AT2" # "AT1", "AT2"
+regularisation = "AT1" # "AT1", "AT2"
 
 openCrack = True
 
