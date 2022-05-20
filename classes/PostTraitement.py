@@ -180,6 +180,7 @@ def __SaveParaview(simu: Simu, iter: int, filename: str,nodesField=["coordoDef",
             list_valeurs_n.append(valeurs_n)
 
             nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
+            if resultat_n == "coordoDef": resultat_n="displacement"
             file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
             offset = CalcOffset(offset, valeurs_n.size)
 
