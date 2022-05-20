@@ -629,8 +629,7 @@ class Simu:
                 x = um.spsolve(A, b)
             else:
                 # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
-                
-                # sparse.linalg.use_solver(useUmfpack=True)
+                # sla.use_solver(useUmfpack=True)
                 hideFacto = True
 
                 # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
@@ -640,9 +639,9 @@ class Simu:
                     permute="COLAMD"
 
                 if hideFacto:
-                    tic = TicTac()
+                    # tic = TicTac()
                     x = sla.spsolve(A, b, permc_spec=permute)
-                    tic.Tac("resol", "resol ax=b",True)
+                    # tic.Tac("resol", "resol ax=b",True)
                 else:
                     # superlu : https://portal.nersc.gov/project/sparse/superlu/
                     # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf

@@ -1,12 +1,10 @@
 
-from sympy import reshape
 from TicTac import TicTac
 import Materiau
 from Geom import *
 import Affichage
 import Interface_Gmsh
 import Simu
-import PostTraitement
 import Dossier
 
 import matplotlib.pyplot as plt
@@ -42,7 +40,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.2
+v=0.1
 Sig = 10 #Pa
 
 gc = 1.4
@@ -56,14 +54,16 @@ if test:
     clD = l_0*2
     clC = l_0
 
-    inc0 = 8e-8
-    inc1 = 2e-8
+    inc0 = 16e-8
+    inc1 = 4e-8    
 else:
     clD = l_0/2
     clC = l_0/2
 
-    inc0 = 16e-8
-    inc1 = 4e-8
+    inc0 = 8e-8
+    inc1 = 2e-8
+
+    
 
 if solve:
 
@@ -132,6 +132,8 @@ if solve:
 
     while ud <= umax:
 
+        tic = TicTac()
+
         Chargement()
 
         # Damage
@@ -150,12 +152,17 @@ if solve:
 
         displacement_t.append(displacement)
 
+        simu.Save_solutions()
+
+        temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
+        temps = np.round(temps,3)
+
         max_d = np.round(damage.max(),3)
         min_d = np.round(damage.min(),3)
         
         f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))
 
-        print(f"{resol} : ud = {np.round(ud*1e6,2)} µm, f = {np.round(f/1e6)} kN/mm,  max d = {max_d}, min d = {min_d}")
+        print(f"{resol} : ud = {np.round(ud*1e6,2)} µm, f = {np.round(f/1e6)} kN/mm,  d = [{min_d}; {max_d}], {temps} s")
 
         if max_d<0.6:
             ud += inc0
@@ -171,16 +178,16 @@ if solve:
         resol += 1
     
     
-    PostTraitement.Save_Simulation(folder, simu)
+    simu.Save(folder)
 
 else:
 
-    simu = PostTraitement.Load_Simulation(folder)
+    simu = Simu.Simu.Load(folder)
 
 
-Affichage.Plot_Result(simu, "damage", folder=folder)
+Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}")
 
-PostTraitement.Save_Simulation_in_Paraview(folder, simu, displacement_t, damage_t)
+# PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 
 

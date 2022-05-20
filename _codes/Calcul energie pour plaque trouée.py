@@ -18,7 +18,7 @@ test=True
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe"]
 regu = "AT1" # "AT1", "AT2"
-
+contraintesPlanes = True
 
 nom="_".join([comp, split, regu])
 
@@ -39,7 +39,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.2
+v=0.15
 Sig = 10 #Pa
 
 gc = 1.4
@@ -81,7 +81,7 @@ mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 # Affichage.Plot_Maillage(mesh)
 # plt.show()
 
-comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=contraintesPlanes, epaisseur=ep)
 phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
 materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 

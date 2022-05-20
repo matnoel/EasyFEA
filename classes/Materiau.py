@@ -554,6 +554,8 @@ class PhaseFieldModel:
         Renvoie en [1, 1, racine(2)] si mandel        
         """
 
+        # Repasse en mandel
+
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
@@ -594,6 +596,10 @@ class PhaseFieldModel:
             m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize=True)
             M1[elements, pdgs] = m1_tot[elements, pdgs]            
         M2 = np.eye(2) - M1
+
+        # test ortho entre M1 et M2 
+        verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize=True)
+        assert np.abs(verifOrtho_M1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
         
         # Passage des bases propres sous la forme dun vecteur [e,pg,3]  ou [e,pg,6]
         m1 = np.zeros((Ne,nPg,3)); m2 = np.zeros((Ne,nPg,3))
@@ -614,19 +620,21 @@ class PhaseFieldModel:
         dvalp = np.heaviside(val_e_pg,0.5)
         dvalm = np.heaviside(-val_e_pg,0.5)
 
+        testtt = np.heaviside([5,0,-4],0.5)
+
         # Calcul des Beta Plus [e,pg,1]
-        BetaP = dvalp[:,:,0]
+        BetaP = dvalp[:,:,0].copy()
         BetaP[elements,pdgs] = (valp[elements,pdgs,0]-valp[elements,pdgs,1])/v1_m_v2[elements,pdgs]
         
         # Calcul de Beta Moin [e,pg,1]
-        BetaM = dvalm[:,:,0]
+        BetaM = dvalm[:,:,0].copy()
         BetaM[elements,pdgs] = (valm[elements,pdgs,0]-valm[elements,pdgs,1])/v1_m_v2[elements,pdgs]
 
         # Calcul de gamma [e,pg,2]
         gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
         gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
         
-        matriceI = np.eye(3)
+        matriceI = np.eye(3)        
         if self.useVoigtNotation:
             matriceI[2,2] *= 1/coef
 
@@ -642,39 +650,37 @@ class PhaseFieldModel:
         gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize=True)
         projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2        
 
-        # # Verification de la décomposition
+        # Verification de la décomposition
 
-        # # test ortho entre M1 et M2 
-        # verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize=True)
-        # assert np.abs(verifOrtho_M1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"       
+        # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg 
+        vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
+        vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
 
-        # # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg 
-        # vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
-        # vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
+        if self.useVoigtNotation:
+            vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
+            vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
+            vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)
 
-        # if self.useVoigtNotation:
-        #     vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
-        #     vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
-        #     vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)
+        decomp = vecteur_e_pg-(vecteurP + vecteurM)
 
-        # decomp = vecteur_e_pg-(vecteurP + vecteurM)
+        if np.linalg.norm(vecteur_e_pg) > 0:
+            verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
+            # print(f"norm(Eps - (EpsP + EpsM))/norm(Eps) = {verifDecomp}")
+            assert verifDecomp < 1e-12
 
-        # if np.linalg.norm(vecteur_e_pg) > 0:
-        #     verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
-        #     # print(f"norm(Eps - (EpsP + EpsM))/norm(Eps) = {verifDecomp}")
-        #     assert verifDecomp < 1e-12
+        ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize=True))
+        ortho_vM_vP = np.abs(np.einsum('epi,epi->ep',vecteurM, vecteurP, optimize=True))
+        ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True))
 
-        # ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize=True))
-        # ortho_vM_vP = np.abs(np.einsum('epi,epi->ep',vecteurM, vecteurP, optimize=True))
-        # ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True))
+        if ortho_v_v.min() > 0:
+            # vertifOrthoEps = np.einsum('ep,ep->ep',np.abs(ortho_vP_vM), 1/np.abs(ortho_v_v))
+            vertifOrthoEps = np.max(ortho_vP_vM/ortho_v_v)
 
-        # if ortho_v_v.min() > 0:
-        #     # vertifOrthoEps = np.einsum('ep,ep->ep',np.abs(ortho_vP_vM), 1/np.abs(ortho_v_v))
-        #     vertifOrthoEps = np.max(ortho_vP_vM/ortho_v_v)
-        #     # print(f"\nmax(EpsP : EpsM) = {np.max(ortho_vP_vM)}")
-        #     # print(f"max(EpsM : EpsP) = {np.max(ortho_vM_vP)}")
-        #     # print(vertifOrthoEps)
-        # # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
+            assert vertifOrthoEps < 1e-12
+            # print(f"\nmax(EpsP : EpsM) = {np.max(ortho_vP_vM)}")
+            # print(f"max(EpsM : EpsP) = {np.max(ortho_vM_vP)}")
+            # print(vertifOrthoEps)
+        # vertifOrthoEps = np.linalg.norm(orthoEpsPEpsM)/np.linalg.norm(orthoEpsi)
 
         return projP, projM
 
@@ -809,7 +815,7 @@ class Test_Materiau(unittest.TestCase):
         Epsilon_e_pg = np.random.rand(Ne,nPg,3)
         
         # Epsilon_e_pg = np.random.rand(1,1,3)
-        # Epsilon_e_pg[0,:] = np.array([-100,500,0])
+        # Epsilon_e_pg[0,:] = np.array([1,-1,0])
         # # Epsilon_e_pg[1,:] = np.array([-100,500,0])
 
 

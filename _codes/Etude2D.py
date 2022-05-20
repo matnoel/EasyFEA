@@ -7,7 +7,6 @@ import PostTraitement
 from Materiau import Elas_Isot, Materiau
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
-from Mesh import Mesh
 from Simu import Simu
 import Affichage
 
@@ -39,7 +38,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/100
+taille = h/50
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -89,7 +88,7 @@ simu.add_lineLoad("displacement",noeuds_en_L, ["y"], [-lineLoad])
 # Assemblage du système matricielle
 simu.Assemblage_u()
 
-dep = simu.Solve_u(useCholesky=True)
+dep = simu.Solve_u(useCholesky=False)
 
 simu.Save_solutions()
 
