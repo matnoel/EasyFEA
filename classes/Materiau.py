@@ -65,6 +65,10 @@ class LoiDeComportement(object):
         return type(self).__name__
     nom = property(__get_nom)
 
+    def __get_resume(self):
+        return ""
+    resume = cast(str, property(__get_resume))
+
     def AppliqueCoefSurBrigi(self, B_rigi_e_pg: np.ndarray):
 
         # Si on a pas une notation de voigt on doit divisier les lignes 3(2D) et [4,5,6](3D)
@@ -143,6 +147,11 @@ class Elas_Isot(LoiDeComportement):
         C, S = self.__Comportement_Elas_Isot(useVoigtNotation)
 
         LoiDeComportement.__init__(self, dim, C, S, epaisseur, useVoigtNotation)
+
+    def __get_resume(self):
+        resume = f"\nElas_Isot :\nE = {self.E}, v = {self.v}\nCP = {self.contraintesPlanes}, ep = {self.epaisseur}\n"
+        return resume
+    resume = property(__get_resume)
 
     def get_lambda(self):
 
@@ -297,9 +306,11 @@ class PhaseFieldModel:
         return g_e_pg
 
     def __resume(self):
-        resum = f'\ncomportement : {self.__loiDeComportement.nom}'
+        resum = 'PhaseField :'        
         resum += f'\nsplit : {self.__split}'
-        resum += f'\nregularisation : {self.__regularization}\n'
+        resum += f'\nregularisation : {self.__regularization}'
+        resum += f'\nGc : {self.__Gc}'
+        resum += f'\nl0 : {self.__l0}\n'
         return resum
     resume = property(__resume)
 
@@ -317,7 +328,7 @@ class PhaseFieldModel:
     
     def __get_loiDeComportement(self):
         return self.__loiDeComportement
-    loiDeComportement = property(__get_loiDeComportement)
+    loiDeComportement = cast(LoiDeComportement, property(__get_loiDeComportement))
 
     def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float, verbosity=False):
         """Création d'un objet comportement Phase Field
@@ -728,8 +739,11 @@ class Materiau:
         if isinstance(phaseFieldModel, PhaseFieldModel):
             self.__phaseFieldModel = phaseFieldModel            
             """Phase field model"""
+            print(phaseFieldModel.loiDeComportement.resume)
+            print(phaseFieldModel.resume)            
         else:
             self.__comportement = comportement
+            print(comportement.resume)
             self.__phaseFieldModel = None
 
 

@@ -110,8 +110,6 @@ if solve:
 
         phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 
-        phaseFieldModel.resume
-
         materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
         simu = Simu(mesh, materiau, verbosity=False)
