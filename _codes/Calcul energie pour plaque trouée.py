@@ -35,11 +35,11 @@ file = Dossier.NewFile(file, results=True)
 
 L=15e-3
 h=30e-3
-ep=1
+ep=1e-3
 diam=6e-3
 
 E=12e9
-v=0.15
+v=0.2
 Sig = 10 #Pa
 
 gc = 1.4

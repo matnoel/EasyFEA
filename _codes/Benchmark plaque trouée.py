@@ -62,12 +62,9 @@ else:
 
     inc0 = 8e-8
     inc1 = 2e-8
-
     
 
 if solve:
-
-
 
     point = Point()
     domain = Domain(point, Point(x=L, y=h), clD)
