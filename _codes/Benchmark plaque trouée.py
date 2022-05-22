@@ -6,6 +6,7 @@ import Affichage
 import Interface_Gmsh
 import Simu
 import Dossier
+import PostTraitement
 
 import matplotlib.pyplot as plt
 
@@ -40,7 +41,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.1
+v=0.2
 Sig = 10 #Pa
 
 gc = 1.4
@@ -184,7 +185,9 @@ else:
 
 Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}")
 
-# PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}")
+
+PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 
 

@@ -161,13 +161,12 @@ class Simu:
 
         results = self.get_result(iter)
 
-        if self.materiau.isDamaged:            
+        if self.materiau.isDamaged: 
+            self.__psiP_e_pg = []           
             self.__damage = results["damage"].values[0]
             self.__displacement = results["displacement"].values[0]
         else:
             self.__displacement = results["displacement"].values[0]
-        
-        pass
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
@@ -621,10 +620,12 @@ class Simu:
             # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
             useUmfpack = False
 
+            # from pysparse.direct import umfpack
+
             if useUmfpack:
                 # from scikits.umfpack import umf
                 # import scikits.umfpack.umfpack as um
-                import scikits.umfpack as um
+                # import scikits.umfpack as um
                 lu = um.splu(A)
                 x = um.spsolve(A, b)
             else:
