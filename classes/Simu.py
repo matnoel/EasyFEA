@@ -87,6 +87,10 @@ class Simu:
             materiau (Materiau): Materiau utilisé
             verbosity (bool, optional): La simulation ecrira dans la console. Defaults to True.
         """
+
+        if verbosity:
+            Affichage.NouvelleSection("Simulation")
+
         dim = mesh.dim
 
         # Vérification des valeurs

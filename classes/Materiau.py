@@ -1,6 +1,7 @@
 from typing import cast
 from Mesh import Mesh
 import numpy as np
+import Affichage
 
 class LoiDeComportement(object):
 
@@ -149,7 +150,7 @@ class Elas_Isot(LoiDeComportement):
         LoiDeComportement.__init__(self, dim, C, S, epaisseur, useVoigtNotation)
 
     def __get_resume(self):
-        resume = f"\nElas_Isot :\nE = {self.E}, v = {self.v}\nCP = {self.contraintesPlanes}, ep = {self.epaisseur}\n"
+        resume = f"\nElas_Isot :\nE = {self.E}, v = {self.v}\nCP = {self.contraintesPlanes}, ep = {self.epaisseur}"
         return resume
     resume = property(__get_resume)
 
@@ -306,11 +307,11 @@ class PhaseFieldModel:
         return g_e_pg
 
     def __resume(self):
-        resum = 'PhaseField :'        
+        resum = '\nPhaseField :'        
         resum += f'\nsplit : {self.__split}'
         resum += f'\nregularisation : {self.__regularization}'
         resum += f'\nGc : {self.__Gc}'
-        resum += f'\nl0 : {self.__l0}\n'
+        resum += f'\nl0 : {self.__l0}'
         return resum
     resume = property(__resume)
 
@@ -718,7 +719,7 @@ class Materiau:
             
     phaseFieldModel = cast(PhaseFieldModel, property(__get_phaseFieldModel))
 
-    def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0):
+    def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0, verbosity=True):
         """Creer un materiau
 
         Parameters
@@ -728,6 +729,9 @@ class Materiau:
         epaisseur : float, optional
             epaisseur du matériau si en 2D > 0 !
         """
+        if verbosity:
+            Affichage.NouvelleSection("Matériau")        
+
         if comportement != None:
             assert isinstance(comportement, LoiDeComportement)
 
@@ -739,12 +743,15 @@ class Materiau:
         if isinstance(phaseFieldModel, PhaseFieldModel):
             self.__phaseFieldModel = phaseFieldModel            
             """Phase field model"""
-            print(phaseFieldModel.loiDeComportement.resume)
-            print(phaseFieldModel.resume)            
+            if verbosity: 
+                print(phaseFieldModel.loiDeComportement.resume)
+                print(phaseFieldModel.resume)            
         else:
             self.__comportement = comportement
-            print(comportement.resume)
+            if verbosity: print(comportement.resume)
             self.__phaseFieldModel = None
+        
+        self.__verbosity = verbosity
 
 
 # TEST ==============================

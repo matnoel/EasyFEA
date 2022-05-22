@@ -25,7 +25,7 @@ class Interface_Gmsh:
                 """modelGmsh peut ecrire dans la console"""
 
                 if verbosity:
-                        Affichage.NouvelleSection("Gmsh")
+                        Affichage.NouvelleSection("Maillage Gmsh")
 
         def __initGmsh(self):
                 gmsh.initialize()
