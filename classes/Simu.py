@@ -765,6 +765,7 @@ class Simu:
                 return ddls_dir.reshape(-1)
 
     def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
+        # TODO Je dois verifihier si les fonctions fonctionnes :/
         
         assert option in ["noeuds","gauss"]
         match option:
