@@ -16,7 +16,7 @@ Affichage.Clear()
 test=True
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe"]
+split = "Amor" # ["Bourdin","Amor","Miehe"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
@@ -43,7 +43,7 @@ v=0.2
 Sig = 10 #Pa
 
 gc = 1.4
-l_0 = 0.12e-3*5
+l_0 = 0.12e-3
 
 psiP_A = (v*(1-2*v)+1)/(2*(1+v))
 psiP_B = 9*v**2/(1+v)
@@ -75,12 +75,11 @@ point = Point()
 domain = Domain(point, Point(x=L, y=h), clD)
 circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
-interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True)
-mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
+interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
+mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "QUAD4")
 
-ax = Affichage.Plot_Maillage(mesh)
-Affichage.Plot_NoeudsMaillage(mesh, ax=ax, showId=True)
-plt.show()
+# Affichage.Plot_Maillage(mesh)
+# plt.show()
 
 comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=contraintesPlanes, epaisseur=ep)
 phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)

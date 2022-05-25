@@ -54,7 +54,15 @@ class Simu:
 
         print(f'load of {filename}')
 
-        return cast(Simu, simu)
+        simu = cast(Simu, simu)
+
+        simu.mesh.Resume()
+
+        simu.materiau.Resume()
+
+        simu.Resume()
+
+        return simu
     
     def problemDirections(self, probemType:str, directions:list):
         """Teste si les dimensions sont correctes"""
@@ -1350,24 +1358,24 @@ class Simu:
             return
         
         Wdef = self.Get_Resultat("Wdef")
-        print("\nW def = {:.6f} N.mm".format(Wdef))
+        print(f"\nW def = {Wdef:.3f} N.mm")
         
         Svm = self.Get_Resultat("Svm", valeursAuxNoeuds=False)
-        print("\nSvm max = {:.6f} MPa".format(Svm.max()))
+        print(f"\nSvm max = {Svm.max():.3f} MPa")
 
         # Affichage des déplacements
         dx = self.Get_Resultat("dx", valeursAuxNoeuds=True)
-        print("\nUx max = {:.6f} mm".format(dx.max()))
-        print("Ux min = {:.6f} mm".format(dx.min()))
+        print(f"\nUx max = {dx.max():.6f} mm")
+        print(f"Ux min = {dx.min():.6f} mm")
 
         dy = self.Get_Resultat("dy", valeursAuxNoeuds=True)
-        print("\nUy max = {:.6f} mm".format(dy.max()))
-        print("Uy min = {:.6f} mm\n".format(dy.min()))
+        print(f"\nUy max = {dy.max():.6f} mm")
+        print(f"Uy min = {dy.min():.6f} mm\n")
 
         if self.__dim == 3:
             dz = self.Get_Resultat("dz", valeursAuxNoeuds=True)
-            print("\nUz max = {:.6f} mm".format(dz.max()))
-            print("Uz min = {:.6f} mm".format(dz.min()))
+            print(f"\nUz max = {dz.max():.6f} mm")
+            print(f"Uz min = {dz.min():.6f} mm")
     
     def GetCoordUglob(self):
         """Renvoie les déplacements sous la forme [dx, dy, dz] (Nn,3)        """
@@ -1411,7 +1419,7 @@ class Test_Simu(unittest.TestCase):
 
         comportement = Elas_Isot(dim)
 
-        materiau = Materiau(comportement)
+        materiau = Materiau(comportement, verbosity=False)
 
         self.simulations2DElastique = []
 
@@ -1453,7 +1461,7 @@ class Test_Simu(unittest.TestCase):
 
         comportement = Elas_Isot(dim)
 
-        materiau = Materiau(comportement)
+        materiau = Materiau(comportement, verbosity=False)
         
         self.simulations3DElastique = []
 

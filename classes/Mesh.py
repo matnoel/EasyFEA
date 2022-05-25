@@ -30,9 +30,11 @@ class Mesh:
         """le maillage peut ecrire dans la console"""
         
         if self.__verbosity:
-            print(f"\nType d'elements: {self.elemType}")
-            print(f"Ne = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}")
+            self.Resume()            
     
+    def Resume(self):
+        print(f"\nType d'elements: {self.elemType}")
+        print(f"Ne = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}")
     
     def get_groupElem(self, dim=None):
         if dim != None:

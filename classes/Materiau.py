@@ -1,4 +1,6 @@
 from typing import cast
+
+from traitlets import Bool
 from Mesh import Mesh
 import numpy as np
 import Affichage
@@ -151,9 +153,9 @@ class Elas_Isot(LoiDeComportement):
 
     def __get_resume(self):
         if self.__dim == 2:
-            resume = f"\nElas_Isot :\nE = {self.E}, v = {self.v}\nCP = {self.contraintesPlanes}, ep = {self.epaisseur}"
+            resume = f"\nElas_Isot :\nE = {self.E:.2e}, v = {self.v}\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"
         else:
-            resume = f"\nElas_Isot :\nE = {self.E}, v = {self.v}"
+            resume = f"\nElas_Isot :\nE = {self.E:.2e}, v = {self.v}"
         return resume
     resume = property(__get_resume)
 
@@ -313,8 +315,8 @@ class PhaseFieldModel:
         resum = '\nPhaseField :'        
         resum += f'\nsplit : {self.__split}'
         resum += f'\nregularisation : {self.__regularization}'
-        resum += f'\nGc : {self.__Gc}'
-        resum += f'\nl0 : {self.__l0}'
+        resum += f'\nGc : {self.__Gc:.2e}'
+        resum += f'\nl0 : {self.__l0:.2e}'
         return resum
     resume = property(__resume)
 
@@ -435,26 +437,25 @@ class PhaseFieldModel:
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
-        
-        if self.__split == "Bourdin":
+
+        match self.__split:
             
-            c = self.__loiDeComportement.get_C()
-            c = c[np.newaxis, np.newaxis,:,:]
-            c = np.repeat(c, Ne, axis=0)
-            c = np.repeat(c, nPg, axis=1)
+            case "Bourdin":
+                c = self.__loiDeComportement.get_C()
+                c = c[np.newaxis, np.newaxis,:,:]
+                c = np.repeat(c, Ne, axis=0)
+                c = np.repeat(c, nPg, axis=1)
 
-            cP_e_pg = c
-            cM_e_pg = 0*cP_e_pg
+                cP_e_pg = c
+                cM_e_pg = 0*cP_e_pg
 
-        elif self.__split == "Amor":
+            case "Amor":
+                cP_e_pg, cM_e_pg = self.__AmorSplit(Epsilon_e_pg)
 
-            cP_e_pg, cM_e_pg = self.__AmorSplit(Epsilon_e_pg)
-            
-        elif self.__split == "Miehe":
-
-            cP_e_pg, cM_e_pg = self.__MieheSplit(Epsilon_e_pg)
+            case "Miehe":
+                cP_e_pg, cM_e_pg = self.__MieheSplit(Epsilon_e_pg)                
         
-        return cP_e_pg, cM_e_pg        
+        return cP_e_pg, cM_e_pg            
 
     def __AmorSplit(self, Epsilon_e_pg: np.ndarray):
 
@@ -660,7 +661,7 @@ class PhaseFieldModel:
         BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize=True)
         gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize=True)
         gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize=True)
-        projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2        
+        projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
 
         # # Verification de la décomposition et de l'orthogonalité
         # # projecteur en [1; 1; 1]
@@ -685,7 +686,7 @@ class PhaseFieldModel:
         # if ortho_v_v.min() > 0:
         #     vertifOrthoEps = np.max(ortho_vP_vM/ortho_v_v)
         #     assert vertifOrthoEps < 1e-12
-        
+
         if not self.useVoigtNotation:
             projP = LoiDeComportement.ToKelvinMandelNotation(2, projP)
             projM = LoiDeComportement.ToKelvinMandelNotation(2, projM)
@@ -744,17 +745,24 @@ class Materiau:
         # Initialisation des variables de la classe
 
         if isinstance(phaseFieldModel, PhaseFieldModel):
-            self.__phaseFieldModel = phaseFieldModel            
-            """Phase field model"""
-            if verbosity: 
-                print(phaseFieldModel.loiDeComportement.resume)
-                print(phaseFieldModel.resume)            
+            self.__phaseFieldModel = phaseFieldModel
+            """Phase field model"""                
         else:
             self.__comportement = comportement
-            if verbosity: print(comportement.resume)
             self.__phaseFieldModel = None
         
         self.__verbosity = verbosity
+
+        if self.__verbosity:
+            self.Resume()
+
+    def Resume(self):        
+        if self.isDamaged:
+            print(self.__phaseFieldModel.loiDeComportement.resume)
+            print(self.__phaseFieldModel.resume)
+        else:
+            print(self.__comportement.resume)
+
 
 
 # TEST ==============================
@@ -853,9 +861,6 @@ class Test_Materiau(unittest.TestCase):
                 raise "Pas implémenté"
             
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg)
-
-            if pfm.split == "Miehe":
-                pass
 
             # Test que cP + cM = c
             decompC = c-(cP_e_pg+cM_e_pg)

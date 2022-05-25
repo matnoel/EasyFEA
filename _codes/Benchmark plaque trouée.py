@@ -15,11 +15,11 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=True
+solve=False
 
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe"]
-regu = "AT1" # "AT1", "AT2"
+regu = "AT2" # "AT1", "AT2"
 
 
 nom="_".join([comp, split, regu])
@@ -155,12 +155,12 @@ if solve:
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         temps = np.round(temps,3)
 
-        max_d = np.round(damage.max(),3)
-        min_d = np.round(damage.min(),3)
+        max_d = damage.max()
+        min_d = damage.min()
         
         f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))
 
-        print(f"{resol} : ud = {np.round(ud*1e6,2)} µm, f = {np.round(f/1e6)} kN/mm,  d = [{min_d}; {max_d}], {temps} s")
+        print(f"{resol:4} : ud = {ud*1e6:4.2} µm, f = {f/1e6:.2e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {temps} s")
 
         if max_d<0.6:
             ud += inc0
@@ -183,11 +183,11 @@ else:
     simu = Simu.Simu.Load(folder)
 
 
-Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}")
+Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}", affichageMaillage=True)
 
-Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}")
+Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True)
 
-PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+# PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 
 

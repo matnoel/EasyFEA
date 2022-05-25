@@ -306,6 +306,8 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
         PostTraitement.Save_fig(folder, "noeuds")
 
     return ax
+
+# TODO Affichage conditions limites
     
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
     

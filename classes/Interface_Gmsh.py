@@ -107,11 +107,11 @@ class Interface_Gmsh:
                 # Créer une surface
                 surface = gmsh.model.occ.addPlaneSurface([boucle])
 
-                surf = gmsh.model.addPhysicalGroup(2, [surface])
+                surface = gmsh.model.addPhysicalGroup(2, [surface])
                 
                 tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
                 
-                self.__Construction_MaillageGmsh(2, elemType, surface=surf, isOrganised=isOrganised)
+                self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
                 return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -236,7 +236,7 @@ class Interface_Gmsh:
                 p6 = gmsh.model.occ.addPoint(center.x-rayon, center.y, 0, circle.taille)
                 p7 = gmsh.model.occ.addPoint(center.x+rayon, center.y, 0, circle.taille)
 
-                # Lignes cercle
+                # Lignes cercle                
                 l5 = gmsh.model.occ.addCircleArc(p6, p5, p7)
                 l6 = gmsh.model.occ.addCircleArc(p7, p5, p6)
                 lignecercle = gmsh.model.occ.addCurveLoop([l5,l6])
@@ -249,7 +249,9 @@ class Interface_Gmsh:
                 # Create a surface
                 surface = gmsh.model.occ.addPlaneSurface([loop,lignecercle])
 
-                # gmsh.model.occ.synchronize()
+                gmsh.model.occ.synchronize()
+                gmsh.model.occ.remove([(0,p5)], False)
+
 
                 tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
@@ -268,6 +270,10 @@ class Interface_Gmsh:
 
                                 # Impose que le maillage soit organisé                        
                                 if isOrganised:
+                                        # TODO Ne fonctionne plus depsuis le passage à occ
+                                        # gmsh.model.geo.synchronize()
+                                        # groups = gmsh.model.getPhysicalGroups()
+                                        # entities = gmsh.model.getEntitiesForPhysicalGroup(2, surface)
                                         gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
                                 # Synchronisation
@@ -417,7 +423,7 @@ class Interface_Gmsh:
                 list_mesh2D = []
                 
                 domain = Domain(Point(0,0,0), Point(L, h, 0), taille=taille)
-                line = Line(Point(x=0, y=h/2), Point(x=L/2, y=h/2), taille=taille)
+                line = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), taille=taille)
                 circle = Circle(Point(x=L/2, y=h/2), L/3, taille=taille)
 
                 # Pour chaque type d'element 2D

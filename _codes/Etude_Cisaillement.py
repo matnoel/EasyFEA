@@ -79,7 +79,7 @@ if solve:
         # mshFileName = ""
 
         domain = Domain(Point(), Point(x=L, y=L))
-        line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2, isOpen=False))
+        line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2))
 
         mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType,
         isOrganised=True, openCrack=openCrack)
