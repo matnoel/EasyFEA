@@ -38,7 +38,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/50
+taille = h/10
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -48,12 +48,12 @@ materiau = Materiau(comportement)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-domain = Domain(Point(), Point(x=L, y=h))
+domain = Domain(Point(), Point(x=L, y=h), taille)
 Line0 = Line(Point(), Point(y=h))
 LineL = Line(Point(x=L), Point(x=L, y=h))
 
 interfaceGmsh = Interface_Gmsh()
-mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, tailleElement=taille, isOrganised=True)
+mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=True)
 
 # Affichage.Plot_Maillage(mesh)
 # plt.show()
@@ -64,7 +64,6 @@ noeuds_en_0 = mesh.Get_Nodes_Line(Line0)        # noeuds_en_0 = mesh.Get_Nodes_C
 noeuds_en_L = mesh.Get_Nodes_Line(LineL)        # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
 # ------------------------------------------------------------------------------------------------------
-Affichage.NouvelleSection("Traitement")
 
 simu = Simu(mesh, materiau)
 
@@ -88,7 +87,7 @@ simu.add_lineLoad("displacement",noeuds_en_L, ["y"], [-lineLoad])
 # Assemblage du système matricielle
 simu.Assemblage_u()
 
-dep = simu.Solve_u(useCholesky=False)
+dep = simu.Solve_u(useCholesky=True)
 
 simu.Save_solutions()
 

@@ -11,15 +11,20 @@ import scipy.sparse as sp
 
 class GroupElem:
 
-        def __init__(self, gmshId: int, connect: np.ndarray, coordo: np.ndarray, verbosity=False):
+        def __init__(self, gmshId: int, connect: np.ndarray, elements: np.ndarray,
+        coordoGlob: np.ndarray, nodes: np.ndarray,
+        verbosity=False):
 
             self.__gmshId = gmshId            
             
             # Elements
+            self.__elements = elements
             self.__connect = connect
             
-            # Noeuds            
-            self.__coordo = coordo
+            # Noeuds
+            self.__nodes = nodes
+            self.__coordoGlob = coordoGlob
+            self.__coordo = cast(np.ndarray, coordoGlob[nodes])
 
             self.__verbosity = verbosity
 
@@ -48,12 +53,16 @@ class GroupElem:
             return self.__connect.shape[0]
         Ne = cast(int, property(__get_Ne))
 
-        # def __get_nodes(self):
-        #     return self.__nodes.copy()
-        # nodes = cast(np.ndarray, property(__get_nodes))
+        def __get_nodes(self):
+            return self.__nodes.copy()
+        nodes = cast(np.ndarray, property(__get_nodes))
+
+        def __get_elements(self):
+            return self.__elements.copy()
+        elements = cast(np.ndarray, property(__get_elements))
 
         def __get_Nn(self):
-            return self.__coordo.shape[0]
+            return self.__nodes.shape[0]
         Nn = property(__get_Nn)
 
         def __get_connect(self):
@@ -67,12 +76,13 @@ class GroupElem:
             # ou connecNoeud(Nn,:) est un vecteur ligne composé de 0 et de 1 qui permetra de sommer valeurs_e[noeuds]
             # Ensuite, il suffit juste par divisier par le nombre de fois que le noeud apparait dans la ligne        
             # L'idéal serait dobtenir connectNoeud (Nn x nombre utilisation du noeud par element) rapidement        
-            Nn = self.Nn
             Ne = self.Ne
             nPe = self.nPe
             listElem = np.arange(Ne)
 
             lignes = self.connect.reshape(-1)
+
+            Nn = int(lignes.max()+1)
             colonnes = np.repeat(listElem, nPe)
 
             return sp.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
@@ -111,9 +121,14 @@ class GroupElem:
         """matrice d'assemblage (Ne, nPe*dim)"""
 
         def __get_coordo(self):
-            return self.__coordo.copy()
+            return self.__coordo
         coordo = cast(np.ndarray, property(__get_coordo))
-        """matrice de coordonnées de l'element (Nn, 3)"""
+        """matrice de coordonnées du groupe d'element (Nn, 3)"""
+
+        def __get_coordoGlob(self):
+            return self.__coordoGlob
+        coordoGlob = cast(np.ndarray, property(__get_coordoGlob))
+        """matrice de coordonnées globale du maillage (maillage.Nn, 3)"""
 
         def __get_nbFaces(self):
             match self.dim:
@@ -136,7 +151,7 @@ class GroupElem:
             N_scalaire = self.get_N_pg(matriceType)
 
             # récupère les coordonnées des noeuds
-            coordo = self.__coordo
+            coordo = self.__coordoGlob
 
             # coordonnées localisées sur l'elements
             if elements.size == 0:
@@ -202,24 +217,26 @@ class GroupElem:
         def __get_sysCoord_sysCoordLocal(self):
             """Matrice de changement de base pour chaque element"""
 
+            coordo = self.coordoGlob
+
             match self.elemType:
 
                 case ("SEG2"|"SEG3"):
 
-                    points1 = self.coordo[self.__connect[:,0]]
-                    points2 = self.coordo[self.__connect[:,1]]
+                    points1 = coordo[self.__connect[:,0]]
+                    points2 = coordo[self.__connect[:,1]]
 
                 case ("TRI3"|"TRI6"):
 
-                    points1 = self.coordo[self.__connect[:,0]]
-                    points2 = self.coordo[self.__connect[:,1]]
-                    points3 = self.coordo[self.__connect[:,2]]
+                    points1 = coordo[self.__connect[:,0]]
+                    points2 = coordo[self.__connect[:,1]]
+                    points3 = coordo[self.__connect[:,2]]
 
                 case ("QUAD4"|"QUAD8"):
 
-                    points1 = self.coordo[self.__connect[:,0]]
-                    points2 = self.coordo[self.__connect[:,1]]
-                    points3 = self.coordo[self.__connect[:,3]]
+                    points1 = coordo[self.__connect[:,0]]
+                    points2 = coordo[self.__connect[:,1]]
+                    points3 = coordo[self.__connect[:,3]]
 
             match self.dim:
                 case (0|3):
@@ -267,9 +284,9 @@ class GroupElem:
             if self.dim == 0: return
             if matriceType not in self.__dict_F_e_pg.keys():
 
-                nodes_n = self.coordo[:]
+                nodes_n = self.__coordoGlob[:]
 
-                nodes_e = nodes_n[self.connect]
+                nodes_e = nodes_n[self.__connect]
 
                 if self.dim in [1,2] and nodes_n[:,self.dim].max() != 0:
                     syscoord = self.sysCoordLocal_e
@@ -579,7 +596,7 @@ class GroupElem:
 
             noeuds = np.where(conditionsTotal)[0]
             
-            return noeuds
+            return self.__nodes[noeuds]
         
         def Get_Nodes_Point(self, point: Point):
 
@@ -587,7 +604,7 @@ class GroupElem:
 
             noeud = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
 
-            return noeud
+            return self.__nodes[noeud]
 
         def Get_Nodes_Line(self, line: Line):
             
@@ -605,7 +622,7 @@ class GroupElem:
 
             noeuds = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
 
-            return noeuds
+            return self.__nodes[noeuds]
         
         def Get_Nodes_Domain(self, domain: Domain):
             """Renvoie la liste de noeuds qui sont dans le domaine"""
@@ -618,7 +635,7 @@ class GroupElem:
                                 (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
                                 (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))[0]
             
-            return noeuds
+            return self.__nodes[noeuds]
         
         def Localise_sol_e(self, sol: np.ndarray):
             """localise les valeurs de noeuds sur les elements"""
@@ -658,6 +675,8 @@ class GroupElem:
             assert self.dim in [2,3]
             nPe = self.nPe
             match self.elemType:
+                case "SEG2"|"SEG3"|"POINT":
+                    return self.__connect.copy()
                 case "TRI3":
                     return self.__connect[:, [0,1,2,0]]
                 case "TRI6":
@@ -669,34 +688,6 @@ class GroupElem:
                 case "TETRA4":
                     # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
                     return np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
-
-        def __TestImportation(self):
-            """Test si il n'existe pas un noeud en trop
-            """
-
-            Nmax = self.__nodes.max()
-            ecart = Nmax - (self.Nn-1)
-            
-            if ecart != 0:
-                # Si l'écart et différent de 0 alors il ya un noeud qui à été dédoublé
-                # Il faut alors creer un nouveau noeud dans coordo
-                # Pour connaitre les coordo du nouveau noeud on va utiliser les segments
-
-                coordo = self.__coordo
-                coordo = np.append(coordo, [0,0.0005,0]).reshape(-1,3)
-
-                if self.dim == 2:
-                    fig, ax = plt.subplots()
-
-                    ax.scatter(coordo[:,0], coordo[:,1], marker='.')
-
-                    connectFaces = self.connect[:,[0,1,2,0]]
-
-                    for e in range(self.Ne):
-                            co = coordo[connectFaces[e]]
-                            ax.plot(co[:,0], co[:,1])
-                            plt.pause(0.5)
-                    pass
 
         ################################################ STATIC ##################################################
 

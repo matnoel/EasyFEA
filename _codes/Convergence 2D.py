@@ -66,11 +66,11 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
 
                 
 
-                domain = Domain(Point(), Point(x=L, y=h))
+                domain = Domain(Point(), Point(x=L, y=h), taille=taille)
 
                 # Construction du modele et du maillage --------------------------------------------------------------------------------
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
-                mesh = interfaceGmsh.Rectangle(domain, elemType=elemType, tailleElement=taille, isOrganised=False)
+                mesh = interfaceGmsh.Rectangle(domain, elemType=elemType, isOrganised=False)
 
                 mesh = cast(Mesh, mesh)
                 # Récupère les noeuds qui m'interessent

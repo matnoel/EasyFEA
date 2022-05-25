@@ -43,7 +43,7 @@ v=0.2
 Sig = 10 #Pa
 
 gc = 1.4
-l_0 = 0.12e-3
+l_0 = 0.12e-3*5
 
 psiP_A = (v*(1-2*v)+1)/(2*(1+v))
 psiP_B = 9*v**2/(1+v)
@@ -78,8 +78,9 @@ circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True)
 mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 
-# Affichage.Plot_Maillage(mesh)
-# plt.show()
+ax = Affichage.Plot_Maillage(mesh)
+Affichage.Plot_NoeudsMaillage(mesh, ax=ax, showId=True)
+plt.show()
 
 comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=contraintesPlanes, epaisseur=ep)
 phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
@@ -101,7 +102,7 @@ node00 = mesh.Get_Nodes_Conditions(lambda x: x==0, lambda y: y==0)
 nodesA = mesh.Get_Nodes_Domain(domainA)
 nodesB = mesh.Get_Nodes_Domain(domainB)
 
-fig, ax = Affichage.Plot_Maillage(mesh)
+ax = Affichage.Plot_Maillage(mesh)
 
 for ns in [nodes0, nodesh, node00, nodesA, nodesB]:
     Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)

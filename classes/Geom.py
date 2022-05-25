@@ -3,11 +3,12 @@ import numpy as np
 
 class Point:
 
-    def __init__(self, x=0.0, y=0.0, z=0.0):
+    def __init__(self, x=0.0, y=0.0, z=0.0, isOpen=False):
         self.x = x
         self.y = y
         self.z = z
         self.coordo = np.array([x, y, z]).reshape(1,3)
+        self.isOpen = isOpen
 
 class Line:
 

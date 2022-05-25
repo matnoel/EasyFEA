@@ -150,7 +150,10 @@ class Elas_Isot(LoiDeComportement):
         LoiDeComportement.__init__(self, dim, C, S, epaisseur, useVoigtNotation)
 
     def __get_resume(self):
-        resume = f"\nElas_Isot :\nE = {self.E}, v = {self.v}\nCP = {self.contraintesPlanes}, ep = {self.epaisseur}"
+        if self.__dim == 2:
+            resume = f"\nElas_Isot :\nE = {self.E}, v = {self.v}\nCP = {self.contraintesPlanes}, ep = {self.epaisseur}"
+        else:
+            resume = f"\nElas_Isot :\nE = {self.E}, v = {self.v}"
         return resume
     resume = property(__get_resume)
 

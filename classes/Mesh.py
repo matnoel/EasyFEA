@@ -1,6 +1,7 @@
 
 from typing import cast
 import numpy as np
+from pandas import array
 import scipy.sparse as sp
 
 from Geom import *
@@ -9,7 +10,7 @@ from TicTac import TicTac
 
 class Mesh:
 
-    def __init__(self, dim: int, dict_groupElem: dict, verbosity=True):
+    def __init__(self, dict_groupElem: dict, verbosity=True):
         """Création du maillage depuis coordo et connection
         Le maillage est l'entité qui possède les groupes d'élements
         
@@ -21,7 +22,7 @@ class Mesh:
         for item in dict_groupElem.values():
             assert isinstance(item, GroupElem)
 
-        self.__dim = dim
+        self.__dim = int(np.max([k for k in dict_groupElem.keys()]))
 
         self.__dict_groupElem = dict_groupElem
 
@@ -111,6 +112,22 @@ class Mesh:
             return self.groupElem.coordo
     coordo = cast(np.ndarray, property(__get_coordo))
     """matrice des coordonnées de noeuds (Nn,3)"""
+
+    def __get_nodes(self, dim=None):
+        if isinstance(dim, int):
+            return cast(GroupElem, self.groupElem(dim)).nodes
+        else:
+            return self.groupElem.nodes
+    nodes = cast(np.ndarray, property(__get_nodes))
+    """numéros des noeuds du maillage"""
+
+    def __get_coordoGlob(self, dim=None):
+        if isinstance(dim, int):
+            return cast(GroupElem, self.groupElem(dim)).coordoGlob
+        else:
+            return self.groupElem.coordoGlob
+    coordoGlob = cast(np.ndarray, property(__get_coordoGlob))
+    """matrice de coordonnées globale du maillage (maillage.Nn, 3)"""
 
     def __get_connect(self, dim=None):
         if isinstance(dim, int):

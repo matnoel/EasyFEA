@@ -18,7 +18,7 @@ Affichage.Clear()
 
 test = True
 
-solve = False
+solve = True
 
 plotResult = True
 saveParaview = True
@@ -31,7 +31,7 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Miehe" # "Bourdin","Amor","Miehe"
+split = "Bourdin" # "Bourdin","Amor","Miehe"
 
 regularisation = "AT1" # "AT1", "AT2"
 
@@ -50,8 +50,8 @@ Gc = 2.7e3
 
 # Paramètres maillage
 if test:
-        taille = 1e-5 #taille maille test fem object
-        taille *= 2
+        # taille = 1e-5 #taille maille test fem object
+        taille = 0.001
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -79,14 +79,14 @@ if solve:
         # mshFileName = ""
 
         domain = Domain(Point(), Point(x=L, y=L))
-        line = Line(Point(y=L/2), Point(x=L/2, y=L/2))
+        line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2, isOpen=False))
 
-        mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, line=line, elemType=elemType,
-        elementSize=taille, isOrganised=True, openCrack=openCrack, filename=mshFileName)
+        mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType,
+        isOrganised=True, openCrack=openCrack)
 
-        # Affichage.Plot_NoeudsMaillage(mesh, showId=True)
+        Affichage.Plot_NoeudsMaillage(mesh, showId=True)
         # Affichage.Plot_Maillage(mesh)
-        # plt.show()
+        plt.show()
 
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Get_Nodes_Line(line)

@@ -160,7 +160,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
     
     return fig, ax, cb
     
-def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder=""):
+def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder=""):
     """Dessine le maillage de la simulation
 
     Parameters
@@ -196,7 +196,7 @@ def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder=
 
     assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
 
-    coordo = mesh.coordo
+    coordo = mesh.coordoGlob
 
     dim = mesh.dim
 
@@ -215,7 +215,8 @@ def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder=
     # ETUDE 2D
     if dim == 2:
         
-        fig, ax = plt.subplots()
+        if ax == None:
+            fig, ax = plt.subplots()
         
         if deformation:
             # Superpose maillage non deformé et deformé
@@ -275,7 +276,7 @@ def Plot_Maillage(obj, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder=
         import PostTraitement
         PostTraitement.Save_fig(folder, title)
 
-    return fig, ax
+    return ax
 
 def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='blue', folder=""):
     """Affiche les noeuds du maillage"""        
@@ -284,19 +285,21 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
     mesh = cast(Mesh, mesh)
 
     if ax == None:
-        fig, ax = Plot_Maillage(mesh, alpha=0)
+        ax = Plot_Maillage(mesh, alpha=0)
     
     if len(noeuds) == 0:
-        noeuds = list(range(mesh.Nn))
+        noeuds = mesh.nodes
+    
+    coordo = mesh.coordoGlob
 
     if mesh.dim == 2:
-        ax.scatter(mesh.coordo[noeuds,0], mesh.coordo[noeuds,1], marker=marker, c=c)
-        if showId:
-            for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], str(n))
+        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, c=c)
+        if showId:            
+            for n, noeud in enumerate(noeuds): ax.text(coordo[n,0], coordo[n,1], str(noeud))
     elif  mesh.dim == 3:            
-        ax.scatter(mesh.coordo[noeuds,0], mesh.coordo[noeuds,1], mesh.coordo[noeuds,2], marker=marker, c=c)
+        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], marker=marker, c=c)
         if showId:
-            for n in noeuds: ax.text(mesh.coordo[n,0], mesh.coordo[n,1], mesh.coordo[n,2], str(n))
+            for n, noeud in enumerate(noeuds): ax.text(coordo[n,0], coordo[n,1], coordo[n,2], str(noeud))
     
     if folder != "":
         import PostTraitement

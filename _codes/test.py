@@ -1,10 +1,16 @@
 import matplotlib.pyplot as plt
 import matplotlib.collections
 import numpy as np
+import scipy.sparse as sp
+
 import gmsh
 import sys
 
-isOpen = False
+import Affichage
+
+Affichage.Clear()
+
+isOpen = True
 
 gmsh.initialize(sys.argv)
 
@@ -21,6 +27,7 @@ gmsh.model.addPhysicalGroup(1, [line], 101)
 gmsh.model.addPhysicalGroup(0, [pt1], 102)
 
 gmsh.option.setNumber('Mesh.MeshSizeMin', 2)
+
 gmsh.model.mesh.generate(2)
 
 if isOpen:
@@ -35,42 +42,80 @@ if isOpen:
 
 # Here I want to recover coordo and connect
 
-elementTypes, elementTags, nodeTags = gmsh.model.mesh.getElements()
+elementTypes = gmsh.model.mesh.getElementTypes()
 nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
+
+nodes = np.array(nodes-1)
+Nn = nodes.shape[0]
+
+# Organise les noeuds du plus petits au plus grand
+sortedIndices = np.argsort(nodes)
+sortedNodes = nodes[sortedIndices]
+
+decalage = sortedNodes - np.arange(Nn)
+
+noeudsAChanger = np.where(decalage>0)[0]
+
+changes = np.zeros((noeudsAChanger.shape[0],2), dtype=int)
+
+Nodes = np.array(sortedNodes - decalage, dtype=int)
+
+changes[:,0] = sortedNodes[noeudsAChanger]
+changes[:,1] = noeudsAChanger
 
 coord = coord.reshape(-1,3)
 
+coordo = coord[sortedIndices]
+
+# shapeCoordo = int(nodes.max()+1)
+
+# lignes = np.repeat(nodes, 3)
+# colonnes = np.repeat(np.array([[0,1,2]]), Nn, axis=0).reshape(-1)
+# coordo = sp.csr_matrix((coord,(lignes, colonnes)), shape=(shapeCoordo,3))
+
 fig, ax = plt.subplots()
 
-for t, gmshId in enumerate(elementTypes):
+for t, elemType in enumerate(elementTypes):
 
-    Ne = elementTags[t].shape[0]
-    connect = nodeTags[t].reshape(Ne, -1)-1    
-    
-    nodes = np.unique(nodeTags[t]-1)
+    elementTags, nodeTags = gmsh.model.mesh.getElementsByType(elemType)
+
+    Ne = elementTags.shape[0]
+
+    nodeTags = np.array(nodeTags-1, dtype=int)
+
+    connect = nodeTags.reshape(Ne,-1)
+
+    for indice in range(changes.shape[0]):
+        old = changes[indice,0]
+        new = changes[indice, 1]
+        l, c = np.where(connect==old)
+        connect[l, c] = new
+
+    nodes = np.unique(nodeTags)
+
+    Connect = nodes[connect]
 
     Nmax = nodes.max()
-    assert Nmax <= (coord.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
+    assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
     
-    coordo = coord[nodes]
-
-    match gmshId:
+    match elemType:
         case 1: #SEG2
-            coordFaces = coordo[connect,:2]
+            connectFaces = connect            
             color='black'
             lw=2
             label='SEG2'
         case 2: #TRI3
             connectFaces = connect[:, [0,1,2,0]]
-            coordFaces = coordo[connectFaces,:2]
             color='red'
             lw=0.5
             label='TRI3'        
         case _:
             continue
+    coordFaces = coordo[connectFaces,:2]
 
-
-    ax.scatter(coordo[:,0], coordo[:,1], label=label)
+    coord=coordo[nodes]
+    
+    ax.scatter(coord[:,0], coord[:,1], label=label)
 
     pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=color, lw=lw, label=label)
     ax.add_collection(pc)
