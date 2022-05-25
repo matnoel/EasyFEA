@@ -84,6 +84,10 @@ class Simu:
         return self.__mesh
     mesh = cast(Mesh, property(__get_mesh))
 
+    def __getdim(self):
+        return self.__dim
+    dim = cast(int, property(__getdim))
+
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True):
@@ -638,8 +642,9 @@ class Simu:
                 # from scikits.umfpack import umf
                 # import scikits.umfpack.umfpack as um
                 # import scikits.umfpack as um
-                lu = um.splu(A)
-                x = um.spsolve(A, b)
+                # lu = um.splu(A)
+                # x = um.spsolve(A, b)
+                pass
             else:
                 # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
                 # sla.use_solver(useUmfpack=True)
@@ -671,6 +676,12 @@ class Simu:
         return x
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
+
+    def get_Bc_Dirichlet(self):
+        return self.__Bc_Dirichlet.copy()
+    
+    def get_Bc_Neuman(self):
+        return self.__Bc_Neuman.copy()
 
     def Clear_Bc_Dirichlet(self):
         """Enlève les conditions limites de Dirichlet"""
@@ -793,7 +804,7 @@ class Simu:
                 noeuds=noeuds, directions=directions, valeurs=valeurs)
 
 
-        self.__Add_Bc_Neumann(problemType=problemType,
+        self.__Add_Bc_Neumann(problemType=problemType, noeuds=noeuds,
         ddls=ddls, directions=directions, valeurs_ddls=valeurs,
         description=description)
 
@@ -803,7 +814,7 @@ class Simu:
         valeurs, ddls = self.__lineLoad(problemType=problemType,
         noeuds=noeuds, directions=directions, valeurs=valeurs)
 
-        self.__Add_Bc_Neumann(problemType=problemType,
+        self.__Add_Bc_Neumann(problemType=problemType, noeuds=noeuds,
         ddls=ddls, directions=directions, valeurs_ddls=valeurs,
         description=description)
 
@@ -889,7 +900,8 @@ class Simu:
 
         return valeurs_ddls, ddls
     
-    def __Add_Bc_Neumann(self, problemType: str, ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
+    def __Add_Bc_Neumann(self, problemType: str, noeuds: np.ndarray,
+    ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
     description=""):
         """Ajoute les conditions de Neumann"""
 
@@ -901,13 +913,13 @@ class Simu:
 
             case "damage":
                 
-                new_Bc = BoundaryCondition(problemType=problemType,
+                new_Bc = BoundaryCondition(problemType=problemType, noeuds=noeuds,
                 ddls=ddls, directions=[], valeurs_ddls=valeurs_ddls,
                 description=description, marker='.', color='red')
 
             case "displacement":
 
-                new_Bc = BoundaryCondition(problemType=problemType,
+                new_Bc = BoundaryCondition(problemType=problemType, noeuds=noeuds,
                 ddls=ddls, directions=directions, valeurs_ddls=valeurs_ddls,
                 description=description, marker='.', color='blue')
 
@@ -940,9 +952,9 @@ class Simu:
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
         ddls = self.__get_ddls_noeuds(problemType, noeuds, directions)
 
-        self.__Add_Bc_Dirichlet(problemType, ddls, directions, valeurs_ddls, description)
+        self.__Add_Bc_Dirichlet(problemType, noeuds, ddls, directions, valeurs_ddls, description)
      
-    def __Add_Bc_Dirichlet(self, problemType: str,
+    def __Add_Bc_Dirichlet(self, problemType: str, noeuds: np.ndarray,
         ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
         description=""):
 
@@ -954,13 +966,13 @@ class Simu:
 
             case "damage":
                 
-                new_Bc = BoundaryCondition(problemType=problemType,
+                new_Bc = BoundaryCondition(problemType=problemType, noeuds=noeuds,
                 ddls=ddls, valeurs_ddls=valeurs_ddls, directions=directions,
                 description=description, marker='.', color='red')
 
             case "displacement":
 
-                new_Bc = BoundaryCondition(problemType=problemType,
+                new_Bc = BoundaryCondition(problemType=problemType, noeuds=noeuds,
                 ddls=ddls, valeurs_ddls=valeurs_ddls, directions=directions,
                 description=description, marker='.', color='green')
 

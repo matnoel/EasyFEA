@@ -84,6 +84,9 @@ simu.add_dirichlet("displacement", noeuds_en_0, ["x","y"], [0, 0], description="
 # simu.add_surfLoad("displacement",noeuds_en_L, ["y"], [surfLoad])
 simu.add_lineLoad("displacement",noeuds_en_L, ["y"], [-lineLoad])
 
+Affichage.Plot_BoundaryConditions(simu)
+plt.show()
+
 # Assemblage du système matricielle
 simu.Assemblage_u()
 

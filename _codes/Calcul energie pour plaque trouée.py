@@ -113,6 +113,9 @@ simu.add_dirichlet("displacement", node00, ["x"], [0])
 
 simu.add_surfLoad("displacement", nodesh, ["y"], [-Sig])
 
+Affichage.Plot_BoundaryConditions(simu)
+plt.show()
+
 simu.Assemblage_u()
 
 simu.Solve_u(useCholesky=True)

@@ -308,12 +308,56 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
     return ax
 
 # TODO Affichage conditions limites
+
+
+def Plot_BoundaryConditions(simu, folder=""):
+    from Simu import Simu
+    from BoundaryCondition import BoundaryCondition
+
+    simu = cast(Simu, simu)
+
+    dirchlets = simu.get_Bc_Dirichlet()
+    neumanns = simu.get_Bc_Neuman()
+
+    dirchlets.extend(neumanns)
+    Conditions = dirchlets
+
+    ax = Plot_Maillage(simu, alpha=0)
+
+    coordo = simu.mesh.coordoGlob
+
+    for bc_Conditions in Conditions:
+        
+        bc_Conditions = cast(BoundaryCondition, bc_Conditions)
+
+        problemType = bc_Conditions.problemType
+        ddls = bc_Conditions.ddls
+        valeurs_ddls = bc_Conditions.valeurs_ddls
+        directions = bc_Conditions.directions
+        
+        # récupère les noeuds
+        noeuds = bc_Conditions.noeuds
+
+        valeurs = np.sum(valeurs_ddls.reshape(-1, len(directions)), axis=0)
+
+        color = bc_Conditions.color
+        marker = bc_Conditions.marker
+        description = bc_Conditions.description
+
+        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, label=f'{description} {valeurs} {directions}')
     
+    plt.legend()
+
+    
+    
+
+    
+        
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
     
     from Simu import Simu
 
-    simu = cast(Simu, simu)       
+    simu = cast(Simu, simu)
 
     coordo = simu.mesh.coordo
 

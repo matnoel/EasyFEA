@@ -128,6 +128,9 @@ if solve:
 
         RenseigneConditionsLimites()
 
+        Affichage.Plot_BoundaryConditions(simu)
+        plt.show()
+
         N = 400
         # N = 10
 
