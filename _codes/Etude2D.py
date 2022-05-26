@@ -106,7 +106,7 @@ if saveParaview:
 if plotResult:
 
         tic = TicTac()
-        Affichage.Plot_Result(simu, "amplitude")
+        # Affichage.Plot_Result(simu, "amplitude")
         Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
         Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)        
         # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)        

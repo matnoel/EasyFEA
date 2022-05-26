@@ -663,7 +663,6 @@ class Simu:
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Neumann)
 
     def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds", nPg=0):
-        # TODO Je dois verifihier si les fonctions fonctionnes :/
         
         assert option in ["noeuds","gauss"]
         match option:

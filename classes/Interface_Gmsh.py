@@ -258,7 +258,8 @@ class Interface_Gmsh:
                 self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
 
                 return cast(Mesh, self.__Recuperation_Maillage(filename))
-                
+
+        # TODO Ici permettre la creation d'une simulation quelquonques avec des points des lignes etc.   
 
         def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
         surface=None, crack=None, openBoundary=None):
@@ -334,7 +335,9 @@ class Interface_Gmsh:
                 -------
                 Mesh
                     Maillage crée
-                """     
+                """
+
+                # TODO Ici permettre la creation du .geo ou .msh si nécessaire
 
                 # Ancienne méthode qui beugait
                 # https://gitlab.onelab.info/gmsh/gmsh/-/issues/1926
