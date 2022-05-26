@@ -33,7 +33,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 3
+nBe = 1
 taille = h/nBe
 
 if nBe > 3:
@@ -61,6 +61,8 @@ simu = Simu(mesh, materiau, verbosity=True)
 
 simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b], ["y"])
 simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
+
+Affichage.Plot_BoundaryConditions(simu)
 
 simu.Assemblage_u()
 

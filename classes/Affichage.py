@@ -258,7 +258,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
             ax.add_collection3d(Poly3DCollection(coordo_par_face_deforme, edgecolor='red', linewidths=0.5, alpha=0))
         else:
             # ax.scatter(x,y,z, linewidth=0, alpha=0)
-            ax.add_collection3d(Poly3DCollection(coord_par_face, facecolors='c', edgecolor='black', linewidths=1, alpha=1))
+            ax.add_collection3d(Poly3DCollection(coord_par_face, facecolors='c', edgecolor='black', linewidths=1, alpha=alpha))
 
 
         # ax.autoscale()
@@ -293,7 +293,7 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
     coordo = mesh.coordoGlob
 
     if mesh.dim == 2:
-        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, c=c)
+        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, c=c, zorder=2.5)
         if showId:            
             for n, noeud in enumerate(noeuds): ax.text(coordo[n,0], coordo[n,1], str(noeud))
     elif  mesh.dim == 3:            
@@ -316,6 +316,8 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     simu = cast(Simu, simu)
 
+    dim = simu.dim
+
     dirchlets = simu.Get_Bc_Dirichlet()
     neumanns = simu.Get_Bc_Neuman()
 
@@ -323,6 +325,8 @@ def Plot_BoundaryConditions(simu, folder=""):
     Conditions = dirchlets
 
     ax = Plot_Maillage(simu, alpha=0)
+
+    assert isinstance(ax, plt.Axes)
 
     coordo = simu.mesh.coordoGlob
 
@@ -338,13 +342,57 @@ def Plot_BoundaryConditions(simu, folder=""):
         # récupère les noeuds
         noeuds = bc_Conditions.noeuds
 
-        valeurs = np.sum(valeurs_ddls.reshape(-1, len(directions)), axis=0)
-
-        color = bc_Conditions.color
-        marker = bc_Conditions.marker
+        if problemType == "damage":
+            valeurs = [valeurs_ddls[0]]
+        else:
+            valeurs = list(np.sum(valeurs_ddls.copy().reshape(-1, len(directions)), axis=0))
         description = bc_Conditions.description
 
-        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, label=f'{description} {valeurs} {directions}')
+        titre = f'{description} {valeurs} {directions}'
+
+        # if 'Neumann' in description and problemType == 'displacement':
+        #     facteur = coordo.max()/50
+        #     for n in noeuds:            
+        #         dx=facteur
+        #         dy=facteur
+        #         ax.arrow(coordo[n,0], coordo[n,1],dx, dy, head_width = 0.05, head_length = 0.1, label=titre)
+        #     continue
+        
+        # filled_markers = ('o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd', 'P', 'X')
+
+        match problemType:
+            case "damage":
+                marker='o'
+            case "displacement":
+                match len(directions):
+                    case 1:
+                        signe = np.sign(valeurs[0])
+                        match directions[0]:
+                            case 'x':
+                                if signe == -1:
+                                    marker='<'
+                                else:
+                                    marker='>'
+                            case 'y':
+                                if signe == -1:
+                                    marker='v'
+                                else:
+                                    marker='^'                                
+                            case 'z':
+                                marker='d'
+                    case 2:
+                        marker='X'
+                    case 3:
+                        marker='s'
+                
+        
+
+        if dim == 2:
+            lw=0
+            ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, linewidths=lw, label=titre, zorder=2.5)
+        else:
+            lw=3
+            ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,1], marker=marker, linewidths=lw, label=titre)
     
     plt.legend()
 

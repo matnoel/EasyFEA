@@ -6,7 +6,7 @@ class BoundaryCondition:
 
     def __init__(self, problemType: str, noeuds: np.ndarray,
     ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
-    description: str, marker='.', color='blue'):
+    description: str):
 
         assert problemType in ["damage", "displacement"]
         self.__problemType = problemType
@@ -14,18 +14,14 @@ class BoundaryCondition:
         self.__noeuds = noeuds
 
         self.__ddls = ddls
-
-        self.__valeurs = valeurs_ddls
-                
+        self.__valeurs_ddls = valeurs_ddls
         self.__directions = directions
         
         self.description = description
-        self.marker = marker
-        self.color = color
 
     def __get_problemType(self):
         return self.__problemType
-    problemType = property(__get_problemType)
+    problemType = cast(str, property(__get_problemType))
 
     def __get_noeuds(self):
         return self.__noeuds
@@ -36,12 +32,12 @@ class BoundaryCondition:
     ddls = cast(np.ndarray, property(__get_ddls))
 
     def __get_valeurs(self):
-        return self.__valeurs
+        return self.__valeurs_ddls
     valeurs_ddls = cast(np.ndarray, property(__get_valeurs))
 
     def __get_directions(self):
         return self.__directions
-    directions = property(__get_directions)
+    directions = cast(list, property(__get_directions))
 
 # Methodes statiques pour construit les ddls
 

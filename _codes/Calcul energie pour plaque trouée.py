@@ -76,7 +76,7 @@ domain = Domain(point, Point(x=L, y=h), clD)
 circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
-mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "QUAD4")
+mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 
 # Affichage.Plot_Maillage(mesh)
 # plt.show()

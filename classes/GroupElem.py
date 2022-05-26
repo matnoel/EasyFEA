@@ -789,6 +789,9 @@ class Test_GroupElem(unittest.TestCase):
             mesh.get_N_vecteur_pg("rigi")
 
 if __name__ == '__main__':        
+    Start_Test()
+
+def Start_Test():
     try:
         os.system("cls")    #nettoie terminal
         unittest.main(verbosity=2)    

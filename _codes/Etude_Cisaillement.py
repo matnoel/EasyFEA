@@ -66,7 +66,7 @@ folder = Dossier.NewFile(folder, results=True)
 
 if solve:
 
-        elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        elemType = "QUAD4" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
         interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
 
@@ -84,9 +84,8 @@ if solve:
         mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType,
         isOrganised=True, openCrack=openCrack)
 
-        Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-        # Affichage.Plot_Maillage(mesh)
-        plt.show()
+        Affichage.Plot_NoeudsMaillage(mesh, showId=True)        
+        # # plt.show()
 
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Get_Nodes_Line(line)

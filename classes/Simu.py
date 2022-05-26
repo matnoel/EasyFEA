@@ -79,6 +79,7 @@ class Simu:
                 for d in directions:
                     assert d in ["x","y","z"]
                     if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
+                assert dim >= len(directions)
         
     def __get_mesh(self):
         return self.__mesh
@@ -427,12 +428,7 @@ class Simu:
         # Construit les ddls connues
         ddls_Connues = []
 
-        for bcDirichlet in self.__Bc_Dirichlet:
-            bcDirichlet = cast(BoundaryCondition, bcDirichlet)
-            if bcDirichlet.problemType == problemType:
-                ddls_Connues.extend(bcDirichlet.ddls)
-        
-        ddls_Connues = np.array(ddls_Connues)
+        ddls_Connues = self.Get_ddls_Dirichlet(problemType)
 
         # Construit les ddls inconnues
 
@@ -458,7 +454,7 @@ class Simu:
         ddls = []
         valeurs_ddls = []
         for bcNeumann in self.__Bc_Neumann:
-            bcNeumann = cast(BoundaryCondition, bcNeumann)
+            assert isinstance(bcNeumann, BoundaryCondition)
             if bcNeumann.problemType == problemType:
                 ddls.extend(bcNeumann.ddls)
                 valeurs_ddls.extend(bcNeumann.valeurs_ddls)
@@ -488,7 +484,7 @@ class Simu:
         ddls = []
         valeurs_ddls = []
         for bcDirichlet in self.__Bc_Dirichlet:
-            bcDirichlet = cast(BoundaryCondition, bcDirichlet)
+            assert isinstance(bcDirichlet, BoundaryCondition)
             if bcDirichlet.problemType == problemType:
                 ddls.extend(bcDirichlet.ddls)
                 valeurs_ddls.extend(bcDirichlet.valeurs_ddls)
@@ -800,27 +796,22 @@ class Simu:
         tic = TicTac()
         
         Simu.CheckProblemTypes(problemType)
+        Simu.CheckDirections(self.__dim, problemType, directions)
 
         match problemType:
 
             case "damage":
                 
-                new_Bc = BoundaryCondition(problemType=problemType, noeuds=noeuds,
-                ddls=ddls, directions=[], valeurs_ddls=valeurs_ddls,
-                description=description, marker='.', color='red')
+                new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
 
             case "displacement":
 
-                new_Bc = BoundaryCondition(problemType=problemType, noeuds=noeuds,
-                ddls=ddls, directions=directions, valeurs_ddls=valeurs_ddls,
-                description=description, marker='.', color='blue')
+                new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
 
                 # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
-
                 ddl_Dirchlet = self.Get_ddls_Dirichlet(problemType)
                 for d in ddls: 
                     assert d not in ddl_Dirchlet, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
-                
 
         self.__Bc_Neumann.append(new_Bc)
 
@@ -855,15 +846,11 @@ class Simu:
 
             case "damage":
                 
-                new_Bc = BoundaryCondition(problemType=problemType, noeuds=noeuds,
-                ddls=ddls, valeurs_ddls=valeurs_ddls, directions=directions,
-                description=description, marker='.', color='red')
+                new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
             case "displacement":
 
-                new_Bc = BoundaryCondition(problemType=problemType, noeuds=noeuds,
-                ddls=ddls, valeurs_ddls=valeurs_ddls, directions=directions,
-                description=description, marker='.', color='green')
+                new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
                 # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
                 ddl_Neumann = self.Get_ddls_Neumann(problemType)

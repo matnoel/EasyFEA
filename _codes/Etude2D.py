@@ -67,17 +67,7 @@ noeuds_en_L = mesh.Get_Nodes_Line(LineL)        # noeuds_en_L = mesh.Get_Nodes_C
 
 simu = Simu(mesh, materiau)
 
-# # Affichage etc
-# fig, ax = Affichage.Plot_Maillage(simu, deformation=True)
-# Affichage.Plot_NoeudsMaillage(simu, ax, noeuds_en_0, c='red')
-# Affichage.Plot_NoeudsMaillage(simu, ax, noeuds_en_L, c='blue', showId=True)
-# Affichage.Plot_Maillage(simu, deformation=True)
-# Affichage.Plot_NoeudsMaillage(simu, showId=True)
-
 # Renseigne les condtions limites
-
-# Affichage.Plot_NoeudsMaillage(simu.mesh, showId=True)
-# plt.show()
 
 simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
 
