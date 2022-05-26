@@ -13,7 +13,7 @@ Affichage.Clear()
 
 # Options
 
-test=True
+test=False
 
 comp = "Elas_Isot"
 split = "Amor" # ["Bourdin","Amor","Miehe"]

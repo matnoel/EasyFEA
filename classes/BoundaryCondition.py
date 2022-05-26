@@ -39,7 +39,7 @@ class BoundaryCondition:
         return self.__directions
     directions = cast(list, property(__get_directions))
 
-# Methodes statiques pour construit les ddls
+    # Methodes statiques pour construire les ddls
 
     @staticmethod
     def Get_ddls(problemType, list_Bc_Conditions: list):

@@ -14,7 +14,7 @@ Affichage.Clear()
 
 # Options
 
-test=True
+test=False
 solve=True
 
 comp = "Elas_Isot"
@@ -41,8 +41,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.2
-Sig = 10 #Pa
+v=0.3
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -52,8 +51,10 @@ l_0 = 0.12e-3
 umax = 25e-6
 
 if test:
-    clD = l_0*2
-    clC = l_0
+    clD = 0.25e-3
+    clC = 0.12e-3
+    # clD = l_0*2
+    # clC = l_0
 
     inc0 = 16e-8
     inc1 = 4e-8    
@@ -74,10 +75,7 @@ if solve:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 
-    # Affichage.Plot_Maillage(mesh)
-    # plt.show()
-
-    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=False, epaisseur=ep)
     phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
     materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 
@@ -89,7 +87,6 @@ if solve:
     B_upper = Line(Point(y=h),Point(x=L, y=h))
     B_left = Line(point,Point(y=h))
     B_right = Line(Point(x=L),Point(x=L, y=h))
-
 
     c = diam/10
     domainA = Domain(Point(x=(L-c)/2, y=h/2+0.8*diam/2), Point(x=(L+c)/2, y=h/2+0.8*diam/2+c))
@@ -110,13 +107,6 @@ if solve:
     nodesA = mesh.Get_Nodes_Domain(domainA)
     nodesB = mesh.Get_Nodes_Domain(domainB)
 
-    # fig, ax = Affichage.Plot_Maillage(mesh)
-
-    # for ns in [nodes0, nodesh, node00, nodesA, nodesB]:
-    #     Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)   
-
-    
-
     ud=0
     damage_t=[]
     displacement_t=[]
@@ -132,13 +122,13 @@ if solve:
 
     Chargement()
     
-    Affichage.Plot_BoundaryConditions(simu)
-    plt.show()
+    # Affichage.Plot_BoundaryConditions(simu)
+    # plt.show()
 
     dep = []
     forces = []
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots()   
 
     while ud <= umax:
 
@@ -158,7 +148,7 @@ if solve:
 
         Kglob = simu.Assemblage_u()
 
-        displacement = simu.Solve_u(useCholesky=False)
+        displacement = simu.Solve_u(useCholesky=True)
 
         displacement_t.append(displacement)
 
@@ -170,9 +160,9 @@ if solve:
         max_d = damage.max()
         min_d = damage.min()
         
-        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))
+        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e6
 
-        print(f"{resol:4} : ud = {ud*1e6:4.2} µm, f = {f/1e6:.2e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {temps} s")
+        print(f"{resol:4} : ud = {ud*1e6:4.2} µm, f = {f:.2e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {temps} s")
 
         if max_d<0.6:
             ud += inc0
@@ -188,12 +178,16 @@ if solve:
         dep.append(ud)
         forces.append(f)
 
-        ax.scatter(dep, np.abs(forces), c='black')
+        ax.cla()
+        ax.plot(dep, np.abs(forces), c='black')
+        ax.set_xlabel("ud en µm")
+        ax.set_ylabel("f en kN/mm")
         plt.pause(0.0000001)
         
         resol += 1
     
-    
+    plt.savefig(Dossier.Append([folder,"forcedep.png"]))
+
     # Sauvegarde
     PostTraitement.Save_Simu(simu, folder)
         

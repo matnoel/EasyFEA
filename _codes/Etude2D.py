@@ -38,7 +38,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/10
+taille = h/50
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -75,7 +75,7 @@ simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="
 simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
-plt.show()
+# plt.show()
 
 # Assemblage du système matricielle
 simu.Assemblage_u()
@@ -90,6 +90,7 @@ Affichage.NouvelleSection("Post traitement")
 simu.Resume()
 
 folder = Dossier.NewFile("Etude2D", results=True)
+folder=""
 
 if saveParaview:
         filename = Dossier.NewFile("Etude2D\\solution2D", results=True)
@@ -101,8 +102,8 @@ if plotResult:
         
         Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
         Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)        
-        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)        
-        Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
+        # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)        
+        # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)
 

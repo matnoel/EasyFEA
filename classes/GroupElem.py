@@ -328,6 +328,9 @@ class GroupElem:
                     case 1:
                         invF_e_pg = 1/F_e_pg
                     case 2:
+                        # A = [alpha, beta          inv(A) = 1/det * [b, -beta
+                        #      a    , b   ]                           -a  alpha]
+
                         Ne = F_e_pg.shape[0]
                         nPg = F_e_pg.shape[1]
                         invF_e_pg = np.zeros((Ne,nPg,2,2))
