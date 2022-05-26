@@ -316,8 +316,8 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     simu = cast(Simu, simu)
 
-    dirchlets = simu.get_Bc_Dirichlet()
-    neumanns = simu.get_Bc_Neuman()
+    dirchlets = simu.Get_Bc_Dirichlet()
+    neumanns = simu.Get_Bc_Neuman()
 
     dirchlets.extend(neumanns)
     Conditions = dirchlets

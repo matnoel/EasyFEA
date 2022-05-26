@@ -108,13 +108,12 @@ for ns in [nodes0, nodesh, node00, nodesA, nodesB]:
 
 
 
-simu.add_dirichlet("displacement", nodes0, ["y"], [0])
-simu.add_dirichlet("displacement", node00, ["x"], [0])
+simu.add_dirichlet("displacement", nodes0, [0], ["y"])
+simu.add_dirichlet("displacement", node00, [0], ["x"])
 
-simu.add_surfLoad("displacement", nodesh, ["y"], [-Sig])
+simu.add_surfLoad("displacement", nodesh, [-Sig], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
-plt.show()
 
 simu.Assemblage_u()
 

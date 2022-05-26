@@ -82,9 +82,9 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
                 simu = Simu(mesh, materiau, verbosity=False)
 
                 # Renseigne les condtions limites en deplacement
-                simu.add_dirichlet("displacement", noeuds_en_0, ["x","y"], [0,0])
+                simu.add_dirichlet("displacement", noeuds_en_0, [0,0], ["x","y"])
                 # Renseigne les condtions limites en forces
-                simu.add_surfLoad("displacement", noeuds_en_L, ["y"], [-P/h**2])
+                simu.add_surfLoad("displacement", noeuds_en_L, [-P/h**2], ["y"])
 
                 # Assemblage du système matricielle
                 simu.Assemblage_u()
@@ -114,7 +114,7 @@ fig_Temps, ax_Temps = plt.subplots()
 # WdefRef = np.max(listWdef_e_nb)
 # WdefRef = 371.5
 WdefRef = 2*P**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5)
-print(f"Wef analytique = {WdefRef} mJ")
+print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 
 # WdefRef = 391.76
 

@@ -79,10 +79,10 @@ simu = Simu(mesh, materiau)
 # Affichage.Plot_NoeudsMaillage(simu.mesh, showId=True)
 # plt.show()
 
-simu.add_dirichlet("displacement", noeuds_en_0, ["x","y"], [0, 0], description="Encastrement")
+simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
 
-# simu.add_surfLoad("displacement",noeuds_en_L, ["y"], [surfLoad])
-simu.add_lineLoad("displacement",noeuds_en_L, ["y"], [-lineLoad])
+# simu.add_surfLoad("displacement",noeuds_en_L, [surfLoad], ["y"])
+simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 plt.show()

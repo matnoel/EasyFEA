@@ -59,8 +59,8 @@ Affichage.NouvelleSection("Traitement")
 
 simu = Simu(mesh, materiau, verbosity=True)
 
-simu.add_surfLoad("displacement",noeuds_en_L, ["y"], [-P/h/b])
-simu.add_dirichlet("displacement",noeuds_en_0, ["x","y","z"], [0,0,0])
+simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b], ["y"])
+simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
 
 simu.Assemblage_u()
 

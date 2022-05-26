@@ -21,73 +21,6 @@ import Dossier
     
 class Simu:
 
-    @staticmethod
-    def problemTypes():
-        return ["displacement","damage"]
-
-    def Save(self, folder:str):
-        "Sauvegarde la simulation dans le dossier"
-
-        filename = Dossier.Append([folder, "simulation.xml"])
-
-        with open(filename, "wb") as file:
-            pickle.dump(self, file)
-
-    @staticmethod
-    def Load(folder: str):
-        """Charge la simulation depuis le dossier
-
-        Parameters
-        ----------
-        folder : str
-            nom du dossier dans lequel simulation est sauvegardée
-
-        Returns
-        -------
-        Simu
-            simu
-        """
-        filename = Dossier.Append([folder, "simulation.xml"])
-
-        with open(filename, 'rb') as file:
-            simu = pickle.load(file)
-
-        print(f'load of {filename}')
-
-        simu = cast(Simu, simu)
-
-        simu.mesh.Resume()
-
-        simu.materiau.Resume()
-
-        simu.Resume()
-
-        return simu
-    
-    def problemDirections(self, probemType:str, directions:list):
-        """Teste si les dimensions sont correctes"""
-        assert probemType in Simu.problemTypes()
-
-        match probemType:
-            case "damage":
-                assert directions == ["d"]
-            case "displacement":
-                for d in directions:
-                    assert d in ["x","y","z"]
-                    if self.__dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
-    
-    def __get_listElement(self):        
-        return list(range(self.mesh.Ne))        
-    listElement = property(__get_listElement)
-
-    def __get_mesh(self):
-        return self.__mesh
-    mesh = cast(Mesh, property(__get_mesh))
-
-    def __getdim(self):
-        return self.__dim
-    dim = cast(int, property(__getdim))
-
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True):
@@ -119,15 +52,47 @@ class Simu:
         self.materiau = materiau
         """materiau de la simulation"""
         
+        # resultats
         self.__init_results()
 
         # Conditions Limites
-        self.__Bc_Neuman = []
-        """Conditions de Neumann list(BoundaryCondition)"""
-        self.__Bc_Dirichlet = []
-        """Conditions de Dirichlet list(BoundaryCondition)"""
+        self.Init_Bc_Neumann()
+        self.Init_Bc_Dirichlet()
+
+# ------------------------------------------- FONCTIONS ------------------------------------------- 
+
+    @staticmethod
+    def CheckProblemTypes(problemType:str):
+        """Verifie si ce type de probleme est implénté"""
+        problemTypes = ["displacement","damage"]
+        assert problemType in problemTypes, "Ce type de probleme n'est pas implémenté"
+
+    @staticmethod
+    def CheckDirections(dim: int, problemType:str, directions:list):
+        """Verifie si les direcrtions renseignés sont possible pour le probleme"""
+        Simu.CheckProblemTypes(problemType)
+
+        match problemType:
+            case "damage":
+                assert directions == ["d"]
+            case "displacement":
+                for d in directions:
+                    assert d in ["x","y","z"]
+                    if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
+        
+    def __get_mesh(self):
+        return self.__mesh
+    mesh = cast(Mesh, property(__get_mesh))
+
+    def __getdim(self):
+        return self.__dim
+    dim = cast(int, property(__getdim))
+
+# ------------------------------------------- RESULTATS ------------------------------------------- 
 
     def __init_results(self):
+        """Construit les arrays qui vont stocker les resultats"""
+
         self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
         """déplacements"""
         
@@ -147,15 +112,18 @@ class Simu:
         self.Save_solutions()
 
     def get_result(self, index=None):
+        """Recupère le resultat stocké dans le data frame panda"""
         if index == None:
             return self.__results.loc[[self.__results.shape[0]]]
         else:
             return self.__results.loc[[index]]
 
-    def get_results(self):
+    def Get_results(self):
+        """Renvoie le data frame panda qui stocke les résultats"""
         return self.__results
 
     def Save_solutions(self):
+        """Sauvegarde les résultats de l'itération"""
 
         iter = self.__results.index.shape[0]
 
@@ -173,8 +141,10 @@ class Simu:
 
         self.__results = pd.concat([self.__results, new], ignore_index=True)
 
-    def Update(self, iter: int):
+    def Update_iter(self, iter: int):
+        """Met la simulation à literation renseignée"""
 
+        # On va venir récupérer les resultats stocké dans le tableau pandas
         results = self.get_result(iter)
 
         if self.materiau.isDamaged: 
@@ -298,7 +268,7 @@ class Simu:
         return self.__Ku
 
     def Solve_u(self, useCholesky=False):
-        """Resolution du probleme de déplacement"""
+        """Resolution du probleme de déplacement"""        
 
         tic = TicTac()
 
@@ -433,15 +403,6 @@ class Simu:
         dGlob = self.__Solveur(problemType="damage", useCholesky=False, A_isSymetric=False)
 
         tic.Tac("Résolution endommagement",f"Résolution pour le problème de endommagement" , self.__verbosity)
-        
-        # assert dGlob.max() <= 1, "Doit etre inférieur a 1"
-        # assert dGlob.min() >= 0, "Doit etre supérieur 0"
-
-        # if(dGlob.max() > 1):
-        #     print("dmax = {}".format(dGlob.max()))
-
-        # if(dGlob.min() < 0):
-        #     print("dmin = {}".format(dGlob.min()))
 
         assert dGlob.shape[0] == self.mesh.Nn
 
@@ -461,7 +422,7 @@ class Simu:
             list(int), list(int): ddl_Connues, ddl_Inconnues
         """
         
-        assert problemType in Simu.problemTypes()
+        Simu.CheckProblemTypes(problemType)
 
         # Construit les ddls connues
         ddls_Connues = []
@@ -492,11 +453,11 @@ class Simu:
     def __Application_Conditions_Neuman(self, problemType: str):
         """applique les conditions de Neumann"""
 
-        assert problemType in Simu.problemTypes()
+        Simu.CheckProblemTypes(problemType)
 
         ddls = []
         valeurs_ddls = []
-        for bcNeumann in self.__Bc_Neuman:
+        for bcNeumann in self.__Bc_Neumann:
             bcNeumann = cast(BoundaryCondition, bcNeumann)
             if bcNeumann.problemType == problemType:
                 ddls.extend(bcNeumann.ddls)
@@ -522,7 +483,7 @@ class Simu:
     def __Application_Conditions_Dirichlet(self, problemType: str, b, resolution):
         """applique les conditions de dirichlet"""
 
-        assert problemType in Simu.problemTypes()
+        Simu.CheckProblemTypes(problemType)
 
         ddls = []
         valeurs_ddls = []
@@ -569,7 +530,7 @@ class Simu:
         """Resolution du de la simulation
         renvoie la solution"""
 
-        assert problemType in Simu.problemTypes()
+        Simu.CheckProblemTypes(problemType)
 
         # Résolution du plus rapide au plus lent 2, 1
         if resolution == 1:
@@ -677,92 +638,27 @@ class Simu:
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
-    def get_Bc_Dirichlet(self):
-        return self.__Bc_Dirichlet.copy()
-    
-    def get_Bc_Neuman(self):
-        return self.__Bc_Neuman.copy()
+    def Init_Bc_Neumann(self):
+        """Enlève les conditions limites de Neumann"""
+        self.__Bc_Neumann = []
+        """Conditions de Neumann list(BoundaryCondition)"""
 
-    def Clear_Bc_Dirichlet(self):
+    def Init_Bc_Dirichlet(self):
         """Enlève les conditions limites de Dirichlet"""
         self.__Bc_Dirichlet = []
+        """Conditions de Dirichlet list(BoundaryCondition)"""
 
-    def get_ddls_Dirichlet(self, problemType: str):
-        assert problemType in Simu.problemTypes()
-
-        ddls = []
-        for bc_Dirichlet in self.__Bc_Dirichlet:
-            bc_Dirichlet = cast(BoundaryCondition, bc_Dirichlet)
-            if bc_Dirichlet.problemType == problemType:
-                ddls.extend(bc_Dirichlet.ddls)
-        return np.array(ddls)
-
-    def Clear_Bc_Neuman(self):
-        """Enlève les conditions limites de Neumann"""
-        self.__Bc_Neuman = []
+    def Get_Bc_Dirichlet(self):
+        return self.__Bc_Dirichlet.copy()
     
-    def get_ddls_Neumann(self, problemType: str):
-        assert problemType in Simu.problemTypes()
+    def Get_Bc_Neuman(self):
+        return self.__Bc_Neumann.copy()
 
-        ddls = []
-        for bc_Neumann in self.__Bc_Neuman:
-            bc_Neumann = cast(BoundaryCondition, bc_Neumann)
-            if bc_Neumann.problemType == problemType:
-                ddls.extend(bc_Neumann.ddls)
-        return np.array(ddls)
-
-    def __get_ddls_connect(self, problemType:str, connect_e: np.ndarray, directions: list):
-
-        assert problemType in self.problemTypes()
-        self.problemDirections(problemType, directions)
-
-        match problemType:
-            case "damage":
-                return connect_e.reshape(-1)
-            case "displacement":
-
-                indexes = {
-                    "x": 0,
-                    "y": 1,
-                    "z": 2,
-                }
-                listeIndex=[]
-                for dir in directions:
-                    listeIndex.append(indexes[dir])
-
-                Ne = connect_e.shape[0]
-                nPe = connect_e.shape[1]
-
-                connect_e_repet = np.repeat(connect_e, len(directions), axis=0).reshape(-1,nPe)
-                listIndex = np.repeat(np.array(listeIndex*nPe), Ne, axis=0).reshape(-1,nPe)
-
-                ddls_dir = np.array(connect_e_repet*self.__dim + listIndex, dtype=int)
-
-                return ddls_dir.reshape(-1)
-
-    def __get_ddls_noeuds(self, problemType:str, noeuds:np.ndarray, directions: list):
-
-        assert problemType in self.problemTypes()
-        self.problemDirections(problemType, directions)
-
-        match problemType:
-            case "damage":
-                return noeuds.reshape(-1)
-            case "displacement":
-                ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)
-                for d, direction in enumerate(directions):
-                    match direction:
-                        case "x":
-                            index = 0
-                        case "y":
-                            index = 1
-                        case "z":
-                            assert self.__dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                            index = 2
-                    
-                    ddls_dir[:,d] = noeuds * self.__dim + index
-
-                return ddls_dir.reshape(-1)
+    def Get_ddls_Dirichlet(self, problemType: str):
+        return BoundaryCondition.Get_ddls(problemType, self.__Bc_Dirichlet)
+    
+    def Get_ddls_Neumann(self, problemType: str):        
+        return BoundaryCondition.Get_ddls(problemType, self.__Bc_Neumann)
 
     def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
         # TODO Je dois verifihier si les fonctions fonctionnes :/
@@ -791,38 +687,32 @@ class Simu:
 
         return valeurs_eval
 
-    def add_surfLoad(self, problemType:str, noeuds: np.ndarray, directions: list, valeurs: list,
-        description=""):
+    def add_surfLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+        """Applique une force surfacique"""
 
         match self.__dim:
             case 2:
-                valeurs, ddls = self.__lineLoad(problemType=problemType,
-                noeuds=noeuds, directions=directions, valeurs=valeurs)
-
-                valeurs = valeurs*self.materiau.comportement.epaisseur
+                valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
+                # multiplie par l'epaisseur
+                valeurs_ddls = valeurs_ddls*self.materiau.comportement.epaisseur
             case 3:
-                valeurs, ddls = self.__surfload(problemType=problemType,
-                noeuds=noeuds, directions=directions, valeurs=valeurs)
+                valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
 
+        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-        self.__Add_Bc_Neumann(problemType=problemType, noeuds=noeuds,
-        ddls=ddls, directions=directions, valeurs_ddls=valeurs,
-        description=description)
+    def add_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+        """Applique une force linéique"""
 
-    def add_lineLoad(self, problemType:str, noeuds: np.ndarray, directions: list, valeurs: list,
-        description=""):
+        valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
 
-        valeurs, ddls = self.__lineLoad(problemType=problemType,
-        noeuds=noeuds, directions=directions, valeurs=valeurs)
+        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-        self.__Add_Bc_Neumann(problemType=problemType, noeuds=noeuds,
-        ddls=ddls, directions=directions, valeurs_ddls=valeurs,
-        description=description)
+    def __lineLoad(self,problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+        """Applique une force linéique\n
+        Renvoie valeurs_ddls, ddls"""
 
-    def __lineLoad(self,problemType:str, noeuds: np.ndarray, directions: list, valeurs: list):        
-
-        assert problemType in self.problemTypes()
-        self.problemDirections(problemType, directions)
+        Simu.CheckProblemTypes(problemType)
+        Simu.CheckDirections(self.__dim, problemType, directions)
 
         # Récupération des matrices pour le calcul
         mesh = self.__mesh
@@ -856,14 +746,16 @@ class Simu:
         # valeurs_e_p = 
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
         
-        ddls = self.__get_ddls_connect(problemType, connect_e, directions)        
+        ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
 
         return valeurs_ddls, ddls
     
-    def __surfload(self,problemType:str, noeuds: np.ndarray, directions: list, valeurs: list):
+    def __surfload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+        """Applique une force surfacique\n
+        Renvoie valeurs_ddls, ddls"""
 
-        assert problemType in self.problemTypes()
-        self.problemDirections(problemType, directions)
+        Simu.CheckProblemTypes(problemType)
+        Simu.CheckDirections(self.__dim, problemType, directions)
 
         # Récupération des matrices pour le calcul
         mesh = self.__mesh
@@ -888,6 +780,7 @@ class Simu:
         # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
         valeurs_ddl_dir = np.zeros((Ne*groupElem2D.nPe, len(directions)))
 
+        # Intégre
         for d, dir in enumerate(directions):
             eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
             valeurs_e_p = np.einsum('ep,p,epi,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
@@ -897,18 +790,16 @@ class Simu:
         # valeurs_e_p = 
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
         
-        ddls = self.__get_ddls_connect(problemType, connect_e, directions)        
+        ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
 
         return valeurs_ddls, ddls
     
-    def __Add_Bc_Neumann(self, problemType: str, noeuds: np.ndarray,
-    ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
-    description=""):
+    def __Add_Bc_Neumann(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Neumann"""
 
         tic = TicTac()
         
-        assert problemType in Simu.problemTypes(), "Ce type de probleme n'est pas implémenté"
+        Simu.CheckProblemTypes(problemType)
 
         match problemType:
 
@@ -926,18 +817,16 @@ class Simu:
 
                 # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
 
-                ddl_Dirchlet = self.get_ddls_Dirichlet(problemType)
+                ddl_Dirchlet = self.Get_ddls_Dirichlet(problemType)
                 for d in ddls: 
                     assert d not in ddl_Dirchlet, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
                 
 
-        self.__Bc_Neuman.append(new_Bc)
+        self.__Bc_Neumann.append(new_Bc)
 
         tic.Tac("Boundary Conditions","Condition Neumann", self.__verbosity)
 
-    def add_dirichlet(self, problemType: str,
-        noeuds: np.ndarray, directions: list, valeurs: np.ndarray,
-        description=""):
+    def add_dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs: np.ndarray,directions: list, description=""):
 
         coordo = self.mesh.coordo
         coordo_n = coordo[noeuds]
@@ -951,17 +840,16 @@ class Simu:
             valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
-        ddls = self.__get_ddls_noeuds(problemType, noeuds, directions)
+        ddls = BoundaryCondition.Get_ddls_noeuds(self.__dim, problemType, noeuds, directions)
 
-        self.__Add_Bc_Dirichlet(problemType, noeuds, ddls, directions, valeurs_ddls, description)
+        self.__Add_Bc_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
      
-    def __Add_Bc_Dirichlet(self, problemType: str, noeuds: np.ndarray,
-        ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
-        description=""):
+    def __Add_Bc_Dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
+        """Ajoute les conditions de Dirichlet"""
 
         tic = TicTac()
 
-        assert problemType in Simu.problemTypes(), "Ce type de probleme n'est pas implémenté"        
+        Simu.CheckProblemTypes(problemType)
 
         match problemType:
 
@@ -978,7 +866,7 @@ class Simu:
                 description=description, marker='.', color='green')
 
                 # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
-                ddl_Neumann = self.get_ddls_Neumann(problemType)
+                ddl_Neumann = self.Get_ddls_Neumann(problemType)
                 for d in ddls: 
                     assert d not in ddl_Neumann, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
 
@@ -1148,7 +1036,7 @@ class Simu:
             return None
 
         if iter != None:
-            self.Update(iter)
+            self.Update_iter(iter)
 
         if option == "Wdef":
             return self.__CalculEnergieDef()
@@ -1540,7 +1428,7 @@ class Test_Simu(unittest.TestCase):
             mesh = simu.mesh
             nPg = mesh.get_nPg(matriceType)
             listPg = list(range(nPg))
-            listElement = simu.listElement
+            Ne = mesh.Ne            
             materiau = simu.materiau
             C = materiau.comportement.get_C()
 
@@ -1553,7 +1441,7 @@ class Test_Simu(unittest.TestCase):
 
             jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
             poid_pg = mesh.get_poid_pg(matriceType)
-            for e in listElement:            
+            for e in range(Ne):            
                 # Pour chaque poing de gauss on construit Ke
                 Ke = 0
                 for pg in listPg:

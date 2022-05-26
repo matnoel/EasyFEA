@@ -15,11 +15,11 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=False
+solve=True
 
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe"]
-regu = "AT2" # "AT1", "AT2"
+regu = "AT1" # "AT1", "AT2"
 
 
 nom="_".join([comp, split, regu])
@@ -115,11 +115,7 @@ if solve:
     # for ns in [nodes0, nodesh, node00, nodesA, nodesB]:
     #     Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)   
 
-    def Chargement():
-        simu.Clear_Bc_Dirichlet()
-        simu.add_dirichlet("displacement", nodes_lower, ["y"], [0])
-        simu.add_dirichlet("displacement", node00, ["x"], [0])
-        simu.add_dirichlet("displacement", nodes_upper, ["y"], [-ud])
+    
 
     ud=0
     damage_t=[]
@@ -127,6 +123,22 @@ if solve:
 
     resol=1
     bord=0
+
+    def Chargement():
+        simu.Init_Bc_Dirichlet()
+        simu.add_dirichlet("displacement", nodes_lower, [0], ["y"])
+        simu.add_dirichlet("displacement", node00, [0], ["x"])
+        simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
+
+    Chargement()
+    
+    Affichage.Plot_BoundaryConditions(simu)
+    plt.show()
+
+    dep = []
+    forces = []
+
+    fig, ax = plt.subplots()
 
     while ud <= umax:
 
@@ -146,7 +158,7 @@ if solve:
 
         Kglob = simu.Assemblage_u()
 
-        displacement = simu.Solve_u(useCholesky=True)
+        displacement = simu.Solve_u(useCholesky=False)
 
         displacement_t.append(displacement)
 
@@ -170,17 +182,24 @@ if solve:
         if np.any(damage[noeuds_bord] >= 0.8):
             bord +=1
         
-        if bord == 20:
+        if bord == 1:
             break
+
+        dep.append(ud)
+        forces.append(f)
+
+        ax.scatter(dep, np.abs(forces), c='black')
+        plt.pause(0.0000001)
         
         resol += 1
     
     
-    simu.Save(folder)
+    # Sauvegarde
+    PostTraitement.Save_Simu(simu, folder)
+        
+else:   
 
-else:
-
-    simu = Simu.Simu.Load(folder)
+    simu = PostTraitement.Load_Simu(folder)
 
 
 Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}", affichageMaillage=True)

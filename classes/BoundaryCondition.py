@@ -43,3 +43,62 @@ class BoundaryCondition:
         return self.__directions
     directions = property(__get_directions)
 
+# Methodes statiques pour construit les ddls
+
+    @staticmethod
+    def Get_ddls(problemType, list_Bc_Conditions: list):
+        """Renvoie les ddls du probleme et de la liste de conditions donné"""                        
+        ddls = []
+        for bc in list_Bc_Conditions:
+            assert isinstance(bc, BoundaryCondition)            
+            if bc.problemType == problemType:
+                ddls.extend(bc.ddls)
+        return np.array(ddls)
+    
+    @staticmethod
+    def Get_ddls_connect(dim: int, problemType:str, connect_e: np.ndarray, directions: list):    
+        match problemType:
+            case "damage":
+                return connect_e.reshape(-1)
+            case "displacement":
+
+                indexes = {
+                    "x": 0,
+                    "y": 1,
+                    "z": 2,
+                }
+                listeIndex=[]
+                for dir in directions:
+                    listeIndex.append(indexes[dir])
+
+                Ne = connect_e.shape[0]
+                nPe = connect_e.shape[1]
+
+                connect_e_repet = np.repeat(connect_e, len(directions), axis=0).reshape(-1,nPe)
+                listIndex = np.repeat(np.array(listeIndex*nPe), Ne, axis=0).reshape(-1,nPe)
+
+                ddls_dir = np.array(connect_e_repet*dim + listIndex, dtype=int)
+
+                return ddls_dir.reshape(-1)
+    
+    @staticmethod
+    def Get_ddls_noeuds(dim: int, problemType:str, noeuds:np.ndarray, directions: list):
+        match problemType:
+            case "damage":
+                return noeuds.reshape(-1)
+            case "displacement":
+                ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)
+                for d, direction in enumerate(directions):
+                    match direction:
+                        case "x":
+                            index = 0
+                        case "y":
+                            index = 1
+                        case "z":
+                            assert dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
+                            index = 2
+                    
+                    ddls_dir[:,d] = noeuds * dim + index
+
+                return ddls_dir.reshape(-1)
+

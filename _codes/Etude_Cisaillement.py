@@ -115,18 +115,24 @@ if solve:
         simu = Simu(mesh, materiau, verbosity=False)
 
         # Renseignement des conditions limites
-        def RenseigneConditionsLimites():
+        def RenseigneConditionsLimites(dep):
+
+                simu.Init_Bc_Dirichlet()
+
                 if not openCrack:
-                        simu.add_dirichlet("damage",noeuds_Milieu, ["d"], [1])                        
+                        simu.add_dirichlet("damage",noeuds_Milieu, [1], ["d"])                        
 
                 # # Conditions en déplacements à Gauche et droite
-                simu.add_dirichlet("displacement", noeuds_Gauche,["y"], [0])
-                simu.add_dirichlet("displacement", noeuds_Droite,["y"], [0])
+                simu.add_dirichlet("displacement", noeuds_Gauche, [0],["y"])
+                simu.add_dirichlet("displacement", noeuds_Droite, [0],["y"])
 
                 # Conditions en déplacements en Bas
-                simu.add_dirichlet("displacement", noeuds_Bas,["x","y"], [0,0])
+                simu.add_dirichlet("displacement", noeuds_Bas, [0,0],["x","y"])
 
-        RenseigneConditionsLimites()
+                # simu.add_dirichlet("displacement", noeuds_Haut, [dep], ["x"])
+                simu.add_dirichlet("displacement", noeuds_Haut, [dep,0], ["x","y"])
+
+        RenseigneConditionsLimites(0)
 
         Affichage.Plot_BoundaryConditions(simu)
         plt.show()
@@ -139,13 +145,13 @@ if solve:
 
         u_inc = 5e-8
         # u_inc = 5e-7
-        dep = 0
-
-        print(phaseFieldModel.resume)
+        dep = 0        
 
         tic = TicTac()
 
         for iter in range(N):
+
+                RenseigneConditionsLimites(dep)
 
                 #-------------------------- PFM problem ------------------------------------
                 
@@ -159,15 +165,9 @@ if solve:
 
                 # Déplacement en haut
                 dep += u_inc
-
-                # simu.add_dirichlet("displacement", noeuds_Haut, ["x"], [dep])
-                simu.add_dirichlet("displacement", noeuds_Haut, ["x","y"], [dep,0])
                 
                 uglob = simu.Solve_u(useCholesky=False)
                 uglob_t.append(uglob)
-
-                simu.Clear_Bc_Dirichlet()
-                RenseigneConditionsLimites()
 
                 simu.Save_solutions()
 
@@ -182,12 +182,11 @@ if solve:
 
 
         # Sauvegarde
-
-        simu.Save(folder)
+        PostTraitement.Save_Simu(simu, folder)
         
 else:   
 
-        simu = Simu.Load(folder)
+        simu = PostTraitement.Load_Simu(folder)
         
 
 

@@ -1,5 +1,6 @@
 
 import os
+
 import Affichage
 from Simu import Simu
 import Dossier
@@ -11,15 +12,47 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import pickle
 
-def Save_fig(folder:str, title: str):
+# =========================================== Simulation ==================================================
 
-    for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
+def Save_Simu(simu: Simu, folder:str):
+    "Sauvegarde la simulation dans le dossier"
 
-    nom = Dossier.Append([folder, title+'.png'])
+    filename = Dossier.Append([folder, "simulation.xml"])
 
-    # plt.savefig(nom, dpi=200)
-    plt.savefig(nom, dpi=500)
+    with open(filename, "wb") as file:
+        pickle.dump(simu, file)
 
+def Load_Simu(simu: Simu, folder: str):
+    """Charge la simulation depuis le dossier
+
+    Parameters
+    ----------
+    folder : str
+        nom du dossier dans lequel simulation est sauvegardée
+
+    Returns
+    -------
+    Simu
+        simu
+    """
+
+    assert isinstance(simu, Simu)
+
+    filename = Dossier.Append([folder, "simulation.xml"])
+
+    with open(filename, 'rb') as file:
+        simu = pickle.load(file)
+
+    print(f'load of {filename}')
+
+    simu.mesh.Resume()
+    simu.materiau.Resume()
+    simu.Resume()
+
+    return simu
+
+
+# =========================================== Animation ==================================================
 
 def MakeMovie(folder: str, option: str, simu: Simu,
 deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
@@ -37,12 +70,12 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     # Nom de la vidéo dans le dossier ou est communiqué le dossier
     filename = Dossier.Append([folder, f'{name}.mp4'])
 
-    results = simu.get_results()
+    results = simu.Get_results()
 
     N = results.shape[0]
 
     # Met à jour la simulation pour creer la première figure qui sera utilisée pour l'animation
-    simu.Update(0)
+    simu.Update_iter(0)
 
     # Trace la première figure
     fig, ax, cb = Affichage.Plot_Result(simu, option,
@@ -68,7 +101,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     
         tic = TicTac()
         for iter in range(N):
-            simu.Update(iter)
+            simu.Update_iter(iter)
 
             cb.remove()
             
@@ -92,7 +125,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
 
     vtuFiles=[]
 
-    results = simu.get_results()
+    results = simu.Get_results()
 
     N = results.shape[0]
 
@@ -121,7 +154,7 @@ def __SaveParaview(simu: Simu, iter: int, filename: str,nodesField=["coordoDef",
 
     options = nodesField+elementsField
    
-    simu.Update(iter)
+    simu.Update_iter(iter)
 
     for option in options:
         if not simu.VerificationOption(option):
@@ -316,4 +349,11 @@ def __WriteBinary(valeur, type: str, file):
         file.write(convert)
 
 
-    
+def Save_fig(folder:str, title: str):
+
+    for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
+
+    nom = Dossier.Append([folder, title+'.png'])
+
+    # plt.savefig(nom, dpi=200)
+    plt.savefig(nom, dpi=500)
