@@ -327,7 +327,25 @@ class GroupElem:
                 match self.dim:
                     case 1:
                         invF_e_pg = 1/F_e_pg
-                    case (2|3):
+                    case 2:
+                        Ne = F_e_pg.shape[0]
+                        nPg = F_e_pg.shape[1]
+                        invF_e_pg = np.zeros((Ne,nPg,2,2))
+
+                        det = self.get_jacobien_e_pg(matriceType)
+
+                        alpha = F_e_pg[:,:,0,0]
+                        beta = F_e_pg[:,:,0,1]
+                        a = F_e_pg[:,:,1,0]
+                        b = F_e_pg[:,:,1,1]
+
+                        invF_e_pg[:,:,0,0] = b
+                        invF_e_pg[:,:,0,1] = -beta
+                        invF_e_pg[:,:,1,0] = -a
+                        invF_e_pg[:,:,1,1] = alpha
+
+                        invF_e_pg = np.einsum('ep,epij->epij',1/det, invF_e_pg, optimize=True)                        
+                    case 3:
                         invF_e_pg = np.array(np.linalg.inv(F_e_pg))
 
                 self.__dict_invF_e_pg[matriceType] = invF_e_pg
