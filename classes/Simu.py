@@ -1,4 +1,5 @@
 
+
 from types import LambdaType
 from typing import cast
 
@@ -429,6 +430,7 @@ class Simu:
         ddls_Connues = []
 
         ddls_Connues = self.Get_ddls_Dirichlet(problemType)
+        unique_ddl_Connues = np.unique(ddls_Connues.copy())
 
         # Construit les ddls inconnues
 
@@ -439,10 +441,14 @@ class Simu:
                 taille = self.__mesh.Nn*self.__dim
 
         ddls_Inconnues = list(np.arange(taille))
-        for ddlConnue in ddls_Connues: ddls_Inconnues.remove(ddlConnue)
+        for ddlConnue in ddls_Connues:
+            if ddlConnue in ddls_Inconnues:
+                ddls_Inconnues.remove(ddlConnue)
+                                
         ddls_Inconnues = np.array(ddls_Inconnues)
-
-        assert ddls_Connues.shape[0] + ddls_Inconnues.shape[0] == taille, "Problème dans les conditions"
+        
+        verifTaille = unique_ddl_Connues.shape[0] + ddls_Inconnues.shape[0]
+        assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
 
         return ddls_Connues, ddls_Inconnues
 
@@ -656,24 +662,26 @@ class Simu:
     def Get_ddls_Neumann(self, problemType: str):        
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Neumann)
 
-    def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
+    def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds", nPg=0):
         # TODO Je dois verifihier si les fonctions fonctionnes :/
         
         assert option in ["noeuds","gauss"]
         match option:
             case "noeuds":
-                valeurs_eval = np.zeros((coordo.shape[0],1))
+                valeurs_eval = np.zeros(coordo.shape[0])
             case "gauss":
-                valeurs_eval = np.zeros((coordo.shape[0],coordo.shape[1],1))
+                valeurs_eval = np.zeros((coordo.shape[0],nPg))
         
         if isinstance(valeurs, LambdaType):
             # Evalue la fonction aux coordonnées
-
-            match option:
-                case "noeuds":
-                    valeurs_eval[:] = valeurs(coordo[:,0], coordo[:,1], coordo[:,2])
-                case "gauss":
-                    valeurs_eval[:,:] = valeurs(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
+            try:
+                match option:                
+                    case "noeuds":
+                        valeurs_eval[:] = valeurs(coordo[:,0], coordo[:,1], coordo[:,2])
+                    case "gauss":
+                        valeurs_eval[:,:] = valeurs(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
+            except:
+                raise "Doit fournir une fonction lambda de la forme\n lambda x,y,z, : f(x,y,z)"
         else:
             match option:
                 case "noeuds":
@@ -682,9 +690,53 @@ class Simu:
                     valeurs_eval[:,:] = valeurs
 
         return valeurs_eval
+    
+    def add_dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs: np.ndarray,directions: list, description=""):
+        """Pour le probleme donné renseigne les contions de dirichlet\n
+        valeurs est une liste de constantes ou de fonctions\n
+        ex: valeurs = [lambda x,y,z : f(x,y,z), -10]
+
+        les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
+        les fonctions utilisent les coordonnées x, y et z des neouds
+        """
+
+        coordo = self.mesh.coordo
+        coordo_n = coordo[noeuds]
+        Nn = noeuds.shape[0]
+
+        # initialise le vecteur de valeurs pour chaque noeuds
+        valeurs_ddl_dir = np.zeros((Nn, len(directions)))
+
+        for d, dir in enumerate(directions):
+            eval_n = self.__evalue(coordo_n, valeurs[d], option="noeuds")
+            valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
+        
+        valeurs_ddls = valeurs_ddl_dir.reshape(-1)
+        ddls = BoundaryCondition.Get_ddls_noeuds(self.__dim, problemType, noeuds, directions)
+
+        self.__Add_Bc_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+
+    def add_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+        """Pour le probleme donné applique une force linéique\n
+        valeurs est une liste de constantes ou de fonctions\n
+        ex: valeurs = [lambda x,y,z : f(x,y,z), -10]
+
+        les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
+        les fonctions utilisent les coordonnées x, y et z des neouds
+        """
+
+        valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
+
+        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
     def add_surfLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
-        """Applique une force surfacique"""
+        """Pour le probleme donné applique une force surfacique\n
+        valeurs est une liste de constantes ou de fonctions\n
+        ex: valeurs = [lambda x,y,z : f(x,y,z), -10]
+
+        les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
+        les fonctions utilisent les coordonnées x, y et z des neouds
+        """
 
         match self.__dim:
             case 2:
@@ -694,14 +746,7 @@ class Simu:
             case 3:
                 valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
 
-        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
-
-    def add_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
-        """Applique une force linéique"""
-
-        valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
-
-        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)    
 
     def __lineLoad(self,problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force linéique\n
@@ -734,8 +779,8 @@ class Simu:
         valeurs_ddl_dir = np.zeros((Ne*groupElem1D.nPe, len(directions)))
 
         for d, dir in enumerate(directions):
-            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
-            valeurs_e_p = np.einsum('ep,p,epi,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
+            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss", nPg=nPg)
+            valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
             valeurs_e = np.sum(valeurs_e_p, axis=1)
             valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
 
@@ -778,8 +823,8 @@ class Simu:
 
         # Intégre
         for d, dir in enumerate(directions):
-            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
-            valeurs_e_p = np.einsum('ep,p,epi,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
+            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss", nPg=nPg)
+            valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
             valeurs_e = np.sum(valeurs_e_p, axis=1)
             valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
 
@@ -815,25 +860,7 @@ class Simu:
 
         self.__Bc_Neumann.append(new_Bc)
 
-        tic.Tac("Boundary Conditions","Condition Neumann", self.__verbosity)
-
-    def add_dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs: np.ndarray,directions: list, description=""):
-
-        coordo = self.mesh.coordo
-        coordo_n = coordo[noeuds]
-        Nn = noeuds.shape[0]
-
-        # initialise le vecteur de valeurs pour chaque noeuds
-        valeurs_ddl_dir = np.zeros((Nn, len(directions)))
-
-        for d, dir in enumerate(directions):
-            eval_n = self.__evalue(coordo_n, valeurs[d], option="noeuds")
-            valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
-        
-        valeurs_ddls = valeurs_ddl_dir.reshape(-1)
-        ddls = BoundaryCondition.Get_ddls_noeuds(self.__dim, problemType, noeuds, directions)
-
-        self.__Add_Bc_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+        tic.Tac("Boundary Conditions","Condition Neumann", self.__verbosity)   
      
     def __Add_Bc_Dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Dirichlet"""
@@ -1086,6 +1113,7 @@ class Simu:
                 listCoordX = np.array(range(0, u_e_n.shape[1], self.__dim))
                 dx_e_n = u_e_n[:,listCoordX]; dx_e = np.mean(dx_e_n, axis=1)
                 dy_e_n = u_e_n[:,listCoordX+1]; dy_e = np.mean(dy_e_n, axis=1)
+                dz_e = np.zeros(dy_e_n.shape[0])
                 if self.__dim == 3:
                     dz_e_n = u_e_n[:,listCoordX+2]; dz_e = np.mean(dz_e_n, axis=1)
 

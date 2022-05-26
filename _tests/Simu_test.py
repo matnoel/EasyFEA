@@ -9,6 +9,7 @@ from Simu import Simu
 import Dossier
 from GroupElem import GroupElem
 from TicTac import TicTac
+import matplotlib.pyplot as plt
 
 class Test_Simu(unittest.TestCase):    
     
@@ -27,7 +28,7 @@ class Test_Simu(unittest.TestCase):
         # Paramètres maillage
         taille = L/2
 
-        comportement = Elas_Isot(dim)
+        comportement = Elas_Isot(dim, epaisseur=b)
 
         materiau = Materiau(comportement, verbosity=False)
 
@@ -48,7 +49,9 @@ class Test_Simu(unittest.TestCase):
             noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
             simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
-            simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])
+            # simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])
+            simu.add_dirichlet("displacement",noeuds_en_L, [lambda x,y,z: 1], ['x'])
+            simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
 
             self.simulations2DElastique.append(simu)
 
@@ -88,7 +91,7 @@ class Test_Simu(unittest.TestCase):
             noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
             noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
-            simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b], ["z"])
+            simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b, lambda x,y,z : x+0.002], ["z","x"])
 
             simu.add_dirichlet("displacement", noeuds_en_0, [0,0,0],["x","y","z"], "Encastrement")
 
@@ -100,15 +103,24 @@ class Test_Simu(unittest.TestCase):
 
     def test_ResolutionDesSimulationsElastique2D(self):
         # Pour chaque type de maillage on simule
+        ax=None        
         for simu in self.simulations2DElastique:
             simu = cast(Simu, simu)
             simu.Solve_u()
+            fig, ax, cb = Affichage.Plot_Result(simu, "amplitude", affichageMaillage=True)
+            plt.pause(0.00001)
+            plt.close(fig)
 
     def test_ResolutionDesSimulationsElastique3D(self):
         # Pour chaque type de maillage on simule
+        ax=None
         for simu in self.simulations3DElastique:
             simu = cast(Simu, simu)
             simu.Solve_u()
+            
+            fig, ax, cb = Affichage.Plot_Result(simu, "amplitude", affichageMaillage=True)
+            plt.pause(0.00001)
+            plt.close(fig)
 
     def test__ConstruitMatElem_Dep(self):
         for simu in self.simulations2DElastique:
@@ -181,7 +193,7 @@ class Test_Simu(unittest.TestCase):
             tic.Tac("Matrices","Calcul des matrices elementaires (boucle)", False)
             
             # Verification
-            Ke_comparaison = np.array(listKe_e)
+            Ke_comparaison = np.array(listKe_e)*simu.materiau.comportement.epaisseur
             test = Ke_e - Ke_comparaison
 
             test = np.testing.assert_array_almost_equal(Ke_e, Ke_comparaison, verbose=False)

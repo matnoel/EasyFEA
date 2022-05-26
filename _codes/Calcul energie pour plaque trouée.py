@@ -13,7 +13,7 @@ Affichage.Clear()
 
 # Options
 
-test=False
+test=True
 
 comp = "Elas_Isot"
 split = "Amor" # ["Bourdin","Amor","Miehe"]
@@ -97,7 +97,7 @@ domainB = Domain(Point(x=L/2+0.8*diam/2, y=(h-c)/2), Point(x=L/2+0.8*diam/2+c, y
 
 nodes0 = mesh.Get_Nodes_Line(B_lower)
 nodesh = mesh.Get_Nodes_Line(B_upper)
-node00 = mesh.Get_Nodes_Conditions(lambda x: x==0, lambda y: y==0)
+node00 = mesh.Get_Nodes_Point(Point())
 nodesA = mesh.Get_Nodes_Domain(domainA)
 nodesB = mesh.Get_Nodes_Domain(domainB)
 

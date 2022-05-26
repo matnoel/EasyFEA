@@ -25,6 +25,9 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
         facteur de deformation du domaine, by default 4
     affichageMaillage : bool, optional
         affcihe le mailllage, by default False
+
+
+    renvoie fig, ax, cb
     """
 
     # Detecte si on donne bien ax et fig en meme temps

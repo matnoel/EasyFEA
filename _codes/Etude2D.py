@@ -38,7 +38,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/50
+taille = h/5
 
 comportement = Elas_Isot(dim, epaisseur=b, useVoigtNotation=True)
 
@@ -51,17 +51,20 @@ elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 domain = Domain(Point(), Point(x=L, y=h), taille)
 Line0 = Line(Point(), Point(y=h))
 LineL = Line(Point(x=L), Point(x=L, y=h))
+LineH = Line(Point(y=h),Point(x=L, y=h))
 
 interfaceGmsh = Interface_Gmsh()
 mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=True)
 
-# Affichage.Plot_Maillage(mesh)
+# Affichage.Plot_NoeudsMaillage(mesh, showId=True)
 # plt.show()
 
 # Récupère les noeuds qui m'interessent
 
 noeuds_en_0 = mesh.Get_Nodes_Line(Line0)        # noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeuds_en_L = mesh.Get_Nodes_Line(LineL)        # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+
+noeuds_en_h= mesh.Get_Nodes_Line(LineH)
 
 # ------------------------------------------------------------------------------------------------------
 
@@ -71,11 +74,15 @@ simu = Simu(mesh, materiau)
 
 simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
 
+simu.add_dirichlet("displacement", noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
+
+# simu.add_lineLoad("displacement", noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
+
 # simu.add_surfLoad("displacement",noeuds_en_L, [surfLoad], ["y"])
-simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
+# simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
-# plt.show()
+plt.show()
 
 # Assemblage du système matricielle
 simu.Assemblage_u()
@@ -99,7 +106,7 @@ if saveParaview:
 if plotResult:
 
         tic = TicTac()
-        
+        Affichage.Plot_Result(simu, "amplitude")
         Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
         Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)        
         # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)        

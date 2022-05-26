@@ -62,9 +62,9 @@ class Mesh:
         """
         return self.groupElem.Get_Nodes_Conditions(conditionX, conditionY, conditionZ)
     
-    def Get_Nodes_Point(self, line: Line):
+    def Get_Nodes_Point(self, point: Point):
         """Renvoie la liste le noeud sur le point"""
-        return self.groupElem.Get_Nodes_Point(line)
+        return self.groupElem.Get_Nodes_Point(point)
 
     def Get_Nodes_Line(self, line: Line):
         """Renvoie la liste de noeuds qui sont sur la ligne"""
