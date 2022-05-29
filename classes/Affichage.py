@@ -310,8 +310,6 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
 
     return ax
 
-# TODO Affichage conditions limites
-# Manque les flèches
 
 def Plot_BoundaryConditions(simu, folder=""):
     from Simu import Simu
