@@ -59,7 +59,7 @@ class Test_Materiau(unittest.TestCase):
                 if comp.useVoigtNotation:
                     c = C_voigt
                 else:
-                    c = LoiDeComportement.ToKelvinMandelNotation(comp.dim, C_voigt)
+                    c = LoiDeComportement.ApplyKelvinMandelCoef(comp.dim, C_voigt)
                 verifC = np.linalg.norm(c-comp.get_C())/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
 
@@ -92,8 +92,11 @@ class Test_Materiau(unittest.TestCase):
                 c = comportement.get_C()
             else:
                 raise "Pas implémenté"
-            
-            cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg)
+
+            cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg, True)
+
+            if pfm.split == "Stress":
+                pass
 
             # Test que cP + cM = c
             decompC = c-(cP_e_pg+cM_e_pg)

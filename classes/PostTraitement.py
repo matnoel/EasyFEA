@@ -22,7 +22,7 @@ def Save_Simu(simu: Simu, folder:str):
     with open(filename, "wb") as file:
         pickle.dump(simu, file)
 
-def Load_Simu(simu: Simu, folder: str):
+def Load_Simu(folder: str):
     """Charge la simulation depuis le dossier
 
     Parameters
@@ -34,16 +34,15 @@ def Load_Simu(simu: Simu, folder: str):
     -------
     Simu
         simu
-    """
-
-    assert isinstance(simu, Simu)
-
+    """    
     filename = Dossier.Append([folder, "simulation.xml"])
 
     with open(filename, 'rb') as file:
         simu = pickle.load(file)
 
     print(f'load of {filename}')
+
+    assert isinstance(simu, Simu)
 
     simu.mesh.Resume()
     simu.materiau.Resume()

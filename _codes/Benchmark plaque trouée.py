@@ -14,11 +14,11 @@ Affichage.Clear()
 
 # Options
 
-test=False
+test=True
 solve=True
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe"]
+split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 
 
@@ -148,7 +148,7 @@ if solve:
 
         Kglob = simu.Assemblage_u()
 
-        displacement = simu.Solve_u(useCholesky=True)
+        displacement = simu.Solve_u(useCholesky=False)
 
         displacement_t.append(displacement)
 
@@ -200,7 +200,7 @@ Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}", affi
 
 Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True)
 
-# PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 
 

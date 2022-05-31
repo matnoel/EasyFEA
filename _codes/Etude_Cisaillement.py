@@ -31,7 +31,7 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Bourdin" # "Bourdin","Amor","Miehe"
+split = "Stress" # "Bourdin","Amor","Miehe","Stress"
 
 regularisation = "AT1" # "AT1", "AT2"
 
@@ -50,8 +50,8 @@ Gc = 2.7e3
 
 # Paramètres maillage
 if test:
-        # taille = 1e-5 #taille maille test fem object
-        taille = 0.001
+        taille = 1e-5 #taille maille test fem object
+        # taille = 0.001
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -66,7 +66,7 @@ folder = Dossier.NewFile(folder, results=True)
 
 if solve:
 
-        elemType = "QUAD4" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
         interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
 
@@ -78,8 +78,8 @@ if solve:
         mshFileName = Dossier.NewFile(meshName, folder)
         # mshFileName = ""
 
-        domain = Domain(Point(), Point(x=L, y=L))
-        line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2))
+        domain = Domain(Point(), Point(x=L, y=L), taille=taille)
+        line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille)
 
         mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType,
         isOrganised=True, openCrack=openCrack)
@@ -134,7 +134,7 @@ if solve:
         RenseigneConditionsLimites(0)
 
         Affichage.Plot_BoundaryConditions(simu)
-        plt.show()
+        # plt.show()
 
         N = 400
         # N = 10

@@ -46,11 +46,13 @@ class LoiDeComportement(object):
     """Coef lié à la notation utilisé voigt=2 kelvinMandel=racine(2)"""
 
     def get_C(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Lamé"""        
+        """Renvoie une copie de la loi de comportement pour la loi de Lamé\n
+        Sigma = C * Epsilon"""        
         return self.__C.copy()
 
     def get_S(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Hooke"""
+        """Renvoie une copie de la loi de comportement pour la loi de Hooke\n
+        Epsilon = S * Sigma"""
         return self.__S.copy()
 
     def __getdim(self):
@@ -90,7 +92,24 @@ class LoiDeComportement(object):
         return B_rigi_e_pg
     
     @staticmethod
-    def ToKelvinMandelNotation(dim: int, voigtMatrice: np.ndarray):
+    def ApplyKelvinMandelCoef(dim: int, Matrice: np.ndarray):        
+        """Applique ces coefs à la matrice\n
+        si 2D:
+        \n
+        [1,1,r2]\n
+        [1,1,r2]\n
+        [r2, r2, 2]]\n
+
+        \nsi 3D:
+        \n
+        [1,1,1,r2,r2,r2]\n
+        [1,1,1,r2,r2,r2]\n
+        [1,1,1,r2,r2,r2]\n
+        [r2,r2,r2,2,2,2]\n
+        [r2,r2,r2,2,2,2]\n
+        [r2,r2,r2,2,2,2]]\n
+        
+        """
 
         r2 = np.sqrt(2)
 
@@ -108,9 +127,46 @@ class LoiDeComportement(object):
         else:
             raise "Pas implémenté"
 
-        mandelMatrice = voigtMatrice*transform
+        matriceMandelCoef = Matrice*transform
 
-        return mandelMatrice
+        return matriceMandelCoef
+    
+    @staticmethod
+    def ApplyVoigtCoef(dim: int, Matrice: np.ndarray):
+        """Applique ces coefs à la matrice\n
+        si 2D:
+        \n
+        [1,1,2]\n
+        [1,1,2]\n
+        [2,2,4]]\n
+
+        \nsi 3D:
+        \n
+        [1,1,1,2,2,2]\n
+        [1,1,1,2,2,2]\n
+        [1,1,1,2,2,2]\n
+        [2,2,2,4,4,4]\n
+        [2,2,2,4,4,4]\n
+        [2,2,2,4,4,4]\n        
+        """        
+
+        if dim == 2:            
+            transform = np.array([  [1,1,2],
+                                    [1,1,2],
+                                    [2, 2, 2]])
+        elif dim == 3:
+            transform = np.array([  [1,1,1,2,2,2],
+                                    [1,1,1,2,2,2],
+                                    [1,1,1,2,2,2],
+                                    [2,2,2,4,4,4],
+                                    [2,2,2,4,4,4],
+                                    [2,2,2,4,4,4]])
+        else:
+            raise "Pas implémenté"
+
+        matriceVoigtCoef = Matrice*transform
+
+        return matriceVoigtCoef
 
 class Elas_Isot(LoiDeComportement):   
 
@@ -235,7 +291,7 @@ class Elas_Isot(LoiDeComportement):
             c = cVoigt
         else:
             # To kelvin mandel's notation
-            c = LoiDeComportement.ToKelvinMandelNotation(dim, cVoigt)
+            c = LoiDeComportement.ApplyKelvinMandelCoef(dim, cVoigt)
 
         return c, np.linalg.inv(c)
 
@@ -244,7 +300,7 @@ class PhaseFieldModel:
 
     @staticmethod
     def get_splits():
-        __splits = ["Bourdin","Amor","Miehe"]
+        __splits = ["Bourdin","Amor","Miehe","Stress"]
         return __splits
     
     @staticmethod
@@ -421,7 +477,7 @@ class PhaseFieldModel:
 
         return SigmaP_e_pg, SigmaM_e_pg
     
-    def Calc_C(self, Epsilon_e_pg: np.ndarray):
+    def Calc_C(self, Epsilon_e_pg: np.ndarray, verif=False):
         """Calcul la loi de comportement en fonction du split
 
         Parameters
@@ -450,14 +506,17 @@ class PhaseFieldModel:
                 cM_e_pg = 0*cP_e_pg
 
             case "Amor":
-                cP_e_pg, cM_e_pg = self.__AmorSplit(Epsilon_e_pg)
+                cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
             case "Miehe":
-                cP_e_pg, cM_e_pg = self.__MieheSplit(Epsilon_e_pg)                
+                cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif)
+            
+            case "Stress":
+                cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif)
         
         return cP_e_pg, cM_e_pg            
 
-    def __AmorSplit(self, Epsilon_e_pg: np.ndarray):
+    def __Split_Amor(self, Epsilon_e_pg: np.ndarray):
 
         assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
 
@@ -521,14 +580,14 @@ class PhaseFieldModel:
 
         return Rp_e_pg, Rm_e_pg
     
-    def __MieheSplit(self, Epsilon_e_pg: np.ndarray):
+    def __Split_Miehe(self, Epsilon_e_pg: np.ndarray, verif=False):
 
         assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
 
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
-        projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg)
+        projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg, verif)
 
         # Calcul Rp et Rm
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -556,15 +615,60 @@ class PhaseFieldModel:
         }
 
         return cP_e_pg, cM_e_pg
+    def __Split_Stress(self, Epsilon_e_pg: np.ndarray, verif=False):
+        """Construit Cp et Cm pour le split en contraintse"""
 
-    def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray):
+        # Récupère les contraintes
+        # Ici le matériau est supposé homogène
+        loiDeComportement = self.__loiDeComportement
+        C = loiDeComportement.get_C()    
+        Sigma_e_pg = np.einsum('ij,epj->epi',C, Epsilon_e_pg, optimize=True)
+
+        # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma
+        # Si on est envoigt il faut construire Sigma tel que Sigma = [1 1 2]
+        if self.useVoigtNotation:
+            Sigma_e_pg[:,:,2] *= 2
+        projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Sigma_e_pg, verif)
+
+        if self.useVoigtNotation:
+            projP_e_pg = LoiDeComportement.ApplyVoigtCoef(2, projP_e_pg)
+            projM_e_pg = LoiDeComportement.ApplyVoigtCoef(2, projM_e_pg)
+
+        # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
+        Ppc_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
+        Pmc_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize=True)
+
+        # Construit Cp et Cm
+        S = loiDeComportement.get_S()
+        Cpp = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Ppc_e_pg, optimize=True)
+        Cpm = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Pmc_e_pg, optimize=True)
+        Cmm = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Pmc_e_pg, optimize=True)
+        Cmp = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Ppc_e_pg, optimize=True)
+
+        # cP_e_pg = Cpp #Diffuse
+        # cM_e_pg = Cmm + Cpm + Cmp
+
+        # cP_e_pg = Cpp + Cpm + Cmp #Diffuse
+        # cM_e_pg = Cmm 
+
+        # cP_e_pg = Cpp + Cpm #Diffuse
+        # cM_e_pg = Cmm + Cmp
+
+        cP_e_pg = Cpp #Diffuse
+        cM_e_pg = Cmm + Cpm + Cmp
+
+        return cP_e_pg, cM_e_pg
+
+    def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray, verif=False):
         """Calcul projP et projM tel que :\n
 
-        vecteurP = projP : vecteur \n
-        vecteurM = projM : vecteur \n
+        vecteur_e_pg = [1 1 2] si voigt\n
+        vecteur_e_pg = [1 1 racine(2)] si mandel\n
 
-        Renvoie en [1, 1, 1] si voigt\n
-        Renvoie en [1, 1, racine(2)] si mandel        
+        vecteurP = projP : vecteur -> [1, 1, 1] si voigt\n
+        vecteurM = projM : vecteur -> [1, 1, racine(2)] si mandel\n
+
+        renvoie projP, projM
         """
 
         # remet en voigt si nécessaire
@@ -613,9 +717,10 @@ class PhaseFieldModel:
             M1[elements, pdgs] = m1_tot[elements, pdgs]            
         M2 = np.eye(2) - M1
 
-        # # test ortho entre M1 et M2 
-        # verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize=True)
-        # assert np.abs(verifOrtho_M1M2).max() < 1e-12, "Orthogonalité entre M1 et M2 non vérifié"
+        if verif:
+            # test ortho entre M1 et M2 
+            verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize=True)
+            assert np.abs(verifOrtho_M1M2).max() < 1e-10, "Orthogonalité entre M1 et M2 non vérifié"
         
         # Passage des bases propres sous la forme dun vecteur [e,pg,3]  ou [e,pg,6]
         m1 = np.zeros((Ne,nPg,3)); m2 = np.zeros((Ne,nPg,3))
@@ -663,35 +768,41 @@ class PhaseFieldModel:
         gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize=True)
         projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
 
-        # # Verification de la décomposition et de l'orthogonalité
-        # # projecteur en [1; 1; 1]
-        # vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
-        # vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
+        if verif:
+            # Verification de la décomposition et de l'orthogonalité
+            # projecteur en [1; 1; 1]
+            vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
+            vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
 
-        # # Passe en mandel pour faire les verifications
-        # vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
-        # vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
-        # vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)
-        
-        # # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg
-        # decomp = vecteur_e_pg-(vecteurP + vecteurM)
-        # if np.linalg.norm(vecteur_e_pg) > 0:
-        #     verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
-        #     assert verifDecomp < 1e-12
+            # Passe en mandel pour faire les verifications
+            vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
+            vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
+            vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)
+            
+            # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg
+            decomp = vecteur_e_pg-(vecteurP + vecteurM)
+            if np.linalg.norm(vecteur_e_pg) > 0:
+                verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
+                assert verifDecomp < 1e-12
 
-        # # Orthogonalité
-        # ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize=True))
-        # ortho_vM_vP = np.abs(np.einsum('epi,epi->ep',vecteurM, vecteurP, optimize=True))
-        # ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True))
-        # if ortho_v_v.min() > 0:
-        #     vertifOrthoEps = np.max(ortho_vP_vM/ortho_v_v)
-        #     assert vertifOrthoEps < 1e-12
+            # Orthogonalité
+            ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize=True))
+            ortho_vM_vP = np.abs(np.einsum('epi,epi->ep',vecteurM, vecteurP, optimize=True))
+            ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True))
+            if ortho_v_v.min() > 0:
+                vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
+                assert vertifOrthoEpsPM < 1e-12
+                vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
+                assert vertifOrthoEpsMP < 1e-12
 
         if not self.useVoigtNotation:
-            projP = LoiDeComportement.ToKelvinMandelNotation(2, projP)
-            projM = LoiDeComportement.ToKelvinMandelNotation(2, projM)
+            projP = LoiDeComportement.ApplyKelvinMandelCoef(2, projP)
+            projM = LoiDeComportement.ApplyKelvinMandelCoef(2, projM)
             
         return projP, projM
+
+    
+
 
 
 class Materiau:
