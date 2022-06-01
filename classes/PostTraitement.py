@@ -19,6 +19,8 @@ def Save_Simu(simu: Simu, folder:str):
 
     filename = Dossier.Append([folder, "simulation.xml"])
 
+    print(filename)
+
     with open(filename, "wb") as file:
         pickle.dump(simu, file)
 
