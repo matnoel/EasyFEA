@@ -17,19 +17,16 @@ test=True
 
 comp = "Elas_Isot"
 split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
-regu = "AT1" # "AT1", "AT2"
+regu = "AT2" # "AT1", "AT2"
 contraintesPlanes = True
 
 nom="_".join([comp, split, regu])
 
-nomDossier = "Benchmarck_Compression"
+nomDossier = "Calcul Energie plaque trouée"
 
-if test:
-    file = Dossier.Append([nomDossier, "Test", nom])
-else:
-    file = Dossier.Append([nomDossier, nom])
+folder = Dossier.NewFile(nomDossier, results=True)
 
-file = Dossier.NewFile(file, results=True)
+print(folder)
 
 # Data
 
@@ -60,7 +57,7 @@ axp.legend()
 axp.set_xlabel("v")
 
 
-print(f"Pour v={v} : psiP_A*E/Sig^2 = {np.round(psiP_A,3)} et psiP_B*E/Sig^2 = {np.round(psiP_B,3)}")
+print(f"\nPour v={v} : psiP_A*E/Sig^2 = {np.round(psiP_A,3)} et psiP_B*E/Sig^2 = {np.round(psiP_B,3)}")
 
 # Création de la simulations
 
@@ -101,10 +98,10 @@ node00 = mesh.Get_Nodes_Point(Point())
 nodesA = mesh.Get_Nodes_Domain(domainA)
 nodesB = mesh.Get_Nodes_Domain(domainB)
 
-ax = Affichage.Plot_Maillage(mesh)
+# ax = Affichage.Plot_Maillage(mesh)
 
-for ns in [nodes0, nodesh, node00, nodesA, nodesB]:
-    Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)
+# for ns in [nodes0, nodesh, node00, nodesA, nodesB]:
+#     Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)
 
 
 
@@ -113,7 +110,7 @@ simu.add_dirichlet("displacement", node00, [0], ["x"])
 
 simu.add_surfLoad("displacement", nodesh, [-Sig], ["y"])
 
-Affichage.Plot_BoundaryConditions(simu)
+# Affichage.Plot_BoundaryConditions(simu)
 
 simu.Assemblage_u()
 
@@ -131,11 +128,11 @@ SxyB = np.mean(simu.Get_Resultat("Sxy", True)[nodesB])
 
 print(f"En B : Sxx/Sig = {np.round(SxxB/Sig,2)}, Syy/Sig = {np.round(SyyB/Sig,2)}, Sxy/Sig = {np.round(SxyB/Sig,2)}")
 
-Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/Sig, unite="/Sig")
-Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/Sig, unite="/Sig")
-Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/Sig, unite="/Sig")
+# Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/Sig, unite="/Sig")
+# Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/Sig, unite="/Sig")
+# Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/Sig, unite="/Sig")
 
-Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=True, coef=E/Sig**2, unite=f"*E/Sig^2 pour v={v}")
+Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=True, coef=E/Sig**2, unite=f"*E/Sig^2 {nom} pour v={v}",folder=folder)
 
 psipa = np.mean(simu.Get_Resultat("psiP", True)[nodesA])*E/Sig**2
 psipb = np.mean(simu.Get_Resultat("psiP", True)[nodesB])*E/Sig**2

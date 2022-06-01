@@ -21,7 +21,7 @@ test = True
 solve = True
 
 plotResult = True
-saveParaview = True
+saveParaview = False
 makeMovie = False
 save = False
 
@@ -31,7 +31,7 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Stress" # "Bourdin","Amor","Miehe","Stress"
+split = "Miehe" # "Bourdin","Amor","Miehe","Stress"
 
 regularisation = "AT1" # "AT1", "AT2"
 
@@ -55,12 +55,14 @@ if test:
 else:
         taille = l0/2 #l0/2 2.5e-6
 
+folder = Dossier.NewFile(folder, results=True)
+
 if test:
     folder = Dossier.Append([folder, "Test", nameSimu])
 else:
     folder = Dossier.Append([folder, nameSimu])
 
-folder = Dossier.NewFile(folder, results=True)
+print(folder)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 

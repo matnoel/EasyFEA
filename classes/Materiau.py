@@ -527,19 +527,20 @@ class PhaseFieldModel:
 
         return cP_e_pg, cM_e_pg
 
-    def __Rp_Rm(self, Epsilon_e_pg: np.ndarray):
+    def __Rp_Rm(self, vecteur_e_pg: np.ndarray):
+        """Renvoie Rp_e_pg, Rm_e_pg"""
 
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
+        Ne = vecteur_e_pg.shape[0]
+        nPg = vecteur_e_pg.shape[1]
 
         dim = self.__loiDeComportement.dim
 
         tr_Eps = np.zeros((Ne, nPg))
 
-        tr_Eps = Epsilon_e_pg[:,:,0] + Epsilon_e_pg[:,:,1]
+        tr_Eps = vecteur_e_pg[:,:,0] + vecteur_e_pg[:,:,1]
 
         if dim == 3:
-            tr_Eps += Epsilon_e_pg[:,:,2]
+            tr_Eps += vecteur_e_pg[:,:,2]
 
         Rp_e_pg = (1+np.sign(tr_Eps))/2
         Rm_e_pg = (1+np.sign(-tr_Eps))/2
@@ -559,8 +560,8 @@ class PhaseFieldModel:
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
         
         # Calcul IxI
-        Ivoigt = np.array([1,1,0]).reshape((3,1))
-        IxI = Ivoigt.dot(Ivoigt.T)
+        I = np.array([1,1,0]).reshape((3,1))
+        IxI = I.dot(I.T)
 
         # Calcul partie sphérique
         spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize=True)
@@ -584,39 +585,68 @@ class PhaseFieldModel:
     def __Split_Stress(self, Epsilon_e_pg: np.ndarray, verif=False):
         """Construit Cp et Cm pour le split en contraintse"""
 
+        isIsot = True
+
         # Récupère les contraintes
         # Ici le matériau est supposé homogène
         loiDeComportement = self.__loiDeComportement
         C = loiDeComportement.get_C()    
         Sigma_e_pg = np.einsum('ij,epj->epi',C, Epsilon_e_pg, optimize=True)
 
-        # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma
-        # Si on est envoigt il faut construire Sigma tel que Sigma = [1 1 2]    
-        Sigma_e_pg[:,:,2] *= 2
+        # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma                    
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Sigma_e_pg, verif)
 
-        # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
-        Ppc_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
-        Pmc_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize=True)
+        if isIsot:
+            
+            assert isinstance(loiDeComportement, Elas_Isot)
 
-        # Construit Cp et Cm
-        S = loiDeComportement.get_S()
-        Cpp = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Ppc_e_pg, optimize=True)
-        Cpm = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Pmc_e_pg, optimize=True)
-        Cmm = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Pmc_e_pg, optimize=True)
-        Cmp = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Ppc_e_pg, optimize=True)
+            E = loiDeComportement.E
+            v = loiDeComportement.v
 
-        # cP_e_pg = Cpp #Diffuse
-        # cM_e_pg = Cmm + Cpm + Cmp
+            c = loiDeComportement.get_C()
 
-        # cP_e_pg = Cpp + Cpm + Cmp #Diffuse
-        # cM_e_pg = Cmm 
+            # Calcul Rp et Rm
+            Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Sigma_e_pg)
+            
+            # Calcul IxI
+            I = np.array([1,1,0]).reshape((3,1))
+            IxI = I.dot(I.T)
 
-        # cP_e_pg = Cpp + Cpm #Diffuse
-        # cM_e_pg = Cmm + Cmp
+            RpIxI_e_pg = np.einsum('ep,ij->epij',Rp_e_pg, IxI, optimize=True)
+            RmIxI_e_pg = np.einsum('ep,ij->epij',Rm_e_pg, IxI, optimize=True)
 
-        cP_e_pg = Cpp #Diffuse
-        cM_e_pg = Cmm + Cpm + Cmp
+            sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
+            sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
+
+            cT = c.T
+
+            cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c)
+            cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c)
+
+        else:            
+
+            # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
+            Ppc_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
+            Pmc_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize=True)
+
+            # Construit Cp et Cm
+            S = loiDeComportement.get_S()
+            Cpp = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Ppc_e_pg, optimize=True)
+            Cpm = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Pmc_e_pg, optimize=True)
+            Cmm = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Pmc_e_pg, optimize=True)
+            Cmp = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Ppc_e_pg, optimize=True)
+
+            # cP_e_pg = Cpp #Diffuse
+            # cM_e_pg = Cmm + Cpm + Cmp
+
+            # cP_e_pg = Cpp + Cpm + Cmp #Diffuse
+            # cM_e_pg = Cmm 
+
+            # cP_e_pg = Cpp + Cpm #Diffuse
+            # cM_e_pg = Cmm + Cmp
+
+            cP_e_pg = Cpp #Diffuse
+            cM_e_pg = Cmm + Cpm + Cmp
 
         return cP_e_pg, cM_e_pg
 

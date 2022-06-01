@@ -16,9 +16,10 @@ Affichage.Clear()
 
 test=True
 solve=True
+saveParaview=False
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT2" # "AT1", "AT2"
 
 
@@ -51,8 +52,8 @@ l_0 = 0.12e-3
 umax = 25e-6
 
 if test:
-    clD = 0.25e-3
-    clC = 0.12e-3
+    clD = 0.25e-3*2
+    clC = 0.12e-3*2
     # clD = l_0*2
     # clC = l_0
 
@@ -200,7 +201,8 @@ Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}", affi
 
 Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True)
 
-PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+if saveParaview:
+    PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 
 
