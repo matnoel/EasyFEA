@@ -34,8 +34,10 @@ def Load_Simu(folder: str):
     -------
     Simu
         simu
-    """    
+    """
+
     filename = Dossier.Append([folder, "simulation.xml"])
+    assert os.path.exists(filename), "Le fichier simulation.xml est introuvable"
 
     with open(filename, 'rb') as file:
         simu = pickle.load(file)
