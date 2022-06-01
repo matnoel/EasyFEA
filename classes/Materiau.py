@@ -1,3 +1,4 @@
+from re import S
 from typing import cast
 
 from traitlets import Bool
@@ -15,7 +16,7 @@ class LoiDeComportement(object):
     """Classe des lois de comportements C de (Sigma = C * Epsilon)
     (Elas_isot, ...)
     """
-    def __init__(self, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float, useVoigtNotation: bool):
+    def __init__(self, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float):
         
         self.__dim = dim
         """dimension lié a la loi de comportement"""
@@ -24,35 +25,37 @@ class LoiDeComportement(object):
             assert epaisseur > 0 , "Doit être supérieur à 0"
             self.__epaisseur = epaisseur
         
-        self.__useVoigtNotation = useVoigtNotation
-        """Notation de voigt True or False"""
-        
         self.__C = C
-        """Loi de comportement pour la loi de Lamé en voigt"""
+        """Loi de comportement pour la loi de Lamé en kelvin mandel"""
 
         self.__S = S
-        """Loi de comportement pour la loi de Hooke en voigt"""
-    
-    def __get_useVoigtNotation(self):
-        return self.__useVoigtNotation
-    useVoigtNotation = property(__get_useVoigtNotation)
+        """Loi de comportement pour la loi de Hooke en kelvin mandel"""
 
     def __get_coef_notation(self):
-        if self.__useVoigtNotation:
-            return 2
-        else:
-            return np.sqrt(2)
+        return np.sqrt(2)            
     coef = property(__get_coef_notation)
-    """Coef lié à la notation utilisé voigt=2 kelvinMandel=racine(2)"""
+    """Coef lié à la notation de kelvin mandel=racine(2)"""
 
     def get_C(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Lamé\n
-        Sigma = C * Epsilon"""        
+        """Renvoie une copie de la loi de comportement pour la loi de Lamé en Kelvin Mandel\n
+        En 2D:
+        -----
+        C -> C : Epsilon = Sigma [Sxx Syy racine(2)*Sxy]\n
+        En 3D:
+        -----
+        C -> C : Epsilon = Sigma [Sxx Syy Szz racine(2)*Syz racine(2)*Sxz racine(2)*Sxy]
+        """        
         return self.__C.copy()
 
     def get_S(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Hooke\n
-        Epsilon = S * Sigma"""
+        """Renvoie une copie de la loi de comportement pour la loi de Hooke en Kelvin Mandel\n
+        En 2D:
+        -----        
+        S -> S : Sigma = Epsilon [Exx Eyy racine(2)*Exy]\n
+        En 3D:
+        -----        
+        S -> S : Sigma = Epsilon [Exx Eyy Ezz racine(2)*Eyz racine(2)*Exz racine(2)*Exy]
+        """
         return self.__S.copy()
 
     def __getdim(self):
@@ -75,10 +78,6 @@ class LoiDeComportement(object):
     resume = cast(str, property(__get_resume))
 
     def AppliqueCoefSurBrigi(self, B_rigi_e_pg: np.ndarray):
-
-        # Si on a pas une notation de voigt on doit divisier les lignes 3(2D) et [4,5,6](3D)
-        if self.__useVoigtNotation:
-            return
 
         if self.__dim == 2:
             coord=2
@@ -130,48 +129,10 @@ class LoiDeComportement(object):
         matriceMandelCoef = Matrice*transform
 
         return matriceMandelCoef
-    
-    @staticmethod
-    def ApplyVoigtCoef(dim: int, Matrice: np.ndarray):
-        """Applique ces coefs à la matrice\n
-        si 2D:
-        \n
-        [1,1,2]\n
-        [1,1,2]\n
-        [2,2,4]]\n
-
-        \nsi 3D:
-        \n
-        [1,1,1,2,2,2]\n
-        [1,1,1,2,2,2]\n
-        [1,1,1,2,2,2]\n
-        [2,2,2,4,4,4]\n
-        [2,2,2,4,4,4]\n
-        [2,2,2,4,4,4]\n        
-        """        
-
-        if dim == 2:            
-            transform = np.array([  [1,1,2],
-                                    [1,1,2],
-                                    [2, 2, 2]])
-        elif dim == 3:
-            transform = np.array([  [1,1,1,2,2,2],
-                                    [1,1,1,2,2,2],
-                                    [1,1,1,2,2,2],
-                                    [2,2,2,4,4,4],
-                                    [2,2,2,4,4,4],
-                                    [2,2,2,4,4,4]])
-        else:
-            raise "Pas implémenté"
-
-        matriceVoigtCoef = Matrice*transform
-
-        return matriceVoigtCoef
 
 class Elas_Isot(LoiDeComportement):   
 
-    def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0,
-    useVoigtNotation=True):
+    def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0):
         """Creer la matrice de comportement d'un matériau : Elastique isotrope
 
         Parameters
@@ -203,9 +164,9 @@ class Elas_Isot(LoiDeComportement):
             self.contraintesPlanes = contraintesPlanes
             """type de simplification 2D"""
 
-        C, S = self.__Comportement_Elas_Isot(useVoigtNotation)
+        C, S = self.__Comportement_Elas_Isot()
 
-        LoiDeComportement.__init__(self, dim, C, S, epaisseur, useVoigtNotation)
+        LoiDeComportement.__init__(self, dim, C, S, epaisseur)
 
     def __get_resume(self):
         if self.__dim == 2:
@@ -248,8 +209,22 @@ class Elas_Isot(LoiDeComportement):
 
         return bulk
 
-    def __Comportement_Elas_Isot(self, useVoigtNotation: bool):
-        """"Construit les matrices de comportement"""
+    def __Comportement_Elas_Isot(self):
+        """"Construit les matrices de comportement en kelvin mandel\n
+        
+        En 2D:
+        -----
+
+        C -> C : Epsilon = Sigma [Sxx Syy racine(2)*Sxy]\n
+        S -> S : Sigma = Epsilon [Exx Eyy racine(2)*Exy]
+
+        En 3D:
+        -----
+
+        C -> C : Epsilon = Sigma [Sxx Syy Szz racine(2)*Syz racine(2)*Sxz racine(2)*Sxy]\n
+        S -> S : Sigma = Epsilon [Exx Eyy Ezz racine(2)*Eyz racine(2)*Exz racine(2)*Exy]
+
+        """
 
         E=self.E
         v=self.v
@@ -287,13 +262,11 @@ class Elas_Isot(LoiDeComportement):
                                 [0, 0, 0, 0, mu, 0],
                                 [0, 0, 0, 0, 0, mu]])
         
-        if useVoigtNotation:
-            c = cVoigt
-        else:
-            # To kelvin mandel's notation
-            c = LoiDeComportement.ApplyKelvinMandelCoef(dim, cVoigt)
+        c = LoiDeComportement.ApplyKelvinMandelCoef(dim, cVoigt)
 
-        return c, np.linalg.inv(c)
+        s = np.linalg.inv(c)
+
+        return c, s
 
 
 class PhaseFieldModel:
@@ -383,10 +356,6 @@ class PhaseFieldModel:
     def __get_regularization(self):
         return self.__regularization
     regularization = property(__get_regularization)
-
-    def __get_useVoigtNotation(self):
-        return self.__loiDeComportement.useVoigtNotation
-    useVoigtNotation = property(__get_useVoigtNotation)
     
     def __get_loiDeComportement(self):
         return self.__loiDeComportement
@@ -539,12 +508,9 @@ class PhaseFieldModel:
         IxI = Ivoigt.dot(Ivoigt.T)
 
         # Projecteur deviatorique
-        if loiDeComportement.useVoigtNotation:
-            Pdev_e_pg = np.eye(taille) + np.diagflat(Ivoigt) - IxI
-            partieDeviateur = mu*Pdev_e_pg
-        else:
-            Pdev_e_pg = np.eye(taille) - 1/dim * IxI
-            partieDeviateur = 2*mu*Pdev_e_pg
+        Pdev_e_pg = np.eye(taille) - 1/dim * IxI
+        partieDeviateur = 2*mu*Pdev_e_pg
+            
         
         # projetcteur spherique
         spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize=True)
@@ -625,14 +591,9 @@ class PhaseFieldModel:
         Sigma_e_pg = np.einsum('ij,epj->epi',C, Epsilon_e_pg, optimize=True)
 
         # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma
-        # Si on est envoigt il faut construire Sigma tel que Sigma = [1 1 2]
-        if self.useVoigtNotation:
-            Sigma_e_pg[:,:,2] *= 2
+        # Si on est envoigt il faut construire Sigma tel que Sigma = [1 1 2]    
+        Sigma_e_pg[:,:,2] *= 2
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Sigma_e_pg, verif)
-
-        if self.useVoigtNotation:
-            projP_e_pg = LoiDeComportement.ApplyVoigtCoef(2, projP_e_pg)
-            projM_e_pg = LoiDeComportement.ApplyVoigtCoef(2, projM_e_pg)
 
         # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
         Ppc_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
@@ -662,18 +623,15 @@ class PhaseFieldModel:
     def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray, verif=False):
         """Calcul projP et projM tel que :\n
 
-        vecteur_e_pg = [1 1 2] si voigt\n
-        vecteur_e_pg = [1 1 racine(2)] si mandel\n
-
-        vecteurP = projP : vecteur -> [1, 1, 1] si voigt\n
+        vecteur_e_pg = [1 1 racine(2)] \n
+        
         vecteurM = projM : vecteur -> [1, 1, racine(2)] si mandel\n
 
         renvoie projP, projM
         """
 
-        # remet en voigt si nécessaire
-        if not self.useVoigtNotation:
-            vecteur_e_pg[:,:,2] *= 1/np.sqrt(2)
+        # remet en voigt
+        vecteur_e_pg[:,:,2] *= 1/np.sqrt(2)
 
         # A partir d'ici on est en voigt
         coef = 2
@@ -753,7 +711,7 @@ class PhaseFieldModel:
         gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
         gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
         
-        matriceI = np.eye(3)        
+        matriceI = np.eye(3)
         matriceI[2,2] *= 1/coef
 
         # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
@@ -795,9 +753,8 @@ class PhaseFieldModel:
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
 
-        if not self.useVoigtNotation:
-            projP = LoiDeComportement.ApplyKelvinMandelCoef(2, projP)
-            projM = LoiDeComportement.ApplyKelvinMandelCoef(2, projM)
+        projP = LoiDeComportement.ApplyKelvinMandelCoef(2, projP)
+        projM = LoiDeComportement.ApplyKelvinMandelCoef(2, projM)
             
         return projP, projM
 

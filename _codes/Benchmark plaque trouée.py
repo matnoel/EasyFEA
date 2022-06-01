@@ -75,7 +75,7 @@ if solve:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 
-    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=False, epaisseur=ep, useVoigtNotation=False)
+    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=False, epaisseur=ep)
     phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
     materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 

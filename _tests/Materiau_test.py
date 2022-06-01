@@ -12,26 +12,23 @@ class Test_Materiau(unittest.TestCase):
         E = 210e9
         v = 0.3
         self.comportements = []
-        for vn in self.voigtNotations:
-            for comp in LoiDeComportement.get_LoisDeComportement():
-                if comp == Elas_Isot:
-                    self.comportements.append(Elas_Isot(2, E=E, v=v, contraintesPlanes=False, useVoigtNotation=vn))
-                    self.comportements.append(Elas_Isot(2, E=E, v=v, contraintesPlanes=True, useVoigtNotation=vn))
-                    self.comportements.append(Elas_Isot(3, E=E, v=v, useVoigtNotation=vn))
+        for comp in LoiDeComportement.get_LoisDeComportement():
+            if comp == Elas_Isot:
+                self.comportements.append(Elas_Isot(2, E=E, v=v, contraintesPlanes=False))
+                self.comportements.append(Elas_Isot(2, E=E, v=v, contraintesPlanes=True))
+                self.comportements.append(Elas_Isot(3, E=E, v=v))
+            
 
         # phasefieldModel
         self.splits = PhaseFieldModel.get_splits()
         self.regularizations = PhaseFieldModel.get_regularisations()
         self.phaseFieldModels = []
-        for vn in self.voigtNotations:
-            comportement = Elas_Isot(2,E=E,v=v, useVoigtNotation=vn)
-            for s in self.splits:
-                for r in self.regularizations:
-                    if vn:
-                        pfm = PhaseFieldModel(comportement,s,r,1,1)
-                    else:
-                        pfm = PhaseFieldModel(comportement,s,r,1,1)
-                    self.phaseFieldModels.append(pfm)
+        comportement = Elas_Isot(2,E=E,v=v)
+        for s in self.splits:
+            for r in self.regularizations:
+                pfm = PhaseFieldModel(comportement,s,r,1,1)
+                self.phaseFieldModels.append(pfm)
+            
 
     def test_BienCree_Isotrope(self):
 
@@ -56,15 +53,14 @@ class Test_Materiau(unittest.TestCase):
                                                                 [0, 0, 0, (1-2*v)/2, 0, 0],
                                                                 [0, 0, 0, 0, (1-2*v)/2, 0],
                                                                 [0, 0, 0, 0, 0, (1-2*v)/2]  ])
-                if comp.useVoigtNotation:
-                    c = C_voigt
-                else:
-                    c = LoiDeComportement.ApplyKelvinMandelCoef(comp.dim, C_voigt)
+                
+                c = LoiDeComportement.ApplyKelvinMandelCoef(comp.dim, C_voigt)
+                    
                 verifC = np.linalg.norm(c-comp.get_C())/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
 
     
-    def test_Decomposition_Bourdin_Amor_Miehe(self):
+    def test_Decomposition_Bourdin_Amor_Miehe_Stress(self):
         
         Ne = 50
         nPg = 1

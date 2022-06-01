@@ -157,8 +157,7 @@ class Test_Simu(unittest.TestCase):
 
             B_dep_e_pg = mesh.get_B_dep_e_pg(matriceType)
 
-            if not materiau.comportement.useVoigtNotation:
-                B_dep_e_pg = materiau.comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
+            B_dep_e_pg = materiau.comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
 
             jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
             poid_pg = mesh.get_poid_pg(matriceType)

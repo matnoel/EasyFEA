@@ -189,8 +189,8 @@ class Simu:
 
         comportement = self.materiau.comportement
 
-        if not comportement.useVoigtNotation:
-            B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
+        B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
+            
 
         mat = comportement.get_C()
         # Ici on le materiau est homogène
@@ -952,8 +952,8 @@ class Simu:
         comportement = self.materiau.comportement
 
         B_dep_e_pg = self.__mesh.get_B_dep_e_pg(matriceType)
-        if not comportement.useVoigtNotation:
-            B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
+
+        B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)            
         
         Epsilon_e_pg = np.einsum('epik,ek->epi', B_dep_e_pg, u_e, optimize=True)        
 
@@ -1135,8 +1135,9 @@ class Simu:
                 Syy_e = Sigma_e[:,1]
                 Sxy_e = Sigma_e[:,2]
                 
-                if not self.materiau.comportement.useVoigtNotation:
-                    Sxy_e = Sxy_e/coef
+                Sxy_e = Sxy_e/coef
+                
+                # TODO Ici il faudrait calculer Szz si deformation plane
                 
                 Svm_e = np.sqrt(Sxx_e**2+Syy_e**2-Sxx_e*Syy_e+3*Sxy_e**2)
 
@@ -1158,11 +1159,9 @@ class Simu:
                 Sxz_e = Sigma_e[:,4]
                 Sxy_e = Sigma_e[:,5]
 
-                if not self.materiau.comportement.useVoigtNotation:
-                    Syz_e = Syz_e/coef
-                    Sxz_e = Sxz_e/coef
-                    Sxy_e = Sxy_e/coef
-                    
+                Syz_e = Syz_e/coef
+                Sxz_e = Sxz_e/coef
+                Sxy_e = Sxy_e/coef
 
                 Svm_e = np.sqrt(((Sxx_e-Syy_e)**2+(Syy_e-Szz_e)**2+(Szz_e-Sxx_e)**2+6*(Sxy_e**2+Syz_e**2+Sxz_e**2))/2)
 
@@ -1191,6 +1190,8 @@ class Simu:
                 Exx_e = Epsilon_e[:,0]
                 Eyy_e = Epsilon_e[:,1]
                 Exy_e = Epsilon_e[:,2]/coef
+
+                # TODO Ici il faudrait calculer Ezz si contrainte plane
                 
                 Evm_e = np.sqrt(Exx_e**2+Eyy_e**2-Exx_e*Eyy_e+3*Exy_e**2)
 

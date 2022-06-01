@@ -16,7 +16,7 @@ Affichage.Clear()
 test=True
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
@@ -39,7 +39,7 @@ ep=1e-3
 diam=6e-3
 
 E=12e9
-v=0.4
+v=0.45
 Sig = 10 #Pa
 
 gc = 1.4

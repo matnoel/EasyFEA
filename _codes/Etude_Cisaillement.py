@@ -84,9 +84,6 @@ if solve:
         mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType,
         isOrganised=True, openCrack=openCrack)
 
-        Affichage.Plot_NoeudsMaillage(mesh, showId=True)        
-        # # plt.show()
-
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Get_Nodes_Line(line)
         noeuds_Haut = mesh.Get_Nodes_Conditions(conditionY=lambda y: y == L)
@@ -105,7 +102,7 @@ Affichage.NouvelleSection("Simulations")
 
 if solve:
 
-        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False, useVoigtNotation=False)
+        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
         phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 
