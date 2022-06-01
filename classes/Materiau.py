@@ -625,16 +625,17 @@ class PhaseFieldModel:
 
         vecteur_e_pg = [1 1 racine(2)] \n
         
+        vecteurP = projP : vecteur -> [1, 1, racine(2)] si mandel\n
         vecteurM = projM : vecteur -> [1, 1, racine(2)] si mandel\n
 
         renvoie projP, projM
         """
 
         # remet en voigt
-        vecteur_e_pg[:,:,2] *= 1/np.sqrt(2)
+        # vecteur_e_pg[:,:,2] *= 1/np.sqrt(2)
 
         # A partir d'ici on est en voigt
-        coef = 2
+        coef = self.__loiDeComportement.coef
 
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
@@ -684,8 +685,8 @@ class PhaseFieldModel:
         m1 = np.zeros((Ne,nPg,3)); m2 = np.zeros((Ne,nPg,3))
         m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]
         m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]
-        m1[:,:,2] = M1[:,:,0,1];   m2[:,:,2] = M2[:,:,0,1]
-        # m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef # Ici on met pas le coef pour que ce soit en [1 1 1]
+        # m1[:,:,2] = M1[:,:,0,1];   m2[:,:,2] = M2[:,:,0,1]
+        m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef # Ici on met pas le coef pour que ce soit en [1 1 1]
 
         # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]        
         m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize=True)
@@ -712,7 +713,6 @@ class PhaseFieldModel:
         gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
         
         matriceI = np.eye(3)
-        matriceI[2,2] *= 1/coef
 
         # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
         BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize=True)
@@ -730,12 +730,7 @@ class PhaseFieldModel:
             # Verification de la décomposition et de l'orthogonalité
             # projecteur en [1; 1; 1]
             vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
-            vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)
-
-            # Passe en mandel pour faire les verifications
-            vecteur_e_pg[:,:,2] = vecteur_e_pg[:,:,2]/np.sqrt(2)
-            vecteurP[:,:,2] = vecteurP[:,:,2]*np.sqrt(2)
-            vecteurM[:,:,2] = vecteurM[:,:,2]*np.sqrt(2)
+            vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)           
             
             # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg
             decomp = vecteur_e_pg-(vecteurP + vecteurM)
@@ -752,15 +747,8 @@ class PhaseFieldModel:
                 assert vertifOrthoEpsPM < 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
-
-        projP = LoiDeComportement.ApplyKelvinMandelCoef(2, projP)
-        projM = LoiDeComportement.ApplyKelvinMandelCoef(2, projM)
             
         return projP, projM
-
-    
-
-
 
 class Materiau:
     
