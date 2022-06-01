@@ -105,7 +105,7 @@ Affichage.NouvelleSection("Simulations")
 
 if solve:
 
-        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False, useVoigtNotation=False)
 
         phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 

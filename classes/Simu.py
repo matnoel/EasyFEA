@@ -205,7 +205,7 @@ class Simu:
             phaseFieldModel = self.materiau.phaseFieldModel
                 
             # Calcul la deformation nécessaire pour le split
-            Epsilon_e_pg = self.__CalculEpsilon_e_pg(u, matriceType)
+            Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, matriceType)
 
             # Split de la loi de comportement
             cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
@@ -286,7 +286,7 @@ class Simu:
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
-    def CalcPsiPlus_e_pg(self):
+    def __Calc_PsiPlus_e_pg(self, useHistory=True):
             # Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
             # Calcul de la densité denergie de deformation en traction
 
@@ -300,9 +300,9 @@ class Simu:
             testu = isinstance(u, np.ndarray) and (u.shape[0] == self.__mesh.Nn*self.__dim )
             testd = isinstance(d, np.ndarray) and (d.shape[0] == self.__mesh.Nn )
 
-            assert testu or testd,"Il faut initialiser uglob et damage correctement"
+            assert testu or testd,"Problème de dimension"
 
-            Epsilon_e_pg = self.__CalculEpsilon_e_pg(u, "masse")
+            Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, "masse")
             # ici le therme masse est important sinon on sous intègre
 
             # Calcul l'energie
@@ -310,22 +310,23 @@ class Simu:
 
             nPg = self.__mesh.get_nPg("masse")
 
-            if len(old_psiP) == 0:
-                # Pas encore d'endommagement disponible
-                old_psiP = np.zeros((self.__mesh.Ne, nPg))
-
             psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
-            
-            inc_H = psiP_e_pg - old_psiP
 
-            elements, pdGs = np.where(inc_H < 0)
+            if useHistory:
+                if len(old_psiP) == 0:
+                    # Pas encore d'endommagement disponible
+                    old_psiP = np.zeros((self.__mesh.Ne, nPg))
 
-            psiP_e_pg[elements, pdGs] = old_psiP[elements,pdGs]           
+                inc_H = psiP_e_pg - old_psiP
 
-            new = np.linalg.norm(psiP_e_pg)
-            old = np.linalg.norm(self.__psiP_e_pg)
+                elements, pdGs = np.where(inc_H < 0)
 
-            assert new >= old, "Erreur"
+                psiP_e_pg[elements, pdGs] = old_psiP[elements,pdGs]           
+
+                # new = np.linalg.norm(psiP_e_pg)
+                # old = np.linalg.norm(self.__psiP_e_pg)
+                # assert new >= old, "Erreur"
+
             self.__psiP_e_pg = psiP_e_pg
 
             return self.__psiP_e_pg
@@ -338,7 +339,7 @@ class Simu:
 
         # Data
         k = phaseFieldModel.k
-        PsiP_e_pg = self.CalcPsiPlus_e_pg()
+        PsiP_e_pg = self.__Calc_PsiPlus_e_pg()
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
@@ -889,14 +890,14 @@ class Simu:
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
-    def __CalculEnergieDef(self):
+    def __Calc_EnergieDef(self):
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
         sol_u  = self.Get_Resultat("displacement", valeursAuxNoeuds=True)
 
         matriceType = "rigi"
-        Epsilon_e_pg = self.__CalculEpsilon_e_pg(sol_u, matriceType)
+        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(sol_u, matriceType)
         jacobien_e_pg = self.__mesh.get_jacobien_e_pg(matriceType)
         poid_pg = self.__mesh.get_poid_pg(matriceType)
 
@@ -921,7 +922,7 @@ class Simu:
 
         else:
 
-            Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg, matriceType)
+            Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg, matriceType)
             
             Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
 
@@ -932,7 +933,7 @@ class Simu:
         
         return Wdef
 
-    def __CalculEpsilon_e_pg(self, u: np.ndarray, matriceType="rigi"):
+    def __Calc_Epsilon_e_pg(self, u: np.ndarray, matriceType="rigi"):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -958,7 +959,7 @@ class Simu:
 
         return Epsilon_e_pg
 
-    def __CalculSigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType="rigi"):
+    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType="rigi"):
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -975,8 +976,6 @@ class Simu:
         assert Epsilon_e_pg.shape[0] == self.__mesh.Ne
         assert Epsilon_e_pg.shape[1] == self.__mesh.get_nPg(matriceType)
 
-        c = self.materiau.comportement.get_C()
-
         if self.materiau.isDamaged:
 
             d = self.__damage
@@ -985,7 +984,7 @@ class Simu:
 
             SigmaP_e_pg, SigmaM_e_pg = phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
 
-            # Endommage : c = g(d) * cP + cM
+            # Endommage : Sig = g(d) * SigP + SigM
             g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
             SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize=True)
 
@@ -993,6 +992,7 @@ class Simu:
             
         else:
 
+            c = self.materiau.comportement.get_C()
             Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True)            
 
         return cast(np.ndarray, Sigma_e_pg)
@@ -1052,7 +1052,7 @@ class Simu:
             self.Update_iter(iter)
 
         if option == "Wdef":
-            return self.__CalculEnergieDef()
+            return self.__Calc_EnergieDef()
 
         if option == "damage":
             if not self.materiau.isDamaged:
@@ -1069,7 +1069,7 @@ class Simu:
         displacement = self.__displacement
 
         if option == "psiP":
-            resultat_e_pg = self.CalcPsiPlus_e_pg()
+            resultat_e_pg = self.__Calc_PsiPlus_e_pg()
             resultat = np.mean(resultat_e_pg, axis=1)
 
         dim = self.__dim
@@ -1078,8 +1078,8 @@ class Simu:
         u_e_n = self.__mesh.Localises_sol_e(displacement)
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
-        Epsilon_e_pg = self.__CalculEpsilon_e_pg(displacement)
-        Sigma_e_pg = self.__CalculSigma_e_pg(Epsilon_e_pg)
+        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
+        Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
 
         # Moyenne sur l'élement
         Epsilon_e = np.mean(Epsilon_e_pg, axis=1)

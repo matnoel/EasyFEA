@@ -19,19 +19,19 @@ solve=True
 
 comp = "Elas_Isot"
 split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
-regu = "AT1" # "AT1", "AT2"
+regu = "AT2" # "AT1", "AT2"
 
 
 nom="_".join([comp, split, regu])
 
 nomDossier = "Benchmarck_Compression"
 
-if test:
-    folder = Dossier.Append([nomDossier, "Test", nom])
-else:
-    folder = Dossier.Append([nomDossier, nom])
+folder = Dossier.NewFile(nomDossier, results=True)
 
-folder = Dossier.NewFile(folder, results=True)
+if test:
+    folder = Dossier.Append([folder, "Test", nom])
+else:
+    folder = Dossier.Append([folder, nom])
 
 # Data
 
@@ -75,7 +75,7 @@ if solve:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 
-    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=False, epaisseur=ep)
+    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=False, epaisseur=ep, useVoigtNotation=False)
     phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
     materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 
