@@ -19,7 +19,7 @@ def Save_Simu(simu: Simu, folder:str):
 
     filename = Dossier.Append([folder, "simulation.xml"])
 
-    print(filename)
+    print(f'\nsave of {filename}')
 
     with open(filename, "wb") as file:
         pickle.dump(simu, file)
@@ -44,7 +44,7 @@ def Load_Simu(folder: str):
     with open(filename, 'rb') as file:
         simu = pickle.load(file)
 
-    print(f'load of {filename}')
+    print(f'\nload of {filename}')
 
     assert isinstance(simu, Simu)
 
