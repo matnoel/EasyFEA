@@ -16,11 +16,11 @@ Affichage.Clear()
 
 test=True
 solve=True
-saveParaview=False
+saveParaview=True
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
-regu = "AT2" # "AT1", "AT2"
+split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+regu = "AT1" # "AT1", "AT2"
 
 
 nom="_".join([comp, split, regu])
@@ -34,6 +34,8 @@ if test:
 else:
     folder = Dossier.Append([folder, nom])
 
+
+
 # Data
 
 L=15e-3
@@ -42,7 +44,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.3
+v=0.2
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -52,8 +54,9 @@ l_0 = 0.12e-3
 umax = 25e-6
 
 if test:
-    clD = 0.25e-3*2
-    clC = 0.12e-3*2
+    cc = 1.5
+    clD = 0.25e-3*cc
+    clC = 0.12e-3*cc
     # clD = l_0*2
     # clC = l_0
 
@@ -64,10 +67,11 @@ else:
     clC = l_0/2
 
     inc0 = 8e-8
-    inc1 = 2e-8
-    
+    inc1 = 2e-8 
 
 if solve:
+
+    print(folder)
 
     point = Point()
     domain = Domain(point, Point(x=L, y=h), clD)
@@ -125,6 +129,8 @@ if solve:
     
     # Affichage.Plot_BoundaryConditions(simu)
     # plt.show()
+
+    Affichage.NouvelleSection("Simulation")
 
     dep = []
     forces = []
@@ -197,9 +203,9 @@ else:
     simu = PostTraitement.Load_Simu(folder)
 
 
-Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}", affichageMaillage=True)
+Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}",  valeursAuxNoeuds=True)
 
-Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True)
+Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True,affichageMaillage=True)
 
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)

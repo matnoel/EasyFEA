@@ -21,9 +21,8 @@ test = True
 solve = True
 
 plotResult = True
-saveParaview = False
+saveParaview = True
 makeMovie = False
-save = False
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -31,7 +30,7 @@ folder = "Etude_Cisaillement"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Miehe" # "Bourdin","Amor","Miehe","Stress"
+split = "Stress" # "Bourdin","Amor","Miehe","Stress"
 
 regularisation = "AT1" # "AT1", "AT2"
 
@@ -52,6 +51,7 @@ Gc = 2.7e3
 if test:
         taille = 1e-5 #taille maille test fem object
         # taille = 0.001
+        taille *= 1
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -94,10 +94,9 @@ if solve:
         noeuds_Droite = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
 
         NoeudsBord=[]
-        NoeudsBord.extend(noeuds_Bas)
-        NoeudsBord.extend(noeuds_Droite)
-        NoeudsBord.extend(noeuds_Gauche)
-        NoeudsBord.extend(noeuds_Haut)
+        for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Gauche,noeuds_Haut]:
+                NoeudsBord.extend(noeuds)
+        
 
 # Simulation  -------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Simulations")
@@ -147,6 +146,8 @@ if solve:
 
         tic = TicTac()
 
+        bord = 0
+
         for iter in range(N):
 
                 RenseigneConditionsLimites(dep)
@@ -177,6 +178,12 @@ if solve:
                 tResolution = tic.Tac("Resolution PhaseField", "Resolution Phase field", False)
                 # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
                 print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s') 
+
+                if np.any(damage[NoeudsBord] >= 0.8):                                
+                        bord +=1
+
+                if bord == 5:
+                        break
 
 
         # Sauvegarde
@@ -214,10 +221,10 @@ if plotResult:
 
 
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,
-        affichageMaillage=True, deformation=True, folder=folder)
+        affichageMaillage=False, deformation=False, folder=folder)
         
 
-        Affichage.Plot_Result(simu, "dy", folder=folder)
+        Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
         
 if saveParaview:
         PostTraitement.Save_Simulation_in_Paraview(folder, simu)

@@ -620,8 +620,8 @@ class PhaseFieldModel:
 
             cT = c.T
 
-            cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c)
-            cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c)
+            cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize=True)
+            cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize=True)
 
         else:            
 
