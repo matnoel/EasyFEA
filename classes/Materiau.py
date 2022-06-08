@@ -290,8 +290,7 @@ class PhaseFieldModel:
         if self.__regularization == "AT1":
             k = 3/4 * k
 
-        return k
-        
+        return k        
     k = property(__get_k)
 
     def get_r_e_pg(self, PsiP_e_pg: np.ndarray):
@@ -361,7 +360,7 @@ class PhaseFieldModel:
         return self.__loiDeComportement
     loiDeComportement = cast(LoiDeComportement, property(__get_loiDeComportement))
 
-    def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float, verbosity=False):
+    def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float):
         """Création d'un objet comportement Phase Field
 
             Parameters
@@ -810,7 +809,7 @@ class Materiau:
     phaseFieldModel = cast(PhaseFieldModel, property(__get_phaseFieldModel))
 
     def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0, verbosity=True):
-        """Creer un materiau
+        """Creer un materiau avec la loi de comportement ou le phase field model communiqué
 
         Parameters
         ----------                        

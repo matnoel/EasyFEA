@@ -83,9 +83,12 @@ class Test_Materiau(unittest.TestCase):
             assert isinstance(pfm, PhaseFieldModel)
 
             comportement = pfm.loiDeComportement
+            coef = comportement.coef
             
             if isinstance(comportement, Elas_Isot):
                 c = comportement.get_C()
+                mu = comportement.get_mu()
+                l = comportement.get_lambda()
             else:
                 raise "Pas implémenté"
 
@@ -100,11 +103,12 @@ class Test_Materiau(unittest.TestCase):
             self.assertTrue(np.abs(verifC) < tol)
 
             # Test que SigP + SigM = Sig
-            Sig = np.einsum('ij,epj->epj', c, Epsilon_e_pg, optimize=True)
+            Sig_e_pg = np.einsum('ij,epj->epj', c, Epsilon_e_pg, optimize=True)
+            
             SigP = np.einsum('epij,epj->epj', cP_e_pg, Epsilon_e_pg, optimize=True)
             SigM = np.einsum('epij,epj->epj', cM_e_pg, Epsilon_e_pg, optimize=True)
-            verifSig = np.linalg.norm(Sig-(SigP+SigM))/np.linalg.norm(Sig)
-            if np.linalg.norm(Sig)>0:
+            verifSig = np.linalg.norm(Sig_e_pg-(SigP+SigM))/np.linalg.norm(Sig_e_pg)
+            if np.linalg.norm(Sig_e_pg)>0:
                 self.assertTrue(np.abs(verifSig) < tol)
             
             # Test que Eps:C:Eps = Eps:(cP+cM):Eps
