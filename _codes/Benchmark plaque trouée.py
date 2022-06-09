@@ -1,4 +1,5 @@
 
+from csv import unix_dialect
 from TicTac import TicTac
 import Materiau
 from Geom import *
@@ -16,25 +17,11 @@ Affichage.Clear()
 
 test=True
 solve=True
-saveParaview=True
+saveParaview=False
 
 comp = "Elas_Isot"
 split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
-
-
-nom="_".join([comp, split, regu])
-
-nomDossier = "Benchmarck_Compression"
-
-folder = Dossier.NewFile(nomDossier, results=True)
-
-if test:
-    folder = Dossier.Append([folder, "Test", nom])
-else:
-    folder = Dossier.Append([folder, nom])
-
-
 
 # Data
 
@@ -44,7 +31,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.2
+v=0.4
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -68,6 +55,18 @@ else:
 
     inc0 = 8e-8
     inc1 = 2e-8 
+
+nom="_".join([comp, split, regu])
+nom = f"{nom} pour v={v}"
+
+nomDossier = "Benchmarck_Compression"
+
+folder = Dossier.NewFile(nomDossier, results=True)
+
+if test:
+    folder = Dossier.Append([folder, "Test", nom])
+else:
+    folder = Dossier.Append([folder, nom])
 
 if solve:
 
@@ -114,10 +113,8 @@ if solve:
 
     ud=0
     damage_t=[]
-    displacement_t=[]
-
-    resol=1
-    bord=0
+    
+    
 
     def Chargement():
         simu.Init_Bc_Dirichlet()
@@ -132,32 +129,50 @@ if solve:
 
     Affichage.NouvelleSection("Simulation")
 
+    maxIter = 50
+    tolConv = 0.1
+    resol = 1
+    bord = 0
     dep = []
     forces = []
 
-    fig, ax = plt.subplots()   
+    fig, ax = plt.subplots()
 
     while ud <= umax:
 
+        dold = simu.damage
+
+        convergence = False
+
         tic = TicTac()
 
-        Chargement()
+        iterConv=0
 
-        # Damage
+        while not convergence:
+            
+            iterConv += 1
 
-        simu.Assemblage_d()
+            Chargement()
 
-        damage = simu.Solve_d()
+            # Damage
+            simu.Assemblage_d()
+            damage = simu.Solve_d()
 
-        damage_t.append(damage)
+            # Displacement
+            Kglob = simu.Assemblage_u()
+            displacement = simu.Solve_u()
 
-        # Displacement
+            dincMax = np.max(np.abs(damage-dold))
+            convergence = dincMax <= tolConv
+            print(dincMax)
+            dold = damage.copy()
 
-        Kglob = simu.Assemblage_u()
-
-        displacement = simu.Solve_u(useCholesky=False)
-
-        displacement_t.append(displacement)
+            if iterConv == maxIter:
+                break
+        
+        if iterConv == maxIter:
+            print(f'On converge pas apres {iterConv} itérations')
+            break
 
         simu.Save_solutions()
 
@@ -169,7 +184,7 @@ if solve:
         
         f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e6
 
-        print(f"{resol:4} : ud = {ud*1e6:4.2} µm, f = {f:.2e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {temps} s")
+        print(f"{resol:4} : ud = {ud*1e6:.2} µm, f = {f:.2e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv} x {temps} s")
 
         if max_d<0.6:
             ud += inc0
@@ -205,7 +220,7 @@ else:
 
 Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}",  valeursAuxNoeuds=True)
 
-Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True,affichageMaillage=True)
+# Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True,affichageMaillage=True)
 
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)
