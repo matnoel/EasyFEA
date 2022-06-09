@@ -113,6 +113,15 @@ class Simu:
 
         self.Save_solutions()
 
+    def __get_damage(self):
+        if self.materiau.isDamaged:
+            return self.__damage.copy()
+    damage = cast(np.ndarray, property(__get_damage))
+
+    def __get_displacement(self):
+        return self.__displacement.copy()
+    displacement = cast(np.ndarray, property(__get_displacement))
+
     def get_result(self, index=None):
         """Recupère le resultat stocké dans le data frame panda"""
         if index == None:
@@ -339,7 +348,7 @@ class Simu:
 
         # Data
         k = phaseFieldModel.k
-        PsiP_e_pg = self.__Calc_PsiPlus_e_pg()
+        PsiP_e_pg = self.__Calc_PsiPlus_e_pg(useHistory=True)
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
@@ -411,7 +420,7 @@ class Simu:
 
         self.__damage = dGlob
 
-        return dGlob
+        return dGlob.copy()
 
 # ------------------------------------------------- SOLVEUR -------------------------------------------------
 
