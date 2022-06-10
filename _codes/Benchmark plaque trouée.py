@@ -1,5 +1,4 @@
 
-from csv import unix_dialect
 from TicTac import TicTac
 import Materiau
 from Geom import *
@@ -17,10 +16,10 @@ Affichage.Clear()
 
 test=True
 solve=True
-saveParaview=False
+saveParaview=True
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 
 # Data
@@ -31,7 +30,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.4
+v=0.3
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -47,8 +46,11 @@ if test:
     # clD = l_0*2
     # clC = l_0
 
-    inc0 = 16e-8
-    inc1 = 4e-8    
+    # inc0 = 16e-8
+    # inc1 = 4e-8
+
+    inc0 = 8e-8
+    inc1 = 2e-8 
 else:
     clD = l_0/2
     clC = l_0/2
@@ -112,8 +114,7 @@ if solve:
     nodesB = mesh.Get_Nodes_Domain(domainB)
 
     ud=0
-    damage_t=[]
-    
+    damage_t=[]    
     
 
     def Chargement():
@@ -129,8 +130,8 @@ if solve:
 
     Affichage.NouvelleSection("Simulation")
 
-    maxIter = 50
-    tolConv = 0.1
+    maxIter = 200
+    tolConv = 0.01
     resol = 1
     bord = 0
     dep = []
@@ -139,20 +140,18 @@ if solve:
     fig, ax = plt.subplots()
 
     while ud <= umax:
-
-        dold = simu.damage
-
-        convergence = False
-
+        
         tic = TicTac()
 
         iterConv=0
+        convergence = False
+        dold = simu.damage
+
+        Chargement()
 
         while not convergence:
             
-            iterConv += 1
-
-            Chargement()
+            iterConv += 1            
 
             # Damage
             simu.Assemblage_d()
@@ -164,7 +163,7 @@ if solve:
 
             dincMax = np.max(np.abs(damage-dold))
             convergence = dincMax <= tolConv
-            print(dincMax)
+            # print(dincMax)
             dold = damage.copy()
 
             if iterConv == maxIter:
@@ -186,7 +185,7 @@ if solve:
         
         f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e6
 
-        print(f"{resol:4} : ud = {ud*1e6:.2} µm, f = {f:.2e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv} x {temps} s")
+        print(f"{resol:4} : ud = {ud*1e6:5.2} µm, f = {f:2.1e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
         if max_d<0.6:
             ud += inc0

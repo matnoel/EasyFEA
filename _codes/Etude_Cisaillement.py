@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
+simulation = "Shear" #"Shear" , "Tension"
+
 test = True
 
 solve = True
@@ -26,11 +28,14 @@ makeMovie = False
 
 # Data --------------------------------------------------------------------------------------------
 
-folder = "Etude_Cisaillement"
+if simulation == "Shear":        
+        folder = "Etude_Cisaillement"
+else:
+        folder = "Etude_Tension"
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Stress" # "Bourdin","Amor","Miehe","Stress"
+split = "Miehe" # "Bourdin","Amor","Miehe","Stress"
 
 regularisation = "AT1" # "AT1", "AT2"
 
@@ -51,7 +56,7 @@ Gc = 2.7e3
 if test:
         taille = 1e-5 #taille maille test fem object
         # taille = 0.001
-        taille *= 1
+        taille *= 1.5
 else:
         taille = l0/2 #l0/2 2.5e-6
 
@@ -65,6 +70,8 @@ else:
 print(folder)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
+
+
 
 if solve:
 
@@ -95,13 +102,10 @@ if solve:
 
         NoeudsBord=[]
         for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Gauche,noeuds_Haut]:
-                NoeudsBord.extend(noeuds)
-        
+                NoeudsBord.extend(noeuds)       
 
-# Simulation  -------------------------------------------------------------------------------------------
-Affichage.NouvelleSection("Simulations")
-
-if solve:
+        # Simulation  -------------------------------------------------------------------------------------------
+        Affichage.NouvelleSection("Simulations")
 
         comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
@@ -112,24 +116,29 @@ if solve:
         simu = Simu(mesh, materiau, verbosity=False)
 
         # Renseignement des conditions limites
-        def RenseigneConditionsLimites(dep):
+        def Chargement(dep):
 
                 simu.Init_Bc_Dirichlet()
 
                 if not openCrack:
-                        simu.add_dirichlet("damage",noeuds_Milieu, [1], ["d"])                        
-
-                # # Conditions en déplacements à Gauche et droite
-                simu.add_dirichlet("displacement", noeuds_Gauche, [0],["y"])
-                simu.add_dirichlet("displacement", noeuds_Droite, [0],["y"])
+                        simu.add_dirichlet("damage",noeuds_Milieu, [1], ["d"])
+                
+                if simulation == "Shear":
+                        # Conditions en déplacements à Gauche et droite
+                        simu.add_dirichlet("displacement", noeuds_Gauche, [0],["y"])
+                        simu.add_dirichlet("displacement", noeuds_Droite, [0],["y"])
+                        simu.add_dirichlet("displacement", noeuds_Haut, [dep,0], ["x","y"])
+                        # simu.add_dirichlet("displacement", noeuds_Haut, [dep], ["x"])
+                else:
+                        simu.add_dirichlet("displacement", noeuds_Haut, [dep], ["y"])
 
                 # Conditions en déplacements en Bas
                 simu.add_dirichlet("displacement", noeuds_Bas, [0,0],["x","y"])
+                
+                
+                
 
-                # simu.add_dirichlet("displacement", noeuds_Haut, [dep], ["x"])
-                simu.add_dirichlet("displacement", noeuds_Haut, [dep,0], ["x","y"])
-
-        RenseigneConditionsLimites(0)
+        Chargement(0)
 
         Affichage.Plot_BoundaryConditions(simu)
         # plt.show()
@@ -142,31 +151,33 @@ if solve:
 
         u_inc = 5e-8
         # u_inc = 5e-7
-        dep = 0        
+        dep = 0
 
         tic = TicTac()
 
         bord = 0
 
+        fig, ax = plt.subplots()
+        list_Psi_Elas=[]
+        list_Psi_Crack=[]
+        deplacement=[]
+
         for iter in range(N):
 
-                RenseigneConditionsLimites(dep)
+                # Déplacement en haut
+                dep += u_inc
 
+                Chargement(dep)
                 #-------------------------- PFM problem ------------------------------------
                 
                 simu.Assemblage_d()     # Assemblage
                 
-                damage = simu.Solve_d() # resolution
-                damage_t.append(damage)
+                damage = simu.Solve_d() # resolution                
 
                 #-------------------------- Dep problem ------------------------------------
                 simu.Assemblage_u()
-
-                # Déplacement en haut
-                dep += u_inc
                 
-                uglob = simu.Solve_u(useCholesky=False)
-                uglob_t.append(uglob)
+                uglob = simu.Solve_u(useCholesky=False)               
 
                 simu.Save_solutions()
 
@@ -178,12 +189,32 @@ if solve:
                 tResolution = tic.Tac("Resolution PhaseField", "Resolution Phase field", False)
                 # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
                 print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s') 
+                
+                deplacement.append(dep)
 
                 if np.any(damage[NoeudsBord] >= 0.8):                                
                         bord +=1
 
                 if bord == 5:
                         break
+
+                
+                # Calcul de l'energie
+
+                list_Psi_Crack.append(simu.Get_Resultat("Psi_Crack"))
+                list_Psi_Elas.append(simu.Get_Resultat("Psi_Elas"))
+                list_E_tot = np.array(list_Psi_Crack)-np.array(list_Psi_Elas)
+                displacement = np.array(deplacement)
+
+                ax.cla()
+                ax.plot(displacement*1e6, list_Psi_Crack, label="Psi_Crack")
+                ax.plot(displacement*1e6, list_Psi_Elas, label="Psi_Elas")
+                # ax.plot(displacement*1e6, list_E_tot, label="E_tot")
+                ax.set_xlabel("ud en µm")
+                ax.set_ylabel("Joules")
+                plt.legend()
+                plt.pause(0.0000001)
+                
 
 
         # Sauvegarde

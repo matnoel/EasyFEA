@@ -67,7 +67,11 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
     coord_par_face = coordo_redim[connect_Faces]
     
     if option == "damage":
-        levels = np.linspace(0, 1, 200)
+        min = valeurs.min()
+        max = valeurs.max()
+        if max < 1:
+            max=1
+        levels = np.linspace(min, max, 200)
     else:
         levels = 200
 
@@ -103,9 +107,9 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
             cmap='jet')
             # tripcolor, tricontour, tricontourf
 
-        if option == "damage":
+        if option == "damage":            
             ticks = np.linspace(0,1,11)
-            cb = plt.colorbar(pc, ax=ax, ticks=ticks)                    
+            cb = plt.colorbar(pc, ax=ax, ticks=ticks)            
         else:
             cb = plt.colorbar(pc, ax=ax)
             

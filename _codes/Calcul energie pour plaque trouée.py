@@ -17,7 +17,7 @@ Affichage.Clear()
 # Options
 
 test=True
-plotAllResult = True
+plotAllResult = False
 
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
@@ -84,7 +84,7 @@ columns = ['v','A (DP)','B (DP)','A (CP)','B (CP)','A (Analytique CP)','B (Analy
 
 df = pd.DataFrame(columns=columns)
 
-for v in [0.2,0.3,0.4]:
+for v in [0.2,0.3,0.4,0.4999]:
     result = {
         'v': v
     }
@@ -113,8 +113,8 @@ for v in [0.2,0.3,0.4]:
             result['A (CP)'] = psipa
             result['B (CP)'] = psipb
 
-            # Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=True, coef=E/SIG**2, unite=f"*E/Sig^2 {nom} pour v={v}",folder=folder)
-            Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=False, coef=E/SIG**2, unite=f"*E/Sig^2 {nom} pour v={v}",folder=folder)
+            Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=True, coef=E/SIG**2, unite=f"*E/Sig^2 {nom} pour v={v}",folder=folder)
+            # Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=False, coef=E/SIG**2, unite=f"*E/Sig^2 {nom} pour v={v}",folder=folder)
         else:
             result['A (DP)'] = psipa
             result['B (DP)'] = psipb
@@ -165,6 +165,7 @@ axp.plot(vv, 9*vv**2/(1+vv), label="psiP_B*E/Sig^2")
 axp.grid()
 axp.legend()
 axp.set_xlabel("v")
+
 
 TicTac.getResume()
 

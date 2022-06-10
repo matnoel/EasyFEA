@@ -899,11 +899,11 @@ class Simu:
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
-    def __Calc_EnergieDef(self):
+    def __Calc_Psi_Elas(self):
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
-        sol_u  = self.Get_Resultat("displacement", valeursAuxNoeuds=True)
+        sol_u  = self.__displacement
 
         matriceType = "rigi"
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(sol_u, matriceType)
@@ -917,7 +917,7 @@ class Simu:
 
         if self.materiau.isDamaged:
 
-            d = self.Get_Resultat("damage", valeursAuxNoeuds=True)
+            d = self.__damage
 
             phaseFieldModel = self.materiau.phaseFieldModel
             psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
@@ -938,9 +938,20 @@ class Simu:
             # # Calcul par Element fini
             # u_e = self.__mesh.Localises_sol_e(sol_u)
             # Ku_e = self.__ConstruitMatElem_Dep()
-            # Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ku_e, u_e)
+            # Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ku_e, u_e, optimize=True)
         
         return Wdef
+
+    def __Calc_Psi_Crack(self):
+        """Calcul l'energie de fissure"""
+        if not self.materiau.isDamaged: return
+
+        d_n = self.__damage
+        d_e = self.__mesh.Localises_sol_e(d_n)
+        Kd_e, Fd_e = self.__ConstruitMatElem_Pfm()
+        Psi_Crack = 1/2 * np.einsum('ei,eij,ej->', d_e, Kd_e, d_e, optimize=True)
+
+        return Psi_Crack
 
     def __Calc_Epsilon_e_pg(self, u: np.ndarray, matriceType="rigi"):
         """Construit epsilon pour chaque element et chaque points de gauss
@@ -1027,7 +1038,7 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Energie" :["Wdef"],
+                "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
                 "Damage" :["damage","psiP"]
             }
         elif dim == 3:
@@ -1035,7 +1046,7 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Energie" :["Wdef"]
+                "Energie" :["Wdef","Psi_Elas"]
             }
 
         # Verfication que l'option est dans dans les options
@@ -1051,7 +1062,24 @@ class Simu:
 
         return ContenueDansOptions
 
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=False, iter=None):              
+    def Get_Resultat(self, option: str, valeursAuxNoeuds=False, iter=None):
+        """ Renvoie le résultat contenu dans 
+        if dim == 2:
+            options = {
+                "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
+                "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
+                "Damage" :["damage","psiP"]
+            }
+        elif dim == 3:
+            options = {
+                "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
+                "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Energie" :["Wdef","Psi_Elas"]
+            }
+        """
 
         verif = self.VerificationOption(option)
         if not verif:
@@ -1060,8 +1088,11 @@ class Simu:
         if iter != None:
             self.Update_iter(iter)
 
-        if option == "Wdef":
-            return self.__Calc_EnergieDef()
+        if option in ["Wdef","Psi_Elas"]:
+            return self.__Calc_Psi_Elas()
+
+        if option == "Psi_Crack":
+            return self.__Calc_Psi_Crack()
 
         if option == "damage":
             if not self.materiau.isDamaged:
