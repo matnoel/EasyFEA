@@ -19,38 +19,43 @@ solve=True
 saveParaview=True
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 
 # Data
 
-L=15e-3
-h=30e-3
-ep=1
-diam=6e-3
+L=9e-2
+H=12e-2
+h=3.5e-2
+ep=2e-2
+diam=1e-2
 
-E=12e9
+E=11.580e9
 v=0.3
 
-gc = 1.4
-l_0 = 0.12e-3
+gc = 1
+l_0 = L/50
 
 # Création de la simulations
 
-umax = 25e-6
+umax = 3e-3
+N=400
 
 if test:
-    cc = 1.5
-    clD = 0.25e-3*cc
-    clC = 0.12e-3*cc
+    cc = 0.5
+    clD = l_0*2*cc
+    clC = l_0*cc
     # clD = l_0*2
     # clC = l_0
 
     # inc0 = 16e-8
     # inc1 = 4e-8
+    # inc0 = 8e-8
+    # inc1 = 2e-8
 
-    inc0 = 8e-8
-    inc1 = 2e-8 
+    inc0 = umax/N
+    inc1 = inc0/3
+
 else:
     clD = l_0/2
     clC = l_0/2
@@ -61,7 +66,7 @@ else:
 nom="_".join([comp, split, regu])
 nom = f"{nom} pour v={v}"
 
-nomDossier = "Benchmarck_Compression"
+nomDossier = "PlateWithHole_FCBA"
 
 folder = Dossier.NewFile(nomDossier, results=True)
 
@@ -75,8 +80,8 @@ if solve:
     print(folder)
 
     point = Point()
-    domain = Domain(point, Point(x=L, y=h), clD)
-    circle = Circle(Point(x=L/2, y=h/2), diam, clC)
+    domain = Domain(point, Point(x=L, y=H), clD)
+    circle = Circle(Point(x=L/2, y=H-h), diam, clC)
 
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
@@ -90,13 +95,13 @@ if solve:
     # Récupérations des noeuds
 
     B_lower = Line(point,Point(x=L))
-    B_upper = Line(Point(y=h),Point(x=L, y=h))
-    B_left = Line(point,Point(y=h))
-    B_right = Line(Point(x=L),Point(x=L, y=h))
+    B_upper = Line(Point(y=H),Point(x=L, y=H))
+    B_left = Line(point,Point(y=H))
+    B_right = Line(Point(x=L),Point(x=L, y=H))
 
     c = diam/10
-    domainA = Domain(Point(x=(L-c)/2, y=h/2+0.8*diam/2), Point(x=(L+c)/2, y=h/2+0.8*diam/2+c))
-    domainB = Domain(Point(x=L/2+0.8*diam/2, y=(h-c)/2), Point(x=L/2+0.8*diam/2+c, y=(h+c)/2))
+    domainA = Domain(Point(x=(L-c)/2, y=H/2+0.8*diam/2), Point(x=(L+c)/2, y=H/2+0.8*diam/2+c))
+    domainB = Domain(Point(x=L/2+0.8*diam/2, y=(H-c)/2), Point(x=L/2+0.8*diam/2+c, y=(H+c)/2))
 
     nodes_lower = mesh.Get_Nodes_Line(B_lower)
     nodes_upper = mesh.Get_Nodes_Line(B_upper)
@@ -185,9 +190,9 @@ if solve:
         
         f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e6
 
-        print(f"{resol:4} : ud = {ud*1e6:5.2} µm, f = {f:2.1e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+        print(f"{resol:4} : ud = {ud*1e3:5.2} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
-        if max_d<0.6:
+        if max_d<0.5:
             ud += inc0
         else:
             ud += inc1

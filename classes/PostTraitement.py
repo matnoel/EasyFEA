@@ -139,7 +139,8 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
         f = Dossier.Append([folder,f'solution_{iter}.vtu'])
 
         if simu.materiau.isDamaged:
-            vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress"])            
+            # vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress","psiP"])
+            vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress"])
         else:
             vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef"], elementsField=["Stress"])
         

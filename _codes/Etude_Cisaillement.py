@@ -37,9 +37,9 @@ comportement = "Elas_Isot" # "Elas_Isot"
 
 split = "Miehe" # "Bourdin","Amor","Miehe","Stress"
 
-regularisation = "AT1" # "AT1", "AT2"
+regularisation = "AT2" # "AT1", "AT2"
 
-openCrack = True
+openCrack = False
 
 nameSimu = '_'.join([comportement,split,regularisation])
 if openCrack: 
@@ -101,7 +101,7 @@ if solve:
         noeuds_Droite = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
 
         NoeudsBord=[]
-        for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Gauche,noeuds_Haut]:
+        for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Haut]:
                 NoeudsBord.extend(noeuds)       
 
         # Simulation  -------------------------------------------------------------------------------------------

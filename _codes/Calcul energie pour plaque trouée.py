@@ -19,7 +19,7 @@ Affichage.Clear()
 plotAllResult = False
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
@@ -52,8 +52,11 @@ point = Point()
 domain = Domain(point, Point(x=L, y=h), clD)
 circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
-interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
+interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True)
 mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
+
+Affichage.Plot_Maillage(mesh)
+plt.show()
 
 # Récupérations des noeuds
 
