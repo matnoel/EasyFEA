@@ -246,9 +246,15 @@ class Interface_Gmsh:
                 # gmsh.option.setNumber("Mesh.MeshSizeMin", domain.taille)
                 # gmsh.option.setNumber("Mesh.MeshSizeMax", circle.taille)
 
-                # Create a surface
-                surface = gmsh.model.occ.addPlaneSurface([loop,lignecercle])
-
+                # Create a surface avec le cyclindre creux
+                surface = gmsh.model.occ.addPlaneSurface([loop,lignecercle])                
+                
+                # Cylindre plein
+                # surface = gmsh.model.occ.addPlaneSurface([loop])
+                # gmsh.model.occ.synchronize()
+                # gmsh.model.mesh.embed(1,[l5,l6],2, surface)
+                
+                # Ici on supprimer le point du centre du cercle
                 gmsh.model.occ.synchronize()
                 gmsh.model.occ.remove([(0,p5)], False)
 
