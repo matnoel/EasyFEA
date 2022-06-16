@@ -15,7 +15,7 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=False
+solve=True
 saveParaview=True
 
 comp = "Elas_Isot"
@@ -29,6 +29,7 @@ H=12e-2
 h=3.5e-2
 ep=2e-2
 diam=1e-2
+r=diam/2
 
 E=10e9
 v=0.2
@@ -39,6 +40,10 @@ l_0 = L/50
 # Création de la simulations
 
 umax = 2e-3
+
+# loadMax = 2e3 #kN
+loadMax = 2 #kN
+
 N=400
 
 if test:
@@ -53,11 +58,11 @@ if test:
     # inc0 = 8e-8
     # inc1 = 2e-8
 
-    inc0 = 8e-7
-    inc1 = 2e-7
+    # inc0 = 8e-7
+    # inc1 = 2e-7
 
-    # inc0 = umax/N
-    # inc1 = inc0/6
+    inc0 = loadMax/N
+    inc1 = inc0/6
 
 else:
     clD = l_0/2
@@ -102,17 +107,16 @@ if solve:
     B_left = Line(point,Point(y=H))
     B_right = Line(Point(x=L),Point(x=L, y=H))
 
-    c = diam/10
-    domainA = Domain(Point(x=(L-c)/2, y=H/2+0.8*diam/2), Point(x=(L+c)/2, y=H/2+0.8*diam/2+c))
-    domainB = Domain(Point(x=L/2+0.8*diam/2, y=(H-c)/2), Point(x=L/2+0.8*diam/2+c, y=(H+c)/2))
-
     nodes_lower = mesh.Get_Nodes_Line(B_lower)
     nodes_upper = mesh.Get_Nodes_Line(B_upper)
     nodes_left = mesh.Get_Nodes_Line(B_left)
     nodes_right = mesh.Get_Nodes_Line(B_right)
 
-    noeuds_cercle = mesh.Get_Nodes
-    # F:\Pro\FEMObject\BASIC\GEOMETRY\@CIRCLE
+    noeuds_cercle = mesh.Get_Nodes_Circle(circle)
+    noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]
+    
+    essai = (mesh.coordo[noeuds_cercle,1]-circle.center.y)/r
+    
 
     # noeuds_bord = np.array().reshape(-1)
     noeuds_bord = []
@@ -121,23 +125,25 @@ if solve:
     noeuds_bord = np.unique(noeuds_bord)
     
     node00 = mesh.Get_Nodes_Point(point)
-    nodesA = mesh.Get_Nodes_Domain(domainA)
-    nodesB = mesh.Get_Nodes_Domain(domainB)
 
     ud=0
-    damage_t=[]    
-    
+    load=10
 
-    def Chargement():
-        simu.Init_Bc_Dirichlet()
+    def Chargement(load):
+        simu.Init_Bc_Dirichlet()        
         simu.add_dirichlet("displacement", nodes_lower, [0], ["y"])
         simu.add_dirichlet("displacement", node00, [0], ["x"])
-        simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
 
-    Chargement()
+        fmax = -load/(2*np.pi*r*ep)
+
+        simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: fmax*(y-circle.center.y)/r], ["y"])
+        # simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
+
+    Chargement(load)
     
-    # Affichage.Plot_BoundaryConditions(simu)
-    # plt.show()
+    ax = Affichage.Plot_BoundaryConditions(simu,folder)
+    # Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=noeuds_cercle, showId=True)
+    plt.show()
 
     Affichage.NouvelleSection("Simulation")
 
@@ -150,7 +156,8 @@ if solve:
 
     fig, ax = plt.subplots()
 
-    while ud <= umax:
+    # while ud <= umax:
+    while load <= loadMax:
         
         tic = TicTac()
 
@@ -158,7 +165,7 @@ if solve:
         convergence = False
         dold = simu.damage
 
-        Chargement()
+        Chargement(load)
 
         while not convergence:
             
@@ -194,14 +201,18 @@ if solve:
         max_d = damage.max()
         min_d = damage.min()
         
-        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e3
+        # f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e3
 
-        print(f"{resol:4} : ud = {ud*1e3:5.2} mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+        depl = np.abs(np.max(displacement[noeuds_cercle*2]))
 
-        if max_d<0.2:
-            ud += inc0
+        print(f"{resol:4} : ud = {depl*1e3:5.2} mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+
+        if max_d<0.5:
+            # ud += inc0
+            load += inc0
         else:
-            ud += inc1
+            # ud += inc1
+            load += inc1
         
         if np.any(damage[noeuds_bord] >= 0.8):
             bord +=1
@@ -209,8 +220,12 @@ if solve:
         if bord == 1:
             break
 
-        dep.append(ud)
-        forces.append(f)
+        
+
+        # dep.append(ud)
+        dep.append(depl)
+        # forces.append(f)
+        forces.append(load)
 
         ax.cla()
         ax.plot(dep, np.abs(forces), c='black')

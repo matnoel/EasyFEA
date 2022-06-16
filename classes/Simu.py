@@ -741,7 +741,7 @@ class Simu:
     def add_surfLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force surfacique\n
         valeurs est une liste de constantes ou de fonctions\n
-        ex: valeurs = [lambda x,y,z : f(x,y,z), -10]
+        ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
 
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
         les fonctions utilisent les coordonnées x, y et z des neouds
