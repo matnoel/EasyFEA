@@ -73,6 +73,10 @@ class Mesh:
     def Get_Nodes_Domain(self, domain: Domain):
         """Renvoie la liste de noeuds qui sont dans le domaine"""
         return self.groupElem.Get_Nodes_Domain(domain)
+    
+    def Get_Nodes_Circle(self, circle: Circle):
+        """Renvoie la liste de noeuds qui sont dans le cercle"""
+        return self.groupElem.Get_Nodes_Circle(circle)
 
     def Localises_sol_e(self, sol: np.ndarray):
         """sur chaque elements on récupère les valeurs de sol"""

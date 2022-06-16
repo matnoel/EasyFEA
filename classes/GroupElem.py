@@ -657,6 +657,17 @@ class GroupElem:
                                 (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))[0]
             
             return self.__nodes[noeuds]
+
+        def Get_Nodes_Circle(self, circle: Circle):
+            """Renvoie la liste de noeuds qui sont dans le cercle"""
+
+            coordo = self.__coordo
+
+            eps = np.finfo(float).eps
+
+            noeuds = np.where(np.sqrt((coordo[:,0]-circle.center.x)**2+(coordo[:,1]-circle.center.y)**2+(coordo[:,2]-circle.center.z)**2)<=circle.diam/2+eps)
+
+            return self.__nodes[noeuds]
         
         def Localise_sol_e(self, sol: np.ndarray):
             """localise les valeurs de noeuds sur les elements"""
