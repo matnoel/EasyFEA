@@ -15,7 +15,7 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=True
+solve=False
 saveParaview=True
 
 comp = "Elas_Isot"
@@ -30,15 +30,15 @@ h=3.5e-2
 ep=2e-2
 diam=1e-2
 
-E=11.580e9
-v=0.3
+E=10e9
+v=0.2
 
-gc = 1
+gc = 3
 l_0 = L/50
 
 # Création de la simulations
 
-umax = 3e-3
+umax = 2e-3
 N=400
 
 if test:
@@ -53,8 +53,11 @@ if test:
     # inc0 = 8e-8
     # inc1 = 2e-8
 
-    inc0 = umax/N
-    inc1 = inc0/3
+    inc0 = 8e-7
+    inc1 = 2e-7
+
+    # inc0 = umax/N
+    # inc1 = inc0/6
 
 else:
     clD = l_0/2
@@ -107,6 +110,9 @@ if solve:
     nodes_upper = mesh.Get_Nodes_Line(B_upper)
     nodes_left = mesh.Get_Nodes_Line(B_left)
     nodes_right = mesh.Get_Nodes_Line(B_right)
+
+    noeuds_cercle = mesh.Get_Nodes
+    # F:\Pro\FEMObject\BASIC\GEOMETRY\@CIRCLE
 
     # noeuds_bord = np.array().reshape(-1)
     noeuds_bord = []
@@ -188,11 +194,11 @@ if solve:
         max_d = damage.max()
         min_d = damage.min()
         
-        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e6
+        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e3
 
-        print(f"{resol:4} : ud = {ud*1e3:5.2} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+        print(f"{resol:4} : ud = {ud*1e3:5.2} mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
-        if max_d<0.5:
+        if max_d<0.2:
             ud += inc0
         else:
             ud += inc1
@@ -208,8 +214,8 @@ if solve:
 
         ax.cla()
         ax.plot(dep, np.abs(forces), c='black')
-        ax.set_xlabel("ud en µm")
-        ax.set_ylabel("f en kN/mm")
+        ax.set_xlabel("ud en mm")
+        ax.set_ylabel("f en kN")
         plt.pause(0.0000001)
         
         resol += 1

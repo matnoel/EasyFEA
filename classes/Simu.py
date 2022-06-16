@@ -372,7 +372,7 @@ class Simu:
         Kd_e = np.sum(Kd_e_pg, axis=1)
 
         # Construit Fd_e
-        Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg) 
+        Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize=True)
 
         Fd_e = np.sum(Fd_e_pg, axis=1)
 
@@ -927,13 +927,13 @@ class Simu:
             psiP_e_pg = np.einsum('ep,ep->ep', g_e_pg, psiP_e_pg, optimize=True)
             psi_e_pg = psiP_e_pg + psiM_e_pg
 
-            Wdef = np.einsum(',ep,p,ep->', ep, jacobien_e_pg, poid_pg, psi_e_pg)
+            Wdef = np.einsum(',ep,p,ep->', ep, jacobien_e_pg, poid_pg, psi_e_pg, optimize=True)
 
         else:
 
             Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg, matriceType)
             
-            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
+            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg, optimize=True)
 
             # # Calcul par Element fini
             # u_e = self.__mesh.Localises_sol_e(sol_u)
