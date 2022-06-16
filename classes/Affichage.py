@@ -295,18 +295,18 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
         ax = Plot_Maillage(mesh, alpha=0)
     
     if len(noeuds) == 0:
-        noeuds = mesh.nodes
+        noeuds = mesh.nodes    
     
     coordo = mesh.coordoGlob
 
     if mesh.dim == 2:
         ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, c=c, zorder=2.5)
         if showId:            
-            for n, noeud in enumerate(noeuds): ax.text(coordo[n,0], coordo[n,1], str(noeud))
+            for noeud in noeuds: ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud))
     elif  mesh.dim == 3:            
         ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], marker=marker, c=c)
         if showId:
-            for n, noeud in enumerate(noeuds): ax.text(coordo[n,0], coordo[n,1], coordo[n,2], str(noeud))
+            for noeud in noeuds: ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud))
     
     if folder != "":
         import PostTraitement
@@ -400,6 +400,12 @@ def Plot_BoundaryConditions(simu, folder=""):
             ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,1], marker=marker, linewidths=lw, label=titre)
     
     plt.legend()
+
+    if folder != "":
+        import PostTraitement
+        PostTraitement.Save_fig(folder, "Conditions limites")
+
+    return ax
 
     
     
