@@ -167,7 +167,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
     
     return fig, ax, cb
     
-def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder=""):
+def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder="", title=""):
     """Dessine le maillage de la simulation
 
     Parameters
@@ -275,7 +275,8 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
         __ChangeEchelle(ax, coordo)
     
-    title = f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}"
+    if title == "":
+        title = f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}"
 
     ax.set_title(title)
 
