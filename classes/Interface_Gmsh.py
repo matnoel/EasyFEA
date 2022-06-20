@@ -234,12 +234,16 @@ class Interface_Gmsh:
                 # Points cercle                
                 p5 = gmsh.model.occ.addPoint(center.x, center.y, 0, circle.taille) #centre
                 p6 = gmsh.model.occ.addPoint(center.x-rayon, center.y, 0, circle.taille)
-                p7 = gmsh.model.occ.addPoint(center.x+rayon, center.y, 0, circle.taille)
+                p7 = gmsh.model.occ.addPoint(center.x, center.y-rayon, 0, circle.taille)
+                p8 = gmsh.model.occ.addPoint(center.x+rayon, center.y, 0, circle.taille)
+                p9 = gmsh.model.occ.addPoint(center.x, center.y+rayon, 0, circle.taille)
 
                 # Lignes cercle                
                 l5 = gmsh.model.occ.addCircleArc(p6, p5, p7)
-                l6 = gmsh.model.occ.addCircleArc(p7, p5, p6)
-                lignecercle = gmsh.model.occ.addCurveLoop([l5,l6])
+                l6 = gmsh.model.occ.addCircleArc(p7, p5, p8)
+                l7 = gmsh.model.occ.addCircleArc(p8, p5, p9)
+                l8 = gmsh.model.occ.addCircleArc(p9, p5, p6)
+                lignecercle = gmsh.model.occ.addCurveLoop([l5,l6,l7,l8])
 
                 # cercle = gmsh.model.occ.addCircle(center.x, center.y, center.z, diam/2)
                 # lignecercle = gmsh.model.occ.addCurveLoop([cercle])
