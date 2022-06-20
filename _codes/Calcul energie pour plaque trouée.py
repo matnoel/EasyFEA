@@ -1,5 +1,4 @@
 
-from unittest import result
 from TicTac import TicTac
 import Materiau
 from Geom import *
@@ -16,16 +15,21 @@ Affichage.Clear()
 
 # Options
 
-plotAllResult = False
+plotAllResult = True
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
 nom="_".join([comp, split, regu])
 
+loadInHole = False
+
 nomDossier = "Calcul Energie plaque trouée"
+
+if loadInHole:
+    nomDossier += "_loadInHole"
 
 folder = Dossier.NewFile(nomDossier, results=True)
 
@@ -35,6 +39,7 @@ L=15e-3
 h=30e-3
 ep=1e-3
 diam=6e-3
+r=diam/2
 
 E=12e9
 v=0.2
@@ -42,7 +47,6 @@ SIG = 10 #Pa
 
 gc = 1.4
 l_0 = 0.12e-3*1.5
-
 
 # Création du maillage
 clD = l_0*2
@@ -52,29 +56,26 @@ point = Point()
 domain = Domain(point, Point(x=L, y=h), clD)
 circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
-interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True)
+interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
 mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 
-Affichage.Plot_Maillage(mesh)
-plt.show()
-
-# Récupérations des noeuds
-
+# Récupérations des noeuds de chargement
 B_lower = Line(point,Point(x=L))
 B_upper = Line(Point(y=h),Point(x=L, y=h))
-c = diam/10
-domainA = Domain(Point(x=(L-c)/2, y=h/2+0.8*diam/2), Point(x=(L+c)/2, y=h/2+0.8*diam/2+c))
-domainB = Domain(Point(x=L/2+0.8*diam/2, y=(h-c)/2), Point(x=L/2+0.8*diam/2+c, y=(h+c)/2))
-
 nodes0 = mesh.Get_Nodes_Line(B_lower)
 nodesh = mesh.Get_Nodes_Line(B_upper)
 node00 = mesh.Get_Nodes_Point(Point())
-nodesA = mesh.Get_Nodes_Domain(domainA)
-nodesB = mesh.Get_Nodes_Domain(domainB)
+nodesCircle = mesh.Get_Nodes_Circle(circle)
+nodesCircle = nodesCircle[np.where(mesh.coordo[nodesCircle,1]<= circle.center.y)]
+
+
+# Noeuds en A et en B
+nodeA = mesh.Get_Nodes_Point(Point(x=L/2, y=h/2+r))
+nodeB = mesh.Get_Nodes_Point(Point(x=L/2+r, y=h/2))
 
 if plotAllResult:
     ax = Affichage.Plot_Maillage(mesh)
-    for ns in [nodes0, nodesh, node00, nodesA, nodesB]:
+    for ns in [nodes0, nodesh, node00, nodeA, nodeB,nodesCircle]:
         Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)
 
 columns = ['v','A (DP)','B (DP)','A (CP)','B (CP)','A (Analytique CP)','B (Analytique CP)']
@@ -95,7 +96,10 @@ for v in [0.2,0.3,0.4]:
         simu.add_dirichlet("displacement", nodes0, [0], ["y"])
         simu.add_dirichlet("displacement", node00, [0], ["x"])
 
-        simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
+        if loadInHole:
+            simu.add_surfLoad("displacement", nodesCircle, [lambda x,y,z : SIG*(y-circle.center.y)/r], ["y"])            
+        else:
+            simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
 
         # Affichage.Plot_BoundaryConditions(simu)
 
@@ -103,8 +107,8 @@ for v in [0.2,0.3,0.4]:
 
         simu.Solve_u(useCholesky=True)
 
-        psipa = np.mean(simu.Get_Resultat("psiP", True)[nodesA])*E/SIG**2
-        psipb = np.mean(simu.Get_Resultat("psiP", True)[nodesB])*E/SIG**2
+        psipa = np.mean(simu.Get_Resultat("psiP", True)[nodeA])*E/SIG**2
+        psipb = np.mean(simu.Get_Resultat("psiP", True)[nodeB])*E/SIG**2
 
         if isCP:
             result['A (CP)'] = psipa
@@ -133,24 +137,24 @@ Affichage.NouvelleSection("Résultats")
 print(nom+'\n')
 print(df)
 
-SxxA = np.mean(simu.Get_Resultat("Sxx", True)[nodesA])
-SyyA = np.mean(simu.Get_Resultat("Syy", True)[nodesA])
-SxyA = np.mean(simu.Get_Resultat("Sxy", True)[nodesA])
+SxxA = simu.Get_Resultat("Sxx", True)[nodeA][0]
+SyyA = simu.Get_Resultat("Syy", True)[nodeA][0]
+SxyA = simu.Get_Resultat("Sxy", True)[nodeA][0]
 
 Sig_A=np.array([[SxxA, SxyA, 0],[SxyA, SyyA, 0],[0,0,0]])
 print(f"\nEn A : Sig/SIG = \n{Sig_A/SIG}\n")
 
-SxxB = np.mean(simu.Get_Resultat("Sxx", True)[nodesB])
-SyyB = np.mean(simu.Get_Resultat("Syy", True)[nodesB])
-SxyB = np.mean(simu.Get_Resultat("Sxy", True)[nodesB])
+SxxB = simu.Get_Resultat("Sxx", True)[nodeB][0]
+SyyB = simu.Get_Resultat("Syy", True)[nodeB][0]
+SxyB = simu.Get_Resultat("Sxy", True)[nodeB][0]
 
 Sig_B=np.array([[SxxB, SxyB, 0],[SxyB, SyyB, 0],[0,0,0]])
 print(f"\nEn B : Sig/SIG = \n{Sig_B/SIG}\n")
 
 if plotAllResult:
-    Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig")
-    Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig")
-    Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig")
+    Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig", folder=folder)
+    Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig", folder=folder)
+    Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig", folder=folder)
 
 
 

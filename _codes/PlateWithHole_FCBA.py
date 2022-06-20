@@ -16,7 +16,7 @@ Affichage.Clear()
 
 test=True
 solve=True
-saveParaview=True
+saveParaview=False
 
 comp = "Elas_Isot"
 split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
@@ -31,15 +31,16 @@ ep=2e-2
 diam=1e-2
 r=diam/2
 
-E=10e9
-v=0.2
+E=12e9
+v=0.3
 
-gc = 3
+gc = 1.4
 l_0 = L/50
 
 # Création de la simulations
 
-umax = 2e-3
+# umax = 25e-6
+umax = 40e-6
 
 # loadMax = 2e3 #kN
 loadMax = 2 #kN
@@ -55,14 +56,14 @@ if test:
 
     # inc0 = 16e-8
     # inc1 = 4e-8
-    # inc0 = 8e-8
-    # inc1 = 2e-8
+    inc0 = 8e-8
+    inc1 = 2e-8
 
     # inc0 = 8e-7
     # inc1 = 2e-7
 
-    inc0 = loadMax/N
-    inc1 = inc0/6
+    # inc0 = loadMax/N
+    # inc1 = inc0/6
 
 else:
     clD = l_0/2
@@ -129,26 +130,25 @@ if solve:
     ud=0
     load=10
 
-    def Chargement(load):
+    def Chargement():
         simu.Init_Bc_Dirichlet()        
         simu.add_dirichlet("displacement", nodes_lower, [0], ["y"])
         simu.add_dirichlet("displacement", node00, [0], ["x"])
 
-        fmax = -load/(2*np.pi*r*ep)
+        # fmax = -load/(2*np.pi*r*ep)
+        # simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: fmax*(y-circle.center.y)/r], ["y"])
+        simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
 
-        simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: fmax*(y-circle.center.y)/r], ["y"])
-        # simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
-
-    Chargement(load)
+    Chargement()
     
-    ax = Affichage.Plot_BoundaryConditions(simu,folder)
+    # ax = Affichage.Plot_BoundaryConditions(simu,folder)
     # Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=noeuds_cercle, showId=True)
-    plt.show()
+    # plt.show()
 
     Affichage.NouvelleSection("Simulation")
 
     maxIter = 200
-    tolConv = 0.01
+    tolConv = 0.005
     resol = 1
     bord = 0
     dep = []
@@ -156,8 +156,8 @@ if solve:
 
     fig, ax = plt.subplots()
 
-    # while ud <= umax:
-    while load <= loadMax:
+    while ud <= umax:
+    # while load <= loadMax:
         
         tic = TicTac()
 
@@ -165,7 +165,7 @@ if solve:
         convergence = False
         dold = simu.damage
 
-        Chargement(load)
+        Chargement()
 
         while not convergence:
             
@@ -201,30 +201,28 @@ if solve:
         max_d = damage.max()
         min_d = damage.min()
         
-        # f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e3
+        depl = ud
+        load = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e3
 
-        depl = np.abs(np.max(displacement[noeuds_cercle*2]))
-
-        print(f"{resol:4} : ud = {depl*1e3:5.2} mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+        # depl = np.abs(np.max(displacement[noeuds_cercle*2]))
+        print(f"{resol:4} : ud = {depl*1e6:5.2} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
         if max_d<0.5:
-            # ud += inc0
-            load += inc0
+            ud += inc0
+            # load += inc0
         else:
-            # ud += inc1
-            load += inc1
+            ud += inc1
+            # load += inc1
         
         if np.any(damage[noeuds_bord] >= 0.8):
             bord +=1
         
+        # Arret de la simulation si le bord est endommagé
         if bord == 1:
             break
 
         
-
-        # dep.append(ud)
-        dep.append(depl)
-        # forces.append(f)
+        dep.append(depl)        
         forces.append(load)
 
         ax.cla()
