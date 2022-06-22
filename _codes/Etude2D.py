@@ -38,7 +38,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/100
+taille = h/30
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -90,7 +90,7 @@ simu.Assemblage_u()
 
 dep = simu.Solve_u(useCholesky=True)
 
-simu.Save_solutions()
+simu.Save_Iteration()
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")

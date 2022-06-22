@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
+
+
 # Options
 
 test=True
@@ -131,7 +133,7 @@ if solve:
     load=10
 
     def Chargement():
-        simu.Init_Bc_Dirichlet()        
+        simu.Init_Bc()        
         simu.add_dirichlet("displacement", nodes_lower, [0], ["y"])
         simu.add_dirichlet("displacement", node00, [0], ["x"])
 
@@ -193,7 +195,7 @@ if solve:
             print(f'On converge pas apres {iterConv} itérations')
             break
 
-        simu.Save_solutions()
+        simu.Save_Iteration()
 
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         temps = np.round(temps,3)

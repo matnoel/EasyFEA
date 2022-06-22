@@ -73,7 +73,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     # Nom de la vidéo dans le dossier ou est communiqué le dossier
     filename = Dossier.Append([folder, f'{name}.mp4'])
 
-    results = simu.Get_results()
+    results = simu.Get_DataFrame()
 
     N = results.shape[0]
 
@@ -128,7 +128,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
 
     vtuFiles=[]
 
-    results = simu.Get_results()
+    results = simu.Get_DataFrame()
 
     N = results.shape[0]
 
@@ -353,11 +353,11 @@ def __WriteBinary(valeur, type: str, file):
         file.write(convert)
 
 
-def Save_fig(folder:str, title: str):
+def Save_fig(folder:str, title: str,transparent=False):
 
     for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
 
     nom = Dossier.Append([folder, title+'.png'])
 
     # plt.savefig(nom, dpi=200)
-    plt.savefig(nom, dpi=500, transparent=True)
+    plt.savefig(nom, dpi=500, transparent=transparent)

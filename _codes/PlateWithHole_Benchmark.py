@@ -1,4 +1,5 @@
 
+
 from TicTac import TicTac
 import Materiau
 from Geom import *
@@ -16,11 +17,11 @@ Affichage.Clear()
 
 test=True
 solve=True
-saveParaview=True
+saveParaview=False
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
-regu = "AT1" # "AT1", "AT2"
+split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+regu = "AT2" # "AT1", "AT2"
 
 # Data
 
@@ -30,7 +31,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.3
+v=0.4
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -40,7 +41,7 @@ l_0 = 0.12e-3
 umax = 25e-6
 
 if test:
-    cc = 1.5
+    cc = 1.2
     clD = 0.25e-3*cc
     clC = 0.12e-3*cc
     # clD = l_0*2
@@ -52,7 +53,7 @@ if test:
     inc0 = 8e-8
     inc1 = 2e-8 
 else:
-    clD = l_0/2
+    clD = l_0
     clC = l_0/2
 
     inc0 = 8e-8
@@ -61,7 +62,7 @@ else:
 nom="_".join([comp, split, regu])
 nom = f"{nom} pour v={v}"
 
-nomDossier = "Benchmarck_Compression"
+nomDossier = "PlateWithHole_Benchmark"
 
 folder = Dossier.NewFile(nomDossier, results=True)
 
@@ -118,7 +119,7 @@ if solve:
     
 
     def Chargement():
-        simu.Init_Bc_Dirichlet()
+        simu.Init_Bc()
         simu.add_dirichlet("displacement", nodes_lower, [0], ["y"])
         simu.add_dirichlet("displacement", node00, [0], ["x"])
         simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
@@ -131,7 +132,7 @@ if solve:
     Affichage.NouvelleSection("Simulation")
 
     maxIter = 200
-    tolConv = 0.01
+    tolConv = 0.005
     resol = 1
     bord = 0
     dep = []
@@ -168,6 +169,8 @@ if solve:
 
             if iterConv == maxIter:
                 break
+
+            # convergence=True
         
         # TODO Comparer avec code matlab
 
@@ -175,7 +178,7 @@ if solve:
             print(f'On converge pas apres {iterConv} itérations')
             break
 
-        simu.Save_solutions()
+        simu.Save_Iteration()
 
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         temps = np.round(temps,3)
@@ -185,12 +188,19 @@ if solve:
         
         f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e6
 
-        print(f"{resol:4} : ud = {ud*1e6:5.2} µm, f = {f:2.1e} kN/mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+        print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+
 
         if max_d<0.6:
             ud += inc0
         else:
             ud += inc1
+
+        # if ud<11e-6:
+        #     ud += inc0
+        # else:
+        #     ud += inc1
+        
         
         if np.any(damage[noeuds_bord] >= 0.8):
             bord +=1
@@ -209,6 +219,8 @@ if solve:
         
         resol += 1
     
+    
+
     plt.savefig(Dossier.Append([folder,"forcedep.png"]))
 
     # Sauvegarde

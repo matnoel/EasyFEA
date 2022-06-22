@@ -23,7 +23,7 @@ test = True
 solve = True
 
 plotResult = True
-saveParaview = True
+saveParaview = False
 makeMovie = False
 
 # Data --------------------------------------------------------------------------------------------
@@ -39,7 +39,7 @@ split = "Miehe" # "Bourdin","Amor","Miehe","Stress"
 
 regularisation = "AT2" # "AT1", "AT2"
 
-openCrack = False
+openCrack = True
 
 nameSimu = '_'.join([comportement,split,regularisation])
 if openCrack: 
@@ -118,7 +118,7 @@ if solve:
         # Renseignement des conditions limites
         def Chargement(dep):
 
-                simu.Init_Bc_Dirichlet()
+                simu.Init_Bc()
 
                 if not openCrack:
                         simu.add_dirichlet("damage",noeuds_Milieu, [1], ["d"])
@@ -179,7 +179,7 @@ if solve:
                 
                 uglob = simu.Solve_u(useCholesky=False)               
 
-                simu.Save_solutions()
+                simu.Save_Iteration()
 
                 # Affiche dans la console
                 min = np.round(np.min(damage),3)

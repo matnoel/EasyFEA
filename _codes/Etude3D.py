@@ -68,7 +68,7 @@ simu.Assemblage_u()
 
 simu.Solve_u(useCholesky=True)
 
-simu.Save_solutions()
+simu.Save_Iteration()
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Résultats")
