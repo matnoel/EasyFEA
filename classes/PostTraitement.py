@@ -360,4 +360,4 @@ def Save_fig(folder:str, title: str):
     nom = Dossier.Append([folder, title+'.png'])
 
     # plt.savefig(nom, dpi=200)
-    plt.savefig(nom, dpi=500)
+    plt.savefig(nom, dpi=500, transparent=True)
