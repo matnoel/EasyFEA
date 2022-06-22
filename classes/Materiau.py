@@ -361,14 +361,14 @@ class PhaseFieldModel:
     loiDeComportement = cast(LoiDeComportement, property(__get_loiDeComportement))
 
     def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float):
-        """Création d'un objet comportement Phase Field
+        """Création d'un comportement Phase Field
 
             Parameters
             ----------
             loiDeComportement : LoiDeComportement
                 Loi de comportement du matériau ["Elas_Isot"]
             split : str
-                Split de la densité d'energie elastique ["Bourdin","Amor","Miehe"]
+                Split de la densité d'energie elastique ["Bourdin","Amor","Miehe","Stress"]
             regularization : str
                 Modèle de régularisation de la fissure ["AT1","AT2"]
             Gc : float
@@ -400,12 +400,11 @@ class PhaseFieldModel:
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique\n
-        Ici on va caluler PsiP_e_pg = 1/2 SigmaP_e_pg : Epsilon_e_pg et PsiM_e_pg = 1/2 SigmaM_e_pg : Epsilon_e_pg\n
-        Avec SigmaP_e_pg = CP * Epsilon_e_pg et SigmaM_e_pg = CM * Epsilon_e_pg
-
-        Args:
-            Epsilon_e_pg (np.ndarray): Deformation (Ne,pg,(3 ou 6))
-            g_e_pg (list, optional): Fonction d'endomagement enégétique (Ne, pg) . Defaults to [].
+        psiP_e_pg = 1/2 SigmaP_e_pg * Epsilon_e_pg\n
+        psiM_e_pg = 1/2 SigmaM_e_pg * Epsilon_e_pg\n
+        Tel que :\n
+        SigmaP_e_pg = cP_e_pg * Epsilon_e_pg\n
+        SigmaM_e_pg = cM_e_pg * Epsilon_e_pg        
         """
         
         # Data
@@ -420,8 +419,10 @@ class PhaseFieldModel:
         return psiP_e_pg, psiM_e_pg
 
     def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray):
-        """Calcul la contrainte en fonction de la deformation et du split
-        Ici on calcul SigmaP_e_pg = CP * Epsilon_e_pg et SigmaM_e_pg = CM * Epsilon_e_pg
+        """Calcul la contrainte en fonction de la deformation et du split\n
+        Ici on calcul :\n
+        SigmaP_e_pg = cP_e_pg * Epsilon_e_pg \n
+        SigmaM_e_pg = cM_e_pg * Epsilon_e_pg
 
         Parameters
         ----------
@@ -456,7 +457,7 @@ class PhaseFieldModel:
         Returns
         -------
         np.ndarray
-            Revoie cP_e_pg, cM_e_pg
+            Renvoie cP_e_pg, cM_e_pg
         """
 
         Ne = Epsilon_e_pg.shape[0]
@@ -817,6 +818,7 @@ class Materiau:
             return None
             
     phaseFieldModel = cast(PhaseFieldModel, property(__get_phaseFieldModel))
+    """Modèle d'endommagement"""
 
     def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0, verbosity=True):
         """Creer un materiau avec la loi de comportement ou le phase field model communiqué
