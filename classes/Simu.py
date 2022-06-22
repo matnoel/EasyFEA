@@ -6,7 +6,6 @@ from typing import cast
 import pandas as pd
 import numpy as np
 import pickle
-import scipy
 from scipy.optimize import lsq_linear
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
@@ -71,7 +70,7 @@ class Simu:
 
     @staticmethod
     def CheckDirections(dim: int, problemType:str, directions:list):
-        """Verifie si les direcrtions renseignés sont possible pour le probleme"""
+        """Verifie si les directions renseignées sont possible pour le probleme"""
         Simu.CheckProblemTypes(problemType)
 
         match problemType:
@@ -84,17 +83,21 @@ class Simu:
                 assert dim >= len(directions)
         
     def __get_mesh(self):
+        """Renvoie le maillage de la simulation"""
         return self.__mesh
     mesh = cast(Mesh, property(__get_mesh))
+    """maillage de la simulation"""
 
     def __getdim(self):
+        """renvoir la dimension de la simulation"""
         return self.__dim
     dim = cast(int, property(__getdim))
+    """dimension de la simulation"""
 
 # ------------------------------------------- RESULTATS ------------------------------------------- 
 
     def __init_results(self):
-        """Construit les arrays qui vont stocker les resultats"""
+        """Construit les arrays qui vont stocker les resultats et initialise le tabeau de résultat"""
 
         self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
         """déplacements"""
@@ -112,12 +115,12 @@ class Simu:
         self.__results = pd.DataFrame(columns=columns)
         """tableau panda qui contient les résultats"""
 
-        self.Save_solutions()
+        self.Save_Iteration()
 
     def __get_damage(self):
         if self.materiau.isDamaged:
             return self.__damage.copy()
-    damage = cast(np.ndarray, property(__get_damage))
+    damage = cast(np.ndarray, property(__get_damage))    
 
     def __get_displacement(self):
         return self.__displacement.copy()
@@ -130,12 +133,12 @@ class Simu:
         else:
             return self.__results.loc[[index]]
 
-    def Get_results(self):
+    def Get_DataFrame(self):
         """Renvoie le data frame panda qui stocke les résultats"""
         return self.__results
 
-    def Save_solutions(self):
-        """Sauvegarde les résultats de l'itération"""
+    def Save_Iteration(self):
+        """Sauvegarde les résultats de l'itération dans une nouvelle ligne du dataFrame"""
 
         iter = self.__results.index.shape[0]
 
@@ -169,17 +172,10 @@ class Simu:
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
     def ConstruitMatElem_Dep(self):
-        """Construit pour chaque elements les matrices elementaires de rigidité en déplacement"""
-        return self.__ConstruitMatElem_Dep()
-
-    def __ConstruitMatElem_Dep(self):
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
 
-        Args:
-            d (list(float)): Endommagement aux noeuds
-
         Returns:
-            array de dim e: les matrices elementaires pour chaque element
+            Ku_e: les matrices elementaires pour chaque element
         """
         
         isDamaged = self.materiau.isDamaged
@@ -245,10 +241,6 @@ class Simu:
  
     def Assemblage_u(self):
         """Construit K global pour le problème en deplacement
-
-        Args:            
-            d (np.ndarray, optional): Endommagement à appliquer au matériau. Defaults to [].
-            verification (bool, optional): Verification de l'assemblage avec l'ancienne méthode bcp bcp bcp moin rapide. Defaults to False.
         """
 
         # Data
@@ -256,7 +248,7 @@ class Simu:
         taille = mesh.Nn*self.__dim
 
         # Construit Ke
-        Ku_e = self.__ConstruitMatElem_Dep()
+        Ku_e = self.ConstruitMatElem_Dep()
 
         # Prépare assemblage
         lignesVector_e = mesh.lignesVector_e
@@ -282,11 +274,7 @@ class Simu:
     def Solve_u(self, useCholesky=False):
         """Resolution du probleme de déplacement"""        
 
-        tic = TicTac()
-
         Uglob = self.__Solveur(problemType="displacement", useCholesky=useCholesky, A_isSymetric=True)
-
-        tic.Tac("Résolution deplacement","Résolution pour le problème de déplacement", self.__verbosity)
         
         assert Uglob.shape[0] == self.mesh.Nn*self.__dim
 
@@ -296,52 +284,63 @@ class Simu:
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
-    def __Calc_PsiPlus_e_pg(self, useHistory=True):
-            # Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
-            # Calcul de la densité denergie de deformation en traction
+    def __Calc_psiPlus_e_pg(self, useHistory=True):
+        """Calcul de la densité denergie positive\n
+        Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
 
-            assert self.materiau.isDamaged, "pas de modèle d'endommagement"
+        Args:
+            useHistory (bool, optional): Utilise le champs histoire. Defaults to True.
 
-            phaseFieldModel = self.materiau.phaseFieldModel
-            
-            u = self.__displacement
-            d = self.__damage
+        Returns:
+            np.ndarray: self.__psiP_e_pg
+        """
+        assert self.materiau.isDamaged, "pas de modèle d'endommagement"
 
-            testu = isinstance(u, np.ndarray) and (u.shape[0] == self.__mesh.Nn*self.__dim )
-            testd = isinstance(d, np.ndarray) and (d.shape[0] == self.__mesh.Nn )
+        phaseFieldModel = self.materiau.phaseFieldModel
+        
+        u = self.__displacement
+        d = self.__damage
 
-            assert testu or testd,"Problème de dimension"
+        testu = isinstance(u, np.ndarray) and (u.shape[0] == self.__mesh.Nn*self.__dim )
+        testd = isinstance(d, np.ndarray) and (d.shape[0] == self.__mesh.Nn )
 
-            Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, "masse")
-            # ici le therme masse est important sinon on sous intègre
+        assert testu or testd,"Problème de dimension"
 
-            # Calcul l'energie
-            old_psiP = self.__psiP_e_pg
+        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, "masse")            
+        # ici le therme masse est important sinon on sous intègre
 
-            nPg = self.__mesh.get_nPg("masse")
+        # Calcul l'energie
+        old_psiP = self.__psiP_e_pg
 
-            psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
+        nPg = self.__mesh.get_nPg("masse")
 
-            if useHistory:
-                if len(old_psiP) == 0:
-                    # Pas encore d'endommagement disponible
-                    old_psiP = np.zeros((self.__mesh.Ne, nPg))
+        psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
-                inc_H = psiP_e_pg - old_psiP
+        if useHistory:
+            if len(old_psiP) == 0:
+                # Pas encore d'endommagement disponible
+                old_psiP = np.zeros((self.__mesh.Ne, nPg))
 
-                elements, pdGs = np.where(inc_H < 0)
+            inc_H = psiP_e_pg - old_psiP
 
-                psiP_e_pg[elements, pdGs] = old_psiP[elements,pdGs]           
+            elements, pdGs = np.where(inc_H < 0)
 
-                # new = np.linalg.norm(psiP_e_pg)
-                # old = np.linalg.norm(self.__psiP_e_pg)
-                # assert new >= old, "Erreur"
+            psiP_e_pg[elements, pdGs] = old_psiP[elements,pdGs]           
 
-            self.__psiP_e_pg = psiP_e_pg
+            # new = np.linalg.norm(psiP_e_pg)
+            # old = np.linalg.norm(self.__psiP_e_pg)
+            # assert new >= old, "Erreur"
 
-            return self.__psiP_e_pg
+        self.__psiP_e_pg = psiP_e_pg
+
+        return self.__psiP_e_pg
     
     def __ConstruitMatElem_Pfm(self):
+        """Construit les matrices élementaires pour le problème d'endommagement
+
+        Returns:
+            Kd_e, Fd_e: les matrices elementaires pour chaque element
+        """
         
         tic = TicTac()
 
@@ -349,7 +348,7 @@ class Simu:
 
         # Data
         k = phaseFieldModel.k
-        PsiP_e_pg = self.__Calc_PsiPlus_e_pg(useHistory=False)
+        PsiP_e_pg = self.__Calc_psiPlus_e_pg(useHistory=True)
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
@@ -362,13 +361,15 @@ class Simu:
         Nd_pg = mesh.get_N_scalaire_pg(matriceType)
         Bd_e_pg = mesh.get_B_sclaire_e_pg(matriceType)
 
+        # Probleme de la forme K*Laplacien(d) + r*d = F
+
         # Partie qui fait intervenir le therme de reaction r
-        Kdr_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
+        K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
 
         # Partie qui fait intervenir le therme de diffusion K
-        KdK_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize=True)
+        K_K_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize=True)
 
-        Kd_e_pg = Kdr_e_pg+KdK_e_pg
+        Kd_e_pg = K_r_e_pg+K_K_e_pg
         
         Kd_e = np.sum(Kd_e_pg, axis=1)
 
@@ -410,12 +411,8 @@ class Simu:
     
     def Solve_d(self):
         """Resolution du problème d'endommagement"""
-         
-        tic = TicTac()
-
+        
         dGlob = self.__Solveur(problemType="damage", useCholesky=False, A_isSymetric=False)
-
-        tic.Tac("Résolution endommagement",f"Résolution pour le problème de endommagement" , self.__verbosity)
 
         assert dGlob.shape[0] == self.mesh.Nn
 
@@ -427,10 +424,6 @@ class Simu:
 
     def __Construit_ddl_connues_inconnues(self, problemType: str):
         """Récupère les ddl Connues et Inconnues
-
-        Args:
-            vector (bool, optional): Travail sur un vecteur ou un scalaire. Defaults to True.
-
         Returns:
             list(int), list(int): ddl_Connues, ddl_Inconnues
         """
@@ -464,7 +457,7 @@ class Simu:
         return ddls_Connues, ddls_Inconnues
 
     def __Application_Conditions_Neuman(self, problemType: str):
-        """applique les conditions de Neumann"""
+        """Applique les conditions de Neumann"""
 
         Simu.CheckProblemTypes(problemType)
 
@@ -494,7 +487,7 @@ class Simu:
         return b
 
     def __Application_Conditions_Dirichlet(self, problemType: str, b, resolution):
-        """applique les conditions de dirichlet"""
+        """Applique les conditions de dirichlet"""
 
         Simu.CheckProblemTypes(problemType)
 
@@ -540,15 +533,17 @@ class Simu:
             return A, x
 
     def __Solveur(self, problemType: str, resolution=2, useCholesky=False, A_isSymetric=False):
-        """Resolution du de la simulation
-        renvoie la solution"""
+        """Resolution du de la simulation et renvoie la solution\n
+        Prépare dans un premier temps A et b pour résoudre Ax=b\n
+        On va venir appliquer les conditions limites pour résoudre le système"""
 
         Simu.CheckProblemTypes(problemType)
 
         # Résolution du plus rapide au plus lent 2, 1
         if resolution == 1:
-            useCholesky=False #la matrice ne sera pas symétrique definie positive
             # Résolution par la méthode des pénalisations
+            
+            tic = TicTac()
 
             # Construit le système matricielle pénalisé
             b = self.__Application_Conditions_Neuman(problemType)
@@ -556,11 +551,16 @@ class Simu:
 
             ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
 
+            tic.Tac("Construction système matriciel","Construit A et b", self.__verbosity)
+
             # Résolution du système matricielle pénalisé
+            useCholesky=False #la matrice ne sera pas symétrique definie positive            
             x = self.__Solve_Axb(problemType, A, b, useCholesky, A_isSymetric)
 
         elif resolution == 2:
             
+            tic = TicTac()
+
             # Construit le système matricielle
             b = self.__Application_Conditions_Neuman(problemType)
             A, x = self.__Application_Conditions_Dirichlet(problemType, b, resolution)
@@ -569,13 +569,15 @@ class Simu:
             ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
 
             # Décomposition du système matricielle en connues et inconnues 
-            # Résout : Aii * ui = bi - Aic * xc
+            # Résolution de : Aii * ui = bi - Aic * xc
             Aii = A[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
             Aic = A[ddl_Inconnues, :].tocsc()[:, ddl_Connues].tocsr()
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
 
             bDirichlet = Aic.dot(xc)
+
+            tic.Tac("Construction système matriciel","Construit A et b", self.__verbosity)
 
             xi = self.__Solve_Axb(problemType, Aii, bi-bDirichlet, useCholesky, A_isSymetric)
 
@@ -586,7 +588,9 @@ class Simu:
         return np.array(x)
 
     def __Solve_Axb(self, problemType, A, b, useCholesky=False, A_isSymetric=False):
-        # tic = TicTac()
+        """Résolution de Ax=b"""
+        
+        tic = TicTac()
 
         if useCholesky:
             # il se trouve que c'est plus rapide de ne pas l'utiliser
@@ -653,7 +657,7 @@ class Simu:
             # sp.__config__.show()
             # from scipy.linalg import lapack
         
-        # tac = tic.Tac("test","Resol",True)
+        tac = tic.Tac(f"Solve {problemType}","Solve Ax=b",self.__verbosity)
 
         return x
 
@@ -665,35 +669,40 @@ class Simu:
         self.__Init_Bc_Neumann()
 
     def __Init_Bc_Neumann(self):
-        """Enlève les conditions limites de Neumann"""
+        """Initialise les conditions limites de Neumann"""
         self.__Bc_Neumann = []
         """Conditions de Neumann list(BoundaryCondition)"""
 
     def __Init_Bc_Dirichlet(self):
-        """Enlève les conditions limites de Dirichlet"""
+        """Initialise les conditions limites de Dirichlet"""
         self.__Bc_Dirichlet = []
         """Conditions de Dirichlet list(BoundaryCondition)"""
 
     def Get_Bc_Dirichlet(self):
+        """Renvoie une copie des conditions de Dirichlet"""
         return self.__Bc_Dirichlet.copy()
     
     def Get_Bc_Neuman(self):
+        """Renvoie une copie des conditions de Neumann"""
         return self.__Bc_Neumann.copy()
 
     def Get_ddls_Dirichlet(self, problemType: str):
+        """Renvoie les ddls liés aux conditions de Dirichlet"""
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Dirichlet)
     
-    def Get_ddls_Neumann(self, problemType: str):        
+    def Get_ddls_Neumann(self, problemType: str):
+        """Renvoie les ddls liés aux conditions de Neumann"""
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Neumann)
 
-    def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds", nPg=0):
+    def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
+        """evalue les valeurs aux noeuds ou aux points de gauss"""
         
         assert option in ["noeuds","gauss"]
         match option:
             case "noeuds":
                 valeurs_eval = np.zeros(coordo.shape[0])
             case "gauss":
-                valeurs_eval = np.zeros((coordo.shape[0],nPg))
+                valeurs_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
         
         if isinstance(valeurs, LambdaType):
             # Evalue la fonction aux coordonnées
@@ -717,7 +726,7 @@ class Simu:
     def add_dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs: np.ndarray,directions: list, description=""):
         """Pour le probleme donné renseigne les contions de dirichlet\n
         valeurs est une liste de constantes ou de fonctions\n
-        ex: valeurs = [lambda x,y,z : f(x,y,z), -10]
+        ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
 
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
         les fonctions utilisent les coordonnées x, y et z des neouds
@@ -742,10 +751,10 @@ class Simu:
     def add_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force linéique\n
         valeurs est une liste de constantes ou de fonctions\n
-        ex: valeurs = [lambda x,y,z : f(x,y,z), -10]
+        ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
 
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
-        les fonctions utilisent les coordonnées x, y et z des neouds
+        les fonctions utilisent les coordonnées x, y et z des points d'intégrations
         """
 
         valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
@@ -758,7 +767,7 @@ class Simu:
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
 
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
-        les fonctions utilisent les coordonnées x, y et z des neouds
+        les fonctions utilisent les coordonnées x, y et z des points d'intégrations
         """
 
         match self.__dim:
@@ -801,13 +810,13 @@ class Simu:
         # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
         valeurs_ddl_dir = np.zeros((Ne*groupElem1D.nPe, len(directions)))
 
+        # Intègre sur chaque direction
         for d, dir in enumerate(directions):
-            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss", nPg=nPg)
+            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
             valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
             valeurs_e = np.sum(valeurs_e_p, axis=1)
             valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
 
-        # valeurs_e_p = 
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
         
         ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
@@ -844,14 +853,13 @@ class Simu:
         # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
         valeurs_ddl_dir = np.zeros((Ne*groupElem2D.nPe, len(directions)))
 
-        # Intégre
+        # Intégre sur chaque direction
         for d, dir in enumerate(directions):
-            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss", nPg=nPg)
+            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
             valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
             valeurs_e = np.sum(valeurs_e_p, axis=1)
             valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
 
-        # valeurs_e_p = 
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
         
         ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
@@ -1048,7 +1056,7 @@ class Simu:
         # Construit la liste d'otions pour les résultats en 2D ou 3D
         dim = self.__dim
         if dim == 2:
-            options = {
+            categories = {
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
@@ -1056,7 +1064,7 @@ class Simu:
                 "Damage" :["damage","psiP"]
             }
         elif dim == 3:
-            options = {
+            categories = {
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
@@ -1065,13 +1073,13 @@ class Simu:
 
         # Verfication que l'option est dans dans les options
         ContenueDansOptions=False
-        for opts in options:
-            if option in options[opts]:
+        for categorie in categories:
+            if option in categories[categorie]:
                 ContenueDansOptions=True
                 break
         
         if not ContenueDansOptions:
-            print(f"\nL'option {option} doit etre dans : {options}")
+            print(f"\nL'option {option} doit etre dans : {categories}")
             return False
 
         return ContenueDansOptions
@@ -1123,7 +1131,7 @@ class Simu:
         displacement = self.__displacement
 
         if option == "psiP":
-            resultat_e_pg = self.__Calc_PsiPlus_e_pg(useHistory=False)
+            resultat_e_pg = self.__Calc_psiPlus_e_pg(useHistory=False)
             resultat = np.mean(resultat_e_pg, axis=1)
 
         dim = self.__dim
@@ -1317,6 +1325,7 @@ class Simu:
         return valeurs_n.reshape(-1)
 
     def Resume(self):
+        """Ecrit un résumé de la simulation dans le terminal"""
 
         if not self.VerificationOption("Wdef"):
             return
