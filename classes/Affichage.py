@@ -5,6 +5,7 @@ import numpy as np
 
 import matplotlib.collections
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 
@@ -84,6 +85,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
             ax = oldax
             ax.clear()
             
+            
         # Trace le maillage
         if affichageMaillage:
             pc = matplotlib.collections.LineCollection(coord_par_face, edgecolor='black', lw=0.5)
@@ -103,18 +105,35 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
 
         # Valeur aux noeuds
         elif mesh.Nn == len(valeurs):
-            pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(), valeurs, levels ,
-            cmap='jet')
+            pc = ax.tricontourf(coordo[:,0], coordo[:,1], mesh.get_connectTriangle(),
+            valeurs, levels, cmap='jet')
             # tripcolor, tricontour, tricontourf
+        
+        ax.autoscale()
+        ax.axis('equal')
+        ax.axis('off')
+        
+        isClose = False
 
-        if option == "damage":            
-            ticks = np.linspace(0,1,11)
-            cb = plt.colorbar(pc, ax=ax, ticks=ticks)            
+
+        divider = make_axes_locatable(ax)
+        if isClose:
+            cax = divider.append_axes('right', size='10%', pad=0.1)
+            # # cax = divider.add_auto_adjustable_area(use_axes=ax, pad=0.1, adjust_dirs='right')
         else:
-            cb = plt.colorbar(pc, ax=ax)
+            cax=None
             
 
-        ax.axis('equal')
+        
+        if option == "damage":
+            ticks = np.linspace(0,1,11)
+            cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
+        else:
+            cb = plt.colorbar(pc, ax=ax, cax=cax)
+
+        
+        
+        
         # ax.set_xlabel('x [mm]')
         # ax.set_ylabel('y [mm]')
 
