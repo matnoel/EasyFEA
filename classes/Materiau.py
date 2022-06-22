@@ -618,9 +618,19 @@ class PhaseFieldModel:
             sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
 
             cT = c.T
-
             cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize=True)
             cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize=True)
+
+            # Ici c'est un test pour verifier que cT : S : c = inv(S)
+
+            # detP_e_pg = np.linalg.det(sP_e_pg); e_pg_detP0 = np.where(detP_e_pg!=0)
+            # detM_e_pg = np.linalg.det(sM_e_pg); e_pg_detM0 = np.where(detM_e_pg!=0)
+
+            # cP_e_pg = np.zeros(sP_e_pg.shape)
+            # cM_e_pg = np.zeros(sM_e_pg.shape)
+            
+            # cP_e_pg[e_pg_detP0] = np.linalg.inv(sP_e_pg[e_pg_detP0])
+            # cM_e_pg[e_pg_detM0] = np.linalg.inv(sM_e_pg[e_pg_detM0])
 
         else:            
 
