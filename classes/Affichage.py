@@ -180,7 +180,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
 
     if folder != "":
         import PostTraitement
-        PostTraitement.Save_fig(folder, title)
+        PostTraitement.Save_fig(folder, title, transparent=True)
 
     tic.Tac("Post Traitement", "Affichage résultat", False)
     
