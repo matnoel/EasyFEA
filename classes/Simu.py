@@ -6,6 +6,8 @@ from typing import cast
 import pandas as pd
 import numpy as np
 import pickle
+import scipy
+from scipy.optimize import lsq_linear
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import matplotlib.pyplot as plt
@@ -57,8 +59,7 @@ class Simu:
         self.__init_results()
 
         # Conditions Limites
-        self.Init_Bc_Neumann()
-        self.Init_Bc_Dirichlet()
+        self.Init_Bc()
 
 # ------------------------------------------- FONCTIONS ------------------------------------------- 
 
@@ -348,7 +349,7 @@ class Simu:
 
         # Data
         k = phaseFieldModel.k
-        PsiP_e_pg = self.__Calc_PsiPlus_e_pg(useHistory=True)
+        PsiP_e_pg = self.__Calc_PsiPlus_e_pg(useHistory=False)
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
@@ -556,7 +557,7 @@ class Simu:
             ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
 
             # Résolution du système matricielle pénalisé
-            x = self.__Solve_Axb(A, b, useCholesky, A_isSymetric)
+            x = self.__Solve_Axb(problemType, A, b, useCholesky, A_isSymetric)
 
         elif resolution == 2:
             
@@ -576,7 +577,7 @@ class Simu:
 
             bDirichlet = Aic.dot(xc)
 
-            xi = self.__Solve_Axb(Aii, bi-bDirichlet, useCholesky, A_isSymetric)
+            xi = self.__Solve_Axb(problemType, Aii, bi-bDirichlet, useCholesky, A_isSymetric)
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
@@ -584,8 +585,9 @@ class Simu:
 
         return np.array(x)
 
-    def __Solve_Axb(self, A, b, useCholesky=False, A_isSymetric=False):
+    def __Solve_Axb(self, problemType, A, b, useCholesky=False, A_isSymetric=False):
         # tic = TicTac()
+
         if useCholesky:
             # il se trouve que c'est plus rapide de ne pas l'utiliser
 
@@ -606,7 +608,7 @@ class Simu:
             # il reste à faire le lien avec umfpack pour réorgraniser encore plus rapidement
 
             # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
-            # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
+            
             useUmfpack = False
 
             # from pysparse.direct import umfpack
@@ -621,14 +623,21 @@ class Simu:
             else:
                 # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
                 # sla.use_solver(useUmfpack=True)
-                hideFacto = True
-
+                hideFacto = False
                 # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
                 if A_isSymetric and not self.materiau.isDamaged:
                     permute="MMD_AT_PLUS_A"
                 else:
                     permute="COLAMD"
 
+                # if problemType == "damage":
+                #     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
+                #     lb = self.damage
+                #     lb[np.where(lb>=1)] = 1-np.finfo(float).eps
+                #     ub = np.ones(lb.shape)
+                #     b = b.toarray().reshape(-1)
+                #     x = lsq_linear(A,b,bounds=(lb,ub), verbose=1,tol=1e-6)                    
+                #     x= x['x']
                 if hideFacto:
                     # tic = TicTac()
                     x = sla.spsolve(A, b, permc_spec=permute)
@@ -650,12 +659,17 @@ class Simu:
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
-    def Init_Bc_Neumann(self):
+    def Init_Bc(self):
+        """Initie les conditions limites de dirichlet et de Neumann"""
+        self.__Init_Bc_Dirichlet()
+        self.__Init_Bc_Neumann()
+
+    def __Init_Bc_Neumann(self):
         """Enlève les conditions limites de Neumann"""
         self.__Bc_Neumann = []
         """Conditions de Neumann list(BoundaryCondition)"""
 
-    def Init_Bc_Dirichlet(self):
+    def __Init_Bc_Dirichlet(self):
         """Enlève les conditions limites de Dirichlet"""
         self.__Bc_Dirichlet = []
         """Conditions de Dirichlet list(BoundaryCondition)"""
