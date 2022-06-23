@@ -15,10 +15,10 @@ Affichage.Clear()
 
 # Options
 
-plotAllResult = True
+plotAllResult = False
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
@@ -46,7 +46,7 @@ v=0.2
 SIG = 10 #Pa
 
 gc = 1.4
-l_0 = 0.12e-3*1.5
+l_0 = 0.12e-3*1.2
 
 # Création du maillage
 clD = l_0*2
@@ -82,7 +82,9 @@ columns = ['v','A (DP)','B (DP)','A (CP)','B (CP)','A (Analytique CP)','B (Analy
 
 df = pd.DataFrame(columns=columns)
 
-for v in [0.2,0.3,0.4]:
+list_V = [0.2,0.3,0.4]
+
+for v in list_V:
     result = {
         'v': v
     }
@@ -214,25 +216,32 @@ for v in list_v:
     list_Stress_psiP_B.append(Stress_psiP_B)
 
 
-fig, ax = plt.subplots()
 
-ax.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label="psiP_A*E/Sig^2")
-ax.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label="psiP_B*E/Sig^2")
-ax.grid()
-ax.legend()
-ax.set_xlabel("v")
-ax.set_title("Miehe")
+fig, ax1 = plt.subplots()
+
+ax1.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label="psiP_A*E/Sig^2")
+ax1.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label="psiP_B*E/Sig^2")
+ax1.grid()
+# if split == "Miehe":    
+#     ax1.scatter(list_V, np.array(df['A (CP)'].tolist()),label='Miehe A')
+#     ax1.scatter(list_V, np.array(df['B (CP)'].tolist()),label='Miehe B')
+ax1.legend()
+ax1.set_xlabel("v")
+ax1.set_title("Miehe")
 
 PostTraitement.Save_fig(folder, "Miehe")
 
-fig, ax = plt.subplots()
+fig, ax2 = plt.subplots()
 
-ax.plot(list_v, np.array(list_Stress_psiP_A)*E/SIG**2, label="psiP_A*E/Sig^2")
-ax.plot(list_v, np.array(list_Stress_psiP_B)*E/SIG**2, label="psiP_B*E/Sig^2")
-ax.grid()
-ax.legend()
-ax.set_xlabel("v")
-ax.set_title("Stress")
+ax2.plot(list_v, np.array(list_Stress_psiP_A)*E/SIG**2, label="psiP_A*E/Sig^2")
+ax2.plot(list_v, np.array(list_Stress_psiP_B)*E/SIG**2, label="psiP_B*E/Sig^2")
+ax2.grid()
+# if split == "Stress":    
+#     ax2.scatter(list_V, np.array(df['A (CP)'].tolist()),label='Stress A')
+#     ax2.scatter(list_V, np.array(df['B (CP)'].tolist()),label='Stress B')
+ax2.legend()
+ax2.set_xlabel("v")
+ax2.set_title("Stress")
 
 PostTraitement.Save_fig(folder, "Stress")
 

@@ -113,7 +113,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
         ax.axis('equal')
         ax.axis('off')
         
-        isClose = False
+        isClose = True
 
 
         divider = make_axes_locatable(ax)

@@ -1,4 +1,4 @@
-
+# mpirun -np 4 python3 PlateWithHole_Benchmark.py
 
 from TicTac import TicTac
 import Materiau
@@ -16,8 +16,8 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=True
-saveParaview=False
+solve=False
+saveParaview=True
 
 comp = "Elas_Isot"
 split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
