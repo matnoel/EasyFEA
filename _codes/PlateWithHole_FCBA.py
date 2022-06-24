@@ -21,7 +21,7 @@ solve=True
 saveParaview=False
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 
 # Data
@@ -42,10 +42,10 @@ l_0 = L/50
 # Création de la simulations
 
 # umax = 25e-6
-umax = 40e-6
+umax = 70e-6
 
 # loadMax = 2e3 #kN
-loadMax = 2 #kN
+# loadMax = 2 #kN
 
 N=400
 
@@ -58,11 +58,12 @@ if test:
 
     # inc0 = 16e-8
     # inc1 = 4e-8
-    inc0 = 8e-8
-    inc1 = 2e-8
+    
+    # inc0 = 8e-8
+    # inc1 = 2e-8
 
-    # inc0 = 8e-7
-    # inc1 = 2e-7
+    inc0 = 8e-7
+    inc1 = 2e-8
 
     # inc0 = loadMax/N
     # inc1 = inc0/6
@@ -97,7 +98,7 @@ if solve:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 
-    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=False, epaisseur=ep)
+    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
     phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
     materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 
@@ -179,7 +180,13 @@ if solve:
 
             # Displacement
             Kglob = simu.Assemblage_u()
-            displacement = simu.Solve_u()
+
+            if np.linalg.norm(damage)==0:
+                useCholesky=True
+            else:
+                useCholesky=False
+
+            displacement = simu.Solve_u(useCholesky)
 
             dincMax = np.max(np.abs(damage-dold))
             convergence = dincMax <= tolConv
@@ -231,7 +238,7 @@ if solve:
         ax.plot(dep, np.abs(forces), c='black')
         ax.set_xlabel("ud en mm")
         ax.set_ylabel("f en kN")
-        plt.pause(0.0000001)
+        # plt.pause(0.0000001)
         
         resol += 1
     

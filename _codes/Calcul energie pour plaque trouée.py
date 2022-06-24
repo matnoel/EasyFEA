@@ -15,10 +15,10 @@ Affichage.Clear()
 
 # Options
 
-plotAllResult = False
+plotAllResult = True
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 

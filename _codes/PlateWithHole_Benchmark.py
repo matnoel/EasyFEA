@@ -1,5 +1,3 @@
-# mpirun -np 4 python3 PlateWithHole_Benchmark.py
-
 from TicTac import TicTac
 import Materiau
 from Geom import *
@@ -12,16 +10,17 @@ import PostTraitement
 import matplotlib.pyplot as plt
 
 Affichage.Clear()
+# mpirun -np 4 python3 PlateWithHole_Benchmark.py
 
 # Options
 
 test=True
-solve=False
-saveParaview=True
+solve=True
+saveParaview=False
 
 comp = "Elas_Isot"
 split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
-regu = "AT2" # "AT1", "AT2"
+regu = "AT1" # "AT1", "AT2"
 
 # Data
 
@@ -41,6 +40,7 @@ l_0 = 0.12e-3
 umax = 25e-6
 
 if test:
+    # cc = 1.2
     cc = 1.2
     clD = 0.25e-3*cc
     clC = 0.12e-3*cc
@@ -50,6 +50,7 @@ if test:
     # inc0 = 16e-8
     # inc1 = 4e-8
 
+    # inc0 = 8e-8
     inc0 = 8e-8
     inc1 = 2e-8 
 else:
@@ -133,6 +134,7 @@ if solve:
 
     maxIter = 200
     tolConv = 0.005
+    # tolConv = 0.01
     resol = 1
     bord = 0
     dep = []
@@ -160,11 +162,17 @@ if solve:
 
             # Displacement
             Kglob = simu.Assemblage_u()
-            displacement = simu.Solve_u()
+
+            if np.linalg.norm(damage)==0:
+                useCholesky=True
+            else:
+                useCholesky=False
+            displacement = simu.Solve_u(useCholesky)
 
             dincMax = np.max(np.abs(damage-dold))
             convergence = dincMax <= tolConv
-            # print(dincMax)
+            # if damage.min()>1e-5:
+            #     convergence=False
             dold = damage.copy()
 
             if iterConv == maxIter:
@@ -190,17 +198,13 @@ if solve:
 
         print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
+        # if ud>12e-6:
+        #     inc0 = 1e-8
 
         if max_d<0.6:
             ud += inc0
         else:
             ud += inc1
-
-        # if ud<11e-6:
-        #     ud += inc0
-        # else:
-        #     ud += inc1
-        
         
         if np.any(damage[noeuds_bord] >= 0.8):
             bord +=1
@@ -215,7 +219,7 @@ if solve:
         ax.plot(dep, np.abs(forces), c='black')
         ax.set_xlabel("ud en µm")
         ax.set_ylabel("f en kN/mm")
-        plt.pause(0.0000001)
+        # plt.pause(0.0000001)
         
         resol += 1
     

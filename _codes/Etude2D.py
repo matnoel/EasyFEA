@@ -92,13 +92,14 @@ dep = simu.Solve_u(useCholesky=True)
 
 simu.Save_Iteration()
 
+
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
 simu.Resume()
 
 folder = Dossier.NewFile("Etude2D", results=True)
-folder=""
+# folder=""
 
 if saveParaview:
         filename = Dossier.NewFile("Etude2D\\solution2D", results=True)
