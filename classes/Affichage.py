@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 
 def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, unite="",
-    affichageMaillage=False, valeursAuxNoeuds=False, oldfig=None, oldax=None, folder=""):
+    affichageMaillage=False, valeursAuxNoeuds=False, oldfig=None, oldax=None, folder="", colorbarIsClose=False):
 
     """Affichage de la simulation
 
@@ -113,17 +113,12 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
         ax.axis('equal')
         ax.axis('off')
         
-        isClose = True
-
-
         divider = make_axes_locatable(ax)
-        if isClose:
+        if colorbarIsClose:
             cax = divider.append_axes('right', size='10%', pad=0.1)
             # # cax = divider.add_auto_adjustable_area(use_axes=ax, pad=0.1, adjust_dirs='right')
         else:
             cax=None
-            
-
         
         if option == "damage":
             ticks = np.linspace(0,1,11)
