@@ -1,5 +1,4 @@
 
-
 from types import LambdaType
 from typing import cast
 
@@ -280,7 +279,7 @@ class Simu:
 
         self.__displacement = Uglob
 
-        return Uglob
+        return cast(np.ndarray, Uglob)
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
@@ -348,7 +347,7 @@ class Simu:
 
         # Data
         k = phaseFieldModel.k
-        PsiP_e_pg = self.__Calc_psiPlus_e_pg(useHistory=True)
+        PsiP_e_pg = self.__Calc_psiPlus_e_pg(useHistory=phaseFieldModel.useHistory)
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
@@ -418,7 +417,7 @@ class Simu:
 
         self.__damage = dGlob
 
-        return dGlob.copy()
+        return cast(np.ndarray, dGlob.copy())
 
 # ------------------------------------------------- SOLVEUR -------------------------------------------------
 
@@ -578,6 +577,11 @@ class Simu:
             bDirichlet = Aic.dot(xc)
 
             tic.Tac("Construction système matriciel","Construit A et b", self.__verbosity)
+
+            # if problemType == "damage":
+            #     if np.max(b)>0:
+            #         condi = np.max(A)/np.max(b)
+            #         print(f'\n{condi}')
 
             xi = self.__Solve_Axb(problemType, Aii, bi-bDirichlet, useCholesky, A_isSymetric)
 

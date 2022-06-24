@@ -1,7 +1,4 @@
-from re import S
 from typing import cast
-
-from traitlets import Bool
 from Mesh import Mesh
 import numpy as np
 import Affichage
@@ -317,7 +314,7 @@ class PhaseFieldModel:
         
         return f
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=0):
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=1e-10):
         """Fonction de dégradation en energies / contraintes
         k_residu=1e-10
         Args:
@@ -360,7 +357,11 @@ class PhaseFieldModel:
         return self.__loiDeComportement
     loiDeComportement = cast(LoiDeComportement, property(__get_loiDeComportement))
 
-    def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float):
+    def __get_useHistory(self):
+        return self.__useHistory
+    useHistory = property(__get_useHistory)
+
+    def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float, useHistory=True):
         """Création d'un comportement Phase Field
 
             Parameters
@@ -397,6 +398,9 @@ class PhaseFieldModel:
         assert l_0 > 0, "Doit être supérieur à 0"
         self.__l0 = l_0
         """Largeur de régularisation de la fissure"""
+
+        self.__useHistory = useHistory
+        """Utilise ou non le champ histoire"""
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique\n
