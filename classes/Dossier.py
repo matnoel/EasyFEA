@@ -1,4 +1,5 @@
 import os
+import ResultsHere
 
 def GetPath(filename=None):
     """Renvoie le path du fichier ou renvoie le path vers le fichier Dossier donc renvoie Python Ef"""
@@ -15,22 +16,22 @@ def GetPath(filename=None):
 
 def NewFile(filename: str, path=GetPath(), results=False):
     """Renvoie le path vers le fichier avec l'extension ou non
+    filename peut etre : un fichier ou un dossier
+    De base le path renvoie vers le path ou est PythonEF
     
-    exemple.toto
-
     if results:
-        filename = path\\results\\exemple.toto
+        filename = resultsPath\\filename
     else:
-        filename = path\\exemple.toto
-        
-
+        filename = path\\filename
     """
     path = path
 
     if results:
-        filename = path + "\\results\\" + filename
-    else:
-        filename = path + "\\" + filename
+        path = ResultsHere.Get_Results_Path()
+        # def Get_Results_Path():
+        #     import Dossier
+        #     return Dossier.GetPath(__file__)
+    filename = path + "\\" + filename
         
     destination = GetPath(filename)    
 
