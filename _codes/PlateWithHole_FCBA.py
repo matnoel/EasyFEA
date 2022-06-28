@@ -252,9 +252,8 @@ else:
     simu = PostTraitement.Load_Simu(folder)
 
 
-Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}",  valeursAuxNoeuds=True)
-
-# Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True,affichageMaillage=True)
+Affichage.Plot_Result(simu, "damage", title=fr"$ pour \nu ={v}$",  valeursAuxNoeuds=True,
+folder=folder, filename="damage_n")
 
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)

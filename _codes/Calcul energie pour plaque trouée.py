@@ -18,7 +18,7 @@ Affichage.Clear()
 plotAllResult = False
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+split = "Stress" # ["Bourdin","Amor",Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
@@ -75,14 +75,25 @@ nodeB = mesh.Get_Nodes_Point(Point(x=L/2+r, y=h/2))
 
 if plotAllResult:
     ax = Affichage.Plot_Maillage(mesh)
-    for ns in [nodes0, nodesh, node00, nodeA, nodeB,nodesCircle]:
-        Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns)
+    for ns in [nodes0, nodesh, node00, nodeA, nodeB]:
+        Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns,c='red')
+    PostTraitement.Save_fig(folder, 'mesh')
 
-columns = ['v','A (DP)','B (DP)','A (CP)','B (CP)','A (Analytique CP)','B (Analytique CP)']
+columns = ['v','A (ana CP)','B (ana CP)',
+            'A (CP)','errA (CP)','B (CP)','errB (CP)',
+            'A (DP)','errA (DP)','B (DP)','errB (DP)']
 
 df = pd.DataFrame(columns=columns)
 
 list_V = [0.2,0.3,0.4]
+
+Miehe_psiP_A = lambda v: 1**2*(v*(1-2*v)+1)/(2*(1+v))
+Miehe_psiP_B = lambda v: 3**2*v**2/(1+v)
+
+# l = lambda v: v*E/((1+v)*(1-2*v))
+# mu = lambda v: E/(2*(1+v))
+# Miehe_psiP_A = lambda v: (l(v)/2+mu(v))*(SIG/E*(1.358-v*0.042))**2*E/SIG**2
+# Miehe_psiP_B = lambda v: 3**2*v**2/(1+v)
 
 for v in list_V:
     result = {
@@ -116,17 +127,23 @@ for v in list_V:
             result['A (CP)'] = psipa
             result['B (CP)'] = psipb
 
-            Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=True, coef=E/SIG**2, unite=f"*E/Sig^2 {nom} pour v={v}",folder=folder)
-            # Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=False, coef=E/SIG**2, unite=f"*E/Sig^2 {nom} pour v={v}",folder=folder)
+            result['errA (CP)'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
+            result['errB (CP)'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
+
+            Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=True, coef=E/SIG**2,
+            title=fr"$\psi_{0}^+\ E / \sigma^2 \ pour \ \nu={v}$",
+            folder=folder,filename=f"psiP {nom} v={v}", colorbarIsClose=True)
         else:
             result['A (DP)'] = psipa
             result['B (DP)'] = psipb
 
-    Miehe_psiP_A = 1**2*(v*(1-2*v)+1)/(2*(1+v))
-    Stress_psiP_B = 3**2*v**2/(1+v)
+            result['errA (DP)'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
+            result['errB (DP)'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
 
-    result['A (Analytique CP)'] = Miehe_psiP_A
-    result['B (Analytique CP)'] = Stress_psiP_B
+    
+
+    result['A (ana CP)'] = Miehe_psiP_A(v)
+    result['B (ana CP)'] = Miehe_psiP_B(v)
     
     new = pd.DataFrame(result, index=[0])
 
@@ -154,9 +171,12 @@ Sig_B=np.array([[SxxB, SxyB, 0],[SxyB, SyyB, 0],[0,0,0]])
 print(f"\nEn B : Sig/SIG = \n{Sig_B/SIG}\n")
 
 if plotAllResult:
-    Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig", folder=folder)
-    Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig", folder=folder)
-    Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig", folder=folder)
+    Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xx} / \sigma$",
+    folder=folder, filename='Sxx', colorbarIsClose=True)
+    Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$",
+    folder=folder, filename='Syy', colorbarIsClose=True)
+    Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$",
+    folder=folder, filename='Sxy', colorbarIsClose=True)
 
 
 
@@ -170,13 +190,13 @@ list_v = np.arange(0, 0.5,0.0005)
 # test = (vv*(1-2*vv)+1)/(2*(1+vv))
 
 # axp.plot(list_v, (list_v*(1-2*list_v)+1)/(2*(1+list_v)), label="psiP_A*E/Sig^2")
-axp.plot(list_v, (list_v*(1-2*list_v)+1)/(2*(1+list_v)), label='A')
-axp.plot(list_v, 9*list_v**2/(1+list_v), label='B')
+axp.plot(list_v, Miehe_psiP_A(list_v), label='A')
+axp.plot(list_v, Miehe_psiP_B(list_v), label='B')
 axp.grid()
 axp.legend(fontsize=14)
-axp.set_xlabel("v",fontsize=14)
+axp.set_xlabel(r"$\nu$",fontsize=14)
 axp.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-axp.set_title('Split sur $\epsilon$',fontsize=14)
+axp.set_title(r'Split sur $\varepsilon$',fontsize=14)
 
 PostTraitement.Save_fig(folder, "calc analytique")
 
@@ -199,11 +219,11 @@ for v in list_v:
     l = v*E/(1-v**2)
     mu=E/(2*(1+v))
 
-    Miehe_psiP_A = l/2*trEpsP_B**2 + mu*np.einsum('ij,ij',Epsip_A,Epsip_A)
-    Stress_psiP_B = l/2*trEpsP_B**2 + mu*np.einsum('ij,ij',Epsip_B,Epsip_B)
+    Miehe_psiP_A = l/2*trEpsP_A**2 + mu*np.einsum('ij,ij',Epsip_A,Epsip_A)
+    Miehe_psiP_B = l/2*trEpsP_B**2 + mu*np.einsum('ij,ij',Epsip_B,Epsip_B)
 
     list_Miehe_psiP_A.append(Miehe_psiP_A)
-    list_Miehe_psiP_B.append(Stress_psiP_B)
+    list_Miehe_psiP_B.append(Miehe_psiP_B)
 
     # Split Stress
     Sigi_A = np.diag(np.linalg.eigvals(Sig_A)); Sigip_A = (Sigi_A+np.abs(Sigi_A))/2
@@ -213,10 +233,10 @@ for v in list_v:
     trSig_B = np.trace(Sig_B); trSigP_B = (trSig_B+np.abs(trSig_B))/2
 
     Stress_psiP_A = ((1+v)/E*np.einsum('ij,ij',Sigip_A,Sigip_A) - v/E * trSigP_A**2)/2
-    Stress_psiP_B = ((1+v)/E*np.einsum('ij,ij',Sigip_B,Sigip_B) - v/E * trSigP_B**2)/2
+    Miehe_psiP_B = ((1+v)/E*np.einsum('ij,ij',Sigip_B,Sigip_B) - v/E * trSigP_B**2)/2
 
     list_Stress_psiP_A.append(Stress_psiP_A)
-    list_Stress_psiP_B.append(Stress_psiP_B)
+    list_Stress_psiP_B.append(Miehe_psiP_B)
 
 
 
@@ -225,26 +245,30 @@ fig, ax1 = plt.subplots()
 ax1.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label='A')
 ax1.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label='B')
 ax1.grid()
-# if split == "Miehe":    
-#     ax1.scatter(list_V, np.array(df['A (CP)'].tolist()),label='Miehe A')
-#     ax1.scatter(list_V, np.array(df['B (CP)'].tolist()),label='Miehe B')
+if split == "Miehe":    
+    ax1.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
+    ax1.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
 ax1.legend(fontsize=14)
-ax1.set_xlabel("v",fontsize=14)
+ax1.set_xlabel(r"$\nu$",fontsize=14)
 ax1.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-ax1.set_title('Split sur $\epsilon$',fontsize=14)
+ax1.set_title(r'Split sur $\varepsilon$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Miehe")
+PostTraitement.Save_fig(folder, "Miehe psiP")
 
 fig, ax2 = plt.subplots()
 
+stressA = lambda v: 1/E*(SxxA**2+SyyA**2-2*SxxA*SyyA*v)
+
 ax2.plot(list_v, np.array(list_Stress_psiP_A)*E/SIG**2, label='A')
 ax2.plot(list_v, np.array(list_Stress_psiP_B)*E/SIG**2, label='B')
+# ax2.plot(list_v, np.ones(list_v.shape), label='A')
+# ax2.plot(list_v, stressA(list_v)*E/SIG**2, label='AA')
 ax2.grid()
-# if split == "Stress":    
-#     ax2.scatter(list_V, np.array(df['A (CP)'].tolist()),label='Stress A')
-#     ax2.scatter(list_V, np.array(df['B (CP)'].tolist()),label='Stress B')
+if split == "Stress":    
+    ax2.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
+    ax2.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
 ax2.legend(fontsize=14)
-ax2.set_xlabel("v",fontsize=14)
+ax2.set_xlabel(r"$\nu$",fontsize=14)
 ax2.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 ax2.set_title('Split sur $\sigma$',fontsize=14)
 

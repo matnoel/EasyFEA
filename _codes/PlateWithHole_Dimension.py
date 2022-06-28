@@ -115,9 +115,9 @@ for cc in list_cc:
 Affichage.NouvelleSection("Résultats")
 
 Affichage.Plot_Maillage(mesh,folder=folder, title=f"mesh_{param_name}")
-Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig")
-Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig")
-Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, unite="/Sig")
+Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
+Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
+Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 
 fig, ax = plt.subplots()
 

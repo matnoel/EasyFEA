@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-simulation = "Shear" #"Shear" , "Tension"
+simulation = "Tension" #"Shear" , "Tension"
 
 test = True
 
@@ -35,9 +35,9 @@ else:
 
 comportement = "Elas_Isot" # "Elas_Isot"
 
-split = "Miehe" # "Bourdin","Amor","Miehe","Stress"
+split = "Stress" # "Bourdin","Amor","Miehe","Stress"
 
-regularisation = "AT2" # "AT1", "AT2"
+regularisation = "AT1" # "AT1", "AT2"
 
 openCrack = True
 
@@ -162,33 +162,76 @@ if solve:
         list_Psi_Crack=[]
         deplacement=[]
 
+        maxIter = 250
+        # tolConv = 0.0025
+        # tolConv = 0.005
+        tolConv = 0.01
+
         for iter in range(N):
 
-                # Déplacement en haut
+                tic = TicTac()
+
                 dep += u_inc
 
-                Chargement(dep)
-                #-------------------------- PFM problem ------------------------------------
-                
-                simu.Assemblage_d()     # Assemblage
-                
-                damage = simu.Solve_d() # resolution                
+                iterConv=0
+                convergence = False
+                dold = simu.damage
 
-                #-------------------------- Dep problem ------------------------------------
-                simu.Assemblage_u()
+                Chargement(dep)
+
+                while not convergence:
                 
-                uglob = simu.Solve_u(useCholesky=False)               
+                        iterConv += 1            
+
+                        # Damage
+                        simu.Assemblage_d()
+                        damage = simu.Solve_d()
+
+                        # Displacement
+                        Kglob = simu.Assemblage_u()
+
+                        if np.linalg.norm(damage)==0:
+                                useCholesky=True
+                        else:
+                                useCholesky=False
+                        displacement = simu.Solve_u(useCholesky)
+
+                        dincMax = np.max(np.abs(damage-dold))
+                        # TODO faire en relatif np.max(np.abs((damage-dold)/dold))?
+                        convergence = dincMax <= tolConv
+                        # if damage.min()>1e-5:
+                        #     convergence=False
+                        dold = damage.copy()
+
+                        if iterConv == maxIter:
+                                break
+
+                # convergence=True
+                
+                # TODO Comparer avec code matlab
+
+                if iterConv == maxIter:
+                        print(f'On converge pas apres {iterConv} itérations')
+                        break
 
                 simu.Save_Iteration()
 
-                # Affiche dans la console
-                min = np.round(np.min(damage),3)
-                max = np.round(np.max(damage),3)
-                norm = np.sum(damage)
+                temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
+                temps = np.round(temps,3)
 
-                tResolution = tic.Tac("Resolution PhaseField", "Resolution Phase field", False)
-                # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
-                print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s') 
+                max_d = damage.max()
+                min_d = damage.min()        
+                f = np.sum(np.einsum('ij,j->i', Kglob[noeuds_Haut, noeuds_Haut], displacement[noeuds_Haut], optimize=True))/1e3
+
+                print(f"{iter:4}/{N} : ud = {np.round(dep*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+
+                # # Affiche dans la console
+                # min = np.round(np.min(damage),3)
+                # max = np.round(np.max(damage),3)
+                # norm = np.sum(damage)
+                # tResolution = tic.Tac("Resolution PhaseField", "Resolution Phase field", False)
+                # # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
+                # print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s') 
                 
                 deplacement.append(dep)
 
@@ -200,20 +243,19 @@ if solve:
 
                 
                 # Calcul de l'energie
+                # list_Psi_Crack.append(simu.Get_Resultat("Psi_Crack"))
+                # list_Psi_Elas.append(simu.Get_Resultat("Psi_Elas"))
+                # list_E_tot = np.array(list_Psi_Crack)-np.array(list_Psi_Elas)
+                # displacement = np.array(deplacement)
 
-                list_Psi_Crack.append(simu.Get_Resultat("Psi_Crack"))
-                list_Psi_Elas.append(simu.Get_Resultat("Psi_Elas"))
-                list_E_tot = np.array(list_Psi_Crack)-np.array(list_Psi_Elas)
-                displacement = np.array(deplacement)
-
-                ax.cla()
-                ax.plot(displacement*1e6, list_Psi_Crack, label="Psi_Crack")
-                ax.plot(displacement*1e6, list_Psi_Elas, label="Psi_Elas")
-                # ax.plot(displacement*1e6, list_E_tot, label="E_tot")
-                ax.set_xlabel("ud en µm")
-                ax.set_ylabel("Joules")
-                plt.legend()
-                plt.pause(0.0000001)
+                # ax.cla()
+                # ax.plot(displacement*1e6, list_Psi_Crack, label="Psi_Crack")
+                # ax.plot(displacement*1e6, list_Psi_Elas, label="Psi_Elas")
+                # # ax.plot(displacement*1e6, list_E_tot, label="E_tot")
+                # ax.set_xlabel("ud en µm")
+                # ax.set_ylabel("Joules")
+                # plt.legend()
+                # plt.pause(0.0000001)
                 
 
 

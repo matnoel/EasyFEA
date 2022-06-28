@@ -1,5 +1,4 @@
 # %%
-
 from typing import cast
 
 from Geom import Domain, Point

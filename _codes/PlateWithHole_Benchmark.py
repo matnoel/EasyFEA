@@ -15,11 +15,11 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=False
-saveParaview=True
+solve=True
+saveParaview=False
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
+split = "AnisotStress" # ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
 regu = "AT1" # "AT1", "AT2"
 
 # Data
@@ -30,7 +30,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.4
+v=0.3
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -180,8 +180,6 @@ if solve:
             if iterConv == maxIter:
                 break
 
-            convergence=True
-
             # convergence=True
         
         # TODO Comparer avec code matlab
@@ -196,8 +194,7 @@ if solve:
         temps = np.round(temps,3)
 
         max_d = damage.max()
-        min_d = damage.min()
-        
+        min_d = damage.min()        
         f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e6
 
         print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
@@ -239,9 +236,9 @@ else:
     simu = PostTraitement.Load_Simu(folder)
 
 
-Affichage.Plot_Result(simu, "damage", folder=folder, unite=f" pour v ={v}",  valeursAuxNoeuds=True)
-
-# Affichage.Plot_Result(simu, "psiP", folder=folder, unite=f" pour v ={v}", valeursAuxNoeuds=True,affichageMaillage=True)
+Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
+folder=folder, filename=f"{split} damage_n pour v={v}", 
+title=fr"$\phi \ pour \ \nu ={v}$")
 
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)
