@@ -10,7 +10,7 @@ class Test_Materiau(unittest.TestCase):
 
         # Comportement Elatique Isotrope
         E = 210e9
-        v = 0.3
+        v = 0.4999999999
         self.comportements = []
         for comp in LoiDeComportement.get_LoisDeComportement():
             if comp == Elas_Isot:
