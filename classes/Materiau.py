@@ -178,7 +178,7 @@ class Elas_Isot(LoiDeComportement):
         E=self.E
         v=self.v
         
-        l = v*E/((1+v)*(1-2*v))        
+        l = E*v/((1+v)*(1-2*v))
 
         if self.__dim == 2 and self.contraintesPlanes:
             l = E*v/(1-v**2)
@@ -619,23 +619,32 @@ class PhaseFieldModel:
             RpIxI_e_pg = np.einsum('ep,ij->epij',Rp_e_pg, IxI, optimize=True)
             RmIxI_e_pg = np.einsum('ep,ij->epij',Rm_e_pg, IxI, optimize=True)
 
-            sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
-            sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
+            if loiDeComportement.contraintesPlanes:
+                sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
+                sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
+            else:
+                sP_e_pg = (1+v)/E*projP_e_pg - v*(1+v)/E * RpIxI_e_pg
+                sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
+
 
             cT = c.T
             cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize=True)
             cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize=True)
 
-            # Ici c'est un test pour verifier que cT : S : c = inv(S)
+            # # Ici c'est un test pour verifier que cT : S : c = inv(S)
 
-            # detP_e_pg = np.linalg.det(sP_e_pg); e_pg_detP0 = np.where(detP_e_pg!=0)
-            # detM_e_pg = np.linalg.det(sM_e_pg); e_pg_detM0 = np.where(detM_e_pg!=0)
+            # detP_e_pg = np.linalg.det(sP_e_pg); e_pg_detPnot0 = np.where(detP_e_pg!=0)
+            # detM_e_pg = np.linalg.det(sM_e_pg); e_pg_detMnot0 = np.where(detM_e_pg!=0)
 
-            # cP_e_pg = np.zeros(sP_e_pg.shape)
-            # cM_e_pg = np.zeros(sM_e_pg.shape)
+            # invSP_e_pg = np.zeros(sP_e_pg.shape)
+            # invSM_e_pg = np.zeros(sM_e_pg.shape)
             
-            # cP_e_pg[e_pg_detP0] = np.linalg.inv(sP_e_pg[e_pg_detP0])
-            # cM_e_pg[e_pg_detM0] = np.linalg.inv(sM_e_pg[e_pg_detM0])
+            # invSP_e_pg[e_pg_detPnot0] = np.linalg.inv(sP_e_pg[e_pg_detPnot0])
+            # invSM_e_pg[e_pg_detMnot0] = np.linalg.inv(sM_e_pg[e_pg_detMnot0])
+
+            # testP = np.linalg.norm(invSP_e_pg-cP_e_pg)/np.linalg.norm(cP_e_pg)
+            # testM = np.linalg.norm(invSM_e_pg-cM_e_pg)/np.linalg.norm(cM_e_pg)
+            # pass
 
         else:            
 
@@ -653,14 +662,14 @@ class PhaseFieldModel:
             # cP_e_pg = Cpp #Diffuse
             # cM_e_pg = Cmm + Cpm + Cmp
 
-            # cP_e_pg = Cpp + Cpm + Cmp #Diffuse
-            # cM_e_pg = Cmm 
+            cP_e_pg = Cpp + Cpm + Cmp #Diffuse
+            cM_e_pg = Cmm 
 
             # cP_e_pg = Cpp + Cpm #Diffuse
             # cM_e_pg = Cmm + Cmp
 
-            cP_e_pg = Cpp #Diffuse
-            cM_e_pg = Cmm + Cpm + Cmp
+            # cP_e_pg = Cpp #Diffuse
+            # cM_e_pg = Cmm + Cpm + Cmp
 
         return cP_e_pg, cM_e_pg
 
@@ -788,6 +797,7 @@ class PhaseFieldModel:
             ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True))
             if ortho_v_v.min() > 0:
                 vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
+                tvertifOrthoEpsPM = ortho_vP_vM/ortho_v_v
                 assert vertifOrthoEpsPM < 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
