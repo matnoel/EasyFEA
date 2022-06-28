@@ -9,8 +9,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 
-def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, unite="",
-    affichageMaillage=False, valeursAuxNoeuds=False, oldfig=None, oldax=None, folder="", colorbarIsClose=False):
+def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, title="",
+    affichageMaillage=False, valeursAuxNoeuds=False,
+    folder="", filename="", colorbarIsClose=False,
+    oldfig=None, oldax=None):
 
     """Affichage de la simulation
 
@@ -125,9 +127,6 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
             cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
         else:
             cb = plt.colorbar(pc, ax=ax, cax=cax)
-
-        
-        
         
         # ax.set_xlabel('x [mm]')
         # ax.set_ylabel('y [mm]')
@@ -169,13 +168,15 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, uni
     else:
         loc = "_e"
 
-    title = option+loc+unite
-
+    if title == "":
+        title = option+loc
     ax.set_title(title)
 
     if folder != "":
         import PostTraitement
-        PostTraitement.Save_fig(folder, title, transparent=False)
+        if filename=="":
+            filename=title
+        PostTraitement.Save_fig(folder, filename, transparent=False)
 
     tic.Tac("Post Traitement", "Affichage résultat", False)
     
