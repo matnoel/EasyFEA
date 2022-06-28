@@ -271,8 +271,6 @@ TicTac.getResume()
 
 
 
-
-
 plt.show()
 
 

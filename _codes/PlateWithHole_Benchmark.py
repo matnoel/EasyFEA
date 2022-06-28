@@ -15,8 +15,8 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=True
-saveParaview=False
+solve=False
+saveParaview=True
 
 comp = "Elas_Isot"
 split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
@@ -132,9 +132,10 @@ if solve:
 
     Affichage.NouvelleSection("Simulation")
 
-    maxIter = 200
-    tolConv = 0.005
-    # tolConv = 0.01
+    maxIter = 250
+    # tolConv = 0.0025
+    # tolConv = 0.005
+    tolConv = 0.01
     resol = 1
     bord = 0
     dep = []
@@ -170,6 +171,7 @@ if solve:
             displacement = simu.Solve_u(useCholesky)
 
             dincMax = np.max(np.abs(damage-dold))
+            # TODO faire en relatif np.max(np.abs((damage-dold)/dold))?
             convergence = dincMax <= tolConv
             # if damage.min()>1e-5:
             #     convergence=False
@@ -177,6 +179,8 @@ if solve:
 
             if iterConv == maxIter:
                 break
+
+            convergence=True
 
             # convergence=True
         

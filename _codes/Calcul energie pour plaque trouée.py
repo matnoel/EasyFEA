@@ -15,7 +15,7 @@ Affichage.Clear()
 
 # Options
 
-plotAllResult = True
+plotAllResult = False
 
 comp = "Elas_Isot"
 split = "Stress" # ["Bourdin","Amor","Miehe","Stress"]
@@ -169,13 +169,16 @@ list_v = np.arange(0, 0.5,0.0005)
 
 # test = (vv*(1-2*vv)+1)/(2*(1+vv))
 
-axp.plot(list_v, (list_v*(1-2*list_v)+1)/(2*(1+list_v)), label="psiP_A*E/Sig^2")
-axp.plot(list_v, 9*list_v**2/(1+list_v), label="psiP_B*E/Sig^2")
+# axp.plot(list_v, (list_v*(1-2*list_v)+1)/(2*(1+list_v)), label="psiP_A*E/Sig^2")
+axp.plot(list_v, (list_v*(1-2*list_v)+1)/(2*(1+list_v)), label='A')
+axp.plot(list_v, 9*list_v**2/(1+list_v), label='B')
 axp.grid()
-axp.legend()
-axp.set_xlabel("v")
+axp.legend(fontsize=14)
+axp.set_xlabel("v",fontsize=14)
+axp.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
+axp.set_title('Split sur $\epsilon$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Analytique")
+PostTraitement.Save_fig(folder, "calc analytique")
 
 list_Miehe_psiP_A=[]
 list_Miehe_psiP_B=[]
@@ -219,31 +222,33 @@ for v in list_v:
 
 fig, ax1 = plt.subplots()
 
-ax1.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label="psiP_A*E/Sig^2")
-ax1.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label="psiP_B*E/Sig^2")
+ax1.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label='A')
+ax1.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label='B')
 ax1.grid()
 # if split == "Miehe":    
 #     ax1.scatter(list_V, np.array(df['A (CP)'].tolist()),label='Miehe A')
 #     ax1.scatter(list_V, np.array(df['B (CP)'].tolist()),label='Miehe B')
-ax1.legend()
-ax1.set_xlabel("v")
-ax1.set_title("Miehe")
+ax1.legend(fontsize=14)
+ax1.set_xlabel("v",fontsize=14)
+ax1.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
+ax1.set_title('Split sur $\epsilon$',fontsize=14)
 
 PostTraitement.Save_fig(folder, "Miehe")
 
 fig, ax2 = plt.subplots()
 
-ax2.plot(list_v, np.array(list_Stress_psiP_A)*E/SIG**2, label="psiP_A*E/Sig^2")
-ax2.plot(list_v, np.array(list_Stress_psiP_B)*E/SIG**2, label="psiP_B*E/Sig^2")
+ax2.plot(list_v, np.array(list_Stress_psiP_A)*E/SIG**2, label='A')
+ax2.plot(list_v, np.array(list_Stress_psiP_B)*E/SIG**2, label='B')
 ax2.grid()
 # if split == "Stress":    
 #     ax2.scatter(list_V, np.array(df['A (CP)'].tolist()),label='Stress A')
 #     ax2.scatter(list_V, np.array(df['B (CP)'].tolist()),label='Stress B')
-ax2.legend()
-ax2.set_xlabel("v")
-ax2.set_title("Stress")
+ax2.legend(fontsize=14)
+ax2.set_xlabel("v",fontsize=14)
+ax2.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
+ax2.set_title('Split sur $\sigma$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Stress")
+PostTraitement.Save_fig(folder, "Stress psiP")
 
 
 
