@@ -12,16 +12,14 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-
-
 # Options
 
 test=True
-solve=True
+solve=False
 saveParaview=False
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
+split = "AnisotStress" # ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
 regu = "AT1" # "AT1", "AT2"
 
 # Data
@@ -33,21 +31,31 @@ ep=2e-2
 diam=1e-2
 r=diam/2
 
-E=12e9
-v=0.3
+# E=12e9
+# v=0.3
+# gc = 1.4
 
-gc = 1.4
-l_0 = L/50
+E=1.4015e8
+E=E/10.7098
+v=0.44
+# gc = 2 0.9 a la fin
+gc = 1
+
+
+# l_0 = L/50
+l_0 = L/70
 
 # Création de la simulations
 
 # umax = 25e-6
-umax = 70e-6
+
+# umax = 0.5302e-3
+umax = 2e-3
 
 # loadMax = 2e3 #kN
 # loadMax = 2 #kN
 
-N=400
+
 
 if test:
     cc = 0.5
@@ -62,8 +70,8 @@ if test:
     # inc0 = 8e-8
     # inc1 = 2e-8
 
-    inc0 = 8e-7
-    inc1 = 2e-8
+    inc0 = 8e-6
+    inc1 = 2e-6
 
     # inc0 = loadMax/N
     # inc1 = inc0/6
@@ -159,6 +167,8 @@ if solve:
 
     fig, ax = plt.subplots()
 
+    iterSansEndomagement=0
+
     while ud <= umax:
     # while load <= loadMax:
         
@@ -211,10 +221,10 @@ if solve:
         min_d = damage.min()
         
         depl = ud
-        load = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e3
+        load = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))
 
         # depl = np.abs(np.max(displacement[noeuds_cercle*2]))
-        print(f"{resol:4} : ud = {depl*1e6:5.2} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+        print(f"{resol:4} : ud = {depl*1e3:5.2} mm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
         if max_d<0.5:
             ud += inc0
@@ -229,16 +239,20 @@ if solve:
         # Arret de la simulation si le bord est endommagé
         if bord == 1:
             break
-
+        
+        if damage.max() == 0:
+            iterSansEndomagement += 1
         
         dep.append(depl)        
         forces.append(load)
 
         ax.cla()
-        ax.plot(dep, np.abs(forces), c='black')
+        list_iterd0 = np.arange(iterSansEndomagement)        
+        ax.plot(np.array(dep)*1e3, np.abs(np.array(forces))/1e3, c='red')
+        ax.plot(np.array(dep)[list_iterd0]*1e3, np.abs(np.array(forces)[list_iterd0])/1e3, c='black')
         ax.set_xlabel("ud en mm")
         ax.set_ylabel("f en kN")
-        # plt.pause(0.0000001)
+        plt.pause(0.0000001)
         
         resol += 1
     
@@ -252,8 +266,9 @@ else:
     simu = PostTraitement.Load_Simu(folder)
 
 
-Affichage.Plot_Result(simu, "damage", title=fr"$ pour \nu ={v}$",  valeursAuxNoeuds=True,
-folder=folder, filename="damage_n")
+Affichage.Plot_Result(simu, "damage", title=fr"$\phi \ pour \ \nu={v}$",
+valeursAuxNoeuds=True, colorbarIsClose=True, affichageMaillage=False,
+folder=folder, filename=f"damage_n v={v} FCBA")
 
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)
