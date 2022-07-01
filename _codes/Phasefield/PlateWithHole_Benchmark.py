@@ -15,7 +15,7 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=True
+solve=False
 saveParaview=False
 
 comp = "Elas_Isot"
