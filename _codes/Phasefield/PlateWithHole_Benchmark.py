@@ -15,12 +15,12 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=False
+solve=True
 saveParaview=False
 
 comp = "Elas_Isot"
-split = "AnisotStress" # ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
-regu = "AT1" # "AT1", "AT2"
+split = "Miehe" # ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
+regu = "AT2" # "AT1", "AT2"
 
 # Data
 
@@ -30,7 +30,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.3
+v=0.4
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -41,7 +41,7 @@ umax = 25e-6
 
 if test:
     # cc = 1.2
-    cc = 1.2
+    cc = 1.5
     clD = 0.25e-3*cc
     clC = 0.12e-3*cc
     # clD = l_0*2
