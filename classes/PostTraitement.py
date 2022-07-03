@@ -88,7 +88,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
     def Get_ffmpegpath():
         paths = ["D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe",
-                 "F:\\Pro\\ffmpeg\\bin\\ffmpeg.exe"]
+                 "D:\\Pro\\ffmpeg\\bin\\ffmpeg.exe"]
         
         for p in paths:
             if os.path.exists(p):
