@@ -207,15 +207,18 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
     from Simu import Simu
     from Mesh import Mesh
 
-    match type(obj).__name__:
-        case Simu.__name__:
+    typeobj = type(obj).__name__
+
+    if typeobj == Simu.__name__:
             simu = cast(Simu, obj)
             mesh = simu.mesh
-        case Mesh.__name__:
-            mesh = cast(Mesh, obj)
-            if deformation == True:
-                print("Il faut donner la simulation pour afficher le maillage déformée")
-
+    elif typeobj == Mesh.__name__:
+        mesh = cast(Mesh, obj)
+        if deformation == True:
+            print("Il faut donner la simulation pour afficher le maillage déformée")
+    else:
+        raise "Erreur"
+    
     assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
 
     coordo = mesh.coordoGlob
@@ -381,32 +384,27 @@ def Plot_BoundaryConditions(simu, folder=""):
         
         # filled_markers = ('o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd', 'P', 'X')
 
-        match problemType:
-            case "damage":
-                marker='o'
-            case "displacement":
-                match len(directions):
-                    case 1:
-                        signe = np.sign(valeurs[0])
-                        match directions[0]:
-                            case 'x':
-                                if signe == -1:
-                                    marker='<'
-                                else:
-                                    marker='>'
-                            case 'y':
-                                if signe == -1:
-                                    marker='v'
-                                else:
-                                    marker='^'                                
-                            case 'z':
-                                marker='d'
-                    case 2:
-                        marker='X'
-                    case 3:
-                        marker='s'
-                
-        
+        if problemType == "damage":
+            marker='o'
+        elif problemType == "displacement":
+            if len(directions) == 1:
+                signe = np.sign(valeurs[0])
+                if directions[0] == 'x':
+                    if signe == -1:
+                        marker='<'
+                    else:
+                        marker='>'
+                elif directions[0] == 'y':
+                    if signe == -1:
+                        marker='v'
+                    else:
+                        marker='^'
+                elif directions[0] == 'z':
+                    marker='d'
+            elif len(directions) == 2:
+                marker='X'                
+            elif len(directions) == 3:
+                marker='s'
 
         if dim == 2:
             lw=0

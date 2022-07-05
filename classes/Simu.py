@@ -71,15 +71,14 @@ class Simu:
     def CheckDirections(dim: int, problemType:str, directions:list):
         """Verifie si les directions renseignées sont possible pour le probleme"""
         Simu.CheckProblemTypes(problemType)
-
-        match problemType:
-            case "damage":
-                assert directions == ["d"]
-            case "displacement":
-                for d in directions:
-                    assert d in ["x","y","z"]
-                    if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
-                assert dim >= len(directions)
+        
+        if problemType == "damage":
+            assert directions == ["d"]
+        elif problemType == "displacement":
+            for d in directions:
+                assert d in ["x","y","z"]
+                if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
+            assert dim >= len(directions)
         
     def __get_mesh(self):
         """Renvoie le maillage de la simulation"""
@@ -437,11 +436,10 @@ class Simu:
 
         # Construit les ddls inconnues
 
-        match problemType:
-            case "damage":
-                taille = self.__mesh.Nn
-            case "displacement":
-                taille = self.__mesh.Nn*self.__dim
+        if problemType == "damage":
+            taille = self.__mesh.Nn
+        elif problemType == "displacement":
+            taille = self.__mesh.Nn*self.__dim
 
         ddls_Inconnues = list(np.arange(taille))
         for ddlConnue in ddls_Connues:
@@ -477,11 +475,10 @@ class Simu:
 
         # l,c ,v = sparse.find(b)
 
-        match problemType:
-            case "damage":
-                b = b + self.__Fd.copy()                
-            case "displacement":
-                b = b + self.__Fu.copy()
+        if problemType == "damage":
+            b = b + self.__Fd.copy()
+        elif problemType == "displacement":
+            b = b + self.__Fu.copy()
 
         return b
 
@@ -500,12 +497,11 @@ class Simu:
 
         taille = self.__mesh.Nn
 
-        match problemType:
-            case "damage":
-                A = self.__Kd.copy()
-            case "displacement":
-                taille = taille*self.__dim
-                A = self.__Ku.copy()
+        if problemType == "damage":
+            A = self.__Kd.copy()
+        elif problemType == "displacement":
+            taille = taille*self.__dim
+            A = self.__Ku.copy()
 
         if resolution == 1:
             
@@ -701,29 +697,26 @@ class Simu:
     def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
         """evalue les valeurs aux noeuds ou aux points de gauss"""
         
-        assert option in ["noeuds","gauss"]
-        match option:
-            case "noeuds":
-                valeurs_eval = np.zeros(coordo.shape[0])
-            case "gauss":
-                valeurs_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
+        assert option in ["noeuds","gauss"]        
+        if option == "noeuds":
+            valeurs_eval = np.zeros(coordo.shape[0])
+        elif option == "gauss":
+            valeurs_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
         
         if isinstance(valeurs, LambdaType):
             # Evalue la fonction aux coordonnées
             try:
-                match option:                
-                    case "noeuds":
-                        valeurs_eval[:] = valeurs(coordo[:,0], coordo[:,1], coordo[:,2])
-                    case "gauss":
-                        valeurs_eval[:,:] = valeurs(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
+                if option == "noeuds":
+                    valeurs_eval[:] = valeurs(coordo[:,0], coordo[:,1], coordo[:,2])
+                elif option == "gauss":
+                    valeurs_eval[:,:] = valeurs(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
             except:
                 raise "Doit fournir une fonction lambda de la forme\n lambda x,y,z, : f(x,y,z)"
-        else:
-            match option:
-                case "noeuds":
-                    valeurs_eval[:] = valeurs
-                case "gauss":
-                    valeurs_eval[:,:] = valeurs
+        else:            
+            if option == "noeuds":
+                valeurs_eval[:] = valeurs
+            elif option == "gauss":
+                valeurs_eval[:,:] = valeurs
 
         return valeurs_eval
     
@@ -774,13 +767,12 @@ class Simu:
         les fonctions utilisent les coordonnées x, y et z des points d'intégrations
         """
 
-        match self.__dim:
-            case 2:
-                valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
-                # multiplie par l'epaisseur
-                valeurs_ddls = valeurs_ddls*self.materiau.comportement.epaisseur
-            case 3:
-                valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
+        if self.__dim == 2:
+            valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
+            # multiplie par l'epaisseur
+            valeurs_ddls = valeurs_ddls*self.materiau.comportement.epaisseur
+        elif self.__dim == 3:
+            valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
 
         self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)    
 
@@ -878,20 +870,18 @@ class Simu:
         Simu.CheckProblemTypes(problemType)
         Simu.CheckDirections(self.__dim, problemType, directions)
 
-        match problemType:
+        if problemType == "damage":
+            
+            new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
 
-            case "damage":
-                
-                new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
+        elif problemType == "displacement":
 
-            case "displacement":
+            new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
 
-                new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
-
-                # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
-                ddl_Dirchlet = self.Get_ddls_Dirichlet(problemType)
-                for d in ddls: 
-                    assert d not in ddl_Dirchlet, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
+            # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
+            ddl_Dirchlet = self.Get_ddls_Dirichlet(problemType)
+            for d in ddls: 
+                assert d not in ddl_Dirchlet, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
 
         self.__Bc_Neumann.append(new_Bc)
 
@@ -904,20 +894,18 @@ class Simu:
 
         Simu.CheckProblemTypes(problemType)
 
-        match problemType:
+        if problemType == "damage":
+            
+            new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
-            case "damage":
-                
-                new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
+        elif problemType == "displacement":
 
-            case "displacement":
+            new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
-                new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
-
-                # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
-                ddl_Neumann = self.Get_ddls_Neumann(problemType)
-                for d in ddls: 
-                    assert d not in ddl_Neumann, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
+            # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
+            ddl_Neumann = self.Get_ddls_Neumann(problemType)
+            for d in ddls: 
+                assert d not in ddl_Neumann, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
 
         self.__Bc_Dirichlet.append(new_Bc)
 

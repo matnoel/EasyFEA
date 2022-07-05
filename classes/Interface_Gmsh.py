@@ -275,57 +275,55 @@ class Interface_Gmsh:
         surface=None, crack=None, openBoundary=None):
 
                 tic = TicTac()
+                if dim == 2:
 
-                match dim:
-                        case 2:
+                        # Impose que le maillage soit organisé                        
+                        if isOrganised:
+                                # TODO Ne fonctionne plus depsuis le passage à occ
+                                # gmsh.model.geo.synchronize()
+                                # groups = gmsh.model.getPhysicalGroups()
+                                # entities = gmsh.model.getEntitiesForPhysicalGroup(2, surface)
+                                gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
-                                # Impose que le maillage soit organisé                        
-                                if isOrganised:
-                                        # TODO Ne fonctionne plus depsuis le passage à occ
-                                        # gmsh.model.geo.synchronize()
-                                        # groups = gmsh.model.getPhysicalGroups()
-                                        # entities = gmsh.model.getEntitiesForPhysicalGroup(2, surface)
-                                        gmsh.model.geo.mesh.setTransfiniteSurface(surface)
+                        # Synchronisation
+                        gmsh.model.occ.synchronize()
 
-                                # Synchronisation
-                                gmsh.model.occ.synchronize()
-
-                                if elemType in ["QUAD4","QUAD8"]:
-                                        try:
-                                                gmsh.model.mesh.setRecombine(2, surface)
-                                        except Exception:
-                                                # Récupère la surface
-                                                entities = gmsh.model.getEntities()
-                                                surface = entities[-1][-1]
-                                                gmsh.model.mesh.setRecombine(2, surface)
-                                
-                                # Génère le maillage
-                                gmsh.model.mesh.generate(2)
-
-                                if elemType in ["QUAD8"]:
-                                        gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
-
-                                if elemType in ["TRI3","QUAD4"]:
-                                        gmsh.model.mesh.set_order(1)
-                                elif elemType in ["TRI6","QUAD8"]:
-                                        gmsh.model.mesh.set_order(2)
-
-                                if crack != None:
-                                        gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
-                                        gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
-                                        if openBoundary != None:
-                                                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openBoundary)
-                                        # gmsh.plugin.setNumber("Crack", "NormalX", 0)
-                                        # gmsh.plugin.setNumber("Crack", "NormalY", 0)
-                                        # gmsh.plugin.setNumber("Crack", "NormalZ", 1)
-                                        gmsh.plugin.run("Crack")
-                                        # gmsh.write("meshhh.msh")
-                                        # self.__initGmsh()
-                                        # gmsh.open("meshhh.msh")
+                        if elemType in ["QUAD4","QUAD8"]:
+                                try:
+                                        gmsh.model.mesh.setRecombine(2, surface)
+                                except Exception:
+                                        # Récupère la surface
+                                        entities = gmsh.model.getEntities()
+                                        surface = entities[-1][-1]
+                                        gmsh.model.mesh.setRecombine(2, surface)
                         
-                        case 3:
-                                gmsh.model.occ.synchronize()                                
-                                gmsh.model.mesh.generate(3)
+                        # Génère le maillage
+                        gmsh.model.mesh.generate(2)
+
+                        if elemType in ["QUAD8"]:
+                                gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
+
+                        if elemType in ["TRI3","QUAD4"]:
+                                gmsh.model.mesh.set_order(1)
+                        elif elemType in ["TRI6","QUAD8"]:
+                                gmsh.model.mesh.set_order(2)
+
+                        if crack != None:
+                                gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
+                                gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
+                                if openBoundary != None:
+                                        gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openBoundary)
+                                # gmsh.plugin.setNumber("Crack", "NormalX", 0)
+                                # gmsh.plugin.setNumber("Crack", "NormalY", 0)
+                                # gmsh.plugin.setNumber("Crack", "NormalZ", 1)
+                                gmsh.plugin.run("Crack")
+                                # gmsh.write("meshhh.msh")
+                                # self.__initGmsh()
+                                # gmsh.open("meshhh.msh")
+                
+                elif dim == 3:
+                        gmsh.model.occ.synchronize()                                
+                        gmsh.model.mesh.generate(3)
                 
                 # Ouvre l'interface de gmsh si necessaire
                 if '-nopopup' not in sys.argv and self.__affichageGmsh:

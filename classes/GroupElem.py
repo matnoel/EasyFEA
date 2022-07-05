@@ -131,15 +131,13 @@ class GroupElem:
         """matrice de coordonnées globale du maillage (maillage.Nn, 3)"""
 
         def __get_nbFaces(self):
-            match self.dim:
-                case (0,1):
-                    return 0
-                case 2:
-                    return 1
-                case 3:
-                    match self.elemType:
-                        case "TETRA4":
-                            return 4
+            if self.dim in [0,1]:
+                return 0
+            elif self.dim == 2:
+                return 1
+            elif self.dim == 3:                
+                if self.elemType == "TETRA4":
+                    return 4
         nbFaces = cast(int, property(__get_nbFaces))
 
         def get_gauss(self, matriceType: str):
@@ -219,54 +217,51 @@ class GroupElem:
 
             coordo = self.coordoGlob
 
-            match self.elemType:
+            if self.elemType in ["SEG2","SEG3"]:
 
-                case ("SEG2"|"SEG3"):
+                points1 = coordo[self.__connect[:,0]]
+                points2 = coordo[self.__connect[:,1]]
 
-                    points1 = coordo[self.__connect[:,0]]
-                    points2 = coordo[self.__connect[:,1]]
+            elif self.elemType in ["TRI3","TRI6"]:
 
-                case ("TRI3"|"TRI6"):
+                points1 = coordo[self.__connect[:,0]]
+                points2 = coordo[self.__connect[:,1]]
+                points3 = coordo[self.__connect[:,2]]
 
-                    points1 = coordo[self.__connect[:,0]]
-                    points2 = coordo[self.__connect[:,1]]
-                    points3 = coordo[self.__connect[:,2]]
+            elif self.elemType in ["QUAD4","QUAD8"]:
 
-                case ("QUAD4"|"QUAD8"):
+                points1 = coordo[self.__connect[:,0]]
+                points2 = coordo[self.__connect[:,1]]
+                points3 = coordo[self.__connect[:,3]]
 
-                    points1 = coordo[self.__connect[:,0]]
-                    points2 = coordo[self.__connect[:,1]]
-                    points3 = coordo[self.__connect[:,3]]
+            if self.dim in [0,3]:
+                sysCoord_e = np.eye(3)
+                sysCoord_e = sysCoord_e[np.newaxis, :].repeat(self.Ne, axis=0)
+                sysCoordLocal_e = sysCoord_e
+            
+            elif self.dim in [1,2]:
 
-            match self.dim:
-                case (0|3):
-                    sysCoord_e = np.eye(3)
-                    sysCoord_e = sysCoord_e[np.newaxis, :].repeat(self.Ne, axis=0)
-                    sysCoordLocal_e = sysCoord_e
-                
-                case (1|2):
+                i = points2-points1
+                i = np.einsum('ei,e->ei',i, 1/np.linalg.norm(i, axis=1), optimize=True)
 
-                    i = points2-points1
-                    i = np.einsum('ei,e->ei',i, 1/np.linalg.norm(i, axis=1), optimize=True)
+                if self.dim == 1:
+                    theta = np.pi/2
+                    rot = np.array([[np.cos(theta), -np.sin(theta), 0],
+                                    [np.sin(theta), np.cos(theta), 0],
+                                    [0, 0, 1]])
+                    j = np.einsum('ij,ej->ei',rot, i, optimize=True)
+                else:
+                    j = points3-points1
+                    j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize=True)
+                    
+                k = np.cross(i, j, axis=1)
 
-                    if self.dim == 1:
-                        theta = np.pi/2
-                        rot = np.array([[np.cos(theta), -np.sin(theta), 0],
-                                        [np.sin(theta), np.cos(theta), 0],
-                                        [0, 0, 1]])
-                        j = np.einsum('ij,ej->ei',rot, i, optimize=True)
-                    else:
-                        j = points3-points1
-                        j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize=True)
-                        
-                    k = np.cross(i, j, axis=1)
+                sysCoord_e = np.zeros((self.Ne, 3, 3))
+                sysCoord_e[:,0] = i
+                sysCoord_e[:,1] = j
+                sysCoord_e[:,2] = k
 
-                    sysCoord_e = np.zeros((self.Ne, 3, 3))
-                    sysCoord_e[:,0] = i
-                    sysCoord_e[:,1] = j
-                    sysCoord_e[:,2] = k
-
-                    sysCoordLocal_e = sysCoord_e[:,range(self.dim)]
+                sysCoordLocal_e = sysCoord_e[:,range(self.dim)]
 
             return sysCoord_e, sysCoordLocal_e
 
@@ -324,32 +319,31 @@ class GroupElem:
 
                 F_e_pg = self.get_F_e_pg(matriceType)
 
-                match self.dim:
-                    case 1:
-                        invF_e_pg = 1/F_e_pg
-                    case 2:
-                        # A = [alpha, beta          inv(A) = 1/det * [b, -beta
-                        #      a    , b   ]                           -a  alpha]
+                if self.dim == 1:
+                    invF_e_pg = 1/F_e_pg
+                elif self.dim == 2:
+                    # A = [alpha, beta          inv(A) = 1/det * [b, -beta
+                    #      a    , b   ]                           -a  alpha]
 
-                        Ne = F_e_pg.shape[0]
-                        nPg = F_e_pg.shape[1]
-                        invF_e_pg = np.zeros((Ne,nPg,2,2))
+                    Ne = F_e_pg.shape[0]
+                    nPg = F_e_pg.shape[1]
+                    invF_e_pg = np.zeros((Ne,nPg,2,2))
 
-                        det = self.get_jacobien_e_pg(matriceType)
+                    det = self.get_jacobien_e_pg(matriceType)
 
-                        alpha = F_e_pg[:,:,0,0]
-                        beta = F_e_pg[:,:,0,1]
-                        a = F_e_pg[:,:,1,0]
-                        b = F_e_pg[:,:,1,1]
+                    alpha = F_e_pg[:,:,0,0]
+                    beta = F_e_pg[:,:,0,1]
+                    a = F_e_pg[:,:,1,0]
+                    b = F_e_pg[:,:,1,1]
 
-                        invF_e_pg[:,:,0,0] = b
-                        invF_e_pg[:,:,0,1] = -beta
-                        invF_e_pg[:,:,1,0] = -a
-                        invF_e_pg[:,:,1,1] = alpha
+                    invF_e_pg[:,:,0,0] = b
+                    invF_e_pg[:,:,0,1] = -beta
+                    invF_e_pg[:,:,1,0] = -a
+                    invF_e_pg[:,:,1,1] = alpha
 
-                        invF_e_pg = np.einsum('ep,epij->epij',1/det, invF_e_pg, optimize=True)                        
-                    case 3:
-                        invF_e_pg = np.array(np.linalg.inv(F_e_pg))
+                    invF_e_pg = np.einsum('ep,epij->epij',1/det, invF_e_pg, optimize=True)                        
+                elif self.dim == 3:
+                    invF_e_pg = np.array(np.linalg.inv(F_e_pg))
 
                 self.__dict_invF_e_pg[matriceType] = invF_e_pg
 
@@ -361,77 +355,75 @@ class GroupElem:
             """
             if self.dim == 0: return
 
-            match self.elemType:
+            if self.elemType == "SEG2":
 
-                case "SEG2":
+                N1t = lambda x: 0.5*(1-x)
+                N2t = lambda x: 0.5*(1+x)
 
-                    N1t = lambda x: 0.5*(1-x)
-                    N2t = lambda x: 0.5*(1+x)
+                Ntild = np.array([N1t, N2t])
+            
+            elif self.elemType == "SEG3":
 
-                    Ntild = np.array([N1t, N2t])
+                N1t = lambda x: -0.5*(1-x)*x
+                N2t = lambda x: 0.5*(1+x)*x
+                N3t = lambda x: (1+x)*(1-x)
+
+                Ntild = np.array([N1t, N2t, N3t])
+
+            elif self.elemType == "TRI3":
+
+                N1t = lambda ksi,eta: 1-ksi-eta
+                N2t = lambda ksi,eta: ksi
+                N3t = lambda ksi,eta: eta
                 
-                case "SEG3":
+                Ntild = np.array([N1t, N2t, N3t])
 
-                    N1t = lambda x: -0.5*(1-x)*x
-                    N2t = lambda x: 0.5*(1+x)*x
-                    N3t = lambda x: (1+x)*(1-x)
+            elif self.elemType == "TRI6":
 
-                    Ntild = np.array([N1t, N2t, N3t])
-
-                case "TRI3":
-
-                    N1t = lambda ksi,eta: 1-ksi-eta
-                    N2t = lambda ksi,eta: ksi
-                    N3t = lambda ksi,eta: eta
-                    
-                    Ntild = np.array([N1t, N2t, N3t])
-
-                case "TRI6":
-
-                    N1t = lambda ksi,eta: -(1-ksi-eta)*(1-2*(1-ksi-eta))
-                    N2t = lambda ksi,eta: -ksi*(1-2*ksi)
-                    N3t = lambda ksi,eta: -eta*(1-2*eta)
-                    N4t = lambda ksi,eta: 4*ksi*(1-ksi-eta)
-                    N5t = lambda ksi,eta: 4*ksi*eta
-                    N6t = lambda ksi,eta: 4*eta*(1-ksi-eta)
-                    
-                    Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t])
+                N1t = lambda ksi,eta: -(1-ksi-eta)*(1-2*(1-ksi-eta))
+                N2t = lambda ksi,eta: -ksi*(1-2*ksi)
+                N3t = lambda ksi,eta: -eta*(1-2*eta)
+                N4t = lambda ksi,eta: 4*ksi*(1-ksi-eta)
+                N5t = lambda ksi,eta: 4*ksi*eta
+                N6t = lambda ksi,eta: 4*eta*(1-ksi-eta)
                 
-                case "QUAD4":
+                Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t])
+            
+            elif self.elemType == "QUAD4":
 
-                    N1t = lambda ksi,eta: (1-ksi)*(1-eta)/4
-                    N2t = lambda ksi,eta: (1+ksi)*(1-eta)/4
-                    N3t = lambda ksi,eta: (1+ksi)*(1+eta)/4
-                    N4t = lambda ksi,eta: (1-ksi)*(1+eta)/4
-                    
-                    Ntild = np.array([N1t, N2t, N3t, N4t])
-
-                case "QUAD8":
-
-                    N1t = lambda ksi,eta: (1-ksi)*(1-eta)*(-1-ksi-eta)/4
-                    N2t = lambda ksi,eta: (1+ksi)*(1-eta)*(-1+ksi-eta)/4
-                    N3t = lambda ksi,eta: (1+ksi)*(1+eta)*(-1+ksi+eta)/4
-                    N4t = lambda ksi,eta: (1-ksi)*(1+eta)*(-1-ksi+eta)/4
-                    N5t = lambda ksi,eta: (1-ksi**2)*(1-eta)/2
-                    N6t = lambda ksi,eta: (1+ksi)*(1-eta**2)/2
-                    N7t = lambda ksi,eta: (1-ksi**2)*(1+eta)/2
-                    N8t = lambda ksi,eta: (1-ksi)*(1-eta**2)/2
-                    
-                    Ntild =  np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t])                    
-
-                case "TETRA4":
-
-                    N1t = lambda x,y,z: 1-x-y-z
-                    N2t = lambda x,y,z: x
-                    N3t = lambda x,y,z: y
-                    N4t = lambda x,y,z: z
-
-                    Ntild = np.array([N1t, N2t, N3t, N4t])
+                N1t = lambda ksi,eta: (1-ksi)*(1-eta)/4
+                N2t = lambda ksi,eta: (1+ksi)*(1-eta)/4
+                N3t = lambda ksi,eta: (1+ksi)*(1+eta)/4
+                N4t = lambda ksi,eta: (1-ksi)*(1+eta)/4
                 
-                case _: 
-                    # print("Type inconnue")
-                    # raise "Type inconnue"
-                    return
+                Ntild = np.array([N1t, N2t, N3t, N4t])
+
+            elif self.elemType == "QUAD8":
+
+                N1t = lambda ksi,eta: (1-ksi)*(1-eta)*(-1-ksi-eta)/4
+                N2t = lambda ksi,eta: (1+ksi)*(1-eta)*(-1+ksi-eta)/4
+                N3t = lambda ksi,eta: (1+ksi)*(1+eta)*(-1+ksi+eta)/4
+                N4t = lambda ksi,eta: (1-ksi)*(1+eta)*(-1-ksi+eta)/4
+                N5t = lambda ksi,eta: (1-ksi**2)*(1-eta)/2
+                N6t = lambda ksi,eta: (1+ksi)*(1-eta**2)/2
+                N7t = lambda ksi,eta: (1-ksi**2)*(1+eta)/2
+                N8t = lambda ksi,eta: (1-ksi)*(1-eta**2)/2
+                
+                Ntild =  np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t])                    
+
+            elif self.elemType == "TETRA4":
+
+                N1t = lambda x,y,z: 1-x-y-z
+                N2t = lambda x,y,z: x
+                N3t = lambda x,y,z: y
+                N4t = lambda x,y,z: z
+
+                Ntild = np.array([N1t, N2t, N3t, N4t])
+            
+            else:
+                # print("Type inconnue")
+                # raise "Type inconnue"
+                return
             
             # Evalue aux points de gauss
 
@@ -442,14 +434,13 @@ class GroupElem:
             N_pg = np.zeros((nPg, 1, len(Ntild)))
 
             for pg in range(nPg):
-                for n, Nt in enumerate(Ntild):
-                    match coord.shape[1]:
-                        case 1:
-                            N_pg[pg, 0, n] = Nt(coord[pg,0])
-                        case 2:
-                            N_pg[pg, 0, n] = Nt(coord[pg,0], coord[pg,1])
-                        case 3:
-                            N_pg[pg, 0, n] = Nt(coord[pg,0], coord[pg,1], coord[pg,2])
+                for n, Nt in enumerate(Ntild):                    
+                    if coord.shape[1] == 1:
+                        N_pg[pg, 0, n] = Nt(coord[pg,0])
+                    elif coord.shape[1] == 2:
+                        N_pg[pg, 0, n] = Nt(coord[pg,0], coord[pg,1])
+                    elif coord.shape[1] == 3:
+                        N_pg[pg, 0, n] = Nt(coord[pg,0], coord[pg,1], coord[pg,2])
 
             return N_pg
         
@@ -460,77 +451,75 @@ class GroupElem:
             """
             if self.dim == 0: return
 
-            match self.elemType:
+            if self.elemType == "SEG2":
 
-                case "SEG2":
+                dN1t = [lambda x: -0.5]
+                dN2t = [lambda x: 0.5]
 
-                    dN1t = [lambda x: -0.5]
-                    dN2t = [lambda x: 0.5]
+                dNtild = np.array([dN1t, dN2t])
+            
+            elif self.elemType == "SEG3":
 
-                    dNtild = np.array([dN1t, dN2t])
+                dN1t = [lambda x: x-0.5]
+                dN2t = [lambda x: x+0.5]
+                dN3t = [lambda x: -2*x]
+
+                dNtild = np.array([dN1t, dN2t, dN3t])
+
+            elif self.elemType == "TRI3":
+
+                dN1t = [lambda ksi,eta: -1, lambda ksi,eta: -1]
+                dN2t = [lambda ksi,eta: 1,  lambda ksi,eta: 0]
+                dN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 1]
+
+                dNtild = np.array([dN1t, dN2t, dN3t])
+
+            elif self.elemType == "TRI6":
+
+                dN1t = [lambda ksi,eta: 4*ksi+4*eta-3,  lambda ksi,eta: 4*ksi+4*eta-3]
+                dN2t = [lambda ksi,eta: 4*ksi-1,        lambda ksi,eta: 0]
+                dN3t = [lambda ksi,eta: 0,              lambda ksi,eta: 4*eta-1]
+                dN4t = [lambda ksi,eta: 4-8*ksi-4*eta,  lambda ksi,eta: -4*ksi]
+                dN5t = [lambda ksi,eta: 4*eta,          lambda ksi,eta: 4*ksi]
+                dN6t = [lambda ksi,eta: -4*eta,         lambda ksi,eta: 4-4*ksi-8*eta]
                 
-                case "SEG3":
-
-                    dN1t = [lambda x: x-0.5]
-                    dN2t = [lambda x: x+0.5]
-                    dN3t = [lambda x: -2*x]
-
-                    dNtild = np.array([dN1t, dN2t, dN3t])
-
-                case "TRI3":
-
-                    dN1t = [lambda ksi,eta: -1, lambda ksi,eta: -1]
-                    dN2t = [lambda ksi,eta: 1,  lambda ksi,eta: 0]
-                    dN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 1]
-
-                    dNtild = np.array([dN1t, dN2t, dN3t])
-
-                case "TRI6":
-
-                    dN1t = [lambda ksi,eta: 4*ksi+4*eta-3,  lambda ksi,eta: 4*ksi+4*eta-3]
-                    dN2t = [lambda ksi,eta: 4*ksi-1,        lambda ksi,eta: 0]
-                    dN3t = [lambda ksi,eta: 0,              lambda ksi,eta: 4*eta-1]
-                    dN4t = [lambda ksi,eta: 4-8*ksi-4*eta,  lambda ksi,eta: -4*ksi]
-                    dN5t = [lambda ksi,eta: 4*eta,          lambda ksi,eta: 4*ksi]
-                    dN6t = [lambda ksi,eta: -4*eta,         lambda ksi,eta: 4-4*ksi-8*eta]
-                    
-                    dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
+                dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
+            
+            elif self.elemType == "QUAD4":
                 
-                case "QUAD4":
-                    
-                    dN1t = [lambda ksi,eta: (eta-1)/4,  lambda ksi,eta: (ksi-1)/4]
-                    dN2t = [lambda ksi,eta: (1-eta)/4,  lambda ksi,eta: (-ksi-1)/4]
-                    dN3t = [lambda ksi,eta: (1+eta)/4,  lambda ksi,eta: (1+ksi)/4]
-                    dN4t = [lambda ksi,eta: (-eta-1)/4, lambda ksi,eta: (1-ksi)/4]
-                    
-                    dNtild = [dN1t, dN2t, dN3t, dN4t]
-
-                case "QUAD8":
-                   
-                    dN1t = [lambda ksi,eta: (1-eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1-ksi)*(ksi+2*eta)/4]
-                    dN2t = [lambda ksi,eta: (1-eta)*(2*ksi-eta)/4,      lambda ksi,eta: -(1+ksi)*(ksi-2*eta)/4]
-                    dN3t = [lambda ksi,eta: (1+eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1+ksi)*(ksi+2*eta)/4]
-                    dN4t = [lambda ksi,eta: -(1+eta)*(-2*ksi+eta)/4,    lambda ksi,eta: (1-ksi)*(-ksi+2*eta)/4]
-                    dN5t = [lambda ksi,eta: -ksi*(1-eta),               lambda ksi,eta: -(1-ksi**2)/2]
-                    dN6t = [lambda ksi,eta: (1-eta**2)/2,               lambda ksi,eta: -eta*(1+ksi)]
-                    dN7t = [lambda ksi,eta: -ksi*(1+eta),               lambda ksi,eta: (1-ksi**2)/2]
-                    dN8t = [lambda ksi,eta: -(1-eta**2)/2,              lambda ksi,eta: -eta*(1-ksi)]
-                                    
-                    dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t])
-
-                case "TETRA4":
-                    
-                    dN1t = [lambda x,y,z: -1,   lambda x,y,z: -1,   lambda x,y,z: -1]
-                    dN2t = [lambda x,y,z: 1,    lambda x,y,z: 0,    lambda x,y,z: 0]
-                    dN3t = [lambda x,y,z: 0,    lambda x,y,z: 1,    lambda x,y,z: 0]
-                    dN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 1]
-
-                    dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
+                dN1t = [lambda ksi,eta: (eta-1)/4,  lambda ksi,eta: (ksi-1)/4]
+                dN2t = [lambda ksi,eta: (1-eta)/4,  lambda ksi,eta: (-ksi-1)/4]
+                dN3t = [lambda ksi,eta: (1+eta)/4,  lambda ksi,eta: (1+ksi)/4]
+                dN4t = [lambda ksi,eta: (-eta-1)/4, lambda ksi,eta: (1-ksi)/4]
                 
-                case _: 
-                    # print("Type inconnue")
-                    # raise "Type inconnue"
-                    return
+                dNtild = [dN1t, dN2t, dN3t, dN4t]
+
+            elif self.elemType == "QUAD8":
+                
+                dN1t = [lambda ksi,eta: (1-eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1-ksi)*(ksi+2*eta)/4]
+                dN2t = [lambda ksi,eta: (1-eta)*(2*ksi-eta)/4,      lambda ksi,eta: -(1+ksi)*(ksi-2*eta)/4]
+                dN3t = [lambda ksi,eta: (1+eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1+ksi)*(ksi+2*eta)/4]
+                dN4t = [lambda ksi,eta: -(1+eta)*(-2*ksi+eta)/4,    lambda ksi,eta: (1-ksi)*(-ksi+2*eta)/4]
+                dN5t = [lambda ksi,eta: -ksi*(1-eta),               lambda ksi,eta: -(1-ksi**2)/2]
+                dN6t = [lambda ksi,eta: (1-eta**2)/2,               lambda ksi,eta: -eta*(1+ksi)]
+                dN7t = [lambda ksi,eta: -ksi*(1+eta),               lambda ksi,eta: (1-ksi**2)/2]
+                dN8t = [lambda ksi,eta: -(1-eta**2)/2,              lambda ksi,eta: -eta*(1-ksi)]
+                                
+                dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t])
+
+            elif self.elemType == "TETRA4":
+                
+                dN1t = [lambda x,y,z: -1,   lambda x,y,z: -1,   lambda x,y,z: -1]
+                dN2t = [lambda x,y,z: 1,    lambda x,y,z: 0,    lambda x,y,z: 0]
+                dN3t = [lambda x,y,z: 0,    lambda x,y,z: 1,    lambda x,y,z: 0]
+                dN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 1]
+
+                dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
+            
+            else: 
+                # print("Type inconnue")
+                # raise "Type inconnue"
+                return
             
             # Evaluation aux points de gauss
             gauss = self.get_gauss(matriceType)
@@ -544,14 +533,13 @@ class GroupElem:
             for pg in range(nPg):
                 for n, Nt in enumerate(dNtild):
                     for d in range(dim):
-                        func = Nt[d]
-                        match coord.shape[1]:
-                            case 1:
-                                dN_pg[pg, d, n] = func(coord[pg,0])
-                            case 2:
-                                dN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1])
-                            case 3:
-                                dN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
+                        func = Nt[d]                        
+                        if coord.shape[1] == 1:
+                            dN_pg[pg, d, n] = func(coord[pg,0])
+                        elif coord.shape[1] == 2:
+                            dN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1])
+                        elif coord.shape[1] == 3:
+                            dN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
 
             return dN_pg        
 
@@ -685,16 +673,15 @@ class GroupElem:
             Par exemple pour un quadrangle on construit deux triangles
             pour un triangle à 6 noeuds on construit 4 triangles
             """
-            assert self.dim == 2
-            match self.elemType:
-                case "TRI3":
-                    return self.__connect[:,[0,1,2]]
-                case "TRI6":
-                    return np.array(self.__connect[:, [0,3,5,3,1,4,5,4,2,3,4,5]]).reshape(-1,3)
-                case "QUAD4":
-                    return np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
-                case "QUAD8":
-                    return np.array(self.__connect[:, [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]]).reshape(-1,3)
+            assert self.dim == 2            
+            if self.elemType == "TRI3":
+                return self.__connect[:,[0,1,2]]
+            elif self.elemType == "TRI6":
+                return np.array(self.__connect[:, [0,3,5,3,1,4,5,4,2,3,4,5]]).reshape(-1,3)
+            elif self.elemType == "QUAD4":
+                return np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
+            elif self.elemType == "QUAD8":
+                return np.array(self.__connect[:, [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]]).reshape(-1,3)
 
         def get_connect_Faces(self):
             """Récupère les identifiants des noeud constuisant les faces
@@ -705,21 +692,20 @@ class GroupElem:
                 Renvoie une liste de face
             """
             assert self.dim in [2,3]
-            nPe = self.nPe
-            match self.elemType:
-                case "SEG2"|"SEG3"|"POINT":
-                    return self.__connect.copy()
-                case "TRI3":
-                    return self.__connect[:, [0,1,2,0]]
-                case "TRI6":
-                    return self.__connect[:, [0,3,1,4,2,5,0]]
-                case "QUAD4":
-                    return self.__connect[:, [0,1,2,3,0]]
-                case "QUAD8":
-                    return self.__connect[:, [0,4,1,5,2,6,3,7,0]]
-                case "TETRA4":
-                    # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
-                    return np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
+            nPe = self.nPe            
+            if self.elemType in ["SEG2","SEG3","POINT"]:
+                return self.__connect.copy()
+            elif self.elemType == "TRI3":
+                return self.__connect[:, [0,1,2,0]]
+            elif self.elemType == "TRI6":
+                return self.__connect[:, [0,3,1,4,2,5,0]]
+            elif self.elemType == "QUAD4":
+                return self.__connect[:, [0,1,2,3,0]]
+            elif self.elemType == "QUAD8":
+                return self.__connect[:, [0,4,1,5,2,6,3,7,0]]
+            elif self.elemType == "TETRA4":
+                # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
+                return np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
 
         ################################################ STATIC ##################################################
 
@@ -750,46 +736,45 @@ class GroupElem:
                 Returns:
                     tuple: (type, nPe, dim)
                 """
-
-                match gmshId:
-                        case 1: 
-                                type = "SEG2"; nPe = 2; dim = 1
-                        case 2: 
-                                type = "TRI3"; nPe = 3; dim = 2
-                        case 3: 
-                                type = "QUAD4"; nPe = 4; dim = 2 
-                        case 4: 
-                                type = "TETRA4"; nPe = 4; dim = 3
-                        case 5: 
-                                type = "CUBE8"; nPe = 8; dim = 3
-                        case 6: 
-                                type = "PRISM6"; nPe = 6; dim = 3
-                        case 7: 
-                                type = "PYRA5"; nPe = 5; dim = 3
-                        case 8: 
-                                type = "SEG3"; nPe = 3; dim = 1
-                        case 9: 
-                                type = "TRI6"; nPe = 6; dim = 2
-                        case 10: 
-                                type = "QUAD9"; nPe = 9; dim = 2
-                        case 11: 
-                                type = "TETRA10"; nPe = 10; dim = 3
-                        case 12: 
-                                type = "CUBE27"; nPe = 27; dim = 3
-                        case 13: 
-                                type = "PRISM18"; nPe = 18; dim = 3
-                        case 14: 
-                                type = "PYRA14"; nPe = 17; dim = 3
-                        case 15: 
-                                type = "POINT"; nPe = 1; dim = 0
-                        case 16: 
-                                type = "QUAD8"; nPe = 8; dim = 2
-                        case 18: 
-                                type = "PRISM15"; nPe = 15; dim = 3
-                        case 19: 
-                                type = "PYRA13"; nPe = 13; dim = 3
-                        case _: 
-                                raise "Type inconnue"
+                if gmshId == 1:
+                    type = "SEG2"; nPe = 2; dim = 1
+                elif gmshId == 2:
+                    type = "TRI3"; nPe = 3; dim = 2
+                elif gmshId == 3:
+                    type = "QUAD4"; nPe = 4; dim = 2 
+                elif gmshId == 4:
+                    type = "TETRA4"; nPe = 4; dim = 3
+                elif gmshId == 5:
+                    type = "CUBE8"; nPe = 8; dim = 3
+                elif gmshId == 6:
+                    type = "PRISM6"; nPe = 6; dim = 3
+                elif gmshId == 7:
+                    type = "PYRA5"; nPe = 5; dim = 3
+                elif gmshId == 8:
+                    type = "SEG3"; nPe = 3; dim = 1
+                elif gmshId == 9:
+                    type = "TRI6"; nPe = 6; dim = 2
+                elif gmshId == 10:
+                    type = "QUAD9"; nPe = 9; dim = 2
+                elif gmshId == 11:
+                    type = "TETRA10"; nPe = 10; dim = 3
+                elif gmshId == 12:
+                    type = "CUBE27"; nPe = 27; dim = 3
+                elif gmshId == 13:
+                    type = "PRISM18"; nPe = 18; dim = 3
+                elif gmshId == 14:
+                    type = "PYRA14"; nPe = 17; dim = 3
+                elif gmshId == 15:
+                    type = "POINT"; nPe = 1; dim = 0
+                elif gmshId == 16:
+                    type = "QUAD8"; nPe = 8; dim = 2
+                elif gmshId == 18:
+                    type = "PRISM15"; nPe = 15; dim = 3
+                elif gmshId == 19:
+                    type = "PYRA13"; nPe = 13; dim = 3
+                else: 
+                    raise "Type inconnue"
+                    
                 return type, nPe, dim
         
 

@@ -53,48 +53,43 @@ class BoundaryCondition:
     
     @staticmethod
     def Get_ddls_connect(dim: int, problemType:str, connect_e: np.ndarray, directions: list):    
-        match problemType:
-            case "damage":
-                return connect_e.reshape(-1)
-            case "displacement":
+        if problemType == "damage":
+            return connect_e.reshape(-1)
+        elif problemType == "displacement":
+            indexes = {
+                "x": 0,
+                "y": 1,
+                "z": 2,
+            }
+            listeIndex=[]
+            for dir in directions:
+                listeIndex.append(indexes[dir])
 
-                indexes = {
-                    "x": 0,
-                    "y": 1,
-                    "z": 2,
-                }
-                listeIndex=[]
-                for dir in directions:
-                    listeIndex.append(indexes[dir])
+            Ne = connect_e.shape[0]
+            nPe = connect_e.shape[1]
 
-                Ne = connect_e.shape[0]
-                nPe = connect_e.shape[1]
+            connect_e_repet = np.repeat(connect_e, len(directions), axis=0).reshape(-1,nPe)
+            listIndex = np.repeat(np.array(listeIndex*nPe), Ne, axis=0).reshape(-1,nPe)
 
-                connect_e_repet = np.repeat(connect_e, len(directions), axis=0).reshape(-1,nPe)
-                listIndex = np.repeat(np.array(listeIndex*nPe), Ne, axis=0).reshape(-1,nPe)
+            ddls_dir = np.array(connect_e_repet*dim + listIndex, dtype=int)
 
-                ddls_dir = np.array(connect_e_repet*dim + listIndex, dtype=int)
-
-                return ddls_dir.reshape(-1)
+            return ddls_dir.reshape(-1)
     
     @staticmethod
-    def Get_ddls_noeuds(dim: int, problemType:str, noeuds:np.ndarray, directions: list):
-        match problemType:
-            case "damage":
-                return noeuds.reshape(-1)
-            case "displacement":
-                ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)
-                for d, direction in enumerate(directions):
-                    match direction:
-                        case "x":
-                            index = 0
-                        case "y":
-                            index = 1
-                        case "z":
-                            assert dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                            index = 2
-                    
-                    ddls_dir[:,d] = noeuds * dim + index
+    def Get_ddls_noeuds(dim: int, problemType:str, noeuds:np.ndarray, directions: list):        
+        if problemType == "damage":
+            return noeuds.reshape(-1)
+        elif problemType == "displacement":
+            ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)
+            for d, direction in enumerate(directions):
+                if direction == "x":
+                    index = 0
+                elif direction == "y":
+                    index = 1
+                elif direction == "z":
+                    assert dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
+                    index = 2                
+                ddls_dir[:,d] = noeuds * dim + index
 
-                return ddls_dir.reshape(-1)
+            return ddls_dir.reshape(-1)
 

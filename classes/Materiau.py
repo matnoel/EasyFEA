@@ -468,25 +468,25 @@ class PhaseFieldModel:
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
-        match self.__split:
+        
             
-            case "Bourdin":
-                c = self.__loiDeComportement.get_C()
-                c = c[np.newaxis, np.newaxis,:,:]
-                c = np.repeat(c, Ne, axis=0)
-                c = np.repeat(c, nPg, axis=1)
+        if self.__split == "Bourdin":
+            c = self.__loiDeComportement.get_C()
+            c = c[np.newaxis, np.newaxis,:,:]
+            c = np.repeat(c, Ne, axis=0)
+            c = np.repeat(c, nPg, axis=1)
 
-                cP_e_pg = c
-                cM_e_pg = 0*cP_e_pg
+            cP_e_pg = c
+            cM_e_pg = 0*cP_e_pg
 
-            case "Amor":
-                cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
+        elif self.__split == "Amor":
+            cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
-            case "Miehe":
-                cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif)
-            
-            case ("Stress"|"AnisotStress"):
-                cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif)
+        elif self.__split == "Miehe":
+            cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif)
+        
+        elif self.__split in ["Stress","AnisotStress"]:
+            cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif)
         
         return cP_e_pg, cM_e_pg            
 
@@ -599,81 +599,79 @@ class PhaseFieldModel:
         # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma                    
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Sigma_e_pg, verif)
 
-        match self.__split:
+        if self.__split == "Stress":
+        
+            assert isinstance(loiDeComportement, Elas_Isot)
 
-            case "Stress":        
+            E = loiDeComportement.E
+            v = loiDeComportement.v
+
+            c = loiDeComportement.get_C()
+
+            # Calcul Rp et Rm
+            Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Sigma_e_pg)
             
-                assert isinstance(loiDeComportement, Elas_Isot)
+            # Calcul IxI
+            I = np.array([1,1,0]).reshape((3,1))
+            IxI = I.dot(I.T)
 
-                E = loiDeComportement.E
-                v = loiDeComportement.v
+            RpIxI_e_pg = np.einsum('ep,ij->epij',Rp_e_pg, IxI, optimize=True)
+            RmIxI_e_pg = np.einsum('ep,ij->epij',Rm_e_pg, IxI, optimize=True)
 
-                c = loiDeComportement.get_C()
-
-                # Calcul Rp et Rm
-                Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Sigma_e_pg)
-                
-                # Calcul IxI
-                I = np.array([1,1,0]).reshape((3,1))
-                IxI = I.dot(I.T)
-
-                RpIxI_e_pg = np.einsum('ep,ij->epij',Rp_e_pg, IxI, optimize=True)
-                RmIxI_e_pg = np.einsum('ep,ij->epij',Rm_e_pg, IxI, optimize=True)
-
-                if loiDeComportement.contraintesPlanes:
-                    sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
-                    sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
-                else:
-                    sP_e_pg = (1+v)/E*projP_e_pg - v*(1+v)/E * RpIxI_e_pg
-                    sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
+            if loiDeComportement.contraintesPlanes:
+                sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
+                sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
+            else:
+                sP_e_pg = (1+v)/E*projP_e_pg - v*(1+v)/E * RpIxI_e_pg
+                sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
 
 
-                cT = c.T
-                cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize=True)
-                cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize=True)
+            cT = c.T
+            cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize=True)
+            cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize=True)
 
-                # # Ici c'est un test pour verifier que cT : S : c = inv(S)
+            # # Ici c'est un test pour verifier que cT : S : c = inv(S)
 
-                # detP_e_pg = np.linalg.det(sP_e_pg); e_pg_detPnot0 = np.where(detP_e_pg!=0)
-                # detM_e_pg = np.linalg.det(sM_e_pg); e_pg_detMnot0 = np.where(detM_e_pg!=0)
+            # detP_e_pg = np.linalg.det(sP_e_pg); e_pg_detPnot0 = np.where(detP_e_pg!=0)
+            # detM_e_pg = np.linalg.det(sM_e_pg); e_pg_detMnot0 = np.where(detM_e_pg!=0)
 
-                # invSP_e_pg = np.zeros(sP_e_pg.shape)
-                # invSM_e_pg = np.zeros(sM_e_pg.shape)
-                
-                # invSP_e_pg[e_pg_detPnot0] = np.linalg.inv(sP_e_pg[e_pg_detPnot0])
-                # invSM_e_pg[e_pg_detMnot0] = np.linalg.inv(sM_e_pg[e_pg_detMnot0])
-
-                # testP = np.linalg.norm(invSP_e_pg-cP_e_pg)/np.linalg.norm(cP_e_pg)
-                # testM = np.linalg.norm(invSM_e_pg-cM_e_pg)/np.linalg.norm(cM_e_pg)
-                # pass
+            # invSP_e_pg = np.zeros(sP_e_pg.shape)
+            # invSM_e_pg = np.zeros(sM_e_pg.shape)
             
-            case "AnisotStress":
+            # invSP_e_pg[e_pg_detPnot0] = np.linalg.inv(sP_e_pg[e_pg_detPnot0])
+            # invSM_e_pg[e_pg_detMnot0] = np.linalg.inv(sM_e_pg[e_pg_detMnot0])
 
-                # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
-                Ppc_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
-                Pmc_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize=True)
+            # testP = np.linalg.norm(invSP_e_pg-cP_e_pg)/np.linalg.norm(cP_e_pg)
+            # testM = np.linalg.norm(invSM_e_pg-cM_e_pg)/np.linalg.norm(cM_e_pg)
+            # pass
+        
+        elif self.__split == "AnisotStress":
 
-                # Construit Cp et Cm
-                S = loiDeComportement.get_S()
-                Cpp = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Ppc_e_pg, optimize=True)
-                Cpm = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Pmc_e_pg, optimize=True)
-                Cmm = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Pmc_e_pg, optimize=True)
-                Cmp = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Ppc_e_pg, optimize=True)
+            # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
+            Ppc_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
+            Pmc_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize=True)
 
-                # cP_e_pg = Cpp #Diffuse
-                # cM_e_pg = Cmm + Cpm + Cmp
+            # Construit Cp et Cm
+            S = loiDeComportement.get_S()
+            Cpp = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Ppc_e_pg, optimize=True)
+            Cpm = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Pmc_e_pg, optimize=True)
+            Cmm = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Pmc_e_pg, optimize=True)
+            Cmp = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Ppc_e_pg, optimize=True)
 
-                cP_e_pg = Cpp + Cpm + Cmp #Diffuse
-                cM_e_pg = Cmm 
+            # cP_e_pg = Cpp #Diffuse
+            # cM_e_pg = Cmm + Cpm + Cmp
 
-                # cP_e_pg = Cpp + Cpm #Diffuse
-                # cM_e_pg = Cmm + Cmp
+            cP_e_pg = Cpp + Cpm + Cmp #Diffuse
+            cM_e_pg = Cmm 
 
-                # cP_e_pg = Cpp #Diffuse
-                # cM_e_pg = Cmm + Cpm + Cmp
-            
-            case _:
-                raise "Erreur"
+            # cP_e_pg = Cpp + Cpm #Diffuse
+            # cM_e_pg = Cmm + Cmp
+
+            # cP_e_pg = Cpp #Diffuse
+            # cM_e_pg = Cmm + Cpm + Cmp
+        
+        else:
+            raise "Erreur"
 
         return cP_e_pg, cM_e_pg
 

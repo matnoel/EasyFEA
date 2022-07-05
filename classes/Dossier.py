@@ -1,5 +1,5 @@
 import os
-import ResultsHere
+# import ResultsHere
 
 def GetPath(filename=None):
     """Renvoie le path du fichier ou renvoie le path vers le fichier Dossier donc renvoie Python Ef"""
@@ -24,10 +24,11 @@ def NewFile(filename: str, path=GetPath(), results=False):
     else:
         filename = path\\filename
     """
-    path = path
 
     if results:
-        path = ResultsHere.Get_Results_Path()
+        path = path +"\\results"
+        # path = ResultsHere.Get_Results_Path()
+        # ResultsHere.py
         # def Get_Results_Path():
         #     import Dossier
         #     return Dossier.GetPath(__file__)
