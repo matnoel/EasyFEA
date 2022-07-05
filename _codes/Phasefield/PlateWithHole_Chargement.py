@@ -99,12 +99,14 @@ tet = np.linspace(-np.pi,0,31)
 xR = R * np.cos(tet)
 yR = R * np.sin(tet)
 
-yf = F * np.sin(tet)
+# xf = R * np.cos(tet)
+xf = F * np.sin(tet)*np.cos(tet)
+yf = F * np.sin(tet)*np.sin(tet)
 
 fig, ax = plt.subplots()
-plt.plot(xR,yR,xR,yf)
+plt.plot(xR,yR,xf,yf)
 ax.axis('equal')
-for x,y,dx,dy in zip(xR,yR,np.zeros(xR.size),yf-yR):
+for x,y,dx,dy in zip(xR,yR,xf-xR,yf-yR):
     ax.arrow(x,y,dx,dy,width=0.1,length_includes_head=True)
 # ax.grid()
 
