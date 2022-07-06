@@ -1,4 +1,5 @@
 
+import platform
 from types import LambdaType
 from typing import cast
 
@@ -9,7 +10,6 @@ from scipy.optimize import lsq_linear
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import matplotlib.pyplot as plt
-
 
 from GroupElem import GroupElem
 import Affichage
@@ -269,10 +269,10 @@ class Simu:
         
         return self.__Ku
 
-    def Solve_u(self, useCholesky=False):
+    def Solve_u(self):
         """Resolution du probleme de déplacement"""        
 
-        Uglob = self.__Solveur(problemType="displacement", useCholesky=useCholesky, A_isSymetric=True)
+        Uglob = self.__Solveur(problemType="displacement")
         
         assert Uglob.shape[0] == self.mesh.Nn*self.__dim
 
@@ -410,7 +410,7 @@ class Simu:
     def Solve_d(self):
         """Resolution du problème d'endommagement"""
         
-        dGlob = self.__Solveur(problemType="damage", useCholesky=False, A_isSymetric=False)
+        dGlob = self.__Solveur(problemType="damage")
 
         assert dGlob.shape[0] == self.mesh.Nn
 
@@ -527,7 +527,7 @@ class Simu:
 
             return A, x
 
-    def __Solveur(self, problemType: str, resolution=2, useCholesky=False, A_isSymetric=False):
+    def __Solveur(self, problemType: str, resolution=2):
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
@@ -549,7 +549,9 @@ class Simu:
             tic.Tac("Construction système matriciel","Construit A et b", self.__verbosity)
 
             # Résolution du système matricielle pénalisé
-            useCholesky=False #la matrice ne sera pas symétrique definie positive            
+            useCholesky=False #la matrice ne sera pas symétrique definie positive
+            A_isSymetric=False
+
             x = self.__Solve_Axb(problemType, A, b, useCholesky, A_isSymetric)
 
         elif resolution == 2:
@@ -579,6 +581,17 @@ class Simu:
             #         condi = np.max(A)/np.max(b)
             #         print(f'\n{condi}')
 
+            if problemType == "displacement":
+                useCholesky=True
+            else:
+                useCholesky=False
+
+            if self.materiau.isDamaged and self.__damage.max()>0:
+                # Si l'endommagement est supérieur à 1 la matrice A n'est plus symétrique
+                A_isSymetric = False
+            else:
+                A_isSymetric = True
+
             xi = self.__Solve_Axb(problemType, Aii, bi-bDirichlet, useCholesky, A_isSymetric)
 
             # Reconstruction de la solution
@@ -592,48 +605,62 @@ class Simu:
         
         tic = TicTac()
 
-        if useCholesky:
-            # il se trouve que c'est plus rapide de ne pas l'utiliser
+        syst = platform.system()
 
-            from sksparse.cholmod import cholesky, cholesky_AAt
-            # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
-            # doc : https://scikit-sparse.readthedocs.io/en/latest/cholmod.html#sksparse.cholmod.analyze
-            # Installation : https://www.programmersought.com/article/39168698851/                
+        if syst == "Linux":
 
-            factor = cholesky(A.tocsc())
-            # factor = cholesky_AAt(A.tocsc())
-            
-            # x_chol = factor(b.tocsc())
-            x_chol = factor.solve_A(b.tocsc())                
+            method = 2
 
-            x = x_chol.toarray().reshape(x_chol.shape[0])
+            if useCholesky and A_isSymetric:
+                x = self.__Cholesky(A, b)
 
-        else:
-            # il reste à faire le lien avec umfpack pour réorgraniser encore plus rapidement
+            elif method == 1:
+                # Utilise PETSc
+                # TODO Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
+                from petsc4py import PETSc
+                ksp = PETSc.KSP().create()
+                A = PETSc.Mat(A)
+                ksp.setOperators(A)
 
-            # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
-            
-            useUmfpack = False
+                ksp.setFromOptions()
+                print('Solving with:'), ksp.getType()
 
-            # from pysparse.direct import umfpack
+                # Solve!
+                ksp.solve(b, x)
 
-            if useUmfpack:
-                # from scikits.umfpack import umf
-                # import scikits.umfpack.umfpack as um
-                # import scikits.umfpack as um
+            elif method == 2:
+                # Utilise umfpack
+                import scikits.umfpack as um
                 # lu = um.splu(A)
-                # x = um.spsolve(A, b)
-                pass
-            else:
+                # x = lu.solve(b).reshape(-1)
+                
+                x = um.spsolve(A, b)
+                
+
+            elif method == 3:
+                # Utilise umfpack depuis scipy
+                sla.use_solver(useUmfpack=True)
+                x = sla.spsolve(A, b)
+
+                # x = sla.spsolve(A, b,use_umfpack=True)
+                # x = sla.spsolve(A, b, permc_spec="MMD_AT_PLUS_A")
+                
+        elif syst == "Windows":
+
+            if useCholesky and A_isSymetric:
+                x = self.__Cholesky(A, b)
+
+            else:                
+                # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems                    
                 # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
-                # sla.use_solver(useUmfpack=True)
-                hideFacto = False
+                
+                hideFacto = False # Cache la décomposition
                 # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
                 if A_isSymetric and not self.materiau.isDamaged:
                     permute="MMD_AT_PLUS_A"
                 else:
                     permute="COLAMD"
-
+                
                 # if problemType == "damage":
                 #     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
                 #     lb = self.damage
@@ -642,24 +669,37 @@ class Simu:
                 #     b = b.toarray().reshape(-1)
                 #     x = lsq_linear(A,b,bounds=(lb,ub), verbose=1,tol=1e-6)                    
                 #     x= x['x']
-                if hideFacto:
-                    # tic = TicTac()
+
+                if hideFacto:                    
                     x = sla.spsolve(A, b, permc_spec=permute)
-                    # tic.Tac("resol", "resol ax=b",True)
+                    
                 else:
                     # superlu : https://portal.nersc.gov/project/sparse/superlu/
                     # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
                     lu = sla.splu(A.tocsc(), permc_spec=permute)
-
                     x = lu.solve(b.toarray()).reshape(-1)
-                    pass
                 
-            # sp.__config__.show()
-            # from scipy.linalg import lapack
-        
         tac = tic.Tac(f"Solve {problemType}","Solve Ax=b",self.__verbosity)
 
         return x
+
+    def __Cholesky(self, A, b):
+        # Décomposition de cholesky 
+        from sksparse.cholmod import cholesky, cholesky_AAt
+        # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
+        # doc : https://scikit-sparse.readthedocs.io/en/latest/cholmod.html#sksparse.cholmod.analyze
+        # Installation : https://www.programmersought.com/article/39168698851/                
+
+        factor = cholesky(A.tocsc())
+        # factor = cholesky_AAt(A.tocsc())
+        
+        # x_chol = factor(b.tocsc())
+        x_chol = factor.solve_A(b.tocsc())                
+
+        x = x_chol.toarray().reshape(x_chol.shape[0])
+
+        return x
+        
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
