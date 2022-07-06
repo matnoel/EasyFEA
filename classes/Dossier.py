@@ -14,25 +14,27 @@ def GetPath(filename=None):
 
     return path
 
-def NewFile(filename: str, path=GetPath(), results=False):
+def NewFile(filename: str, pathname=GetPath(), results=False):
     """Renvoie le path vers le fichier avec l'extension ou non
     filename peut etre : un fichier ou un dossier
     De base le path renvoie vers le path ou est PythonEF
     
     if results:
-        filename = resultsPath\\filename
+        filename = resultsPath/filename
     else:
-        filename = path\\filename
+        filename = path/filename
+    
+    la liaison dépend de l'os ubuntu mac linux
     """
 
     if results:
-        path = path +"\\results"
+        pathname = os.path.join(pathname, "results")        
         # path = ResultsHere.Get_Results_Path()
         # ResultsHere.py
         # def Get_Results_Path():
         #     import Dossier
         #     return Dossier.GetPath(__file__)
-    filename = path + "\\" + filename
+    filename = os.path.join(pathname, filename)    
         
     destination = GetPath(filename)    
 
@@ -42,13 +44,11 @@ def NewFile(filename: str, path=GetPath(), results=False):
 
     return filename
 
-def Append(list):
+def Join(list):
     file = ""
-    for s, string in enumerate(list):
-        file += string
-        if s+1 < len(list):
-            file += "\\"
-    
+    for f in list:
+        file = os.path.join(file, f)
+
     if not os.path.isdir(file):
         if '.' in file:
             path = GetPath(file)

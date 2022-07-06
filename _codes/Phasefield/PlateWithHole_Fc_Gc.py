@@ -24,6 +24,6 @@ axFcGc.set_xlabel('$G_c$', fontsize=14)
 axFcGc.set_ylabel('$F_c$', fontsize=14)
 axFcGc.grid()
 
-PostTraitement.Save_fig("C:\\Users\\Matthieu\\OneDrive\\__Doctorat\\Presentations\\COPIL 3\\fig","Identification Gc")
+# PostTraitement.Save_fig("C:\\Users\\Matthieu\\OneDrive\\__Doctorat\\Presentations\\COPIL 3\\fig","Identification Gc")
 
 plt.show()

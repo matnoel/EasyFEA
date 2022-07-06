@@ -459,7 +459,7 @@ class Interface_Gmsh:
                 for t, elemType in enumerate(GroupElem.get_Types3D()):
                         interfaceGmsh = Interface_Gmsh(verbosity=False)
                         path = Dossier.GetPath()
-                        fichier = path + "\\models\\part.stp" 
+                        fichier = Dossier.Join([path,"models","part.stp"])                        
                         mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=120)
                         list_mesh3D.append(mesh)
         

@@ -17,7 +17,7 @@ import pickle
 def Save_Simu(simu: Simu, folder:str):
     "Sauvegarde la simulation dans le dossier"
 
-    filename = Dossier.Append([folder, "simulation.xml"])
+    filename = Dossier.Join([folder, "simulation.xml"])
 
     print(f'\nsave of {filename}')
 
@@ -38,7 +38,7 @@ def Load_Simu(folder: str):
         simu
     """
 
-    filename = Dossier.Append([folder, "simulation.xml"])
+    filename = Dossier.Join([folder, "simulation.xml"])
     assert os.path.exists(filename), "Le fichier simulation.xml est introuvable"
 
     with open(filename, 'rb') as file:
@@ -71,7 +71,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
         name = f'{option}_e'
     
     # Nom de la vidéo dans le dossier ou est communiqué le dossier
-    filename = Dossier.Append([folder, f'{name}.mp4'])
+    filename = Dossier.Join([folder, f'{name}.mp4'])
 
     results = simu.Get_DataFrame()
 
@@ -132,11 +132,11 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
 
     N = results.shape[0]
 
-    folder = Dossier.Append([folder,"Paraview"])
+    folder = Dossier.Join([folder,"Paraview"])
 
     for iter in range(N):
 
-        f = Dossier.Append([folder,f'solution_{iter}.vtu'])
+        f = Dossier.Join([folder,f'solution_{iter}.vtu'])
 
         if simu.materiau.isDamaged:
             # vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress","psiP"])
@@ -149,7 +149,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
         print(f"SaveParaview {iter+1}/{N}", end='\r')
     
     print('\n')
-    filenamePvd = f'{folder}\\solution'
+    filenamePvd = Dossier.Join([folder,"solution"])
     MakePvd(filenamePvd, vtuFiles)
 
 def __SaveParaview(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
@@ -357,7 +357,7 @@ def Save_fig(folder:str, title: str,transparent=False):
 
     for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
 
-    nom = Dossier.Append([folder, title+'.png'])
+    nom = Dossier.Join([folder, title+'.png'])
 
     # plt.savefig(nom, dpi=200)
     plt.savefig(nom, dpi=500, transparent=transparent,bbox_inches='tight')

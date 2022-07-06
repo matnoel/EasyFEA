@@ -1,4 +1,5 @@
 # %%
+import os
 
 import PostTraitement
 import Dossier
@@ -63,9 +64,9 @@ else:
 folder = Dossier.NewFile(folder, results=True)
 
 if test:
-    folder = Dossier.Append([folder, "Test", nameSimu])
+    folder = Dossier.Join([folder, "Test", nameSimu])
 else:
-    folder = Dossier.Append([folder, nameSimu])
+    folder = Dossier.Join([folder, nameSimu])
 
 print(folder)
 
@@ -287,8 +288,8 @@ def AffichageCL():
 
 if plotResult:
 
-        # AffichageCL()
-        # if save: plt.savefig(f'{folder}\\conditionsLimites.png')
+        # AffichageCL()        
+        # if save: plt.savefig(os.path.join(folder,"conditionsLimites.png"))
 
         Wdef = simu.Get_Resultat("Wdef")
 

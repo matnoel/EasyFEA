@@ -68,9 +68,9 @@ nomDossier = "PlateWithHole_Benchmark"
 folder = Dossier.NewFile(nomDossier, results=True)
 
 if test:
-    folder = Dossier.Append([folder, "Test", nom])
+    folder = Dossier.Join([folder, "Test", nom])
 else:
-    folder = Dossier.Append([folder, nom])
+    folder = Dossier.Join([folder, nom])
 
 if solve:
 
@@ -226,7 +226,7 @@ if solve:
     
     
 
-    plt.savefig(Dossier.Append([folder,"forcedep.png"]))
+    plt.savefig(Dossier.Join([folder,"forcedep.png"]))
 
     # Sauvegarde
     PostTraitement.Save_Simu(simu, folder)

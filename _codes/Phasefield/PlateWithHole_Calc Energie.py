@@ -118,7 +118,7 @@ for v in list_V:
 
         simu.Assemblage_u()
 
-        simu.Solve_u(useCholesky=True)
+        simu.Solve_u(useCholesky=False)
 
         psipa = np.mean(simu.Get_Resultat("psiP", True)[nodeA])*E/SIG**2
         psipb = np.mean(simu.Get_Resultat("psiP", True)[nodeB])*E/SIG**2
@@ -149,7 +149,7 @@ for v in list_V:
 
     df = pd.concat([df, new], ignore_index=True)
 
-# df.to_excel(Dossier.Append([folder, f"{nom}.xlsx"]), index=False)
+# df.to_excel(Dossier.Join([folder, f"{nom}.xlsx"]), index=False)
 
 Affichage.NouvelleSection("Résultats")
 

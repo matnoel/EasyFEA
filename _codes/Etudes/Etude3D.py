@@ -1,5 +1,5 @@
 # %%
-
+import os
 import Dossier
 
 from Simu import Simu
@@ -47,7 +47,7 @@ materiau = Materiau(comportement)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 
-fichier = Dossier.NewFile('models\\part.stp')
+fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 
 mesh = interfaceGmsh.Importation3D(fichier, tailleElement=taille)
 
@@ -83,12 +83,10 @@ if plotResult:
 
         tic = TicTac()
 
-        Affichage.Plot_Maillage(simu, deformation=False)
-        # plt.savefig(Dossier.NewFile("Etude3D\\Maillage.png", results=True))
-        Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)
-        # plt.savefig(Dossier.NewFile("Etude3D\\MaillageDef.png", results=True))
+        Affichage.Plot_Maillage(simu, deformation=False)        
+        Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)        
         Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
-        # plt.savefig(Dossier.NewFile("Etude3D\\Svm_e.png", results=True))
+        
         
         tic.Tac("Post Traitement","Affichage des figures", plotResult)
 

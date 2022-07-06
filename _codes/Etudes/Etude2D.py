@@ -1,5 +1,5 @@
 # %%
-
+import os
 from Geom import Domain, Point
 import Dossier
 import PostTraitement
@@ -88,7 +88,7 @@ Affichage.Plot_BoundaryConditions(simu)
 # Assemblage du système matricielle
 simu.Assemblage_u()
 
-dep = simu.Solve_u(useCholesky=True)
+dep = simu.Solve_u(useCholesky=False)
 
 simu.Save_Iteration()
 
@@ -101,8 +101,8 @@ simu.Resume()
 folder = Dossier.NewFile("Etude2D", results=True)
 # folder=""
 
-if saveParaview:
-        filename = Dossier.NewFile("Etude2D\\solution2D", results=True)
+if saveParaview:        
+        filename = Dossier.NewFile(os.path.join("Etude2D","solution2D"), results=True)
         PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 if plotResult:

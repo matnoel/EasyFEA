@@ -58,7 +58,7 @@ class Test_Simu(unittest.TestCase):
     def CreationDesSimusElastique3D(self):
 
         dir_path = Dossier.GetPath()
-        fichier = dir_path + '\\models\\part.stp'
+        fichier = Dossier.Join([dir_path, "models", "part.stp"])
 
         dim = 3
 
