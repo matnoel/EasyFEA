@@ -1,4 +1,5 @@
-
+import platform
+import sys
 from typing import cast
 import os
 import numpy as np
@@ -483,6 +484,8 @@ def NouvelleSection(text: str):
 
 def Clear():
     """Nettoie la console"""
-    os.system("cls")
-
-    
+    syst = platform.system()
+    if syst == "Linux":
+        os.system("clear")
+    elif syst == "Windows":
+        os.system("cls")
