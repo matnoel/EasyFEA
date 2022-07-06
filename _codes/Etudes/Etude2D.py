@@ -1,4 +1,7 @@
 # %%
+# import sys
+# sys.path.append("/home/matthieu/Documents/PythonEF/classes")
+
 import os
 from Geom import Domain, Point
 import Dossier
@@ -38,7 +41,8 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/30
+# taille = h/30
+taille = h/100
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -88,7 +92,7 @@ Affichage.Plot_BoundaryConditions(simu)
 # Assemblage du système matricielle
 simu.Assemblage_u()
 
-dep = simu.Solve_u(useCholesky=False)
+dep = simu.Solve_u()
 
 simu.Save_Iteration()
 

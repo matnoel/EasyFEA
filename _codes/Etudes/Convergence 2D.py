@@ -88,7 +88,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
                 # Assemblage du système matricielle
                 simu.Assemblage_u()
 
-                simu.Solve_u(useCholesky=True)
+                simu.Solve_u()
                 Wdef = simu.Get_Resultat("Wdef")
 
                 # Stockage des valeurs

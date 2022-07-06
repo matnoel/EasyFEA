@@ -102,7 +102,7 @@ for cc in list_cc:
 
     simu.Assemblage_u()
 
-    simu.Solve_u(useCholesky=True)
+    simu.Solve_u()
 
     list_SxxA.append(simu.Get_Resultat("Sxx", True)[nodeA])
     list_SyyA.append(simu.Get_Resultat("Syy", True)[nodeA])

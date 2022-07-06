@@ -196,7 +196,7 @@ if solve:
             else:
                 useCholesky=False
 
-            displacement = simu.Solve_u(useCholesky)
+            displacement = simu.Solve_u()
 
             dincMax = np.max(np.abs(damage-dold))
             convergence = dincMax <= tolConv

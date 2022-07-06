@@ -15,12 +15,12 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=True
-saveParaview=False
+solve=False
+saveParaview=True
 
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
-regu = "AT2" # "AT1", "AT2"
+split = "Stress" # ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
+regu = "AT1" # "AT1", "AT2"
 
 # Data
 
@@ -30,7 +30,7 @@ ep=1
 diam=6e-3
 
 E=12e9
-v=0.4
+v=0.3
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -41,7 +41,7 @@ umax = 25e-6
 
 if test:
     # cc = 1.2
-    cc = 1.5
+    cc = 1
     clD = 0.25e-3*cc
     clC = 0.12e-3*cc
     # clD = l_0*2
@@ -162,13 +162,8 @@ if solve:
             damage = simu.Solve_d()
 
             # Displacement
-            Kglob = simu.Assemblage_u()
-
-            if np.linalg.norm(damage)==0:
-                useCholesky=True
-            else:
-                useCholesky=False
-            displacement = simu.Solve_u(useCholesky)
+            Kglob = simu.Assemblage_u()            
+            displacement = simu.Solve_u()
 
             dincMax = np.max(np.abs(damage-dold))
             # TODO faire en relatif np.max(np.abs((damage-dold)/dold))?
@@ -180,7 +175,7 @@ if solve:
             if iterConv == maxIter:
                 break
 
-            # convergence=True
+            convergence=True
         
         # TODO Comparer avec code matlab
 
@@ -195,7 +190,7 @@ if solve:
 
         max_d = damage.max()
         min_d = damage.min()        
-        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))/1e6
+        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))
 
         print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
@@ -207,7 +202,7 @@ if solve:
         else:
             ud += inc1
         
-        if np.any(damage[noeuds_bord] >= 0.8):
+        if np.any(damage[noeuds_bord] >= 0.95):
             bord +=1
         
         if bord == 1:
@@ -217,23 +212,27 @@ if solve:
         forces.append(f)
 
         ax.cla()
-        ax.plot(dep, np.abs(forces), c='black')
-        ax.set_xlabel("ud en µm")
+        ax.plot(dep, np.abs(forces)/1e6, c='black')
+        ax.set_xlabel("ud en m")
         ax.set_ylabel("f en kN/mm")
         # plt.pause(0.0000001)
         
         resol += 1
-    
-    
 
     plt.savefig(Dossier.Join([folder,"forcedep.png"]))
 
     # Sauvegarde
     PostTraitement.Save_Simu(simu, folder)
+
+    PostTraitement.Save_Load_Displacement(forces, dep, folder)
         
-else:   
+else:
 
     simu = PostTraitement.Load_Simu(folder)
+
+    PostTraitement.Load_Load_Displacement(folder)
+
+
 
 
 Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,

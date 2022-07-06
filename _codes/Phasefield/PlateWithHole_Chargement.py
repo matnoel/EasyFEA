@@ -81,7 +81,7 @@ Affichage.Plot_BoundaryConditions(simu)
 
 simu.Assemblage_u()
 
-simu.Solve_u(useCholesky=True)
+simu.Solve_u()
 
 Affichage.NouvelleSection("Résultats")
 

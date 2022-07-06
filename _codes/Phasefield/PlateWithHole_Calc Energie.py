@@ -118,7 +118,7 @@ for v in list_V:
 
         simu.Assemblage_u()
 
-        simu.Solve_u(useCholesky=False)
+        simu.Solve_u()
 
         psipa = np.mean(simu.Get_Resultat("psiP", True)[nodeA])*E/SIG**2
         psipb = np.mean(simu.Get_Resultat("psiP", True)[nodeB])*E/SIG**2
