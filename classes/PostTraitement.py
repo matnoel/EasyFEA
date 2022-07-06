@@ -1,5 +1,6 @@
 
 import os
+from typing import cast
 
 import Affichage
 from Simu import Simu
@@ -53,6 +54,47 @@ def Load_Simu(folder: str):
     simu.Resume()
 
     return simu
+
+# =========================================== Load and Displacement ==================================================
+
+def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:str):
+    "Sauvegarde les valeurs de forces [N] et déplacements [m] dans le dossier"
+    
+    filename = Dossier.Join([folder, "load and displacement.xml"])
+
+    print(f'\nsave of {filename}')
+
+    values = {
+        'load': load,
+        'displacement' : displacement
+    }
+
+    with open(filename, "wb") as file:
+        pickle.dump(values, file)
+    
+def Load_Load_Displacement(folder:str):
+    """Charge les forces [N] et déplacements [m]
+
+    Parameters
+    ----------
+    folder : str
+        nom du dossier dans lequel les valeurs de forces et de déplacements sont sauvegardées
+
+    return load, displacement
+    """
+
+    filename = Dossier.Join([folder, "load and displacement.xml"])
+    assert os.path.exists(filename), "Le fichier load and displacement.xml est introuvable"
+
+    with open(filename, 'rb') as file:
+        values = pickle.load(file)
+
+    print(f'\nload of {filename}')
+
+    load = np.array(values['load'])
+    displacement = np.array(values['displacement'])
+
+    return load, displacement
 
 
 # =========================================== Animation ==================================================
@@ -149,7 +191,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
         print(f"SaveParaview {iter+1}/{N}", end='\r')
     
     print('\n')
-    filenamePvd = Dossier.Join([folder,"solution"])
+    filenamePvd = os.path.join(folder,"solution")    
     MakePvd(filenamePvd, vtuFiles)
 
 def __SaveParaview(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
