@@ -611,6 +611,8 @@ class Simu:
 
             method = 2
 
+            # useCholesky=False
+
             if useCholesky and A_isSymetric:
                 x = self.__Cholesky(A, b)
 
@@ -644,6 +646,11 @@ class Simu:
 
                 # x = sla.spsolve(A, b,use_umfpack=True)
                 # x = sla.spsolve(A, b, permc_spec="MMD_AT_PLUS_A")
+
+            elif method == 4:
+                from mumps import spsolve
+                x = spsolve(A,b)
+                pass
                 
         elif syst == "Windows":
 

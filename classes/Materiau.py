@@ -270,7 +270,7 @@ class PhaseFieldModel:
 
     @staticmethod
     def get_splits():
-        __splits = ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
+        __splits = ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
         return __splits
     
     @staticmethod
@@ -384,9 +384,9 @@ class PhaseFieldModel:
 
         assert split in PhaseFieldModel.get_splits(), f"Doit être compris dans {PhaseFieldModel.get_splits()}"
         if not isinstance(loiDeComportement, Elas_Isot):
-            assert not split in ["Amor, Miehe"], "Ces splits ne sont implémentés que pour Elas_Isot"
+            assert not split in ["Amor, Miehe, Stress"], "Ces splits ne sont implémentés que pour Elas_Isot"
         self.__split =  split
-        """Split de la densité d'energie elastique ["Bourdin","Amor","Miehe","Stress","AnisotStress"]"""
+        """Split de la densité d'energie elastique ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]"""
         
         assert regularization in PhaseFieldModel.get_regularisations(), f"Doit être compris dans {PhaseFieldModel.get_regularisations()}"
         self.__regularization = regularization
@@ -482,7 +482,7 @@ class PhaseFieldModel:
         elif self.__split == "Amor":
             cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
-        elif self.__split == "Miehe":
+        elif self.__split in ["Miehe","AnisotMiehe"]:
             cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif)
         
         elif self.__split in ["Stress","AnisotStress"]:
@@ -561,32 +561,63 @@ class PhaseFieldModel:
 
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg, verif)
 
-        # Calcul Rp et Rm
-        Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
+        if self.__split == "Miehe":
+
+            # Calcul Rp et Rm
+            Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
+            
+            # Calcul IxI
+            I = np.array([1,1,0]).reshape((3,1))
+            IxI = I.dot(I.T)
+
+            # Calcul partie sphérique
+            spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize=True)
+            spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize=True)
+
+            # Calcul de la loi de comportement
+            lamb = self.__loiDeComportement.get_lambda()
+            mu = self.__loiDeComportement.get_mu()
+
+            cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
+            cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
+
+            projecteurs = {
+                "projP_e_pg" : projP_e_pg,
+                "projM_e_pg" : projM_e_pg,
+                "spherP_e_pg" : spherP_e_pg,
+                "spherM_e_pg" : spherM_e_pg
+            }
         
-        # Calcul IxI
-        I = np.array([1,1,0]).reshape((3,1))
-        IxI = I.dot(I.T)
+        elif self.__split == "AnisotMiehe":
+            
+            c = self.__loiDeComportement.get_C()
 
-        # Calcul partie sphérique
-        spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize=True)
-        spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize=True)
+            projPT_e_pg = np.einsum('epij->epji', projP_e_pg, optimize=True)
+            projMT_e_pg = np.einsum('epij->epji', projM_e_pg, optimize=True)
 
-        # Calcul de la loi de comportement
-        lamb = self.__loiDeComportement.get_lambda()
-        mu = self.__loiDeComportement.get_mu()
+            Cpp = np.einsum('epij,jk,epkl->epil', projPT_e_pg, c, projP_e_pg, optimize=True)
+            Cpm = np.einsum('epij,jk,epkl->epil', projPT_e_pg, c, projM_e_pg, optimize=True)
+            Cmm = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projM_e_pg, optimize=True)
+            Cmp = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projP_e_pg, optimize=True)
 
-        cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
-        cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
+            # cP_e_pg = Cpp #Diffuse
+            # cM_e_pg = Cmm + Cpm + Cmp
 
-        projecteurs = {
-            "projP_e_pg" : projP_e_pg,
-            "projM_e_pg" : projM_e_pg,
-            "spherP_e_pg" : spherP_e_pg,
-            "spherM_e_pg" : spherM_e_pg
-        }
+            cP_e_pg = Cpp + Cpm + Cmp #Diffuse
+            cM_e_pg = Cmm 
+
+            # cP_e_pg = Cpp + Cpm #Diffuse
+            # cM_e_pg = Cmm + Cmp
+
+            # cP_e_pg = Cpp #Diffuse
+            # cM_e_pg = Cmm + Cpm + Cmp
+
+        else:
+            raise "Split inconnue"
 
         return cP_e_pg, cM_e_pg
+
+    
     def __Split_Stress(self, Epsilon_e_pg: np.ndarray, verif=False):
         """Construit Cp et Cm pour le split en contraintse"""
 
@@ -624,8 +655,7 @@ class PhaseFieldModel:
             else:
                 sP_e_pg = (1+v)/E*projP_e_pg - v*(1+v)/E * RpIxI_e_pg
                 sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
-
-
+            
             cT = c.T
             cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize=True)
             cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize=True)
@@ -648,15 +678,18 @@ class PhaseFieldModel:
         elif self.__split == "AnisotStress":
 
             # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
-            Ppc_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
-            Pmc_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize=True)
+            Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
+            Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize=True)
+            
+            CpT_e_pg = np.einsum('epij->epji', Cp_e_pg, optimize=True)
+            CmT_e_pg = np.einsum('epij->epji', Cm_e_pg, optimize=True)
 
             # Construit Cp et Cm
             S = loiDeComportement.get_S()
-            Cpp = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Ppc_e_pg, optimize=True)
-            Cpm = np.einsum('epij,jk,epkl->epil', Ppc_e_pg, S, Pmc_e_pg, optimize=True)
-            Cmm = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Pmc_e_pg, optimize=True)
-            Cmp = np.einsum('epij,jk,epkl->epil', Pmc_e_pg, S, Ppc_e_pg, optimize=True)
+            Cpp = np.einsum('epij,jk,epkl->epil', CpT_e_pg, S, Cp_e_pg, optimize=True)
+            Cpm = np.einsum('epij,jk,epkl->epil', CpT_e_pg, S, Cm_e_pg, optimize=True)
+            Cmm = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cm_e_pg, optimize=True)
+            Cmp = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cp_e_pg, optimize=True)
 
             # cP_e_pg = Cpp #Diffuse
             # cM_e_pg = Cmm + Cpm + Cmp
@@ -671,7 +704,7 @@ class PhaseFieldModel:
             # cM_e_pg = Cmm + Cpm + Cmp
         
         else:
-            raise "Erreur"
+            raise "Split inconnue"
 
         return cP_e_pg, cM_e_pg
 

@@ -15,12 +15,12 @@ Affichage.Clear()
 # Options
 
 test=True
-solve=False
-saveParaview=True
+solve=True
+saveParaview=False
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
-regu = "AT1" # "AT1", "AT2"
+split = "Stress" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
+regu = "AT2" # "AT1", "AT2"
 
 # Data
 
@@ -50,7 +50,7 @@ if test:
     # inc0 = 16e-8
     # inc1 = 4e-8
 
-    # inc0 = 8e-8
+    # inc0 = 8e-84
     inc0 = 8e-8
     inc1 = 2e-8 
 else:
@@ -136,14 +136,14 @@ if solve:
     # tolConv = 0.0025
     # tolConv = 0.005
     tolConv = 0.01
-    resol = 1
+    resol = 0
     bord = 0
-    dep = []
-    forces = []
-
-    fig, ax = plt.subplots()
+    displacement = []
+    load = []
 
     while ud <= umax:
+
+        resol += 1
         
         tic = TicTac()
 
@@ -159,18 +159,18 @@ if solve:
 
             # Damage
             simu.Assemblage_d()
-            damage = simu.Solve_d()
+            d = simu.Solve_d()
 
             # Displacement
             Kglob = simu.Assemblage_u()            
-            displacement = simu.Solve_u()
+            u = simu.Solve_u()
 
-            dincMax = np.max(np.abs(damage-dold))
+            dincMax = np.max(np.abs(d-dold))
             # TODO faire en relatif np.max(np.abs((damage-dold)/dold))?
             convergence = dincMax <= tolConv
             # if damage.min()>1e-5:
             #     convergence=False
-            dold = damage.copy()
+            dold = d.copy()
 
             if iterConv == maxIter:
                 break
@@ -188,9 +188,9 @@ if solve:
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         temps = np.round(temps,3)
 
-        max_d = damage.max()
-        min_d = damage.min()        
-        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))
+        max_d = d.max()
+        min_d = d.min()        
+        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], u[nodes_upper*2], optimize=True))
 
         print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
@@ -202,29 +202,21 @@ if solve:
         else:
             ud += inc1
         
-        if np.any(damage[noeuds_bord] >= 0.95):
+        if np.any(d[noeuds_bord] >= 0.95):
             bord +=1
         
         if bord == 1:
             break
 
-        dep.append(ud)
-        forces.append(f)
+        displacement.append(ud)
+        load.append(f)
 
-        ax.cla()
-        ax.plot(dep, np.abs(forces)/1e6, c='black')
-        ax.set_xlabel("ud en m")
-        ax.set_ylabel("f en kN/mm")
-        # plt.pause(0.0000001)
-        
-        resol += 1
 
-    plt.savefig(Dossier.Join([folder,"forcedep.png"]))
 
     # Sauvegarde
     PostTraitement.Save_Simu(simu, folder)
 
-    PostTraitement.Save_Load_Displacement(forces, dep, folder)
+    PostTraitement.Save_Load_Displacement(load, displacement, folder)
         
 else:
 
@@ -232,8 +224,11 @@ else:
 
     PostTraitement.Load_Load_Displacement(folder)
 
-
-
+fig, ax = plt.subplots()
+ax.plot(displacement, np.abs(load)/1e6, c='black')
+ax.set_xlabel("ud en m")
+ax.set_ylabel("f en kN/mm")
+PostTraitement.Save_fig(folder, "forcedep")
 
 Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
 folder=folder, filename=f"{split} damage_n pour v={v}", 
@@ -241,12 +236,6 @@ title=fr"$\phi \ pour \ \nu ={v}$")
 
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)
-
-
-
-
-
-
 
 TicTac.getResume()
 

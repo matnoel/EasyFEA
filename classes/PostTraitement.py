@@ -395,11 +395,11 @@ def __WriteBinary(valeur, type: str, file):
         file.write(convert)
 
 
-def Save_fig(folder:str, title: str,transparent=False):
+def Save_fig(folder:str, title: str,transparent=False, extension='png'):
 
     for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
 
-    nom = Dossier.Join([folder, title+'.png'])
+    nom = Dossier.Join([folder, title+'.'+extension])
 
     # plt.savefig(nom, dpi=200)
     plt.savefig(nom, dpi=500, transparent=transparent,bbox_inches='tight')
