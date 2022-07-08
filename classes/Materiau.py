@@ -161,15 +161,15 @@ class Elas_Isot(LoiDeComportement):
             self.contraintesPlanes = contraintesPlanes
             """type de simplification 2D"""
 
-        C, S = self.__Comportement_Elas_Isot()
+        C, S = self.__Comportement()
 
         LoiDeComportement.__init__(self, dim, C, S, epaisseur)
 
     def __get_resume(self):
+        resume = f"\nElas_Isot :"
+        resume += f"\nE = {self.E:.2e}, v = {self.v}"
         if self.__dim == 2:
-            resume = f"\nElas_Isot :\nE = {self.E:.2e}, v = {self.v}\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"
-        else:
-            resume = f"\nElas_Isot :\nE = {self.E:.2e}, v = {self.v}"
+            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
     resume = property(__get_resume)
 
@@ -206,7 +206,7 @@ class Elas_Isot(LoiDeComportement):
 
         return bulk
 
-    def __Comportement_Elas_Isot(self):
+    def __Comportement(self):
         """"Construit les matrices de comportement en kelvin mandel\n
         
         En 2D:
@@ -259,6 +259,79 @@ class Elas_Isot(LoiDeComportement):
                                 [0, 0, 0, 0, mu, 0],
                                 [0, 0, 0, 0, 0, mu]])
         
+        c = LoiDeComportement.ApplyKelvinMandelCoef(dim, cVoigt)
+
+        s = np.linalg.inv(c)
+
+        return c, s
+
+class Elas_IsotTrans(LoiDeComportement):   
+
+    def __init__(self, dim: int,
+    El, Et, Gl,
+    vl, vt,    
+    contraintesPlanes=True, epaisseur=1.0):        
+
+        # Vérification des valeurs
+        assert dim in [2,3], "doit être en 2 et 3"
+        self.__dim = dim
+
+        erreurCoef = f"Les modules El, Et et Gl doivent être > 0 !"
+        for i, E in enumerate([El, Et, Gl]): assert E > 0.0, erreurCoef
+        self.El=El
+        """Module de Young longitudinale"""
+        self.Et=Et
+        """Module de Young transverse"""
+        self.Gl=Gl
+        """Module de Cisaillent longitudinale"""
+
+        erreurPoisson = lambda i :f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
+        # Peut ne pas être vrai ?
+        for v in [vl, vt]: assert v > -1.0 and v < 0.5, erreurPoisson
+        self.vl=vl
+        """Coef de poisson longitudianale"""
+        self.vt=vt
+        """Coef de poisson transverse"""
+
+        if dim == 2:
+            self.contraintesPlanes = contraintesPlanes
+            """type de simplification 2D"""
+
+        C, S = self.__Comportement()
+
+        LoiDeComportement.__init__(self, dim, C, S, epaisseur)
+
+    def __get_resume(self):
+        resume = f"\nElas_Isot :"
+        resume += f"\nEl = {self.El:.2e},Et = {self.El:.2e}, Gl = {self.Gl}"
+        resume += f"vl = {self.vl}, vt = {self.vt}"
+        if self.__dim == 2:
+            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
+        return resume
+    resume = property(__get_resume)    
+
+    def __Comportement(self):
+        """"Construit les matrices de comportement en kelvin mandel\n
+        
+        En 2D:
+        -----
+
+        C -> C : Epsilon = Sigma [Sxx Syy racine(2)*Sxy]\n
+        S -> S : Sigma = Epsilon [Exx Eyy racine(2)*Exy]
+
+        En 3D:
+        -----
+
+        C -> C : Epsilon = Sigma [Sxx Syy Szz racine(2)*Syz racine(2)*Sxz racine(2)*Sxy]\n
+        S -> S : Sigma = Epsilon [Exx Eyy Ezz racine(2)*Eyz racine(2)*Exz racine(2)*Exy]
+
+        """
+
+        if dim == 2:
+            pass
+        elif dim == 3:
+            pass
+
         c = LoiDeComportement.ApplyKelvinMandelCoef(dim, cVoigt)
 
         s = np.linalg.inv(c)
