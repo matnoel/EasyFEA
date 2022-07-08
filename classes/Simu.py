@@ -113,7 +113,7 @@ class Simu:
         self.__results = pd.DataFrame(columns=columns)
         """tableau panda qui contient les résultats"""
 
-        self.Save_Iteration()
+        # self.Save_Iteration()
 
     def __get_damage(self):
         if self.materiau.isDamaged:
