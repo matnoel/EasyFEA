@@ -1,3 +1,7 @@
+# import matplotlib
+# # Force matplotlib to not use any Xwindows backend.
+# matplotlib.use('Agg')
+
 from petsc4py import PETSc
 import numpy as np
 
@@ -45,7 +49,7 @@ ksp.getPC().setType('none')
 ksp.solve(b, x)
 
 
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 
-residuals = ksp.getConvergenceHistory()
-plt.semilogy(residuals)
+# residuals = ksp.getConvergenceHistory()
+# plt.semilogy(residuals)

@@ -19,8 +19,8 @@ solve=True
 saveParaview=False
 
 comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
-regu = "AT2" # "AT1", "AT2"
+split = "AnisotStress" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
+regu = "AT1" # "AT1", "AT2"
 
 # Data
 
@@ -175,7 +175,7 @@ if solve:
             if iterConv == maxIter:
                 break
 
-            convergence=True
+            # convergence=True
         
         # TODO Comparer avec code matlab
 
