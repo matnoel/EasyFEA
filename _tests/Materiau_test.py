@@ -11,56 +11,55 @@ class Test_Materiau(unittest.TestCase):
         # Comportement Elatique Isotrope
         E = 210e9
         v = 0.4999999999
-        self.comportements = []
+        self.comportements2D = []
+        self.comportements3D = []
         for comp in LoiDeComportement.get_LoisDeComportement():
             if comp == Elas_Isot:
-                self.comportements.append(
-                    Elas_Isot(2, E=E, v=v, contraintesPlanes=False)
-                    )
-                self.comportements.append(
+                self.comportements2D.append(
                     Elas_Isot(2, E=E, v=v, contraintesPlanes=True)
                     )
-                self.comportements.append(
+                self.comportements2D.append(
+                    Elas_Isot(2, E=E, v=v, contraintesPlanes=False)
+                    )
+                self.comportements3D.append(
                     Elas_Isot(3, E=E, v=v)
                     )
             elif comp == Elas_IsotTrans:
-                self.comportements.append(
+                self.comportements3D.append(
                     Elas_IsotTrans(3,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     axis_l=[1,0,0], axis_t=[0,1,0])
                     )
-                self.comportements.append(
+                self.comportements3D.append(
                     Elas_IsotTrans(3,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     axis_l=[0,1,0], axis_t=[1,0,0])
                     )
-                self.comportements.append(
+                self.comportements2D.append(
                     Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     contraintesPlanes=True)
                     )
-                self.comportements.append(
+                self.comportements2D.append(
                     Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     contraintesPlanes=False))
-                
-
-
-
+        
         # phasefieldModel
         self.splits = PhaseFieldModel.get_splits()
         self.regularizations = PhaseFieldModel.get_regularisations()
         self.phaseFieldModels = []
-        comportement = Elas_Isot(2,E=E,v=v)
-        for s in self.splits:
-            for r in self.regularizations:
-                pfm = PhaseFieldModel(comportement,s,r,1,1)
-                self.phaseFieldModels.append(pfm)
+
+        for c in self.comportements2D:
+            for s in self.splits:
+                for r in self.regularizations:
+                    pfm = PhaseFieldModel(c,s,r,1,1)
+                    self.phaseFieldModels.append(pfm)
             
 
     def test_LoiComportementBienCree(self):
 
-        for comp in self.comportements:
+        for comp in self.comportements3D:
             self.assertIsInstance(comp, LoiDeComportement)
             if isinstance(comp, Elas_Isot):
                 E = comp.E
@@ -172,16 +171,18 @@ class Test_Materiau(unittest.TestCase):
             coef = comportement.coef
             
             if isinstance(comportement, Elas_Isot):
+                print(f"{comportement.nom} {comportement.contraintesPlanes} {pfm.split}")
                 c = comportement.get_C()
-                mu = comportement.get_mu()
-                l = comportement.get_lambda()
-            else:
-                raise "Pas implémenté"
+            elif isinstance(comportement, Elas_IsotTrans):
+                c = comportement.get_C()
+
+            
+            if pfm.split == "Stress":
+                pass
 
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg, True)
 
-            if pfm.split == "Stress":
-                pass
+           
 
             # Test que cP + cM = c
             decompC = c-(cP_e_pg+cM_e_pg)

@@ -407,7 +407,7 @@ class Elas_IsotTrans(LoiDeComportement):
     def __get_resume(self):
         resume = f"\nElas_IsotTrans :"
         resume += f"\nEl = {self.El:.2e},Et = {self.El:.2e}, Gl = {self.Gl}"
-        resume += f"vl = {self.vl}, vt = {self.vt}"
+        resume += f"\tvl = {self.vl}, vt = {self.vt}"
         if self.__dim == 2:
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
@@ -702,8 +702,6 @@ class PhaseFieldModel:
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
-
-        
             
         if self.__split == "Bourdin":
             c = self.__loiDeComportement.get_C()
@@ -976,6 +974,8 @@ class PhaseFieldModel:
         # invariants du tenseur des deformations [e,pg]
         trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
         determinant_e_pg = np.linalg.det(matrice_e_pg)
+
+        # TODO probleme Elas_Isot False Stress delta négatif !!!
 
         # Calculs des valeurs propres [e,pg]
         delta = trace_e_pg**2 - (4*determinant_e_pg)

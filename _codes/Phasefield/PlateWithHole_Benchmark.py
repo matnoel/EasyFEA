@@ -18,9 +18,10 @@ test=True
 solve=True
 saveParaview=False
 
-comp = "Elas_Isot"
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 split = "AnisotStress" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
 regu = "AT1" # "AT1", "AT2"
+simpli2D = "DP" # ["CP","DP"]
 
 # Data
 
@@ -29,8 +30,15 @@ h=30e-3
 ep=1
 diam=6e-3
 
-E=12e9
-v=0.3
+if comp == "Elas_Isot":
+    E=12e9
+    v=0.3
+elif comp == "Elas_IsotTrans":
+    El=11580*1e6
+    Et=500*1e6
+    Gl=450*1e6
+    vl=0.02
+    vt=0.44
 
 gc = 1.4
 l_0 = 0.12e-3
@@ -40,8 +48,8 @@ l_0 = 0.12e-3
 umax = 25e-6
 
 if test:
-    # cc = 1.2
-    cc = 1
+    cc = 1.2
+    # cc = 1
     clD = 0.25e-3*cc
     clC = 0.12e-3*cc
     # clD = l_0*2
@@ -60,8 +68,9 @@ else:
     inc0 = 8e-8
     inc1 = 2e-8 
 
-nom="_".join([comp, split, regu])
-nom = f"{nom} pour v={v}"
+nom="_".join([comp, split, regu, simpli2D])
+if comp == "Elas_Isot":
+    nom = f"{nom} pour v={v}"
 
 nomDossier = "PlateWithHole_Benchmark"
 
@@ -83,7 +92,15 @@ if solve:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
     
-    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=False, epaisseur=ep)
+    if comp == "Elas_Isot":
+        comportement = Materiau.Elas_Isot(2,
+        E=E, v=v, contraintesPlanes=False, epaisseur=ep)
+    elif comp == "Elas_IsotTrans":
+        comportement = Materiau.Elas_IsotTrans(2,
+                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    contraintesPlanes=True, epaisseur=ep,
+                    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+
     phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
     materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 
@@ -230,8 +247,14 @@ ax.set_xlabel("ud en m")
 ax.set_ylabel("f en kN/mm")
 PostTraitement.Save_fig(folder, "forcedep")
 
+if comp == "Elas_Isot":
+    filenameDamage = f"{split} damage_n pour v={v}"
+else:
+    filenameDamage = f"{split} damage_n"
+
+
 Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
-folder=folder, filename=f"{split} damage_n pour v={v}", 
+folder=folder, filename=filenameDamage, 
 title=fr"$\phi \ pour \ \nu ={v}$")
 
 if saveParaview:
