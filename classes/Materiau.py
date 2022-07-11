@@ -1,4 +1,6 @@
 from typing import cast
+
+from pandas import array
 from Mesh import Mesh
 import numpy as np
 import Affichage
@@ -7,8 +9,75 @@ class LoiDeComportement(object):
 
     @staticmethod
     def get_LoisDeComportement():
-        liste = [Elas_Isot]
+        liste = [Elas_Isot, Elas_IsotTrans]
         return liste
+
+    @staticmethod
+    def get_M(axis_1: np.ndarray, axis_2: np.ndarray):
+        """Création de la matrice de changement de base M\n
+        on utilise M pour passer des coordonnées du matériau au coordonnée global \n
+        
+        Tet que :\n
+
+        C et S en [11, 22, 33, racine(2)*23, racine(2)*13, racine(2)*12]
+
+        C_global = M' * C_materiau * M et S_global = M' * S_materiau * M
+
+        Ici j'utilise Chevalier 1988 : Comportements élastique et viscoélastique des composites
+        mais avec la transformation parce qu'on est en mandel\n
+
+        Ici on peut se permettre d'écrire ça car on travail en mandel\n
+        
+        """
+
+        axis_1 = axis_1/np.linalg.norm(axis_1)
+        axis_2 = axis_2/np.linalg.norm(axis_2)
+
+        # Detection si les 2 vecteurs sont bien perpendiculaires
+        # tt = axis_1.dot(axis_2)
+        if not np.isclose(axis_1.dot(axis_2), 0, 1e-12):
+            theta = np.pi/2
+            rot = np.array([[np.cos(theta), -np.sin(theta), 0],
+                            [np.sin(theta), np.cos(theta), 0],
+                            [0, 0, 1]])
+            axis_2 = rot.dot(axis_1)
+            tt = axis_1.dot(axis_2)
+            print("Création d'un nouvel axe transverse. axis_l et axis_t ne sont pas perpendiculaire")
+
+        axis_3 = np.cross(axis_1, axis_2, axis=0)
+
+        # Construit la matrice de chamgement de base x = [P] x'
+        # P passe de la base global a la base du matériau
+        p = np.zeros((3,3))
+        p[:,0] = axis_1
+        p[:,1] = axis_2
+        p[:,2] = axis_3
+
+        p11 = p[0,0]; p12 = p[0,1]; p13 = p[0,2]
+        p21 = p[1,0]; p22 = p[1,1]; p23 = p[1,2]
+        p31 = p[2,0]; p32 = p[2,1]; p33 = p[2,2]
+
+        A = np.array([[p21*p31, p11*p31, p11*p21],
+                      [p22*p32, p12*p32, p12*p22],
+                      [p23*p33, p13*p33, p13*p23]])
+        
+        B = np.array([[p12*p13, p22*p23, p32*p33],
+                      [p11*p13, p21*p23, p31*p33],
+                      [p11*p12, p21*p22, p31*p32]])
+
+        D1 = p.T**2
+
+        D2 = np.array([[p22*p33 + p32*p23, p12*p33 + p32*p13, p12*p23 + p22*p13],
+                       [p21*p33 + p31*p23, p11*p33 + p31*p13, p11*p23 + p21*p13],
+                       [p21*p32 + p31*p22, p11*p32 + p31*p12, p11*p22 + p21*p12]])
+
+        coef = np.sqrt(2)
+        # coef = 1
+        M = np.concatenate( (np.concatenate((D1, coef*A), axis=1),
+                            np.concatenate((coef*B, D2), axis=1)), axis=0)        
+        # print(f"M =\n{M}")
+        
+        return M
 
     """Classe des lois de comportements C de (Sigma = C * Epsilon)
     (Elas_isot, ...)
@@ -37,10 +106,10 @@ class LoiDeComportement(object):
         """Renvoie une copie de la loi de comportement pour la loi de Lamé en Kelvin Mandel\n
         En 2D:
         -----
-        C -> C : Epsilon = Sigma [Sxx Syy racine(2)*Sxy]\n
+        C -> C : Epsilon = Sigma [Sxx, Syy, racine(2)*Sxy]\n
         En 3D:
         -----
-        C -> C : Epsilon = Sigma [Sxx Syy Szz racine(2)*Syz racine(2)*Sxz racine(2)*Sxy]
+        C -> C : Epsilon = Sigma [Sxx, Syy, Szz, racine(2)*Syz, racine(2)*Sxz, racine(2)*Sxy]
         """        
         return self.__C.copy()
 
@@ -48,10 +117,10 @@ class LoiDeComportement(object):
         """Renvoie une copie de la loi de comportement pour la loi de Hooke en Kelvin Mandel\n
         En 2D:
         -----        
-        S -> S : Sigma = Epsilon [Exx Eyy racine(2)*Exy]\n
+        S -> S : Sigma = Epsilon [Exx, Eyy, racine(2)*Exy]\n
         En 3D:
         -----        
-        S -> S : Sigma = Epsilon [Exx Eyy Ezz racine(2)*Eyz racine(2)*Exz racine(2)*Exy]
+        S -> S : Sigma = Epsilon [Exx, Eyy, Ezz, racine(2)*Eyz, racine(2)*Exz, racine(2)*Exy]
         """
         return self.__S.copy()
 
@@ -88,7 +157,7 @@ class LoiDeComportement(object):
         return B_rigi_e_pg
     
     @staticmethod
-    def ApplyKelvinMandelCoef(dim: int, Matrice: np.ndarray):        
+    def ApplyKelvinMandelCoefToRigi(dim: int, Matrice: np.ndarray):        
         """Applique ces coefs à la matrice\n
         si 2D:
         \n
@@ -186,6 +255,7 @@ class Elas_Isot(LoiDeComportement):
         return l
     
     def get_mu(self):
+        """Coef de cisaillement"""
         
         E=self.E
         v=self.v
@@ -195,6 +265,7 @@ class Elas_Isot(LoiDeComportement):
         return mu
     
     def get_bulk(self):
+        """Module de compression"""
 
         E=self.E
         v=self.v
@@ -259,18 +330,19 @@ class Elas_Isot(LoiDeComportement):
                                 [0, 0, 0, 0, mu, 0],
                                 [0, 0, 0, 0, 0, mu]])
         
-        c = LoiDeComportement.ApplyKelvinMandelCoef(dim, cVoigt)
+        c = LoiDeComportement.ApplyKelvinMandelCoefToRigi(dim, cVoigt)
 
         s = np.linalg.inv(c)
 
         return c, s
 
-class Elas_IsotTrans(LoiDeComportement):   
+class Elas_IsotTrans(LoiDeComportement):
 
     def __init__(self, dim: int,
-    El, Et, Gl,
-    vl, vt,    
-    contraintesPlanes=True, epaisseur=1.0):        
+    El: float, Et: float, Gl: float,
+    vl: float, vt: float,
+    axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]),
+    contraintesPlanes=True, epaisseur=1.0):
 
         # Vérification des valeurs
         assert dim in [2,3], "doit être en 2 et 3"
@@ -282,45 +354,66 @@ class Elas_IsotTrans(LoiDeComportement):
         """Module de Young longitudinale"""
         self.Et=Et
         """Module de Young transverse"""
-        self.Gtl=Gl
+        self.Gl=Gl
         """Module de Cisaillent longitudinale"""
 
         erreurPoisson = lambda i :f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
-        # Peut ne pas être vrai ?
+        # TODO a mettre à jour Peut ne pas être vrai ? -> J'ai vu que cetaot de -1 a 1
         for v in [vl, vt]: assert v > -1.0 and v < 0.5, erreurPoisson
-        self.vtl=vl
+        self.vl=vl
         """Coef de poisson longitudianale"""
-        self.vtt=vt
+        self.vt=vt
         """Coef de poisson transverse"""
 
         if dim == 2:
             self.contraintesPlanes = contraintesPlanes
             """type de simplification 2D"""
 
-        C, S = self.__Comportement()
+        # Création de la matrice de changement de base
+
+        
+        M = LoiDeComportement.get_M(axis_1=axis_l, axis_2=axis_t)
+
+        if np.linalg.norm(axis_l-np.array([1,0,0]))<1e-12 and np.linalg.norm(axis_t-np.array([0,1,0]))<1e-12:
+            useSameAxis=True
+        else:
+            useSameAxis=False
+
+        C, S = self.__Comportement(M, useSameAxis)
 
         LoiDeComportement.__init__(self, dim, C, S, epaisseur)
 
-    def __get_Gtt(self):
+    def __get_Gt(self):
         
         Et = self.Et
-        vtt = self.vtt
+        vt = self.vt
 
-        Gtt = Et/(2*(1+vtt))
+        Gt = Et/(2*(1+vt))
 
-        return Gtt
-    Gtt = property(__get_Gtt)
+        return Gt
+    Gt = property(__get_Gt)
+
+    def __get_kt(self):
+        # Source : torquato 2002
+        El = self.El
+        Et = self.Et
+        vtt = self.vt
+        vtl = self.vl
+        kt = El*Et/((2*(1-vtt)*El)-(4*vtl**2*Et))
+
+        return kt
+    kt = property(__get_kt)
 
     def __get_resume(self):
         resume = f"\nElas_IsotTrans :"
-        resume += f"\nEl = {self.El:.2e},Et = {self.El:.2e}, Gl = {self.Gtl}"
-        resume += f"vl = {self.vtl}, vt = {self.vtt}"
+        resume += f"\nEl = {self.El:.2e},Et = {self.El:.2e}, Gl = {self.Gl}"
+        resume += f"vl = {self.vl}, vt = {self.vt}"
         if self.__dim == 2:
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
     resume = property(__get_resume)    
 
-    def __Comportement(self):
+    def __Comportement(self, M, useSameAxis: bool):
         """"Construit les matrices de comportement en kelvin mandel\n
         
         En 2D:
@@ -337,35 +430,74 @@ class Elas_IsotTrans(LoiDeComportement):
 
         """
 
-        dim = self.dim
+        dim = self.__dim
 
         El = self.El
         Et = self.Et
-        vtt = self.vtt
-        vtl = self.vtl
-        Gtl = self.Gtl
-        Gtt = self.Gtt
+        vt = self.vt
+        vl = self.vl
+        Gl = self.Gl
+        Gt = self.Gt
 
-        z = [1,0,0]
+        kt = self.kt
 
-        s = np.array([[1/Et, -vtt/Et, -vtl/Et, 0, 0, 0],
-                      [-vtt/Et, 1/Et, -vtl/Et, 0, 0, 0],
-                      [-vtl/Et, -vtl/Et, 1/El, 0, 0, 0],
-                      [0, 0, 0, 1/Gtl, 0, 0],
-                      [0, 0, 0, 0, 1/Gtl, 0],
-                      [0, 0, 0, 0, 0, 1/Gtt]])
+        # Matrice de souplesse et de rigidité en mandel dans la base du matériau
+        # [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]
+
+        material_sM = np.array([[1/El, -vl/El, -vl/El, 0, 0, 0],
+                      [-vl/El, 1/Et, -vt/Et, 0, 0, 0],
+                      [-vl/El, -vt/Et, 1/Et, 0, 0, 0],
+                      [0, 0, 0, 1/(2*Gt), 0, 0],
+                      [0, 0, 0, 0, 1/(2*Gl), 0],
+                      [0, 0, 0, 0, 0, 1/(2*Gl)]])
+
+        material_cM = np.array([[El+4*vl**2*kt, 2*kt*vl, 2*kt*vl, 0, 0, 0],
+                      [2*kt*vl, kt+Gt, kt-Gt, 0, 0, 0],
+                      [2*kt*vl, kt-Gt, kt+Gt, 0, 0, 0],
+                      [0, 0, 0, 2*Gt, 0, 0],
+                      [0, 0, 0, 0, 2*Gl, 0],
+                      [0, 0, 0, 0, 0, 2*Gl]])
+
+        # sM = np.array([[1/El, -vl/El, -vl/El, 0, 0, 0],
+        #               [-vl/El, 1/Et, -vt/Et, 0, 0, 0],
+        #               [-vl/El, -vt/Et, 1/Et, 0, 0, 0],
+        #               [0, 0, 0, 1/(Gt), 0, 0],
+        #               [0, 0, 0, 0, 1/(Gl), 0],
+        #               [0, 0, 0, 0, 0, 1/(Gl)]])
+
+        # cM = np.array([[El+4*vl**2*kt, 2*kt*vl, 2*kt*vl, 0, 0, 0],
+        #               [2*kt*vl, kt+Gt, kt-Gt, 0, 0, 0],
+        #               [2*kt*vl, kt-Gt, kt+Gt, 0, 0, 0],
+        #               [0, 0, 0, Gt, 0, 0],
+        #               [0, 0, 0, 0, Gl, 0],
+        #               [0, 0, 0, 0, 0, Gl]])
+
+        # Verifie que C = S^-1
+        assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10        
+        assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
+
+        global_sM = np.einsum('ji,jk,kl->il',M, material_sM, M, optimize=True)
+        global_cM = np.einsum('ji,jk,kl->il',M, material_cM, M, optimize=True)
+
+        test_diff_c = global_cM - material_cM
+        if useSameAxis: assert(np.linalg.norm(test_diff_c)<1e-12)
+
+        test_det_c = np.linalg.det(global_cM) - np.linalg.det(material_cM); assert test_det_c <1e-12
+        test_trace_c = np.trace(global_cM) - np.trace(material_cM); assert test_trace_c <1e-12
+
+        test_diff_s = global_sM - material_sM
+        if useSameAxis: assert np.linalg.norm(test_diff_s) < 1e-12
+        test_det_s = np.linalg.det(global_sM) - np.linalg.det(material_sM); assert test_det_s <1e-12
+        test_trace_s = np.trace(global_sM) - np.trace(material_sM); assert test_trace_s <1e-12
+        
+        c = global_cM
+        s = global_sM
 
         if dim == 2:
-            s = np.array([[1/El, -vtt/Et, 0],
-                          [-vtt/Et, 1/Et],
-                          []])
-        elif dim == 3:
-            pass
-
-        c = LoiDeComportement.ApplyKelvinMandelCoef(dim, cVoigt)
-
-        s = np.linalg.inv(c)
-
+            x = np.array([0,1,5])
+            c = global_cM[x,:][:,x]
+            s = global_sM[x,:][:,x]
+        
         return c, s
 
 

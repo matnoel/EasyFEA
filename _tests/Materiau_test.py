@@ -1,12 +1,12 @@
+# %%
+
 import unittest
 import os
-from Materiau import PhaseFieldModel, LoiDeComportement, Elas_Isot
+from Materiau import Elas_IsotTrans, PhaseFieldModel, LoiDeComportement, Elas_Isot
 import numpy as np
 
 class Test_Materiau(unittest.TestCase):
     def setUp(self):
-
-        self.voigtNotations = [True, False]
 
         # Comportement Elatique Isotrope
         E = 210e9
@@ -14,10 +14,38 @@ class Test_Materiau(unittest.TestCase):
         self.comportements = []
         for comp in LoiDeComportement.get_LoisDeComportement():
             if comp == Elas_Isot:
-                self.comportements.append(Elas_Isot(2, E=E, v=v, contraintesPlanes=False))
-                self.comportements.append(Elas_Isot(2, E=E, v=v, contraintesPlanes=True))
-                self.comportements.append(Elas_Isot(3, E=E, v=v))
-            
+                self.comportements.append(
+                    Elas_Isot(2, E=E, v=v, contraintesPlanes=False)
+                    )
+                self.comportements.append(
+                    Elas_Isot(2, E=E, v=v, contraintesPlanes=True)
+                    )
+                self.comportements.append(
+                    Elas_Isot(3, E=E, v=v)
+                    )
+            elif comp == Elas_IsotTrans:
+                self.comportements.append(
+                    Elas_IsotTrans(3,
+                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    axis_l=[1,0,0], axis_t=[0,1,0])
+                    )
+                self.comportements.append(
+                    Elas_IsotTrans(3,
+                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    axis_l=[0,1,0], axis_t=[1,0,0])
+                    )
+                self.comportements.append(
+                    Elas_IsotTrans(2,
+                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    contraintesPlanes=True)
+                    )
+                self.comportements.append(
+                    Elas_IsotTrans(2,
+                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    contraintesPlanes=False))
+                
+
+
 
         # phasefieldModel
         self.splits = PhaseFieldModel.get_splits()
@@ -30,7 +58,7 @@ class Test_Materiau(unittest.TestCase):
                 self.phaseFieldModels.append(pfm)
             
 
-    def test_BienCree_Isotrope(self):
+    def test_LoiComportementBienCree(self):
 
         for comp in self.comportements:
             self.assertIsInstance(comp, LoiDeComportement)
@@ -54,13 +82,71 @@ class Test_Materiau(unittest.TestCase):
                                                                 [0, 0, 0, 0, (1-2*v)/2, 0],
                                                                 [0, 0, 0, 0, 0, (1-2*v)/2]  ])
                 
-                c = LoiDeComportement.ApplyKelvinMandelCoef(comp.dim, C_voigt)
+                c = LoiDeComportement.ApplyKelvinMandelCoefToRigi(comp.dim, C_voigt)
                     
                 verifC = np.linalg.norm(c-comp.get_C())/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
+    
+    def test_ElasIsoTrans2D(self):
+        # Ici on verife que lorsque l'on change les axes ça fonctionne bien
+
+        El=11580
+        Et=500
+        Gl=450
+        vl=0.02
+        vt=0.44
+
+        # material_cM = np.array([[El+4*vl**2*kt, 2*kt*vl, 2*kt*vl, 0, 0, 0],
+        #               [2*kt*vl, kt+Gt, kt-Gt, 0, 0, 0],
+        #               [2*kt*vl, kt-Gt, kt+Gt, 0, 0, 0],
+        #               [0, 0, 0, 2*Gt, 0, 0],
+        #               [0, 0, 0, 0, 2*Gl, 0],
+        #               [0, 0, 0, 0, 0, 2*Gl]])
+
+        # Verif1 axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
+        compElasIsotTrans1 = Elas_IsotTrans(2,
+                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    contraintesPlanes=True,
+                    axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]))
+
+        Gt = compElasIsotTrans1.Gt
+        kt = compElasIsotTrans1.kt
+
+        c1 = np.array([[El+4*vl**2*kt, 2*kt*vl, 0],
+                      [2*kt*vl, kt+Gt, 0],
+                      [0, 0, 2*Gl]])
+
+        verifc1 = np.linalg.norm(c1 - compElasIsotTrans1.get_C())/np.linalg.norm(c1)
+        self.assertTrue(verifc1 < 1e-12)
+
+        # Verif2 axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
+        compElasIsotTrans2 = Elas_IsotTrans(2,
+                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    contraintesPlanes=True,
+                    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+
+        c2 = np.array([[kt+Gt, 2*kt*vl, 0],
+                      [2*kt*vl, El+4*vl**2*kt, 0],
+                      [0, 0, 2*Gl]])
+
+        verifc2 = np.linalg.norm(c2 - compElasIsotTrans2.get_C())/np.linalg.norm(c2)
+        self.assertTrue(verifc2 < 1e-12)
+
+        # Verif3 axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
+        compElasIsotTrans3 = Elas_IsotTrans(2,
+                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    contraintesPlanes=True,
+                    axis_l=np.array([0,0,1]), axis_t=np.array([1,0,0]))
+
+        c3 = np.array([[kt+Gt, kt-Gt, 0],
+                      [kt-Gt, kt+Gt, 0],
+                      [0, 0, 2*Gt]])
+
+        verifc3 = np.linalg.norm(c3 - compElasIsotTrans3.get_C())/np.linalg.norm(c3)
+        self.assertTrue(verifc3 < 1e-12)
 
     
-    def test_Decomposition_Bourdin_Amor_Miehe_Stress(self):
+    def test_Decomposition_psi(self):
         
         Ne = 50
         nPg = 1
@@ -125,3 +211,4 @@ if __name__ == '__main__':
         unittest.main(verbosity=2)
     except:
         print("")
+# %%
