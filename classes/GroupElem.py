@@ -242,6 +242,7 @@ class GroupElem:
             elif self.dim in [1,2]:
 
                 i = points2-points1
+                # Normalise
                 i = np.einsum('ei,e->ei',i, 1/np.linalg.norm(i, axis=1), optimize=True)
 
                 if self.dim == 1:
