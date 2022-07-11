@@ -282,15 +282,15 @@ class Elas_IsotTrans(LoiDeComportement):
         """Module de Young longitudinale"""
         self.Et=Et
         """Module de Young transverse"""
-        self.Gl=Gl
+        self.Gtl=Gl
         """Module de Cisaillent longitudinale"""
 
         erreurPoisson = lambda i :f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
         # Peut ne pas être vrai ?
         for v in [vl, vt]: assert v > -1.0 and v < 0.5, erreurPoisson
-        self.vl=vl
+        self.vtl=vl
         """Coef de poisson longitudianale"""
-        self.vt=vt
+        self.vtt=vt
         """Coef de poisson transverse"""
 
         if dim == 2:
@@ -301,10 +301,20 @@ class Elas_IsotTrans(LoiDeComportement):
 
         LoiDeComportement.__init__(self, dim, C, S, epaisseur)
 
+    def __get_Gtt(self):
+        
+        Et = self.Et
+        vtt = self.vtt
+
+        Gtt = Et/(2*(1+vtt))
+
+        return Gtt
+    Gtt = property(__get_Gtt)
+
     def __get_resume(self):
-        resume = f"\nElas_Isot :"
-        resume += f"\nEl = {self.El:.2e},Et = {self.El:.2e}, Gl = {self.Gl}"
-        resume += f"vl = {self.vl}, vt = {self.vt}"
+        resume = f"\nElas_IsotTrans :"
+        resume += f"\nEl = {self.El:.2e},Et = {self.El:.2e}, Gl = {self.Gtl}"
+        resume += f"vl = {self.vtl}, vt = {self.vtt}"
         if self.__dim == 2:
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
@@ -327,8 +337,28 @@ class Elas_IsotTrans(LoiDeComportement):
 
         """
 
+        dim = self.dim
+
+        El = self.El
+        Et = self.Et
+        vtt = self.vtt
+        vtl = self.vtl
+        Gtl = self.Gtl
+        Gtt = self.Gtt
+
+        z = [1,0,0]
+
+        s = np.array([[1/Et, -vtt/Et, -vtl/Et, 0, 0, 0],
+                      [-vtt/Et, 1/Et, -vtl/Et, 0, 0, 0],
+                      [-vtl/Et, -vtl/Et, 1/El, 0, 0, 0],
+                      [0, 0, 0, 1/Gtl, 0, 0],
+                      [0, 0, 0, 0, 1/Gtl, 0],
+                      [0, 0, 0, 0, 0, 1/Gtt]])
+
         if dim == 2:
-            pass
+            s = np.array([[1/El, -vtt/Et, 0],
+                          [-vtt/Et, 1/Et],
+                          []])
         elif dim == 3:
             pass
 
