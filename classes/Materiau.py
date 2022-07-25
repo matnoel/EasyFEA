@@ -303,23 +303,30 @@ class Elas_Isot(LoiDeComportement):
         l = self.get_lambda()
 
         if dim == 2:
-            if self.contraintesPlanes:
-                # C = np.array([  [4*(mu+l), 2*l, 0],
-                #                 [2*l, 4*(mu+l), 0],
-                #                 [0, 0, 2*mu+l]]) * mu/(2*mu+l)
 
-                cVoigt = np.array([ [1, v, 0],
-                                    [v, 1, 0],
-                                    [0, 0, (1-v)/2]]) * E/(1-v**2)
+            # Attention ici ça marche car lambda change en fonction de la simplification 2D
+
+            cVoigt = np.array([ [l + 2*mu, l, 0],
+                                [l, l + 2*mu, 0],
+                                [0, 0, mu]])
+
+            # if self.contraintesPlanes:
+            #     # C = np.array([  [4*(mu+l), 2*l, 0],
+            #     #                 [2*l, 4*(mu+l), 0],
+            #     #                 [0, 0, 2*mu+l]]) * mu/(2*mu+l)
+
+            #     cVoigt = np.array([ [1, v, 0],
+            #                         [v, 1, 0],
+            #                         [0, 0, (1-v)/2]]) * E/(1-v**2)
                 
-            else:
-                cVoigt = np.array([ [l + 2*mu, l, 0],
-                                    [l, l + 2*mu, 0],
-                                    [0, 0, mu]])
+            # else:
+            #     cVoigt = np.array([ [l + 2*mu, l, 0],
+            #                         [l, l + 2*mu, 0],
+            #                         [0, 0, mu]])
 
-                # C = np.array([  [1, v/(1-v), 0],
-                #                 [v/(1-v), 1, 0],
-                #                 [0, 0, (1-2*v)/(2*(1-v))]]) * E*(1-v)/((1+v)*(1-2*v))
+            #     # C = np.array([  [1, v/(1-v), 0],
+            #     #                 [v/(1-v), 1, 0],
+            #     #                 [0, 0, (1-2*v)/(2*(1-v))]]) * E*(1-v)/((1+v)*(1-2*v))
 
         elif dim == 3:
             
@@ -458,35 +465,27 @@ class Elas_IsotTrans(LoiDeComportement):
                       [0, 0, 0, 0, 2*Gl, 0],
                       [0, 0, 0, 0, 0, 2*Gl]])
 
-        # sM = np.array([[1/El, -vl/El, -vl/El, 0, 0, 0],
-        #               [-vl/El, 1/Et, -vt/Et, 0, 0, 0],
-        #               [-vl/El, -vt/Et, 1/Et, 0, 0, 0],
-        #               [0, 0, 0, 1/(Gt), 0, 0],
-        #               [0, 0, 0, 0, 1/(Gl), 0],
-        #               [0, 0, 0, 0, 0, 1/(Gl)]])
-
-        # cM = np.array([[El+4*vl**2*kt, 2*kt*vl, 2*kt*vl, 0, 0, 0],
-        #               [2*kt*vl, kt+Gt, kt-Gt, 0, 0, 0],
-        #               [2*kt*vl, kt-Gt, kt+Gt, 0, 0, 0],
-        #               [0, 0, 0, Gt, 0, 0],
-        #               [0, 0, 0, 0, Gl, 0],
-        #               [0, 0, 0, 0, 0, Gl]])
-
         # Verifie que C = S^-1
         assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10        
         assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
 
+        # Effectue le changement de base pour orienter le matériau dans lespace
         global_sM = np.einsum('ji,jk,kl->il',M, material_sM, M, optimize=True)
         global_cM = np.einsum('ji,jk,kl->il',M, material_cM, M, optimize=True)
-
+        
+        # verification que si les axes ne change pas on obtient bien la meme loi de comportement
         test_diff_c = global_cM - material_cM
         if useSameAxis: assert(np.linalg.norm(test_diff_c)<1e-12)
 
+        # on verfie que les invariants du tenseur ne change pas !
         test_det_c = np.linalg.det(global_cM) - np.linalg.det(material_cM); assert test_det_c <1e-12
         test_trace_c = np.trace(global_cM) - np.trace(material_cM); assert test_trace_c <1e-12
 
+        # verification que si les axes ne change pas on obtient bien la meme loi de comportement
         test_diff_s = global_sM - material_sM
         if useSameAxis: assert np.linalg.norm(test_diff_s) < 1e-12
+
+        # on verfie que les invariants du tenseur ne change pas !
         test_det_s = np.linalg.det(global_sM) - np.linalg.det(material_sM); assert test_det_s <1e-12
         test_trace_s = np.trace(global_sM) - np.trace(material_sM); assert test_trace_s <1e-12
         
@@ -495,8 +494,17 @@ class Elas_IsotTrans(LoiDeComportement):
 
         if dim == 2:
             x = np.array([0,1,5])
-            c = global_cM[x,:][:,x]
-            s = global_sM[x,:][:,x]
+            
+            if self.contraintesPlanes == True:                
+                s = global_sM[x,:][:,x]
+                c = np.linalg.inv(s)
+            else:
+                c = global_cM[x,:][:,x]
+                # s = global_sM[x,:][:,x]
+                s = np.linalg.inv(c)
+
+                # testS = np.linalg.norm(s-s2)/np.linalg.norm(s2)
+            
         
         return c, s
 
@@ -619,7 +627,7 @@ class PhaseFieldModel:
 
         assert split in PhaseFieldModel.get_splits(), f"Doit être compris dans {PhaseFieldModel.get_splits()}"
         if not isinstance(loiDeComportement, Elas_Isot):
-            assert not split in ["Amor, Miehe, Stress"], "Ces splits ne sont implémentés que pour Elas_Isot"
+            assert not split in ["Amor", "Miehe", "Stress"], "Ces splits ne sont implémentés que pour Elas_Isot"
         self.__split =  split
         """Split de la densité d'energie elastique ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]"""
         
@@ -787,14 +795,14 @@ class PhaseFieldModel:
     
     def __Split_Miehe(self, Epsilon_e_pg: np.ndarray, verif=False):
 
-        assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
-
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg, verif)
 
         if self.__split == "Miehe":
+            
+            assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
 
             # Calcul Rp et Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
