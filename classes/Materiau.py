@@ -413,8 +413,8 @@ class Elas_IsotTrans(LoiDeComportement):
 
     def __get_resume(self):
         resume = f"\nElas_IsotTrans :"
-        resume += f"\nEl = {self.El:.2e},Et = {self.El:.2e}, Gl = {self.Gl}"
-        resume += f"\tvl = {self.vl}, vt = {self.vt}"
+        resume += f"\nEl = {self.El:.2e}, Et = {self.El:.2e}, Gl = {self.Gl:.2e}"
+        resume += f"\nvl = {self.vl}, vt = {self.vt}"
         if self.__dim == 2:
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
@@ -465,9 +465,9 @@ class Elas_IsotTrans(LoiDeComportement):
                       [0, 0, 0, 0, 2*Gl, 0],
                       [0, 0, 0, 0, 0, 2*Gl]])
 
-        # Verifie que C = S^-1
-        assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10        
-        assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
+        # # Verifie que C = S^-1
+        # assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10        
+        # assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
 
         # Effectue le changement de base pour orienter le matériau dans lespace
         global_sM = np.einsum('ji,jk,kl->il',M, material_sM, M, optimize=True)

@@ -20,7 +20,7 @@ saveParaview=False
 
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 split = "AnisotStress" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
-regu = "AT2" # "AT1", "AT2"
+regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 
 # Data
@@ -34,7 +34,8 @@ if comp == "Elas_Isot":
     E=12e9
     v=0.3
 elif comp == "Elas_IsotTrans":
-    El=11580*1e6
+    # El=11580*1e6
+    El=12e9
     Et=500*1e6
     Gl=450*1e6
     vl=0.02
@@ -45,11 +46,12 @@ l_0 = 0.12e-3
 
 # Création de la simulations
 
-umax = 25e-6
+# umax = 25e-6
+umax = 40e-6
 
 if test:
-    # cc = 1.2
-    cc = 1
+    cc = 1.2
+    # cc = 1
     clD = 0.25e-3*cc
     clC = 0.12e-3*cc
     # clD = l_0*2
@@ -97,7 +99,7 @@ if solve:
         E=E, v=v, contraintesPlanes=False, epaisseur=ep)
     elif comp == "Elas_IsotTrans":
         comportement = Materiau.Elas_IsotTrans(2,
-                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+                    El=El, Et=Et, Gl=Gl, vl=vl, vt=vt,
                     contraintesPlanes=True, epaisseur=ep,
                     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
@@ -192,7 +194,7 @@ if solve:
             if iterConv == maxIter:
                 break
 
-            # convergence=True
+            convergence=True
         
         # TODO Comparer avec code matlab
 
@@ -239,7 +241,7 @@ else:
 
     simu = PostTraitement.Load_Simu(folder)
 
-    PostTraitement.Load_Load_Displacement(folder)
+    load, displacement = PostTraitement.Load_Load_Displacement(folder)
 
 fig, ax = plt.subplots()
 ax.plot(displacement, np.abs(load)/1e6, c='black')
