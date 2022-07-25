@@ -20,7 +20,7 @@ saveParaview=False
 
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 split = "AnisotStress" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
-regu = "AT1" # "AT1", "AT2"
+regu = "AT2" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 
 # Data
@@ -48,8 +48,8 @@ l_0 = 0.12e-3
 umax = 25e-6
 
 if test:
-    cc = 1.2
-    # cc = 1
+    # cc = 1.2
+    cc = 1
     clD = 0.25e-3*cc
     clC = 0.12e-3*cc
     # clD = l_0*2
@@ -249,13 +249,16 @@ PostTraitement.Save_fig(folder, "forcedep")
 
 if comp == "Elas_Isot":
     filenameDamage = f"{split} damage_n pour v={v}"
+    titleDamage = fr"$\phi \ pour \ \nu ={v}$"
 else:
     filenameDamage = f"{split} damage_n"
+    titleDamage = fr"$\phi$"
+
 
 
 Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
 folder=folder, filename=filenameDamage, 
-title=fr"$\phi \ pour \ \nu ={v}$")
+title=titleDamage)
 
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)
