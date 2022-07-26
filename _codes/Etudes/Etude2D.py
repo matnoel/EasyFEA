@@ -25,9 +25,9 @@ ticTot = TicTac()
 
 # Data --------------------------------------------------------------------------------------------
 
-plotResult = True
+plotResult = False
 
-saveParaview = True
+saveParaview = False
 
 dim = 2
 
@@ -42,7 +42,7 @@ surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
 # taille = h/30
-taille = h/100
+taille = h/200
 
 comportement = Elas_Isot(dim, epaisseur=b)
 

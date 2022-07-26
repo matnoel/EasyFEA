@@ -18,10 +18,10 @@ test=True
 solve=True
 saveParaview=False
 
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "AnisotStress" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
 regu = "AT2" # "AT1", "AT2"
-simpli2D = "CP" # ["CP","DP"]
+simpli2D = "DP" # ["CP","DP"]
 
 # Data
 
@@ -46,14 +46,12 @@ l_0 = 0.12e-3
 
 # Création de la simulations
 
-# umax = 25e-6
-umax = 40e-6
+umax = 25e-6
+# umax = 40e-6
 
 if test:
-    cc = 1.2
-    # cc = 1
-    clD = 0.25e-3*cc
-    clC = 0.12e-3*cc
+    clD = 0.25e-3
+    clC = 0.12e-3
     # clD = l_0*2
     # clC = l_0
 
@@ -224,8 +222,8 @@ if solve:
         if np.any(d[noeuds_bord] >= 0.95):
             bord +=1
         
-        if bord == 1:
-            break
+        # if bord == 1:
+        #     break
 
         displacement.append(ud)
         load.append(f)
