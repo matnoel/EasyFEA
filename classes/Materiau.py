@@ -513,7 +513,7 @@ class PhaseFieldModel:
 
     @staticmethod
     def get_splits():
-        __splits = ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
+        __splits = ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross"]
         return __splits
     
     @staticmethod
@@ -613,7 +613,7 @@ class PhaseFieldModel:
             loiDeComportement : LoiDeComportement
                 Loi de comportement du matériau ["Elas_Isot"]
             split : str
-                Split de la densité d'energie elastique ["Bourdin","Amor","Miehe","Stress","AnisotStress"]
+                Split de la densité d'energie elastique ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
             regularization : str
                 Modèle de régularisation de la fissure ["AT1","AT2"]
             Gc : float
@@ -629,7 +629,7 @@ class PhaseFieldModel:
         if not isinstance(loiDeComportement, Elas_Isot):
             assert not split in ["Amor", "Miehe", "Stress"], "Ces splits ne sont implémentés que pour Elas_Isot"
         self.__split =  split
-        """Split de la densité d'energie elastique ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]"""
+        """Split de la densité d'energie elastique ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross"]"""
         
         assert regularization in PhaseFieldModel.get_regularisations(), f"Doit être compris dans {PhaseFieldModel.get_regularisations()}"
         self.__regularization = regularization
@@ -723,10 +723,10 @@ class PhaseFieldModel:
         elif self.__split == "Amor":
             cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
-        elif self.__split in ["Miehe","AnisotMiehe"]:
+        elif self.__split in ["Miehe","AnisotMiehe","AnisotMiehe_NoCross"]:
             cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif)
         
-        elif self.__split in ["Stress","AnisotStress"]:
+        elif self.__split in ["Stress","AnisotStress","AnisotStress_NoCross"]:
             cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif)
         
         return cP_e_pg, cM_e_pg            
@@ -829,7 +829,7 @@ class PhaseFieldModel:
                 "spherM_e_pg" : spherM_e_pg
             }
         
-        elif self.__split == "AnisotMiehe":
+        elif self.__split in ["AnisotMiehe","AnisotMiehe_NoCross"]:
             
             c = self.__loiDeComportement.get_C()
 
@@ -841,11 +841,15 @@ class PhaseFieldModel:
             Cmm = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projM_e_pg, optimize=True)
             Cmp = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projP_e_pg, optimize=True)
 
-            # cP_e_pg = Cpp #Diffuse
-            # cM_e_pg = Cmm + Cpm + Cmp
+            if self.__split ==  "AnisotMiehe_NoCross":
+                
+                cP_e_pg = Cpp #Diffuse
+                cM_e_pg = Cmm + Cpm + Cmp
+            
+            elif self.__split ==  "AnisotMiehe":
 
-            cP_e_pg = Cpp + Cpm + Cmp #Diffuse
-            cM_e_pg = Cmm 
+                cP_e_pg = Cpp + Cpm + Cmp #Diffuse
+                cM_e_pg = Cmm 
 
             # cP_e_pg = Cpp + Cpm #Diffuse
             # cM_e_pg = Cmm + Cmp
@@ -916,7 +920,7 @@ class PhaseFieldModel:
             # testM = np.linalg.norm(invSM_e_pg-cM_e_pg)/np.linalg.norm(cM_e_pg)
             # pass
         
-        elif self.__split == "AnisotStress":
+        elif self.__split in ["AnisotStress","AnisotStress_NoCross"]:
 
             # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
             Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
@@ -932,11 +936,15 @@ class PhaseFieldModel:
             Cmm = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cm_e_pg, optimize=True)
             Cmp = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cp_e_pg, optimize=True)
 
-            # cP_e_pg = Cpp #Diffuse
-            # cM_e_pg = Cmm + Cpm + Cmp
+            if self.__split ==  "AnisotStress_NoCross":
+            
+                cP_e_pg = Cpp #Diffuse
+                cM_e_pg = Cmm + Cpm + Cmp
+            
+            elif self.__split ==  "AnisotStress":
 
-            cP_e_pg = Cpp + Cpm + Cmp #Diffuse
-            cM_e_pg = Cmm 
+                cP_e_pg = Cpp + Cpm + Cmp #Diffuse
+                cM_e_pg = Cmm
 
             # cP_e_pg = Cpp + Cpm #Diffuse
             # cM_e_pg = Cmm + Cmp
