@@ -20,7 +20,7 @@ saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 split = "AnisotStress_NoCross" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
-regu = "AT2" # "AT1", "AT2"
+regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 
 # Data
@@ -229,7 +229,8 @@ if solve:
         displacement.append(ud)
         load.append(f)
 
-
+    load = np.array(load)
+    displacement = np.array(displacement)
 
     # Sauvegarde
     PostTraitement.Save_Simu(simu, folder)
