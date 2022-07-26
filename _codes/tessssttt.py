@@ -49,7 +49,9 @@ ksp.getPC().setType('none')
 ksp.solve(b, x)
 
 
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 
-# residuals = ksp.getConvergenceHistory()
-# plt.semilogy(residuals)
+residuals = ksp.getConvergenceHistory()
+plt.semilogy(residuals)
+
+plt.show()
