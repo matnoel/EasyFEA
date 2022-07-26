@@ -614,18 +614,18 @@ class Simu:
 
         if syst == "Linux":
 
-            use_pypardiso = True            
+            method = 2
+
+            use_pypardiso = True 
+
+            # useCholesky=False           
 
             if use_pypardiso:
 
                 b = b.toarray()
-                x = pypardiso.spsolve(A,b)
+                x = pypardiso.spsolve(A,b) 
 
-            method = 2
-
-            # useCholesky=False
-
-            if useCholesky and A_isSymetric:
+            elif useCholesky and A_isSymetric:
                 x = self.__Cholesky(A, b)
 
             elif method == 1:
