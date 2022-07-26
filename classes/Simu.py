@@ -6,10 +6,14 @@ from typing import cast
 import pandas as pd
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
+
+# Solveurs
 from scipy.optimize import lsq_linear
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
-import matplotlib.pyplot as plt
+from sksparse.cholmod import cholesky, cholesky_AAt
+import pypardiso
 
 from GroupElem import GroupElem
 import Affichage
@@ -600,7 +604,8 @@ class Simu:
 
         return np.array(x)
 
-    def __Solve_Axb(self, problemType, A, b, useCholesky=False, A_isSymetric=False):
+    def __Solve_Axb(self, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix,
+    useCholesky=False, A_isSymetric=False):
         """Résolution de Ax=b"""
         
         tic = TicTac()
@@ -608,6 +613,13 @@ class Simu:
         syst = platform.system()
 
         if syst == "Linux":
+
+            use_pypardiso = True            
+
+            if use_pypardiso:
+
+                b = b.toarray()
+                x = pypardiso.spsolve(A,b)
 
             method = 2
 
@@ -653,8 +665,16 @@ class Simu:
                 pass
                 
         elif syst == "Windows":
+            
+            use_pypardiso = True            
 
-            if useCholesky and A_isSymetric:
+            if use_pypardiso:
+
+                b = b.toarray()
+                x = pypardiso.spsolve(A,b)
+
+            elif useCholesky and A_isSymetric:
+
                 x = self.__Cholesky(A, b)
 
             else:                
@@ -692,7 +712,7 @@ class Simu:
 
     def __Cholesky(self, A, b):
         # Décomposition de cholesky 
-        from sksparse.cholmod import cholesky, cholesky_AAt
+        
         # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
         # doc : https://scikit-sparse.readthedocs.io/en/latest/cholmod.html#sksparse.cholmod.analyze
         # Installation : https://www.programmersought.com/article/39168698851/                
