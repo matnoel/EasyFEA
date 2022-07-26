@@ -614,18 +614,11 @@ class Simu:
 
         if syst == "Linux":
 
-            method = 2
+            method = 5
 
-            use_pypardiso = True 
+            useCholesky=False           
 
-            # useCholesky=False           
-
-            if use_pypardiso:
-
-                b = b.toarray()
-                x = pypardiso.spsolve(A,b) 
-
-            elif useCholesky and A_isSymetric:
+            if useCholesky and A_isSymetric:
                 x = self.__Cholesky(A, b)
 
             elif method == 1:
@@ -663,6 +656,12 @@ class Simu:
                 from mumps import spsolve
                 x = spsolve(A,b)
                 pass
+
+            elif method == 5:
+
+                b = b.toarray()
+                x = pypardiso.spsolve(A,b) 
+
                 
         elif syst == "Windows":
             
