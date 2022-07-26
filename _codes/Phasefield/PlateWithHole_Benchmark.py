@@ -19,7 +19,7 @@ solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
+split = "AnisotStress_NoCross" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
 regu = "AT2" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 
@@ -208,6 +208,7 @@ if solve:
         max_d = d.max()
         min_d = d.min()        
         f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], u[nodes_upper*2], optimize=True))
+        # f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, :], u, optimize=True))
 
         print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
@@ -242,9 +243,10 @@ else:
     load, displacement = PostTraitement.Load_Load_Displacement(folder)
 
 fig, ax = plt.subplots()
-ax.plot(displacement, np.abs(load)/1e6, c='black')
-ax.set_xlabel("ud en m")
-ax.set_ylabel("f en kN/mm")
+ax.plot(displacement*1e3, np.abs(load)/1e6, c='blue')
+ax.set_xlabel("ud en mm")
+ax.set_ylabel("f en kN")
+ax.grid()
 PostTraitement.Save_fig(folder, "forcedep")
 
 if comp == "Elas_Isot":
