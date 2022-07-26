@@ -182,9 +182,9 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
 
         if simu.materiau.isDamaged:
             # vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress","psiP"])
-            vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress"])
+            vtuFile = __Make_vtu(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress"])
         else:
-            vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef"], elementsField=["Stress"])
+            vtuFile = __Make_vtu(simu, iter, f, nodesField=["coordoDef"], elementsField=["Stress"])
         
         vtuFiles.append(vtuFile)
 
@@ -192,9 +192,9 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
     
     print('\n')
     filenamePvd = os.path.join(folder,"solution")    
-    MakePvd(filenamePvd, vtuFiles)
+    __Make_pvd(filenamePvd, vtuFiles)
 
-def __SaveParaview(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
+def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
     """Creer le .vtu qui peut être lu sur paraview
     """
 
@@ -347,7 +347,7 @@ def __SaveParaview(simu: Simu, iter: int, filename: str,nodesField=["coordoDef",
     return vtuFile
 
 
-def MakePvd(filename: str, vtuFiles=[]):
+def __Make_pvd(filename: str, vtuFiles=[]):
 
     tic = TicTac()
 
