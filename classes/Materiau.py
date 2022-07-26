@@ -557,7 +557,7 @@ class PhaseFieldModel:
         
         return f
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=1e-10):
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=1e-12):
         """Fonction de dégradation en energies / contraintes
         k_residu=1e-10
         Args:
