@@ -17,14 +17,14 @@ Affichage.Clear()
 
 plotAllResult = False
 
-comp = "Elas_Isot"
-split = "Stress" # ["Bourdin","Amor",Miehe","Stress"]
+comp = "Elas_Isot" # "Elas_Isot" "Elas_IsotTrans"
+split = "AnisotStress" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
 nom="_".join([comp, split, regu])
 
-loadInHole = False
+loadInHole = True
 
 nomDossier = "Calcul Energie plaque trouée"
 
@@ -110,7 +110,11 @@ for v in list_V:
         simu.add_dirichlet("displacement", node00, [0], ["x"])
 
         if loadInHole:
-            simu.add_surfLoad("displacement", nodesCircle, [lambda x,y,z : SIG*(y-circle.center.y)/r], ["y"])            
+
+            simu.add_surfLoad("displacement",nodesCircle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
+            simu.add_surfLoad("displacement",nodesCircle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
+
+            # simu.add_surfLoad("displacement", nodesCircle, [lambda x,y,z : SIG*(y-circle.center.y)/r], ["y"])
         else:
             simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
 

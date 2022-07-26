@@ -20,8 +20,8 @@ saveParaview=False
 
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 split = "AnisotStress" # ["Bourdin","Amor","Miehe","AnisotMiehe","Stress","AnisotStress"]
-regu = "AT1" # "AT1", "AT2"
-simpli2D = "DP" # ["CP","DP"]
+regu = "AT2" # "AT1", "AT2"
+simpli2D = "CP" # ["CP","DP"]
 
 # Data
 

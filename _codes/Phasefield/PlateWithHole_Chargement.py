@@ -74,8 +74,14 @@ simu = Simu.Simu(mesh, materiau, verbosity=False)
 
 simu.add_dirichlet("displacement", nodes0, [0], ["y"])
 simu.add_dirichlet("displacement", node00, [0], ["x"])
-# simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
-simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r], ["y"])
+# simu.add_surfLoad("displacement", noeuds_cercle, [-SIG], ["y"])
+# simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r], ["y"])
+# simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r*(y-circle.center.y)/r], ["x"])
+
+# Sx = F * cos tet * abs(sin tet)
+# Sy = F * sin tet * abs(sin tet)
+simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
+simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 
@@ -83,14 +89,17 @@ simu.Assemblage_u()
 
 simu.Solve_u()
 
+simu.Save_Iteration()
+
 Affichage.NouvelleSection("Résultats")
 
 Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
 Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
 Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 
+# mini = np.min(simu.Get_Resultat("Syy", valeursAuxNoeuds=False))/SIG
 
-
+PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 R = 10
 F=15
@@ -99,16 +108,25 @@ tet = np.linspace(-np.pi,0,31)
 xR = R * np.cos(tet)
 yR = R * np.sin(tet)
 
-# xf = R * np.cos(tet)
-xf = F * np.sin(tet)*np.cos(tet)
-yf = F * np.sin(tet)*np.sin(tet)
+xf = F * np.cos(tet) 
+yf = F * np.sin(tet)
+
+# xf = F * np.cos(tet)* np.abs(np.sin(tet)) + R * np.cos(tet)
+# yf = F * np.sin(tet)* np.abs(np.sin(tet))
+
+# xf = F * np.cos(tet)* 1 + R * np.cos(tet)
+# yf = F * np.sin(tet)* 1
+
+# xf = - F * np.cos(tet) * np.sin(tet)
+# yf = - F * np.sin(tet) * np.sin(tet)
 
 fig, ax = plt.subplots()
-plt.plot(xR,yR,xf,yf)
+plt.plot(xR,yR)
+plt.plot(xf,yf)
 ax.axis('equal')
 for x,y,dx,dy in zip(xR,yR,xf-xR,yf-yR):
     ax.arrow(x,y,dx,dy,width=0.1,length_includes_head=True)
-# ax.grid()
+ax.grid()
 
 
 
