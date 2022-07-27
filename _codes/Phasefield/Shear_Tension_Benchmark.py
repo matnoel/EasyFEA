@@ -1,6 +1,8 @@
 # %%
 import os
 
+from BoundaryCondition import BoundaryCondition
+
 import PostTraitement
 import Dossier
 import Affichage
@@ -17,29 +19,21 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-simulation = "Tension" #"Shear" , "Tension"
+simulation = "Shear" #"Shear" , "Tension"
+folder = '_'.join(["Benchmarck",simulation])
+folder = Dossier.NewFile(folder, results=True)
 
 test = True
-
 solve = True
-
 plotResult = True
 saveParaview = False
 makeMovie = False
 
 # Data --------------------------------------------------------------------------------------------
 
-if simulation == "Shear":        
-        folder = "Etude_Cisaillement"
-else:
-        folder = "Etude_Tension"
-
 comportement = "Elas_Isot" # "Elas_Isot"
-
-split = "Stress" # "Bourdin","Amor","Miehe","Stress"
-
+split = "AnisotMiehe" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT1" # "AT1", "AT2"
-
 openCrack = True
 
 nameSimu = '_'.join([comportement,split,regularisation])
@@ -57,11 +51,9 @@ Gc = 2.7e3
 if test:
         taille = 1e-5 #taille maille test fem object
         # taille = 0.001
-        taille *= 1.5
+        # taille *= 1.5
 else:
         taille = l0/2 #l0/2 2.5e-6
-
-folder = Dossier.NewFile(folder, results=True)
 
 if test:
     folder = Dossier.Join([folder, "Test", nameSimu])
@@ -103,10 +95,12 @@ if solve:
 
         NoeudsBord=[]
         for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Haut]:
-                NoeudsBord.extend(noeuds)       
+                NoeudsBord.extend(noeuds)
+
+        ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["x"])
 
         # Simulation  -------------------------------------------------------------------------------------------
-        Affichage.NouvelleSection("Simulations")
+        
 
         comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
@@ -135,14 +129,10 @@ if solve:
 
                 # Conditions en déplacements en Bas
                 simu.add_dirichlet("displacement", noeuds_Bas, [0,0],["x","y"])
-                
-                
-                
-
+           
         Chargement(0)
 
-        Affichage.Plot_BoundaryConditions(simu)
-        # plt.show()
+        Affichage.NouvelleSection("Simulations")
 
         N = 400
         # N = 10
@@ -158,10 +148,11 @@ if solve:
 
         bord = 0
 
-        fig, ax = plt.subplots()
+        
         list_Psi_Elas=[]
         list_Psi_Crack=[]
-        deplacement=[]
+        deplacements=[]
+        forces=[]
 
         maxIter = 250
         # tolConv = 0.0025
@@ -189,12 +180,7 @@ if solve:
                         damage = simu.Solve_d()
 
                         # Displacement
-                        Kglob = simu.Assemblage_u()
-
-                        if np.linalg.norm(damage)==0:
-                                useCholesky=True
-                        else:
-                                useCholesky=False
+                        Kglob = simu.Assemblage_u()                        
                         displacement = simu.Solve_u()
 
                         dincMax = np.max(np.abs(damage-dold))
@@ -207,7 +193,7 @@ if solve:
                         if iterConv == maxIter:
                                 break
 
-                # convergence=True
+                        convergence=True
                 
                 # TODO Comparer avec code matlab
 
@@ -219,12 +205,11 @@ if solve:
 
                 temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
                 temps = np.round(temps,3)
-
                 max_d = damage.max()
-                min_d = damage.min()        
-                f = np.sum(np.einsum('ij,j->i', Kglob[noeuds_Haut, noeuds_Haut], displacement[noeuds_Haut], optimize=True))/1e3
+                min_d = damage.min()
+                f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), displacement, optimize=True))
 
-                print(f"{iter:4}/{N} : ud = {np.round(dep*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+                print(f"{iter+1:4}/{N} : ud = {np.round(dep*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
                 # # Affiche dans la console
                 # min = np.round(np.min(damage),3)
@@ -234,38 +219,28 @@ if solve:
                 # # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
                 # print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s') 
                 
-                deplacement.append(dep)
+                deplacements.append(dep)
+                forces.append(f)
 
                 if np.any(damage[NoeudsBord] >= 0.8):                                
                         bord +=1
 
                 if bord == 5:
                         break
-
                 
-                # Calcul de l'energie
-                # list_Psi_Crack.append(simu.Get_Resultat("Psi_Crack"))
-                # list_Psi_Elas.append(simu.Get_Resultat("Psi_Elas"))
-                # list_E_tot = np.array(list_Psi_Crack)-np.array(list_Psi_Elas)
-                # displacement = np.array(deplacement)
-
-                # ax.cla()
-                # ax.plot(displacement*1e6, list_Psi_Crack, label="Psi_Crack")
-                # ax.plot(displacement*1e6, list_Psi_Elas, label="Psi_Elas")
-                # # ax.plot(displacement*1e6, list_E_tot, label="E_tot")
-                # ax.set_xlabel("ud en µm")
-                # ax.set_ylabel("Joules")
-                # plt.legend()
-                # plt.pause(0.0000001)
-                
-
-
         # Sauvegarde
         PostTraitement.Save_Simu(simu, folder)
         
+        PostTraitement.Save_Load_Displacement(forces, deplacements, folder)
+
+        forces = np.array(forces)
+        deplacements = np.array(deplacements)
+
 else:   
 
         simu = PostTraitement.Load_Simu(folder)
+
+        forces, deplacements = PostTraitement.Load_Load_Displacement(folder)
         
 
 
@@ -277,21 +252,16 @@ if makeMovie:
         PostTraitement.MakeMovie(folder, "Svm", simu)        
         # PostTraitement.MakeMovie(filename, "Syy", simu, valeursAuxNoeuds=True, deformation=True)
 
-def AffichageCL():
-        # Affichage noeuds du maillage
-        fig1, ax = Affichage.Plot_Maillage(simu.mesh)
-        Affichage.Plot_NoeudsMaillage(simu.mesh, ax, noeuds=noeuds_Haut, marker='*', c='blue')
-        Affichage.Plot_NoeudsMaillage(simu.mesh, ax, noeuds=noeuds_Milieu, marker='o', c='red')
-        Affichage.Plot_NoeudsMaillage(simu.mesh, ax, noeuds=noeuds_Bas, marker='.', c='blue')
-        Affichage.Plot_NoeudsMaillage(simu.mesh, ax, noeuds=noeuds_Gauche, marker='.', c='black')
-        Affichage.Plot_NoeudsMaillage(simu.mesh, ax, noeuds=noeuds_Droite, marker='.', c='black')
-
 if plotResult:
 
-        # AffichageCL()        
-        # if save: plt.savefig(os.path.join(folder,"conditionsLimites.png"))
+        Affichage.Plot_BoundaryConditions(simu)
 
-        Wdef = simu.Get_Resultat("Wdef")
+        fig, ax = plt.subplots()
+        ax.plot(deplacements*1e6, np.abs(forces)/1e3, c='blue')
+        ax.set_xlabel("ud en µm")
+        ax.set_ylabel("f en kN")
+        ax.grid()
+        PostTraitement.Save_fig(folder, "forcedep")
 
 
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,

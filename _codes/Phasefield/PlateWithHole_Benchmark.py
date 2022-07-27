@@ -1,5 +1,6 @@
 from TicTac import TicTac
 import Materiau
+from BoundaryCondition import BoundaryCondition
 from Geom import *
 import Affichage
 import Interface_Gmsh
@@ -19,9 +20,9 @@ solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "AnisotStress_NoCross" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
-regu = "AT1" # "AT1", "AT2"
-simpli2D = "DP" # ["CP","DP"]
+split = "Miehe" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
+regu = "AT2" # "AT1", "AT2"
+simpli2D = "CP" # ["CP","DP"]
 
 # Data
 
@@ -91,14 +92,19 @@ if solve:
 
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
+
+    if simpli2D == "CP":
+        isCp = True
+    else:
+        isCp = False
     
     if comp == "Elas_Isot":
         comportement = Materiau.Elas_Isot(2,
-        E=E, v=v, contraintesPlanes=False, epaisseur=ep)
+        E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
     elif comp == "Elas_IsotTrans":
         comportement = Materiau.Elas_IsotTrans(2,
                     El=El, Et=Et, Gl=Gl, vl=vl, vt=vt,
-                    contraintesPlanes=True, epaisseur=ep,
+                    contraintesPlanes=isCp, epaisseur=ep,
                     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
     phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
@@ -133,8 +139,9 @@ if solve:
     nodesB = mesh.Get_Nodes_Domain(domainB)
 
     ud=0
-    damage_t=[]    
-    
+    damage_t=[]
+
+    ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
 
     def Chargement():
         simu.Init_Bc()
@@ -193,8 +200,6 @@ if solve:
                 break
 
             convergence=True
-        
-        # TODO Comparer avec code matlab
 
         if iterConv == maxIter:
             print(f'On converge pas apres {iterConv} itérations')
@@ -204,11 +209,9 @@ if solve:
 
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         temps = np.round(temps,3)
-
         max_d = d.max()
-        min_d = d.min()        
-        f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], u[nodes_upper*2], optimize=True))
-        # f = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, :], u, optimize=True))
+        min_d = d.min()
+        f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize=True))
 
         print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
@@ -268,16 +271,4 @@ if saveParaview:
 
 TicTac.getResume()
 
-
-
-
-
-
-
 plt.show()
-
-
-
-pass
-
-
