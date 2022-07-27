@@ -52,7 +52,9 @@ class BoundaryCondition:
         return np.array(ddls)
     
     @staticmethod
-    def Get_ddls_connect(dim: int, problemType:str, connect_e: np.ndarray, directions: list):    
+    def Get_ddls_connect(dim: int, problemType:str, connect_e: np.ndarray, directions: list):
+        """Construit les ddls liées au noeuds de la matrice de connection
+        """    
         if problemType == "damage":
             return connect_e.reshape(-1)
         elif problemType == "displacement":
@@ -76,7 +78,19 @@ class BoundaryCondition:
             return ddls_dir.reshape(-1)
     
     @staticmethod
-    def Get_ddls_noeuds(dim: int, problemType:str, noeuds:np.ndarray, directions: list):        
+    def Get_ddls_noeuds(dim: int, problemType:str, noeuds:np.ndarray, directions: list):
+        """Récupère les ddls liés aux noeuds en fonction du problème et des directions
+
+        Args:
+            dim (int): dimension du problème
+            problemType (str): [displacement, damage]
+            noeuds (np.ndarray): list des noeuds
+            directions (list): directions ["x","y","z"]  (Pas forcément dans l'ordre)
+
+        Returns:
+            np.ndarray: liste de ddls
+        """
+
         if problemType == "damage":
             return noeuds.reshape(-1)
         elif problemType == "displacement":
@@ -88,8 +102,12 @@ class BoundaryCondition:
                     index = 1
                 elif direction == "z":
                     assert dim == 3,"Une étude 2D ne permet pas d'appliquer des forces suivant z"
-                    index = 2                
+                    index = 2
+                else:
+                    "Direction inconnue"
                 ddls_dir[:,d] = noeuds * dim + index
 
             return ddls_dir.reshape(-1)
+        else:
+            print("Problème inconnu")
 
