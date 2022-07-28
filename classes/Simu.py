@@ -616,7 +616,7 @@ class Simu:
 
             method = 5
 
-            useCholesky=False           
+            # useCholesky=False           
 
             if useCholesky and A_isSymetric:
                 x = self.__Cholesky(A, b)
@@ -665,17 +665,17 @@ class Simu:
                 
         elif syst == "Windows":
             
-            use_pypardiso = True            
+            use_pypardiso = True
+            useCholesky=False
 
-            if use_pypardiso:
-
-                b = b.toarray()
-                x = pypardiso.spsolve(A,b)
-
-            elif useCholesky and A_isSymetric:
+            if useCholesky and A_isSymetric:
 
                 x = self.__Cholesky(A, b)
 
+            elif use_pypardiso:
+
+                b = b.toarray()
+                x = pypardiso.spsolve(A,b)
             else:                
                 # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems                    
                 # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
