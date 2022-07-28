@@ -15,12 +15,12 @@ Affichage.Clear()
 
 # Options
 
-test=False
+test=True
 solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "Bourdin" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
+split = "He" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 
@@ -90,7 +90,7 @@ if solve:
     domain = Domain(point, Point(x=L, y=h), clD)
     circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
-    interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
+    interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True)
     mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
 
     if simpli2D == "CP":
@@ -173,13 +173,14 @@ if solve:
 
         iterConv=0
         convergence = False
-        dold = simu.damage
+        d = simu.damage
 
         Chargement()
 
         while not convergence:
             
-            iterConv += 1            
+            iterConv += 1
+            dold = d.copy()
 
             # Damage
             simu.Assemblage_d()
@@ -194,7 +195,6 @@ if solve:
             convergence = dincMax <= tolConv
             # if damage.min()>1e-5:
             #     convergence=False
-            dold = d.copy()
 
             if iterConv == maxIter:
                 break

@@ -70,7 +70,7 @@ if solve:
 
         elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-        interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
+        interfaceGmsh = Interface_Gmsh(affichageGmsh=True)
 
         if openCrack:
                 meshName = "carré avec fissure ouverte.msh"
@@ -124,11 +124,14 @@ if solve:
                         simu.add_dirichlet("displacement", noeuds_Droite, [0],["y"])
                         simu.add_dirichlet("displacement", noeuds_Haut, [dep,0], ["x","y"])
                         # simu.add_dirichlet("displacement", noeuds_Haut, [dep], ["x"])
-                else:
-                        simu.add_dirichlet("displacement", noeuds_Haut, [dep], ["y"])
 
-                # Conditions en déplacements en Bas
-                simu.add_dirichlet("displacement", noeuds_Bas, [0,0],["x","y"])
+                        # Conditions en déplacements en Bas
+                        simu.add_dirichlet("displacement", noeuds_Bas, [0,0],["x","y"])
+                else:
+                        simu.add_dirichlet("displacement", noeuds_Haut, [0,dep], ["x","y"])
+                        simu.add_dirichlet("displacement", noeuds_Bas, [0],["y"])
+
+                
            
         Chargement(0)
 
@@ -167,17 +170,20 @@ if solve:
 
                 iterConv=0
                 convergence = False
-                dold = simu.damage
+                d = simu.damage
 
                 Chargement(dep)
 
                 while not convergence:
                 
-                        iterConv += 1            
+                        iterConv += 1
+                        dold = damage.copy()
+
 
                         # Damage
                         simu.Assemblage_d()
                         damage = simu.Solve_d()
+                        
 
                         # Displacement
                         Kglob = simu.Assemblage_u()                        
@@ -188,7 +194,7 @@ if solve:
                         convergence = dincMax <= tolConv
                         # if damage.min()>1e-5:
                         #     convergence=False
-                        dold = damage.copy()
+                        
 
                         if iterConv == maxIter:
                                 break
