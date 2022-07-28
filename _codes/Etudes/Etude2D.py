@@ -42,7 +42,7 @@ surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
 # taille = h/30
-taille = h/200
+taille = h/50
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -122,7 +122,9 @@ if plotResult:
 
 ticTot.Tac("Temps script","Temps total", True)        
 
-TicTac.getResume()        
+TicTac.getResume()
+
+TicTac.getGraphs()
 
 if plotResult:
         plt.show()
