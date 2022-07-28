@@ -42,7 +42,7 @@ surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
 # taille = h/30
-taille = h/50
+taille = h/100
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
