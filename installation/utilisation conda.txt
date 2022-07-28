@@ -1,0 +1,69 @@
+Anaconda env
+https://docs.conda.io/projects/conda/en/latest/user-guide/getting-started.html
+# Creation d'un environnement conda
+conda create -n test python=3.6
+
+
+# Activation
+activate test
+
+# Ensuite on peut installer ce qu'on veut 
+pip install numpy
+
+# C'est modifications ne vont modifier que conda
+
+# dans l'environnement donne les packages installés
+conda list
+
+#Pour lancer le script, il faut juste :
+python nom.py
+
+
+# Pour finir on fait
+deactivate
+
+# liste d'environnement
+conda env list
+
+
+
+## INSTALATION
+https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html#install-linux-silent
+
+pour le telecharger il faut telecharger le fichier d'installation sur le site
+et le mettre dans mon environement inmsme
+ensuite je fais
+bash nonfichier.sh
+
+apres je fais le init
+et ensuite dans bashrc voir si les raccourcis ce sont crées
+
+# sur la station au début faire ça va creer une connection avec 
+source ~/.bashrc
+
+#voir dans le dossier 
+less ~/.bashrc
+"..q" pour sortir
+
+
+export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/classes
+
+nedit pour editer un dossier directement depuis un bloc note
+
+Fonctions dans bashrc pour conda
+
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/m/matnoel/anaconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/m/matnoel/anaconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/m/matnoel/anaconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/m/matnoel/anaconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<

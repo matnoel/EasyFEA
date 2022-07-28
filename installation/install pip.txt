@@ -1,0 +1,1 @@
+pip install numpy scipy matplotlib gmsh pandas pypardiso scikit-sparse scikit-umfpack

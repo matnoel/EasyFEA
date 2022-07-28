@@ -1,1 +1,0 @@
-C:\Users\Matthieu\AppData\Local\Programs\Python\Python310\lib\site-packages\scikits\umfpack\_umfpack.py
