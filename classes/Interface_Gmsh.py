@@ -269,7 +269,7 @@ class Interface_Gmsh:
 
                 return cast(Mesh, self.__Recuperation_Maillage(filename))
 
-        # TODO Ici permettre la creation d'une simulation quelquonques avec des points des lignes etc.   
+        # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.   
 
         def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
         surface=None, crack=None, openBoundary=None):

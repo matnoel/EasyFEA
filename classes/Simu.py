@@ -623,7 +623,7 @@ class Simu:
 
             elif method == 1:
                 # Utilise PETSc
-                # TODO Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
+                # Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
                 from petsc4py import PETSc
                 ksp = PETSc.KSP().create()
                 A = PETSc.Mat(A)

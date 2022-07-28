@@ -213,8 +213,6 @@ if solve:
 
             if iterConv == maxIter:
                 break
-        
-        # TODO Comparer avec code matlab
 
         if iterConv == maxIter:
             print(f'On converge pas apres {iterConv} itérations')
