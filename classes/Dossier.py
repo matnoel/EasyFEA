@@ -1,6 +1,7 @@
 import os
 # import 
 # export PYTHONPATH=$PYTHONPATH:/home/matthieu/Documents/PythonEF/classes
+# export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/classes
 
 def GetPath(filename=None):
     """Renvoie le path du fichier ou renvoie le path vers le fichier Dossier donc renvoie Python Ef"""
