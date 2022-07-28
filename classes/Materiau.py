@@ -5,6 +5,8 @@ from Mesh import Mesh
 import numpy as np
 import Affichage
 
+from scipy.linalg import sqrtm
+
 class LoiDeComportement(object):
 
     @staticmethod
@@ -365,7 +367,7 @@ class Elas_IsotTrans(LoiDeComportement):
         """Module de Cisaillent longitudinale"""
 
         erreurPoisson = lambda i :f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
-        # TODO a mettre à jour Peut ne pas être vrai ? -> J'ai vu que cetaot de -1 a 1
+        # TODO a mettre à jour Peut ne pas être vrai ? -> J'ai vu que cetait de -1 a 1
         for v in [vl, vt]: assert v > -1.0 and v < 0.5, erreurPoisson
         self.vl=vl
         """Coef de poisson longitudianale"""
@@ -513,7 +515,13 @@ class PhaseFieldModel:
 
     @staticmethod
     def get_splits():
-        __splits = ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross"]
+        __splits = ["Bourdin","Amor",
+        "Miehe","AnisotMiehe","AnisotMiehe_NoCross",
+        "He", "HeStress",
+        "Stress","AnisotStress","AnisotStress_NoCross"]
+        # __splits = ["Bourdin","Amor",
+        # "Miehe","AnisotMiehe","AnisotMiehe_NoCross",
+        # "Stress","AnisotStress","AnisotStress_NoCross"]
         return __splits
     
     @staticmethod
@@ -728,6 +736,9 @@ class PhaseFieldModel:
         
         elif self.__split in ["Stress","AnisotStress","AnisotStress_NoCross"]:
             cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif)
+
+        elif self.__split in ["He","HeStress"]:
+            cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif)
         
         return cP_e_pg, cM_e_pg            
 
@@ -957,6 +968,73 @@ class PhaseFieldModel:
 
         return cP_e_pg, cM_e_pg
 
+    def __Split_He(self, Epsilon_e_pg: np.ndarray, verif=False):
+            
+        # Ici le matériau est supposé homogène
+        loiDeComportement = self.__loiDeComportement
+
+        if self.__split == "He":
+            
+            C = loiDeComportement.get_C() 
+
+            sqrtC = sqrtm(C)
+            
+            if verif :
+                # Verif C^1/2 * C^1/2 = C
+                testC = np.dot(sqrtC, sqrtC) - C
+                assert np.linalg.norm(testC)/np.linalg.norm(C) < 1e-12
+
+            inv_sqrtC = np.linalg.inv(sqrtC)
+
+            # On calcule les nouveaux vecteurs
+            Epsilont_e_pg = np.einsum('ij,epj->epi', sqrtC, Epsilon_e_pg, optimize=True)
+
+            # On calcule les projecteurs
+            projPt_e_pg, projMt_e_pg = self.__Decomposition_Spectrale(Epsilont_e_pg, verif)
+
+            projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize=True)
+            projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize=True)
+
+            projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize=True); projPT_e_pg = np.einsum('epij->epji', projP_e_pg, optimize=True)
+            projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize=True); projMT_e_pg = np.einsum('epij->epji', projM_e_pg, optimize=True)
+
+            cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize=True)
+            cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize=True)
+
+            vecteur_e_pg = Epsilon_e_pg.copy()
+            mat = C.copy()
+
+        elif self.__split == "HeStress":
+
+            pass
+
+        if verif:
+            # Verification de la décomposition et de l'orthogonalité            
+            vecteurP = np.einsum('epij,epj->epi', projP_e_pg, vecteur_e_pg, optimize=True)
+            vecteurM = np.einsum('epij,epj->epi', projM_e_pg, vecteur_e_pg, optimize=True)           
+            
+            # Et+:Et- = 0 deja dans vérifié dans decomp spec
+            
+            # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg
+            decomp = vecteur_e_pg-(vecteurP + vecteurM)
+            if np.linalg.norm(vecteur_e_pg) > 0:
+                verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
+                assert verifDecomp < 1e-12
+
+            # Orthogonalité E+:C:E-
+            ortho_vP_vM = np.abs(np.einsum('epi,ij,epj->ep',vecteurP, mat, vecteurM, optimize=True))
+            ortho_vM_vP = np.abs(np.einsum('epi,ij,epj->ep',vecteurM, mat, vecteurP, optimize=True))
+            ortho_v_v = np.abs(np.einsum('epi,ij,epj->ep', vecteur_e_pg, mat, vecteur_e_pg, optimize=True))
+            if ortho_v_v.min() > 0:
+                vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
+                tvertifOrthoEpsPM = ortho_vP_vM/ortho_v_v
+                assert vertifOrthoEpsPM < 1e-12
+                vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
+                assert vertifOrthoEpsMP < 1e-12
+
+                
+        return cP_e_pg, cM_e_pg
+
     def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray, verif=False):
         """Calcul projP et projM tel que :\n
 
@@ -991,7 +1069,7 @@ class PhaseFieldModel:
         trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
         determinant_e_pg = np.linalg.det(matrice_e_pg)
 
-        # TODO probleme Elas_Isot False Stress delta négatif !!!
+        # probleme Elas_Isot False Stress delta négatif -> si v est grand (0.49999)
 
         # Calculs des valeurs propres [e,pg]
         delta = trace_e_pg**2 - (4*determinant_e_pg)
