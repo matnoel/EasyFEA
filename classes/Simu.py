@@ -614,26 +614,16 @@ class Simu:
 
         if syst == "Linux":
 
-            method = 5
+            method = 1
 
-            # useCholesky=False           
+            useCholesky = False
 
             if useCholesky and A_isSymetric:
                 x = self.__Cholesky(A, b)
 
             elif method == 1:
-                # Utilise PETSc
-                # Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
-                from petsc4py import PETSc
-                ksp = PETSc.KSP().create()
-                A = PETSc.Mat(A)
-                ksp.setOperators(A)
 
-                ksp.setFromOptions()
-                print('Solving with:'), ksp.getType()
-
-                # Solve!
-                ksp.solve(b, x)
+                x = self.__Pypardiso_spsolve(A, b)
 
             elif method == 2:
                 # Utilise umfpack
@@ -659,24 +649,34 @@ class Simu:
 
             elif method == 5:
 
-                b = b.toarray()
-                x = pypardiso.spsolve(A,b) 
+                # Utilise PETSc
+                # Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
+                from petsc4py import PETSc
+                ksp = PETSc.KSP().create()
+                A = PETSc.Mat(A)
+                ksp.setOperators(A)
 
+                ksp.setFromOptions()
+                print('Solving with:'), ksp.getType()
+
+                # Solve!
+                ksp.solve(b, x)
                 
         elif syst == "Windows":
             
-            use_pypardiso = True
-            useCholesky=False
+            method = 1
+            
+            useCholesky = False
 
             if useCholesky and A_isSymetric:
 
                 x = self.__Cholesky(A, b)
 
-            elif use_pypardiso:
+            elif method == 1:
 
-                b = b.toarray()
-                x = pypardiso.spsolve(A,b)
-            else:                
+                x = self.__Pypardiso_spsolve(A, b)
+
+            elif method == 2:                
                 # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems                    
                 # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
                 
@@ -708,6 +708,14 @@ class Simu:
         tac = tic.Tac(f"Solve {problemType}","Solve Ax=b",self.__verbosity)
 
         return x
+    
+    def __Pypardiso_spsolve(self, A, b):
+
+        b = b.toarray()
+        x = pypardiso.spsolve(A, b)
+
+        return x
+
 
     def __Cholesky(self, A, b):
         # Décomposition de cholesky 
