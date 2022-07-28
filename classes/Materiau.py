@@ -517,10 +517,11 @@ class PhaseFieldModel:
     def get_splits():
         __splits = ["Bourdin","Amor",
         "Miehe","AnisotMiehe","AnisotMiehe_NoCross",
-        "He", "HeStress",
+        "He",
         "Stress","AnisotStress","AnisotStress_NoCross"]
         # __splits = ["Bourdin","Amor",
         # "Miehe","AnisotMiehe","AnisotMiehe_NoCross",
+        # "He", "HeStress",
         # "Stress","AnisotStress","AnisotStress_NoCross"]
         return __splits
     
@@ -995,8 +996,10 @@ class PhaseFieldModel:
             projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize=True)
             projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize=True)
 
-            projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize=True); projPT_e_pg = np.einsum('epij->epji', projP_e_pg, optimize=True)
-            projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize=True); projMT_e_pg = np.einsum('epij->epji', projM_e_pg, optimize=True)
+            projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize=True)
+            projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
+            projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize=True)
+            projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
 
             cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize=True)
             cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize=True)
@@ -1031,7 +1034,6 @@ class PhaseFieldModel:
                 assert vertifOrthoEpsPM < 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
-
                 
         return cP_e_pg, cM_e_pg
 
