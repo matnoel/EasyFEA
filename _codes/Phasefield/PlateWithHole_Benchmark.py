@@ -15,14 +15,14 @@ Affichage.Clear()
 
 # Options
 
-test=True
+test=False
 solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "Miehe" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
-regu = "AT2" # "AT1", "AT2"
-simpli2D = "CP" # ["CP","DP"]
+split = "Bourdin" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
+regu = "AT1" # "AT1", "AT2"
+simpli2D = "DP" # ["CP","DP"]
 
 # Data
 
