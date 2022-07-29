@@ -397,6 +397,8 @@ def __WriteBinary(valeur, type: str, file):
 
 def Save_fig(folder:str, title: str,transparent=False, extension='png'):
 
+    if folder == "": return
+
     for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
 
     nom = Dossier.Join([folder, title+'.'+extension])
