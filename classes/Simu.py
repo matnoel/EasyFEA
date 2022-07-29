@@ -224,14 +224,16 @@ class Simu:
             c = cP_e_pg+cM_e_pg
             
             # Matrice de rigidité élementaire
-            Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize=True)
+            # Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize=True)
+            Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize=True)
             
         else:   # probleme en déplacement simple
 
-            Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize=True)
+            # Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize=True)
+            Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize=True)
         
-        # On somme sur les points d'intégrations
-        Ku_e = np.sum(Ku_e_pg, axis=1)
+        # # On somme sur les points d'intégrations
+        # Ku_e = np.sum(Ku_e_pg, axis=1)
 
         if self.__dim == 2:
             Ku_e = Ku_e * self.materiau.comportement.epaisseur
@@ -365,19 +367,24 @@ class Simu:
         # Probleme de la forme K*Laplacien(d) + r*d = F
 
         # Partie qui fait intervenir le therme de reaction r
-        K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
+        # K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
+        K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
 
         # Partie qui fait intervenir le therme de diffusion K
-        K_K_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize=True)
+        # K_K_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize=True)
+        K_K_e_pg = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize=True)
 
         Kd_e_pg = K_r_e_pg+K_K_e_pg
         
-        Kd_e = np.sum(Kd_e_pg, axis=1)
+        # Kd_e = np.sum(Kd_e_pg, axis=1)
+        Kd_e = Kd_e_pg
 
         # Construit Fd_e
-        Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize=True)
+        # Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize=True)
+        Fd_e_pg = np.einsum('ep,p,ep,pji->eij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize=True)
 
-        Fd_e = np.sum(Fd_e_pg, axis=1)
+        # Fd_e = np.sum(Fd_e_pg, axis=1)
+        Fd_e = Fd_e_pg
 
         tic.Tac("Matrices","Calcul des matrices elementaires (endommagement)", self.__verbosity)
 
