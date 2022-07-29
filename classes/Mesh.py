@@ -26,6 +26,8 @@ class Mesh:
 
         self.__dict_groupElem = dict_groupElem
 
+        self.__dict_B_dep_e_pg = {}
+
         self.__verbosity = verbosity
         """le maillage peut ecrire dans la console"""
         
@@ -213,7 +215,10 @@ class Mesh:
         [dN1,x 0 dN2,x 0 dNn,x 0\n
         0 dN1,y 0 dN2,y 0 dNn,y\n
         dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]
-        """         
+        """
+
+        # if matriceType not in self.__dict_B_dep_e_pg:
+
         dN_e_pg = self.get_B_sclaire_e_pg(matriceType)
 
         nPg = self.get_nPg(matriceType)
@@ -250,8 +255,10 @@ class Mesh:
             B_e_pg[:,:,3,colonnes1] = dNdz; B_e_pg[:,:,3,colonnes2] = dNdy
             B_e_pg[:,:,4,colonnes0] = dNdz; B_e_pg[:,:,4,colonnes2] = dNdx
             B_e_pg[:,:,5,colonnes0] = dNdy; B_e_pg[:,:,5,colonnes1] = dNdx
+        
+        self.__dict_B_dep_e_pg[matriceType] = B_e_pg
 
-        return B_e_pg    
+        return B_e_pg
     
     def get_nbFaces(self):
         return self.groupElem.nbFaces
