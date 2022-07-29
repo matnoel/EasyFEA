@@ -9,12 +9,16 @@ from Mesh import Mesh
 from Simu import Simu
 import Affichage
 from TicTac import TicTac
+import Dossier
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 Affichage.Clear()
+
+
+folder = Dossier.NewFile("Convergence 2D", results=True)
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -154,6 +158,8 @@ ax_Temps.legend(GroupElem.get_Types2D())
 
 
 TicTac.getResume()
+
+TicTac.getGraphs(folder)
 
 plt.show()
 

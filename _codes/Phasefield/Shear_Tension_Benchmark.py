@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 Affichage.Clear()
 
 simulation = "Shear" #"Shear" , "Tension"
-folder = '_'.join(["Benchmarck",simulation])
+folder = '_'.join([simulation,"Benchmarck"])
 folder = Dossier.NewFile(folder, results=True)
 
 test = True
@@ -32,8 +32,8 @@ makeMovie = False
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot"
-split = "AnisotMiehe" # "Bourdin","Amor","Miehe","Stress"
-regularisation = "AT1" # "AT1", "AT2"
+split = "He" # "Bourdin","Amor","Miehe","Stress"
+regularisation = "AT2" # "AT1", "AT2"
 openCrack = True
 
 nameSimu = '_'.join([comportement,split,regularisation])
@@ -70,7 +70,7 @@ if solve:
 
         elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-        interfaceGmsh = Interface_Gmsh(affichageGmsh=True)
+        interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
 
         if openCrack:
                 meshName = "carré avec fissure ouverte.msh"
@@ -170,7 +170,7 @@ if solve:
 
                 iterConv=0
                 convergence = False
-                d = simu.damage
+                damage = simu.damage
 
                 Chargement(dep)
 
@@ -281,6 +281,8 @@ if saveParaview:
 
 
 TicTac.getResume()
+
+TicTac.getGraphs(folder)
 
 plt.show()
 
