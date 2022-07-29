@@ -1,15 +1,20 @@
+
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+
 
 class TicTac:
     
     __Historique = {}
-    """historique des temps (catégorie, temps, texte)"""
+    """historique des temps = { catégorie: list( [texte, temps] ) }"""
        
     @staticmethod
     def getResume():
         """Construit le résumé de TicTac"""
+
+        if TicTac.__Historique == {}: return
 
         # print("\n Résumé TicTac :")
 
@@ -18,24 +23,69 @@ class TicTac:
         Affichage.NouvelleSection("Résumé TicTac")
 
         for categorie in TicTac.__Historique:
-            histoCategorie = np.array(np.array(TicTac.__Historique[categorie])[:,0] , dtype=np.float64)
+            histoCategorie = np.array(np.array(TicTac.__Historique[categorie])[:,1] , dtype=np.float64)
             tempsCatégorie = np.sum(histoCategorie)
             texte = f"{categorie} : {tempsCatégorie:.3f} s"
             print(texte)
 
+    @staticmethod
+    def __plotBar(ax: plt.Axes, categories: str, temps: float, titre: str):
+        # Parmètres axes
+        ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
+        ax.yaxis.set_visible(False)
+        ax.set_axisbelow(True)
+
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["left"].set_lw(1.5)
+
+        ax.grid(axis = "x", lw=1.2)
+
+        for i, (c, t) in enumerate(zip(categories, temps)):
+            # ax1.barh(i, t, height=0.55, align="edge", label=c)
+            ax.barh(i, t, align="edge", label=c)
+
+        plt.legend()
+        ax.set_title(titre)
+
     @staticmethod 
-    def getGraphs(folder=""):
+    def getGraphs(folder="", details=True):
 
-        # On construit un disque avec toute les catégories
-        tempsCatégories = []
-        tempsCatégoriesStr = []
+        if TicTac.__Historique == {}: return
 
-        for categorie in TicTac.__Historique:
-            histoCategorie = np.array(np.array(TicTac.__Historique[categorie])[:,0] , dtype=np.float64)
-            tempsCatégories.append(np.sum(histoCategorie))
-            tempsCatégoriesStr.append(f"{np.round(np.sum(histoCategorie),3)} s")
+        historique = TicTac.__Historique        
+        tempsTotCategorie = []
+        categories = list(historique.keys())
 
-        fig1, ax1 = plt.subplots()
+        if details:
+            for c in categories:
+
+                tempsSousCategorie = np.array(np.array(historique[c])[:,1] , dtype=np.float64) #temps des sous categories de c
+                tempsTotCategorie.append(np.sum(tempsSousCategorie)) #somme tout les temps de cette catégorie
+                sousCategories = np.array(np.array(historique[c])[:,0] , dtype=str) #sous catégories
+
+                # On construit un tableau pour les sommé sur les sous catégories
+                dfSousCategorie = pd.DataFrame({'sous categories' : sousCategories, 'temps': tempsSousCategorie})
+                dfSousCategorie = dfSousCategorie.groupby(['sous categories']).sum()
+                sousCategories = dfSousCategorie.index.tolist()
+                # print(dfSousCategorie)
+
+                if len(sousCategories) > 1:
+                    fig, ax = plt.subplots()
+                    TicTac.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
+                
+                    if folder != "":
+                        import PostTraitement
+                        PostTraitement.Save_fig(folder, c)
+                
+        
+        fig, ax = plt.subplots()
+        TicTac.__plotBar(ax, historique, tempsTotCategorie, "Simulation")
+
+        if folder != "":
+            import PostTraitement
+            PostTraitement.Save_fig(folder, "Simulation")
 
         # # Camembert
         # my_circle = plt.Circle( (0,0), 0, color='white')
@@ -44,41 +94,6 @@ class TicTac:
         # wedgeprops = { 'linewidth' : 0, 'edgecolor' : 'white' })
         # p = plt.gcf()
         # ax1.add_artist(my_circle)
-
-
-        # Batton horizontal
-        ax1.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
-        ax1.set_axisbelow(True)
-        ax1.spines["right"].set_visible(False)
-        ax1.spines["top"].set_visible(False)
-        ax1.spines["bottom"].set_visible(False)
-        ax1.spines["left"].set_lw(1.5)
-
-        ax1.grid(axis = "x", color="#A8BAC4", lw=1.2)
-
-        y_pos = np.arange(len(TicTac.__Historique))
-        ax1.barh(y_pos, tempsCatégories)
-        plt.yticks(y_pos, TicTac.__Historique)
-
-        # # This allows us to determine exactly where each bar is located
-        # y = [i * 0.9 for i in range(len(TicTac.__Historique))]
-        
-        # PAD = 0.3
-        # for name, count, y_pos in zip(TicTac.__Historique, tempsCatégories, y):
-        #     x = 0
-        #     color = "white"
-        #     path_effects = None
-        #     if count < 8:
-        #         x = count
-        #         color = "blue"    
-        #         path_effects=[withStroke(linewidth=6, foreground="white")]
-            
-        #     ax1.text(
-        #         x + PAD, y_pos + 0.5 / 2, name, 
-        #         color=color, fontfamily="Econ Sans Cnd", fontsize=18, va="center",
-        #         path_effects=path_effects
-        #     )
-        
 
         # # On contstruit un disque pour chaque sous catégorie d'une catégorie
 
@@ -95,7 +110,7 @@ class TicTac:
 
         texteAvecLeTemps = "{} ({:.3f} s)".format(texte, tf)        
         
-        value = [tf, texte]
+        value = [texte, tf]
 
         if categorie in TicTac.__Historique:
             old = list(TicTac.__Historique[categorie])
