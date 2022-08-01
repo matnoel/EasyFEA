@@ -10,265 +10,277 @@ import PostTraitement
 
 import matplotlib.pyplot as plt
 
-Affichage.Clear()
+# Affichage.Clear()
 # mpirun -np 4 python3 PlateWithHole_Benchmark.py
 
 # Options
 
-test=True
+test=False
 solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "He" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","Stress","AnisotStress","AnisotStress_NoCross]
+split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 
-# Data
+# ,"AnisotMiehe","AnisotMiehe_NoCross","AnisotStress","AnisotStress_NoCross"
+for split in ["Bourdin","Amor","Miehe","He","Stress"]:
 
-L=15e-3
-h=30e-3
-ep=1
-diam=6e-3
+    # Data
 
-if comp == "Elas_Isot":
-    E=12e9
-    v=0.3
-elif comp == "Elas_IsotTrans":
-    # El=11580*1e6
-    El=12e9
-    Et=500*1e6
-    Gl=450*1e6
-    vl=0.02
-    vt=0.44
+    L=15e-3
+    h=30e-3
+    ep=1
+    diam=6e-3
 
-gc = 1.4
-l_0 = 0.12e-3
-
-# Création de la simulations
-
-umax = 25e-6
-# umax = 40e-6
-
-if test:
-    clD = 0.25e-3
-    clC = 0.12e-3
-    # clD = l_0*2
-    # clC = l_0
-
-    # inc0 = 16e-8
-    # inc1 = 4e-8
-
-    # inc0 = 8e-84
-    inc0 = 8e-8
-    inc1 = 2e-8 
-else:
-    clD = l_0
-    clC = l_0/2
-
-    inc0 = 8e-8
-    inc1 = 2e-8 
-
-nom="_".join([comp, split, regu, simpli2D])
-if comp == "Elas_Isot":
-    nom = f"{nom} pour v={v}"
-
-nomDossier = "PlateWithHole_Benchmark"
-
-folder = Dossier.NewFile(nomDossier, results=True)
-
-if test:
-    folder = Dossier.Join([folder, "Test", nom])
-else:
-    folder = Dossier.Join([folder, nom])
-
-if solve:
-
-    print(folder)
-
-    point = Point()
-    domain = Domain(point, Point(x=L, y=h), clD)
-    circle = Circle(Point(x=L/2, y=h/2), diam, clC)
-
-    interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True)
-    mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
-
-    if simpli2D == "CP":
-        isCp = True
-    else:
-        isCp = False
-    
     if comp == "Elas_Isot":
-        comportement = Materiau.Elas_Isot(2,
-        E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
+        E=12e9
+        v=0.3
     elif comp == "Elas_IsotTrans":
-        comportement = Materiau.Elas_IsotTrans(2,
-                    El=El, Et=Et, Gl=Gl, vl=vl, vt=vt,
-                    contraintesPlanes=isCp, epaisseur=ep,
-                    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+        # El=11580*1e6
+        El=12e9
+        Et=500*1e6
+        Gl=450*1e6
+        vl=0.02
+        vt=0.44
 
-    phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
-    materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
+    gc = 1.4
+    l_0 = 0.12e-3
 
-    simu = Simu.Simu(mesh, materiau, verbosity=False)
+    # Création de la simulations
 
-    # Récupérations des noeuds
+    umax = 25e-6
+    # umax = 40e-6
 
-    B_lower = Line(point,Point(x=L))
-    B_upper = Line(Point(y=h),Point(x=L, y=h))
-    B_left = Line(point,Point(y=h))
-    B_right = Line(Point(x=L),Point(x=L, y=h))
+    if test:
+        clD = 0.25e-3
+        clC = 0.12e-3
+        # clD = l_0*2
+        # clC = l_0
 
-    c = diam/10
-    domainA = Domain(Point(x=(L-c)/2, y=h/2+0.8*diam/2), Point(x=(L+c)/2, y=h/2+0.8*diam/2+c))
-    domainB = Domain(Point(x=L/2+0.8*diam/2, y=(h-c)/2), Point(x=L/2+0.8*diam/2+c, y=(h+c)/2))
+        # inc0 = 16e-8
+        # inc1 = 4e-8
 
-    nodes_lower = mesh.Get_Nodes_Line(B_lower)
-    nodes_upper = mesh.Get_Nodes_Line(B_upper)
-    nodes_left = mesh.Get_Nodes_Line(B_left)
-    nodes_right = mesh.Get_Nodes_Line(B_right)
+        # inc0 = 8e-84
+        inc0 = 8e-8
+        inc1 = 2e-8 
+    else:
+        clD = l_0
+        clC = l_0/2
 
-    # noeuds_bord = np.array().reshape(-1)
-    noeuds_bord = []
-    for ns in [nodes_lower, nodes_upper, nodes_left, nodes_right]:
-        noeuds_bord.extend(ns)
-    noeuds_bord = np.unique(noeuds_bord)
-    
-    node00 = mesh.Get_Nodes_Point(point)
-    nodesA = mesh.Get_Nodes_Domain(domainA)
-    nodesB = mesh.Get_Nodes_Domain(domainB)
+        inc0 = 8e-8
+        inc1 = 2e-8
 
-    ud=0
-    damage_t=[]
-
-    ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
-
-    def Chargement():
-        simu.Init_Bc()
-        simu.add_dirichlet("displacement", nodes_lower, [0], ["y"])
-        simu.add_dirichlet("displacement", node00, [0], ["x"])
-        simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
-
-    Chargement()
-    
-    # Affichage.Plot_BoundaryConditions(simu)
-    # plt.show()
-
-    Affichage.NouvelleSection("Simulation")
-
+    # Convergence
     maxIter = 250
-    # tolConv = 0.0025
-    # tolConv = 0.005
     tolConv = 0.01
-    resol = 0
-    bord = 0
-    displacement = []
-    load = []
 
-    while ud <= umax:
+    nom="_".join([comp, split, regu, simpli2D])
 
-        resol += 1
+    if tolConv < 1:
+        testConvergence = True
+        nom += f'_convergence{tolConv}'
+    else:
+        testConvergence = False
+
+    if comp == "Elas_Isot":
+        nom = f"{nom} pour v={v}"
+
+    nomDossier = "PlateWithHole_Benchmark"
+
+    folder = Dossier.NewFile(nomDossier, results=True)
+
+    if test:
+        folder = Dossier.Join([folder, "Test", nom])
+    else:
+        folder = Dossier.Join([folder, nom])
+
+
+
+    if solve:
+
+        print(folder)
+
+        point = Point()
+        domain = Domain(point, Point(x=L, y=h), clD)
+        circle = Circle(Point(x=L/2, y=h/2), diam, clC)
+
+        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
+        mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
+
+        if simpli2D == "CP":
+            isCp = True
+        else:
+            isCp = False
         
-        tic = TicTac()
+        if comp == "Elas_Isot":
+            comportement = Materiau.Elas_Isot(2,
+            E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
+        elif comp == "Elas_IsotTrans":
+            comportement = Materiau.Elas_IsotTrans(2,
+                        El=El, Et=Et, Gl=Gl, vl=vl, vt=vt,
+                        contraintesPlanes=isCp, epaisseur=ep,
+                        axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-        iterConv=0
-        convergence = False
-        d = simu.damage
+        phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
+        materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
+
+        simu = Simu.Simu(mesh, materiau, verbosity=False)
+
+        # Récupérations des noeuds
+
+        B_lower = Line(point,Point(x=L))
+        B_upper = Line(Point(y=h),Point(x=L, y=h))
+        B_left = Line(point,Point(y=h))
+        B_right = Line(Point(x=L),Point(x=L, y=h))
+
+        c = diam/10
+        domainA = Domain(Point(x=(L-c)/2, y=h/2+0.8*diam/2), Point(x=(L+c)/2, y=h/2+0.8*diam/2+c))
+        domainB = Domain(Point(x=L/2+0.8*diam/2, y=(h-c)/2), Point(x=L/2+0.8*diam/2+c, y=(h+c)/2))
+
+        nodes_lower = mesh.Get_Nodes_Line(B_lower)
+        nodes_upper = mesh.Get_Nodes_Line(B_upper)
+        nodes_left = mesh.Get_Nodes_Line(B_left)
+        nodes_right = mesh.Get_Nodes_Line(B_right)
+
+        # noeuds_bord = np.array().reshape(-1)
+        noeuds_bord = []
+        for ns in [nodes_lower, nodes_upper, nodes_left, nodes_right]:
+            noeuds_bord.extend(ns)
+        noeuds_bord = np.unique(noeuds_bord)
+        
+        node00 = mesh.Get_Nodes_Point(point)
+        nodesA = mesh.Get_Nodes_Domain(domainA)
+        nodesB = mesh.Get_Nodes_Domain(domainB)
+
+        ud=0
+        damage_t=[]
+
+        ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
+
+        def Chargement():
+            simu.Init_Bc()
+            simu.add_dirichlet("displacement", nodes_lower, [0], ["y"])
+            simu.add_dirichlet("displacement", node00, [0], ["x"])
+            simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
 
         Chargement()
+        
+        # Affichage.Plot_BoundaryConditions(simu)
+        # plt.show()
 
-        while not convergence:
+        Affichage.NouvelleSection("Simulation")
+
+        
+
+        resol = 0
+        bord = 0
+        displacement = []
+        load = []
+
+        while ud <= umax:
+
+            resol += 1
             
-            iterConv += 1
-            dold = d.copy()
+            tic = TicTac()
 
-            # Damage
-            simu.Assemblage_d()
-            d = simu.Solve_d()
+            iterConv=0
+            convergence = False
+            d = simu.damage
 
-            # Displacement
-            Kglob = simu.Assemblage_u()            
-            u = simu.Solve_u()
+            Chargement()
 
-            dincMax = np.max(np.abs(d-dold))
-            # TODO faire en relatif np.max(np.abs((damage-dold)/dold))?
-            convergence = dincMax <= tolConv
-            # if damage.min()>1e-5:
-            #     convergence=False
+            while not convergence:
+                
+                iterConv += 1
+                dold = d.copy()
+
+                # Damage
+                simu.Assemblage_d()
+                d = simu.Solve_d()
+
+                # Displacement
+                Kglob = simu.Assemblage_u()            
+                u = simu.Solve_u()
+
+                dincMax = np.max(np.abs(d-dold))
+                # TODO faire en relatif np.max(np.abs((damage-dold)/dold))?
+                convergence = dincMax <= tolConv
+                # if damage.min()>1e-5:
+                #     convergence=False
+
+                if iterConv == maxIter:
+                    break
+                
+                if not testConvergence:
+                    convergence=True
 
             if iterConv == maxIter:
+                print(f'On converge pas apres {iterConv} itérations')
                 break
 
-            convergence=True
+            simu.Save_Iteration()
 
-        if iterConv == maxIter:
-            print(f'On converge pas apres {iterConv} itérations')
-            break
+            temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
+            temps = np.round(temps,3)
+            max_d = d.max()
+            min_d = d.min()
+            f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 
-        simu.Save_Iteration()
+            print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 
-        temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
-        temps = np.round(temps,3)
-        max_d = d.max()
-        min_d = d.min()
-        f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize=True))
+            # if ud>12e-6:
+            #     inc0 = 1e-8
 
-        print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
+            if max_d<0.6:
+                ud += inc0
+            else:
+                ud += inc1
+            
+            if np.any(d[noeuds_bord] >= 0.95):
+                bord +=1
+            
+            if bord == 50:
+                break
 
-        # if ud>12e-6:
-        #     inc0 = 1e-8
+            displacement.append(ud)
+            load.append(f)
 
-        if max_d<0.6:
-            ud += inc0
-        else:
-            ud += inc1
-        
-        if np.any(d[noeuds_bord] >= 0.95):
-            bord +=1
-        
-        # if bord == 1:
-        #     break
+        load = np.array(load)
+        displacement = np.array(displacement)
 
-        displacement.append(ud)
-        load.append(f)
+        # Sauvegarde
+        PostTraitement.Save_Simu(simu, folder)
 
-    load = np.array(load)
-    displacement = np.array(displacement)
+        PostTraitement.Save_Load_Displacement(load, displacement, folder)
+            
+    else:
 
-    # Sauvegarde
-    PostTraitement.Save_Simu(simu, folder)
+        simu = PostTraitement.Load_Simu(folder)
 
-    PostTraitement.Save_Load_Displacement(load, displacement, folder)
-        
-else:
+        load, displacement = PostTraitement.Load_Load_Displacement(folder)
 
-    simu = PostTraitement.Load_Simu(folder)
+    fig, ax = plt.subplots()
+    ax.plot(displacement*1e3, np.abs(load)/1e6, c='blue')
+    ax.set_xlabel("ud en mm")
+    ax.set_ylabel("f en kN")
+    ax.grid()
+    PostTraitement.Save_fig(folder, "forcedep")
 
-    load, displacement = PostTraitement.Load_Load_Displacement(folder)
-
-fig, ax = plt.subplots()
-ax.plot(displacement*1e3, np.abs(load)/1e6, c='blue')
-ax.set_xlabel("ud en mm")
-ax.set_ylabel("f en kN")
-ax.grid()
-PostTraitement.Save_fig(folder, "forcedep")
-
-if comp == "Elas_Isot":
-    filenameDamage = f"{split} damage_n pour v={v}"
-    titleDamage = fr"$\phi \ pour \ \nu ={v}$"
-else:
     filenameDamage = f"{split} damage_n"
     titleDamage = fr"$\phi$"
 
 
+    Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
+    folder=folder, filename=filenameDamage, 
+    title=titleDamage)
 
-Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
-folder=folder, filename=filenameDamage, 
-title=titleDamage)
+    if saveParaview:
+        PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
-if saveParaview:
-    PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+    TicTac.getResume()
 
-TicTac.getResume()
+    TicTac.getGraphs(folder)
 
-plt.show()
+# plt.show()
