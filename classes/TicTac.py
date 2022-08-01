@@ -6,6 +6,11 @@ import pandas as pd
 
 
 class TicTac:
+
+    @staticmethod
+    def Clear():
+        """Supprime l'historique"""
+        TicTac.__Historique = {}
     
     __Historique = {}
     """historique des temps = { catégorie: list( [texte, temps] ) }"""
