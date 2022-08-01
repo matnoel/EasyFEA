@@ -23,6 +23,7 @@ comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
+useHistory=False
 
 # ,"AnisotMiehe","AnisotMiehe_NoCross","AnisotStress","AnisotStress_NoCross"
 for split in ["Bourdin","Amor","Miehe","He","Stress"]:
@@ -83,6 +84,9 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]:
         nom += f'_convergence{tolConv}'
     else:
         testConvergence = False
+    
+    if not useHistory:
+        nom += '_noHistory'
 
     if comp == "Elas_Isot":
         nom = f"{nom} pour v={v}"
@@ -123,7 +127,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]:
                         contraintesPlanes=isCp, epaisseur=ep,
                         axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-        phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
+        phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
         materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 
         simu = Simu.Simu(mesh, materiau, verbosity=False)
@@ -282,5 +286,9 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]:
     TicTac.getResume()
 
     TicTac.getGraphs(folder)
+
+    TicTac.Clear()
+
+    plt.close('all')
 
 # plt.show()
