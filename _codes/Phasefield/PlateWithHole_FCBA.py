@@ -231,7 +231,7 @@ if solve:
             force = load
         else:
             depl = ud
-            force = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize=True))
+            force = np.sum(np.einsum('ij,j->i', Kglob[nodes_upper*2, nodes_upper*2], displacement[nodes_upper*2], optimize='optimal'))
 
         # depl = np.abs(np.max(displacement[noeuds_cercle*2]))
         if loadInHole:
