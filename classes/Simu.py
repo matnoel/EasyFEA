@@ -219,18 +219,18 @@ class Simu:
 
             # Endommage : c = g(d) * cP + cM
             g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matriceType)
-            cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize=True)
+            cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
 
             c = cP_e_pg+cM_e_pg
             
             # Matrice de rigidité élementaire
-            # Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize=True)
-            Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize=True)
+            # Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize='optimal')
+            Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize='optimal')
             
         else:   # probleme en déplacement simple
 
-            # Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize=True)
-            Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize=True)
+            # Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize='optimal')
+            Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize='optimal')
         
         # # On somme sur les points d'intégrations
         # Ku_e = np.sum(Ku_e_pg, axis=1)
@@ -367,12 +367,12 @@ class Simu:
         # Probleme de la forme K*Laplacien(d) + r*d = F
 
         # Partie qui fait intervenir le therme de reaction r
-        # K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
-        K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize=True)
+        # K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
+        K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
 
         # Partie qui fait intervenir le therme de diffusion K
-        # K_K_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize=True)
-        K_K_e_pg = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize=True)
+        # K_K_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
+        K_K_e_pg = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
 
         Kd_e_pg = K_r_e_pg+K_K_e_pg
         
@@ -380,8 +380,8 @@ class Simu:
         Kd_e = Kd_e_pg
 
         # Construit Fd_e
-        # Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize=True)
-        Fd_e_pg = np.einsum('ep,p,ep,pji->eij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize=True)
+        # Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize='optimal')
+        Fd_e_pg = np.einsum('ep,p,ep,pji->eij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize='optimal')
 
         # Fd_e = np.sum(Fd_e_pg, axis=1)
         Fd_e = Fd_e_pg
@@ -889,7 +889,7 @@ class Simu:
         # Intègre sur chaque direction
         for d, dir in enumerate(directions):
             eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
-            valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
+            valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
             valeurs_e = np.sum(valeurs_e_p, axis=1)
             valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
 
@@ -932,7 +932,7 @@ class Simu:
         # Intégre sur chaque direction
         for d, dir in enumerate(directions):
             eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
-            valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize=True)
+            valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
             valeurs_e = np.sum(valeurs_e_p, axis=1)
             valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
 
@@ -1018,21 +1018,21 @@ class Simu:
 
             # Endommage : psiP_e_pg = g(d) * PsiP_e_pg 
             g_e_pg = phaseFieldModel.get_g_e_pg(d, self.__mesh, matriceType)
-            psiP_e_pg = np.einsum('ep,ep->ep', g_e_pg, psiP_e_pg, optimize=True)
+            psiP_e_pg = np.einsum('ep,ep->ep', g_e_pg, psiP_e_pg, optimize='optimal')
             psi_e_pg = psiP_e_pg + psiM_e_pg
 
-            Wdef = np.einsum(',ep,p,ep->', ep, jacobien_e_pg, poid_pg, psi_e_pg, optimize=True)
+            Wdef = np.einsum(',ep,p,ep->', ep, jacobien_e_pg, poid_pg, psi_e_pg, optimize='optimal')
 
         else:
 
             Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg, matriceType)
             
-            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg, optimize=True)
+            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')
 
             # # Calcul par Element fini
             # u_e = self.__mesh.Localises_sol_e(sol_u)
             # Ku_e = self.__ConstruitMatElem_Dep()
-            # Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ku_e, u_e, optimize=True)
+            # Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ku_e, u_e, optimize='optimal')
         
         return Wdef
 
@@ -1043,7 +1043,7 @@ class Simu:
         d_n = self.__damage
         d_e = self.__mesh.Localises_sol_e(d_n)
         Kd_e, Fd_e = self.__ConstruitMatElem_Pfm()
-        Psi_Crack = 1/2 * np.einsum('ei,eij,ej->', d_e, Kd_e, d_e, optimize=True)
+        Psi_Crack = 1/2 * np.einsum('ei,eij,ej->', d_e, Kd_e, d_e, optimize='optimal')
 
         return Psi_Crack
 
@@ -1069,7 +1069,7 @@ class Simu:
 
         B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)            
         
-        Epsilon_e_pg = np.einsum('epik,ek->epi', B_dep_e_pg, u_e, optimize=True)        
+        Epsilon_e_pg = np.einsum('epik,ek->epi', B_dep_e_pg, u_e, optimize='optimal')        
 
         return Epsilon_e_pg
 
@@ -1100,14 +1100,14 @@ class Simu:
 
             # Endommage : Sig = g(d) * SigP + SigM
             g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
-            SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize=True)
+            SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
 
             Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
             
         else:
 
             c = self.materiau.comportement.get_C()
-            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize=True)            
+            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize='optimal')            
 
         return cast(np.ndarray, Sigma_e_pg)
 

@@ -472,8 +472,8 @@ class Elas_IsotTrans(LoiDeComportement):
         # assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
 
         # Effectue le changement de base pour orienter le matériau dans lespace
-        global_sM = np.einsum('ji,jk,kl->il',M, material_sM, M, optimize=True)
-        global_cM = np.einsum('ji,jk,kl->il',M, material_cM, M, optimize=True)
+        global_sM = np.einsum('ji,jk,kl->il',M, material_sM, M, optimize='optimal')
+        global_cM = np.einsum('ji,jk,kl->il',M, material_cM, M, optimize='optimal')
         
         # verification que si les axes ne change pas on obtient bien la meme loi de comportement
         test_diff_c = global_cM - material_cM
@@ -576,7 +576,7 @@ class PhaseFieldModel:
         d_e_n = mesh.Localises_sol_e(d_n)
         Nd_pg = mesh.get_N_scalaire_pg(matriceType)
 
-        d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize=True)        
+        d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize='optimal')        
 
         if self.__regularization in ["AT1","AT2"]:
             g_e_pg = (1-d_e_pg)**2 + k_residu
@@ -670,8 +670,8 @@ class PhaseFieldModel:
 
         SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
 
-        psiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
-        psiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg))
+        psiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
+        psiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
         
         return psiP_e_pg, psiM_e_pg
 
@@ -698,8 +698,8 @@ class PhaseFieldModel:
 
         cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 
-        SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg, comp))
-        SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize=True).reshape((Ne, nPg, comp))
+        SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
+        SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
 
         return SigmaP_e_pg, SigmaM_e_pg
     
@@ -771,8 +771,8 @@ class PhaseFieldModel:
             
         
         # projetcteur spherique
-        spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize=True)
-        spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize=True)
+        spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
+        spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
        
         cP_e_pg = bulk*spherP_e_pg + partieDeviateur
         cM_e_pg = bulk*spherM_e_pg
@@ -824,8 +824,8 @@ class PhaseFieldModel:
             IxI = I.dot(I.T)
 
             # Calcul partie sphérique
-            spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize=True)
-            spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize=True)
+            spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
+            spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
 
             # Calcul de la loi de comportement
             lamb = self.__loiDeComportement.get_lambda()
@@ -845,13 +845,13 @@ class PhaseFieldModel:
             
             c = self.__loiDeComportement.get_C()
 
-            projPT_e_pg = np.einsum('epij->epji', projP_e_pg, optimize=True)
-            projMT_e_pg = np.einsum('epij->epji', projM_e_pg, optimize=True)
+            projPT_e_pg = np.einsum('epij->epji', projP_e_pg, optimize='optimal')
+            projMT_e_pg = np.einsum('epij->epji', projM_e_pg, optimize='optimal')
 
-            Cpp = np.einsum('epij,jk,epkl->epil', projPT_e_pg, c, projP_e_pg, optimize=True)
-            Cpm = np.einsum('epij,jk,epkl->epil', projPT_e_pg, c, projM_e_pg, optimize=True)
-            Cmm = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projM_e_pg, optimize=True)
-            Cmp = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projP_e_pg, optimize=True)
+            Cpp = np.einsum('epij,jk,epkl->epil', projPT_e_pg, c, projP_e_pg, optimize='optimal')
+            Cpm = np.einsum('epij,jk,epkl->epil', projPT_e_pg, c, projM_e_pg, optimize='optimal')
+            Cmm = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projM_e_pg, optimize='optimal')
+            Cmp = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projP_e_pg, optimize='optimal')
 
             if self.__split ==  "AnisotMiehe_NoCross":
                 
@@ -882,7 +882,7 @@ class PhaseFieldModel:
         # Ici le matériau est supposé homogène
         loiDeComportement = self.__loiDeComportement
         C = loiDeComportement.get_C()    
-        Sigma_e_pg = np.einsum('ij,epj->epi',C, Epsilon_e_pg, optimize=True)
+        Sigma_e_pg = np.einsum('ij,epj->epi',C, Epsilon_e_pg, optimize='optimal')
 
         # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma                    
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Sigma_e_pg, verif)
@@ -903,8 +903,8 @@ class PhaseFieldModel:
             I = np.array([1,1,0]).reshape((3,1))
             IxI = I.dot(I.T)
 
-            RpIxI_e_pg = np.einsum('ep,ij->epij',Rp_e_pg, IxI, optimize=True)
-            RmIxI_e_pg = np.einsum('ep,ij->epij',Rm_e_pg, IxI, optimize=True)
+            RpIxI_e_pg = np.einsum('ep,ij->epij',Rp_e_pg, IxI, optimize='optimal')
+            RmIxI_e_pg = np.einsum('ep,ij->epij',Rm_e_pg, IxI, optimize='optimal')
 
             if loiDeComportement.contraintesPlanes:
                 sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
@@ -914,8 +914,8 @@ class PhaseFieldModel:
                 sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
             
             cT = c.T
-            cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize=True)
-            cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize=True)
+            cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
+            cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
 
             # # Ici c'est un test pour verifier que cT : S : c = inv(S)
 
@@ -935,18 +935,18 @@ class PhaseFieldModel:
         elif self.__split in ["AnisotStress","AnisotStress_NoCross"]:
 
             # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
-            Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize=True)
-            Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize=True)
+            Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize='optimal')
+            Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize='optimal')
             
-            CpT_e_pg = np.einsum('epij->epji', Cp_e_pg, optimize=True)
-            CmT_e_pg = np.einsum('epij->epji', Cm_e_pg, optimize=True)
+            CpT_e_pg = np.einsum('epij->epji', Cp_e_pg, optimize='optimal')
+            CmT_e_pg = np.einsum('epij->epji', Cm_e_pg, optimize='optimal')
 
             # Construit Cp et Cm
             S = loiDeComportement.get_S()
-            Cpp = np.einsum('epij,jk,epkl->epil', CpT_e_pg, S, Cp_e_pg, optimize=True)
-            Cpm = np.einsum('epij,jk,epkl->epil', CpT_e_pg, S, Cm_e_pg, optimize=True)
-            Cmm = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cm_e_pg, optimize=True)
-            Cmp = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cp_e_pg, optimize=True)
+            Cpp = np.einsum('epij,jk,epkl->epil', CpT_e_pg, S, Cp_e_pg, optimize='optimal')
+            Cpm = np.einsum('epij,jk,epkl->epil', CpT_e_pg, S, Cm_e_pg, optimize='optimal')
+            Cmm = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cm_e_pg, optimize='optimal')
+            Cmp = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cp_e_pg, optimize='optimal')
 
             if self.__split ==  "AnisotStress_NoCross":
             
@@ -988,21 +988,21 @@ class PhaseFieldModel:
             inv_sqrtC = np.linalg.inv(sqrtC)
 
             # On calcule les nouveaux vecteurs
-            Epsilont_e_pg = np.einsum('ij,epj->epi', sqrtC, Epsilon_e_pg, optimize=True)
+            Epsilont_e_pg = np.einsum('ij,epj->epi', sqrtC, Epsilon_e_pg, optimize='optimal')
 
             # On calcule les projecteurs
             projPt_e_pg, projMt_e_pg = self.__Decomposition_Spectrale(Epsilont_e_pg, verif)
 
-            projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize=True)
-            projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize=True)
+            projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
+            projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
 
-            projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize=True)
+            projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize='optimal')
             projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
-            projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize=True)
+            projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize='optimal')
             projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
 
-            cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize=True)
-            cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize=True)
+            cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
+            cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
 
             vecteur_e_pg = Epsilon_e_pg.copy()
             mat = C.copy()
@@ -1013,8 +1013,8 @@ class PhaseFieldModel:
 
         if verif:
             # Verification de la décomposition et de l'orthogonalité            
-            vecteurP = np.einsum('epij,epj->epi', projP_e_pg, vecteur_e_pg, optimize=True)
-            vecteurM = np.einsum('epij,epj->epi', projM_e_pg, vecteur_e_pg, optimize=True)           
+            vecteurP = np.einsum('epij,epj->epi', projP_e_pg, vecteur_e_pg, optimize='optimal')
+            vecteurM = np.einsum('epij,epj->epi', projM_e_pg, vecteur_e_pg, optimize='optimal')           
             
             # Et+:Et- = 0 deja dans vérifié dans decomp spec
             
@@ -1025,9 +1025,9 @@ class PhaseFieldModel:
                 assert verifDecomp < 1e-12
 
             # Orthogonalité E+:C:E-
-            ortho_vP_vM = np.abs(np.einsum('epi,ij,epj->ep',vecteurP, mat, vecteurM, optimize=True))
-            ortho_vM_vP = np.abs(np.einsum('epi,ij,epj->ep',vecteurM, mat, vecteurP, optimize=True))
-            ortho_v_v = np.abs(np.einsum('epi,ij,epj->ep', vecteur_e_pg, mat, vecteur_e_pg, optimize=True))
+            ortho_vP_vM = np.abs(np.einsum('epi,ij,epj->ep',vecteurP, mat, vecteurM, optimize='optimal'))
+            ortho_vM_vP = np.abs(np.einsum('epi,ij,epj->ep',vecteurM, mat, vecteurP, optimize='optimal'))
+            ortho_v_v = np.abs(np.einsum('epi,ij,epj->ep', vecteur_e_pg, mat, vecteur_e_pg, optimize='optimal'))
             if ortho_v_v.min() > 0:
                 vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
                 tvertifOrthoEpsPM = ortho_vP_vM/ortho_v_v
@@ -1080,7 +1080,7 @@ class PhaseFieldModel:
         val_e_pg[:,:,1] = (trace_e_pg + np.sqrt(delta))/2
 
         # Constantes pour calcul de m1 = (matrice_e_pg - v2*I)/(v1-v2)
-        v2I = np.einsum('ep,ij->epij', val_e_pg[:,:,1], np.eye(2), optimize=True)
+        v2I = np.einsum('ep,ij->epij', val_e_pg[:,:,1], np.eye(2), optimize='optimal')
         v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1]
         
         # identifications des elements et points de gauss ou vp1 != vp2
@@ -1091,13 +1091,13 @@ class PhaseFieldModel:
         M1 = np.zeros((Ne,nPg,2,2))
         M1[:,:,0,0] = 1
         if elements.size > 0:
-            m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize=True)
+            m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize='optimal')
             M1[elements, pdgs] = m1_tot[elements, pdgs]            
         M2 = np.eye(2) - M1
 
         if verif:
             # test ortho entre M1 et M2 
-            verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize=True)
+            verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
             assert np.abs(verifOrtho_M1M2).max() < 1e-10, "Orthogonalité entre M1 et M2 non vérifié"
         
         # Passage des bases propres sous la forme dun vecteur [e,pg,3]  ou [e,pg,6]
@@ -1108,8 +1108,8 @@ class PhaseFieldModel:
         m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef # Ici on met pas le coef pour que ce soit en [1 1 1]
 
         # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]        
-        m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize=True)
-        m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize=True)
+        m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
+        m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
 
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
@@ -1134,22 +1134,22 @@ class PhaseFieldModel:
         matriceI = np.eye(3)
 
         # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
-        BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize=True)
-        gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize=True)
-        gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize=True)
+        BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize='optimal')
+        gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize='optimal')
+        gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize='optimal')
         projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
 
         # Projecteur M tel que EpsM = projM : Eps
-        BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize=True)
-        gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize=True)
-        gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize=True)
+        BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize='optimal')
+        gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize='optimal')
+        gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize='optimal')
         projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
 
         if verif:
             # Verification de la décomposition et de l'orthogonalité
             # projecteur en [1; 1; 1]
-            vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize=True)
-            vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize=True)           
+            vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize='optimal')
+            vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize='optimal')           
             
             # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg
             decomp = vecteur_e_pg-(vecteurP + vecteurM)
@@ -1158,9 +1158,9 @@ class PhaseFieldModel:
                 assert verifDecomp < 1e-12
 
             # Orthogonalité
-            ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize=True))
-            ortho_vM_vP = np.abs(np.einsum('epi,epi->ep',vecteurM, vecteurP, optimize=True))
-            ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize=True))
+            ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize='optimal'))
+            ortho_vM_vP = np.abs(np.einsum('epi,epi->ep',vecteurM, vecteurP, optimize='optimal'))
+            ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize='optimal'))
             if ortho_v_v.min() > 0:
                 vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
                 tvertifOrthoEpsPM = ortho_vP_vM/ortho_v_v

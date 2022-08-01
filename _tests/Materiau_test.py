@@ -202,19 +202,19 @@ class Test_Materiau(unittest.TestCase):
                 pass
 
             # Test que SigP + SigM = Sig
-            Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize=True)
+            Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
             
-            SigP = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize=True)
-            SigM = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize=True) 
+            SigP = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal')
+            SigM = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal') 
             decompSig = Sig_e_pg-(SigP+SigM)           
             verifSig = np.linalg.norm(decompSig)/np.linalg.norm(Sig_e_pg)
             if np.linalg.norm(Sig_e_pg)>0:                
                 self.assertTrue(np.abs(verifSig) < tol)
             
             # Test que Eps:C:Eps = Eps:(cP+cM):Eps
-            energiec = np.einsum('epj,ij,epi->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize=True)
-            energiecP = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cP_e_pg, Epsilon_e_pg, optimize=True)
-            energiecM = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize=True)
+            energiec = np.einsum('epj,ij,epi->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
+            energiecP = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cP_e_pg, Epsilon_e_pg, optimize='optimal')
+            energiecM = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
             verifEnergie = np.linalg.norm(energiec-(energiecP+energiecM))/np.linalg.norm(energiec)
             if np.linalg.norm(energiec)>0:
                 self.assertTrue(np.abs(verifEnergie) < tol)

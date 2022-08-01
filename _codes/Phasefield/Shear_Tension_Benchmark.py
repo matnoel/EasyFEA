@@ -211,7 +211,7 @@ if solve:
                 temps = np.round(temps,3)
                 max_d = damage.max()
                 min_d = damage.min()
-                f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), displacement, optimize=True))
+                f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), displacement, optimize='optimal'))
 
                 print(f"{iter+1:4}/{N} : ud = {np.round(dep*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
 

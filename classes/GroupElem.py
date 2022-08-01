@@ -158,7 +158,7 @@ class GroupElem:
                 coordo_e =  coordo[self.__connect[elements]]
 
             # on localise les coordonnées sur les points de gauss
-            coordo_e_p = np.einsum('pij,ejn->epn', N_scalaire, coordo_e, optimize=True)
+            coordo_e_p = np.einsum('pij,ejn->epn', N_scalaire, coordo_e, optimize='optimal')
 
             return np.array(coordo_e_p)
 
@@ -207,7 +207,7 @@ class GroupElem:
                 dN_pg = self.get_dN_pg(matriceType)
 
                 # Derivé des fonctions de formes dans la base réele
-                dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize=True))
+                dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
                 self.__dict_dN_e_pg[matriceType] = dN_e_pg
 
             return self.__dict_dN_e_pg[matriceType]
@@ -243,17 +243,17 @@ class GroupElem:
 
                 i = points2-points1
                 # Normalise
-                i = np.einsum('ei,e->ei',i, 1/np.linalg.norm(i, axis=1), optimize=True)
+                i = np.einsum('ei,e->ei',i, 1/np.linalg.norm(i, axis=1), optimize='optimal')
 
                 if self.dim == 1:
                     theta = np.pi/2
                     rot = np.array([[np.cos(theta), -np.sin(theta), 0],
                                     [np.sin(theta), np.cos(theta), 0],
                                     [0, 0, 1]])
-                    j = np.einsum('ij,ej->ei',rot, i, optimize=True)
+                    j = np.einsum('ij,ej->ei',rot, i, optimize='optimal')
                 else:
                     j = points3-points1
-                    j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize=True)
+                    j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
                     
                 k = np.cross(i, j, axis=1)
 
@@ -286,13 +286,13 @@ class GroupElem:
 
                 if self.dim in [1,2] and nodes_n[:,self.dim].max() != 0:
                     syscoord = self.sysCoordLocal_e
-                    nodes_e = np.einsum('eij,ekj->eik', nodes_e, syscoord, optimize=True)
+                    nodes_e = np.einsum('eij,ekj->eik', nodes_e, syscoord, optimize='optimal')
 
                 nodes_e = nodes_e[:,:,range(self.dim)]
 
                 dN_pg = self.get_dN_pg(matriceType)
 
-                F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize=True))                        
+                F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize='optimal'))                        
                 
                 self.__dict_F_e_pg[matriceType] = F_e_pg
 
@@ -342,7 +342,7 @@ class GroupElem:
                     invF_e_pg[:,:,1,0] = -a
                     invF_e_pg[:,:,1,1] = alpha
 
-                    invF_e_pg = np.einsum('ep,epij->epij',1/det, invF_e_pg, optimize=True)                        
+                    invF_e_pg = np.einsum('ep,epij->epij',1/det, invF_e_pg, optimize='optimal')                        
                 elif self.dim == 3:
                     invF_e_pg = np.array(np.linalg.inv(F_e_pg))
 
@@ -624,7 +624,7 @@ class GroupElem:
 
             vect = coordo-line.coordo[0]
 
-            prodScalaire = np.einsum('i,ni-> n', vectUnitaire, vect, optimize=True)
+            prodScalaire = np.einsum('i,ni-> n', vectUnitaire, vect, optimize='optimal')
             prodVecteur = np.cross(vect, vectUnitaire)
             norm = np.linalg.norm(prodVecteur, axis=1)
 
