@@ -20,13 +20,13 @@ solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
+split = "Bourdin" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
-useHistory=False
+useHistory=True
 
 # ,"AnisotMiehe","AnisotMiehe_NoCross","AnisotStress","AnisotStress_NoCross"
-for split in ["Bourdin","Amor","Miehe","He","Stress"]:
+for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
     # Data
 
@@ -75,7 +75,8 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]:
 
     # Convergence
     maxIter = 250
-    tolConv = 0.01
+    # tolConv = 0.01
+    tolConv = 1
 
     nom="_".join([comp, split, regu, simpli2D])
 

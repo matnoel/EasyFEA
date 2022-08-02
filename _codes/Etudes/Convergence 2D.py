@@ -2,10 +2,10 @@
 from typing import cast
 
 from Geom import Domain, Point
+from Mesh import Mesh
 from GroupElem import GroupElem
 from Materiau import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
-from Mesh import Mesh
 from Simu import Simu
 import Affichage
 from TicTac import TicTac
