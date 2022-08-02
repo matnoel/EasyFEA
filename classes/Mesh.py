@@ -218,51 +218,10 @@ class Mesh:
         0 dN1,y 0 dN2,y 0 dNn,y\n
         dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]\n
 
-        (epij)
+        (epij) Dans la base de l'element et en Kelvin Mandel
         """
 
-        # if matriceType not in self.__dict_B_dep_e_pg:
-
-        dN_e_pg = self.get_B_sclaire_e_pg(matriceType)
-
-        nPg = self.get_nPg(matriceType)
-        nPe = self.nPe
-        dim = self.__dim
-        listnPe = np.arange(nPe)
-        
-        colonnes0 = np.arange(0, nPe*dim, dim)
-        colonnes1 = np.arange(1, nPe*dim, dim)
-
-        if self.__dim == 2:
-            B_e_pg = np.array([[np.zeros((3, nPe*dim))]*nPg]*self.Ne)
-            """Derivé des fonctions de formes dans la base réele en vecteur \n
-            """
-            
-            dNdx = dN_e_pg[:,:,0,listnPe]
-            dNdy = dN_e_pg[:,:,1,listnPe]
-
-            B_e_pg[:,:,0,colonnes0] = dNdx
-            B_e_pg[:,:,1,colonnes1] = dNdy
-            B_e_pg[:,:,2,colonnes0] = dNdy; B_e_pg[:,:,2,colonnes1] = dNdx
-        else:
-            B_e_pg = np.array([[np.zeros((6, nPe*dim))]*nPg]*self.Ne)
-
-            dNdx = dN_e_pg[:,:,0,listnPe]
-            dNdy = dN_e_pg[:,:,1,listnPe]
-            dNdz = dN_e_pg[:,:,2,listnPe]
-
-            colonnes2 = np.arange(2, nPe*dim, dim)
-
-            B_e_pg[:,:,0,colonnes0] = dNdx
-            B_e_pg[:,:,1,colonnes1] = dNdy
-            B_e_pg[:,:,2,colonnes2] = dNdz
-            B_e_pg[:,:,3,colonnes1] = dNdz; B_e_pg[:,:,3,colonnes2] = dNdy
-            B_e_pg[:,:,4,colonnes0] = dNdz; B_e_pg[:,:,4,colonnes2] = dNdx
-            B_e_pg[:,:,5,colonnes0] = dNdy; B_e_pg[:,:,5,colonnes1] = dNdx
-        
-        self.__dict_B_dep_e_pg[matriceType] = B_e_pg
-
-        return B_e_pg
+        return self.groupElem.get_B_dep_e_pg(matriceType)
     
     def get_phaseField_ReactionPart_e_pg(self, matriceType: str):
         """Renvoie la partie qui construit le therme de reaction\n

@@ -196,9 +196,6 @@ class Simu:
 
         comportement = self.materiau.comportement
 
-        B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
-            
-
         mat = comportement.get_C()
         # Ici on le materiau est homogène
         # Il est possible de stpcker ça pour ne plus avoir à recalculer        
@@ -221,11 +218,11 @@ class Simu:
             g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matriceType)
             cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
 
-            c = cP_e_pg+cM_e_pg
+            c_e_pg = cP_e_pg+cM_e_pg
             
             # Matrice de rigidité élementaire
             # Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize='optimal')
-            Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize='optimal')
+            Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c_e_pg, B_dep_e_pg, optimize='optimal')
             
         else:   # probleme en déplacement simple
 
@@ -236,7 +233,7 @@ class Simu:
         # Ku_e = np.sum(Ku_e_pg, axis=1)
 
         if self.__dim == 2:
-            Ku_e *= self.materiau.comportement.epaisseur
+            Ku_e = Ku_e * self.materiau.comportement.epaisseur
         
         tic.Tac("Matrices","Calcul des matrices elementaires (déplacement)", self.__verbosity)
 
@@ -1064,8 +1061,6 @@ class Simu:
         comportement = self.materiau.comportement
 
         B_dep_e_pg = self.__mesh.get_B_dep_e_pg(matriceType)
-
-        B_dep_e_pg = comportement.AppliqueCoefSurBrigi(B_dep_e_pg)            
         
         Epsilon_e_pg = np.einsum('epik,ek->epi', B_dep_e_pg, u_e, optimize='optimal')        
 

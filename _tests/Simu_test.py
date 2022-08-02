@@ -155,9 +155,7 @@ class Test_Simu(unittest.TestCase):
 
             listKe_e = []
 
-            B_dep_e_pg = mesh.get_B_dep_e_pg(matriceType)
-
-            B_dep_e_pg = materiau.comportement.AppliqueCoefSurBrigi(B_dep_e_pg)
+            B_dep_e_pg = mesh.get_B_dep_e_pg(matriceType)            
 
             jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
             poid_pg = mesh.get_poid_pg(matriceType)

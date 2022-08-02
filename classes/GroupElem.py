@@ -5,6 +5,7 @@ from Geom import *
 from Gauss import Gauss
 from TicTac import TicTac
 from matplotlib import pyplot as plt
+import Materiau
 
 import numpy as np
 import scipy.sparse as sp
@@ -34,6 +35,7 @@ class GroupElem:
                 self.__dict_F_e_pg = {}                
                 self.__dict_invF_e_pg = {}                
                 self.__dict_jacobien_e_pg = {}   
+                self.__dict_B_dep_e_pg = {}
                 self.__dict_phaseField_ReactionPart_e_pg = {}
                 self.__dict_phaseField_DiffusePart_e_pg = {}
                 self.__dict_phaseField_SourcePart_e_pg = {}
@@ -41,18 +43,22 @@ class GroupElem:
         ################################################ METHODS ##################################################
 
         def __get_elemType(self):
+            """type d'elements"""
             return GroupElem.Get_ElemInFos(self.__gmshId)[0]
         elemType = cast(str, property(__get_elemType))
 
         def __get_nPe(self):
+            """nombre de noeuds par element"""
             return GroupElem.Get_ElemInFos(self.__gmshId)[1]
         nPe = cast(int, property(__get_nPe))
 
         def __get_dim(self):
+            """Dimension de l'element"""
             return GroupElem.Get_ElemInFos(self.__gmshId)[2]
         dim = cast(int, property(__get_dim))
 
         def __get_Ne(self):
+            """nombre delement"""
             return self.__connect.shape[0]
         Ne = cast(int, property(__get_Ne))
 
@@ -217,7 +223,64 @@ class GroupElem:
                 dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
                 self.__dict_dN_e_pg[matriceType] = dN_e_pg
 
-            return self.__dict_dN_e_pg[matriceType]
+            return cast(np.ndarray, self.__dict_dN_e_pg[matriceType]).copy()
+
+        def get_B_dep_e_pg(self, matriceType: str):
+            """Derivé des fonctions de formes dans la base réele pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n
+            exemple en 2D :\n
+            [dN1,x 0 dN2,x 0 dNn,x 0\n
+            0 dN1,y 0 dN2,y 0 dNn,y\n
+            dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]\n
+
+            (epij) Dans la base de l'element et en Kelvin Mandel
+            """
+            assert matriceType in GroupElem.get_MatriceType()
+
+            if matriceType not in self.__dict_B_dep_e_pg.keys():
+
+                dN_e_pg = self.get_dN_e_pg(matriceType)
+
+                nPg = self.get_gauss(matriceType).nPg
+                nPe = self.nPe
+                dim = self.__get_dim()
+                listnPe = np.arange(nPe)
+                
+                colonnes0 = np.arange(0, nPe*dim, dim)
+                colonnes1 = np.arange(1, nPe*dim, dim)
+
+                if self.dim == 2:
+                    B_e_pg = np.array([[np.zeros((3, nPe*dim))]*nPg]*self.Ne)
+                    """Derivé des fonctions de formes dans la base réele en vecteur \n
+                    """
+                    
+                    dNdx = dN_e_pg[:,:,0,listnPe]
+                    dNdy = dN_e_pg[:,:,1,listnPe]
+
+                    B_e_pg[:,:,0,colonnes0] = dNdx
+                    B_e_pg[:,:,1,colonnes1] = dNdy
+                    B_e_pg[:,:,2,colonnes0] = dNdy; B_e_pg[:,:,2,colonnes1] = dNdx
+                else:
+                    B_e_pg = np.array([[np.zeros((6, nPe*dim))]*nPg]*self.Ne)
+
+                    dNdx = dN_e_pg[:,:,0,listnPe]
+                    dNdy = dN_e_pg[:,:,1,listnPe]
+                    dNdz = dN_e_pg[:,:,2,listnPe]
+
+                    colonnes2 = np.arange(2, nPe*dim, dim)
+
+                    B_e_pg[:,:,0,colonnes0] = dNdx
+                    B_e_pg[:,:,1,colonnes1] = dNdy
+                    B_e_pg[:,:,2,colonnes2] = dNdz
+                    B_e_pg[:,:,3,colonnes1] = dNdz; B_e_pg[:,:,3,colonnes2] = dNdy
+                    B_e_pg[:,:,4,colonnes0] = dNdz; B_e_pg[:,:,4,colonnes2] = dNdx
+                    B_e_pg[:,:,5,colonnes0] = dNdy; B_e_pg[:,:,5,colonnes1] = dNdx
+                
+                B_e_pg = Materiau.LoiDeComportement.AppliqueCoefSurBrigi(dim, B_e_pg)
+
+                self.__dict_B_dep_e_pg[matriceType] = B_e_pg
+            
+            return cast(np.ndarray, self.__dict_B_dep_e_pg[matriceType]).copy()
+
         
         def get_phaseField_ReactionPart_e_pg(self, matriceType: str):
             """Renvoie la partie qui construit le therme de reaction\n
@@ -238,7 +301,7 @@ class GroupElem:
 
                 self.__dict_phaseField_ReactionPart_e_pg[matriceType] = ReactionPart_e_pg
             
-            return self.__dict_phaseField_ReactionPart_e_pg[matriceType]
+            return cast(np.ndarray, self.__dict_phaseField_ReactionPart_e_pg[matriceType]).copy()
         
         def get_phaseField_DiffusePart_e_pg(self, matriceType: str):
             """Renvoie la partie qui construit le therme de diffusion\n
@@ -259,7 +322,7 @@ class GroupElem:
 
                 self.__dict_phaseField_DiffusePart_e_pg[matriceType] = DiffusePart_e_pg
             
-            return self.__dict_phaseField_DiffusePart_e_pg[matriceType]
+            return cast(np.ndarray, self.__dict_phaseField_DiffusePart_e_pg[matriceType]).copy()
 
         def get_phaseField_SourcePart_e_pg(self, matriceType: str):
             """Renvoie la partie qui construit le therme de source\n
@@ -280,7 +343,7 @@ class GroupElem:
 
                 self.__dict_phaseField_SourcePart_e_pg[matriceType] = SourcePart_e_pg
             
-            return self.__dict_phaseField_SourcePart_e_pg[matriceType]
+            return cast(np.ndarray, self.__dict_phaseField_SourcePart_e_pg[matriceType]).copy()
         
         def __get_sysCoord_sysCoordLocal(self):
             """Matrice de changement de base pour chaque element"""
@@ -366,7 +429,7 @@ class GroupElem:
                 
                 self.__dict_F_e_pg[matriceType] = F_e_pg
 
-            return cast(np.ndarray, self.__dict_F_e_pg[matriceType])
+            return cast(np.ndarray, self.__dict_F_e_pg[matriceType]).copy()
         
         def get_jacobien_e_pg(self, matriceType:str):
             """Renvoie les jacobiens
@@ -380,7 +443,7 @@ class GroupElem:
 
                 self.__dict_jacobien_e_pg[matriceType] = jacbobien_e_pg
 
-            return cast(np.ndarray, self.__dict_jacobien_e_pg[matriceType])
+            return cast(np.ndarray, self.__dict_jacobien_e_pg[matriceType]).copy()
         
         def get_invF_e_pg(self, matriceType: str):
             """Renvoie l'inverse de la matrice jacobienne
@@ -418,7 +481,7 @@ class GroupElem:
 
                 self.__dict_invF_e_pg[matriceType] = invF_e_pg
 
-            return cast(np.ndarray, self.__dict_invF_e_pg[matriceType])
+            return cast(np.ndarray, self.__dict_invF_e_pg[matriceType]).copy()
 
         def __get_N_pg(self, matriceType: str):
             """Fonctions de formes vectorielles (pg), dans la base (ksi, eta ...)\n
@@ -676,7 +739,7 @@ class GroupElem:
 
             noeuds = np.where(conditionsTotal)[0]
             
-            return self.__nodes[noeuds]
+            return self.__nodes[noeuds].copy()
         
         def Get_Nodes_Point(self, point: Point):
 
@@ -684,7 +747,7 @@ class GroupElem:
 
             noeud = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
 
-            return self.__nodes[noeud]
+            return self.__nodes[noeud].copy()
 
         def Get_Nodes_Line(self, line: Line):
             
@@ -702,7 +765,7 @@ class GroupElem:
 
             noeuds = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
 
-            return self.__nodes[noeuds]
+            return self.__nodes[noeuds].copy()
         
         def Get_Nodes_Domain(self, domain: Domain):
             """Renvoie la liste de noeuds qui sont dans le domaine"""
@@ -715,7 +778,7 @@ class GroupElem:
                                 (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
                                 (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))[0]
             
-            return self.__nodes[noeuds]
+            return self.__nodes[noeuds].copy()
 
         def Get_Nodes_Circle(self, circle: Circle):
             """Renvoie la liste de noeuds qui sont dans le cercle"""

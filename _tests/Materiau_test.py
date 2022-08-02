@@ -86,7 +86,7 @@ class Test_Materiau(unittest.TestCase):
                                                                 [0, 0, 0, 0, (1-2*v)/2, 0],
                                                                 [0, 0, 0, 0, 0, (1-2*v)/2]  ])
                 
-                c = LoiDeComportement.ApplyKelvinMandelCoefToRigi(comp.dim, C_voigt)
+                c = LoiDeComportement.ApplyKelvinMandelCoefTo_Matrice(comp.dim, C_voigt)
                     
                 verifC = np.linalg.norm(c-comp.get_C())/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)

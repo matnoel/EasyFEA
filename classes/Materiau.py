@@ -1,6 +1,5 @@
 from typing import cast
 
-from pandas import array
 from Mesh import Mesh
 import numpy as np
 import Affichage
@@ -145,21 +144,24 @@ class LoiDeComportement(object):
         return ""
     resume = cast(str, property(__get_resume))
 
-    def AppliqueCoefSurBrigi(self, B_rigi_e_pg: np.ndarray):
+    @staticmethod
+    def AppliqueCoefSurBrigi(dim: int, B_rigi_e_pg: np.ndarray):
 
-        if self.__dim == 2:
+        if dim == 2:
             coord=2
-        elif self.__dim == 3:
+        elif dim == 3:
             coord=[3,4,5]
         else:
             raise "Pas implémenté"
 
-        B_rigi_e_pg[:,:,coord,:] = B_rigi_e_pg[:,:,coord,:]/self.coef
+        coef = np.sqrt(2)
+
+        B_rigi_e_pg[:,:,coord,:] = B_rigi_e_pg[:,:,coord,:]/coef
 
         return B_rigi_e_pg
     
     @staticmethod
-    def ApplyKelvinMandelCoefToRigi(dim: int, Matrice: np.ndarray):        
+    def ApplyKelvinMandelCoefTo_Matrice(dim: int, Matrice: np.ndarray):        
         """Applique ces coefs à la matrice\n
         si 2D:
         \n
@@ -339,7 +341,7 @@ class Elas_Isot(LoiDeComportement):
                                 [0, 0, 0, 0, mu, 0],
                                 [0, 0, 0, 0, 0, mu]])
         
-        c = LoiDeComportement.ApplyKelvinMandelCoefToRigi(dim, cVoigt)
+        c = LoiDeComportement.ApplyKelvinMandelCoefTo_Matrice(dim, cVoigt)
 
         s = np.linalg.inv(c)
 
