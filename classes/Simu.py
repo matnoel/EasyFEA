@@ -370,13 +370,15 @@ class Simu:
         
         # Partie qui fait intervenir le therme de reaction r ->  jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg
         ReactionPart_e_pg = mesh.get_phaseField_ReactionPart_e_pg(matriceType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
-        K_r_e_pg = np.einsum('ep,epij->epij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
+        K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
+        # K_r_e = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
 
         # Partie qui fait intervenir le therme de diffusion K -> jacobien_e_pg, poid_pg, k, Bd_e_pg', Bd_e_pg
         DiffusePart_e_pg = mesh.get_phaseField_DiffusePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Bd_e_pg', Bd_e_pg
-        K_K_e_pg = DiffusePart_e_pg * k
+        K_K_e = np.einsum('epij->eij', DiffusePart_e_pg * k, optimize='optimal')
+        # K_K_e = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
 
-        Kd_e = np.einsum('epij,epij->eij', K_r_e_pg, K_K_e_pg, optimize='optimal') #Ici on somme sur les points d'integrations
+        Kd_e = K_r_e+K_K_e
 
         # Construit Fd_e -> jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'
         SourcePart_e_pg = mesh.get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'        
