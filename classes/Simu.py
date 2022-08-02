@@ -193,12 +193,13 @@ class Simu:
         jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
         poid_pg = mesh.get_poid_pg(matriceType)
         B_dep_e_pg = mesh.get_B_dep_e_pg(matriceType)
+        leftDepPart = mesh.get_leftDepPart(matriceType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
 
         comportement = self.materiau.comportement
 
         mat = comportement.get_C()
         # Ici on le materiau est homogène
-        # Il est possible de stpcker ça pour ne plus avoir à recalculer        
+            
 
         if isDamaged:   # probleme endomagement
 
@@ -220,20 +221,21 @@ class Simu:
 
             c_e_pg = cP_e_pg+cM_e_pg
             
-            # Matrice de rigidité élementaire
-            # Ku_e_pg = np.einsum('ep,p,epki,epkl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, c, B_dep_e_pg, optimize='optimal')
-            Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c_e_pg, B_dep_e_pg, optimize='optimal')
+            # Matrice de rigidité élementaire            
+            # Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c_e_pg, B_dep_e_pg, optimize='optimal')
+            Ku_e = np.einsum('epij,epjk,epkl->eil', leftDepPart, c_e_pg, B_dep_e_pg, optimize='optimal')
+            
             
         else:   # probleme en déplacement simple
 
-            # Ku_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize='optimal')
-            Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize='optimal')
+            # Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize='optimal')
+            Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, mat, B_dep_e_pg, optimize='optimal')
         
         # # On somme sur les points d'intégrations
         # Ku_e = np.sum(Ku_e_pg, axis=1)
 
         if self.__dim == 2:
-            Ku_e = Ku_e * self.materiau.comportement.epaisseur
+            Ku_e *= self.materiau.comportement.epaisseur
         
         tic.Tac("Matrices","Calcul des matrices elementaires (déplacement)", self.__verbosity)
 
@@ -279,7 +281,7 @@ class Simu:
         assert Uglob.shape[0] == self.mesh.Nn*self.__dim
 
         self.__displacement = Uglob
-
+       
         return cast(np.ndarray, Uglob)
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 

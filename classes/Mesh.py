@@ -222,6 +222,15 @@ class Mesh:
         """
 
         return self.groupElem.get_B_dep_e_pg(matriceType)
+
+    def get_leftDepPart(self, matriceType: str):
+        """Renvoie la partie qui construit le therme de gauche de déplacement\n
+        Ku_e = jacobien_e_pg * poid_pg * B_dep_e_pg' * c_e_pg * B_dep_e_pg\n
+        
+        Renvoie (epij) -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+        """
+
+        return self.groupElem.get_leftDepPart(matriceType)
     
     def get_phaseField_ReactionPart_e_pg(self, matriceType: str):
         """Renvoie la partie qui construit le therme de reaction\n

@@ -655,7 +655,7 @@ class PhaseFieldModel:
         """Largeur de régularisation de la fissure"""
 
         self.__useHistory = useHistory
-        """Utilise ou non le champ histoire"""        
+        """Utilise ou non le champ histoire"""
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique\n
@@ -719,6 +719,8 @@ class PhaseFieldModel:
             Renvoie cP_e_pg, cM_e_pg
         """
 
+        # TODO Ici faire en sorte que l'on passe que 1 fois par itération pour eviter de faire les calculs plusieurs fois
+
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
             
@@ -742,8 +744,8 @@ class PhaseFieldModel:
 
         elif self.__split in ["He","HeStress"]:
             cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif)
-        
-        return cP_e_pg, cM_e_pg            
+
+        return cP_e_pg, cM_e_pg
 
     def __Split_Amor(self, Epsilon_e_pg: np.ndarray):
 

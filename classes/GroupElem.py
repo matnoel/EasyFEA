@@ -5,7 +5,7 @@ from Geom import *
 from Gauss import Gauss
 from TicTac import TicTac
 from matplotlib import pyplot as plt
-import Materiau
+
 
 import numpy as np
 import scipy.sparse as sp
@@ -36,6 +36,7 @@ class GroupElem:
                 self.__dict_invF_e_pg = {}                
                 self.__dict_jacobien_e_pg = {}   
                 self.__dict_B_dep_e_pg = {}
+                self.__dict_leftDepPart = {}
                 self.__dict_phaseField_ReactionPart_e_pg = {}
                 self.__dict_phaseField_DiffusePart_e_pg = {}
                 self.__dict_phaseField_SourcePart_e_pg = {}
@@ -274,13 +275,36 @@ class GroupElem:
                     B_e_pg[:,:,3,colonnes1] = dNdz; B_e_pg[:,:,3,colonnes2] = dNdy
                     B_e_pg[:,:,4,colonnes0] = dNdz; B_e_pg[:,:,4,colonnes2] = dNdx
                     B_e_pg[:,:,5,colonnes0] = dNdy; B_e_pg[:,:,5,colonnes1] = dNdx
-                
+
+                import Materiau
                 B_e_pg = Materiau.LoiDeComportement.AppliqueCoefSurBrigi(dim, B_e_pg)
 
                 self.__dict_B_dep_e_pg[matriceType] = B_e_pg
             
             return cast(np.ndarray, self.__dict_B_dep_e_pg[matriceType]).copy()
 
+        def get_leftDepPart(self, matriceType: str):
+            """Renvoie la partie qui construit le therme de gauche de déplacement\n
+            Ku_e = jacobien_e_pg * poid_pg * B_dep_e_pg' * c_e_pg * B_dep_e_pg\n
+            
+            Renvoie (epij) -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+            """
+
+            assert matriceType in GroupElem.get_MatriceType()
+
+            if matriceType not in self.__dict_leftDepPart.keys():
+                
+                jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
+                poid_pg = self.get_gauss(matriceType).poids
+                B_dep_e_pg = self.get_B_dep_e_pg(matriceType)
+
+                leftDepPart = np.einsum('ep,p,epij->epji', jacobien_e_pg, poid_pg, B_dep_e_pg, optimize='optimal')
+
+                self.__dict_leftDepPart[matriceType] = leftDepPart
+
+            return cast(np.ndarray, self.__dict_leftDepPart[matriceType])
+                
+             
         
         def get_phaseField_ReactionPart_e_pg(self, matriceType: str):
             """Renvoie la partie qui construit le therme de reaction\n
