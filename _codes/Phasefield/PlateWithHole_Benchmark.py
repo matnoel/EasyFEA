@@ -25,6 +25,11 @@ regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 useHistory=True
 
+# Convergence
+maxIter = 250
+# tolConv = 0.01
+tolConv = 1
+
 # ,"AnisotMiehe","AnisotMiehe_NoCross","AnisotStress","AnisotStress_NoCross"
 for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
@@ -51,7 +56,8 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe
 
     # Création de la simulations
 
-    umax = 25e-6
+    umax = 35e-6
+    # umax = 25e-6
     # umax = 40e-6
 
     if test:
@@ -67,16 +73,13 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe
         inc0 = 8e-8
         inc1 = 2e-8 
     else:
-        clD = l_0
+        clD = l_0/2
         clC = l_0/2
 
         inc0 = 8e-8
         inc1 = 2e-8
 
-    # Convergence
-    maxIter = 250
-    # tolConv = 0.01
-    tolConv = 1
+    
 
     nom="_".join([comp, split, regu, simpli2D])
 
@@ -274,7 +277,8 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe
     PostTraitement.Save_fig(folder, "forcedep")
 
     filenameDamage = f"{split} damage_n"
-    titleDamage = fr"$\phi$"
+    # titleDamage = fr"$\phi$"
+    titleDamage = fr""
 
 
     Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
@@ -286,7 +290,8 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe
 
     TicTac.getResume()
 
-    TicTac.getGraphs(folder)
+    if solve:
+        TicTac.getGraphs(folder)
 
     TicTac.Clear()
 
