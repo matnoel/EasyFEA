@@ -236,7 +236,7 @@ class Simu:
         # Ku_e = np.sum(Ku_e_pg, axis=1)
 
         if self.__dim == 2:
-            Ku_e = Ku_e * self.materiau.comportement.epaisseur
+            Ku_e *= self.materiau.comportement.epaisseur
         
         tic.Tac("Matrices","Calcul des matrices elementaires (déplacement)", self.__verbosity)
 
@@ -347,6 +347,8 @@ class Simu:
         
         tic = TicTac()
 
+        # TODO A optimiser en faisant le moins de fois les memes opérations genre grouper jacobien et poid 
+
         phaseFieldModel = self.materiau.phaseFieldModel
 
         # Data
@@ -365,27 +367,21 @@ class Simu:
         Bd_e_pg = mesh.get_B_sclaire_e_pg(matriceType)
 
         # Probleme de la forme K*Laplacien(d) + r*d = F
-
-        # Partie qui fait intervenir le therme de reaction r
-        # K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->epij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
-        K_r_e_pg = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
-
-        # Partie qui fait intervenir le therme de diffusion K
-        # K_K_e_pg = np.einsum('ep,p,,epki,epkj->epij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
-        K_K_e_pg = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
-
-        Kd_e_pg = K_r_e_pg+K_K_e_pg
         
-        # Kd_e = np.sum(Kd_e_pg, axis=1)
-        Kd_e = Kd_e_pg
+        # Partie qui fait intervenir le therme de reaction r ->  jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg
+        ReactionPart_e_pg = mesh.get_phaseField_ReactionPart_e_pg(matriceType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
+        K_r_e_pg = np.einsum('ep,epij->epij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
 
-        # Construit Fd_e
-        # Fd_e_pg = np.einsum('ep,p,ep,pji->epij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize='optimal')
-        Fd_e_pg = np.einsum('ep,p,ep,pji->eij', jacobien_e_pg, poid_pg, f_e_pg, Nd_pg, optimize='optimal')
+        # Partie qui fait intervenir le therme de diffusion K -> jacobien_e_pg, poid_pg, k, Bd_e_pg', Bd_e_pg
+        DiffusePart_e_pg = mesh.get_phaseField_DiffusePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Bd_e_pg', Bd_e_pg
+        K_K_e_pg = DiffusePart_e_pg * k
 
-        # Fd_e = np.sum(Fd_e_pg, axis=1)
-        Fd_e = Fd_e_pg
+        Kd_e = np.einsum('epij,epij->eij', K_r_e_pg, K_K_e_pg, optimize='optimal') #Ici on somme sur les points d'integrations
 
+        # Construit Fd_e -> jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'
+        SourcePart_e_pg = mesh.get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'        
+        Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') #Ici on somme sur les points d'integrations
+        
         tic.Tac("Matrices","Calcul des matrices elementaires (endommagement)", self.__verbosity)
 
         return Kd_e, Fd_e

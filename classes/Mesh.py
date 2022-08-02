@@ -189,23 +189,25 @@ class Mesh:
         return self.groupElem.get_jacobien_e_pg(matriceType)
     
     def get_N_scalaire_pg(self, matriceType: str):
-        """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)
+        """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)\n
         Matrice des fonctions de forme dans element de référence (ksi, eta)\n
         [N1(ksi,eta) N2(ksi,eta) Nn(ksi,eta)] \n
         """
         return self.groupElem.get_N_pg(matriceType)
 
     def get_N_vecteur_pg(self, matriceType: str):
-        """Fonctions de formes dans l'element de reférences pour un vecteur (npg, dim, npe*dim)
+        """Fonctions de formes dans l'element de reférences pour un vecteur (npg, dim, npe*dim)\n
         Matrice des fonctions de forme dans element de référence (ksi, eta)\n
         [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
-        0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]"""
+        0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]\n
+        """
         return self.groupElem.get_N_pg(matriceType, self.__dim)
 
     def get_B_sclaire_e_pg(self, matriceType: str):
         """Derivé des fonctions de formes dans la base réele en sclaire\n
         [dN1,x dN2,x dNn,x\n
         dN1,y dN2,y dNn,y]\n        
+        (epij)
         """
         return self.groupElem.get_dN_e_pg(matriceType)
 
@@ -214,7 +216,9 @@ class Mesh:
         exemple en 2D :\n
         [dN1,x 0 dN2,x 0 dNn,x 0\n
         0 dN1,y 0 dN2,y 0 dNn,y\n
-        dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]
+        dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]\n
+
+        (epij)
         """
 
         # if matriceType not in self.__dict_B_dep_e_pg:
@@ -259,6 +263,33 @@ class Mesh:
         self.__dict_B_dep_e_pg[matriceType] = B_e_pg
 
         return B_e_pg
+    
+    def get_phaseField_ReactionPart_e_pg(self, matriceType: str):
+        """Renvoie la partie qui construit le therme de reaction\n
+        K_r_e_pg = jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg\n
+        
+        Renvoie (epij) -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
+        """
+
+        return self.groupElem.get_phaseField_ReactionPart_e_pg(matriceType)
+
+    def get_phaseField_DiffusePart_e_pg(self, matriceType: str):
+        """Renvoie la partie qui construit le therme de diffusion\n
+        DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * Bd_e_pg\n
+        
+        Renvoie -> jacobien_e_pg * poid_pg * Bd_e_pg' * Bd_e_pg
+        """
+
+        return self.groupElem.get_phaseField_DiffusePart_e_pg(matriceType)
+
+    def get_phaseField_SourcePart_e_pg(self, matriceType: str):
+        """Renvoie la partie qui construit le therme de source\n
+        SourcePart_e_pg = jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'\n
+        
+        Renvoie -> jacobien_e_pg, poid_pg, Nd_pg'
+        """
+
+        return self.groupElem.get_phaseField_SourcePart_e_pg(matriceType)
     
     def get_nbFaces(self):
         return self.groupElem.nbFaces

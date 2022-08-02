@@ -33,7 +33,10 @@ class GroupElem:
                 self.__dict_dN_e_pg = {}
                 self.__dict_F_e_pg = {}                
                 self.__dict_invF_e_pg = {}                
-                self.__dict_jacobien_e_pg = {}                
+                self.__dict_jacobien_e_pg = {}   
+                self.__dict_phaseField_ReactionPart_e_pg = {}
+                self.__dict_phaseField_DiffusePart_e_pg = {}
+                self.__dict_phaseField_SourcePart_e_pg = {}
         
         ################################################ METHODS ##################################################
 
@@ -198,6 +201,10 @@ class GroupElem:
                 return N_vect_pg
         
         def get_dN_e_pg(self, matriceType: str):
+            """Derivé des fonctions de formes dans la base réele en sclaire\n
+            [dN1,x dN2,x dNn,x\n
+            dN1,y dN2,y dNn,y]\n        
+            """
             assert matriceType in GroupElem.get_MatriceType()
 
             if matriceType not in self.__dict_dN_e_pg.keys():
@@ -211,6 +218,69 @@ class GroupElem:
                 self.__dict_dN_e_pg[matriceType] = dN_e_pg
 
             return self.__dict_dN_e_pg[matriceType]
+        
+        def get_phaseField_ReactionPart_e_pg(self, matriceType: str):
+            """Renvoie la partie qui construit le therme de reaction\n
+            ReactionPart_e_pg = jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg\n
+            
+            Renvoie -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
+            """
+
+            assert matriceType in GroupElem.get_MatriceType()
+
+            if matriceType not in self.__dict_phaseField_ReactionPart_e_pg.keys():
+
+                jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
+                poid_pg = self.get_gauss(matriceType).poids
+                Nd_pg = self.get_N_pg(matriceType, 1)
+
+                ReactionPart_e_pg = np.einsum('ep,p,pki,pkj->epij', jacobien_e_pg, poid_pg, Nd_pg, Nd_pg, optimize='optimal')
+
+                self.__dict_phaseField_ReactionPart_e_pg[matriceType] = ReactionPart_e_pg
+            
+            return self.__dict_phaseField_ReactionPart_e_pg[matriceType]
+        
+        def get_phaseField_DiffusePart_e_pg(self, matriceType: str):
+            """Renvoie la partie qui construit le therme de diffusion\n
+            DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * Bd_e_pg\n
+            
+            Renvoie -> jacobien_e_pg * poid_pg * Bd_e_pg' * Bd_e_pg
+            """
+
+            assert matriceType in GroupElem.get_MatriceType()
+
+            if matriceType not in self.__dict_phaseField_DiffusePart_e_pg.keys():
+
+                jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
+                poid_pg = self.get_gauss(matriceType).poids
+                Bd_e_pg = self.get_dN_e_pg(matriceType)
+
+                DiffusePart_e_pg = np.einsum('ep,p,epki,epkj->epij', jacobien_e_pg, poid_pg, Bd_e_pg, Bd_e_pg, optimize='optimal')
+
+                self.__dict_phaseField_DiffusePart_e_pg[matriceType] = DiffusePart_e_pg
+            
+            return self.__dict_phaseField_DiffusePart_e_pg[matriceType]
+
+        def get_phaseField_SourcePart_e_pg(self, matriceType: str):
+            """Renvoie la partie qui construit le therme de source\n
+            SourcePart_e_pg = jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'\n
+            
+            Renvoie -> jacobien_e_pg, poid_pg, Nd_pg'
+            """
+
+            assert matriceType in GroupElem.get_MatriceType()
+
+            if matriceType not in self.__dict_phaseField_SourcePart_e_pg.keys():
+
+                jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
+                poid_pg = self.get_gauss(matriceType).poids
+                Nd_pg = self.get_N_pg(matriceType, 1)
+
+                SourcePart_e_pg = np.einsum('ep,p,pij->epji', jacobien_e_pg, poid_pg, Nd_pg, optimize='optimal') #le ji a son importance pour la transposé
+
+                self.__dict_phaseField_SourcePart_e_pg[matriceType] = SourcePart_e_pg
+            
+            return self.__dict_phaseField_SourcePart_e_pg[matriceType]
         
         def __get_sysCoord_sysCoordLocal(self):
             """Matrice de changement de base pour chaque element"""
