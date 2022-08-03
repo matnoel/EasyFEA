@@ -34,7 +34,7 @@ class TicTac:
             print(texte)
 
     @staticmethod
-    def __plotBar(ax: plt.Axes, categories: str, temps: float, titre: str):
+    def __plotBar(ax: plt.Axes, categories: list, temps: list, titre: str):
         # Parmètres axes
         ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
         ax.yaxis.set_visible(False)
@@ -55,7 +55,7 @@ class TicTac:
         ax.set_title(titre)
 
     @staticmethod 
-    def getGraphs(folder="", details=True):
+    def getGraphs(folder="", details=True, title="Simulation"):
 
         if TicTac.__Historique == {}: return
 
@@ -73,7 +73,9 @@ class TicTac:
                 # On construit un tableau pour les sommé sur les sous catégories
                 dfSousCategorie = pd.DataFrame({'sous categories' : sousCategories, 'temps': tempsSousCategorie})
                 dfSousCategorie = dfSousCategorie.groupby(['sous categories']).sum()
+                dfSousCategorie = dfSousCategorie.sort_values(by='temps')
                 sousCategories = dfSousCategorie.index.tolist()
+
                 # print(dfSousCategorie)
 
                 if len(sousCategories) > 1:
@@ -83,14 +85,20 @@ class TicTac:
                     if folder != "":
                         import PostTraitement
                         PostTraitement.Save_fig(folder, c)
-                
+        
+
+        # On construit un tableau pour les sommé sur les sous catégories
+        dfCategorie = pd.DataFrame({'categories' : categories, 'temps': tempsTotCategorie})
+        dfCategorie = dfCategorie.groupby(['categories']).sum()
+        dfCategorie = dfCategorie.sort_values(by='temps')
+        categories = dfCategorie.index.tolist()
         
         fig, ax = plt.subplots()
-        TicTac.__plotBar(ax, historique, tempsTotCategorie, "Simulation")
+        TicTac.__plotBar(ax, categories, dfCategorie['temps'], "Simulation")
 
         if folder != "":
             import PostTraitement
-            PostTraitement.Save_fig(folder, "Simulation")
+            PostTraitement.Save_fig(folder, title)
 
         # # Camembert
         # my_circle = plt.Circle( (0,0), 0, color='white')
