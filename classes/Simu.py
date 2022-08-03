@@ -159,6 +159,8 @@ class Simu:
 
     def Update_iter(self, iter: int):
         """Met la simulation à literation renseignée"""
+        iter = int(iter)
+        assert isinstance(iter, int), "Doit fournir un entier"
 
         # On va venir récupérer les resultats stocké dans le tableau pandas
         results = self.get_result(iter)
@@ -237,7 +239,7 @@ class Simu:
         if self.__dim == 2:
             Ku_e *= self.materiau.comportement.epaisseur
         
-        tic.Tac("Matrices","Calcul des matrices elementaires (déplacement)", self.__verbosity)
+        tic.Tac("Matrices","Matrices déplacement", self.__verbosity)
 
         return Ku_e    
  
@@ -269,7 +271,7 @@ class Simu:
         # plt.spy(self.__Ku)
         # plt.show()
 
-        tic.Tac("Matrices","Assemblage du systême en déplacement", self.__verbosity)
+        tic.Tac("Matrices","Assemblage Ku et Fu", self.__verbosity)
         
         return self.__Ku
 
@@ -383,7 +385,7 @@ class Simu:
         SourcePart_e_pg = mesh.get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'        
         Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') #Ici on somme sur les points d'integrations
         
-        tic.Tac("Matrices","Calcul des matrices elementaires (endommagement)", self.__verbosity)
+        tic.Tac("Matrices","Matrices endommagement", self.__verbosity)
 
         return Kd_e, Fd_e
 
@@ -410,7 +412,7 @@ class Simu:
         self.__Fd = sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1))
         """Fglob pour le probleme d'endommagement (Nn, 1)"""        
 
-        tic.Tac("Matrices","Assemblage du systême en endommagement", self.__verbosity)       
+        tic.Tac("Matrices","Assemblage Kd et Fd", self.__verbosity)       
 
         return self.__Kd, self.__Fd
     
@@ -1387,7 +1389,7 @@ class Simu:
 
         valeurs_n = valeurs_n_e/nombreApparition
 
-        # tic.Tac("Post Traitement","Interpolation aux noeuds", False)
+        # tic.Tac("Affichage","Affichage des figures", plotResult)
 
         return valeurs_n.reshape(-1)
 
