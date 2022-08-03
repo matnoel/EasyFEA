@@ -179,7 +179,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
             filename=title
         PostTraitement.Save_fig(folder, filename, transparent=False)
 
-    tic.Tac("Post Traitement", "Affichage résultat", False)
+    tic.Tac("Affichage", "Plot_Result", False)
     
     return fig, ax, cb
     
