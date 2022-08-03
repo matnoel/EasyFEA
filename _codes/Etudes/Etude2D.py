@@ -118,7 +118,7 @@ if plotResult:
         # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)        
         # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
         
-        tic.Tac("Post Traitement","Affichage des figures", plotResult)
+        tic.Tac("Affichage","Affichage des figures", plotResult)
 
 ticTot.Tac("Temps script","Temps total", True)        
 

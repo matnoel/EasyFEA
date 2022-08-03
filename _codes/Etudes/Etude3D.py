@@ -88,7 +88,7 @@ if plotResult:
         Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
         
         
-        tic.Tac("Post Traitement","Affichage des figures", plotResult)
+        tic.Tac("Affichage","Affichage des figures", plotResult)
 
 TicTac.getResume()
 

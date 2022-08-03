@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=False
-solve=True
-saveParaview=False
+test=True
+solve=False
+saveParaview=True
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "Bourdin" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
+split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 useHistory=True
@@ -31,7 +31,7 @@ maxIter = 250
 tolConv = 1
 
 # ,"AnisotMiehe","AnisotMiehe_NoCross","AnisotStress","AnisotStress_NoCross"
-for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe","He","Stress"]
+for split in ["Stress"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
     # Data
 
@@ -80,6 +80,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe
         inc1 = 2e-8
 
     
+    # Nom du dossier
 
     nom="_".join([comp, split, regu, simpli2D])
 
@@ -292,6 +293,9 @@ for split in ["Bourdin","Amor","Miehe","He","Stress"]: #["Bourdin","Amor","Miehe
 
     if solve:
         TicTac.getGraphs(folder)
+    else:
+        TicTac.getGraphs(folder, "Post Traitement")
+        plt.show()
 
     TicTac.Clear()
 
