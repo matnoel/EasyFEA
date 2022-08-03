@@ -1,6 +1,4 @@
 # %%
-
-from posixpath import split
 import unittest
 import os
 from Materiau import Elas_IsotTrans, PhaseFieldModel, LoiDeComportement, Elas_Isot

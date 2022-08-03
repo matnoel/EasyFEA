@@ -1,6 +1,7 @@
 
 import unittest
 import os
+from Materiau import LoiDeComportement, Materiau
 import numpy as np
 from Mesh import Mesh
 
@@ -78,9 +79,10 @@ class Test_Mesh(unittest.TestCase):
                         B_dep_pg[5, colonne] = dNdz; B_dep_pg[5, colonne+2] = dNdx
                         colonne += 3
                     list_B_rigi_pg.append(B_dep_pg)
-                    
                 
             list_B_rigi_e_pg.append(list_B_rigi_pg)
+        
+        list_B_rigi_e_pg = LoiDeComportement.AppliqueCoefSurBrigi(dim, np.array(list_B_rigi_e_pg))
 
         B_rigi_e_pg = mesh.get_B_dep_e_pg("rigi")
 
