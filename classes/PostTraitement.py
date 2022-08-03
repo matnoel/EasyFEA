@@ -25,7 +25,7 @@ def Save_Simu(simu: Simu, folder:str):
     with open(filename, "wb") as file:
         pickle.dump(simu, file)
 
-def Load_Simu(folder: str):
+def Load_Simu(folder: str, verbosity=True):
     """Charge la simulation depuis le dossier
 
     Parameters
@@ -45,14 +45,12 @@ def Load_Simu(folder: str):
     with open(filename, 'rb') as file:
         simu = pickle.load(file)
 
-    print(f'\nload of {filename}')
-
     assert isinstance(simu, Simu)
 
-    simu.mesh.Resume()
-    simu.materiau.Resume()
-    simu.Resume()
-
+    if verbosity:
+        print(f'\nload of {filename}')
+        simu.mesh.Resume()
+        simu.materiau.Resume()
     return simu
 
 # =========================================== Load and Displacement ==================================================
@@ -72,7 +70,7 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
     with open(filename, "wb") as file:
         pickle.dump(values, file)
     
-def Load_Load_Displacement(folder:str):
+def Load_Load_Displacement(folder:str, verbosity=True):
     """Charge les forces [N] et déplacements [m]
 
     Parameters
@@ -89,10 +87,11 @@ def Load_Load_Displacement(folder:str):
     with open(filename, 'rb') as file:
         values = pickle.load(file)
 
-    print(f'\nload of {filename}')
-
     load = np.array(values['load'])
     displacement = np.array(values['displacement'])
+
+    if verbosity:
+        print(f'\nload of {filename}')
 
     return load, displacement
 
@@ -160,7 +159,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
             writer.grab_frame()
 
-            tf = tic.Tac("Post Traitement","Plot", False)
+            tf = tic.Tac("Animation","Plot", False)
             print(f'Plot {ax.get_title()} in {np.round(tf,3)}', end='\r')
     
 # =========================================== Paraview ==================================================
@@ -339,7 +338,7 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
         # Fin du vtk
         file.write('</VTKFile> \n')
     
-    tParaview = tic.Tac("Paraview","SaveParaview", False)
+    tParaview = tic.Tac("Paraview","Make vtu", False)
     
     path = Dossier.GetPath(filename)
     vtuFile = str(filename).replace(path+'\\', '')
@@ -368,7 +367,7 @@ def __Make_pvd(filename: str, vtuFiles=[]):
         file.write('\t</Collection>\n')
         file.write('</VTKFile>\n')
     
-    t = tic.Tac("Paraview","Paraview", False)
+    t = tic.Tac("Paraview","Make pvd", False)
 
 def __WriteBinary(valeur, type: str, file):
         """Convertie en byte
