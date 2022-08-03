@@ -1,8 +1,11 @@
 from typing import cast
 
+from TicTac import TicTac
+
 from Mesh import Mesh
 import numpy as np
 import Affichage
+from inspect import stack
 
 from scipy.linalg import sqrtm
 
@@ -721,6 +724,8 @@ class PhaseFieldModel:
 
         # TODO Ici faire en sorte que l'on passe que 1 fois par itération pour eviter de faire les calculs plusieurs fois
 
+        tic = TicTac()
+
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
             
@@ -744,6 +749,16 @@ class PhaseFieldModel:
 
         elif self.__split in ["He","HeStress"]:
             cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif)
+
+        fonctionQuiAppelle = stack()[2].function
+
+        if fonctionQuiAppelle == "Calc_psi_e_pg":
+            problem = "masse"
+        else:
+            problem = "rigi"
+
+
+        tac = tic.Tac("Calc C",f"{self.__split} ({problem})", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -1018,7 +1033,7 @@ class PhaseFieldModel:
         if verif:
             # Verification de la décomposition et de l'orthogonalité            
             vecteurP = np.einsum('epij,epj->epi', projP_e_pg, vecteur_e_pg, optimize='optimal')
-            vecteurM = np.einsum('epij,epj->epi', projM_e_pg, vecteur_e_pg, optimize='optimal')           
+            vecteurM = np.einsum('epij,epj->epi', projM_e_pg, vecteur_e_pg, optimize='optimal')
             
             # Et+:Et- = 0 deja dans vérifié dans decomp spec
             
@@ -1041,6 +1056,7 @@ class PhaseFieldModel:
                 
         return cP_e_pg, cM_e_pg
 
+    
     def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray, verif=False):
         """Calcul projP et projM tel que :\n
 
@@ -1052,10 +1068,8 @@ class PhaseFieldModel:
         renvoie projP, projM
         """
 
-        # remet en voigt
-        # vecteur_e_pg[:,:,2] *= 1/np.sqrt(2)
+        tic = TicTac()
 
-        # A partir d'ici on est en voigt
         coef = self.__loiDeComportement.coef
 
         dim = self.__loiDeComportement.dim
@@ -1069,12 +1083,19 @@ class PhaseFieldModel:
         matrice_e_pg[:,:,0,0] = vecteur_e_pg[:,:,0]
         matrice_e_pg[:,:,1,1] = vecteur_e_pg[:,:,1]
         matrice_e_pg[:,:,0,1] = vecteur_e_pg[:,:,2]/coef
-        matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,2]/coef        
+        matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,2]/coef
+        
         
         # invariants du tenseur des deformations [e,pg]
-        trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
-        determinant_e_pg = np.linalg.det(matrice_e_pg)
-
+        # trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
+        trace_e_pg = np.einsum('epii->ep', matrice_e_pg, optimize='optimal')
+        # determinant_e_pg = np.linalg.det(matrice_e_pg)
+        a_e_pg = matrice_e_pg[:,:,0,0]
+        b_e_pg = matrice_e_pg[:,:,0,1]
+        c_e_pg = matrice_e_pg[:,:,1,0]
+        d_e_pg = matrice_e_pg[:,:,1,1]
+        determinant_e_pg = (a_e_pg*d_e_pg)-(c_e_pg*b_e_pg)
+        
         # probleme Elas_Isot False Stress delta négatif -> si v est grand (0.49999)
 
         # Calculs des valeurs propres [e,pg]
@@ -1082,7 +1103,7 @@ class PhaseFieldModel:
         val_e_pg = np.zeros((Ne,nPg,2))
         val_e_pg[:,:,0] = (trace_e_pg - np.sqrt(delta))/2
         val_e_pg[:,:,1] = (trace_e_pg + np.sqrt(delta))/2
-
+        
         # Constantes pour calcul de m1 = (matrice_e_pg - v2*I)/(v1-v2)
         v2I = np.einsum('ep,ij->epij', val_e_pg[:,:,1], np.eye(2), optimize='optimal')
         v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1]
@@ -1090,7 +1111,7 @@ class PhaseFieldModel:
         # identifications des elements et points de gauss ou vp1 != vp2
         # elements, pdgs = np.where(v1_m_v2 != 0)
         elements, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
-
+        
         # construction des bases propres m1 et m2 [e,pg,dim,dim]
         M1 = np.zeros((Ne,nPg,2,2))
         M1[:,:,0,0] = 1
@@ -1098,7 +1119,7 @@ class PhaseFieldModel:
             m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize='optimal')
             M1[elements, pdgs] = m1_tot[elements, pdgs]            
         M2 = np.eye(2) - M1
-
+        
         if verif:
             # test ortho entre M1 et M2 
             verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
@@ -1110,19 +1131,19 @@ class PhaseFieldModel:
         m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]
         # m1[:,:,2] = M1[:,:,0,1];   m2[:,:,2] = M2[:,:,0,1]
         m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef # Ici on met pas le coef pour que ce soit en [1 1 1]
-
+        
         # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]        
         m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
         m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
-
+        
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
         valm = (val_e_pg-np.abs(val_e_pg))/2
-
+        
         # Calcul des di [e,pg,2]
         dvalp = np.heaviside(val_e_pg,0.5)
-        dvalm = np.heaviside(-val_e_pg,0.5)        
-
+        dvalm = np.heaviside(-val_e_pg,0.5)
+        
         # Calcul des Beta Plus [e,pg,1]
         BetaP = dvalp[:,:,0].copy()
         BetaP[elements,pdgs] = (valp[elements,pdgs,0]-valp[elements,pdgs,1])/v1_m_v2[elements,pdgs]
@@ -1130,7 +1151,7 @@ class PhaseFieldModel:
         # Calcul de Beta Moin [e,pg,1]
         BetaM = dvalm[:,:,0].copy()
         BetaM[elements,pdgs] = (valm[elements,pdgs,0]-valm[elements,pdgs,1])/v1_m_v2[elements,pdgs]
-
+        
         # Calcul de gamma [e,pg,2]
         gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
         gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
@@ -1142,6 +1163,7 @@ class PhaseFieldModel:
         gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize='optimal')
         gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize='optimal')
         projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
+        
 
         # Projecteur M tel que EpsM = projM : Eps
         BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize='optimal')
@@ -1171,6 +1193,8 @@ class PhaseFieldModel:
                 assert vertifOrthoEpsPM < 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
+        
+        tic.Tac("Calc C", "Decomp spectrale", False)
             
         return projP, projM
 
