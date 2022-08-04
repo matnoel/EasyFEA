@@ -183,7 +183,7 @@ class Test_Materiau(unittest.TestCase):
                 # Ici il y a un beug quand v=0.499999 et en deformation plane
                 pass
 
-            if pfm.split == "AnisotStress":
+            if pfm.split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
                 # Ici il y a un beug quand v=0.499999 et en deformation plane
                 if isinstance(comportement, Elas_IsotTrans):
                     pass

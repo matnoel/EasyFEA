@@ -521,9 +521,9 @@ class PhaseFieldModel:
     @staticmethod
     def get_splits():
         __splits = ["Bourdin","Amor",
-        "Miehe","AnisotMiehe","AnisotMiehe_NoCross",
-        "He",
-        "Stress","AnisotStress","AnisotStress_NoCross"]
+        "Miehe","He","Stress",
+        "AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross",
+        "AnisotStress","AnisotStress_NoCross"]
         # __splits = ["Bourdin","Amor",
         # "Miehe","AnisotMiehe","AnisotMiehe_NoCross",
         # "He", "HeStress",
@@ -741,7 +741,7 @@ class PhaseFieldModel:
         elif self.__split == "Amor":
             cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
-        elif self.__split in ["Miehe","AnisotMiehe","AnisotMiehe_NoCross"]:
+        elif self.__split in ["Miehe","AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
             cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif)
         
         elif self.__split in ["Stress","AnisotStress","AnisotStress_NoCross"]:
@@ -860,34 +860,35 @@ class PhaseFieldModel:
                 "spherM_e_pg" : spherM_e_pg
             }
         
-        elif self.__split in ["AnisotMiehe","AnisotMiehe_NoCross"]:
+        elif self.__split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
             
             c = self.__loiDeComportement.get_C()
 
-            projPT_e_pg = np.einsum('epij->epji', projP_e_pg, optimize='optimal')
-            projMT_e_pg = np.einsum('epij->epji', projM_e_pg, optimize='optimal')
-
-            Cpp = np.einsum('epij,jk,epkl->epil', projPT_e_pg, c, projP_e_pg, optimize='optimal')
-            Cpm = np.einsum('epij,jk,epkl->epil', projPT_e_pg, c, projM_e_pg, optimize='optimal')
-            Cmm = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projM_e_pg, optimize='optimal')
-            Cmp = np.einsum('epij,jk,epkl->epil', projMT_e_pg, c, projP_e_pg, optimize='optimal')
-
-            if self.__split ==  "AnisotMiehe_NoCross":
-                
-                cP_e_pg = Cpp #Diffuse
-                cM_e_pg = Cmm + Cpm + Cmp
+            Cpp = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projP_e_pg, optimize='optimal')
+            Cpm = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projM_e_pg, optimize='optimal')
+            Cmm = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projM_e_pg, optimize='optimal')
+            Cmp = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projP_e_pg, optimize='optimal')
             
-            elif self.__split ==  "AnisotMiehe":
+            if self.__split ==  "AnisotMiehe":
 
-                cP_e_pg = Cpp + Cpm + Cmp #Diffuse
+                cP_e_pg = Cpp + Cpm + Cmp
                 cM_e_pg = Cmm 
 
-            # cP_e_pg = Cpp + Cpm #Diffuse
-            # cM_e_pg = Cmm + Cmp
+            elif self.__split ==  "AnisotMiehe_PM":
+                
+                cP_e_pg = Cpp + Cpm
+                cM_e_pg = Cmm + Cmp
 
-            # cP_e_pg = Cpp #Diffuse
-            # cM_e_pg = Cmm + Cpm + Cmp
+            elif self.__split ==  "AnisotMiehe_MP":
+                
+                cP_e_pg = Cpp + Cmp
+                cM_e_pg = Cmm + Cpm
 
+            elif self.__split ==  "AnisotMiehe_NoCross":
+                
+                cP_e_pg = Cpp
+                cM_e_pg = Cmm + Cpm + Cmp
+            
         else:
             raise "Split inconnue"
 
