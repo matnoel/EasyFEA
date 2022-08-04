@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=True
-solve=False
-saveParaview=True
+test=False
+solve=True
+saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
@@ -30,8 +30,15 @@ maxIter = 250
 # tolConv = 0.01
 tolConv = 1
 
-# ,"AnisotMiehe","AnisotMiehe_NoCross","AnisotStress","AnisotStress_NoCross"
-for split in ["Stress"]: #["Bourdin","Amor","Miehe","He","Stress"]
+umax = 35e-6
+# umax = 25e-6
+# umax = 40e-6
+
+#["Bourdin","Amor","Miehe","He","Stress"]
+# ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
+# ["AnisotStress","AnisotStress_NoCross"]
+# ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotMiehe"]
+for split in ["AnisotMiehe_PM","AnisotMiehe_MP"]: 
 
     # Data
 
@@ -53,12 +60,6 @@ for split in ["Stress"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
     gc = 1.4
     l_0 = 0.12e-3
-
-    # Création de la simulations
-
-    umax = 35e-6
-    # umax = 25e-6
-    # umax = 40e-6
 
     if test:
         clD = 0.25e-3
@@ -279,7 +280,7 @@ for split in ["Stress"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
     filenameDamage = f"{split} damage_n"
     # titleDamage = fr"$\phi$"
-    titleDamage = fr""
+    titleDamage = f"{split}"
 
 
     Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
@@ -295,7 +296,6 @@ for split in ["Stress"]: #["Bourdin","Amor","Miehe","He","Stress"]
         TicTac.getGraphs(folder)
     else:
         TicTac.getGraphs(folder, "Post Traitement")
-        plt.show()
 
     TicTac.Clear()
 

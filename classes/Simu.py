@@ -555,7 +555,7 @@ class Simu:
 
             ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
 
-            tic.Tac("Construction système matriciel","Construit A et b", self.__verbosity)
+            tic.Tac("Matrices","Construit A et b", self.__verbosity)
 
             # Résolution du système matricielle pénalisé
             useCholesky=False #la matrice ne sera pas symétrique definie positive
@@ -583,7 +583,7 @@ class Simu:
 
             bDirichlet = Aic.dot(xc)
 
-            tic.Tac("Construction système matriciel","Construit A et b", self.__verbosity)
+            tic.Tac("Matrices","Construit A et b", self.__verbosity)
 
             # if problemType == "damage":
             #     if np.max(b)>0:

@@ -23,7 +23,7 @@ maxIter = 250
 # tolConv = 0.01
 tolConv = 1
 
-plotDamage = True
+plotDamage = False
 
 v=0.3
 
@@ -40,7 +40,7 @@ else:
 fig, ax = plt.subplots()
 
 # ,"AnisotMiehe","AnisotMiehe_NoCross","AnisotStress","AnisotStress_NoCross"
-for split in ["Bourdin","Amor","Miehe","He"]: #["Bourdin","Amor","Miehe","He","Stress"]
+for split in ["Bourdin","Amor","Miehe"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
     tic = TicTac.TicTac()
 
@@ -95,15 +95,15 @@ for split in ["Bourdin","Amor","Miehe","He"]: #["Bourdin","Amor","Miehe","He","S
 
             Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
             folder=folderSauvegarde, filename=filenameDamage, 
-            title=r"$\phi$")
+            title=fr"${split}$")
 
     # texte = nom.replace(f" pour v={v}", "")
     texte = split
 
-    # indexLim = np.where(displacement*1e6 <= 26)[0]
-    # ax.plot(displacement[indexLim]*1e6, np.abs(load[indexLim]*1e-6), label=texte)
+    indexLim = np.where(displacement*1e6 <= 26)[0]
+    ax.plot(displacement[indexLim]*1e6, np.abs(load[indexLim]*1e-6), label=texte)
 
-    ax.plot(displacement*1e6, np.abs(load*1e-6), label=texte)
+    # ax.plot(displacement*1e6, np.abs(load*1e-6), label=texte)
 
     tic.Tac("Post traitement", split, True)
 
