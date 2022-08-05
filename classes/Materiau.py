@@ -3,6 +3,7 @@ from typing import cast
 from TicTac import TicTac
 
 from Mesh import Mesh
+import CalcNumba
 import numpy as np
 import Affichage
 from inspect import stack
@@ -765,6 +766,7 @@ class PhaseFieldModel:
     def __Split_Amor(self, Epsilon_e_pg: np.ndarray):
 
         assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
+        useNumba=False
 
         loiDeComportement = self.__loiDeComportement                
 
@@ -785,22 +787,19 @@ class PhaseFieldModel:
         IxI = Ivoigt.dot(Ivoigt.T)
 
         # Projecteur deviatorique
-        Pdev_e_pg = np.eye(taille) - 1/dim * IxI
-        partieDeviateur = 2*mu*Pdev_e_pg
-            
-        
-        # projetcteur spherique
-        spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
-        spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
-       
-        cP_e_pg = bulk*spherP_e_pg + partieDeviateur
-        cM_e_pg = bulk*spherM_e_pg
+        Pdev = np.eye(taille) - 1/dim * IxI
+        partieDeviateur = 2*mu*Pdev
 
-        projecteurs = {
-            "spherP_e_pg" : spherP_e_pg,
-            "spherM_e_pg" : spherM_e_pg,
-            "Pdev_e_pg" : Pdev_e_pg
-        }
+        # projetcteur spherique
+        if useNumba:
+            # Moin rapide
+            cP_e_pg, cM_e_pg = CalcNumba.Split_Amor(Rp_e_pg, Rm_e_pg, partieDeviateur, IxI, bulk)
+        else:
+            spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
+            spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
+        
+            cP_e_pg = bulk*spherP_e_pg + partieDeviateur
+            cM_e_pg = bulk*spherM_e_pg
 
         return cP_e_pg, cM_e_pg
 
@@ -828,6 +827,8 @@ class PhaseFieldModel:
 
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
+
+        useNumba=True
 
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg, verif)
 
@@ -864,10 +865,17 @@ class PhaseFieldModel:
             
             c = self.__loiDeComportement.get_C()
 
-            Cpp = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projP_e_pg, optimize='optimal')
-            Cpm = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projM_e_pg, optimize='optimal')
-            Cmm = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projM_e_pg, optimize='optimal')
-            Cmp = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projP_e_pg, optimize='optimal')
+            tic = TicTac()
+            
+            if useNumba:
+                Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(projP_e_pg, c, projM_e_pg)
+            else:
+                Cpp = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projP_e_pg, optimize='optimal')
+                Cpm = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projM_e_pg, optimize='optimal')
+                Cmm = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projM_e_pg, optimize='optimal')
+                Cmp = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projP_e_pg, optimize='optimal')
+
+            tic.Tac("Calc C","Cpp, Cpm, Cmp, Cmm", False)
             
             if self.__split ==  "AnisotMiehe":
 
@@ -1090,6 +1098,7 @@ class PhaseFieldModel:
         # invariants du tenseur des deformations [e,pg]
         # trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
         trace_e_pg = np.einsum('epii->ep', matrice_e_pg, optimize='optimal')
+        
         # determinant_e_pg = np.linalg.det(matrice_e_pg)
         a_e_pg = matrice_e_pg[:,:,0,0]
         b_e_pg = matrice_e_pg[:,:,0,1]
