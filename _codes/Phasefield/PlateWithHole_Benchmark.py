@@ -38,7 +38,7 @@ umax = 35e-6
 # ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 # ["AnisotStress","AnisotStress_NoCross"]
 # ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotMiehe"]
-for split in ["AnisotMiehe_PM","AnisotMiehe_MP"]: 
+for split in ["AnisotMiehe"]: 
 
     # Data
 
@@ -295,7 +295,8 @@ for split in ["AnisotMiehe_PM","AnisotMiehe_MP"]:
     if solve:
         TicTac.getGraphs(folder)
     else:
-        TicTac.getGraphs(folder, "Post Traitement")
+        TicTac.getGraphs()
+        plt.show()
 
     TicTac.Clear()
 
