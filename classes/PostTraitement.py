@@ -175,6 +175,8 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
 
     folder = Dossier.Join([folder,"Paraview"])
 
+    tic = TicTac()
+
     for iter in range(N):
 
         f = Dossier.Join([folder,f'solution_{iter}.vtu'])
@@ -192,6 +194,8 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
     print('\n')
     filenamePvd = os.path.join(folder,"solution")    
     __Make_pvd(filenamePvd, vtuFiles)
+
+    tic.Tac("Paraview","Temps sauvegarde", False)
 
 def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
     """Creer le .vtu qui peut être lu sur paraview
