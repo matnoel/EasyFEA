@@ -4,3 +4,5 @@
 results/
 classes/__pycache__/
 *.pyc
+*.pos
+*.bak
