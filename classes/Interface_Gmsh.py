@@ -38,7 +38,7 @@ class Interface_Gmsh:
                 elif dim == 3:
                         assert elemType in GroupElem.get_Types3D()
 
-        def Importation3D(self,fichier="", elemType="TETRA4", tailleElement=0.0):
+        def Importation3D(self,fichier="", elemType="TETRA4", tailleElement=0.0, folder=""):
                 """Importe depuis un 3D
 
                 elemTypes = ["TETRA4"]
@@ -64,9 +64,9 @@ class Interface_Gmsh:
 
                 self.__Construction_MaillageGmsh(3, elemType)
 
-                return cast(Mesh, self.__Recuperation_Maillage())
+                return cast(Mesh, self.__Recuperation_Maillage(folder))
 
-        def Rectangle(self, domain: Domain, elemType="TRI3", isOrganised=False):
+        def Rectangle(self, domain: Domain, elemType="TRI3", isOrganised=False, folder=""):
 
                 """Construit un rectangle
 
@@ -90,22 +90,22 @@ class Interface_Gmsh:
                 tailleElement = domain.taille
 
                 # Créer les points
-                p1 = gmsh.model.occ.addPoint(pt1.x, pt1.y, 0, tailleElement)
-                p2 = gmsh.model.occ.addPoint(pt2.x, pt1.y, 0, tailleElement)
-                p3 = gmsh.model.occ.addPoint(pt2.x, pt2.y, 0, tailleElement)
-                p4 = gmsh.model.occ.addPoint(pt1.x, pt2.y, 0, tailleElement)
+                p1 = gmsh.model.geo.addPoint(pt1.x, pt1.y, 0, tailleElement)
+                p2 = gmsh.model.geo.addPoint(pt2.x, pt1.y, 0, tailleElement)
+                p3 = gmsh.model.geo.addPoint(pt2.x, pt2.y, 0, tailleElement)
+                p4 = gmsh.model.geo.addPoint(pt1.x, pt2.y, 0, tailleElement)
 
                 # Créer les lignes reliants les points
-                l1 = gmsh.model.occ.addLine(p1, p2)
-                l2 = gmsh.model.occ.addLine(p2, p3)
-                l3 = gmsh.model.occ.addLine(p3, p4)
-                l4 = gmsh.model.occ.addLine(p4, p1)
+                l1 = gmsh.model.geo.addLine(p1, p2)
+                l2 = gmsh.model.geo.addLine(p2, p3)
+                l3 = gmsh.model.geo.addLine(p3, p4)
+                l4 = gmsh.model.geo.addLine(p4, p1)
 
                 # Créer une boucle fermée reliant les lignes     
-                boucle = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
+                boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
 
                 # Créer une surface
-                surface = gmsh.model.occ.addPlaneSurface([boucle])
+                surface = gmsh.model.geo.addPlaneSurface([boucle])
 
                 surface = gmsh.model.addPhysicalGroup(2, [surface])
                 
@@ -113,10 +113,10 @@ class Interface_Gmsh:
                 
                 self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return cast(Mesh, self.__Recuperation_Maillage())
+                return cast(Mesh, self.__Recuperation_Maillage(folder))
 
         def RectangleAvecFissure(self, domain: Domain, crack: Line,
-        elemType="TRI3", openCrack=False, isOrganised=False, filename=""):
+        elemType="TRI3", openCrack=False, isOrganised=False, folder=""):
 
                 """Construit un rectangle avec une fissure ouverte ou non
 
@@ -195,10 +195,10 @@ class Interface_Gmsh:
                 else:
                         self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
                 
-                return cast(Mesh, self.__Recuperation_Maillage(filename))
+                return cast(Mesh, self.__Recuperation_Maillage(folder))
 
         def PlaqueTrouée(self, domain: Domain, circle: Circle, 
-        elemType="TRI3", isOrganised=False, filename=""):
+        elemType="TRI3", isOrganised=False, folder=""):
                 
                 self.__initGmsh()
                 self.__CheckType(2, elemType)
@@ -258,7 +258,7 @@ class Interface_Gmsh:
                 # gmsh.model.occ.synchronize()
                 # gmsh.model.mesh.embed(1,[l5,l6],2, surface)
                 
-                # Ici on supprimer le point du centre du cercle
+                # Ici on supprimer le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
                 gmsh.model.occ.synchronize()
                 gmsh.model.occ.remove([(0,p5)], False)
 
@@ -267,7 +267,7 @@ class Interface_Gmsh:
 
                 self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised)
 
-                return cast(Mesh, self.__Recuperation_Maillage(filename))
+                return cast(Mesh, self.__Recuperation_Maillage(folder))
 
         # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.   
 
@@ -279,14 +279,18 @@ class Interface_Gmsh:
 
                         # Impose que le maillage soit organisé                        
                         if isOrganised:
-                                # TODO Ne fonctionne plus depsuis le passage à occ
-                                # gmsh.model.geo.synchronize()
+                                # Ne fonctionne que pour une surface simple (sans trou ny fissure) et quand on construit le model avec geo et pas occ !
                                 # groups = gmsh.model.getPhysicalGroups()
-                                # entities = gmsh.model.getEntitiesForPhysicalGroup(2, surface)
-                                gmsh.model.geo.mesh.setTransfiniteSurface(surface)
+                                
+                                # Quand geo
+                                gmsh.model.geo.synchronize()
+                                points = np.array(gmsh.model.getEntities(0))[:,1]
+                                gmsh.model.geo.mesh.setTransfiniteSurface(surface, cornerTags=points) #Ici il faut impérativement donner les points du contour quand plus de 3 ou 4 coints
+                                # gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
                         # Synchronisation
                         gmsh.model.occ.synchronize()
+                        gmsh.model.geo.synchronize()
 
                         if elemType in ["QUAD4","QUAD8"]:
                                 try:
@@ -331,7 +335,7 @@ class Interface_Gmsh:
                 
                 tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
-        def __Recuperation_Maillage(self, filename=""):
+        def __Recuperation_Maillage(self, folder=""):
                 """Construction du maillage
 
                 Parameters
@@ -348,6 +352,7 @@ class Interface_Gmsh:
                 # TODO Ici permettre la creation du .geo ou .msh si nécessaire
 
                 # Ancienne méthode qui beugait
+                # Le beug a été réglé car je norganisait pas bien les noeuds lors de la création 
                 # https://gitlab.onelab.info/gmsh/gmsh/-/issues/1926
                 
                 tic = TicTac()
@@ -400,12 +405,12 @@ class Interface_Gmsh:
                         # Construit connect et changes les indices nécessaires
                         connect = nodeTags.reshape(Ne, nPe)
                         for indice in range(changes.shape[0]):
-                                old = changes[indice,0]
-                                new = changes[indice, 1]
-                                l, c = np.where(connect==old)
-                                connect[l, c] = new
+                            old = changes[indice,0]
+                            new = changes[indice, 1]
+                            l, c = np.where(connect==old)
+                            connect[l, c] = new
                         
-                        # TODO A tester avec l, c = np.where(connect==changes[:,0])
+                        # A tester avec l, c = np.where(connect==changes[:,0])
                         
                         # Noeuds            
                         nodes = np.unique(nodeTags)
@@ -416,11 +421,16 @@ class Interface_Gmsh:
                         
                         groupElem = GroupElem(gmshId, connect, elements, coordo, nodes)
                         dict_groupElem[groupElem.dim] = groupElem
+                
+                tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
  
+                if folder != "":
+                    # gmsh.write(Dossier.Join([folder, "model.geo"])) # Il semblerait que ça marche pas c'est pas grave
+                    gmsh.write(Dossier.Join([folder, "mesh.msh"]))
+                    tic.Tac("Mesh","Sauvegarde du .geo et du .msh", self.__verbosity)
+
 
                 gmsh.finalize()
-
-                tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
                 mesh = Mesh(dict_groupElem, self.__verbosity)
 
