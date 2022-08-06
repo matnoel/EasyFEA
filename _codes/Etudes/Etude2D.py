@@ -21,6 +21,8 @@ from TicTac import TicTac
 
 Affichage.Clear()
 
+folder = Dossier.NewFile("Etude2D", results=True)
+
 ticTot = TicTac()
 
 # Data --------------------------------------------------------------------------------------------
@@ -41,8 +43,8 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-# taille = h/30
-taille = h/50
+taille = h/5
+# taille = h/100
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -58,10 +60,10 @@ LineL = Line(Point(x=L), Point(x=L, y=h))
 LineH = Line(Point(y=h),Point(x=L, y=h))
 
 interfaceGmsh = Interface_Gmsh()
-mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=True)
+mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=True, folder=folder)
 
-# Affichage.Plot_NoeudsMaillage(mesh, showId=True)
-# plt.show()
+Affichage.Plot_Maillage(mesh)
+plt.show()
 
 
 # Récupère les noeuds qui m'interessent
@@ -96,13 +98,14 @@ dep = simu.Solve_u()
 
 simu.Save_Iteration()
 
+ticTot.Tac("Temps script","Temps total", True)        
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
 simu.Resume()
 
-folder = Dossier.NewFile("Etude2D", results=True)
+
 # folder=""
 
 if saveParaview:        
@@ -120,7 +123,6 @@ if plotResult:
         
         tic.Tac("Affichage","Affichage des figures", plotResult)
 
-ticTot.Tac("Temps script","Temps total", True)        
 
 TicTac.getResume()
 

@@ -17,6 +17,8 @@ from TicTac import TicTac
 
 Affichage.Clear()
 
+folder = Dossier.NewFile("Etude3D", results=True)
+
 # Data --------------------------------------------------------------------------------------------
 
 dim = 3 
@@ -34,12 +36,14 @@ P = 800 #N
 
 # Paramètres maillage
 nBe = 1
+# nBe = 1
 taille = h/nBe
+# taille = h/3
 
 if nBe > 3:
-        plotResult = False
+    plotResult = False
 
-comportement = Elas_Isot(dim, contraintesPlanes=False)
+comportement = Elas_Isot(dim)
 
 # Materiau
 materiau = Materiau(comportement)
@@ -49,7 +53,11 @@ interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 
 fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 
-mesh = interfaceGmsh.Importation3D(fichier, tailleElement=taille)
+# mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille)
+# mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
+
+domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
 
 noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
@@ -76,19 +84,19 @@ Affichage.NouvelleSection("Résultats")
 simu.Resume()
 
 if saveParaview:
-        folder = Dossier.NewFile("Etude3D", results=True)        
-        PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+    
+    PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 if plotResult:
 
-        tic = TicTac()
+    tic = TicTac()
 
-        Affichage.Plot_Maillage(simu, deformation=False)        
-        Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)        
-        Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
-        
-        
-        tic.Tac("Affichage","Affichage des figures", plotResult)
+    Affichage.Plot_Maillage(simu, deformation=False)        
+    Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)        
+    Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
+    
+    
+    tic.Tac("Affichage","Affichage des figures", plotResult)
 
 TicTac.getResume()
 

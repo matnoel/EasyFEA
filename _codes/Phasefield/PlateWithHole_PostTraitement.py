@@ -27,7 +27,7 @@ plotDamage = False
 
 v=0.3
 
-snapshot = [18.5, 24.6, 28]
+snapshot = [18.5, 24.6, 25, 28, 35]
 
 nomDossier = "PlateWithHole_Benchmark"
 folder = Dossier.NewFile(nomDossier, results=True)
@@ -39,8 +39,16 @@ else:
 
 fig, ax = plt.subplots()
 
-# ,"AnisotMiehe","AnisotMiehe_NoCross","AnisotStress","AnisotStress_NoCross"
-for split in ["Bourdin","Amor","Miehe"]: #["Bourdin","Amor","Miehe","He","Stress"]
+# ["Bourdin","Amor","Miehe","He","Stress"]
+# ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
+# ["AnisotStress","AnisotStress_NoCross"]
+# ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotMiehe"]
+
+# ["Miehe","AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
+# ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross","He"]
+# ["AnisotMiehe","Miehe"]
+# ["AnisotMiehe","He"]
+for split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross","He"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
     tic = TicTac.TicTac()
 
@@ -68,17 +76,22 @@ for split in ["Bourdin","Amor","Miehe"]: #["Bourdin","Amor","Miehe","He","Stress
     else:
         folder = Dossier.Join([folder, nom])
 
-    # Charge la simulation
-    simu = PostTraitement.Load_Simu(folder, False)
+    
 
     # Charge la force et le déplacement
     load, displacement = PostTraitement.Load_Load_Displacement(folder, False)
 
     if plotDamage:
+
+        # Charge la simulation
+        simu = PostTraitement.Load_Simu(folder, False)
+
+        titre = split.replace("AnisotMiehe","Spectral")
+
         # Affiche le dernier endommagement
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
         folder=folderSauvegarde, filename=f"{nom} last", 
-        title=r"$\phi$")
+        title=f"{titre}")
         
 
         # Récupère les itérations à 18.5, 24.6, 30 et trace l'endommagement
@@ -93,22 +106,22 @@ for split in ["Bourdin","Amor","Miehe"]: #["Bourdin","Amor","Miehe","He","Stress
 
             filenameDamage = f"{nom} et ud = {np.round(displacement[i]*1e6,2)}"
 
+
             Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
             folder=folderSauvegarde, filename=filenameDamage, 
-            title=fr"${split}$")
+            title=f"{titre}")
 
     # texte = nom.replace(f" pour v={v}", "")
     texte = split
+    texte = texte.replace("AnisotMiehe","Spectral")
 
-    indexLim = np.where(displacement*1e6 <= 26)[0]
+    indexLim = np.where(displacement*1e6 <= 25)[0]
     ax.plot(displacement[indexLim]*1e6, np.abs(load[indexLim]*1e-6), label=texte)
-
-    # ax.plot(displacement*1e6, np.abs(load*1e-6), label=texte)
 
     tic.Tac("Post traitement", split, True)
 
 ax.set_xlabel("displacement [µm]")
-ax.set_ylabel("load [kN]")
+ax.set_ylabel("load [kN/mm]")
 ax.grid()
 ax.legend()
 plt.figure(fig)

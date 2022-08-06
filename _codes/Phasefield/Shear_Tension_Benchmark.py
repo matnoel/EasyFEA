@@ -190,7 +190,6 @@ if solve:
                         displacement = simu.Solve_u()
 
                         dincMax = np.max(np.abs(damage-dold))
-                        # TODO faire en relatif np.max(np.abs((damage-dold)/dold))?
                         convergence = dincMax <= tolConv
                         # if damage.min()>1e-5:
                         #     convergence=False

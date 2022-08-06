@@ -18,13 +18,13 @@ Affichage.Clear()
 plotAllResult = False
 
 comp = "Elas_Isot" # "Elas_Isot" "Elas_IsotTrans"
-split = "AnisotStress" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
+split = "Amor" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
 nom="_".join([comp, split, regu])
 
-loadInHole = True
+loadInHole = False
 
 nomDossier = "Calcul Energie plaque trouée"
 
@@ -204,6 +204,9 @@ axp.set_title(r'Split sur $\varepsilon$',fontsize=14)
 
 PostTraitement.Save_fig(folder, "calc analytique")
 
+list_Amor_psiP_A=[]
+list_Amor_psiP_B=[]
+
 list_Miehe_psiP_A=[]
 list_Miehe_psiP_B=[]
 
@@ -211,17 +214,35 @@ list_Stress_psiP_A=[]
 list_Stress_psiP_B=[]
 
 for v in list_v:
-
-    # Split Miehe
+    
     Eps_A = (1+v)/E*Sig_A - v/E*np.trace(Sig_A)*np.eye(3); trEps_A = np.trace(Eps_A); trEpsP_A = (trEps_A+np.abs(trEps_A))/2
     Eps_B = (1+v)/E*Sig_B - v/E*np.trace(Sig_B)*np.eye(3); trEps_B = np.trace(Eps_B); trEpsP_B = (trEps_B+np.abs(trEps_B))/2
 
+    # Eps_A = (1+v)/E*Sig_A - v/E*np.trace(Sig_A)*np.eye(3); trEps_A = np.trace(Eps_A); trEpsP_A = (trEps_A+np.abs(trEps_A))/2
+    # Eps_B = (1+v)/E*Sig_B - v/E*np.trace(Sig_B)*np.eye(3); trEps_B = np.trace(Eps_B); trEpsP_B = (trEps_B+np.abs(trEps_B))/2
+
+    l = v*E/((1+v)*(1-2*v))
+    # l = v*E/(1-v**2)
+    mu=E/(2*(1+v))
+
+    # Split Amor
+    bulk = l + 2/3*mu
+
+    spherA = 1/3*trEps_A*np.eye(3)
+    spherB = 1/3*trEps_B*np.eye(3)
+
+    EpsD_A = Eps_A-spherA
+    EpsD_B = Eps_B-spherB
+
+    Amor_psi_A = 1/2*bulk*trEpsP_A**2 + mu * np.einsum('ij,ij', EpsD_A, EpsD_A)
+    Amor_psi_B = 1/2*bulk*trEpsP_B**2 + mu * np.einsum('ij,ij', EpsD_B, EpsD_B)
+
+    list_Amor_psiP_A.append(Amor_psi_A)
+    list_Amor_psiP_B.append(Amor_psi_B)
+
+    # Split Miehe
     Epsi_A = np.diag(np.linalg.eigvals(Eps_A)); Epsip_A = (Epsi_A+np.abs(Epsi_A))/2
     Epsi_B = np.diag(np.linalg.eigvals(Eps_B)); Epsip_B = (Epsi_B+np.abs(Epsi_B))/2
-
-    # l = v*E/((1+v)*(1-2*v))
-    l = v*E/(1-v**2)
-    mu=E/(2*(1+v))
 
     Miehe_psiP_A = l/2*trEpsP_A**2 + mu*np.einsum('ij,ij',Epsip_A,Epsip_A)
     Miehe_psiP_B = l/2*trEpsP_B**2 + mu*np.einsum('ij,ij',Epsip_B,Epsip_B)
@@ -278,7 +299,20 @@ ax2.set_title('Split sur $\sigma$',fontsize=14)
 
 PostTraitement.Save_fig(folder, "Stress psiP")
 
+fig, ax3 = plt.subplots()
 
+ax3.plot(list_v, np.array(list_Amor_psiP_A)*E/SIG**2, label='A')
+ax3.plot(list_v, np.array(list_Amor_psiP_B)*E/SIG**2, label='B')
+ax3.grid()
+if split == "Amor":    
+    ax3.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
+    ax3.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
+ax3.legend(fontsize=14)
+ax3.set_xlabel(r"$\nu$",fontsize=14)
+ax3.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
+ax3.set_title('Split Amor',fontsize=14)
+
+PostTraitement.Save_fig(folder, "Amor psiP")
 
 
 
