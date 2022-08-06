@@ -247,11 +247,11 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         if deformation:
             # Superpose maillage non deformé et deformé
             # Maillage non deformés
-            pc = matplotlib.collections.LineCollection(coord_par_face, edgecolor='black', lw=lw)
+            pc = matplotlib.collections.LineCollection(coord_par_face, edgecolor='black', lw=lw, antialiaseds=True, zorder=0)
             ax.add_collection(pc)
 
             # Maillage deformé                
-            pc = matplotlib.collections.LineCollection(coordo_par_face_deforme, edgecolor='red', lw=lw)
+            pc = matplotlib.collections.LineCollection(coordo_par_face_deforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
             ax.add_collection(pc)
         else:
             # Maillage non deformé

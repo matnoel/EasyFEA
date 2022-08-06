@@ -148,6 +148,10 @@ class GroupElem:
             elif self.dim == 3:                
                 if self.elemType == "TETRA4":
                     return 4
+                elif self.elemType == "HEXA8":
+                    return 6
+                else:
+                    raise "Element inconnue"
         nbFaces = cast(int, property(__get_nbFaces))
 
         def get_gauss(self, matriceType: str):
@@ -577,11 +581,32 @@ class GroupElem:
                 N4t = lambda x,y,z: z
 
                 Ntild = np.array([N1t, N2t, N3t, N4t])
+
+            elif self.elemType == "HEXA8":
+
+                N1t = lambda x,y,z: 1/8 * (1-x) * (1-y) * (1-z)
+                N2t = lambda x,y,z: 1/8 * (1+x) * (1-y) * (1-z)
+                N3t = lambda x,y,z: 1/8 * (1+x) * (1+y) * (1-z)
+                N4t = lambda x,y,z: 1/8 * (1-x) * (1+y) * (1-z)
+                N5t = lambda x,y,z: 1/8 * (1-x) * (1-y) * (1+z)
+                N6t = lambda x,y,z: 1/8 * (1+x) * (1-y) * (1+z)
+                N7t = lambda x,y,z: 1/8 * (1+x) * (1+y) * (1+z)
+                N8t = lambda x,y,z: 1/8 * (1-x) * (1+y) * (1+z)
+
+                dN1t = [lambda x,y,z: -1/8 * (1-y) * (1-z),   lambda x,y,z: -1/8 * (1-x) * (1-z),   lambda x,y,z: -1/8 * (1-x) * (1-y)]
+                dN2t = [lambda x,y,z: 1/8 * (1-y) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1-y)]
+                dN3t = [lambda x,y,z: 1/8 * (1+y) * (1-z),    lambda x,y,z: 1/8 * (1+x) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1+y)]
+                dN4t = [lambda x,y,z: -1/8 * (1+y) * (1-z),    lambda x,y,z: 1/8 * (1-x) * (1-z),    lambda x,y,z: -1/8 * (1-x) * (1+y)]
+                dN5t = [lambda x,y,z: -1/8 * (1-y) * (1+z),    lambda x,y,z: -1/8 * (1-x) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1-y)]
+                dN6t = [lambda x,y,z: 1/8 * (1-y) * (1+z),    lambda x,y,z: -1/8 * (1+x) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1-y)]
+                dN7t = [lambda x,y,z: 1/8 * (1+y) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1+y)]
+                dN8t = [lambda x,y,z: -1/8 * (1+y) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1+y)]                
+
+                Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t])
             
             else:
-                # print("Type inconnue")
-                # raise "Type inconnue"
-                return
+                raise "Element inconnue"
+
             
             # Evalue aux points de gauss
 
@@ -673,11 +698,23 @@ class GroupElem:
                 dN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 1]
 
                 dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
+
+            elif self.elemType == "HEXA8":
+                
+                dN1t = [lambda x,y,z: -1/8 * (1-y) * (1-z),   lambda x,y,z: -1/8 * (1-x) * (1-z),   lambda x,y,z: -1/8 * (1-x) * (1-y)]
+                dN2t = [lambda x,y,z: 1/8 * (1-y) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1-y)]
+                dN3t = [lambda x,y,z: 1/8 * (1+y) * (1-z),    lambda x,y,z: 1/8 * (1+x) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1+y)]
+                dN4t = [lambda x,y,z: -1/8 * (1+y) * (1-z),    lambda x,y,z: 1/8 * (1-x) * (1-z),    lambda x,y,z: -1/8 * (1-x) * (1+y)]
+                dN5t = [lambda x,y,z: -1/8 * (1-y) * (1+z),    lambda x,y,z: -1/8 * (1-x) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1-y)]
+                dN6t = [lambda x,y,z: 1/8 * (1-y) * (1+z),    lambda x,y,z: -1/8 * (1+x) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1-y)]
+                dN7t = [lambda x,y,z: 1/8 * (1+y) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1+y)]
+                dN8t = [lambda x,y,z: -1/8 * (1+y) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1+y)]
+
+                dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t])
             
-            else: 
-                # print("Type inconnue")
-                # raise "Type inconnue"
-                return
+            else:
+                raise "Element inconnue"
+                
             
             # Evaluation aux points de gauss
             gauss = self.get_gauss(matriceType)
@@ -840,6 +877,8 @@ class GroupElem:
                 return np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
             elif self.elemType == "QUAD8":
                 return np.array(self.__connect[:, [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]]).reshape(-1,3)
+            else:
+                raise "Element inconnue"
 
         def get_connect_Faces(self):
             """Récupère les identifiants des noeud constuisant les faces
@@ -864,6 +903,12 @@ class GroupElem:
             elif self.elemType == "TETRA4":
                 # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
                 return np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
+            elif self.elemType == "HEXA8":
+                # Ici par elexemple on va creer 6 faces, chaque face est composé des identifiants des noeuds
+                # TODO regarder si le problement d'affichage en 3D ne vient pas de l'ordre des faces ?
+                return np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
+            else:
+                raise "Element inconnue"
 
         ################################################ STATIC ##################################################
 
@@ -881,7 +926,7 @@ class GroupElem:
         @staticmethod
         def get_Types3D():
             """type d'elements disponibles en 3D"""
-            liste3D = ["TETRA4"]
+            liste3D = ["TETRA4", "HEXA8"]
             return liste3D
 
         @staticmethod
@@ -903,7 +948,7 @@ class GroupElem:
                 elif gmshId == 4:
                     type = "TETRA4"; nPe = 4; dim = 3
                 elif gmshId == 5:
-                    type = "CUBE8"; nPe = 8; dim = 3
+                    type = "HEXA8"; nPe = 8; dim = 3
                 elif gmshId == 6:
                     type = "PRISM6"; nPe = 6; dim = 3
                 elif gmshId == 7:

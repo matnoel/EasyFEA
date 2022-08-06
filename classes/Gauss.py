@@ -132,6 +132,23 @@ class Gauss:
                 z = [a, b, a, a]
 
                 poids = [1/24]*nPg
+        
+        elif elemType == "HEXA8":
+            dim = 3            
+            if matriceType in ["rigi", "masse"]:
+                nPg = 8
+
+                m1r3 = -1/np.sqrt(3)
+                p1r3 = 1/np.sqrt(3)
+
+                x = [m1r3, m1r3, m1r3, m1r3, p1r3, p1r3, p1r3, p1r3]
+                y = [m1r3, m1r3, p1r3, p1r3, m1r3, m1r3, p1r3, p1r3]
+                z = [m1r3, p1r3, m1r3, p1r3, m1r3, p1r3, m1r3, p1r3]
+
+                poids = [1]*nPg
+
+        else:
+            raise "Element inconnue"
 
         if dim == 1:
             coord = np.array([x]).T.reshape((nPg,1))
