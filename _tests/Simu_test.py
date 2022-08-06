@@ -78,12 +78,13 @@ class Test_Simu(unittest.TestCase):
         
         self.simulations3DElastique = []
 
-        interfaceGmsh = Interface_Gmsh(verbosity=False)
+        listMesh3D = Interface_Gmsh.Construction3D(L=L, h=h, b=b, taille=taille)
 
-        for t, elemType in enumerate(GroupElem.get_Types3D()):
+        # Pour chaque type d'element 2D
+        for mesh in listMesh3D:
 
-            mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=taille)
-
+            mesh = cast(Mesh, mesh)
+            
             simu = Simu(mesh, materiau, verbosity=False)
 
             simu.Assemblage_u()
@@ -91,9 +92,10 @@ class Test_Simu(unittest.TestCase):
             noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
             noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
-            simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b, lambda x,y,z : x+0.002], ["z","x"])
-
-            simu.add_dirichlet("displacement", noeuds_en_0, [0,0,0],["x","y","z"], "Encastrement")
+            simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
+            # simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])
+            simu.add_dirichlet("displacement",noeuds_en_L, [lambda x,y,z: 1], ['x'])
+            simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
 
             self.simulations3DElastique.append(simu)
     

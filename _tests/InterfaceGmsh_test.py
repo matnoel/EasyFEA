@@ -37,6 +37,8 @@ class Test_InterfaceGmsh(unittest.TestCase):
         for mesh3D in self.list_mesh3D:
             Affichage.Plot_NoeudsMaillage(mesh3D, showId=True)
             plt.pause(0.00005)
+        
+        # plt.show()
            
 if __name__ == '__main__':        
     try:

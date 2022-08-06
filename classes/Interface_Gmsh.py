@@ -48,6 +48,8 @@ class Interface_Gmsh:
             Mesh: mesh
         """
 
+        assert elemType =="TETRA4", "Lorsqu'on importe une pièce on ne peut utiliser que du TETRA4"
+
         # TODO Permettre d'autres maillage ?
 
         self.__initGmsh()
@@ -94,9 +96,14 @@ class Interface_Gmsh:
 
             gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
-        # nCouches = np.max([np.ceil(np.abs(extrude[2] - domain.taille)), 1])
+        if elemType == "HEXA8":
+            # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
+            combine = True
+        else:
+            combine = False            
         
-        extru = gmsh.model.geo.extrude([(2, surface)], extrude[0], extrude[1], extrude[2], recombine=True, numElements=[nCouches])        
+        # nCouches = np.max([np.ceil(np.abs(extrude[2] - domain.taille)), 1])            
+        extru = gmsh.model.geo.extrude([(2, surface)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=[nCouches])
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
@@ -396,14 +403,6 @@ class Interface_Gmsh:
                 entities = gmsh.model.getEntities(2)
                 surfaces = np.array(entities)[:,1]
                 for surf in surfaces:
-                    
-                    # if isOrganised:
-                    #     # gmsh.model.geo.synchronize()
-                    #     # points = np.array(gmsh.model.getEntities(0))[:,1]
-                    #     # gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points)
-
-                    #     gmsh.model.geo.mesh.setTransfiniteSurface(surf)
-
                     gmsh.model.mesh.setRecombine(2, surf)
 
                 
@@ -552,16 +551,22 @@ class Interface_Gmsh:
         return list_mesh2D
 
     @staticmethod
-    def Construction3D():
+    def Construction3D(L=130, h=13, b=13, taille=130):
         # Pour chaque type d'element 3D
+
+        domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
 
         list_mesh3D = []
         for t, elemType in enumerate(GroupElem.get_Types3D()):
-            interfaceGmsh = Interface_Gmsh(verbosity=False)
-            path = Dossier.GetPath()
-            fichier = Dossier.Join([path,"models","part.stp"])                        
-            mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=120)
-            list_mesh3D.append(mesh)
+            for isOrganised in [True, False]:
+                interfaceGmsh = Interface_Gmsh(verbosity=False)
+                path = Dossier.GetPath()
+                fichier = Dossier.Join([path,"models","part.stp"])
+                if elemType == "TETRA4":
+                    mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=taille)
+                    list_mesh3D.append(mesh)
+                mesh2 = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=isOrganised)
+                list_mesh3D.append(mesh2)
 
         return list_mesh3D
 
