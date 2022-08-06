@@ -195,9 +195,6 @@ class Test_Materiau(unittest.TestCase):
             verifC = np.linalg.norm(decompC)/np.linalg.norm(c)
             if pfm.split != "He":
                 self.assertTrue(np.abs(verifC) < tol)
-            else:
-                # TODO regarder le probleme pour le split de He
-                pass
 
             # Test que SigP + SigM = Sig
             Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
