@@ -759,7 +759,7 @@ class PhaseFieldModel:
             problem = "rigi"
 
 
-        tac = tic.Tac("Calc C",f"{self.__split} ({problem})", False)
+        tac = tic.Tac("Matrices",f"{self.__split} ({problem})", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -875,7 +875,7 @@ class PhaseFieldModel:
                 Cmm = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projM_e_pg, optimize='optimal')
                 Cmp = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projP_e_pg, optimize='optimal')
 
-            tic.Tac("Calc C","Cpp, Cpm, Cmp, Cmm", False)
+            tic.Tac("Matrices","Cpp, Cpm, Cmp, Cmm", False)
             
             if self.__split ==  "AnisotMiehe":
 
@@ -1204,7 +1204,7 @@ class PhaseFieldModel:
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
         
-        tic.Tac("Calc C", "Decomp spectrale", False)
+        tic.Tac("Matrices", "Decomp spectrale", False)
             
         return projP, projM
 
