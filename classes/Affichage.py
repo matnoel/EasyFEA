@@ -53,7 +53,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     dim = mesh.dim
 
     if dim==3:
-        valeursAuxNoeuds=False
+        valeursAuxNoeuds=True
 
     valeurs = simu.Get_Resultat(option, valeursAuxNoeuds)
     if not isinstance(valeurs, np.ndarray):
@@ -143,26 +143,25 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     
     elif mesh.dim == 3:
 
-        # Construit les vertices
-        coord_par_face = {}
-        for elem in connect_Faces:
-            faces = connect_Faces[elem]
-            coord_par_face[elem] = coordo[faces]
+        # Construit les vertices du maillage 3D en recupérant le maillage 2D
+        groupElem2D = mesh.get_groupElem(2)
+        connect2D = groupElem2D.connect
+        coordo2D = groupElem2D.coordo
+        coord =coordo2D[connect2D]
         
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
 
-        for elem in connect_Faces:
-            coord = coord_par_face[elem]
+        # Trace le maillage
+        if affichageMaillage:
+            pc = Poly3DCollection(coord, edgecolor='black', linewidths=0.5, cmap='jet')                
+        else:
+            pc = Poly3DCollection(coord, cmap='jet')                    
+        ax.add_collection3d(pc)
+
+        valeursAuFaces = np.mean(valeurs[connect2D], axis=1)
         
-            # Trace le maillage
-            if affichageMaillage:
-                pc = Poly3DCollection(coord, edgecolor='black', linewidths=0.5, cmap='jet')                
-            else:
-                pc = Poly3DCollection(coord, cmap='jet')                    
-            ax.add_collection3d(pc)
-        
-        valeursAuFaces = valeurs.reshape(mesh.Ne, 1).repeat(mesh.get_nbFaces(), axis=1).reshape(-1)
+        # valeursAuFaces = valeurs.reshape(mesh.Ne, 1).repeat(mesh.get_nbFaces(), axis=1).reshape(-1)
         
         # ax.scatter(coordo[:,0],coordo[:,1],coordo[:,2], linewidth=0, alpha=0)
         pc.set_clim(valeursAuFaces.min(), valeursAuFaces.max())
@@ -300,11 +299,11 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         # fig = plt.figure()            
         # ax = fig.add_subplot(projection="3d")
 
-        for elem in coord_par_face:
-            coord = coord_par_face[elem]
+        if deformation:
+            coordDeforme = coordo_par_face_deforme[elem]
 
-            if deformation:
-                coordDeforme = coordo_par_face_deforme[elem]
+            for elem in coord_par_face:
+                coord = coord_par_face[elem]
 
                 # Supperpose les deux maillages
                 # Maillage non deformé
@@ -313,9 +312,17 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
                 # Maillage deformé
                 ax.add_collection3d(Poly3DCollection(coordDeforme, edgecolor='red', linewidths=0.5, alpha=0))
-            else:
-                # Maillage non deformé
-                ax.add_collection3d(Poly3DCollection(coord, facecolors='c', edgecolor='black', linewidths=1, alpha=alpha))
+        else:
+            # Maillage non deformé
+
+            # Si il n'y a pas de deformation on peut afficher que le maillage 2D
+
+            groupElem2D = mesh.get_groupElem(2)
+            connect2D = groupElem2D.connect
+            coordo2D = groupElem2D.coordo
+            coord =coordo2D[connect2D]
+
+            ax.add_collection3d(Poly3DCollection(coord, facecolors='c', edgecolor='black', linewidths=1, alpha=alpha))
         
         # ax.autoscale()
         # ax.set_xlabel("x [mm]")
@@ -452,10 +459,6 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     return ax
 
-    
-    
-
-    
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
     
