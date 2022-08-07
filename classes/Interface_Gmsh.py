@@ -74,7 +74,7 @@ class Interface_Gmsh:
     def Poutre3D(self, domain: Domain, extrude=[0,0,1], elemType="TETRA4", isOrganised=True, nCouches=1, folder=""):
         """Importe depuis un 3D
 
-        elemTypes = ["TETRA4", "HEXA8""]
+        elemTypes = ["TETRA4", "HEXA8", "PRISM6"]
         
         Returns:
             Mesh: mesh
@@ -96,7 +96,7 @@ class Interface_Gmsh:
 
             gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
-        if elemType == "HEXA8":
+        if elemType in ["HEXA8","PRISM6"]:
             # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
             combine = True
         else:

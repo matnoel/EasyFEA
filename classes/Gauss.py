@@ -147,6 +147,26 @@ class Gauss:
 
                 poids = [1]*nPg
 
+        elif elemType == "PRISM6":
+            dim = 3            
+            if matriceType in ["rigi", "masse"]:
+                nPg = 6
+
+                m1r3 = -1/np.sqrt(3)
+                p1r3 = 1/np.sqrt(3)
+
+                ordre = [2,0,1,5,3,4]
+
+                x = [m1r3, m1r3, m1r3, p1r3, p1r3, p1r3]
+                y = [0.5, 0, 0.5, 0.5, 0, 0.5]
+                z = [0.5, 0.5, 0, 0.5, 0.5, 0]
+
+                x = np.array(x)[ordre]
+                y = np.array(y)[ordre]
+                z = np.array(z)[ordre]
+
+                poids = [1/6]*nPg
+
         else:
             raise "Element inconnue"
 

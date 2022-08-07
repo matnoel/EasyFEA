@@ -223,7 +223,8 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
         "QUAD4" : 9,
         "QUAD8" : 23,
         "TETRA4" : 10,
-        "HEXA8": 12
+        "HEXA8": 12,
+        "PRISM6": 13
     } # regarder vtkelemtype D:\SOFT\FEMObject\BASIC\MODEL\@ELEMENT\vtkelemtype.m
 
     typeParaviewElement = typesParaviewElement[simu.mesh.elemType]

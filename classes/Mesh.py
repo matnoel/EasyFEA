@@ -268,12 +268,12 @@ class Mesh:
 
     def get_connectTriangle(self):
         """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D"""
-        return self.groupElem.get_connectTriangle()
+        return cast(dict, self.groupElem.get_connectTriangle())
     
     def get_connect_Faces(self):
-        """Récupère les faces de chaque element
+        """Récupère les faces de chaque element et renvoie un dictionnaire pour chaque elements
         """
-        return self.groupElem.get_connect_Faces()
+        return cast(dict, self.groupElem.get_connect_Faces())
         
 
         

@@ -35,8 +35,8 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
+# nBe = 10
 nBe = 1
-# nBe = 1
 taille = h/nBe
 # taille = h/3
 
@@ -56,8 +56,8 @@ fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille)
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
 
-domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
+domain = Domain(Point(y=-h/2,z=0), Point(x=L, y=h/2,z=0), taille=taille)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="PRISM6", isOrganised=True, nCouches=3)
 
 noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)

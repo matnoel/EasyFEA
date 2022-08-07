@@ -150,6 +150,8 @@ class GroupElem:
                     return 4
                 elif self.elemType == "HEXA8":
                     return 6
+                elif self.elemType == "PRISM6":
+                    return 5
                 else:
                     raise "Element inconnue"
         nbFaces = cast(int, property(__get_nbFaces))
@@ -593,16 +595,29 @@ class GroupElem:
                 N7t = lambda x,y,z: 1/8 * (1+x) * (1+y) * (1+z)
                 N8t = lambda x,y,z: 1/8 * (1-x) * (1+y) * (1+z)
 
-                dN1t = [lambda x,y,z: -1/8 * (1-y) * (1-z),   lambda x,y,z: -1/8 * (1-x) * (1-z),   lambda x,y,z: -1/8 * (1-x) * (1-y)]
-                dN2t = [lambda x,y,z: 1/8 * (1-y) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1-y)]
-                dN3t = [lambda x,y,z: 1/8 * (1+y) * (1-z),    lambda x,y,z: 1/8 * (1+x) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1+y)]
-                dN4t = [lambda x,y,z: -1/8 * (1+y) * (1-z),    lambda x,y,z: 1/8 * (1-x) * (1-z),    lambda x,y,z: -1/8 * (1-x) * (1+y)]
-                dN5t = [lambda x,y,z: -1/8 * (1-y) * (1+z),    lambda x,y,z: -1/8 * (1-x) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1-y)]
-                dN6t = [lambda x,y,z: 1/8 * (1-y) * (1+z),    lambda x,y,z: -1/8 * (1+x) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1-y)]
-                dN7t = [lambda x,y,z: 1/8 * (1+y) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1+z),    lambda x,y,z: 1/8 * (1+x) * (1+y)]
-                dN8t = [lambda x,y,z: -1/8 * (1+y) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1+z),    lambda x,y,z: 1/8 * (1-x) * (1+y)]                
-
                 Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t])
+
+            elif self.elemType == "PRISM6":
+
+                N1t = lambda x,y,z: 1/2 * y * (1-x)
+                N2t = lambda x,y,z: 1/2 * z * (1-x)
+                N3t = lambda x,y,z: 1/2 * (1-y-z) * (1-x)
+                N4t = lambda x,y,z: 1/2 * y * (1+x)
+                N5t = lambda x,y,z: 1/2 * z * (1+x)
+                N6t = lambda x,y,z: 1/2 * (1-y-z) * (1+x)
+                
+                # Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t])
+                Ntild = np.array([N3t, N1t, N2t, N6t, N4t, N5t])
+
+                # dN1t = [lambda x,y,z: -1/2 * y,         lambda x,y,z: 1/2 * (1-x),      lambda x,y,z: 0]
+                # dN2t = [lambda x,y,z: -1/2 * z,         lambda x,y,z: 0,                lambda x,y,z: 1/2 * (1-x)]
+                # dN3t = [lambda x,y,z: -1/2 * (1-y-z),   lambda x,y,z: -1/2 * (1-x),     lambda x,y,z: -1/2 * (1-x)]
+                # dN4t = [lambda x,y,z: 1/2 * y,          lambda x,y,z: 1/2 * (1+x),      lambda x,y,z: 0]
+                # dN5t = [lambda x,y,z: 1/2 * z,          lambda x,y,z: 0,                lambda x,y,z: 1/2 * (1+x)]
+                # dN6t = [lambda x,y,z: 1/2 * (1-y-z),    lambda x,y,z: -1/2 * (1+x),     lambda x,y,z: -1/2 * (1+x)]
+
+                # dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
+
             
             else:
                 raise "Element inconnue"
@@ -712,6 +727,19 @@ class GroupElem:
 
                 dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t])
             
+            elif self.elemType == "PRISM6":
+
+                dN1t = [lambda x,y,z: -1/2 * y,         lambda x,y,z: 1/2 * (1-x),      lambda x,y,z: 0]
+                dN2t = [lambda x,y,z: -1/2 * z,         lambda x,y,z: 0,                lambda x,y,z: 1/2 * (1-x)]
+                dN3t = [lambda x,y,z: -1/2 * (1-y-z),   lambda x,y,z: -1/2 * (1-x),     lambda x,y,z: -1/2 * (1-x)]
+                dN4t = [lambda x,y,z: 1/2 * y,          lambda x,y,z: 1/2 * (1+x),      lambda x,y,z: 0]
+                dN5t = [lambda x,y,z: 1/2 * z,          lambda x,y,z: 0,                lambda x,y,z: 1/2 * (1+x)]
+                dN6t = [lambda x,y,z: 1/2 * (1-y-z),    lambda x,y,z: -1/2 * (1+x),     lambda x,y,z: -1/2 * (1+x)]
+
+                # dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
+                dNtild = np.array([dN3t, dN1t, dN2t, dN6t, dN4t, dN5t])
+                
+
             else:
                 raise "Element inconnue"
                 
@@ -866,22 +894,27 @@ class GroupElem:
         def get_connectTriangle(self):
             """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D\n
             Par exemple pour un quadrangle on construit deux triangles
-            pour un triangle à 6 noeuds on construit 4 triangles
+            pour un triangle à 6 noeuds on construit 4 triangles\n
+
+            Renvoie un dictionnaire par type
             """
-            assert self.dim == 2            
+            assert self.dim == 2
+            dict_connect_triangle = {}
             if self.elemType == "TRI3":
-                return self.__connect[:,[0,1,2]]
+                dict_connect_triangle[self.elemType] = self.__connect[:,[0,1,2]]
             elif self.elemType == "TRI6":
-                return np.array(self.__connect[:, [0,3,5,3,1,4,5,4,2,3,4,5]]).reshape(-1,3)
+                dict_connect_triangle[self.elemType] = np.array(self.__connect[:, [0,3,5,3,1,4,5,4,2,3,4,5]]).reshape(-1,3)
             elif self.elemType == "QUAD4":
-                return np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
+                dict_connect_triangle[self.elemType] = np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
             elif self.elemType == "QUAD8":
-                return np.array(self.__connect[:, [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]]).reshape(-1,3)
+                dict_connect_triangle[self.elemType] = np.array(self.__connect[:, [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]]).reshape(-1,3)
             else:
                 raise "Element inconnue"
 
+            return dict_connect_triangle[self.elemType]
+
         def get_connect_Faces(self):
-            """Récupère les identifiants des noeud constuisant les faces
+            """Récupère les identifiants des noeud constuisant les faces et renvoie les faces pour chaque types d'elements
 
             Returns
             -------
@@ -889,26 +922,39 @@ class GroupElem:
                 Renvoie une liste de face
             """
             assert self.dim in [2,3]
+
+            dic_connect_faces = {}
+
             nPe = self.nPe            
             if self.elemType in ["SEG2","SEG3","POINT"]:
-                return self.__connect.copy()
+                dic_connect_faces[self.elemType] = self.__connect.copy()
             elif self.elemType == "TRI3":
-                return self.__connect[:, [0,1,2,0]]
+                dic_connect_faces[self.elemType] = self.__connect[:, [0,1,2,0]]
             elif self.elemType == "TRI6":
-                return self.__connect[:, [0,3,1,4,2,5,0]]
+                dic_connect_faces[self.elemType] = self.__connect[:, [0,3,1,4,2,5,0]]
             elif self.elemType == "QUAD4":
-                return self.__connect[:, [0,1,2,3,0]]
+                dic_connect_faces[self.elemType] = self.__connect[:, [0,1,2,3,0]]
             elif self.elemType == "QUAD8":
-                return self.__connect[:, [0,4,1,5,2,6,3,7,0]]
+                dic_connect_faces[self.elemType] = self.__connect[:, [0,4,1,5,2,6,3,7,0]]
             elif self.elemType == "TETRA4":
                 # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
-                return np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
+                dic_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
             elif self.elemType == "HEXA8":
                 # Ici par elexemple on va creer 6 faces, chaque face est composé des identifiants des noeuds
                 # TODO regarder si le problement d'affichage en 3D ne vient pas de l'ordre des faces ?
-                return np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
+                dic_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
+            elif self.elemType == "PRISM6":
+                # return np.array(self.__connect[:, [0,1,2,0,2,5,3,0,1,4,3,3,4,5,1,2,5,4]]).reshape(-1,nPe)
+                # return np.array(self.__connect[:, [0,1,2,0,2,5,3,0,1,4,3,3,4,5,1,2,5,4]]).reshape(self.Ne*self.nbFaces,-1)
+                
+                # Ici il faut faire attention parce que cette element est composé de 2 triangles et 3 quadrangles
+                dic_connect_faces["TRI3"] = np.array(self.__connect[:, [0,1,2,3,4,5]]).reshape(-1,3)
+                dic_connect_faces["QUAD4"] = np.array(self.__connect[:, [0,2,5,3,0,1,4,3,1,2,5,4]]).reshape(-1,4)
+                
             else:
                 raise "Element inconnue"
+
+            return dic_connect_faces
 
         ################################################ STATIC ##################################################
 
@@ -926,7 +972,7 @@ class GroupElem:
         @staticmethod
         def get_Types3D():
             """type d'elements disponibles en 3D"""
-            liste3D = ["TETRA4", "HEXA8"]
+            liste3D = ["TETRA4", "HEXA8", "PRISM6"]
             return liste3D
 
         @staticmethod
