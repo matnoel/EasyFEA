@@ -35,8 +35,8 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-# nBe = 10
-nBe = 1
+nBe = 10
+# nBe = 1
 taille = h/nBe
 # taille = h/3
 
@@ -57,7 +57,10 @@ fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
 
 domain = Domain(Point(y=-h/2,z=0), Point(x=L, y=h/2,z=0), taille=taille)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
+# mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
+
+circle = Circle(Point(x=L/2, y=0), h*0.7, taille=taille, isCreux=True)
+mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="TETRA4", isOrganised=False, nCouches=3)
 
 noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
@@ -70,7 +73,8 @@ simu = Simu(mesh, materiau, verbosity=True)
 simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b], ["y"])
 simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
 
-Affichage.Plot_BoundaryConditions(simu)
+# Affichage.Plot_BoundaryConditions(simu)
+# plt.show()
 
 simu.Assemblage_u()
 

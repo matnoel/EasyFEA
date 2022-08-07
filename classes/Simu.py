@@ -260,6 +260,9 @@ class Simu:
         
         tic = TicTac()
 
+        maxl = np.max(lignesVector_e)
+        maxcol = np.max(colonnesVector_e)
+
         # Assemblage
         self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
         """Matrice Kglob pour le problème en déplacement (Nn*dim, Nn*dim)"""

@@ -63,8 +63,8 @@ for split in ["AnisotMiehe"]:
     
 
     if test:
-        clD = 0.25e-3*2
-        clC = 0.12e-3*2
+        clD = 0.25e-3*10
+        clC = 0.12e-3*10
         # clD = l_0*2
         # clC = l_0
 
@@ -115,11 +115,15 @@ for split in ["AnisotMiehe"]:
 
         point = Point()
         domain = Domain(point, Point(x=L, y=h), clD)
-        circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=False)
+        circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
 
-        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True)
+        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
-        mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
+        # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
+        mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 2, elemType="HEXA8", isOrganised=True)
+
+        Affichage.Plot_Maillage(mesh)
+        plt.show()
 
         if simpli2D == "CP":
             isCp = True

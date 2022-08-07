@@ -1,5 +1,6 @@
 
 from inspect import stack
+from pyexpat import model
 import gmsh
 import sys
 import numpy as np
@@ -83,55 +84,72 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def Poutre3D(self, domain: Domain, extrude=[0,0,1], elemType="TETRA4", isOrganised=True, nCouches=1, folder=""):
+    def Poutre3D(self, domain: Domain, extrude=[0,0,1], nCouches=1, elemType="HEXA8", isOrganised=True, folder=""):
         """Creer un 3D depuis un domaine que l'on extrude
 
         Args:
             domain (Domain): surface de base qui sera extrudé
             extrude (list, optional): valeurs de l'extrustion suivant x y z dans lordre. Defaults to [0,0,1].
-            elemType (str, optional): type delement. Defaults to "TETRA4" in ["TETRA4", "HEXA8", "PRISM6"].
-            isOrganised (bool, optional): le maillage est organisé. Defaults to True.
             nCouches (int, optional): nombre de couches dans l'extrusion. Defaults to 1.
+            elemType (str, optional): type delement. Defaults to "HEXA8" in ["TETRA4", "HEXA8", "PRISM6"].
+            isOrganised (bool, optional): le maillage est organisé. Defaults to True.
             folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
 
         Returns:
             Mesh: maillage construit
         """
 
+        self.__initGmsh()
         self.__CheckType(3, elemType)
         
-        tic = TicTac()        
-
-        surface = self.Rectangle(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder) # le maillage 2D de départ n'a pas d'importance
-
-        gmsh.model.geo.synchronize()
-
-        if isOrganised:
-            gmsh.model.geo.synchronize()
-
-            # points = np.array(gmsh.model.getEntities(0))[:,1]
-            # gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points)
-
-            gmsh.model.geo.mesh.setTransfiniteSurface(surface)
-
-        if elemType in ["HEXA8","PRISM6"]:
-            # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
-            combine = True
-        else:
-            combine = False            
+        tic = TicTac()
         
-        # nCouches = np.max([np.ceil(np.abs(extrude[2] - domain.taille)), 1])            
-        extru = gmsh.model.geo.extrude([(2, surface)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=[nCouches])
+        # le maillage 2D de départ n'a pas d'importance
+        surfaces = self.Rectangle(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
+
+        self.__Extrusion(gmsh.model.geo, surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(3, elemType, surface=surface, isOrganised=isOrganised, folder=folder)
+        self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())
+    
+    
+    def __Extrusion(self, factory, surfaces: list, extrude=[0,0,1], elemType="HEXA8", isOrganised=True, nCouches=1):
         
+        if isinstance(gmsh.model.geo, factory):
+            isOrganised = True
+            factory = cast(gmsh.model.geo, factory)
+        elif isinstance(gmsh.model.occ, factory):
+            isOrganised = False
+            factory = cast(gmsh.model.occ, factory)
+
+        for surf in surfaces:
+
+            if isOrganised:
+
+                factory.synchronize()
+
+                # points = np.array(gmsh.model.getEntities(0))[:,1]
+                # factory.mesh.setTransfiniteSurface(surf, cornerTags=points)
+
+                gmsh.model.geo.mesh.setTransfiniteSurface(surf)
+
+            if elemType in ["HEXA8","PRISM6"]:
+                # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
+                numElements = [nCouches]
+                combine = True
+            elif elemType == "TETRA4":
+                numElements = []
+                combine = False
+            
+            # Creer les nouveaux elements pour l'extrusion
+            # nCouches = np.max([np.ceil(np.abs(extrude[2] - domain.taille)), 1])
+            extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=numElements)
 
 
-    def Rectangle(self, domain: Domain, elemType="TRI3", isOrganised=False, folder=""):
+    def Rectangle(self, domain: Domain, elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
         """Construit un rectangle et renvoie le maillage
 
         Args:
@@ -139,6 +157,7 @@ class Interface_Gmsh:
             elemType (str, optional): type d'element utilisé. Defaults to "TRI3" dans ["TRI3", "TRI6", "QUAD4", "QUAD8"]
             isOrganised (bool, optional): le maillage est il organisé. Defaults to False.
             folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
+            returnSurfaces (bool, optional): Renvoie les surfaces crées. Defaults to False.
 
         Returns:
             Mesh: maillage construit
@@ -148,12 +167,7 @@ class Interface_Gmsh:
         
         self.__CheckType(2, elemType)
 
-        fonctionQuiAppelle = stack()[1].function
-        if fonctionQuiAppelle == "Poutre3D":
-            returnSurface = True
-        else:
-            returnSurface = False
-            tic = TicTac()
+        tic = TicTac()    
 
         pt1 = domain.pt1
         pt2 = domain.pt2
@@ -182,11 +196,11 @@ class Interface_Gmsh:
 
         surface = gmsh.model.addPhysicalGroup(2, [surface])
 
-        if returnSurface: return surface
+        if returnSurfaces: return [surface]
         
         tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
         
-        self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised, folder=folder)
+        self.__Construction_MaillageGmsh(2, elemType, surfaces=[surface], isOrganised=isOrganised, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -271,14 +285,14 @@ class Interface_Gmsh:
         tic.Tac("Mesh","Construction rectangle fissuré", self.__verbosity)
         
         if openCrack:
-            self.__Construction_MaillageGmsh(2, elemType, surface=surface, crack=crack, openBoundary=point, isOrganised=isOrganised)
+            self.__Construction_MaillageGmsh(2, elemType, surfaces=[surface], crack=crack, openBoundary=point, isOrganised=isOrganised)
         else:
-            self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised, folder=folder)
+            self.__Construction_MaillageGmsh(2, elemType, surfaces=[surface], isOrganised=isOrganised, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
     def PlaqueAvecCercle(self, domain: Domain, circle: Circle,
-    elemType="TRI3", isOrganised=False, folder=""):
+    elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
         """Construit un rectangle un trou dedans
 
         Args:
@@ -288,9 +302,10 @@ class Interface_Gmsh:
             openCrack (bool, optional): la fissure est elle ouverte. Defaults to False.
             isOrganised (bool, optional): le maillage est il organisé. Defaults to False.
             folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
+            returnSurfaces (bool, optional): Renvoie les surfaces crées. Defaults to False.
 
         Returns:
-            Mesh: maillage construit
+            Mesh ou list: maillage construit ou retourne la surface si returnSurfaces=True
         """
         
             
@@ -302,13 +317,15 @@ class Interface_Gmsh:
         # Domain
         pt1 = domain.pt1
         pt2 = domain.pt2
-        assert pt1.z == 0 and pt2.z == 0
+        if not returnSurfaces:
+            assert pt1.z == 0 and pt2.z == 0
 
         # Circle
         center = circle.center
         diam = circle.diam
         rayon = diam/2
-        assert center.z == 0
+        if not returnSurfaces:
+            assert center.z == 0
 
         # Create the points of the rectangle
         p1 = gmsh.model.occ.addPoint(pt1.x, pt1.y, 0, domain.taille)
@@ -365,34 +382,44 @@ class Interface_Gmsh:
 
             # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
             # gmsh.model.occ.synchronize()
-            # gmsh.model.occ.remove([(0,p5),(0,p6),(0,p7),(0,p8),(0,p9)], False)
+            # gmsh.model.occ.remove([(0,p6),(0,p7),(0,p8),(0,p9)], True)
         
-        
+        if returnSurfaces: return surfaces
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(2, elemType, surface=surfaces, isOrganised=isOrganised, folder=folder)
+        self.__Construction_MaillageGmsh(2, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def PlaqueTrouée3D(self, domain: Domain, circle: Circle, 
-    elemType="TRI3", isOrganised=False, folder=""):
-            
+    def PlaqueAvecCercle3D(self, domain: Domain, circle: Circle, extrude=[0,0,1], nCouches=1,
+    elemType="HEXA8", isOrganised=False, folder=""):
+
         self.__initGmsh()
-        self.__CheckType(2, elemType)
+        self.__CheckType(3, elemType)
+        
+        tic = TicTac()
+        
+        # le maillage 2D de départ n'a pas d'importance
+        surfaces = self.PlaqueAvecCercle(domain, circle, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
+
+        self.__Extrusion(gmsh.model.occ, surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
+
+        tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
+
+        self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
+        
+        return cast(Mesh, self.__Recuperation_Maillage())
 
     # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.   
 
     def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
-    surface=None, crack=None, openBoundary=None, folder=""):
+    surfaces=[], crack=None, openBoundary=None, folder=""):
 
         tic = TicTac()
         if dim == 2:
 
-            if not isinstance(surface, list):
-                surfaces = [surface]
-            else:
-                surfaces = surface
+            assert isinstance(surfaces, list)
             
             for surf in surfaces:
 
@@ -562,9 +589,6 @@ class Interface_Gmsh:
         
         tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
-        
-
-
         gmsh.finalize()
 
         mesh = Mesh(dict_groupElem, self.__verbosity)
@@ -603,6 +627,8 @@ class Interface_Gmsh:
         # Pour chaque type d'element 3D
 
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
+        circleCreux = Circle(Point(x=L/2, y=0), h*0.7, taille=taille, isCreux=True)
+        circle = Circle(Point(x=L/2, y=0), h*0.7, taille=taille, isCreux=False)
 
         list_mesh3D = []
         for t, elemType in enumerate(GroupElem.get_Types3D()):
@@ -613,8 +639,15 @@ class Interface_Gmsh:
                 if elemType == "TETRA4":
                     mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=taille)
                     list_mesh3D.append(mesh)
+                
                 mesh2 = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=isOrganised)
                 list_mesh3D.append(mesh2)
+
+                mesh3 = interfaceGmsh.PlaqueAvecCercle3D(domain, circleCreux, [0,0,b], elemType=elemType, isOrganised=isOrganised)
+                list_mesh3D.append(mesh3)
+
+                mesh4 = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,b], elemType=elemType, isOrganised=isOrganised)
+                list_mesh3D.append(mesh4)
 
         return list_mesh3D
 

@@ -1,10 +1,12 @@
 
+from inspect import stack
 from typing import cast
 
 from Geom import *
 from Gauss import Gauss
 from TicTac import TicTac
 from matplotlib import pyplot as plt
+import CalcNumba
 
 
 import numpy as np
@@ -73,6 +75,7 @@ class GroupElem:
 
         def __get_Nn(self):
             return self.__nodes.shape[0]
+            # return self.__nodes.max()
         Nn = property(__get_Nn)
 
         def __get_connect(self):
@@ -120,8 +123,8 @@ class GroupElem:
                 dim = self.dim
             taille = nPe*dim
 
-            connect = self.connect
             assembly = np.zeros((self.Ne, taille), dtype=np.int64)
+            connect = self.connect
 
             for d in range(dim):
                 assembly[:, np.arange(d, taille, dim)] = np.array(connect) * dim + d
@@ -129,6 +132,9 @@ class GroupElem:
             return assembly
         assembly_e = cast(np.ndarray, property(get_assembly))
         """matrice d'assemblage (Ne, nPe*dim)"""
+
+        
+        
 
         def __get_coordo(self):
             return self.__coordo
@@ -942,6 +948,8 @@ class GroupElem:
             elif self.elemType == "HEXA8":
                 # Ici par elexemple on va creer 6 faces, chaque face est composé des identifiants des noeuds
                 # TODO regarder si le problement d'affichage en 3D ne vient pas de l'ordre des faces ?
+                # Je penses que le probleme vient du fait quon affiche tout le maillage alors quon peut afficher que la couche extérieur
+                # IL SUFFIT JUSTE DE TRACER QUE LE MAILLAGE 2D
                 dic_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
             elif self.elemType == "PRISM6":
                 # return np.array(self.__connect[:, [0,1,2,0,2,5,3,0,1,4,3,3,4,5,1,2,5,4]]).reshape(-1,nPe)

@@ -492,12 +492,14 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     zmin = np.min(coordo[:,2]); zmax = np.max(coordo[:,2])
     
     max = np.max(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
+    min = np.min(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
+    # max = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
     
     factX = np.max(np.abs([xmin, xmax]))/max
     factY = np.max(np.abs([ymin, ymax]))/max
     factZ = np.max(np.abs([zmin, zmax]))/max
-    
-    ecartAuBord = 40
+
+    ecartAuBord = max*1.2 - max
 
     ax.set_xlim([xmin-ecartAuBord, xmax+ecartAuBord])
     ax.set_ylim([ymin-ecartAuBord, ymax+ecartAuBord])
