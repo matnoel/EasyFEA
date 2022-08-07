@@ -63,7 +63,7 @@ class Interface_Gmsh:
 
         assert elemType =="TETRA4", "Lorsqu'on importe une pièce on ne peut utiliser que du TETRA4"
 
-        # TODO Permettre d'autres maillage ?
+        # Permettre d'autres maillage -> ça semble impossible
 
         self.__initGmsh()
 
@@ -118,10 +118,10 @@ class Interface_Gmsh:
     
     def __Extrusion(self, factory, surfaces: list, extrude=[0,0,1], elemType="HEXA8", isOrganised=True, nCouches=1):
         
-        if isinstance(gmsh.model.geo, factory):
+        if factory == gmsh.model.geo:
             isOrganised = True
             factory = cast(gmsh.model.geo, factory)
-        elif isinstance(gmsh.model.occ, factory):
+        elif factory == gmsh.model.occ:
             isOrganised = False
             factory = cast(gmsh.model.occ, factory)
 
@@ -327,62 +327,64 @@ class Interface_Gmsh:
         if not returnSurfaces:
             assert center.z == 0
 
+        factory = gmsh.model.occ
+
         # Create the points of the rectangle
-        p1 = gmsh.model.occ.addPoint(pt1.x, pt1.y, 0, domain.taille)
-        p2 = gmsh.model.occ.addPoint(pt2.x, pt1.y, 0, domain.taille)
-        p3 = gmsh.model.occ.addPoint(pt2.x, pt2.y, 0, domain.taille)
-        p4 = gmsh.model.occ.addPoint(pt1.x, pt2.y, 0, domain.taille)
+        p1 = factory.addPoint(pt1.x, pt1.y, 0, domain.taille)
+        p2 = factory.addPoint(pt2.x, pt1.y, 0, domain.taille)
+        p3 = factory.addPoint(pt2.x, pt2.y, 0, domain.taille)
+        p4 = factory.addPoint(pt1.x, pt2.y, 0, domain.taille)
 
         # Créer les lignes reliants les points pour la surface
-        l1 = gmsh.model.occ.addLine(p1, p2)
-        l2 = gmsh.model.occ.addLine(p2, p3)
-        l3 = gmsh.model.occ.addLine(p3, p4)
-        l4 = gmsh.model.occ.addLine(p4, p1)
+        l1 = factory.addLine(p1, p2)
+        l2 = factory.addLine(p2, p3)
+        l3 = factory.addLine(p3, p4)
+        l4 = factory.addLine(p4, p1)
 
         # Create a closed loop connecting the lines for the surface
-        loopDomain = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
+        loopDomain = factory.addCurveLoop([l1, l2, l3, l4])
 
         # Points cercle                
-        p5 = gmsh.model.occ.addPoint(center.x, center.y, 0, circle.taille) #centre
-        p6 = gmsh.model.occ.addPoint(center.x-rayon, center.y, 0, circle.taille)
-        p7 = gmsh.model.occ.addPoint(center.x, center.y-rayon, 0, circle.taille)
-        p8 = gmsh.model.occ.addPoint(center.x+rayon, center.y, 0, circle.taille)
-        p9 = gmsh.model.occ.addPoint(center.x, center.y+rayon, 0, circle.taille)
+        p5 = factory.addPoint(center.x, center.y, 0, circle.taille) #centre
+        p6 = factory.addPoint(center.x-rayon, center.y, 0, circle.taille)
+        p7 = factory.addPoint(center.x, center.y-rayon, 0, circle.taille)
+        p8 = factory.addPoint(center.x+rayon, center.y, 0, circle.taille)
+        p9 = factory.addPoint(center.x, center.y+rayon, 0, circle.taille)
 
-        # Lignes cercle                
-        l5 = gmsh.model.occ.addCircleArc(p6, p5, p7)
-        l6 = gmsh.model.occ.addCircleArc(p7, p5, p8)
-        l7 = gmsh.model.occ.addCircleArc(p8, p5, p9)
-        l8 = gmsh.model.occ.addCircleArc(p9, p5, p6)
-        lignecercle = gmsh.model.occ.addCurveLoop([l5,l6,l7,l8])
+        # Lignes cercle
+        l5 = factory.addCircleArc(p6, p5, p7)
+        l6 = factory.addCircleArc(p7, p5, p8)
+        l7 = factory.addCircleArc(p8, p5, p9)
+        l8 = factory.addCircleArc(p9, p5, p6)
+        lignecercle = factory.addCurveLoop([l5,l6,l7,l8])
 
-        # cercle = gmsh.model.occ.addCircle(center.x, center.y, center.z, diam/2)
-        # lignecercle = gmsh.model.occ.addCurveLoop([cercle])
+        # cercle = factory.addCircle(center.x, center.y, center.z, diam/2)
+        # lignecercle = factory.addCurveLoop([cercle])
         # gmsh.option.setNumber("Mesh.MeshSizeMin", domain.taille)
         # gmsh.option.setNumber("Mesh.MeshSizeMax", circle.taille)
 
         if circle.isCreux:
             # Create a surface avec le cyclindre creux
-            surface = gmsh.model.occ.addPlaneSurface([loopDomain,lignecercle])
+            surface = factory.addPlaneSurface([loopDomain,lignecercle])
 
             # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
-            gmsh.model.occ.synchronize()
-            gmsh.model.occ.remove([(0,p5)], False)
+            factory.synchronize()
+            factory.remove([(0,p5)], False)
             surfaces = [surface]
         else:
             # Cylindre plein
-            surfaceCercle = gmsh.model.occ.addPlaneSurface([lignecercle])
-            surface = gmsh.model.occ.addPlaneSurface([loopDomain, lignecercle])
-            gmsh.model.occ.synchronize()
-            gmsh.model.occ.remove([(0,p5)], False)
+            surfaceCercle = factory.addPlaneSurface([lignecercle])
+            surface = factory.addPlaneSurface([loopDomain, lignecercle])
+            factory.synchronize()
+            factory.remove([(0,p5)], False)
 
             surfaces = [surfaceCercle, surface]
 
             # gmsh.model.mesh.embed(1,[l5,l6],2, surface)
 
             # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
-            # gmsh.model.occ.synchronize()
-            # gmsh.model.occ.remove([(0,p6),(0,p7),(0,p8),(0,p9)], True)
+            # factory.synchronize()
+            # factory.remove([(0,p6),(0,p7),(0,p8),(0,p9)], True)
         
         if returnSurfaces: return surfaces
 
@@ -402,8 +404,11 @@ class Interface_Gmsh:
         
         # le maillage 2D de départ n'a pas d'importance
         surfaces = self.PlaqueAvecCercle(domain, circle, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
+        
+        factory = gmsh.model.occ
+        # factory = gmsh.model.geo
 
-        self.__Extrusion(gmsh.model.occ, surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
+        self.__Extrusion(factory, surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
@@ -485,7 +490,7 @@ class Interface_Gmsh:
                 for surf in surfaces:
                     gmsh.model.mesh.setRecombine(2, surf)
                 
-                gmsh.model.mesh.setRecombine(3, 1)                
+                gmsh.model.mesh.setRecombine(3, 1)
 
             gmsh.model.mesh.generate(3)
         
