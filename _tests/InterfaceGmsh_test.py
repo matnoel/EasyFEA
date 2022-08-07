@@ -17,8 +17,8 @@ class Test_InterfaceGmsh(unittest.TestCase):
     def test_Construction2D(self):
         nbMesh = len(self.list_mesh2D)
         nrows = 4
-        ncols = 8
-        assert nbMesh == nrows*ncols
+        ncols = 10
+        assert nbMesh == nrows*ncols , "Pas assez de place"
         fig, ax = plt.subplots(nrows, ncols)
         lignes = np.repeat(np.arange(nrows), ncols)
         colonnes = np.repeat(np.arange(ncols).reshape(1,-1), nrows, axis=0).reshape(-1)
@@ -31,7 +31,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
             axx.get_yaxis().set_visible(False)
             plt.pause(0.00005)
         
-        # plt.show()
+        plt.show()
     
     def test_Importation3D(self):
         for mesh3D in self.list_mesh3D:

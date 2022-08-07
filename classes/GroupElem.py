@@ -911,7 +911,7 @@ class GroupElem:
             else:
                 raise "Element inconnue"
 
-            return dict_connect_triangle[self.elemType]
+            return dict_connect_triangle
 
         def get_connect_Faces(self):
             """Récupère les identifiants des noeud constuisant les faces et renvoie les faces pour chaque types d'elements

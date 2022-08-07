@@ -36,8 +36,8 @@ class Test_Simu(unittest.TestCase):
 
         listMesh2D = Interface_Gmsh.Construction2D(L=L, h=h, taille=taille)
 
-        # Pour chaque type d'element 2D
-        for mesh in listMesh2D:
+        # Pour chaque type d'element 2D       
+        for mesh in listMesh2D:           
 
             mesh = cast(Mesh, mesh)
             

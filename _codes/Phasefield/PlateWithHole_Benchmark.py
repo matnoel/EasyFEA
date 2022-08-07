@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=False
-solve=False
+test=True
+solve=True
 saveParaview=True
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
@@ -60,10 +60,11 @@ for split in ["AnisotMiehe"]:
 
     gc = 1.4
     l_0 = 0.12e-3
+    
 
     if test:
-        clD = 0.25e-3
-        clC = 0.12e-3
+        clD = 0.25e-3*2
+        clC = 0.12e-3*2
         # clD = l_0*2
         # clC = l_0
 
@@ -114,10 +115,11 @@ for split in ["AnisotMiehe"]:
 
         point = Point()
         domain = Domain(point, Point(x=L, y=h), clD)
-        circle = Circle(Point(x=L/2, y=h/2), diam, clC)
+        circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=False)
 
-        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
-        mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
+        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True)
+        # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
+        mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
 
         if simpli2D == "CP":
             isCp = True

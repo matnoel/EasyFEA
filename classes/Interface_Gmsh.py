@@ -40,13 +40,25 @@ class Interface_Gmsh:
             assert elemType in GroupElem.get_Types3D()
 
     def Importation3D(self,fichier="", elemType="TETRA4", tailleElement=0.0, folder=""):
-        """Importe depuis un 3D
+        """importation du fichier 3D
 
-        elemTypes = ["TETRA4", "HEXA8""]
-        
+        Args:
+            fichier (str, optional): fichier 3D en .stp ou autres. Defaults to "".
+            elemType (str, optional): type d'element utilisé. Defaults to "TETRA4" in ["TETRA4", "HEXA8", "PRISM6"].
+            tailleElement (float, optional): taille d'element a utiliser. Defaults to 0.0.
+            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
+
         Returns:
-            Mesh: mesh
+            Mesh: maillage construit
         """
+        
+        # Importe depuis un 3D
+
+        # elemTypes = 
+        
+        # Returns:
+        #     Mesh: mesh
+
 
         assert elemType =="TETRA4", "Lorsqu'on importe une pièce on ne peut utiliser que du TETRA4"
 
@@ -72,12 +84,18 @@ class Interface_Gmsh:
         return cast(Mesh, self.__Recuperation_Maillage())
 
     def Poutre3D(self, domain: Domain, extrude=[0,0,1], elemType="TETRA4", isOrganised=True, nCouches=1, folder=""):
-        """Importe depuis un 3D
+        """Creer un 3D depuis un domaine que l'on extrude
 
-        elemTypes = ["TETRA4", "HEXA8", "PRISM6"]
-        
+        Args:
+            domain (Domain): surface de base qui sera extrudé
+            extrude (list, optional): valeurs de l'extrustion suivant x y z dans lordre. Defaults to [0,0,1].
+            elemType (str, optional): type delement. Defaults to "TETRA4" in ["TETRA4", "HEXA8", "PRISM6"].
+            isOrganised (bool, optional): le maillage est organisé. Defaults to True.
+            nCouches (int, optional): nombre de couches dans l'extrusion. Defaults to 1.
+            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
+
         Returns:
-            Mesh: mesh
+            Mesh: maillage construit
         """
 
         self.__CheckType(3, elemType)
@@ -114,13 +132,16 @@ class Interface_Gmsh:
 
 
     def Rectangle(self, domain: Domain, elemType="TRI3", isOrganised=False, folder=""):
+        """Construit un rectangle et renvoie le maillage
 
-        """Construit un rectangle
+        Args:
+            domain (Domain): domaine renseigné
+            elemType (str, optional): type d'element utilisé. Defaults to "TRI3" dans ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+            isOrganised (bool, optional): le maillage est il organisé. Defaults to False.
+            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
 
-        elemTypes = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-        
         Returns:
-            Mesh: mesh
+            Mesh: maillage construit
         """
 
         self.__initGmsh()                
@@ -171,13 +192,18 @@ class Interface_Gmsh:
 
     def RectangleAvecFissure(self, domain: Domain, crack: Line,
     elemType="TRI3", openCrack=False, isOrganised=False, folder=""):
+        """Construit un rectangle avec une fissure dedans dans le plan 2D
 
-        """Construit un rectangle avec une fissure ouverte ou non
+        Args:
+            domain (Domain): domaine renseigné qui doit etre contenue dans le plan (x, y)
+            crack (Line): ligne qui carractérise la fissure
+            elemType (str, optional): type d'element utilisé. Defaults to "TRI3" dans ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+            openCrack (bool, optional): la fissure est elle ouverte. Defaults to False.
+            isOrganised (bool, optional): le maillage est il organisé. Defaults to False.
+            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
 
-        elemTypes = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-        
         Returns:
-            Mesh: mesh
+            Mesh: maillage construit
         """
 
         self.__initGmsh()                
@@ -251,8 +277,22 @@ class Interface_Gmsh:
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def PlaqueTrouée(self, domain: Domain, circle: Circle, 
+    def PlaqueAvecCercle(self, domain: Domain, circle: Circle,
     elemType="TRI3", isOrganised=False, folder=""):
+        """Construit un rectangle un trou dedans
+
+        Args:
+            domain (Domain): domaine renseigné qui doit etre contenue dans le plan (x, y)
+            circle (Line): cercle qui peut être ouvert ou fermé
+            elemType (str, optional): type d'element utilisé. Defaults to "TRI3" dans ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+            openCrack (bool, optional): la fissure est elle ouverte. Defaults to False.
+            isOrganised (bool, optional): le maillage est il organisé. Defaults to False.
+            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
+
+        Returns:
+            Mesh: maillage construit
+        """
+        
             
         self.__initGmsh()
         self.__CheckType(2, elemType)
@@ -283,7 +323,7 @@ class Interface_Gmsh:
         l4 = gmsh.model.occ.addLine(p4, p1)
 
         # Create a closed loop connecting the lines for the surface
-        loop = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
+        loopDomain = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
 
         # Points cercle                
         p5 = gmsh.model.occ.addPoint(center.x, center.y, 0, circle.taille) #centre
@@ -304,24 +344,42 @@ class Interface_Gmsh:
         # gmsh.option.setNumber("Mesh.MeshSizeMin", domain.taille)
         # gmsh.option.setNumber("Mesh.MeshSizeMax", circle.taille)
 
-        # Create a surface avec le cyclindre creux
-        surface = gmsh.model.occ.addPlaneSurface([loop,lignecercle])                
-        
-        # Cylindre plein
-        # surface = gmsh.model.occ.addPlaneSurface([loop])
-        # gmsh.model.occ.synchronize()
-        # gmsh.model.mesh.embed(1,[l5,l6],2, surface)
-        
-        # Ici on supprimer le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
-        gmsh.model.occ.synchronize()
-        gmsh.model.occ.remove([(0,p5)], False)
+        if circle.isCreux:
+            # Create a surface avec le cyclindre creux
+            surface = gmsh.model.occ.addPlaneSurface([loopDomain,lignecercle])
 
+            # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
+            gmsh.model.occ.synchronize()
+            gmsh.model.occ.remove([(0,p5)], False)
+            surfaces = [surface]
+        else:
+            # Cylindre plein
+            surfaceCercle = gmsh.model.occ.addPlaneSurface([lignecercle])
+            surface = gmsh.model.occ.addPlaneSurface([loopDomain, lignecercle])
+            gmsh.model.occ.synchronize()
+            gmsh.model.occ.remove([(0,p5)], False)
+
+            surfaces = [surfaceCercle, surface]
+
+            # gmsh.model.mesh.embed(1,[l5,l6],2, surface)
+
+            # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
+            # gmsh.model.occ.synchronize()
+            # gmsh.model.occ.remove([(0,p5),(0,p6),(0,p7),(0,p8),(0,p9)], False)
+        
+        
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(2, elemType, surface=surface, isOrganised=isOrganised, folder=folder)
+        self.__Construction_MaillageGmsh(2, elemType, surface=surfaces, isOrganised=isOrganised, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
+
+    def PlaqueTrouée3D(self, domain: Domain, circle: Circle, 
+    elemType="TRI3", isOrganised=False, folder=""):
+            
+        self.__initGmsh()
+        self.__CheckType(2, elemType)
 
     # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.   
 
@@ -331,53 +389,60 @@ class Interface_Gmsh:
         tic = TicTac()
         if dim == 2:
 
-            # Impose que le maillage soit organisé                        
-            if isOrganised:
-                # Ne fonctionne que pour une surface simple (sans trou ny fissure) et quand on construit le model avec geo et pas occ !
-                # groups = gmsh.model.getPhysicalGroups()
-                
-                # Quand geo
-                gmsh.model.geo.synchronize()
-                points = np.array(gmsh.model.getEntities(0))[:,1]
-                gmsh.model.geo.mesh.setTransfiniteSurface(surface, cornerTags=points) #Ici il faut impérativement donner les points du contour quand plus de 3 ou 4 coints
-                # gmsh.model.geo.mesh.setTransfiniteSurface(surface)
-
-            # Synchronisation
-            gmsh.model.occ.synchronize()
-            gmsh.model.geo.synchronize()
-
-            if elemType in ["QUAD4","QUAD8"]:
-                try:
-                    gmsh.model.mesh.setRecombine(2, surface)
-                except Exception:
-                    # Récupère la surface
-                    entities = gmsh.model.getEntities()
-                    surface = entities[-1][-1]
-                    gmsh.model.mesh.setRecombine(2, surface)
+            if not isinstance(surface, list):
+                surfaces = [surface]
+            else:
+                surfaces = surface
             
-            # Génère le maillage
-            gmsh.model.mesh.generate(2)
+            for surf in surfaces:
 
-            if elemType in ["QUAD8"]:
-                gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
+                # Impose que le maillage soit organisé                        
+                if isOrganised:
+                    # Ne fonctionne que pour une surface simple (sans trou ny fissure) et quand on construit le model avec geo et pas occ !
+                    # groups = gmsh.model.getPhysicalGroups()
+                    
+                    # Quand geo
+                    gmsh.model.geo.synchronize()
+                    points = np.array(gmsh.model.getEntities(0))[:,1]
+                    gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points) #Ici il faut impérativement donner les points du contour quand plus de 3 ou 4 coints
+                    # gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
-            if elemType in ["TRI3","QUAD4"]:
-                gmsh.model.mesh.set_order(1)
-            elif elemType in ["TRI6","QUAD8"]:
-                gmsh.model.mesh.set_order(2)
+                # Synchronisation
+                gmsh.model.occ.synchronize()
+                gmsh.model.geo.synchronize()
 
-            if crack != None:
-                gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
-                gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
-                if openBoundary != None:
+                if elemType in ["QUAD4","QUAD8"]:
+                    try:
+                        gmsh.model.mesh.setRecombine(2, surf)
+                    except Exception:
+                        # Récupère la surface
+                        entities = gmsh.model.getEntities()
+                        surf = entities[-1][-1]
+                        gmsh.model.mesh.setRecombine(2, surf)
+                
+                # Génère le maillage
+                gmsh.model.mesh.generate(2)
+
+                if elemType in ["QUAD8"]:
+                    gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
+
+                if elemType in ["TRI3","QUAD4"]:
+                    gmsh.model.mesh.set_order(1)
+                elif elemType in ["TRI6","QUAD8"]:
+                    gmsh.model.mesh.set_order(2)
+
+                if crack != None:
+                    gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
+                    gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
+                    if openBoundary != None:
                         gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openBoundary)
-                # gmsh.plugin.setNumber("Crack", "NormalX", 0)
-                # gmsh.plugin.setNumber("Crack", "NormalY", 0)
-                # gmsh.plugin.setNumber("Crack", "NormalZ", 1)
-                gmsh.plugin.run("Crack")
-                # gmsh.write("meshhh.msh")
-                # self.__initGmsh()
-                # gmsh.open("meshhh.msh")
+                    # gmsh.plugin.setNumber("Crack", "NormalX", 0)
+                    # gmsh.plugin.setNumber("Crack", "NormalY", 0)
+                    # gmsh.plugin.setNumber("Crack", "NormalZ", 1)
+                    gmsh.plugin.run("Crack")
+                    # gmsh.write("meshhh.msh")
+                    # self.__initGmsh()
+                    # gmsh.open("meshhh.msh")
         
         elif dim == 3:
             gmsh.model.occ.synchronize()
@@ -385,34 +450,15 @@ class Interface_Gmsh:
 
             if elemType in ["HEXA8"]:
 
-                # https://onelab.info/pipermail/gmsh/2010/005359.html
+                # https://onelab.info/pipermail/gmsh/2010/005359.html               
                 
-                # Hi Chung,
-
-                # to mesh with hexaedral element, you have to use the Extrude and Recombine commands, as explained in
-                # http://www.geuz.org/gmsh/doc/texinfo/gmsh.html#Structured-grids
-                # and in the tutorials:
-                # http://www.geuz.org/gmsh/doc/texinfo/gmsh.html#Tutorial
-                
-                # Regards,
-
-                # Dave
-
-                # gmsh.model.mesh.recombine()
 
                 entities = gmsh.model.getEntities(2)
                 surfaces = np.array(entities)[:,1]
                 for surf in surfaces:
                     gmsh.model.mesh.setRecombine(2, surf)
-
                 
-                gmsh.model.mesh.setRecombine(3, 1)
-                # gmsh.model.mesh.setRecombine(3, 1)
-
-                # if isOrganised:
-                #     gmsh.model.geo.synchronize()
-                #     points = np.array(gmsh.model.getEntities(0))[:,1]
-                #     gmsh.model.geo.mesh.setTransfiniteSurface(surface, cornerTags=points)
+                gmsh.model.mesh.setRecombine(3, 1)                
 
             gmsh.model.mesh.generate(3)
         
@@ -535,6 +581,7 @@ class Interface_Gmsh:
         domain = Domain(Point(0,0,0), Point(L, h, 0), taille=taille)
         line = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), taille=taille)
         circle = Circle(Point(x=L/2, y=h/2), L/3, taille=taille)
+        circleClose = Circle(Point(x=L/2, y=h/2), L/3, taille=taille, isCreux=False)
 
         # Pour chaque type d'element 2D
         for t, elemType in enumerate(GroupElem.get_Types2D()):
@@ -543,9 +590,10 @@ class Interface_Gmsh:
                 mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=isOrganised)
                 mesh2 = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=False)
                 mesh3 = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=True)
-                mesh4 = interfaceGmsh.PlaqueTrouée(domain=domain, circle=circle, elemType=elemType, isOrganised=isOrganised)
+                mesh4 = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, elemType=elemType, isOrganised=isOrganised)
+                mesh5 = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circleClose, elemType=elemType, isOrganised=isOrganised)
 
-                for m in [mesh, mesh2, mesh3, mesh4]:
+                for m in [mesh, mesh2, mesh3, mesh4, mesh5]:
                     list_mesh2D.append(m)
         
         return list_mesh2D

@@ -53,7 +53,7 @@ domain = Domain(point, Point(x=L, y=H), clD)
 circle = Circle(Point(x=L/2, y=H-h), diam, clC)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
-mesh = interfaceGmsh.PlaqueTrouée(domain, circle, "TRI3")
+mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
 
 Affichage.Plot_Maillage(mesh,folder=folder)
 

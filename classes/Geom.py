@@ -50,7 +50,7 @@ class Domain:
 
 class Circle:
 
-    def __init__(self, center: Point, diam: float, taille=0.0):
+    def __init__(self, center: Point, diam: float, taille=0.0, isCreux=True):
         
         assert diam > 0.0
 
@@ -59,3 +59,5 @@ class Circle:
 
         assert taille >= 0
         self.taille = taille
+
+        self.isCreux = isCreux

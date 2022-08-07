@@ -57,7 +57,7 @@ fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
 
 domain = Domain(Point(y=-h/2,z=0), Point(x=L, y=h/2,z=0), taille=taille)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="PRISM6", isOrganised=True, nCouches=3)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
 
 noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
