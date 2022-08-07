@@ -155,6 +155,8 @@ class Simu:
 
         new = pd.DataFrame(iter)
 
+        # TODO Faire de l'adaptation de maillage ?
+
         self.__results = pd.concat([self.__results, new], ignore_index=True)
 
     def Update_iter(self, iter: int):

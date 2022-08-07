@@ -723,7 +723,10 @@ class PhaseFieldModel:
             Renvoie cP_e_pg, cM_e_pg
         """
 
-        # TODO Ici faire en sorte que l'on passe que 1 fois par itération pour eviter de faire les calculs plusieurs fois
+        # Ici faire en sorte que l'on passe que 1 fois par itération pour eviter de faire les calculs plusieurs fois
+        # Il se trouve que ça ne marche pas l'endommagement n'évolue pas
+        # On passe ici 2 fois par itération
+        # Une fois pour calculer l'energie et une fois pour calculer K_u
 
         tic = TicTac()
 

@@ -35,12 +35,12 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 10
+nBe = 5
 # nBe = 1
 taille = h/nBe
 # taille = h/3
 
-if nBe > 3:
+if nBe > 11:
     plotResult = False
 
 comportement = Elas_Isot(dim)
@@ -49,7 +49,7 @@ comportement = Elas_Isot(dim)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
+interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=True)
 
 fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 
@@ -57,10 +57,14 @@ fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
 
 domain = Domain(Point(y=-h/2,z=0), Point(x=L, y=h/2,z=0), taille=taille)
-# mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
 
-circle = Circle(Point(x=L/2, y=0), h*0.7, taille=taille, isCreux=True)
-mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="TETRA4", isOrganised=False, nCouches=3)
+# circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
+# mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
+
+# Affichage.Plot_Maillage(mesh)
+# plt.show()
+
 
 noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
@@ -105,6 +109,6 @@ if plotResult:
 TicTac.getResume()
 
 if plotResult:        
-        plt.show()
+    plt.show()
 
 # %%
