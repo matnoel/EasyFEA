@@ -31,7 +31,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
             axx.get_yaxis().set_visible(False)
             plt.pause(0.00005)
         
-        plt.show()
+        # plt.show()
     
     def test_Importation3D(self):
         for mesh3D in self.list_mesh3D:
