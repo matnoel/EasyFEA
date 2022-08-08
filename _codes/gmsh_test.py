@@ -6,30 +6,33 @@ import Simu
 import matplotlib.pyplot as plt
 import Materiau
 
-L = 180
+L = 50e-3
+h = L*0.3
 
 pt1 = Point()
 pt2 = Point(x=L)
-pt3 = Point(x=L,y=L)
-pt4 = Point(y=L)
+pt3 = Point(x=L,y=h)
+pt4 = Point(x=h, y=h)
+pt5 = Point(x=h, y=L)
+pt6 = Point(y=L)
 
-interface = Interface_Gmsh(affichageGmsh=True)
-mesh = interface.MeshFromGeom2D([pt1, pt2, pt4], isOrganised=False, elemType="QUAD4", tailleElement=L/10)
+interface = Interface_Gmsh(affichageGmsh=False)
+mesh = interface.MeshFromGeom2D([pt1, pt2, pt3, pt4, pt5, pt6], isOrganised=True, elemType="QUAD8", tailleElement=h/10)
 
-noeudsBas = mesh.Get_dict_Nodes_Conditions(conditionY=lambda y: y == 0)
-noeudsGauche = mesh.Get_dict_Nodes_Conditions(conditionX=lambda x: x == 0, conditionY=lambda y: y > 0 and y < L/2)
+noeudsGauche = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
+noeudsDroit = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
 Affichage.Plot_Maillage(mesh)
-plt.show()
+# plt.show()
 
-comportement = Materiau.Elas_Isot(2, contraintesPlanes=False)
+comportement = Materiau.Elas_Isot(2, contraintesPlanes=True, epaisseur=h)
 
 materiau = Materiau.Materiau(comportement)
 
 simu = Simu.Simu(mesh, materiau)
 
-simu.add_dirichlet("displacement", noeudsBas, [0,0], ["x","y"])
-simu.add_lineLoad("displacement", noeudsGauche, [lambda x,y,z : 1000*9.81*(L-y)], ["x"])
+simu.add_dirichlet("displacement", noeudsGauche, [0,0], ["x","y"])
+simu.add_lineLoad("displacement", noeudsDroit, [-800/h], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 
@@ -39,5 +42,8 @@ simu.Assemblage_u()
 simu.Solve_u()
 
 Affichage.Plot_Result(simu, "Sxx")
+Affichage.Plot_Result(simu, "Syy")
+Affichage.Plot_Result(simu, "Sxy")
+Affichage.Plot_Result(simu, "Svm")
 
 plt.show()

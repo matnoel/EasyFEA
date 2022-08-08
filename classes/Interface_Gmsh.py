@@ -437,6 +437,8 @@ class Interface_Gmsh:
 
             points.append(factory.addPoint(point.x, point.y, point.z, tailleElement))
 
+        # TODO Verifier que ça se croise pas ?
+
         # On creer les lignes qui relies les points
         connectLignes = np.repeat(points, 2).reshape(-1,2)
         indexForChange = np.arange(1, len(points)+1, 1)
@@ -482,7 +484,8 @@ class Interface_Gmsh:
                     # Quand geo
                     gmsh.model.geo.synchronize()
                     points = np.array(gmsh.model.getEntities(0))[:,1]
-                    gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points) #Ici il faut impérativement donner les points du contour quand plus de 3 ou 4 coints
+                    if points.shape[0] <= 4:
+                        gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points) #Ici il faut impérativement donner les points du contour quand plus de 3 ou 4 coints
                     # gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
                 # Synchronisation
@@ -606,6 +609,7 @@ class Interface_Gmsh:
         coordo = coord[sortedIndices]
 
         # Construit les elements
+        testDimension = False
         dimAjoute = []
         for gmshId in elementTypes:
                                         
@@ -637,12 +641,14 @@ class Interface_Gmsh:
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
             
             groupElem = GroupElem(gmshId, connect, elements, coordo, nodes)
-            dict_groupElem[groupElem.elemType] = groupElem
-
-            assert groupElem.dim not in dimAjoute, "Le maillage ne doit pas être une composition de d'element de meme dimension exemple(TRI3 et QUAD4)"
+            dict_groupElem[groupElem.dim] = groupElem
+            
+            if groupElem.dim in dimAjoute:
+                testDimension = True
             dimAjoute.append(groupElem.dim)
 
-        
+        if np.max(dimAjoute) == 2:
+            assert not testDimension, "Le maillage ne doit pas être une composition de plusieurs élements de memes dimensions (TRI3 et QUAD4)"
         
         tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
