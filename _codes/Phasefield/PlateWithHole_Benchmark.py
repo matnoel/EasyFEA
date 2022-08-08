@@ -155,10 +155,10 @@ for split in ["AnisotMiehe"]:
         domainA = Domain(Point(x=(L-c)/2, y=h/2+0.8*diam/2), Point(x=(L+c)/2, y=h/2+0.8*diam/2+c))
         domainB = Domain(Point(x=L/2+0.8*diam/2, y=(h-c)/2), Point(x=L/2+0.8*diam/2+c, y=(h+c)/2))
 
-        nodes_lower = mesh.Get_Nodes_Line(B_lower)
-        nodes_upper = mesh.Get_Nodes_Line(B_upper)
-        nodes_left = mesh.Get_Nodes_Line(B_left)
-        nodes_right = mesh.Get_Nodes_Line(B_right)
+        nodes_lower = mesh.Nodes_Line(B_lower)
+        nodes_upper = mesh.Nodes_Line(B_upper)
+        nodes_left = mesh.Nodes_Line(B_left)
+        nodes_right = mesh.Nodes_Line(B_right)
 
         # noeuds_bord = np.array().reshape(-1)
         noeuds_bord = []
@@ -166,7 +166,7 @@ for split in ["AnisotMiehe"]:
             noeuds_bord.extend(ns)
         noeuds_bord = np.unique(noeuds_bord)
         
-        node00 = mesh.Get_Nodes_Point(point)
+        node00 = mesh.Nodes_Point(point)
         nodesA = mesh.Get_Nodes_Domain(domainA)
         nodesB = mesh.Get_Nodes_Domain(domainB)
 

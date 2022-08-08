@@ -149,7 +149,7 @@ class Test_Simu(unittest.TestCase):
 
             # Data
             mesh = simu.mesh
-            nPg = mesh.get_nPg(matriceType)
+            nPg = mesh.Get_nPg(matriceType)
             listPg = list(range(nPg))
             Ne = mesh.Ne            
             materiau = simu.materiau
@@ -157,10 +157,10 @@ class Test_Simu(unittest.TestCase):
 
             listKe_e = []
 
-            B_dep_e_pg = mesh.get_B_dep_e_pg(matriceType)            
+            B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)            
 
-            jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
-            poid_pg = mesh.get_poid_pg(matriceType)
+            jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+            poid_pg = mesh.Get_poid_pg(matriceType)
             for e in range(Ne):            
                 # Pour chaque poing de gauss on construit Ke
                 Ke = 0

@@ -60,10 +60,10 @@ Affichage.Plot_Maillage(mesh,folder=folder)
 # Récupérations des noeuds de chargement
 B_lower = Line(point,Point(x=L))
 B_upper = Line(Point(y=H),Point(x=L, y=H))
-nodes0 = mesh.Get_Nodes_Line(B_lower)
-nodesh = mesh.Get_Nodes_Line(B_upper)
-node00 = mesh.Get_Nodes_Point(Point())   
-noeuds_cercle = mesh.Get_Nodes_Circle(circle)
+nodes0 = mesh.Nodes_Line(B_lower)
+nodesh = mesh.Nodes_Line(B_upper)
+node00 = mesh.Nodes_Point(Point())   
+noeuds_cercle = mesh.Nodes_Circle(circle)
 noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]
 
 comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)

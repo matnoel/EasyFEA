@@ -580,7 +580,7 @@ class PhaseFieldModel:
             mesh (Mesh): maillage
         """
         d_e_n = mesh.Localises_sol_e(d_n)
-        Nd_pg = mesh.get_N_scalaire_pg(matriceType)
+        Nd_pg = mesh.Get_N_scalaire_pg(matriceType)
 
         d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize='optimal')        
 
@@ -590,7 +590,7 @@ class PhaseFieldModel:
             raise "Pas implémenté"
 
         assert mesh.Ne == g_e_pg.shape[0]
-        assert mesh.get_nPg(matriceType) == g_e_pg.shape[1]
+        assert mesh.Get_nPg(matriceType) == g_e_pg.shape[1]
         
         return g_e_pg
 

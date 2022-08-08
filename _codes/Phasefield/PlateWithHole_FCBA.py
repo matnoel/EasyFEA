@@ -126,14 +126,14 @@ if solve:
     B_left = Line(point,Point(y=H))
     B_right = Line(Point(x=L),Point(x=L, y=H))
 
-    nodes_lower = mesh.Get_Nodes_Line(B_lower)
-    nodes_upper = mesh.Get_Nodes_Line(B_upper)
-    nodes_left = mesh.Get_Nodes_Line(B_left)
-    nodes_right = mesh.Get_Nodes_Line(B_right)
+    nodes_lower = mesh.Nodes_Line(B_lower)
+    nodes_upper = mesh.Nodes_Line(B_upper)
+    nodes_left = mesh.Nodes_Line(B_left)
+    nodes_right = mesh.Nodes_Line(B_right)
 
-    noeuds_cercle = mesh.Get_Nodes_Circle(circle)
+    noeuds_cercle = mesh.Nodes_Circle(circle)
     noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]
-    noeud_contact = mesh.Get_Nodes_Point(Point(circle.center.x, circle.center.y - r))
+    noeud_contact = mesh.Nodes_Point(Point(circle.center.x, circle.center.y - r))
     # essai = (mesh.coordo[noeuds_cercle,1]-circle.center.y)/r
     
 
@@ -143,7 +143,7 @@ if solve:
         noeuds_bord.extend(ns)
     noeuds_bord = np.unique(noeuds_bord)
     
-    node00 = mesh.Get_Nodes_Point(point)
+    node00 = mesh.Nodes_Point(point)
 
     ud=0
     load=0

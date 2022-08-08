@@ -64,7 +64,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     coordo, deformation = __GetCoordo(simu, deformation, facteurDef)
 
     # construit la matrice de connection pour les faces
-    connect_Faces = mesh.get_connect_Faces()
+    connect_Faces = mesh.connect_Faces
 
     # Construit les faces non deformées
     coordo_redim = coordo[:,range(dim)]
@@ -85,7 +85,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
             faces = connect_Faces[elem]
             coord_par_face[elem] = coordo_redim[faces]
 
-        connectTri = mesh.get_connectTriangle()
+        connectTri = mesh.connectTriangle
         # Construit les vertices
         if oldax == None:
             fig, ax = plt.subplots()
@@ -144,7 +144,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     elif mesh.dim == 3:
 
         # Construit les vertices du maillage 3D en recupérant le maillage 2D
-        groupElem2D = mesh.get_groupElem(2)
+        groupElem2D = mesh.Get_groupElem(2)
         connect2D = groupElem2D.connect
         coordo2D = groupElem2D.coordo
         coord =coordo2D[connect2D]
@@ -239,7 +239,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
     dim = mesh.dim
 
     # construit la matrice de connection pour les faces
-    connect_Faces = mesh.get_connect_Faces()
+    connect_Faces = mesh.connect_Faces
 
     # Construit les faces non deformées
     coord_NonDeforme_redim = coordo[:,range(dim)]
@@ -317,7 +317,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
             # Si il n'y a pas de deformation on peut afficher que le maillage 2D
 
-            groupElem2D = mesh.get_groupElem(2)
+            groupElem2D = mesh.Get_groupElem(2)
             connect2D = groupElem2D.connect
             coordo2D = groupElem2D.coordo
             coord =coordo2D[connect2D]
@@ -407,10 +407,10 @@ def Plot_BoundaryConditions(simu, folder=""):
         if problemType == "damage":
             valeurs = [valeurs_ddls[0]]
         else:
-            valeurs = list(np.sum(valeurs_ddls.copy().reshape(-1, len(directions)), axis=0))
+            valeurs = np.round(list(np.sum(valeurs_ddls.copy().reshape(-1, len(directions)), axis=0)), 2)
         description = bc_Conditions.description
 
-        titre = f'{description} {valeurs} {directions}'
+        titre = f"{description} {valeurs} {directions}"
 
         # if 'Neumann' in description and problemType == 'displacement':
         #     facteur = coordo.max()/50

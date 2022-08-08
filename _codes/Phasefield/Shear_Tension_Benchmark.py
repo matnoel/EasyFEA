@@ -87,7 +87,7 @@ if solve:
         isOrganised=True, openCrack=openCrack)
 
         # Récupère les noeuds qui m'interessent
-        noeuds_Milieu = mesh.Get_Nodes_Line(line)
+        noeuds_Milieu = mesh.Nodes_Line(line)
         noeuds_Haut = mesh.Get_Nodes_Conditions(conditionY=lambda y: y == L)
         noeuds_Bas = mesh.Get_Nodes_Conditions(conditionY=lambda y: y == 0)
         noeuds_Gauche = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)

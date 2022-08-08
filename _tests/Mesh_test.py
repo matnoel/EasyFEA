@@ -23,7 +23,7 @@ class Test_Mesh(unittest.TestCase):
         dim = mesh.dim
         connect = mesh.connect
         listElement = range(mesh.Ne)
-        listPg = np.arange(mesh.get_nPg("rigi"))
+        listPg = np.arange(mesh.Get_nPg("rigi"))
         nPe = connect.shape[1]
 
         # Verification assemblage
@@ -49,7 +49,7 @@ class Test_Mesh(unittest.TestCase):
                 if dim == 2:
                     B_dep_pg = np.zeros((3, nPe*dim))
                     colonne = 0
-                    B_sclaire_e_pg = mesh.get_B_sclaire_e_pg("rigi")
+                    B_sclaire_e_pg = mesh.Get_B_sclaire_e_pg("rigi")
                     dN = B_sclaire_e_pg[e,pg]
                     for n in range(nPe):
                         dNdx = dN[0, n]
@@ -84,7 +84,7 @@ class Test_Mesh(unittest.TestCase):
         
         list_B_rigi_e_pg = LoiDeComportement.AppliqueCoefSurBrigi(dim, np.array(list_B_rigi_e_pg))
 
-        B_rigi_e_pg = mesh.get_B_dep_e_pg("rigi")
+        B_rigi_e_pg = mesh.Get_B_dep_e_pg("rigi")
 
         testB_rigi = np.testing.assert_array_almost_equal(np.array(list_B_rigi_e_pg), B_rigi_e_pg, verbose=False)
         self.assertIsNone(testB_rigi)

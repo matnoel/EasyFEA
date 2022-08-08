@@ -836,7 +836,7 @@ class GroupElem:
             
             return self.__nodes[noeuds].copy()
         
-        def Get_Nodes_Point(self, point: Point):
+        def Get_Nodes_Point(self, point: Point) -> np.ndarray:
 
             coordo = self.__coordo
 
@@ -844,7 +844,7 @@ class GroupElem:
 
             return self.__nodes[noeud].copy()
 
-        def Get_Nodes_Line(self, line: Line):
+        def Get_Nodes_Line(self, line: Line) -> np.ndarray:
             
             vectUnitaire = line.vecteurUnitaire
 
@@ -862,7 +862,7 @@ class GroupElem:
 
             return self.__nodes[noeuds].copy()
         
-        def Get_Nodes_Domain(self, domain: Domain):
+        def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
             """Renvoie la liste de noeuds qui sont dans le domaine"""
 
             coordo = self.__coordo
@@ -875,7 +875,7 @@ class GroupElem:
             
             return self.__nodes[noeuds].copy()
 
-        def Get_Nodes_Circle(self, circle: Circle):
+        def Get_Nodes_Circle(self, circle: Circle) -> np.ndarray:
             """Renvoie la liste de noeuds qui sont dans le cercle"""
 
             coordo = self.__coordo
@@ -946,15 +946,9 @@ class GroupElem:
                 # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
                 dic_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
             elif self.elemType == "HEXA8":
-                # Ici par elexemple on va creer 6 faces, chaque face est composé des identifiants des noeuds
-                # TODO regarder si le problement d'affichage en 3D ne vient pas de l'ordre des faces ?
-                # Je penses que le probleme vient du fait quon affiche tout le maillage alors quon peut afficher que la couche extérieur
-                # IL SUFFIT JUSTE DE TRACER QUE LE MAILLAGE 2D
+                # Ici par elexemple on va creer 6 faces, chaque face est composé des identifiants des noeuds                
                 dic_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
             elif self.elemType == "PRISM6":
-                # return np.array(self.__connect[:, [0,1,2,0,2,5,3,0,1,4,3,3,4,5,1,2,5,4]]).reshape(-1,nPe)
-                # return np.array(self.__connect[:, [0,1,2,0,2,5,3,0,1,4,3,3,4,5,1,2,5,4]]).reshape(self.Ne*self.nbFaces,-1)
-                
                 # Ici il faut faire attention parce que cette element est composé de 2 triangles et 3 quadrangles
                 dic_connect_faces["TRI3"] = np.array(self.__connect[:, [0,1,2,3,4,5]]).reshape(-1,3)
                 dic_connect_faces["QUAD4"] = np.array(self.__connect[:, [0,2,5,3,0,1,4,3,1,2,5,4]]).reshape(-1,4)

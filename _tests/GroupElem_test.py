@@ -21,8 +21,8 @@ class Test_GroupElem(unittest.TestCase):
             mesh.colonnesScalar_e
             mesh.colonnesVector_e
             mesh.colonnesScalar_e
-            mesh.get_N_scalaire_pg("rigi")
-            mesh.get_N_vecteur_pg("rigi")
+            mesh.Get_N_scalaire_pg("rigi")
+            mesh.Get_N_vecteur_pg("rigi")
 
 if __name__ == '__main__' or __file__ == '__file__':
     try:

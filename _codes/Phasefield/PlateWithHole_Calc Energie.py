@@ -62,16 +62,16 @@ mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
 # Récupérations des noeuds de chargement
 B_lower = Line(point,Point(x=L))
 B_upper = Line(Point(y=h),Point(x=L, y=h))
-nodes0 = mesh.Get_Nodes_Line(B_lower)
-nodesh = mesh.Get_Nodes_Line(B_upper)
-node00 = mesh.Get_Nodes_Point(Point())
-nodesCircle = mesh.Get_Nodes_Circle(circle)
+nodes0 = mesh.Nodes_Line(B_lower)
+nodesh = mesh.Nodes_Line(B_upper)
+node00 = mesh.Nodes_Point(Point())
+nodesCircle = mesh.Nodes_Circle(circle)
 nodesCircle = nodesCircle[np.where(mesh.coordo[nodesCircle,1]<= circle.center.y)]
 
 
 # Noeuds en A et en B
-nodeA = mesh.Get_Nodes_Point(Point(x=L/2, y=h/2+r))
-nodeB = mesh.Get_Nodes_Point(Point(x=L/2+r, y=h/2))
+nodeA = mesh.Nodes_Point(Point(x=L/2, y=h/2+r))
+nodeB = mesh.Nodes_Point(Point(x=L/2+r, y=h/2))
 
 if plotAllResult:
     ax = Affichage.Plot_Maillage(mesh)

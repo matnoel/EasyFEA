@@ -1,7 +1,7 @@
 
 import platform
 from types import LambdaType
-from typing import cast
+from typing import cast, Dict
 
 import pandas as pd
 import numpy as np
@@ -176,11 +176,11 @@ class Simu:
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
-    def ConstruitMatElem_Dep(self):
+    def ConstruitMatElem_Dep(self) -> Dict[str, np.ndarray]:
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
 
         Returns:
-            Ku_e: les matrices elementaires pour chaque element
+            dict_Ku_e: les matrices elementaires pour chaque groupe d'element
         """
         
         isDamaged = self.materiau.isDamaged
@@ -191,19 +191,18 @@ class Simu:
 
         # Data
         mesh = self.__mesh
-        nPg = mesh.get_nPg(matriceType)
+        nPg = mesh.Get_nPg(matriceType)
         
         # Recupère les matrices pour travailler
-        jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.get_poid_pg(matriceType)
-        B_dep_e_pg = mesh.get_B_dep_e_pg(matriceType)
-        leftDepPart = mesh.get_leftDepPart(matriceType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = mesh.Get_poid_pg(matriceType)
+        B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)
+        leftDepPart = mesh.Get_leftDepPart(matriceType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
 
         comportement = self.materiau.comportement
 
         mat = comportement.get_C()
         # Ici on le materiau est homogène
-            
 
         if isDamaged:   # probleme endomagement
 
@@ -229,7 +228,6 @@ class Simu:
             # Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c_e_pg, B_dep_e_pg, optimize='optimal')
             Ku_e = np.einsum('epij,epjk,epkl->eil', leftDepPart, c_e_pg, B_dep_e_pg, optimize='optimal')
             
-            
         else:   # probleme en déplacement simple
 
             # Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize='optimal')
@@ -253,7 +251,7 @@ class Simu:
         mesh = self.__mesh        
         taille = mesh.Nn*self.__dim
 
-        # Construit Ke
+        # Construit dict_Ku_e
         Ku_e = self.ConstruitMatElem_Dep()
 
         # Prépare assemblage
@@ -261,9 +259,6 @@ class Simu:
         colonnesVector_e = mesh.colonnesVector_e
         
         tic = TicTac()
-
-        maxl = np.max(lignesVector_e)
-        maxcol = np.max(colonnesVector_e)
 
         # Assemblage
         self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
@@ -321,7 +316,7 @@ class Simu:
         # Calcul l'energie
         old_psiP = self.__psiP_e_pg
 
-        nPg = self.__mesh.get_nPg("masse")
+        nPg = self.__mesh.Get_nPg("masse")
 
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
@@ -367,27 +362,27 @@ class Simu:
 
         # Recupère les matrices pour travailler
         mesh = self.__mesh
-        jacobien_e_pg = mesh.get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.get_poid_pg(matriceType)
-        Nd_pg = mesh.get_N_scalaire_pg(matriceType)
-        Bd_e_pg = mesh.get_B_sclaire_e_pg(matriceType)
+        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = mesh.Get_poid_pg(matriceType)
+        Nd_pg = mesh.Get_N_scalaire_pg(matriceType)
+        Bd_e_pg = mesh.Get_B_sclaire_e_pg(matriceType)
 
         # Probleme de la forme K*Laplacien(d) + r*d = F
         
         # Partie qui fait intervenir le therme de reaction r ->  jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg
-        ReactionPart_e_pg = mesh.get_phaseField_ReactionPart_e_pg(matriceType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
+        ReactionPart_e_pg = mesh.Get_phaseField_ReactionPart_e_pg(matriceType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
         K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
         # K_r_e = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
 
         # Partie qui fait intervenir le therme de diffusion K -> jacobien_e_pg, poid_pg, k, Bd_e_pg', Bd_e_pg
-        DiffusePart_e_pg = mesh.get_phaseField_DiffusePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Bd_e_pg', Bd_e_pg
+        DiffusePart_e_pg = mesh.Get_phaseField_DiffusePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Bd_e_pg', Bd_e_pg
         K_K_e = np.einsum('epij->eij', DiffusePart_e_pg * k, optimize='optimal')
         # K_K_e = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
 
         Kd_e = K_r_e+K_K_e
 
         # Construit Fd_e -> jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'
-        SourcePart_e_pg = mesh.get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'        
+        SourcePart_e_pg = mesh.Get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'        
         Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') #Ici on somme sur les points d'integrations
         
         tic.Tac("Matrices","Matrices endommagement", self.__verbosity)
@@ -804,18 +799,11 @@ class Simu:
 
         return valeurs_eval
     
-    def add_dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs: np.ndarray,directions: list, description=""):
-        """Pour le probleme donné renseigne les contions de dirichlet\n
-        valeurs est une liste de constantes ou de fonctions\n
-        ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
-
-        les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
-        les fonctions utilisent les coordonnées x, y et z des neouds
-        """
-
+    def add_dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs: np.ndarray, directions: list, description=""):
+        
+        Nn = noeuds.shape[0]
         coordo = self.mesh.coordo
         coordo_n = coordo[noeuds]
-        Nn = noeuds.shape[0]
 
         # initialise le vecteur de valeurs pour chaque noeuds
         valeurs_ddl_dir = np.zeros((Nn, len(directions)))
@@ -828,7 +816,7 @@ class Simu:
         ddls = BoundaryCondition.Get_ddls_noeuds(self.__dim, problemType, noeuds, directions)
 
         self.__Add_Bc_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
-
+        
     def add_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force linéique\n
         valeurs est une liste de constantes ou de fonctions\n
@@ -841,6 +829,8 @@ class Simu:
         valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
 
         self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+
+                
 
     def add_surfLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force surfacique\n
@@ -858,9 +848,9 @@ class Simu:
         elif self.__dim == 3:
             valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
 
-        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)    
+        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-    def __lineLoad(self,problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+    def __lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force linéique\n
         Renvoie valeurs_ddls, ddls"""
 
@@ -868,8 +858,7 @@ class Simu:
         Simu.CheckDirections(self.__dim, problemType, directions)
 
         # Récupération des matrices pour le calcul
-        mesh = self.__mesh
-        groupElem1D = mesh.get_groupElem(1)
+        groupElem1D = self.mesh.Get_groupElem(1)
 
         # Récupère les elements qui utilisent exclusivement les noeuds
         elements = groupElem1D.get_elements(noeuds, exclusivement=True)
@@ -911,8 +900,7 @@ class Simu:
         Simu.CheckDirections(self.__dim, problemType, directions)
 
         # Récupération des matrices pour le calcul
-        mesh = self.__mesh
-        groupElem2D = mesh.get_groupElem(2)
+        groupElem2D = self.mesh.Get_groupElem(2)
 
         # Récupère les elements qui utilisent exclusivement les noeuds
         elements = groupElem2D.get_elements(noeuds, exclusivement=True)
@@ -1005,8 +993,8 @@ class Simu:
 
         matriceType = "rigi"
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(sol_u, matriceType)
-        jacobien_e_pg = self.__mesh.get_jacobien_e_pg(matriceType)
-        poid_pg = self.__mesh.get_poid_pg(matriceType)
+        jacobien_e_pg = self.__mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = self.__mesh.Get_poid_pg(matriceType)
 
         if self.__dim == 2:
             ep = self.materiau.comportement.epaisseur
@@ -1069,7 +1057,9 @@ class Simu:
         u_e = self.__mesh.Localises_sol_e(u)
         comportement = self.materiau.comportement
 
-        B_dep_e_pg = self.__mesh.get_B_dep_e_pg(matriceType)
+        B_dep_e_pg = self.__mesh.Get_B_dep_e_pg(matriceType)
+
+        list_groupElem = self.__mesh.Get_list_groupElem()
         
         Epsilon_e_pg = np.einsum('epik,ek->epi', B_dep_e_pg, u_e, optimize='optimal')        
 
@@ -1090,7 +1080,7 @@ class Simu:
         """
 
         assert Epsilon_e_pg.shape[0] == self.__mesh.Ne
-        assert Epsilon_e_pg.shape[1] == self.__mesh.get_nPg(matriceType)
+        assert Epsilon_e_pg.shape[1] == self.__mesh.Get_nPg(matriceType)
 
         if self.materiau.isDamaged:
 

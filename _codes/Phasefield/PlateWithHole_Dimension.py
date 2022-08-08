@@ -80,13 +80,13 @@ for cc in list_cc:
     # Récupérations des noeuds de chargement
     B_lower = Line(point,Point(x=L))
     B_upper = Line(Point(y=H),Point(x=L, y=H))
-    nodes0 = mesh.Get_Nodes_Line(B_lower)
-    nodesh = mesh.Get_Nodes_Line(B_upper)
-    node00 = mesh.Get_Nodes_Point(Point())   
+    nodes0 = mesh.Nodes_Line(B_lower)
+    nodesh = mesh.Nodes_Line(B_upper)
+    node00 = mesh.Nodes_Point(Point())   
 
     # Noeuds en A et en B
-    nodeA = mesh.Get_Nodes_Point(Point(x=L/2, y=H-h+diam/2))
-    nodeB = mesh.Get_Nodes_Point(Point(x=L/2+diam/2, y=H-h))
+    nodeA = mesh.Nodes_Point(Point(x=L/2, y=H-h+diam/2))
+    nodeB = mesh.Nodes_Point(Point(x=L/2+diam/2, y=H-h))
 
     comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
     phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)

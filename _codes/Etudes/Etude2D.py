@@ -68,10 +68,10 @@ plt.show()
 
 # Récupère les noeuds qui m'interessent
 
-noeuds_en_0 = mesh.Get_Nodes_Line(Line0)        # noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-noeuds_en_L = mesh.Get_Nodes_Line(LineL)        # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+noeuds_en_0 = mesh.Nodes_Line(Line0)        # noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
+noeuds_en_L = mesh.Nodes_Line(LineL)        # noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
-noeuds_en_h= mesh.Get_Nodes_Line(LineH)
+noeuds_en_h= mesh.Nodes_Line(LineH)
 
 # ------------------------------------------------------------------------------------------------------
 

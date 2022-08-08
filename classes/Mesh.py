@@ -1,7 +1,6 @@
 
-from typing import cast
+from typing import cast, List, Dict
 import numpy as np
-from pandas import array
 import scipy.sparse as sp
 
 from Geom import *
@@ -19,10 +18,12 @@ class Mesh:
         """
 
         # Onrevifie que l'on contient que des GroupElem
+        list_GroupElem = []
         for item in dict_groupElem.values():
             assert isinstance(item, GroupElem)
+            list_GroupElem.append(item)
 
-        self.__dim = int(np.max([k for k in dict_groupElem.keys()]))
+        self.__dim = int(np.max([grp.dim for grp in list_GroupElem]))
 
         self.__dict_groupElem = dict_groupElem
 
@@ -35,17 +36,230 @@ class Mesh:
             self.Resume()            
     
     def Resume(self):
-        print(f"\nType d'elements: {self.elemType}")
+        print(f"\nTypes d'elements: {self.elemType}")
         print(f"Ne = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}")
     
-    def get_groupElem(self, dim=None):
-        if dim != None:
-            return cast(GroupElem, self.__dict_groupElem[dim])
-        else:
-            return cast(GroupElem, self.__dict_groupElem[self.__dim])
-    groupElem = cast(GroupElem, property(get_groupElem))   
+    def Get_list_groupElem(self, dim=None) -> List[GroupElem]:
+        """Liste de group d'element du maillage"""
+        if dim == None:
+            dim = self.__dim
+            
+        list_groupElem = []
 
-    def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True):
+        for key in self.__dict_groupElem:
+            grp = cast(GroupElem, self.__dict_groupElem[key])
+            if grp.dim == dim: list_groupElem.append(grp)
+        
+        list_groupElem = cast(List[GroupElem], list_groupElem)
+
+        return list_groupElem
+
+    @property
+    def dict_groupElem(self) -> Dict[str, GroupElem]:
+        return self.__dict_groupElem
+
+    @property
+    def groupElem(self) -> GroupElem:
+        """Groupe d'element du maillage
+
+        Returns:
+            GroupElem: _description_
+        """
+        return self.__dict_groupElem[self.__dim]
+    
+    def Get_groupElem(self, dim: int) -> GroupElem:
+        return self.__dict_groupElem[dim]
+
+    @property
+    def elemType(self) -> str:
+        "elements utilisés pour le maillage"
+        return self.groupElem.elemType
+    
+    @property
+    def Ne(self) -> int:
+        """Nombre d'élements du maillage"""
+        return self.groupElem.Ne
+    
+    @property
+    def Nn(self, dim=None) -> int:
+        """Nombre de noeuds du maillage"""
+        return self.groupElem.Nn
+    
+    @property
+    def dim(self):
+        """Dimension du maillage"""
+        return self.__dim
+    
+    @property
+    def nPe(self) -> int:
+        """noeuds par element"""
+        return self.groupElem.nPe
+    
+    @property
+    def coordo(self) -> np.ndarray:
+        """matrice des coordonnées de noeuds (Nn,3)"""
+        return self.groupElem.coordo
+    
+    @property
+    def nodes(self) -> np.ndarray:
+        """numéros des noeuds du maillage"""
+        return self.groupElem.nodes
+
+    @property
+    def coordoGlob(self) -> np.ndarray:
+        """matrice de coordonnées globale du maillage (maillage.Nn, 3)"""
+        return self.groupElem.coordoGlob
+
+    @property
+    def connect(self) -> np.ndarray:
+        """connection des elements (Ne, nPe)"""
+        return self.groupElem.connect
+    
+    @property
+    def connect_n_e(self) -> sp.csr_matrix:
+        """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
+        tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
+        return self.groupElem.connect_n_e
+
+    @property
+    def assembly_e(self) -> np.ndarray:
+        """matrice d'assemblage (Ne, nPe*dim)"""
+        return self.groupElem.assembly_e
+    
+    # Affichage
+
+    @property
+    def nbFaces(self) -> int:
+        return self.groupElem.nbFaces
+    
+    @property
+    def connectTriangle(self) -> np.ndarray:
+        """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D"""
+        return self.groupElem.get_connectTriangle()
+    
+    @property
+    def connect_Faces(self) -> np.ndarray:
+        """Récupère les faces de chaque element et renvoie un dictionnaire pour chaque elements
+        """
+        return self.groupElem.get_connect_Faces()
+
+    # Assemblage des matrices 
+
+    @property
+    def lignesVector_e(self) -> np.ndarray:
+        """lignes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
+        assembly_e = self.assembly_e
+        nPe = self.nPe
+        Ne = self.Ne
+        return np.repeat(assembly_e, nPe*self.__dim).reshape((Ne,-1))
+
+    @property
+    def colonnesVector_e(self) -> np.ndarray:
+        """colonnes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
+        assembly_e = self.assembly_e
+        nPe = self.nPe
+        Ne = self.Ne
+        return np.repeat(assembly_e, nPe*self.__dim, axis=0).reshape((Ne,-1))
+
+    @property
+    def lignesScalar_e(self) -> np.ndarray:
+        """lignes pour remplir la matrice d'assemblage en scalaire (endommagement, ou thermique)"""
+        connect = self.connect
+        nPe = self.nPe
+        Ne = self.Ne
+        return np.repeat(connect, nPe).reshape((Ne,-1))
+
+    @property
+    def colonnesScalar_e(self) -> np.ndarray:
+        """colonnes pour remplir la matrice d'assemblage en scalaire (endommagement, ou thermique)"""
+        connect = self.connect
+        nPe = self.nPe
+        Ne = self.Ne
+        return np.repeat(connect, nPe, axis=0).reshape((Ne,-1))
+
+    # Construction des matrices élémentaires
+    
+    def Get_nPg(self, matriceType: str) -> np.ndarray:
+        """nombre de point d'intégration par élement"""
+        return self.groupElem.get_gauss(matriceType).nPg
+
+    def Get_poid_pg(self, matriceType: str) -> np.ndarray:
+        """Points d'intégration (pg, dim, poid)"""
+        return self.groupElem.get_gauss(matriceType).poids
+
+    def Get_jacobien_e_pg(self, matriceType: str) -> np.ndarray:
+        """jacobien (e, pg)"""
+        return self.groupElem.get_jacobien_e_pg(matriceType)
+    
+    def Get_N_scalaire_pg(self, matriceType: str) -> np.ndarray:
+        """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)\n
+        Matrice des fonctions de forme dans element de référence (ksi, eta)\n
+        [N1(ksi,eta) N2(ksi,eta) Nn(ksi,eta)] \n
+        """
+        return self.groupElem.get_N_pg(matriceType)
+
+    def Get_N_vecteur_pg(self, matriceType: str) -> np.ndarray:
+        """Fonctions de formes dans l'element de reférences pour un vecteur (npg, dim, npe*dim)\n
+        Matrice des fonctions de forme dans element de référence (ksi, eta)\n
+        [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
+        0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]\n
+        """
+        return self.groupElem.get_N_pg(matriceType, self.__dim)
+
+    def Get_B_sclaire_e_pg(self, matriceType: str) -> np.ndarray:
+        """Derivé des fonctions de formes dans la base réele en sclaire\n
+        [dN1,x dN2,x dNn,x\n
+        dN1,y dN2,y dNn,y]\n        
+        (epij)
+        """
+        return self.groupElem.get_dN_e_pg(matriceType)
+
+    def Get_B_dep_e_pg(self, matriceType: str) -> np.ndarray:
+        """Derivé des fonctions de formes dans la base réele pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n
+        exemple en 2D :\n
+        [dN1,x 0 dN2,x 0 dNn,x 0\n
+        0 dN1,y 0 dN2,y 0 dNn,y\n
+        dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]\n
+
+        (epij) Dans la base de l'element et en Kelvin Mandel
+        """
+        return self.groupElem.get_B_dep_e_pg(matriceType)
+
+    def Get_leftDepPart(self, matriceType: str) -> np.ndarray:
+        """Renvoie la partie qui construit le therme de gauche de déplacement\n
+        Ku_e = jacobien_e_pg * poid_pg * B_dep_e_pg' * c_e_pg * B_dep_e_pg\n
+        
+        Renvoie (epij) -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+        """
+        return self.groupElem.get_leftDepPart(matriceType)
+    
+    def Get_phaseField_ReactionPart_e_pg(self, matriceType: str) -> np.ndarray:
+        """Renvoie la partie qui construit le therme de reaction\n
+        K_r_e_pg = jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg\n
+        
+        Renvoie (epij) -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
+        """
+        return self.groupElem.get_phaseField_ReactionPart_e_pg(matriceType)
+
+    def Get_phaseField_DiffusePart_e_pg(self, matriceType: str) -> np.ndarray:
+        """Renvoie la partie qui construit le therme de diffusion\n
+        DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * Bd_e_pg\n
+        
+        Renvoie -> jacobien_e_pg * poid_pg * Bd_e_pg' * Bd_e_pg
+        """
+        return self.groupElem.get_phaseField_DiffusePart_e_pg(matriceType)
+
+    def Get_phaseField_SourcePart_e_pg(self, matriceType: str) -> np.ndarray:
+        """Renvoie la partie qui construit le therme de source\n
+        SourcePart_e_pg = jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'\n
+        
+        Renvoie -> jacobien_e_pg, poid_pg, Nd_pg'
+        """
+        return self.groupElem.get_phaseField_SourcePart_e_pg(matriceType)
+    
+    # Récupération des noeuds
+
+    def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
         """Renvoie la liste de noeuds qui respectent les condtions
 
         Args:
@@ -64,216 +278,23 @@ class Mesh:
         """
         return self.groupElem.Get_Nodes_Conditions(conditionX, conditionY, conditionZ)
     
-    def Get_Nodes_Point(self, point: Point):
+    def Nodes_Point(self, point: Point) -> np.ndarray:
         """Renvoie la liste le noeud sur le point"""
         return self.groupElem.Get_Nodes_Point(point)
 
-    def Get_Nodes_Line(self, line: Line):
+    def Nodes_Line(self, line: Line) -> np.ndarray:
         """Renvoie la liste de noeuds qui sont sur la ligne"""
         return self.groupElem.Get_Nodes_Line(line)
 
-    def Get_Nodes_Domain(self, domain: Domain):
+    def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Renvoie la liste de noeuds qui sont dans le domaine"""
         return self.groupElem.Get_Nodes_Domain(domain)
     
-    def Get_Nodes_Circle(self, circle: Circle):
+    def Nodes_Circle(self, circle: Circle) -> np.ndarray:
         """Renvoie la liste de noeuds qui sont dans le cercle"""
-        return self.groupElem.Get_Nodes_Circle(circle)
+        return self.groupElem.Get_Nodes_Circle(circle)    
 
-    def Localises_sol_e(self, sol: np.ndarray):
+    def Localises_sol_e(self, sol: np.ndarray) -> np.ndarray:
         """sur chaque elements on récupère les valeurs de sol"""
-        return cast(np.ndarray, self.groupElem.Localise_sol_e(sol))
-        
-    def __get_Ne(self, dim=None):
-        if isinstance(dim,int):
-            return cast(GroupElem, self.groupElem(dim)).Ne 
-        else:
-            return self.groupElem.Ne
-    Ne = property(__get_Ne)
-    """Nombre d'élements du maillage"""
+        return self.groupElem.Localise_sol_e(sol)
     
-    def __get_Nn(self, dim=None):        
-        if isinstance(dim,int):
-            return cast(GroupElem, self.groupElem(dim)).Nn 
-        else:
-            return self.groupElem.Nn
-    Nn = property(__get_Nn)
-    """Nombre de noeuds du maillage"""
-
-    def __get_nPe(self, dim=None):
-        if isinstance(dim,int):
-            return cast(GroupElem, self.groupElem(dim)).nPe
-        else:
-            return self.groupElem.nPe
-    nPe = property(__get_nPe)
-    """noeuds par element"""
-
-    def __get_dim(self):
-        return self.__dim
-    dim = property(__get_dim)
-    """Dimension du maillage"""
-
-    def __get_coordo(self, dim=None):
-        if isinstance(dim, int):
-            return cast(GroupElem, self.groupElem(dim)).coordo
-        else:
-            return self.groupElem.coordo
-    coordo = cast(np.ndarray, property(__get_coordo))
-    """matrice des coordonnées de noeuds (Nn,3)"""
-
-    def __get_nodes(self, dim=None):
-        if isinstance(dim, int):
-            return cast(GroupElem, self.groupElem(dim)).nodes
-        else:
-            return self.groupElem.nodes
-    nodes = cast(np.ndarray, property(__get_nodes))
-    """numéros des noeuds du maillage"""
-
-    def __get_coordoGlob(self, dim=None):
-        if isinstance(dim, int):
-            return cast(GroupElem, self.groupElem(dim)).coordoGlob
-        else:
-            return self.groupElem.coordoGlob
-    coordoGlob = cast(np.ndarray, property(__get_coordoGlob))
-    """matrice de coordonnées globale du maillage (maillage.Nn, 3)"""
-
-    def __get_connect(self, dim=None):
-        if isinstance(dim, int):
-            return cast(GroupElem, self.groupElem(dim)).connect
-        else:
-            return self.groupElem.connect        
-    connect = cast(np.ndarray, property(__get_connect))
-    """connection des elements (Ne, nPe)"""
-    
-    def __get_connect_n_e(self):
-        return self.groupElem.connect_n_e
-    connect_n_e = cast(sp.csr_matrix, property(__get_connect_n_e))
-    """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
-        tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
-
-    def __get_assembly(self):
-        return self.groupElem.assembly_e
-    assembly_e = cast(np.ndarray, property(__get_assembly))
-    """matrice d'assemblage (Ne, nPe*dim)"""
-
-    def __get_lignesVector_e(self):
-        return np.repeat(self.assembly_e, self.nPe*self.__dim).reshape((self.Ne,-1))
-    lignesVector_e = cast(np.ndarray, property(__get_lignesVector_e))
-    """lignes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
-
-    def __get_colonnesVector_e(self):
-        return np.repeat(self.assembly_e, self.nPe*self.__dim, axis=0).reshape((self.Ne,-1))
-    colonnesVector_e = cast(np.ndarray, property(__get_colonnesVector_e))
-    """colonnes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
-
-    def __get_lignesScalar_e(self):
-        return np.repeat(self.connect, self.nPe).reshape((self.Ne,-1))         
-    lignesScalar_e = cast(np.ndarray, property(__get_lignesScalar_e))
-    """lignes pour remplir la matrice d'assemblage en scalaire (endommagement, ou thermique)"""
-
-    def __get_colonnesScalar_e(self):
-        return np.repeat(self.connect, self.nPe, axis=0).reshape((self.Ne,-1))
-    colonnesScalar_e = cast(np.ndarray, property(__get_colonnesScalar_e))
-    """colonnes pour remplir la matrice d'assemblage en scalaire (endommagement, ou thermique)"""
-
-    def get_nPg(self, matriceType: str):
-        """nombre de point d'intégration par élement"""
-        return self.groupElem.get_gauss(matriceType).nPg
-
-    def get_poid_pg(self, matriceType: str):
-        """Points d'intégration (pg, dim, poid)"""
-        return self.groupElem.get_gauss(matriceType).poids
-
-    def get_jacobien_e_pg(self, matriceType: str):
-        """jacobien (e, pg)"""
-        return self.groupElem.get_jacobien_e_pg(matriceType)
-    
-    def get_N_scalaire_pg(self, matriceType: str):
-        """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)\n
-        Matrice des fonctions de forme dans element de référence (ksi, eta)\n
-        [N1(ksi,eta) N2(ksi,eta) Nn(ksi,eta)] \n
-        """
-        return self.groupElem.get_N_pg(matriceType)
-
-    def get_N_vecteur_pg(self, matriceType: str):
-        """Fonctions de formes dans l'element de reférences pour un vecteur (npg, dim, npe*dim)\n
-        Matrice des fonctions de forme dans element de référence (ksi, eta)\n
-        [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
-        0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]\n
-        """
-        return self.groupElem.get_N_pg(matriceType, self.__dim)
-
-    def get_B_sclaire_e_pg(self, matriceType: str):
-        """Derivé des fonctions de formes dans la base réele en sclaire\n
-        [dN1,x dN2,x dNn,x\n
-        dN1,y dN2,y dNn,y]\n        
-        (epij)
-        """
-        return self.groupElem.get_dN_e_pg(matriceType)
-
-    def get_B_dep_e_pg(self, matriceType: str):
-        """Derivé des fonctions de formes dans la base réele pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n
-        exemple en 2D :\n
-        [dN1,x 0 dN2,x 0 dNn,x 0\n
-        0 dN1,y 0 dN2,y 0 dNn,y\n
-        dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]\n
-
-        (epij) Dans la base de l'element et en Kelvin Mandel
-        """
-
-        return self.groupElem.get_B_dep_e_pg(matriceType)
-
-    def get_leftDepPart(self, matriceType: str):
-        """Renvoie la partie qui construit le therme de gauche de déplacement\n
-        Ku_e = jacobien_e_pg * poid_pg * B_dep_e_pg' * c_e_pg * B_dep_e_pg\n
-        
-        Renvoie (epij) -> jacobien_e_pg * poid_pg * B_dep_e_pg'
-        """
-
-        return self.groupElem.get_leftDepPart(matriceType)
-    
-    def get_phaseField_ReactionPart_e_pg(self, matriceType: str):
-        """Renvoie la partie qui construit le therme de reaction\n
-        K_r_e_pg = jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg\n
-        
-        Renvoie (epij) -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
-        """
-
-        return self.groupElem.get_phaseField_ReactionPart_e_pg(matriceType)
-
-    def get_phaseField_DiffusePart_e_pg(self, matriceType: str):
-        """Renvoie la partie qui construit le therme de diffusion\n
-        DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * Bd_e_pg\n
-        
-        Renvoie -> jacobien_e_pg * poid_pg * Bd_e_pg' * Bd_e_pg
-        """
-
-        return self.groupElem.get_phaseField_DiffusePart_e_pg(matriceType)
-
-    def get_phaseField_SourcePart_e_pg(self, matriceType: str):
-        """Renvoie la partie qui construit le therme de source\n
-        SourcePart_e_pg = jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'\n
-        
-        Renvoie -> jacobien_e_pg, poid_pg, Nd_pg'
-        """
-
-        return self.groupElem.get_phaseField_SourcePart_e_pg(matriceType)
-    
-    def get_nbFaces(self):
-        return self.groupElem.nbFaces
-    
-    def __get_elemenType(self):
-        return self.groupElem.elemType
-    elemType = cast(str, property(__get_elemenType))
-
-    def get_connectTriangle(self):
-        """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D"""
-        return cast(dict, self.groupElem.get_connectTriangle())
-    
-    def get_connect_Faces(self):
-        """Récupère les faces de chaque element et renvoie un dictionnaire pour chaque elements
-        """
-        return cast(dict, self.groupElem.get_connect_Faces())
-        
-
-        
