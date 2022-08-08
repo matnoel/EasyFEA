@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 class Interface_Gmsh:   
 
-    def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=True):                
+    def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=True):
             
         self.__affichageGmsh = affichageGmsh
         """affichage du maillage sur gmsh"""
@@ -25,7 +25,7 @@ class Interface_Gmsh:
         self.__verbosity = verbosity
         """modelGmsh peut ecrire dans la console"""
 
-        if verbosity:
+        if gmshVerbosity:
             Affichage.NouvelleSection("Maillage Gmsh")
 
     def __initGmsh(self):
@@ -416,7 +416,53 @@ class Interface_Gmsh:
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.   
+    # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.
+
+    def MeshFromGeom2D(self, pointsList=[], tailleElement=0.0,
+    elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
+
+        self.__initGmsh()
+        self.__CheckType(2, elemType)
+
+        tic = TicTac()
+
+        factory = gmsh.model.geo
+
+        # On creer tout les points
+        points = []
+        for point in pointsList:
+
+            assert isinstance(point, Point)
+            if not returnSurfaces: assert point.z == 0, "Pour une simulation 2D les points doivent être dans le plan (x, y)"
+
+            points.append(factory.addPoint(point.x, point.y, point.z, tailleElement))
+
+        # On creer les lignes qui relies les points
+        connectLignes = np.repeat(points, 2).reshape(-1,2)
+        indexForChange = np.arange(1, len(points)+1, 1)
+        indexForChange[-1] = 0
+        connectLignes[:,1] = connectLignes[indexForChange,1]
+
+        lignes = []
+        for pt1, pt2 in connectLignes:
+            lignes.append(factory.addLine(pt1, pt2))
+
+
+        # Create a closed loop connecting the lines for the surface        
+        loopSurface = factory.addCurveLoop(lignes)
+        
+        surface = factory.addPlaneSurface([loopSurface])
+
+        surfaces = [surface]
+
+        if returnSurfaces: return surfaces
+
+        tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
+
+        self.__Construction_MaillageGmsh(2, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
+
+        return cast(Mesh, self.__Recuperation_Maillage())
+
 
     def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
     surfaces=[], crack=None, openBoundary=None, folder=""):
@@ -560,6 +606,7 @@ class Interface_Gmsh:
         coordo = coord[sortedIndices]
 
         # Construit les elements
+        dimAjoute = []
         for gmshId in elementTypes:
                                         
             # Récupère le numéros des elements et la matrice de connection
@@ -590,7 +637,12 @@ class Interface_Gmsh:
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
             
             groupElem = GroupElem(gmshId, connect, elements, coordo, nodes)
-            dict_groupElem[groupElem.dim] = groupElem
+            dict_groupElem[groupElem.elemType] = groupElem
+
+            assert groupElem.dim not in dimAjoute, "Le maillage ne doit pas être une composition de d'element de meme dimension exemple(TRI3 et QUAD4)"
+            dimAjoute.append(groupElem.dim)
+
+        
         
         tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
