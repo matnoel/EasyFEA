@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from TicTac import TicTac
 
-Affichage.Clear()
+# Affichage.Clear()
 
 folder = Dossier.NewFile("Etude3D", results=True)
 
@@ -23,7 +23,7 @@ folder = Dossier.NewFile("Etude3D", results=True)
 
 dim = 3 
 
-plotResult = True
+plotResult = False
 
 saveParaview = True
 
@@ -35,13 +35,13 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 5
+nBe = 30
 # nBe = 1
 taille = h/nBe
 # taille = h/3
 
-if nBe > 11:
-    plotResult = False
+# if nBe > 11:
+#     plotResult = False
 
 comportement = Elas_Isot(dim)
 
@@ -49,15 +49,15 @@ comportement = Elas_Isot(dim)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=True)
+interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 
 fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille)
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
 
-domain = Domain(Point(y=-h/2,z=0), Point(x=L, y=h/2,z=0), taille=taille)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
+domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=True, nCouches=5)
 
 # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
 # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
@@ -72,7 +72,7 @@ noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
 
-simu = Simu(mesh, materiau, verbosity=True)
+simu = Simu(mesh, materiau, verbosity=True, useNumba=True)
 
 simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b], ["y"])
 simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
@@ -81,7 +81,9 @@ simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
 # plt.show()
 
 simu.Assemblage_u()
+simu.Solve_u()
 
+simu.Assemblage_u()
 simu.Solve_u()
 
 simu.Save_Iteration()
@@ -102,7 +104,6 @@ if plotResult:
     Affichage.Plot_Maillage(simu, deformation=False)        
     Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)        
     Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
-    
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 

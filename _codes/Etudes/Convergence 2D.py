@@ -82,7 +82,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
                 noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
                 # Construit la simulation
-                simu = Simu(mesh, materiau, verbosity=False)
+                simu = Simu(mesh, materiau, verbosity=False, useNumba=False)
 
                 # Renseigne les condtions limites en deplacement
                 simu.add_dirichlet("displacement", noeuds_en_0, [0,0], ["x","y"])

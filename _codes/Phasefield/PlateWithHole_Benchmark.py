@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 test=True
 solve=True
-saveParaview=True
+saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
@@ -38,7 +38,7 @@ umax = 35e-6
 # ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 # ["AnisotStress","AnisotStress_NoCross"]
 # ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotMiehe"]
-for split in ["AnisotMiehe"]: 
+for split in ["Miehe"]: 
 
     # Data
 
@@ -63,8 +63,8 @@ for split in ["AnisotMiehe"]:
     
 
     if test:
-        clD = 0.25e-3*10
-        clC = 0.12e-3*10
+        clD = 0.25e-3
+        clC = 0.12e-3
         # clD = l_0*2
         # clC = l_0
 
@@ -118,12 +118,12 @@ for split in ["AnisotMiehe"]:
         circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
 
         interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
-        # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
+        mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
-        mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 2, elemType="HEXA8", isOrganised=True)
+        # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 2, elemType="HEXA8", isOrganised=True)
 
         Affichage.Plot_Maillage(mesh)
-        plt.show()
+        # plt.show()
 
         if simpli2D == "CP":
             isCp = True
@@ -142,7 +142,7 @@ for split in ["AnisotMiehe"]:
         phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
         materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 
-        simu = Simu.Simu(mesh, materiau, verbosity=False)
+        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=True)
 
         # Récupérations des noeuds
 
