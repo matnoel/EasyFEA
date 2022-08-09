@@ -498,9 +498,9 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     min = np.min(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
     # max = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
     
-    factX = np.max(np.abs([xmin, xmax]))/max
-    factY = np.max(np.abs([ymin, ymax]))/max
-    factZ = np.max(np.abs([zmin, zmax]))/max
+    factX = np.max(np.abs(xmin)+np.abs(xmax))/max
+    factY = np.max(np.abs(ymin)+np.abs(ymax))/max
+    factZ = np.max(np.abs(zmin)+np.abs(zmax))/max
 
     ecartAuBord = max*1.2 - max
 
@@ -508,7 +508,8 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     ax.set_ylim([ymin-ecartAuBord, ymax+ecartAuBord])
     ax.set_zlim([zmin-ecartAuBord, zmax+ecartAuBord])
 
-    # ax.set_box_aspect((factX, factY, factZ))
+    # cc = 0.5
+    # ax.set_box_aspect((factX, factY*1.5, factZ*1.5))
 
 def NouvelleSection(text: str):
     """Creer une nouvelle section dans la console"""

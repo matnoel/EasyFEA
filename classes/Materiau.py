@@ -536,7 +536,8 @@ class PhaseFieldModel:
         __regularizations = ["AT1","AT2"]
         return __regularizations
 
-    def __get_k(self):
+    @property
+    def k(self) -> float:
         Gc = self.__Gc
         l0 = self.__l0
 
@@ -545,10 +546,9 @@ class PhaseFieldModel:
         if self.__regularization == "AT1":
             k = 3/4 * k
 
-        return k        
-    k = property(__get_k)
+        return k
 
-    def get_r_e_pg(self, PsiP_e_pg: np.ndarray):
+    def get_r_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
         Gc = self.__Gc
         l0 = self.__l0
 
@@ -559,7 +559,7 @@ class PhaseFieldModel:
         
         return r
 
-    def get_f_e_pg(self, PsiP_e_pg: np.ndarray):
+    def get_f_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
         Gc = self.__Gc
         l0 = self.__l0
 
@@ -572,7 +572,7 @@ class PhaseFieldModel:
         
         return f
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=1e-12):
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=1e-12) -> np.ndarray:
         """Fonction de dégradation en energies / contraintes
         k_residu=1e-10
         Args:
@@ -594,30 +594,30 @@ class PhaseFieldModel:
         
         return g_e_pg
 
-    def __resume(self):
+    @property
+    def resume(self) -> str:
         resum = '\nPhaseField :'        
         resum += f'\nsplit : {self.__split}'
         resum += f'\nregularisation : {self.__regularization}'
         resum += f'\nGc : {self.__Gc:.2e}'
         resum += f'\nl0 : {self.__l0:.2e}'
         return resum
-    resume = property(__resume)
 
-    def __get_split(self):
+    @property
+    def split(self) -> str:
         return self.__split
-    split = property(__get_split)
 
-    def __get_regularization(self):
+    @property
+    def regularization(self) -> str:
         return self.__regularization
-    regularization = property(__get_regularization)
     
-    def __get_loiDeComportement(self):
+    @property
+    def loiDeComportement(self) -> LoiDeComportement:
         return self.__loiDeComportement
-    loiDeComportement = cast(LoiDeComportement, property(__get_loiDeComportement))
 
-    def __get_useHistory(self):
+    @property
+    def useHistory(self) -> bool:
         return self.__useHistory
-    useHistory = property(__get_useHistory)
 
     def __init__(self, loiDeComportement: LoiDeComportement, split: str, regularization: str, Gc: float, l_0: float,
     useHistory=True):
@@ -659,9 +659,9 @@ class PhaseFieldModel:
         """Largeur de régularisation de la fissure"""
 
         self.__useHistory = useHistory
-        """Utilise ou non le champ histoire"""
+        """Utilise ou non le champ histoire"""        
             
-    def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
+    def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray, useNumba=False):
         """Calcul de la densité d'energie elastique\n
         psiP_e_pg = 1/2 SigmaP_e_pg * Epsilon_e_pg\n
         psiM_e_pg = 1/2 SigmaM_e_pg * Epsilon_e_pg\n
@@ -674,14 +674,17 @@ class PhaseFieldModel:
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
-        SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
+        SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg, useNumba)
 
-        psiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
-        psiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
-        
+        if useNumba:
+            psiP_e_pg, psiM_e_pg = CalcNumba.Calc_psi_e_pg(Epsilon_e_pg, SigmaP_e_pg, SigmaM_e_pg)
+        else:
+            psiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
+            psiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
+
         return psiP_e_pg, psiM_e_pg
 
-    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray):
+    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, useNumba=False):
         """Calcul la contrainte en fonction de la deformation et du split\n
         Ici on calcul :\n
         SigmaP_e_pg = cP_e_pg * Epsilon_e_pg \n
@@ -704,8 +707,12 @@ class PhaseFieldModel:
 
         cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 
-        SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
-        SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
+
+        if useNumba:
+            SigmaP_e_pg, SigmaM_e_pg = CalcNumba.Calc_Sigma_e_pg(Epsilon_e_pg, cP_e_pg, cM_e_pg)
+        else:
+            SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
+            SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
 
         return SigmaP_e_pg, SigmaM_e_pg
     
@@ -787,7 +794,7 @@ class PhaseFieldModel:
             Ivoigt = np.array([1,1,1,0,0,0]).reshape((6,1))
             taille = 6
 
-        IxI = Ivoigt.dot(Ivoigt.T)
+        IxI = np.array(Ivoigt.dot(Ivoigt.T))
 
         # Projecteur deviatorique
         Pdev = np.eye(taille) - 1/dim * IxI
@@ -798,8 +805,18 @@ class PhaseFieldModel:
             # Moin rapide
             cP_e_pg, cM_e_pg = CalcNumba.Split_Amor(Rp_e_pg, Rm_e_pg, partieDeviateur, IxI, bulk)
         else:
+            
+            # # Mois rapide que einsum
+            # IxI = IxI[np.newaxis, np.newaxis, :, :].repeat(Rp_e_pg.shape[0], axis=0).repeat(Rp_e_pg.shape[1], axis=1)
+
+            # Rp_e_pg = Rp_e_pg[:,:, np.newaxis, np.newaxis].repeat(taille, axis=2).repeat(taille, axis=3)
+            # Rm_e_pg = Rm_e_pg[:,:, np.newaxis, np.newaxis].repeat(taille, axis=2).repeat(taille, axis=3)
+
+            # spherP_e_pg = Rp_e_pg * IxI
+            # spherM_e_pg = Rm_e_pg * IxI
+
             spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
-            spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
+            spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')            
         
             cP_e_pg = bulk*spherP_e_pg + partieDeviateur
             cM_e_pg = bulk*spherM_e_pg

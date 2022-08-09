@@ -27,7 +27,7 @@ class Simu:
 
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
-    def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True):
+    def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=False):
         """Creation d'une simulation
 
         Args:
@@ -55,6 +55,10 @@ class Simu:
         """maillage de la simulation"""
         self.materiau = materiau
         """materiau de la simulation"""
+
+        self.__useNumba = useNumba
+        # if useNumba:
+        #     CalcNumba.CompilNumba(self.__verbosity)
         
         # resultats
         self.__init_results()
@@ -176,12 +180,15 @@ class Simu:
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
-    def ConstruitMatElem_Dep(self) -> Dict[str, np.ndarray]:
+    def ConstruitMatElem_Dep(self) -> np.ndarray:
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
 
         Returns:
             dict_Ku_e: les matrices elementaires pour chaque groupe d'element
         """
+
+        useNumba = self.__useNumba
+        # useNumba = False
         
         isDamaged = self.materiau.isDamaged
 
@@ -194,24 +201,20 @@ class Simu:
         nPg = mesh.Get_nPg(matriceType)
         
         # Recupère les matrices pour travailler
-        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.Get_poid_pg(matriceType)
+        # jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        # poid_pg = mesh.Get_poid_pg(matriceType)
         B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)
         leftDepPart = mesh.Get_leftDepPart(matriceType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
 
         comportement = self.materiau.comportement
 
-        mat = comportement.get_C()
-        # Ici on le materiau est homogène
-
         if isDamaged:   # probleme endomagement
 
             d = self.__damage
-
             u = self.__displacement
 
             phaseFieldModel = self.materiau.phaseFieldModel
-                
+            
             # Calcul la deformation nécessaire pour le split
             Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, matriceType)
 
@@ -220,26 +223,35 @@ class Simu:
 
             # Endommage : c = g(d) * cP + cM
             g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matriceType)
-            cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
+            if useNumba:
+                cP_e_pg = CalcNumba.ep_epij_to_epij(g_e_pg, cP_e_pg)
+            else:
+                cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
 
             c_e_pg = cP_e_pg+cM_e_pg
             
-            # Matrice de rigidité élementaire            
-            # Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c_e_pg, B_dep_e_pg, optimize='optimal')
-            Ku_e = np.einsum('epij,epjk,epkl->eil', leftDepPart, c_e_pg, B_dep_e_pg, optimize='optimal')
+            # Matrice de rigidité élementaire
+            if useNumba:
+                Ku_e = CalcNumba.epij_epjk_epkl_to_eil(leftDepPart, c_e_pg, B_dep_e_pg)
+            else:
+                # Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c_e_pg, B_dep_e_pg, optimize='optimal')
+                Ku_e = np.einsum('epij,epjk,epkl->eil', leftDepPart, c_e_pg, B_dep_e_pg, optimize='optimal') 
             
         else:   # probleme en déplacement simple
 
-            # Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, mat, B_dep_e_pg, optimize='optimal')
-            Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, mat, B_dep_e_pg, optimize='optimal')
-        
-        # # On somme sur les points d'intégrations
-        # Ku_e = np.sum(Ku_e_pg, axis=1)
+            # Ici on le materiau est homogène
+            matC = comportement.get_C()
+
+            if useNumba:
+                Ku_e = CalcNumba.epij_jk_epkl_to_eil(leftDepPart, matC, B_dep_e_pg)
+            else:
+                # Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, matC, B_dep_e_pg, optimize='optimal')
+                Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, matC, B_dep_e_pg, optimize='optimal')
 
         if self.__dim == 2:
             Ku_e *= self.materiau.comportement.epaisseur
         
-        tic.Tac("Matrices","Matrices déplacement", self.__verbosity)
+        tic.Tac("Matrices","Construction Ku_e", self.__verbosity)
 
         return Ku_e    
  
@@ -318,7 +330,7 @@ class Simu:
 
         nPg = self.__mesh.Get_nPg("masse")
 
-        psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
+        psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg, self.__useNumba)
 
         if useHistory:
             if len(old_psiP) == 0:
@@ -345,7 +357,10 @@ class Simu:
         Returns:
             Kd_e, Fd_e: les matrices elementaires pour chaque element
         """
-        
+
+        useNumba = self.__useNumba
+        # useNumba = False
+
         tic = TicTac()
 
         # TODO A optimiser en faisant le moins de fois les memes opérations genre grouper jacobien et poid 
@@ -360,32 +375,40 @@ class Simu:
 
         matriceType="masse"
 
-        # Recupère les matrices pour travailler
         mesh = self.__mesh
-        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.Get_poid_pg(matriceType)
-        Nd_pg = mesh.Get_N_scalaire_pg(matriceType)
-        Bd_e_pg = mesh.Get_B_sclaire_e_pg(matriceType)
 
-        # Probleme de la forme K*Laplacien(d) + r*d = F
-        
-        # Partie qui fait intervenir le therme de reaction r ->  jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg
+        # Probleme de la forme K*Laplacien(d) + r*d = F        
         ReactionPart_e_pg = mesh.Get_phaseField_ReactionPart_e_pg(matriceType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
-        K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
-        # K_r_e = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
-
-        # Partie qui fait intervenir le therme de diffusion K -> jacobien_e_pg, poid_pg, k, Bd_e_pg', Bd_e_pg
         DiffusePart_e_pg = mesh.Get_phaseField_DiffusePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Bd_e_pg', Bd_e_pg
-        K_K_e = np.einsum('epij->eij', DiffusePart_e_pg * k, optimize='optimal')
-        # K_K_e = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
-
-        Kd_e = K_r_e+K_K_e
-
-        # Construit Fd_e -> jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'
-        SourcePart_e_pg = mesh.Get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'        
-        Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') #Ici on somme sur les points d'integrations
+        SourcePart_e_pg = mesh.Get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'
         
-        tic.Tac("Matrices","Matrices endommagement", self.__verbosity)
+        if useNumba:
+
+            Kd_e, Fd_e = CalcNumba.Construit_Kd_e_and_Fd_e(r_e_pg, ReactionPart_e_pg,
+            k, DiffusePart_e_pg,
+            f_e_pg, SourcePart_e_pg)
+
+        else:
+
+            # jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+            # poid_pg = mesh.Get_poid_pg(matriceType)
+            # Nd_pg = mesh.Get_N_scalaire_pg(matriceType)
+            # Bd_e_pg = mesh.Get_B_sclaire_e_pg(matriceType)
+
+            # Partie qui fait intervenir le therme de reaction r ->  jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg
+            K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
+            # K_r_e = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
+
+            # Partie qui fait intervenir le therme de diffusion K -> jacobien_e_pg, poid_pg, k, Bd_e_pg', Bd_e_pg
+            K_K_e = np.einsum('epij->eij', DiffusePart_e_pg * k, optimize='optimal')
+            # K_K_e = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
+            
+            # Construit Fd_e -> jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'
+            Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') #Ici on somme sur les points d'integrations
+        
+            Kd_e = K_r_e+K_K_e
+
+        tic.Tac("Matrices","Construction Kd_e et Fd_e", self.__verbosity)
 
         return Kd_e, Fd_e
 
@@ -1006,7 +1029,7 @@ class Simu:
             d = self.__damage
 
             phaseFieldModel = self.materiau.phaseFieldModel
-            psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
+            psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg, self.__useNumba)
 
             # Endommage : psiP_e_pg = g(d) * PsiP_e_pg 
             g_e_pg = phaseFieldModel.get_g_e_pg(d, self.__mesh, matriceType)
@@ -1052,20 +1075,22 @@ class Simu:
         np.ndarray
             Deformations stockées aux elements et points de gauss (Ne,pg,(3 ou 6))
         """
+
+        useNumba = self.__useNumba
         
         # Localise les deplacement par element
         u_e = self.__mesh.Localises_sol_e(u)
-        comportement = self.materiau.comportement
 
         B_dep_e_pg = self.__mesh.Get_B_dep_e_pg(matriceType)
 
-        list_groupElem = self.__mesh.Get_list_groupElem()
-        
-        Epsilon_e_pg = np.einsum('epik,ek->epi', B_dep_e_pg, u_e, optimize='optimal')        
+        if useNumba:
+            Epsilon_e_pg = CalcNumba.epij_ej_to_epi(B_dep_e_pg, u_e)
+        else:
+            Epsilon_e_pg = np.einsum('epik,ek->epi', B_dep_e_pg, u_e, optimize='optimal')
 
         return Epsilon_e_pg
 
-    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType="rigi"):
+    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType="rigi") -> np.ndarray:
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -1082,6 +1107,8 @@ class Simu:
         assert Epsilon_e_pg.shape[0] == self.__mesh.Ne
         assert Epsilon_e_pg.shape[1] == self.__mesh.Get_nPg(matriceType)
 
+        useNumba = self.__useNumba
+
         if self.materiau.isDamaged:
 
             d = self.__damage
@@ -1092,16 +1119,23 @@ class Simu:
 
             # Endommage : Sig = g(d) * SigP + SigM
             g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
-            SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
+            if useNumba:
+                SigmaP_e_pg = CalcNumba.ep_epi_to_epi(g_e_pg, SigmaP_e_pg)
+            else:
+                SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
 
             Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
             
         else:
 
             c = self.materiau.comportement.get_C()
-            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize='optimal')            
 
-        return cast(np.ndarray, Sigma_e_pg)
+            if useNumba:
+                Sigma_e_pg = CalcNumba.ij_epj_to_epi(c, Epsilon_e_pg)
+            else:
+                Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize='optimal')
+
+        return Sigma_e_pg
 
 
     def VerificationOption(self, option):
