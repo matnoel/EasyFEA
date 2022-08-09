@@ -121,7 +121,17 @@ class TicTac:
 
         tf = np.abs(self.__start - time.time())
 
-        texteAvecLeTemps = "{} ({:.3f} s)".format(texte, tf)        
+        if tf > 1:
+            unite = "s"
+            coef = 1
+        elif tf < 1 and tf > 1e-3:
+            coef = 1e3
+            unite = "ms"
+        elif tf < 1e-3:
+            coef = 1e6
+            unite = "µs"
+
+        texteAvecLeTemps = f"{texte} ({tf*coef:.3f} {unite})"
         
         value = [texte, tf]
 
