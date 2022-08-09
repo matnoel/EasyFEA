@@ -29,7 +29,7 @@ def CompilNumba(verbosity=True):
 
 #Calcul indiciel
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def ep_ij_to_epij(ep: np.ndarray, ij: np.ndarray):
     result = np.zeros((ep.shape[0], ep.shape[1], ij.shape[0], ij.shape[1]))
     for e in prange(ep.shape[0]):
@@ -37,7 +37,7 @@ def ep_ij_to_epij(ep: np.ndarray, ij: np.ndarray):
             result[e,p] = ep[e, p] * ij
     return result
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def epij_ej_to_epi(epij: np.ndarray, ej: np.ndarray):
     range = prange
     # range = np.arange
@@ -60,7 +60,7 @@ def epij_ej_to_epi(epij: np.ndarray, ej: np.ndarray):
 
     return result
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def ij_epj_to_epi(ij: np.ndarray, epj: np.ndarray):
     range = prange
     # range = np.arange
@@ -82,7 +82,7 @@ def ij_epj_to_epi(ij: np.ndarray, epj: np.ndarray):
 
     return result
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def ep_epi_to_epi(ep: np.ndarray, epi: np.ndarray):
     range = prange
     # range = np.arange
@@ -103,7 +103,7 @@ def ep_epi_to_epi(ep: np.ndarray, epi: np.ndarray):
 
     return result
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def ep_epij_to_epij(ep: np.ndarray, epij: np.ndarray):
     range = prange
     # range = np.arange
@@ -126,7 +126,7 @@ def ep_epij_to_epij(ep: np.ndarray, epij: np.ndarray):
 
     return result
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def ep_epij_to_eij(ep: np.ndarray, epij: np.ndarray):
     range = prange
     # range = np.arange
@@ -150,7 +150,7 @@ def ep_epij_to_eij(ep: np.ndarray, epij: np.ndarray):
     return result
 
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def epij_epjk_epkl_to_eil(epij: np.ndarray, epjk: np.ndarray, epkl: np.ndarray):
     range = prange
     # range = np.arange
@@ -179,7 +179,7 @@ def epij_epjk_epkl_to_eil(epij: np.ndarray, epjk: np.ndarray, epkl: np.ndarray):
 
     return result
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def epij_jk_epkl_to_eil(epij: np.ndarray, jk: np.ndarray, epkl: np.ndarray):
     range = prange
     # range = np.arange
@@ -210,7 +210,7 @@ def epij_jk_epkl_to_eil(epij: np.ndarray, jk: np.ndarray, epkl: np.ndarray):
 
 # Construction des matrices
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def Construit_Kd_e_and_Fd_e(r_e_pg: np.ndarray, ReactionPart_e_pg: np.ndarray,
 k: float, DiffusePart_e_pg: np.ndarray,
 f_e_pg: np.ndarray, SourcePart_e_pg: np.ndarray):
@@ -244,7 +244,7 @@ f_e_pg: np.ndarray, SourcePart_e_pg: np.ndarray):
 
     return Kd_e, Fd_e
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def Calc_psi_e_pg(Epsilon_e_pg: np.ndarray, SigmaP_e_pg: np.ndarray, SigmaM_e_pg: np.ndarray):
 
     range = prange
@@ -265,7 +265,7 @@ def Calc_psi_e_pg(Epsilon_e_pg: np.ndarray, SigmaP_e_pg: np.ndarray, SigmaM_e_pg
     
     return psiP_e_pg, psiM_e_pg
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def Calc_Sigma_e_pg(Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.ndarray):
 
     range = prange
@@ -291,7 +291,7 @@ def Calc_Sigma_e_pg(Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.n
 
 # Calcul de splits
 
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def Get_Anisot_C(projP_e_pg: np.ndarray, c: np.ndarray, projM_e_pg: np.ndarray):
 
     Ne = projP_e_pg.shape[0]
@@ -322,7 +322,7 @@ def Get_Anisot_C(projP_e_pg: np.ndarray, c: np.ndarray, projM_e_pg: np.ndarray):
 
 
 # Pas tres efficace
-@njit(cache=False, parallel=True)
+@njit(cache=False, parallel=True, nogil=True)
 def Split_Amor(Rp_e_pg: np.ndarray, Rm_e_pg: np.ndarray,
 partieDeviateur: np.ndarray, IxI: np.ndarray, bulk):
     Ne = Rp_e_pg.shape[0]
