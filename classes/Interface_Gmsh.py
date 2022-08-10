@@ -10,7 +10,7 @@ import Dossier
 from Geom import *
 from GroupElem import GroupElem
 from Mesh import Mesh
-from TicTac import TicTac
+from TicTac import Tic
 import Affichage
 import matplotlib.pyplot as plt
 
@@ -70,7 +70,7 @@ class Interface_Gmsh:
         assert tailleElement >= 0.0, "Doit être supérieur ou égale à 0"
         self.__CheckType(3, elemType)
         
-        tic = TicTac()
+        tic = Tic()
 
         # Importation du fichier
         gmsh.model.occ.importShapes(fichier)
@@ -102,7 +102,7 @@ class Interface_Gmsh:
         self.__initGmsh()
         self.__CheckType(3, elemType)
         
-        tic = TicTac()
+        tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
         surfaces = self.Rectangle(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
@@ -167,7 +167,7 @@ class Interface_Gmsh:
         
         self.__CheckType(2, elemType)
 
-        tic = TicTac()    
+        tic = Tic()    
 
         pt1 = domain.pt1
         pt2 = domain.pt2
@@ -224,7 +224,7 @@ class Interface_Gmsh:
         
         self.__CheckType(2, elemType)
         
-        tic = TicTac()
+        tic = Tic()
 
         # Domain
         pt1 = domain.pt1
@@ -312,7 +312,7 @@ class Interface_Gmsh:
         self.__initGmsh()
         self.__CheckType(2, elemType)
 
-        tic = TicTac()
+        tic = Tic()
 
         # Domain
         pt1 = domain.pt1
@@ -400,7 +400,7 @@ class Interface_Gmsh:
         self.__initGmsh()
         self.__CheckType(3, elemType)
         
-        tic = TicTac()
+        tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
         surfaces = self.PlaqueAvecCercle(domain, circle, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
@@ -424,7 +424,7 @@ class Interface_Gmsh:
         self.__initGmsh()
         self.__CheckType(2, elemType)
 
-        tic = TicTac()
+        tic = Tic()
 
         factory = gmsh.model.geo
 
@@ -469,7 +469,7 @@ class Interface_Gmsh:
     def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
     surfaces=[], crack=None, openBoundary=None, folder=""):
 
-        tic = TicTac()
+        tic = Tic()
         if dim == 2:
 
             assert isinstance(surfaces, list)
@@ -485,7 +485,8 @@ class Interface_Gmsh:
                     gmsh.model.geo.synchronize()
                     points = np.array(gmsh.model.getEntities(0))[:,1]
                     if points.shape[0] <= 4:
-                        gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points) #Ici il faut impérativement donner les points du contour quand plus de 3 ou 4 coints
+                        #Ici il faut impérativement donner les points du contour quand plus de 3 ou 4 coints
+                        gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points) 
                     # gmsh.model.geo.mesh.setTransfiniteSurface(surface)
 
                 # Synchronisation
@@ -574,7 +575,7 @@ class Interface_Gmsh:
         # Le beug a été réglé car je norganisait pas bien les noeuds lors de la création 
         # https://gitlab.onelab.info/gmsh/gmsh/-/issues/1926
         
-        tic = TicTac()
+        tic = Tic()
 
         dict_groupElem = {}
         elementTypes = gmsh.model.mesh.getElementTypes()
@@ -608,15 +609,16 @@ class Interface_Gmsh:
         coord = coord.reshape(-1,3)
         coordo = coord[sortedIndices]
 
-        # Construit les elements
+        # Construit les groupes d'elements
         testDimension = False
         dimAjoute = []
+        dim = 0
         for gmshId in elementTypes:
                                         
             # Récupère le numéros des elements et la matrice de connection
             elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)
             elementTags = np.array(elementTags-1, dtype=int)
-            nodeTags = np.array(nodeTags-1, dtype=int)                                
+            nodeTags = np.array(nodeTags-1, dtype=int)
 
             # Elements
             Ne = elementTags.shape[0] #nombre d'élements
@@ -641,14 +643,16 @@ class Interface_Gmsh:
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
             
             groupElem = GroupElem(gmshId, connect, elements, coordo, nodes)
-            dict_groupElem[groupElem.dim] = groupElem
+            if groupElem.dim > dim: dim = groupElem.dim
+            dict_groupElem[groupElem.elemType] = groupElem
             
             if groupElem.dim in dimAjoute:
                 testDimension = True
             dimAjoute.append(groupElem.dim)
 
-        if np.max(dimAjoute) == 2:
-            assert not testDimension, "Le maillage ne doit pas être une composition de plusieurs élements de memes dimensions (TRI3 et QUAD4)"
+        if dimAjoute.count(dim) > 1:
+            # TODO faire en sorte de pouvoir le faire ?
+            assert not testDimension, f"Impossible car {dimAjoute.count(dim)} type d'element {dim}D"
         
         tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 

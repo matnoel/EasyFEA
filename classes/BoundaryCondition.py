@@ -29,10 +29,10 @@ class BoundaryCondition:
 
     @property
     def ddls(self) -> np.ndarray:
-        return self.__valeurs_ddls
+        return self.__ddls
 
     @property
-    def valeurs(self) -> np.ndarray:
+    def valeurs_ddls(self) -> np.ndarray:
         return self.__valeurs_ddls
 
     @property

@@ -4,7 +4,7 @@ from typing import List, cast
 
 from Geom import *
 from Gauss import Gauss
-from TicTac import TicTac
+from TicTac import Tic
 from matplotlib import pyplot as plt
 import CalcNumba
 
@@ -82,7 +82,9 @@ class GroupElem:
 
         @property
         def coordoGlob(self) -> np.ndarray:
-            """matrice de coordonnées globale du maillage (maillage.Nn, 3)"""
+            """matrice de coordonnées globale du maillage (maillage.Nn, 3)\n
+            Cette matrice contient tout les noeuds du maillage
+            """
             return self.__coordoGlob.copy()
 
         @property
@@ -378,7 +380,7 @@ class GroupElem:
             
             return self.__dict_phaseField_SourcePart_e_pg[matriceType].copy()
         
-        def __get_sysCoord_sysCoordLocal(self):
+        def __get_sysCoord(self):
             """Matrice de changement de base pour chaque element"""
 
             coordo = self.coordoGlob
@@ -417,30 +419,57 @@ class GroupElem:
                                     [np.sin(theta), np.cos(theta), 0],
                                     [0, 0, 1]])
                     j = np.einsum('ij,ej->ei',rot, i, optimize='optimal')
-                else:
+                else:                    
                     j = points3-points1
                     j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
                     
                 k = np.cross(i, j, axis=1)
 
+                if coordo[:,2].max() != 0:
+                    j = np.cross(k, i, axis=1)
+                    # j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
+
+
                 sysCoord_e = np.zeros((self.Ne, 3, 3))
-                sysCoord_e[:,0] = i
-                sysCoord_e[:,1] = j
-                sysCoord_e[:,2] = k
 
-                sysCoordLocal_e = sysCoord_e[:,range(self.dim)]
+                # sysCoord_e[:,0] = i
+                # sysCoord_e[:,1] = j
+                # sysCoord_e[:,2] = k
 
-            return sysCoord_e, sysCoordLocal_e
+                sysCoord_e[:,:,0] = i
+                sysCoord_e[:,:,1] = j
+                sysCoord_e[:,:,2] = k
 
+            return sysCoord_e
+
+        
+            
         @property
-        def sysCoord(self) -> np.ndarray:
-            """matrice de changement de base pour chaque element (3D)"""
-            return self.__get_sysCoord_sysCoordLocal()[0]
+        def sysCoord_e(self) -> np.ndarray:
+            """matrice de changement de base pour chaque element (3D)\n
+            [ix, jx, kx\n
+            iy, jy, ky\n
+            iz, jz, kz]"""
+            return self.__get_sysCoord()
 
         @property
         def sysCoordLocal_e(self) -> np.ndarray:
             """matrice de changement de base pour chaque element (2D)"""
-            return self.__get_sysCoord_sysCoordLocal()[1]
+            # return self.sysCoord_e[:,range(self.dim)]
+            return self.sysCoord_e[:,:,range(self.dim)]
+
+        @property
+        def aire(self) -> float:
+            if self.dim == 1: return
+            aire = np.einsum('ep,p->', self.get_jacobien_e_pg("rigi"), self.get_gauss("rigi").poids, optimize='optimal')
+            return float(aire)
+
+        @property
+        def volume(self) -> float:
+            if self.dim != 3: return
+            volume = np.einsum('ep,p->', self.get_jacobien_e_pg("rigi"), self.get_gauss("rigi").poids, optimize='optimal')
+            return float(volume)
+            
 
         def get_F_e_pg(self, matriceType: str) -> np.ndarray:
             """Renvoie la matrice jacobienne
@@ -452,15 +481,27 @@ class GroupElem:
 
                 nodes_e = nodes_n[self.__connect]
 
-                if self.dim in [1,2] and nodes_n[:,self.dim].max() != 0:
-                    syscoord = self.sysCoordLocal_e # matrice de changement de base pour chaque element
-                    nodes_e = np.einsum('eij,ekj->eik', nodes_e, syscoord, optimize='optimal') #coordonneés des noeuds dans la base de l'elements
+                dim = self.dim
+                if dim == 1:
+                    dimCheck = 2
+                else:
+                    dimCheck = 3
+                
 
-                nodes_e = nodes_e[:,:,range(self.dim)]
+                if dim in [1,2] and nodes_n[:,dimCheck-1].max() != 0:
+                    # syscoord = self.sysCoordLocal_e # matrice de changement de base pour chaque element
+                    syscoord_e = self.sysCoord_e # matrice de changement de base pour chaque element
+                    # nodes_e = np.einsum('eij,ekj->eik', nodes_e, syscoord_e, optimize='optimal') #coordonneés des noeuds dans la base de l'elements
+                    nodes_e = np.einsum('eij,ejk->eik', nodes_e, syscoord_e, optimize='optimal') #coordonneés des noeuds dans la base de l'elements
+                    
+                nodes_e = nodes_e[:,:,range(dim)]
+                # nodes_e = nodes_e[:,range(dim)]               
+
 
                 dN_pg = self.get_dN_pg(matriceType)
 
                 F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize='optimal'))                        
+                # F_e_pg = np.array(np.einsum('pik,ejk->epij', dN_pg, nodes_e, optimize='optimal'))                        
                 
                 self.__dict_F_e_pg[matriceType] = F_e_pg
 
@@ -918,34 +959,34 @@ class GroupElem:
             """
             assert self.dim in [2,3]
 
-            dic_connect_faces = {}
+            dict_connect_faces = {}
 
             nPe = self.nPe            
             if self.elemType in ["SEG2","SEG3","POINT"]:
-                dic_connect_faces[self.elemType] = self.__connect.copy()
+                dict_connect_faces[self.elemType] = self.__connect.copy()
             elif self.elemType == "TRI3":
-                dic_connect_faces[self.elemType] = self.__connect[:, [0,1,2,0]]
+                dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2,0]]
             elif self.elemType == "TRI6":
-                dic_connect_faces[self.elemType] = self.__connect[:, [0,3,1,4,2,5,0]]
+                dict_connect_faces[self.elemType] = self.__connect[:, [0,3,1,4,2,5,0]]
             elif self.elemType == "QUAD4":
-                dic_connect_faces[self.elemType] = self.__connect[:, [0,1,2,3,0]]
+                dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2,3,0]]
             elif self.elemType == "QUAD8":
-                dic_connect_faces[self.elemType] = self.__connect[:, [0,4,1,5,2,6,3,7,0]]
+                dict_connect_faces[self.elemType] = self.__connect[:, [0,4,1,5,2,6,3,7,0]]
             elif self.elemType == "TETRA4":
                 # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
-                dic_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
+                dict_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
             elif self.elemType == "HEXA8":
                 # Ici par elexemple on va creer 6 faces, chaque face est composé des identifiants des noeuds                
-                dic_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
+                dict_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
             elif self.elemType == "PRISM6":
                 # Ici il faut faire attention parce que cette element est composé de 2 triangles et 3 quadrangles
-                dic_connect_faces["TRI3"] = np.array(self.__connect[:, [0,1,2,3,4,5]]).reshape(-1,3)
-                dic_connect_faces["QUAD4"] = np.array(self.__connect[:, [0,2,5,3,0,1,4,3,1,2,5,4]]).reshape(-1,4)
+                dict_connect_faces["TRI3"] = np.array(self.__connect[:, [0,1,2,3,4,5]]).reshape(-1,3)
+                dict_connect_faces["QUAD4"] = np.array(self.__connect[:, [0,2,5,3,0,1,4,3,1,2,5,4]]).reshape(-1,4)
                 
             else:
                 raise "Element inconnue"
 
-            return dic_connect_faces
+            return dict_connect_faces
 
         ################################################ STATIC ##################################################
 

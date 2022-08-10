@@ -19,7 +19,7 @@ import Affichage
 from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition
 from Materiau import *
-from TicTac import TicTac
+from TicTac import Tic
 from Interface_Gmsh import Interface_Gmsh
 import Dossier
     
@@ -190,7 +190,7 @@ class Simu:
         
         isDamaged = self.materiau.isDamaged
 
-        tic = TicTac()
+        tic = Tic()
 
         matriceType="rigi"
 
@@ -268,7 +268,7 @@ class Simu:
         lignesVector_e = mesh.lignesVector_e
         colonnesVector_e = mesh.colonnesVector_e
         
-        tic = TicTac()
+        tic = Tic()
 
         # Assemblage
         self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
@@ -359,7 +359,7 @@ class Simu:
         useNumba = self.__useNumba
         # useNumba = False
 
-        tic = TicTac()
+        tic = Tic()
 
         # TODO A optimiser en faisant le moins de fois les memes opérations genre grouper jacobien et poid 
 
@@ -424,7 +424,7 @@ class Simu:
         Kd_e, Fd_e = self.__ConstruitMatElem_Pfm()
 
         # Assemblage
-        tic = TicTac()        
+        tic = Tic()        
 
         self.__Kd = sparse.csr_matrix((Kd_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
         """Kglob pour le probleme d'endommagement (Nn, Nn)"""
@@ -568,7 +568,7 @@ class Simu:
         if resolution == 1:
             # Résolution par la méthode des pénalisations
             
-            tic = TicTac()
+            tic = Tic()
 
             # Construit le système matricielle pénalisé
             b = self.__Application_Conditions_Neuman(problemType)
@@ -576,7 +576,7 @@ class Simu:
 
             ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
 
-            tic.Tac("Matrices","Construit A et b", self.__verbosity)
+            tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
 
             # Résolution du système matricielle pénalisé
             useCholesky=False #la matrice ne sera pas symétrique definie positive
@@ -586,7 +586,7 @@ class Simu:
 
         elif resolution == 2:
             
-            tic = TicTac()
+            tic = Tic()
 
             # Construit le système matricielle
             b = self.__Application_Conditions_Neuman(problemType)
@@ -604,7 +604,7 @@ class Simu:
 
             bDirichlet = Aic.dot(xc)
 
-            tic.Tac("Matrices","Construit A et b", self.__verbosity)
+            tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
 
             # if problemType == "damage":
             #     if np.max(b)>0:
@@ -634,7 +634,7 @@ class Simu:
     useCholesky=False, A_isSymetric=False):
         """Résolution de Ax=b"""
         
-        tic = TicTac()
+        tic = Tic()
 
         syst = platform.system()
 
@@ -878,38 +878,43 @@ class Simu:
         Simu.CheckProblemTypes(problemType)
         Simu.CheckDirections(self.__dim, problemType, directions)
 
+        valeurs_ddls=np.array([])
+        ddls=np.array([])
+
         # Récupération des matrices pour le calcul
-        groupElem1D = self.mesh.Get_groupElem(1)
+        for groupElem1D in self.mesh.Get_list_groupElem(1):
 
-        # Récupère les elements qui utilisent exclusivement les noeuds
-        elements = groupElem1D.get_elements(noeuds, exclusivement=True)
-        connect_e = groupElem1D.connect[elements]
-        Ne = elements.shape[0]
-        
-        # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-        coordo_e_p = groupElem1D.get_coordo_e_p("masse",elements)
-        nPg = coordo_e_p.shape[1]
+            # Récupère les elements qui utilisent exclusivement les noeuds
+            elements = groupElem1D.get_elements(noeuds, exclusivement=True)
+            connect_e = groupElem1D.connect[elements]
+            Ne = elements.shape[0]
+            
+            # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
+            coordo_e_p = groupElem1D.get_coordo_e_p("masse",elements)
+            nPg = coordo_e_p.shape[1]
 
-        N_pg = groupElem1D.get_N_pg("masse")
+            N_pg = groupElem1D.get_N_pg("masse")
 
-        # objets d'integration
-        jacobien_e_pg = groupElem1D.get_jacobien_e_pg("masse")[elements]
-        gauss = groupElem1D.get_gauss("masse")
-        poid_pg = gauss.poids
+            # objets d'integration
+            jacobien_e_pg = groupElem1D.get_jacobien_e_pg("masse")[elements]
+            gauss = groupElem1D.get_gauss("masse")
+            poid_pg = gauss.poids
 
-        # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
-        valeurs_ddl_dir = np.zeros((Ne*groupElem1D.nPe, len(directions)))
+            # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
+            valeurs_ddl_dir = np.zeros((Ne*groupElem1D.nPe, len(directions)))
 
-        # Intègre sur chaque direction
-        for d, dir in enumerate(directions):
-            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
-            valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
-            valeurs_e = np.sum(valeurs_e_p, axis=1)
-            valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
+            # Intègre sur chaque direction
+            for d, dir in enumerate(directions):
+                eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
+                valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
+                valeurs_e = np.sum(valeurs_e_p, axis=1)
+                valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
 
-        valeurs_ddls = valeurs_ddl_dir.reshape(-1)
-        
-        ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
+            new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
+            valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
+            
+            new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
+            ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
     
@@ -920,45 +925,57 @@ class Simu:
         Simu.CheckProblemTypes(problemType)
         Simu.CheckDirections(self.__dim, problemType, directions)
 
+        valeurs_ddls=np.array([])
+        ddls=np.array([])
+
         # Récupération des matrices pour le calcul
-        groupElem2D = self.mesh.Get_groupElem(2)
+        for groupElem2D in self.mesh.Get_list_groupElem(2):
 
-        # Récupère les elements qui utilisent exclusivement les noeuds
-        elements = groupElem2D.get_elements(noeuds, exclusivement=True)
-        connect_e = groupElem2D.connect[elements]
-        Ne = elements.shape[0]
-        
-        # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-        coordo_e_p = groupElem2D.get_coordo_e_p("masse",elements)
-        nPg = coordo_e_p.shape[1]
+            # Récupère les elements qui utilisent exclusivement les noeuds
+            elements = groupElem2D.get_elements(noeuds, exclusivement=True)
+            if elements.shape[0] == 0: continue
+            connect_e = groupElem2D.connect[elements]
+            Ne = elements.shape[0]
+            
+            # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
+            coordo_e_p = groupElem2D.get_coordo_e_p("masse",elements)
+            nPg = coordo_e_p.shape[1]
 
-        N_pg = groupElem2D.get_N_pg("masse")
+            N_pg = groupElem2D.get_N_pg("masse")
 
-        # objets d'integration
-        jacobien_e_pg = groupElem2D.get_jacobien_e_pg("masse")[elements]
-        gauss = groupElem2D.get_gauss("masse")
-        poid_pg = gauss.poids
+            # TODO Ici problem quand calcul de jacobien 
+            # objets d'integration
+            jacobien_e_pg = groupElem2D.get_jacobien_e_pg("masse")[elements]
+            gauss = groupElem2D.get_gauss("masse")
+            poid_pg = gauss.poids
 
-        # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
-        valeurs_ddl_dir = np.zeros((Ne*groupElem2D.nPe, len(directions)))
+            sysCoordLocal_e = groupElem2D.sysCoordLocal_e[elements]
+            sysCoord_e = groupElem2D.sysCoord_e[elements]
 
-        # Intégre sur chaque direction
-        for d, dir in enumerate(directions):
-            eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
-            valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
-            valeurs_e = np.sum(valeurs_e_p, axis=1)
-            valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
+            aire = np.einsum('ep,p->',jacobien_e_pg, poid_pg)
 
-        valeurs_ddls = valeurs_ddl_dir.reshape(-1)
-        
-        ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
+            # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
+            valeurs_ddl_dir = np.zeros((Ne*groupElem2D.nPe, len(directions)))
+
+            # Intégre sur chaque direction
+            for d, dir in enumerate(directions):
+                eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
+                valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
+                valeurs_e = np.sum(valeurs_e_p, axis=1)
+                valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
+
+            new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
+            valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
+            
+            new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
+            ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
     
     def __Add_Bc_Neumann(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Neumann"""
 
-        tic = TicTac()
+        tic = Tic()
         
         Simu.CheckProblemTypes(problemType)
         Simu.CheckDirections(self.__dim, problemType, directions)
@@ -983,7 +1000,7 @@ class Simu:
     def __Add_Bc_Dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Dirichlet"""
 
-        tic = TicTac()
+        tic = Tic()
 
         Simu.CheckProblemTypes(problemType)
 

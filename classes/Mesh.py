@@ -5,7 +5,7 @@ import scipy.sparse as sp
 
 from Geom import *
 from GroupElem import GroupElem
-from TicTac import TicTac
+from TicTac import Tic
 
 class Mesh:
 
@@ -19,11 +19,15 @@ class Mesh:
 
         # Onrevifie que l'on contient que des GroupElem
         list_GroupElem = []
-        for item in dict_groupElem.values():
-            assert isinstance(item, GroupElem)
-            list_GroupElem.append(item)
+        dim=0
+        for grp in dict_groupElem.values():
+            assert isinstance(grp, GroupElem)
+            if grp.dim > dim:
+                # Ici on garrantie que l'element type du maillage utilisé est celui a la plus grande dimension
+                self.__groupElem = grp
+            list_GroupElem.append(grp)
 
-        self.__dim = int(np.max([grp.dim for grp in list_GroupElem]))
+        self.__dim = self.__groupElem.dim
 
         self.__dict_groupElem = dict_groupElem
 
@@ -65,11 +69,7 @@ class Mesh:
         Returns:
             GroupElem: _description_
         """
-        return self.__dict_groupElem[self.__dim]
-    
-    def Get_groupElem(self, dim: int) -> GroupElem:
-        return self.__dict_groupElem[dim]
-
+        return self.__groupElem
     @property
     def elemType(self) -> str:
         "elements utilisés pour le maillage"
@@ -178,6 +178,22 @@ class Mesh:
         return np.repeat(connect, nPe, axis=0).reshape((Ne,-1))
 
     # Construction des matrices élémentaires
+
+    @property
+    def aire(self) -> float:
+        if self.dim == 1: return
+        aire = 0
+        for group2D in self.Get_list_groupElem(2):
+            aire += group2D.aire
+        return aire
+
+    @property
+    def volume(self) -> float:
+        if self.dim != 3: return
+        volume=0
+        for group3D in self.Get_list_groupElem(3):
+            volume += group3D.volume
+        return volume
     
     def Get_nPg(self, matriceType: str) -> np.ndarray:
         """nombre de point d'intégration par élement"""

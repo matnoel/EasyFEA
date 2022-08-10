@@ -1,6 +1,6 @@
 import platform
 import sys
-from typing import cast
+from typing import List, cast
 import os
 import numpy as np
 
@@ -43,9 +43,9 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     # Va chercher les valeurs 0 a affciher
 
     from Simu import Simu
-    from TicTac import TicTac
+    from TicTac import Tic
 
-    tic = TicTac()
+    tic = Tic()
     simu = cast(Simu, simu) # ne pas ecrire simu: Simu ça créer un appel circulaire
 
     mesh = simu.mesh
@@ -142,37 +142,41 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
 
     
     elif mesh.dim == 3:
-
-        # Construit les vertices du maillage 3D en recupérant le maillage 2D
-        groupElem2D = mesh.Get_groupElem(2)
-        connect2D = groupElem2D.connect
-        coordo2D = groupElem2D.coordo
-        coord =coordo2D[connect2D]
         
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
 
-        # Trace le maillage
-        if affichageMaillage:
-            pc = Poly3DCollection(coord, edgecolor='black', linewidths=0.5, cmap='jet')                
-        else:
-            pc = Poly3DCollection(coord, cmap='jet')                    
-        ax.add_collection3d(pc)
+        # Construit les vertices du maillage 3D en recupérant le maillage 2D
+        maxVal = 0
+        minVal = 0
+        for groupElem2D in mesh.Get_list_groupElem(2):
+            connect2D = groupElem2D.connect
+            coordo2D = groupElem2D.coordoGlob
+            coord =coordo2D[connect2D]
+            
 
-        valeursAuFaces = np.mean(valeurs[connect2D], axis=1)
-        
-        # valeursAuFaces = valeurs.reshape(mesh.Ne, 1).repeat(mesh.get_nbFaces(), axis=1).reshape(-1)
-        
-        # ax.scatter(coordo[:,0],coordo[:,1],coordo[:,2], linewidth=0, alpha=0)
-        pc.set_clim(valeursAuFaces.min(), valeursAuFaces.max())
-        pc.set_array(valeursAuFaces)
+            # Trace le maillage
+            if affichageMaillage:
+                pc = Poly3DCollection(coord, edgecolor='black', linewidths=0.5, cmap='jet')                
+            else:
+                pc = Poly3DCollection(coord, cmap='jet')                    
+            ax.add_collection3d(pc)
 
+            valeursAuFaces = np.mean(valeurs[connect2D], axis=1)
+            
+            # valeursAuFaces = valeurs.reshape(mesh.Ne, 1).repeat(mesh.get_nbFaces(), axis=1).reshape(-1)
+            
+            # ax.scatter(coordo[:,0],coordo[:,1],coordo[:,2], linewidth=0, alpha=0)
+            pc.set_clim(valeursAuFaces.min(), valeursAuFaces.max())
+            pc.set_array(valeursAuFaces)
+
+            ax.add_collection(pc)
+        
         cb = fig.colorbar(pc, ax=ax)       
-        ax.add_collection(pc)            
         # ax.set_xlabel("x [mm]")
         # ax.set_ylabel("y [mm]")
         # ax.set_zlabel("z [mm]")            
-        
+            
         __ChangeEchelle(ax, coordo)
 
     
@@ -317,12 +321,13 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
             # Si il n'y a pas de deformation on peut afficher que le maillage 2D
 
-            groupElem2D = mesh.Get_groupElem(2)
-            connect2D = groupElem2D.connect
-            coordo2D = groupElem2D.coordo
-            coord =coordo2D[connect2D]
+            for groupElem2D in mesh.Get_list_groupElem(2):
 
-            ax.add_collection3d(Poly3DCollection(coord, facecolors='c', edgecolor='black', linewidths=1, alpha=alpha))
+                connect2D = groupElem2D.connect
+                coordo2D = groupElem2D.coordoGlob
+                coord = coordo2D[connect2D]
+
+                ax.add_collection3d(Poly3DCollection(coord, facecolors='c', edgecolor='black', linewidths=1, alpha=alpha))
         
         # ax.autoscale()
         # ax.set_xlabel("x [mm]")
@@ -392,9 +397,9 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     coordo = simu.mesh.coordoGlob
 
+    Conditions = cast(List[BoundaryCondition], Conditions)
+
     for bc_Conditions in Conditions:
-        
-        bc_Conditions = cast(BoundaryCondition, bc_Conditions)
 
         problemType = bc_Conditions.problemType
         ddls = bc_Conditions.ddls
