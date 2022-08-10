@@ -102,10 +102,11 @@ class LoiDeComportement(object):
         self.__S = S
         """Loi de comportement pour la loi de Hooke en kelvin mandel"""
 
-    def __get_coef_notation(self):
-        return np.sqrt(2)            
-    coef = property(__get_coef_notation)
-    """Coef lié à la notation de kelvin mandel=racine(2)"""
+    @property
+    def coef(self) -> float:
+        """Coef lié à la notation de kelvin mandel=racine(2)"""
+        return np.sqrt(2)
+    
 
     def get_C(self):
         """Renvoie une copie de la loi de comportement pour la loi de Lamé en Kelvin Mandel\n
@@ -129,24 +130,24 @@ class LoiDeComportement(object):
         """
         return self.__S.copy()
 
-    def __getdim(self):
+    @property
+    def dim(self) -> int:
         return self.__dim
-    dim = property(__getdim)
 
-    def __getepaisseur(self):
+    @property
+    def epaisseur(self) -> float:
         if self.__dim == 2:
             return self.__epaisseur
         else:
             return 1.0
-    epaisseur = property(__getepaisseur)
 
-    def __get_nom(self):
+    @property
+    def nom(self) -> str:
         return type(self).__name__
-    nom = property(__get_nom)
 
-    def __get_resume(self):
+    @property
+    def resume(self) -> str:
         return ""
-    resume = cast(str, property(__get_resume))
 
     @staticmethod
     def AppliqueCoefSurBrigi(dim: int, B_rigi_e_pg: np.ndarray):
@@ -242,13 +243,14 @@ class Elas_Isot(LoiDeComportement):
 
         LoiDeComportement.__init__(self, dim, C, S, epaisseur)
 
-    def __get_resume(self):
+    @property
+    def resume(self) -> str:
         resume = f"\nElas_Isot :"
         resume += f"\nE = {self.E:.2e}, v = {self.v}"
         if self.__dim == 2:
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
-    resume = property(__get_resume)
+    
 
     def get_lambda(self):
 
@@ -398,7 +400,8 @@ class Elas_IsotTrans(LoiDeComportement):
 
         LoiDeComportement.__init__(self, dim, C, S, epaisseur)
 
-    def __get_Gt(self):
+    @property
+    def Gt(self) -> float:
         
         Et = self.Et
         vt = self.vt
@@ -406,9 +409,9 @@ class Elas_IsotTrans(LoiDeComportement):
         Gt = Et/(2*(1+vt))
 
         return Gt
-    Gt = property(__get_Gt)
 
-    def __get_kt(self):
+    @property
+    def kt(self) -> float:
         # Source : torquato 2002
         El = self.El
         Et = self.Et
@@ -417,16 +420,15 @@ class Elas_IsotTrans(LoiDeComportement):
         kt = El*Et/((2*(1-vtt)*El)-(4*vtl**2*Et))
 
         return kt
-    kt = property(__get_kt)
 
-    def __get_resume(self):
+    @property
+    def resume(self) -> str:
         resume = f"\nElas_IsotTrans :"
         resume += f"\nEl = {self.El:.2e}, Et = {self.El:.2e}, Gl = {self.Gl:.2e}"
         resume += f"\nvl = {self.vl}, vt = {self.vt}"
         if self.__dim == 2:
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
-    resume = property(__get_resume)    
 
     def __Comportement(self, M, useSameAxis: bool):
         """"Construit les matrices de comportement en kelvin mandel\n
@@ -1230,33 +1232,32 @@ class PhaseFieldModel:
 
 class Materiau:
     
-    def __get_dim(self):
+    @property
+    def dim(self) -> int:
         return self.comportement.dim
-    dim = property(__get_dim)
-
-    def __get_comportement(self):
+    
+    @property
+    def comportement(self) -> LoiDeComportement:
         if self.isDamaged:
             return self.__phaseFieldModel.loiDeComportement
         else:
             return self.__comportement
-    comportement = cast(LoiDeComportement, property(__get_comportement))
-
-    def __get_isDamaged(self):
+    
+    @property
+    def isDamaged(self) -> bool:
         if self.__phaseFieldModel == None:
             return False
         else:
             return True
-    isDamaged = property(__get_isDamaged)
-
-    def __get_phaseFieldModel(self):
+    
+    @property
+    def phaseFieldModel(self) -> PhaseFieldModel:
+        """Modèle d'endommagement"""
         if self.isDamaged:
             return self.__phaseFieldModel
         else:
             print("Le matériau n'est pas endommageable (pas de modèle PhaseField)")
             return None
-            
-    phaseFieldModel = cast(PhaseFieldModel, property(__get_phaseFieldModel))
-    """Modèle d'endommagement"""
 
     def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0, verbosity=True):
         """Creer un materiau avec la loi de comportement ou le phase field model communiqué

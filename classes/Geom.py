@@ -13,12 +13,12 @@ class Point:
 class Line:
 
     @staticmethod
-    def distance(pt1: Point, pt2: Point):
+    def distance(pt1: Point, pt2: Point) -> float:
         length = np.sqrt((pt1.x-pt2.x)**2 + (pt1.y-pt2.y)**2 + (pt1.z-pt2.z)**2)
-        return cast(float, np.abs(length))
+        return np.abs(length)
     
     @staticmethod
-    def get_vecteurUnitaire(pt1: Point, pt2: Point):
+    def get_vecteurUnitaire(pt1: Point, pt2: Point) -> np.ndarray:
         length = Line.distance(pt1, pt2)        
         v = np.array([pt2.x-pt1.x, pt2.y-pt1.y, pt2.z-pt1.z])/length
         return v   
@@ -31,13 +31,13 @@ class Line:
         assert taille >= 0
         self.taille = taille
     
-    def __get_vecteurUnitaire(self):        
+    @property
+    def vecteurUnitaire(self) -> np.ndarray:
         return Line.get_vecteurUnitaire(self.pt1, self.pt2)
-    vecteurUnitaire = cast(np.ndarray, property(__get_vecteurUnitaire))
 
-    def __get_length(self):        
+    @property
+    def length(self) -> float:
         return Line.distance(self.pt1, self.pt2)
-    length = cast(float, property(__get_length))
 
 class Domain:
 

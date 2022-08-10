@@ -86,18 +86,16 @@ class Simu:
                 assert d in ["x","y","z"]
                 if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
             assert dim >= len(directions)
-        
-    def __get_mesh(self):
-        """Renvoie le maillage de la simulation"""
+    
+    @property
+    def mesh(self) -> Mesh:
+        """maillage de la simulation"""
         return self.__mesh
-    mesh = cast(Mesh, property(__get_mesh))
-    """maillage de la simulation"""
 
-    def __getdim(self):
-        """renvoir la dimension de la simulation"""
+    @property
+    def dim(self) -> int:
+        """dimension de la simulation"""
         return self.__dim
-    dim = cast(int, property(__getdim))
-    """dimension de la simulation"""
 
 # ------------------------------------------- RESULTATS ------------------------------------------- 
 
@@ -122,14 +120,14 @@ class Simu:
 
         # self.Save_Iteration()
 
-    def __get_damage(self):
+    @property
+    def damage(self) -> np.ndarray:
         if self.materiau.isDamaged:
             return self.__damage.copy()
-    damage = cast(np.ndarray, property(__get_damage))    
-
-    def __get_displacement(self):
+    
+    @property
+    def displacement(self) -> np.ndarray:
         return self.__displacement.copy()
-    displacement = cast(np.ndarray, property(__get_displacement))
 
     def get_result(self, index=None):
         """Recupère le resultat stocké dans le data frame panda"""

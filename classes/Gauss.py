@@ -10,17 +10,17 @@ class Gauss:
         self.__coord = coord
         self.__poids = poids
 
-    def __get_coord(self):
+    @property
+    def coord(self) -> np.ndarray:
         return self.__coord
-    coord = cast(np.ndarray, property(__get_coord))
-
-    def __get_poids(self):
+    
+    @property
+    def poids(self) -> np.ndarray:
         return self.__poids
-    poids = cast(np.ndarray, property(__get_poids))
 
-    def __get_nPg(self):
+    @property
+    def nPg(self) -> int:
         return self.__poids.size
-    nPg = property(__get_nPg)
 
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):

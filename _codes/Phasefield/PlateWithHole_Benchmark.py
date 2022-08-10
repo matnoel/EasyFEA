@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=True
+test=False
 solve=True
 saveParaview=False
 

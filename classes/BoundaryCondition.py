@@ -19,25 +19,25 @@ class BoundaryCondition:
         
         self.description = description
 
-    def __get_problemType(self):
+    @property
+    def problemType(self) -> str:
         return self.__problemType
-    problemType = cast(str, property(__get_problemType))
 
-    def __get_noeuds(self):
+    @property
+    def noeuds(self) -> np.ndarray:
         return self.__noeuds
-    noeuds = cast(np.ndarray, property(__get_noeuds))
 
-    def __get_ddls(self):
-        return self.__ddls
-    ddls = cast(np.ndarray, property(__get_ddls))
-
-    def __get_valeurs(self):
+    @property
+    def ddls(self) -> np.ndarray:
         return self.__valeurs_ddls
-    valeurs_ddls = cast(np.ndarray, property(__get_valeurs))
 
-    def __get_directions(self):
+    @property
+    def valeurs(self) -> np.ndarray:
+        return self.__valeurs_ddls
+
+    @property
+    def directions(self) -> list:
         return self.__directions
-    directions = cast(list, property(__get_directions))
 
     # Methodes statiques pour construire les ddls
 
