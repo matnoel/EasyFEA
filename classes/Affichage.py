@@ -1,3 +1,4 @@
+
 import platform
 import sys
 from typing import List, cast
@@ -199,7 +200,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     
     return fig, ax, cb
     
-def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder="", title=""):
+def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder="", title="") -> plt.Axes:
     """Dessine le maillage de la simulation
 
     Parameters
@@ -369,6 +370,51 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
         ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], marker=marker, c=c)
         if showId:
             for noeud in noeuds: ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud))
+    
+    if folder != "":
+        import PostTraitement
+        PostTraitement.Save_fig(folder, "noeuds")
+
+    return ax
+
+def Plot_ElementsMaillage(mesh, ax=None, dim =None, nodes=[], showId=False, marker='x', c='red', folder=""):
+
+    from Mesh import Mesh
+    mesh = cast(Mesh, mesh)
+
+    if dim == None:
+        dim = mesh.dim
+
+    list_groupElem = mesh.Get_list_groupElem(dim)
+    if len(list_groupElem) == 0: return
+
+    if ax == None:
+        ax = Plot_Maillage(mesh, alpha=0)
+
+    for groupElemDim in list_groupElem:
+        
+        elemType = groupElemDim.elemType
+
+        if len(nodes) > 0:
+            elements = groupElemDim.get_elements(nodes)
+        else:
+            elements = groupElemDim.elements
+
+        connect_e = groupElemDim.connect
+        coordo_n = groupElemDim.coordoGlob
+
+        coordo_e = np.mean(coordo_n[connect_e], axis=1)
+
+        coordo = coordo_e[elements]
+
+        if mesh.dim == 2:
+            ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=20)
+            if showId:            
+                for element in elements: ax.text(coordo_e[element,0], coordo_e[element,1], str(element))
+        elif  mesh.dim == 3:            
+            ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=20)
+            if showId:
+                for element in elements: ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], str(element))
     
     if folder != "":
         import PostTraitement
