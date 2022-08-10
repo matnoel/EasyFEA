@@ -12,7 +12,7 @@ from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
 from Mesh import Mesh
-from TicTac import TicTac
+from TicTac import Tic
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -147,7 +147,7 @@ if solve:
         # u_inc = 5e-7
         dep = 0
 
-        tic = TicTac()
+        tic = Tic()
 
         bord = 0
 
@@ -164,7 +164,7 @@ if solve:
 
         for iter in range(N):
 
-                tic = TicTac()
+                tic = Tic()
 
                 dep += u_inc
 
@@ -279,9 +279,9 @@ if saveParaview:
 
 
 
-TicTac.getResume()
+Tic.getResume()
 
-TicTac.getGraphs(folder)
+Tic.getGraphs(folder)
 
 plt.show()
 

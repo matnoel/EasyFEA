@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-class TicTac:
+class Tic:
 
     @staticmethod
     def Clear():
         """Supprime l'historique"""
-        TicTac.__Historique = {}
+        Tic.__Historique = {}
     
     __Historique = {}
     """historique des temps = { catégorie: list( [texte, temps] ) }"""
@@ -19,7 +19,7 @@ class TicTac:
     def getResume():
         """Construit le résumé de TicTac"""
 
-        if TicTac.__Historique == {}: return
+        if Tic.__Historique == {}: return
 
         # print("\n Résumé TicTac :")
 
@@ -27,8 +27,8 @@ class TicTac:
 
         Affichage.NouvelleSection("Résumé TicTac")
 
-        for categorie in TicTac.__Historique:
-            histoCategorie = np.array(np.array(TicTac.__Historique[categorie])[:,1] , dtype=np.float64)
+        for categorie in Tic.__Historique:
+            histoCategorie = np.array(np.array(Tic.__Historique[categorie])[:,1] , dtype=np.float64)
             tempsCatégorie = np.sum(histoCategorie)
             texte = f"{categorie} : {tempsCatégorie:.3f} s"
             print(texte)
@@ -57,9 +57,9 @@ class TicTac:
     @staticmethod 
     def getGraphs(folder="", details=True, title="Simulation"):
 
-        if TicTac.__Historique == {}: return
+        if Tic.__Historique == {}: return
 
-        historique = TicTac.__Historique        
+        historique = Tic.__Historique        
         tempsTotCategorie = []
         categories = list(historique.keys())
 
@@ -80,7 +80,7 @@ class TicTac:
 
                 if len(sousCategories) > 1:
                     fig, ax = plt.subplots()
-                    TicTac.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
+                    Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
                 
                     if folder != "":
                         import PostTraitement
@@ -94,7 +94,7 @@ class TicTac:
         categories = dfCategorie.index.tolist()
         
         fig, ax = plt.subplots()
-        TicTac.__plotBar(ax, categories, dfCategorie['temps'], "Simulation")
+        Tic.__plotBar(ax, categories, dfCategorie['temps'], "Simulation")
 
         if folder != "":
             import PostTraitement
@@ -135,12 +135,12 @@ class TicTac:
         
         value = [texte, tf]
 
-        if categorie in TicTac.__Historique:
-            old = list(TicTac.__Historique[categorie])
+        if categorie in Tic.__Historique:
+            old = list(Tic.__Historique[categorie])
             old.append(value)
-            TicTac.__Historique[categorie] = old
+            Tic.__Historique[categorie] = old
         else:
-            TicTac.__Historique[categorie] = [value]
+            Tic.__Historique[categorie] = [value]
         
         self.__start = time.time()
 

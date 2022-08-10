@@ -13,7 +13,7 @@ from Geom import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-from TicTac import TicTac
+from TicTac import Tic
 
 # Affichage.Clear()
 
@@ -21,9 +21,11 @@ folder = Dossier.NewFile("Etude3D", results=True)
 
 # Data --------------------------------------------------------------------------------------------
 
+tic= Tic()
+
 dim = 3 
 
-plotResult = False
+plotResult = True
 
 saveParaview = True
 
@@ -35,7 +37,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 30
+nBe =2
 # nBe = 1
 taille = h/nBe
 # taille = h/3
@@ -53,11 +55,15 @@ interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 
 fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 
-# mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille)
+# mesh = interfaceGmsh.Importation3D(fichier, elemType="TETRA4", tailleElement=taille)
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
+# mesh = interfaceGmsh.Importation3D(fichier, elemType="PRISM6", tailleElement=taille, folder=folder)
 
 domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=True, nCouches=5)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="PRISM6", isOrganised=True, nCouches=4)
+
+volume = mesh.volume - L*b*h
+aire = mesh.aire - (L*h*4 + 2*b*h)
 
 # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
 # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
@@ -77,7 +83,7 @@ simu = Simu(mesh, materiau, verbosity=True, useNumba=True)
 simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b], ["y"])
 simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
 
-# Affichage.Plot_BoundaryConditions(simu)
+Affichage.Plot_BoundaryConditions(simu)
 # plt.show()
 
 simu.Assemblage_u()
@@ -87,6 +93,8 @@ simu.Assemblage_u()
 simu.Solve_u()
 
 simu.Save_Iteration()
+
+tic.Tac("Temps script", "Temps script", True)
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Résultats")
@@ -99,15 +107,15 @@ if saveParaview:
 
 if plotResult:
 
-    tic = TicTac()
+    tic = Tic()
 
-    Affichage.Plot_Maillage(simu, deformation=False)        
-    Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20)        
-    Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True)
+    Affichage.Plot_Maillage(simu, deformation=False, folder=folder)        
+    Affichage.Plot_Maillage(simu, deformation=True, facteurDef=20, folder=folder)        
+    Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=True, folder=folder)
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-TicTac.getResume()
+Tic.getResume()
 
 if plotResult:        
     plt.show()

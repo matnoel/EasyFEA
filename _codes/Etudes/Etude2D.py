@@ -17,13 +17,13 @@ import Affichage
 import numpy as np
 import matplotlib.pyplot as plt
 
-from TicTac import TicTac
+from TicTac import Tic
 
 Affichage.Clear()
 
 folder = Dossier.NewFile("Etude2D", results=True)
 
-ticTot = TicTac()
+ticTot = Tic()
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -60,10 +60,12 @@ LineL = Line(Point(x=L), Point(x=L, y=h))
 LineH = Line(Point(y=h),Point(x=L, y=h))
 
 interfaceGmsh = Interface_Gmsh()
-mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=True, folder=folder)
+mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=False)
+
+aire = mesh.aire
 
 Affichage.Plot_Maillage(mesh)
-plt.show()
+# plt.show()
 
 
 # Récupère les noeuds qui m'interessent
@@ -75,7 +77,7 @@ noeuds_en_h= mesh.Nodes_Line(LineH)
 
 # ------------------------------------------------------------------------------------------------------
 
-simu = Simu(mesh, materiau)
+simu = Simu(mesh, materiau, useNumba=False)
 
 # Renseigne les condtions limites
 
@@ -114,7 +116,7 @@ if saveParaview:
 
 if plotResult:
 
-        tic = TicTac()
+        tic = Tic()
         # Affichage.Plot_Result(simu, "amplitude")
         Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
         Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)        
@@ -124,9 +126,9 @@ if plotResult:
         tic.Tac("Affichage","Affichage des figures", plotResult)
 
 
-TicTac.getResume()
+Tic.getResume()
 
-TicTac.getGraphs()
+Tic.getGraphs()
 
 if plotResult:
         plt.show()

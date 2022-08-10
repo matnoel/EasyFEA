@@ -50,7 +50,7 @@ fig, ax = plt.subplots()
 # ["AnisotMiehe","He"]
 for split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross","He"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
-    tic = TicTac.TicTac()
+    tic = TicTac.Tic()
 
     # Récupère le nom du dossier
     nom="_".join([comp, split, regu, simpli2D])

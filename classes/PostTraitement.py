@@ -5,7 +5,7 @@ from typing import cast
 import Affichage
 from Simu import Simu
 import Dossier
-from TicTac import TicTac
+from TicTac import Tic
 import numpy as np
 
 import matplotlib
@@ -143,7 +143,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     writer = animation.FFMpegWriter(fps=5)
     with writer.saving(fig, filename, 200):
     
-        tic = TicTac()
+        tic = Tic()
         for iter in range(N):
             simu.Update_iter(iter)
 
@@ -175,7 +175,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
 
     folder = Dossier.Join([folder,"Paraview"])
 
-    tic = TicTac()
+    tic = Tic()
 
     for iter in range(N):
 
@@ -209,7 +209,7 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
         if not simu.VerificationOption(option):
             return
     
-    tic = TicTac()    
+    tic = Tic()    
 
     connect = simu.mesh.connect
     coordo = simu.mesh.coordo
@@ -354,7 +354,7 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
 
 def __Make_pvd(filename: str, vtuFiles=[]):
 
-    tic = TicTac()
+    tic = Tic()
 
     endian_paraview = 'LittleEndian' # 'LittleEndian' 'BigEndian'
 

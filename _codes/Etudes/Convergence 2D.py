@@ -8,7 +8,7 @@ from Materiau import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
 import Affichage
-from TicTac import TicTac
+from TicTac import Tic
 import Dossier
 
 import numpy as np
@@ -52,7 +52,7 @@ listDdl_e_nb = []
 listNbElement = list(range(2,20,1))
 # listNbElement = list(range(1,10))
 
-tic = TicTac()
+tic = Tic()
 
 # Pour chaque type d'element
 for t, elemType in enumerate(GroupElem.get_Types2D()):
@@ -66,8 +66,6 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         for nbElem in listNbElement:
                 
                 taille = b/nbElem
-
-                
 
                 domain = Domain(Point(), Point(x=L, y=h), taille=taille)
 
@@ -157,9 +155,9 @@ ax_Temps.set_ylabel('Temps [s]')
 ax_Temps.legend(GroupElem.get_Types2D())
 
 
-TicTac.getResume()
+Tic.getResume()
 
-TicTac.getGraphs(folder)
+Tic.getGraphs(folder)
 
 plt.show()
 

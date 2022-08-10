@@ -1,5 +1,5 @@
 
-from TicTac import TicTac
+from TicTac import Tic
 import Materiau
 from Geom import *
 import Affichage
@@ -185,7 +185,7 @@ if solve:
     # while ud <= umax:
     while load <= loadMax:
         
-        tic = TicTac()
+        tic = Tic()
 
         iterConv=0
         convergence = False
@@ -297,7 +297,7 @@ if saveParaview:
 
 
 
-TicTac.getResume()
+Tic.getResume()
 
 
 

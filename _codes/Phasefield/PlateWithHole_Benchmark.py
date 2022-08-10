@@ -1,4 +1,4 @@
-from TicTac import TicTac
+from TicTac import Tic
 import Materiau
 from BoundaryCondition import BoundaryCondition
 from Geom import *
@@ -199,7 +199,7 @@ for split in ["Miehe"]:
 
             resol += 1
             
-            tic = TicTac()
+            tic = Tic()
 
             iterConv=0
             convergence = False
@@ -295,15 +295,15 @@ for split in ["Miehe"]:
     if saveParaview:
         PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
-    TicTac.getResume()
+    Tic.getResume()
 
     if solve:
-        TicTac.getGraphs(folder)
+        Tic.getGraphs(folder)
     else:
-        TicTac.getGraphs()
+        Tic.getGraphs()
         plt.show()
 
-    TicTac.Clear()
+    Tic.Clear()
 
     plt.close('all')
 

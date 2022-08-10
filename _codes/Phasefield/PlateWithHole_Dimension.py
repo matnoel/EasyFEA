@@ -1,5 +1,5 @@
 
-from TicTac import TicTac
+from TicTac import Tic
 import Materiau
 from Geom import *
 import Affichage
@@ -134,7 +134,7 @@ ax.set_xlabel('coef')
 
 PostTraitement.Save_fig(folder, param_name)
 
-TicTac.getResume()
+Tic.getResume()
 
 plt.show()
 

@@ -1,6 +1,6 @@
 from typing import cast
 
-from TicTac import TicTac
+from TicTac import Tic
 
 from Mesh import Mesh
 import CalcNumba
@@ -737,7 +737,7 @@ class PhaseFieldModel:
         # On passe ici 2 fois par itération
         # Une fois pour calculer l'energie et une fois pour calculer K_u
 
-        tic = TicTac()
+        tic = Tic()
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
@@ -887,7 +887,7 @@ class PhaseFieldModel:
             
             c = self.__loiDeComportement.get_C()
 
-            tic = TicTac()
+            tic = Tic()
             
             if useNumba:
                 Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(projP_e_pg, c, projM_e_pg)
@@ -1099,7 +1099,7 @@ class PhaseFieldModel:
         renvoie projP, projM
         """
 
-        tic = TicTac()
+        tic = Tic()
 
         coef = self.__loiDeComportement.coef
 

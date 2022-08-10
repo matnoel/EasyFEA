@@ -8,7 +8,7 @@ from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
 import Dossier
 from GroupElem import GroupElem
-from TicTac import TicTac
+from TicTac import Tic
 import matplotlib.pyplot as plt
 
 class Test_Simu(unittest.TestCase):    
@@ -143,7 +143,7 @@ class Test_Simu(unittest.TestCase):
                 Champ d'endommagement
             """
 
-            tic = TicTac()
+            tic = Tic()
 
             matriceType = "rigi"
 

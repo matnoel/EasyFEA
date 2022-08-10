@@ -1,5 +1,5 @@
 
-from TicTac import TicTac
+from TicTac import Tic
 import Materiau
 from Geom import *
 import Affichage
@@ -147,7 +147,7 @@ ax.grid()
 
 
 
-TicTac.getResume()
+Tic.getResume()
 
 plt.show()
 

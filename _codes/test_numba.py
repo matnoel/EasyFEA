@@ -14,6 +14,8 @@ C = A*3
 
 ABC = np.dot(np.dot(A.T, B), C)
 
+print(A.dot(B))
+
 print(ABC)
 
 res = np.zeros_like(A)
@@ -25,9 +27,6 @@ for l in np.arange(2):
                 res[i,j] += A[k,i] * B[k,l] * C[l,j]
 
 print(res-ABC)
-
-
-
 
 @numba.njit()
 def matmul(A, b):
@@ -45,16 +44,20 @@ def matmulParal(A, b):
             c[i] += A[i,j] * b[j]    
     return c
 
-@numba.guvectorize([(numba.float64[:,:], numba.float64[:], numba.float64[:])], '(i,j),(j)->(i)', nopython=True, target='parallel')
-def matmulVect(A, b, c):
-    # for i in range(A.shape[0]):
-    #     for j in range(A.shape[1]):
+# @numba.guvectorize([(numba.float64[:,:], numba.float64[:], numba.float64[:])], '(i,j),(j)->(i)', nopython=True, target='parallel')
+@numba.guvectorize([(numba.float64[:,:], numba.float64[:], numba.float64[:])], '(i,j),(j)->(j)', nopython=True)
+def matmulVect(A, b, result):
+    for i in range(A.shape[0]):
+        for j in range(A.shape[1]):
     # # for i in numba.prange(A.shape[0]):
     # #     for j in numba.prange(A.shape[1]):
-    #         c[i] += A[i,j] * b[j]
+            result[i] += A[i,j] * b[j]
+
+    # return result
     
-    c = A * b
-    
+    # c = A * b
+
+result = matmulVect(A, B, np.zeros(A.shape[0]))   
 
 N = 20000
 # N = 30000
@@ -73,7 +76,7 @@ for n in list_N:
 
     print(n)
 
-    tic = TicTac.TicTac()
+    tic = TicTac.Tic()
 
     A = np.ones((n, n))
     b = np.ones((n))

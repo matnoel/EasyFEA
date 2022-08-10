@@ -1,5 +1,5 @@
 
-from TicTac import TicTac
+from TicTac import Tic
 import Materiau
 from Geom import *
 import Affichage
@@ -320,7 +320,7 @@ PostTraitement.Save_fig(folder, "Amor psiP")
 
 
 
-TicTac.getResume()
+Tic.getResume()
 
 plt.show()
 
