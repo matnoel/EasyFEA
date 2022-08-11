@@ -109,7 +109,7 @@ class Test_Simu(unittest.TestCase):
         for simu in self.simulations2DElastique:
             simu = cast(Simu, simu)
             simu.Solve_u()
-            fig, ax, cb = Affichage.Plot_Result(simu, "amplitude", affichageMaillage=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True)
             plt.pause(0.00001)
             plt.close(fig)
 
@@ -120,7 +120,7 @@ class Test_Simu(unittest.TestCase):
             simu = cast(Simu, simu)
             simu.Solve_u()
             
-            fig, ax, cb = Affichage.Plot_Result(simu, "amplitude", affichageMaillage=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True)
             plt.pause(0.00001)
             plt.close(fig)
 
