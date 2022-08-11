@@ -113,7 +113,7 @@ class Mesh:
     @property
     def connect(self) -> np.ndarray:
         """connection des elements (Ne, nPe)"""
-        return self.groupElem.connect
+        return self.groupElem.connect_e
     
     @property
     def connect_n_e(self) -> sp.csr_matrix:

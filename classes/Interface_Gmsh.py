@@ -105,6 +105,8 @@ class Interface_Gmsh:
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
+        if elemType == "TRI3":
+            isOrganised=False
         surfaces = self.Rectangle(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
 
         self.__Extrusion(gmsh.model.geo, surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
@@ -622,7 +624,7 @@ class Interface_Gmsh:
 
             # Elements
             Ne = elementTags.shape[0] #nombre d'élements
-            elements = elementTags
+            elementsID = elementTags
             nPe = GroupElem.Get_ElemInFos(gmshId)[1] # noeuds par elements
             
             # Construit connect et changes les indices nécessaires
@@ -642,7 +644,7 @@ class Interface_Gmsh:
             Nmax = nodes.max()
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
             
-            groupElem = GroupElem(gmshId, connect, elements, coordo, nodes)
+            groupElem = GroupElem(gmshId, connect, elementsID, coordo, nodes)
             if groupElem.dim > dim: dim = groupElem.dim
             dict_groupElem[groupElem.elemType] = groupElem
             

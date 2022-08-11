@@ -5,7 +5,6 @@ from typing import cast, Dict
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 # Solveurs
 from scipy.optimize import lsq_linear
@@ -886,7 +885,7 @@ class Simu:
 
             # Récupère les elements qui utilisent exclusivement les noeuds
             elements = groupElem1D.get_elements(noeuds, exclusivement=True)
-            connect_e = groupElem1D.connect[elements]
+            connect_e = groupElem1D.connect_e[elements]
             Ne = elements.shape[0]
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
@@ -934,26 +933,19 @@ class Simu:
             # Récupère les elements qui utilisent exclusivement les noeuds
             elements = groupElem2D.get_elements(noeuds, exclusivement=True)
             if elements.shape[0] == 0: continue
-            connect_e = groupElem2D.connect[elements]
+            connect = groupElem2D.connect_e[elements]
             Ne = elements.shape[0]
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-            coordo_e_p = groupElem2D.get_coordo_e_p("masse",elements)
-            nPg = coordo_e_p.shape[1]
+            coordo_e_p = groupElem2D.get_coordo_e_p("masse", elements)
 
             N_pg = groupElem2D.get_N_pg("masse")
 
-            # TODO Ici problem quand calcul de jacobien 
-            # objets d'integration
             jacobien_e_pg = groupElem2D.get_jacobien_e_pg("masse")[elements]
+            
             gauss = groupElem2D.get_gauss("masse")
             poid_pg = gauss.poids
-
-            sysCoordLocal_e = groupElem2D.sysCoordLocal_e[elements]
-            sysCoord_e = groupElem2D.sysCoord_e[elements]
-
-            aire = np.einsum('ep,p->',jacobien_e_pg, poid_pg)
-
+            
             # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
             valeurs_ddl_dir = np.zeros((Ne*groupElem2D.nPe, len(directions)))
 
@@ -967,7 +959,7 @@ class Simu:
             new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
             
-            new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
+            new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect, directions)
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls

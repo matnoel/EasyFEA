@@ -14,20 +14,27 @@ import scipy.sparse as sp
 
 class GroupElem:
 
-        def __init__(self, gmshId: int, connect: np.ndarray, elements: np.ndarray,
+        def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray,
         coordoGlob: np.ndarray, nodes: np.ndarray,
         verbosity=False):
 
             self.__gmshId = gmshId            
             
             # Elements
-            self.__elements = elements
+            self.__elementsID = elementsID
             self.__connect = connect
-            
+
             # Noeuds
             self.__nodes = nodes
             self.__coordoGlob = coordoGlob
             self.__coordo = cast(np.ndarray, coordoGlob[nodes])
+            
+            if self.__coordo[:,1].max()==0:
+                self.__inDim = 1
+            if self.__coordo[:,2].max()==0:
+                self.__inDim = 2
+            else:
+                self.__inDim = 3
 
             self.__verbosity = verbosity
 
@@ -46,6 +53,11 @@ class GroupElem:
         ################################################ METHODS ##################################################
 
         @property
+        def gmshId(self) -> int:
+            "id gmsh"
+            return self.__gmshId
+
+        @property
         def elemType(self) -> str:
             """type d'elements"""
             return GroupElem.Get_ElemInFos(self.__gmshId)[0]
@@ -53,10 +65,16 @@ class GroupElem:
         def nPe(self) -> int:
             """nombre de noeuds par element"""
             return GroupElem.Get_ElemInFos(self.__gmshId)[1]
+        
         @property
         def dim(self) -> int:
             """Dimension de l'element"""
             return GroupElem.Get_ElemInFos(self.__gmshId)[2]
+
+        @property
+        def inDim(self) -> int:
+            """Dimension dans lequel ce situe l'element"""
+            return self.__inDim
 
         @property
         def Ne(self) -> int:
@@ -68,8 +86,8 @@ class GroupElem:
             return self.__nodes.copy()
 
         @property
-        def elements(self) -> np.ndarray:
-            return self.__elements.copy()
+        def elementsID(self) -> np.ndarray:
+            return self.__elementsID.copy()
 
         @property
         def Nn(self) -> int:
@@ -104,7 +122,7 @@ class GroupElem:
                     raise "Element inconnue"
         
         @property
-        def connect(self) -> np.ndarray:
+        def connect_e(self) -> np.ndarray:
             """matrice de connection de l'element (Ne, nPe)"""
             return self.__connect.copy()
 
@@ -121,7 +139,7 @@ class GroupElem:
             nPe = self.nPe
             listElem = np.arange(Ne)
 
-            lignes = self.connect.reshape(-1)
+            lignes = self.connect_e.reshape(-1)
 
             Nn = int(lignes.max()+1)
             colonnes = np.repeat(listElem, nPe)
@@ -137,7 +155,7 @@ class GroupElem:
             taille = nPe*dim
 
             assembly = np.zeros((self.Ne, taille), dtype=np.int64)
-            connect = self.connect
+            connect = self.connect_e
 
             for d in range(dim):
                 assembly[:, np.arange(d, taille, dim)] = np.array(connect) * dim + d
@@ -148,15 +166,24 @@ class GroupElem:
             "récupérations des élements pour utilise exclusivement ou non les noeuds renseigné"
             connect = self.__connect
             connect_n_e = self.connect_n_e
+            # Nn = self.Nn
+
+            # Verifie si il n'y a pas de noeuds en trop
+            if self.Nn < noeuds.max():
+                # Il faut enlever des noeuds
+                # On enlève tout les noeuds en trop
+                indexNoeudsSansDepassement = np.where(noeuds < self.Nn)[0]
+                noeuds = noeuds[indexNoeudsSansDepassement]
 
             lignes, colonnes, valeurs = sp.find(connect_n_e[noeuds])
-            elements = np.unique(colonnes)
+            elementsID = np.unique(colonnes)
 
             if exclusivement:
-                listElem = [e for e in elements if not False in [n in noeuds for n in connect[e]]]        
-                elements = np.array(listElem)
+                # Verifie si les elements utilisent exculisevement les noeuds dans la liste de noeuds
+                listElem = [e for e in elementsID if not False in [n in noeuds for n in connect[e]]]        
+                listElem = np.array(listElem)
 
-            return elements
+            return listElem
 
         def get_assembly(self, dim=None) -> np.ndarray:
             self.assembly_e(dim)
@@ -424,10 +451,11 @@ class GroupElem:
                     j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
                     
                 k = np.cross(i, j, axis=1)
+                k = np.einsum('ei,e->ei',k, 1/np.linalg.norm(k, axis=1), optimize='optimal')
 
-                if coordo[:,2].max() != 0:
+                if self.inDim == 3:
                     j = np.cross(k, i, axis=1)
-                    # j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
+                    j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
 
 
                 sysCoord_e = np.zeros((self.Ne, 3, 3))
@@ -477,31 +505,27 @@ class GroupElem:
             if self.dim == 0: return
             if matriceType not in self.__dict_F_e_pg.keys():
 
-                nodes_n = self.__coordoGlob[:]
+                coordo_n = self.coordoGlob[:]
 
-                nodes_e = nodes_n[self.__connect]
+                coordo_e = coordo_n[self.__connect]
 
                 dim = self.dim
                 if dim == 1:
                     dimCheck = 2
                 else:
                     dimCheck = 3
-                
 
-                if dim in [1,2] and nodes_n[:,dimCheck-1].max() != 0:
-                    # syscoord = self.sysCoordLocal_e # matrice de changement de base pour chaque element
-                    syscoord_e = self.sysCoord_e # matrice de changement de base pour chaque element
-                    # nodes_e = np.einsum('eij,ekj->eik', nodes_e, syscoord_e, optimize='optimal') #coordonneés des noeuds dans la base de l'elements
-                    nodes_e = np.einsum('eij,ejk->eik', nodes_e, syscoord_e, optimize='optimal') #coordonneés des noeuds dans la base de l'elements
-                    
-                nodes_e = nodes_e[:,:,range(dim)]
-                # nodes_e = nodes_e[:,range(dim)]               
+                if dim == self.inDim:
+                    nodesBase = coordo_e.copy()               
+                else:
+                    sysCoordLocal_e = self.sysCoordLocal_e # matrice de changement de base pour chaque element
+                    nodesBase = np.einsum('eij,ejk->eik', coordo_e, sysCoordLocal_e, optimize='optimal') #coordonneés des noeuds dans la base de l'elements
 
+                nodesBaseDim = nodesBase[:,:,range(dim)]
 
                 dN_pg = self.get_dN_pg(matriceType)
 
-                F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodes_e, optimize='optimal'))                        
-                # F_e_pg = np.array(np.einsum('pik,ejk->epij', dN_pg, nodes_e, optimize='optimal'))                        
+                F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodesBaseDim, optimize='optimal'))
                 
                 self.__dict_F_e_pg[matriceType] = F_e_pg
 
@@ -827,9 +851,12 @@ class GroupElem:
             if verifX and verifY and verifZ:
                 return listNoeud
 
-            coordoX = self.__coordo[:,0]
-            coordoY = self.__coordo[:,1]
-            coordoZ = self.__coordo[:,2]
+            # coordo = self.coordo
+            coordo = self.coordoGlob
+
+            coordoX = coordo[:,0]
+            coordoY = coordo[:,1]
+            coordoZ = coordo[:,2]
             
             arrayVrai = np.array([True]*self.Nn)
             
