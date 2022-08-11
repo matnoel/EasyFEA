@@ -151,7 +151,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         maxVal = 0
         minVal = 0
         for groupElem2D in mesh.Get_list_groupElem(2):
-            connect2D = groupElem2D.connect
+            connect2D = groupElem2D.connect_e
             coordo2D = groupElem2D.coordoGlob
             coord =coordo2D[connect2D]
             
@@ -324,11 +324,11 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
             for groupElem2D in mesh.Get_list_groupElem(2):
 
-                connect2D = groupElem2D.connect
+                connect2D = groupElem2D.connect_e
                 coordo2D = groupElem2D.coordoGlob
                 coord = coordo2D[connect2D]
 
-                ax.add_collection3d(Poly3DCollection(coord, facecolors='c', edgecolor='black', linewidths=1, alpha=alpha))
+                ax.add_collection3d(Poly3DCollection(coord, facecolors='c', edgecolor='black', linewidths=0.5, alpha=alpha))
         
         # ax.autoscale()
         # ax.set_xlabel("x [mm]")
@@ -377,19 +377,19 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
 
     return ax
 
-def Plot_ElementsMaillage(mesh, ax=None, dim =None, nodes=[], showId=False, marker='x', c='red', folder=""):
+def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, marker='.', c='black', folder=""):
 
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
-    if dim == None:
-        dim = mesh.dim
+    if dimElem == None:
+        dimElem = mesh.dim
 
-    list_groupElem = mesh.Get_list_groupElem(dim)
+    list_groupElem = mesh.Get_list_groupElem(dimElem)
     if len(list_groupElem) == 0: return
 
     if ax == None:
-        ax = Plot_Maillage(mesh, alpha=0)
+        ax = Plot_Maillage(mesh, alpha=1)
 
     for groupElemDim in list_groupElem:
         
@@ -398,23 +398,43 @@ def Plot_ElementsMaillage(mesh, ax=None, dim =None, nodes=[], showId=False, mark
         if len(nodes) > 0:
             elements = groupElemDim.get_elements(nodes)
         else:
-            elements = groupElemDim.elements
+            elements = np.arange(groupElemDim.Ne)
 
-        connect_e = groupElemDim.connect
+        if elements.size == 0: continue
+
+        elementsID = groupElemDim.elementsID
+
+        connect_e = groupElemDim.connect_e
         coordo_n = groupElemDim.coordoGlob
+        coordoFaces_e = coordo_n[connect_e]
+        coordoFaces = coordoFaces_e[elements]
 
-        coordo_e = np.mean(coordo_n[connect_e], axis=1)
+        coordo_e = np.mean(coordoFaces_e, axis=1)
+        
+        if mesh.dim in [1,2]:
+            if len(nodes) > 0:
+                if groupElemDim.dim == 1:
+                    pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor='red', lw=1, zorder=24)
+                else:
+                    pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.dim)], facecolors='red', edgecolor='black', lw=0.5, alpha=1)
+                ax.add_collection(pc)
 
-        coordo = coordo_e[elements]
-
-        if mesh.dim == 2:
-            ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=20)
+            # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=24)
             if showId:            
-                for element in elements: ax.text(coordo_e[element,0], coordo_e[element,1], str(element))
-        elif  mesh.dim == 3:            
-            ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=20)
+                for element in elements:
+                    ax.text(coordo_e[element,0], coordo_e[element,1], str(elementsID[element]),
+                    zorder=25, ha='center', va='center')
+        elif  mesh.dim == 3:
+            if len(nodes) > 0:
+                ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors='red', edgecolor='black', linewidths=0.5, alpha=1))
+
+            # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=24)
             if showId:
-                for element in elements: ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], str(element))
+                for element in elements:
+                    ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], str(elementsID[element]),
+                    zorder=25, ha='center', va='center')
+
+    # ax.axis('off')
     
     if folder != "":
         import PostTraitement
@@ -547,20 +567,21 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     
     max = np.max(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
     min = np.min(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
-    # max = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
+    maxRange = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
+    cc = 0.5 # -> zoom au mieu
+    cc= 1 # dezoomé de 2
+    maxRange = maxRange*0.5
+
+    xmid = (xmax + xmin)/2
+    ymid = (ymax + ymin)/2
+    zmid = (zmax + zmin)/2
+
+    ax.set_xlim([xmid-maxRange, xmid+maxRange])
+    ax.set_ylim([ymid-maxRange, ymid+maxRange])
+    ax.set_zlim([zmid-maxRange, zmid+maxRange])
+
+    ax.set_box_aspect([1,1,1])
     
-    factX = np.max(np.abs(xmin)+np.abs(xmax))/max
-    factY = np.max(np.abs(ymin)+np.abs(ymax))/max
-    factZ = np.max(np.abs(zmin)+np.abs(zmax))/max
-
-    ecartAuBord = max*1.2 - max
-
-    ax.set_xlim([xmin-ecartAuBord, xmax+ecartAuBord])
-    ax.set_ylim([ymin-ecartAuBord, ymax+ecartAuBord])
-    ax.set_zlim([zmin-ecartAuBord, zmax+ecartAuBord])
-
-    # cc = 0.5
-    # ax.set_box_aspect((factX, factY*1.5, factZ*1.5))
 
 def NouvelleSection(text: str):
     """Creer une nouvelle section dans la console"""
