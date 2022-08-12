@@ -1,9 +1,11 @@
-.vscode/
-.vscode/
-.vscode/
+PythonEF.egg-info
+build/
+.vscode/launch.json
+.vscode/settings.json
 results/
 classes/__pycache__/
 *.pyc
 *.pos
 *.bak
+*.json
 *__pycache__
