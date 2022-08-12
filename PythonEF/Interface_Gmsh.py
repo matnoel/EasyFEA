@@ -704,6 +704,8 @@ class Interface_Gmsh:
         circleCreux = Circle(Point(x=L/2, y=0), h*0.7, taille=taille, isCreux=True)
         circle = Circle(Point(x=L/2, y=0), h*0.7, taille=taille, isCreux=False)
 
+        volume = L*h*b
+
         list_mesh3D = []
         for t, elemType in enumerate(GroupElem.get_Types3D()):
             for isOrganised in [True, False]:
@@ -716,12 +718,14 @@ class Interface_Gmsh:
                 
                 mesh2 = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=isOrganised)
                 list_mesh3D.append(mesh2)
+                assert np.isclose(mesh2.volume, volume,1e-4), "Volume incorrect"
 
                 mesh3 = interfaceGmsh.PlaqueAvecCercle3D(domain, circleCreux, [0,0,b], elemType=elemType, isOrganised=isOrganised)
                 list_mesh3D.append(mesh3)
 
                 mesh4 = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,b], elemType=elemType, isOrganised=isOrganised)
                 list_mesh3D.append(mesh4)
+                assert np.isclose(mesh4.volume, volume,1e-4), "Volume incorrect"
 
         return list_mesh3D
 
