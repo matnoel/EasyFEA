@@ -1,4 +1,4 @@
-..vscode/
+.vscode/
 results/
 classes/__pycache__/
 *.pyc
