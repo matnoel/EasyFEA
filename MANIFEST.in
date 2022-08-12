@@ -1,2 +1,2 @@
-include models/*.igs
-include models/*.stp
+include 3Dmodels/*igs
+include 3Dmodels/*stp
