@@ -40,6 +40,8 @@ comportement = Elas_Isot(dim, epaisseur=b, E=E, v=v, contraintesPlanes=True)
 # Materiau
 materiau = Materiau(comportement)
 
+print()
+
 # Pour chaque type d'element et plusieurs taille d'element on va calculer l'energie de deformation pour verifier la convergence
 
 
@@ -49,7 +51,8 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = list(range(2,20,1))
+listNbElement = np.arange(1,20,1)
+# listNbElement = list(range(2,20,1))
 # listNbElement = list(range(1,10))
 
 tic = Tic()
@@ -71,7 +74,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
 
                 # Construction du modele et du maillage --------------------------------------------------------------------------------
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
-                mesh = interfaceGmsh.Rectangle(domain, elemType=elemType, isOrganised=False)
+                mesh = interfaceGmsh.Rectangle(domain, elemType=elemType, isOrganised=True)
 
                 mesh = cast(Mesh, mesh)
                 # Récupère les noeuds qui m'interessent
@@ -98,7 +101,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
                 listWdef_nb.append(Wdef)
                 listDdl_nb.append(mesh.Nn*dim)
 
-                print(f"Elem : {elemType}, taille : {np.round(taille, 3)}, Wdef = {np.round(Wdef, 3)}")
+                print(f"Elem : {elemType}, nby : {nbElem}, Wdef = {np.round(Wdef, 3)}")
         
         listTemps_e_nb.append(listTemps_nb)
         listWdef_e_nb.append(listWdef_nb)
@@ -115,6 +118,9 @@ fig_Temps, ax_Temps = plt.subplots()
 # WdefRef = np.max(listWdef_e_nb)
 # WdefRef = 371.5
 WdefRef = 2*P**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5)
+WdefRefArray = np.ones_like(listDdl_nb) * WdefRef
+WdefRefArray5 = WdefRefArray * 0.95
+
 print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 
 # WdefRef = 391.76
@@ -140,6 +146,7 @@ ax_Wdef.set_xlim([-10,12000])
 ax_Wdef.set_xlabel('ddl')
 ax_Wdef.set_ylabel('Wdef [N.mm]')
 ax_Wdef.legend(GroupElem.get_Types2D())
+ax_Wdef.fill_between(listDdl_nb, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
 
 # Erreur
 ax_Temps_Erreur.grid()
