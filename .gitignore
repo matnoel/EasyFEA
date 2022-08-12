@@ -1,6 +1,4 @@
-.vscode/launch.json
-.vscode/settings.json
-.vscode/extensions.json
+..vscode/
 results/
 classes/__pycache__/
 *.pyc
