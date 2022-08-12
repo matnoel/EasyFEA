@@ -669,18 +669,27 @@ class Interface_Gmsh:
         
         domain = Domain(Point(0,0,0), Point(L, h, 0), taille=taille)
         line = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), taille=taille)
-        circle = Circle(Point(x=L/2, y=h/2), L/3, taille=taille)
+        circle = Circle(Point(x=L/2, y=h/2), L/3, taille=taille, isCreux=True)
         circleClose = Circle(Point(x=L/2, y=h/2), L/3, taille=taille, isCreux=False)
+
+        aireDomain = L*h
+        aireCircle = np.pi * (circleClose.diam/2)**2
 
         # Pour chaque type d'element 2D
         for t, elemType in enumerate(GroupElem.get_Types2D()):
             for isOrganised in [True, False]:
                     
                 mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=isOrganised)
+                assert np.isclose(mesh.aire, aireDomain,1e-4), "Surface incorrect"
                 mesh2 = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=False)
+                assert np.isclose(mesh2.aire, aireDomain,1e-4), "Surface incorrect"
                 mesh3 = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=True)
+                assert np.isclose(mesh3.aire, aireDomain,1e-4), "Surface incorrect"
                 mesh4 = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, elemType=elemType, isOrganised=isOrganised)
+                # # assert mesh4.aire - (aireDomain-aireCircle) == 0
+                # Ici on ne verifie pas car il ya trop peu delement pour bien representer le perçage
                 mesh5 = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circleClose, elemType=elemType, isOrganised=isOrganised)
+                assert np.isclose(mesh5.aire, aireDomain,1e-4), "Surface incorrect"
 
                 for m in [mesh, mesh2, mesh3, mesh4, mesh5]:
                     list_mesh2D.append(m)
@@ -699,11 +708,11 @@ class Interface_Gmsh:
         for t, elemType in enumerate(GroupElem.get_Types3D()):
             for isOrganised in [True, False]:
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
-                path = Dossier.GetPath()
-                fichier = Dossier.Join([path,"models","part.stp"])
-                if elemType == "TETRA4":
-                    mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=taille)
-                    list_mesh3D.append(mesh)
+                # path = Dossier.GetPath(__file__)
+                # fichier = Dossier.Join([path,"3Dmodels","part.stp"])
+                # if elemType == "TETRA4":
+                #     mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=taille)
+                #     list_mesh3D.append(mesh)
                 
                 mesh2 = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=isOrganised)
                 list_mesh3D.append(mesh2)
