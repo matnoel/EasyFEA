@@ -1,5 +1,5 @@
 from PythonEF.TicTac import Tic
-import PythonEF.Materiau as Materiau
+import PythonEF.Materiaux as Materiaux
 from PythonEF.BoundaryCondition import BoundaryCondition
 from PythonEF.Geom import *
 import PythonEF.Affichage as Affichage
@@ -132,16 +132,16 @@ for split in ["Bourdin"]:
             isCp = False
         
         if comp == "Elas_Isot":
-            comportement = Materiau.Elas_Isot(2,
+            comportement = Materiaux.Elas_Isot(2,
             E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
         elif comp == "Elas_IsotTrans":
-            comportement = Materiau.Elas_IsotTrans(2,
+            comportement = Materiaux.Elas_IsotTrans(2,
                         El=El, Et=Et, Gl=Gl, vl=vl, vt=vt,
                         contraintesPlanes=isCp, epaisseur=ep,
                         axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-        phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
-        materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
+        phaseFieldModel = Materiaux.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
+        materiau = Materiaux.Materiau(phaseFieldModel=phaseFieldModel)
 
         simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=False)
 

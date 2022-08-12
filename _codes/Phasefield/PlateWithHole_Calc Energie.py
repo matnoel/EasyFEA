@@ -1,6 +1,6 @@
 
 from PythonEF.TicTac import Tic
-import PythonEF.Materiau as Materiau
+import Materiaux as Materiaux
 from PythonEF.Geom import *
 import PythonEF.Affichage as Affichage
 import PythonEF.Interface_Gmsh as Interface_Gmsh
@@ -100,9 +100,9 @@ for v in list_V:
         'v': v
     }
     for isCP in [False,True]:
-        comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCP, epaisseur=ep)
-        phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
-        materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
+        comportement = Materiaux.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCP, epaisseur=ep)
+        phaseFieldModel = Materiaux.PhaseFieldModel(comportement, split, regu, gc, l_0)
+        materiau = Materiaux.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
 
         simu = Simu.Simu(mesh, materiau, verbosity=False)
 

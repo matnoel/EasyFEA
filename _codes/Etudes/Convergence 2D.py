@@ -4,7 +4,7 @@ from typing import cast
 from PythonEF.Geom import Domain, Point
 from PythonEF.Mesh import Mesh
 from PythonEF.GroupElem import GroupElem
-from PythonEF.Materiau import Elas_Isot, Materiau
+from PythonEF.Materiaux import Elas_Isot, Materiau
 from PythonEF.Interface_Gmsh import Interface_Gmsh
 from PythonEF.Simu import Simu
 import PythonEF.Affichage as Affichage

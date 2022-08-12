@@ -4,7 +4,7 @@ from Geom import *
 import Affichage
 import Simu
 import matplotlib.pyplot as plt
-import Materiau
+from PythonEF.Materiaux import Materiau, Elas_Isot
 
 L = 50e-3
 h = L*0.3
@@ -25,9 +25,9 @@ noeudsDroit = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 Affichage.Plot_Maillage(mesh)
 # plt.show()
 
-comportement = Materiau.Elas_Isot(2, contraintesPlanes=True, epaisseur=h)
+comportement = Elas_Isot(2, contraintesPlanes=True, epaisseur=h)
 
-materiau = Materiau.Materiau(comportement)
+materiau = Materiau(comportement)
 
 simu = Simu.Simu(mesh, materiau)
 

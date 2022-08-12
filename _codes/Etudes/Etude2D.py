@@ -1,11 +1,11 @@
 # %%
 # import sys
 # sys.path.append("/home/matthieu/Documents/PythonEF/classes")
-
 import os
+
 from PythonEF import Dossier, PostTraitement, Affichage
 from PythonEF.Geom import *
-from PythonEF.Materiau import Elas_Isot, Materiau
+from PythonEF.Materiaux import Elas_Isot, Materiau
 from PythonEF.Interface_Gmsh import Interface_Gmsh
 from PythonEF.Simu import Simu
 from PythonEF.TicTac import Tic

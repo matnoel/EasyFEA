@@ -1,7 +1,7 @@
 
 import unittest
 import os
-from Materiau import LoiDeComportement, Materiau
+from PythonEF.Materiaux import LoiDeComportement, Materiau
 import numpy as np
 from Mesh import Mesh
 

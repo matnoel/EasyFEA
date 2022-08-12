@@ -1,5 +1,5 @@
 from PythonEF.TicTac import Tic
-import PythonEF.Materiau as Materiau
+import Materiaux as Materiaux
 from PythonEF.Geom import *
 import PythonEF.Affichage as Affichage
 import PythonEF.Interface_Gmsh as Interface_Gmsh
@@ -87,9 +87,9 @@ for cc in list_cc:
     nodeA = mesh.Nodes_Point(Point(x=L/2, y=H-h+diam/2))
     nodeB = mesh.Nodes_Point(Point(x=L/2+diam/2, y=H-h))
 
-    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
-    phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
-    materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
+    comportement = Materiaux.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+    phaseFieldModel = Materiaux.PhaseFieldModel(comportement, split, regu, gc, l_0)
+    materiau = Materiaux.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
 
     simu = Simu.Simu(mesh, materiau, verbosity=False)
 

@@ -16,7 +16,7 @@ import pypardiso
 import PythonEF.Affichage as Affichage
 from PythonEF.Mesh import Mesh
 from PythonEF.BoundaryCondition import BoundaryCondition
-from PythonEF.Materiau import *
+from PythonEF.Materiaux import *
 from PythonEF.TicTac import Tic
 from PythonEF.Interface_Gmsh import Interface_Gmsh
 import PythonEF.Dossier as Dossier

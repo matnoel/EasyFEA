@@ -3,7 +3,7 @@ import os
 import PythonEF.Dossier as Dossier
 
 from PythonEF.Simu import Simu
-from PythonEF.Materiau import Materiau, Elas_Isot
+from PythonEF.Materiaux import Materiau, Elas_Isot
 from PythonEF.Interface_Gmsh import Interface_Gmsh
 from PythonEF.Mesh import Mesh
 import PythonEF.Affichage as Affichage
@@ -64,7 +64,7 @@ fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 # # Sans importation
 domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
 circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=True)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="TETRA4", isOrganised=True, nCouches=4)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=True, nCouches=4)
 # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
 
 volume = mesh.volume - L*b*h

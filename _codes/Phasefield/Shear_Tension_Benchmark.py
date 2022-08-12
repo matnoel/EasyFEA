@@ -7,7 +7,7 @@ import PythonEF.PostTraitement as PostTraitement
 import PythonEF.Dossier as Dossier
 import PythonEF.Affichage as Affichage
 
-from PythonEF.Materiau import PhaseFieldModel, Elas_Isot, Materiau
+from PythonEF.Materiaux import PhaseFieldModel, Elas_Isot, Materiau
 from PythonEF.Geom import *
 from PythonEF.Interface_Gmsh import Interface_Gmsh
 from PythonEF.Simu import Simu

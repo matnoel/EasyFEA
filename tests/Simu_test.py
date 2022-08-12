@@ -1,5 +1,5 @@
 import unittest
-from PythonEF.Materiau import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel
+from PythonEF.Materiaux import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel
 from typing import cast
 import numpy as np
 import PythonEF.Affichage as Affichage
