@@ -10,7 +10,6 @@ import numpy as np
 from scipy.optimize import lsq_linear
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
-from sksparse.cholmod import cholesky, cholesky_AAt
 import pypardiso
 
 # import GroupElem
@@ -744,6 +743,7 @@ class Simu:
 
 
     def __Cholesky(self, A, b):
+        from sksparse.cholmod import cholesky, cholesky_AAt
         # Décomposition de cholesky 
         
         # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
