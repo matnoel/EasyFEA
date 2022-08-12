@@ -1,14 +1,14 @@
 import unittest
-from Materiau import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel
+from PythonEF.Materiau import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel
 from typing import cast
 import numpy as np
-import Affichage
-from Mesh import Mesh
-from Interface_Gmsh import Interface_Gmsh
-from Simu import Simu
-import Dossier
-from GroupElem import GroupElem
-from TicTac import Tic
+import PythonEF.Affichage as Affichage
+from PythonEF.Mesh import Mesh
+from PythonEF.Interface_Gmsh import Interface_Gmsh
+from PythonEF.Simu import Simu
+import PythonEF.Dossier as Dossier
+from PythonEF.GroupElem import GroupElem
+from PythonEF.TicTac import Tic
 import matplotlib.pyplot as plt
 
 class Test_Simu(unittest.TestCase):    
