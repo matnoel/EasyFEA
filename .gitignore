@@ -1,7 +1,8 @@
 PythonEF.egg-info
 build/
-.vscode/launch.json
-.vscode/settings.json
+.vscode
+/.vscode/launch.json
+/.vscode/settings.json
 results/
 classes/__pycache__/
 *.pyc
@@ -9,3 +10,5 @@ classes/__pycache__/
 *.bak
 *.json
 *__pycache__
+.vscode/launch.json
+*.json
