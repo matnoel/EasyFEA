@@ -537,9 +537,26 @@ class GroupElem:
 
                 F_e_pg = self.get_F_e_pg(matriceType)
 
-                jacbobien_e_pg = np.array(np.linalg.det(F_e_pg))
+                if self.dim == 1:
+                    Ne = F_e_pg.shape[0]
+                    nPg = F_e_pg.shape[1]
+                    jacobien_e_pg = F_e_pg.reshape((Ne, nPg))
 
-                self.__dict_jacobien_e_pg[matriceType] = jacbobien_e_pg
+                elif self.dim == 2:
+                    a_e_pg = F_e_pg[:,:,0,0]
+                    b_e_pg = F_e_pg[:,:,0,1]
+                    c_e_pg = F_e_pg[:,:,1,0]
+                    d_e_pg = F_e_pg[:,:,1,1]
+                    jacobien_e_pg = (a_e_pg*d_e_pg)-(c_e_pg*b_e_pg)
+                
+                elif self.dim == 3:
+                    a11_e_pg = F_e_pg[:,:,0,0]; a12_e_pg = F_e_pg[:,:,0,1]; a13_e_pg = F_e_pg[:,:,0,2]
+                    a21_e_pg = F_e_pg[:,:,1,0]; a22_e_pg = F_e_pg[:,:,1,1]; a23_e_pg = F_e_pg[:,:,1,2]
+                    a31_e_pg = F_e_pg[:,:,2,0]; a32_e_pg = F_e_pg[:,:,2,1]; a33_e_pg = F_e_pg[:,:,2,2]
+
+                    jacobien_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))
+
+                self.__dict_jacobien_e_pg[matriceType] = jacobien_e_pg
 
             return self.__dict_jacobien_e_pg[matriceType].copy()
         
@@ -573,9 +590,29 @@ class GroupElem:
                     invF_e_pg[:,:,1,0] = -a
                     invF_e_pg[:,:,1,1] = alpha
 
-                    invF_e_pg = np.einsum('ep,epij->epij',1/det, invF_e_pg, optimize='optimal')                        
+                    invF_e_pg = np.einsum('ep,epij->epij',1/det, invF_e_pg, optimize='optimal')
                 elif self.dim == 3:
-                    invF_e_pg = np.array(np.linalg.inv(F_e_pg))
+                    # TODO a optimiser https://fr.wikihow.com/calculer-l'inverse-d'une-matrice-3x3
+
+                    det = self.get_jacobien_e_pg(matriceType)
+
+                    FT_e_pg = np.einsum('epij->epji', F_e_pg, optimize='optimal')
+
+                    a00 = FT_e_pg[:,:,0,0]; a01 = FT_e_pg[:,:,0,1]; a02 = FT_e_pg[:,:,0,2]
+                    a10 = FT_e_pg[:,:,1,0]; a11 = FT_e_pg[:,:,1,1]; a12 = FT_e_pg[:,:,1,2]
+                    a20 = FT_e_pg[:,:,2,0]; a21 = FT_e_pg[:,:,2,1]; a22 = FT_e_pg[:,:,2,2]
+
+                    det00 = (a11*a22) - (a21*a12); det01 = (a10*a22) - (a20*a12); det02 = (a10*a21) - (a20*a11)
+                    det10 = (a01*a22) - (a21*a02); det11 = (a00*a22) - (a20*a02); det12 = (a00*a21) - (a20*a01)
+                    det20 = (a01*a12) - (a11*a02); det21 = (a00*a12) - (a10*a02); det22 = (a00*a11) - (a10*a01)
+
+                    invF_e_pg = np.zeros_like(F_e_pg)
+
+                    invF_e_pg[:,:,0,0] = det00/det; invF_e_pg[:,:,0,1] = det01/det; invF_e_pg[:,:,0,2] = det02/det
+                    invF_e_pg[:,:,1,0] = det10/det; invF_e_pg[:,:,1,1] = det11/det; invF_e_pg[:,:,1,2] = det12/det
+                    invF_e_pg[:,:,2,0] = det20/det; invF_e_pg[:,:,2,1] = det21/det; invF_e_pg[:,:,2,2] = det22/det
+
+                    # invF_e_pg = np.array(np.linalg.inv(F_e_pg)) - invF_e_pg
 
                 self.__dict_invF_e_pg[matriceType] = invF_e_pg
 
