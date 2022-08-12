@@ -2,10 +2,10 @@
 import os
 from typing import cast
 
-import Affichage
-from Simu import Simu
-import Dossier
-from TicTac import Tic
+import PythonEF.Affichage as Affichage
+from PythonEF.Simu import Simu
+import PythonEF.Dossier as Dossier
+from PythonEF.TicTac import Tic
 import numpy as np
 
 import matplotlib

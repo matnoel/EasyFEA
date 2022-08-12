@@ -1,17 +1,13 @@
-
-from inspect import stack
-from pyexpat import model
 import gmsh
 import sys
 import numpy as np
-import scipy.sparse as sp
 
-import Dossier
-from Geom import *
-from GroupElem import GroupElem
-from Mesh import Mesh
-from TicTac import Tic
-import Affichage
+import PythonEF.Dossier as Dossier
+from PythonEF.Geom import *
+from PythonEF.GroupElem import GroupElem
+from PythonEF.Mesh import Mesh
+from PythonEF.TicTac import Tic
+import PythonEF.Affichage as Affichage
 import matplotlib.pyplot as plt
 
 class Interface_Gmsh:   

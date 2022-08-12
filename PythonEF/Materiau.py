@@ -1,11 +1,11 @@
 from typing import cast
 
-from TicTac import Tic
+from PythonEF.TicTac import Tic
 
-from Mesh import Mesh
-import CalcNumba
+from PythonEF.Mesh import Mesh
+import PythonEF.CalcNumba as CalcNumba
 import numpy as np
-import Affichage
+import PythonEF.Affichage as Affichage
 from inspect import stack
 
 from scipy.linalg import sqrtm

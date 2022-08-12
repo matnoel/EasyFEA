@@ -23,7 +23,7 @@ class Tic:
 
         # print("\n Résumé TicTac :")
 
-        import Affichage
+        import PythonEF.Affichage as Affichage
 
         Affichage.NouvelleSection("Résumé TicTac")
 

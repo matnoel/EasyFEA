@@ -2,12 +2,10 @@
 from inspect import stack
 from typing import List, cast
 
-from Geom import *
-from Gauss import Gauss
-from TicTac import Tic
+from PythonEF.Geom import *
+from PythonEF.Gauss import Gauss
+from PythonEF.TicTac import Tic
 from matplotlib import pyplot as plt
-import CalcNumba
-
 
 import numpy as np
 import scipy.sparse as sp
@@ -314,7 +312,7 @@ class GroupElem:
                     B_e_pg[:,:,4,colonnes0] = dNdz; B_e_pg[:,:,4,colonnes2] = dNdx
                     B_e_pg[:,:,5,colonnes0] = dNdy; B_e_pg[:,:,5,colonnes1] = dNdx
 
-                import Materiau
+                import PythonEF.Materiau as Materiau
                 B_e_pg = Materiau.LoiDeComportement.AppliqueCoefSurBrigi(dim, B_e_pg)
 
                 self.__dict_B_dep_e_pg[matriceType] = B_e_pg

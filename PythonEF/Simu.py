@@ -13,14 +13,15 @@ import scipy.sparse.linalg as sla
 from sksparse.cholmod import cholesky, cholesky_AAt
 import pypardiso
 
-from GroupElem import GroupElem
-import Affichage
-from Mesh import Mesh
-from BoundaryCondition import BoundaryCondition
-from Materiau import *
-from TicTac import Tic
-from Interface_Gmsh import Interface_Gmsh
-import Dossier
+# import GroupElem
+import PythonEF.Affichage as Affichage
+from PythonEF.Mesh import Mesh
+from PythonEF.BoundaryCondition import BoundaryCondition
+from PythonEF.Materiau import *
+from PythonEF.TicTac import Tic
+from PythonEF.Interface_Gmsh import Interface_Gmsh
+import PythonEF.Dossier as Dossier
+import PythonEF.CalcNumba as CalcNumba
     
 class Simu:
 

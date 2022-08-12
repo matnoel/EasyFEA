@@ -3,9 +3,9 @@ from typing import cast, List, Dict
 import numpy as np
 import scipy.sparse as sp
 
-from Geom import *
-from GroupElem import GroupElem
-from TicTac import Tic
+from PythonEF.Geom import *
+from PythonEF.GroupElem import GroupElem
+from PythonEF.TicTac import Tic
 
 class Mesh:
 

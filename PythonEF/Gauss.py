@@ -25,7 +25,7 @@ class Gauss:
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
 
-        from GroupElem import GroupElem
+        from PythonEF.GroupElem import GroupElem
 
         assert matriceType in GroupElem.get_MatriceType()
 
