@@ -1,12 +1,12 @@
-from TicTac import Tic
-import Materiau
-from BoundaryCondition import BoundaryCondition
-from Geom import *
-import Affichage
-import Interface_Gmsh
-import Simu
-import Dossier
-import PostTraitement
+from PythonEF.TicTac import Tic
+import PythonEF.Materiau as Materiau
+from PythonEF.BoundaryCondition import BoundaryCondition
+from PythonEF.Geom import *
+import PythonEF.Affichage as Affichage
+import PythonEF.Interface_Gmsh as Interface_Gmsh
+import PythonEF.Simu as Simu
+import PythonEF.Dossier as Dossier
+import PythonEF.PostTraitement as PostTraitement
 
 import matplotlib.pyplot as plt
 
@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=False
-solve=True
+test=True
+solve=False
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
@@ -38,7 +38,7 @@ umax = 35e-6
 # ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 # ["AnisotStress","AnisotStress_NoCross"]
 # ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotMiehe"]
-for split in ["Miehe"]: 
+for split in ["Bourdin"]: 
 
     # Data
 
@@ -63,8 +63,9 @@ for split in ["Miehe"]:
     
 
     if test:
-        clD = 0.25e-3
-        clC = 0.12e-3
+        cc = 1
+        clD = 0.25e-3*cc
+        clC = 0.12e-3*cc
         # clD = l_0*2
         # clC = l_0
 
@@ -120,7 +121,7 @@ for split in ["Miehe"]:
         interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
         mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
-        # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 2, elemType="HEXA8", isOrganised=True)
+        # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
 
         Affichage.Plot_Maillage(mesh)
         # plt.show()
@@ -142,7 +143,7 @@ for split in ["Miehe"]:
         phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
         materiau = Materiau.Materiau(phaseFieldModel=phaseFieldModel)
 
-        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=True)
+        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=False)
 
         # Récupérations des noeuds
 

@@ -1,10 +1,12 @@
 import numba
 import numpy as np
+from cythonScripts import CalcCython
 
 
 import TicTac
 import Affichage
 import matplotlib.pyplot as plt
+
 
 Affichage.Clear()
 
@@ -45,32 +47,44 @@ def matmulParal(A, b):
     return c
 
 # @numba.guvectorize([(numba.float64[:,:], numba.float64[:], numba.float64[:])], '(i,j),(j)->(i)', nopython=True, target='parallel')
-@numba.guvectorize([(numba.float64[:,:], numba.float64[:], numba.float64[:])], '(i,j),(j)->(j)', nopython=True)
-def matmulVect(A, b, result):
+@numba.guvectorize([(numba.float64[:,:], numba.float64[:,:], numba.float64[:,:])], '(i,j),(j,k)->(i,k)',
+target='cpu', nopython=True)
+def ij_jk_to_ik(A, B, result):
     for i in range(A.shape[0]):
         for j in range(A.shape[1]):
-    # # for i in numba.prange(A.shape[0]):
-    # #     for j in numba.prange(A.shape[1]):
+            for k in range(B.shape[1]):
+                result[i,k] += A[i,j] * B[j,k]
+
+result = ij_jk_to_ik(A, B, np.zeros((A.shape[0], A.shape[1])))
+
+@numba.guvectorize([(numba.float64[:,:], numba.float64[:], numba.float64[:])], '(i,j),(j)->(i)',
+nopython=True, target='parallel')
+def ij_j_to_i(A, b, result):
+    for i in np.arange(A.shape[0]):
+        for j in np.arange(A.shape[1]):
             result[i] += A[i,j] * b[j]
+                
 
-    # return result
-    
-    # c = A * b
+# N = 20000
+# # N = 30000
+# # N = 40000
+# list_N = np.arange(10000, N, 1000)
 
-result = matmulVect(A, B, np.zeros(A.shape[0]))   
-
-N = 20000
+N = 100
 # N = 30000
 # N = 40000
+list_N = np.arange(2, 10000, 100,)
+
+
 
 list_npeinsum = []
 list_npeinsum_True = []
 list_npeinsum_optimal = []
 list_npeinsum_greedy = []
 list_matmulParal = []
-list_matmulVect = []
+list_ij_j_to_i = []
+list_cythonij_j_to_i = []
 
-list_N = np.arange(10000, N, 1000)
 
 for n in list_N:
 
@@ -78,8 +92,8 @@ for n in list_N:
 
     tic = TicTac.Tic()
 
-    A = np.ones((n, n))
-    b = np.ones((n))
+    A = np.ones((n, n), dtype=float)
+    b = np.ones((n), dtype=float)
     tic.Tac("Test", "A et b", False)
 
     # c = np.dot(A, b)
@@ -107,25 +121,31 @@ for n in list_N:
     tic.Tac("Test", "matmulParal compil", False)
 
     c = matmulParal(A, b)
+    oldC = c.copy()
     list_matmulParal.append(tic.Tac("Test", "matmulParal", False))
 
-    c = matmulVect(A, b) - c
-    list_matmulVect.append(tic.Tac("Test", "matmulVect", False))
+    c = np.zeros_like(c)
+    c = ij_j_to_i(A, b, c)
+    list_ij_j_to_i.append(tic.Tac("Test", "matmulVect", False))
+
+    c = CalcCython.ij_j_to_i(A, b) - c
+    list_cythonij_j_to_i.append(tic.Tac("Test", "cython", False))
 
 plt.plot(list_N, list_npeinsum, label='np.einsum')
 plt.plot(list_N, list_npeinsum_True, label='np.einsum optimize')
 plt.plot(list_N, list_npeinsum_optimal, label='einsum optimal')
 plt.plot(list_N, list_npeinsum_greedy, label='np.einsum greedy')
 plt.plot(list_N, list_matmulParal, label='matmulParal')
-plt.plot(list_N, list_matmulVect, label='matmulVect')
+plt.plot(list_N, list_ij_j_to_i, label='guvetorize')
+plt.plot(list_N, list_cythonij_j_to_i, label='cython')
 
 plt.legend()
 
-plt.figure()
-rapport = np.array(list_npeinsum_optimal)*1/np.array(list_matmulParal)
-print(f"mean = {np.mean(rapport)}")
-plt.plot(list_N, rapport)
-plt.ylabel("einsum_optimal / matmulParal")
+# plt.figure()
+# rapport = np.array(list_npeinsum_optimal)*1/np.array(list_matmulParal)
+# print(f"mean = {np.mean(rapport)}")
+# plt.plot(list_N, rapport)
+# plt.ylabel("einsum_optimal / matmulParal")
 
 
 

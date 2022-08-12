@@ -1,19 +1,19 @@
 # %%
 import os
-import Dossier
+import PythonEF.Dossier as Dossier
 
-from Simu import Simu
-from Materiau import Materiau, Elas_Isot
-from Interface_Gmsh import Interface_Gmsh
-from Mesh import Mesh
-import Affichage
-import PostTraitement
-from Geom import *
+from PythonEF.Simu import Simu
+from PythonEF.Materiau import Materiau, Elas_Isot
+from PythonEF.Interface_Gmsh import Interface_Gmsh
+from PythonEF.Mesh import Mesh
+import PythonEF.Affichage as Affichage
+import PythonEF.PostTraitement as PostTraitement
+from PythonEF.Geom import *
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from TicTac import Tic
+from PythonEF.TicTac import Tic
 
 # Affichage.Clear()
 
@@ -25,7 +25,7 @@ tic= Tic()
 
 dim = 3 
 
-plotResult = True
+plotResult = False
 
 saveParaview = True
 
@@ -37,7 +37,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe =2
+nBe = 20
 # nBe = 1
 taille = h/nBe
 # taille = h/3
@@ -55,25 +55,31 @@ interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 
 fichier = Dossier.NewFile(os.path.join("models","part.stp"))
 
+# # Avec importation
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="TETRA4", tailleElement=taille)
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
 # mesh = interfaceGmsh.Importation3D(fichier, elemType="PRISM6", tailleElement=taille, folder=folder)
 
+
+# # Sans importation
 domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="PRISM6", isOrganised=True, nCouches=4)
+circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=True)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="TETRA4", isOrganised=True, nCouches=4)
+# mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
 
 volume = mesh.volume - L*b*h
 aire = mesh.aire - (L*h*4 + 2*b*h)
 
-# circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
-# mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
-
-# Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Maillage(mesh)
 # plt.show()
 
 
 noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+
+# Affichage.Plot_ElementsMaillage(mesh, dimElem=1, nodes=noeuds_en_L, showId=True)
+# Affichage.Plot_ElementsMaillage(mesh, dimElem=2, nodes=noeuds_en_L, showId=True)
+# plt.show()
 
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")

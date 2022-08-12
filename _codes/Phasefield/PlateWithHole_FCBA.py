@@ -1,12 +1,12 @@
-
-from TicTac import Tic
-import Materiau
-from Geom import *
-import Affichage
-import Interface_Gmsh
-import Simu
-import Dossier
-import PostTraitement
+from PythonEF.TicTac import Tic
+import PythonEF.Materiau as Materiau
+from PythonEF.Geom import *
+import PythonEF.Affichage as Affichage
+import PythonEF.Interface_Gmsh as Interface_Gmsh
+import PythonEF.Simu as Simu
+import PythonEF.Dossier as Dossier
+import pandas as pd
+import PythonEF.PostTraitement as PostTraitement
 
 import matplotlib.pyplot as plt
 

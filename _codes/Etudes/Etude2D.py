@@ -3,21 +3,16 @@
 # sys.path.append("/home/matthieu/Documents/PythonEF/classes")
 
 import os
-from Geom import Domain, Point
-import Dossier
-import PostTraitement
-
-from Materiau import Elas_Isot, Materiau
-from Geom import *
-from Interface_Gmsh import Interface_Gmsh
-from Simu import Simu
-import Affichage
-
+from PythonEF import Dossier, PostTraitement, Affichage
+from PythonEF.Geom import *
+from PythonEF.Materiau import Elas_Isot, Materiau
+from PythonEF.Interface_Gmsh import Interface_Gmsh
+from PythonEF.Simu import Simu
+from PythonEF.TicTac import Tic
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from TicTac import Tic
 
 Affichage.Clear()
 
@@ -77,7 +72,7 @@ noeuds_en_h= mesh.Nodes_Line(LineH)
 
 # ------------------------------------------------------------------------------------------------------
 
-simu = Simu(mesh, materiau, useNumba=False)
+simu = Simu(mesh, materiau, useNumba=True)
 
 # Renseigne les condtions limites
 

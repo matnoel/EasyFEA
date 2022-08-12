@@ -1,15 +1,15 @@
 # %%
 from typing import cast
 
-from Geom import Domain, Point
-from Mesh import Mesh
-from GroupElem import GroupElem
-from Materiau import Elas_Isot, Materiau
-from Interface_Gmsh import Interface_Gmsh
-from Simu import Simu
-import Affichage
-from TicTac import Tic
-import Dossier
+from PythonEF.Geom import Domain, Point
+from PythonEF.Mesh import Mesh
+from PythonEF.GroupElem import GroupElem
+from PythonEF.Materiau import Elas_Isot, Materiau
+from PythonEF.Interface_Gmsh import Interface_Gmsh
+from PythonEF.Simu import Simu
+import PythonEF.Affichage as Affichage
+from PythonEF.TicTac import Tic
+import PythonEF.Dossier as Dossier
 
 import numpy as np
 import matplotlib.pyplot as plt
