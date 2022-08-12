@@ -1,6 +1,9 @@
 .vscode/
+.vscode/
+.vscode/
 results/
 classes/__pycache__/
 *.pyc
 *.pos
 *.bak
+*__pycache__
