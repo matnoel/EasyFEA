@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+
 class Tic:
 
     @staticmethod
@@ -57,6 +58,8 @@ class Tic:
     @staticmethod 
     def getGraphs(folder="", details=True, title="Simulation"):
 
+        import PythonEF.PostTraitement as PostTraitement
+
         if Tic.__Historique == {}: return
 
         historique = Tic.__Historique        
@@ -82,8 +85,7 @@ class Tic:
                     fig, ax = plt.subplots()
                     Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
                 
-                    if folder != "":
-                        import PostTraitement
+                    if folder != "":                        
                         PostTraitement.Save_fig(folder, c)
         
 
@@ -96,8 +98,7 @@ class Tic:
         fig, ax = plt.subplots()
         Tic.__plotBar(ax, categories, dfCategorie['temps'], "Simulation")
 
-        if folder != "":
-            import PostTraitement
+        if folder != "":            
             PostTraitement.Save_fig(folder, title)
 
         # # Camembert

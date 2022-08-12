@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-
 def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, title="",
     affichageMaillage=False, valeursAuxNoeuds=False,
     folder="", filename="", colorbarIsClose=False,
@@ -191,7 +190,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     ax.set_title(title)
 
     if folder != "":
-        import PostTraitement
+        import PythonEF.PostTraitement as PostTraitement
         if filename=="":
             filename=title
         PostTraitement.Save_fig(folder, filename, transparent=False)
@@ -372,7 +371,7 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
             for noeud in noeuds: ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud))
     
     if folder != "":
-        import PythonEF.PostTraitement
+        import PythonEF.PostTraitement as PostTraitement
         PostTraitement.Save_fig(folder, "noeuds")
 
     return ax
@@ -437,7 +436,7 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
     # ax.axis('off')
     
     if folder != "":
-        import PostTraitement
+        import PythonEF.PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "noeuds")
 
     return ax
@@ -525,7 +524,7 @@ def Plot_BoundaryConditions(simu, folder=""):
     plt.legend()
 
     if folder != "":
-        import PostTraitement
+        import PythonEF.PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "Conditions limites")
 
     return ax
