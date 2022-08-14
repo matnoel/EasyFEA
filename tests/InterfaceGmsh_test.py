@@ -1,11 +1,11 @@
 import unittest
 import os
 
-from PythonEF.Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh
 import numpy as np
 
-from PythonEF.Geom import *
-import PythonEF.Affichage as Affichage
+from Geom import *
+import Affichage as Affichage
 import matplotlib.pyplot as plt
 
 class Test_InterfaceGmsh(unittest.TestCase):

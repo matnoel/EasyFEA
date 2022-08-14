@@ -2,12 +2,12 @@ import gmsh
 import sys
 import numpy as np
 
-import PythonEF.Dossier as Dossier
-from PythonEF.Geom import *
-from PythonEF.GroupElem import GroupElem
-from PythonEF.Mesh import Mesh
-from PythonEF.TicTac import Tic
-import PythonEF.Affichage as Affichage
+import Dossier as Dossier
+from Geom import *
+from GroupElem import GroupElem
+from Mesh import Mesh
+from TicTac import Tic
+import Affichage as Affichage
 import matplotlib.pyplot as plt
 
 class Interface_Gmsh:   

@@ -2,9 +2,9 @@
 from inspect import stack
 from typing import List, cast
 
-from PythonEF.Geom import *
-from PythonEF.Gauss import Gauss
-from PythonEF.TicTac import Tic
+from Geom import *
+from Gauss import Gauss
+from TicTac import Tic
 from matplotlib import pyplot as plt
 
 import numpy as np

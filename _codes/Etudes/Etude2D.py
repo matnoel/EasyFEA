@@ -4,11 +4,11 @@
 import os
 
 from PythonEF import Dossier, PostTraitement, Affichage
-from PythonEF.Geom import *
-from PythonEF.Materiaux import Elas_Isot, Materiau
-from PythonEF.Interface_Gmsh import Interface_Gmsh
-from PythonEF.Simu import Simu
-from PythonEF.TicTac import Tic
+from Geom import *
+from Materiaux import Elas_Isot, Materiau
+from Interface_Gmsh import Interface_Gmsh
+from Simu import Simu
+from TicTac import Tic
 
 import numpy as np
 import matplotlib.pyplot as plt

@@ -4,7 +4,7 @@ from Geom import *
 import Affichage
 import Simu
 import matplotlib.pyplot as plt
-from PythonEF.Materiaux import Materiau, Elas_Isot
+from Materiaux import Materiau, Elas_Isot
 
 L = 50e-3
 h = L*0.3

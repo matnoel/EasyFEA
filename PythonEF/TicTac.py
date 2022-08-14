@@ -24,7 +24,7 @@ class Tic:
 
         # print("\n Résumé TicTac :")
 
-        import PythonEF.Affichage as Affichage
+        import Affichage as Affichage
 
         Affichage.NouvelleSection("Résumé TicTac")
 
@@ -58,7 +58,7 @@ class Tic:
     @staticmethod 
     def getGraphs(folder="", details=True, title="Simulation"):
 
-        import PythonEF.PostTraitement as PostTraitement
+        import PostTraitement as PostTraitement
 
         if Tic.__Historique == {}: return
 

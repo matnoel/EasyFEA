@@ -1,4 +1,4 @@
-import PythonEF.PostTraitement as PostTraitement
+import PostTraitement as PostTraitement
 import matplotlib.pyplot as plt
 import numpy as np
 

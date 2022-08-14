@@ -1,9 +1,9 @@
-import PythonEF.PostTraitement as PostTraitement
-import PythonEF.Affichage as Affichage
-import PythonEF.Dossier as Dossier
+import PostTraitement as PostTraitement
+import Affichage as Affichage
+import Dossier as Dossier
 import numpy as np
 import matplotlib.pyplot as plt
-import PythonEF.TicTac as TicTac
+import TicTac as TicTac
 
 # L'objectif du script est de récupérer pour chaque simulation la courbe force déplacement
 # Didentifier 3 itérations de déplacement (18.5, 24.6, 30) µm 

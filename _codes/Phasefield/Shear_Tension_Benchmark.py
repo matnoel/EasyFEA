@@ -1,18 +1,18 @@
 # %%
 import os
 
-from PythonEF.BoundaryCondition import BoundaryCondition
+from BoundaryCondition import BoundaryCondition
 
-import PythonEF.PostTraitement as PostTraitement
-import PythonEF.Dossier as Dossier
-import PythonEF.Affichage as Affichage
+import PostTraitement as PostTraitement
+import Dossier as Dossier
+import Affichage as Affichage
 
-from PythonEF.Materiaux import PhaseFieldModel, Elas_Isot, Materiau
-from PythonEF.Geom import *
-from PythonEF.Interface_Gmsh import Interface_Gmsh
-from PythonEF.Simu import Simu
-from PythonEF.Mesh import Mesh
-from PythonEF.TicTac import Tic
+from Materiaux import PhaseFieldModel, Elas_Isot, Materiau
+from Geom import *
+from Interface_Gmsh import Interface_Gmsh
+from Simu import Simu
+from Mesh import Mesh
+from TicTac import Tic
 
 import numpy as np
 import matplotlib.pyplot as plt

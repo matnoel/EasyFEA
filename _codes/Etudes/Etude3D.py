@@ -1,19 +1,19 @@
 # %%
 import os
-import PythonEF.Dossier as Dossier
+import Dossier as Dossier
 
-from PythonEF.Simu import Simu
-from PythonEF.Materiaux import Materiau, Elas_Isot
-from PythonEF.Interface_Gmsh import Interface_Gmsh
-from PythonEF.Mesh import Mesh
-import PythonEF.Affichage as Affichage
-import PythonEF.PostTraitement as PostTraitement
-from PythonEF.Geom import *
+from Simu import Simu
+from Materiaux import Materiau, Elas_Isot
+from Interface_Gmsh import Interface_Gmsh
+from Mesh import Mesh
+import Affichage as Affichage
+import PostTraitement as PostTraitement
+from Geom import *
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from PythonEF.TicTac import Tic
+from TicTac import Tic
 
 # Affichage.Clear()
 
@@ -84,7 +84,7 @@ noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 # ------------------------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Traitement")
 
-simu = Simu(mesh, materiau, verbosity=True, useNumba=True)
+simu = Simu(mesh, materiau, verbosity=True, useNumba=False)
 
 simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b], ["y"])
 simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
@@ -122,6 +122,9 @@ if plotResult:
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
 Tic.getResume()
+
+Tic.getGraphs()
+plt.show()
 
 if plotResult:        
     plt.show()

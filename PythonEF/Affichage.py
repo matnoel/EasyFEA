@@ -42,8 +42,8 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
 
     # Va chercher les valeurs 0 a affciher
 
-    from PythonEF.Simu import Simu
-    from PythonEF.TicTac import Tic
+    from Simu import Simu
+    from TicTac import Tic
 
     tic = Tic()
     simu = cast(Simu, simu) # ne pas ecrire simu: Simu ça créer un appel circulaire
@@ -190,7 +190,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     ax.set_title(title)
 
     if folder != "":
-        import PythonEF.PostTraitement as PostTraitement
+        import PostTraitement as PostTraitement
         if filename=="":
             filename=title
         PostTraitement.Save_fig(folder, filename, transparent=False)
@@ -221,8 +221,8 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         Axes dans lequel on va creer la figure
     """
 
-    from PythonEF.Simu import Simu
-    from PythonEF.Mesh import Mesh
+    from Simu import Simu
+    from Mesh import Mesh
 
     typeobj = type(obj).__name__
 
@@ -342,7 +342,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
     ax.set_title(title)
 
     if folder != "":
-        import PythonEF.PostTraitement as PostTraitement
+        import PostTraitement as PostTraitement
         PostTraitement.Save_fig(folder, title)
 
     return ax
@@ -350,7 +350,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='blue', folder=""):
     """Affiche les noeuds du maillage"""        
     
-    from PythonEF.Mesh import Mesh
+    from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
     if ax == None:
@@ -371,7 +371,7 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
             for noeud in noeuds: ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud))
     
     if folder != "":
-        import PythonEF.PostTraitement as PostTraitement
+        import PostTraitement as PostTraitement
         PostTraitement.Save_fig(folder, "noeuds")
 
     return ax
@@ -436,15 +436,15 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
     # ax.axis('off')
     
     if folder != "":
-        import PythonEF.PostTraitement as PostTraitement 
+        import PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "noeuds")
 
     return ax
 
 
 def Plot_BoundaryConditions(simu, folder=""):
-    from PythonEF.Simu import Simu
-    from PythonEF.BoundaryCondition import BoundaryCondition
+    from Simu import Simu
+    from BoundaryCondition import BoundaryCondition
 
     simu = cast(Simu, simu)
 
@@ -524,7 +524,7 @@ def Plot_BoundaryConditions(simu, folder=""):
     plt.legend()
 
     if folder != "":
-        import PythonEF.PostTraitement as PostTraitement 
+        import PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "Conditions limites")
 
     return ax
@@ -532,7 +532,7 @@ def Plot_BoundaryConditions(simu, folder=""):
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
     
-    from PythonEF.Simu import Simu
+    from Simu import Simu
 
     simu = cast(Simu, simu)
 
