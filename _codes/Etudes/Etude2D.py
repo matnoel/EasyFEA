@@ -7,7 +7,7 @@ import Dossier
 import PostTraitement
 import Affichage
 from Geom import *
-from Materiaux import Elas_Isot, Materiau
+from Materials import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
 from TicTac import Tic
@@ -55,9 +55,11 @@ domain = Domain(Point(), Point(x=L, y=h), taille)
 Line0 = Line(Point(), Point(y=h))
 LineL = Line(Point(x=L), Point(x=L, y=h))
 LineH = Line(Point(y=h),Point(x=L, y=h))
+circle = Circle(Point(x=L/2, y=h/2), h*0.2, isCreux=False)
 
 interfaceGmsh = Interface_Gmsh()
-mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=False)
+mesh = interfaceGmsh.Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
+# mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
 
 aire = mesh.aire
 
@@ -125,9 +127,10 @@ if plotResult:
 
 Tic.getResume()
 
-Tic.getGraphs()
+
 
 if plotResult:
-        plt.show()
+    # Tic.getGraphs()
+    plt.show()
 
 # %%

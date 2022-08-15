@@ -1,7 +1,7 @@
 # %%
 import unittest
 import os
-from Materiaux import Elas_IsotTrans, PhaseFieldModel, LoiDeComportement, Elas_Isot
+from Materials import Elas_IsotTrans, PhaseFieldModel, LoiDeComportement, Elas_Isot
 import numpy as np
 
 class Test_Materiau(unittest.TestCase):

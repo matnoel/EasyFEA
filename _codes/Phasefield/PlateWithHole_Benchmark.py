@@ -1,5 +1,5 @@
 from TicTac import Tic
-import Materiaux as Materiaux
+import Materials
 from BoundaryCondition import BoundaryCondition
 from Geom import *
 import Affichage as Affichage
@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 # Options
 
 test=True
-solve=False
+solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
@@ -124,7 +124,7 @@ for split in ["Bourdin"]:
         # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
 
         Affichage.Plot_Maillage(mesh)
-        # plt.show()
+        plt.show()
 
         if simpli2D == "CP":
             isCp = True
@@ -132,16 +132,16 @@ for split in ["Bourdin"]:
             isCp = False
         
         if comp == "Elas_Isot":
-            comportement = Materiaux.Elas_Isot(2,
+            comportement = Materials.Elas_Isot(2,
             E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
         elif comp == "Elas_IsotTrans":
-            comportement = Materiaux.Elas_IsotTrans(2,
+            comportement = Materials.Elas_IsotTrans(2,
                         El=El, Et=Et, Gl=Gl, vl=vl, vt=vt,
                         contraintesPlanes=isCp, epaisseur=ep,
                         axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-        phaseFieldModel = Materiaux.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
-        materiau = Materiaux.Materiau(phaseFieldModel=phaseFieldModel)
+        phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
+        materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel)
 
         simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=False)
 

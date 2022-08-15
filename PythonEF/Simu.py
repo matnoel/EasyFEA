@@ -16,7 +16,7 @@ import pypardiso
 import Affichage as Affichage
 from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition
-from Materiaux import *
+from Materials import *
 from TicTac import Tic
 from Interface_Gmsh import Interface_Gmsh
 import Dossier as Dossier
@@ -928,10 +928,9 @@ class Simu:
 
         valeurs_ddls=np.array([])
         ddls=np.array([])
-        listElem2D = self.mesh.Get_list_groupElem(2)
 
         # Récupération des matrices pour le calcul
-        for groupElem2D in listElem2D:
+        for groupElem2D in self.mesh.Get_list_groupElem(2):
 
             # Récupère les elements qui utilisent exclusivement les noeuds
             elements = groupElem2D.get_elements(noeuds, exclusivement=True)
@@ -961,7 +960,7 @@ class Simu:
 
             new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
-            
+
             new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect, directions)
             ddls = np.append(ddls, new_ddls)
 

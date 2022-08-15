@@ -3,7 +3,7 @@ import os
 import Dossier as Dossier
 
 from Simu import Simu
-from Materiaux import Materiau, Elas_Isot
+from Materials import Materiau, Elas_Isot
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh
 import Affichage as Affichage
@@ -37,7 +37,7 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-# nBe = 10
+# nBe = 20
 nBe = 1
 
 taille = h/nBe
@@ -57,21 +57,21 @@ interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 fichier = Dossier.NewFile(os.path.join("3Dmodels","part.stp"))
 
 # # Avec importation
-# mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
+# mesh = interfaceGmsh.Importation3D(fichier, tailleElement=taille)
 
+# "TETRA4", "HEXA8", "PRISM6"
 # # Sans importation
 domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
 circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=True)
+mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
+# mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="TETRA4", isOrganised=True, nCouches=4)
 
-# "TETRA4", "HEXA8", "PRISM6"
-# mesh = interfaceGmsh.Importation3D(fichier, elemType="TETRA4", tailleElement=taille)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="TETRA4", isOrganised=True, nCouches=4)
 
 volume = mesh.volume - L*b*h
 aire = mesh.aire - (L*h*4 + 2*b*h)
 
-Affichage.Plot_Maillage(mesh)
-# plt.show()
+# Affichage.Plot_Maillage(mesh)
+# # plt.show()
 
 
 noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
@@ -89,11 +89,8 @@ simu = Simu(mesh, materiau, verbosity=True, useNumba=False)
 simu.add_surfLoad("displacement",noeuds_en_L, [-P/h/b], ["y"])
 simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
 
-Affichage.Plot_BoundaryConditions(simu)
-# plt.show()
-
-# Affichage.Plot_ElementsMaillage(mesh, dimElem=2, nodes=noeuds_en_L)
-# plt.show()
+# Affichage.Plot_BoundaryConditions(simu)
+# # plt.show()
 
 simu.Assemblage_u()
 simu.Solve_u()
@@ -126,10 +123,8 @@ if plotResult:
 
 Tic.getResume()
 
-Tic.getGraphs()
-plt.show()
-
 if plotResult:        
+    Tic.getGraphs()
     plt.show()
 
 # %%

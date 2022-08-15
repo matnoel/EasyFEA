@@ -1,5 +1,5 @@
 import unittest
-from Materiaux import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel
+from Materials import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel
 from typing import cast
 import numpy as np
 import Affichage as Affichage

@@ -4,7 +4,7 @@ from typing import cast
 from Geom import Domain, Point
 from Mesh import Mesh
 from GroupElem import GroupElem
-from Materiaux import Elas_Isot, Materiau
+from Materials import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
 import Affichage as Affichage
@@ -74,7 +74,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
 
                 # Construction du modele et du maillage --------------------------------------------------------------------------------
                 interfaceGmsh = Interface_Gmsh(verbosity=False)
-                mesh = interfaceGmsh.Rectangle(domain, elemType=elemType, isOrganised=True)
+                mesh = interfaceGmsh.Rectangle_2D(domain, elemType=elemType, isOrganised=True)
 
                 mesh = cast(Mesh, mesh)
                 # Récupère les noeuds qui m'interessent

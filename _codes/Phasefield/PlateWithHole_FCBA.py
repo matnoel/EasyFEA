@@ -1,5 +1,5 @@
 from TicTac import Tic
-import Materiaux as Materiaux
+import Materials
 from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
@@ -113,9 +113,9 @@ if solve:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
 
-    comportement = Materiaux.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
-    phaseFieldModel = Materiaux.PhaseFieldModel(comportement, split, regu, gc, l_0)
-    materiau = Materiaux.Materiau(phaseFieldModel=phaseFieldModel)
+    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+    phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
+    materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel)
 
     simu = Simu.Simu(mesh, materiau, verbosity=False)
 
