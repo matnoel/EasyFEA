@@ -93,7 +93,8 @@ class GroupElem:
 
         @property
         def coordo(self) -> np.ndarray:
-            """matrice de coordonnées du groupe d'element (Nn, 3)"""
+            """matrice de coordonnées du groupe d'element (Nn, 3)\n
+            Cette matrice contient les noeuds du groupe d'element"""
             return self.__coordo.copy()
 
         @property
@@ -556,6 +557,8 @@ class GroupElem:
 
                     jacobien_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))
 
+                # jacobien_e_pg = np.linalg.det(F_e_pg) - jacobien_e_pg
+
                 self.__dict_jacobien_e_pg[matriceType] = jacobien_e_pg
 
             return self.__dict_jacobien_e_pg[matriceType].copy()
@@ -608,9 +611,10 @@ class GroupElem:
 
                     invF_e_pg = np.zeros_like(F_e_pg)
 
-                    invF_e_pg[:,:,0,0] = det00/det; invF_e_pg[:,:,0,1] = det01/det; invF_e_pg[:,:,0,2] = det02/det
-                    invF_e_pg[:,:,1,0] = det10/det; invF_e_pg[:,:,1,1] = det11/det; invF_e_pg[:,:,1,2] = det12/det
-                    invF_e_pg[:,:,2,0] = det20/det; invF_e_pg[:,:,2,1] = det21/det; invF_e_pg[:,:,2,2] = det22/det
+                    # Ne pas oublier les - ou  + !!!
+                    invF_e_pg[:,:,0,0] = det00/det; invF_e_pg[:,:,0,1] = -det01/det; invF_e_pg[:,:,0,2] = det02/det
+                    invF_e_pg[:,:,1,0] = -det10/det; invF_e_pg[:,:,1,1] = det11/det; invF_e_pg[:,:,1,2] = -det12/det
+                    invF_e_pg[:,:,2,0] = det20/det; invF_e_pg[:,:,2,1] = -det21/det; invF_e_pg[:,:,2,2] = det22/det
 
                     # invF_e_pg = np.array(np.linalg.inv(F_e_pg)) - invF_e_pg
 
@@ -969,7 +973,7 @@ class GroupElem:
         def Get_Nodes_Circle(self, circle: Circle) -> np.ndarray:
             """Renvoie la liste de noeuds qui sont dans le cercle"""
 
-            coordo = self.coordoGlob
+            coordo = self.coordo
 
             eps = np.finfo(float).eps
 
