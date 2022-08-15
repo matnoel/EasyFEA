@@ -886,7 +886,6 @@ class GroupElem:
             if verifX and verifY and verifZ:
                 return listNoeud
 
-            # coordo = self.coordo
             coordo = self.coordoGlob
 
             coordoX = coordo[:,0]
@@ -930,7 +929,7 @@ class GroupElem:
         
         def Get_Nodes_Point(self, point: Point) -> np.ndarray:
 
-            coordo = self.__coordo
+            coordo = self.coordoGlob
 
             noeud = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
 
@@ -940,7 +939,7 @@ class GroupElem:
             
             vectUnitaire = line.vecteurUnitaire
 
-            coordo = self.__coordo
+            coordo = self.coordoGlob
 
             vect = coordo-line.coordo[0]
 
@@ -957,7 +956,7 @@ class GroupElem:
         def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
             """Renvoie la liste de noeuds qui sont dans le domaine"""
 
-            coordo = self.__coordo
+            coordo = self.coordoGlob
 
             eps = np.finfo(float).eps
 
@@ -970,7 +969,7 @@ class GroupElem:
         def Get_Nodes_Circle(self, circle: Circle) -> np.ndarray:
             """Renvoie la liste de noeuds qui sont dans le cercle"""
 
-            coordo = self.__coordo
+            coordo = self.coordoGlob
 
             eps = np.finfo(float).eps
 

@@ -27,7 +27,7 @@ dim = 3
 
 plotResult = False
 
-saveParaview = True
+saveParaview = False
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -37,8 +37,9 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-nBe = 20
-# nBe = 1
+# nBe = 10
+nBe = 1
+
 taille = h/nBe
 # taille = h/3
 
@@ -53,19 +54,18 @@ materiau = Materiau(comportement)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 interfaceGmsh = Interface_Gmsh(gmshVerbosity=False, affichageGmsh=False)
 
-fichier = Dossier.NewFile(os.path.join("models","part.stp"))
+fichier = Dossier.NewFile(os.path.join("3Dmodels","part.stp"))
 
 # # Avec importation
-# mesh = interfaceGmsh.Importation3D(fichier, elemType="TETRA4", tailleElement=taille)
-# mesh = interfaceGmsh.Importation3D(fichier, elemType="HEXA8", tailleElement=taille, folder=folder)
-# mesh = interfaceGmsh.Importation3D(fichier, elemType="PRISM6", tailleElement=taille, folder=folder)
-
+# mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
 
 # # Sans importation
 domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
 circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=True)
-mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="HEXA8", isOrganised=True, nCouches=4)
-# mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=True, nCouches=3)
+
+# "TETRA4", "HEXA8", "PRISM6"
+# mesh = interfaceGmsh.Importation3D(fichier, elemType="TETRA4", tailleElement=taille)
+mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="TETRA4", isOrganised=True, nCouches=4)
 
 volume = mesh.volume - L*b*h
 aire = mesh.aire - (L*h*4 + 2*b*h)
@@ -92,11 +92,14 @@ simu.add_dirichlet("displacement",noeuds_en_0, [0,0,0], ["x","y","z"])
 Affichage.Plot_BoundaryConditions(simu)
 # plt.show()
 
-simu.Assemblage_u()
-simu.Solve_u()
+# Affichage.Plot_ElementsMaillage(mesh, dimElem=2, nodes=noeuds_en_L)
+# plt.show()
 
 simu.Assemblage_u()
 simu.Solve_u()
+
+# simu.Assemblage_u()
+# simu.Solve_u()
 
 simu.Save_Iteration()
 

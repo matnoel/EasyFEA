@@ -2,6 +2,12 @@ import numba
 from numba import njit, prange
 import numpy as np
 
+useCache = False
+useParallel = True
+useFastmath = True
+
+
+
 def CompilNumba(verbosity=True):
     """Fonction qui compile toutes les fonctions disponibles"""
 
@@ -32,19 +38,26 @@ def CompilNumba(verbosity=True):
 
 #Calcul indiciel
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def ep_ij_to_epij(ep: np.ndarray, ij: np.ndarray):
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+
     result = np.zeros((ep.shape[0], ep.shape[1], ij.shape[0], ij.shape[1]))
-    for e in prange(ep.shape[0]):
-        for p in prange(ep.shape[1]):
+    for e in range(ep.shape[0]):
+        for p in range(ep.shape[1]):
             result[e,p] = ep[e, p] * ij
     return result
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def epij_ej_to_epi(epij: np.ndarray, ej: np.ndarray):
-    range = prange
-    # range = np.arange
-
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+    
     Ne = epij.shape[0]
     nPg = epij.shape[1]
     dimI = epij.shape[2]
@@ -63,11 +76,13 @@ def epij_ej_to_epi(epij: np.ndarray, ej: np.ndarray):
 
     return result
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def ij_epj_to_epi(ij: np.ndarray, epj: np.ndarray):
-    range = prange
-    # range = np.arange
-
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+    
     Ne = epj.shape[0]
     nPg = epj.shape[1]
     dimI = ij.shape[0]
@@ -85,11 +100,13 @@ def ij_epj_to_epi(ij: np.ndarray, epj: np.ndarray):
 
     return result
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def ep_epi_to_epi(ep: np.ndarray, epi: np.ndarray):
-    range = prange
-    # range = np.arange
-
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+    
     Ne = ep.shape[0]
     nPg = ep.shape[1]
     dimI = epi.shape[2]
@@ -106,11 +123,13 @@ def ep_epi_to_epi(ep: np.ndarray, epi: np.ndarray):
 
     return result
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def ep_epij_to_epij(ep: np.ndarray, epij: np.ndarray):
-    range = prange
-    # range = np.arange
-
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+    
     Ne = ep.shape[0]
     nPg = ep.shape[1]
     dimI = epij.shape[2]
@@ -129,11 +148,13 @@ def ep_epij_to_epij(ep: np.ndarray, epij: np.ndarray):
 
     return result
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def ep_epij_to_eij(ep: np.ndarray, epij: np.ndarray):
-    range = prange
-    # range = np.arange
-
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+    
     Ne = ep.shape[0]
     nPg = ep.shape[1]
     dimI = epij.shape[2]
@@ -153,11 +174,13 @@ def ep_epij_to_eij(ep: np.ndarray, epij: np.ndarray):
     return result
 
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def epij_epjk_epkl_to_eil(epij: np.ndarray, epjk: np.ndarray, epkl: np.ndarray):
-    range = prange
-    # range = np.arange
-
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+    
     Ne = epij.shape[0]
     nPg = epij.shape[1]
     dimI = epij.shape[2]
@@ -182,11 +205,13 @@ def epij_epjk_epkl_to_eil(epij: np.ndarray, epjk: np.ndarray, epkl: np.ndarray):
 
     return result
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def epij_jk_epkl_to_eil(epij: np.ndarray, jk: np.ndarray, epkl: np.ndarray):
-    range = prange
-    # range = np.arange
-
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+    
     Ne = epij.shape[0]
     nPg = epij.shape[1]
     dimI = epij.shape[2]
@@ -213,14 +238,15 @@ def epij_jk_epkl_to_eil(epij: np.ndarray, jk: np.ndarray, epkl: np.ndarray):
 
 # Construction des matrices
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Construit_Kd_e_and_Fd_e(r_e_pg: np.ndarray, ReactionPart_e_pg: np.ndarray,
 k: float, DiffusePart_e_pg: np.ndarray,
 f_e_pg: np.ndarray, SourcePart_e_pg: np.ndarray):
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
     
-    range = prange
-    # range = np.arange
-
     Ne = r_e_pg.shape[0]
     nPg = r_e_pg.shape[1]
     dimI = ReactionPart_e_pg.shape[2]
@@ -247,11 +273,12 @@ f_e_pg: np.ndarray, SourcePart_e_pg: np.ndarray):
 
     return Kd_e, Fd_e
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Calc_psi_e_pg(Epsilon_e_pg: np.ndarray, SigmaP_e_pg: np.ndarray, SigmaM_e_pg: np.ndarray):
-
-    range = prange
-    # range = np.arange
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
 
     Ne = Epsilon_e_pg.shape[0]
     nPg = Epsilon_e_pg.shape[1]
@@ -268,11 +295,12 @@ def Calc_psi_e_pg(Epsilon_e_pg: np.ndarray, SigmaP_e_pg: np.ndarray, SigmaM_e_pg
     
     return psiP_e_pg, psiM_e_pg
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Calc_Sigma_e_pg(Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.ndarray):
-
-    range = prange
-    # range = np.arange
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
 
     Ne = Epsilon_e_pg.shape[0]
     nPg = Epsilon_e_pg.shape[1]
@@ -294,27 +322,28 @@ def Calc_Sigma_e_pg(Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.n
 
 # Calcul de splits
 
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Get_Anisot_C(projP_e_pg: np.ndarray, c: np.ndarray, projM_e_pg: np.ndarray):
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
 
     Ne = projP_e_pg.shape[0]
     nPg = projP_e_pg.shape[1]
     dimc = c.shape[0]
-
-    ranngge = prange
-    # ranngge = np.arange
 
     Cpp_e_pg = np.zeros((Ne, nPg, dimc, dimc))
     Cpm_e_pg = np.zeros_like(Cpp_e_pg)
     Cmp_e_pg = np.zeros_like(Cpp_e_pg)
     Cmm_e_pg = np.zeros_like(Cpp_e_pg)
 
-    for e in ranngge(projP_e_pg.shape[0]):
-        for p in ranngge(projP_e_pg.shape[1]):
-            for i in ranngge(c.shape[0]):                
-                for j in ranngge(c.shape[0]):
-                    for l in ranngge(c.shape[0]):
-                        for k in ranngge(c.shape[0]):
+    for e in range(projP_e_pg.shape[0]):
+        for p in range(projP_e_pg.shape[1]):
+            for i in range(c.shape[0]):                
+                for j in range(c.shape[0]):
+                    for l in range(c.shape[0]):
+                        for k in range(c.shape[0]):
 
                             Cpp_e_pg[e,p,i,j] += projP_e_pg[e,p,k,i] * c[k,l] * projP_e_pg[e,p,l,j]
                             Cpm_e_pg[e,p,i,j] += projP_e_pg[e,p,k,i] * c[k,l] * projM_e_pg[e,p,l,j]
@@ -325,9 +354,14 @@ def Get_Anisot_C(projP_e_pg: np.ndarray, c: np.ndarray, projM_e_pg: np.ndarray):
 
 
 # Pas tres efficace
-@njit(cache=True, parallel=True, fastmath=True)
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Split_Amor(Rp_e_pg: np.ndarray, Rm_e_pg: np.ndarray,
 partieDeviateur: np.ndarray, IxI: np.ndarray, bulk):
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+
     Ne = Rp_e_pg.shape[0]
     pg = Rp_e_pg.shape[1]
     dim = IxI.shape[0]
@@ -335,8 +369,8 @@ partieDeviateur: np.ndarray, IxI: np.ndarray, bulk):
     cP_e_pg = np.zeros((Ne, pg, dim, dim))
     cM_e_pg = np.zeros((Ne, pg, dim, dim))
 
-    for e in prange(Ne):
-        for p in prange(pg):
+    for e in range(Ne):
+        for p in range(pg):
             cP_e_pg[e,p] = bulk*(Rp_e_pg[e,p] * IxI) + partieDeviateur
             cM_e_pg[e,p] = bulk*(Rm_e_pg[e,p] * IxI) + partieDeviateur
 

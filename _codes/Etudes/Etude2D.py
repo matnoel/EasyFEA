@@ -3,7 +3,9 @@
 # sys.path.append("/home/matthieu/Documents/PythonEF/classes")
 import os
 
-from PythonEF import Dossier, PostTraitement, Affichage
+import Dossier
+import PostTraitement
+import Affichage
 from Geom import *
 from Materiaux import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
@@ -72,7 +74,7 @@ noeuds_en_h= mesh.Nodes_Line(LineH)
 
 # ------------------------------------------------------------------------------------------------------
 
-simu = Simu(mesh, materiau, useNumba=True)
+simu = Simu(mesh, materiau, useNumba=False)
 
 # Renseigne les condtions limites
 

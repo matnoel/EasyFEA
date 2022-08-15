@@ -13,7 +13,7 @@ class BoundaryCondition:
 
         self.__noeuds = noeuds
 
-        self.__ddls = ddls
+        self.__ddls = np.asarray(ddls, dtype=int)
         self.__valeurs_ddls = valeurs_ddls
         self.__directions = directions
         

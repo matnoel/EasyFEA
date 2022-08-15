@@ -20,7 +20,7 @@ from Materiaux import *
 from TicTac import Tic
 from Interface_Gmsh import Interface_Gmsh
 import Dossier as Dossier
-import CalcNumba as CalcNumba
+import CalcNumba
     
 class Simu:
 
@@ -277,6 +277,8 @@ class Simu:
         self.__Fu = sparse.csr_matrix((taille, 1))
         """Vecteur Fglob pour le problème en déplacement (Nn*dim, 1)"""
 
+        # import matplotlib.pyplot as plt
+        # plt.figure()
         # plt.spy(self.__Ku)
         # plt.show()
 
@@ -602,6 +604,7 @@ class Simu:
             xc = x[ddl_Connues,0]
 
             bDirichlet = Aic.dot(xc)
+            # bDirichlet = np.einsum('ij,j->i', Aic, xc[:,0], optimize='optimal')
 
             tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
 
@@ -851,8 +854,6 @@ class Simu:
 
         self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-                
-
     def add_surfLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force surfacique\n
         valeurs est une liste de constantes ou de fonctions\n
@@ -927,9 +928,10 @@ class Simu:
 
         valeurs_ddls=np.array([])
         ddls=np.array([])
+        listElem2D = self.mesh.Get_list_groupElem(2)
 
         # Récupération des matrices pour le calcul
-        for groupElem2D in self.mesh.Get_list_groupElem(2):
+        for groupElem2D in listElem2D:
 
             # Récupère les elements qui utilisent exclusivement les noeuds
             elements = groupElem2D.get_elements(noeuds, exclusivement=True)

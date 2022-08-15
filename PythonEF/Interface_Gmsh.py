@@ -101,8 +101,8 @@ class Interface_Gmsh:
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
-        if elemType == "TRI3":
-            isOrganised=False
+        if elemType == "TETRA4":    isOrganised=False
+        
         surfaces = self.Rectangle(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
 
         self.__Extrusion(gmsh.model.geo, surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
