@@ -1,3 +1,5 @@
+from inspect import stack
+from typing import List
 import gmsh
 import sys
 import numpy as np
@@ -12,7 +14,7 @@ import matplotlib.pyplot as plt
 
 class Interface_Gmsh:   
 
-    def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=True):
+    def __init__(self, useOcc=True, affichageGmsh=False, gmshVerbosity=False, verbosity=True):
             
         self.__affichageGmsh = affichageGmsh
         """affichage du maillage sur gmsh"""
@@ -26,6 +28,7 @@ class Interface_Gmsh:
 
     def __initGmsh(self):
         gmsh.initialize()
+        self.__factory = None
         if self.__gmshVerbosity == False:
             gmsh.option.setNumber('General.Verbosity', 0)
         gmsh.model.add("model")
@@ -36,30 +39,21 @@ class Interface_Gmsh:
         elif dim == 3:
             assert elemType in GroupElem.get_Types3D()
 
-    def Importation3D(self,fichier="", elemType="TETRA4", tailleElement=0.0, folder=""):
+    def Importation3D(self, fichier="", tailleElement=0.0, folder=""):
         """importation du fichier 3D
 
         Args:
             fichier (str, optional): fichier 3D en .stp ou autres. Defaults to "".
-            elemType (str, optional): type d'element utilisé. Defaults to "TETRA4" in ["TETRA4", "HEXA8", "PRISM6"].
             tailleElement (float, optional): taille d'element a utiliser. Defaults to 0.0.
             folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
 
         Returns:
             Mesh: maillage construit
         """
-        
-        # Importe depuis un 3D
 
-        # elemTypes = 
-        
-        # Returns:
-        #     Mesh: mesh
-
-
-        assert elemType =="TETRA4", "Lorsqu'on importe une pièce on ne peut utiliser que du TETRA4"
-
-        # Permettre d'autres maillage -> ça semble impossible
+        # Lorsqu'on importe une pièce on ne peut utiliser que du TETRA4
+        elemType = "TETRA4"
+        # Permettre d'autres maillage -> ça semble impossible il faut creer le maillage par gmsh pour maitriser le type d'element
 
         self.__initGmsh()
 
@@ -68,8 +62,11 @@ class Interface_Gmsh:
         
         tic = Tic()
 
+        factory = gmsh.model.occ # Ici ne fonctionne qu'avec occ !! ne pas changer
+        self.__factory = factory
+
         # Importation du fichier
-        gmsh.model.occ.importShapes(fichier)
+        factory.importShapes(fichier)
 
         gmsh.option.setNumber("Mesh.MeshSizeMin", tailleElement)
         gmsh.option.setNumber("Mesh.MeshSizeMax", tailleElement)
@@ -100,12 +97,12 @@ class Interface_Gmsh:
         
         tic = Tic()
         
-        # le maillage 2D de départ n'a pas d'importance
-        if elemType == "TETRA4":    isOrganised=False
+        if elemType == "TETRA4":    isOrganised=False #Il n'est pas possible d'oganiser le maillage quand on utilise des TETRA4
         
-        surfaces = self.Rectangle(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
+        # le maillage 2D de départ n'a pas d'importance
+        surfaces = self.Rectangle_2D(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
 
-        self.__Extrusion(gmsh.model.geo, surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
+        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
@@ -114,8 +111,10 @@ class Interface_Gmsh:
         return cast(Mesh, self.__Recuperation_Maillage())
     
     
-    def __Extrusion(self, factory, surfaces: list, extrude=[0,0,1], elemType="HEXA8", isOrganised=True, nCouches=1):
+    def __Extrusion(self, surfaces: list, extrude=[0,0,1], elemType="HEXA8", isOrganised=True, nCouches=1):
         
+        factory = self.__factory
+
         if factory == gmsh.model.geo:
             isOrganised = True
             factory = cast(gmsh.model.geo, factory)
@@ -129,10 +128,10 @@ class Interface_Gmsh:
 
                 factory.synchronize()
 
-                # points = np.array(gmsh.model.getEntities(0))[:,1]
-                # factory.mesh.setTransfiniteSurface(surf, cornerTags=points)
-
-                gmsh.model.geo.mesh.setTransfiniteSurface(surf)
+                points = np.array(gmsh.model.getEntities(0))[:,1]
+                if points.shape[0] <= 4:
+                    factory.mesh.setTransfiniteSurface(surf, cornerTags=points)
+                    # factory.mesh.setTransfiniteSurface(surf)
 
             if elemType in ["HEXA8","PRISM6"]:
                 # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
@@ -147,7 +146,7 @@ class Interface_Gmsh:
             extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=numElements)
 
 
-    def Rectangle(self, domain: Domain, elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
+    def Rectangle_2D(self, domain: Domain, elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
         """Construit un rectangle et renvoie le maillage
 
         Args:
@@ -174,25 +173,31 @@ class Interface_Gmsh:
 
         tailleElement = domain.taille
 
+        # factory=gmsh.model.occ # fonctionne mais ne permet pas d'organiser le maillage 
+        factory=gmsh.model.geo
+
+        self.__factory = factory
+
         # Créer les points
-        p1 = gmsh.model.geo.addPoint(pt1.x, pt1.y, 0, tailleElement)
-        p2 = gmsh.model.geo.addPoint(pt2.x, pt1.y, 0, tailleElement)
-        p3 = gmsh.model.geo.addPoint(pt2.x, pt2.y, 0, tailleElement)
-        p4 = gmsh.model.geo.addPoint(pt1.x, pt2.y, 0, tailleElement)
+        p1 = factory.addPoint(pt1.x, pt1.y, 0, tailleElement)
+        p2 = factory.addPoint(pt2.x, pt1.y, 0, tailleElement)
+        p3 = factory.addPoint(pt2.x, pt2.y, 0, tailleElement)
+        p4 = factory.addPoint(pt1.x, pt2.y, 0, tailleElement)
 
         # Créer les lignes reliants les points
-        l1 = gmsh.model.geo.addLine(p1, p2)
-        l2 = gmsh.model.geo.addLine(p2, p3)
-        l3 = gmsh.model.geo.addLine(p3, p4)
-        l4 = gmsh.model.geo.addLine(p4, p1)
+        l1 = factory.addLine(p1, p2)
+        l2 = factory.addLine(p2, p3)
+        l3 = factory.addLine(p3, p4)
+        l4 = factory.addLine(p4, p1)
 
         # Créer une boucle fermée reliant les lignes     
-        boucle = gmsh.model.geo.addCurveLoop([l1, l2, l3, l4])
+        boucle = factory.addCurveLoop([l1, l2, l3, l4])
 
         # Créer une surface
-        surface = gmsh.model.geo.addPlaneSurface([boucle])
+        surface = factory.addPlaneSurface([boucle])
 
-        surface = gmsh.model.addPhysicalGroup(2, [surface])
+        if isinstance(factory, gmsh.model.geo):
+            surface = factory.addPhysicalGroup(2, [surface]) # obligatoire pour creer la surface organisée
 
         if returnSurfaces: return [surface]
         
@@ -237,39 +242,42 @@ class Interface_Gmsh:
         domainSize = domain.taille
         crackSize = crack.taille
 
+        factory = gmsh.model.occ # Ne fonctionne qu'avec occ
+        self.__factory = factory
+
         # Create the points of the rectangle
-        p1 = gmsh.model.occ.addPoint(pt1.x, pt1.y, 0, domainSize)
-        p2 = gmsh.model.occ.addPoint(pt2.x, pt1.y, 0, domainSize)
-        p3 = gmsh.model.occ.addPoint(pt2.x, pt2.y, 0, domainSize)
-        p4 = gmsh.model.occ.addPoint(pt1.x, pt2.y, 0, domainSize)
+        p1 = factory.addPoint(pt1.x, pt1.y, 0, domainSize)
+        p2 = factory.addPoint(pt2.x, pt1.y, 0, domainSize)
+        p3 = factory.addPoint(pt2.x, pt2.y, 0, domainSize)
+        p4 = factory.addPoint(pt1.x, pt2.y, 0, domainSize)
 
         # Create the lines connecting the points for the surface
-        l1 = gmsh.model.occ.addLine(p1, p2)
-        l2 = gmsh.model.occ.addLine(p2, p3)
-        l3 = gmsh.model.occ.addLine(p3, p4)
-        l4 = gmsh.model.occ.addLine(p4, p1)                
+        l1 = factory.addLine(p1, p2)
+        l2 = factory.addLine(p2, p3)
+        l3 = factory.addLine(p3, p4)
+        l4 = factory.addLine(p4, p1)                
 
         # loop for surface
-        loop = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
+        loop = factory.addCurveLoop([l1, l2, l3, l4])
 
         # creat surface
-        surface = gmsh.model.occ.addPlaneSurface([loop])
+        surface = factory.addPlaneSurface([loop])
 
         # Create the crack points
-        p5 = gmsh.model.occ.addPoint(pf1.x, pf1.y, 0, crackSize)
-        p6 = gmsh.model.occ.addPoint(pf2.x, pf2.y, 0, crackSize)
+        p5 = factory.addPoint(pf1.x, pf1.y, 0, crackSize)
+        p6 = factory.addPoint(pf2.x, pf2.y, 0, crackSize)
 
         # Create the line for the crack
-        crack = gmsh.model.occ.addLine(p5, p6)
+        crack = factory.addLine(p5, p6)
 
         listeOpen=[]
         if pf1.isOpen:
-            o, m = gmsh.model.occ.fragment([(0, p5), (1, crack)], [(2, surface)])
+            o, m = factory.fragment([(0, p5), (1, crack)], [(2, surface)])
             listeOpen.append(p5)
         if pf2.isOpen:
-            o, m = gmsh.model.occ.fragment([(0, p6), (1, crack)], [(2, surface)])
+            o, m = factory.fragment([(0, p6), (1, crack)], [(2, surface)])
             listeOpen.append(p6)
-        gmsh.model.occ.synchronize()
+        factory.synchronize()
         # Adds the line to the surface
         gmsh.model.mesh.embed(1, [crack], 2, surface)
 
@@ -305,7 +313,6 @@ class Interface_Gmsh:
         Returns:
             Mesh ou list: maillage construit ou retourne la surface si returnSurfaces=True
         """
-        
             
         self.__initGmsh()
         self.__CheckType(2, elemType)
@@ -325,7 +332,9 @@ class Interface_Gmsh:
         if not returnSurfaces:
             assert center.z == 0
 
-        factory = gmsh.model.occ
+        # factory=gmsh.model.geo # fonctionne que si le cercle est remplie !
+        factory=gmsh.model.occ
+        self.__factory = factory
 
         # Create the points of the rectangle
         p1 = factory.addPoint(pt1.x, pt1.y, 0, domain.taille)
@@ -402,11 +411,8 @@ class Interface_Gmsh:
         
         # le maillage 2D de départ n'a pas d'importance
         surfaces = self.PlaqueAvecCercle(domain, circle, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
-        
-        factory = gmsh.model.occ
-        # factory = gmsh.model.geo
 
-        self.__Extrusion(factory, surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
+        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
@@ -416,20 +422,18 @@ class Interface_Gmsh:
 
     # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.
 
-    def MeshFromGeom2D(self, pointsList=[], tailleElement=0.0,
-    elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
+    def __Surfaces_From_Points(self, pointsList: List[Point], tailleElement: float, returnSurfaces: bool):
+        
+        factory = gmsh.model.occ # fonctionne toujours mais ne peut pas organiser le maillage        
+        # factory = gmsh.model.geo # ne fonctionne pas toujours pour des surfaces compliquées
 
-        self.__initGmsh()
-        self.__CheckType(2, elemType)
-
-        tic = Tic()
-
-        factory = gmsh.model.geo
+        # mettre en option ?
+        
+        self.__factory = factory
 
         # On creer tout les points
         points = []
         for point in pointsList:
-
             assert isinstance(point, Point)
             if not returnSurfaces: assert point.z == 0, "Pour une simulation 2D les points doivent être dans le plan (x, y)"
 
@@ -447,14 +451,28 @@ class Interface_Gmsh:
         for pt1, pt2 in connectLignes:
             lignes.append(factory.addLine(pt1, pt2))
 
-
         # Create a closed loop connecting the lines for the surface        
         loopSurface = factory.addCurveLoop(lignes)
         
         surface = factory.addPlaneSurface([loopSurface])
 
+        if isinstance(factory, gmsh.model.geo):
+            surface = factory.addPhysicalGroup(2, [surface]) # obligatoire pour creer la surface organisée
+
         surfaces = [surface]
 
+        return surfaces
+
+    def Mesh_From_Points_2D(self, pointsList: List[Point],
+    elemType="TRI3", tailleElement=0.0, isOrganised=False, folder="", returnSurfaces=False):
+
+        self.__initGmsh()
+        self.__CheckType(2, elemType)
+
+        tic = Tic()
+
+        surfaces = self.__Surfaces_From_Points(pointsList, tailleElement, returnSurfaces)
+        
         if returnSurfaces: return surfaces
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
@@ -463,9 +481,41 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
+    
 
-    def __Construction_MaillageGmsh(self, dim: int, elemType: str, isOrganised=False,
-    surfaces=[], crack=None, openBoundary=None, folder=""):
+    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, 
+    elemType="TETRA4", tailleElement=0.0, isOrganised=False, folder=""):
+
+        self.__initGmsh()
+        self.__CheckType(3, elemType)
+        
+        tic = Tic()
+        
+        # le maillage 2D de départ n'a pas d'importance
+        surfaces = self.Mesh_From_Points_2D(pointsList, elemType="TRI3", tailleElement=tailleElement,
+        isOrganised=isOrganised, returnSurfaces=True)
+
+        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
+
+        tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
+
+        self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
+        
+        return cast(Mesh, self.__Recuperation_Maillage())
+
+
+    def __Construction_MaillageGmsh(self, dim: int, elemType: str, surfaces=[], 
+    isOrganised=False, crack=None, openBoundary=None, folder=""):
+
+        factory = self.__factory
+
+        if factory == gmsh.model.occ:
+            isOrganised = False
+            factory = cast(gmsh.model.occ, factory)
+        elif factory == gmsh.model.geo:
+            factory = cast(gmsh.model.geo, factory)
+        else:
+            raise "factory inconnue"
 
         tic = Tic()
         if dim == 2:
@@ -477,7 +527,8 @@ class Interface_Gmsh:
                 # Impose que le maillage soit organisé                        
                 if isOrganised:
                     # Ne fonctionne que pour une surface simple (sans trou ny fissure) et quand on construit le model avec geo et pas occ !
-                    # groups = gmsh.model.getPhysicalGroups()
+                    # Il n'est pas possible de creer une surface setTransfiniteSurface avec occ
+                    # Dans le cas ou il faut forcemenent passé par occ, il n'est donc pas possible de creer un maillage organisé
                     
                     # Quand geo
                     gmsh.model.geo.synchronize()
@@ -485,7 +536,7 @@ class Interface_Gmsh:
                     if points.shape[0] <= 4:
                         #Ici il faut impérativement donner les points du contour quand plus de 3 ou 4 coints
                         gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points) 
-                    # gmsh.model.geo.mesh.setTransfiniteSurface(surface)
+                        # gmsh.model.geo.mesh.setTransfiniteSurface(surf)
 
                 # Synchronisation
                 gmsh.model.occ.synchronize()
@@ -530,8 +581,7 @@ class Interface_Gmsh:
 
             if elemType in ["HEXA8"]:
 
-                # https://onelab.info/pipermail/gmsh/2010/005359.html               
-                
+                # https://onelab.info/pipermail/gmsh/2010/005359.html
 
                 entities = gmsh.model.getEntities(2)
                 surfaces = np.array(entities)[:,1]
@@ -679,7 +729,7 @@ class Interface_Gmsh:
         for t, elemType in enumerate(GroupElem.get_Types2D()):
             for isOrganised in [True, False]:
                     
-                mesh = interfaceGmsh.Rectangle(domain=domain, elemType=elemType, isOrganised=isOrganised)
+                mesh = interfaceGmsh.Rectangle_2D(domain=domain, elemType=elemType, isOrganised=isOrganised)
                 assert np.isclose(mesh.aire, aireDomain,1e-4), "Surface incorrect"
                 mesh2 = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=False)
                 assert np.isclose(mesh2.aire, aireDomain,1e-4), "Surface incorrect"

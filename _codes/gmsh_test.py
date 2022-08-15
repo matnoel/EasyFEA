@@ -4,7 +4,9 @@ from Geom import *
 import Affichage
 import Simu
 import matplotlib.pyplot as plt
-from Materiaux import Materiau, Elas_Isot
+from Materials import Materiau, Elas_Isot
+
+dim = 3
 
 L = 50e-3
 h = L*0.3
@@ -15,15 +17,25 @@ pt3 = Point(x=L,y=h)
 pt4 = Point(x=h, y=h)
 pt5 = Point(x=h, y=L)
 pt6 = Point(y=L)
+pt7 = Point(x=h, y=h)
 
-interface = Interface_Gmsh(affichageGmsh=False)
-mesh = interface.MeshFromGeom2D([pt1, pt2, pt3, pt4, pt5, pt6], isOrganised=True, elemType="QUAD8", tailleElement=h/10)
+# listPoint = [pt1, pt2, pt3, pt4, pt5, pt6]
+listPoint = [pt1, pt2, pt3, pt7]
+
+interface = Interface_Gmsh(affichageGmsh=True)
+if dim == 2:
+    mesh = interface.Mesh_From_Points_2D(listPoint, 
+    elemType="TRI3", tailleElement=h/10, isOrganised=False)
+elif dim == 3:
+    # ["TETRA4", "HEXA8", "PRISM6"]
+    mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h],
+    elemType="HEXA8", isOrganised=True, tailleElement=h/10)
 
 noeudsGauche = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeudsDroit = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
 
 Affichage.Plot_Maillage(mesh)
-# plt.show()
+plt.show()
 
 comportement = Elas_Isot(2, contraintesPlanes=True, epaisseur=h)
 
