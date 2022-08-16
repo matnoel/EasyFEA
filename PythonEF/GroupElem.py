@@ -595,7 +595,7 @@ class GroupElem:
 
                     invF_e_pg = np.einsum('ep,epij->epij',1/det, invF_e_pg, optimize='optimal')
                 elif self.dim == 3:
-                    # TODO a optimiser https://fr.wikihow.com/calculer-l'inverse-d'une-matrice-3x3
+                    # optimisé tel que https://fr.wikihow.com/calculer-l'inverse-d'une-matrice-3x3
 
                     det = self.get_jacobien_e_pg(matriceType)
 

@@ -4,7 +4,7 @@ import Dossier
 import numpy
 import os
 
-# TODO Faire ça pour installer mon code Python ?
+# Faire ça pour compiler les fonctions ecrit en cython
 
 folder = Dossier.GetPath(__file__)
 

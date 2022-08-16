@@ -622,7 +622,7 @@ class PhaseFieldModel:
         return self.__useHistory
 
     def __init__(self, loiDeComportement: LoiDeComportement, split: str, regularization: str, Gc: float, l_0: float,
-    useHistory=True):
+    useHistory=True, useNumba=False):
         """Création d'un comportement Phase Field
 
             Parameters
@@ -661,9 +661,12 @@ class PhaseFieldModel:
         """Largeur de régularisation de la fissure"""
 
         self.__useHistory = useHistory
-        """Utilise ou non le champ histoire"""        
+        """Utilise ou non le champ histoire"""
+
+        self.__useNumba = useNumba
+        """Utilise ou non les fonctions numba"""
             
-    def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray, useNumba=False):
+    def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique\n
         psiP_e_pg = 1/2 SigmaP_e_pg * Epsilon_e_pg\n
         psiM_e_pg = 1/2 SigmaM_e_pg * Epsilon_e_pg\n
@@ -676,7 +679,9 @@ class PhaseFieldModel:
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
-        SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg, useNumba)
+        SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
+
+        useNumba = self.__useNumba
 
         if useNumba:
             psiP_e_pg, psiM_e_pg = CalcNumba.Calc_psi_e_pg(Epsilon_e_pg, SigmaP_e_pg, SigmaM_e_pg)
@@ -686,7 +691,7 @@ class PhaseFieldModel:
 
         return psiP_e_pg, psiM_e_pg
 
-    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, useNumba=False):
+    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul la contrainte en fonction de la deformation et du split\n
         Ici on calcul :\n
         SigmaP_e_pg = cP_e_pg * Epsilon_e_pg \n
@@ -707,8 +712,9 @@ class PhaseFieldModel:
         nPg = Epsilon_e_pg.shape[1]
         comp = Epsilon_e_pg.shape[2]
 
-        cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
+        useNumba = self.__useNumba
 
+        cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 
         if useNumba:
             SigmaP_e_pg, SigmaM_e_pg = CalcNumba.Calc_Sigma_e_pg(Epsilon_e_pg, cP_e_pg, cM_e_pg)
@@ -755,13 +761,13 @@ class PhaseFieldModel:
             cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
         elif self.__split in ["Miehe","AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
-            cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif)
+            cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
         
         elif self.__split in ["Stress","AnisotStress","AnisotStress_NoCross"]:
-            cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif)
+            cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
 
         elif self.__split in ["He","HeStress"]:
-            cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif)
+            cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
 
         fonctionQuiAppelle = stack()[2].function
 
@@ -771,13 +777,14 @@ class PhaseFieldModel:
             problem = "rigi"
 
 
-        tac = tic.Tac("Matrices",f"{self.__split} ({problem})", False)
+        tac = tic.Tac("Matrices",f"cP cM : {self.__split} ({problem})", False)
 
         return cP_e_pg, cM_e_pg
 
     def __Split_Amor(self, Epsilon_e_pg: np.ndarray):
 
         assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
+        # useNumba = self.__useNumba
         useNumba=False
 
         loiDeComportement = self.__loiDeComportement                
@@ -850,7 +857,7 @@ class PhaseFieldModel:
         dim = self.__loiDeComportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
-        useNumba=True
+        useNumba = self.__useNumba
 
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg, verif)
 
@@ -876,12 +883,12 @@ class PhaseFieldModel:
             cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
             cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
 
-            projecteurs = {
-                "projP_e_pg" : projP_e_pg,
-                "projM_e_pg" : projM_e_pg,
-                "spherP_e_pg" : spherP_e_pg,
-                "spherM_e_pg" : spherM_e_pg
-            }
+            # projecteurs = {
+            #     "projP_e_pg" : projP_e_pg,
+            #     "projM_e_pg" : projM_e_pg,
+            #     "spherP_e_pg" : spherP_e_pg,
+            #     "spherM_e_pg" : spherM_e_pg
+            # }
         
         elif self.__split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
             
@@ -1101,6 +1108,8 @@ class PhaseFieldModel:
 
         tic = Tic()
 
+        useNumba = self.__useNumba
+
         coef = self.__loiDeComportement.coef
 
         dim = self.__loiDeComportement.dim
@@ -1173,8 +1182,8 @@ class PhaseFieldModel:
         valm = (val_e_pg-np.abs(val_e_pg))/2
         
         # Calcul des di [e,pg,2]
-        dvalp = np.heaviside(val_e_pg,0.5)
-        dvalm = np.heaviside(-val_e_pg,0.5)
+        dvalp = np.heaviside(val_e_pg, 0.5)
+        dvalm = np.heaviside(-val_e_pg, 0.5)
         
         # Calcul des Beta Plus [e,pg,1]
         BetaP = dvalp[:,:,0].copy()
@@ -1190,18 +1199,20 @@ class PhaseFieldModel:
         
         matriceI = np.eye(3)
 
-        # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
-        BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize='optimal')
-        gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize='optimal')
-        gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize='optimal')
-        projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
-        
+        if useNumba:
+            projP, projM = CalcNumba.Get_projP_projM(BetaP, gammap, BetaM, gammam, m1xm1, m2xm2)
+        else:
+            # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
+            BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize='optimal')
+            gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize='optimal')
+            gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize='optimal')
+            projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
 
-        # Projecteur M tel que EpsM = projM : Eps
-        BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize='optimal')
-        gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize='optimal')
-        gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize='optimal')
-        projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
+            # Projecteur M tel que EpsM = projM : Eps
+            BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize='optimal')
+            gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize='optimal')
+            gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize='optimal')
+            projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
 
         if verif:
             # Verification de la décomposition et de l'orthogonalité

@@ -188,7 +188,7 @@ class Test_Materiau(unittest.TestCase):
                 if isinstance(comportement, Elas_IsotTrans):
                     pass
 
-            cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), True)
+            cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
 
             # Test que cP + cM = c
             decompC = c-(cP_e_pg+cM_e_pg)

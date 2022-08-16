@@ -256,22 +256,19 @@ f_e_pg: np.ndarray, SourcePart_e_pg: np.ndarray):
     assert dimI == DiffusePart_e_pg.shape[2], "Mauvaise dimension"
     assert dimJ == DiffusePart_e_pg.shape[3], "Mauvaise dimension"
 
-    K_r_e = np.zeros((Ne, dimI, dimJ))
-    K_K_e = np.zeros((Ne, dimI, dimJ))
-    Fd_e = np.zeros((Ne, dimI, 1))
-
+    K_r_e = np.zeros((Ne, dimI, dimJ), dtype=float)
+    K_K_e = np.zeros((Ne, dimI, dimJ), dtype=float)
+    Fd_e = np.zeros((Ne, dimI, 1), dtype=float)
 
     for e in range(Ne):
         for p in range(nPg):
             for i in range(dimI):
-                Fd_e[e, i, 0] += f_e_pg[e, p] * SourcePart_e_pg[e, p, i, 0]
                 for j in range(dimJ):
                     K_r_e[e, i, j] += r_e_pg[e, p] * ReactionPart_e_pg[e, p, i, j]
                     K_K_e[e, i, j] += k * DiffusePart_e_pg[e, p, i, j]
+                Fd_e[e, i, 0] += f_e_pg[e, p] * SourcePart_e_pg[e, p, i, 0]
     
-    Kd_e = K_r_e + K_K_e
-
-    return Kd_e, Fd_e
+    return K_r_e + K_K_e, Fd_e
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Calc_psi_e_pg(Epsilon_e_pg: np.ndarray, SigmaP_e_pg: np.ndarray, SigmaM_e_pg: np.ndarray):
@@ -376,5 +373,33 @@ partieDeviateur: np.ndarray, IxI: np.ndarray, bulk):
 
     return cP_e_pg, cM_e_pg
 
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
+def Get_projP_projM(BetaP: np.ndarray, gammap: np.ndarray,
+BetaM: np.ndarray, gammam: np.ndarray,
+m1xm1: np.ndarray, m2xm2: np.ndarray):
+
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+
+    matriceI = np.eye(3)
+
+    Ne = BetaP.shape[0]
+    nPg = BetaP.shape[1]
+    dimI = matriceI.shape[0]
+    dimJ = matriceI.shape[1]
+
+    projP = np.zeros((Ne, nPg, dimI, dimJ))
+    projM = np.zeros((Ne, nPg, dimI, dimJ))
+
+    for e in range(Ne):
+        for p in range(nPg):
+            for i in range(dimI):
+                for j in range(dimJ):
+                    projP[e,p,i,j] = BetaP[e,p] * matriceI[i,j] + gammap[e,p,0] * m1xm1[e,p,i,j] + gammap[e,p,1] * m2xm2[e,p,i,j]
+                    projM[e,p,i,j] = BetaM[e,p] * matriceI[i,j] + gammam[e,p,0] * m1xm1[e,p,i,j] + gammam[e,p,1] * m2xm2[e,p,i,j]
+
+    return projP, projM
 
 
