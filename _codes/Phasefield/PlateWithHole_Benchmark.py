@@ -15,15 +15,16 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=True
+test=False
 solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-split = "Amor" # ["Bourdin","Amor","Miehe","AnisotMiehe","AnisotMiehe_NoCross","He","Stress","AnisotStress","AnisotStress_NoCross"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 useHistory=True
+
+useNumba=True
 
 # Convergence
 maxIter = 250
@@ -38,7 +39,7 @@ umax = 35e-6
 # ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 # ["AnisotStress","AnisotStress_NoCross"]
 # ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotMiehe"]
-for split in ["Bourdin"]: 
+for split in ["AnisotMiehe"]: 
 
     # Data
 
@@ -123,8 +124,8 @@ for split in ["Bourdin"]:
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
         # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
 
-        Affichage.Plot_Maillage(mesh)
-        plt.show()
+        # Affichage.Plot_Maillage(mesh)
+        # # plt.show()
 
         if simpli2D == "CP":
             isCp = True
@@ -140,10 +141,11 @@ for split in ["Bourdin"]:
                         contraintesPlanes=isCp, epaisseur=ep,
                         axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-        phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
+        phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0,
+        useHistory=useHistory, useNumba=useNumba)
         materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel)
 
-        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=False)
+        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
 
         # Récupérations des noeuds
 
@@ -267,9 +269,8 @@ for split in ["Bourdin"]:
         displacement = np.array(displacement)
 
         # Sauvegarde
-        PostTraitement.Save_Simu(simu, folder)
-
         PostTraitement.Save_Load_Displacement(load, displacement, folder)
+        PostTraitement.Save_Simu(simu, folder)
             
     else:
 

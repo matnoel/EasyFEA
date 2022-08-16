@@ -87,7 +87,7 @@ if solve:
     isOrganised=True, openCrack=openCrack)
 
     Affichage.Plot_Maillage(mesh)
-    plt.show()
+    # plt.show()
 
     # Récupère les noeuds qui m'interessent
     noeuds_Milieu = mesh.Nodes_Line(line)
@@ -111,7 +111,7 @@ if solve:
 
     materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
-    simu = Simu(mesh, materiau, verbosity=False)
+    simu = Simu(mesh, materiau, verbosity=False, useNumba=False)
 
     # Renseignement des conditions limites
     def Chargement(dep):
