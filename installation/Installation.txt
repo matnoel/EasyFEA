@@ -1,0 +1,23 @@
+Il faut aller chercher le projet sur git https://github.com/matnoel/PythonEF.git
+
+il faut installer sur python :
+numpy -> pour les calculs rapides notament einsum
+scipy -> pour la construction de matrices creuses
+matplotlib -> pour afficher les résultats
+gmsh -> pour creer le maillage
+pandas -> pour creer des tableaux
+pypardiso -> tres important pour résoudre les système en parallel
+numba -> module pour compiler des fonctions executables en parallel
+pickle -> Pour la sauvegarde
+scikit-umfpack -> Pas obligatoire
+
+installer cholmod pour la decomposition de cholesky
+
+Il faut impérativement ajouter le dossier dans lequel est contenu les modules et classes dans le path
+
+sur linux :
+	export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/PythonEF
+	
+sur windows : 
+	modifier les variables du système -> variables d'environnement -> variables utilisateur
+	PYTHONPATH D:\SOFT\PythonEF\PythonEF
