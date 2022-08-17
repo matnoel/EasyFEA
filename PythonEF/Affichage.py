@@ -95,16 +95,16 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
             ax.clear()
 
         for elem in coord_par_face:
-            coord = coord_par_face[elem]
+            vertices = coord_par_face[elem]
 
             # Trace le maillage
             if affichageMaillage:
-                pc = matplotlib.collections.LineCollection(coord, edgecolor='black', lw=0.5)
+                pc = matplotlib.collections.LineCollection(vertices, edgecolor='black', lw=0.5)
                 ax.add_collection(pc)
 
             # Valeurs aux element
             if mesh.Ne == len(valeurs):
-                pc = matplotlib.collections.PolyCollection(coord, lw=0.5, cmap='jet')
+                pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap='jet')
                 pc.set_clim(valeurs.min(), valeurs.max())
                 pc.set_array(valeurs)
                 ax.add_collection(pc)
@@ -149,30 +149,30 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         # Construit les vertices du maillage 3D en recupérant le maillage 2D
         maxVal = 0
         minVal = 0
+
         for groupElem2D in mesh.Get_list_groupElem(2):
             connect2D = groupElem2D.connect_e
             coordo2D = groupElem2D.coordoGlob
-            coord =coordo2D[connect2D]
-            
+            vertices = np.asarray(coordo2D[connect2D]) # (Ne, nPe, 3)
 
-            # Trace le maillage
+            valeursAuxFaces = np.asarray(np.mean(valeurs[connect2D], axis=1))
+
+            maxVal = np.max([maxVal, valeursAuxFaces.max()])
+            minVal = np.min([minVal, valeursAuxFaces.min()])
+
             if affichageMaillage:
-                pc = Poly3DCollection(coord, edgecolor='black', linewidths=0.5, cmap='jet')                
+                pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap='jet')
             else:
-                pc = Poly3DCollection(coord, cmap='jet')                    
-            ax.add_collection3d(pc)
+                pc = Poly3DCollection(vertices, cmap='jet')
 
-            valeursAuFaces = np.mean(valeurs[connect2D], axis=1)
-            
-            # valeursAuFaces = valeurs.reshape(mesh.Ne, 1).repeat(mesh.get_nbFaces(), axis=1).reshape(-1)
-            
-            # ax.scatter(coordo[:,0],coordo[:,1],coordo[:,2], linewidth=0, alpha=0)
-            pc.set_clim(valeursAuFaces.min(), valeursAuFaces.max())
-            pc.set_array(valeursAuFaces)
+            pc.set_array(valeursAuxFaces)
 
-            ax.add_collection(pc)
+            ax.add_collection3d(pc, zs=2, zdir='x')
+            # ax.add_collection3d(pc)
         
-        cb = fig.colorbar(pc, ax=ax)       
+        pc.set_clim(minVal, maxVal)
+        
+        cb = fig.colorbar(pc, ax=ax)
         # ax.set_xlabel("x [mm]")
         # ax.set_ylabel("y [mm]")
         # ax.set_zlabel("z [mm]")            
@@ -255,12 +255,12 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         coordo_Deforme_redim = coordoDeforme[:,range(dim)]
         coordo_par_face_deforme = {}
 
-    for elem in connect_Faces:
-        faces = connect_Faces[elem]
-        coord_par_face[elem] = coord_NonDeforme_redim[faces]
+    for elemType in connect_Faces:
+        faces = connect_Faces[elemType]
+        coord_par_face[elemType] = coord_NonDeforme_redim[faces]
 
         if deformation:
-            coordo_par_face_deforme[elem] = coordo_Deforme_redim[faces]
+            coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
 
     # ETUDE 2D
     if dim == 2:
@@ -268,15 +268,15 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         if ax == None:
             fig, ax = plt.subplots()
 
-        for elem in coord_par_face:
-            coord = coord_par_face[elem]
+        for elemType in coord_par_face:
+            coordFaces = coord_par_face[elemType]
 
             if deformation:
-                coordDeforme = coordo_par_face_deforme[elem]
+                coordDeforme = coordo_par_face_deforme[elemType]
 
                 # Superpose maillage non deformé et deformé
                 # Maillage non deformés            
-                pc = matplotlib.collections.LineCollection(coord, edgecolor='black', lw=lw, antialiaseds=True, zorder=1)
+                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=lw, antialiaseds=True, zorder=1)
                 ax.add_collection(pc)
 
                 # Maillage deformé                
@@ -285,9 +285,9 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
             else:
                 # Maillage non deformé
                 if alpha == 0:
-                    pc = matplotlib.collections.LineCollection(coord, edgecolor='black', lw=lw)
+                    pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=lw)
                 else:
-                    pc = matplotlib.collections.PolyCollection(coord, facecolors='c', edgecolor='black', lw=lw)
+                    pc = matplotlib.collections.PolyCollection(coordFaces, facecolors='c', edgecolor='black', lw=lw)
                 ax.add_collection(pc)
         
         ax.autoscale()
@@ -304,18 +304,23 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         # ax = fig.add_subplot(projection="3d")
 
         if deformation:
-            coordDeforme = coordo_par_face_deforme[elem]
+            # Affiche que les elements 2D
 
-            for elem in coord_par_face:
-                coord = coord_par_face[elem]
+            for groupElem2D in mesh.Get_list_groupElem(2):
+                faces = groupElem2D.get_connect_Faces()[groupElem2D.elemType]
+                coordDeformeFaces = coordoDeforme[faces]
+                coordFaces = groupElem2D.coordoGlob[faces]
 
                 # Supperpose les deux maillages
                 # Maillage non deformé
                 # ax.scatter(x,y,z, linewidth=0, alpha=0)
-                ax.add_collection3d(Poly3DCollection(coord, edgecolor='black', linewidths=0.5, alpha=0))
+                pcNonDef = Poly3DCollection(coordFaces, edgecolor='black', linewidths=0.5, alpha=0)
+                ax.add_collection3d(pcNonDef)
 
                 # Maillage deformé
-                ax.add_collection3d(Poly3DCollection(coordDeforme, edgecolor='red', linewidths=0.5, alpha=0))
+                pcDef = Poly3DCollection(coordDeformeFaces, edgecolor='red', linewidths=0.5, alpha=0)
+                ax.add_collection3d(pcDef)
+                
         else:
             # Maillage non deformé
 
@@ -325,16 +330,20 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
                 connect2D = groupElem2D.connect_e
                 coordo2D = groupElem2D.coordoGlob
-                coord = coordo2D[connect2D]
+                coordFaces = coordo2D[connect2D]
 
-                ax.add_collection3d(Poly3DCollection(coord, facecolors='c', edgecolor='black', linewidths=0.5, alpha=alpha))
-        
+                pc = Poly3DCollection(coordFaces, facecolors='c', edgecolor='black', linewidths=0.5, alpha=alpha)
+
+                ax.add_collection3d(pc, zs=0, zdir='z')
+
+            
+        __ChangeEchelle(ax, coordo)
         # ax.autoscale()
         # ax.set_xlabel("x [mm]")
         # ax.set_ylabel("y [mm]")
         # ax.set_zlabel("z [mm]")
 
-        __ChangeEchelle(ax, coordo)
+        
     
     if title == "":
         title = f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}"
@@ -395,7 +404,7 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
         elemType = groupElemDim.elemType
 
         if len(nodes) > 0:
-            elements = groupElemDim.get_elements(nodes)
+            elements = groupElemDim.get_elementsIndex(nodes)
         else:
             elements = np.arange(groupElemDim.Ne)
 
@@ -536,7 +545,7 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
 
     simu = cast(Simu, simu)
 
-    coordo = simu.mesh.coordo
+    coordo = simu.mesh.coordoGlob
 
     if deformation:
 
