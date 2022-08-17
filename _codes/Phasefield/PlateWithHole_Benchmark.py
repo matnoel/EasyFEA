@@ -122,7 +122,7 @@ for split in ["Amor"]:
         circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
 
         interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
-        mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "TRI3")
+        mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI3")
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
         # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
 

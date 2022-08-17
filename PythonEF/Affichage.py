@@ -10,28 +10,42 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, title="",
-    affichageMaillage=False, valeursAuxNoeuds=False,
-    folder="", filename="", colorbarIsClose=False,
-    oldfig=None, oldax=None):
-
-    """Affichage de la simulation
+def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, title="", affichageMaillage=False, valeursAuxNoeuds=False, folder="", filename="", colorbarIsClose=False, oldfig=None, oldax=None):
+    """Affichage d'un résulat de la simulation
 
     Parameters
     ----------
-    simu : Simu
-        Simulation
-    val : str
-        Ce quil sera affiché
+    simu : _type_
+        _description_
+    option : str
+        resultat que l'on souhaite utiliser. doit être compris dans Simu.ResultatsCalculables()
     deformation : bool, optional
-        deformation du domaine, by default False
+        affiche la deformation, by default False
     facteurDef : int, optional
-        facteur de deformation du domaine, by default 4
+        facteur de deformation, by default 4
+    coef : int, optional
+        coef qui sera appliqué a la solution, by default 1
+    title : str, optional
+        titre de la figure, by default ""
     affichageMaillage : bool, optional
-        affcihe le mailllage, by default False
+        affiche le maillage, by default False
+    valeursAuxNoeuds : bool, optional
+        affiche le resultat aux noeuds sinon l'affiche aux elements, by default False
+    folder : str, optional
+        dossier de sauvegarde, by default ""
+    filename : str, optional
+        nom du fichier de sauvegarde, by default ""
+    colorbarIsClose : bool, optional
+        la color bar est affiché proche de la figure, by default False
+    oldfig : _type_, optional
+        ancienne figure de matplotlib, by default None
+    oldax : _type_, optional
+        ancien axe de matplotlib, by default None
 
-
-    renvoie fig, ax, cb
+    Returns
+    -------
+    Figure, Axe, colorbar
+        fig, ax, cb
     """
 
     # Detecte si on donne bien ax et fig en meme temps
@@ -205,19 +219,25 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
     Parameters
     ----------
     obj : Simu or Mesh
-        obj that contains mesh
+        objet qui contient le maillage
+    ax : plt.Axes, optional
+        Axes dans lequel on va creer la figure, by default None
     facteurDef : int, optional
         facteur de deformation, by default 4
     deformation : bool, optional
-        affiche le maillage deformé, by default False
+        affiche la deformation, by default False
     lw : float, optional
         epaisseur des traits, by default 0.5
     alpha : int, optional
-        transparence du maillage, by default 1
+        transparence des faces, by default 1
+    folder : str, optional
+        dossier de sauvegarde, by default ""
+    filename : str, optional
+        nom du fichier de sauvegarde, by default ""
 
     Returns
     -------
-    ax : plt.Axes
+    plt.Axes
         Axes dans lequel on va creer la figure
     """
 
@@ -357,7 +377,30 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
     return ax
 
 def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='blue', folder=""):
-    """Affiche les noeuds du maillage"""        
+    """Affiche les noeuds du maillage
+
+    Parameters
+    ----------
+    mesh : Mesh
+        maillage
+    ax : plt.Axes, optional
+        Axes dans lequel on va creer la figure, by default None
+    noeuds : list[np.ndarray], optional
+        noeuds à afficher, by default []
+    showId : bool, optional
+        affiche les numéros, by default False
+    marker : str, optional
+        type de marker (matplotlib.markers), by default '.'
+    c : str, optional
+        couleur du maillage, by default 'blue'
+    folder : str, optional
+        dossier de sauvegarde, by default ""    
+
+    Returns
+    -------
+    plt.Axes
+        Axes dans lequel on va creer la figure
+    """
     
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
@@ -385,7 +428,31 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
 
     return ax
 
-def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, marker='.', c='black', folder=""):
+def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, c='red', folder=""):
+    """Affiche les elements du maillage en fonction des numéros de noeuds
+
+    Parameters
+    ----------
+    mesh : Mesh
+        maillage
+    ax : plt.Axes, optional
+        Axes dans lequel on va creer la figure, by default None
+    dimElem : int, optional
+        dimension de l'element recherché, by default None
+    nodes : list, optional
+        numeros des noeuds, by default []
+    showId : bool, optional
+        affiche les numéros, by default False    
+    c : str, optional
+        couleur utilisé pour afficher les elements, by default 'red'
+    folder : str, optional
+        dossier de sauvegarde, by default ""
+
+    Returns
+    -------
+    plt.Axes
+        Axes dans lequel on va creer la figure
+    """
 
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
@@ -422,9 +489,9 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
         if mesh.dim in [1,2]:
             if len(nodes) > 0:
                 if groupElemDim.dim == 1:
-                    pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor='red', lw=1, zorder=24)
+                    pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor=c, lw=1, zorder=24)
                 else:
-                    pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.dim)], facecolors='red', edgecolor='black', lw=0.5, alpha=1)
+                    pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.dim)], facecolors=c, edgecolor='black', lw=0.5, alpha=1)
                 ax.add_collection(pc)
 
             # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=24)
@@ -452,6 +519,21 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
 
 
 def Plot_BoundaryConditions(simu, folder=""):
+    """Affichage des conditions limites
+
+    Parameters
+    ----------
+    simu : Simu
+        simulation
+    folder : str, optional
+        dossier de sauvegarde, by default ""
+
+    Returns
+    -------
+    plt.Axes
+        Axes dans lequel on va creer la figure
+    """
+
     from Simu import Simu
     from BoundaryCondition import BoundaryCondition
 
@@ -540,6 +622,22 @@ def Plot_BoundaryConditions(simu, folder=""):
 
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
+    """Recupération des coordonnée déformées si la simulation le permet
+
+    Parameters
+    ----------
+    simu : Simu
+        simulation
+    deformation : bool
+        calcul de la deformation
+    facteurDef : float
+        facteur de deformation
+
+    Returns
+    -------
+    np.ndarray
+        coordonnées du maillage globle déformé
+    """
     
     from Simu import Simu
 
@@ -561,13 +659,17 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
         return coordo, deformation
 
 def __ChangeEchelle(ax, coordo: np.ndarray):
-    """Change la taille des axes pour l'affichage 3D
+    """Change la taille pour l'affichage en 3D\n
+    Va centrer la pièce et faire en sorte que les axes soient de la bonne taille
 
     Parameters
     ----------
     ax : plt.Axes
         Axes dans lequel on va creer la figure
+    coordo : np.ndarray
+        coordonnées du maillage
     """
+
     # Change la taille des axes
     xmin = np.min(coordo[:,0]); xmax = np.max(coordo[:,0])
     ymin = np.min(coordo[:,1]); ymax = np.max(coordo[:,1])
@@ -592,14 +694,27 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     
 
 def NouvelleSection(text: str):
-    """Creer une nouvelle section dans la console"""
+    """Creation d'une nouvelle section
+
+    Parameters
+    ----------
+    text : str
+        titre de la section
+    """
     # print("\n==========================================================")
     # print("{} :".format(text))
     bord = "======================="
-    print("\n\n{} {} {}\n".format(bord,text,bord))
+
+    longeurTexte = len(text)
+
+    longeurMax = 45
+
+    bord = "="*int((longeurMax - longeurTexte)/2)
+
+    print(f"\n\n{bord} {text} {bord}\n")
 
 def Clear():
-    """Nettoie la console"""
+    """Nettoie le terminal de commande"""
     syst = platform.system()
     if syst == "Linux":
         os.system("clear")

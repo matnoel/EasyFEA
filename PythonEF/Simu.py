@@ -67,10 +67,12 @@ class Simu:
 
 # ------------------------------------------- FONCTIONS ------------------------------------------- 
 
+    problemTypes = ["displacement","damage"]
+
     @staticmethod
     def CheckProblemTypes(problemType:str):
         """Verifie si ce type de probleme est implénté"""
-        problemTypes = ["displacement","damage"]
+        problemTypes = Simu.problemTypes
         assert problemType in problemTypes, "Ce type de probleme n'est pas implémenté"
 
     @staticmethod
@@ -1174,6 +1176,27 @@ class Simu:
         return Sigma_e_pg
 
 
+    @staticmethod
+    def ResultatsCalculables(dim: int) -> dict:
+        if dim == 2:
+            options = {
+                "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
+                "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
+                "Damage" :["damage","psiP"]
+            }
+        elif dim == 3:
+            options = {
+                "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
+                "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Energie" :["Wdef","Psi_Elas"]
+            }
+        
+        return options
+
+
     def VerificationOption(self, option):
         """Verification que l'option est bien calculable dans GetResultat
 
@@ -1189,21 +1212,7 @@ class Simu:
         """
         # Construit la liste d'otions pour les résultats en 2D ou 3D
         dim = self.__dim
-        if dim == 2:
-            categories = {
-                "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
-                "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
-                "Damage" :["damage","psiP"]
-            }
-        elif dim == 3:
-            categories = {
-                "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
-                "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Energie" :["Wdef","Psi_Elas"]
-            }
+        categories = Simu.ResultatsCalculables(dim)
 
         # Verfication que l'option est dans dans les options
         ContenueDansOptions=False

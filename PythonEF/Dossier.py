@@ -1,12 +1,24 @@
 import os
+from typing import List
 # import 
 # export PYTHONPATH=$PYTHONPATH:/home/matthieu/Documents/PythonEF/classes
 # export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/classes
 
-def GetPath(filename=None):
-    """Renvoie le path du fichier ou renvoie le path vers le fichier Dossier donc renvoie Python Ef"""
+def GetPath(filename="") -> str:
+    """Renvoie le path du fichier ou renvoie le path vers le dossier Python Ef
+
+    Parameters
+    ----------
+    filename : str, optional
+        fichier, by default ""
+
+    Returns
+    -------
+    str
+        filename complet
+    """
     
-    if filename == None:
+    if filename == "":
         # Renvoie le path vers PythonEF
         path = os.path.dirname(__file__)
         path = os.path.dirname(path)
@@ -16,26 +28,28 @@ def GetPath(filename=None):
 
     return path
 
-def NewFile(filename: str, pathname=GetPath(), results=False):
-    """Renvoie le path vers le fichier avec l'extension ou non
-    filename peut etre : un fichier ou un dossier
+def NewFile(filename: str, pathname=GetPath(), results=False) -> str:
+    """Renvoie le path vers le fichier avec l'extension ou non\n
+    filename peut etre : un fichier ou un dossier\n
     De base le path renvoie vers le path ou est PythonEF
-    
-    if results:
-        filename = resultsPath/filename
-    else:
-        filename = path/filename
-    
-    la liaison dépend de l'os ubuntu mac linux
-    """
 
+    Parameters
+    ----------
+    filename : str
+        nom du fichier ou du dossier
+    pathname : str, optional
+        _description_, by default GetPath()
+    results : bool, optional
+        enregistre dans PythonEF/results/filename ou pathname/filename, by default False
+
+    Returns
+    -------
+    str
+        filename complet
+    """
+    
     if results:
-        pathname = os.path.join(pathname, "results")        
-        # path = ResultsHere.Get_Results_Path()
-        # ResultsHere.py
-        # def Get_Results_Path():
-        #     import Dossier
-        #     return Dossier.GetPath(__file__)
+        pathname = os.path.join(pathname, "results")
     filename = os.path.join(pathname, filename)    
         
     destination = GetPath(filename)    
@@ -46,7 +60,20 @@ def NewFile(filename: str, pathname=GetPath(), results=False):
 
     return filename
 
-def Join(list):
+def Join(list: List[str]) -> str:
+    """Construit le path en fonction d'une liste de nom
+
+    Parameters
+    ----------
+    list : List[str]
+        liste de nom
+
+    Returns
+    -------
+    str
+        filename complet
+    """
+
     file = ""
     for f in list:
         file = os.path.join(file, f)

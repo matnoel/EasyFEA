@@ -12,10 +12,22 @@ from TicTac import Tic
 import Affichage as Affichage
 import matplotlib.pyplot as plt
 
-class Interface_Gmsh:   
+class Interface_Gmsh:
+    """Classe interface Gmsh"""
 
-    def __init__(self, useOcc=True, affichageGmsh=False, gmshVerbosity=False, verbosity=True):
-            
+    def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=True):
+        """Construction d'une interface qui peut intéragir avec gmsh
+
+        Parameters
+        ----------
+        affichageGmsh : bool, optional
+            affichage du maillage construit dans gmsh, by default False
+        gmshVerbosity : bool, optional
+            gmsh peut ecrire dans le terminal, by default False
+        verbosity : bool, optional
+            la classe interfaceGmsh peut ecrire dans le terminal, by default True
+        """
+    
         self.__affichageGmsh = affichageGmsh
         """affichage du maillage sur gmsh"""
         self.__gmshVerbosity = gmshVerbosity
@@ -27,6 +39,7 @@ class Interface_Gmsh:
             Affichage.NouvelleSection("Maillage Gmsh")
 
     def __initGmsh(self):
+        """Initialise gmsh"""
         gmsh.initialize()
         self.__factory = None
         if self.__gmshVerbosity == False:
@@ -34,23 +47,29 @@ class Interface_Gmsh:
         gmsh.model.add("model")
     
     def __CheckType(self, dim: int, elemType: str):
+        """Verification si le type d'element est bien possible"""
         if dim == 2:
             assert elemType in GroupElem.get_Types2D()                        
         elif dim == 3:
             assert elemType in GroupElem.get_Types3D()
 
     def Importation3D(self, fichier="", tailleElement=0.0, folder=""):
-        """importation du fichier 3D
+        """Construis le maillage 3D depuis l'importation d'un fichier 3D et création du maillage (.stp ou .igs)
 
-        Args:
-            fichier (str, optional): fichier 3D en .stp ou autres. Defaults to "".
-            tailleElement (float, optional): taille d'element a utiliser. Defaults to 0.0.
-            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
+        Parameters
+        ----------
+        fichier : str, optional
+            fichier (.stp, .igs) que gmsh va charger pour creer le maillage, by default ""
+        tailleElement : float, optional
+            taille de maille, by default 0.0
+        folder : str, optional
+            dossier de sauvegarde du maillage .msh, by default ""
 
-        Returns:
-            Mesh: maillage construit
+        Returns
+        -------
+        Mesh
+            Maillage construit
         """
-
         # Lorsqu'on importe une pièce on ne peut utiliser que du TETRA4
         elemType = "TETRA4"
         # Permettre d'autres maillage -> ça semble impossible il faut creer le maillage par gmsh pour maitriser le type d'element
@@ -78,18 +97,27 @@ class Interface_Gmsh:
         return cast(Mesh, self.__Recuperation_Maillage())
 
     def Poutre3D(self, domain: Domain, extrude=[0,0,1], nCouches=1, elemType="HEXA8", isOrganised=True, folder=""):
-        """Creer un 3D depuis un domaine que l'on extrude
+        """Construis le maillage 3D d'une poutre depuis une surface/domaine 2D que l'on extrude
 
-        Args:
-            domain (Domain): surface de base qui sera extrudé
-            extrude (list, optional): valeurs de l'extrustion suivant x y z dans lordre. Defaults to [0,0,1].
-            nCouches (int, optional): nombre de couches dans l'extrusion. Defaults to 1.
-            elemType (str, optional): type delement. Defaults to "HEXA8" in ["TETRA4", "HEXA8", "PRISM6"].
-            isOrganised (bool, optional): le maillage est organisé. Defaults to True.
-            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
+        Parameters
+        ----------
+        domain : Domain
+            domaine / surface que l'on va extruder
+        extrude : list, optional
+            directions et valeurs d'extrusion, by default [0,0,1]
+        nCouches : int, optional
+            nombre de couhes dans l'extrusion, by default 1
+        elemType : str, optional
+            type d'element utilisé, by default "HEXA8"
+        isOrganised : bool, optional
+            le maillage est organisé, by default True
+        folder : str, optional
+            dossier de sauvegarde du maillage .msh, by default ""
 
-        Returns:
-            Mesh: maillage construit
+        Returns
+        -------
+        Mesh 
+            Maillage construit
         """
 
         self.__initGmsh()
@@ -112,6 +140,21 @@ class Interface_Gmsh:
     
     
     def __Extrusion(self, surfaces: list, extrude=[0,0,1], elemType="HEXA8", isOrganised=True, nCouches=1):
+        """Fonction qui effectue l'extrusion depuis plusieurs surfaces
+
+        Parameters
+        ----------
+        surfaces : list[int]
+            liste de surfaces
+        extrude : list, optional
+            directions et valeurs d'extrusion, by default [0,0,1]
+        elemType : str, optional
+            type d'element utilisé, by default "HEXA8"
+        isOrganised : bool, optional
+            le maillage est organisé, by default True
+        nCouches : int, optional
+            nombre de couches dans l'extrusion, by default 1
+        """
         
         factory = self.__factory
 
@@ -147,17 +190,25 @@ class Interface_Gmsh:
 
 
     def Rectangle_2D(self, domain: Domain, elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
-        """Construit un rectangle et renvoie le maillage
+        """Construis le maillge d'un rectange 2D
 
-        Args:
-            domain (Domain): domaine renseigné
-            elemType (str, optional): type d'element utilisé. Defaults to "TRI3" dans ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-            isOrganised (bool, optional): le maillage est il organisé. Defaults to False.
-            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
-            returnSurfaces (bool, optional): Renvoie les surfaces crées. Defaults to False.
+        Parameters
+        ----------
+        domain : Domain
+            domaine 2D qui doit être dans le plan (x,y)
+        elemType : str, optional
+            type d'element utilisé, by default "TRI3"
+        isOrganised : bool, optional
+            le maillage est organisé, by default False
+        folder : str, optional
+            dossier de sauvegarde du maillage .msh, by default ""
+        returnSurfaces : bool, optional
+            renvoie la surface crée, by default False
 
-        Returns:
-            Mesh: maillage construit
+        Returns
+        -------
+        Mesh
+            Maillage construit
         """
 
         self.__initGmsh()                
@@ -209,18 +260,27 @@ class Interface_Gmsh:
 
     def RectangleAvecFissure(self, domain: Domain, crack: Line,
     elemType="TRI3", openCrack=False, isOrganised=False, folder=""):
-        """Construit un rectangle avec une fissure dedans dans le plan 2D
+        """Construis le maillage d'un rectangle avec une fissure dans le plan 2D
 
-        Args:
-            domain (Domain): domaine renseigné qui doit etre contenue dans le plan (x, y)
-            crack (Line): ligne qui carractérise la fissure
-            elemType (str, optional): type d'element utilisé. Defaults to "TRI3" dans ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-            openCrack (bool, optional): la fissure est elle ouverte. Defaults to False.
-            isOrganised (bool, optional): le maillage est il organisé. Defaults to False.
-            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
+        Parameters
+        ----------
+        domain : Domain
+            domaine 2D qui doit etre compris dans le plan (x,y)
+        crack : Line
+            ligne qui va construire la fissure
+        elemType : str, optional
+            type d'element utilisé, by default "TRI3"
+        openCrack : bool, optional
+            la fissure peut s'ouvrir, by default False
+        isOrganised : bool, optional
+            le maillage est organisé, by default False
+        folder : str, optional
+            dossier de sauvegarde du maillge, by default ""
 
-        Returns:
-            Mesh: maillage construit
+        Returns
+        -------
+        Mesh
+            Maillage construit
         """
 
         self.__initGmsh()                
@@ -297,21 +357,29 @@ class Interface_Gmsh:
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def PlaqueAvecCercle(self, domain: Domain, circle: Circle,
+    def PlaqueAvecCercle2D(self, domain: Domain, circle: Circle,
     elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
-        """Construit un rectangle un trou dedans
+        """Construis le maillage 2D d'un rectangle un cercle (creux ou fermé)
 
-        Args:
-            domain (Domain): domaine renseigné qui doit etre contenue dans le plan (x, y)
-            circle (Line): cercle qui peut être ouvert ou fermé
-            elemType (str, optional): type d'element utilisé. Defaults to "TRI3" dans ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-            openCrack (bool, optional): la fissure est elle ouverte. Defaults to False.
-            isOrganised (bool, optional): le maillage est il organisé. Defaults to False.
-            folder (str, optional): fichier de sauvegarde dans lequel on mets le .msh . Defaults to "".
-            returnSurfaces (bool, optional): Renvoie les surfaces crées. Defaults to False.
+        Parameters
+        ----------
+        domain : Domain
+            surface qui doit etre contenu dans le plan (x,y)
+        circle : Circle
+            cercle creux ou plein
+        elemType : str, optional
+            type d'element utilisé, by default "TRI3"
+        isOrganised : bool, optional
+            le maillage est organisé, by default False
+        folder : str, optional
+            dossier de sauvegarde du maillage .msh, by default ""
+        returnSurfaces : bool, optional
+            renvoie la surface, by default False
 
-        Returns:
-            Mesh ou list: maillage construit ou retourne la surface si returnSurfaces=True
+        Returns
+        -------
+        Mesh 
+            Maillage construit
         """
             
         self.__initGmsh()
@@ -403,6 +471,30 @@ class Interface_Gmsh:
 
     def PlaqueAvecCercle3D(self, domain: Domain, circle: Circle, extrude=[0,0,1], nCouches=1,
     elemType="HEXA8", isOrganised=False, folder=""):
+        """Construis le maillage 3D d'un domaine avec un cylindre (creux ou fermé)
+
+        Parameters
+        ----------
+        domain : Domain
+            domaine / surface que l'on va extruder
+        circle : Circle
+            cercle creux ou plein
+        extrude : list, optional
+            directions et valeurs d'extrusion, by default [0,0,1]
+        nCouches : int, optional
+            nombre de couches dans l'extrusion, by default 1
+        elemType : str, optional
+            type d'element utilisé, by default "HEXA8"
+        isOrganised : bool, optional
+            le maillage est organisée, by default False
+        folder : str, optional
+            dossier de sauvegarde du maillage .msh, by default ""
+
+        Returns
+        -------
+        Mesh
+            Maillage construit
+        """
 
         self.__initGmsh()
         self.__CheckType(3, elemType)
@@ -410,7 +502,7 @@ class Interface_Gmsh:
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.PlaqueAvecCercle(domain, circle, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
+        surfaces = self.PlaqueAvecCercle2D(domain, circle, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
 
@@ -421,8 +513,25 @@ class Interface_Gmsh:
         return cast(Mesh, self.__Recuperation_Maillage())
 
     # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.
+    # TODO permettre de mettre des trous ?
 
     def __Surfaces_From_Points(self, pointsList: List[Point], tailleElement: float, returnSurfaces: bool):
+        """Construction d'une liste de surface en fonction d'une liste de points
+
+        Parameters
+        ----------
+        pointsList : List[Point]
+            liste de points
+        tailleElement : float
+            taille de maille
+        returnSurfaces : bool
+            renvoie la surface
+
+        Returns
+        -------
+        List[int]
+            liste de surfaces gmsh
+        """
         
         factory = gmsh.model.occ # fonctionne toujours mais ne peut pas organiser le maillage        
         # factory = gmsh.model.geo # ne fonctionne pas toujours pour des surfaces compliquées
@@ -465,6 +574,28 @@ class Interface_Gmsh:
 
     def Mesh_From_Points_2D(self, pointsList: List[Point],
     elemType="TRI3", tailleElement=0.0, isOrganised=False, folder="", returnSurfaces=False):
+        """Construis le maillage 2D en créant une surface depuis une liste de points
+
+        Parameters
+        ----------
+        pointsList : List[Point]
+            liste de points
+        elemType : str, optional
+            type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        tailleElement : float, optional
+            taille d'element pour le maillage, by default 0.0
+        isOrganised : bool, optional
+            le maillage est organisé, by default False
+        folder : str, optional
+            fichier de sauvegarde du maillage, by default ""
+        returnSurfaces : bool, optional
+            renvoie la surface, by default False
+
+        Returns
+        -------
+        Mesh
+            Maillage 2D
+        """
 
         self.__initGmsh()
         self.__CheckType(2, elemType)
@@ -485,6 +616,30 @@ class Interface_Gmsh:
 
     def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, 
     elemType="TETRA4", tailleElement=0.0, isOrganised=False, folder=""):
+        """Construction d'un maillage 3D depuis une liste de points
+
+        Parameters
+        ----------
+        pointsList : List[Point]
+            liste de points
+        extrude : list, optional
+            extrusion, by default [0,0,1]
+        nCouches : int, optional
+            nombre de couches dans l'extrusion, by default 1
+        elemType : str, optional
+            type d'element, by default "TETRA4" ["TETRA4", "HEXA8", "PRISM6"]
+        tailleElement : float, optional
+            taille d'element pour le maillage, by default 0.0
+        isOrganised : bool, optional
+            le maillage est orgnanisé, by default False
+        folder : str, optional
+            dossier de sauvegarde du maillage .msh, by default ""
+
+        Returns
+        -------
+        Mesh
+            Maillage 3D
+        """
 
         self.__initGmsh()
         self.__CheckType(3, elemType)
@@ -508,6 +663,25 @@ class Interface_Gmsh:
 
     def __Construction_MaillageGmsh(self, dim: int, elemType: str, surfaces=[], 
     isOrganised=False, crack=None, openBoundary=None, folder=""):
+        """Construction du maillage gmsh depuis la geométrie qui a été construit ou importée
+
+        Parameters
+        ----------
+        dim : int
+            dimension du maillage
+        elemType : str
+            type d'element
+        surfaces : List[int], optional
+            liste de surfaces que l'on va mailler, by default []
+        isOrganised : bool, optional
+            le maillage est organisé, by default False
+        crack : int, optional
+            fissure renseigné, by default None
+        openBoundary : int, optional
+            domaine qui peut s'ouvrir, by default None
+        folder : str, optional
+            dossier de sauvegarde du maillage .msh, by default ""
+        """
 
         factory = self.__factory
 
@@ -608,17 +782,12 @@ class Interface_Gmsh:
             tic.Tac("Mesh","Sauvegarde du .geo et du .msh", self.__verbosity)
 
     def __Recuperation_Maillage(self):
-        """Construction du maillage
-
-        Parameters
-        ----------
-        filename : str, optional
-            nom du fichier mesh, by default ""
+        """Récupération du maillage construit
 
         Returns
         -------
         Mesh
-            Maillage crée
+            Maillage construit
         """
 
         # Ancienne méthode qui beugait
@@ -714,6 +883,7 @@ class Interface_Gmsh:
     
     @staticmethod
     def Construction2D(L=10, h=10, taille=3):
+        """Construction des maillage possibles en 2D"""
 
         interfaceGmsh = Interface_Gmsh(verbosity=False)
 
@@ -737,10 +907,10 @@ class Interface_Gmsh:
                 assert np.isclose(mesh2.aire, aireDomain,1e-4), "Surface incorrect"
                 mesh3 = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=True)
                 assert np.isclose(mesh3.aire, aireDomain,1e-4), "Surface incorrect"
-                mesh4 = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, elemType=elemType, isOrganised=isOrganised)
+                mesh4 = interfaceGmsh.PlaqueAvecCercle2D(domain=domain, circle=circle, elemType=elemType, isOrganised=isOrganised)
                 # # assert mesh4.aire - (aireDomain-aireCircle) == 0
                 # Ici on ne verifie pas car il ya trop peu delement pour bien representer le perçage
-                mesh5 = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circleClose, elemType=elemType, isOrganised=isOrganised)
+                mesh5 = interfaceGmsh.PlaqueAvecCercle2D(domain=domain, circle=circleClose, elemType=elemType, isOrganised=isOrganised)
                 assert np.isclose(mesh5.aire, aireDomain,1e-4), "Surface incorrect"
 
                 for m in [mesh, mesh2, mesh3, mesh4, mesh5]:
@@ -750,6 +920,7 @@ class Interface_Gmsh:
 
     @staticmethod
     def Construction3D(L=130, h=13, b=13, taille=130):
+        """Construction des maillage possibles en 3D"""
         # Pour chaque type d'element 3D
 
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)

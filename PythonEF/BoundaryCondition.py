@@ -1,49 +1,90 @@
 
-from typing import cast
+from typing import List, cast
 import numpy as np
 
 class BoundaryCondition:
+    """Classe de condition limite"""
 
     def __init__(self, problemType: str, noeuds: np.ndarray,
     ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
     description: str):
+        """Construit une boundary conditions
+
+        Parameters
+        ----------
+        problemType : str
+            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+        noeuds : np.ndarray
+            noeuds sur lesquels on applique une condition
+        ddls : np.ndarray
+            degrés de liberté associés aux noeuds et aux directions
+        directions : list
+            directions associées doit etre dans "d" ou ["x","y","z"] en fonction du problème
+        valeurs_ddls : np.ndarray
+            valeurs appliquées
+        description : str
+            description de la condition
+        """
 
         assert problemType in ["damage", "displacement"]
         self.__problemType = problemType
+
+        if problemType == "damage":
+            assert directions == "d", "Erreur de direction"
+        elif problemType == "displacement":
+            for d in directions: assert d in ["x","y","z"], "Erreur de direction"
+        self.__directions = directions
 
         self.__noeuds = noeuds
 
         self.__ddls = np.asarray(ddls, dtype=int)
         self.__valeurs_ddls = valeurs_ddls
-        self.__directions = directions
-        
+
         self.description = description
+        """description de la condition"""
 
     @property
     def problemType(self) -> str:
+        """type de problème"""
         return self.__problemType
 
     @property
     def noeuds(self) -> np.ndarray:
+        """noeuds sur lesquels on applique une condition"""
         return self.__noeuds
 
     @property
     def ddls(self) -> np.ndarray:
+        """degrés de liberté associés aux noeuds et aux directions"""
         return self.__ddls
 
     @property
     def valeurs_ddls(self) -> np.ndarray:
+        """valeurs que l'on applique au ddls"""
         return self.__valeurs_ddls
 
     @property
     def directions(self) -> list:
+        """directions associées"""
         return self.__directions
 
-    # Methodes statiques pour construire les ddls
-
     @staticmethod
-    def Get_ddls(problemType, list_Bc_Conditions: list):
-        """Renvoie les ddls du probleme et de la liste de conditions donné"""                        
+    def Get_ddls(problemType: str, list_Bc_Conditions: list) -> np.ndarray:
+        """Renvoie les ddls du probleme et de la liste de conditions donné
+
+        Parameters
+        ----------
+        problemType : str
+            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+        list_Bc_Conditions : list de BoundaryCondition
+            liste de conditions limites
+
+        Returns
+        -------
+        np.ndarray
+            degrés de liberté
+        """
+        
         ddls = []
         for bc in list_Bc_Conditions:
             assert isinstance(bc, BoundaryCondition)            
@@ -52,9 +93,25 @@ class BoundaryCondition:
         return np.array(ddls)
     
     @staticmethod
-    def Get_ddls_connect(dim: int, problemType:str, connect_e: np.ndarray, directions: list):
+    def Get_ddls_connect(dim: int, problemType:str, connect_e: np.ndarray, directions: list) -> np.ndarray:
         """Construit les ddls liées au noeuds de la matrice de connection
-        """    
+
+        Parameters
+        ----------
+        dim : int
+            dimension du probleme
+        problemType : str
+            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+        connect_e : np.ndarray
+            matrice de connectivité
+        directions : list
+            directions
+
+        Returns
+        -------
+        np.ndarray
+            degrés de liberté
+        """
         if problemType == "damage":
             return connect_e.reshape(-1)
         elif problemType == "displacement":
@@ -78,17 +135,24 @@ class BoundaryCondition:
             return ddls_dir.reshape(-1)
     
     @staticmethod
-    def Get_ddls_noeuds(dim: int, problemType:str, noeuds:np.ndarray, directions: list):
+    def Get_ddls_noeuds(dim: int, problemType:str, noeuds:np.ndarray, directions: list) -> np.ndarray:
         """Récupère les ddls liés aux noeuds en fonction du problème et des directions
 
-        Args:
-            dim (int): dimension du problème
-            problemType (str): [displacement, damage]
-            noeuds (np.ndarray): list des noeuds
-            directions (list): directions ["x","y","z"]  (Pas forcément dans l'ordre)
+        Parameters
+        ----------
+        dim : int
+            dimension du problème
+        problemType : str
+            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+        noeuds : np.ndarray
+            noeuds
+        directions : list
+            directions
 
-        Returns:
-            np.ndarray: liste de ddls
+        Returns
+        -------
+        np.ndarray
+            liste de ddls
         """
 
         if problemType == "damage":

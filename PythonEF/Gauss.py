@@ -2,9 +2,19 @@ from typing import cast
 import numpy as np
 
 class Gauss:
+    """Classe des points d'intégration"""
 
     def __init__(self, elemType: str, matriceType: str):
-        
+        """Construction de points d'intégration
+
+        Parameters
+        ----------
+        elemType : str
+            type d'element
+        matriceType : str
+            ["rigi", "masse"]
+        """
+
         coord, poids = Gauss.__calc_gauss(elemType, matriceType)
 
         self.__coord = coord
@@ -12,18 +22,35 @@ class Gauss:
 
     @property
     def coord(self) -> np.ndarray:
+        """coordonnées des points d'intégration"""
         return self.__coord
     
     @property
     def poids(self) -> np.ndarray:
+        """poids des points d'intégration"""
         return self.__poids
 
     @property
     def nPg(self) -> int:
+        """nombres de points d'intégration"""
         return self.__poids.size
 
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
+        """Calcul des points d'intégrations en fonction du type d'element et de matrice
+
+        Parameters
+        ----------
+        elemType : str
+            type d'element
+        matriceType : str
+            ["rigi", "masse"]
+
+        Returns
+        -------
+        np.ndarray, np.ndarray
+            coord, poids
+        """
 
         from GroupElem import GroupElem
 
