@@ -654,7 +654,17 @@ class Simu:
 
         syst = platform.system()
 
-        if syst == "Linux":
+        if problemType == "damage" and not self.materiau.phaseFieldModel.useHistory:
+            # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
+            lb = self.damage
+            lb[np.where(lb>=1)] = 1-np.finfo(float).eps
+            ub = np.ones(lb.shape)
+            b = b.toarray().reshape(-1)
+            # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
+            x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
+            x= x['x']
+
+        elif syst == "Linux":
 
             method = 1
 
@@ -729,14 +739,7 @@ class Simu:
                 else:
                     permute="COLAMD"
                 
-                # if problemType == "damage":
-                #     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
-                #     lb = self.damage
-                #     lb[np.where(lb>=1)] = 1-np.finfo(float).eps
-                #     ub = np.ones(lb.shape)
-                #     b = b.toarray().reshape(-1)
-                #     x = lsq_linear(A,b,bounds=(lb,ub), verbose=1,tol=1e-6)                    
-                #     x= x['x']
+                
 
                 if hideFacto:                    
                     x = sla.spsolve(A, b, permc_spec=permute)
@@ -746,6 +749,8 @@ class Simu:
                     # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
                     lu = sla.splu(A.tocsc(), permc_spec=permute)
                     x = lu.solve(b.toarray()).reshape(-1)
+            
+        
                 
         tac = tic.Tac(f"Solve {problemType}","Solve Ax=b",self.__verbosity)
 
@@ -900,7 +905,7 @@ class Simu:
         for groupElem1D in self.mesh.Get_list_groupElem(1):
 
             # Récupère les elements qui utilisent exclusivement les noeuds
-            elements = groupElem1D.get_elements(noeuds, exclusivement=True)
+            elements = groupElem1D.get_elementsIndex(noeuds, exclusivement=True)
             connect_e = groupElem1D.connect_e[elements]
             Ne = elements.shape[0]
             
@@ -943,21 +948,28 @@ class Simu:
         valeurs_ddls=np.array([])
         ddls=np.array([])
 
+        listGroupElem2D = self.mesh.Get_list_groupElem(2)
+
+        if len(listGroupElem2D) > 1:
+            exclusivement=True
+        else:
+            exclusivement=True
+
         # Récupération des matrices pour le calcul
-        for groupElem2D in self.mesh.Get_list_groupElem(2):
+        for groupElem2D in listGroupElem2D:
 
             # Récupère les elements qui utilisent exclusivement les noeuds
-            elements = groupElem2D.get_elements(noeuds, exclusivement=True)
-            if elements.shape[0] == 0: continue
-            connect = groupElem2D.connect_e[elements]
-            Ne = elements.shape[0]
+            elementsIndex = groupElem2D.get_elementsIndex(noeuds, exclusivement=exclusivement)
+            if elementsIndex.shape[0] == 0: continue
+            connect = groupElem2D.connect_e[elementsIndex]
+            Ne = elementsIndex.shape[0]
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-            coordo_e_p = groupElem2D.get_coordo_e_p("masse", elements)
+            coordo_e_p = groupElem2D.get_coordo_e_p("masse", elementsIndex)
 
             N_pg = groupElem2D.get_N_pg("masse")
 
-            jacobien_e_pg = groupElem2D.get_jacobien_e_pg("masse")[elements]
+            jacobien_e_pg = groupElem2D.get_jacobien_e_pg("masse")[elementsIndex]
             
             gauss = groupElem2D.get_gauss("masse")
             poid_pg = gauss.poids
