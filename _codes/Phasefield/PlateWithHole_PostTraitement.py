@@ -48,7 +48,7 @@ fig, ax = plt.subplots()
 # ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross","He"]
 # ["AnisotMiehe","Miehe"]
 # ["AnisotMiehe","He"]
-for split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross","He"]: #["Bourdin","Amor","Miehe","He","Stress"]
+for split in ["AnisotMiehe","He"]: #["Bourdin","Amor","Miehe","He","Stress"]
 
     tic = TicTac.Tic()
 
@@ -67,16 +67,12 @@ for split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCro
     if comp == "Elas_Isot":
         nom = f"{nom} pour v={v}"
 
-    
-
     folder = Dossier.NewFile(nomDossier, results=True)
 
     if test:
         folder = Dossier.Join([folder, "Test", nom])
     else:
         folder = Dossier.Join([folder, nom])
-
-    
 
     # Charge la force et le déplacement
     load, displacement = PostTraitement.Load_Load_Displacement(folder, False)
@@ -106,7 +102,6 @@ for split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCro
 
             filenameDamage = f"{nom} et ud = {np.round(displacement[i]*1e6,2)}"
 
-
             Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
             folder=folderSauvegarde, filename=filenameDamage, 
             title=f"{titre}")
@@ -115,7 +110,7 @@ for split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCro
     texte = split
     texte = texte.replace("AnisotMiehe","Spectral")
 
-    indexLim = np.where(displacement*1e6 <= 25)[0]
+    indexLim = np.where(displacement*1e6 <= 35)[0]
     ax.plot(displacement[indexLim]*1e6, np.abs(load[indexLim]*1e-6), label=texte)
 
     tic.Tac("Post traitement", split, True)
@@ -127,7 +122,8 @@ ax.legend()
 plt.figure(fig)
 PostTraitement.Save_fig(folderSauvegarde, "load displacement")
 
-plt.show()
+if not plotDamage:
+    plt.show()
         
 
 

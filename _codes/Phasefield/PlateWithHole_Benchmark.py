@@ -15,14 +15,14 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=False
+test=True
 solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
-useHistory=True
+useHistory=False
 
 useNumba=True
 
@@ -31,15 +31,16 @@ maxIter = 250
 # tolConv = 0.01
 tolConv = 1
 
-umax = 35e-6
-# umax = 25e-6
-# umax = 40e-6
+if comp == "Elas_Isot":
+    umax = 25e-6
+    # umax = 35e-6
+else:
+    umax = 60e-6
 
 #["Bourdin","Amor","Miehe","He","Stress"]
 # ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 # ["AnisotStress","AnisotStress_NoCross"]
-# ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotMiehe"]
-for split in ["AnisotMiehe"]: 
+for split in ["Amor"]:
 
     # Data
 
@@ -113,6 +114,7 @@ for split in ["AnisotMiehe"]:
 
     if solve:
 
+        print()
         print(folder)
 
         point = Point()
@@ -145,7 +147,7 @@ for split in ["AnisotMiehe"]:
         useHistory=useHistory, useNumba=useNumba)
         materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel)
 
-        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
+        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=True)
 
         # Récupérations des noeuds
 
@@ -300,7 +302,7 @@ for split in ["AnisotMiehe"]:
     Tic.getResume()
 
     if solve:
-        Tic.getGraphs(folder)
+        Tic.getGraphs(folder, details=False)
     else:
         Tic.getGraphs()
         plt.show()

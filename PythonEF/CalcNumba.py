@@ -2,7 +2,7 @@ import numba
 from numba import njit, prange
 import numpy as np
 
-useCache = False
+useCache = True
 useParallel = True
 useFastmath = True
 

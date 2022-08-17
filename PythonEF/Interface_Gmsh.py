@@ -490,6 +490,8 @@ class Interface_Gmsh:
         self.__CheckType(3, elemType)
         
         tic = Tic()
+
+        if elemType == "TETRA4": isOrganised=False
         
         # le maillage 2D de départ n'a pas d'importance
         surfaces = self.Mesh_From_Points_2D(pointsList, elemType="TRI3", tailleElement=tailleElement,
