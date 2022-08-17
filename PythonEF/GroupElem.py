@@ -1,6 +1,6 @@
 
 from inspect import stack
-from typing import List, cast
+from typing import Dict, List, cast
 
 from Geom import *
 from Gauss import Gauss
@@ -20,10 +20,17 @@ class GroupElem:
             
             # Elements
             self.__elementsID = elementsID
+            # ici on consruit une liste permettant de donner la position de l'element dans connect en fonction de son numéro
+            self.__elementsIndex = np.zeros(elementsID.max()+1, dtype=int)
+            self.__elementsIndex[elementsID] = np.arange(elementsID.shape[0])
             self.__connect = connect
 
             # Noeuds
-            self.__nodes = nodes
+            self.__nodesID = nodes
+            # ici on consruit une liste permettant de donner la position du noeuds dans coordo ou connect_n_e en fonction de son numéro
+            self.__nodesIndex = np.zeros(nodes.max()+1, dtype=int)
+            self.__nodesIndex[nodes] = np.arange(nodes.shape[0])
+
             self.__coordoGlob = coordoGlob
             self.__coordo = cast(np.ndarray, coordoGlob[nodes])
             
@@ -80,16 +87,30 @@ class GroupElem:
             return self.__connect.shape[0]
 
         @property
-        def nodes(self) -> int:
-            return self.__nodes.copy()
+        def nodesID(self) -> int:
+            """Numéro des noeuds, attention ID n'est pas index (voir nodesIndex)\n
+            Pourquoi ? -> Parce que le noeuds 10 peut être a la lignes 3 !"""
+            return self.__nodesID.copy()
+
+        @property
+        def nodesIndex(self) -> int:
+            """Position du noeud dans coordo ou connect_n_e"""
+            return self.__nodesIndex.copy()
 
         @property
         def elementsID(self) -> np.ndarray:
+            """Numéro des elements, attention ID n'est pas index (voir elementsIndex)\n
+            Pourquoi ? -> Parce que l'element 3 peut être a la lignes 7 !"""
             return self.__elementsID.copy()
 
         @property
+        def elementsIndex(self) -> int:
+            """Position de l'element dans connect"""
+            return self.__elementsIndex.copy()
+
+        @property
         def Nn(self) -> int:
-            return self.__nodes.shape[0]
+            return self.__nodesID.shape[0]
 
         @property
         def coordo(self) -> np.ndarray:
@@ -127,7 +148,7 @@ class GroupElem:
 
         @property
         def connect_n_e(self) -> sp.csr_matrix:
-            """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne)\n
+            """matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne) soit [nodesId, elementsIndex]\n
             tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)"""
             # Ici l'objectif est de construire une matrice qui lorsque quon va la multiplier a un vecteur valeurs_e de taille ( Ne x 1 ) va donner
             # valeurs_n_e(Nn,1) = connecNoeud(Nn,Ne) valeurs_n_e(Ne,1)
@@ -161,28 +182,34 @@ class GroupElem:
 
             return assembly
 
-        def get_elements(self, noeuds: np.ndarray, exclusivement=True) -> np.ndarray:
-            "récupérations des élements pour utilise exclusivement ou non les noeuds renseigné"
+        def get_elementsIndex(self, noeuds: np.ndarray, exclusivement=True) -> np.ndarray:
+            """récupérations des élements pour utilise exclusivement ou non les noeuds renseigné"""
             connect = self.__connect
             connect_n_e = self.connect_n_e
             # Nn = self.Nn
 
-            # Verifie si il n'y a pas de noeuds en trop
-            if self.Nn < noeuds.max():
-                # Il faut enlever des noeuds
-                # On enlève tout les noeuds en trop
-                indexNoeudsSansDepassement = np.where(noeuds < self.Nn)[0]
-                noeuds = noeuds[indexNoeudsSansDepassement]
+            # # Verifie si il n'y a pas de noeuds en trop
+            # if self.Nn < noeuds.max():
+            #     # Il faut enlever des noeuds
+            #     # On enlève tout les noeuds en trop
+            #     indexNoeudsSansDepassement = np.where(noeuds < self.Nn)[0]
+            #     noeuds = noeuds[indexNoeudsSansDepassement]
 
-            lignes, colonnes, valeurs = sp.find(connect_n_e[noeuds])
-            elementsID = np.unique(colonnes)
+            nodesId = noeuds
+
+            lignes, colonnes, valeurs = sp.find(connect_n_e[nodesId])
+            elementsIndex = np.unique(colonnes)
+            # elementsIndex = self.elementsIndex[elementsID]
 
             if exclusivement:
                 # Verifie si les elements utilisent exculisevement les noeuds dans la liste de noeuds
-                listElem = [e for e in elementsID if not False in [n in noeuds for n in connect[e]]]        
-                listElem = np.array(listElem)
+                # Pour chaque element, si lelement contient un noeuds n'appartenant pas à la liste de noeuds on l'enlève
+                listElemIndex = [e for e in elementsIndex if not False in [n in noeuds for n in connect[e]]]        
+                listElemIndex = np.array(listElemIndex)
+            else:
+                listElemIndex = elementsIndex
 
-            return listElem
+            return listElemIndex
 
         def get_assembly(self, dim=None) -> np.ndarray:
             self.assembly_e(dim)
@@ -866,7 +893,7 @@ class GroupElem:
             return dN_pg        
 
         def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
-            """Renvoie la liste de noeuds qui respectent les condtions
+            """Renvoie la liste d'identifiant des noeuds qui respectent les condtions
 
             Args:
                 conditionX (bool, optional): Conditions suivant x. Defaults to True.
@@ -890,7 +917,7 @@ class GroupElem:
             if verifX and verifY and verifZ:
                 return listNoeud
 
-            coordo = self.coordoGlob
+            coordo = self.__coordo
 
             coordoX = coordo[:,0]
             coordoY = coordo[:,1]
@@ -927,23 +954,23 @@ class GroupElem:
             
             conditionsTotal = valideConditionX * valideConditionY * valideConditionZ
 
-            noeuds = np.where(conditionsTotal)[0]
+            nodesIndex = np.where(conditionsTotal)[0]
             
-            return self.__nodes[noeuds].copy()
+            return self.__nodesID[nodesIndex].copy()
         
         def Get_Nodes_Point(self, point: Point) -> np.ndarray:
 
-            coordo = self.coordoGlob
+            coordo = self.__coordo
 
-            noeud = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
+            nodesIndex = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
 
-            return self.__nodes[noeud].copy()
+            return self.__nodesID[nodesIndex].copy()
 
         def Get_Nodes_Line(self, line: Line) -> np.ndarray:
             
             vectUnitaire = line.vecteurUnitaire
 
-            coordo = self.coordoGlob
+            coordo = self.__coordo
 
             vect = coordo-line.coordo[0]
 
@@ -953,33 +980,33 @@ class GroupElem:
 
             eps = np.finfo(float).eps
 
-            noeuds = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
+            nodesIndex = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
 
-            return self.__nodes[noeuds].copy()
+            return self.__nodesID[nodesIndex].copy()
         
         def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
             """Renvoie la liste de noeuds qui sont dans le domaine"""
 
-            coordo = self.coordoGlob
+            coordo = self.__coordo
 
             eps = np.finfo(float).eps
 
-            noeuds = np.where(  (coordo[:,0] >= domain.pt1.x-eps) & (coordo[:,0] <= domain.pt2.x+eps) &
+            nodesIndex = np.where(  (coordo[:,0] >= domain.pt1.x-eps) & (coordo[:,0] <= domain.pt2.x+eps) &
                                 (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
                                 (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))[0]
             
-            return self.__nodes[noeuds].copy()
+            return self.__nodesID[nodesIndex].copy()
 
         def Get_Nodes_Circle(self, circle: Circle) -> np.ndarray:
             """Renvoie la liste de noeuds qui sont dans le cercle"""
 
-            coordo = self.coordo
+            coordo = self.__coordo
 
             eps = np.finfo(float).eps
 
-            noeuds = np.where(np.sqrt((coordo[:,0]-circle.center.x)**2+(coordo[:,1]-circle.center.y)**2+(coordo[:,2]-circle.center.z)**2)<=circle.diam/2+eps)
+            nodesIndex = np.where(np.sqrt((coordo[:,0]-circle.center.x)**2+(coordo[:,1]-circle.center.y)**2+(coordo[:,2]-circle.center.z)**2)<=circle.diam/2+eps)
 
-            return self.__nodes[noeuds]
+            return self.__nodesID[nodesIndex]
         
         def Localise_sol_e(self, sol: np.ndarray) -> np.ndarray:
             """localise les valeurs de noeuds sur les elements"""
@@ -1014,7 +1041,7 @@ class GroupElem:
 
             return dict_connect_triangle
 
-        def get_connect_Faces(self) -> np.ndarray:
+        def get_connect_Faces(self) -> dict:
             """Récupère les identifiants des noeud constuisant les faces et renvoie les faces pour chaque types d'elements
 
             Returns
@@ -1045,8 +1072,8 @@ class GroupElem:
                 dict_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
             elif self.elemType == "PRISM6":
                 # Ici il faut faire attention parce que cette element est composé de 2 triangles et 3 quadrangles
-                dict_connect_faces["TRI3"] = np.array(self.__connect[:, [0,1,2,3,4,5]]).reshape(-1,3)
                 dict_connect_faces["QUAD4"] = np.array(self.__connect[:, [0,2,5,3,0,1,4,3,1,2,5,4]]).reshape(-1,4)
+                dict_connect_faces["TRI3"] = np.array(self.__connect[:, [0,1,2,3,4,5]]).reshape(-1,3)
                 
             else:
                 raise "Element inconnue"
