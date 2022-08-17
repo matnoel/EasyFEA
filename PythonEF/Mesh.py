@@ -56,6 +56,8 @@ class Mesh:
         
         list_groupElem = cast(List[GroupElem], list_groupElem)
 
+        list_groupElem.reverse()
+
         return list_groupElem
 
     @property
@@ -103,7 +105,7 @@ class Mesh:
     @property
     def nodes(self) -> np.ndarray:
         """numéros des noeuds du maillage"""
-        return self.groupElem.nodes
+        return self.groupElem.nodesID
 
     @property
     def coordoGlob(self) -> np.ndarray:
@@ -138,7 +140,7 @@ class Mesh:
         return self.groupElem.get_connectTriangle()
     
     @property
-    def connect_Faces(self) -> np.ndarray:
+    def connect_Faces(self) -> dict:
         """Récupère les faces de chaque element et renvoie un dictionnaire pour chaque elements
         """
         return self.groupElem.get_connect_Faces()
@@ -276,7 +278,7 @@ class Mesh:
     # Récupération des noeuds
 
     def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
-        """Renvoie la liste de noeuds qui respectent les condtions
+        """Renvoie la liste d'identifiant des noeuds qui respectent les condtions
 
         Args:
             conditionX (bool, optional): Conditions suivant x. Defaults to True.
@@ -295,19 +297,19 @@ class Mesh:
         return self.groupElem.Get_Nodes_Conditions(conditionX, conditionY, conditionZ)
     
     def Nodes_Point(self, point: Point) -> np.ndarray:
-        """Renvoie la liste le noeud sur le point"""
+        """Renvoie l'identifiant du noeud sur le point"""
         return self.groupElem.Get_Nodes_Point(point)
 
     def Nodes_Line(self, line: Line) -> np.ndarray:
-        """Renvoie la liste de noeuds qui sont sur la ligne"""
+        """Renvoie la liste d'identifiant des noeuds qui sont sur la ligne"""
         return self.groupElem.Get_Nodes_Line(line)
 
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
-        """Renvoie la liste de noeuds qui sont dans le domaine"""
+        """Renvoie la liste d'identifiant des noeuds qui sont dans le domaine"""
         return self.groupElem.Get_Nodes_Domain(domain)
     
     def Nodes_Circle(self, circle: Circle) -> np.ndarray:
-        """Renvoie la liste de noeuds qui sont dans le cercle"""
+        """Renvoie la liste d'identifiant des noeuds qui sont dans le cercle"""
         return self.groupElem.Get_Nodes_Circle(circle)    
 
     def Localises_sol_e(self, sol: np.ndarray) -> np.ndarray:
