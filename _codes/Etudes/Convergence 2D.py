@@ -51,7 +51,8 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = np.arange(1,20,1)
+listNbElement = np.arange(1,10,0.5)
+# listNbElement = np.arange(1,20,1)
 # listNbElement = list(range(2,20,1))
 # listNbElement = list(range(1,10))
 
@@ -61,51 +62,51 @@ tic = Tic()
 for t, elemType in enumerate(GroupElem.get_Types2D()):
 # for t, elemType in enumerate(["TRI3"]):        
         
-        listTemps_nb = []
-        listWdef_nb = []
-        listDdl_nb = []
+    listTemps_nb = []
+    listWdef_nb = []
+    listDdl_nb = []
 
-        # Et chaque taille de maille
-        for nbElem in listNbElement:
-                
-                taille = b/nbElem
-
-                domain = Domain(Point(), Point(x=L, y=h), taille=taille)
-
-                # Construction du modele et du maillage --------------------------------------------------------------------------------
-                interfaceGmsh = Interface_Gmsh(verbosity=False)
-                mesh = interfaceGmsh.Rectangle_2D(domain, elemType=elemType, isOrganised=True)
-
-                mesh = cast(Mesh, mesh)
-                # Récupère les noeuds qui m'interessent
-                
-                noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-                noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
-
-                # Construit la simulation
-                simu = Simu(mesh, materiau, verbosity=False, useNumba=False)
-
-                # Renseigne les condtions limites en deplacement
-                simu.add_dirichlet("displacement", noeuds_en_0, [0,0], ["x","y"])
-                # Renseigne les condtions limites en forces
-                simu.add_surfLoad("displacement", noeuds_en_L, [-P/h**2], ["y"])
-
-                # Assemblage du système matricielle
-                simu.Assemblage_u()
-
-                simu.Solve_u()
-                Wdef = simu.Get_Resultat("Wdef")
-
-                # Stockage des valeurs
-                listTemps_nb.append(tic.Tac("Résolutions","Temps total", False))
-                listWdef_nb.append(Wdef)
-                listDdl_nb.append(mesh.Nn*dim)
-
-                print(f"Elem : {elemType}, nby : {nbElem}, Wdef = {np.round(Wdef, 3)}")
+    # Et chaque taille de maille
+    for nbElem in listNbElement:
         
-        listTemps_e_nb.append(listTemps_nb)
-        listWdef_e_nb.append(listWdef_nb)
-        listDdl_e_nb.append(listDdl_nb)
+        taille = b/nbElem
+
+        domain = Domain(Point(), Point(x=L, y=h), taille=taille)
+
+        # Construction du modele et du maillage --------------------------------------------------------------------------------
+        interfaceGmsh = Interface_Gmsh(verbosity=False)
+        mesh = interfaceGmsh.Rectangle_2D(domain, elemType=elemType, isOrganised=True)
+
+        mesh = cast(Mesh, mesh)
+        # Récupère les noeuds qui m'interessent
+        
+        noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
+        noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+
+        # Construit la simulation
+        simu = Simu(mesh, materiau, verbosity=False, useNumba=False)
+
+        # Renseigne les condtions limites en deplacement
+        simu.add_dirichlet("displacement", noeuds_en_0, [0,0], ["x","y"])
+        # Renseigne les condtions limites en forces
+        simu.add_surfLoad("displacement", noeuds_en_L, [-P/h**2], ["y"])
+
+        # Assemblage du système matricielle
+        simu.Assemblage_u()
+
+        simu.Solve_u()
+        Wdef = simu.Get_Resultat("Wdef")
+
+        # Stockage des valeurs
+        listTemps_nb.append(tic.Tac("Résolutions","Temps total", False))
+        listWdef_nb.append(Wdef)
+        listDdl_nb.append(mesh.Nn*dim)
+
+        print(f"Elem : {elemType}, nby : {nbElem}, Wdef = {np.round(Wdef, 3)}")
+    
+    listTemps_e_nb.append(listTemps_nb)
+    listWdef_e_nb.append(listWdef_nb)
+    listDdl_e_nb.append(listDdl_nb)
 
 # Post traitement --------------------------------------------------------------------------------------
 
@@ -118,7 +119,7 @@ fig_Temps, ax_Temps = plt.subplots()
 # WdefRef = np.max(listWdef_e_nb)
 # WdefRef = 371.5
 WdefRef = 2*P**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5)
-WdefRefArray = np.ones_like(listDdl_nb) * WdefRef
+WdefRefArray = np.ones_like(listDdl_e_nb[0]) * WdefRef
 WdefRefArray5 = WdefRefArray * 0.95
 
 print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
@@ -128,17 +129,17 @@ print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 for t, elemType in enumerate(GroupElem.get_Types2D()):
 # for t, elemType in enumerate(["TRI3"]):
 
-        # Convergence Energie
-        ax_Wdef.plot(listDdl_e_nb[t], listWdef_e_nb[t])
-        
-        # Erreur
-        Wdef = np.array(listWdef_e_nb[t])
-        erreur = (WdefRef-Wdef)/WdefRef*100
-        ax_Temps_Erreur.loglog(listDdl_e_nb[t],erreur)
+    # Convergence Energie
+    ax_Wdef.plot(listDdl_e_nb[t], listWdef_e_nb[t])
+    
+    # Erreur
+    Wdef = np.array(listWdef_e_nb[t])
+    erreur = (WdefRef-Wdef)/WdefRef*100
+    ax_Temps_Erreur.loglog(listDdl_e_nb[t],erreur)
 
-        # Temps
-        # ax_Temps.plot(listDdl_e_nb[elem], listTemps_e_nb[elem])
-        ax_Temps.loglog(listDdl_e_nb[t], listTemps_e_nb[t])
+    # Temps
+    # ax_Temps.plot(listDdl_e_nb[elem], listTemps_e_nb[elem])
+    ax_Temps.loglog(listDdl_e_nb[t], listTemps_e_nb[t])
 
 # Wdef
 ax_Wdef.grid()

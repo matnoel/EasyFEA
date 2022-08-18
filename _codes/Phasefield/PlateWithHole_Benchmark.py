@@ -15,14 +15,14 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=True
+test=False
 solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
-useHistory=False
+useHistory=True
 
 useNumba=True
 
@@ -34,13 +34,17 @@ tolConv = 1
 if comp == "Elas_Isot":
     umax = 25e-6
     # umax = 35e-6
+    
 else:
     umax = 60e-6
 
 #["Bourdin","Amor","Miehe","He","Stress"]
 # ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 # ["AnisotStress","AnisotStress_NoCross"]
-for split in ["Amor"]:
+for split in ["AnisotStress"]:
+    
+    if split == "AnisotStress":
+        umax = 45e-6
 
     # Data
 

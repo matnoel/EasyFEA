@@ -131,7 +131,7 @@ class GroupElem:
     @property
     def Nn(self) -> int:
         """Nombre de noeuds"""
-        return self.__nodesID.shape[0]
+        return self.__coordo.shape[0]
 
     @property
     def coordo(self) -> np.ndarray:
