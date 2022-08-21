@@ -66,27 +66,27 @@ class Tic:
         tempsTotCategorie = []
         categories = list(historique.keys())
 
-        if details:
-            for c in categories:
+        for c in categories:
 
-                tempsSousCategorie = np.array(np.array(historique[c])[:,1] , dtype=np.float64) #temps des sous categories de c
-                tempsTotCategorie.append(np.sum(tempsSousCategorie)) #somme tout les temps de cette catégorie
-                sousCategories = np.array(np.array(historique[c])[:,0] , dtype=str) #sous catégories
+            tempsSousCategorie = np.array(np.array(historique[c])[:,1] , dtype=np.float64) #temps des sous categories de c
+            tempsTotCategorie.append(np.sum(tempsSousCategorie)) #somme tout les temps de cette catégorie
+            sousCategories = np.array(np.array(historique[c])[:,0] , dtype=str) #sous catégories
 
-                # On construit un tableau pour les sommé sur les sous catégories
-                dfSousCategorie = pd.DataFrame({'sous categories' : sousCategories, 'temps': tempsSousCategorie})
-                dfSousCategorie = dfSousCategorie.groupby(['sous categories']).sum()
-                dfSousCategorie = dfSousCategorie.sort_values(by='temps')
-                sousCategories = dfSousCategorie.index.tolist()
+            # On construit un tableau pour les sommé sur les sous catégories
+            dfSousCategorie = pd.DataFrame({'sous categories' : sousCategories, 'temps': tempsSousCategorie})
+            dfSousCategorie = dfSousCategorie.groupby(['sous categories']).sum()
+            dfSousCategorie = dfSousCategorie.sort_values(by='temps')
+            sousCategories = dfSousCategorie.index.tolist()
 
-                # print(dfSousCategorie)
+            # print(dfSousCategorie)
 
-                if len(sousCategories) > 1:
-                    fig, ax = plt.subplots()
-                    Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
-                
-                    if folder != "":                        
-                        PostTraitement.Save_fig(folder, c)
+            if len(sousCategories) > 1 and details:
+                fig, ax = plt.subplots()
+                Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
+            
+                if folder != "":                        
+                    PostTraitement.Save_fig(folder, c)
+            
         
 
         # On construit un tableau pour les sommé sur les sous catégories
