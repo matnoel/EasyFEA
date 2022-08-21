@@ -7,6 +7,7 @@ import Interface_Gmsh as Interface_Gmsh
 import Simu as Simu
 import Dossier as Dossier
 import PostTraitement as PostTraitement
+import PhaseFieldSimulation
 
 import matplotlib.pyplot as plt
 
@@ -16,8 +17,8 @@ import matplotlib.pyplot as plt
 # Options
 
 test=False
-solve=True
-saveParaview=False
+solve=False
+saveParaview=True
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
@@ -29,6 +30,7 @@ useNumba=True
 # Convergence
 maxIter = 250
 # tolConv = 0.01
+# tolConv = 0.05
 tolConv = 1
 
 if comp == "Elas_Isot":
@@ -67,7 +69,6 @@ for split in ["AnisotStress"]:
     gc = 1.4
     l_0 = 0.12e-3
     
-
     if test:
         cc = 1
         clD = 0.25e-3*cc
@@ -78,9 +79,11 @@ for split in ["AnisotStress"]:
         # inc0 = 16e-8
         # inc1 = 4e-8
 
-        # inc0 = 8e-84
-        inc0 = 8e-8
-        inc1 = 2e-8 
+        # inc0 = 8e-8
+        # inc1 = 2e-8
+        
+        inc0 = 2e-8
+        inc1 = 1e-8
     else:
         clD = l_0/2
         clC = l_0/2
@@ -210,35 +213,10 @@ for split in ["AnisotStress"]:
             
             tic = Tic()
 
-            iterConv=0
-            convergence = False
-            d = simu.damage
-
+            
             Chargement()
 
-            while not convergence:
-                
-                iterConv += 1
-                dold = d.copy()
-
-                # Damage
-                simu.Assemblage_d()
-                d = simu.Solve_d()
-
-                # Displacement
-                Kglob = simu.Assemblage_u()            
-                u = simu.Solve_u()
-
-                dincMax = np.max(np.abs(d-dold))
-                convergence = dincMax <= tolConv
-                # if damage.min()>1e-5:
-                #     convergence=False
-
-                if iterConv == maxIter:
-                    break
-                
-                if not testConvergence:
-                    convergence=True
+            u, d, Kglob, iterConv = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
             if iterConv == maxIter:
                 print(f'On converge pas apres {iterConv} itérations')
@@ -249,7 +227,7 @@ for split in ["AnisotStress"]:
             temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
             temps = np.round(temps,3)
             max_d = d.max()
-            min_d = d.min()
+            min_d = d.min()            
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 
             print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
@@ -261,7 +239,8 @@ for split in ["AnisotStress"]:
                 ud += inc0
             else:
                 ud += inc1
-            
+
+            # Detection si on a touché le bord
             if np.any(d[noeuds_bord] >= 0.95):
                 bord +=1
             

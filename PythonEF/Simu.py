@@ -656,17 +656,17 @@ class Simu:
 
         syst = platform.system()
 
-        if problemType == "damage" and not self.materiau.phaseFieldModel.useHistory:
-            # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
-            lb = self.damage
-            lb[np.where(lb>=1)] = 1-np.finfo(float).eps
-            ub = np.ones(lb.shape)
-            b = b.toarray().reshape(-1)
-            # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
-            x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
-            x= x['x']
+        # if problemType == "damage" and not self.materiau.phaseFieldModel.useHistory:
+        #     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
+        #     lb = self.damage
+        #     lb[np.where(lb>=1)] = 1-np.finfo(float).eps
+        #     ub = np.ones(lb.shape)
+        #     b = b.toarray().reshape(-1)
+        #     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
+        #     x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
+        #     x= x['x']
 
-        elif syst == "Linux":
+        if syst == "Linux":
 
             method = 1
 
