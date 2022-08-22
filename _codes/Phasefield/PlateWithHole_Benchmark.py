@@ -16,16 +16,16 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=False
+test=True
 solve=False
-saveParaview=True
+saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 useHistory=True
 
-useNumba=True
+useNumba=False
 
 # Convergence
 maxIter = 250
@@ -33,17 +33,22 @@ maxIter = 250
 # tolConv = 0.05
 tolConv = 1
 
+if tolConv < 1:
+    testConvergence = True
+else:
+    testConvergence = False
+
+
 if comp == "Elas_Isot":
     umax = 25e-6
-    # umax = 35e-6
-    
+    # umax = 35e-6    
 else:
     umax = 60e-6
 
 #["Bourdin","Amor","Miehe","He","Stress"]
-# ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
-# ["AnisotStress","AnisotStress_NoCross"]
-for split in ["AnisotStress"]:
+#["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
+#["AnisotStress","AnisotStress_NoCross"]
+for split in ["Amor"]:
     
     if split == "AnisotStress":
         umax = 45e-6
@@ -79,11 +84,11 @@ for split in ["AnisotStress"]:
         # inc0 = 16e-8
         # inc1 = 4e-8
 
-        # inc0 = 8e-8
-        # inc1 = 2e-8
+        inc0 = 8e-8
+        inc1 = 2e-8
         
-        inc0 = 2e-8
-        inc1 = 1e-8
+        # inc0 = 2e-8
+        # inc1 = 1e-8
     else:
         clD = l_0/2
         clC = l_0/2
@@ -91,34 +96,11 @@ for split in ["AnisotStress"]:
         inc0 = 8e-8
         inc1 = 2e-8
 
-    
     # Nom du dossier
-
-    nom="_".join([comp, split, regu, simpli2D])
-
-    if tolConv < 1:
-        testConvergence = True
-        nom += f'_convergence{tolConv}'
-    else:
-        testConvergence = False
-    
-    if not useHistory:
-        nom += '_noHistory'
-
-    if comp == "Elas_Isot":
-        nom = f"{nom} pour v={v}"
-
     nomDossier = "PlateWithHole_Benchmark"
+    folder = PhaseFieldSimulation.ConstruitDossier(nomDossier , comp, split, regu, simpli2D, tolConv, useHistory, test, v)
 
-    folder = Dossier.NewFile(nomDossier, results=True)
-
-    if test:
-        folder = Dossier.Join([folder, "Test", nom])
-    else:
-        folder = Dossier.Join([folder, nom])
-
-
-
+    
     if solve:
 
         print()
@@ -154,7 +136,7 @@ for split in ["AnisotStress"]:
         useHistory=useHistory, useNumba=useNumba)
         materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel)
 
-        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=True)
+        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
 
         # Récupérations des noeuds
 
@@ -212,7 +194,6 @@ for split in ["AnisotStress"]:
             resol += 1
             
             tic = Tic()
-
             
             Chargement()
 
@@ -225,15 +206,10 @@ for split in ["AnisotStress"]:
             simu.Save_Iteration()
 
             temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
-            temps = np.round(temps,3)
             max_d = d.max()
-            min_d = d.min()            
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 
-            print(f"{resol:4} : ud = {np.round(ud*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
-
-            # if ud>12e-6:
-            #     inc0 = 1e-8
+            PhaseFieldSimulation.AffichageIteration(resol, ud*1e6, d, iterConv, temps, "µm", ud/umax, True)
 
             if max_d<0.6:
                 ud += inc0
@@ -254,6 +230,7 @@ for split in ["AnisotStress"]:
         displacement = np.array(displacement)
 
         # Sauvegarde
+        print()
         PostTraitement.Save_Load_Displacement(load, displacement, folder)
         PostTraitement.Save_Simu(simu, folder)
             
@@ -263,12 +240,7 @@ for split in ["AnisotStress"]:
 
         load, displacement = PostTraitement.Load_Load_Displacement(folder)
 
-    fig, ax = plt.subplots()
-    ax.plot(displacement*1e3, np.abs(load)/1e6, c='blue')
-    ax.set_xlabel("ud en mm")
-    ax.set_ylabel("f en kN")
-    ax.grid()
-    PostTraitement.Save_fig(folder, "forcedep")
+    Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'mm', 'kN/mm', folder)
 
     filenameDamage = f"{split} damage_n"
     # titleDamage = fr"$\phi$"
@@ -276,7 +248,7 @@ for split in ["AnisotStress"]:
 
 
     Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
-    folder=folder, filename=filenameDamage, 
+    folder=folder, filename=filenameDamage,
     title=titleDamage)
 
     if saveParaview:
@@ -294,4 +266,4 @@ for split in ["AnisotStress"]:
 
     plt.close('all')
 
-# plt.show()
+plt.show()

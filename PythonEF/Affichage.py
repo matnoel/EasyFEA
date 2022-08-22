@@ -620,6 +620,17 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     return ax
 
+def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, uniteDepl='m', uniteForce='N', folder=""):
+    fig, ax = plt.subplots()
+
+    ax.plot(np.abs(deplacements), np.abs(forces), c='blue')
+    ax.set_xlabel(f"ud en {uniteDepl}")
+    ax.set_ylabel(f"f en {uniteForce}")
+    ax.grid()
+
+    if folder != "":
+        import PostTraitement as PostTraitement 
+        PostTraitement.Save_fig(folder, "forcedep")
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
     """Recupération des coordonnée déformées si la simulation le permet

@@ -1,6 +1,6 @@
 # %%
 import os
-
+import PhaseFieldSimulation
 from BoundaryCondition import BoundaryCondition
 
 import PostTraitement as PostTraitement
@@ -20,8 +20,7 @@ import matplotlib.pyplot as plt
 Affichage.Clear()
 
 simulation = "Shear" #"Shear" , "Tension"
-folder = '_'.join([simulation,"Benchmarck"])
-folder = Dossier.NewFile(folder, results=True)
+nomDossier = '_'.join([simulation,"Benchmarck"])
 
 test = True
 solve = True
@@ -36,9 +35,10 @@ split = "Miehe" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
 openCrack = True
 
-nameSimu = '_'.join([comportement,split,regularisation])
-if openCrack: 
-    nameSimu += '_openCrack'
+maxIter = 250
+# tolConv = 0.0025
+# tolConv = 0.005
+tolConv = 1
 
 dim = 2
 
@@ -55,11 +55,8 @@ if test:
 else:
     taille = l0/2 #l0/2 2.5e-6
 
-if test:
-    folder = Dossier.Join([folder, "Test", nameSimu])
-else:
-    folder = Dossier.Join([folder, nameSimu])
-
+folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier , comp=comportement, split=split, regu=regularisation, simpli2D='DP',
+tolConv=tolConv, useHistory=True, test=test, openCrack=openCrack)
 print(folder)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
@@ -71,14 +68,6 @@ if solve:
     elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
     interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
-
-    if openCrack:
-        meshName = "carré avec fissure ouverte.msh"
-    else:
-        meshName = "carré avec fissure fermée.msh"
-
-    mshFileName = Dossier.NewFile(meshName, folder)
-    # mshFileName = ""
 
     domain = Domain(Point(), Point(x=L, y=L), taille=taille)
     line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille)
@@ -107,7 +96,7 @@ if solve:
 
     comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
-    phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
+    phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0, useNumba=False)
 
     materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
@@ -160,84 +149,47 @@ if solve:
     deplacements=[]
     forces=[]
 
-    maxIter = 250
-    # tolConv = 0.0025
-    # tolConv = 0.005
-    tolConv = 0.01
+    
 
     for iter in range(N):
 
-            tic = Tic()
+        tic = Tic()
 
-            dep += u_inc
+        dep += u_inc
 
-            iterConv=0
-            convergence = False
-            damage = simu.damage
+        iterConv=0
+        convergence = False
+        damage = simu.damage
 
-            Chargement(dep)
+        Chargement(dep)
 
-            while not convergence:
-            
-                iterConv += 1
-                dold = damage.copy()
+        u, d, Kglob, iterConv = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
+        if iterConv == maxIter:
+            print(f'On converge pas apres {iterConv} itérations')
+            break
 
-                # Damage
-                simu.Assemblage_d()
-                damage = simu.Solve_d()
-                
+        simu.Save_Iteration()
 
-                # Displacement
-                Kglob = simu.Assemblage_u()                        
-                displacement = simu.Solve_u()
+        temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
+        f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
-                dincMax = np.max(np.abs(damage-dold))
-                convergence = dincMax <= tolConv
-                # if damage.min()>1e-5:
-                #     convergence=False
-                
+        PhaseFieldSimulation.AffichageIteration(iter, dep*1e6, d, iterConv, temps, "µm", iter/N, True)
+  
+        deplacements.append(dep)
+        forces.append(f)
 
-                if iterConv == maxIter:
-                    break
+        if np.any(damage[NoeudsBord] >= 0.8):                                
+            bord +=1
 
-                convergence=True
-
-            if iterConv == maxIter:
-                print(f'On converge pas apres {iterConv} itérations')
-                break
-
-            simu.Save_Iteration()
-
-            temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
-            temps = np.round(temps,3)
-            max_d = damage.max()
-            min_d = damage.min()
-            f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), displacement, optimize='optimal'))
-
-            print(f"{iter+1:4}/{N} : ud = {np.round(dep*1e6,3)} µm,  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{temps} s")
-
-            # # Affiche dans la console
-            # min = np.round(np.min(damage),3)
-            # max = np.round(np.max(damage),3)
-            # norm = np.sum(damage)
-            # tResolution = tic.Tac("Resolution PhaseField", "Resolution Phase field", False)
-            # # print(iter+1," : max d = {:.5f}, time = {:.3f}".format(norm, tResolution))
-            # print(f'{iter+1}/{N} : max d = {max}, min d = {min}, time = {np.round(tResolution,3)} s') 
-            
-            deplacements.append(dep)
-            forces.append(f)
-
-            if np.any(damage[NoeudsBord] >= 0.8):                                
-                bord +=1
-
-            if bord == 5:
-                break
+        if bord == 5:
+            break
             
     # Sauvegarde
+    print()
+    PostTraitement.Save_Load_Displacement(forces, deplacements, folder)
     PostTraitement.Save_Simu(simu, folder)
     
-    PostTraitement.Save_Load_Displacement(forces, deplacements, folder)
 
     forces = np.array(forces)
     deplacements = np.array(deplacements)
@@ -262,19 +214,13 @@ if plotResult:
 
     Affichage.Plot_BoundaryConditions(simu)
 
-    fig, ax = plt.subplots()
-    ax.plot(deplacements*1e6, np.abs(forces)/1e3, c='blue')
-    ax.set_xlabel("ud en µm")
-    ax.set_ylabel("f en kN")
-    ax.grid()
-    PostTraitement.Save_fig(folder, "forcedep")
-
+    Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'µm', 'kN')
 
     Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,
     affichageMaillage=False, deformation=False, folder=folder)
     
 
-    Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
+    # Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
         
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)
@@ -284,7 +230,8 @@ if saveParaview:
 
 Tic.getResume()
 
-Tic.getGraphs(folder)
+if solve:
+    Tic.getGraphs(folder)
 
 plt.show()
 

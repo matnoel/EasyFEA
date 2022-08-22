@@ -1,7 +1,9 @@
 from Simu import Simu
 import numpy as np
+import scipy.sparse as sp
+import Dossier
 
-def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int]:
     """Calcul l'itération d'un probleme d'endommagement de façon étagée
 
     Parameters
@@ -57,3 +59,44 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
             convergence=True
         
     return u, d, Kglob, iterConv
+
+def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, temps: float, uniteDep="m", pourcentage=0, remove=False):
+    min_d = d.min()
+    max_d = d.max()
+    texte = f"{resol:4} : ud = {np.round(dep,3)} {uniteDep},  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{np.round(temps,3)} s  "
+    
+    if remove:
+        end='\r'
+    else:
+        end=''
+
+    if pourcentage > 0:
+        texte = f"{np.round(pourcentage*100,2)} % " + texte
+    
+    print(texte, end=end)
+
+def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float,
+useHistory: bool, test: bool, openCrack:bool, v=0):
+
+    nom="_".join([comp, split, regu, simpli2D])
+
+    if openCrack: 
+        nom += '_openCrack'
+
+    if tolConv < 1:
+        nom += f'_convergence{tolConv}'
+    
+    if not useHistory:
+        nom += '_noHistory'
+
+    if comp == "Elas_Isot" and v != 0:
+        nom = f"{nom} pour v={v}"
+
+    folder = Dossier.NewFile(dossierSource, results=True)
+
+    if test:
+        folder = Dossier.Join([folder, "Test", nom])
+    else:
+        folder = Dossier.Join([folder, nom])
+
+    return folder
