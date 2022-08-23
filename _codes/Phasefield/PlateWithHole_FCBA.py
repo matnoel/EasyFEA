@@ -113,8 +113,8 @@ if solve:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
     mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI3")
 
-    comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
-    phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
+    comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+    phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
     materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel)
 
     simu = Simu.Simu(mesh, materiau, verbosity=False)

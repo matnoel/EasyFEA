@@ -65,8 +65,8 @@ node00 = mesh.Nodes_Point(Point())
 noeuds_cercle = mesh.Nodes_Circle(circle)
 noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]
 
-comportement = Materiau.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
-phaseFieldModel = Materiau.PhaseFieldModel(comportement, split, regu, gc, l_0)
+comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
 materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
 
 simu = Simu.Simu(mesh, materiau, verbosity=False)
