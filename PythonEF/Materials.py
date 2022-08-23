@@ -526,7 +526,7 @@ class PhaseFieldModel:
         __splits = ["Bourdin","Amor",
         "Miehe","He","Stress",
         "AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross",
-        "AnisotStress","AnisotStress_NoCross"]
+        "AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]
         # __splits = ["Bourdin","Amor",
         # "Miehe","AnisotMiehe","AnisotMiehe_NoCross",
         # "He", "HeStress",
@@ -620,9 +620,17 @@ class PhaseFieldModel:
     @property
     def useHistory(self) -> bool:
         return self.__useHistory
+    
+    @property
+    def useNumba(self) -> bool:
+        return self.__useNumba
+    
+    @useNumba.setter
+    def useNumba(self, val: bool):
+        self.__useNumba = val
 
     def __init__(self, loiDeComportement: LoiDeComportement, split: str, regularization: str, Gc: float, l_0: float,
-    useHistory=True, useNumba=False):
+    useHistory=True):
         """Création d'un comportement Phase Field
 
             Parameters
@@ -663,7 +671,7 @@ class PhaseFieldModel:
         self.__useHistory = useHistory
         """Utilise ou non le champ histoire"""
 
-        self.__useNumba = useNumba
+        self.__useNumba = False
         """Utilise ou non les fonctions numba"""
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
@@ -682,12 +690,18 @@ class PhaseFieldModel:
         SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
 
         useNumba = self.__useNumba
+        # useNumba = False
+
+        tic = Tic()
 
         if useNumba:
+            # Plus rapide
             psiP_e_pg, psiM_e_pg = CalcNumba.Calc_psi_e_pg(Epsilon_e_pg, SigmaP_e_pg, SigmaM_e_pg)
         else:
             psiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
             psiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
+
+        tic.Tac("Matrices PFM", "psiP_e_pg et psiM_e_pg", False)
 
         return psiP_e_pg, psiM_e_pg
 
@@ -713,14 +727,20 @@ class PhaseFieldModel:
         comp = Epsilon_e_pg.shape[2]
 
         useNumba = self.__useNumba
+        # useNumba = False
 
         cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 
+        tic = Tic()
+
         if useNumba:
+            # Plus rapide
             SigmaP_e_pg, SigmaM_e_pg = CalcNumba.Calc_Sigma_e_pg(Epsilon_e_pg, cP_e_pg, cM_e_pg)
         else:
             SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
             SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
+
+        tic.Tac("Matrices PFM", "SigmaP_e_pg et SigmaM_e_pg", False)
 
         return SigmaP_e_pg, SigmaM_e_pg
     
@@ -755,7 +775,7 @@ class PhaseFieldModel:
             c = np.repeat(c, nPg, axis=1)
 
             cP_e_pg = c
-            cM_e_pg = 0*cP_e_pg
+            cM_e_pg = np.zeros_like(cP_e_pg)
 
         elif self.__split == "Amor":
             cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
@@ -763,30 +783,32 @@ class PhaseFieldModel:
         elif self.__split in ["Miehe","AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
             cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
         
-        elif self.__split in ["Stress","AnisotStress","AnisotStress_NoCross"]:
+        elif self.__split in ["Stress","AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]:
             cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
 
         elif self.__split in ["He","HeStress"]:
             cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
+        
+        else: 
+            raise "Split inconnue"
 
         fonctionQuiAppelle = stack()[2].function
 
         if fonctionQuiAppelle == "Calc_psi_e_pg":
-            problem = "masse"
+            matrice = "masse"
         else:
-            problem = "rigi"
+            matrice = "rigi"
 
 
-        tac = tic.Tac("Matrices",f"cP cM : {self.__split} ({problem})", False)
+        # tic.Tac("Matrices PFM",f"cP_e_pg et cM_e_pg ({matrice})", False)
+        tic.Tac("Matrices PFM",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
     def __Split_Amor(self, Epsilon_e_pg: np.ndarray):
 
         assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
-        # useNumba = self.__useNumba
-        useNumba=False
-
+        
         loiDeComportement = self.__loiDeComportement                
 
         bulk = loiDeComportement.get_bulk()
@@ -810,8 +832,10 @@ class PhaseFieldModel:
         partieDeviateur = 2*mu*Pdev
 
         # projetcteur spherique
+        # useNumba = self.__useNumba
+        useNumba=False
         if useNumba:
-            # Moin rapide
+            # Moins rapide
             cP_e_pg, cM_e_pg = CalcNumba.Split_Amor(Rp_e_pg, Rm_e_pg, partieDeviateur, IxI, bulk)
         else:
             
@@ -897,6 +921,7 @@ class PhaseFieldModel:
             tic = Tic()
             
             if useNumba:
+                # Plus rapide
                 Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(projP_e_pg, c, projM_e_pg)
             else:
                 Cpp = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projP_e_pg, optimize='optimal')
@@ -904,7 +929,7 @@ class PhaseFieldModel:
                 Cmm = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projM_e_pg, optimize='optimal')
                 Cmp = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projP_e_pg, optimize='optimal')
 
-            tic.Tac("Matrices","Cpp, Cpm, Cmp, Cmm", False)
+            tic.Tac("Matrices PFM","Anisot : Cpp, Cpm, Cmp, Cmm", False)
             
             if self.__split ==  "AnisotMiehe":
 
@@ -989,37 +1014,46 @@ class PhaseFieldModel:
             # testM = np.linalg.norm(invSM_e_pg-cM_e_pg)/np.linalg.norm(cM_e_pg)
             # pass
         
-        elif self.__split in ["AnisotStress","AnisotStress_NoCross"]:
+        elif self.__split in ["AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]:
 
             # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
             Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize='optimal')
             Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize='optimal')
             
-            CpT_e_pg = np.einsum('epij->epji', Cp_e_pg, optimize='optimal')
-            CmT_e_pg = np.einsum('epij->epji', Cm_e_pg, optimize='optimal')
+            tic = Tic()
 
             # Construit Cp et Cm
             S = loiDeComportement.get_S()
-            Cpp = np.einsum('epij,jk,epkl->epil', CpT_e_pg, S, Cp_e_pg, optimize='optimal')
-            Cpm = np.einsum('epij,jk,epkl->epil', CpT_e_pg, S, Cm_e_pg, optimize='optimal')
-            Cmm = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cm_e_pg, optimize='optimal')
-            Cmp = np.einsum('epij,jk,epkl->epil', CmT_e_pg, S, Cp_e_pg, optimize='optimal')
+            if self.__useNumba:
+                # Plus rapide
+                Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
+            else:
+                Cpp = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cp_e_pg, optimize='optimal')
+                Cpm = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cm_e_pg, optimize='optimal')
+                Cmm = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cm_e_pg, optimize='optimal')
+                Cmp = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cp_e_pg, optimize='optimal')
 
-            if self.__split ==  "AnisotStress_NoCross":
-            
-                cP_e_pg = Cpp #Diffuse
+            tic.Tac("Matrices PFM","Anisot : Cpp, Cpm, Cmp, Cmm", False)
+
+            if self.__split ==  "AnisotStress":
+
+                cP_e_pg = Cpp + Cpm + Cmp
+                cM_e_pg = Cmm 
+
+            elif self.__split ==  "AnisotStress_PM":
+                
+                cP_e_pg = Cpp + Cpm
+                cM_e_pg = Cmm + Cmp
+
+            elif self.__split ==  "AnisotStress_MP":
+                
+                cP_e_pg = Cpp + Cmp
+                cM_e_pg = Cmm + Cpm
+
+            elif self.__split ==  "AnisotStress_NoCross":
+                
+                cP_e_pg = Cpp
                 cM_e_pg = Cmm + Cpm + Cmp
-            
-            elif self.__split ==  "AnisotStress":
-
-                cP_e_pg = Cpp + Cpm + Cmp #Diffuse
-                cM_e_pg = Cmm
-
-            # cP_e_pg = Cpp + Cpm #Diffuse
-            # cM_e_pg = Cmm + Cmp
-
-            # cP_e_pg = Cpp #Diffuse
-            # cM_e_pg = Cmm + Cpm + Cmp
         
         else:
             raise "Split inconnue"
@@ -1200,6 +1234,7 @@ class PhaseFieldModel:
         matriceI = np.eye(3)
 
         if useNumba:
+            # Plus rapide
             projP, projM = CalcNumba.Get_projP_projM(BetaP, gammap, BetaM, gammam, m1xm1, m2xm2)
         else:
             # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
@@ -1237,7 +1272,7 @@ class PhaseFieldModel:
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
         
-        tic.Tac("Matrices", "Decomp spectrale", False)
+        tic.Tac("Matrices PFM", "Decomp spectrale", False)
             
         return projP, projM
 

@@ -18,8 +18,6 @@ from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition
 from Materials import *
 from TicTac import Tic
-from Interface_Gmsh import Interface_Gmsh
-import Dossier as Dossier
 import CalcNumba
     
 class Simu:
@@ -54,6 +52,9 @@ class Simu:
         """maillage de la simulation"""
         self.materiau = materiau
         """materiau de la simulation"""
+
+        if materiau.isDamaged:
+            materiau.phaseFieldModel.useNumba = useNumba
 
         self.__useNumba = useNumba
         # if useNumba:
@@ -224,8 +225,10 @@ class Simu:
             g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matriceType)
             useNumba=False
             if useNumba:
+                # Moins rapide
                 cP_e_pg = CalcNumba.ep_epij_to_epij(g_e_pg, cP_e_pg)
             else:
+                # Plus rapide
                 cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
 
             c_e_pg = cP_e_pg+cM_e_pg
@@ -233,6 +236,7 @@ class Simu:
             # Matrice de rigidité élementaire
             useNumba = self.__useNumba
             if useNumba:
+                # Plus rapide
                 Ku_e = CalcNumba.epij_epjk_epkl_to_eil(leftDepPart, c_e_pg, B_dep_e_pg)
             else:
                 # Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c_e_pg, B_dep_e_pg, optimize='optimal')
@@ -246,6 +250,7 @@ class Simu:
             matC = comportement.get_C()
 
             if useNumba:
+                # Plus rapide
                 Ku_e = CalcNumba.epij_jk_epkl_to_eil(leftDepPart, matC, B_dep_e_pg)
             else:
                 # Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, matC, B_dep_e_pg, optimize='optimal')
@@ -363,8 +368,8 @@ class Simu:
             Kd_e, Fd_e: les matrices elementaires pour chaque element
         """
 
-        # useNumba = self.__useNumba
-        useNumba = False
+        
+        
 
 
         # TODO A optimiser en faisant le moins de fois les memes opérations genre grouper jacobien et poid 
@@ -387,16 +392,18 @@ class Simu:
         SourcePart_e_pg = mesh.Get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'
         
         tic = Tic()
-        
+
+        # useNumba = self.__useNumba
+        useNumba = False        
         if useNumba:
+            # Moin rapide et beug Fd_e
 
             Kd_e, Fd_e = CalcNumba.Construit_Kd_e_and_Fd_e(r_e_pg, ReactionPart_e_pg,
             k, DiffusePart_e_pg,
             f_e_pg, SourcePart_e_pg)
+            # testFd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') - Fd_e
 
-            # TODO beug Fd_e
-
-            Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal')
+            # assert np.max(testFd_e) == 0, "Erreur"
 
             # K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
             # K_K_e = np.einsum('epij->eij', DiffusePart_e_pg * k, optimize='optimal')
@@ -404,6 +411,7 @@ class Simu:
             # testKd_e = K_r_e+K_K_e - Kd_e
 
         else:
+            # Plus rapide sans beug
 
             # jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
             # poid_pg = mesh.Get_poid_pg(matriceType)
@@ -619,15 +627,11 @@ class Simu:
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
 
-            bDirichlet = Aic.dot(xc)
-            # bDirichlet = np.einsum('ij,j->i', Aic, xc[:,0], optimize='optimal')
+            bDirichlet = Aic.dot(xc) # Plus rapide
+            # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
+            # bDirichlet = sparse.csr_matrix(bDirichlet)
 
             tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
-
-            # if problemType == "damage":
-            #     if np.max(b)>0:
-            #         condi = np.max(A)/np.max(b)
-            #         print(f'\n{condi}')
 
             if problemType == "displacement":
                 useCholesky=True
@@ -1113,7 +1117,7 @@ class Simu:
             Deformations stockées aux elements et points de gauss (Ne,pg,(3 ou 6))
         """
 
-        # useNumba = self.__useNumba
+        useNumba = self.__useNumba
         useNumba = False
         
         # Localise les deplacement par element
@@ -1121,10 +1125,16 @@ class Simu:
 
         B_dep_e_pg = self.__mesh.Get_B_dep_e_pg(matriceType)
 
+        tic = Tic()
+
         if useNumba:
+            # Moins rapide
             Epsilon_e_pg = CalcNumba.epij_ej_to_epi(B_dep_e_pg, u_e)
         else:
+            # Plus rapide
             Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
+        
+        tic.Tac("Matrices", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
 
@@ -1145,8 +1155,7 @@ class Simu:
         assert Epsilon_e_pg.shape[0] == self.__mesh.Ne
         assert Epsilon_e_pg.shape[1] == self.__mesh.Get_nPg(matriceType)
 
-        # useNumba = self.__useNumba
-        useNumba = False
+        useNumba = self.__useNumba
 
         if self.materiau.isDamaged:
 
@@ -1158,20 +1167,32 @@ class Simu:
             
             # Endommage : Sig = g(d) * SigP + SigM
             g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
+
+            useNumba = False
+            tic = Tic()
             if useNumba:
+                # Moins rapide 
                 SigmaP_e_pg = CalcNumba.ep_epi_to_epi(g_e_pg, SigmaP_e_pg)
             else:
+                # Plus rapide
                 SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
 
             Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
             
         else:
 
+            tic = Tic()
+
             c = self.materiau.comportement.get_C()
             if useNumba:
+                # Plus rapide sur les gros système > 500 000 ddl (ordre de grandeur)
+                # sinon legerement plus lent
                 Sigma_e_pg = CalcNumba.ij_epj_to_epi(c, Epsilon_e_pg)
             else:
+                # Plus rapide sur les plus petits système
                 Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize='optimal')
+            
+        tic.Tac("Matrices", "Sigma_e_pg", False)
 
         return Sigma_e_pg
 

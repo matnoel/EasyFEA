@@ -39,7 +39,7 @@ def CompilNumba(verbosity=True):
 #Calcul indiciel
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def ep_ij_to_epij(ep: np.ndarray, ij: np.ndarray):
+def ep_ij_to_epij(ep: np.ndarray, ij: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
     else:
@@ -52,7 +52,7 @@ def ep_ij_to_epij(ep: np.ndarray, ij: np.ndarray):
     return result
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def epij_ej_to_epi(epij: np.ndarray, ej: np.ndarray):
+def epij_ej_to_epi(epij: np.ndarray, ej: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
     else:
@@ -77,7 +77,7 @@ def epij_ej_to_epi(epij: np.ndarray, ej: np.ndarray):
     return result
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def ij_epj_to_epi(ij: np.ndarray, epj: np.ndarray):
+def ij_epj_to_epi(ij: np.ndarray, epj: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
     else:
@@ -101,7 +101,7 @@ def ij_epj_to_epi(ij: np.ndarray, epj: np.ndarray):
     return result
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def ep_epi_to_epi(ep: np.ndarray, epi: np.ndarray):
+def ep_epi_to_epi(ep: np.ndarray, epi: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
     else:
@@ -124,7 +124,7 @@ def ep_epi_to_epi(ep: np.ndarray, epi: np.ndarray):
     return result
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def ep_epij_to_epij(ep: np.ndarray, epij: np.ndarray):
+def ep_epij_to_epij(ep: np.ndarray, epij: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
     else:
@@ -149,7 +149,7 @@ def ep_epij_to_epij(ep: np.ndarray, epij: np.ndarray):
     return result
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def ep_epij_to_eij(ep: np.ndarray, epij: np.ndarray):
+def ep_epij_to_eij(ep: np.ndarray, epij: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
     else:
@@ -175,7 +175,7 @@ def ep_epij_to_eij(ep: np.ndarray, epij: np.ndarray):
 
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def epij_epjk_epkl_to_eil(epij: np.ndarray, epjk: np.ndarray, epkl: np.ndarray):
+def epij_epjk_epkl_to_eil(epij: np.ndarray, epjk: np.ndarray, epkl: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
     else:
@@ -206,7 +206,7 @@ def epij_epjk_epkl_to_eil(epij: np.ndarray, epjk: np.ndarray, epkl: np.ndarray):
     return result
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def epij_jk_epkl_to_eil(epij: np.ndarray, jk: np.ndarray, epkl: np.ndarray):
+def epij_jk_epkl_to_eil(epij: np.ndarray, jk: np.ndarray, epkl: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
     else:
@@ -241,7 +241,7 @@ def epij_jk_epkl_to_eil(epij: np.ndarray, jk: np.ndarray, epkl: np.ndarray):
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Construit_Kd_e_and_Fd_e(r_e_pg: np.ndarray, ReactionPart_e_pg: np.ndarray,
 k: float, DiffusePart_e_pg: np.ndarray,
-f_e_pg: np.ndarray, SourcePart_e_pg: np.ndarray):
+f_e_pg: np.ndarray, SourcePart_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     if useParallel:
         range = prange
     else:
@@ -271,7 +271,7 @@ f_e_pg: np.ndarray, SourcePart_e_pg: np.ndarray):
     return K_r_e + K_K_e, Fd_e
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def Calc_psi_e_pg(Epsilon_e_pg: np.ndarray, SigmaP_e_pg: np.ndarray, SigmaM_e_pg: np.ndarray):
+def Calc_psi_e_pg(Epsilon_e_pg: np.ndarray, SigmaP_e_pg: np.ndarray, SigmaM_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     if useParallel:
         range = prange
     else:
@@ -293,7 +293,7 @@ def Calc_psi_e_pg(Epsilon_e_pg: np.ndarray, SigmaP_e_pg: np.ndarray, SigmaM_e_pg
     return psiP_e_pg, psiM_e_pg
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def Calc_Sigma_e_pg(Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.ndarray):
+def Calc_Sigma_e_pg(Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     if useParallel:
         range = prange
     else:
@@ -320,32 +320,53 @@ def Calc_Sigma_e_pg(Epsilon_e_pg: np.ndarray, cP_e_pg: np.ndarray, cM_e_pg: np.n
 # Calcul de splits
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def Get_Anisot_C(projP_e_pg: np.ndarray, c: np.ndarray, projM_e_pg: np.ndarray):
+def Get_Anisot_C(aP_e_pg: np.ndarray, b: np.ndarray, aM_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Permet de calculer les 4 matrices de comportement Cpp, Cpm, Cmp et Cmm\n
+    Permet d'executer cette opération :\n
+    projP_e_pg.T x C x projM_e_pg  (epki, kl, eplj) -> (epij) \n
+
+    ou cette opération :\n
+    cP_e_pg.T x S x cM_e_pg  (epki, kl, eplj) -> (epij)
+
+    Parameters
+    ----------
+    aP_e_pg : np.ndarray
+        projP_e_pg ou cP_e_pg (epij)
+    b : np.ndarray
+        _description_
+    aM_e_pg : np.ndarray
+        projM_e_pg ou cM_e_pg (epij)
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        Cpp_e_pg, Cpm_e_pg, Cmp_e_pg, Cmm_e_pg
+    """
     if useParallel:
         range = prange
     else:
         range = np.arange
 
-    Ne = projP_e_pg.shape[0]
-    nPg = projP_e_pg.shape[1]
-    dimc = c.shape[0]
+    Ne = aP_e_pg.shape[0]
+    nPg = aP_e_pg.shape[1]
+    dimc = b.shape[0]
 
     Cpp_e_pg = np.zeros((Ne, nPg, dimc, dimc))
     Cpm_e_pg = np.zeros_like(Cpp_e_pg)
     Cmp_e_pg = np.zeros_like(Cpp_e_pg)
     Cmm_e_pg = np.zeros_like(Cpp_e_pg)
 
-    for e in range(projP_e_pg.shape[0]):
-        for p in range(projP_e_pg.shape[1]):
-            for i in range(c.shape[0]):                
-                for j in range(c.shape[0]):
-                    for l in range(c.shape[0]):
-                        for k in range(c.shape[0]):
+    for e in range(aP_e_pg.shape[0]):
+        for p in range(aP_e_pg.shape[1]):
+            for i in range(b.shape[0]):                
+                for j in range(b.shape[0]):
+                    for l in range(b.shape[0]):
+                        for k in range(b.shape[0]):
 
-                            Cpp_e_pg[e,p,i,j] += projP_e_pg[e,p,k,i] * c[k,l] * projP_e_pg[e,p,l,j]
-                            Cpm_e_pg[e,p,i,j] += projP_e_pg[e,p,k,i] * c[k,l] * projM_e_pg[e,p,l,j]
-                            Cmp_e_pg[e,p,i,j] += projM_e_pg[e,p,k,i] * c[k,l] * projP_e_pg[e,p,l,j]
-                            Cmm_e_pg[e,p,i,j] += projM_e_pg[e,p,k,i] * c[k,l] * projM_e_pg[e,p,l,j]
+                            Cpp_e_pg[e,p,i,j] += aP_e_pg[e,p,k,i] * b[k,l] * aP_e_pg[e,p,l,j]
+                            Cpm_e_pg[e,p,i,j] += aP_e_pg[e,p,k,i] * b[k,l] * aM_e_pg[e,p,l,j]
+                            Cmp_e_pg[e,p,i,j] += aM_e_pg[e,p,k,i] * b[k,l] * aP_e_pg[e,p,l,j]
+                            Cmm_e_pg[e,p,i,j] += aM_e_pg[e,p,k,i] * b[k,l] * aM_e_pg[e,p,l,j]
     
     return Cpp_e_pg, Cpm_e_pg, Cmp_e_pg, Cmm_e_pg
 
@@ -353,7 +374,7 @@ def Get_Anisot_C(projP_e_pg: np.ndarray, c: np.ndarray, projM_e_pg: np.ndarray):
 # Pas tres efficace
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Split_Amor(Rp_e_pg: np.ndarray, Rm_e_pg: np.ndarray,
-partieDeviateur: np.ndarray, IxI: np.ndarray, bulk):
+partieDeviateur: np.ndarray, IxI: np.ndarray, bulk) -> tuple[np.ndarray, np.ndarray]:
     if useParallel:
         range = prange
     else:
@@ -376,7 +397,7 @@ partieDeviateur: np.ndarray, IxI: np.ndarray, bulk):
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Get_projP_projM(BetaP: np.ndarray, gammap: np.ndarray,
 BetaM: np.ndarray, gammam: np.ndarray,
-m1xm1: np.ndarray, m2xm2: np.ndarray):
+m1xm1: np.ndarray, m2xm2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
     if useParallel:
         range = prange
