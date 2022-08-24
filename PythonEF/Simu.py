@@ -143,12 +143,12 @@ class Simu:
         """Sauvegarde les résultats de l'itération"""
         if self.materiau.isDamaged:
             iter = {                
-                'displacement' : [self.__displacement],
-                'damage' : [self.__damage]
+                'displacement' : self.__displacement,
+                'damage' : self.__damage
             }
         else:
             iter = {                
-                'displacement' : [self.__displacement]
+                'displacement' : self.__displacement
             }
 
         # TODO Faire de l'adaptation de maillage ?
