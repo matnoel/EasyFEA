@@ -653,13 +653,14 @@ class Simu:
 
         return np.array(x)
 
-    def __Solve_Axb(self, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix,
-    useCholesky=False, A_isSymetric=False):
+    def __Solve_Axb(self, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, useCholesky=False, A_isSymetric=False):
         """Résolution de Ax=b"""
+        
+        # Detection du système
+        syst = platform.system()
         
         tic = Tic()
 
-        syst = platform.system()
 
         # if problemType == "damage" and not self.materiau.phaseFieldModel.useHistory:
         #     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
@@ -671,95 +672,74 @@ class Simu:
         #     x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
         #     x= x['x']
 
-        if syst == "Linux":
+        method = 1
 
-            method = 1
+        useCholesky = False
+        if useCholesky and A_isSymetric:
+            x = self.__Cholesky(A, b)
 
-            useCholesky = False
+        elif method == 1:
 
-            if useCholesky and A_isSymetric:
-                x = self.__Cholesky(A, b)
+            x = self.__Pypardiso_spsolve(A, b)
 
-            elif method == 1:
-
-                x = self.__Pypardiso_spsolve(A, b)
-
-            elif method == 2:
-                # Utilise umfpack
-                import scikits.umfpack as um
-                # lu = um.splu(A)
-                # x = lu.solve(b).reshape(-1)
-                
-                x = um.spsolve(A, b)
-                
-
-            elif method == 3:
-                # Utilise umfpack depuis scipy
-                sla.use_solver(useUmfpack=True)
-                x = sla.spsolve(A, b)
-
-                # x = sla.spsolve(A, b,use_umfpack=True)
-                # x = sla.spsolve(A, b, permc_spec="MMD_AT_PLUS_A")
-
-            elif method == 4:
-                from mumps import spsolve
-                x = spsolve(A,b)
-                pass
-
-            elif method == 5:
-
-                # Utilise PETSc
-                # Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
-                from petsc4py import PETSc
-                ksp = PETSc.KSP().create()
-                A = PETSc.Mat(A)
-                ksp.setOperators(A)
-
-                ksp.setFromOptions()
-                print('Solving with:'), ksp.getType()
-
-                # Solve!
-                ksp.solve(b, x)
-                
-        elif syst == "Windows":
+        elif method == 2:                
+            # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems                    
+            # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
             
-            method = 1
+            hideFacto = False # Cache la décomposition
+            # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
+            if A_isSymetric and not self.materiau.isDamaged:
+                permute="MMD_AT_PLUS_A"
+            else:
+                permute="COLAMD"
+
+            if hideFacto:                    
+                x = sla.spsolve(A, b, permc_spec=permute)
+                
+            else:
+                # superlu : https://portal.nersc.gov/project/sparse/superlu/
+                # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
+                lu = sla.splu(A.tocsc(), permc_spec=permute)
+                x = lu.solve(b.toarray()).reshape(-1)
+
+        elif method == 3 and syst == 'Linux':
+            # Utilise umfpack
+            import scikits.umfpack as um
+            # lu = um.splu(A)
+            # x = lu.solve(b).reshape(-1)
             
-            useCholesky = False
-
-            if useCholesky and A_isSymetric:
-
-                x = self.__Cholesky(A, b)
-
-            elif method == 1:
-
-                x = self.__Pypardiso_spsolve(A, b)
-
-            elif method == 2:                
-                # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems                    
-                # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
-                
-                hideFacto = False # Cache la décomposition
-                # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
-                if A_isSymetric and not self.materiau.isDamaged:
-                    permute="MMD_AT_PLUS_A"
-                else:
-                    permute="COLAMD"
-                
-                
-
-                if hideFacto:                    
-                    x = sla.spsolve(A, b, permc_spec=permute)
-                    
-                else:
-                    # superlu : https://portal.nersc.gov/project/sparse/superlu/
-                    # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
-                    lu = sla.splu(A.tocsc(), permc_spec=permute)
-                    x = lu.solve(b.toarray()).reshape(-1)
+            x = um.spsolve(A, b)
             
-        
+
+        elif method == 4 and syst == 'Linux':
+            # Utilise umfpack depuis scipy
+            sla.use_solver(useUmfpack=True)
+            x = sla.spsolve(A, b)
+
+            # x = sla.spsolve(A, b,use_umfpack=True)
+            # x = sla.spsolve(A, b, permc_spec="MMD_AT_PLUS_A")
+
+        elif method == 5 and syst == 'Linux':
+            from mumps import spsolve
+            x = spsolve(A,b)
+            pass
+
+        elif method == 6 and syst == 'Linux':
+
+            # Utilise PETSc
+            # Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
+            from petsc4py import PETSc
+            ksp = PETSc.KSP().create()
+            A = PETSc.Mat(A)
+            ksp.setOperators(A)
+
+            ksp.setFromOptions()
+            print('Solving with:'), ksp.getType()
+
+            # Solve!
+            ksp.solve(b, x)
                 
-        tac = tic.Tac(f"Solve {problemType}","Solve Ax=b",self.__verbosity)
+        tic.Tac(f"Solve {problemType}","Solve Ax=b",self.__verbosity)
 
         return x
     
