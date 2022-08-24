@@ -33,12 +33,6 @@ maxIter = 250
 # tolConv = 0.05
 tolConv = 1
 
-if tolConv < 1:
-    testConvergence = True
-else:
-    testConvergence = False
-
-
 if comp == "Elas_Isot":
     umax = 25e-6
     # umax = 35e-6    
@@ -48,9 +42,9 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["Amor"]:
+for split in ["AnisotMiehe","AnisotStress","He","Stress"]:
     
-    if split == "AnisotStress":
+    if split == "AnisotStress" and comp == "Elas_Isot":
         umax = 45e-6
 
     # Data
@@ -71,6 +65,7 @@ for split in ["Amor"]:
         Gl=450*1e6
         vl=0.02
         vt=0.44
+        v=0
 
     gc = 1.4
     l_0 = 0.12e-3

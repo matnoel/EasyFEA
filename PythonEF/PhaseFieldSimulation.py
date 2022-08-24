@@ -79,7 +79,7 @@ def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, tem
     print(texte, end=end)
 
 def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float,
-useHistory: bool, test: bool, openCrack=False, v=0):
+useHistory: bool, test: bool, openCrack=False, v=0.0):
 
     nom="_".join([comp, split, regu, simpli2D])
 
