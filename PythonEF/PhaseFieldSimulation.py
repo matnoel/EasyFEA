@@ -87,7 +87,18 @@ def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, tem
 
     if pourcentage > 0:
         tempsRestant = (1/pourcentage-1)*temps*resol
-        texte = texte+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsRestant,1)} s"
+        
+        if tempsRestant < 60:
+            unitTemps = 's'
+            coef=1
+        elif tempsRestant < 3600:
+            unitTemps = 'm'
+            coef=60
+        else:
+            unitTemps = 'h'
+            coef=3600
+
+        texte = texte+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsRestant/coef,1)} {unitTemps}"
     
     print(texte, end=end)
 
