@@ -142,9 +142,8 @@ def ep_epij_to_epij(ep: np.ndarray, epij: np.ndarray) -> np.ndarray:
 
     for e in range(Ne):
         for p in range(nPg):
-            for i in range(dimI):
-                for j in range(dimJ):
-                    result[e, p, i, j] += ep[e, p] * epij[e, p, i, j]
+            result[e, p, :, :] += ep[e, p] * epij[e, p, :, :]
+                    
 
     return result
 

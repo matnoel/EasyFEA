@@ -227,6 +227,7 @@ class Simu:
             if useNumba:
                 # Moins rapide
                 cP_e_pg = CalcNumba.ep_epij_to_epij(g_e_pg, cP_e_pg)
+                # testcP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal') - cP_e_pg
             else:
                 # Plus rapide
                 cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
