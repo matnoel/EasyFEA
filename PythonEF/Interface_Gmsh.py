@@ -159,7 +159,6 @@ class Interface_Gmsh:
         factory = self.__factory
 
         if factory == gmsh.model.geo:
-            isOrganised = True
             factory = cast(gmsh.model.geo, factory)
         elif factory == gmsh.model.occ:
             isOrganised = False
@@ -715,8 +714,7 @@ class Interface_Gmsh:
                         # gmsh.model.geo.mesh.setTransfiniteSurface(surf)
 
                 # Synchronisation
-                gmsh.model.occ.synchronize()
-                gmsh.model.geo.synchronize()
+                self.__factory.synchronize()
 
                 if elemType in ["QUAD4","QUAD8"]:
                     try:
@@ -752,8 +750,7 @@ class Interface_Gmsh:
                     # gmsh.open("meshhh.msh")
         
         elif dim == 3:
-            gmsh.model.occ.synchronize()
-            gmsh.model.geo.synchronize()
+            self.__factory.synchronize()
 
             if elemType in ["HEXA8"]:
 
@@ -919,7 +916,7 @@ class Interface_Gmsh:
         return list_mesh2D
 
     @staticmethod
-    def Construction3D(L=130, h=13, b=13, taille=130):
+    def Construction3D(L=130, h=13, b=13, taille=7.5):
         """Construction des maillage possibles en 3D"""
         # Pour chaque type d'element 3D
 
@@ -932,7 +929,7 @@ class Interface_Gmsh:
         list_mesh3D = []
         for t, elemType in enumerate(GroupElem.get_Types3D()):
             for isOrganised in [True, False]:
-                interfaceGmsh = Interface_Gmsh(verbosity=False)
+                interfaceGmsh = Interface_Gmsh(verbosity=False, affichageGmsh=False)
                 # path = Dossier.GetPath(__file__)
                 # fichier = Dossier.Join([path,"3Dmodels","part.stp"])
                 # if elemType == "TETRA4":

@@ -78,7 +78,7 @@ class Test_Simu(unittest.TestCase):
         
         self.simulations3DElastique = []
 
-        listMesh3D = Interface_Gmsh.Construction3D(L=L, h=h, b=b, taille=taille)
+        listMesh3D = Interface_Gmsh.Construction3D(L=L, h=h, b=b, taille=h/2)
 
         # Pour chaque type d'element 2D
         for mesh in listMesh3D:

@@ -35,7 +35,8 @@ class Test_InterfaceGmsh(unittest.TestCase):
     
     def test_Importation3D(self):
         for mesh3D in self.list_mesh3D:
-            Affichage.Plot_NoeudsMaillage(mesh3D, showId=True)
+            ax = Affichage.Plot_Maillage(mesh3D)
+            Affichage.Plot_NoeudsMaillage(mesh3D, showId=False, ax=ax, c='black')
             plt.pause(0.00005)
             plt.close()
 
