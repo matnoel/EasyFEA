@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 # Options
 
 test=True
-solve=False
+solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
@@ -25,7 +25,7 @@ regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 useHistory=True
 
-useNumba=False
+useNumba=True
 
 # Convergence
 maxIter = 250
@@ -62,7 +62,8 @@ for split in ["Amor"]:
 
     if comp == "Elas_Isot":
         E=12e9
-        v=0.3
+        # v=0.3
+        v=0.4
     elif comp == "Elas_IsotTrans":
         # El=11580*1e6
         El=12e9
@@ -98,13 +99,14 @@ for split in ["Amor"]:
 
     # Nom du dossier
     nomDossier = "PlateWithHole_Benchmark"
-    folder = PhaseFieldSimulation.ConstruitDossier(nomDossier , comp, split, regu, simpli2D, tolConv, useHistory, test, v)
+    folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
+    comp=comp, split=split, regu=regu, simpli2D=simpli2D,
+    tolConv=tolConv, useHistory=useHistory, test=test, openCrack=False, v=v)
 
     
     if solve:
 
         print()
-        print(folder)
 
         point = Point()
         domain = Domain(point, Point(x=L, y=h), clD)
@@ -132,8 +134,7 @@ for split in ["Amor"]:
                         contraintesPlanes=isCp, epaisseur=ep,
                         axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-        phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0,
-        useHistory=useHistory, useNumba=useNumba)
+        phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
         materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel)
 
         simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
@@ -235,12 +236,12 @@ for split in ["Amor"]:
         PostTraitement.Save_Simu(simu, folder)
             
     else:
-
+ 
         simu = PostTraitement.Load_Simu(folder)
 
         load, displacement = PostTraitement.Load_Load_Displacement(folder)
 
-    Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'mm', 'kN/mm', folder)
+    Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud en mm', 'f en kN/mm', folder)
 
     filenameDamage = f"{split} damage_n"
     # titleDamage = fr"$\phi$"
@@ -257,13 +258,13 @@ for split in ["Amor"]:
     Tic.getResume()
 
     if solve:
-        Tic.getGraphs(folder, details=False)
+        Tic.getGraphs(folder, details=True)
     else:
         Tic.getGraphs()
         plt.show()
 
     Tic.Clear()
 
-    plt.close('all')
+    # plt.close('all')
 
 plt.show()

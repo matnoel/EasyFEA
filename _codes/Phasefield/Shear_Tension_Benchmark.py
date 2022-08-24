@@ -31,7 +31,7 @@ makeMovie = False
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot"
-split = "Miehe" # "Bourdin","Amor","Miehe","Stress"
+split = "He" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
 openCrack = True
 
@@ -55,9 +55,9 @@ if test:
 else:
     taille = l0/2 #l0/2 2.5e-6
 
-folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier , comp=comportement, split=split, regu=regularisation, simpli2D='DP',
-tolConv=tolConv, useHistory=True, test=test, openCrack=openCrack)
-print(folder)
+folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
+comp=comportement, split=split, regu=regularisation, simpli2D='DP',
+tolConv=tolConv, useHistory=True, test=test, openCrack=False, v=0)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -96,7 +96,7 @@ if solve:
 
     comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
 
-    phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0, useNumba=False)
+    phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 
     materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 
@@ -214,7 +214,7 @@ if plotResult:
 
     Affichage.Plot_BoundaryConditions(simu)
 
-    Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'µm', 'kN')
+    Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN')
 
     Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,
     affichageMaillage=False, deformation=False, folder=folder)

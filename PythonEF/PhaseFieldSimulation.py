@@ -67,16 +67,19 @@ def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, tem
     
     if remove:
         end='\r'
+        print("", end='\r')
     else:
         end=''
 
+
     if pourcentage > 0:
-        texte = f"{np.round(pourcentage*100,2)} % " + texte
+        tempsRestant = (1/pourcentage-1)*temps*resol
+        texte = texte+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsRestant,3)} s"
     
     print(texte, end=end)
 
 def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float,
-useHistory: bool, test: bool, openCrack:bool, v=0):
+useHistory: bool, test: bool, openCrack=False, v=0):
 
     nom="_".join([comp, split, regu, simpli2D])
 
@@ -98,5 +101,7 @@ useHistory: bool, test: bool, openCrack:bool, v=0):
         folder = Dossier.Join([folder, "Test", nom])
     else:
         folder = Dossier.Join([folder, nom])
+
+    print(folder)
 
     return folder
