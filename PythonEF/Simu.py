@@ -1,7 +1,7 @@
 
 import platform
 from types import LambdaType
-from typing import cast, Dict
+from typing import List, cast, Dict
 
 import pandas as pd
 import numpy as np
@@ -112,13 +112,9 @@ class Simu:
             """endommagement"""
             self.__psiP_e_pg = []
             """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
-
-            columns = ['displacement', 'damage']
-        else:
-            columns = ['displacement']
             
-        self.__results = pd.DataFrame(columns=columns)
-        """tableau panda qui contient les résultats"""
+        self.__results = []
+        """liste de dictionnaire qui contient les résultats"""
 
         # self.Save_Iteration()
 
@@ -132,21 +128,19 @@ class Simu:
         return self.__displacement.copy()
 
     def get_result(self, index=None):
-        """Recupère le resultat stocké dans le data frame panda"""
+        """Recupère le resultat stocké dans la liste de dictionnaire"""
         if index == None:
-            return self.__results.loc[[self.__results.shape[0]]]
+            return self.__results[-1]
         else:
-            return self.__results.loc[[index]]
+            return self.__results[index]
 
-    def Get_DataFrame(self):
-        """Renvoie le data frame panda qui stocke les résultats"""
+    def Get_Results(self) -> List[dict]:
+        """Renvoie la liste de dictionnaire qui stocke les résultats\n
+        """        
         return self.__results
 
     def Save_Iteration(self):
-        """Sauvegarde les résultats de l'itération dans une nouvelle ligne du dataFrame"""
-
-        iter = self.__results.index.shape[0]
-
+        """Sauvegarde les résultats de l'itération"""
         if self.materiau.isDamaged:
             iter = {                
                 'displacement' : [self.__displacement],
@@ -157,11 +151,8 @@ class Simu:
                 'displacement' : [self.__displacement]
             }
 
-        new = pd.DataFrame(iter)
-
         # TODO Faire de l'adaptation de maillage ?
-
-        self.__results = pd.concat([self.__results, new], ignore_index=True)
+        self.__results.append(iter)
 
     def Update_iter(self, iter: int):
         """Met la simulation à literation renseignée"""
@@ -172,11 +163,11 @@ class Simu:
         results = self.get_result(iter)
 
         if self.materiau.isDamaged: 
-            self.__psiP_e_pg = []           
-            self.__damage = results["damage"].values[0]
-            self.__displacement = results["displacement"].values[0]
+            self.__psiP_e_pg = []
+            self.__damage = results["damage"]
+            self.__displacement = results["displacement"]
         else:
-            self.__displacement = results["displacement"].values[0]
+            self.__displacement = results["displacement"]
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 

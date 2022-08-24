@@ -114,9 +114,9 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     # Nom de la vidéo dans le dossier ou est communiqué le dossier
     filename = Dossier.Join([folder, f'{name}.mp4'])
 
-    results = simu.Get_DataFrame()
+    results = simu.Get_Results()
 
-    N = results.shape[0]
+    N = len(results)
 
     # Met à jour la simulation pour creer la première figure qui sera utilisée pour l'animation
     simu.Update_iter(0)
@@ -169,9 +169,9 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
 
     vtuFiles=[]
 
-    results = simu.Get_DataFrame()
+    results = simu.Get_Results()
 
-    N = results.shape[0]
+    N = len(results)
 
     folder = Dossier.Join([folder,"Paraview"])
 
