@@ -60,6 +60,14 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         
     return u, d, Kglob, iterConv
 
+class listTemps:
+    def init(self):
+        self.listTemps = []
+    @property
+    def temps(self) -> float:
+        return np.mean(self.listTemps)
+
+listTmps = listTemps()
 def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, temps: float, uniteDep="m", pourcentage=0, remove=False):
     min_d = d.min()
     max_d = d.max()
@@ -70,13 +78,19 @@ def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, tem
         print("", end='\r')
     else:
         end=''
+        
+    if resol == 1:
+        listTmps.init()
 
+    listTmps.listTemps.append(temps)
+    temps = listTmps.temps
 
     if pourcentage > 0:
         tempsRestant = (1/pourcentage-1)*temps*resol
-        texte = texte+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsRestant,3)} s"
+        texte = texte+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsRestant,1)} s"
     
     print(texte, end=end)
+
 
 def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float,
 useHistory: bool, test: bool, openCrack=False, v=0.0):

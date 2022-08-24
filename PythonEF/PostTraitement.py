@@ -25,7 +25,7 @@ def Save_Simu(simu: Simu, folder:str):
     with open(filename, "wb") as file:
         pickle.dump(simu, file)
 
-def Load_Simu(folder: str, verbosity=True):
+def Load_Simu(folder: str, verbosity=False):
     """Charge la simulation depuis le dossier
 
     Parameters
@@ -70,7 +70,7 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
     with open(filename, "wb") as file:
         pickle.dump(values, file)
     
-def Load_Load_Displacement(folder:str, verbosity=True):
+def Load_Load_Displacement(folder:str, verbosity=False):
     """Charge les forces [N] et déplacements [m]
 
     Parameters

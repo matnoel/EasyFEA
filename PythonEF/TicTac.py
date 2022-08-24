@@ -26,7 +26,7 @@ class Tic:
 
         import Affichage as Affichage
 
-        Affichage.NouvelleSection("Résumé TicTac")
+        # Affichage.NouvelleSection("Résumé TicTac")
 
         for categorie in Tic.__Historique:
             histoCategorie = np.array(np.array(Tic.__Historique[categorie])[:,1] , dtype=np.float64)
