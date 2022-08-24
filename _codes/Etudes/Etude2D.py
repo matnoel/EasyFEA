@@ -24,9 +24,11 @@ ticTot = Tic()
 
 # Data --------------------------------------------------------------------------------------------
 
-plotResult = True
+plotResult = False
 
 saveParaview = False
+
+useNumba = True
 
 dim = 2
 
@@ -40,8 +42,8 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/5
-# taille = h/100
+# taille = h/5
+taille = h/200
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -76,7 +78,7 @@ noeuds_en_h= mesh.Nodes_Line(LineH)
 
 # ------------------------------------------------------------------------------------------------------
 
-simu = Simu(mesh, materiau, useNumba=False)
+simu = Simu(mesh, materiau, useNumba=useNumba)
 
 # Renseigne les condtions limites
 
@@ -130,7 +132,10 @@ Tic.getResume()
 
 
 if plotResult:
-    # Tic.getGraphs()
+    Tic.getGraphs()
     plt.show()
+
+Tic.getGraphs()
+plt.show()
 
 # %%

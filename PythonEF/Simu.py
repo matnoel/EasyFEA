@@ -661,7 +661,6 @@ class Simu:
         
         tic = Tic()
 
-
         # if problemType == "damage" and not self.materiau.phaseFieldModel.useHistory:
         #     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
         #     lb = self.damage

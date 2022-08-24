@@ -20,7 +20,7 @@ test=True
 solve=True
 saveParaview=False
 
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 useHistory=True
@@ -42,7 +42,7 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["AnisotMiehe","AnisotStress","He","Stress"]:
+for split in ["Amor"]:
     
     if split == "AnisotStress" and comp == "Elas_Isot":
         umax = 45e-6
@@ -56,8 +56,7 @@ for split in ["AnisotMiehe","AnisotStress","He","Stress"]:
 
     if comp == "Elas_Isot":
         E=12e9
-        # v=0.3
-        v=0.4
+        v=0.3
     elif comp == "Elas_IsotTrans":
         # El=11580*1e6
         El=12e9

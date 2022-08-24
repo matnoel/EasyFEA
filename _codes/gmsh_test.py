@@ -22,14 +22,14 @@ pt7 = Point(x=h, y=h)
 listPoint = [pt1, pt2, pt3, pt4, pt5, pt6]
 # listPoint = [pt1, pt2, pt3, pt7]
 
-interface = Interface_Gmsh(affichageGmsh=False)
+interface = Interface_Gmsh(affichageGmsh=True)
 if dim == 2:
     mesh = interface.Mesh_From_Points_2D(listPoint, 
     elemType="TRI3", tailleElement=h/10, isOrganised=False)
 elif dim == 3:
     # ["TETRA4", "HEXA8", "PRISM6"]
     mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3,
-    elemType="TETRA4", isOrganised=True, tailleElement=h/6)
+    elemType="PRISM6", isOrganised=True, tailleElement=h/6)
 
 noeudsGauche = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
 noeudsDroit = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
