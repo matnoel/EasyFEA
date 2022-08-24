@@ -59,7 +59,6 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     from Simu import Simu
     from TicTac import Tic
 
-    tic = Tic()
     simu = cast(Simu, simu) # ne pas ecrire simu: Simu ça créer un appel circulaire
 
     mesh = simu.mesh
@@ -209,8 +208,6 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
             filename=title
         PostTraitement.Save_fig(folder, filename, transparent=False)
 
-    tic.Tac("Affichage", "Plot_Result", False)
-    
     return fig, ax, cb
     
 def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder="", title="") -> plt.Axes:
@@ -620,12 +617,12 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     return ax
 
-def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, uniteDepl='m', uniteForce='N', folder=""):
+def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m', ylabel='f en N', folder=""):
     fig, ax = plt.subplots()
 
     ax.plot(np.abs(deplacements), np.abs(forces), c='blue')
-    ax.set_xlabel(f"ud en {uniteDepl}")
-    ax.set_ylabel(f"f en {uniteForce}")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     ax.grid()
 
     if folder != "":
