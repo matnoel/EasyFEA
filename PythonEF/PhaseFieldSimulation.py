@@ -102,6 +102,6 @@ useHistory: bool, test: bool, openCrack=False, v=0.0):
     else:
         folder = Dossier.Join([folder, nom])
 
-    print(folder)
+    print('\nSimulation dans :\n'+folder)
 
     return folder

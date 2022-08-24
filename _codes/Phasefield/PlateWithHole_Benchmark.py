@@ -20,7 +20,7 @@ test=True
 solve=True
 saveParaview=False
 
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 useHistory=True
@@ -253,13 +253,12 @@ for split in ["AnisotMiehe","AnisotStress","He","Stress"]:
     Tic.getResume()
 
     if solve:
-        Tic.getGraphs(folder, details=True)
+        Tic.getGraphs(folder, details=False)
     else:
-        Tic.getGraphs()
+        # Tic.getGraphs()
         plt.show()
 
+    # plt.show()
+    
     Tic.Clear()
-
-    # plt.close('all')
-
-plt.show()
+    plt.close('all')
