@@ -98,7 +98,7 @@ def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, tem
             unitTemps = 'h'
             coef=3600
 
-        texte = texte+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsRestant/coef,1)} {unitTemps}"
+        texte = texte+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsRestant/coef,1)} {unitTemps}   "
     
     print(texte, end=end)
 
