@@ -7,23 +7,38 @@ from Simu import Simu
 import Dossier as Dossier
 from TicTac import Tic
 import numpy as np
+import PhaseFieldSimulation
 
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import pickle
+from datetime import datetime
 
 # =========================================== Simulation ==================================================
 
 def Save_Simu(simu: Simu, folder:str):
-    "Sauvegarde la simulation dans le dossier"
+    "Sauvegarde la simulation et son résumé dans le dossier"
+ 
+    # returns current date and time
+    dateEtHeure = datetime.now()
+    resume = f"Simulation réalisée le : {dateEtHeure}"
 
-    filename = Dossier.Join([folder, "simulation.xml"])
+    filename = Dossier.Join([folder, "simulation.pickle"])
+    print(f'Sauvegarde de :\n {filename}\n')
 
-    print(f'\nsave of {filename}')
-
+    # Sauvagarde la simulation
     with open(filename, "wb") as file:
         pickle.dump(simu, file)
+
+    # Sauvegarde le résumé de la simulation
+    resume += simu.Resume(False)
+
+    filenameResume = Dossier.Join([folder, "résumé.txt"])
+    print(f'Sauvegarde de :\n {filenameResume}\n')
+
+    with open(filenameResume, 'w', encoding='utf8') as file:
+        file.write(resume)
 
 def Load_Simu(folder: str, verbosity=False):
     """Charge la simulation depuis le dossier
@@ -39,8 +54,8 @@ def Load_Simu(folder: str, verbosity=False):
         simu
     """
 
-    filename = Dossier.Join([folder, "simulation.xml"])
-    assert os.path.exists(filename), "Le fichier simulation.xml est introuvable"
+    filename = Dossier.Join([folder, "simulation.pickle"])
+    assert os.path.exists(filename), "Le fichier simulation.pickle est introuvable"
 
     with open(filename, 'rb') as file:
         simu = pickle.load(file)
@@ -48,19 +63,20 @@ def Load_Simu(folder: str, verbosity=False):
     assert isinstance(simu, Simu)
 
     if verbosity:
-        print(f'\nload of {filename}')
+        print(f'\nChargement de :\n{filename}\n')
         simu.mesh.Resume()
         simu.materiau.Resume()
     return simu
+
 
 # =========================================== Load and Displacement ==================================================
 
 def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:str):
     "Sauvegarde les valeurs de forces [N] et déplacements [m] dans le dossier"
     
-    filename = Dossier.Join([folder, "load and displacement.xml"])
+    filename = Dossier.Join([folder, "load and displacement.pickle"])
 
-    print(f'\nsave of {filename}')
+    print(f'\nSauvegarde de :\n {filename}\n')
 
     values = {
         'load': load,
@@ -81,8 +97,8 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     return load, displacement
     """
 
-    filename = Dossier.Join([folder, "load and displacement.xml"])
-    assert os.path.exists(filename), "Le fichier load and displacement.xml est introuvable"
+    filename = Dossier.Join([folder, "load and displacement.pickle"])
+    assert os.path.exists(filename), "Le fichier load and displacement.pickle est introuvable"
 
     with open(filename, 'rb') as file:
         values = pickle.load(file)
@@ -91,7 +107,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     displacement = np.array(values['displacement'])
 
     if verbosity:
-        print(f'\nload of {filename}')
+        print(f'\nChargement de :\n {filename}\n')
 
     return load, displacement
 
@@ -247,7 +263,7 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
 
     with open(filename, "w") as file:
         
-        file.write('<?xml version="1.0" ?>\n')
+        file.write('<?pickle version="1.0" ?>\n')
         
         file.write(f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n')
 
@@ -362,7 +378,7 @@ def __Make_pvd(filename: str, vtuFiles=[]):
 
     with open(filename, "w") as file:
 
-        file.write('<?xml version="1.0" ?>\n')
+        file.write('<?pickle version="1.0" ?>\n')
 
         file.write(f'<VTKFile type="Collection" version="0.1" byte_order="{endian_paraview}">\n')
         file.write('\t<Collection>\n')

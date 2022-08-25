@@ -55,6 +55,7 @@ class Simu:
 
         if materiau.isDamaged:
             materiau.phaseFieldModel.useNumba = useNumba
+            self.__resumeIterPhaseField = ""
 
         self.__useNumba = useNumba
         # if useNumba:
@@ -113,6 +114,12 @@ class Simu:
             self.__psiP_e_pg = []
             """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
             
+        self.resumeChargement = ""
+        """resumé du chargement"""
+
+        self.resumeIter = ""
+        """resumé de l'iteration"""
+
         self.__results = []
         """liste de dictionnaire qui contient les résultats"""
 
@@ -1459,31 +1466,68 @@ class Simu:
 
         return valeurs_n.reshape(-1)
 
-    def Resume(self):
+    def Resume(self, verbosity=True):
+
+        resume = Affichage.NouvelleSection("Maillage", False)
+        resume += self.mesh.Resume(False)
+
+        resume += Affichage.NouvelleSection("Materiau", False)
+        resume += '\n' + self.materiau.Resume(False)
+
+        resume += Affichage.NouvelleSection("Resultats", False)
+        if self.materiau.isDamaged:
+            resumeChargement = self.resumeChargement
+            if resumeChargement == "":
+                resume += "\nChargement non renseigné"
+            else:
+                resume += '\n' + resumeChargement
+
+            resumelastIter = self.resumeIter
+            if resumelastIter == "":
+                resume += "\nLe résumé de l'itération n'est pas disponible"
+            else:
+                resume += '\n\n' + resumelastIter
+        else:
+            resume += self.ResumeResultats(False)
+
+        resume += Affichage.NouvelleSection("Temps", False)
+        resume += Tic.getResume(False)
+
+        if verbosity: print(resume)
+
+        return resume
+
+    def ResumeResultats(self, verbosity=True):
         """Ecrit un résumé de la simulation dans le terminal"""
+
+        resume = ""
 
         if not self.VerificationOption("Wdef"):
             return
         
         Wdef = self.Get_Resultat("Wdef")
-        print(f"\nW def = {Wdef:.3f} N.mm")
+        resume += f"\nW def = {Wdef:.3f} N.mm"
         
         Svm = self.Get_Resultat("Svm", valeursAuxNoeuds=False)
-        print(f"\nSvm max = {Svm.max():.3f} MPa")
+        resume += f"\n\nSvm max = {Svm.max():.3f} MPa"
 
         # Affichage des déplacements
         dx = self.Get_Resultat("dx", valeursAuxNoeuds=True)
-        print(f"\nUx max = {dx.max():.6f} mm")
-        print(f"Ux min = {dx.min():.6f} mm")
+        resume += f"\n\nUx max = {dx.max():.6f} mm"
+        resume += f"\nUx min = {dx.min():.6f} mm"
 
         dy = self.Get_Resultat("dy", valeursAuxNoeuds=True)
-        print(f"\nUy max = {dy.max():.6f} mm")
-        print(f"Uy min = {dy.min():.6f} mm\n")
+        resume += f"\n\nUy max = {dy.max():.6f} mm"
+        resume += f"\nUy min = {dy.min():.6f} mm"
 
         if self.__dim == 3:
             dz = self.Get_Resultat("dz", valeursAuxNoeuds=True)
-            print(f"\nUz max = {dz.max():.6f} mm")
-            print(f"Uz min = {dz.min():.6f} mm")
+            resume += f"\n\nUz max = {dz.max():.6f} mm"
+            resume += f"\nUz min = {dz.min():.6f} mm"
+
+        if verbosity: print(resume)
+
+        return resume
     
     def GetCoordUglob(self):
         """Renvoie les déplacements sous la forme [dx, dy, dz] (Nn,3)        """

@@ -39,9 +39,11 @@ class Mesh:
         if self.__verbosity:
             self.Resume()            
     
-    def Resume(self):
-        print(f"\nTypes d'elements: {self.elemType}")
-        print(f"Ne = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}")
+    def Resume(self, verbosity=True):
+        resume = f"\nTypes d'elements: {self.elemType}"
+        resume += f"\nNe = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}"
+        if verbosity: print(resume)
+        return resume
     
     def Get_list_groupElem(self, dim=None) -> List[GroupElem]:
         """Liste de group d'element du maillage"""

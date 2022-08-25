@@ -1,3 +1,4 @@
+from TicTac import Tic
 from Simu import Simu
 import numpy as np
 import scipy.sparse as sp
@@ -68,14 +69,14 @@ class listTemps:
         return np.mean(self.listTemps)
 
 listTmps = listTemps()
-def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, temps: float, uniteDep="m", pourcentage=0, remove=False):
+resumeIter = ""
+def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, iterConv: int, temps: float, uniteDep="m", pourcentage=0, remove=False):
     min_d = d.min()
     max_d = d.max()
-    texte = f"{resol:4} : ud = {np.round(dep,3)} {uniteDep},  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{np.round(temps,3)} s  "
+    resumeIter = f"{resol:4} : ud = {np.round(dep,3)} {uniteDep},  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{np.round(temps,3)} s  "
     
     if remove:
         end='\r'
-        print("", end='\r')
     else:
         end=''
         
@@ -88,20 +89,29 @@ def AffichageIteration(resol: int, dep: float, d: np.ndarray, iterConv: int, tem
     if pourcentage > 0:
         tempsRestant = (1/pourcentage-1)*temps*resol
         
-        if tempsRestant < 60:
-            unitTemps = 's'
-            coef=1
-        elif tempsRestant < 3600:
-            unitTemps = 'm'
-            coef=60
-        else:
-            unitTemps = 'h'
-            coef=3600
+        tempsCoef, unite = Tic.Get_temps_unite(tempsRestant)
 
-        texte = texte+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsRestant/coef,1)} {unitTemps}   "
+        resumeIter = resumeIter+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsCoef,1)} {unite}   "
     
-    print(texte, end=end)
+    print(resumeIter, end=end)
 
+    simu.resumeIter = resumeIter
+
+def ResumeChargement(simu: Simu, listInc: list, listTreshold: list, option='damage'):
+    listOption = ["damage", "displacement"]
+    assert option in listOption, f"option doit etre dans {listOption}"
+    assert len(listInc) == len(listTreshold), "Doit etre de la meme dimension"
+
+    if option == 'damage':
+        condition = 'd'
+    elif option == 'displacement':
+        condition = 'dep'
+    
+    resumeChargement = 'Chargement :'
+    for inc, treshold in zip(listInc, listTreshold):
+        resumeChargement += f'\n\tinc = {inc} -> {condition} < {treshold}'
+    
+    simu.resumeChargement = resumeChargement
 
 def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float,
 useHistory: bool, test: bool, openCrack=False, v=0.0):

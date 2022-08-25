@@ -17,7 +17,7 @@ class Tic:
     """historique des temps = { catégorie: list( [texte, temps] ) }"""
        
     @staticmethod
-    def getResume():
+    def getResume(verbosity=True):
         """Construit le résumé de TicTac"""
 
         if Tic.__Historique == {}: return
@@ -28,11 +28,18 @@ class Tic:
 
         # Affichage.NouvelleSection("Résumé TicTac")
 
+        resume = ""
+
         for categorie in Tic.__Historique:
             histoCategorie = np.array(np.array(Tic.__Historique[categorie])[:,1] , dtype=np.float64)
             tempsCatégorie = np.sum(histoCategorie)
-            texte = f"{categorie} : {tempsCatégorie:.3f} s"
-            print(texte)
+            tempsCatégorie, unite = Tic.Get_temps_unite(tempsCatégorie)
+            resumeCatégorie = f"{categorie} : {tempsCatégorie:.3f} {unite}"
+            if verbosity: print(resumeCatégorie)
+            resume += '\n' + resumeCatégorie
+
+        return resume
+            
 
     @staticmethod
     def __plotBar(ax: plt.Axes, categories: list, temps: list, titre: str):
@@ -48,11 +55,20 @@ class Tic:
 
         ax.grid(axis = "x", lw=1.2)
 
-        for i, (c, t) in enumerate(zip(categories, temps)):
-            # ax1.barh(i, t, height=0.55, align="edge", label=c)
-            ax.barh(i, t, align="edge", label=c)
+        for i, (texte, tmps) in enumerate(zip(categories, temps)):
+            # height=0.55
+            # ax.barh(i, t, height=height, align="center", label=c)            
+            ax.barh(i, tmps, align="center", label=texte)
+            longeur = len(texte)
+            
+            if longeur > tmps:
+                ax.text(tmps, i, texte, color='black',
+                verticalalignment='center', horizontalalignment='left')
+            else:
+                ax.text(tmps, i, texte, color='white',
+                verticalalignment='center', horizontalalignment='right')
 
-        plt.legend()
+        # plt.legend()
         ax.set_title(titre)
 
     @staticmethod 
@@ -80,7 +96,7 @@ class Tic:
 
             # print(dfSousCategorie)
 
-            if len(sousCategories) > 1 and details:
+            if len(sousCategories) > 1 and details and tempsTotCategorie[-1]>0:
                 fig, ax = plt.subplots()
                 Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
             
@@ -111,28 +127,41 @@ class Tic:
 
         # # On contstruit un disque pour chaque sous catégorie d'une catégorie
 
-
-        
-
     def __init__(self):
         self.__start = time.time()
+
+    def Get_temps_unite(temps):
+        """Renvoie le temps et l'unité"""
+        if temps > 1:
+            if temps < 60:
+                unite = "s"
+                coef = 1
+            elif temps > 60 and temps < 3600:
+                unite = "m"
+                coef = 1/60
+            elif temps > 3600 and temps < 86400:
+                unite = "h"
+                coef = 1/3600
+            else:
+                unite = "j"
+                coef = 1/86400
+        elif temps < 1 and temps > 1e-3:
+            coef = 1e3
+            unite = "ms"
+        elif temps < 1e-3:
+            coef = 1e6
+            unite = "µs"
+
+        return temps*coef, unite
 
     def Tac(self, categorie: str, texte: str, affichage: bool):
         """calcul le temps et stock dans l'historique"""
 
         tf = np.abs(self.__start - time.time())
 
-        if tf > 1:
-            unite = "s"
-            coef = 1
-        elif tf < 1 and tf > 1e-3:
-            coef = 1e3
-            unite = "ms"
-        elif tf < 1e-3:
-            coef = 1e6
-            unite = "µs"
+        tfCoef, unite = Tic.Get_temps_unite(tf)
 
-        texteAvecLeTemps = f"{texte} ({tf*coef:.3f} {unite})"
+        texteAvecLeTemps = f"{texte} ({tfCoef:.3f} {unite})"
         
         value = [texte, tf]
 

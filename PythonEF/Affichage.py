@@ -701,7 +701,7 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     ax.set_box_aspect([1,1,1])
     
 
-def NouvelleSection(text: str):
+def NouvelleSection(text: str, verbosity=True):
     """Creation d'une nouvelle section
 
     Parameters
@@ -719,7 +719,11 @@ def NouvelleSection(text: str):
 
     bord = "="*int((longeurMax - longeurTexte)/2)
 
-    print(f"\n\n{bord} {text} {bord}\n")
+    section = f"\n\n{bord} {text} {bord}\n"
+
+    if verbosity: print(section)
+
+    return section
 
 def Clear():
     """Nettoie le terminal de commande"""
