@@ -174,7 +174,7 @@ if solve:
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
-        PhaseFieldSimulation.AffichageIteration(iter, dep*1e6, d, iterConv, temps, "µm", iter/N, True)
+        PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, temps, "µm", iter/N, True)
   
         deplacements.append(dep)
         forces.append(f)

@@ -5,7 +5,7 @@ from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
 import Simu as Simu
-import Dossier as Dossier
+import Dossier
 import PostTraitement as PostTraitement
 import PhaseFieldSimulation
 
@@ -106,7 +106,7 @@ for split in ["Amor"]:
         domain = Domain(point, Point(x=L, y=h), clD)
         circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
 
-        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
+        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
         mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI3")
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
         # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
@@ -129,7 +129,7 @@ for split in ["Amor"]:
                         axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
         phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
-        materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel)
+        materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
 
         simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
 
@@ -175,7 +175,7 @@ for split in ["Amor"]:
         # Affichage.Plot_BoundaryConditions(simu)
         # plt.show()
 
-        Affichage.NouvelleSection("Simulation")
+        PhaseFieldSimulation.ResumeChargement(simu, [inc0, inc1], [0.6, 1])
 
         
 
@@ -204,7 +204,7 @@ for split in ["Amor"]:
             max_d = d.max()
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 
-            PhaseFieldSimulation.AffichageIteration(resol, ud*1e6, d, iterConv, temps, "µm", ud/umax, True)
+            PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, iterConv, temps, "µm", ud/umax, True)
 
             if max_d<0.6:
                 ud += inc0
@@ -231,9 +231,9 @@ for split in ["Amor"]:
             
     else:
  
+        load, displacement = PostTraitement.Load_Load_Displacement(folder)
         simu = PostTraitement.Load_Simu(folder)
 
-        load, displacement = PostTraitement.Load_Load_Displacement(folder)
 
     Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud en mm', 'f en kN/mm', folder)
 
@@ -249,7 +249,7 @@ for split in ["Amor"]:
     if saveParaview:
         PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
-    Tic.getResume()
+    # Tic.getResume()
 
     if solve:
         Tic.getGraphs(folder, details=False)

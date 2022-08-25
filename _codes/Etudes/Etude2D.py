@@ -42,8 +42,8 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-# taille = h/5
-taille = h/200
+taille = h/5
+# taille = h/200
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -101,35 +101,32 @@ dep = simu.Solve_u()
 
 simu.Save_Iteration()
 
+PostTraitement.Save_Simu(simu, folder)
+
 ticTot.Tac("Temps script","Temps total", True)        
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
-simu.Resume()
+simu.ResumeResultats()
 
 
 # folder=""
 
 if saveParaview:        
-        filename = Dossier.NewFile(os.path.join("Etude2D","solution2D"), results=True)
-        PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+    filename = Dossier.NewFile(os.path.join("Etude2D","solution2D"), results=True)
+    PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 if plotResult:
 
-        tic = Tic()
-        # Affichage.Plot_Result(simu, "amplitude")
-        Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
-        Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)        
-        # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)        
-        # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
-        
-        tic.Tac("Affichage","Affichage des figures", plotResult)
-
-
-Tic.getResume()
-
-
+    tic = Tic()
+    # Affichage.Plot_Result(simu, "amplitude")
+    Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
+    Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=True)        
+    # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True)        
+    # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
+    
+    tic.Tac("Affichage","Affichage des figures", plotResult)
 
 if plotResult:
     Tic.getGraphs()

@@ -105,7 +105,7 @@ tic.Tac("Temps script", "Temps script", True)
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Résultats")
 
-simu.Resume()
+simu.ResumeResultats()
 
 if saveParaview:
     
