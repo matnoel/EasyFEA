@@ -37,7 +37,7 @@ if comp == "Elas_Isot":
     umax = 25e-6
     # umax = 35e-6    
 else:
-    umax = 60e-6
+    umax = 80e-6
 
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
@@ -175,9 +175,7 @@ for split in ["Amor"]:
         # Affichage.Plot_BoundaryConditions(simu)
         # plt.show()
 
-        PhaseFieldSimulation.ResumeChargement(simu, [inc0, inc1], [0.6, 1])
-
-        
+        PhaseFieldSimulation.ResumeChargement(simu, umax,[inc0, inc1], [0.6, 1])
 
         resol = 0
         bord = 0

@@ -97,7 +97,7 @@ def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, iterConv:
 
     simu.resumeIter = resumeIter
 
-def ResumeChargement(simu: Simu, listInc: list, listTreshold: list, option='damage'):
+def ResumeChargement(simu: Simu, umax: float, listInc: list, listTreshold: list, option='damage'):
     listOption = ["damage", "displacement"]
     assert option in listOption, f"option doit etre dans {listOption}"
     assert len(listInc) == len(listTreshold), "Doit etre de la meme dimension"
@@ -108,6 +108,7 @@ def ResumeChargement(simu: Simu, listInc: list, listTreshold: list, option='dama
         condition = 'dep'
     
     resumeChargement = 'Chargement :'
+    resumeChargement += f'\n\tumax = {umax}'
     for inc, treshold in zip(listInc, listTreshold):
         resumeChargement += f'\n\tinc = {inc} -> {condition} < {treshold}'
     
