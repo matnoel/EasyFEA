@@ -422,4 +422,29 @@ m1xm1: np.ndarray, m2xm2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
     return projP, projM
 
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
+def Get_Cp_Cm_Stress(c: np.ndarray, sP_e_pg: np.ndarray, sM_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
 
+    Ne = sP_e_pg.shape[0]
+    nPg = sP_e_pg.shape[1]
+    dim = c.shape[0]
+
+    cP_e_pg = np.zeros((Ne, nPg, dim, dim))
+    cM_e_pg = np.zeros((Ne, nPg, dim, dim))
+
+    for e in range(Ne):
+        for p in range(nPg):
+            for i in range(dim):
+                for j in range(dim):
+                    for k in range(dim):
+                        for l in range(dim):
+                            cP_e_pg[e,p,i,l] += c[j,i] * sP_e_pg[e,p,j,k] * c[k,l]
+                            cM_e_pg[e,p,i,l] += c[j,i] * sM_e_pg[e,p,j,k] * c[k,l]
+
+    return cP_e_pg, cM_e_pg
+    

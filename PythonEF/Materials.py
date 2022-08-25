@@ -995,9 +995,14 @@ class PhaseFieldModel:
                 sP_e_pg = (1+v)/E*projP_e_pg - v*(1+v)/E * RpIxI_e_pg
                 sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
             
-            cT = c.T
-            cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
-            cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
+            useNumba = self.__useNumba
+            if useNumba:
+                # Plus rapide
+                cP_e_pg, cM_e_pg = CalcNumba.Get_Cp_Cm_Stress(c, sP_e_pg, sM_e_pg)
+            else:
+                cT = c.T
+                cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
+                cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
 
             # # Ici c'est un test pour verifier que cT : S : c = inv(S)
 
@@ -1305,7 +1310,7 @@ class Materiau:
             print("Le matériau n'est pas endommageable (pas de modèle PhaseField)")
             return None
 
-    def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0, verbosity=True):
+    def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0, verbosity=False):
         """Creer un materiau avec la loi de comportement ou le phase field model communiqué
 
         Parameters
@@ -1338,10 +1343,15 @@ class Materiau:
         if self.__verbosity:
             self.Resume()
 
-    def Resume(self):        
+    def Resume(self, verbosity=True):
+        resume = ""
+
         if self.isDamaged:
-            print(self.__phaseFieldModel.loiDeComportement.resume)
-            print(self.__phaseFieldModel.resume)
+            resume += self.__phaseFieldModel.loiDeComportement.resume
+            resume += '\n' + self.__phaseFieldModel.resume
         else:
-            print(self.__comportement.resume)
+            resume += self.__comportement.resume
+
+        if verbosity: print(resume)
+        return resume
 
