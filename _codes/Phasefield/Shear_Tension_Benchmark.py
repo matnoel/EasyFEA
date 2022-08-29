@@ -22,7 +22,7 @@ Affichage.Clear()
 simulation = "Shear" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmarck"])
 
-test = True
+test = False
 solve = True
 plotResult = True
 saveParaview = False
@@ -53,7 +53,8 @@ if test:
     # taille = 0.001
     # taille *= 1.5
 else:
-    taille = l0/2 #l0/2 2.5e-6
+    # taille = l0/2 #l0/2 2.5e-6
+    taille = 7.5e-6
 
 folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
 comp=comportement, split=split, regu=regularisation, simpli2D='DP',
@@ -129,14 +130,20 @@ if solve:
 
     Affichage.NouvelleSection("Simulations")
 
-    N = 400
-    # N = 10
+    if test:
+        N = 400
+        # N = 10
+        u_inc = 5e-8
+        # u_inc = 5e-7
+    else:
+        N=1500
+        u_inc = 1e-8
+
+    PhaseFieldSimulation.ResumeChargement(simu, N*u_inc,[u_inc], [N*u_inc], "displacement")
 
     damage_t=[]
     uglob_t=[]
 
-    u_inc = 5e-8
-    # u_inc = 5e-7
     dep = 0
 
     tic = Tic()
@@ -212,7 +219,7 @@ if plotResult:
 
     Affichage.Plot_BoundaryConditions(simu)
 
-    Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN')
+    Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN', folder)
 
     Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,
     affichageMaillage=False, deformation=False, folder=folder)
