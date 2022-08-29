@@ -10,7 +10,7 @@ import numpy as np
 from scipy.optimize import lsq_linear
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
-if "intel" in platform.processor():
+if platform.system() != "Darwin":
     import pypardiso
 
 # import GroupElem
@@ -745,6 +745,8 @@ class Simu:
         return x
     
     def __Pypardiso_spsolve(self, A, b):
+
+    
 
         b = b.toarray()
         x = pypardiso.spsolve(A, b)
