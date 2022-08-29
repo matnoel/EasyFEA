@@ -10,7 +10,8 @@ import numpy as np
 from scipy.optimize import lsq_linear
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
-import pypardiso
+if "intel" in platform.processor():
+    import pypardiso
 
 # import GroupElem
 import Affichage as Affichage
@@ -669,7 +670,10 @@ class Simu:
         #     x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
         #     x= x['x']
 
-        method = 1
+        if syst == "Darwin":
+            method = 2
+        else:
+            method = 1
 
         useCholesky = False
         if useCholesky and A_isSymetric:

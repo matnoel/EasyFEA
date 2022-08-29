@@ -80,7 +80,7 @@ def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, iterConv:
     else:
         end=''
         
-    if resol == 1:
+    if resol in [0,1]:
         listTmps.init()
 
     listTmps.listTemps.append(temps)

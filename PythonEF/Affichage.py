@@ -728,7 +728,7 @@ def NouvelleSection(text: str, verbosity=True):
 def Clear():
     """Nettoie le terminal de commande"""
     syst = platform.system()
-    if syst == "Linux":
+    if syst in ["Linux","Darwin"]:
         os.system("clear")
     elif syst == "Windows":
         os.system("cls")
