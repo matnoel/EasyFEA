@@ -31,7 +31,7 @@ makeMovie = False
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot"
-split = "He" # "Bourdin","Amor","Miehe","Stress"
+split = "AnisotMiehe" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
 openCrack = True
 
@@ -148,8 +148,6 @@ if solve:
     list_Psi_Crack=[]
     deplacements=[]
     forces=[]
-
-    
 
     for iter in range(N):
 
