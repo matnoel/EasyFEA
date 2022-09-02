@@ -1,19 +1,21 @@
 
 import os
-from typing import cast
 
 import Affichage as Affichage
 from Simu import Simu
 import Dossier as Dossier
 from TicTac import Tic
 import numpy as np
-import PhaseFieldSimulation
 
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import pickle
 from datetime import datetime
+
+# Il est possible de sinspirer de :
+# https://www.python-graph-gallery.com/
+
 
 # =========================================== Simulation ==================================================
 
@@ -180,7 +182,18 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     
 # =========================================== Paraview ==================================================
 
-def Save_Simulation_in_Paraview(folder: str, simu: Simu):
+def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
+    """Sauvegarde de la simulation sur paraview
+
+    Parameters
+    ----------
+    folder : str
+        dossier dans lequel on va creer le dossier Paraview
+    simu : Simu
+        Simulation
+    Niter : int, optional
+        Nombre d'iteration maximum d'affichage, by default 200
+    """
     print('\n')
 
     vtuFiles=[]
@@ -189,11 +202,16 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu):
 
     N = len(results)
 
+    if N > Niter:
+        listIter = np.linspace(0, N, Niter, endpoint=False, dtype=int)
+    else:
+        listIter = np.linspace(0, N, N, endpoint=False, dtype=int)
+
     folder = Dossier.Join([folder,"Paraview"])
 
     tic = Tic()
 
-    for iter in range(N):
+    for iter in listIter:
 
         f = Dossier.Join([folder,f'solution_{iter}.vtu'])
 
