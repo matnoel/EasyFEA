@@ -31,35 +31,43 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
     assert tolConv > 0 and tolConv <= 1 , "tolConv doit être compris entre 0 et 1"
     assert maxIter > 1 , "Doit être > 1"
 
-    iterConv=0
+    iterConv = 0
     convergence = False
-    d = simu.damage
+    dn = simu.damage
 
     while not convergence:
                 
         iterConv += 1
-        dold = d.copy()
+        # Ancien endommagement dans la procedure de la convergence
+        dk = simu.damage
 
         # Damage
         simu.Assemblage_d()
-        d = simu.Solve_d()
+        dkp1 = simu.Solve_d()
 
         # Displacement
         Kglob = simu.Assemblage_u()            
         u = simu.Solve_u()
-
-        dincMax = np.max(np.abs(d-dold))
+        
+        # Condition de convergence
+        dincMax = np.max(np.abs(dk-dkp1))
         convergence = dincMax <= tolConv
-        # if damage.min()>1e-5:
-        #     convergence=False
-
+    
         if iterConv == maxIter:
             break
         
         if tolConv == 1.0:
             convergence=True
+
+    if simu.materiau.phaseFieldModel.useHistory:
+        oldAndNewDamage = np.zeros((dkp1.shape[0], 2))
+        oldAndNewDamage[:, 0] = dn
+        oldAndNewDamage[:, 1] = dkp1
+        dnp1 = np.max(oldAndNewDamage, 1)
+
+    pass
         
-    return u, d, Kglob, iterConv
+    return u, dnp1, Kglob, iterConv
 
 class listTemps:
     def init(self):

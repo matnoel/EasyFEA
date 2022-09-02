@@ -120,6 +120,7 @@ class Simu:
 
     @property
     def damage(self) -> np.ndarray:
+        """Copie de la solution d'endommagement"""
         if self.materiau.isDamaged:
             return self.__damage.copy()
     
@@ -328,26 +329,25 @@ class Simu:
         # ici le therme masse est important sinon on sous intègre
 
         # Calcul l'energie
-        old_psiP = self.__psiP_e_pg
-
-        nPg = self.__mesh.Get_nPg("masse")
-
+        # old_psiP = self.__psiP_e_pg
+        
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
-        if useHistory:
-            if len(old_psiP) == 0:
-                # Pas encore d'endommagement disponible
-                old_psiP = np.zeros((self.__mesh.Ne, nPg))
+        # nPg = self.__mesh.Get_nPg("masse")
+        # if useHistory:
+        #     if len(old_psiP) == 0:
+        #         # Pas encore d'endommagement disponible
+        #         old_psiP = np.zeros((self.__mesh.Ne, nPg))
 
-            inc_H = psiP_e_pg - old_psiP
+        #     inc_H = psiP_e_pg - old_psiP
 
-            elements, pdGs = np.where(inc_H < 0)
+        #     elements, pdGs = np.where(inc_H < 0)
 
-            psiP_e_pg[elements, pdGs] = old_psiP[elements,pdGs]           
+        #     psiP_e_pg[elements, pdGs] = old_psiP[elements,pdGs]           
 
-            # new = np.linalg.norm(psiP_e_pg)
-            # old = np.linalg.norm(self.__psiP_e_pg)
-            # assert new >= old, "Erreur"
+        #     # new = np.linalg.norm(psiP_e_pg)
+        #     # old = np.linalg.norm(self.__psiP_e_pg)
+        #     # assert new >= old, "Erreur"
 
         self.__psiP_e_pg = psiP_e_pg
 
