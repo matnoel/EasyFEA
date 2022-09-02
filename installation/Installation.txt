@@ -1,23 +1,49 @@
 Il faut aller chercher le projet sur git https://github.com/matnoel/PythonEF.git
 
 il faut installer sur python :
-numpy -> pour les calculs rapides notament einsum
-scipy -> pour la construction de matrices creuses
-matplotlib -> pour afficher les résultats
-gmsh -> pour creer le maillage
-pandas -> pour creer des tableaux
-pypardiso -> tres important pour résoudre les système en parallel
-numba -> module pour compiler des fonctions executables en parallel
-pickle -> Pour la sauvegarde
-scikit-umfpack -> Pas obligatoire
+	numpy -> pour les calculs rapides notament einsum
+	scipy -> pour la construction de matrices creuses
+	matplotlib -> pour afficher les résultats
+	gmsh -> pour creer le maillage (Regarder installation gmsh sur macos il faut reconstruire le projet et ajouter le python patch pour le module gmsh)
+	pandas -> pour creer des tableaux
+	pypardiso -> tres important pour résoudre les système en parallel
+	numba -> module pour compiler des fonctions executables en parallel
+	scikit-umfpack -> Pas obligatoire
+	scikits-sparse -> installer cholmod pour la decomposition de cholesky
 
-installer cholmod pour la decomposition de cholesky
 
 Il faut impérativement ajouter le dossier dans lequel est contenu les modules et classes dans le path
-
-sur linux :
-	export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/PythonEF
+Pour ça on ajoute dans le PYTHONPATH:
 	
-sur windows : 
-	modifier les variables du système -> variables d'environnement -> variables utilisateur
-	PYTHONPATH D:\SOFT\PythonEF\PythonEF
+	sur macOs :
+		dans le .zprofile ajouter 
+		export PYTHONPATH:"$PYTHONPATH:/Documents/PythonEF/PythonEF"
+
+
+	sur linux :
+		export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/PythonEF
+		
+	sur windows : 
+		modifier les variables du système -> variables d'environnement -> variables utilisateur
+		PYTHONPATH D:\SOFT\PythonEF\PythonEF
+
+Installation gmsh :
+
+	il faut dabord  installer opencascade : sudo port install opencascade
+	il faut ensuite installer fltk : sudo port install fltk
+
+
+	Sur Mac il faut construire le projet gmsh
+	https://gitlab.onelab.info/gmsh/gmsh
+	Dans le dossier applications:
+	git clone 
+	cd gmsh
+	mkdir build
+	mkdir bin
+	cd build
+	cmake -DCMAKE_INSTALL_PREFIX=/Applications/gmsh/bin -DENABLE_BUILD_DYNAMIC=1 .. 
+	make 
+	make install
+
+	il faut ensuite ajouter le path vers gmsh.py
+	export PYTHONPATH="/Users/matnoel/Documents/PythonEF/PythonEF:/Applications/gmsh/bin/lib"
