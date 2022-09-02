@@ -27,7 +27,7 @@ dim = 3
 
 plotResult = True
 
-saveParaview = False
+saveParaview = True
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -37,8 +37,8 @@ b = 13
 P = 800 #N
 
 # Paramètres maillage
-# nBe = 20
-nBe = 5
+nBe = 10
+# nBe = 5
 
 taille = h/nBe
 # taille = h/3
@@ -62,8 +62,8 @@ fichier = Dossier.NewFile(os.path.join("3Dmodels","part.stp"))
 # "TETRA4", "HEXA8", "PRISM6"
 # # Sans importation
 domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
-circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=True)
-mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="TETRA4", isOrganised=False, nCouches=3)
+circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
+mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="PRISM6", isOrganised=False, nCouches=3)
 # mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType="PRISM6", isOrganised=True, nCouches=4)
 
 

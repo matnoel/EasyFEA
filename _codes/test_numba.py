@@ -1,6 +1,6 @@
 import numba
 import numpy as np
-from cythonScripts import CalcCython
+# from PythonEF.cythonScripts import CalcCython
 
 
 import TicTac
@@ -66,14 +66,14 @@ def ij_j_to_i(A, b, result):
                 
 
 # N = 20000
-# # N = 30000
+N = 30000
 # # N = 40000
-# list_N = np.arange(10000, N, 1000)
+list_N = np.arange(10000, N, 1000)
 
 N = 100
 # N = 30000
 # N = 40000
-list_N = np.arange(2, 10000, 100,)
+# list_N = np.arange(2, 10000, 100,)
 
 
 
@@ -83,7 +83,7 @@ list_npeinsum_optimal = []
 list_npeinsum_greedy = []
 list_matmulParal = []
 list_ij_j_to_i = []
-list_cythonij_j_to_i = []
+# list_cythonij_j_to_i = []
 
 
 for n in list_N:
@@ -128,8 +128,8 @@ for n in list_N:
     c = ij_j_to_i(A, b, c)
     list_ij_j_to_i.append(tic.Tac("Test", "matmulVect", False))
 
-    c = CalcCython.ij_j_to_i(A, b) - c
-    list_cythonij_j_to_i.append(tic.Tac("Test", "cython", False))
+    # c = CalcCython.ij_j_to_i(A, b) - c
+    # list_cythonij_j_to_i.append(tic.Tac("Test", "cython", False))
 
 plt.plot(list_N, list_npeinsum, label='np.einsum')
 plt.plot(list_N, list_npeinsum_True, label='np.einsum optimize')
@@ -137,7 +137,7 @@ plt.plot(list_N, list_npeinsum_optimal, label='einsum optimal')
 plt.plot(list_N, list_npeinsum_greedy, label='np.einsum greedy')
 plt.plot(list_N, list_matmulParal, label='matmulParal')
 plt.plot(list_N, list_ij_j_to_i, label='guvetorize')
-plt.plot(list_N, list_cythonij_j_to_i, label='cython')
+# plt.plot(list_N, list_cythonij_j_to_i, label='cython')
 
 plt.legend()
 

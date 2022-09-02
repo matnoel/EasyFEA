@@ -3,6 +3,10 @@
 # sys.path.append("/home/matthieu/Documents/PythonEF/classes")
 import os
 
+import platform
+
+print(platform.processor())
+
 import Dossier
 import PostTraitement
 import Affichage
@@ -24,7 +28,7 @@ ticTot = Tic()
 
 # Data --------------------------------------------------------------------------------------------
 
-plotResult = False
+plotResult = True
 
 saveParaview = False
 
@@ -42,8 +46,8 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/5
-# taille = h/200
+# taille = h/5
+taille = h/10
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
