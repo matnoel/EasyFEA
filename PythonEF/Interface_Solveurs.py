@@ -1,4 +1,3 @@
-from pydoc import isdata
 import scipy.sparse as sparse
 import platform
 import TicTac
@@ -74,7 +73,7 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
 
     return x
 
-def __Pypardiso_spsolve(self, A, b):
+def __Pypardiso_spsolve(A, b):
     b = b.toarray()
     x = pypardiso.spsolve(A, b)
 
