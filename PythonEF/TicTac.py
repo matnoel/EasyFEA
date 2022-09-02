@@ -24,8 +24,7 @@ class Tic:
 
         # print("\n Résumé TicTac :")
 
-        import Affichage as Affichage
-
+        # import Affichage
         # Affichage.NouvelleSection("Résumé TicTac")
 
         resume = ""
@@ -55,13 +54,23 @@ class Tic:
 
         ax.grid(axis = "x", lw=1.2)
 
+        tempsMax = np.max(temps)
+
+        # Je veux que si le temps représente < 0.5 tempsTotal on affiche le texte a droite
+        # Sinon on va lafficher a gauche
+
+        dec = 0.1
+
         for i, (texte, tmps) in enumerate(zip(categories, temps)):
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)            
             ax.barh(i, tmps, align="center", label=texte)
-            longeur = len(texte)
             
-            if longeur > tmps:
+            # On rajoute un peu d'espace a la fin du texte
+            espace = " "
+            texte = espace + texte + espace
+
+            if tmps/tempsMax < 0.2:
                 ax.text(tmps, i, texte, color='black',
                 verticalalignment='center', horizontalalignment='left')
             else:
