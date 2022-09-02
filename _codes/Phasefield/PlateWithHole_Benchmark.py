@@ -23,15 +23,15 @@ saveParaview=False
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
-useHistory=True
+useHistory=False
 
 useNumba=True
 
 # Convergence
-maxIter = 250
+maxIter = 400
 # tolConv = 0.01
 # tolConv = 0.05
-tolConv = 1
+tolConv = 0.1
 
 if comp == "Elas_Isot":
     umax = 25e-6

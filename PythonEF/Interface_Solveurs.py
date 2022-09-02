@@ -1,3 +1,4 @@
+import numpy as np
 import scipy.sparse as sparse
 import platform
 import TicTac
@@ -9,7 +10,27 @@ import scipy.sparse.linalg as sla
 if platform.system() != "Darwin":
     import pypardiso
 
-def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, isDamaged: bool,
+try:
+    from sksparse.cholmod import cholesky, cholesky_AAt
+except:
+    pass
+    # Le module n'est pas utilisable
+
+try:
+    import scikits.umfpack as um
+except:
+    pass
+    # Le module n'est pas utilisable
+
+try:
+    from mumps import spsolve
+except:
+    pass
+    # Le module n'est pas utilisable
+
+
+def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix,
+isDamaged: bool, damage=[],
 useCholesky=False, A_isSymetric=False, verbosity=False):
     """Résolution de Ax=b"""
     
@@ -18,15 +39,9 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
     
     tic = TicTac.Tic()
 
-    # if problemType == "damage" and not self.materiau.phaseFieldModel.useHistory:
-    #     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
-    #     lb = self.damage
-    #     lb[np.where(lb>=1)] = 1-np.finfo(float).eps
-    #     ub = np.ones(lb.shape)
-    #     b = b.toarray().reshape(-1)
-    #     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
-    #     x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
-    #     x= x['x']
+    if problemType == "damage" and len(damage) > 0:
+        x = __DamageBoundConstrain(A, b , damage)
+        
 
     if syst == "Darwin":
         method = 2
@@ -48,7 +63,7 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
 
     elif method == 3 and syst == 'Linux':
         # Utilise umfpack
-        import scikits.umfpack as um
+        
         # lu = um.splu(A)
         # x = lu.solve(b).reshape(-1)
         
@@ -61,7 +76,7 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
         x = sla.spsolve(A, b)
 
     elif method == 5 and syst == 'Linux':
-        from mumps import spsolve
+        
         x = spsolve(A,b)
         pass
 
@@ -81,7 +96,7 @@ def __Pypardiso_spsolve(A, b):
 
 
 def __Cholesky(A, b):
-    from sksparse.cholmod import cholesky, cholesky_AAt
+    
     # Décomposition de cholesky 
     
     # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
@@ -144,3 +159,16 @@ def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric
         x = lu.solve(b.toarray()).reshape(-1)
 
     return x
+
+def __DamageBoundConstrain(A, b, damage: np.ndarray):
+    # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
+    lb = damage
+    lb[np.where(lb>=1)] = 1-np.finfo(float).eps
+    ub = np.ones(lb.shape)
+    b = b.toarray().reshape(-1)
+    # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
+    x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
+    x= x['x']
+
+    return x
+

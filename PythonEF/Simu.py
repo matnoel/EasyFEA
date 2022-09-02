@@ -330,7 +330,7 @@ class Simu:
 
         # Calcul l'energie
         # old_psiP = self.__psiP_e_pg
-        
+
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
         # nPg = self.__mesh.Get_nPg("masse")
@@ -574,7 +574,7 @@ class Simu:
 
             return A, x
 
-    def __Solveur(self, problemType: str, resolution=2):
+    def __Solveur(self, problemType: str, resolution=2) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
@@ -598,8 +598,10 @@ class Simu:
             # Résolution du système matricielle pénalisé
             useCholesky=False #la matrice ne sera pas symétrique definie positive
             A_isSymetric=False
+            damage=[]
 
-            x = Interface_Solveurs.Solve_Axb(problemType, A, b, self.materiau.isDamaged,
+            x = Interface_Solveurs.Solve_Axb(problemType, A, b,
+            self.materiau.isDamaged, damage,
             useCholesky, A_isSymetric, self.__verbosity)
 
         elif resolution == 2:
@@ -627,17 +629,25 @@ class Simu:
             tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
 
             if problemType == "displacement":
+                # la matrice est definie symétrique positive
                 useCholesky=True
             else:
+                #la matrice n'est pas definie symétrique positive
                 useCholesky=False
 
             if self.materiau.isDamaged and self.__damage.max()>0:
                 # Si l'endommagement est supérieur à 1 la matrice A n'est plus symétrique
                 A_isSymetric = False
+                if self.materiau.phaseFieldModel.useHistory:
+                    damage = []
+                else:
+                    damage = self.damage
             else:
+                damage = []
                 A_isSymetric = True
 
-            xi = Interface_Solveurs.Solve_Axb(problemType, Aii, bi-bDirichlet, self.materiau.isDamaged,
+            xi = Interface_Solveurs.Solve_Axb(problemType, Aii, bi-bDirichlet,
+            self.materiau.isDamaged, damage,
             useCholesky, A_isSymetric, self.__verbosity)
 
             # Reconstruction de la solution

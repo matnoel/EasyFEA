@@ -64,6 +64,8 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         oldAndNewDamage[:, 0] = dn
         oldAndNewDamage[:, 1] = dkp1
         dnp1 = np.max(oldAndNewDamage, 1)
+    else:
+        dnp1 = dkp1
 
     pass
         
