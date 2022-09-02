@@ -4,7 +4,7 @@ import platform
 import TicTac
 
 # Solveurs
-from scipy.optimize import lsq_linear
+import scipy.optimize as optimize
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 if platform.system() != "Darwin":
@@ -17,13 +17,13 @@ except:
     # Le module n'est pas utilisable
 
 try:
-    import scikits.umfpack as um
+    import scikits.umfpack as umfpack
 except:
     pass
     # Le module n'est pas utilisable
 
 try:
-    from mumps import spsolve
+    import mumps as mumps 
 except:
     pass
     # Le module n'est pas utilisable
@@ -39,48 +39,53 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
     
     tic = TicTac.Tic()
 
-    if problemType == "damage" and len(damage) > 0:
-        x = __DamageBoundConstrain(A, b , damage)
-        
+    useCholesky = False
 
     if syst == "Darwin":
-        method = 2
+        method = 2 # resolution direct sans minimisation avec scipy spsolve
     else:
-        method = 1
+        method = 1 # resolution direct sans minimisation avec pypardiso
 
-    useCholesky = False
+    if isDamaged:
+        if problemType == "damage" and len(damage) > 0:
+            method = 0 # minimise le residu sous la contrainte
+        else:
+            method = 3 # minimise le residu sans la contrainte
+    
     if useCholesky and A_isSymetric:
         x = __Cholesky(A, b)
+
+    elif method == 0:
+        x = __DamageBoundConstrain(A, b , damage)
 
     elif method == 1:
         x = __Pypardiso_spsolve(A, b)
 
     elif method == 2:                
-        # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems                    
-        
+        # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
         x = __ScipyLinearDirect(A, b, A_isSymetric, isDamaged)
 
-
-    elif method == 3 and syst == 'Linux':
-        # Utilise umfpack
-        
-        # lu = um.splu(A)
-        # x = lu.solve(b).reshape(-1)
-        
-        x = um.spsolve(A, b)
-        
+    elif method == 3:
+        x = __ScipyLinearIter(A, b)
 
     elif method == 4 and syst == 'Linux':
+        # Utilise umfpack
+        
+        # lu = umfpack.splu(A)
+        # x = lu.solve(b).reshape(-1)
+        
+        x = umfpack.spsolve(A, b)
+        
+
+    elif method == 5 and syst == 'Linux':
         # Utilise umfpack depuis scipy
         sla.use_solver(useUmfpack=True)
         x = sla.spsolve(A, b)
 
-    elif method == 5 and syst == 'Linux':
-        
-        x = spsolve(A,b)
-        pass
+    elif method == 6 and syst == 'Linux':
+        x = mumps.spsolve(A,b)
 
-    elif method == 6 and syst in ['Linux', "Darwin"]:
+    elif method == 7 and syst in ['Linux', "Darwin"]:
         x = __PETSc(A, b)
         
             
@@ -160,6 +165,10 @@ def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric
 
     return x
 
+def __ScipyLinearIter(A: sparse.csr_matrix, b: sparse.csr_matrix):
+    x, output = sla.bicg(A, b.toarray())
+    return x
+
 def __DamageBoundConstrain(A, b, damage: np.ndarray):
     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
     lb = damage
@@ -167,8 +176,10 @@ def __DamageBoundConstrain(A, b, damage: np.ndarray):
     ub = np.ones(lb.shape)
     b = b.toarray().reshape(-1)
     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
-    x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
+    x = optimize.lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
     x= x['x']
 
     return x
+
+
 
