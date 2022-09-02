@@ -1,26 +1,18 @@
-
-import platform
 from types import LambdaType
 from typing import List, cast, Dict
 
-import pandas as pd
 import numpy as np
+from scipy import sparse
 
-# Solveurs
-from scipy.optimize import lsq_linear
-import scipy.sparse as sparse
-import scipy.sparse.linalg as sla
-if platform.system() != "Darwin":
-    import pypardiso
-
-# import GroupElem
 import Affichage as Affichage
 from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition
 from Materials import *
 from TicTac import Tic
 import CalcNumba
-    
+import Interface_Solveurs
+
+
 class Simu:
 
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
@@ -607,7 +599,8 @@ class Simu:
             useCholesky=False #la matrice ne sera pas symétrique definie positive
             A_isSymetric=False
 
-            x = self.__Solve_Axb(problemType, A, b, useCholesky, A_isSymetric)
+            x = Interface_Solveurs.Solve_Axb(problemType, A, b, self.materiau.isDamaged,
+            useCholesky, A_isSymetric, self.__verbosity)
 
         elif resolution == 2:
             
@@ -644,134 +637,14 @@ class Simu:
             else:
                 A_isSymetric = True
 
-            xi = self.__Solve_Axb(problemType, Aii, bi-bDirichlet, useCholesky, A_isSymetric)
+            xi = Interface_Solveurs.Solve_Axb(problemType, Aii, bi-bDirichlet, self.materiau.isDamaged,
+            useCholesky, A_isSymetric, self.__verbosity)
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
             x[ddl_Inconnues] = xi       
 
         return np.array(x)
-
-    def __Solve_Axb(self, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, useCholesky=False, A_isSymetric=False):
-        """Résolution de Ax=b"""
-        
-        # Detection du système
-        syst = platform.system()
-        
-        tic = Tic()
-
-        # if problemType == "damage" and not self.materiau.phaseFieldModel.useHistory:
-        #     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
-        #     lb = self.damage
-        #     lb[np.where(lb>=1)] = 1-np.finfo(float).eps
-        #     ub = np.ones(lb.shape)
-        #     b = b.toarray().reshape(-1)
-        #     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
-        #     x = lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
-        #     x= x['x']
-
-        if syst == "Darwin":
-            method = 2
-        else:
-            method = 1
-
-        useCholesky = False
-        if useCholesky and A_isSymetric:
-            x = self.__Cholesky(A, b)
-
-        elif method == 1:
-
-            x = self.__Pypardiso_spsolve(A, b)
-
-        elif method == 2:                
-            # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems                    
-            # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
-            
-            hideFacto = False # Cache la décomposition
-            # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
-            if A_isSymetric and not self.materiau.isDamaged:
-                permute="MMD_AT_PLUS_A"
-            else:
-                permute="COLAMD"
-
-            if hideFacto:                    
-                x = sla.spsolve(A, b, permc_spec=permute)
-                
-            else:
-                # superlu : https://portal.nersc.gov/project/sparse/superlu/
-                # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
-                lu = sla.splu(A.tocsc(), permc_spec=permute)
-                x = lu.solve(b.toarray()).reshape(-1)
-
-        elif method == 3 and syst == 'Linux':
-            # Utilise umfpack
-            import scikits.umfpack as um
-            # lu = um.splu(A)
-            # x = lu.solve(b).reshape(-1)
-            
-            x = um.spsolve(A, b)
-            
-
-        elif method == 4 and syst == 'Linux':
-            # Utilise umfpack depuis scipy
-            sla.use_solver(useUmfpack=True)
-            x = sla.spsolve(A, b)
-
-            # x = sla.spsolve(A, b,use_umfpack=True)
-            # x = sla.spsolve(A, b, permc_spec="MMD_AT_PLUS_A")
-
-        elif method == 5 and syst == 'Linux':
-            from mumps import spsolve
-            x = spsolve(A,b)
-            pass
-
-        elif method == 6 and syst == 'Linux':
-
-            # Utilise PETSc
-            # Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
-            from petsc4py import PETSc
-            ksp = PETSc.KSP().create()
-            A = PETSc.Mat(A)
-            ksp.setOperators(A)
-
-            ksp.setFromOptions()
-            print('Solving with:'), ksp.getType()
-
-            # Solve!
-            ksp.solve(b, x)
-                
-        tic.Tac(f"Solve {problemType}","Solve Ax=b",self.__verbosity)
-
-        return x
-    
-    def __Pypardiso_spsolve(self, A, b):
-
-    
-
-        b = b.toarray()
-        x = pypardiso.spsolve(A, b)
-
-        return x
-
-
-    def __Cholesky(self, A, b):
-        from sksparse.cholmod import cholesky, cholesky_AAt
-        # Décomposition de cholesky 
-        
-        # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
-        # doc : https://scikit-sparse.readthedocs.io/en/latest/cholmod.html#sksparse.cholmod.analyze
-        # Installation : https://www.programmersought.com/article/39168698851/                
-
-        factor = cholesky(A.tocsc())
-        # factor = cholesky_AAt(A.tocsc())
-        
-        # x_chol = factor(b.tocsc())
-        x_chol = factor.solve_A(b.tocsc())                
-
-        x = x_chol.toarray().reshape(x_chol.shape[0])
-
-        return x
-        
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
