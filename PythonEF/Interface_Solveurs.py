@@ -1,6 +1,9 @@
+import sys
+import platform
+
 import numpy as np
 import scipy.sparse as sparse
-import platform
+
 import TicTac
 
 # Solveurs
@@ -9,7 +12,6 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 if platform.system() != "Darwin":
     import pypardiso
-
 try:
     from sksparse.cholmod import cholesky, cholesky_AAt
 except:
@@ -28,6 +30,14 @@ except:
     pass
     # Le module n'est pas utilisable
 
+try:
+    import petsc4py
+    
+    from petsc4py import PETSc
+except:
+    # Le module n'est pas utilisable
+    pass
+
 
 def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix,
 isDamaged: bool, damage=[],
@@ -42,63 +52,66 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
     useCholesky = False
 
     if syst == "Darwin":
-        method = 2 # resolution direct sans minimisation avec scipy spsolve
+        method = "scipy_spsolve"
     else:
-        method = 1 # resolution direct sans minimisation avec pypardiso
+        method = "pypardiso"
 
     if isDamaged:
         if problemType == "damage" and len(damage) > 0:
-            method = 0 # minimise le residu sous la contrainte
+            method = "BoundConstrain" # minimise le residu sous la contrainte
         else:
-            method = 3 # minimise le residu sans la contrainte
+            method = "pypardiso" # minimise le residu sans la contrainte
     
     if useCholesky and A_isSymetric:
         x = __Cholesky(A, b)
 
-    elif method == 0:
+    elif method == "BoundConstrain":
         x = __DamageBoundConstrain(A, b , damage)
 
-    elif method == 1:
-        x = __Pypardiso_spsolve(A, b)
+    elif method == "pypardiso":
+        x = pypardiso.spsolve(A, b.toarray())
 
-    elif method == 2:                
-        # linear solver scipy : https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
+    elif method == "scipy_spsolve":                
+        # https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
         x = __ScipyLinearDirect(A, b, A_isSymetric, isDamaged)
 
-    elif method == 3:
-        x = __ScipyLinearIter(A, b)
+    elif method == "cg":
+        x, output = sla.cg(A, b.toarray())
 
-    elif method == 4 and syst == 'Linux':
-        # Utilise umfpack
-        
+    elif method == "bicg":
+        x, output = sla.bicg(A, b.toarray())
+
+    elif method == "gmres":
+        x, output = sla.gmres(A, b.toarray())
+
+    elif method == "lgmres":
+        import scikits.umfpack as umfpack
+        sla.use_solver(useUmfpack=True)
+        x, output = sla.lgmres(A, b.toarray())
+        print(output)
+
+    elif method == "umfpack":
         # lu = umfpack.splu(A)
         # x = lu.solve(b).reshape(-1)
         
         x = umfpack.spsolve(A, b)
         
 
-    elif method == 5 and syst == 'Linux':
+    elif method == "scipy_spsolve_umfpack" and syst == 'Linux':
         # Utilise umfpack depuis scipy
         sla.use_solver(useUmfpack=True)
         x = sla.spsolve(A, b)
 
-    elif method == 6 and syst == 'Linux':
+    elif method == "mumps" and syst == 'Linux':
         x = mumps.spsolve(A,b)
 
-    elif method == 7 and syst in ['Linux', "Darwin"]:
+    elif method == "petsc" and syst in ['Linux', "Darwin"]:
         x = __PETSc(A, b)
         
             
     tic.Tac(f"Solve {problemType}","Solve Ax=b", verbosity)
 
     return x
-
-def __Pypardiso_spsolve(A, b):
-    b = b.toarray()
-    x = pypardiso.spsolve(A, b)
-
-    return x
-
 
 def __Cholesky(A, b):
     
@@ -118,14 +131,13 @@ def __Cholesky(A, b):
 
     return x
 
-def __PETSc(A, b):
-
+def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
     # Utilise PETSc
-    # Pour l'instant problème à cause de "Invalid MIT-MAGIC-COOKIE-1 key"
-    from petsc4py import PETSc
-    ksp = PETSc.KSP().create()
-    A = PETSc.Mat(A)
-    ksp.setOperators(A)
+
+    petsc4py.init(sys.argv)
+    A_petsc = PETSc.Mat().createAIJ([A.shape[0], A.shape[1]])
+    A.setup()
+    
     
     bb = A.createVecLeft()
 
@@ -165,9 +177,7 @@ def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric
 
     return x
 
-def __ScipyLinearIter(A: sparse.csr_matrix, b: sparse.csr_matrix):
-    x, output = sla.bicg(A, b.toarray())
-    return x
+
 
 def __DamageBoundConstrain(A, b, damage: np.ndarray):
     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html

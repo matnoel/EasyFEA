@@ -635,7 +635,7 @@ class Simu:
                 #la matrice n'est pas definie symétrique positive
                 useCholesky=False
 
-            if self.materiau.isDamaged and self.__damage.max()>0:
+            if self.materiau.isDamaged:
                 # Si l'endommagement est supérieur à 1 la matrice A n'est plus symétrique
                 A_isSymetric = False
                 if self.materiau.phaseFieldModel.useHistory:

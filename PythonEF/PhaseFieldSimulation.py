@@ -41,16 +41,17 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         # Ancien endommagement dans la procedure de la convergence
         dk = simu.damage
 
-        # Damage
-        simu.Assemblage_d()
-        dkp1 = simu.Solve_d()
-
         # Displacement
         Kglob = simu.Assemblage_u()            
         u = simu.Solve_u()
+
+        # Damage
+        simu.Assemblage_d()
+        dkp1 = simu.Solve_d()
         
         # Condition de convergence
-        dincMax = np.max(np.abs(dk-dkp1))
+        dincMax = np.max(np.abs(dkp1-dk))
+        print(f"{iterConv} : {dincMax}\r")
         convergence = dincMax <= tolConv
     
         if iterConv == maxIter:
@@ -66,8 +67,6 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         dnp1 = np.max(oldAndNewDamage, 1)
     else:
         dnp1 = dkp1
-
-    pass
         
     return u, dnp1, Kglob, iterConv
 
