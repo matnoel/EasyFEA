@@ -5,7 +5,6 @@ from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
 import Simu as Simu
-import Dossier
 import PostTraitement as PostTraitement
 import PhaseFieldSimulation
 
@@ -21,17 +20,17 @@ solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT1" # "AT1", "AT2"
+regu = "AT2" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
-useHistory=False
+useHistory = True
 
-useNumba=True
+useNumba = True
 
 # Convergence
-maxIter = 400
+maxIter = 700
 # tolConv = 0.01
 # tolConv = 0.05
-tolConv = 0.1
+tolConv = 0.01
 
 if comp == "Elas_Isot":
     umax = 25e-6
