@@ -22,7 +22,7 @@ saveParaview=False
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
-useHistory = True
+useHistory = False
 
 useNumba = True
 

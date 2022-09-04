@@ -5,8 +5,6 @@ import os
 
 import platform
 
-print(platform.processor())
-
 import Dossier
 import PostTraitement
 import Affichage
@@ -46,8 +44,8 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-# taille = h/5
-taille = h/10
+taille = h/5
+# taille = h/200
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -55,7 +53,7 @@ comportement = Elas_Isot(dim, epaisseur=b)
 materiau = Materiau(comportement)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
-elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+elemType = "QUAD8" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
 domain = Domain(Point(), Point(x=L, y=h), taille)
 Line0 = Line(Point(), Point(y=h))

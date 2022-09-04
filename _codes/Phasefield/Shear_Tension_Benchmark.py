@@ -7,7 +7,7 @@ import PostTraitement as PostTraitement
 import Dossier as Dossier
 import Affichage as Affichage
 
-from Materials import PhaseFieldModel, Elas_Isot, Materiau
+from Materials import Elas_IsotTrans, PhaseFieldModel, Elas_Isot, Materiau
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
@@ -23,14 +23,14 @@ simulation = "Shear" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmarck"])
 
 test = False
-solve = True
+solve = False
 plotResult = True
 saveParaview = False
 makeMovie = False
 
 # Data --------------------------------------------------------------------------------------------
 
-comportement = "Elas_Isot" # "Elas_Isot"
+comportement = "Elas_IsotTrans" # "Elas_Isot", "Elas_IsotTrans"
 split = "AnisotMiehe" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
 openCrack = True
@@ -45,6 +45,7 @@ dim = 2
 # Paramètres géométrie
 L = 1e-3;  #m
 l0 = 1e-5 # taille fissure test femobject ,7.5e-6, 1e-5
+l0 = 7.5e-6
 Gc = 2.7e3
 
 # Paramètres maillage
@@ -53,8 +54,8 @@ if test:
     # taille = 0.001
     # taille *= 1.5
 else:
-    # taille = l0/2 #l0/2 2.5e-6
-    taille = 7.5e-6
+    taille = l0/2 #l0/2 2.5e-6
+    # taille = 7.5e-6
 
 folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
 comp=comportement, split=split, regu=regularisation, simpli2D='DP',
@@ -95,7 +96,11 @@ if solve:
     # Simulation  -------------------------------------------------------------------------------------------
     
 
-    comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+    if comportement == "Elas_Isot":
+        comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+    else:
+        # comportement = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
+        raise "Pas implémenté pour le moment"
 
     phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
 
@@ -204,6 +209,9 @@ else:
     simu = PostTraitement.Load_Simu(folder)
 
     forces, deplacements = PostTraitement.Load_Load_Displacement(folder)
+
+    # Affichage.Plot_Maillage(simu.mesh)
+    # plt.show()
         
 
 
@@ -236,7 +244,7 @@ if saveParaview:
 Tic.getResume()
 
 if solve:
-    Tic.getGraphs(folder)
+    Tic.getGraphs(folder, False)
 
 plt.show()
 
