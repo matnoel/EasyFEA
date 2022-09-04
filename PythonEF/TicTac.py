@@ -59,8 +59,6 @@ class Tic:
         # Je veux que si le temps représente < 0.5 tempsTotal on affiche le texte a droite
         # Sinon on va lafficher a gauche
 
-        dec = 0.1
-
         for i, (texte, tmps) in enumerate(zip(categories, temps)):
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)            
@@ -70,7 +68,7 @@ class Tic:
             espace = " "
             texte = espace + texte + espace
 
-            if tmps/tempsMax < 0.2:
+            if tmps/tempsMax < 0.3:
                 ax.text(tmps, i, texte, color='black',
                 verticalalignment='center', horizontalalignment='left')
             else:
