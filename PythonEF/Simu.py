@@ -603,7 +603,7 @@ class Simu:
             A_isSymetric=False
             damage=[]
 
-            x = Interface_Solveurs.Solve_Axb(problemType, A, b,
+            x = Interface_Solveurs.Solve_Axb(problemType, A, b, None,
             self.materiau.isDamaged, damage,
             useCholesky, A_isSymetric, self.__verbosity)
 
@@ -624,6 +624,11 @@ class Simu:
             Aic = A[ddl_Inconnues, :].tocsc()[:, ddl_Connues].tocsr()
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
+
+            if problemType == "displacement":
+                x0 = self.__displacement[ddl_Inconnues]
+            elif problemType == "damage":
+                x0 = self.__damage[ddl_Inconnues]
 
             bDirichlet = Aic.dot(xc) # Plus rapide
             # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
@@ -651,7 +656,9 @@ class Simu:
                 damage = []
                 A_isSymetric = True
 
-            xi = Interface_Solveurs.Solve_Axb(problemType, Aii, bi-bDirichlet,
+            
+
+            xi = Interface_Solveurs.Solve_Axb(problemType, Aii, bi-bDirichlet, x0,
             isDamaged, damage,
             useCholesky, A_isSymetric, self.__verbosity)
 

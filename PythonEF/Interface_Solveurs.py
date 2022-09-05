@@ -39,7 +39,7 @@ except:
     pass
 
 
-def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix,
+def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: None,
 isDamaged: bool, damage=[],
 useCholesky=False, A_isSymetric=False, verbosity=False):
     """Résolution de Ax=b"""
@@ -90,19 +90,19 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
 
     elif method == "cg":
         __ActiveUmfpack()
-        x, output = sla.cg(A, b.toarray())
+        x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
 
     elif method == "bicg":
         __ActiveUmfpack()
-        x, output = sla.bicg(A, b.toarray())
+        x, output = sla.bicg(A, b.toarray(), x0, maxiter=None)
 
     elif method == "gmres":
         __ActiveUmfpack()
-        x, output = sla.gmres(A, b.toarray())
+        x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
 
     elif method == "lgmres":
         __ActiveUmfpack()
-        x, output = sla.lgmres(A, b.toarray())
+        x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
         print(output)
 
     elif method == "umfpack":
