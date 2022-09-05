@@ -51,16 +51,26 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
 
     useCholesky = False
 
-    if syst == "Darwin":
-        method = "scipy_spsolve"
-    else:
-        method = "pypardiso"
-
     if isDamaged:
         if problemType == "damage" and len(damage) > 0:
             method = "BoundConstrain" # minimise le residu sous la contrainte
         else:
-            method = "pypardiso" # minimise le residu sans la contrainte
+            if syst == "Darwin":
+                method = "scipy_spsolve"
+
+            else:
+                method = "pypardiso"
+                # method = "pypardiso" # minimise le residu sans la contrainte
+    else:
+        if syst == "Darwin":
+            method = "scipy_spsolve"
+
+        elif syst == "Linux":
+            method = "umfpack"
+
+        else:
+            method = "pypardiso"
+
     
     if useCholesky and A_isSymetric:
         x = __Cholesky(A, b)

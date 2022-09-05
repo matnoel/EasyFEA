@@ -3,6 +3,7 @@ from Simu import Simu
 import numpy as np
 import scipy.sparse as sp
 import Dossier
+import Materials
 
 def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int]:
     """Calcul l'itération d'un probleme d'endommagement de façon étagée
@@ -35,24 +36,28 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
     convergence = False
     dn = simu.damage
 
+    solveur = simu.materiau.phaseFieldModel.solveur
+
     while not convergence:
+
+        # TODO regarder ce qu'a fait florent
                 
         iterConv += 1
         # Ancien endommagement dans la procedure de la convergence
         dk = simu.damage
 
-        # Displacement
-        Kglob = simu.Assemblage_u()            
-        u = simu.Solve_u()
-
         # Damage
         simu.Assemblage_d()
         dkp1 = simu.Solve_d()
         
+        # Displacement
+        Kglob = simu.Assemblage_u()            
+        u = simu.Solve_u()
+        
         # Condition de convergence
         dincMax = np.max(np.abs(dkp1-dk))
-        print(f"{iterConv} : {dincMax}\r")
-        convergence = dincMax <= tolConv
+        # print(f"{iterConv} : {dincMax}\r")
+        convergence = dincMax <= tolConv and iterConv > 1
     
         if iterConv == maxIter:
             break
@@ -60,13 +65,22 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         if tolConv == 1.0:
             convergence=True
 
-    if simu.materiau.phaseFieldModel.useHistory:
+    if solveur == "History":
+        # mets à jour l'ancien champ histoire pour la prochaine résolution 
+        simu.Refresh_old_psiP_e_pg()
+        dnp1 = dkp1
+        
+    elif solveur == "HistoryDamage":
         oldAndNewDamage = np.zeros((dkp1.shape[0], 2))
         oldAndNewDamage[:, 0] = dn
         oldAndNewDamage[:, 1] = dkp1
         dnp1 = np.max(oldAndNewDamage, 1)
-    else:
+
+    elif solveur == "BoundConstrain":
         dnp1 = dkp1
+
+    else:
+        raise "Solveur inconnue"
         
     return u, dnp1, Kglob, iterConv
 
@@ -124,7 +138,7 @@ def ResumeChargement(simu: Simu, umax: float, listInc: list, listTreshold: list,
     simu.resumeChargement = resumeChargement
 
 def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float,
-useHistory: bool, test: bool, openCrack=False, v=0.0):
+solveur: str, test: bool, openCrack=False, v=0.0):
 
     nom="_".join([comp, split, regu, simpli2D])
 
@@ -134,9 +148,10 @@ useHistory: bool, test: bool, openCrack=False, v=0.0):
     if tolConv < 1:
         nom += f'_convergence{tolConv}'
     
-    if not useHistory:
-        nom += '_noHistory'
-
+    assert solveur in Materials.PhaseFieldModel.get_solveurs()
+    if solveur != "History":
+        nom += '_' + solveur
+        
     if comp == "Elas_Isot" and v != 0:
         nom = f"{nom} pour v={v}"
 

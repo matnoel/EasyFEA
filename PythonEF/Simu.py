@@ -48,8 +48,7 @@ class Simu:
 
         if materiau.isDamaged:
             materiau.phaseFieldModel.useNumba = useNumba
-            self.__resumeIterPhaseField = ""
-
+            
         self.__useNumba = useNumba
         # if useNumba:
         #     CalcNumba.CompilNumba(self.__verbosity)
@@ -105,7 +104,9 @@ class Simu:
             self.__damage = np.zeros(self.__mesh.Nn)
             """endommagement"""
             self.__psiP_e_pg = []
-            """densité d'energie elastique en tension PsiPlus(e, pg, 1)"""
+            """densitée d'energie elastique positive PsiPlus(e, pg, 1)"""
+            self.__old_psiP_e_pg = []
+            """ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe"""
             
         self.resumeChargement = ""
         """resumé du chargement"""
@@ -164,7 +165,6 @@ class Simu:
         results = self.get_result(iter)
 
         if self.materiau.isDamaged: 
-            self.__psiP_e_pg = []
             self.__damage = results["damage"]
             self.__displacement = results["displacement"]
         else:
@@ -303,13 +303,18 @@ class Simu:
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
-    def __Calc_psiPlus_e_pg(self, useHistory=True):
+    def Refresh_old_psiP_e_pg(self):
+        """Rafraichi la densité dernergie elastique lorsque le modèle phase field utilise le champ d'histoire de Miehe"""
+        if self.materiau.phaseFieldModel.solveur == "History":
+            self.__old_psiP_e_pg = self.__psiP_e_pg
+    
+    def Set_old_psiP_e_pg(self, old_psiPlus_e_pg: np.ndarray):
+        self.__old_psiP_e_pg = old_psiPlus_e_pg.copy() 
+
+    def Calc_psiPlus_e_pg(self):
         """Calcul de la densité denergie positive\n
         Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
-
-        Args:
-            useHistory (bool, optional): Utilise le champs histoire. Defaults to True.
-
+       
         Returns:
             np.ndarray: self.__psiP_e_pg
         """
@@ -329,27 +334,28 @@ class Simu:
         # ici le therme masse est important sinon on sous intègre
 
         # Calcul l'energie
-        # old_psiP = self.__psiP_e_pg
-
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
-        # nPg = self.__mesh.Get_nPg("masse")
-        # if useHistory:
-        #     if len(old_psiP) == 0:
-        #         # Pas encore d'endommagement disponible
-        #         old_psiP = np.zeros((self.__mesh.Ne, nPg))
+        if phaseFieldModel.solveur == "History":
+            # Récupère l'ancien champ d'histoire
+            old_psiPlus_e_pg = self.__old_psiP_e_pg
+            
+            if isinstance(old_psiPlus_e_pg, list) and len(old_psiPlus_e_pg) == 0:
+                # Pas encore d'endommagement disponible
+                nPg = self.__mesh.Get_nPg("masse")
+                old_psiPlus_e_pg = np.zeros((self.__mesh.Ne, nPg))
 
-        #     inc_H = psiP_e_pg - old_psiP
+            inc_H = psiP_e_pg - old_psiPlus_e_pg
 
-        #     elements, pdGs = np.where(inc_H < 0)
+            elements, pdGs = np.where(inc_H < 0)
 
-        #     psiP_e_pg[elements, pdGs] = old_psiP[elements,pdGs]           
+            psiP_e_pg[elements, pdGs] = old_psiPlus_e_pg[elements, pdGs]           
 
-        #     # new = np.linalg.norm(psiP_e_pg)
-        #     # old = np.linalg.norm(self.__psiP_e_pg)
-        #     # assert new >= old, "Erreur"
+            self.__psiP_e_pg = psiP_e_pg
 
-        self.__psiP_e_pg = psiP_e_pg
+            # new = np.linalg.norm(psiP_e_pg)
+            # old = np.linalg.norm(self.__old_psiP_e_pg)
+            # assert new >= old, "Erreur"
 
         return self.__psiP_e_pg
     
@@ -360,17 +366,13 @@ class Simu:
             Kd_e, Fd_e: les matrices elementaires pour chaque element
         """
 
-        
-        
-
-
         # TODO A optimiser en faisant le moins de fois les memes opérations genre grouper jacobien et poid 
 
         phaseFieldModel = self.materiau.phaseFieldModel
 
         # Data
         k = phaseFieldModel.k
-        PsiP_e_pg = self.__Calc_psiPlus_e_pg(useHistory=phaseFieldModel.useHistory)
+        PsiP_e_pg = self.Calc_psiPlus_e_pg()
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
@@ -629,25 +631,27 @@ class Simu:
             tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
 
             if problemType == "displacement":
-                # la matrice est definie symétrique positive
+                # la matrice est definie symétrique positive on peut donc utiliser cholesky
                 useCholesky=True
             else:
                 #la matrice n'est pas definie symétrique positive
                 useCholesky=False
 
-            if self.materiau.isDamaged:
+            isDamaged = self.materiau.isDamaged
+            if isDamaged:
                 # Si l'endommagement est supérieur à 1 la matrice A n'est plus symétrique
                 A_isSymetric = False
-                if self.materiau.phaseFieldModel.useHistory:
-                    damage = []
-                else:
+                solveur = self.materiau.phaseFieldModel.solveur
+                if solveur == "BoundConstrain":
                     damage = self.damage
+                else:
+                    damage = []
             else:
                 damage = []
                 A_isSymetric = True
 
             xi = Interface_Solveurs.Solve_Axb(problemType, Aii, bi-bDirichlet,
-            self.materiau.isDamaged, damage,
+            isDamaged, damage,
             useCholesky, A_isSymetric, self.__verbosity)
 
             # Reconstruction de la solution
@@ -1162,7 +1166,7 @@ class Simu:
         displacement = self.__displacement
 
         if option == "psiP":
-            resultat_e_pg = self.__Calc_psiPlus_e_pg(useHistory=False)
+            resultat_e_pg = self.Calc_psiPlus_e_pg()
             resultat = np.mean(resultat_e_pg, axis=1)
 
         dim = self.__dim
