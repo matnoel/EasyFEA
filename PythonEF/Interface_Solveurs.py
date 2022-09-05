@@ -66,7 +66,8 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
             method = "scipy_spsolve"
 
         elif syst == "Linux":
-            method = "umfpack" # Plus rapide de ne pas passer par umfpack
+            method = "pypardiso"
+            # method = "umfpack" # Plus rapide de ne pas passer par umfpack
             # method = "scipy_spsolve"
 
         else:
