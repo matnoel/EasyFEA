@@ -16,7 +16,7 @@ test=False
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
-useHistory=True
+solveur = "History"
 
 # Convergence
 maxIter = 250
@@ -61,8 +61,8 @@ for split in ["AnisotMiehe","He"]: #["Bourdin","Amor","Miehe","He","Stress"]
     else:
         testConvergence = False
     
-    if not useHistory:
-        nom += '_noHistory'
+    if solveur != "History":
+        nom += '_' + solveur
 
     if comp == "Elas_Isot":
         nom = f"{nom} pour v={v}"

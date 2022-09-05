@@ -33,6 +33,7 @@ makeMovie = False
 comportement = "Elas_IsotTrans" # "Elas_Isot", "Elas_IsotTrans"
 split = "AnisotMiehe" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
+solveur = "History"
 openCrack = True
 
 maxIter = 250
@@ -59,7 +60,7 @@ else:
 
 folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
 comp=comportement, split=split, regu=regularisation, simpli2D='DP',
-tolConv=tolConv, useHistory=True, test=test, openCrack=False, v=0)
+tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=0)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -102,7 +103,7 @@ if solve:
         # comportement = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
         raise "Pas implémenté pour le moment"
 
-    phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0)
+    phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0, solveur=solveur)
 
     materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
 

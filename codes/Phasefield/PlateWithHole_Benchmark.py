@@ -22,7 +22,7 @@ saveParaview=False
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
-useHistory = False
+solveur = "History"
 
 useNumba = True
 
@@ -94,7 +94,7 @@ for split in ["Amor"]:
     nomDossier = "PlateWithHole_Benchmark"
     folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
     comp=comp, split=split, regu=regu, simpli2D=simpli2D,
-    tolConv=tolConv, useHistory=useHistory, test=test, openCrack=False, v=v)
+    tolConv=tolConv, solveur="History", test=test, openCrack=False, v=v)
 
     
     if solve:
@@ -127,7 +127,7 @@ for split in ["Amor"]:
                         contraintesPlanes=isCp, epaisseur=ep,
                         axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-        phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, useHistory=useHistory)
+        phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, solveur=solveur)
         materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
 
         simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
