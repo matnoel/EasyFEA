@@ -1,16 +1,17 @@
 PythonEF.egg-info
+
+# dossiers à ignorer
 build/
-.vscode
 .vscode/*
-.vscode/launch.json
-.vscode/settings.json
+!.vscode/launch.json
+!.vscode/settings.json
+.DS_Store
 results/
-classes/__pycache__/
+
+# fichier à ignorer
 *.pyc
 *.pos
 *.bak
 *.json
 *__pycache__
-.vscode/launch.json
-*.json
-.DS_Store
+
