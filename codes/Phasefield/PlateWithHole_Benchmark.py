@@ -192,7 +192,7 @@ for split in ["Amor"]:
             u, d, Kglob, iterConv = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
             if iterConv == maxIter:
-                print(f'On converge pas apres {iterConv} itérations')
+                print(f'\nOn converge pas apres {iterConv} itérations')
                 break
 
             simu.Save_Iteration()

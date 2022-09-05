@@ -64,6 +64,8 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         
         if tolConv == 1.0:
             convergence=True
+    
+    print(f'\necart = {dincMax}\r')
 
     if solveur == "History":
         # mets à jour l'ancien champ histoire pour la prochaine résolution 
