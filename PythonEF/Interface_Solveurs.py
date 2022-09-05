@@ -56,10 +56,11 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
             method = "BoundConstrain" # minimise le residu sous la contrainte
         else:
             if syst == "Darwin":
-                method = "scipy_spsolve"
+                method = "cg"
 
             else:
-                method = "pypardiso"
+                method = "cg"
+                # method = "pypardiso"
                 # method = "pypardiso" # minimise le residu sans la contrainte
     else:
         if syst == "Darwin":
