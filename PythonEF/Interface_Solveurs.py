@@ -95,7 +95,6 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
         x, output = sla.gmres(A, b.toarray())
 
     elif method == "lgmres":
-        import scikits.umfpack as umfpack
         sla.use_solver(useUmfpack=True)
         x, output = sla.lgmres(A, b.toarray())
         print(output)
@@ -103,6 +102,7 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
     elif method == "umfpack":
         # lu = umfpack.splu(A)
         # x = lu.solve(b).reshape(-1)
+        import scikits.umfpack as umfpack
         
         x = umfpack.spsolve(A, b)
         
@@ -196,7 +196,7 @@ def __DamageBoundConstrain(A, b, damage: np.ndarray):
     ub = np.ones(lb.shape)
     b = b.toarray().reshape(-1)
     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
-    x = optimize.lsq_linear(A,b,bounds=(lb,ub), tol=1e-10)                    
+    x = optimize.lsq_linear(A,b,bounds=(lb,ub), tol=1e-6, method='trf')                    
     x= x['x']
 
     return x
