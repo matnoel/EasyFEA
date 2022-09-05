@@ -66,7 +66,8 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
             method = "scipy_spsolve"
 
         elif syst == "Linux":
-            method = "umfpack"
+            # method = "umfpack"
+            method = "scipy_spsolve"
 
         else:
             method = "pypardiso"
@@ -86,16 +87,19 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
         x = __ScipyLinearDirect(A, b, A_isSymetric, isDamaged)
 
     elif method == "cg":
+        __ActiveUmfpack()
         x, output = sla.cg(A, b.toarray())
 
     elif method == "bicg":
+        __ActiveUmfpack()
         x, output = sla.bicg(A, b.toarray())
 
     elif method == "gmres":
+        __ActiveUmfpack()
         x, output = sla.gmres(A, b.toarray())
 
     elif method == "lgmres":
-        sla.use_solver(useUmfpack=True)
+        __ActiveUmfpack()
         x, output = sla.lgmres(A, b.toarray())
         print(output)
 
@@ -105,12 +109,6 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
         import scikits.umfpack as umfpack
         
         x = umfpack.spsolve(A, b)
-        
-
-    elif method == "scipy_spsolve_umfpack" and syst == 'Linux':
-        # Utilise umfpack depuis scipy
-        sla.use_solver(useUmfpack=True)
-        x = sla.spsolve(A, b)
 
     elif method == "mumps" and syst == 'Linux':
         x = mumps.spsolve(A,b)
@@ -168,7 +166,9 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
 
 def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool, isDamaged: bool):
     # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
-        
+    
+    __ActiveUmfpack()
+
     hideFacto = False # Cache la décomposition
     # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
     if A_isSymetric and not isDamaged:
@@ -176,7 +176,7 @@ def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric
     else:
         permute="COLAMD"
 
-    if hideFacto:                    
+    if hideFacto:                   
         x = sla.spsolve(A, b, permc_spec=permute)
         
     else:
@@ -190,6 +190,9 @@ def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric
 
 
 def __DamageBoundConstrain(A, b, damage: np.ndarray):
+    
+    __ActiveUmfpack()
+    
     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
     lb = damage
     lb[np.where(lb>=1)] = 1-np.finfo(float).eps
@@ -201,5 +204,10 @@ def __DamageBoundConstrain(A, b, damage: np.ndarray):
 
     return x
 
+def __ActiveUmfpack():
+    if platform.system() == "Linux":
+        sla.use_solver(useUmfpack=True)
+    else:
+        sla.use_solver(useUmfpack=False)
 
 
