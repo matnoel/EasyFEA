@@ -147,12 +147,12 @@ solveur: str, test: bool, openCrack=False, v=0.0):
     if openCrack: 
         nom += '_openCrack'
 
-    if tolConv < 1:
-        nom += f'_convergence{tolConv}'
-    
     assert solveur in Materials.PhaseFieldModel.get_solveurs()
     if solveur != "History":
         nom += '_' + solveur
+
+    if tolConv < 1:
+        nom += f'_convergence{tolConv}'
         
     if comp == "Elas_Isot" and v != 0:
         nom = f"{nom} pour v={v}"
