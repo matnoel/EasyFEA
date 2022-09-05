@@ -349,13 +349,14 @@ class Simu:
 
             elements, pdGs = np.where(inc_H < 0)
 
-            psiP_e_pg[elements, pdGs] = old_psiPlus_e_pg[elements, pdGs]           
-
-            self.__psiP_e_pg = psiP_e_pg
+            psiP_e_pg[elements, pdGs] = old_psiPlus_e_pg[elements, pdGs]
 
             # new = np.linalg.norm(psiP_e_pg)
             # old = np.linalg.norm(self.__old_psiP_e_pg)
             # assert new >= old, "Erreur"
+            
+        self.__psiP_e_pg = psiP_e_pg
+
 
         return self.__psiP_e_pg
     
