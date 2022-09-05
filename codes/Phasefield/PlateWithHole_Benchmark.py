@@ -20,7 +20,7 @@ solve=True
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT2" # "AT1", "AT2"
+regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 solveur = "History"
 
