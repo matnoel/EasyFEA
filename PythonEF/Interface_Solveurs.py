@@ -84,9 +84,8 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
                 solveur = "scipy_spsolve"
 
             else:
-                solveur = "cg"
-                # method = "pypardiso"
-                # method = "pypardiso" # minimise le residu sans la contrainte
+                solveur = "pypardiso"
+                # method = "cg" # minimise le residu sans la contrainte
     else:
         if syst == "Darwin":
             solveur = "scipy_spsolve"
