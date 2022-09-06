@@ -1,9 +1,9 @@
 
 import platform
-import sys
 from typing import List, cast
 import os
 import numpy as np
+import pandas as pd
 
 import matplotlib.collections
 import matplotlib.pyplot as plt
@@ -628,6 +628,66 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m'
     if folder != "":
         import PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "forcedep")
+
+def Plot_ResumeIter(simu, folder: str):
+    from Simu import Simu
+
+    assert isinstance(simu, Simu)
+
+    # Recupère les résultats de simulation
+    resultats = simu.Get_Results()
+    df = pd.DataFrame(resultats)
+
+    iterations = np.arange(df.shape[0])+1
+    damageMaxIter = np.max(list(df["damage"].values), axis=1)
+    try:
+        tempsIter = df["tempsIter"].values
+        nombreIter = df["nombreIter"].values
+        getTempsAndNombreIter = True
+    except:
+        # tempsIter et nombreIter n'ont pas été sauvegardé
+        getTempsAndNombreIter = False
+
+    if getTempsAndNombreIter:
+        # On affiche le nombre d'itérations de convergence en fonction de l'endommagement
+        fig1, ax1 = plt.subplots()
+        ax1.grid()
+        ax1.plot(iterations, damageMaxIter, color='blue')
+        ax1.set_ylabel(r"$\phi$", rotation=0, color='blue')
+        ax2 = ax1.twinx()
+        ax2.plot(iterations, nombreIter, color='red')
+        ax2.set_ylabel("iter convergence", color='red')
+        ax2.set_yticks(np.unique(nombreIter))
+
+        if folder != "":
+            import PostTraitement as PostTraitement 
+            PostTraitement.Save_fig(folder, "damage_iterConvergence")
+
+        # On affiche le temps en fonction de l'endommagement
+        fig2, ax3 = plt.subplots()
+        ax3.grid()
+        ax3.plot(iterations, damageMaxIter, color='blue')
+        ax3.set_ylabel(r"$\phi$", rotation=0, color='blue')
+        ax4 = ax3.twinx()
+        ax4.plot(iterations, tempsIter, color='red')
+        ax4.set_ylabel("temps convergence", color='red')
+
+        if folder != "":
+            import PostTraitement as PostTraitement 
+            PostTraitement.Save_fig(folder, "damage_iterTemps")
+        
+    else:
+        # On affiche l'endommagement max pour chaque itération
+        fig, ax = plt.subplots()
+        ax.plot(iterations, damageMaxIter, color='blue')
+        ax.set_xlabel("iterations")
+        ax.set_ylabel(r"$\phi$", rotation=0)
+        ax.grid()
+
+        if folder != "":
+            import PostTraitement as PostTraitement 
+            PostTraitement.Save_fig(folder, "damage_iterations")
+
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
     """Recupération des coordonnée déformées si la simulation le permet
