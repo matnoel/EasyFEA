@@ -601,11 +601,11 @@ class Simu:
             # Résolution du système matricielle pénalisé
             useCholesky=False #la matrice ne sera pas symétrique definie positive
             A_isSymetric=False
-            damage=[]
+            isDamaged = self.materiau.isDamaged
 
-            x = Interface_Solveurs.Solve_Axb(problemType, A, b, None,
-            self.materiau.isDamaged, damage,
-            useCholesky, A_isSymetric, self.__verbosity)
+            x = Interface_Solveurs.Solve_Axb(problemType=problemType, A=A, b=b, x0=None,
+            isDamaged=isDamaged, damage=damage,
+            useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
 
         elif resolution == 2:
             
@@ -656,11 +656,9 @@ class Simu:
                 damage = []
                 A_isSymetric = True
 
-            
-
-            xi = Interface_Solveurs.Solve_Axb(problemType, Aii, bi-bDirichlet, x0,
-            isDamaged, damage,
-            useCholesky, A_isSymetric, self.__verbosity)
+            xi = Interface_Solveurs.Solve_Axb(problemType=problemType, A=Aii, b=bi-bDirichlet, x0=x0,
+            isDamaged=isDamaged, damage=damage,
+            useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])

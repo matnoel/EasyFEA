@@ -39,10 +39,35 @@ except:
     pass
 
 
-def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: None,
-isDamaged: bool, damage=[],
-useCholesky=False, A_isSymetric=False, verbosity=False):
-    """Résolution de Ax=b"""
+def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: None, isDamaged: bool, damage: np.ndarray, useCholesky=False, A_isSymetric=False, verbosity=False) -> np.ndarray:
+    """Resolution de A x = b
+
+    Parameters
+    ----------
+    problemType : str
+        type de probleme ["displacement", "damage"]
+    A : sparse.csr_matrix
+        Matrice A
+    b : sparse.csr_matrix
+        vecteur b
+    x0 : None
+        solution initiale pour les solveurs itératifs
+    isDamaged : bool
+        le problème est endommagé
+    damage : np.ndarray
+        vecteur d'endommagement pour le BoundConstrain
+    useCholesky : bool, optional
+        autorise l'utilisation de la décomposition de cholesky, by default False
+    A_isSymetric : bool, optional
+        A est simetric, by default False
+    verbosity : bool, optional
+        Les solveurs peuvent ecrire dans la console, by default False
+
+    Returns
+    -------
+    np.ndarray
+        x : solution de A x = b
+    """
     
     # Detection du système
     syst = platform.system()
@@ -53,73 +78,73 @@ useCholesky=False, A_isSymetric=False, verbosity=False):
 
     if isDamaged:
         if problemType == "damage" and len(damage) > 0:
-            method = "BoundConstrain" # minimise le residu sous la contrainte
+            solveur = "BoundConstrain" # minimise le residu sous la contrainte
         else:
             if syst == "Darwin":
-                method = "cg"
+                solveur = "cg"
 
             else:
-                method = "cg"
+                solveur = "cg"
                 # method = "pypardiso"
                 # method = "pypardiso" # minimise le residu sans la contrainte
     else:
         if syst == "Darwin":
-            method = "scipy_spsolve"
+            solveur = "scipy_spsolve"
 
         elif syst == "Linux":
-            method = "pypardiso"
+            solveur = "pypardiso"
             # method = "umfpack" # Plus rapide de ne pas passer par umfpack
             # method = "scipy_spsolve"
 
         else:
-            method = "pypardiso"
+            solveur = "pypardiso"
 
     
     if useCholesky and A_isSymetric:
         x = __Cholesky(A, b)
 
-    elif method == "BoundConstrain":
+    elif solveur == "BoundConstrain":
         x = __DamageBoundConstrain(A, b , damage)
 
-    elif method == "pypardiso":
+    elif solveur == "pypardiso":
         x = pypardiso.spsolve(A, b.toarray())
 
-    elif method == "scipy_spsolve":                
+    elif solveur == "scipy_spsolve":                
         # https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
         x = __ScipyLinearDirect(A, b, A_isSymetric, isDamaged)
 
-    elif method == "cg":
+    elif solveur == "cg":
         __ActiveUmfpack()
         x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
 
-    elif method == "bicg":
+    elif solveur == "bicg":
         __ActiveUmfpack()
         x, output = sla.bicg(A, b.toarray(), x0, maxiter=None)
 
-    elif method == "gmres":
+    elif solveur == "gmres":
         __ActiveUmfpack()
         x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
 
-    elif method == "lgmres":
+    elif solveur == "lgmres":
         __ActiveUmfpack()
         x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
         print(output)
 
-    elif method == "umfpack":
+    elif solveur == "umfpack":
         # lu = umfpack.splu(A)
         # x = lu.solve(b).reshape(-1)
         import scikits.umfpack as umfpack
         
         x = umfpack.spsolve(A, b)
 
-    elif method == "mumps" and syst == 'Linux':
+    elif solveur == "mumps" and syst == 'Linux':
         x = mumps.spsolve(A,b)
 
-    elif method == "petsc" and syst in ['Linux', "Darwin"]:
+    elif solveur == "petsc" and syst in ['Linux', "Darwin"]:
         x = __PETSc(A, b)
         
             
-    tic.Tac(f"Solve {problemType}","Solve Ax=b", verbosity)
+    tic.Tac(f"Solve {problemType} ({solveur})","Solve Ax=b", verbosity)
 
     return x
 
