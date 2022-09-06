@@ -58,7 +58,8 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         # Condition de convergence
         dincMax = np.max(np.abs(dkp1-dk))
         # print(f"{iterConv} : {dincMax}\r")
-        convergence = dincMax <= tolConv and iterConv > 1
+        # convergence = dincMax <= tolConv and iterConv > 1 # idée de florent
+        convergence = dincMax <= tolConv
     
         if iterConv == maxIter:
             break
