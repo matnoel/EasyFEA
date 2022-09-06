@@ -191,9 +191,6 @@ for split in ["Amor"]:
 
             u, d, Kglob, iterConv, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
-            if iterConv == maxIter:
-                print(f'\nOn converge pas apres {iterConv} itérations')
-                break
 
             temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
@@ -218,6 +215,10 @@ for split in ["Amor"]:
 
             displacement.append(ud)
             load.append(f)
+            
+            if iterConv == maxIter:
+                print(f'\nOn converge pas apres {iterConv} itérations')
+                break
 
         load = np.array(load)
         displacement = np.array(displacement)
