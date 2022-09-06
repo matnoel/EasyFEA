@@ -174,7 +174,7 @@ if solve:
 
         Chargement(dep)
 
-        u, d, Kglob, iterConv = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
+        u, d, Kglob, iterConv, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
         if iterConv == maxIter:
             print(f'On converge pas apres {iterConv} itérations')
@@ -185,7 +185,7 @@ if solve:
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
-        PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, temps, "µm", iter/N, True)
+        PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, dincMax, temps, "µm", iter/N, True)
   
         deplacements.append(dep)
         forces.append(f)

@@ -5,7 +5,7 @@ import scipy.sparse as sp
 import Dossier
 import Materials
 
-def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int]:
+def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int, float]:
     """Calcul l'itération d'un probleme d'endommagement de façon étagée
 
     Parameters
@@ -19,14 +19,15 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
 
     Returns
     -------
-    np.ndarray, np.ndarray, int
-        u, d, Kglob, iterConv\n
+    np.ndarray, np.ndarray, int, float
+        u, d, Kglob, iterConv, dincMax\n
 
         tel que :\n
         u : champ vectorielle de déplacement
         d : champ scalaire d'endommagement
         Kglob : matrice de rigidité en déplacement
         iterConv : iteration nécessaire pour atteindre la convergence
+        dincMax : tolerance de convergence
     """
 
     assert tolConv > 0 and tolConv <= 1 , "tolConv doit être compris entre 0 et 1"
@@ -64,8 +65,6 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         
         if tolConv == 1.0:
             convergence=True
-    
-    print(f'\necart = {dincMax}\r')
 
     if solveur == "History":
         # mets à jour l'ancien champ histoire pour la prochaine résolution 
@@ -84,7 +83,7 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
     else:
         raise "Solveur inconnue"
         
-    return u, dnp1, Kglob, iterConv
+    return u, dnp1, Kglob, iterConv, dincMax
 
 class listTemps:
     def init(self):
@@ -95,10 +94,10 @@ class listTemps:
 
 listTmps = listTemps()
 resumeIter = ""
-def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, iterConv: int, temps: float, uniteDep="m", pourcentage=0, remove=False):
+def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, iterConv: int, dincMax: float, temps: float, uniteDep="m", pourcentage=0, remove=False):
     min_d = d.min()
     max_d = d.max()
-    resumeIter = f"{resol:4} : ud = {np.round(dep,3)} {uniteDep},  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{np.round(temps,3)} s  "
+    resumeIter = f"{resol:4} : ud = {np.round(dep,3)} {uniteDep},  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
     
     if remove:
         end='\r'
@@ -116,6 +115,7 @@ def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, iterConv:
         
         tempsCoef, unite = Tic.Get_temps_unite(tempsRestant)
 
+        # Rajoute le pourcentage et lestimation du temps restant
         resumeIter = resumeIter+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsCoef,1)} {unite}   "
     
     print(resumeIter, end=end)

@@ -647,6 +647,12 @@ def Plot_ResumeIter(simu, folder: str):
     except:
         # tempsIter et nombreIter n'ont pas été sauvegardé
         getTempsAndNombreIter = False
+    
+    try:
+        tolConvergence = df["dincMax"].values
+        getTolConvergence = True
+    except:
+        getTolConvergence = False
 
     if getTempsAndNombreIter:
         # On affiche le nombre d'itérations de convergence en fonction de l'endommagement
@@ -687,6 +693,20 @@ def Plot_ResumeIter(simu, folder: str):
         if folder != "":
             import PostTraitement as PostTraitement 
             PostTraitement.Save_fig(folder, "damage_iterations")
+
+    if getTolConvergence:
+        # On affiche la tolerance de convergence en fonction de l'endommagement
+        fig4, ax5 = plt.subplots()
+        ax5.grid()
+        ax5.plot(iterations, damageMaxIter, color='blue')
+        ax5.set_ylabel(r"$\phi$", rotation=0, color='blue')
+        ax6 = ax5.twinx()
+        ax6.plot(iterations, tolConvergence, color='red')
+        ax6.set_ylabel("tol convergence", color='red')
+
+        if folder != "":
+            import PostTraitement as PostTraitement 
+            PostTraitement.Save_fig(folder, "damage_tolConvergence")
 
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):

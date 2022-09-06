@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 # Options
 
 test=True
-solve=True
+solve=False
 saveParaview=False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
@@ -30,7 +30,7 @@ useNumba = True
 maxIter = 700
 # tolConv = 0.01
 # tolConv = 0.05
-tolConv = 0.01
+tolConv = 1
 
 if comp == "Elas_Isot":
     umax = 25e-6
@@ -94,7 +94,7 @@ for split in ["Amor"]:
     nomDossier = "PlateWithHole_Benchmark"
     folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
     comp=comp, split=split, regu=regu, simpli2D=simpli2D,
-    tolConv=tolConv, solveur="History", test=test, openCrack=False, v=v)
+    tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=v)
 
     
     if solve:
@@ -189,19 +189,20 @@ for split in ["Amor"]:
             
             Chargement()
 
-            u, d, Kglob, iterConv = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
+            u, d, Kglob, iterConv, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
             if iterConv == maxIter:
                 print(f'\nOn converge pas apres {iterConv} itérations')
                 break
 
-            simu.Save_Iteration()
-
             temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
+
+            simu.Save_Iteration(nombreIter=iterConv, tempsIter=temps, dincMax=dincMax)
+
             max_d = d.max()
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 
-            PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, iterConv, temps, "µm", ud/umax, True)
+            PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, iterConv, dincMax,  temps, "µm", ud/umax, True)
 
             if max_d<0.6:
                 ud += inc0
@@ -231,6 +232,7 @@ for split in ["Amor"]:
         load, displacement = PostTraitement.Load_Load_Displacement(folder)
         simu = PostTraitement.Load_Simu(folder)
 
+    Affichage.Plot_ResumeIter(simu, folder)
 
     Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud en mm', 'f en kN/mm', folder)
 
@@ -242,6 +244,7 @@ for split in ["Amor"]:
     Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
     folder=folder, filename=filenameDamage,
     title=titleDamage)
+
 
     if saveParaview:
         PostTraitement.Save_Simulation_in_Paraview(folder, simu)

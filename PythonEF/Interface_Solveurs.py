@@ -81,7 +81,7 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
             solveur = "BoundConstrain" # minimise le residu sous la contrainte
         else:
             if syst == "Darwin":
-                solveur = "cg"
+                solveur = "scipy_spsolve"
 
             else:
                 solveur = "cg"
@@ -226,7 +226,7 @@ def __DamageBoundConstrain(A, b, damage: np.ndarray):
     ub = np.ones(lb.shape)
     b = b.toarray().reshape(-1)
     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)
-    tol = 1e-8
+    tol = 1e-10
     x = optimize.lsq_linear(A, b, bounds=(lb,ub), tol=tol, method='trf', verbose=0)                    
     x = x['x']
 

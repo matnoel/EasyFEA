@@ -141,7 +141,7 @@ class Simu:
         """        
         return self.__results
 
-    def Save_Iteration(self, nombreIter=None, tempsIter=None):
+    def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
         """Sauvegarde les résultats de l'itération"""
         if self.materiau.isDamaged:
             iter = {                
@@ -153,9 +153,10 @@ class Simu:
                 'displacement' : self.__displacement
             }
         
-        if nombreIter != None and tempsIter != None:
+        if nombreIter != None and tempsIter != None and dincMax != None:
             iter["nombreIter"] = nombreIter
             iter["tempsIter"] = tempsIter
+            iter["dincMax"] = dincMax
 
         # TODO Faire de l'adaptation de maillage ?
         self.__results.append(iter)
