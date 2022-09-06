@@ -225,8 +225,9 @@ def __DamageBoundConstrain(A, b, damage: np.ndarray):
     lb[np.where(lb>=1)] = 1-np.finfo(float).eps
     ub = np.ones(lb.shape)
     b = b.toarray().reshape(-1)
-    # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)                    
-    x = optimize.lsq_linear(A, b, bounds=(lb,ub), tol=1e-10, method='trf', verbose=2)                    
+    # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)
+    tol = 1e-8
+    x = optimize.lsq_linear(A, b, bounds=(lb,ub), tol=tol, method='trf', verbose=0)                    
     x = x['x']
 
     return x
