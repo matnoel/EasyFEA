@@ -372,8 +372,6 @@ class Simu:
             Kd_e, Fd_e: les matrices elementaires pour chaque element
         """
 
-        # TODO A optimiser en faisant le moins de fois les memes opérations genre grouper jacobien et poid 
-
         phaseFieldModel = self.materiau.phaseFieldModel
 
         # Data
