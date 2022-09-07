@@ -40,8 +40,6 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
     solveur = simu.materiau.phaseFieldModel.solveur
 
     while not convergence:
-
-        # TODO regarder ce qu'a fait florent
                 
         iterConv += 1
         # Ancien endommagement dans la procedure de la convergence
