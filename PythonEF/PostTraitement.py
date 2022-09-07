@@ -21,6 +21,9 @@ from datetime import datetime
 
 def Save_Simu(simu: Simu, folder:str):
     "Sauvegarde la simulation et son résumé dans le dossier"
+
+    # TODO Effacer les matrices elements finis construit pour prendre moins de place
+    # Il faut vider les matrices dans les groupes d'elements
  
     # returns current date and time
     dateEtHeure = datetime.now()
@@ -147,7 +150,8 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
     def Get_ffmpegpath():
         paths = ["D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe",
-                 "D:\\Pro\\ffmpeg\\bin\\ffmpeg.exe"]
+                 "D:\\Pro\\ffmpeg\\bin\\ffmpeg.exe",
+                 "/opt/local/bin/ffmpeg"]
         
         for p in paths:
             if os.path.exists(p):
@@ -158,7 +162,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     ffmpegpath = Get_ffmpegpath()
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 
-    writer = animation.FFMpegWriter(fps=5)
+    writer = animation.FFMpegWriter(fps=30)
     with writer.saving(fig, filename, 200):
     
         tic = Tic()
@@ -171,7 +175,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
             deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
             title = ax.get_title()
-            ax.set_title(f'{title} : {iter+1}/{N-1}')
+            ax.set_title(f'{title} : {iter}/{N-1}')
 
             plt.pause(0.00001)
 
