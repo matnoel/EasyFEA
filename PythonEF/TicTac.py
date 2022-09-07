@@ -68,7 +68,7 @@ class Tic:
             espace = " "
             texte = espace + texte + espace
 
-            if tmps/tempsMax < 0.3:
+            if tmps/tempsMax < 0.4:
                 ax.text(tmps, i, texte, color='black',
                 verticalalignment='center', horizontalalignment='left')
             else:
