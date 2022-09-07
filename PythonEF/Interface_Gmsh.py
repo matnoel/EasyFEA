@@ -511,7 +511,7 @@ class Interface_Gmsh:
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    # TODO Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.
+    # Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.
     # TODO permettre de mettre des trous ?
 
     def __Surfaces_From_Points(self, pointsList: List[Point], tailleElement: float, returnSurfaces: bool):
@@ -868,6 +868,8 @@ class Interface_Gmsh:
 
         if dimAjoute.count(dim) > 1:
             # TODO faire en sorte de pouvoir le faire ?
+            # Peut etre compliqué surtout dans la création des matrices elementaire et assemblage
+            # Pas impossible mais pas trivial
             assert not testDimension, f"Impossible car {dimAjoute.count(dim)} type d'element {dim}D"
         
         tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
