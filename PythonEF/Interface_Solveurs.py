@@ -89,6 +89,7 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
     else:
         if syst == "Darwin":
             solveur = "scipy_spsolve"
+            # solveur = "cg"
 
         elif syst == "Linux":
             solveur = "pypardiso"
@@ -141,9 +142,12 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
 
     elif solveur == "petsc" and syst in ['Linux', "Darwin"]:
         x = __PETSc(A, b)
-        
             
     tic.Tac(f"Solve {problemType} ({solveur})","Solve Ax=b", verbosity)
+
+    # # Verification du residu
+    # residu = np.linalg.norm(A.dot(x)-b.toarray().reshape(-1))
+    # print(residu/np.linalg.norm(b.toarray().reshape(-1)))
 
     return x
 
