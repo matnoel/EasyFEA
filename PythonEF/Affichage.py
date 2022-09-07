@@ -655,32 +655,29 @@ def Plot_ResumeIter(simu, folder: str):
         getTolConvergence = False
 
     if getTempsAndNombreIter:
+
+        if getTolConvergence:
+            fig, (ax1, ax2, ax3, ax4) = plt.subplots(nrows=4, sharex=True)
+        else:
+            fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, sharex=True)
+
         # On affiche le nombre d'itérations de convergence en fonction de l'endommagement
-        fig1, ax1 = plt.subplots()
         ax1.grid()
         ax1.plot(iterations, damageMaxIter, color='blue')
-        ax1.set_ylabel(r"$\phi$", rotation=0, color='blue')
-        ax2 = ax1.twinx()
-        ax2.plot(iterations, nombreIter, color='red')
-        ax2.set_ylabel("iter convergence", color='red')
-        ax2.set_yticks(np.unique(nombreIter))
+        ax1.set_ylabel(r"$\phi$", rotation=0)
+        
+        ax2.grid()
+        ax2.plot(iterations, nombreIter, color='blue')
+        ax2.set_ylabel("iteration")
 
-        if folder != "":
-            import PostTraitement as PostTraitement 
-            PostTraitement.Save_fig(folder, "damage_iterConvergence")
-
-        # On affiche le temps en fonction de l'endommagement
-        fig2, ax3 = plt.subplots()
         ax3.grid()
-        ax3.plot(iterations, damageMaxIter, color='blue')
-        ax3.set_ylabel(r"$\phi$", rotation=0, color='blue')
-        ax4 = ax3.twinx()
-        ax4.plot(iterations, tempsIter, color='red')
-        ax4.set_ylabel("temps convergence", color='red')
+        ax3.plot(iterations, tempsIter, color='blue')
+        ax3.set_ylabel("temps")
 
-        if folder != "":
-            import PostTraitement as PostTraitement 
-            PostTraitement.Save_fig(folder, "damage_iterTemps")
+        if getTolConvergence:
+            ax4.grid()
+            ax4.plot(iterations, tolConvergence, color='blue')
+            ax4.set_ylabel("tolerance")
         
     else:
         # On affiche l'endommagement max pour chaque itération
@@ -690,23 +687,9 @@ def Plot_ResumeIter(simu, folder: str):
         ax.set_ylabel(r"$\phi$", rotation=0)
         ax.grid()
 
-        if folder != "":
-            import PostTraitement as PostTraitement 
-            PostTraitement.Save_fig(folder, "damage_iterations")
-
-    if getTolConvergence:
-        # On affiche la tolerance de convergence en fonction de l'endommagement
-        fig4, ax5 = plt.subplots()
-        ax5.grid()
-        ax5.plot(iterations, damageMaxIter, color='blue')
-        ax5.set_ylabel(r"$\phi$", rotation=0, color='blue')
-        ax6 = ax5.twinx()
-        ax6.plot(iterations, tolConvergence, color='red')
-        ax6.set_ylabel("tol convergence", color='red')
-
-        if folder != "":
-            import PostTraitement as PostTraitement 
-            PostTraitement.Save_fig(folder, "damage_tolConvergence")
+    if folder != "":
+        import PostTraitement as PostTraitement 
+        PostTraitement.Save_fig(folder, "resumeConvergence")
 
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
