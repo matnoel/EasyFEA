@@ -19,18 +19,18 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-simulation = "Shear" #"Shear" , "Tension"
-nomDossier = '_'.join([simulation,"Benchmarck"])
+simulation = "Tension" #"Shear" , "Tension"
+nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = False
+test = True
 solve = False
-plotResult = True
-saveParaview = False
-makeMovie = False
+plotResult = False
+saveParaview = True
+makeMovie = True
 
 # Data --------------------------------------------------------------------------------------------
 
-comportement = "Elas_IsotTrans" # "Elas_Isot", "Elas_IsotTrans"
+comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans"
 split = "AnisotMiehe" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
@@ -46,7 +46,7 @@ dim = 2
 # Paramètres géométrie
 L = 1e-3;  #m
 l0 = 1e-5 # taille fissure test femobject ,7.5e-6, 1e-5
-l0 = 7.5e-6
+# l0 = 7.5e-6
 Gc = 2.7e3
 
 # Paramètres maillage
@@ -92,7 +92,10 @@ if solve:
     for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Haut]:
         NoeudsBord.extend(noeuds)
 
-    ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["x"])
+    if simulation == "Shear":
+        ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["x"])
+    else:
+        ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["y"])
 
     # Simulation  -------------------------------------------------------------------------------------------
     
@@ -136,16 +139,36 @@ if solve:
 
     Affichage.NouvelleSection("Simulations")
 
-    if test:
-        N = 400
-        # N = 10
-        u_inc = 5e-8
-        # u_inc = 5e-7
-    else:
-        N=1500
-        u_inc = 1e-8
+    if simulation == "Shear":
+        if test:
+            u_inc = 5e-8
+            N = 400
+            # N = 10
+            # u_inc = 5e-7
+        else:
+            u_inc = 1e-8
+            N = 1500
 
-    PhaseFieldSimulation.ResumeChargement(simu, N*u_inc,[u_inc], [N*u_inc], "displacement")
+        chargement = np.linspace(u_inc, u_inc*N, N, endpoint=True)
+        
+        listInc = [u_inc]
+        listThreshold = [chargement[N]]
+
+    elif simulation == "Tension":
+        if test:
+            u0 = 1e-7;  N0 = 40
+            u1 = 1e-8;  N1 = 400
+        else:
+            u0 = 1e-8;  N0 = 400
+            u1 = 1e-9;  N1 = 4000
+
+        chargement = np.linspace(u0, u0*N0, N0, endpoint=True)
+        chargement = np.append(chargement, np.linspace(u1, u1*N1, N1, endpoint=True)+chargement[-1])
+        
+        listInc = [u0, u1]
+        listThreshold = [chargement[N0], chargement[N1]]
+
+    PhaseFieldSimulation.ResumeChargement(simu, chargement[-1],listInc, listThreshold, "displacement")
 
     damage_t=[]
     uglob_t=[]
@@ -162,11 +185,10 @@ if solve:
     deplacements=[]
     forces=[]
 
-    for iter in range(N):
+    N = chargement.shape[0]
+    for iter, dep in enumerate(chargement):
 
         tic = Tic()
-
-        dep += u_inc
 
         iterConv=0
         convergence = False
@@ -220,8 +242,8 @@ else:
 Affichage.NouvelleSection("Affichage")
 
 if makeMovie:
-    # PostTraitement.MakeMovie(folder, "damage", simu)
-    PostTraitement.MakeMovie(folder, "Svm", simu)        
+    PostTraitement.MakeMovie(folder, "damage", simu)
+    # PostTraitement.MakeMovie(folder, "Svm", simu)        
     # PostTraitement.MakeMovie(filename, "Syy", simu, valeursAuxNoeuds=True, deformation=True)
 
 if plotResult:
