@@ -1,4 +1,4 @@
-from typing import cast
+from typing import List, cast
 
 from TicTac import Tic
 
@@ -522,24 +522,24 @@ class Elas_IsotTrans(LoiDeComportement):
 class PhaseFieldModel:
 
     @staticmethod
-    def get_splits():
-        __splits = ["Bourdin","Amor",
-        "Miehe","He","Stress",
-        "AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross",
-        "AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]
-        # __splits = ["Bourdin","Amor",
-        # "Miehe","AnisotMiehe","AnisotMiehe_NoCross",
-        # "He", "HeStress",
-        # "Stress","AnisotStress","AnisotStress_NoCross"]
+    def get_splits() -> List[str]:
+        """splits disponibles"""
+        __splits = ["Bourdin","Amor"]
+        __splits.extend(["Miehe","He","Stress"])
+        __splits.extend(["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"])
+        __splits.extend(["AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"])
+        
         return __splits
     
     @staticmethod
-    def get_regularisations():
+    def get_regularisations() -> List[str]:
+        """regularisations disponibles"""
         __regularizations = ["AT1","AT2"]
         return __regularizations
 
     @staticmethod
-    def get_solveurs():
+    def get_solveurs() -> List[str]:
+        """solveurs disponibles"""
         __solveurs = ["History", "HistoryDamage", "BoundConstrain"]
         return __solveurs
 

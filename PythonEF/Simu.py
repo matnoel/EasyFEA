@@ -138,6 +138,8 @@ class Simu:
 
     def Get_Results(self) -> List[dict]:
         """Renvoie la liste de dictionnaire qui stocke les résultats\n
+        ['displacement', 'damage', 'nombreIter', 'tempsIter', 'dincMax']\n
+        attention 'damage', 'nombreIter', 'tempsIter', 'dincMax' peuvent ne pas avoir été sauvegardé
         """        
         return self.__results
 
