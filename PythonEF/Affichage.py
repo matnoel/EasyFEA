@@ -668,6 +668,7 @@ def Plot_ResumeIter(simu, folder: str):
         
         ax2.grid()
         ax2.plot(iterations, nombreIter, color='blue')
+        # ax2.set_yscale('log', base=10)
         ax2.set_ylabel("iteration")
 
         ax3.grid()
