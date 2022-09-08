@@ -24,13 +24,20 @@ def Save_Simu(simu: Simu, folder:str):
 
     # TODO Effacer les matrices elements finis construit pour prendre moins de place
     # Il faut vider les matrices dans les groupes d'elements
+    try:
+        simu.mesh.ResetMatrices()
+    except:
+        # Cette option n'était pas encore implémentée
+        pass
  
     # returns current date and time
     dateEtHeure = datetime.now()
     resume = f"Simulation réalisée le : {dateEtHeure}"
-
-    filename = Dossier.Join([folder, "simulation.pickle"])
-    print(f'Sauvegarde de :\n {filename}\n')
+    
+    nomSimu = "simulation.pickle"
+    filename = Dossier.Join([folder, nomSimu])
+    print(f'\nSauvegarde dans : \n{folder}')
+    print(f'  - {nomSimu}')
 
     # Sauvagarde la simulation
     with open(filename, "wb") as file:
@@ -38,9 +45,9 @@ def Save_Simu(simu: Simu, folder:str):
 
     # Sauvegarde le résumé de la simulation
     resume += simu.Resume(False)
-
-    filenameResume = Dossier.Join([folder, "résumé.txt"])
-    print(f'Sauvegarde de :\n {filenameResume}\n')
+    nomResume = "résumé.txt"
+    print(f'  - {nomResume} \n')
+    filenameResume = Dossier.Join([folder, nomResume])
 
     with open(filenameResume, 'w', encoding='utf8') as file:
         file.write(resume)
@@ -162,11 +169,12 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     ffmpegpath = Get_ffmpegpath()
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 
+    listIter = np.arange(N)
+    listTemps = []
     writer = animation.FFMpegWriter(fps=30)
     with writer.saving(fig, filename, 200):
-    
         tic = Tic()
-        for iter in range(N):
+        for i, iter in enumerate(listIter):
             simu.Update_iter(iter)
 
             cb.remove()
@@ -181,8 +189,12 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
             writer.grab_frame()
 
-            tf = tic.Tac("Animation","Plot", False)
-            print(f'Plot {ax.get_title()} in {np.round(tf,3)}', end='\r')
+            tf = tic.Tac("Animation",f"Plot {ax.get_title()}", False)
+            listTemps.append(tf)
+
+            pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
+
+            print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
     
 # =========================================== Paraview ==================================================
 
@@ -210,12 +222,14 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
         listIter = np.linspace(0, N, Niter, endpoint=False, dtype=int)
     else:
         listIter = np.linspace(0, N, N, endpoint=False, dtype=int)
+    
+    Niter = len(listIter)
 
     folder = Dossier.Join([folder,"Paraview"])
-
+    listTemps = []
     tic = Tic()
 
-    for iter in listIter:
+    for i, iter in enumerate(listIter):
 
         f = Dossier.Join([folder,f'solution_{iter}.vtu'])
 
@@ -227,13 +241,30 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
         
         vtuFiles.append(vtuFile)
 
-        print(f"SaveParaview {iter+1}/{N}", end='\r')
-    
+        temps = tic.Tac("Paraview","Make vtu", False)
+        listTemps.append(temps)
+
+        pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
+
+        print(f"SaveParaview {iter+1}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')
-    filenamePvd = os.path.join(folder,"solution")    
+
+    tic = Tic()
+
+    filenamePvd = os.path.join(folder,"simulation")    
     __Make_pvd(filenamePvd, vtuFiles)
 
-    tic.Tac("Paraview","Temps sauvegarde", False)
+    tic.Tac("Paraview","Make pvd", False)
+
+def __GetPourcentageEtTemps(listIter: list, listTemps: list, i):
+    pourcentage = listIter[i]/listIter[-1]
+    if pourcentage > 0:
+        tempsRestant = np.mean(listTemps)*(len(listIter)-i-1)
+        tempsCoef, unite = Tic.Get_temps_unite(tempsRestant)
+        pourcentageEtTempsRestant = f"({int(pourcentage*100):3}%) {np.round(tempsCoef, 3)} {unite}"
+    else:
+        pourcentageEtTempsRestant = ""
+    return pourcentageEtTempsRestant
 
 def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
     """Creer le .vtu qui peut être lu sur paraview
@@ -246,8 +277,6 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
     for option in options:
         if not simu.VerificationOption(option):
             return
-    
-    tic = Tic()    
 
     connect = simu.mesh.connect
     coordo = simu.mesh.coordo
@@ -381,8 +410,6 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
 
         # Fin du vtk
         file.write('</VTKFile> \n')
-    
-    tParaview = tic.Tac("Paraview","Make vtu", False)
     
     path = Dossier.GetPath(filename)
     vtuFile = str(filename).replace(path+'\\', '')

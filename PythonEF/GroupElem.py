@@ -62,7 +62,11 @@ class GroupElem:
             self.__inDim = 2
         else:
             self.__inDim = 3
-
+        
+        self.InitMatrices()
+    
+    def InitMatrices(self):
+        """Initialise les dictionnaires de matrices pour la constructions elements finis"""
         # Dictionnaires pour chaque types de matrices
         if self.dim > 0:
             self.__dict_dN_e_pg = {}
@@ -74,7 +78,8 @@ class GroupElem:
             self.__dict_phaseField_ReactionPart_e_pg = {}
             self.__dict_phaseField_DiffusePart_e_pg = {}
             self.__dict_phaseField_SourcePart_e_pg = {}
-    
+
+
     ################################################ METHODS ##################################################
 
     @property

@@ -31,13 +31,15 @@ class Mesh:
 
         self.__dict_groupElem = dict_groupElem
 
-        self.__dict_B_dep_e_pg = {}
-
         self.__verbosity = verbosity
         """le maillage peut ecrire dans la console"""
         
         if self.__verbosity:
-            self.Resume()            
+            self.Resume()
+
+    def ResetMatrices(self):
+        for groupElem in self.Get_list_groupElem():
+            groupElem.InitMatrices()
     
     def Resume(self, verbosity=True):
         resume = f"\nTypes d'elements: {self.elemType}"
