@@ -10,19 +10,23 @@ import PhaseFieldSimulation
 
 import matplotlib.pyplot as plt
 
+
+
 # Affichage.Clear()
 # mpirun -np 4 python3 PlateWithHole_Benchmark.py
 
 # Options
 
 test=True
-solve=False
+solve=True
 saveParaview=False
+makeMovie = False
 
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # "AT1", "AT2"
 simpli2D = "DP" # ["CP","DP"]
 solveur = "History"
+optimMesh=True
 
 useNumba = True
 
@@ -30,13 +34,15 @@ useNumba = True
 maxIter = 700
 # tolConv = 0.01
 # tolConv = 0.05
-tolConv = 1
+tolConv = 1e-0
 
 if comp == "Elas_Isot":
     umax = 25e-6
     # umax = 35e-6    
 else:
     umax = 80e-6
+
+# TODO calculer les energies pour les tracer
 
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
@@ -52,6 +58,8 @@ for split in ["Amor"]:
     h=30e-3
     ep=1
     diam=6e-3
+
+    
 
     if comp == "Elas_Isot":
         E=12e9
@@ -69,11 +77,16 @@ for split in ["Amor"]:
     l_0 = 0.12e-3
     
     if test:
-        cc = 1
-        clD = 0.25e-3*cc
-        clC = 0.12e-3*cc
-        # clD = l_0*2
-        # clC = l_0
+        
+        # clD = 0.25e-3
+        # clC = 0.12e-3
+        
+        if optimMesh:
+            clD = l_0*3
+            clC = l_0
+        else:
+            clD = 0.25e-3
+            clC = 0.12e-3
 
         # inc0 = 16e-8
         # inc1 = 4e-8
@@ -84,8 +97,12 @@ for split in ["Amor"]:
         # inc0 = 2e-8
         # inc1 = 1e-8
     else:
-        clD = l_0/2
-        clC = l_0/2
+        if optimMesh:
+            clD = l_0*1.5
+            clC = l_0/2
+        else:
+            clD = l_0/2
+            clC = l_0/2
 
         inc0 = 8e-8
         inc1 = 2e-8
@@ -93,9 +110,8 @@ for split in ["Amor"]:
     # Nom du dossier
     nomDossier = "PlateWithHole_Benchmark"
     folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
-    comp=comp, split=split, regu=regu, simpli2D=simpli2D,
+    comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh,
     tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=v)
-
     
     if solve:
 
@@ -104,14 +120,25 @@ for split in ["Amor"]:
         point = Point()
         domain = Domain(point, Point(x=L, y=h), clD)
         circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
-
+        
         interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
-        mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI3")
+
+        if optimMesh:
+            # Concentration de maillage sur la fissure
+            ecartZone = diam*1.5/2
+            if split in ["Bourdin", "Amor"]:
+                domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
+            else:
+                domainFissure = Domain(Point(x=L/2-ecartZone, y=0), Point(x=L/2+ecartZone, y=h), clC)
+            mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI3", domainFissure)
+        else:
+            mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI3")
+
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
         # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
 
         # Affichage.Plot_Maillage(mesh)
-        # # plt.show()
+        # plt.show()
 
         if simpli2D == "CP":
             isCp = True
@@ -191,7 +218,6 @@ for split in ["Amor"]:
 
             u, d, Kglob, iterConv, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
-
             temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
             simu.Save_Iteration(nombreIter=iterConv, tempsIter=temps, dincMax=dincMax)
@@ -215,7 +241,7 @@ for split in ["Amor"]:
 
             displacement.append(ud)
             load.append(f)
-            
+
             if iterConv == maxIter:
                 print(f'\nOn converge pas apres {iterConv} itérations')
                 break
@@ -248,7 +274,12 @@ for split in ["Amor"]:
 
 
     if saveParaview:
-        PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+        PostTraitement.Save_Simulation_in_Paraview(folder, simu, Niter=400)
+        if not solve:
+            Tic.getGraphs(details=True)
+
+    if makeMovie:
+        PostTraitement.MakeMovie(folder, "damage", simu)
 
     # Tic.getResume()
 
@@ -258,7 +289,7 @@ for split in ["Amor"]:
         # Tic.getGraphs()
         plt.show()
 
-    # plt.show()
+    plt.show()
     
     Tic.Clear()
     plt.close('all')

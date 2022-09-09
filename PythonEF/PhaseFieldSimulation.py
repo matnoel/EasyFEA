@@ -139,12 +139,15 @@ def ResumeChargement(simu: Simu, umax: float, listInc: list, listTreshold: list,
     simu.resumeChargement = resumeChargement
 
 def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float,
-solveur: str, test: bool, openCrack=False, v=0.0):
+solveur: str, test: bool, optimMesh=False, openCrack=False, v=0.0):
 
     nom="_".join([comp, split, regu, simpli2D])
 
     if openCrack: 
         nom += '_openCrack'
+
+    if optimMesh:
+        nom += '_optimMesh'
 
     assert solveur in Materials.PhaseFieldModel.get_solveurs()
     if solveur != "History":

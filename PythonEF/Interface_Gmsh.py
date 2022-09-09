@@ -357,7 +357,7 @@ class Interface_Gmsh:
         return cast(Mesh, self.__Recuperation_Maillage())
 
     def PlaqueAvecCercle2D(self, domain: Domain, circle: Circle,
-    elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
+    elemType="TRI3", domain2=None, isOrganised=False, folder="", returnSurfaces=False):
         """Construis le maillage 2D d'un rectangle un cercle (creux ou fermé)
 
         Parameters
@@ -368,6 +368,8 @@ class Interface_Gmsh:
             cercle creux ou plein
         elemType : str, optional
             type d'element utilisé, by default "TRI3"
+        domain2 : str, optional
+            deuxième domaine pour la concentration de maillage, by default None
         isOrganised : bool, optional
             le maillage est organisé, by default False
         folder : str, optional
@@ -389,6 +391,7 @@ class Interface_Gmsh:
         # Domain
         pt1 = domain.pt1
         pt2 = domain.pt2
+        taille = domain.taille
         if not returnSurfaces:
             assert pt1.z == 0 and pt2.z == 0
 
@@ -403,7 +406,7 @@ class Interface_Gmsh:
         factory=gmsh.model.occ
         self.__factory = factory
 
-        # Create the points of the rectangle
+        # Créer les points du rectangle
         p1 = factory.addPoint(pt1.x, pt1.y, 0, domain.taille)
         p2 = factory.addPoint(pt2.x, pt1.y, 0, domain.taille)
         p3 = factory.addPoint(pt2.x, pt2.y, 0, domain.taille)
@@ -430,7 +433,30 @@ class Interface_Gmsh:
         l6 = factory.addCircleArc(p7, p5, p8)
         l7 = factory.addCircleArc(p8, p5, p9)
         l8 = factory.addCircleArc(p9, p5, p6)
-        lignecercle = factory.addCurveLoop([l5,l6,l7,l8])
+        loopCercle = factory.addCurveLoop([l5,l6,l7,l8])
+
+        if isinstance(domain2, Domain):
+            # Exemple extrait de t10.py dans les tutos gmsh
+            pt21 = domain2.pt1
+            pt22 = domain2.pt2
+            taille2 = domain2.taille
+
+            # We could also use a `Box' field to impose a step change in element sizes
+            # inside a box
+            fieldDomain2 = gmsh.model.mesh.field.add("Box")
+            gmsh.model.mesh.field.setNumber(fieldDomain2, "VIn", taille2)
+            gmsh.model.mesh.field.setNumber(fieldDomain2, "VOut", taille)
+            gmsh.model.mesh.field.setNumber(fieldDomain2, "XMin", np.min([pt21.x, pt22.x]))
+            gmsh.model.mesh.field.setNumber(fieldDomain2, "XMax", np.max([pt21.x, pt22.x]))
+            gmsh.model.mesh.field.setNumber(fieldDomain2, "YMin", np.min([pt21.y, pt22.y]))
+            gmsh.model.mesh.field.setNumber(fieldDomain2, "YMax", np.max([pt21.y, pt22.y]))
+            gmsh.model.mesh.field.setNumber(fieldDomain2, "Thickness", np.abs(pt21.z - pt22.z))
+
+            # Let's use the minimum of all the fields as the background mesh field:
+            minField = gmsh.model.mesh.field.add("Min")
+            gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [fieldDomain2])
+
+            gmsh.model.mesh.field.setAsBackgroundMesh(minField)
 
         # cercle = factory.addCircle(center.x, center.y, center.z, diam/2)
         # lignecercle = factory.addCurveLoop([cercle])
@@ -439,20 +465,20 @@ class Interface_Gmsh:
 
         if circle.isCreux:
             # Create a surface avec le cyclindre creux
-            surface = factory.addPlaneSurface([loopDomain,lignecercle])
+            surfaceDomain = factory.addPlaneSurface([loopDomain, loopCercle])
 
             # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
             factory.synchronize()
             factory.remove([(0,p5)], False)
-            surfaces = [surface]
+            surfaces = [surfaceDomain]
         else:
             # Cylindre plein
-            surfaceCercle = factory.addPlaneSurface([lignecercle])
-            surface = factory.addPlaneSurface([loopDomain, lignecercle])
+            surfaceCercle = factory.addPlaneSurface([loopCercle])
+            surface = factory.addPlaneSurface([loopDomain, loopCercle])
             factory.synchronize()
             factory.remove([(0,p5)], False)
 
-            surfaces = [surfaceCercle, surface]
+            surfaces = [surfaceCercle, surface]  
 
             # gmsh.model.mesh.embed(1,[l5,l6],2, surface)
 
