@@ -131,7 +131,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def MakeMovie(folder: str, option: str, simu: Simu,
+def MakeMovie(folder: str, option: str, simu: Simu, Niter=200,
 deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
     
     # Verifie que l'option est dispo
@@ -147,9 +147,19 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     # Nom de la vidéo dans le dossier ou est communiqué le dossier
     filename = Dossier.Join([folder, f'{name}.mp4'])
 
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
     results = simu.Get_Results()
 
     N = len(results)
+
+    if N > Niter:
+        listIter = np.linspace(0, N, Niter, endpoint=False, dtype=int)
+    else:
+        listIter = np.linspace(0, N, N, endpoint=False, dtype=int)
+    
+    Niter = len(listIter)
 
     # Met à jour la simulation pour creer la première figure qui sera utilisée pour l'animation
     simu.Update_iter(0)
@@ -174,7 +184,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     ffmpegpath = Get_ffmpegpath()
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 
-    listIter = np.arange(N)
+    
     listTemps = []
     writer = animation.FFMpegWriter(fps=30)
     with writer.saving(fig, filename, 200):
@@ -185,7 +195,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
             cb.remove()
             
             fig, ax, cb = Affichage.Plot_Result(simu, option, oldfig=fig, oldax=ax,
-            deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
+            deformation=deformation, affichageMaillage=affichageMaillage, facteurDef=facteurDef, valeursAuxNoeuds=True)
 
             title = ax.get_title()
             ax.set_title(f'{title} : {iter}/{N-1}')
@@ -231,6 +241,10 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
     Niter = len(listIter)
 
     folder = Dossier.Join([folder,"Paraview"])
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
     listTemps = []
     tic = Tic()
 
@@ -477,6 +491,9 @@ def Save_fig(folder:str, title: str,transparent=False, extension='png'):
     for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
 
     nom = Dossier.Join([folder, title+'.'+extension])
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
     # plt.savefig(nom, dpi=200)
     plt.savefig(nom, dpi=500, transparent=transparent,bbox_inches='tight')
