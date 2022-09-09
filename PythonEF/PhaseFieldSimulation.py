@@ -154,7 +154,7 @@ solveur: str, test: bool, optimMesh=False, openCrack=False, v=0.0):
         nom += '_' + solveur
 
     if tolConv < 1:
-        nom += f'_convergence{tolConv}'
+        nom += f'_conv{tolConv}'
         
     if comp == "Elas_Isot" and v != 0:
         nom = f"{nom} pour v={v}"
