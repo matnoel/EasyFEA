@@ -1,3 +1,4 @@
+from genericpath import isfile
 import os
 from typing import List
 # import 
@@ -50,14 +51,8 @@ def NewFile(filename: str, pathname=GetPath(), results=False) -> str:
     
     if results:
         pathname = os.path.join(pathname, "results")
-    filename = os.path.join(pathname, filename)    
-        
-    destination = GetPath(filename)    
-
-    if not os.path.isdir(destination):
-        # os.mkdir(destination)
-        os.makedirs(destination)
-
+    filename = os.path.join(pathname, filename)
+            
     return filename
 
 def Join(list: List[str]) -> str:
@@ -77,21 +72,5 @@ def Join(list: List[str]) -> str:
     file = ""
     for f in list:
         file = os.path.join(file, f)
-
-    if not os.path.isdir(file):
-        if '.' in file:
-            path = GetPath(file)
-            if not os.path.exists(path):
-                # os.mkdir(file)
-                os.makedirs(path)
-        else:
-            if not os.path.exists(file):
-                # os.mkdir(file)
-                os.makedirs(file)
         
     return file
-
-
-
-
-

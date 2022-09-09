@@ -33,12 +33,14 @@ def Save_Simu(simu: Simu, folder:str):
     # returns current date and time
     dateEtHeure = datetime.now()
     resume = f"Simulation réalisée le : {dateEtHeure}"
-    
     nomSimu = "simulation.pickle"
     filename = Dossier.Join([folder, nomSimu])
     print(f'\nSauvegarde dans : \n{folder}')
     print(f'  - {nomSimu}')
-
+    
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    
     # Sauvagarde la simulation
     with open(filename, "wb") as file:
         pickle.dump(simu, file)
@@ -94,6 +96,9 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
         'load': load,
         'displacement' : displacement
     }
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
     with open(filename, "wb") as file:
         pickle.dump(values, file)
