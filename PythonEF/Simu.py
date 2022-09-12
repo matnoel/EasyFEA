@@ -146,6 +146,10 @@ class Simu:
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
         """Sauvegarde les résultats de l'itération"""
         if self.materiau.isDamaged:
+            if self.materiau.phaseFieldModel.solveur == "History":
+                # mets à jour l'ancien champ histoire pour la prochaine résolution 
+                self.__old_psiP_e_pg = self.__psiP_e_pg
+                
             iter = {                
                 'displacement' : self.__displacement,
                 'damage' : self.__damage
@@ -309,14 +313,6 @@ class Simu:
         return cast(np.ndarray, Uglob)
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
-
-    def Refresh_old_psiP_e_pg(self):
-        """Rafraichi la densité dernergie elastique lorsque le modèle phase field utilise le champ d'histoire de Miehe"""
-        if self.materiau.phaseFieldModel.solveur == "History":
-            self.__old_psiP_e_pg = self.__psiP_e_pg
-    
-    def Set_old_psiP_e_pg(self, old_psiPlus_e_pg: np.ndarray):
-        self.__old_psiP_e_pg = old_psiPlus_e_pg.copy() 
 
     def Calc_psiPlus_e_pg(self):
         """Calcul de la densité denergie positive\n

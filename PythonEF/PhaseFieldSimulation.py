@@ -66,8 +66,6 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
             convergence=True
 
     if solveur == "History":
-        # mets à jour l'ancien champ histoire pour la prochaine résolution 
-        simu.Refresh_old_psiP_e_pg()
         dnp1 = dkp1
         
     elif solveur == "HistoryDamage":
