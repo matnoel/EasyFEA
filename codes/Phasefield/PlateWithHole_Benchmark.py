@@ -17,16 +17,19 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test=True
-solve=True
-saveParaview=False
+test = True
+solve = True
+showIter = True
+showResult = True
+saveParaview = False
 makeMovie = False
 
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT1" # "AT1", "AT2"
-simpli2D = "DP" # ["CP","DP"]
+
+problem = "CompressionFCBA" # "Benchmark" , "CompressionFCBA"
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+regu = "AT2" # "AT1", "AT2"
 solveur = "History"
-optimMesh=True
+optimMesh = True
 
 useNumba = True
 
@@ -47,19 +50,41 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["Amor"]:
+for split in ["AnisotMiehe"]:
     
     if split == "AnisotStress" and comp == "Elas_Isot":
         umax = 45e-6
 
     # Data
 
-    L=15e-3
-    h=30e-3
-    ep=1
-    diam=6e-3
+    if problem == "Benchmark":
+        L=15e-3
+        h=30e-3
+        ep=1
+        diam=6e-3
 
-    
+        gc = 1.4
+        l_0 = 0.12e-3
+
+        inc0 = 8e-8
+        inc1 = 2e-8
+
+        simpli2D = "DP" # ["CP","DP"]
+
+    elif problem == "CompressionFCBA":
+        L=9e-2
+        h=12e-2
+        ep=2e-2
+        diam=2e-2
+        r=diam/2
+
+        gc = 1.4
+        l_0 = L/100
+
+        inc0 = 8e-6
+        inc1 = 2e-6
+
+        simpli2D = "CP" # ["CP","DP"]
 
     if comp == "Elas_Isot":
         E=12e9
@@ -71,16 +96,10 @@ for split in ["Amor"]:
         Gl=450*1e6
         vl=0.02
         vt=0.44
-        v=0
-
-    gc = 1.4
-    l_0 = 0.12e-3
+        v=0        
     
     if test:
-        
-        # clD = 0.25e-3
-        # clC = 0.12e-3
-        
+
         if optimMesh:
             clD = l_0*3
             clC = l_0
@@ -88,27 +107,17 @@ for split in ["Amor"]:
             clD = 0.25e-3
             clC = 0.12e-3
 
-        # inc0 = 16e-8
-        # inc1 = 4e-8
-
-        inc0 = 8e-8
-        inc1 = 2e-8
-        
-        # inc0 = 2e-8
-        # inc1 = 1e-8
     else:
+        
         if optimMesh:
-            clD = l_0*1.5
+            clD = l_0*2
             clC = l_0/2
         else:
             clD = l_0/2
             clC = l_0/2
 
-        inc0 = 8e-8
-        inc1 = 2e-8
-
     # Nom du dossier
-    nomDossier = "PlateWithHole_Benchmark"
+    nomDossier = "PlateWithHole_" + problem
     folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
     comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh,
     tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=v)
@@ -125,7 +134,10 @@ for split in ["Amor"]:
 
         if optimMesh:
             # Concentration de maillage sur la fissure
-            ecartZone = diam*1.5/2
+            if problem == "Benchmark":
+                ecartZone = diam*1.5/2
+            elif problem == "CompressionFCBA":
+                ecartZone = diam
             if split in ["Bourdin", "Amor"]:
                 domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
             else:
@@ -137,7 +149,7 @@ for split in ["Amor"]:
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
         # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
 
-        # Affichage.Plot_Maillage(mesh)
+        Affichage.Plot_Maillage(mesh)
         # plt.show()
 
         if simpli2D == "CP":
@@ -208,7 +220,18 @@ for split in ["Amor"]:
         displacement = []
         load = []
 
-        while ud <= umax:
+        if showIter:
+            figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True)
+
+
+        def Condition():
+            if problem == "Benchmark":
+                return ud <= umax
+            elif problem == "CompressionFCBA":
+                return np.any(simu.damage[noeuds_bord] <= 0.95)
+                # return simu.damage.max() <= 0.5
+
+        while Condition():
 
             resol += 1
             
@@ -225,7 +248,12 @@ for split in ["Amor"]:
             max_d = d.max()
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 
-            PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, iterConv, dincMax,  temps, "µm", ud/umax, True)
+            if problem == "Benchmark":
+                pourcentage = ud/umax
+            else:
+                pourcentage = 0
+
+            PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, iterConv, dincMax,  temps, "µm", pourcentage, True)
 
             if max_d<0.6:
                 ud += inc0
@@ -235,8 +263,13 @@ for split in ["Amor"]:
             # Detection si on a touché le bord
             if np.any(d[noeuds_bord] >= 0.95):
                 bord +=1
+
+            if showIter:
+                cb.remove()
+                figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, oldax=axIter, oldfig=figIter)
+                plt.pause(1e-12)
             
-            if bord == 50:
+            if bord == 10:
                 break
 
             displacement.append(ud)
@@ -279,17 +312,15 @@ for split in ["Amor"]:
             Tic.getGraphs(details=True)
 
     if makeMovie:
-        PostTraitement.MakeMovie(folder, "damage", simu)
+        PostTraitement.MakeMovie(folder, "damage", simu, Niter=100, affichageMaillage=False)
 
     # Tic.getResume()
 
     if solve:
         Tic.getGraphs(folder, details=False)
-    else:
-        # Tic.getGraphs()
-        plt.show()
 
-    plt.show()
+    if showResult:
+        plt.show()
     
     Tic.Clear()
     plt.close('all')
