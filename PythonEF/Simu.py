@@ -175,7 +175,8 @@ class Simu:
         # On va venir récupérer les resultats stocké dans le tableau pandas
         results = self.get_result(iter)
 
-        if self.materiau.isDamaged: 
+        if self.materiau.isDamaged:
+            self.__old_psiP_e_pg = []
             self.__damage = results["damage"]
             self.__displacement = results["displacement"]
         else:
@@ -345,8 +346,7 @@ class Simu:
             
             if isinstance(old_psiPlus_e_pg, list) and len(old_psiPlus_e_pg) == 0:
                 # Pas encore d'endommagement disponible
-                nPg = self.__mesh.Get_nPg("masse")
-                old_psiPlus_e_pg = np.zeros((self.__mesh.Ne, nPg))
+                old_psiPlus_e_pg = np.zeros_like(psiP_e_pg)
 
             inc_H = psiP_e_pg - old_psiPlus_e_pg
 
