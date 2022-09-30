@@ -19,15 +19,15 @@ import matplotlib.pyplot as plt
 
 test = True
 solve = True
-showIter = True
-showResult = True
-saveParaview = False
+showIter = False
+showResult = False
+saveParaview = True
 makeMovie = False
 
 
-problem = "CompressionFCBA" # "Benchmark" , "CompressionFCBA"
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT2" # "AT1", "AT2"
+problem = "Benchmark" # "Benchmark" , "CompressionFCBA"
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+regu = "AT1" # "AT1", "AT2"
 solveur = "History"
 optimMesh = True
 
@@ -37,7 +37,7 @@ useNumba = True
 maxIter = 700
 # tolConv = 0.01
 # tolConv = 0.05
-tolConv = 1e-0
+tolConv = 1e-2
 
 if comp == "Elas_Isot":
     umax = 25e-6
@@ -50,7 +50,7 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["AnisotMiehe"]:
+for split in ["AnisotStress"]:
     
     if split == "AnisotStress" and comp == "Elas_Isot":
         umax = 45e-6
