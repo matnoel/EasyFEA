@@ -17,18 +17,19 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = True
+test = False
 solve = True
-showIter = False
-showResult = False
-saveParaview = True
+plotMesh = False
+plotIter = True
+plotResult = False
+saveParaview = False
 makeMovie = False
 
 
-problem = "Benchmark" # "Benchmark" , "CompressionFCBA"
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT1" # "AT1", "AT2"
-solveur = "History"
+problem = "CompressionFCBA" # ["Benchmark" , "CompressionFCBA"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+regu = "AT1" # ["AT1", "AT2"]
+solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
 
 useNumba = True
@@ -37,7 +38,8 @@ useNumba = True
 maxIter = 700
 # tolConv = 0.01
 # tolConv = 0.05
-tolConv = 1e-2
+tolConv = 1e-0
+# TODO Faire la convergence sur l'energie ?
 
 if comp == "Elas_Isot":
     umax = 25e-6
@@ -52,8 +54,8 @@ else:
 #["AnisotStress","AnisotStress_NoCross"]
 for split in ["AnisotStress"]:
     
-    if split == "AnisotStress" and comp == "Elas_Isot":
-        umax = 45e-6
+    # if split == "AnisotStress" and comp == "Elas_Isot":
+    #     umax = 45e-6
 
     # Data
 
@@ -69,6 +71,9 @@ for split in ["AnisotStress"]:
         inc0 = 8e-8
         inc1 = 2e-8
 
+        tresh0 = 0.6
+        tresh1 = 1
+
         simpli2D = "DP" # ["CP","DP"]
 
     elif problem == "CompressionFCBA":
@@ -82,9 +87,15 @@ for split in ["AnisotStress"]:
         l_0 = L/100
 
         inc0 = 8e-6
-        inc1 = 2e-6
+        inc1 = 2e-7
+
+        tresh0 = 0.2
+        tresh1 = 1
 
         simpli2D = "CP" # ["CP","DP"]
+
+    listInc = [inc0, inc1]
+    listTresh = [tresh0, tresh1]
 
     if comp == "Elas_Isot":
         E=12e9
@@ -104,8 +115,13 @@ for split in ["AnisotStress"]:
             clD = l_0*3
             clC = l_0
         else:
-            clD = 0.25e-3
-            clC = 0.12e-3
+            if problem == "Benchmark":
+                clD = 0.25e-3
+                clC = 0.12e-3
+            else:
+                clD = l_0*2
+                clC = l_0
+
 
     else:
         
@@ -148,8 +164,8 @@ for split in ["AnisotStress"]:
 
         # mesh = interfaceGmsh.PlaqueAvecCercle(domain, circle, "QUAD4")
         # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
-
-        Affichage.Plot_Maillage(mesh)
+        if plotMesh:
+            Affichage.Plot_Maillage(mesh)
         # plt.show()
 
         if simpli2D == "CP":
@@ -213,14 +229,14 @@ for split in ["AnisotStress"]:
         # Affichage.Plot_BoundaryConditions(simu)
         # plt.show()
 
-        PhaseFieldSimulation.ResumeChargement(simu, umax,[inc0, inc1], [0.6, 1])
+        PhaseFieldSimulation.ResumeChargement(simu, umax, listInc, listTresh)
 
         resol = 0
         bord = 0
         displacement = []
         load = []
 
-        if showIter:
+        if plotIter:
             figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True)
 
 
@@ -264,7 +280,7 @@ for split in ["AnisotStress"]:
             if np.any(d[noeuds_bord] >= 0.95):
                 bord +=1
 
-            if showIter:
+            if plotIter:
                 cb.remove()
                 figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, oldax=axIter, oldfig=figIter)
                 plt.pause(1e-12)
@@ -319,7 +335,7 @@ for split in ["AnisotStress"]:
     if solve:
         Tic.getGraphs(folder, details=False)
 
-    if showResult:
+    if plotResult:
         plt.show()
     
     Tic.Clear()
