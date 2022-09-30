@@ -1035,18 +1035,19 @@ class PhaseFieldModel:
             
             tic = Tic()
 
-            # Construit Cp et Cm
-            S = loiDeComportement.get_S()
-            if self.__useNumba:
-                # Plus rapide
-                Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
-            else:
-                Cpp = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cp_e_pg, optimize='optimal')
-                Cpm = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cm_e_pg, optimize='optimal')
-                Cmm = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cm_e_pg, optimize='optimal')
-                Cmp = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cp_e_pg, optimize='optimal')
+            if self.__split != "AnisotStress":
+                # Construit Cp et Cm
+                S = loiDeComportement.get_S()
+                if self.__useNumba:
+                    # Plus rapide
+                    Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
+                else:
+                    Cpp = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cp_e_pg, optimize='optimal')
+                    Cpm = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cm_e_pg, optimize='optimal')
+                    Cmm = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cm_e_pg, optimize='optimal')
+                    Cmp = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cp_e_pg, optimize='optimal')
 
-            tic.Tac("Matrices PFM","Anisot : Cpp, Cpm, Cmp, Cmm", False)
+                tic.Tac("Matrices PFM","Anisot : Cpp, Cpm, Cmp, Cmm", False)
 
             if self.__split ==  "AnisotStress":
 
