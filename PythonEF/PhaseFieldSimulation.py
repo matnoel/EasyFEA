@@ -87,7 +87,8 @@ class listTemps:
         self.listTemps = []
     @property
     def temps(self) -> float:
-        return np.mean(self.listTemps)
+        # return np.mean(self.listTemps)
+        return self.listTemps[-1]
 
 listTmps = listTemps()
 resumeIter = ""
