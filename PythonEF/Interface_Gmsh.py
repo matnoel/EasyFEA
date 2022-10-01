@@ -686,8 +686,7 @@ class Interface_Gmsh:
         return cast(Mesh, self.__Recuperation_Maillage())
 
 
-    def __Construction_MaillageGmsh(self, dim: int, elemType: str, surfaces=[], 
-    isOrganised=False, crack=None, openBoundary=None, folder=""):
+    def __Construction_MaillageGmsh(self, dim: int, elemType: str, surfaces=[], isOrganised=False, crack=None, openBoundary=None, folder=""):
         """Construction du maillage gmsh depuis la geométrie qui a été construit ou importée
 
         Parameters

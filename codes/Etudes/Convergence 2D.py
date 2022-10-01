@@ -80,8 +80,8 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         mesh = cast(Mesh, mesh)
         # Récupère les noeuds qui m'interessent
         
-        noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-        noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+        noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
+        noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
         # Construit la simulation
         simu = Simu(mesh, materiau, verbosity=False, useNumba=False)

@@ -17,7 +17,7 @@ class Simu:
 
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
-    def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=False):
+    def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
         """Creation d'une simulation
 
         Args:
@@ -46,6 +46,9 @@ class Simu:
         self.materiau = materiau
         """materiau de la simulation"""
 
+        Simu.CheckProblemTypes(materiau.problemType)
+        self.__problemType = materiau.problemType
+
         if materiau.isDamaged:
             materiau.phaseFieldModel.useNumba = useNumba
             
@@ -61,7 +64,8 @@ class Simu:
 
 # ------------------------------------------- FONCTIONS ------------------------------------------- 
 
-    problemTypes = ["displacement","damage"]
+    problemTypes = ["displacement", "damage", "thermal"]
+    # TODO Permettre de creer des simulation depuis le formulation variationnelle ?
 
     @staticmethod
     def CheckProblemTypes(problemType:str):
@@ -74,8 +78,9 @@ class Simu:
         """Verifie si les directions renseignées sont possible pour le probleme"""
         Simu.CheckProblemTypes(problemType)
         
-        if problemType == "damage":
-            assert directions == ["d"]
+        if problemType in ["damage", "thermal"]:
+            # Ici on travail sur un champ scalaire, il n'y a pas de direction à renseigné
+            pass
         elif problemType == "displacement":
             for d in directions:
                 assert d in ["x","y","z"]
@@ -97,16 +102,26 @@ class Simu:
     def __init_results(self):
         """Construit les arrays qui vont stocker les resultats et initialise le tabeau de résultat"""
 
-        self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
-        """déplacements"""
+        if self.__problemType == "thermal":
+            self.__thermal = np.zeros(self.__mesh.Nn)
+            "températures"
+
+        elif self.__problemType == "displacement":
+            self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
+            """déplacements"""
         
-        if self.materiau.isDamaged:
+        elif self.__problemType == "damage":
+            self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
+            """déplacements"""
             self.__damage = np.zeros(self.__mesh.Nn)
             """endommagement"""
             self.__psiP_e_pg = []
             """densitée d'energie elastique positive PsiPlus(e, pg, 1)"""
             self.__old_psiP_e_pg = []
             """ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe"""
+
+        else:
+            raise "probleme inconnue"
             
         self.resumeChargement = ""
         """resumé du chargement"""
@@ -122,12 +137,17 @@ class Simu:
     @property
     def damage(self) -> np.ndarray:
         """Copie de la solution d'endommagement"""
-        if self.materiau.isDamaged:
+        if self.__problemType == "damage":
             return self.__damage.copy()
+        else:
+            return None
     
     @property
     def displacement(self) -> np.ndarray:
-        return self.__displacement.copy()
+        if self.__problemType in ["displacement", "damage"]:
+            return self.__displacement.copy()
+        else:
+            return None
 
     def get_result(self, index=None):
         """Recupère le resultat stocké dans la liste de dictionnaire"""
@@ -138,14 +158,25 @@ class Simu:
 
     def Get_Results(self) -> List[dict]:
         """Renvoie la liste de dictionnaire qui stocke les résultats\n
-        ['displacement', 'damage', 'nombreIter', 'tempsIter', 'dincMax']\n
+        ['displacement', 'damage', 'thermal', 'nombreIter', 'tempsIter', 'dincMax']\n
         attention 'damage', 'nombreIter', 'tempsIter', 'dincMax' peuvent ne pas avoir été sauvegardé
         """        
         return self.__results
 
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
         """Sauvegarde les résultats de l'itération"""
-        if self.materiau.isDamaged:
+
+        if self.__problemType == "thermal":
+            iter = {                
+                'thermal' : self.__thermal
+            }
+
+        elif self.__problemType == "displacement":
+            iter = {                
+                'displacement' : self.__displacement
+            }
+        
+        elif self.__problemType == "damage":
             if self.materiau.phaseFieldModel.solveur == "History":
                 # mets à jour l'ancien champ histoire pour la prochaine résolution 
                 self.__old_psiP_e_pg = self.__psiP_e_pg
@@ -154,11 +185,7 @@ class Simu:
                 'displacement' : self.__displacement,
                 'damage' : self.__damage
             }
-        else:
-            iter = {                
-                'displacement' : self.__displacement
-            }
-        
+
         if nombreIter != None and tempsIter != None and dincMax != None:
             iter["nombreIter"] = nombreIter
             iter["tempsIter"] = tempsIter
@@ -175,11 +202,13 @@ class Simu:
         # On va venir récupérer les resultats stocké dans le tableau pandas
         results = self.get_result(iter)
 
-        if self.materiau.isDamaged:
+        if self.__problemType == "thermal":
+            self.__thermal = results["thermal"]
+        elif self.__problemType == "displacement":
+            self.__displacement = results["displacement"]
+        elif self.__problemType == "damage":
             self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
             self.__damage = results["damage"]
-            self.__displacement = results["displacement"]
-        else:
             self.__displacement = results["displacement"]
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
@@ -262,7 +291,7 @@ class Simu:
                 Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, matC, B_dep_e_pg, optimize='optimal')
 
         if self.__dim == 2:
-            Ku_e *= self.materiau.comportement.epaisseur
+            Ku_e *= self.materiau.epaisseur
         
         tic.Tac("Matrices","Construction Ku_e", self.__verbosity)
 
@@ -312,6 +341,9 @@ class Simu:
         self.__displacement = Uglob
        
         return cast(np.ndarray, Uglob)
+
+    
+    
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
@@ -469,6 +501,65 @@ class Simu:
 
         return cast(np.ndarray, dGlob.copy())
 
+# ------------------------------------------- PROBLEME THERMIQUE -------------------------------------------
+
+    def __ConstruitMatElem_Thermal(self) -> np.ndarray:
+
+        thermalModel = self.materiau.thermalModel
+
+        # Data
+        k = thermalModel.k
+
+        matriceType="rigi"
+
+        mesh = self.__mesh
+
+        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = mesh.Get_poid_pg(matriceType)
+        # N_e_pg = mesh.Get_N_scalaire_pg(matriceType)
+        D_e_pg = mesh.Get_B_sclaire_e_pg(matriceType)
+
+        Kt_e = np.einsum('ep,p,epji,,epjk->eik', jacobien_e_pg, poid_pg, D_e_pg, k, D_e_pg, optimize="optimal")
+
+        return Kt_e
+
+    def Assemblage_t(self) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
+        """Construit Kglobal pour le probleme thermique
+        """
+       
+        # Data
+        mesh = self.__mesh
+        taille = mesh.Nn
+        lignesScalar_e = mesh.lignesScalar_e
+        colonnesScalar_e = mesh.colonnesScalar_e
+        
+        # Calul les matrices elementaires
+        Kt_e = self.__ConstruitMatElem_Thermal()
+
+        # Assemblage
+        tic = Tic()        
+
+        self.__Kt = sparse.csr_matrix((Kt_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
+        """Kglob pour le probleme d'endommagement (Nn, Nn)"""
+        
+        self.__Ft = sparse.csr_matrix((taille, 1))
+        """Vecteur Fglob pour le problème en thermique (Nn, 1)"""
+
+        tic.Tac("Matrices","Assemblage Kt et Ft", self.__verbosity)       
+
+        return self.__Kt, self.__Ft
+
+    def Solve_t(self) -> np.ndarray:
+        """Resolution du problème thermique"""
+        
+        thermalGlob = self.__Solveur(problemType="thermal")
+
+        assert thermalGlob.shape[0] == self.mesh.Nn
+
+        self.__thermal = thermalGlob
+
+        return thermalGlob.copy()
+
 # ------------------------------------------------- SOLVEUR -------------------------------------------------
 
     def __Construit_ddl_connues_inconnues(self, problemType: str):
@@ -487,7 +578,7 @@ class Simu:
 
         # Construit les ddls inconnues
 
-        if problemType == "damage":
+        if problemType in ["damage","thermal"]:
             taille = self.__mesh.Nn
         elif problemType == "displacement":
             taille = self.__mesh.Nn*self.__dim
@@ -530,6 +621,8 @@ class Simu:
             b = b + self.__Fd.copy()
         elif problemType == "displacement":
             b = b + self.__Fu.copy()
+        elif problemType == "thermal":
+            b = b + self.__Ft.copy()
 
         return b
 
@@ -553,6 +646,8 @@ class Simu:
         elif problemType == "displacement":
             taille = taille*self.__dim
             A = self.__Ku.copy()
+        elif problemType == "thermal":
+            A = self.__Kt.copy()
 
         if resolution == 1:
             
@@ -578,37 +673,16 @@ class Simu:
 
             return A, x
 
-    def __Solveur(self, problemType: str, resolution=2) -> np.ndarray:
+    def __Solveur(self, problemType: str) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
 
         Simu.CheckProblemTypes(problemType)
 
-        # Résolution du plus rapide au plus lent 2, 1
+        resolution=1
+
         if resolution == 1:
-            # Résolution par la méthode des pénalisations
-            
-            tic = Tic()
-
-            # Construit le système matricielle pénalisé
-            b = self.__Application_Conditions_Neuman(problemType)
-            A, b = self.__Application_Conditions_Dirichlet(problemType, b, resolution)
-
-            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
-
-            tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
-
-            # Résolution du système matricielle pénalisé
-            useCholesky=False #la matrice ne sera pas symétrique definie positive
-            A_isSymetric=False
-            isDamaged = self.materiau.isDamaged
-
-            x = Interface_Solveurs.Solve_Axb(problemType=problemType, A=A, b=b, x0=None,
-            isDamaged=isDamaged, damage=damage,
-            useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
-
-        elif resolution == 2:
             
             tic = Tic()
 
@@ -630,6 +704,8 @@ class Simu:
                 x0 = self.__displacement[ddl_Inconnues]
             elif problemType == "damage":
                 x0 = self.__damage[ddl_Inconnues]
+            elif problemType == "thermal":
+                x0 = self.__thermal[ddl_Inconnues]
 
             bDirichlet = Aic.dot(xc) # Plus rapide
             # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
@@ -663,7 +739,29 @@ class Simu:
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
-            x[ddl_Inconnues] = xi       
+            x[ddl_Inconnues] = xi
+
+        elif resolution == 2:
+            # Résolution par la méthode des pénalisations
+            
+            tic = Tic()
+
+            # Construit le système matricielle pénalisé
+            b = self.__Application_Conditions_Neuman(problemType)
+            A, b = self.__Application_Conditions_Dirichlet(problemType, b, resolution)
+
+            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
+
+            tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
+
+            # Résolution du système matricielle pénalisé
+            useCholesky=False #la matrice ne sera pas symétrique definie positive
+            A_isSymetric=False
+            isDamaged = self.materiau.isDamaged
+
+            x = Interface_Solveurs.Solve_Axb(problemType=problemType, A=A, b=b, x0=None,
+            isDamaged=isDamaged, damage=damage,
+            useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
 
         return np.array(x)
 
@@ -769,9 +867,27 @@ class Simu:
         if self.__dim == 2:
             valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
-            valeurs_ddls = valeurs_ddls*self.materiau.comportement.epaisseur
+            valeurs_ddls = valeurs_ddls*self.materiau.epaisseur
         elif self.__dim == 3:
             valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
+
+        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+
+    def add_volumeLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+        """Pour le probleme donné applique une force volumique\n
+        valeurs est une liste de constantes ou de fonctions\n
+        ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
+
+        les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
+        les fonctions utilisent les coordonnées x, y et z des points d'intégrations
+        """
+
+        if self.__dim == 2:
+            valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
+            # multiplie par l'epaisseur
+            valeurs_ddls = valeurs_ddls*self.materiau.epaisseur
+        elif self.__dim == 3:
+            valeurs_ddls, ddls = self.__volumeload(problemType, noeuds, valeurs, directions)
 
         self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
@@ -875,6 +991,62 @@ class Simu:
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
+
+    def __volumeload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+        """Applique une force surfacique\n
+        Renvoie valeurs_ddls, ddls"""
+
+        # TODO Regrouper avec surfload ?
+
+        Simu.CheckProblemTypes(problemType)
+        Simu.CheckDirections(self.__dim, problemType, directions)
+
+        valeurs_ddls=np.array([])
+        ddls=np.array([])
+
+        listGroupElem3D = self.mesh.Get_list_groupElem(3)
+
+        if len(listGroupElem3D) > 1:
+            exclusivement=True
+        else:
+            exclusivement=True
+
+        # Récupération des matrices pour le calcul
+        for groupElem3D in listGroupElem3D:
+
+            # Récupère les elements qui utilisent exclusivement les noeuds
+            elementsIndex = groupElem3D.get_elementsIndex(noeuds, exclusivement=exclusivement)
+            if elementsIndex.shape[0] == 0: continue
+            connect = groupElem3D.connect_e[elementsIndex]
+            Ne = elementsIndex.shape[0]
+            
+            # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
+            coordo_e_p = groupElem3D.get_coordo_e_p("masse", elementsIndex)
+
+            N_pg = groupElem3D.get_N_pg("masse")
+
+            jacobien_e_pg = groupElem3D.get_jacobien_e_pg("masse")[elementsIndex]
+            
+            gauss = groupElem3D.get_gauss("masse")
+            poid_pg = gauss.poids
+            
+            # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
+            valeurs_ddl_dir = np.zeros((Ne*groupElem3D.nPe, len(directions)))
+
+            # Intégre sur chaque direction
+            for d, dir in enumerate(directions):
+                eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
+                valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
+                valeurs_e = np.sum(valeurs_e_p, axis=1)
+                valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
+
+            new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
+            valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
+
+            new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect, directions)
+            ddls = np.append(ddls, new_ddls)
+
+        return valeurs_ddls, ddls
     
     def __Add_Bc_Neumann(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Neumann"""
@@ -884,7 +1056,7 @@ class Simu:
         Simu.CheckProblemTypes(problemType)
         Simu.CheckDirections(self.__dim, problemType, directions)
 
-        if problemType == "damage":
+        if problemType in ["damage","thermal"]:
             
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
 
@@ -908,7 +1080,7 @@ class Simu:
 
         Simu.CheckProblemTypes(problemType)
 
-        if problemType == "damage":
+        if problemType in ["damage","thermal"]:
             
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
@@ -939,7 +1111,7 @@ class Simu:
         poid_pg = self.__mesh.Get_poid_pg(matriceType)
 
         if self.__dim == 2:
-            ep = self.materiau.comportement.epaisseur
+            ep = self.materiau.epaisseur
         else:
             ep = 1
 
@@ -1083,14 +1255,16 @@ class Simu:
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
-                "Damage" :["damage","psiP"]
+                "Damage" :["damage","psiP"],
+                "Thermal" : ["thermal"]
             }
         elif dim == 3:
             options = {
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Energie" :["Wdef","Psi_Elas"]
+                "Energie" :["Wdef","Psi_Elas"],
+                "Thermal" : ["thermal"]
             }
         
         return options
@@ -1134,14 +1308,16 @@ class Simu:
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
-                "Damage" :["damage","psiP"]
+                "Damage" :["damage","psiP"],
+                "Thermal" : ["thermal"]
             }
         elif dim == 3:
             options = {
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Energie" :["Wdef","Psi_Elas"]
+                "Energie" :["Wdef","Psi_Elas"],
+                "Thermal" : ["thermal"]
             }
         """
 
@@ -1151,6 +1327,9 @@ class Simu:
 
         if iter != None:
             self.Update_iter(iter)
+
+        if option == "thermal":
+            return self.__thermal
 
         if option in ["Wdef","Psi_Elas"]:
             return self.__Calc_Psi_Elas()

@@ -26,11 +26,11 @@ class BoundaryCondition:
             description de la condition
         """
 
-        assert problemType in ["damage", "displacement"]
+        assert problemType in ["damage", "displacement", "thermal"]
         self.__problemType = problemType
 
-        if problemType == "damage":
-            assert directions == "d", "Erreur de direction"
+        if problemType in ["damage", "thermal"]:
+            directions = None
         elif problemType == "displacement":
             for d in directions: assert d in ["x","y","z"], "Erreur de direction"
         self.__directions = directions
@@ -112,7 +112,7 @@ class BoundaryCondition:
         np.ndarray
             degrés de liberté
         """
-        if problemType == "damage":
+        if problemType in ["damage","thermal"]:
             return connect_e.reshape(-1)
         elif problemType == "displacement":
             indexes = {
@@ -143,7 +143,7 @@ class BoundaryCondition:
         dim : int
             dimension du problème
         problemType : str
-            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+            type de probleme qui doit etre contenue dans ["damage", "displacement","thermal]
         noeuds : np.ndarray
             noeuds
         directions : list
@@ -155,7 +155,7 @@ class BoundaryCondition:
             liste de ddls
         """
 
-        if problemType == "damage":
+        if problemType in ["damage","thermal"]:
             return noeuds.reshape(-1)
         elif problemType == "displacement":
             ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)

@@ -281,7 +281,7 @@ class Mesh:
     
     # Récupération des noeuds
 
-    def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
+    def Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
         """Renvoie la liste d'identifiant des noeuds qui respectent les condtions
 
         Args:
@@ -308,13 +308,17 @@ class Mesh:
         """Renvoie la liste d'identifiant des noeuds qui sont sur la ligne"""
         return self.groupElem.Get_Nodes_Line(line)
 
-    def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
+    def Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Renvoie la liste d'identifiant des noeuds qui sont dans le domaine"""
         return self.groupElem.Get_Nodes_Domain(domain)
     
     def Nodes_Circle(self, circle: Circle) -> np.ndarray:
         """Renvoie la liste d'identifiant des noeuds qui sont dans le cercle"""
-        return self.groupElem.Get_Nodes_Circle(circle)    
+        return self.groupElem.Get_Nodes_Circle(circle)
+
+    def Nodes_Cylindre(self, circle: Circle, extrude=[0,0,1]) -> np.ndarray:
+        """Renvoie la liste d'identifiant des noeuds qui sont dans le cylindra"""
+        return self.groupElem.Get_Nodes_Cylindre(circle)    
 
     def Localises_sol_e(self, sol: np.ndarray) -> np.ndarray:
         """sur chaque elements on récupère les valeurs de sol"""

@@ -373,7 +373,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
     return ax
 
-def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='blue', folder=""):
+def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='red', folder=""):
     """Affiche les noeuds du maillage
 
     Parameters
@@ -425,7 +425,7 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='b
 
     return ax
 
-def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, c='red', folder=""):
+def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, noeuds=[], showId=False, c='red', folder=""):
     """Affiche les elements du maillage en fonction des numéros de noeuds
 
     Parameters
@@ -436,7 +436,7 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
         Axes dans lequel on va creer la figure, by default None
     dimElem : int, optional
         dimension de l'element recherché, by default None
-    nodes : list, optional
+    noeuds : list, optional
         numeros des noeuds, by default []
     showId : bool, optional
         affiche les numéros, by default False    
@@ -467,8 +467,8 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
         
         elemType = groupElemDim.elemType
 
-        if len(nodes) > 0:
-            elements = groupElemDim.get_elementsIndex(nodes)
+        if len(noeuds) > 0:
+            elements = groupElemDim.get_elementsIndex(noeuds)
         else:
             elements = np.arange(groupElemDim.Ne)
 
@@ -484,7 +484,7 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
         coordo_e = np.mean(coordoFaces_e, axis=1)
         
         if mesh.dim in [1,2]:
-            if len(nodes) > 0:
+            if len(noeuds) > 0:
                 if groupElemDim.dim == 1:
                     pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor=c, lw=1, zorder=24)
                 else:
@@ -497,7 +497,7 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, nodes=[], showId=False, 
                     ax.text(coordo_e[element,0], coordo_e[element,1], str(elementsID[element]),
                     zorder=25, ha='center', va='center')
         elif  mesh.dim == 3:
-            if len(nodes) > 0:
+            if len(noeuds) > 0:
                 ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors='red', edgecolor='black', linewidths=0.5, alpha=1))
 
             # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=24)

@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = False
+test = True
 solve = True
 plotMesh = False
 plotIter = True
@@ -26,8 +26,8 @@ saveParaview = False
 makeMovie = False
 
 
-problem = "CompressionFCBA" # ["Benchmark" , "CompressionFCBA"]
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+problem = "Benchmark" # ["Benchmark" , "CompressionFCBA"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
@@ -52,7 +52,7 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["AnisotStress"]:
+for split in ["Amor"]:
     
     # if split == "AnisotStress" and comp == "Elas_Isot":
     #     umax = 45e-6
@@ -210,8 +210,8 @@ for split in ["AnisotStress"]:
         noeuds_bord = np.unique(noeuds_bord)
         
         node00 = mesh.Nodes_Point(point)
-        nodesA = mesh.Get_Nodes_Domain(domainA)
-        nodesB = mesh.Get_Nodes_Domain(domainB)
+        nodesA = mesh.Nodes_Domain(domainA)
+        nodesB = mesh.Nodes_Domain(domainB)
 
         ud=0
         damage_t=[]

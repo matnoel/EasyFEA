@@ -83,10 +83,10 @@ if solve:
 
     # Récupère les noeuds qui m'interessent
     noeuds_Milieu = mesh.Nodes_Line(line)
-    noeuds_Haut = mesh.Get_Nodes_Conditions(conditionY=lambda y: y == L)
-    noeuds_Bas = mesh.Get_Nodes_Conditions(conditionY=lambda y: y == 0)
-    noeuds_Gauche = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)
-    noeuds_Droite = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
+    noeuds_Haut = mesh.Nodes_Conditions(conditionY=lambda y: y == L)
+    noeuds_Bas = mesh.Nodes_Conditions(conditionY=lambda y: y == 0)
+    noeuds_Gauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)
+    noeuds_Droite = mesh.Nodes_Conditions(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
 
     NoeudsBord=[]
     for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Haut]:

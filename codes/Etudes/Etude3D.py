@@ -74,8 +74,8 @@ aire = mesh.aire - (L*h*4 + 2*b*h)
 # # plt.show()
 
 
-noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
+noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
 # Affichage.Plot_ElementsMaillage(mesh, dimElem=1, nodes=noeuds_en_L, showId=True)
 # Affichage.Plot_ElementsMaillage(mesh, dimElem=2, nodes=noeuds_en_L, showId=True)

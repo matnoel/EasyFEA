@@ -31,8 +31,8 @@ elif dim == 3:
     mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3,
     elemType="PRISM6", isOrganised=True, tailleElement=h/6)
 
-noeudsGauche = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-noeudsDroit = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+noeudsGauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
+noeudsDroit = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
 Affichage.Plot_Maillage(mesh)
 # plt.show()

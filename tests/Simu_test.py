@@ -45,8 +45,8 @@ class Test_Simu(unittest.TestCase):
 
             simu.Assemblage_u()
 
-            noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-            noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+            noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
+            noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
             simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
             # simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])
@@ -89,8 +89,8 @@ class Test_Simu(unittest.TestCase):
 
             simu.Assemblage_u()
 
-            noeuds_en_0 = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == 0)
-            noeuds_en_L = mesh.Get_Nodes_Conditions(conditionX=lambda x: x == L)
+            noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
+            noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
             simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
             # simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])

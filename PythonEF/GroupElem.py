@@ -222,6 +222,8 @@ class GroupElem:
 
         nodesId = noeuds
 
+        
+
         lignes, colonnes, valeurs = sp.find(connect_n_e[nodesId])
         elementsIndex = np.unique(colonnes)
         # elementsIndex = self.elementsIndex[elementsID]
@@ -1042,6 +1044,34 @@ class GroupElem:
         eps = np.finfo(float).eps
 
         nodesIndex = np.where(np.sqrt((coordo[:,0]-circle.center.x)**2+(coordo[:,1]-circle.center.y)**2+(coordo[:,2]-circle.center.z)**2)<=circle.diam/2+eps)
+
+        return self.__nodesID[nodesIndex]
+
+    def Get_Nodes_Cylindre(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
+        """Renvoie la liste de noeuds qui sont dans le cylindre"""
+
+        coordo = self.__coordo
+
+        eps = np.finfo(float).eps
+        dx, dy, dz = direction[0], direction[1], direction[2]
+        # Ne fonctionne certainement pas pour le moment pour un cylindre orienté !
+
+        if dx == 0:
+            conditionX = coordo[:,0]-circle.center.x
+        else:
+            conditionX = np.zeros_like(coordo[:,0])
+
+        if dy == 0:
+            conditionY = coordo[:,1]-circle.center.y
+        else:
+            conditionY = np.zeros_like(coordo[:,1])
+        
+        if dz == 0:
+            conditionZ = coordo[:,2]-circle.center.z
+        else:
+            conditionZ = np.zeros_like(coordo[:,2])
+
+        nodesIndex = np.where(np.sqrt(conditionX**2+conditionY**2+conditionZ**2)<=circle.diam/2+eps)
 
         return self.__nodesID[nodesIndex]
     

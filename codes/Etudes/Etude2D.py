@@ -103,7 +103,7 @@ dep = simu.Solve_u()
 
 simu.Save_Iteration()
 
-PostTraitement.Save_Simu(simu, folder)
+# PostTraitement.Save_Simu(simu, folder)
 
 ticTot.Tac("Temps script","Temps total", True)        
 
@@ -131,10 +131,7 @@ if plotResult:
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
 if plotResult:
-    Tic.getGraphs()
+    Tic.getGraphs(details=False)
     plt.show()
-
-Tic.getGraphs()
-plt.show()
 
 # %%

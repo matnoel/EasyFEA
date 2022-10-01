@@ -1293,25 +1293,78 @@ class PhaseFieldModel:
             
         return projP, projM
 
+class ThermalModel:
+
+    def __init__(self, dim:int, k: float, ep=1):
+        """Constrcution d'un modèle thermique
+        """
+
+        self.__dim = dim
+
+        self.__k = k
+        
+        assert ep > 0
+        self.__ep = ep
+    
+
+    @property
+    def dim(self) -> int:
+        return self.__dim
+
+    @property
+    def k(self) -> float:
+        """coef de diffusion"""
+        return self.__k
+
+    @property
+    def ep(self) -> float:
+        """epaisseur"""
+        return self.__ep
+        
+
 class Materiau:
+
+    @property
+    def problemType(self) -> str:
+        return self.__problemType
     
     @property
     def dim(self) -> int:
-        return self.comportement.dim
+        if self.__problemType == "thermal":
+            return self.__thermalModel.dim
+        else:
+            return self.comportement.dim
+
+    @property
+    def epaisseur(self) -> float:
+        if self.__problemType == "thermal":
+            return self.__thermalModel.ep
+        else:
+            return self.__comportement.epaisseur
     
     @property
     def comportement(self) -> LoiDeComportement:
-        if self.isDamaged:
-            return self.__phaseFieldModel.loiDeComportement
+        if self.__problemType == "thermal":
+            return None
         else:
-            return self.__comportement
+            if self.isDamaged:
+                return self.__phaseFieldModel.loiDeComportement
+            else:
+                return self.__comportement
+
+    @property
+    def thermalModel(self) -> ThermalModel:
+        if self.__problemType == "thermal":
+            return self.__thermalModel
+        else:
+            return None
     
     @property
     def isDamaged(self) -> bool:
-        if self.__phaseFieldModel == None:
-            return False
-        else:
+        if self.__problemType == "damage":
             return True
+        else:
+            return False
     
     @property
     def phaseFieldModel(self) -> PhaseFieldModel:
@@ -1322,7 +1375,7 @@ class Materiau:
             print("Le matériau n'est pas endommageable (pas de modèle PhaseField)")
             return None
 
-    def __init__(self, comportement=None, phaseFieldModel=None, ro=8100.0, verbosity=False):
+    def __init__(self, model=None, ro=8100.0, verbosity=False):
         """Creer un materiau avec la loi de comportement ou le phase field model communiqué
 
         Parameters
@@ -1333,23 +1386,24 @@ class Materiau:
             epaisseur du matériau si en 2D > 0 !
         """
         if verbosity:
-            Affichage.NouvelleSection("Matériau")        
+            Affichage.NouvelleSection("Matériau")
 
-        if comportement != None:
-            assert isinstance(comportement, LoiDeComportement)
+        if isinstance(model, LoiDeComportement):
+            self.__problemType = "displacement"
+            self.__comportement = model
+            self.__phaseFieldModel = None
+        elif isinstance(model, PhaseFieldModel):
+            self.__problemType = "damage"
+            self.__phaseFieldModel = model
+        elif isinstance(model, ThermalModel):
+            self.__problemType = "thermal"
+            self.__thermalModel = model
+        else:
+            raise "Model inconnue"
 
         assert ro > 0 , "Doit être supérieur à 0"
         self.ro = ro
 
-        # Initialisation des variables de la classe
-
-        if isinstance(phaseFieldModel, PhaseFieldModel):
-            self.__phaseFieldModel = phaseFieldModel
-            """Phase field model"""                
-        else:
-            self.__comportement = comportement
-            self.__phaseFieldModel = None
-        
         self.__verbosity = verbosity
 
         if self.__verbosity:
