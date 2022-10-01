@@ -176,7 +176,7 @@ class Simu:
         results = self.get_result(iter)
 
         if self.materiau.isDamaged:
-            self.__old_psiP_e_pg = []
+            self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
             self.__damage = results["damage"]
             self.__displacement = results["displacement"]
         else:
