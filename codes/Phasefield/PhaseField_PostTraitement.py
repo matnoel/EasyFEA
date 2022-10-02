@@ -14,11 +14,17 @@ import PhaseFieldSimulation
 
 Affichage.Clear()
 
-test=False
+test = True
 loadSimu = True
-plotDamage = True
+plotDamage = False
 
-simulation = "Shear_Benchmark" # "PlateWithHole_Benchmark", "Shear_Benchmark", "Tension_Benchmark"
+# "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark"
+simulation = "PlateWithHole_Benchmark"
+
+if simulation == "PlateWithHole_Benchmark":
+    colorBarIsClose = True
+else:
+    colorBarIsClose = False
 
 folder = Dossier.NewFile(simulation, results=True)
 
@@ -39,14 +45,17 @@ else:
 # ["AnisotMiehe", "He", "AnisotStress", "Stress"]
 
 listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans"]
-listRegu = ["AT2"] # ["AT1", "AT2"]
+listRegu = ["AT1"] # ["AT1", "AT2"]
 listSimpli2D = ["DP"] # ["CP","DP"]
 listSolveur = ["History"]
-listSplit = ["AnisotMiehe", "He", "AnisotStress", "Stress"]
-listTol = [1e-0]
+listSplit = ["AnisotStress"]
+listOptimMesh=[True] # [True, False]
+listTol = [1e-0, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
 
 # snapshot = [18.5, 24.6, 25, 28, 35]
-snapshot = [24]
+snapshot = [70]
+
+depMax = 80 # µm 35 ou 80
 
 # Génération des configurations
 listConfig = []
@@ -57,7 +66,8 @@ for comp in listComp:
             for solveur in listSolveur:
                 for split in listSplit:
                     for tol in listTol:
-                        listConfig.append([comp, regu, simpli2D, solveur, split, tol])
+                        for optimMesh in listOptimMesh:
+                            listConfig.append([comp, regu, simpli2D, solveur, split, tol, optimMesh])
 
 Nconfig = len(listConfig)
 
@@ -78,10 +88,13 @@ for config in listConfig:
     solveur = config[3]
     split = config[4]
     tolConv = config[5]
+    optimMesh = config[6]
 
     tic = TicTac.Tic()
 
-    foldername = PhaseFieldSimulation.ConstruitDossier(simulation, comp, split, regu, simpli2D, tolConv, solveur, test, False, v)
+    foldername = PhaseFieldSimulation.ConstruitDossier(dossierSource=simulation,
+    comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv,
+    solveur=solveur, test=test, optimMesh=optimMesh, openCrack=False, v=v)
 
     nomSimu = foldername.split(comp+'_')[-1]
 
@@ -92,20 +105,22 @@ for config in listConfig:
         # Charge la simulations
         simu = PostTraitement.Load_Simu(foldername, False)
 
+        # Affichage.Plot_Maillage(simu.mesh)
+
     if plotDamage:
 
         titre = split.replace("AnisotMiehe","Spectral")
 
-        # Affiche le dernier endommagement
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=False,
-        folder=folderSauvegarde, filename=f"{split} tol{tolConv} last", 
-        title=f"{titre}")
+        # # Affiche le dernier endommagement
+        # Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=colorBarIsClose,
+        # folder=folderSauvegarde, filename=f"{split} tol{tolConv} last", 
+        # title=f"{titre}")
         
 
         # Récupère les itérations à 18.5, 24.6, 30 et trace l'endommagement
         for dep in snapshot:
             try:
-                i = np.where(np.abs(displacement*1e6-dep)<1e-12)[0][0]
+                i = np.where(np.abs(displacement*1e6-dep)<1e-10)[0][0]
             except:
                 # i n'a pas été trouvé on continue les iterations
                 continue
@@ -114,17 +129,17 @@ for config in listConfig:
 
             filenameDamage = f"{nomSimu} et ud = {np.round(displacement[i]*1e6,2)}"
 
-            Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=False,
+            Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=colorBarIsClose,
             folder=folderSauvegarde, filename=filenameDamage, 
-            title=f"{titre}")
+            title=filenameDamage)
 
     # texte = nom.replace(f" pour v={v}", "")
     texte = nomSimu
 
      
-    texte = texte.replace("AnisotMiehe","Spectral")
+    # texte = texte.replace("AnisotMiehe","Spectral")
 
-    indexLim = np.where(displacement*1e6 <= 35)[0]
+    indexLim = np.where(displacement*1e6 <= depMax)[0]
     ax.plot(displacement[indexLim]*1e6, np.abs(load[indexLim]*1e-6), label=texte)
 
     tic.Tac("Post traitement", split, False)
@@ -132,7 +147,7 @@ for config in listConfig:
     if loadSimu:
         try:
             resulats = pd.DataFrame(simu.Get_Results())
-            temps = np.sum(resulats['tempsIter'].values)
+            temps = resulats['tempsIter'].sum(axis=0)
             tempsCoef, unite = TicTac.Tic.Get_temps_unite(temps)
             print(f'{np.round(tempsCoef, 2)} {unite}')
         except:
