@@ -2,6 +2,7 @@ from types import LambdaType
 from typing import List, cast, Dict
 
 import numpy as np
+from pyrsistent import v
 from scipy import sparse
 
 import Affichage as Affichage
@@ -67,6 +68,10 @@ class Simu:
     problemTypes = ["displacement", "damage", "thermal"]
     # TODO Permettre de creer des simulation depuis le formulation variationnelle ?
 
+    @property
+    def problemType(self) -> str:
+        return self.materiau.problemType
+
     @staticmethod
     def CheckProblemTypes(problemType:str):
         """Verifie si ce type de probleme est implénté"""
@@ -106,6 +111,10 @@ class Simu:
             self.__thermal = np.zeros(self.__mesh.Nn)
             "températures"
 
+            if self.materiau.thermalModel.c > 0 and self.materiau.ro > 0:
+                # Il est possible de calculer la matrice de masse et donc de résoudre un problème parabolic au lieu d'elliptic
+                self.__thermalDot = np.zeros_like(self.__thermal)
+
         elif self.__problemType == "displacement":
             self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
             """déplacements"""
@@ -119,7 +128,6 @@ class Simu:
             """densitée d'energie elastique positive PsiPlus(e, pg, 1)"""
             self.__old_psiP_e_pg = []
             """ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe"""
-
         else:
             raise "probleme inconnue"
             
@@ -131,6 +139,8 @@ class Simu:
 
         self.__results = []
         """liste de dictionnaire qui contient les résultats"""
+
+        self.Set_algoProperties()
 
         # self.Save_Iteration()
 
@@ -170,6 +180,11 @@ class Simu:
             iter = {                
                 'thermal' : self.__thermal
             }
+            try:
+                iter['thermalDot'] = self.__thermalDot                
+            except:
+                # Résultat non disponible
+                pass
 
         elif self.__problemType == "displacement":
             iter = {                
@@ -204,6 +219,12 @@ class Simu:
 
         if self.__problemType == "thermal":
             self.__thermal = results["thermal"]
+            try:
+                self.__thermalDot = results["thermalDot"]
+            except:
+                # Résultat non disponible
+                pass
+
         elif self.__problemType == "displacement":
             self.__displacement = results["displacement"]
         elif self.__problemType == "damage":
@@ -334,7 +355,7 @@ class Simu:
     def Solve_u(self):
         """Resolution du probleme de déplacement"""        
 
-        Uglob = self.__Solveur(problemType="displacement")
+        Uglob = self.__Solveur(problemType="displacement", algo="elliptic")
         
         assert Uglob.shape[0] == self.mesh.Nn*self.__dim
 
@@ -493,7 +514,7 @@ class Simu:
     def Solve_d(self):
         """Resolution du problème d'endommagement"""
         
-        dGlob = self.__Solveur(problemType="damage")
+        dGlob = self.__Solveur(problemType="damage", algo="elliptic")
 
         assert dGlob.shape[0] == self.mesh.Nn
 
@@ -503,7 +524,7 @@ class Simu:
 
 # ------------------------------------------- PROBLEME THERMIQUE -------------------------------------------
 
-    def __ConstruitMatElem_Thermal(self) -> np.ndarray:
+    def __ConstruitMatElem_Thermal(self, steadyState: bool) -> np.ndarray:
 
         thermalModel = self.materiau.thermalModel
 
@@ -516,15 +537,24 @@ class Simu:
 
         jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = mesh.Get_poid_pg(matriceType)
-        # N_e_pg = mesh.Get_N_scalaire_pg(matriceType)
+        N_e_pg = mesh.Get_N_scalaire_pg(matriceType)
         D_e_pg = mesh.Get_B_sclaire_e_pg(matriceType)
 
         Kt_e = np.einsum('ep,p,epji,,epjk->eik', jacobien_e_pg, poid_pg, D_e_pg, k, D_e_pg, optimize="optimal")
 
-        return Kt_e
+        if steadyState:
+            return Kt_e
+        else:
+            ro = self.materiau.ro
+            c = thermalModel.c
 
-    def Assemblage_t(self) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
-        """Construit Kglobal pour le probleme thermique
+            Mt_e = np.einsum('ep,p,pji,,,pjk->eik', jacobien_e_pg, poid_pg, N_e_pg, ro, c, N_e_pg, optimize="optimal")
+
+            return Kt_e, Mt_e
+
+
+    def Assemblage_t(self, steadyState=True) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
+        """Construit Kglobal pour le probleme thermique en régime stationnaire ou non
         """
        
         # Data
@@ -534,31 +564,59 @@ class Simu:
         colonnesScalar_e = mesh.colonnesScalar_e
         
         # Calul les matrices elementaires
-        Kt_e = self.__ConstruitMatElem_Thermal()
+        if steadyState:
+            Kt_e = self.__ConstruitMatElem_Thermal(steadyState)
+        else:
+            Kt_e, Mt_e = self.__ConstruitMatElem_Thermal(steadyState)
+        
 
         # Assemblage
-        tic = Tic()        
+        tic = Tic()
 
         self.__Kt = sparse.csr_matrix((Kt_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
-        """Kglob pour le probleme d'endommagement (Nn, Nn)"""
+        """Kglob pour le probleme thermique (Nn, Nn)"""
         
         self.__Ft = sparse.csr_matrix((taille, 1))
         """Vecteur Fglob pour le problème en thermique (Nn, 1)"""
+
+        if not steadyState:
+            self.__Mt = sparse.csr_matrix((Mt_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
+            """Mglob pour le probleme thermique (Nn, Nn)"""
 
         tic.Tac("Matrices","Assemblage Kt et Ft", self.__verbosity)       
 
         return self.__Kt, self.__Ft
 
-    def Solve_t(self) -> np.ndarray:
-        """Resolution du problème thermique"""
-        
-        thermalGlob = self.__Solveur(problemType="thermal")
+    def Solve_t(self, steadyState=True) -> np.ndarray:
+        """Resolution du problème thermique
+
+        Parameters
+        ----------
+        isStatic : bool, optional
+            Le problème est stationnaire, by default True
+
+        Returns
+        -------
+        np.ndarray
+            vecteur solution
+        """
+
+        if steadyState:
+            thermalGlob = self.__Solveur(problemType="thermal", algo="elliptic")
+            # TODO que faire pour -> quand plusieurs types -> np.ndarray ou tuple[np.ndarray, np.ndarray] ?
+        else:
+            thermalGlob, thermalDotGlob = self.__Solveur(problemType="thermal", algo="parabolic", option=1)
+
+            self.__thermalDot = thermalDotGlob
 
         assert thermalGlob.shape[0] == self.mesh.Nn
 
         self.__thermal = thermalGlob
 
-        return thermalGlob.copy()
+        if steadyState:
+            return thermalGlob.copy()
+        else:
+            return thermalGlob.copy(), thermalDotGlob.copy()
 
 # ------------------------------------------------- SOLVEUR -------------------------------------------------
 
@@ -578,7 +636,7 @@ class Simu:
 
         # Construit les ddls inconnues
 
-        if problemType in ["damage","thermal"]:
+        if problemType in ["damage", "thermal"]:
             taille = self.__mesh.Nn
         elif problemType == "displacement":
             taille = self.__mesh.Nn*self.__dim
@@ -595,7 +653,7 @@ class Simu:
 
         return ddls_Connues, ddls_Inconnues
 
-    def __Application_Conditions_Neuman(self, problemType: str):
+    def __Application_Conditions_Neuman(self, problemType: str, algo:str, option=1):
         """Applique les conditions de Neumann"""
 
         Simu.CheckProblemTypes(problemType)
@@ -617,16 +675,41 @@ class Simu:
 
         # l,c ,v = sparse.find(b)
 
-        if problemType == "damage":
+        if problemType == "damage" and algo == "elliptic":
             b = b + self.__Fd.copy()
-        elif problemType == "displacement":
+        elif problemType == "displacement" and algo == "elliptic":
             b = b + self.__Fu.copy()
-        elif problemType == "thermal":
+        elif problemType == "thermal" and algo == "elliptic":
             b = b + self.__Ft.copy()
+        elif problemType == "thermal" and algo == "parabolic":
+            b = b + self.__Ft.copy()
+
+            thermal = self.__thermal
+            thermalDot =  self.__thermalDot
+
+            alpha = self.__alpha
+            dt = self.__dt
+
+            thermalDotTild_np1 = thermal + (1-alpha) * dt * thermalDot
+            thermalDotTild_np1 = sparse.csr_matrix(thermalDotTild_np1.reshape(-1, 1))
+
+            if option == 1:
+                "Resolution de la température"
+                b = b + self.__Mt.dot(thermalDotTild_np1/(alpha*dt))
+                
+            elif option == 2:
+                "Résolution de la dérivée temporelle de la température"
+                b = b - self.__Kt.dot(thermalDotTild_np1)
+
+            else:
+                raise "Configuration inconnue"
+
+        else:
+            raise "Configuration inconnue"
 
         return b
 
-    def __Application_Conditions_Dirichlet(self, problemType: str, b, resolution):
+    def __Application_Conditions_Dirichlet(self, problemType: str, b: sparse.csr_matrix, resolution: int, algo: str, option=1):
         """Applique les conditions de dirichlet"""
 
         Simu.CheckProblemTypes(problemType)
@@ -641,16 +724,44 @@ class Simu:
 
         taille = self.__mesh.Nn
 
-        if problemType == "damage":
+        if problemType == "damage" and algo == "elliptic":
             A = self.__Kd.copy()
-        elif problemType == "displacement":
+        elif problemType == "displacement" and algo == "elliptic":
             taille = taille*self.__dim
             A = self.__Ku.copy()
-        elif problemType == "thermal":
+        elif problemType == "thermal" and algo == "elliptic":
             A = self.__Kt.copy()
+        elif problemType == "thermal" and algo == "parabolic":
+            
+            alpha = self.__alpha
+            dt = self.__dt
+
+            if option == 1:
+                "Resolution de la température"
+                A = self.__Kt.copy() + self.__Mt.copy()/(alpha * dt)
+                
+            elif option == 2:
+                "Résolution de la dérivée temporelle de la température"
+                A = self.__Kt.copy() * alpha * dt + self.__Mt.copy()
+
+            else:
+                raise "Configuration inconnue"
+
+        else:
+            raise "Configuration inconnue"
+
 
         if resolution == 1:
             
+            # ici on renvoie la solution avec les ddls connues
+            x = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1), dtype=np.float64)
+
+            # l,c ,v = sparse.find(x)
+
+            return A, x
+
+        else:
+
             A = A.tolil()
             b = b.tolil()            
             
@@ -663,17 +774,29 @@ class Simu:
 
             # ici on renvoie A pénalisé
             return A.tocsr(), b.tocsr()
-
-        else:
             
-            # ici on renvoir la solution avec les ddls connues
-            x = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1), dtype=np.float64)
 
-            # l,c ,v = sparse.find(x)
+    def Set_algoProperties(self, alpha=1/2, dt=0.1):
+        """Renseigne les propriétes de résolution de l'algorithme
 
-            return A, x
+        Parameters
+        ----------
+        alpha : float, optional
+            critère alpha [0 -> Forward Euler, 1 -> Backward Euler, 1/2 -> midpoint], by default 1/2
+        dt : float, optional
+            incrément temporel, by default 0.1
+        """
 
-    def __Solveur(self, problemType: str) -> np.ndarray:
+        # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
+        # TODO Est-il possible davoir au dela de 1 ?
+
+        assert dt > 0, "l'incrément temporel doit être > 0"
+
+        self.__alpha = alpha
+        self.__dt = dt
+
+
+    def __Solveur(self, problemType: str, algo: str, option=1) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
@@ -687,8 +810,8 @@ class Simu:
             tic = Tic()
 
             # Construit le système matricielle
-            b = self.__Application_Conditions_Neuman(problemType)
-            A, x = self.__Application_Conditions_Dirichlet(problemType, b, resolution)
+            b = self.__Application_Conditions_Neuman(problemType, algo, option)
+            A, x = self.__Application_Conditions_Dirichlet(problemType, b, resolution, algo, option)
 
             # Récupère les ddls
             ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
@@ -713,16 +836,16 @@ class Simu:
 
             tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
 
-            if problemType == "displacement":
+            if problemType in ["displacement","thermal"]:
                 # la matrice est definie symétrique positive on peut donc utiliser cholesky
                 useCholesky=True
             else:
                 #la matrice n'est pas definie symétrique positive
                 useCholesky=False
-
-            isDamaged = self.materiau.isDamaged
-            if isDamaged:
+            
+            if problemType == "damage":
                 # Si l'endommagement est supérieur à 1 la matrice A n'est plus symétrique
+                isDamaged = True
                 A_isSymetric = False
                 solveur = self.materiau.phaseFieldModel.solveur
                 if solveur == "BoundConstrain":
@@ -730,6 +853,7 @@ class Simu:
                 else:
                     damage = []
             else:
+                isDamaged = False
                 damage = []
                 A_isSymetric = True
 
@@ -763,7 +887,21 @@ class Simu:
             isDamaged=isDamaged, damage=damage,
             useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
 
-        return np.array(x)
+        if problemType == "thermal" and algo == "parabolic":
+            thermal_np1 = np.array(x)
+            thermalDot = self.__thermalDot.copy()
+
+            alpha = self.__alpha
+            dt = self.__dt
+
+            thermalDotTild_np1 = self.__thermal + ((1-alpha) * dt * thermalDot)
+
+            thermalDot_np1 = (thermal_np1 - thermalDotTild_np1)/(alpha*dt)
+
+            return thermal_np1, thermalDot
+
+        else:
+            return np.array(x)
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
@@ -1256,7 +1394,7 @@ class Simu:
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
                 "Damage" :["damage","psiP"],
-                "Thermal" : ["thermal"]
+                "Thermal" : ["thermal", "thermalDot"]
             }
         elif dim == 3:
             options = {
@@ -1264,7 +1402,7 @@ class Simu:
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Energie" :["Wdef","Psi_Elas"],
-                "Thermal" : ["thermal"]
+                "Thermal" : ["thermal", "thermalDot"]
             }
         
         return options
@@ -1309,7 +1447,7 @@ class Simu:
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
                 "Damage" :["damage","psiP"],
-                "Thermal" : ["thermal"]
+                "Thermal" : ["thermal", "thermalDot"]
             }
         elif dim == 3:
             options = {
@@ -1317,7 +1455,7 @@ class Simu:
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Energie" :["Wdef","Psi_Elas"],
-                "Thermal" : ["thermal"]
+                "Thermal" : ["thermal", "thermalDot"]
             }
         """
 
@@ -1330,6 +1468,12 @@ class Simu:
 
         if option == "thermal":
             return self.__thermal
+
+        if option == "thermalDot":
+            try:
+                return self.__thermalDot
+            except:
+                raise "La simulation thermique est realisé en état d'équilibre"
 
         if option in ["Wdef","Psi_Elas"]:
             return self.__Calc_Psi_Elas()

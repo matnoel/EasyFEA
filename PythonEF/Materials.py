@@ -1295,31 +1295,50 @@ class PhaseFieldModel:
 
 class ThermalModel:
 
-    def __init__(self, dim:int, k: float, ep=1):
-        """Constrcution d'un modèle thermique
-        """
+    def __init__(self, dim:int, k: float, c=0.0, epaisseur=1.0):
+        """Construction d'un modèle thermique
 
+        Parameters
+        ----------
+        dim : int
+            dimension du modèle
+        k : float
+            conduction thermique [W m^-1]
+        c : float, optional
+            capacité thermique massique [J K^-1 kg^-1], by default 0.0
+        epaisseur : float, optional
+            epaisseur de la pièce, by default 1.0
+        """
+        assert dim in [1,2,3]
         self.__dim = dim
 
         self.__k = k
+
+        self.__c = c
         
-        assert ep > 0
-        self.__ep = ep
+        assert epaisseur > 0, "Doit être supérieur à 0"
+        self.__epaisseur = epaisseur
     
 
     @property
     def dim(self) -> int:
+        """dimension du modèle"""
         return self.__dim
 
     @property
     def k(self) -> float:
-        """coef de diffusion"""
+        """conduction thermique [W . m^-1]"""
         return self.__k
 
     @property
-    def ep(self) -> float:
-        """epaisseur"""
-        return self.__ep
+    def c(self) -> float:
+        """capacité thermique massique [J K^-1 kg^-1]"""
+        return self.__c
+
+    @property
+    def epaisseur(self) -> float:
+        """epaisseur de la pièce"""
+        return self.__epaisseur
         
 
 class Materiau:
@@ -1338,9 +1357,14 @@ class Materiau:
     @property
     def epaisseur(self) -> float:
         if self.__problemType == "thermal":
-            return self.__thermalModel.ep
+            return self.__thermalModel.epaisseur
         else:
             return self.__comportement.epaisseur
+
+    @property
+    def ro(self) -> float:
+        """masse volumique"""
+        return self.__ro
     
     @property
     def comportement(self) -> LoiDeComportement:
@@ -1402,7 +1426,7 @@ class Materiau:
             raise "Model inconnue"
 
         assert ro > 0 , "Doit être supérieur à 0"
-        self.ro = ro
+        self.__ro = ro
 
         self.__verbosity = verbosity
 
