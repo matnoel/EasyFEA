@@ -72,6 +72,8 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     if not isinstance(valeurs, np.ndarray):
         return
 
+    
+
     valeurs *= coef
 
     coordo, deformation = __GetCoordo(simu, deformation, facteurDef)
@@ -100,12 +102,14 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
 
         connectTri = mesh.connectTriangle
         # Construit les vertices
+
         if oldax == None:
             fig, ax = plt.subplots()
         else:
             fig = oldfig
             ax = oldax
             ax.clear()
+        
 
         for elem in coord_par_face:
             vertices = coord_par_face[elem]
@@ -155,9 +159,14 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
 
     
     elif mesh.dim == 3:
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(projection="3d")
+
+        if oldax == None:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection="3d")
+        else:
+            fig = oldfig
+            ax = oldax
+            ax.clear()
 
         # Construit les vertices du maillage 3D en recupérant le maillage 2D
         maxVal = 0
