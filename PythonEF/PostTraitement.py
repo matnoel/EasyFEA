@@ -248,15 +248,29 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
     listTemps = []
     tic = Tic()
 
+    try:
+        problemType = simu.problemType
+    except:
+        if simu.materiau.isDamaged:
+            problemType = "damage"
+        else:
+            problemType = "displacement"
+    
+    if problemType == "thermal":
+        nodesField = ["thermal", "thermalDot"] # "thermalDot"
+        elementsField = []
+    elif problemType == "damage":
+        nodesField =  ["coordoDef","damage"]
+        elementsField=["Stress"] # ["Stress","psiP"]
+    elif problemType == "displacement":
+        nodesField =  ["coordoDef"]
+        elementsField=["Stress"]
+
     for i, iter in enumerate(listIter):
 
         f = Dossier.Join([folder,f'solution_{iter}.vtu'])
 
-        if simu.materiau.isDamaged:
-            # vtuFile = __SaveParaview(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress","psiP"])
-            vtuFile = __Make_vtu(simu, iter, f, nodesField=["coordoDef","damage"], elementsField=["Stress"])
-        else:
-            vtuFile = __Make_vtu(simu, iter, f, nodesField=["coordoDef"], elementsField=["Stress"])
+        vtuFile = __Make_vtu(simu, iter, f, nodesField=nodesField, elementsField=elementsField)
         
         vtuFiles.append(vtuFile)
 
@@ -265,7 +279,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
         pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
 
-        print(f"SaveParaview {iter+1}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
+        print(f"SaveParaview {iter+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')
 
     tic = Tic()
@@ -276,6 +290,8 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
     tic.Tac("Paraview","Make pvd", False)
 
 def __GetPourcentageEtTemps(listIter: list, listTemps: list, i):
+    if listIter[-1] == 0:
+        return ""
     pourcentage = listIter[i]/listIter[-1]
     if pourcentage > 0:
         tempsRestant = np.mean(listTemps)*(len(listIter)-i-1)
