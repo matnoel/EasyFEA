@@ -137,8 +137,7 @@ def ResumeChargement(simu: Simu, umax: float, listInc: list, listTreshold: list,
     
     simu.resumeChargement = resumeChargement
 
-def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float,
-solveur: str, test: bool, optimMesh=False, openCrack=False, v=0.0):
+def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, openCrack=False, v=0.0, nL=0):
 
     nom="_".join([comp, split, regu, simpli2D])
 
@@ -157,6 +156,10 @@ solveur: str, test: bool, optimMesh=False, openCrack=False, v=0.0):
         
     if comp == "Elas_Isot" and v != 0:
         nom = f"{nom} pour v={v}"
+
+    if nL != 0:
+        assert nL > 0
+        nom = f"{nom} l0=L/{nL}"
 
     folder = Dossier.NewFile(dossierSource, results=True)
 
