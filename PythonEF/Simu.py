@@ -2,7 +2,6 @@ from types import LambdaType
 from typing import List, cast, Dict
 
 import numpy as np
-from pyrsistent import v
 from scipy import sparse
 
 import Affichage as Affichage
