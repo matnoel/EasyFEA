@@ -644,7 +644,7 @@ def Plot_ResumeIter(simu, folder: str):
     assert isinstance(simu, Simu)
 
     # Recupère les résultats de simulation
-    resultats = simu.Get_Results()
+    resultats = simu.Get_All_Results()
     df = pd.DataFrame(resultats)
 
     iterations = np.arange(df.shape[0])+1

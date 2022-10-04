@@ -45,7 +45,7 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
     Parameters
     ----------
     problemType : str
-        type de probleme ["displacement", "damage"]
+        type de probleme ["displacement", "damage", "thermal]
     A : sparse.csr_matrix
         Matrice A
     b : sparse.csr_matrix

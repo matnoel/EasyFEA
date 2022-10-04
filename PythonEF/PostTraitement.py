@@ -150,7 +150,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    results = simu.Get_Results()
+    results = simu.Get_All_Results()
 
     N = len(results)
 
@@ -229,7 +229,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
     vtuFiles=[]
 
-    results = simu.Get_Results()
+    results = simu.Get_All_Results()
 
     N = len(results)
 
@@ -248,13 +248,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
     listTemps = []
     tic = Tic()
 
-    try:
-        problemType = simu.problemType
-    except:
-        if simu.materiau.isDamaged:
-            problemType = "damage"
-        else:
-            problemType = "displacement"
+    problemType = simu.problemType
     
     if problemType == "thermal":
         nodesField = ["thermal", "thermalDot"] # "thermalDot"

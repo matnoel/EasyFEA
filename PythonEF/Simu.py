@@ -64,7 +64,6 @@ class Simu:
 
 # ------------------------------------------- FONCTIONS ------------------------------------------- 
 
-    problemTypes = ["displacement", "damage", "thermal"]
     # TODO Permettre de creer des simulation depuis le formulation variationnelle ?
 
     @property
@@ -74,8 +73,8 @@ class Simu:
     @staticmethod
     def CheckProblemTypes(problemType:str):
         """Verifie si ce type de probleme est implénté"""
-        problemTypes = Simu.problemTypes
-        assert problemType in problemTypes, "Ce type de probleme n'est pas implémenté"
+        list_problemType = ["displacement", "damage", "thermal"]
+        assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
 
     @staticmethod
     def CheckDirections(dim: int, problemType:str, directions:list):
@@ -145,29 +144,46 @@ class Simu:
 
     @property
     def damage(self) -> np.ndarray:
-        """Copie de la solution d'endommagement"""
+        """Copie du champ scalaire d'endommagement"""
         if self.__problemType == "damage":
             return self.__damage.copy()
+        else:
+            return None
+
+    @property
+    def thermal(self) -> np.ndarray:
+        """Copie du champ scalaire de température"""
+        if self.__problemType == "thermal":
+            return self.__thermal.copy()
+        else:
+            return None
+
+    @property
+    def thermalDot(self) -> np.ndarray:
+        """Copie de la dérivée du champ scalaire de température"""
+        if self.__problemType == "thermal" and self.materiau.thermalModel.c > 0 and self.materiau.ro > 0:
+            return self.__thermalDot.copy()
         else:
             return None
     
     @property
     def displacement(self) -> np.ndarray:
+        """Copie du champ vectoriel de déplacement"""
         if self.__problemType in ["displacement", "damage"]:
             return self.__displacement.copy()
         else:
             return None
 
-    def get_result(self, index=None):
+    def Get_Results_Index(self, index=None):
         """Recupère le resultat stocké dans la liste de dictionnaire"""
         if index == None:
             return self.__results[-1]
         else:
             return self.__results[index]
 
-    def Get_Results(self) -> List[dict]:
+    def Get_All_Results(self) -> List[dict]:
         """Renvoie la liste de dictionnaire qui stocke les résultats\n
-        ['displacement', 'damage', 'thermal', 'nombreIter', 'tempsIter', 'dincMax']\n
+        ['displacement', 'damage', 'thermal', 'thermalDot', 'nombreIter', 'tempsIter', 'dincMax']\n
         attention 'damage', 'nombreIter', 'tempsIter', 'dincMax' peuvent ne pas avoir été sauvegardé
         """        
         return self.__results
@@ -175,7 +191,9 @@ class Simu:
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
         """Sauvegarde les résultats de l'itération"""
 
-        if self.__problemType == "thermal":
+        problemType = self.__problemType
+
+        if problemType == "thermal":
             iter = {                
                 'thermal' : self.__thermal
             }
@@ -185,12 +203,12 @@ class Simu:
                 # Résultat non disponible
                 pass
 
-        elif self.__problemType == "displacement":
+        elif problemType == "displacement":
             iter = {                
                 'displacement' : self.__displacement
             }
         
-        elif self.__problemType == "damage":
+        elif problemType == "damage":
             if self.materiau.phaseFieldModel.solveur == "History":
                 # mets à jour l'ancien champ histoire pour la prochaine résolution 
                 self.__old_psiP_e_pg = self.__psiP_e_pg
@@ -214,9 +232,11 @@ class Simu:
         assert isinstance(iter, int), "Doit fournir un entier"
 
         # On va venir récupérer les resultats stocké dans le tableau pandas
-        results = self.get_result(iter)
+        results = self.Get_Results_Index(iter)
 
-        if self.__problemType == "thermal":
+        problemType = self.__problemType
+
+        if problemType == "thermal":
             self.__thermal = results["thermal"]
             try:
                 self.__thermalDot = results["thermalDot"]
@@ -224,9 +244,9 @@ class Simu:
                 # Résultat non disponible
                 pass
 
-        elif self.__problemType == "displacement":
+        elif problemType == "displacement":
             self.__displacement = results["displacement"]
-        elif self.__problemType == "damage":
+        elif problemType == "damage":
             self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
             self.__damage = results["damage"]
             self.__displacement = results["displacement"]
