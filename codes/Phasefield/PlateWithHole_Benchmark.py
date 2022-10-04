@@ -18,11 +18,11 @@ import matplotlib.pyplot as plt
 # Options
 
 test = False
-solve = False
+solve = True
 plotMesh = False
 plotIter = False
 plotResult = False
-saveParaview = True; NParaview=700
+saveParaview = False; NParaview=700
 makeMovie = False
 
 
@@ -35,10 +35,10 @@ optimMesh = True
 useNumba = True
 
 # Convergence
-maxIter = 1000
+maxIter = 500
 # tolConv = 0.01
 # tolConv = 0.05
-tolConv = 1e-0
+tolConv = 1e-1
 # TODO Faire la convergence sur l'energie ?
 
 if comp == "Elas_Isot":
