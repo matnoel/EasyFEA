@@ -159,7 +159,7 @@ def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpl
 
     if nL != 0:
         assert nL > 0
-        nom = f"{nom} l0=L/{nL}"
+        nom = f"{nom} nL={nL}"
 
     folder = Dossier.NewFile(dossierSource, results=True)
 
