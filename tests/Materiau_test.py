@@ -170,7 +170,7 @@ class Test_Materiau(unittest.TestCase):
             
             assert isinstance(pfm, PhaseFieldModel)
 
-            comportement = pfm.loiDeComportement
+            comportement = pfm.comportement
             coef = comportement.coef
             
             if isinstance(comportement, Elas_Isot) or isinstance(comportement, Elas_IsotTrans):                

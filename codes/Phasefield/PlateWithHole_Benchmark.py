@@ -20,22 +20,22 @@ import matplotlib.pyplot as plt
 test = True
 solve = True
 plotMesh = False
-plotIter = True
+plotIter = False
 plotResult = False
 saveParaview = False
 makeMovie = False
 
 
-problem = "Benchmark" # ["Benchmark" , "CompressionFCBA"]
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT1" # ["AT1", "AT2"]
+problem = "CompressionFCBA" # ["Benchmark" , "CompressionFCBA"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
 
 useNumba = True
 
 # Convergence
-maxIter = 700
+maxIter = 1000
 # tolConv = 0.01
 # tolConv = 0.05
 tolConv = 1e-0
@@ -52,7 +52,7 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["Amor"]:
+for split in ["AnisotStress"]:
     
     # if split == "AnisotStress" and comp == "Elas_Isot":
     #     umax = 45e-6
@@ -183,7 +183,7 @@ for split in ["Amor"]:
                         axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
         phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, solveur=solveur)
-        materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
+        materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
 
         simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
 

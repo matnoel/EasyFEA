@@ -619,8 +619,8 @@ class PhaseFieldModel:
         return self.__regularization
     
     @property
-    def loiDeComportement(self) -> LoiDeComportement:
-        return self.__loiDeComportement
+    def comportement(self) -> LoiDeComportement:
+        return self.__comportement
 
     @property
     def solveur(self):
@@ -635,7 +635,7 @@ class PhaseFieldModel:
     def useNumba(self, val: bool):
         self.__useNumba = val
 
-    def __init__(self, loiDeComportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float,solveur="History"):
+    def __init__(self, comportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float,solveur="History"):
         """Crétation d'un modèle à gradient d'endommagement
 
         Parameters
@@ -654,11 +654,11 @@ class PhaseFieldModel:
             Type de résolution de l'endommagement, by default "History" (voir PhaseFieldModel.get_solveurs())
         """
     
-        assert isinstance(loiDeComportement, LoiDeComportement), "Doit être une loi de comportement"
-        self.__loiDeComportement = loiDeComportement
+        assert isinstance(comportement, LoiDeComportement), "Doit être une loi de comportement"
+        self.__comportement = comportement
 
         assert split in PhaseFieldModel.get_splits(), f"Doit être compris dans {PhaseFieldModel.get_splits()}"
-        if not isinstance(loiDeComportement, Elas_Isot):
+        if not isinstance(comportement, Elas_Isot):
             assert not split in ["Amor", "Miehe", "Stress"], "Ces splits ne sont implémentés que pour Elas_Isot"
         self.__split =  split
         """Split de la densité d'energie elastique"""
@@ -777,7 +777,7 @@ class PhaseFieldModel:
         nPg = Epsilon_e_pg.shape[1]
             
         if self.__split == "Bourdin":
-            c = self.__loiDeComportement.get_C()
+            c = self.__comportement.get_C()
             c = c[np.newaxis, np.newaxis,:,:]
             c = np.repeat(c, Ne, axis=0)
             c = np.repeat(c, nPg, axis=1)
@@ -815,16 +815,16 @@ class PhaseFieldModel:
 
     def __Split_Amor(self, Epsilon_e_pg: np.ndarray):
 
-        assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
+        assert isinstance(self.__comportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
         
-        loiDeComportement = self.__loiDeComportement                
+        loiDeComportement = self.__comportement                
 
         bulk = loiDeComportement.get_bulk()
         mu = loiDeComportement.get_mu()
 
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
 
-        dim = self.__loiDeComportement.dim
+        dim = self.__comportement.dim
 
         if dim == 2:
             Ivoigt = np.array([1,1,0]).reshape((3,1))
@@ -870,7 +870,7 @@ class PhaseFieldModel:
         Ne = vecteur_e_pg.shape[0]
         nPg = vecteur_e_pg.shape[1]
 
-        dim = self.__loiDeComportement.dim
+        dim = self.__comportement.dim
 
         tr_Eps = np.zeros((Ne, nPg))
 
@@ -886,7 +886,7 @@ class PhaseFieldModel:
     
     def __Split_Miehe(self, Epsilon_e_pg: np.ndarray, verif=False):
 
-        dim = self.__loiDeComportement.dim
+        dim = self.__comportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
         useNumba = self.__useNumba
@@ -895,7 +895,7 @@ class PhaseFieldModel:
 
         if self.__split == "Miehe":
             
-            assert isinstance(self.__loiDeComportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
+            assert isinstance(self.__comportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
 
             # Calcul Rp et Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -909,8 +909,8 @@ class PhaseFieldModel:
             spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
 
             # Calcul de la loi de comportement
-            lamb = self.__loiDeComportement.get_lambda()
-            mu = self.__loiDeComportement.get_mu()
+            lamb = self.__comportement.get_lambda()
+            mu = self.__comportement.get_mu()
 
             cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
             cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
@@ -924,7 +924,7 @@ class PhaseFieldModel:
         
         elif self.__split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
             
-            c = self.__loiDeComportement.get_C()
+            c = self.__comportement.get_C()
 
             tic = Tic()
             
@@ -970,7 +970,7 @@ class PhaseFieldModel:
 
         # Récupère les contraintes
         # Ici le matériau est supposé homogène
-        loiDeComportement = self.__loiDeComportement
+        loiDeComportement = self.__comportement
         C = loiDeComportement.get_C()    
         Sigma_e_pg = np.einsum('ij,epj->epi',C, Epsilon_e_pg, optimize='optimal')
 
@@ -1080,7 +1080,7 @@ class PhaseFieldModel:
     def __Split_He(self, Epsilon_e_pg: np.ndarray, verif=False):
             
         # Ici le matériau est supposé homogène
-        loiDeComportement = self.__loiDeComportement
+        loiDeComportement = self.__comportement
 
         if self.__split == "He":
             
@@ -1161,9 +1161,9 @@ class PhaseFieldModel:
 
         useNumba = self.__useNumba
 
-        coef = self.__loiDeComportement.coef
+        coef = self.__comportement.coef
 
-        dim = self.__loiDeComportement.dim
+        dim = self.__comportement.dim
         assert dim == 2, "Implémenté que en 2D"
 
         Ne = vecteur_e_pg.shape[0]
@@ -1357,9 +1357,9 @@ class Materiau:
     @property
     def epaisseur(self) -> float:
         if self.__problemType == "thermal":
-            return self.__thermalModel.epaisseur
+            return self.thermalModel.epaisseur
         else:
-            return self.__comportement.epaisseur
+            return self.comportement.epaisseur
 
     @property
     def ro(self) -> float:
@@ -1372,7 +1372,7 @@ class Materiau:
             return None
         else:
             if self.isDamaged:
-                return self.__phaseFieldModel.loiDeComportement
+                return self.__phaseFieldModel.comportement
             else:
                 return self.__comportement
 
@@ -1437,7 +1437,7 @@ class Materiau:
         resume = ""
 
         if self.isDamaged:
-            resume += self.__phaseFieldModel.loiDeComportement.resume
+            resume += self.__phaseFieldModel.comportement.resume
             resume += '\n' + self.__phaseFieldModel.resume
         else:
             resume += self.__comportement.resume
