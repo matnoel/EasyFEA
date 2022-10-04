@@ -19,19 +19,19 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-simulation = "Tension" #"Shear" , "Tension"
+simulation = "Shear" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = True
-solve = False
+solve = True
 plotResult = False
-saveParaview = True
-makeMovie = True
+saveParaview = False
+makeMovie = False
 
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans"
-split = "AnisotMiehe" # "Bourdin","Amor","Miehe","Stress"
+split = "AnisotStress" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
@@ -39,7 +39,7 @@ openCrack = True
 maxIter = 250
 # tolConv = 0.0025
 # tolConv = 0.005
-tolConv = 1
+tolConv = 1e-0
 
 dim = 2
 
@@ -108,7 +108,7 @@ if solve:
 
     phaseFieldModel = PhaseFieldModel(comportement, split, regularisation, Gc=Gc, l_0=l0, solveur=solveur)
 
-    materiau = Materiau(comportement, ro=1, phaseFieldModel=phaseFieldModel)
+    materiau = Materiau(phaseFieldModel, ro=1)
 
     simu = Simu(mesh, materiau, verbosity=False, useNumba=False)
 
@@ -152,7 +152,7 @@ if solve:
         chargement = np.linspace(u_inc, u_inc*N, N, endpoint=True)
         
         listInc = [u_inc]
-        listThreshold = [chargement[N]]
+        listThreshold = [chargement[-1]]
 
     elif simulation == "Tension":
         if test:
