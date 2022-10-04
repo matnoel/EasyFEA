@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = True
-solve = True
+test = False
+solve = False
 plotMesh = False
 plotIter = False
 plotResult = False
-saveParaview = False
+saveParaview = True; NParaview=700
 makeMovie = False
 
 
@@ -67,6 +67,7 @@ for split in ["AnisotStress"]:
 
         gc = 1.4
         l_0 = 0.12e-3
+        nL = 0
 
         inc0 = 8e-8
         inc1 = 2e-8
@@ -84,7 +85,8 @@ for split in ["AnisotStress"]:
         r=diam/2
 
         gc = 1.4
-        l_0 = L/100
+        nL=100
+        l_0 = L/nL
 
         inc0 = 8e-6
         inc1 = 2e-7
@@ -134,9 +136,7 @@ for split in ["AnisotStress"]:
 
     # Nom du dossier
     nomDossier = "PlateWithHole_" + problem
-    folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
-    comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh,
-    tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=v)
+    folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=v, nL=nL)
     
     if solve:
 
@@ -308,22 +308,23 @@ for split in ["AnisotStress"]:
         load, displacement = PostTraitement.Load_Load_Displacement(folder)
         simu = PostTraitement.Load_Simu(folder)
 
-    Affichage.Plot_ResumeIter(simu, folder)
+    if plotResult:
+        Affichage.Plot_ResumeIter(simu, folder, 600, 700)
 
-    Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud en mm', 'f en kN/mm', folder)
+        Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud en mm', 'f en kN/mm', folder)
 
-    filenameDamage = f"{split} damage_n"
-    # titleDamage = fr"$\phi$"
-    titleDamage = f"{split}"
+        filenameDamage = f"{split} damage_n"
+        # titleDamage = fr"$\phi$"
+        titleDamage = f"{split}"
 
 
-    Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
-    folder=folder, filename=filenameDamage,
-    title=titleDamage)
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
+        folder=folder, filename=filenameDamage,
+        title=titleDamage)
 
 
     if saveParaview:
-        PostTraitement.Save_Simulation_in_Paraview(folder, simu, Niter=400)
+        PostTraitement.Save_Simulation_in_Paraview(folder, simu, Niter=NParaview)
         if not solve:
             Tic.getGraphs(details=True)
 
