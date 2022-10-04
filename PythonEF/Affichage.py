@@ -638,7 +638,7 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m'
         import PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "forcedep")
 
-def Plot_ResumeIter(simu, folder: str):
+def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
     from Simu import Simu
 
     assert isinstance(simu, Simu)
@@ -647,18 +647,29 @@ def Plot_ResumeIter(simu, folder: str):
     resultats = simu.Get_All_Results()
     df = pd.DataFrame(resultats)
 
-    iterations = np.arange(df.shape[0])+1
-    damageMaxIter = np.max(list(df["damage"].values), axis=1)
+    iterations = np.arange(df.shape[0])
+
+    if iterMax == None:
+        iterMax = iterations.max()
+
+    if iterMin == None:
+        iterMin = iterations.min()
+    
+    selectionIndex = list(filter(lambda iterations: iterations >= iterMin and iterations <= iterMax, iterations))
+
+    iterations = iterations[selectionIndex]
+
+    damageMaxIter = np.max(list(df["damage"].values), axis=1)[selectionIndex]
     try:
-        tempsIter = df["tempsIter"].values
-        nombreIter = df["nombreIter"].values
+        tempsIter = df["tempsIter"].values[selectionIndex]
+        nombreIter = df["nombreIter"].values[selectionIndex]
         getTempsAndNombreIter = True
     except:
         # tempsIter et nombreIter n'ont pas été sauvegardé
         getTempsAndNombreIter = False
     
     try:
-        tolConvergence = df["dincMax"].values
+        tolConvergence = df["dincMax"].values[selectionIndex]
         getTolConvergence = True
     except:
         getTolConvergence = False

@@ -231,12 +231,9 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
     results = simu.Get_All_Results()
 
-    N = len(results)
+    NiterMax = len(results)-1
 
-    if N > Niter:
-        listIter = np.linspace(0, N, Niter, endpoint=False, dtype=int)
-    else:
-        listIter = np.linspace(0, N, N, endpoint=False, dtype=int)
+    listIter = __Get_listIter(NiterMax=NiterMax, NiterFin=100, NiterCyble=Niter)
     
     Niter = len(listIter)
 
@@ -273,7 +270,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
         pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
 
-        print(f"SaveParaview {iter+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
+        print(f"SaveParaview {iter+1}/{NiterMax} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')
 
     tic = Tic()
@@ -283,12 +280,28 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
     tic.Tac("Paraview","Make pvd", False)
 
+def __Get_listIter(NiterMax: int, NiterFin: int, NiterCyble: int) -> np.ndarray:
+
+    NavantFin = NiterMax-NiterFin
+    listIterFin = np.arange(NavantFin+1, NiterMax+1, dtype=int)
+    NiterRestant = NiterCyble - NiterFin
+
+    if NiterMax > NiterCyble:
+        listIter = np.linspace(0, NavantFin, NiterRestant, endpoint=True, dtype=int)
+    else:
+        listIter = np.linspace(0, NiterMax, NiterMax, endpoint=True, dtype=int)
+
+    listIter = np.append(listIter, listIterFin)
+
+    return listIter
+
+
 def __GetPourcentageEtTemps(listIter: list, listTemps: list, i):
     if listIter[-1] == 0:
         return ""
     pourcentage = listIter[i]/listIter[-1]
     if pourcentage > 0:
-        tempsRestant = np.mean(listTemps)*(len(listIter)-i-1)
+        tempsRestant = np.min(listTemps)*(len(listIter)-i-1)
         tempsCoef, unite = Tic.Get_temps_unite(tempsRestant)
         pourcentageEtTempsRestant = f"({int(pourcentage*100):3}%) {np.round(tempsCoef, 3)} {unite}"
     else:
