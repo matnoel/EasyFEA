@@ -355,11 +355,7 @@ class Elas_Isot(LoiDeComportement):
 
 class Elas_IsotTrans(LoiDeComportement):
 
-    def __init__(self, dim: int,
-    El: float, Et: float, Gl: float,
-    vl: float, vt: float,
-    axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]),
-    contraintesPlanes=True, epaisseur=1.0):
+    def __init__(self, dim: int, El: float, Et: float, Gl: float, vl: float, vt: float, axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]), contraintesPlanes=True, epaisseur=1.0):
 
         # Vérification des valeurs
         assert dim in [2,3], "doit être en 2 et 3"
@@ -377,6 +373,9 @@ class Elas_IsotTrans(LoiDeComportement):
         erreurPoisson = lambda i :f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
         # TODO a mettre à jour Peut ne pas être vrai ? -> J'ai vu que cetait de -1 a 1
         for v in [vl, vt]: assert v > -1.0 and v < 0.5, erreurPoisson
+        # -1<vt<1
+        # -1<vl<0.5
+        # Regarder torquato 328
         self.vl=vl
         """Coef de poisson longitudianale"""
         self.vt=vt
