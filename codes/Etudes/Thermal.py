@@ -6,10 +6,11 @@ import Interface_Gmsh
 from Geom import Circle, Domain, Line, Point
 import Materials
 import Simu
+import numpy as np
 
 Affichage.Clear()
 
-plotIter = True
+plotIter = True; affichageIter = "thermal"
 
 folder = Dossier.NewFile(filename="Thermal", results=True)
 
@@ -20,12 +21,12 @@ if dim == 2:
     domain = Domain(Point(), Point(a, a), a/20)
 else:
     domain = Domain(Point(), Point(a, a), a/20)
-circle = Circle(Point(a/2, a/2), diam=a/6, isCreux=True, taille=a/50)
+circle = Circle(Point(a/2, a/2), diam=a/2, isCreux=True, taille=a/50)
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, True)
 
 if dim == 2:
     # mesh = interfaceGmsh.Rectangle_2D(domain, "QUAD4")
-    mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI3")
+    mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI6")
 else:
     mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,a], 4, elemType="PRISM6")
 
@@ -48,9 +49,9 @@ def Iteration(steadyState: bool):
     simu.Init_Bc()
 
     simu.add_dirichlet("thermal", noeuds0, [20], [""])
-    # simu.add_dirichlet("thermal", noeudsL, [20], [""])
+    simu.add_dirichlet("thermal", noeudsL, [20], [""])
 
-    simu.add_dirichlet("thermal", noeudsCircle, [10], [""])
+    # simu.add_dirichlet("thermal", noeudsCircle, [10], [""])
 
     # simu.add_volumeLoad("thermal", noeudsCircle, [100], [""])
 
@@ -63,11 +64,11 @@ def Iteration(steadyState: bool):
     return thermal
 
 Tmax = 60*8 #s
-N = 20
+N = 100
 dt = Tmax/N #s
 t=0
 
-simu.Set_algoProperties(alpha=0.5, dt=dt)
+simu.Set_Parabolic_AlgoProperties(alpha=0.5, dt=dt)
 
 if Tmax == 0:
     steadyState=True
@@ -76,8 +77,9 @@ else:
     steadyState=False
 
 if plotIter:
-    fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True)
+    fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True)
 
+print()
 
 while t < Tmax:
 
@@ -87,10 +89,10 @@ while t < Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True, oldfig=fig, oldax=ax)
+        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, oldfig=fig, oldax=ax)
         plt.pause(1e-12)
 
-    print(t,end='\r')
+    print(f"{np.round(t)} s",end='\r')
     
 
 # Affichage.Plot_NoeudsMaillage(mesh, noeuds=noeudsCircle)

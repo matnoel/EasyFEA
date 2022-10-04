@@ -138,7 +138,7 @@ class Simu:
         self.__results = []
         """liste de dictionnaire qui contient les résultats"""
 
-        self.Set_algoProperties()
+        self.Set_Parabolic_AlgoProperties()
 
         # self.Save_Iteration()
 
@@ -795,7 +795,7 @@ class Simu:
             return A.tocsr(), b.tocsr()
             
 
-    def Set_algoProperties(self, alpha=1/2, dt=0.1):
+    def Set_Parabolic_AlgoProperties(self, alpha=1/2, dt=0.1):
         """Renseigne les propriétes de résolution de l'algorithme
 
         Parameters
@@ -917,7 +917,7 @@ class Simu:
 
             thermalDot_np1 = (thermal_np1 - thermalDotTild_np1)/(alpha*dt)
 
-            return thermal_np1, thermalDot
+            return thermal_np1, thermalDot_np1
 
         else:
             return np.array(x)
