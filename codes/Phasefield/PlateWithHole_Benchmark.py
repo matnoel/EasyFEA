@@ -21,14 +21,15 @@ test = False
 solve = True
 plotMesh = False
 plotIter = False
-plotResult = False
-saveParaview = False; NParaview=700
+plotResult = True
+showFig = False
+saveParaview = False; NParaview=200
 makeMovie = False
 
 
-problem = "CompressionFCBA" # ["Benchmark" , "CompressionFCBA"]
+problem = "Benchmark" # ["Benchmark" , "CompressionFCBA"]
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT2" # ["AT1", "AT2"]
+regu = "AT1" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
 
@@ -36,8 +37,6 @@ useNumba = True
 
 # Convergence
 maxIter = 500
-# tolConv = 0.01
-# tolConv = 0.05
 tolConv = 1e-1
 # TODO Faire la convergence sur l'energie ?
 
@@ -46,6 +45,11 @@ if comp == "Elas_Isot":
     # umax = 35e-6    
 else:
     umax = 80e-6
+
+if problem == "CompressionFCBA":
+    nL=200
+else:
+    nL=0
 
 # TODO calculer les energies pour les tracer
 
@@ -67,7 +71,7 @@ for split in ["AnisotStress"]:
 
         gc = 1.4
         l_0 = 0.12e-3
-        nL = 0
+        
 
         inc0 = 8e-8
         inc1 = 2e-8
@@ -85,7 +89,6 @@ for split in ["AnisotStress"]:
         r=diam/2
 
         gc = 1.4
-        nL=100
         l_0 = L/nL
 
         inc0 = 8e-6
@@ -166,7 +169,7 @@ for split in ["AnisotStress"]:
         # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,10e-3], 4, elemType="HEXA8", isOrganised=True)
         if plotMesh:
             Affichage.Plot_Maillage(mesh)
-        # plt.show()
+            plt.show()
 
         if simpli2D == "CP":
             isCp = True
@@ -309,7 +312,7 @@ for split in ["AnisotStress"]:
         simu = PostTraitement.Load_Simu(folder)
 
     if plotResult:
-        Affichage.Plot_ResumeIter(simu, folder, 600, 700)
+        Affichage.Plot_ResumeIter(simu, folder, None, None)
 
         Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud en mm', 'f en kN/mm', folder)
 
@@ -336,7 +339,7 @@ for split in ["AnisotStress"]:
     if solve:
         Tic.getGraphs(folder, details=False)
 
-    if plotResult:
+    if showFig:
         plt.show()
     
     Tic.Clear()
