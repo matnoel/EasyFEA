@@ -116,6 +116,13 @@ class Simu:
         elif self.__problemType == "displacement":
             self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
             """déplacements"""
+
+            if self.materiau.ro > 0:
+                self.Set_Rayleigh_Damping_Coefs()
+                self.__speed = np.zeros_like(self.__displacement)
+                """vitesse"""
+                self.__accel = np.zeros_like(self.__displacement)
+                """accélération"""
         
         elif self.__problemType == "damage":
             self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
@@ -139,6 +146,8 @@ class Simu:
         """liste de dictionnaire qui contient les résultats"""
 
         self.Set_Parabolic_AlgoProperties()
+
+        self.Set_Hyperbolic_AlgoProperties()
 
         # self.Save_Iteration()
 
@@ -171,6 +180,22 @@ class Simu:
         """Copie du champ vectoriel de déplacement"""
         if self.__problemType in ["displacement", "damage"]:
             return self.__displacement.copy()
+        else:
+            return None
+
+    @property
+    def speed(self) -> np.ndarray:
+        """Copie du champ vectoriel de vitesse"""
+        if self.__problemType in ["displacement", "damage"] and self.materiau.ro:
+            return self.__speed.copy()
+        else:
+            return None
+    
+    @property
+    def accel(self) -> np.ndarray:
+        """Copie du champ vectoriel d'accéleration"""
+        if self.__problemType in ["displacement", "damage"] and self.materiau.ro:
+            return self.__accel.copy()
         else:
             return None
 
@@ -253,7 +278,7 @@ class Simu:
     
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
-    def ConstruitMatElem_Dep(self) -> np.ndarray:
+    def ConstruitMatElem_Dep(self, steadyState=True) -> np.ndarray:
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
 
         Returns:
@@ -272,8 +297,7 @@ class Simu:
         nPg = mesh.Get_nPg(matriceType)
         
         # Recupère les matrices pour travailler
-        # jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-        # poid_pg = mesh.Get_poid_pg(matriceType)
+        
         B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)
         leftDepPart = mesh.Get_leftDepPart(matriceType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
 
@@ -329,15 +353,29 @@ class Simu:
             else:
                 # Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, matC, B_dep_e_pg, optimize='optimal')
                 Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, matC, B_dep_e_pg, optimize='optimal')
+        
+        if not steadyState:
+            jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+            poid_pg = mesh.Get_poid_pg(matriceType)
+            N_vecteur_e_pg = mesh.Get_N_vecteur_pg(matriceType)
+            ro = self.materiau.ro
+
+            Mu_e = np.einsum('ep,p,pki,,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_e_pg, ro, N_vecteur_e_pg, optimize="optimal")
 
         if self.__dim == 2:
-            Ku_e *= self.materiau.epaisseur
+            epaisseur = self.materiau.epaisseur
+            Ku_e *= epaisseur
+            if not steadyState:
+                Mu_e *= epaisseur
         
         tic.Tac("Matrices","Construction Ku_e", self.__verbosity)
 
-        return Ku_e    
+        if steadyState:
+            return Ku_e
+        else:
+            return Ku_e, Mu_e
  
-    def Assemblage_u(self):
+    def Assemblage_u(self, steadyState=True):
         """Construit K global pour le problème en deplacement
         """
 
@@ -346,7 +384,10 @@ class Simu:
         taille = mesh.Nn*self.__dim
 
         # Construit dict_Ku_e
-        Ku_e = self.ConstruitMatElem_Dep()
+        if steadyState:
+            Ku_e = self.ConstruitMatElem_Dep(steadyState)
+        else:
+            Ku_e, Mu_e = self.ConstruitMatElem_Dep(steadyState)
 
         # Prépare assemblage
         lignesVector_e = mesh.lignesVector_e
@@ -367,22 +408,43 @@ class Simu:
         # plt.spy(self.__Ku)
         # plt.show()
 
-        tic.Tac("Matrices","Assemblage Ku et Fu", self.__verbosity)
-        
-        return self.__Ku
+        if steadyState:
+            tic.Tac("Matrices","Assemblage Ku et Fu", self.__verbosity)
+            return self.__Ku
+        else:
+            self.__Mu = sparse.csr_matrix((Mu_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
+            """Matrice Mglob pour le problème en déplacement (Nn*dim, Nn*dim)"""
 
-    def Solve_u(self):
-        """Resolution du probleme de déplacement"""        
+            tic.Tac("Matrices","Assemblage Ku, Mu et Fu", self.__verbosity)
+            return self.__Ku, self.__Mu
 
-        Uglob = self.__Solveur(problemType="displacement", algo="elliptic")
+    def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
+        self.__coefM = coefM
+        self.__coefK = coefK
+
+    def Get_Rayleigh_Damping(self) -> sparse.csr_matrix:
+        if self.problemType == "displacement":
+            try:
+                return self.__coefM * self.__Mu + self.__coefK * self.__Ku
+            except:
+                # "Mu n'a pas été calculé"
+                return None
+        else:
+            return None    
+
+    def Solve_u(self, steadyState=True):
+        """Resolution du probleme de déplacement""" 
+
+        if steadyState:
+            Uglob = self.__Solveur(problemType="displacement", algo="elliptic")
+        else:
+            Uglob = self.__Solveur(problemType="displacement", algo="hyperbolic")
         
         assert Uglob.shape[0] == self.mesh.Nn*self.__dim
 
         self.__displacement = Uglob
        
         return cast(np.ndarray, Uglob)
-
-    
     
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
@@ -698,6 +760,53 @@ class Simu:
             b = b + self.__Fd.copy()
         elif problemType == "displacement" and algo == "elliptic":
             b = b + self.__Fu.copy()
+        elif problemType == "displacement" and algo == "hyperbolic":
+            b = b + self.__Fu.copy()
+
+            u_n = self.displacement
+            v_n = self.speed
+
+            Cu = self.Get_Rayleigh_Damping()
+            
+            if len(self.__results) == 0 and (b.max() != 0 or b.min() != 0):
+
+                ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
+
+                bb = b - self.__Ku.dot(sparse.csr_matrix(u_n.reshape(-1, 1)))
+                
+                bb -= Cu.dot(sparse.csr_matrix(v_n.reshape(-1, 1)))
+
+                bbi = bb[ddl_Inconnues]
+                Aii = self.__Mu[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
+
+                ai_n = Interface_Solveurs.Solve_Axb(problemType=problemType, A=Aii, b=bbi, x0=None, isDamaged=False, damage=[], useCholesky=False, A_isSymetric=True, verbosity=self.__verbosity)
+
+                self.__accel[ddl_Inconnues] = ai_n
+            
+            a_n = self.accel
+
+            dt = self.__dt
+            gamma = self.__gamma
+            betha = self.__betha
+
+            uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1-2*betha) * a_n
+            vTild_np1 = v_n + (1-gamma) * dt * a_n
+
+            if self.__hyperbolicFormulation == "accel":
+                b -= self.__Ku.dot(sparse.csr_matrix(uTild_np1.reshape(-1,1)))
+                b -= Cu.dot(sparse.csr_matrix(vTild_np1.reshape(-1,1)))
+            else:
+                # Mpart = uTild_np1/(betha * dt**2)
+                # b += self.__Mu.copy().dot(sparse.csr_matrix(Mpart.reshape(-1,1)))
+
+                # b -= self.__Cu.dot(sparse.csr_matrix(C1.reshape(-1, 1)))
+                
+                # Mass_part = self.__Mu + gamma * dt * self.__Cu
+                Mass_part = self.__Mu
+                b += Mass_part.dot(sparse.csr_matrix(uTild_np1.reshape(-1, 1)))
+
+
+
         elif problemType == "thermal" and algo == "elliptic":
             b = b + self.__Ft.copy()
         elif problemType == "thermal" and algo == "parabolic":
@@ -748,6 +857,35 @@ class Simu:
         elif problemType == "displacement" and algo == "elliptic":
             taille = taille*self.__dim
             A = self.__Ku.copy()
+        elif problemType == "displacement" and algo == "hyperbolic":
+            taille = taille*self.__dim
+
+            # u_n = self.displacement
+            # v_n = self.displacementDot
+
+            dt = self.__dt
+            gamma = self.__gamma
+            betha = self.__betha
+
+            Cu = self.Get_Rayleigh_Damping()
+
+            if self.__hyperbolicFormulation == "accel":
+                A = self.__Mu.copy() + (self.__Ku.copy() * betha * dt**2)
+                A += (gamma * dt * Cu)
+
+                a_n = self.accel
+                valeurs_ddls = a_n[ddls]
+
+            else:
+
+                # uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1-2*betha) * a_n
+                # vTild_np1 = v_n + (1-gamma) * dt * a_n
+
+                # valeurs_ddls =  (u_n - uTild_np1)/(dt**2 * betha)
+
+                A = self.__Mu.copy()/(betha*dt**2) + self.__Ku.copy()
+                # A = self.__Mu.copy()/(betha*dt**2) + self.__Ku.copy() + gamma/(dt*betha) * self.__Cu
+            
         elif problemType == "thermal" and algo == "elliptic":
             A = self.__Kt.copy()
         elif problemType == "thermal" and algo == "parabolic":
@@ -814,6 +952,37 @@ class Simu:
         self.__alpha = alpha
         self.__dt = dt
 
+    """
+
+        Parameters
+        ----------
+        alpha : float, optional
+            critère alpha [0 -> Forward Euler, 1 -> Backward Euler, 1/2 -> midpoint], by default 1/2
+        dt : float, optional
+            incrément temporel, by default 0.1
+        """
+    def Set_Hyperbolic_AlgoProperties(self, betha=1/4, gamma=1/2, dt=0.1):
+        """Renseigne les propriétes de résolution de l'algorithme
+
+        Parameters
+        ----------
+        betha : float, optional
+            coef betha, by default 1/4
+        gamma : float, optional
+            coef gamma, by default 1/2
+        dt : float, optional
+            incrément temporel, by default 0.1
+        """
+
+        # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
+        # TODO Est-il possible davoir au dela de 1 ?
+
+        assert dt > 0, "l'incrément temporel doit être > 0"
+
+        self.__betha = betha
+        self.__gamma = gamma
+        self.__dt = dt
+        self.__hyperbolicFormulation = "accel"
 
     def __Solveur(self, problemType: str, algo: str, option=1) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
@@ -842,7 +1011,9 @@ class Simu:
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
 
-            if problemType == "displacement":
+            if problemType == "displacement" and algo == "elliptic":
+                x0 = self.__displacement[ddl_Inconnues]
+            if problemType == "displacement" and algo == "hyperbolic":
                 x0 = self.__displacement[ddl_Inconnues]
             elif problemType == "damage":
                 x0 = self.__damage[ddl_Inconnues]
@@ -877,8 +1048,7 @@ class Simu:
                 A_isSymetric = True
 
             xi = Interface_Solveurs.Solve_Axb(problemType=problemType, A=Aii, b=bi-bDirichlet, x0=x0,
-            isDamaged=isDamaged, damage=damage,
-            useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
+            isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
@@ -918,6 +1088,37 @@ class Simu:
             thermalDot_np1 = (thermal_np1 - thermalDotTild_np1)/(alpha*dt)
 
             return thermal_np1, thermalDot_np1
+
+        if problemType == "displacement" and algo == "hyperbolic":
+            
+            if self.__hyperbolicFormulation == "accel":
+                a_np1 = np.array(x)
+            else:
+                u_np1 = np.array(x)
+
+            u_n = self.displacement
+            v_n = self.speed
+            a_n = self.accel
+
+            dt = self.__dt
+            gamma = self.__gamma
+            betha = self.__betha
+
+            uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1-2*betha) * a_n
+            vTild_np1 = v_n + (1-gamma) * dt * a_n
+
+            if self.__hyperbolicFormulation == "accel":
+                u_np1 = uTild_np1 + betha * dt**2 * a_np1
+                v_np1 = vTild_np1 + gamma * dt * a_np1
+            else:
+                a_np1 = (u_np1 - uTild_np1)/(betha*dt**2)
+                v_np1 = vTild_np1 + (gamma * dt * a_np1)
+
+            self.__displacement = u_np1
+            self.__speed = v_np1
+            self.__accel = a_np1
+
+            return self.displacement
 
         else:
             return np.array(x)
@@ -1411,6 +1612,7 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
                 "Damage" :["damage","psiP"],
                 "Thermal" : ["thermal", "thermalDot"]
@@ -1420,6 +1622,7 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
                 "Energie" :["Wdef","Psi_Elas"],
                 "Thermal" : ["thermal", "thermalDot"]
             }
@@ -1464,6 +1667,7 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
                 "Damage" :["damage","psiP"],
                 "Thermal" : ["thermal", "thermalDot"]
@@ -1473,6 +1677,7 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
                 "Energie" :["Wdef","Psi_Elas"],
                 "Thermal" : ["thermal", "thermalDot"]
             }
@@ -1520,8 +1725,7 @@ class Simu:
 
         dim = self.__dim
 
-        # Localisation        
-        u_e_n = self.__mesh.Localises_sol_e(displacement)
+        
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
@@ -1536,40 +1740,61 @@ class Simu:
         Ne = self.__mesh.Ne
         Nn = self.__mesh.Nn
         
-        if "d" in option or "amplitude" in option:
+        if option in ["dx", "dy", "dz","amplitude","vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"]:
+            
+            if "d" in option or "amplitude" in option:
+                resultat_dim = self.displacement
+            elif "v" in option:
+                resultat_dim = self.speed
+            elif "a" in option:
+                resultat_dim = self.accel
 
-            coordoDef = self.GetCoordUglob()
+            resultat_dim = resultat_dim.reshape((Nn,-1))
+           
+            if dim == 2:
+                resultat_dim = np.append(resultat_dim,np.zeros((Nn,1)), axis=1)
 
-            dx = coordoDef[:,0]
-            dy = coordoDef[:,1]
-            dz = coordoDef[:,2]
+            rx = resultat_dim[:,0]
+            ry = resultat_dim[:,1]
+            rz = resultat_dim[:,2]
 
-            if option == "dx":
-                resultat = dx
-            elif option == "dy":
-                resultat = dy
-            elif option == "dz":
-                resultat = dz
+            if "x" in option:
+                resultat = rx
+            elif "y" in option:
+                resultat = ry
+            elif "z" in option:
+                resultat = rz
             elif option == "amplitude":
-                resultat = np.sqrt(dx**2 + dy**2 + dz**2)
+                resultat = np.sqrt(rx**2 + ry**2 + rz**2)
+            elif option in ["speed", "accel"]:
+                resultat = resultat_dim
 
             if not valeursAuxNoeuds:
+
+                # Localisation        
+                resultat_e_n = self.__mesh.Localises_sol_e(resultat_dim)
+
+                resultat_e = resultat_e_n.mean(axis=1)
+
                 # On récupère les déplacements sur chaque element
-                listCoordX = np.array(range(0, u_e_n.shape[1], self.__dim))
-                dx_e_n = u_e_n[:,listCoordX]; dx_e = np.mean(dx_e_n, axis=1)
-                dy_e_n = u_e_n[:,listCoordX+1]; dy_e = np.mean(dy_e_n, axis=1)
-                dz_e = np.zeros(dy_e_n.shape[0])
-                if self.__dim == 3:
-                    dz_e_n = u_e_n[:,listCoordX+2]; dz_e = np.mean(dz_e_n, axis=1)
+                
+                rx_e = resultat_e[:,0]
+                ry_e = resultat_e[:,1]
+                rz_e = resultat_e[:,2]
 
                 if option == "dx":
-                    resultat = dx_e
+                    resultat = rx_e
                 elif option == "dy":
-                    resultat = dy_e
+                    resultat = ry_e
                 elif option == "dz":
-                    resultat = dz_e
+                    resultat = rz_e
                 elif option == "amplitude":
-                    resultat = np.sqrt(dx_e**2 + dy_e**2 + dz_e**2)
+                    resultat = np.sqrt(rx_e**2 + ry_e**2 + rz_e**2)
+                elif option in ["speed", "accel"]:
+                    resultat = np.zeros((Ne, 3))
+                    resultat[:,0] = rx_e
+                    resultat[:,1] = ry_e
+                    resultat[:,2] = rz_e
             
             return resultat
 
@@ -1789,5 +2014,3 @@ class Simu:
             return coordo
         else:
             return None
-
-

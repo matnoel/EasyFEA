@@ -251,10 +251,14 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
         nodesField = ["thermal", "thermalDot"] # "thermalDot"
         elementsField = []
     elif problemType == "damage":
-        nodesField =  ["coordoDef","damage"]
+        nodesField =  ["coordoDef","damage"]        
         elementsField=["Stress"] # ["Stress","psiP"]
     elif problemType == "displacement":
         nodesField =  ["coordoDef"]
+        if isinstance(simu.speed, np.ndarray):
+            nodesField.append("speed")
+        if isinstance(simu.accel, np.ndarray):
+            nodesField.append("accel")
         elementsField=["Stress"]
 
     for i, iter in enumerate(listIter):
@@ -288,10 +292,10 @@ def __Get_listIter(NiterMax: int, NiterFin: int, NiterCyble: int) -> np.ndarray:
 
     if NiterMax > NiterCyble:
         listIter = np.linspace(0, NavantFin, NiterRestant, endpoint=True, dtype=int)
+        listIter = np.append(listIter, listIterFin)
     else:
-        listIter = np.linspace(0, NiterMax, NiterMax, endpoint=True, dtype=int)
+        listIter = np.arange(NiterMax+1)
 
-    listIter = np.append(listIter, listIterFin)
 
     return listIter
 
