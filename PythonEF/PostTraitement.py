@@ -274,7 +274,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
         pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
 
-        print(f"SaveParaview {iter+1}/{NiterMax} {pourcentageEtTempsRestant}    ", end='\r')
+        print(f"SaveParaview {iter}/{NiterMax} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')
 
     tic = Tic()
