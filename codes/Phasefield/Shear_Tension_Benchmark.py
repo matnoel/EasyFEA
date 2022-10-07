@@ -24,6 +24,7 @@ nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = True
 solve = True
+pltMesh = True
 plotResult = False
 saveParaview = False
 makeMovie = False
@@ -45,13 +46,16 @@ dim = 2
 
 # Paramètres géométrie
 L = 1e-3;  #m
-l0 = 1e-5 # taille fissure test femobject ,7.5e-6, 1e-5
-# l0 = 7.5e-6
-Gc = 2.7e3
+if comportement == "Elas_Anisot":
+    l0 = 0.0085e-3
+    Gc = 1e-3 * 1e-3 * 1e3
+else:
+    l0 = 1e-5 # taille fissure test femobject ,7.5e-6, 1e-5
+    Gc = 2.7e3 # J/m2
 
 # Paramètres maillage
 if test:
-    taille = 1e-5 #taille maille test fem object
+    taille = l0 #taille maille test fem object
     # taille = 0.001
     # taille *= 1.5
 else:
@@ -74,8 +78,10 @@ if solve:
     line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille)
 
     mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=True, openCrack=openCrack)
-    Affichage.Plot_Maillage(mesh)
-    # plt.show()
+    
+    if pltMesh:
+        Affichage.Plot_Maillage(mesh)
+        plt.show()
 
     # Récupère les noeuds qui m'interessent
     noeuds_Milieu = mesh.Nodes_Line(line)
@@ -171,6 +177,7 @@ if solve:
         
         listInc = [u_inc]
         listThreshold = [chargement[-1]]
+        optionTreshold = "displacement"
 
     elif simulation == "Tension":
         if test:
@@ -185,6 +192,16 @@ if solve:
         
         listInc = [u0, u1]
         listThreshold = [chargement[N0], chargement[N1]]
+        optionTreshold = "displacement"
+
+    elif isinstance(comportement, Elas_Anisot):
+
+        uinc0 = 6*1e-8; tresh0 = 0
+        uinc1 = 2*1e-8; tresh1 = 0.6
+
+        listInc = [uinc0, uinc1]
+        listThreshold = [tresh0, tresh1]
+        optionTreshold = "damage"
 
     PhaseFieldSimulation.ResumeChargement(simu, chargement[-1],listInc, listThreshold, "displacement")
 
@@ -192,6 +209,7 @@ if solve:
     uglob_t=[]
 
     dep = 0
+    iter = 0
 
     tic = Tic()
 
@@ -203,8 +221,28 @@ if solve:
     deplacements=[]
     forces=[]
 
+    def Condition():
+
+        if isinstance(comportement, Elas_Isot):
+
+            return dep <= chargement[-1]
+        
+        elif isinstance(comportement, Elas_Anisot):
+
+            return np.any(simu.damage <= 1)
+
+        else:
+
+            raise "Pas implémenté"
+
+
+
+    # while dep <
+
     N = chargement.shape[0]
-    for iter, dep in enumerate(chargement):
+
+
+    while Condition():
 
         tic = Tic()
 
@@ -226,6 +264,15 @@ if solve:
         f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
         PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, dincMax, temps, "µm", iter/N, True)
+
+        if isinstance(comportement, Elas_Anisot):
+            if simu.damage.max() < tresh1:
+                ud += uinc0
+            else:
+                ud += uinc1
+        else:
+            ud = chargement[iter]
+
   
         deplacements.append(dep)
         forces.append(f)
@@ -235,6 +282,8 @@ if solve:
 
         if bord == 5:
             break
+
+        iter += 1
             
     # Sauvegarde
     print()

@@ -437,6 +437,7 @@ class Elas_IsotTrans(LoiDeComportement):
         resume = f"\nElas_IsotTrans :"
         resume += f"\nEl = {self.El:.2e}, Et = {self.El:.2e}, Gl = {self.Gl:.2e}"
         resume += f"\nvl = {self.vl}, vt = {self.vt}"
+        resume += f"\naxi_l = {self.__axis1},  axi_t = {self.__axis2}"
         if self.__dim == 2:
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
@@ -617,10 +618,11 @@ class Elas_Anisot(LoiDeComportement):
 
     @property
     def resume(self) -> str:
-        resume = f"\nElas_Isot :"
-        resume += f"\nE = {self.E:.2e}, v = {self.v}"
+        resume = f"\nElas_Anisot :"
+        resume += f"\n{self.get_C()}"
+        resume += f"\naxi1 = {self.__axis1},  axi2 = {self.__axis2}"
         if self.__dim == 2:
-            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
+            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"
         return resume
 
 
