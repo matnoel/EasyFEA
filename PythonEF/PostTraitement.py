@@ -154,10 +154,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
     N = len(results)
 
-    if N > Niter:
-        listIter = np.linspace(0, N, Niter, endpoint=False, dtype=int)
-    else:
-        listIter = np.linspace(0, N, N, endpoint=False, dtype=int)
+    listIter = __Get_listIter(NiterMax=N, NiterFin=100, NiterCyble=Niter)
     
     Niter = len(listIter)
 

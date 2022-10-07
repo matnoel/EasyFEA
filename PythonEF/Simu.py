@@ -1709,7 +1709,7 @@ class Simu:
             if not self.materiau.isDamaged:
                 print("Le matériau n'est pas endommageable")
                 return
-            resultat = self.__damage
+            return self.damage
 
         if option == "displacement":
             return self.__displacement
