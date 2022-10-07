@@ -24,7 +24,7 @@ nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = True
 solve = True
-pltMesh = True
+pltMesh = False
 plotResult = False
 saveParaview = False
 makeMovie = False
@@ -266,7 +266,7 @@ if solve:
         PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, dincMax, temps, "µm", iter/N, True)
 
         if isinstance(comportement, Elas_Anisot):
-            if simu.damage.max() < tresh1:
+            if simu.damage.max() < 0.6:
                 ud += uinc0
             else:
                 ud += uinc1
