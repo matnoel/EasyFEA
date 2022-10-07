@@ -1,3 +1,4 @@
+from cmath import isclose
 from typing import List, cast
 
 from TicTac import Tic
@@ -14,19 +15,19 @@ class LoiDeComportement(object):
 
     @staticmethod
     def get_LoisDeComportement():
-        liste = [Elas_Isot, Elas_IsotTrans]
+        liste = [Elas_Isot, Elas_IsotTrans, Elas_Anisot]
         return liste
 
     @staticmethod
-    def get_M(axis_1: np.ndarray, axis_2: np.ndarray):
-        """Création de la matrice de changement de base M\n
-        on utilise M pour passer des coordonnées du matériau au coordonnée global \n
+    def get_P(axis_1: np.ndarray, axis_2: np.ndarray):
+        """Création de la matrice de changement de base P\n
+        on utilise P pour passer des coordonnées du matériau au coordonnée global \n
         
         Tet que :\n
 
         C et S en [11, 22, 33, racine(2)*23, racine(2)*13, racine(2)*12]
 
-        C_global = M' * C_materiau * M et S_global = M' * S_materiau * M
+        C_global = P' * C_materiau * P et S_global = P' * S_materiau * P
 
         Ici j'utilise Chevalier 1988 : Comportements élastique et viscoélastique des composites
         mais avec la transformation parce qu'on est en mandel\n
@@ -204,6 +205,15 @@ class LoiDeComportement(object):
         matriceMandelCoef = Matrice*transform
 
         return matriceMandelCoef
+
+    @staticmethod
+    def Apply_P(P, Matrice):
+        matrice_P = np.einsum('ji,jk,kl->il',P, Matrice, P, optimize='optimal')
+
+        # on verfie que les invariants du tenseur ne change pas !
+        test_det_c = np.linalg.det(matrice_P) - np.linalg.det(Matrice); assert test_det_c <1e-12
+        test_trace_c = np.trace(matrice_P) - np.trace(Matrice); assert test_trace_c <1e-12
+        return matrice_P
 
 class Elas_Isot(LoiDeComportement):   
 
@@ -387,15 +397,17 @@ class Elas_IsotTrans(LoiDeComportement):
 
         # Création de la matrice de changement de base
 
+        self.__axis1 = axis_l
+        self.__axis2 = axis_t
         
-        M = LoiDeComportement.get_M(axis_1=axis_l, axis_2=axis_t)
+        P = self.get_P(axis_1=axis_l, axis_2=axis_t)
 
         if np.linalg.norm(axis_l-np.array([1,0,0]))<1e-12 and np.linalg.norm(axis_t-np.array([0,1,0]))<1e-12:
             useSameAxis=True
         else:
             useSameAxis=False
 
-        C, S = self.__Comportement(M, useSameAxis)
+        C, S = self.__Comportement(P, useSameAxis)
 
         LoiDeComportement.__init__(self, dim, C, S, epaisseur)
 
@@ -429,7 +441,7 @@ class Elas_IsotTrans(LoiDeComportement):
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
         return resume
 
-    def __Comportement(self, M, useSameAxis: bool):
+    def __Comportement(self, P, useSameAxis: bool):
         """"Construit les matrices de comportement en kelvin mandel\n
         
         En 2D:
@@ -479,24 +491,16 @@ class Elas_IsotTrans(LoiDeComportement):
         # assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
 
         # Effectue le changement de base pour orienter le matériau dans lespace
-        global_sM = np.einsum('ji,jk,kl->il',M, material_sM, M, optimize='optimal')
-        global_cM = np.einsum('ji,jk,kl->il',M, material_cM, M, optimize='optimal')
+        global_sM = self.Apply_P(P, material_sM)
+        global_cM = self.Apply_P(P, material_cM)
         
         # verification que si les axes ne change pas on obtient bien la meme loi de comportement
         test_diff_c = global_cM - material_cM
         if useSameAxis: assert(np.linalg.norm(test_diff_c)<1e-12)
 
-        # on verfie que les invariants du tenseur ne change pas !
-        test_det_c = np.linalg.det(global_cM) - np.linalg.det(material_cM); assert test_det_c <1e-12
-        test_trace_c = np.trace(global_cM) - np.trace(material_cM); assert test_trace_c <1e-12
-
         # verification que si les axes ne change pas on obtient bien la meme loi de comportement
         test_diff_s = global_sM - material_sM
         if useSameAxis: assert np.linalg.norm(test_diff_s) < 1e-12
-
-        # on verfie que les invariants du tenseur ne change pas !
-        test_det_s = np.linalg.det(global_sM) - np.linalg.det(material_sM); assert test_det_s <1e-12
-        test_trace_s = np.trace(global_sM) - np.trace(material_sM); assert test_trace_s <1e-12
         
         c = global_cM
         s = global_sM
@@ -516,6 +520,108 @@ class Elas_IsotTrans(LoiDeComportement):
             
         
         return c, s
+
+class Elas_Anisot(LoiDeComportement):   
+
+    def __init__(self, dim: int, C_voigt: np.ndarray, axis1:np.ndarray, axis2=None, contraintesPlanes=True, epaisseur=1.0):
+        """Création d'une loi de comportement elastique anisotrope
+
+        Parameters
+        ----------
+        dim : int
+            dimension
+        C_voigt : np.ndarray
+            matrice de rigidité en notation de voigt dans la base d'anisotropie
+        axis1 : np.ndarray
+            vecteur de l'axe1
+        axis2 : np.ndarray, optional
+            vecteur de l'axe2, by default None
+        contraintesPlanes : bool, optional
+            simplification 2D, by default True
+        epaisseur : float, optional
+            epaisseur du matériau, by default 1.0
+
+        Returns
+        -------
+        Elas_Anisot
+            Loi de comportemet anisotrope
+        """
+
+        # Vérification des valeurs
+        assert dim in [2,3], "doit être en 2 et 3"
+        self.__dim = dim
+        
+        # Verification sur la matrice
+        if dim == 2:
+            assert C_voigt.shape == (3,3), "La matrice doit être de dimension 3x3"
+        else:
+            assert C_voigt.shape == (6,6), "La matrice doit être de dimension 6x6"
+        assert np.linalg.norm(C_voigt.T - C_voigt) <= 1e-12, "La matrice n'est pas symétrique"
+
+        # Verification et construction des vecteurs
+        assert axis1.size == 3, "Doit fournir un vecteur" 
+        self.__axis1 = axis1
+        def Calc_axis2():
+            theta = np.pi/2
+            rot = np.array([[np.cos(theta), -np.sin(theta), 0],
+                            [np.sin(theta), np.cos(theta), 0],
+                            [0, 0, 1]])
+            axis2 = rot.dot(axis1)
+            return axis2
+
+        if axis2 == None:
+            axis2 = Calc_axis2()
+        else:
+            assert axis2.size == 3, "Doit fournir un vecteur"
+            if not np.isclose(axis1.dot(axis2), 0, 1e-12):
+                axis2 = Calc_axis2()
+
+        self.__axis2 = axis2
+
+        # Construction de la matrice de rotation
+        P = self.get_P(axis_1=axis1, axis_2=axis2)
+
+        # Application des coef
+        C_mandel = self.ApplyKelvinMandelCoefTo_Matrice(dim, C_voigt)
+
+        # Passage de la matrice en 3D pour faire la rotation
+
+        if dim == 2:
+
+            C_mandel_global = np.zeros((6,6))
+
+            listIndex = np.array([0,1,5])
+            
+            for i, I in enumerate(listIndex):
+                for j, J in enumerate(listIndex):
+                    C_mandel_global[I,J] = C_mandel[i, j]
+
+        else:
+            C_mandel_global = C_voigt
+
+        C_mandelP_global = self.Apply_P(P, C_mandel_global)
+
+        if dim == 2:
+            listIndex = np.array([0,1,5])
+            C_mandelP = C_mandelP_global[listIndex, :][:, listIndex]
+        else:
+            C_mandelP = C_mandelP_global
+
+        S_mandelP = np.linalg.inv(C_mandelP)
+
+        if dim == 2:
+            self.contraintesPlanes = contraintesPlanes
+            """type de simplification 2D"""
+
+        LoiDeComportement.__init__(self, dim, C_mandelP, S_mandelP, epaisseur)
+
+    @property
+    def resume(self) -> str:
+        resume = f"\nElas_Isot :"
+        resume += f"\nE = {self.E:.2e}, v = {self.v}"
+        if self.__dim == 2:
+            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
+        return resume
 
 
 class PhaseFieldModel:

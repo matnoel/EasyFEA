@@ -7,7 +7,7 @@ import PostTraitement as PostTraitement
 import Dossier as Dossier
 import Affichage as Affichage
 
-from Materials import Elas_IsotTrans, PhaseFieldModel, Elas_Isot, Materiau
+from Materials import Elas_IsotTrans, PhaseFieldModel, Elas_Isot, Materiau, Elas_Anisot
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 from Simu import Simu
@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-simulation = "Shear" #"Shear" , "Tension"
+simulation = "Tension" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = True
@@ -30,7 +30,7 @@ makeMovie = False
 
 # Data --------------------------------------------------------------------------------------------
 
-comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans"
+comportement = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 split = "AnisotStress" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
@@ -58,9 +58,7 @@ else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
 
-folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier,
-comp=comportement, split=split, regu=regularisation, simpli2D='DP',
-tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=0)
+folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=0)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -75,9 +73,7 @@ if solve:
     domain = Domain(Point(), Point(x=L, y=L), taille=taille)
     line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille)
 
-    mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType,
-    isOrganised=True, openCrack=openCrack)
-
+    mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=True, openCrack=openCrack)
     Affichage.Plot_Maillage(mesh)
     # plt.show()
 
@@ -102,6 +98,28 @@ if solve:
 
     if comportement == "Elas_Isot":
         comportement = Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+    elif comportement == "Elas_Anisot":
+
+        if dim == 2:
+
+            c11 = 65
+            c22 = 260
+            c33 = 30
+            c12 = 20
+
+            C_voigt = np.array([[c11, c12, 0],
+                                [c12, c22, 0],
+                                [0, 0, c33]])
+
+            tetha = 0
+            tetha_rad = tetha * np.pi/180
+
+            axis1 = np.array([np.cos(tetha_rad), np.sin(tetha_rad), 0])
+
+        else:
+            raise "Pas implémenté"
+
+        comportement = Elas_Anisot(dim, C_voigt=C_voigt, axis1=axis1, contraintesPlanes=False)
     else:
         # comportement = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
         raise "Pas implémenté pour le moment"
