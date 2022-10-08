@@ -194,7 +194,7 @@ if solve:
         listThreshold = [chargement[N0], chargement[N1]]
         optionTreshold = "displacement"
 
-    elif isinstance(comportement, Elas_Anisot):
+    if isinstance(comportement, Elas_Anisot):
 
         uinc0 = 6*1e-8; tresh0 = 0
         uinc1 = 2*1e-8; tresh1 = 0.6
@@ -240,7 +240,7 @@ if solve:
     # while dep <
 
     N = chargement.shape[0]
-
+    ud=0
 
     while Condition():
 
@@ -266,7 +266,7 @@ if solve:
         PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, dincMax, temps, "µm", iter/N, True)
 
         if isinstance(comportement, Elas_Anisot):
-            if simu.damage.max() < 0.6:
+            if simu.damage.max() < tresh1:
                 ud += uinc0
             else:
                 ud += uinc1
