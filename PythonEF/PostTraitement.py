@@ -154,7 +154,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
     N = len(results)
 
-    listIter = __Get_listIter(NiterMax=N, NiterFin=100, NiterCyble=Niter)
+    listIter = __Get_listIter(NiterMax=N-1, NiterFin=100, NiterCyble=Niter)
     
     Niter = len(listIter)
 
