@@ -25,17 +25,20 @@ ticTot = Tic()
 
 plotResult = True
 
-saveParaview = True
+saveParaview = True; NParaview = 500
 
 useNumba = True
 
-isLoading = True
+isLoading = False
 initSimu = True
 
-plotIter = True; affichageIter = "dy"
+plotIter = True; affichageIter = "Svm"
 
-Tmax = 20
-N = 1
+coefM = 1/4
+coefK = 1e-4
+
+Tmax = 2
+N = 400
 dt = Tmax/N
 t = 0
 
@@ -51,7 +54,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/10
+taille = h/6
 # taille = h/200
 
 comportement = Elas_Isot(dim, epaisseur=b)
@@ -69,7 +72,7 @@ if dim == 2:
     LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
     circle = Circle(Point(x=L/2, y=0), h*0.2, isCreux=False)
     
-    elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+    elemType = "QUAD4" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
     mesh = interfaceGmsh.Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
@@ -100,7 +103,7 @@ noeuds_en_h = mesh.Nodes_Conditions(conditionY=lambda y: y == h/2) # noeuds_en_h
 # ------------------------------------------------------------------------------------------------------
 
 simu = Simu(mesh, materiau, useNumba=useNumba, verbosity=False)
-simu.Set_Rayleigh_Damping_Coefs(coefM=1e-12, coefK=1e-12)
+simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
 def Chargement(isLoading: bool):
 
@@ -119,9 +122,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet("displacement", noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad("displacement", noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        # simu.add_dirichlet("displacement", noeuds_en_L, [-7,0], ["y","x"], description="dep")
+        simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
 
-        simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
+        # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
         pass
 
@@ -167,7 +170,7 @@ while t <= Tmax:
 
     t += dt
 
-    print(f"{t:2}", end='\r')
+    print(f"{int(t/dt)}", end='\r')
 
 # PostTraitement.Save_Simu(simu, folder)
 
@@ -185,7 +188,7 @@ Affichage.Plot_BoundaryConditions(simu)
 
 if saveParaview:        
     filename = Dossier.NewFile(os.path.join("Etude2D","solution2D"), results=True)
-    PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+    PostTraitement.Save_Simulation_in_Paraview(folder, simu,Niter=NParaview)
 
 if plotResult:
 
