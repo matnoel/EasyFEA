@@ -17,9 +17,10 @@ Affichage.Clear()
 test = True
 loadSimu = True
 plotDamage = False
+saveDamage = False
 
 # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark"
-simulation = "PlateWithHole_Benchmark"
+simulation = "Shear_Benchmark"
 
 if simulation == "PlateWithHole_Benchmark":
     colorBarIsClose = True
@@ -33,6 +34,9 @@ if test:
 else:
     folderSauvegarde = Dossier.Join([folder, "_Post traitement"])
 
+if not saveDamage:
+    folderSauvegarde=""
+
 # ["Bourdin","Amor","Miehe","He","Stress"]
 # ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 # ["AnisotStress","AnisotStress_NoCross"]
@@ -44,18 +48,20 @@ else:
 # ["AnisotMiehe","He"]
 # ["AnisotMiehe", "He", "AnisotStress", "Stress"]
 
-listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans"]
-listRegu = ["AT1"] # ["AT1", "AT2"]
+listComp = ["Elas_Anisot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+listRegu = ["AT2"] # ["AT1", "AT2"]
 listSimpli2D = ["DP"] # ["CP","DP"]
 listSolveur = ["History"]
 listSplit = ["AnisotStress"]
 listOptimMesh=[True] # [True, False]
-listTol = [1e-0, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+listTol = [1e-0] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+listnL = [0] # [100] [100, 120, 140, 180, 200]
+listTetha = [0]
 
 # snapshot = [18.5, 24.6, 25, 28, 35]
-snapshot = [70]
+snapshot = [100]
 
-depMax = 80 # µm 35 ou 80
+depMax = 4000 # µm 35 ou 80
 
 # Génération des configurations
 listConfig = []
@@ -67,7 +73,9 @@ for comp in listComp:
                 for split in listSplit:
                     for tol in listTol:
                         for optimMesh in listOptimMesh:
-                            listConfig.append([comp, regu, simpli2D, solveur, split, tol, optimMesh])
+                            for nL in listnL:
+                                for tetha in listTetha:
+                                    listConfig.append([comp, regu, simpli2D, solveur, split, tol, optimMesh, nL, tetha])
 
 Nconfig = len(listConfig)
 
@@ -89,12 +97,12 @@ for config in listConfig:
     split = config[4]
     tolConv = config[5]
     optimMesh = config[6]
+    nL = config[7]
+    tetha = config[8]
 
     tic = TicTac.Tic()
 
-    foldername = PhaseFieldSimulation.ConstruitDossier(dossierSource=simulation,
-    comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv,
-    solveur=solveur, test=test, optimMesh=optimMesh, openCrack=False, v=v)
+    foldername = PhaseFieldSimulation.ConstruitDossier(dossierSource=simulation, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, openCrack=False, v=v, nL=nL, tetha=tetha)
 
     nomSimu = foldername.split(comp+'_')[-1]
 
@@ -146,7 +154,7 @@ for config in listConfig:
 
     if loadSimu:
         try:
-            resulats = pd.DataFrame(simu.Get_Results())
+            resulats = pd.DataFrame(simu.Get_All_Results())
             temps = resulats['tempsIter'].sum(axis=0)
             tempsCoef, unite = TicTac.Tic.Get_temps_unite(temps)
             print(f'{np.round(tempsCoef, 2)} {unite}')
