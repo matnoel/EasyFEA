@@ -46,9 +46,11 @@ dim = 2
 # Paramètres géométrie
 L = 1e-3;  #m
 if comportement == "Elas_Anisot":
+    tetha = 0
     l0 = 0.0085e-3
     Gc = 1e-3 * 1e-3 * 1e3
 else:
+    tetha = 0
     l0 = 1e-5 # taille fissure test femobject ,7.5e-6, 1e-5
     Gc = 2.7e3 # J/m2
 
@@ -61,7 +63,7 @@ else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
 
-folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=0)
+folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=0, tetha=tetha)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -116,7 +118,7 @@ if solve:
                                 [c12, c22, 0],
                                 [0, 0, c33]])
 
-            tetha = 0
+            
             tetha_rad = tetha * np.pi/180
 
             axis1 = np.array([np.cos(tetha_rad), np.sin(tetha_rad), 0])
@@ -228,7 +230,7 @@ if solve:
         
         elif isinstance(comportement, Elas_Anisot):
 
-            return np.any(simu.damage <= 1)
+            return np.any(simu.damage[NoeudsBord] <= 1)
 
         else:
 
@@ -262,7 +264,12 @@ if solve:
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
-        PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, dincMax, temps, "µm", iter/N, True)
+        if isinstance(comportement, Elas_Anisot):
+            pourcentage = 0
+        else:
+            pourcentage = iter/N
+
+        PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, dincMax, temps, "µm", pourcentage, True)
 
         if isinstance(comportement, Elas_Anisot):
             if simu.damage.max() < tresh1:
