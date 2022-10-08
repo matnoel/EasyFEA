@@ -139,7 +139,8 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         
         ax.autoscale()
         ax.axis('equal')
-        ax.axis('off')
+        if simu.problemType in ["thermal"]:
+            ax.axis('off')
         
         divider = make_axes_locatable(ax)
         if colorbarIsClose:
@@ -201,15 +202,25 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
             
         __ChangeEchelle(ax, coordo)
 
+    if option == "damage":
+        option = "\phi"
+    elif option == "thermal":
+        option = "T"
+    elif "S" in option:
+        optionFin = option.split('S')[-1]
+        option = f"\sigma_{'{'+optionFin+'}'}"
+    elif "E" in option:
+        optionFin = option.split('E')[-1]
+        option = f"\epsilon_{'{'+optionFin+'}'}"
     
     if valeursAuxNoeuds:
-        loc = "_n"
+        loc = "^{n}"
     else:
-        loc = "_e"
+        loc = "^{e}"
 
     if title == "":
         title = option+loc
-    ax.set_title(title)
+    ax.set_title(fr"${title}$")
 
     if folder != "":
         import PostTraitement as PostTraitement
