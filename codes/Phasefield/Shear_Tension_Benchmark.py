@@ -1,5 +1,4 @@
 # %%
-import os
 import PhaseFieldSimulation
 from BoundaryCondition import BoundaryCondition
 
@@ -240,7 +239,7 @@ if solve:
     # while dep <
 
     N = chargement.shape[0]
-    ud=0
+    
 
     while Condition():
 
@@ -267,11 +266,11 @@ if solve:
 
         if isinstance(comportement, Elas_Anisot):
             if simu.damage.max() < tresh1:
-                ud += uinc0
+                dep += uinc0
             else:
-                ud += uinc1
+                dep += uinc1
         else:
-            ud = chargement[iter]
+            dep = chargement[iter]
 
   
         deplacements.append(dep)
