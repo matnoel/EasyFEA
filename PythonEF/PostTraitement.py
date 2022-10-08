@@ -131,7 +131,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def MakeMovie(folder: str, option: str, simu: Simu, Niter=200,
+def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100,
 deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
     
     # Verifie que l'option est dispo
@@ -154,7 +154,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
     N = len(results)
 
-    listIter = __Get_listIter(NiterMax=N-1, NiterFin=100, NiterCyble=Niter)
+    listIter = __Get_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
     Niter = len(listIter)
 

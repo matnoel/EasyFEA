@@ -214,7 +214,8 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         option = f"\epsilon_{'{'+optionFin+'}'}"
     
     if valeursAuxNoeuds:
-        loc = "^{n}"
+        # loc = "^{n}"
+        loc = ""
     else:
         loc = "^{e}"
 
