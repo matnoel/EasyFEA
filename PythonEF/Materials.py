@@ -51,6 +51,8 @@ class LoiDeComportement(object):
             print("Création d'un nouvel axe transverse. axis_l et axis_t ne sont pas perpendiculaire")
 
         axis_3 = np.cross(axis_1, axis_2, axis=0)
+        axis_3 = axis_3/np.linalg.norm(axis_3)
+
 
         # Construit la matrice de chamgement de base x = [P] x'
         # P passe de la base global a la base du matériau
@@ -207,12 +209,16 @@ class LoiDeComportement(object):
         return matriceMandelCoef
 
     @staticmethod
-    def Apply_P(P, Matrice):
+    def Apply_P(P: np.ndarray, Matrice: np.ndarray):
         matrice_P = np.einsum('ji,jk,kl->il',P, Matrice, P, optimize='optimal')
 
         # on verfie que les invariants du tenseur ne change pas !
-        test_det_c = np.linalg.det(matrice_P) - np.linalg.det(Matrice); assert test_det_c <1e-12
-        test_trace_c = np.trace(matrice_P) - np.trace(Matrice); assert test_trace_c <1e-12
+        # if np.linalg.norm(P.T-P) <= 1e-12:
+        test_det_c = np.linalg.det(matrice_P) - np.linalg.det(Matrice)
+        assert test_det_c <1e-12
+        test_trace_c = np.trace(matrice_P) - np.trace(Matrice)
+        assert test_trace_c <1e-12
+        
         return matrice_P
 
 class Elas_Isot(LoiDeComportement):   

@@ -1,7 +1,7 @@
 # %%
 import unittest
 import os
-from Materials import Elas_IsotTrans, PhaseFieldModel, LoiDeComportement, Elas_Isot
+from Materials import Elas_Anisot, Elas_IsotTrans, PhaseFieldModel, LoiDeComportement, Elas_Isot
 import numpy as np
 
 class Test_Materiau(unittest.TestCase):
@@ -25,24 +25,40 @@ class Test_Materiau(unittest.TestCase):
                     )
             elif comp == Elas_IsotTrans:
                 self.comportements3D.append(
-                    Elas_IsotTrans(3,
-                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
-                    axis_l=[1,0,0], axis_t=[0,1,0])
+                    Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, axis_l=[1,0,0], axis_t=[0,1,0])
                     )
                 self.comportements3D.append(
-                    Elas_IsotTrans(3,
-                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
-                    axis_l=[0,1,0], axis_t=[1,0,0])
+                    Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,axis_l=[0,1,0], axis_t=[1,0,0])
                     )
                 self.comportements2D.append(
-                    Elas_IsotTrans(2,
-                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
-                    contraintesPlanes=True)
+                    Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, contraintesPlanes=True)
                     )
                 self.comportements2D.append(
-                    Elas_IsotTrans(2,
-                    El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
-                    contraintesPlanes=False))
+                    Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, contraintesPlanes=False))
+
+            elif comp == Elas_Anisot:
+                C_voigt2D = np.array([  [60, 20, 0],
+                                        [20, 120, 0],
+                                        [0, 0, 30]])
+
+                axis1_1 = np.array([1,0,0])
+
+                tetha = 30*np.pi/130
+                axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
+
+                self.comportements2D.append(
+                    Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, contraintesPlanes=True)
+                    )
+
+                self.comportements2D.append(
+                    Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, contraintesPlanes=False)
+                )
+                self.comportements2D.append(
+                    Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, contraintesPlanes=True)
+                    )
+                self.comportements2D.append(
+                    Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, contraintesPlanes=False)
+                    )
         
         # phasefieldModel
         self.splits = PhaseFieldModel.get_splits()
@@ -53,7 +69,7 @@ class Test_Materiau(unittest.TestCase):
             for s in self.splits:
                 for r in self.regularizations:
                         
-                    if isinstance(c, Elas_IsotTrans) and s in ["Amor", "Miehe", "Stress"]:
+                    if (isinstance(c, Elas_IsotTrans) or isinstance(c, Elas_Anisot)) and s in ["Amor", "Miehe", "Stress"]:
                         continue
 
                     pfm = PhaseFieldModel(c,s,r,1,1)
@@ -88,6 +104,44 @@ class Test_Materiau(unittest.TestCase):
                     
                 verifC = np.linalg.norm(c-comp.get_C())/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
+
+    def test_ElasAnisot(self):
+
+        C_voigt2D = np.array([  [60, 20, 0],
+                                [20, 120, 0],
+                                [0, 0, 30]])
+        
+        C_voigt3D = np.array([  [60, 20, 10, 0, 0, 0],
+                                [20, 120, 80, 0, 0, 0],
+                                [10, 80, 300, 0, 0, 0],
+                                [0, 0, 0, 400, 0, 0],
+                                [0, 0, 0, 0, 500, 0],
+                                [0, 0, 0, 0, 0, 600]])
+
+        axis1_1 = np.array([1,0,0])
+
+
+        tetha = 30*np.pi/130
+        axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
+
+        comportement2D_CP_1 = Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, contraintesPlanes=True)
+        comportement2D_DP_1 = Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, contraintesPlanes=False)
+        
+        comportement2D_CP_2 = Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, contraintesPlanes=True)
+        comportement2D_DP_2 = Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, contraintesPlanes=False)
+        
+        comportement3D_1 = Elas_Anisot(3, C_voigt3D, axis1=axis1_1, axis2=None)
+        comportement3D_2 = Elas_Anisot(3, C_voigt3D, axis1=axis1_2, axis2=None)
+
+        listComp = [comportement2D_CP_1, comportement2D_DP_1, comportement2D_CP_2, comportement2D_DP_2, comportement3D_1, comportement3D_2]
+
+        for comp in listComp: 
+            matC = comp.get_C()
+            testSymetry = np.linalg.norm(matC.T - matC)
+            assert testSymetry <= 1e-12
+
+
+
     
     def test_ElasIsoTrans2D(self):
         # Ici on verife que lorsque l'on change les axes ça fonctionne bien
@@ -171,13 +225,11 @@ class Test_Materiau(unittest.TestCase):
             assert isinstance(pfm, PhaseFieldModel)
 
             comportement = pfm.comportement
-            coef = comportement.coef
             
-            if isinstance(comportement, Elas_Isot) or isinstance(comportement, Elas_IsotTrans):                
+            if isinstance(comportement, Elas_Isot) or isinstance(comportement, Elas_IsotTrans) or isinstance(comportement, Elas_Anisot):                
                 c = comportement.get_C()
             
             print(f"{comportement.nom} {comportement.contraintesPlanes} {pfm.split} {pfm.regularization}")
-
             
             if pfm.split == "Stress":
                 # Ici il y a un beug quand v=0.499999 et en deformation plane
