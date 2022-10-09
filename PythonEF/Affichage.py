@@ -65,8 +65,10 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     
     dim = mesh.dim
 
-    if dim==3:
-        valeursAuxNoeuds=True
+    if dim == 3:
+        # Quand on fait une simulation en 3D on ne peut afficher les résultats que sur les elements
+        # En plus, il faut tracer la solution que sur les eléments 2D
+        valeursAuxNoeuds = True
 
     valeurs = simu.Get_Resultat(option, valeursAuxNoeuds)
     if not isinstance(valeurs, np.ndarray):
@@ -176,7 +178,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         for groupElem2D in mesh.Get_list_groupElem(2):
             connect2D = groupElem2D.connect_e
             coordo2D = groupElem2D.coordoGlob
-            vertices = np.asarray(coordo2D[connect2D]) # (Ne, nPe, 3)
+            vertices = np.asarray(coordo2D[connect2D]) # (Ne, nPe, 3
 
             valeursAuxFaces = np.asarray(np.mean(valeurs[connect2D], axis=1))
 

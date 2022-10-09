@@ -191,8 +191,7 @@ deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True)
 
             cb.remove()
             
-            fig, ax, cb = Affichage.Plot_Result(simu, option, oldfig=fig, oldax=ax,
-            deformation=deformation, affichageMaillage=affichageMaillage, facteurDef=facteurDef, valeursAuxNoeuds=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, option, oldfig=fig, oldax=ax, deformation=deformation, affichageMaillage=affichageMaillage, facteurDef=facteurDef, valeursAuxNoeuds=True)
 
             title = ax.get_title()
             ax.set_title(f'{title} : {iter}/{N-1}')

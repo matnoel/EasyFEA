@@ -1848,7 +1848,7 @@ class Simu:
             if option == "Stress":
                 resultat = np.append(Sigma_e, Svm_e.reshape((Ne,1)), axis=1)            
             
-        elif option in ["E","Strain"]:
+        elif "E" in option or option == "Strain":
 
             if dim == 2:
 
