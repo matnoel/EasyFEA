@@ -1,6 +1,7 @@
 import unittest
-from Materials import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel
+from Materials import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel, ThermalModel
 from typing import cast
+from Geom import Domain, Circle, Point
 import numpy as np
 import Affichage as Affichage
 from Mesh import Mesh
@@ -13,7 +14,7 @@ import matplotlib.pyplot as plt
 
 class Test_Simu(unittest.TestCase):    
     
-    def CreationDesSimusElastique2D(self):
+    def CreationDesSimusElastique(self):
         
         dim = 2
 
@@ -28,18 +29,23 @@ class Test_Simu(unittest.TestCase):
         # Paramètres maillage
         taille = L/2
 
-        comportement = Elas_Isot(dim, epaisseur=b)
+        
 
-        materiau = Materiau(comportement, verbosity=False)
+        self.simulationsElastique = []
 
-        self.simulations2DElastique = []
-
-        listMesh2D = Interface_Gmsh.Construction2D(L=L, h=h, taille=taille)
+        listMesh = Interface_Gmsh.Construction2D(L=L, h=h, taille=taille)
+        listMesh.extend(Interface_Gmsh.Construction3D(L=L, h=h, b=b, taille=h/2))
 
         # Pour chaque type d'element 2D       
-        for mesh in listMesh2D:           
+        for mesh in listMesh:           
 
-            mesh = cast(Mesh, mesh)
+            assert isinstance(mesh, Mesh)
+
+            dim = mesh.dim
+
+            comportement = Elas_Isot(dim, epaisseur=b)
+
+            materiau = Materiau(comportement, verbosity=False)
             
             simu = Simu(mesh, materiau, verbosity=False)
 
@@ -53,79 +59,97 @@ class Test_Simu(unittest.TestCase):
             simu.add_dirichlet("displacement",noeuds_en_L, [lambda x,y,z: 1], ['x'])
             simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
 
-            self.simulations2DElastique.append(simu)
-
-    def CreationDesSimusElastique3D(self):
-
-        dir_path = Dossier.GetPath()
-        fichier = Dossier.Join([dir_path, "models", "part.stp"])
-
-        dim = 3
-
-        # Paramètres géométrie
-        L = 120  #mm
-        h = 13    
-        b = 13
-
-        P = -800 #N
-
-        # Paramètres maillage        
-        taille = L/2
-
-        comportement = Elas_Isot(dim)
-
-        materiau = Materiau(comportement, verbosity=False)
-        
-        self.simulations3DElastique = []
-
-        listMesh3D = Interface_Gmsh.Construction3D(L=L, h=h, b=b, taille=h/2)
-
-        # Pour chaque type d'element 2D
-        for mesh in listMesh3D:
-
-            mesh = cast(Mesh, mesh)
-            
-            simu = Simu(mesh, materiau, verbosity=False)
-
-            simu.Assemblage_u()
-
-            noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
-            noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
-
-            simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
-            # simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])
-            simu.add_dirichlet("displacement",noeuds_en_L, [lambda x,y,z: 1], ['x'])
-            simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
-
-            self.simulations3DElastique.append(simu)
+            self.simulationsElastique.append(simu)
     
-    def setUp(self):
-        self.CreationDesSimusElastique2D()
-        self.CreationDesSimusElastique3D()  
+    def CreationDesSimusThermique(self):
 
-    def test_ResolutionDesSimulationsElastique2D(self):
+        a = 1
+
+        listMesh = Interface_Gmsh.Construction2D(L=a, h=a, taille=a/10)
+
+        listMesh.extend(Interface_Gmsh.Construction3D(L=a, h=a, b=a, taille=a/10))
+
+        self.simulationsThermique = []
+
+        for mesh in listMesh:
+
+            assert isinstance(mesh, Mesh)
+
+            dim = mesh.dim
+
+            thermalModel = ThermalModel(dim=dim, k=1, c=1, epaisseur=a)
+
+            materiau = Materiau(thermalModel, verbosity=False)
+
+            simu = Simu(mesh , materiau, False)
+
+            noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
+            noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
+            
+            simu.add_dirichlet("thermal", noeuds0, [0], [""])
+            simu.add_dirichlet("thermal", noeudsL, [40], [""])
+
+            self.simulationsThermique.append(simu)
+            
+
+    def setUp(self):
+        self.CreationDesSimusElastique()
+        self.CreationDesSimusThermique()
+        pass
+
+    def test_ResolutionDesSimulationsElastique(self):
         # Pour chaque type de maillage on simule
-        ax=None        
-        for simu in self.simulations2DElastique:
+        for simu in self.simulationsElastique:
             simu = cast(Simu, simu)
-            simu.Solve_u()
+
+            simu.Assemblage_u(steadyState=False)
+
+            simu.Solve_u(steadyState=True)
             fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True)
-            plt.pause(0.00001)
+            plt.pause(1e-12)
+            plt.close(fig)
+            
+            simu.Set_Hyperbolic_AlgoProperties(dt=0.5)
+            simu.Solve_u(steadyState=False)
+            fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True)
+            plt.pause(1e-12)
             plt.close(fig)
 
-    def test_ResolutionDesSimulationsElastique3D(self):
+    def test_ResolutionDesSimulationsThermique(self):
         # Pour chaque type de maillage on simule
-        ax=None
-        for simu in self.simulations3DElastique:
+        
+        for simu in self.simulationsThermique:
             simu = cast(Simu, simu)
-            simu.Solve_u()
+
+            N = len(simu.Get_All_Results())
+
+            fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True)
+
+            Tmax = 1
+            N = 2
+            dt = Tmax/N
+            t = 0
+
+            simu.Set_Parabolic_AlgoProperties(alpha=0.5, dt=0.1)
             
-            fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True)
-            plt.pause(0.00001)
+            while t < Tmax:
+
+                simu.Assemblage_t(steadyState=False)
+
+                simu.Solve_t(steadyState=False)
+
+                cb.remove()
+                fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True, oldfig=fig, oldax=ax)
+                plt.pause(1e-12)
+
+                simu.Save_Iteration()
+
+                t += dt
+
             plt.close(fig)
 
     def test__ConstruitMatElem_Dep(self):
-        for simu in self.simulations2DElastique:
+        for simu in self.simulationsElastique:
             simu = cast(Simu, simu)
             Ke_e = simu.ConstruitMatElem_Dep()
             self.__VerificationConstructionKe(simu, Ke_e)
