@@ -44,7 +44,7 @@ class Gauss:
         elemType : str
             type d'element
         matriceType : str
-            ["rigi", "masse"]
+            ["rigi", "masse","beam"]
 
         Returns
         -------
@@ -62,7 +62,7 @@ class Gauss:
                 nPg = 1
                 x = 0
                 poids = 2
-            elif matriceType == "masse":
+            elif matriceType in ["masse","beam"]:
                 nPg = 2
                 x = [-np.sqrt(1/3), np.sqrt(1/3)]
                 poids = [1]*2
@@ -73,7 +73,7 @@ class Gauss:
                 nPg = 2
                 x = [-np.sqrt(1/3), np.sqrt(1/3)]
                 poids = [1]*2
-            elif matriceType == "masse":
+            elif matriceType in ["masse","beam"]:
                 nPg = 3
                 x = [-np.sqrt(3/5), 0, np.sqrt(3/5)]
                 poids = [5/9, 8/9, 5/9]
