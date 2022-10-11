@@ -33,10 +33,12 @@ class Simu:
         dim = mesh.dim
 
         # Vérification des valeurs
-        assert dim == 2 or dim == 3, "Dimesion compris entre 2D et 3D"
-        assert materiau.dim == dim, "Doit avoir la meme dimension que dim"
+        if isinstance(materiau.beamModel, BeamModel):
+            dim = materiau.dim
+        else:
+            assert materiau.dim == dim, "Doit avoir la meme dimension que dim"
 
-        self.__dim = mesh.dim
+        self.__dim = dim
         """dimension de la simulation 2D ou 3D"""
         self.__verbosity = verbosity
         """la simulation peut ecrire dans la console"""
@@ -73,7 +75,7 @@ class Simu:
     @staticmethod
     def CheckProblemTypes(problemType:str):
         """Verifie si ce type de probleme est implénté"""
-        list_problemType = ["displacement", "damage", "thermal"]
+        list_problemType = ["displacement", "damage", "thermal", "beam"]
         assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
 
     @staticmethod
@@ -123,6 +125,10 @@ class Simu:
                 """vitesse"""
                 self.__accel = np.zeros_like(self.__displacement)
                 """accélération"""
+
+        elif self.__problemType == "beam":
+            self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
+            """déplacements"""
         
         elif self.__problemType == "damage":
             self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
@@ -445,7 +451,163 @@ class Simu:
         self.__displacement = Uglob
        
         return cast(np.ndarray, Uglob)
-    
+
+# ------------------------------------------- PROBLEME POUTRE ------------------------------------------- 
+
+    def ConstruitMatElem_Beam(self) -> np.ndarray:
+        """Construit les matrices de rigidités élementaires pour le problème en déplacement
+
+        Returns:
+            dict_Ku_e: les matrices elementaires pour chaque groupe d'element
+        """
+
+        useNumba = self.__useNumba
+        # useNumba = False
+
+        matriceType="beam"
+
+        # Data
+        mesh = self.__mesh
+
+        assert mesh.groupElem.dim == 1
+        
+        tic = Tic()
+        
+        # Recupère les matrices pour travailler
+        dN_e_pg = mesh.Get_dN_sclaire_e_pg(matriceType)
+        # dNv_e_pg = mesh.Get_dNv_sclaire_e_pg(matriceType)
+        ddNv_e_pg = mesh.Get_ddNv_sclaire_e_pg(matriceType)
+        # ddN_e_pg = mesh.Get_ddN_sclaire_e_pg(matriceType)
+        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+
+        # Ne et nPg
+        Ne = jacobien_e_pg.shape[0]
+        nPg = jacobien_e_pg.shape[1]
+
+        # Récupération du maodel poutre
+        model = self.materiau.beamModel
+
+        assert isinstance(model, BeamModel)
+        
+        dim = model.dim
+        section = model.poutre.section
+        comportement = model.comportement
+        
+        # Propriétés de la section
+        A = section.aire
+        Iy = section.Iy
+        Iz = section.Iz
+        J = section.J
+
+        # Récupération des propriétes isotropes
+        mu = comportement.get_mu()
+        E = comportement.E
+
+        # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_B.m
+
+        groupElem = mesh.groupElem
+        elemType = groupElem.elemType
+        nPe = groupElem.nPe
+
+        if dim == 2:
+            D = np.diag([A, Iz])*E
+
+            nbddl_e = 3 
+
+            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            
+            # repu = np.arange(0,3*nPe,3) # [0,3] (SEG2) [0,3,6] (SEG3)
+            if elemType == "SEG2":
+                repu = [0,3]
+                repv = [1,2,4,5]
+            elif elemType == "SEG3":
+                repu = [0,3,6]
+                repv = [1,2,4,5,7,8]
+
+            B_e_pg = np.zeros((Ne, nPg, 2, nbddl_e*nPe))
+            
+            B_e_pg[:,:,0, repu] = dN_e_pg[:,:,0]
+            B_e_pg[:,:,1, repv] = ddNv_e_pg[:,:]
+
+        elif dim == 3:
+            D = np.diag([E*A, mu*J, E*Iy, E*Iz])
+
+            # u = [u1, v1, w1, rx1, ry1, rz1, u2, v2, w2, rx2, ry2, rz2]
+
+            nbddl_e = 6
+
+            if elemType == "SEG2":
+                repux = [0,6]
+                repvy = [1,5,7,11]
+                repvz = [2,4,8,10]
+                reptx = [3,9]
+            elif elemType == "SEG2":
+                repux = [0,6,12]
+                repvy = [1,5,7,11,13,17]
+                repvz = [2,4,8,10,14,16]
+                reptx = [3,9,15]
+
+            B_e_pg = np.zeros((Ne, nPg, 4, nbddl_e*nPe))
+            
+            B_e_pg[:,:,:, repux] = dN_e_pg[:,:,:,0]
+            B_e_pg[:,:,1, reptx] = dN_e_pg[:,:,0,0]
+            B_e_pg[:,:,3, repvy] = ddNv_e_pg
+            ddNvz_e_pg = ddNv_e_pg.copy()
+            ddNvz_e_pg[:,:,[1,3]] *= -1
+            B_e_pg[:,:,2, repvz] = ddNvz_e_pg
+
+        # Fait la rotation si nécessaire
+
+        P = mesh.groupElem.sysCoord_e
+
+        Pglob_e = np.zeros((Ne, 3*nPe, 3*nPe))
+
+        Nx, Ny = P.shape[1], P.shape[2]
+
+        listlignes = np.repeat(range(Nx), Ny)
+        listColonnes = np.array(list(range(Ny))*Nx)
+        for e in range(nPe):
+            Pglob_e[:,listlignes + e*Nx, listColonnes + e*Ny] = P[:,listlignes,listColonnes]
+
+        Bglob_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
+
+        Kbeam_e = np.einsum('epji,jk,epkl->eil', Bglob_e_pg, D, Bglob_e_pg, optimize='optimal')
+        
+        tic.Tac("Matrices","Construction Kbeam_e", self.__verbosity)
+
+        return Kbeam_e
+
+    def Assemblage_beam(self):
+        """Construit K global pour le problème en deplacement
+        """
+
+        # Data
+        mesh = self.__mesh        
+        taille = mesh.Nn*self.__dim
+
+        Ku_beam = self.ConstruitMatElem_Beam()
+
+        # Prépare assemblage
+        lignesVector_e = mesh.lignesVector_e
+        colonnesVector_e = mesh.colonnesVector_e
+        
+        tic = Tic()
+
+        # Assemblage
+        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
+        """Matrice Kglob pour le problème en déplacement (Nn*dim, Nn*dim)"""
+
+        # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
+        self.__Fu = sparse.csr_matrix((taille, 1))
+        """Vecteur Fglob pour le problème en déplacement (Nn*dim, 1)"""
+
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.spy(self.__Ku)
+        # plt.show()
+
+        tic.Tac("Matrices","Assemblage Ku et Fu", self.__verbosity)
+        return self.__Ku
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
@@ -619,7 +781,7 @@ class Simu:
         jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = mesh.Get_poid_pg(matriceType)
         N_e_pg = mesh.Get_N_scalaire_pg(matriceType)
-        D_e_pg = mesh.Get_B_sclaire_e_pg(matriceType)
+        D_e_pg = mesh.Get_dN_sclaire_e_pg(matriceType)
 
         Kt_e = np.einsum('ep,p,epji,,epjk->eik', jacobien_e_pg, poid_pg, D_e_pg, k, D_e_pg, optimize="optimal")
 
