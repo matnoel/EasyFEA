@@ -17,19 +17,19 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = False
+test = True
 solve = True
 plotMesh = False
 plotIter = False
 plotResult = True
 showFig = False
 saveParaview = False; NParaview=200
-makeMovie = False
+makeMovie = False; NMovie = 300
 
 
-problem = "Benchmark" # ["Benchmark" , "CompressionFCBA"]
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT1" # ["AT1", "AT2"]
+problem = "CompressionFCBA2" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
 
@@ -37,7 +37,7 @@ useNumba = True
 
 # Convergence
 maxIter = 500
-tolConv = 1e-1
+tolConv = 1e0
 # TODO Faire la convergence sur l'energie ?
 
 if comp == "Elas_Isot":
@@ -46,7 +46,7 @@ if comp == "Elas_Isot":
 else:
     umax = 80e-6
 
-if problem == "CompressionFCBA":
+if "CompressionFCBA" in problem:
     nL=200
 else:
     nL=0
@@ -81,9 +81,13 @@ for split in ["AnisotStress"]:
 
         simpli2D = "DP" # ["CP","DP"]
 
-    elif problem == "CompressionFCBA":
+    elif "CompressionFCBA" in problem:
         L=9e-2
-        h=12e-2
+        if problem == "CompressionFCBA2":
+            # Pour un carré
+            h=L
+        else:
+            h=12e-2
         ep=2e-2
         diam=2e-2
         r=diam/2
@@ -112,7 +116,7 @@ for split in ["AnisotStress"]:
         Gl=450*1e6
         vl=0.02
         vt=0.44
-        v=0        
+        v=0
     
     if test:
 
@@ -155,7 +159,7 @@ for split in ["AnisotStress"]:
             # Concentration de maillage sur la fissure
             if problem == "Benchmark":
                 ecartZone = diam*1.5/2
-            elif problem == "CompressionFCBA":
+            elif "CompressionFCBA" in problem:
                 ecartZone = diam
             if split in ["Bourdin", "Amor"]:
                 domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
@@ -246,8 +250,8 @@ for split in ["AnisotStress"]:
         def Condition():
             if problem == "Benchmark":
                 return ud <= umax
-            elif problem == "CompressionFCBA":
-                return np.any(simu.damage[noeuds_bord] <= 0.95)
+            elif "CompressionFCBA" in problem: 
+                return np.any(simu.damage[noeuds_bord] >= 1)
                 # return simu.damage.max() <= 0.5
 
         while Condition():
@@ -332,7 +336,7 @@ for split in ["AnisotStress"]:
             Tic.getGraphs(details=True)
 
     if makeMovie:
-        PostTraitement.MakeMovie(folder, "damage", simu, Niter=100, affichageMaillage=False)
+        PostTraitement.MakeMovie(folder, "damage", simu, Niter=NMovie, affichageMaillage=False, deformation=False, NiterFin=0, facteurDef=6)
 
     # Tic.getResume()
 
