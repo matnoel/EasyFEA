@@ -303,7 +303,25 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
             coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
 
     # ETUDE 2D
-    if dim == 2:
+    if mesh.dim == 1:
+
+        if ax == None:
+            # Doit detecter si on est dans un dommaine 2D ou 3D ?
+            fig, ax = plt.subplots()
+
+        for elemType in coord_par_face:
+            coordFaces = coord_par_face[elemType]
+
+            x = coordFaces[:,0]
+
+            if coordFaces.shape[-1] == 1:
+                y = np.zeros_like(x)
+            else:
+                y = coordFaces[:,1]
+
+            ax.plot(x, y)
+        
+    elif mesh.dim == 2:
         
         if ax == None:
             fig, ax = plt.subplots()
@@ -328,6 +346,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
                     pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=lw)
                 else:
                     pc = matplotlib.collections.PolyCollection(coordFaces, facecolors='c', edgecolor='black', lw=lw)
+                        
                 ax.add_collection(pc)
         
         ax.autoscale()
@@ -382,8 +401,6 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         # ax.set_xlabel("x [mm]")
         # ax.set_ylabel("y [mm]")
         # ax.set_zlabel("z [mm]")
-
-        
     
     if title == "":
         title = f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}"
