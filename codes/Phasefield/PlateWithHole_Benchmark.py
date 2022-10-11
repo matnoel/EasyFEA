@@ -19,10 +19,10 @@ import matplotlib.pyplot as plt
 
 test = True
 solve = True
-plotMesh = False
+plotMesh = True
 plotIter = False
 plotResult = True
-showFig = False
+showFig = True
 saveParaview = False; NParaview=200
 makeMovie = False; NMovie = 300
 
@@ -47,7 +47,7 @@ else:
     umax = 80e-6
 
 if "CompressionFCBA" in problem:
-    nL=200
+    nL=0
 else:
     nL=0
 
@@ -93,9 +93,10 @@ for split in ["AnisotStress"]:
         r=diam/2
 
         gc = 1.4
-        l_0 = L/nL
+        l_0 = 0.12e-3
+        # l_0 = L/nL
 
-        inc0 = 8e-6
+        inc0 = 8e-7
         inc1 = 2e-7
 
         tresh0 = 0.2
