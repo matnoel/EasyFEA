@@ -251,7 +251,7 @@ for split in ["AnisotStress"]:
             if problem == "Benchmark":
                 return ud <= umax
             elif "CompressionFCBA" in problem: 
-                return np.any(simu.damage[noeuds_bord] >= 1)
+                return simu.damage[noeuds_bord].max() <= 1
                 # return simu.damage.max() <= 0.5
 
         while Condition():
