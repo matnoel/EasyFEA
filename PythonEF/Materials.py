@@ -1,5 +1,4 @@
-from cmath import isclose
-from typing import List, cast
+from typing import List
 
 from TicTac import Tic
 
@@ -8,6 +7,7 @@ import CalcNumba as CalcNumba
 import numpy as np
 import Affichage as Affichage
 from inspect import stack
+from Geom import Poutre
 
 from scipy.linalg import sqrtm
 
@@ -368,6 +368,49 @@ class Elas_Isot(LoiDeComportement):
         s = np.linalg.inv(c)
 
         return c, s
+
+class BeamModel():   
+
+    def __init__(self, dim: int, poutre: Poutre, E=210000.0, v=0.3):
+        """Creation du model poutre
+
+        Parameters
+        ----------
+        dim : int
+            dimension utilisée [1,2,3]
+        E : float, optional
+            Module d'elasticité du matériau en MPa (> 0)
+        v : float, optional
+            Coef de poisson ]-1;0.5]
+        """
+
+        self.__dim = dim
+        self.__poutre = poutre
+        self.__comportement = Elas_Isot(dim=3, E=E, v=v)
+
+    @property
+    def dim(self) -> int:
+        """Dimension du model"""
+        return self.__dim
+    
+    @property
+    def poutre(self) -> Poutre:
+        """Poutre droite"""
+        return self.__poutre
+
+    @property
+    def comportement(self) -> Elas_Isot:
+        """Loi de comportement"""
+        return self.__comportement
+
+    @property
+    def resume(self) -> str:
+        section = self.poutre.section
+        comp = self.comportement
+        resume = f"\nElas_Isot:"
+        resume += f"\nE = {comp.E:.2e}, v = {comp.v}"
+        resume += f"\nA = {section.aire:.2e}, Iy = {section.Iy}, Iz = {section.Iz}"
+        return resume
 
 class Elas_IsotTrans(LoiDeComportement):
 
@@ -1464,6 +1507,8 @@ class Materiau:
     def dim(self) -> int:
         if self.__problemType == "thermal":
             return self.__thermalModel.dim
+        if self.__problemType == "beam":
+            return self.__beamModel.dim
         else:
             return self.comportement.dim
 
@@ -1483,6 +1528,8 @@ class Materiau:
     def comportement(self) -> LoiDeComportement:
         if self.__problemType == "thermal":
             return None
+        if self.__problemType == "beam":
+            return self.__beamModel.comportement
         else:
             if self.isDamaged:
                 return self.__phaseFieldModel.comportement
@@ -1493,6 +1540,13 @@ class Materiau:
     def thermalModel(self) -> ThermalModel:
         if self.__problemType == "thermal":
             return self.__thermalModel
+        else:
+            return None
+    
+    @property
+    def beamModel(self) -> BeamModel:
+        if self.__problemType == "beam":
+            return self.__beamModel
         else:
             return None
     
@@ -1509,7 +1563,7 @@ class Materiau:
         if self.isDamaged:
             return self.__phaseFieldModel
         else:
-            print("Le matériau n'est pas endommageable (pas de modèle PhaseField)")
+            # Le matériau n'est pas endommageable (pas de modèle PhaseField)
             return None
 
     def __init__(self, model=None, ro=8100.0, verbosity=False):
@@ -1535,6 +1589,9 @@ class Materiau:
         elif isinstance(model, ThermalModel):
             self.__problemType = "thermal"
             self.__thermalModel = model
+        elif isinstance(model, BeamModel):
+            self.__problemType = "beam"
+            self.__beamModel = model
         else:
             raise "Model inconnue"
 
