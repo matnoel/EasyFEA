@@ -1,5 +1,5 @@
 from inspect import stack
-from typing import List
+from typing import List, cast
 import gmsh
 import sys
 import numpy as np
@@ -48,8 +48,10 @@ class Interface_Gmsh:
     
     def __CheckType(self, dim: int, elemType: str):
         """Verification si le type d'element est bien possible"""
+        if dim == 1:
+            assert elemType in GroupElem.get_Types1D()
         if dim == 2:
-            assert elemType in GroupElem.get_Types2D()                        
+            assert elemType in GroupElem.get_Types2D()
         elif dim == 3:
             assert elemType in GroupElem.get_Types3D()
 
@@ -597,8 +599,57 @@ class Interface_Gmsh:
 
         return surfaces
 
-    def Mesh_From_Points_2D(self, pointsList: List[Point],
-    elemType="TRI3", tailleElement=0.0, isOrganised=False, folder="", returnSurfaces=False):
+    def Mesh_From_Lines_1D(self, listPoutres: List[Poutre], elemType="SEG2" ,folder=""):
+        """Construis le maillage 2D en créant une surface depuis une liste de poutres
+
+        Parameters
+        ----------
+        listPoutre : List[Poutre]
+            liste de Poutres
+        elemType : str, optional
+            type d'element, by default "SEG2" ["SEG2", "SEG3"]
+        folder : str, optional
+            fichier de sauvegarde du maillage, by default ""
+
+        Returns
+        -------
+        Mesh
+            Maillage 2D
+        """
+
+        self.__initGmsh()
+        self.__CheckType(1, elemType)
+
+        factory = gmsh.model.occ
+        self.__factory = factory
+
+        tic = Tic()
+
+        listPoints = [] 
+        listeLines = []
+
+        for poutre in listPoutres:
+
+            line = poutre.line
+            
+            pt1 = line.pt1; x1 = pt1.x; y1 = pt1.y; z1 = pt1.z
+            pt2 = line.pt2; x2 = pt2.x; y2 = pt2.y; z2 = pt2.z
+
+            p1 = factory.addPoint(x1, y1, z1, line.taille)
+            p2 = factory.addPoint(x2, y2, z2, line.taille)
+            listPoints.append(p1)
+            listPoints.append(p2)
+
+            l1 = factory.addLine(p1, p2)
+            listeLines.append(l1)
+
+        tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
+
+        self.__Construction_MaillageGmsh(1, elemType, surfaces=[], folder=folder)
+
+        return cast(Mesh, self.__Recuperation_Maillage())
+
+    def Mesh_From_Points_2D(self, pointsList: List[Point], elemType="TRI3", tailleElement=0.0,isOrganised=False, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
         Parameters
@@ -636,8 +687,6 @@ class Interface_Gmsh:
         self.__Construction_MaillageGmsh(2, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
-
-    
 
     def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, 
     elemType="TETRA4", tailleElement=0.0, isOrganised=False, folder=""):
@@ -718,7 +767,13 @@ class Interface_Gmsh:
             raise "factory inconnue"
 
         tic = Tic()
-        if dim == 2:
+        if dim == 1:
+            self.__factory.synchronize()
+            gmsh.model.mesh.generate(1)
+            if elemType == "SEG3":
+                gmsh.model.mesh.set_order(2)
+
+        elif dim == 2:
 
             assert isinstance(surfaces, list)
             
