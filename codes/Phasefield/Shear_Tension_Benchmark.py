@@ -21,17 +21,17 @@ Affichage.Clear()
 simulation = "Tension" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = True
-solve = True
+test = False
+solve = False
 pltMesh = False
 plotResult = False
 saveParaview = False
-makeMovie = False
+makeMovie = True
 
 # Data --------------------------------------------------------------------------------------------
 
-comportement = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-split = "AnisotStress" # "Bourdin","Amor","Miehe","Stress"
+comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
+split = "Bourdin" # "Bourdin","Amor","Miehe","Stress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
@@ -226,11 +226,11 @@ if solve:
 
         if isinstance(comportement, Elas_Isot):
 
-            return dep <= chargement[-1]
+            return dep < chargement[-1]
         
         elif isinstance(comportement, Elas_Anisot):
 
-            return np.any(simu.damage[NoeudsBord] <= 1)
+            return simu.damage[NoeudsBord].max() <= 1
 
         else:
 
@@ -315,7 +315,7 @@ else:
 Affichage.NouvelleSection("Affichage")
 
 if makeMovie:
-    PostTraitement.MakeMovie(folder, "damage", simu)
+    PostTraitement.MakeMovie(folder, "damage", simu, deformation=True, NiterFin=0)
     # PostTraitement.MakeMovie(folder, "Svm", simu)        
     # PostTraitement.MakeMovie(filename, "Syy", simu, valeursAuxNoeuds=True, deformation=True)
 
@@ -325,8 +325,7 @@ if plotResult:
 
     Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN', folder)
 
-    Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,
-    affichageMaillage=False, deformation=False, folder=folder)
+    Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=False, deformation=False, folder=folder)
     
 
     # Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
