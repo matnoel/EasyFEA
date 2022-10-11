@@ -71,9 +71,6 @@ class Mesh:
     @property
     def groupElem(self) -> GroupElem:
         """Groupe d'element du maillage
-
-        Returns:
-            GroupElem: _description_
         """
         return self.__groupElem
     @property
@@ -194,6 +191,30 @@ class Mesh:
         return aire
 
     @property
+    def Ix(self) -> float:
+        if self.dim == 1: return
+        Ix = 0
+        for group2D in self.Get_list_groupElem(2):
+            Ix += group2D.Ix
+        return Ix
+    
+    @property
+    def Iy(self) -> float:
+        if self.dim == 1: return
+        Iy = 0
+        for group2D in self.Get_list_groupElem(2):
+            Iy += group2D.Iy
+        return Iy
+
+    @property
+    def J(self) -> float:
+        if self.dim == 1: return
+        J = 0
+        for group2D in self.Get_list_groupElem(2):
+            J += group2D.Iy + group2D.Ix
+        return J
+
+    @property
     def volume(self) -> float:
         if self.dim != 3: return
         volume=0
@@ -228,13 +249,37 @@ class Mesh:
         """
         return self.groupElem.get_N_pg(matriceType, self.__dim)
 
-    def Get_B_sclaire_e_pg(self, matriceType: str) -> np.ndarray:
+    def Get_dN_sclaire_e_pg(self, matriceType: str) -> np.ndarray:
         """Derivé des fonctions de formes dans la base réele en sclaire\n
         [dN1,x dN2,x dNn,x\n
         dN1,y dN2,y dNn,y]\n        
         (epij)
         """
         return self.groupElem.get_dN_e_pg(matriceType)
+
+    def Get_dNv_sclaire_e_pg(self, matriceType: str) -> np.ndarray:
+        """Derivé des fonctions de formes de la poutre dans la base réele en sclaire\n
+        [dNv1,x dNv2,x dNvn,x\n
+        dNv1,y dNv2,y dNvn,y]\n        
+        (epij)
+        """
+        return self.groupElem.get_dNv_e_pg(matriceType)
+    
+    def Get_ddNv_sclaire_e_pg(self, matriceType: str) -> np.ndarray:
+        """Derivé segonde des fonctions de formes de la poutre dans la base réele en sclaire\n
+        [dNv1,xx dNv2,xx dNvn,xx\n
+        dNv1,yy dNv2,yy dNvn,yy]\n        
+        (epij)
+        """
+        return self.groupElem.get_ddNv_e_pg(matriceType)
+
+    def Get_ddN_sclaire_e_pg(self, matriceType: str) -> np.ndarray:
+        """Derivé segonde des fonctions de formes dans la base réele en sclaire\n
+        [dN1,xx dN2,xx dNn,xx\n
+        dN1,yy dN2,yy dNn,yy]\n        
+        (epij)
+        """
+        return self.groupElem.get_ddN_e_pg(matriceType)
 
     def Get_B_dep_e_pg(self, matriceType: str) -> np.ndarray:
         """Derivé des fonctions de formes dans la base réele pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n

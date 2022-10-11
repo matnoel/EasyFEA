@@ -49,7 +49,7 @@ class Test_Mesh(unittest.TestCase):
                 if dim == 2:
                     B_dep_pg = np.zeros((3, nPe*dim))
                     colonne = 0
-                    B_sclaire_e_pg = mesh.Get_B_sclaire_e_pg("rigi")
+                    B_sclaire_e_pg = mesh.Get_dN_sclaire_e_pg("rigi")
                     dN = B_sclaire_e_pg[e,pg]
                     for n in range(nPe):
                         dNdx = dN[0, n]
