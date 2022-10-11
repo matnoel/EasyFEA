@@ -70,6 +70,9 @@ class GroupElem:
         # Dictionnaires pour chaque types de matrices
         if self.dim > 0:
             self.__dict_dN_e_pg = {}
+            self.__dict_dNv_e_pg = {}
+            self.__dict_ddNv_e_pg = {}
+            self.__dict_ddN_e_pg = {}
             self.__dict_F_e_pg = {}                
             self.__dict_invF_e_pg = {}                
             self.__dict_jacobien_e_pg = {}   
@@ -319,6 +322,90 @@ class GroupElem:
 
         return self.__dict_dN_e_pg[matriceType].copy()
 
+    def get_dNv_e_pg(self, matriceType: str) -> np.ndarray:
+        """Derivé des fonctions de formes de la poutre dans la base réele en sclaire\n
+        [dNv1,x dNv2,x dNvn,x\n
+        dNv1,y dNv2,y dNvn,y]\n
+        """
+        assert matriceType in GroupElem.get_MatriceType()
+
+        if matriceType not in self.__dict_dNv_e_pg.keys():
+
+            invF_e_pg = self.get_invF_e_pg(matriceType)
+
+            dNv_pg = self.get_dNv_pg(matriceType)
+
+            jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
+            Ne = jacobien_e_pg.shape[0]
+            pg = self.get_gauss(matriceType)
+
+            # On créer la dimension sur les elements
+            dNv_e_pg = dNv_pg[np.newaxis, :, 0, :].repeat(Ne,  axis=0)
+            # On récupère la longeur des poutres sur chaque element aux points d'intégrations
+            l_e_pg = np.einsum('ep,p->ep', jacobien_e_pg, pg.poids, optimize='optimal')
+            # On multiplie par la longueur les ddNv2_e_pg et ddNv4_e_pg
+            dNv_e_pg[:,:,1] = np.einsum('ep,e->ep',dNv_e_pg[:,:,1],l_e_pg[:,0])
+            dNv_e_pg[:,:,3] = np.einsum('ep,e->ep',dNv_e_pg[:,:,3],l_e_pg[:,1])
+
+            # Derivé des fonctions de formes dans la base réele
+            invF_e_pg = invF_e_pg.reshape((Ne, pg.nPg, 1)).repeat(dNv_e_pg.shape[-1], axis=-1)
+            dNv_e_pg = invF_e_pg * dNv_e_pg
+            self.__dict_dNv_e_pg[matriceType] = dNv_e_pg
+
+        return self.__dict_dNv_e_pg[matriceType].copy()
+
+    def get_ddNv_e_pg(self, matriceType: str) -> np.ndarray:
+        """Derivé des fonctions de formes de la poutre dans la base réele en sclaire\n
+        [dNv1,xx dNv2,xx dNvn,xx\n
+        dNv1,yy dNv2,yy dNvn,yy]\n        
+        """
+        assert matriceType in GroupElem.get_MatriceType()
+
+        if matriceType not in self.__dict_ddNv_e_pg.keys():
+
+            invF_e_pg = self.get_invF_e_pg(matriceType)
+            invFrigi_e_pg = self.get_invF_e_pg("rigi")
+
+            ddNv_pg = self.get_ddNv_pg(matriceType)
+
+            jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
+            Ne = jacobien_e_pg.shape[0]
+            pg = self.get_gauss(matriceType)
+
+            # On créer la dimension sur les elements
+            ddNv_e_pg = ddNv_pg[np.newaxis, :, 0, :].repeat(Ne,  axis=0)
+            # On récupère la longeur des poutres sur chaque element aux points d'intégrations
+            l_e_pg = np.einsum('ep,p->ep', jacobien_e_pg, pg.poids, optimize='optimal')
+            # On multiplie par la longueur les ddNv2_e_pg et ddNv4_e_pg
+            ddNv_e_pg[:,:,1] = np.einsum('ep,e->ep',ddNv_e_pg[:,:,1],l_e_pg[:,0], optimize='optimal')
+            ddNv_e_pg[:,:,3] = np.einsum('ep,e->ep',ddNv_e_pg[:,:,3],l_e_pg[:,1], optimize='optimal')
+
+            # Derivé des fonctions de formes dans la base réele
+            invF_e_pg = invF_e_pg.reshape((Ne, pg.nPg, 1)).repeat(ddNv_e_pg.shape[-1], axis=-1)
+            ddNv_e_pg = invF_e_pg * invF_e_pg * ddNv_e_pg
+            self.__dict_ddNv_e_pg[matriceType] = ddNv_e_pg
+
+        return self.__dict_ddNv_e_pg[matriceType].copy()
+
+    def get_ddN_e_pg(self, matriceType: str) -> np.ndarray:
+        """Derivé des fonctions de formes dans la base réele en sclaire\n
+        [dN1,xx dN2,xx dNn,xx\n
+        dN1,yy dN2,yy dNn,yy]\n        
+        """
+        assert matriceType in GroupElem.get_MatriceType()
+
+        if matriceType not in self.__dict_ddN_e_pg.keys():
+
+            invF_e_pg = self.get_invF_e_pg(matriceType)
+
+            ddN_pg = self.get_ddN_pg(matriceType)
+
+            # Derivé des fonctions de formes dans la base réele
+            ddN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, ddN_pg, optimize='optimal'))
+            self.__dict_ddN_e_pg[matriceType] = ddN_e_pg
+
+        return self.__dict_ddN_e_pg[matriceType].copy()
+
     def get_B_dep_e_pg(self, matriceType: str) -> np.ndarray:
         """Derivé des fonctions de formes dans la base réele pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n
         exemple en 2D :\n
@@ -524,8 +611,6 @@ class GroupElem:
             sysCoord_e[:,:,2] = k
 
         return sysCoord_e
-
-    
         
     @property
     def sysCoord_e(self) -> np.ndarray:
@@ -548,6 +633,28 @@ class GroupElem:
         if self.dim == 1: return
         aire = np.einsum('ep,p->', self.get_jacobien_e_pg("rigi"), self.get_gauss("rigi").poids, optimize='optimal')
         return float(aire)
+
+    @property
+    def Ix(self) -> float:
+        """Aire que représente les elements"""
+        if self.dim != 2: return
+
+        coordo_e_p = self.get_coordo_e_p("masse", self.elementsIndex)
+        x = coordo_e_p[self.elementsID, :, 0]
+
+        Ix = np.einsum('ep,p,ep->', self.get_jacobien_e_pg("masse"), self.get_gauss("masse").poids, x**2, optimize='optimal')
+        return float(Ix)
+
+    @property
+    def Iy(self) -> float:
+        """Aire que représente les elements"""
+        if self.dim != 2: return
+
+        coordo_e_p = self.get_coordo_e_p("masse", self.elementsIndex)
+        y = coordo_e_p[self.elementsID, :, 1]
+
+        Iy = np.einsum('ep,p,ep->', self.get_jacobien_e_pg("masse"), self.get_gauss("masse").poids, y**2, optimize='optimal')
+        return float(Iy)
 
     @property
     def volume(self) -> float:
@@ -919,7 +1026,7 @@ class GroupElem:
         for pg in range(nPg):
             for n, Nt in enumerate(dNtild):
                 for d in range(dim):
-                    func = Nt[d]                        
+                    func = Nt[d]
                     if coord.shape[1] == 1:
                         dN_pg[pg, d, n] = func(coord[pg,0])
                     elif coord.shape[1] == 2:
@@ -927,7 +1034,199 @@ class GroupElem:
                     elif coord.shape[1] == 3:
                         dN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
 
-        return dN_pg        
+        return dN_pg
+
+    def get_dNv_pg(self, matriceType: str) -> np.ndarray:
+        """Dérivées des fonctions de formes dans l'element poutre (pg, dim, nPe), dans la base (ksi, eta ...) \n
+        [Ni,ksi . . . Nn,ksi\n
+        Ni,eta . . . Nn,eta]
+        """
+        if self.dim == 0: return
+
+        if self.elemType in ["SEG2","SEG3"]:
+
+            dNv1t = lambda x: -3/4 * (1-x) * (1+x)
+            dNv2t = lambda x: -1/8 * (1-x) * (1+3*x)
+            dNv3t = lambda x: 3/4 * (1-x) * (1+x)
+            dNv4t = lambda x: 1/8 * (1+x) * (3*x-1)
+
+            dNvtild = np.array([dNv1t, dNv2t, dNv3t, dNv4t])
+        
+        else:
+            return
+        
+        # Evaluation aux points de gauss
+        gauss = self.get_gauss(matriceType)
+        coord = gauss.coord
+        
+        nPg = gauss.nPg
+
+        dNv_pg = np.zeros((nPg, 1, len(dNvtild)))
+
+        for pg in range(nPg):
+            for n, Nt in enumerate(dNvtild):
+                func = Nt
+                dNv_pg[pg, 0, n] = func(coord[pg,0])
+
+        return dNv_pg
+
+    def get_ddNv_pg(self, matriceType: str) -> np.ndarray:
+        """Dérivées des fonctions de formes dans l'element poutre (pg, dim, nPe), dans la base (ksi, eta ...) \n
+        [Ni,ksi ksi . . . Nn,ksi ksi\n
+        Ni,eta eta . . . Nn,eta eta]
+        """
+        if self.dim != 1: return
+
+        if self.elemType in ["SEG2","SEG3"]:
+
+            ddNv1t = lambda x: 3/2 * x
+            ddNv2t = lambda x: 1/4 * (3*x-1)
+            ddNv3t = lambda x: -3/2 * x
+            ddNv4t = lambda x: 1/4 * (3*x+1)
+
+            ddNvtild = np.array([ddNv1t, ddNv2t, ddNv3t, ddNv4t])
+        
+        else:
+            return
+        
+        # Evaluation aux points de gauss
+        gauss = self.get_gauss(matriceType)
+        coord = gauss.coord
+        
+        nPg = gauss.nPg
+
+        ddNv_pg = np.zeros((nPg, 1, len(ddNvtild)))
+
+        for pg in range(nPg):
+            for n, Nt in enumerate(ddNvtild):
+                func = Nt
+                ddNv_pg[pg, 0, n] = func(coord[pg,0])
+        
+        return ddNv_pg
+
+    def get_ddN_pg(self, matriceType: str) -> np.ndarray:
+        """Dérivées segonde des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...) \n
+        [Ni,ksi ksi . . . Nn,ksi ksi\n
+        Ni,eta eta . . . Nn,eta eta]
+        """
+        if self.dim == 0: return
+
+        if self.elemType == "SEG2":
+
+            ddN1t = [lambda x: 0]
+            ddN2t = [lambda x: 0]
+
+            ddNtild = np.array([ddN1t, ddN2t])
+        
+        elif self.elemType == "SEG3":
+
+            ddN1t = [lambda x: 1]
+            ddN2t = [lambda x: 1]
+            ddN3t = [lambda x: -2]
+
+            ddNtild = np.array([ddN1t, ddN2t, ddN3t])
+
+        elif self.elemType == "TRI3":
+
+            ddN1t = [lambda ksi,eta: 0, lambda ksi,eta: 0]
+            ddN2t = [lambda ksi,eta: 0, lambda ksi,eta: 0]
+            ddN3t = [lambda ksi,eta: 0, lambda ksi,eta: 0]
+
+            ddNtild = np.array([ddN1t, ddN2t, ddN3t])
+
+        elif self.elemType == "TRI6":
+
+            ddN1t = [lambda ksi,eta: 4,  lambda ksi,eta: 4]
+            ddN2t = [lambda ksi,eta: 4,  lambda ksi,eta: 0]
+            ddN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 4]
+            ddN4t = [lambda ksi,eta: -8, lambda ksi,eta: 0]
+            ddN5t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
+            ddN6t = [lambda ksi,eta: 0,  lambda ksi,eta: -8]
+            
+            ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t])
+        
+        elif self.elemType == "QUAD4":
+            
+            ddN1t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
+            ddN2t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
+            ddN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
+            ddN4t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
+            
+            ddNtild = [ddN1t, ddN2t, ddN3t, ddN4t]
+
+        elif self.elemType == "QUAD8":
+            
+            ddN1t = [lambda ksi,eta: (1-eta)/2,  lambda ksi,eta: (1-ksi)/2]
+            ddN2t = [lambda ksi,eta: (1-eta)/2,  lambda ksi,eta: (1+ksi)/2]
+            ddN3t = [lambda ksi,eta: (1+eta)/2,  lambda ksi,eta: (1+ksi)/2]
+            ddN4t = [lambda ksi,eta: (1+eta)/2,  lambda ksi,eta: (1-ksi)/2]
+            ddN5t = [lambda ksi,eta: -1+eta,     lambda ksi,eta: 0]
+            ddN6t = [lambda ksi,eta: 0,          lambda ksi,eta: -1-ksi]
+            ddN7t = [lambda ksi,eta: -1-eta,     lambda ksi,eta: 0]
+            ddN8t = [lambda ksi,eta: 0,          lambda ksi,eta: -1+ksi]
+                            
+            ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t])
+
+        elif self.elemType == "TETRA4":
+            
+            ddN1t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 0]
+            ddN2t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 0]
+            ddN3t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 0]
+            ddN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 0]
+
+            ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t])
+
+        elif self.elemType == "HEXA8":
+            
+            ddN1t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN2t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN3t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN5t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN6t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN7t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN8t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+
+            ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t])
+        
+        elif self.elemType == "PRISM6":
+
+            ddN1t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN2t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN3t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN5t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+            ddN6t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
+
+            # dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
+            # Attetion il faut faire une réorganisation
+            ddNtild = np.array([ddN3t, ddN1t, ddN2t, ddN6t, ddN4t, ddN5t])
+
+        else:
+            raise "Element inconnue"
+            
+        
+        # Evaluation aux points de gauss
+        gauss = self.get_gauss(matriceType)
+        coord = gauss.coord
+
+        dim = self.dim
+        nPg = gauss.nPg
+
+        dddN_pg = np.zeros((nPg, dim, len(ddNtild)))
+
+        for pg in range(nPg):
+            for n, Nt in enumerate(ddNtild):
+                for d in range(dim):
+                    func = Nt[d]                        
+                    if coord.shape[1] == 1:
+                        dddN_pg[pg, d, n] = func(coord[pg,0])
+                    elif coord.shape[1] == 2:
+                        dddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1])
+                    elif coord.shape[1] == 3:
+                        dddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
+
+        return dddN_pg
 
     def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
         """Renvoie la liste d'identifiant des noeuds qui respectent les condtions
@@ -1116,7 +1415,6 @@ class GroupElem:
         list de list
             Renvoie une liste de face
         """
-        assert self.dim in [2,3]
 
         dict_connect_faces = {}
 
@@ -1152,8 +1450,14 @@ class GroupElem:
     @staticmethod
     def get_MatriceType() -> List[str]:
         """type de matrice disponible"""
-        liste = ["rigi", "masse"]
+        liste = ["rigi", "masse","beam"]
         return liste
+
+    @staticmethod
+    def get_Types1D() -> List[str]:
+        """type d'elements disponibles en 1D"""
+        liste1D = ["SEG2", "SEG3"]
+        return liste1D
 
     @staticmethod
     def get_Types2D() -> List[str]:
