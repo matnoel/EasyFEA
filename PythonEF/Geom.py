@@ -1,4 +1,3 @@
-from typing import cast
 import numpy as np
 
 class Point:
@@ -119,3 +118,94 @@ class Circle:
         self.taille = taille
 
         self.isCreux = isCreux
+
+class Section():
+
+    def __init__(self, mesh):
+        """Section
+
+        Parameters
+        ----------
+        mesh : Mesh
+            Maillage
+        """
+
+        from Mesh import Mesh
+        assert isinstance(mesh, Mesh), "Doit être un maillage 2D"
+
+        assert mesh.dim == 2, "Doit être un maillage 2D"
+        
+        self.__mesh = mesh
+
+    @property
+    def mesh(self):
+        """Maillage de la section"""
+        return self.__mesh
+
+    @property
+    def epaisseur(self) -> float:
+        """Epaisseur de la section"""
+        # ici l'epaisseur est suivant x
+        coordo = self.__mesh.coordo
+        epaisseur = np.abs(coordo[:,0].max() - coordo[:,0].min())
+        return epaisseur
+    
+    @property
+    def hauteur(self) -> float:
+        """Hauteur de la section"""
+        # ici l'epaisseur est suivant x
+        coordo = self.__mesh.coordo
+        hauteur = np.abs(coordo[:,1].max() - coordo[:,1].min())
+        return hauteur
+    
+    @property
+    def aire(self) -> float:
+        """Surface de la section"""
+        return self.__mesh.aire
+
+    @property
+    def Iy(self) -> float:
+        """Moment quadratique de la section suivant y\n
+        int_S z^2 dS """
+        return self.__mesh.Ix
+
+    @property
+    def Iz(self) -> float:
+        """Moment quadratique de la section suivant z\n
+        int_S y^2 dS """
+        return self.__mesh.Iy
+
+    @property
+    def J(self) -> float:
+        """Moment quadratique polaire\n
+        J = Iz + Iy
+        """
+        return self.__mesh.J
+
+class Poutre():
+
+    def __init__(self, line: Line, section: Section):
+        """Construction d'une poutre
+
+        Parameters
+        ----------
+        line : Line
+            Lignes de la fibre moyenne
+        section : Section
+            Section de la poutre
+        """
+
+        self.__line = line
+
+        self.__section = section
+
+    @property
+    def line(self) -> Line:
+        """Ligne fibre moyenne de la poutre"""
+        return self.__line
+
+    @property
+    def section(self) -> Section:
+        """Section de la poutre"""
+        return self.__section
+        
