@@ -74,8 +74,6 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     if not isinstance(valeurs, np.ndarray):
         return
 
-    
-
     valeurs *= coef
 
     coordo, deformation = __GetCoordo(simu, deformation, facteurDef)
@@ -87,14 +85,37 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     coordo_redim = coordo[:,range(dim)]
 
     if option == "damage":
-        min = valeurs.min()
-        max = valeurs.max()
+        min = valeurs.min()-1e-12
+        max = valeurs.max()+1e-12
         if max < 1:
             max=1
         levels = np.linspace(min, max, 200)
     else:
         levels = 200
 
+    if dim == 1:
+
+        if simu.problemType == "beam":
+
+            if oldax == None:
+                fig, ax = plt.subplots()
+            else:
+                fig = oldfig
+                ax = oldax
+                ax.clear()
+            
+            beamModel = simu.materiau.beamModel
+            beamDim = beamModel.dim
+
+            if beamDim == 2:
+                
+                ax.contourf(coordo[:,0], coordo[:,1], valeurs)
+            
+            pass
+
+        else:
+            return
+    
     if dim == 2:
 
         coord_par_face = {}
@@ -280,19 +301,19 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
     coordo = mesh.coordoGlob
 
-    dim = mesh.dim
+    inDim = mesh.groupElem.inDim
 
     # construit la matrice de connection pour les faces
     connect_Faces = mesh.connect_Faces
 
     # Construit les faces non deformées
-    coord_NonDeforme_redim = coordo[:,range(dim)]
+    coord_NonDeforme_redim = coordo[:,range(inDim)]
 
     coord_par_face = {}
 
     if deformation:
         coordoDeforme, deformation = __GetCoordo(simu, deformation, facteurDef)
-        coordo_Deforme_redim = coordoDeforme[:,range(dim)]
+        coordo_Deforme_redim = coordoDeforme[:,range(inDim)]
         coordo_par_face_deforme = {}
 
     for elemType in connect_Faces:
@@ -301,27 +322,8 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
         if deformation:
             coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
-
-    # ETUDE 2D
-    if mesh.dim == 1:
-
-        if ax == None:
-            # Doit detecter si on est dans un dommaine 2D ou 3D ?
-            fig, ax = plt.subplots()
-
-        for elemType in coord_par_face:
-            coordFaces = coord_par_face[elemType]
-
-            x = coordFaces[:,0]
-
-            if coordFaces.shape[-1] == 1:
-                y = np.zeros_like(x)
-            else:
-                y = coordFaces[:,1]
-
-            ax.plot(x, y)
         
-    elif mesh.dim == 2:
+    if inDim in [1,2]:
         
         if ax == None:
             fig, ax = plt.subplots()
@@ -340,14 +342,23 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
                 # Maillage deformé                
                 pc = matplotlib.collections.LineCollection(coordDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
                 ax.add_collection(pc)
+
             else:
                 # Maillage non deformé
                 if alpha == 0:
                     pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=lw)
                 else:
                     pc = matplotlib.collections.PolyCollection(coordFaces, facecolors='c', edgecolor='black', lw=lw)
-                        
                 ax.add_collection(pc)
+
+            if mesh.dim == 1:
+                coordFaces = coordFaces.reshape(-1,inDim)
+                ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=lw, marker='.')
+                if deformation:
+                    coordDeforme = coordo_par_face_deforme[elemType].reshape(-1, inDim)
+                    ax.scatter(coordDeforme[:,0], coordDeforme[:,1], c='red', lw=lw, marker='.')
+                        
+            
         
         ax.autoscale()
         ax.axis('equal')
