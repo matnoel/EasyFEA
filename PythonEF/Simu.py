@@ -78,6 +78,21 @@ class Simu:
         list_problemType = ["displacement", "damage", "thermal", "beam"]
         assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
 
+    def __Check_Autorisation(self, listProblemType: List[str]) -> bool:
+        """Verifie si la simulation peut utiliser le type de problème renseigné"""
+        
+        autorisation = False
+        
+        for problemType in listProblemType:
+            if problemType == self.__problemType:
+                autorisation = True
+
+        if not autorisation:
+            print(f"La simulation n'est pas une simulation {problemType} mais une simulation {self.__problemType}")
+            # TODO Ici il pourrait être intéressant de proposer un conseil ?
+
+        return autorisation
+
     @staticmethod
     def CheckDirections(dim: int, problemType:str, directions:list):
         """Verifie si les directions renseignées sont possible pour le probleme"""
@@ -91,6 +106,15 @@ class Simu:
                 assert d in ["x","y","z"]
                 if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
             assert dim >= len(directions)
+        elif problemType == "beam":
+            if dim == 1:
+                list = ["x"]
+            elif dim == 2:
+                list = ["x","y","rz"]
+            elif dim == 3:
+                list = ["x","y","z","rx","ry","rz"]
+            for d in directions:
+                assert d in list
     
     @property
     def mesh(self) -> Mesh:
@@ -127,7 +151,7 @@ class Simu:
                 """accélération"""
 
         elif self.__problemType == "beam":
-            self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
+            self.__beamDisplacement = np.zeros(self.__mesh.Nn*self.materiau.beamModel.nbddl_n)
             """déplacements"""
         
         elif self.__problemType == "damage":
@@ -291,6 +315,8 @@ class Simu:
             dict_Ku_e: les matrices elementaires pour chaque groupe d'element
         """
 
+        if not self.__Check_Autorisation(["displacement","damage"]): return
+
         useNumba = self.__useNumba
         # useNumba = False
         
@@ -385,6 +411,8 @@ class Simu:
         """Construit K global pour le problème en deplacement
         """
 
+        if not self.__Check_Autorisation(["displacement","damage"]): return
+
         # Data
         mesh = self.__mesh        
         taille = mesh.Nn*self.__dim
@@ -438,8 +466,14 @@ class Simu:
         else:
             return None    
 
-    def Solve_u(self, steadyState=True):
-        """Resolution du probleme de déplacement""" 
+    def Solve_u(self, steadyState=True) -> np.ndarray:
+        """Resolution du probleme de déplacement"""
+
+        if not self.__Check_Autorisation(["displacement","damage"]): return
+
+        if self.__problemType != "displacement":
+            print("La simulation n'est pas une simulation en déplacement")
+            return
 
         if steadyState:
             Uglob = self.__Solveur(problemType="displacement", algo="elliptic")
@@ -450,7 +484,7 @@ class Simu:
 
         self.__displacement = Uglob
        
-        return cast(np.ndarray, Uglob)
+        return self.__displacement.copy()
 
 # ------------------------------------------- PROBLEME POUTRE ------------------------------------------- 
 
@@ -458,8 +492,10 @@ class Simu:
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
 
         Returns:
-            dict_Ku_e: les matrices elementaires pour chaque groupe d'element
+            Ku_beam: les matrices elementaires pour chaque groupe d'element 
         """
+
+        if not self.__Check_Autorisation(["beam"]): return
 
         useNumba = self.__useNumba
         # useNumba = False
@@ -479,6 +515,7 @@ class Simu:
         ddNv_e_pg = mesh.Get_ddNv_sclaire_e_pg(matriceType)
         # ddN_e_pg = mesh.Get_ddN_sclaire_e_pg(matriceType)
         jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = mesh.Get_poid_pg(matriceType)
 
         # Ne et nPg
         Ne = jacobien_e_pg.shape[0]
@@ -509,10 +546,25 @@ class Simu:
         elemType = groupElem.elemType
         nPe = groupElem.nPe
 
-        if dim == 2:
-            D = np.diag([A, Iz])*E
+        nbddl_n = model.nbddl_n
 
-            nbddl_e = 3 
+        if dim == 1:
+            D = np.diag([A*E])
+
+            # u = [u1, . . . , un]
+            
+            # repu = np.arange(0,3*nPe,3) # [0,3] (SEG2) [0,3,6] (SEG3)
+            if elemType == "SEG2":
+                repu = [0,1]
+            elif elemType == "SEG3":
+                repu = [0,1,2]
+
+            B_e_pg = np.zeros((Ne, nPg, 1, nbddl_n*nPe))
+            B_e_pg[:,:,0, repu] = dN_e_pg[:,:,0]
+                
+
+        if dim == 2:
+            D = np.diag([A*E, Iz*E])
 
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
             
@@ -521,10 +573,11 @@ class Simu:
                 repu = [0,3]
                 repv = [1,2,4,5]
             elif elemType == "SEG3":
+                # TODO il faut redefinir les fonctions de formes pour SEG3
                 repu = [0,3,6]
                 repv = [1,2,4,5,7,8]
 
-            B_e_pg = np.zeros((Ne, nPg, 2, nbddl_e*nPe))
+            B_e_pg = np.zeros((Ne, nPg, 2, nbddl_n*nPe))
             
             B_e_pg[:,:,0, repu] = dN_e_pg[:,:,0]
             B_e_pg[:,:,1, repv] = ddNv_e_pg[:,:]
@@ -533,8 +586,6 @@ class Simu:
             D = np.diag([E*A, mu*J, E*Iy, E*Iz])
 
             # u = [u1, v1, w1, rx1, ry1, rz1, u2, v2, w2, rx2, ry2, rz2]
-
-            nbddl_e = 6
 
             if elemType == "SEG2":
                 repux = [0,6]
@@ -547,7 +598,7 @@ class Simu:
                 repvz = [2,4,8,10,14,16]
                 reptx = [3,9,15]
 
-            B_e_pg = np.zeros((Ne, nPg, 4, nbddl_e*nPe))
+            B_e_pg = np.zeros((Ne, nPg, 4, nbddl_n*nPe))
             
             B_e_pg[:,:,:, repux] = dN_e_pg[:,:,:,0]
             B_e_pg[:,:,1, reptx] = dN_e_pg[:,:,0,0]
@@ -558,21 +609,29 @@ class Simu:
 
         # Fait la rotation si nécessaire
 
-        P = mesh.groupElem.sysCoord_e
+        if dim == 1:
 
-        Pglob_e = np.zeros((Ne, 3*nPe, 3*nPe))
-
-        Nx, Ny = P.shape[1], P.shape[2]
-
-        listlignes = np.repeat(range(Nx), Ny)
-        listColonnes = np.array(list(range(Ny))*Nx)
-        for e in range(nPe):
-            Pglob_e[:,listlignes + e*Nx, listColonnes + e*Ny] = P[:,listlignes,listColonnes]
-
-        Bglob_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
-
-        Kbeam_e = np.einsum('epji,jk,epkl->eil', Bglob_e_pg, D, Bglob_e_pg, optimize='optimal')
+            Bglob_e_pg = B_e_pg
         
+        else:
+
+            P = mesh.groupElem.sysCoord_e
+
+            Pglob_e = np.zeros((Ne, nbddl_n*nPe, nbddl_n*nPe))
+
+            Ndim = nbddl_n*nPe
+
+            N = Ndim//dim
+
+            listlignes = np.repeat(range(N), N)
+            listColonnes = np.array(list(range(N))*N)
+            for e in range(nPe):
+                Pglob_e[:,listlignes + e*N, listColonnes + e*N] = P[:,listlignes,listColonnes]
+
+            Bglob_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
+
+        Kbeam_e = np.einsum('ep,p,epji,jk,epkl->eil', jacobien_e_pg, poid_pg, Bglob_e_pg, D, Bglob_e_pg, optimize='optimal')
+            
         tic.Tac("Matrices","Construction Kbeam_e", self.__verbosity)
 
         return Kbeam_e
@@ -581,33 +640,53 @@ class Simu:
         """Construit K global pour le problème en deplacement
         """
 
+        if not self.__Check_Autorisation(["beam"]): return
+
         # Data
         mesh = self.__mesh        
-        taille = mesh.Nn*self.__dim
+
+        model = self.materiau.beamModel
+
+        assert isinstance(model, BeamModel)
+
+        taille = mesh.Nn * model.nbddl_n
 
         Ku_beam = self.ConstruitMatElem_Beam()
 
         # Prépare assemblage
-        lignesVector_e = mesh.lignesVector_e
-        colonnesVector_e = mesh.colonnesVector_e
+        lignesVector_e = mesh.lignesVectorBeam_e(model.nbddl_n)
+        colonnesVector_e = mesh.colonnesVectorBeam_e(model.nbddl_n)
         
         tic = Tic()
 
         # Assemblage
-        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
-        """Matrice Kglob pour le problème en déplacement (Nn*dim, Nn*dim)"""
+        self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
+        """Matrice Kglob pour le problème poutre (Nn*nbddl_e, Nn*nbddl_e)"""
 
         # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
-        self.__Fu = sparse.csr_matrix((taille, 1))
-        """Vecteur Fglob pour le problème en déplacement (Nn*dim, 1)"""
+        self.__Fbeam = sparse.csr_matrix((taille, 1))
+        """Vecteur Fglob pour le problème poutre (Nn*nbddl_e, 1)"""
 
         # import matplotlib.pyplot as plt
         # plt.figure()
         # plt.spy(self.__Ku)
         # plt.show()
 
-        tic.Tac("Matrices","Assemblage Ku et Fu", self.__verbosity)
-        return self.__Ku
+        tic.Tac("Matrices","Assemblage Kbeam et Fbeam", self.__verbosity)
+        return self.__Kbeam
+
+    def Solve_beam(self) -> np.ndarray:
+        """Resolution du probleme poutre""" 
+
+        if not self.__Check_Autorisation(["beam"]): return
+
+        Uglob_beam = self.__Solveur(problemType="beam", algo="elliptic")
+        
+        assert Uglob_beam.shape[0] == self.mesh.Nn*self.materiau.beamModel.nbddl_n
+
+        self.__beamDisplacement = Uglob_beam
+       
+        return self.__beamDisplacement.copy()
 
 # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
@@ -618,6 +697,9 @@ class Simu:
         Returns:
             np.ndarray: self.__psiP_e_pg
         """
+
+        if not self.__Check_Autorisation(["damage"]): return
+
         assert self.materiau.isDamaged, "pas de modèle d'endommagement"
 
         phaseFieldModel = self.materiau.phaseFieldModel
@@ -665,6 +747,8 @@ class Simu:
         Returns:
             Kd_e, Fd_e: les matrices elementaires pour chaque element
         """
+
+        if not self.__Check_Autorisation(["damage"]): return
 
         phaseFieldModel = self.materiau.phaseFieldModel
 
@@ -730,6 +814,8 @@ class Simu:
     def Assemblage_d(self):
         """Construit Kglobal pour le probleme d'endommagement
         """
+
+        if not self.__Check_Autorisation(["damage"]): return
        
         # Data
         mesh = self.__mesh
@@ -754,8 +840,10 @@ class Simu:
 
         return self.__Kd, self.__Fd
     
-    def Solve_d(self):
+    def Solve_d(self) -> np.ndarray:
         """Resolution du problème d'endommagement"""
+
+        if not self.__Check_Autorisation(["damage"]): return
         
         dGlob = self.__Solveur(problemType="damage", algo="elliptic")
 
@@ -763,11 +851,13 @@ class Simu:
 
         self.__damage = dGlob
 
-        return cast(np.ndarray, dGlob.copy())
+        return self.__damage.copy()
 
 # ------------------------------------------- PROBLEME THERMIQUE -------------------------------------------
 
     def __ConstruitMatElem_Thermal(self, steadyState: bool) -> np.ndarray:
+
+        if not self.__Check_Autorisation(["thermal"]): return
 
         thermalModel = self.materiau.thermalModel
 
@@ -799,6 +889,8 @@ class Simu:
     def Assemblage_t(self, steadyState=True) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
         """Construit Kglobal pour le probleme thermique en régime stationnaire ou non
         """
+
+        if not self.__Check_Autorisation(["thermal"]): return
        
         # Data
         mesh = self.__mesh
@@ -844,6 +936,8 @@ class Simu:
             vecteur solution
         """
 
+        if not self.__Check_Autorisation(["thermal"]): return
+
         if steadyState:
             thermalGlob = self.__Solveur(problemType="thermal", algo="elliptic")
             # TODO que faire pour -> quand plusieurs types -> np.ndarray ou tuple[np.ndarray, np.ndarray] ?
@@ -883,6 +977,8 @@ class Simu:
             taille = self.__mesh.Nn
         elif problemType == "displacement":
             taille = self.__mesh.Nn*self.__dim
+        elif problemType == "beam":
+            taille = self.__mesh.Nn*self.materiau.beamModel.nbddl_n
 
         ddls_Inconnues = list(np.arange(taille))
         for ddlConnue in ddls_Connues:
@@ -913,6 +1009,8 @@ class Simu:
 
         if problemType == "displacement":
             taille = self.__mesh.Nn*self.__dim
+        elif problemType == "beam":
+            taille = self.__mesh.Nn*self.materiau.beamModel.nbddl_n
 
         b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1))
 
@@ -922,6 +1020,8 @@ class Simu:
             b = b + self.__Fd.copy()
         elif problemType == "displacement" and algo == "elliptic":
             b = b + self.__Fu.copy()
+        elif problemType == "beam" and algo == "elliptic":
+            b = b + self.__Fbeam.copy()
         elif problemType == "displacement" and algo == "hyperbolic":
             b = b + self.__Fu.copy()
 
@@ -966,7 +1066,6 @@ class Simu:
                 # Mass_part = self.__Mu + gamma * dt * self.__Cu
                 Mass_part = self.__Mu
                 b += Mass_part.dot(sparse.csr_matrix(uTild_np1.reshape(-1, 1)))
-
 
 
         elif problemType == "thermal" and algo == "elliptic":
@@ -1019,6 +1118,9 @@ class Simu:
         elif problemType == "displacement" and algo == "elliptic":
             taille = taille*self.__dim
             A = self.__Ku.copy()
+        elif problemType == "beam" and algo == "elliptic":
+            taille = taille*self.materiau.beamModel.nbddl_n
+            A = self.__Kbeam.copy()
         elif problemType == "displacement" and algo == "hyperbolic":
             taille = taille*self.__dim
 
@@ -1155,6 +1257,9 @@ class Simu:
 
         resolution=1
 
+        if problemType == "beam":
+            resolution =2
+
         if resolution == 1:
             
             tic = Tic()
@@ -1175,12 +1280,16 @@ class Simu:
 
             if problemType == "displacement" and algo == "elliptic":
                 x0 = self.__displacement[ddl_Inconnues]
-            if problemType == "displacement" and algo == "hyperbolic":
+            elif problemType == "displacement" and algo == "hyperbolic":
                 x0 = self.__displacement[ddl_Inconnues]
             elif problemType == "damage":
                 x0 = self.__damage[ddl_Inconnues]
             elif problemType == "thermal":
                 x0 = self.__thermal[ddl_Inconnues]
+            elif problemType == "beam":
+                x0 = self.__beamDisplacement[ddl_Inconnues]
+            else:
+                raise "probleme inconnue"
 
             bDirichlet = Aic.dot(xc) # Plus rapide
             # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
@@ -1190,15 +1299,16 @@ class Simu:
 
             if problemType in ["displacement","thermal"]:
                 # la matrice est definie symétrique positive on peut donc utiliser cholesky
-                useCholesky=True
+                useCholesky = True
+                A_isSymetric = False
             else:
                 #la matrice n'est pas definie symétrique positive
-                useCholesky=False
+                useCholesky = False
+                A_isSymetric = False
             
             if problemType == "damage":
                 # Si l'endommagement est supérieur à 1 la matrice A n'est plus symétrique
                 isDamaged = True
-                A_isSymetric = False
                 solveur = self.materiau.phaseFieldModel.solveur
                 if solveur == "BoundConstrain":
                     damage = self.damage
@@ -1207,10 +1317,8 @@ class Simu:
             else:
                 isDamaged = False
                 damage = []
-                A_isSymetric = True
 
-            xi = Interface_Solveurs.Solve_Axb(problemType=problemType, A=Aii, b=bi-bDirichlet, x0=x0,
-            isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
+            xi = Interface_Solveurs.Solve_Axb(problemType=problemType, A=Aii, b=bi-bDirichlet, x0=x0, isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
 
             # Reconstruction de la solution
             x = x.toarray().reshape(x.shape[0])
@@ -1222,8 +1330,8 @@ class Simu:
             tic = Tic()
 
             # Construit le système matricielle pénalisé
-            b = self.__Application_Conditions_Neuman(problemType)
-            A, b = self.__Application_Conditions_Dirichlet(problemType, b, resolution)
+            b = self.__Application_Conditions_Neuman(problemType, algo, option)
+            A, b = self.__Application_Conditions_Dirichlet(problemType, b, resolution, algo, option)
 
             ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
 
@@ -1233,10 +1341,16 @@ class Simu:
             useCholesky=False #la matrice ne sera pas symétrique definie positive
             A_isSymetric=False
             isDamaged = self.materiau.isDamaged
+            if isDamaged:
+                solveur = self.materiau.phaseFieldModel.solveur
+                if solveur == "BoundConstrain":
+                    damage = self.damage
+                else:
+                    damage = []
+            else:
+                damage = []
 
-            x = Interface_Solveurs.Solve_Axb(problemType=problemType, A=A, b=b, x0=None,
-            isDamaged=isDamaged, damage=damage,
-            useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
+            x = Interface_Solveurs.Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=self.__verbosity)
 
         if problemType == "thermal" and algo == "parabolic":
             thermal_np1 = np.array(x)
@@ -1358,9 +1472,28 @@ class Simu:
             valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
-        ddls = BoundaryCondition.Get_ddls_noeuds(self.__dim, problemType, noeuds, directions)
+
+        if problemType == "beam":
+            param = self.materiau.beamModel.nbddl_n
+        else:
+            param = self.__dim
+
+        ddls = BoundaryCondition.Get_ddls_noeuds(param, problemType, noeuds, directions)
 
         self.__Add_Bc_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+
+    def add_pointLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+        """Pour le probleme donné applique une force ponctuelle\n
+        valeurs est une liste de constantes ou de fonctions\n
+        ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
+
+        les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
+        les fonctions utilisent les coordonnées x, y et z des noeuds renseignés
+        """
+
+        valeurs_ddls, ddls = self.__pointLoad(problemType, noeuds, valeurs, directions)
+
+        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
         
     def add_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force linéique\n
@@ -1381,13 +1514,19 @@ class Simu:
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
 
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
-        les fonctions utilisent les coordonnées x, y et z des points d'intégrations
+        les fonctions utilisent les coordonnées x, y et z des points d'intégrations\n
+        Si probleme poutre on integre sur la section de la poutre
         """
 
-        if self.__dim == 2:
+        if problemType == "beam":
+            valeurs_ddls, ddls = self.__pointLoad(problemType, noeuds, valeurs, directions)
+            # multiplie par la surface de la section
+            # TODO ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
+            valeurs_ddls *= self.materiau.beamModel.poutre.section.aire
+        elif self.__dim == 2:
             valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
-            valeurs_ddls = valeurs_ddls*self.materiau.epaisseur
+            valeurs_ddls *= self.materiau.epaisseur
         elif self.__dim == 3:
             valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
 
@@ -1401,8 +1540,12 @@ class Simu:
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
         les fonctions utilisent les coordonnées x, y et z des points d'intégrations
         """
-
-        if self.__dim == 2:
+        if problemType == "beam":
+            valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
+            # multiplie par la surface de la section
+            # TODO ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
+            valeurs_ddls *= self.materiau.beamModel.poutre.section.aire
+        elif self.__dim == 2:
             valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
             valeurs_ddls = valeurs_ddls*self.materiau.epaisseur
@@ -1410,6 +1553,32 @@ class Simu:
             valeurs_ddls, ddls = self.__volumeload(problemType, noeuds, valeurs, directions)
 
         self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+
+    def __pointLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+        """Applique une force linéique\n
+        Renvoie valeurs_ddls, ddls"""
+
+        Nn = noeuds.shape[0]
+        coordo = self.mesh.coordo
+        coordo_n = coordo[noeuds]
+
+        # initialise le vecteur de valeurs pour chaque noeuds
+        valeurs_ddl_dir = np.zeros((Nn, len(directions)))
+
+        for d, dir in enumerate(directions):
+            eval_n = self.__evalue(coordo_n, valeurs[d], option="noeuds")
+            valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
+        
+        valeurs_ddls = valeurs_ddl_dir.reshape(-1)
+
+        if problemType == "beam":
+            param = self.materiau.beamModel.nbddl_n
+        else:
+            param = self.__dim
+
+        ddls = BoundaryCondition.Get_ddls_noeuds(param, problemType, noeuds, directions)
+
+        return valeurs_ddls, ddls
 
     def __lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force linéique\n
@@ -1419,7 +1588,12 @@ class Simu:
         Simu.CheckDirections(self.__dim, problemType, directions)
 
         valeurs_ddls=np.array([])
-        ddls=np.array([])
+        ddls=np.array([], dtype=int)
+
+        if problemType == "beam":
+            param = self.materiau.beamModel.nbddl_n
+        else:
+            param = self.__dim
 
         # Récupération des matrices pour le calcul
         for groupElem1D in self.mesh.Get_list_groupElem(1):
@@ -1453,7 +1627,7 @@ class Simu:
             new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
             
-            new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect_e, directions)
+            new_ddls = BoundaryCondition.Get_ddls_connect(param, problemType, connect_e, directions)
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
@@ -1466,7 +1640,7 @@ class Simu:
         Simu.CheckDirections(self.__dim, problemType, directions)
 
         valeurs_ddls=np.array([])
-        ddls=np.array([])
+        ddls=np.array([], dtype=int)
 
         listGroupElem2D = self.mesh.Get_list_groupElem(2)
 
@@ -1474,6 +1648,11 @@ class Simu:
             exclusivement=True
         else:
             exclusivement=True
+
+        if problemType == "beam":
+            param = self.materiau.beamModel.nbddl_n
+        else:
+            param = self.__dim
 
         # Récupération des matrices pour le calcul
         for groupElem2D in listGroupElem2D:
@@ -1507,7 +1686,7 @@ class Simu:
             new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
 
-            new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect, directions)
+            new_ddls = BoundaryCondition.Get_ddls_connect(param, problemType, connect, directions)
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
@@ -1522,7 +1701,7 @@ class Simu:
         Simu.CheckDirections(self.__dim, problemType, directions)
 
         valeurs_ddls=np.array([])
-        ddls=np.array([])
+        ddls=np.array([], dtype=int)
 
         listGroupElem3D = self.mesh.Get_list_groupElem(3)
 
@@ -1530,6 +1709,11 @@ class Simu:
             exclusivement=True
         else:
             exclusivement=True
+
+        if problemType == "beam":
+            param = self.materiau.beamModel.nbddl_n
+        else:
+            param = self.__dim    
 
         # Récupération des matrices pour le calcul
         for groupElem3D in listGroupElem3D:
@@ -1563,7 +1747,7 @@ class Simu:
             new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
 
-            new_ddls = BoundaryCondition.Get_ddls_connect(self.__dim, problemType, connect, directions)
+            new_ddls = BoundaryCondition.Get_ddls_connect(param, problemType, connect, directions)
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
@@ -1580,14 +1764,21 @@ class Simu:
             
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
 
-        elif problemType == "displacement":
+        elif problemType in ["displacement","beam"]:
 
-            new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
-
-            # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
+            # Si un ddl est déja connue dans les conditions de dirichlet
+            # alors on enlève la valeur et le ddl associé
+            
             ddl_Dirchlet = self.Get_ddls_Dirichlet(problemType)
-            for d in ddls: 
-                assert d not in ddl_Dirchlet, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
+            valeursTri_ddls = list(valeurs_ddls)
+            ddlsTri = list(ddls.copy())
+
+            for d, ddl in enumerate(ddls): 
+                if ddl in ddl_Dirchlet:
+                    ddlsTri.remove(ddl)
+                    valeursTri_ddls.remove(valeurs_ddls[d])
+
+            new_Bc = BoundaryCondition(problemType, noeuds, ddlsTri, directions, valeursTri_ddls, f'Neumann {description}')
 
         self.__Bc_Neumann.append(new_Bc)
 
@@ -1604,7 +1795,7 @@ class Simu:
             
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
-        elif problemType == "displacement":
+        elif problemType in ["displacement","beam"]:
 
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
@@ -1769,12 +1960,17 @@ class Simu:
 
     @staticmethod
     def ResultatsCalculables(dim: int) -> dict:
-        if dim == 2:
+        if dim == 1:
+            options = {
+                "Beam" : ["u", "beamDisplacement", "coordoDef", "fx"]
+            }
+        elif dim == 2:
             options = {
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Displacement" : ["dx", "dy", "dz", "amplitude", "displacement", "coordoDef"],
                 "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
+                "Beam" : ["u","v","rz", "amplitude", "beamDisplacement", "coordoDef", "fx", "fy", "cz"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
                 "Damage" :["damage","psiP"],
                 "Thermal" : ["thermal", "thermalDot"]
@@ -1785,10 +1981,10 @@ class Simu:
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
+                "Beam" : ["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "coordoDef", "fx","fy","fz","cx","cy","cz"],
                 "Energie" :["Wdef","Psi_Elas"],
                 "Thermal" : ["thermal", "thermalDot"]
             }
-        
         return options
 
 
@@ -1809,41 +2005,42 @@ class Simu:
         dim = self.__dim
         categories = Simu.ResultatsCalculables(dim)
 
+        # Construction de la liste de catégorie en fonction du type de probleme
+        problemType = self.__problemType
+        # listCategorie = ["Stress", "Strain", "Displacement", "Accel", "Beam", "Energie", "Damage", "Thermal"]
+        if problemType == "displacement":
+            listCategorie = ["Stress", "Strain", "Displacement", "Accel","Energie"]
+        elif problemType == "damage":
+            listCategorie = ["Stress", "Strain", "Displacement", "Energie", "Damage"]
+        elif problemType == "beam":
+            listCategorie = ["Beam"]
+        elif problemType == "thermal":
+            listCategorie = ["Thermal"]
+
         # Verfication que l'option est dans dans les options
         ContenueDansOptions=False
-        for categorie in categories:
+        for categorie in listCategorie:
             if option in categories[categorie]:
                 ContenueDansOptions=True
                 break
         
         if not ContenueDansOptions:
-            print(f"\nL'option {option} doit etre dans : {categories}")
+            listOptions = []
+            for categorie in listCategorie:
+                listOptions.extend(categories[categorie])
+            print(f"\nPour un probleme ({problemType}) l'option doit etre dans : \n {listOptions}")
             return False
 
         return ContenueDansOptions
 
     def Get_Resultat(self, option: str, valeursAuxNoeuds=False, iter=None):
-        """ Renvoie le résultat contenu dans 
-        if dim == 2:
-            options = {
-                "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
-                "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
-                "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
-                "Damage" :["damage","psiP"],
-                "Thermal" : ["thermal", "thermalDot"]
-            }
-        elif dim == 3:
-            options = {
-                "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
-                "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
-                "Energie" :["Wdef","Psi_Elas"],
-                "Thermal" : ["thermal", "thermalDot"]
-            }
+        """ Renvoie le résultat de la simulation
         """
+
+        problemType = self.__problemType
+        dim = self.__dim
+        Ne = self.__mesh.Ne
+        Nn = self.__mesh.Nn
 
         verif = self.VerificationOption(option)
         if not verif:
@@ -1852,89 +2049,148 @@ class Simu:
         if iter != None:
             self.Update_iter(iter)
 
-        if option == "thermal":
-            return self.__thermal
+        if problemType == "thermal":
 
-        if option == "thermalDot":
-            try:
-                return self.__thermalDot
-            except:
-                raise "La simulation thermique est realisé en état d'équilibre"
+            if option == "thermal":
+                return self.__thermal
+
+            if option == "thermalDot":
+                try:
+                    return self.__thermalDot
+                except:
+                    raise "La simulation thermique est realisé en état d'équilibre"
 
         if option in ["Wdef","Psi_Elas"]:
             return self.__Calc_Psi_Elas()
+        
+        if problemType == "damage":
 
-        if option == "Psi_Crack":
-            return self.__Calc_Psi_Crack()
+            if option == "Psi_Crack":
+                return self.__Calc_Psi_Crack()
 
-        if option == "damage":
-            if not self.materiau.isDamaged:
-                print("Le matériau n'est pas endommageable")
-                return
-            return self.damage
+            if option == "damage":
+                if not self.materiau.isDamaged:
+                    print("Le matériau n'est pas endommageable")
+                    return
+                return self.damage
+
+            if option == "psiP":
+                resultat_e_pg = self.Calc_psiPlus_e_pg()
+                resultat = np.mean(resultat_e_pg, axis=1)
 
         if option == "displacement":
-            return self.__displacement
+            return self.__displacement.copy()
+
+        if option == "beamDisplacement":
+            return self.__beamDisplacement.copy()
         
         if option == 'coordoDef':
             return self.GetCoordUglob()
 
-        displacement = self.__displacement
+        if problemType == "beam" and option in ["fx","fy","fz","cx","cy","cz"]:
 
-        if option == "psiP":
-            resultat_e_pg = self.Calc_psiPlus_e_pg()
-            resultat = np.mean(resultat_e_pg, axis=1)
+            force = np.array(self.__Kbeam.dot(self.__beamDisplacement))
 
-        dim = self.__dim
+            modelDim = self.materiau.beamModel.dim
 
-        
+            if modelDim == 1:
+               indexes = {
+                "fx" : 0,
+               } 
+            elif modelDim == 2:
+               indexes = {
+                "fx" : 0,
+                "fy" : 1,
+                "rz" : 2,
+               } 
+            elif modelDim == 3:
+               indexes = {
+                "fx" : 0,
+                "fy" : 1,
+                "fz" : 2,
+                "rx" : 3,
+                "ry" : 4,
+                "rz" : 5
+               }
 
-        # Deformation et contraintes pour chaque element et chaque points de gauss        
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
-        Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
+            force_redim = force.reshape(self.mesh.Nn, -1)
 
-        # Moyenne sur l'élement
-        Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
-        Sigma_e = np.mean(Sigma_e_pg, axis=1)
+            return force_redim[:, indexes[option]]
 
-        coef = self.materiau.comportement.coef
-
-        Ne = self.__mesh.Ne
-        Nn = self.__mesh.Nn
-        
-        if option in ["dx", "dy", "dz","amplitude","vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"]:
+        if problemType in ["displacement","damage"]:
             
-            if "d" in option or "amplitude" in option:
-                resultat_dim = self.displacement
-            elif "v" in option:
-                resultat_dim = self.speed
-            elif "a" in option:
-                resultat_dim = self.accel
+            displacement = self.__displacement
 
-            resultat_dim = resultat_dim.reshape((Nn,-1))
-           
-            if dim == 2:
-                resultat_dim = np.append(resultat_dim,np.zeros((Nn,1)), axis=1)
+            # Deformation et contraintes pour chaque element et chaque points de gauss        
+            Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
+            Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
 
-            rx = resultat_dim[:,0]
-            ry = resultat_dim[:,1]
-            rz = resultat_dim[:,2]
+            # Moyenne sur l'élement
+            Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
+            Sigma_e = np.mean(Sigma_e_pg, axis=1)
 
-            if "x" in option:
-                resultat = rx
-            elif "y" in option:
-                resultat = ry
-            elif "z" in option:
-                resultat = rz
-            elif option == "amplitude":
-                resultat = np.sqrt(rx**2 + ry**2 + rz**2)
-            elif option in ["speed", "accel"]:
-                resultat = resultat_dim
+            coef = self.materiau.comportement.coef
+        
+        if option in ["dx", "dy", "dz","amplitude", "vx", "vy", "vz", "ax", "ay", "az", "speed", "accel","u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "coordoDef"]:
+            # if problemType in ["displacement","damage", "beam"]:
+            
+            if problemType == "displacement":
+                if "d" in option or "amplitude" in option:
+                    resultat_ddl = self.displacement
+                elif "v" in option:
+                    resultat_ddl = self.speed
+                elif "a" in option:
+                    resultat_ddl = self.accel
+            elif problemType == "beam":
+                resultat_ddl = self.__beamDisplacement
+
+            resultat_ddl = resultat_ddl.reshape((Nn,-1))
+
+            if dim == 1 and problemType == "beam":
+                resultat_ddl = np.append(resultat_ddl,np.zeros((Nn,1)), axis=1)
+                resultat_ddl = np.append(resultat_ddl,np.zeros((Nn,1)), axis=1)
+            if dim == 2 and problemType == "displacement":
+                resultat_ddl = np.append(resultat_ddl,np.zeros((Nn,1)), axis=1)
+
+            rx = resultat_ddl[:,0]
+            ry = resultat_ddl[:,1]
+            rz = resultat_ddl[:,2]
+
+            if problemType == "displacement":
+                if "x" in option:
+                    resultat = rx
+                elif "y" in option:
+                    resultat = ry
+                elif "z" in option:
+                    resultat = rz
+                elif option == "amplitude":
+                    resultat = np.sqrt(rx**2 + ry**2 + rz**2)
+                elif option in ["speed", "accel"]:
+                    resultat = resultat_ddl
+            elif problemType == "beam":
+                if option == "u":
+                    resultat = rx
+                elif option == "v":
+                    resultat = ry
+                elif option == "w" and dim == 3:
+                    resultat = rz
+                elif option == "amplitude" and dim == 3:
+                    resultat = np.sqrt(rx**2 + ry**2 + rz**2)
+                elif option == "amplitude" and dim == 2:
+                    resultat = np.sqrt(rx**2 + ry**2)
+                elif option == "rx" and dim == 3:
+                    resultat = resultat_ddl[:,3]
+                elif option == "ry" and dim == 3:
+                    resultat = resultat_ddl[:,4]
+                elif option == "rz" and dim == 2:
+                    resultat = resultat_ddl[:,2]
+                elif option == "rz" and dim == 3:
+                    resultat = resultat_ddl[:,5]
 
             if not valeursAuxNoeuds:
 
                 # Localisation        
-                resultat_e_n = self.__mesh.Localises_sol_e(resultat_dim)
+                resultat_e_n = self.__mesh.Localises_sol_e(resultat_ddl)
 
                 resultat_e = resultat_e_n.mean(axis=1)
 
@@ -1944,15 +2200,17 @@ class Simu:
                 ry_e = resultat_e[:,1]
                 rz_e = resultat_e[:,2]
 
-                if option == "dx":
+                if option in ["dx","u"]:
                     resultat = rx_e
-                elif option == "dy":
+                elif option in ["dy","v"]:
                     resultat = ry_e
-                elif option == "dz":
+                elif option in ["dz","w"]:
                     resultat = rz_e
-                elif option == "amplitude":
+                elif option == "amplitude" and dim == 2:
+                    resultat = np.sqrt(rx_e**2 + ry_e**2)
+                elif option == "amplitude" and dim == 3:
                     resultat = np.sqrt(rx_e**2 + ry_e**2 + rz_e**2)
-                elif option in ["speed", "accel"]:
+                elif option in ["speed", "accel"] and problemType == "displacement":
                     resultat = np.zeros((Ne, 3))
                     resultat[:,0] = rx_e
                     resultat[:,1] = ry_e
@@ -1960,7 +2218,7 @@ class Simu:
             
             return resultat
 
-        elif "S" in option and not option == "Strain":            
+        elif "S" in option and not option == "Strain":
 
             if dim == 2:
 
@@ -2162,16 +2420,32 @@ class Simu:
         """Renvoie les déplacements sous la forme [dx, dy, dz] (Nn,3)        """
 
         Nn = self.__mesh.Nn
-        dim = self.__dim        
+        dim = self.__dim
+        problemType = self.__problemType
 
-        if self.VerificationOption("displacement"):
+        if problemType in ["displacement","beam","damage"]:
 
-            Uglob = self.__displacement
+            if problemType in ["displacement","damage"]:
+                Uglob = self.__displacement
+            else:
+                Uglob = self.__beamDisplacement
+                listDim = np.arange(dim)
 
             coordo = Uglob.reshape((Nn,-1))
            
-            if dim == 2:
-                coordo = np.append(coordo,np.zeros((Nn,1)), axis=1)                       
+            if problemType in ["displacement","damage"]:
+                if dim == 2:
+                    coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+            else:
+                coordo = coordo[:, listDim]
+
+                if self.dim == 1:
+                    # Ici on rajoute deux colonnes
+                    coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+                    coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+                elif self.dim == 2:
+                    # Ici on rajoute 1 colonne
+                    coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
 
             return coordo
         else:
