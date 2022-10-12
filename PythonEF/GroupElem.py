@@ -206,7 +206,23 @@ class GroupElem:
         connect = self.connect_e
 
         for d in range(dim):
-            assembly[:, np.arange(d, taille, dim)] = np.array(connect) * dim + d
+            colonnes = np.arange(d, taille, dim)
+            assembly[:, colonnes] = np.array(connect) * dim + d
+
+        return assembly
+    
+    def assemblyBeam_e(self, nbddl_e: int) -> np.ndarray:
+        """Matrice d'assemblage pour les poutres (Ne, nPe*dim)"""
+
+        nPe = self.nPe
+        taille = nbddl_e*nPe
+
+        assembly = np.zeros((self.Ne, taille), dtype=np.int64)
+        connect = self.connect_e
+
+        for d in range(nbddl_e):
+            colonnes = np.arange(d, taille, nbddl_e)
+            assembly[:, colonnes] = np.array(connect) * nbddl_e + d
 
         return assembly
 
@@ -364,7 +380,6 @@ class GroupElem:
         if matriceType not in self.__dict_ddNv_e_pg.keys():
 
             invF_e_pg = self.get_invF_e_pg(matriceType)
-            invFrigi_e_pg = self.get_invF_e_pg("rigi")
 
             ddNv_pg = self.get_ddNv_pg(matriceType)
 
@@ -375,14 +390,17 @@ class GroupElem:
             # On créer la dimension sur les elements
             ddNv_e_pg = ddNv_pg[np.newaxis, :, 0, :].repeat(Ne,  axis=0)
             # On récupère la longeur des poutres sur chaque element aux points d'intégrations
-            l_e_pg = np.einsum('ep,p->ep', jacobien_e_pg, pg.poids, optimize='optimal')
+            l_e_pg = np.einsum('ep,p->e', jacobien_e_pg, pg.poids, optimize='optimal')
+            l_e_pg = l_e_pg.repeat(pg.nPg).reshape(Ne, pg.nPg)
             # On multiplie par la longueur les ddNv2_e_pg et ddNv4_e_pg
-            ddNv_e_pg[:,:,1] = np.einsum('ep,e->ep',ddNv_e_pg[:,:,1],l_e_pg[:,0], optimize='optimal')
-            ddNv_e_pg[:,:,3] = np.einsum('ep,e->ep',ddNv_e_pg[:,:,3],l_e_pg[:,1], optimize='optimal')
-
+            ddNv_e_pg[:,:,1] = np.einsum('ep,ep->ep',ddNv_e_pg[:,:,1],l_e_pg, optimize='optimal')
+            ddNv_e_pg[:,:,3] = np.einsum('ep,ep->ep',ddNv_e_pg[:,:,3],l_e_pg, optimize='optimal')
             # Derivé des fonctions de formes dans la base réele
             invF_e_pg = invF_e_pg.reshape((Ne, pg.nPg, 1)).repeat(ddNv_e_pg.shape[-1], axis=-1)
             ddNv_e_pg = invF_e_pg * invF_e_pg * ddNv_e_pg
+
+            # ddNv_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, ddNv_pg, optimize='optimal'))
+
             self.__dict_ddNv_e_pg[matriceType] = ddNv_e_pg
 
         return self.__dict_ddNv_e_pg[matriceType].copy()
@@ -636,7 +654,7 @@ class GroupElem:
 
     @property
     def Ix(self) -> float:
-        """Aire que représente les elements"""
+        """Moment quadratique suivant x"""
         if self.dim != 2: return
 
         coordo_e_p = self.get_coordo_e_p("masse", self.elementsIndex)
@@ -647,7 +665,7 @@ class GroupElem:
 
     @property
     def Iy(self) -> float:
-        """Aire que représente les elements"""
+        """Moment quadratique suivant y"""
         if self.dim != 2: return
 
         coordo_e_p = self.get_coordo_e_p("masse", self.elementsIndex)
@@ -655,6 +673,18 @@ class GroupElem:
 
         Iy = np.einsum('ep,p,ep->', self.get_jacobien_e_pg("masse"), self.get_gauss("masse").poids, y**2, optimize='optimal')
         return float(Iy)
+
+    @property
+    def Ixy(self) -> float:
+        """Moment quadratique suivant xy"""
+        if self.dim != 2: return
+
+        coordo_e_p = self.get_coordo_e_p("masse", self.elementsIndex)
+        x = coordo_e_p[self.elementsID, :, 0]
+        y = coordo_e_p[self.elementsID, :, 1]
+
+        Ixy = np.einsum('ep,p,ep,ep->', self.get_jacobien_e_pg("masse"), self.get_gauss("masse").poids, x, y, optimize='optimal')
+        return float(Ixy)
 
     @property
     def volume(self) -> float:
@@ -911,6 +941,40 @@ class GroupElem:
                     N_pg[pg, 0, n] = Nt(coord[pg,0], coord[pg,1], coord[pg,2])
 
         return N_pg
+
+    def get_dNv_pg(self, matriceType: str) -> np.ndarray:
+        """Fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [Nv_i . . . Nv_n\n
+        Nrz_i . . . Nrz_n]
+        """
+        if self.dim == 0: return
+
+        if self.elemType == "SEG2":
+
+            Nv1t = lambda x: 1/4 * (1-x)**2 * (2+x)
+            Nv2t = lambda x: 1/8 * (1+x) * (1-x)**2
+            Nv3t = lambda x: 1/4 * (1+x)**2 * (2-x)
+            Nv4t = lambda x: 1/8 * (1+x)**2 * (x-1)
+
+            Nvtild = np.array([Nv1t, Nv2t, Nv3t, Nv4t])
+        
+        else:
+            raise "Pas implémenté"
+        
+        # Evaluation aux points de gauss
+        gauss = self.get_gauss(matriceType)
+        coord = gauss.coord
+        
+        nPg = gauss.nPg
+
+        dNv_pg = np.zeros((nPg, 1, len(Nvtild)))
+
+        for pg in range(nPg):
+            for n, Nt in enumerate(Nvtild):
+                func = Nt
+                dNv_pg[pg, 0, n] = func(coord[pg,0])
+
+        return dNv_pg
     
     def get_dN_pg(self, matriceType: str) -> np.ndarray:
         """Dérivées des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...) \n
@@ -1037,13 +1101,13 @@ class GroupElem:
         return dN_pg
 
     def get_dNv_pg(self, matriceType: str) -> np.ndarray:
-        """Dérivées des fonctions de formes dans l'element poutre (pg, dim, nPe), dans la base (ksi, eta ...) \n
-        [Ni,ksi . . . Nn,ksi\n
-        Ni,eta . . . Nn,eta]
+        """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [Nv_i,ksi . . . Nv_n,ksi\n
+        Nrz_i,ksi . . . Nrz_n,ksi]
         """
         if self.dim == 0: return
 
-        if self.elemType in ["SEG2","SEG3"]:
+        if self.elemType == "SEG2":
 
             dNv1t = lambda x: -3/4 * (1-x) * (1+x)
             dNv2t = lambda x: -1/8 * (1-x) * (1+3*x)
@@ -1053,7 +1117,7 @@ class GroupElem:
             dNvtild = np.array([dNv1t, dNv2t, dNv3t, dNv4t])
         
         else:
-            return
+            raise "Pas implémenté"
         
         # Evaluation aux points de gauss
         gauss = self.get_gauss(matriceType)
@@ -1071,13 +1135,13 @@ class GroupElem:
         return dNv_pg
 
     def get_ddNv_pg(self, matriceType: str) -> np.ndarray:
-        """Dérivées des fonctions de formes dans l'element poutre (pg, dim, nPe), dans la base (ksi, eta ...) \n
-        [Ni,ksi ksi . . . Nn,ksi ksi\n
-        Ni,eta eta . . . Nn,eta eta]
+        """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [Nv_i,ksi ksi . . . Nv_n,ksi ksi\n
+        Nrz_i,ksi ksi . . . Nrz_n,ksi ksi]
         """
         if self.dim != 1: return
 
-        if self.elemType in ["SEG2","SEG3"]:
+        if self.elemType in ["SEG2"]:
 
             ddNv1t = lambda x: 3/2 * x
             ddNv2t = lambda x: 1/4 * (3*x-1)
@@ -1087,7 +1151,7 @@ class GroupElem:
             ddNvtild = np.array([ddNv1t, ddNv2t, ddNv3t, ddNv4t])
         
         else:
-            return
+            raise "Pas implémenté"
         
         # Evaluation aux points de gauss
         gauss = self.get_gauss(matriceType)
