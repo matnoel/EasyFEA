@@ -18,16 +18,16 @@ import matplotlib.pyplot as plt
 # Options
 
 test = True
-solve = True
-plotMesh = True
+solve = False
+plotMesh = False
 plotIter = False
-plotResult = True
-showFig = True
-saveParaview = False; NParaview=200
+plotResult = False
+showFig = False
+saveParaview = True; NParaview=200
 makeMovie = False; NMovie = 300
 
 
-problem = "CompressionFCBA2" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA"]
+problem = "CompressionFCBA2" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
@@ -47,7 +47,7 @@ else:
     umax = 80e-6
 
 if "CompressionFCBA" in problem:
-    nL=0
+    nL=200
 else:
     nL=0
 
@@ -89,12 +89,16 @@ for split in ["AnisotStress"]:
         else:
             h=12e-2
         ep=2e-2
-        diam=2e-2
+        
+        if problem == "CompressionFCBA3":
+            diam=4e-2
+        else:
+            diam=2e-2
         r=diam/2
 
-        gc = 1.4
-        l_0 = 0.12e-3
-        # l_0 = L/nL
+        gc = 1.4/2
+        # l_0 = 0.12e-3
+        l_0 = L/nL
 
         inc0 = 8e-7
         inc1 = 2e-7
