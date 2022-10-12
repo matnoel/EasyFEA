@@ -390,7 +390,24 @@ class BeamModel():
 
     @property
     def dim(self) -> int:
-        """Dimension du model"""
+        """Dimension du model \n
+        1D -> traction compression \n 
+        2D -> traction compression + fleche + flexion \n
+        3D -> tout \n"""
+        return self.__dim
+
+    @property
+    def nbddl_n(self) -> int:
+        """Nombdre de ddl par noeud
+        1D -> [u1, . . ., un]\n
+        2D -> [u1, v1, rz1, . . ., un, vn, rzn]\n
+        3D -> [u1, v1, w1, rx1, ry1, rz1, . . ., u2, v2, w2, rx2, ry2, rz2]"""
+        if self.__dim == 1:
+            return 1 # u
+        elif self.__dim == 2:
+            return 3 # u v rz
+        elif self.__dim == 3:
+            return 6 # u v w rx ry rz
         return self.__dim
     
     @property
