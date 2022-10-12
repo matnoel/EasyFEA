@@ -176,6 +176,12 @@ class Section():
         return self.__mesh.Iy
 
     @property
+    def Iyz(self) -> float:
+        """Moment quadratique de la section suivant yz\n
+        int_S y z dS """
+        return self.__mesh.Ixy
+
+    @property
     def J(self) -> float:
         """Moment quadratique polaire\n
         J = Iz + Iy
@@ -198,6 +204,10 @@ class Poutre():
         self.__line = line
 
         self.__section = section
+
+        # Verifie si la section est symétrique Iyz = 0
+        Iyz = section.Iyz 
+        assert Iyz <=  1e-12
 
     @property
     def line(self) -> Line:
