@@ -131,11 +131,10 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100,
-deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
+def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
     
-    # Verifie que l'option est dispo
-    if not simu.VerificationOption(option):
+    resultat = simu.Get_Resultat(option)
+    if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
         return
 
     # Ajoute le caractère de fin
@@ -316,8 +315,10 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
    
     simu.Update_iter(iter)
 
+    # Verification si la liste de résultats est compatible avec la simulation
     for option in options:
-        if not simu.VerificationOption(option):
+        resultat = simu.Get_Resultat(option)
+        if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
             return
 
     connect = simu.mesh.connect
