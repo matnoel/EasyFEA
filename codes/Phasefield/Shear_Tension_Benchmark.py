@@ -24,14 +24,14 @@ nomDossier = '_'.join([simulation,"Benchmark"])
 test = False
 solve = False
 pltMesh = False
-plotResult = False
+plotResult = True
 saveParaview = False
 makeMovie = True
 
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-split = "Bourdin" # "Bourdin","Amor","Miehe","Stress"
+split = "Bourdin" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True

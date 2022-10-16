@@ -17,17 +17,17 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = True
-solve = True
-plotMesh = True
+test = False
+solve = False
+plotMesh = False
 plotIter = False
 plotResult = True
 showFig = True
 saveParaview = False; NParaview=200
-makeMovie = False; NMovie = 300
+makeMovie = True; NMovie = 300
 
 
-problem = "CompressionFCBA3" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
+problem = "Benchmark" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
@@ -37,7 +37,7 @@ useNumba = True
 
 # Convergence
 maxIter = 500
-tolConv = 1e0
+tolConv = 1e-1
 # TODO Faire la convergence sur l'energie ?
 
 if comp == "Elas_Isot":
@@ -56,7 +56,7 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["AnisotStress"]:
+for split in ["Amor","Bourdin","Miehe"]:
     
     # if split == "AnisotStress" and comp == "Elas_Isot":
     #     umax = 45e-6
@@ -330,9 +330,7 @@ for split in ["AnisotStress"]:
         titleDamage = f"{split}"
 
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=True,
-        folder=folder, filename=filenameDamage,
-        title=titleDamage)
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,colorbarIsClose=True, folder=folder, filename=filenameDamage, title=titleDamage)
 
 
     if saveParaview:

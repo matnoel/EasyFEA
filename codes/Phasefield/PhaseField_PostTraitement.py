@@ -14,13 +14,13 @@ import PhaseFieldSimulation
 
 Affichage.Clear()
 
-test = True
+test = False
 loadSimu = True
-plotDamage = False
-saveDamage = False
+plotDamage = True
+savefig = True
 
 # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark"
-simulation = "Shear_Benchmark"
+simulation = "Tension_Benchmark"
 
 if simulation == "PlateWithHole_Benchmark":
     colorBarIsClose = True
@@ -34,7 +34,7 @@ if test:
 else:
     folderSauvegarde = Dossier.Join([folder, "_Post traitement"])
 
-if not saveDamage:
+if not savefig:
     folderSauvegarde=""
 
 # ["Bourdin","Amor","Miehe","He","Stress"]
@@ -48,18 +48,18 @@ if not saveDamage:
 # ["AnisotMiehe","He"]
 # ["AnisotMiehe", "He", "AnisotStress", "Stress"]
 
-listComp = ["Elas_Anisot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 listRegu = ["AT2"] # ["AT1", "AT2"]
 listSimpli2D = ["DP"] # ["CP","DP"]
 listSolveur = ["History"]
-listSplit = ["AnisotStress"]
-listOptimMesh=[True] # [True, False]
+listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]
+listOptimMesh=[False] # [True, False]
 listTol = [1e-0] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
 listnL = [0] # [100] [100, 120, 140, 180, 200]
 listTetha = [0]
 
 # snapshot = [18.5, 24.6, 25, 28, 35]
-snapshot = [100]
+snapshot = [13]
 
 depMax = 4000 # µm 35 ou 80
 
