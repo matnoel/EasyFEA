@@ -382,13 +382,13 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
         if deformation:
             coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
-
-
+    
     is3dBeamModel = False
-    beamModel = simu.materiau.beamModel
-    if isinstance(beamModel, BeamModel):
-        if beamModel.dim == 3:
-            is3dBeamModel = True
+    if isinstance(obj, Simu):
+        beamModel = simu.materiau.beamModel
+        if isinstance(beamModel, BeamModel):
+            if beamModel.dim == 3:
+                is3dBeamModel = True
         
     if inDim in [1,2] and not is3dBeamModel:
         

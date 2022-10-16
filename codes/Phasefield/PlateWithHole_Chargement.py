@@ -67,7 +67,7 @@ noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.cent
 
 comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
 phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
-materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
+materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
 
 simu = Simu.Simu(mesh, materiau, verbosity=False)
 
@@ -98,7 +98,7 @@ Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\
 
 # mini = np.min(simu.Get_Resultat("Syy", valeursAuxNoeuds=False))/SIG
 
-PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+# PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 R = 10
 F=15

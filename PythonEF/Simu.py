@@ -479,7 +479,7 @@ class Simu:
 
         if not self.__Check_Autorisation(["displacement","damage"]): return
 
-        if self.__problemType != "displacement":
+        if self.__problemType not in ["displacement","damage"]:
             print("La simulation n'est pas une simulation en déplacement")
             return
 
@@ -1642,15 +1642,17 @@ class Simu:
 
         return valeurs_ddls, ddls
 
-    def __lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
-        """Applique une force linéique\n
-        Renvoie valeurs_ddls, ddls"""
-
-        Simu.CheckProblemTypes(problemType)
-        Simu.CheckDirections(self.__dim, problemType, directions)
+    def __IntegrationDim(self, dim: int, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
 
         valeurs_ddls=np.array([])
         ddls=np.array([], dtype=int)
+
+        listGroupElemDim = self.mesh.Get_list_groupElem(dim)
+
+        if len(listGroupElemDim) > 1:
+            exclusivement=True
+        else:
+            exclusivement=True
 
         if problemType == "beam":
             param = self.materiau.beamModel.nbddl_n
@@ -1658,26 +1660,27 @@ class Simu:
             param = self.__dim
 
         # Récupération des matrices pour le calcul
-        for groupElem1D in self.mesh.Get_list_groupElem(1):
+        for groupElem in listGroupElemDim:
 
             # Récupère les elements qui utilisent exclusivement les noeuds
-            elements = groupElem1D.get_elementsIndex(noeuds, exclusivement=True)
-            connect_e = groupElem1D.connect_e[elements]
+            elements = groupElem.get_elementsIndex(noeuds, exclusivement=exclusivement)
+            if elements.shape[0] == 0: continue
+            connect_e = groupElem.connect_e[elements]
             Ne = elements.shape[0]
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-            coordo_e_p = groupElem1D.get_coordo_e_p("masse",elements)
+            coordo_e_p = groupElem.get_coordo_e_p("masse",elements)
             nPg = coordo_e_p.shape[1]
 
-            N_pg = groupElem1D.get_N_pg("masse")
+            N_pg = groupElem.get_N_pg("masse")
 
             # objets d'integration
-            jacobien_e_pg = groupElem1D.get_jacobien_e_pg("masse")[elements]
-            gauss = groupElem1D.get_gauss("masse")
+            jacobien_e_pg = groupElem.get_jacobien_e_pg("masse")[elements]
+            gauss = groupElem.get_gauss("masse")
             poid_pg = gauss.poids
 
             # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
-            valeurs_ddl_dir = np.zeros((Ne*groupElem1D.nPe, len(directions)))
+            valeurs_ddl_dir = np.zeros((Ne*groupElem.nPe, len(directions)))
 
             # Intègre sur chaque direction
             for d, dir in enumerate(directions):
@@ -1693,6 +1696,19 @@ class Simu:
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
+
+    def __lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+        """Applique une force linéique\n
+        Renvoie valeurs_ddls, ddls"""
+
+        Simu.CheckProblemTypes(problemType)
+        Simu.CheckDirections(self.__dim, problemType, directions)
+
+        valeurs_ddls, ddls = self.__IntegrationDim(dim=1, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
+
+        return valeurs_ddls, ddls
+
+        
     
     def __surfload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force surfacique\n
@@ -1701,55 +1717,7 @@ class Simu:
         Simu.CheckProblemTypes(problemType)
         Simu.CheckDirections(self.__dim, problemType, directions)
 
-        valeurs_ddls=np.array([])
-        ddls=np.array([], dtype=int)
-
-        listGroupElem2D = self.mesh.Get_list_groupElem(2)
-
-        if len(listGroupElem2D) > 1:
-            exclusivement=True
-        else:
-            exclusivement=True
-
-        if problemType == "beam":
-            param = self.materiau.beamModel.nbddl_n
-        else:
-            param = self.__dim
-
-        # Récupération des matrices pour le calcul
-        for groupElem2D in listGroupElem2D:
-
-            # Récupère les elements qui utilisent exclusivement les noeuds
-            elementsIndex = groupElem2D.get_elementsIndex(noeuds, exclusivement=exclusivement)
-            if elementsIndex.shape[0] == 0: continue
-            connect = groupElem2D.connect_e[elementsIndex]
-            Ne = elementsIndex.shape[0]
-            
-            # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-            coordo_e_p = groupElem2D.get_coordo_e_p("masse", elementsIndex)
-
-            N_pg = groupElem2D.get_N_pg("masse")
-
-            jacobien_e_pg = groupElem2D.get_jacobien_e_pg("masse")[elementsIndex]
-            
-            gauss = groupElem2D.get_gauss("masse")
-            poid_pg = gauss.poids
-            
-            # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
-            valeurs_ddl_dir = np.zeros((Ne*groupElem2D.nPe, len(directions)))
-
-            # Intégre sur chaque direction
-            for d, dir in enumerate(directions):
-                eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
-                valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
-                valeurs_e = np.sum(valeurs_e_p, axis=1)
-                valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
-
-            new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
-            valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
-
-            new_ddls = BoundaryCondition.Get_ddls_connect(param, problemType, connect, directions)
-            ddls = np.append(ddls, new_ddls)
+        valeurs_ddls, ddls = self.__IntegrationDim(dim=2, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
         return valeurs_ddls, ddls
 
@@ -1757,60 +1725,10 @@ class Simu:
         """Applique une force surfacique\n
         Renvoie valeurs_ddls, ddls"""
 
-        # TODO Regrouper avec surfload ?
-
         Simu.CheckProblemTypes(problemType)
         Simu.CheckDirections(self.__dim, problemType, directions)
 
-        valeurs_ddls=np.array([])
-        ddls=np.array([], dtype=int)
-
-        listGroupElem3D = self.mesh.Get_list_groupElem(3)
-
-        if len(listGroupElem3D) > 1:
-            exclusivement=True
-        else:
-            exclusivement=True
-
-        if problemType == "beam":
-            param = self.materiau.beamModel.nbddl_n
-        else:
-            param = self.__dim    
-
-        # Récupération des matrices pour le calcul
-        for groupElem3D in listGroupElem3D:
-
-            # Récupère les elements qui utilisent exclusivement les noeuds
-            elementsIndex = groupElem3D.get_elementsIndex(noeuds, exclusivement=exclusivement)
-            if elementsIndex.shape[0] == 0: continue
-            connect = groupElem3D.connect_e[elementsIndex]
-            Ne = elementsIndex.shape[0]
-            
-            # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-            coordo_e_p = groupElem3D.get_coordo_e_p("masse", elementsIndex)
-
-            N_pg = groupElem3D.get_N_pg("masse")
-
-            jacobien_e_pg = groupElem3D.get_jacobien_e_pg("masse")[elementsIndex]
-            
-            gauss = groupElem3D.get_gauss("masse")
-            poid_pg = gauss.poids
-            
-            # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
-            valeurs_ddl_dir = np.zeros((Ne*groupElem3D.nPe, len(directions)))
-
-            # Intégre sur chaque direction
-            for d, dir in enumerate(directions):
-                eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
-                valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
-                valeurs_e = np.sum(valeurs_e_p, axis=1)
-                valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
-
-            new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
-            valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
-
-            new_ddls = BoundaryCondition.Get_ddls_connect(param, problemType, connect, directions)
-            ddls = np.append(ddls, new_ddls)
+        valeurs_ddls, ddls = self.__IntegrationDim(dim=3, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
         return valeurs_ddls, ddls
     
