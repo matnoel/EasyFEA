@@ -371,7 +371,7 @@ class Elas_Isot(LoiDeComportement):
 
 class BeamModel():   
 
-    def __init__(self, dim: int, poutre: Poutre, E=210000.0, v=0.3):
+    def __init__(self, dim: int, listePoutres: List[Poutre], list_E: List[float], list_v=[]):
         """Creation du model poutre
 
         Parameters
@@ -384,9 +384,41 @@ class BeamModel():
             Coef de poisson ]-1;0.5]
         """
 
+        # Effectue les verifications
+        assert len(listePoutres) == len(list_E), "Doit fournir autant de coef matériau que de poutres"
+        assert len(listePoutres) == len(list_v), "Doit fournir autant de coef matériau que de poutres"
+
+        for E in list_E: assert E > 0, "Le module élastique doit être > 0 !" 
+        for v in list_v: assert v > -1.0 and v < 0.5, "Le coef de poisson doit être compris entre ]-1;0.5["
+        
         self.__dim = dim
-        self.__poutre = poutre
-        self.__comportement = Elas_Isot(dim=3, E=E, v=v)
+        self.__listePoutres = listePoutres
+        self.__list_E = list_E
+        self.__list_v = list_v
+
+        self.__list_D = []
+
+        for poutre, E, v in zip(listePoutres, list_E, list_v):
+
+            assert isinstance(poutre, Poutre)
+            A = poutre.section.aire
+        
+            if dim == 1:
+                # u = [u1, . . . , un]
+                D = np.diag([E*A])
+            elif dim == 2:
+                # u = [u1, v1, rz1, . . . , un, vn, rzn]
+                Iz = poutre.section.Iz
+                D = np.diag([E*A, E*Iz])
+            elif dim == 3:
+                # u = [u1, v1, w1, rx1, ry1 rz1, . . . , un, vn, wn, rxn, ryn rzn]
+                Iy = poutre.section.Iy
+                Iz = poutre.section.Iz
+                J = poutre.section.J
+                mu = E/(2*(1+v))
+                D = np.diag([E*A, mu*J, E*Iy, E*Iz])
+            
+            self.__list_D.append(D)
 
     @property
     def dim(self) -> int:
@@ -411,22 +443,41 @@ class BeamModel():
         return self.__dim
     
     @property
-    def poutre(self) -> Poutre:
-        """Poutre droite"""
-        return self.__poutre
+    def listePoutres(self) -> List[Poutre]:
+        """Liste des poutres"""
+        return self.__listePoutres
 
     @property
-    def comportement(self) -> Elas_Isot:
-        """Loi de comportement"""
-        return self.__comportement
+    def nbPoutres(self) -> int:
+        """Nombre de poutre"""
+        return len(self.__listePoutres)
+
+    @property
+    def liste_E(self) -> List[float]:
+        """Liste des modules élastiques"""
+        return self.__liste_E
+
+    @property
+    def liste_v(self) -> List[float]:
+        """Liste des coef de poisson"""
+        return self.__liste_v
+
+    @property
+    def list_D(self) -> List[np.ndarray]:
+        """liste de loi de comportement"""
+        return self.__list_D
 
     @property
     def resume(self) -> str:
-        section = self.poutre.section
-        comp = self.comportement
-        resume = f"\nElas_Isot:"
-        resume += f"\nE = {comp.E:.2e}, v = {comp.v}"
-        resume += f"\nA = {section.aire:.2e}, Iy = {section.Iy}, Iz = {section.Iz}"
+        resume = f"\nModel poutre:"
+        resume += f"\nNombre de Poutre = {self.nbPoutres} :\n"
+        # Réalise un résumé pour chaque poutre
+        for poutre, E, v in zip(self.__listePoutres, self.__list_E, self.__list_v):
+            resume += poutre.resume
+            if isinstance(E, int):
+                resume += f"\n\tE = {E:6}, v = {v}"
+            else:
+                resume += f"\n\tE = {E:6.2}, v = {v}"
         return resume
 
 class Elas_IsotTrans(LoiDeComportement):
@@ -1543,10 +1594,8 @@ class Materiau:
     
     @property
     def comportement(self) -> LoiDeComportement:
-        if self.__problemType == "thermal":
+        if self.__problemType in ["thermal","beam"]:
             return None
-        if self.__problemType == "beam":
-            return self.__beamModel.comportement
         else:
             if self.isDamaged:
                 return self.__phaseFieldModel.comportement
@@ -1623,11 +1672,15 @@ class Materiau:
     def Resume(self, verbosity=True):
         resume = ""
 
-        if self.isDamaged:
+        if self.__problemType == "damage":
             resume += self.__phaseFieldModel.comportement.resume
             resume += '\n' + self.__phaseFieldModel.resume
-        else:
+        elif self.__problemType == "displacement":
             resume += self.__comportement.resume
+        elif self.__problemType == "thermal":
+            pass
+        elif self.__problemType == "beam":
+            resume += self.__beamModel.resume
 
         if verbosity: print(resume)
         return resume

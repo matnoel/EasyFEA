@@ -45,6 +45,7 @@ class Interface_Gmsh:
         if self.__gmshVerbosity == False:
             gmsh.option.setNumber('General.Verbosity', 0)
         gmsh.model.add("model")
+        self.__listPysicalGroup = []
     
     def __CheckType(self, dim: int, elemType: str):
         """Verification si le type d'element est bien possible"""
@@ -640,8 +641,14 @@ class Interface_Gmsh:
             listPoints.append(p1)
             listPoints.append(p2)
 
-            l1 = factory.addLine(p1, p2)
-            listeLines.append(l1)
+            ligne = factory.addLine(p1, p2)
+            listeLines.append(ligne)
+
+            factory.synchronize()
+            physicalGroup = gmsh.model.addPhysicalGroup(1, [ligne], name=f"{poutre.idPoutre}")
+            self.__listPysicalGroup.append(physicalGroup)
+
+
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
@@ -946,11 +953,24 @@ class Interface_Gmsh:
                 testDimension = True
             dimAjoute.append(groupElem.dim)
 
+            # Ici on va récupérer les noeuds et elements faisant partie d'un groupe
+
+            for physicalGroupTag in self.__listPysicalGroup:
+                nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(groupElem.dim, physicalGroupTag)
+                nodeTags = np.array(nodeTags-1, dtype=int)
+                nodes = np.unique(nodeTags)
+                if nodes.size == 0: continue
+
+                tag = gmsh.model.getPhysicalName(groupElem.dim, physicalGroupTag)
+
+                groupElem.Add_PhysicalGroup_n(nodes, tag)
+                groupElem.Add_PhysicalGroup_e(nodes, tag)
+
         if dimAjoute.count(dim) > 1:
+            assert not testDimension, f"Impossible car {dimAjoute.count(dim)} type d'element {dim}D"
             # TODO faire en sorte de pouvoir le faire ?
             # Peut etre compliqué surtout dans la création des matrices elementaire et assemblage
             # Pas impossible mais pas trivial
-            assert not testDimension, f"Impossible car {dimAjoute.count(dim)} type d'element {dim}D"
         
         tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 

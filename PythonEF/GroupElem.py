@@ -69,6 +69,8 @@ class GroupElem:
         """Initialise les dictionnaires de matrices pour la constructions elements finis"""
         # Dictionnaires pour chaque types de matrices
         if self.dim > 0:
+            self.__dict_physicalGroup_n = {}
+            self.__dict_physicalGroup_e = {}
             self.__dict_dN_e_pg = {}
             self.__dict_dNv_e_pg = {}
             self.__dict_ddNv_e_pg = {}
@@ -385,21 +387,17 @@ class GroupElem:
 
             jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
             Ne = jacobien_e_pg.shape[0]
+            nPe = self.nPe
             pg = self.get_gauss(matriceType)
-
-            # On créer la dimension sur les elements
-            ddNv_e_pg = ddNv_pg[np.newaxis, :, 0, :].repeat(Ne,  axis=0)
+            
             # On récupère la longeur des poutres sur chaque element aux points d'intégrations
-            l_e_pg = np.einsum('ep,p->e', jacobien_e_pg, pg.poids, optimize='optimal')
-            l_e_pg = l_e_pg.repeat(pg.nPg).reshape(Ne, pg.nPg)
-            # On multiplie par la longueur les ddNv2_e_pg et ddNv4_e_pg
-            ddNv_e_pg[:,:,1] = np.einsum('ep,ep->ep',ddNv_e_pg[:,:,1],l_e_pg, optimize='optimal')
-            ddNv_e_pg[:,:,3] = np.einsum('ep,ep->ep',ddNv_e_pg[:,:,3],l_e_pg, optimize='optimal')
-            # Derivé des fonctions de formes dans la base réele
-            invF_e_pg = invF_e_pg.reshape((Ne, pg.nPg, 1)).repeat(ddNv_e_pg.shape[-1], axis=-1)
-            ddNv_e_pg = invF_e_pg * invF_e_pg * ddNv_e_pg
+            # l_e = np.einsum('ep,p->e', jacobien_e_pg, pg.poids, optimize='optimal').repeat(pg.nPg)
+            l_e_pg = np.einsum('ep,p->e', jacobien_e_pg, pg.poids, optimize='optimal').reshape(Ne,1).repeat(pg.nPg, axis=1)
+            
+            ddNv_e_pg = np.einsum('epik,epik,pkj->epij', invF_e_pg, invF_e_pg, ddNv_pg, optimize='optimal')
 
-            # ddNv_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, ddNv_pg, optimize='optimal'))
+            for colonne in np.arange(1, nPe*2, 2):
+                ddNv_e_pg[:,:,0,colonne] = np.einsum('ep,ep->ep', ddNv_e_pg[:,:,0,colonne], l_e_pg, optimize='optimal')
 
             self.__dict_ddNv_e_pg[matriceType] = ddNv_e_pg
 
@@ -601,29 +599,56 @@ class GroupElem:
             i = np.einsum('ei,e->ei',i, 1/np.linalg.norm(i, axis=1), optimize='optimal')
 
             if self.dim == 1:
-                theta = np.pi/2
-                rot = np.array([[np.cos(theta), -np.sin(theta), 0],
-                                [np.sin(theta), np.cos(theta), 0],
-                                [0, 0, 1]])
-                j = np.einsum('ij,ej->ei',rot, i, optimize='optimal')
+
+                e1 = np.array([1, 0, 0])[np.newaxis, :].repeat(i.shape[0], axis=0)
+                e2 = np.array([0, 1, 0])[np.newaxis, :].repeat(i.shape[0], axis=0)
+                e3 = np.array([0, 0, 1])[np.newaxis, :].repeat(i.shape[0], axis=0)
+
+                if self.inDim == 1:
+                    j = e2
+                    k = e3
+                elif self.inDim == 2:
+                    theta = np.pi/2
+                    rot = np.array([[np.cos(theta), -np.sin(theta), 0],
+                                    [np.sin(theta), np.cos(theta), 0],
+                                    [0, 0, 1]])
+                    j = np.einsum('ij,ej->ei',rot, i, optimize='optimal')
+                    j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
+
+                    k = np.cross(i, j, axis=1)
+                    k = np.einsum('ei,e->ei',k, 1/np.linalg.norm(k, axis=1), optimize='optimal')
+                elif self.inDim == 3:
+                    j = np.cross(i, e1, axis=1)
+
+                    rep2 = np.where(np.linalg.norm(j, axis=1)<1e-12)
+                    rep1 = np.setdiff1d(range(i.shape[0]), rep2)
+
+                    k1 = j.copy()
+                    j1 = np.cross(k1, i, axis=1)
+
+                    j2 = np.cross(e2, i, axis=1)
+                    k2 = np.cross(i, j2, axis=1)
+
+                    j = np.zeros_like(i)
+                    j[rep1] = j1[rep1]
+                    j[rep2] = j2[rep2]
+                    j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
+                    
+                    k = np.zeros_like(i)
+                    k[rep1] = k1[rep1]
+                    k[rep2] = k2[rep2]
+                    k = np.einsum('ei,e->ei',k, 1/np.linalg.norm(k, axis=1), optimize='optimal')
+
             else:                    
                 j = points3-points1
                 j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
                 
-            k = np.cross(i, j, axis=1)
-            k = np.einsum('ei,e->ei',k, 1/np.linalg.norm(k, axis=1), optimize='optimal')
-
-            if self.inDim == 3:
-                j = np.cross(k, i, axis=1)
-                j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
+                k = np.cross(i, j, axis=1)
+                k = np.einsum('ei,e->ei',k, 1/np.linalg.norm(k, axis=1), optimize='optimal')
 
 
             sysCoord_e = np.zeros((self.Ne, 3, 3))
-
-            # sysCoord_e[:,0] = i
-            # sysCoord_e[:,1] = j
-            # sysCoord_e[:,2] = k
-
+            
             sysCoord_e[:,:,0] = i
             sysCoord_e[:,:,1] = j
             sysCoord_e[:,:,2] = k
@@ -975,6 +1000,50 @@ class GroupElem:
                 dNv_pg[pg, 0, n] = func(coord[pg,0])
 
         return dNv_pg
+
+    def get_Nv_pg(self, matriceType: str) -> np.ndarray:
+        """Fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [phi_i psi_i . . . phi_n psi_n]
+        """
+        if self.dim != 1: return
+
+        if self.elemType == "SEG2":
+
+            phi_1 = lambda x : 0.5 + -0.75*x + 0.0*x**2 + 0.25*x**3
+            psi_1 = lambda x : 0.125 + -0.125*x + -0.125*x**2 + 0.125*x**3
+            phi_2 = lambda x : 0.5 + 0.75*x + 0.0*x**2 + -0.25*x**3
+            psi_2 = lambda x : -0.125 + -0.125*x + 0.125*x**2 + 0.125*x**3
+
+            Nvtild = np.array([phi_1, psi_1, phi_2, psi_2])
+        
+        elif self.elemType == "SEG3":
+
+            phi_1 = lambda x : 0.0 + 0.0*x + 1.0*x**2 + -1.25*x**3 + -0.5*x**4 + 0.75*x**5
+            psi_1 = lambda x : 0.0 + 0.0*x + 0.125*x**2 + -0.125*x**3 + -0.125*x**4 + 0.125*x**5
+            phi_2 = lambda x : 0.0 + 0.0*x + 1.0*x**2 + 1.25*x**3 + -0.5*x**4 + -0.75*x**5
+            psi_2 = lambda x : 0.0 + 0.0*x + -0.125*x**2 + -0.125*x**3 + 0.125*x**4 + 0.125*x**5
+            phi_3 = lambda x : 1.0 + 0.0*x + -2.0*x**2 + 0.0*x**3 + 1.0*x**4 + 0.0*x**5
+            psi_3 = lambda x : 0.0 + 0.5*x + 0.0*x**2 + -1.0*x**3 + 0.0*x**4 + 0.5*x**5
+
+            Nvtild = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3])
+
+        else:
+            raise "Pas implémenté"
+        
+        # Evaluation aux points de gauss
+        gauss = self.get_gauss(matriceType)
+        coord = gauss.coord
+        
+        nPg = gauss.nPg
+
+        Nv_pg = np.zeros((nPg, 1, len(Nvtild)))
+
+        for pg in range(nPg):
+            for n, Nt in enumerate(Nvtild):
+                func = Nt
+                Nv_pg[pg, 0, n] = func(coord[pg,0])
+
+        return Nv_pg
     
     def get_dN_pg(self, matriceType: str) -> np.ndarray:
         """Dérivées des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...) \n
@@ -1102,20 +1171,30 @@ class GroupElem:
 
     def get_dNv_pg(self, matriceType: str) -> np.ndarray:
         """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
-        [Nv_i,ksi . . . Nv_n,ksi\n
-        Nrz_i,ksi . . . Nrz_n,ksi]
+        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]
         """
-        if self.dim == 0: return
+        if self.dim != 1: return
 
         if self.elemType == "SEG2":
+            
+            phi_1_x = lambda x : -0.75 + 0.0*x + 0.75*x**2
+            psi_1_x = lambda x : -0.125 + -0.25*x + 0.375*x**2
+            phi_2_x = lambda x : 0.75 + 0.0*x + -0.75*x**2
+            psi_2_x = lambda x : -0.125 + 0.25*x + 0.375*x**2
 
-            dNv1t = lambda x: -3/4 * (1-x) * (1+x)
-            dNv2t = lambda x: -1/8 * (1-x) * (1+3*x)
-            dNv3t = lambda x: 3/4 * (1-x) * (1+x)
-            dNv4t = lambda x: 1/8 * (1+x) * (3*x-1)
-
-            dNvtild = np.array([dNv1t, dNv2t, dNv3t, dNv4t])
+            dNvtild = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x])
         
+        elif self.elemType == "SEG3":
+
+            phi_1_x = lambda x : 0.0 + 2.0*x + -3.75*x**2 + -2.0*x**3 + 3.75*x**4
+            psi_1_x = lambda x : 0.0 + 0.25*x + -0.375*x**2 + -0.5*x**3 + 0.625*x**4
+            phi_2_x = lambda x : 0.0 + 2.0*x + 3.75*x**2 + -2.0*x**3 + -3.75*x**4
+            psi_2_x = lambda x : 0.0 + -0.25*x + -0.375*x**2 + 0.5*x**3 + 0.625*x**4
+            phi_3_x = lambda x : 0.0 + -4.0*x + 0.0*x**2 + 4.0*x**3 + 0.0*x**4
+            psi_3_x = lambda x : 0.5 + 0.0*x + -3.0*x**2 + 0.0*x**3 + 2.5*x**4
+
+            dNvtild = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x, phi_3_x, psi_3_x])            
+
         else:
             raise "Pas implémenté"
         
@@ -1133,40 +1212,6 @@ class GroupElem:
                 dNv_pg[pg, 0, n] = func(coord[pg,0])
 
         return dNv_pg
-
-    def get_ddNv_pg(self, matriceType: str) -> np.ndarray:
-        """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
-        [Nv_i,ksi ksi . . . Nv_n,ksi ksi\n
-        Nrz_i,ksi ksi . . . Nrz_n,ksi ksi]
-        """
-        if self.dim != 1: return
-
-        if self.elemType in ["SEG2"]:
-
-            ddNv1t = lambda x: 3/2 * x
-            ddNv2t = lambda x: 1/4 * (3*x-1)
-            ddNv3t = lambda x: -3/2 * x
-            ddNv4t = lambda x: 1/4 * (3*x+1)
-
-            ddNvtild = np.array([ddNv1t, ddNv2t, ddNv3t, ddNv4t])
-        
-        else:
-            raise "Pas implémenté"
-        
-        # Evaluation aux points de gauss
-        gauss = self.get_gauss(matriceType)
-        coord = gauss.coord
-        
-        nPg = gauss.nPg
-
-        ddNv_pg = np.zeros((nPg, 1, len(ddNvtild)))
-
-        for pg in range(nPg):
-            for n, Nt in enumerate(ddNvtild):
-                func = Nt
-                ddNv_pg[pg, 0, n] = func(coord[pg,0])
-        
-        return ddNv_pg
 
     def get_ddN_pg(self, matriceType: str) -> np.ndarray:
         """Dérivées segonde des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...) \n
@@ -1291,6 +1336,51 @@ class GroupElem:
                         dddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
 
         return dddN_pg
+
+    def get_ddNv_pg(self, matriceType: str) -> np.ndarray:
+        """Dérivées 2nd des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]
+        """
+        if self.dim != 1: return
+
+        if self.elemType == "SEG2":
+            
+            phi_1_xx = lambda x : 0.0 + 1.5*x
+            psi_1_xx = lambda x : -0.25 + 0.75*x
+            phi_2_xx = lambda x : 0.0 + -1.5*x
+            psi_2_xx = lambda x : 0.25 + 0.75*x
+
+            ddNvtild = np.array([phi_1_xx, psi_1_xx, phi_2_xx, psi_2_xx])
+        
+        elif self.elemType == "SEG3":
+
+            phi_1_xx = lambda x : 2.0 + -7.5*x + -6.0*x**2 + 15.0*x**3
+            psi_1_xx = lambda x : 0.25 + -0.75*x + -1.5*x**2 + 2.5*x**3
+            phi_2_xx = lambda x : 2.0 + 7.5*x + -6.0*x**2 + -15.0*x**3
+            psi_2_xx = lambda x : -0.25 + -0.75*x + 1.5*x**2 + 2.5*x**3
+            phi_3_xx = lambda x : -4.0 + 0.0*x + 12.0*x**2 + 0.0*x**3
+            psi_3_xx = lambda x : 0.0 + -6.0*x + 0.0*x**2 + 10.0*x**3
+
+            ddNvtild = np.array([phi_1_xx, psi_1_xx, phi_2_xx, psi_2_xx, phi_3_xx, psi_3_xx])            
+
+        else:
+            raise "Pas implémenté"
+        
+        # Evaluation aux points de gauss
+        gauss = self.get_gauss(matriceType)
+        coord = gauss.coord
+        
+        nPg = gauss.nPg
+
+        ddNv_pg = np.zeros((nPg, 1, len(ddNvtild)))
+
+        for pg in range(nPg):
+            for n, Nt in enumerate(ddNvtild):
+                func = Nt
+                ddNv_pg[pg, 0, n] = func(coord[pg,0])
+
+        return ddNv_pg
+    
 
     def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
         """Renvoie la liste d'identifiant des noeuds qui respectent les condtions
@@ -1437,6 +1527,52 @@ class GroupElem:
         nodesIndex = np.where(np.sqrt(conditionX**2+conditionY**2+conditionZ**2)<=circle.diam/2+eps)
 
         return self.__nodesID[nodesIndex]
+
+    def Add_PhysicalGroup_n(self, noeuds: np.ndarray, tag: str):
+        """Ajoute un groupe physique sur les noeuds
+
+        Parameters
+        ----------
+        noeuds : np.ndarray
+            liste de noeuds
+        tag : str
+            tag utilisé
+        """
+        if noeuds.size == 0: return
+        self.__dict_physicalGroup_n[tag] = noeuds
+
+    def Add_PhysicalGroup_e(self, noeuds: np.ndarray, tag: str):
+        """Ajoute un groupe physique sur les elements
+
+        Parameters
+        ----------
+        noeuds : np.ndarray
+            liste de noeuds
+        tag : str
+            tag utilisé
+        """
+
+        if noeuds.size == 0: return
+
+        # Récupère les elements associés aux noeuds
+        elements = self.get_elementsIndex(noeuds=noeuds, exclusivement=False)
+
+        # elementsId = self.__elementsID[elements]
+
+        self.__dict_physicalGroup_e[tag] = elements
+
+
+    def Get_Elements_PhysicalGroup(self, tag: str):
+        try:
+            return self.__dict_physicalGroup_e[tag]
+        except:
+            print("Groupe physique inconnue")
+    
+    def Get_Noeuds_PhysicalGroup(self, tag: str):
+        try:
+            return self.__dict_physicalGroup_n[tag]
+        except:
+            print("Groupe physique inconnue")
     
     def Localise_sol_e(self, sol: np.ndarray) -> np.ndarray:
         """localise les valeurs de noeuds sur les elements"""
@@ -1483,8 +1619,11 @@ class GroupElem:
         dict_connect_faces = {}
 
         nPe = self.nPe            
-        if self.elemType in ["SEG2","SEG3","POINT"]:
+        if self.elemType in ["SEG2","POINT"]:
             dict_connect_faces[self.elemType] = self.__connect.copy()
+        elif self.elemType == "SEG3":
+            dict_connect_faces[self.elemType] = self.__connect[:, [0,2,1]]
+            # dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2]]
         elif self.elemType == "TRI3":
             dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2,0]]
         elif self.elemType == "TRI6":
@@ -1547,40 +1686,263 @@ class GroupElem:
         """
         if gmshId == 1:
             type = "SEG2"; nPe = 2; dim = 1
+            #       v
+            #       ^
+            #       |
+            #       |
+            # 0-----+-----1 --> u
         elif gmshId == 2:
             type = "TRI3"; nPe = 3; dim = 2
+            # v
+            # ^
+            # |
+            # 2
+            # |`\
+            # |  `\
+            # |    `\
+            # |      `\
+            # |        `\
+            # 0----------1 --> u
         elif gmshId == 3:
-            type = "QUAD4"; nPe = 4; dim = 2 
+            type = "QUAD4"; nPe = 4; dim = 2
+            #       v
+            #       ^
+            #       |
+            # 3-----------2
+            # |     |     |
+            # |     |     |
+            # |     +---- | --> u
+            # |           |
+            # |           |
+            # 0-----------1
         elif gmshId == 4:
             type = "TETRA4"; nPe = 4; dim = 3
+            #                    v
+            #                  .
+            #                ,/
+            #               /
+            #            2
+            #          ,/|`\
+            #        ,/  |  `\
+            #      ,/    '.   `\
+            #    ,/       |     `\
+            #  ,/         |       `\
+            # 0-----------'.--------1 --> u
+            #  `\.         |      ,/
+            #     `\.      |    ,/
+            #        `\.   '. ,/
+            #           `\. |/
+            #              `3
+            #                 `\.
+            #                    ` w
         elif gmshId == 5:
             type = "HEXA8"; nPe = 8; dim = 3
+            #        v
+            # 3----------2
+            # |\     ^   |\
+            # | \    |   | \
+            # |  \   |   |  \
+            # |   7------+---6
+            # |   |  +-- |-- | -> u
+            # 0---+---\--1   |
+            #  \  |    \  \  |
+            #   \ |     \  \ |
+            #    \|      w  \|
+            #     4----------5
+
         elif gmshId == 6:
             type = "PRISM6"; nPe = 6; dim = 3
+            #            w
+            #            ^
+            #            |
+            #            3
+            #          ,/|`\
+            #        ,/  |  `\
+            #      ,/    |    `\
+            #     4------+------5
+            #     |      |      |
+            #     |    ,/|`\    |
+            #     |  ,/  |  `\  |
+            #     |,/    |    `\|
+            #    ,|      |      |\
+            #  ,/ |      0      | `\
+            # u   |    ,/ `\    |    v
+            #     |  ,/     `\  |
+            #     |,/         `\|
+            #     1-------------2
         elif gmshId == 7:
             type = "PYRA5"; nPe = 5; dim = 3
+            #                4
+            #              ,/|\
+            #            ,/ .'|\
+            #          ,/   | | \
+            #        ,/    .' | `.
+            #      ,/      |  '.  \
+            #    ,/       .' w |   \
+            #  ,/         |  ^ |    \
+            # 0----------.'--|-3    `.
+            #  `\        |   |  `\    \
+            #    `\     .'   +----`\ - \ -> v
+            #      `\   |    `\     `\  \
+            #        `\.'      `\     `\`
+            #           1----------------2
+            #                     `\
+            #                       u
         elif gmshId == 8:
             type = "SEG3"; nPe = 3; dim = 1
+            #       v
+            #       ^
+            #       |
+            #       |
+            #  0----2----1 --> u
         elif gmshId == 9:
             type = "TRI6"; nPe = 6; dim = 2
+            # v
+            # ^
+            # |
+            # 2
+            # |`\
+            # |  `\
+            # 5    `4
+            # |      `\
+            # |        `\
+            # 0----------1 --> u
         elif gmshId == 10:
             type = "QUAD9"; nPe = 9; dim = 2
+            #       v
+            #       ^
+            #       |
+            # 3-----6-----2
+            # |     |     |
+            # |     |     |
+            # 7     8---- 5 --> u
+            # |           |
+            # |           |
+            # 0-----4-----1
         elif gmshId == 11:
             type = "TETRA10"; nPe = 10; dim = 3
+            #                    v
+            #                  .
+            #                ,/
+            #               /
+            #            2
+            #          ,/|`\
+            #        ,/  |  `\
+            #      ,6    '.   `5
+            #    ,/       8     `\
+            #  ,/         |       `\
+            # 0--------4--'.--------1 --> u
+            #  `\.         |      ,/
+            #     `\.      |    ,9
+            #        `7.   '. ,/
+            #           `\. |/
+            #              `3
+            #                 `\.
+            #                    ` w
         elif gmshId == 12:
-            type = "CUBE27"; nPe = 27; dim = 3
+            type = "HEXA27"; nPe = 27; dim = 3
+            #        v
+            # 3----13----2
+            # |\         |\
+            # |15    24  | 14
+            # 9  \ 20    11 \
+            # |   7----19+---6
+            # |22 |  26  | 23|
+            # 0---+-8----1   |
+            #  \ 17    25 \  18
+            #  10 |  21    12|
+            #    \|         \|
+            #     4----16----5
         elif gmshId == 13:
             type = "PRISM18"; nPe = 18; dim = 3
+            #            w
+            #            ^
+            #            |
+            #            3
+            #          ,/|`\
+            #        12  |  13
+            #      ,/    |    `\
+            #     4------14-----5
+            #     |      8      |
+            #     |    ,/|`\    |
+            #     |  15  |  16  |
+            #     |,/    |    `\|
+            #    ,10-----17-----11
+            #  ,/ |      0      | `\
+            # u   |    ,/ `\    |    v
+            #     |  ,6     `7  |
+            #     |,/         `\|
+            #     1------9------2
         elif gmshId == 14:
             type = "PYRA14"; nPe = 17; dim = 3
+            #                4
+            #              ,/|\
+            #            ,/ .'|\
+            #          ,/   | | \
+            #        ,/    .' | `.
+            #      ,7      |  12  \
+            #    ,/       .' w |   \
+            #  ,/         9  ^ |    11
+            # 0--------6-.'--|-3    `.
+            #  `\        |   |  `\    \
+            #    `5     .'   13---10 - \ -> v
+            #      `\   |    `\     `\  \
+            #        `\.'      `\     `\`
+            #           1--------8-------2
+            #                     `\
+            #                       u
         elif gmshId == 15:
             type = "POINT"; nPe = 1; dim = 0
         elif gmshId == 16:
             type = "QUAD8"; nPe = 8; dim = 2
+            #       v
+            #       ^
+            #       |
+            # 3-----6-----2
+            # |     |     |
+            # |     |     |
+            # 7     +---- 5 --> u
+            # |           |
+            # |           |
+            # 0-----4-----1
         elif gmshId == 18:
             type = "PRISM15"; nPe = 15; dim = 3
+            #            w
+            #            ^
+            #            |
+            #            3
+            #          ,/|`\
+            #        12  |  13
+            #      ,/    |    `\
+            #     4------14-----5
+            #     |      8      |
+            #     |    ,/|`\    |
+            #     |  ,/  |  `\  |
+            #     |,/    |    `\|
+            #    ,10      |     11
+            #  ,/ |      0      | \
+            # u   |    ,/ `\    |   v
+            #     |  ,6     `7  |
+            #     |,/         `\|
+            #     1-------------2
         elif gmshId == 19:
             type = "PYRA13"; nPe = 13; dim = 3
+            #                4
+            #              ,/|\
+            #            ,/ .'|\
+            #          ,/   | | \
+            #        ,/    .' | `.
+            #      ,7      |  12  \
+            #    ,/       .' w |   \
+            #  ,/         9  ^ |    11
+            # 0--------6-.'--|-3    `.
+            #  `\        |   |  `\    \
+            #    `5     .'   +----10 - \ -> v
+            #      `\   |    `\     `\  \
+            #        `\.'      `\       `\`
+            #           1--------8-------2
+            #                     `\
+            #                       u
         else: 
             raise "Type inconnue"
             

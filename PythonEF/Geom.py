@@ -190,6 +190,8 @@ class Section():
 
 class Poutre():
 
+    __nbPoutre=0
+
     def __init__(self, line: Line, section: Section):
         """Construction d'une poutre
 
@@ -207,7 +209,11 @@ class Poutre():
 
         # Verifie si la section est symétrique Iyz = 0
         Iyz = section.Iyz 
-        assert Iyz <=  1e-12
+        assert Iyz <=  1e-12, "La section doit être symétrique"
+
+        Poutre.__nbPoutre += 1
+
+        self.__idPoutre = f"Poutre{Poutre.__nbPoutre}"
 
     @property
     def line(self) -> Line:
@@ -218,4 +224,17 @@ class Poutre():
     def section(self) -> Section:
         """Section de la poutre"""
         return self.__section
-        
+
+    @property
+    def idPoutre(self) -> str:
+        """Identifiant de la poutre"""
+        return self.__idPoutre
+
+    @property
+    def resume(self) -> str:
+        resume = ""
+
+        resume += f"\n{self.__idPoutre} :"
+        resume += f"\n\tS = {self.__section.aire:.2}, Iz = {self.__section.aire:.2}, Iy = {self.__section.aire:.2}, J = {self.__section.J:.2}"
+
+        return resume

@@ -56,34 +56,47 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
 
     # Va chercher les valeurs 0 a affciher
 
-    from Simu import Simu
+    from Simu import Simu, BeamModel
     from TicTac import Tic
 
     simu = cast(Simu, simu) # ne pas ecrire simu: Simu ça créer un appel circulaire
 
-    mesh = simu.mesh
+    mesh = simu.mesh # récupération du maillage
     
-    dim = mesh.dim
+    dim = mesh.dim # dimension du maillage
+
+    # Dimension dans lequel se trouve le maillage
+    try:
+        inDim = mesh.inDim 
+    except:
+        inDim = mesh.groupElem.inDim
 
     if dim == 3:
         # Quand on fait une simulation en 3D on ne peut afficher les résultats que sur les elements
         # En plus, il faut tracer la solution que sur les eléments 2D
-        valeursAuxNoeuds = True
+        valeursAuxNoeuds = False
 
+    if simu.problemType == "beam":
+        # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
+        valeursAuxNoeuds = False
+
+    # Récupération du résultat
     valeurs = simu.Get_Resultat(option, valeursAuxNoeuds)
     if not isinstance(valeurs, np.ndarray):
         return
 
     valeurs *= coef
 
+    # Recupération des coordonnée déformées si la simulation le permet
     coordo, deformation = __GetCoordo(simu, deformation, facteurDef)
 
     # construit la matrice de connection pour les faces
     connect_Faces = mesh.connect_Faces
 
     # Construit les faces non deformées
-    coordo_redim = coordo[:,range(dim)]
+    coordo_redim = coordo[:,range(inDim)]
 
+    # Construit les niveaux pour la colorbar
     if option == "damage":
         min = valeurs.min()-1e-12
         max = valeurs.max()+1e-12
@@ -93,58 +106,58 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     else:
         levels = 200
 
-    if dim == 1:
+    is3dBeamModel = False
+    beamModel = simu.materiau.beamModel
+    if isinstance(beamModel, BeamModel):
+        if beamModel.dim == 3:
+            is3dBeamModel = True
 
-        if simu.problemType == "beam":
+    if inDim in [1,2] and not is3dBeamModel:
+        # Maillage contenu dans un plan 2D
 
-            if oldax == None:
-                fig, ax = plt.subplots()
-            else:
-                fig = oldfig
-                ax = oldax
-                ax.clear()
-            
-            beamModel = simu.materiau.beamModel
-            beamDim = beamModel.dim
-
-            if beamDim == 2:
-                
-                ax.contourf(coordo[:,0], coordo[:,1], valeurs)
-            
-            pass
-
-        else:
-            return
-    
-    if dim == 2:
-
+        # dictionnaire pour stocker les coordonnées par faces
         coord_par_face = {}
         for elem in connect_Faces:
+            # Récupérations des noeuds par faces
             faces = connect_Faces[elem]
+            # recupere la coordonnées des noeuds de chaque elements
             coord_par_face[elem] = coordo_redim[faces]
 
-        connectTri = mesh.connectTriangle
-        # Construit les vertices
-
         if oldax == None:
+            # Création de la figure
             fig, ax = plt.subplots()
         else:
+            # utilisation de l'ancienne figure
             fig = oldfig
             ax = oldax
             ax.clear()
-        
 
         for elem in coord_par_face:
+            # Pour chaque type d'element du maillage on va tracer la solution
+
+            # coordonnées par element
             vertices = coord_par_face[elem]
 
             # Trace le maillage
             if affichageMaillage:
-                pc = matplotlib.collections.LineCollection(vertices, edgecolor='black', lw=0.5)
-                ax.add_collection(pc)
+                if mesh.dim == 1:
+                    # le maillage pour des elements 1D sont des points
+                    coordFaces = vertices.reshape(-1,inDim)
+                    ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=0.1, marker='.')
+                else:
+                    # le maillage pour des elements 2D sont des lignes
+                    pc = matplotlib.collections.LineCollection(vertices, edgecolor='black', lw=0.5)
+                    ax.add_collection(pc)
 
             # Valeurs aux element
             if mesh.Ne == len(valeurs):
-                pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap='jet')
+                # on va afficher le résultat sur les elements
+                if mesh.dim == 1:
+                    # on va afficher le résulat sur chaque ligne
+                    pc = matplotlib.collections.LineCollection(vertices, lw=1.5, cmap='jet')
+                else:
+                    # on va afficher le résultat sur les faces
+                    pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap='jet')
                 pc.set_clim(valeurs.min(), valeurs.max())
                 pc.set_array(valeurs)
                 ax.add_collection(pc)
@@ -155,16 +168,21 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
                 # pc = ax.tricontourf(dx_e, dy_e, valeurs, levels ,cmap='jet')            
 
             # Valeur aux noeuds
-            elif mesh.Nn == len(valeurs):                
-                pc = ax.tricontourf(coordo[:,0], coordo[:,1], connectTri[elem],
-                valeurs, levels, cmap='jet')
+            elif mesh.Nn == len(valeurs):
+                # on va afficher le résultat sur les noeuds
+                # récupération des triangles de chaque face pour utiliser la fonction trisurf
+                connectTri = mesh.connectTriangle
+                pc = ax.tricontourf(coordo[:,0], coordo[:,1], connectTri[elem], valeurs, levels, cmap='jet')
                 # tripcolor, tricontour, tricontourf
         
+        # Changement de la taille des axes
+        if mesh.dim > 1:
+            ax.axis('equal')
         ax.autoscale()
-        ax.axis('equal')
         if simu.problemType in ["thermal"]:
             ax.axis('off')
         
+        # procédure pour essayer de rapporcher la colorbar de l'ax
         divider = make_axes_locatable(ax)
         if colorbarIsClose:
             cax = divider.append_axes('right', size='10%', pad=0.1)
@@ -172,18 +190,21 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         else:
             cax=None
         
+        # Construction de la colorbar
         if option == "damage":
             ticks = np.linspace(0,1,11)
             cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
         else:
             cb = plt.colorbar(pc, ax=ax, cax=cax)
         
-        # ax.set_xlabel('x [mm]')
-        # ax.set_ylabel('y [mm]')
+        # Renome les axes
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
 
     
-    elif mesh.dim == 3:
+    elif inDim == 3 or is3dBeamModel:
 
+        # Construction de la figure et de l'ax si nécessaire
         if oldax == None:
             fig = plt.figure()
             ax = fig.add_subplot(projection="3d")
@@ -192,39 +213,71 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
             ax = oldax
             ax.clear()
 
-        # Construit les vertices du maillage 3D en recupérant le maillage 2D
+        # initialisation des valeurs max et min de la colorbar 
+        
         maxVal = 0
         minVal = 0
 
-        for groupElem2D in mesh.Get_list_groupElem(2):
-            connect2D = groupElem2D.connect_e
-            coordo2D = groupElem2D.coordoGlob
-            vertices = np.asarray(coordo2D[connect2D]) # (Ne, nPe, 3
+        # dimenson du maillage
+        dim = mesh.dim
+        if dim == 3:
+            # Si le maillage est un maillage 3D alors on ne va affichier que les elements 2D du maillage
+            # Un maillage 3D peut contenir plusieurs types d'element 2D
+            # Par exemple quand PRISM6 -> TRI6 et QUAD8 en meme temps
+            # En gros la couche extérieur
+            dim = 2
 
-            valeursAuxFaces = np.asarray(np.mean(valeurs[connect2D], axis=1))
+        for groupElemDim in mesh.Get_list_groupElem(dim):
+            # Récupération de la liste de noeuds de chaque element
+            connectDim = groupElemDim.connect_e
+            # Récupération de la coordonnée des noeuds
+            coordoDim = groupElemDim.coordoGlob
+            # coordonnées des noeuds pour chaque element
+            vertices = np.asarray(coordoDim[connectDim]) # (Ne, nPe, 3)
+            
+            if valeursAuxNoeuds:
+                # Si le résultat est stocké aux noeuds on va faire la moyenne des valeurs aux noeuds sur l'element
+                valeursNoeudsSurElement = valeurs[connectDim]
+                valeursAuxFaces = np.asarray(np.mean(valeursNoeudsSurElement, axis=1))
+            else:
+                valeursAuxFaces = valeurs
 
+            # mise à jour 
             maxVal = np.max([maxVal, valeursAuxFaces.max()])
             minVal = np.min([minVal, valeursAuxFaces.min()])
 
+            # On affiche le résultat avec ou sans l'affichage du maillage
             if affichageMaillage:
-                pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap='jet')
+                if dim == 1:
+                    pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap='jet')
+                elif dim == 2:
+                    pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap='jet')
             else:
-                pc = Poly3DCollection(vertices, cmap='jet')
+                if dim == 1:
+                    pc = Line3DCollection(vertices, cmap='jet')
+                if dim == 2:
+                    pc = Poly3DCollection(vertices, cmap='jet')
 
+            # On applique les couleurs aux faces
             pc.set_array(valeursAuxFaces)
 
-            ax.add_collection3d(pc, zs=2, zdir='x')
+            # ax.add_collection3d(pc, zs=2, zdir='x')
+            ax.add_collection3d(pc)
             # ax.add_collection3d(pc)
-        
+
+        # On pose les limites de la colorbar et on l'affiche
         pc.set_clim(minVal, maxVal)
-        
         cb = fig.colorbar(pc, ax=ax)
-        # ax.set_xlabel("x [mm]")
-        # ax.set_ylabel("y [mm]")
-        # ax.set_zlabel("z [mm]")            
-            
+
+        # renome les axes
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
+        ax.set_zlabel(r"$z$")
+        
+        # Change l'echelle des axes
         __ChangeEchelle(ax, coordo)
 
+    # On prépare le titre
     if option == "damage":
         option = "\phi"
     elif option == "thermal":
@@ -236,22 +289,28 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         optionFin = option.split('E')[-1]
         option = f"\epsilon_{'{'+optionFin+'}'}"
     
+    # On specifie si les valeurs sont sur les noeuds ou sur les elements
     if valeursAuxNoeuds:
         # loc = "^{n}"
         loc = ""
     else:
         loc = "^{e}"
-
+    
+    # si aucun titre n'a été renseigné on utilise le titre construit
     if title == "":
         title = option+loc
-    ax.set_title(fr"${title}$")
+        ax.set_title(fr"${title}$")
+    else:
+        ax.set_title(f"{title}")
 
+    # Si le dossier à été renseigné on sauvegarde la figure
     if folder != "":
         import PostTraitement as PostTraitement
         if filename=="":
             filename=title
         PostTraitement.Save_fig(folder, filename, transparent=False)
 
+    # Renvoie la figure, l'axe et la colorbar
     return fig, ax, cb
     
 def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder="", title="") -> plt.Axes:
@@ -282,8 +341,9 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         Axes dans lequel on va creer la figure
     """
 
-    from Simu import Simu
+    from Simu import Simu, BeamModel
     from Mesh import Mesh
+
 
     typeobj = type(obj).__name__
 
@@ -322,8 +382,15 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
         if deformation:
             coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
+
+
+    is3dBeamModel = False
+    beamModel = simu.materiau.beamModel
+    if isinstance(beamModel, BeamModel):
+        if beamModel.dim == 3:
+            is3dBeamModel = True
         
-    if inDim in [1,2]:
+    if inDim in [1,2] and not is3dBeamModel:
         
         if ax == None:
             fig, ax = plt.subplots()
@@ -362,56 +429,76 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         
         ax.autoscale()
         ax.axis('equal')
-        # ax.set_xlabel("x [mm]")
-        # ax.set_ylabel("y [mm]")
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
 
     # ETUDE 3D    
-    if mesh.dim == 3:
+    elif inDim == 3 or is3dBeamModel:
         
         fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
 
         # fig = plt.figure()            
         # ax = fig.add_subplot(projection="3d")
 
+        dim = mesh.dim
+        if dim == 3:
+            # Si le maillage est un maillage 3D alors on ne va affichier que les elements 2D du maillage
+            # En gros la couche extérieur
+            dim = 2
+
         if deformation:
-            # Affiche que les elements 2D
+            # Affiche que les elements 1D ou 2D en fonction du type de maillage
 
-            for groupElem2D in mesh.Get_list_groupElem(2):
-                faces = groupElem2D.get_connect_Faces()[groupElem2D.elemType]
+            for groupElemDim in mesh.Get_list_groupElem(dim):
+                faces = groupElemDim.get_connect_Faces()[groupElemDim.elemType]
                 coordDeformeFaces = coordoDeforme[faces]
-                coordFaces = groupElem2D.coordoGlob[faces]
+                coordFaces = groupElemDim.coordoGlob[faces]
 
-                # Supperpose les deux maillages
-                # Maillage non deformé
-                # ax.scatter(x,y,z, linewidth=0, alpha=0)
-                pcNonDef = Poly3DCollection(coordFaces, edgecolor='black', linewidths=0.5, alpha=0)
-                ax.add_collection3d(pcNonDef)
+                if dim > 1:
+                    # Supperpose les deux maillages
+                    # Maillage non deformé
+                    # ax.scatter(x,y,z, linewidth=0, alpha=0)
+                    pcNonDef = Poly3DCollection(coordFaces, edgecolor='black', linewidths=0.5, alpha=0)
+                    ax.add_collection3d(pcNonDef)
 
-                # Maillage deformé
-                pcDef = Poly3DCollection(coordDeformeFaces, edgecolor='red', linewidths=0.5, alpha=0)
-                ax.add_collection3d(pcDef)
-                
+                    # Maillage deformé
+                    pcDef = Poly3DCollection(coordDeformeFaces, edgecolor='red', linewidths=0.5, alpha=0)
+                    ax.add_collection3d(pcDef)
+                else:
+                    # Superpose maillage non deformé et deformé
+                    # Maillage non deformés            
+                    pc = Line3DCollection(coordFaces, edgecolor='black', lw=lw, antialiaseds=True, zorder=1)
+                    ax.add_collection3d(pc)
+
+                    # Maillage deformé                
+                    pc = Line3DCollection(coordDeformeFaces, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
+                    ax.add_collection3d(pc)
+                    
+                    ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
+                    ax.scatter(coordoDeforme[:,0], coordoDeforme[:,1], coordoDeforme[:,2], c='red', lw=lw, marker='.')
+
         else:
             # Maillage non deformé
+            # Affiche que les elements 1D ou 2D en fonction du type de maillage
 
-            # Si il n'y a pas de deformation on peut afficher que le maillage 2D
+            for groupElemDim in mesh.Get_list_groupElem(dim):
 
-            for groupElem2D in mesh.Get_list_groupElem(2):
+                connectDim = groupElemDim.connect_e
+                coordoDim = groupElemDim.coordoGlob
+                coordFaces = coordoDim[connectDim]
 
-                connect2D = groupElem2D.connect_e
-                coordo2D = groupElem2D.coordoGlob
-                coordFaces = coordo2D[connect2D]
-
-                pc = Poly3DCollection(coordFaces, facecolors='c', edgecolor='black', linewidths=0.5, alpha=alpha)
+                if dim > 1:
+                    pc = Poly3DCollection(coordFaces, facecolors='c', edgecolor='black', linewidths=0.5, alpha=alpha)
+                else:
+                    pc = Line3DCollection(coordFaces, edgecolor='black', lw=lw, antialiaseds=True, zorder=1)
+                    ax.scatter(coordoDim[:,0], coordoDim[:,1], coordoDim[:,2], c='black', lw=lw, marker='.')
 
                 ax.add_collection3d(pc, zs=0, zdir='z')
-
             
         __ChangeEchelle(ax, coordo)
-        # ax.autoscale()
-        # ax.set_xlabel("x [mm]")
-        # ax.set_ylabel("y [mm]")
-        # ax.set_zlabel("z [mm]")
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
+        ax.set_zlabel(r"$z$")
     
     if title == "":
         title = f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}"
@@ -631,9 +718,9 @@ def Plot_BoundaryConditions(simu, folder=""):
         
         # filled_markers = ('o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd', 'P', 'X')
 
-        if problemType == "damage":
+        if problemType in ["damage","thermal"]:
             marker='o'
-        elif problemType == "displacement":
+        elif problemType in ["displacement","beam"]:
             if len(directions) == 1:
                 signe = np.sign(valeurs[0])
                 if directions[0] == 'x':
@@ -650,10 +737,10 @@ def Plot_BoundaryConditions(simu, folder=""):
                     marker='d'
             elif len(directions) == 2:
                 marker='X'                
-            elif len(directions) == 3:
+            elif len(directions) > 2:
                 marker='s'
 
-        if dim == 2:
+        if dim in [1,2]:
             lw=0
             ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, linewidths=lw, label=titre, zorder=2.5)
         else:
@@ -781,19 +868,19 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
 
     if deformation:
 
-        coordoDef = simu.GetCoordUglob()
-
-        test = isinstance(coordoDef, np.ndarray)
+        uglob = simu.GetCoordUglob()
+        
+        test = isinstance(uglob, np.ndarray)
 
         if test:
-            coordo = coordo + coordoDef * facteurDef
+            coordoDef = coordo + uglob * facteurDef
 
-        return coordo, test
+        return coordoDef, test
     else:
         return coordo, deformation
 
 def __ChangeEchelle(ax, coordo: np.ndarray):
-    """Change la taille pour l'affichage en 3D\n
+    """Change la taille des axes pour l'affichage en 3D\n
     Va centrer la pièce et faire en sorte que les axes soient de la bonne taille
 
     Parameters

@@ -92,6 +92,11 @@ class Mesh:
     def dim(self):
         """Dimension du maillage"""
         return self.__dim
+
+    @property
+    def inDim(self):
+        """Dimension dans lequel se trouve le maillage"""
+        return self.__groupElem.inDim
     
     @property
     def nPe(self) -> int:

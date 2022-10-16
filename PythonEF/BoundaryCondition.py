@@ -6,7 +6,7 @@ class BoundaryCondition:
     """Classe de condition limite"""
 
     def __init__(self, problemType: str, noeuds: np.ndarray,
-    ddls: np.ndarray, directions: list, valeurs_ddls: np.ndarray,
+    ddls: np.ndarray, directions: np.ndarray, valeurs_ddls: np.ndarray,
     description: str):
         """Construit une boundary conditions
 
@@ -232,6 +232,7 @@ class BoundaryCondition:
                 dimModel = "3D"
 
             for d, direction in enumerate(directions):
+
                 if direction == "x":
                     index = 0
                 elif direction == "y":
@@ -240,16 +241,16 @@ class BoundaryCondition:
                     else:
                         raise "Il faut réaliser une Etude poutre 2D ou 3D pour accéder aux ddls suivant y"
                 elif direction == "z":
-                    assert dimModel != "3D", "Il faut réaliser une Etude poutre 3D pour accéder aux ddls suivant z"
+                    assert dimModel == "3D", "Il faut réaliser une Etude poutre 3D pour accéder aux ddls suivant z"
                     index = 2
                 elif direction == "rx":
-                    if dimModel != "3D":
+                    if dimModel == "3D":
                         # modèle poutre 3D
                         index = 3
                     else:
                         raise "Il faut réaliser une Etude poutre 3D pour acceder aux ddls rx"
                 elif direction == "ry":
-                    if dimModel != "3D":
+                    if dimModel == "3D":
                         # modèle poutre 3D
                         index = 4
                     else:
