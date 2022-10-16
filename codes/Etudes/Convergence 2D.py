@@ -51,7 +51,7 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = np.arange(1,10,0.5)
+listNbElement = np.arange(1,15,3)
 # listNbElement = np.arange(1,20,1)
 # listNbElement = list(range(2,20,1))
 # listNbElement = list(range(1,10))
@@ -75,7 +75,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
 
         # Construction du modele et du maillage --------------------------------------------------------------------------------
         interfaceGmsh = Interface_Gmsh(verbosity=False)
-        mesh = interfaceGmsh.Rectangle_2D(domain, elemType=elemType, isOrganised=True)
+        mesh = interfaceGmsh.Rectangle_2D(domain, elemType=elemType, isOrganised=False)
 
         mesh = cast(Mesh, mesh)
         # Récupère les noeuds qui m'interessent
@@ -102,7 +102,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         listWdef_nb.append(Wdef)
         listDdl_nb.append(mesh.Nn*dim)
 
-        print(f"Elem : {elemType}, nby : {nbElem}, Wdef = {np.round(Wdef, 3)}")
+        print(f"Elem : {elemType}, nby : {nbElem:2}, Wdef = {np.round(Wdef, 3)}")
     
     listTemps_e_nb.append(listTemps_nb)
     listWdef_e_nb.append(listWdef_nb)
@@ -143,7 +143,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
 
 # Wdef
 ax_Wdef.grid()
-ax_Wdef.set_xlim([-10,12000])
+ax_Wdef.set_xlim([-10,8000])
 ax_Wdef.set_xlabel('ddl')
 ax_Wdef.set_ylabel('Wdef [N.mm]')
 ax_Wdef.legend(GroupElem.get_Types2D())

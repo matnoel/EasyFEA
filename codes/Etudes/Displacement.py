@@ -17,7 +17,9 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-folder = Dossier.NewFile("Etude2D", results=True)
+dim = 3
+
+folder = Dossier.NewFile(f"Etude{dim}D", results=True)
 
 ticTot = Tic()
 
@@ -32,17 +34,19 @@ useNumba = True
 isLoading = False
 initSimu = True
 
-plotIter = True; affichageIter = "Svm"
+pltMovie = False; NMovie = 400
 
-coefM = 1/4
-coefK = 1e-4
+plotIter = True; affichageIter = "dy"
 
-Tmax = 2
-N = 400
+coefM = 1e-2
+coefK = 1e-3
+
+Tmax = 0.3
+N = 100
 dt = Tmax/N
 t = 0
 
-dim = 2
+
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -83,14 +87,14 @@ elif dim == 3:
     # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
     # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     
-    elemType = "TETRA4" # "TETRA4", "HEXA8", "PRISM6"
+    elemType = "HEXA8" # "TETRA4", "HEXA8", "PRISM6"
     mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=True, nCouches=3)
 
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)
 
 # Affichage.Plot_Maillage(mesh)
-# # plt.show()
+# plt.show()
 
 noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0) # noeuds_en_0 = mesh.Nodes_Line(Line0)
 noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L) # noeuds_en_L = mesh.Nodes_Line(LineL)
@@ -116,7 +120,7 @@ def Chargement(isLoading: bool):
     elif dim == 3:
         simu.add_dirichlet("displacement", noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
     
-    # simu.add_volumeLoad("displacement", mesh.Nodes_Conditions(conditionX=lambda x: x>0), [-9.81*1e-3], ["y"])
+    # simu.add_volumeLoad("displacement", mesh.Nodes_Conditions(conditionX=lambda x: x>1e-4), [-9.81*1e-3], ["y"])
 
     if isLoading:
         # simu.add_dirichlet("displacement", noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
@@ -125,6 +129,7 @@ def Chargement(isLoading: bool):
         simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
 
         # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
+        # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
         pass
 
@@ -170,7 +175,7 @@ while t <= Tmax:
 
     t += dt
 
-    print(f"{int(t/dt)}", end='\r')
+    print(f"{np.round(t,3)} s", end='\r')
 
 # PostTraitement.Save_Simu(simu, folder)
 
@@ -189,6 +194,9 @@ Affichage.Plot_BoundaryConditions(simu)
 if saveParaview:        
     filename = Dossier.NewFile(os.path.join("Etude2D","solution2D"), results=True)
     PostTraitement.Save_Simulation_in_Paraview(folder, simu,Niter=NParaview)
+
+if pltMovie:
+    PostTraitement.MakeMovie(folder, "Svm", simu, affichageMaillage=True, Niter=NMovie, deformation=True, valeursAuxNoeuds=True)
 
 if plotResult:
 
