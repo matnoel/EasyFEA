@@ -10,13 +10,13 @@ Affichage.Clear()
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
-problem = "Flexion"
+problem = "Portique"
 
-elemType="SEG3"
+elemType = "SEG2"
 
 beamDim = 2
 
-if problem in ["Flexion","BiEnca"]:
+if problem in ["Flexion","BiEnca","Portique"]:
     L=120; nL=10
     h=13
     b=13
@@ -26,7 +26,7 @@ if problem in ["Flexion","BiEnca"]:
 
 elif problem == "Traction":
     L=10 # m
-    nL=10
+    nL=1
 
     h=0.1
     b=0.1
@@ -42,31 +42,51 @@ section = Section(interfaceGmsh.Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point
 if problem in ["Traction"]:
 
     point1 = Point()
-    point2 = Point(x=L)
-    line = Line(point1, point2, L/nL)
-    poutre = Poutre(line, section)
-    listePoutre = [poutre]
+    point2 = Point(x=L/2)
+    point3 = Point(x=L)
 
-    testAire = poutre.section.aire - b*h
-    testIz = poutre.section.Iz - ((b*h**3)/12)
+    # # Poutre 1 partie
+    # line1 = Line(point1, point2, L/nL)
+    # poutre1 = Poutre(line1, section)
+    # listePoutre = [poutre1]
 
+    # Poutre 2 partie
+    line1 = Line(point1, point2, L/nL)
+    line2 = Line(point2, point3, L/nL)
+    poutre1 = Poutre(line1, section)
+    poutre2 = Poutre(line2, section)
+    listePoutre = [poutre1, poutre2]
+    
 elif problem in ["Flexion","BiEnca"]:
 
     point1 = Point()
     point2 = Point(x=L/2)
     point3 = Point(x=L)
 
-    # Poutre en 1 partie
-    line = Line(point1, point3, L/nL)
-    poutre = Poutre(line, section)
-    listePoutre = [poutre]
+    # # Poutre en 1 partie
+    # line = Line(point1, point3, L/nL)
+    # poutre = Poutre(line, section)
+    # listePoutre = [poutre]
 
-    # # Poutre en 2 partie
-    # line1 = Line(point1, point2, L/nL)
-    # line2 = Line(point2, point3, L/nL)
-    # poutre1 = Poutre(line1, section)
-    # poutre2 = Poutre(line2, section)
-    # listePoutre = [poutre1, poutre2]
+    # Poutre en 2 partie
+    line1 = Line(point1, point2, L/nL)
+    line2 = Line(point2, point3, L/nL)
+    poutre1 = Poutre(line1, section)
+    poutre2 = Poutre(line2, section)
+    listePoutre = [poutre1, poutre2]
+
+elif problem == "Portique":
+
+    point1 = Point()
+    point2 = Point(y=L)
+    point3 = Point(y=L, x=L/2)
+
+    # Poutre en 2 partie
+    line1 = Line(point1, point2, L/nL)
+    line2 = Line(point2, point3, L/nL)
+    poutre1 = Poutre(line1, section)
+    poutre2 = Poutre(line2, section)
+    listePoutre = [poutre1, poutre2]
 
 
 mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemType)
@@ -92,6 +112,21 @@ elif beamModel.dim == 3:
     simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
     if problem == "BiEnca":
         simu.add_dirichlet("beam", mesh.Nodes_Point(point3),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
+
+
+if beamModel.nbPoutres > 1:
+    # verfie si il ya pas une poutre libre ?
+    if beamModel.dim == 1:
+        simu.add_liaisonPoutre(noeuds=mesh.Nodes_Point(point2), directions=['x'])
+    elif beamModel.dim == 2:
+        simu.add_liaisonPoutre(noeuds=mesh.Nodes_Point(point2), directions=['x','y','rz'])
+    elif beamModel.dim == 3:
+        simu.add_liaisonPoutre(noeuds=mesh.Nodes_Point(point2), directions=['x','y','z','rx','ry','rz'])
+        
+
+
+
+
     
 # TODO Rajouter les conditons entre les poutres 
 # Faire en sorte de detecter qune poutre est libre ! b 
@@ -102,16 +137,19 @@ elif beamModel.dim == 3:
 
 
 
-if problem == "Flexion":
+if problem in ["Flexion"]:
     simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge],["y"])
     # simu.add_surfLoad("beam", mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
+elif problem == "Portique":
+    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [charge],["y"])
     
 elif problem == "BiEnca":
     simu.add_pointLoad("beam", mesh.Nodes_Point(point2), [-charge],["y"])
 elif problem == "Traction":
-    noeudsLine = mesh.Nodes_Line(line)
+    noeudsLine = mesh.Nodes_Line(Line(point1, point3))
     simu.add_lineLoad("beam", noeudsLine, [q],["x"])
-    simu.add_pointLoad("beam", mesh.Nodes_Point(point2), [charge],["x"])
+    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [charge],["x"])
+    # simu.add_dirichlet("beam", mesh.Nodes_Point(point3), [1], ["x"])
 
 
 Kbeam = simu.Assemblage_beam()
@@ -134,7 +172,7 @@ if beamModel.dim > 1:
     v = simu.Get_Resultat("v", valeursAuxNoeuds=True); affichage("v",v)
     rz = simu.Get_Resultat("rz", valeursAuxNoeuds=True); affichage("rz",rz)
 
-    fy = simu.Get_Resultat("fy", valeursAuxNoeuds=True)
+    # fy = simu.Get_Resultat("fy", valeursAuxNoeuds=True)
 
 listX = np.linspace(0,L,100)
 if problem == "Flexion":

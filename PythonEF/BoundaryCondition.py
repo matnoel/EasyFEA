@@ -1,19 +1,15 @@
-
-from typing import List, cast
 import numpy as np
 
 class BoundaryCondition:
     """Classe de condition limite"""
 
-    def __init__(self, problemType: str, noeuds: np.ndarray,
-    ddls: np.ndarray, directions: np.ndarray, valeurs_ddls: np.ndarray,
-    description: str):
+    def __init__(self, problemType: str, noeuds: np.ndarray, ddls: np.ndarray, directions: np.ndarray, valeurs_ddls: np.ndarray, description: str):
         """Construit une boundary conditions
 
         Parameters
         ----------
         problemType : str
-            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+            type de probleme qui doit etre contenue dans ["damage", "displacement","thermal","beam"]
         noeuds : np.ndarray
             noeuds sur lesquels on applique une condition
         ddls : np.ndarray
@@ -71,7 +67,7 @@ class BoundaryCondition:
         return self.__directions
 
     @staticmethod
-    def Get_ddls(problemType: str, list_Bc_Conditions: list) -> np.ndarray:
+    def Get_ddls(problemType: str, list_Bc_Conditions: list) -> list:
         """Renvoie les ddls du probleme et de la liste de conditions donné
 
         Parameters
@@ -92,7 +88,31 @@ class BoundaryCondition:
             assert isinstance(bc, BoundaryCondition)            
             if bc.problemType == problemType:
                 ddls.extend(bc.ddls)
-        return np.array(ddls)
+        return ddls
+
+    @staticmethod
+    def Get_values(problemType: str, list_Bc_Conditions: list) -> list:
+        """Renvoie les ddls du probleme et de la liste de conditions donné
+
+        Parameters
+        ----------
+        problemType : str
+            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+        list_Bc_Conditions : list de BoundaryCondition
+            liste de conditions limites
+
+        Returns
+        -------
+        np.ndarray
+            degrés de liberté
+        """
+        
+        values = []
+        for bc in list_Bc_Conditions:
+            assert isinstance(bc, BoundaryCondition)            
+            if bc.problemType == problemType:
+                values.extend(bc.valeurs_ddls)
+        return values
     
     @staticmethod
     def Get_ddls_connect(param: int, problemType:str, connect_e: np.ndarray, directions: list) -> np.ndarray:
@@ -271,4 +291,17 @@ class BoundaryCondition:
             return ddls_dir.reshape(-1)
         else:
             print("Problème inconnu")
+
+class LagrangeCondition(BoundaryCondition):
+
+    def __init__(self, problemType: str, noeuds: np.ndarray, ddls: np.ndarray, directions: np.ndarray, valeurs_ddls: np.ndarray, lagrangeCoefs: np.ndarray, description= ""):
+        """Construit une condition de lagrange sur la base d'une boundary conditions"""
+        super().__init__(problemType, noeuds, ddls, directions, valeurs_ddls, description)
+
+        self.__lagrangeCoefs = lagrangeCoefs
+    
+    @property
+    def lagrangeCoefs(self):
+        return self.__lagrangeCoefs
+
 

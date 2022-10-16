@@ -87,6 +87,8 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
 
     valeurs *= coef
 
+    coordoSansDef = simu.mesh.coordo
+
     # Recupération des coordonnée déformées si la simulation le permet
     coordo, deformation = __GetCoordo(simu, deformation, facteurDef)
 
@@ -178,6 +180,9 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         # Changement de la taille des axes
         if mesh.dim > 1:
             ax.axis('equal')
+        # # TODO ICI prendre en compte que la solution à tourné
+        # __ChangeEchelle(ax, coordoSansDef)
+        
         ax.autoscale()
         if simu.problemType in ["thermal"]:
             ax.axis('off')
@@ -909,9 +914,10 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
 
     ax.set_xlim([xmid-maxRange, xmid+maxRange])
     ax.set_ylim([ymid-maxRange, ymid+maxRange])
-    ax.set_zlim([zmid-maxRange, zmid+maxRange])
 
-    ax.set_box_aspect([1,1,1])
+    if coordo[:,2].max() > 0:
+        ax.set_zlim([zmid-maxRange, zmid+maxRange])
+        ax.set_box_aspect([1,1,1])
     
 
 def NouvelleSection(text: str, verbosity=True):

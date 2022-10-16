@@ -6,7 +6,7 @@ from scipy import sparse
 
 import Affichage as Affichage
 from Mesh import Mesh
-from BoundaryCondition import BoundaryCondition
+from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import *
 from TicTac import Tic
 import CalcNumba
@@ -113,6 +113,7 @@ class Simu:
                 list = ["x","y","rz"]
             elif dim == 3:
                 list = ["x","y","z","rx","ry","rz"]
+
             for d in directions:
                 assert d in list
     
@@ -658,6 +659,11 @@ class Simu:
 
         Ku_beam = self.ConstruitMatElem_Beam()
 
+        # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
+        dimSupl = len(self.__Bc_Lagrange)
+        if dimSupl > 0:
+            dimSupl += len(self.Get_ddls_Dirichlet("beam"))
+
         # Prépare assemblage
         lignesVector_e = mesh.lignesVectorBeam_e(model.nbddl_n)
         colonnesVector_e = mesh.colonnesVectorBeam_e(model.nbddl_n)
@@ -665,11 +671,11 @@ class Simu:
         tic = Tic()
 
         # Assemblage
-        self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
+        self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille+dimSupl, taille+dimSupl))
         """Matrice Kglob pour le problème poutre (Nn*nbddl_e, Nn*nbddl_e)"""
 
         # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
-        self.__Fbeam = sparse.csr_matrix((taille, 1))
+        self.__Fbeam = sparse.csr_matrix((taille+dimSupl, 1))
         """Vecteur Fglob pour le problème poutre (Nn*nbddl_e, 1)"""
 
         # import matplotlib.pyplot as plt
@@ -970,6 +976,10 @@ class Simu:
         Simu.CheckProblemTypes(problemType)
 
         resolution = 1
+
+        if problemType == "beam":
+            if len(self.__Bc_Lagrange) > 0:
+                resolution = 2
         
         if resolution == 1:
             # --       --  --  --   --  --
@@ -1041,6 +1051,64 @@ class Simu:
             x[ddl_Inconnues] = xi
 
         elif resolution == 2:
+            # Résolution par la méthode des coefs de lagrange
+
+            tic = Tic()
+
+            # Construit le système matricielle pénalisé
+            b = self.__Application_Conditions_Neuman(problemType, algo, option)
+            A = self.__Application_Conditions_Dirichlet(problemType, b, resolution, algo, option)
+
+            A = A.tolil()
+            b = b.tolil()
+
+            ddls_Dirichlet = np.array(self.Get_ddls_Dirichlet(problemType))
+            values_Dirichlet = np.array(self.Get_values_Dirichlet(problemType))
+
+            
+            nColEnPlusLagrange = len(self.__Bc_Lagrange)
+            nColEnPlusDirichlet = len(ddls_Dirichlet)
+            nColEnPlus = nColEnPlusLagrange + nColEnPlusDirichlet
+
+            decalage = A.shape[0]-nColEnPlus
+
+            listeLignesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
+            
+            A[listeLignesDirichlet, ddls_Dirichlet] = 1
+            A[ddls_Dirichlet, listeLignesDirichlet] = 1
+            b[listeLignesDirichlet] = values_Dirichlet
+
+            # Pour chaque condition de lagrange on va rajouter un coef dans la matrice
+            for i, lagrangeBc in enumerate(self.__Bc_Lagrange, 1):
+                if not isinstance(lagrangeBc, LagrangeCondition): continue
+                
+                ddls = lagrangeBc.ddls
+                valeurs = lagrangeBc.valeurs_ddls
+                coefs = lagrangeBc.lagrangeCoefs
+
+                A[ddls,-i] = coefs
+                A[-i,ddls] = coefs
+
+                b[-i] = valeurs[0]
+
+            
+            AA = A.toarray()
+            bb = b.toarray()
+
+            A=A.tocsr()
+            b=b.tocsr()
+
+            tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
+
+            x = Interface_Solveurs.Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=False, damage=[], useCholesky=False, A_isSymetric=False, verbosity=self.__verbosity)
+
+            # Récupère la solution sans les efforts de réactions
+            ddl_Connues, ddl_Inconnues = self.__Construit_ddl_connues_inconnues(problemType)
+            x = x[range(decalage)]
+            return x 
+            
+
+        elif resolution == 3:
             # Résolution par la méthode des pénalisations
             
             tic = Tic()
@@ -1154,14 +1222,9 @@ class Simu:
         """Applique les conditions de Neumann"""
 
         Simu.CheckProblemTypes(problemType)
-
-        ddls = []
-        valeurs_ddls = []
-        for bcNeumann in self.__Bc_Neumann:
-            assert isinstance(bcNeumann, BoundaryCondition)
-            if bcNeumann.problemType == problemType:
-                ddls.extend(bcNeumann.ddls)
-                valeurs_ddls.extend(bcNeumann.valeurs_ddls)
+        
+        ddls = self.Get_ddls_Neumann(problemType)
+        valeurs_ddls = self.Get_values_Neumann(problemType)
 
         taille = self.__mesh.Nn
 
@@ -1170,7 +1233,12 @@ class Simu:
         elif problemType == "beam":
             taille = self.__mesh.Nn*self.materiau.beamModel.nbddl_n
 
-        b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1))
+        # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
+        dimSupl = len(self.__Bc_Lagrange)
+        if dimSupl > 0:
+            dimSupl += len(self.Get_ddls_Dirichlet(problemType))
+            
+        b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille+dimSupl,1))
 
         # l,c ,v = sparse.find(b)
 
@@ -1261,13 +1329,8 @@ class Simu:
 
         Simu.CheckProblemTypes(problemType)
 
-        ddls = []
-        valeurs_ddls = []
-        for bcDirichlet in self.__Bc_Dirichlet:
-            assert isinstance(bcDirichlet, BoundaryCondition)
-            if bcDirichlet.problemType == problemType:
-                ddls.extend(bcDirichlet.ddls)
-                valeurs_ddls.extend(bcDirichlet.valeurs_ddls)
+        ddls = self.Get_ddls_Dirichlet(problemType)
+        valeurs_ddls = self.Get_values_Dirichlet(problemType)
 
         taille = self.__mesh.Nn
 
@@ -1339,7 +1402,12 @@ class Simu:
 
             return A, x
 
-        else:
+        elif resolution == 2:
+
+            return A
+
+        elif resolution == 3:
+            # Pénalisation
 
             A = A.tolil()
             b = b.tolil()            
@@ -1467,11 +1535,17 @@ class Simu:
         """Initie les conditions limites de dirichlet et de Neumann"""
         self.__Init_Bc_Dirichlet()
         self.__Init_Bc_Neumann()
+        self.__Init_Bc_Lagrange()
 
     def __Init_Bc_Neumann(self):
         """Initialise les conditions limites de Neumann"""
         self.__Bc_Neumann = []
         """Conditions de Neumann list(BoundaryCondition)"""
+
+    def __Init_Bc_Lagrange(self):
+        """Initialise les conditions limites de Lagrange"""
+        self.__Bc_Lagrange = []
+        """Conditions de Lagrange list(BoundaryCondition)"""
 
     def __Init_Bc_Dirichlet(self):
         """Initialise les conditions limites de Dirichlet"""
@@ -1486,13 +1560,29 @@ class Simu:
         """Renvoie une copie des conditions de Neumann"""
         return self.__Bc_Neumann.copy()
 
-    def Get_ddls_Dirichlet(self, problemType: str):
+    def Get_ddls_Dirichlet(self, problemType: str) -> list:
         """Renvoie les ddls liés aux conditions de Dirichlet"""
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Dirichlet)
+
+    def Get_values_Dirichlet(self, problemType: str) -> list:
+        """Renvoie les valeurs ddls liés aux conditions de Dirichlet"""
+        return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
     
-    def Get_ddls_Neumann(self, problemType: str):
+    def Get_ddls_Neumann(self, problemType: str) -> list:
         """Renvoie les ddls liés aux conditions de Neumann"""
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Neumann)
+    
+    def Get_values_Neumann(self, problemType: str) -> list:
+        """Renvoie les valeurs ddls liés aux conditions de Neumann"""
+        return BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
+
+    def Get_ddls_Lagrange(self, problemType: str) -> list:
+        """Renvoie les ddls liés aux conditions de Lagrange"""
+        return BoundaryCondition.Get_ddls(problemType, self.__Bc_Lagrange)
+    
+    def Get_values_Lagrange(self, problemType: str) -> list:
+        """Renvoie les valeurs ddls liés aux conditions de Lagrange"""
+        return BoundaryCondition.Get_values(problemType, self.__Bc_Lagrange)
 
     def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
         """evalue les valeurs aux noeuds ou aux points de gauss"""
@@ -1707,8 +1797,6 @@ class Simu:
         valeurs_ddls, ddls = self.__IntegrationDim(dim=1, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
         return valeurs_ddls, ddls
-
-        
     
     def __surfload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force surfacique\n
@@ -1794,6 +1882,44 @@ class Simu:
         self.__Bc_Dirichlet.append(new_Bc)
 
         tic.Tac("Boundary Conditions","Condition Dirichlet", self.__verbosity)
+
+    # ------------------------------------------- LIAISONS ------------------------------------------- 
+
+    # Fonctions pour créer des liaisons entre degré de liberté
+
+    def add_liaisonPoutre(self, noeuds: np.ndarray, directions: List[str], description=""):
+
+        if self.problemType != "beam":
+            print("La simulation n'est pas un probleme poutre")
+            return
+
+        problemType = self.__problemType
+
+        beamModel = self.materiau.beamModel
+
+        # nombre de condition et de valeurs
+        nCondition = len(directions)
+
+        # Ajoute une liaison
+
+        # Verficiation
+        Simu.CheckDirections(self.__dim, problemType, directions)
+        
+
+        tic = Tic()
+        
+        nbddl = beamModel.nbddl_n
+
+        for d, dir in enumerate(directions):
+            ddls = BoundaryCondition.Get_ddls_noeuds(param=nbddl,  problemType=problemType, noeuds=noeuds, directions=[dir])
+
+            new_LagrangeBc = LagrangeCondition(problemType, noeuds, ddls, [dir], [0], [1,-1], f'Lagrange {description}')
+
+            self.__Bc_Lagrange.append(new_LagrangeBc)
+            
+
+        tic.Tac("Boundary Conditions","Laison", self.__verbosity)
+
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
