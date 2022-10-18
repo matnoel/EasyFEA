@@ -209,7 +209,7 @@ def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, def
 
             print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
     
-# =========================================== Paraview ==================================================
+# ========================================== Paraview =================================================
 
 def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
     """Sauvegarde de la simulation sur paraview
@@ -232,7 +232,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
     except:
         resultats = simu.Get_All_Results()
 
-    NiterMax = len(results)-1
+    NiterMax = len(resultats)-1
 
     listIter = __Get_listIter(NiterMax=NiterMax, NiterFin=100, NiterCyble=Niter)
     
