@@ -283,8 +283,8 @@ class Test_Simu(unittest.TestCase):
         
         for simu in self.simulationsThermique:
             simu = cast(Simu, simu)
-
-            N = len(simu.Get_All_Results())
+            
+            N = len(simu.results)
 
             fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True)
 

@@ -154,7 +154,12 @@ for config in listConfig:
 
     if loadSimu:
         try:
-            resulats = pd.DataFrame(simu.Get_All_Results())
+            try:
+                resultats = simu.results
+            except:
+                resultats = simu.Get_All_Results()
+                
+            resulats = pd.DataFrame(resulats)
             temps = resulats['tempsIter'].sum(axis=0)
             tempsCoef, unite = TicTac.Tic.Get_temps_unite(temps)
             print(f'{np.round(tempsCoef, 2)} {unite}')

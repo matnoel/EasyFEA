@@ -176,16 +176,16 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
                 connectTri = mesh.connectTriangle
                 pc = ax.tricontourf(coordo[:,0], coordo[:,1], connectTri[elem], valeurs, levels, cmap='jet')
                 # tripcolor, tricontour, tricontourf
-        
-        # Changement de la taille des axes
-        if mesh.dim > 1:
-            ax.axis('equal')
-        # # TODO ICI prendre en compte que la solution à tourné
-        # __ChangeEchelle(ax, coordoSansDef)
-        
+
         ax.autoscale()
-        if simu.problemType in ["thermal"]:
-            ax.axis('off')
+        epX = np.abs(coordo[:,0].max() - coordo[:,0].min())
+        epY = np.abs(coordo[:,1].max() - coordo[:,1].min())
+        if (epX > 0 and epY > 0):
+            if np.abs(epX-epY)/epX > 0.2:
+                ax.axis('equal')
+
+        # if simu.problemType in ["thermal"]:
+        #     ax.axis('off')
         
         # procédure pour essayer de rapporcher la colorbar de l'ax
         divider = make_axes_locatable(ax)
@@ -429,8 +429,6 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
                 if deformation:
                     coordDeforme = coordo_par_face_deforme[elemType].reshape(-1, inDim)
                     ax.scatter(coordDeforme[:,0], coordDeforme[:,1], c='red', lw=lw, marker='.')
-                        
-            
         
         ax.autoscale()
         ax.axis('equal')
@@ -675,17 +673,20 @@ def Plot_BoundaryConditions(simu, folder=""):
     """
 
     from Simu import Simu
-    from BoundaryCondition import BoundaryCondition
+    from BoundaryCondition import BoundaryCondition, LagrangeCondition
 
     simu = cast(Simu, simu)
 
     dim = simu.dim
 
+    # Récupérations des Conditions de chargement de déplacement ou de liaison
     dirchlets = simu.Get_Bc_Dirichlet()
     neumanns = simu.Get_Bc_Neuman()
-
-    dirchlets.extend(neumanns)
+    lagranges = simu.Get_Bc_LagrangeAffichage()
+    
     Conditions = dirchlets
+    Conditions.extend(lagranges)
+    Conditions.extend(neumanns)
 
     ax = Plot_Maillage(simu, alpha=0)
 
@@ -741,7 +742,10 @@ def Plot_BoundaryConditions(simu, folder=""):
                 elif directions[0] == 'z':
                     marker='d'
             elif len(directions) == 2:
-                marker='X'                
+                if "Liaison" in description:
+                    marker='o'
+                else:
+                    marker='X'
             elif len(directions) > 2:
                 marker='s'
 
@@ -778,7 +782,10 @@ def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
     assert isinstance(simu, Simu)
 
     # Recupère les résultats de simulation
-    resultats = simu.Get_All_Results()
+    try:
+        resultats = simu.results
+    except:
+        resultats = simu.Get_All_Results()
     df = pd.DataFrame(resultats)
 
     iterations = np.arange(df.shape[0])

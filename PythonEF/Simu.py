@@ -17,6 +17,27 @@ class Simu:
 
 # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
 
+    @staticmethod
+    def CheckProblemTypes(problemType:str):
+        """Verifie si ce type de probleme est implénté"""
+        list_problemType = ["displacement", "damage", "thermal", "beam"]
+        assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
+
+    def __Check_Autorisation(self, listProblemType: List[str]) -> bool:
+        """Verifie si la simulation peut utiliser le type de problème renseigné"""
+        
+        autorisation = False
+        
+        for problemType in listProblemType:
+            if problemType == self.__problemType:
+                autorisation = True
+
+        if not autorisation:
+            print(f"La simulation n'est pas une simulation {problemType} mais une simulation {self.__problemType}")
+            # TODO Ici il pourrait être intéressant de proposer un conseil ?
+
+        return autorisation
+
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
         """Creation d'une simulation
 
@@ -71,51 +92,6 @@ class Simu:
     @property
     def problemType(self) -> str:
         return self.materiau.problemType
-
-    @staticmethod
-    def CheckProblemTypes(problemType:str):
-        """Verifie si ce type de probleme est implénté"""
-        list_problemType = ["displacement", "damage", "thermal", "beam"]
-        assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
-
-    def __Check_Autorisation(self, listProblemType: List[str]) -> bool:
-        """Verifie si la simulation peut utiliser le type de problème renseigné"""
-        
-        autorisation = False
-        
-        for problemType in listProblemType:
-            if problemType == self.__problemType:
-                autorisation = True
-
-        if not autorisation:
-            print(f"La simulation n'est pas une simulation {problemType} mais une simulation {self.__problemType}")
-            # TODO Ici il pourrait être intéressant de proposer un conseil ?
-
-        return autorisation
-
-    @staticmethod
-    def CheckDirections(dim: int, problemType:str, directions:list):
-        """Verifie si les directions renseignées sont possible pour le probleme"""
-        Simu.CheckProblemTypes(problemType)
-        
-        if problemType in ["damage", "thermal"]:
-            # Ici on travail sur un champ scalaire, il n'y a pas de direction à renseigné
-            pass
-        elif problemType == "displacement":
-            for d in directions:
-                assert d in ["x","y","z"]
-                if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
-            assert dim >= len(directions)
-        elif problemType == "beam":
-            if dim == 1:
-                list = ["x"]
-            elif dim == 2:
-                list = ["x","y","rz"]
-            elif dim == 3:
-                list = ["x","y","z","rx","ry","rz"]
-
-            for d in directions:
-                assert d in list
     
     @property
     def mesh(self) -> Mesh:
@@ -134,7 +110,6 @@ class Simu:
 
         if self.__problemType == "thermal":
             self.__thermal = np.zeros(self.__mesh.Nn)
-            "températures"
 
             if self.materiau.thermalModel.c > 0 and self.materiau.ro > 0:
                 # Il est possible de calculer la matrice de masse et donc de résoudre un problème parabolic au lieu d'elliptic
@@ -142,44 +117,31 @@ class Simu:
 
         elif self.__problemType == "displacement":
             self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
-            """déplacements"""
 
             if self.materiau.ro > 0:
                 self.Set_Rayleigh_Damping_Coefs()
-                self.__speed = np.zeros_like(self.__displacement)
-                """vitesse"""
+                self.__speed = np.zeros_like(self.__displacement)                
                 self.__accel = np.zeros_like(self.__displacement)
-                """accélération"""
 
         elif self.__problemType == "beam":
             self.__beamDisplacement = np.zeros(self.__mesh.Nn*self.materiau.beamModel.nbddl_n)
-            """déplacements"""
         
         elif self.__problemType == "damage":
             self.__displacement = np.zeros(self.__mesh.Nn*self.__dim)
-            """déplacements"""
             self.__damage = np.zeros(self.__mesh.Nn)
-            """endommagement"""
             self.__psiP_e_pg = []
-            """densitée d'energie elastique positive PsiPlus(e, pg, 1)"""
-            self.__old_psiP_e_pg = []
-            """ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe"""
+            self.__old_psiP_e_pg = [] #ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe
         else:
             raise "probleme inconnue"
             
-        self.resumeChargement = ""
-        """resumé du chargement"""
+        self.resumeChargement = "" #resumé du chargement
 
-        self.resumeIter = ""
-        """resumé de l'iteration"""
+        self.resumeIter = "" #resumé de l'iteration
 
-        self.__results = []
-        """liste de dictionnaire qui contient les résultats"""
+        self.__results = [] #liste de dictionnaire qui contient les résultats
 
-        self.Set_Parabolic_AlgoProperties()
-
-        self.Set_Hyperbolic_AlgoProperties()
-
+        self.Set_Parabolic_AlgoProperties() # Renseigne les propriétes de résolution de l'algorithme
+        self.Set_Hyperbolic_AlgoProperties() # Renseigne les propriétes de résolution de l'algorithme
         # self.Save_Iteration()
 
     @property
@@ -245,11 +207,10 @@ class Simu:
         else:
             return self.__results[index]
 
-    def Get_All_Results(self) -> List[dict]:
-        """Renvoie la liste de dictionnaire qui stocke les résultats\n
-        ['displacement', 'damage', 'thermal', 'thermalDot', 'nombreIter', 'tempsIter', 'dincMax']\n
-        attention 'damage', 'nombreIter', 'tempsIter', 'dincMax' peuvent ne pas avoir été sauvegardé
-        """        
+    @property
+    def results(self) -> List[dict]:
+        """Renvoie la liste de dictionnaire qui stocke les résultats
+        """
         return self.__results
 
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
@@ -314,7 +275,7 @@ class Simu:
             self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
             self.__damage = results["damage"]
             self.__displacement = results["displacement"]
-    
+
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
     def ConstruitMatElem_Dep(self, steadyState=True) -> np.ndarray:
@@ -1091,13 +1052,6 @@ class Simu:
 
                 b[-i] = valeurs[0]
 
-            
-            AA = A.toarray()
-            bb = b.toarray()
-
-            A=A.tocsr()
-            b=b.tocsr()
-
             tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
 
             x = Interface_Solveurs.Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=False, damage=[], useCholesky=False, A_isSymetric=False, verbosity=self.__verbosity)
@@ -1476,6 +1430,30 @@ class Simu:
 
 # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
 
+    @staticmethod
+    def CheckDirections(dim: int, problemType:str, directions:list):
+        """Verifie si les directions renseignées sont possible pour le probleme"""
+        Simu.CheckProblemTypes(problemType)
+        
+        if problemType in ["damage", "thermal"]:
+            # Ici on travail sur un champ scalaire, il n'y a pas de direction à renseigné
+            pass
+        elif problemType == "displacement":
+            for d in directions:
+                assert d in ["x","y","z"]
+                if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
+            assert dim >= len(directions)
+        elif problemType == "beam":
+            if dim == 1:
+                list = ["x"]
+            elif dim == 2:
+                list = ["x","y","rz"]
+            elif dim == 3:
+                list = ["x","y","z","rx","ry","rz"]
+
+            for d in directions:
+                assert d in list
+
     def __Get_indexe_option(self, option):
 
         problemType = self.__problemType
@@ -1546,6 +1524,8 @@ class Simu:
         """Initialise les conditions limites de Lagrange"""
         self.__Bc_Lagrange = []
         """Conditions de Lagrange list(BoundaryCondition)"""
+        self.__Bc_LagrangeAffichage = []
+        """Conditions de Lagrange list(BoundaryCondition)"""
 
     def __Init_Bc_Dirichlet(self):
         """Initialise les conditions limites de Dirichlet"""
@@ -1559,6 +1539,14 @@ class Simu:
     def Get_Bc_Neuman(self):
         """Renvoie une copie des conditions de Neumann"""
         return self.__Bc_Neumann.copy()
+
+    def Get_Bc_Lagrange(self):
+        """Renvoie une copie des conditions de Lagrange"""
+        return self.__Bc_Lagrange.copy()
+    
+    def Get_Bc_LagrangeAffichage(self):
+        """Renvoie une copie des conditions de Lagrange pour l'affichage"""
+        return self.__Bc_LagrangeAffichage.copy()
 
     def Get_ddls_Dirichlet(self, problemType: str) -> list:
         """Renvoie les ddls liés aux conditions de Dirichlet"""
@@ -1887,38 +1875,95 @@ class Simu:
 
     # Fonctions pour créer des liaisons entre degré de liberté
 
-    def add_liaisonPoutre(self, noeuds: np.ndarray, directions: List[str], description=""):
+    def add_liaison_Encastrement(self, noeuds: np.ndarray, description="Encastrement"):
+        
+        beamModel = self.materiau.beamModel
+        if not isinstance(beamModel, BeamModel):
+            print("La simulation n'est pas un probleme poutre")
+            return
 
-        if self.problemType != "beam":
+        if beamModel.dim == 1:
+            directions = ['x']
+        elif beamModel.dim == 2:
+            directions = ['x','y','rz']
+        elif beamModel.dim == 3:
+            directions = ['x','y','z','rx','ry','rz']
+
+        description = f"Liaison {description}"
+        
+        self.add_liaisonPoutre(noeuds, directions, description)
+
+    def add_liaison_Rotule(self, noeuds: np.ndarray, directions=[''] ,description="Rotule"):
+        
+        beamModel = self.materiau.beamModel
+        if not isinstance(beamModel, BeamModel):
+            print("La simulation n'est pas un probleme poutre")
+            return
+
+        if beamModel.dim == 1:
+            return
+        elif beamModel.dim == 2:
+            directions = ['x','y']
+        elif beamModel.dim == 3:
+            directionsDeBase = ['x','y','z']
+            if directions != ['']:
+                # On va bloquer les ddls de rotations que ne sont pas dans directions
+                directionsRot = ['rx','ry','rz']
+                for dir in directions:
+                    if dir in directionsRot.copy():
+                        directionsRot.remove(dir)
+
+            directions = directionsDeBase
+            directions.extend(directionsRot)
+
+        description = f"Liaison {description}"
+        
+        self.add_liaisonPoutre(noeuds, directions, description)
+
+    def add_liaisonPoutre(self, noeuds: np.ndarray, directions: List[str], description: str):
+
+        beamModel = self.materiau.beamModel
+        if not isinstance(beamModel, BeamModel):
             print("La simulation n'est pas un probleme poutre")
             return
 
         problemType = self.__problemType
-
         beamModel = self.materiau.beamModel
-
-        # nombre de condition et de valeurs
-        nCondition = len(directions)
-
-        # Ajoute une liaison
+        nbddl = beamModel.nbddl_n
 
         # Verficiation
         Simu.CheckDirections(self.__dim, problemType, directions)
-        
 
         tic = Tic()
-        
-        nbddl = beamModel.nbddl_n
 
+        # On va venir pour chaque directions appliquer les conditions
         for d, dir in enumerate(directions):
             ddls = BoundaryCondition.Get_ddls_noeuds(param=nbddl,  problemType=problemType, noeuds=noeuds, directions=[dir])
 
-            new_LagrangeBc = LagrangeCondition(problemType, noeuds, ddls, [dir], [0], [1,-1], f'Lagrange {description}')
+            new_LagrangeBc = LagrangeCondition(problemType, noeuds, ddls, [dir], [0], [1,-1], description)
 
             self.__Bc_Lagrange.append(new_LagrangeBc)
-            
+        
+        # Il n'est pas possible de poser u1-u2 + v1-v2 = 0
+        # Il faut appliquer une seule condition à la fois
 
         tic.Tac("Boundary Conditions","Laison", self.__verbosity)
+
+        self.__Add_Bc_LagrangeAffichage(noeuds, directions, description)
+
+    def __Add_Bc_LagrangeAffichage(self,noeuds: np.ndarray, directions: List[str], description: str):
+        # Ajoute une condition pour l'affichage
+        beamModel = self.materiau.beamModel
+        nbddl = beamModel.nbddl_n
+        
+        # Prend le premier noeuds de la liaison
+        noeuds1 = np.array([noeuds[0]])
+
+        ddls = BoundaryCondition.Get_ddls_noeuds(param=nbddl,  problemType="beam", noeuds=noeuds1, directions=directions)
+        valeurs_ddls =  np.array([0]*len(ddls))
+
+        new_Bc = BoundaryCondition("beam", noeuds1, ddls, directions, valeurs_ddls, description)
+        self.__Bc_LagrangeAffichage.append(new_Bc)
 
     
 # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
