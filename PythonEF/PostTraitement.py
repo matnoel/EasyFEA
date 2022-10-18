@@ -154,7 +154,7 @@ def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, def
     except:
         resultats = simu.Get_All_Results()
 
-    N = len(results)
+    N = len(resultats)
 
     listIter = __Get_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
