@@ -36,7 +36,7 @@ def Save_Simu(simu: Simu, folder:str):
     resume = f"Simulation réalisée le : {dateEtHeure}"
     nomSimu = "simulation.pickle"
     filename = Dossier.Join([folder, nomSimu])
-    print(Fore.GREEN + f'\nSauvegarde dans : \n{folder}')
+    print(Fore.GREEN + f'\nSauvegarde de :')
     print(Fore.GREEN + f'  - {nomSimu}')
     
     if not os.path.exists(folder):
@@ -244,12 +244,6 @@ def PlotEnergie(simu: Simu, folder="", Niter=200, NiterFin=100,):
     print('\n')
 
     listTot = np.array(listPsiCrack) + np.array(listPsiElas)
-
-
-
-
-
-
 
     fig, ax = plt.subplots()
     ax.plot(listIter, listPsiCrack, label=r"$\Psi_{Crack}$")
