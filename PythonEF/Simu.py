@@ -467,19 +467,14 @@ class Simu:
 
         if not self.__Check_Autorisation(["beam"]): return
 
-        useNumba = self.__useNumba
-        # useNumba = False
-
-        
-
         # Data
         mesh = self.__mesh
+        if not mesh.groupElem.dim == 1: return
+        groupElem = mesh.groupElem
 
         # Récupération du maodel poutre
         beamModel = self.materiau.beamModel
-        assert isinstance(beamModel, BeamModel)
-
-        assert mesh.groupElem.dim == 1
+        if not isinstance(beamModel, BeamModel): return
         
         if beamModel.dim == 1:
             matriceType="rigi"
@@ -488,38 +483,44 @@ class Simu:
         
         tic = Tic()
         
+        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = mesh.Get_poid_pg(matriceType)
+
+        D_e_pg = beamModel.Calc_D_e_pg(groupElem, matriceType)
+        
+        B_beam_e_pg = self.__Get_B_beam_e_pg(matriceType)
+        
+        Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobien_e_pg, poid_pg, B_beam_e_pg, D_e_pg, B_beam_e_pg, optimize='optimal')
+            
+        tic.Tac("Matrices","Construction Kbeam_e", self.__verbosity)
+
+        return Kbeam_e
+
+    def __Get_B_beam_e_pg(self, matriceType: str):
+
+        # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_B.m
+
+        tic = Tic()
+
+        # Récupération du maodel poutre
+        beamModel = self.materiau.beamModel
+        assert isinstance(beamModel, BeamModel)
+        dim = beamModel.dim
+        nbddl_n = beamModel.nbddl_n
+
+        # Data
+        mesh = self.__mesh
+        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        groupElem = mesh.groupElem
+        elemType = groupElem.elemType
+        nPe = groupElem.nPe
+        Ne = jacobien_e_pg.shape[0]
+        nPg = jacobien_e_pg.shape[1]
+
         # Recupère les matrices pour travailler
         dN_e_pg = mesh.Get_dN_sclaire_e_pg(matriceType)
         if beamModel.dim > 1:
             ddNv_e_pg = mesh.Get_ddNv_sclaire_e_pg(matriceType)
-        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.Get_poid_pg(matriceType)
-
-        # Ne et nPg
-        Ne = jacobien_e_pg.shape[0]
-        nPg = jacobien_e_pg.shape[1]
-        
-        dim = beamModel.dim
-        groupElem = mesh.groupElem
-        elemType = groupElem.elemType
-        nPe = groupElem.nPe
-
-        nbddl_n = beamModel.nbddl_n
-
-        # Construction de D_e_pg
-
-        listePoutres = beamModel.listePoutres
-        list_D = beamModel.list_D
-
-        # Pour chaque poutre, on va construire la loi de comportement
-        D_e = np.zeros((Ne, list_D[0].shape[0], list_D[0].shape[0]))
-        for poutre, D in zip(listePoutres, list_D):
-            # recupère les element
-            elements = groupElem.Get_Elements_PhysicalGroup(poutre.idPoutre)
-            D_e[elements] = D
-        
-        # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_B.m
-
 
         if dim == 1:
             # u = [u1, . . . , un]
@@ -577,31 +578,22 @@ class Simu:
         # Fait la rotation si nécessaire
 
         if dim == 1:
-
-            Bglob_e_pg = B_e_pg
-        
+            B_beam_e_pg = B_e_pg
         else:
-
             P = mesh.groupElem.sysCoord_e
-
             Pglob_e = np.zeros((Ne, nbddl_n*nPe, nbddl_n*nPe))
-
             Ndim = nbddl_n*nPe
-
             N = P.shape[1]
-
             listlignes = np.repeat(range(N), N)
             listColonnes = np.array(list(range(N))*N)
             for e in range(nbddl_n*nPe//3):
                 Pglob_e[:,listlignes + e*N, listColonnes + e*N] = P[:,listlignes,listColonnes]
 
-            Bglob_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
+            B_beam_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
 
-        Kbeam_e = np.einsum('ep,p,epji,ejk,epkl->eil', jacobien_e_pg, poid_pg, Bglob_e_pg, D_e, Bglob_e_pg, optimize='optimal')
-            
-        tic.Tac("Matrices","Construction Kbeam_e", self.__verbosity)
+        tic.Tac("Matrices","Construction B_beam_e_pg", False)
 
-        return Kbeam_e
+        return B_beam_e_pg
 
     def Assemblage_beam(self):
         """Construit K global pour le problème en deplacement
@@ -1947,7 +1939,7 @@ class Simu:
         # Il n'est pas possible de poser u1-u2 + v1-v2 = 0
         # Il faut appliquer une seule condition à la fois
 
-        tic.Tac("Boundary Conditions","Laison", self.__verbosity)
+        tic.Tac("Boundary Conditions","Liaison", self.__verbosity)
 
         self.__Add_Bc_LagrangeAffichage(noeuds, directions, description)
 
@@ -2015,14 +2007,24 @@ class Simu:
         """Calcul l'energie de fissure"""
         if not self.materiau.isDamaged: return
 
+        pfm = self.materiau.phaseFieldModel 
+
+        Gc = pfm.Gc
+        l0 = pfm.l0
+        c0 = pfm.c0
+
+
         d_n = self.__damage
+
+
+
         d_e = self.__mesh.Localises_sol_e(d_n)
         Kd_e, Fd_e = self.__ConstruitMatElem_Pfm()
         Psi_Crack = 1/2 * np.einsum('ei,eij,ej->', d_e, Kd_e, d_e, optimize='optimal')
 
         return Psi_Crack
 
-    def __Calc_Epsilon_e_pg(self, u: np.ndarray, matriceType="rigi"):
+    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType="rigi"):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -2039,19 +2041,22 @@ class Simu:
         useNumba = self.__useNumba
         useNumba = False
         
-        # Localise les deplacement par element
-        u_e = self.__mesh.Localises_sol_e(u)
-
-        B_dep_e_pg = self.__mesh.Get_B_dep_e_pg(matriceType)
-
         tic = Tic()
 
-        if useNumba:
-            # Moins rapide
-            Epsilon_e_pg = CalcNumba.epij_ej_to_epi(B_dep_e_pg, u_e)
-        else:
-            # Plus rapide
-            Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
+        if self.__problemType in ["displacement","damage"]:
+            # Localise les deplacement par element
+            u_e = self.__mesh.Localises_sol_e(sol)
+            B_dep_e_pg = self.__mesh.Get_B_dep_e_pg(matriceType)
+            if useNumba: # Moins rapide
+                Epsilon_e_pg = CalcNumba.epij_ej_to_epi(B_dep_e_pg, u_e)
+            else: # Plus rapide
+                Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
+        elif self.__problemType == "beam":
+            nbddl_n = self.materiau.beamModel.nbddl_n
+            assemblyBeam_e = self.mesh.groupElem.assemblyBeam_e(nbddl_n)
+            sol_e = sol[assemblyBeam_e]
+            B_beam_e_pg = self.__Get_B_beam_e_pg(matriceType)
+            Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
         
         tic.Tac("Matrices", "Epsilon_e_pg", False)
 
@@ -2102,14 +2107,22 @@ class Simu:
 
             tic = Tic()
 
-            c = self.materiau.comportement.get_C()
-            if useNumba:
-                # Plus rapide sur les gros système > 500 000 ddl (ordre de grandeur)
-                # sinon legerement plus lent
-                Sigma_e_pg = CalcNumba.ij_epj_to_epi(c, Epsilon_e_pg)
-            else:
-                # Plus rapide sur les plus petits système
-                Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize='optimal')
+            if self.__problemType == "displacement":
+
+                c = self.materiau.comportement.get_C()
+                if useNumba:
+                    # Plus rapide sur les gros système > 500 000 ddl (ordre de grandeur)
+                    # sinon legerement plus lent
+                    Sigma_e_pg = CalcNumba.ij_epj_to_epi(c, Epsilon_e_pg)
+                else:
+                    # Plus rapide sur les plus petits système
+                    Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize='optimal')
+            
+            elif self.__problemType == "beam":
+
+                D_e_pg = self.materiau.beamModel.Calc_D_e_pg(self.mesh.groupElem, matriceType)
+
+                Sigma_e_pg = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
             
         tic.Tac("Matrices", "Sigma_e_pg", False)
 
@@ -2128,7 +2141,7 @@ class Simu:
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz", "amplitude", "displacement", "coordoDef"],
                 "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
-                "Beam" : ["u","v","rz", "amplitude", "beamDisplacement", "coordoDef", "fx", "fy", "cz"],
+                "Beam" : ["u","v","rz", "amplitude", "beamDisplacement", "coordoDef", "fx", "fy", "cz","Exx","Exy","Sxx","Sxy","Srain","Stress"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
                 "Damage" :["damage","psiP"],
                 "Thermal" : ["thermal", "thermalDot"]
@@ -2249,6 +2262,8 @@ class Simu:
             Sigma_e = np.mean(Sigma_e_pg, axis=1)
 
             coef = self.materiau.comportement.coef
+
+            # TODO fusionner avec Stress ?
 
             if "S" in option and not option == "Strain":
 
@@ -2424,6 +2439,15 @@ class Simu:
                 resultat_ddl = resultat_ddl.reshape((Nn,-1))
 
             index = self.__Get_indexe_option(option)
+
+
+            # Deformation et contraintes pour chaque element et chaque points de gauss        
+            Epsilon_e_pg = self.__Calc_Epsilon_e_pg(self.beamDisplacement)
+            Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
+
+            if option == "Stress":
+                return np.mean(Sigma_e_pg, axis=1)
+
 
             if valeursAuxNoeuds:
                 if option == "amplitude":

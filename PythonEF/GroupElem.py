@@ -1580,8 +1580,10 @@ class GroupElem:
 
         if sol.shape[0] == tailleVecteur:
             sol_e = sol[self.assembly_e]
-        else:
+        elif sol.shape[0] == self.Nn:
             sol_e = sol[self.__connect]
+        else:
+            return
         
         return sol_e
 

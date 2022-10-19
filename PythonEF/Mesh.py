@@ -134,9 +134,9 @@ class Mesh:
         """matrice d'assemblage (Ne, nPe*dim)"""
         return self.groupElem.assembly_e
     
-    def assemblyBeam_e(self, dim: int) -> np.ndarray:
+    def assemblyBeam_e(self, nbddl_n: int) -> np.ndarray:
         """matrice d'assemblage pour les poutres (Ne, nPe*dim)"""
-        return self.groupElem.assemblyBeam_e(dim)
+        return self.groupElem.assemblyBeam_e(nbddl_n)
     
     # Affichage
 
@@ -165,12 +165,12 @@ class Mesh:
         Ne = self.Ne
         return np.repeat(assembly_e, nPe*self.__dim).reshape((Ne,-1))
     
-    def lignesVectorBeam_e(self, nbddl_e: int) -> np.ndarray:
+    def lignesVectorBeam_e(self, nbddl_n: int) -> np.ndarray:
         """lignes pour remplir la matrice d'assemblage en vecteur (poutre)"""
-        assemblyBeam_e = self.assemblyBeam_e(nbddl_e)
+        assemblyBeam_e = self.assemblyBeam_e(nbddl_n)
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(assemblyBeam_e, nPe*nbddl_e).reshape((Ne,-1))
+        return np.repeat(assemblyBeam_e, nPe*nbddl_n).reshape((Ne,-1))
 
     @property
     def colonnesVector_e(self) -> np.ndarray:
@@ -180,12 +180,12 @@ class Mesh:
         Ne = self.Ne
         return np.repeat(assembly_e, nPe*self.__dim, axis=0).reshape((Ne,-1))
     
-    def colonnesVectorBeam_e(self, nbddl_e: int) -> np.ndarray:
+    def colonnesVectorBeam_e(self, nbddl_n: int) -> np.ndarray:
         """colonnes pour remplir la matrice d'assemblage en vecteur (poutre)"""
-        assemblyBeam_e = self.assemblyBeam_e(nbddl_e)
+        assemblyBeam_e = self.assemblyBeam_e(nbddl_n)
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(assemblyBeam_e, nPe*nbddl_e, axis=0).reshape((Ne,-1))
+        return np.repeat(assemblyBeam_e, nPe*nbddl_n, axis=0).reshape((Ne,-1))
 
     @property
     def lignesScalar_e(self) -> np.ndarray:

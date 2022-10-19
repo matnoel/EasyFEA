@@ -2,7 +2,7 @@ from typing import List
 
 from TicTac import Tic
 
-from Mesh import Mesh
+from Mesh import Mesh, GroupElem
 import CalcNumba as CalcNumba
 import numpy as np
 import Affichage as Affichage
@@ -419,6 +419,21 @@ class BeamModel():
                 D = np.diag([E*A, mu*J, E*Iy, E*Iz])
             
             self.__list_D.append(D)
+
+    def Calc_D_e_pg(self, groupElem: GroupElem, matriceType: str):
+        # Construction de D_e_pg: 
+        listePoutres = self.__listePoutres
+        list_D = self.__list_D
+        # Pour chaque poutre, on va construire la loi de comportement
+        Ne = groupElem.Ne
+        nPg = groupElem.get_gauss(matriceType).nPg
+        D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))
+        for poutre, D in zip(listePoutres, list_D):
+            # recupère les element
+            elements = groupElem.Get_Elements_PhysicalGroup(poutre.idPoutre)
+            D_e_pg[elements] = D
+
+        return D_e_pg
 
     @property
     def dim(self) -> int:
@@ -850,6 +865,25 @@ class PhaseFieldModel:
     def solveur(self):
         """Solveur d'endommagement"""
         return self.__solveur
+
+    @property
+    def Gc(self):
+        """Taux de libération d'énergie critque [J/m^2]"""
+        return self.__Gc
+
+    @property
+    def l0(self):
+        """Largeur de régularisation de la fissure"""
+        return self.__l0
+
+    @property
+    def c0(self):
+        """Paramètre de mise à l'échelle permettant dissiper exactement l'énergie de fissure"""
+        if self.__regularization == "AT1":
+            c0 = 8/3
+        elif self.__regularization == "AT2":
+            c0 = 2
+        return c0
     
     @property
     def useNumba(self) -> bool:

@@ -24,11 +24,11 @@ plotIter = False
 plotResult = True
 showFig = True
 saveParaview = False; NParaview=200
-makeMovie = True; NMovie = 300
+makeMovie = False; NMovie = 300
 
 
-problem = "Benchmark" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+problem = "CompressionFCBA" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
@@ -37,7 +37,7 @@ useNumba = True
 
 # Convergence
 maxIter = 500
-tolConv = 1e-1
+tolConv = 1e-0
 # TODO Faire la convergence sur l'energie ?
 
 if comp == "Elas_Isot":
@@ -56,7 +56,7 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["Amor","Bourdin","Miehe"]:
+for split in ["AnisotStress"]:
     
     # if split == "AnisotStress" and comp == "Elas_Isot":
     #     umax = 45e-6
@@ -83,19 +83,16 @@ for split in ["Amor","Bourdin","Miehe"]:
 
     elif "CompressionFCBA" in problem:
         L=9e-2
-        if problem in ["CompressionFCBA2", "CompressionFCBA3"]:
+        if problem in ["CompressionFCBA2"]:
             # Pour un carré
             h=L
         else:
             h=12e-2
         ep=2e-2
         
-        if problem == "CompressionFCBA3":
-            diam=4e-2
-        else:
-            diam=2e-2
+        diam=2e-2
         r=diam/2
-
+        
         gc = 1.4/2
         # l_0 = 0.12e-3
         l_0 = L/nL
@@ -319,6 +316,8 @@ for split in ["Amor","Bourdin","Miehe"]:
  
         load, displacement = PostTraitement.Load_Load_Displacement(folder)
         simu = PostTraitement.Load_Simu(folder)
+
+        psiCrack = simu.Get_Resultat("Psi_Crack")
 
     if plotResult:
         Affichage.Plot_ResumeIter(simu, folder, None, None)
