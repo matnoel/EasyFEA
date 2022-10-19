@@ -72,12 +72,7 @@ class Simu:
         Simu.CheckProblemTypes(materiau.problemType)
         self.__problemType = materiau.problemType
 
-        if materiau.isDamaged:
-            materiau.phaseFieldModel.useNumba = useNumba
-            
-        self.__useNumba = useNumba
-        # if useNumba:
-        #     CalcNumba.CompilNumba(self.__verbosity)
+        self.useNumba = useNumba
         
         # resultats
         self.__init_results()
@@ -102,6 +97,20 @@ class Simu:
     def dim(self) -> int:
         """dimension de la simulation"""
         return self.__dim
+
+    @property
+    def useNumba(self) -> bool:
+        return self.__useNumba
+    
+    @useNumba.setter
+    def useNumba(self, value: bool):
+        if not isinstance(value, bool): return
+        if self.materiau.isDamaged:
+            self.materiau.phaseFieldModel.useNumba = value
+        self.__useNumba = value
+        # if useNumba:
+        #     CalcNumba.CompilNumba(self.__verbosity)
+        
 
 # ------------------------------------------- RESULTATS ------------------------------------------- 
 
@@ -1964,6 +1973,8 @@ class Simu:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
+        tic = Tic()
+
         sol_u  = self.__displacement
 
         matriceType = "rigi"
@@ -2000,6 +2011,8 @@ class Simu:
             # u_e = self.__mesh.Localises_sol_e(sol_u)
             # Ku_e = self.__ConstruitMatElem_Dep()
             # Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ku_e, u_e, optimize='optimal')
+
+        tic.Tac("PostTraitement","Calcul Psi Elas",False)
         
         return Wdef
 
@@ -2007,20 +2020,43 @@ class Simu:
         """Calcul l'energie de fissure"""
         if not self.materiau.isDamaged: return
 
+        tic = Tic()
+
         pfm = self.materiau.phaseFieldModel 
+
+        matriceType = "masse"
 
         Gc = pfm.Gc
         l0 = pfm.l0
         c0 = pfm.c0
 
-
         d_n = self.__damage
-
-
-
         d_e = self.__mesh.Localises_sol_e(d_n)
-        Kd_e, Fd_e = self.__ConstruitMatElem_Pfm()
-        Psi_Crack = 1/2 * np.einsum('ei,eij,ej->', d_e, Kd_e, d_e, optimize='optimal')
+
+        jacobien_e_pg = self.__mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = self.__mesh.Get_poid_pg(matriceType)
+        Nd_pg = self.__mesh.Get_N_scalaire_pg(matriceType)
+        Bd_e_pg = self.__mesh.Get_dN_sclaire_e_pg(matriceType)
+
+        grad_e_pg = np.einsum('epij,ej->epi',Bd_e_pg,d_e, optimize='optimal')
+        diffuse_e_pg = grad_e_pg**2
+
+        gradPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, Gc*l0/c0, diffuse_e_pg, optimize='optimal')
+
+        alpha_e_pg = np.einsum('pij,ej->epi', Nd_pg, d_e, optimize='optimal')
+        if pfm.regularization == "AT2":
+            alpha_e_pg = alpha_e_pg**2
+        
+        alphaPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, Gc/(c0*l0), alpha_e_pg, optimize='optimal')
+
+        if self.__dim == 2:
+            ep = self.materiau.epaisseur
+        else:
+            ep = 1
+
+        Psi_Crack = (alphaPart + gradPart)*ep
+
+        tic.Tac("PostTraitement","Calcul Psi Crack",False)
 
         return Psi_Crack
 

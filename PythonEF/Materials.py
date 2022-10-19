@@ -967,7 +967,7 @@ class PhaseFieldModel:
             psiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
             psiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
 
-        tic.Tac("Matrices PFM", "psiP_e_pg et psiM_e_pg", False)
+        tic.Tac("Matrices", "psiP_e_pg et psiM_e_pg", False)
 
         return psiP_e_pg, psiM_e_pg
 
@@ -1006,7 +1006,7 @@ class PhaseFieldModel:
             SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
             SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
 
-        tic.Tac("Matrices PFM", "SigmaP_e_pg et SigmaM_e_pg", False)
+        tic.Tac("Matrices", "SigmaP_e_pg et SigmaM_e_pg", False)
 
         return SigmaP_e_pg, SigmaM_e_pg
     
@@ -1029,12 +1029,13 @@ class PhaseFieldModel:
         # On passe ici 2 fois par itération
         # Une fois pour calculer l'energie et une fois pour calculer K_u
 
-        tic = Tic()
+        
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
             
         if self.__split == "Bourdin":
+            tic = Tic()
             c = self.__comportement.get_C()
             c = c[np.newaxis, np.newaxis,:,:]
             c = np.repeat(c, Ne, axis=0)
@@ -1042,6 +1043,7 @@ class PhaseFieldModel:
 
             cP_e_pg = c
             cM_e_pg = np.zeros_like(cP_e_pg)
+            tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
 
         elif self.__split == "Amor":
             cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
@@ -1058,22 +1060,13 @@ class PhaseFieldModel:
         else: 
             raise "Split inconnue"
 
-        fonctionQuiAppelle = stack()[2].function
-
-        if fonctionQuiAppelle == "Calc_psi_e_pg":
-            matrice = "masse"
-        else:
-            matrice = "rigi"
-
-
-        # tic.Tac("Matrices PFM",f"cP_e_pg et cM_e_pg ({matrice})", False)
-        tic.Tac("Matrices PFM",f"cP_e_pg et cM_e_pg", False)
-
         return cP_e_pg, cM_e_pg
 
     def __Split_Amor(self, Epsilon_e_pg: np.ndarray):
 
         assert isinstance(self.__comportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
+        
+        tic = Tic()
         
         loiDeComportement = self.__comportement                
 
@@ -1097,6 +1090,7 @@ class PhaseFieldModel:
         Pdev = np.eye(taille) - 1/dim * IxI
         partieDeviateur = 2*mu*Pdev
 
+
         # projetcteur spherique
         # useNumba = self.__useNumba
         useNumba=False
@@ -1119,6 +1113,8 @@ class PhaseFieldModel:
         
             cP_e_pg = bulk*spherP_e_pg + partieDeviateur
             cM_e_pg = bulk*spherM_e_pg
+
+        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -1151,6 +1147,8 @@ class PhaseFieldModel:
 
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg, verif)
 
+        tic = Tic()
+
         if self.__split == "Miehe":
             
             assert isinstance(self.__comportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
@@ -1172,19 +1170,10 @@ class PhaseFieldModel:
 
             cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
             cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
-
-            # projecteurs = {
-            #     "projP_e_pg" : projP_e_pg,
-            #     "projM_e_pg" : projM_e_pg,
-            #     "spherP_e_pg" : spherP_e_pg,
-            #     "spherM_e_pg" : spherM_e_pg
-            # }
         
         elif self.__split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
             
             c = self.__comportement.get_C()
-
-            tic = Tic()
             
             if useNumba:
                 # Plus rapide
@@ -1194,8 +1183,6 @@ class PhaseFieldModel:
                 Cpm = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projM_e_pg, optimize='optimal')
                 Cmm = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projM_e_pg, optimize='optimal')
                 Cmp = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projP_e_pg, optimize='optimal')
-
-            tic.Tac("Matrices PFM","Anisot : Cpp, Cpm, Cmp, Cmm", False)
             
             if self.__split ==  "AnisotMiehe":
 
@@ -1220,6 +1207,8 @@ class PhaseFieldModel:
         else:
             raise "Split inconnue"
 
+        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+
         return cP_e_pg, cM_e_pg
 
     
@@ -1234,6 +1223,8 @@ class PhaseFieldModel:
 
         # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma                    
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Sigma_e_pg, verif)
+
+        tic = Tic()
 
         if self.__split == "Stress":
         
@@ -1270,30 +1261,23 @@ class PhaseFieldModel:
                 cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
                 cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
 
-            # # Ici c'est un test pour verifier que cT : S : c = inv(S)
-
-            # detP_e_pg = np.linalg.det(sP_e_pg); e_pg_detPnot0 = np.where(detP_e_pg!=0)
-            # detM_e_pg = np.linalg.det(sM_e_pg); e_pg_detMnot0 = np.where(detM_e_pg!=0)
-
-            # invSP_e_pg = np.zeros(sP_e_pg.shape)
-            # invSM_e_pg = np.zeros(sM_e_pg.shape)
             
-            # invSP_e_pg[e_pg_detPnot0] = np.linalg.inv(sP_e_pg[e_pg_detPnot0])
-            # invSM_e_pg[e_pg_detMnot0] = np.linalg.inv(sM_e_pg[e_pg_detMnot0])
-
-            # testP = np.linalg.norm(invSP_e_pg-cP_e_pg)/np.linalg.norm(cP_e_pg)
-            # testM = np.linalg.norm(invSM_e_pg-cM_e_pg)/np.linalg.norm(cM_e_pg)
-            # pass
         
         elif self.__split in ["AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]:
 
             # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
             Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize='optimal')
             Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize='optimal')
-            
-            tic = Tic()
 
-            if self.__split != "AnisotStress":
+            if self.__split ==  "AnisotStress":
+
+                # cP_e_pg = Cpp + Cpm + Cmp
+                # cM_e_pg = Cmm 
+
+                cP_e_pg = Cp_e_pg
+                cM_e_pg = Cm_e_pg
+
+            elif self.__split != "AnisotStress":
                 # Construit Cp et Cm
                 S = loiDeComportement.get_S()
                 if self.__useNumba:
@@ -1304,16 +1288,6 @@ class PhaseFieldModel:
                     Cpm = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cm_e_pg, optimize='optimal')
                     Cmm = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cm_e_pg, optimize='optimal')
                     Cmp = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cp_e_pg, optimize='optimal')
-
-                tic.Tac("Matrices PFM","Anisot : Cpp, Cpm, Cmp, Cmm", False)
-
-            if self.__split ==  "AnisotStress":
-
-                # cP_e_pg = Cpp + Cpm + Cmp
-                # cM_e_pg = Cmm 
-
-                cP_e_pg = Cp_e_pg
-                cM_e_pg = Cm_e_pg
 
             elif self.__split ==  "AnisotStress_PM":
                 
@@ -1333,6 +1307,8 @@ class PhaseFieldModel:
         else:
             raise "Split inconnue"
 
+        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+
         return cP_e_pg, cM_e_pg
 
     def __Split_He(self, Epsilon_e_pg: np.ndarray, verif=False):
@@ -1343,6 +1319,8 @@ class PhaseFieldModel:
         if self.__split == "He":
             
             C = loiDeComportement.get_C() 
+
+            # Mettre ça direct dans la loi de comportement ?
 
             sqrtC = sqrtm(C)
             
@@ -1359,6 +1337,8 @@ class PhaseFieldModel:
             # On calcule les projecteurs
             projPt_e_pg, projMt_e_pg = self.__Decomposition_Spectrale(Epsilont_e_pg, verif)
 
+            tic = Tic()
+
             projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
             projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
 
@@ -1370,14 +1350,10 @@ class PhaseFieldModel:
             cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
             cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
 
-            vecteur_e_pg = Epsilon_e_pg.copy()
-            mat = C.copy()
-
-        elif self.__split == "HeStress":
-
-            pass
-
         if verif:
+            vecteur_e_pg = Epsilon_e_pg.copy()
+            mat = C.copy()    
+
             # Verification de la décomposition et de l'orthogonalité            
             vecteurP = np.einsum('epij,epj->epi', projP_e_pg, vecteur_e_pg, optimize='optimal')
             vecteurM = np.einsum('epij,epj->epi', projM_e_pg, vecteur_e_pg, optimize='optimal')
@@ -1400,7 +1376,9 @@ class PhaseFieldModel:
                 assert vertifOrthoEpsPM < 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
-                
+
+        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+
         return cP_e_pg, cM_e_pg
 
     
@@ -1547,7 +1525,7 @@ class PhaseFieldModel:
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
         
-        tic.Tac("Matrices PFM", "Decomp spectrale", False)
+        tic.Tac("Matrices", "Decomp spectrale", False)
             
         return projP, projM
 

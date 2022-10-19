@@ -681,12 +681,17 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     # Récupérations des Conditions de chargement de déplacement ou de liaison
     dirchlets = simu.Get_Bc_Dirichlet()
-    neumanns = simu.Get_Bc_Neuman()
-    lagranges = simu.Get_Bc_LagrangeAffichage()
-    
     Conditions = dirchlets
-    Conditions.extend(lagranges)
+
+    neumanns = simu.Get_Bc_Neuman()
     Conditions.extend(neumanns)
+
+    try:
+        lagranges = simu.Get_Bc_LagrangeAffichage()
+        Conditions.extend(lagranges)
+    except:
+        # Dans cette version de simulation il n'y avait pas cette option
+        pass
 
     ax = Plot_Maillage(simu, alpha=0)
 

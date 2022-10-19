@@ -23,11 +23,12 @@ plotMesh = False
 plotIter = False
 plotResult = True
 showFig = True
+plotEnergie = True
 saveParaview = False; NParaview=200
 makeMovie = False; NMovie = 300
 
 
-problem = "CompressionFCBA" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
+problem = "Benchmark" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
@@ -317,7 +318,8 @@ for split in ["AnisotStress"]:
         load, displacement = PostTraitement.Load_Load_Displacement(folder)
         simu = PostTraitement.Load_Simu(folder)
 
-        psiCrack = simu.Get_Resultat("Psi_Crack")
+    if plotEnergie:    
+        PostTraitement.PlotEnergie(simu, folder)
 
     if plotResult:
         Affichage.Plot_ResumeIter(simu, folder, None, None)

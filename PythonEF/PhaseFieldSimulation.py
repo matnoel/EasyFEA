@@ -1,9 +1,13 @@
+import matplotlib.pyplot as plt
+from colorama import Fore
+
 from TicTac import Tic
 from Simu import Simu
 import numpy as np
 import scipy.sparse as sp
 import Dossier
 import Materials
+import PostTraitement
 
 def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int, float]:
     """Calcul l'itération d'un probleme d'endommagement de façon étagée
@@ -171,6 +175,9 @@ def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpl
     else:
         folder = Dossier.Join([folder, nom])
 
-    print('\nSimulation dans :\n'+folder)
+    texteAvantPythonEF = folder.split('PythonEF')[0]
+    folderSansArbre = folder.replace(texteAvantPythonEF, "")
+
+    print(Fore.CYAN + '\nSimulation dans :\n'+folderSansArbre + Fore.WHITE)
 
     return folder

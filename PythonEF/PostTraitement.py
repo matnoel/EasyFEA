@@ -1,5 +1,6 @@
-
+from ast import For
 import os
+from colorama import Fore
 
 import Affichage as Affichage
 from Simu import Simu
@@ -35,8 +36,8 @@ def Save_Simu(simu: Simu, folder:str):
     resume = f"Simulation réalisée le : {dateEtHeure}"
     nomSimu = "simulation.pickle"
     filename = Dossier.Join([folder, nomSimu])
-    print(f'\nSauvegarde dans : \n{folder}')
-    print(f'  - {nomSimu}')
+    print(Fore.GREEN + f'\nSauvegarde dans : \n{folder}')
+    print(Fore.GREEN + f'  - {nomSimu}')
     
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -48,7 +49,7 @@ def Save_Simu(simu: Simu, folder:str):
     # Sauvegarde le résumé de la simulation
     resume += simu.Resume(False)
     nomResume = "résumé.txt"
-    print(f'  - {nomResume} \n')
+    print(Fore.GREEN + f'  - {nomResume} \n')
     filenameResume = Dossier.Join([folder, nomResume])
 
     with open(filenameResume, 'w', encoding='utf8') as file:
@@ -77,7 +78,7 @@ def Load_Simu(folder: str, verbosity=False):
     assert isinstance(simu, Simu)
 
     if verbosity:
-        print(f'\nChargement de :\n{filename}\n')
+        print(Fore.CYAN + f'\nChargement de :\n{filename}\n' + Fore.WHITE)
         simu.mesh.Resume()
         simu.materiau.Resume()
     return simu
@@ -115,7 +116,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     """
 
     filename = Dossier.Join([folder, "load and displacement.pickle"])
-    assert os.path.exists(filename), "Le fichier load and displacement.pickle est introuvable"
+    assert os.path.exists(filename), Fore.RED + "Le fichier load and displacement.pickle est introuvable" + Fore.WHITE
 
     with open(filename, 'rb') as file:
         values = pickle.load(file)
@@ -156,7 +157,7 @@ def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, def
 
     N = len(resultats)
 
-    listIter = __Get_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
+    listIter = Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
     Niter = len(listIter)
 
@@ -208,7 +209,61 @@ def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, def
             pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
 
             print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
+
+def PlotEnergie(simu: Simu, folder="", Niter=200, NiterFin=100,):
     
+    # Pour chaque incrément de dépalcement on va caluler l'energie
+
+    if not simu.materiau.isDamaged: return
+
+    tic = Tic()
+
+    results =  simu.results
+    N = len(results)
+    listIter = Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
+    
+    Niter = len(listIter)
+
+    listPsiCrack = []
+    listPsiElas = []
+    listTemps = []
+
+    for i, iter in enumerate(listIter):
+
+        simu.Update_iter(iter)
+
+        listPsiCrack.append(simu.Get_Resultat("Psi_Crack"))
+        listPsiElas.append(simu.Get_Resultat("Psi_Elas"))
+
+        temps = tic.Tac("PostTraitement","Calc Energie", False)
+        listTemps.append(temps)
+
+        pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
+
+        print(f"Calc Energie {iter}/{N} {pourcentageEtTempsRestant}    ", end='\r')
+    print('\n')
+
+    listTot = np.array(listPsiCrack) + np.array(listPsiElas)
+
+
+
+
+
+
+
+    fig, ax = plt.subplots()
+    ax.plot(listIter, listPsiCrack, label=r"$\Psi_{Crack}$")
+    ax.plot(listIter, listPsiElas, label=r"$\Psi_{Elas}$")
+    ax.plot(listIter, listTot, label=r"$\Psi_{Tot}$")
+    ax.set_xlabel(r"$iter$")
+    ax.set_ylabel(r"$Joules$")
+    ax.legend()
+    ax.grid()
+    if folder != "":
+        Save_fig(folder, "Energie")
+
+    tic.Tac("PostTraitement","Cacul Energie phase field", False)
+
 # ========================================== Paraview =================================================
 
 def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
@@ -234,7 +289,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
     NiterMax = len(resultats)-1
 
-    listIter = __Get_listIter(NiterMax=NiterMax, NiterFin=100, NiterCyble=Niter)
+    listIter = Make_listIter(NiterMax=NiterMax, NiterFin=100, NiterCyble=Niter)
     
     Niter = len(listIter)
 
@@ -285,7 +340,23 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
     tic.Tac("Paraview","Make pvd", False)
 
-def __Get_listIter(NiterMax: int, NiterFin: int, NiterCyble: int) -> np.ndarray:
+def Make_listIter(NiterMax: int, NiterFin: int, NiterCyble: int) -> np.ndarray:
+    """Découpage de la liste ditération 
+
+    Parameters
+    ----------
+    NiterMax : int
+        Nombre ditération de la liste
+    NiterFin : int
+        Nombre d'itération à la fin
+    NiterCyble : int
+        Nombre d'itération maximale selectionnée dans la liste
+
+    Returns
+    -------
+    np.ndarray
+        la liste d'itération
+    """
 
     NavantFin = NiterMax-NiterFin
     listIterFin = np.arange(NavantFin+1, NiterMax+1, dtype=int)
