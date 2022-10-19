@@ -18,20 +18,23 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-simulation = "Tension" #"Shear" , "Tension"
+simulation = "Shear" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = False
 solve = False
 pltMesh = False
 plotResult = True
-saveParaview = False
-makeMovie = True
+plotEnergie = True
+saveParaview = False; Nparaview=400
+makeMovie = False
+
+useNumba = True
 
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-split = "Bourdin" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
+split = "He" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
@@ -46,7 +49,7 @@ dim = 2
 # Paramètres géométrie
 L = 1e-3;  #m
 if comportement == "Elas_Anisot":
-    tetha = 0
+    tetha = -30
     l0 = 0.0085e-3
     Gc = 1e-3 * 1e-3 * 1e3
 else:
@@ -135,7 +138,7 @@ if solve:
 
     materiau = Materiau(phaseFieldModel, ro=1)
 
-    simu = Simu(mesh, materiau, verbosity=False, useNumba=False)
+    simu = Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
 
     # Renseignement des conditions limites
     def Chargement(dep):
@@ -217,8 +220,8 @@ if solve:
     bord = 0
 
     
-    list_Psi_Elas=[]
-    list_Psi_Crack=[]
+    # list_Psi_Elas=[]
+    # list_Psi_Crack=[]
     deplacements=[]
     forces=[]
 
@@ -305,6 +308,8 @@ else:
     simu = PostTraitement.Load_Simu(folder)
 
     forces, deplacements = PostTraitement.Load_Load_Displacement(folder)
+    
+    simu.useNumba = useNumba
 
     # Affichage.Plot_Maillage(simu.mesh)
     # plt.show()
@@ -331,15 +336,19 @@ if plotResult:
     # Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
         
 if saveParaview:
-    PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+    PostTraitement.Save_Simulation_in_Paraview(folder, simu, Nparaview)
         
-
+if plotEnergie:    
+    PostTraitement.PlotEnergie(simu, forces, Niter=400, folder=folder)
+    
 
 
 Tic.getResume()
 
 if solve:
-    Tic.getGraphs(folder, False)
+    Tic.getGraphs(folder, True)
+else:
+    Tic.getGraphs(details=True)
 
 plt.show()
 

@@ -1,5 +1,6 @@
 from ast import For
 import os
+from turtle import Turtle
 from colorama import Fore
 
 import Affichage as Affichage
@@ -210,16 +211,19 @@ def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, def
 
             print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
 
-def PlotEnergie(simu: Simu, folder="", Niter=200, NiterFin=100,):
+def PlotEnergie(simu: Simu, forces=[], Niter=200, NiterFin=100, folder=""):
     
     # Pour chaque incrément de dépalcement on va caluler l'energie
 
     if not simu.materiau.isDamaged: return
 
+
     tic = Tic()
 
     results =  simu.results
     N = len(results)
+    if len(forces) > 0:
+        assert len(forces) == len(results)
     listIter = Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
     Niter = len(listIter)
@@ -227,10 +231,13 @@ def PlotEnergie(simu: Simu, folder="", Niter=200, NiterFin=100,):
     listPsiCrack = []
     listPsiElas = []
     listTemps = []
+    listEndomagementMax = []
 
     for i, iter in enumerate(listIter):
 
         simu.Update_iter(iter)
+
+        listEndomagementMax.append(simu.damage.max())
 
         listPsiCrack.append(simu.Get_Resultat("Psi_Crack"))
         listPsiElas.append(simu.Get_Resultat("Psi_Elas"))
@@ -245,14 +252,33 @@ def PlotEnergie(simu: Simu, folder="", Niter=200, NiterFin=100,):
 
     listTot = np.array(listPsiCrack) + np.array(listPsiElas)
 
-    fig, ax = plt.subplots()
-    ax.plot(listIter, listPsiCrack, label=r"$\Psi_{Crack}$")
-    ax.plot(listIter, listPsiElas, label=r"$\Psi_{Elas}$")
-    ax.plot(listIter, listTot, label=r"$\Psi_{Tot}$")
-    ax.set_xlabel(r"$iter$")
-    ax.set_ylabel(r"$Joules$")
-    ax.legend()
-    ax.grid()
+    if len(forces) == 0:
+        nrows = 2
+    else:
+        nrows = 3
+
+    fig, ax = plt.subplots(nrows, 1, sharex=True)
+    # Affiche les energies
+    ax[0].plot(listIter, listPsiCrack, label=r"$\Psi_{Crack}$")
+    ax[0].plot(listIter, listPsiElas, label=r"$\Psi_{Elas}$")
+    ax[0].plot(listIter, listTot, label=r"$\Psi_{Tot}$")
+    ax[0].set_ylabel(r"$Joules$")
+    ax[0].legend()
+    ax[0].grid()
+
+    # Affiche l'endommagement max
+    ax[1].plot(listIter, listEndomagementMax)
+    ax[1].set_ylabel(r"$\phi$")
+    ax[1].grid()
+
+    if nrows == 3:
+        # Affiche le déplacement
+        ax[2].plot(listIter, np.abs(forces[listIter])*1e-3)
+        ax[2].set_ylabel(r"$load \ [kN]$")
+        ax[2].grid()
+    
+    ax[-1].set_xlabel(r"$iter$")
+
     if folder != "":
         Save_fig(folder, "Energie")
 

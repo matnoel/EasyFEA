@@ -319,7 +319,7 @@ for split in ["AnisotStress"]:
         simu = PostTraitement.Load_Simu(folder)
 
     if plotEnergie:    
-        PostTraitement.PlotEnergie(simu, folder)
+        PostTraitement.PlotEnergie(simu, load, Niter=400, folder=folder)
 
     if plotResult:
         Affichage.Plot_ResumeIter(simu, folder, None, None)

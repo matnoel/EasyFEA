@@ -6,7 +6,6 @@ from Mesh import Mesh, GroupElem
 import CalcNumba as CalcNumba
 import numpy as np
 import Affichage as Affichage
-from inspect import stack
 from Geom import Poutre
 
 from scipy.linalg import sqrtm
@@ -936,7 +935,7 @@ class PhaseFieldModel:
         self.__solveur = solveur
         """Solveur d'endommagement"""
 
-        self.__useNumba = False
+        self.__useNumba = True
         """Utilise ou non les fonctions numba"""
         
             
@@ -1027,9 +1026,7 @@ class PhaseFieldModel:
         # Ici faire en sorte que l'on passe que 1 fois par itération pour eviter de faire les calculs plusieurs fois
         # Il se trouve que ça ne marche pas l'endommagement n'évolue pas
         # On passe ici 2 fois par itération
-        # Une fois pour calculer l'energie et une fois pour calculer K_u
-
-        
+        # Une fois pour calculer l'energie (psiP) donc pour construire une matrice de masse et une fois pour calculer K_u soit une matrice rigi, on est donc obligé de passé 2 fois dedans
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
@@ -1431,6 +1428,9 @@ class PhaseFieldModel:
         val_e_pg = np.zeros((Ne,nPg,2))
         val_e_pg[:,:,0] = (trace_e_pg - np.sqrt(delta))/2
         val_e_pg[:,:,1] = (trace_e_pg + np.sqrt(delta))/2
+
+        tic.Tac("Matrices", "Decomp spectrale valeurs propres", False)
+        # Ici c'est rapide pas de probleme
         
         # Constantes pour calcul de m1 = (matrice_e_pg - v2*I)/(v1-v2)
         v2I = np.einsum('ep,ij->epij', val_e_pg[:,:,1], np.eye(2), optimize='optimal')
@@ -1445,8 +1445,10 @@ class PhaseFieldModel:
         M1[:,:,0,0] = 1
         if elements.size > 0:
             m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize='optimal')
-            M1[elements, pdgs] = m1_tot[elements, pdgs]            
+            M1[elements, pdgs] = m1_tot[elements, pdgs]
         M2 = np.eye(2) - M1
+
+        tic.Tac("Matrices", "Decomp spectrale Matrices propres", False)
         
         if verif:
             # test ortho entre M1 et M2 
@@ -1460,9 +1462,12 @@ class PhaseFieldModel:
         # m1[:,:,2] = M1[:,:,0,1];   m2[:,:,2] = M2[:,:,0,1]
         m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef # Ici on met pas le coef pour que ce soit en [1 1 1]
         
-        # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]        
+        # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]
         m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
         m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
+        # if useNumba:
+        #     # moins rapide
+        #     m1xm1, m2xm2 = CalcNumba.Calc_m1xm1_m2xm2(m1, m2)
         
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
@@ -1485,6 +1490,8 @@ class PhaseFieldModel:
         gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
         
         matriceI = np.eye(3)
+
+        tic.Tac("Matrices", "Decomp spectrale elements pour Projecteurs", False)
 
         if useNumba:
             # Plus rapide
@@ -1525,7 +1532,7 @@ class PhaseFieldModel:
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
         
-        tic.Tac("Matrices", "Decomp spectrale", False)
+        tic.Tac("Matrices", "Decomp spectrale Projecteurs", False)
             
         return projP, projM
 
