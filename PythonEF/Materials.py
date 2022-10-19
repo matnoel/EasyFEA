@@ -1429,7 +1429,7 @@ class PhaseFieldModel:
         val_e_pg[:,:,0] = (trace_e_pg - np.sqrt(delta))/2
         val_e_pg[:,:,1] = (trace_e_pg + np.sqrt(delta))/2
 
-        tic.Tac("Matrices", "Decomp spectrale valeurs propres", False)
+        # tic.Tac("Matrices", "Decomp spectrale valeurs propres", False)
         # Ici c'est rapide pas de probleme
         
         # Constantes pour calcul de m1 = (matrice_e_pg - v2*I)/(v1-v2)
@@ -1448,7 +1448,7 @@ class PhaseFieldModel:
             M1[elements, pdgs] = m1_tot[elements, pdgs]
         M2 = np.eye(2) - M1
 
-        tic.Tac("Matrices", "Decomp spectrale Matrices propres", False)
+        # tic.Tac("Matrices", "Decomp spectrale Matrices propres", False)
         
         if verif:
             # test ortho entre M1 et M2 
@@ -1491,7 +1491,7 @@ class PhaseFieldModel:
         
         matriceI = np.eye(3)
 
-        tic.Tac("Matrices", "Decomp spectrale elements pour Projecteurs", False)
+        # tic.Tac("Matrices", "Decomp spectrale elements pour Projecteurs", False)
 
         if useNumba:
             # Plus rapide
@@ -1532,7 +1532,7 @@ class PhaseFieldModel:
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
         
-        tic.Tac("Matrices", "Decomp spectrale Projecteurs", False)
+        tic.Tac("Matrices", "Decomp spectrale et projecteurs", False)
             
         return projP, projM
 
