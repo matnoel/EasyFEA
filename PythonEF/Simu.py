@@ -209,13 +209,6 @@ class Simu:
         else:
             return None
 
-    def Get_Results_Index(self, index=None):
-        """Recupère le resultat stocké dans la liste de dictionnaire"""
-        if index == None:
-            return self.__results[-1]
-        else:
-            return self.__results[index]
-
     @property
     def results(self) -> List[dict]:
         """Renvoie la liste de dictionnaire qui stocke les résultats
@@ -260,13 +253,17 @@ class Simu:
         # TODO Faire de l'adaptation de maillage ?
         self.__results.append(iter)
 
-    def Update_iter(self, iter: int):
-        """Met la simulation à literation renseignée"""
-        iter = int(iter)
-        assert isinstance(iter, int), "Doit fournir un entier"
+    def Update_iter(self, index= -1):
+        """Met la simulation à literation renseignée de base renvoie le dernié résultat"""
+        index = int(index)
+        assert isinstance(index, int), "Doit fournir un entier"
 
         # On va venir récupérer les resultats stocké dans le tableau pandas
-        results = self.Get_Results_Index(iter)
+        try:
+            results = self.__results[index]
+        except:
+            print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
+            return
 
         problemType = self.__problemType
 
