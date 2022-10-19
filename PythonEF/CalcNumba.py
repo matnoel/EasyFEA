@@ -77,6 +77,30 @@ def epij_ej_to_epi(epij: np.ndarray, ej: np.ndarray) -> np.ndarray:
     return result
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
+def Calc_m1xm1_m2xm2(m1: np.ndarray, m2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    if useParallel:
+        range = prange
+    else:
+        range = np.arange
+    
+    Ne = m1.shape[0]
+    nPg = m1.shape[1]
+    dimI = m1.shape[2]
+    dimJ = m1.shape[2]
+
+    m1xm1 = np.zeros((Ne, nPg, dimI, dimI))
+    m2xm2 = np.zeros((Ne, nPg, dimI, dimI))
+
+    for e in range(Ne):
+        for p in range(nPg):
+            for i in range(dimI):
+                for j in range(dimJ):
+                    m1xm1[e, p, i, j] += m1[e, p, i] * m1[e, p, j]
+                    m2xm2[e, p, i, j] += m2[e, p, i] * m2[e, p, j]
+
+    return m1xm1, m2xm2
+
+@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def ij_epj_to_epi(ij: np.ndarray, epj: np.ndarray) -> np.ndarray:
     if useParallel:
         range = prange
