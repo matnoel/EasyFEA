@@ -92,7 +92,7 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
     
     filename = Dossier.Join([folder, "load and displacement.pickle"])
 
-    print(f'\nSauvegarde de :\n {filename}\n')
+    print(Fore.GREEN + f'\nSauvegarde de :\n \t - load and displacement.pickle' + Fore.WHITE)
 
     values = {
         'load': load,
