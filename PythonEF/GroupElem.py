@@ -1,5 +1,3 @@
-
-from inspect import stack
 from typing import Dict, List, cast
 
 from Geom import *
@@ -105,6 +103,11 @@ class GroupElem:
     def dim(self) -> int:
         """Dimension de l'element"""
         return GroupElem.Get_ElemInFos(self.__gmshId)[2]
+    
+    @property
+    def ordre(self) -> int:
+        """Ordre de l'element"""
+        return GroupElem.Get_ElemInFos(self.__gmshId)[3]
 
     @property
     def inDim(self) -> int:
@@ -570,7 +573,7 @@ class GroupElem:
 
         coordo = self.coordoGlob
 
-        if self.elemType in ["SEG2","SEG3"]:
+        if self.elemType in ["SEG2","SEG3","SEG4"]:
 
             points1 = coordo[self.__connect[:,0]]
             points2 = coordo[self.__connect[:,1]]
@@ -869,6 +872,15 @@ class GroupElem:
 
             Ntild = np.array([N1t, N2t, N3t])
 
+        elif self.elemType == "SEG4":
+
+            N1t = lambda x : -0.5625*x**3 + 0.5625*x**2 + 0.0625*x + -0.0625
+            N2t = lambda x : 0.5625*x**3 + 0.5625*x**2 + -0.0625*x + -0.0625
+            N3t = lambda x : 1.688*x**3 + -0.5625*x**2 + -1.688*x + 0.5625
+            N4t = lambda x : -1.688*x**3 + -0.5625*x**2 + 1.688*x + 0.5625
+
+            Ntild = np.array([N1t, N2t, N3t, N4t])
+
         elif self.elemType == "TRI3":
 
             N1t = lambda ksi,eta: 1-ksi-eta
@@ -887,6 +899,21 @@ class GroupElem:
             N6t = lambda ksi,eta: 4*eta*(1-ksi-eta)
             
             Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t])
+
+        elif self.elemType == "TRI10":
+
+            N1t = lambda ksi, eta : -4.5*ksi**3 + -4.5*eta**3 + -13.5*ksi**2*eta + -13.5*ksi*eta**2 + 9.0*ksi**2 + 9.0*eta**2 + 18.0*ksi*eta + -5.5*ksi + -5.5*eta + 1.0
+            N2t = lambda ksi, eta : 4.5*ksi**3 + 0.0*eta**3 + -1.093e-15*ksi**2*eta + -8.119e-16*ksi*eta**2 + -4.5*ksi**2 + 0.0*eta**2 + 1.124e-15*ksi*eta + 1.0*ksi + 0.0*eta + 0.0
+            N3t = lambda ksi, eta : 0.0*ksi**3 + 4.5*eta**3 + -3.747e-16*ksi**2*eta + 2.998e-15*ksi*eta**2 + 0.0*ksi**2 + -4.5*eta**2 + -7.494e-16*ksi*eta + 0.0*ksi + 1.0*eta + 0.0
+            N4t = lambda ksi, eta : 13.5*ksi**3 + 0.0*eta**3 + 27.0*ksi**2*eta + 13.5*ksi*eta**2 + -22.5*ksi**2 + 0.0*eta**2 + -22.5*ksi*eta + 9.0*ksi + 0.0*eta + 0.0
+            N5t = lambda ksi, eta : -13.5*ksi**3 + 0.0*eta**3 + -13.5*ksi**2*eta + -4.247e-15*ksi*eta**2 + 18.0*ksi**2 + 0.0*eta**2 + 4.5*ksi*eta + -4.5*ksi + 0.0*eta + 0.0
+            N6t = lambda ksi, eta : 0.0*ksi**3 + 0.0*eta**3 + 13.5*ksi**2*eta + 1.049e-14*ksi*eta**2 + 0.0*ksi**2 + 0.0*eta**2 + -4.5*ksi*eta + 0.0*ksi + 0.0*eta + 0.0
+            N7t = lambda ksi, eta : 0.0*ksi**3 + 0.0*eta**3 + 0.0*ksi**2*eta + 13.5*ksi*eta**2 + 0.0*ksi**2 + 0.0*eta**2 + -4.5*ksi*eta + 0.0*ksi + 0.0*eta + 0.0
+            N8t = lambda ksi, eta : 0.0*ksi**3 + -13.5*eta**3 + -1.499e-15*ksi**2*eta + -13.5*ksi*eta**2 + 0.0*ksi**2 + 18.0*eta**2 + 4.5*ksi*eta + 0.0*ksi + -4.5*eta + 0.0
+            N9t = lambda ksi, eta : 0.0*ksi**3 + 13.5*eta**3 + 13.5*ksi**2*eta + 27.0*ksi*eta**2 + 0.0*ksi**2 + -22.5*eta**2 + -22.5*ksi*eta + 0.0*ksi + 9.0*eta + 0.0
+            N10t = lambda ksi, eta : 0.0*ksi**3 + 0.0*eta**3 + -27.0*ksi**2*eta + -27.0*ksi*eta**2 + 0.0*ksi**2 + 0.0*eta**2 + 27.0*ksi*eta + 0.0*ksi + 0.0*eta + 0.0
+            
+            Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t, N9t, N10t])
         
         elif self.elemType == "QUAD4":
 
@@ -1067,6 +1094,15 @@ class GroupElem:
 
             dNtild = np.array([dN1t, dN2t, dN3t])
 
+        elif self.elemType == "SEG4":
+
+            dN1t = [lambda x : -1.688*x**2 + 1.125*x + 0.0625]
+            dN2t = [lambda x : 1.688*x**2 + 1.125*x + -0.0625]
+            dN3t = [lambda x : 5.062*x**2 + -1.125*x + -1.688]
+            dN4t = [lambda x : -5.062*x**2 + -1.125*x + 1.688]
+
+            dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
+
         elif self.elemType == "TRI3":
 
             dN1t = [lambda ksi,eta: -1, lambda ksi,eta: -1]
@@ -1085,6 +1121,43 @@ class GroupElem:
             dN6t = [lambda ksi,eta: -4*eta,         lambda ksi,eta: 4-4*ksi-8*eta]
             
             dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
+
+        elif self.elemType == "TRI10":
+
+            N1_ksi = lambda ksi, eta : -13.5*ksi**2 + -27.0*ksi*eta + -13.5*eta**2 + 18.0*ksi + 18.0*eta + -5.5
+            N2_ksi = lambda ksi, eta : 13.5*ksi**2 + -2.186e-15*ksi*eta + -8.119e-16*eta**2 + -9.0*ksi + 1.124e-15*eta + 1.0
+            N3_ksi = lambda ksi, eta : 0.0*ksi**2 + -7.494e-16*ksi*eta + 2.998e-15*eta**2 + 0.0*ksi + -7.494e-16*eta + 0.0
+            N4_ksi = lambda ksi, eta : 40.5*ksi**2 + 54.0*ksi*eta + 13.5*eta**2 + -45.0*ksi + -22.5*eta + 9.0
+            N5_ksi = lambda ksi, eta : -40.5*ksi**2 + -27.0*ksi*eta + -4.247e-15*eta**2 + 36.0*ksi + 4.5*eta + -4.5
+            N6_ksi = lambda ksi, eta : 0.0*ksi**2 + 27.0*ksi*eta + 1.049e-14*eta**2 + 0.0*ksi + -4.5*eta + 0.0
+            N7_ksi = lambda ksi, eta : 0.0*ksi**2 + 0.0*ksi*eta + 13.5*eta**2 + 0.0*ksi + -4.5*eta + 0.0
+            N8_ksi = lambda ksi, eta : 0.0*ksi**2 + -2.998e-15*ksi*eta + -13.5*eta**2 + 0.0*ksi + 4.5*eta + 0.0
+            N9_ksi = lambda ksi, eta : 0.0*ksi**2 + 27.0*ksi*eta + 27.0*eta**2 + 0.0*ksi + -22.5*eta + 0.0
+            N10_ksi = lambda ksi, eta : 0.0*ksi**2 + -54.0*ksi*eta + -27.0*eta**2 + 0.0*ksi + 27.0*eta + 0.0
+
+            N1_eta = lambda ksi, eta : -13.5*eta**2 + -13.5*ksi**2 + -27.0*ksi*eta + 18.0*eta + 18.0*ksi + -5.5
+            N2_eta = lambda ksi, eta : 0.0*eta**2 + -1.093e-15*ksi**2 + -1.624e-15*ksi*eta + 0.0*eta + 1.124e-15*ksi + 0.0
+            N3_eta = lambda ksi, eta : 13.5*eta**2 + -3.747e-16*ksi**2 + 5.995e-15*ksi*eta + -9.0*eta + -7.494e-16*ksi + 1.0
+            N4_eta = lambda ksi, eta : 0.0*eta**2 + 27.0*ksi**2 + 27.0*ksi*eta + 0.0*eta + -22.5*ksi + 0.0
+            N5_eta = lambda ksi, eta : 0.0*eta**2 + -13.5*ksi**2 + -8.493e-15*ksi*eta + 0.0*eta + 4.5*ksi + 0.0
+            N6_eta = lambda ksi, eta : 0.0*eta**2 + 13.5*ksi**2 + 2.098e-14*ksi*eta + 0.0*eta + -4.5*ksi + 0.0
+            N7_eta = lambda ksi, eta : 0.0*eta**2 + 0.0*ksi**2 + 27.0*ksi*eta + 0.0*eta + -4.5*ksi + 0.0
+            N8_eta = lambda ksi, eta : -40.5*eta**2 + -1.499e-15*ksi**2 + -27.0*ksi*eta + 36.0*eta + 4.5*ksi + -4.5
+            N9_eta = lambda ksi, eta : 40.5*eta**2 + 13.5*ksi**2 + 54.0*ksi*eta + -45.0*eta + -22.5*ksi + 9.0
+            N10_eta = lambda ksi, eta : 0.0*eta**2 + -27.0*ksi**2 + -54.0*ksi*eta + 0.0*eta + 27.0*ksi + 0.0
+
+            dN1t = [N1_ksi, N1_eta]
+            dN2t = [N2_ksi, N2_eta]
+            dN3t = [N3_ksi, N3_eta]
+            dN4t = [N4_ksi, N4_eta]
+            dN5t = [N5_ksi, N5_eta]
+            dN6t = [N6_ksi, N6_eta]
+            dN7t = [N7_ksi, N7_eta]
+            dN8t = [N8_ksi, N8_eta]
+            dN9t = [N9_ksi, N9_eta]
+            dN10t = [N10_ksi, N10_eta]
+
+            dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t, dN9t, dN10t])
         
         elif self.elemType == "QUAD4":
             
@@ -1220,26 +1293,23 @@ class GroupElem:
         """
         if self.dim == 0: return
 
-        if self.elemType == "SEG2":
+        elif self.dim == 1 and self.ordre < 2:
 
-            ddN1t = [lambda x: 0]
-            ddN2t = [lambda x: 0]
+            ddNtild = np.array([lambda x: 0]*self.nPe)
 
-            ddNtild = np.array([ddN1t, ddN2t])
+        elif self.dim == 2 and self.ordre < 2:
+
+            ddNtild = np.array([lambda ksi,eta: 0, lambda ksi,eta: 0]*self.nPe)
+
+        elif self.dim == 3 and self.ordre < 2:
+
+            ddNtild = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
         
         elif self.elemType == "SEG3":
 
             ddN1t = [lambda x: 1]
             ddN2t = [lambda x: 1]
             ddN3t = [lambda x: -2]
-
-            ddNtild = np.array([ddN1t, ddN2t, ddN3t])
-
-        elif self.elemType == "TRI3":
-
-            ddN1t = [lambda ksi,eta: 0, lambda ksi,eta: 0]
-            ddN2t = [lambda ksi,eta: 0, lambda ksi,eta: 0]
-            ddN3t = [lambda ksi,eta: 0, lambda ksi,eta: 0]
 
             ddNtild = np.array([ddN1t, ddN2t, ddN3t])
 
@@ -1253,16 +1323,44 @@ class GroupElem:
             ddN6t = [lambda ksi,eta: 0,  lambda ksi,eta: -8]
             
             ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t])
-        
-        elif self.elemType == "QUAD4":
-            
-            ddN1t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
-            ddN2t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
-            ddN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
-            ddN4t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
-            
-            ddNtild = [ddN1t, ddN2t, ddN3t, ddN4t]
 
+        elif self.elemType == "TRI10":
+
+            N1_ksi2 = lambda ksi, eta : -27.0*ksi + -27.0*eta + 18.0
+            N2_ksi2 = lambda ksi, eta : 27.0*ksi + -2.186e-15*eta + -9.0
+            N3_ksi2 = lambda ksi, eta : 0.0*ksi + -7.494e-16*eta + 0.0
+            N4_ksi2 = lambda ksi, eta : 81.0*ksi + 54.0*eta + -45.0
+            N5_ksi2 = lambda ksi, eta : -81.0*ksi + -27.0*eta + 36.0
+            N6_ksi2 = lambda ksi, eta : 0.0*ksi + 27.0*eta + 0.0
+            N7_ksi2 = lambda ksi, eta : 0.0*ksi + 0.0*eta + 0.0
+            N8_ksi2 = lambda ksi, eta : 0.0*ksi + -2.998e-15*eta + 0.0
+            N9_ksi2 = lambda ksi, eta : 0.0*ksi + 27.0*eta + 0.0
+            N10_ksi2 = lambda ksi, eta : 0.0*ksi + -54.0*eta + 0.0
+
+            N1_eta2 = lambda ksi, eta : -27.0*eta + -27.0*ksi + 18.0
+            N2_eta2 = lambda ksi, eta : 0.0*eta + -1.624e-15*ksi + 0.0
+            N3_eta2 = lambda ksi, eta : 27.0*eta + 5.995e-15*ksi + -9.0
+            N4_eta2 = lambda ksi, eta : 0.0*eta + 27.0*ksi + 0.0
+            N5_eta2 = lambda ksi, eta : 0.0*eta + -8.493e-15*ksi + 0.0
+            N6_eta2 = lambda ksi, eta : 0.0*eta + 2.098e-14*ksi + 0.0
+            N7_eta2 = lambda ksi, eta : 0.0*eta + 27.0*ksi + 0.0
+            N8_eta2 = lambda ksi, eta : -81.0*eta + -27.0*ksi + 36.0
+            N9_eta2 = lambda ksi, eta : 81.0*eta + 54.0*ksi + -45.0
+            N10_eta2 = lambda ksi, eta : 0.0*eta + -54.0*ksi + 0.0
+
+            ddN1t = [N1_ksi2, N1_eta2]
+            ddN2t = [N2_ksi2, N2_eta2]
+            ddN3t = [N3_ksi2, N3_eta2]
+            ddN4t = [N4_ksi2, N4_eta2]
+            ddN5t = [N5_ksi2, N5_eta2]
+            ddN6t = [N6_ksi2, N6_eta2]
+            ddN7t = [N7_ksi2, N7_eta2]
+            ddN8t = [N8_ksi2, N8_eta2]
+            ddN9t = [N9_ksi2, N9_eta2]
+            ddN10t = [N10_ksi2, N10_eta2]
+
+            ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t, ddN9t, ddN10t])
+        
         elif self.elemType == "QUAD8":
             
             ddN1t = [lambda ksi,eta: (1-eta)/2,  lambda ksi,eta: (1-ksi)/2]
@@ -1276,41 +1374,6 @@ class GroupElem:
                             
             ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t])
 
-        elif self.elemType == "TETRA4":
-            
-            ddN1t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 0]
-            ddN2t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 0]
-            ddN3t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 0]
-            ddN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 0]
-
-            ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t])
-
-        elif self.elemType == "HEXA8":
-            
-            ddN1t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN2t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN3t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN5t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN6t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN7t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN8t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-
-            ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t])
-        
-        elif self.elemType == "PRISM6":
-
-            ddN1t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN2t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN3t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN4t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN5t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-            ddN6t = [lambda x,y,z: 0,    lambda x,y,z: 0,   lambda x,y,z: 0]
-
-            # dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
-            # Attetion il faut faire une réorganisation
-            ddNtild = np.array([ddN3t, ddN1t, ddN2t, ddN6t, ddN4t, ddN5t])
-
         else:
             raise "Element inconnue"
             
@@ -1322,20 +1385,20 @@ class GroupElem:
         dim = self.dim
         nPg = gauss.nPg
 
-        dddN_pg = np.zeros((nPg, dim, len(ddNtild)))
+        ddN_pg = np.zeros((nPg, dim, len(ddNtild)))
 
         for pg in range(nPg):
             for n, Nt in enumerate(ddNtild):
                 for d in range(dim):
                     func = Nt[d]                        
                     if coord.shape[1] == 1:
-                        dddN_pg[pg, d, n] = func(coord[pg,0])
+                        ddN_pg[pg, d, n] = func(coord[pg,0])
                     elif coord.shape[1] == 2:
-                        dddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1])
+                        ddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1])
                     elif coord.shape[1] == 3:
-                        dddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
+                        ddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
 
-        return dddN_pg
+        return ddN_pg
 
     def get_ddNv_pg(self, matriceType: str) -> np.ndarray:
         """Dérivées 2nd des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
@@ -1380,6 +1443,88 @@ class GroupElem:
                 ddNv_pg[pg, 0, n] = func(coord[pg,0])
 
         return ddNv_pg
+
+    def get_dddN_pg(self, matriceType: str) -> np.ndarray:
+        """Dérivées 3 des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...) \n
+        [Ni,ksi ksi ksi . . . Nn,ksi ksi ksi\n
+        Ni,eta eta eta . . . Nn,eta eta eta]
+        """
+        if self.elemType == 0: return
+
+        elif self.dim == 1 and self.ordre < 3:
+
+            dddNtild = np.array([lambda x: 0]*self.nPe)
+
+        elif self.dim == 2 and self.ordre < 3:
+
+            dddNtild = np.array([lambda ksi,eta: 0, lambda ksi,eta: 0]*self.nPe)
+
+        elif self.dim == 3 and self.ordre < 3:
+
+            dddNtild = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
+
+        elif self.elemType == "TRI10":
+
+            N1_ksi3 = lambda ksi, eta : -27.0
+            N2_ksi3 = lambda ksi, eta : 27.0
+            N3_ksi3 = lambda ksi, eta : 0.0
+            N4_ksi3 = lambda ksi, eta : 81.0
+            N5_ksi3 = lambda ksi, eta : -81.0
+            N6_ksi3 = lambda ksi, eta : 0.0
+            N7_ksi3 = lambda ksi, eta : 0.0
+            N8_ksi3 = lambda ksi, eta : 0.0
+            N9_ksi3 = lambda ksi, eta : 0.0
+            N10_ksi3 = lambda ksi, eta : 0.0
+
+            N1_eta3 = lambda ksi, eta : -27.0
+            N2_eta3 = lambda ksi, eta : 0.0
+            N3_eta3 = lambda ksi, eta : 27.0
+            N4_eta3 = lambda ksi, eta : 0.0
+            N5_eta3 = lambda ksi, eta : 0.0
+            N6_eta3 = lambda ksi, eta : 0.0
+            N7_eta3 = lambda ksi, eta : 0.0
+            N8_eta3 = lambda ksi, eta : -81.0
+            N9_eta3 = lambda ksi, eta : 81.0
+            N10_eta3 = lambda ksi, eta : 0.0
+
+            dddN1t = [N1_ksi3, N1_eta3]
+            dddN2t = [N2_ksi3, N2_eta3]
+            dddN3t = [N3_ksi3, N3_eta3]
+            dddN4t = [N4_ksi3, N4_eta3]
+            dddN5t = [N5_ksi3, N5_eta3]
+            dddN6t = [N6_ksi3, N6_eta3]
+            dddN7t = [N7_ksi3, N7_eta3]
+            dddN8t = [N8_ksi3, N8_eta3]
+            dddN9t = [N9_ksi3, N9_eta3]
+            dddN10t = [N10_ksi3, N10_eta3]
+
+            dddNtild = np.array([dddN1t, dddN2t, dddN3t, dddN4t, dddN5t, dddN6t, dddN7t, dddN8t, dddN9t, dddN10t])
+
+        else:
+            raise "Element inconnue"
+            
+        
+        # Evaluation aux points de gauss
+        gauss = self.get_gauss(matriceType)
+        coord = gauss.coord
+
+        dim = self.dim
+        nPg = gauss.nPg
+
+        dddN_pg = np.zeros((nPg, dim, len(dddNtild)))
+
+        for pg in range(nPg):
+            for n, Nt in enumerate(dddNtild):
+                for d in range(dim):
+                    func = Nt[d]                        
+                    if coord.shape[1] == 1:
+                        dddN_pg[pg, d, n] = func(coord[pg,0])
+                    elif coord.shape[1] == 2:
+                        dddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1])
+                    elif coord.shape[1] == 3:
+                        dddN_pg[pg, d, n] = func(coord[pg,0], coord[pg,1], coord[pg,2])
+
+        return dddN_pg
     
 
     def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
@@ -1600,6 +1745,8 @@ class GroupElem:
             dict_connect_triangle[self.elemType] = self.__connect[:,[0,1,2]]
         elif self.elemType == "TRI6":
             dict_connect_triangle[self.elemType] = np.array(self.__connect[:, [0,3,5,3,1,4,5,4,2,3,4,5]]).reshape(-1,3)
+        elif self.elemType == "TRI10":
+            dict_connect_triangle[self.elemType] = np.array(self.__connect[:, np.array([10,1,4,10,4,5,10,5,6,10,6,7,10,7,8,10,8,9,10,9,1,2,5,6,3,7,8])-1]).reshape(-1,3)
         elif self.elemType == "QUAD4":
             dict_connect_triangle[self.elemType] = np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
         elif self.elemType == "QUAD8":
@@ -1625,11 +1772,18 @@ class GroupElem:
             dict_connect_faces[self.elemType] = self.__connect.copy()
         elif self.elemType == "SEG3":
             dict_connect_faces[self.elemType] = self.__connect[:, [0,2,1]]
-            # dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2]]
+        elif self.elemType == "SEG4":
+            dict_connect_faces[self.elemType] = self.__connect[:, [0, 2, 3, 1]]
+        elif self.elemType == "SEG5":
+            dict_connect_faces[self.elemType] = self.__connect[:, [0, 2, 3, 4, 1]]
         elif self.elemType == "TRI3":
             dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2,0]]
         elif self.elemType == "TRI6":
             dict_connect_faces[self.elemType] = self.__connect[:, [0,3,1,4,2,5,0]]
+        elif self.elemType == "TRI10":
+            dict_connect_faces[self.elemType] = self.__connect[:, [0,3,4,1,5,6,2,7,8,0]]
+        elif self.elemType == "TRI15":
+            dict_connect_faces[self.elemType] = self.__connect[:, [0,3,4,5,1,6,7,8,2,9,10,11,0]]
         elif self.elemType == "QUAD4":
             dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2,3,0]]
         elif self.elemType == "QUAD8":
@@ -1661,13 +1815,13 @@ class GroupElem:
     @staticmethod
     def get_Types1D() -> List[str]:
         """type d'elements disponibles en 1D"""
-        liste1D = ["SEG2", "SEG3"]
+        liste1D = ["SEG2", "SEG3", "SEG4", "SEG5"]
         return liste1D
 
     @staticmethod
     def get_Types2D() -> List[str]:
         """type d'elements disponibles en 2D"""
-        liste2D = ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        liste2D = ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
         return liste2D
     
     @staticmethod
@@ -1678,7 +1832,7 @@ class GroupElem:
 
     @staticmethod
     def Get_ElemInFos(gmshId: int) -> tuple:
-        """Renvoie le nom le nombre de noeuds par element et la dimension de l'élement en fonction du gmshId
+        """Renvoie le nom le nombre de noeuds par element et la dimension de l'ordre de l'élement en fonction du gmshId
 
         Args:
             type (int): type de l'identifiant sur gmsh
@@ -1686,15 +1840,38 @@ class GroupElem:
         Returns:
             tuple: (type, nPe, dim)
         """
-        if gmshId == 1:
-            type = "SEG2"; nPe = 2; dim = 1
+        if gmshId == 15:
+            type = "POINT"; nPe = 1; dim = 0; ordre=0
+        elif gmshId == 1:
+            type = "SEG2"; nPe = 2; dim = 1; ordre=1
             #       v
             #       ^
             #       |
             #       |
             # 0-----+-----1 --> u
+        elif gmshId == 8:
+            type = "SEG3"; nPe = 3; dim = 1; ordre=2
+            #       v
+            #       ^
+            #       |
+            #       |
+            #  0----2----1 --> u
+        elif gmshId == 26:
+            type = "SEG4"; nPe = 4; dim = 1; ordre=3
+            #        v
+            #        ^
+            #        |
+            #        |
+            #  0---2-+-3---1 --> u
+        elif gmshId == 27:
+            type = "SEG5"; nPe = 4; dim = 1; ordre=4
+            #          v
+            #          ^
+            #          |
+            #          |
+            #  0---2---3---4---1 --> u
         elif gmshId == 2:
-            type = "TRI3"; nPe = 3; dim = 2
+            type = "TRI3"; nPe = 3; dim = 2; ordre=2
             # v
             # ^
             # |
@@ -1705,8 +1882,44 @@ class GroupElem:
             # |      `\
             # |        `\
             # 0----------1 --> u
+        elif gmshId == 9:
+            type = "TRI6"; nPe = 6; dim = 2; ordre=2
+            # v
+            # ^
+            # |
+            # 2
+            # |`\
+            # |  `\
+            # 5    `4
+            # |      `\
+            # |        `\
+            # 0----3-----1 --> u
+        elif gmshId == 21:
+            type = "TRI10"; nPe = 10; dim = 2; ordre=3
+            # v
+            # ^
+            # |
+            # 2
+            # | \
+            # 7   6
+            # |     \
+            # 8  (9)  5
+            # |         \
+            # 0---3---4---1
+        elif gmshId == 23:
+            type = "TRI15"; nPe = 15; dim = 2; ordre=4
+            # 
+            # 2
+            # | \
+            # 9   8
+            # |     \
+            # 10 (14)  7
+            # |         \
+            # 11 (12) (13) 6
+            # |             \
+            # 0---3---4---5---1
         elif gmshId == 3:
-            type = "QUAD4"; nPe = 4; dim = 2
+            type = "QUAD4"; nPe = 4; dim = 2; ordre=1
             #       v
             #       ^
             #       |
@@ -1717,8 +1930,32 @@ class GroupElem:
             # |           |
             # |           |
             # 0-----------1
+        elif gmshId == 16:
+            type = "QUAD8"; nPe = 8; dim = 2; ordre=2
+            #       v
+            #       ^
+            #       |
+            # 3-----6-----2
+            # |     |     |
+            # |     |     |
+            # 7     +---- 5 --> u
+            # |           |
+            # |           |
+            # 0-----4-----1
+        elif gmshId == 10:
+            type = "QUAD9"; nPe = 9; dim = 2; ordre=3
+            #       v
+            #       ^
+            #       |
+            # 3-----6-----2
+            # |     |     |
+            # |     |     |
+            # 7     8---- 5 --> u
+            # |           |
+            # |           |
+            # 0-----4-----1
         elif gmshId == 4:
-            type = "TETRA4"; nPe = 4; dim = 3
+            type = "TETRA4"; nPe = 4; dim = 3; ordre=1
             #                    v
             #                  .
             #                ,/
@@ -1737,92 +1974,8 @@ class GroupElem:
             #              `3
             #                 `\.
             #                    ` w
-        elif gmshId == 5:
-            type = "HEXA8"; nPe = 8; dim = 3
-            #        v
-            # 3----------2
-            # |\     ^   |\
-            # | \    |   | \
-            # |  \   |   |  \
-            # |   7------+---6
-            # |   |  +-- |-- | -> u
-            # 0---+---\--1   |
-            #  \  |    \  \  |
-            #   \ |     \  \ |
-            #    \|      w  \|
-            #     4----------5
-
-        elif gmshId == 6:
-            type = "PRISM6"; nPe = 6; dim = 3
-            #            w
-            #            ^
-            #            |
-            #            3
-            #          ,/|`\
-            #        ,/  |  `\
-            #      ,/    |    `\
-            #     4------+------5
-            #     |      |      |
-            #     |    ,/|`\    |
-            #     |  ,/  |  `\  |
-            #     |,/    |    `\|
-            #    ,|      |      |\
-            #  ,/ |      0      | `\
-            # u   |    ,/ `\    |    v
-            #     |  ,/     `\  |
-            #     |,/         `\|
-            #     1-------------2
-        elif gmshId == 7:
-            type = "PYRA5"; nPe = 5; dim = 3
-            #                4
-            #              ,/|\
-            #            ,/ .'|\
-            #          ,/   | | \
-            #        ,/    .' | `.
-            #      ,/      |  '.  \
-            #    ,/       .' w |   \
-            #  ,/         |  ^ |    \
-            # 0----------.'--|-3    `.
-            #  `\        |   |  `\    \
-            #    `\     .'   +----`\ - \ -> v
-            #      `\   |    `\     `\  \
-            #        `\.'      `\     `\`
-            #           1----------------2
-            #                     `\
-            #                       u
-        elif gmshId == 8:
-            type = "SEG3"; nPe = 3; dim = 1
-            #       v
-            #       ^
-            #       |
-            #       |
-            #  0----2----1 --> u
-        elif gmshId == 9:
-            type = "TRI6"; nPe = 6; dim = 2
-            # v
-            # ^
-            # |
-            # 2
-            # |`\
-            # |  `\
-            # 5    `4
-            # |      `\
-            # |        `\
-            # 0----------1 --> u
-        elif gmshId == 10:
-            type = "QUAD9"; nPe = 9; dim = 2
-            #       v
-            #       ^
-            #       |
-            # 3-----6-----2
-            # |     |     |
-            # |     |     |
-            # 7     8---- 5 --> u
-            # |           |
-            # |           |
-            # 0-----4-----1
         elif gmshId == 11:
-            type = "TETRA10"; nPe = 10; dim = 3
+            type = "TETRA10"; nPe = 10; dim = 3; ordre=2
             #                    v
             #                  .
             #                ,/
@@ -1841,8 +1994,22 @@ class GroupElem:
             #              `3
             #                 `\.
             #                    ` w
+        elif gmshId == 5:
+            type = "HEXA8"; nPe = 8; dim = 3; ordre=1
+            #        v
+            # 3----------2
+            # |\     ^   |\
+            # | \    |   | \
+            # |  \   |   |  \
+            # |   7------+---6
+            # |   |  +-- |-- | -> u
+            # 0---+---\--1   |
+            #  \  |    \  \  |
+            #   \ |     \  \ |
+            #    \|      w  \|
+            #     4----------5
         elif gmshId == 12:
-            type = "HEXA27"; nPe = 27; dim = 3
+            type = "HEXA27"; nPe = 27; dim = 3; ordre=2
             #        v
             # 3----13----2
             # |\         |\
@@ -1855,60 +2022,28 @@ class GroupElem:
             #  10 |  21    12|
             #    \|         \|
             #     4----16----5
-        elif gmshId == 13:
-            type = "PRISM18"; nPe = 18; dim = 3
+        elif gmshId == 6:
+            type = "PRISM6"; nPe = 6; dim = 3; ordre=1
             #            w
             #            ^
             #            |
             #            3
             #          ,/|`\
-            #        12  |  13
+            #        ,/  |  `\
             #      ,/    |    `\
-            #     4------14-----5
-            #     |      8      |
+            #     4------+------5
+            #     |      |      |
             #     |    ,/|`\    |
-            #     |  15  |  16  |
+            #     |  ,/  |  `\  |
             #     |,/    |    `\|
-            #    ,10-----17-----11
+            #    ,|      |      |\
             #  ,/ |      0      | `\
             # u   |    ,/ `\    |    v
-            #     |  ,6     `7  |
+            #     |  ,/     `\  |
             #     |,/         `\|
-            #     1------9------2
-        elif gmshId == 14:
-            type = "PYRA14"; nPe = 17; dim = 3
-            #                4
-            #              ,/|\
-            #            ,/ .'|\
-            #          ,/   | | \
-            #        ,/    .' | `.
-            #      ,7      |  12  \
-            #    ,/       .' w |   \
-            #  ,/         9  ^ |    11
-            # 0--------6-.'--|-3    `.
-            #  `\        |   |  `\    \
-            #    `5     .'   13---10 - \ -> v
-            #      `\   |    `\     `\  \
-            #        `\.'      `\     `\`
-            #           1--------8-------2
-            #                     `\
-            #                       u
-        elif gmshId == 15:
-            type = "POINT"; nPe = 1; dim = 0
-        elif gmshId == 16:
-            type = "QUAD8"; nPe = 8; dim = 2
-            #       v
-            #       ^
-            #       |
-            # 3-----6-----2
-            # |     |     |
-            # |     |     |
-            # 7     +---- 5 --> u
-            # |           |
-            # |           |
-            # 0-----4-----1
+            #     1-------------2
         elif gmshId == 18:
-            type = "PRISM15"; nPe = 15; dim = 3
+            type = "PRISM15"; nPe = 15; dim = 3; ordre=2
             #            w
             #            ^
             #            |
@@ -1927,8 +2062,46 @@ class GroupElem:
             #     |  ,6     `7  |
             #     |,/         `\|
             #     1-------------2
+        elif gmshId == 13:
+            type = "PRISM18"; nPe = 18; dim = 3; ordre=2
+            #            w
+            #            ^
+            #            |
+            #            3
+            #          ,/|`\
+            #        12  |  13
+            #      ,/    |    `\
+            #     4------14-----5
+            #     |      8      |
+            #     |    ,/|`\    |
+            #     |  15  |  16  |
+            #     |,/    |    `\|
+            #    ,10-----17-----11
+            #  ,/ |      0      | `\
+            # u   |    ,/ `\    |    v
+            #     |  ,6     `7  |
+            #     |,/         `\|
+            #     1------9------2
+        elif gmshId == 7:
+            type = "PYRA5"; nPe = 5; dim = 3; ordre=1
+            #                4
+            #              ,/|\
+            #            ,/ .'|\
+            #          ,/   | | \
+            #        ,/    .' | `.
+            #      ,/      |  '.  \
+            #    ,/       .' w |   \
+            #  ,/         |  ^ |    \
+            # 0----------.'--|-3    `.
+            #  `\        |   |  `\    \
+            #    `\     .'   +----`\ - \ -> v
+            #      `\   |    `\     `\  \
+            #        `\.'      `\     `\`
+            #           1----------------2
+            #                     `\
+            #                       u
         elif gmshId == 19:
-            type = "PYRA13"; nPe = 13; dim = 3
+            type = "PYRA13"; nPe = 13; dim = 3; ordre=2
             #                4
             #              ,/|\
             #            ,/ .'|\
@@ -1945,9 +2118,28 @@ class GroupElem:
             #           1--------8-------2
             #                     `\
             #                       u
+        elif gmshId == 14:
+            type = "PYRA14"; nPe = 14; dim = 3; ordre=2
+            #                4
+            #              ,/|\
+            #            ,/ .'|\
+            #          ,/   | | \
+            #        ,/    .' | `.
+            #      ,7      |  12  \
+            #    ,/       .' w |   \
+            #  ,/         9  ^ |    11
+            # 0--------6-.'--|-3    `.
+            #  `\        |   |  `\    \
+            #    `5     .'   13---10 - \ -> v
+            #      `\   |    `\     `\  \
+            #        `\.'      `\     `\`
+            #           1--------8-------2
+            #                     `\
+            #                       u
+        
         else: 
             raise "Type inconnue"
             
-        return type, nPe, dim
+        return type, nPe, dim, ordre
         
 

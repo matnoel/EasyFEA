@@ -822,6 +822,8 @@ class Interface_Gmsh:
                     gmsh.model.mesh.set_order(1)
                 elif elemType in ["TRI6","QUAD8"]:
                     gmsh.model.mesh.set_order(2)
+                elif elemType in ["TRI10"]:
+                    gmsh.model.mesh.set_order(3)
 
                 if crack != None:
                     gmsh.plugin.setNumber("Crack", "Dimension", dim-1)

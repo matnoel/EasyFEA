@@ -36,6 +36,34 @@ class Gauss:
         return self.__poids.size
 
     @staticmethod
+    def __Get_CoordAndWeightForSegment(dim: int, nPg: int):
+        # https://github.com/salihkilicli/Gauss-Legendre-Quadrature-in-1D-and-2D
+        if dim == 1:
+            if nPg == 1:
+                x = [0]
+                poids = [2]
+            elif nPg == 2:
+                x = [-np.sqrt(1/3), np.sqrt(1/3)]
+                poids = [1]*2
+            elif nPg == 3:
+                x = [-np.sqrt(3/5), 0, np.sqrt(3/5)]
+                poids = [5/9, 8/9, 5/9]
+            elif nPg == 4:
+                x = [-0.86113631, -0.33998104,  0.33998104,  0.86113631]
+                poids = [0.34785475, 0.65214515, 0.65214515, 0.34785475]
+            elif nPg == 5:
+                x = [-0.90617985, -0.53846931, 0, 0.53846931, 0.90617985]
+                poids = [0.2369268, 0.47862867, 0.56888889, 0.47862867, 0.2369268]
+            elif nPg == 6:
+                x = [-0.93246951, -0.66120939, -0.23861919,  0.23861919,  0.66120939,  0.93246951]
+                poids = [0.17132442, 0.36076157, 0.46791388, 0.46791388, 0.36076157, 0.17132442]
+            else:
+                raise "Pas implémenté"
+
+            return x, poids
+
+
+    @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
         """Calcul des points d'intégrations en fonction du type d'element et de matrice
 
@@ -60,30 +88,32 @@ class Gauss:
             dim = 1
             if matriceType == "rigi":
                 nPg = 1
-                x = 0
-                poids = 2
             elif matriceType in ["masse","beam"]:
                 nPg = 2
-                x = [-np.sqrt(1/3), np.sqrt(1/3)]
-                poids = [1]*2
-
+            x, poids =  Gauss.__Get_CoordAndWeightForSegment(dim, nPg)
         elif elemType == "SEG3":
             dim = 1
             if matriceType == "rigi":
                 nPg = 2
-                x = [-np.sqrt(1/3), np.sqrt(1/3)]
-                poids = [1]*2
             elif matriceType in ["masse"]:
                 nPg = 3
-                x = [-np.sqrt(3/5), 0, np.sqrt(3/5)]
-                poids = [5/9, 8/9, 5/9]
             elif matriceType == "beam":
                 nPg = 4
-                x = [-0.861136311594053, -0.339981043584856, 0.339981043584856, 0.861136311594053]
-                poids = [0.347854845137454, 0.652145154862546, 0.652145154862546, 0.347854845137454]
-                # x = [0.339981043584856,-0.339981043584856,0.861136311594053,-0.861136311594053]
-                # poids = [0.652145154862546, 0.652145154862546, 0.347854845137454, 0.347854845137454]
-
+            x, poids =  Gauss.__Get_CoordAndWeightForSegment(dim, nPg)
+        elif elemType == "SEG4":
+            dim = 1
+            if matriceType == "rigi":
+                nPg = 3
+            if matriceType == "masse":
+                nPg = 4
+            x, poids =  Gauss.__Get_CoordAndWeightForSegment(dim, nPg)
+        elif elemType == "SEG5":
+            dim = 1
+            if matriceType == "rigi":
+                nPg = 4
+            elif matriceType in ["masse"]:
+                nPg = 5
+            x, poids =  Gauss.__Get_CoordAndWeightForSegment(dim, nPg)
         elif elemType == "TRI3":
             dim = 2            
             if matriceType == "rigi":
@@ -121,7 +151,22 @@ class Gauss:
                 etas = [b, b, 1-2*b, 1-2*a, a, a]
 
                 poids = [p2, p2, p2, p1, p1, p1]
-            
+        
+        elif elemType == "TRI10":
+            dim = 2            
+            if matriceType == "rigi":
+                nPg = 6
+
+                a = 0.445948490915965
+                b = 0.091576213509771
+                p1 = 0.111690794839005
+                p2 = 0.054975871827661
+                ksis = [b, 1-2*b, b, a, a, 1-2*a]
+                etas = [b, b, 1-2*b, 1-2*a, a, a]
+
+                poids = [p2, p2, p2, p1, p1, p1]
+            else:
+                raise "Pas implémenté"
         elif elemType == "QUAD4":
             dim = 2            
             if matriceType in ["rigi","masse"]:

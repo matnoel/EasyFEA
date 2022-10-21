@@ -23,6 +23,7 @@ class Mesh:
         for grp in dict_groupElem.values():
             assert isinstance(grp, GroupElem)
             if grp.dim > dim:
+                dim = grp.dim
                 # Ici on garrantie que l'element type du maillage utilisé est celui a la plus grande dimension
                 self.__groupElem = grp
             list_GroupElem.append(grp)

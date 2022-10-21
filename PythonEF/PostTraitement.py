@@ -427,12 +427,13 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
     typesParaviewElement = {
         "TRI3" : 5,
         "TRI6" : 22,
+        "TRI10" : 69,
         "QUAD4" : 9,
         "QUAD8" : 23,
         "TETRA4" : 10,
         "HEXA8": 12,
         "PRISM6": 13
-    } # regarder vtkelemtype D:\SOFT\FEMObject\BASIC\MODEL\@ELEMENT\vtkelemtype.m
+    } # regarder https://github.com/Kitware/VTK/blob/master/Common/DataModel/vtkCellType.h
 
     typeParaviewElement = typesParaviewElement[simu.mesh.elemType]
     
