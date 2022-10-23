@@ -32,10 +32,13 @@ h = 13
 b = 13
 P = 800 #N
 
+
 # Paramètres maillage
 E=210000
 v=0.25
 comportement = Elas_Isot(dim, epaisseur=b, E=E, v=v, contraintesPlanes=True)
+
+WdefRef = 2*P**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5)
 
 # Materiau
 materiau = Materiau(comportement)
@@ -102,7 +105,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         listWdef_nb.append(Wdef)
         listDdl_nb.append(mesh.Nn*dim)
 
-        print(f"Elem : {elemType}, nby : {nbElem:2}, Wdef = {np.round(Wdef, 3)}")
+        print(f"Elem : {elemType}, nby : {nbElem:2}, Wdef = {np.round(Wdef, 3)}, erreur = {np.abs(WdefRef-Wdef)/WdefRef:3e} ")
     
     listTemps_e_nb.append(listTemps_nb)
     listWdef_e_nb.append(listWdef_nb)
@@ -116,9 +119,6 @@ fig_Wdef, ax_Wdef = plt.subplots()
 fig_Erreur, ax_Temps_Erreur = plt.subplots()
 fig_Temps, ax_Temps = plt.subplots()
 
-# WdefRef = np.max(listWdef_e_nb)
-# WdefRef = 371.5
-WdefRef = 2*P**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5)
 WdefRefArray = np.ones_like(listDdl_e_nb[0]) * WdefRef
 WdefRefArray5 = WdefRefArray * 0.95
 
