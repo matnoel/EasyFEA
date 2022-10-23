@@ -10,14 +10,14 @@ Affichage.Clear()
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
-problem = "Portique"
+problem = "Flexion"
 
-elemType = "SEG2"
+elemType = "SEG4"
 
 beamDim = 2
 
 if problem in ["Flexion","BiEnca","Portique"]:
-    L=120; nL=10
+    L=120; nL=1
     h=13
     b=13
     E = 210000
@@ -45,17 +45,17 @@ if problem in ["Traction"]:
     point2 = Point(x=L/2)
     point3 = Point(x=L)
 
-    # # Poutre 1 partie
-    # line1 = Line(point1, point2, L/nL)
-    # poutre1 = Poutre(line1, section)
-    # listePoutre = [poutre1]
-
-    # Poutre 2 partie
-    line1 = Line(point1, point2, L/nL)
-    line2 = Line(point2, point3, L/nL)
+    # Poutre 1 partie
+    line1 = Line(point1, point3, L/nL)
     poutre1 = Poutre(line1, section)
-    poutre2 = Poutre(line2, section)
-    listePoutre = [poutre1, poutre2]
+    listePoutre = [poutre1]
+
+    # # Poutre 2 partie
+    # line1 = Line(point1, point2, L/nL)
+    # line2 = Line(point2, point3, L/nL)
+    # poutre1 = Poutre(line1, section)
+    # poutre2 = Poutre(line2, section)
+    # listePoutre = [poutre1, poutre2]
     
 elif problem in ["Flexion","BiEnca"]:
 
@@ -63,17 +63,18 @@ elif problem in ["Flexion","BiEnca"]:
     point2 = Point(x=L/2)
     point3 = Point(x=L)
 
-    # # Poutre en 1 partie
-    # line = Line(point1, point3, L/nL)
-    # poutre = Poutre(line, section)
-    # listePoutre = [poutre]
+    # Poutre en 1 partie
+    line = Line(point1, point3, L/nL)
+    poutre = Poutre(line, section)
+    listePoutre = [poutre]
 
-    # Poutre en 2 partie
-    line1 = Line(point1, point2, L/nL)
-    line2 = Line(point2, point3, L/nL)
-    poutre1 = Poutre(line1, section)
-    poutre2 = Poutre(line2, section)
-    listePoutre = [poutre1, poutre2]
+    # # Poutre en 2 partie
+    # line1 = Line(point1, point2, L/nL)
+    # line2 = Line(point2, point3, L/nL)
+    # line = Line(point1, point3)
+    # poutre1 = Poutre(line1, section)
+    # poutre2 = Poutre(line2, section)
+    # listePoutre = [poutre1, poutre2]
 
 elif problem == "Portique":
 
@@ -116,12 +117,9 @@ elif beamModel.dim == 3:
 
 if beamModel.nbPoutres > 1:
     # verfie si il ya pas une poutre libre ?
-    if beamModel.dim == 1:
-        simu.add_liaisonPoutre(noeuds=mesh.Nodes_Point(point2), directions=['x'])
-    elif beamModel.dim == 2:
-        simu.add_liaisonPoutre(noeuds=mesh.Nodes_Point(point2), directions=['x','y','rz'])
-    elif beamModel.dim == 3:
-        simu.add_liaisonPoutre(noeuds=mesh.Nodes_Point(point2), directions=['x','y','z','rx','ry','rz'])
+    simu.add_liaison_Encastrement(mesh.Nodes_Point(point2))
+    # simu.add_dirichlet("beam",mesh.Nodes_Point(point2), [0],['y'])
+    # simu.add_liaison_Rotule(mesh.Nodes_Point(point2))
         
 
 
@@ -139,9 +137,10 @@ if beamModel.nbPoutres > 1:
 
 if problem in ["Flexion"]:
     simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge],["y"])
+    # simu.add_lineLoad("beam", mesh.Nodes_Line(line), [-800/L], ['y'])
     # simu.add_surfLoad("beam", mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
 elif problem == "Portique":
-    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [charge],["y"])
+    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge],["y"])
     
 elif problem == "BiEnca":
     simu.add_pointLoad("beam", mesh.Nodes_Point(point2), [-charge],["y"])
@@ -151,10 +150,15 @@ elif problem == "Traction":
     simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [charge],["x"])
     # simu.add_dirichlet("beam", mesh.Nodes_Point(point3), [1], ["x"])
 
+Affichage.Plot_BoundaryConditions(simu)
 
 Kbeam = simu.Assemblage_beam()
 
 beamDisplacement = simu.Solve_beam()
+
+stress = simu.Get_Resultat("Stress")
+
+forces = stress/section.aire
 
 affichage = lambda name, result: print(f"{name} = [{result.min():2.2}; {result.max():2.2}]") if isinstance(result, np.ndarray) else ""
 
@@ -180,7 +184,7 @@ if problem == "Flexion":
     flecheanalytique = charge*L**3/(3*E*section.Iz)
 
     
-    # rapport  = np.abs(flecheanalytique + v.min())/flecheanalytique
+    erreur  = np.abs(flecheanalytique + v.min())/flecheanalytique
     rapport  = np.abs(flecheanalytique / v.min())
     # print(f"\nerreur = {rapport:.2}")
 

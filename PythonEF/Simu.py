@@ -2603,24 +2603,24 @@ class Simu:
             return
         
         Wdef = self.Get_Resultat("Wdef")
-        resume += f"\nW def = {Wdef:.3f} N.mm"
+        resume += f"\nW def = {Wdef:.2f}"
         
         Svm = self.Get_Resultat("Svm", valeursAuxNoeuds=False)
-        resume += f"\n\nSvm max = {Svm.max():.3f} MPa"
+        resume += f"\n\nSvm max = {Svm.max():.2f}"
 
         # Affichage des déplacements
         dx = self.Get_Resultat("dx", valeursAuxNoeuds=True)
-        resume += f"\n\nUx max = {dx.max():.6f} mm"
-        resume += f"\nUx min = {dx.min():.6f} mm"
+        resume += f"\n\nUx max = {dx.max():.2e}"
+        resume += f"\nUx min = {dx.min():.2e}"
 
         dy = self.Get_Resultat("dy", valeursAuxNoeuds=True)
-        resume += f"\n\nUy max = {dy.max():.6f} mm"
-        resume += f"\nUy min = {dy.min():.6f} mm"
+        resume += f"\n\nUy max = {dy.max():.2e}"
+        resume += f"\nUy min = {dy.min():.2e}"
 
         if self.__dim == 3:
             dz = self.Get_Resultat("dz", valeursAuxNoeuds=True)
-            resume += f"\n\nUz max = {dz.max():.6f} mm"
-            resume += f"\nUz min = {dz.min():.6f} mm"
+            resume += f"\n\nUz max = {dz.max():.2e}"
+            resume += f"\nUz min = {dz.min():.2e}"
 
         if verbosity: print(resume)
 

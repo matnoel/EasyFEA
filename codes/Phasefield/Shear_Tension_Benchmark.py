@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-simulation = "Shear" #"Shear" , "Tension"
+simulation = "Tension" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = False
@@ -34,7 +34,7 @@ useNumba = True
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-split = "He" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
+split = "AnisotStress" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
@@ -339,7 +339,7 @@ if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu, Nparaview)
         
 if plotEnergie:    
-    PostTraitement.PlotEnergie(simu, forces, Niter=400, folder=folder)
+    PostTraitement.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)
     
 
 

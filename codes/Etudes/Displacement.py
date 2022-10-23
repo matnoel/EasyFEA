@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-dim = 3
+dim = 2
 
 folder = Dossier.NewFile(f"Etude{dim}D", results=True)
 
@@ -31,18 +31,18 @@ saveParaview = True; NParaview = 500
 
 useNumba = True
 
-isLoading = False
-initSimu = True
+isLoading = True
+initSimu = False
 
 pltMovie = False; NMovie = 400
 
 plotIter = True; affichageIter = "dy"
 
 coefM = 1e-2
-coefK = 1e-3
+coefK = 1e-3*2
 
 Tmax = 0.3
-N = 100
+N = 20
 dt = Tmax/N
 t = 0
 
@@ -58,7 +58,7 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/6
+taille = h/5
 # taille = h/200
 
 comportement = Elas_Isot(dim, epaisseur=b)
@@ -68,7 +68,7 @@ materiau = Materiau(comportement, ro=8100*1e-9)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
 
-interfaceGmsh = Interface_Gmsh()
+interfaceGmsh = Interface_Gmsh(False)
 if dim == 2:
     domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), taille)
     Line0 = Line(Point(y=-h/2), Point(y=h/2))
@@ -76,11 +76,11 @@ if dim == 2:
     LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
     circle = Circle(Point(x=L/2, y=0), h*0.2, isCreux=False)
     
-    elemType = "QUAD4" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+    elemType = "TRI10" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
     mesh = interfaceGmsh.Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
-    aire = mesh.aire
+    aire = mesh.aire - L*h
 elif dim == 3:
     # # Sans importation
     domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
@@ -93,7 +93,8 @@ elif dim == 3:
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)
 
-# Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Maillage(mesh)
+# Affichage.Plot_NoeudsMaillage(mesh,showId=True)
 # plt.show()
 
 noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0) # noeuds_en_0 = mesh.Nodes_Line(Line0)
@@ -126,9 +127,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet("displacement", noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad("displacement", noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
+        # simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
 
-        # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
+        simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
         pass

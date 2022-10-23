@@ -29,7 +29,7 @@ makeMovie = False; NMovie = 300
 
 
 problem = "Benchmark" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
@@ -91,7 +91,9 @@ for split in ["AnisotStress"]:
             h=12e-2
         ep=2e-2
         
-        diam=2e-2
+        diam=1e-2
+        if problem == "CompressionFCBA2":
+            diam=2e-2
         r=diam/2
         
         gc = 1.4/2
@@ -319,7 +321,7 @@ for split in ["AnisotStress"]:
         simu = PostTraitement.Load_Simu(folder)
 
     if plotEnergie:    
-        PostTraitement.PlotEnergie(simu, load, Niter=400, folder=folder)
+        PostTraitement.Plot_Energie(simu, load, displacement, Niter=400, folder=folder)
 
     if plotResult:
         Affichage.Plot_ResumeIter(simu, folder, None, None)
