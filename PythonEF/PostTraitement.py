@@ -211,7 +211,7 @@ def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, def
 
             print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
 
-def PlotEnergie(simu: Simu, forces=[], Niter=200, NiterFin=100, folder=""):
+def Plot_Energie(simu: Simu, load: np.ndarray, displacement: np.ndarray, Niter=200, NiterFin=100, folder=""):
     
     # Pour chaque incrément de dépalcement on va caluler l'energie
 
@@ -222,8 +222,8 @@ def PlotEnergie(simu: Simu, forces=[], Niter=200, NiterFin=100, folder=""):
 
     results =  simu.results
     N = len(results)
-    if len(forces) > 0:
-        assert len(forces) == len(results)
+    if len(load) > 0:
+        assert len(load) == len(results)
     listIter = Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
     Niter = len(listIter)
@@ -252,32 +252,27 @@ def PlotEnergie(simu: Simu, forces=[], Niter=200, NiterFin=100, folder=""):
 
     listTot = np.array(listPsiCrack) + np.array(listPsiElas)
 
-    if len(forces) == 0:
-        nrows = 2
-    else:
-        nrows = 3
-
-    fig, ax = plt.subplots(nrows, 1, sharex=True)
+    fig, ax = plt.subplots(3, 1, sharex=True)
     # Affiche les energies
-    ax[0].plot(listIter, listPsiCrack, label=r"$\Psi_{Crack}$")
-    ax[0].plot(listIter, listPsiElas, label=r"$\Psi_{Elas}$")
-    ax[0].plot(listIter, listTot, label=r"$\Psi_{Tot}$")
+    ax[0].plot(displacement[listIter], listPsiCrack, label=r"$\Psi_{Crack}$")
+    ax[0].plot(displacement[listIter], listPsiElas, label=r"$\Psi_{Elas}$")
+    ax[0].plot(displacement[listIter], listTot, label=r"$\Psi_{Tot}$")
     ax[0].set_ylabel(r"$Joules$")
     ax[0].legend()
     ax[0].grid()
 
     # Affiche l'endommagement max
-    ax[1].plot(listIter, listEndomagementMax)
+    ax[1].plot(displacement[listIter], listEndomagementMax)
     ax[1].set_ylabel(r"$\phi$")
     ax[1].grid()
 
-    if nrows == 3:
-        # Affiche le déplacement
-        ax[2].plot(listIter, np.abs(forces[listIter])*1e-3)
-        ax[2].set_ylabel(r"$load \ [kN]$")
-        ax[2].grid()
+    # Affiche la force
+    ax[2].plot(displacement[listIter], np.abs(load[listIter])*1e-3)
+    ax[2].set_ylabel(r"$load \ [kN]$")
+    ax[2].grid()
+        
     
-    ax[-1].set_xlabel(r"$iter$")
+    ax[-1].set_xlabel(r"$displacement \ [m]$")
 
     if folder != "":
         Save_fig(folder, "Energie")
@@ -428,6 +423,7 @@ def __Make_vtu(simu: Simu, iter: int, filename: str,nodesField=["coordoDef","Str
         "TRI3" : 5,
         "TRI6" : 22,
         "TRI10" : 69,
+        "TRI15" : 69,
         "QUAD4" : 9,
         "QUAD8" : 23,
         "TETRA4" : 10,

@@ -58,43 +58,13 @@ class Test_Simu(unittest.TestCase):
             simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
 
             self.simulationsElastique.append(simu)
-    
-    def CreationDesSimusThermique(self):
-
-        a = 1
-
-        listMesh = Interface_Gmsh.Construction2D(L=a, h=a, taille=a/10)
-
-        listMesh.extend(Interface_Gmsh.Construction3D(L=a, h=a, b=a, taille=a/10))
-
-        self.simulationsThermique = []
-
-        for mesh in listMesh:
-
-            assert isinstance(mesh, Mesh)
-
-            dim = mesh.dim
-
-            thermalModel = ThermalModel(dim=dim, k=1, c=1, epaisseur=a)
-
-            materiau = Materiau(thermalModel, verbosity=False)
-
-            simu = Simu(mesh , materiau, False)
-
-            noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
-            noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
-            
-            simu.add_dirichlet("thermal", noeuds0, [0], [""])
-            simu.add_dirichlet("thermal", noeudsL, [40], [""])
-
-            self.simulationsThermique.append(simu)
 
     def test_SimulationsPoutreUnitaire(self):
         
-        interfaceGmsh = Interface_Gmsh(False, False, False)
+        interfaceGmsh = Interface_Gmsh()
 
         listProblem = ["Flexion","Traction","BiEnca"]
-        listElemType = ["SEG2","SEG3"]
+        listElemType = ["SEG2","SEG3","SEG4"]
         listBeamDim = [1,2,3]
 
         # Géneration des configs
@@ -110,6 +80,8 @@ class Test_Simu(unittest.TestCase):
             if problem in ["Flexion","BiEnca"] and beamDim == 1:
                 # Exclusion des configs impossible
                 continue
+
+            print(f"{problem} {elemType} {beamDim}")
 
             if problem in ["Flexion","BiEnca"]:
                 L=120; nL=10
@@ -218,11 +190,12 @@ class Test_Simu(unittest.TestCase):
                 rz = simu.Get_Resultat("rz", valeursAuxNoeuds=True)
 
             listX = np.linspace(0,L,100)
+            erreurMaxAnalytique = 1e-2
             if problem == "Flexion":
                 v_x = charge/(E*section.Iz) * (listX**3/6 - (L*listX**2)/2)
                 flecheanalytique = charge*L**3/(3*E*section.Iz)
 
-                self.assertTrue((np.abs(flecheanalytique + v.min())/flecheanalytique) <= 1e-12)
+                self.assertTrue((np.abs(flecheanalytique + v.min())/flecheanalytique) <= erreurMaxAnalytique)
 
                 fig, ax = plt.subplots()
                 ax.plot(listX, v_x, label='Analytique', c='blue')
@@ -233,7 +206,7 @@ class Test_Simu(unittest.TestCase):
 
                 rz_x = charge/E/section.Iz*(listX**2/2 - L*listX)
                 rotalytique = -charge*L**2/(2*E*section.Iz)
-                self.assertTrue((np.abs(rotalytique + rz.min())/rotalytique) <= 1e-12)
+                self.assertTrue((np.abs(rotalytique + rz.min())/rotalytique) <= erreurMaxAnalytique)
 
 
                 fig, ax = plt.subplots()
@@ -245,7 +218,7 @@ class Test_Simu(unittest.TestCase):
             elif problem == "Traction":
                 u_x = (charge*listX/(E*(section.aire))) + (ro*g*listX/2/E*(2*L-listX))
 
-                self.assertTrue((np.abs(u_x[-1] - u.max())/u_x[-1]) <= 1e-12)
+                self.assertTrue((np.abs(u_x[-1] - u.max())/u_x[-1]) <= erreurMaxAnalytique)
 
                 fig, ax = plt.subplots()
                 ax.plot(listX, u_x, label='Analytique', c='blue')
@@ -256,8 +229,6 @@ class Test_Simu(unittest.TestCase):
 
     def setUp(self):
         self.CreationDesSimusElastique()
-        self.CreationDesSimusThermique()
-        # TODO rajouter simulation endommagement !
         pass
 
     def test_ResolutionDesSimulationsElastique(self):
@@ -268,48 +239,52 @@ class Test_Simu(unittest.TestCase):
             simu.Assemblage_u(steadyState=False)
 
             simu.Solve_u(steadyState=True)
-            fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True, valeursAuxNoeuds=True)
             plt.pause(1e-12)
             plt.close(fig)
             
             simu.Set_Hyperbolic_AlgoProperties(dt=0.5)
             simu.Solve_u(steadyState=False)
-            fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True, valeursAuxNoeuds=True)
             plt.pause(1e-12)
             plt.close(fig)
 
-    def test_ResolutionDesSimulationsThermique(self):
+    def test_SimulationsThermique(self):
         # Pour chaque type de maillage on simule
-        
-        for simu in self.simulationsThermique:
-            simu = cast(Simu, simu)
-            
-            N = len(simu.results)
+
+        a = 1
+
+        listMesh = Interface_Gmsh.Construction2D(L=a, h=a, taille=a/10)
+
+        listMesh.extend(Interface_Gmsh.Construction3D(L=a, h=a, b=a, taille=a/10))
+
+        self.simulationsThermique = []
+
+        for mesh in listMesh:
+
+            assert isinstance(mesh, Mesh)
+
+            dim = mesh.dim
+
+            thermalModel = ThermalModel(dim=dim, k=1, c=1, epaisseur=a)
+
+            materiau = Materiau(thermalModel, verbosity=False)
+
+            simu = Simu(mesh , materiau, False)
+
+            noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
+            noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
+
+            simu.add_dirichlet("thermal", noeuds0, [0], [""])
+            simu.add_dirichlet("thermal", noeudsL, [40], [""])
+            simu.Assemblage_t(steadyState=True)
+            simu.Solve_t(steadyState=True)
+            simu.Save_Iteration()
 
             fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True)
-
-            Tmax = 1
-            N = 2
-            dt = Tmax/N
-            t = 0
-
-            simu.Set_Parabolic_AlgoProperties(alpha=0.5, dt=0.1)
-            
-            while t < Tmax:
-
-                simu.Assemblage_t(steadyState=False)
-
-                simu.Solve_t(steadyState=False)
-
-                cb.remove()
-                fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True, oldfig=fig, oldax=ax)
-                plt.pause(1e-12)
-
-                simu.Save_Iteration()
-
-                t += dt
-
+            plt.pause(1e-12)
             plt.close(fig)
+            
 
     def test__ConstruitMatElem_Dep(self):
         for simu in self.simulationsElastique:

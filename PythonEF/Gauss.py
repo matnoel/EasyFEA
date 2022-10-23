@@ -36,31 +36,74 @@ class Gauss:
         return self.__poids.size
 
     @staticmethod
-    def __Get_CoordAndWeightForSegment(dim: int, nPg: int):
-        # https://github.com/salihkilicli/Gauss-Legendre-Quadrature-in-1D-and-2D
-        if dim == 1:
-            if nPg == 1:
-                x = [0]
-                poids = [2]
-            elif nPg == 2:
-                x = [-np.sqrt(1/3), np.sqrt(1/3)]
-                poids = [1]*2
-            elif nPg == 3:
-                x = [-np.sqrt(3/5), 0, np.sqrt(3/5)]
-                poids = [5/9, 8/9, 5/9]
-            elif nPg == 4:
-                x = [-0.86113631, -0.33998104,  0.33998104,  0.86113631]
-                poids = [0.34785475, 0.65214515, 0.65214515, 0.34785475]
-            elif nPg == 5:
-                x = [-0.90617985, -0.53846931, 0, 0.53846931, 0.90617985]
-                poids = [0.2369268, 0.47862867, 0.56888889, 0.47862867, 0.2369268]
-            elif nPg == 6:
-                x = [-0.93246951, -0.66120939, -0.23861919,  0.23861919,  0.66120939,  0.93246951]
-                poids = [0.17132442, 0.36076157, 0.46791388, 0.46791388, 0.36076157, 0.17132442]
-            else:
-                raise "Pas implémenté"
+    def __CoordoPoidsGaussTriangle(nPg: int):
+        if nPg == 1:
+            ksis = 1/3
+            etas = 1/3
 
-            return x, poids
+            poids = 1/2
+
+        elif nPg == 3:
+            ksis = [1/6, 2/3, 1/6]
+            etas = [1/6, 1/6, 2/3]
+
+            poids = [1/6] * 3
+
+        elif nPg == 6:
+            a = 0.445948490915965
+            b = 0.091576213509771
+            p1 = 0.11169079483905
+            p2 = 0.0549758718227661
+            
+            ksis = [b, 1-2*b, b, a, a, 1-2*a]
+            etas = [b, b, 1-2*b, 1-2*a, a, a]
+
+            poids = [p2, p2, p2, p1, p1, p1]
+
+        elif nPg == 7:
+            a = 0.470142064105115
+            b = 0.101286507323456
+            p1 = 0.066197076394253
+            p2 = 0.062969590272413
+
+            ksis = [1/3, a, 1-2*a, a, b, 1-2*b, b]
+            etas = [1/3, a, a, 1-2*a, b, b, 1-2*b]
+
+            poids = [9/80, p1, p1, p1, p2, p2, p2]
+
+        elif nPg == 12:
+            a = 0.063089014491502
+            b = 0.249286745170910
+            c = 0.310352451033785
+            d = 0.053145049844816
+            p1 = 0.025422453185103
+            p2 = 0.058393137863189
+            p3 = 0.041425537809187
+
+            ksis = [a, 1-2*a, a, b, 1-2*b, b, c, d, 1-c-d, 1-c-d, c, d]
+            etas = [a, a, 1-2*a, b, b, 1-2*b, d, c, c, d, 1-c-d, 1-c-d]
+
+            poids = [p1, p1, p1, p2, p2, p2, p3, p3, p3, p3, p3, p3]
+
+        return ksis, etas, poids
+
+    @staticmethod
+    def __CoordoPoidsGaussQuad(nPg: int):
+        if nPg == 4:
+            a = 1/np.sqrt(3)
+            ksis = [-a, a, a, -a]
+            etas = [-a, -a, a, a]
+
+            poids = [1]*nPg
+        elif nPg == 9:
+            a = 0.774596669241483
+
+            ksis = [-a, a, a, -a, 0, a, 0, -a, 0]
+            etas = [-a, -a, a, a, -a, 0, a, 0, 0]
+            poids = [25/81, 25/81, 25/81, 25/81, 40/81, 40/81, 40/81, 40/81, 64/81]
+
+        return ksis, etas, poids
+
 
 
     @staticmethod
@@ -90,104 +133,74 @@ class Gauss:
                 nPg = 1
             elif matriceType in ["masse","beam"]:
                 nPg = 2
-            x, poids =  Gauss.__Get_CoordAndWeightForSegment(dim, nPg)
+            x, poids =  np.polynomial.legendre.leggauss(nPg)
         elif elemType == "SEG3":
             dim = 1
             if matriceType == "rigi":
-                nPg = 2
+                nPg = 1
             elif matriceType in ["masse"]:
                 nPg = 3
             elif matriceType == "beam":
                 nPg = 4
-            x, poids =  Gauss.__Get_CoordAndWeightForSegment(dim, nPg)
+            x, poids =  np.polynomial.legendre.leggauss(nPg)
         elif elemType == "SEG4":
             dim = 1
             if matriceType == "rigi":
-                nPg = 3
-            if matriceType == "masse":
+                nPg = 2
+            elif matriceType == "masse":
                 nPg = 4
-            x, poids =  Gauss.__Get_CoordAndWeightForSegment(dim, nPg)
+            elif matriceType == "beam":
+                nPg = 6
+            x, poids =  np.polynomial.legendre.leggauss(nPg)
         elif elemType == "SEG5":
             dim = 1
             if matriceType == "rigi":
                 nPg = 4
-            elif matriceType in ["masse"]:
+            elif matriceType  == "masse":
                 nPg = 5
-            x, poids =  Gauss.__Get_CoordAndWeightForSegment(dim, nPg)
+            elif matriceType == "beam":
+                nPg = 8
+            x, poids =  np.polynomial.legendre.leggauss(nPg)
         elif elemType == "TRI3":
             dim = 2            
             if matriceType == "rigi":
                 nPg = 1
-
-                ksis = 1/3
-                etas = 1/3
-
-                poids = 1/2
             elif matriceType == "masse":
                 nPg = 3
-
-                ksis = [1/6, 2/3, 1/6]
-                etas = [1/6, 1/6, 2/3]
-
-                poids = [1/6] * 3
-            
+            ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
         elif elemType == "TRI6":
             dim = 2            
             if matriceType == "rigi":
                 nPg = 3
-
-                ksis = [1/6, 2/3, 1/6]
-                etas = [1/6, 1/6, 2/3]
-
-                poids = [1/6] * 3
             elif matriceType == "masse":
                 nPg = 6
-
-                a = 0.445948490915965
-                b = 0.091576213509771
-                p1 = 0.111690794839005
-                p2 = 0.054975871827661
-                ksis = [b, 1-2*b, b, a, a, 1-2*a]
-                etas = [b, b, 1-2*b, 1-2*a, a, a]
-
-                poids = [p2, p2, p2, p1, p1, p1]
-        
+            ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
         elif elemType == "TRI10":
             dim = 2            
             if matriceType == "rigi":
                 nPg = 6
-
-                a = 0.445948490915965
-                b = 0.091576213509771
-                p1 = 0.111690794839005
-                p2 = 0.054975871827661
-                ksis = [b, 1-2*b, b, a, a, 1-2*a]
-                etas = [b, b, 1-2*b, 1-2*a, a, a]
-
-                poids = [p2, p2, p2, p1, p1, p1]
             else:
-                raise "Pas implémenté"
+                nPg = 7
+            ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+        elif elemType == "TRI15":
+            dim = 2            
+            if matriceType == "rigi":
+                nPg = 7
+            else:
+                nPg = 12
+                # nPg = 7
+            ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
         elif elemType == "QUAD4":
             dim = 2            
             if matriceType in ["rigi","masse"]:
                 nPg = 4
-
-                a = 1/np.sqrt(3)
-                ksis = [-a, a, a, -a]
-                etas = [-a, -a, a, a]
-
-                poids = [1]*nPg
+            ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
             
         elif elemType == "QUAD8":
             dim = 2            
             if matriceType in ["rigi","masse"]:
                 nPg = 9
-
-                a = 0.774596669241483
-
-                ksis = [-a, a, a, -a, 0, a, 0, -a, 0]
-                etas = [-a, -a, a, a, -a, 0, a, 0, 0]
-                poids = [25/81, 25/81, 25/81, 25/81, 40/81, 40/81, 40/81, 40/81, 64/81]
+            ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
                     
         elif elemType == "TETRA4":
             dim = 3            

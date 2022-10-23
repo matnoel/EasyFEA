@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 class Interface_Gmsh:
     """Classe interface Gmsh"""
 
-    def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=True):
+    def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=False):
         """Construction d'une interface qui peut intéragir avec gmsh
 
         Parameters
@@ -25,7 +25,7 @@ class Interface_Gmsh:
         gmshVerbosity : bool, optional
             gmsh peut ecrire dans le terminal, by default False
         verbosity : bool, optional
-            la classe interfaceGmsh peut ecrire dans le terminal, by default True
+            la classe interfaceGmsh peut ecrire le résumé de la construction dans le terminale, by default False
         """
     
         self.__affichageGmsh = affichageGmsh
@@ -779,6 +779,10 @@ class Interface_Gmsh:
             gmsh.model.mesh.generate(1)
             if elemType == "SEG3":
                 gmsh.model.mesh.set_order(2)
+            elif elemType == "SEG4":
+                gmsh.model.mesh.set_order(3)
+            elif elemType == "SEG5":
+                gmsh.model.mesh.set_order(4)
 
         elif dim == 2:
 
@@ -824,6 +828,8 @@ class Interface_Gmsh:
                     gmsh.model.mesh.set_order(2)
                 elif elemType in ["TRI10"]:
                     gmsh.model.mesh.set_order(3)
+                elif elemType in ["TRI15"]:
+                    gmsh.model.mesh.set_order(4)
 
                 if crack != None:
                     gmsh.plugin.setNumber("Crack", "Dimension", dim-1)

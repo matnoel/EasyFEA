@@ -482,10 +482,7 @@ class Simu:
         beamModel = self.materiau.beamModel
         if not isinstance(beamModel, BeamModel): return
         
-        if beamModel.dim == 1:
-            matriceType="rigi"
-        else:
-            matriceType="beam"
+        matriceType="beam"
         
         tic = Tic()
         
@@ -536,6 +533,10 @@ class Simu:
                 repu = [0,1]
             elif elemType == "SEG3":
                 repu = [0,1,2]
+            elif elemType == "SEG4":
+                repu = [0,1,2,3]
+            elif elemType == "SEG5":
+                repu = [0,1,2,3,4]
 
             B_e_pg = np.zeros((Ne, nPg, 1, nbddl_n*nPe))
             B_e_pg[:,:,0, repu] = dN_e_pg[:,:,0]
@@ -549,9 +550,14 @@ class Simu:
                 repu = [0,3]
                 repv = [1,2,4,5]
             elif elemType == "SEG3":
-                # TODO il faut redefinir les fonctions de formes Nv dNv ddNv pour SEG3
                 repu = [0,3,6]
                 repv = [1,2,4,5,7,8]
+            elif elemType == "SEG4":
+                repu = [0,3,6,9]
+                repv = [1,2,4,5,7,8,10,11]
+            elif elemType == "SEG5":
+                repu = [0,3,6,9,12]
+                repv = [1,2,4,5,7,8,10,11,13,14]
 
             B_e_pg = np.zeros((Ne, nPg, 2, nbddl_n*nPe))
             
@@ -571,6 +577,16 @@ class Simu:
                 repvy = [1,5,7,11,13,17]
                 repvz = [2,4,8,10,14,16]
                 reptx = [3,9,15]
+            elif elemType == "SEG4":
+                repux = [0,6,12,18]
+                repvy = [1,5,7,11,13,17,19,23]
+                repvz = [2,4,8,10,14,16,20,22]
+                reptx = [3,9,15,21]
+            elif elemType == "SEG5":
+                repux = [0,6,12,18,24]
+                repvy = [1,5,7,11,13,17,19,23,25,29]
+                repvz = [2,4,8,10,14,16,20,22,26,28]
+                reptx = [3,9,15,21,27]
 
             B_e_pg = np.zeros((Ne, nPg, 4, nbddl_n*nPe))
             
@@ -2166,7 +2182,7 @@ class Simu:
     def ResultatsCalculables(dim: int) -> dict:
         if dim == 1:
             options = {
-                "Beam" : ["u", "beamDisplacement", "coordoDef", "fx"]
+                "Beam" : ["u", "beamDisplacement", "coordoDef", "fx","Srain","Stress"]
             }
         elif dim == 2:
             options = {
@@ -2185,7 +2201,7 @@ class Simu:
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
                 "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
-                "Beam" : ["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "coordoDef", "fx","fy","fz","cx","cy","cz"],
+                "Beam" : ["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "coordoDef", "fx","fy","fz","cx","cy","cz","Srain","Stress"],
                 "Energie" :["Wdef","Psi_Elas"],
                 "Thermal" : ["thermal", "thermalDot"]
             }

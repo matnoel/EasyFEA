@@ -1257,8 +1257,6 @@ class PhaseFieldModel:
                 cT = c.T
                 cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
                 cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
-
-            
         
         elif self.__split in ["AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]:
 
@@ -1266,15 +1264,7 @@ class PhaseFieldModel:
             Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize='optimal')
             Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize='optimal')
 
-            if self.__split ==  "AnisotStress":
-
-                # cP_e_pg = Cpp + Cpm + Cmp
-                # cM_e_pg = Cmm 
-
-                cP_e_pg = Cp_e_pg
-                cM_e_pg = Cm_e_pg
-
-            elif self.__split != "AnisotStress":
+            if self.__split != "AnisotStress":
                 # Construit Cp et Cm
                 S = loiDeComportement.get_S()
                 if self.__useNumba:
@@ -1285,6 +1275,14 @@ class PhaseFieldModel:
                     Cpm = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cm_e_pg, optimize='optimal')
                     Cmm = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cm_e_pg, optimize='optimal')
                     Cmp = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cp_e_pg, optimize='optimal')
+            
+            if self.__split ==  "AnisotStress":
+
+                # cP_e_pg = Cpp + Cpm + Cmp
+                # cM_e_pg = Cmm 
+
+                cP_e_pg = Cp_e_pg
+                cM_e_pg = Cm_e_pg
 
             elif self.__split ==  "AnisotStress_PM":
                 

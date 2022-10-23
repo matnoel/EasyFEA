@@ -16,7 +16,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
 
     def test_Construction2D(self):
         nbMesh = len(self.list_mesh2D)
-        nrows = 4
+        nrows = 5
         ncols = 10
         assert nbMesh == nrows*ncols , "Pas assez de place"
         fig, ax = plt.subplots(nrows, ncols)
