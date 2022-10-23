@@ -74,7 +74,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     if dim == 3:
         # Quand on fait une simulation en 3D on ne peut afficher les résultats que sur les elements
         # En plus, il faut tracer la solution que sur les eléments 2D
-        valeursAuxNoeuds = False
+        valeursAuxNoeuds = True # Ne pas modifier, il faut passer par la solution aux noeuds pour localiser aux elements 2D !!!
 
     if simu.problemType == "beam":
         # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
@@ -280,7 +280,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         ax.set_zlabel(r"$z$")
         
         # Change l'echelle des axes
-        __ChangeEchelle(ax, coordo)
+        __ChangeEchelle(ax, coordoSansDef)
 
     # On prépare le titre
     if option == "damage":
@@ -926,10 +926,9 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
 
     ax.set_xlim([xmid-maxRange, xmid+maxRange])
     ax.set_ylim([ymid-maxRange, ymid+maxRange])
-
-    if coordo[:,2].max() > 0:
-        ax.set_zlim([zmid-maxRange, zmid+maxRange])
-        ax.set_box_aspect([1,1,1])
+    ax.set_zlim([zmid-maxRange, zmid+maxRange])
+    ax.set_box_aspect([1,1,1])
+        
     
 
 def NouvelleSection(text: str, verbosity=True):

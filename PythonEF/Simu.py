@@ -2422,9 +2422,9 @@ class Simu:
 
                 if valeursAuxNoeuds:
                     resultat_n = self.__InterpolationAuxNoeuds(resultat_e)
-                    return resultat_n.reshape(Nn, -1)
+                    return resultat_n
                 else:
-                    return resultat_e.reshape(Ne, -1)
+                    return resultat_e
             
             else:
 
