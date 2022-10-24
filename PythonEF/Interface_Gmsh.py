@@ -86,11 +86,15 @@ class Interface_Gmsh:
         
         tic = Tic()
 
-        factory = gmsh.model.occ # Ici ne fonctionne qu'avec occ !! ne pas changer
-        self.__factory = factory
-
         # Importation du fichier
-        factory.importShapes(fichier)
+
+        if '.stp' in fichier:
+            factory = gmsh.model.occ # Ici ne fonctionne qu'avec occ !! ne pas changer
+            factory.importShapes(fichier)
+        else:
+            print("Doit être un fichier .stp")
+
+        self.__factory = factory
 
         gmsh.option.setNumber("Mesh.MeshSizeMin", tailleElement)
         gmsh.option.setNumber("Mesh.MeshSizeMax", tailleElement)
@@ -439,6 +443,8 @@ class Interface_Gmsh:
         l7 = factory.addCircleArc(p8, p5, p9)
         l8 = factory.addCircleArc(p9, p5, p6)
         loopCercle = factory.addCurveLoop([l5,l6,l7,l8])
+        # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
+        factory.remove([(0,p5)], False)
 
         if isinstance(domain2, Domain):
             # Exemple extrait de t10.py dans les tutos gmsh
@@ -470,11 +476,8 @@ class Interface_Gmsh:
 
         if circle.isCreux:
             # Create a surface avec le cyclindre creux
-            surfaceDomain = factory.addPlaneSurface([loopDomain, loopCercle])
-
-            # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
-            factory.synchronize()
-            factory.remove([(0,p5)], False)
+            surfaceDomain = factory.addPlaneSurface([loopDomain, loopCercle])            
+            factory.synchronize()            
             surfaces = [surfaceDomain]
         else:
             # Cylindre plein
@@ -483,16 +486,7 @@ class Interface_Gmsh:
             # Création d'une surface de la surface sans le creux
             surface = factory.addPlaneSurface([loopDomain, loopCercle])
             factory.synchronize()
-            # On enlève le point
-            factory.remove([(0,p5)], False)
-
-            surfaces = [surfaceCercle, surface]  
-
-            # gmsh.model.mesh.embed(1,[l5,l6],2, surface)
-
-            # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
-            # factory.synchronize()
-            # factory.remove([(0,p6),(0,p7),(0,p8),(0,p9)], True)
+            surfaces = [surfaceCercle, surface]
         
         if returnSurfaces: return surfaces
 
@@ -547,7 +541,7 @@ class Interface_Gmsh:
     # Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.
     # TODO permettre de mettre des trous ?
 
-    def __Surfaces_From_Points(self, pointsList: List[Point], tailleElement: float, returnSurfaces: bool):
+    def __Loop_From_Points(self, pointsList: List[Point], tailleElement: float):
         """Construction d'une liste de surface en fonction d'une liste de points
 
         Parameters
@@ -556,8 +550,6 @@ class Interface_Gmsh:
             liste de points
         tailleElement : float
             taille de maille
-        returnSurfaces : bool
-            renvoie la surface
 
         Returns
         -------
@@ -575,9 +567,7 @@ class Interface_Gmsh:
         # On creer tout les points
         points = []
         for point in pointsList:
-            assert isinstance(point, Point)
-            if not returnSurfaces: assert point.z == 0, "Pour une simulation 2D les points doivent être dans le plan (x, y)"
-
+            assert isinstance(point, Point)            
             points.append(factory.addPoint(point.x, point.y, point.z, tailleElement))
 
         # TODO Verifier que ça se croise pas ?
@@ -594,15 +584,33 @@ class Interface_Gmsh:
 
         # Create a closed loop connecting the lines for the surface        
         loopSurface = factory.addCurveLoop(lignes)
-        
-        surface = factory.addPlaneSurface([loopSurface])
 
-        if isinstance(factory, gmsh.model.geo):
-            surface = factory.addPhysicalGroup(2, [surface]) # obligatoire pour creer la surface organisée
+        return loopSurface
 
-        surfaces = [surface]
+    def __Loop_From_Circle(self, circle: Circle):
 
-        return surfaces
+        factory = factory = gmsh.model.occ
+        center = circle.center
+        rayon = circle.diam/2
+
+        # Points cercle                
+        p0 = factory.addPoint(center.x, center.y, 0, circle.taille) #centre
+        p1 = factory.addPoint(center.x-rayon, center.y, 0, circle.taille)
+        p2 = factory.addPoint(center.x, center.y-rayon, 0, circle.taille)
+        p3 = factory.addPoint(center.x+rayon, center.y, 0, circle.taille)
+        p4 = factory.addPoint(center.x, center.y+rayon, 0, circle.taille)
+
+        # Lignes cercle
+        l1 = factory.addCircleArc(p1, p0, p2)
+        l2 = factory.addCircleArc(p2, p0, p3)
+        l3 = factory.addCircleArc(p3, p0, p4)
+        l4 = factory.addCircleArc(p4, p0, p1)
+
+        loopCercle = factory.addCurveLoop([l1,l2,l3,l4])
+        # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
+        factory.remove([(0,p0)], False)
+
+        return loopCercle
 
     def Mesh_From_Lines_1D(self, listPoutres: List[Poutre_Elas_Isot], elemType="SEG2" ,folder=""):
         """Construction d'un maillage de segment
@@ -658,7 +666,7 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def Mesh_From_Points_2D(self, pointsList: List[Point], elemType="TRI3", tailleElement=0.0,isOrganised=False, folder="", returnSurfaces=False):
+    def Mesh_From_Points_2D(self, pointsList: List[Point], elemType="TRI3", interieursList=[], tailleElement=0.0, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
         Parameters
@@ -667,10 +675,10 @@ class Interface_Gmsh:
             liste de points
         elemType : str, optional
             type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        interieursList : List[Domain, Circle], optional
+            liste d'objet à l'intérieur du domaine Creux ou non 
         tailleElement : float, optional
             taille d'element pour le maillage, by default 0.0
-        isOrganised : bool, optional
-            le maillage est organisé, by default False
         folder : str, optional
             fichier de sauvegarde du maillage, by default ""
         returnSurfaces : bool, optional
@@ -687,17 +695,58 @@ class Interface_Gmsh:
 
         tic = Tic()
 
-        surfaces = self.__Surfaces_From_Points(pointsList, tailleElement, returnSurfaces)
+        factory = gmsh.model.occ
+
+        # Création de la surface de contour
+        loopSurface = self.__Loop_From_Points(pointsList, tailleElement)
+
+        # surfaceDomaine = factory.addPlaneSurface([loopSurface])
+
+        # Identification des objets creux ou non et identification des boucles géométriques fermées
+        listLoop = []
+        listLoopPleins = []
+        def CreationLoops(objetGeom):
+            if isinstance(objetGeom, Circle):
+                loop = self.__Loop_From_Circle(objetGeom)
+            elif isinstance(objetGeom, Domain):                
+                pt1 = objetGeom.pt1
+                pt2 = objetGeom.pt2
+                tailleElement = objetGeom.taille
+                # Créer les points
+                p1 = Point(x=pt1.x, y=pt1.y, z=0)
+                p2 = Point(x=pt2.x, y=pt1.y, z=0)
+                p3 = Point(x=pt2.x, y=pt2.y, z=0)
+                p4 = Point(x=pt1.x, y=pt2.y, z=0)
+                loop = self.__Loop_From_Points([p1, p2, p3, p4], tailleElement)
+
+            listLoop.append(loop)
+
+            if not objetGeom.isCreux:
+                listLoopPleins.append(loop)
         
-        if returnSurfaces: return surfaces
+        [CreationLoops(objetGeom) for objetGeom in interieursList]
+
+        # Pour chaque objetGeom plein, il est nécessaire de créer une surface
+        surfacesPleines = [factory.addPlaneSurface([loop]) for loop in listLoopPleins]
+
+        # surface du domaine
+        listLoopDomaineSuivitDesAutresLoop = [loopSurface]
+        listLoopDomaineSuivitDesAutresLoop.extend(listLoop)
+        surfaceDomaine = factory.addPlaneSurface(listLoopDomaineSuivitDesAutresLoop)
+
+        # Rajoute la surface du domaine en dernier
+        surfacesPleines.append(surfaceDomaine)
+        
+        # Création des surfaces creuses
+        if returnSurfaces: return surfacesPleines
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(2, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
+        self.__Construction_MaillageGmsh(2, elemType, surfaces=surfacesPleines, isOrganised=False, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType="TETRA4", tailleElement=0.0, isOrganised=False, folder=""):
+    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType="TETRA4", interieursList=[], tailleElement=0.0, folder=""):
         """Construction d'un maillage 3D depuis une liste de points
 
         Parameters
@@ -712,8 +761,6 @@ class Interface_Gmsh:
             type d'element, by default "TETRA4" ["TETRA4", "HEXA8", "PRISM6"]
         tailleElement : float, optional
             taille d'element pour le maillage, by default 0.0
-        isOrganised : bool, optional
-            le maillage est orgnanisé, by default False
         folder : str, optional
             dossier de sauvegarde du maillage .msh, by default ""
 
@@ -727,18 +774,15 @@ class Interface_Gmsh:
         self.__CheckType(3, elemType)
         
         tic = Tic()
-
-        if elemType == "TETRA4": isOrganised=False
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Mesh_From_Points_2D(pointsList, elemType="TRI3", tailleElement=tailleElement,
-        isOrganised=isOrganised, returnSurfaces=True)
+        surfaces = self.Mesh_From_Points_2D(pointsList, elemType="TRI3",interieursList=interieursList, tailleElement=tailleElement, returnSurfaces=True)
 
-        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
+        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
+        self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())
 

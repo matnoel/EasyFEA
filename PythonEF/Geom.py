@@ -71,7 +71,7 @@ class Line:
 class Domain:
     """Classe Domain"""
 
-    def __init__(self, pt1: Point, pt2: Point, taille=0.0):
+    def __init__(self, pt1: Point, pt2: Point, taille=0.0, isCreux=False):
         """Construit d'un domaine entre 2 points\n
         Ce domaine n'est pas tourné !
 
@@ -83,12 +83,16 @@ class Domain:
             point 2
         taille : float, optional
             taille qui sera utilisée pour la construction du maillage, by default 0.0
+        isCreux : bool, optional
+            le domaine est creux, by default False
         """
         self.pt1 = pt1
         self.pt2 = pt2
 
         assert taille >= 0
         self.taille = taille
+
+        self.isCreux = isCreux
 
 class Circle:
     """Classe Circle"""

@@ -54,12 +54,15 @@ class GroupElem:
         self.__coordoGlob = coordoGlob
         self.__coordo = cast(np.ndarray, coordoGlob[nodesID])
         
-        if self.__coordo[:,1].max()==0:
-            self.__inDim = 1
-        if self.__coordo[:,2].max()==0:
-            self.__inDim = 2
-        else:
+        if self.elemType in GroupElem.get_Types3D():
             self.__inDim = 3
+        else:
+            if self.__coordo[:,1].max()==0:
+                self.__inDim = 1
+            if self.__coordo[:,2].max()==0:
+                self.__inDim = 2
+            else:
+                self.__inDim = 3
         
         self.InitMatrices()
     
