@@ -24,20 +24,20 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
     Returns
     -------
     np.ndarray, np.ndarray, int, float
-        u, d, Kglob, iterConv, dincMax\n
+        u, d, Kglob, nombreIter, dincMax\n
 
         tel que :\n
         u : champ vectorielle de déplacement
         d : champ scalaire d'endommagement
         Kglob : matrice de rigidité en déplacement
-        iterConv : iteration nécessaire pour atteindre la convergence
+        nombreIter : iteration nécessaire pour atteindre la convergence
         dincMax : tolerance de convergence
     """
 
     assert tolConv > 0 and tolConv <= 1 , "tolConv doit être compris entre 0 et 1"
     assert maxIter > 1 , "Doit être > 1"
 
-    iterConv = 0
+    nombreIter = 0
     convergence = False
     dn = simu.damage
 
@@ -45,7 +45,7 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
 
     while not convergence:
                 
-        iterConv += 1
+        nombreIter += 1
         # Ancien endommagement dans la procedure de la convergence
         dk = simu.damage
 
@@ -63,7 +63,7 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
         # convergence = dincMax <= tolConv and iterConv > 1 # idée de florent
         convergence = dincMax <= tolConv
     
-        if iterConv == maxIter:
+        if nombreIter == maxIter:
             break
         
         if tolConv == 1.0:
@@ -84,7 +84,7 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
     else:
         raise "Solveur inconnue"
         
-    return u, dnp1, Kglob, iterConv, dincMax
+    return u, dnp1, Kglob, nombreIter, dincMax
 
 class listTemps:
     def init(self):
@@ -96,10 +96,10 @@ class listTemps:
 
 listTmps = listTemps()
 resumeIter = ""
-def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, iterConv: int, dincMax: float, temps: float, uniteDep="m", pourcentage=0, remove=False):
+def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, nombreIter: int, dincMax: float, temps: float, uniteDep="m", pourcentage=0, remove=False):
     min_d = d.min()
     max_d = d.max()
-    resumeIter = f"{resol:4} : ud = {np.round(dep,3)} {uniteDep},  d = [{min_d:.2e}; {max_d:.2e}], {iterConv}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
+    resumeIter = f"{resol:4} : ud = {np.round(dep,3)} {uniteDep},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
     
     if remove:
         end='\r'
