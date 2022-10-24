@@ -313,8 +313,7 @@ class Simu:
         
         isDamaged = self.materiau.isDamaged
 
-        # matriceType="rigi"
-        matriceType="masse"
+        matriceType="rigi"
 
         # Data
         mesh = self.__mesh
