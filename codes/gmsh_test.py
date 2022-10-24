@@ -24,12 +24,10 @@ listPoint = [pt1, pt2, pt3, pt4, pt5, pt6]
 
 interface = Interface_Gmsh(affichageGmsh=False)
 if dim == 2:
-    mesh = interface.Mesh_From_Points_2D(listPoint, 
-    elemType="TRI10", tailleElement=h/2, isOrganised=False)
+    mesh = interface.Mesh_From_Points_2D(listPoint, elemType="TRI10", tailleElement=h/2, isOrganised=False)
 elif dim == 3:
     # ["TETRA4", "HEXA8", "PRISM6"]
-    mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3,
-    elemType="HEXA8", isOrganised=True, tailleElement=h/6)
+    mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType="HEXA8", isOrganised=True, tailleElement=h/6)
 
 noeudsGauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
 noeudsDroit = mesh.Nodes_Conditions(conditionX=lambda x: x == L)

@@ -1,7 +1,7 @@
 import unittest
-from Materials import LoiDeComportement, Materiau, Elas_Isot, PhaseFieldModel, ThermalModel, BeamModel
+from Materials import Poutre_Elas_Isot, Materiau, Elas_Isot, ThermalModel, BeamModel
 from typing import cast
-from Geom import Domain, Circle, Point, Poutre, Section, Line
+from Geom import Domain, Circle, Point, Section, Line
 import numpy as np
 import Affichage as Affichage
 from Mesh import Mesh
@@ -106,7 +106,7 @@ class Test_Simu(unittest.TestCase):
             
             # SECTION
 
-            section = Section(interfaceGmsh.Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
+            section = Section(interfaceGmsh.Mesh_Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
             self.assertTrue((section.aire - b*h) <= 1e-12)
             self.assertTrue((section.Iz - ((b*h**3)/12)) <= 1e-12)
@@ -118,7 +118,7 @@ class Test_Simu(unittest.TestCase):
                 point1 = Point()
                 point2 = Point(x=L)
                 line = Line(point1, point2, L/nL)
-                poutre = Poutre(line, section)
+                poutre = Poutre_Elas_Isot(line, section, E, v)
                 listePoutre = [poutre]
 
             elif problem in ["Flexion","BiEnca"]:
@@ -128,14 +128,14 @@ class Test_Simu(unittest.TestCase):
                 point3 = Point(x=L)
                 
                 line = Line(point1, point3, L/nL)
-                poutre = Poutre(line, section)
+                poutre = Poutre_Elas_Isot(line, section, E, v)
                 listePoutre = [poutre]
 
             mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemType)
 
             # Modele poutre
 
-            beamModel = BeamModel(dim=beamDim, listePoutres=listePoutre, list_E=[E]*len(listePoutre), list_v=[v]*len(listePoutre))
+            beamModel = BeamModel(dim=beamDim, listePoutres=listePoutre)
 
             materiau = Materiau(beamModel, verbosity=False)
 

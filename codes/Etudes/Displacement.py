@@ -78,7 +78,7 @@ if dim == 2:
     
     elemType = "TRI10" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
-    mesh = interfaceGmsh.Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
+    mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
     aire = mesh.aire - L*h
 elif dim == 3:
@@ -88,7 +88,7 @@ elif dim == 3:
     # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     
     elemType = "HEXA8" # "TETRA4", "HEXA8", "PRISM6"
-    mesh = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=True, nCouches=3)
+    mesh = interfaceGmsh.Mesh_Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=True, nCouches=3)
 
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)

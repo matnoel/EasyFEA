@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import Interface_Gmsh
-from Geom import Domain, Line, Point, Section, Poutre
+from Geom import Domain, Line, Point, Section
 import Affichage
 import Materials
 import Simu
@@ -37,7 +37,7 @@ elif problem == "Traction":
     q = ro * g * (h*b)
     charge = 5000
 
-section = Section(interfaceGmsh.Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
+section = Section(interfaceGmsh.Mesh_Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
 if problem in ["Traction"]:
 
@@ -47,7 +47,7 @@ if problem in ["Traction"]:
 
     # Poutre 1 partie
     line1 = Line(point1, point3, L/nL)
-    poutre1 = Poutre(line1, section)
+    poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
     listePoutre = [poutre1]
 
     # # Poutre 2 partie
@@ -65,7 +65,7 @@ elif problem in ["Flexion","BiEnca"]:
 
     # Poutre en 1 partie
     line = Line(point1, point3, L/nL)
-    poutre = Poutre(line, section)
+    poutre = Materials.Poutre_Elas_Isot(line, section, E, v)
     listePoutre = [poutre]
 
     # # Poutre en 2 partie
@@ -85,8 +85,8 @@ elif problem == "Portique":
     # Poutre en 2 partie
     line1 = Line(point1, point2, L/nL)
     line2 = Line(point2, point3, L/nL)
-    poutre1 = Poutre(line1, section)
-    poutre2 = Poutre(line2, section)
+    poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
+    poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
     listePoutre = [poutre1, poutre2]
 
 
@@ -95,7 +95,7 @@ mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemTy
 # Affichage.Plot_Maillage(mesh)
 # plt.show()
 
-beamModel = Materials.BeamModel(dim=beamDim, listePoutres=listePoutre, list_E=[E]*len(listePoutre), list_v=[v]*len(listePoutre))
+beamModel = Materials.BeamModel(dim=beamDim, listePoutres=listePoutre)
 
 materiau = Materials.Materiau(beamModel, verbosity=True)
 

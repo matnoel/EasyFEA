@@ -111,7 +111,7 @@ if solve:
     circle = Circle(Point(x=L/2, y=H-h), diam, clC)
 
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
-    mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI3")
+    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
 
     comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
     phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)

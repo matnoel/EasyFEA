@@ -81,7 +81,7 @@ if solve:
     domain = Domain(Point(), Point(x=L, y=L), taille=taille)
     line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille)
 
-    mesh = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=True, openCrack=openCrack)
+    mesh = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=True, openCrack=openCrack)
     
     if pltMesh:
         Affichage.Plot_Maillage(mesh)

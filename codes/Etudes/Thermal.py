@@ -28,9 +28,9 @@ interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, True)
 
 if dim == 2:
     # mesh = interfaceGmsh.Rectangle_2D(domain, "QUAD4")
-    mesh = interfaceGmsh.PlaqueAvecCercle2D(domain, circle, "TRI6")
+    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI6")
 else:
-    mesh = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,a], 4, elemType="HEXA8")
+    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, [0,0,a], 4, elemType="HEXA8")
 
 thermalModel = Materials.ThermalModel(dim=dim, k=1, c=1, epaisseur=1)
 

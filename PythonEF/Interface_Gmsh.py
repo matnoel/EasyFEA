@@ -1,4 +1,3 @@
-from inspect import stack
 from typing import List, cast
 import gmsh
 import sys
@@ -10,7 +9,7 @@ from GroupElem import GroupElem
 from Mesh import Mesh
 from TicTac import Tic
 import Affichage as Affichage
-import matplotlib.pyplot as plt
+from Materials import Poutre_Elas_Isot
 
 class Interface_Gmsh:
     """Classe interface Gmsh"""
@@ -37,7 +36,7 @@ class Interface_Gmsh:
 
         if gmshVerbosity:
             Affichage.NouvelleSection("Maillage Gmsh")
-
+    
     def __initGmsh(self):
         """Initialise gmsh"""
         gmsh.initialize()
@@ -46,6 +45,9 @@ class Interface_Gmsh:
             gmsh.option.setNumber('General.Verbosity', 0)
         gmsh.model.add("model")
         self.__listPysicalGroup = []
+
+    # TODO générer plusieurs maillage en désactivant initGmsh et en utilisant plusieurs fonctions ?
+    # mettre en place une liste de surfaces ?
     
     def __CheckType(self, dim: int, elemType: str):
         """Verification si le type d'element est bien possible"""
@@ -56,7 +58,7 @@ class Interface_Gmsh:
         elif dim == 3:
             assert elemType in GroupElem.get_Types3D()
 
-    def Importation3D(self, fichier="", tailleElement=0.0, folder=""):
+    def Mesh_Importation3D(self, fichier="", tailleElement=0.0, folder=""):
         """Construis le maillage 3D depuis l'importation d'un fichier 3D et création du maillage (.stp ou .igs)
 
         Parameters
@@ -99,7 +101,7 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def Poutre3D(self, domain: Domain, extrude=[0,0,1], nCouches=1, elemType="HEXA8", isOrganised=True, folder=""):
+    def Mesh_Poutre3D(self, domain: Domain, extrude=[0,0,1], nCouches=1, elemType="HEXA8", isOrganised=True, folder=""):
         """Construis le maillage 3D d'une poutre depuis une surface/domaine 2D que l'on extrude
 
         Parameters
@@ -131,7 +133,7 @@ class Interface_Gmsh:
         if elemType == "TETRA4":    isOrganised=False #Il n'est pas possible d'oganiser le maillage quand on utilise des TETRA4
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Rectangle_2D(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
+        surfaces = self.Mesh_Rectangle_2D(domain, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
 
@@ -191,8 +193,8 @@ class Interface_Gmsh:
             extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=numElements)
 
 
-    def Rectangle_2D(self, domain: Domain, elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
-        """Construis le maillge d'un rectange 2D
+    def Mesh_Rectangle_2D(self, domain: Domain, elemType="TRI3", isOrganised=False, folder="", returnSurfaces=False):
+        """Maillage d'un rectange 2D
 
         Parameters
         ----------
@@ -221,6 +223,8 @@ class Interface_Gmsh:
 
         pt1 = domain.pt1
         pt2 = domain.pt2
+
+        # TODO autoriser les similations à être hors plan ?
 
         # assert pt1.z == 0 and pt2.z == 0
 
@@ -260,9 +264,8 @@ class Interface_Gmsh:
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def RectangleAvecFissure(self, domain: Domain, crack: Line,
-    elemType="TRI3", openCrack=False, isOrganised=False, folder=""):
-        """Construis le maillage d'un rectangle avec une fissure dans le plan 2D
+    def Mesh_Rectangle2DAvecFissure(self, domain: Domain, crack: Line, elemType="TRI3", openCrack=False, isOrganised=False, folder=""):
+        """Maillage d'un rectangle avec une fissure
 
         Parameters
         ----------
@@ -359,8 +362,7 @@ class Interface_Gmsh:
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def PlaqueAvecCercle2D(self, domain: Domain, circle: Circle,
-    elemType="TRI3", domain2=None, isOrganised=False, folder="", returnSurfaces=False):
+    def Mesh_PlaqueAvecCercle2D(self, domain: Domain, circle: Circle, elemType="TRI3", domain2=None, isOrganised=False, folder="", returnSurfaces=False):
         """Construis le maillage 2D d'un rectangle un cercle (creux ou fermé)
 
         Parameters
@@ -476,9 +478,12 @@ class Interface_Gmsh:
             surfaces = [surfaceDomain]
         else:
             # Cylindre plein
+            # Création d'une surface pour le cercle plein
             surfaceCercle = factory.addPlaneSurface([loopCercle])
+            # Création d'une surface de la surface sans le creux
             surface = factory.addPlaneSurface([loopDomain, loopCercle])
             factory.synchronize()
+            # On enlève le point
             factory.remove([(0,p5)], False)
 
             surfaces = [surfaceCercle, surface]  
@@ -497,8 +502,7 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def PlaqueAvecCercle3D(self, domain: Domain, circle: Circle, extrude=[0,0,1], nCouches=1,
-    elemType="HEXA8", isOrganised=False, folder=""):
+    def Mesh_PlaqueAvecCercle3D(self, domain: Domain, circle: Circle, extrude=[0,0,1], nCouches=1,  elemType="HEXA8", isOrganised=False, folder=""):
         """Construis le maillage 3D d'un domaine avec un cylindre (creux ou fermé)
 
         Parameters
@@ -530,7 +534,7 @@ class Interface_Gmsh:
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.PlaqueAvecCercle2D(domain, circle, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
+        surfaces = self.Mesh_PlaqueAvecCercle2D(domain, circle, elemType="TRI3", isOrganised=isOrganised, folder=folder, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
 
@@ -600,8 +604,8 @@ class Interface_Gmsh:
 
         return surfaces
 
-    def Mesh_From_Lines_1D(self, listPoutres: List[Poutre], elemType="SEG2" ,folder=""):
-        """Construis le maillage 2D en créant une surface depuis une liste de poutres
+    def Mesh_From_Lines_1D(self, listPoutres: List[Poutre_Elas_Isot], elemType="SEG2" ,folder=""):
+        """Construction d'un maillage de segment
 
         Parameters
         ----------
@@ -648,8 +652,6 @@ class Interface_Gmsh:
             physicalGroup = gmsh.model.addPhysicalGroup(1, [ligne], name=f"{poutre.idPoutre}")
             self.__listPysicalGroup.append(physicalGroup)
 
-
-
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
         self.__Construction_MaillageGmsh(1, elemType, surfaces=[], folder=folder)
@@ -695,8 +697,7 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, 
-    elemType="TETRA4", tailleElement=0.0, isOrganised=False, folder=""):
+    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType="TETRA4", tailleElement=0.0, isOrganised=False, folder=""):
         """Construction d'un maillage 3D depuis une liste de points
 
         Parameters
@@ -1008,16 +1009,16 @@ class Interface_Gmsh:
         for t, elemType in enumerate(GroupElem.get_Types2D()):
             for isOrganised in [True, False]:
                     
-                mesh = interfaceGmsh.Rectangle_2D(domain=domain, elemType=elemType, isOrganised=isOrganised)
+                mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=isOrganised)
                 assert np.isclose(mesh.aire, aireDomain,1e-4), "Surface incorrect"
-                mesh2 = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=False)
+                mesh2 = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=False)
                 assert np.isclose(mesh2.aire, aireDomain,1e-4), "Surface incorrect"
-                mesh3 = interfaceGmsh.RectangleAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=True)
+                mesh3 = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=isOrganised, openCrack=True)
                 assert np.isclose(mesh3.aire, aireDomain,1e-4), "Surface incorrect"
-                mesh4 = interfaceGmsh.PlaqueAvecCercle2D(domain=domain, circle=circle, elemType=elemType, isOrganised=isOrganised)
+                mesh4 = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain=domain, circle=circle, elemType=elemType, isOrganised=isOrganised)
                 # # assert mesh4.aire - (aireDomain-aireCircle) == 0
                 # Ici on ne verifie pas car il ya trop peu delement pour bien representer le perçage
-                mesh5 = interfaceGmsh.PlaqueAvecCercle2D(domain=domain, circle=circleClose, elemType=elemType, isOrganised=isOrganised)
+                mesh5 = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain=domain, circle=circleClose, elemType=elemType, isOrganised=isOrganised)
                 assert np.isclose(mesh5.aire, aireDomain,1e-4), "Surface incorrect"
 
                 for m in [mesh, mesh2, mesh3, mesh4, mesh5]:
@@ -1046,14 +1047,14 @@ class Interface_Gmsh:
                 #     mesh = interfaceGmsh.Importation3D(fichier, elemType=elemType, tailleElement=taille)
                 #     list_mesh3D.append(mesh)
                 
-                mesh2 = interfaceGmsh.Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=isOrganised)
+                mesh2 = interfaceGmsh.Mesh_Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=isOrganised)
                 list_mesh3D.append(mesh2)
                 assert np.isclose(mesh2.volume, volume,1e-4), "Volume incorrect"
 
-                mesh3 = interfaceGmsh.PlaqueAvecCercle3D(domain, circleCreux, [0,0,b], elemType=elemType, isOrganised=isOrganised)
+                mesh3 = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circleCreux, [0,0,b], elemType=elemType, isOrganised=isOrganised)
                 list_mesh3D.append(mesh3)
 
-                mesh4 = interfaceGmsh.PlaqueAvecCercle3D(domain, circle, [0,0,b], elemType=elemType, isOrganised=isOrganised)
+                mesh4 = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, [0,0,b], elemType=elemType, isOrganised=isOrganised)
                 list_mesh3D.append(mesh4)
                 assert np.isclose(mesh4.volume, volume,1e-4), "Volume incorrect"
 

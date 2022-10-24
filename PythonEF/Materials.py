@@ -6,7 +6,7 @@ from Mesh import Mesh, GroupElem
 import CalcNumba as CalcNumba
 import numpy as np
 import Affichage as Affichage
-from Geom import Poutre
+from Geom import Line, Section
 
 from scipy.linalg import sqrtm
 
@@ -368,9 +368,81 @@ class Elas_Isot(LoiDeComportement):
 
         return c, s
 
+class Poutre_Elas_Isot():
+
+    __nbPoutre=0
+
+    def __init__(self, line: Line, section: Section, E: float, v:float):
+        """Construction d'une poutre élastique isotrope
+
+        Parameters
+        ----------
+        line : Line
+            Ligne de la fibre moyenne
+        section : Section
+            Section de la poutre
+        E : float
+            module elastique
+        v : float
+            coef de poisson
+        """
+
+        self.__line = line
+
+        self.__section = section
+
+        assert E > 0.0, "Le module élastique doit être > 0 !"
+        self.__E=E
+
+        poisson = "Le coef de poisson doit être compris entre ]-1;0.5["
+        assert v > -1.0 and v < 0.5, poisson
+        self.__v=v
+
+        # Verifie si la section est symétrique Iyz = 0
+        Iyz = section.Iyz 
+        assert Iyz <=  1e-12, "La section doit être symétrique"
+
+        Poutre_Elas_Isot.__nbPoutre += 1
+
+        self.__idPoutre = f"Poutre{Poutre_Elas_Isot.__nbPoutre}"
+
+    @property
+    def line(self) -> Line:
+        """Ligne fibre moyenne de la poutre"""
+        return self.__line
+
+    @property
+    def section(self) -> Section:
+        """Section de la poutre"""
+        return self.__section
+
+    @property
+    def idPoutre(self) -> str:
+        """Identifiant de la poutre"""
+        return self.__idPoutre
+
+    @property
+    def E(self) -> float:
+        """Le module élastique"""
+        return self.__E
+
+    @property
+    def v(self) -> float:
+        """Coef de poisson"""
+        return self.__v
+
+    @property
+    def resume(self) -> str:
+        resume = ""
+
+        resume += f"\n{self.__idPoutre} :"
+        resume += f"\n\tS = {self.__section.aire:.2}, Iz = {self.__section.aire:.2}, Iy = {self.__section.aire:.2}, J = {self.__section.J:.2}"
+
+        return resume
+
 class BeamModel():   
 
-    def __init__(self, dim: int, listePoutres: List[Poutre], list_E: List[float], list_v=[]):
+    def __init__(self, dim: int, listePoutres: List[Poutre_Elas_Isot]):
         """Creation du model poutre
 
         Parameters
@@ -382,24 +454,17 @@ class BeamModel():
         v : float, optional
             Coef de poisson ]-1;0.5]
         """
-
-        # Effectue les verifications
-        assert len(listePoutres) == len(list_E), "Doit fournir autant de coef matériau que de poutres"
-        assert len(listePoutres) == len(list_v), "Doit fournir autant de coef matériau que de poutres"
-
-        for E in list_E: assert E > 0, "Le module élastique doit être > 0 !" 
-        for v in list_v: assert v > -1.0 and v < 0.5, "Le coef de poisson doit être compris entre ]-1;0.5["
         
         self.__dim = dim
         self.__listePoutres = listePoutres
-        self.__list_E = list_E
-        self.__list_v = list_v
-
         self.__list_D = []
+
+        list_E = self.liste_E
+        list_v = self.liste_v
 
         for poutre, E, v in zip(listePoutres, list_E, list_v):
 
-            assert isinstance(poutre, Poutre)
+            assert isinstance(poutre, Poutre_Elas_Isot)
             A = poutre.section.aire
         
             if dim == 1:
@@ -457,7 +522,7 @@ class BeamModel():
         return self.__dim
     
     @property
-    def listePoutres(self) -> List[Poutre]:
+    def listePoutres(self) -> List[Poutre_Elas_Isot]:
         """Liste des poutres"""
         return self.__listePoutres
 
@@ -469,12 +534,12 @@ class BeamModel():
     @property
     def liste_E(self) -> List[float]:
         """Liste des modules élastiques"""
-        return self.__liste_E
+        return [poutre.E for poutre in self.__listePoutres]
 
     @property
     def liste_v(self) -> List[float]:
         """Liste des coef de poisson"""
-        return self.__liste_v
+        return [poutre.v for poutre in self.__listePoutres]
 
     @property
     def list_D(self) -> List[np.ndarray]:
@@ -486,7 +551,7 @@ class BeamModel():
         resume = f"\nModel poutre:"
         resume += f"\nNombre de Poutre = {self.nbPoutres} :\n"
         # Réalise un résumé pour chaque poutre
-        for poutre, E, v in zip(self.__listePoutres, self.__list_E, self.__list_v):
+        for poutre, E, v in zip(self.__listePoutres, self.liste_E, self.liste_v):
             resume += poutre.resume
             if isinstance(E, int):
                 resume += f"\n\tE = {E:6}, v = {v}"
