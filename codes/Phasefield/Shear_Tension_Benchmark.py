@@ -18,11 +18,11 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-simulation = "Tension" #"Shear" , "Tension"
+simulation = "Shear" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = False
-solve = False
+test = True
+solve = True
 pltMesh = False
 plotResult = True
 plotEnergie = True
@@ -34,7 +34,7 @@ useNumba = True
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-split = "AnisotStress" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
+split = "Miehe" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True

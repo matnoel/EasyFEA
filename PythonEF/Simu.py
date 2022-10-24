@@ -281,6 +281,11 @@ class Simu:
             self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
             self.__damage = results["damage"]
             self.__displacement = results["displacement"]
+            try:
+                self.materiau.phaseFieldModel.Need_Split_Update()
+            except:
+                # Il est possible que cette version du modèle d'endomagement ne possède pas cette fonction
+                pass
 
 # ------------------------------------------- PROBLEME EN DEPLACEMENT ------------------------------------------- 
 
@@ -298,7 +303,8 @@ class Simu:
         
         isDamaged = self.materiau.isDamaged
 
-        matriceType="rigi"
+        # matriceType="rigi"
+        matriceType="masse"
 
         # Data
         mesh = self.__mesh
@@ -455,6 +461,10 @@ class Simu:
             Uglob = self.__Solveur(problemType="displacement", algo="elliptic")
         else:
             Uglob = self.__Solveur(problemType="displacement", algo="hyperbolic")
+
+        # Si c'est un problement d'endommagement on renseigne au model phase field qu'il va falloir mettre à jour le split
+        if self.__problemType == "damage":
+            self.materiau.phaseFieldModel.Need_Split_Update()
         
         assert Uglob.shape[0] == self.mesh.Nn*self.__dim
 

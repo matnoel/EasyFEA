@@ -937,6 +937,8 @@ class PhaseFieldModel:
 
         self.__useNumba = True
         """Utilise ou non les fonctions numba"""
+
+        self.Need_Split_Update()
         
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
@@ -1008,6 +1010,10 @@ class PhaseFieldModel:
         tic.Tac("Matrices", "SigmaP_e_pg et SigmaM_e_pg", False)
 
         return SigmaP_e_pg, SigmaM_e_pg
+
+    def Need_Split_Update(self):
+        """Initialise le dictionnaire qui stocke la décompositon de la loi de comportement"""
+        self.__dict_cP_e_pg_And_cM_e_pg = {}
     
     def Calc_C(self, Epsilon_e_pg: np.ndarray, verif=False):
         """Calcul la loi de comportement en fonction du split
@@ -1030,32 +1036,44 @@ class PhaseFieldModel:
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
+
+        key = f"({Ne}, {nPg})"
+
+        if key in self.__dict_cP_e_pg_And_cM_e_pg:
+            # Si la clé est renseigné on récupère la solution stockée
+
+            cP_e_pg = self.__dict_cP_e_pg_And_cM_e_pg[key][0]
+            cM_e_pg = self.__dict_cP_e_pg_And_cM_e_pg[key][1]
+        
+        else:
+
+            if self.__split == "Bourdin":
+                tic = Tic()
+                c = self.__comportement.get_C()
+                c = c[np.newaxis, np.newaxis,:,:]
+                c = np.repeat(c, Ne, axis=0)
+                c = np.repeat(c, nPg, axis=1)
+
+                cP_e_pg = c
+                cM_e_pg = np.zeros_like(cP_e_pg)
+                tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+
+            elif self.__split == "Amor":
+                cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
+
+            elif self.__split in ["Miehe","AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
+                cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
             
-        if self.__split == "Bourdin":
-            tic = Tic()
-            c = self.__comportement.get_C()
-            c = c[np.newaxis, np.newaxis,:,:]
-            c = np.repeat(c, Ne, axis=0)
-            c = np.repeat(c, nPg, axis=1)
+            elif self.__split in ["Stress","AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]:
+                cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
 
-            cP_e_pg = c
-            cM_e_pg = np.zeros_like(cP_e_pg)
-            tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+            elif self.__split in ["He","HeStress"]:
+                cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
+            
+            else: 
+                raise "Split inconnue"
 
-        elif self.__split == "Amor":
-            cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
-
-        elif self.__split in ["Miehe","AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
-            cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
-        
-        elif self.__split in ["Stress","AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]:
-            cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
-
-        elif self.__split in ["He","HeStress"]:
-            cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
-        
-        else: 
-            raise "Split inconnue"
+            self.__dict_cP_e_pg_And_cM_e_pg[key] = (cP_e_pg, cM_e_pg)
 
         return cP_e_pg, cM_e_pg
 

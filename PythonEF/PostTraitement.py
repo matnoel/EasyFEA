@@ -223,7 +223,9 @@ def Plot_Energie(simu: Simu, load: np.ndarray, displacement: np.ndarray, Niter=2
     results =  simu.results
     N = len(results)
     if len(load) > 0:
-        assert len(load) == len(results)
+        ecart = np.abs(len(results) - len(load))
+        if ecart != 0:
+            N -= ecart
     listIter = Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
     Niter = len(listIter)

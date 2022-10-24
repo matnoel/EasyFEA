@@ -29,7 +29,7 @@ makeMovie = False; NMovie = 300
 
 
 problem = "Benchmark" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
