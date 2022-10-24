@@ -216,7 +216,17 @@ class Simu:
         return self.__results
 
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
-        """Sauvegarde les résultats de l'itération"""
+        """Sauvegarde les résultats de l'itération
+
+        Parameters
+        ----------
+        nombreIter : int, optional
+            nombre d'itération pour arriver à la convergence, by default None
+        tempsIter : float, optional
+            temps nécessaire à une itération, by default None
+        dincMax : float, optional
+            tolérance de convergence d'endommagement, by default None
+        """
 
         problemType = self.__problemType
 
