@@ -34,7 +34,7 @@ useNumba = True
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-split = "Miehe" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
+split = "Amor" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
@@ -61,7 +61,7 @@ else:
 if test:
     taille = l0 #taille maille test fem object
     # taille = 0.001
-    # taille *= 1.5
+    taille *= 1.5
 else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
@@ -227,13 +227,15 @@ if solve:
 
     def Condition():
 
+        testEndommagementBord = np.any(simu.damage[NoeudsBord] >= 1)
+
         if isinstance(comportement, Elas_Isot):
 
-            return dep < chargement[-1]
+            return (testEndommagementBord or dep < chargement[-1])
         
         elif isinstance(comportement, Elas_Anisot):
 
-            return simu.damage[NoeudsBord].max() <= 1
+            return testEndommagementBord
 
         else:
 
@@ -250,19 +252,13 @@ if solve:
 
         tic = Tic()
 
-        iterConv=0
+        nombreIter=0
         convergence = False
         damage = simu.damage
 
         Chargement(dep)
 
-        u, d, Kglob, iterConv, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
-
-        if iterConv == maxIter:
-            print(f'On converge pas apres {iterConv} itérations')
-            break
-
-        simu.Save_Iteration()
+        u, d, Kglob, nombreIter, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
@@ -272,7 +268,7 @@ if solve:
         else:
             pourcentage = iter/N
 
-        PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, iterConv, dincMax, temps, "µm", pourcentage, True)
+        PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, nombreIter, dincMax, temps, "µm", pourcentage, True)
 
         if isinstance(comportement, Elas_Anisot):
             if simu.damage.max() < tresh1:
@@ -281,16 +277,22 @@ if solve:
                 dep += uinc1
         else:
             dep = chargement[iter]
-
   
         deplacements.append(dep)
         forces.append(f)
 
-        if np.any(damage[NoeudsBord] >= 0.8):                                
-            bord +=1
+        simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
 
-        if bord == 5:
+        if nombreIter == maxIter:
+            print(f'On converge pas apres {nombreIter} itérations')
             break
+
+
+        # if np.any(damage[NoeudsBord] >= 0.8):                                
+        #     bord +=1
+
+        # if bord == 5:
+        #     break
 
         iter += 1
             

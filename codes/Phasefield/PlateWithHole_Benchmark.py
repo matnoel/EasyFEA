@@ -267,21 +267,21 @@ for split in ["AnisotStress"]:
             
             Chargement()
 
-            u, d, Kglob, iterConv, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
+            u, d, Kglob, nombreIter, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
             temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
-            simu.Save_Iteration(nombreIter=iterConv, tempsIter=temps, dincMax=dincMax)
+            simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
 
             max_d = d.max()
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 
             if problem == "Benchmark":
                 pourcentage = ud/umax
-            else:
+            else: 
                 pourcentage = 0
 
-            PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, iterConv, dincMax,  temps, "µm", pourcentage, True)
+            PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, nombreIter, dincMax,  temps, "µm", pourcentage, True)
 
             if max_d<0.6:
                 ud += inc0
@@ -303,8 +303,8 @@ for split in ["AnisotStress"]:
             displacement.append(ud)
             load.append(f)
 
-            if iterConv == maxIter:
-                print(f'\nOn converge pas apres {iterConv} itérations')
+            if nombreIter == maxIter:
+                print(f'\nOn converge pas apres {nombreIter} itérations')
                 break
 
         load = np.array(load)
