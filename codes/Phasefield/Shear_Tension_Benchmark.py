@@ -23,7 +23,7 @@ nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = True
 solve = True
-pltMesh = False
+pltMesh = True
 plotResult = True
 plotEnergie = True
 saveParaview = False; Nparaview=400
@@ -66,7 +66,7 @@ else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
 
-folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=0, tetha=tetha)
+folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, tetha=tetha)
 
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -76,12 +76,13 @@ if solve:
 
     elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-    interfaceGmsh = Interface_Gmsh(affichageGmsh=False)
+    interfaceGmsh = Interface_Gmsh()
 
     domain = Domain(Point(), Point(x=L, y=L), taille=taille)
-    line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille)
 
-    mesh = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, crack=line, elemType=elemType, isOrganised=True, openCrack=openCrack)
+    line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille, isOpen=openCrack)
+
+    mesh = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=line, elemType=elemType)
     
     if pltMesh:
         Affichage.Plot_Maillage(mesh)

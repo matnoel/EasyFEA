@@ -1,4 +1,6 @@
+from typing import List
 import numpy as np
+
 
 class Point:
     """Classe Point"""
@@ -23,8 +25,47 @@ class Point:
         self.coordo = np.array([x, y, z]).reshape(1,3)
         self.isOpen = isOpen
 
-class Line:
-    """Clase Line"""
+class Geom:
+
+    def __init__(self, points: List[Point], taille: float, name: str):
+        """Construit un objet géométrique
+
+        Parameters
+        ----------
+        points : List[Point]
+            liste de points pour construire l'objet géométrique
+        taille : float
+            taille de maillage qui sera utilisé pour creer le maillage >= 0
+        name : str
+            nom de l'objet
+        """
+        assert taille >= 0
+        self.__taille = taille
+
+        self.__points = points
+
+        self.__name = name
+
+    @property
+    def taille(self) -> bool:
+        """Taille d'element utilisé pour le maillage"""
+        return self.__taille
+
+    @property
+    def points(self) -> List[Point]:
+        """Points utilisés pour construire l'objet"""
+        return self.__points
+
+    @property
+    def name(self) -> str:
+        """Nom de l'objet"""
+        return self.__name
+        
+
+class Line(Geom):
+    """Classe Line"""
+
+    __nbLine = 0
 
     @staticmethod
     def distance(pt1: Point, pt2: Point) -> float:
@@ -39,7 +80,7 @@ class Line:
         v = np.array([pt2.x-pt1.x, pt2.y-pt1.y, pt2.z-pt1.z])/length
         return v   
 
-    def __init__(self, pt1: Point, pt2: Point, taille=0.0):
+    def __init__(self, pt1: Point, pt2: Point, taille=0.0, isOpen=False):
         """Construit une ligne
 
         Parameters
@@ -55,8 +96,17 @@ class Line:
         self.pt2 = pt2
         self.coordo = np.array([[pt1.x, pt1.y, pt1.z], [pt2.x, pt2.y, pt2.z]]).reshape(2,3)
 
-        assert taille >= 0
-        self.taille = taille
+        self.__isOpen = isOpen
+
+        Line.__nbLine += 1
+        name = f"Line{Line.__nbLine}"
+        Geom.__init__(self, points=[pt1, pt2], taille=taille, name=name)
+    
+
+    @property
+    def isOpen(self) -> bool:
+        """Renvoie si la ligne peut s'ouvrir pour représenter une fissure"""
+        return self.__isOpen
     
     @property
     def vecteurUnitaire(self) -> np.ndarray:
@@ -68,8 +118,10 @@ class Line:
         """Calcul la longeur de la ligne"""
         return Line.distance(self.pt1, self.pt2)
 
-class Domain:
+class Domain(Geom):
     """Classe Domain"""
+
+    __nbDomain = 0
 
     def __init__(self, pt1: Point, pt2: Point, taille=0.0, isCreux=False):
         """Construit d'un domaine entre 2 points\n
@@ -89,13 +141,16 @@ class Domain:
         self.pt1 = pt1
         self.pt2 = pt2
 
-        assert taille >= 0
-        self.taille = taille
-
         self.isCreux = isCreux
 
-class Circle:
+        Domain.__nbDomain += 1
+        name = f"Domain{Domain.__nbDomain}"
+        Geom.__init__(self, points=[pt1, pt2], taille=taille, name=name)
+
+class Circle(Geom):
     """Classe Circle"""
+
+    __nbCircle = 0
 
     def __init__(self, center: Point, diam: float, taille=0.0, isCreux=True):
         """Construction d'un cercle en fonction de son centre et de son diamètre \n
@@ -117,13 +172,14 @@ class Circle:
 
         self.center = center
         self.diam = diam
-
-        assert taille >= 0
-        self.taille = taille
-
+        
         self.isCreux = isCreux
 
-class Section():
+        Circle.__nbCircle += 1
+        name = f"Circle{Circle.__nbCircle}"
+        Geom.__init__(self, points=[center], taille=taille, name=name)
+
+class Section:
 
     def __init__(self, mesh):
         """Section

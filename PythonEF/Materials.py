@@ -370,6 +370,7 @@ class Elas_Isot(LoiDeComportement):
 
 class Poutre_Elas_Isot():
 
+    # Nombre de poutres crées
     __nbPoutre=0
 
     def __init__(self, line: Line, section: Section, E: float, v:float):
@@ -403,8 +404,7 @@ class Poutre_Elas_Isot():
         assert Iyz <=  1e-12, "La section doit être symétrique"
 
         Poutre_Elas_Isot.__nbPoutre += 1
-
-        self.__idPoutre = f"Poutre{Poutre_Elas_Isot.__nbPoutre}"
+        self.__name = f"Poutre_Elas_Isot{Poutre_Elas_Isot.__nbPoutre}"
 
     @property
     def line(self) -> Line:
@@ -417,9 +417,9 @@ class Poutre_Elas_Isot():
         return self.__section
 
     @property
-    def idPoutre(self) -> str:
+    def name(self) -> str:
         """Identifiant de la poutre"""
-        return self.__idPoutre
+        return self.__name
 
     @property
     def E(self) -> float:
@@ -435,7 +435,7 @@ class Poutre_Elas_Isot():
     def resume(self) -> str:
         resume = ""
 
-        resume += f"\n{self.__idPoutre} :"
+        resume += f"\n{self.__name} :"
         resume += f"\n\tS = {self.__section.aire:.2}, Iz = {self.__section.aire:.2}, Iy = {self.__section.aire:.2}, J = {self.__section.J:.2}"
 
         return resume
@@ -494,7 +494,7 @@ class BeamModel():
         D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))
         for poutre, D in zip(listePoutres, list_D):
             # recupère les element
-            elements = groupElem.Get_Elements_PhysicalGroup(poutre.idPoutre)
+            elements = groupElem.Get_Elements_PhysicalGroup(poutre.name)
             D_e_pg[elements] = D
 
         return D_e_pg

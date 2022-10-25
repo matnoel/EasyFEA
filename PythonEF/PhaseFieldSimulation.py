@@ -141,12 +141,12 @@ def ResumeChargement(simu: Simu, umax: float, listInc: list, listTreshold: list,
     
     simu.resumeChargement = resumeChargement
 
-def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, openCrack=False, v=0.0, nL=0, tetha=0.0):
+def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, v=0.0, nL=0, tetha=0.0):
 
     nom="_".join([comp, split, regu, simpli2D])
 
-    if openCrack: 
-        nom += '_openCrack'
+    if closeCrack: 
+        nom += '_closeCrack'
 
     if optimMesh:
         nom += '_optimMesh'

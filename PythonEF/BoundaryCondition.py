@@ -1,4 +1,5 @@
 import numpy as np
+import inspect
 
 class BoundaryCondition:
     """Classe de condition limite"""
@@ -18,6 +19,8 @@ class BoundaryCondition:
             directions associées doit etre dans "d" ou ["x","y","z"] en fonction du problème
         valeurs_ddls : np.ndarray
             valeurs appliquées
+        fonction : list
+            fonction de la condition
         description : str
             description de la condition
         """
@@ -40,6 +43,7 @@ class BoundaryCondition:
 
         self.description = description
         """description de la condition"""
+
 
     @property
     def problemType(self) -> str:

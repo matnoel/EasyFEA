@@ -148,7 +148,7 @@ for split in ["AnisotStress"]:
 
     # Nom du dossier
     nomDossier = "PlateWithHole_" + problem
-    folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solveur, test=test, openCrack=False, v=v, nL=nL)
+    folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solveur, test=test, closeCrack=False, v=v, nL=nL)
     
     if solve:
 

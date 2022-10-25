@@ -256,7 +256,7 @@ class Test_Simu(unittest.TestCase):
 
         listMesh = Interface_Gmsh.Construction2D(L=a, h=a, taille=a/10)
 
-        listMesh.extend(Interface_Gmsh.Construction3D(L=a, h=a, b=a, taille=a/10))
+        listMesh.extend(Interface_Gmsh.Construction3D(L=a, h=a, b=a, taille=a/10, useImport3D=False))
 
         self.simulationsThermique = []
 

@@ -6,21 +6,33 @@ import Simu
 import matplotlib.pyplot as plt
 from Materials import Materiau, Elas_Isot
 import Dossier
+import PostTraitement
 
-useCPEF = True
+dim = 2
+option = 2
+N = 10
+
+dictOptions = {
+    1 : "CPEF",
+    2 : "EQU",
+    3 : "TEF2"
+}
+
 
 interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
-if useCPEF:
+coef = 1
+E=210000 # MPa
+v=0.3
+
+
+if option == 1:
     dim = 3
     h=1
     fichier = Dossier.Join([Dossier.GetPath(), "3Dmodels", "CPEF.stp"])
-    mesh = interface.Mesh_Importation3D(fichier, 2)
-    Affichage.Plot_Maillage(mesh)
-    plt.show()
-else:
-
-    dim = 3
+    mesh = interface.Mesh_Importation3D(fichier, 3)
+    
+elif option ==  2:
 
     L = 120 #mm
     h = L*0.3
@@ -38,50 +50,92 @@ else:
 
     listObjetsInter = [Circle(Point(x=h/2, y=h*(i+1)), h/4, isCreux=True) for i in range(3)]
 
-    listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=True)])    
+    listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=True, taille=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType="TRI10", interieursList=listObjetsInter, tailleElement=h/2)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType="QUAD8", geomObjectsInDomain=listObjetsInter, tailleElement=h/N)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType="HEXA8", interieursList=listObjetsInter, tailleElement=h/6)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType="TETRA4", interieursList=listObjetsInter, tailleElement=h/N)
 
     noeudsGauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
+    
+elif option == 3:
 
-    Affichage.Plot_Maillage(mesh)
-    # plt.show()
+    # dim = 2 # sinon problème dans importation maillage
 
-comportement = Elas_Isot(dim, contraintesPlanes=True, epaisseur=h)
+    coef = 1e6
+    E=15000*coef # Pa
+    v=0.25
+    g=9.81
+
+    h = 180 #m
+    taille = h/N
+
+    pt1 = Point()
+    pt2 = Point(x=h)
+    pt3 = Point(y=h)
+
+    ro = 2400 # kg m-3
+    w = 1000 # kg m-3
+
+    listPoint = [pt1, pt2, pt3]
+    
+    if dim == 2:
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType="TRI3",geomObjectsInDomain=[], tailleElement=taille)
+    elif dim == 3:
+        # ["TETRA4", "HEXA8", "PRISM6"]
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType="HEXA8", interieursList=[], tailleElement=taille)
+
+    noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
+    noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
+
+Affichage.Plot_Maillage(mesh)
+# plt.show()
+
+comportement = Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
 
 materiau = Materiau(comportement)
 
 simu = Simu.Simu(mesh, materiau)
 
-if useCPEF:
+if option == 1:
     simu.add_dirichlet("displacement", mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])
     simu.add_dirichlet("displacement", mesh.Nodes_Conditions(conditionZ=lambda z : z<-50), [2], ["z"])
-else:
-    simu.add_dirichlet("displacement", noeudsGauche, [0,0], ["x","y"])
+
+elif option == 2:
     if dim == 2:
-        simu.add_lineLoad("displacement", noeudsDroit, [-800/h], ["y"])
+        simu.add_dirichlet("displacement", noeudsGauche, [0,0], ["x","y"])
+        simu.add_lineLoad("displacement", noeudsDroit, [-8000/h], ["y"])
     else:
-        simu.add_surfLoad("displacement", noeudsDroit, [-800/(h*h)], ["x"])
+        simu.add_dirichlet("displacement", noeudsGauche, [0,0,0], ["x","y","z"])
+        simu.add_surfLoad("displacement", noeudsDroit, [-800/(h*h)], ["y"])
+
+elif option == 3:
+    if dim == 2:
+        simu.add_dirichlet("displacement", noeudsBas, [0,0], ["x","y"])
+    else:
+        simu.add_dirichlet("displacement", noeudsBas, [0,0,0], ["x","y","z"])
+
+    simu.add_volumeLoad("displacement", mesh.nodes, [-ro*g], ["y"], "[-ro*g]")
+    simu.add_surfLoad("displacement", noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], "[w*g*(h-y)]")
 
 simu.Assemblage_u()
 simu.Solve_u()
 
+simu.Save_Iteration()
+# PostTraitement.Save_Simulation_in_Paraview(Dossier.NewFile("gmsh test",results=True), simu)
 simu.Resume()
 
 # Affichage.Plot_ElementsMaillage(mesh, nodes=noeudsDroit, dimElem =2)
-Affichage.Plot_BoundaryConditions(simu)
+# Affichage.Plot_BoundaryConditions(simu)
 
 # Affichage.Plot_Maillage(simu, deformation=True)
-
-Affichage.Plot_Result(simu, "Sxy")
-
-Affichage.Plot_Result(simu, "Sxx")
-Affichage.Plot_Result(simu, "Svm", affichageMaillage=True, valeursAuxNoeuds=True, deformation=True)
+Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Svm", affichageMaillage=False, valeursAuxNoeuds=True, deformation=True,coef=1/coef)
 
 
 plt.show()

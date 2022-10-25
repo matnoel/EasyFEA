@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-dim = 2
+dim = 3
 
 folder = Dossier.NewFile(f"Etude{dim}D", results=True)
 

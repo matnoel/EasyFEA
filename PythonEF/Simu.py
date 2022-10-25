@@ -1632,6 +1632,8 @@ class Simu:
         return valeurs_eval
     
     def add_dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs: np.ndarray, directions: list, description=""):
+
+        if len(valeurs) == 0 or len(valeurs) != len(directions): return
         
         Nn = noeuds.shape[0]
         coordo = self.mesh.coordo
@@ -1663,6 +1665,7 @@ class Simu:
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
         les fonctions utilisent les coordonnées x, y et z des noeuds renseignés
         """
+        if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
         valeurs_ddls, ddls = self.__pointLoad(problemType, noeuds, valeurs, directions)
 
@@ -1676,6 +1679,7 @@ class Simu:
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
         les fonctions utilisent les coordonnées x, y et z des points d'intégrations
         """
+        if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
         valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
 
@@ -1690,6 +1694,7 @@ class Simu:
         les fonctions utilisent les coordonnées x, y et z des points d'intégrations\n
         Si probleme poutre on integre sur la section de la poutre
         """
+        if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
         if problemType == "beam":
             valeurs_ddls, ddls = self.__pointLoad(problemType, noeuds, valeurs, directions)
@@ -1713,6 +1718,8 @@ class Simu:
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
         les fonctions utilisent les coordonnées x, y et z des points d'intégrations
         """
+        if len(valeurs) == 0 or len(valeurs) != len(directions): return
+
         if problemType == "beam":
             valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
             # multiplie par la surface de la section

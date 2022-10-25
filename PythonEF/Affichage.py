@@ -715,9 +715,10 @@ def Plot_BoundaryConditions(simu, folder=""):
             valeurs = [valeurs_ddls[0]]
         else:
             valeurs = np.round(list(np.sum(valeurs_ddls.copy().reshape(-1, len(directions)), axis=0)), 2)
+        
         description = bc_Conditions.description
 
-        titre = f"{description} {valeurs} {directions}"
+        titre = f"{description} {directions}"
 
         # if 'Neumann' in description and problemType == 'displacement':
         #     facteur = coordo.max()/50

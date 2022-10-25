@@ -10,7 +10,7 @@ Affichage.Clear()
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
-problem = "Flexion"
+problem = "Portique"
 
 elemType = "SEG4"
 
