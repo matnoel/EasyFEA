@@ -15,7 +15,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
         nbMesh = len(list_mesh2D)
         nrows = 3
         ncols = 10
-        assert nbMesh == nrows*ncols , "Pas assez de place"
+        # assert nbMesh == nrows*ncols , "Pas assez de place"
         fig, ax = plt.subplots(nrows, ncols)
         lignes = np.repeat(np.arange(nrows), ncols)
         colonnes = np.repeat(np.arange(ncols).reshape(1,-1), nrows, axis=0).reshape(-1)

@@ -69,21 +69,21 @@ class GroupElem:
     def InitMatrices(self):
         """Initialise les dictionnaires de matrices pour la constructions elements finis"""
         # Dictionnaires pour chaque types de matrices
-        if self.dim > 0:
-            self.__dict_physicalGroup_n = {}
-            self.__dict_physicalGroup_e = {}
-            self.__dict_dN_e_pg = {}
-            self.__dict_dNv_e_pg = {}
-            self.__dict_ddNv_e_pg = {}
-            self.__dict_ddN_e_pg = {}
-            self.__dict_F_e_pg = {}                
-            self.__dict_invF_e_pg = {}                
-            self.__dict_jacobien_e_pg = {}   
-            self.__dict_B_dep_e_pg = {}
-            self.__dict_leftDepPart = {}
-            self.__dict_phaseField_ReactionPart_e_pg = {}
-            self.__dict_phaseField_DiffusePart_e_pg = {}
-            self.__dict_phaseField_SourcePart_e_pg = {}
+        self.__dict_physicalGroup_n = {}
+        self.__dict_physicalGroup_e = {}
+        self.__dict_dN_e_pg = {}
+        self.__dict_dNv_e_pg = {}
+        self.__dict_ddNv_e_pg = {}
+        self.__dict_ddN_e_pg = {}
+        self.__dict_F_e_pg = {}                
+        self.__dict_invF_e_pg = {}                
+        self.__dict_jacobien_e_pg = {}   
+        self.__dict_B_dep_e_pg = {}
+        self.__dict_leftDepPart = {}
+        self.__dict_phaseField_ReactionPart_e_pg = {}
+        self.__dict_phaseField_DiffusePart_e_pg = {}
+        self.__dict_phaseField_SourcePart_e_pg = {}
+            
 
 
     ################################################ METHODS ##################################################
@@ -248,8 +248,6 @@ class GroupElem:
         #     noeuds = noeuds[indexNoeudsSansDepassement]
 
         nodesId = noeuds
-
-        
 
         lignes, colonnes, valeurs = sp.find(connect_n_e[nodesId])
         elementsIndex = np.unique(colonnes)

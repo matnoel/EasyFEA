@@ -41,7 +41,7 @@ v=0.2
 SIG = 10 #Pa
 
 gc = 1.4
-l_0 = 0.12 *coef*1.5
+l_0 = 0.12 *coef*10
 
 # Création du maillage
 clD = l_0*2
@@ -54,6 +54,8 @@ circle = Circle(Point(x=L/2, y=H-h), diam, clC)
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
 mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
 
+Affichage.Plot_Group(mesh)
+plt.show()
 Affichage.Plot_Maillage(mesh,folder=folder)
 
 # Récupérations des noeuds de chargement
@@ -101,14 +103,14 @@ Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\
 # PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
 R = 10
-F=15
+Load=15
 tet = np.linspace(-np.pi,0,31)
 
 xR = R * np.cos(tet)
 yR = R * np.sin(tet)
 
-xf = F * np.cos(tet) 
-yf = F * np.sin(tet)
+xf = Load * np.cos(tet) 
+yf = Load * np.sin(tet)
 
 # xf = F * np.cos(tet)* np.abs(np.sin(tet)) + R * np.cos(tet)
 # yf = F * np.sin(tet)* np.abs(np.sin(tet))

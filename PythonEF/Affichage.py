@@ -797,10 +797,9 @@ def Plot_Group(obj, ax=None, folder="") -> plt.Axes:
     # Ici pour chaque group d'element du maillage, on va tracer les elements appartenant au groupe d'element
 
     listGroupElem = []
-    listDim = np.arange(mesh.dim+1, 0, -1, dtype=int)
+    listDim = np.arange(mesh.dim+1, -1, -1, dtype=int)
     for dim in listDim:
         listGroupElem.extend(mesh.Get_list_groupElem(dim))
-    listGroupElem
 
     for groupElem in listGroupElem:
 
@@ -809,21 +808,26 @@ def Plot_Group(obj, ax=None, folder="") -> plt.Axes:
         tags_e = groupElem.physicalGroupKeys_e
         dim = groupElem.dim
         coordo = groupElem.coordoGlob[:, range(inDim)]
-        connect_e = groupElem.connect_e
-        coordoFaces = coordo[connect_e]
+        faces = groupElem.get_connect_Faces()[groupElem.elemType]
+        coordoFaces = coordo[faces]
         coordo_e = np.mean(coordoFaces, axis=1)
 
         for tag_e in tags_e:
 
             noeuds = groupElem.Nodes_PhysicalGroup(tag_e)
             elements = groupElem.Elements_PhysicalGroup(tag_e)
+            coordo_faces = coordoFaces[elements]
 
-            if 'B' in tag_e:
-                color = 'b' # Blue
-            elif 'L' in tag_e:
-                color = 'g' # Green
+            needPlot = True
+            
+            if 'L' in tag_e:
+                color = 'b'
+            elif 'P' in tag_e:
+                color = 'black'
             elif 'S' in tag_e:
                 color = 'c'
+            elif 'C' in tag_e:
+                needPlot = False
             else:
                 color = (np.random.random(), np.random.random(), np.random.random())
 
@@ -834,31 +838,51 @@ def Plot_Group(obj, ax=None, folder="") -> plt.Axes:
             # 'k'	Black
             # 'w'	White
 
-            faces = coordoFaces[elements]
-
             if inDim in [1,2]:
 
-                if len(noeuds) > 0:
-                    if dim == 1:
-                        pc = matplotlib.collections.LineCollection(faces, lw=1, label=tag_e, edgecolor=color, alpha=1)
-                        # ax.scatter(coordo[noeuds,0], coordo[noeuds,1], c='black', marker='.', zorder=2)
-                    else:
-                        pc = matplotlib.collections.PolyCollection(faces, lw=0.5, alpha=1, facecolors=color, label=tag_e)
-                    ax.add_collection(pc)
+                x_e = coordo_e[elements,0]
+                y_e = coordo_e[elements,1]
+                
+                if len(noeuds) > 0 and needPlot:
 
-                ax.text(coordo_e[elements,0].mean(), coordo_e[elements,1].mean(), tag_e, zorder=25, ha='center', va='bottom')
+                    if dim == 0:
+                        x_n = coordo[noeuds,0]
+                        y_n = coordo[noeuds,1]
+
+                        ax.scatter(x_n, y_n, c='black', marker='.', zorder=2)
+                    elif dim == 1:
+                        pc = matplotlib.collections.LineCollection(coordo_faces, lw=1, label=tag_e, edgecolor=color, alpha=1)
+                        ax.add_collection(pc)
+                    else:
+                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0.5, alpha=0.5, facecolors=color, label=tag_e)
+                        ax.add_collection(pc)
+
+                    ax.text(x_e.mean(), y_e.mean(), tag_e, zorder=25, ha='center', va='bottom')
+                else:
+                    ax.scatter(coordo[noeuds,0], coordo[noeuds,1], c='black', marker='.', zorder=2)
+                    ax.text(x_e.mean(), y_e.mean(), tag_e, zorder=25, ha='center', va='bottom')
+                
+                ax.legend()
                     
             else:
-                if len(noeuds) > 0:
-                    ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors='red', edgecolor='black', linewidths=0.5, alpha=1))
+                if len(noeuds) > 0 and needPlot:
+                    if dim == 0:
+                        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], c='black', marker='.', zorder=2)
+                    elif dim == 1:
+                        pc = Line3DCollection(coordo_faces, lw=1, label=tag_e, edgecolor=color, alpha=1)
+                        # ax.scatter(coordo[noeuds,0], coordo[noeuds,1], c='black', marker='.', zorder=2)
+                        ax.add_collection3d(pc, zs=0, zdir='z')
+                    elif dim == 2:
+                        pc = Poly3DCollection(coordo_faces, lw=0.5, alpha=0.5, facecolors=color, label=tag_e)
+                        ax.add_collection3d(pc, zs=0, zdir='z')
 
-                # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=24)
-                for element in elements:
-                    ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], tag_e,
-                    zorder=25, ha='center', va='bottom')
+                    ax.text(coordo_e[elements,0].mean(), coordo_e[elements,1].mean(), coordo_e[elements,2].mean(), tag_e, zorder=25, ha='center', va='bottom')
+                else:
+                    ax.text(coordo_e[elements,0].mean(), coordo_e[elements,1].mean(), coordo_e[elements,2].mean(), tag_e, zorder=25, ha='center', va='bottom')
+                    ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], c='black', marker='.', zorder=2)
 
     # ax.axis('off')
-    ax.legend()
+    
 
     if inDim in [1, 2]:
         ax.autoscale()

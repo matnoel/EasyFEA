@@ -61,7 +61,7 @@ else:
 if test:
     taille = l0 #taille maille test fem object
     # taille = 0.001
-    taille *= 3
+    taille *= 10
 else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
