@@ -2108,6 +2108,13 @@ class GroupElem:
         if noeuds.size == 0: return
         self.__dict_physicalGroup_n[tag] = noeuds
 
+    @property
+    def physicalGroupKeys_n(self) -> list:
+        try:
+            return list(self.__dict_physicalGroup_n.keys())
+        except:
+            return []
+
     def Add_PhysicalGroup_e(self, noeuds: np.ndarray, tag: str):
         """Ajoute un groupe physique sur les elements
 
@@ -2122,20 +2129,26 @@ class GroupElem:
         if noeuds.size == 0: return
 
         # Récupère les elements associés aux noeuds
-        elements = self.get_elementsIndex(noeuds=noeuds, exclusivement=False)
+        elements = self.get_elementsIndex(noeuds=noeuds, exclusivement=True)
 
         # elementsId = self.__elementsID[elements]
 
         self.__dict_physicalGroup_e[tag] = elements
 
+    @property
+    def physicalGroupKeys_e(self) -> list:
+        try:
+            return list(self.__dict_physicalGroup_e.keys())
+        except:
+            return []
 
-    def Get_Elements_PhysicalGroup(self, tag: str):
+    def Elements_PhysicalGroup(self, tag: str):
         try:
             return self.__dict_physicalGroup_e[tag]
         except:
             print("Groupe physique inconnue")
     
-    def Get_Noeuds_PhysicalGroup(self, tag: str):
+    def Nodes_PhysicalGroup(self, tag: str):
         try:
             return self.__dict_physicalGroup_n[tag]
         except:

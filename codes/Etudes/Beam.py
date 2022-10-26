@@ -10,9 +10,9 @@ Affichage.Clear()
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
-problem = "Portique"
+problem = "Traction"
 
-elemType = "SEG4"
+elemType = "SEG2"
 
 beamDim = 2
 
@@ -39,23 +39,27 @@ elif problem == "Traction":
 
 section = Section(interfaceGmsh.Mesh_Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
+Affichage.Plot_Group(section.mesh)
+# Affichage.Plot_Maillage(mesh)
+plt.show()
+
 if problem in ["Traction"]:
 
     point1 = Point()
     point2 = Point(x=L/2)
     point3 = Point(x=L)
 
-    # Poutre 1 partie
-    line1 = Line(point1, point3, L/nL)
-    poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
-    listePoutre = [poutre1]
+    # # Poutre 1 partie
+    # line1 = Line(point1, point3, L/nL)
+    # poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
+    # listePoutre = [poutre1]
 
-    # # Poutre 2 partie
-    # line1 = Line(point1, point2, L/nL)
-    # line2 = Line(point2, point3, L/nL)
-    # poutre1 = Poutre(line1, section)
-    # poutre2 = Poutre(line2, section)
-    # listePoutre = [poutre1, poutre2]
+    # Poutre 2 partie
+    line1 = Line(point1, point2, L/nL)
+    line2 = Line(point2, point3, L/nL)
+    poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
+    poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
+    listePoutre = [poutre1, poutre2]
     
 elif problem in ["Flexion","BiEnca"]:
 
@@ -63,18 +67,18 @@ elif problem in ["Flexion","BiEnca"]:
     point2 = Point(x=L/2)
     point3 = Point(x=L)
 
-    # Poutre en 1 partie
-    line = Line(point1, point3, L/nL)
-    poutre = Materials.Poutre_Elas_Isot(line, section, E, v)
-    listePoutre = [poutre]
+    # # Poutre en 1 partie
+    # line = Line(point1, point3, L/nL)
+    # poutre = Materials.Poutre_Elas_Isot(line, section, E, v)
+    # listePoutre = [poutre]
 
-    # # Poutre en 2 partie
-    # line1 = Line(point1, point2, L/nL)
-    # line2 = Line(point2, point3, L/nL)
-    # line = Line(point1, point3)
-    # poutre1 = Poutre(line1, section)
-    # poutre2 = Poutre(line2, section)
-    # listePoutre = [poutre1, poutre2]
+    # Poutre en 2 partie
+    line1 = Line(point1, point2, L/nL)
+    line2 = Line(point2, point3, L/nL)
+    line = Line(point1, point3)
+    poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
+    poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
+    listePoutre = [poutre1, poutre2]
 
 elif problem == "Portique":
 
@@ -89,11 +93,11 @@ elif problem == "Portique":
     poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
     listePoutre = [poutre1, poutre2]
 
-
 mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemType)
 
+Affichage.Plot_Group(mesh)
 # Affichage.Plot_Maillage(mesh)
-# plt.show()
+plt.show()
 
 beamModel = Materials.BeamModel(dim=beamDim, listePoutres=listePoutre)
 

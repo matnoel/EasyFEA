@@ -76,7 +76,7 @@ nodeB = mesh.Nodes_Point(Point(x=L/2+r, y=h/2))
 if plotAllResult:
     ax = Affichage.Plot_Maillage(mesh)
     for ns in [nodes0, nodesh, node00, nodeA, nodeB]:
-        Affichage.Plot_NoeudsMaillage(mesh, ax=ax, noeuds=ns,c='red')
+        Affichage.Plot_Noeuds(mesh, ax=ax, noeuds=ns,c='red')
     PostTraitement.Save_fig(folder, 'mesh')
 
 columns = ['v','A (ana CP)','B (ana CP)',

@@ -22,7 +22,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
         for m, mesh2D in enumerate(list_mesh2D):
             axx = ax[lignes[m],colonnes[m]]
             Affichage.Plot_Maillage(mesh2D, ax= axx)
-            Affichage.Plot_NoeudsMaillage(mesh2D, showId=False, ax=axx, c='black')
+            Affichage.Plot_Noeuds(mesh2D, showId=False, ax=axx, c='black')
             axx.set_title("")
             axx.get_xaxis().set_visible(False)
             axx.get_yaxis().set_visible(False)
@@ -34,7 +34,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
         list_mesh3D = Interface_Gmsh.Construction3D()
         for mesh3D in list_mesh3D:
             ax = Affichage.Plot_Maillage(mesh3D)
-            Affichage.Plot_NoeudsMaillage(mesh3D, showId=False, ax=ax, c='black')
+            Affichage.Plot_Noeuds(mesh3D, showId=False, ax=ax, c='black')
             plt.pause(1e-12)
             plt.close()
 

@@ -61,7 +61,7 @@ else:
 if test:
     taille = l0 #taille maille test fem object
     # taille = 0.001
-    taille *= 1.5
+    taille *= 3
 else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
@@ -76,16 +76,18 @@ if solve:
 
     elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-    interfaceGmsh = Interface_Gmsh()
+    interfaceGmsh = Interface_Gmsh(False)
 
     domain = Domain(Point(), Point(x=L, y=L), taille=taille)
 
     line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille, isOpen=openCrack)
 
     mesh = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=line, elemType=elemType)
+
     
     if pltMesh:
-        Affichage.Plot_Maillage(mesh)
+        Affichage.Plot_Group(mesh)
+        # Affichage.Plot_Maillage(mesh)
         plt.show()
 
     # Récupère les noeuds qui m'interessent

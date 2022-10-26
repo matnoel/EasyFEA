@@ -5,8 +5,9 @@ import os
 import numpy as np
 import pandas as pd
 
-import matplotlib.collections
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.collections
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
@@ -438,7 +439,8 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
     # ETUDE 3D    
     elif inDim == 3 or is3dBeamModel:
         
-        fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+        if ax == None:
+            fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
 
         # fig = plt.figure()            
         # ax = fig.add_subplot(projection="3d")
@@ -514,7 +516,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
     return ax
 
-def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='red', folder=""):
+def Plot_Noeuds(mesh, ax=None, noeuds=[], showId=False, marker='.', c='red', folder=""):
     """Affiche les noeuds du maillage
 
     Parameters
@@ -566,7 +568,7 @@ def Plot_NoeudsMaillage(mesh, ax=None, noeuds=[], showId=False, marker='.', c='r
 
     return ax
 
-def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, noeuds=[], showId=False, c='red', folder=""):
+def Plot_Elements(mesh, ax=None, dimElem =None, noeuds=[], showId=False, c='red', folder=""):
     """Affiche les elements du maillage en fonction des numéros de noeuds
 
     Parameters
@@ -654,7 +656,6 @@ def Plot_ElementsMaillage(mesh, ax=None, dimElem =None, noeuds=[], showId=False,
         PostTraitement.Save_fig(folder, "noeuds")
 
     return ax
-
 
 def Plot_BoundaryConditions(simu, folder=""):
     """Affichage des conditions limites
@@ -769,6 +770,115 @@ def Plot_BoundaryConditions(simu, folder=""):
         PostTraitement.Save_fig(folder, "Conditions limites")
 
     return ax
+
+def Plot_Group(obj, ax=None, folder="") -> plt.Axes:
+
+    from Simu import Simu, Mesh, GroupElem
+
+    typeobj = type(obj).__name__
+
+    if typeobj == Simu.__name__:
+        simu = cast(Simu, obj)
+        mesh = simu.mesh
+    elif typeobj == Mesh.__name__:
+        mesh = cast(Mesh, obj)
+    else:
+        raise "Erreur"
+
+    inDim = mesh.inDim
+
+    # Création des axes si nécessaire
+    if ax == None:
+        if inDim in [1,2]:
+            fig, ax = plt.subplots()
+        elif inDim == 3:
+            fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+
+    # Ici pour chaque group d'element du maillage, on va tracer les elements appartenant au groupe d'element
+
+    listGroupElem = []
+    listDim = np.arange(mesh.dim+1, 0, -1, dtype=int)
+    for dim in listDim:
+        listGroupElem.extend(mesh.Get_list_groupElem(dim))
+    listGroupElem
+
+    for groupElem in listGroupElem:
+
+        assert isinstance(groupElem, GroupElem)
+
+        tags_e = groupElem.physicalGroupKeys_e
+        dim = groupElem.dim
+        coordo = groupElem.coordoGlob[:, range(inDim)]
+        connect_e = groupElem.connect_e
+        coordoFaces = coordo[connect_e]
+        coordo_e = np.mean(coordoFaces, axis=1)
+
+        for tag_e in tags_e:
+
+            noeuds = groupElem.Nodes_PhysicalGroup(tag_e)
+            elements = groupElem.Elements_PhysicalGroup(tag_e)
+
+            if 'B' in tag_e:
+                color = 'b' # Blue
+            elif 'L' in tag_e:
+                color = 'g' # Green
+            elif 'S' in tag_e:
+                color = 'c'
+            else:
+                color = (np.random.random(), np.random.random(), np.random.random())
+
+            # 'r'	Red
+            # 'c'	Cyan
+            # 'm'	Magenta
+            # 'y'	Yellow
+            # 'k'	Black
+            # 'w'	White
+
+            faces = coordoFaces[elements]
+
+            if inDim in [1,2]:
+
+                if len(noeuds) > 0:
+                    if dim == 1:
+                        pc = matplotlib.collections.LineCollection(faces, lw=1, label=tag_e, edgecolor=color, alpha=1)
+                        # ax.scatter(coordo[noeuds,0], coordo[noeuds,1], c='black', marker='.', zorder=2)
+                    else:
+                        pc = matplotlib.collections.PolyCollection(faces, lw=0.5, alpha=1, facecolors=color, label=tag_e)
+                    ax.add_collection(pc)
+
+                ax.text(coordo_e[elements,0].mean(), coordo_e[elements,1].mean(), tag_e, zorder=25, ha='center', va='bottom')
+                    
+            else:
+                if len(noeuds) > 0:
+                    ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors='red', edgecolor='black', linewidths=0.5, alpha=1))
+
+                # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=24)
+                for element in elements:
+                    ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], tag_e,
+                    zorder=25, ha='center', va='bottom')
+
+    # ax.axis('off')
+    ax.legend()
+
+    if inDim in [1, 2]:
+        ax.autoscale()
+        ax.axis('equal')
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
+    else:
+        __ChangeEchelle(ax, coordo)
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
+        ax.set_zlabel(r"$z$")
+    
+    if folder != "":
+        import PostTraitement as PostTraitement 
+        PostTraitement.Save_fig(folder, "noeuds")
+
+    return ax
+
+    
+
 
 def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m', ylabel='f en N', folder=""):
     fig, ax = plt.subplots()
