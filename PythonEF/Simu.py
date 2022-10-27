@@ -241,9 +241,13 @@ class Simu:
                 pass
 
         elif problemType == "displacement":
+
             iter = {                
                 'displacement' : self.__displacement
             }
+            if self.__algo == "hyperbolic":
+                iter["speed"] = self.__speed
+                iter["accel"] = self.__accel
         
         elif problemType == "damage":
             if self.materiau.phaseFieldModel.solveur == "History":
@@ -287,6 +291,9 @@ class Simu:
 
         elif problemType == "displacement":
             self.__displacement = results["displacement"]
+            if self.__algo == "hyperbolic":
+                self.__speed = results["speed"]
+                self.__accel = results["accel"]
         elif problemType == "damage":
             self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
             self.__damage = results["damage"]
@@ -467,9 +474,11 @@ class Simu:
             return
 
         if steadyState:
-            Uglob = self.__Solveur(problemType="displacement", algo="elliptic")
+            self.__algo = "elliptic"
         else:
-            Uglob = self.__Solveur(problemType="displacement", algo="hyperbolic")
+            self.__algo = "hyperbolic"
+            
+        Uglob = self.__Solveur(problemType="displacement")
 
         # Si c'est un problement d'endommagement on renseigne au model phase field qu'il va falloir mettre à jour le split
         if self.__problemType == "damage":
@@ -685,7 +694,9 @@ class Simu:
 
         if not self.__Check_Autorisation(["beam"]): return
 
-        Uglob_beam = self.__Solveur(problemType="beam", algo="elliptic")
+        self.__algo = "elliptic"
+
+        Uglob_beam = self.__Solveur(problemType="beam")
         
         assert Uglob_beam.shape[0] == self.mesh.Nn*self.materiau.beamModel.nbddl_n
 
@@ -850,6 +861,8 @@ class Simu:
 
         if not self.__Check_Autorisation(["damage"]): return
         
+        self.__algo = "elliptic"
+        
         dGlob = self.__Solveur(problemType="damage", algo="elliptic")
 
         assert dGlob.shape[0] == self.mesh.Nn
@@ -944,10 +957,15 @@ class Simu:
         if not self.__Check_Autorisation(["thermal"]): return
 
         if steadyState:
-            thermalGlob = self.__Solveur(problemType="thermal", algo="elliptic")
+            self.__algo = "elliptic"
+        else:
+            self.__algo = "hyperbolic"
+
+        if steadyState:
+            thermalGlob = self.__Solveur(problemType="thermal")
             # TODO que faire pour -> quand plusieurs types -> np.ndarray ou tuple[np.ndarray, np.ndarray] ?
         else:
-            thermalGlob, thermalDotGlob = self.__Solveur(problemType="thermal", algo="parabolic", option=1)
+            thermalGlob, thermalDotGlob = self.__Solveur(problemType="thermal", option=1)
 
             self.__thermalDot = thermalDotGlob
 
@@ -962,7 +980,7 @@ class Simu:
 
 # ------------------------------------------------- SOLVEUR -------------------------------------------------
 
-    def __Solveur(self, problemType: str, algo: str, option=1) -> np.ndarray:
+    def __Solveur(self, problemType: str, option=1) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
@@ -970,6 +988,8 @@ class Simu:
         Simu.CheckProblemTypes(problemType)
 
         resolution = 1
+
+        algo = self.__algo
 
         if problemType == "beam":
             if len(self.__Bc_Lagrange) > 0:
@@ -1001,7 +1021,7 @@ class Simu:
             if problemType == "displacement" and algo == "elliptic":
                 x0 = self.__displacement[ddl_Inconnues]
             elif problemType == "displacement" and algo == "hyperbolic":
-                x0 = self.__displacement[ddl_Inconnues]
+                x0 = self.__accel[ddl_Inconnues]
             elif problemType == "damage":
                 x0 = self.__damage[ddl_Inconnues]
             elif problemType == "thermal":
@@ -1010,17 +1030,18 @@ class Simu:
                 x0 = self.__beamDisplacement[ddl_Inconnues]
             else:
                 raise "probleme inconnue"
-
+            
             bDirichlet = Aic.dot(xc) # Plus rapide
             # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
             # bDirichlet = sparse.csr_matrix(bDirichlet)
 
-            tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
+            # tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
+            tic.Tac("Matrices","Construit Ax=b", True)
 
             if problemType in ["displacement","thermal"]:
                 # la matrice est definie symétrique positive on peut donc utiliser cholesky
                 useCholesky = True
-                A_isSymetric = False
+                A_isSymetric = True
             else:
                 #la matrice n'est pas definie symétrique positive
                 useCholesky = False
@@ -1140,8 +1161,6 @@ class Simu:
             
             if self.__hyperbolicFormulation == "accel":
                 a_np1 = np.array(x)
-            else:
-                u_np1 = np.array(x)
 
             u_n = self.displacement
             v_n = self.speed
@@ -1230,13 +1249,13 @@ class Simu:
         # l,c ,v = sparse.find(b)
 
         if problemType == "damage" and algo == "elliptic":
-            b = b + self.__Fd.copy()
+            b = b + self.__Fd
         elif problemType == "displacement" and algo == "elliptic":
-            b = b + self.__Fu.copy()
+            b = b + self.__Fu
         elif problemType == "beam" and algo == "elliptic":
-            b = b + self.__Fbeam.copy()
+            b = b + self.__Fbeam
         elif problemType == "displacement" and algo == "hyperbolic":
-            b = b + self.__Fu.copy()
+            b = b + self.__Fu
 
             u_n = self.displacement
             v_n = self.speed
@@ -1268,17 +1287,10 @@ class Simu:
             vTild_np1 = v_n + (1-gamma) * dt * a_n
 
             if self.__hyperbolicFormulation == "accel":
-                b -= self.__Ku.dot(sparse.csr_matrix(uTild_np1.reshape(-1,1)))
-                b -= Cu.dot(sparse.csr_matrix(vTild_np1.reshape(-1,1)))
-            else:
-                # Mpart = uTild_np1/(betha * dt**2)
-                # b += self.__Mu.copy().dot(sparse.csr_matrix(Mpart.reshape(-1,1)))
-
-                # b -= self.__Cu.dot(sparse.csr_matrix(C1.reshape(-1, 1)))
-                
-                # Mass_part = self.__Mu + gamma * dt * self.__Cu
-                Mass_part = self.__Mu
-                b += Mass_part.dot(sparse.csr_matrix(uTild_np1.reshape(-1, 1)))
+                # b -= self.__Ku.dot(sparse.csr_matrix(uTild_np1.reshape(-1,1)))
+                b -= self.__Ku.dot(uTild_np1.reshape(-1,1))
+                b -= Cu.dot(vTild_np1.reshape(-1,1))
+                b = sparse.csr_matrix(b)
 
 
         elif problemType == "thermal" and algo == "elliptic":
@@ -1338,25 +1350,15 @@ class Simu:
             dt = self.__dt
             gamma = self.__gamma
             betha = self.__betha
-
+            
             Cu = self.Get_Rayleigh_Damping()
 
             if self.__hyperbolicFormulation == "accel":
-                A = self.__Mu.copy() + (self.__Ku.copy() * betha * dt**2)
+                A = self.__Mu + (self.__Ku * betha * dt**2)
                 A += (gamma * dt * Cu)
 
                 a_n = self.accel
                 valeurs_ddls = a_n[ddls]
-
-            else:
-
-                # uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1-2*betha) * a_n
-                # vTild_np1 = v_n + (1-gamma) * dt * a_n
-
-                # valeurs_ddls =  (u_n - uTild_np1)/(dt**2 * betha)
-
-                A = self.__Mu.copy()/(betha*dt**2) + self.__Ku.copy()
-                # A = self.__Mu.copy()/(betha*dt**2) + self.__Ku.copy() + gamma/(dt*betha) * self.__Cu
             
         elif problemType == "thermal" and algo == "elliptic":
             A = self.__Kt.copy()
@@ -2334,19 +2336,21 @@ class Simu:
 
             displacement = self.displacement
 
-            # Deformation et contraintes pour chaque element et chaque points de gauss        
-            Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
-            Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
-
-            # Moyenne sur l'élement
-            Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
-            Sigma_e = np.mean(Sigma_e_pg, axis=1)
+            
 
             coef = self.materiau.comportement.coef
 
             # TODO fusionner avec Stress ?
 
             if "S" in option and not option in ["Strain", "amplitudeSpeed"]:
+
+                # Deformation et contraintes pour chaque element et chaque points de gauss        
+                Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
+                Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
+
+                # Moyenne sur l'élement
+                Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
+                Sigma_e = np.mean(Sigma_e_pg, axis=1)
 
                 if dim == 2:
 
@@ -2403,6 +2407,11 @@ class Simu:
                     return resultat_e
                 
             elif ("E" in option or option == "Strain") and not option == "amplitudeSpeed":
+
+                
+                Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
+                Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
+                
 
                 if dim == 2:
 

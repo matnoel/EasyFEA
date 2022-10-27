@@ -8,30 +8,32 @@ from Interface_Gmsh import Interface_Gmsh
 from Affichage import Plot_Model, Plot_Result, Clear
 import PostTraitement
 import Dossier
+import TicTac
 
 Clear()
 
-plotIter = False
+plotIter = False; resultat = "amplitudeSpeed"
+
+makeMovie = False
 
 dt = 1e-5
-Nt = 100
+Nt = 50
 tMax = dt*Nt
 load = 100
 
 a = 1
-diam = a/20
-taille = a/60
+taille = a/50
 
 domain = Domain(Point(x=-a/2, y=-a/2), Point(x=a/2, y=a/2), taille)
-circle = Circle(Point(), a/3, taille, isCreux=False)
-surf = np.pi * diam**2/4
+circle = Circle(Point(), a/10, taille, isCreux=False)
 
-interfaceGmsh = Interface_Gmsh()
+
+interfaceGmsh = Interface_Gmsh(False)
 mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
 
 Plot_Model(mesh)
 noeudsBord = mesh.Nodes_Tag(["L1","L2","L3","L4"])
-noeudCentreCercle = mesh.Nodes_Tag(["P9"])
+noeudCentreCercle = mesh.Nodes_Tag(["S2"])
 # plt.show()
 
 comportement = Materials.Elas_Isot(2, E=210000e6, v=0.3, contraintesPlanes=False, epaisseur=1)
@@ -49,17 +51,19 @@ def Chargement():
 
     simu.add_dirichlet("displacement", noeudsBord, [0,0], ["x","y"], "[0,0]")
 
-    if t == 0:
-        simu.add_pointLoad("displacement", noeudCentreCercle, [load,load], ["x","y"], "[load,load]")
+    if t >= 0*dt and t <= 2*dt:
+        simu.add_pointLoad("displacement", noeudCentreCercle, [load, 0], ["x","y"], "[load,load]")
 
     # if t == dt:
     #     # simu.add_dirichlet("displacement", noeudCentre, [1e-2,1e-2], ["x","y"], "[load,load]")
         
 
 if plotIter:
-    fig, ax, cb = Plot_Result(simu, "amplitudeSpeed", valeursAuxNoeuds=True)
+    fig, ax, cb = Plot_Result(simu, resultat, valeursAuxNoeuds=True)
 
 simu.Assemblage_u(steadyState=False)
+
+tic = TicTac.Tic()
 
 while t <= tMax:
 
@@ -69,9 +73,11 @@ while t <= tMax:
 
     simu.Save_Iteration()
 
+    tic.Tac("Simu","Resol\r",True)
+
     if plotIter:
         cb.remove()
-        fig, ax, cb = Plot_Result(simu, "amplitudeSpeed", valeursAuxNoeuds=True, oldfig=fig, oldax=ax)
+        fig, ax, cb = Plot_Result(simu, resultat, valeursAuxNoeuds=True, oldfig=fig, oldax=ax, affichageMaillage=True)
         plt.pause(1e-12)
 
     print(f"{t//dt}",end="\r")
@@ -81,6 +87,11 @@ while t <= tMax:
 
 folder = Dossier.NewFile("Ondes", results=True)
 
+if makeMovie:
+    PostTraitement.MakeMovie(folder, resultat, simu)
+
 PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+
+TicTac.Tic.getGraphs(details=True)
 
 plt.show()
