@@ -4,12 +4,6 @@ from typing import List
 import numpy as np
 from scipy import sparse
 
-from numba import njit
-from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
-import warnings
-warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
-warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
-
 import Affichage as Affichage
 from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
@@ -1218,7 +1212,10 @@ class Simu:
         elif problemType == "beam":
             taille = self.__mesh.Nn*self.materiau.beamModel.nbddl_n
 
-        ddls_Inconnues = Simu.__Get_ddls_Inconnues(taille, ddls_Connues)
+        ddls_Inconnues = list(range(taille))
+
+        ddls_Inconnues = list(set(ddls_Inconnues) - set(unique_ddl_Connues))
+        # [ddls_Inconnues.remove(ddl) for ddl in unique_ddl_Connues]
                                 
         ddls_Inconnues = np.array(ddls_Inconnues)
         
@@ -1226,21 +1223,7 @@ class Simu:
         assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
 
         return ddls_Connues, ddls_Inconnues
-
-    @njit(cache=True, parallel=False)
-    def __Get_ddls_Inconnues(taille: int, ddls_Connues: list):
-
-        # ddls_Inconnues = typed.List()
-        ddls_Inconnues = []
-
-        for n in range(taille):
-            if not n in ddls_Connues:
-                ddls_Inconnues.append(n)
-
-        return ddls_Inconnues
-
-
-
+    
     def __Application_Conditions_Neuman(self, problemType: str, algo:str, option=1):
         """Applique les conditions de Neumann"""
 
