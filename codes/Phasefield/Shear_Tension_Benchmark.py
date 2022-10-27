@@ -37,7 +37,7 @@ comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 split = "Amor" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
-openCrack = True
+openCrack = False
 
 maxIter = 250
 # tolConv = 0.0025
@@ -61,7 +61,7 @@ else:
 if test:
     taille = l0 #taille maille test fem object
     # taille = 0.001
-    taille *= 10
+    taille *= 1.5
 else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
@@ -86,12 +86,16 @@ if solve:
 
     
     if pltMesh:
-        Affichage.Plot_Group(mesh)
+        Affichage.Plot_Model(mesh)
         # Affichage.Plot_Maillage(mesh)
         plt.show()
 
     # Récupère les noeuds qui m'interessent
     noeuds_Milieu = mesh.Nodes_Line(line)
+    noeuds_Milieu2 = mesh.Nodes_Tag("L4")
+
+    Affichage.Plot_Noeuds(mesh, noeuds=noeuds_Milieu2)
+    plt.show()
     noeuds_Haut = mesh.Nodes_Conditions(conditionY=lambda y: y == L)
     noeuds_Bas = mesh.Nodes_Conditions(conditionY=lambda y: y == 0)
     noeuds_Gauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)

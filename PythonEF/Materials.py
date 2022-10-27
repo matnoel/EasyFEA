@@ -494,7 +494,7 @@ class BeamModel():
         D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))
         for poutre, D in zip(listePoutres, list_D):
             # recupère les element
-            elements = groupElem.Elements_PhysicalGroup(poutre.name)
+            elements = groupElem.Get_Elements_Tag(poutre.name)
             D_e_pg[elements] = D
 
         return D_e_pg

@@ -378,24 +378,58 @@ class Mesh:
         return self.groupElem.Get_Nodes_Conditions(conditionX, conditionY, conditionZ)
     
     def Nodes_Point(self, point: Point) -> np.ndarray:
-        """Renvoie l'identifiant du noeud sur le point"""
+        """Renvoie les noeuds sur le point (identifiants)"""
         return self.groupElem.Get_Nodes_Point(point)
 
     def Nodes_Line(self, line: Line) -> np.ndarray:
-        """Renvoie la liste d'identifiant des noeuds qui sont sur la ligne"""
+        """Renvoie les noeuds qui sont sur la ligne (identifiants)"""
         return self.groupElem.Get_Nodes_Line(line)
 
     def Nodes_Domain(self, domain: Domain) -> np.ndarray:
-        """Renvoie la liste d'identifiant des noeuds qui sont dans le domaine"""
+        """Renvoie les noeuds qui sont dans le domaine  (identifiants)"""
         return self.groupElem.Get_Nodes_Domain(domain)
     
     def Nodes_Circle(self, circle: Circle) -> np.ndarray:
-        """Renvoie la liste d'identifiant des noeuds qui sont dans le cercle"""
+        """Renvoie les noeuds qui sont dans le cercle  (identifiants)"""
         return self.groupElem.Get_Nodes_Circle(circle)
 
-    def Nodes_Cylindre(self, circle: Circle, extrude=[0,0,1]) -> np.ndarray:
-        """Renvoie la liste d'identifiant des noeuds qui sont dans le cylindra"""
-        return self.groupElem.Get_Nodes_Cylindre(circle)    
+    def Nodes_Cylindre(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
+        """Renvoie les noeuds qui sont dans le cylindre (identifiants)"""
+        return self.groupElem.Get_Nodes_Cylindre(circle, direction)
+
+    def Nodes_Tag(self, tags: List[str]) -> np.ndarray:
+        """Renvoie les noeuds qui utilisent le tag (identifiants)"""
+        nodes = []
+        for tag in tags:
+            if 'P' in tag:
+                [nodes.extend(grp.Get_Nodes_Tag(tag)) for grp in self.Get_list_groupElem(0)]
+            elif 'L' in tag:
+                [nodes.extend(grp.Get_Nodes_Tag(tag)) for grp in self.Get_list_groupElem(1)]
+            elif 'S' in tag:
+                [nodes.extend(grp.Get_Nodes_Tag(tag)) for grp in self.Get_list_groupElem(2)]
+            elif 'V' in tag:
+                [nodes.extend(grp.Get_Nodes_Tag(tag)) for grp in self.Get_list_groupElem(3)]
+            else:
+                return
+
+        return np.unique(nodes)
+
+    def Elements_Tag(self, tags: List[str]) -> np.ndarray:
+        """Renvoie les elements qui utilisent le tag"""
+        elements = []
+        for tag in tags:
+            if 'P' in tag:
+                [elements.extend(grp.Get_Elements_Tag(tag)) for grp in self.Get_list_groupElem(0)]
+            elif 'L' in tag:
+                [elements.extend(grp.Get_Elements_Tag(tag)) for grp in self.Get_list_groupElem(1)]
+            elif 'S' in tag:
+                [elements.extend(grp.Get_Elements_Tag(tag)) for grp in self.Get_list_groupElem(2)]
+            elif 'V' in tag:
+                [elements.extend(grp.Get_Elements_Tag(tag)) for grp in self.Get_list_groupElem(3)]
+            else:
+                return
+
+        return np.unique(elements)
 
     def Localises_sol_e(self, sol: np.ndarray) -> np.ndarray:
         """sur chaque elements on récupère les valeurs de sol"""

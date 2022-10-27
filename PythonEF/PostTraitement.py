@@ -1,6 +1,4 @@
-from ast import For
 import os
-from turtle import Turtle
 from colorama import Fore
 
 import Affichage as Affichage
@@ -38,7 +36,7 @@ def Save_Simu(simu: Simu, folder:str):
     nomSimu = "simulation.pickle"
     filename = Dossier.Join([folder, nomSimu])
     print(Fore.GREEN + f'\nSauvegarde de :')
-    print(Fore.GREEN + f'  - {nomSimu}')
+    print(Fore.GREEN + f'  - {nomSimu}' + Fore.WHITE)
     
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -50,7 +48,7 @@ def Save_Simu(simu: Simu, folder:str):
     # Sauvegarde le résumé de la simulation
     resume += simu.Resume(False)
     nomResume = "résumé.txt"
-    print(Fore.GREEN + f'  - {nomResume} \n')
+    print(Fore.GREEN + f'  - {nomResume} \n' + Fore.WHITE)
     filenameResume = Dossier.Join([folder, nomResume])
 
     with open(filenameResume, 'w', encoding='utf8') as file:

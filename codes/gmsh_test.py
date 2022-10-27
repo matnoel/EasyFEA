@@ -10,7 +10,7 @@ import PostTraitement
 
 dim = 2
 option = 2
-N = 5
+N = 2
 
 dictOptions = {
     1 : "CPEF",
@@ -58,8 +58,15 @@ elif option ==  2:
         # ["TETRA4", "HEXA8", "PRISM6"]
         mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType="TETRA4", interieursList=listObjetsInter, tailleElement=h/N)
 
+
+        # noeudsS3 = mesh.Nodes_Tag(["S8","S3"])
+        # Affichage.Plot_Noeuds(mesh, noeuds=noeudsS3)
+        # plt.show()
+
     noeudsGauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
+    
+
     
 elif option == 3:
 
@@ -86,13 +93,13 @@ elif option == 3:
         mesh = interface.Mesh_From_Points_2D(listPoint, elemType="TRI3",geomObjectsInDomain=[], tailleElement=taille)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType="HEXA8", interieursList=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType="TETRA4", interieursList=[], tailleElement=taille)
 
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
 
 # Affichage.Plot_Maillage(mesh)
-Affichage.Plot_Group(mesh)
+Affichage.Plot_Model(mesh, showId=False)
 # plt.show()
 
 comportement = Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
@@ -130,7 +137,7 @@ simu.Save_Iteration()
 simu.Resume()
 
 # Affichage.Plot_ElementsMaillage(mesh, nodes=noeudsDroit, dimElem =2)
-# Affichage.Plot_BoundaryConditions(simu)
+Affichage.Plot_BoundaryConditions(simu)
 
 # Affichage.Plot_Maillage(simu, deformation=True)
 Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/coef)

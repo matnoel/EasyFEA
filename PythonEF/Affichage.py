@@ -288,7 +288,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         option = "\phi"
     elif option == "thermal":
         option = "T"
-    elif "S" in option:
+    elif "S" in option and not option in ["amplitudeSpeed"]:
         optionFin = option.split('S')[-1]
         option = f"\sigma_{'{'+optionFin+'}'}"
     elif "E" in option:
@@ -771,7 +771,7 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     return ax
 
-def Plot_Group(obj, ax=None, folder="") -> plt.Axes:
+def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
 
     from Simu import Simu, Mesh, GroupElem
 
@@ -799,89 +799,97 @@ def Plot_Group(obj, ax=None, folder="") -> plt.Axes:
     listGroupElem = []
     listDim = np.arange(mesh.dim+1, -1, -1, dtype=int)
     for dim in listDim:
-        listGroupElem.extend(mesh.Get_list_groupElem(dim))
+        if dim < 3:
+            # On ajoute pas les groupes d'elements 3D
+            listGroupElem.extend(mesh.Get_list_groupElem(dim))
 
     for groupElem in listGroupElem:
 
         assert isinstance(groupElem, GroupElem)
 
-        tags_e = groupElem.physicalGroupKeys_e
+        tags_e = groupElem.elementTags
         dim = groupElem.dim
         coordo = groupElem.coordoGlob[:, range(inDim)]
         faces = groupElem.get_connect_Faces()[groupElem.elemType]
         coordoFaces = coordo[faces]
         coordo_e = np.mean(coordoFaces, axis=1)
 
+        nColor = 0
         for tag_e in tags_e:
 
-            noeuds = groupElem.Nodes_PhysicalGroup(tag_e)
-            elements = groupElem.Elements_PhysicalGroup(tag_e)
+            noeuds = groupElem.Get_Nodes_Tag(tag_e)
+            elements = groupElem.Get_Elements_Tag(tag_e)
+            if len(elements) == 0: continue
+
             coordo_faces = coordoFaces[elements]
 
             needPlot = True
             
             if 'L' in tag_e:
-                color = 'b'
+                color = 'black'
             elif 'P' in tag_e:
                 color = 'black'
             elif 'S' in tag_e:
-                color = 'c'
+                nColor += 1
+                if nColor > len(__colors):
+                    nColor = 1
+                color = __colors[nColor]
             elif 'C' in tag_e:
                 needPlot = False
             else:
                 color = (np.random.random(), np.random.random(), np.random.random())
 
-            # 'r'	Red
-            # 'c'	Cyan
-            # 'm'	Magenta
-            # 'y'	Yellow
-            # 'k'	Black
-            # 'w'	White
+            x_e = coordo_e[elements,0].mean()
+            y_e = coordo_e[elements,1].mean()
+            if inDim == 3:
+                z_e = coordo_e[elements,2].mean()
+
+            x_n = coordo[noeuds,0]
+            y_n = coordo[noeuds,1]
+            if inDim == 3:
+                z_n = coordo[noeuds,2]
 
             if inDim in [1,2]:
-
-                x_e = coordo_e[elements,0]
-                y_e = coordo_e[elements,1]
                 
                 if len(noeuds) > 0 and needPlot:
 
                     if dim == 0:
-                        x_n = coordo[noeuds,0]
-                        y_n = coordo[noeuds,1]
-
                         ax.scatter(x_n, y_n, c='black', marker='.', zorder=2)
                     elif dim == 1:
-                        pc = matplotlib.collections.LineCollection(coordo_faces, lw=1, label=tag_e, edgecolor=color, alpha=1)
+                        pc = matplotlib.collections.LineCollection(coordo_faces, lw=1, edgecolor=color, alpha=1)
                         ax.add_collection(pc)
                     else:
-                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0.5, alpha=0.5, facecolors=color, label=tag_e)
+                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0, alpha=0.9, facecolors=color, label=tag_e)
                         ax.add_collection(pc)
-
-                    ax.text(x_e.mean(), y_e.mean(), tag_e, zorder=25, ha='center', va='bottom')
+                    
+                    if showId and dim != 2:
+                        ax.text(x_e, y_e, tag_e, zorder=25)
                 else:
-                    ax.scatter(coordo[noeuds,0], coordo[noeuds,1], c='black', marker='.', zorder=2)
-                    ax.text(x_e.mean(), y_e.mean(), tag_e, zorder=25, ha='center', va='bottom')
+                    ax.scatter(x_n, y_n, c='black', marker='.', zorder=2)
+                    if showId: ax.text(x_e, y_e, tag_e, zorder=25)
                 
                 ax.legend()
                     
             else:
                 if len(noeuds) > 0 and needPlot:
                     if dim == 0:
-                        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], c='black', marker='.', zorder=2)
+                        ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2)
                     elif dim == 1:
-                        pc = Line3DCollection(coordo_faces, lw=1, label=tag_e, edgecolor=color, alpha=1)
-                        # ax.scatter(coordo[noeuds,0], coordo[noeuds,1], c='black', marker='.', zorder=2)
+                        pc = Line3DCollection(coordo_faces, lw=1, edgecolor=color, alpha=1)
                         ax.add_collection3d(pc, zs=0, zdir='z')
                     elif dim == 2:
-                        pc = Poly3DCollection(coordo_faces, lw=0.5, alpha=0.5, facecolors=color, label=tag_e)
+                        pc = Poly3DCollection(coordo_faces, lw=0.5, alpha=0.9, facecolors=color, label=tag_e)
+                        pc._facecolors2d = color
+                        pc._edgecolors2d = color
                         ax.add_collection3d(pc, zs=0, zdir='z')
 
-                    ax.text(coordo_e[elements,0].mean(), coordo_e[elements,1].mean(), coordo_e[elements,2].mean(), tag_e, zorder=25, ha='center', va='bottom')
+                    if showId: ax.text(x_e, y_e, z_e, tag_e, zorder=25)
                 else:
-                    ax.text(coordo_e[elements,0].mean(), coordo_e[elements,1].mean(), coordo_e[elements,2].mean(), tag_e, zorder=25, ha='center', va='bottom')
-                    ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], c='black', marker='.', zorder=2)
-
-    # ax.axis('off')
+                    x_n = coordo[noeuds,0]
+                    y_n = coordo[noeuds,1]
+                    y_n = coordo[noeuds,1]
+                    if showId: ax.text(x_e, y_e, z_e, tag_e, zorder=25)
+                    ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2)
     
 
     if inDim in [1, 2]:
@@ -993,6 +1001,18 @@ def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
         import PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "resumeConvergence")
 
+__colors = {
+    1 : 'tab:blue',
+    2 : 'tab:orange',
+    3 : 'tab:green',
+    4 : 'tab:red',
+    5 : 'tab:purple',
+    6 : 'tab:brown',
+    7 : 'tab:pink',
+    8 : 'tab:gray',
+    9 : 'tab:olive',
+    10 : 'tab:cyan'
+}
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
     """Recupération des coordonnée déformées si la simulation le permet

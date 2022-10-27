@@ -10,7 +10,7 @@ Affichage.Clear()
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
-problem = "Traction"
+problem = "Portique"
 
 elemType = "SEG2"
 
@@ -39,7 +39,7 @@ elif problem == "Traction":
 
 section = Section(interfaceGmsh.Mesh_Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
-Affichage.Plot_Group(section.mesh)
+Affichage.Plot_Model(section.mesh)
 # Affichage.Plot_Maillage(mesh)
 plt.show()
 
@@ -95,7 +95,7 @@ elif problem == "Portique":
 
 mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemType)
 
-Affichage.Plot_Group(mesh)
+Affichage.Plot_Model(mesh)
 # Affichage.Plot_Maillage(mesh)
 plt.show()
 

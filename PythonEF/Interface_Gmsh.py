@@ -71,7 +71,7 @@ class Interface_Gmsh:
         for point in points:
             assert isinstance(point, Point)
             pt = factory.addPoint(point.x, point.y, point.z, taille)
-            self.__Add_PhysicalPoint(pt)
+            # self.__Add_PhysicalPoint(pt)
             listPoint.append(pt)
 
         # On creer les lignes qui relies les points
@@ -83,7 +83,7 @@ class Interface_Gmsh:
         lignes = []
         for pt1, pt2 in connectLignes:
             lignes.append(factory.addLine(pt1, pt2))
-            self.__Add_PhysicalLine(lignes[-1])
+            # self.__Add_PhysicalLine(lignes[-1])
 
         # Create a closed loop connecting the lines for the surface        
         loop = factory.addCurveLoop(lignes)
@@ -106,7 +106,7 @@ class Interface_Gmsh:
         p2 = factory.addPoint(center.x, center.y-rayon, 0, circle.taille)
         p3 = factory.addPoint(center.x+rayon, center.y, 0, circle.taille)
         p4 = factory.addPoint(center.x, center.y+rayon, 0, circle.taille)
-        [self.__Add_PhysicalPoint(pt) for pt in [p1, p2, p3, p4]]
+        # [self.__Add_PhysicalPoint(pt) for pt in [p1, p2, p3, p4]]
 
         # Lignes cercle
         l1 = factory.addCircleArc(p1, p0, p2)
@@ -114,10 +114,11 @@ class Interface_Gmsh:
         l3 = factory.addCircleArc(p3, p0, p4)
         l4 = factory.addCircleArc(p4, p0, p1)
         # Ajoute les segments dans les groupes physiques
-        [self.__Add_PhysicalLine(li) for li in [l1, l2, l3, l4]]
+        # [self.__Add_PhysicalLine(li) for li in [l1, l2, l3, l4]]
 
         # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
         factory.remove([(0,p0)], False)
+            
         
         loop = factory.addCurveLoop([l1,l2,l3,l4])
 
@@ -141,14 +142,13 @@ class Interface_Gmsh:
 
     def __Surface_From_Loops(self, loops: List[int]) -> tuple[int, int]:
         """Création d'une surface associée à une boucle\n
-        surface, physicalSurface
+        return surface
         """
         factory = self.__factory
 
         surface = factory.addPlaneSurface(loops)
-        physicalSurface = self.__Add_PhysicalSurface(surface)
 
-        return surface, physicalSurface
+        return surface
 
     def __Crack_And_Points_From_Line(self, line: Line, surface: int) -> tuple[int, int, int]:
         """Création d'une fissure associée à une ligne\n
@@ -172,43 +172,83 @@ class Interface_Gmsh:
 
         # Create the line for the crack
         crack = factory.addLine(p1, p2)
-        physicalCrack = gmsh.model.addPhysicalGroup(1, [crack], name=f"F{crack}")
-
         listeOpen=[]
         if pt1.isOpen:
-            o, m = factory.fragment([(0, p1), (1, crack)], [(2, surface)])
+            o1, m1 = factory.fragment([(0, p1), (1, crack)], [(2, surface)])
             listeOpen.append(p1)
         if pt2.isOpen:
-            o, m = factory.fragment([(0, p2), (1, crack)], [(2, surface)])
+            o2, m2 = factory.fragment([(0, p2), (1, crack)], [(2, surface)])
             listeOpen.append(p2)
         factory.synchronize()
+        
         # Adds the line to the surface
         gmsh.model.mesh.embed(1, [crack], 2, surface)
-        
         if len(listeOpen)==0:
             physicalPoints = None
         else:
             physicalPoints = gmsh.model.addPhysicalGroup(0, listeOpen, name=f"P{p2}")
 
-        return crack, physicalCrack, physicalPoints
+        return crack, physicalPoints
     
     def __Add_PhysicalPoint(self, point: int) -> int:
         """Ajoute le point dans le physical group"""
-        self.__factory.synchronize()
+        # self.__factory.synchronize()
         pgPoint = gmsh.model.addPhysicalGroup(0, [point], name=f"P{point}")
         return pgPoint
 
     def __Add_PhysicalLine(self, ligne: int) -> int:
         """Ajoute la ligne dans les physical group"""
-        self.__factory.synchronize()
+        # self.__factory.synchronize()
         pgLine = gmsh.model.addPhysicalGroup(1, [ligne], name=f"L{ligne}")
         return pgLine
 
     def __Add_PhysicalSurface(self, surface: int) -> int:
         """Ajoute la surface fermée ou ouverte dans les physical group"""
-        self.__factory.synchronize()
+        # self.__factory.synchronize()
         pgSurf = gmsh.model.addPhysicalGroup(2, [surface], name=f"S{surface}")
         return pgSurf
+    
+    def __Add_PhysicalVolume(self, volume: int) -> int:
+        """Ajoute le volume fermée ou ouverte dans les physical group"""
+        # self.__factory.synchronize()
+        pgVol = gmsh.model.addPhysicalGroup(3, [volume], name=f"V{volume}")
+        return pgVol
+
+    def __Add_PhyscialGroup(self, dim: int, tag: int):
+        if dim == 0:
+            self.__Add_PhysicalPoint(tag)
+        elif dim == 1:
+            self.__Add_PhysicalLine(tag)
+        elif dim == 2:
+            self.__Add_PhysicalSurface(tag)
+        elif dim == 3:
+            self.__Add_PhysicalVolume(tag)
+
+    def __Set_PhysicalGroups(self, buildPoint=True, buildLine=True, buildSurface=True, buildVolume=True):
+        """Création des groupes physiques en fonction des entités du model"""
+        self.__factory.synchronize()
+        entities = np.array(gmsh.model.getEntities())
+
+        listDim = []
+        if buildPoint:
+            listDim.append(0)
+        if buildLine:
+            listDim.append(1)
+        if buildSurface:
+            listDim.append(2)
+        if buildVolume:
+            listDim.append(3)
+
+        dims = entities[:,0]
+
+        indexes = []
+        [indexes.extend(np.where(dims == d)[0]) for d in listDim]
+
+        entities = entities[indexes]
+
+        [self.__Add_PhyscialGroup(dim, tag) for dim, tag in zip(entities[:,0], entities[:,1])]
+        
+            
 
     def __Extrusion(self, surfaces: list, extrude=[0,0,1], elemType="HEXA8", isOrganised=True, nCouches=1):
         """Fonction qui effectue l'extrusion depuis plusieurs surfaces
@@ -255,9 +295,7 @@ class Interface_Gmsh:
             
             # Creer les nouveaux elements pour l'extrusion
             # nCouches = np.max([np.ceil(np.abs(extrude[2] - domain.taille)), 1])
-            extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=numElements)
-
-        
+            extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=numElements)    
 
     # TODO générer plusieurs maillage en désactivant initGmsh et en utilisant plusieurs fonctions ?
     # mettre en place une liste de surfaces ?
@@ -296,6 +334,8 @@ class Interface_Gmsh:
             factory.importShapes(fichier)
         else:
             print("Doit être un fichier .stp")
+
+        self.__Set_PhysicalGroups(buildPoint=False, buildLine=True, buildSurface=True, buildVolume=False)
 
         gmsh.option.setNumber("Mesh.MeshSizeMin", tailleElement)
         gmsh.option.setNumber("Mesh.MeshSizeMax", tailleElement)
@@ -342,6 +382,8 @@ class Interface_Gmsh:
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
 
+        self.__Set_PhysicalGroups()
+
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
         self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
@@ -380,16 +422,18 @@ class Interface_Gmsh:
         loop = self.__Loop_From_Domain(domain)
 
         # Création de la surface
-        surface, physicalSurface = self.__Surface_From_Loops([loop])
+        surface = self.__Surface_From_Loops([loop])
 
         # if isinstance(factory, gmsh.model.geo):
         #     surface = factory.addPhysicalGroup(2, [surface]) # obligatoire pour creer la surface organisée
 
         if returnSurfaces: return [surface]
+
+        self.__Set_PhysicalGroups()
         
         tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
         
-        self.__Construction_MaillageGmsh(2, elemType, surfaces=[physicalSurface], isOrganised=isOrganised, folder=folder)
+        self.__Construction_MaillageGmsh(2, elemType, surfaces=[surface], isOrganised=isOrganised, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())    
 
@@ -423,10 +467,13 @@ class Interface_Gmsh:
         loop = self.__Loop_From_Domain(domain)
 
         # Création de la surface
-        surface, physicalSurface = self.__Surface_From_Loops([loop])
+        surface = self.__Surface_From_Loops([loop])
 
         # Création de la fissure
-        crack, physicalCrack, physicalPoints = self.__Crack_And_Points_From_Line(line, surface)
+        crack, physicalPoints = self.__Crack_And_Points_From_Line(line, surface)
+
+        # Regénération des groupes physiques
+        self.__Set_PhysicalGroups(buildSurface=False)
 
         physicalSurface = gmsh.model.addPhysicalGroup(2, [surface])
         physicalCrack = gmsh.model.addPhysicalGroup(1, [crack])
@@ -506,7 +553,7 @@ class Interface_Gmsh:
         # gmsh.option.setNumber("Mesh.MeshSizeMax", circle.taille)
 
         # Création d'une surface de la surface sans le cercle
-        surfaceDomain, physicalSurfaceDomain = self.__Surface_From_Loops([loopDomain, loopCercle])
+        surfaceDomain = self.__Surface_From_Loops([loopDomain, loopCercle])
         factory.synchronize()
 
         if circle.isCreux:
@@ -515,11 +562,16 @@ class Interface_Gmsh:
         else:
             # Cylindre plein
             # Création d'une surface pour le cercle plein
-            surfaceCercle, physicalSurfaceCercle = self.__Surface_From_Loops([loopCercle])
+            surfaceCercle = self.__Surface_From_Loops([loopCercle])
+            p0 = factory.addPoint(circle.center.x, circle.center.y, 0, circle.taille)
             factory.synchronize()
+            gmsh.model.mesh.embed(0, [p0], 2, surfaceCercle)
+            # factory.synchronize()
             surfaces = [surfaceCercle, surfaceDomain]
         
         if returnSurfaces: return surfaces
+
+        self.__Set_PhysicalGroups()
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
@@ -560,6 +612,8 @@ class Interface_Gmsh:
         surfaces = self.Mesh_PlaqueAvecCercle2D(domain, circle, elemType="TRI3", folder=folder, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)
+
+        self.__Set_PhysicalGroups()
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
@@ -618,6 +672,8 @@ class Interface_Gmsh:
 
             factory.synchronize()
             physicalGroup = gmsh.model.addPhysicalGroup(1, [ligne], name=f"{poutre.name}")
+
+        self.__Set_PhysicalGroups()
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
@@ -696,13 +752,15 @@ class Interface_Gmsh:
         listeLoop = [loopSurface]
         listeLoop.extend(loops)
 
-        surfaceDomaine, physicalSurfaceDomaine = self.__Surface_From_Loops(listeLoop)
+        surfaceDomaine = self.__Surface_From_Loops(listeLoop)
 
         # Rajoute la surface du domaine en dernier
         surfacesPleines.append(surfaceDomaine)
         
         # Création des surfaces creuses
         if returnSurfaces: return surfacesPleines
+
+        self.__Set_PhysicalGroups()
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
@@ -743,6 +801,8 @@ class Interface_Gmsh:
         surfaces = self.Mesh_From_Points_2D(pointsList, elemType="TRI3",geomObjectsInDomain=interieursList, tailleElement=tailleElement, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)
+
+        self.__Set_PhysicalGroups()
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
@@ -854,6 +914,7 @@ class Interface_Gmsh:
             gmsh.model.mesh.generate(3)
 
         if len(cracks) > 0:
+            oldPG = gmsh.model.getPhysicalGroups()
             for crack, openBoundary in zip(cracks, openBoundarys):
                 gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
                 gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
@@ -866,6 +927,7 @@ class Interface_Gmsh:
                 # gmsh.write("meshhh.msh")
                 # self.__initGmsh()
                 # gmsh.open("meshhh.msh")
+            newPG = gmsh.model.getPhysicalGroups()
         
         # Ouvre l'interface de gmsh si necessaire
         if '-nopopup' not in sys.argv and self.__affichageGmsh:
@@ -931,20 +993,30 @@ class Interface_Gmsh:
         testDimension = False
         dimAjoute = []
         dim = 0
-
+        
+        # Construit les groupes physiques
         physicalGroups = gmsh.model.getPhysicalGroups()
-        physicalGroupsPoint = []
-        physicalGroupsLine = []
-        physicalGroupsSurf = []
-        physicalGroupsVol = []
+
+        physicalGroupsPoint = []; namePoint = []; nbP = 0
+        physicalGroupsLine = []; nameLine = []; nbL = 0
+        physicalGroupsSurf = []; nameSurf = []; nbS = 0
+        physicalGroupsVol = []; nameVol = []; nbV = 0
         for dim, tag in physicalGroups:
             if dim == 0:
+                nbP += 1
+                namePoint.append(f"P{nbP}")
                 physicalGroupsPoint.append((dim, tag))
             elif dim == 1:
+                nbL += 1
+                nameLine.append(f"L{nbL}")
                 physicalGroupsLine.append((dim, tag))
             elif dim == 2:
+                nbS += 1
+                nameSurf.append(f"S{nbS}")
                 physicalGroupsSurf.append((dim, tag))
             elif dim == 3:
+                nbV += 1
+                nameVol.append(f"V{nbV}")
                 physicalGroupsVol.append((dim, tag))
 
         for gmshId in elementTypes:
@@ -957,6 +1029,18 @@ class Interface_Gmsh:
             # Elements
             Ne = elementTags.shape[0] #nombre d'élements
             elementsID = elementTags
+
+            # # Organise les noeuds du plus petits au plus grand
+            # sortedIndicesElem = np.argsort(elementsID)
+            # sortedElements = elementsID[sortedIndicesElem]
+
+            # # Ici on va detecter les saut potententiel dans la numérotations des noeuds
+            # # Exemple 0 1 2 3 4 5 6 8 Ici on va detecter l'ecart 
+            # ecartElem = sortedElements - np.arange(Ne)
+
+            # # Les noeuds a changer sont les noeuds ou l'écart est > 0
+            # elementsAChanger = np.where(ecartElem>0)[0]
+
             nPe = GroupElem.Get_ElemInFos(gmshId)[1] # noeuds par elements
             
             # Construit connect et changes les indices nécessaires
@@ -986,18 +1070,23 @@ class Interface_Gmsh:
             # Ici on va récupérer les noeuds et elements faisant partie d'un groupe
 
             if groupElem.dim == 0:
-                physicalGroups = physicalGroupsPoint
+                listPhysicalGroups = physicalGroupsPoint
+                listName = namePoint
             elif groupElem.dim == 1:
-                physicalGroups = physicalGroupsLine
+                listPhysicalGroups = physicalGroupsLine
+                listName = nameLine
             elif groupElem.dim == 2:
-                physicalGroups = physicalGroupsSurf
+                listPhysicalGroups = physicalGroupsSurf
+                listName = nameSurf
             elif groupElem.dim == 3:
-                physicalGroups = physicalGroupsVol
+                listPhysicalGroups = physicalGroupsVol
+                listName = nameVol
             else:
-                physicalGroups = []
+                listPhysicalGroups = []
 
-            for dim, tag in physicalGroups:
-                
+            i = -1
+            for dim, tag in listPhysicalGroups:
+                i += 1
                 nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(groupElem.dim, tag)
                 if nodeTags.size == 0: continue
                 nodeTags = np.array(nodeTags-1, dtype=int)
@@ -1007,10 +1096,11 @@ class Interface_Gmsh:
                     nodes[np.where(nodes==old)] = new
                 [TriNodes(old, new) for old, new in zip(changes[:,0], changes[:,1])]
 
-                name = gmsh.model.getPhysicalName(groupElem.dim, tag)
+                # name = gmsh.model.getPhysicalName(groupElem.dim, tag)
+                name = listName[i]
 
-                groupElem.Add_PhysicalGroup_n(nodes, name)
-                groupElem.Add_PhysicalGroup_e(nodes, name)
+                groupElem.Set_Nodes_Tag(nodes, name)
+                groupElem.Set_Elements_Tag(nodes, name)
 
         if dimAjoute.count(dim) > 1:
             assert not testDimension, f"Impossible car {dimAjoute.count(dim)} type d'element {dim}D"
@@ -1066,8 +1156,6 @@ class Interface_Gmsh:
 
             mesh6 = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=lineOpen, elemType=elemType)
             testAire(mesh6.aire)
-
-            
 
             for m in [mesh1, mesh2, mesh3, mesh4, mesh5, mesh6]:
                 list_mesh2D.append(m)

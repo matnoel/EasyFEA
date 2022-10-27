@@ -49,18 +49,24 @@ clC = l_0
 
 point = Point()
 domain = Domain(point, Point(x=L, y=H), clD)
-circle = Circle(Point(x=L/2, y=H-h), diam, clC)
+circle = Circle(Point(x=L/2, y=H-h), diam, clC, isCreux=True)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
 mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
 
-Affichage.Plot_Group(mesh)
+Affichage.Plot_Model(mesh)
 plt.show()
 Affichage.Plot_Maillage(mesh,folder=folder)
 
 # Récupérations des noeuds de chargement
 B_lower = Line(point,Point(x=L))
 B_upper = Line(Point(y=H),Point(x=L, y=H))
+
+noeuds_22 = mesh.Nodes_Tag(["L5","L7", "P1"])
+
+Affichage.Plot_Noeuds(mesh, noeuds=noeuds_22)
+plt.show()
+
 nodes0 = mesh.Nodes_Line(B_lower)
 nodesh = mesh.Nodes_Line(B_upper)
 node00 = mesh.Nodes_Point(Point())   

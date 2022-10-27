@@ -69,8 +69,8 @@ class GroupElem:
     def InitMatrices(self):
         """Initialise les dictionnaires de matrices pour la constructions elements finis"""
         # Dictionnaires pour chaque types de matrices
-        self.__dict_physicalGroup_n = {}
-        self.__dict_physicalGroup_e = {}
+        self.__dict_nodes_tags = {}
+        self.__dict_elements_tags = {}
         self.__dict_dN_e_pg = {}
         self.__dict_dNv_e_pg = {}
         self.__dict_ddNv_e_pg = {}
@@ -239,17 +239,16 @@ class GroupElem:
         connect = self.__connect
         connect_n_e = self.connect_n_e
         
-        # Nn = self.Nn
-        # # Verifie si il n'y a pas de noeuds en trop
-        # if self.Nn < noeuds.max():
-        #     # Il faut enlever des noeuds
-        #     # On enlève tout les noeuds en trop
-        #     indexNoeudsSansDepassement = np.where(noeuds < self.Nn)[0]
-        #     noeuds = noeuds[indexNoeudsSansDepassement]
+        # Verifie si il n'y a pas de noeuds en trop
+        # Il est possible que les noeuds renseignés n'appartiennent pas au groupe
+        if self.Nn < noeuds.max():
+            # On enlève tout les noeuds en trop
+            indexNoeudsSansDepassement = np.where(noeuds < self.Nn)[0]
+            noeuds = noeuds[indexNoeudsSansDepassement]
 
         nodesId = noeuds
-
         lignes, colonnes, valeurs = sp.find(connect_n_e[nodesId])
+
         elementsIndex = np.unique(colonnes)
         # elementsIndex = self.elementsIndex[elementsID]
 
@@ -2093,8 +2092,8 @@ class GroupElem:
 
         return self.__nodesID[nodesIndex]
 
-    def Add_PhysicalGroup_n(self, noeuds: np.ndarray, tag: str):
-        """Ajoute un groupe physique sur les noeuds
+    def Set_Nodes_Tag(self, noeuds: np.ndarray, tag: str):
+        """Ajoute un tag sur les noeuds
 
         Parameters
         ----------
@@ -2104,17 +2103,18 @@ class GroupElem:
             tag utilisé
         """
         if noeuds.size == 0: return
-        self.__dict_physicalGroup_n[tag] = noeuds
+        self.__dict_nodes_tags[tag] = noeuds
 
     @property
-    def physicalGroupKeys_n(self) -> list:
+    def nodeTags(self) -> list:
+        """Renvoie les tags associés aux noeuds"""
         try:
-            return list(self.__dict_physicalGroup_n.keys())
+            return list(self.__dict_nodes_tags.keys())
         except:
             return []
 
-    def Add_PhysicalGroup_e(self, noeuds: np.ndarray, tag: str):
-        """Ajoute un groupe physique sur les elements
+    def Set_Elements_Tag(self, noeuds: np.ndarray, tag: str):
+        """Ajoute un tag sur les elements associés aux noeuds
 
         Parameters
         ----------
@@ -2129,26 +2129,25 @@ class GroupElem:
         # Récupère les elements associés aux noeuds
         elements = self.get_elementsIndex(noeuds=noeuds, exclusivement=True)
 
-        # elementsId = self.__elementsID[elements]
-
-        self.__dict_physicalGroup_e[tag] = elements
+        self.__dict_elements_tags[tag] = elements
 
     @property
-    def physicalGroupKeys_e(self) -> list:
+    def elementTags(self) -> list:
+        """Renvoie les tags associés aux elements"""
         try:
-            return list(self.__dict_physicalGroup_e.keys())
+            return list(self.__dict_elements_tags.keys())
         except:
             return []
 
-    def Elements_PhysicalGroup(self, tag: str):
+    def Get_Elements_Tag(self, tag: str):
         try:
-            return self.__dict_physicalGroup_e[tag]
+            return self.__dict_elements_tags[tag]
         except:
             print("Groupe physique inconnue")
     
-    def Nodes_PhysicalGroup(self, tag: str):
+    def Get_Nodes_Tag(self, tag: str):
         try:
-            return self.__dict_physicalGroup_n[tag]
+            return self.__dict_nodes_tags[tag]
         except:
             print("Groupe physique inconnue")
     

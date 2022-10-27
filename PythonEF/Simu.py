@@ -2215,7 +2215,7 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz", "amplitude", "displacement", "coordoDef"],
-                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
+                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel","amplitudeSpeed", "amplitudeAccel"],
                 "Beam" : ["u","v","rz", "amplitude", "beamDisplacement", "coordoDef", "fx", "fy", "cz","Exx","Exy","Sxx","Sxy","Srain","Stress"],
                 "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
                 "Damage" :["damage","psiP"],
@@ -2226,7 +2226,7 @@ class Simu:
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
                 "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel"],
+                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel","amplitudeSpeed", "amplitudeAccel"],
                 "Beam" : ["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "coordoDef", "fx","fy","fz","cx","cy","cz","Srain","Stress"],
                 "Energie" :["Wdef","Psi_Elas"],
                 "Thermal" : ["thermal", "thermalDot"]
@@ -2323,6 +2323,12 @@ class Simu:
             if option == "displacement":
                 return self.displacement
 
+            if option == "speed":
+                return self.speed
+            
+            if option == "accel":
+                return self.accel
+
             if option == 'coordoDef':
                 return self.GetCoordUglob()
 
@@ -2340,7 +2346,7 @@ class Simu:
 
             # TODO fusionner avec Stress ?
 
-            if "S" in option and not option == "Strain":
+            if "S" in option and not option in ["Strain", "amplitudeSpeed"]:
 
                 if dim == 2:
 
@@ -2396,7 +2402,7 @@ class Simu:
                 else:
                     return resultat_e
                 
-            elif "E" in option or option == "Strain":
+            elif ("E" in option or option == "Strain") and not option == "amplitudeSpeed":
 
                 if dim == 2:
 
@@ -2456,11 +2462,11 @@ class Simu:
 
                 Nn = self.__mesh.Nn
 
-                if "d" in option or "amplitude" in option:
+                if option in ["dx", "dy", "dz", "amplitude"]:
                     resultat_ddl = self.displacement
-                elif "v" in option:
+                elif option in ["vx", "vy", "vz", "amplitudeSpeed"]:
                     resultat_ddl = self.speed
-                elif "a" in option:
+                elif option in ["ax", "ay", "az", "amplitudeAccel"]:
                     resultat_ddl = self.accel
 
                 resultat_ddl = resultat_ddl.reshape(Nn, -1)
@@ -2469,7 +2475,7 @@ class Simu:
                 
                 if valeursAuxNoeuds:
 
-                    if option == "amplitude":
+                    if "amplitude" in option:
                         return np.sqrt(np.sum(resultat_ddl**2,axis=1))
                     else:
                         if len(resultat_ddl.shape) > 1:
@@ -2483,7 +2489,7 @@ class Simu:
                     resultat_e_n = self.__mesh.Localises_sol_e(resultat_ddl)
                     resultat_e = resultat_e_n.mean(axis=1)
 
-                    if option == "amplitude":
+                    if "amplitude" in option:
                         return np.sqrt(np.sum(resultat_e**2, axis=1))
                     elif option in ["speed", "accel"]:
                         return resultat_e.reshape(-1)
