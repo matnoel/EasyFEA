@@ -14,7 +14,7 @@ Clear()
 
 plotIter = False; resultat = "amplitudeSpeed"
 
-makeMovie = False
+makeMovie = True
 
 dt = 1e-5
 Nt = 50
@@ -22,7 +22,7 @@ tMax = dt*Nt
 load = 100
 
 a = 1
-taille = a/50
+taille = a/80
 
 domain = Domain(Point(x=-a/2, y=-a/2), Point(x=a/2, y=a/2), taille)
 circle = Circle(Point(), a/10, taille, isCreux=False)
@@ -31,7 +31,7 @@ circle = Circle(Point(), a/10, taille, isCreux=False)
 interfaceGmsh = Interface_Gmsh(False)
 mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
 
-Plot_Model(mesh)
+# Plot_Model(mesh)
 noeudsBord = mesh.Nodes_Tag(["L1","L2","L3","L4"])
 noeudCentreCercle = mesh.Nodes_Tag(["S2"])
 # plt.show()

@@ -1,8 +1,14 @@
 from types import LambdaType
-from typing import List, cast, Dict
+from typing import List
 
 import numpy as np
 from scipy import sparse
+
+from numba import njit
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
 import Affichage as Affichage
 from Mesh import Mesh
@@ -1013,8 +1019,9 @@ class Simu:
 
             # Décomposition du système matricielle en connues et inconnues 
             # Résolution de : Aii * ui = bi - Aic * xc
-            Aii = A[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
-            Aic = A[ddl_Inconnues, :].tocsc()[:, ddl_Connues].tocsr()
+            Ai = A[ddl_Inconnues, :].tocsc()
+            Aii = Ai[:, ddl_Inconnues]
+            Aic = Ai[:, ddl_Connues]
             bi = b[ddl_Inconnues,0]
             xc = x[ddl_Connues,0]
 
@@ -1030,13 +1037,12 @@ class Simu:
                 x0 = self.__beamDisplacement[ddl_Inconnues]
             else:
                 raise "probleme inconnue"
-            
+
             bDirichlet = Aic.dot(xc) # Plus rapide
             # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
             # bDirichlet = sparse.csr_matrix(bDirichlet)
 
-            # tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
-            tic.Tac("Matrices","Construit Ax=b", True)
+            tic.Tac("Matrices","Construit Ax=b", self.__verbosity)
 
             if problemType in ["displacement","thermal"]:
                 # la matrice est definie symétrique positive on peut donc utiliser cholesky
@@ -1201,7 +1207,7 @@ class Simu:
         ddls_Connues = []
 
         ddls_Connues = self.Get_ddls_Dirichlet(problemType)
-        unique_ddl_Connues = np.unique(ddls_Connues.copy())
+        unique_ddl_Connues = np.unique(ddls_Connues)
 
         # Construit les ddls inconnues
 
@@ -1212,10 +1218,7 @@ class Simu:
         elif problemType == "beam":
             taille = self.__mesh.Nn*self.materiau.beamModel.nbddl_n
 
-        ddls_Inconnues = list(np.arange(taille))
-        for ddlConnue in ddls_Connues:
-            if ddlConnue in ddls_Inconnues:
-                ddls_Inconnues.remove(ddlConnue)
+        ddls_Inconnues = Simu.__Get_ddls_Inconnues(taille, ddls_Connues)
                                 
         ddls_Inconnues = np.array(ddls_Inconnues)
         
@@ -1223,6 +1226,20 @@ class Simu:
         assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
 
         return ddls_Connues, ddls_Inconnues
+
+    @njit(cache=True, parallel=False)
+    def __Get_ddls_Inconnues(taille: int, ddls_Connues: list):
+
+        # ddls_Inconnues = typed.List()
+        ddls_Inconnues = []
+
+        for n in range(taille):
+            if not n in ddls_Connues:
+                ddls_Inconnues.append(n)
+
+        return ddls_Inconnues
+
+
 
     def __Application_Conditions_Neuman(self, problemType: str, algo:str, option=1):
         """Applique les conditions de Neumann"""
