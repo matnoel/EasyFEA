@@ -180,8 +180,8 @@ def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, def
         
         raise "Dossier inexistant"
 
-    ffmpegpath = Get_ffmpegpath()
-    matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
+    # ffmpegpath = Get_ffmpegpath()
+    # matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 
     
     listTemps = []
