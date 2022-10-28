@@ -171,7 +171,8 @@ def MakeMovie(folder: str, option: str, simu: Simu, Niter=200, NiterFin=100, def
     def Get_ffmpegpath():
         paths = ["D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe",
                  "D:\\Pro\\ffmpeg\\bin\\ffmpeg.exe",
-                 "/opt/local/bin/ffmpeg"]
+                 "/opt/local/bin/ffmpeg",
+                 "/home/m/matnoel/Applications/ffmpeg"]
         
         for p in paths:
             if os.path.exists(p):
