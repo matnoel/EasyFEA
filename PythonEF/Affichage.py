@@ -861,6 +861,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
                     else:
                         pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0, alpha=0.9, facecolors=color, label=tag_e)
                         ax.add_collection(pc)
+                        ax.legend()
                     
                     if showId and dim != 2:
                         ax.text(x_e, y_e, tag_e, zorder=25)
@@ -868,7 +869,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
                     ax.scatter(x_n, y_n, c='black', marker='.', zorder=2)
                     if showId: ax.text(x_e, y_e, tag_e, zorder=25)
                 
-                ax.legend()
+                
                     
             else:
                 if len(noeuds) > 0 and needPlot:
