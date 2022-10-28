@@ -563,10 +563,10 @@ class Interface_Gmsh:
             # Cylindre plein
             # Création d'une surface pour le cercle plein
             surfaceCercle = self.__Surface_From_Loops([loopCercle])
-            # p0 = factory.addPoint(circle.center.x, circle.center.y, 0, circle.taille)
-            # factory.synchronize()
-            # gmsh.model.mesh.embed(0, [p0], 2, surfaceCercle)
-            # factory.synchronize()
+            p0 = factory.addPoint(circle.center.x, circle.center.y, 0, circle.taille)
+            factory.synchronize()
+            gmsh.model.mesh.embed(0, [p0], 2, surfaceCercle)
+            factory.synchronize()
             surfaces = [surfaceCercle, surfaceDomain]
         
         if returnSurfaces: return surfaces
