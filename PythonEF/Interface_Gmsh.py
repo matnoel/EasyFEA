@@ -996,28 +996,29 @@ class Interface_Gmsh:
         
         # Construit les groupes physiques
         physicalGroups = gmsh.model.getPhysicalGroups()
+        pgArray = np.array(physicalGroups)
         # A optimiser
-        physicalGroupsPoint = []; namePoint = []; nbP = 0
-        physicalGroupsLine = []; nameLine = []; nbL = 0
-        physicalGroupsSurf = []; nameSurf = []; nbS = 0
-        physicalGroupsVol = []; nameVol = []; nbV = 0
-        for dim, tag in physicalGroups:
+        physicalGroupsPoint = []; namePoint = []
+        physicalGroupsLine = []; nameLine = []
+        physicalGroupsSurf = []; nameSurf = []
+        physicalGroupsVol = []; nameVol = []
+
+        for dim in range(pgArray[:,0].max()+1):
+            indexDim = np.where(pgArray[:,0] == dim)[0]
+            listTupleDim = tuple(map(tuple, pgArray[indexDim]))
+            nbEnti = indexDim.size
             if dim == 0:
-                nbP += 1
-                namePoint.append(f"P{nbP}")
-                physicalGroupsPoint.append((dim, tag))
+                namePoint.extend([f"P{n+1}" for n in range(nbEnti)])
+                physicalGroupsPoint.extend(listTupleDim)
             elif dim == 1:
-                nbL += 1
-                nameLine.append(f"L{nbL}")
-                physicalGroupsLine.append((dim, tag))
+                nameLine.extend([f"L{n+1}" for n in range(nbEnti)])
+                physicalGroupsLine.extend(listTupleDim)
             elif dim == 2:
-                nbS += 1
-                nameSurf.append(f"S{nbS}")
-                physicalGroupsSurf.append((dim, tag))
+                nameSurf.extend([f"S{n+1}" for n in range(nbEnti)])
+                physicalGroupsSurf.extend(listTupleDim)
             elif dim == 3:
-                nbV += 1
-                nameVol.append(f"V{nbV}")
-                physicalGroupsVol.append((dim, tag))
+                nameVol.extend([f"V{n+1}" for n in range(nbEnti)])
+                physicalGroupsVol.extend(listTupleDim)
 
         for gmshId in elementTypes:
                                         
@@ -1030,17 +1031,6 @@ class Interface_Gmsh:
             Ne = elementTags.shape[0] #nombre d'élements
             elementsID = elementTags
 
-            # # Organise les noeuds du plus petits au plus grand
-            # sortedIndicesElem = np.argsort(elementsID)
-            # sortedElements = elementsID[sortedIndicesElem]
-
-            # # Ici on va detecter les saut potententiel dans la numérotations des noeuds
-            # # Exemple 0 1 2 3 4 5 6 8 Ici on va detecter l'ecart 
-            # ecartElem = sortedElements - np.arange(Ne)
-
-            # # Les noeuds a changer sont les noeuds ou l'écart est > 0
-            # elementsAChanger = np.where(ecartElem>0)[0]
-
             nPe = GroupElem.Get_ElemInFos(gmshId)[1] # noeuds par elements
             
             # Construit connect et changes les indices nécessaires
@@ -1048,8 +1038,6 @@ class Interface_Gmsh:
             def TriConnect(old, new):
                 connect[np.where(connect==old)] = new
             [TriConnect(old, new) for old, new in zip(changes[:,0], changes[:,1])]
-                
-            
             # A tester avec l, c = np.where(connect==changes[:,0])
             
             # Noeuds            
@@ -1088,8 +1076,6 @@ class Interface_Gmsh:
             for dim, tag in listPhysicalGroups:
                 i += 1
                 nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(groupElem.dim, tag)
-                if groupElem.elemType == "PRISM6":
-                    pass
                 if nodeTags.size == 0: continue
                 nodeTags = np.array(nodeTags-1, dtype=int)
                 nodes = np.unique(nodeTags)
