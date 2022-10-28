@@ -20,10 +20,18 @@ makeMovie = False
 Nt = 50
 dt = 1e-6
 tMax = dt*Nt
-load = 100
+load = 1
+
+f0=2
+a0=1
+
+t0 = dt
+Gt = lambda t: a0*2*((np.pi*f0*(t-t0))**2-1)*np.exp(-(np.pi*f0*(t-t0))**2)
+Gx = lambda x: 1/np.sqrt(np.pi)*np.exp(-x**2*10)
+# Gx = lambda x: 1
 
 a = 1
-taille = a/100
+taille = a/40
 diam = a/10
 r = diam/2
 
@@ -38,13 +46,28 @@ if plotModel:
     Affichage.Plot_Model(mesh)
     plt.show()
 noeudsBord = mesh.Nodes_Tag(["L1","L2","L3","L4"])
-noeudCentreCercle = mesh.Nodes_Tag(["L5","L6","L7","L8"])
+# noeudCentreCercle = mesh.Nodes_Tag(["L5","L6","L7","L8"])
+noeudCentreCercle = mesh.Nodes_Tag(["P9"])
 # Affichage.Plot_Noeuds(mesh, noeudCentreCercle)
 # plt.show()
 
 comportement = Materials.Elas_Isot(2, E=210000e6, v=0.3, contraintesPlanes=False, epaisseur=1)
 
 materiau = Materials.Materiau(comportement, ro=8100)
+
+l = comportement.get_lambda()
+mu = comportement.get_mu()
+ro = materiau.ro
+
+# cp = np.sqrt((l+2*mu)/ro)
+# cs = np.sqrt(r/ro)
+# a0 = 1
+# yx = a0 * np.exp(-(10*x/cp)**2)
+
+
+
+# Gt = lambda t: a0*2*((np.pi*f0*(t-t0))**2-1)*np.exp(-(np.pi*f0*(t-t0))**2)
+
 
 simu = Simu(mesh, materiau, verbosity=False)
 
@@ -57,10 +80,14 @@ def Chargement():
 
     simu.add_dirichlet("displacement", noeudsBord, [0,0], ["x","y"], "[0,0]")
 
-    if t >= 0*dt and t <= 1*dt:
-        fonctionX = lambda x,y,z: load*(y-circle.center.y)/r
-        fonctionY = lambda x,y,z: load*(x-circle.center.x)/r
-        simu.add_pointLoad("displacement", noeudCentreCercle, [fonctionX, fonctionY], ["x","y"])
+
+    fonctionX = 0
+    # fonctionX = lambda x,y,z: load*(y-circle.center.y)/r
+    # fonctionY = lambda x,y,z: load*(x-circle.center.x)/r
+    
+    fonctionX = lambda x,y,z: Gx(x)*Gt(t)
+    fonctionY = lambda x,y,z: Gx(x)*Gt(t)
+    simu.add_pointLoad("displacement", noeudCentreCercle, [fonctionX, fonctionY], ["x","y"])
 
     # if t == dt:
     #     # simu.add_dirichlet("displacement", noeudCentre, [1e-2,1e-2], ["x","y"], "[load,load]")
@@ -85,7 +112,7 @@ while t <= tMax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, resultat, valeursAuxNoeuds=True, fig=fig, ax=ax, affichageMaillage=True)
+        fig, ax, cb = Affichage.Plot_Result(simu, resultat, valeursAuxNoeuds=True, fig=fig, ax=ax)
         plt.pause(1e-12)
 
     print(f"{t//dt}",end="\r")
@@ -99,8 +126,8 @@ folder = Dossier.NewFile("Ondes", results=True)
 if makeMovie:
     PostTraitement.MakeMovie(folder, resultat, simu)
 
-PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+# PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
-TicTac.Tic.getGraphs(details=True)
+# TicTac.Tic.getGraphs(details=False)
 
 plt.show()
