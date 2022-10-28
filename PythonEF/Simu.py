@@ -291,8 +291,14 @@ class Simu:
         elif problemType == "displacement":
             self.__displacement = results["displacement"]
             if self.__algo == "hyperbolic":
-                self.__speed = results["speed"]
-                self.__accel = results["accel"]
+                try :
+                    self.__speed = results["speed"]
+                    self.__accel = results["accel"]
+                except:
+                    # La première itération à été réalisé en régime stationnaire
+                    self.__speed = np.zeros_like(self.__displacement)
+                    self.__accel = np.zeros_like(self.__displacement)
+                
         elif problemType == "damage":
             self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
             self.__damage = results["damage"]
