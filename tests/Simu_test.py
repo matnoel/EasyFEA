@@ -10,55 +10,8 @@ from Simu import Simu
 from TicTac import Tic
 import matplotlib.pyplot as plt
 
-class Test_Simu(unittest.TestCase):    
+class Test_Simu(unittest.TestCase):
     
-    def CreationDesSimusElastique(self):
-        
-        dim = 2
-
-        # Paramètres géométrie
-        L = 120;  #mm
-        h = 120;    
-        b = 13
-
-        # Charge a appliquer
-        P = -800 #N
-
-        # Paramètres maillage
-        taille = L/2
-
-        
-
-        self.simulationsElastique = []
-
-        listMesh = Interface_Gmsh.Construction2D(L=L, h=h, taille=taille)
-        listMesh.extend(Interface_Gmsh.Construction3D(L=L, h=h, b=b, taille=h/2))
-
-        # Pour chaque type d'element 2D       
-        for mesh in listMesh:           
-
-            assert isinstance(mesh, Mesh)
-
-            dim = mesh.dim
-
-            comportement = Elas_Isot(dim, epaisseur=b)
-
-            materiau = Materiau(comportement, verbosity=False)
-            
-            simu = Simu(mesh, materiau, verbosity=False)
-
-            simu.Assemblage_u()
-
-            noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
-            noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
-
-            simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
-            # simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])
-            simu.add_dirichlet("displacement",noeuds_en_L, [lambda x,y,z: 1], ['x'])
-            simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
-
-            self.simulationsElastique.append(simu)
-
     def test_SimulationsPoutreUnitaire(self):
         
         interfaceGmsh = Interface_Gmsh()
@@ -227,18 +180,56 @@ class Test_Simu(unittest.TestCase):
                 ax.legend()
                 PlotAndDelete()
 
-    def setUp(self):
-        self.CreationDesSimusElastique()
-        pass
-
     def test_ResolutionDesSimulationsElastique(self):
         # Pour chaque type de maillage on simule
-        for simu in self.simulationsElastique:
-            simu = cast(Simu, simu)
+        
+        dim = 2
+
+        # Paramètres géométrie
+        L = 120;  #mm
+        h = 120;    
+        b = 13
+
+        # Charge a appliquer
+        P = -800 #N
+
+        # Paramètres maillage
+        taille = L/2
+
+        listMesh = Interface_Gmsh.Construction2D(L=L, h=h, taille=taille)
+        listMesh.extend(Interface_Gmsh.Construction3D(L=L, h=h, b=b, taille=h/4))
+
+        # Pour chaque type d'element 2D       
+        for mesh in listMesh:           
+
+            assert isinstance(mesh, Mesh)
+
+            dim = mesh.dim
+
+            comportement = Elas_Isot(dim, epaisseur=b)
+
+            materiau = Materiau(comportement, verbosity=False)
+            
+            simu = Simu(mesh, materiau, verbosity=False)
+
+            simu.Assemblage_u()
+
+            noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
+            noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
+
+            simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
+            # simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])
+            simu.add_dirichlet("displacement",noeuds_en_L, [lambda x,y,z: 1], ['x'])
+            simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
 
             simu.Assemblage_u(steadyState=False)
 
+            Ke_e = simu.ConstruitMatElem_Dep()
+            self.__VerificationConstructionKe(simu, Ke_e)
+
             simu.Solve_u(steadyState=True)
+
+
             fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True, valeursAuxNoeuds=True)
             plt.pause(1e-12)
             plt.close(fig)
@@ -284,13 +275,7 @@ class Test_Simu(unittest.TestCase):
             fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True)
             plt.pause(1e-12)
             plt.close(fig)
-            
-
-    def test__ConstruitMatElem_Dep(self):
-        for simu in self.simulationsElastique:
-            simu = cast(Simu, simu)
-            Ke_e = simu.ConstruitMatElem_Dep()
-            self.__VerificationConstructionKe(simu, Ke_e)
+    
 
     # ------------------------------------------- Vérifications ------------------------------------------- 
 
