@@ -1747,7 +1747,9 @@ class Simu:
         valeurs_ddl_dir = np.zeros((Nn, len(directions)))
 
         for d, dir in enumerate(directions):
-            eval_n = self.__evalue(coordo_n, valeurs[d]/len(noeuds), option="noeuds")
+            eval_n = self.__evalue(coordo_n, valeurs[d], option="noeuds")
+            if problemType == "beam":
+                eval_n /= len(noeuds)
             valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)

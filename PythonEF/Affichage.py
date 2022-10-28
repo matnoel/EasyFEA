@@ -497,7 +497,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
 
     return ax
 
-def Plot_Noeuds(mesh, ax=None, noeuds=[], showId=False, marker='.', c='red', folder=""):
+def Plot_Noeuds(mesh, noeuds=[], showId=False, marker='.', c='red', folder="", ax=None):
     """Affiche les noeuds du maillage
 
     Parameters
