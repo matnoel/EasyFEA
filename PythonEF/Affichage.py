@@ -1,23 +1,23 @@
-
 import platform
 from typing import List, cast
 import os
 import numpy as np
 import pandas as pd
 
+# Figures
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.collections
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, title="", affichageMaillage=False, valeursAuxNoeuds=False, folder="", filename="", colorbarIsClose=False, oldfig=None, oldax=None):
+def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, title="", affichageMaillage=False, valeursAuxNoeuds=False, folder="", filename="", colorbarIsClose=False, fig=None, ax=None):
     """Affichage d'un résulat de la simulation
 
     Parameters
     ----------
-    simu : _type_
-        _description_
+    simu : Simu
+        Simulation
     option : str
         resultat que l'on souhaite utiliser. doit être compris dans Simu.ResultatsCalculables()
     deformation : bool, optional
@@ -48,56 +48,64 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     Figure, Axe, colorbar
         fig, ax, cb
     """
-
     # Detecte si on donne bien ax et fig en meme temps
-    assert (oldfig == None) == (oldax == None), "Doit fournir oldax et oldfix ensemble"
+    assert (fig == None) == (ax == None), "Doit fournir fig et ax ensemble"
+    # fig -> colorbar et ax pour tracer
+    if (not fig == None) and (not ax == None):
+        assert isinstance(fig, plt.Figure) and isinstance(ax, plt.Axes)
 
-    if (not oldfig == None) and (not oldax == None):
-        assert isinstance(oldfig, plt.Figure) and isinstance(oldax, plt.Axes)           
+    from Simu import Simu
 
-    # Va chercher les valeurs 0 a affciher
-
-    from Simu import Simu, BeamModel
-    from TicTac import Tic
-
-    simu = cast(Simu, simu) # ne pas ecrire simu: Simu ça créer un appel circulaire
-
-    mesh = simu.mesh # récupération du maillage
+    assert isinstance(simu, Simu)
     
+    mesh = simu.mesh # récupération du maillage
     dim = mesh.dim # dimension du maillage
-
     # Dimension dans lequel se trouve le maillage
     try:
         inDim = mesh.inDim 
     except:
         inDim = mesh.groupElem.inDim
 
+    if simu.problemType == "beam" and simu.materiau.beamModel.dim == 3:
+        isBeamModel3D = True
+    else:
+        isBeamModel3D = False
+
+    # Construction de la figure et de l'axe si nécessaire
+    if ax == None:
+        if inDim in [1,2] and not isBeamModel3D:
+            fig, ax = plt.subplots()
+        else:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection="3d")
+    else:
+        fig = fig
+        ax = ax
+        ax.clear()
+
     if dim == 3:
-        # Quand on fait une simulation en 3D on ne peut afficher les résultats que sur les elements
-        # En plus, il faut tracer la solution que sur les eléments 2D
         valeursAuxNoeuds = True # Ne pas modifier, il faut passer par la solution aux noeuds pour localiser aux elements 2D !!!
+        # Quand on fait une simulation en 3D on affiche les résultats que sur les elements 2D
+        # Pour prendre moin de place
+        # En plus, il faut tracer la solution que sur les eléments 2D
 
     if simu.problemType == "beam":
         # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
         valeursAuxNoeuds = False
+    
+    valeurs = simu.Get_Resultat(option, valeursAuxNoeuds) # Récupération du résultat
+    if not isinstance(valeurs, np.ndarray): return
+    
+    valeurs *= coef # Application d'un coef sur les valeurs
 
-    # Récupération du résultat
-    valeurs = simu.Get_Resultat(option, valeursAuxNoeuds)
-    if not isinstance(valeurs, np.ndarray):
-        return
-
-    valeurs *= coef
-
-    coordoSansDef = simu.mesh.coordo
+    coordoNonDef = simu.mesh.coordo # coordonnées des noeuds sans déformations
 
     # Recupération des coordonnée déformées si la simulation le permet
-    coordo, deformation = __GetCoordo(simu, deformation, facteurDef)
-
-    # construit la matrice de connection pour les faces
-    connect_Faces = mesh.connect_Faces
-
-    # Construit les faces non deformées
-    coordo_redim = coordo[:,range(inDim)]
+    coordoDef, deformation = __GetCoordo(simu, deformation, facteurDef)
+    
+    connect_Faces = mesh.connect_Faces # construit la matrice de connection pour les faces
+    
+    coordoDef_InDim = coordoDef[:,range(inDim)]
 
     # Construit les niveaux pour la colorbar
     if option == "damage":
@@ -109,37 +117,23 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     else:
         levels = 200
 
-    is3dBeamModel = False
-    beamModel = simu.materiau.beamModel
-    if isinstance(beamModel, BeamModel):
-        if beamModel.dim == 3:
-            is3dBeamModel = True
+    
 
-    if inDim in [1,2] and not is3dBeamModel:
+    if inDim in [1,2] and not isBeamModel3D:
         # Maillage contenu dans un plan 2D
 
         # dictionnaire pour stocker les coordonnées par faces
-        coord_par_face = {}
+        dict_coordoFaceElem = {}
         for elem in connect_Faces:
-            # Récupérations des noeuds par faces
-            faces = connect_Faces[elem]
-            # recupere la coordonnées des noeuds de chaque elements
-            coord_par_face[elem] = coordo_redim[faces]
+            faces = connect_Faces[elem] # Récupérations des noeuds par faces
+            # recupere la coordonnée des noeuds de chaque elements
+            dict_coordoFaceElem[elem] = coordoDef_InDim[faces]
 
-        if oldax == None:
-            # Création de la figure
-            fig, ax = plt.subplots()
-        else:
-            # utilisation de l'ancienne figure
-            fig = oldfig
-            ax = oldax
-            ax.clear()
-
-        for elem in coord_par_face:
+        for elem in dict_coordoFaceElem:
             # Pour chaque type d'element du maillage on va tracer la solution
 
             # coordonnées par element
-            vertices = coord_par_face[elem]
+            vertices = dict_coordoFaceElem[elem]
 
             # Trace le maillage
             if affichageMaillage:
@@ -152,7 +146,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
                     pc = matplotlib.collections.LineCollection(vertices, edgecolor='black', lw=0.5)
                     ax.add_collection(pc)
 
-            # Valeurs aux element
+            # Valeurs aux elements
             if mesh.Ne == len(valeurs):
                 # on va afficher le résultat sur les elements
                 if mesh.dim == 1:
@@ -175,18 +169,15 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
                 # on va afficher le résultat sur les noeuds
                 # récupération des triangles de chaque face pour utiliser la fonction trisurf
                 connectTri = mesh.connectTriangle
-                pc = ax.tricontourf(coordo[:,0], coordo[:,1], connectTri[elem], valeurs, levels, cmap='jet')
+                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap='jet')
                 # tripcolor, tricontour, tricontourf
 
         ax.autoscale()
-        epX = np.abs(coordo[:,0].max() - coordo[:,0].min())
-        epY = np.abs(coordo[:,1].max() - coordo[:,1].min())
+        epX = np.abs(coordoDef[:,0].max() - coordoDef[:,0].min())
+        epY = np.abs(coordoDef[:,1].max() - coordoDef[:,1].min())
         if (epX > 0 and epY > 0):
             if np.abs(epX-epY)/epX > 0.2:
                 ax.axis('equal')
-
-        # if simu.problemType in ["thermal"]:
-        #     ax.axis('off')
         
         # procédure pour essayer de rapporcher la colorbar de l'ax
         divider = make_axes_locatable(ax)
@@ -208,17 +199,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         ax.set_ylabel(r"$y$")
 
     
-    elif inDim == 3 or is3dBeamModel:
-
-        # Construction de la figure et de l'ax si nécessaire
-        if oldax == None:
-            fig = plt.figure()
-            ax = fig.add_subplot(projection="3d")
-        else:
-            fig = oldfig
-            ax = oldax
-            ax.clear()
-
+    elif inDim == 3 or isBeamModel3D:
         # initialisation des valeurs max et min de la colorbar 
         
         maxVal = 0
@@ -281,7 +262,7 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         ax.set_zlabel(r"$z$")
         
         # Change l'echelle des axes
-        __ChangeEchelle(ax, coordoSansDef)
+        __ChangeEchelle(ax, coordoNonDef)
 
     # On prépare le titre
     if option == "damage":

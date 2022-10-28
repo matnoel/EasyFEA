@@ -39,7 +39,7 @@ elif problem == "Traction":
 
 section = Section(interfaceGmsh.Mesh_Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
-Affichage.Plot_Model(section.mesh)
+# Affichage.Plot_Model(section.mesh)
 # Affichage.Plot_Maillage(mesh)
 plt.show()
 

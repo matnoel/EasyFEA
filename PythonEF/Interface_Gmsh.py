@@ -342,7 +342,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Importation du fichier step", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(3, elemType, folder=folder)
+        self.__Construction_Maillage(3, elemType, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -386,7 +386,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
+        self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())    
 
@@ -433,7 +433,7 @@ class Interface_Gmsh:
         
         tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
         
-        self.__Construction_MaillageGmsh(2, elemType, surfaces=[surface], isOrganised=isOrganised, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfaces=[surface], isOrganised=isOrganised, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())    
 
@@ -481,9 +481,9 @@ class Interface_Gmsh:
         tic.Tac("Mesh","Construction rectangle fissuré", self.__verbosity)
         
         if line.isOpen:
-            self.__Construction_MaillageGmsh(2, elemType, surfaces=[physicalSurface], cracks=[physicalCrack], openBoundarys=[physicalPoints], isOrganised=False)
+            self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], cracks=[physicalCrack], openBoundarys=[physicalPoints], isOrganised=False)
         else:
-            self.__Construction_MaillageGmsh(2, elemType, surfaces=[physicalSurface], isOrganised=False, folder=folder)
+            self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], isOrganised=False, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -563,9 +563,9 @@ class Interface_Gmsh:
             # Cylindre plein
             # Création d'une surface pour le cercle plein
             surfaceCercle = self.__Surface_From_Loops([loopCercle])
-            p0 = factory.addPoint(circle.center.x, circle.center.y, 0, circle.taille)
-            factory.synchronize()
-            gmsh.model.mesh.embed(0, [p0], 2, surfaceCercle)
+            # p0 = factory.addPoint(circle.center.x, circle.center.y, 0, circle.taille)
+            # factory.synchronize()
+            # gmsh.model.mesh.embed(0, [p0], 2, surfaceCercle)
             # factory.synchronize()
             surfaces = [surfaceCercle, surfaceDomain]
         
@@ -575,7 +575,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(2, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -617,7 +617,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -671,13 +671,13 @@ class Interface_Gmsh:
             listeLines.append(ligne)
 
             factory.synchronize()
-            physicalGroup = gmsh.model.addPhysicalGroup(1, [ligne], name=f"{poutre.name}")
+            # physicalGroup = gmsh.model.addPhysicalGroup(1, [ligne], name=f"{poutre.name}")
 
         self.__Set_PhysicalGroups()
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(1, elemType, surfaces=[], folder=folder)
+        self.__Construction_Maillage(1, elemType, surfaces=[], folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -764,7 +764,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(2, elemType, surfaces=surfacesPleines, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfaces=surfacesPleines, isOrganised=False, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -806,7 +806,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
 
-        self.__Construction_MaillageGmsh(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -824,7 +824,7 @@ class Interface_Gmsh:
             gmsh.model.mesh.set_order(4)
 
 
-    def __Construction_MaillageGmsh(self, dim: int, elemType: str, surfaces=[], isOrganised=False, cracks=[], openBoundarys=[], folder=""):
+    def __Construction_Maillage(self, dim: int, elemType: str, surfaces=[], isOrganised=False, cracks=[], openBoundarys=[], folder=""):
         """Construction du maillage gmsh depuis la geométrie qui a été construit ou importée
 
         Parameters
@@ -996,7 +996,7 @@ class Interface_Gmsh:
         
         # Construit les groupes physiques
         physicalGroups = gmsh.model.getPhysicalGroups()
-
+        # A optimiser
         physicalGroupsPoint = []; namePoint = []; nbP = 0
         physicalGroupsLine = []; nameLine = []; nbL = 0
         physicalGroupsSurf = []; nameSurf = []; nbS = 0
@@ -1088,6 +1088,8 @@ class Interface_Gmsh:
             for dim, tag in listPhysicalGroups:
                 i += 1
                 nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(groupElem.dim, tag)
+                if groupElem.elemType == "PRISM6":
+                    pass
                 if nodeTags.size == 0: continue
                 nodeTags = np.array(nodeTags-1, dtype=int)
                 nodes = np.unique(nodeTags)
@@ -1163,7 +1165,7 @@ class Interface_Gmsh:
         return list_mesh2D
 
     @staticmethod
-    def Construction3D(L=130, h=13, b=13, taille=7.5, useImport3D=True):
+    def Construction3D(L=130, h=13, b=13, taille=7.5, useImport3D=False):
         """Construction des maillage possibles en 3D"""
         # Pour chaque type d'element 3D
 

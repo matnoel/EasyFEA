@@ -87,8 +87,8 @@ elif dim == 3:
     # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
     # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     
-    elemType = "HEXA8" # "TETRA4", "HEXA8", "PRISM6"
-    mesh = interfaceGmsh.Mesh_Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=True, nCouches=3)
+    elemType = "PRISM6" # "TETRA4", "HEXA8", "PRISM6"
+    mesh = interfaceGmsh.Mesh_Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=False, nCouches=3)
 
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)
@@ -171,7 +171,7 @@ while t <= Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, oldfig=fig, oldax=ax, deformation=True)
+        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, fig=fig, ax=ax, deformation=True)
         plt.pause(1e-12)
 
     t += dt

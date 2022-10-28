@@ -3,8 +3,6 @@ from typing import List
 
 import numpy as np
 from scipy import sparse
-
-import Affichage as Affichage
 from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import *
@@ -47,6 +45,7 @@ class Simu:
             materiau (Materiau): Materiau utilisé
             verbosity (bool, optional): La simulation ecrira dans la console. Defaults to True.
         """
+        import Affichage
 
         if verbosity:
             Affichage.NouvelleSection("Simulation")
@@ -2605,6 +2604,8 @@ class Simu:
             return resultat_n
 
     def Resume(self, verbosity=True):
+
+        import Affichage
 
         resume = Affichage.NouvelleSection("Maillage", False)
         resume += self.mesh.Resume(False)

@@ -92,7 +92,7 @@ while t < Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, oldfig=fig, oldax=ax)
+        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, fig=fig, ax=ax)
         plt.pause(1e-12)
 
     print(f"{np.round(t)} s",end='\r')

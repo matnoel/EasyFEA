@@ -27,6 +27,10 @@ class Test_InterfaceGmsh(unittest.TestCase):
             axx.get_xaxis().set_visible(False)
             axx.get_yaxis().set_visible(False)
             plt.pause(1e-12)
+
+            Affichage.Plot_Model(mesh2D)
+            plt.pause(1e-12)
+            plt.close()
         
         # plt.show()
     
@@ -35,6 +39,10 @@ class Test_InterfaceGmsh(unittest.TestCase):
         for mesh3D in list_mesh3D:
             ax = Affichage.Plot_Maillage(mesh3D)
             Affichage.Plot_Noeuds(mesh3D, showId=False, ax=ax, c='black')
+            plt.pause(1e-12)
+            plt.close()
+
+            Affichage.Plot_Model(mesh3D)
             plt.pause(1e-12)
             plt.close()
 

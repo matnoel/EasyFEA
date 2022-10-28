@@ -12,17 +12,17 @@ import TicTac
 
 Clear()
 
-plotIter = False; resultat = "amplitudeSpeed"
+plotIter = True; resultat = "amplitudeSpeed"
 
-makeMovie = True
+makeMovie = False
 
-dt = 1e-5
 Nt = 50
+dt = 1e-6
 tMax = dt*Nt
 load = 100
 
 a = 1
-taille = a/80
+taille = a/20
 
 domain = Domain(Point(x=-a/2, y=-a/2), Point(x=a/2, y=a/2), taille)
 circle = Circle(Point(), a/10, taille, isCreux=False)
@@ -51,7 +51,7 @@ def Chargement():
 
     simu.add_dirichlet("displacement", noeudsBord, [0,0], ["x","y"], "[0,0]")
 
-    if t >= 0*dt and t <= 2*dt:
+    if t >= 0*dt and t <= 1*dt:
         simu.add_pointLoad("displacement", noeudCentreCercle, [load, 0], ["x","y"], "[load,load]")
 
     # if t == dt:
@@ -77,12 +77,13 @@ while t <= tMax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Plot_Result(simu, resultat, valeursAuxNoeuds=True, oldfig=fig, oldax=ax, affichageMaillage=True)
+        fig, ax, cb = Plot_Result(simu, resultat, valeursAuxNoeuds=True, fig=fig, ax=ax, affichageMaillage=True)
         plt.pause(1e-12)
 
     print(f"{t//dt}",end="\r")
 
     t += dt
+
 
 
 folder = Dossier.NewFile("Ondes", results=True)

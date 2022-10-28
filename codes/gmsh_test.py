@@ -8,7 +8,7 @@ from Materials import Materiau, Elas_Isot
 import Dossier
 import PostTraitement
 
-dim = 2
+dim = 3
 option = 2
 N = 2
 
@@ -53,7 +53,7 @@ elif option ==  2:
     listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=True, taille=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType="QUAD4", geomObjectsInDomain=listObjetsInter, tailleElement=h/N)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType="QUAD8", geomObjectsInDomain=listObjetsInter, tailleElement=h/N)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
         mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType="TETRA4", interieursList=listObjetsInter, tailleElement=h/N)
@@ -93,7 +93,7 @@ elif option == 3:
         mesh = interface.Mesh_From_Points_2D(listPoint, elemType="TRI3",geomObjectsInDomain=[], tailleElement=taille)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType="TETRA4", interieursList=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType="PRISM6", interieursList=[], tailleElement=taille)
 
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))

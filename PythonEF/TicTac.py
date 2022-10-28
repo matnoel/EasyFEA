@@ -22,11 +22,6 @@ class Tic:
 
         if Tic.__Historique == {}: return
 
-        # print("\n Résumé TicTac :")
-
-        # import Affichage
-        # Affichage.NouvelleSection("Résumé TicTac")
-
         resume = ""
 
         for categorie in Tic.__Historique:

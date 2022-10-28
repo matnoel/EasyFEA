@@ -1,20 +1,17 @@
-
+import matplotlib.pyplot as plt
 import unittest
 import os
 from Materials import LoiDeComportement, Materiau
 import numpy as np
 from Mesh import Mesh
+import Affichage
 
 class Test_Mesh(unittest.TestCase):
-    
-    def setUp(self):
-        
+
+    def test_ConstructionMatrices2D(self):
         from Interface_Gmsh import Interface_Gmsh
-
-        self.list_Mesh2D = Interface_Gmsh.Construction2D()
-
-    def test_ConstructionMatrices(self):
-        for mesh in self.list_Mesh2D:
+        list_Mesh = Interface_Gmsh.Construction2D()
+        for mesh in list_Mesh:
             self.__VerficiationConstructionMatrices(mesh)
 
     # Verifivation
