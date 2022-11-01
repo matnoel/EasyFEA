@@ -296,7 +296,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     # Renvoie la figure, l'axe et la colorbar
     return fig, ax, cb
     
-def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1) -> plt.Axes:
+def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1, facecolors='c', edgecolor='black') -> plt.Axes:
     """Dessine le maillage de la simulation
 
     Parameters
@@ -384,7 +384,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
 
                 # Superpose maillage non deformé et deformé
                 # Maillage non deformés            
-                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=lw, antialiaseds=True, zorder=1)
+                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
                 ax.add_collection(pc)
 
                 # Maillage deformé                
@@ -394,9 +394,9 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
             else:
                 # Maillage non deformé
                 if alpha == 0:
-                    pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=lw)
+                    pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw)
                 else:
-                    pc = matplotlib.collections.PolyCollection(coordFaces, facecolors='c', edgecolor='black', lw=lw)
+                    pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw)
                 ax.add_collection(pc)
 
             if mesh.dim == 1:
@@ -438,7 +438,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
                     # Supperpose les deux maillages
                     # Maillage non deformé
                     # ax.scatter(x,y,z, linewidth=0, alpha=0)
-                    pcNonDef = Poly3DCollection(coordFaces, edgecolor='black', linewidths=0.5, alpha=0)
+                    pcNonDef = Poly3DCollection(coordFaces, edgecolor=edgecolor, linewidths=0.5, alpha=0)
                     ax.add_collection3d(pcNonDef)
 
                     # Maillage deformé
@@ -447,7 +447,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
                 else:
                     # Superpose maillage non deformé et deformé
                     # Maillage non deformés            
-                    pc = Line3DCollection(coordFaces, edgecolor='black', lw=lw, antialiaseds=True, zorder=1)
+                    pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
                     ax.add_collection3d(pc)
 
                     # Maillage deformé                
@@ -468,9 +468,9 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
                 coordFaces = coordoDim[connectDim]
 
                 if dim > 1:
-                    pc = Poly3DCollection(coordFaces, facecolors='c', edgecolor='black', linewidths=0.5, alpha=alpha)
+                    pc = Poly3DCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, linewidths=0.5, alpha=alpha)
                 else:
-                    pc = Line3DCollection(coordFaces, edgecolor='black', lw=lw, antialiaseds=True, zorder=1)
+                    pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
                     ax.scatter(coordoDim[:,0], coordoDim[:,1], coordoDim[:,2], c='black', lw=lw, marker='.')
 
                 ax.add_collection3d(pc, zs=0, zdir='z')
@@ -762,12 +762,12 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
 
     inDim = mesh.inDim
 
+    alpha = 0
+
     # Création des axes si nécessaire
     if ax == None:
-        if inDim in [1,2]:
-            fig, ax = plt.subplots()
-        elif inDim == 3:
-            fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+        ax = Plot_Maillage(mesh, facecolors='c', edgecolor='c')
+        fig = ax.figure
 
     # Ici pour chaque group d'element du maillage, on va tracer les elements appartenant au groupe d'element
 
@@ -832,35 +832,36 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
                 if len(noeuds) > 0 and needPlot:
 
                     if dim == 0:
-                        collections.append(ax.scatter(x_n, y_n, c='black', marker='.', zorder=2, label=tag_e))
+                        collections.append(ax.scatter(x_n, y_n, c='black', marker='.', zorder=2, label=tag_e, lw=2))
                     elif dim == 1:
-                        pc = matplotlib.collections.LineCollection(coordo_faces, lw=1, edgecolor=color, alpha=1, label=tag_e)
+                        pc = matplotlib.collections.LineCollection(coordo_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
                         collections.append(ax.add_collection(pc))
                     else:
-                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0, alpha=1, facecolors=color, label=tag_e)
+                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0, alpha=alpha, facecolors=color, label=tag_e)
                         collections.append(ax.add_collection(pc))
-                        ax.legend()
+                        # ax.legend()
                     
                     if showId and dim != 2:
                         ax.text(x_e, y_e, tag_e, zorder=25)
                 else:
                     ax.scatter(x_n, y_n, c='black', marker='.', zorder=2)
-                    if showId: ax.text(x_e, y_e, tag_e, zorder=25)
-                
-                
+                    if showId:
+                        ax.text(x_e, y_e, tag_e, zorder=25)
                     
             else:
                 if len(noeuds) > 0 and needPlot:
                     if dim == 0:
-                        collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e))
+                        collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e, lw=2))
                     elif dim == 1:
-                        pc = Line3DCollection(coordo_faces, lw=1, edgecolor=color, alpha=1, label=tag_e)
-                        collections.append(ax.add_collection3d(pc, zs=0, zdir='z'))
+                        pc = Line3DCollection(coordo_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
+                        # collections.append(ax.add_collection3d(pc, zs=z_e, zdir='z'))
+                        collections.append(ax.add_collection3d(pc))
                     elif dim == 2:
-                        pc = Poly3DCollection(coordo_faces, lw=0.5, alpha=1, facecolors=color, label=tag_e)
+                        pc = Poly3DCollection(coordo_faces, lw=0.5, alpha=alpha, facecolors=color, label=tag_e)
                         pc._facecolors2d = color
                         pc._edgecolors2d = color
-                        collections.append(ax.add_collection3d(pc, zs=0, zdir='z'))
+                        # collections.append(ax.add_collection3d(pc, zs=z_e, zdir='z'))
+                        collections.append(ax.add_collection3d(pc))
 
                     if showId:
                         ax.text(x_e, y_e, z_e, tag_e, zorder=25)
@@ -892,15 +893,17 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
     return ax
 
 def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
-
+    
     def Set_Message(collection, event):
         if collection.contains(event)[0]:
             toolbar = ax.figure.canvas.toolbar
             coordo = ax.format_coord(event.xdata, event.ydata)
             toolbar.set_message(f"{collection.get_label()} : {coordo}")
+            # TODO Changer le titre à la place ?
     
     def hover(event):
         if event.inaxes == ax:
+            # TODO existe til un moyen d'acceder direct a la collection qui contient levent ?
             [Set_Message(collection, event) for collection in collections]
 
     fig.canvas.mpl_connect("motion_notify_event", hover)

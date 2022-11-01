@@ -7,9 +7,8 @@ import numpy as np
 import scipy.sparse as sp
 import Dossier
 import Materials
-import PostTraitement
 
-def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int, float]:
+def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int, float, float]:
     """Calcul l'itération d'un probleme d'endommagement de façon étagée
 
     Parameters
@@ -42,6 +41,8 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
     dn = simu.damage
 
     solveur = simu.materiau.phaseFieldModel.solveur
+
+    tic = Tic()
 
     while not convergence:
                 
@@ -83,8 +84,12 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
 
     else:
         raise "Solveur inconnue"
+
+    temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)    
+
+    simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
         
-    return u, dnp1, Kglob, nombreIter, dincMax
+    return u, dnp1, Kglob, nombreIter, dincMax, temps
 
 class listTemps:
     def init(self):

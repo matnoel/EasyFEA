@@ -263,15 +263,9 @@ for split in ["AnisotStress"]:
 
             resol += 1
             
-            tic = Tic()
-            
             Chargement()
 
-            u, d, Kglob, nombreIter, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
-
-            temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
-
-            simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
+            u, d, Kglob, nombreIter, dincMax, temps = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
             max_d = d.max()
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))

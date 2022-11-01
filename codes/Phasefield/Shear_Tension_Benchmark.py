@@ -257,17 +257,14 @@ if solve:
 
     while Condition():
 
-        tic = Tic()
-
         nombreIter=0
         convergence = False
         damage = simu.damage
 
         Chargement(dep)
 
-        u, d, Kglob, nombreIter, dincMax = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
-
-        temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
+        u, d, Kglob, nombreIter, dincMax, temps = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
+        
         f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
         if isinstance(comportement, Elas_Anisot):

@@ -8,8 +8,8 @@ from Materials import Materiau, Elas_Isot
 import Dossier
 import PostTraitement
 
-dim = 2
-option = 3
+dim = 3
+option = 2
 N = 5
 
 dictOptions = {
