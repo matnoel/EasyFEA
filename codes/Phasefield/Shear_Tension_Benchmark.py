@@ -330,6 +330,8 @@ if makeMovie:
 
 if plotResult:
 
+    Affichage.Plot_ResumeIter(simu, folder, None, None)
+
     Affichage.Plot_BoundaryConditions(simu)
 
     Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN', folder)
