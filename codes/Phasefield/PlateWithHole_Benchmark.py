@@ -17,18 +17,18 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = False
-solve = False
+test = True
+solve = True
 plotMesh = False
-plotIter = False
+plotIter = True
 plotResult = True
 showFig = True
-plotEnergie = True
+plotEnergie = False
 saveParaview = False; NParaview=200
 makeMovie = False; NMovie = 300
 
 
-problem = "Benchmark" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
+problem = "CompressionFCBA3" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
@@ -84,7 +84,7 @@ for split in ["AnisotStress"]:
 
     elif "CompressionFCBA" in problem:
         L=9e-2
-        if problem in ["CompressionFCBA2"]:
+        if problem in ["CompressionFCBA2","CompressionFCBA3"]:
             # Pour un carré
             h=L
         else:
@@ -94,6 +94,8 @@ for split in ["AnisotStress"]:
         diam=1e-2
         if problem == "CompressionFCBA2":
             diam=2e-2
+        if problem == "CompressionFCBA3":
+            diam=1e-2
         r=diam/2
         
         gc = 1.4/2
