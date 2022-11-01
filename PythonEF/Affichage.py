@@ -1,17 +1,18 @@
 import platform
 from typing import List, cast
+from colorama import Fore
 import os
 import numpy as np
 import pandas as pd
 
 # Figures
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import matplotlib.collections
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+# Pour tracer des collections
+import matplotlib.collections
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, title="", affichageMaillage=False, valeursAuxNoeuds=False, folder="", filename="", colorbarIsClose=False, fig=None, ax=None):
+def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affichageMaillage=False, valeursAuxNoeuds=True, folder="", filename="", title="", ax=None, colorbarIsClose=False):
     """Affichage d'un résulat de la simulation
 
     Parameters
@@ -26,8 +27,6 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         facteur de deformation, by default 4
     coef : int, optional
         coef qui sera appliqué a la solution, by default 1
-    title : str, optional
-        titre de la figure, by default ""
     affichageMaillage : bool, optional
         affiche le maillage, by default False
     valeursAuxNoeuds : bool, optional
@@ -36,23 +35,22 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         dossier de sauvegarde, by default ""
     filename : str, optional
         nom du fichier de sauvegarde, by default ""
+    title : str, optional
+        titre de la figure, by default ""
+    ax : axe, optional
+        ancien axe de matplotlib, by default None
     colorbarIsClose : bool, optional
         la color bar est affiché proche de la figure, by default False
-    oldfig : _type_, optional
-        ancienne figure de matplotlib, by default None
-    oldax : _type_, optional
-        ancien axe de matplotlib, by default None
 
     Returns
     -------
     Figure, Axe, colorbar
         fig, ax, cb
     """
-    # Detecte si on donne bien ax et fig en meme temps
-    assert (fig == None) == (ax == None), "Doit fournir fig et ax ensemble"
-    # fig -> colorbar et ax pour tracer
-    if (not fig == None) and (not ax == None):
-        assert isinstance(fig, plt.Figure) and isinstance(ax, plt.Axes)
+    
+    if ax != None:
+        assert isinstance(ax, plt.Axes)
+        fig = ax.figure
 
     from Simu import Simu
 
@@ -116,8 +114,6 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
         levels = np.linspace(min, max, 200)
     else:
         levels = 200
-
-    
 
     if inDim in [1,2] and not isBeamModel3D:
         # Maillage contenu dans un plan 2D
@@ -300,27 +296,27 @@ def Plot_Result(simu, option: str , deformation=False, facteurDef=4, coef=1, tit
     # Renvoie la figure, l'axe et la colorbar
     return fig, ax, cb
     
-def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1, folder="", title="") -> plt.Axes:
+def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1) -> plt.Axes:
     """Dessine le maillage de la simulation
 
     Parameters
     ----------
     obj : Simu or Mesh
         objet qui contient le maillage
-    ax : plt.Axes, optional
-        Axes dans lequel on va creer la figure, by default None
     facteurDef : int, optional
         facteur de deformation, by default 4
     deformation : bool, optional
         affiche la deformation, by default False
+    folder : str, optional
+        dossier de sauvegarde, by default ""
+    title : str, optional
+        nom du fichier de sauvegarde, by default ""
+    ax : plt.Axes, optional
+        Axes dans lequel on va creer la figure, by default None
     lw : float, optional
         epaisseur des traits, by default 0.5
     alpha : int, optional
         transparence des faces, by default 1
-    folder : str, optional
-        dossier de sauvegarde, by default ""
-    filename : str, optional
-        nom du fichier de sauvegarde, by default ""
 
     Returns
     -------
@@ -328,9 +324,7 @@ def Plot_Maillage(obj, ax=None, facteurDef=4, deformation=False, lw=0.5 ,alpha=1
         Axes dans lequel on va creer la figure
     """
 
-    from Simu import Simu, BeamModel
-    from Mesh import Mesh
-
+    from Simu import Simu, BeamModel, Mesh
 
     typeobj = type(obj).__name__
 
@@ -783,6 +777,9 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
         if dim < 3:
             # On ajoute pas les groupes d'elements 3D
             listGroupElem.extend(mesh.Get_list_groupElem(dim))
+    
+
+    collections = []
 
     for groupElem in listGroupElem:
 
@@ -835,13 +832,13 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
                 if len(noeuds) > 0 and needPlot:
 
                     if dim == 0:
-                        ax.scatter(x_n, y_n, c='black', marker='.', zorder=2)
+                        collections.append(ax.scatter(x_n, y_n, c='black', marker='.', zorder=2, label=tag_e))
                     elif dim == 1:
-                        pc = matplotlib.collections.LineCollection(coordo_faces, lw=1, edgecolor=color, alpha=1)
-                        ax.add_collection(pc)
+                        pc = matplotlib.collections.LineCollection(coordo_faces, lw=1, edgecolor=color, alpha=1, label=tag_e)
+                        collections.append(ax.add_collection(pc))
                     else:
-                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0, alpha=0.9, facecolors=color, label=tag_e)
-                        ax.add_collection(pc)
+                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0, alpha=1, facecolors=color, label=tag_e)
+                        collections.append(ax.add_collection(pc))
                         ax.legend()
                     
                     if showId and dim != 2:
@@ -855,24 +852,25 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
             else:
                 if len(noeuds) > 0 and needPlot:
                     if dim == 0:
-                        ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2)
+                        collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e))
                     elif dim == 1:
-                        pc = Line3DCollection(coordo_faces, lw=1, edgecolor=color, alpha=1)
-                        ax.add_collection3d(pc, zs=0, zdir='z')
+                        pc = Line3DCollection(coordo_faces, lw=1, edgecolor=color, alpha=1, label=tag_e)
+                        collections.append(ax.add_collection3d(pc, zs=0, zdir='z'))
                     elif dim == 2:
-                        pc = Poly3DCollection(coordo_faces, lw=0.5, alpha=0.9, facecolors=color, label=tag_e)
+                        pc = Poly3DCollection(coordo_faces, lw=0.5, alpha=1, facecolors=color, label=tag_e)
                         pc._facecolors2d = color
                         pc._edgecolors2d = color
-                        ax.add_collection3d(pc, zs=0, zdir='z')
+                        collections.append(ax.add_collection3d(pc, zs=0, zdir='z'))
 
-                    if showId: ax.text(x_e, y_e, z_e, tag_e, zorder=25)
+                    if showId:
+                        ax.text(x_e, y_e, z_e, tag_e, zorder=25)
                 else:
                     x_n = coordo[noeuds,0]
                     y_n = coordo[noeuds,1]
                     y_n = coordo[noeuds,1]
-                    if showId: ax.text(x_e, y_e, z_e, tag_e, zorder=25)
-                    ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2)
-    
+                    if showId:
+                        ax.text(x_e, y_e, z_e, tag_e, zorder=25)
+                    collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e))
 
     if inDim in [1, 2]:
         ax.autoscale()
@@ -889,9 +887,23 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
         import PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "noeuds")
 
+    __Annotation_Evenemenent(collections, fig, ax)
+
     return ax
 
+def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
+
+    def Set_Message(collection, event):
+        if collection.contains(event)[0]:
+            toolbar = ax.figure.canvas.toolbar
+            coordo = ax.format_coord(event.xdata, event.ydata)
+            toolbar.set_message(f"{collection.get_label()} : {coordo}")
     
+    def hover(event):
+        if event.inaxes == ax:
+            [Set_Message(collection, event) for collection in collections]
+
+    fig.canvas.mpl_connect("motion_notify_event", hover)
 
 
 def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m', ylabel='f en N', folder=""):
@@ -1050,11 +1062,7 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     ymin = np.min(coordo[:,1]); ymax = np.max(coordo[:,1])
     zmin = np.min(coordo[:,2]); zmax = np.max(coordo[:,2])
     
-    max = np.max(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
-    min = np.min(np.abs([xmin, xmax, ymin, ymax, zmin, zmax]))
     maxRange = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
-    cc = 0.5 # -> zoom au mieu
-    cc= 1 # dezoomé de 2
     maxRange = maxRange*0.5
 
     xmid = (xmax + xmin)/2

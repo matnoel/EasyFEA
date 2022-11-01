@@ -137,9 +137,7 @@ for config in listConfig:
 
             filenameDamage = f"{nomSimu} et ud = {np.round(displacement[i]*1e6,2)}"
 
-            Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=colorBarIsClose,
-            folder=folderSauvegarde, filename=filenameDamage, 
-            title=filenameDamage)
+            Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=colorBarIsClose, folder=folderSauvegarde, filename=filenameDamage,title=filenameDamage)
 
     # texte = nom.replace(f" pour v={v}", "")
     texte = nomSimu

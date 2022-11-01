@@ -236,7 +236,7 @@ class Test_Simu(unittest.TestCase):
             
             simu.Set_Hyperbolic_AlgoProperties(dt=0.5)
             simu.Solve_u(steadyState=False)
-            fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True, valeursAuxNoeuds=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True,valeursAuxNoeuds=True)
             plt.pause(1e-12)
             plt.close(fig)
 

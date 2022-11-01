@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-dim = 3
+dim = 2
 
 folder = Dossier.NewFile(f"Etude{dim}D", results=True)
 
@@ -31,15 +31,18 @@ saveParaview = True; NParaview = 500
 
 useNumba = True
 
-isLoading = True
-initSimu = False
+isLoading = False
+initSimu = True
 
 pltMovie = False; NMovie = 400
 
 plotIter = True; affichageIter = "dy"
 
-coefM = 1e-2
-coefK = 1e-3*2
+# coefM = 1e-2
+# coefK = 1e-3*2
+
+coefM = 0
+coefK = 0
 
 Tmax = 0.3
 N = 20
@@ -127,9 +130,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet("displacement", noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad("displacement", noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        # simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
+        simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
 
-        simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
+        # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
         pass
@@ -171,7 +174,7 @@ while t <= Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, fig=fig, ax=ax, deformation=True)
+        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, ax=ax, deformation=True)
         plt.pause(1e-12)
 
     t += dt
@@ -205,7 +208,7 @@ if plotResult:
     # Affichage.Plot_Result(simu, "amplitude")
     Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
     Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=False)        
-    Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=True, affichageMaillage=True)        
+    Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=False)        
     # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
     
     tic.Tac("Affichage","Affichage des figures", plotResult)

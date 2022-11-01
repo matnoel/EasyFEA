@@ -15,6 +15,7 @@ Affichage.Clear()
 # L'objectif de ce script est de voir du chargement
 
 # Options
+dim = 3
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
@@ -52,10 +53,13 @@ domain = Domain(point, Point(x=L, y=H), clD)
 circle = Circle(Point(x=L/2, y=H-h), diam, clC, isCreux=True)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
-mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
+if dim == 2:
+    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
+else:
+    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, [0,0,6*coef], nCouches=6, elemType="HEXA8")
 
 Affichage.Plot_Model(mesh)
-plt.show()
+# plt.show()
 Affichage.Plot_Maillage(mesh,folder=folder)
 
 # Récupérations des noeuds de chargement
@@ -65,17 +69,27 @@ B_upper = Line(Point(y=H),Point(x=L, y=H))
 noeuds_22 = mesh.Nodes_Tag(["L5","L7", "P1"])
 
 Affichage.Plot_Noeuds(mesh, noeuds=noeuds_22)
-plt.show()
+# plt.show()
 
-nodes0 = mesh.Nodes_Line(B_lower)
-nodesh = mesh.Nodes_Line(B_upper)
-node00 = mesh.Nodes_Point(Point())   
-noeuds_cercle = mesh.Nodes_Circle(circle)
+# nodes0 = mesh.Nodes_Line(B_lower)
+nodes0 = mesh.Nodes_Conditions(conditionY=lambda y: y==0)
+# nodesh = mesh.Nodes_Line(B_upper)
+nodesh = mesh.Nodes_Conditions(conditionY=lambda y: y==H)
+node00 = mesh.Nodes_Point(Point())
+if dim == 2:
+    noeuds_cercle = mesh.Nodes_Circle(circle)
+else:
+    noeuds_cercle = mesh.Nodes_Cylindre(circle,[0,0,1])
+
 noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]
 
-comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+comportement = Materials.Elas_Isot(dim, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
 phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
-materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
+
+if dim == 2:
+    materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
+else:
+    materiau = Materials.Materiau(comportement, verbosity=False)
 
 simu = Simu.Simu(mesh, materiau, verbosity=False)
 
@@ -87,8 +101,10 @@ simu.add_dirichlet("displacement", node00, [0], ["x"])
 
 # Sx = F * cos tet * abs(sin tet)
 # Sy = F * sin tet * abs(sin tet)
-simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
-simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
+# simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
+# simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
+
+simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 
@@ -103,6 +119,7 @@ Affichage.NouvelleSection("Résultats")
 Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
 Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
 Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
+Affichage.Plot_Result(simu, "Svm", coef=1/SIG, title=r"$\sigma_{vm}/\sigma$", folder=folder, filename='Svm')
 
 # mini = np.min(simu.Get_Resultat("Syy", valeursAuxNoeuds=False))/SIG
 

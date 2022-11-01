@@ -112,7 +112,7 @@ while t <= tMax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, resultat, valeursAuxNoeuds=True, fig=fig, ax=ax)
+        fig, ax, cb = Affichage.Plot_Result(simu, resultat, valeursAuxNoeuds=True, ax=ax)
         plt.pause(1e-12)
 
     print(f"{t//dt}",end="\r")

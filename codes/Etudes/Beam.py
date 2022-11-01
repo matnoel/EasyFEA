@@ -12,9 +12,9 @@ interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
 problem = "Portique"
 
-elemType = "SEG2"
+elemType = "SEG3"
 
-beamDim = 2
+beamDim = 3
 
 if problem in ["Flexion","BiEnca","Portique"]:
     L=120; nL=1
@@ -144,7 +144,8 @@ if problem in ["Flexion"]:
     # simu.add_lineLoad("beam", mesh.Nodes_Line(line), [-800/L], ['y'])
     # simu.add_surfLoad("beam", mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
 elif problem == "Portique":
-    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge],["y"])
+    # simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge],["y"])
+    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge, charge],["y","z"])
     
 elif problem == "BiEnca":
     simu.add_pointLoad("beam", mesh.Nodes_Point(point2), [-charge],["y"])

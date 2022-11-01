@@ -284,9 +284,7 @@ plt.savefig(Dossier.Join([folder,"forcedep.png"]))
 
 # plt.pause(0.0000001)
 
-Affichage.Plot_Result(simu, "damage", title=fr"$\phi \ pour \ \nu={v}$",
-valeursAuxNoeuds=True, colorbarIsClose=True, affichageMaillage=False,
-folder=folder, filename=f"damage_n v={v} FCBA")
+Affichage.Plot_Result(simu, "damage", title=fr"$\phi \ pour \ \nu={v}$", valeursAuxNoeuds=True, colorbarIsClose=True, affichageMaillage=False, folder=folder, filename=f"damage_n v={v} FCBA")
 
 if saveParaview:
     PostTraitement.Save_Simulation_in_Paraview(folder, simu)

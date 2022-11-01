@@ -1,5 +1,6 @@
 from types import LambdaType
 from typing import List
+import inspect
 
 import numpy as np
 from scipy import sparse
@@ -964,7 +965,7 @@ class Simu:
         if steadyState:
             self.__algo = "elliptic"
         else:
-            self.__algo = "hyperbolic"
+            self.__algo = "parabolic"
 
         if steadyState:
             thermalGlob = self.__Solveur(problemType="thermal")
@@ -2287,7 +2288,7 @@ class Simu:
         else:
             return True
 
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=False, iter=None):
+    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
         """ Renvoie le résultat de la simulation
         """
 
@@ -2342,8 +2343,6 @@ class Simu:
                 return self.GetCoordUglob()
 
             displacement = self.displacement
-
-            
 
             coef = self.materiau.comportement.coef
 

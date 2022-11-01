@@ -294,7 +294,7 @@ for split in ["AnisotStress"]:
 
             if plotIter:
                 cb.remove()
-                figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, ax=axIter, fig=figIter)
+                figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, ax=axIter)
                 plt.pause(1e-12)
             
             if bord == 10:

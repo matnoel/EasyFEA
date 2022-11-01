@@ -8,9 +8,9 @@ from Materials import Materiau, Elas_Isot
 import Dossier
 import PostTraitement
 
-dim = 3
-option = 2
-N = 2
+dim = 2
+option = 3
+N = 5
 
 dictOptions = {
     1 : "CPEF",
@@ -31,6 +31,10 @@ if option == 1:
     h=1
     fichier = Dossier.Join([Dossier.GetPath(), "3Dmodels", "CPEF.stp"])
     mesh = interface.Mesh_Importation3D(fichier, 10)
+
+    noeuds134 = mesh.Nodes_Tag(['S134'])
+    Affichage.Plot_Noeuds(mesh, noeuds134)
+    plt.show()
     
 elif option ==  2:
 
@@ -50,7 +54,7 @@ elif option ==  2:
 
     listObjetsInter = [Circle(Point(x=h/2, y=h*(i+1)), h/4, isCreux=True) for i in range(3)]
 
-    listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=True, taille=h/N)])    
+    listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, taille=h/N)])    
 
     if dim == 2:
         mesh = interface.Mesh_From_Points_2D(listPoint, elemType="QUAD8", geomObjectsInDomain=listObjetsInter, tailleElement=h/N)
@@ -93,14 +97,14 @@ elif option == 3:
         mesh = interface.Mesh_From_Points_2D(listPoint, elemType="TRI3",geomObjectsInDomain=[], tailleElement=taille)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType="PRISM6", interieursList=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType="TETRA4", interieursList=[], tailleElement=taille)
 
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
 
-# Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Maillage(mesh)
 Affichage.Plot_Model(mesh, showId=False)
-# plt.show()
+plt.show()
 
 comportement = Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
 
