@@ -869,7 +869,7 @@ class Simu:
         
         self.__algo = "elliptic"
         
-        dGlob = self.__Solveur(problemType="damage", algo="elliptic")
+        dGlob = self.__Solveur(problemType="damage")
 
         assert dGlob.shape[0] == self.mesh.Nn
 
