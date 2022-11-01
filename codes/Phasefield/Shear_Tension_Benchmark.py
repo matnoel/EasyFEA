@@ -37,7 +37,7 @@ comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 split = "Amor" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
-openCrack = False
+openCrack = True
 
 maxIter = 250
 # tolConv = 0.0025
@@ -61,7 +61,7 @@ else:
 if test:
     taille = l0 #taille maille test fem object
     # taille = 0.001
-    taille *= 1.5
+    taille *= 1
 else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
@@ -92,10 +92,7 @@ if solve:
 
     # Récupère les noeuds qui m'interessent
     noeuds_Milieu = mesh.Nodes_Line(line)
-    noeuds_Milieu2 = mesh.Nodes_Tag("L4")
-
-    Affichage.Plot_Noeuds(mesh, noeuds=noeuds_Milieu2)
-    plt.show()
+    
     noeuds_Haut = mesh.Nodes_Conditions(conditionY=lambda y: y == L)
     noeuds_Bas = mesh.Nodes_Conditions(conditionY=lambda y: y == 0)
     noeuds_Gauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)
@@ -280,6 +277,7 @@ if solve:
             else:
                 dep += uinc1
         else:
+            if iter == len(chargement)-1: break
             dep = chargement[iter]
   
         deplacements.append(dep)
