@@ -106,7 +106,7 @@ for split in ["AnisotStress"]:
 
         inc0 = 8e-7
         inc1 = 2e-7
-        inc2 = inc1/2
+        inc2 = 2e-8
 
         tresh0 = 0.2
         tresh1 = 1
