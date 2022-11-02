@@ -20,9 +20,7 @@ from datetime import datetime
 # =========================================== Simulation ==================================================
 
 def Save_Simu(simu: Simu, folder:str):
-    "Sauvegarde la simulation et son résumé dans le dossier"
-
-    # TODO Effacer les matrices elements finis construit pour prendre moins de place
+    "Sauvegarde la simulation et son résumé dans le dossier"    
     # Il faut vider les matrices dans les groupes d'elements
     try:
         simu.mesh.ResetMatrices()

@@ -621,11 +621,6 @@ class Interface_Gmsh:
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    # Ici permettre la creation d'une simulation quelconques avec des points des lignes etc.
-    # TODO permettre de mettre des trous ?
-
-    
-
     def Mesh_From_Lines_1D(self, listPoutres: List[Poutre_Elas_Isot], elemType="SEG2" ,folder=""):
         """Construction d'un maillage de segment
 

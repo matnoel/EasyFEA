@@ -1,6 +1,6 @@
+from abc import abstractmethod
 from types import LambdaType
 from typing import List
-import inspect
 
 import numpy as np
 from scipy import sparse
@@ -1742,6 +1742,7 @@ class Simu:
 
         self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
+    # TODO @abstractmethod
     def __pointLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force linéique\n
         Renvoie valeurs_ddls, ddls"""

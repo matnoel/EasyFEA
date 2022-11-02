@@ -2280,7 +2280,8 @@ class GroupElem:
     @staticmethod
     def get_Types2D() -> List[str]:
         """type d'elements disponibles en 2D"""
-        # liste2D = ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"] # TODO il reste des erreurs sur TRI15 certainement points d'intégrations
+        # liste2D = ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+        # TODO il reste des erreurs sur TRI15 certainement points d'intégrations
         liste2D = ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
         return liste2D
     

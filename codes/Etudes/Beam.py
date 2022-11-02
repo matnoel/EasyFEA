@@ -124,18 +124,6 @@ if beamModel.nbPoutres > 1:
     simu.add_liaison_Encastrement(mesh.Nodes_Point(point2))
     # simu.add_dirichlet("beam",mesh.Nodes_Point(point2), [0],['y'])
     # simu.add_liaison_Rotule(mesh.Nodes_Point(point2))
-        
-
-
-
-
-    
-# TODO Rajouter les conditons entre les poutres 
-# Faire en sorte de detecter qune poutre est libre ! b 
-
-
-
-# simu.add_dirichlet("beam", mesh.Nodes_Point(point2),[-1],["y"])
 
 
 
