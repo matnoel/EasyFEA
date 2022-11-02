@@ -17,10 +17,10 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = True
+test = False
 solve = True
 plotMesh = False
-plotIter = True
+plotIter = False
 plotResult = True
 showFig = True
 plotEnergie = False
@@ -28,7 +28,7 @@ saveParaview = False; NParaview=200
 makeMovie = False; NMovie = 300
 
 
-problem = "CompressionFCBA3" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2"]
+problem = "CompressionFCBA2" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2", "CompressionFCBA3"]
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
@@ -52,7 +52,7 @@ if "CompressionFCBA" in problem:
 else:
     nL=0
 
-# TODO calculer les energies pour les tracer
+
 
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
@@ -72,7 +72,6 @@ for split in ["AnisotStress"]:
 
         gc = 1.4
         l_0 = 0.12e-3
-        
 
         inc0 = 8e-8
         inc1 = 2e-8
@@ -81,6 +80,9 @@ for split in ["AnisotStress"]:
         tresh1 = 1
 
         simpli2D = "DP" # ["CP","DP"]
+
+        listInc = [inc0, inc1]
+        listTresh = [tresh0, tresh1]
 
     elif "CompressionFCBA" in problem:
         L=9e-2
@@ -104,14 +106,16 @@ for split in ["AnisotStress"]:
 
         inc0 = 8e-7
         inc1 = 2e-7
+        inc2 = inc1/2
 
         tresh0 = 0.2
         tresh1 = 1
+        tresh2 = 130
 
         simpli2D = "CP" # ["CP","DP"]
 
-    listInc = [inc0, inc1]
-    listTresh = [tresh0, tresh1]
+        listInc = [inc0, inc1, inc2]
+        listTresh = [tresh0, tresh1, tresh2]
 
     if comp == "Elas_Isot":
         E=12e9
@@ -188,13 +192,9 @@ for split in ["AnisotStress"]:
             isCp = False
         
         if comp == "Elas_Isot":
-            comportement = Materials.Elas_Isot(2,
-            E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
+            comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
         elif comp == "Elas_IsotTrans":
-            comportement = Materials.Elas_IsotTrans(2,
-                        El=El, Et=Et, Gl=Gl, vl=vl, vt=vt,
-                        contraintesPlanes=isCp, epaisseur=ep,
-                        axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+            comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=isCp, epaisseur=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
         phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, solveur=solveur)
         materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
@@ -257,7 +257,7 @@ for split in ["AnisotStress"]:
         def Condition():
             if problem == "Benchmark":
                 return ud <= umax
-            elif "CompressionFCBA" in problem: 
+            elif "CompressionFCBA" in problem:
                 return simu.damage[noeuds_bord].max() <= 1
                 # return simu.damage.max() <= 0.5
 
@@ -279,10 +279,18 @@ for split in ["AnisotStress"]:
 
             PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, nombreIter, dincMax,  temps, "µm", pourcentage, True)
 
-            if max_d<0.6:
-                ud += inc0
+            if "CompressionFCBA" in problem:
+                if ud >= tresh2:
+                    ud += inc2
+                elif max_d<tresh0:
+                    ud += inc0
+                else:
+                    ud += inc1
             else:
-                ud += inc1
+                if max_d<tresh0:
+                    ud += inc0
+                else:
+                    ud += inc1
 
             # Detection si on a touché le bord
             if np.any(d[noeuds_bord] >= 0.95):
