@@ -108,9 +108,13 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     # Construit les niveaux pour la colorbar
     if option == "damage":
         min = valeurs.min()-1e-12
-        max = valeurs.max()+1e-12
-        if max < 1:
-            max=1
+        openCrack = False
+        if openCrack:
+            max = 0.98
+        else:
+            max = valeurs.max()+1e-12
+            if max < 1:
+                max = 1
         levels = np.linspace(min, max, 200)
     else:
         levels = 200
