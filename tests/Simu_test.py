@@ -234,7 +234,7 @@ class Test_Simu(unittest.TestCase):
             plt.pause(1e-12)
             plt.close(fig)
             
-            simu.Set_Hyperbolic_AlgoProperties(dt=0.5)
+            simu.Set_Newton_Raphson(dt=0.5)
             simu.Solve_u(steadyState=False)
             fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True,valeursAuxNoeuds=True)
             plt.pause(1e-12)

@@ -4,7 +4,7 @@ import platform
 import numpy as np
 import scipy.sparse as sparse
 
-import TicTac
+from TicTac import Tic
 
 # Solveurs
 import scipy.optimize as optimize
@@ -12,23 +12,24 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 if platform.system() != "Darwin":
     import pypardiso
+
 try:
     from sksparse.cholmod import cholesky, cholesky_AAt
 except:
-    pass
     # Le module n'est pas utilisable
+    pass
 
 try:
     import scikits.umfpack as umfpack
 except:
-    pass
     # Le module n'est pas utilisable
+    pass
 
 try:
     import mumps as mumps 
 except:
-    pass
     # Le module n'est pas utilisable
+    pass
 
 try:
     import petsc4py
@@ -38,14 +39,396 @@ except:
     # Le module n'est pas utilisable
     pass
 
+def Solveur_1(simu, problemType: str) -> np.ndarray:
+    # --       --  --  --   --  --
+    # | Aii Aic |  | xi |   | bi |    
+    # | Aci Acc |  | xc | = | bc | 
+    # --       --  --  --   --  --
+    # ui = inv(Aii) * (bi - Aic * xc)
 
-def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: None, isDamaged: bool, damage: np.ndarray, useCholesky=False, A_isSymetric=False, verbosity=False) -> np.ndarray:
+    from Simu import Simu
+    assert isinstance(simu, Simu)
+    algo = simu.algo
+
+    tic = Tic()
+
+    # Construit le système matricielle
+    b = __Construction_b(simu, problemType)
+    A, x = __Construction_A_x(simu, problemType, b, resolution=1)
+
+    # Récupère les ddls
+    ddl_Connues, ddl_Inconnues = __Construit_ddl_connues_inconnues(simu, problemType)
+
+    # Décomposition du système matricielle en connues et inconnues 
+    # Résolution de : Aii * ui = bi - Aic * xc
+    Ai = A[ddl_Inconnues, :].tocsc()
+    Aii = Ai[:, ddl_Inconnues]
+    Aic = Ai[:, ddl_Connues]
+    bi = b[ddl_Inconnues,0]
+    xc = x[ddl_Connues,0]
+
+    if problemType == "displacement" and algo == "elliptic":
+        x0 = simu.displacement[ddl_Inconnues]
+    elif problemType == "displacement" and algo == "hyperbolic":
+        x0 = simu.accel[ddl_Inconnues]
+    elif problemType == "damage":
+        x0 = simu.damage[ddl_Inconnues]
+    elif problemType == "thermal":
+        x0 = simu.thermal[ddl_Inconnues]
+    elif problemType == "beam":
+        x0 = simu.beamDisplacement[ddl_Inconnues]
+    else:
+        raise "probleme inconnue"
+
+    bDirichlet = Aic.dot(xc) # Plus rapide
+    # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
+    # bDirichlet = sparse.csr_matrix(bDirichlet)
+
+    tic.Tac("Matrices","Construit Ax=b", simu._verbosity)
+
+    if problemType in ["displacement","thermal"]:
+        # la matrice est definie symétrique positive on peut donc utiliser cholesky
+        useCholesky = True
+        A_isSymetric = True
+    else:
+        #la matrice n'est pas definie symétrique positive
+        useCholesky = False
+        A_isSymetric = False
+    
+    if problemType == "damage":
+        # Si l'endommagement est supérieur à 1 la matrice A n'est plus symétrique
+        isDamaged = True
+        solveur = simu.materiau.phaseFieldModel.solveur
+        if solveur == "BoundConstrain":
+            damage = simu.damage
+        else:
+            damage = []
+    else:
+        isDamaged = False
+        damage = []
+
+    xi = Solve_Axb(problemType=problemType, A=Aii, b=bi-bDirichlet, x0=x0, isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=simu._verbosity)
+
+    # Reconstruction de la solution
+    x = x.toarray().reshape(x.shape[0])
+    x[ddl_Inconnues] = xi
+
+    return x
+
+def Solveur_2(simu, problemType: str):
+    # Résolution par la méthode des coefs de lagrange
+
+    from Simu import Simu, LagrangeCondition
+    assert isinstance(simu, Simu)
+    algo = simu.algo
+
+    tic = Tic()
+
+    # Construit le système matricielle pénalisé
+    b = __Construction_b(simu, problemType)
+    A = __Construction_A_x(simu, problemType, b, resolution=2)
+
+    A = A.tolil()
+    b = b.tolil()
+
+    ddls_Dirichlet = np.array(simu.Get_ddls_Dirichlet(problemType))
+    values_Dirichlet = np.array(simu.Get_values_Dirichlet(problemType))
+    
+    list_Bc_Lagrange = simu.Get_Bc_Lagrange()
+
+    nColEnPlusLagrange = len(list_Bc_Lagrange)
+    nColEnPlusDirichlet = len(ddls_Dirichlet)
+    nColEnPlus = nColEnPlusLagrange + nColEnPlusDirichlet
+
+    decalage = A.shape[0]-nColEnPlus
+
+    listeLignesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
+    
+    A[listeLignesDirichlet, ddls_Dirichlet] = 1
+    A[ddls_Dirichlet, listeLignesDirichlet] = 1
+    b[listeLignesDirichlet] = values_Dirichlet
+
+    # Pour chaque condition de lagrange on va rajouter un coef dans la matrice
+    for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1):
+        if not isinstance(lagrangeBc, LagrangeCondition): continue
+        
+        ddls = lagrangeBc.ddls
+        valeurs = lagrangeBc.valeurs_ddls
+        coefs = lagrangeBc.lagrangeCoefs
+
+        A[ddls,-i] = coefs
+        A[-i,ddls] = coefs
+
+        b[-i] = valeurs[0]
+
+    tic.Tac("Matrices","Construit Ax=b", simu._verbosity)
+
+    x = Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=False, damage=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
+
+    # Récupère la solution sans les efforts de réactions
+    ddl_Connues, ddl_Inconnues = __Construit_ddl_connues_inconnues(simu, problemType)
+    x = x[range(decalage)]
+
+    return x 
+
+def Solveur_3(simu, problemType: str):
+    # Résolution par la méthode des pénalisations
+
+    from Simu import Simu
+    assert isinstance(simu, Simu)
+            
+    tic = Tic()
+
+    # Construit le système matricielle pénalisé
+    b = __Construction_b(simu, problemType)
+    A, x = __Construction_A_x(simu, problemType, b, resolution=3)
+
+    ddl_Connues, ddl_Inconnues = __Construit_ddl_connues_inconnues(simu, problemType)
+
+    tic.Tac("Matrices","Construit Ax=b", simu._verbosity)
+
+    # Résolution du système matricielle pénalisé
+    useCholesky=False #la matrice ne sera pas symétrique definie positive
+    A_isSymetric=False
+    isDamaged = simu.materiau.isDamaged
+    if isDamaged:
+        solveur = simu.materiau.phaseFieldModel.solveur
+        if solveur == "BoundConstrain":
+            damage = simu.damage
+        else:
+            damage = []
+    else:
+        damage = []
+
+    x = Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=simu._verbosity)
+
+    return x
+
+def __Construction_b(simu, problemType: str):
+    """Applique les conditions de Neumann et construit b de Ax=b"""
+    from Simu import Simu
+    assert isinstance(simu, Simu)
+    algo = simu.algo
+    
+    ddls = simu.Get_ddls_Neumann(problemType)
+    valeurs_ddls = simu.Get_values_Neumann(problemType)
+
+    taille = simu.mesh.Nn
+    if problemType == "displacement":
+        taille *= simu.dim
+    elif problemType == "beam":
+        taille *= simu.materiau.beamModel.nbddl_n
+
+    # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
+    dimSupl = len(simu.Get_Bc_Lagrange())
+    if dimSupl > 0:
+        dimSupl += len(simu.Get_ddls_Dirichlet(problemType))
+        
+    b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille+dimSupl,1))
+    
+    if problemType == "damage" and algo == "elliptic":
+        b = b + simu.Fd
+
+    elif problemType == "displacement" and algo == "elliptic":
+        b = b + simu.Fu
+
+    elif problemType == "beam" and algo == "elliptic":
+        b = b + simu.Fbeam
+
+    elif problemType == "displacement" and algo == "hyperbolic":
+        b = b + simu.Fu
+
+        u_n = simu.displacement
+        v_n = simu.speed
+
+        Cu = simu.Get_Rayleigh_Damping()
+        
+        if len(simu.results) == 0 and (b.max() != 0 or b.min() != 0):
+
+            ddl_Connues, ddl_Inconnues = __Construit_ddl_connues_inconnues(simu, problemType)
+
+            bb = b - simu.Ku.dot(sparse.csr_matrix(u_n.reshape(-1, 1)))
+            
+            bb -= Cu.dot(sparse.csr_matrix(v_n.reshape(-1, 1)))
+
+            bbi = bb[ddl_Inconnues]
+            Aii = simu.Mu[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
+
+            ai_n = Solve_Axb(problemType=problemType, A=Aii, b=bbi, x0=None, isDamaged=False, damage=[], useCholesky=False, A_isSymetric=True, verbosity=simu._verbosity)
+
+            simu.accel[ddl_Inconnues] = ai_n
+        
+        a_n = simu.accel
+
+        dt = simu.dt
+        gamma = simu.gamma
+        betha = simu.betha
+
+        uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1-2*betha) * a_n
+        vTild_np1 = v_n + (1-gamma) * dt * a_n
+
+        # Formulation en accel
+        b -= simu.Ku.dot(uTild_np1.reshape(-1,1))
+        b -= Cu.dot(vTild_np1.reshape(-1,1))
+        b = sparse.csr_matrix(b)
+
+
+    elif problemType == "thermal" and algo == "elliptic":
+        b = b + simu.Ft.copy()
+
+    elif problemType == "thermal" and algo == "parabolic":
+        b = b + simu.Ft.copy()
+
+        thermal = simu.thermal
+        thermalDot =  simu.thermalDot
+
+        alpha = simu.alpha
+        dt = simu.dt
+
+        thermalDotTild_np1 = thermal + (1-alpha) * dt * thermalDot
+        thermalDotTild_np1 = sparse.csr_matrix(thermalDotTild_np1.reshape(-1, 1))
+
+        # Resolution de la température
+        b = b + simu.Mt.dot(thermalDotTild_np1/(alpha*dt))
+            
+        # # Résolution de la dérivée temporelle de la température
+        # b = b - simu.Kt.dot(thermalDotTild_np1)
+            
+
+    else:
+        raise "Configuration inconnue"
+
+    return b
+
+def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution: int):
+        """Applique les conditions de dirichlet en construisant Ax de Ax=b"""
+
+        from Simu import Simu
+        assert isinstance(simu, Simu)
+        algo = simu.algo
+
+        ddls = simu.Get_ddls_Dirichlet(problemType)
+        valeurs_ddls = simu.Get_values_Dirichlet(problemType)
+
+        taille = simu.mesh.Nn
+
+        if problemType == "damage" and algo == "elliptic":
+            A = simu.Kd.copy()
+
+        elif problemType == "displacement" and algo == "elliptic":
+            taille *= simu.dim
+            A = simu.Ku.copy()
+
+        elif problemType == "beam" and algo == "elliptic":
+            taille *= simu.materiau.beamModel.nbddl_n
+            A = simu.Kbeam.copy()
+
+        elif problemType == "displacement" and algo == "hyperbolic":
+            taille *= simu.dim
+
+            dt = simu.dt
+            gamma = simu.gamma
+            betha = simu.betha
+            
+            Cu = simu.Get_Rayleigh_Damping()
+
+            # Forumlation en accel
+            A = simu.Mu + (simu.Ku * betha * dt**2)
+            A += (gamma * dt * Cu)
+
+            a_n = simu.accel
+            valeurs_ddls = a_n[ddls]
+                
+            
+        elif problemType == "thermal" and algo == "elliptic":
+            A = simu.Kt.copy()
+
+        elif problemType == "thermal" and algo == "parabolic":
+            
+            option = 1
+            alpha = simu.alpha
+            dt = simu.dt
+
+            # Resolution de la température
+            A = simu.Kt.copy() + simu.Mt.copy()/(alpha * dt)
+                
+            # # Résolution de la dérivée temporelle de la température
+            # A = simu.Kt.copy() * alpha * dt + simu.Mt.copy()
+
+        else:
+            raise "Configuration inconnue"
+
+
+        if resolution == 1:
+            
+            # ici on renvoie la solution avec les ddls connues
+            x = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1), dtype=np.float64)
+
+            # l,c ,v = sparse.find(x)
+
+            return A, x
+
+        elif resolution == 2:
+            # Lagrange
+            return A
+
+        elif resolution == 3:
+            # Pénalisation
+
+            A = A.tolil()
+            b = b.tolil()            
+            
+            # Pénalisation A
+            A[ddls] = 0.0
+            A[ddls, ddls] = 1
+
+            # Pénalisation b
+            b[ddls] = valeurs_ddls
+
+            # ici on renvoie A pénalisé
+            return A.tocsr(), b.tocsr()
+
+
+def __Construit_ddl_connues_inconnues(simu, problemType: str):
+    """Récupère les ddl Connues et Inconnues
+    Returns:
+        list(int), list(int): ddl_Connues, ddl_Inconnues
+    """
+    from Simu import Simu
+    assert isinstance(simu, Simu)
+    
+
+    # Construit les ddls connues
+    ddls_Connues = []
+
+    ddls_Connues = simu.Get_ddls_Dirichlet(problemType)
+    unique_ddl_Connues = np.unique(ddls_Connues)
+
+    # Construit les ddls inconnues
+
+    taille = simu.mesh.Nn
+    if problemType == "displacement":
+        taille *= simu.dim
+    elif problemType == "beam":
+        taille *= simu.materiau.beamModel.nbddl_n
+
+    ddls_Inconnues = list(range(taille))
+
+    ddls_Inconnues = list(set(ddls_Inconnues) - set(unique_ddl_Connues))
+    # [ddls_Inconnues.remove(ddl) for ddl in unique_ddl_Connues]
+                            
+    ddls_Inconnues = np.array(ddls_Inconnues)
+    
+    verifTaille = unique_ddl_Connues.shape[0] + ddls_Inconnues.shape[0]
+    assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
+
+    return ddls_Connues, ddls_Inconnues
+
+def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: None, damage: np.ndarray, isDamaged: bool, useCholesky: bool, A_isSymetric: bool, verbosity: bool) -> np.ndarray:
     """Resolution de A x = b
 
     Parameters
     ----------
-    problemType : str
-        type de probleme ["displacement", "damage", "thermal]
     A : sparse.csr_matrix
         Matrice A
     b : sparse.csr_matrix
@@ -53,15 +436,13 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
     x0 : None
         solution initiale pour les solveurs itératifs
     isDamaged : bool
-        le problème est endommagé
+        
     damage : np.ndarray
         vecteur d'endommagement pour le BoundConstrain
     useCholesky : bool, optional
         autorise l'utilisation de la décomposition de cholesky, by default False
     A_isSymetric : bool, optional
         A est simetric, by default False
-    verbosity : bool, optional
-        Les solveurs peuvent ecrire dans la console, by default False
 
     Returns
     -------
@@ -71,14 +452,13 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
     
     # Detection du système
     syst = platform.system()
-    
-    tic = TicTac.Tic()
 
     useCholesky = False
 
     if isDamaged:
         if problemType == "damage" and len(damage) > 0:
-            solveur = "BoundConstrain" # minimise le residu sous la contrainte
+            solveur = "BoundConstrain"
+            # minimise le residu sous la contrainte
         else:
             if syst == "Darwin":
                 solveur = "scipy_spsolve"
@@ -98,7 +478,13 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
 
         else:
             solveur = "pypardiso"
+    
+    tic = Tic()
 
+    if platform.system() == "Linux":
+        sla.use_solver(useUmfpack=True)
+    else:
+        sla.use_solver(useUmfpack=False)
     
     if useCholesky and A_isSymetric:
         x = __Cholesky(A, b)
@@ -114,19 +500,15 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
         x = __ScipyLinearDirect(A, b, A_isSymetric, isDamaged)
 
     elif solveur == "cg":
-        __ActiveUmfpack()
         x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
 
     elif solveur == "bicg":
-        __ActiveUmfpack()
         x, output = sla.bicg(A, b.toarray(), x0, maxiter=None)
 
     elif solveur == "gmres":
-        __ActiveUmfpack()
         x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
 
     elif solveur == "lgmres":
-        __ActiveUmfpack()
         x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
         print(output)
 
@@ -196,8 +578,6 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
 
 def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool, isDamaged: bool):
     # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
-    
-    __ActiveUmfpack()
 
     hideFacto = False # Cache la décomposition
     # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
@@ -221,8 +601,6 @@ def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric
 
 def __DamageBoundConstrain(A, b, damage: np.ndarray):
     
-    __ActiveUmfpack()
-    
     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
     lb = damage
     lb[np.where(lb>=1)] = 1-np.finfo(float).eps
@@ -235,10 +613,6 @@ def __DamageBoundConstrain(A, b, damage: np.ndarray):
 
     return x
 
-def __ActiveUmfpack():
-    if platform.system() == "Linux":
-        sla.use_solver(useUmfpack=True)
-    else:
-        sla.use_solver(useUmfpack=False)
+
 
 

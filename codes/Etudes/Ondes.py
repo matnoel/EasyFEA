@@ -72,7 +72,7 @@ ro = materiau.ro
 simu = Simu(mesh, materiau, verbosity=False)
 
 simu.Set_Rayleigh_Damping_Coefs(0, 0)
-simu.Set_Hyperbolic_AlgoProperties(betha=1/4, gamma=1/2, dt=dt)
+simu.Set_Newton_Raphson(betha=1/4, gamma=1/2, dt=dt)
 
 t=0
 

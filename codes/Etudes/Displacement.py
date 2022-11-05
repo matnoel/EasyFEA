@@ -31,7 +31,7 @@ saveParaview = True; NParaview = 500
 
 useNumba = True
 
-isLoading = False
+isLoading = True
 initSimu = True
 
 pltMovie = False; NMovie = 400
@@ -45,7 +45,7 @@ coefM = 0
 coefK = 0
 
 Tmax = 0.3
-N = 20
+N = 10
 dt = Tmax/N
 t = 0
 
@@ -61,7 +61,8 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-taille = h/5
+# taille = h/1
+taille = L/2
 # taille = h/200
 
 comportement = Elas_Isot(dim, epaisseur=b)
@@ -130,9 +131,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet("displacement", noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad("displacement", noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
+        # simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
 
-        # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
+        simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
         pass
@@ -163,7 +164,7 @@ if N > 1:
 else:
     steadyState=True
 
-simu.Set_Hyperbolic_AlgoProperties(dt=dt)
+simu.Set_Newton_Raphson(dt=dt)
 
 if plotIter:
     fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, deformation=True)
