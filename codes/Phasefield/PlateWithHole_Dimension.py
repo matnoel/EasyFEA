@@ -3,7 +3,7 @@ import Materials
 from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
-import Simu as Simu
+import Simulations
 import Dossier as Dossier
 import pandas as pd
 import PostTraitement as PostTraitement
@@ -89,9 +89,9 @@ for cc in list_cc:
 
     comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
     phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
-    materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
+    materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
 
-    simu = Simu.Simu(mesh, materiau, verbosity=False)
+    simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False)
 
     simu.add_dirichlet("displacement", nodes0, [0], ["y"])
     simu.add_dirichlet("displacement", node00, [0], ["x"])

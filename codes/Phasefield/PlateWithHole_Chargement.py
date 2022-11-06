@@ -3,7 +3,7 @@ import Materials
 from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
-import Simu as Simu
+import Simulations as Simulations
 import Dossier as Dossier
 import pandas as pd
 import PostTraitement as PostTraitement
@@ -15,7 +15,7 @@ Affichage.Clear()
 # L'objectif de ce script est de voir du chargement
 
 # Options
-dim = 3
+dim = 2
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
@@ -88,10 +88,12 @@ phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
 
 if dim == 2:
     materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
+    simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False)
 else:
     materiau = Materials.Materiau(comportement, verbosity=False)
+    simu = Simulations.Simu_Displacement(mesh, materiau, verbosity=False)
 
-simu = Simu.Simu(mesh, materiau, verbosity=False)
+
 
 simu.add_dirichlet("displacement", nodes0, [0], ["y"])
 simu.add_dirichlet("displacement", node00, [0], ["x"])
@@ -108,9 +110,12 @@ simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 
-simu.Assemblage_u()
-
-simu.Solve_u()
+if dim == 2:
+    simu.Assemblage_u()
+    simu.Solve_u()
+else:
+    simu.Assemblage()
+    simu.Solve()
 
 simu.Save_Iteration()
 

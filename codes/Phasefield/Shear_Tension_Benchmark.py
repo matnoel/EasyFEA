@@ -9,7 +9,7 @@ import Affichage as Affichage
 from Materials import Elas_IsotTrans, PhaseFieldModel, Elas_Isot, Materiau, Elas_Anisot
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
-from Simu import Simu
+from Simulations import Simu, Create_Simu 
 from Mesh import Mesh
 from TicTac import Tic
 
@@ -23,11 +23,11 @@ nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = True
 solve = True
-pltMesh = True
+pltMesh = False
 plotResult = True
-plotEnergie = True
-saveParaview = False; Nparaview=400
-makeMovie = False
+plotEnergie = False
+saveParaview = True; Nparaview=400
+makeMovie = True
 
 useNumba = True
 
@@ -61,7 +61,7 @@ else:
 if test:
     taille = l0 #taille maille test fem object
     # taille = 0.001
-    taille *= 1
+    taille *= 10
 else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
@@ -142,7 +142,7 @@ if solve:
 
     materiau = Materiau(phaseFieldModel, ro=1)
 
-    simu = Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
+    simu = Create_Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
 
     # Renseignement des conditions limites
     def Chargement(dep):
@@ -352,9 +352,9 @@ if plotEnergie:
 Tic.getResume()
 
 if solve:
-    Tic.getGraphs(folder, True)
+    Tic.getGraphs(folder, False)
 else:
-    Tic.getGraphs(details=True)
+    Tic.getGraphs(details=False)
 
 plt.show()
 

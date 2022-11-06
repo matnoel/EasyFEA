@@ -1,12 +1,11 @@
 import unittest
 from Materials import Poutre_Elas_Isot, Materiau, Elas_Isot, ThermalModel, BeamModel
-from typing import cast
 from Geom import Domain, Circle, Point, Section, Line
 import numpy as np
 import Affichage as Affichage
 from Mesh import Mesh
 from Interface_Gmsh import Interface_Gmsh
-from Simu import Simu
+import Simulations
 from TicTac import Tic
 import matplotlib.pyplot as plt
 
@@ -94,7 +93,7 @@ class Test_Simu(unittest.TestCase):
 
             # Simulation
 
-            simu = Simu(mesh, materiau, verbosity=False)
+            simu = Simulations.Simu_Beam(mesh, materiau, verbosity=False)
 
             # Conditions
 
@@ -122,9 +121,9 @@ class Test_Simu(unittest.TestCase):
                 simu.add_lineLoad("beam", noeudsLine, [q],["x"])
                 simu.add_pointLoad("beam", mesh.Nodes_Point(point2), [charge],["x"])
 
-            simu.Assemblage_beam()
+            simu.Assemblage()
 
-            simu.Solve_beam()
+            simu.Solve()
 
             Affichage.Plot_BoundaryConditions(simu)
             PlotAndDelete()
@@ -210,9 +209,9 @@ class Test_Simu(unittest.TestCase):
 
             materiau = Materiau(comportement, verbosity=False)
             
-            simu = Simu(mesh, materiau, verbosity=False)
+            simu = Simulations.Simu_Displacement(mesh, materiau, verbosity=False)
 
-            simu.Assemblage_u()
+            simu.Assemblage()
 
             noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
             noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
@@ -222,12 +221,12 @@ class Test_Simu(unittest.TestCase):
             simu.add_dirichlet("displacement",noeuds_en_L, [lambda x,y,z: 1], ['x'])
             simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
 
-            simu.Assemblage_u(steadyState=False)
+            simu.Assemblage(steadyState=False)
 
             Ke_e = simu.ConstruitMatElem_Dep()
             self.__VerificationConstructionKe(simu, Ke_e)
 
-            simu.Solve_u(steadyState=True)
+            simu.Solve(steadyState=True)
 
 
             fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True, valeursAuxNoeuds=True)
@@ -235,7 +234,7 @@ class Test_Simu(unittest.TestCase):
             plt.close(fig)
             
             simu.Set_Newton_Raphson(dt=0.5)
-            simu.Solve_u(steadyState=False)
+            simu.Solve(steadyState=False)
             fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True,valeursAuxNoeuds=True)
             plt.pause(1e-12)
             plt.close(fig)
@@ -261,15 +260,15 @@ class Test_Simu(unittest.TestCase):
 
             materiau = Materiau(thermalModel, verbosity=False)
 
-            simu = Simu(mesh , materiau, False)
+            simu = Simulations.Simu_Thermal(mesh , materiau, False)
 
             noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
 
             simu.add_dirichlet("thermal", noeuds0, [0], [""])
             simu.add_dirichlet("thermal", noeudsL, [40], [""])
-            simu.Assemblage_t(steadyState=True)
-            simu.Solve_t(steadyState=True)
+            simu.Assemblage(steadyState=True)
+            simu.Solve(steadyState=True)
             simu.Save_Iteration()
 
             fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True)
@@ -279,7 +278,7 @@ class Test_Simu(unittest.TestCase):
 
     # ------------------------------------------- Vérifications ------------------------------------------- 
 
-    def __VerificationConstructionKe(self, simu: Simu, Ke_e, d=[]):
+    def __VerificationConstructionKe(self, simu: Simulations.Simu, Ke_e, d=[]):
             """Ici on verifie quon obtient le meme resultat quavant verification vectorisation
 
             Parameters

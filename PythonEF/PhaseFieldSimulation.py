@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from colorama import Fore
 
 from TicTac import Tic
-from Simu import Simu
+from Simulations import Simu
 import numpy as np
 import scipy.sparse as sp
 import Dossier

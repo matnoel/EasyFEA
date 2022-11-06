@@ -4,7 +4,7 @@ from BoundaryCondition import BoundaryCondition
 from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
-import Simu as Simu
+import Simulations
 import PostTraitement as PostTraitement
 import PhaseFieldSimulation
 
@@ -17,18 +17,18 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = False
+test = True
 solve = True
 plotMesh = False
 plotIter = False
 plotResult = True
-showFig = True
+showFig = False
 plotEnergie = False
 saveParaview = False; NParaview=200
-makeMovie = False; NMovie = 300
+makeMovie = True; NMovie = 300
 
 
-problem = "CompressionFCBA2" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2", "CompressionFCBA3"]
+problem = "CompressionFCBA" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2", "CompressionFCBA3"]
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
@@ -48,7 +48,7 @@ else:
     umax = 80e-6
 
 if "CompressionFCBA" in problem:
-    nL=200
+    nL=20
 else:
     nL=0
 
@@ -57,7 +57,7 @@ else:
 #["Bourdin","Amor","Miehe","He","Stress"]
 #["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 #["AnisotStress","AnisotStress_NoCross"]
-for split in ["AnisotStress"]:
+for split in ["AnisotMiehe","He"]:
     
     # if split == "AnisotStress" and comp == "Elas_Isot":
     #     umax = 45e-6
@@ -199,7 +199,7 @@ for split in ["AnisotStress"]:
         phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, solveur=solveur)
         materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
 
-        simu = Simu.Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
+        simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False, useNumba=useNumba)
 
         # Récupérations des noeuds
 
@@ -346,7 +346,9 @@ for split in ["AnisotStress"]:
             Tic.getGraphs(details=True)
 
     if makeMovie:
-        PostTraitement.MakeMovie(folder, "damage", simu, Niter=NMovie, affichageMaillage=False, deformation=False, NiterFin=0, facteurDef=6)
+        # Affichage.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
+        # plt.show()
+        PostTraitement.MakeMovie(folder, "damage", simu, Niter=NMovie, affichageMaillage=False, deformation=True, NiterFin=0, facteurDef=20)
 
     # Tic.getResume()
 

@@ -6,7 +6,7 @@ from Mesh import Mesh
 from GroupElem import GroupElem
 from Materials import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
-from Simu import Simu
+from Simulations import Simu_Displacement
 import Affichage as Affichage
 from TicTac import Tic
 import Dossier as Dossier
@@ -87,7 +87,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
         # Construit la simulation
-        simu = Simu(mesh, materiau, verbosity=False, useNumba=False)
+        simu = Simu_Displacement(mesh, materiau, verbosity=False, useNumba=False)
 
         # Renseigne les condtions limites en deplacement
         simu.add_dirichlet("displacement", noeuds_en_0, [0,0], ["x","y"])
@@ -95,9 +95,9 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         simu.add_surfLoad("displacement", noeuds_en_L, [-P/h**2], ["y"])
 
         # Assemblage du système matricielle
-        simu.Assemblage_u()
+        simu.Assemblage()
 
-        simu.Solve_u()
+        simu.Solve()
         Wdef = simu.Get_Resultat("Wdef")
 
         # Stockage des valeurs

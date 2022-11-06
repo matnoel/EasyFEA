@@ -4,7 +4,7 @@ import Interface_Gmsh
 from Geom import Domain, Line, Point, Section
 import Affichage
 import Materials
-import Simu
+import Simulations
 
 Affichage.Clear()
 
@@ -41,7 +41,7 @@ section = Section(interfaceGmsh.Mesh_Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), 
 
 # Affichage.Plot_Model(section.mesh)
 # Affichage.Plot_Maillage(mesh)
-plt.show()
+# plt.show()
 
 if problem in ["Traction"]:
 
@@ -95,15 +95,15 @@ elif problem == "Portique":
 
 mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemType)
 
-Affichage.Plot_Model(mesh)
-# Affichage.Plot_Maillage(mesh)
-plt.show()
+# Affichage.Plot_Model(mesh)
+# # Affichage.Plot_Maillage(mesh)
+# plt.show()
 
 beamModel = Materials.BeamModel(dim=beamDim, listePoutres=listePoutre)
 
 materiau = Materials.Materiau(beamModel, verbosity=True)
 
-simu = Simu.Simu(mesh, materiau, verbosity=True)
+simu = Simulations.Simu_Beam(mesh, materiau, verbosity=True)
 
 if beamModel.dim == 1:
     simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0],["x"])
@@ -145,9 +145,9 @@ elif problem == "Traction":
 
 Affichage.Plot_BoundaryConditions(simu)
 
-Kbeam = simu.Assemblage_beam()
+Kbeam = simu.Assemblage()
 
-beamDisplacement = simu.Solve_beam()
+beamDisplacement = simu.Solve()
 
 stress = simu.Get_Resultat("Stress")
 

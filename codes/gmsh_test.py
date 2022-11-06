@@ -2,7 +2,7 @@
 from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Affichage
-import Simu
+import Simulations
 import matplotlib.pyplot as plt
 from Materials import Materiau, Elas_Isot
 import Dossier
@@ -110,7 +110,7 @@ comportement = Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
 
 materiau = Materiau(comportement)
 
-simu = Simu.Simu(mesh, materiau)
+simu = Simulations.Simu(mesh, materiau)
 
 if option == 1:
     simu.add_dirichlet("displacement", mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])

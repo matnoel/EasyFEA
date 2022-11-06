@@ -5,7 +5,7 @@ import Dossier
 import Interface_Gmsh
 from Geom import Circle, Domain, Line, Point
 import Materials
-import Simu
+import Simulations
 import numpy as np
 
 Affichage.Clear()
@@ -36,7 +36,7 @@ thermalModel = Materials.ThermalModel(dim=dim, k=1, c=1, epaisseur=1)
 
 materiau = Materials.Materiau(thermalModel, verbosity=False)
 
-simu = Simu.Simu(mesh , materiau, False)
+simu = Simulations.Simu_Thermal(mesh , materiau, False)
 
 noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
 noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
@@ -58,16 +58,16 @@ def Iteration(steadyState: bool):
 
     # simu.add_volumeLoad("thermal", noeudsCircle, [100], [""])
 
-    simu.Assemblage_t(steadyState)
+    simu.Assemblage(steadyState)
 
-    thermal, thermalDot = simu.Solve_t(steadyState)
+    thermal = simu.Solve(steadyState)
 
     simu.Save_Iteration()
 
     return thermal
 
 Tmax = 60*8 #s
-N = 100
+N = 10
 dt = Tmax/N #s
 t=0
 

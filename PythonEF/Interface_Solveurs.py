@@ -46,7 +46,7 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
     # --       --  --  --   --  --
     # ui = inv(Aii) * (bi - Aic * xc)
 
-    from Simu import Simu
+    from Simulations import Simu
     assert isinstance(simu, Simu)
     algo = simu.algo
 
@@ -107,7 +107,7 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
         isDamaged = False
         damage = []
 
-    xi = Solve_Axb(problemType=problemType, A=Aii, b=bi-bDirichlet, x0=x0, isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=simu._verbosity)
+    xi = __Solve_Axb(problemType=problemType, A=Aii, b=bi-bDirichlet, x0=x0, isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=simu._verbosity)
 
     # Reconstruction de la solution
     x = x.toarray().reshape(x.shape[0])
@@ -118,7 +118,7 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
 def Solveur_2(simu, problemType: str):
     # Résolution par la méthode des coefs de lagrange
 
-    from Simu import Simu, LagrangeCondition
+    from Simulations import Simu, LagrangeCondition
     assert isinstance(simu, Simu)
     algo = simu.algo
 
@@ -163,7 +163,7 @@ def Solveur_2(simu, problemType: str):
 
     tic.Tac("Matrices","Construit Ax=b", simu._verbosity)
 
-    x = Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=False, damage=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
+    x = __Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=False, damage=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
 
     # Récupère la solution sans les efforts de réactions
     ddl_Connues, ddl_Inconnues = __Construit_ddl_connues_inconnues(simu, problemType)
@@ -174,7 +174,7 @@ def Solveur_2(simu, problemType: str):
 def Solveur_3(simu, problemType: str):
     # Résolution par la méthode des pénalisations
 
-    from Simu import Simu
+    from Simulations import Simu
     assert isinstance(simu, Simu)
             
     tic = Tic()
@@ -200,13 +200,13 @@ def Solveur_3(simu, problemType: str):
     else:
         damage = []
 
-    x = Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=simu._verbosity)
+    x = __Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=isDamaged, damage=damage, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=simu._verbosity)
 
     return x
 
 def __Construction_b(simu, problemType: str):
     """Applique les conditions de Neumann et construit b de Ax=b"""
-    from Simu import Simu
+    from Simulations import Simu
     assert isinstance(simu, Simu)
     algo = simu.algo
     
@@ -254,7 +254,7 @@ def __Construction_b(simu, problemType: str):
             bbi = bb[ddl_Inconnues]
             Aii = simu.Mu[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
 
-            ai_n = Solve_Axb(problemType=problemType, A=Aii, b=bbi, x0=None, isDamaged=False, damage=[], useCholesky=False, A_isSymetric=True, verbosity=simu._verbosity)
+            ai_n = __Solve_Axb(problemType=problemType, A=Aii, b=bbi, x0=None, isDamaged=False, damage=[], useCholesky=False, A_isSymetric=True, verbosity=simu._verbosity)
 
             simu.accel[ddl_Inconnues] = ai_n
         
@@ -301,92 +301,92 @@ def __Construction_b(simu, problemType: str):
     return b
 
 def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution: int):
-        """Applique les conditions de dirichlet en construisant Ax de Ax=b"""
+    """Applique les conditions de dirichlet en construisant Ax de Ax=b"""
 
-        from Simu import Simu
-        assert isinstance(simu, Simu)
-        algo = simu.algo
+    from Simulations import Simu
+    assert isinstance(simu, Simu)
+    algo = simu.algo
 
-        ddls = simu.Get_ddls_Dirichlet(problemType)
-        valeurs_ddls = simu.Get_values_Dirichlet(problemType)
+    ddls = simu.Get_ddls_Dirichlet(problemType)
+    valeurs_ddls = simu.Get_values_Dirichlet(problemType)
 
-        taille = simu.mesh.Nn
+    taille = simu.mesh.Nn
 
-        if problemType == "damage" and algo == "elliptic":
-            A = simu.Kd.copy()
+    if problemType == "damage" and algo == "elliptic":
+        A = simu.Kd.copy()
 
-        elif problemType == "displacement" and algo == "elliptic":
-            taille *= simu.dim
-            A = simu.Ku.copy()
+    elif problemType == "displacement" and algo == "elliptic":
+        taille *= simu.dim
+        A = simu.Ku.copy()
 
-        elif problemType == "beam" and algo == "elliptic":
-            taille *= simu.materiau.beamModel.nbddl_n
-            A = simu.Kbeam.copy()
+    elif problemType == "beam" and algo == "elliptic":
+        taille *= simu.materiau.beamModel.nbddl_n
+        A = simu.Kbeam.copy()
 
-        elif problemType == "displacement" and algo == "hyperbolic":
-            taille *= simu.dim
+    elif problemType == "displacement" and algo == "hyperbolic":
+        taille *= simu.dim
 
-            dt = simu.dt
-            gamma = simu.gamma
-            betha = simu.betha
-            
-            Cu = simu.Get_Rayleigh_Damping()
+        dt = simu.dt
+        gamma = simu.gamma
+        betha = simu.betha
+        
+        Cu = simu.Get_Rayleigh_Damping()
 
-            # Forumlation en accel
-            A = simu.Mu + (simu.Ku * betha * dt**2)
-            A += (gamma * dt * Cu)
+        # Forumlation en accel
+        A = simu.Mu + (simu.Ku * betha * dt**2)
+        A += (gamma * dt * Cu)
 
-            a_n = simu.accel
-            valeurs_ddls = a_n[ddls]
+        a_n = simu.accel
+        valeurs_ddls = a_n[ddls]
                 
             
-        elif problemType == "thermal" and algo == "elliptic":
-            A = simu.Kt.copy()
+    elif problemType == "thermal" and algo == "elliptic":
+        A = simu.Kt.copy()
 
-        elif problemType == "thermal" and algo == "parabolic":
+    elif problemType == "thermal" and algo == "parabolic":
+        
+        option = 1
+        alpha = simu.alpha
+        dt = simu.dt
+
+        # Resolution de la température
+        A = simu.Kt.copy() + simu.Mt.copy()/(alpha * dt)
             
-            option = 1
-            alpha = simu.alpha
-            dt = simu.dt
+        # # Résolution de la dérivée temporelle de la température
+        # A = simu.Kt.copy() * alpha * dt + simu.Mt.copy()
 
-            # Resolution de la température
-            A = simu.Kt.copy() + simu.Mt.copy()/(alpha * dt)
-                
-            # # Résolution de la dérivée temporelle de la température
-            # A = simu.Kt.copy() * alpha * dt + simu.Mt.copy()
-
-        else:
-            raise "Configuration inconnue"
+    else:
+        raise "Configuration inconnue"
 
 
-        if resolution == 1:
-            
-            # ici on renvoie la solution avec les ddls connues
-            x = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1), dtype=np.float64)
+    if resolution == 1:
+        
+        # ici on renvoie la solution avec les ddls connues
+        x = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1), dtype=np.float64)
 
-            # l,c ,v = sparse.find(x)
+        # l,c ,v = sparse.find(x)
 
-            return A, x
+        return A, x
 
-        elif resolution == 2:
-            # Lagrange
-            return A
+    elif resolution == 2:
+        # Lagrange
+        return A
 
-        elif resolution == 3:
-            # Pénalisation
+    elif resolution == 3:
+        # Pénalisation
 
-            A = A.tolil()
-            b = b.tolil()            
-            
-            # Pénalisation A
-            A[ddls] = 0.0
-            A[ddls, ddls] = 1
+        A = A.tolil()
+        b = b.tolil()            
+        
+        # Pénalisation A
+        A[ddls] = 0.0
+        A[ddls, ddls] = 1
 
-            # Pénalisation b
-            b[ddls] = valeurs_ddls
+        # Pénalisation b
+        b[ddls] = valeurs_ddls
 
-            # ici on renvoie A pénalisé
-            return A.tocsr(), b.tocsr()
+        # ici on renvoie A pénalisé
+        return A.tocsr(), b.tocsr()
 
 
 def __Construit_ddl_connues_inconnues(simu, problemType: str):
@@ -394,7 +394,7 @@ def __Construit_ddl_connues_inconnues(simu, problemType: str):
     Returns:
         list(int), list(int): ddl_Connues, ddl_Inconnues
     """
-    from Simu import Simu
+    from Simulations import Simu
     assert isinstance(simu, Simu)
     
 
@@ -424,7 +424,7 @@ def __Construit_ddl_connues_inconnues(simu, problemType: str):
 
     return ddls_Connues, ddls_Inconnues
 
-def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: None, damage: np.ndarray, isDamaged: bool, useCholesky: bool, A_isSymetric: bool, verbosity: bool) -> np.ndarray:
+def __Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: None, damage: np.ndarray, isDamaged: bool, useCholesky: bool, A_isSymetric: bool, verbosity: bool) -> np.ndarray:
     """Resolution de A x = b
 
     Parameters
@@ -531,7 +531,7 @@ def Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: 
     # residu = np.linalg.norm(A.dot(x)-b.toarray().reshape(-1))
     # print(residu/np.linalg.norm(b.toarray().reshape(-1)))
 
-    return x
+    return np.array(x)
 
 def __Cholesky(A, b):
     

@@ -52,7 +52,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         assert isinstance(ax, plt.Axes)
         fig = ax.figure
 
-    from Simu import Simu
+    from Simulations import Simu
 
     assert isinstance(simu, Simu)
     
@@ -328,15 +328,15 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
         Axes dans lequel on va creer la figure
     """
 
-    from Simu import Simu, BeamModel, Mesh
+    from Simulations import Simu, BeamModel, Mesh
 
     typeobj = type(obj).__name__
 
-    if typeobj == Simu.__name__:
-        simu = cast(Simu, obj)
+    if isinstance(obj, Simu):
+        simu = obj
         mesh = simu.mesh
-    elif typeobj == Mesh.__name__:
-        mesh = cast(Mesh, obj)
+    elif isinstance(obj, Mesh):
+        mesh = obj
         if deformation == True:
             print("Il faut donner la simulation pour afficher le maillage déformée")
     else:
@@ -652,7 +652,7 @@ def Plot_BoundaryConditions(simu, folder=""):
         Axes dans lequel on va creer la figure
     """
 
-    from Simu import Simu
+    from Simulations import Simu
     from BoundaryCondition import BoundaryCondition, LagrangeCondition
 
     simu = cast(Simu, simu)
@@ -752,7 +752,7 @@ def Plot_BoundaryConditions(simu, folder=""):
 
 def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
 
-    from Simu import Simu, Mesh, GroupElem
+    from Simulations import Simu, Mesh, GroupElem
 
     typeobj = type(obj).__name__
 
@@ -926,7 +926,7 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m'
         PostTraitement.Save_fig(folder, "forcedep")
 
 def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
-    from Simu import Simu
+    from Simulations import Simu
 
     assert isinstance(simu, Simu)
 
@@ -1033,7 +1033,7 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
         coordonnées du maillage globle déformé
     """
     
-    from Simu import Simu
+    from Simulations import Simu
 
     simu = cast(Simu, simu)
 

@@ -2,7 +2,7 @@ import os
 from colorama import Fore
 
 import Affichage as Affichage
-from Simu import Simu
+from Simulations import Simu
 import Dossier as Dossier
 from TicTac import Tic
 import numpy as np
@@ -295,10 +295,12 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simu, Niter=200):
 
     vtuFiles=[]
 
+    resultats = simu.results
     try:
         resultats = simu.results
     except:
-        resultats = simu.Get_All_Results()
+        # resultats = simu.Get_All_Results()
+        pass
 
     NiterMax = len(resultats)-1
 

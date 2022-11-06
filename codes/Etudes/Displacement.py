@@ -9,7 +9,7 @@ import Affichage
 from Geom import *
 from Materials import Elas_Isot, Materiau
 from Interface_Gmsh import Interface_Gmsh
-from Simu import Simu
+from Simulations import Simu_Displacement
 from TicTac import Tic
 
 import matplotlib.pyplot as plt
@@ -31,18 +31,18 @@ saveParaview = True; NParaview = 500
 
 useNumba = True
 
-isLoading = True
+isLoading = False
 initSimu = True
 
-pltMovie = False; NMovie = 400
+pltMovie = True; NMovie = 400
 
 plotIter = True; affichageIter = "dy"
 
-# coefM = 1e-2
-# coefK = 1e-3*2
+coefM = 1e-2
+coefK = 1e-3*2
 
-coefM = 0
-coefK = 0
+# coefM = 0
+# coefK = 0
 
 Tmax = 0.3
 N = 10
@@ -62,8 +62,8 @@ surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
 # taille = h/1
-taille = L/2
-# taille = h/200
+# taille = L/2
+taille = h/5
 
 comportement = Elas_Isot(dim, epaisseur=b)
 
@@ -80,7 +80,7 @@ if dim == 2:
     LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
     circle = Circle(Point(x=L/2, y=0), h*0.2, isCreux=False)
     
-    elemType = "TRI10" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
     mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
@@ -111,7 +111,7 @@ noeuds_en_h = mesh.Nodes_Conditions(conditionY=lambda y: y == h/2) # noeuds_en_h
 
 # ------------------------------------------------------------------------------------------------------
 
-simu = Simu(mesh, materiau, useNumba=useNumba, verbosity=False)
+simu = Simu_Displacement(mesh, materiau, useNumba=useNumba, verbosity=False)
 simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
 def Chargement(isLoading: bool):
@@ -131,9 +131,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet("displacement", noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad("displacement", noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        # simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
+        simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
 
-        simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
+        # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
         pass
@@ -144,11 +144,11 @@ def Iteration(steadyState: bool, isLoading: bool):
     Chargement(isLoading)
 
     # Assemblage du système matricielle
-    Kglob = simu.Assemblage_u(steadyState)
+    Kglob = simu.Assemblage(steadyState)
     # plt.figure()
     # plt.spy(Kglob)
 
-    dep = simu.Solve_u(steadyState)
+    dep = simu.Solve(steadyState)
     
     simu.Save_Iteration()
 

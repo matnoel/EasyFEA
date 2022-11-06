@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Simu import Simu
+from Simulations import Simu, Create_Simu
 import Materials
 from Geom import Domain, Point, Circle
 from Interface_Gmsh import Interface_Gmsh
@@ -69,7 +69,7 @@ ro = materiau.ro
 # Gt = lambda t: a0*2*((np.pi*f0*(t-t0))**2-1)*np.exp(-(np.pi*f0*(t-t0))**2)
 
 
-simu = Simu(mesh, materiau, verbosity=False)
+simu = Create_Simu(mesh, materiau, verbosity=False)
 
 simu.Set_Rayleigh_Damping_Coefs(0, 0)
 simu.Set_Newton_Raphson(betha=1/4, gamma=1/2, dt=dt)
@@ -96,7 +96,7 @@ def Chargement():
 if plotIter:
     fig, ax, cb = Affichage.Plot_Result(simu, resultat, valeursAuxNoeuds=True)
 
-simu.Assemblage_u(steadyState=False)
+simu.Assemblage(steadyState=False)
 
 tic = TicTac.Tic()
 
@@ -104,7 +104,7 @@ while t <= tMax:
 
     Chargement()
 
-    simu.Solve_u(steadyState=False)
+    simu.Solve(steadyState=False)
 
     simu.Save_Iteration()
 

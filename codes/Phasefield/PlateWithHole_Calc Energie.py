@@ -4,7 +4,7 @@ import Materials
 from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
-import Simu as Simu
+import Simulations as Simulations
 import Dossier as Dossier
 import pandas as pd
 import PostTraitement as PostTraitement
@@ -46,7 +46,7 @@ v=0.2
 SIG = 10 #Pa
 
 gc = 1.4
-l_0 = 0.12e-3*1.2
+l_0 = 0.12e-3*5
 
 # Création du maillage
 clD = l_0*2
@@ -102,9 +102,9 @@ for v in list_V:
     for isCP in [False,True]:
         comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCP, epaisseur=ep)
         phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
-        materiau = Materials.Materiau(phaseFieldModel=phaseFieldModel, verbosity=False)
+        materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
 
-        simu = Simu.Simu(mesh, materiau, verbosity=False)
+        simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False)
 
         simu.add_dirichlet("displacement", nodes0, [0], ["y"])
         simu.add_dirichlet("displacement", node00, [0], ["x"])
