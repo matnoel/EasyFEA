@@ -47,6 +47,8 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     Figure, Axe, colorbar
         fig, ax, cb
     """
+
+    # TODO recuperer la valeur comme pour Plot Model
     
     if ax != None:
         assert isinstance(ax, plt.Axes)
@@ -547,25 +549,25 @@ def Plot_Noeuds(mesh, noeuds=[], showId=False, marker='.', c='red', folder="", a
 
     return ax
 
-def Plot_Elements(mesh, ax=None, dimElem =None, noeuds=[], showId=False, c='red', folder=""):
+def Plot_Elements(mesh, noeuds=[], dimElem =None, showId=False, c='red', folder="", ax=None):
     """Affiche les elements du maillage en fonction des numéros de noeuds
 
     Parameters
     ----------
     mesh : Mesh
         maillage
-    ax : plt.Axes, optional
-        Axes dans lequel on va creer la figure, by default None
-    dimElem : int, optional
-        dimension de l'element recherché, by default None
     noeuds : list, optional
         numeros des noeuds, by default []
+    dimElem : int, optional
+        dimension de l'element recherché, by default None
     showId : bool, optional
         affiche les numéros, by default False    
     c : str, optional
         couleur utilisé pour afficher les elements, by default 'red'
     folder : str, optional
         dossier de sauvegarde, by default ""
+    ax : plt.Axes, optional
+        Axes dans lequel on va creer la figure, by default None
 
     Returns
     -------
@@ -577,7 +579,7 @@ def Plot_Elements(mesh, ax=None, dimElem =None, noeuds=[], showId=False, c='red'
     mesh = cast(Mesh, mesh)
 
     if dimElem == None:
-        dimElem = mesh.dim
+        dimElem = mesh.dim-1
 
     list_groupElem = mesh.Get_list_groupElem(dimElem)
     if len(list_groupElem) == 0: return
@@ -618,9 +620,9 @@ def Plot_Elements(mesh, ax=None, dimElem =None, noeuds=[], showId=False, c='red'
                 for element in elements:
                     ax.text(coordo_e[element,0], coordo_e[element,1], str(elementsID[element]),
                     zorder=25, ha='center', va='center')
-        elif  mesh.dim == 3:
+        elif mesh.dim == 3:
             if len(noeuds) > 0:
-                ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors='red', edgecolor='black', linewidths=0.5, alpha=1))
+                ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1), zdir='z')
 
             # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=24)
             if showId:
@@ -660,14 +662,14 @@ def Plot_BoundaryConditions(simu, folder=""):
     dim = simu.dim
 
     # Récupérations des Conditions de chargement de déplacement ou de liaison
-    dirchlets = simu.Get_Bc_Dirichlet()
+    dirchlets = simu.Bc_Dirichlet
     Conditions = dirchlets
 
-    neumanns = simu.Get_Bc_Neuman()
+    neumanns = simu.Bc_Neuman
     Conditions.extend(neumanns)
 
     try:
-        lagranges = simu.Get_Bc_LagrangeAffichage()
+        lagranges = simu.Bc_LagrangeAffichage
         Conditions.extend(lagranges)
     except:
         # Dans cette version de simulation il n'y avait pas cette option
@@ -766,12 +768,17 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
 
     inDim = mesh.inDim
 
-    alpha = 0
+    alpha = 1
 
     # Création des axes si nécessaire
     if ax == None:
-        ax = Plot_Maillage(mesh, facecolors='c', edgecolor='c')
-        fig = ax.figure
+        # ax = Plot_Maillage(mesh, facecolors='c', edgecolor='black')
+        # fig = ax.figure
+        if mesh.inDim in [0,1,2]:
+            fig, ax = plt.subplots()
+        else:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection="3d")
 
     # Ici pour chaque group d'element du maillage, on va tracer les elements appartenant au groupe d'element
 
@@ -812,7 +819,8 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
             elif 'P' in tag_e:
                 color = 'black'
             elif 'S' in tag_e:
-                nColor += 1
+                nColor = 1
+                # nColor += 1
                 if nColor > len(__colors):
                     nColor = 1
                 color = __colors[nColor]
@@ -841,7 +849,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
                         pc = matplotlib.collections.LineCollection(coordo_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
                         collections.append(ax.add_collection(pc))
                     else:
-                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=0, alpha=alpha, facecolors=color, label=tag_e)
+                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=1, alpha=alpha, facecolors=color, label=tag_e, edgecolor=color)
                         collections.append(ax.add_collection(pc))
                         # ax.legend()
                     
@@ -855,17 +863,17 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
             else:
                 if len(noeuds) > 0 and needPlot:
                     if dim == 0:
-                        collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e, lw=2))
+                        collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e, lw=2, zdir='z'))
                     elif dim == 1:
                         pc = Line3DCollection(coordo_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
                         # collections.append(ax.add_collection3d(pc, zs=z_e, zdir='z'))
-                        collections.append(ax.add_collection3d(pc))
+                        collections.append(ax.add_collection3d(pc, zdir='z'))
                     elif dim == 2:
-                        pc = Poly3DCollection(coordo_faces, lw=0.5, alpha=alpha, facecolors=color, label=tag_e)
+                        pc = Poly3DCollection(coordo_faces, lw=0, alpha=alpha, facecolors=color, label=tag_e)
                         pc._facecolors2d = color
                         pc._edgecolors2d = color
                         # collections.append(ax.add_collection3d(pc, zs=z_e, zdir='z'))
-                        collections.append(ax.add_collection3d(pc))
+                        collections.append(ax.add_collection3d(pc, zdir='z'))
 
                     if showId:
                         ax.text(x_e, y_e, z_e, tag_e, zorder=25)
@@ -1041,7 +1049,7 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
 
     if deformation:
 
-        uglob = simu.GetCoordUglob()
+        uglob = simu.Resultats_GetCoordUglob()
         
         test = isinstance(uglob, np.ndarray)
 
@@ -1070,7 +1078,7 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     zmin = np.min(coordo[:,2]); zmax = np.max(coordo[:,2])
     
     maxRange = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
-    maxRange = maxRange*0.5
+    maxRange = maxRange*0.55
 
     xmid = (xmax + xmin)/2
     ymid = (ymax + ymin)/2

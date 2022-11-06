@@ -12,29 +12,42 @@ import CalcNumba
 import Interface_Solveurs
 
 class Simu(ABC):
-
-    # ------------------------------------------- CONSTRUCTEUR ------------------------------------------- 
+    """Classe mère de :\n
+     - Simu_Displacement
+     - Simu_Damage
+     - Simu_Beam
+     - Simu_Thermal"""
 
     @staticmethod
-    def CheckProblemTypes(problemType:str):
+    def Check_ProblemTypes(problemType:str):
         """Verifie si ce type de probleme est implénté"""
+
         list_problemType = ["displacement", "damage", "thermal", "beam"]
         assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
 
-    def __Check_Autorisation(self, listProblemType: List[str]) -> bool:
-        """Verifie si la simulation peut utiliser le type de problème renseigné"""
+    @staticmethod
+    def Check_Directions(dim: int, problemType:str, directions:list):
+        """Verifie si les directions renseignées sont possible pour le probleme"""
+        Simu.Check_ProblemTypes(problemType)
         
-        autorisation = False
-        
-        for problemType in listProblemType:
-            if problemType == self.__problemType:
-                autorisation = True
+        if problemType in ["damage", "thermal"]:
+            # Ici on travail sur un champ scalaire, il n'y a pas de direction à renseigné
+            pass
+        elif problemType == "displacement":
+            for d in directions:
+                assert d in ["x","y","z"]
+                if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
+            assert dim >= len(directions)
+        elif problemType == "beam":
+            if dim == 1:
+                list = ["x"]
+            elif dim == 2:
+                list = ["x","y","rz"]
+            elif dim == 3:
+                list = ["x","y","z","rx","ry","rz"]
 
-        if not autorisation:
-            print(f"La simulation n'est pas une simulation {problemType} mais une simulation {self.__problemType}")
-            # TODO Ici il pourrait être intéressant de proposer un conseil ?
-
-        return autorisation
+            for d in directions:
+                assert d in list
 
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
         """Creation d'une simulation
@@ -45,9 +58,10 @@ class Simu(ABC):
             materiau (Materiau): Materiau utilisé
             verbosity (bool, optional): La simulation ecrira dans la console. Defaults to True.
         """
-        import Affichage
+        Simu.Check_ProblemTypes(materiau.problemType)        
 
         if verbosity:
+            import Affichage
             Affichage.NouvelleSection("Simulation")
 
         dim = mesh.dim
@@ -68,19 +82,13 @@ class Simu(ABC):
         self.materiau = materiau
         """materiau de la simulation"""
 
-        Simu.CheckProblemTypes(materiau.problemType)
         self.__problemType = materiau.problemType
         self.__algo = "elliptic"
 
         self.useNumba = useNumba
-        
-        # # resultats
-        # self.__init_results()
 
         # Conditions Limites
-        self.Init_Bc()
-
-# ------------------------------------------- FONCTIONS ------------------------------------------- 
+        self.Bc_Init()
 
     # TODO Permettre de creer des simulation depuis le formulation variationnelle ?
 
@@ -117,15 +125,27 @@ class Simu(ABC):
         # if useNumba:
         #     CalcNumba.CompilNumba(self.__verbosity)
 
-    # ------------------------------------------- RESULTATS -------------------------------------------
+    # Fonctions à redefinir pour chaque heritié de simu
 
     @property
     @abstractmethod    
     def results(self) -> List[dict]:
+        """Renvoie la liste de dictionnaire qui stocke les résultats
+        """
         pass
 
     @abstractmethod
-    def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
+    def Assemblage(self):
+        """Assemblage de la simulation"""
+        pass
+
+    @abstractmethod
+    def Solve(self):
+        """Résolution de la simulation"""
+        pass
+
+    @abstractmethod
+    def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None) -> dict:
         """Sauvegarde les résultats de l'itération
 
         Parameters
@@ -138,71 +158,41 @@ class Simu(ABC):
             tolérance de convergence d'endommagement, by default None
         """
 
-        problemType = self.__problemType
-        
-        if problemType == "damage":
-            if self.materiau.phaseFieldModel.solveur == "History":
-                # mets à jour l'ancien champ histoire pour la prochaine résolution 
-                self.__old_psiP_e_pg = self.__psiP_e_pg
-                
-            iter = {                
-                'displacement' : self.__displacement,
-                'damage' : self.__damage
-            }
+        iter = {}
 
         if nombreIter != None and tempsIter != None and dincMax != None:
             iter["nombreIter"] = nombreIter
             iter["tempsIter"] = tempsIter
             iter["dincMax"] = dincMax
 
-        # TODO Faire de l'adaptation de maillage ?
-        self.__results.append(iter)
+        return iter
     
     @abstractmethod
-    def Update_iter(self, index= -1):
-        """Met la simulation à literation renseignée de base renvoie le dernié résultat"""
+    def Update_iter(self, index=-1) -> dict:
+        """Met la simulation à l'iteration renseignée"""
         index = int(index)
         assert isinstance(index, int), "Doit fournir un entier"
 
         # On va venir récupérer les resultats stocké dans le tableau pandas
         try:
-            results = self.results[index]
+            return self.results[index]
         except:
             print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
-            return
+            return None
 
-        problemType = self.__problemType
-
-        
-                
-        if problemType == "damage":
-            self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
-            self.__damage = results["damage"]
-            self.__displacement = results["displacement"]
-            try:
-                self.materiau.phaseFieldModel.Need_Split_Update()
-            except:
-                # Il est possible que cette version du modèle d'endomagement ne possède pas cette fonction
-                pass
-
+    @abstractmethod
+    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
+        """ Renvoie le résultat de la simulation
+        """
+        pass
     
     # ------------------------------------------------- SOLVEUR -------------------------------------------------
-
-    @abstractmethod
-    def Assemblage(self):
-        pass
-
-    @abstractmethod
-    def Solve(self):
-        """Résolution"""
-        pass
+    # Fonctions pour l'interface avec le solveur
         
     def Solveur(self, problemType: str, algo: str) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
-
-        Simu.CheckProblemTypes(problemType)
 
         resolution = 1
 
@@ -224,9 +214,9 @@ class Simu(ABC):
             
             x = Interface_Solveurs.Solveur_3(self, problemType)
 
-        return np.array(x)
+        return x
 
-    def Set_Parabolic_AlgoProperties(self, alpha=1/2, dt=0.1):
+    def Solveur_Parabolic_Properties(self, dt=0.1, alpha=1/2):
         """Renseigne les propriétes de résolution de l'algorithme
 
         Parameters
@@ -245,17 +235,7 @@ class Simu(ABC):
         self.alpha = alpha
         self.dt = dt
 
-    """
-
-        Parameters
-        ----------
-        alpha : float, optional
-            critère alpha [0 -> Forward Euler, 1 -> Backward Euler, 1/2 -> midpoint], by default 1/2
-        dt : float, optional
-            incrément temporel, by default 0.1
-        """
-
-    def Set_Newton_Raphson(self, betha=1/4, gamma=1/2, dt=0.1):
+    def Solveur_Newton_Raphson_Properties(self, betha=1/4, gamma=1/2, dt=0.1):
         """Renseigne les propriétes de résolution de l'algorithme
 
         Parameters
@@ -277,89 +257,10 @@ class Simu(ABC):
         self.gamma = gamma
         self.dt = dt
 
-# ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
-
-    @staticmethod
-    def CheckDirections(dim: int, problemType:str, directions:list):
-        """Verifie si les directions renseignées sont possible pour le probleme"""
-        Simu.CheckProblemTypes(problemType)
-        
-        if problemType in ["damage", "thermal"]:
-            # Ici on travail sur un champ scalaire, il n'y a pas de direction à renseigné
-            pass
-        elif problemType == "displacement":
-            for d in directions:
-                assert d in ["x","y","z"]
-                if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
-            assert dim >= len(directions)
-        elif problemType == "beam":
-            if dim == 1:
-                list = ["x"]
-            elif dim == 2:
-                list = ["x","y","rz"]
-            elif dim == 3:
-                list = ["x","y","z","rx","ry","rz"]
-
-            for d in directions:
-                assert d in list
-
-    def Get_indexe_option(self, option):
-        """Donne l'indexe pour accéder à l'option en fonction du type de problème"""
-
-        problemType = self.__problemType
-        dim = self.dim
-
-        if problemType in ["displacement","damage"]:
-            # "Stress" : ["Sxx", "Syy", "Sxy"]
-            # "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]
-            # "Accel" : ["vx", "vy", "vz", "ax", "ay", "az"]
-
-            if option in ["x","fx","dx","vx","ax"]:
-                return 0
-            elif option in ["y","fy","dy","vy","ay"]:
-                return 1
-            elif option in ["z","fz","dz","vz","az"]:
-                return 2
-            elif option in ["Sxx","Exx"]:
-                return 0
-            elif option in ["Syy","Eyy"]:
-                return 1
-            elif option in ["Sxy","Exy"]:
-                if dim == 2:
-                    return 2
-                elif dim == 3:
-                    return 5
-            elif option in ["Syy","Eyy"]:
-                return 1
-            elif option in ["Szz","Ezz"]:
-                return 2
-            elif option in ["Syz","Eyz"]:
-                return 3
-            elif option in ["Sxz","Exz"]:
-                return 4
-        elif problemType == "beam":
-
-            # "Beam1D" : ["u" "fx"]
-            # "Beam2D : ["u","v","rz""fx", "fy", "cz"]
-            # "Beam3D" : ["u", "v", "w", "rx", "ry", "rz" "fx","fy","fz","cx","cy"]
-
-            if option in ["u","fx"]:
-                return 0
-            elif option in ["v","fy"]:
-                return 1
-            elif option in ["w","fz"]:
-                return 2
-            elif option in ["rx"]:
-                return 3
-            elif option in ["ry"]:
-                return 4
-            elif option in ["rz"]:
-                if dim == 2: 
-                    return 2
-                elif dim == 3: 
-                    return 5
-
-    def Init_Bc(self):
+    # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
+    # Fonctions pour le renseignement des conditions limites de la simulation
+    
+    def Bc_Init(self):
         """Initie les conditions limites de dirichlet, Neumann et Lagrange"""
         # DIRICHLET
         self.__Bc_Dirichlet = []
@@ -373,47 +274,51 @@ class Simu(ABC):
         self.__Bc_LagrangeAffichage = []
         """Conditions de Lagrange list(BoundaryCondition)"""
 
-    def Get_Bc_Dirichlet(self):
+    @property
+    def Bc_Dirichlet(self):
         """Renvoie une copie des conditions de Dirichlet"""
         return self.__Bc_Dirichlet.copy()
     
-    def Get_Bc_Neuman(self):
+    @property
+    def Bc_Neuman(self):
         """Renvoie une copie des conditions de Neumann"""
         return self.__Bc_Neumann.copy()
 
-    def Get_Bc_Lagrange(self):
+    @property
+    def Bc_Lagrange(self):
         """Renvoie une copie des conditions de Lagrange"""
         return self.__Bc_Lagrange.copy()
     
-    def Get_Bc_LagrangeAffichage(self):
+    @property
+    def Bc_LagrangeAffichage(self):
         """Renvoie une copie des conditions de Lagrange pour l'affichage"""
         return self.__Bc_LagrangeAffichage.copy()
 
-    def Get_ddls_Dirichlet(self, problemType: str) -> list:
+    def Bc_ddls_Dirichlet(self, problemType: str) -> list:
         """Renvoie les ddls liés aux conditions de Dirichlet"""
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Dirichlet)
 
-    def Get_values_Dirichlet(self, problemType: str) -> list:
+    def BC_values_Dirichlet(self, problemType: str) -> list:
         """Renvoie les valeurs ddls liés aux conditions de Dirichlet"""
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
     
-    def Get_ddls_Neumann(self, problemType: str) -> list:
+    def Bc_ddls_Neumann(self, problemType: str) -> list:
         """Renvoie les ddls liés aux conditions de Neumann"""
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Neumann)
     
-    def Get_values_Neumann(self, problemType: str) -> list:
+    def Bc_values_Neumann(self, problemType: str) -> list:
         """Renvoie les valeurs ddls liés aux conditions de Neumann"""
         return BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
 
-    def Get_ddls_Lagrange(self, problemType: str) -> list:
+    def Bc_ddls_Lagrange(self, problemType: str) -> list:
         """Renvoie les ddls liés aux conditions de Lagrange"""
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Lagrange)
     
-    def Get_values_Lagrange(self, problemType: str) -> list:
+    def Bc_values_Lagrange(self, problemType: str) -> list:
         """Renvoie les valeurs ddls liés aux conditions de Lagrange"""
         return BoundaryCondition.Get_values(problemType, self.__Bc_Lagrange)
 
-    def __evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
+    def __Bc_evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
         """evalue les valeurs aux noeuds ou aux points de gauss"""
         
         assert option in ["noeuds","gauss"]        
@@ -451,7 +356,7 @@ class Simu(ABC):
         valeurs_ddl_dir = np.zeros((Nn, len(directions)))
 
         for d, dir in enumerate(directions):
-            eval_n = self.__evalue(coordo_n, valeurs[d], option="noeuds")
+            eval_n = self.__Bc_evalue(coordo_n, valeurs[d], option="noeuds")
             valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
@@ -463,7 +368,7 @@ class Simu(ABC):
 
         ddls = BoundaryCondition.Get_ddls_noeuds(param, problemType, noeuds, directions)
 
-        self.__Add_Bc_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+        self.__Bc_Add_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
     def add_pointLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force ponctuelle\n
@@ -475,9 +380,9 @@ class Simu(ABC):
         """
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
-        valeurs_ddls, ddls = self.__pointLoad(problemType, noeuds, valeurs, directions)
+        valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, noeuds, valeurs, directions)
 
-        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+        self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
         
     def add_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force linéique\n
@@ -489,9 +394,9 @@ class Simu(ABC):
         """
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
-        valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
+        valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
 
-        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+        self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
     def add_surfLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force surfacique\n
@@ -505,18 +410,18 @@ class Simu(ABC):
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
         if problemType == "beam":
-            valeurs_ddls, ddls = self.__pointLoad(problemType, noeuds, valeurs, directions)
+            valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, noeuds, valeurs, directions)
             # multiplie par la surface de la section
             # TODO ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
             valeurs_ddls *= self.materiau.beamModel.poutre.section.aire
         elif self.__dim == 2:
-            valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
+            valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
             valeurs_ddls *= self.materiau.epaisseur
         elif self.__dim == 3:
-            valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
+            valeurs_ddls, ddls = self.__Bc_surfload(problemType, noeuds, valeurs, directions)
 
-        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+        self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
     def add_volumeLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force volumique\n
@@ -529,21 +434,20 @@ class Simu(ABC):
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
         if problemType == "beam":
-            valeurs_ddls, ddls = self.__lineLoad(problemType, noeuds, valeurs, directions)
+            valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
             # multiplie par la surface de la section
             # TODO ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
             valeurs_ddls *= self.materiau.beamModel.poutre.section.aire
         elif self.__dim == 2:
-            valeurs_ddls, ddls = self.__surfload(problemType, noeuds, valeurs, directions)
+            valeurs_ddls, ddls = self.__Bc_surfload(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
             valeurs_ddls = valeurs_ddls*self.materiau.epaisseur
         elif self.__dim == 3:
-            valeurs_ddls, ddls = self.__volumeload(problemType, noeuds, valeurs, directions)
+            valeurs_ddls, ddls = self.__Bc_volumeload(problemType, noeuds, valeurs, directions)
 
-        self.__Add_Bc_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
-
-    # TODO @abstractmethod
-    def __pointLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+        self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
+    
+    def __Bc_pointLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force linéique\n
         Renvoie valeurs_ddls, ddls"""
 
@@ -555,7 +459,7 @@ class Simu(ABC):
         valeurs_ddl_dir = np.zeros((Nn, len(directions)))
 
         for d, dir in enumerate(directions):
-            eval_n = self.__evalue(coordo_n, valeurs[d], option="noeuds")
+            eval_n = self.__Bc_evalue(coordo_n, valeurs[d], option="noeuds")
             if problemType == "beam":
                 eval_n /= len(noeuds)
             valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
@@ -571,7 +475,7 @@ class Simu(ABC):
 
         return valeurs_ddls, ddls
 
-    def __IntegrationDim(self, dim: int, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+    def __Bc_IntegrationDim(self, dim: int, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Intégration des valeurs sur les elements"""
 
         valeurs_ddls=np.array([])
@@ -614,7 +518,7 @@ class Simu(ABC):
 
             # Intègre sur chaque direction
             for d, dir in enumerate(directions):
-                eval_e_p = self.__evalue(coordo_e_p, valeurs[d], option="gauss")
+                eval_e_p = self.__Bc_evalue(coordo_e_p, valeurs[d], option="gauss")
                 valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
                 valeurs_e = np.sum(valeurs_e_p, axis=1)
                 valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
@@ -627,46 +531,46 @@ class Simu(ABC):
 
         return valeurs_ddls, ddls
 
-    def __lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+    def __Bc_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force linéique\n
         Renvoie valeurs_ddls, ddls"""
 
-        Simu.CheckProblemTypes(problemType)
-        Simu.CheckDirections(self.__dim, problemType, directions)
+        Simu.Check_ProblemTypes(problemType)
+        Simu.Check_Directions(self.__dim, problemType, directions)
 
-        valeurs_ddls, ddls = self.__IntegrationDim(dim=1, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
-
-        return valeurs_ddls, ddls
-    
-    def __surfload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
-        """Applique une force surfacique\n
-        Renvoie valeurs_ddls, ddls"""
-
-        Simu.CheckProblemTypes(problemType)
-        Simu.CheckDirections(self.__dim, problemType, directions)
-
-        valeurs_ddls, ddls = self.__IntegrationDim(dim=2, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
-
-        return valeurs_ddls, ddls
-
-    def __volumeload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
-        """Applique une force surfacique\n
-        Renvoie valeurs_ddls, ddls"""
-
-        Simu.CheckProblemTypes(problemType)
-        Simu.CheckDirections(self.__dim, problemType, directions)
-
-        valeurs_ddls, ddls = self.__IntegrationDim(dim=3, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
+        valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=1, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
         return valeurs_ddls, ddls
     
-    def __Add_Bc_Neumann(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
+    def __Bc_surfload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+        """Applique une force surfacique\n
+        Renvoie valeurs_ddls, ddls"""
+
+        Simu.Check_ProblemTypes(problemType)
+        Simu.Check_Directions(self.__dim, problemType, directions)
+
+        valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=2, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
+
+        return valeurs_ddls, ddls
+
+    def __Bc_volumeload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+        """Applique une force surfacique\n
+        Renvoie valeurs_ddls, ddls"""
+
+        Simu.Check_ProblemTypes(problemType)
+        Simu.Check_Directions(self.__dim, problemType, directions)
+
+        valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=3, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
+
+        return valeurs_ddls, ddls
+    
+    def __Bc_Add_Neumann(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Neumann"""
 
         tic = Tic()
         
-        Simu.CheckProblemTypes(problemType)
-        Simu.CheckDirections(self.__dim, problemType, directions)
+        Simu.Check_ProblemTypes(problemType)
+        Simu.Check_Directions(self.__dim, problemType, directions)
 
         if problemType in ["damage","thermal"]:
             
@@ -677,7 +581,7 @@ class Simu(ABC):
             # Si un ddl est déja connue dans les conditions de dirichlet
             # alors on enlève la valeur et le ddl associé
             
-            ddl_Dirchlet = self.Get_ddls_Dirichlet(problemType)
+            ddl_Dirchlet = self.Bc_ddls_Dirichlet(problemType)
             valeursTri_ddls = list(valeurs_ddls)
             ddlsTri = list(ddls.copy())
 
@@ -687,8 +591,6 @@ class Simu(ABC):
                     valeursTri_ddls.remove(valeurs_ddls[d])
 
             [tri(d, ddl) for d, ddl in enumerate(ddls)]
-            # for d, ddl in enumerate(ddls): 
-                
 
             valeursTri_ddls = np.array(valeursTri_ddls)
             ddlsTri = np.array(ddlsTri)
@@ -699,12 +601,12 @@ class Simu(ABC):
 
         tic.Tac("Boundary Conditions","Condition Neumann", self._verbosity)   
      
-    def __Add_Bc_Dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
+    def __Bc_Add_Dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Dirichlet"""
 
         tic = Tic()
 
-        Simu.CheckProblemTypes(problemType)
+        Simu.Check_ProblemTypes(problemType)
 
         if problemType in ["damage","thermal"]:
             
@@ -715,7 +617,7 @@ class Simu(ABC):
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
             # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
-            ddl_Neumann = self.Get_ddls_Neumann(problemType)
+            ddl_Neumann = self.Bc_ddls_Neumann(problemType)
             for d in ddls: 
                 assert d not in ddl_Neumann, "On ne peut pas appliquer conditions dirchlet et neumann aux memes ddls"
 
@@ -724,7 +626,6 @@ class Simu(ABC):
         tic.Tac("Boundary Conditions","Condition Dirichlet", self._verbosity)
 
     # ------------------------------------------- LIAISONS ------------------------------------------- 
-
     # Fonctions pour créer des liaisons entre degré de liberté
 
     def add_liaison_Encastrement(self, noeuds: np.ndarray, description="Encastrement"):
@@ -784,7 +685,7 @@ class Simu(ABC):
         nbddl = beamModel.nbddl_n
 
         # Verficiation
-        Simu.CheckDirections(self.__dim, problemType, directions)
+        Simu.Check_Directions(self.__dim, problemType, directions)
 
         tic = Tic()
 
@@ -801,9 +702,9 @@ class Simu(ABC):
 
         tic.Tac("Boundary Conditions","Liaison", self._verbosity)
 
-        self.__Add_Bc_LagrangeAffichage(noeuds, directions, description)
+        self.__Bc_Add_LagrangeAffichage(noeuds, directions, description)
 
-    def __Add_Bc_LagrangeAffichage(self,noeuds: np.ndarray, directions: List[str], description: str):
+    def __Bc_Add_LagrangeAffichage(self,noeuds: np.ndarray, directions: List[str], description: str):
         # Ajoute une condition pour l'affichage
         beamModel = self.materiau.beamModel
         nbddl = beamModel.nbddl_n
@@ -816,318 +717,134 @@ class Simu(ABC):
 
         new_Bc = BoundaryCondition("beam", noeuds1, ddls, directions, valeurs_ddls, description)
         self.__Bc_LagrangeAffichage.append(new_Bc)
-
     
     # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
-    
+    @staticmethod
+    def Resultats_indexe_option(dim: int, problemType: str,  option: str):
+        """Donne l'indexe pour accéder à l'option en fonction du type de problème"""
+        
+        if problemType in ["displacement","damage"]:
+            # "Stress" : ["Sxx", "Syy", "Sxy"]
+            # "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]
+            # "Accel" : ["vx", "vy", "vz", "ax", "ay", "az"]
 
-    
+            if option in ["x","fx","dx","vx","ax"]:
+                return 0
+            elif option in ["y","fy","dy","vy","ay"]:
+                return 1
+            elif option in ["z","fz","dz","vz","az"]:
+                return 2
+            elif option in ["Sxx","Exx"]:
+                return 0
+            elif option in ["Syy","Eyy"]:
+                return 1
+            elif option in ["Sxy","Exy"]:
+                if dim == 2:
+                    return 2
+                elif dim == 3:
+                    return 5
+            elif option in ["Syy","Eyy"]:
+                return 1
+            elif option in ["Szz","Ezz"]:
+                return 2
+            elif option in ["Syz","Eyz"]:
+                return 3
+            elif option in ["Sxz","Exz"]:
+                return 4
+        elif problemType == "beam":
 
-    
+            # "Beam1D" : ["u" "fx"]
+            # "Beam2D : ["u","v","rz""fx", "fy", "cz"]
+            # "Beam3D" : ["u", "v", "w", "rx", "ry", "rz" "fx","fy","fz","cx","cy"]
 
-    
-
+            if option in ["u","fx"]:
+                return 0
+            elif option in ["v","fy"]:
+                return 1
+            elif option in ["w","fz"]:
+                return 2
+            elif option in ["rx"]:
+                return 3
+            elif option in ["ry"]:
+                return 4
+            elif option in ["rz"]:
+                if dim == 2: 
+                    return 2
+                elif dim == 3: 
+                    return 5
 
     @staticmethod
-    def ResultatsCalculables(dim: int) -> dict:
+    def __Resultats_Categories(dim: int) -> dict:
         if dim == 1:
             options = {
-                "Beam" : ["u", "beamDisplacement", "coordoDef", "fx","Srain","Stress"]
+                "Beam" : ["u", "beamDisplacement", "coordoDef"],
+                "Beam Load" : ["fx","Srain","Stress"]
             }
         elif dim == 2:
             options = {
+                "Thermal" : ["thermal", "thermalDot"],
+                "Displacement" : ["dx", "dy", "dz", "amplitude", "displacement", "coordoDef"],
+                "Accel" : ["ax", "ay", "accel", "amplitudeAccel"],
+                "Speed" : ["vx", "vy", "speed", "amplitudeSpeed"],
                 "Stress" : ["Sxx", "Syy", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz", "amplitude", "displacement", "coordoDef"],
-                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel","amplitudeSpeed", "amplitudeAccel"],
-                "Beam" : ["u","v","rz", "amplitude", "beamDisplacement", "coordoDef", "fx", "fy", "cz","Exx","Exy","Sxx","Sxy","Srain","Stress"],
-                "Energie" :["Wdef","Psi_Crack","Psi_Elas"],
-                "Damage" :["damage","psiP"],
-                "Thermal" : ["thermal", "thermalDot"]
+                "Beam" : ["u","v","rz", "amplitude", "beamDisplacement", "coordoDef"],
+                "Beam Load" : ["fx", "fy", "cz", "Exx", "Exy", "Sxx", "Sxy", "Srain", "Stress"],
+                "Energie" :["Wdef","Psi_Elas"],
+                "Damage" :["damage","psiP","Psi_Crack"]
             }
         elif dim == 3:
             options = {
+                "Thermal" : ["thermal", "thermalDot"],
+                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
+                "Accel" : ["ax", "ay", "az", "accel", "amplitudeAccel"],
+                "Speed" : ["vx", "vy", "vz", "speed","amplitudeSpeed"],
                 "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"],
                 "Strain" : ["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"],
-                "Displacement" : ["dx", "dy", "dz","amplitude","displacement", "coordoDef"],
-                "Accel" : ["vx", "vy", "vz", "ax", "ay", "az", "speed", "accel","amplitudeSpeed", "amplitudeAccel"],
-                "Beam" : ["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "coordoDef", "fx","fy","fz","cx","cy","cz","Srain","Stress"],
-                "Energie" :["Wdef","Psi_Elas"],
-                "Thermal" : ["thermal", "thermalDot"]
+                "Beam" : ["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "coordoDef"],
+                "Beam Load" : ["fx","fy","fz","cx","cy","cz","Srain","Stress"],
+                "Energie" :["Wdef","Psi_Elas"]
             }
         return options
 
-    @property
-    def __listOptionsDisponible(self) -> List[str]:
+    @staticmethod
+    def __Resultats_Options(dim: int, problemType: str) -> List[str]:
         """Donne la liste la liste de résultats auxquelles la simulation a accès"""
 
-        listCategorie = Simu.ResultatsCalculables(self.__dim)
-
-        # Construction de la liste de catégorie en fonction du type de probleme
-        problemType = self.__problemType
-        # listCategorie = ["Stress", "Strain", "Displacement", "Accel", "Beam", "Energie", "Damage", "Thermal"]
+        categories = Simu.__Resultats_Categories(dim)
+        
         if problemType == "displacement":
-            listCategorieProblem = ["Stress", "Strain", "Displacement", "Accel", "Energie"]
+            keys = ["Stress", "Strain", "Displacement", "Accel", "Speed", "Energie"]
         elif problemType == "damage":
-            listCategorieProblem = ["Stress", "Strain", "Displacement", "Energie", "Damage"]
+            keys = ["Stress", "Strain", "Displacement", "Energie", "Damage"]
         elif problemType == "beam":
-            listCategorieProblem = ["Beam"]
+            keys = ["Beam", "Beam Load"]
         elif problemType == "thermal":
-            listCategorieProblem = ["Thermal"]
+            keys = ["Thermal"]
 
-        listOption = []    
-
-        [listOption.extend(listCategorie[categorie]) for categorie in listCategorieProblem]
+        listOption = []
+        [listOption.extend(categories[key]) for key in keys]
 
         return listOption
 
-    def VerificationOption(self, option):
-        """Verification que l'option est bien calculable dans GetResultat
-
-        Parameters
-        ----------
-        option : str
-            option
-
-        Returns
-        -------
-        Bool
-            Réponse du test
+    def Resultats_Verification(self, option) -> bool:
+        """Verification que l'option est bien calculable
         """
         # Construit la liste d'otions pour les résultats en 2D ou 3D
         
-        listOptions = self.__listOptionsDisponible
+        listOptions = self.__Resultats_Options(self.dim, self.problemType)
         if option not in listOptions:
             print(f"\nPour un probleme ({self.__problemType}) l'option doit etre dans : \n {listOptions}")
             return False
         else:
             return True
-
-    @abstractmethod
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
-        """ Renvoie le résultat de la simulation
-        """
-        
-
-        # TODO A optimiser
-
-        problemType = self.__problemType
-        dim = self.__dim
-        Ne = self.__mesh.Ne
-        Nn = self.__mesh.Nn
-        
-        if not self.VerificationOption(option): return None
-
-        if iter != None:
-            self.Update_iter(iter)
-
-        if problemType in ["displacement","damage"]:
-
-            if option in ["Wdef","Psi_Elas"]:
-                return self.__Calc_Psi_Elas()
-            
-            if option == "Psi_Crack":
-                return self.__Calc_Psi_Crack()
-
-            if option == "damage":
-                return self.damage
-
-            if option == "psiP":
-                resultat_e_pg = self.Calc_psiPlus_e_pg()
-                resultat = np.mean(resultat_e_pg, axis=1)    
-
-            if option == "displacement":
-                return self.displacement
-
-            if option == "speed":
-                return self.speed
-            
-            if option == "accel":
-                return self.accel
-
-            if option == 'coordoDef':
-                return self.GetCoordUglob()
-
-            displacement = self.displacement
-
-            coef = self.materiau.comportement.coef
-
-            # TODO fusionner avec Stress ?
-
-            if "S" in option and not option in ["Strain", "amplitudeSpeed"]:
-
-                # Deformation et contraintes pour chaque element et chaque points de gauss        
-                Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
-                Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
-
-                # Moyenne sur l'élement
-                Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
-                Sigma_e = np.mean(Sigma_e_pg, axis=1)
-
-                if dim == 2:
-
-                    Sxx_e = Sigma_e[:,0]
-                    Syy_e = Sigma_e[:,1]
-                    Sxy_e = Sigma_e[:,2]/coef
-                    
-                    # TODO Ici il faudrait calculer Szz si deformation plane
-                    
-                    Svm_e = np.sqrt(Sxx_e**2+Syy_e**2-Sxx_e*Syy_e+3*Sxy_e**2)
-
-                    if option == "Sxx":
-                        resultat_e = Sxx_e
-                    elif option == "Syy":
-                        resultat_e = Syy_e
-                    elif option == "Sxy":
-                        resultat_e = Sxy_e
-                    elif option == "Svm":
-                        resultat_e = Svm_e
-
-                elif dim == 3:
-
-                    Sxx_e = Sigma_e[:,0]
-                    Syy_e = Sigma_e[:,1]
-                    Szz_e = Sigma_e[:,2]
-                    Syz_e = Sigma_e[:,3]/coef
-                    Sxz_e = Sigma_e[:,4]/coef
-                    Sxy_e = Sigma_e[:,5]/coef               
-
-                    Svm_e = np.sqrt(((Sxx_e-Syy_e)**2+(Syy_e-Szz_e)**2+(Szz_e-Sxx_e)**2+6*(Sxy_e**2+Syz_e**2+Sxz_e**2))/2)
-
-                    if option == "Sxx":
-                        resultat_e = Sxx_e
-                    elif option == "Syy":
-                        resultat_e = Syy_e
-                    elif option == "Szz":
-                        resultat_e = Szz_e
-                    elif option == "Syz":
-                        resultat_e = Syz_e
-                    elif option == "Sxz":
-                        resultat_e = Sxz_e
-                    elif option == "Sxy":
-                        resultat_e = Sxy_e
-                    elif option == "Svm":
-                        resultat_e = Svm_e
-
-                if option == "Stress":
-                    resultat_e = np.append(Sigma_e, Svm_e.reshape((Ne,1)), axis=1)
-
-                if valeursAuxNoeuds:
-                    resultat_n = self.InterpolationAuxNoeuds(resultat_e)
-                    return resultat_n
-                else:
-                    return resultat_e
-                
-            elif ("E" in option or option == "Strain") and not option == "amplitudeSpeed":
-
-                
-                Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
-                Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
-                
-
-                if dim == 2:
-
-                    Exx_e = Epsilon_e[:,0]
-                    Eyy_e = Epsilon_e[:,1]
-                    Exy_e = Epsilon_e[:,2]/coef
-
-                    # TODO Ici il faudrait calculer Ezz si contrainte plane
-                    
-                    Evm_e = np.sqrt(Exx_e**2+Eyy_e**2-Exx_e*Eyy_e+3*Exy_e**2)
-
-                    if option == "Exx":
-                        resultat_e = Exx_e
-                    elif option == "Eyy":
-                        resultat_e = Eyy_e
-                    elif option == "Exy":
-                        resultat_e = Exy_e
-                    elif option == "Evm":
-                        resultat_e = Evm_e
-
-                elif dim == 3:
-
-                    Exx_e = Epsilon_e[:,0]
-                    Eyy_e = Epsilon_e[:,1]
-                    Ezz_e = Epsilon_e[:,2]
-                    Eyz_e = Epsilon_e[:,3]/coef
-                    Exz_e = Epsilon_e[:,4]/coef
-                    Exy_e = Epsilon_e[:,5]/coef
-
-                    Evm_e = np.sqrt(((Exx_e-Eyy_e)**2+(Eyy_e-Ezz_e)**2+(Ezz_e-Exx_e)**2+6*(Exy_e**2+Eyz_e**2+Exz_e**2))/2)
-
-                    if option == "Exx":
-                        resultat_e = Exx_e
-                    elif option == "Eyy":
-                        resultat_e = Eyy_e
-                    elif option == "Ezz":
-                        resultat_e = Ezz_e
-                    elif option == "Eyz":
-                        resultat_e = Eyz_e
-                    elif option == "Exz":
-                        resultat_e = Exz_e
-                    elif option == "Exy":
-                        resultat_e = Exy_e
-                    elif option == "Evm":
-                        resultat_e = Evm_e                
-                
-                if option == "Strain":
-                    resultat_e = np.append(Epsilon_e, Evm_e.reshape((Ne,1)), axis=1)
-
-                if valeursAuxNoeuds:
-                    resultat_n = self.InterpolationAuxNoeuds(resultat_e)
-                    return resultat_n
-                else:
-                    return resultat_e
-            
-            else:
-
-                Nn = self.__mesh.Nn
-
-                if option in ["dx", "dy", "dz", "amplitude"]:
-                    resultat_ddl = self.displacement
-                elif option in ["vx", "vy", "vz", "amplitudeSpeed"]:
-                    resultat_ddl = self.speed
-                elif option in ["ax", "ay", "az", "amplitudeAccel"]:
-                    resultat_ddl = self.accel
-
-                resultat_ddl = resultat_ddl.reshape(Nn, -1)
-
-                index = self.Get_indexe_option(option)
-                
-                if valeursAuxNoeuds:
-
-                    if "amplitude" in option:
-                        return np.sqrt(np.sum(resultat_ddl**2,axis=1))
-                    else:
-                        if len(resultat_ddl.shape) > 1:
-                            return resultat_ddl[:,index]
-                        else:
-                            return resultat_ddl.reshape(-1)
-                            
-                else:
-
-                    # recupere pour chaque element les valeurs de ses noeuds
-                    resultat_e_n = self.__mesh.Localises_sol_e(resultat_ddl)
-                    resultat_e = resultat_e_n.mean(axis=1)
-
-                    if "amplitude" in option:
-                        return np.sqrt(np.sum(resultat_e**2, axis=1))
-                    elif option in ["speed", "accel"]:
-                        return resultat_e.reshape(-1)
-                    else:
-                        if len(resultat_e.shape) > 1:
-                            return resultat_e[:,index]
-                        else:
-                            return resultat_e.reshape(-1)
-
-        
     
-    def InterpolationAuxNoeuds(self, resultat_e: np.ndarray):
+    def Resultats_InterpolationAuxNoeuds(self, resultat_e: np.ndarray):
         """Pour chaque noeuds on récupère les valeurs des élements autour de lui pour on en fait la moyenne
         """
 
-        # tic = TicTac()
+        tic = Tic()
 
         Ne = self.__mesh.Ne
         Nn = self.__mesh.Nn
@@ -1153,14 +870,14 @@ class Simu(ABC):
 
             resultat_n[:,c] = valeurs_n.reshape(-1)
 
-        # tic.Tac("Affichage","Affichage des figures", plotResult)
+        tic.Tac("Post Traitement","Interpolation aux noeuds", False)
 
         if isDim1:
             return resultat_n.reshape(-1)
         else:
             return resultat_n
 
-    def Resume(self, verbosity=True):
+    def Resultats_Resume(self, verbosity=True):
 
         import Affichage
 
@@ -1184,7 +901,8 @@ class Simu(ABC):
             else:
                 resume += '\n\n' + resumelastIter
         else:
-            resume += self.ResumeResultats(False)
+            if isinstance(self, Simu_Displacement):
+                resume += self.Resultats_Displacement()
 
         resume += Affichage.NouvelleSection("Temps", False)
         resume += Tic.getResume(False)
@@ -1192,40 +910,8 @@ class Simu(ABC):
         if verbosity: print(resume)
 
         return resume
-
-    def ResumeResultats(self, verbosity=True):
-        """Ecrit un résumé de la simulation dans le terminal"""
-
-        resume = ""
-
-        if not self.VerificationOption("Wdef"):
-            return
-        
-        Wdef = self.Get_Resultat("Wdef")
-        resume += f"\nW def = {Wdef:.2f}"
-        
-        Svm = self.Get_Resultat("Svm", valeursAuxNoeuds=False)
-        resume += f"\n\nSvm max = {Svm.max():.2f}"
-
-        # Affichage des déplacements
-        dx = self.Get_Resultat("dx", valeursAuxNoeuds=True)
-        resume += f"\n\nUx max = {dx.max():.2e}"
-        resume += f"\nUx min = {dx.min():.2e}"
-
-        dy = self.Get_Resultat("dy", valeursAuxNoeuds=True)
-        resume += f"\n\nUy max = {dy.max():.2e}"
-        resume += f"\nUy min = {dy.min():.2e}"
-
-        if self.__dim == 3:
-            dz = self.Get_Resultat("dz", valeursAuxNoeuds=True)
-            resume += f"\n\nUz max = {dz.max():.2e}"
-            resume += f"\nUz min = {dz.min():.2e}"
-
-        if verbosity: print(resume)
-
-        return resume
     
-    def GetCoordUglob(self):
+    def Resultats_GetCoordUglob(self):
         """Renvoie les déplacements sous la forme [dx, dy, dz] (Nn,3)        """
 
         Nn = self.__mesh.Nn
@@ -1260,6 +946,18 @@ class Simu(ABC):
         else:
             return None
 
+
+
+
+
+
+
+
+
+
+
+
+
 class Simu_Displacement(Simu):
 
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
@@ -1281,13 +979,11 @@ class Simu_Displacement(Simu):
 
         self.__results = [] #liste de dictionnaire qui contient les résultats
 
-        self.Set_Parabolic_AlgoProperties() # Renseigne les propriétes de résolution de l'algorithme
-        self.Set_Newton_Raphson() # Renseigne les propriétes de résolution de l'algorithme
+        self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
+        self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
 
     @property
     def results(self) -> List[dict]:
-        """Renvoie la liste de dictionnaire qui stocke les résultats
-        """
         return self.__results
 
     @property
@@ -1314,9 +1010,6 @@ class Simu_Displacement(Simu):
 
     def ConstruitMatElem_Dep(self, steadyState=True) -> np.ndarray:
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
-
-        Returns:
-            dict_Ku_e: les matrices elementaires pour chaque groupe d'element
         """
 
         useNumba = self.useNumba
@@ -1484,6 +1177,8 @@ class Simu_Displacement(Simu):
         
     
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
+        
+        iter = super().Save_Iteration(nombreIter, tempsIter, dincMax)
 
         iter = {                
             'displacement' : self.__displacement
@@ -1494,24 +1189,14 @@ class Simu_Displacement(Simu):
         except:
             pass
 
-        if nombreIter != None and tempsIter != None and dincMax != None:
-            iter["nombreIter"] = nombreIter
-            iter["tempsIter"] = tempsIter
-            iter["dincMax"] = dincMax
-
         self.__results.append(iter)
 
     
     def Update_iter(self, index= -1):
-        index = int(index)
-        assert isinstance(index, int), "Doit fournir un entier"
+        
+        results = super().Update_iter(index)
 
-        # On va venir récupérer les resultats stocké dans le tableau pandas
-        try:
-            results = self.results[index]
-        except:
-            print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
-            return
+        if results == None: return
 
         self.__displacement = results["displacement"]
         try :
@@ -1529,7 +1214,7 @@ class Simu_Displacement(Simu):
         Ne = self.mesh.Ne
         Nn = self.mesh.Nn
         
-        if not self.VerificationOption(option): return None
+        if not self.Resultats_Verification(option): return None
 
         if iter != None:
             self.Update_iter(iter)
@@ -1547,7 +1232,7 @@ class Simu_Displacement(Simu):
             return self.accel
 
         if option == 'coordoDef':
-            return self.GetCoordUglob()
+            return self.Resultats_GetCoordUglob()
 
         displacement = self.displacement
 
@@ -1623,7 +1308,7 @@ class Simu_Displacement(Simu):
                 resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
 
             if valeursAuxNoeuds:
-                resultat_n = self.InterpolationAuxNoeuds(resultat_e)
+                resultat_n = self.Resultats_InterpolationAuxNoeuds(resultat_e)
                 return resultat_n
             else:
                 return resultat_e
@@ -1641,7 +1326,7 @@ class Simu_Displacement(Simu):
 
             resultat_ddl = resultat_ddl.reshape(Nn, -1)
 
-            index = self.Get_indexe_option(option)
+            index = Simu.Resultats_indexe_option(self.dim, self.problemType, option)
             
             if valeursAuxNoeuds:
 
@@ -1763,7 +1448,39 @@ class Simu_Displacement(Simu):
             
         tic.Tac("Matrices", "Sigma_e_pg", False)
 
-        return Sigma_e_pg    
+        return Sigma_e_pg
+
+    def Resultats_Displacement(self, verbosity=True):
+        """Ecrit un résumé de la simulation dans le terminal"""
+
+        resume = ""
+
+        if not self.Resultats_Verification("Wdef"):
+            return
+        
+        Wdef = self.Get_Resultat("Wdef")
+        resume += f"\nW def = {Wdef:.2f}"
+        
+        Svm = self.Get_Resultat("Svm", valeursAuxNoeuds=False)
+        resume += f"\n\nSvm max = {Svm.max():.2f}"
+
+        # Affichage des déplacements
+        dx = self.Get_Resultat("dx", valeursAuxNoeuds=True)
+        resume += f"\n\nUx max = {dx.max():.2e}"
+        resume += f"\nUx min = {dx.min():.2e}"
+
+        dy = self.Get_Resultat("dy", valeursAuxNoeuds=True)
+        resume += f"\n\nUy max = {dy.max():.2e}"
+        resume += f"\nUy min = {dy.min():.2e}"
+
+        if self.dim == 3:
+            dz = self.Get_Resultat("dz", valeursAuxNoeuds=True)
+            resume += f"\n\nUz max = {dz.max():.2e}"
+            resume += f"\nUz min = {dz.min():.2e}"
+
+        if verbosity: print(resume)
+
+        return resume
 
 
 
@@ -1799,13 +1516,11 @@ class Simu_Damage(Simu):
 
         self.__results = [] #liste de dictionnaire qui contient les résultats
 
-        self.Set_Parabolic_AlgoProperties() # Renseigne les propriétes de résolution de l'algorithme
-        self.Set_Newton_Raphson() # Renseigne les propriétes de résolution de l'algorithme
+        self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
+        self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
 
     @property
     def results(self) -> List[dict]:
-        """Renvoie la liste de dictionnaire qui stocke les résultats
-        """
         return self.__results
 
     @property
@@ -2108,6 +1823,8 @@ class Simu_Damage(Simu):
         return self.__damage.copy()
 
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
+
+        iter = super().Save_Iteration(nombreIter, tempsIter, dincMax)
         
         if self.materiau.phaseFieldModel.solveur == "History":
             # mets à jour l'ancien champ histoire pour la prochaine résolution 
@@ -2116,27 +1833,15 @@ class Simu_Damage(Simu):
         iter = {                
             'displacement' : self.__displacement,
             'damage' : self.__damage
-        }    
-
-        if nombreIter != None and tempsIter != None and dincMax != None:
-            iter["nombreIter"] = nombreIter
-            iter["tempsIter"] = tempsIter
-            iter["dincMax"] = dincMax
-
-        # TODO Faire de l'adaptation de maillage ?
+        }
+        
         self.__results.append(iter)
 
     def Update_iter(self, index=-1):
 
-        index = int(index)
-        assert isinstance(index, int), "Doit fournir un entier"
+        results = super().Update_iter(index)
 
-        # On va venir récupérer les resultats stocké dans le tableau pandas
-        try:
-            results = self.__results[index]
-        except:
-            print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
-            return
+        if results == None: return
 
         self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
         self.__damage = results["damage"]
@@ -2153,7 +1858,7 @@ class Simu_Damage(Simu):
         Ne = self.mesh.Ne
         Nn = self.mesh.Nn
         
-        if not self.VerificationOption(option): return None
+        if not self.Resultats_Verification(option): return None
 
         if iter != None:
             self.Update_iter(iter)
@@ -2172,7 +1877,7 @@ class Simu_Damage(Simu):
             resultat_e = np.mean(resultat_e_pg, axis=1)
 
             if valeursAuxNoeuds:
-                return self.InterpolationAuxNoeuds(resultat_e)
+                return self.Resultats_InterpolationAuxNoeuds(resultat_e)
             else:
                 return resultat_e
 
@@ -2186,7 +1891,7 @@ class Simu_Damage(Simu):
             return self.accel
 
         if option == 'coordoDef':
-            return self.GetCoordUglob()
+            return self.Resultats_GetCoordUglob()
 
         displacement = self.displacement
 
@@ -2262,7 +1967,7 @@ class Simu_Damage(Simu):
                 resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
 
             if valeursAuxNoeuds:
-                resultat_n = self.InterpolationAuxNoeuds(resultat_e)
+                resultat_n = self.Resultats_InterpolationAuxNoeuds(resultat_e)
                 return resultat_n
             else:
                 return resultat_e
@@ -2280,7 +1985,7 @@ class Simu_Damage(Simu):
 
             resultat_ddl = resultat_ddl.reshape(Nn, -1)
 
-            index = self.Get_indexe_option(option)
+            index = Simu.Resultats_indexe_option(self.dim, self.problemType, option)
             
             if valeursAuxNoeuds:
 
@@ -2514,13 +2219,11 @@ class Simu_Beam(Simu):
 
         self.__results = [] #liste de dictionnaire qui contient les résultats
 
-        self.Set_Parabolic_AlgoProperties() # Renseigne les propriétes de résolution de l'algorithme
-        self.Set_Newton_Raphson() # Renseigne les propriétes de résolution de l'algorithme
+        self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
+        self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
 
     @property
     def results(self) -> List[dict]:
-        """Renvoie la liste de dictionnaire qui stocke les résultats
-        """
         return self.__results
 
     @property
@@ -2695,9 +2398,9 @@ class Simu_Beam(Simu):
         Ku_beam = self.ConstruitMatElem_Beam()
 
         # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
-        dimSupl = len(self.Get_Bc_Lagrange())
+        dimSupl = len(self.Bc_Lagrange)
         if dimSupl > 0:
-            dimSupl += len(self.Get_ddls_Dirichlet("beam"))
+            dimSupl += len(self.Bc_ddls_Dirichlet("beam"))
 
         # Prépare assemblage
         lignesVector_e = mesh.lignesVectorBeam_e(model.nbddl_n)
@@ -2740,35 +2443,26 @@ class Simu_Beam(Simu):
         return self.__beamDisplacement.copy()
 
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
+
+        iter = super().Save_Iteration(nombreIter, tempsIter, dincMax)
         
         iter = {                
             'beamDisplacement' : self.__beamDisplacement
         }
-
-        if nombreIter != None and tempsIter != None and dincMax != None:
-            iter["nombreIter"] = nombreIter
-            iter["tempsIter"] = tempsIter
-            iter["dincMax"] = dincMax
             
         self.__results.append(iter)
 
     def Update_iter(self, index=-1):
         
-        index = int(index)
-        assert isinstance(index, int), "Doit fournir un entier"
+        results = super().Update_iter(index)
 
-        # On va venir récupérer les resultats stocké dans le tableau pandas
-        try:
-            results = self.__results[index]
-        except:
-            print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
-            return
+        if results == None: return
 
         self.__beamDisplacement = results["beamDisplacement"]
 
     def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
         
-        if not self.VerificationOption(option): return None
+        if not self.Resultats_Verification(option): return None
 
         if iter != None:
             self.Update_iter(iter)
@@ -2777,13 +2471,13 @@ class Simu_Beam(Simu):
             return self.beamDisplacement.copy()
     
         if option == 'coordoDef':
-            return self.GetCoordUglob()
+            return self.Resultats_GetCoordUglob()
 
         if option in ["fx","fy","fz","cx","cy","cz"]:
 
             force = np.array(self.__Kbeam.dot(self.__beamDisplacement))
             force_redim = force.reshape(self.mesh.Nn, -1)
-            index = self.Get_indexe_option(option)
+            index = Simu.Resultats_indexe_option(self.dim, self.problemType, option)
             resultat_ddl = force_redim[:, index]
 
         else:
@@ -2791,7 +2485,7 @@ class Simu_Beam(Simu):
             resultat_ddl = self.beamDisplacement
             resultat_ddl = resultat_ddl.reshape((self.mesh.Nn,-1))
 
-        index = self.Get_indexe_option(option)
+        index = Simu.Resultats_indexe_option(self.dim, self.problemType, option)
 
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
@@ -2932,13 +2626,11 @@ class Simu_Thermal(Simu):
 
         self.__results = [] #liste de dictionnaire qui contient les résultats
 
-        self.Set_Parabolic_AlgoProperties() # Renseigne les propriétes de résolution de l'algorithme
-        self.Set_Newton_Raphson() # Renseigne les propriétes de résolution de l'algorithme
+        self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
+        self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
 
     @property
     def results(self) -> List[dict]:
-        """Renvoie la liste de dictionnaire qui stocke les résultats
-        """
         return self.__results
 
     @property
@@ -3067,6 +2759,8 @@ class Simu_Thermal(Simu):
         return self.thermal
 
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
+
+        iter = super().Save_Iteration(nombreIter, tempsIter, dincMax)
         
         iter = {                
             'thermal' : self.__thermal
@@ -3074,27 +2768,15 @@ class Simu_Thermal(Simu):
         try:
             iter['thermalDot'] = self.__thermalDot                
         except:
-            # Résultat non disponible
             pass
-
-        if nombreIter != None and tempsIter != None and dincMax != None:
-            iter["nombreIter"] = nombreIter
-            iter["tempsIter"] = tempsIter
-            iter["dincMax"] = dincMax
             
         self.__results.append(iter)
 
     def Update_iter(self, index=-1):
         
-        index = int(index)
-        assert isinstance(index, int), "Doit fournir un entier"
+        results = super().Update_iter(index)
 
-        # On va venir récupérer les resultats stocké dans le tableau pandas
-        try:
-            results = self.__results[index]
-        except:
-            print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
-            return
+        if results == None: return
 
         self.__thermal = results["thermal"]
         try:
@@ -3106,7 +2788,7 @@ class Simu_Thermal(Simu):
 
     def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
         
-        if not self.VerificationOption(option): return None
+        if not self.Resultats_Verification(option): return None
 
         if iter != None:
             self.Update_iter(iter)

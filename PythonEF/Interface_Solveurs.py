@@ -39,6 +39,23 @@ except:
     # Le module n'est pas utilisable
     pass
 
+def __Cast_Simu(simu):
+
+    import Simulations
+
+    if isinstance(simu, Simulations.Simu_Displacement):
+        return simu
+    elif isinstance(simu, Simulations.Simu_Damage):
+        return simu
+    elif isinstance(simu, Simulations.Simu_Beam):
+        return simu
+    elif isinstance(simu, Simulations.Simu_Thermal):
+        return simu
+    else:
+        raise "Type de simulation inconnue"
+
+
+
 def Solveur_1(simu, problemType: str) -> np.ndarray:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |    
@@ -46,8 +63,7 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
     # --       --  --  --   --  --
     # ui = inv(Aii) * (bi - Aic * xc)
 
-    from Simulations import Simu
-    assert isinstance(simu, Simu)
+    simu = __Cast_Simu(simu)
     algo = simu.algo
 
     tic = Tic()
@@ -67,18 +83,23 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
     bi = b[ddl_Inconnues,0]
     xc = x[ddl_Connues,0]
 
-    if problemType == "displacement" and algo == "elliptic":
-        x0 = simu.displacement[ddl_Inconnues]
-    elif problemType == "displacement" and algo == "hyperbolic":
-        x0 = simu.accel[ddl_Inconnues]
+    if problemType == "displacement":
+        if algo == "elliptic":
+            x0 = simu.displacement[ddl_Inconnues]
+        elif algo == "hyperbolic":
+            x0 = simu.accel[ddl_Inconnues]
+        
     elif problemType == "damage":
         x0 = simu.damage[ddl_Inconnues]
+
     elif problemType == "thermal":
         x0 = simu.thermal[ddl_Inconnues]
+        
     elif problemType == "beam":
         x0 = simu.beamDisplacement[ddl_Inconnues]
+
     else:
-        raise "probleme inconnue"
+        raise "x0 inconnue pour ce probleme"
 
     bDirichlet = Aic.dot(xc) # Plus rapide
     # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
@@ -118,23 +139,23 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
 def Solveur_2(simu, problemType: str):
     # Résolution par la méthode des coefs de lagrange
 
-    from Simulations import Simu, LagrangeCondition
-    assert isinstance(simu, Simu)
-    algo = simu.algo
+    simu = __Cast_Simu(simu)
 
     tic = Tic()
 
     # Construit le système matricielle pénalisé
     b = __Construction_b(simu, problemType)
-    A = __Construction_A_x(simu, problemType, b, resolution=2)
+    A, x = __Construction_A_x(simu, problemType, b, resolution=2)
 
     A = A.tolil()
     b = b.tolil()
 
-    ddls_Dirichlet = np.array(simu.Get_ddls_Dirichlet(problemType))
-    values_Dirichlet = np.array(simu.Get_values_Dirichlet(problemType))
+    ddls_Dirichlet = np.array(simu.Bc_ddls_Dirichlet(problemType))
+    values_Dirichlet = np.array(simu.BC_values_Dirichlet(problemType))
     
-    list_Bc_Lagrange = simu.Get_Bc_Lagrange()
+    list_Bc_Lagrange = simu.Bc_Lagrange
+    if len(list_Bc_Lagrange) > 0:
+        from Simulations import LagrangeCondition
 
     nColEnPlusLagrange = len(list_Bc_Lagrange)
     nColEnPlusDirichlet = len(ddls_Dirichlet)
@@ -150,16 +171,15 @@ def Solveur_2(simu, problemType: str):
 
     # Pour chaque condition de lagrange on va rajouter un coef dans la matrice
     for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1):
-        if not isinstance(lagrangeBc, LagrangeCondition): continue
-        
-        ddls = lagrangeBc.ddls
-        valeurs = lagrangeBc.valeurs_ddls
-        coefs = lagrangeBc.lagrangeCoefs
+        if isinstance(lagrangeBc, LagrangeCondition):
+            ddls = lagrangeBc.ddls
+            valeurs = lagrangeBc.valeurs_ddls
+            coefs = lagrangeBc.lagrangeCoefs
 
-        A[ddls,-i] = coefs
-        A[-i,ddls] = coefs
+            A[ddls,-i] = coefs
+            A[-i,ddls] = coefs
 
-        b[-i] = valeurs[0]
+            b[-i] = valeurs[0]
 
     tic.Tac("Matrices","Construit Ax=b", simu._verbosity)
 
@@ -174,8 +194,7 @@ def Solveur_2(simu, problemType: str):
 def Solveur_3(simu, problemType: str):
     # Résolution par la méthode des pénalisations
 
-    from Simulations import Simu
-    assert isinstance(simu, Simu)
+    simu = __Cast_Simu(simu)
             
     tic = Tic()
 
@@ -206,12 +225,12 @@ def Solveur_3(simu, problemType: str):
 
 def __Construction_b(simu, problemType: str):
     """Applique les conditions de Neumann et construit b de Ax=b"""
-    from Simulations import Simu
-    assert isinstance(simu, Simu)
+    
+    simu = __Cast_Simu(simu)
     algo = simu.algo
     
-    ddls = simu.Get_ddls_Neumann(problemType)
-    valeurs_ddls = simu.Get_values_Neumann(problemType)
+    ddls = simu.Bc_ddls_Neumann(problemType)
+    valeurs_ddls = simu.Bc_values_Neumann(problemType)
 
     taille = simu.mesh.Nn
     if problemType == "displacement":
@@ -220,9 +239,9 @@ def __Construction_b(simu, problemType: str):
         taille *= simu.materiau.beamModel.nbddl_n
 
     # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
-    dimSupl = len(simu.Get_Bc_Lagrange())
+    dimSupl = len(simu.Bc_Lagrange)
     if dimSupl > 0:
-        dimSupl += len(simu.Get_ddls_Dirichlet(problemType))
+        dimSupl += len(simu.Bc_ddls_Dirichlet(problemType))
         
     b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille+dimSupl,1))
     
@@ -303,12 +322,11 @@ def __Construction_b(simu, problemType: str):
 def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution: int):
     """Applique les conditions de dirichlet en construisant Ax de Ax=b"""
 
-    from Simulations import Simu
-    assert isinstance(simu, Simu)
+    simu = __Cast_Simu(simu)
     algo = simu.algo
 
-    ddls = simu.Get_ddls_Dirichlet(problemType)
-    valeurs_ddls = simu.Get_values_Dirichlet(problemType)
+    ddls = simu.Bc_ddls_Dirichlet(problemType)
+    valeurs_ddls = simu.BC_values_Dirichlet(problemType)
 
     taille = simu.mesh.Nn
 
@@ -359,7 +377,7 @@ def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution:
         raise "Configuration inconnue"
 
 
-    if resolution == 1:
+    if resolution in [1,2]:
         
         # ici on renvoie la solution avec les ddls connues
         x = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1), dtype=np.float64)
@@ -367,10 +385,6 @@ def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution:
         # l,c ,v = sparse.find(x)
 
         return A, x
-
-    elif resolution == 2:
-        # Lagrange
-        return A
 
     elif resolution == 3:
         # Pénalisation
@@ -394,14 +408,13 @@ def __Construit_ddl_connues_inconnues(simu, problemType: str):
     Returns:
         list(int), list(int): ddl_Connues, ddl_Inconnues
     """
-    from Simulations import Simu
-    assert isinstance(simu, Simu)
+    simu = __Cast_Simu(simu)
     
 
     # Construit les ddls connues
     ddls_Connues = []
 
-    ddls_Connues = simu.Get_ddls_Dirichlet(problemType)
+    ddls_Connues = simu.Bc_ddls_Dirichlet(problemType)
     unique_ddl_Connues = np.unique(ddls_Connues)
 
     # Construit les ddls inconnues
@@ -515,8 +528,6 @@ def __Solve_Axb(problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0
     elif solveur == "umfpack":
         # lu = umfpack.splu(A)
         # x = lu.solve(b).reshape(-1)
-        import scikits.umfpack as umfpack
-        
         x = umfpack.spsolve(A, b)
 
     elif solveur == "mumps" and syst == 'Linux':
@@ -596,8 +607,6 @@ def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric
         x = lu.solve(b.toarray()).reshape(-1)
 
     return x
-
-
 
 def __DamageBoundConstrain(A, b, damage: np.ndarray):
     

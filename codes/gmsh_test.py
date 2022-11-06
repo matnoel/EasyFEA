@@ -1,4 +1,3 @@
-
 from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Affichage
@@ -6,10 +5,9 @@ import Simulations
 import matplotlib.pyplot as plt
 from Materials import Materiau, Elas_Isot
 import Dossier
-import PostTraitement
 
-dim = 3
 option = 2
+dim = 3
 N = 5
 
 dictOptions = {
@@ -33,7 +31,7 @@ if option == 1:
     mesh = interface.Mesh_Importation3D(fichier, 10)
 
     noeuds134 = mesh.Nodes_Tag(['S134'])
-    Affichage.Plot_Noeuds(mesh, noeuds134)
+    Affichage.Plot_Elements(mesh, noeuds134)
     plt.show()
     
 elif option ==  2:
@@ -60,17 +58,15 @@ elif option ==  2:
         mesh = interface.Mesh_From_Points_2D(listPoint, elemType="QUAD8", geomObjectsInDomain=listObjetsInter, tailleElement=h/N)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType="TETRA4", interieursList=listObjetsInter, tailleElement=h/N)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType="HEXA8", interieursList=listObjetsInter, tailleElement=h/N)
 
 
-        # noeudsS3 = mesh.Nodes_Tag(["S8","S3"])
-        # Affichage.Plot_Noeuds(mesh, noeuds=noeudsS3)
+        noeudsS3 = mesh.Nodes_Tag(["S9","S15","S14","S21"])
+        Affichage.Plot_Elements(mesh, noeudsS3)
         # plt.show()
 
     noeudsGauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
-    
-
     
 elif option == 3:
 
@@ -104,13 +100,13 @@ elif option == 3:
 
 Affichage.Plot_Maillage(mesh)
 Affichage.Plot_Model(mesh, showId=False)
-plt.show()
+# plt.show()
 
 comportement = Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
 
 materiau = Materiau(comportement)
 
-simu = Simulations.Simu(mesh, materiau)
+simu = Simulations.Simu_Displacement(mesh, materiau)
 
 if option == 1:
     simu.add_dirichlet("displacement", mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])
@@ -133,12 +129,12 @@ elif option == 3:
     simu.add_volumeLoad("displacement", mesh.nodes, [-ro*g], ["y"], "[-ro*g]")
     simu.add_surfLoad("displacement", noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], "[w*g*(h-y)]")
 
-simu.Assemblage_u()
-simu.Solve_u()
+simu.Assemblage()
+simu.Solve()
 
 simu.Save_Iteration()
 # PostTraitement.Save_Simulation_in_Paraview(Dossier.NewFile("gmsh test",results=True), simu)
-simu.Resume()
+simu.Resultats_Resume()
 
 # Affichage.Plot_ElementsMaillage(mesh, nodes=noeudsDroit, dimElem =2)
 Affichage.Plot_BoundaryConditions(simu)

@@ -48,7 +48,7 @@ else:
 
 def Iteration(steadyState: bool):
 
-    simu.Init_Bc()
+    simu.Bc_Init()
 
     simu.add_dirichlet("thermal", noeuds0, [0], [""])
     simu.add_dirichlet("thermal", noeudsL, [40], [""])
@@ -71,7 +71,7 @@ N = 10
 dt = Tmax/N #s
 t=0
 
-simu.Set_Parabolic_AlgoProperties(alpha=0.5, dt=dt)
+simu.Solveur_Parabolic_Properties(alpha=0.5, dt=dt)
 
 if Tmax == 0:
     steadyState=True

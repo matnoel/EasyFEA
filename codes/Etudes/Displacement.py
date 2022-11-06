@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-dim = 2
+dim = 3
 
 folder = Dossier.NewFile(f"Etude{dim}D", results=True)
 
@@ -91,7 +91,7 @@ elif dim == 3:
     # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
     # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     
-    elemType = "PRISM6" # "TETRA4", "HEXA8", "PRISM6"
+    elemType = "HEXA8" # "TETRA4", "HEXA8", "PRISM6"
     mesh = interfaceGmsh.Mesh_Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=False, nCouches=3)
 
     volume = mesh.volume - L*b*h
@@ -116,7 +116,7 @@ simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
 def Chargement(isLoading: bool):
 
-    simu.Init_Bc()
+    simu.Bc_Init()
 
     # Renseigne les condtions limites
 
@@ -164,7 +164,7 @@ if N > 1:
 else:
     steadyState=True
 
-simu.Set_Newton_Raphson(dt=dt)
+simu.Solveur_Newton_Raphson_Properties(dt=dt)
 
 if plotIter:
     fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, deformation=True)
@@ -189,7 +189,7 @@ ticTot.Tac("Temps script","Temps total", True)
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
-simu.ResumeResultats()
+simu.Resultats_Displacement()
 
 Affichage.Plot_BoundaryConditions(simu)
 # plt.show()

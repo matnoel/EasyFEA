@@ -44,7 +44,7 @@ def Save_Simu(simu: Simu, folder:str):
         pickle.dump(simu, file)
 
     # Sauvegarde le résumé de la simulation
-    resume += simu.Resume(False)
+    resume += simu.Resultats_Resume(False)
     nomResume = "résumé.txt"
     print(Fore.GREEN + f'  - {nomResume} \n' + Fore.WHITE)
     filenameResume = Dossier.Join([folder, nomResume])

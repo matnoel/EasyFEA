@@ -233,7 +233,7 @@ for split in ["AnisotMiehe","He"]:
         ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
 
         def Chargement():
-            simu.Init_Bc()
+            simu.Bc_Init()
             simu.add_dirichlet("displacement", nodes_lower, [0], ["y"])
             simu.add_dirichlet("displacement", node00, [0], ["x"])
             simu.add_dirichlet("displacement", nodes_upper, [-ud], ["y"])
