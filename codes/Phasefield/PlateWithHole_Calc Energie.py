@@ -4,7 +4,7 @@ import Materials
 from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
-import Simulations as Simulations
+import Simulations
 import Dossier as Dossier
 import pandas as pd
 import PostTraitement as PostTraitement

@@ -9,7 +9,7 @@ import Affichage as Affichage
 from Materials import Elas_IsotTrans, PhaseFieldModel, Elas_Isot, Materiau, Elas_Anisot
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
-from Simulations import Simu, Create_Simu 
+from Simulations import Simu
 from Mesh import Mesh
 from TicTac import Tic
 
@@ -21,13 +21,13 @@ Affichage.Clear()
 simulation = "Shear" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = True
-solve = True
+test = False
+solve = False
 pltMesh = False
 plotResult = True
 plotEnergie = False
 saveParaview = True; Nparaview=400
-makeMovie = True
+makeMovie = False
 
 useNumba = True
 
