@@ -2037,7 +2037,7 @@ class Simu_Damage(Simu):
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
         # Endommage : psiP_e_pg = g(d) * PsiP_e_pg 
-        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.__mesh, matriceType)
+        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
         psiP_e_pg = np.einsum('ep,ep->ep', g_e_pg, psiP_e_pg, optimize='optimal')
         psi_e_pg = psiP_e_pg + psiM_e_pg
 
@@ -2061,12 +2061,12 @@ class Simu_Damage(Simu):
         c0 = pfm.c0
 
         d_n = self.__damage
-        d_e = self.__mesh.Localises_sol_e(d_n)
+        d_e = self.mesh.Localises_sol_e(d_n)
 
-        jacobien_e_pg = self.__mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = self.__mesh.Get_poid_pg(matriceType)
-        Nd_pg = self.__mesh.Get_N_scalaire_pg(matriceType)
-        Bd_e_pg = self.__mesh.Get_dN_sclaire_e_pg(matriceType)
+        jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = self.mesh.Get_poid_pg(matriceType)
+        Nd_pg = self.mesh.Get_N_scalaire_pg(matriceType)
+        Bd_e_pg = self.mesh.Get_dN_sclaire_e_pg(matriceType)
 
         grad_e_pg = np.einsum('epij,ej->epi',Bd_e_pg,d_e, optimize='optimal')
         diffuse_e_pg = grad_e_pg**2
@@ -2079,7 +2079,7 @@ class Simu_Damage(Simu):
         
         alphaPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, Gc/(c0*l0), alpha_e_pg, optimize='optimal')
 
-        if self.__dim == 2:
+        if self.dim == 2:
             ep = self.materiau.epaisseur
         else:
             ep = 1

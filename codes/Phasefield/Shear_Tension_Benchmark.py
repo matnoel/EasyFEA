@@ -9,7 +9,7 @@ import Affichage as Affichage
 from Materials import Elas_IsotTrans, PhaseFieldModel, Elas_Isot, Materiau, Elas_Anisot
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
-from Simulations import Simu
+import Simulations
 from Mesh import Mesh
 from TicTac import Tic
 
@@ -21,12 +21,12 @@ Affichage.Clear()
 simulation = "Shear" #"Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = False
-solve = False
+test = True
+solve = True
 pltMesh = False
 plotResult = True
-plotEnergie = False
-saveParaview = True; Nparaview=400
+plotEnergie = True
+saveParaview = False; Nparaview=400
 makeMovie = False
 
 useNumba = True
@@ -61,7 +61,7 @@ else:
 if test:
     taille = l0 #taille maille test fem object
     # taille = 0.001
-    taille *= 10
+    taille *= 3
 else:
     taille = l0/2 #l0/2 2.5e-6
     # taille = 7.5e-6
@@ -142,12 +142,12 @@ if solve:
 
     materiau = Materiau(phaseFieldModel, ro=1)
 
-    simu = Create_Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
+    simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False, useNumba=useNumba)
 
     # Renseignement des conditions limites
     def Chargement(dep):
 
-        simu.Init_Bc()
+        simu.Bc_Init()
 
         if not openCrack:
             simu.add_dirichlet("damage",noeuds_Milieu, [1], ["d"])
