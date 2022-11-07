@@ -1619,6 +1619,8 @@ class PhaseFieldModel:
 
 class ThermalModel:
 
+    # TODO ThermalModel Anisot avec un coef de diffusion différents pour chaque direction !
+
     def __init__(self, dim:int, k: float, c=0.0, epaisseur=1.0):
         """Construction d'un modèle thermique
 
