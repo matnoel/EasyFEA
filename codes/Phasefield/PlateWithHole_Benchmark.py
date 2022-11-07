@@ -10,27 +10,27 @@ import PhaseFieldSimulation
 
 import matplotlib.pyplot as plt
 
-
-
 # Affichage.Clear()
 # mpirun -np 4 python3 PlateWithHole_Benchmark.py
 
 # Options
 
-test = True
+test = False
 solve = True
+
 plotMesh = False
 plotIter = False
 plotResult = True
 showFig = False
-plotEnergie = False
+plotEnergie = True
+
 saveParaview = False; NParaview=200
-makeMovie = True; NMovie = 300
+makeMovie = False; NMovie = 300
 
 
-problem = "CompressionFCBA" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2", "CompressionFCBA3"]
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT2" # ["AT1", "AT2"]
+problem = "Benchmark" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2", "CompressionFCBA3"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+regu = "AT1" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
 
@@ -52,12 +52,9 @@ if "CompressionFCBA" in problem:
 else:
     nL=0
 
-
-
 #["Bourdin","Amor","Miehe","He","Stress"]
-#["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
-#["AnisotStress","AnisotStress_NoCross"]
-for split in ["AnisotMiehe","He"]:
+#["AnisotMiehe", "AnisotStress"]
+for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]:
     
     # if split == "AnisotStress" and comp == "Elas_Isot":
     #     umax = 45e-6
