@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from types import LambdaType
-from typing import List
+from typing import List, cast
 
 import numpy as np
 from scipy import sparse
@@ -78,8 +78,10 @@ class Simu(ABC):
         self._verbosity = verbosity
         """la simulation peut ecrire dans la console"""
 
-        self.__mesh = mesh
-        """maillage de la simulation"""
+        self.__iterMesh = -1
+        self.__listMesh = []
+        self.mesh = mesh
+
         self.materiau = materiau
         """materiau de la simulation"""
 
@@ -107,6 +109,18 @@ class Simu(ABC):
     def mesh(self) -> Mesh:
         """maillage de la simulation"""
         return self.__mesh
+    
+    @mesh.setter
+    def mesh(self, mesh):
+        """applique un nouveau maillage"""
+        if isinstance(mesh, Mesh):
+            # Pour tout les anciens maillage j'efface les matrices
+            listMesh = cast(List[Mesh], self.__listMesh)
+            [m.ResetMatrices() for m in listMesh]
+
+            self.__listMesh.append(mesh)
+            self.__mesh = mesh
+            self.__iterMesh += 1
 
     @property
     def dim(self) -> int:
@@ -161,6 +175,8 @@ class Simu(ABC):
 
         iter = {}
 
+        iter["iterMesh"] = self.__iterMesh
+
         if nombreIter != None and tempsIter != None and dincMax != None:
             iter["nombreIter"] = nombreIter
             iter["tempsIter"] = tempsIter
@@ -176,10 +192,17 @@ class Simu(ABC):
 
         # On va venir récupérer les resultats stocké dans le tableau pandas
         try:
-            return self.results[index]
+            results =  self.results[index]
         except:
             print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
             return None
+
+        # Met à jour le maillage
+        iterMesh = results["iterMesh"]
+        self.__mesh = self.__listMesh[iterMesh]
+
+        return results
+
 
     @abstractmethod
     def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
@@ -1171,9 +1194,7 @@ class Simu_Displacement(Simu):
         
         iter = super().Save_Iteration(nombreIter, tempsIter, dincMax)
 
-        iter = {                
-            'displacement' : self.__displacement
-        }
+        iter['displacement'] = self.__displacement
         try:
             iter["speed"] = self.__speed
             iter["accel"] = self.accel
@@ -1808,11 +1829,9 @@ class Simu_Damage(Simu):
             # mets à jour l'ancien champ histoire pour la prochaine résolution 
             self.__old_psiP_e_pg = self.__psiP_e_pg
             
-        iter = {                
-            'displacement' : self.__displacement,
-            'damage' : self.__damage
-        }
-        
+        iter['displacement'] = self.__displacement
+        iter['damage'] = self.__damage
+
         self.__results.append(iter)
 
     def Update_iter(self, index=-1):
@@ -2385,9 +2404,7 @@ class Simu_Beam(Simu):
 
         iter = super().Save_Iteration(nombreIter, tempsIter, dincMax)
         
-        iter = {                
-            'beamDisplacement' : self.__beamDisplacement
-        }
+        iter['beamDisplacement'] = self.__beamDisplacement
             
         self.__results.append(iter)
 
@@ -2650,9 +2667,8 @@ class Simu_Thermal(Simu):
 
         iter = super().Save_Iteration(nombreIter, tempsIter, dincMax)
         
-        iter = {                
-            'thermal' : self.__thermal
-        }
+        iter['thermal'] = self.__thermal
+
         try:
             iter['thermalDot'] = self.__thermalDot                
         except:
