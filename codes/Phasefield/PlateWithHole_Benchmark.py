@@ -28,7 +28,7 @@ saveParaview = False; NParaview=200
 makeMovie = False; NMovie = 300
 
 
-problem = "Benchmark" # ["Benchmark" , "CompressionFCBA", "CompressionFCBA2", "CompressionFCBA3"]
+problem = "FCBA" # ["Benchmark","FCBA"]
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
@@ -39,25 +39,24 @@ useNumba = True
 # Convergence
 maxIter = 500
 tolConv = 1e-0
+
 # TODO Faire la convergence sur l'energie ?
 
 if comp == "Elas_Isot":
-    umax = 25e-6
-    # umax = 35e-6    
+    # umax = 25e-6
+    umax = 35e-6    
 else:
     umax = 80e-6
 
-if "CompressionFCBA" in problem:
-    nL=20
+if "FCBA" in problem:
+    nL=200
 else:
     nL=0
 
-#["Bourdin","Amor","Miehe","He","Stress"]
+#["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStress"]
 #["AnisotMiehe", "AnisotStress"]
-for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]:
-    
-    # if split == "AnisotStress" and comp == "Elas_Isot":
-    #     umax = 45e-6
+for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStress"]:
+# for split in ["AnisotStress"]:
 
     # Data
 
@@ -81,20 +80,13 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
         listInc = [inc0, inc1]
         listTresh = [tresh0, tresh1]
 
-    elif "CompressionFCBA" in problem:
+    elif "FCBA" in problem:
+
         L=9e-2
-        if problem in ["CompressionFCBA2","CompressionFCBA3"]:
-            # Pour un carré
-            h=L
-        else:
-            h=12e-2
-        ep=2e-2
+        h=L
+        ep=1e-2
         
         diam=1e-2
-        if problem == "CompressionFCBA2":
-            diam=2e-2
-        if problem == "CompressionFCBA3":
-            diam=1e-2
         r=diam/2
         
         gc = 1.4/2
@@ -117,6 +109,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
     if comp == "Elas_Isot":
         E=12e9
         v=0.3
+
     elif comp == "Elas_IsotTrans":
         # El=11580*1e6
         El=12e9
@@ -138,7 +131,6 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
             else:
                 clD = l_0*2
                 clC = l_0
-
 
     else:
         
@@ -167,7 +159,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
             # Concentration de maillage sur la fissure
             if problem == "Benchmark":
                 ecartZone = diam*1.5/2
-            elif "CompressionFCBA" in problem:
+            elif "FCBA" in problem:
                 ecartZone = diam
             if split in ["Bourdin", "Amor"]:
                 domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
@@ -190,6 +182,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
         
         if comp == "Elas_Isot":
             comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
+
         elif comp == "Elas_IsotTrans":
             comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=isCp, epaisseur=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
@@ -197,33 +190,19 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
         materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
 
         simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False, useNumba=useNumba)
-
+        
         # Récupérations des noeuds
+        B_lower = Line(point,Point(x=L)); nodes_lower = mesh.Nodes_Line(B_lower)
+        B_upper = Line(Point(y=h),Point(x=L, y=h)); nodes_upper = mesh.Nodes_Line(B_upper)
+        B_left = Line(point,Point(y=h)); nodes_left = mesh.Nodes_Line(B_left)
+        B_right = Line(Point(x=L),Point(x=L, y=h)); nodes_right = mesh.Nodes_Line(B_right)
+        node00 = mesh.Nodes_Point(point)
 
-        B_lower = Line(point,Point(x=L))
-        B_upper = Line(Point(y=h),Point(x=L, y=h))
-        B_left = Line(point,Point(y=h))
-        B_right = Line(Point(x=L),Point(x=L, y=h))
-
-        c = diam/10
-        domainA = Domain(Point(x=(L-c)/2, y=h/2+0.8*diam/2), Point(x=(L+c)/2, y=h/2+0.8*diam/2+c))
-        domainB = Domain(Point(x=L/2+0.8*diam/2, y=(h-c)/2), Point(x=L/2+0.8*diam/2+c, y=(h+c)/2))
-
-        nodes_lower = mesh.Nodes_Line(B_lower)
-        nodes_upper = mesh.Nodes_Line(B_upper)
-        nodes_left = mesh.Nodes_Line(B_left)
-        nodes_right = mesh.Nodes_Line(B_right)
-
-        # noeuds_bord = np.array().reshape(-1)
         noeuds_bord = []
         for ns in [nodes_lower, nodes_upper, nodes_left, nodes_right]:
             noeuds_bord.extend(ns)
         noeuds_bord = np.unique(noeuds_bord)
         
-        node00 = mesh.Nodes_Point(point)
-        nodesA = mesh.Nodes_Domain(domainA)
-        nodesB = mesh.Nodes_Domain(domainB)
-
         ud=0
         damage_t=[]
 
@@ -254,7 +233,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
         def Condition():
             if problem == "Benchmark":
                 return ud <= umax
-            elif "CompressionFCBA" in problem:
+            elif "FCBA" in problem:
                 return simu.damage[noeuds_bord].max() <= 1
                 # return simu.damage.max() <= 0.5
 
@@ -276,7 +255,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
 
             PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, nombreIter, dincMax,  temps, "µm", pourcentage, True)
 
-            if "CompressionFCBA" in problem:
+            if "FCBA" in problem:
                 if ud >= tresh2:
                     ud += inc2
                 elif max_d<tresh0:
