@@ -18,10 +18,10 @@ import matplotlib.pyplot as plt
 
 # Affichage.Clear()
 
-simulation = "Shear" #"Shear" , "Tension"
+simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = True
+test = False
 solve = True
 
 pltMesh = False
@@ -37,12 +37,14 @@ useNumba = True
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-# split = "Amor" # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
-regularisation = "AT2" # "AT1", "AT2"
+regularisation = "AT1" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
 
-for split in ["Bourdin","Amor","Miehe","He","AnisotMiehe","AnisotStress"]: # "Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"
+# "Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"
+#for split in ["He","AnisotMiehe","AnisotStress"]:
+#for split in ["AnisotStress"]:
+for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]:
 
     maxIter = 250
     # tolConv = 0.0025
@@ -54,7 +56,7 @@ for split in ["Bourdin","Amor","Miehe","He","AnisotMiehe","AnisotStress"]: # "Bo
     # Paramètres géométrie
     L = 1e-3;  #m
     if comportement == "Elas_Anisot":
-        tetha = -30
+        tetha = -0
         l0 = 0.0085e-3
         Gc = 1e-3 * 1e-3 * 1e3
     else:
@@ -66,7 +68,7 @@ for split in ["Bourdin","Amor","Miehe","He","AnisotMiehe","AnisotStress"]: # "Bo
     if test:
         taille = l0 #taille maille test fem object
         # taille = 0.001
-        taille *= 10
+        taille *= 1
     else:
         taille = l0/2 #l0/2 2.5e-6
         # taille = 7.5e-6
@@ -232,7 +234,7 @@ for split in ["Bourdin","Amor","Miehe","He","AnisotMiehe","AnisotStress"]: # "Bo
 
         def Condition():
 
-            testEndommagementBord = np.any(simu.damage[NoeudsBord] >= 1)
+            testEndommagementBord = np.any(simu.damage[NoeudsBord] <= 1)
 
             if isinstance(comp, Elas_Isot):
 
