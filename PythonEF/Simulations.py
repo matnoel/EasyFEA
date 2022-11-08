@@ -118,9 +118,9 @@ class Simu(ABC):
             listMesh = cast(List[Mesh], self.__listMesh)
             [m.ResetMatrices() for m in listMesh]
 
+            self.__iterMesh += 1
             self.__listMesh.append(mesh)
             self.__mesh = mesh
-            self.__iterMesh += 1
 
     @property
     def dim(self) -> int:
