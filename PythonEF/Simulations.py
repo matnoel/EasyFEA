@@ -4,6 +4,7 @@ from typing import List
 
 import numpy as np
 from scipy import sparse
+
 from Mesh import Mesh
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import *
