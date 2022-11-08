@@ -83,23 +83,24 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
     bi = b[ddl_Inconnues,0]
     xc = x[ddl_Connues,0]
 
-    if problemType == "displacement":
-        if algo == "elliptic":
-            x0 = simu.displacement[ddl_Inconnues]
-        elif algo == "hyperbolic":
-            x0 = simu.accel[ddl_Inconnues]
-        
-    elif problemType == "damage":
-        x0 = simu.damage[ddl_Inconnues]
+    try:
+        if problemType == "displacement":
+            if algo == "elliptic":
+                x0 = simu.displacement[ddl_Inconnues]
+            elif algo == "hyperbolic":
+                x0 = simu.accel[ddl_Inconnues]
+            
+        elif problemType == "damage":
+            x0 = simu.damage[ddl_Inconnues]
 
-    elif problemType == "thermal":
-        x0 = simu.thermal[ddl_Inconnues]
-        
-    elif problemType == "beam":
-        x0 = simu.beamDisplacement[ddl_Inconnues]
-
-    else:
-        raise "x0 inconnue pour ce probleme"
+        elif problemType == "thermal":
+            x0 = simu.thermal[ddl_Inconnues]
+            
+        elif problemType == "beam":
+            x0 = simu.beamDisplacement[ddl_Inconnues]
+    except:
+        # proleme pas implémenté ou nouveau maillage
+        x0 = []
 
     bDirichlet = Aic.dot(xc) # Plus rapide
     # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
