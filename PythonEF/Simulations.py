@@ -197,9 +197,13 @@ class Simu(ABC):
             print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
             return None
 
-        # Met à jour le maillage
-        iterMesh = results["iterMesh"]
-        self.__mesh = self.__listMesh[iterMesh]
+        try:
+            # Met à jour le maillage
+            iterMesh = results["iterMesh"]
+            self.__mesh = self.__listMesh[iterMesh]
+        except:
+            # Pas implémenté
+            pass
 
         return results
 
