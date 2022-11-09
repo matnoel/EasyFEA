@@ -6,7 +6,7 @@ import PostTraitement as PostTraitement
 import Dossier as Dossier
 import Affichage as Affichage
 
-from Materials import Elas_IsotTrans, PhaseFieldModel, Elas_Isot, Materiau, Elas_Anisot
+from Materials import PhaseFieldModel, Elas_Isot, Materiau, Elas_Anisot
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = True
+test = False
 solve = True
 
 pltMesh = False
@@ -46,7 +46,7 @@ openCrack = True
 #for split in ["AnisotStress"]:
 for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]:
 
-    maxIter = 250
+    maxIter = 500
     # tolConv = 0.0025
     # tolConv = 0.005
     tolConv = 1e-0
@@ -68,7 +68,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
     if test:
         taille = l0 #taille maille test fem object
         # taille = 0.001
-        taille *= 10
+        taille *= 1
     else:
         taille = l0/2 #l0/2 2.5e-6
         # taille = 7.5e-6
@@ -88,11 +88,9 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
         line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille, isOpen=openCrack)
 
         mesh = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=line, elemType=elemType)
-
         
         if pltMesh:
-            Affichage.Plot_Model(mesh)
-            # Affichage.Plot_Maillage(mesh)
+            Affichage.Plot_Model(mesh)            
             # plt.show()
 
         # Récupère les noeuds qui m'interessent
@@ -224,11 +222,8 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
 
         tic = Tic()
 
-        bord = 0
-
+        bord = 0        
         
-        # list_Psi_Elas=[]
-        # list_Psi_Crack=[]
         deplacements=[]
         forces=[]
 
@@ -248,8 +243,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
 
                 raise "Pas implémenté"
 
-        N = chargement.shape[0]
-        
+        N = chargement.shape[0]        
 
         while Condition():
 
@@ -282,28 +276,23 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
                 dep = chargement[iter]
     
             deplacements.append(dep)
-            forces.append(f)
-
-            
+            forces.append(f)            
 
             if nombreIter == maxIter:
                 print(f'On converge pas apres {nombreIter} itérations')
                 break
 
-
-            # if np.any(damage[NoeudsBord] >= 0.8):                                
-            #     bord +=1
-
-            # if bord == 5:
-            #     break
+            if np.any(damage[NoeudsBord] >= 1):                                
+                bord +=1
+                if bord == 5:
+                    break
 
             iter += 1
                 
         # Sauvegarde
         print()
         PostTraitement.Save_Load_Displacement(forces, deplacements, folder)
-        PostTraitement.Save_Simu(simu, folder)
-        
+        PostTraitement.Save_Simu(simu, folder)        
 
         forces = np.array(forces)
         deplacements = np.array(deplacements)
@@ -318,8 +307,6 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
 
         # Affichage.Plot_Maillage(simu.mesh)
         # plt.show()
-            
-
 
     # ------------------------------------------------------------------------------------------------------
     Affichage.NouvelleSection("Affichage")
@@ -358,4 +345,5 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
     if showResult:
         plt.show()
 
+    Tic.Clear()
     plt.close('all')

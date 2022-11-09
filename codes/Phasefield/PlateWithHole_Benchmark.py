@@ -28,7 +28,7 @@ saveParaview = False; NParaview=200
 makeMovie = False; NMovie = 300
 
 
-problem = "FCBA" # ["Benchmark","FCBA"]
+problem = "Benchmark" # ["Benchmark","FCBA"]
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # ["AT1", "AT2"]
 solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
@@ -49,7 +49,7 @@ else:
     umax = 80e-6
 
 if "FCBA" in problem:
-    nL=200
+    nL=100
 else:
     nL=0
 
@@ -271,16 +271,15 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
                     ud += inc1
 
             # Detection si on a touché le bord
-            if np.any(d[noeuds_bord] >= 0.95):
+            if np.any(d[noeuds_bord] >= 1):
                 bord +=1
+                if bord == 10:
+                    break
 
             if plotIter:
                 cb.remove()
                 figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, ax=axIter)
                 plt.pause(1e-12)
-            
-            if bord == 10:
-                break
 
             displacement.append(ud)
             load.append(f)
