@@ -10,6 +10,7 @@ results/
 
 # fichier à ignorer
 *.pyc
+*.HEIC
 *.pos
 *.bak
 *.json
