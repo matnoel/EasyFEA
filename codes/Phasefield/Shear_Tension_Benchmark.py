@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = False
+test = True
 solve = True
 
 pltMesh = False
@@ -68,7 +68,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
     if test:
         taille = l0 #taille maille test fem object
         # taille = 0.001
-        taille *= 1
+        taille *= 10
     else:
         taille = l0/2 #l0/2 2.5e-6
         # taille = 7.5e-6
@@ -260,6 +260,8 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
             Chargement(dep)
 
             u, d, Kglob, nombreIter, dincMax, temps = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
+
+            simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
             
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
@@ -282,7 +284,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
             deplacements.append(dep)
             forces.append(f)
 
-            simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
+            
 
             if nombreIter == maxIter:
                 print(f'On converge pas apres {nombreIter} itérations')

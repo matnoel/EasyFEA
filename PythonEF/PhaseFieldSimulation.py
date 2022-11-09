@@ -85,9 +85,7 @@ def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray,
     else:
         raise "Solveur inconnue"
 
-    temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)    
-
-    simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
+    temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
         
     return u, dnp1, Kglob, nombreIter, dincMax, temps
 

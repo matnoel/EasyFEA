@@ -245,6 +245,8 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
 
             u, d, Kglob, nombreIter, dincMax, temps = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
 
+            simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
+
             max_d = d.max()
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 

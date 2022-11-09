@@ -1502,7 +1502,6 @@ class Simu_Displacement(Simu):
 
 class Simu_Damage(Simu):
 
-
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
         assert materiau.problemType == "damage", "Le materiau doit être de type damage"
         super().__init__(mesh, materiau, verbosity, useNumba)
