@@ -1,4 +1,5 @@
 import os
+from colorama import Fore
 
 import Affichage as Affichage
 import Simulations
@@ -32,8 +33,8 @@ def Save_Simu(simu: Simulations.Simu, folder:str):
     resume = f"Simulation réalisée le : {dateEtHeure}"
     nomSimu = "simulation.pickle"
     filename = Dossier.Join([folder, nomSimu])
-    print(f'\nSauvegarde de :')
-    print(f'  - {nomSimu}')
+    print(Fore.GREEN + f'\nSauvegarde de :')
+    print(Fore.GREEN + f'  - {nomSimu}' + Fore.WHITE)
     
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -45,7 +46,7 @@ def Save_Simu(simu: Simulations.Simu, folder:str):
     # Sauvegarde le résumé de la simulation
     resume += simu.Resultats_Resume(False)
     nomResume = "résumé.txt"
-    print(f'  - {nomResume} \n')
+    print(Fore.GREEN + f'  - {nomResume} \n' + Fore.WHITE)
     filenameResume = Dossier.Join([folder, nomResume])
 
     with open(filenameResume, 'w', encoding='utf8') as file:
@@ -74,7 +75,7 @@ def Load_Simu(folder: str, verbosity=False):
     assert isinstance(simu, Simulations.Simu)
 
     if verbosity:
-        print(f'\nChargement de :\n{filename}\n')
+        print(Fore.CYAN + f'\nChargement de :\n{filename}\n' + Fore.WHITE)
         simu.mesh.Resume()
         simu.materiau.Resume()
     return simu
@@ -87,7 +88,7 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
     
     filename = Dossier.Join([folder, "load and displacement.pickle"])
 
-    print(f'\nSauvegarde de :\n  - load and displacement.pickle')
+    print(Fore.GREEN + f'\nSauvegarde de :\n  - load and displacement.pickle' + Fore.WHITE)
 
     values = {
         'load': load,
@@ -112,7 +113,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     """
 
     filename = Dossier.Join([folder, "load and displacement.pickle"])
-    assert os.path.exists(filename), "Le fichier load and displacement.pickle est introuvable"
+    assert os.path.exists(filename), Fore.RED + "Le fichier load and displacement.pickle est introuvable" + Fore.WHITE
 
     with open(filename, 'rb') as file:
         values = pickle.load(file)

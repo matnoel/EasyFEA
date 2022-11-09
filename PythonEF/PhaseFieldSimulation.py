@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from colorama import Fore
 
 from TicTac import Tic
 from Simulations import Simu
@@ -182,6 +183,6 @@ def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpl
     texteAvantPythonEF = folder.split('PythonEF')[0]
     folderSansArbre = folder.replace(texteAvantPythonEF, "")
 
-    print('\nSimulation dans :\n'+folderSansArbre)
+    print(Fore.CYAN + '\nSimulation dans :\n'+folderSansArbre + Fore.WHITE)
 
     return folder
