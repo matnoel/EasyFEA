@@ -418,9 +418,7 @@ partieDeviateur: np.ndarray, IxI: np.ndarray, bulk) -> tuple[np.ndarray, np.ndar
     return cP_e_pg, cM_e_pg
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def Get_projP_projM(BetaP: np.ndarray, gammap: np.ndarray,
-BetaM: np.ndarray, gammam: np.ndarray,
-m1xm1: np.ndarray, m2xm2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def Get_projP_projM_2D(BetaP: np.ndarray, gammap: np.ndarray, BetaM: np.ndarray, gammam: np.ndarray,m1: np.ndarray, m2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
     if useParallel:
         range = prange
@@ -441,8 +439,12 @@ m1xm1: np.ndarray, m2xm2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         for p in range(nPg):
             for i in range(dimI):
                 for j in range(dimJ):
-                    projP[e,p,i,j] = BetaP[e,p] * matriceI[i,j] + gammap[e,p,0] * m1xm1[e,p,i,j] + gammap[e,p,1] * m2xm2[e,p,i,j]
-                    projM[e,p,i,j] = BetaM[e,p] * matriceI[i,j] + gammam[e,p,0] * m1xm1[e,p,i,j] + gammam[e,p,1] * m2xm2[e,p,i,j]
+                    m1xm1 = m1[e,p,i] * m1[e,p,j]
+                    m2xm2 = m2[e,p,i] * m2[e,p,j]
+
+                    projP[e,p,i,j] = BetaP[e,p] * matriceI[i,j] + gammap[e,p,0] * m1xm1 + gammap[e,p,1] * m2xm2
+                    
+                    projM[e,p,i,j] = BetaM[e,p] * matriceI[i,j] + gammam[e,p,0] * m1xm1 + gammam[e,p,1] * m2xm2
 
     return projP, projM
 

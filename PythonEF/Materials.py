@@ -1459,37 +1459,34 @@ class PhaseFieldModel:
 
         return cP_e_pg, cM_e_pg
 
-    
-    def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray, verif=False):
-        """Calcul projP et projM tel que :\n
-
-        vecteur_e_pg = [1 1 racine(2)] \n
-        
-        vecteurP = projP : vecteur -> [1, 1, racine(2)] si mandel\n
-        vecteurM = projM : vecteur -> [1, 1, racine(2)] si mandel\n
-
-        renvoie projP, projM
-        """
-
-        tic = Tic()
-
-        useNumba = self.__useNumba
-
-        coef = self.__comportement.coef
+    def __valeursPropres_vecteursPropres(self, vecteur_e_pg: np.ndarray, verif=False):
 
         dim = self.__comportement.dim
-        assert dim == 2, "Implémenté que en 2D"
 
+        coef = self.__comportement.coef
         Ne = vecteur_e_pg.shape[0]
         nPg = vecteur_e_pg.shape[1]
 
         # Reconsruit le tenseur des deformations [e,pg,dim,dim]
-        matrice_e_pg = np.zeros((Ne,nPg,2,2))
-        matrice_e_pg[:,:,0,0] = vecteur_e_pg[:,:,0]
-        matrice_e_pg[:,:,1,1] = vecteur_e_pg[:,:,1]
-        matrice_e_pg[:,:,0,1] = vecteur_e_pg[:,:,2]/coef
-        matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,2]/coef
-        
+        matrice_e_pg = np.zeros((Ne,nPg,dim,dim))
+        for d in range(dim):
+            matrice_e_pg[:,:,d,d] = vecteur_e_pg[:,:,d]
+        if dim == 2:
+            # [x, y, xy]
+            # xy
+            matrice_e_pg[:,:,0,1] = vecteur_e_pg[:,:,2]/coef
+            matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,2]/coef
+        else:
+            # [x, y, z, yz, xz, xy]
+            # yz
+            matrice_e_pg[:,:,1,2] = vecteur_e_pg[:,:,3]/coef
+            matrice_e_pg[:,:,2,1] = vecteur_e_pg[:,:,3]/coef
+            # xz
+            matrice_e_pg[:,:,0,2] = vecteur_e_pg[:,:,4]/coef
+            matrice_e_pg[:,:,2,0] = vecteur_e_pg[:,:,4]/coef
+            # xy
+            matrice_e_pg[:,:,0,1] = vecteur_e_pg[:,:,5]/coef
+            matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,5]/coef
         
         # invariants du tenseur des deformations [e,pg]
         # trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
@@ -1542,13 +1539,44 @@ class PhaseFieldModel:
         m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]
         # m1[:,:,2] = M1[:,:,0,1];   m2[:,:,2] = M2[:,:,0,1]
         m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef # Ici on met pas le coef pour que ce soit en [1 1 1]
+
+        list_m = [m1, m2]
+        # if dim == 3:
+        #     list_m.append(m3)
+
+        return val_e_pg, list_m
+    
+    def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray, verif=False):
+        """Calcul projP et projM tel que :\n
+
+        vecteur_e_pg = [1 1 racine(2)] \n
         
-        # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]
-        m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
-        m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
-        # if useNumba:
-        #     # moins rapide
-        #     m1xm1, m2xm2 = CalcNumba.Calc_m1xm1_m2xm2(m1, m2)
+        vecteurP = projP : vecteur -> [1, 1, racine(2)] si mandel\n
+        vecteurM = projM : vecteur -> [1, 1, racine(2)] si mandel\n
+
+        renvoie projP, projM
+        """
+
+        tic = Tic()
+        tic2 = Tic()
+
+        useNumba = self.__useNumba
+
+        dim = self.__comportement.dim
+        assert dim == 2, "Implémenté que en 2D"
+
+        Ne = vecteur_e_pg.shape[0]
+        nPg = vecteur_e_pg.shape[1]
+
+        val_e_pg, list_m = self.__valeursPropres_vecteursPropres(vecteur_e_pg, verif)
+
+        tic2.Tac("Calc Proj", "val et vect propres", False)
+        
+        if dim == 2:
+            v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1]
+            m1, m2 = list_m[0], list_m[1]
+            elements, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
+        
         
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
@@ -1569,15 +1597,19 @@ class PhaseFieldModel:
         # Calcul de gamma [e,pg,2]
         gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
         gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
-        
-        matriceI = np.eye(3)
 
-        # tic.Tac("Matrices", "Decomp spectrale elements pour Projecteurs", False)
+        tic2.Tac("Calc Proj", "Betas et gammas", False)
 
         if useNumba:
             # Plus rapide
-            projP, projM = CalcNumba.Get_projP_projM(BetaP, gammap, BetaM, gammam, m1xm1, m2xm2)
+            projP, projM = CalcNumba.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
+
         else:
+            # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]
+            m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
+            m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
+
+            matriceI = np.eye(3)
             # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
             BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize='optimal')
             gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize='optimal')
@@ -1613,6 +1645,7 @@ class PhaseFieldModel:
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
         
+        tic2.Tac("Calc Proj", "Pp et Pm", False)
         tic.Tac("Matrices", "Decomp spectrale et projecteurs", False)
             
         return projP, projM
