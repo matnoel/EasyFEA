@@ -244,7 +244,7 @@ def Plot_Energie(simu: Simulations.Simu_Damage, load: np.ndarray, displacement: 
 
         pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
 
-        print(f"Calc Energie {iter}/{N} {pourcentageEtTempsRestant}    ", end='\r')
+        print(f"Calc Energie {iter+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')
 
     listTot = np.array(listPsiCrack) + np.array(listPsiElas)
