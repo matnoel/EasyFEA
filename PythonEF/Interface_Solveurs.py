@@ -66,22 +66,23 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
     simu = __Cast_Simu(simu)
     algo = simu.algo
 
-    tic = Tic()
-
     # Construit le système matricielle
-    b = __Construction_b(simu, problemType)
-    A, x = __Construction_A_x(simu, problemType, b, resolution=1)
+    b = __Apply_Neumann(simu, problemType)
+    A, x = __Apply_Dirichlet(simu, problemType, b, resolution=1)
 
     # Récupère les ddls
     ddl_Connues, ddl_Inconnues = __Construit_ddl_connues_inconnues(simu, problemType)
 
+    tic = Tic()
     # Décomposition du système matricielle en connues et inconnues 
     # Résolution de : Aii * ui = bi - Aic * xc
     Ai = A[ddl_Inconnues, :].tocsc()
-    Aii = Ai[:, ddl_Inconnues]
-    Aic = Ai[:, ddl_Connues]
+    Aii = Ai[:, ddl_Inconnues].tocsr()
+    Aic = Ai[:, ddl_Connues].tocsr()
     bi = b[ddl_Inconnues,0]
     xc = x[ddl_Connues,0]
+
+    tic.Tac("Construit Ax=b",f"Construit système ({problemType})", simu._verbosity)
 
     try:
         if problemType == "displacement":
@@ -105,8 +106,6 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
     bDirichlet = Aic.dot(xc) # Plus rapide
     # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
     # bDirichlet = sparse.csr_matrix(bDirichlet)
-
-    tic.Tac("Matrices","Construit Ax=b", simu._verbosity)
 
     if problemType in ["displacement","thermal"]:
         # la matrice est definie symétrique positive on peut donc utiliser cholesky
@@ -142,11 +141,11 @@ def Solveur_2(simu, problemType: str):
 
     simu = __Cast_Simu(simu)
 
-    tic = Tic()
-
     # Construit le système matricielle pénalisé
-    b = __Construction_b(simu, problemType)
-    A, x = __Construction_A_x(simu, problemType, b, resolution=2)
+    b = __Apply_Neumann(simu, problemType)
+    A, x = __Apply_Dirichlet(simu, problemType, b, resolution=2)
+
+    tic = Tic()
 
     A = A.tolil()
     b = b.tolil()
@@ -182,12 +181,10 @@ def Solveur_2(simu, problemType: str):
 
             b[-i] = valeurs[0]
 
-    tic.Tac("Matrices","Construit Ax=b", simu._verbosity)
+    tic.Tac("Construit Ax=b",f"Lagrange ({problemType})", simu._verbosity)
 
     x = __Solve_Axb(problemType=problemType, A=A, b=b, x0=None,isDamaged=False, damage=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
-
-    # Récupère la solution sans les efforts de réactions
-    ddl_Connues, ddl_Inconnues = __Construit_ddl_connues_inconnues(simu, problemType)
+    
     x = x[range(decalage)]
 
     return x 
@@ -196,16 +193,10 @@ def Solveur_3(simu, problemType: str):
     # Résolution par la méthode des pénalisations
 
     simu = __Cast_Simu(simu)
-            
-    tic = Tic()
 
     # Construit le système matricielle pénalisé
-    b = __Construction_b(simu, problemType)
-    A, x = __Construction_A_x(simu, problemType, b, resolution=3)
-
-    ddl_Connues, ddl_Inconnues = __Construit_ddl_connues_inconnues(simu, problemType)
-
-    tic.Tac("Matrices","Construit Ax=b", simu._verbosity)
+    b = __Apply_Neumann(simu, problemType)
+    A, x = __Apply_Dirichlet(simu, problemType, b, resolution=3)
 
     # Résolution du système matricielle pénalisé
     useCholesky=False #la matrice ne sera pas symétrique definie positive
@@ -224,9 +215,11 @@ def Solveur_3(simu, problemType: str):
 
     return x
 
-def __Construction_b(simu, problemType: str):
+def __Apply_Neumann(simu, problemType: str):
     """Applique les conditions de Neumann et construit b de Ax=b"""
     
+    tic = Tic()
+
     simu = __Cast_Simu(simu)
     algo = simu.algo
     
@@ -318,10 +311,14 @@ def __Construction_b(simu, problemType: str):
     else:
         raise "Configuration inconnue"
 
+    tic.Tac("Construit Ax=b",f"Neumann ({problemType})", simu._verbosity)
+
     return b
 
-def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution: int):
+def __Apply_Dirichlet(simu, problemType: str, b: sparse.csr_matrix, resolution: int):
     """Applique les conditions de dirichlet en construisant Ax de Ax=b"""
+
+    tic = Tic()
 
     simu = __Cast_Simu(simu)
     algo = simu.algo
@@ -332,15 +329,15 @@ def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution:
     taille = simu.mesh.Nn
 
     if problemType == "damage" and algo == "elliptic":
-        A = simu.Kd.copy()
+        A = simu.Kd
 
     elif problemType == "displacement" and algo == "elliptic":
         taille *= simu.dim
-        A = simu.Ku.copy()
+        A = simu.Ku
 
     elif problemType == "beam" and algo == "elliptic":
         taille *= simu.materiau.beamModel.nbddl_n
-        A = simu.Kbeam.copy()
+        A = simu.Kbeam
 
     elif problemType == "displacement" and algo == "hyperbolic":
         taille *= simu.dim
@@ -360,16 +357,15 @@ def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution:
                 
             
     elif problemType == "thermal" and algo == "elliptic":
-        A = simu.Kt.copy()
+        A = simu.Kt
 
-    elif problemType == "thermal" and algo == "parabolic":
+    elif problemType == "thermal" and algo == "parabolic":        
         
-        option = 1
         alpha = simu.alpha
         dt = simu.dt
 
         # Resolution de la température
-        A = simu.Kt.copy() + simu.Mt.copy()/(alpha * dt)
+        A = simu.Kt + simu.Mt/(alpha * dt)
             
         # # Résolution de la dérivée temporelle de la température
         # A = simu.Kt.copy() * alpha * dt + simu.Mt.copy()
@@ -384,6 +380,8 @@ def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution:
         x = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1), dtype=np.float64)
 
         # l,c ,v = sparse.find(x)
+
+        tic.Tac("Construit Ax=b",f"Dirichlet ({problemType})", simu._verbosity)
 
         return A, x
 
@@ -400,6 +398,8 @@ def __Construction_A_x(simu, problemType: str, b: sparse.csr_matrix, resolution:
         # Pénalisation b
         b[ddls] = valeurs_ddls
 
+        tic.Tac("Construit Ax=b",f"Dirichlet ({problemType})", simu._verbosity)
+
         # ici on renvoie A pénalisé
         return A.tocsr(), b.tocsr()
 
@@ -409,8 +409,9 @@ def __Construit_ddl_connues_inconnues(simu, problemType: str):
     Returns:
         list(int), list(int): ddl_Connues, ddl_Inconnues
     """
+    tic = Tic()
+
     simu = __Cast_Simu(simu)
-    
 
     # Construit les ddls connues
     ddls_Connues = []
@@ -435,6 +436,8 @@ def __Construit_ddl_connues_inconnues(simu, problemType: str):
     
     verifTaille = unique_ddl_Connues.shape[0] + ddls_Inconnues.shape[0]
     assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
+
+    tic.Tac("Construit Ax=b",f"Construit ddls ({problemType})", simu._verbosity)
 
     return ddls_Connues, ddls_Inconnues
 
