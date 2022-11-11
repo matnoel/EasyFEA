@@ -4,10 +4,61 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
-
 class Tic:
 
+
+    def __init__(self):
+        self.__start = time.time()
+
+    def Get_temps_unite(temps):
+        """Renvoie le temps et l'unité"""
+        if temps > 1:
+            if temps < 60:
+                unite = "s"
+                coef = 1
+            elif temps > 60 and temps < 3600:
+                unite = "m"
+                coef = 1/60
+            elif temps > 3600 and temps < 86400:
+                unite = "h"
+                coef = 1/3600
+            else:
+                unite = "j"
+                coef = 1/86400
+        elif temps < 1 and temps > 1e-3:
+            coef = 1e3
+            unite = "ms"
+        elif temps < 1e-3:
+            coef = 1e6
+            unite = "µs"
+
+        return temps*coef, unite
+
+    def Tac(self, categorie: str, texte: str, affichage: bool):
+        """calcul le temps et stock dans l'historique"""
+
+        tf = np.abs(self.__start - time.time())
+
+        tfCoef, unite = Tic.Get_temps_unite(tf)
+
+        texteAvecLeTemps = f"{texte} ({tfCoef:.3f} {unite})"
+        
+        value = [texte, tf]
+
+        if categorie in Tic.__Historique:
+            old = list(Tic.__Historique[categorie])
+            old.append(value)
+            Tic.__Historique[categorie] = old
+        else:
+            Tic.__Historique[categorie] = [value]
+        
+        self.__start = time.time()
+
+        if affichage:
+            print(texteAvecLeTemps)
+
+        return tf
+    
     @staticmethod
     def Clear():
         """Supprime l'historique"""
@@ -128,57 +179,4 @@ class Tic:
         # ax1.add_artist(my_circle)
 
         # # On contstruit un disque pour chaque sous catégorie d'une catégorie
-
-    def __init__(self):
-        self.__start = time.time()
-
-    def Get_temps_unite(temps):
-        """Renvoie le temps et l'unité"""
-        if temps > 1:
-            if temps < 60:
-                unite = "s"
-                coef = 1
-            elif temps > 60 and temps < 3600:
-                unite = "m"
-                coef = 1/60
-            elif temps > 3600 and temps < 86400:
-                unite = "h"
-                coef = 1/3600
-            else:
-                unite = "j"
-                coef = 1/86400
-        elif temps < 1 and temps > 1e-3:
-            coef = 1e3
-            unite = "ms"
-        elif temps < 1e-3:
-            coef = 1e6
-            unite = "µs"
-
-        return temps*coef, unite
-
-    def Tac(self, categorie: str, texte: str, affichage: bool):
-        """calcul le temps et stock dans l'historique"""
-
-        tf = np.abs(self.__start - time.time())
-
-        tfCoef, unite = Tic.Get_temps_unite(tf)
-
-        texteAvecLeTemps = f"{texte} ({tfCoef:.3f} {unite})"
-        
-        value = [texte, tf]
-
-        if categorie in Tic.__Historique:
-            old = list(Tic.__Historique[categorie])
-            old.append(value)
-            Tic.__Historique[categorie] = old
-        else:
-            Tic.__Historique[categorie] = [value]
-        
-        self.__start = time.time()
-
-        if affichage:
-            print(texteAvecLeTemps)
-
-        return tf
-    
     
