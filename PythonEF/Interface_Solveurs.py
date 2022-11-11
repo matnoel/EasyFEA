@@ -54,8 +54,6 @@ def __Cast_Simu(simu):
     else:
         raise "Type de simulation inconnue"
 
-
-
 def Solveur_1(simu, problemType: str) -> np.ndarray:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |    
