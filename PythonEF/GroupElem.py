@@ -18,8 +18,7 @@ class GroupElem:
     - HEXA8
     """
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray,
-    coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
         """Construction d'un groupe d'element
 
         Parameters
@@ -83,8 +82,6 @@ class GroupElem:
         self.__dict_phaseField_ReactionPart_e_pg = {}
         self.__dict_phaseField_DiffusePart_e_pg = {}
         self.__dict_phaseField_SourcePart_e_pg = {}
-            
-
 
     ################################################ METHODS ##################################################
 
