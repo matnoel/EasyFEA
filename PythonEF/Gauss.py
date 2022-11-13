@@ -1,4 +1,3 @@
-from typing import cast
 import numpy as np
 
 class Gauss:
@@ -104,8 +103,6 @@ class Gauss:
 
         return ksis, etas, poids
 
-
-
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
         """Calcul des points d'intégrations en fonction du type d'element et de matrice
@@ -123,18 +120,18 @@ class Gauss:
             coord, poids
         """
 
-        from GroupElem import GroupElem
+        from GroupElem import GroupElem, ElemType
 
         assert matriceType in GroupElem.get_MatriceType()
 
-        if elemType == "SEG2":
+        if elemType == ElemType.SEG2:
             dim = 1
             if matriceType == "rigi":
                 nPg = 1
             elif matriceType in ["masse","beam"]:
                 nPg = 2
             x, poids =  np.polynomial.legendre.leggauss(nPg)
-        elif elemType == "SEG3":
+        elif elemType == ElemType.SEG3:
             dim = 1
             if matriceType == "rigi":
                 nPg = 1
@@ -143,7 +140,7 @@ class Gauss:
             elif matriceType == "beam":
                 nPg = 4
             x, poids =  np.polynomial.legendre.leggauss(nPg)
-        elif elemType == "SEG4":
+        elif elemType == ElemType.SEG4:
             dim = 1
             if matriceType == "rigi":
                 nPg = 2
@@ -152,7 +149,7 @@ class Gauss:
             elif matriceType == "beam":
                 nPg = 6
             x, poids =  np.polynomial.legendre.leggauss(nPg)
-        elif elemType == "SEG5":
+        elif elemType == ElemType.SEG5:
             dim = 1
             if matriceType == "rigi":
                 nPg = 4
@@ -161,28 +158,28 @@ class Gauss:
             elif matriceType == "beam":
                 nPg = 8
             x, poids =  np.polynomial.legendre.leggauss(nPg)
-        elif elemType == "TRI3":
+        elif elemType == ElemType.TRI3:
             dim = 2            
             if matriceType == "rigi":
                 nPg = 1
             elif matriceType == "masse":
                 nPg = 3
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
-        elif elemType == "TRI6":
+        elif elemType == ElemType.TRI6:
             dim = 2            
             if matriceType == "rigi":
                 nPg = 3
             elif matriceType == "masse":
                 nPg = 6
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
-        elif elemType == "TRI10":
+        elif elemType == ElemType.TRI10:
             dim = 2            
             if matriceType == "rigi":
                 nPg = 6
             else:
                 nPg = 7
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
-        elif elemType == "TRI15":
+        elif elemType == ElemType.TRI15:
             dim = 2            
             if matriceType == "rigi":
                 nPg = 7
@@ -190,19 +187,19 @@ class Gauss:
                 nPg = 12
                 # nPg = 7
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
-        elif elemType == "QUAD4":
+        elif elemType == ElemType.QUAD4:
             dim = 2            
             if matriceType in ["rigi","masse"]:
                 nPg = 4
             ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
             
-        elif elemType == "QUAD8":
+        elif elemType == ElemType.QUAD8:
             dim = 2            
             if matriceType in ["rigi","masse"]:
                 nPg = 9
             ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
                     
-        elif elemType == "TETRA4":
+        elif elemType == ElemType.TETRA4:
             dim = 3            
             if matriceType == "rigi":
                 nPg = 1
@@ -224,7 +221,7 @@ class Gauss:
 
                 poids = [1/24]*nPg
         
-        elif elemType == "HEXA8":
+        elif elemType == ElemType.HEXA8:
             dim = 3            
             if matriceType in ["rigi", "masse"]:
                 nPg = 8
@@ -238,7 +235,7 @@ class Gauss:
 
                 poids = [1]*nPg
 
-        elif elemType == "PRISM6":
+        elif elemType == ElemType.PRISM6:
             dim = 3            
             if matriceType in ["rigi", "masse"]:
                 nPg = 6

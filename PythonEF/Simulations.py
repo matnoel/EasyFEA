@@ -5,7 +5,7 @@ from typing import List, cast
 import numpy as np
 from scipy import sparse
 
-from Mesh import Mesh
+from Mesh import Mesh, GroupElem
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import *
 from TicTac import Tic

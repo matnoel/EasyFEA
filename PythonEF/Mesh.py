@@ -4,7 +4,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from Geom import *
-from GroupElem import GroupElem
+from GroupElem import GroupElem, ElemType
 from TicTac import Tic
 
 class Mesh:
@@ -74,8 +74,9 @@ class Mesh:
         """Groupe d'element du maillage
         """
         return self.__groupElem
+    
     @property
-    def elemType(self) -> str:
+    def elemType(self) -> ElemType:
         "elements utilisés pour le maillage"
         return self.groupElem.elemType
     
