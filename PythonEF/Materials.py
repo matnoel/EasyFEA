@@ -652,13 +652,12 @@ class Elas_Anisot(Displacement_Model):
             axis2 = rot.dot(axis1)
             return axis2
 
-        if axis2 == None:
-            axis2 = Calc_axis2()
-        else:
+        if isinstance(axis2, np.ndarray):
             assert axis2.size == 3, "Doit fournir un vecteur"
             if not np.isclose(axis1.dot(axis2), 0, 1e-12):
                 axis2 = Calc_axis2()
-
+        else:
+            axis2 = Calc_axis2()
         self.__axis2 = axis2
 
         # Construction de la matrice de rotation
