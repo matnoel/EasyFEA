@@ -10,7 +10,6 @@ from Materials import PhaseFieldModel, Elas_Isot, Materiau, Elas_Anisot
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
-from Mesh import Mesh
 from TicTac import Tic
 
 import numpy as np
@@ -36,7 +35,7 @@ useNumba = True
 
 # Data --------------------------------------------------------------------------------------------
 
-comportement = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
+comportement = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 regularisation = "AT1" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
@@ -44,7 +43,8 @@ openCrack = True
 # "Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"
 #for split in ["He","AnisotMiehe","AnisotStress"]:
 #for split in ["AnisotStress"]:
-for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]:
+# for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]:
+for split in ["Bourdin""He","AnisotMiehe","AnisotStress"]:
 
     maxIter = 500
     # tolConv = 0.0025
@@ -58,7 +58,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress
     if comportement == "Elas_Anisot":
         tetha = -0
         l0 = 0.0085e-3
-        Gc = 1e-3 * 1e-3 * 1e3
+        Gc = 10e-3 * 1e-3 * 1e3
     else:
         tetha = 0
         l0 = 1e-5 # taille fissure test femobject ,7.5e-6, 1e-5
