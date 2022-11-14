@@ -11,7 +11,7 @@ class Gauss:
         elemType : str
             type d'element
         matriceType : str
-            ["rigi", "masse",MatriceType.bea"]
+            [MatriceType.rigi, MatriceType.masse,MatriceType.beam]
         """
 
         coord, poids = Gauss.__calc_gauss(elemType, matriceType)
@@ -109,10 +109,10 @@ class Gauss:
 
         Parameters
         ----------
-        elemType : str
+        elemType : ElemType
             type d'element
-        matriceType : str
-            [MatriceType.rigi, MatriceType.masse, MatriceType.beam]
+        matriceType : MatriceType
+            type de matrice
 
         Returns
         -------

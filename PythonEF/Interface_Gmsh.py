@@ -5,7 +5,7 @@ import numpy as np
 
 import Dossier as Dossier
 from Geom import *
-from GroupElem import GroupElem, ElemType
+from GroupElem import GroupElem, ElemType, MatriceType, GroupElem_Factory
 from Mesh import Mesh
 from TicTac import Tic
 import Affichage as Affichage
@@ -283,7 +283,7 @@ class Interface_Gmsh:
                     factory.mesh.setTransfiniteSurface(surf, cornerTags=points)
                     # factory.mesh.setTransfiniteSurface(surf)
 
-            if elemType in [ElemType.HEXA8,ElemType.PRISM6]:
+            if elemType in [ElemType.HEXA8, ElemType.PRISM6]:
                 # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
                 numElements = [nCouches]
                 combine = True
@@ -1024,7 +1024,7 @@ class Interface_Gmsh:
             Ne = elementTags.shape[0] #nombre d'élements
             elementsID = elementTags
 
-            nPe = GroupElem.Get_ElemInFos(gmshId)[1] # noeuds par elements
+            nPe = GroupElem_Factory.Get_ElemInFos(gmshId)[1] # noeuds par elements
             
             # Construit connect et changes les indices nécessaires
             connect = nodeTags.reshape(Ne, nPe)
@@ -1039,8 +1039,8 @@ class Interface_Gmsh:
             # Verifie que les numéros des noeuds max est bien atteignable dans coordo
             Nmax = nodes.max()
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
-            
-            groupElem = GroupElem(gmshId, connect, elementsID, coordo, nodes)
+
+            groupElem = GroupElem_Factory.Create_GroupElem(gmshId, connect, elementsID, coordo, nodes)
             if groupElem.dim > dim: dim = groupElem.dim
             dict_groupElem[groupElem.elemType] = groupElem
             
@@ -1119,6 +1119,8 @@ class Interface_Gmsh:
 
         # Pour chaque type d'element 2D
         for t, elemType in enumerate(GroupElem.get_Types2D()):
+
+            print(elemType)
 
             mesh1 = interfaceGmsh.Mesh_Rectangle_2D(domain=domain,elemType=elemType, isOrganised=False)
             testAire(mesh1.aire)

@@ -280,7 +280,7 @@ class Mesh:
         [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
         0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]\n
         """
-        return self.groupElem.get_N_pg(matriceType, self.__dim)
+        return self.groupElem.get_N_pg_rep(matriceType, self.__dim)
 
     def Get_dN_sclaire_e_pg(self, matriceType: str) -> np.ndarray:
         """Derivé des fonctions de formes dans la base réele en sclaire\n
