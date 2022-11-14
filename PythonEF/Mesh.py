@@ -4,7 +4,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from Geom import *
-from GroupElem import GroupElem, ElemType
+from GroupElem import GroupElem, ElemType, MatriceType
 from TicTac import Tic
 
 class Mesh:
@@ -155,7 +155,7 @@ class Mesh:
     def connect_Faces(self) -> dict:
         """Récupère les faces de chaque element et renvoie un dictionnaire pour chaque elements
         """
-        return self.groupElem.get_connect_Faces()
+        return self.groupElem.get_dict_connect_Faces()
 
     # Assemblage des matrices 
 

@@ -436,7 +436,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
             # Affiche que les elements 1D ou 2D en fonction du type de maillage
 
             for groupElemDim in mesh.Get_list_groupElem(dim):
-                faces = groupElemDim.get_connect_Faces()[groupElemDim.elemType]
+                faces = groupElemDim.get_dict_connect_Faces()[groupElemDim.elemType]
                 coordDeformeFaces = coordoDeforme[faces]
                 coordFaces = groupElemDim.coordoGlob[faces]
 
@@ -799,7 +799,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
         tags_e = groupElem.elementTags
         dim = groupElem.dim
         coordo = groupElem.coordoGlob[:, range(inDim)]
-        faces = groupElem.get_connect_Faces()[groupElem.elemType]
+        faces = groupElem.get_dict_connect_Faces()[groupElem.elemType]
         coordoFaces = coordo[faces]
         coordo_e = np.mean(coordoFaces, axis=1)
 

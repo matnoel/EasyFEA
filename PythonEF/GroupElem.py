@@ -43,10 +43,10 @@ class GroupElem(ABC):
     """Classe GoupElem\n\n
     
     Un maillage utilise plusieurs groupe d'elements par exemple un maillage avec des cubes (HEXA8) utilise :
-    - POINT
-    - SEG2
-    - QUAD4
-    - HEXA8
+    - POINT (dim=0)
+    - SEG2 (dim=1)
+    - QUAD4 (dim=2)
+    - HEXA8 (dim=3)
     """
 
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
@@ -387,7 +387,7 @@ class GroupElem(ABC):
     def get_ddNv_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Derivé des fonctions de formes de la poutre dans la base réele en sclaire\n
         [dNv1,xx dNv2,xx dNvn,xx\n
-        dNv1,yy dNv2,yy dNvn,yy]\n        
+        dNv1,yy dNv2,yy dNvn,yy]\n
         """
         assert matriceType in GroupElem.get_MatriceType()
 
@@ -419,7 +419,7 @@ class GroupElem(ABC):
     def get_ddN_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Derivé des fonctions de formes dans la base réele en sclaire\n
         [dN1,xx dN2,xx dNn,xx\n
-        dN1,yy dN2,yy dNn,yy]\n        
+        dN1,yy dN2,yy dNn,yy]\n
         """
         assert matriceType in GroupElem.get_MatriceType()
 
@@ -576,7 +576,7 @@ class GroupElem(ABC):
         
         return self.__dict_phaseField_SourcePart_e_pg[matriceType].copy()
     
-    def __get_sysCoord(self):
+    def __get_sysCoord_e(self):
         """Matrice de changement de base pour chaque element (Ne,3,3)"""
 
         coordo = self.coordoGlob
@@ -668,7 +668,7 @@ class GroupElem(ABC):
         iz, jz, kz]\n
         
         tel que coordo_e . sysCoordLocal_e -> coordonneés des noeuds dans la base de l'elements"""
-        return self.__get_sysCoord()
+        return self.__get_sysCoord_e()
 
     @property
     def sysCoordLocal_e(self) -> np.ndarray:
@@ -857,6 +857,8 @@ class GroupElem(ABC):
 
         return self.__dict_invF_e_pg[matriceType].copy()
 
+    # Fonctions de formes
+
     @staticmethod
     def Evalue_Fonctions_Gauss(fonctions: np.ndarray, gauss: Gauss):
         """Evalue les fonctions aux points de gauss"""
@@ -887,6 +889,16 @@ class GroupElem(ABC):
         """
         pass
 
+    def __Fonctions_Ordre(self, ordre: int) -> np.ndarray:
+        """Methodes pour initialiser les fonctions à évaluer aux points de gauss"""
+        if self.dim == 1 and self.ordre < ordre:
+            fonctions = np.array([lambda x: 0]*self.nPe)
+        elif self.dim == 2 and self.ordre < ordre:
+            fonctions = np.array([lambda ksi,eta: 0, lambda ksi,eta: 0]*self.nPe)
+        elif self.dim == 3 and self.ordre < ordre:
+            fonctions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
+        return fonctions
+
     def get_N_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Fonctions de formes vectorielles (pg), dans la base (ksi, eta ...)\n
         [N1, N2, . . . ,Nn]
@@ -898,36 +910,6 @@ class GroupElem(ABC):
         N_pg = GroupElem.Evalue_Fonctions_Gauss(Ntild, gauss)
 
         return N_pg
-    
-    @abstractmethod
-    def Nvtild(self) -> np.ndarray:
-        """Fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
-        [phi_i psi_i . . . phi_n psi_n]
-        """
-        pass
-    
-    def get_Nv_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
-        [phi_i psi_i . . . phi_n psi_n]
-        """
-        if self.dim != 1: return
-
-        Nvtild = self.Nvtild()
-
-        gauss = self.get_gauss(matriceType)
-        Nv_pg = GroupElem.Evalue_Fonctions_Gauss(Nvtild, gauss)
-
-        return Nvtild
-
-    def __Fonctions_Ordre(self, ordre: int) -> np.ndarray:
-        if self.dim == 1 and self.ordre < ordre:
-            fonctions = np.array([lambda x: 0]*self.nPe)
-        elif self.dim == 2 and self.ordre < ordre:
-            fonctions = np.array([lambda ksi,eta: 0, lambda ksi,eta: 0]*self.nPe)
-        elif self.dim == 3 and self.ordre < ordre:
-            fonctions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
-        return fonctions
-
 
     @abstractmethod
     def dNtild(self) -> np.ndarray:
@@ -949,27 +931,7 @@ class GroupElem(ABC):
         gauss = self.get_gauss(matriceType)
         dN_pg = GroupElem.Evalue_Fonctions_Gauss(dNtild, gauss)
 
-        return dN_pg
-
-    @abstractmethod
-    def dNvtild(self) -> np.ndarray:
-        """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
-        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]
-        """
-        pass
-
-    def get_dNv_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
-        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]
-        """
-        if self.dim != 1: return
-
-        dNvtild = self.dNvtild()
-
-        gauss = self.get_gauss(matriceType)
-        dNv_pg = GroupElem.Evalue_Fonctions_Gauss(dNvtild, gauss)
-
-        return dNv_pg
+        return dN_pg    
 
     @abstractmethod
     def ddNtild(self) -> np.ndarray:
@@ -992,26 +954,6 @@ class GroupElem(ABC):
         ddN_pg = GroupElem.Evalue_Fonctions_Gauss(ddNtild, gauss)
 
         return ddN_pg
-
-    @abstractmethod
-    def ddNvtild(self) -> np.ndarray:
-        """Dérivées 2nd des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
-        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]
-        """
-        return 
-    
-    def get_ddNv_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Dérivées 2nd des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
-        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]
-        """
-        if self.dim != 1: return
-
-        ddNvtild = self.ddNvtild()
-
-        gauss = self.get_gauss(matriceType)
-        ddNv_pg = GroupElem.Evalue_Fonctions_Gauss(ddNvtild, gauss)
-
-        return ddNv_pg
 
     @abstractmethod
     def dddNtild(self) -> np.ndarray:
@@ -1057,6 +999,68 @@ class GroupElem(ABC):
         ddddN_pg = GroupElem.Evalue_Fonctions_Gauss(ddddNtild, gauss)
 
         return ddddN_pg
+
+    # Fonctions de formes pour les poutres
+
+    @abstractmethod
+    def Nvtild(self) -> np.ndarray:
+        """Fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [phi_i psi_i . . . phi_n psi_n]
+        """
+        pass
+
+    def get_Nv_pg(self, matriceType: MatriceType) -> np.ndarray:
+        """Fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [phi_i psi_i . . . phi_n psi_n]
+        """
+        if self.dim != 1: return
+
+        Nvtild = self.Nvtild()
+
+        gauss = self.get_gauss(matriceType)
+        Nv_pg = GroupElem.Evalue_Fonctions_Gauss(Nvtild, gauss)
+
+        return Nv_pg
+
+    @abstractmethod
+    def dNvtild(self) -> np.ndarray:
+        """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]
+        """
+        pass
+
+    def get_dNv_pg(self, matriceType: MatriceType) -> np.ndarray:
+        """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]
+        """
+        if self.dim != 1: return
+
+        dNvtild = self.dNvtild()
+
+        gauss = self.get_gauss(matriceType)
+        dNv_pg = GroupElem.Evalue_Fonctions_Gauss(dNvtild, gauss)
+
+        return dNv_pg
+
+    @abstractmethod
+    def ddNvtild(self) -> np.ndarray:
+        """Dérivées 2nd des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]
+        """
+        return 
+    
+    def get_ddNv_pg(self, matriceType: MatriceType) -> np.ndarray:
+        """Dérivées 2nd des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
+        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]
+        """
+        if self.dim != 1: return
+
+        ddNvtild = self.ddNvtild()
+
+        gauss = self.get_gauss(matriceType)
+        ddNv_pg = GroupElem.Evalue_Fonctions_Gauss(ddNvtild, gauss)
+
+        return ddNv_pg
 
     def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
         """Renvoie la liste d'identifiant des noeuds qui respectent les condtions
@@ -1275,8 +1279,13 @@ class GroupElem(ABC):
             return
         
         return sol_e
+
+    @property
+    @abstractmethod
+    def indexesTriangles(self) -> list[int]:
+        """Liste d'indexes pour former les triangles d'un element qui seront utilisées pour la fonction trisurf en 2D"""
+        pass
     
-    # @abstractmethod TODO Fonction dun paramètre de gorup d'element genre indexTriangles
     def get_connectTriangle(self) -> np.ndarray:
         """Transforme la matrice de connectivité pour la passer dans la fonction trisurf en 2D\n
         Par exemple pour un quadrangle on construit deux triangles
@@ -1285,95 +1294,34 @@ class GroupElem(ABC):
         Renvoie un dictionnaire par type
         """
         assert self.dim == 2
+
+        indexes = self.indexesTriangles()
+
         dict_connect_triangle = {}
-        # TODO essayer de faire aussi avec les elements genre pour SEG2 -> dict_connect_triangle[self.elemType] = self.__connect[:,[0,1,0]] ? Est ce que ça marche ?
-        if self.elemType == ElemType.TRI3:
-            dict_connect_triangle[self.elemType] = self.__connect[:,[0,1,2]]
-        elif self.elemType == ElemType.TRI6:
-            dict_connect_triangle[self.elemType] = np.array(self.__connect[:, [0,3,5,3,1,4,5,4,2,3,4,5]]).reshape(-1,3)
-        elif self.elemType == ElemType.TRI10:
-            dict_connect_triangle[self.elemType] = np.array(self.__connect[:, np.array([10,1,4,
-                                                                                        10,4,5,
-                                                                                        10,5,6,
-                                                                                        10,6,7,
-                                                                                        10,7,8,
-                                                                                        10,8,9,
-                                                                                        10,9,1,
-                                                                                        2,5,6,
-                                                                                        3,7,8])-1]).reshape(-1,3)
-        elif self.elemType == ElemType.TRI15:
-            dict_connect_triangle[self.elemType] = np.array(self.__connect[:, np.array([1,4,13,
-                                                                                        4,5,14,
-                                                                                        5,6,14,
-                                                                                        6,7,14,
-                                                                                        2,6,7,
-                                                                                        4,13,14,
-                                                                                        1,12,13,
-                                                                                        11,12,13,
-                                                                                        11,13,15,
-                                                                                        13,14,15,
-                                                                                        8,14,15,
-                                                                                        7,8,14,
-                                                                                        10,11,15,
-                                                                                        8,9,15,
-                                                                                        9,10,15,
-                                                                                        3,9,10])-1]).reshape(-1,3)
-        elif self.elemType == ElemType.QUAD4:
-            dict_connect_triangle[self.elemType] = np.array(self.__connect[:, [0,1,3,1,2,3]]).reshape(-1,3)
-        elif self.elemType == ElemType.QUAD8:
-            dict_connect_triangle[self.elemType] = np.array(self.__connect[:, [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]]).reshape(-1,3)
-        else:
-            raise "Element inconnue"
+        dict_connect_triangle[self.elemType] = np.array(self.__connect[:, indexes]).reshape(-1,3)
+
+        # TODO essayer de faire aussi avec les elements genre pour SEG2 -> dict_connect_triangle[self. elemType] = self.__connect[:,[0,1,0]] ? Est ce que ça marche ?
 
         return dict_connect_triangle
 
-    # @abstractmethod TODO Fonction dun paramètre de gorup d'element genre indexFaces
-    def get_connect_Faces(self) -> dict:
-        """Récupère les identifiants des noeud constuisant les faces et renvoie les faces pour chaque types d'elements
+    @property
+    @abstractmethod
+    def indexesFaces(self) -> list[int]:
+        """Liste d'indexes pour former les faces qui constituent l'element"""
+        pass
+
+    #TODO Fonction dun paramètre de gorup d'element genre indexFaces
+    def get_dict_connect_Faces(self) -> dict[np.ndarray]:
+        """Récupère les identifiants des noeud constuisant les faces et renvoie les faces pour chaque types d'elements. Dictionnaire car un element peut avoir différents type d'elements.\n
+        PRISM6 -> QUAD4 et TRI3
 
         Returns
         -------
         list de list
             Renvoie une liste de face
         """
-
-        dict_connect_faces = {}
-
-        nPe = self.nPe            
-        if self.elemType in [ElemType.SEG2,ElemType.POINT]:
-            dict_connect_faces[self.elemType] = self.__connect.copy()
-        elif self.elemType == ElemType.SEG3:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0,2,1]]
-        elif self.elemType == ElemType.SEG4:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0, 2, 3, 1]]
-        elif self.elemType == ElemType.SEG5:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0, 2, 3, 4, 1]]
-        elif self.elemType == ElemType.TRI3:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2,0]]
-        elif self.elemType == ElemType.TRI6:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0,3,1,4,2,5,0]]
-        elif self.elemType == ElemType.TRI10:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0,3,4,1,5,6,2,7,8,0]]
-        elif self.elemType == ElemType.TRI15:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0,3,4,5,1,6,7,8,2,9,10,11,0]]
-        elif self.elemType == ElemType.QUAD4:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0,1,2,3,0]]
-        elif self.elemType == ElemType.QUAD8:
-            dict_connect_faces[self.elemType] = self.__connect[:, [0,4,1,5,2,6,3,7,0]]
-        elif self.elemType == ElemType.TETRA4:
-            # Ici par elexemple on va creer 3 faces, chaque face est composé des identifiants des noeuds
-            dict_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,0,1,3,0,2,3,1,2,3]]).reshape(self.Ne*nPe,-1)
-        elif self.elemType == ElemType.HEXA8:
-            # Ici par elexemple on va creer 6 faces, chaque face est composé des identifiants des noeuds                
-            dict_connect_faces[self.elemType] = np.array(self.__connect[:, [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]]).reshape(-1,nPe)
-        elif self.elemType == ElemType.PRISM6:
-            # Ici il faut faire attention parce que cette element est composé de 2 triangles et 3 quadrangles
-            dict_connect_faces[ElemType.QUAD4] = np.array(self.__connect[:, [0,2,5,3,0,1,4,3,1,2,5,4]]).reshape(-1,4)
-            dict_connect_faces[ElemType.TRI3] = np.array(self.__connect[:, [0,1,2,3,4,5]]).reshape(-1,3)
-            
-        else:
-            raise "Element inconnue"
-
+        indexesFaces = self.indexesFaces()
+        dict_connect_faces = {self.elemType: self.__connect[:, indexesFaces]}
         return dict_connect_faces
 
     ################################################ STATIC ##################################################
@@ -1754,6 +1702,12 @@ class POINT(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return [0]
+
     def Ntild(self) -> np.ndarray:
         pass
 
@@ -1784,9 +1738,16 @@ class SEG2(GroupElem):
     #       |
     #       |
     #  0----+----1 --> u
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return [0,1]
 
     def Ntild(self) -> np.ndarray:
 
@@ -1796,6 +1757,24 @@ class SEG2(GroupElem):
         Ntild = np.array([N1t, N2t]).reshape(-1, 1)
 
         return Ntild
+    
+    def dNtild(self) -> np.ndarray:
+
+        dN1t = [lambda x: -0.5]
+        dN2t = [lambda x: 0.5]
+
+        dNtild = np.array([dN1t, dN2t]).reshape(-1,1)
+
+        return dNtild
+
+    def ddNtild(self) -> np.ndarray:
+        return super().ddNtild()
+
+    def dddNtild(self) -> np.ndarray:
+        return super().dddNtild()
+    
+    def ddddNtild(self) -> np.ndarray:
+        return super().ddddNtild()
 
     def Nvtild(self) -> np.ndarray:
 
@@ -1807,15 +1786,6 @@ class SEG2(GroupElem):
         Nvtild = np.array([phi_1, psi_1, phi_2, psi_2]).reshape(-1,1)
 
         return Nvtild
-    
-    def dNtild(self) -> np.ndarray:
-
-        dN1t = [lambda x: -0.5]
-        dN2t = [lambda x: 0.5]
-
-        dNtild = np.array([dN1t, dN2t]).reshape(-1,1)
-
-        return dNtild
 
     def dNvtild(self) -> np.ndarray:
 
@@ -1828,9 +1798,6 @@ class SEG2(GroupElem):
 
         return dNvtild
 
-    def ddNtild(self) -> np.ndarray:
-        return super().ddNtild()
-
     def ddNvtild(self) -> np.ndarray:
 
         phi_1_xx = lambda x : 0.0 + 1.5*x
@@ -1842,21 +1809,22 @@ class SEG2(GroupElem):
 
         return ddNvtild
 
-    def dddNtild(self) -> np.ndarray:
-        return super().dddNtild()
-    
-    def ddddNtild(self) -> np.ndarray:
-        return super().ddddNtild()
-
 class SEG3(GroupElem):
     #       v
     #       ^
     #       |
     #       |
     #  0----2----1 --> u
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return [0,2,1]
 
     def Ntild(self) -> np.ndarray:
 
@@ -1868,6 +1836,32 @@ class SEG3(GroupElem):
 
         return Ntild
 
+    def dNtild(self) -> np.ndarray:
+
+        dN1t = [lambda x: x-0.5]
+        dN2t = [lambda x: x+0.5]
+        dN3t = [lambda x: -2*x]
+
+        dNtild = np.array([dN1t, dN2t, dN3t]).reshape(-1,1)
+
+        return dNtild
+
+    def ddNtild(self) -> np.ndarray:
+
+        ddN1t = [lambda x: 1]
+        ddN2t = [lambda x: 1]
+        ddN3t = [lambda x: -2]
+
+        ddNtild = np.array([ddN1t, ddN2t, ddN3t])
+
+        return ddNtild
+
+    def dddNtild(self) -> np.ndarray:
+        return super().dddNtild()
+
+    def ddddNtild(self) -> np.ndarray:
+        return super().ddddNtild()
+        
     def Nvtild(self) -> np.ndarray:
 
         phi_1 = lambda x : 0.0 + 0.0*x + 1.0*x**2 + -1.25*x**3 + -0.5*x**4 + 0.75*x**5
@@ -1880,16 +1874,6 @@ class SEG3(GroupElem):
         Nvtild = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3]).reshape(-1,1)
 
         return Nvtild
-
-    def dNtild(self) -> np.ndarray:
-
-        dN1t = [lambda x: x-0.5]
-        dN2t = [lambda x: x+0.5]
-        dN3t = [lambda x: -2*x]
-
-        dNtild = np.array([dN1t, dN2t, dN3t]).reshape(-1,1)
-
-        return dNtild
 
     def dNvtild(self) -> np.ndarray:
 
@@ -1904,16 +1888,6 @@ class SEG3(GroupElem):
 
         return dNvtild
 
-    def ddNtild(self) -> np.ndarray:
-
-        ddN1t = [lambda x: 1]
-        ddN2t = [lambda x: 1]
-        ddN3t = [lambda x: -2]
-
-        ddNtild = np.array([ddN1t, ddN2t, ddN3t])
-
-        return ddNtild
-
     def ddNvtild(self) -> np.ndarray:
         
         phi_1_xx = lambda x : 2.0 + -7.5*x + -6.0*x**2 + 15.0*x**3
@@ -1927,21 +1901,22 @@ class SEG3(GroupElem):
 
         return ddNvtild
 
-    def dddNtild(self) -> np.ndarray:
-        return super().dddNtild()
-
-    def ddddNtild(self) -> np.ndarray:
-        return super().ddddNtild()    
-
 class SEG4(GroupElem):
     #        v
     #        ^
     #        |
     #        |
     #  0---2-+-3---1 --> u
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return [0, 2, 3, 1]
 
     def Ntild(self) -> np.ndarray:
 
@@ -1953,6 +1928,42 @@ class SEG4(GroupElem):
         Ntild = np.array([N1t, N2t, N3t, N4t]).reshape(-1, 1)
 
         return Ntild
+
+    def dNtild(self) -> np.ndarray:
+
+        dN1t = [lambda x : -1.688*x**2 + 1.125*x + 0.0625]
+        dN2t = [lambda x : 1.688*x**2 + 1.125*x + -0.0625]
+        dN3t = [lambda x : 5.062*x**2 + -1.125*x + -1.688]
+        dN4t = [lambda x : -5.062*x**2 + -1.125*x + 1.688]
+
+        dNtild = np.array([dN1t, dN2t, dN3t, dN4t]).reshape(-1,1)
+
+        return dNtild
+    
+    def ddNtild(self) -> np.ndarray:
+
+        ddN1t = lambda x : -3.375*x + 1.125
+        ddN2t = lambda x : 3.375*x + 1.125
+        ddN3t = lambda x : 10.125*x + -1.125
+        ddN4t = lambda x : -10.125*x + -1.125
+
+        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t])
+
+        return ddNtild
+
+    def dddNtild(self) -> np.ndarray:
+        
+        dddN1t = lambda x : -3.375
+        dddN2t = lambda x : 3.375
+        dddN3t = lambda x : 10.125
+        dddN4t = lambda x : -10.125
+
+        dddNtild = np.array([dddN1t, dddN2t, dddN3t, dddN4t])
+
+        return dddNtild
+
+    def ddddNtild(self) -> np.ndarray:
+        return super().ddddNtild()
 
     def Nvtild(self) -> np.ndarray:
 
@@ -1968,18 +1979,7 @@ class SEG4(GroupElem):
         Nvtild = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3, phi_4, psi_4]).reshape(-1,1)
 
         return Nvtild
-
-    def dNtild(self) -> np.ndarray:
-
-        dN1t = [lambda x : -1.688*x**2 + 1.125*x + 0.0625]
-        dN2t = [lambda x : 1.688*x**2 + 1.125*x + -0.0625]
-        dN3t = [lambda x : 5.062*x**2 + -1.125*x + -1.688]
-        dN4t = [lambda x : -5.062*x**2 + -1.125*x + 1.688]
-
-        dNtild = np.array([dN1t, dN2t, dN3t, dN4t]).reshape(-1,1)
-
-        return dNtild
-    
+        
     def dNvtild(self) -> np.ndarray:
 
         phi_1_x = lambda x : -0.029296874999997335 + -0.9492187500000036*x + 1.646484374999976*x**2 + 9.492187500000014*x**3 + -13.798828124999957*x**4 + -8.54296875000001*x**5 + 12.181640624999979*x**6
@@ -1993,18 +1993,7 @@ class SEG4(GroupElem):
 
         dNvtild = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x, phi_3_x, psi_3_x, phi_4_x, psi_4_x]).reshape(-1,1)
 
-        return dNvtild
-    
-    def ddNtild(self) -> np.ndarray:
-
-        ddN1t = lambda x : -3.375*x + 1.125
-        ddN2t = lambda x : 3.375*x + 1.125
-        ddN3t = lambda x : 10.125*x + -1.125
-        ddN4t = lambda x : -10.125*x + -1.125
-
-        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t])
-
-        return ddNtild
+        return dNvtild    
 
     def ddNvtild(self) -> np.ndarray:
         
@@ -2021,21 +2010,22 @@ class SEG4(GroupElem):
 
         return ddNvtild
 
-    def dddNtild(self) -> np.ndarray:
-        return super().dddNtild()
-
-    def ddddNtild(self) -> np.ndarray:
-        return super().ddddNtild()
-
 class SEG5(GroupElem):
     #          v
     #          ^
     #          |
     #          |
     #  0---2---3---4---1 --> u
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return [0, 2, 3, 4, 1]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2048,23 +2038,7 @@ class SEG5(GroupElem):
         Ntild = np.array([N1t, N2t, N3t, N4t, N5t]).reshape(-1, 1)
 
         return Ntild
-
-    def Nvtild(self) -> np.ndarray:
-        phi_1 = lambda x : 8.882e-16 + 8.882e-16*x + 0.2593*x**2 + -0.287*x**3 + -2.278*x**4 + 2.528*x**5 + 5.778*x**6 + -6.444*x**7 + -3.259*x**8 + 3.704*x**9
-        psi_1 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
-        phi_2 = lambda x : 1.332e-15 + -8.882e-16*x + 0.2593*x**2 + 0.287*x**3 + -2.278*x**4 + -2.528*x**5 + 5.778*x**6 + 6.444*x**7 + -3.259*x**8 + -3.704*x**9
-        psi_2 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
-        phi_3 = lambda x : -3.553e-15 + 0.0*x + 4.741*x**2 + -13.04*x**3 + -14.22*x**4 + 49.78*x**5 + 14.22*x**6 + -60.44*x**7 + -4.741*x**8 + 23.7*x**9
-        psi_3 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
-        phi_4 = lambda x : 1.0 + 0.0*x + -10.0*x**2 + 0.0*x**3 + 33.0*x**4 + 0.0*x**5 + -40.0*x**6 + 0.0*x**7 + 16.0*x**8 + 0.0*x**9
-        psi_4 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
-        phi_5 = lambda x : -3.553e-15 + 0.0*x + 4.741*x**2 + 13.04*x**3 + -14.22*x**4 + -49.78*x**5 + 14.22*x**6 + 60.44*x**7 + -4.741*x**8 + -23.7*x**9
-        psi_5 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
-
-        Nvtild = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3, phi_4, psi_4, phi_5, psi_5]).reshape(-1,1)
-
-        return Nvtild
-
+    
     def dNtild(self) -> np.ndarray:
 
         dN1t = [lambda x : 2.667*x**3 + -2.0*x**2 + -0.3333*x + 0.1667]
@@ -2075,24 +2049,7 @@ class SEG5(GroupElem):
 
         dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t])
 
-        return dNtild
-
-    def dNvtild(self) -> np.ndarray:
-
-        phi_1_x = lambda x : 8.882e-16 + 0.5185*x + -0.8611*x**2 + -9.111*x**3 + 12.64*x**4 + 34.67*x**5 + -45.11*x**6 + -26.07*x**7 + 33.33*x**8
-        psi_1_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
-        phi_2_x = lambda x : -8.882e-16 + 0.5185*x + 0.8611*x**2 + -9.111*x**3 + -12.64*x**4 + 34.67*x**5 + 45.11*x**6 + -26.07*x**7 + -33.33*x**8
-        psi_2_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
-        phi_3_x = lambda x : 0.0 + 9.481*x + -39.11*x**2 + -56.89*x**3 + 248.9*x**4 + 85.33*x**5 + -423.1*x**6 + -37.93*x**7 + 213.3*x**8
-        psi_3_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
-        phi_4_x = lambda x : 0.0 + -20.0*x + 0.0*x**2 + 132.0*x**3 + 0.0*x**4 + -240.0*x**5 + 0.0*x**6 + 128.0*x**7 + 0.0*x**8
-        psi_4_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
-        phi_5_x = lambda x : 0.0 + 9.481*x + 39.11*x**2 + -56.89*x**3 + -248.9*x**4 + 85.33*x**5 + 423.1*x**6 + -37.93*x**7 + -213.3*x**8
-        psi_5_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
-
-        dNvtild = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x, phi_3_x, psi_3_x, phi_4_x, psi_4_x, phi_5_x, psi_5_x]).reshape(-1,1)
-
-        return dNvtild
+        return dNtild    
     
     def ddNtild(self) -> np.ndarray:
 
@@ -2104,24 +2061,7 @@ class SEG5(GroupElem):
 
         ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t])
 
-        return ddNtild
-
-    def ddNvtild(self) -> np.ndarray:
-        
-        phi_1_xx = lambda x : 0.5185 + -1.722*x + -27.33*x**2 + 50.56*x**3 + 173.3*x**4 + -270.7*x**5 + -182.5*x**6 + 266.7*x**7
-        psi_1_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
-        phi_2_xx = lambda x : 0.5185 + 1.722*x + -27.33*x**2 + -50.56*x**3 + 173.3*x**4 + 270.7*x**5 + -182.5*x**6 + -266.7*x**7
-        psi_2_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
-        phi_3_xx = lambda x : 9.481 + -78.22*x + -170.7*x**2 + 995.6*x**3 + 426.7*x**4 + -2.539e+03*x**5 + -265.5*x**6 + 1.707e+03*x**7
-        psi_3_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
-        phi_4_xx = lambda x : -20.0 + 0.0*x + 396.0*x**2 + 0.0*x**3 + -1.2e+03*x**4 + 0.0*x**5 + 896.0*x**6 + 0.0*x**7
-        psi_4_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
-        phi_5_xx = lambda x : 9.481 + 78.22*x + -170.7*x**2 + -995.6*x**3 + 426.7*x**4 + 2.539e+03*x**5 + -265.5*x**6 + -1.707e+03*x**7
-        psi_5_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
-
-        ddNvtild = np.array([phi_1_xx, psi_1_xx, phi_2_xx, psi_2_xx, phi_3_xx, psi_3_xx, phi_4_xx, psi_4_xx, phi_5_xx, psi_5_xx]).reshape(-1,1)
-
-        return ddNvtild
+        return ddNtild    
 
     def dddNtild(self) -> np.ndarray:
         
@@ -2142,10 +2082,60 @@ class SEG5(GroupElem):
         ddddN3t = [lambda x : -64.0]
         ddddN4t = [lambda x : 96.0]
         ddddN5t = [lambda x : -64.0]
-
+        
         ddddNtild = np.array([ddddN1t, ddddN2t, ddddN3t, ddddN4t, ddddN5t])
 
         return ddddNtild
+
+    def Nvtild(self) -> np.ndarray:
+        phi_1 = lambda x : 8.882e-16 + 8.882e-16*x + 0.2593*x**2 + -0.287*x**3 + -2.278*x**4 + 2.528*x**5 + 5.778*x**6 + -6.444*x**7 + -3.259*x**8 + 3.704*x**9
+        psi_1 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
+        phi_2 = lambda x : 1.332e-15 + -8.882e-16*x + 0.2593*x**2 + 0.287*x**3 + -2.278*x**4 + -2.528*x**5 + 5.778*x**6 + 6.444*x**7 + -3.259*x**8 + -3.704*x**9
+        psi_2 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
+        phi_3 = lambda x : -3.553e-15 + 0.0*x + 4.741*x**2 + -13.04*x**3 + -14.22*x**4 + 49.78*x**5 + 14.22*x**6 + -60.44*x**7 + -4.741*x**8 + 23.7*x**9
+        psi_3 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
+        phi_4 = lambda x : 1.0 + 0.0*x + -10.0*x**2 + 0.0*x**3 + 33.0*x**4 + 0.0*x**5 + -40.0*x**6 + 0.0*x**7 + 16.0*x**8 + 0.0*x**9
+        psi_4 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
+        phi_5 = lambda x : -3.553e-15 + 0.0*x + 4.741*x**2 + 13.04*x**3 + -14.22*x**4 + -49.78*x**5 + 14.22*x**6 + 60.44*x**7 + -4.741*x**8 + -23.7*x**9
+        psi_5 = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8 + 0.0*x**9
+
+        Nvtild = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3, phi_4, psi_4, phi_5, psi_5]).reshape(-1,1)
+
+        return Nvtild
+
+    def dNvtild(self) -> np.ndarray:
+
+        phi_1_x = lambda x : 8.882e-16 + 0.5185*x + -0.8611*x**2 + -9.111*x**3 + 12.64*x**4 + 34.67*x**5 + -45.11*x**6 + -26.07*x**7 + 33.33*x**8
+        psi_1_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
+        phi_2_x = lambda x : -8.882e-16 + 0.5185*x + 0.8611*x**2 + -9.111*x**3 + -12.64*x**4 + 34.67*x**5 + 45.11*x**6 + -26.07*x**7 + -33.33*x**8
+        psi_2_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
+        phi_3_x = lambda x : 0.0 + 9.481*x + -39.11*x**2 + -56.89*x**3 + 248.9*x**4 + 85.33*x**5 + -423.1*x**6 + -37.93*x**7 + 213.3*x**8
+        psi_3_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
+        phi_4_x = lambda x : 0.0 + -20.0*x + 0.0*x**2 + 132.0*x**3 + 0.0*x**4 + -240.0*x**5 + 0.0*x**6 + 128.0*x**7 + 0.0*x**8
+        psi_4_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
+        phi_5_x = lambda x : 0.0 + 9.481*x + 39.11*x**2 + -56.89*x**3 + -248.9*x**4 + 85.33*x**5 + 423.1*x**6 + -37.93*x**7 + -213.3*x**8
+        psi_5_x = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7 + 0.0*x**8
+
+        dNvtild = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x, phi_3_x, psi_3_x, phi_4_x, psi_4_x, phi_5_x, psi_5_x]).reshape(-1,1)
+
+        return dNvtild    
+
+    def ddNvtild(self) -> np.ndarray:
+        
+        phi_1_xx = lambda x : 0.5185 + -1.722*x + -27.33*x**2 + 50.56*x**3 + 173.3*x**4 + -270.7*x**5 + -182.5*x**6 + 266.7*x**7
+        psi_1_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
+        phi_2_xx = lambda x : 0.5185 + 1.722*x + -27.33*x**2 + -50.56*x**3 + 173.3*x**4 + 270.7*x**5 + -182.5*x**6 + -266.7*x**7
+        psi_2_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
+        phi_3_xx = lambda x : 9.481 + -78.22*x + -170.7*x**2 + 995.6*x**3 + 426.7*x**4 + -2.539e+03*x**5 + -265.5*x**6 + 1.707e+03*x**7
+        psi_3_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
+        phi_4_xx = lambda x : -20.0 + 0.0*x + 396.0*x**2 + 0.0*x**3 + -1.2e+03*x**4 + 0.0*x**5 + 896.0*x**6 + 0.0*x**7
+        psi_4_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
+        phi_5_xx = lambda x : 9.481 + 78.22*x + -170.7*x**2 + -995.6*x**3 + 426.7*x**4 + 2.539e+03*x**5 + -265.5*x**6 + -1.707e+03*x**7
+        psi_5_xx = lambda x : 0.0 + 0.0*x + 0.0*x**2 + 0.0*x**3 + 0.0*x**4 + 0.0*x**5 + 0.0*x**6 + 0.0*x**7
+
+        ddNvtild = np.array([phi_1_xx, psi_1_xx, phi_2_xx, psi_2_xx, phi_3_xx, psi_3_xx, phi_4_xx, psi_4_xx, phi_5_xx, psi_5_xx]).reshape(-1,1)
+
+        return ddNvtild
 
 class TRI3(GroupElem):
     # v
@@ -2158,9 +2148,18 @@ class TRI3(GroupElem):
     # |      `\
     # |        `\
     # 0----------1 --> u
+
+    _indexesFaces = [0,1,2,0]
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return [0,1,2]
+
+    def indexesFaces(self) -> list[int]:
+        return TRI3._indexesFaces
 
     def Ntild(self) -> np.ndarray:
 
@@ -2211,9 +2210,16 @@ class TRI6(GroupElem):
     # |      `\
     # |        `\
     # 0----3-----1 --> u
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return [0,3,5,3,1,4,5,4,2,3,4,5]
+
+    def indexesFaces(self) -> list[int]:
+        return [0,3,1,4,2,5,0]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2278,10 +2284,17 @@ class TRI10(GroupElem):
     # |     \
     # 8  (9)  5
     # |         \
-    # 0---3---4---1
+    # 0---3---4---1 --> u
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return list(np.array([10,1,4,10,4,5,10,5,6,10,6,7,10,7,8,10,8,9,10,9,1,2,5,6,3,7,8])-1)
+    
+    def indexesFaces(self) -> list[int]:
+        return [0,3,4,1,5,6,2,7,8,0]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2439,10 +2452,17 @@ class TRI15(GroupElem):
     # |         \
     # 11 (12) (13) 6
     # |             \
-    # 0---3---4---5---1
+    # 0---3---4---5---1 --> u
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return list(np.array([1,4,13,4,5,14,5,6,14,6,7,14,2,6,7,4,13,14,1,12,13,11,12,13,11,13,15,13,14,15,8,14,15,7,8,14,10,11,15,8,9,15,9,10,15,3,9,10])-1)
+
+    def indexesFaces(self) -> list[int]:
+        return [0,3,4,5,1,6,7,8,2,9,10,11,0]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2702,9 +2722,18 @@ class QUAD4(GroupElem):
     # |           |
     # |           |
     # 0-----------1
+
+    _indexesFaces = [0,1,2,3,0]
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return [0,1,3,1,2,3]
+
+    def indexesFaces(self) -> list[int]:
+        return QUAD4._indexesFaces
 
     def Ntild(self) -> np.ndarray:
 
@@ -2757,9 +2786,16 @@ class QUAD8(GroupElem):
     # |           |
     # |           |
     # 0-----4-----1
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]
+
+    def indexesFaces(self) -> list[int]:
+        return [0,4,1,5,2,6,3,7,0]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2840,9 +2876,16 @@ class TETRA4(GroupElem):
     #              `3
     #                 `\.
     #                    ` w
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return [0,1,2,0,1,3,0,2,3,1,2,3]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2897,9 +2940,16 @@ class HEXA8(GroupElem):
     #   \ |     \  \ |
     #    \|      w  \|
     #     4----------5
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2968,9 +3018,23 @@ class PRISM6(GroupElem):
     #     |  ,/     `\  |
     #     |,/         `\|
     #     1-------------2
+
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return super().indexesFaces
+
+    def get_dict_connect_Faces(self) -> dict[np.ndarray]:
+        dict_connect_Faces = {
+            ElemType.QUAD4: self.connect_e[:, QUAD4._indexesFaces],
+            ElemType.TRI3: self.connect_e[:, TRI3._indexesFaces]
+        }
+        return dict_connect_Faces
 
     def Ntild(self) -> np.ndarray:
 
