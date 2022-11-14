@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 from types import LambdaType
 from typing import List, cast
-
 import numpy as np
 from scipy import sparse
 
@@ -11,6 +11,12 @@ from Materials import *
 from TicTac import Tic
 import CalcNumba
 import Interface_Solveurs
+
+class ProblemType(str, Enum):
+    displacement = "displacement"
+    damage = "damage"
+    thermal = "thermal"
+    beam = "beam"
 
 class Simu(ABC):
     """Classe mère de :\n
@@ -23,7 +29,7 @@ class Simu(ABC):
     def Check_ProblemTypes(problemType:str):
         """Verifie si ce type de probleme est implénté"""
 
-        list_problemType = ["displacement", "damage", "thermal", "beam"]
+        list_problemType = [ProblemType.displacement, ProblemType.damage, ProblemType.thermal, ProblemType.beam]
         assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
 
     @staticmethod
@@ -31,15 +37,15 @@ class Simu(ABC):
         """Verifie si les directions renseignées sont possible pour le probleme"""
         Simu.Check_ProblemTypes(problemType)
         
-        if problemType in ["damage", "thermal"]:
+        if problemType in [ProblemType.damage, ProblemType.thermal]:
             # Ici on travail sur un champ scalaire, il n'y a pas de direction à renseigné
             pass
-        elif problemType == "displacement":
+        elif problemType == ProblemType.displacement:
             for d in directions:
                 assert d in ["x","y","z"]
                 if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
             assert dim >= len(directions)
-        elif problemType == "beam":
+        elif problemType == ProblemType.beam:
             if dim == 1:
                 list = ["x"]
             elif dim == 2:
@@ -226,7 +232,7 @@ class Simu(ABC):
 
         self.__algo = algo
 
-        if problemType == "beam":
+        if problemType == ProblemType.beam:
             if len(self.__Bc_Lagrange) > 0:
                 resolution = 2
         
@@ -389,7 +395,7 @@ class Simu(ABC):
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
-        if problemType == "beam":
+        if problemType == ProblemType.beam:
             param = self.materiau.beamModel.nbddl_n
         else:
             param = self.__dim
@@ -437,7 +443,7 @@ class Simu(ABC):
         """
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
-        if problemType == "beam":
+        if problemType == ProblemType.beam:
             valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, noeuds, valeurs, directions)
             # multiplie par la surface de la section
             # TODO ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
@@ -461,7 +467,7 @@ class Simu(ABC):
         """
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
-        if problemType == "beam":
+        if problemType == ProblemType.beam:
             valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
             # multiplie par la surface de la section
             # TODO ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
@@ -488,13 +494,13 @@ class Simu(ABC):
 
         for d, dir in enumerate(directions):
             eval_n = self.__Bc_evalue(coordo_n, valeurs[d], option="noeuds")
-            if problemType == "beam":
+            if problemType == ProblemType.beam:
                 eval_n /= len(noeuds)
             valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
-        if problemType == "beam":
+        if problemType == ProblemType.beam:
             param = self.materiau.beamModel.nbddl_n
         else:
             param = self.__dim
@@ -516,7 +522,7 @@ class Simu(ABC):
         else:
             exclusivement=True
 
-        if problemType == "beam":
+        if problemType == ProblemType.beam:
             param = self.materiau.beamModel.nbddl_n
         else:
             param = self.__dim
@@ -600,11 +606,11 @@ class Simu(ABC):
         Simu.Check_ProblemTypes(problemType)
         Simu.Check_Directions(self.__dim, problemType, directions)
 
-        if problemType in ["damage","thermal"]:
+        if problemType in [ProblemType.damage,ProblemType.thermal]:
             
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Neumann {description}')
 
-        elif problemType in ["displacement","beam"]:
+        elif problemType in [ProblemType.displacement,ProblemType.beam]:
 
             # Si un ddl est déja connue dans les conditions de dirichlet
             # alors on enlève la valeur et le ddl associé
@@ -636,11 +642,11 @@ class Simu(ABC):
 
         Simu.Check_ProblemTypes(problemType)
 
-        if problemType in ["damage","thermal"]:
+        if problemType in [ProblemType.damage,ProblemType.thermal]:
             
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
-        elif problemType in ["displacement","beam"]:
+        elif problemType in [ProblemType.displacement,ProblemType.beam]:
 
             new_Bc = BoundaryCondition(problemType, noeuds, ddls, directions, valeurs_ddls, f'Dirichlet {description}')
 
@@ -740,10 +746,10 @@ class Simu(ABC):
         # Prend le premier noeuds de la liaison
         noeuds1 = np.array([noeuds[0]])
 
-        ddls = BoundaryCondition.Get_ddls_noeuds(param=nbddl,  problemType="beam", noeuds=noeuds1, directions=directions)
+        ddls = BoundaryCondition.Get_ddls_noeuds(param=nbddl,  problemType=ProblemType.beam, noeuds=noeuds1, directions=directions)
         valeurs_ddls =  np.array([0]*len(ddls))
 
-        new_Bc = BoundaryCondition("beam", noeuds1, ddls, directions, valeurs_ddls, description)
+        new_Bc = BoundaryCondition(ProblemType.beam, noeuds1, ddls, directions, valeurs_ddls, description)
         self.__Bc_LagrangeAffichage.append(new_Bc)
     
     # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
@@ -752,7 +758,7 @@ class Simu(ABC):
     def Resultats_indexe_option(dim: int, problemType: str,  option: str):
         """Donne l'indexe pour accéder à l'option en fonction du type de problème"""
         
-        if problemType in ["displacement","damage"]:
+        if problemType in [ProblemType.displacement,ProblemType.damage]:
             # "Stress" : ["Sxx", "Syy", "Sxy"]
             # "Stress" : ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]
             # "Accel" : ["vx", "vy", "vz", "ax", "ay", "az"]
@@ -780,7 +786,7 @@ class Simu(ABC):
                 return 3
             elif option in ["Sxz","Exz"]:
                 return 4
-        elif problemType == "beam":
+        elif problemType == ProblemType.beam:
 
             # "Beam1D" : ["u" "fx"]
             # "Beam2D : ["u","v","rz""fx", "fy", "cz"]
@@ -842,13 +848,13 @@ class Simu(ABC):
 
         categories = Simu.__Resultats_Categories(dim)
         
-        if problemType == "displacement":
+        if problemType == ProblemType.displacement:
             keys = ["Stress", "Strain", "Displacement", "Accel", "Speed", "Energie"]
-        elif problemType == "damage":
+        elif problemType == ProblemType.damage:
             keys = ["Stress", "Strain", "Displacement", "Energie", "Damage"]
-        elif problemType == "beam":
+        elif problemType == ProblemType.beam:
             keys = ["Beam", "Beam Load"]
-        elif problemType == "thermal":
+        elif problemType == ProblemType.thermal:
             keys = ["Thermal"]
 
         listOption = []
@@ -946,9 +952,9 @@ class Simu(ABC):
         dim = self.__dim
         problemType = self.__problemType
 
-        if problemType in ["displacement","beam","damage"]:
+        if problemType in [ProblemType.displacement,ProblemType.beam,ProblemType.damage]:
 
-            if problemType in ["displacement","damage"]:
+            if problemType in [ProblemType.displacement,ProblemType.damage]:
                 Uglob = self.displacement
             else:
                 Uglob = self.beamDisplacement
@@ -956,7 +962,7 @@ class Simu(ABC):
 
             coordo = Uglob.reshape((Nn,-1))
            
-            if problemType in ["displacement","damage"]:
+            if problemType in [ProblemType.displacement,ProblemType.damage]:
                 if dim == 2:
                     coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
             else:
@@ -980,7 +986,7 @@ class Simu_Displacement(Simu):
 
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
         """Creation d'une simulation thermique"""
-        assert materiau.problemType == "displacement", "Le materiau doit être de type displacement"
+        assert materiau.problemType == ProblemType.displacement, "Le materiau doit être de type displacement"
         super().__init__(mesh, materiau, verbosity, useNumba)
 
         # resultats
@@ -1020,7 +1026,7 @@ class Simu_Displacement(Simu):
     # @property
     # def accel(self) -> np.ndarray:
     #     """Copie du champ vectoriel d'accéleration"""
-    #     if self.__problemType in ["displacement", "damage"] and self.materiau.ro:
+    #     if self.__problemType in [ProblemType.displacement, ProblemType.damage] and self.materiau.ro:
     #         return self.accel.copy()
     #     else:
     #         return None
@@ -1138,7 +1144,7 @@ class Simu_Displacement(Simu):
         self.__coefK = coefK
 
     def Get_Rayleigh_Damping(self) -> sparse.csr_matrix:
-        if self.problemType == "displacement":
+        if self.problemType == ProblemType.displacement:
             try:
                 return self.__coefM * self.__Mu + self.__coefK * self.__Ku
             except:
@@ -1151,14 +1157,14 @@ class Simu_Displacement(Simu):
         """Resolution du probleme de déplacement"""
 
         if steadyState:
-            x = self.Solveur("displacement", "elliptic")
+            x = self.Solveur(ProblemType.displacement, "elliptic")
             assert x.shape[0] == self.mesh.Nn*self.dim
 
             self.__displacement = x
 
             return self.__displacement.copy()
         else:
-            x = self.Solveur("displacement", "hyperbolic")
+            x = self.Solveur(ProblemType.displacement, "hyperbolic")
             assert x.shape[0] == self.mesh.Nn*self.dim
             
             # Formulation en accel
@@ -1503,7 +1509,7 @@ class Simu_Displacement(Simu):
 class Simu_Damage(Simu):
 
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
-        assert materiau.problemType == "damage", "Le materiau doit être de type damage"
+        assert materiau.problemType == ProblemType.damage, "Le materiau doit être de type damage"
         super().__init__(mesh, materiau, verbosity, useNumba)
 
         # resultats
@@ -1650,10 +1656,10 @@ class Simu_Damage(Simu):
     def Solve_u(self, steadyState=True) -> np.ndarray:
         """Resolution du probleme de déplacement"""
             
-        displacement = self.Solveur("displacement", "elliptic")
+        displacement = self.Solveur(ProblemType.displacement, "elliptic")
 
         # Si c'est un problement d'endommagement on renseigne au model phase field qu'il va falloir mettre à jour le split
-        if self.problemType == "damage":
+        if self.problemType == ProblemType.damage:
             self.materiau.phaseFieldModel.Need_Split_Update()
         
         assert displacement.shape[0] == self.mesh.Nn*self.dim
@@ -1816,7 +1822,7 @@ class Simu_Damage(Simu):
     def Solve_d(self) -> np.ndarray:
         """Resolution du problème d'endommagement"""
         
-        damage = self.Solveur("damage", "elliptic")
+        damage = self.Solveur(ProblemType.damage, "elliptic")
 
         assert damage.shape[0] == self.mesh.Nn
 
@@ -2168,7 +2174,7 @@ class Simu_Damage(Simu):
 class Simu_Beam(Simu):
 
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
-        assert materiau.problemType == "beam", "Le materiau doit être de type beam"
+        assert materiau.problemType == ProblemType.beam, "Le materiau doit être de type beam"
         super().__init__(mesh, materiau, verbosity, useNumba)
 
         # resultats
@@ -2208,7 +2214,7 @@ class Simu_Beam(Simu):
         beamModel = self.materiau.beamModel
         if not isinstance(beamModel, BeamModel): return
         
-        matriceType="beam"
+        matriceType=MatriceType.beam
         
         tic = Tic()
         
@@ -2361,7 +2367,7 @@ class Simu_Beam(Simu):
         # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
         dimSupl = len(self.Bc_Lagrange)
         if dimSupl > 0:
-            dimSupl += len(self.Bc_ddls_Dirichlet("beam"))
+            dimSupl += len(self.Bc_ddls_Dirichlet(MatriceType.beam))
 
         # Prépare assemblage
         lignesVector_e = mesh.lignesVectorBeam_e(model.nbddl_n)
@@ -2395,7 +2401,7 @@ class Simu_Beam(Simu):
     def Solve(self) -> np.ndarray:
         """Resolution du probleme poutre"""
 
-        beamDisplacement = self.Solveur("beam", "elliptic")
+        beamDisplacement = self.Solveur(ProblemType.beam, "elliptic")
         
         assert beamDisplacement.shape[0] == self.mesh.Nn*self.materiau.beamModel.nbddl_n
 
@@ -2518,7 +2524,7 @@ class Simu_Beam(Simu):
 class Simu_Thermal(Simu):
 
     def __init__(self, mesh: Mesh, materiau: Materiau, verbosity=True, useNumba=True):
-        assert materiau.problemType == "thermal", "Le materiau doit être de type thermal"
+        assert materiau.problemType == ProblemType.thermal, "Le materiau doit être de type thermal"
         super().__init__(mesh, materiau, verbosity, useNumba)
 
         # resultats
@@ -2644,11 +2650,11 @@ class Simu_Thermal(Simu):
         """
 
         if steadyState:
-            thermal_np1 = self.Solveur("thermal", "elliptic")
+            thermal_np1 = self.Solveur(ProblemType.thermal, "elliptic")
             # TODO que faire pour -> quand plusieurs types -> np.ndarray ou tuple[np.ndarray, np.ndarray] ?
         else:
 
-            thermal_np1 = self.Solveur("thermal", "parabolic")
+            thermal_np1 = self.Solveur(ProblemType.thermal, "parabolic")
             thermalDot = self.thermalDot
 
             alpha = self.alpha
