@@ -278,7 +278,7 @@ class GroupElem:
         """Fonctions de formes dans la base de réference
 
         Args:
-            matriceType (str): ["rigi","masse"]
+            matriceType (str): [MatriceType.rigi,MatriceType.masse]
             isScalaire (bool): type de matrice N\n
 
         Returns:\n
@@ -661,7 +661,7 @@ class GroupElem:
     def aire(self) -> float:
         """Aire que représente les elements"""
         if self.dim == 1: return
-        aire = np.einsum('ep,p->', self.get_jacobien_e_pg("rigi"), self.get_gauss("rigi").poids, optimize='optimal')
+        aire = np.einsum('ep,p->', self.get_jacobien_e_pg(MatriceType.rigi), self.get_gauss(MatriceType.rigi).poids, optimize='optimal')
         return float(aire)
 
     @property
@@ -669,10 +669,10 @@ class GroupElem:
         """Moment quadratique suivant x"""
         if self.dim != 2: return
 
-        coordo_e_p = self.get_coordo_e_p("masse", self.elementsIndex)
+        coordo_e_p = self.get_coordo_e_p(MatriceType.masse, self.elementsIndex)
         x = coordo_e_p[self.elementsID, :, 0]
 
-        Ix = np.einsum('ep,p,ep->', self.get_jacobien_e_pg("masse"), self.get_gauss("masse").poids, x**2, optimize='optimal')
+        Ix = np.einsum('ep,p,ep->', self.get_jacobien_e_pg(MatriceType.masse), self.get_gauss(MatriceType.masse).poids, x**2, optimize='optimal')
         return float(Ix)
 
     @property
@@ -680,10 +680,10 @@ class GroupElem:
         """Moment quadratique suivant y"""
         if self.dim != 2: return
 
-        coordo_e_p = self.get_coordo_e_p("masse", self.elementsIndex)
+        coordo_e_p = self.get_coordo_e_p(MatriceType.masse, self.elementsIndex)
         y = coordo_e_p[self.elementsID, :, 1]
 
-        Iy = np.einsum('ep,p,ep->', self.get_jacobien_e_pg("masse"), self.get_gauss("masse").poids, y**2, optimize='optimal')
+        Iy = np.einsum('ep,p,ep->', self.get_jacobien_e_pg(MatriceType.masse), self.get_gauss(MatriceType.masse).poids, y**2, optimize='optimal')
         return float(Iy)
 
     @property
@@ -691,18 +691,18 @@ class GroupElem:
         """Moment quadratique suivant xy"""
         if self.dim != 2: return
 
-        coordo_e_p = self.get_coordo_e_p("masse", self.elementsIndex)
+        coordo_e_p = self.get_coordo_e_p(MatriceType.masse, self.elementsIndex)
         x = coordo_e_p[self.elementsID, :, 0]
         y = coordo_e_p[self.elementsID, :, 1]
 
-        Ixy = np.einsum('ep,p,ep,ep->', self.get_jacobien_e_pg("masse"), self.get_gauss("masse").poids, x, y, optimize='optimal')
+        Ixy = np.einsum('ep,p,ep,ep->', self.get_jacobien_e_pg(MatriceType.masse), self.get_gauss(MatriceType.masse).poids, x, y, optimize='optimal')
         return float(Ixy)
 
     @property
     def volume(self) -> float:
         """Volume que représente les elements"""
         if self.dim != 3: return
-        volume = np.einsum('ep,p->', self.get_jacobien_e_pg("masse"), self.get_gauss("masse").poids, optimize='optimal')
+        volume = np.einsum('ep,p->', self.get_jacobien_e_pg(MatriceType.masse), self.get_gauss(MatriceType.masse).poids, optimize='optimal')
         return float(volume)
         
 
@@ -2211,8 +2211,8 @@ class GroupElem:
 
     @staticmethod
     def get_MatriceType() -> List[str]:
-        """type de matrice disponible"""
-        liste = ["rigi", "masse", "beam"]
+        """type de matrice disponible"""        
+        liste = [MatriceType.rigi, MatriceType.masse, MatriceType.beam]
         return liste
 
     @staticmethod
@@ -2570,3 +2570,8 @@ class ElemType(str, Enum):
     PYRA5 = "PYRA5"
     PYRA13 = "PYRA13"
     PYRA14 = "PYRA14"
+
+class MatriceType(str, Enum):
+    rigi = "rigi"
+    masse = "masse"
+    beam = "beam"
