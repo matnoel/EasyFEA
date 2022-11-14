@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from enum import Enum
 from types import LambdaType
 from typing import List, cast
 import numpy as np
@@ -7,16 +6,10 @@ from scipy import sparse
 
 from Mesh import Mesh, GroupElem, ElemType, MatriceType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
-from Materials import *
+from Materials import ProblemType, Materiau, BeamModel, ThermalModel, PhaseFieldModel, LoiDeComportement
 from TicTac import Tic
 import CalcNumba
 import Interface_Solveurs
-
-class ProblemType(str, Enum):
-    displacement = "displacement"
-    damage = "damage"
-    thermal = "thermal"
-    beam = "beam"
 
 class Simu(ABC):
     """Classe mère de :\n

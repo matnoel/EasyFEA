@@ -1,5 +1,5 @@
 from typing import List
-
+from enum import Enum
 from TicTac import Tic
 
 from Mesh import Mesh, GroupElem
@@ -1708,7 +1708,7 @@ class Materiau:
     
     @property
     def dim(self) -> int:
-        if self.__problemType == "thermal":
+        if self.__problemType == ProblemType.thermal:
             return self.__thermalModel.dim
         if self.__problemType == "beam":
             return self.__beamModel.dim
@@ -1717,7 +1717,7 @@ class Materiau:
 
     @property
     def epaisseur(self) -> float:
-        if self.__problemType == "thermal":
+        if self.__problemType == ProblemType.thermal:
             return self.thermalModel.epaisseur
         else:
             return self.comportement.epaisseur
@@ -1729,7 +1729,7 @@ class Materiau:
     
     @property
     def comportement(self) -> LoiDeComportement:
-        if self.__problemType in ["thermal","beam"]:
+        if self.__problemType in [ProblemType.thermal,"beam"]:
             return None
         else:
             if self.isDamaged:
@@ -1739,7 +1739,7 @@ class Materiau:
 
     @property
     def thermalModel(self) -> ThermalModel:
-        if self.__problemType == "thermal":
+        if self.__problemType == ProblemType.thermal:
             return self.__thermalModel
         else:
             return None
@@ -1753,7 +1753,7 @@ class Materiau:
     
     @property
     def isDamaged(self) -> bool:
-        if self.__problemType == "damage":
+        if self.__problemType == ProblemType.damage:
             return True
         else:
             return False
@@ -1781,14 +1781,14 @@ class Materiau:
             Affichage.NouvelleSection("Matériau")
 
         if isinstance(model, LoiDeComportement):
-            self.__problemType = "displacement"
+            self.__problemType = ProblemType.displacement
             self.__comportement = model
             self.__phaseFieldModel = None
         elif isinstance(model, PhaseFieldModel):
-            self.__problemType = "damage"
+            self.__problemType = ProblemType.damage
             self.__phaseFieldModel = model
         elif isinstance(model, ThermalModel):
-            self.__problemType = "thermal"
+            self.__problemType = ProblemType.thermal
             self.__thermalModel = model
         elif isinstance(model, BeamModel):
             self.__problemType = "beam"
@@ -1807,12 +1807,12 @@ class Materiau:
     def Resume(self, verbosity=True):
         resume = ""
 
-        if self.__problemType == "damage":
+        if self.__problemType == ProblemType.damage:
             resume += self.__phaseFieldModel.comportement.resume
             resume += '\n' + self.__phaseFieldModel.resume
-        elif self.__problemType == "displacement":
+        elif self.__problemType == ProblemType.displacement:
             resume += self.__comportement.resume
-        elif self.__problemType == "thermal":
+        elif self.__problemType == ProblemType.thermal:
             pass
         elif self.__problemType == "beam":
             resume += self.__beamModel.resume
@@ -1820,3 +1820,8 @@ class Materiau:
         if verbosity: print(resume)
         return resume
 
+class ProblemType(str, Enum):
+    displacement = "displacement"
+    damage = "damage"
+    thermal = "thermal"
+    beam = "beam"
