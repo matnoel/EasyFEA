@@ -152,8 +152,6 @@ def Solveur_2(simu, problemType: str):
     values_Dirichlet = np.array(simu.BC_values_Dirichlet(problemType))
     
     list_Bc_Lagrange = simu.Bc_Lagrange
-    if len(list_Bc_Lagrange) > 0:
-        from Simulations import LagrangeCondition
 
     nColEnPlusLagrange = len(list_Bc_Lagrange)
     nColEnPlusDirichlet = len(ddls_Dirichlet)
@@ -168,8 +166,11 @@ def Solveur_2(simu, problemType: str):
     b[listeLignesDirichlet] = values_Dirichlet
 
     # Pour chaque condition de lagrange on va rajouter un coef dans la matrice
-    for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1):
-        if isinstance(lagrangeBc, LagrangeCondition):
+
+    if len(list_Bc_Lagrange) > 0:
+        from Simulations import LagrangeCondition
+
+        def __apply_lagrange(i: int, lagrangeBc: LagrangeCondition):
             ddls = lagrangeBc.ddls
             valeurs = lagrangeBc.valeurs_ddls
             coefs = lagrangeBc.lagrangeCoefs
@@ -178,6 +179,8 @@ def Solveur_2(simu, problemType: str):
             A[-i,ddls] = coefs
 
             b[-i] = valeurs[0]
+
+        [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1)]
 
     tic.Tac("Construit Ax=b",f"Lagrange ({problemType})", simu._verbosity)
 
