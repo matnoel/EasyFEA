@@ -216,11 +216,10 @@ class GroupElem(ABC):
         return sp.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
 
     @property
-    def assembly_e(self, dim=None) -> np.ndarray:
+    def assembly_e(self) -> np.ndarray:
         """Matrice d'assemblage (Ne, nPe*dim)"""
         nPe = self.nPe
-        if dim == None:
-            dim = self.dim
+        dim = self.dim
         taille = nPe*dim
 
         assembly = np.zeros((self.Ne, taille), dtype=np.int64)
@@ -232,8 +231,8 @@ class GroupElem(ABC):
 
         return assembly
     
-    def assemblyBeam_e(self, nbddl_e: int) -> np.ndarray:
-        """Matrice d'assemblage pour les poutres (Ne, nPe*dim)"""
+    def get_assemblyBeam_e(self, nbddl_e: int) -> np.ndarray:
+        """Matrice d'assemblage pour les poutres (Ne, nPe*nbddl_e)"""
 
         nPe = self.nPe
         taille = nbddl_e*nPe
@@ -1286,7 +1285,7 @@ class GroupElem(ABC):
         """Liste d'indexes pour former les triangles d'un element qui seront utilisées pour la fonction trisurf en 2D"""
         pass
     
-    def get_connectTriangle(self) -> np.ndarray:
+    def get_dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
         """Transforme la matrice de connectivité pour la passer dans la fonction trisurf en 2D\n
         Par exemple pour un quadrangle on construit deux triangles
         pour un triangle à 6 noeuds on construit 4 triangles\n
@@ -1309,9 +1308,8 @@ class GroupElem(ABC):
     def indexesFaces(self) -> list[int]:
         """Liste d'indexes pour former les faces qui constituent l'element"""
         pass
-
-    #TODO Fonction dun paramètre de gorup d'element genre indexFaces
-    def get_dict_connect_Faces(self) -> dict[np.ndarray]:
+    
+    def get_dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:
         """Récupère les identifiants des noeud constuisant les faces et renvoie les faces pour chaque types d'elements. Dictionnaire car un element peut avoir différents type d'elements.\n
         PRISM6 -> QUAD4 et TRI3
 

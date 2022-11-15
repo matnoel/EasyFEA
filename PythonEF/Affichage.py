@@ -103,7 +103,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     # Recupération des coordonnée déformées si la simulation le permet
     coordoDef, deformation = __GetCoordo(simu, deformation, facteurDef)
     
-    connect_Faces = mesh.connect_Faces # construit la matrice de connection pour les faces
+    connect_Faces = mesh.dict_connect_Faces # construit la matrice de connection pour les faces
     
     coordoDef_InDim = coordoDef[:,range(inDim)]
 
@@ -170,7 +170,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
             elif mesh.Nn == len(valeurs):
                 # on va afficher le résultat sur les noeuds
                 # récupération des triangles de chaque face pour utiliser la fonction trisurf
-                connectTri = mesh.connectTriangle
+                connectTri = mesh.dict_connect_Triangle
                 pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap='jet')
                 # tripcolor, tricontour, tricontourf
 
@@ -351,7 +351,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
     inDim = mesh.groupElem.inDim
 
     # construit la matrice de connection pour les faces
-    connect_Faces = mesh.connect_Faces
+    connect_Faces = mesh.dict_connect_Faces
 
     # Construit les faces non deformées
     coord_NonDeforme_redim = coordo[:,range(inDim)]

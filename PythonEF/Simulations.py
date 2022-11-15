@@ -2487,7 +2487,7 @@ class Simu_Beam(Simu):
         tic = Tic()
 
         nbddl_n = self.materiau.beamModel.nbddl_n
-        assemblyBeam_e = self.mesh.groupElem.assemblyBeam_e(nbddl_n)
+        assemblyBeam_e = self.mesh.groupElem.get_assemblyBeam_e(nbddl_n)
         sol_e = sol[assemblyBeam_e]
         B_beam_e_pg = self.__Get_B_beam_e_pg(matriceType)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
