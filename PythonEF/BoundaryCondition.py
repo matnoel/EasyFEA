@@ -1,5 +1,5 @@
+from typing import cast
 import numpy as np
-import inspect
 
 class BoundaryCondition:
     """Classe de condition limite"""
@@ -9,8 +9,8 @@ class BoundaryCondition:
 
         Parameters
         ----------
-        problemType : str
-            type de probleme qui doit etre contenue dans ["damage", "displacement","thermal","beam"]
+        problemType : ProblemType
+            type de probleme qui doit etre contenue dans PorblemType
         noeuds : np.ndarray
             noeuds sur lesquels on applique une condition
         ddls : np.ndarray
@@ -25,15 +25,14 @@ class BoundaryCondition:
             description de la condition
         """
 
-        assert problemType in ["damage", "displacement", "thermal","beam"]
+        from Simulations import Simu
+
+        Simu.Check_ProblemTypes(problemType)
+
         self.__problemType = problemType
 
-        if problemType in ["damage", "thermal"]:
-            directions = None
-        elif problemType == "displacement":
-            for d in directions: assert d in ["x","y","z"], "Erreur de direction"
-        elif problemType == "beam":
-            for d in directions: assert d in ["x","y","z","rx","ry","rz"], "Erreur de direction"
+        Simu.Check_Directions(dim=3, problemType=problemType, directions=directions)
+
         self.__directions = directions
 
         self.__noeuds = noeuds
@@ -57,7 +56,7 @@ class BoundaryCondition:
 
     @property
     def ddls(self) -> np.ndarray:
-        """degrés de liberté associés aux noeuds et aux directions"""
+        """degrés de libertés associés aux noeuds et aux directions"""
         return self.__ddls
 
     @property
@@ -66,18 +65,18 @@ class BoundaryCondition:
         return self.__valeurs_ddls
 
     @property
-    def directions(self) -> list:
+    def directions(self) -> list[str]:
         """directions associées"""
         return self.__directions
 
     @staticmethod
-    def Get_ddls(problemType: str, list_Bc_Conditions: list) -> list:
+    def Get_ddls(problemType: str, list_Bc_Conditions: list) -> list[int]:
         """Renvoie les ddls du probleme et de la liste de conditions donné
 
         Parameters
         ----------
         problemType : str
-            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+            type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement]
         list_Bc_Conditions : list de BoundaryCondition
             liste de conditions limites
 
@@ -86,22 +85,26 @@ class BoundaryCondition:
         np.ndarray
             degrés de liberté
         """
+
+        from Simulations import Simu
+
+        Simu.Check_ProblemTypes(problemType)
         
+        list_Bc_Conditions = cast(list[BoundaryCondition], list_Bc_Conditions)
+
         ddls = []
-        for bc in list_Bc_Conditions:
-            assert isinstance(bc, BoundaryCondition)            
-            if bc.problemType == problemType:
-                ddls.extend(bc.ddls)
+        [ddls.extend(bc.ddls) for bc in list_Bc_Conditions if bc.problemType == problemType]
+                
         return ddls
 
     @staticmethod
-    def Get_values(problemType: str, list_Bc_Conditions: list) -> list:
+    def Get_values(problemType: str, list_Bc_Conditions: list) -> list[float]:
         """Renvoie les ddls du probleme et de la liste de conditions donné
 
         Parameters
         ----------
         problemType : str
-            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+            type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement]
         list_Bc_Conditions : list de BoundaryCondition
             liste de conditions limites
 
@@ -110,12 +113,16 @@ class BoundaryCondition:
         np.ndarray
             degrés de liberté
         """
+
+        from Simulations import Simu
+
+        Simu.Check_ProblemTypes(problemType)
+        
+        list_Bc_Conditions = cast(list[BoundaryCondition], list_Bc_Conditions)
         
         values = []
-        for bc in list_Bc_Conditions:
-            assert isinstance(bc, BoundaryCondition)            
-            if bc.problemType == problemType:
-                values.extend(bc.valeurs_ddls)
+        [values.extend(bc.valeurs_ddls) for bc in list_Bc_Conditions if bc.problemType == problemType]
+
         return values
     
     @staticmethod
@@ -127,7 +134,7 @@ class BoundaryCondition:
         param : int
             parametre du probleme beam -> nbddl_e sinon dim
         problemType : str
-            type de probleme qui doit etre contenue dans ["damage", "displacement"]
+            type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement]
         connect_e : np.ndarray
             matrice de connectivité
         directions : list
@@ -138,30 +145,19 @@ class BoundaryCondition:
         np.ndarray
             degrés de liberté
         """
-        if problemType in ["damage","thermal"]:
+        from Simulations import ProblemType
+
+        if problemType in [ProblemType.damage,ProblemType.thermal]:
             return connect_e.reshape(-1)
-        elif problemType == "displacement":
+        elif problemType == ProblemType.displacement:
             dim = param
             indexes = {
                 "x": 0,
                 "y": 1,
                 "z": 2,
             }
-            listeIndex=[]
-            for dir in directions:
-                listeIndex.append(indexes[dir])
 
-            Ne = connect_e.shape[0]
-            nPe = connect_e.shape[1]
-
-            connect_e_repet = np.repeat(connect_e, len(directions), axis=0).reshape(-1,nPe)
-            listIndex = np.repeat(np.array(listeIndex*nPe), Ne, axis=0).reshape(-1,nPe)
-
-            ddls_dir = np.array(connect_e_repet*dim + listIndex, dtype=int)
-
-            return ddls_dir.reshape(-1)
-
-        elif problemType == "beam":
+        elif problemType == ProblemType.beam:
 
             nbddl_e = param
             dim = param
@@ -188,20 +184,19 @@ class BoundaryCondition:
                     "ry": 4,
                     "rz": 5
                 }
-            
-            listeIndex=[]
-            for dir in directions:
-                listeIndex.append(indexes[dir])
 
-            Ne = connect_e.shape[0]
-            nPe = connect_e.shape[1]
+        listeIndex = [indexes[dir] for dir in directions]
 
-            connect_e_repet = np.repeat(connect_e, len(directions), axis=0).reshape(-1,nPe)
-            listIndex = np.repeat(np.array(listeIndex*nPe), Ne, axis=0).reshape(-1,nPe)
+        Ne = connect_e.shape[0]
+        nPe = connect_e.shape[1]
 
-            ddls_dir = np.array(connect_e_repet*dim + listIndex, dtype=int)
+        connect_e_repet = np.repeat(connect_e, len(directions), axis=0).reshape(-1,nPe)
+        listIndex = np.repeat(np.array(listeIndex*nPe), Ne, axis=0).reshape(-1,nPe)
 
-            return ddls_dir.reshape(-1)
+        ddls_dir = np.array(connect_e_repet*dim + listIndex, dtype=int)
+
+        return ddls_dir.reshape(-1)
+        
     
     @staticmethod
     def Get_ddls_noeuds(param: int, problemType:str, noeuds:np.ndarray, directions: list) -> np.ndarray:
@@ -212,7 +207,7 @@ class BoundaryCondition:
         param : int
             parametre du probleme beam -> nbddl_e sinon dim
         problemType : str
-            type de probleme qui doit etre contenue dans ["damage", "displacement","thermal", "beam"]
+            type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement,ProblemType.thermal, ProblemType.beam]
         noeuds : np.ndarray
             noeuds
         directions : list
@@ -223,10 +218,11 @@ class BoundaryCondition:
         np.ndarray
             liste de ddls
         """
+        from Simulations import ProblemType
 
-        if problemType in ["damage","thermal"]:
+        if problemType in [ProblemType.damage, ProblemType.thermal]:
             return noeuds.reshape(-1)
-        elif problemType == "displacement":
+        elif problemType == ProblemType.displacement:
             ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)
             dim = param
             for d, direction in enumerate(directions):
@@ -243,7 +239,7 @@ class BoundaryCondition:
 
             return ddls_dir.reshape(-1)
 
-        elif problemType == "beam":
+        elif problemType == ProblemType.beam:
             ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)
 
             nbddl_e = param
