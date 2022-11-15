@@ -78,7 +78,7 @@ class Simu(ABC):
         """la simulation peut ecrire dans la console"""
 
         self.__iterMesh = -1
-        self.__listMesh = []
+        self.__listMesh = cast(list[Mesh], [])
         self.mesh = mesh
 
         self.materiau = materiau
@@ -110,7 +110,7 @@ class Simu(ABC):
         return self.__mesh
     
     @mesh.setter
-    def mesh(self, mesh):
+    def mesh(self, mesh: Mesh):
         """applique un nouveau maillage"""
         if isinstance(mesh, Mesh):
             # Pour tout les anciens maillage j'efface les matrices
@@ -286,42 +286,50 @@ class Simu(ABC):
 
     # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
     # Fonctions pour le renseignement des conditions limites de la simulation
+
+    @staticmethod
+    def __Bc_Init_List_BoundaryCondition() -> list[BoundaryCondition]:
+        return []
+
+    @staticmethod
+    def __Bc_Init_List_LagrangeCondition() -> list[LagrangeCondition]:
+        return []
     
     def Bc_Init(self):
         """Initie les conditions limites de dirichlet, Neumann et Lagrange"""
         # DIRICHLET
-        self.__Bc_Dirichlet = []
+        self.__Bc_Dirichlet = Simu.__Bc_Init_List_BoundaryCondition()
         """Conditions de Dirichlet list(BoundaryCondition)"""
         # NEUMANN
-        self.__Bc_Neumann = []
+        self.__Bc_Neumann = Simu.__Bc_Init_List_BoundaryCondition()
         """Conditions de Neumann list(BoundaryCondition)"""
         # LAGRANGE
-        self.__Bc_Lagrange = []
+        self.__Bc_Lagrange = Simu.__Bc_Init_List_LagrangeCondition()
         """Conditions de Lagrange list(BoundaryCondition)"""
         self.__Bc_LagrangeAffichage = []
         """Conditions de Lagrange list(BoundaryCondition)"""
 
     @property
-    def Bc_Dirichlet(self):
+    def Bc_Dirichlet(self) -> list[BoundaryCondition]:
         """Renvoie une copie des conditions de Dirichlet"""
         return self.__Bc_Dirichlet.copy()
     
     @property
-    def Bc_Neuman(self):
+    def Bc_Neuman(self) -> list[BoundaryCondition]:
         """Renvoie une copie des conditions de Neumann"""
         return self.__Bc_Neumann.copy()
 
     @property
-    def Bc_Lagrange(self):
+    def Bc_Lagrange(self) -> list[LagrangeCondition]:
         """Renvoie une copie des conditions de Lagrange"""
         return self.__Bc_Lagrange.copy()
     
     @property
-    def Bc_LagrangeAffichage(self):
+    def Bc_LagrangeAffichage(self) -> list[LagrangeCondition]:
         """Renvoie une copie des conditions de Lagrange pour l'affichage"""
         return self.__Bc_LagrangeAffichage.copy()
 
-    def Bc_ddls_Dirichlet(self, problemType: str) -> list:
+    def Bc_ddls_Dirichlet(self, problemType: str) -> list[int]:
         """Renvoie les ddls liés aux conditions de Dirichlet"""
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Dirichlet)
 
@@ -530,14 +538,15 @@ class Simu(ABC):
             Ne = elements.shape[0]
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-            coordo_e_p = groupElem.get_coordo_e_p("masse",elements)
+            matriceType = MatriceType.masse
+            coordo_e_p = groupElem.get_coordo_e_p(matriceType,elements)
             nPg = coordo_e_p.shape[1]
 
-            N_pg = groupElem.get_N_pg("masse")
+            N_pg = groupElem.get_N_pg(matriceType)
 
             # objets d'integration
-            jacobien_e_pg = groupElem.get_jacobien_e_pg("masse")[elements]
-            gauss = groupElem.get_gauss("masse")
+            jacobien_e_pg = groupElem.get_jacobien_e_pg(matriceType)[elements]
+            gauss = groupElem.get_gauss(matriceType)
             poid_pg = gauss.poids
 
             # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
@@ -1032,7 +1041,7 @@ class Simu_Displacement(Simu):
         useNumba = self.useNumba
         # useNumba = False
 
-        matriceType="rigi"
+        matriceType=MatriceType.rigi
 
         # Data
         mesh = self.mesh
@@ -1377,7 +1386,7 @@ class Simu_Displacement(Simu):
 
         sol_u  = self.__displacement
 
-        matriceType = "rigi"
+        matriceType = MatriceType.rigi
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(sol_u, matriceType)
         jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = self.mesh.Get_poid_pg(matriceType)
@@ -1401,7 +1410,7 @@ class Simu_Displacement(Simu):
         
         return Wdef
 
-    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType="rigi"):
+    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -1431,7 +1440,7 @@ class Simu_Displacement(Simu):
 
         return Epsilon_e_pg
                     
-    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType="rigi") -> np.ndarray:
+    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -1550,7 +1559,7 @@ class Simu_Damage(Simu):
         useNumba = self.useNumba
         # useNumba = False
 
-        matriceType="rigi"
+        matriceType=MatriceType.rigi
 
         # Data
         mesh = self.mesh
@@ -1681,7 +1690,7 @@ class Simu_Damage(Simu):
 
         assert testu or testd,"Problème de dimension"
 
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, "masse")
+        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, MatriceType.masse)
         # ici le therme masse est important sinon on sous intègre
 
         # Calcul l'energie
@@ -1725,7 +1734,7 @@ class Simu_Damage(Simu):
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
-        matriceType="masse"
+        matriceType=MatriceType.masse
 
         mesh = self.mesh
 
@@ -2020,7 +2029,7 @@ class Simu_Damage(Simu):
 
         sol_u  = self.__displacement
 
-        matriceType = "rigi"
+        matriceType = MatriceType.rigi
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(sol_u, matriceType)
         jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = self.mesh.Get_poid_pg(matriceType)
@@ -2053,7 +2062,7 @@ class Simu_Damage(Simu):
 
         pfm = self.materiau.phaseFieldModel 
 
-        matriceType = "masse"
+        matriceType = MatriceType.masse
 
         Gc = pfm.Gc
         l0 = pfm.l0
@@ -2089,7 +2098,7 @@ class Simu_Damage(Simu):
 
         return Psi_Crack
 
-    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType="rigi"):
+    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -2119,7 +2128,7 @@ class Simu_Damage(Simu):
 
         return Epsilon_e_pg
 
-    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType="rigi") -> np.ndarray:
+    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -2477,12 +2486,9 @@ class Simu_Beam(Simu):
                     else:
                         return resultat_e.reshape(-1)
 
-    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType="rigi"):
+    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
         """Construit les déformations pour chaque element et chaque points de gauss
         """
-
-        useNumba = self.useNumba
-        useNumba = False
         
         tic = Tic()
 
@@ -2496,7 +2502,7 @@ class Simu_Beam(Simu):
 
         return Epsilon_e_pg
 
-    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType="rigi") -> np.ndarray:
+    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations
         """
 
@@ -2562,7 +2568,7 @@ class Simu_Thermal(Simu):
         # Data
         k = thermalModel.k
 
-        matriceType="rigi"
+        matriceType=MatriceType.rigi
 
         mesh = self.mesh
 

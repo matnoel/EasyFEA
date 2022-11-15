@@ -1701,71 +1701,7 @@ class ThermalModel:
         
 
 class Materiau:
-
-    @property
-    def problemType(self) -> str:
-        return self.__problemType
-    
-    @property
-    def dim(self) -> int:
-        if self.__problemType == ProblemType.thermal:
-            return self.__thermalModel.dim
-        if self.__problemType == "beam":
-            return self.__beamModel.dim
-        else:
-            return self.comportement.dim
-
-    @property
-    def epaisseur(self) -> float:
-        if self.__problemType == ProblemType.thermal:
-            return self.thermalModel.epaisseur
-        else:
-            return self.comportement.epaisseur
-
-    @property
-    def ro(self) -> float:
-        """masse volumique"""
-        return self.__ro
-    
-    @property
-    def comportement(self) -> LoiDeComportement:
-        if self.__problemType in [ProblemType.thermal,"beam"]:
-            return None
-        else:
-            if self.isDamaged:
-                return self.__phaseFieldModel.comportement
-            else:
-                return self.__comportement
-
-    @property
-    def thermalModel(self) -> ThermalModel:
-        if self.__problemType == ProblemType.thermal:
-            return self.__thermalModel
-        else:
-            return None
-    
-    @property
-    def beamModel(self) -> BeamModel:
-        if self.__problemType == "beam":
-            return self.__beamModel
-        else:
-            return None
-    
-    @property
-    def isDamaged(self) -> bool:
-        if self.__problemType == ProblemType.damage:
-            return True
-        else:
-            return False
-    
-    @property
-    def phaseFieldModel(self) -> PhaseFieldModel:
-        """Modèle d'endommagement"""
-        if self.isDamaged:
-            return self.__phaseFieldModel
-        else:
-            # Le matériau n'est pas endommageable (pas de modèle PhaseField)
-            return None
+    """Un matériau peut contenir plusieurs physiques"""
 
     def __init__(self, model=None, ro=8100.0, verbosity=False):
         """Creer un materiau avec la loi de comportement ou le phase field model communiqué
@@ -1803,6 +1739,71 @@ class Materiau:
 
         if self.__verbosity:
             self.Resume()
+
+    @property
+    def problemType(self) -> str:
+        return self.__problemType
+    
+    @property
+    def dim(self) -> int:
+        if self.__problemType == ProblemType.thermal:
+            return self.__thermalModel.dim
+        if self.__problemType == "beam":
+            return self.__beamModel.dim
+        else:
+            return self.comportement.dim
+
+    @property
+    def epaisseur(self) -> float:
+        if self.__problemType == ProblemType.thermal:
+            return self.thermalModel.epaisseur
+        else:
+            return self.comportement.epaisseur
+
+    @property
+    def ro(self) -> float:
+        """masse volumique"""
+        return self.__ro
+    
+    @property
+    def comportement(self) -> LoiDeComportement:
+        if self.__problemType in [ProblemType.thermal, ProblemType.beam]:
+            return None
+        else:
+            if self.isDamaged:
+                return self.__phaseFieldModel.comportement
+            else:
+                return self.__comportement
+
+    @property
+    def thermalModel(self) -> ThermalModel:
+        if self.__problemType == ProblemType.thermal:
+            return self.__thermalModel
+        else:
+            return None
+    
+    @property
+    def beamModel(self) -> BeamModel:
+        if self.__problemType == "beam":
+            return self.__beamModel
+        else:
+            return None
+    
+    @property
+    def isDamaged(self) -> bool:
+        if self.__problemType == ProblemType.damage:
+            return True
+        else:
+            return False
+    
+    @property
+    def phaseFieldModel(self) -> PhaseFieldModel:
+        """Modèle d'endommagement"""
+        if self.isDamaged:
+            return self.__phaseFieldModel
+        else:
+            # Le matériau n'est pas endommageable (pas de modèle PhaseField)
+            return None
 
     def Resume(self, verbosity=True):
         resume = ""
