@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Simulations import _Simu, Create_Simu
+import Simulations
 import Materials
 from Geom import Domain, Point, Circle
 from Interface_Gmsh import Interface_Gmsh
@@ -69,7 +69,7 @@ ro = materiau.ro
 # Gt = lambda t: a0*2*((np.pi*f0*(t-t0))**2-1)*np.exp(-(np.pi*f0*(t-t0))**2)
 
 
-simu = Create_Simu(mesh, materiau, verbosity=False)
+simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
 simu.Set_Rayleigh_Damping_Coefs(0, 0)
 simu.Solveur_Newton_Raphson_Properties(betha=1/4, gamma=1/2, dt=dt)
