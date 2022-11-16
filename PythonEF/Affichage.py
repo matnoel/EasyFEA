@@ -327,9 +327,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
         Axes dans lequel on va creer la figure
     """
 
-    from Simulations import _Simu, Beam_Model, Mesh
-
-    typeobj = type(obj).__name__
+    from Simulations import _Simu, Mesh
 
     if isinstance(obj, _Simu):
         simu = obj
