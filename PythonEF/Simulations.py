@@ -101,7 +101,7 @@ class _Simu(ABC):
         """la simulation peut ecrire dans la console"""
 
         self.__problemType = materiau.modelType
-        self.__algo = "elliptic"
+        self.__algo = Interface_Solveurs.AlgoType.elliptic
 
         self.useNumba = useNumba
 
@@ -1167,14 +1167,14 @@ class __Simu_Displacement(_Simu):
         """Resolution du probleme de déplacement"""
 
         if steadyState:
-            x = self.Solveur(ModelType.displacement, "elliptic")
+            x = self.Solveur(ModelType.displacement, Interface_Solveurs.AlgoType.elliptic)
             assert x.shape[0] == self.mesh.Nn*self.dim
 
             self.__displacement = x
 
             return self.__displacement.copy()
         else:
-            x = self.Solveur(ModelType.displacement, "hyperbolic")
+            x = self.Solveur(ModelType.displacement, Interface_Solveurs.AlgoType.hyperbolic)
             assert x.shape[0] == self.mesh.Nn*self.dim
             
             # Formulation en accel
@@ -1679,7 +1679,7 @@ class __Simu_PhaseField(_Simu):
     def Solve_u(self, steadyState=True) -> np.ndarray:
         """Resolution du probleme de déplacement"""
             
-        displacement = self.Solveur(ModelType.displacement, "elliptic")
+        displacement = self.Solveur(ModelType.displacement, Interface_Solveurs.AlgoType.elliptic)
 
         # Si c'est un problement d'endommagement on renseigne au model phase field qu'il va falloir mettre à jour le split
         if self.modelType == ModelType.damage:
@@ -1845,7 +1845,7 @@ class __Simu_PhaseField(_Simu):
     def Solve_d(self) -> np.ndarray:
         """Resolution du problème d'endommagement"""
         
-        damage = self.Solveur(ModelType.damage, "elliptic")
+        damage = self.Solveur(ModelType.damage, Interface_Solveurs.AlgoType.elliptic)
 
         assert damage.shape[0] == self.mesh.Nn
 
@@ -2442,7 +2442,7 @@ class __Simu_Beam(_Simu):
     def Solve(self) -> np.ndarray:
         """Resolution du probleme poutre"""
 
-        beamDisplacement = self.Solveur(ModelType.beam, "elliptic")
+        beamDisplacement = self.Solveur(ModelType.beam, Interface_Solveurs.AlgoType.elliptic)
         
         assert beamDisplacement.shape[0] == self.mesh.Nn*self.materiau.beamModel.nbddl_n
 
@@ -2695,11 +2695,11 @@ class __Simu_Thermal(_Simu):
         """
 
         if steadyState:
-            thermal_np1 = self.Solveur(ModelType.thermal, "elliptic")
+            thermal_np1 = self.Solveur(ModelType.thermal, Interface_Solveurs.AlgoType.elliptic)
             # TODO que faire pour -> quand plusieurs types -> np.ndarray ou tuple[np.ndarray, np.ndarray] ?
         else:
 
-            thermal_np1 = self.Solveur(ModelType.thermal, "parabolic")
+            thermal_np1 = self.Solveur(ModelType.thermal, Interface_Solveurs.AlgoType.parabolic)
             thermalDot = self.thermalDot
 
             alpha = self.alpha

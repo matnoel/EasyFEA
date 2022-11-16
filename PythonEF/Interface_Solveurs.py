@@ -1,3 +1,4 @@
+from enum import Enum
 import sys
 import platform
 
@@ -38,6 +39,13 @@ try:
 except:
     # Le module n'est pas utilisable
     pass
+
+class AlgoType(str, Enum):
+    elliptic = "elliptic"
+    parabolic = "parabolic"
+    hyperbolic = "hyperbolic"
+
+
 
 def __Cast_Simu(simu):
 
@@ -84,9 +92,9 @@ def Solveur_1(simu, problemType: str) -> np.ndarray:
 
     try:
         if problemType == "displacement":
-            if algo == "elliptic":
+            if algo == AlgoType.elliptic:
                 x0 = simu.displacement[ddl_Inconnues]
-            elif algo == "hyperbolic":
+            elif algo == AlgoType.hyperbolic:
                 x0 = simu.accel[ddl_Inconnues]
             
         elif problemType == "damage":
@@ -240,16 +248,16 @@ def __Apply_Neumann(simu, problemType: str):
         
     b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille+dimSupl,1))
     
-    if problemType == "damage" and algo == "elliptic":
+    if problemType == "damage" and algo == AlgoType.elliptic:
         b = b + simu.Fd
 
-    elif problemType == "displacement" and algo == "elliptic":
+    elif problemType == "displacement" and algo == AlgoType.elliptic:
         b = b + simu.Fu
 
-    elif problemType == "beam" and algo == "elliptic":
+    elif problemType == "beam" and algo == AlgoType.elliptic:
         b = b + simu.Fbeam
 
-    elif problemType == "displacement" and algo == "hyperbolic":
+    elif problemType == "displacement" and algo == AlgoType.hyperbolic:
         b = b + simu.Fu
 
         u_n = simu.displacement
@@ -287,10 +295,10 @@ def __Apply_Neumann(simu, problemType: str):
         b = sparse.csr_matrix(b)
 
 
-    elif problemType == "thermal" and algo == "elliptic":
+    elif problemType == "thermal" and algo == AlgoType.elliptic:
         b = b + simu.Ft.copy()
 
-    elif problemType == "thermal" and algo == "parabolic":
+    elif problemType == "thermal" and algo == AlgoType.parabolic:
         b = b + simu.Ft.copy()
 
         thermal = simu.thermal
@@ -329,18 +337,18 @@ def __Apply_Dirichlet(simu, problemType: str, b: sparse.csr_matrix, resolution: 
 
     taille = simu.mesh.Nn
 
-    if problemType == "damage" and algo == "elliptic":
+    if problemType == "damage" and algo == AlgoType.elliptic:
         A = simu.Kd
 
-    elif problemType == "displacement" and algo == "elliptic":
+    elif problemType == "displacement" and algo == AlgoType.elliptic:
         taille *= simu.dim
         A = simu.Ku
 
-    elif problemType == "beam" and algo == "elliptic":
+    elif problemType == "beam" and algo == AlgoType.elliptic:
         taille *= simu.materiau.beamModel.nbddl_n
         A = simu.Kbeam
 
-    elif problemType == "displacement" and algo == "hyperbolic":
+    elif problemType == "displacement" and algo == AlgoType.hyperbolic:
         taille *= simu.dim
 
         dt = simu.dt
@@ -357,10 +365,10 @@ def __Apply_Dirichlet(simu, problemType: str, b: sparse.csr_matrix, resolution: 
         valeurs_ddls = a_n[ddls]
                 
             
-    elif problemType == "thermal" and algo == "elliptic":
+    elif problemType == "thermal" and algo == AlgoType.elliptic:
         A = simu.Kt
 
-    elif problemType == "thermal" and algo == "parabolic":        
+    elif problemType == "thermal" and algo == AlgoType.parabolic:        
         
         alpha = simu.alpha
         dt = simu.dt
