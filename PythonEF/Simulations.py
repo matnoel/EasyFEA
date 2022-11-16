@@ -116,7 +116,7 @@ class _Simu(ABC):
         return self.materiau.modelType
 
     @property
-    def algo(self) -> str:
+    def algo(self) -> Interface_Solveurs.AlgoType:
         """algorithme utilisé lors de la résolution"""
         return self.__algo
     
@@ -238,7 +238,7 @@ class _Simu(ABC):
     # ------------------------------------------------- SOLVEUR -------------------------------------------------
     # Fonctions pour l'interface avec le solveur
         
-    def Solveur(self, problemType: str, algo: str) -> np.ndarray:
+    def Solveur(self, problemType: str, algo: Interface_Solveurs.AlgoType) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
