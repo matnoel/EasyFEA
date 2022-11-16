@@ -66,10 +66,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     except:
         inDim = mesh.groupElem.inDim
 
-    if simu.modelType == "beam" and simu.materiau.beamModel.dim == 3:
-        isBeamModel3D = True
-    else:
-        isBeamModel3D = False
+    isBeamModel3D = simu.is3dBeamModel
 
     # Construction de la figure et de l'axe si nécessaire
     if ax == None:
@@ -89,7 +86,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         # Pour prendre moin de place
         # En plus, il faut tracer la solution que sur les eléments 2D
 
-    if simu.modelType == "beam":
+    if simu.problemType == "beam":
         # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
         valeursAuxNoeuds = False
     

@@ -315,7 +315,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simulations._Simu, Niter=200)
     listTemps = []
     tic = Tic()
 
-    problemType = simu.modelType
+    problemType = simu.problemType
     
     if problemType == "thermal":
         nodesField = ["thermal", "thermalDot"] # "thermalDot"

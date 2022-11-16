@@ -75,7 +75,7 @@ class BoundaryCondition:
 
         Parameters
         ----------
-        problemType : str
+        problemType : ModelType
             type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement]
         list_Bc_Conditions : list de BoundaryCondition
             liste de conditions limites
@@ -103,7 +103,7 @@ class BoundaryCondition:
 
         Parameters
         ----------
-        problemType : str
+        problemType : ModelType
             type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement]
         list_Bc_Conditions : list de BoundaryCondition
             liste de conditions limites
@@ -133,7 +133,7 @@ class BoundaryCondition:
         ----------
         param : int
             parametre du probleme beam -> nbddl_e sinon dim
-        problemType : str
+        problemType : ModelType
             type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement]
         connect_e : np.ndarray
             matrice de connectivité
@@ -206,7 +206,7 @@ class BoundaryCondition:
         ----------
         param : int
             parametre du probleme beam -> nbddl_e sinon dim
-        problemType : str
+        problemType : ModelType
             type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement,ProblemType.thermal, ProblemType.beam]
         noeuds : np.ndarray
             noeuds

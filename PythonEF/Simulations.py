@@ -99,8 +99,7 @@ class _Simu(ABC):
         """dimension de la simulation 2D ou 3D"""
         self._verbosity = verbosity
         """la simulation peut ecrire dans la console"""
-
-        self.__problemType = materiau.modelType
+        
         self.__algo = Interface_Solveurs.AlgoType.elliptic
 
         self.useNumba = useNumba
@@ -111,7 +110,7 @@ class _Simu(ABC):
     # TODO Permettre de creer des simulation depuis le formulation variationnelle ?
 
     @property
-    def modelType(self) -> str:
+    def problemType(self) -> ModelType:
         """problème de la simulation"""
         return self.materiau.modelType
 
@@ -242,6 +241,7 @@ class _Simu(ABC):
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
+        # ici il faut specifier le type de probleme car une simulation peut posséder plusieurs Modèle physique
 
         resolution = 1
 
@@ -738,7 +738,7 @@ class _Simu(ABC):
             print("La simulation n'est pas un probleme poutre")
             return
 
-        problemType = self.__problemType
+        problemType = self.problemType
         beamModel = self.materiau.beamModel
         nbddl = beamModel.nbddl_n
 
@@ -891,9 +891,9 @@ class _Simu(ABC):
         """
         # Construit la liste d'otions pour les résultats en 2D ou 3D
         
-        listOptions = self.__Resultats_Options(self.dim, self.modelType)
+        listOptions = self.__Resultats_Options(self.dim, self.problemType)
         if option not in listOptions:
-            print(f"\nPour un probleme ({self.__problemType}) l'option doit etre dans : \n {listOptions}")
+            print(f"\nPour un probleme ({self.problemType}) l'option doit etre dans : \n {listOptions}")
             return False
         else:
             return True
@@ -956,7 +956,7 @@ class _Simu(ABC):
 
         Nn = self.__mesh.Nn
         dim = self.__dim
-        problemType = self.__problemType
+        problemType = self.problemType
 
         if problemType in [ModelType.displacement,ModelType.beam,ModelType.damage]:
 
@@ -1036,7 +1036,7 @@ class __Simu_Displacement(_Simu):
     # @property
     # def accel(self) -> np.ndarray:
     #     """Copie du champ vectoriel d'accéleration"""
-    #     if self.__problemType in [ProblemType.displacement, ProblemType.damage] and self.materiau.ro:
+    #     if self.problemType in [ProblemType.displacement, ProblemType.damage] and self.materiau.ro:
     #         return self.accel.copy()
     #     else:
     #         return None
@@ -1154,7 +1154,7 @@ class __Simu_Displacement(_Simu):
         self.__coefK = coefK
 
     def Get_Rayleigh_Damping(self) -> sparse.csr_matrix:
-        if self.modelType == ModelType.displacement:
+        if self.problemType == ModelType.displacement:
             try:
                 return self.__coefM * self.__Mu + self.__coefK * self.__Ku
             except:
@@ -1358,7 +1358,7 @@ class __Simu_Displacement(_Simu):
 
             resultat_ddl = resultat_ddl.reshape(Nn, -1)
 
-            index = _Simu.Resultats_indexe_option(self.dim, self.modelType, option)
+            index = _Simu.Resultats_indexe_option(self.dim, self.problemType, option)
             
             if valeursAuxNoeuds:
 
@@ -1682,7 +1682,7 @@ class __Simu_PhaseField(_Simu):
         displacement = self.Solveur(ModelType.displacement, Interface_Solveurs.AlgoType.elliptic)
 
         # Si c'est un problement d'endommagement on renseigne au model phase field qu'il va falloir mettre à jour le split
-        if self.modelType == ModelType.damage:
+        if self.problemType == ModelType.damage:
             self.materiau.phaseFieldModel.Need_Split_Update()
         
         assert displacement.shape[0] == self.mesh.Nn*self.dim
@@ -2014,7 +2014,7 @@ class __Simu_PhaseField(_Simu):
 
             resultat_ddl = resultat_ddl.reshape(Nn, -1)
 
-            index = _Simu.Resultats_indexe_option(self.dim, self.modelType, option)
+            index = _Simu.Resultats_indexe_option(self.dim, self.problemType, option)
             
             if valeursAuxNoeuds:
 
@@ -2483,7 +2483,7 @@ class __Simu_Beam(_Simu):
 
             force = np.array(self.__Kbeam.dot(self.__beamDisplacement))
             force_redim = force.reshape(self.mesh.Nn, -1)
-            index = _Simu.Resultats_indexe_option(self.dim, self.modelType, option)
+            index = _Simu.Resultats_indexe_option(self.dim, self.problemType, option)
             resultat_ddl = force_redim[:, index]
 
         else:
@@ -2491,7 +2491,7 @@ class __Simu_Beam(_Simu):
             resultat_ddl = self.beamDisplacement
             resultat_ddl = resultat_ddl.reshape((self.mesh.Nn,-1))
 
-        index = _Simu.Resultats_indexe_option(self.dim, self.modelType, option)
+        index = _Simu.Resultats_indexe_option(self.dim, self.problemType, option)
 
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
