@@ -4,9 +4,9 @@ from typing import cast
 from Geom import Domain, Point
 from Mesh import Mesh
 from GroupElem import GroupElem
-from Materials import Elas_Isot, Materiau
+import Materials
 from Interface_Gmsh import Interface_Gmsh
-from Simulations import Simu_Displacement
+import Simulations
 import Affichage as Affichage
 from TicTac import Tic
 import Dossier as Dossier
@@ -36,12 +36,12 @@ P = 800 #N
 # Paramètres maillage
 E=210000
 v=0.25
-comportement = Elas_Isot(dim, epaisseur=b, E=E, v=v, contraintesPlanes=True)
+comportement = Materials.Elas_Isot(dim, epaisseur=b, E=E, v=v, contraintesPlanes=True)
 
 WdefRef = 2*P**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5)
 
 # Materiau
-materiau = Materiau(comportement)
+materiau = Materials.Create_Materiau(comportement)
 
 print()
 
@@ -87,7 +87,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
         # Construit la simulation
-        simu = Simu_Displacement(mesh, materiau, verbosity=False, useNumba=False)
+        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=False)
 
         # Renseigne les condtions limites en deplacement
         simu.add_dirichlet("displacement", noeuds_en_0, [0,0], ["x","y"])

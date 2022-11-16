@@ -1,9 +1,11 @@
+import matplotlib.pyplot as plt
+
 from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Affichage
 import Simulations
-import matplotlib.pyplot as plt
-from Materials import Materiau, Elas_Isot
+from Mesh import ElemType
+import Materials
 import Dossier
 
 option = 2
@@ -15,7 +17,6 @@ dictOptions = {
     2 : "EQU",
     3 : "TEF2"
 }
-
 
 interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
@@ -55,10 +56,10 @@ elif option ==  2:
     listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, taille=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType="QUAD8", geomObjectsInDomain=listObjetsInter, tailleElement=h/N)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD8, geomObjectsInDomain=listObjetsInter, tailleElement=h/N)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType="HEXA8", interieursList=listObjetsInter, tailleElement=h/N)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, interieursList=listObjetsInter, tailleElement=h/N)
 
 
         noeudsS3 = mesh.Nodes_Tag(["S9","S15","S14","S21"])
@@ -90,10 +91,10 @@ elif option == 3:
     listPoint = [pt1, pt2, pt3]
     
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType="TRI3",geomObjectsInDomain=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI3, geomObjectsInDomain=[], tailleElement=taille)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType="TETRA4", interieursList=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.PRISM6, interieursList=[], tailleElement=taille)
 
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
@@ -102,11 +103,11 @@ Affichage.Plot_Maillage(mesh)
 Affichage.Plot_Model(mesh, showId=False)
 # plt.show()
 
-comportement = Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
+comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
 
-materiau = Materiau(comportement)
+materiau = Materials.Create_Materiau(comportement)
 
-simu = Simulations.Simu_Displacement(mesh, materiau)
+simu = Simulations.Create_Simu(mesh, materiau)
 
 if option == 1:
     simu.add_dirichlet("displacement", mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])

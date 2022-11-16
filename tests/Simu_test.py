@@ -1,5 +1,5 @@
 import unittest
-from Materials import Poutre_Elas_Isot, Materiau, Elas_Isot, ThermalModel, BeamModel
+import Materials
 from Geom import Domain, Circle, Point, Section, Line
 import numpy as np
 import Affichage as Affichage
@@ -70,7 +70,7 @@ class Test_Simu(unittest.TestCase):
                 point1 = Point()
                 point2 = Point(x=L)
                 line = Line(point1, point2, L/nL)
-                poutre = Poutre_Elas_Isot(line, section, E, v)
+                poutre = Materials.Poutre_Elas_Isot(line, section, E, v)
                 listePoutre = [poutre]
 
             elif problem in ["Flexion","BiEnca"]:
@@ -80,20 +80,20 @@ class Test_Simu(unittest.TestCase):
                 point3 = Point(x=L)
                 
                 line = Line(point1, point3, L/nL)
-                poutre = Poutre_Elas_Isot(line, section, E, v)
+                poutre = Materials.Poutre_Elas_Isot(line, section, E, v)
                 listePoutre = [poutre]
 
             mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemType)
 
             # Modele poutre
 
-            beamModel = BeamModel(dim=beamDim, listePoutres=listePoutre)
+            beamModel = Materials.Beam_Model(dim=beamDim, listePoutres=listePoutre)
 
-            materiau = Materiau(beamModel, verbosity=False)
+            materiau = Materials.Create_Materiau(beamModel, verbosity=False)
 
             # Simulation
 
-            simu = Simulations.Simu_Beam(mesh, materiau, verbosity=False)
+            simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
             # Conditions
 
@@ -205,11 +205,11 @@ class Test_Simu(unittest.TestCase):
 
             dim = mesh.dim
 
-            comportement = Elas_Isot(dim, epaisseur=b)
+            comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
-            materiau = Materiau(comportement, verbosity=False)
+            materiau = Materials.Create_Materiau(comportement, verbosity=False)
             
-            simu = Simulations.Simu_Displacement(mesh, materiau, verbosity=False)
+            simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
             simu.Assemblage()
 
@@ -256,11 +256,11 @@ class Test_Simu(unittest.TestCase):
 
             dim = mesh.dim
 
-            thermalModel = ThermalModel(dim=dim, k=1, c=1, epaisseur=a)
+            thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=a)
 
-            materiau = Materiau(thermalModel, verbosity=False)
+            materiau = Materials.Create_Materiau(thermalModel, verbosity=False)
 
-            simu = Simulations.Simu_Thermal(mesh , materiau, False)
+            simu = Simulations.Create_Simu(mesh , materiau, False)
 
             noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
@@ -278,7 +278,7 @@ class Test_Simu(unittest.TestCase):
 
     # ------------------------------------------- Vérifications ------------------------------------------- 
 
-    def __VerificationConstructionKe(self, simu: Simulations.Simu, Ke_e, d=[]):
+    def __VerificationConstructionKe(self, simu: Simulations._Simu, Ke_e, d=[]):
             """Ici on verifie quon obtient le meme resultat quavant verification vectorisation
 
             Parameters

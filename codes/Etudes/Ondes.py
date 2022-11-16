@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Simulations import Simu, Create_Simu
+from Simulations import _Simu, Create_Simu
 import Materials
 from Geom import Domain, Point, Circle
 from Interface_Gmsh import Interface_Gmsh
@@ -53,7 +53,7 @@ noeudCentreCercle = mesh.Nodes_Tag(["P9"])
 
 comportement = Materials.Elas_Isot(2, E=210000e6, v=0.3, contraintesPlanes=False, epaisseur=1)
 
-materiau = Materials.Materiau(comportement, ro=8100)
+materiau = Materials.Create_Materiau(comportement, ro=8100)
 
 l = comportement.get_lambda()
 mu = comportement.get_mu()
@@ -72,7 +72,7 @@ ro = materiau.ro
 simu = Create_Simu(mesh, materiau, verbosity=False)
 
 simu.Set_Rayleigh_Damping_Coefs(0, 0)
-simu.Set_Newton_Raphson(betha=1/4, gamma=1/2, dt=dt)
+simu.Solveur_Newton_Raphson_Properties(betha=1/4, gamma=1/2, dt=dt)
 
 t=0
 

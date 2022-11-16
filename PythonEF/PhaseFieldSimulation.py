@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 from colorama import Fore
 
 from TicTac import Tic
-from Simulations import Simu
+from Simulations import _Simu
 import numpy as np
 import scipy.sparse as sp
 import Dossier
 import Materials
 
-def ResolutionIteration(simu: Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int, float, float]:
+def ResolutionIteration(simu: _Simu, tolConv=1, maxIter=200) -> tuple[np.ndarray, np.ndarray, sp.csr_matrix, int, float, float]:
     """Calcul l'itération d'un probleme d'endommagement de façon étagée
 
     Parameters
@@ -99,7 +99,7 @@ class listTemps:
 
 listTmps = listTemps()
 resumeIter = ""
-def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, nombreIter: int, dincMax: float, temps: float, uniteDep="m", pourcentage=0, remove=False):
+def ResumeIteration(simu: _Simu, resol: int, dep: float, d: np.ndarray, nombreIter: int, dincMax: float, temps: float, uniteDep="m", pourcentage=0, remove=False):
     min_d = d.min()
     max_d = d.max()
     resumeIter = f"{resol:4} : ud = {np.round(dep,3)} {uniteDep},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
@@ -127,7 +127,7 @@ def ResumeIteration(simu: Simu, resol: int, dep: float, d: np.ndarray, nombreIte
 
     simu.resumeIter = resumeIter
 
-def ResumeChargement(simu: Simu, umax: float, listInc: list, listTreshold: list, option='damage'):
+def ResumeChargement(simu: _Simu, umax: float, listInc: list, listTreshold: list, option='damage'):
     listOption = ["damage", "displacement"]
     assert option in listOption, f"option doit etre dans {listOption}"
     assert len(listInc) == len(listTreshold), "Doit etre de la meme dimension"
@@ -154,7 +154,7 @@ def ConstruitDossier(dossierSource: str, comp: str, split: str, regu: str, simpl
     if optimMesh:
         nom += '_optimMesh'
 
-    assert solveur in Materials.PhaseFieldModel.get_solveurs()
+    assert solveur in Materials.PhaseField_Model.get_solveurs()
     if solveur != "History":
         nom += '_' + solveur
 

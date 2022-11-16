@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import List
 from enum import Enum
 from TicTac import Tic
@@ -10,7 +11,93 @@ from Geom import Line, Section
 
 from scipy.linalg import sqrtm
 
-class LoiDeComportement(object):
+class ModelType(str, Enum):
+    """Modèles physiques"""
+
+    displacement = "displacement"
+    damage = "damage"
+    thermal = "thermal"
+    beam = "beam"
+
+class IModel(ABC):
+    """Interface d'une modèle
+    @abstractmethod
+    def modelType(self) -> ModelType:
+
+    @abstractmethod
+    def dim(self) -> int:
+
+    @abstractmethod
+    def epaisseur(self) -> float:
+
+    @abstractmethod
+    def resume(self) -> str:"""
+
+    @property
+    @abstractmethod
+    def modelType(self) -> ModelType:
+        """Identifiant du modèle"""
+        pass
+    
+    @property
+    @abstractmethod
+    def dim(self) -> int:
+        """dimension du modèle"""
+        pass
+    
+    @property
+    @abstractmethod
+    def epaisseur(self) -> float:
+        """epaisseur à utiliser dans le modèle"""
+        pass
+
+    @property
+    @abstractmethod
+    def resume(self) -> str:
+        """résumé du modèle pour l'affichage"""
+        pass
+
+    @property
+    def nom(self) -> str:
+        """nom du modèle pour l'affichage"""
+        return type(self).__name__
+
+    @property
+    def useNumba(self) -> bool:
+        """Renvoie si le modèle peut utiliser les fonctions numba"""
+        return self.__useNumba
+
+    @useNumba.setter
+    def useNumba(self, value: bool):
+        self.__useNumba = value
+
+class Displacement_Model(IModel):
+
+    __modelType = ModelType.displacement
+
+    # Interface
+
+    @property
+    def modelType(self) -> ModelType:
+        return Displacement_Model.__modelType
+
+    @property
+    def dim(self) -> int:
+        return self.__dim
+
+    @property
+    def epaisseur(self) -> float:
+        if self.__dim == 2:
+            return self.__epaisseur
+        else:
+            return 1.0
+    
+    @property
+    @abstractmethod
+    def resume(self) -> str:
+        pass
+
+    # Model
 
     @staticmethod
     def get_LoisDeComportement():
@@ -107,8 +194,7 @@ class LoiDeComportement(object):
     @property
     def coef(self) -> float:
         """Coef lié à la notation de kelvin mandel=racine(2)"""
-        return np.sqrt(2)
-    
+        return np.sqrt(2)    
 
     def get_C(self):
         """Renvoie une copie de la loi de comportement pour la loi de Lamé en Kelvin Mandel\n
@@ -131,25 +217,6 @@ class LoiDeComportement(object):
         S -> S : Sigma = Epsilon [Exx, Eyy, Ezz, racine(2)*Eyz, racine(2)*Exz, racine(2)*Exy]
         """
         return self.__S.copy()
-
-    @property
-    def dim(self) -> int:
-        return self.__dim
-
-    @property
-    def epaisseur(self) -> float:
-        if self.__dim == 2:
-            return self.__epaisseur
-        else:
-            return 1.0
-
-    @property
-    def nom(self) -> str:
-        return type(self).__name__
-
-    @property
-    def resume(self) -> str:
-        return ""
 
     @staticmethod
     def AppliqueCoefSurBrigi(dim: int, B_rigi_e_pg: np.ndarray):
@@ -220,7 +287,15 @@ class LoiDeComportement(object):
         
         return matrice_P
 
-class Elas_Isot(LoiDeComportement):   
+class Elas_Isot(Displacement_Model):
+
+    @property
+    def resume(self) -> str:
+        resume = f"\n{self.nom} :"
+        resume += f"\nE = {self.E:.2e}, v = {self.v}"
+        if self.dim == 2:
+            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
+        return resume
 
     def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0):
         """Creer la matrice de comportement d'un matériau : Elastique isotrope
@@ -256,16 +331,7 @@ class Elas_Isot(LoiDeComportement):
 
         C, S = self.__Comportement()
 
-        LoiDeComportement.__init__(self, dim, C, S, epaisseur)
-
-    @property
-    def resume(self) -> str:
-        resume = f"\nElas_Isot :"
-        resume += f"\nE = {self.E:.2e}, v = {self.v}"
-        if self.__dim == 2:
-            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
-        return resume
-    
+        Displacement_Model.__init__(self, dim, C, S, epaisseur)
 
     def get_lambda(self):
 
@@ -362,204 +428,13 @@ class Elas_Isot(LoiDeComportement):
                                 [0, 0, 0, 0, mu, 0],
                                 [0, 0, 0, 0, 0, mu]])
         
-        c = LoiDeComportement.ApplyKelvinMandelCoefTo_Matrice(dim, cVoigt)
+        c = Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(dim, cVoigt)
 
         s = np.linalg.inv(c)
 
         return c, s
 
-class Poutre_Elas_Isot():
-
-    # Nombre de poutres crées
-    __nbPoutre=0
-
-    def __init__(self, line: Line, section: Section, E: float, v:float):
-        """Construction d'une poutre élastique isotrope
-
-        Parameters
-        ----------
-        line : Line
-            Ligne de la fibre moyenne
-        section : Section
-            Section de la poutre
-        E : float
-            module elastique
-        v : float
-            coef de poisson
-        """
-
-        self.__line = line
-
-        self.__section = section
-
-        assert E > 0.0, "Le module élastique doit être > 0 !"
-        self.__E=E
-
-        poisson = "Le coef de poisson doit être compris entre ]-1;0.5["
-        assert v > -1.0 and v < 0.5, poisson
-        self.__v=v
-
-        # Verifie si la section est symétrique Iyz = 0
-        Iyz = section.Iyz 
-        assert Iyz <=  1e-12, "La section doit être symétrique"
-
-        Poutre_Elas_Isot.__nbPoutre += 1
-        self.__name = f"Poutre{Poutre_Elas_Isot.__nbPoutre}"
-
-    @property
-    def line(self) -> Line:
-        """Ligne fibre moyenne de la poutre"""
-        return self.__line
-
-    @property
-    def section(self) -> Section:
-        """Section de la poutre"""
-        return self.__section
-
-    @property
-    def name(self) -> str:
-        """Identifiant de la poutre"""
-        return self.__name
-
-    @property
-    def E(self) -> float:
-        """Le module élastique"""
-        return self.__E
-
-    @property
-    def v(self) -> float:
-        """Coef de poisson"""
-        return self.__v
-
-    @property
-    def resume(self) -> str:
-        resume = ""
-
-        resume += f"\n{self.__name} :"
-        resume += f"\n  S = {self.__section.aire:.2}, Iz = {self.__section.aire:.2}, Iy = {self.__section.aire:.2}, J = {self.__section.J:.2}"
-
-        return resume
-
-class BeamModel():   
-
-    def __init__(self, dim: int, listePoutres: List[Poutre_Elas_Isot]):
-        """Creation du model poutre
-
-        Parameters
-        ----------
-        dim : int
-            dimension utilisée [1,2,3]
-        E : float, optional
-            Module d'elasticité du matériau en MPa (> 0)
-        v : float, optional
-            Coef de poisson ]-1;0.5]
-        """
-        
-        self.__dim = dim
-        self.__listePoutres = listePoutres
-        self.__list_D = []
-
-        list_E = self.liste_E
-        list_v = self.liste_v
-
-        for poutre, E, v in zip(listePoutres, list_E, list_v):
-
-            assert isinstance(poutre, Poutre_Elas_Isot)
-            A = poutre.section.aire
-        
-            if dim == 1:
-                # u = [u1, . . . , un]
-                D = np.diag([E*A])
-            elif dim == 2:
-                # u = [u1, v1, rz1, . . . , un, vn, rzn]
-                Iz = poutre.section.Iz
-                D = np.diag([E*A, E*Iz])
-            elif dim == 3:
-                # u = [u1, v1, w1, rx1, ry1 rz1, . . . , un, vn, wn, rxn, ryn rzn]
-                Iy = poutre.section.Iy
-                Iz = poutre.section.Iz
-                J = poutre.section.J
-                mu = E/(2*(1+v))
-                D = np.diag([E*A, mu*J, E*Iy, E*Iz])
-            
-            self.__list_D.append(D)
-
-    def Calc_D_e_pg(self, groupElem: GroupElem, matriceType: str):
-        # Construction de D_e_pg: 
-        listePoutres = self.__listePoutres
-        list_D = self.__list_D
-        # Pour chaque poutre, on va construire la loi de comportement
-        Ne = groupElem.Ne
-        nPg = groupElem.get_gauss(matriceType).nPg
-        D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))
-        for poutre, D in zip(listePoutres, list_D):
-            # recupère les element
-            elements = groupElem.Get_Elements_Tag(poutre.name)
-            D_e_pg[elements] = D
-
-        return D_e_pg
-
-    @property
-    def dim(self) -> int:
-        """Dimension du model \n
-        1D -> traction compression \n 
-        2D -> traction compression + fleche + flexion \n
-        3D -> tout \n"""
-        return self.__dim
-
-    @property
-    def nbddl_n(self) -> int:
-        """Nombdre de ddl par noeud
-        1D -> [u1, . . ., un]\n
-        2D -> [u1, v1, rz1, . . ., un, vn, rzn]\n
-        3D -> [u1, v1, w1, rx1, ry1, rz1, . . ., u2, v2, w2, rx2, ry2, rz2]"""
-        if self.__dim == 1:
-            return 1 # u
-        elif self.__dim == 2:
-            return 3 # u v rz
-        elif self.__dim == 3:
-            return 6 # u v w rx ry rz
-        return self.__dim
-    
-    @property
-    def listePoutres(self) -> List[Poutre_Elas_Isot]:
-        """Liste des poutres"""
-        return self.__listePoutres
-
-    @property
-    def nbPoutres(self) -> int:
-        """Nombre de poutre"""
-        return len(self.__listePoutres)
-
-    @property
-    def liste_E(self) -> List[float]:
-        """Liste des modules élastiques"""
-        return [poutre.E for poutre in self.__listePoutres]
-
-    @property
-    def liste_v(self) -> List[float]:
-        """Liste des coef de poisson"""
-        return [poutre.v for poutre in self.__listePoutres]
-
-    @property
-    def list_D(self) -> List[np.ndarray]:
-        """liste de loi de comportement"""
-        return self.__list_D
-
-    @property
-    def resume(self) -> str:
-        resume = f"\nModel poutre:"
-        resume += f"\nNombre de Poutre = {self.nbPoutres} :\n"
-        # Réalise un résumé pour chaque poutre
-        for poutre, E, v in zip(self.__listePoutres, self.liste_E, self.liste_v):
-            resume += poutre.resume
-            if isinstance(E, int):
-                resume += f"\n\tE = {E:6}, v = {v}"
-            else:
-                resume += f"\n\tE = {E:6.2}, v = {v}"
-        return resume
-
-class Elas_IsotTrans(LoiDeComportement):
+class Elas_IsotTrans(Displacement_Model):
 
     def __init__(self, dim: int, El: float, Et: float, Gl: float, vl: float, vt: float, axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]), contraintesPlanes=True, epaisseur=1.0):
 
@@ -605,7 +480,7 @@ class Elas_IsotTrans(LoiDeComportement):
 
         C, S = self.__Comportement(P, useSameAxis)
 
-        LoiDeComportement.__init__(self, dim, C, S, epaisseur)
+        Displacement_Model.__init__(self, dim, C, S, epaisseur)
 
     @property
     def Gt(self) -> float:
@@ -718,7 +593,18 @@ class Elas_IsotTrans(LoiDeComportement):
         
         return c, s
 
-class Elas_Anisot(LoiDeComportement):   
+
+
+class Elas_Anisot(Displacement_Model):
+
+    @property
+    def resume(self) -> str:
+        resume = f"\n{self.nom}) :"
+        resume += f"\n{self.get_C()}"
+        resume += f"\naxi1 = {self.__axis1},  axi2 = {self.__axis2}"
+        if self.__dim == 2:
+            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"
+        return resume
 
     def __init__(self, dim: int, C_voigt: np.ndarray, axis1:np.ndarray, axis2=None, contraintesPlanes=True, epaisseur=1.0):
         """Création d'une loi de comportement elastique anisotrope
@@ -810,19 +696,241 @@ class Elas_Anisot(LoiDeComportement):
             self.contraintesPlanes = contraintesPlanes
             """type de simplification 2D"""
 
-        LoiDeComportement.__init__(self, dim, C_mandelP, S_mandelP, epaisseur)
+        Displacement_Model.__init__(self, dim, C_mandelP, S_mandelP, epaisseur)
+
+class Poutre_Elas_Isot():
 
     @property
     def resume(self) -> str:
-        resume = f"\nElas_Anisot :"
-        resume += f"\n{self.get_C()}"
-        resume += f"\naxi1 = {self.__axis1},  axi2 = {self.__axis2}"
-        if self.__dim == 2:
-            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"
+        resume = ""
+
+        resume += f"\n{self.__name} :"
+        resume += f"\n  S = {self.__section.aire:.2}, Iz = {self.__section.aire:.2}, Iy = {self.__section.aire:.2}, J = {self.__section.J:.2}"
+
         return resume
 
+    # Nombre de poutres crées
+    __nbPoutre=0
 
-class PhaseFieldModel:
+    def __init__(self, line: Line, section: Section, E: float, v:float):
+        """Construction d'une poutre élastique isotrope
+
+        Parameters
+        ----------
+        line : Line
+            Ligne de la fibre moyenne
+        section : Section
+            Section de la poutre
+        E : float
+            module elastique
+        v : float
+            coef de poisson
+        """
+
+        self.__line = line
+
+        self.__section = section
+
+        assert E > 0.0, "Le module élastique doit être > 0 !"
+        self.__E=E
+
+        poisson = "Le coef de poisson doit être compris entre ]-1;0.5["
+        assert v > -1.0 and v < 0.5, poisson
+        self.__v=v
+
+        # Verifie si la section est symétrique Iyz = 0
+        Iyz = section.Iyz 
+        assert Iyz <=  1e-12, "La section doit être symétrique"
+
+        Poutre_Elas_Isot.__nbPoutre += 1
+        self.__name = f"Poutre{Poutre_Elas_Isot.__nbPoutre}"
+
+    @property
+    def line(self) -> Line:
+        """Ligne fibre moyenne de la poutre"""
+        return self.__line
+
+    @property
+    def section(self) -> Section:
+        """Section de la poutre"""
+        return self.__section
+
+    @property
+    def name(self) -> str:
+        """Identifiant de la poutre"""
+        return self.__name
+
+    @property
+    def E(self) -> float:
+        """Le module élastique"""
+        return self.__E
+
+    @property
+    def v(self) -> float:
+        """Coef de poisson"""
+        return self.__v    
+
+class Beam_Model(IModel):
+
+    __modelType = ModelType.beam
+
+    @property
+    def modelType(self) -> ModelType:
+        return Beam_Model.__modelType
+
+    @property
+    def dim(self) -> int:
+        """Dimension du model \n
+        1D -> traction compression \n 
+        2D -> traction compression + fleche + flexion \n
+        3D -> tout \n"""
+        return self.__dim
+    
+    @property
+    def epaisseur(self) -> float:
+        """Le modèle poutre peut posséder plusieurs poutres et donc des sections différentes\n
+        Il faut regarder dans la section de la poutre qui nous intéresse"""
+        return None
+
+    @property
+    def resume(self) -> str:
+        resume = f"\n{self.nom} :"
+        resume += f"\nNombre de Poutre = {self.nbPoutres} :\n"
+        # Réalise un résumé pour chaque poutre
+        
+        def __resumePoutreElast(resume: str, poutre: Poutre_Elas_Isot, E: float, v: float):
+            resume += poutre.resume
+            if isinstance(E, int):
+                resume += f"\n\tE = {E:6}, v = {v}"
+            else:
+                resume += f"\n\tE = {E:6.2}, v = {v}"
+
+        [__resumePoutreElast(resume, poutre, E, v) for poutre, E, v in zip(self.__listePoutres, self.liste_E, self.liste_v)]
+            
+        return resume
+
+    def __init__(self, dim: int, listePoutres: list[Poutre_Elas_Isot]):
+        """Creation du model poutre
+
+        Parameters
+        ----------
+        dim : int
+            dimension utilisée [1,2,3]
+        E : float, optional
+            Module d'elasticité du matériau en MPa (> 0)
+        v : float, optional
+            Coef de poisson ]-1;0.5]
+        """
+        
+        self.__dim = dim
+        self.__listePoutres = listePoutres
+        self.__list_D = []
+
+        list_E = self.liste_E
+        list_v = self.liste_v
+
+        for poutre, E, v in zip(listePoutres, list_E, list_v):
+            
+            A = poutre.section.aire
+        
+            if dim == 1:
+                # u = [u1, . . . , un]
+                D = np.diag([E*A])
+            elif dim == 2:
+                # u = [u1, v1, rz1, . . . , un, vn, rzn]
+                Iz = poutre.section.Iz
+                D = np.diag([E*A, E*Iz])
+            elif dim == 3:
+                # u = [u1, v1, w1, rx1, ry1 rz1, . . . , un, vn, wn, rxn, ryn rzn]
+                Iy = poutre.section.Iy
+                Iz = poutre.section.Iz
+                J = poutre.section.J
+                mu = E/(2*(1+v))
+                D = np.diag([E*A, mu*J, E*Iy, E*Iz])
+            
+            self.__list_D.append(D)
+
+    def Calc_D_e_pg(self, groupElem: GroupElem, matriceType: str):
+        # Construction de D_e_pg: 
+        listePoutres = self.__listePoutres
+        list_D = self.__list_D
+        # Pour chaque poutre, on va construire la loi de comportement
+        Ne = groupElem.Ne
+        nPg = groupElem.get_gauss(matriceType).nPg
+        D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))
+        for poutre, D in zip(listePoutres, list_D):
+            # recupère les element
+            elements = groupElem.Get_Elements_Tag(poutre.name)
+            D_e_pg[elements] = D
+
+        return D_e_pg    
+
+    @property
+    def nbddl_n(self) -> int:
+        """Nombdre de ddl par noeud
+        1D -> [u1, . . ., un]\n
+        2D -> [u1, v1, rz1, . . ., un, vn, rzn]\n
+        3D -> [u1, v1, w1, rx1, ry1, rz1, . . ., u2, v2, w2, rx2, ry2, rz2]"""
+        if self.__dim == 1:
+            return 1 # u
+        elif self.__dim == 2:
+            return 3 # u v rz
+        elif self.__dim == 3:
+            return 6 # u v w rx ry rz
+        return self.__dim
+    
+    @property
+    def listePoutres(self) -> List[Poutre_Elas_Isot]:
+        """Liste des poutres"""
+        return self.__listePoutres
+
+    @property
+    def nbPoutres(self) -> int:
+        """Nombre de poutre"""
+        return len(self.__listePoutres)
+
+    @property
+    def liste_E(self) -> List[float]:
+        """Liste des modules élastiques"""
+        return [poutre.E for poutre in self.__listePoutres]
+
+    @property
+    def liste_v(self) -> List[float]:
+        """Liste des coef de poisson"""
+        return [poutre.v for poutre in self.__listePoutres]
+
+    @property
+    def list_D(self) -> List[np.ndarray]:
+        """liste de loi de comportement"""
+        return self.__list_D
+
+class PhaseField_Model(IModel):
+
+    __modelType = ModelType.damage
+
+    @property
+    def modelType(self) -> ModelType:
+        return PhaseField_Model.__modelType
+
+    @property
+    def dim(self) -> int:
+        return self.__comportement.dim
+
+    @property
+    def epaisseur(self) -> float:
+        return self.__comportement.epaisseur
+
+    @property
+    def resume(self) -> str:
+        resume = self.__comportement.resume
+        resume += f'\n\n{self.nom} :'
+        resume += f'\nsplit : {self.__split}'
+        resume += f'\nregularisation : {self.__regularization}'
+        resume += f'\nGc : {self.__Gc:.2e}'
+        resume += f'\nl0 : {self.__l0:.2e}'
+        return resume
+
+    # Phase field
 
     @staticmethod
     def get_splits() -> List[str]:
@@ -902,16 +1010,7 @@ class PhaseFieldModel:
         assert mesh.Ne == g_e_pg.shape[0]
         assert mesh.Get_nPg(matriceType) == g_e_pg.shape[1]
         
-        return g_e_pg
-
-    @property
-    def resume(self) -> str:
-        resum = '\nPhaseField :'        
-        resum += f'\nsplit : {self.__split}'
-        resum += f'\nregularisation : {self.__regularization}'
-        resum += f'\nGc : {self.__Gc:.2e}'
-        resum += f'\nl0 : {self.__l0:.2e}'
-        return resum
+        return g_e_pg    
 
     @property
     def split(self) -> str:
@@ -922,7 +1021,8 @@ class PhaseFieldModel:
         return self.__regularization
     
     @property
-    def comportement(self) -> LoiDeComportement:
+    def comportement(self) -> Displacement_Model:
+        """modele en déplacement"""
         return self.__comportement
 
     @property
@@ -957,7 +1057,7 @@ class PhaseFieldModel:
     def useNumba(self, val: bool):
         self.__useNumba = val
 
-    def __init__(self, comportement: LoiDeComportement,split: str, regularization: str, Gc: float, l_0: float,solveur="History"):
+    def __init__(self, comportement: Displacement_Model, split: str, regularization: str, Gc: float, l_0: float,solveur="History"):
         """Crétation d'un modèle à gradient d'endommagement
 
         Parameters
@@ -976,16 +1076,16 @@ class PhaseFieldModel:
             Type de résolution de l'endommagement, by default "History" (voir PhaseFieldModel.get_solveurs())
         """
     
-        assert isinstance(comportement, LoiDeComportement), "Doit être une loi de comportement"
+        assert isinstance(comportement, Displacement_Model), "Doit être une loi de comportement"
         self.__comportement = comportement
 
-        assert split in PhaseFieldModel.get_splits(), f"Doit être compris dans {PhaseFieldModel.get_splits()}"
+        assert split in PhaseField_Model.get_splits(), f"Doit être compris dans {PhaseField_Model.get_splits()}"
         if not isinstance(comportement, Elas_Isot):
             assert not split in ["Amor", "Miehe", "Stress"], "Ces splits ne sont implémentés que pour Elas_Isot"
         self.__split =  split
         """Split de la densité d'energie elastique"""
         
-        assert regularization in PhaseFieldModel.get_regularisations(), f"Doit être compris dans {PhaseFieldModel.get_regularisations()}"
+        assert regularization in PhaseField_Model.get_regularisations(), f"Doit être compris dans {PhaseField_Model.get_regularisations()}"
         self.__regularization = regularization
         """Modèle de régularisation de la fissure ["AT1","AT2"]"""
 
@@ -1650,7 +1750,28 @@ class PhaseFieldModel:
             
         return projP, projM
 
-class ThermalModel:
+class Thermal_Model(IModel):
+
+    __modelType = ModelType.thermal
+
+    @property
+    def modelType(self) -> ModelType:
+        return Thermal_Model.__modelType
+    
+    @property
+    def dim(self) -> int:
+        return self.__dim
+
+    @property
+    def epaisseur(self) -> float:        
+        return self.__epaisseur
+
+    @property
+    def resume(self) -> str:
+        resume = f'\n{self.nom} :'
+        resume += f'\nconduction thermique (k)  : {self.__k}'
+        resume += f'\ncapacité thermique massique (c) : {self.__c}'
+        return resume
 
     # TODO ThermalModel Anisot avec un coef de diffusion différents pour chaque direction !
 
@@ -1677,12 +1798,6 @@ class ThermalModel:
         
         assert epaisseur > 0, "Doit être supérieur à 0"
         self.__epaisseur = epaisseur
-    
-
-    @property
-    def dim(self) -> int:
-        """dimension du modèle"""
-        return self.__dim
 
     @property
     def k(self) -> float:
@@ -1694,17 +1809,29 @@ class ThermalModel:
         """capacité thermique massique [J K^-1 kg^-1]"""
         return self.__c
 
-    @property
-    def epaisseur(self) -> float:
-        """epaisseur de la pièce"""
-        return self.__epaisseur
-        
+def Create_Materiau(model: IModel, ro=8100.0, verbosity=False):
 
-class Materiau:
-    """Un matériau peut contenir plusieurs physiques"""
+    params = (model, ro, verbosity)
 
-    def __init__(self, model=None, ro=8100.0, verbosity=False):
-        """Creer un materiau avec la loi de comportement ou le phase field model communiqué
+    if model.modelType == ModelType.displacement:
+        materiau = _Materiau_Displacement(*params)
+    elif model.modelType == ModelType.beam:
+        materiau = _Materiau_Beam(*params)
+    elif model.modelType == ModelType.damage:
+        materiau = _Materiau_PhaseField(*params)
+    elif model.modelType == ModelType.thermal:
+        materiau = _Materiau_Thermal(*params)
+    else:
+        raise "Modèle physique inconnue pour la création d'un matériau"
+
+    return materiau
+    
+
+class _Materiau:
+    """Un matériau qui contient le ou les moddèles physiques"""
+
+    def __init__(self, model: IModel, ro=8100.0, verbosity=False):
+        """Creer un materiau avec le modèle physique renseigné
 
         Parameters
         ----------                        
@@ -1716,113 +1843,94 @@ class Materiau:
         if verbosity:
             Affichage.NouvelleSection("Matériau")
 
-        if isinstance(model, LoiDeComportement):
-            self.__problemType = ProblemType.displacement
-            self.__comportement = model
-            self.__phaseFieldModel = None
-        elif isinstance(model, PhaseFieldModel):
-            self.__problemType = ProblemType.damage
-            self.__phaseFieldModel = model
-        elif isinstance(model, ThermalModel):
-            self.__problemType = ProblemType.thermal
-            self.__thermalModel = model
-        elif isinstance(model, BeamModel):
-            self.__problemType = "beam"
-            self.__beamModel = model
-        else:
-            raise "Model inconnue"
+        self.__model = model
 
         assert ro > 0 , "Doit être supérieur à 0"
         self.__ro = ro
 
         self.__verbosity = verbosity
 
-        if self.__verbosity:
-            self.Resume()
+        self.Get_Resume(self.__verbosity)            
 
     @property
-    def problemType(self) -> str:
-        return self.__problemType
+    def modelType(self) -> str:
+        """modèle physique utilisé par le matériau"""
+        return self.__model.modelType
     
     @property
     def dim(self) -> int:
-        if self.__problemType == ProblemType.thermal:
-            return self.__thermalModel.dim
-        if self.__problemType == "beam":
-            return self.__beamModel.dim
-        else:
-            return self.comportement.dim
+        """dimension du matériau"""
+        return self.__model.dim    
 
     @property
     def epaisseur(self) -> float:
-        if self.__problemType == ProblemType.thermal:
-            return self.thermalModel.epaisseur
-        else:
-            return self.comportement.epaisseur
+        """epaisseur du matériau"""
+        return self.__model.epaisseur
 
     @property
     def ro(self) -> float:
         """masse volumique"""
         return self.__ro
-    
-    @property
-    def comportement(self) -> LoiDeComportement:
-        if self.__problemType in [ProblemType.thermal, ProblemType.beam]:
-            return None
-        else:
-            if self.isDamaged:
-                return self.__phaseFieldModel.comportement
-            else:
-                return self.__comportement
 
     @property
-    def thermalModel(self) -> ThermalModel:
-        if self.__problemType == ProblemType.thermal:
-            return self.__thermalModel
-        else:
-            return None
-    
-    @property
-    def beamModel(self) -> BeamModel:
-        if self.__problemType == "beam":
-            return self.__beamModel
-        else:
-            return None
-    
-    @property
-    def isDamaged(self) -> bool:
-        if self.__problemType == ProblemType.damage:
-            return True
-        else:
-            return False
-    
-    @property
-    def phaseFieldModel(self) -> PhaseFieldModel:
-        """Modèle d'endommagement"""
-        if self.isDamaged:
-            return self.__phaseFieldModel
-        else:
-            # Le matériau n'est pas endommageable (pas de modèle PhaseField)
-            return None
+    def useNumba(self) -> bool:
+        """Renvoie si le matériau peut utiliser les fonctions numba"""
+        return self.__model.useNumba
 
-    def Resume(self, verbosity=True):
-        resume = ""
+    @useNumba.setter
+    def useNumba(self, value: bool):
+        self.__model.useNumba = value
 
-        if self.__problemType == ProblemType.damage:
-            resume += self.__phaseFieldModel.comportement.resume
-            resume += '\n' + self.__phaseFieldModel.resume
-        elif self.__problemType == ProblemType.displacement:
-            resume += self.__comportement.resume
-        elif self.__problemType == ProblemType.thermal:
-            pass
-        elif self.__problemType == "beam":
-            resume += self.__beamModel.resume
-
+    def Get_Resume(self, verbosity=True) -> str:
+        resume = self.__model.resume
         if verbosity: print(resume)
         return resume
 
-class ProblemType(str, Enum):
-    displacement = "displacement"
-    damage = "damage"
-    thermal = "thermal"
-    beam = "beam"
+class _Materiau_Displacement(_Materiau):
+
+    def __init__(self, model: Displacement_Model, ro=8100, verbosity=False):
+        super().__init__(model, ro, verbosity)
+
+        self.__comportement = model
+
+    @property
+    def comportement(self) -> Displacement_Model:
+        return self.__comportement
+
+class _Materiau_Beam(_Materiau):
+
+    def __init__(self, model: Beam_Model, ro=8100, verbosity=False):
+        super().__init__(model, ro, verbosity)
+
+        self.__beamModel = model
+
+    @property
+    def beamModel(self) -> Beam_Model:
+        return self.__beamModel
+
+class _Materiau_PhaseField(_Materiau):
+
+    def __init__(self, model: PhaseField_Model, ro=8100, verbosity=False):
+        super().__init__(model, ro, verbosity)
+
+        self.__phaseFieldModel = model
+
+    @property
+    def phaseFieldModel(self) -> PhaseField_Model:
+        return self.__phaseFieldModel
+
+    @property
+    def comportement(self) -> Displacement_Model:
+        return self.__phaseFieldModel.comportement
+
+
+class _Materiau_Thermal(_Materiau):
+
+    def __init__(self, model: Thermal_Model, ro=8100, verbosity=False):
+        super().__init__(model, ro, verbosity)
+
+        self.__thermalModel = model
+
+    @property
+    def thermalModel(self) -> Thermal_Model:
+        return self.__thermalModel

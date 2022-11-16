@@ -43,13 +43,13 @@ def __Cast_Simu(simu):
 
     import Simulations
 
-    if isinstance(simu, Simulations.Simu_Displacement):
+    if isinstance(simu, Simulations.__Simu_Displacement):
         return simu
-    elif isinstance(simu, Simulations.Simu_Damage):
+    elif isinstance(simu, Simulations.__Simu_PhaseField):
         return simu
-    elif isinstance(simu, Simulations.Simu_Beam):
+    elif isinstance(simu, Simulations.__Simu_Beam):
         return simu
-    elif isinstance(simu, Simulations.Simu_Thermal):
+    elif isinstance(simu, Simulations.__Simu_Thermal):
         return simu
     else:
         raise "Type de simulation inconnue"

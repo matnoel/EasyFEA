@@ -25,13 +25,13 @@ class BoundaryCondition:
             description de la condition
         """
 
-        from Simulations import Simu
+        from Simulations import _Simu
 
-        Simu.Check_ProblemTypes(problemType)
+        _Simu.Check_ProblemTypes(problemType)
 
         self.__problemType = problemType
 
-        Simu.Check_Directions(dim=3, problemType=problemType, directions=directions)
+        _Simu.Check_Directions(dim=3, problemType=problemType, directions=directions)
 
         self.__directions = directions
 
@@ -86,9 +86,9 @@ class BoundaryCondition:
             degrés de liberté
         """
 
-        from Simulations import Simu
+        from Simulations import _Simu
 
-        Simu.Check_ProblemTypes(problemType)
+        _Simu.Check_ProblemTypes(problemType)
         
         list_Bc_Conditions = cast(list[BoundaryCondition], list_Bc_Conditions)
 
@@ -114,9 +114,9 @@ class BoundaryCondition:
             degrés de liberté
         """
 
-        from Simulations import Simu
+        from Simulations import _Simu
 
-        Simu.Check_ProblemTypes(problemType)
+        _Simu.Check_ProblemTypes(problemType)
         
         list_Bc_Conditions = cast(list[BoundaryCondition], list_Bc_Conditions)
         
@@ -145,11 +145,11 @@ class BoundaryCondition:
         np.ndarray
             degrés de liberté
         """
-        from Simulations import ProblemType
+        from Simulations import ModelType
 
-        if problemType in [ProblemType.damage,ProblemType.thermal]:
+        if problemType in [ModelType.damage,ModelType.thermal]:
             return connect_e.reshape(-1)
-        elif problemType == ProblemType.displacement:
+        elif problemType == ModelType.displacement:
             dim = param
             indexes = {
                 "x": 0,
@@ -157,7 +157,7 @@ class BoundaryCondition:
                 "z": 2,
             }
 
-        elif problemType == ProblemType.beam:
+        elif problemType == ModelType.beam:
 
             nbddl_e = param
             dim = param
@@ -218,11 +218,11 @@ class BoundaryCondition:
         np.ndarray
             liste de ddls
         """
-        from Simulations import ProblemType
+        from Simulations import ModelType
 
-        if problemType in [ProblemType.damage, ProblemType.thermal]:
+        if problemType in [ModelType.damage, ModelType.thermal]:
             return noeuds.reshape(-1)
-        elif problemType == ProblemType.displacement:
+        elif problemType == ModelType.displacement:
             ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)
             dim = param
             for d, direction in enumerate(directions):
@@ -239,7 +239,7 @@ class BoundaryCondition:
 
             return ddls_dir.reshape(-1)
 
-        elif problemType == ProblemType.beam:
+        elif problemType == ModelType.beam:
             ddls_dir = np.zeros((noeuds.shape[0], len(directions)), dtype=int)
 
             nbddl_e = param

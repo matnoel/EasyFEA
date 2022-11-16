@@ -12,7 +12,7 @@ interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
 problem = "Portique"
 
-elemType = "SEG3"
+elemType = "SEG2"
 
 beamDim = 3
 
@@ -99,11 +99,11 @@ mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemTy
 # # Affichage.Plot_Maillage(mesh)
 # plt.show()
 
-beamModel = Materials.BeamModel(dim=beamDim, listePoutres=listePoutre)
+beamModel = Materials.Beam_Model(dim=beamDim, listePoutres=listePoutre)
 
-materiau = Materials.Materiau(beamModel, verbosity=True)
+materiau = Materials.Create_Materiau(beamModel, verbosity=True)
 
-simu = Simulations.Simu_Beam(mesh, materiau, verbosity=True)
+simu = Simulations.Create_Simu(mesh, materiau, verbosity=True)
 
 if beamModel.dim == 1:
     simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0],["x"])

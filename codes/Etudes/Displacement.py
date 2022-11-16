@@ -7,9 +7,9 @@ import Dossier
 import PostTraitement
 import Affichage
 from Geom import *
-from Materials import Elas_Isot, Materiau
+import Materials
 from Interface_Gmsh import Interface_Gmsh
-from Simulations import Simu_Displacement
+import Simulations
 from TicTac import Tic
 
 import matplotlib.pyplot as plt
@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-dim = 3
+dim = 2
 
 folder = Dossier.NewFile(f"Etude{dim}D", results=True)
 
@@ -65,10 +65,10 @@ surfLoad = P/h/b #N/mm2
 # taille = L/2
 taille = h/5
 
-comportement = Elas_Isot(dim, epaisseur=b)
+comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
 # Materiau
-materiau = Materiau(comportement, ro=8100*1e-9)
+materiau = Materials.Create_Materiau(comportement, ro=8100*1e-9)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
 
@@ -111,7 +111,7 @@ noeuds_en_h = mesh.Nodes_Conditions(conditionY=lambda y: y == h/2) # noeuds_en_h
 
 # ------------------------------------------------------------------------------------------------------
 
-simu = Simu_Displacement(mesh, materiau, useNumba=useNumba, verbosity=False)
+simu = Simulations.Create_Simu(mesh, materiau, useNumba=useNumba, verbosity=False)
 simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
 def Chargement(isLoading: bool):

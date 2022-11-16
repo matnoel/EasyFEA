@@ -88,10 +88,10 @@ for cc in list_cc:
     nodeB = mesh.Nodes_Point(Point(x=L/2+diam/2, y=H-h))
 
     comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
-    phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
-    materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
+    phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
+    materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
 
-    simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False)
+    simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
     simu.add_dirichlet("displacement", nodes0, [0], ["y"])
     simu.add_dirichlet("displacement", node00, [0], ["x"])

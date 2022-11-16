@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import unittest
 import os
-from Materials import LoiDeComportement, Materiau
+from Materials import Displacement_Model, _Materiau
 import numpy as np
 from Mesh import Mesh
 import Affichage
@@ -79,7 +79,7 @@ class Test_Mesh(unittest.TestCase):
                 
             list_B_rigi_e_pg.append(list_B_rigi_pg)
         
-        list_B_rigi_e_pg = LoiDeComportement.AppliqueCoefSurBrigi(dim, np.array(list_B_rigi_e_pg))
+        list_B_rigi_e_pg = Displacement_Model.AppliqueCoefSurBrigi(dim, np.array(list_B_rigi_e_pg))
 
         B_rigi_e_pg = mesh.Get_B_dep_e_pg("rigi")
 

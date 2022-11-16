@@ -19,7 +19,7 @@ from datetime import datetime
 
 # =========================================== Simulation ==================================================
 
-def Save_Simu(simu: Simulations.Simu, folder:str):
+def Save_Simu(simu: Simulations._Simu, folder:str):
     "Sauvegarde la simulation et son résumé dans le dossier"    
     # Il faut vider les matrices dans les groupes d'elements
     try:
@@ -72,12 +72,12 @@ def Load_Simu(folder: str, verbosity=False):
     with open(filename, 'rb') as file:
         simu = pickle.load(file)
 
-    assert isinstance(simu, Simulations.Simu)
+    assert isinstance(simu, Simulations._Simu)
 
     if verbosity:
         print(Fore.CYAN + f'\nChargement de :\n{filename}\n' + Fore.WHITE)
         simu.mesh.Resume()
-        simu.materiau.Resume()
+        simu.materiau.Get_Resume()
     return simu
 
 
@@ -129,7 +129,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def MakeMovie(folder: str, option: str, simu: Simulations.Simu, Niter=200, NiterFin=100, deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
+def MakeMovie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
     
     resultat = simu.Get_Resultat(option)
     if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
@@ -207,11 +207,11 @@ def MakeMovie(folder: str, option: str, simu: Simulations.Simu, Niter=200, Niter
 
             print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
 
-def Plot_Energie(simu: Simulations.Simu_Damage, load: np.ndarray, displacement: np.ndarray, Niter=200, NiterFin=100, folder=""):
+def Plot_Energie(simu: Simulations.__Simu_PhaseField, load: np.ndarray, displacement: np.ndarray, Niter=200, NiterFin=100, folder=""):
     
     # Pour chaque incrément de dépalcement on va caluler l'energie
 
-    if not isinstance(simu, Simulations.Simu_Damage): return
+    if not isinstance(simu, Simulations.__Simu_PhaseField): return
 
     tic = Tic()
 
@@ -278,7 +278,7 @@ def Plot_Energie(simu: Simulations.Simu_Damage, load: np.ndarray, displacement: 
 
 # ========================================== Paraview =================================================
 
-def Save_Simulation_in_Paraview(folder: str, simu: Simulations.Simu, Niter=200):
+def Save_Simulation_in_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
     """Sauvegarde de la simulation sur paraview
 
     Parameters
@@ -315,7 +315,7 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simulations.Simu, Niter=200):
     listTemps = []
     tic = Tic()
 
-    problemType = simu.problemType
+    problemType = simu.modelType
     
     if problemType == "thermal":
         nodesField = ["thermal", "thermalDot"] # "thermalDot"
@@ -398,7 +398,7 @@ def __GetPourcentageEtTemps(listIter: list, listTemps: list, i):
         pourcentageEtTempsRestant = ""
     return pourcentageEtTempsRestant
 
-def __Make_vtu(simu: Simulations.Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
+def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
     """Creer le .vtu qui peut être lu sur paraview
     """
 

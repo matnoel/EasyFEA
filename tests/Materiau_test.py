@@ -1,7 +1,7 @@
 # %%
 import unittest
 import os
-from Materials import Elas_Anisot, Elas_IsotTrans, PhaseFieldModel, LoiDeComportement, Elas_Isot
+from Materials import Elas_Anisot, Elas_IsotTrans, PhaseField_Model, Displacement_Model, Elas_Isot
 import numpy as np
 
 class Test_Materiau(unittest.TestCase):
@@ -12,7 +12,7 @@ class Test_Materiau(unittest.TestCase):
         v = 0.3
         self.comportements2D = []
         self.comportements3D = []
-        for comp in LoiDeComportement.get_LoisDeComportement():
+        for comp in Displacement_Model.get_LoisDeComportement():
             if comp == Elas_Isot:
                 self.comportements2D.append(
                     Elas_Isot(2, E=E, v=v, contraintesPlanes=True)
@@ -61,8 +61,8 @@ class Test_Materiau(unittest.TestCase):
                     )
         
         # phasefieldModel
-        self.splits = PhaseFieldModel.get_splits()
-        self.regularizations = PhaseFieldModel.get_regularisations()
+        self.splits = PhaseField_Model.get_splits()
+        self.regularizations = PhaseField_Model.get_regularisations()
         self.phaseFieldModels = []
 
         for c in self.comportements2D:
@@ -72,14 +72,14 @@ class Test_Materiau(unittest.TestCase):
                     if (isinstance(c, Elas_IsotTrans) or isinstance(c, Elas_Anisot)) and s in ["Amor", "Miehe", "Stress"]:
                         continue
 
-                    pfm = PhaseFieldModel(c,s,r,1,1)
+                    pfm = PhaseField_Model(c,s,r,1,1)
                     self.phaseFieldModels.append(pfm)
             
 
     def test_LoiComportementBienCree(self):
 
         for comp in self.comportements3D:
-            self.assertIsInstance(comp, LoiDeComportement)
+            self.assertIsInstance(comp, Displacement_Model)
             if isinstance(comp, Elas_Isot):
                 E = comp.E
                 v = comp.v
@@ -100,7 +100,7 @@ class Test_Materiau(unittest.TestCase):
                                                                 [0, 0, 0, 0, (1-2*v)/2, 0],
                                                                 [0, 0, 0, 0, 0, (1-2*v)/2]  ])
                 
-                c = LoiDeComportement.ApplyKelvinMandelCoefTo_Matrice(comp.dim, C_voigt)
+                c = Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(comp.dim, C_voigt)
                     
                 verifC = np.linalg.norm(c-comp.get_C())/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
@@ -222,7 +222,7 @@ class Test_Materiau(unittest.TestCase):
 
         for pfm in self.phaseFieldModels:
             
-            assert isinstance(pfm, PhaseFieldModel)
+            assert isinstance(pfm, PhaseField_Model)
 
             comportement = pfm.comportement
             

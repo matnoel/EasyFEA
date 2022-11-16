@@ -84,14 +84,14 @@ else:
 noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]
 
 comportement = Materials.Elas_Isot(dim, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
-phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0)
+phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
 
 if dim == 2:
-    materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
-    simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False)
+    materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
+    simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 else:
-    materiau = Materials.Materiau(comportement, verbosity=False)
-    simu = Simulations.Simu_Displacement(mesh, materiau, verbosity=False)
+    materiau = Materials.Create_Materiau(comportement, verbosity=False)
+    simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
 
 

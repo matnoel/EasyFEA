@@ -192,25 +192,21 @@ class Interface_Gmsh:
     
     def __Add_PhysicalPoint(self, point: int) -> int:
         """Ajoute le point dans le physical group"""
-        # self.__factory.synchronize()
         pgPoint = gmsh.model.addPhysicalGroup(0, [point], name=f"P{point}")
         return pgPoint
 
     def __Add_PhysicalLine(self, ligne: int) -> int:
         """Ajoute la ligne dans les physical group"""
-        # self.__factory.synchronize()
         pgLine = gmsh.model.addPhysicalGroup(1, [ligne], name=f"L{ligne}")
         return pgLine
 
     def __Add_PhysicalSurface(self, surface: int) -> int:
         """Ajoute la surface fermée ou ouverte dans les physical group"""
-        # self.__factory.synchronize()
         pgSurf = gmsh.model.addPhysicalGroup(2, [surface], name=f"S{surface}")
         return pgSurf
     
     def __Add_PhysicalVolume(self, volume: int) -> int:
         """Ajoute le volume fermée ou ouverte dans les physical group"""
-        # self.__factory.synchronize()
         pgVol = gmsh.model.addPhysicalGroup(3, [volume], name=f"V{volume}")
         return pgVol
 
@@ -247,6 +243,13 @@ class Interface_Gmsh:
         entities = entities[indexes]
 
         [self.__Add_PhyscialGroup(dim, tag) for dim, tag in zip(entities[:,0], entities[:,1])]
+
+    __dict_name_dim = {
+        0 : "P",
+        1 : "L",
+        2 : "S",
+        3 : "V"
+    }
 
     def __Extrusion(self, surfaces: list, extrude=[0,0,1], elemType=ElemType.HEXA8, isOrganised=True, nCouches=1):
         """Fonction qui effectue l'extrusion depuis plusieurs surfaces
@@ -660,11 +663,10 @@ class Interface_Gmsh:
             listPoints.append(p2)
 
             ligne = factory.addLine(p1, p2)
-            # self.__Add_PhysicalLine(ligne)
             listeLines.append(ligne)
 
             factory.synchronize()
-            # physicalGroup = gmsh.model.addPhysicalGroup(1, [ligne], name=f"{poutre.name}")
+            gmsh.model.addPhysicalGroup(1, [ligne], name=f"{poutre.name}")
 
         self.__Set_PhysicalGroups()
 
@@ -996,22 +998,47 @@ class Interface_Gmsh:
         physicalGroupsSurf = []; nameSurf = []
         physicalGroupsVol = []; nameVol = []
 
+        nbPhysicalGroup = 0
+
+        def __name(dim: int, n: int) -> str:
+            # Construit le nom de l'entitié
+            index = n+nbPhysicalGroup
+            tag = physicalGroups[index][1]
+            name = gmsh.model.getPhysicalName(dim, tag)
+
+            if name == "":
+                name = f"{Interface_Gmsh.__dict_name_dim[dim]}{n+1}"
+
+            return name
+
         for dim in range(pgArray[:,0].max()+1):
+
             indexDim = np.where(pgArray[:,0] == dim)[0]
             listTupleDim = tuple(map(tuple, pgArray[indexDim]))
             nbEnti = indexDim.size
+
             if dim == 0:
-                namePoint.extend([f"P{n+1}" for n in range(nbEnti)])
+                namePoint.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
+                nbPhysicalGroup += len(namePoint)
                 physicalGroupsPoint.extend(listTupleDim)
+
             elif dim == 1:
-                nameLine.extend([f"L{n+1}" for n in range(nbEnti)])
+                nameLine.extend([__name(dim, n) for n in range(nbEnti)])
+                nbPhysicalGroup += len(nameLine)
                 physicalGroupsLine.extend(listTupleDim)
+
             elif dim == 2:
-                nameSurf.extend([f"S{n+1}" for n in range(nbEnti)])
+                nameSurf.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
+                nbPhysicalGroup += len(nameSurf)
                 physicalGroupsSurf.extend(listTupleDim)
+
             elif dim == 3:
-                nameVol.extend([f"V{n+1}" for n in range(nbEnti)])
+                nameVol.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
+                nbPhysicalGroup += len(nameVol)
                 physicalGroupsVol.extend(listTupleDim)
+
+        # On verifie quon a bien tout ajouté
+        assert len(physicalGroups) == nbPhysicalGroup
 
         for gmshId in elementTypes:
                                         

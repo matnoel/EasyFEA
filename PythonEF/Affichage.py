@@ -54,9 +54,9 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         assert isinstance(ax, plt.Axes)
         fig = ax.figure
 
-    from Simulations import Simu
+    from Simulations import _Simu
 
-    assert isinstance(simu, Simu)
+    assert isinstance(simu, _Simu)
     
     mesh = simu.mesh # récupération du maillage
     dim = mesh.dim # dimension du maillage
@@ -66,7 +66,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     except:
         inDim = mesh.groupElem.inDim
 
-    if simu.problemType == "beam" and simu.materiau.beamModel.dim == 3:
+    if simu.modelType == "beam" and simu.materiau.beamModel.dim == 3:
         isBeamModel3D = True
     else:
         isBeamModel3D = False
@@ -89,7 +89,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         # Pour prendre moin de place
         # En plus, il faut tracer la solution que sur les eléments 2D
 
-    if simu.problemType == "beam":
+    if simu.modelType == "beam":
         # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
         valeursAuxNoeuds = False
     
@@ -330,11 +330,11 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
         Axes dans lequel on va creer la figure
     """
 
-    from Simulations import Simu, BeamModel, Mesh
+    from Simulations import _Simu, Beam_Model, Mesh
 
     typeobj = type(obj).__name__
 
-    if isinstance(obj, Simu):
+    if isinstance(obj, _Simu):
         simu = obj
         mesh = simu.mesh
     elif isinstance(obj, Mesh):
@@ -370,12 +370,11 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
         if deformation:
             coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
     
-    is3dBeamModel = False
-    if isinstance(obj, Simu):
-        beamModel = simu.materiau.beamModel
-        if isinstance(beamModel, BeamModel):
-            if beamModel.dim == 3:
-                is3dBeamModel = True
+    
+    if isinstance(obj, _Simu):
+        is3dBeamModel = simu.is3dBeamModel
+    else:
+        is3dBeamModel = False
         
     if inDim in [1,2] and not is3dBeamModel:
         
@@ -654,10 +653,10 @@ def Plot_BoundaryConditions(simu, folder=""):
         Axes dans lequel on va creer la figure
     """
 
-    from Simulations import Simu
+    from Simulations import _Simu
     from BoundaryCondition import BoundaryCondition, LagrangeCondition
 
-    simu = cast(Simu, simu)
+    simu = cast(_Simu, simu)
 
     dim = simu.dim
 
@@ -754,12 +753,13 @@ def Plot_BoundaryConditions(simu, folder=""):
 
 def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
 
-    from Simulations import Simu, Mesh, GroupElem
+    from Simulations import _Simu
+    from Mesh import Mesh, GroupElem
 
     typeobj = type(obj).__name__
 
-    if typeobj == Simu.__name__:
-        simu = cast(Simu, obj)
+    if typeobj == _Simu.__name__:
+        simu = cast(_Simu, obj)
         mesh = simu.mesh
     elif typeobj == Mesh.__name__:
         mesh = cast(Mesh, obj)
@@ -934,9 +934,9 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m'
         PostTraitement.Save_fig(folder, "forcedep")
 
 def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
-    from Simulations import Simu
+    from Simulations import _Simu
 
-    assert isinstance(simu, Simu)
+    assert isinstance(simu, _Simu)
 
     # Recupère les résultats de simulation
     try:
@@ -1041,9 +1041,9 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
         coordonnées du maillage globle déformé
     """
     
-    from Simulations import Simu
+    from Simulations import _Simu
 
-    simu = cast(Simu, simu)
+    simu = cast(_Simu, simu)
 
     coordo = simu.mesh.coordoGlob
 

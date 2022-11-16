@@ -32,11 +32,11 @@ if dim == 2:
 else:
     mesh = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, [0,0,a], 4, elemType="HEXA8")
 
-thermalModel = Materials.ThermalModel(dim=dim, k=1, c=1, epaisseur=1)
+thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=1)
 
-materiau = Materials.Materiau(thermalModel, verbosity=False)
+materiau = Materials.Create_Materiau(thermalModel, verbosity=False)
 
-simu = Simulations.Simu_Thermal(mesh , materiau, False)
+simu = Simulations.Create_Simu(mesh , materiau, False)
 
 noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
 noeudsL = mesh.Nodes_Conditions(lambda x: x == a)

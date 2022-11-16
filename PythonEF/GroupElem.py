@@ -10,7 +10,11 @@ from matplotlib import pyplot as plt
 import numpy as np
 import scipy.sparse as sp
 
+# TODO Creer SEG2_BEAM pour dissocier les fonctions de formes ?
+
 class ElemType(str, Enum):
+    """Types d'éléments"""
+
     POINT = "POINT"
     SEG2 = "SEG2"
     SEG3 = "SEG3"
@@ -485,7 +489,7 @@ class GroupElem(ABC):
                 B_e_pg[:,:,5,colonnes0] = dNdy; B_e_pg[:,:,5,colonnes1] = dNdx
 
             import Materials
-            B_e_pg = Materials.LoiDeComportement.AppliqueCoefSurBrigi(dim, B_e_pg)
+            B_e_pg = Materials.Displacement_Model.AppliqueCoefSurBrigi(dim, B_e_pg)
 
             self.__dict_B_dep_e_pg[matriceType] = B_e_pg
         
@@ -1249,21 +1253,18 @@ class GroupElem(ABC):
     @property
     def elementTags(self) -> list:
         """Renvoie les tags associés aux elements"""
-        try:
-            return list(self.__dict_elements_tags.keys())
-        except:
-            return []
+        return list(self.__dict_elements_tags.keys())
 
     def Get_Elements_Tag(self, tag: str):
-        try:
+        if tag in self.__dict_elements_tags:
             return self.__dict_elements_tags[tag]
-        except:
+        else:
             print("Groupe physique inconnue")
     
     def Get_Nodes_Tag(self, tag: str):
-        try:
+        if tag in self.__dict_nodes_tags:
             return self.__dict_nodes_tags[tag]
-        except:
+        else:
             print("Groupe physique inconnue")
     
     def Localise_sol_e(self, sol: np.ndarray) -> np.ndarray:
@@ -1656,6 +1657,7 @@ class GroupElem_Factory:
             
         return elemType, nPe, dim, ordre, nbFaces
     
+    @staticmethod
     def Create_GroupElem(gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray) -> GroupElem:
 
         params = (gmshId, connect, elementsID, coordoGlob, nodesID)

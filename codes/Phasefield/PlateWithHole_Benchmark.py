@@ -186,10 +186,10 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
         elif comp == "Elas_IsotTrans":
             comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=isCp, epaisseur=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-        phaseFieldModel = Materials.PhaseFieldModel(comportement, split, regu, gc, l_0, solveur=solveur)
-        materiau = Materials.Materiau(phaseFieldModel, verbosity=False)
+        phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0, solveur=solveur)
+        materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
 
-        simu = Simulations.Simu_Damage(mesh, materiau, verbosity=False, useNumba=useNumba)
+        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
         
         # Récupérations des noeuds
         B_lower = Line(point,Point(x=L)); nodes_lower = mesh.Nodes_Line(B_lower)
