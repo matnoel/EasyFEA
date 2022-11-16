@@ -25,13 +25,7 @@ class BoundaryCondition:
             description de la condition
         """
 
-        from Simulations import _Simu
-
-        _Simu.Check_ProblemTypes(problemType)
-
         self.__problemType = problemType
-
-        _Simu.Check_Directions(dim=3, problemType=problemType, directions=directions)
 
         self.__directions = directions
 
@@ -85,10 +79,6 @@ class BoundaryCondition:
         np.ndarray
             degrés de liberté
         """
-
-        from Simulations import _Simu
-
-        _Simu.Check_ProblemTypes(problemType)
         
         list_Bc_Conditions = cast(list[BoundaryCondition], list_Bc_Conditions)
 
@@ -113,10 +103,6 @@ class BoundaryCondition:
         np.ndarray
             degrés de liberté
         """
-
-        from Simulations import _Simu
-
-        _Simu.Check_ProblemTypes(problemType)
         
         list_Bc_Conditions = cast(list[BoundaryCondition], list_Bc_Conditions)
         

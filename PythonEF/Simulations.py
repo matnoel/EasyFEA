@@ -37,35 +37,15 @@ class _Simu(ABC):
      - Simu_Thermal"""
 
     @staticmethod
-    def Check_ProblemTypes(problemType:str):
+    def Check_ProblemTypes(problemType : ModelType):
         """Verifie si ce type de probleme est implénté"""
-
-        list_problemType = [ModelType.displacement, ModelType.damage, ModelType.thermal, ModelType.beam]
+        list_problemType = list(ModelType)
         assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
 
-    @staticmethod
-    def Check_Directions(dim: int, problemType:str, directions:list):
+    @abstractmethod
+    def Check_Directions(self, problemType : ModelType, directions:list):
         """Verifie si les directions renseignées sont possible pour le probleme"""
-        _Simu.Check_ProblemTypes(problemType)
-        
-        if problemType in [ModelType.damage, ModelType.thermal]:
-            # Ici on travail sur un champ scalaire, il n'y a pas de direction à renseigné
-            pass
-        elif problemType == ModelType.displacement:
-            for d in directions:
-                assert d in ["x","y","z"]
-                if dim == 2: assert d != "z", "Lors d'une simulation 2d on ne peut appliquer ques des conditions suivant x et y"
-            assert dim >= len(directions)
-        elif problemType == ModelType.beam:
-            if dim == 1:
-                list = ["x"]
-            elif dim == 2:
-                list = ["x","y","rz"]
-            elif dim == 3:
-                list = ["x","y","z","rx","ry","rz"]
-
-            for d in directions:
-                assert d in list
+        pass
     
     def Check_dim_mesh_materiau(self) -> None:
         """On verifie que la dimension du materiau correspond a la dimension du maillage"""
@@ -427,7 +407,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-    def add_pointLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+    def add_pointLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force ponctuelle\n
         valeurs est une liste de constantes ou de fonctions\n
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
@@ -441,7 +421,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
         
-    def add_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+    def add_lineLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force linéique\n
         valeurs est une liste de constantes ou de fonctions\n
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
@@ -455,7 +435,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-    def add_surfLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+    def add_surfLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force surfacique\n
         valeurs est une liste de constantes ou de fonctions\n
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
@@ -480,7 +460,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-    def add_volumeLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+    def add_volumeLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
         """Pour le probleme donné applique une force volumique\n
         valeurs est une liste de constantes ou de fonctions\n
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
@@ -504,7 +484,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
     
-    def __Bc_pointLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+    def __Bc_pointLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force linéique\n
         Renvoie valeurs_ddls, ddls"""
 
@@ -532,7 +512,7 @@ class _Simu(ABC):
 
         return valeurs_ddls, ddls
 
-    def __Bc_IntegrationDim(self, dim: int, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+    def __Bc_IntegrationDim(self, dim: int, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list):
         """Intégration des valeurs sur les elements"""
 
         valeurs_ddls=np.array([])
@@ -589,33 +569,30 @@ class _Simu(ABC):
 
         return valeurs_ddls, ddls
 
-    def __Bc_lineLoad(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+    def __Bc_lineLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force linéique\n
         Renvoie valeurs_ddls, ddls"""
-
-        _Simu.Check_ProblemTypes(problemType)
+        
         _Simu.Check_Directions(self.__dim, problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=1, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
         return valeurs_ddls, ddls
     
-    def __Bc_surfload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+    def __Bc_surfload(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force surfacique\n
         Renvoie valeurs_ddls, ddls"""
-
-        _Simu.Check_ProblemTypes(problemType)
+        
         _Simu.Check_Directions(self.__dim, problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=2, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
         return valeurs_ddls, ddls
 
-    def __Bc_volumeload(self, problemType:str, noeuds: np.ndarray, valeurs: list, directions: list):
+    def __Bc_volumeload(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list):
         """Applique une force surfacique\n
         Renvoie valeurs_ddls, ddls"""
-
-        _Simu.Check_ProblemTypes(problemType)
+        
         _Simu.Check_Directions(self.__dim, problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=3, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
@@ -626,8 +603,7 @@ class _Simu(ABC):
         """Ajoute les conditions de Neumann"""
 
         tic = Tic()
-        
-        _Simu.Check_ProblemTypes(problemType)
+
         _Simu.Check_Directions(self.__dim, problemType, directions)
 
         if problemType in [ModelType.damage,ModelType.thermal]:
@@ -688,10 +664,12 @@ class _Simu(ABC):
 
     def add_liaison_Encastrement(self, noeuds: np.ndarray, description="Encastrement"):
         
-        beamModel = self.materiau.beamModel
-        if not isinstance(beamModel, Beam_Model):
+        if not isinstance(self, __Simu_Beam):
             print("La simulation n'est pas un probleme poutre")
             return
+
+        beamModel = self.materiau.beamModel
+        
 
         if beamModel.dim == 1:
             directions = ['x']
@@ -706,11 +684,12 @@ class _Simu(ABC):
 
     def add_liaison_Rotule(self, noeuds: np.ndarray, directions=[''] ,description="Rotule"):
         
-        beamModel = self.materiau.beamModel
-        if not isinstance(beamModel, Beam_Model):
+        if not isinstance(self, __Simu_Beam):
             print("La simulation n'est pas un probleme poutre")
             return
 
+        beamModel = self.materiau.beamModel
+        
         if beamModel.dim == 1:
             return
         elif beamModel.dim == 2:
@@ -732,9 +711,8 @@ class _Simu(ABC):
         self.add_liaisonPoutre(noeuds, directions, description)
 
     def add_liaisonPoutre(self, noeuds: np.ndarray, directions: List[str], description: str):
-
-        beamModel = self.materiau.beamModel
-        if not isinstance(beamModel, Beam_Model):
+        
+        if not isinstance(self, __Simu_Beam):
             print("La simulation n'est pas un probleme poutre")
             return
 
@@ -763,6 +741,11 @@ class _Simu(ABC):
         self.__Bc_Add_LagrangeAffichage(noeuds, directions, description)
 
     def __Bc_Add_LagrangeAffichage(self,noeuds: np.ndarray, directions: List[str], description: str):
+        
+        if not isinstance(self, __Simu_Beam):
+            print("La simulation n'est pas un probleme poutre")
+            return
+        
         # Ajoute une condition pour l'affichage
         beamModel = self.materiau.beamModel
         nbddl = beamModel.nbddl_n
@@ -989,6 +972,15 @@ class _Simu(ABC):
 ###################################################################################################
 
 class __Simu_Displacement(_Simu):
+
+    __dict_dim_directions = {
+        2 : ["x", "y"],
+        3 : ["x", "y", "z"]
+    }
+
+    def Check_Directions(self, problemType: ModelType, directions: list):
+        listDirections = __Simu_Displacement.__dict_dim_directions[self.dim]
+        for d in directions: assert d in listDirections, f"{d} doit être dans [{listDirections}]"
 
     def __init__(self, mesh: Mesh, materiau: _Materiau_Displacement, verbosity=True, useNumba=True):
         """Creation d'une simulation de déplacement"""
@@ -1524,6 +1516,10 @@ class __Simu_Displacement(_Simu):
 ###################################################################################################
 
 class __Simu_PhaseField(_Simu):
+
+    def Check_Directions(self, problemType: ModelType, directions: list):
+        # Rien d'implémenté car aucune direction n'est nécessaire pour cette simulation
+        pass
 
     def __init__(self, mesh: Mesh, materiau: _Materiau_PhaseField, verbosity=True, useNumba=True):
         assert materiau.modelType == ModelType.damage, "Le materiau doit être de type damage"
@@ -2199,6 +2195,16 @@ class __Simu_PhaseField(_Simu):
 
 class __Simu_Beam(_Simu):
 
+    __dict_dim_directions = {
+        1 : ["x"],
+        2 : ["x","y","rz"],
+        3 : ["x","y","z","rx","ry","rz"]
+    }
+
+    def Check_Directions(self, problemType: ModelType, directions: list):
+        listDirections = __Simu_Beam.__dict_dim_directions[self.dim]
+        for d in directions: assert d in listDirections, f"{d} doit être dans [{listDirections}]"
+
     def Check_dim_mesh_materiau(self) -> None:
         # Dans le cadre d'un probleme de poutre on à pas besoin de verifier cette condition
         pass
@@ -2563,6 +2569,10 @@ class __Simu_Beam(_Simu):
 ###################################################################################################
 
 class __Simu_Thermal(_Simu):
+
+    def Check_Directions(self, problemType: ModelType, directions: list):
+        # Rien d'implémenté car aucune direction n'est nécessaire pour cette simulation
+        pass
 
     def __init__(self, mesh: Mesh, materiau: _Materiau_Thermal, verbosity=True, useNumba=True):
         assert materiau.modelType == ModelType.thermal, "Le materiau doit être de type thermal"
