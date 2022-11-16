@@ -66,7 +66,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     except:
         inDim = mesh.groupElem.inDim
 
-    isBeamModel3D = simu.is3dBeamModel
+    isBeamModel3D = simu.use3DBeamModel
 
     # Construction de la figure et de l'axe si nécessaire
     if ax == None:
@@ -367,7 +367,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
     
     
     if isinstance(obj, _Simu):
-        is3dBeamModel = simu.is3dBeamModel
+        is3dBeamModel = simu.use3DBeamModel
     else:
         is3dBeamModel = False
         
@@ -934,10 +934,7 @@ def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
     assert isinstance(simu, _Simu)
 
     # Recupère les résultats de simulation
-    try:
-        resultats = simu.results
-    except:
-        resultats = simu.Get_All_Results()
+    resultats = simu.dict_results
     df = pd.DataFrame(resultats)
 
     iterations = np.arange(df.shape[0])

@@ -93,9 +93,9 @@ for cc in list_cc:
 
     simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
-    simu.add_dirichlet("displacement", nodes0, [0], ["y"])
-    simu.add_dirichlet("displacement", node00, [0], ["x"])
-    simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
+    simu.add_dirichlet(nodes0, [0], ["y"])
+    simu.add_dirichlet(node00, [0], ["x"])
+    simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
     # Affichage.Plot_BoundaryConditions(simu)
 

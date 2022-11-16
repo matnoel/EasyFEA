@@ -147,12 +147,9 @@ def MakeMovie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nite
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    try:
-        resultats = simu.results
-    except:
-        resultats = simu.Get_All_Results()
+    dict_resultats = simu.dict_results
 
-    N = len(resultats)
+    N = len(dict_resultats)
 
     listIter = Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
@@ -294,14 +291,9 @@ def Save_Simulation_in_Paraview(folder: str, simu: Simulations._Simu, Niter=200)
 
     vtuFiles=[]
 
-    resultats = simu.results
-    try:
-        resultats = simu.results
-    except:
-        # resultats = simu.Get_All_Results()
-        pass
+    dict_resultats = simu.dict_results
 
-    NiterMax = len(resultats)-1
+    NiterMax = len(dict_resultats)-1
 
     listIter = Make_listIter(NiterMax=NiterMax, NiterFin=100, NiterCyble=Niter)
     

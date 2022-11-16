@@ -106,17 +106,17 @@ for v in list_V:
 
         simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
-        simu.add_dirichlet("displacement", nodes0, [0], ["y"])
-        simu.add_dirichlet("displacement", node00, [0], ["x"])
+        simu.add_dirichlet(nodes0, [0], ["y"])
+        simu.add_dirichlet(node00, [0], ["x"])
 
         if loadInHole:
 
-            simu.add_surfLoad("displacement",nodesCircle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
-            simu.add_surfLoad("displacement",nodesCircle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
+            simu.add_surfLoad(nodesCircle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
+            simu.add_surfLoad(nodesCircle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
 
-            # simu.add_surfLoad("displacement", nodesCircle, [lambda x,y,z : SIG*(y-circle.center.y)/r], ["y"])
+            # simu.add_surfLoad(nodesCircle, [lambda x,y,z : SIG*(y-circle.center.y)/r], ["y"])
         else:
-            simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
+            simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
         # Affichage.Plot_BoundaryConditions(simu)
 

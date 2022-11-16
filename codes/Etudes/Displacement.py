@@ -121,21 +121,21 @@ def Chargement(isLoading: bool):
     # Renseigne les condtions limites
 
     if dim == 2:
-        simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
+        simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
     elif dim == 3:
-        simu.add_dirichlet("displacement", noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
+        simu.add_dirichlet(noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
     
-    # simu.add_volumeLoad("displacement", mesh.Nodes_Conditions(conditionX=lambda x: x>1e-4), [-9.81*1e-3], ["y"])
+    # simu.add_volumeLoad(mesh.Nodes_Conditions(conditionX=lambda x: x>1e-4), [-9.81*1e-3], ["y"])
 
     if isLoading:
-        # simu.add_dirichlet("displacement", noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
+        # simu.add_dirichlet(noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
-        # simu.add_lineLoad("displacement", noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        simu.add_dirichlet("displacement", noeuds_en_L, [-7], ["y"], description="dep")
+        # simu.add_lineLoad(noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
+        simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
 
-        # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad], ["y"])
-        # simu.add_surfLoad("displacement",noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
-        # simu.add_lineLoad("displacement",noeuds_en_L, [-lineLoad], ["y"])
+        # simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+        # simu.add_surfLoad(noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
+        # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])
         pass
 
 

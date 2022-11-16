@@ -153,20 +153,20 @@ for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
             simu.Bc_Init()
 
             if not openCrack:
-                simu.add_dirichlet("damage",noeuds_Milieu, [1], ["d"])
+                simu.add_dirichlet(noeuds_Milieu, [1], ["d"], problemType="damage")
             
             if simulation == "Shear":
                 # Conditions en déplacements à Gauche et droite
-                simu.add_dirichlet("displacement", noeuds_Gauche, [0],["y"])
-                simu.add_dirichlet("displacement", noeuds_Droite, [0],["y"])
-                simu.add_dirichlet("displacement", noeuds_Haut, [dep,0], ["x","y"])
-                # simu.add_dirichlet("displacement", noeuds_Haut, [dep], ["x"])
+                simu.add_dirichlet(noeuds_Gauche, [0],["y"])
+                simu.add_dirichlet(noeuds_Droite, [0],["y"])
+                simu.add_dirichlet(noeuds_Haut, [dep,0], ["x","y"])
+                # simu.add_dirichlet(noeuds_Haut, [dep], ["x"])
 
                 # Conditions en déplacements en Bas
-                simu.add_dirichlet("displacement", noeuds_Bas, [0,0],["x","y"])
+                simu.add_dirichlet(noeuds_Bas, [0,0],["x","y"])
             else:
-                simu.add_dirichlet("displacement", noeuds_Haut, [0,dep], ["x","y"])
-                simu.add_dirichlet("displacement", noeuds_Bas, [0],["y"])
+                simu.add_dirichlet(noeuds_Haut, [0,dep], ["x","y"])
+                simu.add_dirichlet(noeuds_Bas, [0],["y"])
             
         Chargement(0)
 

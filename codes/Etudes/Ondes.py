@@ -78,7 +78,7 @@ t=0
 
 def Chargement():
 
-    simu.add_dirichlet("displacement", noeudsBord, [0,0], ["x","y"], "[0,0]")
+    simu.add_dirichlet(noeudsBord, [0,0], ["x","y"], "[0,0]")
 
 
     fonctionX = 0
@@ -87,10 +87,10 @@ def Chargement():
     
     fonctionX = lambda x,y,z: Gx(x)*Gt(t)
     fonctionY = lambda x,y,z: Gx(x)*Gt(t)
-    simu.add_pointLoad("displacement", noeudCentreCercle, [fonctionX, fonctionY], ["x","y"])
+    simu.add_pointLoad(noeudCentreCercle, [fonctionX, fonctionY], ["x","y"])
 
     # if t == dt:
-    #     # simu.add_dirichlet("displacement", noeudCentre, [1e-2,1e-2], ["x","y"], "[load,load]")
+    #     # simu.add_dirichlet(noeudCentre, [1e-2,1e-2], ["x","y"], "[load,load]")
         
 
 if plotIter:

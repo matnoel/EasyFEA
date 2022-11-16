@@ -153,7 +153,7 @@ for config in listConfig:
     if loadSimu:
         try:
             try:
-                resultats = simu.results
+                resultats = simu.dict_results
             except:
                 resultats = simu.Get_All_Results()
                 

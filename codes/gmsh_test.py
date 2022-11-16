@@ -110,25 +110,25 @@ materiau = Materials.Create_Materiau(comportement)
 simu = Simulations.Create_Simu(mesh, materiau)
 
 if option == 1:
-    simu.add_dirichlet("displacement", mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])
-    simu.add_dirichlet("displacement", mesh.Nodes_Conditions(conditionZ=lambda z : z<-50), [2], ["z"])
+    simu.add_dirichlet(mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])
+    simu.add_dirichlet(mesh.Nodes_Conditions(conditionZ=lambda z : z<-50), [2], ["z"])
 
 elif option == 2:
     if dim == 2:
-        simu.add_dirichlet("displacement", noeudsGauche, [0,0], ["x","y"])
-        simu.add_lineLoad("displacement", noeudsDroit, [-8000/h], ["y"])
+        simu.add_dirichlet(noeudsGauche, [0,0], ["x","y"])
+        simu.add_lineLoad(noeudsDroit, [-8000/h], ["y"])
     else:
-        simu.add_dirichlet("displacement", noeudsGauche, [0,0,0], ["x","y","z"])
-        simu.add_surfLoad("displacement", noeudsDroit, [-800/(h*h)], ["y"])
+        simu.add_dirichlet(noeudsGauche, [0,0,0], ["x","y","z"])
+        simu.add_surfLoad(noeudsDroit, [-800/(h*h)], ["y"])
 
 elif option == 3:
     if dim == 2:
-        simu.add_dirichlet("displacement", noeudsBas, [0,0], ["x","y"])
+        simu.add_dirichlet(noeudsBas, [0,0], ["x","y"])
     else:
-        simu.add_dirichlet("displacement", noeudsBas, [0,0,0], ["x","y","z"])
+        simu.add_dirichlet(noeudsBas, [0,0,0], ["x","y","z"])
 
-    simu.add_volumeLoad("displacement", mesh.nodes, [-ro*g], ["y"], "[-ro*g]")
-    simu.add_surfLoad("displacement", noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], "[w*g*(h-y)]")
+    simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], "[-ro*g]")
+    simu.add_surfLoad(noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], "[w*g*(h-y)]")
 
 simu.Assemblage()
 simu.Solve()

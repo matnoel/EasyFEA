@@ -106,17 +106,17 @@ materiau = Materials.Create_Materiau(beamModel, verbosity=True)
 simu = Simulations.Create_Simu(mesh, materiau, verbosity=True)
 
 if beamModel.dim == 1:
-    simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0],["x"])
+    simu.add_dirichlet(mesh.Nodes_Point(point1),[0],["x"])
     if problem == "BiEnca":
-        simu.add_dirichlet("beam", mesh.Nodes_Point(point3),[0],["x"])
+        simu.add_dirichlet(mesh.Nodes_Point(point3),[0],["x"])
 elif beamModel.dim == 2:
-    simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0,0,0],["x","y","rz"])
+    simu.add_dirichlet(mesh.Nodes_Point(point1),[0,0,0],["x","y","rz"])
     if problem == "BiEnca":
-        simu.add_dirichlet("beam", mesh.Nodes_Point(point3),[0,0,0],["x","y","rz"])
+        simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0],["x","y","rz"])
 elif beamModel.dim == 3:
-    simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
+    simu.add_dirichlet(mesh.Nodes_Point(point1),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
     if problem == "BiEnca":
-        simu.add_dirichlet("beam", mesh.Nodes_Point(point3),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
+        simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
 
 
 if beamModel.nbPoutres > 1:
@@ -128,20 +128,20 @@ if beamModel.nbPoutres > 1:
 
 
 if problem in ["Flexion"]:
-    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge],["y"])
-    # simu.add_lineLoad("beam", mesh.Nodes_Line(line), [-800/L], ['y'])
-    # simu.add_surfLoad("beam", mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
+    simu.add_pointLoad(mesh.Nodes_Point(point3), [-charge],["y"])
+    # simu.add_lineLoad(mesh.Nodes_Line(line), [-800/L], ['y'])
+    # simu.add_surfLoad(mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
 elif problem == "Portique":
-    # simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge],["y"])
-    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge, charge],["y","z"])
+    # simu.add_pointLoad(mesh.Nodes_Point(point3), [-charge],["y"])
+    simu.add_pointLoad(mesh.Nodes_Point(point3), [-charge, charge],["y","z"])
     
 elif problem == "BiEnca":
-    simu.add_pointLoad("beam", mesh.Nodes_Point(point2), [-charge],["y"])
+    simu.add_pointLoad(mesh.Nodes_Point(point2), [-charge],["y"])
 elif problem == "Traction":
     noeudsLine = mesh.Nodes_Line(Line(point1, point3))
-    simu.add_lineLoad("beam", noeudsLine, [q],["x"])
-    simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [charge],["x"])
-    # simu.add_dirichlet("beam", mesh.Nodes_Point(point3), [1], ["x"])
+    simu.add_lineLoad(noeudsLine, [q],["x"])
+    simu.add_pointLoad(mesh.Nodes_Point(point3), [charge],["x"])
+    # simu.add_dirichlet(mesh.Nodes_Point(point3), [1], ["x"])
 
 Affichage.Plot_BoundaryConditions(simu)
 

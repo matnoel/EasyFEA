@@ -50,13 +50,13 @@ def Iteration(steadyState: bool):
 
     simu.Bc_Init()
 
-    simu.add_dirichlet("thermal", noeuds0, [0], [""])
-    simu.add_dirichlet("thermal", noeudsL, [40], [""])
+    simu.add_dirichlet(noeuds0, [0], [""])
+    simu.add_dirichlet(noeudsL, [40], [""])
 
-    # simu.add_dirichlet("thermal", noeudsCircle, [10], [""])
-    # simu.add_dirichlet("thermal", noeudsCircle, [10], [""])
+    # simu.add_dirichlet(noeudsCircle, [10], [""])
+    # simu.add_dirichlet(noeudsCircle, [10], [""])
 
-    # simu.add_volumeLoad("thermal", noeudsCircle, [100], [""])
+    # simu.add_volumeLoad(noeudsCircle, [100], [""])
 
     simu.Assemblage(steadyState)
 

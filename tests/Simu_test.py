@@ -98,28 +98,28 @@ class Test_Simu(unittest.TestCase):
             # Conditions
 
             if beamModel.dim == 1:
-                simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0],["x"])
+                simu.add_dirichlet(mesh.Nodes_Point(point1),[0],["x"])
                 if problem == "BiEnca":
-                    simu.add_dirichlet("beam", mesh.Nodes_Point(point3),[0],["x"])
+                    simu.add_dirichlet(mesh.Nodes_Point(point3),[0],["x"])
             elif beamModel.dim == 2:
-                simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0,0,0],["x","y","rz"])
+                simu.add_dirichlet(mesh.Nodes_Point(point1),[0,0,0],["x","y","rz"])
                 if problem == "BiEnca":
-                    simu.add_dirichlet("beam", mesh.Nodes_Point(point3),[0,0,0],["x","y","rz"])
+                    simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0],["x","y","rz"])
             elif beamModel.dim == 3:
-                simu.add_dirichlet("beam", mesh.Nodes_Point(point1),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
+                simu.add_dirichlet(mesh.Nodes_Point(point1),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
                 if problem == "BiEnca":
-                    simu.add_dirichlet("beam", mesh.Nodes_Point(point3),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
+                    simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
 
             if problem == "Flexion":
-                simu.add_pointLoad("beam", mesh.Nodes_Point(point3), [-charge],["y"])
-                # simu.add_surfLoad("beam", mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
+                simu.add_pointLoad(mesh.Nodes_Point(point3), [-charge],["y"])
+                # simu.add_surfLoad(mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
                 
             elif problem == "BiEnca":
-                simu.add_pointLoad("beam", mesh.Nodes_Point(point2), [-charge],["y"])
+                simu.add_pointLoad(mesh.Nodes_Point(point2), [-charge],["y"])
             elif problem == "Traction":
                 noeudsLine = mesh.Nodes_Line(line)
-                simu.add_lineLoad("beam", noeudsLine, [q],["x"])
-                simu.add_pointLoad("beam", mesh.Nodes_Point(point2), [charge],["x"])
+                simu.add_lineLoad(noeudsLine, [q],["x"])
+                simu.add_pointLoad(mesh.Nodes_Point(point2), [charge],["x"])
 
             simu.Assemblage()
 

@@ -122,7 +122,13 @@ class _Simu(ABC):
         return self.__dim
 
     @property
-    def is3dBeamModel(self) -> bool:
+    @abstractmethod
+    def nbddl_n(self) -> int:
+        """degrés de libertés par noeud"""
+        pass
+
+    @property
+    def use3DBeamModel(self) -> bool:
         return False
 
     @property
@@ -187,26 +193,22 @@ class _Simu(ABC):
     @abstractmethod
     def Update_iter(self, index=-1) -> dict:
         """Met la simulation à l'iteration renseignée"""
-        index = int(index)
-        assert isinstance(index, int), "Doit fournir un entier"
+        assert isinstance(index, int), print("Doit fournir un entier")
+
+        indexMax = len(self.__results)-1
+        assert index <= indexMax, f"L'index doit etre < {indexMax}]"
 
         # On va venir récupérer les resultats stocké dans le tableau pandas
-        try:
-            results =  self.results[index]
-        except:
-            print(f"L'index doit etre compris entre [0, {len(self.__results)-1}]")
-            return None
+        results =  self.results[index]
 
-        try:
-            # Met à jour le maillage
-            iterMesh = results["iterMesh"]
-            self.__mesh = self.__listMesh[iterMesh]
-        except:
-            # Pas implémenté
-            pass
+        self.__Update_mesh(index)
 
         return results
 
+    def __Update_mesh(self, index: int):
+        """Met à jour le maillage à l'index renseigné"""
+        iterMesh = self.results[index]["iterMesh"]
+        self.__mesh = self.__listMesh[iterMesh]
 
     @abstractmethod
     def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
@@ -217,7 +219,7 @@ class _Simu(ABC):
     # ------------------------------------------------- SOLVEUR -------------------------------------------------
     # Fonctions pour l'interface avec le solveur
         
-    def Solveur(self, problemType: str, algo: Interface_Solveurs.AlgoType) -> np.ndarray:
+    def Solveur(self, problemType : ModelType, algo: Interface_Solveurs.AlgoType) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
@@ -227,9 +229,8 @@ class _Simu(ABC):
 
         self.__algo = algo
 
-        if problemType == ModelType.beam:
-            if len(self.__Bc_Lagrange) > 0:
-                resolution = 2
+        if len(self.__Bc_Lagrange) > 0:
+            resolution = 2
         
         if resolution == 1:
             
@@ -257,7 +258,7 @@ class _Simu(ABC):
         """
 
         # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
-        # TODO Est-il possible davoir au dela de 1 ?
+        # Est-il possible davoir au dela de 1 ?
 
         assert dt > 0, "l'incrément temporel doit être > 0"
 
@@ -278,7 +279,7 @@ class _Simu(ABC):
         """
 
         # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
-        # TODO Est-il possible davoir au dela de 1 ?
+        # Est-il possible davoir au dela de 1 ?
 
         assert dt > 0, "l'incrément temporel doit être > 0"
 
@@ -331,28 +332,40 @@ class _Simu(ABC):
         """Renvoie une copie des conditions de Lagrange pour l'affichage"""
         return self.__Bc_LagrangeAffichage.copy()
 
-    def Bc_ddls_Dirichlet(self, problemType: str) -> list[int]:
+    def Bc_ddls_Dirichlet(self, problemType=None) -> list[int]:
         """Renvoie les ddls liés aux conditions de Dirichlet"""
+        if problemType == None:
+            problemType = self.problemType
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Dirichlet)
 
-    def BC_values_Dirichlet(self, problemType: str) -> list:
+    def BC_values_Dirichlet(self, problemType=None) -> list:
         """Renvoie les valeurs ddls liés aux conditions de Dirichlet"""
+        if problemType == None:
+            problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
     
-    def Bc_ddls_Neumann(self, problemType: str) -> list:
+    def Bc_ddls_Neumann(self, problemType=None) -> list:
         """Renvoie les ddls liés aux conditions de Neumann"""
+        if problemType == None:
+            problemType = self.problemType
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Neumann)
     
-    def Bc_values_Neumann(self, problemType: str) -> list:
+    def Bc_values_Neumann(self, problemType=None) -> list:
         """Renvoie les valeurs ddls liés aux conditions de Neumann"""
+        if problemType == None:
+            problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
 
-    def Bc_ddls_Lagrange(self, problemType: str) -> list:
+    def Bc_ddls_Lagrange(self, problemType=None) -> list:
         """Renvoie les ddls liés aux conditions de Lagrange"""
+        if problemType == None:
+            problemType = self.problemType
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Lagrange)
     
-    def Bc_values_Lagrange(self, problemType: str) -> list:
+    def Bc_values_Lagrange(self, problemType=None) -> list:
         """Renvoie les valeurs ddls liés aux conditions de Lagrange"""
+        if problemType == None:
+            problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Lagrange)
 
     def __Bc_evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
@@ -381,9 +394,12 @@ class _Simu(ABC):
 
         return valeurs_eval
     
-    def add_dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs: np.ndarray, directions: list, description=""):
+    def add_dirichlet(self, noeuds: np.ndarray, valeurs: np.ndarray, directions: list, problemType=None, description=""):
 
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
+
+        if problemType == None:
+            problemType = self.problemType
         
         Nn = noeuds.shape[0]
         coordo = self.mesh.coordo
@@ -407,7 +423,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-    def add_pointLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+    def add_pointLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
         """Pour le probleme donné applique une force ponctuelle\n
         valeurs est une liste de constantes ou de fonctions\n
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
@@ -415,13 +431,17 @@ class _Simu(ABC):
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
         les fonctions utilisent les coordonnées x, y et z des noeuds renseignés
         """
+        
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
+
+        if problemType == None:
+            problemType = self.problemType
 
         valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, noeuds, valeurs, directions)
 
         self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
         
-    def add_lineLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+    def add_lineLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
         """Pour le probleme donné applique une force linéique\n
         valeurs est une liste de constantes ou de fonctions\n
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
@@ -431,11 +451,14 @@ class _Simu(ABC):
         """
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
+        if problemType == None:
+            problemType = self.problemType
+
         valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
 
         self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-    def add_surfLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+    def add_surfLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
         """Pour le probleme donné applique une force surfacique\n
         valeurs est une liste de constantes ou de fonctions\n
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
@@ -446,12 +469,18 @@ class _Simu(ABC):
         """
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
+        if problemType == None:
+            problemType = self.problemType
+
         if problemType == ModelType.beam:
-            valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, noeuds, valeurs, directions)
-            # multiplie par la surface de la section
-            # TODO ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
-            valeurs_ddls *= self.materiau.beamModel.poutre.section.aire
-        elif self.__dim == 2:
+            # valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, noeuds, valeurs, directions)
+            # # multiplie par la surface de la section
+            # # ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
+            # valeurs_ddls *= self.materiau.beamModel.poutre.section.aire
+            print("Il est impossible d'appliquer une charge surfacique sur un probleme poutre")
+            return
+            
+        if self.__dim == 2:
             valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
             valeurs_ddls *= self.materiau.epaisseur
@@ -460,7 +489,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
-    def add_volumeLoad(self, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list, description=""):
+    def add_volumeLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
         """Pour le probleme donné applique une force volumique\n
         valeurs est une liste de constantes ou de fonctions\n
         ex: valeurs = [lambda x,y,z : f(x,y,z) ou -10]
@@ -468,14 +497,21 @@ class _Simu(ABC):
         les fonctions doivent être de la forme lambda x,y,z : f(x,y,z)\n
         les fonctions utilisent les coordonnées x, y et z des points d'intégrations
         """
+        
         if len(valeurs) == 0 or len(valeurs) != len(directions): return
 
+        if problemType == None:
+            problemType = self.problemType
+
         if problemType == ModelType.beam:
-            valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
-            # multiplie par la surface de la section
-            # TODO ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
-            valeurs_ddls *= self.materiau.beamModel.poutre.section.aire
-        elif self.__dim == 2:
+            # valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
+            # # multiplie par la surface de la section
+            # # ici il peut y avoir un probleme si il ya plusieurs poutres et donc des sections différentes
+            # valeurs_ddls *= self.materiau.beamModel.poutre.section.aire
+            print("Il est impossible d'appliquer une charge volumique sur un probleme poutre")
+            return
+
+        if self.__dim == 2:
             valeurs_ddls, ddls = self.__Bc_surfload(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
             valeurs_ddls = valeurs_ddls*self.materiau.epaisseur
@@ -503,12 +539,7 @@ class _Simu(ABC):
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
-        if problemType == ModelType.beam:
-            param = self.materiau.beamModel.nbddl_n
-        else:
-            param = self.__dim
-
-        ddls = BoundaryCondition.Get_ddls_noeuds(param, problemType, noeuds, directions)
+        ddls = BoundaryCondition.Get_ddls_noeuds(self.nbddl_n, problemType, noeuds, directions)
 
         return valeurs_ddls, ddls
 
@@ -525,10 +556,7 @@ class _Simu(ABC):
         else:
             exclusivement=True
 
-        if problemType == ModelType.beam:
-            param = self.materiau.beamModel.nbddl_n
-        else:
-            param = self.__dim
+        nbddl_n = self.nbddl_n
 
         # Récupération des matrices pour le calcul
         for groupElem in listGroupElemDim:
@@ -564,7 +592,7 @@ class _Simu(ABC):
             new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
             
-            new_ddls = BoundaryCondition.Get_ddls_connect(param, problemType, connect_e, directions)
+            new_ddls = BoundaryCondition.Get_ddls_connect(nbddl_n, problemType, connect_e, directions)
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
@@ -599,7 +627,7 @@ class _Simu(ABC):
 
         return valeurs_ddls, ddls
     
-    def __Bc_Add_Neumann(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
+    def __Bc_Add_Neumann(self, problemType : ModelType, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Neumann"""
 
         tic = Tic()
@@ -635,7 +663,7 @@ class _Simu(ABC):
 
         tic.Tac("Boundary Conditions","Condition Neumann", self._verbosity)   
      
-    def __Bc_Add_Dirichlet(self, problemType: str, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
+    def __Bc_Add_Dirichlet(self, problemType : ModelType, noeuds: np.ndarray, valeurs_ddls: np.ndarray, ddls: np.ndarray, directions: list, description=""):
         """Ajoute les conditions de Dirichlet"""
 
         tic = Tic()
@@ -762,7 +790,7 @@ class _Simu(ABC):
     # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
     
     @staticmethod
-    def Resultats_indexe_option(dim: int, problemType: str,  option: str):
+    def Resultats_indexe_option(dim: int, problemType : ModelType,  option: str):
         """Donne l'indexe pour accéder à l'option en fonction du type de problème"""
         
         if problemType in [ModelType.displacement,ModelType.damage]:
@@ -850,7 +878,7 @@ class _Simu(ABC):
         return options
 
     @staticmethod
-    def __Resultats_Options(dim: int, problemType: str) -> List[str]:
+    def __Resultats_Options(dim: int, problemType : ModelType) -> List[str]:
         """Donne la liste la liste de résultats auxquelles la simulation a accès"""
 
         categories = _Simu.__Resultats_Categories(dim)
@@ -1003,6 +1031,10 @@ class __Simu_Displacement(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
+
+    @property
+    def nbddl_n(self) -> int:
+        return self.dim
 
     @property
     def materiau(self) -> _Materiau_Displacement:
@@ -1539,6 +1571,10 @@ class __Simu_PhaseField(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
+
+    @property
+    def nbddl_n(self) -> int:
+        return 1
 
     @property
     def materiau(self) -> _Materiau_PhaseField:
@@ -2226,11 +2262,15 @@ class __Simu_Beam(_Simu):
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
 
     @property
+    def nbddl_n(self) -> int:
+        return self.materiau.beamModel.nbddl_n
+
+    @property
     def materiau(self) -> _Materiau_Beam:
         return super().materiau
     
     @property
-    def is3dBeamModel(self) -> bool:
+    def use3DBeamModel(self) -> bool:
         if self.materiau.beamModel.dim == 3:
             return True
         else:
@@ -2593,6 +2633,10 @@ class __Simu_Thermal(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
+
+    @property
+    def nbddl_n(self) -> int:
+        return 1
 
     @property
     def materiau(self) -> _Materiau_Thermal:

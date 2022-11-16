@@ -90,9 +90,9 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=False)
 
         # Renseigne les condtions limites en deplacement
-        simu.add_dirichlet("displacement", noeuds_en_0, [0,0], ["x","y"])
+        simu.add_dirichlet(noeuds_en_0, [0,0], ["x","y"])
         # Renseigne les condtions limites en forces
-        simu.add_surfLoad("displacement", noeuds_en_L, [-P/h**2], ["y"])
+        simu.add_surfLoad(noeuds_en_L, [-P/h**2], ["y"])
 
         # Assemblage du système matricielle
         simu.Assemblage()

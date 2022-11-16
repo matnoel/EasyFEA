@@ -95,18 +95,18 @@ else:
 
 
 
-simu.add_dirichlet("displacement", nodes0, [0], ["y"])
-simu.add_dirichlet("displacement", node00, [0], ["x"])
-# simu.add_surfLoad("displacement", noeuds_cercle, [-SIG], ["y"])
-# simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r], ["y"])
-# simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r*(y-circle.center.y)/r], ["x"])
+simu.add_dirichlet(nodes0, [0], ["y"])
+simu.add_dirichlet(node00, [0], ["x"])
+# simu.add_surfLoad(noeuds_cercle, [-SIG], ["y"])
+# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r], ["y"])
+# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r*(y-circle.center.y)/r], ["x"])
 
 # Sx = F * cos tet * abs(sin tet)
 # Sy = F * sin tet * abs(sin tet)
-# simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
-# simu.add_surfLoad("displacement",noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
+# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
+# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
 
-simu.add_surfLoad("displacement", nodesh, [-SIG], ["y"])
+simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 
