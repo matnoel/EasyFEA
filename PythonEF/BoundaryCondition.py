@@ -140,7 +140,7 @@ class BoundaryCondition:
             indexes = {
                 "x": 0,
                 "y": 1,
-                "z": 2,
+                "z": 2
             }
 
         elif problemType == ModelType.beam:

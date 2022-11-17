@@ -216,10 +216,10 @@ class Test_Simu(unittest.TestCase):
             noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
             noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
-            simu.add_dirichlet("displacement", noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
-            # simu.add_lineLoad("displacement",noeuds_en_L, [-P/h], ["y"])
-            simu.add_dirichlet("displacement",noeuds_en_L, [lambda x,y,z: 1], ['x'])
-            simu.add_surfLoad("displacement",noeuds_en_L, [P/h/b], ["y"])
+            simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
+            # simu.add_lineLoad(noeuds_en_L, [-P/h], ["y"])
+            simu.add_dirichlet(noeuds_en_L, [lambda x,y,z: 1], ['x'])
+            simu.add_surfLoad(noeuds_en_L, [P/h/b], ["y"])
 
             simu.Assemblage(steadyState=False)
 
@@ -265,8 +265,8 @@ class Test_Simu(unittest.TestCase):
             noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
 
-            simu.add_dirichlet("thermal", noeuds0, [0], [""])
-            simu.add_dirichlet("thermal", noeudsL, [40], [""])
+            simu.add_dirichlet(noeuds0, [0], [""])
+            simu.add_dirichlet(noeudsL, [40], [""])
             simu.Assemblage(steadyState=True)
             simu.Solve(steadyState=True)
             simu.Save_Iteration()
@@ -289,9 +289,13 @@ class Test_Simu(unittest.TestCase):
                 Champ d'endommagement
             """
 
+            import Mesh
+
             tic = Tic()
 
-            matriceType = "rigi"
+            matriceType = Mesh.MatriceType.rigi
+
+            if simu.materiau.modelType != Simulations.ModelType.displacement: return
 
             # Data
             mesh = simu.mesh

@@ -38,7 +38,7 @@ class _Simu(ABC):
 
     @staticmethod
     def Check_ProblemTypes(problemType : ModelType):
-        """Verifie si ce type de probleme est implénté"""
+        """Verifie si ce type de probleme connue"""
         list_problemType = list(ModelType)
         assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
 
@@ -120,10 +120,9 @@ class _Simu(ABC):
     def dim(self) -> int:
         """dimension de la simulation"""
         return self.__dim
-
-    @property
+    
     @abstractmethod
-    def nbddl_n(self) -> int:
+    def nbddl_n(self, problemType="") -> int:
         """degrés de libertés par noeud"""
         pass
 
@@ -193,9 +192,10 @@ class _Simu(ABC):
     @abstractmethod
     def Update_iter(self, index=-1) -> dict:
         """Met la simulation à l'iteration renseignée"""
+        index = int(index)
         assert isinstance(index, int), print("Doit fournir un entier")
 
-        indexMax = len(self.__results)-1
+        indexMax = len(self.results)-1
         assert index <= indexMax, f"L'index doit etre < {indexMax}]"
 
         # On va venir récupérer les resultats stocké dans le tableau pandas
@@ -371,7 +371,7 @@ class _Simu(ABC):
     def __Bc_evalue(self, coordo: np.ndarray, valeurs, option="noeuds"):
         """evalue les valeurs aux noeuds ou aux points de gauss"""
         
-        assert option in ["noeuds","gauss"]        
+        assert option in ["noeuds","gauss"], f"Doit être dans ['noeuds','gauss']"
         if option == "noeuds":
             valeurs_eval = np.zeros(coordo.shape[0])
         elif option == "gauss":
@@ -400,6 +400,8 @@ class _Simu(ABC):
 
         if problemType == None:
             problemType = self.problemType
+
+        _Simu.Check_ProblemTypes(problemType)
         
         Nn = noeuds.shape[0]
         coordo = self.mesh.coordo
@@ -414,12 +416,9 @@ class _Simu(ABC):
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
-        if problemType == ModelType.beam:
-            param = self.materiau.beamModel.nbddl_n
-        else:
-            param = self.__dim
+        nbddl_n = self.nbddl_n(problemType)
 
-        ddls = BoundaryCondition.Get_ddls_noeuds(param, problemType, noeuds, directions)
+        ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, noeuds, directions)
 
         self.__Bc_Add_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
@@ -436,6 +435,8 @@ class _Simu(ABC):
 
         if problemType == None:
             problemType = self.problemType
+
+        _Simu.Check_ProblemTypes(problemType)
 
         valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, noeuds, valeurs, directions)
 
@@ -454,6 +455,8 @@ class _Simu(ABC):
         if problemType == None:
             problemType = self.problemType
 
+        _Simu.Check_ProblemTypes(problemType)
+
         valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
 
         self.__Bc_Add_Neumann(problemType, noeuds, valeurs_ddls, ddls, directions, description)
@@ -471,6 +474,8 @@ class _Simu(ABC):
 
         if problemType == None:
             problemType = self.problemType
+
+        _Simu.Check_ProblemTypes(problemType)
 
         if problemType == ModelType.beam:
             # valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, noeuds, valeurs, directions)
@@ -502,6 +507,8 @@ class _Simu(ABC):
 
         if problemType == None:
             problemType = self.problemType
+
+        _Simu.Check_ProblemTypes(problemType)
 
         if problemType == ModelType.beam:
             # valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
@@ -539,7 +546,9 @@ class _Simu(ABC):
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
-        ddls = BoundaryCondition.Get_ddls_noeuds(self.nbddl_n, problemType, noeuds, directions)
+        nbddl_n = self.nbddl_n(problemType)
+
+        ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, noeuds, directions)
 
         return valeurs_ddls, ddls
 
@@ -556,7 +565,7 @@ class _Simu(ABC):
         else:
             exclusivement=True
 
-        nbddl_n = self.nbddl_n
+        nbddl_n = self.nbddl_n(problemType)
 
         # Récupération des matrices pour le calcul
         for groupElem in listGroupElemDim:
@@ -690,14 +699,15 @@ class _Simu(ABC):
     # ------------------------------------------- LIAISONS ------------------------------------------- 
     # Fonctions pour créer des liaisons entre degré de liberté
 
+    # TODO à passer dans __Simu_beam
+
     def add_liaison_Encastrement(self, noeuds: np.ndarray, description="Encastrement"):
         
-        if not isinstance(self, __Simu_Beam):
+        if not isinstance(self.materiau, _Materiau_Beam):
             print("La simulation n'est pas un probleme poutre")
             return
 
-        beamModel = self.materiau.beamModel
-        
+        beamModel = self.materiau.beamModel        
 
         if beamModel.dim == 1:
             directions = ['x']
@@ -712,7 +722,7 @@ class _Simu(ABC):
 
     def add_liaison_Rotule(self, noeuds: np.ndarray, directions=[''] ,description="Rotule"):
         
-        if not isinstance(self, __Simu_Beam):
+        if not isinstance(self.materiau, _Materiau_Beam):
             print("La simulation n'est pas un probleme poutre")
             return
 
@@ -740,13 +750,12 @@ class _Simu(ABC):
 
     def add_liaisonPoutre(self, noeuds: np.ndarray, directions: List[str], description: str):
         
-        if not isinstance(self, __Simu_Beam):
+        if not isinstance(self.materiau, _Materiau_Beam):
             print("La simulation n'est pas un probleme poutre")
             return
 
+        nbddl_n = self.nbddl_n()
         problemType = self.problemType
-        beamModel = self.materiau.beamModel
-        nbddl = beamModel.nbddl_n
 
         # Verficiation
         _Simu.Check_Directions(self.__dim, problemType, directions)
@@ -755,7 +764,7 @@ class _Simu(ABC):
 
         # On va venir pour chaque directions appliquer les conditions
         for d, dir in enumerate(directions):
-            ddls = BoundaryCondition.Get_ddls_noeuds(param=nbddl,  problemType=problemType, noeuds=noeuds, directions=[dir])
+            ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n,  problemType=problemType, noeuds=noeuds, directions=[dir])
 
             new_LagrangeBc = LagrangeCondition(problemType, noeuds, ddls, [dir], [0], [1,-1], description)
 
@@ -770,13 +779,8 @@ class _Simu(ABC):
 
     def __Bc_Add_LagrangeAffichage(self,noeuds: np.ndarray, directions: List[str], description: str):
         
-        if not isinstance(self, __Simu_Beam):
-            print("La simulation n'est pas un probleme poutre")
-            return
-        
         # Ajoute une condition pour l'affichage
-        beamModel = self.materiau.beamModel
-        nbddl = beamModel.nbddl_n
+        nbddl = self.nbddl_n()
         
         # Prend le premier noeuds de la liaison
         noeuds1 = np.array([noeuds[0]])
@@ -1031,9 +1035,8 @@ class __Simu_Displacement(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
-
-    @property
-    def nbddl_n(self) -> int:
+    
+    def nbddl_n(self, problemType="") -> int:
         return self.dim
 
     @property
@@ -1571,10 +1574,12 @@ class __Simu_PhaseField(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
-
-    @property
-    def nbddl_n(self) -> int:
-        return 1
+    
+    def nbddl_n(self, problemType="") -> int:
+        if problemType == ModelType.damage:
+            return 1
+        elif problemType == ModelType.displacement:
+            return self.dim
 
     @property
     def materiau(self) -> _Materiau_PhaseField:
@@ -1597,6 +1602,27 @@ class __Simu_PhaseField(_Simu):
     def damage(self) -> np.ndarray:
         """Copie du champ scalaire d'endommagement"""
         return self.__damage.copy()
+
+    def add_dirichlet(self, noeuds: np.ndarray, valeurs: np.ndarray, directions: list, problemType=None, description=""):
+        if problemType == None:
+            problemType = ModelType.displacement
+        return super().add_dirichlet(noeuds, valeurs, directions, problemType, description)
+    
+    def add_lineLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
+        if problemType == None:
+            problemType = ModelType.displacement
+        return super().add_lineLoad(noeuds, valeurs, directions, problemType, description)
+
+    def add_surfLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
+        if problemType == None:
+            problemType = ModelType.displacement
+        return super().add_surfLoad(noeuds, valeurs, directions, problemType, description)
+        
+    def add_pointLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
+        if problemType == None:
+            problemType = ModelType.displacement
+        return super().add_pointLoad(noeuds, valeurs, directions, problemType, description)
+    
 
     def Assemblage(self):
         print("Utiliser Assemblage_u() et Assemblage_d()")
@@ -2260,9 +2286,8 @@ class __Simu_Beam(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
-
-    @property
-    def nbddl_n(self) -> int:
+    
+    def nbddl_n(self, problemType="") -> int:
         return self.materiau.beamModel.nbddl_n
 
     @property
@@ -2633,9 +2658,8 @@ class __Simu_Thermal(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
-
-    @property
-    def nbddl_n(self) -> int:
+    
+    def nbddl_n(self, problemType="") -> int:
         return 1
 
     @property

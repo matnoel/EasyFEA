@@ -152,10 +152,7 @@ for config in listConfig:
 
     if loadSimu:
         try:
-            try:
-                resultats = simu.dict_results
-            except:
-                resultats = simu.Get_All_Results()
+            resultats = simu.results
                 
             resulats = pd.DataFrame(resulats)
             temps = resulats['tempsIter'].sum(axis=0)

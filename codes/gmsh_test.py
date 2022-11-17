@@ -8,8 +8,8 @@ from Mesh import ElemType
 import Materials
 import Dossier
 
-option = 2
-dim = 3
+option = 3
+dim = 2
 N = 5
 
 dictOptions = {
@@ -127,8 +127,8 @@ elif option == 3:
     else:
         simu.add_dirichlet(noeudsBas, [0,0,0], ["x","y","z"])
 
-    simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], "[-ro*g]")
-    simu.add_surfLoad(noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], "[w*g*(h-y)]")
+    simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
+    simu.add_surfLoad(noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], description="[w*g*(h-y)]")
 
 simu.Assemblage()
 simu.Solve()

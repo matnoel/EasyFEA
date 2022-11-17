@@ -78,7 +78,7 @@ t=0
 
 def Chargement():
 
-    simu.add_dirichlet(noeudsBord, [0,0], ["x","y"], "[0,0]")
+    simu.add_dirichlet(noeudsBord, [0,0], ["x","y"], description="[0,0]")
 
 
     fonctionX = 0

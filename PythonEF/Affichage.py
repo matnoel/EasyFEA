@@ -61,10 +61,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     mesh = simu.mesh # récupération du maillage
     dim = mesh.dim # dimension du maillage
     # Dimension dans lequel se trouve le maillage
-    try:
-        inDim = mesh.inDim 
-    except:
-        inDim = mesh.groupElem.inDim
+    inDim = mesh.inDim
 
     isBeamModel3D = simu.use3DBeamModel
 
@@ -934,7 +931,7 @@ def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
     assert isinstance(simu, _Simu)
 
     # Recupère les résultats de simulation
-    resultats = simu.dict_results
+    resultats = simu.results
     df = pd.DataFrame(resultats)
 
     iterations = np.arange(df.shape[0])
