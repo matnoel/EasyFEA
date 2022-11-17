@@ -1,4 +1,4 @@
-Il faut aller chercher le projet sur git https://github.com/matnoel/PythonEF.git
+Le projet est sur git https://github.com/matnoel/PythonEF.git
 
 il faut installer sur python :
 	numpy -> pour les calculs rapides notament einsum
@@ -6,10 +6,11 @@ il faut installer sur python :
 	matplotlib -> pour afficher les résultats
 	gmsh -> pour creer le maillage (Regarder installation gmsh sur macos il faut reconstruire le projet et ajouter le python patch pour le module gmsh)
 	pandas -> pour creer des tableaux
-	pypardiso -> tres important pour résoudre les système en parallel
+	pypardiso -> tres important pour résoudre les système matricielle direct en parallel (installation intel mkl nécessaire)
 	numba -> module pour compiler des fonctions executables en parallel
 	scikit-umfpack -> Pas obligatoire
 	scikits-sparse -> installer cholmod pour la decomposition de cholesky
+    colorama -> pour afficher de la couleur dans le terminal
 
 
 Il faut impérativement ajouter le dossier dans lequel est contenu les modules et classes dans le path
@@ -18,7 +19,6 @@ Pour ça on ajoute dans le PYTHONPATH:
 	sur macOs :
 		dans le .zprofile ajouter 
 		export PYTHONPATH:"$PYTHONPATH:/Documents/PythonEF/PythonEF"
-
 
 	sur linux :
 		export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/PythonEF
@@ -31,7 +31,6 @@ Installation gmsh :
 
 	il faut dabord  installer opencascade : sudo port install opencascade
 	il faut ensuite installer fltk : sudo port install fltk
-
 
 	Sur Mac il faut construire le projet gmsh
 	https://gitlab.onelab.info/gmsh/gmsh
