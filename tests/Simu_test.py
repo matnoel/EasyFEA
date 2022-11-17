@@ -111,15 +111,15 @@ class Test_Simu(unittest.TestCase):
                     simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
 
             if problem == "Flexion":
-                simu.add_pointLoad(mesh.Nodes_Point(point3), [-charge],["y"])
+                simu.add_neumann(mesh.Nodes_Point(point3), [-charge],["y"])
                 # simu.add_surfLoad(mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
                 
             elif problem == "BiEnca":
-                simu.add_pointLoad(mesh.Nodes_Point(point2), [-charge],["y"])
+                simu.add_neumann(mesh.Nodes_Point(point2), [-charge],["y"])
             elif problem == "Traction":
                 noeudsLine = mesh.Nodes_Line(line)
                 simu.add_lineLoad(noeudsLine, [q],["x"])
-                simu.add_pointLoad(mesh.Nodes_Point(point2), [charge],["x"])
+                simu.add_neumann(mesh.Nodes_Point(point2), [charge],["x"])
 
             simu.Assemblage()
 

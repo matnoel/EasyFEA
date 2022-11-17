@@ -87,7 +87,7 @@ def Chargement():
     
     fonctionX = lambda x,y,z: Gx(x)*Gt(t)
     fonctionY = lambda x,y,z: Gx(x)*Gt(t)
-    simu.add_pointLoad(noeudCentreCercle, [fonctionX, fonctionY], ["x","y"])
+    simu.add_neumann(noeudCentreCercle, [fonctionX, fonctionY], ["x","y"])
 
     # if t == dt:
     #     # simu.add_dirichlet(noeudCentre, [1e-2,1e-2], ["x","y"], "[load,load]")
