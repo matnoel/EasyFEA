@@ -96,8 +96,6 @@ def Chargement():
 if plotIter:
     fig, ax, cb = Affichage.Plot_Result(simu, resultat, valeursAuxNoeuds=True)
 
-simu.Assemblage(steadyState=False)
-
 tic = TicTac.Tic()
 
 while t <= tMax:

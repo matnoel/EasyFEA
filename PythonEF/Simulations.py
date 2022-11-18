@@ -10,7 +10,7 @@ from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import ModelType, _Materiau, Beam_Model, _Materiau_Beam, _Materiau_Displacement, _Materiau_PhaseField, _Materiau_Thermal
 from TicTac import Tic
 import CalcNumba
-import Interface_Solveurs
+from Interface_Solveurs import ResolutionType, AlgoType, _Solveur, _Solve_Axb
 
 def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
 
@@ -75,13 +75,15 @@ class _Simu(ABC):
         self._verbosity = verbosity
         """la simulation peut ecrire dans la console"""
         
-        self.__algo = Interface_Solveurs.AlgoType.elliptic
+        self.__algo = AlgoType.elliptic
         # de base l'algo résout des problèmes stationnaires
 
         self.useNumba = useNumba
 
         # Conditions Limites
         self.Bc_Init()
+
+        self.Matrices_Need_Update()
 
     # TODO Permettre de creer des simulation depuis le formulation variationnelle ?
 
@@ -91,7 +93,7 @@ class _Simu(ABC):
         return self.materiau.modelType
 
     @property
-    def algo(self) -> Interface_Solveurs.AlgoType:
+    def algo(self) -> AlgoType:
         """algorithme utilisé lors de la résolution"""
         return self.__algo
     
@@ -112,6 +114,9 @@ class _Simu(ABC):
             self.__listMesh.append(mesh)
             self.__mesh = mesh
 
+            # le maillage change, il faut donc reconstruire les matrices
+            self.Matrices_Need_Update()
+
     @property
     def dim(self) -> int:
         """dimension de la simulation"""
@@ -120,6 +125,20 @@ class _Simu(ABC):
     @property
     def use3DBeamModel(self) -> bool:
         return False
+
+    @property
+    def useCholesky(self) -> bool:
+        """La matrice A de Ax=b est definie symetrique positive"""
+        return True
+
+    @property
+    def A_isSymetric(self) -> bool:
+        """La matrice A de Ax=b est symétrique"""
+        return True
+
+    def Get_lb_ub(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
+        """Lower bound et upper bound pour BoundConstrain"""
+        return np.array([]), np.array([])
 
     @property
     def useNumba(self) -> bool:
@@ -135,8 +154,23 @@ class _Simu(ABC):
         """Met à jour le maillage à l'index renseigné"""
         iterMesh = self.results[index]["iterMesh"]
         self.__mesh = self.__listMesh[iterMesh]
+        self.Matrices_Need_Update()
 
-    # Fonctions à redefinir pour chaque heritié de simu
+    @property
+    def matricesUpdated(self) -> bool:
+        """Les matrices de la simulation sont à reconstruire"""
+        return self.__matricesUpdated
+
+    def Matrices_Need_Update(self):
+        """Renseigne le fait que la simulation à besoin de reconstruire ces matrices"""
+        self.__matricesUpdated = False
+
+    def Matrices_Updtated(self):
+        """Les matrices ont été reconstruites"""
+        self.__matricesUpdated = True    
+
+    # Fonctions à redefinir pour chaque heritié de simu    
+
     @abstractmethod
     def nbddl_n(self, problemType="") -> int:
         """degrés de libertés par noeud"""
@@ -168,14 +202,33 @@ class _Simu(ABC):
         pass
 
     @abstractmethod
-    def Assemblage(self):
-        """Assemblage de la simulation"""
+    def Get_K_C_M(self) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+        """Renvoie les matrices assemblés de K*x + C*v + M*a"""
+        pass
+
+    # Solveurs
+
+    @abstractmethod
+    def Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
+        """Renseigne les conditiosn limites de neumann en construisant b de A x = b"""
         pass
 
     @abstractmethod
-    def Solve(self):
+    def Apply_Dirichlet(self, problemType: str, b: sparse.csr_matrix, resolution: ResolutionType)  -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
+        """Applique les conditions de dirichlet en construisant Ax de Ax=b"""
+        pass
+    
+    @abstractmethod
+    def Get_x0(self, problemType: ModelType):
+        """Renvoie la solution de l'itération précédente"""
+        return []
+
+    @abstractmethod
+    def Solve(self) -> np.ndarray:
         """Résolution de la simulation"""
         pass
+
+    # Sauvegarde
 
     @abstractmethod
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None) -> dict:
@@ -204,6 +257,8 @@ class _Simu(ABC):
             iter["dincMax"] = dincMax
 
         return iter
+
+    # Update
     
     @abstractmethod
     def Update_iter(self, index=-1) -> list[dict]:
@@ -221,6 +276,8 @@ class _Simu(ABC):
 
         return results
 
+    # Resultats
+
     @abstractmethod
     def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
         """ Renvoie le résultat de la simulation (np.ndarray ou float)
@@ -228,38 +285,59 @@ class _Simu(ABC):
         pass
 
     @abstractmethod
-    def Get_Marker_Direction(self, direction: str) -> str:
-        """Renvoie le marker associé à la direction"""
-        pass
+    def Get_ResumeIter_values(self) -> list[tuple[str, np.ndarray]]:
+        """Renvoie les valeurs a afficher dans Plot_ResumeIter\n
+        """
+        return [()]
     
     # ------------------------------------------------- SOLVEUR -------------------------------------------------
     # Fonctions pour l'interface avec le solveur
+
+    def _Get_Dirichlet_A_x(self, problemType: ModelType, resolution: ResolutionType, A: sparse.csr_matrix, b: sparse.csr_matrix, valeurs_ddls: np.ndarray):
+
+        ddls = self.Bc_ddls_Dirichlet(problemType)        
+        taille = self.mesh.Nn * self.nbddl_n(problemType)
+
+        if resolution in [ResolutionType.r1, ResolutionType.r2]:
+                
+            # ici on renvoie la solution avec les ddls connues
+            x = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1), dtype=np.float64)
+
+            # l,c ,v = sparse.find(x)
+
+            return A, x
+
+        elif resolution == ResolutionType.r3:
+            # Pénalisation
+
+            A = A.tolil()
+            b = b.tolil()            
+            
+            # Pénalisation A
+            A[ddls] = 0.0
+            A[ddls, ddls] = 1
+
+            # Pénalisation b
+            b[ddls] = valeurs_ddls
+
+            # ici on renvoie A pénalisé
+            return A.tocsr(), b.tocsr()
         
-    def _Solveur(self, problemType : ModelType, algo: Interface_Solveurs.AlgoType) -> np.ndarray:
+    def _Solveur(self, problemType : ModelType, algo: AlgoType) -> np.ndarray:
         """Resolution du de la simulation et renvoie la solution\n
         Prépare dans un premier temps A et b pour résoudre Ax=b\n
         On va venir appliquer les conditions limites pour résoudre le système"""
-        # ici il faut specifier le type de probleme car une simulation peut posséder plusieurs Modèle physique
-
-        resolution = 1
+        # ici il faut specifier le type de probleme car une simulation peut posséder plusieurs Modèle physique        
 
         self.__algo = algo
 
         if len(self.__Bc_Lagrange) > 0:
             # Des condtions de lagrange son renseigné
-            resolution = 2
-        
-        if resolution == 1:
-            
-            x = Interface_Solveurs.Solveur_1(self, problemType)
+            resolution = ResolutionType.r2
+        else:
+            resolution = ResolutionType.r1
 
-        elif resolution == 2:
-
-            x = Interface_Solveurs.Solveur_2(self, problemType)
-
-        elif resolution == 3:
-            
-            x = Interface_Solveurs.Solveur_3(self, problemType)
+        x = _Solveur(self, problemType, resolution)
 
         return x
 
@@ -305,7 +383,8 @@ class _Simu(ABC):
         self.dt = dt
 
     # ------------------------------------------- CONDITIONS LIMITES -------------------------------------------
-    # Fonctions pour le renseignement des conditions limites de la simulation
+    # Fonctions pour le renseignement des conditions limites de la simulation    
+
 
     @staticmethod
     def __Bc_Init_List_BoundaryCondition() -> list[BoundaryCondition]:
@@ -384,6 +463,36 @@ class _Simu(ABC):
         if problemType == None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Lagrange)
+
+    def Bc_ddls_connues_inconnues(self, problemType: ModelType):
+        """Récupère les ddl Connues et Inconnues
+        Returns:
+            list(int), list(int): ddl_Connues, ddl_Inconnues
+        """
+        tic = Tic()
+
+        # Construit les ddls connues
+        ddls_Connues = []
+
+        ddls_Connues = self.Bc_ddls_Dirichlet(problemType)
+        unique_ddl_Connues = np.unique(ddls_Connues)
+
+        # Construit les ddls inconnues
+
+        taille = self.mesh.Nn * self.nbddl_n(problemType)
+
+        ddls_Inconnues = list(range(taille))
+
+        ddls_Inconnues = list(set(ddls_Inconnues) - set(unique_ddl_Connues))        
+                                
+        ddls_Inconnues = np.array(ddls_Inconnues)
+        
+        verifTaille = unique_ddl_Connues.shape[0] + ddls_Inconnues.shape[0]
+        assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
+
+        tic.Tac("Construit Ax=b",f"Construit ddls ({problemType})", self._verbosity)
+
+        return ddls_Connues, ddls_Inconnues    
 
     def __Bc_evalue(self, coordo: np.ndarray, valeurs, option="noeuds") -> np.ndarray:
         """evalue les valeurs aux noeuds ou aux points de gauss"""
@@ -1100,12 +1209,7 @@ class __Simu_Displacement(_Simu):
     def Check_Directions(self, problemType: ModelType, directions: list):
         listDirections = self.directions
         for d in directions: assert d in listDirections, f"{d} n'est pas dans [{listDirections}]"
-
-    @abstractmethod
-    def Get_Marker_Direction(self, direction: str) -> str:
-        """Renvoie le marker associé à la direction"""
-        pass
-
+    
     def __init__(self, mesh: Mesh, materiau: _Materiau_Displacement, verbosity=True, useNumba=True):
         """Creation d'une simulation de déplacement"""
         assert materiau.modelType == ModelType.displacement, "Le materiau doit être de type displacement"
@@ -1127,8 +1231,6 @@ class __Simu_Displacement(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
-    
-    
 
     @property
     def materiau(self) -> _Materiau_Displacement:
@@ -1160,7 +1262,7 @@ class __Simu_Displacement(_Simu):
     #         return None
     
 
-    def ConstruitMatElem_Dep(self, steadyState=True) -> np.ndarray:
+    def ConstruitMatElem_Dep(self) -> np.ndarray:
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
         """
 
@@ -1185,6 +1287,7 @@ class __Simu_Displacement(_Simu):
         # Ici on le materiau est homogène
         matC = comportement.get_C()
 
+        # Matrices rigi
         if useNumba:
             # Plus rapide
             Ku_e = CalcNumba.epij_jk_epkl_to_eil(leftDepPart, matC, B_dep_e_pg)
@@ -1193,69 +1296,68 @@ class __Simu_Displacement(_Simu):
             Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, matC, B_dep_e_pg, optimize='optimal')
            
         
-        if not steadyState:
-            jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-            poid_pg = mesh.Get_poid_pg(matriceType)
-            N_vecteur_e_pg = mesh.Get_N_vecteur_pg(matriceType)
-            ro = self.materiau.ro
-
-            Mu_e = np.einsum('ep,p,pki,,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_e_pg, ro, N_vecteur_e_pg, optimize="optimal")
+        # Matrices masse
+        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        poid_pg = mesh.Get_poid_pg(matriceType)
+        N_vecteur_e_pg = mesh.Get_N_vecteur_pg(matriceType)
+        ro = self.materiau.ro
+        Mu_e = np.einsum('ep,p,pki,,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_e_pg, ro, N_vecteur_e_pg, optimize="optimal")
+            
 
         if self.dim == 2:
             epaisseur = self.materiau.epaisseur
             Ku_e *= epaisseur
-            if not steadyState:
-                Mu_e *= epaisseur
+            Mu_e *= epaisseur
         
-        tic.Tac("Matrices","Construction Ku_e", self._verbosity)
+        tic.Tac("Matrices","Construction Ku_e et Mu_e", self._verbosity)
 
-        if steadyState:
-            return Ku_e
-        else:
-            return Ku_e, Mu_e
+        return Ku_e, Mu_e
+
+    def Get_K_C_M(self) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+        if not self.matricesUpdated: self.__Assemblage()
+        return self.__Ku.copy(), self.Get_Rayleigh_Damping().copy(), self.__Mu.copy()            
  
-    def Assemblage(self, steadyState=True):
-        """Construit K global pour le problème en deplacement
+    def __Assemblage(self):
+        """Construit K global et M global pour le problème en deplacement que si nécessaire
         """
 
-        # Data
-        mesh = self.mesh        
-        taille = mesh.Nn*self.dim
+        if not self.matricesUpdated:
 
-        # Construit dict_Ku_e
-        if steadyState:
-            Ku_e = self.ConstruitMatElem_Dep(steadyState)
-        else:
-            Ku_e, Mu_e = self.ConstruitMatElem_Dep(steadyState)
+            # Data
+            mesh = self.mesh        
+            taille = mesh.Nn*self.dim
 
-        # Prépare assemblage
-        lignesVector_e = mesh.lignesVector_e
-        colonnesVector_e = mesh.colonnesVector_e
-        
-        tic = Tic()
+            # Construit dict_Ku_e
+            Ku_e, Mu_e = self.ConstruitMatElem_Dep()            
 
-        # Assemblage
-        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
-        """Matrice Kglob pour le problème en déplacement (Nn*dim, Nn*dim)"""
+            # Prépare assemblage
+            lignesVector_e = mesh.lignesVector_e
+            colonnesVector_e = mesh.colonnesVector_e
+            
+            tic = Tic()
 
-        # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
-        self.__Fu = sparse.csr_matrix((taille, 1))
-        """Vecteur Fglob pour le problème en déplacement (Nn*dim, 1)"""
+            # Assemblage
+            self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
+            """Matrice Kglob pour le problème en déplacement (Nn*dim, Nn*dim)"""
 
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.spy(self.__Ku)
-        # plt.show()
+            # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
+            self.__Fu = sparse.csr_matrix((taille, 1))
+            """Vecteur Fglob pour le problème en déplacement (Nn*dim, 1)"""
 
-        if steadyState:
-            tic.Tac("Matrices","Assemblage Ku et Fu", self._verbosity)
-            return self.__Ku
-        else:
+            # import matplotlib.pyplot as plt
+            # plt.figure()
+            # plt.spy(self.__Ku)
+            # plt.show()
+
             self.__Mu = sparse.csr_matrix((Mu_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
             """Matrice Mglob pour le problème en déplacement (Nn*dim, Nn*dim)"""
 
             tic.Tac("Matrices","Assemblage Ku, Mu et Fu", self._verbosity)
-            return self.__Ku, self.__Mu
+
+            self.Matrices_Updtated()
+        
+        return self.__Ku, self.__Mu
+            
 
     @property
     def Mu(self) -> sparse.csr_matrix:
@@ -1279,26 +1381,126 @@ class __Simu_Displacement(_Simu):
                 # "Mu n'a pas été calculé"
                 return None
         else:
-            return None    
+            return None
+
+    def Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
+        
+        
+        tic = Tic()
+        
+        algo = self.algo
+        ddls = self.Bc_ddls_Neumann(problemType)
+        valeurs_ddls = self.Bc_values_Neumann(problemType)
+        taille = self.mesh.Nn * self.nbddl_n(problemType)
+
+        # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
+        dimSupl = len(self.Bc_Lagrange)
+        if dimSupl > 0:
+            dimSupl += len(self.Bc_ddls_Dirichlet(problemType))
+            
+        b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille+dimSupl,1))
+        
+        if algo == AlgoType.elliptic:
+            b = b + self.Fu
+
+        elif algo == AlgoType.hyperbolic:
+            b = b + self.Fu
+
+            u_n = self.displacement
+            v_n = self.speed
+
+            Cu = self.Get_Rayleigh_Damping()
+            
+            if len(self.results) == 0 and (b.max() != 0 or b.min() != 0):
+
+                ddl_Connues, ddl_Inconnues = self.Bc_ddls_connues_inconnues(problemType)
+
+                bb = b - self.Ku.dot(sparse.csr_matrix(u_n.reshape(-1, 1)))
+                
+                bb -= Cu.dot(sparse.csr_matrix(v_n.reshape(-1, 1)))
+
+                bbi = bb[ddl_Inconnues]
+                Aii = self.Mu[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
+
+                ai_n = _Solve_Axb(simu=self, problemType=problemType, A=Aii, b=bbi, x0=[], lb=[], ub=[], useCholesky=False, A_isSymetric=True, verbosity=self._verbosity)
+
+                self.accel[ddl_Inconnues] = ai_n
+            
+            a_n = self.accel
+
+            dt = self.dt
+            gamma = self.gamma
+            betha = self.betha
+
+            uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1-2*betha) * a_n
+            vTild_np1 = v_n + (1-gamma) * dt * a_n
+
+            # Formulation en accel
+            b -= self.Ku.dot(uTild_np1.reshape(-1,1))
+            b -= Cu.dot(vTild_np1.reshape(-1,1))
+            b = sparse.csr_matrix(b)
+
+        tic.Tac("Construit Ax=b",f"Neumann ({problemType})", self._verbosity)
+
+        return b
+
+    def Apply_Dirichlet(self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolutionType) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:    
+
+        tic = Tic()
+
+        algo = self.algo
+        ddls = self.Bc_ddls_Dirichlet(problemType)
+        
+        if algo == AlgoType.elliptic:            
+            A = self.Ku
+            valeurs_ddls = self.BC_values_Dirichlet(problemType)
+
+        elif algo == AlgoType.hyperbolic:
+
+            dt = self.dt
+            gamma = self.gamma
+            betha = self.betha
+            
+            Cu = self.Get_Rayleigh_Damping()
+
+            # Formulation en accel
+            A = self.Mu + (self.Ku * betha * dt**2)
+            A += (gamma * dt * Cu)
+
+            a_n = self.accel
+            valeurs_ddls = a_n[ddls]
+
+        A, x = self._Get_Dirichlet_A_x(problemType, resolution, A, b, valeurs_ddls)
+
+        tic.Tac("Construit Ax=b",f"Dirichlet ({problemType})", self._verbosity)
+
+        return A, x 
+
+    def Get_x0(self, problemType: ModelType):
+        algo = self.algo
+        if algo == AlgoType.elliptic:
+            return self.displacement
+        elif algo == AlgoType.hyperbolic:
+            return self.accel
 
     def Solve(self, steadyState=True) -> np.ndarray:
         """Resolution du probleme de déplacement"""
 
+        if not self.matricesUpdated: self.__Assemblage()
+
         if steadyState:
-            x = self._Solveur(ModelType.displacement, Interface_Solveurs.AlgoType.elliptic)
+            x = self._Solveur(ModelType.displacement, AlgoType.elliptic)
             assert x.shape[0] == self.mesh.Nn*self.dim
 
             self.__displacement = x
-
-            return self.__displacement.copy()
+            
         else:
-            x = self._Solveur(ModelType.displacement, Interface_Solveurs.AlgoType.hyperbolic)
+            x = self._Solveur(ModelType.displacement, AlgoType.hyperbolic)
             assert x.shape[0] == self.mesh.Nn*self.dim
             
             # Formulation en accel
 
-            a_np1 = np.array(x)
-                
+            a_np1 = np.array(x)                
 
             u_n = self.displacement
             v_n = self.speed
@@ -1317,16 +1519,16 @@ class __Simu_Displacement(_Simu):
 
             # # Formulation en déplacement
             # a_np1 = (u_np1 - uTild_np1)/(betha*dt**2)
-            # v_np1 = vTild_np1 + (gamma * dt * a_np1)
-
-            
+            # v_np1 = vTild_np1 + (gamma * dt * a_np1)            
 
             self.__displacement = u_np1
             self.__speed = v_np1
             self.accel = a_np1
 
-            return self.displacement
-        
+        return self.__displacement.copy()
+
+
+         
     
     def Save_Iteration(self, nombreIter=None, tempsIter=None, dincMax=None):
         
@@ -1340,7 +1542,6 @@ class __Simu_Displacement(_Simu):
             pass
 
         self.__results.append(iter)
-
     
     def Update_iter(self, index= -1):
         
@@ -1639,6 +1840,9 @@ class __Simu_Displacement(_Simu):
 
         return resume
 
+    def Get_ResumeIter_values(self) -> list[tuple[str, np.ndarray]]:
+        return []
+
 ###################################################################################################
 
 class __Simu_PhaseField(_Simu):
@@ -1651,6 +1855,29 @@ class __Simu_PhaseField(_Simu):
     @property    
     def directions(self) -> list[str]:
         return [""]
+
+    @property
+    def useCholesky(self) -> bool:
+        return False
+
+    @property
+    def A_isSymetric(self) -> bool:
+        return False
+
+    def Get_lb_ub(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
+        
+        if problemType == ModelType.damage:
+            solveur = self.materiau.phaseFieldModel.solveur
+            if solveur == "BoundConstrain":
+                lb = self.damage
+                lb[np.where(lb>=1)] = 1-np.finfo(float).eps
+                ub = np.ones(lb.shape)
+            else:
+                lb, ub = np.array([]), np.array([])
+        else:
+            lb, ub = np.array([]), np.array([])
+            
+        return lb, ub
 
     def Check_Directions(self, problemType: ModelType, directions: list):
         # Rien d'implémenté car aucune direction n'est nécessaire pour cette simulation
@@ -1727,10 +1954,6 @@ class __Simu_PhaseField(_Simu):
         if problemType == None:
             problemType = ModelType.displacement
         return super().add_neumann(noeuds, valeurs, directions, problemType, description)
-    
-
-    def Assemblage(self):
-        print("Utiliser Assemblage_u() et Assemblage_d()")
     
     def Solve(self):
         print("Utiliser Solve_u() et Solve_d()")
@@ -1842,7 +2065,7 @@ class __Simu_PhaseField(_Simu):
     def Solve_u(self, steadyState=True) -> np.ndarray:
         """Resolution du probleme de déplacement"""
             
-        displacement = self._Solveur(ModelType.displacement, Interface_Solveurs.AlgoType.elliptic)
+        displacement = self._Solveur(ModelType.displacement, AlgoType.elliptic)
 
         # Si c'est un problement d'endommagement on renseigne au model phase field qu'il va falloir mettre à jour le split
         if self.problemType == ModelType.damage:
@@ -2008,7 +2231,7 @@ class __Simu_PhaseField(_Simu):
     def Solve_d(self) -> np.ndarray:
         """Resolution du problème d'endommagement"""
         
-        damage = self._Solveur(ModelType.damage, Interface_Solveurs.AlgoType.elliptic)
+        damage = self._Solveur(ModelType.damage, AlgoType.elliptic)
 
         assert damage.shape[0] == self.mesh.Nn
 
@@ -2372,6 +2595,14 @@ class __Simu_Beam(_Simu):
     def directions(self) -> list[str]:
         return __Simu_Beam.__dict_dim_directions[self.dim]
 
+    @property
+    def useCholesky(self) -> bool:
+        return False
+
+    @property
+    def A_isSymetric(self) -> bool:
+        return False
+
     def nbddl_n(self, problemType="") -> int:
         return self.materiau.beamModel.nbddl_n
 
@@ -2622,7 +2853,7 @@ class __Simu_Beam(_Simu):
     def Solve(self) -> np.ndarray:
         """Resolution du probleme poutre"""
 
-        beamDisplacement = self._Solveur(ModelType.beam, Interface_Solveurs.AlgoType.elliptic)
+        beamDisplacement = self._Solveur(ModelType.beam, AlgoType.elliptic)
         
         assert beamDisplacement.shape[0] == self.mesh.Nn*self.materiau.beamModel.nbddl_n
 
@@ -2884,11 +3115,11 @@ class __Simu_Thermal(_Simu):
         """
 
         if steadyState:
-            thermal_np1 = self._Solveur(ModelType.thermal, Interface_Solveurs.AlgoType.elliptic)
+            thermal_np1 = self._Solveur(ModelType.thermal, AlgoType.elliptic)
             # TODO que faire pour -> quand plusieurs types -> np.ndarray ou tuple[np.ndarray, np.ndarray] ?
         else:
 
-            thermal_np1 = self._Solveur(ModelType.thermal, Interface_Solveurs.AlgoType.parabolic)
+            thermal_np1 = self._Solveur(ModelType.thermal, AlgoType.parabolic)
             thermalDot = self.thermalDot
 
             alpha = self.alpha

@@ -211,8 +211,6 @@ class Test_Simu(unittest.TestCase):
             
             simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
-            simu.Assemblage()
-
             noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
             noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
@@ -220,11 +218,10 @@ class Test_Simu(unittest.TestCase):
             # simu.add_lineLoad(noeuds_en_L, [-P/h], ["y"])
             simu.add_dirichlet(noeuds_en_L, [lambda x,y,z: 1], ['x'])
             simu.add_surfLoad(noeuds_en_L, [P/h/b], ["y"])
+            
 
-            simu.Assemblage(steadyState=False)
-
-            Ke_e = simu.ConstruitMatElem_Dep()
-            self.__VerificationConstructionKe(simu, Ke_e)
+            Ku_e, Mu_e = simu.ConstruitMatElem_Dep()
+            self.__VerificationConstructionKe(simu, Ku_e)
 
             simu.Solve(steadyState=True)
 

@@ -95,7 +95,6 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         simu.add_surfLoad(noeuds_en_L, [-P/h**2], ["y"])
 
         # Assemblage du système matricielle
-        simu.Assemblage()
 
         simu.Solve()
         Wdef = simu.Get_Resultat("Wdef")

@@ -8,8 +8,8 @@ from Mesh import ElemType
 import Materials
 import Dossier
 
-option = 3
-dim = 2
+option = 1
+dim = 3
 N = 5
 
 dictOptions = {
@@ -99,8 +99,8 @@ elif option == 3:
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
 
-Affichage.Plot_Maillage(mesh)
-Affichage.Plot_Model(mesh, showId=False)
+# Affichage.Plot_Maillage(mesh)
+# Affichage.Plot_Model(mesh, showId=False)
 # plt.show()
 
 comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
@@ -130,7 +130,6 @@ elif option == 3:
     simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
     simu.add_surfLoad(noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], description="[w*g*(h-y)]")
 
-simu.Assemblage()
 simu.Solve()
 
 simu.Save_Iteration()

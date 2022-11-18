@@ -329,10 +329,12 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
     if isinstance(obj, _Simu):
         simu = obj
         mesh = simu.mesh
+        use3DBeamModel = simu.use3DBeamModel
     elif isinstance(obj, Mesh):
         mesh = obj
         if deformation == True:
             print("Il faut donner la simulation pour afficher le maillage déformée")
+        use3DBeamModel = False
     else:
         raise "Erreur"
     
@@ -363,7 +365,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
             coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
     
     
-    use3DBeamModel = simu.use3DBeamModel
+    
         
     if inDim in [1,2] and not use3DBeamModel:
         
@@ -695,6 +697,7 @@ def Plot_BoundaryConditions(simu, folder=""):
 
         # simu.
 
+
         if problemType in ["damage","thermal"]:
             marker='o'
         elif problemType in ["displacement","beam"]:
@@ -937,6 +940,8 @@ def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
     selectionIndex = list(filter(lambda iterations: iterations >= iterMin and iterations <= iterMax, iterations))
 
     iterations = iterations[selectionIndex]
+
+    # TODO simu.Get_ResumeIter_values()
 
     damageMaxIter = np.max(list(df["damage"].values), axis=1)[selectionIndex]
     try:

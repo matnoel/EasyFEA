@@ -144,7 +144,7 @@ def Iteration(steadyState: bool, isLoading: bool):
     Chargement(isLoading)
 
     # Assemblage du système matricielle
-    Kglob = simu.Assemblage(steadyState)
+    Kglob = simu.Get_K_C_M()[0]
     # plt.figure()
     # plt.spy(Kglob)
 
@@ -155,9 +155,6 @@ def Iteration(steadyState: bool, isLoading: bool):
 if initSimu:
     # Init
     Iteration(steadyState=True, isLoading=True)
-
-
-
 
 if N > 1:
     steadyState=False
