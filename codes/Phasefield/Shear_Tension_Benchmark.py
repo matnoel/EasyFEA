@@ -312,7 +312,7 @@ for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
     Affichage.NouvelleSection("Affichage")
 
     if makeMovie:
-        PostTraitement.MakeMovie(folder, "damage", simu, deformation=True, NiterFin=0)
+        PostTraitement.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
         # PostTraitement.MakeMovie(folder, "Svm", simu)        
         # PostTraitement.MakeMovie(filename, "Syy", simu, valeursAuxNoeuds=True, deformation=True)
 
@@ -330,7 +330,7 @@ for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
         # Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
             
     if saveParaview:
-        PostTraitement.Save_Simulation_in_Paraview(folder, simu, Nparaview)
+        PostTraitement.Make_Paraview(folder, simu, Nparaview)
             
     if plotEnergie:    
         PostTraitement.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)

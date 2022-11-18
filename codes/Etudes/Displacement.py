@@ -198,10 +198,10 @@ Affichage.Plot_BoundaryConditions(simu)
 
 if saveParaview:        
     filename = Dossier.NewFile(os.path.join("Etude2D","solution2D"), results=True)
-    PostTraitement.Save_Simulation_in_Paraview(folder, simu,Niter=NParaview)
+    PostTraitement.Make_Paraview(folder, simu,Niter=NParaview)
 
 if pltMovie:
-    PostTraitement.MakeMovie(folder, "Svm", simu, affichageMaillage=True, Niter=NMovie, deformation=True, valeursAuxNoeuds=True)
+    PostTraitement.Make_Movie(folder, "Svm", simu, affichageMaillage=True, Niter=NMovie, deformation=True, valeursAuxNoeuds=True)
 
 if plotResult:
 

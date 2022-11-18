@@ -124,7 +124,7 @@ while t <= tMax:
 folder = Dossier.NewFile("Ondes", results=True)
 
 if makeMovie:
-    PostTraitement.MakeMovie(folder, resultat, simu)
+    PostTraitement.Make_Movie(folder, resultat, simu)
 
 # PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 

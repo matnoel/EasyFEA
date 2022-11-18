@@ -318,14 +318,14 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
 
 
     if saveParaview:
-        PostTraitement.Save_Simulation_in_Paraview(folder, simu, Niter=NParaview)
+        PostTraitement.Make_Paraview(folder, simu, Niter=NParaview)
         if not solve:
             Tic.getGraphs(details=True)
 
     if makeMovie:
         # Affichage.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
         # plt.show()
-        PostTraitement.MakeMovie(folder, "damage", simu, Niter=NMovie, affichageMaillage=False, deformation=True, NiterFin=0, facteurDef=20)
+        PostTraitement.Make_Movie(folder, "damage", simu, Niter=NMovie, affichageMaillage=False, deformation=True, NiterFin=0, facteurDef=20)
 
     # Tic.getResume()
 

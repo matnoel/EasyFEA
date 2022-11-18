@@ -129,7 +129,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def MakeMovie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
+def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
     
     resultat = simu.Get_Resultat(option)
     if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
@@ -275,7 +275,7 @@ def Plot_Energie(simu: Simulations.__Simu_PhaseField, load: np.ndarray, displace
 
 # ========================================== Paraview =================================================
 
-def Save_Simulation_in_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
+def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
     """Sauvegarde de la simulation sur paraview
 
     Parameters

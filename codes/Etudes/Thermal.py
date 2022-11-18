@@ -107,10 +107,10 @@ Affichage.Plot_Result(simu, "thermal", affichageMaillage=True, valeursAuxNoeuds=
 if dim == 3:
     print(f"Volume : {mesh.volume:.3}")
 
-PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+PostTraitement.Make_Paraview(folder, simu)
 
 if pltMovie:
-    PostTraitement.MakeMovie(folder, "thermal", simu, NMovie)
+    PostTraitement.Make_Movie(folder, "thermal", simu, NMovie)
 
 print(thermal.min())
 
