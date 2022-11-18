@@ -59,8 +59,6 @@ def __Cast_Simu(simu):
         return simu
     elif isinstance(simu, Simulations.__Simu_Thermal):
         return simu
-    else:
-        raise "Type de simulation inconnue"
 
 def Solveur_1(simu, problemType: str) -> np.ndarray:
     # --       --  --  --   --  --
