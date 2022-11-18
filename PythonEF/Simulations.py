@@ -41,11 +41,6 @@ class _Simu(ABC):
         """Verifie si ce type de probleme connue"""
         list_problemType = list(ModelType)
         assert problemType in list_problemType, "Ce type de probleme n'est pas implémenté"
-
-    @abstractmethod
-    def Check_Directions(self, problemType : ModelType, directions:list):
-        """Verifie si les directions renseignées sont possible pour le probleme"""
-        pass
     
     def Check_dim_mesh_materiau(self) -> None:
         """On verifie que la dimension du materiau correspond a la dimension du maillage"""
@@ -121,11 +116,6 @@ class _Simu(ABC):
     def dim(self) -> int:
         """dimension de la simulation"""
         return self.__dim
-    
-    @abstractmethod
-    def nbddl_n(self, problemType="") -> int:
-        """degrés de libertés par noeud"""
-        pass
 
     @property
     def use3DBeamModel(self) -> bool:
@@ -141,13 +131,34 @@ class _Simu(ABC):
         self.materiau.useNumba = value
         self.__useNumba = value
 
+    def __Update_mesh(self, index: int):
+        """Met à jour le maillage à l'index renseigné"""
+        iterMesh = self.results[index]["iterMesh"]
+        self.__mesh = self.__listMesh[iterMesh]
+
     # Fonctions à redefinir pour chaque heritié de simu
+    @abstractmethod
+    def nbddl_n(self, problemType="") -> int:
+        """degrés de libertés par noeud"""
+        pass
+    
+    @property
+    @abstractmethod
+    def directions(self) -> list[str]:
+        """Liste de directions disponibles dans la simulation"""
+        pass
+    
+    @abstractmethod
+    def Check_Directions(self, problemType : ModelType, directions:list):
+        """Verifie si les directions renseignées sont possible pour le probleme"""
+        pass
 
     @property
     @abstractmethod
     def materiau(self) -> _Materiau:
         """Matériau de la simulation"""
         return self.__materiau
+
 
     @property
     @abstractmethod    
@@ -210,15 +221,15 @@ class _Simu(ABC):
 
         return results
 
-    def __Update_mesh(self, index: int):
-        """Met à jour le maillage à l'index renseigné"""
-        iterMesh = self.results[index]["iterMesh"]
-        self.__mesh = self.__listMesh[iterMesh]
-
     @abstractmethod
     def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
         """ Renvoie le résultat de la simulation (np.ndarray ou float)
         """
+        pass
+
+    @abstractmethod
+    def Get_Marker_Direction(self, direction: str) -> str:
+        """Renvoie le marker associé à la direction"""
         pass
     
     # ------------------------------------------------- SOLVEUR -------------------------------------------------
@@ -1005,7 +1016,7 @@ class _Simu(ABC):
 
             valeurs_e = resultat_e[:, c]
 
-            connect_n_e = self.__mesh.connect_n_e
+            connect_n_e = self.__mesh.connect_n_e()
             nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(self.__mesh.Nn,1)
             valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.__mesh.Ne,1))
             valeurs_n = valeurs_n_e/nombreApparition
@@ -1079,9 +1090,21 @@ class __Simu_Displacement(_Simu):
         3 : ["x", "y", "z"]
     }
 
+    @property
+    def directions(self) -> list[str]:
+        return __Simu_Displacement.__dict_dim_directions[self.dim]
+        
+    def nbddl_n(self, problemType="") -> int:
+        return self.dim
+
     def Check_Directions(self, problemType: ModelType, directions: list):
-        listDirections = __Simu_Displacement.__dict_dim_directions[self.dim]
-        for d in directions: assert d in listDirections, f"{d} doit être dans [{listDirections}]"
+        listDirections = self.directions
+        for d in directions: assert d in listDirections, f"{d} n'est pas dans [{listDirections}]"
+
+    @abstractmethod
+    def Get_Marker_Direction(self, direction: str) -> str:
+        """Renvoie le marker associé à la direction"""
+        pass
 
     def __init__(self, mesh: Mesh, materiau: _Materiau_Displacement, verbosity=True, useNumba=True):
         """Creation d'une simulation de déplacement"""
@@ -1105,8 +1128,7 @@ class __Simu_Displacement(_Simu):
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
     
-    def nbddl_n(self, problemType="") -> int:
-        return self.dim
+    
 
     @property
     def materiau(self) -> _Materiau_Displacement:
@@ -1621,9 +1643,23 @@ class __Simu_Displacement(_Simu):
 
 class __Simu_PhaseField(_Simu):
 
+    __dict_dim_directions_displacement = {
+        2 : ["x", "y"],
+        3 : ["x", "y", "z"]
+    }
+
+    @property    
+    def directions(self) -> list[str]:
+        return [""]
+
     def Check_Directions(self, problemType: ModelType, directions: list):
         # Rien d'implémenté car aucune direction n'est nécessaire pour cette simulation
-        pass
+        if problemType == ModelType.damage:
+            listDirections = self.directions
+        elif problemType == ModelType.displacement:
+            listDirections = __Simu_PhaseField.__dict_dim_directions_displacement[self.dim]
+        
+        for d in directions: assert d in listDirections, f"{d} n'est pas dans [{listDirections}]"
 
     def __init__(self, mesh: Mesh, materiau: _Materiau_PhaseField, verbosity=True, useNumba=True):
         assert materiau.modelType == ModelType.damage, "Le materiau doit être de type damage"
@@ -2332,9 +2368,16 @@ class __Simu_Beam(_Simu):
         3 : ["x","y","z","rx","ry","rz"]
     }
 
+    @property
+    def directions(self) -> list[str]:
+        return __Simu_Beam.__dict_dim_directions[self.dim]
+
+    def nbddl_n(self, problemType="") -> int:
+        return self.materiau.beamModel.nbddl_n
+
     def Check_Directions(self, problemType: ModelType, directions: list):
-        listDirections = __Simu_Beam.__dict_dim_directions[self.dim]
-        for d in directions: assert d in listDirections, f"{d} doit être dans [{listDirections}]"
+        listDirections = self.directions
+        for d in directions: assert d in listDirections, f"{d} n'est pas dans [{listDirections}]"
 
     def Check_dim_mesh_materiau(self) -> None:
         # Dans le cadre d'un probleme de poutre on à pas besoin de verifier cette condition
@@ -2355,9 +2398,6 @@ class __Simu_Beam(_Simu):
 
         self.Solveur_Parabolic_Properties() # Renseigne les propriétes de résolution de l'algorithme
         self.Solveur_Newton_Raphson_Properties() # Renseigne les propriétes de résolution de l'algorithme
-    
-    def nbddl_n(self, problemType="") -> int:
-        return self.materiau.beamModel.nbddl_n
 
     @property
     def materiau(self) -> _Materiau_Beam:
@@ -2704,6 +2744,10 @@ class __Simu_Beam(_Simu):
 
 class __Simu_Thermal(_Simu):
 
+    @property    
+    def directions(self) -> list[str]:
+        return [""]
+
     def Check_Directions(self, problemType: ModelType, directions: list):
         # Rien d'implémenté car aucune direction n'est nécessaire pour cette simulation
         pass
@@ -2751,8 +2795,6 @@ class __Simu_Thermal(_Simu):
             return self.__thermalDot.copy()
         else:
             return None
-    
-    
 
     def __ConstruitMatElem_Thermal(self, steadyState: bool) -> np.ndarray:
 

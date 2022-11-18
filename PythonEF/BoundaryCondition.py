@@ -112,13 +112,13 @@ class BoundaryCondition:
         return values
     
     @staticmethod
-    def Get_ddls_connect(param: int, problemType:str, connect_e: np.ndarray, directions: list) -> np.ndarray:
+    def Get_ddls_connect(nbddl_n: int, problemType:str, connect_e: np.ndarray, directions: list) -> np.ndarray:
         """Construit les ddls liées au noeuds de la matrice de connection
 
         Parameters
         ----------
-        param : int
-            parametre du probleme beam -> nbddl_e sinon dim
+        nbddl_n : int
+            nombre de degré de liberté par noeud
         problemType : ModelType
             type de probleme qui doit etre contenue dans [ProblemType.damage, ProblemType.displacement]
         connect_e : np.ndarray
@@ -136,7 +136,7 @@ class BoundaryCondition:
         if problemType in [ModelType.damage,ModelType.thermal]:
             return connect_e.reshape(-1)
         elif problemType == ModelType.displacement:
-            dim = param
+            dim = nbddl_n
             indexes = {
                 "x": 0,
                 "y": 1,
@@ -145,8 +145,8 @@ class BoundaryCondition:
 
         elif problemType == ModelType.beam:
 
-            nbddl_e = param
-            dim = param
+            nbddl_e = nbddl_n
+            dim = nbddl_n
 
             if nbddl_e == 1:
                 # 1D
