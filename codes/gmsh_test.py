@@ -8,7 +8,7 @@ from Mesh import ElemType
 import Materials
 import Dossier
 
-option = 1
+option = 2
 dim = 3
 N = 5
 

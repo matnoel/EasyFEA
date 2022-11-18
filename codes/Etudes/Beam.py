@@ -10,7 +10,7 @@ Affichage.Clear()
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
-problem = "Portique"
+problem = "Flexion"
 
 elemType = "SEG2"
 
@@ -144,8 +144,6 @@ elif problem == "Traction":
     # simu.add_dirichlet(mesh.Nodes_Point(point3), [1], ["x"])
 
 Affichage.Plot_BoundaryConditions(simu)
-
-Kbeam = simu.Assemblage()
 
 beamDisplacement = simu.Solve()
 

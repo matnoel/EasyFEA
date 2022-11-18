@@ -31,8 +31,8 @@ saveParaview = True; NParaview = 500
 
 useNumba = True
 
-isLoading = False
-initSimu = True
+isLoading = True
+initSimu = False
 
 pltMovie = True; NMovie = 400
 
@@ -45,7 +45,7 @@ coefK = 1e-3*2
 # coefK = 0
 
 Tmax = 0.3
-N = 10
+N = 1
 dt = Tmax/N
 t = 0
 
@@ -80,7 +80,7 @@ if dim == 2:
     LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
     circle = Circle(Point(x=L/2, y=0), h*0.2, isCreux=False)
     
-    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "TRI10" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
     mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
@@ -131,9 +131,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet(noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad(noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
+        # simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
 
-        # simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+        simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad(noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])
         pass
@@ -144,7 +144,7 @@ def Iteration(steadyState: bool, isLoading: bool):
     Chargement(isLoading)
 
     # Assemblage du système matricielle
-    Kglob = simu.Get_K_C_M()[0]
+    Kglob = simu.Get_K_C_M_F(simu.problemType)[0]
     # plt.figure()
     # plt.spy(Kglob)
 

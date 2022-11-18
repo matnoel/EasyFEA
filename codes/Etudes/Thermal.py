@@ -16,7 +16,7 @@ pltMovie = True; NMovie = 300
 
 folder = Dossier.NewFile(filename="Thermal", results=True)
 
-dim=2
+dim = 2
 
 a = 1
 if dim == 2:
@@ -57,8 +57,6 @@ def Iteration(steadyState: bool):
     # simu.add_dirichlet(noeudsCircle, [10], [""])
 
     # simu.add_volumeLoad(noeudsCircle, [100], [""])
-
-    simu.Assemblage(steadyState)
 
     thermal = simu.Solve(steadyState)
 
@@ -110,7 +108,7 @@ if dim == 3:
 PostTraitement.Make_Paraview(folder, simu)
 
 if pltMovie:
-    PostTraitement.Make_Movie(folder, "thermal", simu, NMovie)
+    PostTraitement.Make_Movie(folder, affichageIter, simu, NMovie)
 
 print(thermal.min())
 

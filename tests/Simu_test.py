@@ -121,8 +121,6 @@ class Test_Simu(unittest.TestCase):
                 simu.add_lineLoad(noeudsLine, [q],["x"])
                 simu.add_neumann(mesh.Nodes_Point(point2), [charge],["x"])
 
-            simu.Assemblage()
-
             simu.Solve()
 
             Affichage.Plot_BoundaryConditions(simu)
@@ -264,7 +262,6 @@ class Test_Simu(unittest.TestCase):
 
             simu.add_dirichlet(noeuds0, [0], [""])
             simu.add_dirichlet(noeudsL, [40], [""])
-            simu.Assemblage(steadyState=True)
             simu.Solve(steadyState=True)
             simu.Save_Iteration()
 
