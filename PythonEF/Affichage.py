@@ -17,7 +17,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
 
     Parameters
     ----------
-    simu : Simu
+    simu : _Simu
         Simulation
     option : str
         resultat que l'on souhaite utiliser. doit être compris dans Simu.ResultatsCalculables()
@@ -54,7 +54,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         assert isinstance(ax, plt.Axes)
         fig = ax.figure
 
-    from Simulations import _Simu
+    from Simulations import _Simu, MatriceType
 
     assert isinstance(simu, _Simu)
     
@@ -83,7 +83,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         # Pour prendre moin de place
         # En plus, il faut tracer la solution que sur les eléments 2D
 
-    if simu.problemType == "beam":
+    if simu.problemType == MatriceType.beam:
         # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
         valeursAuxNoeuds = False
     
@@ -301,7 +301,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
 
     Parameters
     ----------
-    obj : Simu or Mesh
+    obj : _Simu or Mesh
         objet qui contient le maillage
     facteurDef : int, optional
         facteur de deformation, by default 4
@@ -363,12 +363,9 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
             coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
     
     
-    if isinstance(obj, _Simu):
-        is3dBeamModel = simu.use3DBeamModel
-    else:
-        is3dBeamModel = False
+    use3DBeamModel = simu.use3DBeamModel
         
-    if inDim in [1,2] and not is3dBeamModel:
+    if inDim in [1,2] and not use3DBeamModel:
         
         if ax == None:
             fig, ax = plt.subplots()
@@ -409,7 +406,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
         ax.set_ylabel(r"$y$")
 
     # ETUDE 3D    
-    elif inDim == 3 or is3dBeamModel:
+    elif inDim == 3 or use3DBeamModel:
         
         if ax == None:
             fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
@@ -646,7 +643,6 @@ def Plot_BoundaryConditions(simu, folder=""):
     """
 
     from Simulations import _Simu
-    from BoundaryCondition import BoundaryCondition, LagrangeCondition
 
     simu = cast(_Simu, simu)
 
@@ -659,20 +655,14 @@ def Plot_BoundaryConditions(simu, folder=""):
     neumanns = simu.Bc_Neuman
     Conditions.extend(neumanns)
 
-    try:
-        lagranges = simu.Bc_LagrangeAffichage
-        Conditions.extend(lagranges)
-    except:
-        # Dans cette version de simulation il n'y avait pas cette option
-        pass
+    lagranges = simu.Bc_LagrangeAffichage
+    Conditions.extend(lagranges)
 
     ax = Plot_Maillage(simu, alpha=0)
 
     assert isinstance(ax, plt.Axes)
 
-    coordo = simu.mesh.coordoGlob
-
-    Conditions = cast(List[BoundaryCondition], Conditions)
+    coordo = simu.mesh.coordoGlob    
 
     for bc_Conditions in Conditions:
 
@@ -702,6 +692,8 @@ def Plot_BoundaryConditions(simu, folder=""):
         #     continue
         
         # filled_markers = ('o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd', 'P', 'X')
+
+        # simu.
 
         if problemType in ["damage","thermal"]:
             marker='o'
@@ -774,20 +766,19 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
 
     # Ici pour chaque group d'element du maillage, on va tracer les elements appartenant au groupe d'element
 
-    listGroupElem = []
+    listGroupElem = cast(list[GroupElem], [])
     listDim = np.arange(mesh.dim+1, -1, -1, dtype=int)
     for dim in listDim:
         if dim < 3:
             # On ajoute pas les groupes d'elements 3D
             listGroupElem.extend(mesh.Get_list_groupElem(dim))
-    
 
+    # Liste de collections pendant la création
     collections = []
 
     for groupElem in listGroupElem:
-
-        assert isinstance(groupElem, GroupElem)
-
+        
+        # Tags disponibles par le groupe d'element
         tags_e = groupElem.elementTags
         dim = groupElem.dim
         coordo = groupElem.coordoGlob[:, range(inDim)]
@@ -806,6 +797,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
 
             needPlot = True
             
+            # Attribue la couleur
             if 'L' in tag_e:
                 color = 'black'
             elif 'P' in tag_e:
@@ -897,6 +889,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
     return ax
 
 def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
+    """Création d'un evenement qui va afficher dans le bas de figure le tag actuellement actif sous la souris"""
     
     def Set_Message(collection, event):
         if collection.contains(event)[0]:
@@ -911,7 +904,6 @@ def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
             [Set_Message(collection, event) for collection in collections]
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
-
 
 def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m', ylabel='f en N', folder=""):
     fig, ax = plt.subplots()
@@ -1013,7 +1005,7 @@ __colors = {
 }
         
 def __GetCoordo(simu, deformation: bool, facteurDef: float):
-    """Recupération des coordonnée déformées si la simulation le permet
+    """Recupération des coordonnée déformées si la simulation le permet avec la réponse de reussie ou non.
 
     Parameters
     ----------
@@ -1105,7 +1097,7 @@ def NouvelleSection(text: str, verbosity=True):
     return section
 
 def Clear():
-    """Nettoie le terminal de commande"""
+    """Nettoie le terminal"""
     syst = platform.system()
     if syst in ["Linux","Darwin"]:
         os.system("clear")
