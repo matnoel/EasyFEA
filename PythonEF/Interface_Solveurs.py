@@ -79,8 +79,8 @@ def __Solveur_1(simu, problemType: str) -> np.ndarray:
     simu = __Cast_Simu(simu)
 
     # Construit le système matricielle
-    b = simu.Apply_Neumann(problemType)
-    A, x = simu.Apply_Dirichlet(problemType, b, ResolutionType.r1)
+    b = simu._Apply_Neumann(problemType)
+    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r1)
 
     # Récupère les ddls
     ddl_Connues, ddl_Inconnues = simu.Bc_ddls_connues_inconnues(problemType)
@@ -122,8 +122,8 @@ def __Solveur_2(simu, problemType: str):
     simu = __Cast_Simu(simu)
 
     # Construit le système matricielle pénalisé
-    b = simu.Apply_Neumann(problemType)
-    A, x = simu.Apply_Dirichlet(problemType, b, ResolutionType.r2)
+    b = simu._Apply_Neumann(problemType)
+    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r2)
 
     tic = Tic()
 
@@ -179,8 +179,8 @@ def __Solveur_3(simu, problemType: str):
     simu = __Cast_Simu(simu)
 
     # Construit le système matricielle pénalisé
-    b = simu.Apply_Neumann(problemType)
-    A, x = simu.Apply_Dirichlet(problemType, b, ResolutionType.r3)
+    b = simu._Apply_Neumann(problemType)
+    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r3)
 
     # Résolution du système matricielle pénalisé
 

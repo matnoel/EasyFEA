@@ -262,7 +262,7 @@ class _Simu(ABC):
         """Renvoie les matrices assemblés de K*x + C*v + M*a = F"""
         pass
     
-    def Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
+    def _Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Renseigne les conditiosn limites de neumann en construisant b de A x = b"""
         tic = Tic()
         
@@ -333,7 +333,7 @@ class _Simu(ABC):
 
         return b
 
-    def Apply_Dirichlet(self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolutionType) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
+    def _Apply_Dirichlet(self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolutionType) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
         """Applique les conditions de dirichlet en construisant Ax de Ax=b"""
 
         tic = Tic()
@@ -374,7 +374,7 @@ class _Simu(ABC):
 
         A, x = self.__Get_Dirichlet_A_x(problemType, resolution, A, b, valeurs_ddls)
 
-        tic.Tac("Construit Ax=b",f"Dirichlet ({problemType})", self._verbosity)
+        tic.Tac("Construit Ax=b",f"Dirichlet ({problemType}, {algo})", self._verbosity)
 
         return A, x
 
