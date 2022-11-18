@@ -114,12 +114,11 @@ class Mesh:
         """Matrice de connection des elements (Ne, nPe)"""
         return self.groupElem.connect_e
     
-    @property
     def connect_n_e(self) -> sp.csr_matrix:
         """Matrices creuses de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne).\nCette matrice permet de faire l'interpolation des valeurs des elements aux noeuds : 
         valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)
         """
-        return self.groupElem.connect_n_e    
+        return self.groupElem.connect_n_e()
     
     # Affichage
 

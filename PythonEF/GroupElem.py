@@ -197,8 +197,7 @@ class GroupElem(ABC):
     def connect_e(self) -> np.ndarray:
         """nodesID des elements (Ne, nPe)"""
         return self.__connect.copy()
-
-    @property
+    
     def connect_n_e(self) -> sp.csr_matrix:
         """Matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne) soit\n
         tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)\n
@@ -253,7 +252,7 @@ class GroupElem(ABC):
     def get_elementsIndex(self, noeuds: np.ndarray, exclusivement=True) -> np.ndarray:
         """Récupérations des élements qui utilisent exclusivement ou non les noeuds renseignés"""
         connect = self.__connect
-        connect_n_e = self.connect_n_e
+        connect_n_e = self.connect_n_e()
         
         # Verifie si il n'y a pas de noeuds en trop
         # Il est possible que les noeuds renseignés n'appartiennent pas au groupe
@@ -764,7 +763,7 @@ class GroupElem(ABC):
 
         return self.__dict_F_e_pg[matriceType].copy()
     
-    def get_jacobien_e_pg(self, matriceType:str) -> np.ndarray:
+    def get_jacobien_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie les jacobiens\n
         variation de taille (aire ou volume) entre l'element de référence et l'element réel
         """
@@ -1225,12 +1224,9 @@ class GroupElem(ABC):
         self.__dict_nodes_tags[tag] = noeuds
 
     @property
-    def nodeTags(self) -> list:
+    def nodeTags(self) -> list[str]:
         """Renvoie les tags associés aux noeuds"""
-        try:
-            return list(self.__dict_nodes_tags.keys())
-        except:
-            return []
+        return list(self.__dict_nodes_tags.keys())
 
     def Set_Elements_Tag(self, noeuds: np.ndarray, tag: str):
         """Ajoute un tag sur les elements associés aux noeuds
@@ -1251,7 +1247,7 @@ class GroupElem(ABC):
         self.__dict_elements_tags[tag] = elements
 
     @property
-    def elementTags(self) -> list:
+    def elementTags(self) -> list[str]:
         """Renvoie les tags associés aux elements"""
         return list(self.__dict_elements_tags.keys())
 
@@ -1328,7 +1324,7 @@ class GroupElem(ABC):
     @staticmethod
     def get_MatriceType() -> List[MatriceType]:
         """type de matrice disponible"""        
-        liste = [MatriceType.rigi, MatriceType.masse, MatriceType.beam]
+        liste = list(MatriceType)
         return liste
 
     @staticmethod
