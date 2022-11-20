@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 # Options
 
 test = True
-solve = False
+solve = True
 
 plotMesh = False
 plotIter = False
@@ -31,32 +31,21 @@ makeMovie = False; NMovie = 300
 problem = "Benchmark" # ["Benchmark","FCBA"]
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT1" # ["AT1", "AT2"]
-solveur = "History" # ["History", "HistoryDamage", "BoundConstrain"]
+svType = Materials.PhaseField_Model.SolveurType
+solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
 
 useNumba = True
 
 # Convergence
-maxIter = 500
+maxIter = 1000
 tolConv = 1e-0
 
 # TODO Faire la convergence sur l'energie ?
 
-if comp == "Elas_Isot":
-    umax = 25e-6
-    # umax = 35e-6    
-else:
-    umax = 80e-6
-
-if "FCBA" in problem:
-    nL=100
-else:
-    nL=0
-
-#["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStress"]
-#["AnisotMiehe", "AnisotStress"]
-for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain", "AnisotStress"]:
-# for split in ["AnisotStress"]:
+#for split in ["Zhang"]:
+for split in ["Bourdin","Amor","Miehe","Stress"]:
+# for split in ["Zhang","AnisotStress_PM","He","AnisotStrain","AnisotStress"]:
 
     # Data
 
@@ -67,7 +56,15 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain", "AnisotStre
         diam=6e-3
 
         gc = 1.4
+        nL=0
         l_0 = 0.12e-3
+
+
+        if comp == "Elas_Isot":
+            # u_max = 25e-6
+            u_max = 35e-6    
+        else:
+            u_max = 80e-6
 
         inc0 = 8e-8
         inc1 = 2e-8
@@ -92,6 +89,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain", "AnisotStre
         
         gc = 1.4/2
         # l_0 = 0.12e-3
+        nL=100
         l_0 = L/nL
 
         inc0 = 8e-7
@@ -135,8 +133,8 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain", "AnisotStre
     if test:
 
         if optimMesh:
-            clD = l_0*3*10
-            clC = l_0*10
+            clD = l_0*3
+            clC = l_0
         else:
             if problem == "Benchmark":
                 clD = 0.25e-3
@@ -219,7 +217,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain", "AnisotStre
         # Premier Chargement
         Chargement()
 
-        simu.Resultats_Set_Resume_Chargement(umax, listInc, listTresh, listOption)
+        simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
 
         resol = 0
         bord = 0
@@ -231,7 +229,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain", "AnisotStre
 
         def Condition():
             if problem == "Benchmark":
-                return ud <= umax
+                return ud <= u_max
             elif "FCBA" in problem:
                 return simu.damage[noeuds_bord].max() <= 1
                 # return simu.damage.max() <= 0.5
@@ -253,7 +251,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain", "AnisotStre
             f = np.einsum('ij,j->', Kglob[ddls_upper, :].toarray(), u, optimize='optimal')
 
             if problem == "Benchmark":
-                pourcentage = ud/umax
+                pourcentage = ud/u_max
             else: 
                 pourcentage = 0
             simu.Resultats_Set_Resume_Iteration(resol, ud*1e6, "µm", pourcentage, True)

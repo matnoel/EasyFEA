@@ -38,21 +38,21 @@ if not savefig:
     folderSauvegarde=""
 
 # ["Bourdin","Amor","Miehe","He","Stress"]
-# ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
+# ["AnisotStrain","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
 # ["AnisotStress","AnisotStress_NoCross"]
-# ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotMiehe"]
+# ["AnisotMiehe_PM","AnisotMiehe_MP"], ["AnisotMiehe_NoCross","AnisotStrain"]
 
-# ["Miehe","AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
-# ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross","He"]
-# ["AnisotMiehe","Miehe"]
-# ["AnisotMiehe","He"]
-# ["AnisotMiehe", "He", "AnisotStress", "Stress"]
+# ["Miehe","AnisotStrain","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]
+# ["AnisotStrain","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross","He"]
+# ["AnisotStrain","Miehe"]
+# ["AnisotStrain","He"]
+# ["AnisotStrain", "He", "AnisotStress", "Stress"]
 
 listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 listRegu = ["AT2"] # ["AT1", "AT2"]
 listSimpli2D = ["DP"] # ["CP","DP"]
 listSolveur = ["History"]
-listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]
+listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress"]
 listOptimMesh=[False] # [True, False]
 listTol = [1e-0] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
 listnL = [0] # [100] [100, 120, 140, 180, 200]
@@ -100,7 +100,7 @@ for config in listConfig:
 
     tic = TicTac.Tic()
 
-    foldername = Folder.PhaseField_Folder(folder, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, v=v, nL=nL, tetha=tetha)
+    foldername = Folder.PhaseField_Folder(folder, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, v=v, nL=nL, theta=tetha)
 
     nomSimu = foldername.split(comp+'_')[-1]
 
@@ -115,7 +115,7 @@ for config in listConfig:
 
     if plotDamage:
 
-        titre = split.replace("AnisotMiehe","Spectral")
+        titre = split.replace("AnisotStrain","Spectral")
 
         # # Affiche le dernier endommagement
         # Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=colorBarIsClose,
@@ -141,7 +141,7 @@ for config in listConfig:
     texte = nomSimu
 
      
-    # texte = texte.replace("AnisotMiehe","Spectral")
+    # texte = texte.replace("AnisotStrain","Spectral")
 
     indexLim = np.where(displacement*1e6 <= depMax)[0]
     ax.plot(displacement[indexLim]*1e6, np.abs(load[indexLim]*1e-6), label=texte)

@@ -16,10 +16,10 @@ import matplotlib.pyplot as plt
 
 # Affichage.Clear()
 
-simulation = "Tension" # "Shear" , "Tension"
+simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = False
+test = True
 solve = True
 
 pltMesh = False
@@ -35,15 +35,13 @@ useNumba = True
 # Data --------------------------------------------------------------------------------------------
 
 comportement = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-regularisation = "AT1" # "AT1", "AT2"
+regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
 
-# "Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"
-#for split in ["He","AnisotMiehe","AnisotStress"]:
-#for split in ["AnisotStress"]:
-# for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]:
-for split in ["Bourdin""He","AnisotMiehe","AnisotStress"]:
+#for split in ["Zhang"]:
+for split in ["Bourdin","Amor","Miehe","Stress"]:
+# for split in ["He","AnisotStrain","AnisotStress","Zhang"]:
 
     maxIter = 500
     # tolConv = 0.0025
@@ -67,12 +65,12 @@ for split in ["Bourdin""He","AnisotMiehe","AnisotStress"]:
     if test:
         taille = l0 #taille maille test fem object
         # taille = 0.001
-        taille *= 1
+        taille *= 4
     else:
         taille = l0/2 #l0/2 2.5e-6
         # taille = 7.5e-6
 
-    folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, tetha=tetha)
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, theta=theta)
 
     # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -136,7 +134,7 @@ for split in ["Bourdin""He","AnisotMiehe","AnisotStress"]:
             else:
                 raise "Pas implémenté"
 
-            comp = Elas_Anisot(dim, C_voigt=C_voigt, axis1=axis1, contraintesPlanes=False)
+            comp = Materials.Elas_Anisot(dim, C_voigt=C_voigt, axis1=axis1, contraintesPlanes=False)
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
             raise "Pas implémenté pour le moment"
@@ -186,7 +184,7 @@ for split in ["Bourdin""He","AnisotMiehe","AnisotStress"]:
             
             listInc = [u_inc]
             listThreshold = [chargement[-1]]
-            optionTreshold = "displacement"
+            optionTreshold = ["displacement"]
 
         elif simulation == "Tension":
             if test:
@@ -201,18 +199,18 @@ for split in ["Bourdin""He","AnisotMiehe","AnisotStress"]:
             
             listInc = [u0, u1]
             listThreshold = [chargement[N0], chargement[N1]]
-            optionTreshold = "displacement"
+            optionTreshold = ["displacement"]
 
-        if isinstance(comportement, Elas_Anisot):
+        if isinstance(comportement, Materials.Elas_Anisot):
 
             uinc0 = 6e-8; tresh0 = 0
             uinc1 = 2e-8; tresh1 = 0.6
 
             listInc = [uinc0, uinc1]
             listThreshold = [tresh0, tresh1]
-            optionTreshold = "damage"
+            optionTreshold = ["damage"]
 
-        simu.Resultats_Set_Resume_Chargement(chargement[-1],listInc, listThreshold, ["displacement"])
+        simu.Resultats_Set_Resume_Chargement(chargement[-1],listInc, listThreshold, optionTreshold)
 
         damage_t=[]
         uglob_t=[]
@@ -262,14 +260,14 @@ for split in ["Bourdin""He","AnisotMiehe","AnisotStress"]:
             
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
-            if isinstance(comportement, Elas_Anisot):
+            if isinstance(comportement, Materials.Elas_Anisot):
                 pourcentage = 0
             else:
                 pourcentage = iter/N
 
             simu.Resultats_Set_Resume_Iteration(iter, dep*1e6, "µm", pourcentage, True)
 
-            if isinstance(comportement, Elas_Anisot):
+            if isinstance(comportement, Materials.Elas_Anisot):
                 if simu.damage.max() < tresh1:
                     dep += uinc0
                 else:
@@ -280,10 +278,6 @@ for split in ["Bourdin""He","AnisotMiehe","AnisotStress"]:
     
             deplacements.append(dep)
             forces.append(f)            
-
-            if nombreIter == maxIter:
-                print(f'On converge pas apres {nombreIter} itérations')
-                break
 
             if np.any(damage[NoeudsBord] >= 1):                                
                 bord +=1
