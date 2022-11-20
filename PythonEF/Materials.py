@@ -906,7 +906,7 @@ class Beam_Model(IModel):
 
 class PhaseField_Model(IModel):
 
-    __modelType = ModelType.damage
+    __modelType = ModelType.damage    
 
     @property
     def modelType(self) -> ModelType:
@@ -932,26 +932,57 @@ class PhaseField_Model(IModel):
 
     # Phase field
 
+    class SplitType(str, Enum):
+        """Splits utilisables"""
+
+        Bourdin = "Bourdin"
+        Amor = "Amor"
+        Miehe = "Miehe"
+        He = "He"
+        Stress = "Stress"
+        Zhang = "Zhang"
+
+        AnisotStrain = "AnisotStrain"
+        AnisotStrain_PM = "AnisotStrain_PM"
+        AnisotStrain_MP = "AnisotStrain_MP"
+        AnisotStrain_NoCross = "AnisotStrain_NoCross"
+
+        AnisotStress = "AnisotStress"
+        AnisotStress_PM = "AnisotStress_PM"
+        AnisotStress_MP = "AnisotStress_MP"
+        AnisotStress_NoCross = "AnisotStress_NoCross"
+
+    __splits_Isot = [SplitType.Amor, SplitType.Miehe, SplitType.Stress]
+    __split_Anisot = [SplitType.Bourdin, SplitType.He, SplitType.Zhang,
+                    SplitType.AnisotStrain, SplitType.AnisotStrain_PM, SplitType.AnisotStrain_MP, SplitType.AnisotStrain_NoCross,
+                    SplitType.AnisotStress, SplitType.AnisotStress_PM, SplitType.AnisotStress_MP, SplitType.AnisotStress_NoCross]
+
     @staticmethod
-    def get_splits() -> List[str]:
+    def get_splits() -> List[SplitType]:
         """splits disponibles"""
-        __splits = ["Bourdin","Amor"]
-        __splits.extend(["Miehe","He","Stress"])
-        __splits.extend(["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"])
-        __splits.extend(["AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"])
-        
-        return __splits
+        return list(PhaseField_Model.SplitType)
+
+    class RegularizationType(str, Enum):
+        """Régularisation de la fissure"""
+
+        AT1 = "AT1"
+        AT2 = "AT2"
     
     @staticmethod
-    def get_regularisations() -> List[str]:
+    def get_regularisations() -> List[RegularizationType]:
         """regularisations disponibles"""
-        __regularizations = ["AT1","AT2"]
+        __regularizations = list(PhaseField_Model.RegularizationType)
         return __regularizations
+
+    class SolveurType(str, Enum):
+        History = "History"
+        HistoryDamage = "HistoryDamage"
+        BoundConstrain = "BoundConstrain"
 
     @staticmethod
     def get_solveurs() -> List[str]:
         """solveurs disponibles"""
-        __solveurs = ["History", "HistoryDamage", "BoundConstrain"]
+        __solveurs = list(PhaseField_Model.SolveurType)
         return __solveurs
 
     @property
@@ -961,7 +992,7 @@ class PhaseField_Model(IModel):
 
         k = Gc * l0
 
-        if self.__regularization == "AT1":
+        if self.__regularization == PhaseField_Model.RegularizationType.AT1:
             k = 3/4 * k
 
         return k
@@ -972,7 +1003,7 @@ class PhaseField_Model(IModel):
 
         r = 2 * PsiP_e_pg
 
-        if self.__regularization == "AT2":
+        if self.__regularization == PhaseField_Model.RegularizationType.AT2:
             r = r + (Gc/l0)
         
         return r
@@ -983,7 +1014,7 @@ class PhaseField_Model(IModel):
 
         f = 2 * PsiP_e_pg
 
-        if self.__regularization == "AT1":            
+        if self.__regularization == PhaseField_Model.RegularizationType.AT1:
             f = f - ( (3*Gc) / (8*l0) )            
             absF = np.abs(f)
             f = (f+absF)/2
@@ -1002,7 +1033,7 @@ class PhaseField_Model(IModel):
 
         d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize='optimal')        
 
-        if self.__regularization in ["AT1","AT2"]:
+        if self.__regularization in PhaseField_Model.get_regularisations():
             g_e_pg = (1-d_e_pg)**2 + k_residu
         else:
             raise "Pas implémenté"
@@ -1043,9 +1074,9 @@ class PhaseField_Model(IModel):
     @property
     def c0(self):
         """Paramètre de mise à l'échelle permettant dissiper exactement l'énergie de fissure"""
-        if self.__regularization == "AT1":
+        if self.__regularization == PhaseField_Model.RegularizationType.AT1:
             c0 = 8/3
-        elif self.__regularization == "AT2":
+        elif self.__regularization == PhaseField_Model.RegularizationType.AT2:
             c0 = 2
         return c0
     
@@ -1057,7 +1088,7 @@ class PhaseField_Model(IModel):
     def useNumba(self, val: bool):
         self.__useNumba = val
 
-    def __init__(self, comportement: Displacement_Model, split: str, regularization: str, Gc: float, l_0: float,solveur="History"):
+    def __init__(self, comportement: Displacement_Model, split: str, regularization: RegularizationType, Gc: float, l_0: float, solveur=SolveurType.History):
         """Crétation d'un modèle à gradient d'endommagement
 
         Parameters
@@ -1066,14 +1097,14 @@ class PhaseField_Model(IModel):
             Loi de comportement du matériau (Elas_Isot, Elas_IsotTrans)
         split : str
             Split de la densité d'energie élastique (voir PhaseFieldModel.get_splits())
-        regularization : str
+        regularization : RegularizationType
             Modèle de régularisation de la fissure AT1 ou AT2
         Gc : float
             Taux de restitution d'energie critique en J.m^-2
         l_0 : float
             Demie largeur de fissure 
-        solveur : str, optional
-            Type de résolution de l'endommagement, by default "History" (voir PhaseFieldModel.get_solveurs())
+        solveur : SolveurType, optional
+            Type de résolution de l'endommagement, by default History (voir SolveurType)
         """
     
         assert isinstance(comportement, Displacement_Model), "Doit être une loi de comportement"
@@ -1081,7 +1112,7 @@ class PhaseField_Model(IModel):
 
         assert split in PhaseField_Model.get_splits(), f"Doit être compris dans {PhaseField_Model.get_splits()}"
         if not isinstance(comportement, Elas_Isot):
-            assert not split in ["Amor", "Miehe", "Stress"], "Ces splits ne sont implémentés que pour Elas_Isot"
+            assert not split in PhaseField_Model.__splits_Isot, "Ces splits ne sont implémentés que pour Elas_Isot"
         self.__split =  split
         """Split de la densité d'energie elastique"""
         
@@ -1212,33 +1243,39 @@ class PhaseField_Model(IModel):
         
         else:
 
-            if self.__split == "Bourdin":
-                tic = Tic()
-                c = self.__comportement.get_C()
-                c = c[np.newaxis, np.newaxis,:,:]
-                c = np.repeat(c, Ne, axis=0)
-                c = np.repeat(c, nPg, axis=1)
+            if self.__split == PhaseField_Model.SplitType.Bourdin:
+                cP_e_pg, cM_e_pg = self.__Split_Bourdin(Ne, nPg)
 
-                cP_e_pg = c
-                cM_e_pg = np.zeros_like(cP_e_pg)
-                tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
-
-            elif self.__split == "Amor":
+            elif self.__split == PhaseField_Model.SplitType.Amor:
                 cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
-            elif self.__split in ["Miehe","AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
+            elif self.__split == PhaseField_Model.SplitType.Miehe or "Strain" in self.__split:
                 cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
             
-            elif self.__split in ["Stress","AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]:
+            elif self.__split == PhaseField_Model.SplitType.Zhang or "Stress" in self.__split:
                 cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
 
-            elif self.__split in ["He","HeStress"]:
+            elif self.__split == PhaseField_Model.SplitType.He:
                 cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
             
             else: 
                 raise "Split inconnue"
 
             self.__dict_cP_e_pg_And_cM_e_pg[key] = (cP_e_pg, cM_e_pg)
+
+        return cP_e_pg, cM_e_pg
+
+    def __Split_Bourdin(self, Ne: int, nPg: int):
+        
+        tic = Tic()
+        c = self.__comportement.get_C()
+        c = c[np.newaxis, np.newaxis,:,:]
+        c = np.repeat(c, Ne, axis=0)
+        c = np.repeat(c, nPg, axis=1)
+
+        cP_e_pg = c
+        cM_e_pg = np.zeros_like(cP_e_pg)
+        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -1329,7 +1366,7 @@ class PhaseField_Model(IModel):
 
         tic = Tic()
 
-        if self.__split == "Miehe":
+        if self.__split == PhaseField_Model.SplitType.Miehe:
             
             assert isinstance(self.__comportement, Elas_Isot), f"Implémenté que pour un matériau Elas_Isot"
 
@@ -1351,7 +1388,7 @@ class PhaseField_Model(IModel):
             cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
             cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
         
-        elif self.__split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
+        elif "Strain" in self.__split:
             
             c = self.__comportement.get_C()
             
@@ -1364,22 +1401,22 @@ class PhaseField_Model(IModel):
                 Cmm = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projM_e_pg, optimize='optimal')
                 Cmp = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projP_e_pg, optimize='optimal')
             
-            if self.__split ==  "AnisotMiehe":
+            if self.__split == PhaseField_Model.SplitType.AnisotStrain:
 
                 cP_e_pg = Cpp + Cpm + Cmp
                 cM_e_pg = Cmm 
 
-            elif self.__split ==  "AnisotMiehe_PM":
+            elif self.__split == PhaseField_Model.SplitType.AnisotStrain_PM:
                 
                 cP_e_pg = Cpp + Cpm
                 cM_e_pg = Cmm + Cmp
 
-            elif self.__split ==  "AnisotMiehe_MP":
+            elif self.__split == PhaseField_Model.SplitType.AnisotStrain_MP:
                 
                 cP_e_pg = Cpp + Cmp
                 cM_e_pg = Cmm + Cpm
 
-            elif self.__split ==  "AnisotMiehe_NoCross":
+            elif self.__split == PhaseField_Model.SplitType.AnisotStrain_NoCross:
                 
                 cP_e_pg = Cpp
                 cM_e_pg = Cmm + Cpm + Cmp
@@ -1406,7 +1443,7 @@ class PhaseField_Model(IModel):
 
         tic = Tic()
 
-        if self.__split == "Stress":
+        if self.__split == PhaseField_Model.SplitType.Stress:
         
             assert isinstance(loiDeComportement, Elas_Isot)
 
@@ -1441,13 +1478,19 @@ class PhaseField_Model(IModel):
                 cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
                 cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
         
-        elif self.__split in ["AnisotStress","AnisotStress_PM","AnisotStress_MP","AnisotStress_NoCross"]:
+        elif self.__split == PhaseField_Model.SplitType.Zhang or "Stress" in self.__split:
 
             # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
             Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize='optimal')
             Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize='optimal')
 
-            if self.__split != "AnisotStress":
+            if self.__split == PhaseField_Model.SplitType.Zhang:
+
+                cP_e_pg = Cp_e_pg
+                cM_e_pg = Cm_e_pg
+            
+            else:
+
                 # Construit Cp et Cm
                 S = loiDeComportement.get_S()
                 if self.__useNumba:
@@ -1457,33 +1500,30 @@ class PhaseField_Model(IModel):
                     Cpp = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cp_e_pg, optimize='optimal')
                     Cpm = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cm_e_pg, optimize='optimal')
                     Cmm = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cm_e_pg, optimize='optimal')
-                    Cmp = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cp_e_pg, optimize='optimal')
+                    Cmp = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cp_e_pg, optimize='optimal')                    
+                
+                if self.__split == PhaseField_Model.SplitType.AnisotStress:
+
+                    cP_e_pg = Cpp + Cpm + Cmp
+                    cM_e_pg = Cmm                    
+
+                elif self.__split == PhaseField_Model.SplitType.AnisotStress_PM:
+                    
+                    cP_e_pg = Cpp + Cpm
+                    cM_e_pg = Cmm + Cmp
+
+                elif self.__split == PhaseField_Model.SplitType.AnisotStress_MP:
+                    
+                    cP_e_pg = Cpp + Cmp
+                    cM_e_pg = Cmm + Cpm
+
+                elif self.__split == PhaseField_Model.SplitType.AnisotStress_NoCross:
+                    
+                    cP_e_pg = Cpp
+                    cM_e_pg = Cmm + Cpm + Cmp
             
-            if self.__split ==  "AnisotStress":
-
-                # cP_e_pg = Cpp + Cpm + Cmp
-                # cM_e_pg = Cmm 
-
-                cP_e_pg = Cp_e_pg
-                cM_e_pg = Cm_e_pg
-
-            elif self.__split ==  "AnisotStress_PM":
-                
-                cP_e_pg = Cpp + Cpm
-                cM_e_pg = Cmm + Cmp
-
-            elif self.__split ==  "AnisotStress_MP":
-                
-                cP_e_pg = Cpp + Cmp
-                cM_e_pg = Cmm + Cpm
-
-            elif self.__split ==  "AnisotStress_NoCross":
-                
-                cP_e_pg = Cpp
-                cM_e_pg = Cmm + Cpm + Cmp
-        
-        else:
-            raise "Split inconnue"
+                else:
+                    raise "Split inconnue"
 
         tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
 
@@ -1494,39 +1534,37 @@ class PhaseField_Model(IModel):
         # Ici le matériau est supposé homogène
         loiDeComportement = self.__comportement
 
-        if self.__split == "He":
-            
-            C = loiDeComportement.get_C() 
+        C = loiDeComportement.get_C() 
 
-            # Mettre ça direct dans la loi de comportement ?
+        # Mettre ça direct dans la loi de comportement ?
 
-            sqrtC = sqrtm(C)
-            
-            if verif :
-                # Verif C^1/2 * C^1/2 = C
-                testC = np.dot(sqrtC, sqrtC) - C
-                assert np.linalg.norm(testC)/np.linalg.norm(C) < 1e-12
+        sqrtC = sqrtm(C)
+        
+        if verif :
+            # Verif C^1/2 * C^1/2 = C
+            testC = np.dot(sqrtC, sqrtC) - C
+            assert np.linalg.norm(testC)/np.linalg.norm(C) < 1e-12
 
-            inv_sqrtC = np.linalg.inv(sqrtC)
+        inv_sqrtC = np.linalg.inv(sqrtC)
 
-            # On calcule les nouveaux vecteurs
-            Epsilont_e_pg = np.einsum('ij,epj->epi', sqrtC, Epsilon_e_pg, optimize='optimal')
+        # On calcule les nouveaux vecteurs
+        Epsilont_e_pg = np.einsum('ij,epj->epi', sqrtC, Epsilon_e_pg, optimize='optimal')
 
-            # On calcule les projecteurs
-            projPt_e_pg, projMt_e_pg = self.__Decomposition_Spectrale(Epsilont_e_pg, verif)
+        # On calcule les projecteurs
+        projPt_e_pg, projMt_e_pg = self.__Decomposition_Spectrale(Epsilont_e_pg, verif)
 
-            tic = Tic()
+        tic = Tic()
 
-            projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
-            projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
+        projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
+        projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
 
-            projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize='optimal')
-            projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
-            projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize='optimal')
-            projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
+        projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize='optimal')
+        projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
+        projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize='optimal')
+        projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
 
-            cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
-            cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
+        cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
+        cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
 
         if verif:
             vecteur_e_pg = Epsilon_e_pg.copy()
@@ -1850,7 +1888,7 @@ class _Materiau:
 
         self.__verbosity = verbosity
 
-        self.Get_Resume(self.__verbosity)            
+        self.Resume(self.__verbosity)            
 
     @property
     def modelType(self) -> str:
@@ -1881,7 +1919,7 @@ class _Materiau:
     def useNumba(self, value: bool):
         self.__model.useNumba = value
 
-    def Get_Resume(self, verbosity=True) -> str:
+    def Resume(self, verbosity=True) -> str:
         resume = self.__model.resume
         if verbosity: print(resume)
         return resume

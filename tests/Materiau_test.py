@@ -65,11 +65,13 @@ class Test_Materiau(unittest.TestCase):
         self.regularizations = PhaseField_Model.get_regularisations()
         self.phaseFieldModels = []
 
+        splits_Isot = [PhaseField_Model.SplitType.Amor, PhaseField_Model.SplitType.Miehe, PhaseField_Model.SplitType.Stress]
+
         for c in self.comportements2D:
             for s in self.splits:
                 for r in self.regularizations:
                         
-                    if (isinstance(c, Elas_IsotTrans) or isinstance(c, Elas_Anisot)) and s in ["Amor", "Miehe", "Stress"]:
+                    if (isinstance(c, Elas_IsotTrans) or isinstance(c, Elas_Anisot)) and s in splits_Isot:
                         continue
 
                     pfm = PhaseField_Model(c,s,r,1,1)
