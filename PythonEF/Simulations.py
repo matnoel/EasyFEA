@@ -53,7 +53,8 @@ def Load_Simu(folder: str, verbosity=False):
     """
 
     filename = Folder.Join([folder, "simulation.pickle"])
-    assert os.path.exists(filename), "Le fichier simulation.pickle est introuvable"
+    erreur = Fore.RED + "Le fichier simulation.pickle est introuvable" + Fore.WHITE
+    assert os.path.exists(filename), erreur
 
     with open(filename, 'rb') as file:
         simu = pickle.load(file)
@@ -71,7 +72,46 @@ class _Simu(ABC):
      - Simu_Displacement
      - Simu_Damage
      - Simu_Beam
-     - Simu_Thermal"""
+     - Simu_Thermal
+
+    # 14 méthodes à définir pour respecter l'interface / l'héritage
+
+    - directions ddls et matériau :
+    
+    def problemTypes(self) -> list[ModelType]:
+
+    def directions(self) -> list[str]:
+        
+    def list_resultat(self) -> list[str]:
+
+    def Check_Directions(self, problemType : ModelType, directions:list):
+    
+    def nbddl_n(self, problemType="") -> int:
+
+    def materiau(self) -> _Materiau:
+    
+    def results(self) -> List[dict]:
+
+    - Solveur :
+    
+    def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:    
+    
+    def Get_x0(self, problemType: ModelType):
+    
+    def _Assemblage(self):
+
+    - Itérations :
+    
+    def Save_Iteration(self) -> dict:    
+    
+    def Update_iter(self, index=-1) -> list[dict]:
+
+    - Resultats :
+    
+    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
+    
+    def Resultats_Get_ResumeIter_values(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:    
+    """
 
     # ================================================ ABSTRACT METHOD ================================================
 
@@ -120,7 +160,7 @@ class _Simu(ABC):
 
     @abstractmethod
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        """Renvoie les matrices assemblés de K*x + C*v + M*a = F"""
+        """Renvoie les matrices assemblés de K u + C v + M a = F"""
         pass
     
     @abstractmethod
@@ -133,7 +173,7 @@ class _Simu(ABC):
         """Assemblage du système matricielle"""
         pass
 
-    # Sauvegarde
+    # Itérations
 
     @abstractmethod
     def Save_Iteration(self) -> dict:
@@ -146,12 +186,10 @@ class _Simu(ABC):
         # identifiant du maillage à cette itération
 
         return iter
-
-    # Update
     
     @abstractmethod
     def Update_iter(self, index=-1) -> list[dict]:
-        """Met la simulation à l'iteration renseignée (de base la dernière) et renvoie la list de dictionnaire"""
+        """Met la simulation à l'iteration renseignée (de base la dernière) et renvoie la liste de dictionnaire"""
         index = int(index)
         assert isinstance(index, int), print("Doit fournir un entier")
 
@@ -195,8 +233,8 @@ class _Simu(ABC):
         Args:
             dim (int): Dimension de la simulation (2D ou 3D)
             mesh (Mesh): Maillage que la simulation va utiliser
-            materiau (Materiau): Materiau utilisé
-            verbosity (bool, optional): La simulation ecrira dans la console. Defaults to True.
+            materiau (_Materiau): Materiau utilisé
+            verbosity (bool, optional): La simulation peut ecrire dans la console. Defaults to True.
         """
         
         if verbosity:
@@ -377,7 +415,7 @@ class _Simu(ABC):
         """Met à jour le maillage à l'index renseigné"""
         indexMesh = self.results[index]["indexMesh"]
         self.__mesh = self.__listMesh[indexMesh]
-        self.Matrices_Need_Update()    
+        self.Matrices_Need_Update()
 
     @property
     def matricesUpdated(self) -> bool:
@@ -393,6 +431,58 @@ class _Simu(ABC):
         self.__matricesUpdated = True  
 
     # ================================================ Solveur ================================================
+
+    def Solveur_Set_Elliptic_Algorithm(self):
+        """Renseigne les propriétes de résolution de l'algorithme\n
+        Pour résolution K u = F"""
+        self.__algo = AlgoType.elliptic
+
+    def Solveur_Set_Parabolic_Algorithm(self, dt=0.1, alpha=1/2):
+        """Renseigne les propriétes de résolution de l'algorithme\n
+        Pour résolution K u + C v = F
+
+        Parameters
+        ----------
+        alpha : float, optional
+            critère alpha [0 -> Forward Euler, 1 -> Backward Euler, 1/2 -> midpoint], by default 1/2
+        dt : float, optional
+            incrément temporel, by default 0.1
+        """
+
+        self.__algo = AlgoType.parabolic
+
+        # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
+        # Est-il possible davoir au dela de 1 ?
+
+        assert dt > 0, "l'incrément temporel doit être > 0"
+
+        self.alpha = alpha
+        self.dt = dt
+
+    def Solveur_Set_Newton_Raphson_Algorithm(self, betha=1/4, gamma=1/2, dt=0.1):
+        """Renseigne les propriétes de résolution de l'algorithme\n
+        Pour résolution K u + C v + M a = F
+
+        Parameters
+        ----------
+        betha : float, optional
+            coef betha, by default 1/4
+        gamma : float, optional
+            coef gamma, by default 1/2
+        dt : float, optional
+            incrément temporel, by default 0.1
+        """
+
+        self.__algo = AlgoType.hyperbolic
+
+        # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
+        # Est-il possible davoir au dela de 1 ?
+
+        assert dt > 0, "l'incrément temporel doit être > 0"
+
+        self.betha = betha
+        self.gamma = gamma
+        self.dt = dt
 
     def Solve(self) -> np.ndarray:
         """Resolution de la simulation et renvoie la solution
@@ -464,59 +554,7 @@ class _Simu(ABC):
             # Nouvelles solutions
             self._set_u_n(problemType, u_np1)
             self._set_v_n(problemType, v_np1)
-            self._set_a_n(problemType, a_np1)
-
-    def Solveur_Set_Elliptic_Algorithm(self):
-        """Renseigne les propriétes de résolution de l'algorithme\n
-        Pour résolution K u = F"""
-        self.__algo = AlgoType.elliptic
-
-    def Solveur_Set_Parabolic_Algorithm(self, dt=0.1, alpha=1/2):
-        """Renseigne les propriétes de résolution de l'algorithme\n
-        Pour résolution K u + C v = F
-
-        Parameters
-        ----------
-        alpha : float, optional
-            critère alpha [0 -> Forward Euler, 1 -> Backward Euler, 1/2 -> midpoint], by default 1/2
-        dt : float, optional
-            incrément temporel, by default 0.1
-        """
-
-        self.__algo = AlgoType.parabolic
-
-        # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
-        # Est-il possible davoir au dela de 1 ?
-
-        assert dt > 0, "l'incrément temporel doit être > 0"
-
-        self.alpha = alpha
-        self.dt = dt
-
-    def Solveur_Set_Newton_Raphson_Algorithm(self, betha=1/4, gamma=1/2, dt=0.1):
-        """Renseigne les propriétes de résolution de l'algorithme\n
-        Pour résolution K u + C v + M a = F
-
-        Parameters
-        ----------
-        betha : float, optional
-            coef betha, by default 1/4
-        gamma : float, optional
-            coef gamma, by default 1/2
-        dt : float, optional
-            incrément temporel, by default 0.1
-        """
-
-        self.__algo = AlgoType.hyperbolic
-
-        # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
-        # Est-il possible davoir au dela de 1 ?
-
-        assert dt > 0, "l'incrément temporel doit être > 0"
-
-        self.betha = betha
-        self.gamma = gamma
-        self.dt = dt
+            self._set_a_n(problemType, a_np1)    
 
     def _Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Renseigne les conditiosn limites de neumann en construisant b de A x = b"""
@@ -555,7 +593,7 @@ class _Simu(ABC):
         elif algo == AlgoType.hyperbolic:
 
             if len(self.results) == 0 and (b.max() != 0 or b.min() != 0):
-
+                # initialise l'accel
                 ddl_Connues, ddl_Inconnues = self.Bc_ddls_connues_inconnues(problemType)
 
                 bb = b - K.dot(sparse.csr_matrix(u_n.reshape(-1, 1)))
@@ -652,7 +690,7 @@ class _Simu(ABC):
             # Pénalisation
 
             A = A.tolil()
-            b = b.tolil()            
+            b = b.tolil()
             
             # Pénalisation A
             A[ddls] = 0.0
@@ -1311,15 +1349,15 @@ class __Simu_Displacement(_Simu):
         
         if dim == 2:
             options.extend(["dx", "dy", "dz", "amplitude", "displacement", "coordoDef"])
-            options.extend(["ax", "ay", "accel", "amplitudeAccel"])
             options.extend(["vx", "vy", "speed", "amplitudeSpeed"])
+            options.extend(["ax", "ay", "accel", "amplitudeAccel"])
             options.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
 
         elif dim == 3:
             options.extend(["dx", "dy", "dz","amplitude","displacement", "coordoDef"])
-            options.extend(["ax", "ay", "az", "accel", "amplitudeAccel"])
             options.extend(["vx", "vy", "vz", "speed", "amplitudeSpeed"])
+            options.extend(["ax", "ay", "az", "accel", "amplitudeAccel"])
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"])
         
@@ -1898,7 +1936,7 @@ class __Simu_PhaseField(_Simu):
         return lb, ub
 
     def Check_Directions(self, problemType: ModelType, directions: list):
-        # Rien d'implémenté car aucune direction n'est nécessaire pour cette simulation
+        # Rien d'implémenté, car aucune direction n'est nécessaire pour cette simulation
         if problemType == ModelType.damage:
             listDirections = self.directions
         elif problemType == ModelType.displacement:
@@ -3322,7 +3360,7 @@ class __Simu_Thermal(_Simu):
         return [ModelType.thermal]
 
     def Check_Directions(self, problemType: ModelType, directions: list):
-        # Rien d'implémenté car aucune direction n'est nécessaire pour cette simulation
+        # Rien d'implémenté, car aucune direction n'est nécessaire pour cette simulation
         pass
 
     def __init__(self, mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
