@@ -926,10 +926,7 @@ def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
     assert isinstance(simu, _Simu)
 
     # Recupère les résultats de simulation
-    resultats = simu.results
-    df = pd.DataFrame(resultats)
-
-    iterations = np.arange(df.shape[0])
+    iterations, list_label_values = simu.Resultats_Get_ResumeIter_values()
 
     if iterMax == None:
         iterMax = iterations.max()
@@ -939,58 +936,18 @@ def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
     
     selectionIndex = list(filter(lambda iterations: iterations >= iterMin and iterations <= iterMax, iterations))
 
+    nbGraph = len(list_label_values)
+
     iterations = iterations[selectionIndex]
 
-    # TODO simu.Get_ResumeIter_values()
-
-    damageMaxIter = np.max(list(df["damage"].values), axis=1)[selectionIndex]
-    try:
-        tempsIter = df["tempsIter"].values[selectionIndex]
-        nombreIter = df["nombreIter"].values[selectionIndex]
-        getTempsAndNombreIter = True
-    except:
-        # tempsIter et nombreIter n'ont pas été sauvegardé
-        getTempsAndNombreIter = False
+    fig, axs = plt.subplots(nrows=nbGraph, sharex=True)
     
-    try:
-        tolConvergence = df["dincMax"].values[selectionIndex]
-        getTolConvergence = True
-    except:
-        getTolConvergence = False
-
-    if getTempsAndNombreIter:
-
-        if getTolConvergence:
-            fig, (ax1, ax2, ax3, ax4) = plt.subplots(nrows=4, sharex=True)
-        else:
-            fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, sharex=True)
-
-        # On affiche le nombre d'itérations de convergence en fonction de l'endommagement
-        ax1.grid()
-        ax1.plot(iterations, damageMaxIter, color='blue')
-        ax1.set_ylabel(r"$\phi$", rotation=0)
-        
-        ax2.grid()
-        ax2.plot(iterations, nombreIter, color='blue')
-        # ax2.set_yscale('log', base=10)
-        ax2.set_ylabel("iteration")
-
-        ax3.grid()
-        ax3.plot(iterations, tempsIter, color='blue')
-        ax3.set_ylabel("temps")
-
-        if getTolConvergence:
-            ax4.grid()
-            ax4.plot(iterations, tolConvergence, color='blue')
-            ax4.set_ylabel("tolerance")
-        
-    else:
-        # On affiche l'endommagement max pour chaque itération
-        fig, ax = plt.subplots()
-        ax.plot(iterations, damageMaxIter, color='blue')
-        ax.set_xlabel("iterations")
-        ax.set_ylabel(r"$\phi$", rotation=0)
+    for ax, label_values in zip(axs, list_label_values):
         ax.grid()
+        ax.plot(iterations, label_values[1][iterations], color='blue')
+        ax.set_ylabel(label_values[0])
+
+    ax.set_xlabel("iterations")
 
     if folder != "":
         import PostTraitement as PostTraitement 

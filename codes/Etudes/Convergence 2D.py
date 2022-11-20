@@ -9,7 +9,7 @@ from Interface_Gmsh import Interface_Gmsh
 import Simulations
 import Affichage as Affichage
 from TicTac import Tic
-import Dossier as Dossier
+import Folder
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 Affichage.Clear()
 
 
-folder = Dossier.NewFile("Convergence 2D", results=True)
+folder = Folder.New_File("Convergence 2D", results=True)
 
 # Data --------------------------------------------------------------------------------------------
 

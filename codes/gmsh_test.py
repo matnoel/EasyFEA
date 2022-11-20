@@ -6,7 +6,7 @@ import Affichage
 import Simulations
 from Mesh import ElemType
 import Materials
-import Dossier
+import Folder
 
 option = 2
 dim = 3
@@ -28,7 +28,7 @@ v=0.3
 if option == 1:
     dim = 3
     h=1
-    fichier = Dossier.Join([Dossier.GetPath(), "3Dmodels", "CPEF.stp"])
+    fichier = Folder.Join([Folder.Get_Path(), "3Dmodels", "CPEF.stp"])
     mesh = interface.Mesh_Importation3D(fichier, 10)
 
     noeuds134 = mesh.Nodes_Tag(['S134'])

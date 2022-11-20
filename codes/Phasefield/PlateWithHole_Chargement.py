@@ -4,8 +4,7 @@ from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
 import Simulations
-import Dossier as Dossier
-import pandas as pd
+import Folder
 import PostTraitement as PostTraitement
 
 import matplotlib.pyplot as plt
@@ -15,7 +14,7 @@ Affichage.Clear()
 # L'objectif de ce script est de voir du chargement
 
 # Options
-dim = 2
+dim = 3
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
@@ -25,7 +24,7 @@ nom="_".join([comp, split, regu])
 
 nomDossier = "PlateWithHole_Chargement"
 
-folder = Dossier.NewFile(nomDossier, results=True)
+folder = Folder.New_File(nomDossier, results=True)
 
 # Data
 coef = 1e-3
@@ -110,12 +109,7 @@ simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 
-if dim == 2:
-    simu.Assemblage_u()
-    simu.Solve_u()
-else:
-    simu.Assemblage()
-    simu.Solve()
+simu.Solve()
 
 simu.Save_Iteration()
 

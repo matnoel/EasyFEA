@@ -7,7 +7,7 @@ from Geom import Domain, Point, Circle
 from Interface_Gmsh import Interface_Gmsh
 import Affichage
 import PostTraitement
-import Dossier
+import Folder
 import TicTac
 
 Affichage.Clear()
@@ -72,7 +72,7 @@ ro = materiau.ro
 simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
 simu.Set_Rayleigh_Damping_Coefs(0, 0)
-simu.Solveur_Newton_Raphson_Properties(betha=1/4, gamma=1/2, dt=dt)
+simu.Solveur_Set_Newton_Raphson_Algorithm(betha=1/4, gamma=1/2, dt=dt)
 
 t=0
 
@@ -119,7 +119,7 @@ while t <= tMax:
 
 
 
-folder = Dossier.NewFile("Ondes", results=True)
+folder = Folder.New_File("Ondes", results=True)
 
 if makeMovie:
     PostTraitement.Make_Movie(folder, resultat, simu)

@@ -1,11 +1,13 @@
 import os
 from typing import List
+from colorama import Fore
+
 # import 
 # export PYTHONPATH=$PYTHONPATH:/home/matthieu/Documents/PythonEF/classes
 # export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/classes
 
-def GetPath(filename="") -> str:
-    """Renvoie le path du fichier ou renvoie le path vers le dossier Python Ef
+def Get_Path(filename="") -> str:
+    """Renvoie le path du fichier ou renvoie le path vers le dossier PythonEF
 
     Parameters
     ----------
@@ -28,7 +30,7 @@ def GetPath(filename="") -> str:
 
     return path
 
-def NewFile(filename: str, pathname=GetPath(), results=False) -> str:
+def New_File(filename: str, pathname=Get_Path(), results=False) -> str:
     """Renvoie le path vers le fichier avec l'extension ou non\n
     filename peut etre : un fichier ou un dossier\n
     De base le path renvoie vers le path ou est PythonEF
@@ -73,3 +75,46 @@ def Join(list: List[str]) -> str:
         file = os.path.join(file, f)
         
     return file
+
+def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, v=0.0, nL=0, tetha=0.0):
+
+    import Materials
+
+    nom="_".join([comp, split, regu, simpli2D])
+
+    if closeCrack: 
+        nom += '_closeCrack'
+
+    if optimMesh:
+        nom += '_optimMesh'
+
+    assert solveur in Materials.PhaseField_Model.get_solveurs()
+    if solveur != "History":
+        nom += '_' + solveur
+
+    if tolConv < 1:
+        nom += f'_conv{tolConv}'
+        
+    if comp == "Elas_Isot" and v != 0:
+        nom = f"{nom} pour v={v}"
+
+    if tetha != 0.0:
+        nom = f"{nom} tetha={tetha}"
+
+    if nL != 0:
+        assert nL > 0
+        nom = f"{nom} nL={nL}"
+
+    folder = New_File(dossierSource, results=True)
+
+    if test:
+        folder = Join([folder, "Test", nom])
+    else:
+        folder = Join([folder, nom])
+
+    texteAvantPythonEF = folder.split('PythonEF')[0]
+    folderSansArbre = folder.replace(texteAvantPythonEF, "")
+
+    print(Fore.CYAN + '\nSimulation dans :\n'+folderSansArbre + Fore.WHITE)
+
+    return folder

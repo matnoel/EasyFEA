@@ -2,11 +2,11 @@ import pandas as pd
 
 import PostTraitement as PostTraitement
 import Affichage as Affichage
-import Dossier as Dossier
+import Folder
 import numpy as np
 import matplotlib.pyplot as plt
 import TicTac as TicTac
-import PhaseFieldSimulation
+import Simulations
 
 # L'objectif du script est de récupérer pour chaque simulation la courbe force déplacement
 # Didentifier 3 itérations de déplacement (18.5, 24.6, 30) µm 
@@ -27,12 +27,12 @@ if simulation == "PlateWithHole_Benchmark":
 else:
     colorBarIsClose = False
 
-folder = Dossier.NewFile(simulation, results=True)
+folder = Folder.New_File(simulation, results=True)
 
 if test:
-    folderSauvegarde = Dossier.Join([folder, "Test", "_Post traitement"])
+    folderSauvegarde = Folder.Join([folder, "Test", "_Post traitement"])
 else:
-    folderSauvegarde = Dossier.Join([folder, "_Post traitement"])
+    folderSauvegarde = Folder.Join([folder, "_Post traitement"])
 
 if not savefig:
     folderSauvegarde=""
@@ -79,8 +79,6 @@ for comp in listComp:
 
 Nconfig = len(listConfig)
 
-
-
 if simulation == "PlateWithHole_Benchmark":
     v=0.3
 else:
@@ -102,7 +100,7 @@ for config in listConfig:
 
     tic = TicTac.Tic()
 
-    foldername = PhaseFieldSimulation.ConstruitDossier(dossierSource=simulation, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, v=v, nL=nL, tetha=tetha)
+    foldername = Folder.PhaseField_Folder(folder, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, v=v, nL=nL, tetha=tetha)
 
     nomSimu = foldername.split(comp+'_')[-1]
 
@@ -111,7 +109,7 @@ for config in listConfig:
 
     if loadSimu:
         # Charge la simulations
-        simu = PostTraitement.Load_Simu(foldername, False)
+        simu = Simulations.Load_Simu(foldername, False)
 
         # Affichage.Plot_Maillage(simu.mesh)
 

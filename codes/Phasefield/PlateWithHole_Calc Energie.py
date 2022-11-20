@@ -5,7 +5,7 @@ from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
 import Simulations
-import Dossier as Dossier
+import Folder
 import pandas as pd
 import PostTraitement as PostTraitement
 
@@ -18,7 +18,7 @@ Affichage.Clear()
 plotAllResult = False
 
 comp = "Elas_Isot" # "Elas_Isot" "Elas_IsotTrans"
-split = "Amor" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
+split = "Miehe" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
 regu = "AT1" # "AT1", "AT2"
 contraintesPlanes = True
 
@@ -31,7 +31,7 @@ nomDossier = "Calcul Energie plaque trouée"
 if loadInHole:
     nomDossier += "_loadInHole"
 
-folder = Dossier.NewFile(nomDossier, results=True)
+folder = Folder.New_File(nomDossier, results=True)
 
 # Data
 
@@ -120,9 +120,7 @@ for v in list_V:
 
         # Affichage.Plot_BoundaryConditions(simu)
 
-        simu.Assemblage_u()
-
-        simu.Solve_u()
+        simu.Solve()
 
         psipa = np.mean(simu.Get_Resultat("psiP", True)[nodeA])*E/SIG**2
         psipb = np.mean(simu.Get_Resultat("psiP", True)[nodeB])*E/SIG**2
@@ -151,7 +149,7 @@ for v in list_V:
 
     df = pd.concat([df, new], ignore_index=True)
 
-# df.to_excel(Dossier.Join([folder, f"{nom}.xlsx"]), index=False)
+# df.to_excel(Folder.Join([folder, f"{nom}.xlsx"]), index=False)
 
 Affichage.NouvelleSection("Résultats")
 

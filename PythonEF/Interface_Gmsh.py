@@ -3,7 +3,7 @@ import gmsh
 import sys
 import numpy as np
 
-import Dossier as Dossier
+import Folder
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatriceType, GroupElem_Factory
 from Mesh import Mesh
@@ -934,7 +934,7 @@ class Interface_Gmsh:
             # gmsh.write(Dossier.Join([folder, "model.geo"])) # Il semblerait que ça marche pas c'est pas grave
             gmsh.model.geo.synchronize()
             gmsh.model.occ.synchronize()
-            gmsh.write(Dossier.Join([folder, "mesh.msh"]))
+            gmsh.write(Folder.Join([folder, "mesh.msh"]))
             tic.Tac("Mesh","Sauvegarde du .geo et du .msh", self.__verbosity)
 
     def __Recuperation_Maillage(self):
@@ -1186,9 +1186,9 @@ class Interface_Gmsh:
         def testVolume(val):
             assert np.abs(volume-val)/volume <= 1e-6, "Volume incorrecte"
 
-        folder = Dossier.GetPath()
-        cpefPath = Dossier.Join([folder,"3Dmodels","CPEF.stp"])
-        partPath = Dossier.Join([folder,"3Dmodels","part.stp"])
+        folder = Folder.Get_Path()
+        cpefPath = Folder.Join([folder,"3Dmodels","CPEF.stp"])
+        partPath = Folder.Join([folder,"3Dmodels","part.stp"])
 
         list_mesh3D = []
         for t, elemType in enumerate(GroupElem.get_Types3D()):

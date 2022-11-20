@@ -6,7 +6,7 @@ import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
 import Simulations
 import PostTraitement as PostTraitement
-import PhaseFieldSimulation
+import Folder
 
 import matplotlib.pyplot as plt
 
@@ -15,13 +15,13 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = False
-solve = True
+test = True
+solve = False
 
 plotMesh = False
 plotIter = False
 plotResult = True
-showFig = False
+showFig = True
 plotEnergie = True
 
 saveParaview = False; NParaview=200
@@ -43,8 +43,8 @@ tolConv = 1e-0
 # TODO Faire la convergence sur l'energie ?
 
 if comp == "Elas_Isot":
-    # umax = 25e-6
-    umax = 35e-6    
+    umax = 25e-6
+    # umax = 35e-6    
 else:
     umax = 80e-6
 
@@ -55,7 +55,7 @@ else:
 
 #["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStress"]
 #["AnisotMiehe", "AnisotStress"]
-for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStress"]:
+for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain", "AnisotStress"]:
 # for split in ["AnisotStress"]:
 
     # Data
@@ -79,6 +79,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
 
         listInc = [inc0, inc1]
         listTresh = [tresh0, tresh1]
+        listOption = ["damage"]*len(listTresh)
 
     elif "FCBA" in problem:
 
@@ -105,10 +106,19 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
 
         listInc = [inc0, inc1, inc2]
         listTresh = [tresh0, tresh1, tresh2]
+        listOption = (["damage"]*2).extend("displacement")
+
+    # Matériau
+
+    if simpli2D == "CP":
+        isCp = True
+    else:
+        isCp = False
 
     if comp == "Elas_Isot":
         E=12e9
         v=0.3
+        comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
 
     elif comp == "Elas_IsotTrans":
         # El=11580*1e6
@@ -118,12 +128,15 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
         vl=0.02
         vt=0.44
         v=0
+        comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=isCp, epaisseur=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+
+    # Taille element
     
     if test:
 
         if optimMesh:
-            clD = l_0*3
-            clC = l_0
+            clD = l_0*3*10
+            clC = l_0*10
         else:
             if problem == "Benchmark":
                 clD = 0.25e-3
@@ -143,7 +156,7 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
 
     # Nom du dossier
     nomDossier = "PlateWithHole_" + problem
-    folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solveur, test=test, closeCrack=False, v=v, nL=nL)
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solveur, test=test, closeCrack=False, v=v, nL=nL)
     
     if solve:
 
@@ -175,17 +188,6 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
             Affichage.Plot_Maillage(mesh)
             plt.show()
 
-        if simpli2D == "CP":
-            isCp = True
-        else:
-            isCp = False
-        
-        if comp == "Elas_Isot":
-            comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
-
-        elif comp == "Elas_IsotTrans":
-            comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=isCp, epaisseur=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
-
         phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0, solveur=solveur)
         materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
 
@@ -214,12 +216,10 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
             simu.add_dirichlet(node00, [0], ["x"])
             simu.add_dirichlet(nodes_upper, [-ud], ["y"])
 
+        # Premier Chargement
         Chargement()
-        
-        # Affichage.Plot_BoundaryConditions(simu)
-        # plt.show()
 
-        PhaseFieldSimulation.ResumeChargement(simu, umax, listInc, listTresh)
+        simu.Resultats_Set_Resume_Chargement(umax, listInc, listTresh, listOption)
 
         resol = 0
         bord = 0
@@ -228,7 +228,6 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
 
         if plotIter:
             figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True)
-
 
         def Condition():
             if problem == "Benchmark":
@@ -243,19 +242,21 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
             
             Chargement()
 
-            u, d, Kglob, nombreIter, dincMax, temps = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
+            u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
 
-            simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
+            simu.Save_Iteration()
+
+            # Si on converge pas on arrête la simulation
+            if not convergence: break
 
             max_d = d.max()
-            f = np.sum(np.einsum('ij,j->i', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
+            f = np.einsum('ij,j->', Kglob[ddls_upper, :].toarray(), u, optimize='optimal')
 
             if problem == "Benchmark":
                 pourcentage = ud/umax
             else: 
                 pourcentage = 0
-
-            PhaseFieldSimulation.ResumeIteration(simu, resol, ud*1e6, d, nombreIter, dincMax,  temps, "µm", pourcentage, True)
+            simu.Resultats_Set_Resume_Iteration(resol, ud*1e6, "µm", pourcentage, True)
 
             if "FCBA" in problem:
                 if ud >= tresh2:
@@ -284,22 +285,18 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
             displacement.append(ud)
             load.append(f)
 
-            if nombreIter == maxIter:
-                print(f'\nOn converge pas apres {nombreIter} itérations')
-                break
-
         load = np.array(load)
         displacement = np.array(displacement)
 
         # Sauvegarde
         print()
         PostTraitement.Save_Load_Displacement(load, displacement, folder)
-        PostTraitement.Save_Simu(simu, folder)
+        simu.Save(folder)
             
     else:
  
         load, displacement = PostTraitement.Load_Load_Displacement(folder)
-        simu = PostTraitement.Load_Simu(folder)
+        simu = Simulations.Load_Simu(folder)
 
     if plotEnergie:    
         PostTraitement.Plot_Energie(simu, load, displacement, Niter=400, folder=folder)
@@ -315,7 +312,9 @@ for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe", "AnisotStres
 
 
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,colorbarIsClose=True, folder=folder, filename=filenameDamage, title=titleDamage)
-
+        
+    # Affichage.Plot_BoundaryConditions(simu)
+    # plt.show()
 
     if saveParaview:
         PostTraitement.Make_Paraview(folder, simu, Niter=NParaview)

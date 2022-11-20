@@ -42,8 +42,11 @@ except:
 
 class AlgoType(str, Enum):
     elliptic = "elliptic"
+    """Résolution K u = F"""
     parabolic = "parabolic"
+    """Résolution K u + C v = F"""
     hyperbolic = "hyperbolic"
+    """Résolution K u + C v + M a = F"""
 
 class ResolutionType(str, Enum):
     r1 = "1"

@@ -1,9 +1,8 @@
 # %%
-import PhaseFieldSimulation
 from BoundaryCondition import BoundaryCondition
 
 import PostTraitement as PostTraitement
-import Dossier as Dossier
+import Folder
 import Affichage as Affichage
 
 import Materials
@@ -44,7 +43,7 @@ openCrack = True
 #for split in ["He","AnisotMiehe","AnisotStress"]:
 #for split in ["AnisotStress"]:
 # for split in ["Bourdin","Amor","Miehe","He","Stress","AnisotMiehe","AnisotStress"]:
-for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
+for split in ["Zhang","He","AnisotMiehe","AnisotStress"]:
 
     maxIter = 500
     # tolConv = 0.0025
@@ -73,7 +72,7 @@ for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
         taille = l0/2 #l0/2 2.5e-6
         # taille = 7.5e-6
 
-    folder = PhaseFieldSimulation.ConstruitDossier(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, tetha=tetha)
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, tetha=tetha)
 
     # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -212,7 +211,7 @@ for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
             listThreshold = [tresh0, tresh1]
             optionTreshold = "damage"
 
-        PhaseFieldSimulation.ResumeChargement(simu, chargement[-1],listInc, listThreshold, "displacement")
+        simu.Resultats_Set_Resume_Chargement(chargement[-1],listInc, listThreshold, ["displacement"])
 
         damage_t=[]
         uglob_t=[]
@@ -253,9 +252,12 @@ for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
 
             Chargement(dep)
 
-            u, d, Kglob, nombreIter, dincMax, temps = PhaseFieldSimulation.ResolutionIteration(simu=simu, tolConv=tolConv, maxIter=maxIter)
+            u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
 
-            simu.Save_Iteration(nombreIter=nombreIter, tempsIter=temps, dincMax=dincMax)
+            simu.Save_Iteration()
+
+            # Si on converge pas on arrête la simulation
+            if not convergence: break
             
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
@@ -264,7 +266,7 @@ for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
             else:
                 pourcentage = iter/N
 
-            PhaseFieldSimulation.ResumeIteration(simu, iter, dep*1e6, d, nombreIter, dincMax, temps, "µm", pourcentage, True)
+            simu.Resultats_Set_Resume_Iteration(iter, dep*1e6, "µm", pourcentage, True)
 
             if isinstance(comportement, Materials.Elas_Anisot):
                 if simu.damage.max() < tresh1:
@@ -292,14 +294,14 @@ for split in ["Bourdin","He","AnisotMiehe","AnisotStress"]:
         # Sauvegarde
         print()
         PostTraitement.Save_Load_Displacement(forces, deplacements, folder)
-        PostTraitement.Save_Simu(simu, folder)        
+        simu.Save(folder)        
 
         forces = np.array(forces)
         deplacements = np.array(deplacements)
 
     else:   
 
-        simu = PostTraitement.Load_Simu(folder)
+        simu = Simulations.Load_Simu(folder)
 
         forces, deplacements = PostTraitement.Load_Load_Displacement(folder)
         

@@ -4,7 +4,7 @@ from Geom import *
 import Affichage as Affichage
 import Interface_Gmsh as Interface_Gmsh
 import Simulations
-import Dossier as Dossier
+import Folder
 import pandas as pd
 import PostTraitement as PostTraitement
 
@@ -26,7 +26,7 @@ nom="_".join([comp, split, regu])
 
 nomDossier = "PlateWithHole_Dimension"
 
-folder = Dossier.NewFile(nomDossier, results=True)
+folder = Folder.New_File(nomDossier, results=True)
 
 # Data
 coef = 1e-3
@@ -99,9 +99,7 @@ for cc in list_cc:
 
     # Affichage.Plot_BoundaryConditions(simu)
 
-    simu.Assemblage_u()
-
-    simu.Solve_u()
+    simu.Solve()
 
     list_SxxA.append(simu.Get_Resultat("Sxx", True)[nodeA])
     list_SyyA.append(simu.Get_Resultat("Syy", True)[nodeA])

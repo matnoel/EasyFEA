@@ -6,7 +6,7 @@ import os
 
 # Faire ça pour compiler les fonctions ecrit en cython
 
-folder = Dossier.GetPath(__file__)
+folder = Dossier.Get_Path(__file__)
 
 dossiersEtFichiers = os.listdir(folder)
 

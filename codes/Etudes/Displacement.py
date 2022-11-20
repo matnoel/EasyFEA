@@ -3,7 +3,7 @@
 # sys.path.append("/home/matthieu/Documents/PythonEF/classes")
 import os
 
-import Dossier
+import Folder
 import PostTraitement
 import Affichage
 from Geom import *
@@ -14,14 +14,13 @@ from TicTac import Tic
 
 import matplotlib.pyplot as plt
 
-
 Affichage.Clear()
 
 dim = 2
 
-folder = Dossier.NewFile(f"Etude{dim}D", results=True)
+folder = Folder.New_File(f"Etude{dim}D", results=True)
 
-ticTot = Tic()
+tic_Tot = Tic()
 
 # Data --------------------------------------------------------------------------------------------
 
@@ -31,8 +30,8 @@ saveParaview = True; NParaview = 500
 
 useNumba = True
 
-isLoading = True
-initSimu = False
+isLoading = False
+initSimu = True
 
 pltMovie = True; NMovie = 400
 
@@ -45,7 +44,7 @@ coefK = 1e-3*2
 # coefK = 0
 
 Tmax = 0.3
-N = 1
+N = 10
 dt = Tmax/N
 t = 0
 
@@ -131,9 +130,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet(noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad(noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        # simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
+        simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
 
-        simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+        # simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad(noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])
         pass
@@ -161,7 +160,7 @@ if N > 1:
 else:
     steadyState=True
 
-simu.Solveur_Newton_Raphson_Properties(dt=dt)
+simu.Solveur_Set_Newton_Raphson_Algorithm(dt=dt)
 
 if plotIter:
     fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, deformation=True)
@@ -181,7 +180,7 @@ while t <= Tmax:
 
 # PostTraitement.Save_Simu(simu, folder)
 
-ticTot.Tac("Temps script","Temps total", True)        
+tic_Tot.Tac("Temps script","Temps total", True)        
 
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
@@ -194,7 +193,7 @@ Affichage.Plot_BoundaryConditions(simu)
 # folder=""
 
 if saveParaview:        
-    filename = Dossier.NewFile(os.path.join("Etude2D","solution2D"), results=True)
+    filename = Folder.New_File(os.path.join("Etude2D","solution2D"), results=True)
     PostTraitement.Make_Paraview(folder, simu,Niter=NParaview)
 
 if pltMovie:

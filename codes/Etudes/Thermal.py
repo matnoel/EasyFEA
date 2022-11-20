@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import Affichage
 import PostTraitement
-import Dossier
+import Folder
 import Interface_Gmsh
 from Geom import Circle, Domain, Line, Point
 import Materials
@@ -14,7 +14,7 @@ plotIter = True; affichageIter = "thermal"
 
 pltMovie = True; NMovie = 300
 
-folder = Dossier.NewFile(filename="Thermal", results=True)
+folder = Folder.New_File(filename="Thermal", results=True)
 
 dim = 2
 
@@ -58,7 +58,7 @@ def Iteration(steadyState: bool):
 
     # simu.add_volumeLoad(noeudsCircle, [100], [""])
 
-    thermal = simu.Solve(steadyState)
+    thermal = simu.Solve()
 
     simu.Save_Iteration()
 
@@ -69,7 +69,7 @@ N = 10
 dt = Tmax/N #s
 t=0
 
-simu.Solveur_Parabolic_Properties(alpha=0.5, dt=dt)
+simu.Solveur_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
 
 if Tmax == 0:
     steadyState=True

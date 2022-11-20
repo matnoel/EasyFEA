@@ -980,7 +980,7 @@ class PhaseField_Model(IModel):
         BoundConstrain = "BoundConstrain"
 
     @staticmethod
-    def get_solveurs() -> List[str]:
+    def get_solveurs() -> List[SolveurType]:
         """solveurs disponibles"""
         __solveurs = list(PhaseField_Model.SolveurType)
         return __solveurs

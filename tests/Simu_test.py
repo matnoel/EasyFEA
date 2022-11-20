@@ -221,15 +221,14 @@ class Test_Simu(unittest.TestCase):
             Ku_e, Mu_e = simu.ConstruitMatElem_Dep()
             self.__VerificationConstructionKe(simu, Ku_e)
 
-            simu.Solve(steadyState=True)
-
+            simu.Solve()
 
             fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True, valeursAuxNoeuds=True)
             plt.pause(1e-12)
             plt.close(fig)
             
-            simu.Solveur_Newton_Raphson_Properties(dt=0.5)
-            simu.Solve(steadyState=False)
+            simu.Solveur_Set_Newton_Raphson_Algorithm(dt=0.5)
+            simu.Solve()
             fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True,valeursAuxNoeuds=True)
             plt.pause(1e-12)
             plt.close(fig)
@@ -262,7 +261,7 @@ class Test_Simu(unittest.TestCase):
 
             simu.add_dirichlet(noeuds0, [0], [""])
             simu.add_dirichlet(noeudsL, [40], [""])
-            simu.Solve(steadyState=True)
+            simu.Solve()
             simu.Save_Iteration()
 
             fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True)

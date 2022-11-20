@@ -3,7 +3,7 @@ from colorama import Fore
 
 import Affichage as Affichage
 import Simulations
-import Dossier as Dossier
+import Folder
 from TicTac import Tic
 import numpy as np
 
@@ -17,76 +17,12 @@ from datetime import datetime
 # https://www.python-graph-gallery.com/
 
 
-# =========================================== Simulation ==================================================
-
-def Save_Simu(simu: Simulations._Simu, folder:str):
-    "Sauvegarde la simulation et son résumé dans le dossier"    
-    # Il faut vider les matrices dans les groupes d'elements
-    try:
-        simu.mesh.ResetMatrices()
-    except:
-        # Cette option n'était pas encore implémentée
-        pass
- 
-    # returns current date and time
-    dateEtHeure = datetime.now()
-    resume = f"Simulation réalisée le : {dateEtHeure}"
-    nomSimu = "simulation.pickle"
-    filename = Dossier.Join([folder, nomSimu])
-    print(Fore.GREEN + f'\nSauvegarde de :')
-    print(Fore.GREEN + f'  - {nomSimu}' + Fore.WHITE)
-    
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    
-    # Sauvagarde la simulation
-    with open(filename, "wb") as file:
-        pickle.dump(simu, file)
-
-    # Sauvegarde le résumé de la simulation
-    resume += simu.Resultats_Resume(False)
-    nomResume = "résumé.txt"
-    print(Fore.GREEN + f'  - {nomResume} \n' + Fore.WHITE)
-    filenameResume = Dossier.Join([folder, nomResume])
-
-    with open(filenameResume, 'w', encoding='utf8') as file:
-        file.write(resume)
-
-def Load_Simu(folder: str, verbosity=False):
-    """Charge la simulation depuis le dossier
-
-    Parameters
-    ----------
-    folder : str
-        nom du dossier dans lequel simulation est sauvegardée
-
-    Returns
-    -------
-    Simu
-        simu
-    """
-
-    filename = Dossier.Join([folder, "simulation.pickle"])
-    assert os.path.exists(filename), "Le fichier simulation.pickle est introuvable"
-
-    with open(filename, 'rb') as file:
-        simu = pickle.load(file)
-
-    assert isinstance(simu, Simulations._Simu)
-
-    if verbosity:
-        print(Fore.CYAN + f'\nChargement de :\n{filename}\n' + Fore.WHITE)
-        simu.mesh.Resume()
-        simu.materiau.Get_Resume()
-    return simu
-
-
 # =========================================== Load and Displacement ==================================================
 
 def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:str):
     "Sauvegarde les valeurs de forces [N] et déplacements [m] dans le dossier"
     
-    filename = Dossier.Join([folder, "load and displacement.pickle"])
+    filename = Folder.Join([folder, "load and displacement.pickle"])
 
     print(Fore.GREEN + f'\nSauvegarde de :\n  - load and displacement.pickle' + Fore.WHITE)
 
@@ -112,7 +48,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     return load, displacement
     """
 
-    filename = Dossier.Join([folder, "load and displacement.pickle"])
+    filename = Folder.Join([folder, "load and displacement.pickle"])
     assert os.path.exists(filename), Fore.RED + "Le fichier load and displacement.pickle est introuvable" + Fore.WHITE
 
     with open(filename, 'rb') as file:
@@ -142,7 +78,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
         name = f'{option}_e'
     
     # Nom de la vidéo dans le dossier ou est communiqué le dossier
-    filename = Dossier.Join([folder, f'{name}.mp4'])
+    filename = Folder.Join([folder, f'{name}.mp4'])
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -299,7 +235,7 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
     
     Niter = len(listIter)
 
-    folder = Dossier.Join([folder,"Paraview"])
+    folder = Folder.Join([folder,"Paraview"])
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -325,7 +261,7 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
 
     for i, iter in enumerate(listIter):
 
-        f = Dossier.Join([folder,f'solution_{iter}.vtu'])
+        f = Folder.Join([folder,f'solution_{iter}.vtu'])
 
         vtuFile = __Make_vtu(simu, iter, f, nodesField=nodesField, elementsField=elementsField)
         
@@ -539,7 +475,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str,nodesField=["co
         # Fin du vtk
         file.write('</VTKFile> \n')
     
-    path = Dossier.GetPath(filename)
+    path = Folder.Get_Path(filename)
     vtuFile = str(filename).replace(path+'\\', '')
 
     return vtuFile
@@ -599,7 +535,7 @@ def Save_fig(folder:str, title: str,transparent=False, extension='png'):
 
     for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
 
-    nom = Dossier.Join([folder, title+'.'+extension])
+    nom = Folder.Join([folder, title+'.'+extension])
 
     if not os.path.exists(folder):
         os.makedirs(folder)
