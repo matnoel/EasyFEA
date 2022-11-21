@@ -84,8 +84,6 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
         L=9e-2
         h=L
         ep=2e-2
-        
-        u_max=0
 
         diam=1e-2
         r=diam/2
@@ -220,7 +218,8 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
         # Premier Chargement
         Chargement()
 
-        simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
+        if problem != "FCBA":
+            simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
 
         resol = 0
         bord = 0
