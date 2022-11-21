@@ -28,9 +28,9 @@ saveParaview = False; NParaview=200
 makeMovie = False; NMovie = 300
 
 
-problem = "Benchmark" # ["Benchmark","FCBA"]
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT1" # ["AT1", "AT2"]
+problem = "FCBA" # ["Benchmark","FCBA"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+regu = "AT2" # ["AT1", "AT2"]
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 optimMesh = True
@@ -43,8 +43,10 @@ tolConv = 1e-0
 
 # TODO Faire la convergence sur l'energie ?
 
-#for split in ["Zhang"]:
-for split in ["Bourdin","Amor","Miehe","Stress"]:
+for tolConv in [1e-0, 1e-1, 1e-2]:
+    split = "Zhang"
+# for split in ["Zhang"]:
+# for split in ["Bourdin","Amor","Miehe","Stress"]:
 # for split in ["Zhang","AnisotStress_PM","He","AnisotStrain","AnisotStress"]:
 
     # Data
@@ -58,7 +60,6 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
         gc = 1.4
         nL=0
         l_0 = 0.12e-3
-
 
         if comp == "Elas_Isot":
             # u_max = 25e-6
@@ -82,7 +83,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
 
         L=9e-2
         h=L
-        ep=1e-2
+        ep=2e-2
         
         diam=1e-2
         r=diam/2
@@ -104,7 +105,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
 
         listInc = [inc0, inc1, inc2]
         listTresh = [tresh0, tresh1, tresh2]
-        listOption = (["damage"]*2).extend("displacement")
+        listOption = (["damage"]*2).append("displacement")
 
     # Matériau
 
@@ -133,8 +134,8 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
     if test:
 
         if optimMesh:
-            clD = l_0*3
-            clC = l_0
+            clD = l_0*3*5
+            clC = l_0*5
         else:
             if problem == "Benchmark":
                 clD = 0.25e-3
@@ -327,7 +328,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
     # Tic.getResume()
 
     if solve:
-        Tic.getGraphs(folder, details=False)
+        Tic.getGraphs(folder, details=True)
 
     if showFig:
         plt.show()
