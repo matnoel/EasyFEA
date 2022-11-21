@@ -2008,15 +2008,18 @@ class __Simu_PhaseField(_Simu):
         return super().add_neumann(noeuds, valeurs, directions, problemType, description)
 
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        if not self.matricesUpdated: self._Assemblage()
 
         taille = self.mesh.Nn * self.nbddl_n(problemType)
         initcsr = sparse.csr_matrix((taille, taille))
-            
-        if problemType == ModelType.damage:
-            return self.__Kd.copy(), initcsr, initcsr, self.__Fd.copy()
-        elif problemType == ModelType.displacement:
-            return self.__Ku.copy(), initcsr, initcsr, self.__Fu.copy()
+
+        try:    
+            if problemType == ModelType.damage:            
+                return self.__Kd.copy(), initcsr, initcsr, self.__Fd.copy()
+            elif problemType == ModelType.displacement:            
+                return self.__Ku.copy(), initcsr, initcsr, self.__Fu.copy()
+        except AttributeError:
+            print("Sytème pas encore assemblé")
+            return initcsr, initcsr, initcsr, initcsr
 
     def Get_x0(self, problemType: ModelType):
         if problemType == ModelType.damage:
@@ -2202,6 +2205,7 @@ class __Simu_PhaseField(_Simu):
         # plt.figure()
         # plt.spy(self.__Ku)
         # plt.show()
+        
 
         tic.Tac("Matrices","Assemblage Ku et Fu", self._verbosity)
         return self.__Ku
@@ -2356,7 +2360,7 @@ class __Simu_PhaseField(_Simu):
         self.__Fd = sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1))
         """Fglob pour le probleme d'endommagement (Nn, 1)"""        
 
-        tic.Tac("Matrices","Assemblage Kd et Fd", self._verbosity)       
+        tic.Tac("Matrices","Assemblage Kd et Fd", self._verbosity)        
 
         return self.__Kd, self.__Fd    
     
