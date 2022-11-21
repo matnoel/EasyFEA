@@ -2076,14 +2076,13 @@ class __Simu_PhaseField(_Simu):
             # Displacement
             Kglob = self.__Assemblage_u()            
             u_np1 = self.__Solve_u()
+
+            dincMax = np.max(np.abs(d_kp1-dk))
             
             if tolConv == 1.0:
                 convergence=True
-                dincMax = 1.0
             else:
                 # Condition de convergence
-                dincMax = np.max(np.abs(d_kp1-dk))
-                # print(f"{iterConv} : {dincMax}\r")
                 # convergence = dincMax <= tolConv and iterConv > 1 # idée de florent
                 convergence = dincMax <= tolConv
 
@@ -2823,7 +2822,7 @@ class __Simu_PhaseField(_Simu):
         
         damageMaxIter = np.max(list(df["damage"].values), axis=1)
         list_label_values.append((r"$\phi$", damageMaxIter))
-
+        
         tolConvergence = df["dincMax"].values
         list_label_values.append(("convergence", tolConvergence))
 
