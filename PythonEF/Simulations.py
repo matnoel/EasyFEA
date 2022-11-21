@@ -243,6 +243,7 @@ class _Simu(ABC):
 
         # Renseigne le premier maillage
         self.__indexMesh = -1
+        """index du maillage actuelle dans self.__listMesh"""
         self.__listMesh = cast(list[Mesh], [])
         self.mesh = mesh
 
@@ -591,6 +592,7 @@ class _Simu(ABC):
             b = b + C.dot(v_Tild_np1/(alpha*dt))
 
         elif algo == AlgoType.hyperbolic:
+            # Formulation en accel
 
             if len(self.results) == 0 and (b.max() != 0 or b.min() != 0):
                 # initialise l'accel
@@ -617,8 +619,7 @@ class _Simu(ABC):
 
             uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1-2*betha) * a_n
             vTild_np1 = v_n + (1-gamma) * dt * a_n
-
-            # Formulation en accel
+            
             b -= K.dot(uTild_np1.reshape(-1,1))
             b -= C.dot(vTild_np1.reshape(-1,1))
             b = sparse.csr_matrix(b)
