@@ -90,7 +90,7 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
         
         gc = 1.4/2
         # l_0 = 0.12e-3
-        nL=100
+        nL=150
         l_0 = L/nL
 
         inc0 = 8e-7
@@ -134,8 +134,8 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
     if test:
 
         if optimMesh:
-            clD = l_0*3*5
-            clC = l_0*5
+            clD = l_0*3
+            clC = l_0
         else:
             if problem == "Benchmark":
                 clD = 0.25e-3
@@ -172,7 +172,7 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
             if problem == "Benchmark":
                 ecartZone = diam*1.5/2
             elif "FCBA" in problem:
-                ecartZone = diam
+                ecartZone = diam*1.5
             if split in ["Bourdin", "Amor"]:
                 domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
             else:
@@ -246,9 +246,6 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
 
             simu.Save_Iteration()
 
-            # Si on converge pas on arrête la simulation
-            if not convergence: break
-
             max_d = d.max()
             f = np.einsum('ij,j->', Kglob[ddls_upper, :].toarray(), u, optimize='optimal')
 
@@ -257,6 +254,9 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
             else: 
                 pourcentage = 0
             simu.Resultats_Set_Resume_Iteration(resol, ud*1e6, "µm", pourcentage, True)
+            
+            # Si on converge pas on arrête la simulation
+            if not convergence: break
 
             if "FCBA" in problem:
                 if ud >= tresh2:
@@ -311,7 +311,7 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
         titleDamage = f"{split}"
 
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True,colorbarIsClose=True, folder=folder, filename=filenameDamage, title=titleDamage)
+        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=False, folder=folder, filename=filenameDamage, title=titleDamage)
         
     # Affichage.Plot_BoundaryConditions(simu)
     # plt.show()
