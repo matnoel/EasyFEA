@@ -2762,7 +2762,10 @@ class __Simu_PhaseField(_Simu):
         return self.__resumeChargement
 
     def Resultats_Get_Resume_Chargement(self) -> str:
-        return self.__resumeChargement
+        try:
+            return self.__resumeChargement
+        except AttributeError:
+            return ""
 
     def Resultats_Set_Resume_Iteration(self, resol: int, load: float, uniteLoad: str, pourcentage=0.0, remove=False):
         """Construit le résumé de l'itération pour le probleme d'endommagement
