@@ -1810,7 +1810,7 @@ class Thermal_Model(IModel):
         resume += f'\ncapacité thermique massique (c) : {self.__c}'
         return resume
 
-    # TODO ThermalModel Anisot avec un coef de diffusion différents pour chaque direction !
+    # TODO ThermalModel Anisot avec un coef de diffusion différents pour chaque direction ! k devient une matrice
 
     def __init__(self, dim:int, k: float, c=0.0, epaisseur=1.0):
         """Construction d'un modèle thermique

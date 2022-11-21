@@ -1586,9 +1586,7 @@ class __Simu_Displacement(_Simu):
 
         displacement = self.displacement
 
-        coef = self.materiau.comportement.coef
-
-        # TODO fusionner avec Stress ?
+        coef = self.materiau.comportement.coef        
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
@@ -2393,7 +2391,7 @@ class __Simu_PhaseField(_Simu):
 
         if results == None: return
 
-        self.__old_psiP_e_pg = [] # TODO est il vraiment utile de faire ça ?
+        self.__old_psiP_e_pg = [] # Il vraiment utile de faire ça sinon quand on calculer psiP il va y avoir un problème
 
         damageType = ModelType.damage
         self._set_u_n(damageType, results[damageType])
@@ -2822,7 +2820,7 @@ class __Simu_PhaseField(_Simu):
         
         damageMaxIter = np.max(list(df["damage"].values), axis=1)
         list_label_values.append((r"$\phi$", damageMaxIter))
-        
+
         tolConvergence = df["dincMax"].values
         list_label_values.append(("convergence", tolConvergence))
 

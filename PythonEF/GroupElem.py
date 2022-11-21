@@ -10,8 +10,6 @@ from matplotlib import pyplot as plt
 import numpy as np
 import scipy.sparse as sp
 
-# TODO ELEMTyp 0D 1D 2D 3D
-
 class ElemType(str, Enum):
     """Types d'éléments"""
 
