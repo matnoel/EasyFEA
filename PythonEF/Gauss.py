@@ -124,6 +124,8 @@ class Gauss:
 
         assert matriceType in GroupElem.get_MatriceType()
 
+        # TODO faire une fonction pour calculer directement lordre ?
+
         if elemType == ElemType.SEG2:
             dim = 1
             if matriceType == MatriceType.rigi:
