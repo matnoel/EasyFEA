@@ -15,13 +15,13 @@ import matplotlib.pyplot as plt
 
 # Options
 
-test = True
+test = False
 solve = True
 
 plotMesh = False
 plotIter = False
 plotResult = True
-showFig = True
+showFig = False
 plotEnergie = True
 
 saveParaview = False; NParaview=200
@@ -85,6 +85,8 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
         h=L
         ep=2e-2
         
+        u_max=0
+
         diam=1e-2
         r=diam/2
         
