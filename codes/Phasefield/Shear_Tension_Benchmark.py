@@ -16,15 +16,15 @@ import matplotlib.pyplot as plt
 
 # Affichage.Clear()
 
-simulation = "Shear" # "Shear" , "Tension"
+simulation = "Tension" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = True
+test = False
 solve = True
 
 pltMesh = False
 plotResult = True
-showResult = True
+showResult = False
 plotEnergie = True
 
 saveParaview = False; Nparaview=400
@@ -34,16 +34,17 @@ useNumba = True
 
 # Data --------------------------------------------------------------------------------------------
 
-comportement = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
+comportement_str = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 regularisation = "AT2" # "AT1", "AT2"
 solveur = "History"
 openCrack = True
 
 #for split in ["Zhang"]:
-for split in ["Bourdin","Amor","Miehe","Stress"]:
+# for split in ["Bourdin","Amor","Miehe","Stress"]:
 # for split in ["He","AnisotStrain","AnisotStress","Zhang"]:
+for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]:
 
-    maxIter = 500
+    maxIter = 1000
     # tolConv = 0.0025
     # tolConv = 0.005
     tolConv = 1e-0
@@ -52,8 +53,8 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
 
     # Paramètres géométrie
     L = 1e-3;  #m
-    if comportement == "Elas_Anisot":
-        theta = -0
+    if comportement_str == "Elas_Anisot":
+        theta = -30
         l0 = 0.0085e-3
         Gc = 10e-3 * 1e-3 * 1e3
     else:
@@ -65,12 +66,12 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
     if test:
         taille = l0 #taille maille test fem object
         # taille = 0.001
-        taille *= 4
+        taille *= 5
     else:
         taille = l0/2 #l0/2 2.5e-6
         # taille = 7.5e-6
 
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, theta=theta)
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, theta=theta)
 
     # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -110,9 +111,9 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
         # Simulation  -------------------------------------------------------------------------------------------
         
 
-        if comportement == "Elas_Isot":
+        if comportement_str == "Elas_Isot":
             comp = Materials.Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
-        elif comportement == "Elas_Anisot":
+        elif comportement_str == "Elas_Anisot":
 
             if dim == 2:
 
@@ -143,7 +144,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
 
         materiau = Materials.Create_Materiau(phaseFieldModel, ro=1)
 
-        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=useNumba)
+        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=useNumba)        
 
         # Renseignement des conditions limites
         def Chargement(dep):
@@ -201,14 +202,15 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
             listThreshold = [chargement[N0], chargement[N1]]
             optionTreshold = ["displacement"]
 
-        if isinstance(comportement, Materials.Elas_Anisot):
+        if isinstance(comp, Materials.Elas_Anisot):
 
-            uinc0 = 6e-8; tresh0 = 0
-            uinc1 = 2e-8; tresh1 = 0.6
+            uinc0 = 6e-6; tresh0 = 0
+            uinc1 = 2e-7; tresh1 = 0.3
 
             listInc = [uinc0, uinc1]
             listThreshold = [tresh0, tresh1]
-            optionTreshold = ["damage"]
+            optionTreshold = ["damage"]*2
+            chargement = ["crack bord"]
 
         simu.Resultats_Set_Resume_Chargement(chargement[-1],listInc, listThreshold, optionTreshold)
 
@@ -227,7 +229,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
 
         def Condition():
 
-            testEndommagementBord = simu.damage[NoeudsBord].max() <= 1
+            testEndommagementBord = simu.damage[NoeudsBord].max() <= 0.98
 
             if isinstance(comp, Materials.Elas_Isot):
 
@@ -241,7 +243,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
 
                 raise "Pas implémenté"
 
-        N = chargement.shape[0]        
+        N = len(chargement)
 
         while Condition():
 
@@ -254,20 +256,20 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
             u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
 
             simu.Save_Iteration()
-
-            # Si on converge pas on arrête la simulation
-            if not convergence: break
             
             f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
 
-            if isinstance(comportement, Materials.Elas_Anisot):
+            if isinstance(comp, Materials.Elas_Anisot):
                 pourcentage = 0
             else:
                 pourcentage = iter/N
 
             simu.Resultats_Set_Resume_Iteration(iter, dep*1e6, "µm", pourcentage, True)
 
-            if isinstance(comportement, Materials.Elas_Anisot):
+            # Si on converge pas on arrête la simulation
+            if not convergence: break
+
+            if isinstance(comp, Materials.Elas_Anisot):
                 if simu.damage.max() < tresh1:
                     dep += uinc0
                 else:
@@ -279,7 +281,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]:
             deplacements.append(dep)
             forces.append(f)            
 
-            if np.any(damage[NoeudsBord] >= 1):                                
+            if np.any(damage[NoeudsBord] >= 0.98):
                 bord +=1
                 if bord == 5:
                     break
