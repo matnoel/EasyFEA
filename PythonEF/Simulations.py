@@ -2070,23 +2070,27 @@ class __Simu_PhaseField(_Simu):
             nombreIter += 1
             # Ancien endommagement dans la procedure de la convergence
             dk = self.damage
+            psi_crack_k = self.__Calc_Psi_Crack()
 
             # Damage
             self.__Assemblage_d()
-            d_kp1 = self.__Solve_d()
+            d_kp1 = self.__Solve_d()            
+            psi_crack_kp1 = self.__Calc_Psi_Crack()
             
             # Displacement
             Kglob = self.__Assemblage_u()            
             u_np1 = self.__Solve_u()
 
-            dincMax = np.max(np.abs(d_kp1-dk))
+            # convIter = np.max(np.abs(d_kp1-dk))
+            
+            convIter = np.abs(psi_crack_kp1 - psi_crack_k)
             
             if tolConv == 1.0:
                 convergence=True
             else:
                 # Condition de convergence
                 # convergence = dincMax <= tolConv and iterConv > 1 # idée de florent
-                convergence = dincMax <= tolConv
+                convergence = convIter <= tolConv
 
         if solveur == PhaseField_Model.SolveurType.History:
             d_np1 = d_kp1
@@ -2106,7 +2110,7 @@ class __Simu_PhaseField(_Simu):
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
         self.__nombreIter = nombreIter
-        self.__dincMax = dincMax
+        self.__convIter = convIter
         self.__tempsIter = temps
             
         return u_np1, d_np1, Kglob, convergence
@@ -2379,7 +2383,7 @@ class __Simu_PhaseField(_Simu):
         
         iter["nombreIter"] = self.__nombreIter
         iter["tempsIter"] = self.__tempsIter
-        iter["dincMax"] = self.__dincMax
+        iter["convIter"] = self.__convIter
     
         if self.materiau.phaseFieldModel.solveur == PhaseField_Model.SolveurType.History:
             # mets à jour l'ancien champ histoire pour la prochaine résolution 
@@ -2658,7 +2662,7 @@ class __Simu_PhaseField(_Simu):
         gradPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, Gc*l0/c0, diffuse_e_pg, optimize='optimal')
 
         alpha_e_pg = np.einsum('pij,ej->epi', Nd_pg, d_e, optimize='optimal')
-        if pfm.regularization == "AT2":
+        if pfm.regularization == PhaseField_Model.RegularizationType.AT2:
             alpha_e_pg = alpha_e_pg**2
         
         alphaPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, Gc/(c0*l0), alpha_e_pg, optimize='optimal')
@@ -2791,7 +2795,7 @@ class __Simu_PhaseField(_Simu):
         d = self.damage
 
         nombreIter = self.__nombreIter
-        dincMax = self.__dincMax
+        dincMax = self.__convIter
         temps = self.__tempsIter
 
         min_d = d.min()
@@ -2829,7 +2833,7 @@ class __Simu_PhaseField(_Simu):
         damageMaxIter = np.max(list(df["damage"].values), axis=1)
         list_label_values.append((r"$\phi$", damageMaxIter))
 
-        tolConvergence = df["dincMax"].values
+        tolConvergence = df["convIter"].values
         list_label_values.append(("convergence", tolConvergence))
 
         nombreIter = df["nombreIter"].values
