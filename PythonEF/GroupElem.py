@@ -1253,13 +1253,15 @@ class GroupElem(ABC):
         if tag in self.__dict_elements_tags:
             return self.__dict_elements_tags[tag]
         else:
-            print("Groupe physique inconnue")
+            print(f"Le tag {tag} est inconnue")
+            return []
     
     def Get_Nodes_Tag(self, tag: str):
         if tag in self.__dict_nodes_tags:
             return self.__dict_nodes_tags[tag]
         else:
-            print("Groupe physique inconnue")
+            print(f"Le tag {tag} est inconnue")
+            return []
     
     def Localise_sol_e(self, sol: np.ndarray) -> np.ndarray:
         """localise les valeurs de noeuds sur les elements"""
