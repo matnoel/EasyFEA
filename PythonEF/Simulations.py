@@ -605,7 +605,9 @@ class _Simu(ABC):
                 bbi = bb[ddl_Inconnues]
                 Aii = M[ddl_Inconnues, :].tocsc()[:, ddl_Inconnues].tocsr()
 
-                ai_n = _Solve_Axb(simu=self, problemType=problemType, A=Aii, b=bbi, x0=[], lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=self._verbosity)
+                x0 = a_n[ddl_Inconnues]
+
+                ai_n = _Solve_Axb(simu=self, problemType=problemType, A=Aii, b=bbi, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=self._verbosity)
 
                 a_n[ddl_Inconnues] = ai_n 
 
