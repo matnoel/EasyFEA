@@ -254,7 +254,7 @@ class Test_Simu(unittest.TestCase):
 
             materiau = Materials.Create_Materiau(thermalModel, verbosity=False)
 
-            simu = Simulations.Create_Simu(mesh , materiau, False)
+            simu = Simulations.Create_Simu(mesh , materiau, False)            
 
             noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
