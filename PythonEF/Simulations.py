@@ -2083,9 +2083,9 @@ class __Simu_PhaseField(_Simu):
             Kglob = self.__Assemblage_u()            
             u_np1 = self.__Solve_u()
 
-            # convIter = np.max(np.abs(d_kp1-dk))
+            convIter = np.max(np.abs(d_kp1-dk))
             
-            convIter = np.abs(psi_crack_kp1 - psi_crack_k)
+            # convIter = np.abs(psi_crack_kp1 - psi_crack_k)
             
             if tolConv == 1.0:
                 convergence=True
