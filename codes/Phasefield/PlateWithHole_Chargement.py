@@ -14,7 +14,7 @@ Affichage.Clear()
 # L'objectif de ce script est de voir du chargement
 
 # Options
-dim = 3
+dim = 2
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
@@ -50,12 +50,15 @@ clC = l_0
 point = Point()
 domain = Domain(point, Point(x=L, y=H), clD)
 circle = Circle(Point(x=L/2, y=H-h), diam, clC, isCreux=True)
+val = diam*2
+refineGeom = Domain(Point(x=L/2-val/2, y=(H-h)-val/2), Point(x=L/2+val/2, y=(H-h)+val/2), taille=clC/2)
+# refineGeom = Circle(Point(x=L/2, y=H-h), val, clC)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
 if dim == 2:
-    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
+    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "QUAD8", refineGeom=refineGeom)
 else:
-    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, [0,0,6*coef], nCouches=6, elemType="HEXA8")
+    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, [0,0,6*coef], nCouches=6, elemType="HEXA8", refineGeom=refineGeom)
 
 Affichage.Plot_Model(mesh)
 # plt.show()
@@ -65,16 +68,17 @@ Affichage.Plot_Maillage(mesh,folder=folder)
 B_lower = Line(point,Point(x=L))
 B_upper = Line(Point(y=H),Point(x=L, y=H))
 
-noeuds_22 = mesh.Nodes_Tag(["L5","L7", "P1"])
+noeuds_22 = mesh.Nodes_Tag(["S6","S7"])
 
-Affichage.Plot_Noeuds(mesh, noeuds=noeuds_22)
-# plt.show()
+if len(noeuds_22) > 0:
+    Affichage.Plot_Noeuds(mesh, noeuds=noeuds_22)
+    # plt.show()
 
 # nodes0 = mesh.Nodes_Line(B_lower)
 nodes0 = mesh.Nodes_Conditions(conditionY=lambda y: y==0)
 # nodesh = mesh.Nodes_Line(B_upper)
 nodesh = mesh.Nodes_Conditions(conditionY=lambda y: y==H)
-node00 = mesh.Nodes_Point(Point())
+node00 = mesh.Nodes_Conditions(conditionX=lambda x: x==0, conditionY=lambda y: y==0)
 if dim == 2:
     noeuds_cercle = mesh.Nodes_Circle(circle)
 else:
@@ -102,10 +106,10 @@ simu.add_dirichlet(node00, [0], ["x"])
 
 # Sx = F * cos tet * abs(sin tet)
 # Sy = F * sin tet * abs(sin tet)
-# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
-# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
+simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
+simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
 
-simu.add_surfLoad(nodesh, [-SIG], ["y"])
+# simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 
@@ -131,24 +135,30 @@ tet = np.linspace(-np.pi,0,31)
 xR = R * np.cos(tet)
 yR = R * np.sin(tet)
 
-xf = Load * np.cos(tet) 
-yf = Load * np.sin(tet)
+# xf = Load * np.cos(tet) 
+# yf = Load * np.sin(tet)
 
-# xf = F * np.cos(tet)* np.abs(np.sin(tet)) + R * np.cos(tet)
-# yf = F * np.sin(tet)* np.abs(np.sin(tet))
+# xf = Load * np.cos(tet)* np.abs(np.sin(tet)) + R * np.cos(tet)
+xf = xR
+# yf = Load * np.sin(tet)* np.abs(np.sin(tet))
+yf = Load * np.sin(tet)**2
 
-# xf = F * np.cos(tet)* 1 + R * np.cos(tet)
-# yf = F * np.sin(tet)* 1
+# xf = Load * np.cos(tet)* 1 + R * np.cos(tet)
+# yf = Load * np.sin(tet)* 1
 
-# xf = - F * np.cos(tet) * np.sin(tet)
-# yf = - F * np.sin(tet) * np.sin(tet)
+# xf = - Load * np.cos(tet) * np.sin(tet)
+# yf = - Load * np.sin(tet) * np.sin(tet)
 
 fig, ax = plt.subplots()
-plt.plot(xR,yR)
-plt.plot(xf,yf)
-ax.axis('equal')
-for x,y,dx,dy in zip(xR,yR,xf-xR,yf-yR):
-    ax.arrow(x,y,dx,dy,width=0.1,length_includes_head=True)
+
+ax.plot(tet, yf)
+
+# ax.plot(xR,yR)
+# ax.plot(xf,yf)
+# for x,y,dx,dy in zip(xR,yR,xf-xR,yf-yR):
+#     ax.arrow(x,y,dx,dy,width=0.1,length_includes_head=True)
+# ax.axis('equal')
+
 ax.grid()
 
 

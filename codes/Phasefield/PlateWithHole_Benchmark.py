@@ -18,18 +18,18 @@ import matplotlib.pyplot as plt
 test = False
 solve = True
 
-plotMesh = False
+plotMesh = True
 plotIter = False
 plotResult = True
-showFig = False
+showFig = True
 plotEnergie = True
 
-saveParaview = False; NParaview=200
+saveParaview = True; NParaview=200
 makeMovie = False; NMovie = 300
 
 
-problem = "FCBA" # ["Benchmark","FCBA"]
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+problem = "Benchmark" # ["Benchmark","FCBA"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
@@ -92,6 +92,8 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
         # l_0 = 0.12e-3
         nL=150
         l_0 = L/nL
+
+        u_max = "crack bord"
 
         inc0 = 8e-7
         inc1 = 2e-7
@@ -165,7 +167,7 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
         domain = Domain(point, Point(x=L, y=h), clD)
         circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
         
-        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
+        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=True, verbosity=False)
 
         if optimMesh:
             # Concentration de maillage sur la fissure
@@ -218,8 +220,7 @@ for tolConv in [1e-0, 1e-1, 1e-2]:
         # Premier Chargement
         Chargement()
 
-        if problem != "FCBA":
-            simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
+        simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
 
         resol = 0
         bord = 0

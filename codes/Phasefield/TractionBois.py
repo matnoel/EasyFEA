@@ -2,9 +2,15 @@ import Interface_Gmsh
 import Simulations
 import Materials
 import Affichage
+plt = Affichage.plt
+
+import PostTraitement
+
 from Geom import np, Point, Domain, Circle
 import Folder
 import pandas as pd
+
+Affichage.Clear()
 
 folder = Folder.New_File("TractionBois", results=True)
 
@@ -15,8 +21,15 @@ df = pd.read_excel(pathData)
 forces = df["Force"].values #N
 displacements = df["Dep"].values #mm
 
+filtre = displacements < 0.05
 
-plt = Affichage.plt
+forces = forces[filtre]
+displacements = displacements[filtre]
+
+plt.figure()
+plt.plot(displacements, forces)
+
+
 
 L = 105
 H = 70
@@ -38,8 +51,10 @@ d2 = 40.85
 a1 = 2.5 *np.pi/180
 a2 = 20 *np.pi/180
 
-Gc = 300*1e-6 # J/mm2
+
 l0 = H/100
+tailleFin = l0
+tailleGros = l0*5
 
 p0F = Point(x=0, y=ep/2)
 p1F = Point(x=l, y=0)
@@ -59,11 +74,12 @@ p12 = Point(x=0, y=h)
 
 listPoint = [p0F, p1F, p2F, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12]
 
-
-c1 = Circle(Point(a/2, -h+7.5), 5, l0/2, isCreux=True)
-c2 = Circle(Point(L-c/2, -h+7.5), 5, l0/2, isCreux=True)
-c3 = Circle(Point(L-c/2, h-7.5), 5, l0/2, isCreux=True)
-c4 = Circle(Point(a/2, h-7.5), 5, l0/2, isCreux=True)
+diam = 5
+r = diam/2
+c1 = Circle(Point(a/2, -h+7.5), diam, tailleFin, isCreux=True)
+c2 = Circle(Point(L-c/2, -h+7.5), diam, tailleFin, isCreux=True)
+c3 = Circle(Point(L-c/2, h-7.5), diam, tailleFin, isCreux=True)
+c4 = Circle(Point(a/2, h-7.5), diam, tailleFin, isCreux=True)
 
 geomObjectsInDomain = [c1, c2, c3, c4]
 
@@ -76,22 +92,24 @@ geomObjectsInDomain = [c1, c2, c3, c4]
 
 interface = Interface_Gmsh.Interface_Gmsh(False, False)
 
-taille = l0*5
 zone = 6*ep
-refineDomain = Domain(Point(l-zone, -zone), Point(L, zone), taille=l0/2)
-mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=taille, refineGeom=refineDomain, geomObjectsInDomain=geomObjectsInDomain)
+refineDomain = Domain(Point(l-zone, -zone), Point(L, zone), taille=tailleFin)
+mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=tailleGros, refineGeom=refineDomain, geomObjectsInDomain=geomObjectsInDomain)
 
-Affichage.Plot_Maillage(mesh)
+# Affichage.Plot_Maillage(mesh)
 # Affichage.Plot_Model(mesh)
-plt.show()
+# plt.show()
 
 
 # MATERIAU
 
 # El=11580*1e6
-El=12e9
-Et=500*1e6
-Gl=450*1e6
+# Gc = 300*1e6 # J/mm2
+Gc = 1*1e6 # J/mm2
+El=12000
+# Et=500
+Et=500*3
+Gl=450
 vl=0.02
 vt=0.44
 v=0
@@ -110,26 +128,48 @@ noeudsHaut = mesh.Nodes_Tag(["L31","L30"])
 noeudsBas = mesh.Nodes_Tag(["L16","L17"])
 
 
-ax = Affichage.Plot_Noeuds(mesh, noeudsHaut)
-Affichage.Plot_Noeuds(mesh, noeudsBas, ax=ax)
-# plt.show()
 
-fig, ax, cb = Affichage.Plot_Result(simu, "damage")
-
-for iter, dep in enumerate(displacements):
-
+def Chargement(force: float):
     simu.Bc_Init()
 
-    simu.add_dirichlet(noeudsBas, [0,0], ["x","y"])
-    simu.add_dirichlet(noeudsHaut, [np.abs(dep)], ["y"])
+    SIG = force/(np.pi*r**2/2)
 
-    # Affichage.Plot_BoundaryConditions(simu)
+    # simu.add_dirichlet(noeudsBas, [0,0], ["x","y"])
+    simu.add_dirichlet(noeudsBas, [0], ["y"])
+    simu.add_dirichlet(mesh.Nodes_Tag(["P17"]), [0], ["x"])
+
+    # # simu.add_dirichlet(noeudsBas, [0], ["x"])
+    # simu.add_surfLoad(noeudsBas, [lambda x,y,z: -SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
+
+    simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
+
+Chargement(0)
+
+Affichage.Plot_BoundaryConditions(simu)
+# plt.show()
+
+fig_Damage, ax_Damage, cb_Damage = Affichage.Plot_Result(simu, "damage")
+
+for iter, force, dep in zip(range(len(forces)), forces, displacements):
+
+    Chargement(force)
+
+    simu.Solve(1e-1)
+
+    simu.Save_Iteration()
+
+    depNum = np.max(simu.displacement[noeudsHaut])
+
+    ecart = np.abs(depNum-dep)/dep
+    print(ecart)
+
+    # Affichage.Plot_Result(simu, "Syy")
     # plt.show()
 
-    simu.Solve()
+    simu.Resultats_Set_Resume_Iteration(iter, force, "N", dep/displacements[-1],True)
 
-    simu.Resultats_Set_Resume_Iteration(iter, dep, "mm", dep/displacements[-1],True)
-
-    cb.remove()
-    fig, ax, cb = Affichage.Plot_Result(simu, "damage", ax=ax)
+    cb_Damage.remove()
+    fig_Damage, ax_Damage, cb_Damage = Affichage.Plot_Result(simu, "damage", ax=ax_Damage)
     plt.pause(1e-12)
+
+PostTraitement.Make_Paraview(folder, simu)

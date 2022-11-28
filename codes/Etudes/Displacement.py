@@ -26,14 +26,14 @@ tic_Tot = Tic()
 
 plotResult = True
 
-saveParaview = True; NParaview = 500
+saveParaview = False; NParaview = 500
 
 useNumba = True
 
 isLoading = False
 initSimu = True
 
-pltMovie = True; NMovie = 400
+pltMovie = False; NMovie = 400
 
 plotIter = True; affichageIter = "dy"
 
@@ -43,12 +43,10 @@ coefK = 1e-3*2
 # coefM = 0
 # coefK = 0
 
-Tmax = 0.3
-N = 10
+Tmax = 0.5
+N = 100
 dt = Tmax/N
 t = 0
-
-
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -62,7 +60,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/5
+taille = h/10
 
 comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
@@ -79,7 +77,7 @@ if dim == 2:
     LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
     circle = Circle(Point(x=L/2, y=0), h*0.2, isCreux=False)
     
-    elemType = "TRI10" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
     mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
@@ -130,9 +128,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet(noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad(noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
+        # simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
 
-        # simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+        simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad(noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])
         pass
@@ -147,7 +145,12 @@ def Iteration(steadyState: bool, isLoading: bool):
     # plt.figure()
     # plt.spy(Kglob)
 
-    dep = simu.Solve(steadyState)
+    if steadyState:
+        simu.Solveur_Set_Elliptic_Algorithm()
+    else:
+        simu.Solveur_Set_Newton_Raphson_Algorithm(dt=dt)
+
+    dep = simu.Solve()
     
     simu.Save_Iteration()
 
@@ -159,8 +162,6 @@ if N > 1:
     steadyState=False
 else:
     steadyState=True
-
-simu.Solveur_Set_Newton_Raphson_Algorithm(dt=dt)
 
 if plotIter:
     fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, deformation=True)
@@ -185,7 +186,7 @@ tic_Tot.Tac("Temps script","Temps total", True)
 # Post traitement --------------------------------------------------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
-simu.Resultats_Displacement()
+simu.Resultats_Get_Resume_Iteration()
 
 Affichage.Plot_BoundaryConditions(simu)
 # plt.show()
@@ -211,7 +212,7 @@ if plotResult:
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
 if plotResult:
-    # Tic.getGraphs(details=False)
+    Tic.getGraphs(details=True)
     plt.show()
 
 # %%

@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 # Affichage.Clear()
 
-simulation = "Tension" # "Shear" , "Tension"
+simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = False
@@ -24,7 +24,7 @@ solve = True
 
 pltMesh = False
 plotResult = True
-showResult = False
+showResult = True
 plotEnergie = True
 
 saveParaview = False; Nparaview=400
@@ -34,15 +34,17 @@ useNumba = True
 
 # Data --------------------------------------------------------------------------------------------
 
-comportement_str = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
+comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 regularisation = "AT2" # "AT1", "AT2"
-solveur = "History"
+solveurs = Simulations.PhaseField_Model.SolveurType
+solveur = solveurs.History
 openCrack = True
+optimMesh = True
 
-#for split in ["Zhang"]:
+for split in ["Amor"]:
 # for split in ["Bourdin","Amor","Miehe","Stress"]:
 # for split in ["He","AnisotStrain","AnisotStress","Zhang"]:
-for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]:
+# for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]:
 
     maxIter = 1000
     # tolConv = 0.0025
@@ -65,13 +67,26 @@ for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]:
     # Paramètres maillage
     if test:
         taille = l0 #taille maille test fem object
-        # taille = 0.001
-        taille *= 5
+        # taille = 0.001        
     else:
         taille = l0/2 #l0/2 2.5e-6
+        taille = l0/1.2 #l0/2 2.5e-6
         # taille = 7.5e-6
 
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, theta=theta)
+    if optimMesh:
+        zone = L*0.05
+        if simulation == "Tension":
+            refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), taille=taille)
+        elif simulation == "Shear":
+            if split == "Bourdin":
+                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L), taille=taille)
+            else:                
+                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L/2+zone), taille=taille)
+        taille *= 3
+    else:
+        refineDomain = None
+
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, theta=theta, optimMesh=optimMesh)
 
     # Construction du modele et du maillage --------------------------------------------------------------------------------
 
@@ -79,13 +94,13 @@ for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]:
 
         elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-        interfaceGmsh = Interface_Gmsh(False)
+        interfaceGmsh = Interface_Gmsh(True)
 
-        domain = Domain(Point(), Point(x=L, y=L), taille=taille)
+        domain = Domain(Point(), Point(x=L, y=L), taille=taille)       
 
         line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille, isOpen=openCrack)
 
-        mesh = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=line, elemType=elemType)
+        mesh = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=line, elemType=elemType, refineGeom=refineDomain)
         
         if pltMesh:
             Affichage.Plot_Model(mesh)            
@@ -200,7 +215,7 @@ for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]:
             
             listInc = [u0, u1]
             listThreshold = [chargement[N0], chargement[N1]]
-            optionTreshold = ["displacement"]
+            optionTreshold = ["displacement"]*2
 
         if isinstance(comp, Materials.Elas_Anisot):
 
