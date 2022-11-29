@@ -899,6 +899,7 @@ def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
             toolbar = ax.figure.canvas.toolbar
             coordo = ax.format_coord(event.xdata, event.ydata)
             toolbar.set_message(f"{collection.get_label()} : {coordo}")
+            # TODO Caculer également la surface ou la longeur ?
             # Changer le titre à la place ?
     
     def hover(event):
