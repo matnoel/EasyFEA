@@ -5,7 +5,7 @@ import numpy as np
 class Point:
     """Classe Point"""
 
-    def __init__(self, x=0.0, y=0.0, z=0.0, isOpen=False):
+    def __init__(self, x=0.0, y=0.0, z=0.0, isOpen=False, r=0.0):
         """Construit un point
 
         Parameters
@@ -18,12 +18,45 @@ class Point:
             coordo en z, by default 0.0
         isOpen : bool, optional
             le point peut s'ouvrir, by default False
+        r : float, optional
+            rayon utilisé pour le congé
         """
-        self.x = x
-        self.y = y
-        self.z = z
-        self.coordo = np.array([x, y, z]).reshape(1,3)
-        self.isOpen = isOpen
+        self.__x = x
+        self.__y = y
+        self.__z = z        
+        self.__r = np.abs(r)
+        self.__coordo = np.array([x, y, z])
+        self.__isOpen = isOpen
+
+    @property
+    def x(self) -> float:
+        """coordo x du point"""
+        return self.__x
+
+    @property
+    def y(self) -> float:
+        """coordo y du point"""
+        return self.__y
+
+    @property
+    def z(self) -> float:
+        """coordo z du point"""
+        return self.__z
+
+    @property
+    def r(self) -> float:
+        """rayon utilisé pour le congé"""
+        return self.__r
+
+    @property
+    def coordo(self) -> float:
+        """coordonnées x,y,z (3,)"""
+        return self.__coordo
+
+    @property
+    def isOpen(self):
+        """Le point est ouvert"""
+        return self.__isOpen
 
 class Geom:
 
@@ -248,3 +281,55 @@ class Section:
         """
         return self.__mesh.J
 
+# Fonctions pour faire des caluls de distances d'angles etc
+
+def normalize_vect(vect: np.ndarray) -> np.ndarray:
+    """Renvoie le vecteur normalisé"""
+    return vect / np.linalg.norm(vect)
+
+def angleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
+    """calcul l'angle entre le vecteur a et le vecteur b
+    https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors"""
+
+    assert isinstance(a, np.ndarray) and isinstance(b, np.ndarray), "a et b doivent être des np.array"
+    assert a.shape == (3,) and b.shape == (3,), "a et b doivent être des vecteur 3D"
+    
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    
+    cosAngle = a.dot(b)/(norm_a * norm_b)
+    sinAngle = np.cross(a,b)/(norm_a * norm_b)
+    angle = np.arctan2(sinAngle, cosAngle)
+    
+    return angle[-1]
+
+def matriceJacobienne(i: np.ndarray, k: np.ndarray) -> np.ndarray:
+    """Calcul la matrice jacobienne de passage de la base (i,j,k) vers la base (x,y,z)\n
+    p(x,y) = matrice.dot(p(i,j))
+
+    Parameters
+    ----------
+    i : np.ndarray
+        vecteur i
+    k : np.ndarray
+        vecteur
+
+    Returns
+    -------
+    np.ndarray
+        La matrice jacobienne            
+    """        
+
+    i = normalize_vect(i)
+    k = normalize_vect(k)
+    
+    j = np.cross(k, i)
+    j = normalize_vect(j)
+
+    F = np.zeros((3,3))
+
+    F[:,0] = i
+    F[:,1] = j
+    F[:,2] = k
+
+    return F
