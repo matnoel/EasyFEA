@@ -57,7 +57,8 @@ class Interface_Gmsh:
         elif factory == 'geo':
             self.__factory = gmsh.model.geo
         else:
-            raise "Factory inconnue"
+            raise "Factory inconnue"    
+    
 
     def __Loop_From_Points(self, points: List[Point], taille: float) -> tuple[int, int]:
         """Création d'une boucle associée à la liste de points\n
@@ -67,22 +68,101 @@ class Interface_Gmsh:
         factory = self.__factory
 
         # On creer tout les points
-        listPoint = []
-        for point in points:            
-            pt = factory.addPoint(point.x, point.y, point.z, taille)
-            # self.__Add_PhysicalPoint(pt)
-            listPoint.append(pt)
+        Npoints = len(points)
 
-        # On creer les lignes qui relies les points
-        connectLignes = np.repeat(listPoint, 2).reshape(-1,2)
-        indexForChange = np.arange(1, len(listPoint)+1, 1)
-        indexForChange[-1] = 0
-        connectLignes[:,1] = connectLignes[indexForChange,1]
+        # dictionnaire qui comme clé prend un objet Point et qui contient la liste d'id des points gmsh crées
+        dict_point_pointsGmsh = cast(dict[Point, list[int]],{})
 
-        lignes = []
-        for pt1, pt2 in connectLignes:
-            lignes.append(factory.addLine(pt1, pt2))
-            # self.__Add_PhysicalLine(lignes[-1])
+        # TODO creer un connect pour lignes ?
+
+        for index, point in enumerate(points):
+
+            # pi -> id gmsh du point i
+            # Pi -> coordonnées du point i           
+
+            # on detecte si le point doit être arrondi
+            if point.r == 0:
+                # Sans arrondi
+                p0 = factory.addPoint(point.x, point.y, point.z, taille)
+                dict_point_pointsGmsh[point] = [p0]
+
+            else:
+                # Avec arrondi
+
+                # Le point courant / actif est le point P0
+                # Le point d'après est le point P2
+                # Le point d'avant est le point P1        
+
+                # Point / Coint dans lequel on va creer le congé
+                P0 = point.coordo
+
+                # Récupère le prochain point
+                if index+1 == Npoints:
+                    index_p1 = index - 1
+                    index_p2 = 0
+                elif index == 0:
+                    index_p1 = -1
+                    index_p2 = index + 1
+                else:
+                    index_p1 = index - 1
+                    index_p2 = index + 1
+
+                # Il faut detecter le point avant P1 et le point P2
+                P1 = points[index_p1].coordo
+                P2 = points[index_p2].coordo
+
+                # vecteurs
+                i = P1-P0
+                j = P2-P0
+                k = (i+j)/2 # vecteur entre les 2
+                n = np.cross(i, j) # vecteur normal au plan formé par i, j
+
+                # angle de i vers k            
+                betha = angleBetween_a_b(i, j)/2
+                
+                d = point.r/np.tan(betha) # disante entre P0 et A sur i et disante entre P0 et B sur j
+
+                d *= np.sign(betha)
+
+                F = matriceJacobienne                
+
+                A = F(i, n).dot(np.array([d,0,0])) + P0
+                B = F(j, n).dot(np.array([d,0,0])) + P0
+                C = F(i, n).dot(np.array([d, point.r,0])) + P0
+
+                pA = factory.addPoint(A[0], A[1], A[2], taille) # point d'intersection entre i et le cercle
+                pC = factory.addPoint(C[0], C[1], C[2], taille) # centre du cercle                
+                pB = factory.addPoint(B[0], B[1], B[2], taille) # point d'intersection entre j et le cercle
+
+                dict_point_pointsGmsh[point] = [pA, pC, pB]
+            
+        lignes = []        
+
+        for index, point in enumerate(points):
+            # Pour chaque point on va creer la loop associé au point et on va creer une ligne avec le prochain point
+            # Par exemple si le point possède un rayon il va tout dabord falloir construire l'arc de cerlce
+            # Par la suite, il est nécessaire de relié le dernier pointGmsh au premier pointGmsh du prochain noeud            
+
+            # les points gmsh créés
+            gmshPoints = dict_point_pointsGmsh[point]
+
+            # Si le coin doit être arrondi, il est nécessaire de créer l'arc de cercle
+            if point.r > 0:
+                lignes.append(factory.addCircleArc(gmshPoints[0], gmshPoints[1], gmshPoints[2]))
+                # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
+                factory.remove([(0,gmshPoints[1])], False)
+                
+            # Récupère l'index du prochain noeuds
+            if index+1 == Npoints:
+                # Si on est sur le dernier noeud on va fermer la boucle en recupérant le premier point
+                indexAfter = 0
+            else:
+                indexAfter = index + 1
+
+            # Récupère le prochain point gmsh dans le point d'après
+            gmshPointAfter = dict_point_pointsGmsh[points[indexAfter]][0]
+
+            lignes.append(factory.addLine(gmshPoints[-1], gmshPointAfter))
 
         # Create a closed loop connecting the lines for the surface        
         loop = factory.addCurveLoop(lignes)
@@ -312,6 +392,8 @@ class Interface_Gmsh:
         """
 
         # Exemple extrait de t10.py dans les tutos gmsh
+
+        # Regarder aussi t11.py pour faire une ligne
 
         if isinstance(refineGeom, Domain):
 
