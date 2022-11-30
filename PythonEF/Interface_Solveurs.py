@@ -126,7 +126,7 @@ def __Solveur_2(simu, problemType: str):
 
     # Construit le système matricielle pénalisé
     b = simu._Apply_Neumann(problemType)
-    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r2)
+    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r2)    
 
     tic = Tic()
 
@@ -143,6 +143,9 @@ def __Solveur_2(simu, problemType: str):
     nColEnPlus = nColEnPlusLagrange + nColEnPlusDirichlet
 
     decalage = A.shape[0]-nColEnPlus
+
+    x0 = simu.Get_x0(problemType)
+    x0 = np.append(x0, np.zeros(nColEnPlus))
 
     listeLignesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
     
@@ -169,7 +172,7 @@ def __Solveur_2(simu, problemType: str):
 
     tic.Tac("Construit Ax=b",f"Lagrange ({problemType})", simu._verbosity)
 
-    x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=[], lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
+    x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
     
     # On renvoie pas les forces de réactions
     x = x[range(decalage)]
@@ -232,9 +235,12 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     if len(lb) > 0 and len(lb) > 0:        
         solveur = "BoundConstrain"            
     else:
-        if syst == "Darwin":
-            solveur = "scipy_spsolve"
-            # solveur = "cg"
+        if syst == "Darwin":            
+            if simu.problemType == ModelType.beam:
+                solveur = "scipy_spsolve"
+            else:
+                solveur = "cg"
+                # solveur = "scipy_spsolve"
         elif syst == "Linux":
             solveur = "pypardiso"
             # method = "umfpack" # Plus rapide de ne pas passer par umfpack
