@@ -293,7 +293,7 @@ class _Simu(ABC):
     
         # returns current date and time
         dateEtHeure = datetime.now()
-        resume = f"Simulation réalisée le : {dateEtHeure}"
+        resume = f"Simulation lancée le : {dateEtHeure}"
         nomSimu = "simulation.pickle"
         filename = Folder.Join([folder, nomSimu])
         print(Fore.GREEN + f'\nSauvegarde de :')
