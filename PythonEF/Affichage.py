@@ -55,7 +55,6 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         fig = ax.figure
 
     from Simulations import _Simu, MatriceType
-
     assert isinstance(simu, _Simu)
     
     mesh = simu.mesh # récupération du maillage
@@ -363,9 +362,6 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
 
         if deformation:
             coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
-    
-    
-    
         
     if inDim in [1,2] and not use3DBeamModel:
         
@@ -920,6 +916,110 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m'
     if folder != "":
         import PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "forcedep")
+    
+def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMax=True, Niter=200, NiterFin=100, folder=""):
+
+    from Simulations import _Simu
+    from TicTac import Tic
+    import PostTraitement as PostTraitement 
+
+    assert isinstance(simu, _Simu)
+
+    # On verfie d'abord si la simulation peut calculer des energies
+    if len(simu.Resultats_Get_dict_Energie())== 0:
+        print("Cette simulation ne peut calculer les energies")
+        return
+
+    # Verifie si il est possible de tracer la courbe force déplacement
+    testLoadAndDisplacement = len(forces) == len(deplacements) and len(forces) > 0    
+        
+    # Pour chaque incrément de déplacement on va caluler l'energie
+    tic = Tic()
+    
+    # récupère les resultats de la simulation
+    results =  simu.results
+    N = len(results)
+
+    if len(forces) > 0:
+        ecart = np.abs(len(results) - len(forces))
+        if ecart != 0:
+            N -= ecart
+    listIter = PostTraitement.Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
+    
+    Niter = len(listIter)
+
+    list_dict_Energie = cast(list[dict[str, float]], [])
+    listTemps = []
+    if plotSolMax : listSolMax = []
+
+    for i, iteration in enumerate(listIter):
+
+        # Met a jour la simulation à l'iter i
+        simu.Update_iter(iteration)
+
+        if plotSolMax : listSolMax.append(simu._get_u_n(simu.problemType).max())
+
+        list_dict_Energie.append(simu.Resultats_Get_dict_Energie())
+
+        temps = tic.Tac("PostTraitement","Calc Energie", False)
+        listTemps.append(temps)
+
+        pourcentageEtTempsRestant = PostTraitement._GetPourcentageEtTemps(listIter, listTemps, i)
+
+        print(f"Calc Energie {iteration+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
+    print('\n')
+
+    # Construction de la figure
+    nrows = 1
+    if plotSolMax:
+        nrows += 1
+    if testLoadAndDisplacement:
+        nrows += 1
+    fig, ax = plt.subplots(nrows, 1, sharex=True)
+
+    iter_rows = iter(np.arange(nrows))
+
+    # Récupère l'axe qui sera utilisé pour les abscisses
+    if len(deplacements)>0:
+        listX = deplacements[listIter] 
+        nomX = "deplacement"
+    else:
+        listX = listIter 
+        nomX = "iter"    
+
+    # Transforme list_dict_Energie en dataframe    
+    df = pd.DataFrame(list_dict_Energie)
+
+    # Affiche les energies
+    row = next(iter_rows)
+    # Pour chaque energie on trace les valeurs
+    for energie_str in df.columns:
+        valeurs = df[energie_str].values
+        ax[row].plot(listX, valeurs, label=energie_str)
+    ax[row].set_ylabel(r"$Joules$")
+    ax[row].legend()
+    ax[row].grid()
+
+    if plotSolMax:
+        # Affiche l'endommagement max
+        row = next(iter_rows)
+        ax[row].plot(listX, listSolMax)
+        ax[row].set_ylabel(r"$max(u_n)$")
+        ax[row].grid()
+
+    if testLoadAndDisplacement:
+        # Affiche la force
+        row = next(iter_rows)
+        ax[row].plot(listX, np.abs(forces[listIter])*1e-3)
+        ax[row].set_ylabel(r"$load \ [kN]$")
+        ax[row].grid()        
+    
+    ax[-1].set_xlabel(nomX)
+
+    if folder != "":        
+        PostTraitement.Save_fig(folder, "Energie")
+
+    tic.Tac("PostTraitement","Cacul Energie phase field", False)
 
 def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
     from Simulations import _Simu
@@ -993,7 +1093,7 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
 
     if deformation:
 
-        uglob = simu.Resultats_GetCoordUglob()
+        uglob = simu.Resultats_matrice_displacement()
         
         test = isinstance(uglob, np.ndarray)
 

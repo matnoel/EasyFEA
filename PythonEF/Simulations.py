@@ -215,7 +215,24 @@ class _Simu(ABC):
     def Resultats_Get_ResumeIter_values(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
         """Renvoie les valeurs a afficher dans Plot_ResumeIter\n
         """
-        return [], []    
+        return [], []
+
+    @abstractmethod
+    def Resultats_Get_dict_Energie(self) -> dict[str, float]:
+        """Renvoie une liste de tuple contenant les noms et les valeurs des energies calculés"""
+        return {}
+    
+    @abstractmethod
+    def Resultats_matrice_displacement(self) -> np.ndarray:
+        """Renvoie les déplacements sous la forme d'une matrice [dx, dy, dz] (Nn,3)"""
+        Nn = self.mesh.Nn
+        return np.array((Nn,3))
+
+    @abstractmethod
+    def _Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+        """Renvoie les listes detaillées ou non pour la récupération des nodesField et elementsField qui seront utilisés dans paraview.
+        """
+        return [], []
 
     # ================================================ SIMU ================================================
     
@@ -1262,41 +1279,6 @@ class _Simu(ABC):
         resume += Tic.getResume(verbosity)
 
         return resume
-    
-    def Resultats_GetCoordUglob(self):
-        """Renvoie les déplacements sous la forme [dx, dy, dz] (Nn,3)        """
-
-        Nn = self.__mesh.Nn
-        dim = self.__dim
-        problemType = self.problemType
-
-        if problemType in [ModelType.displacement,ModelType.beam,ModelType.damage]:
-
-            if problemType in [ModelType.displacement,ModelType.damage]:
-                Uglob = self.displacement
-            else:
-                Uglob = self.beamDisplacement
-                listDim = np.arange(dim)
-
-            coordo = Uglob.reshape((Nn,-1))
-           
-            if problemType in [ModelType.displacement,ModelType.damage]:
-                if dim == 2:
-                    coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
-            else:
-                coordo = coordo[:, listDim]
-
-                if self.dim == 1:
-                    # Ici on rajoute deux colonnes
-                    coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
-                    coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
-                elif self.dim == 2:
-                    # Ici on rajoute 1 colonne
-                    coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
-
-            return coordo
-        else:
-            return None
 
     def Resultats_InterpolationAuxNoeuds(self, resultat_e: np.ndarray):
         """Pour chaque noeuds on récupère les valeurs des élements autour de lui pour on en fait la moyenne
@@ -1351,14 +1333,14 @@ class __Simu_Displacement(_Simu):
         dim = self.dim
         
         if dim == 2:
-            options.extend(["dx", "dy", "dz", "amplitude", "displacement", "coordoDef"])
+            options.extend(["dx", "dy", "dz", "amplitude", "displacement", "matrice_displacement"])
             options.extend(["vx", "vy", "speed", "amplitudeSpeed"])
             options.extend(["ax", "ay", "accel", "amplitudeAccel"])
             options.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
 
         elif dim == 3:
-            options.extend(["dx", "dy", "dz","amplitude","displacement", "coordoDef"])
+            options.extend(["dx", "dy", "dz","amplitude","displacement", "matrice_displacement"])
             options.extend(["vx", "vy", "vz", "speed", "amplitudeSpeed"])
             options.extend(["ax", "ay", "az", "accel", "amplitudeAccel"])
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
@@ -1367,6 +1349,15 @@ class __Simu_Displacement(_Simu):
         options.extend(["Wdef","Psi_Elas"])
 
         return options
+
+    def _Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+        if details:
+            nodesField = ["matrice_displacement", "speed", "accel"]
+            elementsField = ["Stress", "Strain"]
+        else:
+            nodesField = ["matrice_displacement", "speed", "accel"]
+            elementsField = ["Stress"]                        
+        return nodesField, elementsField
 
     @property
     def directions(self) -> list[str]:
@@ -1454,12 +1445,10 @@ class __Simu_Displacement(_Simu):
             Ku_e = CalcNumba.epij_jk_epkl_to_eil(leftDepPart, matC, B_dep_e_pg)
         else:
             # Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, matC, B_dep_e_pg, optimize='optimal')
-            Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, matC, B_dep_e_pg, optimize='optimal')
-           
+            Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, matC, B_dep_e_pg, optimize='optimal')           
         
         # Matrices masse
-        Mu_e = np.einsum('ep,p,pki,,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_e_pg, ro, N_vecteur_e_pg, optimize="optimal")
-            
+        Mu_e = np.einsum('ep,p,pki,,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_e_pg, ro, N_vecteur_e_pg, optimize="optimal")            
 
         if self.dim == 2:
             epaisseur = self.materiau.epaisseur
@@ -1584,8 +1573,8 @@ class __Simu_Displacement(_Simu):
         if option == "accel":
             return self.accel
 
-        if option == 'coordoDef':
-            return self.Resultats_GetCoordUglob()
+        if option == 'matrice_displacement':
+            return self.Resultats_matrice_displacement()
 
         displacement = self.displacement
 
@@ -1705,7 +1694,7 @@ class __Simu_Displacement(_Simu):
                     else:
                         return resultat_e.reshape(-1)
 
-    def __Calc_Psi_Elas(self):
+    def __Calc_Psi_Elas(self) -> float:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
@@ -1731,7 +1720,8 @@ class __Simu_Displacement(_Simu):
         # u_e = self.__mesh.Localises_sol_e(sol_u)
         # Ku_e = self.__ConstruitMatElem_Dep()
         # Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ku_e, u_e, optimize='optimal')
-            
+
+        Wdef = float(Wdef)
 
         tic.Tac("PostTraitement","Calcul Psi Elas",False)
         
@@ -1836,6 +1826,12 @@ class __Simu_Displacement(_Simu):
                 elif dim == 3:
                     return 5
 
+    def Resultats_Get_dict_Energie(self) -> list[tuple[str, float]]:
+        dict_Energie = {
+            r"$\Psi_{elas}$": self.__Calc_Psi_Elas()
+            }
+        return dict_Energie
+
     def Resultats_Get_Resume_Iteration(self) -> str:
         """Ecrit un résumé de la simulation dans le terminal"""
 
@@ -1871,6 +1867,22 @@ class __Simu_Displacement(_Simu):
     def Resultats_Get_ResumeIter_values(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
         return super().Resultats_Get_ResumeIter_values()
 
+    def Resultats_matrice_displacement(self) -> np.ndarray:
+
+        Nn = self.mesh.Nn
+        coordo = self.displacement.reshape((Nn,-1))
+        dim = coordo.shape[1]
+
+        if dim == 1:
+            # Ici on rajoute deux colonnes
+            coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+            coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+        elif dim == 2:
+            # Ici on rajoute 1 colonne
+            coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+
+        return coordo
+
 ###################################################################################################
 
 class __Simu_PhaseField(_Simu):
@@ -1887,14 +1899,14 @@ class __Simu_PhaseField(_Simu):
         dim = self.dim
         
         if dim == 2:
-            options.extend(["dx", "dy", "dz", "amplitude", "displacement", "coordoDef"])
+            options.extend(["dx", "dy", "dz", "amplitude", "displacement", "matrice_displacement"])
             # options.extend(["ax", "ay", "accel", "amplitudeAccel"])
             # options.extend(["vx", "vy", "speed", "amplitudeSpeed"])
             options.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
 
         elif dim == 3:
-            options.extend(["dx", "dy", "dz","amplitude","displacement", "coordoDef"])
+            options.extend(["dx", "dy", "dz","amplitude","displacement", "matrice_displacement"])
             # options.extend(["ax", "ay", "az", "accel", "amplitudeAccel"])
             # options.extend(["vx", "vy", "vz", "speed", "amplitudeSpeed"])
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
@@ -1904,6 +1916,15 @@ class __Simu_PhaseField(_Simu):
         options.extend(["Wdef","Psi_Elas"])
 
         return options
+
+    def _Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+        if details:
+            nodesField = ["matrice_displacement", "damage"]
+            elementsField = ["Stress", "Strain", "psiP"]
+        else:
+            nodesField = ["matrice_displacement", "damage"]
+            elementsField = ["Stress"]
+        return nodesField, elementsField
 
     @property    
     def directions(self) -> list[str]:
@@ -2450,8 +2471,8 @@ class __Simu_PhaseField(_Simu):
         if option == "accel":
             return self.accel
 
-        if option == 'coordoDef':
-            return self.Resultats_GetCoordUglob()
+        if option == 'matrice_displacement':
+            return self.Resultats_matrice_displacement()
 
         displacement = self.displacement
 
@@ -2601,7 +2622,7 @@ class __Simu_PhaseField(_Simu):
                 elif dim == 3:
                     return 5
 
-    def __Calc_Psi_Elas(self):
+    def __Calc_Psi_Elas(self) -> float:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
@@ -2630,12 +2651,14 @@ class __Simu_PhaseField(_Simu):
         psi_e_pg = psiP_e_pg + psiM_e_pg
 
         Wdef = np.einsum(',ep,p,ep->', ep, jacobien_e_pg, poid_pg, psi_e_pg, optimize='optimal')
+        
+        Wdef = float(Wdef)
 
         tic.Tac("PostTraitement","Calcul Psi Elas",False)
         
         return Wdef
 
-    def __Calc_Psi_Crack(self):
+    def __Calc_Psi_Crack(self) -> float:
         """Calcul l'energie de fissure"""
 
         tic = Tic()
@@ -2822,6 +2845,16 @@ class __Simu_PhaseField(_Simu):
     def Resultats_Get_Resume_Iteration(self) -> str:        
         return self.__resumeIter
 
+    def Resultats_Get_dict_Energie(self) -> list[tuple[str, float]]:
+        PsiElas = self.__Calc_Psi_Elas()
+        PsiCrack = self.__Calc_Psi_Crack()
+        dict_Energie = {
+            r"$\Psi_{elas}$": PsiElas,
+            r"$\Psi_{crack}$": PsiCrack,
+            r"$\Psi_{tot}$": PsiCrack+PsiElas
+            }
+        return dict_Energie
+
     def Resultats_Get_ResumeIter_values(self) -> list[tuple[str, np.ndarray]]:
         
         list_label_values = []
@@ -2843,7 +2876,22 @@ class __Simu_PhaseField(_Simu):
         list_label_values.append(("temps Iter", tempsIter))
         
         return iterations, list_label_values
+    
+    def Resultats_matrice_displacement(self) -> np.ndarray:
+        
+        Nn = self.mesh.Nn
+        coordo = self.displacement.reshape((Nn,-1))
+        dim = coordo.shape[1]
 
+        if dim == 1:
+            # Ici on rajoute deux colonnes
+            coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+            coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+        elif dim == 2:
+            # Ici on rajoute 1 colonne
+            coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
+
+        return coordo
     
 
 ###################################################################################################
@@ -2857,20 +2905,29 @@ class __Simu_Beam(_Simu):
         nbddl_n = self.nbddl_n(self.problemType)
         
         if nbddl_n == 1:
-            options.extend(["u", "beamDisplacement", "coordoDef"])
+            options.extend(["u", "beamDisplacement", "matrice_displacement"])
             options.extend(["fx"])
 
         elif nbddl_n == 3:
-            options.extend(["u","v","rz", "amplitude", "beamDisplacement", "coordoDef"])
+            options.extend(["u","v","rz", "amplitude", "beamDisplacement", "matrice_displacement"])
             options.extend(["fx", "fy", "cz", "Exx", "Exy", "Sxx", "Sxy"])            
 
         elif nbddl_n == 6:
-            options.extend(["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "coordoDef"])
+            options.extend(["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "matrice_displacement"])
             options.extend(["fx","fy","fz","cx","cy","cz"])
         
         options.extend(["Srain", "Stress"])        
 
         return options
+
+    def _Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+        if details:
+            nodesField = ["matrice_displacement"]
+            elementsField = ["Stress"]
+        else:
+            nodesField = ["matrice_displacement"]
+            elementsField = ["Stress"]
+        return nodesField, elementsField
 
     @property
     def directions(self) -> list[str]:
@@ -3235,8 +3292,8 @@ class __Simu_Beam(_Simu):
         if option == "beamDisplacement":
             return self.beamDisplacement.copy()
     
-        if option == 'coordoDef':
-            return self.Resultats_GetCoordUglob()
+        if option == 'matrice_displacement':
+            return self.Resultats_matrice_displacement()
 
         if option in ["fx","fy","fz","cx","cy","cz"]:
 
@@ -3344,8 +3401,28 @@ class __Simu_Beam(_Simu):
     def Resultats_Resume(self, verbosity=True) -> str:
         return super().Resultats_Resume(verbosity)
 
+    def Resultats_Get_dict_Energie(self) -> list[tuple[str, float]]:
+        return super().Resultats_Get_dict_Energie()
+
     def Resultats_Get_ResumeIter_values(self) -> list[tuple[str, np.ndarray]]:
         return super().Resultats_Get_ResumeIter_values()
+    
+    def Resultats_matrice_displacement(self) -> np.ndarray:
+        
+        Nn = self.mesh.Nn
+        beamDisplacementRedim = self.beamDisplacement.reshape((Nn,-1))
+        nbddl = self.nbddl_n(self.problemType)
+
+        coordo = np.zeros((Nn, 3))
+
+        if nbddl == 1:
+            coordo[:,0] = beamDisplacementRedim[:,0]
+        elif nbddl == 3:
+            coordo[:,:1] = beamDisplacementRedim[:,:1]
+        elif nbddl == 6:
+            coordo[:,:2] = beamDisplacementRedim[:,:2]
+
+        return coordo
 
 ###################################################################################################
 
@@ -3363,6 +3440,11 @@ class __Simu_Thermal(_Simu):
         options.extend(["thermal", "thermalDot"])
 
         return options
+
+    def _Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+        nodesField = ["thermal", "thermalDot"]
+        elementsField = []
+        return nodesField, elementsField
 
     @property
     def problemTypes(self) -> list[ModelType]:
@@ -3514,3 +3596,9 @@ class __Simu_Thermal(_Simu):
     def Resultats_Resume(self, verbosity=True) -> str:
         return super().Resultats_Resume(verbosity)
 
+    def Resultats_Get_dict_Energie(self) -> list[tuple[str, float]]:
+        return super().Resultats_Get_dict_Energie()
+    
+    def Resultats_matrice_displacement(self) -> np.ndarray:
+        Nn = self.mesh.Nn
+        return np.array((Nn,3))

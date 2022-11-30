@@ -136,82 +136,13 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
             tf = tic.Tac("Animation",f"Plot {ax.get_title()}", False)
             listTemps.append(tf)
 
-            pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
+            pourcentageEtTempsRestant = _GetPourcentageEtTemps(listIter, listTemps, i)
 
             print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
 
-def Plot_Energie(simu: Simulations.__Simu_PhaseField, load: np.ndarray, displacement: np.ndarray, Niter=200, NiterFin=100, folder=""):
-    
-    # Pour chaque incrément de dépalcement on va caluler l'energie
-
-    if not isinstance(simu, Simulations.__Simu_PhaseField): return
-
-    tic = Tic()
-
-    results =  simu.results
-    N = len(results)
-    if len(load) > 0:
-        ecart = np.abs(len(results) - len(load))
-        if ecart != 0:
-            N -= ecart
-    listIter = Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
-    
-    Niter = len(listIter)
-
-    listPsiCrack = []
-    listPsiElas = []
-    listTemps = []
-    listEndomagementMax = []
-
-    for i, iter in enumerate(listIter):
-
-        simu.Update_iter(iter)
-
-        listEndomagementMax.append(simu.damage.max())
-
-        listPsiCrack.append(simu.Get_Resultat("Psi_Crack"))
-        listPsiElas.append(simu.Get_Resultat("Psi_Elas"))
-
-        temps = tic.Tac("PostTraitement","Calc Energie", False)
-        listTemps.append(temps)
-
-        pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
-
-        print(f"Calc Energie {iter+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
-    print('\n')
-
-    listTot = np.array(listPsiCrack) + np.array(listPsiElas)
-
-    fig, ax = plt.subplots(3, 1, sharex=True)
-    # Affiche les energies
-    ax[0].plot(displacement[listIter], listPsiCrack, label=r"$\Psi_{Crack}$")
-    ax[0].plot(displacement[listIter], listPsiElas, label=r"$\Psi_{Elas}$")
-    ax[0].plot(displacement[listIter], listTot, label=r"$\Psi_{Tot}$")
-    ax[0].set_ylabel(r"$Joules$")
-    ax[0].legend()
-    ax[0].grid()
-
-    # Affiche l'endommagement max
-    ax[1].plot(displacement[listIter], listEndomagementMax)
-    ax[1].set_ylabel(r"$\phi$")
-    ax[1].grid()
-
-    # Affiche la force
-    ax[2].plot(displacement[listIter], np.abs(load[listIter])*1e-3)
-    ax[2].set_ylabel(r"$load \ [kN]$")
-    ax[2].grid()
-        
-    
-    ax[-1].set_xlabel(r"$displacement \ [m]$")
-
-    if folder != "":
-        Save_fig(folder, "Energie")
-
-    tic.Tac("PostTraitement","Cacul Energie phase field", False)
-
 # ========================================== Paraview =================================================
 
-def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
+def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False):
     """Sauvegarde de la simulation sur paraview
 
     Parameters
@@ -222,6 +153,8 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
         Simulation
     Niter : int, optional
         Nombre d'iteration maximum d'affichage, by default 200
+    details: bool, optional
+        details de nodesField et elementsField utilisé dans le .vtu
     """
     print('\n')
 
@@ -241,23 +174,12 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
         os.makedirs(folder)
 
     listTemps = []
-    tic = Tic()
+    tic = Tic()    
 
-    problemType = simu.problemType
-    
-    if problemType == "thermal":
-        nodesField = ["thermal", "thermalDot"] # "thermalDot"
-        elementsField = []
-    elif problemType == "damage":
-        nodesField =  ["coordoDef","damage"]        
-        elementsField=["Stress"] # ["Stress","psiP"]
-    elif problemType == "displacement":
-        nodesField =  ["coordoDef"]
-        if isinstance(simu.speed, np.ndarray):
-            nodesField.append("speed")
-        if isinstance(simu.accel, np.ndarray):
-            nodesField.append("accel")
-        elementsField=["Stress"]
+    nodesField, elementsField = simu._Paraview_nodesField_elementsField(details)
+
+    if len(nodesField) == 0 or len(elementsField) == 0:
+        print("La simulation ne possède pas de champs de solution à afficher dans paraview")
 
     for i, iter in enumerate(listIter):
 
@@ -270,7 +192,7 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200):
         temps = tic.Tac("Paraview","Make vtu", False)
         listTemps.append(temps)
 
-        pourcentageEtTempsRestant = __GetPourcentageEtTemps(listIter, listTemps, i)
+        pourcentageEtTempsRestant = _GetPourcentageEtTemps(listIter, listTemps, i)
 
         print(f"SaveParaview {iter}/{NiterMax} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')
@@ -314,9 +236,26 @@ def Make_listIter(NiterMax: int, NiterFin: int, NiterCyble: int) -> np.ndarray:
     return listIter
 
 
-def __GetPourcentageEtTemps(listIter: list, listTemps: list, i):
+def _GetPourcentageEtTemps(listIter: list[int], listTemps: list[float], i: int) -> str:
+    """Calul le pourcentage et le temps restant
+
+    Parameters
+    ----------
+    listIter : list[int]
+        liste d'itération
+    listTemps : list
+        liste de temps en s
+    i : int
+        iteration dans la boucle
+
+    Returns
+    -------
+    str
+        string contenant le pourcentage et le temps restant
+    """
     if listIter[-1] == 0:
         return ""
+
     pourcentage = listIter[i]/listIter[-1]
     if pourcentage > 0:
         tempsRestant = np.min(listTemps)*(len(listIter)-i-1)
@@ -324,9 +263,10 @@ def __GetPourcentageEtTemps(listIter: list, listTemps: list, i):
         pourcentageEtTempsRestant = f"({int(pourcentage*100):3}%) {np.round(tempsCoef, 3)} {unite}"
     else:
         pourcentageEtTempsRestant = ""
+
     return pourcentageEtTempsRestant
 
-def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str,nodesField=["coordoDef","Stress"], elementsField=["Stress","Strain"]):
+def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
     """Creer le .vtu qui peut être lu sur paraview
     """
 
@@ -347,6 +287,9 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str,nodesField=["co
     nPe = simu.mesh.nPe
 
     typesParaviewElement = {
+        "SEG2" : 3,
+        "SEG3" : 21,
+        "SEG4" : 35,        
         "TRI3" : 5,
         "TRI6" : 22,
         "TRI10" : 69,
@@ -395,7 +338,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str,nodesField=["co
             list_valeurs_n.append(valeurs_n)
 
             nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
-            if resultat_n == "coordoDef": resultat_n="displacement"
+            if resultat_n == "matrice_displacement": resultat_n="displacement"
             file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
             offset = CalcOffset(offset, valeurs_n.size)
 
