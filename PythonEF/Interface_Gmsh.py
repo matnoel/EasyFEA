@@ -1123,7 +1123,7 @@ class Interface_Gmsh:
         sortedIndices = np.argsort(nodes)
         sortedNodes = nodes[sortedIndices]
 
-        # Ici on va detecter les saut potententiel dans la numérotations des noeuds
+        # Ici on va detecter les saut dans la numérotations des noeuds
         # Exemple 0 1 2 3 4 5 6 8 Ici on va detecter l'ecart 
         ecart = sortedNodes - np.arange(Nn)
 
@@ -1167,38 +1167,41 @@ class Interface_Gmsh:
             return name
 
         for dim in range(pgArray[:,0].max()+1):
-
+            # Pour chaque dimensions disponibles dans les groupes physiques.
+            
+            # On récupère les entités de la dimension
             indexDim = np.where(pgArray[:,0] == dim)[0]
             listTupleDim = tuple(map(tuple, pgArray[indexDim]))
             nbEnti = indexDim.size
+            
 
+            # En fonction de la dimension des entité on va leurs données des noms
+            # Puis on va ajouter les entités les tuples (dim, tag) a la liste de groupePhysique associé à la dimension.
             if dim == 0:
                 namePoint.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                nbPhysicalGroup += len(namePoint)
+                nbEnti = len(namePoint)
                 physicalGroupsPoint.extend(listTupleDim)
-
             elif dim == 1:
                 nameLine.extend([__name(dim, n) for n in range(nbEnti)])
-                nbPhysicalGroup += len(nameLine)
+                nbEnti = len(nameLine)
                 physicalGroupsLine.extend(listTupleDim)
-
             elif dim == 2:
                 nameSurf.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                nbPhysicalGroup += len(nameSurf)
+                nbEnti = len(nameSurf)
                 physicalGroupsSurf.extend(listTupleDim)
-
             elif dim == 3:
                 nameVol.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                nbPhysicalGroup += len(nameVol)
+                nbEnti = len(nameVol)
                 physicalGroupsVol.extend(listTupleDim)
+
+            nbPhysicalGroup += nbEnti
 
         # On verifie quon a bien tout ajouté
         assert len(physicalGroups) == nbPhysicalGroup
 
-        # Construit les groupes d'elements
-        testDimension = False
+        # Construit les groupes d'elements        
         dimAjoute = []
-        meshDim = 0
+        meshDim = pgArray[:,0].max()
 
         for gmshId in elementTypes:
                                         
@@ -1209,8 +1212,7 @@ class Interface_Gmsh:
 
             # Elements
             Ne = elementTags.shape[0] #nombre d'élements
-            elementsID = elementTags
-
+            elementsID = elementTags            
             nPe = GroupElem_Factory.Get_ElemInFos(gmshId)[1] # noeuds par elements
             
             # Construit connect et changes les indices nécessaires
@@ -1227,12 +1229,18 @@ class Interface_Gmsh:
             Nmax = nodes.max()
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
 
+            # Création du groupe d'element 
             groupElem = GroupElem_Factory.Create_GroupElem(gmshId, connect, elementsID, coordo, nodes)
-            if groupElem.dim > meshDim: meshDim = groupElem.dim
+            
+            # On rajoute le groupe d'element au dictionnaire contenant tout les groupes
             dict_groupElem[groupElem.elemType] = groupElem
             
-            if groupElem.dim in dimAjoute:
-                testDimension = True
+            # On verifie que le maillage ne possède pas un groupe d'element de cette dimension
+            if groupElem.dim in dimAjoute and groupElem.dim == meshDim:                
+                raise f"Récupération du maillage impossible car {dimAjoute.count(meshDim)} type d'element {meshDim}D"
+                # TODO faire en sorte de pouvoir le faire ?
+                # Peut etre compliqué surtout dans la création des matrices elementaire et assemblage
+                # Pas impossible mais pas trivial
             dimAjoute.append(groupElem.dim)
 
             # Ici on va récupérer les noeuds et elements faisant partie d'un groupe
@@ -1251,11 +1259,16 @@ class Interface_Gmsh:
             else:
                 listPhysicalGroups = []
 
+            # Pour chaque groupe physique je vais venir récupéré les noeuds
+            # et associé les tags
             i = -1
             for dim, tag in listPhysicalGroups:
-                i += 1
+                i += 1                
                 nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(groupElem.dim, tag)
+                # Si aucun noeud à été récupéré passe au prochain groupePhysique
                 if nodeTags.size == 0: continue
+
+                # Récupération de la liste de noeud unique
                 nodeTags = np.array(nodeTags-1, dtype=int)
                 nodes = np.unique(nodeTags)
 
@@ -1269,11 +1282,7 @@ class Interface_Gmsh:
                 groupElem.Set_Nodes_Tag(nodes, name)
                 groupElem.Set_Elements_Tag(nodes, name)
 
-        if dimAjoute.count(meshDim) > 1:
-            assert not testDimension, f"Récupération du maillage impossible car {dimAjoute.count(meshDim)} type d'element {meshDim}D"
-            # TODO faire en sorte de pouvoir le faire ?
-            # Peut etre compliqué surtout dans la création des matrices elementaire et assemblage
-            # Pas impossible mais pas trivial
+                
         
         tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
@@ -1320,10 +1329,10 @@ class Interface_Gmsh:
             mesh4 = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain=domain, circle=circleClose, elemType=elemType)
             testAire(mesh4.aire)
 
-            mesh5 = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=line, elemType=elemType)
+            mesh5 = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=[line], elemType=elemType)
             testAire(mesh5.aire)
 
-            mesh6 = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=lineOpen, elemType=elemType)
+            mesh6 = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=[lineOpen], elemType=elemType)
             testAire(mesh6.aire)
 
             for m in [mesh1, mesh2, mesh3, mesh4, mesh5, mesh6]:
