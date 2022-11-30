@@ -223,15 +223,14 @@ class Interface_Gmsh:
         """Création d'une surface associée à une boucle\n
         return surface
         """
-        factory = self.__factory
 
-        surface = factory.addPlaneSurface(loops)
+        surface = self.__factory.addPlaneSurface(loops)
 
         return surface
 
-    def __Crack_And_Points_From_Line(self, line: Line, surface: int) -> tuple[int, int, int]:
+    def __crack_And_openGeom_From_Line(self, line: Line, surface: int) -> tuple[int, int]:
         """Création d'une fissure associée à une ligne\n
-        crack, physicalCrack, physicalPoints
+        crack, openPoints
         """
         
         factory = self.__factory
@@ -251,23 +250,19 @@ class Interface_Gmsh:
 
         # Create the line for the crack
         crack = factory.addLine(p1, p2)
-        listeOpen=[]
+        openPoints=[]
         if pt1.isOpen:
             o1, m1 = factory.fragment([(0, p1), (1, crack)], [(2, surface)])
-            listeOpen.append(p1)
+            openPoints.append(p1)
         if pt2.isOpen:
             o2, m2 = factory.fragment([(0, p2), (1, crack)], [(2, surface)])
-            listeOpen.append(p2)
+            openPoints.append(p2)
         factory.synchronize()
         
         # Adds the line to the surface
-        gmsh.model.mesh.embed(1, [crack], 2, surface)
-        if len(listeOpen)==0:
-            physicalPoints = None
-        else:
-            physicalPoints = gmsh.model.addPhysicalGroup(0, listeOpen, name=f"P{p2}")
+        gmsh.model.mesh.embed(1, [crack], 2, surface)       
 
-        return crack, physicalPoints
+        return crack, openPoints
     
     def __Add_PhysicalPoint(self, point: int) -> int:
         """Ajoute le point dans le physical group"""
@@ -585,15 +580,33 @@ class Interface_Gmsh:
         
         return cast(Mesh, self.__Recuperation_Maillage())    
 
-    def Mesh_Rectangle2DAvecFissure(self, domain: Domain, line: Line, elemType=ElemType.TRI3, refineGeom=None, folder=""):
+    def __physicalCracks_physicalOpenBoundarys(self, cracks: list[Line], surfaceDomain: int):
+        listCrack = [] # liste qui contient les lignes gmsh associées au fissures
+        listOpenBoundary = [] # liste qui contient les points ouverts liés aux fissure
+        physicalOpenBoundarys = []
+        physicalCracks = []
+        for line in cracks:
+            crack, openPoints = self.__crack_And_openGeom_From_Line(line, surfaceDomain)        
+            if line.isOpen:
+                listCrack.append(crack)
+                listOpenBoundary.extend(openPoints)
+                # physicalOpenBoundarys.append(gmsh.model.addPhysicalGroup(0, openPoints))
+                # physicalCracks.append(gmsh.model.addPhysicalGroup(1, [crack]))
+        if len(listCrack) > 0:
+            physicalOpenBoundarys = gmsh.model.addPhysicalGroup(0, listOpenBoundary)
+            physicalCracks = gmsh.model.addPhysicalGroup(1, listCrack)
+
+        return physicalCracks, physicalOpenBoundarys
+
+    def Mesh_Rectangle2D_Avec_Fissures(self, domain: Domain, cracks: list[Line], elemType=ElemType.TRI3, refineGeom=None, folder=""):
         """Maillage d'un rectangle avec une fissure
 
         Parameters
         ----------
         domain : Domain
             domaine 2D qui doit etre compris dans le plan (x,y)
-        crack : Line
-            ligne qui va construire la fissure
+        cracks : list[Line]
+            list de ligne pour la création de fissure
         elemType : str, optional
             type d'element utilisé, by default "TRI3"
         refineGeom : GeomObject, optional
@@ -614,32 +627,24 @@ class Interface_Gmsh:
         tic = Tic()
 
         # Création de la surface
-        loop = self.__Loop_From_Domain(domain)
+        loopDomain = self.__Loop_From_Domain(domain)
 
         # Création de la surface
-        surface = self.__Surface_From_Loops([loop])
+        surfaceDomain = self.__Surface_From_Loops([loopDomain])
 
-        # Création de la fissure
-        crack, physicalPoints = self.__Crack_And_Points_From_Line(line, surface)
+        physicalSurface = gmsh.model.addPhysicalGroup(2, [surfaceDomain])
 
-        self.__Set_BackgroundMesh(refineGeom, domain.taille)            
+        # Création des fissures
+        physicalCracks, physicalOpenBoundarys = self.__physicalCracks_physicalOpenBoundarys(cracks, physicalSurface)        
 
         # Regénération des groupes physiques
         self.__Set_PhysicalGroups(buildSurface=False)
-
-        physicalSurface = gmsh.model.addPhysicalGroup(2, [surface])
-        physicalCrack = gmsh.model.addPhysicalGroup(1, [crack])
         
+        self.__Set_BackgroundMesh(refineGeom, domain.taille)
+
         tic.Tac("Mesh","Construction rectangle fissuré", self.__verbosity)
-        
-        if line.isOpen:
-            cracks = [physicalCrack]
-            openBoundarys = [physicalPoints]
-        else:
-            cracks = []
-            openBoundarys = []
 
-        self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], cracks=cracks, openBoundarys=openBoundarys, isOrganised=False)
+        self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], cracks=physicalCracks, openBoundarys=physicalOpenBoundarys, isOrganised=False)
         
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -694,7 +699,7 @@ class Interface_Gmsh:
             factory.synchronize()
             gmsh.model.mesh.embed(0, [p0], 2, surfaceCercle)
             factory.synchronize()
-            surfaces = [surfaceCercle, surfaceDomain]        
+            surfaces = [surfaceCercle, surfaceDomain]
 
         self.__Set_BackgroundMesh(refineGeom, domain.taille)
         
@@ -806,8 +811,8 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def __Get_LoopsAndFilledLoops(self, geomObjectsInDomain: list) -> tuple[list, list]:
-        """Création des boucles de la liste d'objets renseignés
+    def __Get_hollowLoops_And_filledLoops(self, geomObjectsInDomain: list) -> tuple[list, list]:
+        """Création des boucles les liste de boucles creuses et pleines
 
         Parameters
         ----------
@@ -833,7 +838,7 @@ class Interface_Gmsh:
 
         return loops, filledLoops
 
-    def Mesh_From_Points_2D(self, points: List[Point], elemType=ElemType.TRI3, geomObjectsInDomain=[], refineGeom=None, tailleElement=0.0, folder="", returnSurfaces=False):
+    def Mesh_From_Points_2D(self, points: List[Point], elemType=ElemType.TRI3, geomObjectsInDomain=[], cracks=[], refineGeom=None, tailleElement=0.0, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
         Parameters
@@ -844,6 +849,8 @@ class Interface_Gmsh:
             type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
         geomObjectsInDomain : List[Domain, Circle], optional
             liste d'objet à l'intérieur du domaine Creux ou non
+        cracks : List[Line]
+            liste de ligne utilisées pour la création de fissures
         refineGeom : GeomObject, optional
             deuxième domaine pour la concentration de maillage, by default None
         tailleElement : float, optional
@@ -870,42 +877,27 @@ class Interface_Gmsh:
         loopSurface = self.__Loop_From_Points(points, tailleElement)
 
         # Création de toutes les boucles associés aux objets à l'intérieur du domaine
-        loops, filledLoops = self.__Get_LoopsAndFilledLoops(geomObjectsInDomain)
+        hollowLoops, filledLoops = self.__Get_hollowLoops_And_filledLoops(geomObjectsInDomain)
 
         # Pour chaque objetGeom plein, il est nécessaire de créer une surface
         surfacesPleines = [factory.addPlaneSurface([loop]) for loop in filledLoops]
-
-        # surface du domaine
-        listeLoop = [loopSurface]
-        listeLoop.extend(loops)
-
-        surfaceDomaine = self.__Surface_From_Loops(listeLoop)
-
-        # # Création de la fissure
-        # crack, physicalPoints = self.__Crack_And_Points_From_Line(line, surface)
-
-        # self.__Set_BackgroundMesh(refineGeom, domain.taille)            
-
-        # # Regénération des groupes physiques
-        # self.__Set_PhysicalGroups(buildSurface=False)
-
-        # physicalSurface = gmsh.model.addPhysicalGroup(2, [surface])
-        # physicalCrack = gmsh.model.addPhysicalGroup(1, [crack])
         
-        # tic.Tac("Mesh","Construction rectangle fissuré", self.__verbosity)
-        
-        # if line.isOpen:
-        #     cracks = [physicalCrack]
-        #     openBoundarys = [physicalPoints]
-        # else:
-        #     cracks = []
-        #     openBoundarys = []
+        listeLoop = [loopSurface] # surface du domaine
+        listeLoop.extend(hollowLoops) # On rajoute les surfaces creuses
 
-        # self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], cracks=cracks, openBoundarys=openBoundarys, isOrganised=False)
-
+        surfaceDomain = self.__Surface_From_Loops(listeLoop)
 
         # Rajoute la surface du domaine en dernier
-        surfacesPleines.append(surfaceDomaine)
+        surfacesPleines.append(surfaceDomain)
+
+        # Création des fissures
+        physicalCracks, physicalOpenBoundarys = self.__physicalCracks_physicalOpenBoundarys(cracks, surfaceDomain)
+        
+        physicalSurface = gmsh.model.addPhysicalGroup(2, surfacesPleines)        
+
+        if len(physicalCracks) > 0:
+            # Regénération des groupes physiques des fissures ont été crées
+            self.__Set_PhysicalGroups(buildSurface=False)        
 
         self.__Set_BackgroundMesh(refineGeom, tailleElement)
         
@@ -916,7 +908,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_Maillage(2, elemType, surfaces=surfacesPleines, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], cracks=physicalCracks, openBoundarys=physicalOpenBoundarys, isOrganised=False, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -989,10 +981,10 @@ class Interface_Gmsh:
             liste de surfaces que l'on va mailler, by default []
         isOrganised : bool, optional
             le maillage est organisé, by default False
-        crack : int, optional
-            fissure renseigné, by default None
-        openBoundary : int, optional
-            domaine qui peut s'ouvrir, by default None
+        cracks : int, optional
+            groupePhysique qui regroupe toutes les fissures sur pour lesquelles on va dédoubler les noeuds, by default None
+        openBoundarys : int, optional
+            groupePhysique des objets qui peuvent s'ouvrir, by default None
         folder : str, optional
             dossier de sauvegarde du maillage .msh, by default ""
         """
@@ -1065,21 +1057,32 @@ class Interface_Gmsh:
 
             gmsh.model.mesh.generate(3)
 
-        if len(cracks) > 0:
-            oldPG = gmsh.model.getPhysicalGroups()
-            for crack, openBoundary in zip(cracks, openBoundarys):
-                gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
-                gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
-                if openBoundary != None:
+        # if len(cracks) > 0:            
+        #     for crack, openBoundary in zip(cracks, openBoundarys):
+        #         gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
+        #         gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
+        #         if openBoundary != None:
+        #             gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openBoundary)
+        #         # gmsh.plugin.setNumber("Crack", "NormalX", 0)
+        #         # gmsh.plugin.setNumber("Crack", "NormalY", 0)
+        #         # gmsh.plugin.setNumber("Crack", "NormalZ", 1)
+        #         gmsh.plugin.run("Crack")
+        #         # gmsh.write("meshhh.msh")
+        #         # self.__initGmsh()
+        #         # gmsh.open("meshhh.msh")        
+        # TODO comment ouvrir plus d'1 fissure ?
+        if isinstance(cracks, int):            
+            gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
+            gmsh.plugin.setNumber("Crack", "PhysicalGroup", cracks)
+            gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openBoundarys)
+            gmsh.plugin.run("Crack")
+        else:
+            if len(cracks) > 0:
+                for crack, openBoundary in zip(cracks, openBoundarys):
+                    gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
+                    gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
                     gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openBoundary)
-                # gmsh.plugin.setNumber("Crack", "NormalX", 0)
-                # gmsh.plugin.setNumber("Crack", "NormalY", 0)
-                # gmsh.plugin.setNumber("Crack", "NormalZ", 1)
                 gmsh.plugin.run("Crack")
-                # gmsh.write("meshhh.msh")
-                # self.__initGmsh()
-                # gmsh.open("meshhh.msh")
-            newPG = gmsh.model.getPhysicalGroups()
         
         # Ouvre l'interface de gmsh si necessaire
         if '-nopopup' not in sys.argv and self.__affichageGmsh:
@@ -1139,12 +1142,7 @@ class Interface_Gmsh:
         # On construit la matrice de coordonnées de tout les noeuds utilisé dans la maillage
         # Noeuds utilisé en 1D 2D et 3D
         coord = coord.reshape(-1,3)
-        coordo = coord[sortedIndices]
-
-        # Construit les groupes d'elements
-        testDimension = False
-        dimAjoute = []
-        dim = 0
+        coordo = coord[sortedIndices]        
         
         # Construit les groupes physiques
         physicalGroups = gmsh.model.getPhysicalGroups()
@@ -1197,6 +1195,11 @@ class Interface_Gmsh:
         # On verifie quon a bien tout ajouté
         assert len(physicalGroups) == nbPhysicalGroup
 
+        # Construit les groupes d'elements
+        testDimension = False
+        dimAjoute = []
+        meshDim = 0
+
         for gmshId in elementTypes:
                                         
             # Récupère le numéros des elements et la matrice de connection
@@ -1225,7 +1228,7 @@ class Interface_Gmsh:
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
 
             groupElem = GroupElem_Factory.Create_GroupElem(gmshId, connect, elementsID, coordo, nodes)
-            if groupElem.dim > dim: dim = groupElem.dim
+            if groupElem.dim > meshDim: meshDim = groupElem.dim
             dict_groupElem[groupElem.elemType] = groupElem
             
             if groupElem.dim in dimAjoute:
@@ -1233,7 +1236,6 @@ class Interface_Gmsh:
             dimAjoute.append(groupElem.dim)
 
             # Ici on va récupérer les noeuds et elements faisant partie d'un groupe
-
             if groupElem.dim == 0:
                 listPhysicalGroups = physicalGroupsPoint
                 listName = namePoint
@@ -1267,8 +1269,8 @@ class Interface_Gmsh:
                 groupElem.Set_Nodes_Tag(nodes, name)
                 groupElem.Set_Elements_Tag(nodes, name)
 
-        if dimAjoute.count(dim) > 1:
-            assert not testDimension, f"Impossible car {dimAjoute.count(dim)} type d'element {dim}D"
+        if dimAjoute.count(meshDim) > 1:
+            assert not testDimension, f"Récupération du maillage impossible car {dimAjoute.count(meshDim)} type d'element {meshDim}D"
             # TODO faire en sorte de pouvoir le faire ?
             # Peut etre compliqué surtout dans la création des matrices elementaire et assemblage
             # Pas impossible mais pas trivial
@@ -1318,10 +1320,10 @@ class Interface_Gmsh:
             mesh4 = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain=domain, circle=circleClose, elemType=elemType)
             testAire(mesh4.aire)
 
-            mesh5 = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=line, elemType=elemType)
+            mesh5 = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=line, elemType=elemType)
             testAire(mesh5.aire)
 
-            mesh6 = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=lineOpen, elemType=elemType)
+            mesh6 = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=lineOpen, elemType=elemType)
             testAire(mesh6.aire)
 
             for m in [mesh1, mesh2, mesh3, mesh4, mesh5, mesh6]:
