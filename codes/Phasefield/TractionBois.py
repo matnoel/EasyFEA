@@ -29,8 +29,6 @@ displacements = displacements[filtre]
 plt.figure()
 plt.plot(displacements, forces)
 
-
-
 L = 105
 H = 70
 
@@ -38,41 +36,43 @@ h = H/2
 
 r3 = 3
 
-ep = 1
-
-
-l = 20
+epFissure = 1
+lFissure = 20
 a = 20
 c = 20
 
 d1 = 25.68
 d2 = 40.85
 
-a1 = 2.5 *np.pi/180
-a2 = 20 *np.pi/180
+alpha1 = 2.5 * np.pi/180
+alpha2 = 20 * np.pi/180
+alpha3 = 34 * np.pi/180
 
+betha = (np.pi - alpha3 - (np.pi/2-alpha1))/2
+d = r3/np.tan(betha)
 
 l0 = H/100
 tailleFin = l0
 tailleGros = l0*5
 
-p0F = Point(x=0, y=ep/2)
-p1F = Point(x=l, y=0)
-p2F = Point(x=0, y=-ep/2)
+p0 = Point(x=0, y=-epFissure/2)
 p1 = Point(x=0, y=-h)
 p2 = Point(x=a, y=-h)
-p3 = Point(x=a+d1*np.sin(a1)+r3, y=-h+d1*np.cos(a1))
-p4 = Point(x=L-c-d2*np.cos(a2), y=-h+d2*np.sin(a2))
+p3 = Point(x=a+(d1+d)*np.sin(alpha1), y=-h+(d1+d)*np.cos(alpha1), r=r3)
+p4 = Point(x=L-c-d2*np.cos(alpha2), y=-h+d2*np.sin(alpha2))
 p5 = Point(x=L-c, y=-h)
 p6 = Point(x=L, y=-h)
 p7 = Point(x=L, y=h)
 p8 = Point(x=L-c, y=h)
-p9 = Point(x=L-c-d2*np.cos(a2), y=h-d2*np.sin(a2))
-p10 = Point(x=a+d1*np.sin(a1)+r3, y=h-d1*np.cos(a1))
+p9 = Point(x=L-c-d2*np.cos(alpha2), y=h-d2*np.sin(alpha2))
+p10 = Point(x=a+(d1+d)*np.sin(alpha1), y=h-(d1+d)*np.cos(alpha1), r=r3)
 p11 = Point(x=a, y=h)
 p12 = Point(x=0, y=h)
+p13 = Point(x=0, y=epFissure/2)
+p14 = Point(x=lFissure, y=epFissure/2, r=epFissure/2.1)
+p15 = Point(x=lFissure, y=-epFissure/2, r=epFissure/2.1)
 
-listPoint = [p0F, p1F, p2F, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12]
+listPoint = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15]
 
 diam = 5
 r = diam/2
@@ -92,13 +92,13 @@ geomObjectsInDomain = [c1, c2, c3, c4]
 
 interface = Interface_Gmsh.Interface_Gmsh(False, False)
 
-zone = 6*ep
-refineDomain = Domain(Point(l-zone, -zone), Point(L, zone), taille=tailleFin)
-mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=tailleGros, refineGeom=refineDomain, geomObjectsInDomain=geomObjectsInDomain)
+zone = 6*epFissure
+refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), taille=tailleFin)
+mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=tailleGros, refineGeom=refineDomain, geomObjectsInDomain=geomObjectsInDomain, elemType="TRI6")
 
-# Affichage.Plot_Maillage(mesh)
-# Affichage.Plot_Model(mesh)
-# plt.show()
+Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Model(mesh)
+plt.show()
 
 
 # MATERIAU

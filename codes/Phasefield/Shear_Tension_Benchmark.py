@@ -19,10 +19,10 @@ import matplotlib.pyplot as plt
 simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = False
+test = True
 solve = True
 
-pltMesh = False
+pltMesh = True
 plotResult = True
 showResult = True
 plotEnergie = True
@@ -39,7 +39,7 @@ regularisation = "AT2" # "AT1", "AT2"
 solveurs = Simulations.PhaseField_Model.SolveurType
 solveur = solveurs.History
 openCrack = True
-optimMesh = True
+optimMesh = False
 
 for split in ["Amor"]:
 # for split in ["Bourdin","Amor","Miehe","Stress"]:
@@ -67,7 +67,8 @@ for split in ["Amor"]:
     # Paramètres maillage
     if test:
         taille = l0 #taille maille test fem object
-        # taille = 0.001        
+        # taille = 0.001  
+        taille *= 10      
     else:
         taille = l0/2 #l0/2 2.5e-6
         taille = l0/1.2 #l0/2 2.5e-6
@@ -94,17 +95,25 @@ for split in ["Amor"]:
 
         elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-        interfaceGmsh = Interface_Gmsh(True)
+        interfaceGmsh = Interface_Gmsh(False)
 
         domain = Domain(Point(), Point(x=L, y=L), taille=taille)       
 
         line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille, isOpen=openCrack)
+        line2 = Line(Point(y=L/4, isOpen=True), Point(x=3*L/4, y=L/4), taille=taille, isOpen=openCrack)
 
-        mesh = interfaceGmsh.Mesh_Rectangle2DAvecFissure(domain=domain, line=line, elemType=elemType, refineGeom=refineDomain)
+        # cracks = [line, line2]
+        cracks = [line]
+
+        mesh = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         
         if pltMesh:
-            Affichage.Plot_Model(mesh)            
-            # plt.show()
+            Affichage.Plot_Model(mesh)
+            noeudsCracks = list(mesh.Nodes_Line(line2))
+            noeudsCracks.extend(mesh.Nodes_Line(line))
+            Affichage.Plot_Noeuds(mesh, noeudsCracks, showId=True)
+            print(len(noeudsCracks))
+            plt.show()
 
         # Récupère les noeuds qui m'interessent
         noeuds_Milieu = mesh.Nodes_Line(line)
@@ -361,3 +370,4 @@ for split in ["Amor"]:
 
     Tic.Clear()
     plt.close('all')
+# %%
