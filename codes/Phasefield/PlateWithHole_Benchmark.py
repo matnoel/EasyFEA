@@ -16,16 +16,16 @@ import matplotlib.pyplot as plt
 # Options
 
 test = False
-solve = True
+solve = False
 
 plotMesh = True
 plotIter = False
 plotResult = True
 showFig = True
-plotEnergie = True
+plotEnergie = False
 
 saveParaview = True; NParaview=200
-makeMovie = False; NMovie = 300
+makeMovie = True; NMovie = 200
 
 
 problem = "Benchmark" # ["Benchmark","FCBA"]
@@ -41,9 +41,9 @@ useNumba = True
 maxIter = 1000
 tolConv = 1e-0
 
-for tolConv in [1e-0, 1e-1, 1e-2]:
-    split = "Zhang"
-# for split in ["Zhang"]:
+# for tolConv in [1e-0, 1e-1, 1e-2]:
+#     split = "Zhang"
+for split in ["Zhang"]:
 # for split in ["Bourdin","Amor","Miehe","Stress"]:
 # for split in ["Zhang","AnisotStress_PM","He","AnisotStrain","AnisotStress"]:
 

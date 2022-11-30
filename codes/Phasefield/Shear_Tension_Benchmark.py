@@ -16,35 +16,46 @@ import matplotlib.pyplot as plt
 
 # Affichage.Clear()
 
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
 simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = True
 solve = True
 
+# ----------------------------------------------
+# Post traitement
+# ----------------------------------------------
 pltMesh = True
 plotResult = True
 showResult = True
 plotEnergie = True
 
-saveParaview = False; Nparaview=400
+# ----------------------------------------------
+# Animation
+# ----------------------------------------------
+saveParaview = True; Nparaview=400
 makeMovie = False
 
-useNumba = True
-
-# Data --------------------------------------------------------------------------------------------
-
-comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-regularisation = "AT2" # "AT1", "AT2"
-solveurs = Simulations.PhaseField_Model.SolveurType
-solveur = solveurs.History
+# ----------------------------------------------
+# Maillage
+# ----------------------------------------------
 openCrack = True
 optimMesh = False
 
+# ----------------------------------------------
+# Comportement 
+# ----------------------------------------------
+comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
+regularisation = "AT2" # "AT1", "AT2"
+solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
+
 for split in ["Amor"]:
-# for split in ["Bourdin","Amor","Miehe","Stress"]:
-# for split in ["He","AnisotStrain","AnisotStress","Zhang"]:
-# for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]:
+# for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
+# for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
+# for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
 
     maxIter = 1000
     # tolConv = 0.0025
@@ -53,43 +64,49 @@ for split in ["Amor"]:
 
     dim = 2
 
+    # ----------------------------------------------
+    # Construction du maillage
+    # ----------------------------------------------
+
     # Paramètres géométrie
     L = 1e-3;  #m
     if comportement_str == "Elas_Anisot":
         theta = -30
-        l0 = 0.0085e-3
-        Gc = 10e-3 * 1e-3 * 1e3
+        l0 = 0.0085e-3        
     else:
         theta = 0
-        l0 = 1e-5 # taille fissure test femobject ,7.5e-6, 1e-5
-        Gc = 2.7e3 # J/m2
+        l0 = 1e-5 # taille fissure test FEMOBJECT ,7.5e-6, 1e-5        
 
     # Paramètres maillage
     if test:
         taille = l0 #taille maille test fem object
         # taille = 0.001  
-        taille *= 10      
+        taille *= 3
     else:
-        taille = l0/2 #l0/2 2.5e-6
-        taille = l0/1.2 #l0/2 2.5e-6
+        # On raffin pour avoir au moin 2 element par demie largeur de fissure
+        taille = l0/2 #l0/2 2.5e-6 
+        # taille = l0/1.2 #l0/2 2.5e-6
         # taille = 7.5e-6
 
+    # Definition une zone pour raffiner le maillage
     if optimMesh:
         zone = L*0.05
         if simulation == "Tension":
+            # On rafine horizontalement
             refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), taille=taille)
         elif simulation == "Shear":
             if split == "Bourdin":
+                # On rafine en haut et en bas 
                 refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L), taille=taille)
-            else:                
+            else:
+                # On rafine en bas
                 refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L/2+zone), taille=taille)
         taille *= 3
     else:
         refineDomain = None
 
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveur, test=test, closeCrack= not openCrack, v=0, theta=theta, optimMesh=optimMesh)
-
-    # Construction du modele et du maillage --------------------------------------------------------------------------------
+    # Construit le path vers le dossier en fonction des données du problèmes
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, v=0, theta=theta, optimMesh=optimMesh)
 
     if solve:
 
@@ -108,37 +125,38 @@ for split in ["Amor"]:
         mesh = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         
         if pltMesh:
-            Affichage.Plot_Model(mesh)
-            noeudsCracks = list(mesh.Nodes_Line(line2))
-            noeudsCracks.extend(mesh.Nodes_Line(line))
-            Affichage.Plot_Noeuds(mesh, noeudsCracks, showId=True)
-            print(len(noeudsCracks))
-            plt.show()
+            Affichage.Plot_Maillage(mesh)
+            # Affichage.Plot_Model(mesh)
+            # noeudsCracks = list(mesh.Nodes_Line(line2))
+            # noeudsCracks.extend(mesh.Nodes_Line(line))
+            # Affichage.Plot_Noeuds(mesh, noeudsCracks, showId=True)
+            # print(len(noeudsCracks))
+            # plt.show()
 
-        # Récupère les noeuds qui m'interessent
-        noeuds_Milieu = mesh.Nodes_Line(line)
-        
+        # Récupération des noeuds
+        noeuds_Milieu = mesh.Nodes_Line(line)        
         noeuds_Haut = mesh.Nodes_Conditions(conditionY=lambda y: y == L)
         noeuds_Bas = mesh.Nodes_Conditions(conditionY=lambda y: y == 0)
         noeuds_Gauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0, conditionY=lambda y: y>0 and y <L)
         noeuds_Droite = mesh.Nodes_Conditions(conditionX=lambda x: x == L, conditionY=lambda y: y>0 and y <L)
 
+        # Construit les noeuds du bord
         NoeudsBord=[]
         for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Haut]:
             NoeudsBord.extend(noeuds)
 
+        # Récupération des ddls pour le calcul de la force
         if simulation == "Shear":
             ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["x"])
         else:
             ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["y"])
 
-        # Simulation  -------------------------------------------------------------------------------------------
-        
+        # Simulation  -------------------------------------------------------------------------------------------        
 
         if comportement_str == "Elas_Isot":
             comp = Materials.Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+            Gc = 2.7e3 # J/m2
         elif comportement_str == "Elas_Anisot":
-
             if dim == 2:
 
                 c11 = 65
@@ -160,18 +178,19 @@ for split in ["Amor"]:
                 raise "Pas implémenté"
 
             comp = Materials.Elas_Anisot(dim, C_voigt=C_voigt, axis1=axis1, contraintesPlanes=False)
+            Gc = 10e-3 * 1e-3 * 1e3
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
             raise "Pas implémenté pour le moment"
 
-        phaseFieldModel = Materials.PhaseField_Model(comp, split, regularisation, Gc=Gc, l_0=l0, solveur=solveur)
+        phaseFieldModel = Materials.PhaseField_Model(comp, split, regularisation, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
 
         materiau = Materials.Create_Materiau(phaseFieldModel, ro=1)
 
-        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=useNumba)        
+        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
-        # Renseignement des conditions limites
         def Chargement(dep):
+            """Renseignement des conditions limites"""
 
             simu.Bc_Init()
 
@@ -187,23 +206,25 @@ for split in ["Amor"]:
 
                 # Conditions en déplacements en Bas
                 simu.add_dirichlet(noeuds_Bas, [0,0],["x","y"])
-            else:
+
+            elif simulation == "Tension":
                 simu.add_dirichlet(noeuds_Haut, [0,dep], ["x","y"])
                 simu.add_dirichlet(noeuds_Bas, [0],["y"])
+
+            else:
+
+                raise "chargement inconnue pour cette simulation"
             
         Chargement(0)
 
         Affichage.NouvelleSection("Simulations")
 
+        # ----------------------------------------------
+        # Paramètres de chargement
+        # ----------------------------------------------
         if simulation == "Shear":
-            if test:
-                u_inc = 5e-8
-                N = 400
-                # N = 10
-                # u_inc = 5e-7
-            else:
-                u_inc = 1e-8
-                N = 2000
+            u_inc = 5e-8 if test else 1e-8
+            N = 400 if test else 2000 
 
             chargement = np.linspace(u_inc, u_inc*N, N, endpoint=True)
             
@@ -236,44 +257,29 @@ for split in ["Amor"]:
             optionTreshold = ["damage"]*2
             chargement = ["crack bord"]
 
-        simu.Resultats_Set_Resume_Chargement(chargement[-1],listInc, listThreshold, optionTreshold)
+        simu.Resultats_Set_Resume_Chargement(chargement[-1],listInc, listThreshold, optionTreshold)        
 
-        damage_t=[]
-        uglob_t=[]
-
-        dep = 0
-        iter = 0
-
+        # ----------------------------------------------
+        # Simulation
+        # ----------------------------------------------
         tic = Tic()
-
-        bord = 0        
         
+        def Condition():
+            """Fonction qui traduit la condition de chargement"""
+            if isinstance(comp, Materials.Elas_Isot):
+                return dep < chargement[-1]
+            else:
+                # On va charger jusqua la rupture
+                return True
+        
+        # INIT
+        N = len(chargement)
+        bord = 0 # variable pour savoir combien de l'endommagement à touché le bord
         deplacements=[]
         forces=[]
-
-        def Condition():
-
-            testEndommagementBord = simu.damage[NoeudsBord].max() <= 0.98
-
-            if isinstance(comp, Materials.Elas_Isot):
-
-                return (testEndommagementBord or dep < chargement[-1])
-            
-            elif isinstance(comp, Materials.Elas_Anisot):
-
-                return testEndommagementBord
-
-            else:
-
-                raise "Pas implémenté"
-
-        N = len(chargement)
-
+        dep = 0
+        iter = 0
         while Condition():
-
-            nombreIter=0
-            convergence = False
-            damage = simu.damage
 
             Chargement(dep)
 
@@ -305,14 +311,17 @@ for split in ["Amor"]:
             deplacements.append(dep)
             forces.append(f)            
 
-            if np.any(damage[NoeudsBord] >= 0.98):
+            if np.any(simu.damage[NoeudsBord] >= 0.98):
                 bord +=1
                 if bord == 5:
+                    # Si le bord à été touché depuis 5 iter on arrête la simulation
                     break
 
             iter += 1
                 
+        # ----------------------------------------------
         # Sauvegarde
+        # ----------------------------------------------
         print()
         PostTraitement.Save_Load_Displacement(forces, deplacements, folder)
         simu.Save(folder)        
@@ -320,24 +329,21 @@ for split in ["Amor"]:
         forces = np.array(forces)
         deplacements = np.array(deplacements)
 
-    else:   
-
+    else:
+        # ----------------------------------------------
+        # Chargement
+        # ---------------------------------------------
         simu = Simulations.Load_Simu(folder)
-
         forces, deplacements = PostTraitement.Load_Load_Displacement(folder)
+
         
-        simu.useNumba = useNumba
 
-        # Affichage.Plot_Maillage(simu.mesh)
-        # plt.show()
-
-    # ------------------------------------------------------------------------------------------------------
+    # ----------------------------------------------
+    # Post Traitement
+    # ---------------------------------------------
     Affichage.NouvelleSection("Affichage")
 
-    if makeMovie:
-        PostTraitement.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
-        # PostTraitement.MakeMovie(folder, "Svm", simu)        
-        # PostTraitement.MakeMovie(filename, "Syy", simu, valeursAuxNoeuds=True, deformation=True)
+    
 
     if plotResult:
 
@@ -353,10 +359,25 @@ for split in ["Amor"]:
         # Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
             
     if saveParaview:
+        # ----------------------------------------------
+        # Paraview
+        # ---------------------------------------------
         PostTraitement.Make_Paraview(folder, simu, Nparaview)
+
+    if makeMovie:
+        # ----------------------------------------------
+        # Movie
+        # ---------------------------------------------
+        PostTraitement.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
+        # PostTraitement.MakeMovie(folder, "Svm", simu)        
+        # PostTraitement.MakeMovie(filename, "Syy", simu, valeursAuxNoeuds=True, deformation=True)
             
-    if plotEnergie:    
-        PostTraitement.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)
+    if plotEnergie:
+        # ----------------------------------------------
+        # Energie
+        # ---------------------------------------------   
+        # Affichage.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)
+        Affichage.Plot_Energie(simu, Niter=400, folder=folder)
 
     Tic.getResume()
 

@@ -5,14 +5,18 @@ from Geom import Domain, Line, Point, Section
 import Affichage
 import Materials
 import Simulations
+import Folder
+import PostTraitement
 
 Affichage.Clear()
 
+folder = Folder.New_File("Beam", results=True)
+
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
-problem = "Flexion"
+problem = "Portique"
 
-elemType = "SEG2"
+elemType = "SEG5"
 
 beamDim = 3
 
@@ -147,6 +151,8 @@ Affichage.Plot_BoundaryConditions(simu)
 
 beamDisplacement = simu.Solve()
 
+simu.Save_Iteration()
+
 stress = simu.Get_Resultat("Stress")
 
 forces = stress/section.aire
@@ -206,5 +212,6 @@ elif problem == "Traction":
 
 # Affichage.Plot_ ElementsMaillage(section, showId=True)
 
+PostTraitement.Make_Paraview(folder, simu)
 
 plt.show()
