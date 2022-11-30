@@ -3,7 +3,6 @@ import scipy.sparse as sp
 
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatriceType
-from TicTac import Tic
 
 class Mesh:
 
@@ -378,6 +377,12 @@ class Mesh:
     def Nodes_Cylindre(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
         """Renvoie les noeuds qui sont dans le cylindre (identifiants)"""
         return self.groupElem.Get_Nodes_Cylindre(circle, direction)
+
+    def Elements_Nodes(self, nodes: np.ndarray, exclusivement=True):
+        """Renvoie les élements qui utilisent exclusivement ou non les noeuds renseignés en fonction du groupe d'element (elements de la dimension du maillage)"""
+        elements = self.groupElem.Get_ElementsIndex_Nodes(nodes=nodes, exclusivement=exclusivement)
+        return elements
+
 
     @staticmethod
     def __Dim_For_Tag(tag):

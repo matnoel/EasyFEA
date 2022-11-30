@@ -67,7 +67,10 @@ class Test_Materiau(unittest.TestCase):
 
         splits_Isot = [PhaseField_Model.SplitType.Amor, PhaseField_Model.SplitType.Miehe, PhaseField_Model.SplitType.Stress]
 
-        for c in self.comportements2D:
+        comportements = self.comportements2D
+        comportements.extend(self.comportements3D)
+
+        for c in comportements:
             for s in self.splits:
                 for r in self.regularizations:
                         
@@ -104,7 +107,7 @@ class Test_Materiau(unittest.TestCase):
                 
                 c = Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(comp.dim, C_voigt)
                     
-                verifC = np.linalg.norm(c-comp.get_C())/np.linalg.norm(c)
+                verifC = np.linalg.norm(c-comp.C)/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
 
     def test_ElasAnisot(self):
@@ -138,7 +141,7 @@ class Test_Materiau(unittest.TestCase):
         listComp = [comportement2D_CP_1, comportement2D_DP_1, comportement2D_CP_2, comportement2D_DP_2, comportement3D_1, comportement3D_2]
 
         for comp in listComp: 
-            matC = comp.get_C()
+            matC = comp.C
             testSymetry = np.linalg.norm(matC.T - matC)
             assert testSymetry <= 1e-12
 
@@ -174,7 +177,7 @@ class Test_Materiau(unittest.TestCase):
                       [2*kt*vl, kt+Gt, 0],
                       [0, 0, 2*Gl]])
 
-        verifc1 = np.linalg.norm(c1 - compElasIsotTrans1.get_C())/np.linalg.norm(c1)
+        verifc1 = np.linalg.norm(c1 - compElasIsotTrans1.C)/np.linalg.norm(c1)
         self.assertTrue(verifc1 < 1e-12)
 
         # Verif2 axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
@@ -187,7 +190,7 @@ class Test_Materiau(unittest.TestCase):
                       [2*kt*vl, El+4*vl**2*kt, 0],
                       [0, 0, 2*Gl]])
 
-        verifc2 = np.linalg.norm(c2 - compElasIsotTrans2.get_C())/np.linalg.norm(c2)
+        verifc2 = np.linalg.norm(c2 - compElasIsotTrans2.C)/np.linalg.norm(c2)
         self.assertTrue(verifc2 < 1e-12)
 
         # Verif3 axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
@@ -200,17 +203,22 @@ class Test_Materiau(unittest.TestCase):
                       [kt-Gt, kt+Gt, 0],
                       [0, 0, 2*Gt]])
 
-        verifc3 = np.linalg.norm(c3 - compElasIsotTrans3.get_C())/np.linalg.norm(c3)
+        verifc3 = np.linalg.norm(c3 - compElasIsotTrans3.C)/np.linalg.norm(c3)
         self.assertTrue(verifc3 < 1e-12)
 
     
     def test_Decomposition_psi(self):
         
         Ne = 50
-        nPg = 1
+        nPg = 2
+
+        np.random.seed(3)
 
         # Création de 2 espilons quelconques 2D
-        Epsilon_e_pg = np.random.randn(Ne,nPg,3)
+        Epsilon2D_e_pg = np.random.randn(Ne,nPg,3)
+
+        # Création de 2 espilons quelconques 3D
+        Epsilon3D_e_pg = np.random.randn(Ne,nPg,6)
         
         # Epsilon_e_pg = np.random.rand(1,1,3)
         # Epsilon_e_pg[0,:] = np.array([1,-1,0])
@@ -228,24 +236,21 @@ class Test_Materiau(unittest.TestCase):
 
             comportement = pfm.comportement
             
-            if isinstance(comportement, Elas_Isot) or isinstance(comportement, Elas_IsotTrans) or isinstance(comportement, Elas_Anisot):                
-                c = comportement.get_C()
+            if isinstance(comportement, Displacement_Model):
+                c = comportement.C
             
-            print(f"{comportement.nom} {comportement.contraintesPlanes} {pfm.split} {pfm.regularization}")
-            
-            if pfm.split == "Stress":
-                # Ici il y a un beug quand v=0.499999 et en deformation plane
-                pass
+            print(f"{comportement.nom} {comportement.simplification} {pfm.split} {pfm.regularization}")
 
-            if pfm.split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
-                # Ici il y a un beug quand v=0.499999 et en deformation plane
-                if isinstance(comportement, Elas_IsotTrans):
-                    pass
+            if comportement.dim == 2:
+                Epsilon_e_pg = Epsilon2D_e_pg
+            elif comportement.dim == 3:
+                Epsilon_e_pg = Epsilon3D_e_pg
 
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
 
             # Test que cP + cM = c
-            decompC = c-(cP_e_pg+cM_e_pg)
+            cpm = cP_e_pg+cM_e_pg
+            decompC = c-cpm
             verifC = np.linalg.norm(decompC)/np.linalg.norm(c)
             if pfm.split != "He":
                 self.assertTrue(np.abs(verifC) < tol)
@@ -272,7 +277,8 @@ class Test_Materiau(unittest.TestCase):
 
 if __name__ == '__main__':
     try:
-        os.system("cls")
+        import Affichage
+        Affichage.Clear()
         unittest.main(verbosity=2)
     except:
         print("")

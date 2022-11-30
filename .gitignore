@@ -7,10 +7,14 @@ build/
 !.vscode/settings.json
 .DS_Store
 results/
+data/CompressionFCBA/Images
 
 # fichier à ignorer
 *.pyc
 *.HEIC
+*.tif
+*.mp4
+*.out
 *.pos
 *.bak
 *.json

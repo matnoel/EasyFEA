@@ -1,12 +1,10 @@
 from TicTac import Tic
 import Materials
 from Geom import *
-import Affichage as Affichage
-import Interface_Gmsh as Interface_Gmsh
+import Affichage
+import Interface_Gmsh
 import Simulations
 import Folder
-import pandas as pd
-import PostTraitement as PostTraitement
 
 import matplotlib.pyplot as plt
 
@@ -111,10 +109,10 @@ for cc in list_cc:
 
 Affichage.NouvelleSection("Résultats")
 
-Affichage.Plot_Maillage(mesh,folder=folder, title=f"mesh_{param_name}")
-Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
-Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
-Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
+Affichage.Plot_Mesh(mesh,folder=folder, title=f"mesh_{param_name}")
+Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
+Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
+Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 
 fig, ax = plt.subplots()
 
@@ -129,9 +127,9 @@ plt.legend()
 ax.set_title(param_name)
 ax.set_xlabel('coef')
 
-PostTraitement.Save_fig(folder, param_name)
+Affichage.Save_fig(folder, param_name)
 
-Tic.getResume()
+Tic.Resume()
 
 plt.show()
 

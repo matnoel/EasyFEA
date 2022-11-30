@@ -125,12 +125,12 @@ class Test_Simu(unittest.TestCase):
 
             Affichage.Plot_BoundaryConditions(simu)
             PlotAndDelete()
-            Affichage.Plot_Result(simu, "u", affichageMaillage=False, deformation=False)
+            Affichage.Plot_Result(simu, "u", plotMesh=False, deformation=False)
             PlotAndDelete()
             if beamModel.dim > 1:
-                Affichage.Plot_Result(simu, "v", affichageMaillage=False, deformation=False)
+                Affichage.Plot_Result(simu, "v", plotMesh=False, deformation=False)
                 PlotAndDelete()
-                Affichage.Plot_Maillage(simu, deformation=True, facteurDef=10)
+                Affichage.Plot_Mesh(simu, deformation=True, facteurDef=10)
                 PlotAndDelete()
 
         
@@ -223,13 +223,13 @@ class Test_Simu(unittest.TestCase):
 
             simu.Solve()
 
-            fig, ax, cb = Affichage.Plot_Result(simu, "dx", affichageMaillage=True, valeursAuxNoeuds=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "dx", plotMesh=True, nodeValues=True)
             plt.pause(1e-12)
             plt.close(fig)
             
             simu.Solveur_Set_Newton_Raphson_Algorithm(dt=0.5)
             simu.Solve()
-            fig, ax, cb = Affichage.Plot_Result(simu, "ax", affichageMaillage=True,valeursAuxNoeuds=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "ax", plotMesh=True,nodeValues=True)
             plt.pause(1e-12)
             plt.close(fig)
 
@@ -264,7 +264,7 @@ class Test_Simu(unittest.TestCase):
             simu.Solve()
             simu.Save_Iteration()
 
-            fig, ax, cb = Affichage.Plot_Result(simu, "thermal", valeursAuxNoeuds=True, affichageMaillage=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
             plt.pause(1e-12)
             plt.close(fig)
     
@@ -296,7 +296,7 @@ class Test_Simu(unittest.TestCase):
             listPg = list(range(nPg))
             Ne = mesh.Ne            
             materiau = simu.materiau
-            C = materiau.comportement.get_C()
+            C = materiau.comportement.C
 
             listKe_e = []
 

@@ -21,7 +21,7 @@ import CalcNumba
 from Interface_Solveurs import ResolutionType, AlgoType, _Solveur, _Solve_Axb
 import Folder
 
-def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
+def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=False, useNumba=True):
 
     params = (mesh, materiau, verbosity ,useNumba)
 
@@ -34,7 +34,7 @@ def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
     elif materiau.modelType == ModelType.thermal:
         simu = __Simu_Thermal(*params)
     else:
-        raise "Modèle physique inconnue pour la création d'une simulation"
+        raise Exception("Modèle physique inconnue pour la création d'une simulation")
 
     return simu
 
@@ -293,7 +293,7 @@ class _Simu(ABC):
     
         # returns current date and time
         dateEtHeure = datetime.now()
-        resume = f"Simulation réalisée le : {dateEtHeure}"
+        resume = f"Simulation lancée le : {dateEtHeure}"
         nomSimu = "simulation.pickle"
         filename = Folder.Join([folder, nomSimu])
         print(Fore.GREEN + f'\nSauvegarde de :')
@@ -441,11 +441,11 @@ class _Simu(ABC):
         return self.__matricesUpdated
 
     def Matrices_Need_Update(self):
-        """Renseigne le fait que la simulation à besoin de reconstruire ces matrices"""
+        """Renseigne le fait que la simulation à besoin de reconstruire ces matrices K, C et M"""
         self.__matricesUpdated = False
 
     def Matrices_Updtated(self):
-        """Les matrices ont été reconstruites"""
+        """Les matrices K, C et M ont été reconstruites"""
         self.__matricesUpdated = True  
 
     # ================================================ Solveur ================================================
@@ -643,7 +643,7 @@ class _Simu(ABC):
             b -= C.dot(vTild_np1.reshape(-1,1))
             b = sparse.csr_matrix(b)
 
-        tic.Tac("Construit Ax=b",f"Neumann ({problemType}, {algo})", self._verbosity)
+        tic.Tac("Solveur",f"Neumann ({problemType}, {algo})", self._verbosity)
 
         return b
 
@@ -688,7 +688,7 @@ class _Simu(ABC):
 
         A, x = self.__Get_Dirichlet_A_x(problemType, resolution, A, b, valeurs_ddls)
 
-        tic.Tac("Construit Ax=b",f"Dirichlet ({problemType}, {algo})", self._verbosity)
+        tic.Tac("Solveur",f"Dirichlet ({problemType}, {algo})", self._verbosity)
 
         return A, x
 
@@ -835,7 +835,7 @@ class _Simu(ABC):
         verifTaille = unique_ddl_Connues.shape[0] + ddls_Inconnues.shape[0]
         assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
 
-        tic.Tac("Construit Ax=b",f"Construit ddls ({problemType})", self._verbosity)
+        tic.Tac("Solveur",f"Construit ddls ({problemType})", self._verbosity)
 
         return ddls_Connues, ddls_Inconnues    
 
@@ -856,7 +856,7 @@ class _Simu(ABC):
                 elif option == "gauss":
                     valeurs_eval[:,:] = valeurs(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
             except:
-                raise "Doit fournir une fonction lambda de la forme\n lambda x,y,z, : f(x,y,z)"
+                raise Exception("Doit fournir une fonction lambda de la forme\n lambda x,y,z, : f(x,y,z)")
         else:            
             if option == "noeuds":
                 valeurs_eval[:] = valeurs
@@ -885,13 +885,16 @@ class _Simu(ABC):
             Description de la condition, by default ""
         """
 
-        if len(valeurs) == 0 or len(valeurs) != len(directions): return
+        if len(valeurs) == 0 or len(valeurs) != len(directions): return        
 
         if problemType == None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)
         
+        assert len(noeuds) > 0, "Liste de noeuds vides"
+        noeuds = np.asarray(noeuds)
+
         Nn = noeuds.shape[0]
         coordo = self.mesh.coordo
         coordo_n = coordo[noeuds]
@@ -1089,7 +1092,7 @@ class _Simu(ABC):
         for groupElem in listGroupElemDim:
 
             # Récupère les elements qui utilisent exclusivement les noeuds
-            elements = groupElem.get_elementsIndex(noeuds, exclusivement=exclusivement)
+            elements = groupElem.Get_ElementsIndex_Nodes(noeuds, exclusivement=exclusivement)
             if elements.shape[0] == 0: continue
             connect_e = groupElem.connect_e[elements]
             Ne = elements.shape[0]
@@ -1263,20 +1266,23 @@ class _Simu(ABC):
 
         import Affichage
 
-        resume = Affichage.NouvelleSection("Maillage", verbosity)
-        resume += self.mesh.Resume(verbosity)
+        resume = Affichage.NouvelleSection("Maillage", False)
+        resume += self.mesh.Resume(False)
 
-        resume += Affichage.NouvelleSection("Materiau", verbosity)
-        resume += '\n' + self.materiau.Resume(verbosity)
+        resume += Affichage.NouvelleSection("Materiau", False)
+        resume += '\n' + self.materiau.Resume(False)
 
-        resume += Affichage.NouvelleSection("Chargement", verbosity)
+        resume += Affichage.NouvelleSection("Chargement", False)
         resume += '\n' + self.Resultats_Get_Resume_Chargement()
 
-        resume += Affichage.NouvelleSection("Résultat", verbosity)
+        resume += Affichage.NouvelleSection("Résultat", False)
         resume += '\n' + self.Resultats_Get_Resume_Iteration()
 
-        resume += Affichage.NouvelleSection("TicTac", verbosity)
-        resume += Tic.getResume(verbosity)
+        resume += Affichage.NouvelleSection("TicTac", False)
+        resume += Tic.Resume(False)
+
+        if verbosity:
+            print(resume)
 
         return resume
 
@@ -1437,7 +1443,7 @@ class __Simu_Displacement(_Simu):
         tic = Tic()
 
         # Ici on le materiau est homogène
-        matC = comportement.get_C()
+        matC = comportement.C
 
         # Matrices rigi
         if useNumba:
@@ -1597,7 +1603,7 @@ class __Simu_Displacement(_Simu):
                 val_e = Epsilon_e
 
             else:
-                raise "Erreur"
+                raise Exception("Mauvaise option")
 
             if dim == 2:
 
@@ -1778,7 +1784,7 @@ class __Simu_Displacement(_Simu):
 
         tic = Tic()
 
-        c = self.materiau.comportement.get_C()
+        c = self.materiau.comportement.C
         if useNumba:
             # Plus rapide sur les gros système > 500 000 ddl (ordre de grandeur)
             # sinon legerement plus lent
@@ -2054,15 +2060,18 @@ class __Simu_PhaseField(_Simu):
         self.__Assemblage_u()
         self.__Assemblage_d()
     
-    def Solve(self, tolConv=1.0, maxIter=200):
+    def Solve(self, tolConv=1.0, maxIter=500, convOption=0) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
         """Résolution du probleme d'endommagement de façon étagée
 
         Parameters
         ----------
         tolConv : float, optional
-            tolérance de convergence entre l'ancien et le nouvelle endommagement, by default 1.0
+            Tolérance de convergence entre l'ancien et le nouvelle endommagement, by default 1.0
         maxIter : int, optional
-            nombre d'itération maximum pour atteindre la convergence, by default 200
+            Nombre d'itération maximum pour atteindre la convergence, by default 500
+        convOption : int, optional
+            0 -> convergence sur l'endommagement np.max(np.abs(d_kp1-dk)) équivalent normInf(d_kp1-dk)\n
+            1 -> convergence sur l'energie de fissure np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
 
         Returns
         -------
@@ -2073,8 +2082,7 @@ class __Simu_PhaseField(_Simu):
             u : champ vectorielle de déplacement
             d : champ scalaire d'endommagement
             Kglob : matrice de rigidité en déplacement
-            nombreIter : iteration nécessaire pour atteindre la convergence
-            dincMax : tolerance de convergence
+            convergence : la solution a convérgé
         """
 
         assert tolConv > 0 and tolConv <= 1 , "tolConv doit être compris entre 0 et 1"
@@ -2092,21 +2100,31 @@ class __Simu_PhaseField(_Simu):
                     
             nombreIter += 1
             # Ancien endommagement dans la procedure de la convergence
-            dk = self.damage
-            psi_crack_k = self.__Calc_Psi_Crack()
+            if convOption == 0:
+                dk = self.damage
+            elif convOption == 1:
+                psi_crack_k = self.__Calc_Psi_Crack()
+            elif convOption == 2:
+                psi_tot_k = self.__Calc_Psi_Crack() + self.__Calc_Psi_Elas()
 
             # Damage
             self.__Assemblage_d()
             d_kp1 = self.__Solve_d()            
-            psi_crack_kp1 = self.__Calc_Psi_Crack()
-            
             # Displacement
             Kglob = self.__Assemblage_u()            
             u_np1 = self.__Solve_u()
-
-            convIter = np.max(np.abs(d_kp1-dk))
             
-            # convIter = np.abs(psi_crack_kp1 - psi_crack_k)
+            if convOption == 1:
+                psi_crack_kp1 = self.__Calc_Psi_Crack()
+            elif convOption == 2:
+                psi_tot_kp1 = self.__Calc_Psi_Crack() + self.__Calc_Psi_Elas()
+
+            if convOption == 0:
+                convIter = np.max(np.abs(d_kp1-dk))
+            elif convOption == 1:
+                convIter = np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
+            elif convOption == 2:
+                convIter = np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_k
             
             if tolConv == 1.0:
                 convergence=True
@@ -2115,20 +2133,19 @@ class __Simu_PhaseField(_Simu):
                 # convergence = dincMax <= tolConv and iterConv > 1 # idée de florent
                 convergence = convIter <= tolConv
 
-        if solveur == PhaseField_Model.SolveurType.History:
+        solveurTypes = PhaseField_Model.SolveurType
+
+        if solveur in [solveurTypes.History, solveurTypes.BoundConstrain]:
             d_np1 = d_kp1
             
-        elif solveur == PhaseField_Model.SolveurType.HistoryDamage:
+        elif solveur == solveurTypes.HistoryDamage:
             oldAndNewDamage = np.zeros((d_kp1.shape[0], 2))
             oldAndNewDamage[:, 0] = dn
             oldAndNewDamage[:, 1] = d_kp1
             d_np1 = np.max(oldAndNewDamage, 1)
 
-        elif solveur == PhaseField_Model.SolveurType.BoundConstrain:
-            d_np1 = d_kp1
-
         else:
-            raise "Solveur inconnue"
+            raise Exception("Solveur phase field inconnue")
 
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
@@ -2211,8 +2228,7 @@ class __Simu_PhaseField(_Simu):
         mesh = self.mesh        
         taille = mesh.Nn*self.dim
 
-        Ku_e = self.__ConstruitMatElem_Dep()
-        
+        Ku_e = self.__ConstruitMatElem_Dep()        
 
         # Prépare assemblage
         lignesVector_e = mesh.lignesVector_e
@@ -2231,8 +2247,7 @@ class __Simu_PhaseField(_Simu):
         # import matplotlib.pyplot as plt
         # plt.figure()
         # plt.spy(self.__Ku)
-        # plt.show()
-        
+        # plt.show()        
 
         tic.Tac("Matrices","Assemblage Ku et Fu", self._verbosity)
         return self.__Ku
@@ -2495,7 +2510,7 @@ class __Simu_PhaseField(_Simu):
                 val_e = Epsilon_e
 
             else:
-                raise "Erreur"
+                raise Exception("Mauvaise option")
 
             if dim == 2:
 
@@ -2774,12 +2789,9 @@ class __Simu_PhaseField(_Simu):
 
         return Sigma_e_pg
 
-    def Resultats_Set_Resume_Chargement(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):
+    def Resultats_Set_Resume_Chargement(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):        
         
-        check = ["damage", "displacement"]
-
-        for option in listOption : assert option in check, f"option doit etre dans {check}"
-        assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Doit etre de la meme dimension"        
+        assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Doit etre de la meme dimension"
         
         resumeChargement = 'Chargement :'
         resumeChargement += f'\n\tload max = {loadMax:.3}'
@@ -3418,9 +3430,9 @@ class __Simu_Beam(_Simu):
         if nbddl == 1:
             coordo[:,0] = beamDisplacementRedim[:,0]
         elif nbddl == 3:
-            coordo[:,:1] = beamDisplacementRedim[:,:1]
-        elif nbddl == 6:
             coordo[:,:2] = beamDisplacementRedim[:,:2]
+        elif nbddl == 6:
+            coordo[:,:3] = beamDisplacementRedim[:,:3]
 
         return coordo
 

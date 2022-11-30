@@ -14,7 +14,7 @@ Affichage.Clear()
 # L'objectif de ce script est de voir du chargement
 
 # Options
-dim = 2
+dim = 3
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
@@ -62,7 +62,7 @@ else:
 
 Affichage.Plot_Model(mesh)
 # plt.show()
-Affichage.Plot_Maillage(mesh,folder=folder)
+Affichage.Plot_Mesh(mesh,folder=folder)
 
 # Récupérations des noeuds de chargement
 B_lower = Line(point,Point(x=L))
@@ -71,7 +71,7 @@ B_upper = Line(Point(y=H),Point(x=L, y=H))
 noeuds_22 = mesh.Nodes_Tag(["S6","S7"])
 
 if len(noeuds_22) > 0:
-    Affichage.Plot_Noeuds(mesh, noeuds=noeuds_22)
+    Affichage.Plot_Nodes(mesh, nodes=noeuds_22)
     # plt.show()
 
 # nodes0 = mesh.Nodes_Line(B_lower)
@@ -93,7 +93,7 @@ if dim == 2:
     materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
     simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 else:
-    materiau = Materials.Create_Materiau(comportement, verbosity=False)
+    materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
     simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
 
@@ -119,9 +119,9 @@ simu.Save_Iteration()
 
 Affichage.NouvelleSection("Résultats")
 
-Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
-Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
-Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
+Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
+Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
+Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 Affichage.Plot_Result(simu, "Svm", coef=1/SIG, title=r"$\sigma_{vm}/\sigma$", folder=folder, filename='Svm')
 
 # mini = np.min(simu.Get_Resultat("Syy", valeursAuxNoeuds=False))/SIG
@@ -180,7 +180,7 @@ ax.grid()
 
 
 
-Tic.getResume()
+Tic.Resume()
 
 plt.show()
 

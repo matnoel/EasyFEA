@@ -16,7 +16,7 @@ interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
 problem = "Portique"
 
-elemType = "SEG5"
+elemType = "SEG4"
 
 beamDim = 3
 
@@ -160,10 +160,10 @@ forces = stress/section.aire
 affichage = lambda name, result: print(f"{name} = [{result.min():2.2}; {result.max():2.2}]") if isinstance(result, np.ndarray) else ""
 
 Affichage.Plot_BoundaryConditions(simu)
-Affichage.Plot_Result(simu, "u", affichageMaillage=False, deformation=False)
+Affichage.Plot_Result(simu, "u", plotMesh=False, deformation=False)
 if beamModel.dim > 1:
-    Affichage.Plot_Result(simu, "v", affichageMaillage=False, deformation=False)
-    Affichage.Plot_Maillage(simu, deformation=True, facteurDef=10)
+    Affichage.Plot_Result(simu, "v", plotMesh=False, deformation=False)
+    Affichage.Plot_Mesh(simu, deformation=True, facteurDef=10)
 
 Affichage.NouvelleSection("Resultats")
 

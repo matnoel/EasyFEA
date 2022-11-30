@@ -186,7 +186,7 @@ class BoundaryCondition:
     
     @staticmethod
     def Get_ddls_noeuds(param: int, problemType:str, noeuds:np.ndarray, directions: list) -> np.ndarray:
-        """Récupère les ddls liés aux noeuds en fonction du problème et des directions
+        """Récupère les ddls associés aux noeuds en fonction du problème et des directions
 
         Parameters
         ----------
@@ -245,7 +245,7 @@ class BoundaryCondition:
                     if dimModel in ["2D","3D"]:
                         index = 1
                     else:
-                        raise "Il faut réaliser une Etude poutre 2D ou 3D pour accéder aux ddls suivant y"
+                        raise Exception("Il faut réaliser une Etude poutre 2D ou 3D pour accéder aux ddls suivant y")
                 elif direction == "z":
                     assert dimModel == "3D", "Il faut réaliser une Etude poutre 3D pour accéder aux ddls suivant z"
                     index = 2
@@ -254,13 +254,13 @@ class BoundaryCondition:
                         # modèle poutre 3D
                         index = 3
                     else:
-                        raise "Il faut réaliser une Etude poutre 3D pour acceder aux ddls rx"
+                        raise Exception("Il faut réaliser une Etude poutre 3D pour acceder aux ddls rx")
                 elif direction == "ry":
                     if dimModel == "3D":
                         # modèle poutre 3D
                         index = 4
                     else:
-                        raise "Il faut réaliser une Etude poutre 3D pour acceder aux ddls ry" 
+                        raise Exception("Il faut réaliser une Etude poutre 3D pour acceder aux ddls ry")
                 elif direction == "rz":
                     if dimModel == "2D":
                         # modèle poutre 2D
@@ -269,9 +269,9 @@ class BoundaryCondition:
                         # modèle poutre 3D
                         index = 5
                     else:
-                        raise "Il faut réaliser une Etude poutre 2D ou 3D pour acceder aux ddls rz"
+                        raise Exception("Il faut réaliser une Etude poutre 2D ou 3D pour acceder aux ddls rz")
                 else:
-                    raise "Direction inconnue"
+                    raise Exception("Direction inconnue")
                 ddls_dir[:,d] = noeuds * nbddl_e + index
 
             return ddls_dir.reshape(-1)

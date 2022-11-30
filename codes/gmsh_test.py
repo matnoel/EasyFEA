@@ -1,3 +1,4 @@
+from enum import Enum
 import matplotlib.pyplot as plt
 
 from Interface_Gmsh import Interface_Gmsh
@@ -8,24 +9,23 @@ from Mesh import ElemType
 import Materials
 import Folder
 
-option = 2
 dim = 2
-N = 5
+N = 10
 
-dictOptions = {
-    1 : "CPEF",
-    2 : "EQU",
-    3 : "TEF2"
-}
+class SimulationType(str, Enum):
+    CPEF = "CPEF",
+    EQUERRE = "EQUERRE",
+    TEF2 = "TEF2"
 
-interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=True)
+simulationType = SimulationType.EQUERRE
+
+interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
 coef = 1
 E=210000 # MPa
 v=0.3
 
-
-if option == 1:
+if simulationType == SimulationType.CPEF:
     dim = 3
     h=1
     fichier = Folder.Join([Folder.Get_Path(), "3Dmodels", "CPEF.stp"])
@@ -35,15 +35,15 @@ if option == 1:
     Affichage.Plot_Elements(mesh, noeuds134)
     plt.show()
     
-elif option ==  2:
+elif simulationType == SimulationType.EQUERRE:
 
     L = 120 #mm
     h = L*0.3
 
-    pt1 = Point(isOpen=True)
+    pt1 = Point(isOpen=True, r=0)
     pt2 = Point(x=L)
     pt3 = Point(x=L,y=h)
-    pt4 = Point(x=h, y=h, r=20)
+    pt4 = Point(x=h, y=h, r=0)
     pt5 = Point(x=h, y=L)
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
@@ -59,12 +59,12 @@ elif option ==  2:
     listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, taille=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, geomObjectsInDomain=listObjetsInter, tailleElement=h/N, cracks=[crack])
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, tailleElement=h/N, cracks=[])
 
-        Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
+        # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, interieursList=listObjetsInter, tailleElement=h/N)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, tailleElement=h/N)
 
 
         noeudsS3 = mesh.Nodes_Tag(["S9","S15","S14","S21"])
@@ -74,7 +74,7 @@ elif option ==  2:
     noeudsGauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
     
-elif option == 3:
+elif simulationType == SimulationType.TEF2:
 
     # dim = 2 # sinon problème dans importation maillage
 
@@ -96,15 +96,15 @@ elif option == 3:
     listPoint = [pt1, pt2, pt3]
     
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI3, geomObjectsInDomain=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, inclusions=[], tailleElement=taille)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.PRISM6, interieursList=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, inclusions=[], tailleElement=taille)
 
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
 
-Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)
 # plt.show()
 
@@ -114,19 +114,19 @@ materiau = Materials.Create_Materiau(comportement)
 
 simu = Simulations.Create_Simu(mesh, materiau)
 
-if option == 1:
+if simulationType == SimulationType.CPEF:
     simu.add_dirichlet(mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])
     simu.add_dirichlet(mesh.Nodes_Conditions(conditionZ=lambda z : z<-50), [2], ["z"])
 
-elif option == 2:
+elif simulationType == SimulationType.EQUERRE:
     if dim == 2:
         simu.add_dirichlet(noeudsGauche, [0,0], ["x","y"])
-        simu.add_lineLoad(noeudsDroit, [-8000/h], ["y"])
+        simu.add_lineLoad(noeudsDroit, [-800/h], ["y"])
     else:
         simu.add_dirichlet(noeudsGauche, [0,0,0], ["x","y","z"])
         simu.add_surfLoad(noeudsDroit, [-800/(h*h)], ["y"])
 
-elif option == 3:
+elif simulationType == SimulationType.TEF2:
     if dim == 2:
         simu.add_dirichlet(noeudsBas, [0,0], ["x","y"])
     else:
@@ -145,10 +145,10 @@ simu.Resultats_Resume()
 Affichage.Plot_BoundaryConditions(simu)
 
 # Affichage.Plot_Maillage(simu, deformation=True)
-Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Svm", affichageMaillage=False, valeursAuxNoeuds=True, deformation=True,coef=1/coef)
+Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, deformation=True,coef=1/coef)
 
 
 plt.show()

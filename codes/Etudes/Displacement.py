@@ -14,7 +14,7 @@ from TicTac import Tic
 
 import matplotlib.pyplot as plt
 
-Affichage.Clear()
+# Affichage.Clear()
 
 dim = 2
 
@@ -30,21 +30,21 @@ saveParaview = False; NParaview = 500
 
 useNumba = True
 
-isLoading = False
-initSimu = True
+isLoading = True
+initSimu = False
 
 pltMovie = False; NMovie = 400
 
-plotIter = True; affichageIter = "dy"
+plotIter = False; affichageIter = "dy"
 
-coefM = 1e-2
-coefK = 1e-3*2
+# coefM = 1e-2
+# coefK = 1e-3*2
 
-# coefM = 0
-# coefK = 0
+coefM = 0
+coefK = 0
 
 Tmax = 0.5
-N = 100
+N = 1
 dt = Tmax/N
 t = 0
 
@@ -60,7 +60,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/10
+taille = h/100
 
 comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
@@ -88,13 +88,13 @@ elif dim == 3:
     # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
     # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     
-    elemType = "HEXA8" # "TETRA4", "HEXA8", "PRISM6"
+    elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
     mesh = interfaceGmsh.Mesh_Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=False, nCouches=3)
 
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)
 
-Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Mesh(mesh)
 # Affichage.Plot_NoeudsMaillage(mesh,showId=True)
 # plt.show()
 
@@ -132,8 +132,7 @@ def Chargement(isLoading: bool):
 
         simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad(noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
-        # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])
-        pass
+        # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])        
 
 
 def Iteration(steadyState: bool, isLoading: bool):
@@ -164,7 +163,7 @@ else:
     steadyState=True
 
 if plotIter:
-    fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, deformation=True)
+    fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, deformation=True)
 
 while t <= Tmax:
 
@@ -172,7 +171,7 @@ while t <= Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, ax=ax, deformation=True)
+        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, ax=ax, deformation=True)
         plt.pause(1e-12)
 
     t += dt
@@ -203,16 +202,15 @@ if pltMovie:
 if plotResult:
 
     tic = Tic()
+    simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
-    Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
-    Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=False)        
-    Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=False)        
+    # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
+    Affichage.Plot_Result(simu, "dy", deformation=True, nodeValues=False)        
+    # Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=False)        
     # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-if plotResult:
-    Tic.getGraphs(details=True)
-    plt.show()
-
-# %%
+# tic_Tot.Resume()
+Tic.Plot_History(folder ,details=True)
+plt.show()

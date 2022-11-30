@@ -53,6 +53,10 @@ def New_File(filename: str, pathname=Get_Path(), results=False) -> str:
     if results:
         pathname = os.path.join(pathname, "results")
     filename = os.path.join(pathname, filename)
+
+    if not os.path.exists(pathname):
+        os.mkdir(pathname)
+
             
     return filename
 

@@ -57,7 +57,7 @@ class Interface_Gmsh:
         elif factory == 'geo':
             self.__factory = gmsh.model.geo
         else:
-            raise "Factory inconnue"    
+            raise Exception("Factory inconnue")
     
 
     def __Loop_From_Points(self, points: List[Point], taille: float) -> tuple[int, int]:
@@ -282,7 +282,7 @@ class Interface_Gmsh:
         pgVol = gmsh.model.addPhysicalGroup(3, [volume], name=f"V{volume}")
         return pgVol
 
-    def __Add_PhyscialGroup(self, dim: int, tag: int):
+    def __Add_PhysicalGroup(self, dim: int, tag: int):
         if dim == 0:
             self.__Add_PhysicalPoint(tag)
         elif dim == 1:
@@ -295,8 +295,8 @@ class Interface_Gmsh:
     def __Set_PhysicalGroups(self, buildPoint=True, buildLine=True, buildSurface=True, buildVolume=True):
         """Création des groupes physiques en fonction des entités du model"""
         self.__factory.synchronize()
-        entities = np.array(gmsh.model.getEntities())
-
+        entities = np.array(gmsh.model.getEntities())       
+        
         listDim = []
         if buildPoint:
             listDim.append(0)
@@ -314,7 +314,7 @@ class Interface_Gmsh:
 
         entities = entities[indexes]
 
-        [self.__Add_PhyscialGroup(dim, tag) for dim, tag in zip(entities[:,0], entities[:,1])]
+        [self.__Add_PhysicalGroup(dim, tag) for dim, tag in zip(entities[:,0], entities[:,1])]
 
     __dict_name_dim = {
         0 : "P",
@@ -362,7 +362,7 @@ class Interface_Gmsh:
                 # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
                 numElements = [nCouches]
                 combine = True
-            elif elemType == ElemType.TETRA4:
+            elif elemType in [ElemType.TETRA4, ElemType.TETRA10]:
                 numElements = []
                 combine = False
             
@@ -429,6 +429,17 @@ class Interface_Gmsh:
 
             minField = gmsh.model.mesh.field.add("Min")
             gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
+
+    def Mesh_ImportMesh(self, fichier: str, coef=1):
+
+        self.__initGmsh('occ')        
+
+        gmsh.open(fichier)
+
+        self.__Set_PhysicalGroups()
+
+        return cast(Mesh, self.__Recuperation_Maillage(coef))
+
 
 
     def Mesh_Importation3D(self, fichier: str, tailleElement: float, refineGeom=None, folder=""):
@@ -749,7 +760,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
+        tic.Tac("Mesh","PlaqueAvecCercle3D", self.__verbosity)
 
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
@@ -809,12 +820,12 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def __Get_hollowLoops_And_filledLoops(self, geomObjectsInDomain: list) -> tuple[list, list]:
+    def __Get_hollowLoops_And_filledLoops(self, inclusions: list) -> tuple[list, list]:
         """Création des boucles les liste de boucles creuses et pleines
 
         Parameters
         ----------
-        geomObjectsInDomain : list
+        inclusions : list
             Liste d'objet géométrique contenu dans le domaine
 
         Returns
@@ -824,7 +835,7 @@ class Interface_Gmsh:
         """
         loops = []
         filledLoops = []
-        for objetGeom in geomObjectsInDomain:
+        for objetGeom in inclusions:
             if isinstance(objetGeom, Circle):
                 loop = self.__Loop_From_Circle(objetGeom)
             elif isinstance(objetGeom, Domain):                
@@ -836,7 +847,7 @@ class Interface_Gmsh:
 
         return loops, filledLoops
 
-    def Mesh_From_Points_2D(self, points: List[Point], elemType=ElemType.TRI3, geomObjectsInDomain=[], cracks=[], refineGeom=None, tailleElement=0.0, folder="", returnSurfaces=False):
+    def Mesh_From_Points_2D(self, points: List[Point], elemType=ElemType.TRI3, inclusions=[], cracks=[], refineGeom=None, tailleElement=0.0, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
         Parameters
@@ -845,8 +856,8 @@ class Interface_Gmsh:
             liste de points
         elemType : str, optional
             type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-        geomObjectsInDomain : List[Domain, Circle], optional
-            liste d'objet à l'intérieur du domaine Creux ou non
+        inclusions : List[Domain, Circle], optional
+            liste d'objets creux ou non à l'intérieur du domaine 
         cracks : List[Line]
             liste de ligne utilisées pour la création de fissures
         refineGeom : GeomObject, optional
@@ -875,7 +886,7 @@ class Interface_Gmsh:
         loopSurface = self.__Loop_From_Points(points, tailleElement)
 
         # Création de toutes les boucles associés aux objets à l'intérieur du domaine
-        hollowLoops, filledLoops = self.__Get_hollowLoops_And_filledLoops(geomObjectsInDomain)
+        hollowLoops, filledLoops = self.__Get_hollowLoops_And_filledLoops(inclusions)
 
         # Pour chaque objetGeom plein, il est nécessaire de créer une surface
         surfacesPleines = [factory.addPlaneSurface([loop]) for loop in filledLoops]
@@ -886,12 +897,14 @@ class Interface_Gmsh:
         surfaceDomain = self.__Surface_From_Loops(listeLoop)
 
         # Rajoute la surface du domaine en dernier
-        surfacesPleines.append(surfaceDomain)
+        surfacesPleines.insert(0, surfaceDomain)
+        # surfacesPleines.append(surfaceDomain)
 
         # Création des fissures
         physicalCracks, physicalOpenBoundarys = self.__physicalCracks_physicalOpenBoundarys(cracks, surfaceDomain)
         
-        physicalSurface = gmsh.model.addPhysicalGroup(2, surfacesPleines)        
+        # physicalSurfaces = [gmsh.model.addPhysicalGroup(2, surfacesPleines)]
+        physicalSurfaces = [gmsh.model.addPhysicalGroup(2, [surface]) for surface in surfacesPleines]            
 
         if len(physicalCracks) > 0:
             # Regénération des groupes physiques des fissures ont été crées
@@ -906,11 +919,11 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], cracks=physicalCracks, openBoundarys=physicalOpenBoundarys, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfaces=physicalSurfaces, cracks=physicalCracks, openBoundarys=physicalOpenBoundarys, isOrganised=False, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, interieursList=[], tailleElement=0.0, folder=""):
+    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], tailleElement=0.0, folder=""):
         """Construction d'un maillage 3D depuis une liste de points
 
         Parameters
@@ -923,6 +936,8 @@ class Interface_Gmsh:
             nombre de couches dans l'extrusion, by default 1
         elemType : str, optional
             type d'element, by default "TETRA4" ["TETRA4", "HEXA8", "PRISM6"]
+        inclusions : List[Domain, Circle], optional
+            liste d'objets creux ou non à l'intérieur du domaine 
         tailleElement : float, optional
             taille d'element pour le maillage, by default 0.0
         folder : str, optional
@@ -940,13 +955,13 @@ class Interface_Gmsh:
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Mesh_From_Points_2D(pointsList, elemType=ElemType.TRI3,geomObjectsInDomain=interieursList, tailleElement=tailleElement, returnSurfaces=True)
+        surfaces = self.Mesh_From_Points_2D(pointsList, elemType=ElemType.TRI3,inclusions=inclusions, tailleElement=tailleElement, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
+        tic.Tac("Mesh","Mesh from points", self.__verbosity)
 
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
@@ -956,7 +971,7 @@ class Interface_Gmsh:
     def __Set_order(elemType: str):
         if elemType in ["TRI3","QUAD4"]:
             gmsh.model.mesh.set_order(1)
-        elif elemType in ["SEG3", "TRI6", "QUAD8"]:
+        elif elemType in ["SEG3", "TRI6", "QUAD8", "TETRA10"]:
             if elemType in ["QUAD8"]:
                 gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
             gmsh.model.mesh.set_order(2)
@@ -995,7 +1010,7 @@ class Interface_Gmsh:
         elif factory == gmsh.model.geo:
             factory = cast(gmsh.model.geo, factory)
         else:
-            raise "factory inconnue"
+            raise Exception("factory inconnue")
 
         tic = Tic()
         if dim == 1:
@@ -1055,6 +1070,8 @@ class Interface_Gmsh:
 
             gmsh.model.mesh.generate(3)
 
+            Interface_Gmsh.__Set_order(elemType)
+
         # if len(cracks) > 0:            
         #     for crack, openBoundary in zip(cracks, openBoundarys):
         #         gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
@@ -1076,6 +1093,7 @@ class Interface_Gmsh:
             gmsh.plugin.run("Crack")
         else:
             if len(cracks) > 0:
+                # TODO passer un seul groupe physique pour les lignes et les points
                 for crack, openBoundary in zip(cracks, openBoundarys):
                     gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
                     gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)
@@ -1095,7 +1113,7 @@ class Interface_Gmsh:
             gmsh.write(Folder.Join([folder, "mesh.msh"]))
             tic.Tac("Mesh","Sauvegarde du .geo et du .msh", self.__verbosity)
 
-    def __Recuperation_Maillage(self):
+    def __Recuperation_Maillage(self, coef=1):
         """Récupération du maillage construit
 
         Returns
@@ -1140,7 +1158,10 @@ class Interface_Gmsh:
         # On construit la matrice de coordonnées de tout les noeuds utilisé dans la maillage
         # Noeuds utilisé en 1D 2D et 3D
         coord = coord.reshape(-1,3)
-        coordo = coord[sortedIndices]        
+        coordo = coord[sortedIndices]
+
+        # Applique le coef
+        coordo = coordo * coef
         
         # Construit les groupes physiques
         physicalGroups = gmsh.model.getPhysicalGroups()
@@ -1234,8 +1255,8 @@ class Interface_Gmsh:
             dict_groupElem[groupElem.elemType] = groupElem
             
             # On verifie que le maillage ne possède pas un groupe d'element de cette dimension
-            if groupElem.dim in dimAjoute and groupElem.dim == meshDim:                
-                raise f"Récupération du maillage impossible car {dimAjoute.count(meshDim)} type d'element {meshDim}D"
+            if groupElem.dim in dimAjoute and groupElem.dim == meshDim:
+                raise Exception(f"Récupération du maillage impossible car {dimAjoute.count(meshDim)+1} type d'element {meshDim}D")
                 # TODO faire en sorte de pouvoir le faire ?
                 # Peut etre compliqué surtout dans la création des matrices elementaire et assemblage
                 # Pas impossible mais pas trivial
@@ -1261,7 +1282,11 @@ class Interface_Gmsh:
             # et associé les tags
             i = -1
             for dim, tag in listPhysicalGroups:
-                i += 1                
+                i += 1
+
+                # name = gmsh.model.getPhysicalName(groupElem.dim, tag)
+                name = listName[i]
+
                 nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(groupElem.dim, tag)
                 # Si aucun noeud à été récupéré passe au prochain groupePhysique
                 if nodeTags.size == 0: continue
@@ -1273,9 +1298,6 @@ class Interface_Gmsh:
                 def TriNodes(old, new):
                     nodes[np.where(nodes==old)] = new
                 [TriNodes(old, new) for old, new in zip(changes[:,0], changes[:,1])]
-
-                # name = gmsh.model.getPhysicalName(groupElem.dim, tag)
-                name = listName[i]
 
                 groupElem.Set_Nodes_Tag(nodes, name)
                 groupElem.Set_Elements_Tag(nodes, name)

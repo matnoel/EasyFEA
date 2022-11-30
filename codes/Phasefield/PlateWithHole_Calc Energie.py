@@ -74,10 +74,10 @@ nodeA = mesh.Nodes_Point(Point(x=L/2, y=h/2+r))
 nodeB = mesh.Nodes_Point(Point(x=L/2+r, y=h/2))
 
 if plotAllResult:
-    ax = Affichage.Plot_Maillage(mesh)
+    ax = Affichage.Plot_Mesh(mesh)
     for ns in [nodes0, nodesh, node00, nodeA, nodeB]:
-        Affichage.Plot_Noeuds(mesh, ax=ax, noeuds=ns,c='red')
-    PostTraitement.Save_fig(folder, 'mesh')
+        Affichage.Plot_Nodes(mesh, ax=ax, nodes=ns,c='red')
+    Affichage.Save_fig(folder, 'mesh')
 
 columns = ['v','A (ana CP)','B (ana CP)',
             'A (CP)','errA (CP)','B (CP)','errB (CP)',
@@ -132,7 +132,7 @@ for v in list_V:
             result['errA (CP)'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
             result['errB (CP)'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
 
-            Affichage.Plot_Result(simu, "psiP", valeursAuxNoeuds=True, coef=E/SIG**2, title=fr"$\psi_{0}^+\ E / \sigma^2 \ pour \ \nu={v}$", folder=folder,filename=f"psiP {nom} v={v}", colorbarIsClose=True)
+            Affichage.Plot_Result(simu, "psiP", nodeValues=True, coef=E/SIG**2, title=fr"$\psi_{0}^+\ E / \sigma^2 \ pour \ \nu={v}$", folder=folder,filename=f"psiP {nom} v={v}", colorbarIsClose=True)
         else:
             result['A (DP)'] = psipa
             result['B (DP)'] = psipb
@@ -171,9 +171,9 @@ Sig_B=np.array([[SxxB, SxyB, 0],[SxyB, SyyB, 0],[0,0,0]])
 print(f"\nEn B : Sig/SIG = \n{Sig_B/SIG}\n")
 
 if plotAllResult:
-    Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xx} / \sigma$",folder=folder, filename='Sxx', colorbarIsClose=True)
-    Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$", folder=folder, filename='Syy', colorbarIsClose=True)
-    Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$", folder=folder, filename='Sxy', colorbarIsClose=True)
+    Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx} / \sigma$",folder=folder, filename='Sxx', colorbarIsClose=True)
+    Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$", folder=folder, filename='Syy', colorbarIsClose=True)
+    Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$", folder=folder, filename='Sxy', colorbarIsClose=True)
 
 
 
@@ -195,7 +195,7 @@ axp.set_xlabel(r"$\nu$",fontsize=14)
 axp.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 axp.set_title(r'Split sur $\varepsilon$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "calc analytique")
+Affichage.Save_fig(folder, "calc analytique")
 
 list_Amor_psiP_A=[]
 list_Amor_psiP_B=[]
@@ -271,7 +271,7 @@ ax1.set_xlabel(r"$\nu$",fontsize=14)
 ax1.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 ax1.set_title(r'Split sur $\varepsilon$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Miehe psiP")
+Affichage.Save_fig(folder, "Miehe psiP")
 
 fig, ax2 = plt.subplots()
 
@@ -290,7 +290,7 @@ ax2.set_xlabel(r"$\nu$",fontsize=14)
 ax2.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 ax2.set_title('Split sur $\sigma$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Stress psiP")
+Affichage.Save_fig(folder, "Stress psiP")
 
 fig, ax3 = plt.subplots()
 
@@ -305,7 +305,7 @@ ax3.set_xlabel(r"$\nu$",fontsize=14)
 ax3.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 ax3.set_title('Split Amor',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Amor psiP")
+Affichage.Save_fig(folder, "Amor psiP")
 
 
 
@@ -313,7 +313,7 @@ PostTraitement.Save_fig(folder, "Amor psiP")
 
 
 
-Tic.getResume()
+Tic.Resume()
 
 plt.show()
 

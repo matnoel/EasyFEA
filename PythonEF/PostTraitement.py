@@ -95,7 +95,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     simu.Update_iter(0)
 
     # Trace la première figure
-    fig, ax, cb = Affichage.Plot_Result(simu, option, affichageMaillage=affichageMaillage, deformation=deformation, facteurDef=facteurDef)
+    fig, ax, cb = Affichage.Plot_Result(simu, option, plotMesh=affichageMaillage, deformation=deformation, facteurDef=facteurDef)
     
     # Donne le lien vers ffmpeg.exe
 
@@ -109,7 +109,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
             if os.path.exists(p):
                 return p
         
-        raise "Dossier inexistant"
+        raise Exception("Dossier inexistant")
 
     ffmpegpath = Get_ffmpegpath()
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
@@ -124,16 +124,16 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
 
             cb.remove()
             
-            fig, ax, cb = Affichage.Plot_Result(simu, option, ax=ax, deformation=deformation, affichageMaillage=affichageMaillage, facteurDef=facteurDef, valeursAuxNoeuds=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=affichageMaillage, facteurDef=facteurDef, nodeValues=True)
 
-            title = ax.get_title()
-            ax.set_title(f'{title} : {iter}/{N-1}')
+            title1 = ax.get_title()
+            ax.set_title(f'{title1} : {iter}/{N-1}')
 
-            plt.pause(0.00001)
+            plt.pause(1e-12)
 
             writer.grab_frame()
 
-            tf = tic.Tac("Animation",f"Plot {ax.get_title()}", False)
+            tf = tic.Tac("Animation",f"Plot {title1}", False)
             listTemps.append(tf)
 
             pourcentageEtTempsRestant = _GetPourcentageEtTemps(listIter, listTemps, i)
@@ -297,6 +297,8 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         "QUAD4" : 9,
         "QUAD8" : 23,
         "TETRA4" : 10,
+        # "TETRA10" : 24,
+        "TETRA10" : 10,
         "HEXA8": 12,
         "PRISM6": 13
     } # regarder https://github.com/Kitware/VTK/blob/master/Common/DataModel/vtkCellType.h
@@ -456,7 +458,7 @@ def __WriteBinary(valeur, type: str, file):
         """            
 
         if type not in ['uint32','float32','int32','int8']:
-            raise "Pas dans les options"
+            raise Exception("Type non implémenté")
 
         if type == "uint32":
             valeur = np.uint32(valeur)
@@ -470,18 +472,3 @@ def __WriteBinary(valeur, type: str, file):
         convert = valeur.tobytes()
         
         file.write(convert)
-
-
-def Save_fig(folder:str, title: str,transparent=False, extension='png'):
-
-    if folder == "": return
-
-    for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
-
-    nom = Folder.Join([folder, title+'.'+extension])
-
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    # plt.savefig(nom, dpi=200)
-    plt.savefig(nom, dpi=500, transparent=transparent,bbox_inches='tight')

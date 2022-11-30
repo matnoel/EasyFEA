@@ -17,10 +17,10 @@ Affichage.Clear()
 test = False
 loadSimu = True
 plotDamage = True
-savefig = True
+savefig = False
 
 # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark"
-simulation = "Tension_Benchmark"
+simulation = "PlateWithHole_Benchmark"
 
 if simulation == "PlateWithHole_Benchmark":
     colorBarIsClose = True
@@ -48,34 +48,45 @@ if not savefig:
 # ["AnisotStrain","He"]
 # ["AnisotStrain", "He", "AnisotStress", "Stress"]
 
-listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+listComp = ["Elas_IsotTrans"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+
+# listRegu = ["AT1", "AT2"] # ["AT1", "AT2"]
 listRegu = ["AT2"] # ["AT1", "AT2"]
+
 listSimpli2D = ["DP"] # ["CP","DP"]
 listSolveur = ["History"]
-listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress"]
-listOptimMesh=[False] # [True, False]
+
+# listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
+# listSplit = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
+listSplit = ["He","AnisotStrain","AnisotStress", "Zhang"]
+
+listOptimMesh=[True] # [True, False]
+
 listTol = [1e-0] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+
 listnL = [0] # [100] [100, 120, 140, 180, 200]
-listTetha = [0]
+
+listTheta = [0]
+# listTheta = [-0, -10, -20, -30, -45, -60, -70, -80, -90]
 
 # snapshot = [18.5, 24.6, 25, 28, 35]
-snapshot = [13]
+snapshot = [24.6]
 
-depMax = 4000 # µm 35 ou 80
+depMax = 80000 # µm 35 ou 80
 
 # Génération des configurations
 listConfig = []
 
-for comp in listComp:
-    for regu in listRegu:
-        for simpli2D in listSimpli2D:
-            for solveur in listSolveur:
-                for split in listSplit:
-                    for tol in listTol:
-                        for optimMesh in listOptimMesh:
-                            for nL in listnL:
-                                for tetha in listTetha:
-                                    listConfig.append([comp, regu, simpli2D, solveur, split, tol, optimMesh, nL, tetha])
+for theta in listTheta:
+    for comp in listComp:
+        for split in listSplit:
+            for regu in listRegu:
+                for simpli2D in listSimpli2D:
+                    for solveur in listSolveur:                                    
+                        for tol in listTol:
+                            for optimMesh in listOptimMesh:
+                                for nL in listnL:
+                                    listConfig.append([comp, regu, simpli2D, solveur, split, tol, optimMesh, nL, theta])
 
 Nconfig = len(listConfig)
 
@@ -85,6 +96,8 @@ else:
     v=0
 
 fig, ax = plt.subplots()
+
+simulationsManquantes = []
 
 for config in listConfig:
 
@@ -96,37 +109,51 @@ for config in listConfig:
     tolConv = config[5]
     optimMesh = config[6]
     nL = config[7]
-    tetha = config[8]
+    theta = config[8]
 
     tic = TicTac.Tic()
 
-    foldername = Folder.PhaseField_Folder(folder, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, v=v, nL=nL, theta=tetha)
+    foldername = Folder.PhaseField_Folder(folder, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, v=v, nL=nL, theta=theta)
 
     nomSimu = foldername.split(comp+'_')[-1]
 
     # Charge la force et le déplacement
-    load, displacement = PostTraitement.Load_Load_Displacement(foldername, False)
+    try:
+        load, displacement = Affichage.Load_Load_Displacement(foldername, False)
+    except AssertionError:
+        if nomSimu not in simulationsManquantes: simulationsManquantes.append(nomSimu)
+        print("données indisponibles")
+        
 
     if loadSimu:
         # Charge la simulations
-        simu = Simulations.Load_Simu(foldername, False)
+        try:
+            simu = Simulations.Load_Simu(foldername, False)
+            results = pd.DataFrame(simu.results)
+            temps = results["tempsIter"].values.sum()
+            temps_str, unite = TicTac.Tic.Get_temps_unite(temps)
+            print(len(results),f"-> {temps_str:.3} {unite}")
+        except AssertionError:
+            if nomSimu not in simulationsManquantes: simulationsManquantes.append(nomSimu)
+            print("simulation indisponible")
+            
 
         # Affichage.Plot_Maillage(simu.mesh)
 
     if plotDamage:
 
-        titre = split.replace("AnisotStrain","Spectral")
+        # titre = split.replace("AnisotStrain","Spectral")
 
-        # # Affiche le dernier endommagement
-        # Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=colorBarIsClose,
-        # folder=folderSauvegarde, filename=f"{split} tol{tolConv} last", 
-        # title=f"{titre}")
+        # Affiche le dernier endommagement
+        Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose,
+        folder=folderSauvegarde, filename=f"{split} tol{tolConv} last", plotMesh=False,
+        title=split)
         
 
         # Récupère les itérations à 18.5, 24.6, 30 et trace l'endommagement
         for dep in snapshot:
             try:
-                i = np.where(np.abs(displacement*1e6-dep)<1e-10)[0][0]
+                i = np.where(displacement*1e6>=dep)[0][0]
             except:
                 # i n'a pas été trouvé on continue les iterations
                 continue
@@ -134,11 +161,16 @@ for config in listConfig:
             simu.Update_iter(i)
 
             filenameDamage = f"{nomSimu} et ud = {np.round(displacement[i]*1e6,2)}"
+            # titleDamage = filenameDamage
 
-            Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=colorBarIsClose, folder=folderSauvegarde, filename=filenameDamage,title=filenameDamage)
+            titleDamage = split
+            filenameDamage = f"PlateBench {comp}_{split}_{regu}_{simpli2D}"
+
+            Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose, folder=folderSauvegarde, filename=filenameDamage,title=titleDamage)
 
     # texte = nom.replace(f" pour v={v}", "")
-    texte = nomSimu
+    # texte = nomSimu
+    texte = split
 
      
     # texte = texte.replace("AnisotStrain","Spectral")
@@ -165,8 +197,11 @@ ax.set_ylabel("load [kN/mm]")
 ax.grid()
 ax.legend()
 plt.figure(fig)
-PostTraitement.Save_fig(folderSauvegarde, "load displacement")
+Affichage.Save_fig(folderSauvegarde, "load displacement")
 
+
+print('\n Simulations manquantes :')
+[print(simul) for simul in simulationsManquantes]
 
 plt.show()
         

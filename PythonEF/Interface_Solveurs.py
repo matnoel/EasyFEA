@@ -11,34 +11,37 @@ from TicTac import Tic
 import scipy.optimize as optimize
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
-if platform.system() != "Darwin":
+
+try:
     import pypardiso
+    canUsePypardiso = True
+except ModuleNotFoundError:
+    canUsePypardiso = False
 
 try:
     from sksparse.cholmod import cholesky, cholesky_AAt
+    canUseCholesky = True
 except:
-    # Le module n'est pas utilisable
-    pass
+    canUseCholesky = False
 
 try:
     import scikits.umfpack as umfpack
+    canUseUmfpack = True
 except:
-    # Le module n'est pas utilisable
-    pass
+    canUseUmfpack = False
 
 try:
-    import mumps as mumps 
+    import mumps as mumps
+    canUseMumps = True
 except:
-    # Le module n'est pas utilisable
-    pass
+    canUseMumps = False
 
 try:
-    import petsc4py
-    
+    import petsc4py    
     from petsc4py import PETSc
+    canUsePetsc = True
 except:
-    # Le module n'est pas utilisable
-    pass
+    canUsePetsc = False
 
 class AlgoType(str, Enum):
     elliptic = "elliptic"
@@ -56,12 +59,144 @@ class ResolutionType(str, Enum):
     r3 = "3"
     """pénalisation"""
 
+class __SolversLibrary(str, Enum):
+    pypardiso = "pypardiso"
+    umfpack = "umfpack"
+    mumps = "mumps"
+    petsc = "petsc"
+
 def __Cast_Simu(simu):
 
     import Simulations
 
     if isinstance(simu, Simulations._Simu):
         return simu
+
+def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray, useCholesky: bool, A_isSymetric: bool, verbosity: bool) -> np.ndarray:
+    """Resolution de A x = b
+
+    Parameters
+    ----------
+    A : sparse.csr_matrix
+        Matrice A
+    b : sparse.csr_matrix
+        vecteur b
+    x0 : np.ndarray
+        solution initiale pour les solveurs itératifs
+    lb : np.ndarray
+        lowerBoundary de la solution
+    ub : np.ndarray
+        upperBoundary de la solution
+    useCholesky : bool, optional
+        autorise l'utilisation de la décomposition de cholesky, by default False
+    A_isSymetric : bool, optional
+        A est simetric, by default False
+
+    Returns
+    -------
+    np.ndarray
+        x : solution de A x = b
+    """
+    
+    # Detection du système
+    syst = platform.system()
+
+    from Simulations import _Simu, ModelType
+
+    assert isinstance(simu, _Simu)
+    assert isinstance(problemType, ModelType)
+
+    useCholesky = False
+
+    # Choisie le solveur
+
+    if len(lb) > 0 and len(lb) > 0:        
+        solveur = "BoundConstrain"            
+    else:
+        if syst == "Darwin":            
+            if simu.problemType == ModelType.beam:
+                solveur = "scipy"
+            else:
+                # solveur = "cg"
+                solveur = "petsc"
+                # solveur = "scipy"
+        elif syst == "Linux":
+            solveur = "pypardiso"
+            # method = "umfpack" # Plus rapide de ne pas passer par umfpack
+            # method = "scipy"
+        else:
+            solveur = "pypardiso"
+            # method = "cg" # minimise le residu sans la contrainte
+
+    solveur = __Check_solveurLibrary(solveur)
+    
+    tic = Tic()
+
+    if canUseUmfpack:
+        sla.use_solver(useUmfpack=True)
+    else:
+        sla.use_solver(useUmfpack=False)    
+    
+    if useCholesky and A_isSymetric and canUseCholesky:
+        x = __Cholesky(A, b)
+
+    elif solveur == "BoundConstrain":
+        x = __DamageBoundConstrain(A, b , lb, ub)
+
+    elif solveur == "pypardiso":
+        x = pypardiso.spsolve(A, b.toarray())
+
+    elif solveur == "scipy":
+        x = __ScipyLinearDirect(A, b, A_isSymetric)
+
+    elif solveur == "cg":
+        x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
+
+    elif solveur == "bicg":
+        x, output = sla.bicg(A, b.toarray(), x0, maxiter=None)
+
+    elif solveur == "gmres":
+        x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
+
+    elif solveur == "lgmres":
+        x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
+        print(output)
+
+    elif solveur == "umfpack":
+        # lu = umfpack.splu(A)
+        # x = lu.solve(b).reshape(-1)
+        x = umfpack.spsolve(A, b)
+
+    elif solveur == "mumps" and syst == 'Linux':
+        x = mumps.spsolve(A,b)
+
+    elif solveur == "petsc" and syst in ['Linux', "Darwin"]:
+        x, option = __PETSc(A, b)
+
+        solveur += option
+            
+    tic.Tac("Solveur",f"Solve {problemType} ({solveur})", verbosity)
+
+    # # Verification du residu
+    # residu = np.linalg.norm(A.dot(x)-b.toarray().reshape(-1))
+    # print(residu/np.linalg.norm(b.toarray().reshape(-1)))
+
+    return np.array(x)
+
+def __Check_solveurLibrary(solveur: str) -> str:
+    """Verifie si la librairie du solveur selectionné est disponible\n
+    Si c'est pas le cas renvoie le solveur utilisable dans tout les cas (scipy)"""
+    solveurDeBase="scipy"
+    if solveur == __SolversLibrary.pypardiso:
+        return solveur if canUsePypardiso else solveurDeBase
+    elif solveur == __SolversLibrary.umfpack:
+        return solveur if canUseUmfpack else solveurDeBase
+    elif solveur == __SolversLibrary.mumps:
+        return solveur if canUseMumps else solveurDeBase
+    elif solveur == __SolversLibrary.petsc:
+        return solveur if canUsePetsc else solveurDeBase
+    else:
+        return solveur
 
 def _Solveur(simu, problemType: str, resol: ResolutionType):
 
@@ -97,7 +232,7 @@ def __Solveur_1(simu, problemType: str) -> np.ndarray:
     bi = b[ddl_Inconnues,0]
     xc = x[ddl_Connues,0]
 
-    tic.Tac("Construit Ax=b",f"Construit système ({problemType})", simu._verbosity)
+    tic.Tac("Solveur",f"Construit système ({problemType})", simu._verbosity)
 
     x0 = simu.Get_x0(problemType)
     x0 = x0[ddl_Inconnues]    
@@ -170,7 +305,7 @@ def __Solveur_2(simu, problemType: str):
 
         [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1)]
 
-    tic.Tac("Construit Ax=b",f"Lagrange ({problemType})", simu._verbosity)
+    tic.Tac("Solveur",f"Lagrange ({problemType})", simu._verbosity)
 
     x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
     
@@ -194,112 +329,6 @@ def __Solveur_3(simu, problemType: str):
 
     return x
 
-def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray, useCholesky: bool, A_isSymetric: bool, verbosity: bool) -> np.ndarray:
-    """Resolution de A x = b
-
-    Parameters
-    ----------
-    A : sparse.csr_matrix
-        Matrice A
-    b : sparse.csr_matrix
-        vecteur b
-    x0 : np.ndarray
-        solution initiale pour les solveurs itératifs
-    lb : np.ndarray
-        lowerBoundary de la solution
-    ub : np.ndarray
-        upperBoundary de la solution
-    useCholesky : bool, optional
-        autorise l'utilisation de la décomposition de cholesky, by default False
-    A_isSymetric : bool, optional
-        A est simetric, by default False
-
-    Returns
-    -------
-    np.ndarray
-        x : solution de A x = b
-    """
-    
-    # Detection du système
-    syst = platform.system()
-
-    from Simulations import _Simu, ModelType
-
-    assert isinstance(simu, _Simu)
-    assert isinstance(problemType, ModelType)
-
-    useCholesky = False
-
-    # Choisie le solveur
-
-    if len(lb) > 0 and len(lb) > 0:        
-        solveur = "BoundConstrain"            
-    else:
-        if syst == "Darwin":            
-            if simu.problemType == ModelType.beam:
-                solveur = "scipy_spsolve"
-            else:
-                solveur = "cg"
-                # solveur = "scipy_spsolve"
-        elif syst == "Linux":
-            solveur = "pypardiso"
-            # method = "umfpack" # Plus rapide de ne pas passer par umfpack
-            # method = "scipy_spsolve"
-        else:
-            solveur = "pypardiso"
-            # method = "cg" # minimise le residu sans la contrainte
-    
-    tic = Tic()
-
-    if platform.system() == "Linux":
-        sla.use_solver(useUmfpack=True)
-    else:
-        sla.use_solver(useUmfpack=False)
-    
-    if useCholesky and A_isSymetric:
-        x = __Cholesky(A, b)
-
-    elif solveur == "BoundConstrain":
-        x = __DamageBoundConstrain(A, b , lb, ub)
-
-    elif solveur == "pypardiso":
-        x = pypardiso.spsolve(A, b.toarray())
-
-    elif solveur == "scipy_spsolve":
-        x = __ScipyLinearDirect(A, b, A_isSymetric)
-
-    elif solveur == "cg":
-        x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
-
-    elif solveur == "bicg":
-        x, output = sla.bicg(A, b.toarray(), x0, maxiter=None)
-
-    elif solveur == "gmres":
-        x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
-
-    elif solveur == "lgmres":
-        x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
-        print(output)
-
-    elif solveur == "umfpack":
-        # lu = umfpack.splu(A)
-        # x = lu.solve(b).reshape(-1)
-        x = umfpack.spsolve(A, b)
-
-    elif solveur == "mumps" and syst == 'Linux':
-        x = mumps.spsolve(A,b)
-
-    elif solveur == "petsc" and syst in ['Linux', "Darwin"]:
-        x = __PETSc(A, b)
-            
-    tic.Tac(f"Solve {problemType} ({solveur})","Solve Ax=b", verbosity)
-
-    # # Verification du residu
-    # residu = np.linalg.norm(A.dot(x)-b.toarray().reshape(-1))
-    # print(residu/np.linalg.norm(b.toarray().reshape(-1)))
-
-    return np.array(x)
-
 def __Cholesky(A, b):
     
     # Décomposition de cholesky 
@@ -321,27 +350,57 @@ def __Cholesky(A, b):
 def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
     # Utilise PETSc
 
-    petsc4py.init(sys.argv)
-    A_petsc = PETSc.Mat().createAIJ([A.shape[0], A.shape[1]])
-    A.setup()
-    
-    
-    bb = A.createVecLeft()
+    # petsc4py.init(sys.argv)
 
-    x = A.createVecRight()
+    lignes, colonnes, valeurs = sparse.find(A)
+
+    dimI = A.shape[0]
+    dimJ = A.shape[1]
+    
+    # nb = len(np.where(lignes==299)[0])
+    uniqueLignes, count = np.unique(lignes, return_counts = True)
+    nnz = np.array(count, dtype=np.int32)
+
+    
+    matrice = PETSc.Mat()
+    matrice.createAIJ([dimI, dimJ], nnz=nnz)
+
+    # matrice = PETSc.MatSeqAIJ()
+    # matrice.createSeqAIJ([dimI, dimJ], nnz=nnz)
+    # matrice.create(A)
+    
+    [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)]    
+
+    matrice.assemble()
+
+    # matrice.isSymmetric()    
+
+    vectb = matrice.createVecLeft()
+
+    lignes, _, valeurs = sparse.find(b)    
+
+    vectb.array[lignes] = valeurs    
+
+    x = matrice.createVecRight()
+
+    pc = "lu" # "none", "lu"
+    kspType = "cg" # "cg", "bicg, "gmres"
 
     ksp = PETSc.KSP().create()
-    ksp.setOperators(A)
-    ksp.setType('bcgs')
-    ksp.setConvergenceHistory()
-    ksp.getPC().setType('none')
-    ksp.solve(b, x)
+    ksp.setOperators(matrice)
+    ksp.setType(kspType)
+    # ksp.getPC().setType('none')
+    ksp.getPC().setType(pc)
+    ksp.solve(vectb, x)
+    
+    # print(f'Solving with PETSc {ksp.getType()}') 
 
-    ksp.setFromOptions()
-    print('Solving with:'), ksp.getType()
+    x = x.array
 
-    # Solve!
-    ksp.solve(b, x)
+    option = f", {pc}, {kspType}"
+
+    return x, option
+    
 
 def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
     # https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems

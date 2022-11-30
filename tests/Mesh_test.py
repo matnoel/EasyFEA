@@ -91,7 +91,8 @@ class Test_Mesh(unittest.TestCase):
 
 if __name__ == '__main__':        
     try:
-        os.system("cls")
+        import Affichage
+        Affichage.Clear()
         unittest.main(verbosity=2)
     except:
         print("")

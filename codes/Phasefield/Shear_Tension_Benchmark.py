@@ -1,4 +1,3 @@
-# %%
 from BoundaryCondition import BoundaryCondition
 
 import PostTraitement as PostTraitement
@@ -13,14 +12,19 @@ from TicTac import Tic
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 
 # Affichage.Clear()
 
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-simulation = "Shear" # "Shear" , "Tension"
+dim = 3
+simulation = "Tension" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
+
+if dim == 3:
+    simulation += "_3D"
 
 test = True
 solve = True
@@ -28,15 +32,16 @@ solve = True
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-pltMesh = True
+plotMesh = False
 plotResult = True
+plotEnergie = False
+getFissure = False
 showResult = True
-plotEnergie = True
 
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = True; Nparaview=400
+saveParaview = False; Nparaview=400
 makeMovie = False
 
 # ----------------------------------------------
@@ -46,23 +51,34 @@ openCrack = True
 optimMesh = False
 
 # ----------------------------------------------
+# Convergence
+# ----------------------------------------------
+maxIter = 1000
+# tolConv = 0.0025
+# tolConv = 0.005
+tolConv = 1e-0
+
+# ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 regularisation = "AT2" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
-for split in ["Amor"]:
+for split in ["Miehe"]:
 # for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
-# for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
-# for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
+#for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
+#for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 
-    maxIter = 1000
-    # tolConv = 0.0025
-    # tolConv = 0.005
-    tolConv = 1e-0
 
-    dim = 2
+# listAnisotWithBourdin = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]*9 # Splits Anisotropes
+# listAnisotWithBourdin = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]*3 # Splits Anisotropes
+# # listTheta = [-0, -10, -20, -30, -45, -60]*5
+# listTheta = [-70, -80, -90]*5
+# listTheta.sort(); listTheta.reverse()
+# for split, theta in zip(listAnisotWithBourdin, listTheta):
+
+    
 
     # ----------------------------------------------
     # Construction du maillage
@@ -71,8 +87,8 @@ for split in ["Amor"]:
     # Paramètres géométrie
     L = 1e-3;  #m
     if comportement_str == "Elas_Anisot":
-        theta = -30
-        l0 = 0.0085e-3        
+        theta = -0
+        l0 = 8.5e-6
     else:
         theta = 0
         l0 = 1e-5 # taille fissure test FEMOBJECT ,7.5e-6, 1e-5        
@@ -93,7 +109,10 @@ for split in ["Amor"]:
         zone = L*0.05
         if simulation == "Tension":
             # On rafine horizontalement
-            refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), taille=taille)
+            if comportement_str == "Elas_Isot":                
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), taille=taille)
+            else:                
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L*0.8), taille=taille)
         elif simulation == "Shear":
             if split == "Bourdin":
                 # On rafine en haut et en bas 
@@ -121,17 +140,24 @@ for split in ["Amor"]:
 
         # cracks = [line, line2]
         cracks = [line]
-
-        mesh = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         
-        if pltMesh:
-            Affichage.Plot_Maillage(mesh)
-            # Affichage.Plot_Model(mesh)
+        if dim == 2:
+            mesh = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
+        elif dim == 3:
+            fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
+            mesh = interfaceGmsh.Mesh_ImportMesh(fichier)
+
+
+
+        
+        if plotMesh:
+            Affichage.Plot_Mesh(mesh)
+            # # Affichage.Plot_Model(mesh)
             # noeudsCracks = list(mesh.Nodes_Line(line2))
             # noeudsCracks.extend(mesh.Nodes_Line(line))
             # Affichage.Plot_Noeuds(mesh, noeudsCracks, showId=True)
-            # print(len(noeudsCracks))
-            # plt.show()
+            # # print(len(noeudsCracks))
+            plt.show()
 
         # Récupération des noeuds
         noeuds_Milieu = mesh.Nodes_Line(line)        
@@ -153,7 +179,7 @@ for split in ["Amor"]:
 
         # Simulation  -------------------------------------------------------------------------------------------        
 
-        if comportement_str == "Elas_Isot":
+        if comportement_str == "Elas_Isot":            
             comp = Materials.Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
             Gc = 2.7e3 # J/m2
         elif comportement_str == "Elas_Anisot":
@@ -166,7 +192,9 @@ for split in ["Amor"]:
 
                 C_voigt = np.array([[c11, c12, 0],
                                     [c12, c22, 0],
-                                    [0, 0, c33]])
+                                    [0, 0, c33]])*1e9
+
+                C_mandel = Materials.Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(dim, C_voigt)
 
                 
                 theta_rad = theta * np.pi/180
@@ -175,13 +203,13 @@ for split in ["Amor"]:
                 axis2 = np.array([-np.sin(theta_rad), np.cos(theta_rad), 0])
 
             else:
-                raise "Pas implémenté"
+                raise Exception("Pas implémenté")
 
-            comp = Materials.Elas_Anisot(dim, C_voigt=C_voigt, axis1=axis1, contraintesPlanes=False)
-            Gc = 10e-3 * 1e-3 * 1e3
+            comp = Materials.Elas_Anisot(dim, C=C_voigt, axis1=axis1, contraintesPlanes=False)
+            Gc = 1e3 # J/m2
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
-            raise "Pas implémenté pour le moment"
+            raise Exception("Pas implémenté pour le moment")
 
         phaseFieldModel = Materials.PhaseField_Model(comp, split, regularisation, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
 
@@ -197,7 +225,7 @@ for split in ["Amor"]:
             if not openCrack:
                 simu.add_dirichlet(noeuds_Milieu, [1], ["d"], problemType="damage")
             
-            if simulation == "Shear":
+            if "Shear" in simulation:
                 # Conditions en déplacements à Gauche et droite
                 simu.add_dirichlet(noeuds_Gauche, [0],["y"])
                 simu.add_dirichlet(noeuds_Droite, [0],["y"])
@@ -207,13 +235,16 @@ for split in ["Amor"]:
                 # Conditions en déplacements en Bas
                 simu.add_dirichlet(noeuds_Bas, [0,0],["x","y"])
 
-            elif simulation == "Tension":
-                simu.add_dirichlet(noeuds_Haut, [0,dep], ["x","y"])
+            elif "Tension" in simulation:
+                if dim == 2:
+                    simu.add_dirichlet(noeuds_Haut, [0,dep], ["x","y"])                    
+                elif dim == 3:
+                    simu.add_dirichlet(noeuds_Haut, [0,dep,0], ["x","y","z"])
                 simu.add_dirichlet(noeuds_Bas, [0],["y"])
 
             else:
 
-                raise "chargement inconnue pour cette simulation"
+                raise Exception("chargement inconnue pour cette simulation")
             
         Chargement(0)
 
@@ -222,7 +253,7 @@ for split in ["Amor"]:
         # ----------------------------------------------
         # Paramètres de chargement
         # ----------------------------------------------
-        if simulation == "Shear":
+        if "Shear" in simulation:
             u_inc = 5e-8 if test else 1e-8
             N = 400 if test else 2000 
 
@@ -232,7 +263,7 @@ for split in ["Amor"]:
             listThreshold = [chargement[-1]]
             optionTreshold = ["displacement"]
 
-        elif simulation == "Tension":
+        elif "Tension" in simulation:
             if test:
                 u0 = 1e-7;  N0 = 40
                 u1 = 1e-8;  N1 = 400
@@ -249,8 +280,15 @@ for split in ["Amor"]:
 
         if isinstance(comp, Materials.Elas_Anisot):
 
-            uinc0 = 6e-6; tresh0 = 0
-            uinc1 = 2e-7; tresh1 = 0.3
+            if test:
+                uinc0 = 12e-8
+                uinc1 = 4e-8
+            else:
+                uinc0 = 6e-8
+                uinc1 = 2e-8
+
+            tresh0 = 0
+            tresh1 = 0.6
 
             listInc = [uinc0, uinc1]
             listThreshold = [tresh0, tresh1]
@@ -277,7 +315,8 @@ for split in ["Amor"]:
         bord = 0 # variable pour savoir combien de l'endommagement à touché le bord
         deplacements=[]
         forces=[]
-        dep = 0
+        uinc0 = chargement[0]
+        dep = uinc0
         iter = 0
         while Condition():
 
@@ -313,7 +352,7 @@ for split in ["Amor"]:
 
             if np.any(simu.damage[NoeudsBord] >= 0.98):
                 bord +=1
-                if bord == 5:
+                if bord == 10:
                     # Si le bord à été touché depuis 5 iter on arrête la simulation
                     break
 
@@ -342,7 +381,6 @@ for split in ["Amor"]:
     # Post Traitement
     # ---------------------------------------------
     Affichage.NouvelleSection("Affichage")
-
     
 
     if plotResult:
@@ -353,7 +391,7 @@ for split in ["Amor"]:
 
         Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN', folder)
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=False,deformation=False, folder=folder, filename="damage")
+        Affichage.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
         
 
         # Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
@@ -379,16 +417,140 @@ for split in ["Amor"]:
         # Affichage.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)
         Affichage.Plot_Energie(simu, Niter=400, folder=folder)
 
-    Tic.getResume()
+    if getFissure:
+        # ----------------------------------------------
+        # Récupération de la fissure
+        # ----------------------------------------------
+        axDamage = Affichage.Plot_Result(simu, "damage")[1]
+
+        coordoMesh = simu.mesh.coordo[:, :2] # coordonnées du maillage
+        connectMesh = simu.mesh.connect
+
+        # récupère la coordonnées des noeuds d'endommagement dans l'ordre
+        knownNodes = []
+        damagedElements = []
+        unwantedElements = []    
+        
+        p0 = np.array([L/2, L/2])
+
+        diamCercle = 1*taille
+        tolDamageValide = 0.95
+
+        vecteurs = []
+        lignes = []
+        listIter = []
+
+        for iter in range(len(simu.results)):
+
+            simu.Update_iter(iter)
+
+            # récupére les endommagés pour l'iération
+            noeuds = np.where(simu.damage >= 1)[0]        
+
+            if len(noeuds) > 0:
+
+                # Création des cercles
+                nodesInCircles = []
+                [nodesInCircles.extend(simu.mesh.Nodes_Circle(Circle(Point(x, y), diamCercle))) for x, y in zip(coordoMesh[noeuds, 0], coordoMesh[noeuds, 1])]
+
+                # noeudsDans les cercles
+                nodesInCircles = list(np.unique(nodesInCircles))            
+                
+                # dans les noeuds detectés enlève ceux déja connues
+                nodesInCircles = list(set(nodesInCircles) - set(knownNodes))
+
+                knownNodes.extend(nodesInCircles) # ajoute les noeuds inconnues
+
+                if len(nodesInCircles) == 0: continue
+
+                # axDamage.scatter(coordoMesh[nodesInCircles, 0], coordoMesh[nodesInCircles, 1], marker='+', c='white')
+
+                # Récupère les noeuds avec un endommagement >= à tolDamageValide
+                idxValables = np.where(simu.damage[nodesInCircles] >= tolDamageValide)
+                nodesInCircles = np.array(nodesInCircles)[idxValables]
+
+                if len(nodesInCircles) == 0: continue
+                
+                # récupère les elements associés a ces noeuds
+                elements = simu.mesh.groupElem.Get_ElementsIndex_Nodes(nodesInCircles, exclusivement=False)            
+
+                # récupère que les elements inconnues
+                elements = list(set(elements) - set(damagedElements + unwantedElements))
+
+                if len(elements) == 0: continue
+
+                # Sur chaque element on va sommer la valeurs des endommagement et on va prendre le plus endommagé            
+                localizedDamage = simu.mesh.Localises_sol_e(simu.damage)[elements] # localise l'endommagement sur tout les elements
+                mostDamagedElement = elements[np.argmax(np.sum(localizedDamage, axis=1))] # element le plus endommagé
+                
+                # Renseigne l'itération ou un nouvelle element a ete detectée
+                listIter.append(iter)
+
+                # centrede gracité de cette element
+                p1 = np.mean(coordoMesh[connectMesh[mostDamagedElement], :2], axis=0)
+
+                vecteurs.append(p1-p0) # ajoute le vecteur de p0 à p1
+                lignes.append(np.array([[p0],[p1]]).reshape(2,2)) # construit la ligne pour tracer sur la figure
+                p0 = p1 # actualise le nouveau point 0
+
+                # mets à jour les elements
+                damagedElements.append(mostDamagedElement)
+                elements.remove(mostDamagedElement)
+                unwantedElements.extend(elements)                
+        
+        [Affichage.Plot_Elements(simu.mesh, connectMesh[element], dimElem=2, ax=axDamage, c='white') for element in damagedElements]
+
+        lignes = np.array(lignes)
+        collection = LineCollection(lignes, zorder=3, colors='white')
+        axDamage.add_collection(collection)
+        
+        forces = forces[listIter]
+        deplacements = deplacements[listIter]
+        raideurs = forces/deplacements
+        longeurs = np.linalg.norm(vecteurs, axis=1)
+        ltot = np.sum(longeurs, axis=0)
+
+        Longeurs = []
+        for idx in range(len(longeurs)):
+            
+            if idx > 0:            
+                lPrec = Longeurs[idx-1]
+            else:
+                lPrec = L/2
+
+            Longeurs.append(longeurs[idx] + lPrec)
+
+        Longeurs = np.array(Longeurs)
+        
+        aires = Longeurs*simu.materiau.epaisseur
+
+        plt.figure()
+        plt.plot(aires, raideurs)
+        # plt.show()
+
+        delta_raideurs = raideurs[1:] - raideurs[:-1]
+        delta_aires = aires[1:] - aires[:-1]
+
+        G = 1/2 * delta_raideurs/delta_aires*deplacements[1:]**2
+
+        plt.figure()
+        plt.plot(aires[1:], G)
+
+    Tic.Resume()
 
     if solve:
-        Tic.getGraphs(folder, False)
+        Tic.Plot_History(folder, True)
     else:
-        Tic.getGraphs(details=False)
+        Tic.Plot_History(details=True)
 
     if showResult:
         plt.show()
 
     Tic.Clear()
     plt.close('all')
-# %%
+
+    if solve:
+        del simu
+        del mesh
+    else:        
+        del simu
