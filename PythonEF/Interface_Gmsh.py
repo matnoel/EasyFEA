@@ -71,9 +71,7 @@ class Interface_Gmsh:
         Npoints = len(points)
 
         # dictionnaire qui comme clé prend un objet Point et qui contient la liste d'id des points gmsh crées
-        dict_point_pointsGmsh = cast(dict[Point, list[int]],{})
-
-        # TODO creer un connect pour lignes ?
+        dict_point_pointsGmsh = cast(dict[Point, list[int]],{})        
 
         for index, point in enumerate(points):
 

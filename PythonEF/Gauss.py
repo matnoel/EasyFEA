@@ -130,7 +130,7 @@ class Gauss:
             dim = 1
             if matriceType == MatriceType.rigi:
                 nPg = 1
-            elif matriceType in [MatriceType.masse,MatriceType.beam]:
+            elif matriceType in [MatriceType.masse, MatriceType.beam]:
                 nPg = 2
             x, poids =  np.polynomial.legendre.leggauss(nPg)
         elif elemType == ElemType.SEG3:
@@ -191,13 +191,13 @@ class Gauss:
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
         elif elemType == ElemType.QUAD4:
             dim = 2            
-            if matriceType in [MatriceType.rigi,MatriceType.masse]:
+            if matriceType in [MatriceType.rigi, MatriceType.masse]:
                 nPg = 4
             ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
             
         elif elemType == ElemType.QUAD8:
             dim = 2            
-            if matriceType in [MatriceType.rigi,MatriceType.masse]:
+            if matriceType in [MatriceType.rigi, MatriceType.masse]:
                 nPg = 9
             ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
                     

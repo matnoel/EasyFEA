@@ -451,8 +451,7 @@ class Elas_IsotTrans(Displacement_Model):
         self.Gl=Gl
         """Module de Cisaillent longitudinale"""
 
-        erreurPoisson = lambda i :f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
-        # TODO a mettre à jour Peut ne pas être vrai ? -> J'ai vu que cetait de -1 a 1
+        erreurPoisson = lambda i :f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["        
         for v in [vl, vt]: assert v > -1.0 and v < 0.5, erreurPoisson
         # -1<vt<1
         # -1<vl<0.5
@@ -1808,9 +1807,7 @@ class Thermal_Model(IModel):
         resume = f'\n{self.nom} :'
         resume += f'\nconduction thermique (k)  : {self.__k}'
         resume += f'\ncapacité thermique massique (c) : {self.__c}'
-        return resume
-
-    # TODO ThermalModel Anisot avec un coef de diffusion différents pour chaque direction ! k devient une matrice
+        return resume    
 
     def __init__(self, dim:int, k: float, c=0.0, epaisseur=1.0):
         """Construction d'un modèle thermique
@@ -1830,6 +1827,8 @@ class Thermal_Model(IModel):
         self.__dim = dim
 
         self.__k = k
+
+        # ThermalModel Anisot avec un coef de diffusion différents pour chaque direction ! k devient une matrice
 
         self.__c = c
         

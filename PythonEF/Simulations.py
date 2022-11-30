@@ -2455,9 +2455,7 @@ class __Simu_PhaseField(_Simu):
 
         displacement = self.displacement
 
-        coef = self.materiau.comportement.coef
-
-        # TODO fusionner avec Stress ?
+        coef = self.materiau.comportement.coef       
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)

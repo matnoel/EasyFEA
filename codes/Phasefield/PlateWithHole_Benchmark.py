@@ -41,8 +41,6 @@ useNumba = True
 maxIter = 1000
 tolConv = 1e-0
 
-# TODO Faire la convergence sur l'energie ?
-
 for tolConv in [1e-0, 1e-1, 1e-2]:
     split = "Zhang"
 # for split in ["Zhang"]:
