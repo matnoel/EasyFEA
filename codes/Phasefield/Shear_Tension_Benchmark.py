@@ -22,21 +22,21 @@ import matplotlib.pyplot as plt
 simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = True
+test = False
 solve = True
 
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-pltMesh = True
+pltMesh = False
 plotResult = True
-showResult = True
+showResult = False
 plotEnergie = True
 
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = True; Nparaview=400
+saveParaview = False; Nparaview=400
 makeMovie = False
 
 # ----------------------------------------------
@@ -46,21 +46,24 @@ openCrack = True
 optimMesh = False
 
 # ----------------------------------------------
+# Convergence
+# ----------------------------------------------
+maxIter = 1000
+# tolConv = 0.0025
+# tolConv = 0.005
+tolConv = 1e-0
+
+# ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 regularisation = "AT2" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
-for split in ["Amor"]:
-# for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
+# for split in ["Amor"]:
+for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 # for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
-# for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
-
-    maxIter = 1000
-    # tolConv = 0.0025
-    # tolConv = 0.005
-    tolConv = 1e-0
+# for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes    
 
     dim = 2
 
@@ -313,7 +316,7 @@ for split in ["Amor"]:
 
             if np.any(simu.damage[NoeudsBord] >= 0.98):
                 bord +=1
-                if bord == 5:
+                if bord == 10:
                     # Si le bord à été touché depuis 5 iter on arrête la simulation
                     break
 
@@ -342,7 +345,6 @@ for split in ["Amor"]:
     # Post Traitement
     # ---------------------------------------------
     Affichage.NouvelleSection("Affichage")
-
     
 
     if plotResult:
