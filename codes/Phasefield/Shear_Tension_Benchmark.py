@@ -172,7 +172,7 @@ for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits An
 
                 C_voigt = np.array([[c11, c12, 0],
                                     [c12, c22, 0],
-                                    [0, 0, c33]])
+                                    [0, 0, c33]])*1e9
 
                 
                 theta_rad = theta * np.pi/180
