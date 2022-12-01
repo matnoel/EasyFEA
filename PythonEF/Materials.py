@@ -282,7 +282,7 @@ class Displacement_Model(IModel):
         # if np.linalg.norm(P.T-P) <= 1e-12:
         test_det_c = np.linalg.det(matrice_P) - np.linalg.det(Matrice)
         assert test_det_c <1e-12
-        test_trace_c = np.trace(matrice_P) - np.trace(Matrice)
+        test_trace_c = (np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
         assert test_trace_c <1e-12
         
         return matrice_P
