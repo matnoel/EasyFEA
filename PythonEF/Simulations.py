@@ -2211,8 +2211,7 @@ class __Simu_PhaseField(_Simu):
         mesh = self.mesh        
         taille = mesh.Nn*self.dim
 
-        Ku_e = self.__ConstruitMatElem_Dep()
-        
+        Ku_e = self.__ConstruitMatElem_Dep()        
 
         # Prépare assemblage
         lignesVector_e = mesh.lignesVector_e
@@ -2231,8 +2230,7 @@ class __Simu_PhaseField(_Simu):
         # import matplotlib.pyplot as plt
         # plt.figure()
         # plt.spy(self.__Ku)
-        # plt.show()
-        
+        # plt.show()        
 
         tic.Tac("Matrices","Assemblage Ku et Fu", self._verbosity)
         return self.__Ku
@@ -2774,12 +2772,9 @@ class __Simu_PhaseField(_Simu):
 
         return Sigma_e_pg
 
-    def Resultats_Set_Resume_Chargement(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):
+    def Resultats_Set_Resume_Chargement(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):        
         
-        check = ["damage", "displacement"]
-
-        for option in listOption : assert option in check, f"option doit etre dans {check}"
-        assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Doit etre de la meme dimension"        
+        assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Doit etre de la meme dimension"
         
         resumeChargement = 'Chargement :'
         resumeChargement += f'\n\tload max = {loadMax:.3}'
