@@ -63,7 +63,10 @@ solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 # for split in ["Amor"]:
 #for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 #for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
-for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes    
+#for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
+listAnisotWithBourdin = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
+listTheta = [0, -10, -20, -30, -45, -60, -70, -80, -90]*len(listAnisotWithBourdin)
+for split, theta in zip(listAnisotWithBourdin, listTheta):
 
     dim = 2
 
@@ -74,7 +77,7 @@ for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits An
     # Paramètres géométrie
     L = 1e-3;  #m
     if comportement_str == "Elas_Anisot":
-        theta = -0        
+        # theta = -0        
         l0 = 8.5e-6
     else:
         theta = 0
@@ -254,9 +257,6 @@ for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits An
             optionTreshold = ["displacement"]*2
 
         if isinstance(comp, Materials.Elas_Anisot):
-
-            # uinc0 = 6e-6; tresh0 = 0
-            # uinc1 = 2e-7; tresh1 = 0.6
 
             if test:
                 uinc0 = 12e-8
