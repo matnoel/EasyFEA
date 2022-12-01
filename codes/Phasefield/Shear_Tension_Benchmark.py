@@ -64,8 +64,9 @@ solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 #for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 #for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 #for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
-listAnisotWithBourdin = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
-listTheta = [0, -10, -20, -30, -45, -60, -70, -80, -90]*len(listAnisotWithBourdin)
+listAnisotWithBourdin = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]*9 # Splits Anisotropes
+listTheta = [0, -10, -20, -30, -45, -60, -70, -80, -90]*5
+listTheta.sort(); listTheta.reverse()
 for split, theta in zip(listAnisotWithBourdin, listTheta):
 
     dim = 2
