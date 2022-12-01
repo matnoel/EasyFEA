@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-simulation = "Shear" # "Shear" , "Tension"
+simulation = "Tension" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = False
@@ -28,10 +28,10 @@ solve = True
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-pltMesh = False
+plotMesh = False
 plotResult = True
-showResult = False
 plotEnergie = True
+showResult = False
 
 # ----------------------------------------------
 # Animation
@@ -43,7 +43,7 @@ makeMovie = False
 # Maillage
 # ----------------------------------------------
 openCrack = True
-optimMesh = False
+optimMesh = True
 
 # ----------------------------------------------
 # Convergence
@@ -56,14 +56,14 @@ tolConv = 1e-0
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
+comportement_str = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 regularisation = "AT2" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
 # for split in ["Amor"]:
-for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
-# for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
-# for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes    
+#for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
+#for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
+for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes    
 
     dim = 2
 
@@ -74,8 +74,8 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
     # Paramètres géométrie
     L = 1e-3;  #m
     if comportement_str == "Elas_Anisot":
-        theta = -30
-        l0 = 0.0085e-3        
+        theta = -0        
+        l0 = 8.5e-6
     else:
         theta = 0
         l0 = 1e-5 # taille fissure test FEMOBJECT ,7.5e-6, 1e-5        
@@ -96,7 +96,10 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
         zone = L*0.05
         if simulation == "Tension":
             # On rafine horizontalement
-            refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), taille=taille)
+            if comportement_str == "Elas_Isot":                
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), taille=taille)
+            else:                
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L*0.8), taille=taille)
         elif simulation == "Shear":
             if split == "Bourdin":
                 # On rafine en haut et en bas 
@@ -127,7 +130,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 
         mesh = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         
-        if pltMesh:
+        if plotMesh:
             Affichage.Plot_Maillage(mesh)
             # Affichage.Plot_Model(mesh)
             # noeudsCracks = list(mesh.Nodes_Line(line2))
@@ -181,7 +184,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
                 raise "Pas implémenté"
 
             comp = Materials.Elas_Anisot(dim, C_voigt=C_voigt, axis1=axis1, contraintesPlanes=False)
-            Gc = 10e-3 * 1e-3 * 1e3
+            Gc = 1e3 # J/m2
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
             raise "Pas implémenté pour le moment"
@@ -252,8 +255,18 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 
         if isinstance(comp, Materials.Elas_Anisot):
 
-            uinc0 = 6e-6; tresh0 = 0
-            uinc1 = 2e-7; tresh1 = 0.3
+            # uinc0 = 6e-6; tresh0 = 0
+            # uinc1 = 2e-7; tresh1 = 0.6
+
+            if test:
+                uinc0 = 12e-8
+                uinc1 = 4e-8
+            else:
+                uinc0 = 6e-8
+                uinc1 = 2e-8
+
+            tresh0 = 0
+            tresh1 = 0.6
 
             listInc = [uinc0, uinc1]
             listThreshold = [tresh0, tresh1]
@@ -384,7 +397,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
     Tic.getResume()
 
     if solve:
-        Tic.getGraphs(folder, False)
+        Tic.getGraphs(folder, True)
     else:
         Tic.getGraphs(details=False)
 
