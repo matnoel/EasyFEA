@@ -17,22 +17,22 @@ import matplotlib.pyplot as plt
 # Simulation
 # ----------------------------------------------
 problem = "Benchmark" # ["Benchmark","FCBA"]
-test = True
+test = False
 solve = True
 
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = True
+plotMesh = False
 plotIter = False
 plotResult = True
-showFig = False
 plotEnergie = True
+showFig = False
 
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = True; NParaview=200
+saveParaview = False; NParaview=200
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
@@ -46,7 +46,7 @@ solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
-optimMesh = True
+optimMesh = False
 
 # ----------------------------------------------
 # Convergence
@@ -57,8 +57,8 @@ tolConv = 1e-0
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 # for split in ["Zhang"]:
-for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
-# for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
+#for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
+for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 # for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
 
     # ----------------------------------------------
@@ -174,7 +174,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
         domain = Domain(point, Point(x=L, y=h), clD)
         circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
         
-        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
+        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
         
         if optimMesh:
             # Concentration de maillage sur la fissure
