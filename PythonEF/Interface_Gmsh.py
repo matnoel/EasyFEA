@@ -1261,7 +1261,11 @@ class Interface_Gmsh:
             # et associé les tags
             i = -1
             for dim, tag in listPhysicalGroups:
-                i += 1                
+                i += 1
+
+                # name = gmsh.model.getPhysicalName(groupElem.dim, tag)
+                name = listName[i]
+
                 nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(groupElem.dim, tag)
                 # Si aucun noeud à été récupéré passe au prochain groupePhysique
                 if nodeTags.size == 0: continue
@@ -1273,9 +1277,6 @@ class Interface_Gmsh:
                 def TriNodes(old, new):
                     nodes[np.where(nodes==old)] = new
                 [TriNodes(old, new) for old, new in zip(changes[:,0], changes[:,1])]
-
-                # name = gmsh.model.getPhysicalName(groupElem.dim, tag)
-                name = listName[i]
 
                 groupElem.Set_Nodes_Tag(nodes, name)
                 groupElem.Set_Elements_Tag(nodes, name)

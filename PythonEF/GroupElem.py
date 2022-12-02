@@ -1240,7 +1240,8 @@ class GroupElem(ABC):
         if noeuds.size == 0: return
 
         # Récupère les elements associés aux noeuds
-        elements = self.get_elementsIndex(noeuds=noeuds, exclusivement=True)
+        # exclusivement=False car on veut avoir tout les elements qui utilisent les noeuds
+        elements = self.get_elementsIndex(noeuds=noeuds, exclusivement=False)
 
         self.__dict_elements_tags[tag] = elements
 
