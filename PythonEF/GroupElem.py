@@ -791,7 +791,8 @@ class GroupElem(ABC):
 
             # jacobien_e_pg = np.linalg.det(F_e_pg) - jacobien_e_pg
 
-            self.__dict_jacobien_e_pg[matriceType] = jacobien_e_pg
+            # self.__dict_jacobien_e_pg[matriceType] = jacobien_e_pg
+            self.__dict_jacobien_e_pg[matriceType] = np.abs(jacobien_e_pg)
 
         return self.__dict_jacobien_e_pg[matriceType].copy()
     
@@ -1132,8 +1133,34 @@ class GroupElem(ABC):
         """Renvoie l'identifiant du noeud qui est sur le point"""
 
         coordo = self.__coordo
-
+        
         nodesIndex = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
+
+        if len(nodesIndex) == 0:
+            # la condition précédente peut être trop restrictive
+
+            tolerance = 1e-3
+            
+            dec = 10
+
+            decX = np.abs(coordo[:,0].min()) + dec
+            decY = np.abs(coordo[:,1].min()) + dec
+            decZ = np.abs(coordo[:,2].min()) + dec
+
+            x = point.x + decX
+            y = point.y + decY
+            z = point.z + decZ
+
+            coordo = coordo + [decX, decY, decZ]
+
+            erreurX = np.abs((coordo[:,0]-x)/coordo[:,0])
+            erreurY = np.abs((coordo[:,1]-y)/coordo[:,1])
+            if self.inDim == 3:
+                erreurZ = np.abs((coordo[:,2]-z)/coordo[:,2])
+            else:
+                erreurZ = 0
+            
+            nodesIndex = np.where((erreurX <= tolerance) & (erreurY <= tolerance) & (erreurZ <= tolerance))[0]
 
         return self.__nodesID[nodesIndex].copy()
 
