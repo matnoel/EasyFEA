@@ -295,8 +295,8 @@ class Interface_Gmsh:
     def __Set_PhysicalGroups(self, buildPoint=True, buildLine=True, buildSurface=True, buildVolume=True):
         """Création des groupes physiques en fonction des entités du model"""
         self.__factory.synchronize()
-        entities = np.array(gmsh.model.getEntities())
-
+        entities = np.array(gmsh.model.getEntities())       
+        
         listDim = []
         if buildPoint:
             listDim.append(0)
@@ -429,6 +429,17 @@ class Interface_Gmsh:
 
             minField = gmsh.model.mesh.field.add("Min")
             gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
+
+    def Mesh_ImportMesh(self, fichier: str):
+
+        self.__initGmsh('occ')        
+
+        gmsh.open(fichier)
+
+        self.__Set_PhysicalGroups()
+
+        return cast(Mesh, self.__Recuperation_Maillage())
+
 
 
     def Mesh_Importation3D(self, fichier: str, tailleElement: float, refineGeom=None, folder=""):
