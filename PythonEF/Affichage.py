@@ -523,11 +523,11 @@ def Plot_Noeuds(mesh, noeuds=[], showId=False, marker='.', c='red', folder="", a
     if mesh.dim == 2:
         ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, c=c, zorder=2.5)
         if showId:            
-            for noeud in noeuds: ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud))
+            [ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud), c=c) for noeud in noeuds]
     elif  mesh.dim == 3:            
         ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], marker=marker, c=c)
         if showId:
-            for noeud in noeuds: ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud))
+            [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in noeuds]
     
     if folder != "":
         import PostTraitement as PostTraitement
