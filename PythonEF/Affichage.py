@@ -1021,7 +1021,7 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
 
     tic.Tac("PostTraitement","Cacul Energie phase field", False)
 
-def Plot_ResumeIter(simu, folder: str, iterMin=None, iterMax=None):
+def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None):
     from Simulations import _Simu
 
     assert isinstance(simu, _Simu)
