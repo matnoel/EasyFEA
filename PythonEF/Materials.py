@@ -904,7 +904,86 @@ class Beam_Model(IModel):
 
 class PhaseField_Model(IModel):
 
-    __modelType = ModelType.damage    
+    __modelType = ModelType.damage
+
+    class RegularizationType(str, Enum):
+        """Régularisation de la fissure"""
+
+        AT1 = "AT1"
+        AT2 = "AT2"
+
+    class SplitType(str, Enum):
+        """Splits utilisables"""
+
+        Bourdin = "Bourdin"
+        Amor = "Amor"
+        Miehe = "Miehe"
+        He = "He"
+        Stress = "Stress"
+        Zhang = "Zhang"
+
+        AnisotStrain = "AnisotStrain"
+        AnisotStrain_PM = "AnisotStrain_PM"
+        AnisotStrain_MP = "AnisotStrain_MP"
+        AnisotStrain_NoCross = "AnisotStrain_NoCross"
+
+        AnisotStress = "AnisotStress"
+        AnisotStress_PM = "AnisotStress_PM"
+        AnisotStress_MP = "AnisotStress_MP"
+        AnisotStress_NoCross = "AnisotStress_NoCross"
+
+    class SolveurType(str, Enum):
+        History = "History"
+        HistoryDamage = "HistoryDamage"
+        BoundConstrain = "BoundConstrain"    
+
+    def __init__(self, comportement: Displacement_Model, split: str, regularization: RegularizationType, Gc: float, l_0: float, solveur=SolveurType.History):
+        """Crétation d'un modèle à gradient d'endommagement
+
+        Parameters
+        ----------
+        loiDeComportement : LoiDeComportement
+            Loi de comportement du matériau (Elas_Isot, Elas_IsotTrans)
+        split : str
+            Split de la densité d'energie élastique (voir PhaseFieldModel.get_splits())
+        regularization : RegularizationType
+            Modèle de régularisation de la fissure AT1 ou AT2
+        Gc : float
+            Taux de restitution d'energie critique en J.m^-2
+        l_0 : float
+            Demie largeur de fissure 
+        solveur : SolveurType, optional
+            Type de résolution de l'endommagement, by default History (voir SolveurType)        
+        """
+    
+        assert isinstance(comportement, Displacement_Model), "Doit être une loi de comportement"
+        self.__comportement = comportement
+
+        assert split in PhaseField_Model.get_splits(), f"Doit être compris dans {PhaseField_Model.get_splits()}"
+        if not isinstance(comportement, Elas_Isot):
+            assert not split in PhaseField_Model.__splits_Isot, "Ces splits ne sont implémentés que pour Elas_Isot"
+        self.__split =  split
+        """Split de la densité d'energie elastique"""
+        
+        assert regularization in PhaseField_Model.get_regularisations(), f"Doit être compris dans {PhaseField_Model.get_regularisations()}"
+        self.__regularization = regularization
+        """Modèle de régularisation de la fissure ["AT1","AT2"]"""
+
+        assert Gc > 0, "Doit être supérieur à 0" 
+        self.__Gc = Gc
+        """Taux de libération d'énergie critque [J/m^2]"""
+
+        assert l_0 > 0, "Doit être supérieur à 0"
+        self.__l0 = l_0
+        """Largeur de régularisation de la fissure"""
+
+        self.__solveur = solveur
+        """Solveur d'endommagement"""
+
+        self.__useNumba = True
+        """Utilise ou non les fonctions numba"""
+
+        self.Need_Split_Update()
 
     @property
     def modelType(self) -> ModelType:
@@ -928,27 +1007,7 @@ class PhaseField_Model(IModel):
         resume += f'\nl0 : {self.__l0:.2e}'
         return resume
 
-    # Phase field
-
-    class SplitType(str, Enum):
-        """Splits utilisables"""
-
-        Bourdin = "Bourdin"
-        Amor = "Amor"
-        Miehe = "Miehe"
-        He = "He"
-        Stress = "Stress"
-        Zhang = "Zhang"
-
-        AnisotStrain = "AnisotStrain"
-        AnisotStrain_PM = "AnisotStrain_PM"
-        AnisotStrain_MP = "AnisotStrain_MP"
-        AnisotStrain_NoCross = "AnisotStrain_NoCross"
-
-        AnisotStress = "AnisotStress"
-        AnisotStress_PM = "AnisotStress_PM"
-        AnisotStress_MP = "AnisotStress_MP"
-        AnisotStress_NoCross = "AnisotStress_NoCross"
+    # Phase field   
 
     __splits_Isot = [SplitType.Amor, SplitType.Miehe, SplitType.Stress]
     __split_Anisot = [SplitType.Bourdin, SplitType.He, SplitType.Zhang,
@@ -958,24 +1017,13 @@ class PhaseField_Model(IModel):
     @staticmethod
     def get_splits() -> List[SplitType]:
         """splits disponibles"""
-        return list(PhaseField_Model.SplitType)
-
-    class RegularizationType(str, Enum):
-        """Régularisation de la fissure"""
-
-        AT1 = "AT1"
-        AT2 = "AT2"
+        return list(PhaseField_Model.SplitType)    
     
     @staticmethod
     def get_regularisations() -> List[RegularizationType]:
         """regularisations disponibles"""
         __regularizations = list(PhaseField_Model.RegularizationType)
-        return __regularizations
-
-    class SolveurType(str, Enum):
-        History = "History"
-        HistoryDamage = "HistoryDamage"
-        BoundConstrain = "BoundConstrain"
+        return __regularizations    
 
     @staticmethod
     def get_solveurs() -> List[SolveurType]:
@@ -1086,53 +1134,7 @@ class PhaseField_Model(IModel):
     def useNumba(self, val: bool):
         self.__useNumba = val
 
-    def __init__(self, comportement: Displacement_Model, split: str, regularization: RegularizationType, Gc: float, l_0: float, solveur=SolveurType.History):
-        """Crétation d'un modèle à gradient d'endommagement
-
-        Parameters
-        ----------
-        loiDeComportement : LoiDeComportement
-            Loi de comportement du matériau (Elas_Isot, Elas_IsotTrans)
-        split : str
-            Split de la densité d'energie élastique (voir PhaseFieldModel.get_splits())
-        regularization : RegularizationType
-            Modèle de régularisation de la fissure AT1 ou AT2
-        Gc : float
-            Taux de restitution d'energie critique en J.m^-2
-        l_0 : float
-            Demie largeur de fissure 
-        solveur : SolveurType, optional
-            Type de résolution de l'endommagement, by default History (voir SolveurType)
-        """
     
-        assert isinstance(comportement, Displacement_Model), "Doit être une loi de comportement"
-        self.__comportement = comportement
-
-        assert split in PhaseField_Model.get_splits(), f"Doit être compris dans {PhaseField_Model.get_splits()}"
-        if not isinstance(comportement, Elas_Isot):
-            assert not split in PhaseField_Model.__splits_Isot, "Ces splits ne sont implémentés que pour Elas_Isot"
-        self.__split =  split
-        """Split de la densité d'energie elastique"""
-        
-        assert regularization in PhaseField_Model.get_regularisations(), f"Doit être compris dans {PhaseField_Model.get_regularisations()}"
-        self.__regularization = regularization
-        """Modèle de régularisation de la fissure ["AT1","AT2"]"""
-
-        assert Gc > 0, "Doit être supérieur à 0" 
-        self.__Gc = Gc
-        """Taux de libération d'énergie critque [J/m^2]"""
-
-        assert l_0 > 0, "Doit être supérieur à 0"
-        self.__l0 = l_0
-        """Largeur de régularisation de la fissure"""
-
-        self.__solveur = solveur
-        """Solveur d'endommagement"""
-
-        self.__useNumba = True
-        """Utilise ou non les fonctions numba"""
-
-        self.Need_Split_Update()
         
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
