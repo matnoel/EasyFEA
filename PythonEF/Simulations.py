@@ -2054,15 +2054,18 @@ class __Simu_PhaseField(_Simu):
         self.__Assemblage_u()
         self.__Assemblage_d()
     
-    def Solve(self, tolConv=1.0, maxIter=200):
+    def Solve(self, tolConv=1.0, maxIter=500, convOption=0) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
         """Résolution du probleme d'endommagement de façon étagée
 
         Parameters
         ----------
         tolConv : float, optional
-            tolérance de convergence entre l'ancien et le nouvelle endommagement, by default 1.0
+            Tolérance de convergence entre l'ancien et le nouvelle endommagement, by default 1.0
         maxIter : int, optional
-            nombre d'itération maximum pour atteindre la convergence, by default 200
+            Nombre d'itération maximum pour atteindre la convergence, by default 500
+        convOption : int, optional
+            0 -> convergence sur l'endommagement np.max(np.abs(d_kp1-dk)) équivalent normInf(d_kp1-dk)\n
+            1 -> convergence sur l'energie de fissure np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
 
         Returns
         -------
@@ -2073,8 +2076,7 @@ class __Simu_PhaseField(_Simu):
             u : champ vectorielle de déplacement
             d : champ scalaire d'endommagement
             Kglob : matrice de rigidité en déplacement
-            nombreIter : iteration nécessaire pour atteindre la convergence
-            dincMax : tolerance de convergence
+            convergence : la solution a convérgé
         """
 
         assert tolConv > 0 and tolConv <= 1 , "tolConv doit être compris entre 0 et 1"
@@ -2092,21 +2094,26 @@ class __Simu_PhaseField(_Simu):
                     
             nombreIter += 1
             # Ancien endommagement dans la procedure de la convergence
-            dk = self.damage
-            psi_crack_k = self.__Calc_Psi_Crack()
+            if convOption == 0:
+                dk = self.damage
+            elif convOption == 1:
+                psi_crack_k = self.__Calc_Psi_Crack()
 
             # Damage
             self.__Assemblage_d()
-            d_kp1 = self.__Solve_d()            
-            psi_crack_kp1 = self.__Calc_Psi_Crack()
+            if convOption == 0:
+                d_kp1 = self.__Solve_d()            
+            elif convOption == 1:
+                psi_crack_kp1 = self.__Calc_Psi_Crack()
             
             # Displacement
             Kglob = self.__Assemblage_u()            
             u_np1 = self.__Solve_u()
 
-            convIter = np.max(np.abs(d_kp1-dk))
-            
-            # convIter = np.abs(psi_crack_kp1 - psi_crack_k)
+            if convOption == 0:
+                convIter = np.max(np.abs(d_kp1-dk))
+            elif convOption == 1:
+                convIter = np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
             
             if tolConv == 1.0:
                 convergence=True
@@ -2115,20 +2122,19 @@ class __Simu_PhaseField(_Simu):
                 # convergence = dincMax <= tolConv and iterConv > 1 # idée de florent
                 convergence = convIter <= tolConv
 
-        if solveur == PhaseField_Model.SolveurType.History:
+        solveurTypes = PhaseField_Model.SolveurType
+
+        if solveur in [solveurTypes.History, solveurTypes.BoundConstrain]:
             d_np1 = d_kp1
             
-        elif solveur == PhaseField_Model.SolveurType.HistoryDamage:
+        elif solveur == solveurTypes.HistoryDamage:
             oldAndNewDamage = np.zeros((d_kp1.shape[0], 2))
             oldAndNewDamage[:, 0] = dn
             oldAndNewDamage[:, 1] = d_kp1
             d_np1 = np.max(oldAndNewDamage, 1)
 
-        elif solveur == PhaseField_Model.SolveurType.BoundConstrain:
-            d_np1 = d_kp1
-
         else:
-            raise "Solveur inconnue"
+            raise "Solveur phase field inconnue"
 
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
