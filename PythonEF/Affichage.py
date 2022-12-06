@@ -535,7 +535,7 @@ def Plot_Noeuds(mesh, noeuds=[], showId=False, marker='.', c='red', folder="", a
 
     return ax
 
-def Plot_Elements(mesh, noeuds=[], dimElem =None, showId=False, c='red', folder="", ax=None):
+def Plot_Elements(mesh, noeuds=[], dimElem=None, showId=False, c='red', folder="", ax=None):
     """Affiche les elements du maillage en fonction des numéros de noeuds
 
     Parameters
@@ -596,12 +596,12 @@ def Plot_Elements(mesh, noeuds=[], dimElem =None, showId=False, c='red', folder=
         if mesh.dim in [1,2]:
             if len(noeuds) > 0:
                 if groupElemDim.dim == 1:
-                    pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor=c, lw=1, zorder=24)
+                    pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor=c, lw=1, zorder=3)
                 else:
-                    pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.dim)], facecolors=c, edgecolor='black', lw=0.5, alpha=1)
+                    pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.dim)], facecolors=c, edgecolor='black', lw=0.5, alpha=1, zorder=3)
                 ax.add_collection(pc)
 
-            # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=24)
+            # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=3)
             if showId:            
                 for element in elements:
                     ax.text(coordo_e[element,0], coordo_e[element,1], str(elementsID[element]),
@@ -610,7 +610,7 @@ def Plot_Elements(mesh, noeuds=[], dimElem =None, showId=False, c='red', folder=
             if len(noeuds) > 0:
                 ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1), zdir='z')
 
-            # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=24)
+            # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=3)
             if showId:
                 for element in elements:
                     ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], str(elementsID[element]),

@@ -1087,6 +1087,7 @@ class Interface_Gmsh:
             gmsh.plugin.run("Crack")
         else:
             if len(cracks) > 0:
+                # TODO passer un seul groupe physique pour les lignes et les points
                 for crack, openBoundary in zip(cracks, openBoundarys):
                     gmsh.plugin.setNumber("Crack", "Dimension", dim-1)
                     gmsh.plugin.setNumber("Crack", "PhysicalGroup", crack)

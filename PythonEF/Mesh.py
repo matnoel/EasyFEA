@@ -3,7 +3,6 @@ import scipy.sparse as sp
 
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatriceType
-from TicTac import Tic
 
 class Mesh:
 
