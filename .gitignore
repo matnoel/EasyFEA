@@ -11,6 +11,8 @@ results/
 # fichier à ignorer
 *.pyc
 *.HEIC
+*.tif
+*.out
 *.pos
 *.bak
 *.json
