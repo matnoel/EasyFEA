@@ -12,6 +12,7 @@ results/
 *.pyc
 *.HEIC
 *.tif
+*.mp4
 *.out
 *.pos
 *.bak
