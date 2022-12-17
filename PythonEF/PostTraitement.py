@@ -129,7 +129,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
             title = ax.get_title()
             ax.set_title(f'{title} : {iter}/{N-1}')
 
-            plt.pause(0.00001)
+            plt.pause(1e-12)
 
             writer.grab_frame()
 
@@ -484,4 +484,4 @@ def Save_fig(folder:str, title: str,transparent=False, extension='png'):
         os.makedirs(folder)
 
     # plt.savefig(nom, dpi=200)
-    plt.savefig(nom, dpi=500, transparent=transparent,bbox_inches='tight')
+    plt.savefig(nom, dpi=500, transparent=transparent, bbox_inches='tight')
