@@ -325,9 +325,9 @@ class Elas_Isot(Displacement_Model):
         self.v=v
         """Coef de poisson"""        
 
-        if dim == 2:
-            self.contraintesPlanes = contraintesPlanes
-            """type de simplification 2D"""
+        
+        self.contraintesPlanes = contraintesPlanes if dim == 2 else "3D"
+        """type de simplification 2D"""
 
         C, S = self.__Comportement()
 
@@ -1133,9 +1133,6 @@ class PhaseField_Model(IModel):
     @useNumba.setter
     def useNumba(self, val: bool):
         self.__useNumba = val
-
-    
-        
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calcul de la densité d'energie elastique\n
@@ -1307,7 +1304,6 @@ class PhaseField_Model(IModel):
         Pdev = np.eye(taille) - 1/dim * IxI
         partieDeviateur = 2*mu*Pdev
 
-
         # projetcteur spherique
         # useNumba = self.__useNumba
         useNumba=False
@@ -1343,22 +1339,22 @@ class PhaseField_Model(IModel):
 
         dim = self.__comportement.dim
 
-        tr_Eps = np.zeros((Ne, nPg))
+        trace = np.zeros((Ne, nPg))
 
-        tr_Eps = vecteur_e_pg[:,:,0] + vecteur_e_pg[:,:,1]
+        trace = vecteur_e_pg[:,:,0] + vecteur_e_pg[:,:,1]
 
         if dim == 3:
-            tr_Eps += vecteur_e_pg[:,:,2]
+            trace += vecteur_e_pg[:,:,2]
 
-        Rp_e_pg = (1+np.sign(tr_Eps))/2
-        Rm_e_pg = (1+np.sign(-tr_Eps))/2
+        Rp_e_pg = (1+np.sign(trace))/2
+        Rm_e_pg = (1+np.sign(-trace))/2
 
         return Rp_e_pg, Rm_e_pg
     
     def __Split_Miehe(self, Epsilon_e_pg: np.ndarray, verif=False):
 
         dim = self.__comportement.dim
-        assert dim == 2, "Implémenté que en 2D"
+        # assert dim == 2, "Implémenté que en 2D"
 
         useNumba = self.__useNumba
 
@@ -1374,7 +1370,10 @@ class PhaseField_Model(IModel):
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
             
             # Calcul IxI
-            I = np.array([1,1,0]).reshape((3,1))
+            if dim == 2:
+                I = np.array([1,1,0]).reshape((3,1))
+            elif dim == 3:
+                I = np.array([1,1,1,0,0,0]).reshape((6,1))
             IxI = I.dot(I.T)
 
             # Calcul partie sphérique
@@ -1597,13 +1596,13 @@ class PhaseField_Model(IModel):
 
         return cP_e_pg, cM_e_pg
 
-    def __valeursPropres_vecteursPropres(self, vecteur_e_pg: np.ndarray, verif=False):
+    def __valeursPropres_vecteursPropres_matricesPropres(self, vecteur_e_pg: np.ndarray, verif=False) -> tuple[np.ndarray, list[np.ndarray], list[np.ndarray]]:
 
         dim = self.__comportement.dim
 
         coef = self.__comportement.coef
         Ne = vecteur_e_pg.shape[0]
-        nPg = vecteur_e_pg.shape[1]
+        nPg = vecteur_e_pg.shape[1]        
 
         # Reconsruit le tenseur des deformations [e,pg,dim,dim]
         matrice_e_pg = np.zeros((Ne,nPg,dim,dim))
@@ -1625,64 +1624,177 @@ class PhaseField_Model(IModel):
             # xy
             matrice_e_pg[:,:,0,1] = vecteur_e_pg[:,:,5]/coef
             matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,5]/coef
-        
-        # invariants du tenseur des deformations [e,pg]
+
         # trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
         trace_e_pg = np.einsum('epii->ep', matrice_e_pg, optimize='optimal')
-        
-        # determinant_e_pg = np.linalg.det(matrice_e_pg)
-        a_e_pg = matrice_e_pg[:,:,0,0]
-        b_e_pg = matrice_e_pg[:,:,0,1]
-        c_e_pg = matrice_e_pg[:,:,1,0]
-        d_e_pg = matrice_e_pg[:,:,1,1]
-        determinant_e_pg = (a_e_pg*d_e_pg)-(c_e_pg*b_e_pg)
-        
-        # probleme Elas_Isot False Stress delta négatif -> si v est grand (0.49999)
 
-        # Calculs des valeurs propres [e,pg]
-        delta = trace_e_pg**2 - (4*determinant_e_pg)
-        val_e_pg = np.zeros((Ne,nPg,2))
-        val_e_pg[:,:,0] = (trace_e_pg - np.sqrt(delta))/2
-        val_e_pg[:,:,1] = (trace_e_pg + np.sqrt(delta))/2
+        if self.dim == 2:
+            # invariants du tenseur des deformations [e,pg]            
 
-        # tic.Tac("Matrices", "Decomp spectrale valeurs propres", False)
-        # Ici c'est rapide pas de probleme
+            a_e_pg = matrice_e_pg[:,:,0,0]
+            b_e_pg = matrice_e_pg[:,:,0,1]
+            c_e_pg = matrice_e_pg[:,:,1,0]
+            d_e_pg = matrice_e_pg[:,:,1,1]
+            determinant_e_pg = (a_e_pg*d_e_pg)-(c_e_pg*b_e_pg)
+
+            # Calculs des valeurs propres [e,pg]
+            delta = trace_e_pg**2 - (4*determinant_e_pg)
+            val_e_pg = np.zeros((Ne,nPg,2))
+            val_e_pg[:,:,0] = (trace_e_pg - np.sqrt(delta))/2
+            val_e_pg[:,:,1] = (trace_e_pg + np.sqrt(delta))/2
+
+            # tic.Tac("Matrices", "Decomp spectrale valeurs propres", False)
+            # Ici c'est rapide pas de probleme
+            
+            # Constantes pour calcul de m1 = (matrice_e_pg - v2*I)/(v1-v2)
+            v2I = np.einsum('ep,ij->epij', val_e_pg[:,:,1], np.eye(2), optimize='optimal')
+            v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1]
+            
+            # identifications des elements et points de gauss ou vp1 != vp2
+            # elements, pdgs = np.where(v1_m_v2 != 0)
+            elems, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
+            
+            # construction des bases propres m1 et m2 [e,pg,dim,dim]
+            M1 = np.zeros((Ne,nPg,2,2))
+            M1[:,:,0,0] = 1
+            if elems.size > 0:
+                m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize='optimal')
+                M1[elems, pdgs] = m1_tot[elems, pdgs]
+            M2 = np.eye(2) - M1
         
-        # Constantes pour calcul de m1 = (matrice_e_pg - v2*I)/(v1-v2)
-        v2I = np.einsum('ep,ij->epij', val_e_pg[:,:,1], np.eye(2), optimize='optimal')
-        v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1]
-        
-        # identifications des elements et points de gauss ou vp1 != vp2
-        # elements, pdgs = np.where(v1_m_v2 != 0)
-        elements, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
-        
-        # construction des bases propres m1 et m2 [e,pg,dim,dim]
-        M1 = np.zeros((Ne,nPg,2,2))
-        M1[:,:,0,0] = 1
-        if elements.size > 0:
-            m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize='optimal')
-            M1[elements, pdgs] = m1_tot[elements, pdgs]
-        M2 = np.eye(2) - M1
+        elif self.dim == 3:
+            a11_e_pg = matrice_e_pg[:,:,0,0]; a12_e_pg = matrice_e_pg[:,:,0,1]; a13_e_pg = matrice_e_pg[:,:,0,2]
+            a21_e_pg = matrice_e_pg[:,:,1,0]; a22_e_pg = matrice_e_pg[:,:,1,1]; a23_e_pg = matrice_e_pg[:,:,1,2]
+            a31_e_pg = matrice_e_pg[:,:,2,0]; a32_e_pg = matrice_e_pg[:,:,2,1]; a33_e_pg = matrice_e_pg[:,:,2,2]
+
+            determinant_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))            
+
+            # Invariants
+            I1_e_pg = trace_e_pg
+            mat_mat = np.einsum('epij,epjk->epik', matrice_e_pg, matrice_e_pg, optimize='optimal')
+            trace_mat_mat = np.einsum('epii->ep', mat_mat, optimize='optimal')
+            I2_e_pg = (trace_e_pg**2 - trace_mat_mat)/2
+            I3_e_pg = determinant_e_pg            
+
+            g = I1_e_pg**2 - 3*I2_e_pg
+            tol0 = 1e-7
+            idx0 = np.where((g <= tol0) & (g >= -tol0))
+            filtreNotX0 = (g >= tol0) | (g <= -tol0)
+            idxNot0 = np.where(filtreNotX0)
+            if len(idxNot0[0]) > 0:
+                pass 
+            racine_g = np.sqrt(g)
+            racine_g_ij = racine_g.reshape((Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)
+            
+            arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2/g**(3/2) # -1 <= arg <= 1
+
+            # idxMin = np.where(arg >= 1-tol0) # positions of double minimum eigenvalue
+            # idxMax = np.where(arg <= -1+tol0) # positions of double maximum eigenvalue
+            
+            # arg[np.where(arg >= 1-1e-12)] = 1
+            # arg[np.where(arg <= -1+1e-12)] = -1
+
+            theta = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
+
+            E1 = I1_e_pg/3 + 2/3 * racine_g * np.cos(2*np.pi/3 + theta)
+            E2 = I1_e_pg/3 + 2/3 * racine_g * np.cos(2*np.pi/3 - theta)
+            E3 = I1_e_pg/3 + 2/3 * racine_g * np.cos(theta)
+
+            # Initialisation des valeurs propres            
+            val_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
+            val_e_pg[idxNot0[0], idxNot0[1], 0] = E1[idxNot0]
+            val_e_pg[idxNot0[0], idxNot0[1], 1] = E2[idxNot0]
+            val_e_pg[idxNot0[0], idxNot0[1], 2] = E3[idxNot0]
+
+            # Initialisation des projecteurs propres
+            M1 = np.zeros_like(matrice_e_pg); M1[:,:,0,0] = 1
+            M2 = np.zeros_like(matrice_e_pg); M2[:,:,1,1] = 1
+            M3 = np.zeros_like(matrice_e_pg); M3[:,:,2,2] = 1
+
+            # g=0 -> E1 = E2 = E3 -> 3 valeurs propres identiques
+            # ici ne fait rien car déja initialisé
+
+            eye3 = np.zeros_like(matrice_e_pg)
+            eye3[:,:,0,0] = 1; eye3[:,:,1,1] = 1; eye3[:,:,2,2] = 1
+            I_rg = np.einsum('ep,epij->epij', I1_e_pg - racine_g, eye3/3, optimize='optimal')
+
+            # g!=0 & E1 < E2 = E3 -> 2 valeurs propres maximums            
+            idxE2E3 = np.where(filtreNotX0 & (np.abs(E2-E3) <= tol0))
+            E2[idxE2E3] = E3[idxE2E3]
+
+            idxMax = np.where(filtreNotX0 & (E1<E2) & (E2==E3))
+            M1[idxMax] = ((I_rg[idxMax] - matrice_e_pg[idxMax])/racine_g_ij[idxMax])
+            M2[idxMax] = M3[idxMax] = (eye3[idxMax] - M1[idxMax])/2
+
+            # g!=0 & E1 == E2 < E3  -> 2 valeurs propres minimums
+            idxE1E2 = np.where(filtreNotX0 & (np.abs(E1-E2) <= tol0))
+            E1[idxE1E2] = E2[idxE1E2]
+
+            idxMin = np.where(filtreNotX0 & (E1==E2) & (E2<E3))
+            M3[idxMin] = ((matrice_e_pg[idxMin] - I_rg[idxMin])/racine_g_ij[idxMin])
+            M1[idxMin] = M2[idxMin] = (eye3[idxMin] - M3[idxMin])/2
+
+            # g!=0 & E1 < E2 < E3  -> 3 valeurs propres distinctes
+            idxDist = np.where(filtreNotX0 & (E1<E2) & (E2<E3))
+            # idxDist = idx0
+
+            E1_ij = E1.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[idxDist]
+            E2_ij = E2.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[idxDist]
+            E3_ij = E3.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[idxDist]
+            matr_dist = matrice_e_pg[idxDist]
+            eye3_dist = eye3[idxDist]
+            
+            M1[idxDist] = ((matr_dist - E2_ij*eye3_dist)/(E1_ij-E2_ij) * (matr_dist - E3_ij*eye3_dist)/(E1_ij-E3_ij))
+            M2[idxDist] = ((matr_dist - E1_ij*eye3_dist)/(E2_ij-E1_ij) * (matr_dist - E3_ij*eye3_dist)/(E2_ij-E3_ij))
+            M3[idxDist] = ((matr_dist - E1_ij*eye3_dist)/(E3_ij-E1_ij) * (matr_dist - E2_ij*eye3_dist)/(E3_ij-E2_ij))
 
         # tic.Tac("Matrices", "Decomp spectrale Matrices propres", False)
+
+        verif = True
         
         if verif:
+            if dim == 3:
+                pass
+
             # test ortho entre M1 et M2 
             verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
-            assert np.abs(verifOrtho_M1M2).max() < 1e-10, "Orthogonalité entre M1 et M2 non vérifié"
+            textTest = "Orthogonalité non vérifié"
+            assert np.abs(verifOrtho_M1M2).max() < 1e-10, textTest
+
+            if dim == 3:
+                verifOrtho_M1M3 = np.einsum('epij,epij->ep', M1, M3, optimize='optimal')
+                assert np.abs(verifOrtho_M1M3).max() < 1e-10, textTest
+                verifOrtho_M2M3 = np.einsum('epij,epij->ep', M2, M3, optimize='optimal')
+                assert np.abs(verifOrtho_M2M3).max() < 1e-10, textTest
         
-        # Passage des bases propres sous la forme dun vecteur [e,pg,3]  ou [e,pg,6]
-        m1 = np.zeros((Ne,nPg,3)); m2 = np.zeros((Ne,nPg,3))
-        m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]
-        m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]
-        # m1[:,:,2] = M1[:,:,0,1];   m2[:,:,2] = M2[:,:,0,1]
-        m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef # Ici on met pas le coef pour que ce soit en [1 1 1]
+        # Passage des bases propres sous la forme dun vecteur [e,pg,3] ou [e,pg,6]
+        if dim == 2:
+            # [x, y, xy]
+            m1 = np.zeros((Ne,nPg,3)); m2 = np.zeros_like(m1)
+            m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]
+            m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]            
+            m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef
 
-        list_m = [m1, m2]
-        # if dim == 3:
-        #     list_m.append(m3)
+            list_m = [m1, m2]
 
-        return val_e_pg, list_m
+            list_M = [M1, M2]
+
+        elif dim == 3:
+            # [x, y, z, yz, xz, xy]
+            m1 = np.zeros((Ne,nPg,6)); m2 = np.zeros_like(m1);  m3 = np.zeros_like(m1)
+            m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]; m3[:,:,0] = M3[:,:,0,0]
+            m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]; m3[:,:,1] = M3[:,:,1,1]
+            m1[:,:,2] = M1[:,:,2,2];   m2[:,:,2] = M2[:,:,2,2]; m3[:,:,2] = M3[:,:,2,2]
+            
+            m1[:,:,3] = M1[:,:,1,2]*coef;   m2[:,:,3] = M2[:,:,1,2]*coef;   m3[:,:,3] = M3[:,:,1,2]*coef
+            m1[:,:,4] = M1[:,:,0,2]*coef;   m2[:,:,4] = M2[:,:,0,2]*coef;   m3[:,:,4] = M3[:,:,0,2]*coef
+            m1[:,:,5] = M1[:,:,0,1]*coef;   m2[:,:,5] = M2[:,:,0,1]*coef;   m3[:,:,5] = M3[:,:,0,1]*coef
+
+            list_m = [m1, m2, m3]
+
+            list_M = [M1, M2, M3]
+
+        return val_e_pg, list_m, list_M
     
     def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray, verif=False):
         """Calcul projP et projM tel que :\n
@@ -1700,20 +1812,15 @@ class PhaseField_Model(IModel):
 
         useNumba = self.__useNumba
 
-        dim = self.__comportement.dim
-        assert dim == 2, "Implémenté que en 2D"
+        dim = self.__comportement.dim        
 
         Ne = vecteur_e_pg.shape[0]
         nPg = vecteur_e_pg.shape[1]
-
-        val_e_pg, list_m = self.__valeursPropres_vecteursPropres(vecteur_e_pg, verif)
-
-        tic2.Tac("Calc Proj", "val et vect propres", False)
         
-        if dim == 2:
-            v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1]
-            m1, m2 = list_m[0], list_m[1]
-            elements, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
+        # récupération des valeurs, vecteurs et matrices propres
+        val_e_pg, list_m, list_M = self.__valeursPropres_vecteursPropres_matricesPropres(vecteur_e_pg, verif)
+
+        tic2.Tac("Calc Proj", "val ,vect et matrices propres", False)        
         
         
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
@@ -1723,42 +1830,129 @@ class PhaseField_Model(IModel):
         # Calcul des di [e,pg,2]
         dvalp = np.heaviside(val_e_pg, 0.5)
         dvalm = np.heaviside(-val_e_pg, 0.5)
-        
-        # Calcul des Beta Plus [e,pg,1]
-        BetaP = dvalp[:,:,0].copy()
-        BetaP[elements,pdgs] = (valp[elements,pdgs,0]-valp[elements,pdgs,1])/v1_m_v2[elements,pdgs]
-        
-        # Calcul de Beta Moin [e,pg,1]
-        BetaM = dvalm[:,:,0].copy()
-        BetaM[elements,pdgs] = (valm[elements,pdgs,0]-valm[elements,pdgs,1])/v1_m_v2[elements,pdgs]
-        
-        # Calcul de gamma [e,pg,2]
-        gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
-        gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
 
-        tic2.Tac("Calc Proj", "Betas et gammas", False)
+        if dim == 2:
+            # vecteurs propres
+            m1, m2 = list_m[0], list_m[1]
 
-        if useNumba:
-            # Plus rapide
-            projP, projM = CalcNumba.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
+            # elements et pdgs ou les valeurs propres 1 et 2 sont différentes
+            elems, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
 
-        else:
-            # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]
+            v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1] # val1 - val2
+
+            # Calcul des Beta Plus [e,pg,1]            
+            BetaP = dvalp[:,:,0].copy() # ici bien mettre copy sinon quand modification Beta modifie en meme temps dvalp !
+            BetaP[elems,pdgs] = (valp[elems,pdgs,0]-valp[elems,pdgs,1])/v1_m_v2[elems,pdgs]
+            
+            # Calcul de Beta Moin [e,pg,1]
+            BetaM = dvalm[:,:,0].copy()
+            BetaM[elems,pdgs] = (valm[elems,pdgs,0]-valm[elems,pdgs,1])/v1_m_v2[elems,pdgs]
+            
+            # Calcul de gamma [e,pg,2]
+            gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
+            gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
+
+            tic2.Tac("Calc Proj", "Betas et gammas", False)
+
+            if useNumba:
+                # Plus rapide
+                projP, projM = CalcNumba.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
+
+            else:
+                # Calcul de mixmi [e,pg,3,3] ou [e,pg,6,6]
+                m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
+                m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
+
+                matriceI = np.eye(3)
+                # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
+                BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize='optimal')
+                gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize='optimal')
+                gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize='optimal')
+                projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
+
+                # Projecteur M tel que EpsM = projM : Eps
+                BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize='optimal')
+                gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize='optimal')
+                gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize='optimal')
+                projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
+
+        elif dim == 3:
+            m1, m2, m3 = list_m[0], list_m[1], list_m[2]
+
+            thetap = dvalp/2
+            thetam = dvalm/2            
+            
+            elems, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
+            v1_m_v2 = val_e_pg[elems,pdgs,0]-val_e_pg[elems,pdgs,1]
+            thetap[elems, pdgs, 0] = (valp[elems,pdgs,0]-valp[elems,pdgs,1])/(2*v1_m_v2)
+            thetam[elems, pdgs, 0] = (valm[elems,pdgs,0]-valm[elems,pdgs,1])/(2*v1_m_v2)
+
+            elems, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,2])
+            v1_m_v3 = val_e_pg[elems,pdgs,0]-val_e_pg[elems,pdgs,2]
+            thetap[elems, pdgs, 1] = (valp[elems,pdgs,0]-valp[elems,pdgs,2])/(2*v1_m_v3)
+            thetam[elems, pdgs, 1] = (valm[elems,pdgs,0]-valm[elems,pdgs,2])/(2*v1_m_v3)
+
+            elems, pdgs = np.where(val_e_pg[:,:,1] != val_e_pg[:,:,2])
+            v2_m_v3 = val_e_pg[elems,pdgs,1]-val_e_pg[elems,pdgs,2]
+            thetap[elems, pdgs, 2] = (valp[elems,pdgs,1]-valp[elems,pdgs,2])/(2*v2_m_v3)
+            thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)
+
+            M1 = list_M[0]
+            M2 = list_M[1]
+            M3 = list_M[2]
+
+            func_part1 = lambda Ma, Mb: np.einsum('epik,epjl->epijkl', Ma, Mb, optimize='optimal')
+            func_part2 = lambda Ma, Mb: np.einsum('epil,epjk->epijkl', Ma, Mb, optimize='optimal')
+
+            coef = np.sqrt(2)
+
+            def Construction_Gij(Ma, Mb):
+
+                Gijkl = func_part1(Ma, Mb) + func_part2(Ma, Mb)
+
+                Gij = np.zeros((Ne, nPg, 6, 6))
+
+                listI = [0]*6; listI.extend([1]*6); listI.extend([2]*6); listI.extend([1]*6); listI.extend([0]*12)
+                listJ = [0]*6; listJ.extend([1]*6); listJ.extend([2]*18); listJ.extend([1]*6)
+                listK = [0,1,2,1,0,0]*6
+                listL = [0,1,2,2,2,1]*6
+                
+                colonnes = np.arange(0,6, dtype=int).reshape((1,6)).repeat(6,axis=0).reshape(-1)
+                lignes = np.sort(colonnes)
+
+                # # ici je construit une matrice pour verfier que les numéros sont bons
+                # ma = np.zeros((6,6), dtype=np.object0)
+                # for lin,col,i,j,k,l in zip(lignes, colonnes, listI, listJ, listK, listL):
+                #     text = f"{i+1}{j+1}{k+1}{l+1}"
+                #     ma[lin,col] = text
+                #     pass
+
+                Gij[:,:,lignes, colonnes] = Gijkl[:,:,listI,listJ,listK,listL]
+
+                Gij[:,:,:3,3:6] = Gij[:,:,:3,3:6] * coef
+                Gij[:,:,3:6,:3] = Gij[:,:,3:6,:3] * coef
+                Gij[:,:,3:6,3:6] = Gij[:,:,3:6,3:6] * 2
+
+                return Gij
+
+
+            G12 = Construction_Gij(M1, M2)
+            G13 = Construction_Gij(M1, M3)
+            G23 = Construction_Gij(M2, M3)
+
             m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
             m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
+            m3xm3 = np.einsum('epi,epj->epij', m3, m3, optimize='optimal')
 
-            matriceI = np.eye(3)
-            # Projecteur P tel que vecteur_e_pg = projP_e_pg : vecteur_e_pg
-            BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize='optimal')
-            gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize='optimal')
-            gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize='optimal')
-            projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
+            func_ep_epij = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
 
-            # Projecteur M tel que EpsM = projM : Eps
-            BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize='optimal')
-            gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize='optimal')
-            gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize='optimal')
-            projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
+            projP = func_ep_epij(dvalp[:,:,0], m1xm1) + func_ep_epij(dvalp[:,:,1], m2xm2) + func_ep_epij(dvalp[:,:,2], m3xm3)
+            projP = projP + func_ep_epij(thetap[:,:,0], G12) + func_ep_epij(thetap[:,:,1], G13) + func_ep_epij(thetap[:,:,2], G23)
+
+            projM = func_ep_epij(dvalm[:,:,0], m1xm1) + func_ep_epij(dvalm[:,:,1], m2xm2) + func_ep_epij(dvalm[:,:,2], m3xm3)
+            projM = projM + func_ep_epij(thetam[:,:,0], G12) + func_ep_epij(thetam[:,:,1], G13) + func_ep_epij(thetam[:,:,2], G23)
+
+        verif = True
 
         if verif:
             # Verification de la décomposition et de l'orthogonalité
