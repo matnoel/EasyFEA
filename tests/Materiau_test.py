@@ -67,7 +67,10 @@ class Test_Materiau(unittest.TestCase):
 
         splits_Isot = [PhaseField_Model.SplitType.Amor, PhaseField_Model.SplitType.Miehe, PhaseField_Model.SplitType.Stress]
 
-        for c in self.comportements2D:
+        comportements = self.comportements2D
+        comportements.extend(self.comportements3D)
+
+        for c in comportements:
             for s in self.splits:
                 for r in self.regularizations:
                         
@@ -210,7 +213,10 @@ class Test_Materiau(unittest.TestCase):
         nPg = 1
 
         # Création de 2 espilons quelconques 2D
-        Epsilon_e_pg = np.random.randn(Ne,nPg,3)
+        Epsilon2D_e_pg = np.random.randn(Ne,nPg,3)
+
+        # Création de 2 espilons quelconques 3D
+        Epsilon3D_e_pg = np.random.randn(Ne,nPg,6)
         
         # Epsilon_e_pg = np.random.rand(1,1,3)
         # Epsilon_e_pg[0,:] = np.array([1,-1,0])
@@ -232,6 +238,11 @@ class Test_Materiau(unittest.TestCase):
                 c = comportement.get_C()
             
             print(f"{comportement.nom} {comportement.contraintesPlanes} {pfm.split} {pfm.regularization}")
+
+            if comportement.dim == 2:
+                Epsilon_e_pg = Epsilon2D_e_pg
+            elif comportement.dim == 3:
+                Epsilon_e_pg = Epsilon3D_e_pg
             
             if pfm.split == "Stress":
                 # Ici il y a un beug quand v=0.499999 et en deformation plane
