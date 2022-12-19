@@ -240,6 +240,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
                 solveur = "scipy_spsolve"
             else:
                 solveur = "cg"
+                # solveur = "petsc"
                 # solveur = "scipy_spsolve"
         elif syst == "Linux":
             solveur = "pypardiso"
@@ -321,27 +322,50 @@ def __Cholesky(A, b):
 def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
     # Utilise PETSc
 
-    petsc4py.init(sys.argv)
-    A_petsc = PETSc.Mat().createAIJ([A.shape[0], A.shape[1]])
-    A.setup()
-    
-    
-    bb = A.createVecLeft()
+    # petsc4py.init(sys.argv)
 
-    x = A.createVecRight()
+    lignes, colonnes, valeurs = sparse.find(A)
+    
+    nnz = len(np.where(lignes == lignes[0])[0])
+
+    nnz = np.ones_like(lignes)*nnz
+    
+
+    # mat = A/A
+    # nnz = np.sum(mat, axis=1)
+    # mat.data[np.isnan(mat.data)] = 0.0
+
+
+    matrice = PETSc.Mat()
+    matrice.createAIJ([A.shape[0], A.shape[1]], nnz=valeurs.size)
+    # matrice.create(A)
+    
+    (matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs))
+
+    matrice.assemble()
+
+    matrice.isSymmetric()    
+
+    vectb = matrice.createVecLeft()
+
+    lignes, _, valeurs = sparse.find(b)    
+
+    vectb.array[lignes] = valeurs    
+
+    x = matrice.createVecRight()
 
     ksp = PETSc.KSP().create()
-    ksp.setOperators(A)
-    ksp.setType('bcgs')
-    ksp.setConvergenceHistory()
+    ksp.setOperators(matrice)
+    ksp.setType('cg')    
     ksp.getPC().setType('none')
-    ksp.solve(b, x)
+    ksp.solve(vectb, x)
+    
+    print(f'Solving with: {ksp.getType()}') 
 
-    ksp.setFromOptions()
-    print('Solving with:'), ksp.getType()
+    x = x.array
 
-    # Solve!
-    ksp.solve(b, x)
+    return x
+    
 
 def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
     # https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
