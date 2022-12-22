@@ -75,6 +75,29 @@ class Displacement_Model(IModel):
 
     __modelType = ModelType.displacement
 
+    """Classe des lois de comportements C de (Sigma = C * Epsilon)
+    (Elas_isot, ...)
+    """
+    def __init__(self, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float):
+        
+        self.__dim = dim
+        """dimension lié a la loi de comportement"""
+
+        if dim == 2:
+            assert epaisseur > 0 , "Doit être supérieur à 0"
+            self.__epaisseur = epaisseur
+        
+        self.__C = C
+        """Loi de comportement pour la loi de Lamé en kelvin mandel"""
+
+        self.__S = S
+        """Loi de comportement pour la loi de Hooke en kelvin mandel"""
+
+        if self.dim == 2:
+            self.__simplification = "CP" if self.contraintesPlanes else "DP"
+        else:
+            self.__simplification = "3D"
+
     # Interface
 
     @property
@@ -91,6 +114,17 @@ class Displacement_Model(IModel):
             return self.__epaisseur
         else:
             return 1.0
+
+    @property
+    def contraintesPlanes(self) -> bool:
+        """Le modèle utilise une simplification contraintes planes"""
+        return False
+
+    @property
+    def simplification(self) -> str:
+        """Simplification utilisé pour le modèle"""
+        return self.__simplification
+        
     
     @property
     @abstractmethod
@@ -172,24 +206,6 @@ class Displacement_Model(IModel):
         # print(f"M =\n{M}")
         
         return M
-
-    """Classe des lois de comportements C de (Sigma = C * Epsilon)
-    (Elas_isot, ...)
-    """
-    def __init__(self, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float):
-        
-        self.__dim = dim
-        """dimension lié a la loi de comportement"""
-
-        if dim == 2:
-            assert epaisseur > 0 , "Doit être supérieur à 0"
-            self.__epaisseur = epaisseur
-        
-        self.__C = C
-        """Loi de comportement pour la loi de Lamé en kelvin mandel"""
-
-        self.__S = S
-        """Loi de comportement pour la loi de Hooke en kelvin mandel"""
 
     @property
     def coef(self) -> float:
@@ -323,15 +339,18 @@ class Elas_Isot(Displacement_Model):
         poisson = "Le coef de poisson doit être compris entre ]-1;0.5["
         assert v > -1.0 and v < 0.5, poisson
         self.v=v
-        """Coef de poisson"""        
-
+        """Coef de poisson"""
         
-        self.contraintesPlanes = contraintesPlanes if dim == 2 else "3D"
+        self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
         """type de simplification 2D"""
 
         C, S = self.__Comportement()
 
         Displacement_Model.__init__(self, dim, C, S, epaisseur)
+
+    @property
+    def contraintesPlanes(self) -> bool:
+        return self.__contraintesPlanes
 
     def get_lambda(self):
 
@@ -461,9 +480,8 @@ class Elas_IsotTrans(Displacement_Model):
         self.vt=vt
         """Coef de poisson transverse"""
 
-        if dim == 2:
-            self.contraintesPlanes = contraintesPlanes
-            """type de simplification 2D"""
+        self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
+        """type de simplification 2D"""       
 
         # Création de la matrice de changement de base
 
@@ -480,6 +498,10 @@ class Elas_IsotTrans(Displacement_Model):
         C, S = self.__Comportement(P, useSameAxis)
 
         Displacement_Model.__init__(self, dim, C, S, epaisseur)
+
+    @property
+    def contraintesPlanes(self) -> bool:
+        return self.__contraintesPlanes
 
     @property
     def Gt(self) -> float:
@@ -587,8 +609,7 @@ class Elas_IsotTrans(Displacement_Model):
                 # s = global_sM[x,:][:,x]
                 s = np.linalg.inv(c)
 
-                # testS = np.linalg.norm(s-s2)/np.linalg.norm(s2)
-            
+                # testS = np.linalg.norm(s-s2)/np.linalg.norm(s2)            
         
         return c, s
 
@@ -690,11 +711,16 @@ class Elas_Anisot(Displacement_Model):
 
         S_mandelP = np.linalg.inv(C_mandelP)
 
-        if dim == 2:
-            self.contraintesPlanes = contraintesPlanes
-            """type de simplification 2D"""
+        self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
+        """type de simplification 2D"""        
 
         Displacement_Model.__init__(self, dim, C_mandelP, S_mandelP, epaisseur)
+
+    @property
+    def contraintesPlanes(self) -> bool:
+        return self.__contraintesPlanes
+    
+
 
 class Poutre_Elas_Isot():
 
@@ -1451,22 +1477,34 @@ class PhaseField_Model(IModel):
 
             c = loiDeComportement.get_C()
 
+            dim = self.dim
+
             # Calcul Rp et Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Sigma_e_pg)
             
             # Calcul IxI
-            I = np.array([1,1,0]).reshape((3,1))
+            if dim == 2:
+                I = np.array([1,1,0]).reshape((3,1))
+            else:
+                I = np.array([1,1,1,0,0,0]).reshape((6,1))
             IxI = I.dot(I.T)
 
             RpIxI_e_pg = np.einsum('ep,ij->epij',Rp_e_pg, IxI, optimize='optimal')
             RmIxI_e_pg = np.einsum('ep,ij->epij',Rm_e_pg, IxI, optimize='optimal')
 
-            if loiDeComportement.contraintesPlanes:
-                sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
-                sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
-            else:
-                sP_e_pg = (1+v)/E*projP_e_pg - v*(1+v)/E * RpIxI_e_pg
-                sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
+            if dim == 2:
+                if loiDeComportement.contraintesPlanes:
+                    sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
+                    sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
+                else:
+                    sP_e_pg = (1+v)/E*projP_e_pg - v*(1+v)/E * RpIxI_e_pg
+                    sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
+            elif dim == 3:
+                mu = loiDeComportement.get_mu()
+
+                sP_e_pg = 1/(2*mu)*projP_e_pg - v/E * RpIxI_e_pg
+                sM_e_pg = 1/(2*mu)*projM_e_pg - v/E * RmIxI_e_pg
+
             
             useNumba = self.__useNumba
             if useNumba:
@@ -1484,7 +1522,6 @@ class PhaseField_Model(IModel):
             Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize='optimal')
 
             if self.__split == PhaseField_Model.SplitType.Zhang:
-
                 cP_e_pg = Cp_e_pg
                 cM_e_pg = Cm_e_pg
             
@@ -1602,7 +1639,7 @@ class PhaseField_Model(IModel):
 
         coef = self.__comportement.coef
         Ne = vecteur_e_pg.shape[0]
-        nPg = vecteur_e_pg.shape[1]        
+        nPg = vecteur_e_pg.shape[1]
 
         # Reconsruit le tenseur des deformations [e,pg,dim,dim]
         matrice_e_pg = np.zeros((Ne,nPg,dim,dim))
@@ -1663,110 +1700,168 @@ class PhaseField_Model(IModel):
             M2 = np.eye(2) - M1
         
         elif self.dim == 3:
-            a11_e_pg = matrice_e_pg[:,:,0,0]; a12_e_pg = matrice_e_pg[:,:,0,1]; a13_e_pg = matrice_e_pg[:,:,0,2]
-            a21_e_pg = matrice_e_pg[:,:,1,0]; a22_e_pg = matrice_e_pg[:,:,1,1]; a23_e_pg = matrice_e_pg[:,:,1,2]
-            a31_e_pg = matrice_e_pg[:,:,2,0]; a32_e_pg = matrice_e_pg[:,:,2,1]; a33_e_pg = matrice_e_pg[:,:,2,2]
 
-            determinant_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))            
+            version = 'eigh' # 'matlab', 'matthieu', 'eigh'            
 
-            # Invariants
-            I1_e_pg = trace_e_pg
-            mat_mat = np.einsum('epij,epjk->epik', matrice_e_pg, matrice_e_pg, optimize='optimal')
-            trace_mat_mat = np.einsum('epii->ep', mat_mat, optimize='optimal')
-            I2_e_pg = (trace_e_pg**2 - trace_mat_mat)/2
-            I3_e_pg = determinant_e_pg            
+            if version in ['matlab', 'matthieu']:
 
-            g = I1_e_pg**2 - 3*I2_e_pg
-            tol0 = 1e-7
-            idx0 = np.where((g <= tol0) & (g >= -tol0))
-            filtreNotX0 = (g >= tol0) | (g <= -tol0)
-            idxNot0 = np.where(filtreNotX0)
-            if len(idxNot0[0]) > 0:
-                pass 
-            racine_g = np.sqrt(g)
-            racine_g_ij = racine_g.reshape((Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)
-            
-            arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2/g**(3/2) # -1 <= arg <= 1
+                a11_e_pg = matrice_e_pg[:,:,0,0]; a12_e_pg = matrice_e_pg[:,:,0,1]; a13_e_pg = matrice_e_pg[:,:,0,2]
+                a21_e_pg = matrice_e_pg[:,:,1,0]; a22_e_pg = matrice_e_pg[:,:,1,1]; a23_e_pg = matrice_e_pg[:,:,1,2]
+                a31_e_pg = matrice_e_pg[:,:,2,0]; a32_e_pg = matrice_e_pg[:,:,2,1]; a33_e_pg = matrice_e_pg[:,:,2,2]
 
-            # idxMin = np.where(arg >= 1-tol0) # positions of double minimum eigenvalue
-            # idxMax = np.where(arg <= -1+tol0) # positions of double maximum eigenvalue
-            
-            # arg[np.where(arg >= 1-1e-12)] = 1
-            # arg[np.where(arg <= -1+1e-12)] = -1
+                determinant_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))            
 
-            theta = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
+                # Invariants
+                I1_e_pg = trace_e_pg
+                mat_mat = np.einsum('epij,epjk->epik', matrice_e_pg, matrice_e_pg, optimize='optimal')
+                trace_mat_mat = np.einsum('epii->ep', mat_mat, optimize='optimal')
+                I2_e_pg = (trace_e_pg**2 - trace_mat_mat)/2
+                I3_e_pg = determinant_e_pg            
 
-            E1 = I1_e_pg/3 + 2/3 * racine_g * np.cos(2*np.pi/3 + theta)
-            E2 = I1_e_pg/3 + 2/3 * racine_g * np.cos(2*np.pi/3 - theta)
-            E3 = I1_e_pg/3 + 2/3 * racine_g * np.cos(theta)
+                g = I1_e_pg**2 - 3*I2_e_pg            
+                elems0 = np.unique(np.where(g == 0)[0])
+                filtreNot0 = g != 0
+                elemsNot0 = np.unique(np.where(filtreNot0)[0])
 
-            # Initialisation des valeurs propres            
-            val_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
-            val_e_pg[idxNot0[0], idxNot0[1], 0] = E1[idxNot0]
-            val_e_pg[idxNot0[0], idxNot0[1], 1] = E2[idxNot0]
-            val_e_pg[idxNot0[0], idxNot0[1], 2] = E3[idxNot0]
+                racine_g = np.sqrt(g)
+                racine_g_ij = racine_g.reshape((Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)            
+                
+                arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2/g**(3/2) # -1 <= arg <= 1
+                
+                theta = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
 
-            # Initialisation des projecteurs propres
-            M1 = np.zeros_like(matrice_e_pg); M1[:,:,0,0] = 1
-            M2 = np.zeros_like(matrice_e_pg); M2[:,:,1,1] = 1
-            M3 = np.zeros_like(matrice_e_pg); M3[:,:,2,2] = 1
+                elemsMin = np.unique(np.where(arg == 1)[0]) # positions of double minimum eigenvalue            
+                elemsMax = np.unique(np.where(arg == -1)[0]) # positions of double maximum eigenvalue
 
-            # g=0 -> E1 = E2 = E3 -> 3 valeurs propres identiques
-            # ici ne fait rien car déja initialisé
+                elemsNot0 = np.setdiff1d(elemsNot0, elemsMin)
+                elemsNot0 = np.setdiff1d(elemsNot0, elemsMax)
 
-            eye3 = np.zeros_like(matrice_e_pg)
-            eye3[:,:,0,0] = 1; eye3[:,:,1,1] = 1; eye3[:,:,2,2] = 1
-            I_rg = np.einsum('ep,epij->epij', I1_e_pg - racine_g, eye3/3, optimize='optimal')
+            if version == 'eigh':
 
-            # g!=0 & E1 < E2 = E3 -> 2 valeurs propres maximums            
-            idxE2E3 = np.where(filtreNotX0 & (np.abs(E2-E3) <= tol0))
-            E2[idxE2E3] = E3[idxE2E3]
+                valnum, vectnum = np.linalg.eigh(matrice_e_pg)
 
-            idxMax = np.where(filtreNotX0 & (E1<E2) & (E2==E3))
-            M1[idxMax] = ((I_rg[idxMax] - matrice_e_pg[idxMax])/racine_g_ij[idxMax])
-            M2[idxMax] = M3[idxMax] = (eye3[idxMax] - M1[idxMax])/2
+                func_Mi = lambda mi: np.einsum('epi,epj->epij', mi, mi, optimize='optimal')
 
-            # g!=0 & E1 == E2 < E3  -> 2 valeurs propres minimums
-            idxE1E2 = np.where(filtreNotX0 & (np.abs(E1-E2) <= tol0))
-            E1[idxE1E2] = E2[idxE1E2]
+                M1 = func_Mi(vectnum[:,:,:,0])
+                M2 = func_Mi(vectnum[:,:,:,1])
+                M3 = func_Mi(vectnum[:,:,:,2])
 
-            idxMin = np.where(filtreNotX0 & (E1==E2) & (E2<E3))
-            M3[idxMin] = ((matrice_e_pg[idxMin] - I_rg[idxMin])/racine_g_ij[idxMin])
-            M1[idxMin] = M2[idxMin] = (eye3[idxMin] - M3[idxMin])/2
+                val_e_pg = valnum
 
-            # g!=0 & E1 < E2 < E3  -> 3 valeurs propres distinctes
-            idxDist = np.where(filtreNotX0 & (E1<E2) & (E2<E3))
-            # idxDist = idx0
+            elif version == 'matlab':
 
-            E1_ij = E1.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[idxDist]
-            E2_ij = E2.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[idxDist]
-            E3_ij = E3.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[idxDist]
-            matr_dist = matrice_e_pg[idxDist]
-            eye3_dist = eye3[idxDist]
-            
-            M1[idxDist] = ((matr_dist - E2_ij*eye3_dist)/(E1_ij-E2_ij) * (matr_dist - E3_ij*eye3_dist)/(E1_ij-E3_ij))
-            M2[idxDist] = ((matr_dist - E1_ij*eye3_dist)/(E2_ij-E1_ij) * (matr_dist - E3_ij*eye3_dist)/(E2_ij-E3_ij))
-            M3[idxDist] = ((matr_dist - E1_ij*eye3_dist)/(E3_ij-E1_ij) * (matr_dist - E2_ij*eye3_dist)/(E3_ij-E2_ij))
+                # Initialisation des valeurs propres
+                val_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
+
+                # Case of double minimum eigenvalue
+                if elemsMin.size > 0:
+                    val_e_pg[elemsMin] = val_e_pg[elemsMin] + np.einsum('ep,i->epi', racine_g, np.array([-1, -1, 2])/3, optimize='optimal')[elemsMin]
+
+                # Case of double maximum eigenvalue
+                if elemsMax.size > 0:
+                    val_e_pg[elemsMax] = val_e_pg[elemsMax] + np.einsum('ep,i->epi', racine_g, np.array([-2, 1, 1])/3, optimize='optimal')[elemsMax]
+
+                # Case of 3 distinct eigenvalues
+                if elemsNot0.size > 0:
+                    thet = np.zeros_like(val_e_pg)
+                    thet[:,:,0] = np.cos(2*np.pi/3+theta)
+                    thet[:,:,1] = np.cos(2*np.pi/3-theta)
+                    thet[:,:,2] = np.cos(theta)
+                    thet = thet * 2/3
+
+                    val_e_pg[elemsNot0] = val_e_pg[elemsNot0] + np.einsum('ep,epi->epi', racine_g, thet, optimize='optimal')[elemsNot0]
+
+                # Initialisation des projecteurs propres
+                M1 = np.zeros_like(matrice_e_pg); M1[:,:,0,0] = 1            
+                M3 = np.zeros_like(matrice_e_pg); M3[:,:,2,2] = 1
+
+                eye3 = np.zeros_like(matrice_e_pg)
+                eye3[:,:,0,0] = 1; eye3[:,:,1,1] = 1; eye3[:,:,2,2] = 1
+                I_rg = np.einsum('ep,epij->epij', I1_e_pg - racine_g, eye3/3, optimize='optimal')
+
+                # Case of double minimum eigenvalue
+                M3[elemsMin] = (matrice_e_pg[elemsMin] - I_rg[elemsMin])/racine_g_ij[elemsMin]
+                M1[elemsMin] = (eye3[elemsMin] - M3[elemsMin])/2
+
+                # Case of double maximum eigenvalue
+                M1[elemsMax] = (I_rg[elemsMax] - matrice_e_pg[elemsMax])/racine_g_ij[elemsMax]
+                M3[elemsMax] = (eye3[elemsMax] - M1[elemsMax])/2
+
+                # Case of 3 distinct eigenvalues            
+                if elemsNot0.size > 0:
+                    matNot0 = matrice_e_pg[elemsNot0]
+                    E1not0 = val_e_pg[elemsNot0, :, 0]; E1not0_eye3 = np.einsum('ep,ij->epij', E1not0, np.ones((3,3)), optimize='optimal')
+                    E2not0 = val_e_pg[elemsNot0, :, 1]; E2not0_eye3 = np.einsum('ep,ij->epij', E2not0, np.ones((3,3)), optimize='optimal')
+                    E3not0 = val_e_pg[elemsNot0, :, 2]; E3not0_eye3 = np.einsum('ep,ij->epij', E3not0, np.ones((3,3)), optimize='optimal')
+
+                    M1[elemsNot0] = (matNot0-E2not0_eye3)/(E1not0_eye3-E2not0_eye3) * (matNot0-E3not0_eye3)/(E1not0_eye3-E3not0_eye3)
+                    M3[elemsNot0] = (matNot0-E1not0_eye3)/(E3not0_eye3-E1not0_eye3) * (matNot0-E2not0_eye3)/(E3not0_eye3-E2not0_eye3)
+
+                M2 = eye3 - (M1 + M3)                
+
+            elif version == 'matthieu':
+
+                E1 = I1_e_pg/3 + 2/3 * racine_g * np.cos(2*np.pi/3 + theta)
+                E2 = I1_e_pg/3 + 2/3 * racine_g * np.cos(2*np.pi/3 - theta)
+                E3 = I1_e_pg/3 + 2/3 * racine_g * np.cos(theta)
+
+                # Initialisation des valeurs propres            
+                val_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
+                val_e_pg[elemsNot0, :, 0] = E1[elemsNot0]
+                val_e_pg[elemsNot0, :, 1] = E2[elemsNot0]
+                val_e_pg[elemsNot0, :, 2] = E3[elemsNot0]
+
+                # Initialisation des projecteurs propres
+                M1 = np.zeros_like(matrice_e_pg); M1[:,:,0,0] = 1
+                M2 = np.zeros_like(matrice_e_pg); M2[:,:,1,1] = 1
+                M3 = np.zeros_like(matrice_e_pg); M3[:,:,2,2] = 1
+
+                # g=0 -> E1 = E2 = E3 -> 3 valeurs propres identiques
+                # ici ne fait rien car déja initialisé
+
+                eye3 = np.zeros_like(matrice_e_pg)
+                eye3[:,:,0,0] = 1; eye3[:,:,1,1] = 1; eye3[:,:,2,2] = 1
+                I_rg = np.einsum('ep,epij->epij', I1_e_pg - racine_g, eye3/3, optimize='optimal')                
+
+                # g!=0 & E1 < E2 = E3 -> 2 valeurs propres maximums
+                #             
+                # elems_E2E3 = np.unique(np.where(filtreNot0 & (np.abs(E2-E3) <= tol))[0])
+                # E2[elems_E2E3] = E3[elems_E2E3]
+
+                elems_Max = np.unique(np.where(filtreNot0 & (E1<E2) & (E2==E3))[0])
+                M1[elems_Max] = ((I_rg[elems_Max] - matrice_e_pg[elems_Max])/racine_g_ij[elems_Max])
+                M2[elems_Max] = M3[elems_Max] = (eye3[elems_Max] - M1[elems_Max])/2
+
+                # g!=0 & E1 == E2 < E3  -> 2 valeurs propres minimums
+
+                # elems_E1E2 = np.unique(np.where(filtreNot0 & (np.abs(E1-E2) <= tol))[0])
+                # E1[elems_E1E2] = E2[elems_E1E2]
+
+                elems_Min = np.unique(np.where(filtreNot0 & (E1==E2) & (E2<E3))[0])
+                M3[elems_Min] = ((matrice_e_pg[elems_Min] - I_rg[elems_Min])/racine_g_ij[elems_Min])
+                M1[elems_Min] = M2[elems_Min] = (eye3[elems_Min] - M3[elems_Min])/2
+
+                # g!=0 & E1 < E2 < E3  -> 3 valeurs propres distinctes
+                elems_Dist = np.unique(np.where(filtreNot0 & (E1<E2) & (E2<E3))[0])
+                # idxDist = idx0
+
+                E1_ij = E1.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems_Dist]
+                E2_ij = E2.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems_Dist]
+                E3_ij = E3.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems_Dist]
+                matr_dist = matrice_e_pg[elems_Dist]
+                eye3_dist = eye3[elems_Dist]
+                
+                M1[elems_Dist] = ((matr_dist - E2_ij*eye3_dist)/(E1_ij-E2_ij) * (matr_dist - E3_ij*eye3_dist)/(E1_ij-E3_ij))
+                M2[elems_Dist] = ((matr_dist - E1_ij*eye3_dist)/(E2_ij-E1_ij) * (matr_dist - E3_ij*eye3_dist)/(E2_ij-E3_ij))
+                M3[elems_Dist] = ((matr_dist - E1_ij*eye3_dist)/(E3_ij-E1_ij) * (matr_dist - E2_ij*eye3_dist)/(E3_ij-E2_ij))
+
+            if version != 'eigh':
+                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(2,3)))
+                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(2,3)))
+                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(2,3)))
 
         # tic.Tac("Matrices", "Decomp spectrale Matrices propres", False)
 
-        verif = True
-        
-        if verif:
-            if dim == 3:
-                pass
-
-            # test ortho entre M1 et M2 
-            verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
-            textTest = "Orthogonalité non vérifié"
-            assert np.abs(verifOrtho_M1M2).max() < 1e-10, textTest
-
-            if dim == 3:
-                verifOrtho_M1M3 = np.einsum('epij,epij->ep', M1, M3, optimize='optimal')
-                assert np.abs(verifOrtho_M1M3).max() < 1e-10, textTest
-                verifOrtho_M2M3 = np.einsum('epij,epij->ep', M2, M3, optimize='optimal')
-                assert np.abs(verifOrtho_M2M3).max() < 1e-10, textTest
-        
         # Passage des bases propres sous la forme dun vecteur [e,pg,3] ou [e,pg,6]
         if dim == 2:
             # [x, y, xy]
@@ -1794,6 +1889,71 @@ class PhaseField_Model(IModel):
 
             list_M = [M1, M2, M3]
 
+        verif = True
+        
+        if verif:
+            
+            valnum, vectnum = np.linalg.eigh(matrice_e_pg)
+
+            func_Mi = lambda mi: np.einsum('epi,epj->epij', mi, mi, optimize='optimal')
+            func_ep_epij = lambda ep, epij : np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
+
+            M1_num = func_Mi(vectnum[:,:,:,0])
+            M2_num = func_Mi(vectnum[:,:,:,1])
+
+            matrice = func_ep_epij(val_e_pg[:,:,0], M1) + func_ep_epij(val_e_pg[:,:,1], M2)
+
+            matrice_num = func_ep_epij(valnum[:,:,0], M1_num) + func_ep_epij(valnum[:,:,1], M2_num)
+            
+            if dim == 3:                
+                M3_num = func_Mi(vectnum[:,:,:,2])
+                matrice = matrice + func_ep_epij(val_e_pg[:,:,2], M3)
+                matrice_num = matrice_num + func_ep_epij(valnum[:,:,2], M3_num)            
+
+            if matrice_e_pg.max() > 0:
+
+                ecart_matrice = matrice - matrice_e_pg
+                erreurMatrice = np.linalg.norm(ecart_matrice)/np.linalg.norm(matrice_e_pg)
+                assert erreurMatrice <= 1e-12, "matrice != E1*M1 + E2*M2 + E3*M3 != matrice_e_pg"
+
+            if matrice.max() > 0:
+                erreurMatriceNumMatrice = np.linalg.norm(matrice_num - matrice)/np.linalg.norm(matrice)
+                assert erreurMatriceNumMatrice <= 1e-12, "matrice != matrice_num"
+
+            # verification si les valeurs prores sont bonnes
+            if valnum.max() > 0:
+                testval = np.linalg.norm(val_e_pg - valnum)/np.linalg.norm(valnum)
+                assert testval <= 1e-12, "Erreur dans le calcul de valeurs propres"            
+
+            # verification si les projecteurs propres sont corrects
+            def erreur_Mi_Minum(Mi, mi_num):
+                Mi_num = np.einsum('epi,epj->epij', mi_num, mi_num, optimize='optimal')
+                ecart = Mi_num-Mi
+                erreur = np.linalg.norm(ecart)/np.linalg.norm(Mi)
+                assert erreur <= 1e-12, "Erreur dans le calcul des projecteurs propres"
+
+            if dim == 3:
+                pass
+
+            erreur_Mi_Minum(M1, vectnum[:,:,:,0])
+            erreur_Mi_Minum(M2, vectnum[:,:,:,1])
+            if dim == 3:
+                erreur_Mi_Minum(M3, vectnum[:,:,:,2])
+
+
+            # test ortho entre M1 et M2 
+            verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
+            textTest = "Orthogonalité non vérifié"
+            assert np.abs(verifOrtho_M1M2).max() < 1e-9, textTest
+
+            if dim == 3:
+                verifOrtho_M1M3 = np.einsum('epij,epij->ep', M1, M3, optimize='optimal')
+                assert np.abs(verifOrtho_M1M3).max() < 1e-10, textTest
+                verifOrtho_M2M3 = np.einsum('epij,epij->ep', M2, M3, optimize='optimal')
+                assert np.abs(verifOrtho_M2M3).max() < 1e-10, textTest
+        
+        
+
         return val_e_pg, list_m, list_M
     
     def __Decomposition_Spectrale(self, vecteur_e_pg: np.ndarray, verif=False):
@@ -1820,8 +1980,7 @@ class PhaseField_Model(IModel):
         # récupération des valeurs, vecteurs et matrices propres
         val_e_pg, list_m, list_M = self.__valeursPropres_vecteursPropres_matricesPropres(vecteur_e_pg, verif)
 
-        tic2.Tac("Calc Proj", "val ,vect et matrices propres", False)        
-        
+        tic2.Tac("Calc Proj", "val ,vect et matrices propres", False)
         
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
@@ -1879,59 +2038,101 @@ class PhaseField_Model(IModel):
         elif dim == 3:
             m1, m2, m3 = list_m[0], list_m[1], list_m[2]
 
-            thetap = dvalp/2
-            thetam = dvalm/2            
+            M1, M2, M3 = list_M[0], list_M[1], list_M[2]            
+
+            coef = np.sqrt(2)
+
+            thetap = dvalp.copy()/2
+            thetam = dvalm.copy()/2
+
+            funcFiltreComp = lambda vi, vj: vi != vj
             
-            elems, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
+            elems, pdgs = np.where(funcFiltreComp(val_e_pg[:,:,0], val_e_pg[:,:,1]))
             v1_m_v2 = val_e_pg[elems,pdgs,0]-val_e_pg[elems,pdgs,1]
             thetap[elems, pdgs, 0] = (valp[elems,pdgs,0]-valp[elems,pdgs,1])/(2*v1_m_v2)
             thetam[elems, pdgs, 0] = (valm[elems,pdgs,0]-valm[elems,pdgs,1])/(2*v1_m_v2)
 
-            elems, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,2])
+            elems, pdgs = np.where(funcFiltreComp(val_e_pg[:,:,0], val_e_pg[:,:,2]))
             v1_m_v3 = val_e_pg[elems,pdgs,0]-val_e_pg[elems,pdgs,2]
             thetap[elems, pdgs, 1] = (valp[elems,pdgs,0]-valp[elems,pdgs,2])/(2*v1_m_v3)
             thetam[elems, pdgs, 1] = (valm[elems,pdgs,0]-valm[elems,pdgs,2])/(2*v1_m_v3)
 
-            elems, pdgs = np.where(val_e_pg[:,:,1] != val_e_pg[:,:,2])
+            elems, pdgs = np.where(funcFiltreComp(val_e_pg[:,:,1], val_e_pg[:,:,2]))
             v2_m_v3 = val_e_pg[elems,pdgs,1]-val_e_pg[elems,pdgs,2]
             thetap[elems, pdgs, 2] = (valp[elems,pdgs,1]-valp[elems,pdgs,2])/(2*v2_m_v3)
-            thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)
+            thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)            
 
-            M1 = list_M[0]
-            M2 = list_M[1]
-            M3 = list_M[2]
-
-            func_part1 = lambda Ma, Mb: np.einsum('epik,epjl->epijkl', Ma, Mb, optimize='optimal')
-            func_part2 = lambda Ma, Mb: np.einsum('epil,epjk->epijkl', Ma, Mb, optimize='optimal')
-
-            coef = np.sqrt(2)
-
-            def Construction_Gij(Ma, Mb):
-
-                Gijkl = func_part1(Ma, Mb) + func_part2(Ma, Mb)
+            def Construction_Gij(Ma, Mb, version='matthieu'): # 'matlab', 'matthieu'
 
                 Gij = np.zeros((Ne, nPg, 6, 6))
 
-                listI = [0]*6; listI.extend([1]*6); listI.extend([2]*6); listI.extend([1]*6); listI.extend([0]*12)
-                listJ = [0]*6; listJ.extend([1]*6); listJ.extend([2]*18); listJ.extend([1]*6)
-                listK = [0,1,2,1,0,0]*6
-                listL = [0,1,2,2,2,1]*6
-                
-                colonnes = np.arange(0,6, dtype=int).reshape((1,6)).repeat(6,axis=0).reshape(-1)
-                lignes = np.sort(colonnes)
+                if version == 'matlab':
 
-                # # ici je construit une matrice pour verfier que les numéros sont bons
-                # ma = np.zeros((6,6), dtype=np.object0)
-                # for lin,col,i,j,k,l in zip(lignes, colonnes, listI, listJ, listK, listL):
-                #     text = f"{i+1}{j+1}{k+1}{l+1}"
-                #     ma[lin,col] = text
-                #     pass
+                    ma1 = Ma[:,:,0,0]; ma2 = Ma[:,:,1,1]; ma3 = Ma[:,:,2,2]
+                    # ma4 = Ma[:,:,0,1]; ma5 = Ma[:,:,0,2]; ma6 = Ma[:,:,1,2]
+                    ma4 = Ma[:,:,0,1]*coef; ma5 = Ma[:,:,0,2]*coef; ma6 = Ma[:,:,1,2]*coef
 
-                Gij[:,:,lignes, colonnes] = Gijkl[:,:,listI,listJ,listK,listL]
+                    mb1 = Mb[:,:,0,0]; mb2 = Mb[:,:,1,1]; mb3 = Mb[:,:,2,2]
+                    # mb4 = Mb[:,:,0,1]; mb5 = Mb[:,:,0,2]; mb6 = Mb[:,:,1,2]
+                    mb4 = Mb[:,:,0,1]*coef; mb5 = Mb[:,:,0,2]*coef; mb6 = Mb[:,:,1,2]*coef
 
-                Gij[:,:,:3,3:6] = Gij[:,:,:3,3:6] * coef
-                Gij[:,:,3:6,:3] = Gij[:,:,3:6,:3] * coef
-                Gij[:,:,3:6,3:6] = Gij[:,:,3:6,3:6] * 2
+                    # # attention 6 devient 4 et inversement
+                    # ma6 = Ma[:,:,0,1]*coef; ma5 = Ma[:,:,0,2]*coef; ma4 = Ma[:,:,1,2]*coef
+                    # mb6 = Mb[:,:,0,1]*coef; mb5 = Mb[:,:,0,2]*coef; mb4 = Mb[:,:,1,2]*coef
+                    
+                    G11 = Ma*Mb*2
+
+                    # G12
+                    G12 = np.zeros_like(G11)
+
+                    G12[:,:,0,0] = ma1*mb4+ma4*mb1; G12[:,:,0,1] = ma1*mb5+ma5*mb1; G12[:,:,0,2] = ma4*mb5+ma5*mb4
+                    G12[:,:,1,0] = ma4*mb2+ma2*mb4; G12[:,:,1,1] = ma4*mb6+ma6*mb4; G12[:,:,1,2] = ma2*mb6+ma6*mb2
+                    G12[:,:,2,0] = ma5*mb6+ma6*mb5; G12[:,:,2,1] = ma5*mb3+ma3*mb5; G12[:,:,2,2] = ma6*mb3+ma3*mb6
+
+                    G12 = G12 / coef
+                    
+                    # G22
+                    G22 = np.zeros_like(G11)
+
+                    G22[:,:,0,0] = ma1*mb2+ma2*mb1+2*ma4*mb4; G22[:,:,0,1] = ma1*mb6+ma6*mb1+ma5*mb4+ma4*mb5; G22[:,:,0,2] = ma4*mb6+ma6*mb4+ma5*mb2+ma2*mb5
+                    G22[:,:,1,0] = ma1*mb6+ma6*mb1+ma5*mb4+ma4*mb5; G22[:,:,1,1] = ma1*mb3+ma3*mb1+2*ma5*mb5; G22[:,:,1,2] = ma4*mb3+ma3*mb4+ma5*mb6+ma6*mb5
+                    G22[:,:,2,0] = ma4*mb6+ma6*mb4+ma5*mb2+ma2*mb5; G22[:,:,2,1] = ma4*mb3+ma3*mb4+ma5*mb6+ma6*mb5; G22[:,:,2,2] = ma2*mb3+ma3*mb2+2*ma6*mb6
+
+                    G22 = G22
+
+                    Gij[:,:,:3,:3] = G11
+                    Gij[:,:,3:6,3:6] = G22
+                    Gij[:,:,:3,3:6] = G12
+                    Gij[:,:,3:6,:3] = np.einsum('epij->epji', G12, optimize='optimal')
+
+                elif version == 'matthieu':
+
+                    part1 = lambda Ma, Mb: np.einsum('epik,epjl->epijkl', Ma, Mb, optimize='optimal')
+                    part2 = lambda Ma, Mb: np.einsum('epil,epjk->epijkl', Ma, Mb, optimize='optimal')
+
+                    Gijkl = part1(Ma, Mb) + part2(Ma, Mb) + part1(Mb, Ma) + part2(Mb, Ma)
+
+                    listI = [0]*6; listI.extend([1]*6); listI.extend([2]*6); listI.extend([1]*6); listI.extend([0]*12)
+                    listJ = [0]*6; listJ.extend([1]*6); listJ.extend([2]*18); listJ.extend([1]*6)
+                    listK = [0,1,2,1,0,0]*6
+                    listL = [0,1,2,2,2,1]*6
+                    
+                    colonnes = np.arange(0,6, dtype=int).reshape((1,6)).repeat(6,axis=0).reshape(-1)
+                    lignes = np.sort(colonnes)
+
+                    # # ici je construit une matrice pour verfier que les numéros sont bons
+                    # ma = np.zeros((6,6), dtype=np.object0)
+                    # for lin,col,i,j,k,l in zip(lignes, colonnes, listI, listJ, listK, listL):
+                    #     text = f"{i+1}{j+1}{k+1}{l+1}"
+                    #     ma[lin,col] = text
+                    #     pass
+
+                    Gij[:,:,lignes, colonnes] = Gijkl[:,:,listI,listJ,listK,listL]
+                    
+                    Gij[:,:,:3,3:6] = Gij[:,:,:3,3:6] * coef
+                    Gij[:,:,3:6,:3] = Gij[:,:,3:6,:3] * coef
+                    Gij[:,:,3:6,3:6] = Gij[:,:,3:6,3:6] * 2
+
 
                 return Gij
 
@@ -1944,13 +2145,11 @@ class PhaseField_Model(IModel):
             m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
             m3xm3 = np.einsum('epi,epj->epij', m3, m3, optimize='optimal')
 
-            func_ep_epij = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
+            func = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
 
-            projP = func_ep_epij(dvalp[:,:,0], m1xm1) + func_ep_epij(dvalp[:,:,1], m2xm2) + func_ep_epij(dvalp[:,:,2], m3xm3)
-            projP = projP + func_ep_epij(thetap[:,:,0], G12) + func_ep_epij(thetap[:,:,1], G13) + func_ep_epij(thetap[:,:,2], G23)
+            projP = func(dvalp[:,:,0], m1xm1) + func(dvalp[:,:,1], m2xm2) + func(dvalp[:,:,2], m3xm3) + func(thetap[:,:,0], G12) + func(thetap[:,:,1], G13) + func(thetap[:,:,2], G23)
 
-            projM = func_ep_epij(dvalm[:,:,0], m1xm1) + func_ep_epij(dvalm[:,:,1], m2xm2) + func_ep_epij(dvalm[:,:,2], m3xm3)
-            projM = projM + func_ep_epij(thetam[:,:,0], G12) + func_ep_epij(thetam[:,:,1], G13) + func_ep_epij(thetam[:,:,2], G23)
+            projM = func(dvalm[:,:,0], m1xm1) + func(dvalm[:,:,1], m2xm2) + func(dvalm[:,:,2], m3xm3) + func(thetam[:,:,0], G12) + func(thetam[:,:,1], G13) + func(thetam[:,:,2], G23)
 
         verif = True
 
@@ -1962,9 +2161,9 @@ class PhaseField_Model(IModel):
             
             # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg
             decomp = vecteur_e_pg-(vecteurP + vecteurM)
-            if np.linalg.norm(vecteur_e_pg) > 0:
+            if np.linalg.norm(vecteur_e_pg) > 0:                
                 verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vecteur_e_pg)
-                assert verifDecomp < 1e-12
+                assert verifDecomp <= 1e-12, "vecteur_e_pg != vecteurP_e_pg + vecteurM_e_pg"
 
             # Orthogonalité
             ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vecteurP, vecteurM, optimize='optimal'))
@@ -1972,10 +2171,9 @@ class PhaseField_Model(IModel):
             ortho_v_v = np.abs(np.einsum('epi,epi->ep', vecteur_e_pg, vecteur_e_pg, optimize='optimal'))
             if ortho_v_v.min() > 0:
                 vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
-                tvertifOrthoEpsPM = ortho_vP_vM/ortho_v_v
-                assert vertifOrthoEpsPM < 1e-12
+                assert vertifOrthoEpsPM <= 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
-                assert vertifOrthoEpsMP < 1e-12
+                assert vertifOrthoEpsMP <= 1e-12
         
         tic2.Tac("Calc Proj", "Pp et Pm", False)
         tic.Tac("Matrices", "Decomp spectrale et projecteurs", False)

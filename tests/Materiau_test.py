@@ -210,7 +210,9 @@ class Test_Materiau(unittest.TestCase):
     def test_Decomposition_psi(self):
         
         Ne = 50
-        nPg = 1
+        nPg = 2
+
+        np.random.seed(3)
 
         # Création de 2 espilons quelconques 2D
         Epsilon2D_e_pg = np.random.randn(Ne,nPg,3)
@@ -234,29 +236,21 @@ class Test_Materiau(unittest.TestCase):
 
             comportement = pfm.comportement
             
-            if isinstance(comportement, Elas_Isot) or isinstance(comportement, Elas_IsotTrans) or isinstance(comportement, Elas_Anisot):                
+            if isinstance(comportement, Displacement_Model):
                 c = comportement.get_C()
             
-            print(f"{comportement.nom} {comportement.contraintesPlanes} {pfm.split} {pfm.regularization}")
+            print(f"{comportement.nom} {comportement.simplification} {pfm.split} {pfm.regularization}")
 
             if comportement.dim == 2:
                 Epsilon_e_pg = Epsilon2D_e_pg
             elif comportement.dim == 3:
                 Epsilon_e_pg = Epsilon3D_e_pg
-            
-            if pfm.split == "Stress":
-                # Ici il y a un beug quand v=0.499999 et en deformation plane
-                pass
-
-            if pfm.split in ["AnisotMiehe","AnisotMiehe_PM","AnisotMiehe_MP","AnisotMiehe_NoCross"]:
-                # Ici il y a un beug quand v=0.499999 et en deformation plane
-                if isinstance(comportement, Elas_IsotTrans):
-                    pass
 
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
 
             # Test que cP + cM = c
-            decompC = c-(cP_e_pg+cM_e_pg)
+            cpm = cP_e_pg+cM_e_pg
+            decompC = c-cpm
             verifC = np.linalg.norm(decompC)/np.linalg.norm(c)
             if pfm.split != "He":
                 self.assertTrue(np.abs(verifC) < tol)
