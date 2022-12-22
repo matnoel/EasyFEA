@@ -1298,7 +1298,7 @@ class PhaseField_Model(IModel):
 
         cP_e_pg = c
         cM_e_pg = np.zeros_like(cP_e_pg)
-        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+        tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -1353,7 +1353,7 @@ class PhaseField_Model(IModel):
             cP_e_pg = bulk*spherP_e_pg + partieDeviateur
             cM_e_pg = bulk*spherM_e_pg
 
-        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+        tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -1449,7 +1449,7 @@ class PhaseField_Model(IModel):
         else:
             raise "Split inconnue"
 
-        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+        tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -1504,7 +1504,6 @@ class PhaseField_Model(IModel):
 
                 sP_e_pg = 1/(2*mu)*projP_e_pg - v/E * RpIxI_e_pg
                 sM_e_pg = 1/(2*mu)*projM_e_pg - v/E * RmIxI_e_pg
-
             
             useNumba = self.__useNumba
             if useNumba:
@@ -1526,7 +1525,6 @@ class PhaseField_Model(IModel):
                 cM_e_pg = Cm_e_pg
             
             else:
-
                 # Construit Cp et Cm
                 S = loiDeComportement.get_S()
                 if self.__useNumba:
@@ -1561,7 +1559,7 @@ class PhaseField_Model(IModel):
                 else:
                     raise "Split inconnue"
 
-        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
+        tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -1602,6 +1600,8 @@ class PhaseField_Model(IModel):
         cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
         cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
 
+        tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
+
         if verif:
             vecteur_e_pg = Epsilon_e_pg.copy()
             mat = C.copy()    
@@ -1624,12 +1624,9 @@ class PhaseField_Model(IModel):
             ortho_v_v = np.abs(np.einsum('epi,ij,epj->ep', vecteur_e_pg, mat, vecteur_e_pg, optimize='optimal'))
             if ortho_v_v.min() > 0:
                 vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
-                tvertifOrthoEpsPM = ortho_vP_vM/ortho_v_v
                 assert vertifOrthoEpsPM < 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP < 1e-12
-
-        tic.Tac("Matrices",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -1640,6 +1637,8 @@ class PhaseField_Model(IModel):
         coef = self.__comportement.coef
         Ne = vecteur_e_pg.shape[0]
         nPg = vecteur_e_pg.shape[1]
+
+        tic = Tic()
 
         # Reconsruit le tenseur des deformations [e,pg,dim,dim]
         matrice_e_pg = np.zeros((Ne,nPg,dim,dim))
@@ -1662,6 +1661,8 @@ class PhaseField_Model(IModel):
             matrice_e_pg[:,:,0,1] = vecteur_e_pg[:,:,5]/coef
             matrice_e_pg[:,:,1,0] = vecteur_e_pg[:,:,5]/coef
 
+        tic.Tac("Decomposition", "vecteur_e_pg -> matrice_e_pg", False)
+
         # trace_e_pg = np.trace(matrice_e_pg, axis1=2, axis2=3)
         trace_e_pg = np.einsum('epii->ep', matrice_e_pg, optimize='optimal')
 
@@ -1674,14 +1675,15 @@ class PhaseField_Model(IModel):
             d_e_pg = matrice_e_pg[:,:,1,1]
             determinant_e_pg = (a_e_pg*d_e_pg)-(c_e_pg*b_e_pg)
 
+            tic.Tac("Decomposition", "Invariants", False)
+
             # Calculs des valeurs propres [e,pg]
             delta = trace_e_pg**2 - (4*determinant_e_pg)
             val_e_pg = np.zeros((Ne,nPg,2))
             val_e_pg[:,:,0] = (trace_e_pg - np.sqrt(delta))/2
             val_e_pg[:,:,1] = (trace_e_pg + np.sqrt(delta))/2
 
-            # tic.Tac("Matrices", "Decomp spectrale valeurs propres", False)
-            # Ici c'est rapide pas de probleme
+            tic.Tac("Decomposition", "Valeurs propres", False)
             
             # Constantes pour calcul de m1 = (matrice_e_pg - v2*I)/(v1-v2)
             v2I = np.einsum('ep,ij->epij', val_e_pg[:,:,1], np.eye(2), optimize='optimal')
@@ -1698,6 +1700,8 @@ class PhaseField_Model(IModel):
                 m1_tot = np.einsum('epij,ep->epij', matrice_e_pg-v2I, 1/v1_m_v2, optimize='optimal')
                 M1[elems, pdgs] = m1_tot[elems, pdgs]
             M2 = np.eye(2) - M1
+
+            tic.Tac("Decomposition", "Projecteurs propres", False)
         
         elif self.dim == 3:
 
@@ -1716,7 +1720,9 @@ class PhaseField_Model(IModel):
                 mat_mat = np.einsum('epij,epjk->epik', matrice_e_pg, matrice_e_pg, optimize='optimal')
                 trace_mat_mat = np.einsum('epii->ep', mat_mat, optimize='optimal')
                 I2_e_pg = (trace_e_pg**2 - trace_mat_mat)/2
-                I3_e_pg = determinant_e_pg            
+                I3_e_pg = determinant_e_pg
+
+                tic.Tac("Decomposition", "Invariants", False)
 
                 g = I1_e_pg**2 - 3*I2_e_pg            
                 elems0 = np.unique(np.where(g == 0)[0])
@@ -1736,17 +1742,28 @@ class PhaseField_Model(IModel):
                 elemsNot0 = np.setdiff1d(elemsNot0, elemsMin)
                 elemsNot0 = np.setdiff1d(elemsNot0, elemsMax)
 
+            def __Normalize(M1, M2, M3):
+                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(2,3)))
+                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(2,3)))
+                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(2,3)))
+
+                return M1, M2, M3
+
             if version == 'eigh':
 
                 valnum, vectnum = np.linalg.eigh(matrice_e_pg)
+
+                tic.Tac("Decomposition", "np.linalg.eigh", False)
 
                 func_Mi = lambda mi: np.einsum('epi,epj->epij', mi, mi, optimize='optimal')
 
                 M1 = func_Mi(vectnum[:,:,:,0])
                 M2 = func_Mi(vectnum[:,:,:,1])
                 M3 = func_Mi(vectnum[:,:,:,2])
-
+                
                 val_e_pg = valnum
+
+                tic.Tac("Decomposition", "Valeurs et projecteurs propres", False)
 
             elif version == 'matlab':
 
@@ -1770,6 +1787,8 @@ class PhaseField_Model(IModel):
                     thet = thet * 2/3
 
                     val_e_pg[elemsNot0] = val_e_pg[elemsNot0] + np.einsum('ep,epi->epi', racine_g, thet, optimize='optimal')[elemsNot0]
+
+                tic.Tac("Decomposition", "Valeurs propres", False)
 
                 # Initialisation des projecteurs propres
                 M1 = np.zeros_like(matrice_e_pg); M1[:,:,0,0] = 1            
@@ -1797,7 +1816,11 @@ class PhaseField_Model(IModel):
                     M1[elemsNot0] = (matNot0-E2not0_eye3)/(E1not0_eye3-E2not0_eye3) * (matNot0-E3not0_eye3)/(E1not0_eye3-E3not0_eye3)
                     M3[elemsNot0] = (matNot0-E1not0_eye3)/(E3not0_eye3-E1not0_eye3) * (matNot0-E2not0_eye3)/(E3not0_eye3-E2not0_eye3)
 
-                M2 = eye3 - (M1 + M3)                
+                M2 = eye3 - (M1 + M3)
+
+                M1, M2, M3 = __Normalize(M1, M2, M3)
+
+                tic.Tac("Decomposition", "Projecteurs propres", False)
 
             elif version == 'matthieu':
 
@@ -1810,6 +1833,8 @@ class PhaseField_Model(IModel):
                 val_e_pg[elemsNot0, :, 0] = E1[elemsNot0]
                 val_e_pg[elemsNot0, :, 1] = E2[elemsNot0]
                 val_e_pg[elemsNot0, :, 2] = E3[elemsNot0]
+
+                tic.Tac("Decomposition", "Valeurs propres", False)
 
                 # Initialisation des projecteurs propres
                 M1 = np.zeros_like(matrice_e_pg); M1[:,:,0,0] = 1
@@ -1855,12 +1880,9 @@ class PhaseField_Model(IModel):
                 M2[elems_Dist] = ((matr_dist - E1_ij*eye3_dist)/(E2_ij-E1_ij) * (matr_dist - E3_ij*eye3_dist)/(E2_ij-E3_ij))
                 M3[elems_Dist] = ((matr_dist - E1_ij*eye3_dist)/(E3_ij-E1_ij) * (matr_dist - E2_ij*eye3_dist)/(E3_ij-E2_ij))
 
-            if version != 'eigh':
-                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(2,3)))
-                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(2,3)))
-                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(2,3)))
+                M1, M2, M3 = __Normalize(M1, M2, M3)
 
-        # tic.Tac("Matrices", "Decomp spectrale Matrices propres", False)
+                tic.Tac("Decomposition", "Projecteurs propres", False)
 
         # Passage des bases propres sous la forme dun vecteur [e,pg,3] ou [e,pg,6]
         if dim == 2:
@@ -1889,7 +1911,7 @@ class PhaseField_Model(IModel):
 
             list_M = [M1, M2, M3]
 
-        verif = True
+        tic.Tac("Decomposition", "Vecteurs propres", False)
         
         if verif:
             
@@ -1940,7 +1962,6 @@ class PhaseField_Model(IModel):
             if dim == 3:
                 erreur_Mi_Minum(M3, vectnum[:,:,:,2])
 
-
             # test ortho entre M1 et M2 
             verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
             textTest = "Orthogonalité non vérifié"
@@ -1967,9 +1988,6 @@ class PhaseField_Model(IModel):
         renvoie projP, projM
         """
 
-        tic = Tic()
-        tic2 = Tic()
-
         useNumba = self.__useNumba
 
         dim = self.__comportement.dim        
@@ -1980,7 +1998,7 @@ class PhaseField_Model(IModel):
         # récupération des valeurs, vecteurs et matrices propres
         val_e_pg, list_m, list_M = self.__valeursPropres_vecteursPropres_matricesPropres(vecteur_e_pg, verif)
 
-        tic2.Tac("Calc Proj", "val ,vect et matrices propres", False)
+        tic = Tic()
         
         # Récupération des parties positives et négatives des valeurs propres [e,pg,2]
         valp = (val_e_pg+np.abs(val_e_pg))/2
@@ -2011,7 +2029,7 @@ class PhaseField_Model(IModel):
             gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
             gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
 
-            tic2.Tac("Calc Proj", "Betas et gammas", False)
+            tic.Tac("Decomposition", "Betas et gammas", False)
 
             if useNumba:
                 # Plus rapide
@@ -2034,6 +2052,8 @@ class PhaseField_Model(IModel):
                 gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize='optimal')
                 gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize='optimal')
                 projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
+
+            tic.Tac("Decomposition", "projP et projM", False)
 
         elif dim == 3:
             m1, m2, m3 = list_m[0], list_m[1], list_m[2]
@@ -2060,52 +2080,47 @@ class PhaseField_Model(IModel):
             elems, pdgs = np.where(funcFiltreComp(val_e_pg[:,:,1], val_e_pg[:,:,2]))
             v2_m_v3 = val_e_pg[elems,pdgs,1]-val_e_pg[elems,pdgs,2]
             thetap[elems, pdgs, 2] = (valp[elems,pdgs,1]-valp[elems,pdgs,2])/(2*v2_m_v3)
-            thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)            
+            thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)
 
-            def Construction_Gij(Ma, Mb, version='matthieu'): # 'matlab', 'matthieu'
+            tic.Tac("Decomposition", "thetap et thetam", False)
 
-                Gij = np.zeros((Ne, nPg, 6, 6))
+            if self.useNumba:
 
-                if version == 'matlab':
+                G12_ijkl, G13_ijkl, G23_ijkl = CalcNumba.Get_G12_G13_G23(M1, M2, M3)
 
-                    ma1 = Ma[:,:,0,0]; ma2 = Ma[:,:,1,1]; ma3 = Ma[:,:,2,2]
-                    # ma4 = Ma[:,:,0,1]; ma5 = Ma[:,:,0,2]; ma6 = Ma[:,:,1,2]
-                    ma4 = Ma[:,:,0,1]*coef; ma5 = Ma[:,:,0,2]*coef; ma6 = Ma[:,:,1,2]*coef
+                listI = [0]*6; listI.extend([1]*6); listI.extend([2]*6); listI.extend([1]*6); listI.extend([0]*12)
+                listJ = [0]*6; listJ.extend([1]*6); listJ.extend([2]*18); listJ.extend([1]*6)
+                listK = [0,1,2,1,0,0]*6
+                listL = [0,1,2,2,2,1]*6
+                
+                colonnes = np.arange(0,6, dtype=int).reshape((1,6)).repeat(6,axis=0).reshape(-1)
+                lignes = np.sort(colonnes)
 
-                    mb1 = Mb[:,:,0,0]; mb2 = Mb[:,:,1,1]; mb3 = Mb[:,:,2,2]
-                    # mb4 = Mb[:,:,0,1]; mb5 = Mb[:,:,0,2]; mb6 = Mb[:,:,1,2]
-                    mb4 = Mb[:,:,0,1]*coef; mb5 = Mb[:,:,0,2]*coef; mb6 = Mb[:,:,1,2]*coef
+                def __get_Gab_ij(Gab_ijkl: np.ndarray):
+                    Gab_ij = np.zeros((Ne, nPg, 6, 6))
 
-                    # # attention 6 devient 4 et inversement
-                    # ma6 = Ma[:,:,0,1]*coef; ma5 = Ma[:,:,0,2]*coef; ma4 = Ma[:,:,1,2]*coef
-                    # mb6 = Mb[:,:,0,1]*coef; mb5 = Mb[:,:,0,2]*coef; mb4 = Mb[:,:,1,2]*coef
-                    
-                    G11 = Ma*Mb*2
+                    Gab_ij[:,:,lignes, colonnes] = Gab_ijkl[:,:,listI,listJ,listK,listL]
+                
+                    Gab_ij[:,:,:3,3:6] = Gab_ij[:,:,:3,3:6] * coef
+                    Gab_ij[:,:,3:6,:3] = Gab_ij[:,:,3:6,:3] * coef
+                    Gab_ij[:,:,3:6,3:6] = Gab_ij[:,:,3:6,3:6] * 2
 
-                    # G12
-                    G12 = np.zeros_like(G11)
+                    return Gab_ij
 
-                    G12[:,:,0,0] = ma1*mb4+ma4*mb1; G12[:,:,0,1] = ma1*mb5+ma5*mb1; G12[:,:,0,2] = ma4*mb5+ma5*mb4
-                    G12[:,:,1,0] = ma4*mb2+ma2*mb4; G12[:,:,1,1] = ma4*mb6+ma6*mb4; G12[:,:,1,2] = ma2*mb6+ma6*mb2
-                    G12[:,:,2,0] = ma5*mb6+ma6*mb5; G12[:,:,2,1] = ma5*mb3+ma3*mb5; G12[:,:,2,2] = ma6*mb3+ma3*mb6
+                G12_ij = __get_Gab_ij(G12_ijkl)
+                G13_ij = __get_Gab_ij(G13_ijkl)
+                G23_ij = __get_Gab_ij(G23_ijkl)
 
-                    G12 = G12 / coef
-                    
-                    # G22
-                    G22 = np.zeros_like(G11)
+                list_mi = [m1, m2, m3]
+                list_Gab = [G12_ij, G13_ij, G23_ij]
 
-                    G22[:,:,0,0] = ma1*mb2+ma2*mb1+2*ma4*mb4; G22[:,:,0,1] = ma1*mb6+ma6*mb1+ma5*mb4+ma4*mb5; G22[:,:,0,2] = ma4*mb6+ma6*mb4+ma5*mb2+ma2*mb5
-                    G22[:,:,1,0] = ma1*mb6+ma6*mb1+ma5*mb4+ma4*mb5; G22[:,:,1,1] = ma1*mb3+ma3*mb1+2*ma5*mb5; G22[:,:,1,2] = ma4*mb3+ma3*mb4+ma5*mb6+ma6*mb5
-                    G22[:,:,2,0] = ma4*mb6+ma6*mb4+ma5*mb2+ma2*mb5; G22[:,:,2,1] = ma4*mb3+ma3*mb4+ma5*mb6+ma6*mb5; G22[:,:,2,2] = ma2*mb3+ma3*mb2+2*ma6*mb6
+                projP, projM = CalcNumba.Get_projP_projM_3D(dvalp, dvalm, thetap, thetam, list_mi, list_Gab)
+            
+            else:
 
-                    G22 = G22
+                def __Construction_Gij(Ma, Mb):
 
-                    Gij[:,:,:3,:3] = G11
-                    Gij[:,:,3:6,3:6] = G22
-                    Gij[:,:,:3,3:6] = G12
-                    Gij[:,:,3:6,:3] = np.einsum('epij->epji', G12, optimize='optimal')
-
-                elif version == 'matthieu':
+                    Gij = np.zeros((Ne, nPg, 6, 6))
 
                     part1 = lambda Ma, Mb: np.einsum('epik,epjl->epijkl', Ma, Mb, optimize='optimal')
                     part2 = lambda Ma, Mb: np.einsum('epil,epjk->epijkl', Ma, Mb, optimize='optimal')
@@ -2133,25 +2148,27 @@ class PhaseField_Model(IModel):
                     Gij[:,:,3:6,:3] = Gij[:,:,3:6,:3] * coef
                     Gij[:,:,3:6,3:6] = Gij[:,:,3:6,3:6] * 2
 
+                    return Gij
 
-                return Gij
+                G12 = __Construction_Gij(M1, M2)
+                G13 = __Construction_Gij(M1, M3)
+                G23 = __Construction_Gij(M2, M3)
 
+                tic.Tac("Decomposition", "Gab", False)
 
-            G12 = Construction_Gij(M1, M2)
-            G13 = Construction_Gij(M1, M3)
-            G23 = Construction_Gij(M2, M3)
+                m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
+                m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
+                m3xm3 = np.einsum('epi,epj->epij', m3, m3, optimize='optimal')
 
-            m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
-            m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
-            m3xm3 = np.einsum('epi,epj->epij', m3, m3, optimize='optimal')
+                tic.Tac("Decomposition", "mixmi", False)
 
-            func = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
+                func = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
 
-            projP = func(dvalp[:,:,0], m1xm1) + func(dvalp[:,:,1], m2xm2) + func(dvalp[:,:,2], m3xm3) + func(thetap[:,:,0], G12) + func(thetap[:,:,1], G13) + func(thetap[:,:,2], G23)
+                projP = func(dvalp[:,:,0], m1xm1) + func(dvalp[:,:,1], m2xm2) + func(dvalp[:,:,2], m3xm3) + func(thetap[:,:,0], G12) + func(thetap[:,:,1], G13) + func(thetap[:,:,2], G23)
 
-            projM = func(dvalm[:,:,0], m1xm1) + func(dvalm[:,:,1], m2xm2) + func(dvalm[:,:,2], m3xm3) + func(thetam[:,:,0], G12) + func(thetam[:,:,1], G13) + func(thetam[:,:,2], G23)
+                projM = func(dvalm[:,:,0], m1xm1) + func(dvalm[:,:,1], m2xm2) + func(dvalm[:,:,2], m3xm3) + func(thetam[:,:,0], G12) + func(thetam[:,:,1], G13) + func(thetam[:,:,2], G23)
 
-        verif = True
+            tic.Tac("Decomposition", "projP et projM", False)
 
         if verif:
             # Verification de la décomposition et de l'orthogonalité
@@ -2174,9 +2191,6 @@ class PhaseField_Model(IModel):
                 assert vertifOrthoEpsPM <= 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
                 assert vertifOrthoEpsMP <= 1e-12
-        
-        tic2.Tac("Calc Proj", "Pp et Pm", False)
-        tic.Tac("Matrices", "Decomp spectrale et projecteurs", False)
             
         return projP, projM
 
@@ -2201,7 +2215,7 @@ class Thermal_Model(IModel):
         resume = f'\n{self.nom} :'
         resume += f'\nconduction thermique (k)  : {self.__k}'
         resume += f'\ncapacité thermique massique (c) : {self.__c}'
-        return resume    
+        return resume
 
     def __init__(self, dim:int, k: float, c=0.0, epaisseur=1.0):
         """Construction d'un modèle thermique
