@@ -12,27 +12,30 @@ import matplotlib.pyplot as plt
 
 # Affichage.Clear()
 
-
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-problem = "Benchmark" # ["Benchmark","FCBA"]
-test = False
+problem = "FCBA" # ["Benchmark","FCBA"]
+dim = 3
+if dim == 3:
+    problem += "_3D"
+
+test = True
 solve = True
 
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = False
-plotIter = False
+plotMesh = True
+plotIter = True
 plotResult = True
-plotEnergie = True
-showFig = False
+plotEnergie = False
+showFig = True
 
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = False; NParaview=200
+saveParaview = False; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
@@ -46,7 +49,7 @@ solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
-optimMesh = False
+optimMesh = True
 
 # ----------------------------------------------
 # Convergence
@@ -56,15 +59,16 @@ tolConv = 1e-0
 
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
-# for split in ["Zhang"]:
+
+for split in ["Zhang"]:
 #for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
-for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
+# for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 # for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
 
     # ----------------------------------------------
     # Geometrie et chargement de la simulation
     # ----------------------------------------------
-    if problem == "Benchmark":
+    if "Benchmark" in problem:
         L = 15e-3
         h = 30e-3
         ep = 1 
@@ -91,8 +95,8 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
 
     elif "FCBA" in problem:
 
-        L = 9e-2
-        h = L
+        L = 4.5e-2
+        h = 9e-2
         ep = 2e-2
 
         diam = 1e-2
@@ -100,31 +104,30 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
         
         gc = 1.4/2
         # l_0 = 0.12e-3
-        nL = 150
-        l0 = L/nL
+        nL = 100
+        l0 = h/nL        
 
         u_max = "crack bord"
 
         inc0 = 8e-7; tresh0 = 0.2
-        inc1 = 2e-7; tresh1 = 1
-        inc2 = 2e-8; tresh2 = 130
+        inc1 = 2e-7; tresh1 = 0.6
 
         simpli2D = "CP" # ["CP","DP"]
 
-        listInc = [inc0, inc1, inc2]
-        listTresh = [tresh0, tresh1, tresh2]
-        listOption = (["damage"]*2).append("displacement")
+        listInc = [inc0, inc1]
+        listTresh = [tresh0, tresh1]
+        listOption = ["damage"]*2
 
     # ----------------------------------------------
     # Taille d'elements
     # ----------------------------------------------
     if test:
-        l0 *= 1
+        coef = 5
         if optimMesh:
-            clD = l0*3
-            clC = l0
+            clD = l0*3*coef
+            clC = l0*coef
         else:
-            if problem == "Benchmark":
+            if "Benchmark" in problem:
                 clD = 0.25e-3
                 clC = 0.12e-3
             else:
@@ -140,16 +143,19 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
 
     # ----------------------------------------------
     # Matériau
-    # ----------------------------------------------    
-    if simpli2D == "CP":
-        isCp = True
+    # ----------------------------------------------
+    if dim == 2:
+        if simpli2D == "CP":
+            isCp = True
+        else:
+            isCp = False
     else:
         isCp = False
 
     if comp == "Elas_Isot":
         E = 12e9
         v = 0.3
-        comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
+        comportement = Materials.Elas_Isot(dim, E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
 
     elif comp == "Elas_IsotTrans":
         # El = 11580*1e6
@@ -159,7 +165,7 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
         vl = 0.02
         vt = 0.44
         v = 0
-        comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=isCp, epaisseur=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+        comportement = Materials.Elas_IsotTrans(dim, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=isCp, epaisseur=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
     # Nom du dossier
     nomDossier = "PlateWithHole_" + problem
@@ -178,15 +184,20 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
         
         if optimMesh:
             # Concentration de maillage sur la fissure
-            if problem == "Benchmark":
+            if "Benchmark" in problem:
                 ecartZone = diam*1.5/2
             elif "FCBA" in problem:
-                ecartZone = diam*1.5
+                ecartZone = diam
+
             if split in ["Bourdin", "Amor"]:
                 domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
             else:
                 domainFissure = Domain(Point(x=L/2-ecartZone, y=0), Point(x=L/2+ecartZone, y=h), clC)
-            mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3", domainFissure)
+            if dim == 2:
+                mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3", domainFissure)
+            elif dim == 3:
+                mesh = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, extrude=[0,0,ep], nCouches=4, elemType="HEXA8", refineGeom=domainFissure)
+
         else:
             mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
         
@@ -203,11 +214,11 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
         simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
         
         # Récupérations des noeuds
-        B_lower = Line(point,Point(x=L)); nodes_lower = mesh.Nodes_Line(B_lower)
-        B_upper = Line(Point(y=h),Point(x=L, y=h)); nodes_upper = mesh.Nodes_Line(B_upper)
-        B_left = Line(point,Point(y=h)); nodes_left = mesh.Nodes_Line(B_left)
-        B_right = Line(Point(x=L),Point(x=L, y=h)); nodes_right = mesh.Nodes_Line(B_right)
-        node00 = mesh.Nodes_Point(point)
+        nodes_lower = mesh.Nodes_Conditions(conditionY = lambda y: y==0)
+        nodes_upper = mesh.Nodes_Conditions(conditionY = lambda y: y==h)
+        nodes_left = mesh.Nodes_Conditions(lambda x: x==0)
+        nodes_right = mesh.Nodes_Conditions(lambda x: x==L)
+        node00 = mesh.Nodes_Conditions(lambda x: x==0, lambda y: y==0)
 
         noeuds_bord = []
         for ns in [nodes_lower, nodes_upper, nodes_left, nodes_right]:
@@ -226,6 +237,9 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
 
         # Premier Chargement
         Chargement(0)
+
+        Affichage.Plot_BoundaryConditions(simu)
+        # plt.show()
 
         simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
 
@@ -248,6 +262,10 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
         while Condition():
 
             resol += 1
+
+            if dim == 3:
+                if resol > 600:
+                    break
             
             Chargement(ud)
 
@@ -258,7 +276,7 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
             max_d = d.max()
             f = np.einsum('ij,j->', Kglob[ddls_upper, :].toarray(), u, optimize='optimal')
 
-            if problem == "Benchmark":
+            if "Benchmark" in problem:
                 pourcentage = ud/u_max
             else: 
                 pourcentage = 0
@@ -268,24 +286,15 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
             # Si on converge pas on arrête la simulation
             if not convergence: break
 
-            if "FCBA" in problem:
-                if ud >= tresh2:
-                    ud += inc2
-                elif max_d<tresh0:
-                    ud += inc0
-                else:
-                    ud += inc1
+            if max_d<tresh0:
+                ud += inc0
             else:
-                if max_d<tresh0:
-                    ud += inc0
-                else:
-                    ud += inc1
+                ud += inc1
 
             # Detection si on a touché le bord
             if np.any(d[noeuds_bord] >= 0.98):
                 bord += 1
-                if bord == 10:
-                    # Si le bord à été touché depuis 5 iter on arrête la simulation
+                if bord == 10:                    
                     break
 
             if plotIter:
@@ -334,7 +343,7 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=False, folder=folder, filename=filenameDamage, title=titleDamage)
 
     if saveParaview:
-        PostTraitement.Make_Paraview(folder, simu, Niter=NParaview)
+        PostTraitement.Make_Paraview(folder, simu, Niter=NParaview, details=True)
         if not solve:
             Tic.getGraphs(details=True)
 
@@ -353,3 +362,9 @@ for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes 
     
     Tic.Clear()
     plt.close('all')
+
+    if solve:
+        del simu
+        del mesh
+    else:        
+        del simu
