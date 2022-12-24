@@ -195,10 +195,10 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
 
     
     elif inDim == 3 or isBeamModel3D:
-        # initialisation des valeurs max et min de la colorbar 
+        # initialisation des valeurs max et min de la colorbar         
         
-        maxVal = 0
-        minVal = 0
+        maxVal = max
+        minVal = min
 
         # dimenson du maillage
         dim = mesh.dim
