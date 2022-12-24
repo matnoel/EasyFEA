@@ -760,7 +760,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
+        tic.Tac("Mesh","PlaqueAvecCercle3D", self.__verbosity)
 
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
@@ -957,7 +957,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
+        tic.Tac("Mesh","Mesh from points", self.__verbosity)
 
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
