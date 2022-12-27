@@ -3419,9 +3419,9 @@ class __Simu_Beam(_Simu):
         if nbddl == 1:
             coordo[:,0] = beamDisplacementRedim[:,0]
         elif nbddl == 3:
-            coordo[:,:1] = beamDisplacementRedim[:,:1]
-        elif nbddl == 6:
             coordo[:,:2] = beamDisplacementRedim[:,:2]
+        elif nbddl == 6:
+            coordo[:,:3] = beamDisplacementRedim[:,:3]
 
         return coordo
 
