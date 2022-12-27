@@ -112,6 +112,8 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
                 max = 1
         levels = np.linspace(min, max, 200)
     else:
+        max = np.max(valeurs)
+        min = np.min(valeurs)
         levels = 200
 
     if inDim in [1,2] and not isBeamModel3D:
@@ -905,8 +907,13 @@ def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
-def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m', ylabel='f en N', folder=""):
-    fig, ax = plt.subplots()
+def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud [m]', ylabel='f [N]', folder="", ax=None) -> tuple[plt.Figure, plt.Axes]:
+
+    if isinstance(ax, plt.Axes):
+        fig = ax.figure
+        ax.clear()
+    else:        
+        fig, ax = plt.subplots()
 
     ax.plot(np.abs(deplacements), np.abs(forces), c='blue')
     ax.set_xlabel(xlabel)
@@ -916,6 +923,8 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud en m'
     if folder != "":
         import PostTraitement as PostTraitement 
         PostTraitement.Save_fig(folder, "forcedep")
+
+    return fig, ax
     
 def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMax=True, Niter=200, NiterFin=100, folder=""):
 
