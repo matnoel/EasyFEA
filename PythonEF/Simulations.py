@@ -1263,20 +1263,23 @@ class _Simu(ABC):
 
         import Affichage
 
-        resume = Affichage.NouvelleSection("Maillage", verbosity)
-        resume += self.mesh.Resume(verbosity)
+        resume = Affichage.NouvelleSection("Maillage", False)
+        resume += self.mesh.Resume(False)
 
-        resume += Affichage.NouvelleSection("Materiau", verbosity)
-        resume += '\n' + self.materiau.Resume(verbosity)
+        resume += Affichage.NouvelleSection("Materiau", False)
+        resume += '\n' + self.materiau.Resume(False)
 
-        resume += Affichage.NouvelleSection("Chargement", verbosity)
+        resume += Affichage.NouvelleSection("Chargement", False)
         resume += '\n' + self.Resultats_Get_Resume_Chargement()
 
-        resume += Affichage.NouvelleSection("Résultat", verbosity)
+        resume += Affichage.NouvelleSection("Résultat", False)
         resume += '\n' + self.Resultats_Get_Resume_Iteration()
 
-        resume += Affichage.NouvelleSection("TicTac", verbosity)
-        resume += Tic.getResume(verbosity)
+        resume += Affichage.NouvelleSection("TicTac", False)
+        resume += Tic.getResume(False)
+
+        if verbosity:
+            print(resume)
 
         return resume
 
