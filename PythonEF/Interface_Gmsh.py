@@ -362,7 +362,7 @@ class Interface_Gmsh:
                 # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
                 numElements = [nCouches]
                 combine = True
-            elif elemType == ElemType.TETRA4:
+            elif elemType in [ElemType.TETRA4, ElemType.TETRA10]:
                 numElements = []
                 combine = False
             
@@ -967,7 +967,7 @@ class Interface_Gmsh:
     def __Set_order(elemType: str):
         if elemType in ["TRI3","QUAD4"]:
             gmsh.model.mesh.set_order(1)
-        elif elemType in ["SEG3", "TRI6", "QUAD8"]:
+        elif elemType in ["SEG3", "TRI6", "QUAD8", "TETRA10"]:
             if elemType in ["QUAD8"]:
                 gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
             gmsh.model.mesh.set_order(2)
@@ -1065,6 +1065,8 @@ class Interface_Gmsh:
                 gmsh.model.mesh.setRecombine(3, 1)
 
             gmsh.model.mesh.generate(3)
+
+            Interface_Gmsh.__Set_order(elemType)
 
         # if len(cracks) > 0:            
         #     for crack, openBoundary in zip(cracks, openBoundarys):

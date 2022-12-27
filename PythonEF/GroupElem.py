@@ -4,8 +4,6 @@ from typing import List, cast
 
 from Geom import *
 from Gauss import Gauss
-from TicTac import Tic
-from matplotlib import pyplot as plt
 
 import numpy as np
 import scipy.sparse as sp
@@ -50,6 +48,35 @@ class GroupElem(ABC):
     - QUAD4 (dim=2)
     - HEXA8 (dim=3)
     """
+
+    ################################################ STATIC ##################################################
+
+    @staticmethod
+    def get_MatriceType() -> List[MatriceType]:
+        """type de matrice disponible"""        
+        liste = list(MatriceType)
+        return liste
+
+    @staticmethod
+    def get_Types1D() -> List[ElemType]:
+        """type d'elements disponibles en 1D"""
+        # liste1D = ["SEG2", "SEG3", "SEG4", "SEG5"]
+        liste1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4]
+        return liste1D
+
+    @staticmethod
+    def get_Types2D() -> List[ElemType]:
+        """type d'elements disponibles en 2D"""
+        # liste2D = ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+        # TODO il reste des erreurs sur TRI15 certainement points d'intégrations
+        liste2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8]
+        return liste2D
+    
+    @staticmethod
+    def get_Types3D() -> List[ElemType]:
+        """type d'elements disponibles en 3D"""
+        liste3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.PRISM6]
+        return liste3D
 
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
         """Construction d'un groupe d'element
@@ -1346,36 +1373,6 @@ class GroupElem(ABC):
         indexesFaces = self.indexesFaces()
         dict_connect_faces = {self.elemType: self.__connect[:, indexesFaces]}
         return dict_connect_faces
-
-    ################################################ STATIC ##################################################
-
-    @staticmethod
-    def get_MatriceType() -> List[MatriceType]:
-        """type de matrice disponible"""        
-        liste = list(MatriceType)
-        return liste
-
-    @staticmethod
-    def get_Types1D() -> List[ElemType]:
-        """type d'elements disponibles en 1D"""
-        # liste1D = ["SEG2", "SEG3", "SEG4", "SEG5"]
-        liste1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4]
-        return liste1D
-
-    @staticmethod
-    def get_Types2D() -> List[ElemType]:
-        """type d'elements disponibles en 2D"""
-        # liste2D = ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
-        # TODO il reste des erreurs sur TRI15 certainement points d'intégrations
-        liste2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8]
-        return liste2D
-    
-    @staticmethod
-    def get_Types3D() -> List[ElemType]:
-        """type d'elements disponibles en 3D"""
-        liste3D = [ElemType.TETRA4, ElemType.HEXA8, ElemType.PRISM6]
-        return liste3D
-
     
 
 class GroupElem_Factory:
@@ -1712,6 +1709,8 @@ class GroupElem_Factory:
             return QUAD8(*params)
         elif elemType == ElemType.TETRA4:
             return TETRA4(*params)
+        elif elemType == ElemType.TETRA10:
+            return TETRA10(*params)
         elif elemType == ElemType.HEXA8:
             return HEXA8(*params)
         elif elemType == ElemType.PRISM6:
@@ -2935,6 +2934,103 @@ class TETRA4(GroupElem):
 
     def ddNtild(self) -> np.ndarray:
         return super().ddNtild()
+
+    def dddNtild(self) -> np.ndarray:
+        return super().dddNtild()
+    
+    def ddddNtild(self) -> np.ndarray:
+        return super().ddddNtild()
+
+    def Nvtild(self) -> np.ndarray:
+        pass
+
+    def dNvtild(self) -> np.ndarray:
+        pass
+
+    def ddNvtild(self) -> np.ndarray:
+        pass
+
+class TETRA10(GroupElem):
+    #                    v
+    #                  .
+    #                ,/
+    #               /
+    #            2
+    #          ,/|`\
+    #        ,/  |  `\
+    #      ,6    '.   `5
+    #    ,/       8     `\
+    #  ,/         |       `\
+    # 0--------4--'.--------1 --> u
+    #  `\.         |      ,/
+    #     `\.      |    ,9
+    #        `7.   '. ,/
+    #           `\. |/
+    #              `3
+    #                 `\.
+    #                    ` w
+
+    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+
+        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    def indexesFaces(self) -> list[int]:
+        return [0,4,1,5,2,6,0,4,1,9,3,7,0,6,2,8,3,7,1,5,2,8,3,9]
+
+    def Ntild(self) -> np.ndarray:
+
+        N1t = lambda x,y,z: 2.0*x**2 + 2.0*y**2 + 2.0*z**2 + 4.0*x*y + 4.0*x*z + 4.0*y*z + -3.0*x + -3.0*y + -3.0*z + 1.0
+        N2t = lambda x,y,z: 2.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + -1.0*x + 0.0*y + 0.0*z + 0.0
+        N3t = lambda x,y,z: 0.0*x**2 + 2.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.0*x + -1.0*y + 0.0*z + 0.0
+        N4t = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 2.0*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + -1.0*z + 0.0
+        N5t = lambda x,y,z: -4.0*x**2 + 0.0*y**2 + 0.0*z**2 + -4.0*x*y + -4.0*x*z + 0.0*y*z + 4.0*x + 0.0*y + 0.0*z + 0.0
+        N6t = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 4.0*x*y + 0.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + 0.0*z + 0.0
+        N7t = lambda x,y,z: 0.0*x**2 + -4.0*y**2 + 0.0*z**2 + -4.0*x*y + 0.0*x*z + -4.0*y*z + 0.0*x + 4.0*y + 0.0*z + 0.0
+        N8t = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + -4.0*z**2 + 0.0*x*y + -4.0*x*z + -4.0*y*z + 0.0*x + 0.0*y + 4.0*z + 0.0
+        N9t = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + 4.0*y*z + 0.0*x + 0.0*y + 0.0*z + 0.0
+        N10t = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 4.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + 0.0*z + 0.0
+
+        Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t, N9t, N10t]).reshape(-1, 1)
+
+        return Ntild
+    
+    def dNtild(self) -> np.ndarray:
+
+        dN1t = [lambda x,y,z: 4.0*x + 4.0*y + 4.0*z + -3.0,   lambda x,y,z: 4.0*y + 4.0*x + 4.0*z + -3.0,   lambda x,y,z: 4.0*z + 4.0*x + 4.0*y + -3.0]
+        dN2t = [lambda x,y,z: 4.0*x + 0.0*y + 0.0*z + -1.0,   lambda x,y,z: 0.0*y + 0.0*x + 0.0*z + 0.0,   lambda x,y,z: 0.0*z + 0.0*x + 0.0*y + 0.0]
+        dN3t = [lambda x,y,z: 0.0*x + 0.0*y + 0.0*z + 0.0,   lambda x,y,z: 4.0*y + 0.0*x + 0.0*z + -1.0,   lambda x,y,z: 0.0*z + 0.0*x + 0.0*y + 0.0]
+        dN4t = [lambda x,y,z: 0.0*x + 0.0*y + 0.0*z + 0.0,   lambda x,y,z: 0.0*y + 0.0*x + 0.0*z + 0.0,   lambda x,y,z: 4.0*z + 0.0*x + 0.0*y + -1.0]
+        dN5t = [lambda x,y,z: -8.0*x + -4.0*y + -4.0*z + 4.0,   lambda x,y,z: 0.0*y + -4.0*x + 0.0*z + 0.0,   lambda x,y,z: 0.0*z + -4.0*x + 0.0*y + 0.0]
+        dN6t = [lambda x,y,z: 0.0*x + 4.0*y + 0.0*z + 0.0,   lambda x,y,z: 0.0*y + 4.0*x + 0.0*z + 0.0,   lambda x,y,z: 0.0*z + 0.0*x + 0.0*y + 0.0]
+        dN7t = [lambda x,y,z: 0.0*x + -4.0*y + 0.0*z + 0.0,   lambda x,y,z: -8.0*y + -4.0*x + -4.0*z + 4.0,   lambda x,y,z: 0.0*z + 0.0*x + -4.0*y + 0.0]
+        dN8t = [lambda x,y,z: 0.0*x + 0.0*y + -4.0*z + 0.0,   lambda x,y,z: 0.0*y + 0.0*x + -4.0*z + 0.0,   lambda x,y,z: -8.0*z + -4.0*x + -4.0*y + 4.0]
+        dN9t = [lambda x,y,z: 0.0*x + 0.0*y + 0.0*z + 0.0,   lambda x,y,z: 0.0*y + 0.0*x + 4.0*z + 0.0,   lambda x,y,z: 0.0*z + 0.0*x + 4.0*y + 0.0]
+        dN10t = [lambda x,y,z: 0.0*x + 0.0*y + 4.0*z + 0.0,   lambda x,y,z: 0.0*y + 0.0*x + 0.0*z + 0.0,   lambda x,y,z: 0.0*z + 4.0*x + 0.0*y + 0.0]
+
+
+        dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t, dN9t, dN10t])
+
+        return dNtild
+
+    def ddNtild(self) -> np.ndarray:
+
+        ddN1t = [lambda x,y,z: 4.0,   lambda x,y,z: 4.0,   lambda x,y,z: 4.0]
+        ddN2t = [lambda x,y,z: 4.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
+        ddN3t = [lambda x,y,z: 0.0,   lambda x,y,z: 4.0,   lambda x,y,z: 0.0]
+        ddN4t = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: 4.0]
+        ddN5t = [lambda x,y,z: -8.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
+        ddN6t = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
+        ddN7t = [lambda x,y,z: 0.0,   lambda x,y,z: -8.0,   lambda x,y,z: 0.0]
+        ddN8t = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: -8.0]
+        ddN9t = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
+        ddN10t = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
+
+        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t, ddN9t, ddN10t])
+
+        return ddNtild
 
     def dddNtild(self) -> np.ndarray:
         return super().dddNtild()

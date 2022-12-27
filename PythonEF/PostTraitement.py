@@ -297,6 +297,8 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         "QUAD4" : 9,
         "QUAD8" : 23,
         "TETRA4" : 10,
+        # "TETRA10" : 24,
+        "TETRA10" : 10,
         "HEXA8": 12,
         "PRISM6": 13
     } # regarder https://github.com/Kitware/VTK/blob/master/Common/DataModel/vtkCellType.h

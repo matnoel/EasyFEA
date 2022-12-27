@@ -222,6 +222,37 @@ class Gauss:
                 z = [a, b, a, a]
 
                 poids = [1/24]*nPg
+
+        elif elemType == ElemType.TETRA10:
+            dim = 3            
+            if matriceType == MatriceType.rigi:
+                nPg = 4
+
+                a = (5-np.sqrt(5))/20
+                b = (5+3*np.sqrt(5))/20
+
+                x = [a, a, a, b]
+                y = [a, a, b, a]
+                z = [a, b, a, a]
+
+                poids = [1/24]*nPg
+            elif matriceType == MatriceType.masse:
+                nPg = 6
+
+                m1r3 = -1/np.sqrt(3)
+                p1r3 = 1/np.sqrt(3)
+
+                ordre = [2,0,1,5,3,4]
+
+                x = [m1r3, m1r3, m1r3, p1r3, p1r3, p1r3]
+                y = [0.5, 0, 0.5, 0.5, 0, 0.5]
+                z = [0.5, 0.5, 0, 0.5, 0.5, 0]
+
+                x = np.array(x)[ordre]
+                y = np.array(y)[ordre]
+                z = np.array(z)[ordre]
+
+                poids = [1/6]*nPg                
         
         elif elemType == ElemType.HEXA8:
             dim = 3            
