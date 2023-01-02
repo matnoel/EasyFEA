@@ -34,7 +34,7 @@ def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
     elif materiau.modelType == ModelType.thermal:
         simu = __Simu_Thermal(*params)
     else:
-        raise "Modèle physique inconnue pour la création d'une simulation"
+        raise Exception("Modèle physique inconnue pour la création d'une simulation")
 
     return simu
 
@@ -856,7 +856,7 @@ class _Simu(ABC):
                 elif option == "gauss":
                     valeurs_eval[:,:] = valeurs(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
             except:
-                raise "Doit fournir une fonction lambda de la forme\n lambda x,y,z, : f(x,y,z)"
+                raise Exception("Doit fournir une fonction lambda de la forme\n lambda x,y,z, : f(x,y,z)")
         else:            
             if option == "noeuds":
                 valeurs_eval[:] = valeurs
@@ -1600,7 +1600,7 @@ class __Simu_Displacement(_Simu):
                 val_e = Epsilon_e
 
             else:
-                raise "Erreur"
+                raise Exception("Mauvaise option")
 
             if dim == 2:
 
@@ -2137,7 +2137,7 @@ class __Simu_PhaseField(_Simu):
             d_np1 = np.max(oldAndNewDamage, 1)
 
         else:
-            raise "Solveur phase field inconnue"
+            raise Exception("Solveur phase field inconnue")
 
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
@@ -2502,7 +2502,7 @@ class __Simu_PhaseField(_Simu):
                 val_e = Epsilon_e
 
             else:
-                raise "Erreur"
+                raise Exception("Mauvaise option")
 
             if dim == 2:
 

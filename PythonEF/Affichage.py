@@ -337,7 +337,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
             print("Il faut donner la simulation pour afficher le maillage déformée")
         use3DBeamModel = False
     else:
-        raise "Erreur"
+        raise Exception("Doit être une simulation ou un maillage")
     
     assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
 
@@ -749,7 +749,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
     elif typeobj == Mesh.__name__:
         mesh = cast(Mesh, obj)
     else:
-        raise "Erreur"
+        raise Exception("Doit être une simulation ou un maillage")
 
     inDim = mesh.inDim
 

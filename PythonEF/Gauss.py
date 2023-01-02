@@ -289,7 +289,7 @@ class Gauss:
                 poids = [1/6]*nPg
 
         else:
-            raise "Element inconnue"
+            raise Exception("Element non implémenté")
 
         if dim == 1:
             coord = np.array([x]).T.reshape((nPg,1))

@@ -1674,7 +1674,7 @@ class GroupElem_Factory:
             #                     `\
             #                       u
         else: 
-            raise "Type inconnue"
+            raise Exception("Type d'élement inconnue")
             
         return elemType, nPe, dim, ordre, nbFaces
     
@@ -1716,7 +1716,7 @@ class GroupElem_Factory:
         elif elemType == ElemType.PRISM6:
             return PRISM6(*params)
         else:
-            raise "Pas implémenté"
+            raise Exception("Pas implémenté")
 
 
 class POINT(GroupElem):

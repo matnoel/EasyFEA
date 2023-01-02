@@ -109,7 +109,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
             if os.path.exists(p):
                 return p
         
-        raise "Dossier inexistant"
+        raise Exception("Dossier inexistant")
 
     ffmpegpath = Get_ffmpegpath()
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
@@ -458,7 +458,7 @@ def __WriteBinary(valeur, type: str, file):
         """            
 
         if type not in ['uint32','float32','int32','int8']:
-            raise "Pas dans les options"
+            raise Exception("Type non implémenté")
 
         if type == "uint32":
             valeur = np.uint32(valeur)

@@ -242,7 +242,7 @@ class Displacement_Model(IModel):
         elif dim == 3:
             coord=[3,4,5]
         else:
-            raise "Pas implémenté"
+            raise Exception("Pas implémenté")
 
         coef = np.sqrt(2)
 
@@ -284,7 +284,7 @@ class Displacement_Model(IModel):
                                     [r2,r2,r2,2,2,2],
                                     [r2,r2,r2,2,2,2]])
         else:
-            raise "Pas implémenté"
+            raise Exception("Pas implémenté")
 
         matriceMandelCoef = Matrice*transform
 
@@ -1108,7 +1108,7 @@ class PhaseField_Model(IModel):
         if self.__regularization in PhaseField_Model.get_regularisations():
             g_e_pg = (1-d_e_pg)**2 + k_residu
         else:
-            raise "Pas implémenté"
+            raise Exception("Pas implémenté")
 
         assert mesh.Ne == g_e_pg.shape[0]
         assert mesh.Get_nPg(matriceType) == g_e_pg.shape[1]
@@ -1282,7 +1282,7 @@ class PhaseField_Model(IModel):
                 cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
             
             else: 
-                raise "Split inconnue"
+                raise Exception("Split inconnue")
 
             self.__dict_cP_e_pg_And_cM_e_pg[key] = (cP_e_pg, cM_e_pg)
 
@@ -1447,7 +1447,7 @@ class PhaseField_Model(IModel):
                 cM_e_pg = Cmm + Cpm + Cmp
             
         else:
-            raise "Split inconnue"
+            raise Exception("Split inconnue")
 
         tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
@@ -1557,7 +1557,7 @@ class PhaseField_Model(IModel):
                     cM_e_pg = Cmm + Cpm + Cmp
             
                 else:
-                    raise "Split inconnue"
+                    raise Exception("Split inconnue")
 
         tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
@@ -2267,7 +2267,7 @@ def Create_Materiau(model: IModel, ro=8100.0, verbosity=False):
     elif model.modelType == ModelType.thermal:
         materiau = _Materiau_Thermal(*params)
     else:
-        raise "Modèle physique inconnue pour la création d'un matériau"
+        raise Exception("Modèle physique inconnue pour la création d'un matériau")
 
     return materiau
     

@@ -201,13 +201,13 @@ for split in ["Miehe"]:
                 axis2 = np.array([-np.sin(theta_rad), np.cos(theta_rad), 0])
 
             else:
-                raise "Pas implémenté"
+                raise Exception("Pas implémenté")
 
             comp = Materials.Elas_Anisot(dim, C_voigt=C_voigt, axis1=axis1, contraintesPlanes=False)
             Gc = 1e3 # J/m2
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
-            raise "Pas implémenté pour le moment"
+            raise Exception("Pas implémenté pour le moment")
 
         phaseFieldModel = Materials.PhaseField_Model(comp, split, regularisation, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
 
@@ -242,7 +242,7 @@ for split in ["Miehe"]:
 
             else:
 
-                raise "chargement inconnue pour cette simulation"
+                raise Exception("chargement inconnue pour cette simulation")
             
         Chargement(0)
 
