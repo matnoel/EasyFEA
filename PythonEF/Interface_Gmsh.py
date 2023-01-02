@@ -57,7 +57,7 @@ class Interface_Gmsh:
         elif factory == 'geo':
             self.__factory = gmsh.model.geo
         else:
-            raise "Factory inconnue"    
+            raise Exception("Factory inconnue")
     
 
     def __Loop_From_Points(self, points: List[Point], taille: float) -> tuple[int, int]:
@@ -897,12 +897,14 @@ class Interface_Gmsh:
         surfaceDomain = self.__Surface_From_Loops(listeLoop)
 
         # Rajoute la surface du domaine en dernier
-        surfacesPleines.append(surfaceDomain)
+        surfacesPleines.insert(0, surfaceDomain)
+        # surfacesPleines.append(surfaceDomain)
 
         # Création des fissures
         physicalCracks, physicalOpenBoundarys = self.__physicalCracks_physicalOpenBoundarys(cracks, surfaceDomain)
         
-        physicalSurface = gmsh.model.addPhysicalGroup(2, surfacesPleines)        
+        # physicalSurfaces = [gmsh.model.addPhysicalGroup(2, surfacesPleines)]
+        physicalSurfaces = [gmsh.model.addPhysicalGroup(2, [surface]) for surface in surfacesPleines]
 
         if len(physicalCracks) > 0:
             # Regénération des groupes physiques des fissures ont été crées
@@ -917,7 +919,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], cracks=physicalCracks, openBoundarys=physicalOpenBoundarys, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfaces=physicalSurfaces, cracks=physicalCracks, openBoundarys=physicalOpenBoundarys, isOrganised=False, folder=folder)
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
@@ -1006,7 +1008,7 @@ class Interface_Gmsh:
         elif factory == gmsh.model.geo:
             factory = cast(gmsh.model.geo, factory)
         else:
-            raise "factory inconnue"
+            raise Exception("factory inconnue")
 
         tic = Tic()
         if dim == 1:
@@ -1248,8 +1250,8 @@ class Interface_Gmsh:
             dict_groupElem[groupElem.elemType] = groupElem
             
             # On verifie que le maillage ne possède pas un groupe d'element de cette dimension
-            if groupElem.dim in dimAjoute and groupElem.dim == meshDim:                
-                raise f"Récupération du maillage impossible car {dimAjoute.count(meshDim)} type d'element {meshDim}D"
+            if groupElem.dim in dimAjoute and groupElem.dim == meshDim:
+                raise Exception(f"Récupération du maillage impossible car {dimAjoute.count(meshDim)+1} type d'element {meshDim}D")
                 # TODO faire en sorte de pouvoir le faire ?
                 # Peut etre compliqué surtout dans la création des matrices elementaire et assemblage
                 # Pas impossible mais pas trivial
