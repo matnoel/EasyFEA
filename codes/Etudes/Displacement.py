@@ -24,7 +24,7 @@ tic_Tot = Tic()
 
 # Data --------------------------------------------------------------------------------------------
 
-plotResult = True
+plotResult = False
 
 saveParaview = False; NParaview = 500
 
@@ -37,11 +37,11 @@ pltMovie = False; NMovie = 400
 
 plotIter = True; affichageIter = "dy"
 
-coefM = 1e-2
-coefK = 1e-3*2
+# coefM = 1e-2
+# coefK = 1e-3*2
 
-# coefM = 0
-# coefK = 0
+coefM = 0
+coefK = 0
 
 Tmax = 0.5
 N = 100
@@ -60,7 +60,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/10
+taille = h/6
 
 comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
@@ -88,7 +88,7 @@ elif dim == 3:
     # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
     # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     
-    elemType = "HEXA8" # "TETRA4", "HEXA8", "PRISM6"
+    elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
     mesh = interfaceGmsh.Mesh_Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=False, nCouches=3)
 
     volume = mesh.volume - L*b*h
@@ -128,12 +128,11 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet(noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad(noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        # simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
+        simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
 
-        simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+        # simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad(noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
-        # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])
-        pass
+        # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])        
 
 
 def Iteration(steadyState: bool, isLoading: bool):
@@ -203,16 +202,15 @@ if pltMovie:
 if plotResult:
 
     tic = Tic()
+    simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
-    Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
+    # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
     Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=False)        
-    Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=False)        
+    # Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=False)        
     # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-if plotResult:
-    Tic.getGraphs(details=True)
-    plt.show()
-
-# %%
+tic_Tot.Resume()
+Tic.Plot_History(folder ,details=True)
+plt.show()
