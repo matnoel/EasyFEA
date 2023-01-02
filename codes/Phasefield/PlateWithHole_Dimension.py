@@ -131,7 +131,7 @@ ax.set_xlabel('coef')
 
 PostTraitement.Save_fig(folder, param_name)
 
-Tic.getResume()
+Tic.Resume()
 
 plt.show()
 

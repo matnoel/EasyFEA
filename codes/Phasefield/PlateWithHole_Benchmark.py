@@ -102,15 +102,15 @@ for split in ["Zhang"]:
         diam = 1e-2
         r = diam/2
         
-        gc = 1.4/2
+        gc = 3000
         # l_0 = 0.12e-3
         nL = 100
         l0 = h/nL        
 
-        u_max = "crack bord"
+        u_max = 2e-3
 
-        inc0 = 8e-7; tresh0 = 0.2
-        inc1 = 2e-7; tresh1 = 0.6
+        inc0 = 8e-6; tresh0 = 0.2
+        inc1 = 2e-6; tresh1 = 0.6
 
         simpli2D = "CP" # ["CP","DP"]
 
@@ -122,7 +122,7 @@ for split in ["Zhang"]:
     # Taille d'elements
     # ----------------------------------------------
     if test:
-        coef = 5
+        coef = 1 if dim == 2 else 3
         if optimMesh:
             clD = l0*3*coef
             clC = l0*coef
@@ -142,7 +142,7 @@ for split in ["Zhang"]:
             clC = l0/2
 
     # ----------------------------------------------
-    # Matériau
+    # Modlèle en deplacement
     # ----------------------------------------------
     if dim == 2:
         if simpli2D == "CP":
@@ -159,9 +159,10 @@ for split in ["Zhang"]:
 
     elif comp == "Elas_IsotTrans":
         # El = 11580*1e6
-        El = 12e9
-        Et = 500*1e6
-        Gl = 450*1e6
+        cc = 1
+        El = 12e9*cc
+        Et = 500*1e6*cc
+        Gl = 450*1e6*cc
         vl = 0.02
         vt = 0.44
         v = 0
@@ -174,7 +175,7 @@ for split in ["Zhang"]:
     if solve:
 
         # ----------------------------------------------
-        # Construction du maillage
+        # Maillage
         # ----------------------------------------------
         point = Point()
         domain = Domain(point, Point(x=L, y=h), clD)
@@ -205,44 +206,54 @@ for split in ["Zhang"]:
             Affichage.Plot_Maillage(mesh)
             # plt.show()
 
-        # ----------------------------------------------
-        # Modèle physique
-        # ----------------------------------------------
-        phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0, solveur=solveur)
-        materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
-
-        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
-        
         # Récupérations des noeuds
         nodes_lower = mesh.Nodes_Conditions(conditionY = lambda y: y==0)
         nodes_upper = mesh.Nodes_Conditions(conditionY = lambda y: y==h)
         nodes_left = mesh.Nodes_Conditions(lambda x: x==0)
         nodes_right = mesh.Nodes_Conditions(lambda x: x==L)
-        node00 = mesh.Nodes_Conditions(lambda x: x==0, lambda y: y==0)
+        nodesX00 = mesh.Nodes_Conditions(lambda x: x==0, lambda y: y==0)
+        nodesY00 = mesh.Nodes_Conditions(conditionY=lambda y: y==0, conditionZ = lambda z: z==0)
 
         noeuds_bord = []
         for ns in [nodes_lower, nodes_upper, nodes_left, nodes_right]:
             noeuds_bord.extend(ns)
         noeuds_bord = np.unique(noeuds_bord)
-        
-        ud=0
+
+        # ----------------------------------------------
+        # Matériau
+        # ----------------------------------------------
+        if dim == 2:
+            if simpli2D == "CP":
+                isCp = True
+            else:
+                isCp = False
+        else:
+            isCp = False       
+
+        phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0, solveur=solveur)
+        materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
+
+        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)        
 
         ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
 
         def Chargement(ud: float):
             simu.Bc_Init()
             simu.add_dirichlet(nodes_lower, [0], ["y"])
-            simu.add_dirichlet(node00, [0], ["x"])
+            simu.add_dirichlet(nodesX00, [0], ["x"])
             simu.add_dirichlet(nodes_upper, [-ud], ["y"])
+            if dim == 3:
+                simu.add_dirichlet(nodesY00, [0], ["z"])
 
         # Premier Chargement
         Chargement(0)
 
-        Affichage.Plot_BoundaryConditions(simu)
+        # Affichage.Plot_BoundaryConditions(simu)
         # plt.show()
 
         simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
 
+        ud=0
         resol = 0
         bord = 0
         displacement = []
@@ -251,9 +262,15 @@ for split in ["Zhang"]:
         if plotIter:
             figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True)
 
+            arrayDisplacement, arrayLoad = np.array(displacement), np.array(load)
+            if "Benchmark" in problem:
+                figLoad, axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e6, arrayLoad*1e-6, 'ud [µm]', 'f [kN/mm]')
+            elif "FCBA" in problem:
+                figLoad, axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]')
+
         def Condition():
             """Fonction qui traduit la condition de chargement"""
-            if problem == "Benchmark":
+            if "Benchmark" in problem :
                 return ud <= u_max
             elif "FCBA" in problem:
                 # On va charger jusqua la rupture
@@ -264,7 +281,7 @@ for split in ["Zhang"]:
             resol += 1
 
             if dim == 3:
-                if resol > 600:
+                if resol > 200:
                     break
             
             Chargement(ud)
@@ -274,14 +291,17 @@ for split in ["Zhang"]:
             simu.Save_Iteration()
 
             max_d = d.max()
-            f = np.einsum('ij,j->', Kglob[ddls_upper, :].toarray(), u, optimize='optimal')
+            f = float(np.einsum('ij,j->', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
 
             if "Benchmark" in problem:
                 pourcentage = ud/u_max
             else: 
                 pourcentage = 0
 
-            simu.Resultats_Set_Resume_Iteration(resol, ud*1e6, "µm", pourcentage, True)
+            if "Benchmark" in problem:
+                simu.Resultats_Set_Resume_Iteration(resol, ud*1e6, "µm", pourcentage, True)
+            elif "FCBA" in problem:
+                simu.Resultats_Set_Resume_Iteration(resol, ud*1e3, "mm", pourcentage, True)            
             
             # Si on converge pas on arrête la simulation
             if not convergence: break
@@ -297,13 +317,27 @@ for split in ["Zhang"]:
                 if bord == 10:                    
                     break
 
+            displacement.append(ud)
+            load.append(f)
+
             if plotIter:
                 cb.remove()
                 figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, ax=axIter)
+
+                plt.figure(figIter)
+
                 plt.pause(1e-12)
 
-            displacement.append(ud)
-            load.append(f)
+                arrayDisplacement, arrayLoad = np.array(displacement), np.array(load)
+
+                if "Benchmark" in problem:
+                    axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e6, arrayLoad*1e-6, 'ud [µm]', 'f [kN/mm]', ax=axLoad)[1]
+                elif "FCBA" in problem:
+                    axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]', ax=axLoad)[1]
+
+                plt.figure(axLoad.figure)
+
+                plt.pause(1e-12)
 
         load = np.array(load)
         displacement = np.array(displacement)
@@ -334,7 +368,10 @@ for split in ["Zhang"]:
 
         Affichage.Plot_ResumeIter(simu, folder, None, None)
 
-        Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud en mm', 'f en kN/mm', folder)
+        if "Benchmark" in problem:
+            Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud [mm]', 'f [kN/mm]', folder)
+        elif "FCBA" in problem:
+            Affichage.Plot_ForceDep(displacement*1e3, load*1e-3, 'ud [mm]', 'f [kN]', folder)
 
         filenameDamage = f"{split} damage_n"
         # titleDamage = fr"$\phi$"
@@ -343,9 +380,7 @@ for split in ["Zhang"]:
         Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=False, folder=folder, filename=filenameDamage, title=titleDamage)
 
     if saveParaview:
-        PostTraitement.Make_Paraview(folder, simu, Niter=NParaview, details=True)
-        if not solve:
-            Tic.getGraphs(details=True)
+        PostTraitement.Make_Paraview(folder, simu, Niter=NParaview)        
 
     if makeMovie:
         # Affichage.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
@@ -355,7 +390,9 @@ for split in ["Zhang"]:
     # Tic.getResume()
 
     if solve:
-        Tic.getGraphs(folder, details=True)
+        Tic.Plot_History(folder, details=True)
+    else:        
+        Tic.Plot_History(details=True)
 
     if showFig:
         plt.show()

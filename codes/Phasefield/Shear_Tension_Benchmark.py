@@ -26,7 +26,7 @@ nomDossier = '_'.join([simulation,"Benchmark"])
 if dim == 3:
     simulation += "_3D"
 
-test = False
+test = True
 solve = True
 
 # ----------------------------------------------
@@ -56,7 +56,7 @@ optimMesh = False
 maxIter = 1000
 # tolConv = 0.0025
 # tolConv = 0.005
-tolConv = 1e-1
+tolConv = 1e-0
 
 # ----------------------------------------------
 # Comportement 
@@ -534,12 +534,12 @@ for split in ["Miehe"]:
         plt.figure()
         plt.plot(aires[1:], G)
 
-    Tic.getResume()
+    Tic.Resume()
 
     if solve:
-        Tic.getGraphs(folder, True)
+        Tic.Plot_History(folder, True)
     else:
-        Tic.getGraphs(details=True)
+        Tic.Plot_History(details=True)
 
     if showResult:
         plt.show()

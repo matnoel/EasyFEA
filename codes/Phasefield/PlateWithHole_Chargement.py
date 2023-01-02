@@ -14,7 +14,7 @@ Affichage.Clear()
 # L'objectif de ce script est de voir du chargement
 
 # Options
-dim = 2
+dim = 3
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
@@ -93,7 +93,7 @@ if dim == 2:
     materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
     simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 else:
-    materiau = Materials.Create_Materiau(comportement, verbosity=False)
+    materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
     simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
 
 
@@ -180,7 +180,7 @@ ax.grid()
 
 
 
-Tic.getResume()
+Tic.Resume()
 
 plt.show()
 

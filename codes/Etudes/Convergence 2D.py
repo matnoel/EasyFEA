@@ -162,9 +162,9 @@ ax_Temps.set_ylabel('Temps [s]')
 ax_Temps.legend(GroupElem.get_Types2D())
 
 
-Tic.getResume()
+Tic.Resume()
 
-Tic.getGraphs(folder)
+Tic.Plot_History(folder)
 
 plt.show()
 

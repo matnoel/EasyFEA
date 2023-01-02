@@ -313,7 +313,7 @@ PostTraitement.Save_fig(folder, "Amor psiP")
 
 
 
-Tic.getResume()
+Tic.Resume()
 
 plt.show()
 

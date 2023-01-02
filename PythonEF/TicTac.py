@@ -6,10 +6,10 @@ import pandas as pd
 
 class Tic:
 
-
     def __init__(self):
         self.__start = time.time()
 
+    @staticmethod
     def Get_temps_unite(temps):
         """Renvoie le temps et l'unité"""
         if temps > 1:
@@ -68,7 +68,7 @@ class Tic:
     """historique des temps = { catégorie: list( [texte, temps] ) }"""
        
     @staticmethod
-    def getResume(verbosity=True):
+    def Resume(verbosity=True):
         """Construit le résumé de TicTac"""
 
         if Tic.__Historique == {}: return
@@ -125,7 +125,16 @@ class Tic:
         ax.set_title(titre)
 
     @staticmethod 
-    def getGraphs(folder="", details=True, title="Simulation"):
+    def Plot_History(folder="", details=True):
+        """Affiche l'historique
+
+        Parameters
+        ----------
+        folder : str, optional
+            dossier dans lequel on va sauvegarder les figures, by default ""
+        details : bool, optional
+            Affiche de détails de l'historique, by default True
+        """
 
         import PostTraitement as PostTraitement
 
@@ -135,10 +144,17 @@ class Tic:
         tempsTotCategorie = []
         categories = list(historique.keys())
 
-        for c in categories:
+        # récupère le temps de chaque catégorie
+        tempsCategorie = [np.sum(np.array(np.array(historique[c])[:,1] , dtype=np.float64)) for c in categories]
 
-            tempsSousCategorie = np.array(np.array(historique[c])[:,1] , dtype=np.float64) #temps des sous categories de c
+        categories = np.array(categories)[np.argsort(tempsCategorie)][::-1]
+
+        for i, c in enumerate(categories):
+
+            #temps des sous categories de c
+            tempsSousCategorie = np.array(np.array(historique[c])[:,1] , dtype=np.float64)
             tempsTotCategorie.append(np.sum(tempsSousCategorie)) #somme tout les temps de cette catégorie
+
             sousCategories = np.array(np.array(historique[c])[:,0] , dtype=str) #sous catégories
 
             # On construit un tableau pour les sommé sur les sous catégories
@@ -154,9 +170,7 @@ class Tic:
                 Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
             
                 if folder != "":                        
-                    PostTraitement.Save_fig(folder, c)
-            
-        
+                    PostTraitement.Save_fig(folder, f"TicTac{i}_{c}")
 
         # On construit un tableau pour les sommé sur les sous catégories
         dfCategorie = pd.DataFrame({'categories' : categories, 'temps': tempsTotCategorie})
@@ -168,7 +182,7 @@ class Tic:
         Tic.__plotBar(ax, categories, dfCategorie['temps'], "Simulation")
 
         if folder != "":            
-            PostTraitement.Save_fig(folder, title)
+            PostTraitement.Save_fig(folder, "TicTac_Simulation")
 
         # # Camembert
         # my_circle = plt.Circle( (0,0), 0, color='white')

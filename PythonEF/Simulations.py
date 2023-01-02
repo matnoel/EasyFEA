@@ -643,7 +643,7 @@ class _Simu(ABC):
             b -= C.dot(vTild_np1.reshape(-1,1))
             b = sparse.csr_matrix(b)
 
-        tic.Tac("Construit Ax=b",f"Neumann ({problemType}, {algo})", self._verbosity)
+        tic.Tac("Solveur",f"Neumann ({problemType}, {algo})", self._verbosity)
 
         return b
 
@@ -688,7 +688,7 @@ class _Simu(ABC):
 
         A, x = self.__Get_Dirichlet_A_x(problemType, resolution, A, b, valeurs_ddls)
 
-        tic.Tac("Construit Ax=b",f"Dirichlet ({problemType}, {algo})", self._verbosity)
+        tic.Tac("Solveur",f"Dirichlet ({problemType}, {algo})", self._verbosity)
 
         return A, x
 
@@ -835,7 +835,7 @@ class _Simu(ABC):
         verifTaille = unique_ddl_Connues.shape[0] + ddls_Inconnues.shape[0]
         assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
 
-        tic.Tac("Construit Ax=b",f"Construit ddls ({problemType})", self._verbosity)
+        tic.Tac("Solveur",f"Construit ddls ({problemType})", self._verbosity)
 
         return ddls_Connues, ddls_Inconnues    
 
@@ -1276,7 +1276,7 @@ class _Simu(ABC):
         resume += '\n' + self.Resultats_Get_Resume_Iteration()
 
         resume += Affichage.NouvelleSection("TicTac", False)
-        resume += Tic.getResume(False)
+        resume += Tic.Resume(False)
 
         if verbosity:
             print(resume)
