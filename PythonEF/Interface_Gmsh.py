@@ -282,7 +282,7 @@ class Interface_Gmsh:
         pgVol = gmsh.model.addPhysicalGroup(3, [volume], name=f"V{volume}")
         return pgVol
 
-    def __Add_PhyscialGroup(self, dim: int, tag: int):
+    def __Add_PhysicalGroup(self, dim: int, tag: int):
         if dim == 0:
             self.__Add_PhysicalPoint(tag)
         elif dim == 1:
@@ -314,7 +314,7 @@ class Interface_Gmsh:
 
         entities = entities[indexes]
 
-        [self.__Add_PhyscialGroup(dim, tag) for dim, tag in zip(entities[:,0], entities[:,1])]
+        [self.__Add_PhysicalGroup(dim, tag) for dim, tag in zip(entities[:,0], entities[:,1])]
 
     __dict_name_dim = {
         0 : "P",
