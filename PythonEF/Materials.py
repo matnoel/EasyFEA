@@ -1933,7 +1933,6 @@ class PhaseField_Model(IModel):
                 matrice_num = matrice_num + func_ep_epij(valnum[:,:,2], M3_num)            
 
             if matrice_e_pg.max() > 0:
-
                 ecart_matrice = matrice - matrice_e_pg
                 erreurMatrice = np.linalg.norm(ecart_matrice)/np.linalg.norm(matrice_e_pg)
                 assert erreurMatrice <= 1e-12, "matrice != E1*M1 + E2*M2 + E3*M3 != matrice_e_pg"
