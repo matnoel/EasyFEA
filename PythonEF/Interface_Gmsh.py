@@ -904,7 +904,7 @@ class Interface_Gmsh:
         physicalCracks, physicalOpenBoundarys = self.__physicalCracks_physicalOpenBoundarys(cracks, surfaceDomain)
         
         # physicalSurfaces = [gmsh.model.addPhysicalGroup(2, surfacesPleines)]
-        physicalSurfaces = [gmsh.model.addPhysicalGroup(2, [surface]) for surface in surfacesPleines]
+        physicalSurfaces = [gmsh.model.addPhysicalGroup(2, [surface]) for surface in surfacesPleines]            
 
         if len(physicalCracks) > 0:
             # Regénération des groupes physiques des fissures ont été crées
