@@ -35,7 +35,8 @@ class Gauss:
         return self.__poids.size
 
     @staticmethod
-    def __CoordoPoidsGaussTriangle(nPg: int):
+    def __CoordoPoidsGaussTriangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """[1, 3, 6, 7, 12]"""
         if nPg == 1:
             ksis = 1/3
             etas = 1/3
@@ -87,7 +88,8 @@ class Gauss:
         return ksis, etas, poids
 
     @staticmethod
-    def __CoordoPoidsGaussQuad(nPg: int):
+    def __CoordoPoidsGaussQuad(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """[4, 9]"""
         if nPg == 4:
             a = 1/np.sqrt(3)
             ksis = [-a, a, a, -a]
@@ -102,6 +104,61 @@ class Gauss:
             poids = [25/81, 25/81, 25/81, 25/81, 40/81, 40/81, 40/81, 40/81, 64/81]
 
         return ksis, etas, poids
+
+    @staticmethod
+    def __CoordoPoidsGaussTetra(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """[1, 4, 5, 15]"""
+        if nPg == 1:            
+
+            x = 1/4
+            y = 1/4
+            z = 1/4
+
+            poids = 1/6
+
+        elif nPg == 4:
+
+            a = (5-np.sqrt(5))/20
+            b = (5+3*np.sqrt(5))/20
+
+            x = [a, a, a, b]
+            y = [a, a, b, a]
+            z = [a, b, a, a]
+
+            poids = [1/24]*nPg
+
+        elif nPg == 5:
+
+            a = 1/4
+            b = 1/6
+            c = 1/2
+
+            x = [a, b, b, b, c]
+            y = [a, b, b, c, b]
+            z = [a, b, c, b, b]
+
+            poids = [-2/15, 3/40, 3/40, 3/40, 3/40]
+
+        elif nPg == 15:
+
+            a = 1/4
+            b1 = (7+np.sqrt(15))/34; b2 = (7-np.sqrt(15))/34
+            c1 = (13-3*np.sqrt(15))/34; c2 = (13+3*np.sqrt(15))/34
+            d = (5-np.sqrt(15))/20
+            e = (5+np.sqrt(15))/20
+
+            x = [a, b1, b1, b1 , c1, b2, b2, b2, c2, d, d, e, d, e, e]
+            y = [a, b1, b1, c1, b1, b2, b2, c2, b2, d, e, d, e, d, e]
+            z = [a, b1, c1, b1, b1, b2, c2, b2, b2, e, d, d, e, e, d]
+
+            p1 = 8/405
+            p2 = (2665 - 14*np.sqrt(15))/226800
+            p3 = (2665 + 14*np.sqrt(15))/226800
+            p4 = 5/567
+
+            poids = [p1, p2, p2, p2, p2, p3, p3, p3, p3, p4, p4, p4, p4, p4, p4]
+
+        return x, y, z, poids
 
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
@@ -133,6 +190,7 @@ class Gauss:
             elif matriceType in [MatriceType.masse, MatriceType.beam]:
                 nPg = 2
             x, poids =  np.polynomial.legendre.leggauss(nPg)
+
         elif elemType == ElemType.SEG3:
             dim = 1
             if matriceType == MatriceType.rigi:
@@ -142,6 +200,7 @@ class Gauss:
             elif matriceType == MatriceType.beam:
                 nPg = 4
             x, poids =  np.polynomial.legendre.leggauss(nPg)
+
         elif elemType == ElemType.SEG4:
             dim = 1
             if matriceType == MatriceType.rigi:
@@ -151,6 +210,7 @@ class Gauss:
             elif matriceType == MatriceType.beam:
                 nPg = 6
             x, poids =  np.polynomial.legendre.leggauss(nPg)
+            
         elif elemType == ElemType.SEG5:
             dim = 1
             if matriceType == MatriceType.rigi:
@@ -160,6 +220,7 @@ class Gauss:
             elif matriceType == MatriceType.beam:
                 nPg = 8
             x, poids =  np.polynomial.legendre.leggauss(nPg)
+
         elif elemType == ElemType.TRI3:
             dim = 2            
             if matriceType == MatriceType.rigi:
@@ -167,6 +228,7 @@ class Gauss:
             elif matriceType == MatriceType.masse:
                 nPg = 3
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+
         elif elemType == ElemType.TRI6:
             dim = 2            
             if matriceType == MatriceType.rigi:
@@ -174,30 +236,30 @@ class Gauss:
             elif matriceType == MatriceType.masse:
                 nPg = 6
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+
         elif elemType == ElemType.TRI10:
             dim = 2            
-            if matriceType == MatriceType.rigi:
-                nPg = 6
-            else:
-                nPg = 7
+            nPg = 6
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+
         elif elemType == ElemType.TRI15:
             dim = 2            
             if matriceType == MatriceType.rigi:
-                nPg = 7
-            else:
+                nPg = 6
+            elif matriceType == MatriceType.masse:
                 nPg = 12
-                # nPg = 7
             ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+
         elif elemType == ElemType.QUAD4:
             dim = 2            
-            if matriceType in [MatriceType.rigi, MatriceType.masse]:
-                nPg = 4
+            nPg = 4
             ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
             
         elif elemType == ElemType.QUAD8:
             dim = 2            
-            if matriceType in [MatriceType.rigi, MatriceType.masse]:
+            if matriceType == MatriceType.rigi:
+                nPg = 4
+            elif matriceType == MatriceType.masse:
                 nPg = 9
             ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
                     
@@ -205,55 +267,15 @@ class Gauss:
             dim = 3            
             if matriceType == MatriceType.rigi:
                 nPg = 1
-
-                x = 1/4
-                y = 1/4
-                z = 1/4
-
-                poids = 1/6
             elif matriceType == MatriceType.masse:
-                nPg = 4
-
-                a = (5-np.sqrt(5))/20
-                b = (5+3*np.sqrt(5))/20
-
-                x = [a, a, a, b]
-                y = [a, a, b, a]
-                z = [a, b, a, a]
-
-                poids = [1/24]*nPg
+                nPg = 4            
+            x, y, z, poids = Gauss.__CoordoPoidsGaussTetra(nPg)
 
         elif elemType == ElemType.TETRA10:
             dim = 3            
-            if matriceType == MatriceType.rigi:
-                nPg = 4
+            nPg = 4
+            x, y, z, poids = Gauss.__CoordoPoidsGaussTetra(nPg)
 
-                a = (5-np.sqrt(5))/20
-                b = (5+3*np.sqrt(5))/20
-
-                x = [a, a, a, b]
-                y = [a, a, b, a]
-                z = [a, b, a, a]
-
-                poids = [1/24]*nPg
-            elif matriceType == MatriceType.masse:
-                nPg = 6
-
-                m1r3 = -1/np.sqrt(3)
-                p1r3 = 1/np.sqrt(3)
-
-                ordre = [2,0,1,5,3,4]
-
-                x = [m1r3, m1r3, m1r3, p1r3, p1r3, p1r3]
-                y = [0.5, 0, 0.5, 0.5, 0, 0.5]
-                z = [0.5, 0.5, 0, 0.5, 0.5, 0]
-
-                x = np.array(x)[ordre]
-                y = np.array(y)[ordre]
-                z = np.array(z)[ordre]
-
-                poids = [1/6]*nPg                
-        
         elif elemType == ElemType.HEXA8:
             dim = 3            
             if matriceType in [MatriceType.rigi, MatriceType.masse]:

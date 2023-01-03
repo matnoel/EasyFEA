@@ -756,8 +756,7 @@ class GroupElem(ABC):
         if self.dim != 3: return
         matriceType = MatriceType.masse
         volume = np.einsum('ep,p->', self.get_jacobien_e_pg(matriceType), self.get_gauss(matriceType).poids, optimize='optimal')
-        return float(volume)
-        
+        return float(volume)        
 
     def get_F_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie la matrice jacobienne\n
