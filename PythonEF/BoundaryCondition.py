@@ -186,7 +186,7 @@ class BoundaryCondition:
     
     @staticmethod
     def Get_ddls_noeuds(param: int, problemType:str, noeuds:np.ndarray, directions: list) -> np.ndarray:
-        """Récupère les ddls liés aux noeuds en fonction du problème et des directions
+        """Récupère les ddls associés aux noeuds en fonction du problème et des directions
 
         Parameters
         ----------
