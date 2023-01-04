@@ -527,7 +527,7 @@ class Elas_IsotTrans(Displacement_Model):
     @property
     def resume(self) -> str:
         resume = f"\nElas_IsotTrans :"
-        resume += f"\nEl = {self.El:.2e}, Et = {self.El:.2e}, Gl = {self.Gl:.2e}"
+        resume += f"\nEl = {self.El:.2e}, Et = {self.Et:.2e}, Gl = {self.Gl:.2e}"
         resume += f"\nvl = {self.vl}, vt = {self.vt}"
         resume += f"\naxi_l = {self.__axis1},  axi_t = {self.__axis2}"
         if self.__dim == 2:
