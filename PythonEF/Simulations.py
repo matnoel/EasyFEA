@@ -21,7 +21,7 @@ import CalcNumba
 from Interface_Solveurs import ResolutionType, AlgoType, _Solveur, _Solve_Axb
 import Folder
 
-def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
+def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=False, useNumba=True):
 
     params = (mesh, materiau, verbosity ,useNumba)
 
@@ -885,13 +885,16 @@ class _Simu(ABC):
             Description de la condition, by default ""
         """
 
-        if len(valeurs) == 0 or len(valeurs) != len(directions): return
+        if len(valeurs) == 0 or len(valeurs) != len(directions): return        
 
         if problemType == None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)
         
+        assert len(noeuds) > 0, "Liste de noeuds vides"
+        noeuds = np.asarray(noeuds)
+
         Nn = noeuds.shape[0]
         coordo = self.mesh.coordo
         coordo_n = coordo[noeuds]
@@ -1440,7 +1443,7 @@ class __Simu_Displacement(_Simu):
         tic = Tic()
 
         # Ici on le materiau est homogène
-        matC = comportement.get_C()
+        matC = comportement.C
 
         # Matrices rigi
         if useNumba:
@@ -1781,7 +1784,7 @@ class __Simu_Displacement(_Simu):
 
         tic = Tic()
 
-        c = self.materiau.comportement.get_C()
+        c = self.materiau.comportement.C
         if useNumba:
             # Plus rapide sur les gros système > 500 000 ddl (ordre de grandeur)
             # sinon legerement plus lent

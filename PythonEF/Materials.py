@@ -78,7 +78,7 @@ class Displacement_Model(IModel):
     """Classe des lois de comportements C de (Sigma = C * Epsilon)
     (Elas_isot, ...)
     """
-    def __init__(self, dim: int, C: np.ndarray, S: np.ndarray, epaisseur: float):
+    def __init__(self, dim: int, epaisseur: float):
         
         self.__dim = dim
         """dimension lié a la loi de comportement"""
@@ -86,19 +86,11 @@ class Displacement_Model(IModel):
         if dim == 2:
             assert epaisseur > 0 , "Doit être supérieur à 0"
             self.__epaisseur = epaisseur
-        
-        self.__C = C
-        """Loi de comportement pour la loi de Lamé en kelvin mandel"""
-
-        self.__S = S
-        """Loi de comportement pour la loi de Hooke en kelvin mandel"""
 
         if self.dim == 2:
             self.__simplification = "CP" if self.contraintesPlanes else "DP"
         else:
             self.__simplification = "3D"
-
-    # Interface
 
     @property
     def modelType(self) -> ModelType:
@@ -124,7 +116,11 @@ class Displacement_Model(IModel):
     def simplification(self) -> str:
         """Simplification utilisé pour le modèle"""
         return self.__simplification
-        
+
+    @abstractmethod
+    def Update(self):
+        """Mets à jour la loi de comportement C et S"""
+        pass
     
     @property
     @abstractmethod
@@ -212,27 +208,29 @@ class Displacement_Model(IModel):
         """Coef lié à la notation de kelvin mandel=racine(2)"""
         return np.sqrt(2)    
 
-    def get_C(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Lamé en Kelvin Mandel\n
-        En 2D:
-        -----
-        C -> C : Epsilon = Sigma [Sxx, Syy, racine(2)*Sxy]\n
-        En 3D:
-        -----
-        C -> C : Epsilon = Sigma [Sxx, Syy, Szz, racine(2)*Syz, racine(2)*Sxz, racine(2)*Sxy]
+    @property
+    def C(self) -> np.ndarray:
+        """Loi de comportement pour la loi de Lamé en Kelvin Mandel\n
+        En 2D : C -> C : Epsilon = Sigma [Sxx, Syy, racine(2)*Sxy]\n
+        En 3D : C -> C : Epsilon = Sigma [Sxx, Syy, Szz, racine(2)*Syz, racine(2)*Sxz, racine(2)*Sxy]
         """        
         return self.__C.copy()
 
-    def get_S(self):
-        """Renvoie une copie de la loi de comportement pour la loi de Hooke en Kelvin Mandel\n
-        En 2D:
-        -----        
-        S -> S : Sigma = Epsilon [Exx, Eyy, racine(2)*Exy]\n
-        En 3D:
-        -----        
-        S -> S : Sigma = Epsilon [Exx, Eyy, Ezz, racine(2)*Eyz, racine(2)*Exz, racine(2)*Exy]
+    @C.setter
+    def C(self, array: np.ndarray):
+        self.__C = array
+
+    @property
+    def S(self) -> np.ndarray:
+        """Loi de comportement pour la loi de Hooke en Kelvin Mandel\n
+        En 2D : S -> S : Sigma = Epsilon [Exx, Eyy, racine(2)*Exy]\n
+        En 3D : S -> S : Sigma = Epsilon [Exx, Eyy, Ezz, racine(2)*Eyz, racine(2)*Exz, racine(2)*Exy]
         """
         return self.__S.copy()
+    
+    @S.setter
+    def S(self, array: np.ndarray):
+        self.__S = array
 
     @staticmethod
     def AppliqueCoefSurBrigi(dim: int, B_rigi_e_pg: np.ndarray):
@@ -296,10 +294,11 @@ class Displacement_Model(IModel):
 
         # on verfie que les invariants du tenseur ne change pas !
         # if np.linalg.norm(P.T-P) <= 1e-12:
-        test_det_c = np.linalg.det(matrice_P) - np.linalg.det(Matrice)
-        assert test_det_c <1e-12
+        
         test_trace_c = (np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
         assert test_trace_c <1e-12
+        test_det_c = np.linalg.det(matrice_P) - np.linalg.det(Matrice)
+        assert test_det_c <1e-12
         
         return matrice_P
 
@@ -331,26 +330,45 @@ class Elas_Isot(Displacement_Model):
         # Vérification des valeurs
         assert dim in [2,3], "doit être en 2 et 3"
         self.__dim = dim
-
-        assert E > 0.0, "Le module élastique doit être > 0 !"
-        self.E=E
-        """Module de Young"""
-
-        poisson = "Le coef de poisson doit être compris entre ]-1;0.5["
-        assert v > -1.0 and v < 0.5, poisson
-        self.v=v
-        """Coef de poisson"""
         
+        self.E=E
+        self.v=v
+
         self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
         """type de simplification 2D"""
 
-        C, S = self.__Comportement()
+        Displacement_Model.__init__(self, dim, epaisseur)
 
-        Displacement_Model.__init__(self, dim, C, S, epaisseur)
+        self.Update()
 
     @property
     def contraintesPlanes(self) -> bool:
         return self.__contraintesPlanes
+
+    def Update(self):        
+        C, S = self.__Comportement()
+        self.C = C
+        self.S = S
+
+    @property
+    def E(self) -> float:
+        """Module de Young"""
+        return self.__E
+    
+    @E.setter
+    def E(self, value: float):
+        assert value > 0.0, "Le module élastique doit être > 0 !"
+        self.__E = value
+
+    @property
+    def v(self) -> float:
+        """Coef de poisson"""
+        return self.__v
+    
+    @v.setter
+    def v(self, value: float):
+        assert value > -1.0 and value < 0.5, "Le coef de poisson doit être compris entre ]-1;0.5["
+        self.__v = value
 
     def get_lambda(self):
 
@@ -461,43 +479,23 @@ class Elas_IsotTrans(Displacement_Model):
         assert dim in [2,3], "doit être en 2 et 3"
         self.__dim = dim
 
-        erreurCoef = f"Les modules El, Et et Gl doivent être > 0 !"
-        for i, E in enumerate([El, Et, Gl]): assert E > 0.0, erreurCoef
-        self.El=El
-        """Module de Young longitudinale"""
-        self.Et=Et
-        """Module de Young transverse"""
+        self.El=El        
+        self.Et=Et        
         self.Gl=Gl
-        """Module de Cisaillent longitudinale"""
-
-        erreurPoisson = lambda i :f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["        
-        for v in [vl, vt]: assert v > -1.0 and v < 0.5, erreurPoisson
-        # -1<vt<1
-        # -1<vl<0.5
-        # Regarder torquato 328
-        self.vl=vl
-        """Coef de poisson longitudianale"""
-        self.vt=vt
-        """Coef de poisson transverse"""
+        
+        self.vl=vl        
+        self.vt=vt        
 
         self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
         """type de simplification 2D"""       
 
         # Création de la matrice de changement de base
-
         self.__axis1 = axis_l
         self.__axis2 = axis_t
-        
-        P = self.get_P(axis_1=axis_l, axis_2=axis_t)
 
-        if np.linalg.norm(axis_l-np.array([1,0,0]))<1e-12 and np.linalg.norm(axis_t-np.array([0,1,0]))<1e-12:
-            useSameAxis=True
-        else:
-            useSameAxis=False
+        Displacement_Model.__init__(self, dim, epaisseur)
 
-        C, S = self.__Comportement(P, useSameAxis)
-
-        Displacement_Model.__init__(self, dim, C, S, epaisseur)
+        self.Update()
 
     @property
     def contraintesPlanes(self) -> bool:
@@ -514,6 +512,62 @@ class Elas_IsotTrans(Displacement_Model):
         return Gt
 
     @property
+    def El(self) -> float:
+        """Module de Young longitudinale"""
+        return self.__El
+
+    @El.setter
+    def El(self, value: float):
+        assert value > 0.0, "Doit être > 0"
+        self.__El = value
+
+    @property
+    def Et(self) -> float:
+        """Module de Young transverse"""
+        return self.__Et
+    
+    @Et.setter
+    def Et(self, value: float):
+        assert value > 0.0, "Doit être > 0"
+        self.__Et = value
+
+    @property
+    def Gl(self) -> float:
+        """Module de Cisaillent longitudinale"""
+        return self.__Gl
+
+    @Gl.setter
+    def Gl(self, value: float):
+        assert value > 0.0, "Doit être > 0"
+        self.__Gl = value
+
+    @property
+    def vl(self) -> float:
+        """Coef de poisson longitudianale"""
+        return self.__vl
+
+    @vl.setter
+    def vl(self, value: float):
+        # -1<vt<1
+        # -1<vl<0.5
+        # Regarder torquato 328
+        assert value > -1.0 and value < 0.5, f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
+        self.__vl = value
+    
+    @property
+    def vt(self) -> float:
+        """Coef de poisson transverse"""
+        return self.__vt
+
+    @vt.setter
+    def vt(self, value: float):
+        # -1<vt<1
+        # -1<vl<0.5
+        # Regarder torquato 328
+        assert value > -1.0 and value < 0.5, f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
+        self.__vt = value
+
+    @property
     def kt(self) -> float:
         # Source : torquato 2002
         El = self.El
@@ -523,6 +577,20 @@ class Elas_IsotTrans(Displacement_Model):
         kt = El*Et/((2*(1-vtt)*El)-(4*vtl**2*Et))
 
         return kt
+
+    def Update(self):
+        axis_l, axis_t = self.__axis1, self.__axis2
+        P = self.get_P(axis_1=axis_l, axis_2=axis_t)
+
+        if np.linalg.norm(axis_l-np.array([1,0,0]))<1e-12 and np.linalg.norm(axis_t-np.array([0,1,0]))<1e-12:
+            useSameAxis=True
+        else:
+            useSameAxis=False
+
+        C, S = self.__Comportement(P, useSameAxis)
+
+        self.C = C
+        self.S = S        
 
     @property
     def resume(self) -> str:
@@ -613,14 +681,12 @@ class Elas_IsotTrans(Displacement_Model):
         
         return c, s
 
-
-
 class Elas_Anisot(Displacement_Model):
 
     @property
     def resume(self) -> str:
         resume = f"\n{self.nom}) :"
-        resume += f"\n{self.get_C()}"
+        resume += f"\n{self.C}"
         resume += f"\naxi1 = {self.__axis1},  axi2 = {self.__axis2}"
         if self.__dim == 2:
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"
@@ -653,6 +719,9 @@ class Elas_Anisot(Displacement_Model):
         # Vérification des valeurs
         assert dim in [2,3], "doit être en 2 et 3"
         self.__dim = dim
+
+        self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
+        """type de simplification 2D"""
         
         # Verification sur la matrice
         if dim == 2:
@@ -711,16 +780,20 @@ class Elas_Anisot(Displacement_Model):
 
         S_mandelP = np.linalg.inv(C_mandelP)
 
-        self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
-        """type de simplification 2D"""        
+        Displacement_Model.__init__(self, dim, epaisseur)
 
-        Displacement_Model.__init__(self, dim, C_mandelP, S_mandelP, epaisseur)
+        self.C = C_mandelP
+        self.S = S_mandelP
+
+        
+
+    def Update(self):
+        print("Mise à jour de Elas Anisot impossible il faut recreer une nouvelle loi de comportement")
+        return super().Update()
 
     @property
     def contraintesPlanes(self) -> bool:
         return self.__contraintesPlanes
-    
-
 
 class Poutre_Elas_Isot():
 
@@ -1291,7 +1364,7 @@ class PhaseField_Model(IModel):
     def __Split_Bourdin(self, Ne: int, nPg: int):
         
         tic = Tic()
-        c = self.__comportement.get_C()
+        c = self.__comportement.C
         c = c[np.newaxis, np.newaxis,:,:]
         c = np.repeat(c, Ne, axis=0)
         c = np.repeat(c, nPg, axis=1)
@@ -1415,7 +1488,7 @@ class PhaseField_Model(IModel):
         
         elif "Strain" in self.__split:
             
-            c = self.__comportement.get_C()
+            c = self.__comportement.C
             
             if useNumba:
                 # Plus rapide
@@ -1460,7 +1533,7 @@ class PhaseField_Model(IModel):
         # Récupère les contraintes
         # Ici le matériau est supposé homogène
         loiDeComportement = self.__comportement
-        C = loiDeComportement.get_C()    
+        C = loiDeComportement.C    
         Sigma_e_pg = np.einsum('ij,epj->epi',C, Epsilon_e_pg, optimize='optimal')
 
         # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma                    
@@ -1475,7 +1548,7 @@ class PhaseField_Model(IModel):
             E = loiDeComportement.E
             v = loiDeComportement.v
 
-            c = loiDeComportement.get_C()
+            c = loiDeComportement.C
 
             dim = self.dim
 
@@ -1526,7 +1599,7 @@ class PhaseField_Model(IModel):
             
             else:
                 # Construit Cp et Cm
-                S = loiDeComportement.get_S()
+                S = loiDeComportement.S
                 if self.__useNumba:
                     # Plus rapide
                     Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
@@ -1568,7 +1641,7 @@ class PhaseField_Model(IModel):
         # Ici le matériau est supposé homogène
         loiDeComportement = self.__comportement
 
-        C = loiDeComportement.get_C() 
+        C = loiDeComportement.C 
 
         # Mettre ça direct dans la loi de comportement ?
 

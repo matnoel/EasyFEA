@@ -107,7 +107,7 @@ class Test_Materiau(unittest.TestCase):
                 
                 c = Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(comp.dim, C_voigt)
                     
-                verifC = np.linalg.norm(c-comp.get_C())/np.linalg.norm(c)
+                verifC = np.linalg.norm(c-comp.C)/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
 
     def test_ElasAnisot(self):
@@ -141,7 +141,7 @@ class Test_Materiau(unittest.TestCase):
         listComp = [comportement2D_CP_1, comportement2D_DP_1, comportement2D_CP_2, comportement2D_DP_2, comportement3D_1, comportement3D_2]
 
         for comp in listComp: 
-            matC = comp.get_C()
+            matC = comp.C
             testSymetry = np.linalg.norm(matC.T - matC)
             assert testSymetry <= 1e-12
 
@@ -177,7 +177,7 @@ class Test_Materiau(unittest.TestCase):
                       [2*kt*vl, kt+Gt, 0],
                       [0, 0, 2*Gl]])
 
-        verifc1 = np.linalg.norm(c1 - compElasIsotTrans1.get_C())/np.linalg.norm(c1)
+        verifc1 = np.linalg.norm(c1 - compElasIsotTrans1.C)/np.linalg.norm(c1)
         self.assertTrue(verifc1 < 1e-12)
 
         # Verif2 axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
@@ -190,7 +190,7 @@ class Test_Materiau(unittest.TestCase):
                       [2*kt*vl, El+4*vl**2*kt, 0],
                       [0, 0, 2*Gl]])
 
-        verifc2 = np.linalg.norm(c2 - compElasIsotTrans2.get_C())/np.linalg.norm(c2)
+        verifc2 = np.linalg.norm(c2 - compElasIsotTrans2.C)/np.linalg.norm(c2)
         self.assertTrue(verifc2 < 1e-12)
 
         # Verif3 axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
@@ -203,7 +203,7 @@ class Test_Materiau(unittest.TestCase):
                       [kt-Gt, kt+Gt, 0],
                       [0, 0, 2*Gt]])
 
-        verifc3 = np.linalg.norm(c3 - compElasIsotTrans3.get_C())/np.linalg.norm(c3)
+        verifc3 = np.linalg.norm(c3 - compElasIsotTrans3.C)/np.linalg.norm(c3)
         self.assertTrue(verifc3 < 1e-12)
 
     
@@ -237,7 +237,7 @@ class Test_Materiau(unittest.TestCase):
             comportement = pfm.comportement
             
             if isinstance(comportement, Displacement_Model):
-                c = comportement.get_C()
+                c = comportement.C
             
             print(f"{comportement.nom} {comportement.simplification} {pfm.split} {pfm.regularization}")
 

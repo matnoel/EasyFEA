@@ -296,7 +296,7 @@ class Test_Simu(unittest.TestCase):
             listPg = list(range(nPg))
             Ne = mesh.Ne            
             materiau = simu.materiau
-            C = materiau.comportement.get_C()
+            C = materiau.comportement.C
 
             listKe_e = []
 
