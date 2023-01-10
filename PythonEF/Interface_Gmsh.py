@@ -430,7 +430,7 @@ class Interface_Gmsh:
             minField = gmsh.model.mesh.field.add("Min")
             gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
 
-    def Mesh_ImportMesh(self, fichier: str):
+    def Mesh_ImportMesh(self, fichier: str, coef=1):
 
         self.__initGmsh('occ')        
 
@@ -438,7 +438,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        return cast(Mesh, self.__Recuperation_Maillage())
+        return cast(Mesh, self.__Recuperation_Maillage(coef))
 
 
 
@@ -1111,7 +1111,7 @@ class Interface_Gmsh:
             gmsh.write(Folder.Join([folder, "mesh.msh"]))
             tic.Tac("Mesh","Sauvegarde du .geo et du .msh", self.__verbosity)
 
-    def __Recuperation_Maillage(self):
+    def __Recuperation_Maillage(self, coef=1):
         """Récupération du maillage construit
 
         Returns
@@ -1156,7 +1156,10 @@ class Interface_Gmsh:
         # On construit la matrice de coordonnées de tout les noeuds utilisé dans la maillage
         # Noeuds utilisé en 1D 2D et 3D
         coord = coord.reshape(-1,3)
-        coordo = coord[sortedIndices]        
+        coordo = coord[sortedIndices]
+
+        # Applique le coef
+        coordo = coordo * coef
         
         # Construit les groupes physiques
         physicalGroups = gmsh.model.getPhysicalGroups()
