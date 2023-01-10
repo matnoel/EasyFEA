@@ -126,14 +126,14 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
             
             fig, ax, cb = Affichage.Plot_Result(simu, option, ax=ax, deformation=deformation, affichageMaillage=affichageMaillage, facteurDef=facteurDef, valeursAuxNoeuds=True)
 
-            title = ax.get_title()
-            ax.set_title(f'{title} : {iter}/{N-1}')
+            title1 = ax.get_title()
+            ax.set_title(f'{title1} : {iter}/{N-1}')
 
             plt.pause(1e-12)
 
             writer.grab_frame()
 
-            tf = tic.Tac("Animation",f"Plot {ax.get_title()}", False)
+            tf = tic.Tac("Animation",f"Plot {title1}", False)
             listTemps.append(tf)
 
             pourcentageEtTempsRestant = _GetPourcentageEtTemps(listIter, listTemps, i)
