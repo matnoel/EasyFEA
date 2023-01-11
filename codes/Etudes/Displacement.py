@@ -14,7 +14,7 @@ from TicTac import Tic
 
 import matplotlib.pyplot as plt
 
-Affichage.Clear()
+# Affichage.Clear()
 
 dim = 2
 
@@ -24,18 +24,18 @@ tic_Tot = Tic()
 
 # Data --------------------------------------------------------------------------------------------
 
-plotResult = False
+plotResult = True
 
 saveParaview = False; NParaview = 500
 
 useNumba = True
 
-isLoading = False
-initSimu = True
+isLoading = True
+initSimu = False
 
 pltMovie = False; NMovie = 400
 
-plotIter = True; affichageIter = "dy"
+plotIter = False; affichageIter = "dy"
 
 # coefM = 1e-2
 # coefK = 1e-3*2
@@ -44,7 +44,7 @@ coefM = 0
 coefK = 0
 
 Tmax = 0.5
-N = 100
+N = 1
 dt = Tmax/N
 t = 0
 
@@ -60,7 +60,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/6
+taille = h/100
 
 comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
@@ -128,9 +128,9 @@ def Chargement(isLoading: bool):
         # simu.add_dirichlet(noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
 
         # simu.add_lineLoad(noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
+        # simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
 
-        # simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+        simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
         # simu.add_surfLoad(noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
         # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])        
 

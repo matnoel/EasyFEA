@@ -108,8 +108,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
             if simu.problemType == ModelType.beam:
                 solveur = "scipy_spsolve"
             else:
-                solveur = "cg"
-                # solveur = "petsc"
+                # solveur = "cg"
+                solveur = "petsc"
                 # solveur = "scipy_spsolve"
         elif syst == "Linux":
             solveur = "pypardiso"
@@ -160,7 +160,9 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         x = mumps.spsolve(A,b)
 
     elif solveur == "petsc" and syst in ['Linux', "Darwin"]:
-        x = __PETSc(A, b)
+        x, option = __PETSc(A, b)
+
+        solveur += option
             
     tic.Tac("Solveur",f"Solve {problemType} ({solveur})", verbosity)
 
@@ -329,13 +331,19 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
     dimI = A.shape[0]
     dimJ = A.shape[1]
     
-    nnz = np.array(np.unique(lignes, return_counts = True)[1], dtype=np.int32)
+    # nb = len(np.where(lignes==299)[0])
+    uniqueLignes, count = np.unique(lignes, return_counts = True)
+    nnz = np.array(count, dtype=np.int32)
 
+    
     matrice = PETSc.Mat()
     matrice.createAIJ([dimI, dimJ], nnz=nnz)
+
+    # matrice = PETSc.MatSeqAIJ()
+    # matrice.createSeqAIJ([dimI, dimJ], nnz=nnz)
     # matrice.create(A)
     
-    (matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs))
+    [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)]    
 
     matrice.assemble()
 
@@ -349,17 +357,23 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
 
     x = matrice.createVecRight()
 
+    pc = "lu" # "none", "lu"
+    kspType = "bicg" # "cg", "bicg, "gmres"
+
     ksp = PETSc.KSP().create()
     ksp.setOperators(matrice)
-    ksp.setType('cg')    
-    ksp.getPC().setType('none')
+    ksp.setType(kspType)
+    # ksp.getPC().setType('none')
+    ksp.getPC().setType(pc)
     ksp.solve(vectb, x)
     
-    print(f'Solving with: {ksp.getType()}') 
+    # print(f'Solving with PETSc {ksp.getType()}') 
 
     x = x.array
 
-    return x
+    option = f", {pc}, {kspType}"
+
+    return x, option
     
 
 def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
