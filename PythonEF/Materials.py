@@ -293,11 +293,10 @@ class Displacement_Model(IModel):
         matrice_P = np.einsum('ji,jk,kl->il',P, Matrice, P, optimize='optimal')
 
         # on verfie que les invariants du tenseur ne change pas !
-        # if np.linalg.norm(P.T-P) <= 1e-12:
-        
-        test_trace_c = (np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
+        # if np.linalg.norm(P.T-P) <= 1e-12:        
+        test_trace_c = np.abs(np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
         assert test_trace_c <1e-12, "La trace n'est pas conservé pendant la transformation"
-        test_det_c = np.linalg.det(matrice_P) - np.linalg.det(Matrice)
+        test_det_c = np.abs(np.linalg.det(matrice_P) - np.linalg.det(Matrice))/np.linalg.det(matrice_P)
         assert test_det_c <1e-12, "Le determinant n'est pas conservé pendant la transformation"
         
         return matrice_P
