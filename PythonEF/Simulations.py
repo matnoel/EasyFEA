@@ -1092,7 +1092,7 @@ class _Simu(ABC):
         for groupElem in listGroupElemDim:
 
             # Récupère les elements qui utilisent exclusivement les noeuds
-            elements = groupElem.get_elementsIndex(noeuds, exclusivement=exclusivement)
+            elements = groupElem.Get_ElementsIndex_Nodes(noeuds, exclusivement=exclusivement)
             if elements.shape[0] == 0: continue
             connect_e = groupElem.connect_e[elements]
             Ne = elements.shape[0]
@@ -2104,22 +2104,27 @@ class __Simu_PhaseField(_Simu):
                 dk = self.damage
             elif convOption == 1:
                 psi_crack_k = self.__Calc_Psi_Crack()
+            elif convOption == 2:
+                psi_tot_k = self.__Calc_Psi_Crack() + self.__Calc_Psi_Elas()
 
             # Damage
             self.__Assemblage_d()
-            if convOption == 0:
-                d_kp1 = self.__Solve_d()            
-            elif convOption == 1:
-                psi_crack_kp1 = self.__Calc_Psi_Crack()
-            
+            d_kp1 = self.__Solve_d()            
             # Displacement
             Kglob = self.__Assemblage_u()            
             u_np1 = self.__Solve_u()
+            
+            if convOption == 1:
+                psi_crack_kp1 = self.__Calc_Psi_Crack()
+            elif convOption == 2:
+                psi_tot_kp1 = self.__Calc_Psi_Crack() + self.__Calc_Psi_Elas()
 
             if convOption == 0:
                 convIter = np.max(np.abs(d_kp1-dk))
             elif convOption == 1:
                 convIter = np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
+            elif convOption == 2:
+                convIter = np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_k
             
             if tolConv == 1.0:
                 convergence=True

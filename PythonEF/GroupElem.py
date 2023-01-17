@@ -274,19 +274,19 @@ class GroupElem(ABC):
 
         return assembly
 
-    def get_elementsIndex(self, noeuds: np.ndarray, exclusivement=True) -> np.ndarray:
+    def Get_ElementsIndex_Nodes(self, nodes: np.ndarray, exclusivement=True) -> np.ndarray:
         """Récupérations des élements qui utilisent exclusivement ou non les noeuds renseignés"""
         connect = self.__connect
         connect_n_e = self.connect_n_e()
         
         # Verifie si il n'y a pas de noeuds en trop
         # Il est possible que les noeuds renseignés n'appartiennent pas au groupe
-        if self.Nn < noeuds.max():
+        if self.Nn < nodes.max():
             # On enlève tout les noeuds en trop
-            indexNoeudsSansDepassement = np.where(noeuds < self.Nn)[0]
-            noeuds = noeuds[indexNoeudsSansDepassement]
+            indexNoeudsSansDepassement = np.where(nodes < self.Nn)[0]
+            nodes = nodes[indexNoeudsSansDepassement]
 
-        nodesId = noeuds
+        nodesId = nodes
         lignes, colonnes, valeurs = sp.find(connect_n_e[nodesId])
 
         elementsIndex = np.unique(colonnes)
@@ -295,7 +295,7 @@ class GroupElem(ABC):
         if exclusivement:
             # Verifie si les elements utilisent exculisevement les noeuds dans la liste de noeuds
             # Pour chaque element, si lelement contient un noeuds n'appartenant pas à la liste de noeuds on l'enlève
-            listElemIndex = [e for e in elementsIndex if not False in [n in noeuds for n in connect[e]]]        
+            listElemIndex = [e for e in elementsIndex if not False in [n in nodes for n in connect[e]]]        
             listElemIndex = np.array(listElemIndex)
         else:
             listElemIndex = elementsIndex
@@ -1294,7 +1294,7 @@ class GroupElem(ABC):
 
         # Récupère les elements associés aux noeuds
         # exclusivement=False car on veut avoir tout les elements qui utilisent les noeuds
-        elements = self.get_elementsIndex(noeuds=noeuds, exclusivement=False)
+        elements = self.Get_ElementsIndex_Nodes(nodes=noeuds, exclusivement=False)
 
         self.__dict_elements_tags[tag] = elements
 
