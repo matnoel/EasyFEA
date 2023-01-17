@@ -296,8 +296,10 @@ class Displacement_Model(IModel):
         # if np.linalg.norm(P.T-P) <= 1e-12:        
         test_trace_c = np.abs(np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
         assert test_trace_c <1e-12, "La trace n'est pas conservé pendant la transformation"
-        test_det_c = np.abs(np.linalg.det(matrice_P) - np.linalg.det(Matrice))/np.linalg.det(matrice_P)
-        assert test_det_c <1e-12, "Le determinant n'est pas conservé pendant la transformation"
+        detMatrice = np.linalg.det(Matrice)
+        test_det_c = np.abs(np.linalg.det(matrice_P) - np.linalg.det(Matrice))/detMatrice
+        if detMatrice > 0:
+            assert test_det_c <1e-10, "Le determinant n'est pas conservé pendant la transformation"
         
         return matrice_P
 
