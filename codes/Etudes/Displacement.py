@@ -60,7 +60,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/100
+taille = h/10
 
 comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
@@ -94,7 +94,7 @@ elif dim == 3:
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)
 
-Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Mesh(mesh)
 # Affichage.Plot_NoeudsMaillage(mesh,showId=True)
 # plt.show()
 
@@ -163,7 +163,7 @@ else:
     steadyState=True
 
 if plotIter:
-    fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, deformation=True)
+    fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, deformation=True)
 
 while t <= Tmax:
 
@@ -171,7 +171,7 @@ while t <= Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, valeursAuxNoeuds=True, affichageMaillage=True, ax=ax, deformation=True)
+        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, ax=ax, deformation=True)
         plt.pause(1e-12)
 
     t += dt
@@ -205,7 +205,7 @@ if plotResult:
     simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
-    Affichage.Plot_Result(simu, "dy", deformation=True, valeursAuxNoeuds=False)        
+    Affichage.Plot_Result(simu, "dy", deformation=True, nodeValues=False)        
     # Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, valeursAuxNoeuds=False)        
     # Affichage.Plot_Result(simu, "Svm", deformation=True, valeursAuxNoeuds=False, affichageMaillage=False, folder=folder)        
     

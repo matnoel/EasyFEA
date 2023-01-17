@@ -14,7 +14,8 @@ Affichage.Clear()
 
 folder = Folder.New_File("TractionBois", results=True)
 
-pathData = Folder.Join([Folder.Get_Path(), "data", "TractionBois", 'data.xlsx'])
+# pathData = Folder.Join([Folder.Get_Path(), "data", "TractionBois", 'data.xlsx'])
+pathData = "/Users/matnoel/Library/CloudStorage/OneDrive-Personal/__Doctorat/Essais/TractionBois/data.xlsx"
 
 df = pd.read_excel(pathData)
 
@@ -96,7 +97,7 @@ zone = 6*epFissure
 refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), taille=tailleFin)
 mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=tailleGros, refineGeom=refineDomain, geomObjectsInDomain=geomObjectsInDomain, elemType="TRI6")
 
-Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)
 plt.show()
 

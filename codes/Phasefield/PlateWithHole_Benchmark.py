@@ -20,8 +20,8 @@ dim = 3
 if dim == 3:
     problem += "_3D"
 
-test = True
-solve = True
+test = False
+solve = False
 
 # ----------------------------------------------
 # Post traitement
@@ -35,13 +35,13 @@ showFig = True
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = False; NParaview=300
+saveParaview = True; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
@@ -55,12 +55,12 @@ optimMesh = True
 # Convergence
 # ----------------------------------------------
 maxIter = 1000
-tolConv = 1e-0
+tolConv = 1e-1
 
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-for split in ["Zhang"]:
+for split in ["AnisotStress"]:
 #for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 # for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 # for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
@@ -104,8 +104,9 @@ for split in ["Zhang"]:
         
         gc = 3000
         # l_0 = 0.12e-3
+        # nL = 150
         nL = 100
-        l0 = h/nL        
+        l0 = L/nL
 
         u_max = 2e-3
 
@@ -158,11 +159,10 @@ for split in ["Zhang"]:
         comportement = Materials.Elas_Isot(dim, E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
 
     elif comp == "Elas_IsotTrans":
-        # El = 11580*1e6
-        cc = 1
-        El = 12e9*cc
-        Et = 500*1e6*cc
-        Gl = 450*1e6*cc
+        # El = 11580*1e6        
+        El = 12e9
+        Et = 500*1e6
+        Gl = 450*1e6
         vl = 0.02
         vt = 0.44
         v = 0
@@ -203,7 +203,7 @@ for split in ["Zhang"]:
             mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
         
         if plotMesh:
-            Affichage.Plot_Maillage(mesh)
+            Affichage.Plot_Mesh(mesh)
             # plt.show()
 
         # Récupérations des noeuds
@@ -260,7 +260,7 @@ for split in ["Zhang"]:
         load = []
 
         if plotIter:
-            figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True)
+            figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", nodeValues=True)
 
             arrayDisplacement, arrayLoad = np.array(displacement), np.array(load)
             if "Benchmark" in problem:
@@ -322,7 +322,7 @@ for split in ["Zhang"]:
 
             if plotIter:
                 cb.remove()
-                figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, ax=axIter)
+                figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
 
                 plt.figure(figIter)
 
@@ -377,7 +377,7 @@ for split in ["Zhang"]:
         # titleDamage = fr"$\phi$"
         titleDamage = f"{split}"
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, colorbarIsClose=False, folder=folder, filename=filenameDamage, title=titleDamage)
+        Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename=filenameDamage, title=titleDamage)
 
     if saveParaview:
         PostTraitement.Make_Paraview(folder, simu, Niter=NParaview)        
