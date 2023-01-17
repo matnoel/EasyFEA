@@ -151,7 +151,7 @@ for split in ["Miehe"]:
 
         
         if plotMesh:
-            Affichage.Plot_Maillage(mesh)
+            Affichage.Plot_Mesh(mesh)
             # # Affichage.Plot_Model(mesh)
             # noeudsCracks = list(mesh.Nodes_Line(line2))
             # noeudsCracks.extend(mesh.Nodes_Line(line))
@@ -389,7 +389,7 @@ for split in ["Miehe"]:
 
         Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN', folder)
 
-        Affichage.Plot_Result(simu, "damage", valeursAuxNoeuds=True, affichageMaillage=False,deformation=False, folder=folder, filename="damage")
+        Affichage.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
         
 
         # Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)

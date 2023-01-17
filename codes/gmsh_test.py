@@ -104,7 +104,7 @@ elif simulationType == SimulationType.TEF2:
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
 
-Affichage.Plot_Maillage(mesh)
+Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)
 # plt.show()
 
@@ -145,10 +145,10 @@ simu.Resultats_Resume()
 Affichage.Plot_BoundaryConditions(simu)
 
 # Affichage.Plot_Maillage(simu, deformation=True)
-Affichage.Plot_Result(simu, "Sxx", valeursAuxNoeuds=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Syy", valeursAuxNoeuds=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Sxy", valeursAuxNoeuds=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Svm", affichageMaillage=False, valeursAuxNoeuds=True, deformation=True,coef=1/coef)
+Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, deformation=True,coef=1/coef)
 
 
 plt.show()

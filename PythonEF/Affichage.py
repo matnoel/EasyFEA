@@ -12,7 +12,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.collections
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affichageMaillage=False, valeursAuxNoeuds=True, folder="", filename="", title="", ax=None, colorbarIsClose=False):
+def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, colorbarIsClose=False):
     """Affichage d'un résulat de la simulation
 
     Parameters
@@ -27,10 +27,10 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         facteur de deformation, by default 4
     coef : int, optional
         coef qui sera appliqué a la solution, by default 1
-    affichageMaillage : bool, optional
+    plotMesh : bool, optional
         affiche le maillage, by default False
-    valeursAuxNoeuds : bool, optional
-        affiche le resultat aux noeuds sinon l'affiche aux elements, by default False
+    nodeValues : bool, optional
+        affiche le resultat aux noeuds sinon l'affiche aux elements, by default True
     folder : str, optional
         dossier de sauvegarde, by default ""
     filename : str, optional
@@ -77,16 +77,16 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         ax.clear()
 
     if dim == 3:
-        valeursAuxNoeuds = True # Ne pas modifier, il faut passer par la solution aux noeuds pour localiser aux elements 2D !!!
+        nodeValues = True # Ne pas modifier, il faut passer par la solution aux noeuds pour localiser aux elements 2D !!!
         # Quand on fait une simulation en 3D on affiche les résultats que sur les elements 2D
         # Pour prendre moin de place
         # En plus, il faut tracer la solution que sur les eléments 2D
 
     if simu.problemType == MatriceType.beam:
         # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
-        valeursAuxNoeuds = False
+        nodeValues = False
     
-    valeurs = simu.Get_Resultat(option, valeursAuxNoeuds) # Récupération du résultat
+    valeurs = simu.Get_Resultat(option, nodeValues) # Récupération du résultat
     if not isinstance(valeurs, np.ndarray): return
     
     valeurs *= coef # Application d'un coef sur les valeurs
@@ -133,7 +133,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
             vertices = dict_coordoFaceElem[elem]
 
             # Trace le maillage
-            if affichageMaillage:
+            if plotMesh:
                 if mesh.dim == 1:
                     # le maillage pour des elements 1D sont des points
                     coordFaces = vertices.reshape(-1,inDim)
@@ -219,7 +219,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
             # coordonnées des noeuds pour chaque element
             vertices = np.asarray(coordoDim[connectDim]) # (Ne, nPe, 3)
             
-            if valeursAuxNoeuds:
+            if nodeValues:
                 # Si le résultat est stocké aux noeuds on va faire la moyenne des valeurs aux noeuds sur l'element
                 valeursNoeudsSurElement = valeurs[connectDim]
                 valeursAuxFaces = np.asarray(np.mean(valeursNoeudsSurElement, axis=1))
@@ -231,7 +231,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
             minVal = np.min([minVal, valeursAuxFaces.min()])
 
             # On affiche le résultat avec ou sans l'affichage du maillage
-            if affichageMaillage:
+            if plotMesh:
                 if dim == 1:
                     pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap='jet')
                 elif dim == 2:
@@ -274,7 +274,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
         option = f"\epsilon_{'{'+optionFin+'}'}"
     
     # On specifie si les valeurs sont sur les noeuds ou sur les elements
-    if valeursAuxNoeuds:
+    if nodeValues:
         # loc = "^{n}"
         loc = ""
     else:
@@ -297,7 +297,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, affi
     # Renvoie la figure, l'axe et la colorbar
     return fig, ax, cb
     
-def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1, facecolors='c', edgecolor='black') -> plt.Axes:
+def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1, facecolors='c', edgecolor='black') -> plt.Axes:
     """Dessine le maillage de la simulation
 
     Parameters
@@ -485,7 +485,7 @@ def Plot_Maillage(obj, deformation=False, facteurDef=4, folder="", title="", ax=
 
     return ax
 
-def Plot_Noeuds(mesh, noeuds=[], showId=False, marker='.', c='red', folder="", ax=None):
+def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=None):
     """Affiche les noeuds du maillage
 
     Parameters
@@ -494,7 +494,7 @@ def Plot_Noeuds(mesh, noeuds=[], showId=False, marker='.', c='red', folder="", a
         maillage
     ax : plt.Axes, optional
         Axes dans lequel on va creer la figure, by default None
-    noeuds : list[np.ndarray], optional
+    nodes : list[np.ndarray], optional
         noeuds à afficher, by default []
     showId : bool, optional
         affiche les numéros, by default False
@@ -515,21 +515,21 @@ def Plot_Noeuds(mesh, noeuds=[], showId=False, marker='.', c='red', folder="", a
     mesh = cast(Mesh, mesh)
 
     if ax == None:
-        ax = Plot_Maillage(mesh, alpha=0)
+        ax = Plot_Mesh(mesh, alpha=0)
     
-    if len(noeuds) == 0:
-        noeuds = mesh.nodes    
+    if len(nodes) == 0:
+        nodes = mesh.nodes    
     
     coordo = mesh.coordoGlob
 
     if mesh.dim == 2:
-        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, c=c, zorder=2.5)
+        ax.scatter(coordo[nodes,0], coordo[nodes,1], marker=marker, c=c, zorder=2.5)
         if showId:            
-            [ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud), c=c) for noeud in noeuds]
+            [ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud), c=c) for noeud in nodes]
     elif  mesh.dim == 3:            
-        ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], marker=marker, c=c)
+        ax.scatter(coordo[nodes,0], coordo[nodes,1], coordo[nodes,2], marker=marker, c=c)
         if showId:
-            [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in noeuds]
+            [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in nodes]
     
     if folder != "":
         import PostTraitement as PostTraitement
@@ -537,14 +537,14 @@ def Plot_Noeuds(mesh, noeuds=[], showId=False, marker='.', c='red', folder="", a
 
     return ax
 
-def Plot_Elements(mesh, noeuds=[], dimElem=None, showId=False, c='red', folder="", ax=None):
+def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder="", ax=None):
     """Affiche les elements du maillage en fonction des numéros de noeuds
 
     Parameters
     ----------
     mesh : Mesh
         maillage
-    noeuds : list, optional
+    nodes : list, optional
         numeros des noeuds, by default []
     dimElem : int, optional
         dimension de l'element recherché, by default None
@@ -567,20 +567,18 @@ def Plot_Elements(mesh, noeuds=[], dimElem=None, showId=False, c='red', folder="
     mesh = cast(Mesh, mesh)
 
     if dimElem == None:
-        dimElem = mesh.dim-1
+        dimElem = mesh.dim-1 if mesh.inDim == 3 else mesh.dim
 
     list_groupElem = mesh.Get_list_groupElem(dimElem)
     if len(list_groupElem) == 0: return
 
     if ax == None:
-        ax = Plot_Maillage(mesh, alpha=1)
+        ax = Plot_Mesh(mesh, alpha=1)
 
     for groupElemDim in list_groupElem:
-        
-        elemType = groupElemDim.elemType
 
-        if len(noeuds) > 0:
-            elements = groupElemDim.get_elementsIndex(noeuds)
+        if len(nodes) > 0:
+            elements = groupElemDim.get_elementsIndex(nodes)
         else:
             elements = np.arange(groupElemDim.Ne)
 
@@ -596,7 +594,7 @@ def Plot_Elements(mesh, noeuds=[], dimElem=None, showId=False, c='red', folder="
         coordo_e = np.mean(coordoFaces_e, axis=1)
         
         if mesh.dim in [1,2]:
-            if len(noeuds) > 0:
+            if len(nodes) > 0:
                 if groupElemDim.dim == 1:
                     pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor=c, lw=1, zorder=3)
                 else:
@@ -609,7 +607,7 @@ def Plot_Elements(mesh, noeuds=[], dimElem=None, showId=False, c='red', folder="
                     ax.text(coordo_e[element,0], coordo_e[element,1], str(elementsID[element]),
                     zorder=25, ha='center', va='center')
         elif mesh.dim == 3:
-            if len(noeuds) > 0:
+            if len(nodes) > 0:
                 ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1), zdir='z')
 
             # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=3)
@@ -631,7 +629,7 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     Parameters
     ----------
-    simu : Simu
+    simu : _Simu
         simulation
     folder : str, optional
         dossier de sauvegarde, by default ""
@@ -658,7 +656,7 @@ def Plot_BoundaryConditions(simu, folder=""):
     lagranges = simu.Bc_LagrangeAffichage
     Conditions.extend(lagranges)
 
-    ax = Plot_Maillage(simu, alpha=0)
+    ax = Plot_Mesh(simu, alpha=0)
 
     assert isinstance(ax, plt.Axes)
 
@@ -908,6 +906,28 @@ def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
 def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud [m]', ylabel='f [N]', folder="", ax=None) -> tuple[plt.Figure, plt.Axes]:
+    """Trace la courbe force en fonction du déplacement
+
+    Parameters
+    ----------
+    deplacements : np.ndarray
+        array de valeurs pour les déplacements
+    forces : np.ndarray
+        array de valeurs pour les forces
+    xlabel : str, optional
+        titre de l'axe x, by default 'ud [m]'
+    ylabel : str, optional
+        titre de l'axe y, by default 'f [N]'
+    folder : str, optional
+        path vers le dossier de sauvegarde, by default ""
+    ax : plt.Axes, optional
+        ax dans lequel on va tracer la figure, by default None
+
+    Returns
+    -------
+    tuple[plt.Figure, plt.Axes]
+        renvoie la figure et l'ax
+    """
 
     if isinstance(ax, plt.Axes):
         fig = ax.figure
@@ -927,6 +947,25 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud [m]',
     return fig, ax
     
 def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMax=True, Niter=200, NiterFin=100, folder=""):
+    """Trace l'energie de chacune des itérations
+
+    Parameters
+    ----------
+    simu : _Simu
+        simulation
+    forces : np.ndarray, optional
+        array de valeurs, by default np.array([])
+    deplacements : _type_, optional
+        _description_, by default np.array([])
+    plotSolMax : bool, optional
+        affiche l'evolution de la solution maximul au cours des itération. (endommagement max pour une simulation d'endommagement), by default True
+    Niter : int, optional
+        nombre d'itération pour lesquels on va calculer l'energie, by default 200
+    NiterFin : int, optional
+        nombre d'itération avant la fin, by default 100
+    folder : str, optional
+        dossier de sauvagarde de la figure, by default ""
+    """
 
     from Simulations import _Simu
     from TicTac import Tic
@@ -1031,6 +1070,21 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
     tic.Tac("PostTraitement","Cacul Energie phase field", False)
 
 def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None):
+    """Affiche le resumé des itératons entre iterMin et iterMax
+
+    Parameters
+    ----------
+    simu : _Simu
+        Simulation
+    folder : str, optional
+        dossier de sauvegarde, by default ""
+    iterMin : int, optional
+        borne inférieur, by default None
+    iterMax : int, optional
+        borne supérieur, by default None
+    """
+
+
     from Simulations import _Simu
 
     assert isinstance(simu, _Simu)
@@ -1081,7 +1135,7 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
 
     Parameters
     ----------
-    simu : Simu
+    simu : _Simu
         simulation
     deformation : bool
         calcul de la deformation

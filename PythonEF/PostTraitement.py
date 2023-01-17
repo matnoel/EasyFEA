@@ -95,7 +95,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     simu.Update_iter(0)
 
     # Trace la première figure
-    fig, ax, cb = Affichage.Plot_Result(simu, option, affichageMaillage=affichageMaillage, deformation=deformation, facteurDef=facteurDef)
+    fig, ax, cb = Affichage.Plot_Result(simu, option, plotMesh=affichageMaillage, deformation=deformation, facteurDef=facteurDef)
     
     # Donne le lien vers ffmpeg.exe
 
@@ -124,7 +124,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
 
             cb.remove()
             
-            fig, ax, cb = Affichage.Plot_Result(simu, option, ax=ax, deformation=deformation, affichageMaillage=affichageMaillage, facteurDef=facteurDef, valeursAuxNoeuds=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=affichageMaillage, facteurDef=facteurDef, nodeValues=True)
 
             title1 = ax.get_title()
             ax.set_title(f'{title1} : {iter}/{N-1}')
