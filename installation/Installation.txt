@@ -8,9 +8,9 @@ il faut installer sur python :
 	pandas -> pour creer des tableaux
 	pypardiso -> tres important pour résoudre les système matricielle direct en parallel (installation intel mkl nécessaire)
 	numba -> module pour compiler des fonctions executables en parallel
+    colorama -> pour afficher de la couleur dans le terminal
 	scikit-umfpack -> Pas obligatoire
 	scikits-sparse -> installer cholmod pour la decomposition de cholesky
-    colorama -> pour afficher de la couleur dans le terminal
 
 
 Il faut impérativement ajouter le dossier dans lequel est contenu les modules et classes dans le path
@@ -27,7 +27,7 @@ Pour ça on ajoute dans le PYTHONPATH:
 		modifier les variables du système -> variables d'environnement -> variables utilisateur
 		PYTHONPATH D:\SOFT\PythonEF\PythonEF
 
-Installation gmsh :
+Build gmsh:
 
 	il faut dabord  installer opencascade : sudo port install opencascade
 	il faut ensuite installer fltk : sudo port install fltk
