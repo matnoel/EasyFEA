@@ -11,34 +11,37 @@ from TicTac import Tic
 import scipy.optimize as optimize
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
-if platform.system() != "Darwin":
+
+try:
     import pypardiso
+    canUsePypardiso = True
+except ModuleNotFoundError:
+    canUsePypardiso = False
 
 try:
     from sksparse.cholmod import cholesky, cholesky_AAt
+    canUseCholesky = True
 except:
-    # Le module n'est pas utilisable
-    pass
+    canUseCholesky = False
 
 try:
     import scikits.umfpack as umfpack
+    canUseUmfpack = True
 except:
-    # Le module n'est pas utilisable
-    pass
+    canUseUmfpack = False
 
 try:
-    import mumps as mumps 
+    import mumps as mumps
+    canUseMumps = True
 except:
-    # Le module n'est pas utilisable
-    pass
+    canUseMumps = False
 
 try:
-    import petsc4py
-    
+    import petsc4py    
     from petsc4py import PETSc
+    canUsePetsc = True
 except:
-    # Le module n'est pas utilisable
-    pass
+    canUsePetsc = False
 
 class AlgoType(str, Enum):
     elliptic = "elliptic"
@@ -55,6 +58,12 @@ class ResolutionType(str, Enum):
     """multiplicateur lagrange"""
     r3 = "3"
     """pénalisation"""
+
+class __SolversLibrary(str, Enum):
+    pypardiso = "pypardiso"
+    umfpack = "umfpack"
+    mumps = "mumps"
+    petsc = "petsc"
 
 def __Cast_Simu(simu):
 
@@ -106,27 +115,29 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     else:
         if syst == "Darwin":            
             if simu.problemType == ModelType.beam:
-                solveur = "scipy_spsolve"
+                solveur = "scipy"
             else:
                 # solveur = "cg"
-                solveur = "petsc"
-                # solveur = "scipy_spsolve"
+                # solveur = "petsc"
+                solveur = "scipy"
         elif syst == "Linux":
             solveur = "pypardiso"
             # method = "umfpack" # Plus rapide de ne pas passer par umfpack
-            # method = "scipy_spsolve"
+            # method = "scipy"
         else:
             solveur = "pypardiso"
             # method = "cg" # minimise le residu sans la contrainte
+
+    solveur = __Check_solveurLibrary(solveur)
     
     tic = Tic()
 
-    if platform.system() == "Linux":
+    if canUseUmfpack:
         sla.use_solver(useUmfpack=True)
     else:
-        sla.use_solver(useUmfpack=False)
+        sla.use_solver(useUmfpack=False)    
     
-    if useCholesky and A_isSymetric:
+    if useCholesky and A_isSymetric and canUseCholesky:
         x = __Cholesky(A, b)
 
     elif solveur == "BoundConstrain":
@@ -135,7 +146,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     elif solveur == "pypardiso":
         x = pypardiso.spsolve(A, b.toarray())
 
-    elif solveur == "scipy_spsolve":
+    elif solveur == "scipy":
         x = __ScipyLinearDirect(A, b, A_isSymetric)
 
     elif solveur == "cg":
@@ -171,6 +182,21 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     # print(residu/np.linalg.norm(b.toarray().reshape(-1)))
 
     return np.array(x)
+
+def __Check_solveurLibrary(solveur: str) -> str:
+    """Verifie si la librairie du solveur selectionné est disponible\n
+    Si c'est pas le cas renvoie le solveur utilisable dans tout les cas (scipy)"""
+    solveurDeBase="scipy"
+    if solveur == __SolversLibrary.pypardiso:
+        return solveur if canUsePypardiso else solveurDeBase
+    elif solveur == __SolversLibrary.umfpack:
+        return solveur if canUseUmfpack else solveurDeBase
+    elif solveur == __SolversLibrary.mumps:
+        return solveur if canUseMumps else solveurDeBase
+    elif solveur == __SolversLibrary.petsc:
+        return solveur if canUsePetsc else solveurDeBase
+    else:
+        return solveur
 
 def _Solveur(simu, problemType: str, resol: ResolutionType):
 
@@ -358,7 +384,7 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
     x = matrice.createVecRight()
 
     pc = "lu" # "none", "lu"
-    kspType = "bicg" # "cg", "bicg, "gmres"
+    kspType = "cg" # "cg", "bicg, "gmres"
 
     ksp = PETSc.KSP().create()
     ksp.setOperators(matrice)
