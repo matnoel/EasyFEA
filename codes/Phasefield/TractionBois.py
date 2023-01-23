@@ -95,7 +95,7 @@ interface = Interface_Gmsh.Interface_Gmsh(False, False)
 
 zone = 6*epFissure
 refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), taille=tailleFin)
-mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=tailleGros, refineGeom=refineDomain, geomObjectsInDomain=geomObjectsInDomain, elemType="TRI6")
+mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=tailleGros, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI6")
 
 Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)
