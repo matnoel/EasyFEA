@@ -820,12 +820,12 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def __Get_hollowLoops_And_filledLoops(self, geomObjectsInDomain: list) -> tuple[list, list]:
+    def __Get_hollowLoops_And_filledLoops(self, inclusions: list) -> tuple[list, list]:
         """Création des boucles les liste de boucles creuses et pleines
 
         Parameters
         ----------
-        geomObjectsInDomain : list
+        inclusions : list
             Liste d'objet géométrique contenu dans le domaine
 
         Returns
@@ -835,7 +835,7 @@ class Interface_Gmsh:
         """
         loops = []
         filledLoops = []
-        for objetGeom in geomObjectsInDomain:
+        for objetGeom in inclusions:
             if isinstance(objetGeom, Circle):
                 loop = self.__Loop_From_Circle(objetGeom)
             elif isinstance(objetGeom, Domain):                
@@ -847,7 +847,7 @@ class Interface_Gmsh:
 
         return loops, filledLoops
 
-    def Mesh_From_Points_2D(self, points: List[Point], elemType=ElemType.TRI3, geomObjectsInDomain=[], cracks=[], refineGeom=None, tailleElement=0.0, folder="", returnSurfaces=False):
+    def Mesh_From_Points_2D(self, points: List[Point], elemType=ElemType.TRI3, inclusions=[], cracks=[], refineGeom=None, tailleElement=0.0, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
         Parameters
@@ -856,8 +856,8 @@ class Interface_Gmsh:
             liste de points
         elemType : str, optional
             type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-        geomObjectsInDomain : List[Domain, Circle], optional
-            liste d'objet à l'intérieur du domaine Creux ou non
+        inclusions : List[Domain, Circle], optional
+            liste d'objets creux ou non à l'intérieur du domaine 
         cracks : List[Line]
             liste de ligne utilisées pour la création de fissures
         refineGeom : GeomObject, optional
@@ -886,7 +886,7 @@ class Interface_Gmsh:
         loopSurface = self.__Loop_From_Points(points, tailleElement)
 
         # Création de toutes les boucles associés aux objets à l'intérieur du domaine
-        hollowLoops, filledLoops = self.__Get_hollowLoops_And_filledLoops(geomObjectsInDomain)
+        hollowLoops, filledLoops = self.__Get_hollowLoops_And_filledLoops(inclusions)
 
         # Pour chaque objetGeom plein, il est nécessaire de créer une surface
         surfacesPleines = [factory.addPlaneSurface([loop]) for loop in filledLoops]
@@ -923,7 +923,7 @@ class Interface_Gmsh:
 
         return cast(Mesh, self.__Recuperation_Maillage())
 
-    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, interieursList=[], tailleElement=0.0, folder=""):
+    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], tailleElement=0.0, folder=""):
         """Construction d'un maillage 3D depuis une liste de points
 
         Parameters
@@ -936,6 +936,8 @@ class Interface_Gmsh:
             nombre de couches dans l'extrusion, by default 1
         elemType : str, optional
             type d'element, by default "TETRA4" ["TETRA4", "HEXA8", "PRISM6"]
+        inclusions : List[Domain, Circle], optional
+            liste d'objets creux ou non à l'intérieur du domaine 
         tailleElement : float, optional
             taille d'element pour le maillage, by default 0.0
         folder : str, optional
@@ -953,7 +955,7 @@ class Interface_Gmsh:
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Mesh_From_Points_2D(pointsList, elemType=ElemType.TRI3,geomObjectsInDomain=interieursList, tailleElement=tailleElement, returnSurfaces=True)
+        surfaces = self.Mesh_From_Points_2D(pointsList, elemType=ElemType.TRI3,inclusions=inclusions, tailleElement=tailleElement, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)
 
