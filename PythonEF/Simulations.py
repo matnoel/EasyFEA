@@ -441,11 +441,11 @@ class _Simu(ABC):
         return self.__matricesUpdated
 
     def Matrices_Need_Update(self):
-        """Renseigne le fait que la simulation à besoin de reconstruire ces matrices"""
+        """Renseigne le fait que la simulation à besoin de reconstruire ces matrices K, C et M"""
         self.__matricesUpdated = False
 
     def Matrices_Updtated(self):
-        """Les matrices ont été reconstruites"""
+        """Les matrices K, C et M ont été reconstruites"""
         self.__matricesUpdated = True  
 
     # ================================================ Solveur ================================================
