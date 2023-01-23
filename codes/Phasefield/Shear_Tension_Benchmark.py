@@ -194,6 +194,8 @@ for split in ["Miehe"]:
                                     [c12, c22, 0],
                                     [0, 0, c33]])*1e9
 
+                C_mandel = Materials.Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(dim, C_voigt)
+
                 
                 theta_rad = theta * np.pi/180
 
@@ -203,7 +205,7 @@ for split in ["Miehe"]:
             else:
                 raise Exception("Pas implémenté")
 
-            comp = Materials.Elas_Anisot(dim, C_voigt=C_voigt, axis1=axis1, contraintesPlanes=False)
+            comp = Materials.Elas_Anisot(dim, C=C_voigt, axis1=axis1, contraintesPlanes=False)
             Gc = 1e3 # J/m2
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)

@@ -297,8 +297,8 @@ class Displacement_Model(IModel):
         test_trace_c = np.abs(np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
         assert test_trace_c <1e-12, "La trace n'est pas conservé pendant la transformation"
         detMatrice = np.linalg.det(Matrice)
-        test_det_c = np.abs(np.linalg.det(matrice_P) - np.linalg.det(Matrice))/detMatrice
         if detMatrice > 0:
+            test_det_c = np.abs(np.linalg.det(matrice_P) - np.linalg.det(Matrice))/detMatrice
             assert test_det_c <1e-10, "Le determinant n'est pas conservé pendant la transformation"
         
         return matrice_P
@@ -693,19 +693,21 @@ class Elas_Anisot(Displacement_Model):
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"
         return resume
 
-    def __init__(self, dim: int, C_voigt: np.ndarray, axis1:np.ndarray, axis2=None, contraintesPlanes=True, epaisseur=1.0):
+    def __init__(self, dim: int, C: np.ndarray, axis1:np.ndarray, axis2=None, useVoigtNotation=True, contraintesPlanes=True, epaisseur=1.0):
         """Création d'une loi de comportement elastique anisotrope
 
         Parameters
         ----------
         dim : int
             dimension
-        C_voigt : np.ndarray
-            matrice de rigidité en notation de voigt dans la base d'anisotropie
+        C : np.ndarray
+            matrice de rigidité dans la base d'anisotropie
         axis1 : np.ndarray
             vecteur de l'axe1
         axis2 : np.ndarray, optional
             vecteur de l'axe2, by default None
+        useVoigtNotation : bool, optional
+            la loi de comportement utilise l'a notation de voigt, by default True
         contraintesPlanes : bool, optional
             simplification 2D, by default True
         epaisseur : float, optional
@@ -723,13 +725,6 @@ class Elas_Anisot(Displacement_Model):
 
         self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
         """type de simplification 2D"""
-        
-        # Verification sur la matrice
-        if dim == 2:
-            assert C_voigt.shape == (3,3), "La matrice doit être de dimension 3x3"
-        else:
-            assert C_voigt.shape == (6,6), "La matrice doit être de dimension 6x6"
-        assert np.linalg.norm(C_voigt.T - C_voigt) <= 1e-12, "La matrice n'est pas symétrique"
 
         # Verification et construction des vecteurs
         assert axis1.size == 3, "Doit fournir un vecteur" 
@@ -750,11 +745,50 @@ class Elas_Anisot(Displacement_Model):
             axis2 = Calc_axis2()
         self.__axis2 = axis2
 
-        # Construction de la matrice de rotation
-        P = self.get_P(axis_1=axis1, axis_2=axis2)
+        Displacement_Model.__init__(self, dim, epaisseur)
 
-        # Application des coef
-        C_mandel = self.ApplyKelvinMandelCoefTo_Matrice(dim, C_voigt)
+        self.Update(C, useVoigtNotation)
+
+        
+
+    def Update(self, C: np.ndarray, useVoigtNotation=True):
+        """Mets à jour la loi de comportement C et S
+
+        Parameters
+        ----------
+        C : np.ndarray
+           Loi de comportement pour la loi de Lamé
+        useVoigtNotation : bool, optional
+            La loi de comportement utilise la notation de kevin mandel, by default True
+        """
+
+        C_mandelP = self.__Comportement(C, useVoigtNotation)
+
+        S_mandelP = np.linalg.inv(C_mandelP)
+
+        self.C = C_mandelP
+        self.S = S_mandelP
+    
+    def __Comportement(self, C: np.array, useVoigtNotation: bool):
+
+        dim = self.__dim
+
+        # Verification sur la matrice
+        if dim == 2:
+            assert C.shape == (3,3), "La matrice doit être de dimension 3x3"
+        else:
+            assert C.shape == (6,6), "La matrice doit être de dimension 6x6"
+        testSym = np.linalg.norm(C.T - C)/np.linalg.norm(C)
+        assert testSym <= 1e-12, "La matrice n'est pas symétrique"
+
+        # Construction de la matrice de rotation
+        P = self.get_P(axis_1=self.__axis1, axis_2=self.__axis2)
+
+        # Application des coef si nécessaire
+        if useVoigtNotation:
+            C_mandel = self.ApplyKelvinMandelCoefTo_Matrice(dim, C)
+        else:
+            C_mandel = C.copy()
 
         # Passage de la matrice en 3D pour faire la rotation
 
@@ -769,7 +803,7 @@ class Elas_Anisot(Displacement_Model):
                     C_mandel_global[I,J] = C_mandel[i, j]
 
         else:
-            C_mandel_global = C_voigt
+            C_mandel_global = C
 
         C_mandelP_global = self.Apply_P(P, C_mandel_global)
 
@@ -779,18 +813,11 @@ class Elas_Anisot(Displacement_Model):
         else:
             C_mandelP = C_mandelP_global
 
-        S_mandelP = np.linalg.inv(C_mandelP)
+        return C_mandelP
 
-        Displacement_Model.__init__(self, dim, epaisseur)
+    
 
-        self.C = C_mandelP
-        self.S = S_mandelP
-
-        
-
-    def Update(self):
-        print("Mise à jour de Elas Anisot impossible il faut recreer une nouvelle loi de comportement")
-        return super().Update()
+    
 
     @property
     def contraintesPlanes(self) -> bool:
