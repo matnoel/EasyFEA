@@ -136,7 +136,7 @@ class Tic:
             Affiche de détails de l'historique, by default True
         """
 
-        import PostTraitement as PostTraitement
+        import Affichage
 
         if Tic.__Historique == {}: return
 
@@ -170,7 +170,7 @@ class Tic:
                 Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
             
                 if folder != "":                        
-                    PostTraitement.Save_fig(folder, f"TicTac{i}_{c}")
+                    Affichage.Save_fig(folder, f"TicTac{i}_{c}")
 
         # On construit un tableau pour les sommé sur les sous catégories
         dfCategorie = pd.DataFrame({'categories' : categories, 'temps': tempsTotCategorie})
@@ -182,7 +182,7 @@ class Tic:
         Tic.__plotBar(ax, categories, dfCategorie['temps'], "Simulation")
 
         if folder != "":            
-            PostTraitement.Save_fig(folder, "TicTac_Simulation")
+            Affichage.Save_fig(folder, "TicTac_Simulation")
 
         # # Camembert
         # my_circle = plt.Circle( (0,0), 0, color='white')

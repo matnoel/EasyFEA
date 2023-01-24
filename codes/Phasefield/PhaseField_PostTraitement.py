@@ -119,7 +119,7 @@ for config in listConfig:
 
     # Charge la force et le déplacement
     try:
-        load, displacement = PostTraitement.Load_Load_Displacement(foldername, False)
+        load, displacement = Affichage.Load_Load_Displacement(foldername, False)
     except AssertionError:
         if nomSimu not in simulationsManquantes: simulationsManquantes.append(nomSimu)
         print("données indisponibles")
@@ -197,7 +197,7 @@ ax.set_ylabel("load [kN/mm]")
 ax.grid()
 ax.legend()
 plt.figure(fig)
-PostTraitement.Save_fig(folderSauvegarde, "load displacement")
+Affichage.Save_fig(folderSauvegarde, "load displacement")
 
 
 print('\n Simulations manquantes :')

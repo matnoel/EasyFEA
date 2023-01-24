@@ -1,12 +1,10 @@
 from TicTac import Tic
 import Materials
 from Geom import *
-import Affichage as Affichage
-import Interface_Gmsh as Interface_Gmsh
+import Affichage
+import Interface_Gmsh
 import Simulations
 import Folder
-import pandas as pd
-import PostTraitement as PostTraitement
 
 import matplotlib.pyplot as plt
 
@@ -129,7 +127,7 @@ plt.legend()
 ax.set_title(param_name)
 ax.set_xlabel('coef')
 
-PostTraitement.Save_fig(folder, param_name)
+Affichage.Save_fig(folder, param_name)
 
 Tic.Resume()
 

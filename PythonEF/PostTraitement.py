@@ -472,18 +472,3 @@ def __WriteBinary(valeur, type: str, file):
         convert = valeur.tobytes()
         
         file.write(convert)
-
-
-def Save_fig(folder:str, title: str,transparent=False, extension='png'):
-
-    if folder == "": return
-
-    for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
-
-    nom = Folder.Join([folder, title+'.'+extension])
-
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    # plt.savefig(nom, dpi=200)
-    plt.savefig(nom, dpi=500, transparent=transparent, bbox_inches='tight')

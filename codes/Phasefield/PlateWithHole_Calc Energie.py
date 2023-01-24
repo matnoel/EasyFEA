@@ -77,7 +77,7 @@ if plotAllResult:
     ax = Affichage.Plot_Mesh(mesh)
     for ns in [nodes0, nodesh, node00, nodeA, nodeB]:
         Affichage.Plot_Nodes(mesh, ax=ax, nodes=ns,c='red')
-    PostTraitement.Save_fig(folder, 'mesh')
+    Affichage.Save_fig(folder, 'mesh')
 
 columns = ['v','A (ana CP)','B (ana CP)',
             'A (CP)','errA (CP)','B (CP)','errB (CP)',
@@ -195,7 +195,7 @@ axp.set_xlabel(r"$\nu$",fontsize=14)
 axp.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 axp.set_title(r'Split sur $\varepsilon$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "calc analytique")
+Affichage.Save_fig(folder, "calc analytique")
 
 list_Amor_psiP_A=[]
 list_Amor_psiP_B=[]
@@ -271,7 +271,7 @@ ax1.set_xlabel(r"$\nu$",fontsize=14)
 ax1.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 ax1.set_title(r'Split sur $\varepsilon$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Miehe psiP")
+Affichage.Save_fig(folder, "Miehe psiP")
 
 fig, ax2 = plt.subplots()
 
@@ -290,7 +290,7 @@ ax2.set_xlabel(r"$\nu$",fontsize=14)
 ax2.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 ax2.set_title('Split sur $\sigma$',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Stress psiP")
+Affichage.Save_fig(folder, "Stress psiP")
 
 fig, ax3 = plt.subplots()
 
@@ -305,7 +305,7 @@ ax3.set_xlabel(r"$\nu$",fontsize=14)
 ax3.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 ax3.set_title('Split Amor',fontsize=14)
 
-PostTraitement.Save_fig(folder, "Amor psiP")
+Affichage.Save_fig(folder, "Amor psiP")
 
 
 

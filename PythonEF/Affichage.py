@@ -12,6 +12,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.collections
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
+import Folder
+
 def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, colorbarIsClose=False):
     """Affichage d'un résulat de la simulation
 
@@ -289,10 +291,9 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
 
     # Si le dossier à été renseigné on sauvegarde la figure
     if folder != "":
-        import PostTraitement as PostTraitement
         if filename=="":
             filename=title
-        PostTraitement.Save_fig(folder, filename, transparent=False)
+        Save_fig(folder, filename, transparent=False)
 
     # Renvoie la figure, l'axe et la colorbar
     return fig, ax, cb
@@ -480,8 +481,7 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     ax.set_title(title)
 
     if folder != "":
-        import PostTraitement as PostTraitement
-        PostTraitement.Save_fig(folder, title)
+        Save_fig(folder, title)
 
     return ax
 
@@ -532,8 +532,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
             [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in nodes]
     
     if folder != "":
-        import PostTraitement as PostTraitement
-        PostTraitement.Save_fig(folder, "noeuds")
+        Save_fig(folder, "noeuds")
 
     return ax
 
@@ -619,8 +618,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
     # ax.axis('off')
     
     if folder != "":
-        import PostTraitement as PostTraitement 
-        PostTraitement.Save_fig(folder, "noeuds")
+        Save_fig(folder, "noeuds")
 
     return ax
 
@@ -729,8 +727,7 @@ def Plot_BoundaryConditions(simu, folder=""):
     plt.legend()
 
     if folder != "":
-        import PostTraitement as PostTraitement 
-        PostTraitement.Save_fig(folder, "Conditions limites")
+        Save_fig(folder, "Conditions limites")
 
     return ax
 
@@ -880,8 +877,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
         ax.set_zlabel(r"$z$")
     
     if folder != "":
-        import PostTraitement as PostTraitement 
-        PostTraitement.Save_fig(folder, "noeuds")
+        Save_fig(folder, "noeuds")
 
     __Annotation_Evenemenent(collections, fig, ax)
 
@@ -941,8 +937,7 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud [m]',
     ax.grid()
 
     if folder != "":
-        import PostTraitement as PostTraitement 
-        PostTraitement.Save_fig(folder, "forcedep")
+        Save_fig(folder, "forcedep")
 
     return fig, ax
     
@@ -1065,7 +1060,7 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
     ax[-1].set_xlabel(nomX)
 
     if folder != "":        
-        PostTraitement.Save_fig(folder, "Energie")
+        Save_fig(folder, "Energie")
 
     tic.Tac("PostTraitement","Cacul Energie phase field", False)
 
@@ -1114,8 +1109,7 @@ def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None):
     ax.set_xlabel("iterations")
 
     if folder != "":
-        import PostTraitement as PostTraitement 
-        PostTraitement.Save_fig(folder, "resumeConvergence")
+        Save_fig(folder, "resumeConvergence")
 
 __colors = {
     1 : 'tab:blue',
@@ -1196,7 +1190,19 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     ax.set_zlim([zmid-maxRange, zmid+maxRange])
     ax.set_box_aspect([1,1,1])
         
-    
+def Save_fig(folder:str, title: str,transparent=False, extension='png'):
+
+    if folder == "": return
+
+    for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
+
+    nom = Folder.Join([folder, title+'.'+extension])
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    # plt.savefig(nom, dpi=200)
+    plt.savefig(nom, dpi=500, transparent=transparent, bbox_inches='tight')   
 
 def NouvelleSection(text: str, verbosity=True):
     """Creation d'une nouvelle section
