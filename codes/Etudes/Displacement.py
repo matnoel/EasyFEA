@@ -60,7 +60,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/10
+taille = h/100
 
 comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
@@ -211,6 +211,6 @@ if plotResult:
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-tic_Tot.Resume()
+# tic_Tot.Resume()
 Tic.Plot_History(folder ,details=True)
 plt.show()

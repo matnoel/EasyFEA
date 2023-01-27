@@ -9,7 +9,7 @@ from Mesh import ElemType
 import Materials
 import Folder
 
-dim = 3
+dim = 2
 N = 10
 
 class SimulationType(str, Enum):
@@ -59,12 +59,12 @@ elif simulationType == SimulationType.EQUERRE:
     listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, taille=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD8, geomObjectsInDomain=listObjetsInter, tailleElement=h/N, cracks=[])
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, tailleElement=h/N, cracks=[])
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, interieursList=listObjetsInter, tailleElement=h/N)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, tailleElement=h/N)
 
 
         noeudsS3 = mesh.Nodes_Tag(["S9","S15","S14","S21"])
@@ -96,10 +96,10 @@ elif simulationType == SimulationType.TEF2:
     listPoint = [pt1, pt2, pt3]
     
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, geomObjectsInDomain=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, inclusions=[], tailleElement=taille)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, interieursList=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, inclusions=[], tailleElement=taille)
 
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
