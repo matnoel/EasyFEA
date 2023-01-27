@@ -118,8 +118,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
                 solveur = "scipy"
             else:
                 # solveur = "cg"
-                # solveur = "petsc"
-                solveur = "scipy"
+                solveur = "petsc"
+                # solveur = "scipy"
         elif syst == "Linux":
             solveur = "pypardiso"
             # method = "umfpack" # Plus rapide de ne pas passer par umfpack
