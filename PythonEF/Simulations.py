@@ -1522,10 +1522,13 @@ class __Simu_Displacement(_Simu):
 
     def Get_x0(self, problemType: ModelType):
         algo = self.algo
-        if algo == AlgoType.elliptic:
+        if self.displacement.size != self.mesh.Nn*self.dim:
+            return np.zeros(self.mesh.Nn*self.dim)
+        elif algo == AlgoType.elliptic:
             return self.displacement
         elif algo == AlgoType.hyperbolic:
             return self.accel
+
     
     def Save_Iteration(self):
         
@@ -2051,10 +2054,18 @@ class __Simu_PhaseField(_Simu):
             return initcsr, initcsr, initcsr, initcsr
 
     def Get_x0(self, problemType: ModelType):
+        
         if problemType == ModelType.damage:
-            return self.damage
+            if self.damage.size != self.mesh.Nn:
+                return np.zeros(self.mesh.Nn)
+            else:
+                return self.damage
         elif problemType == ModelType.displacement:
-            return self.displacement
+            if self.displacement.size != self.mesh.Nn*self.dim:
+                return np.zeros(self.mesh.Nn*self.dim)
+            else:
+                return self.displacement
+            
 
     def _Assemblage(self):
         self.__Assemblage_u()
@@ -3276,7 +3287,10 @@ class __Simu_Beam(_Simu):
         return self.__Kbeam, initcsr, initcsr, self.__Fbeam
 
     def Get_x0(self, problemType: ModelType):
-        return self.beamDisplacement
+        if self.beamDisplacement.size != self.mesh.Nn*self.nbddl_n(problemType):
+            return np.zeros(self.mesh.Nn*self.nbddl_n(problemType))
+        else:
+            return self.beamDisplacement
 
     def Save_Iteration(self):
 
@@ -3501,7 +3515,10 @@ class __Simu_Thermal(_Simu):
         return self._get_v_n(self.problemType)
 
     def Get_x0(self, problemType: ModelType):
-        return self.thermal
+        if self.thermal.size != self.mesh.Nn:
+            return np.zeros(self.mesh.Nn)
+        else:
+            return self.thermal
 
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
         if not self.matricesUpdated: self._Assemblage()
