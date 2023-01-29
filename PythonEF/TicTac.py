@@ -87,7 +87,7 @@ class Tic:
             
 
     @staticmethod
-    def __plotBar(ax: plt.Axes, categories: list, temps: list, titre: str):
+    def __plotBar(ax: plt.Axes, categories: list, temps: list, reps: int, titre: str):
         # Parmètres axes
         ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
         ax.yaxis.set_visible(False)
@@ -105,16 +105,25 @@ class Tic:
         # Je veux que si le temps représente < 0.5 tempsTotal on affiche le texte a droite
         # Sinon on va lafficher a gauche
 
-        for i, (texte, tmps) in enumerate(zip(categories, temps)):
+        for i, (texte, tmps, rep) in enumerate(zip(categories, temps, reps)):
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)            
             ax.barh(i, tmps, align="center", label=texte)
             
             # On rajoute un peu d'espace a la fin du texte
             espace = " "
-            texte = espace + texte + espace
 
-            if tmps/tempsMax < 0.4:
+            temps, unite = Tic.Get_temps_unite(tmps/rep)
+
+            
+            if rep > 1:
+                repTemps = f" ({rep} x {np.round(temps,2)} {unite})"
+            else:
+                repTemps = f" ({np.round(temps,2)} {unite})"
+
+            texte = espace + texte + repTemps + espace
+
+            if tmps/tempsMax < 0.6:
                 ax.text(tmps, i, texte, color='black',
                 verticalalignment='center', horizontalalignment='left')
             else:
@@ -158,7 +167,7 @@ class Tic:
             sousCategories = np.array(np.array(historique[c])[:,0] , dtype=str) #sous catégories
 
             # On construit un tableau pour les sommé sur les sous catégories
-            dfSousCategorie = pd.DataFrame({'sous categories' : sousCategories, 'temps': tempsSousCategorie})
+            dfSousCategorie = pd.DataFrame({'sous categories' : sousCategories, 'temps': tempsSousCategorie, 'rep': 1})
             dfSousCategorie = dfSousCategorie.groupby(['sous categories']).sum()
             dfSousCategorie = dfSousCategorie.sort_values(by='temps')
             sousCategories = dfSousCategorie.index.tolist()
@@ -167,7 +176,7 @@ class Tic:
 
             if len(sousCategories) > 1 and details and tempsTotCategorie[-1]>0:
                 fig, ax = plt.subplots()
-                Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), c)
+                Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), dfSousCategorie['rep'].tolist(), c)
             
                 if folder != "":                        
                     Affichage.Save_fig(folder, f"TicTac{i}_{c}")
@@ -179,7 +188,7 @@ class Tic:
         categories = dfCategorie.index.tolist()
         
         fig, ax = plt.subplots()
-        Tic.__plotBar(ax, categories, dfCategorie['temps'], "Simulation")
+        Tic.__plotBar(ax, categories, dfCategorie['temps'], [1]*dfCategorie.shape[0], "Simulation")
 
         if folder != "":            
             Affichage.Save_fig(folder, "TicTac_Simulation")
