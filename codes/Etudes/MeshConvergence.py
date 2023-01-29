@@ -10,6 +10,7 @@ import Simulations
 import Affichage as Affichage
 from TicTac import Tic
 import Folder
+import PostTraitement
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,14 +18,13 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
+dim = 2
 
-folder = Folder.New_File("Convergence 2D", results=True)
+folder = Folder.New_File(f"Convergence {dim}D", results=True)
 
 # Data --------------------------------------------------------------------------------------------
 
 plotResult = True
-
-dim = 2
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -54,16 +54,25 @@ listWdef_e_nb = []
 listDdl_e_nb = []
 
 # Listes pour les boucles
-listNbElement = np.arange(1,15,3)
-# listNbElement = np.arange(1,20,1)
-# listNbElement = list(range(2,20,1))
-# listNbElement = list(range(1,10))
+if dim == 2:
+    listNbElement = np.arange(0.5,15,1)
+    # listNbElement = np.arange(1,20,1)
+    # listNbElement = list(range(2,20,1))
+    # listNbElement = list(range(1,10))
+else:
+    listNbElement = np.arange(1,5,1)
+
 
 tic = Tic()
 
+simu = None
+
 # Pour chaque type d'element
-for t, elemType in enumerate(GroupElem.get_Types2D()):
-# for t, elemType in enumerate(["TRI3"]):        
+
+elemTypes = GroupElem.get_Types2D() if dim == 2 else GroupElem.get_Types3D()
+
+for t, elemType in enumerate(elemTypes):
+# for t, elemType in enumerate(["TRI3"]):
         
     listTemps_nb = []
     listWdef_nb = []
@@ -78,7 +87,11 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
 
         # Construction du modele et du maillage --------------------------------------------------------------------------------
         interfaceGmsh = Interface_Gmsh(verbosity=False)
-        mesh = interfaceGmsh.Mesh_Rectangle_2D(domain, elemType=elemType, isOrganised=False)
+
+        if dim == 2:
+            mesh = interfaceGmsh.Mesh_Rectangle_2D(domain, elemType=elemType, isOrganised=True)
+        else:
+            mesh = interfaceGmsh.Mesh_Poutre3D(domain, elemType=elemType, extrude=[0,0,b], nCouches=4, isOrganised=True)
 
         mesh = cast(Mesh, mesh)
         # Récupère les noeuds qui m'interessent
@@ -87,16 +100,26 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
         noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
 
         # Construit la simulation
-        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=False)
-
+        if simu == None:
+            simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=False)
+        else:
+            simu.Bc_Init()
+            simu.mesh = mesh
+        
         # Renseigne les condtions limites en deplacement
-        simu.add_dirichlet(noeuds_en_0, [0,0], ["x","y"])
+        if dim == 2:
+            simu.add_dirichlet(noeuds_en_0, [0,0], ["x","y"])
+        else:
+            simu.add_dirichlet(noeuds_en_0, [0,0,0], ["x","y","z"])
         # Renseigne les condtions limites en forces
         simu.add_surfLoad(noeuds_en_L, [-P/h**2], ["y"])
 
         # Assemblage du système matricielle
 
         simu.Solve()
+
+        simu.Save_Iteration()
+
         Wdef = simu.Get_Resultat("Wdef")
 
         # Stockage des valeurs
@@ -125,7 +148,7 @@ print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 
 # WdefRef = 391.76
 
-for t, elemType in enumerate(GroupElem.get_Types2D()):
+for t, elemType in enumerate(elemTypes):
 # for t, elemType in enumerate(["TRI3"]):
 
     # Convergence Energie
@@ -144,7 +167,7 @@ for t, elemType in enumerate(GroupElem.get_Types2D()):
 ax_Wdef.grid()
 ax_Wdef.set_xlim([-10,8000])
 ax_Wdef.set_xlabel('ddl')
-ax_Wdef.set_ylabel('Wdef [N.mm]')
+ax_Wdef.set_ylabel('Wdef [mJ]')
 ax_Wdef.legend(GroupElem.get_Types2D())
 ax_Wdef.fill_between(listDdl_nb, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
 
@@ -161,6 +184,8 @@ ax_Temps.set_xlabel('ddl')
 ax_Temps.set_ylabel('Temps [s]')
 ax_Temps.legend(GroupElem.get_Types2D())
 
+
+PostTraitement.Make_Paraview(folder, simu, details=True)
 
 Tic.Resume()
 
