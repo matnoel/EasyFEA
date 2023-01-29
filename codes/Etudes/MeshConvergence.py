@@ -38,7 +38,7 @@ E=210000
 v=0.25
 comportement = Materials.Elas_Isot(dim, epaisseur=b, E=E, v=v, contraintesPlanes=True)
 
-WdefRef = 2*P**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5)
+WdefRef = 2*P**2*L/E/h/b * (L**2/h/b + (1+v)*3/5)
 
 # Materiau
 materiau = Materials.Create_Materiau(comportement)
@@ -112,7 +112,7 @@ for t, elemType in enumerate(elemTypes):
         else:
             simu.add_dirichlet(noeuds_en_0, [0,0,0], ["x","y","z"])
         # Renseigne les condtions limites en forces
-        simu.add_surfLoad(noeuds_en_L, [-P/h**2], ["y"])
+        simu.add_surfLoad(noeuds_en_L, [-P/h/b], ["y"])
 
         # Assemblage du système matricielle
 
