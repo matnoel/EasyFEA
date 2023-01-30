@@ -124,7 +124,7 @@ Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_
 Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 Affichage.Plot_Result(simu, "Svm", coef=1/SIG, title=r"$\sigma_{vm}/\sigma$", folder=folder, filename='Svm')
 
-# mini = np.min(simu.Get_Resultat("Syy", valeursAuxNoeuds=False))/SIG
+# mini = np.min(simu.Get_Resultat("Syy", nodeValues=False))/SIG
 
 # PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 

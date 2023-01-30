@@ -108,7 +108,7 @@ class _Simu(ABC):
 
     - Resultats :
     
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
+    def Get_Resultat(self, option: str, nodeValues=True, iter=None):
     
     def Resultats_Get_ResumeIter_values(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:    
     """
@@ -206,7 +206,7 @@ class _Simu(ABC):
     # Resultats
 
     @abstractmethod
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
+    def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         """ Renvoie le résultat de la simulation (np.ndarray ou float)
         """
         pass
@@ -1559,7 +1559,7 @@ class __Simu_Displacement(_Simu):
             self._set_v_n(displacementType, initZeros)
             self._set_a_n(displacementType, initZeros)
 
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
+    def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         
         dim = self.dim
         Ne = self.mesh.Ne
@@ -1656,7 +1656,7 @@ class __Simu_Displacement(_Simu):
             if option in ["Stress","Strain"]:
                 resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
 
-            if valeursAuxNoeuds:
+            if nodeValues:
                 resultat_n = self.Resultats_InterpolationAuxNoeuds(resultat_e)
                 return resultat_n
             else:
@@ -1677,7 +1677,7 @@ class __Simu_Displacement(_Simu):
 
             index = self.__indexResulat(option)
             
-            if valeursAuxNoeuds:
+            if nodeValues:
 
                 if "amplitude" in option:
                     return np.sqrt(np.sum(resultat_ddl**2,axis=1))
@@ -1852,20 +1852,20 @@ class __Simu_Displacement(_Simu):
         Wdef = self.Get_Resultat("Wdef")
         resume += f"\nW def = {Wdef:.2f}"
         
-        Svm = self.Get_Resultat("Svm", valeursAuxNoeuds=False)
+        Svm = self.Get_Resultat("Svm", nodeValues=False)
         resume += f"\n\nSvm max = {Svm.max():.2f}"
 
         # Affichage des déplacements
-        dx = self.Get_Resultat("dx", valeursAuxNoeuds=True)
+        dx = self.Get_Resultat("dx", nodeValues=True)
         resume += f"\n\nUx max = {dx.max():.2e}"
         resume += f"\nUx min = {dx.min():.2e}"
 
-        dy = self.Get_Resultat("dy", valeursAuxNoeuds=True)
+        dy = self.Get_Resultat("dy", nodeValues=True)
         resume += f"\n\nUy max = {dy.max():.2e}"
         resume += f"\nUy min = {dy.min():.2e}"
 
         if self.dim == 3:
-            dz = self.Get_Resultat("dz", valeursAuxNoeuds=True)
+            dz = self.Get_Resultat("dz", nodeValues=True)
             resume += f"\n\nUz max = {dz.max():.2e}"
             resume += f"\nUz min = {dz.min():.2e}"
 
@@ -2459,7 +2459,7 @@ class __Simu_PhaseField(_Simu):
 
         self.materiau.phaseFieldModel.Need_Split_Update()
 
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
+    def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         
         dim = self.dim
         Ne = self.mesh.Ne
@@ -2483,7 +2483,7 @@ class __Simu_PhaseField(_Simu):
             resultat_e_pg = self.__Calc_psiPlus_e_pg()
             resultat_e = np.mean(resultat_e_pg, axis=1)
 
-            if valeursAuxNoeuds:
+            if nodeValues:
                 return self.Resultats_InterpolationAuxNoeuds(resultat_e)
             else:
                 return resultat_e
@@ -2571,7 +2571,7 @@ class __Simu_PhaseField(_Simu):
             if option in ["Stress","Strain"]:
                 resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
 
-            if valeursAuxNoeuds:
+            if nodeValues:
                 resultat_n = self.Resultats_InterpolationAuxNoeuds(resultat_e)
                 return resultat_n
             else:
@@ -2592,7 +2592,7 @@ class __Simu_PhaseField(_Simu):
 
             index = self.__indexResulat(option)
             
-            if valeursAuxNoeuds:
+            if nodeValues:
 
                 if "amplitude" in option:
                     return np.sqrt(np.sum(resultat_ddl**2,axis=1))
@@ -3308,7 +3308,7 @@ class __Simu_Beam(_Simu):
 
         self._set_u_n(self.problemType, results["beamDisplacement"])
 
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
+    def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         
         if not self.Resultats_Check_Resultat_Calculable(option): return None
 
@@ -3344,7 +3344,7 @@ class __Simu_Beam(_Simu):
             return np.mean(Sigma_e_pg, axis=1)
 
 
-        if valeursAuxNoeuds:
+        if nodeValues:
             if option == "amplitude":
                 return np.sqrt(np.sum(resultat_ddl,axis=1))
             else:
@@ -3606,7 +3606,7 @@ class __Simu_Thermal(_Simu):
         else:
             self._set_v_n(ModelType.thermal, np.zeros_like(self.thermal))
 
-    def Get_Resultat(self, option: str, valeursAuxNoeuds=True, iter=None):
+    def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         
         if not self.Resultats_Check_Resultat_Calculable(option): return None
 

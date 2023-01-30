@@ -134,10 +134,10 @@ class Test_Simu(unittest.TestCase):
                 PlotAndDelete()
 
         
-            u = simu.Get_Resultat("u", valeursAuxNoeuds=True)
+            u = simu.Get_Resultat("u", nodeValues=True)
             if beamModel.dim > 1:
-                v = simu.Get_Resultat("v", valeursAuxNoeuds=True)
-                rz = simu.Get_Resultat("rz", valeursAuxNoeuds=True)
+                v = simu.Get_Resultat("v", nodeValues=True)
+                rz = simu.Get_Resultat("rz", nodeValues=True)
 
             listX = np.linspace(0,L,100)
             erreurMaxAnalytique = 1e-2

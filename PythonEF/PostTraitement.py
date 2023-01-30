@@ -65,14 +65,14 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, affichageMaillage=False, facteurDef=4, valeursAuxNoeuds=True):
+def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, affichageMaillage=False, facteurDef=4, nodeValues=True):
     
     resultat = simu.Get_Resultat(option)
     if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
         return
 
     # Ajoute le caractère de fin
-    if valeursAuxNoeuds:
+    if nodeValues:
         name = f'{option}_n'
     else:
         name = f'{option}_e'
@@ -336,7 +336,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         list_valeurs_n=[]
         for resultat_n in nodesField:
 
-            valeurs_n = simu.Get_Resultat(resultat_n, valeursAuxNoeuds=True).reshape(-1)
+            valeurs_n = simu.Get_Resultat(resultat_n, nodeValues=True).reshape(-1)
             list_valeurs_n.append(valeurs_n)
 
             nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
@@ -351,7 +351,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         list_valeurs_e=[]
         for resultat_e in elementsField:
 
-            valeurs_e = simu.Get_Resultat(resultat_e, valeursAuxNoeuds=False).reshape(-1)
+            valeurs_e = simu.Get_Resultat(resultat_e, nodeValues=False).reshape(-1)
             list_valeurs_e.append(valeurs_e)
 
             nombreDeComposantes = int(valeurs_e.size/Ne)

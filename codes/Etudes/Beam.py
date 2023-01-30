@@ -168,12 +168,12 @@ if beamModel.dim > 1:
 Affichage.NouvelleSection("Resultats")
 
 print()
-u = simu.Get_Resultat("u", valeursAuxNoeuds=True); affichage("u",u)
+u = simu.Get_Resultat("u", nodeValues=True); affichage("u",u)
 if beamModel.dim > 1:
-    v = simu.Get_Resultat("v", valeursAuxNoeuds=True); affichage("v",v)
-    rz = simu.Get_Resultat("rz", valeursAuxNoeuds=True); affichage("rz",rz)
+    v = simu.Get_Resultat("v", nodeValues=True); affichage("v",v)
+    rz = simu.Get_Resultat("rz", nodeValues=True); affichage("rz",rz)
 
-    # fy = simu.Get_Resultat("fy", valeursAuxNoeuds=True)
+    # fy = simu.Get_Resultat("fy", nodeValues=True)
 
 listX = np.linspace(0,L,100)
 if problem == "Flexion":

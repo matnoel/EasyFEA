@@ -19,8 +19,8 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 3
-simulation = "Tension" # "Shear" , "Tension"
+dim = 2
+simulation = "Shear" # "Shear" , "Tension"
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 if dim == 3:
@@ -48,7 +48,7 @@ makeMovie = False
 # Maillage
 # ----------------------------------------------
 openCrack = True
-optimMesh = False
+optimMesh = True
 
 # ----------------------------------------------
 # Convergence
@@ -65,7 +65,7 @@ comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 regularisation = "AT2" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
-for split in ["Miehe"]:
+for split in ["Zhang"]:
 # for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 #for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 #for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
@@ -97,7 +97,7 @@ for split in ["Miehe"]:
     if test:
         taille = l0 #taille maille test fem object
         # taille = 0.001  
-        taille *= 3
+        taille *= 1
     else:
         # On raffin pour avoir au moin 2 element par demie largeur de fissure
         taille = l0/2 #l0/2 2.5e-6 
@@ -408,7 +408,7 @@ for split in ["Miehe"]:
         # ---------------------------------------------
         PostTraitement.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
         # PostTraitement.MakeMovie(folder, "Svm", simu)        
-        # PostTraitement.MakeMovie(filename, "Syy", simu, valeursAuxNoeuds=True, deformation=True)
+        # PostTraitement.MakeMovie(filename, "Syy", simu, nodeValues=True, deformation=True)
             
     if plotEnergie:
         # ----------------------------------------------

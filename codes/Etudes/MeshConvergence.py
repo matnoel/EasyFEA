@@ -55,12 +55,12 @@ listDdl_e_nb = []
 
 # Listes pour les boucles
 if dim == 2:
-    listNbElement = np.arange(0.5,15,1)
+    listNbElement = np.arange(0.5,10,1)
     # listNbElement = np.arange(1,20,1)
     # listNbElement = list(range(2,20,1))
     # listNbElement = list(range(1,10))
 else:
-    listNbElement = np.arange(1,5,1)
+    listNbElement = np.arange(1,8,2)
 
 
 tic = Tic()
