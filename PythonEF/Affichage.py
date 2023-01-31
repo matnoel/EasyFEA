@@ -108,7 +108,7 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
             valeursLoc_e = mesh.Localises_sol_e(valeurs)
             valeurs = np.mean(valeursLoc_e, 1)
     else:
-        print("Dois renseigner une chaine de caractère ou une array")
+        raise Exception("Dois renseigner une chaine de caractère ou une array")
         return
     
     valeurs *= coef # Application d'un coef sur les valeurs
