@@ -2373,7 +2373,7 @@ def Create_Materiau(model: IModel, ro=8100.0, verbosity=False):
     
 
 class _Materiau:
-    """Un matériau qui contient le ou les moddèles physiques"""
+    """Un matériau qui contient le ou les modèles physiques"""
 
     def __init__(self, model: IModel, ro=8100.0, verbosity=False):
         """Creer un materiau avec le modèle physique renseigné
