@@ -65,7 +65,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, affichageMaillage=False, facteurDef=4, nodeValues=True):
+def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, facteurDef=4, nodeValues=True):
     
     resultat = simu.Get_Resultat(option)
     if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
@@ -95,7 +95,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     simu.Update_iter(0)
 
     # Trace la première figure
-    fig, ax, cb = Affichage.Plot_Result(simu, option, plotMesh=affichageMaillage, deformation=deformation, facteurDef=facteurDef)
+    fig, ax, cb = Affichage.Plot_Result(simu, option, plotMesh=plotMesh, deformation=deformation, facteurDef=facteurDef)
     
     # Donne le lien vers ffmpeg.exe
 
@@ -124,7 +124,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
 
             cb.remove()
             
-            fig, ax, cb = Affichage.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=affichageMaillage, facteurDef=facteurDef, nodeValues=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=plotMesh, facteurDef=facteurDef, nodeValues=True)
 
             title1 = ax.get_title()
             ax.set_title(f'{title1} : {iter}/{N-1}')

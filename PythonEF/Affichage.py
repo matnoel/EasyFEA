@@ -14,7 +14,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 import Folder
 
-def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, colorbarIsClose=False):
+def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, colorbarIsClose=False):
     """Affichage d'un résulat de la simulation
 
     Parameters
@@ -60,15 +60,14 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
     assert isinstance(simu, _Simu)
     
     mesh = simu.mesh # récupération du maillage
-    dim = mesh.dim # dimension du maillage
-    # Dimension dans lequel se trouve le maillage
-    inDim = mesh.inDim
+    dim = mesh.dim # dimension du maillage    
+    inDim = mesh.inDim # dimension dans lequel se trouve le maillage
 
-    isBeamModel3D = simu.use3DBeamModel
+    use3DBeamModel = simu.use3DBeamModel
 
     # Construction de la figure et de l'axe si nécessaire
     if ax == None:
-        if inDim in [1,2] and not isBeamModel3D:
+        if inDim in [1,2] and not use3DBeamModel:
             fig, ax = plt.subplots()
         else:
             fig = plt.figure()
@@ -87,9 +86,30 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
     if simu.problemType == MatriceType.beam:
         # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
         nodeValues = False
-    
-    valeurs = simu.Get_Resultat(option, nodeValues) # Récupération du résultat
-    if not isinstance(valeurs, np.ndarray): return
+
+
+    if isinstance(option, str):
+        valeurs = simu.Get_Resultat(option, nodeValues) # Récupération du résultat
+        if not isinstance(valeurs, np.ndarray): return
+    elif isinstance(option, np.ndarray):
+        # Recupère la taille de l'array, la taille doit être aux noeuds ou aux elements
+        # Si la taille n'est pas egale au nombre de noeuds ou d'elements renvoie une erreur
+        sizeVecteur = option.size
+
+        if sizeVecteur not in [mesh.Ne, mesh.Nn]:
+            print("Le vecteur renseigné doit être de dimension Nn ou Ne")
+            return
+
+        valeurs = option
+        
+        if sizeVecteur == mesh.Ne and nodeValues:
+            valeurs = simu.Resultats_InterpolationAuxNoeuds(valeurs)
+        elif sizeVecteur == mesh.Nn and not nodeValues:
+            valeursLoc_e = mesh.Localises_sol_e(valeurs)
+            valeurs = np.mean(valeursLoc_e, 1)
+    else:
+        print("Dois renseigner une chaine de caractère ou une array")
+        return
     
     valeurs *= coef # Application d'un coef sur les valeurs
 
@@ -103,7 +123,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
     coordoDef_InDim = coordoDef[:,range(inDim)]
 
     # Construit les niveaux pour la colorbar
-    if option == "damage":
+    if isinstance(option, str) and option == "damage":
         min = valeurs.min()-1e-12
         openCrack = False
         if openCrack:
@@ -118,7 +138,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
         min = np.min(valeurs)
         levels = 200
 
-    if inDim in [1,2] and not isBeamModel3D:
+    if inDim in [1,2] and not use3DBeamModel:
         # Maillage contenu dans un plan 2D
 
         # dictionnaire pour stocker les coordonnées par faces
@@ -187,7 +207,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
             cax=None
         
         # Construction de la colorbar
-        if option == "damage":
+        if isinstance(option, str) and option == "damage":
             ticks = np.linspace(0,1,11)
             cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
         else:
@@ -198,7 +218,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
         ax.set_ylabel(r"$y$")
 
     
-    elif inDim == 3 or isBeamModel3D:
+    elif inDim == 3 or use3DBeamModel:
         # initialisation des valeurs max et min de la colorbar         
         
         maxVal = max
@@ -264,16 +284,17 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
         __ChangeEchelle(ax, coordoNonDef)
 
     # On prépare le titre
-    if option == "damage":
-        option = "\phi"
-    elif option == "thermal":
-        option = "T"
-    elif "S" in option and not option in ["amplitudeSpeed"]:
-        optionFin = option.split('S')[-1]
-        option = f"\sigma_{'{'+optionFin+'}'}"
-    elif "E" in option:
-        optionFin = option.split('E')[-1]
-        option = f"\epsilon_{'{'+optionFin+'}'}"
+    if isinstance(option, str):
+        if option == "damage":
+            option = "\phi"
+        elif option == "thermal":
+            option = "T"
+        elif "S" in option and not option in ["amplitudeSpeed"]:
+            optionFin = option.split('S')[-1]
+            option = f"\sigma_{'{'+optionFin+'}'}"
+        elif "E" in option:
+            optionFin = option.split('E')[-1]
+            option = f"\epsilon_{'{'+optionFin+'}'}"
     
     # On specifie si les valeurs sont sur les noeuds ou sur les elements
     if nodeValues:
@@ -283,7 +304,7 @@ def Plot_Result(simu, option: str, deformation=False, facteurDef=4, coef=1, plot
         loc = "^{e}"
     
     # si aucun titre n'a été renseigné on utilise le titre construit
-    if title == "":
+    if title == "" and isinstance(option, str):
         title = option+loc
         ax.set_title(fr"${title}$")
     else:

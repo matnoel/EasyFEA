@@ -60,7 +60,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/20
+taille = h/5
 
 comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
@@ -79,7 +79,7 @@ if dim == 2:
     
     elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
-    mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
+    mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=False)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
     aire = mesh.aire - L*h
 elif dim == 3:
@@ -197,7 +197,7 @@ if saveParaview:
     PostTraitement.Make_Paraview(folder, simu,Niter=NParaview)
 
 if pltMovie:
-    PostTraitement.Make_Movie(folder, "Svm", simu, affichageMaillage=True, Niter=NMovie, deformation=True, nodeValues=True)
+    PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=True, Niter=NMovie, deformation=True, nodeValues=True)
 
 if plotResult:
 
@@ -206,23 +206,29 @@ if plotResult:
     # Affichage.Plot_Result(simu, "amplitude")
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
     Affichage.Plot_Result(simu, "dy", deformation=True, nodeValues=False)        
-    # Affichage.Plot_Result(simu, "Svm", deformation=True, affichageMaillage=True, nodeValues=False)        
-    # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, affichageMaillage=False, folder=folder)
+    Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=False, nodeValues=False)        
+    # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
 
 
-    sxx_e = simu.Get_Resultat("Sxx", nodeValues=False)
-    sxx_n = simu.Get_Resultat("Sxx", nodeValues=True)
+    s_e = simu.Get_Resultat("Stress", nodeValues=False)
+    s_n = simu.Get_Resultat("Stress", nodeValues=True)
 
     N_pg = simu.mesh.Get_N_scalaire_pg("rigi")
-    jacobien_e_pg = simu.mesh.Get_jacobien_e_pg("rigi")
-    poid_pg = simu.mesh.Get_poid_pg("rigi")
+    sLoc_e = simu.mesh.Localises_sol_e(s_n)
+    sigmaliss_e = np.einsum('eni,pjn->ei',sLoc_e, N_pg)
+    
+    diff_e = sigmaliss_e - s_e
+    # diff_e = (sigmaliss_e - s_e)/np.linalg.norm(s_e, 1)
+    erreur_e = np.linalg.norm(diff_e, axis=1)
+    erreur = np.linalg.norm(diff_e)
+    
+    # simu.Cal
 
+    Affichage.Plot_Result(simu, sigmaliss_e[:,-1], nodeValues=False, title="svm_e lissé")
+    Affichage.Plot_Result(simu, erreur_e, nodeValues=True, title="err")
+    # Affichage.Plot_Result(simu, erreur_e, nodeValues=True, title="err")
 
-    sxxLoc_e = simu.mesh.Localises_sol_e(sxx_n)
-
-    sigmaliss_e = np.einsum('ep,p,en,pjn->e', jacobien_e_pg, poid_pg, sxxLoc_e, N_pg)
-
-    erreur_e = sxx_e - sigmaliss_e
+    # erreur = np.linalg.norm(diff_e)/np.linalg.norm(s_e)
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 

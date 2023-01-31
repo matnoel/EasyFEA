@@ -385,7 +385,7 @@ for split in ["AnisotStress"]:
     if makeMovie:
         # Affichage.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
         # plt.show()
-        PostTraitement.Make_Movie(folder, "damage", simu, Niter=NMovie, affichageMaillage=False, deformation=True, NiterFin=0, facteurDef=20)
+        PostTraitement.Make_Movie(folder, "damage", simu, Niter=NMovie, plotMesh=False, deformation=True, NiterFin=0, facteurDef=20)
 
     # Tic.getResume()
 
