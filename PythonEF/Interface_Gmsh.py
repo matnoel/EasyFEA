@@ -438,7 +438,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        return cast(Mesh, self.__Recuperation_Maillage(coef))
+        return self.__Recuperation_Maillage(coef)
 
 
 
@@ -454,7 +454,7 @@ class Interface_Gmsh:
         refineGeom : GeomObject, optional
             deuxième domaine pour la concentration de maillage, by default None
         folder : str, optional
-            dossier de sauvegarde du maillage .msh, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
 
         Returns
         -------
@@ -490,7 +490,7 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(3, elemType, folder=folder)
 
-        return cast(Mesh, self.__Recuperation_Maillage())
+        return self.__Recuperation_Maillage()
 
     def Mesh_Poutre3D(self, domain: Domain, extrude=[0,0,1], nCouches=1, elemType=ElemType.HEXA8, refineGeom=None, isOrganised=True, folder=""):
         """Construis le maillage 3D d'une poutre depuis une surface/domaine 2D que l'on extrude
@@ -510,7 +510,7 @@ class Interface_Gmsh:
         isOrganised : bool, optional
             le maillage est organisé, by default True
         folder : str, optional
-            dossier de sauvegarde du maillage .msh, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
 
         Returns
         -------
@@ -536,7 +536,7 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
         
-        return cast(Mesh, self.__Recuperation_Maillage())    
+        return self.__Recuperation_Maillage()
 
     def Mesh_Rectangle_2D(self, domain: Domain, elemType=ElemType.TRI3, refineGeom=None, isOrganised=False, folder="", returnSurfaces=False):
         """Maillage d'un rectange 2D
@@ -552,7 +552,7 @@ class Interface_Gmsh:
         isOrganised : bool, optional
             le maillage est organisé, by default False
         folder : str, optional
-            dossier de sauvegarde du maillage .msh, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
         returnSurfaces : bool, optional
             renvoie la surface crée, by default False
 
@@ -587,7 +587,7 @@ class Interface_Gmsh:
         
         self.__Construction_Maillage(2, elemType, surfaces=[surface], isOrganised=isOrganised, folder=folder)
         
-        return cast(Mesh, self.__Recuperation_Maillage())    
+        return self.__Recuperation_Maillage()
 
     def __physicalCracks_physicalOpenBoundarys(self, cracks: list[Line], surfaceDomain: int):
         listCrack = [] # liste qui contient les lignes gmsh associées au fissures
@@ -621,7 +621,7 @@ class Interface_Gmsh:
         refineGeom : GeomObject, optional
             deuxième domaine pour la concentration de maillage, by default None
         folder : str, optional
-            dossier de sauvegarde du maillge, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
 
         Returns
         -------
@@ -655,7 +655,7 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(2, elemType, surfaces=[physicalSurface], cracks=physicalCracks, openBoundarys=physicalOpenBoundarys, isOrganised=False)
         
-        return cast(Mesh, self.__Recuperation_Maillage())
+        return self.__Recuperation_Maillage()
 
     def Mesh_PlaqueAvecCercle2D(self, domain: Domain, circle: Circle, elemType=ElemType.TRI3, refineGeom=None, folder="", returnSurfaces=False):
         """Construis le maillage 2D d'un rectangle un cercle (creux ou fermé)
@@ -671,7 +671,7 @@ class Interface_Gmsh:
         refineGeom : GeomObject, optional
             deuxième domaine pour la concentration de maillage, by default None
         folder : str, optional
-            dossier de sauvegarde du maillage .msh, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
         returnSurfaces : bool, optional
             renvoie la surface, by default False
 
@@ -720,7 +720,7 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(2, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
 
-        return cast(Mesh, self.__Recuperation_Maillage())
+        return self.__Recuperation_Maillage()
 
     def Mesh_PlaqueAvecCercle3D(self, domain: Domain, circle: Circle, extrude=[0,0,1], nCouches=1, elemType=ElemType.HEXA8, refineGeom=None, folder=""):
         """Construis le maillage 3D d'un domaine avec un cylindre (creux ou fermé)
@@ -740,7 +740,7 @@ class Interface_Gmsh:
         refineGeom : GeomObject, optional
             deuxième domaine pour la concentration de maillage, by default None
         folder : str, optional
-            dossier de sauvegarde du maillage .msh, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
 
         Returns
         -------
@@ -764,7 +764,7 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
-        return cast(Mesh, self.__Recuperation_Maillage())
+        return self.__Recuperation_Maillage()
 
     def Mesh_From_Lines_1D(self, listPoutres: List[Poutre_Elas_Isot], elemType=ElemType.SEG2 ,folder=""):
         """Construction d'un maillage de segment
@@ -776,7 +776,7 @@ class Interface_Gmsh:
         elemType : str, optional
             type d'element, by default "SEG2" ["SEG2", "SEG3"]
         folder : str, optional
-            fichier de sauvegarde du maillage, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
 
         Returns
         -------
@@ -818,7 +818,7 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(1, elemType, surfaces=[], folder=folder)
 
-        return cast(Mesh, self.__Recuperation_Maillage())
+        return self.__Recuperation_Maillage()
 
     def __Get_hollowLoops_And_filledLoops(self, inclusions: list) -> tuple[list, list]:
         """Création des boucles les liste de boucles creuses et pleines
@@ -865,7 +865,7 @@ class Interface_Gmsh:
         tailleElement : float, optional
             taille d'element pour le maillage, by default 0.0
         folder : str, optional
-            fichier de sauvegarde du maillage, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
         returnSurfaces : bool, optional
             renvoie la surface, by default False
 
@@ -921,7 +921,7 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(2, elemType, surfaces=physicalSurfaces, cracks=physicalCracks, openBoundarys=physicalOpenBoundarys, isOrganised=False, folder=folder)
 
-        return cast(Mesh, self.__Recuperation_Maillage())
+        return self.__Recuperation_Maillage()
 
     def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], tailleElement=0.0, folder=""):
         """Construction d'un maillage 3D depuis une liste de points
@@ -941,7 +941,7 @@ class Interface_Gmsh:
         tailleElement : float, optional
             taille d'element pour le maillage, by default 0.0
         folder : str, optional
-            dossier de sauvegarde du maillage .msh, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
 
         Returns
         -------
@@ -965,7 +965,7 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
-        return cast(Mesh, self.__Recuperation_Maillage())
+        return self.__Recuperation_Maillage()
 
     @staticmethod
     def __Set_order(elemType: str):
@@ -999,7 +999,7 @@ class Interface_Gmsh:
         openBoundarys : int, optional
             groupePhysique des objets qui peuvent s'ouvrir, by default None
         folder : str, optional
-            dossier de sauvegarde du maillage .msh, by default ""
+            dossier de sauvegarde du maillage mesh.msh, by default ""
         """
 
         factory = self.__factory
@@ -1107,9 +1107,10 @@ class Interface_Gmsh:
         tic.Tac("Mesh","Construction du maillage gmsh", self.__verbosity)
 
         if folder != "":
-            # gmsh.write(Dossier.Join([folder, "model.geo"])) # Il semblerait que ça marche pas c'est pas grave
-            gmsh.model.geo.synchronize()
-            gmsh.model.occ.synchronize()
+            # gmsh.write(Dossier.Join([folder, "model.geo"])) # Il semblerait que ça marche pas c'est pas grave          
+            self.__factory.synchronize()  
+            # gmsh.model.geo.synchronize()
+            # gmsh.model.occ.synchronize()            
             gmsh.write(Folder.Join([folder, "mesh.msh"]))
             tic.Tac("Mesh","Sauvegarde du .geo et du .msh", self.__verbosity)
 
@@ -1192,7 +1193,6 @@ class Interface_Gmsh:
             indexDim = np.where(pgArray[:,0] == dim)[0]
             listTupleDim = tuple(map(tuple, pgArray[indexDim]))
             nbEnti = indexDim.size
-            
 
             # En fonction de la dimension des entité on va leurs données des noms
             # Puis on va ajouter les entités les tuples (dim, tag) a la liste de groupePhysique associé à la dimension.
@@ -1301,8 +1301,6 @@ class Interface_Gmsh:
 
                 groupElem.Set_Nodes_Tag(nodes, name)
                 groupElem.Set_Elements_Tag(nodes, name)
-
-                
         
         tic.Tac("Mesh","Récupération du maillage gmsh", self.__verbosity)
 
