@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 
 import os
 import pickle
@@ -26,13 +26,13 @@ def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=False, useNumba=True)
     params = (mesh, materiau, verbosity ,useNumba)
 
     if materiau.modelType == ModelType.displacement:
-        simu = __Simu_Displacement(*params)
+        simu = Simu_Displacement(*params)
     elif materiau.modelType == ModelType.beam:
-        simu = __Simu_Beam(*params)
+        simu = Simu_Beam(*params)
     elif materiau.modelType == ModelType.damage:
-        simu = __Simu_PhaseField(*params)
+        simu = Simu_PhaseField(*params)
     elif materiau.modelType == ModelType.thermal:
-        simu = __Simu_Thermal(*params)
+        simu = Simu_Thermal(*params)
     else:
         raise Exception("Modèle physique inconnue pour la création d'une simulation")
 
@@ -59,7 +59,7 @@ def Load_Simu(folder: str, verbosity=False):
     with open(filename, 'rb') as file:
         simu = pickle.load(file)
 
-    assert isinstance(simu, _Simu)
+    assert isinstance(simu, Simu)
 
     if verbosity:
         print(Fore.CYAN + f'\nChargement de :\n{filename}\n' + Fore.WHITE)
@@ -67,7 +67,7 @@ def Load_Simu(folder: str, verbosity=False):
         simu.materiau.Resume()
     return simu
 
-class _Simu(ABC):
+class Simu(ABC):
     """Classe mère de :\n
      - Simu_Displacement
      - Simu_Damage
@@ -78,44 +78,41 @@ class _Simu(ABC):
 
     - directions ddls et matériau :
     
-    def problemTypes(self) -> list[ModelType]:
+        def Get_problemTypes(self) -> list[ModelType]:
+            
+        def Get_Resultats_disponibles(self) -> list[str]:
+
+        def Get_Directions(self, problemType : ModelType):
         
-    def list_resultat(self) -> list[str]:
+        def Get_nbddl_n(self, problemType="") -> int:
 
-    def Get_Directions(self, problemType : ModelType):
-    
-    def nbddl_n(self, problemType="") -> int:
-
-    def materiau(self) -> _Materiau:
-    
-    def results(self) -> List[dict]:
+        def materiau(self) -> _Materiau:
 
     - Solveur :
     
-    def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:    
-    
-    def Get_x0(self, problemType: ModelType):
-    
-    def _Assemblage(self):
+        def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:    
+        
+        def Get_x0(self, problemType: ModelType):
+        
+        def _Assemblage(self):
 
     - Itérations :
     
-    def Save_Iteration(self) -> dict:    
-    
-    def Update_iter(self, index=-1) -> list[dict]:
+        def Save_Iteration(self) -> dict:
+        
+        def Update_iter(self, index=-1) -> list[dict]:
 
     - Resultats :
     
-    def Get_Resultat(self, option: str, nodeValues=True, iter=None):
-    
-    def Resultats_Get_ResumeIter_values(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:    
+        def Get_Resultat(self, option: str, nodeValues=True, iter=None):
+        
+        def Resultats_Get_ResumeIter_values(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:    
     """
 
     # ================================================ ABSTRACT METHOD ================================================
-
-    @property
+    #     
     @abstractmethod
-    def problemTypes(self) -> list[ModelType]:
+    def Get_problemTypes(self) -> list[ModelType]:
         """Problemes/modèles disponibles par la simulation"""
         pass
     
@@ -124,14 +121,13 @@ class _Simu(ABC):
         """Liste de directions disponibles dans la simulation"""
         pass
     
-    @property
     @abstractmethod
-    def list_resultat(self) -> list[str]:
-        """Donne la liste la liste de résultats auxquelles la simulation a accès"""
+    def Get_Resultats_disponibles(self) -> list[str]:
+        """Donne la liste de résultats auxquelles la peut accéder"""
         pass
 
     @abstractmethod
-    def nbddl_n(self, problemType="") -> int:
+    def Get_nbddl_n(self, problemType="") -> int:
         """degrés de libertés par noeud"""
         pass
 
@@ -141,15 +137,7 @@ class _Simu(ABC):
         """Matériau de la simulation"""
         return self.__materiau
 
-    @property
-    @abstractmethod    
-    def results(self) -> List[dict]:
-        """Renvoie la liste de dictionnaire qui stocke les résultats
-        """
-        pass
-
     # Solveurs
-
     @abstractmethod
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
         """Renvoie les matrices assemblés de K u + C v + M a = F"""
@@ -161,15 +149,14 @@ class _Simu(ABC):
         return []
 
     @abstractmethod
-    def _Assemblage(self):
+    def Assemblage(self):
         """Assemblage du système matricielle"""
         pass
 
     # Itérations
-
     @abstractmethod
     def Save_Iteration(self) -> dict:
-        """Sauvegarde les résultats de l'itération
+        """Sauvegarde les résultats de l'itération dans results
         """
 
         iter = {}
@@ -185,11 +172,11 @@ class _Simu(ABC):
         index = int(index)
         assert isinstance(index, int), print("Doit fournir un entier")
 
-        indexMax = len(self.results)-1
+        indexMax = len(self._results)-1
         assert index <= indexMax, f"L'index doit etre < {indexMax}]"
 
         # On va venir récupérer les resultats stocké dans le tableau pandas
-        results =  self.results[index]
+        results =  self._results[index]
 
         self.__Update_mesh(index)
 
@@ -228,14 +215,14 @@ class _Simu(ABC):
 
     # ================================================ SIMU ================================================
 
-    def Check_Directions(self, problemType : ModelType, directions:list):
+    def __Check_Directions(self, problemType : ModelType, directions:list):
         """Verifie si les directions renseignées sont possible pour le probleme"""
         listDirections = self.Get_Directions(problemType)
         for d in directions: assert d in listDirections, f"{d} n'est pas dans [{listDirections}]"
 
     def __Check_ProblemTypes(self, problemType : ModelType):
         """Verifie si ce type de probleme est disponible par la simulation"""
-        assert problemType in self.problemTypes, f"Ce type de probleme n'est pas disponible dans cette simulation ({self.problemTypes})"
+        assert problemType in self.Get_problemTypes(), f"Ce type de probleme n'est pas disponible dans cette simulation ({self.Get_problemTypes()})"
     
     def Check_dim_mesh_materiau(self) -> None:
         """On verifie que la dimension du materiau correspond a la dimension du maillage"""
@@ -254,6 +241,9 @@ class _Simu(ABC):
         if verbosity:
             import Affichage
             Affichage.NouvelleSection("Simulation")
+
+        self.__results = []
+        """liste de dictionnaire qui contient les résultats"""
 
         # Renseigne le premier maillage
         self.__indexMesh = -1
@@ -316,13 +306,19 @@ class _Simu(ABC):
 
     # SOLUTIONS
 
+    @property
+    def _results(self) -> List[dict]:
+        """Renvoie la liste de dictionnaire qui contient les résultats de chaque itération
+        """
+        return self.__results
+
     def __Init_Sols_n(self):
         """On vient initialiser les solutions"""
         self.__dict_u_n = {}
         self.__dict_v_n = {}
         self.__dict_a_n = {}
-        for problemType in self.problemTypes:
-            taille = self.mesh.Nn * self.nbddl_n(problemType)
+        for problemType in self.Get_problemTypes():
+            taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
             vectInit = np.zeros(taille, dtype=float)
             self.__dict_u_n[problemType] = vectInit
             self.__dict_v_n[problemType] = vectInit
@@ -330,32 +326,32 @@ class _Simu(ABC):
 
     def __Check_New_Sol_Values(self, problemType: ModelType, values: np.ndarray):
         self.__Check_ProblemTypes(problemType)
-        taille = self.mesh.Nn * self.nbddl_n(problemType)
+        taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         assert values.shape[0] == taille, f"Doit être de taille {taille}"
 
-    def _get_u_n(self, problemType: ModelType) -> np.ndarray:
+    def get_u_n(self, problemType: ModelType) -> np.ndarray:
         """Renvoie la solution associée au probleme renseigné"""
         return self.__dict_u_n[problemType].copy()
     
-    def _set_u_n(self, problemType: ModelType, values: np.ndarray):
+    def set_u_n(self, problemType: ModelType, values: np.ndarray):
         """Renseigne la solution associée au probleme renseigné"""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_u_n[problemType] = values
 
-    def _get_v_n(self, problemType: ModelType) -> np.ndarray:
+    def get_v_n(self, problemType: ModelType) -> np.ndarray:
         """Renvoie la solution en vitesse associée au probleme renseigné"""
         return self.__dict_v_n[problemType].copy()
 
-    def _set_v_n(self, problemType: ModelType, values: np.ndarray):
+    def set_v_n(self, problemType: ModelType, values: np.ndarray):
         """Renseigne la solution en vitesse associée au probleme renseigné"""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_v_n[problemType] = values
 
-    def _get_a_n(self, problemType: ModelType) -> np.ndarray:
+    def get_a_n(self, problemType: ModelType) -> np.ndarray:
         """Renvoie la solution en accel associée au probleme renseigné"""
         return self.__dict_a_n[problemType].copy()
 
-    def _set_a_n(self, problemType: ModelType, values: np.ndarray):
+    def set_a_n(self, problemType: ModelType, values: np.ndarray):
         """Renseigne la solution en vitesse associée au probleme renseigné"""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_a_n[problemType] = values
@@ -428,7 +424,7 @@ class _Simu(ABC):
 
     def __Update_mesh(self, index: int):
         """Met à jour le maillage à l'index renseigné"""
-        indexMesh = self.results[index]["indexMesh"]
+        indexMesh = self._results[index]["indexMesh"]
         self.__mesh = self.__listMesh[indexMesh]
         self.Matrices_Need_Update()
 
@@ -503,11 +499,11 @@ class _Simu(ABC):
         """Resolution de la simulation et renvoie la solution
         """
 
-        if not self.matricesUpdated: self._Assemblage()
+        if not self.matricesUpdated: self.Assemblage()
 
         self._Solveur(self.problemType)
         
-        return self._get_u_n(self.problemType)
+        return self.get_u_n(self.problemType)
 
     def _Solveur(self, problemType : ModelType):
         """Resolution du de la simulation et renvoie la solution\n
@@ -524,9 +520,9 @@ class _Simu(ABC):
             resolution = ResolutionType.r1
 
         # Ancienne solution
-        u_n = self._get_u_n(problemType)
-        v_n = self._get_v_n(problemType)
-        a_n = self._get_a_n(problemType)
+        u_n = self.get_u_n(problemType)
+        v_n = self.get_v_n(problemType)
+        a_n = self.get_a_n(problemType)
 
         x = _Solveur(self, problemType, resolution)
         
@@ -534,7 +530,7 @@ class _Simu(ABC):
 
             u_np1 = x
 
-            self._set_u_n(problemType, u_np1)
+            self.set_u_n(problemType, u_np1)
 
         if algo == AlgoType.parabolic:
 
@@ -548,8 +544,8 @@ class _Simu(ABC):
             v_np1 = (u_np1 - v_Tild_np1)/(alpha*dt)
 
             # Nouvelles solutions
-            self._set_u_n(problemType, u_np1)
-            self._set_v_n(problemType, v_np1)
+            self.set_u_n(problemType, u_np1)
+            self.set_v_n(problemType, v_np1)
             
         elif algo == AlgoType.hyperbolic:
             # Formulation en accel
@@ -567,9 +563,9 @@ class _Simu(ABC):
             v_np1 = v_Tild_np1 + gamma * dt * a_np1
 
             # Nouvelles solutions
-            self._set_u_n(problemType, u_np1)
-            self._set_v_n(problemType, v_np1)
-            self._set_a_n(problemType, a_np1)    
+            self.set_u_n(problemType, u_np1)
+            self.set_v_n(problemType, v_np1)
+            self.set_a_n(problemType, a_np1)    
 
     def _Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Renseigne les conditiosn limites de neumann en construisant b de A x = b"""
@@ -578,7 +574,7 @@ class _Simu(ABC):
         algo = self.algo
         ddls = self.Bc_ddls_Neumann(problemType)
         valeurs_ddls = self.Bc_values_Neumann(problemType)
-        taille = self.mesh.Nn * self.nbddl_n(problemType)
+        taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
 
         # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
         dimSupl = len(self.Bc_Lagrange)
@@ -589,9 +585,9 @@ class _Simu(ABC):
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
-        u_n = self._get_u_n(problemType)
-        v_n = self._get_v_n(problemType)
-        a_n = self._get_a_n(problemType)
+        u_n = self.get_u_n(problemType)
+        v_n = self.get_v_n(problemType)
+        a_n = self.get_a_n(problemType)
 
         b = b + F
 
@@ -608,7 +604,7 @@ class _Simu(ABC):
         elif algo == AlgoType.hyperbolic:
             # Formulation en accel
 
-            if len(self.results) == 0 and (b.max() != 0 or b.min() != 0):
+            if len(self._results) == 0 and (b.max() != 0 or b.min() != 0):
                 # initialise l'accel
                 ddl_Connues, ddl_Inconnues = self.Bc_ddls_connues_inconnues(problemType)
 
@@ -625,9 +621,9 @@ class _Simu(ABC):
 
                 a_n[ddl_Inconnues] = ai_n 
 
-                self._set_a_n(problemType, a_n)
+                self.set_a_n(problemType, a_n)
             
-            a_n = self._get_a_n(problemType)
+            a_n = self.get_a_n(problemType)
 
             dt = self.dt
             gamma = self.gamma
@@ -679,7 +675,7 @@ class _Simu(ABC):
             A = M + (K * betha * dt**2)
             A += (gamma * dt * C)
 
-            solDotDot_n = self._get_v_n(problemType)
+            solDotDot_n = self.get_v_n(problemType)
 
             valeurs_ddls = solDotDot_n[ddls]        
 
@@ -692,7 +688,7 @@ class _Simu(ABC):
     def __Get_Dirichlet_A_x(self, problemType: ModelType, resolution: ResolutionType, A: sparse.csr_matrix, b: sparse.csr_matrix, valeurs_ddls: np.ndarray):
 
         ddls = self.Bc_ddls_Dirichlet(problemType)        
-        taille = self.mesh.Nn * self.nbddl_n(problemType)
+        taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
 
         if resolution in [ResolutionType.r1, ResolutionType.r2]:
                 
@@ -734,13 +730,13 @@ class _Simu(ABC):
     def Bc_Init(self):
         """Initie les conditions limites de dirichlet, Neumann et Lagrange"""
         # DIRICHLET
-        self.__Bc_Dirichlet = _Simu.__Bc_Init_List_BoundaryCondition()
+        self.__Bc_Dirichlet = Simu.__Bc_Init_List_BoundaryCondition()
         """Conditions de Dirichlet list(BoundaryCondition)"""
         # NEUMANN
-        self.__Bc_Neumann = _Simu.__Bc_Init_List_BoundaryCondition()
+        self.__Bc_Neumann = Simu.__Bc_Init_List_BoundaryCondition()
         """Conditions de Neumann list(BoundaryCondition)"""
         # LAGRANGE
-        self.__Bc_Lagrange = _Simu.__Bc_Init_List_LagrangeCondition()
+        self.__Bc_Lagrange = Simu.__Bc_Init_List_LagrangeCondition()
         """Conditions de Lagrange list(BoundaryCondition)"""
         self.__Bc_LagrangeAffichage = []
         """Conditions de Lagrange list(BoundaryCondition)"""
@@ -821,7 +817,7 @@ class _Simu(ABC):
 
         # Construit les ddls inconnues
 
-        taille = self.mesh.Nn * self.nbddl_n(problemType)
+        taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
 
         ddls_Inconnues = list(range(taille))
 
@@ -905,7 +901,7 @@ class _Simu(ABC):
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
-        nbddl_n = self.nbddl_n(problemType)
+        nbddl_n = self.Get_nbddl_n(problemType)
 
         ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, noeuds, directions)
 
@@ -1064,7 +1060,7 @@ class _Simu(ABC):
         
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
-        nbddl_n = self.nbddl_n(problemType)
+        nbddl_n = self.Get_nbddl_n(problemType)
 
         ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, noeuds, directions)
 
@@ -1083,7 +1079,7 @@ class _Simu(ABC):
         else:
             exclusivement=True
 
-        nbddl_n = self.nbddl_n(problemType)
+        nbddl_n = self.Get_nbddl_n(problemType)
 
         # Récupération des matrices pour le calcul
         for groupElem in listGroupElemDim:
@@ -1128,7 +1124,7 @@ class _Simu(ABC):
         """Applique une force linéique\n
         Renvoie valeurs_ddls, ddls"""
         
-        self.Check_Directions(problemType, directions)
+        self.__Check_Directions(problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=1, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
@@ -1138,7 +1134,7 @@ class _Simu(ABC):
         """Applique une force surfacique\n
         Renvoie valeurs_ddls, ddls"""
         
-        self.Check_Directions(problemType, directions)
+        self.__Check_Directions(problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=2, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
@@ -1148,7 +1144,7 @@ class _Simu(ABC):
         """Applique une force surfacique\n
         Renvoie valeurs_ddls, ddls"""
         
-        self.Check_Directions(problemType, directions)
+        self.__Check_Directions(problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=3, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
@@ -1159,7 +1155,7 @@ class _Simu(ABC):
 
         tic = Tic()
 
-        self.Check_Directions(problemType, directions)
+        self.__Check_Directions(problemType, directions)
 
         if problemType in [ModelType.damage,ModelType.thermal]:
             
@@ -1220,7 +1216,7 @@ class _Simu(ABC):
     def Bc_Add_LagrangeAffichage(self,noeuds: np.ndarray, directions: List[str], description: str):
         
         # Ajoute une condition pour l'affichage
-        nbddl = self.nbddl_n(self.problemType)
+        nbddl = self.Get_nbddl_n(self.problemType)
         
         # Prend le premier noeuds de la liaison
         noeuds1 = np.array([noeuds[0]])
@@ -1233,10 +1229,10 @@ class _Simu(ABC):
     
     # ------------------------------------------- POST TRAITEMENT ------------------------------------------- 
 
-    def Resultats_Check_Resultat_Calculable(self, resultat: str) -> bool:
+    def Resultats_Check_Options_disponibles(self, resultat: str) -> bool:
         """Verification que le résultat est bien calculable
         """
-        listResultats = self.list_resultat
+        listResultats = self.Get_Resultats_disponibles()
         if resultat in listResultats:
             return True
         else:
@@ -1322,10 +1318,9 @@ class _Simu(ABC):
 
 ###################################################################################################
 
-class __Simu_Displacement(_Simu):
+class Simu_Displacement(Simu):
 
-    @property
-    def list_resultat(self) -> list[str]:
+    def Get_Resultats_disponibles(self) -> list[str]:
 
         options = []
         dim = self.dim
@@ -1363,12 +1358,11 @@ class __Simu_Displacement(_Simu):
             3 : ["x", "y", "z"]
         }
         return dict_dim_directions[self.dim]
-
-    @property
-    def problemTypes(self) -> list[ModelType]:
+    
+    def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.displacement]
         
-    def nbddl_n(self, problemType: ModelType) -> int:
+    def Get_nbddl_n(self, problemType: ModelType) -> int:
         return self.dim
     
     def __init__(self, mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
@@ -1376,15 +1370,8 @@ class __Simu_Displacement(_Simu):
         assert materiau.modelType == ModelType.displacement, "Le materiau doit être de type displacement"
         super().__init__(mesh, materiau, verbosity, useNumba)
 
-        # resultats
-        self.__init_results()
-    
-    def __init_results(self):
-
+        # init
         self.Set_Rayleigh_Damping_Coefs()
-
-        self.__results = [] #liste de dictionnaire qui contient les résultats
-
         self.Solveur_Set_Elliptic_Algorithm()
 
     @property
@@ -1392,23 +1379,19 @@ class __Simu_Displacement(_Simu):
         return super().materiau
 
     @property
-    def results(self) -> List[dict]:
-        return self.__results
-
-    @property
     def displacement(self) -> np.ndarray:
         """Copie du champ vectoriel de déplacement"""
-        return self._get_u_n(self.problemType)
+        return self.get_u_n(self.problemType)
 
     @property
     def speed(self) -> np.ndarray:
         """Copie du champ vectoriel de vitesse"""
-        return self._get_v_n(self.problemType)
+        return self.get_v_n(self.problemType)
 
     @property
     def accel(self) -> np.ndarray:
-        """Copie du champ vectoriel de vitesse"""
-        return self._get_a_n(self.problemType)
+        """Copie du champ vectoriel d'accélération"""
+        return self.get_a_n(self.problemType)
 
     def __ConstruitMatElem_Dep(self):
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
@@ -1457,10 +1440,10 @@ class __Simu_Displacement(_Simu):
         return Ku_e, Mu_e
 
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        if not self.matricesUpdated: self._Assemblage()
+        if not self.matricesUpdated: self.Assemblage()
         return self.__Ku.copy(), self.Get_Rayleigh_Damping(), self.__Mu.copy(), self.__Fu.copy()
  
-    def _Assemblage(self):
+    def Assemblage(self):
 
         if not self.matricesUpdated:
 
@@ -1530,7 +1513,7 @@ class __Simu_Displacement(_Simu):
             iter["speed"] = self.speed
             iter["accel"] = self.accel
 
-        self.__results.append(iter)
+        self._results.append(iter)
     
     def Update_iter(self, index= -1):
         
@@ -1540,15 +1523,15 @@ class __Simu_Displacement(_Simu):
 
         displacementType = ModelType.displacement
 
-        self._set_u_n(displacementType, results[displacementType])
+        self.set_u_n(displacementType, results[displacementType])
 
         if self.algo == AlgoType.hyperbolic and "speed" in results and "accel" in results:
-            self._set_v_n(displacementType, results["speed"])
-            self._set_a_n(displacementType, results["accel"])
+            self.set_v_n(displacementType, results["speed"])
+            self.set_a_n(displacementType, results["accel"])
         else:
             initZeros = np.zeros_like(self.displacement)
-            self._set_v_n(displacementType, initZeros)
-            self._set_a_n(displacementType, initZeros)
+            self.set_v_n(displacementType, initZeros)
+            self.set_a_n(displacementType, initZeros)
 
     def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         
@@ -1556,7 +1539,7 @@ class __Simu_Displacement(_Simu):
         Ne = self.mesh.Ne
         Nn = self.mesh.Nn
         
-        if not self.Resultats_Check_Resultat_Calculable(option): return None
+        if not self.Resultats_Check_Options_disponibles(option): return None
 
         if iter != None:
             self.Update_iter(iter)
@@ -1837,7 +1820,7 @@ class __Simu_Displacement(_Simu):
 
         resume = ""
 
-        if not self.Resultats_Check_Resultat_Calculable("Wdef"):
+        if not self.Resultats_Check_Options_disponibles("Wdef"):
             return
         
         Wdef = self.Get_Resultat("Wdef")
@@ -1885,12 +1868,9 @@ class __Simu_Displacement(_Simu):
 
 ###################################################################################################
 
-class __Simu_PhaseField(_Simu):
+class Simu_PhaseField(Simu):
 
-    
-
-    @property
-    def list_resultat(self) -> list[str]:
+    def Get_Resultats_disponibles(self) -> list[str]:
 
         options = []
         dim = self.dim
@@ -1933,8 +1913,7 @@ class __Simu_PhaseField(_Simu):
             }
             return _dict_dim_directions_displacement[self.dim]
     
-    @property
-    def problemTypes(self) -> list[ModelType]:
+    def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.damage, ModelType.displacement]
 
     @property
@@ -1964,19 +1943,12 @@ class __Simu_PhaseField(_Simu):
         assert materiau.modelType == ModelType.damage, "Le materiau doit être de type damage"
         super().__init__(mesh, materiau, verbosity, useNumba)
 
-        # resultats
-        self.__init_results()
-    
-    def __init_results(self):
-        
+        # init resultats
         self.__psiP_e_pg = []
         self.__old_psiP_e_pg = [] #ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe
-
-        self.__results = [] #liste de dictionnaire qui contient les résultats
-
         self.Solveur_Set_Elliptic_Algorithm()
     
-    def nbddl_n(self, problemType: ModelType) -> int:
+    def Get_nbddl_n(self, problemType: ModelType) -> int:
         if problemType == ModelType.damage:
             return 1
         elif problemType == ModelType.displacement:
@@ -1991,42 +1963,30 @@ class __Simu_PhaseField(_Simu):
         return self.materiau.phaseFieldModel.comportement
 
     @property
-    def results(self) -> List[dict]:
-        return self.__results
-
-    @property
     def displacement(self) -> np.ndarray:
         """Copie du champ vectoriel de déplacement"""
-        return self._get_u_n(ModelType.displacement)
+        return self.get_u_n(ModelType.displacement)
 
     @property
     def damage(self) -> np.ndarray:
         """Copie du champ scalaire d'endommagement"""
-        return self._get_u_n(ModelType.damage)
+        return self.get_u_n(ModelType.damage)
 
-    def add_dirichlet(self, noeuds: np.ndarray, valeurs: np.ndarray, directions: list, problemType=None, description=""):
-        if problemType == None:
-            problemType = ModelType.displacement
+    def add_dirichlet(self, noeuds: np.ndarray, valeurs: np.ndarray, directions: list, problemType=ModelType.displacement, description=""):        
         return super().add_dirichlet(noeuds, valeurs, directions, problemType, description)
     
-    def add_lineLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
-        if problemType == None:
-            problemType = ModelType.displacement
+    def add_lineLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=ModelType.displacement, description=""):
         return super().add_lineLoad(noeuds, valeurs, directions, problemType, description)
 
-    def add_surfLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
-        if problemType == None:
-            problemType = ModelType.displacement
+    def add_surfLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=ModelType.displacement, description=""):
         return super().add_surfLoad(noeuds, valeurs, directions, problemType, description)
         
-    def add_neumann(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
-        if problemType == None:
-            problemType = ModelType.displacement
+    def add_neumann(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=ModelType.displacement, description=""):
         return super().add_neumann(noeuds, valeurs, directions, problemType, description)
 
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
 
-        taille = self.mesh.Nn * self.nbddl_n(problemType)
+        taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         initcsr = sparse.csr_matrix((taille, taille))
 
         try:    
@@ -2050,11 +2010,10 @@ class __Simu_PhaseField(_Simu):
                 return np.zeros(self.mesh.Nn*self.dim)
             else:
                 return self.displacement
-            
 
-    def _Assemblage(self):
-        self.__Assemblage_u()
-        self.__Assemblage_d()
+    def Assemblage(self):
+        # ici ne fait rien, car l'assemblage du problème d'endommagement et de déplacement se font de manière dissociée
+        pass
     
     def Solve(self, tolConv=1.0, maxIter=500, convOption=0) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
         """Résolution du probleme d'endommagement de façon étagée
@@ -2426,7 +2385,7 @@ class __Simu_PhaseField(_Simu):
         iter['displacement'] = self.displacement
         iter['damage'] = self.damage
 
-        self.__results.append(iter)
+        self._results.append(iter)
 
     def Update_iter(self, index=-1):
 
@@ -2437,10 +2396,10 @@ class __Simu_PhaseField(_Simu):
         self.__old_psiP_e_pg = [] # Il vraiment utile de faire ça sinon quand on calculer psiP il va y avoir un problème
 
         damageType = ModelType.damage
-        self._set_u_n(damageType, results[damageType])
+        self.set_u_n(damageType, results[damageType])
 
         displacementType = ModelType.displacement
-        self._set_u_n(displacementType, results[displacementType])
+        self.set_u_n(displacementType, results[displacementType])
 
         self.materiau.phaseFieldModel.Need_Split_Update()
 
@@ -2450,7 +2409,7 @@ class __Simu_PhaseField(_Simu):
         Ne = self.mesh.Ne
         Nn = self.mesh.Nn
         
-        if not self.Resultats_Check_Resultat_Calculable(option): return None
+        if not self.Resultats_Check_Options_disponibles(option): return None
 
         if iter != None:
             self.Update_iter(iter)
@@ -2867,7 +2826,7 @@ class __Simu_PhaseField(_Simu):
         
         list_label_values = []
         
-        resultats = self.results
+        resultats = self._results
         df = pd.DataFrame(resultats)
         iterations = np.arange(df.shape[0])
         
@@ -2904,13 +2863,12 @@ class __Simu_PhaseField(_Simu):
 
 ###################################################################################################
 
-class __Simu_Beam(_Simu):    
-
-    @property
-    def list_resultat(self) -> list[str]:
+class Simu_Beam(Simu):
+    
+    def Get_Resultats_disponibles(self) -> list[str]:
 
         options = []
-        nbddl_n = self.nbddl_n(self.problemType)
+        nbddl_n = self.Get_nbddl_n(self.problemType)
         
         if nbddl_n == 1:
             options.extend(["u", "beamDisplacement", "matrice_displacement"])
@@ -2943,10 +2901,9 @@ class __Simu_Beam(_Simu):
             3 : ["x","y","rz"],
             6 : ["x","y","z","rx","ry","rz"]
         }
-        return dict_nbddl_directions[self.materiau.beamModel.nbddl_n]        
-
-    @property
-    def problemTypes(self) -> list[ModelType]:
+        return dict_nbddl_directions[self.materiau.beamModel.nbddl_n]
+    
+    def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.beam]
 
     @property
@@ -2957,7 +2914,7 @@ class __Simu_Beam(_Simu):
     def A_isSymetric(self) -> bool:
         return False
 
-    def nbddl_n(self, problemType: ModelType) -> int:
+    def Get_nbddl_n(self, problemType: ModelType) -> int:
         return self.materiau.beamModel.nbddl_n
 
     def Check_dim_mesh_materiau(self) -> None:
@@ -2968,13 +2925,7 @@ class __Simu_Beam(_Simu):
         assert materiau.modelType == ModelType.beam, "Le materiau doit être de type beam"
         super().__init__(mesh, materiau, verbosity, useNumba)
 
-        # resultats
-        self.__init_results()
-    
-    def __init_results(self):
-
-        self.__results = [] #liste de dictionnaire qui contient les résultats
-
+        # init
         self.Solveur_Set_Elliptic_Algorithm()
 
     @property
@@ -2989,16 +2940,12 @@ class __Simu_Beam(_Simu):
             return False
 
     @property
-    def results(self) -> List[dict]:
-        return self.__results
-
-    @property
     def beamDisplacement(self) -> np.ndarray:
         """Copie du champ vectoriel de déplacement pour le problème poutre"""
-        return self._get_u_n(self.problemType)
+        return self.get_u_n(self.problemType)
 
     def add_surfLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
-        print("Il est impossible d'appliquer une charge surfacique sur un probleme poutre")
+        print("Il est impossible d'appliquer une charge surfacique dans un probleme poutre")
         return
 
     def add_volumeLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
@@ -3046,11 +2993,11 @@ class __Simu_Beam(_Simu):
 
     def add_liaisonPoutre(self, noeuds: np.ndarray, directions: List[str], description: str):        
 
-        nbddl_n = self.nbddl_n(self.problemType)
+        nbddl_n = self.Get_nbddl_n(self.problemType)
         problemType = self.problemType
 
         # Verficiation
-        self.Check_Directions(problemType, directions)
+        self.__Check_Directions(problemType, directions)
 
         tic = Tic()
 
@@ -3220,7 +3167,7 @@ class __Simu_Beam(_Simu):
 
         return B_beam_e_pg
 
-    def _Assemblage(self):
+    def Assemblage(self):
 
         if not self.matricesUpdated:
 
@@ -3262,13 +3209,13 @@ class __Simu_Beam(_Simu):
             tic.Tac("Matrices","Assemblage Kbeam et Fbeam", self._verbosity)
 
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        taille = self.mesh.Nn * self.nbddl_n(problemType)
+        taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         initcsr = sparse.csr_matrix((taille, taille))
         return self.__Kbeam, initcsr, initcsr, self.__Fbeam
 
     def Get_x0(self, problemType: ModelType):
-        if self.beamDisplacement.size != self.mesh.Nn*self.nbddl_n(problemType):
-            return np.zeros(self.mesh.Nn*self.nbddl_n(problemType))
+        if self.beamDisplacement.size != self.mesh.Nn*self.Get_nbddl_n(problemType):
+            return np.zeros(self.mesh.Nn*self.Get_nbddl_n(problemType))
         else:
             return self.beamDisplacement
 
@@ -3278,7 +3225,7 @@ class __Simu_Beam(_Simu):
         
         iter['beamDisplacement'] = self.beamDisplacement
             
-        self.__results.append(iter)
+        self._results.append(iter)
 
     def Update_iter(self, index=-1):
         
@@ -3286,11 +3233,11 @@ class __Simu_Beam(_Simu):
 
         if results == None: return
 
-        self._set_u_n(self.problemType, results["beamDisplacement"])
+        self.set_u_n(self.problemType, results["beamDisplacement"])
 
     def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         
-        if not self.Resultats_Check_Resultat_Calculable(option): return None
+        if not self.Resultats_Check_Options_disponibles(option): return None
 
         if iter != None:
             self.Update_iter(iter)
@@ -3305,7 +3252,7 @@ class __Simu_Beam(_Simu):
 
             force = np.array(self.__Kbeam.dot(self.beamDisplacement))
             force_redim = force.reshape(self.mesh.Nn, -1)
-            index = _Simu.Resultats_indexe_option(self.dim, self.problemType, option)
+            index = Simu.Resultats_indexe_option(self.dim, self.problemType, option)
             resultat_ddl = force_redim[:, index]
 
         else:
@@ -3417,7 +3364,7 @@ class __Simu_Beam(_Simu):
         
         Nn = self.mesh.Nn
         beamDisplacementRedim = self.beamDisplacement.reshape((Nn,-1))
-        nbddl = self.nbddl_n(self.problemType)
+        nbddl = self.Get_nbddl_n(self.problemType)
 
         coordo = np.zeros((Nn, 3))
 
@@ -3432,43 +3379,32 @@ class __Simu_Beam(_Simu):
 
 ###################################################################################################
 
-class __Simu_Thermal(_Simu):
+class Simu_Thermal(Simu):
     
     def Get_Directions(self, problemType: ModelType) -> list[str]:
         return [""]
 
-    @property
-    def list_resultat(self) -> list[str]:
-
+    def Get_Resultats_disponibles(self) -> list[str]:
         options = []
-        
         options.extend(["thermal", "thermalDot"])
-
         return options
 
     def Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         nodesField = ["thermal", "thermalDot"]
         elementsField = []
         return nodesField, elementsField
-
-    @property
-    def problemTypes(self) -> list[ModelType]:
+    
+    def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.thermal]
 
     def __init__(self, mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
         assert materiau.modelType == ModelType.thermal, "Le materiau doit être de type thermal"
         super().__init__(mesh, materiau, verbosity, useNumba)
 
-        # resultats
-        self.__init_results()
-    
-    def __init_results(self):
-
-        self.__results = [] #liste de dictionnaire qui contient les résultats
-
+        # init
         self.Solveur_Set_Elliptic_Algorithm()
     
-    def nbddl_n(self, problemType: ModelType) -> int:
+    def Get_nbddl_n(self, problemType: ModelType) -> int:
         return 1
 
     @property
@@ -3476,18 +3412,14 @@ class __Simu_Thermal(_Simu):
         return super().materiau
 
     @property
-    def results(self) -> List[dict]:
-        return self.__results
-
-    @property
     def thermal(self) -> np.ndarray:
         """Copie du champ scalaire de température"""
-        return self._get_u_n(self.problemType)
+        return self.get_u_n(self.problemType)
 
     @property
     def thermalDot(self) -> np.ndarray:
         """Copie de la dérivée du champ scalaire de température"""
-        return self._get_v_n(self.problemType)
+        return self.get_v_n(self.problemType)
 
     def Get_x0(self, problemType: ModelType):
         if self.thermal.size != self.mesh.Nn:
@@ -3496,8 +3428,8 @@ class __Simu_Thermal(_Simu):
             return self.thermal
 
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        if not self.matricesUpdated: self._Assemblage()
-        taille = self.mesh.Nn * self.nbddl_n(problemType)
+        if not self.matricesUpdated: self.Assemblage()
+        taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         initcsr = sparse.csr_matrix((taille, taille))
         return self.__Kt.copy(), self.__Ct.copy(), initcsr, self.__Ft.copy()
 
@@ -3526,7 +3458,7 @@ class __Simu_Thermal(_Simu):
 
         return Kt_e, Mt_e
 
-    def _Assemblage(self):
+    def Assemblage(self):
         """Construit du systeme matricielle pour le probleme thermique en régime stationnaire ou transitoire
         """
 
@@ -3566,7 +3498,7 @@ class __Simu_Thermal(_Simu):
         if self.algo == AlgoType.parabolic:
             iter['thermalDot'] = self.thermalDot
             
-        self.__results.append(iter)
+        self._results.append(iter)
 
     def Update_iter(self, index=-1):
         
@@ -3574,16 +3506,16 @@ class __Simu_Thermal(_Simu):
 
         if results == None: return
 
-        self._set_u_n(ModelType.thermal, results["thermal"])
+        self.set_u_n(ModelType.thermal, results["thermal"])
 
         if self.algo == AlgoType.parabolic and "thermalDot" in results:
-            self._set_v_n(ModelType.thermal, results["thermalDot"])
+            self.set_v_n(ModelType.thermal, results["thermalDot"])
         else:
-            self._set_v_n(ModelType.thermal, np.zeros_like(self.thermal))
+            self.set_v_n(ModelType.thermal, np.zeros_like(self.thermal))
 
     def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         
-        if not self.Resultats_Check_Resultat_Calculable(option): return None
+        if not self.Resultats_Check_Options_disponibles(option): return None
 
         if iter != None:
             self.Update_iter(iter)

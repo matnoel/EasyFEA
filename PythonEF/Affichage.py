@@ -56,8 +56,8 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
         assert isinstance(ax, plt.Axes)
         fig = ax.figure
 
-    from Simulations import _Simu, MatriceType
-    assert isinstance(simu, _Simu)
+    from Simulations import Simu, MatriceType
+    assert isinstance(simu, Simu)
     
     mesh = simu.mesh # récupération du maillage
     dim = mesh.dim # dimension du maillage    
@@ -347,9 +347,9 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
         Axes dans lequel on va creer la figure
     """
 
-    from Simulations import _Simu, Mesh
+    from Simulations import Simu, Mesh
 
-    if isinstance(obj, _Simu):
+    if isinstance(obj, Simu):
         simu = obj
         mesh = simu.mesh
         use3DBeamModel = simu.use3DBeamModel
@@ -659,9 +659,9 @@ def Plot_BoundaryConditions(simu, folder=""):
         Axes dans lequel on va creer la figure
     """
 
-    from Simulations import _Simu
+    from Simulations import Simu
 
-    simu = cast(_Simu, simu)
+    simu = cast(Simu, simu)
 
     dim = simu.dim
 
@@ -754,13 +754,13 @@ def Plot_BoundaryConditions(simu, folder=""):
 
 def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
 
-    from Simulations import _Simu
+    from Simulations import Simu
     from Mesh import Mesh, GroupElem
 
     typeobj = type(obj).__name__
 
-    if typeobj == _Simu.__name__:
-        simu = cast(_Simu, obj)
+    if typeobj == Simu.__name__:
+        simu = cast(Simu, obj)
         mesh = simu.mesh
     elif typeobj == Mesh.__name__:
         mesh = cast(Mesh, obj)
@@ -983,11 +983,11 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
         dossier de sauvagarde de la figure, by default ""
     """
 
-    from Simulations import _Simu
+    from Simulations import Simu
     from TicTac import Tic
     import PostTraitement as PostTraitement 
 
-    assert isinstance(simu, _Simu)
+    assert isinstance(simu, Simu)
 
     # On verfie d'abord si la simulation peut calculer des energies
     if len(simu.Resultats_Get_dict_Energie())== 0:
@@ -1001,7 +1001,7 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
     tic = Tic()
     
     # récupère les resultats de la simulation
-    results =  simu.results
+    results =  simu._results
     N = len(results)
 
     if len(forces) > 0:
@@ -1021,7 +1021,7 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
         # Met a jour la simulation à l'iter i
         simu.Update_iter(iteration)
 
-        if plotSolMax : listSolMax.append(simu._get_u_n(simu.problemType).max())
+        if plotSolMax : listSolMax.append(simu.get_u_n(simu.problemType).max())
 
         list_dict_Energie.append(simu.Resultats_Get_dict_Energie())
 
@@ -1101,9 +1101,9 @@ def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None):
     """
 
 
-    from Simulations import _Simu
+    from Simulations import Simu
 
-    assert isinstance(simu, _Simu)
+    assert isinstance(simu, Simu)
 
     # Recupère les résultats de simulation
     iterations, list_label_values = simu.Resultats_Get_ResumeIter_values()
@@ -1163,9 +1163,9 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
         coordonnées du maillage globle déformé
     """
     
-    from Simulations import _Simu
+    from Simulations import Simu
 
-    simu = cast(_Simu, simu)
+    simu = cast(Simu, simu)
 
     coordo = simu.mesh.coordoGlob
 

@@ -156,7 +156,7 @@ C_hom = np.einsum('ep,p,ij,epjk,ekl->il', jacobien_e_pg, poids_pg, CMandel, B_e_
 # Comparaison
 # ----------------------------------------------
 
-def Simulation(simu: Simulations._Simu, title=""):
+def Simulation(simu: Simulations.Simu, title=""):
 
     simu.Bc_Init()
 

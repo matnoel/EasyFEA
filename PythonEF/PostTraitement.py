@@ -65,7 +65,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, facteurDef=4, nodeValues=True):
+def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, facteurDef=4, nodeValues=True):
     
     resultat = simu.Get_Resultat(option)
     if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
@@ -83,7 +83,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    resultats = simu.results
+    resultats = simu._results
 
     N = len(resultats)
 
@@ -142,7 +142,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
 
 # ========================================== Paraview =================================================
 
-def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False):
+def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False):
     """Sauvegarde de la simulation sur paraview
 
     Parameters
@@ -160,7 +160,7 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
 
     vtuFiles=[]
 
-    resultats = simu.results
+    resultats = simu._results
 
     NiterMax = len(resultats)-1
 
@@ -266,7 +266,7 @@ def _GetPourcentageEtTemps(listIter: list[int], listTemps: list[float], i: int) 
 
     return pourcentageEtTempsRestant
 
-def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
+def __Make_vtu(simu: Simulations.Simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
     """Creer le .vtu qui peut être lu sur paraview
     """
 

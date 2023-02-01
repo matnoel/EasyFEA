@@ -440,7 +440,7 @@ for split in ["Zhang"]:
         lignes = []
         listIter = []
 
-        for iter in range(len(simu.results)):
+        for iter in range(len(simu._results)):
 
             simu.Update_iter(iter)
 

@@ -129,7 +129,7 @@ for config in listConfig:
         # Charge la simulations
         try:
             simu = Simulations.Load_Simu(foldername, False)
-            results = pd.DataFrame(simu.results)
+            results = pd.DataFrame(simu._results)
             temps = results["tempsIter"].values.sum()
             temps_str, unite = TicTac.Tic.Get_temps_unite(temps)
             print(len(results),f"-> {temps_str:.3} {unite}")
@@ -182,7 +182,7 @@ for config in listConfig:
 
     if loadSimu:
         try:
-            resultats = simu.results
+            resultats = simu._results
                 
             resulats = pd.DataFrame(resulats)
             temps = resulats['tempsIter'].sum(axis=0)

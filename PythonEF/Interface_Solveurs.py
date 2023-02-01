@@ -69,7 +69,7 @@ def __Cast_Simu(simu):
 
     import Simulations
 
-    if isinstance(simu, Simulations._Simu):
+    if isinstance(simu, Simulations.Simu):
         return simu
 
 def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray, useCholesky: bool, A_isSymetric: bool, verbosity: bool) -> np.ndarray:
@@ -101,9 +101,9 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     # Detection du système
     syst = platform.system()
 
-    from Simulations import _Simu, ModelType
+    from Simulations import Simu, ModelType
 
-    assert isinstance(simu, _Simu)
+    assert isinstance(simu, Simu)
     assert isinstance(problemType, ModelType)
 
     useCholesky = False
