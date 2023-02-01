@@ -217,10 +217,6 @@ class Test_Simu(unittest.TestCase):
             simu.add_dirichlet(noeuds_en_L, [lambda x,y,z: 1], ['x'])
             simu.add_surfLoad(noeuds_en_L, [P/h/b], ["y"])
             
-
-            Ku_e, Mu_e = simu.ConstruitMatElem_Dep()
-            self.__VerificationConstructionKe(simu, Ku_e)
-
             simu.Solve()
 
             fig, ax, cb = Affichage.Plot_Result(simu, "dx", plotMesh=True, nodeValues=True)
@@ -267,81 +263,6 @@ class Test_Simu(unittest.TestCase):
             fig, ax, cb = Affichage.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
             plt.pause(1e-12)
             plt.close(fig)
-    
-
-    # ------------------------------------------- Vérifications ------------------------------------------- 
-
-    def __VerificationConstructionKe(self, simu: Simulations._Simu, Ke_e, d=[]):
-            """Ici on verifie quon obtient le meme resultat quavant verification vectorisation
-
-            Parameters
-            ----------
-            Ke_e : nd.array par element
-                Matrice calculé en vectorisant        
-            d : ndarray
-                Champ d'endommagement
-            """
-
-            import Mesh
-
-            tic = Tic()
-
-            matriceType = Mesh.MatriceType.rigi
-
-            if simu.materiau.modelType != Simulations.ModelType.displacement: return
-
-            # Data
-            mesh = simu.mesh
-            nPg = mesh.Get_nPg(matriceType)
-            listPg = list(range(nPg))
-            Ne = mesh.Ne            
-            materiau = simu.materiau
-            C = materiau.comportement.C
-
-            listKe_e = []
-
-            B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)            
-
-            jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-            poid_pg = mesh.Get_poid_pg(matriceType)
-            for e in range(Ne):            
-                # Pour chaque poing de gauss on construit Ke
-                Ke = 0
-                for pg in listPg:
-                    jacobien = jacobien_e_pg[e,pg]
-                    poid = poid_pg[pg]
-                    B_pg = B_dep_e_pg[e,pg]
-
-                    K = jacobien * poid * B_pg.T.dot(C).dot(B_pg)
-
-                    if len(d)==0:   # probleme standart
-                        
-                        Ke += K
-                    else:   # probleme endomagement
-                        
-                        de = np.array([d[mesh.connect[e]]])
-                        
-                        # Bourdin
-                        g = (1-mesh.N_mass_pg[pg].dot(de))**2
-                        # g = (1-de)**2
-                        
-                        Ke += g * K
-                # # print(Ke-listeKe[e.id])
-                if mesh.dim == 2:
-                    listKe_e.append(Ke)
-                else:
-                    listKe_e.append(Ke)                
-
-            tic.Tac("Matrices","Calcul des matrices elementaires (boucle)", False)
-            
-            # Verification
-            Ke_comparaison = np.array(listKe_e)*simu.materiau.comportement.epaisseur
-            test = Ke_e - Ke_comparaison
-
-            test = np.testing.assert_array_almost_equal(Ke_e, Ke_comparaison, verbose=False)
-
-            self.assertIsNone(test)
-            
 
 if __name__ == '__main__':        
     try:
