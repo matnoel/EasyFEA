@@ -171,7 +171,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         x = mumps.spsolve(A,b)
 
     elif solveur == "petsc" and syst in ['Linux', "Darwin"]:
-        x, option = __PETSc(A, b)
+        x, option = __PETSc(A, b, x0)
 
         solveur += option
             
@@ -199,7 +199,6 @@ def __Check_solveurLibrary(solveur: str) -> str:
         return solveur
 
 def _Solveur(simu, problemType: str, resol: ResolutionType):
-
     if resol == ResolutionType.r1:
         return __Solveur_1(simu, problemType)
     elif resol == ResolutionType.r2:
@@ -347,7 +346,7 @@ def __Cholesky(A, b):
 
     return x
 
-def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
+def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     # Utilise PETSc
 
     # petsc4py.init(sys.argv)
@@ -381,6 +380,7 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
     vectb.array[lignes] = valeurs
 
     x = matrice.createVecRight()
+    x.array[:] = x0
 
     pc = "lu" # "none", "lu"
     kspType = "cg" # "cg", "bicg, "gmres"
