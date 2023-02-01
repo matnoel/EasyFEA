@@ -394,7 +394,7 @@ for split in ["Zhang"]:
         Affichage.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
         
 
-        # Affichage.Plot_Result(simu, "dy", folder=folder, deformation=True)
+        # Affichage.Plot_Result(simu, "uy", folder=folder, deformation=True)
             
     if saveParaview:
         # ----------------------------------------------

@@ -321,7 +321,7 @@ def __Make_vtu(simu: Simulations.Simu, iter: int, filename: str, nodesField: lis
     def CalcOffset(offset, taille):
         return offset + const + (const*taille)
 
-    with open(filename, "w") as file:
+    with open(filename, "uz") as file:
         
         file.write('<?pickle version="1.0" ?>\n')
         
@@ -434,7 +434,7 @@ def __Make_pvd(filename: str, vtuFiles=[]):
 
     filename = filename+".pvd"
 
-    with open(filename, "w") as file:
+    with open(filename, "uz") as file:
 
         file.write('<?pickle version="1.0" ?>\n')
 

@@ -168,7 +168,7 @@ def Simulation(simu: Simulations.Simu, title=""):
     simu.Solve()
 
     # Affichage.Plot_BoundaryConditions(simu)
-    Affichage.Plot_Result(simu, "dy", title=f"{title} dy")
+    Affichage.Plot_Result(simu, "uy", title=f"{title} dy")
     # Affichage.Plot_Result(simu, "Eyy")
 
     print(f"{title}: dy={np.max(simu.Get_Resultat('dy')[simu.mesh.Nodes_Point(Geom.Point(L,0))])}")
@@ -178,7 +178,7 @@ Simulation(simu, "non hom")
 comp.Update(C_hom, False)
 Simulation(simu, "hom")
 
-# ax = Affichage.Plot_Result(simu, "dy")[1]
-# Affichage.Plot_Result(simuInclusions, "dy", ax=ax)
+# ax = Affichage.Plot_Result(simu, "uy")[1]
+# Affichage.Plot_Result(simuInclusions, "uy", ax=ax)
 
 plt.show()

@@ -160,17 +160,17 @@ forces = stress/section.aire
 affichage = lambda name, result: print(f"{name} = [{result.min():2.2}; {result.max():2.2}]") if isinstance(result, np.ndarray) else ""
 
 Affichage.Plot_BoundaryConditions(simu)
-Affichage.Plot_Result(simu, "u", plotMesh=False, deformation=False)
+Affichage.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
 if beamModel.dim > 1:
-    Affichage.Plot_Result(simu, "v", plotMesh=False, deformation=False)
+    Affichage.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
     Affichage.Plot_Mesh(simu, deformation=True, facteurDef=10)
 
 Affichage.NouvelleSection("Resultats")
 
 print()
-u = simu.Get_Resultat("u", nodeValues=True); affichage("u",u)
+u = simu.Get_Resultat("ux", nodeValues=True); affichage("ux",u)
 if beamModel.dim > 1:
-    v = simu.Get_Resultat("v", nodeValues=True); affichage("v",v)
+    v = simu.Get_Resultat("uy", nodeValues=True); affichage("uy",v)
     rz = simu.Get_Resultat("rz", nodeValues=True); affichage("rz",rz)
 
     # fy = simu.Get_Resultat("fy", nodeValues=True)

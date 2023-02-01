@@ -125,18 +125,18 @@ class Test_Simu(unittest.TestCase):
 
             Affichage.Plot_BoundaryConditions(simu)
             PlotAndDelete()
-            Affichage.Plot_Result(simu, "u", plotMesh=False, deformation=False)
+            Affichage.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
             PlotAndDelete()
             if beamModel.dim > 1:
-                Affichage.Plot_Result(simu, "v", plotMesh=False, deformation=False)
+                Affichage.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
                 PlotAndDelete()
                 Affichage.Plot_Mesh(simu, deformation=True, facteurDef=10)
                 PlotAndDelete()
 
         
-            u = simu.Get_Resultat("u", nodeValues=True)
+            u = simu.Get_Resultat("ux", nodeValues=True)
             if beamModel.dim > 1:
-                v = simu.Get_Resultat("v", nodeValues=True)
+                v = simu.Get_Resultat("uy", nodeValues=True)
                 rz = simu.Get_Resultat("rz", nodeValues=True)
 
             listX = np.linspace(0,L,100)
@@ -219,7 +219,7 @@ class Test_Simu(unittest.TestCase):
             
             simu.Solve()
 
-            fig, ax, cb = Affichage.Plot_Result(simu, "dx", plotMesh=True, nodeValues=True)
+            fig, ax, cb = Affichage.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
             plt.pause(1e-12)
             plt.close(fig)
             

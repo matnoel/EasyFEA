@@ -94,7 +94,7 @@ class Simu(ABC):
         
         def Get_x0(self, problemType: ModelType):
         
-        def _Assemblage(self):
+        def Assemblage(self):
 
     - Itérations :
     
@@ -1326,14 +1326,14 @@ class Simu_Displacement(Simu):
         dim = self.dim
         
         if dim == 2:
-            options.extend(["dx", "dy", "dz", "amplitude", "displacement", "matrice_displacement"])
+            options.extend(["ux", "uy", "uz", "amplitude", "displacement", "matrice_displacement"])
             options.extend(["vx", "vy", "speed", "amplitudeSpeed"])
             options.extend(["ax", "ay", "accel", "amplitudeAccel"])
             options.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
 
         elif dim == 3:
-            options.extend(["dx", "dy", "dz","amplitude","displacement", "matrice_displacement"])
+            options.extend(["ux", "uy", "uz","amplitude","displacement", "matrice_displacement"])
             options.extend(["vx", "vy", "vz", "speed", "amplitudeSpeed"])
             options.extend(["ax", "ay", "az", "accel", "amplitudeAccel"])
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
@@ -1640,7 +1640,7 @@ class Simu_Displacement(Simu):
 
             Nn = self.mesh.Nn
 
-            if option in ["dx", "dy", "dz", "amplitude"]:
+            if option in ["ux", "uy", "uz", "amplitude"]:
                 resultat_ddl = self.displacement
             elif option in ["vx", "vy", "vz", "amplitudeSpeed"]:
                 resultat_ddl = self.speed
@@ -1830,16 +1830,16 @@ class Simu_Displacement(Simu):
         resume += f"\n\nSvm max = {Svm.max():.2f}"
 
         # Affichage des déplacements
-        dx = self.Get_Resultat("dx", nodeValues=True)
+        dx = self.Get_Resultat("ux", nodeValues=True)
         resume += f"\n\nUx max = {dx.max():.2e}"
         resume += f"\nUx min = {dx.min():.2e}"
 
-        dy = self.Get_Resultat("dy", nodeValues=True)
+        dy = self.Get_Resultat("uy", nodeValues=True)
         resume += f"\n\nUy max = {dy.max():.2e}"
         resume += f"\nUy min = {dy.min():.2e}"
 
         if self.dim == 3:
-            dz = self.Get_Resultat("dz", nodeValues=True)
+            dz = self.Get_Resultat("uz", nodeValues=True)
             resume += f"\n\nUz max = {dz.max():.2e}"
             resume += f"\nUz min = {dz.min():.2e}"
 
@@ -1876,14 +1876,14 @@ class Simu_PhaseField(Simu):
         dim = self.dim
         
         if dim == 2:
-            options.extend(["dx", "dy", "dz", "amplitude", "displacement", "matrice_displacement"])
+            options.extend(["ux", "uy", "uz", "amplitude", "displacement", "matrice_displacement"])
             # options.extend(["ax", "ay", "accel", "amplitudeAccel"])
             # options.extend(["vx", "vy", "speed", "amplitudeSpeed"])
             options.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
 
         elif dim == 3:
-            options.extend(["dx", "dy", "dz","amplitude","displacement", "matrice_displacement"])
+            options.extend(["ux", "uy", "uz","amplitude","displacement", "matrice_displacement"])
             # options.extend(["ax", "ay", "az", "accel", "amplitudeAccel"])
             # options.extend(["vx", "vy", "vz", "speed", "amplitudeSpeed"])
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
@@ -2525,7 +2525,7 @@ class Simu_PhaseField(Simu):
 
             Nn = self.mesh.Nn
 
-            if option in ["dx", "dy", "dz", "amplitude"]:
+            if option in ["ux", "uy", "uz", "amplitude"]:
                 resultat_ddl = self.displacement
             elif option in ["vx", "vy", "vz", "amplitudeSpeed"]:
                 resultat_ddl = self.speed
@@ -2871,15 +2871,15 @@ class Simu_Beam(Simu):
         nbddl_n = self.Get_nbddl_n(self.problemType)
         
         if nbddl_n == 1:
-            options.extend(["u", "beamDisplacement", "matrice_displacement"])
+            options.extend(["ux", "beamDisplacement", "matrice_displacement"])
             options.extend(["fx"])
 
         elif nbddl_n == 3:
-            options.extend(["u","v","rz", "amplitude", "beamDisplacement", "matrice_displacement"])
+            options.extend(["ux","uy","rz", "amplitude", "beamDisplacement", "matrice_displacement"])
             options.extend(["fx", "fy", "cz", "Exx", "Exy", "Sxx", "Sxy"])            
 
         elif nbddl_n == 6:
-            options.extend(["u", "v", "w", "rx", "ry", "rz", "amplitude", "beamDisplacement", "matrice_displacement"])
+            options.extend(["ux", "uy", "uz", "rx", "ry", "rz", "amplitude", "beamDisplacement", "matrice_displacement"])
             options.extend(["fx","fy","fz","cx","cy","cz"])
         
         options.extend(["Srain", "Stress"])        
@@ -3296,18 +3296,18 @@ class Simu_Beam(Simu):
 
     def __indexResulat(self, resultat: str) -> int:
 
-        # "Beam1D" : ["u" "fx"]
-        # "Beam2D : ["u","v","rz""fx", "fy", "cz"]
-        # "Beam3D" : ["u", "v", "w", "rx", "ry", "rz" "fx","fy","fz","cx","cy"]
+        # "Beam1D" : ["ux" "fx"]
+        # "Beam2D : ["ux","uy","rz""fx", "fy", "cz"]
+        # "Beam3D" : ["ux", "uy", "uz", "rx", "ry", "rz" "fx","fy","fz","cx","cy"]
 
         dim = self.dim
 
         if len(resultat) <= 2:
-            if "u" in resultat or "fx" in resultat:
+            if "ux" in resultat or "fx" in resultat:
                 return 0
-            elif "v" in resultat or "fy" in resultat:
+            elif "uy" in resultat or "fy" in resultat:
                 return 1
-            elif "w" in resultat or "fz" in resultat:
+            elif "uz" in resultat or "fz" in resultat:
                 return 2
             elif "rx" in resultat or "cx" in resultat:
                 return 3
