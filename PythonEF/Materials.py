@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 from typing import List
 from enum import Enum
 from TicTac import Tic
@@ -33,26 +33,22 @@ class IModel(ABC):
     @abstractmethod
     def resume(self) -> str:"""
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def modelType(self) -> ModelType:
         """Identifiant du modèle"""
         pass
     
-    @property
-    @abstractmethod
+    @abstractproperty
     def dim(self) -> int:
         """dimension du modèle"""
         pass
     
-    @property
-    @abstractmethod
+    @abstractproperty
     def epaisseur(self) -> float:
         """epaisseur à utiliser dans le modèle"""
-        pass
+        return 1
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def resume(self) -> str:
         """résumé du modèle pour l'affichage"""
         pass
@@ -73,10 +69,8 @@ class IModel(ABC):
 
 class Displacement_Model(IModel):
 
-    __modelType = ModelType.displacement
-
-    """Classe des lois de comportements C de (Sigma = C * Epsilon)
-    (Elas_isot, ...)
+    """Classe des lois de comportements élastiques
+    (Elas_isot, Elas_IsotTrans, Elas_Anisot ...)
     """
     def __init__(self, dim: int, epaisseur: float):
         
@@ -94,7 +88,7 @@ class Displacement_Model(IModel):
 
     @property
     def modelType(self) -> ModelType:
-        return Displacement_Model.__modelType
+        return ModelType.displacement
 
     @property
     def dim(self) -> int:
@@ -122,13 +116,11 @@ class Displacement_Model(IModel):
         """Mets à jour la loi de comportement C et S"""
         pass
     
-    @property
-    @abstractmethod
+    @abstractproperty
     def resume(self) -> str:
         pass
 
     # Model
-
     @staticmethod
     def get_LoisDeComportement():
         liste = [Elas_Isot, Elas_IsotTrans, Elas_Anisot]
@@ -305,13 +297,7 @@ class Displacement_Model(IModel):
 
 class Elas_Isot(Displacement_Model):
 
-    @property
-    def resume(self) -> str:
-        resume = f"\n{self.nom} :"
-        resume += f"\nE = {self.E:.2e}, v = {self.v}"
-        if self.dim == 2:
-            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
-        return resume
+    
 
     def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0):
         """Creer la matrice de comportement d'un matériau : Elastique isotrope
@@ -350,6 +336,14 @@ class Elas_Isot(Displacement_Model):
         C, S = self.__Comportement()
         self.C = C
         self.S = S
+
+    @property
+    def resume(self) -> str:
+        resume = f"\n{self.nom} :"
+        resume += f"\nE = {self.E:.2e}, v = {self.v}"
+        if self.dim == 2:
+            resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"            
+        return resume
 
     @property
     def E(self) -> float:
@@ -749,8 +743,6 @@ class Elas_Anisot(Displacement_Model):
 
         self.Update(C, useVoigtNotation)
 
-        
-
     def Update(self, C: np.ndarray, useVoigtNotation=True):
         """Mets à jour la loi de comportement C et S
 
@@ -814,10 +806,6 @@ class Elas_Anisot(Displacement_Model):
             C_mandelP = C_mandelP_global
 
         return C_mandelP
-
-    
-
-    
 
     @property
     def contraintesPlanes(self) -> bool:
@@ -1031,8 +1019,6 @@ class Beam_Model(IModel):
 
 class PhaseField_Model(IModel):
 
-    __modelType = ModelType.damage
-
     class RegularizationType(str, Enum):
         """Régularisation de la fissure"""
 
@@ -1114,7 +1100,7 @@ class PhaseField_Model(IModel):
 
     @property
     def modelType(self) -> ModelType:
-        return PhaseField_Model.__modelType
+        return ModelType.damage
 
     @property
     def dim(self) -> int:
@@ -2354,128 +2340,3 @@ class Thermal_Model(IModel):
         """capacité thermique massique [J K^-1 kg^-1]"""
         return self.__c
 
-def Create_Materiau(model: IModel, ro=8100.0, verbosity=False):
-
-    params = (model, ro, verbosity)
-
-    if model.modelType == ModelType.displacement:
-        materiau = _Materiau_Displacement(*params)
-    elif model.modelType == ModelType.beam:
-        materiau = _Materiau_Beam(*params)
-    elif model.modelType == ModelType.damage:
-        materiau = _Materiau_PhaseField(*params)
-    elif model.modelType == ModelType.thermal:
-        materiau = _Materiau_Thermal(*params)
-    else:
-        raise Exception("Modèle physique inconnue pour la création d'un matériau")
-
-    return materiau
-    
-
-class _Materiau:
-    """Un matériau qui contient le ou les modèles physiques"""
-
-    def __init__(self, model: IModel, ro=8100.0, verbosity=False):
-        """Creer un materiau avec le modèle physique renseigné
-
-        Parameters
-        ----------                        
-        ro : float, optional
-            Masse volumique en kg.m^-3
-        epaisseur : float, optional
-            epaisseur du matériau si en 2D > 0 !
-        """
-        if verbosity:
-            Affichage.NouvelleSection("Matériau")
-
-        self.__model = model
-
-        assert ro > 0 , "Doit être supérieur à 0"
-        self.__ro = ro
-
-        self.__verbosity = verbosity
-
-        self.Resume(self.__verbosity)            
-
-    @property
-    def modelType(self) -> str:
-        """modèle physique utilisé par le matériau"""
-        return self.__model.modelType
-    
-    @property
-    def dim(self) -> int:
-        """dimension du matériau"""
-        return self.__model.dim    
-
-    @property
-    def epaisseur(self) -> float:
-        """epaisseur du matériau"""
-        return self.__model.epaisseur
-
-    @property
-    def ro(self) -> float:
-        """masse volumique"""
-        return self.__ro
-
-    @property
-    def useNumba(self) -> bool:
-        """Renvoie si le matériau peut utiliser les fonctions numba"""
-        return self.__model.useNumba
-
-    @useNumba.setter
-    def useNumba(self, value: bool):
-        self.__model.useNumba = value
-
-    def Resume(self, verbosity=True) -> str:
-        resume = self.__model.resume
-        if verbosity: print(resume)
-        return resume
-
-class _Materiau_Displacement(_Materiau):
-
-    def __init__(self, model: Displacement_Model, ro=8100, verbosity=False):
-        super().__init__(model, ro, verbosity)
-
-        self.__comportement = model
-
-    @property
-    def comportement(self) -> Displacement_Model:
-        return self.__comportement
-
-class _Materiau_Beam(_Materiau):
-
-    def __init__(self, model: Beam_Model, ro=8100, verbosity=False):
-        super().__init__(model, ro, verbosity)
-
-        self.__beamModel = model
-
-    @property
-    def beamModel(self) -> Beam_Model:
-        return self.__beamModel
-
-class _Materiau_PhaseField(_Materiau):
-
-    def __init__(self, model: PhaseField_Model, ro=8100, verbosity=False):
-        super().__init__(model, ro, verbosity)
-
-        self.__phaseFieldModel = model
-
-    @property
-    def phaseFieldModel(self) -> PhaseField_Model:
-        return self.__phaseFieldModel
-
-    @property
-    def comportement(self) -> Displacement_Model:
-        return self.__phaseFieldModel.comportement
-
-
-class _Materiau_Thermal(_Materiau):
-
-    def __init__(self, model: Thermal_Model, ro=8100, verbosity=False):
-        super().__init__(model, ro, verbosity)
-
-        self.__thermalModel = model
-
-    @property
-    def thermalModel(self) -> Thermal_Model:
-        return self.__thermalModel

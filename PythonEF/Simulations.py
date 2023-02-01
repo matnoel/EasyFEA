@@ -14,29 +14,11 @@ from scipy import sparse
 # Meme si pas utilisé laissé l'acces
 from Mesh import Mesh, MatriceType, ElemType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
-from Materials import ModelType, Beam_Model, PhaseField_Model
-from Materials import _Materiau, _Materiau_Beam, _Materiau_Displacement, _Materiau_PhaseField, _Materiau_Thermal
+from Materials import ModelType, IModel, Displacement_Model, Beam_Model, PhaseField_Model, Thermal_Model
 from TicTac import Tic
 import CalcNumba
 from Interface_Solveurs import ResolutionType, AlgoType, _Solveur, _Solve_Axb
 import Folder
-
-def Create_Simu(mesh: Mesh, materiau: _Materiau, verbosity=False, useNumba=True):
-
-    params = (mesh, materiau, verbosity ,useNumba)
-
-    if materiau.modelType == ModelType.displacement:
-        simu = Simu_Displacement(*params)
-    elif materiau.modelType == ModelType.beam:
-        simu = Simu_Beam(*params)
-    elif materiau.modelType == ModelType.damage:
-        simu = Simu_PhaseField(*params)
-    elif materiau.modelType == ModelType.thermal:
-        simu = Simu_Thermal(*params)
-    else:
-        raise Exception("Modèle physique inconnue pour la création d'une simulation")
-
-    return simu
 
 def Load_Simu(folder: str, verbosity=False):
     """Charge la simulation depuis le dossier
@@ -86,8 +68,6 @@ class Simu(ABC):
         
         def Get_nbddl_n(self, problemType="") -> int:
 
-        def materiau(self) -> _Materiau:
-
     - Solveur :
     
         def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:    
@@ -131,12 +111,6 @@ class Simu(ABC):
         """degrés de libertés par noeud"""
         pass
 
-    @property
-    @abstractmethod
-    def materiau(self) -> _Materiau:
-        """Matériau de la simulation"""
-        return self.__materiau
-
     # Solveurs
     @abstractmethod
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
@@ -158,7 +132,6 @@ class Simu(ABC):
     def Save_Iteration(self) -> dict:
         """Sauvegarde les résultats de l'itération dans results
         """
-
         iter = {}
 
         iter["indexMesh"] = self.__indexMesh
@@ -215,7 +188,7 @@ class Simu(ABC):
 
     # ================================================ SIMU ================================================
 
-    def __Check_Directions(self, problemType : ModelType, directions:list):
+    def Check_Directions(self, problemType : ModelType, directions:list):
         """Verifie si les directions renseignées sont possible pour le probleme"""
         listDirections = self.Get_Directions(problemType)
         for d in directions: assert d in listDirections, f"{d} n'est pas dans [{listDirections}]"
@@ -226,15 +199,15 @@ class Simu(ABC):
     
     def Check_dim_mesh_materiau(self) -> None:
         """On verifie que la dimension du materiau correspond a la dimension du maillage"""
-        assert self.materiau.dim == self.mesh.dim, "Le materiau doit avoir la meme dimension que le maillage"
+        assert self.__model.dim == self.__mesh.dim, "Le materiau doit avoir la meme dimension que le maillage"
 
-    def __init__(self, mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
+    def __init__(self, mesh: Mesh, model: IModel, verbosity=True, useNumba=True):
         """Creation d'une simulation
 
         Args:
             dim (int): Dimension de la simulation (2D ou 3D)
             mesh (Mesh): Maillage que la simulation va utiliser
-            materiau (_Materiau): Materiau utilisé
+            model (IModel): Modèle utilisé
             verbosity (bool, optional): La simulation peut ecrire dans la console. Defaults to True.
         """
         
@@ -251,12 +224,14 @@ class Simu(ABC):
         self.__listMesh = cast(list[Mesh], [])
         self.mesh = mesh
 
-        # Renseigne le matériau, Il n'est pas possible de changer de matériau
-        self.__materiau = materiau
-        """materiau de la simulation"""
+        self.__rho = 1
+        """masse volumique"""
+        
+        self.__model = model
+
         self.Check_dim_mesh_materiau()
 
-        self.__dim = materiau.dim
+        self.__dim = model.dim
         """dimension de la simulation 2D ou 3D"""
         self._verbosity = verbosity
         """la simulation peut ecrire dans la console"""
@@ -272,6 +247,21 @@ class Simu(ABC):
         self.Bc_Init()
 
         self.Matrices_Need_Update()
+
+    @property
+    def model(self) -> IModel:
+        """Modèle utilisé"""
+        return self.__model
+
+    @property
+    def rho(self):
+        """masse volumique"""
+        return self.__rho
+
+    @rho.setter
+    def rho(self, value):
+        assert value > 0.0 , "Doit être supérieur à 0"
+        self.__rho = value
 
     def Save(self, folder:str):
         "Sauvegarde la simulation et son résumé dans le dossier"    
@@ -366,7 +356,7 @@ class Simu(ABC):
     @property
     def problemType(self) -> ModelType:
         """problème de la simulation"""
-        return self.materiau.modelType
+        return self.__model.modelType
 
     @property
     def algo(self) -> AlgoType:
@@ -419,7 +409,7 @@ class Simu(ABC):
     
     @useNumba.setter
     def useNumba(self, value: bool):
-        self.materiau.useNumba = value
+        self.__model.useNumba = value
         self.__useNumba = value
 
     def __Update_mesh(self, index: int):
@@ -999,7 +989,7 @@ class Simu(ABC):
         if self.__dim == 2:
             valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
-            valeurs_ddls *= self.materiau.epaisseur
+            valeurs_ddls *= self.model.epaisseur
         elif self.__dim == 3:
             valeurs_ddls, ddls = self.__Bc_surfload(problemType, noeuds, valeurs, directions)
 
@@ -1124,7 +1114,7 @@ class Simu(ABC):
         """Applique une force linéique\n
         Renvoie valeurs_ddls, ddls"""
         
-        self.__Check_Directions(problemType, directions)
+        self.Check_Directions(problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=1, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
@@ -1134,7 +1124,7 @@ class Simu(ABC):
         """Applique une force surfacique\n
         Renvoie valeurs_ddls, ddls"""
         
-        self.__Check_Directions(problemType, directions)
+        self.Check_Directions(problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=2, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
@@ -1144,7 +1134,7 @@ class Simu(ABC):
         """Applique une force surfacique\n
         Renvoie valeurs_ddls, ddls"""
         
-        self.__Check_Directions(problemType, directions)
+        self.Check_Directions(problemType, directions)
 
         valeurs_ddls, ddls = self.__Bc_IntegrationDim(dim=3, problemType=problemType, noeuds=noeuds, valeurs=valeurs, directions=directions)
 
@@ -1155,7 +1145,7 @@ class Simu(ABC):
 
         tic = Tic()
 
-        self.__Check_Directions(problemType, directions)
+        self.Check_Directions(problemType, directions)
 
         if problemType in [ModelType.damage,ModelType.thermal]:
             
@@ -1263,7 +1253,7 @@ class Simu(ABC):
         resume += self.mesh.Resume(False)
 
         resume += Affichage.NouvelleSection("Materiau", False)
-        resume += '\n' + self.materiau.Resume(False)
+        resume += '\n' + self.model.resume
 
         resume += Affichage.NouvelleSection("Chargement", False)
         resume += '\n' + self.Resultats_Get_Resume_Chargement()
@@ -1320,6 +1310,15 @@ class Simu(ABC):
 
 class Simu_Displacement(Simu):
 
+    def __init__(self, mesh: Mesh, model: Displacement_Model, verbosity=False, useNumba=True):
+        """Creation d'une simulation de déplacement"""
+        assert model.modelType == ModelType.displacement, "Le materiau doit être de type displacement"
+        super().__init__(mesh, model, verbosity, useNumba)
+
+        # init
+        self.Set_Rayleigh_Damping_Coefs()
+        self.Solveur_Set_Elliptic_Algorithm()
+
     def Get_Resultats_disponibles(self) -> list[str]:
 
         options = []
@@ -1364,19 +1363,11 @@ class Simu_Displacement(Simu):
         
     def Get_nbddl_n(self, problemType: ModelType) -> int:
         return self.dim
-    
-    def __init__(self, mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
-        """Creation d'une simulation de déplacement"""
-        assert materiau.modelType == ModelType.displacement, "Le materiau doit être de type displacement"
-        super().__init__(mesh, materiau, verbosity, useNumba)
-
-        # init
-        self.Set_Rayleigh_Damping_Coefs()
-        self.Solveur_Set_Elliptic_Algorithm()
 
     @property
-    def materiau(self) -> _Materiau_Displacement:
-        return super().materiau
+    def comportement(self) -> Displacement_Model:
+        """Modèle de déplacement élastique de la simulation"""
+        return self.model
 
     @property
     def displacement(self) -> np.ndarray:
@@ -1407,12 +1398,12 @@ class Simu_Displacement(Simu):
         jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = mesh.Get_poid_pg(matriceType)
         N_vecteur_e_pg = mesh.Get_N_vecteur_pg(matriceType)
-        ro = self.materiau.ro
+        rho = self.rho
         
         B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)
         leftDepPart = mesh.Get_leftDepPart(matriceType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
 
-        comportement = self.materiau.comportement
+        comportement = self.comportement
 
         tic = Tic()
 
@@ -1428,10 +1419,10 @@ class Simu_Displacement(Simu):
             Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, matC, B_dep_e_pg, optimize='optimal')           
         
         # Matrices masse
-        Mu_e = np.einsum('ep,p,pki,,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_e_pg, ro, N_vecteur_e_pg, optimize="optimal")            
+        Mu_e = np.einsum('ep,p,pki,,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_e_pg, rho, N_vecteur_e_pg, optimize="optimal")            
 
         if self.dim == 2:
-            epaisseur = self.materiau.epaisseur
+            epaisseur = self.comportement.epaisseur
             Ku_e *= epaisseur
             Mu_e *= epaisseur
         
@@ -1561,7 +1552,7 @@ class Simu_Displacement(Simu):
 
         displacement = self.displacement
 
-        coef = self.materiau.comportement.coef        
+        coef = self.comportement.coef
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
@@ -1691,7 +1682,7 @@ class Simu_Displacement(Simu):
         poid_pg = self.mesh.Get_poid_pg(matriceType)
 
         if self.dim == 2:
-            ep = self.materiau.epaisseur
+            ep = self.comportement.epaisseur
         else:
             ep = 1
 
@@ -1761,7 +1752,7 @@ class Simu_Displacement(Simu):
 
         tic = Tic()
 
-        c = self.materiau.comportement.C
+        c = self.comportement.C
         if useNumba:
             # Plus rapide sur les gros système > 500 000 ddl (ordre de grandeur)
             # sinon legerement plus lent
@@ -1870,6 +1861,17 @@ class Simu_Displacement(Simu):
 
 class Simu_PhaseField(Simu):
 
+    def __init__(self, mesh: Mesh, model: PhaseField_Model, verbosity=False, useNumba=True):
+        """Creation d'une simulation d'endommagement en champ de phase"""
+
+        assert model.modelType == ModelType.damage, "Le materiau doit être de type damage"
+        super().__init__(mesh, model, verbosity, useNumba)
+
+        # init resultats
+        self.__psiP_e_pg = []
+        self.__old_psiP_e_pg = [] #ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe
+        self.Solveur_Set_Elliptic_Algorithm()
+
     def Get_Resultats_disponibles(self) -> list[str]:
 
         options = []
@@ -1927,7 +1929,7 @@ class Simu_PhaseField(Simu):
     def Get_lb_ub(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
         
         if problemType == ModelType.damage:
-            solveur = self.materiau.phaseFieldModel.solveur
+            solveur = self.phaseFieldModel.solveur
             if solveur == "BoundConstrain":
                 lb = self.damage
                 lb[np.where(lb>=1)] = 1-np.finfo(float).eps
@@ -1937,17 +1939,8 @@ class Simu_PhaseField(Simu):
         else:
             lb, ub = np.array([]), np.array([])
             
-        return lb, ub    
+        return lb, ub
 
-    def __init__(self, mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
-        assert materiau.modelType == ModelType.damage, "Le materiau doit être de type damage"
-        super().__init__(mesh, materiau, verbosity, useNumba)
-
-        # init resultats
-        self.__psiP_e_pg = []
-        self.__old_psiP_e_pg = [] #ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe
-        self.Solveur_Set_Elliptic_Algorithm()
-    
     def Get_nbddl_n(self, problemType: ModelType) -> int:
         if problemType == ModelType.damage:
             return 1
@@ -1955,12 +1948,9 @@ class Simu_PhaseField(Simu):
             return self.dim
 
     @property
-    def materiau(self) -> _Materiau_PhaseField:
-        return super().materiau
-
-    @property
-    def comportement(self):
-        return self.materiau.phaseFieldModel.comportement
+    def phaseFieldModel(self) -> PhaseField_Model:
+        """Modèle d'endommagement de la simulation"""
+        return self.model
 
     @property
     def displacement(self) -> np.ndarray:
@@ -2012,8 +2002,8 @@ class Simu_PhaseField(Simu):
                 return self.displacement
 
     def Assemblage(self):
-        # ici ne fait rien, car l'assemblage du problème d'endommagement et de déplacement se font de manière dissociée
-        pass
+        self.__Assemblage_d()
+        self.__Assemblage_u()
     
     def Solve(self, tolConv=1.0, maxIter=500, convOption=0) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
         """Résolution du probleme d'endommagement de façon étagée
@@ -2047,7 +2037,7 @@ class Simu_PhaseField(Simu):
         convergence = False
         dn = self.damage
 
-        solveur = self.materiau.phaseFieldModel.solveur
+        solveur = self.phaseFieldModel.solveur
 
         tic = Tic()
 
@@ -2135,7 +2125,7 @@ class Simu_PhaseField(Simu):
         d = self.damage
         u = self.displacement
 
-        phaseFieldModel = self.materiau.phaseFieldModel
+        phaseFieldModel = self.phaseFieldModel
         
         # Calcul la deformation nécessaire pour le split
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, matriceType)
@@ -2168,7 +2158,7 @@ class Simu_PhaseField(Simu):
             Ku_e = np.einsum('epij,epjk,epkl->eil', leftDepPart, c_e_pg, B_dep_e_pg, optimize='optimal') 
 
         if self.dim == 2:
-            epaisseur = self.materiau.epaisseur
+            epaisseur = self.phaseFieldModel.epaisseur
             Ku_e *= epaisseur
         
         tic.Tac("Matrices","Construction Ku_e", self._verbosity)
@@ -2213,7 +2203,7 @@ class Simu_PhaseField(Simu):
         self._Solveur(ModelType.displacement)
 
         # On renseigne au model phase field qu'il va falloir mettre à jour le split
-        self.materiau.phaseFieldModel.Need_Split_Update()
+        self.phaseFieldModel.Need_Split_Update()
        
         return self.displacement
 
@@ -2227,7 +2217,7 @@ class Simu_PhaseField(Simu):
             np.ndarray: self.__psiP_e_pg
         """
 
-        phaseFieldModel = self.materiau.phaseFieldModel
+        phaseFieldModel = self.phaseFieldModel
         
         u = self.displacement
         d = self.damage
@@ -2273,7 +2263,7 @@ class Simu_PhaseField(Simu):
             Kd_e, Fd_e: les matrices elementaires pour chaque element
         """
 
-        phaseFieldModel = self.materiau.phaseFieldModel
+        phaseFieldModel = self.phaseFieldModel
 
         # Data
         k = phaseFieldModel.k
@@ -2378,7 +2368,7 @@ class Simu_PhaseField(Simu):
         iter["tempsIter"] = self.__tempsIter
         iter["convIter"] = self.__convIter
     
-        if self.materiau.phaseFieldModel.solveur == PhaseField_Model.SolveurType.History:
+        if self.phaseFieldModel.solveur == PhaseField_Model.SolveurType.History:
             # mets à jour l'ancien champ histoire pour la prochaine résolution 
             self.__old_psiP_e_pg = self.__psiP_e_pg
             
@@ -2401,7 +2391,7 @@ class Simu_PhaseField(Simu):
         displacementType = ModelType.displacement
         self.set_u_n(displacementType, results[displacementType])
 
-        self.materiau.phaseFieldModel.Need_Split_Update()
+        self.phaseFieldModel.Need_Split_Update()
 
     def Get_Resultat(self, option: str, nodeValues=True, iter=None):
         
@@ -2446,7 +2436,7 @@ class Simu_PhaseField(Simu):
 
         displacement = self.displacement
 
-        coef = self.materiau.comportement.coef       
+        coef = self.phaseFieldModel.comportement.coef       
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
@@ -2606,13 +2596,13 @@ class Simu_PhaseField(Simu):
         poid_pg = self.mesh.Get_poid_pg(matriceType)
 
         if self.dim == 2:
-            ep = self.materiau.epaisseur
+            ep = self.phaseFieldModel.epaisseur
         else:
             ep = 1
 
         d = self.damage
 
-        phaseFieldModel = self.materiau.phaseFieldModel
+        phaseFieldModel = self.phaseFieldModel
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
         # Endommage : psiP_e_pg = g(d) * PsiP_e_pg 
@@ -2633,7 +2623,7 @@ class Simu_PhaseField(Simu):
 
         tic = Tic()
 
-        pfm = self.materiau.phaseFieldModel 
+        pfm = self.phaseFieldModel 
 
         matriceType = MatriceType.masse
 
@@ -2661,7 +2651,7 @@ class Simu_PhaseField(Simu):
         alphaPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, Gc/(c0*l0), alpha_e_pg, optimize='optimal')
 
         if self.dim == 2:
-            ep = self.materiau.epaisseur
+            ep = self.phaseFieldModel.epaisseur
         else:
             ep = 1
 
@@ -2722,7 +2712,7 @@ class Simu_PhaseField(Simu):
 
         d = self.damage
 
-        phaseFieldModel = self.materiau.phaseFieldModel
+        phaseFieldModel = self.phaseFieldModel
 
         SigmaP_e_pg, SigmaM_e_pg = phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
         
@@ -2864,6 +2854,15 @@ class Simu_PhaseField(Simu):
 ###################################################################################################
 
 class Simu_Beam(Simu):
+
+    def __init__(self, mesh: Mesh, model: Beam_Model, verbosity=False, useNumba=True):
+        """Creation d'une simulation poutre"""
+
+        assert model.modelType == ModelType.beam, "Le materiau doit être de type beam"
+        super().__init__(mesh, model, verbosity, useNumba)
+
+        # init
+        self.Solveur_Set_Elliptic_Algorithm()
     
     def Get_Resultats_disponibles(self) -> list[str]:
 
@@ -2901,10 +2900,15 @@ class Simu_Beam(Simu):
             3 : ["x","y","rz"],
             6 : ["x","y","z","rx","ry","rz"]
         }
-        return dict_nbddl_directions[self.materiau.beamModel.nbddl_n]
+        return dict_nbddl_directions[self.beamModel.nbddl_n]
     
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.beam]
+
+    @property
+    def beamModel(self) -> Beam_Model:
+        """Modèle poutre de la simulation"""
+        return self.model
 
     @property
     def useCholesky(self) -> bool:
@@ -2915,26 +2919,15 @@ class Simu_Beam(Simu):
         return False
 
     def Get_nbddl_n(self, problemType: ModelType) -> int:
-        return self.materiau.beamModel.nbddl_n
+        return self.beamModel.nbddl_n
 
     def Check_dim_mesh_materiau(self) -> None:
         # Dans le cadre d'un probleme de poutre on à pas besoin de verifier cette condition
         pass
-
-    def __init__(self, mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
-        assert materiau.modelType == ModelType.beam, "Le materiau doit être de type beam"
-        super().__init__(mesh, materiau, verbosity, useNumba)
-
-        # init
-        self.Solveur_Set_Elliptic_Algorithm()
-
-    @property
-    def materiau(self) -> _Materiau_Beam:
-        return super().materiau
     
     @property
     def use3DBeamModel(self) -> bool:
-        if self.materiau.beamModel.dim == 3:
+        if self.beamModel.dim == 3:
             return True
         else:
             return False
@@ -2954,7 +2947,7 @@ class Simu_Beam(Simu):
 
     def add_liaison_Encastrement(self, noeuds: np.ndarray, description="Encastrement"):
 
-        beamModel = self.materiau.beamModel        
+        beamModel = self.beamModel
 
         if beamModel.dim == 1:
             directions = ['x']
@@ -2969,7 +2962,7 @@ class Simu_Beam(Simu):
 
     def add_liaison_Rotule(self, noeuds: np.ndarray, directions=[''] ,description="Rotule"):
 
-        beamModel = self.materiau.beamModel
+        beamModel = self.beamModel
         
         if beamModel.dim == 1:
             return
@@ -2997,7 +2990,7 @@ class Simu_Beam(Simu):
         problemType = self.problemType
 
         # Verficiation
-        self.__Check_Directions(problemType, directions)
+        self.Check_Directions(problemType, directions)
 
         tic = Tic()
 
@@ -3029,7 +3022,7 @@ class Simu_Beam(Simu):
         groupElem = mesh.groupElem
 
         # Récupération du maodel poutre
-        beamModel = self.materiau.beamModel
+        beamModel = self.beamModel
         if not isinstance(beamModel, Beam_Model): return
         
         matriceType=MatriceType.beam
@@ -3056,7 +3049,7 @@ class Simu_Beam(Simu):
         tic = Tic()
 
         # Récupération du maodel poutre
-        beamModel = self.materiau.beamModel
+        beamModel = self.beamModel
         assert isinstance(beamModel, Beam_Model)
         dim = beamModel.dim
         nbddl_n = beamModel.nbddl_n
@@ -3174,7 +3167,7 @@ class Simu_Beam(Simu):
             # Data
             mesh = self.mesh
 
-            model = self.materiau.beamModel
+            model = self.beamModel
 
             assert isinstance(model, Beam_Model)
 
@@ -3325,7 +3318,7 @@ class Simu_Beam(Simu):
         
         tic = Tic()
 
-        nbddl_n = self.materiau.beamModel.nbddl_n
+        nbddl_n = self.beamModel.nbddl_n
         assemblyBeam_e = self.mesh.groupElem.get_assemblyBeam_e(nbddl_n)
         sol_e = sol[assemblyBeam_e]
         B_beam_e_pg = self.__Get_B_beam_e_pg(matriceType)
@@ -3344,7 +3337,7 @@ class Simu_Beam(Simu):
 
         tic = Tic()
 
-        D_e_pg = self.materiau.beamModel.Calc_D_e_pg(self.mesh.groupElem, matriceType)
+        D_e_pg = self.beamModel.Calc_D_e_pg(self.mesh.groupElem, matriceType)
         Sigma_e_pg = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
             
         tic.Tac("Matrices", "Sigma_e_pg", False)
@@ -3380,6 +3373,15 @@ class Simu_Beam(Simu):
 ###################################################################################################
 
 class Simu_Thermal(Simu):
+
+    def __init__(self, mesh: Mesh, model: Thermal_Model, verbosity=False, useNumba=True):
+        """Creation d'une simulation thermique"""
+
+        assert model.modelType == ModelType.thermal, "Le materiau doit être de type thermal"
+        super().__init__(mesh, model, verbosity, useNumba)
+
+        # init
+        self.Solveur_Set_Elliptic_Algorithm()
     
     def Get_Directions(self, problemType: ModelType) -> list[str]:
         return [""]
@@ -3396,20 +3398,14 @@ class Simu_Thermal(Simu):
     
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.thermal]
-
-    def __init__(self, mesh: Mesh, materiau: _Materiau, verbosity=True, useNumba=True):
-        assert materiau.modelType == ModelType.thermal, "Le materiau doit être de type thermal"
-        super().__init__(mesh, materiau, verbosity, useNumba)
-
-        # init
-        self.Solveur_Set_Elliptic_Algorithm()
     
     def Get_nbddl_n(self, problemType: ModelType) -> int:
         return 1
 
     @property
-    def materiau(self) -> _Materiau_Thermal:
-        return super().materiau
+    def thermalModel(self) -> Thermal_Model:
+        """Modèle thermique de la simulation"""
+        return self.model
 
     @property
     def thermal(self) -> np.ndarray:
@@ -3435,7 +3431,7 @@ class Simu_Thermal(Simu):
 
     def __ConstruitMatElem_Thermal(self):
 
-        thermalModel = self.materiau.thermalModel
+        thermalModel = self.thermalModel
 
         # Data
         k = thermalModel.k
@@ -3451,10 +3447,10 @@ class Simu_Thermal(Simu):
 
         Kt_e = np.einsum('ep,p,epji,,epjk->eik', jacobien_e_pg, poid_pg, D_e_pg, k, D_e_pg, optimize="optimal")
 
-        ro = self.materiau.ro
+        rho = self.rho
         c = thermalModel.c
 
-        Mt_e = np.einsum('ep,p,pji,,,pjk->eik', jacobien_e_pg, poid_pg, N_e_pg, ro, c, N_e_pg, optimize="optimal")
+        Mt_e = np.einsum('ep,p,pji,,,pjk->eik', jacobien_e_pg, poid_pg, N_e_pg, rho, c, N_e_pg, optimize="optimal")
 
         return Kt_e, Mt_e
 

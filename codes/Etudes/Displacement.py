@@ -1,7 +1,5 @@
-# %%
-# import sys
-# sys.path.append("/home/matthieu/Documents/PythonEF/classes")
 import os
+import matplotlib.pyplot as plt
 
 import Folder
 import PostTraitement
@@ -12,36 +10,32 @@ from Interface_Gmsh import Interface_Gmsh
 import Simulations
 from TicTac import Tic
 
-import matplotlib.pyplot as plt
-
 # Affichage.Clear()
 
+# -------------
+# CONFIGURATION
+# -------------
+
 dim = 2
-
 folder = Folder.New_File(f"Etude{dim}D", results=True)
-
-tic_Tot = Tic()
-
-# Data --------------------------------------------------------------------------------------------
-
 plotResult = True
-
-saveParaview = False; NParaview = 500
-
-useNumba = True
 
 isLoading = True
 initSimu = False
 
+saveParaview = False; NParaview = 500
 pltMovie = False; NMovie = 400
+plotIter = True; affichageIter = "uy"
 
-plotIter = False; affichageIter = "dy"
+useNumba = False
 
 # coefM = 1e-2
 # coefK = 1e-3*2
 
 coefM = 0
 coefK = 0
+
+tic_Tot = Tic()
 
 Tmax = 0.5
 N = 1
@@ -60,12 +54,10 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/5
+taille = h/10
 
 comportement = Materials.Elas_Isot(dim, epaisseur=b)
 
-# Materiau
-materiau = Materials.Create_Materiau(comportement, ro=8100*1e-9)
 # Construction du modele et du maillage --------------------------------------------------------------------------------
 
 
@@ -77,9 +69,9 @@ if dim == 2:
     LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
     circle = Circle(Point(x=L/2, y=0), h*0.2, isCreux=False)
     
-    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
-    mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=False)
+    mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
     aire = mesh.aire - L*h
 elif dim == 3:
@@ -108,7 +100,7 @@ noeuds_en_h = mesh.Nodes_Conditions(conditionY=lambda y: y == h/2) # noeuds_en_h
 
 # ------------------------------------------------------------------------------------------------------
 
-simu = Simulations.Create_Simu(mesh, materiau, useNumba=useNumba, verbosity=False)
+simu = Simulations.Simu_Displacement(mesh, comportement, useNumba=useNumba, verbosity=False)
 simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
 def Chargement(isLoading: bool):
@@ -140,16 +132,16 @@ def Iteration(steadyState: bool, isLoading: bool):
     Chargement(isLoading)
 
     # Assemblage du système matricielle
-    Kglob = simu.Get_K_C_M_F(simu.problemType)[0]
+    # K = simu.Get_K_C_M_F(simu.problemType)[0]
     # plt.figure()
-    # plt.spy(Kglob)
+    # plt.spy(K)
 
     if steadyState:
         simu.Solveur_Set_Elliptic_Algorithm()
     else:
         simu.Solveur_Set_Newton_Raphson_Algorithm(dt=dt)
 
-    dep = simu.Solve()
+    simu.Solve()
     
     simu.Save_Iteration()
 
@@ -205,30 +197,44 @@ if plotResult:
     simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
-    Affichage.Plot_Result(simu, "dy", deformation=True, nodeValues=False)        
-    Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=False, nodeValues=False)        
+    Affichage.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
+    Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=False, nodeValues=False)
     # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
 
+    matriceType = "rigi"
+    B_e_pg = simu.mesh.Get_B_dep_e_pg(matriceType)
+    jacobien_e_pg = simu.mesh.Get_jacobien_e_pg(matriceType)
+    poid_pg = simu.mesh.Get_poid_pg(matriceType)
+    N_pg = simu.mesh.Get_N_scalaire_pg(matriceType)
 
-    s_e = simu.Get_Resultat("Stress", nodeValues=False)
-    s_n = simu.Get_Resultat("Stress", nodeValues=True)
+    u_e = simu.mesh.Localises_sol_e(simu.displacement)
 
-    N_pg = simu.mesh.Get_N_scalaire_pg("rigi")
-    sLoc_e = simu.mesh.Localises_sol_e(s_n)
-    sigmaliss_e = np.einsum('eni,pjn->ei',sLoc_e, N_pg)
-    
-    diff_e = sigmaliss_e - s_e
-    # diff_e = (sigmaliss_e - s_e)/np.linalg.norm(s_e, 1)
-    erreur_e = np.linalg.norm(diff_e, axis=1)
-    erreur = np.linalg.norm(diff_e)
-    
-    # simu.Cal
+    Epsilon_e_pg = np.einsum("epij,ej->epi", B_e_pg, u_e)
+    Sigma_e_pg = np.einsum("ij,epj->epi", comportement.C, Epsilon_e_pg)
 
-    Affichage.Plot_Result(simu, sigmaliss_e[:,-1], nodeValues=False, title="svm_e lissé")
-    Affichage.Plot_Result(simu, erreur_e, nodeValues=True, title="err")
-    # Affichage.Plot_Result(simu, erreur_e, nodeValues=True, title="err")
+    Wdef_e = 1/2 * b * np.einsum("ep,p,epi,epi->e", jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
+    Wdef = np.sum(Wdef_e)
 
-    # erreur = np.linalg.norm(diff_e)/np.linalg.norm(s_e)
+    Sigma_n = simu.Resultats_InterpolationAuxNoeuds(np.mean(Sigma_e_pg, 1))
+
+    Sigma_n_e = simu.mesh.Localises_sol_e(Sigma_n)
+    sigmaliss_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
+
+    WdefLisse_e = 1/2 * b * np.einsum("ep,p,epi,epi->e", jacobien_e_pg, poid_pg, sigmaliss_e_pg, Epsilon_e_pg)
+    WdefLisse = np.sum(WdefLisse_e)
+
+    erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
+    Affichage.Plot_Result(simu, erreur_e*100, nodeValues=False, title="erreur_e %")
+
+    # erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)
+    # Affichage.Plot_Result(simu, erreur_e, nodeValues=False, title="erreur_e mJ")
+
+    erreur = np.abs(Wdef-WdefLisse)/Wdef
+
+    print(f"erreur = {erreur*100:.3} %")
+
+    # import gmsh
+    # gmsh.model.mesh.refine()
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 

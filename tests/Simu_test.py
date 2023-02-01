@@ -89,11 +89,9 @@ class Test_Simu(unittest.TestCase):
 
             beamModel = Materials.Beam_Model(dim=beamDim, listePoutres=listePoutre)
 
-            materiau = Materials.Create_Materiau(beamModel, verbosity=False)
-
             # Simulation
 
-            simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
+            simu = Simulations.Simu_Beam(mesh, beamModel, verbosity=False)
 
             # Conditions
 
@@ -204,10 +202,8 @@ class Test_Simu(unittest.TestCase):
             dim = mesh.dim
 
             comportement = Materials.Elas_Isot(dim, epaisseur=b)
-
-            materiau = Materials.Create_Materiau(comportement, verbosity=False)
             
-            simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
+            simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 
             noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
             noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
@@ -248,9 +244,7 @@ class Test_Simu(unittest.TestCase):
 
             thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=a)
 
-            materiau = Materials.Create_Materiau(thermalModel, verbosity=False)
-
-            simu = Simulations.Create_Simu(mesh , materiau, False)            
+            simu = Simulations.Simu_Thermal(mesh , thermalModel, False)            
 
             noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x: x == a)

@@ -15,13 +15,13 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-problem = "FCBA" # ["Benchmark","FCBA"]
-dim = 3
+problem = "Benchmark" # ["Benchmark","FCBA"]
+dim = 2
 if dim == 3:
     problem += "_3D"
 
-test = False
-solve = False
+test = True
+solve = True
 
 # ----------------------------------------------
 # Post traitement
@@ -41,7 +41,7 @@ makeMovie = False; NMovie = 200
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
@@ -55,12 +55,12 @@ optimMesh = True
 # Convergence
 # ----------------------------------------------
 maxIter = 1000
-tolConv = 1e-1
+tolConv = 1e-0
 
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-for split in ["AnisotStress"]:
+for split in ["Miehe"]:
 #for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 # for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 # for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
@@ -231,9 +231,8 @@ for split in ["AnisotStress"]:
             isCp = False       
 
         phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0, solveur=solveur)
-        materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
 
-        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)        
+        simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
         ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
 

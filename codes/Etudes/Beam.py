@@ -105,9 +105,7 @@ mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemTy
 
 beamModel = Materials.Beam_Model(dim=beamDim, listePoutres=listePoutre)
 
-materiau = Materials.Create_Materiau(beamModel, verbosity=True)
-
-simu = Simulations.Create_Simu(mesh, materiau, verbosity=True)
+simu = Simulations.Simu_Beam(mesh, beamModel, verbosity=True)
 
 if beamModel.dim == 1:
     simu.add_dirichlet(mesh.Nodes_Point(point1),[0],["x"])

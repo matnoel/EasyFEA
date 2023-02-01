@@ -213,9 +213,7 @@ for split in ["Zhang"]:
 
         phaseFieldModel = Materials.PhaseField_Model(comp, split, regularisation, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
 
-        materiau = Materials.Create_Materiau(phaseFieldModel, ro=1)
-
-        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
+        simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
         def Chargement(dep):
             """Renseignement des conditions limites"""

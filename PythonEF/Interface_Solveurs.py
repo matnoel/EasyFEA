@@ -360,7 +360,6 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
     # nb = len(np.where(lignes==299)[0])
     uniqueLignes, count = np.unique(lignes, return_counts = True)
     nnz = np.array(count, dtype=np.int32)
-
     
     matrice = PETSc.Mat()
     matrice.createAIJ([dimI, dimJ], nnz=nnz)
@@ -379,7 +378,7 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix):
 
     lignes, _, valeurs = sparse.find(b)    
 
-    vectb.array[lignes] = valeurs    
+    vectb.array[lignes] = valeurs
 
     x = matrice.createVecRight()
 

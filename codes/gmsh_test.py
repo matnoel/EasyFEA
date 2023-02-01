@@ -1,5 +1,6 @@
 from enum import Enum
 import matplotlib.pyplot as plt
+import os
 
 from Interface_Gmsh import Interface_Gmsh
 from Geom import *
@@ -9,7 +10,12 @@ from Mesh import ElemType
 import Materials
 import Folder
 
-dim = 2
+# import gmsh
+
+# gmsh.view.addListData()
+# gmsh.view.s
+
+dim = 3
 N = 10
 
 class SimulationType(str, Enum):
@@ -25,11 +31,15 @@ coef = 1
 E=210000 # MPa
 v=0.3
 
+folder = Folder.New_File("gmshTest", results=True)
+if not os.path.exists(folder):
+    os.makedirs(folder)
+
 if simulationType == SimulationType.CPEF:
     dim = 3
     h=1
     fichier = Folder.Join([Folder.Get_Path(), "3Dmodels", "CPEF.stp"])
-    mesh = interface.Mesh_Importation3D(fichier, 10)
+    mesh = interface.Mesh_Importation3D(fichier, 5)
 
     noeuds134 = mesh.Nodes_Tag(['S134'])
     Affichage.Plot_Elements(mesh, noeuds134)
@@ -43,7 +53,7 @@ elif simulationType == SimulationType.EQUERRE:
     pt1 = Point(isOpen=True, r=0)
     pt2 = Point(x=L)
     pt3 = Point(x=L,y=h)
-    pt4 = Point(x=h, y=h, r=0)
+    pt4 = Point(x=h, y=h, r=10)
     pt5 = Point(x=h, y=L)
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
@@ -59,12 +69,12 @@ elif simulationType == SimulationType.EQUERRE:
     listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, taille=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, tailleElement=h/N, cracks=[])
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, tailleElement=h/N, cracks=[], folder=folder)
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, tailleElement=h/N)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, tailleElement=h/N, folder=folder)
 
 
         noeudsS3 = mesh.Nodes_Tag(["S9","S15","S14","S21"])
@@ -96,23 +106,21 @@ elif simulationType == SimulationType.TEF2:
     listPoint = [pt1, pt2, pt3]
     
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, inclusions=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, inclusions=[], tailleElement=taille, folder=folder)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, inclusions=[], tailleElement=taille)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, inclusions=[], tailleElement=taille, folder=folder)
 
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
 
 Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh)
+Affichage.Plot_Model(mesh, showId=False)
 # plt.show()
 
 comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
 
-materiau = Materials.Create_Materiau(comportement)
-
-simu = Simulations.Create_Simu(mesh, materiau)
+simu = Simulations.Simu_Displacement(mesh, comportement)
 
 if simulationType == SimulationType.CPEF:
     simu.add_dirichlet(mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])

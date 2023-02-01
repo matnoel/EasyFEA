@@ -121,14 +121,10 @@ reg = Materials.PhaseField_Model.RegularizationType
 
 pfm = Materials.PhaseField_Model(comportement, splits.Zhang, reg.AT2, Gc, l0)
 
-materiau = Materials.Create_Materiau(pfm)
-
-simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
+simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
 
 noeudsHaut = mesh.Nodes_Tag(["L31","L30"])
 noeudsBas = mesh.Nodes_Tag(["L16","L17"])
-
-
 
 def Chargement(force: float):
     simu.Bc_Init()

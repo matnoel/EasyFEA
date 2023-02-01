@@ -85,20 +85,18 @@ Affichage.Plot_Mesh(meshVER)
 # comportement élastique de la poutre
 compInclusions = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=b)
 CMandel = compInclusions.C
-materiauInclusions = Materials.Create_Materiau(compInclusions)
 
 comp = Materials.Elas_Anisot(2, CMandel, np.array([1,0,0]), useVoigtNotation=False)
 testC = np.linalg.norm(compInclusions.C-comp.C)/np.linalg.norm(compInclusions.C)
 assert testC < 1e-12, "les matrices sont différentes"
-materiau = Materials.Create_Materiau(comp)
 
 # ----------------------------------------------
 # Homogenization
 # ----------------------------------------------
 
-simuInclusions = Simulations.Create_Simu(meshInclusions, materiauInclusions)
-simuVER = Simulations.Create_Simu(meshVER, materiauInclusions)
-simu = Simulations.Create_Simu(mesh, materiau)
+simuInclusions = Simulations.Simu_Displacement(meshInclusions, compInclusions)
+simuVER = Simulations.Simu_Displacement(meshVER, compInclusions)
+simu = Simulations.Simu_Displacement(mesh, comp)
 
 noeudsDuBord = meshVER.Nodes_Tag(["L1", "L2", "L3", "L4"])
 ddlsNoeudsDubord = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeudsDuBord, ["x","y"])
@@ -168,10 +166,10 @@ def Simulation(simu: Simulations.Simu, title=""):
     simu.Solve()
 
     # Affichage.Plot_BoundaryConditions(simu)
-    Affichage.Plot_Result(simu, "uy", title=f"{title} dy")
+    Affichage.Plot_Result(simu, "uy", title=f"{title} uy")
     # Affichage.Plot_Result(simu, "Eyy")
 
-    print(f"{title}: dy={np.max(simu.Get_Resultat('dy')[simu.mesh.Nodes_Point(Geom.Point(L,0))])}")
+    print(f"{title}: dy={np.max(simu.Get_Resultat('uy')[simu.mesh.Nodes_Point(Geom.Point(L,0))])}")
 
 Simulation(simuInclusions, "inclusions")
 Simulation(simu, "non hom")

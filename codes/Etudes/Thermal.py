@@ -34,9 +34,7 @@ else:
 
 thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=1)
 
-materiau = Materials.Create_Materiau(thermalModel, verbosity=False)
-
-simu = Simulations.Create_Simu(mesh , materiau, False)
+simu = Simulations.Simu_Thermal(mesh, thermalModel, False)
 
 noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
 noeudsL = mesh.Nodes_Conditions(lambda x: x == a)

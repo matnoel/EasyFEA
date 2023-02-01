@@ -102,9 +102,8 @@ for v in list_V:
     for isCP in [False,True]:
         comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCP, epaisseur=ep)
         phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
-        materiau = Materials.Create_Materiau(phaseFieldModel, verbosity=False)
 
-        simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
+        simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
         simu.add_dirichlet(nodes0, [0], ["y"])
         simu.add_dirichlet(node00, [0], ["x"])

@@ -1,4 +1,3 @@
-# %%
 from typing import cast
 
 from Geom import Domain, Point
@@ -39,9 +38,6 @@ v=0.25
 comportement = Materials.Elas_Isot(dim, epaisseur=b, E=E, v=v, contraintesPlanes=True)
 
 WdefRef = 2*P**2*L/E/h/b * (L**2/h/b + (1+v)*3/5)
-
-# Materiau
-materiau = Materials.Create_Materiau(comportement)
 
 print()
 
@@ -101,7 +97,7 @@ for t, elemType in enumerate(elemTypes):
 
         # Construit la simulation
         if simu == None:
-            simu = Simulations.Create_Simu(mesh, materiau, verbosity=False, useNumba=False)
+            simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False, useNumba=False)
         else:
             simu.Bc_Init()
             simu.mesh = mesh

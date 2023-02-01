@@ -14,7 +14,7 @@ import Simulations
 
 Affichage.Clear()
 
-test = False
+test = True
 loadSimu = True
 plotDamage = True
 savefig = False
@@ -48,7 +48,7 @@ if not savefig:
 # ["AnisotStrain","He"]
 # ["AnisotStrain", "He", "AnisotStress", "Stress"]
 
-listComp = ["Elas_IsotTrans"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 
 # listRegu = ["AT1", "AT2"] # ["AT1", "AT2"]
 listRegu = ["AT2"] # ["AT1", "AT2"]
@@ -58,7 +58,8 @@ listSolveur = ["History"]
 
 # listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
 # listSplit = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
-listSplit = ["He","AnisotStrain","AnisotStress", "Zhang"]
+# listSplit = ["He","AnisotStrain","AnisotStress", "Zhang"]
+listSplit = ["Bourdin"]
 
 listOptimMesh=[True] # [True, False]
 
@@ -119,7 +120,7 @@ for config in listConfig:
 
     # Charge la force et le déplacement
     try:
-        load, displacement = Affichage.Load_Load_Displacement(foldername, False)
+        load, displacement = PostTraitement.Load_Load_Displacement(foldername, False)
     except AssertionError:
         if nomSimu not in simulationsManquantes: simulationsManquantes.append(nomSimu)
         print("données indisponibles")

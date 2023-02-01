@@ -53,11 +53,9 @@ noeudCentreCercle = mesh.Nodes_Tag(["P9"])
 
 comportement = Materials.Elas_Isot(2, E=210000e6, v=0.3, contraintesPlanes=False, epaisseur=1)
 
-materiau = Materials.Create_Materiau(comportement, ro=8100)
-
 l = comportement.get_lambda()
 mu = comportement.get_mu()
-ro = materiau.ro
+
 
 # cp = np.sqrt((l+2*mu)/ro)
 # cs = np.sqrt(r/ro)
@@ -69,7 +67,7 @@ ro = materiau.ro
 # Gt = lambda t: a0*2*((np.pi*f0*(t-t0))**2-1)*np.exp(-(np.pi*f0*(t-t0))**2)
 
 
-simu = Simulations.Create_Simu(mesh, materiau, verbosity=False)
+simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 
 simu.Set_Rayleigh_Damping_Coefs(0, 0)
 simu.Solveur_Set_Newton_Raphson_Algorithm(betha=1/4, gamma=1/2, dt=dt)
@@ -81,7 +79,7 @@ def Chargement():
     simu.add_dirichlet(noeudsBord, [0,0], ["x","y"], description="[0,0]")
 
 
-    fonctionX = 0
+    # fonctionX = 0
     # fonctionX = lambda x,y,z: load*(y-circle.center.y)/r
     # fonctionY = lambda x,y,z: load*(x-circle.center.x)/r
     
@@ -90,7 +88,7 @@ def Chargement():
     simu.add_neumann(noeudCentreCercle, [fonctionX, fonctionY], ["x","y"])
 
     # if t == dt:
-    #     # simu.add_dirichlet(noeudCentre, [1e-2,1e-2], ["x","y"], "[load,load]")
+    #     simu.add_dirichlet(noeudCentreCercle, [1e-2,1e-2], ["x","y"], description="[load,load]")
         
 
 if plotIter:
@@ -102,7 +100,7 @@ while t <= tMax:
 
     Chargement()
 
-    simu.Solve(steadyState=False)
+    simu.Solve()
 
     simu.Save_Iteration()
 
