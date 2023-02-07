@@ -1,5 +1,4 @@
 from enum import Enum
-import sys
 import platform
 
 import numpy as np
