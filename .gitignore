@@ -1,16 +1,9 @@
-PythonEF.egg-info
-
-# dossiers à ignorer
-build/
-.vscode/*
-!.vscode/launch.json
-!.vscode/settings.json
-.DS_Store
+# files to ignore
 .vscode/
+.DS_Store
 results/
-data/CompressionFCBA/Images
 
-# fichier à ignorer
+# extensions to ignore
 *.pyc
 *.HEIC
 *.tif
