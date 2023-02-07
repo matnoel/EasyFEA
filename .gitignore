@@ -6,6 +6,7 @@ build/
 !.vscode/launch.json
 !.vscode/settings.json
 .DS_Store
+.vscode/
 results/
 data/CompressionFCBA/Images
 
