@@ -254,12 +254,12 @@ class Simu(ABC):
         return self.__model
 
     @property
-    def rho(self):
+    def rho(self) -> float:
         """masse volumique"""
         return self.__rho
 
     @rho.setter
-    def rho(self, value):
+    def rho(self, value: float):
         assert value > 0.0 , "Doit être supérieur à 0"
         self.__rho = value
 
