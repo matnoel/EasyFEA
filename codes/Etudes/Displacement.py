@@ -21,16 +21,16 @@ folder = Folder.New_File(f"Etude{dim}D", results=True)
 plotResult = True
 
 isLoading = True
-initSimu = False
+initSimu = True
 
 saveParaview = False; NParaview = 500
 pltMovie = False; NMovie = 400
 plotIter = True; affichageIter = "uy"
 
-useNumba = False
+useNumba = True
 
 # coefM = 1e-2
-# coefK = 1e-3*2
+# coefK = 1e-2*2
 
 coefM = 0
 coefK = 0
@@ -101,6 +101,7 @@ noeuds_en_h = mesh.Nodes_Conditions(conditionY=lambda y: y == h/2) # noeuds_en_h
 # ------------------------------------------------------------------------------------------------------
 
 simu = Simulations.Simu_Displacement(mesh, comportement, useNumba=useNumba, verbosity=False)
+simu.rho = 8100*1e-9
 simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
 def Chargement(isLoading: bool):

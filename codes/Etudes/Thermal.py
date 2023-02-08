@@ -28,13 +28,14 @@ interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, True)
 
 if dim == 2:
     # mesh = interfaceGmsh.Rectangle_2D(domain, "QUAD4")
-    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI6")
+    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "QUAD4")
 else:
     mesh = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, [0,0,a], 4, elemType="HEXA8")
 
 thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=1)
 
 simu = Simulations.Simu_Thermal(mesh, thermalModel, False)
+simu.rho = 1
 
 noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
 noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
@@ -62,8 +63,8 @@ def Iteration(steadyState: bool):
 
     return thermal
 
-Tmax = 60*8 #s
-N = 10
+Tmax = 0.5 #s
+N = 50
 dt = Tmax/N #s
 t=0
 
