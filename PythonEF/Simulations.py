@@ -46,7 +46,7 @@ def Load_Simu(folder: str, verbosity=False):
     if verbosity:
         print(Fore.CYAN + f'\nChargement de :\n{filename}\n' + Fore.WHITE)
         simu.mesh.Resume()
-        simu.materiau.Resume()
+        print(simu.model.resume)
     return simu
 
 class Simu(ABC):
