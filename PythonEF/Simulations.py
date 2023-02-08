@@ -1025,7 +1025,7 @@ class Simu(ABC):
         if self.__dim == 2:
             valeurs_ddls, ddls = self.__Bc_surfload(problemType, noeuds, valeurs, directions)
             # multiplie par l'epaisseur
-            valeurs_ddls = valeurs_ddls*self.materiau.epaisseur
+            valeurs_ddls = valeurs_ddls*self.model.epaisseur
         elif self.__dim == 3:
             valeurs_ddls, ddls = self.__Bc_volumeload(problemType, noeuds, valeurs, directions)
 
