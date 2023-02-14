@@ -1354,7 +1354,7 @@ class GroupElem(ABC):
         # coordonnées du groupe d'élement
         inDim = self.inDim        
         coordoMesh = self.coordo
-        indexesFace = self.indexesFaces()[:-1]
+        indexesFace = self.indexesFaces[:-1]
         connectMesh = self.connect_e[:, indexesFace]
         coordConnect = coordoMesh[connectMesh]
         invF_e_pg = self.Get_invF_e_pg("rigi")
