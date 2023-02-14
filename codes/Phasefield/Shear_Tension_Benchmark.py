@@ -62,10 +62,10 @@ tolConv = 1e-0
 # Comportement 
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-regularisation = "AT2" # "AT1", "AT2"
+regularisation = "AT1" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
-for split in ["Zhang"]:
+for split in ["Miehe"]:
 # for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 #for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 #for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
@@ -145,7 +145,7 @@ for split in ["Zhang"]:
             mesh = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         elif dim == 3:
             fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
-            mesh = interfaceGmsh.Mesh_ImportMesh(fichier)
+            mesh = interfaceGmsh.Mesh_Import_msh(fichier)
 
 
 
@@ -520,7 +520,7 @@ for split in ["Zhang"]:
 
         Longeurs = np.array(Longeurs)
         
-        aires = Longeurs*simu.materiau.epaisseur
+        aires = Longeurs*simu.phaseFieldModel.comportement.epaisseur
 
         plt.figure()
         plt.plot(aires, raideurs)

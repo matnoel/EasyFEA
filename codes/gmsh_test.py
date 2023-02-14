@@ -15,7 +15,7 @@ import Folder
 # gmsh.view.addListData()
 # gmsh.view.s
 
-dim = 3
+dim = 2
 N = 10
 
 class SimulationType(str, Enum):
@@ -23,7 +23,7 @@ class SimulationType(str, Enum):
     EQUERRE = "EQUERRE",
     TEF2 = "TEF2"
 
-simulationType = SimulationType.EQUERRE
+simulationType = SimulationType.TEF2
 
 interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
@@ -39,7 +39,7 @@ if simulationType == SimulationType.CPEF:
     dim = 3
     h=1
     fichier = Folder.Join([Folder.Get_Path(), "3Dmodels", "CPEF.stp"])
-    mesh = interface.Mesh_Importation3D(fichier, 5)
+    mesh = interface.Mesh_Import_part3D(fichier, 5)
 
     noeuds134 = mesh.Nodes_Tag(['S134'])
     Affichage.Plot_Elements(mesh, noeuds134)

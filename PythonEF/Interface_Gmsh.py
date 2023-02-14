@@ -430,9 +430,24 @@ class Interface_Gmsh:
             minField = gmsh.model.mesh.field.add("Min")
             gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
 
-    def Mesh_ImportMesh(self, fichier: str, coef=1):
+    def Mesh_Import_msh(self, fichier: str, coef=1):
+        """Importation d'un fichier .msh
 
-        self.__initGmsh('occ')        
+        Parameters
+        ----------
+        fichier : str
+            fichier (.msh) que gmsh va charger pour creer le maillage
+        coef : int, optional
+            coef appliqué aux coordonnées des noeuds, by default 1
+
+        Returns
+        -------
+        Mesh
+            Maillage construit
+        """
+        # 
+
+        self.__initGmsh('occ')
 
         gmsh.open(fichier)
 
@@ -440,9 +455,7 @@ class Interface_Gmsh:
 
         return self.__Recuperation_Maillage(coef)
 
-
-
-    def Mesh_Importation3D(self, fichier: str, tailleElement: float, refineGeom=None, folder=""):
+    def Mesh_Import_part3D(self, fichier: str, tailleElement: float, refineGeom=None, folder=""):
         """Construis le maillage 3D depuis l'importation d'un fichier 3D et création du maillage (.stp ou .igs)
 
         Parameters
@@ -1382,9 +1395,9 @@ class Interface_Gmsh:
             interfaceGmsh = Interface_Gmsh(verbosity=False, affichageGmsh=False)
             
             if useImport3D and elemType == "TETRA4":
-                meshCpef = interfaceGmsh.Mesh_Importation3D(cpefPath, tailleElement=10)
+                meshCpef = interfaceGmsh.Mesh_Import_part3D(cpefPath, tailleElement=10)
                 list_mesh3D.append(meshCpef)
-                meshPart = interfaceGmsh.Mesh_Importation3D(partPath, tailleElement=taille)
+                meshPart = interfaceGmsh.Mesh_Import_part3D(partPath, tailleElement=taille)
                 list_mesh3D.append(meshPart)
 
             for isOrganised in [True, False]:
