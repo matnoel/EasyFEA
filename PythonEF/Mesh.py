@@ -144,7 +144,7 @@ class Mesh:
         Permet de positionner les matrices de type rigi dans la matrice globale"""
         return self.groupElem.assembly_e
     
-    def assemblyBeam_e(self, nbddl_n: int) -> np.ndarray:
+    def Get_assemblyBeam_e(self, nbddl_n: int) -> np.ndarray:
         """matrice d'assemblage pour les poutres (Ne, nPe*nbddl_n)
         Permet de positionner les matrices de type beam dans la matrice globale"""
         return self.groupElem.Get_assemblyBeam_e(nbddl_n)
@@ -157,9 +157,9 @@ class Mesh:
         Ne = self.Ne
         return np.repeat(assembly_e, nPe*self.__dim).reshape((Ne,-1))
     
-    def lignesVectorBeam_e(self, nbddl_n: int) -> np.ndarray:
+    def Get_lignesVectorBeam_e(self, nbddl_n: int) -> np.ndarray:
         """lignes pour remplir la matrice d'assemblage en vecteur (poutre)"""
-        assemblyBeam_e = self.assemblyBeam_e(nbddl_n)
+        assemblyBeam_e = self.Get_assemblyBeam_e(nbddl_n)
         nPe = self.nPe
         Ne = self.Ne
         return np.repeat(assemblyBeam_e, nPe*nbddl_n).reshape((Ne,-1))
@@ -172,9 +172,9 @@ class Mesh:
         Ne = self.Ne
         return np.repeat(assembly_e, nPe*self.__dim, axis=0).reshape((Ne,-1))
     
-    def colonnesVectorBeam_e(self, nbddl_n: int) -> np.ndarray:
+    def Get_colonnesVectorBeam_e(self, nbddl_n: int) -> np.ndarray:
         """colonnes pour remplir la matrice d'assemblage en vecteur (poutre)"""
-        assemblyBeam_e = self.assemblyBeam_e(nbddl_n)
+        assemblyBeam_e = self.Get_assemblyBeam_e(nbddl_n)
         nPe = self.nPe
         Ne = self.Ne
         return np.repeat(assemblyBeam_e, nPe*nbddl_n, axis=0).reshape((Ne,-1))

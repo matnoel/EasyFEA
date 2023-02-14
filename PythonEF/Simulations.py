@@ -3181,8 +3181,8 @@ class Simu_Beam(Simu):
                 dimSupl += len(self.Bc_ddls_Dirichlet(MatriceType.beam))
 
             # Prépare assemblage
-            lignesVector_e = mesh.lignesVectorBeam_e(model.nbddl_n)
-            colonnesVector_e = mesh.colonnesVectorBeam_e(model.nbddl_n)
+            lignesVector_e = mesh.Get_lignesVectorBeam_e(model.nbddl_n)
+            colonnesVector_e = mesh.Get_colonnesVectorBeam_e(model.nbddl_n)
             
             tic = Tic()
 
