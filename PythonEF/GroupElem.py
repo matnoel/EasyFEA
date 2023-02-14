@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 from enum import Enum
 from typing import List, cast
 
@@ -6,7 +6,7 @@ from Geom import *
 from Gauss import Gauss
 
 import numpy as np
-import scipy.sparse as sp
+import scipy.sparse as sparse
 
 class ElemType(str, Enum):
     """Types d'éléments"""
@@ -168,7 +168,7 @@ class GroupElem(ABC):
 
     @property
     def inDim(self) -> int:
-        """Dimension dans lequel ce situe l'element"""
+        """Dimension dans lequel ce situe les elements"""
         return self.__inDim
 
     @property
@@ -223,7 +223,7 @@ class GroupElem(ABC):
         """nodesID des elements (Ne, nPe)"""
         return self.__connect.copy()
     
-    def connect_n_e(self) -> sp.csr_matrix:
+    def Get_connect_n_e(self) -> sparse.csr_matrix:
         """Matrices de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne) soit\n
         tel que : valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)\n
         - (nodesId, elementsIndex)"""
@@ -241,7 +241,7 @@ class GroupElem(ABC):
         Nn = int(lignes.max()+1)
         colonnes = np.repeat(listElem, nPe)
 
-        return sp.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
+        return sparse.csr_matrix((np.ones(nPe*Ne),(lignes, colonnes)),shape=(Nn,Ne))
 
     @property
     def assembly_e(self) -> np.ndarray:
@@ -259,7 +259,7 @@ class GroupElem(ABC):
 
         return assembly
     
-    def get_assemblyBeam_e(self, nbddl_e: int) -> np.ndarray:
+    def Get_assemblyBeam_e(self, nbddl_e: int) -> np.ndarray:
         """Matrice d'assemblage pour les poutres (Ne, nPe*nbddl_e)"""
 
         nPe = self.nPe
@@ -277,7 +277,7 @@ class GroupElem(ABC):
     def Get_ElementsIndex_Nodes(self, nodes: np.ndarray, exclusivement=True) -> np.ndarray:
         """Récupérations des élements qui utilisent exclusivement ou non les noeuds renseignés"""
         connect = self.__connect
-        connect_n_e = self.connect_n_e()
+        connect_n_e = self.Get_connect_n_e()
         
         # Verifie si il n'y a pas de noeuds en trop
         # Il est possible que les noeuds renseignés n'appartiennent pas au groupe
@@ -287,7 +287,7 @@ class GroupElem(ABC):
             nodes = nodes[indexNoeudsSansDepassement]
 
         nodesId = nodes
-        lignes, colonnes, valeurs = sp.find(connect_n_e[nodesId])
+        lignes, colonnes, valeurs = sparse.find(connect_n_e[nodesId])
 
         elementsIndex = np.unique(colonnes)
         # elementsIndex = self.elementsIndex[elementsID]
@@ -302,14 +302,14 @@ class GroupElem(ABC):
 
         return listElemIndex
 
-    def get_gauss(self, matriceType: MatriceType) -> Gauss:
+    def Get_gauss(self, matriceType: MatriceType) -> Gauss:
         """Renvoie les points d'intégration en fonction du type de matrice"""
         return Gauss(self.elemType, matriceType)
     
-    def get_coordo_e_p(self, matriceType: MatriceType, elements: np.ndarray) -> np.ndarray:
+    def Get_coordo_e_p(self, matriceType: MatriceType, elements: np.ndarray) -> np.ndarray:
         """Renvoie les coordonnées des points d'intégration pour chaque element"""
 
-        N_scalaire = self.get_N_pg(matriceType)
+        N_scalaire = self.Get_N_pg(matriceType)
 
         # récupère les coordonnées des noeuds
         coordo = self.__coordoGlob
@@ -325,7 +325,7 @@ class GroupElem(ABC):
 
         return np.array(coordo_e_p)
 
-    def get_N_pg_rep(self, matriceType: MatriceType, repetition=1) -> np.ndarray:
+    def Get_N_pg_rep(self, matriceType: MatriceType, repetition=1) -> np.ndarray:
         """Fonctions de formes dans la base de réference
 
         Args:
@@ -345,7 +345,7 @@ class GroupElem(ABC):
         assert isinstance(repetition, int)
         assert repetition >= 1
 
-        N_pg = self.get_N_pg(matriceType)
+        N_pg = self.Get_N_pg(matriceType)
 
         if not isinstance(N_pg, np.ndarray): return
 
@@ -360,7 +360,7 @@ class GroupElem(ABC):
             
             return N_vect_pg
     
-    def get_dN_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_dN_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Derivé des fonctions de formes dans la base réele en sclaire\n
         [dN1,x dN2,x dNn,x\n
         dN1,y dN2,y dNn,y]\n        
@@ -369,17 +369,17 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_dN_e_pg.keys():
 
-            invF_e_pg = self.get_invF_e_pg(matriceType)
+            invF_e_pg = self.Get_invF_e_pg(matriceType)
 
-            dN_pg = self.get_dN_pg(matriceType)
+            dN_pg = self.Get_dN_pg(matriceType)
 
             # Derivé des fonctions de formes dans la base réele
-            dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
+            dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))            
             self.__dict_dN_e_pg[matriceType] = dN_e_pg
 
         return self.__dict_dN_e_pg[matriceType].copy()
 
-    def get_dNv_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_dNv_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Derivé des fonctions de formes de la poutre dans la base réele en sclaire\n
         [dNv1,x dNv2,x dNvn,x\n
         dNv1,y dNv2,y dNvn,y]\n
@@ -388,13 +388,13 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_dNv_e_pg.keys():
 
-            invF_e_pg = self.get_invF_e_pg(matriceType)
+            invF_e_pg = self.Get_invF_e_pg(matriceType)
 
-            dNv_pg = self.get_dNv_pg(matriceType)
+            dNv_pg = self.Get_dNv_pg(matriceType)
 
-            jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
+            jacobien_e_pg = self.Get_jacobien_e_pg(matriceType)
             Ne = jacobien_e_pg.shape[0]
-            pg = self.get_gauss(matriceType)
+            pg = self.Get_gauss(matriceType)
 
             # On créer la dimension sur les elements
             dNv_e_pg = dNv_pg[np.newaxis, :, 0, :].repeat(Ne,  axis=0)
@@ -411,7 +411,7 @@ class GroupElem(ABC):
 
         return self.__dict_dNv_e_pg[matriceType].copy()
 
-    def get_ddNv_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_ddNv_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Derivé des fonctions de formes de la poutre dans la base réele en sclaire\n
         [dNv1,xx dNv2,xx dNvn,xx\n
         dNv1,yy dNv2,yy dNvn,yy]\n
@@ -420,14 +420,14 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_ddNv_e_pg.keys():
 
-            invF_e_pg = self.get_invF_e_pg(matriceType)
+            invF_e_pg = self.Get_invF_e_pg(matriceType)
 
-            ddNv_pg = self.get_ddNv_pg(matriceType)
+            ddNv_pg = self.Get_ddNv_pg(matriceType)
 
-            jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
+            jacobien_e_pg = self.Get_jacobien_e_pg(matriceType)
             Ne = self.Ne
             nPe = self.nPe
-            pg = self.get_gauss(matriceType)
+            pg = self.Get_gauss(matriceType)
             
             # On récupère la longeur des poutres sur chaque element aux points d'intégrations
             # l = np.einsum('ep,p->', jacobien_e_pg, pg.poids, optimize='optimal')
@@ -443,7 +443,7 @@ class GroupElem(ABC):
 
         return self.__dict_ddNv_e_pg[matriceType].copy()
 
-    def get_ddN_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_ddN_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Derivé des fonctions de formes dans la base réele en sclaire\n
         [dN1,xx dN2,xx dNn,xx\n
         dN1,yy dN2,yy dNn,yy]\n
@@ -452,9 +452,9 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_ddN_e_pg.keys():
 
-            invF_e_pg = self.get_invF_e_pg(matriceType)
+            invF_e_pg = self.Get_invF_e_pg(matriceType)
 
-            ddN_pg = self.get_ddN_pg(matriceType)
+            ddN_pg = self.Get_ddN_pg(matriceType)
 
             # Derivé des fonctions de formes dans la base réele
             ddN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, ddN_pg, optimize='optimal'))
@@ -462,7 +462,7 @@ class GroupElem(ABC):
 
         return self.__dict_ddN_e_pg[matriceType].copy()
 
-    def get_B_dep_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_B_dep_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Derivé des fonctions de formes dans la base réele pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n
         exemple en 2D :\n
         [dN1,x 0 dN2,x 0 dNn,x 0\n
@@ -475,9 +475,9 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_B_dep_e_pg.keys():
 
-            dN_e_pg = self.get_dN_e_pg(matriceType)
+            dN_e_pg = self.Get_dN_e_pg(matriceType)
 
-            nPg = self.get_gauss(matriceType).nPg
+            nPg = self.Get_gauss(matriceType).nPg
             nPe = self.nPe
             dim = self.dim
             listnPe = np.arange(nPe)
@@ -519,7 +519,7 @@ class GroupElem(ABC):
         
         return self.__dict_B_dep_e_pg[matriceType].copy()
 
-    def get_leftDepPart(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_leftDepPart(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie la partie qui construit le therme de gauche de déplacement\n
         Ku_e = jacobien_e_pg * poid_pg * B_dep_e_pg' * c_e_pg * B_dep_e_pg\n
         
@@ -530,9 +530,9 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_leftDepPart.keys():
             
-            jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
-            poid_pg = self.get_gauss(matriceType).poids
-            B_dep_e_pg = self.get_B_dep_e_pg(matriceType)
+            jacobien_e_pg = self.Get_jacobien_e_pg(matriceType)
+            poid_pg = self.Get_gauss(matriceType).poids
+            B_dep_e_pg = self.Get_B_dep_e_pg(matriceType)
 
             leftDepPart = np.einsum('ep,p,epij->epji', jacobien_e_pg, poid_pg, B_dep_e_pg, optimize='optimal')
 
@@ -540,7 +540,7 @@ class GroupElem(ABC):
 
         return self.__dict_leftDepPart[matriceType].copy()
     
-    def get_phaseField_ReactionPart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_phaseField_ReactionPart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie la partie qui construit le therme de reaction\n
         ReactionPart_e_pg = jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg\n
         
@@ -551,9 +551,9 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_phaseField_ReactionPart_e_pg.keys():
 
-            jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
-            poid_pg = self.get_gauss(matriceType).poids
-            Nd_pg = self.get_N_pg_rep(matriceType, 1)
+            jacobien_e_pg = self.Get_jacobien_e_pg(matriceType)
+            poid_pg = self.Get_gauss(matriceType).poids
+            Nd_pg = self.Get_N_pg_rep(matriceType, 1)
 
             ReactionPart_e_pg = np.einsum('ep,p,pki,pkj->epij', jacobien_e_pg, poid_pg, Nd_pg, Nd_pg, optimize='optimal')
 
@@ -561,7 +561,7 @@ class GroupElem(ABC):
         
         return self.__dict_phaseField_ReactionPart_e_pg[matriceType].copy()
     
-    def get_phaseField_DiffusePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_phaseField_DiffusePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie la partie qui construit le therme de diffusion\n
         DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * Bd_e_pg\n
         
@@ -572,9 +572,9 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_phaseField_DiffusePart_e_pg.keys():
 
-            jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
-            poid_pg = self.get_gauss(matriceType).poids
-            Bd_e_pg = self.get_dN_e_pg(matriceType)
+            jacobien_e_pg = self.Get_jacobien_e_pg(matriceType)
+            poid_pg = self.Get_gauss(matriceType).poids
+            Bd_e_pg = self.Get_dN_e_pg(matriceType)
 
             DiffusePart_e_pg = np.einsum('ep,p,epki,epkj->epij', jacobien_e_pg, poid_pg, Bd_e_pg, Bd_e_pg, optimize='optimal')
 
@@ -582,7 +582,7 @@ class GroupElem(ABC):
         
         return self.__dict_phaseField_DiffusePart_e_pg[matriceType].copy()
 
-    def get_phaseField_SourcePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_phaseField_SourcePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie la partie qui construit le therme de source\n
         SourcePart_e_pg = jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'\n
         
@@ -593,9 +593,9 @@ class GroupElem(ABC):
 
         if matriceType not in self.__dict_phaseField_SourcePart_e_pg.keys():
 
-            jacobien_e_pg = self.get_jacobien_e_pg(matriceType)
-            poid_pg = self.get_gauss(matriceType).poids
-            Nd_pg = self.get_N_pg_rep(matriceType, 1)
+            jacobien_e_pg = self.Get_jacobien_e_pg(matriceType)
+            poid_pg = self.Get_gauss(matriceType).poids
+            Nd_pg = self.Get_N_pg_rep(matriceType, 1)
 
             SourcePart_e_pg = np.einsum('ep,p,pij->epji', jacobien_e_pg, poid_pg, Nd_pg, optimize='optimal') #le ji a son importance pour la transposé
 
@@ -603,7 +603,7 @@ class GroupElem(ABC):
         
         return self.__dict_phaseField_SourcePart_e_pg[matriceType].copy()
     
-    def __get_sysCoord_e(self):
+    def __Get_sysCoord_e(self):
         """Matrice de changement de base pour chaque element (Ne,3,3)"""
 
         coordo = self.coordoGlob
@@ -695,7 +695,7 @@ class GroupElem(ABC):
         iz, jz, kz]\n
         
         tel que coordo_e . sysCoordLocal_e -> coordonneés des noeuds dans la base de l'elements"""
-        return self.__get_sysCoord_e()
+        return self.__Get_sysCoord_e()
 
     @property
     def sysCoordLocal_e(self) -> np.ndarray:
@@ -707,7 +707,7 @@ class GroupElem(ABC):
         """Aire que représente les elements"""
         if self.dim == 1: return
         matriceType = MatriceType.rigi
-        aire = np.einsum('ep,p->', self.get_jacobien_e_pg(matriceType), self.get_gauss(matriceType).poids, optimize='optimal')
+        aire = np.einsum('ep,p->', self.Get_jacobien_e_pg(matriceType), self.Get_gauss(matriceType).poids, optimize='optimal')
         return float(aire)
 
     @property
@@ -717,10 +717,10 @@ class GroupElem(ABC):
 
         matriceType = MatriceType.masse
 
-        coordo_e_p = self.get_coordo_e_p(matriceType, self.elementsIndex)
+        coordo_e_p = self.Get_coordo_e_p(matriceType, self.elementsIndex)
         x = coordo_e_p[self.elementsID, :, 0]
 
-        Ix = np.einsum('ep,p,ep->', self.get_jacobien_e_pg(matriceType), self.get_gauss(matriceType).poids, x**2, optimize='optimal')
+        Ix = np.einsum('ep,p,ep->', self.Get_jacobien_e_pg(matriceType), self.Get_gauss(matriceType).poids, x**2, optimize='optimal')
         return float(Ix)
 
     @property
@@ -730,10 +730,10 @@ class GroupElem(ABC):
 
         matriceType = MatriceType.masse
 
-        coordo_e_p = self.get_coordo_e_p(matriceType, self.elementsIndex)
+        coordo_e_p = self.Get_coordo_e_p(matriceType, self.elementsIndex)
         y = coordo_e_p[self.elementsID, :, 1]
 
-        Iy = np.einsum('ep,p,ep->', self.get_jacobien_e_pg(matriceType), self.get_gauss(matriceType).poids, y**2, optimize='optimal')
+        Iy = np.einsum('ep,p,ep->', self.Get_jacobien_e_pg(matriceType), self.Get_gauss(matriceType).poids, y**2, optimize='optimal')
         return float(Iy)
 
     @property
@@ -743,11 +743,11 @@ class GroupElem(ABC):
 
         matriceType = MatriceType.masse
 
-        coordo_e_p = self.get_coordo_e_p(matriceType, self.elementsIndex)
+        coordo_e_p = self.Get_coordo_e_p(matriceType, self.elementsIndex)
         x = coordo_e_p[self.elementsID, :, 0]
         y = coordo_e_p[self.elementsID, :, 1]
 
-        Ixy = np.einsum('ep,p,ep,ep->', self.get_jacobien_e_pg(matriceType), self.get_gauss(matriceType).poids, x, y, optimize='optimal')
+        Ixy = np.einsum('ep,p,ep,ep->', self.Get_jacobien_e_pg(matriceType), self.Get_gauss(matriceType).poids, x, y, optimize='optimal')
         return float(Ixy)
 
     @property
@@ -755,10 +755,10 @@ class GroupElem(ABC):
         """Volume que représente les elements"""
         if self.dim != 3: return
         matriceType = MatriceType.masse
-        volume = np.einsum('ep,p->', self.get_jacobien_e_pg(matriceType), self.get_gauss(matriceType).poids, optimize='optimal')
+        volume = np.einsum('ep,p->', self.Get_jacobien_e_pg(matriceType), self.Get_gauss(matriceType).poids, optimize='optimal')
         return float(volume)        
 
-    def get_F_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_F_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie la matrice jacobienne\n
         Cette matrice décrit les variations des axes de l'element de reference a l'element reel\n
         Permet la transformation de l'element de référence à l'element réel avec invF_e_pg"""
@@ -779,7 +779,7 @@ class GroupElem(ABC):
 
             nodesBaseDim = nodesBase[:,:,range(dim)]
 
-            dN_pg = self.get_dN_pg(matriceType)
+            dN_pg = self.Get_dN_pg(matriceType)
 
             F_e_pg = np.array(np.einsum('pik,ekj->epij', dN_pg, nodesBaseDim, optimize='optimal'))
             
@@ -787,14 +787,14 @@ class GroupElem(ABC):
 
         return self.__dict_F_e_pg[matriceType].copy()
     
-    def get_jacobien_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_jacobien_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie les jacobiens\n
         variation de taille (aire ou volume) entre l'element de référence et l'element réel
         """
         if self.dim == 0: return
         if matriceType not in self.__dict_jacobien_e_pg.keys():
 
-            F_e_pg = self.get_F_e_pg(matriceType)
+            F_e_pg = self.Get_F_e_pg(matriceType)
 
             if self.dim == 1:
                 Ne = F_e_pg.shape[0]
@@ -822,7 +822,7 @@ class GroupElem(ABC):
 
         return self.__dict_jacobien_e_pg[matriceType].copy()
     
-    def get_invF_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_invF_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie l'inverse de la matrice jacobienne\n
         est utlisée pour obtenir la derivée des fonctions de formes dN_e_pg dans l'element réeel\n
         dN_e_pg = invF_e_pg . dN_pg
@@ -830,7 +830,7 @@ class GroupElem(ABC):
         if self.dim == 0: return
         if matriceType not in self.__dict_invF_e_pg.keys():
 
-            F_e_pg = self.get_F_e_pg(matriceType)
+            F_e_pg = self.Get_F_e_pg(matriceType)
 
             if self.dim == 1:
                 invF_e_pg = 1/F_e_pg
@@ -842,7 +842,7 @@ class GroupElem(ABC):
                 nPg = F_e_pg.shape[1]
                 invF_e_pg = np.zeros((Ne,nPg,2,2))
 
-                det = self.get_jacobien_e_pg(matriceType)
+                det = self.Get_jacobien_e_pg(matriceType)
 
                 alpha = F_e_pg[:,:,0,0]
                 beta = F_e_pg[:,:,0,1]
@@ -859,7 +859,7 @@ class GroupElem(ABC):
                 # optimisé tel que invF_e_pg = 1/det * Adj(F_e_pg)
                 # https://fr.wikihow.com/calculer-l'inverse-d'une-matrice-3x3
 
-                det = self.get_jacobien_e_pg(matriceType)
+                det = self.Get_jacobien_e_pg(matriceType)
 
                 FT_e_pg = np.einsum('epij->epji', F_e_pg, optimize='optimal')
 
@@ -926,14 +926,14 @@ class GroupElem(ABC):
             fonctions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
         return fonctions
 
-    def get_N_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_N_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Fonctions de formes vectorielles (pg), dans la base (ksi, eta ...)\n
         [N1, N2, . . . ,Nn]
         """
         if self.dim == 0: return
 
         Ntild = self.Ntild()
-        gauss = self.get_gauss(matriceType)
+        gauss = self.Get_gauss(matriceType)
         N_pg = GroupElem.Evalue_Fonctions_Gauss(Ntild, gauss)
 
         return N_pg
@@ -946,7 +946,7 @@ class GroupElem(ABC):
         """
         return self.__Fonctions_Ordre(1)
     
-    def get_dN_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_dN_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Dérivées des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...) \n
         [Ni,ksi . . . Nn,ksi\n
         Ni,eta . . . Nn,eta]
@@ -955,7 +955,7 @@ class GroupElem(ABC):
 
         dNtild = self.dNtild()
 
-        gauss = self.get_gauss(matriceType)
+        gauss = self.Get_gauss(matriceType)
         dN_pg = GroupElem.Evalue_Fonctions_Gauss(dNtild, gauss)
 
         return dN_pg    
@@ -968,7 +968,7 @@ class GroupElem(ABC):
         """
         return self.__Fonctions_Ordre(2)
 
-    def get_ddN_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_ddN_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Dérivées segonde des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...) \n
         [Ni,ksi ksi . . . Nn,ksi ksi\n
         Ni,eta eta . . . Nn,eta eta]
@@ -977,7 +977,7 @@ class GroupElem(ABC):
 
         ddNtild = self.ddNtild()
 
-        gauss = self.get_gauss(matriceType)
+        gauss = self.Get_gauss(matriceType)
         ddN_pg = GroupElem.Evalue_Fonctions_Gauss(ddNtild, gauss)
 
         return ddN_pg
@@ -990,7 +990,7 @@ class GroupElem(ABC):
         """
         return self.__Fonctions_Ordre(3)
 
-    def get_dddN_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_dddN_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Dérivées 3 des fonctions de formes dans l'element de référence (pg, dim, nPe), dans la base (ksi, eta ...) \n
         [Ni,ksi ksi ksi . . . Nn,ksi ksi ksi\n
         Ni,eta eta eta . . . Nn,eta eta eta]
@@ -999,7 +999,7 @@ class GroupElem(ABC):
 
         dddNtild = self.dddNtild()
 
-        gauss = self.get_gauss(matriceType)
+        gauss = self.Get_gauss(matriceType)
         dddN_pg = GroupElem.Evalue_Fonctions_Gauss(dddNtild, gauss)
 
         return dddN_pg
@@ -1022,7 +1022,7 @@ class GroupElem(ABC):
 
         ddddNtild = self.ddddNtild()
 
-        gauss = self.get_gauss(matriceType)
+        gauss = self.Get_gauss(matriceType)
         ddddN_pg = GroupElem.Evalue_Fonctions_Gauss(ddddNtild, gauss)
 
         return ddddN_pg
@@ -1036,7 +1036,7 @@ class GroupElem(ABC):
         """
         pass
 
-    def get_Nv_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_Nv_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
         [phi_i psi_i . . . phi_n psi_n]
         """
@@ -1044,7 +1044,7 @@ class GroupElem(ABC):
 
         Nvtild = self.Nvtild()
 
-        gauss = self.get_gauss(matriceType)
+        gauss = self.Get_gauss(matriceType)
         Nv_pg = GroupElem.Evalue_Fonctions_Gauss(Nvtild, gauss)
 
         return Nv_pg
@@ -1056,7 +1056,7 @@ class GroupElem(ABC):
         """
         pass
 
-    def get_dNv_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_dNv_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Dérivées des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
         [phi_i,x psi_i,x . . . phi_n,x psi_n,x]
         """
@@ -1064,7 +1064,7 @@ class GroupElem(ABC):
 
         dNvtild = self.dNvtild()
 
-        gauss = self.get_gauss(matriceType)
+        gauss = self.Get_gauss(matriceType)
         dNv_pg = GroupElem.Evalue_Fonctions_Gauss(dNvtild, gauss)
 
         return dNv_pg
@@ -1076,7 +1076,7 @@ class GroupElem(ABC):
         """
         return 
     
-    def get_ddNv_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_ddNv_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Dérivées 2nd des fonctions de formes dans l'element poutre en flexion (pg, dim, nPe), dans la base (ksi) \n
         [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]
         """
@@ -1084,7 +1084,7 @@ class GroupElem(ABC):
 
         ddNvtild = self.ddNvtild()
 
-        gauss = self.get_gauss(matriceType)
+        gauss = self.Get_gauss(matriceType)
         ddNv_pg = GroupElem.Evalue_Fonctions_Gauss(ddNvtild, gauss)
 
         return ddNv_pg
@@ -1330,13 +1330,167 @@ class GroupElem(ABC):
         
         return sol_e
 
-    @property
-    @abstractmethod
+    def Get_Nodes_Elements_CoordoInElemRef(self, coordinates: np.ndarray, elements=None):
+        """Fonction qui permet de renvoyer les noeuds dans les elements, la connectivité et les coordonnées (ksi, eta) des points.
+        Depuis la la matrice de coordonnée coordinates\n
+        (e,n)"""
+
+        # TODO est ce que le principe fonctionne si la face est orientée dans l'espace ? inDim = 3 ?
+
+        if self.dim != 2: return
+
+        if elements == None:
+            elements = np.arange(self.Ne, dtype=int)
+
+        assert coordinates.shape[1] == 3, "Doit être de dimension (n, 3)"
+
+        return self.__Get_Nodes_Elements_CoordoInElemRef_2D(coordinates, elements)
+
+    def __Get_Nodes_Elements_CoordoInElemRef_2D(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
+        """Cette fonction permet de localiser les coordonnées dans les éléments.
+        On renvoie les coordonnées détectées, la matrice de connectivité entre élément et coordonnées et les coordonnées de ces noeuds dans les éléments de référence pour pouvoir évaluer les fonctions de formes"""
+
+
+        # coordonnées du groupe d'élement
+        inDim = self.inDim        
+        coordoMesh = self.coordo
+        indexesFace = self.indexesFaces()[:-1]
+        connectMesh = self.connect_e[:, indexesFace]
+        coordConnect = coordoMesh[connectMesh]
+        invF_e_pg = self.Get_invF_e_pg("rigi")
+
+        # Permet de transformer connect ex : [0,1,2,3] -> [3,0,1,2]
+        nPe = len(indexesFace)
+        indexReord = np.append(np.arange(1, nPe), 0)
+
+        vecti_e_b = coordoMesh[connectMesh[:, indexReord]] - coordoMesh[connectMesh]
+        vectj_e = coordoMesh[connectMesh[:, -1]] - coordoMesh[connectMesh[:, 0]]
+        vectn_e = np.cross(vecti_e_b[:,0], vectj_e, 1, 1)
+
+        coordinates_n_b = coordinates_n[:, np.newaxis].repeat(nPe, 1)
+
+        # Detecte si les coordonnées proviennent d'une grille
+        repX = np.unique(coordinates_n[:,0], return_counts=True)[1]; stdX = np.std(repX)
+        repY = np.unique(coordinates_n[:,1], return_counts=True)[1]; stdY = np.std(repY)
+        repZ = np.unique(coordinates_n[:,2], return_counts=True)[1]; stdZ = np.std(repZ)        
+
+        if coordinates_n.dtype==int and stdX == 0 and stdY == 0 and stdZ == 0:
+            useGrid = True
+            # ici on recupère le nombre de couche en Y et en X
+            nY = int(np.mean(repX))
+            nX = int(np.mean(repY))
+        else:
+            useGrid = False
+
+        def Get_coordoInZoneElem(coord: np.ndarray) -> np.ndarray:
+            
+            # Récupération des indexes de coordinates_n qui sont dans la zone des coordonnées renseignées
+
+            if useGrid:
+
+                xe = np.arange(np.floor(coord[:,0].min()), np.ceil(coord[:,0].max()), dtype=int)
+                ye = np.arange(np.floor(coord[:,1].min()),np.ceil(coord[:,1].max()), dtype=int)
+                Xe, Ye = np.meshgrid(xe,ye)
+                
+                idx = np.ravel_multi_index(np.concatenate(([Ye.ravel()],[Xe.ravel()])), (nY, nX))
+            
+            else:
+
+                idx = np.where((coordinates_n[:,0] >= np.min(coord[:,0])) &
+                                (coordinates_n[:,0] <= np.max(coord[:,0])) &
+                                (coordinates_n[:,1] >= np.min(coord[:,1])) &
+                                (coordinates_n[:,1] <= np.max(coord[:,1])) &
+                                (coordinates_n[:,2] >= np.min(coord[:,2])) &
+                                (coordinates_n[:,2] <= np.max(coord[:,2])))[0]               
+
+            return idx
+
+        # import matplotlib.pyplot as plt
+        # ax = plt.gca()
+        
+        # matrice de connection qui contient les noeuds utilisés par les élements
+        connect_e_n = []
+        # coordonnées des noeuds dans la base de référence de l'element
+        coordo_n = np.zeros_like(coordinates_n[:,:self.inDim], dtype=float)
+        # noeuds indentifiés
+        nodes = []        
+
+        for e in elements_e:
+            
+            # Récupération des coordonnées des noeuds de l'element
+            coordoZone = coordConnect[e]
+
+            # Récupère les indexes dans coordinates_n qui sont dans les bornes de l'element
+            idxAroundElem = Get_coordoInZoneElem(coordoZone)
+
+            # ax.scatter(coordinates_n_b[idxAroundElem,0,0], coordinates_n_b[idxAroundElem,0,1], c="orange")
+            
+            if inDim == 2:
+
+                dx = vecti_e_b[e,:,0]
+                dy = vecti_e_b[e,:,1]
+
+                xn, yn = coordoZone[:,0], coordoZone[:,1]
+
+                xc, yc = np.mean(xn), np.mean(yn)
+
+                a = dy * (coordinates_n_b[idxAroundElem,:,0] - xn) - dx * (coordinates_n_b[idxAroundElem,:,1] - yn)
+                b = dy * (xc - xn) - dx * (yc - yn)
+
+                test_n_b = a * b >= -1e-12
+
+            else:
+            
+                # Vecteurs i pour les bords
+                vecti_b = vecti_e_b[e]
+
+                # Vecteur normal à la face
+                vectn = vectn_e[e]
+
+                # Fonction qui construit les vecteurs v
+                vectv_n_b = coordinates_n_b[idxAroundElem] - coordConnect[e]
+
+                cross_n_b = np.cross(vecti_b, vectv_n_b, 1, 2)
+
+                # Réalise le produit vectoriel pour tourver les noeuds à gauche des bords i            
+                test_n_b = cross_n_b @ vectn >= -1e-12            
+
+            filtreNoeuds = np.sum(test_n_b, 1)
+
+            # Renvoie l'indexe des noeuds autour de l'element qui respecte toutes les conditions
+            idxInElem = np.where(filtreNoeuds == nPe)[0]
+
+            # noeuds qui respectent toutes les conditions
+            nodesInElement = idxAroundElem[idxInElem]
+
+            # ax.scatter(coordinates_n_b[nodesInElement, 0, 0], coordinates_n_b[nodesInElement, 0, 1], c="red")
+
+            # coordonnées de ces noeuds dans l'element dans la base reel
+            nodesCoordinatesInElem = coordinates_n_b[nodesInElement, 0] - coordConnect[e,0]
+            # coordonnées de ces noeuds dans l'element dans la base de l'element            
+            nodesCoordinatesInElemRef = nodesCoordinatesInElem[:,:self.inDim] @ invF_e_pg[e,0]
+
+            connect_e_n.append(nodesInElement)
+
+            coordo_n[nodesInElement,:] = nodesCoordinatesInElemRef
+
+            nodes.extend(nodesInElement)
+        
+        connect_e_n = np.array(connect_e_n, dtype=object)
+
+        nodes, count = np.unique(nodes, return_counts=True)
+
+        assert np.max(count) == 1, "Un noeud ne peut pas être dans plusieurs elements à la fois"
+
+        return nodes, connect_e_n, coordo_n
+
+
+    @abstractproperty
     def indexesTriangles(self) -> list[int]:
         """Liste d'indexes pour former les triangles d'un element qui seront utilisées pour la fonction trisurf en 2D"""
         pass
     
-    def get_dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
+    def Get_dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
         """Transforme la matrice de connectivité pour la passer dans la fonction trisurf en 2D\n
         Par exemple pour un quadrangle on construit deux triangles
         pour un triangle à 6 noeuds on construit 4 triangles\n
@@ -1345,7 +1499,7 @@ class GroupElem(ABC):
         """
         assert self.dim == 2
 
-        indexes = self.indexesTriangles()
+        indexes = self.indexesTriangles
 
         dict_connect_triangle = {}
         dict_connect_triangle[self.elemType] = np.array(self.__connect[:, indexes]).reshape(-1,3)
@@ -1354,13 +1508,12 @@ class GroupElem(ABC):
 
         return dict_connect_triangle
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def indexesFaces(self) -> list[int]:
         """Liste d'indexes pour former les faces qui constituent l'element"""
         pass
     
-    def get_dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:
+    def Get_dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:
         """Récupère les identifiants des noeud constuisant les faces et renvoie les faces pour chaque types d'elements. Dictionnaire car un element peut avoir différents type d'elements.\n
         PRISM6 -> QUAD4 et TRI3
 
@@ -1369,7 +1522,7 @@ class GroupElem(ABC):
         list de list
             Renvoie une liste de face
         """
-        indexesFaces = self.indexesFaces()
+        indexesFaces = self.indexesFaces
         dict_connect_faces = {self.elemType: self.__connect[:, indexesFaces]}
         return dict_connect_faces
     
@@ -1724,9 +1877,11 @@ class POINT(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0]
 
@@ -1765,9 +1920,11 @@ class SEG2(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
-
+    
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,1]
 
@@ -1842,9 +1999,11 @@ class SEG3(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
-
+    
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,2,1]
 
@@ -1934,9 +2093,11 @@ class SEG4(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0, 2, 3, 1]
 
@@ -2043,9 +2204,11 @@ class SEG5(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0, 2, 3, 4, 1]
 
@@ -2177,9 +2340,11 @@ class TRI3(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return [0,1,2]
 
+    @property
     def indexesFaces(self) -> list[int]:
         return TRI3._indexesFaces
 
@@ -2237,9 +2402,11 @@ class TRI6(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return [0,3,5,3,1,4,5,4,2,3,4,5]
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,3,1,4,2,5,0]
 
@@ -2312,9 +2479,11 @@ class TRI10(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return list(np.array([10,1,4,10,4,5,10,5,6,10,6,7,10,7,8,10,8,9,10,9,1,2,5,6,3,7,8])-1)
     
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,3,4,1,5,6,2,7,8,0]
 
@@ -2480,9 +2649,11 @@ class TRI15(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return list(np.array([1,4,13,4,5,14,5,6,14,6,7,14,2,6,7,4,13,14,1,12,13,11,12,13,11,13,15,13,14,15,8,14,15,7,8,14,10,11,15,8,9,15,9,10,15,3,9,10])-1)
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,3,4,5,1,6,7,8,2,9,10,11,0]
 
@@ -2751,9 +2922,11 @@ class QUAD4(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return [0,1,3,1,2,3]
 
+    @property
     def indexesFaces(self) -> list[int]:
         return QUAD4._indexesFaces
 
@@ -2813,9 +2986,11 @@ class QUAD8(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,4,1,5,2,6,3,7,0]
 
@@ -2903,9 +3078,11 @@ class TETRA4(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,1,2,0,1,3,0,2,3,1,2,3]
 
@@ -2973,9 +3150,11 @@ class TETRA10(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,4,1,5,2,6,0,4,1,9,3,7,0,6,2,8,3,7,1,5,2,8,3,9]
 
@@ -3064,9 +3243,11 @@ class HEXA8(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
 
+    @property
     def indexesFaces(self) -> list[int]:
         return [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]
 
@@ -3142,13 +3323,15 @@ class PRISM6(GroupElem):
 
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
+    @property
     def indexesTriangles(self) -> list[int]:
         return super().indexesTriangles
 
+    @property
     def indexesFaces(self) -> list[int]:
         return super().indexesFaces
 
-    def get_dict_connect_Faces(self) -> dict[np.ndarray]:
+    def Get_dict_connect_Faces(self) -> dict[np.ndarray]:
         dict_connect_Faces = {
             ElemType.QUAD4: self.connect_e[:, QUAD4._indexesFaces],
             ElemType.TRI3: self.connect_e[:, TRI3._indexesFaces]

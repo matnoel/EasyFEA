@@ -969,7 +969,7 @@ class Beam_Model(IModel):
         list_D = self.__list_D
         # Pour chaque poutre, on va construire la loi de comportement
         Ne = groupElem.Ne
-        nPg = groupElem.get_gauss(matriceType).nPg
+        nPg = groupElem.Get_gauss(matriceType).nPg
         D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))
         for poutre, D in zip(listePoutres, list_D):
             # recupère les element

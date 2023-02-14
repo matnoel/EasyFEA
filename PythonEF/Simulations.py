@@ -1082,14 +1082,14 @@ class Simu(ABC):
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
             matriceType = MatriceType.masse
-            coordo_e_p = groupElem.get_coordo_e_p(matriceType,elements)
+            coordo_e_p = groupElem.Get_coordo_e_p(matriceType,elements)
             nPg = coordo_e_p.shape[1]
 
-            N_pg = groupElem.get_N_pg(matriceType)
+            N_pg = groupElem.Get_N_pg(matriceType)
 
             # objets d'integration
-            jacobien_e_pg = groupElem.get_jacobien_e_pg(matriceType)[elements]
-            gauss = groupElem.get_gauss(matriceType)
+            jacobien_e_pg = groupElem.Get_jacobien_e_pg(matriceType)[elements]
+            gauss = groupElem.Get_gauss(matriceType)
             poid_pg = gauss.poids
 
             # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
@@ -1292,7 +1292,7 @@ class Simu(ABC):
 
             valeurs_e = resultat_e[:, c]
 
-            connect_n_e = self.__mesh.connect_n_e()
+            connect_n_e = self.__mesh.Get_connect_n_e()
             nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(self.__mesh.Nn,1)
             valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.__mesh.Ne,1))
             valeurs_n = valeurs_n_e/nombreApparition
@@ -3319,7 +3319,7 @@ class Simu_Beam(Simu):
         tic = Tic()
 
         nbddl_n = self.beamModel.nbddl_n
-        assemblyBeam_e = self.mesh.groupElem.get_assemblyBeam_e(nbddl_n)
+        assemblyBeam_e = self.mesh.groupElem.Get_assemblyBeam_e(nbddl_n)
         sol_e = sol[assemblyBeam_e]
         B_beam_e_pg = self.__Get_B_beam_e_pg(matriceType)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
