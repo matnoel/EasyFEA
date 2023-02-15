@@ -453,7 +453,8 @@ class Interface_Gmsh:
 
         gmsh.open(fichier)
 
-        self.__Set_PhysicalGroups()
+        if setPhysicalGroups:
+            self.__Set_PhysicalGroups()
 
         return self.__Recuperation_Maillage(coef)
 
