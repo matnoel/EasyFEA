@@ -430,7 +430,7 @@ class Interface_Gmsh:
             minField = gmsh.model.mesh.field.add("Min")
             gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
 
-    def Mesh_Import_msh(self, fichier: str, coef=1):
+    def Mesh_Import_msh(self, fichier: str, coef=1, setPhysicalGroups=False):
         """Importation d'un fichier .msh
 
         Parameters
@@ -439,6 +439,8 @@ class Interface_Gmsh:
             fichier (.msh) que gmsh va charger pour creer le maillage
         coef : int, optional
             coef appliqué aux coordonnées des noeuds, by default 1
+        setPhysicalGroups : bool, optional
+            récupération des entités pour créer des groupes physiques d'éléments, by default False
 
         Returns
         -------
@@ -1135,6 +1137,8 @@ class Interface_Gmsh:
         Mesh
             Maillage construit
         """
+
+        # TODO rendre cette classe accessible
 
         # Ancienne méthode qui beugait
         # Le beug a été réglé car je norganisait pas bien les noeuds lors de la création 
