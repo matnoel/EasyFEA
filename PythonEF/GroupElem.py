@@ -1478,9 +1478,7 @@ class GroupElem(ABC):
         
         connect_e_n = np.array(connect_e_n, dtype=object)
 
-        nodes, count = np.unique(nodes, return_counts=True)
-
-        assert np.max(count) == 1, "Un noeud ne peut pas être dans plusieurs elements à la fois"
+        nodes, count = np.unique(nodes, return_counts=True)        
 
         return nodes, connect_e_n, coordo_n
 
