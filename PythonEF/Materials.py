@@ -337,8 +337,7 @@ class Elas_Isot(Displacement_Model):
     def _Update(self):        
         C, S = self.__Comportement()
         self.C = C
-        self.S = S
-        self.Need_Update(False)
+        self.S = S        
 
     @property
     def resume(self) -> str:
@@ -770,8 +769,6 @@ class Elas_Anisot(Displacement_Model):
 
         self.C = C_mandelP
         self.S = S_mandelP
-        
-        self.Need_Update(False)
     
     def __Comportement(self, C: np.ndarray, useVoigtNotation: bool):
 
