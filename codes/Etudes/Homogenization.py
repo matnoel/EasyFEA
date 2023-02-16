@@ -158,7 +158,7 @@ def Simulation(simu: Simulations.Simu, title=""):
 
     simu.Bc_Init()
 
-    simu.Matrices_Need_Update()
+    simu.Need_Update()
 
     simu.add_dirichlet(simu.mesh.Nodes_Tag(['L4']), [0,0], ['x', 'y'])
     simu.add_surfLoad(simu.mesh.Nodes_Tag(['L2']), [-load/(b*h)], ['y'])
@@ -173,7 +173,7 @@ def Simulation(simu: Simulations.Simu, title=""):
 
 Simulation(simuInclusions, "inclusions")
 Simulation(simu, "non hom")
-comp.Update(C_hom, False)
+comp._Update(C_hom, False)
 Simulation(simu, "hom")
 
 # ax = Affichage.Plot_Result(simu, "uy")[1]

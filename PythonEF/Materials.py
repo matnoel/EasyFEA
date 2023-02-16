@@ -20,18 +20,8 @@ class ModelType(str, Enum):
     beam = "beam"
 
 class IModel(ABC):
-    """Interface d'une modèle
-    @abstractmethod
-    def modelType(self) -> ModelType:
-
-    @abstractmethod
-    def dim(self) -> int:
-
-    @abstractmethod
-    def epaisseur(self) -> float:
-
-    @abstractmethod
-    def resume(self) -> str:"""
+    """Interface d'un modèle
+    """
 
     @abstractproperty
     def modelType(self) -> ModelType:
@@ -46,7 +36,7 @@ class IModel(ABC):
     @abstractproperty
     def epaisseur(self) -> float:
         """epaisseur à utiliser dans le modèle"""
-        return 1
+        pass
 
     @abstractproperty
     def resume(self) -> str:
@@ -67,8 +57,16 @@ class IModel(ABC):
     def useNumba(self, value: bool):
         self.__useNumba = value
 
-class Displacement_Model(IModel):
+    @property
+    def needUpdate(self) -> bool:
+        """Le model à besoin d'être mis à jour"""
+        return self.__needUpdate
 
+    def Need_Update(self, value=True):
+        """Renseigne si le model à besoin d'être mis à jour"""
+        self.__needUpdate = value    
+
+class Displacement_Model(IModel):
     """Classe des lois de comportements élastiques
     (Elas_isot, Elas_IsotTrans, Elas_Anisot ...)
     """
@@ -84,7 +82,7 @@ class Displacement_Model(IModel):
         if self.dim == 2:
             self.__simplification = "CP" if self.contraintesPlanes else "DP"
         else:
-            self.__simplification = "3D"
+            self.__simplification = "3D"        
 
     @property
     def modelType(self) -> ModelType:
@@ -112,7 +110,7 @@ class Displacement_Model(IModel):
         return self.__simplification
 
     @abstractmethod
-    def Update(self):
+    def _Update(self):
         """Mets à jour la loi de comportement C et S"""
         pass
     
@@ -205,7 +203,10 @@ class Displacement_Model(IModel):
         """Loi de comportement pour la loi de Lamé en Kelvin Mandel\n
         En 2D : C -> C : Epsilon = Sigma [Sxx, Syy, racine(2)*Sxy]\n
         En 3D : C -> C : Epsilon = Sigma [Sxx, Syy, Szz, racine(2)*Syz, racine(2)*Sxz, racine(2)*Sxy]
-        """        
+        """
+        if self.needUpdate:
+            self._Update()
+            self.Need_Update(False)
         return self.__C.copy()
 
     @C.setter
@@ -218,6 +219,9 @@ class Displacement_Model(IModel):
         En 2D : S -> S : Sigma = Epsilon [Exx, Eyy, racine(2)*Exy]\n
         En 3D : S -> S : Sigma = Epsilon [Exx, Eyy, Ezz, racine(2)*Eyz, racine(2)*Exz, racine(2)*Exy]
         """
+        if self.needUpdate:
+            self._Update()
+            self.Need_Update(False)
         return self.__S.copy()
     
     @S.setter
@@ -295,9 +299,7 @@ class Displacement_Model(IModel):
         
         return matrice_P
 
-class Elas_Isot(Displacement_Model):
-
-    
+class Elas_Isot(Displacement_Model):    
 
     def __init__(self, dim: int, E=210000.0, v=0.3, contraintesPlanes=True, epaisseur=1.0):
         """Creer la matrice de comportement d'un matériau : Elastique isotrope
@@ -326,16 +328,17 @@ class Elas_Isot(Displacement_Model):
 
         Displacement_Model.__init__(self, dim, epaisseur)
 
-        self.Update()
+        self._Update()
 
     @property
     def contraintesPlanes(self) -> bool:
         return self.__contraintesPlanes
 
-    def Update(self):        
+    def _Update(self):        
         C, S = self.__Comportement()
         self.C = C
         self.S = S
+        self.Need_Update(False)
 
     @property
     def resume(self) -> str:
@@ -353,6 +356,7 @@ class Elas_Isot(Displacement_Model):
     @E.setter
     def E(self, value: float):
         assert value > 0.0, "Le module élastique doit être > 0 !"
+        self.Need_Update()
         self.__E = value
 
     @property
@@ -363,6 +367,7 @@ class Elas_Isot(Displacement_Model):
     @v.setter
     def v(self, value: float):
         assert value > -1.0 and value < 0.5, "Le coef de poisson doit être compris entre ]-1;0.5["
+        self.Need_Update()
         self.__v = value
 
     def get_lambda(self):
@@ -490,7 +495,7 @@ class Elas_IsotTrans(Displacement_Model):
 
         Displacement_Model.__init__(self, dim, epaisseur)
 
-        self.Update()
+        self._Update()
 
     @property
     def contraintesPlanes(self) -> bool:
@@ -514,6 +519,7 @@ class Elas_IsotTrans(Displacement_Model):
     @El.setter
     def El(self, value: float):
         assert value > 0.0, "Doit être > 0"
+        self.Need_Update()
         self.__El = value
 
     @property
@@ -524,6 +530,7 @@ class Elas_IsotTrans(Displacement_Model):
     @Et.setter
     def Et(self, value: float):
         assert value > 0.0, "Doit être > 0"
+        self.Need_Update()
         self.__Et = value
 
     @property
@@ -534,6 +541,7 @@ class Elas_IsotTrans(Displacement_Model):
     @Gl.setter
     def Gl(self, value: float):
         assert value > 0.0, "Doit être > 0"
+        self.Need_Update()
         self.__Gl = value
 
     @property
@@ -547,6 +555,7 @@ class Elas_IsotTrans(Displacement_Model):
         # -1<vl<0.5
         # Regarder torquato 328
         assert value > -1.0 and value < 0.5, f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
+        self.Need_Update()
         self.__vl = value
     
     @property
@@ -560,6 +569,7 @@ class Elas_IsotTrans(Displacement_Model):
         # -1<vl<0.5
         # Regarder torquato 328
         assert value > -1.0 and value < 0.5, f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
+        self.Need_Update()
         self.__vt = value
 
     @property
@@ -573,7 +583,7 @@ class Elas_IsotTrans(Displacement_Model):
 
         return kt
 
-    def Update(self):
+    def _Update(self):
         axis_l, axis_t = self.__axis1, self.__axis2
         P = self.get_P(axis_1=axis_l, axis_2=axis_t)
 
@@ -741,9 +751,9 @@ class Elas_Anisot(Displacement_Model):
 
         Displacement_Model.__init__(self, dim, epaisseur)
 
-        self.Update(C, useVoigtNotation)
+        self._Update(C, useVoigtNotation)
 
-    def Update(self, C: np.ndarray, useVoigtNotation=True):
+    def _Update(self, C: np.ndarray, useVoigtNotation=True):
         """Mets à jour la loi de comportement C et S
 
         Parameters
@@ -760,8 +770,10 @@ class Elas_Anisot(Displacement_Model):
 
         self.C = C_mandelP
         self.S = S_mandelP
+        
+        self.Need_Update(False)
     
-    def __Comportement(self, C: np.array, useVoigtNotation: bool):
+    def __Comportement(self, C: np.ndarray, useVoigtNotation: bool):
 
         dim = self.__dim
 
@@ -2329,6 +2341,8 @@ class Thermal_Model(IModel):
         
         assert epaisseur > 0, "Doit être supérieur à 0"
         self.__epaisseur = epaisseur
+
+        self.Need_Update()
 
     @property
     def k(self) -> float:

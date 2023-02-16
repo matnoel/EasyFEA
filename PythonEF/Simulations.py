@@ -246,7 +246,7 @@ class Simu(ABC):
         # Conditions Limites
         self.Bc_Init()
 
-        self.Matrices_Need_Update()
+        self.Need_Update()
 
     @property
     def model(self) -> IModel:
@@ -381,7 +381,7 @@ class Simu(ABC):
             self.__mesh = mesh
 
             # le maillage change, il faut donc reconstruire les matrices
-            self.Matrices_Need_Update()
+            self.Need_Update()
 
     @property
     def dim(self) -> int:
@@ -416,20 +416,16 @@ class Simu(ABC):
         """Met à jour le maillage à l'index renseigné"""
         indexMesh = self._results[index]["indexMesh"]
         self.__mesh = self.__listMesh[indexMesh]
-        self.Matrices_Need_Update()
+        self.Need_Update()
 
     @property
-    def matricesUpdated(self) -> bool:
-        """Les matrices de la simulation sont à reconstruire"""
+    def needUpdate(self) -> bool:
+        """La simulation à besoin de reconstruire ces matrices K, C et M"""
         return self.__matricesUpdated
 
-    def Matrices_Need_Update(self):
+    def Need_Update(self, value=True):
         """Renseigne le fait que la simulation à besoin de reconstruire ces matrices K, C et M"""
-        self.__matricesUpdated = False
-
-    def Matrices_Updtated(self):
-        """Les matrices K, C et M ont été reconstruites"""
-        self.__matricesUpdated = True  
+        self.__matricesUpdated = value 
 
     # ================================================ Solveur ================================================
 
@@ -489,7 +485,7 @@ class Simu(ABC):
         """Resolution de la simulation et renvoie la solution
         """
 
-        if not self.matricesUpdated: self.Assemblage()
+        if self.needUpdate: self.Assemblage()
 
         self._Solveur(self.problemType)
         
@@ -812,7 +808,8 @@ class Simu(ABC):
         ddls_Inconnues = list(range(taille))
 
         ddls_Inconnues = list(set(ddls_Inconnues) - set(unique_ddl_Connues))        
-                                
+
+        ddls_Connues = np.asarray(ddls_Connues)                        
         ddls_Inconnues = np.array(ddls_Inconnues)
         
         verifTaille = unique_ddl_Connues.shape[0] + ddls_Inconnues.shape[0]
@@ -1431,12 +1428,12 @@ class Simu_Displacement(Simu):
         return Ku_e, Mu_e
 
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        if not self.matricesUpdated: self.Assemblage()
+        if self.needUpdate: self.Assemblage()
         return self.__Ku.copy(), self.Get_Rayleigh_Damping(), self.__Mu.copy(), self.__Fu.copy()
  
     def Assemblage(self):
 
-        if not self.matricesUpdated:
+        if self.needUpdate:
 
             # Data
             mesh = self.mesh        
@@ -1469,7 +1466,7 @@ class Simu_Displacement(Simu):
 
             tic.Tac("Matrices","Assemblage Ku, Mu et Fu", self._verbosity)
 
-            self.Matrices_Updtated()
+            self.Need_Update()
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         self.__coefM = coefM
@@ -3162,7 +3159,7 @@ class Simu_Beam(Simu):
 
     def Assemblage(self):
 
-        if not self.matricesUpdated:
+        if self.needUpdate:
 
             # Data
             mesh = self.mesh
@@ -3424,7 +3421,7 @@ class Simu_Thermal(Simu):
             return self.thermal
 
     def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        if not self.matricesUpdated: self.Assemblage()
+        if self.needUpdate: self.Assemblage()
         taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         initcsr = sparse.csr_matrix((taille, taille))
         return self.__Kt.copy(), self.__Ct.copy(), initcsr, self.__Ft.copy()
@@ -3458,7 +3455,7 @@ class Simu_Thermal(Simu):
         """Construit du systeme matricielle pour le probleme thermique en régime stationnaire ou transitoire
         """
 
-        if not self.matricesUpdated:
+        if self.needUpdate:
        
             # Data
             mesh = self.mesh
@@ -3483,7 +3480,7 @@ class Simu_Thermal(Simu):
 
             tic.Tac("Matrices","Assemblage Kt, Mt et Ft", self._verbosity)
 
-            self.Matrices_Updtated()    
+            self.Need_Update()
 
     def Save_Iteration(self):
 
