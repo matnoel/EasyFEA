@@ -598,7 +598,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
     for groupElemDim in list_groupElem:
 
         if len(nodes) > 0:
-            elements = groupElemDim.Get_ElementsIndex_Nodes(nodes)
+            elements = groupElemDim.Get_Elements_Nodes(nodes)
         else:
             elements = np.arange(groupElemDim.Ne)
 

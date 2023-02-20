@@ -380,7 +380,7 @@ class Mesh:
 
     def Elements_Nodes(self, nodes: np.ndarray, exclusivement=True):
         """Renvoie les élements qui utilisent exclusivement ou non les noeuds renseignés en fonction du groupe d'element (elements de la dimension du maillage)"""
-        elements = self.groupElem.Get_ElementsIndex_Nodes(nodes=nodes, exclusivement=exclusivement)
+        elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusivement=exclusivement)
         return elements
 
 

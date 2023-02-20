@@ -274,7 +274,7 @@ class GroupElem(ABC):
 
         return assembly
 
-    def Get_ElementsIndex_Nodes(self, nodes: np.ndarray, exclusivement=True) -> np.ndarray:
+    def Get_Elements_Nodes(self, nodes: np.ndarray, exclusivement=True) -> np.ndarray:
         """Récupérations des élements qui utilisent exclusivement ou non les noeuds renseignés"""
         connect = self.__connect
         connect_n_e = self.Get_connect_n_e()
@@ -1294,7 +1294,7 @@ class GroupElem(ABC):
 
         # Récupère les elements associés aux noeuds
         # exclusivement=False car on veut avoir tout les elements qui utilisent les noeuds
-        elements = self.Get_ElementsIndex_Nodes(nodes=noeuds, exclusivement=False)
+        elements = self.Get_Elements_Nodes(nodes=noeuds, exclusivement=False)
 
         self.__dict_elements_tags[tag] = elements
 

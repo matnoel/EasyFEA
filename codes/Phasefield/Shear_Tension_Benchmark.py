@@ -470,7 +470,7 @@ for split in ["Miehe"]:
                 if len(nodesInCircles) == 0: continue
                 
                 # récupère les elements associés a ces noeuds
-                elements = simu.mesh.groupElem.Get_ElementsIndex_Nodes(nodesInCircles, exclusivement=False)            
+                elements = simu.mesh.groupElem.Get_Elements_Nodes(nodesInCircles, exclusivement=False)            
 
                 # récupère que les elements inconnues
                 elements = list(set(elements) - set(damagedElements + unwantedElements))
