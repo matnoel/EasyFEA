@@ -1211,19 +1211,19 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     ax.set_zlim([zmid-maxRange, zmid+maxRange])
     ax.set_box_aspect([1,1,1])
         
-def Save_fig(folder:str, title: str,transparent=False, extension='png'):
+def Save_fig(folder:str, filename: str,transparent=False, extension='png', dpi=200):
 
     if folder == "": return
 
-    for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: title = title.replace(char, '')
+    for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: filename = filename.replace(char, '')
 
-    nom = Folder.Join([folder, title+'.'+extension])
+    path = Folder.Join([folder, filename+'.'+extension])
 
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    # plt.savefig(nom, dpi=200)
-    plt.savefig(nom, dpi=500, transparent=transparent, bbox_inches='tight')   
+    # dpi = 500    
+    plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches='tight')   
 
 def NouvelleSection(text: str, verbosity=True):
     """Creation d'une nouvelle section
