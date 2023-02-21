@@ -82,7 +82,9 @@ class Displacement_Model(IModel):
         if self.dim == 2:
             self.__simplification = "CP" if self.contraintesPlanes else "DP"
         else:
-            self.__simplification = "3D"        
+            self.__simplification = "3D"
+
+        self.Need_Update()
 
     @property
     def modelType(self) -> ModelType:
@@ -750,9 +752,13 @@ class Elas_Anisot(Displacement_Model):
 
         Displacement_Model.__init__(self, dim, epaisseur)
 
-        self._Update(C, useVoigtNotation)
+        self.Set_C(C, useVoigtNotation)
 
-    def _Update(self, C: np.ndarray, useVoigtNotation=True):
+    def _Update(self):
+        # ici ne fait rien car pour mettre a jour les loi on utilise Set_C
+        return super()._Update()
+
+    def Set_C(self, C: np.ndarray, useVoigtNotation=True):
         """Mets à jour la loi de comportement C et S
 
         Parameters
@@ -762,9 +768,8 @@ class Elas_Anisot(Displacement_Model):
         useVoigtNotation : bool, optional
             La loi de comportement utilise la notation de kevin mandel, by default True
         """
-
+        
         C_mandelP = self.__Comportement(C, useVoigtNotation)
-
         S_mandelP = np.linalg.inv(C_mandelP)
 
         self.C = C_mandelP

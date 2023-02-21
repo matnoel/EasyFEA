@@ -147,7 +147,7 @@ class Mesh:
     def Get_assemblyBeam_e(self, nbddl_n: int) -> np.ndarray:
         """matrice d'assemblage pour les poutres (Ne, nPe*nbddl_n)
         Permet de positionner les matrices de type beam dans la matrice globale"""
-        return self.groupElem.Get_assemblyBeam_e(nbddl_n)
+        return self.groupElem.Get_assembly_e(nbddl_n)
 
     @property
     def lignesVector_e(self) -> np.ndarray:

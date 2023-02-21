@@ -247,8 +247,8 @@ class GroupElem(ABC):
     def assembly_e(self) -> np.ndarray:
         """Matrice d'assemblage (Ne, nPe*dim)"""
         nPe = self.nPe
-        dim = self.dim
-        taille = nPe*dim
+        dim = self.dim        
+        taille = nPe * dim
 
         assembly = np.zeros((self.Ne, taille), dtype=np.int64)
         connect = self.connect_e
@@ -259,7 +259,7 @@ class GroupElem(ABC):
 
         return assembly
     
-    def Get_assemblyBeam_e(self, nbddl_e: int) -> np.ndarray:
+    def Get_assembly_e(self, nbddl_e: int) -> np.ndarray:
         """Matrice d'assemblage pour les poutres (Ne, nPe*nbddl_e)"""
 
         nPe = self.nPe

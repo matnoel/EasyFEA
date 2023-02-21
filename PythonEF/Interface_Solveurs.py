@@ -137,7 +137,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         sla.use_solver(useUmfpack=False)    
     
     if useCholesky and A_isSymetric and canUseCholesky:
-        x = __Cholesky(A, b)
+        x = _Cholesky(A, b)
 
     elif solveur == "BoundConstrain":
         x = __DamageBoundConstrain(A, b , lb, ub)
@@ -146,7 +146,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         x = pypardiso.spsolve(A, b.toarray())
 
     elif solveur == "scipy":
-        x = __ScipyLinearDirect(A, b, A_isSymetric)
+        x = _ScipyLinearDirect(A, b, A_isSymetric)
 
     elif solveur == "cg":
         x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
@@ -170,7 +170,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         x = mumps.spsolve(A,b)
 
     elif solveur == "petsc" and syst in ['Linux', "Darwin"]:
-        x, option = __PETSc(A, b, x0)
+        x, option = _PETSc(A, b, x0)
 
         solveur += option
             
@@ -327,7 +327,7 @@ def __Solveur_3(simu, problemType: str):
 
     return x
 
-def __Cholesky(A, b):
+def _Cholesky(A, b):
     
     # Décomposition de cholesky 
     
@@ -345,7 +345,7 @@ def __Cholesky(A, b):
 
     return x
 
-def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
+def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     # Utilise PETSc
 
     # petsc4py.init(sys.argv)
@@ -400,7 +400,7 @@ def __PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     return x, option
     
 
-def __ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
+def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
     # https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
     # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
 

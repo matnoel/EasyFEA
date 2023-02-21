@@ -424,7 +424,7 @@ class Simu(ABC):
         return self.__matricesUpdated
 
     def Need_Update(self, value=True):
-        """Renseigne le fait que la simulation à besoin de reconstruire ces matrices K, C et M"""
+        """Renseigne si la simulation à besoin de reconstruire ces matrices K, C et M"""
         self.__matricesUpdated = value 
 
     # ================================================ Solveur ================================================
@@ -714,7 +714,7 @@ class Simu(ABC):
         return []
     
     def Bc_Init(self):
-        """Initie les conditions limites de dirichlet, Neumann et Lagrange"""
+        """Initialise les conditions limites de Dirichlet, Neumann et Lagrange"""
         # DIRICHLET
         self.__Bc_Dirichlet = Simu.__Bc_Init_List_BoundaryCondition()
         """Conditions de Dirichlet list(BoundaryCondition)"""
@@ -1072,7 +1072,7 @@ class Simu(ABC):
         for groupElem in listGroupElemDim:
 
             # Récupère les elements qui utilisent exclusivement les noeuds
-            elements = groupElem.Get_ElementsIndex_Nodes(noeuds, exclusivement=exclusivement)
+            elements = groupElem.Get_Elements_Nodes(noeuds, exclusivement=exclusivement)
             if elements.shape[0] == 0: continue
             connect_e = groupElem.connect_e[elements]
             Ne = elements.shape[0]
@@ -1335,7 +1335,7 @@ class Simu_Displacement(Simu):
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"])
         
-        options.extend(["Wdef","Psi_Elas"])
+        options.extend(["Wdef","Psi_Elas","energy"])
 
         return options
 
@@ -1535,6 +1535,14 @@ class Simu_Displacement(Simu):
         if option in ["Wdef","Psi_Elas"]:
             return self.__Calc_Psi_Elas()
 
+        if option == "energy":
+            psi_e = self.__Calc_Psi_Elas(returnScalar=False)
+
+            if nodeValues:
+                return self.Resultats_InterpolationAuxNoeuds(psi_e)
+            else:
+                return psi_e
+
         if option == "displacement":
             return self.displacement
 
@@ -1665,7 +1673,7 @@ class Simu_Displacement(Simu):
                     else:
                         return resultat_e.reshape(-1)
 
-    def __Calc_Psi_Elas(self) -> float:
+    def __Calc_Psi_Elas(self, returnScalar=True) -> float:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
@@ -1684,15 +1692,17 @@ class Simu_Displacement(Simu):
             ep = 1
 
         Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg, matriceType)
-            
-        Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')
 
-        # # Calcul par Element fini
-        # u_e = self.__mesh.Localises_sol_e(sol_u)
-        # Ku_e = self.__ConstruitMatElem_Dep()
-        # Wdef = 1/2 * np.einsum('ei,eij,ej->', u_e, Ku_e, u_e, optimize='optimal')
+        if returnScalar:
 
-        Wdef = float(Wdef)
+            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')        
+
+            Wdef = float(Wdef)
+
+        else:
+
+            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->e', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')        
+
 
         tic.Tac("PostTraitement","Calcul Psi Elas",False)
         
@@ -3316,7 +3326,7 @@ class Simu_Beam(Simu):
         tic = Tic()
 
         nbddl_n = self.beamModel.nbddl_n
-        assemblyBeam_e = self.mesh.groupElem.Get_assemblyBeam_e(nbddl_n)
+        assemblyBeam_e = self.mesh.groupElem.Get_assembly_e(nbddl_n)
         sol_e = sol[assemblyBeam_e]
         B_beam_e_pg = self.__Get_B_beam_e_pg(matriceType)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
