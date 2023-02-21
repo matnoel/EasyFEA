@@ -12,6 +12,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.collections
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
+__cmap = 'jet'
+# __cmap = 'RdBu'
+# __cmap = 'seismic'
+
 import Folder
 
 def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, colorbarIsClose=False):
@@ -170,10 +174,10 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
                 # on va afficher le résultat sur les elements
                 if mesh.dim == 1:
                     # on va afficher le résulat sur chaque ligne
-                    pc = matplotlib.collections.LineCollection(vertices, lw=1.5, cmap='jet')
+                    pc = matplotlib.collections.LineCollection(vertices, lw=1.5, cmap=__cmap)
                 else:
                     # on va afficher le résultat sur les faces
-                    pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap='jet')
+                    pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap=__cmap)                
                 pc.set_clim(valeurs.min(), valeurs.max())
                 pc.set_array(valeurs)
                 ax.add_collection(pc)
@@ -181,14 +185,14 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
                 # dx_e = resultats["dx_e"]
                 # dy_e = resultats["dy_e"]
                 # # x,y=np.meshgrid(dx_e,dy_e)
-                # pc = ax.tricontourf(dx_e, dy_e, valeurs, levels ,cmap='jet')            
+                # pc = ax.tricontourf(dx_e, dy_e, valeurs, levels ,cmap=__cmap)            
 
             # Valeur aux noeuds
             elif mesh.Nn == len(valeurs):
                 # on va afficher le résultat sur les noeuds
                 # récupération des triangles de chaque face pour utiliser la fonction trisurf
                 connectTri = mesh.dict_connect_Triangle
-                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap='jet')
+                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=__cmap)                
                 # tripcolor, tricontour, tricontourf
 
         ax.autoscale()
@@ -255,14 +259,14 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
             # On affiche le résultat avec ou sans l'affichage du maillage
             if plotMesh:
                 if dim == 1:
-                    pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap='jet')
+                    pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=__cmap)
                 elif dim == 2:
-                    pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap='jet')
+                    pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=__cmap)
             else:
                 if dim == 1:
-                    pc = Line3DCollection(vertices, cmap='jet')
+                    pc = Line3DCollection(vertices, cmap=__cmap)
                 if dim == 2:
-                    pc = Poly3DCollection(vertices, cmap='jet')
+                    pc = Poly3DCollection(vertices, cmap=__cmap)
 
             # On applique les couleurs aux faces
             pc.set_array(valeursAuxFaces)
