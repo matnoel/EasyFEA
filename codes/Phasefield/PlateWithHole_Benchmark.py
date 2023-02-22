@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-problem = "Benchmark" # ["Benchmark","FCBA"]
+problem = "FCBA" # ["Benchmark","FCBA"]
 dim = 2
 if dim == 3:
     problem += "_3D"
@@ -41,7 +41,7 @@ makeMovie = False; NMovie = 200
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 regu = "AT2" # ["AT1", "AT2"]
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
@@ -60,7 +60,7 @@ tolConv = 1e-0
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-for split in ["Miehe"]:
+for split in ["Zhang"]:
 #for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 # for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 # for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
@@ -207,12 +207,12 @@ for split in ["Miehe"]:
             # plt.show()
 
         # Récupérations des noeuds
-        nodes_lower = mesh.Nodes_Conditions(conditionY = lambda y: y==0)
-        nodes_upper = mesh.Nodes_Conditions(conditionY = lambda y: y==h)
-        nodes_left = mesh.Nodes_Conditions(lambda x: x==0)
-        nodes_right = mesh.Nodes_Conditions(lambda x: x==L)
-        nodesX00 = mesh.Nodes_Conditions(lambda x: x==0, lambda y: y==0)
-        nodesY00 = mesh.Nodes_Conditions(conditionY=lambda y: y==0, conditionZ = lambda z: z==0)
+        nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)
+        nodes_left = mesh.Nodes_Conditions(lambda x,y,z: x==0)
+        nodes_right = mesh.Nodes_Conditions(lambda x,y,z: x==L)
+        nodesX00 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
+        nodesY00 = mesh.Nodes_Conditions(lambda x,y,z: (y==0) & (z==0))
 
         noeuds_bord = []
         for ns in [nodes_lower, nodes_upper, nodes_left, nodes_right]:

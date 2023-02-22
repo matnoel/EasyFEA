@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod, abstractproperty
 from enum import Enum
 from typing import List, cast
+from types import LambdaType
 
 from Geom import *
 from Gauss import Gauss
@@ -1089,74 +1090,44 @@ class GroupElem(ABC):
 
         return ddNv_pg
 
-    def Get_Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
-        """Renvoie la liste d'identifiant des noeuds qui respectent les condtions
+    def Get_Nodes_Conditions(self, lambdaFunction: LambdaType) -> np.ndarray:
+        """Renvoie les noeuds qui respectent les conditions renseignées.
 
-        Args:
-            conditionX (bool, optional): Conditions suivant x. Defaults to True.
-            conditionY (bool, optional): Conditions suivant y. Defaults to True.
-            conditionZ (bool, optional): Conditions suivant z. Defaults to True.
+        Parameters
+        ----------
+        lambdaFunction : LambdaType
+            fonction qui évalue les test
 
-        Exemples de contitions:
-            x ou toto ça n'a pas d'importance
-            condition = lambda x: x < 40 and x > 20
-            condition = lambda x: x == 40
-            condition = lambda x: x >= 0
+            exemples :
+            \t lambda x, y, z: (x < 40) & (x > 20) & (y<10)
+            \t lambda x, y, z: (x == 40) | (x == 50)
+            \t lambda x, y, z: x >= 0
 
-        Returns:
-            list(int): lite des noeuds qui respectent les conditions
+        Returns
+        -------
+        np.ndarray
+            noeuds qui respectent les conditions
         """
-        verifX = isinstance(conditionX, bool)
-        verifY = isinstance(conditionY, bool)
-        verifZ = isinstance(conditionZ, bool)
-
-        listNoeud = list(range(self.Nn))
-        if verifX and verifY and verifZ:
-            return listNoeud
 
         coordo = self.__coordo
 
-        coordoX = coordo[:,0]
-        coordoY = coordo[:,1]
-        coordoZ = coordo[:,2]
-        
-        arrayVrai = np.array([True]*self.Nn)
-        
-        # Verification suivant X
-        if verifX:
-            valideConditionX = arrayVrai
-        else:
-            try:
-                valideConditionX = conditionX(coordoX)
-            except:
-                valideConditionX = [conditionX(coordoX[n]) for n in listNoeud]
+        xn = coordo[:,0]
+        yn = coordo[:,1]
+        zn = coordo[:,2]        
 
-        # Verification suivant Y
-        if verifY:
-            valideConditionY = arrayVrai
-        else:
-            try:
-                valideConditionY = conditionY(coordoY)
-            except:
-                valideConditionY = [conditionY(coordoY[n]) for n in listNoeud]
-        
-        # Verification suivant Z
-        if verifZ:
-            valideConditionZ = arrayVrai
-        else:
-            try:
-                valideConditionZ = conditionZ(coordoZ)
-            except:
-                valideConditionZ = [conditionZ(coordoZ[n]) for n in listNoeud]
-        
-        conditionsTotal = valideConditionX * valideConditionY * valideConditionZ
+        try:
+            arrayTest = np.asarray(lambdaFunction(xn, yn, zn))
+            if arrayTest.dtype == bool:
+                nodesIndex = np.where(arrayTest)[0]
+                return self.__nodesID[nodesIndex].copy()
+            else:
+                print("La fonction renseignée doit renvoyer un booléen.")
+        except TypeError:
+            print("Doit fournir une fonction de 3 paramètres du type lambda x,y,z: ...")
 
-        nodesIndex = np.where(conditionsTotal)[0]
-        
-        return self.__nodesID[nodesIndex].copy()
     
     def Get_Nodes_Point(self, point: Point) -> np.ndarray:
-        """Renvoie l'identifiant du noeud qui est sur le point"""
+        """Renvoie les noeuds sur le point"""
 
         coordo = self.__coordo
         
@@ -1191,7 +1162,7 @@ class GroupElem(ABC):
         return self.__nodesID[nodesIndex].copy()
 
     def Get_Nodes_Line(self, line: Line) -> np.ndarray:
-        """Renvoie la liste d'identifiant des noeuds qui sont sur la ligne"""
+        """Renvoie les noeuds sur la ligne"""
         
         vectUnitaire = line.vecteurUnitaire
 
@@ -1210,7 +1181,7 @@ class GroupElem(ABC):
         return self.__nodesID[nodesIndex].copy()
     
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
-        """Renvoie la liste de noeuds qui sont dans le domaine"""
+        """Renvoie les noeuds dans le domaine"""
 
         coordo = self.__coordo
 
@@ -1223,7 +1194,7 @@ class GroupElem(ABC):
         return self.__nodesID[nodesIndex].copy()
 
     def Get_Nodes_Circle(self, circle: Circle) -> np.ndarray:
-        """Renvoie la liste de noeuds qui sont dans le cercle"""
+        """Renvoie les noeuds dans le cercle"""
 
         coordo = self.__coordo
 
@@ -1234,7 +1205,7 @@ class GroupElem(ABC):
         return self.__nodesID[nodesIndex]
 
     def Get_Nodes_Cylindre(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
-        """Renvoie la liste de noeuds qui sont dans le cylindre"""
+        """Renvoie les noeuds dans le cylindre"""
 
         coordo = self.__coordo
 

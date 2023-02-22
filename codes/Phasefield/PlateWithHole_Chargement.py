@@ -75,10 +75,10 @@ if len(noeuds_22) > 0:
     # plt.show()
 
 # nodes0 = mesh.Nodes_Line(B_lower)
-nodes0 = mesh.Nodes_Conditions(conditionY=lambda y: y==0)
+nodes0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 # nodesh = mesh.Nodes_Line(B_upper)
-nodesh = mesh.Nodes_Conditions(conditionY=lambda y: y==H)
-node00 = mesh.Nodes_Conditions(conditionX=lambda x: x==0, conditionY=lambda y: y==0)
+nodesh = mesh.Nodes_Conditions(lambda x,y,z: y==H)
+node00 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
 if dim == 2:
     noeuds_cercle = mesh.Nodes_Circle(circle)
 else:

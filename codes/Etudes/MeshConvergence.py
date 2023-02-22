@@ -92,8 +92,8 @@ for t, elemType in enumerate(elemTypes):
         mesh = cast(Mesh, mesh)
         # Récupère les noeuds qui m'interessent
         
-        noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
-        noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
+        noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+        noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
 
         # Construit la simulation
         if simu == None:

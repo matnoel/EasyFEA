@@ -90,13 +90,13 @@ Affichage.Plot_Mesh(mesh)
 # Affichage.Plot_NoeudsMaillage(mesh,showId=True)
 # plt.show()
 
-noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0) # noeuds_en_0 = mesh.Nodes_Line(Line0)
-noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L) # noeuds_en_L = mesh.Nodes_Line(LineL)
+noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0) # noeuds_en_0 = mesh.Nodes_Line(Line0)
+noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L) # noeuds_en_L = mesh.Nodes_Line(LineL)
 
 # Affichage.Plot_Maillage(mesh)
 # plt.show()
 
-noeuds_en_h = mesh.Nodes_Conditions(conditionY=lambda y: y == h/2) # noeuds_en_h= mesh.Nodes_Line(LineH)
+noeuds_en_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2) # noeuds_en_h= mesh.Nodes_Line(LineH)
 
 # ------------------------------------------------------------------------------------------------------
 

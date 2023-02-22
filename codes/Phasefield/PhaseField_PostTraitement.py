@@ -14,13 +14,13 @@ import Simulations
 
 Affichage.Clear()
 
-test = True
+test = False
 loadSimu = True
 plotDamage = True
 savefig = False
 
 # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark"
-simulation = "PlateWithHole_Benchmark"
+simulation = "Shear_Benchmark"
 
 if simulation == "PlateWithHole_Benchmark":
     colorBarIsClose = True
@@ -63,7 +63,7 @@ listSplit = ["Bourdin"]
 
 listOptimMesh=[True] # [True, False]
 
-listTol = [1e-0] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+listTol = [1e-1] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
 
 listnL = [0] # [100] [100, 120, 140, 180, 200]
 

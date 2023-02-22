@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sp
+from types import LambdaType
 
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatriceType
@@ -339,24 +340,25 @@ class Mesh:
     
     # Récupération des noeuds
 
-    def Nodes_Conditions(self, conditionX=True, conditionY=True, conditionZ=True) -> np.ndarray:
-        """Renvoie la liste d'identifiant des noeuds qui respectent les condtions
+    def Nodes_Conditions(self, lambdaFunction: LambdaType) -> np.ndarray:
+        """Renvoie les noeuds qui respectent les conditions renseignées.
 
-        Args:
-            conditionX (bool, optional): Conditions suivant x. Defaults to True.
-            conditionY (bool, optional): Conditions suivant y. Defaults to True.
-            conditionZ (bool, optional): Conditions suivant z. Defaults to True.
+        Parameters
+        ----------
+        lambdaFunction : LambdaType
+            fonction qui évalue les test
 
-        Exemples de contitions:
-            x ou toto ça n'a pas d'importance
-            condition = lambda x: x < 40 and x > 20
-            condition = lambda x: x == 40
-            condition = lambda x: x >= 0
+            exemples :
+            \t lambda x, y, z: (x < 40) & (x > 20) & (y<10)
+            \t lambda x, y, z: (x == 40) | (x == 50)
+            \t lambda x, y, z: x >= 0
 
-        Returns:
-            list(int): lite des noeuds qui respectent les conditions
+        Returns
+        -------
+        np.ndarray
+            noeuds qui respectent les conditions
         """
-        return self.groupElem.Get_Nodes_Conditions(conditionX, conditionY, conditionZ)
+        return self.groupElem.Get_Nodes_Conditions(lambdaFunction)
     
     def Nodes_Point(self, point: Point) -> np.ndarray:
         """Renvoie les noeuds sur le point (identifiants)"""

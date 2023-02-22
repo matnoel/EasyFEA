@@ -205,8 +205,8 @@ class Test_Simu(unittest.TestCase):
             
             simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 
-            noeuds_en_0 = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
-            noeuds_en_L = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
+            noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+            noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
 
             simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
             # simu.add_lineLoad(noeuds_en_L, [-P/h], ["y"])
@@ -246,8 +246,8 @@ class Test_Simu(unittest.TestCase):
 
             simu = Simulations.Simu_Thermal(mesh , thermalModel, False)            
 
-            noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
-            noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
+            noeuds0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+            noeudsL = mesh.Nodes_Conditions(lambda x,y,z: x == a)
 
             simu.add_dirichlet(noeuds0, [0], [""])
             simu.add_dirichlet(noeudsL, [40], [""])

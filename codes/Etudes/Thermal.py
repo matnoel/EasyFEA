@@ -37,8 +37,8 @@ thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=1)
 simu = Simulations.Simu_Thermal(mesh, thermalModel, False)
 simu.rho = 1
 
-noeuds0 = mesh.Nodes_Conditions(lambda x: x == 0)
-noeudsL = mesh.Nodes_Conditions(lambda x: x == a)
+noeuds0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+noeudsL = mesh.Nodes_Conditions(lambda x,y,z: x == a)
 
 if dim == 2:
     noeudsCircle = mesh.Nodes_Circle(circle)

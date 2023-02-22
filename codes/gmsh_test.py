@@ -81,8 +81,8 @@ elif simulationType == SimulationType.EQUERRE:
         Affichage.Plot_Elements(mesh, noeudsS3)
         # plt.show()
 
-    noeudsGauche = mesh.Nodes_Conditions(conditionX=lambda x: x == 0)
-    noeudsDroit = mesh.Nodes_Conditions(conditionX=lambda x: x == L)
+    noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+    noeudsDroit = mesh.Nodes_Conditions(lambda x,y,z: x == L)
     
 elif simulationType == SimulationType.TEF2:
 
@@ -123,8 +123,8 @@ comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E
 simu = Simulations.Simu_Displacement(mesh, comportement)
 
 if simulationType == SimulationType.CPEF:
-    simu.add_dirichlet(mesh.Nodes_Conditions(conditionZ=lambda z : z==0), [0,0,0], ['x','y','z'])
-    simu.add_dirichlet(mesh.Nodes_Conditions(conditionZ=lambda z : z<-50), [2], ["z"])
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z==0), [0,0,0], ['x','y','z'])
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z<-50), [2], ["z"])
 
 elif simulationType == SimulationType.EQUERRE:
     if dim == 2:
