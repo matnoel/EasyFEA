@@ -181,11 +181,6 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
                 pc.set_clim(valeurs.min(), valeurs.max())
                 pc.set_array(valeurs)
                 ax.add_collection(pc)
-                                
-                # dx_e = resultats["dx_e"]
-                # dy_e = resultats["dy_e"]
-                # # x,y=np.meshgrid(dx_e,dy_e)
-                # pc = ax.tricontourf(dx_e, dy_e, valeurs, levels ,cmap=__cmap)            
 
             # Valeur aux noeuds
             elif mesh.Nn == len(valeurs):
@@ -210,12 +205,13 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
         else:
             cax=None
         
-        # Construction de la colorbar
+        # Construction les ticks pour la colorbar
         if isinstance(option, str) and option == "damage":
-            ticks = np.linspace(0,1,11)
-            cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
+            ticks = np.linspace(0,1,11)            
         else:
-            cb = plt.colorbar(pc, ax=ax, cax=cax)
+            ticks = np.linspace(valeurs.min(),valeurs.max(),11)            
+
+        cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
         
         # Renome les axes
         ax.set_xlabel(r"$x$")
