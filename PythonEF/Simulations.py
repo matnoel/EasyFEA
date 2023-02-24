@@ -240,7 +240,7 @@ class Simu(ABC):
         """algorithme de résolution du système lors de la simulation"""
         # de base l'algo résout des problèmes stationnaires
 
-        self.solver = "scipy"
+        self.solver = "petsc"
         """Solveur utilisé lors de la résolution"""
 
         self.__Init_Sols_n()
