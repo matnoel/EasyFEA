@@ -219,7 +219,7 @@ class Test_Simu(unittest.TestCase):
             plt.pause(1e-12)
             plt.close(fig)
             
-            simu.Solveur_Set_Newton_Raphson_Algorithm(dt=0.5)
+            simu.Solver_Set_Newton_Raphson_Algorithm(dt=0.5)
             simu.Solve()
             fig, ax, cb = Affichage.Plot_Result(simu, "ax", plotMesh=True,nodeValues=True)
             plt.pause(1e-12)

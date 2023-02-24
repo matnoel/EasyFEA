@@ -5,7 +5,7 @@ import pickle
 from colorama import Fore
 from datetime import datetime
 from types import LambdaType
-from typing import List, cast
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import ModelType, IModel, Displacement_Model, Beam_Model, PhaseField_Model, Thermal_Model
 from TicTac import Tic
 import CalcNumba
-from Interface_Solveurs import ResolutionType, AlgoType, _Solveur, _Solve_Axb
+from Interface_Solveurs import ResolutionType, AlgoType, _SolveProblem, _Solve_Axb, Solvers
 import Folder
 
 def Load_Simu(folder: str, verbosity=False):
@@ -237,7 +237,11 @@ class Simu(ABC):
         """la simulation peut ecrire dans la console"""
         
         self.__algo = AlgoType.elliptic
+        """algorithme de résolution du système lors de la simulation"""
         # de base l'algo résout des problèmes stationnaires
+
+        self.solver = "scipy"
+        """Solveur utilisé lors de la résolution"""
 
         self.__Init_Sols_n()
 
@@ -262,6 +266,22 @@ class Simu(ABC):
     def rho(self, value: float):
         assert value > 0.0 , "Doit être supérieur à 0"
         self.__rho = value
+
+    @property
+    def solver(self) -> str:
+        """Solveur utilisé lors de la résolution"""
+        return self.__solveur
+    
+    @solver.setter
+    def solver(self, value: str):
+
+        # récupère les solveurs utilisables
+        solveurs = Solvers()
+
+        if value in solveurs:
+            self.__solveur = value
+        else:
+            print(Fore.RED + f"Le solveur {value} est inconnu. Le solveur doit être dans {solveurs}"+ Fore.WHITE)
 
     def Save(self, folder:str):
         "Sauvegarde la simulation et son résumé dans le dossier"    
@@ -297,7 +317,7 @@ class Simu(ABC):
     # SOLUTIONS
 
     @property
-    def _results(self) -> List[dict]:
+    def _results(self) -> list[dict]:
         """Renvoie la liste de dictionnaire qui contient les résultats de chaque itération
         """
         return self.__results
@@ -373,7 +393,7 @@ class Simu(ABC):
         """applique un nouveau maillage"""
         if isinstance(mesh, Mesh):
             # Pour tout les anciens maillage j'efface les matrices
-            listMesh = cast(List[Mesh], self.__listMesh)
+            listMesh = cast(list[Mesh], self.__listMesh)
             [m.ResetMatrices() for m in listMesh]
 
             self.__indexMesh += 1
@@ -429,12 +449,12 @@ class Simu(ABC):
 
     # ================================================ Solveur ================================================
 
-    def Solveur_Set_Elliptic_Algorithm(self):
+    def Solver_Set_Elliptic_Algorithm(self):
         """Renseigne les propriétes de résolution de l'algorithme\n
         Pour résolution K u = F"""
         self.__algo = AlgoType.elliptic
 
-    def Solveur_Set_Parabolic_Algorithm(self, dt=0.1, alpha=1/2):
+    def Solver_Set_Parabolic_Algorithm(self, dt=0.1, alpha=1/2):
         """Renseigne les propriétes de résolution de l'algorithme\n
         Pour résolution K u + C v = F
 
@@ -456,7 +476,7 @@ class Simu(ABC):
         self.alpha = alpha
         self.dt = dt
 
-    def Solveur_Set_Newton_Raphson_Algorithm(self, betha=1/4, gamma=1/2, dt=0.1):
+    def Solver_Set_Newton_Raphson_Algorithm(self, betha=1/4, gamma=1/2, dt=0.1):
         """Renseigne les propriétes de résolution de l'algorithme\n
         Pour résolution K u + C v + M a = F
 
@@ -487,14 +507,13 @@ class Simu(ABC):
 
         if self.needUpdate: self.Assemblage()
 
-        self._Solveur(self.problemType)
+        self._SolveProblem(self.problemType)
         
         return self.get_u_n(self.problemType)
 
-    def _Solveur(self, problemType : ModelType):
-        """Resolution du de la simulation et renvoie la solution\n
-        Prépare dans un premier temps A et b pour résoudre Ax=b\n
-        On va venir appliquer les conditions limites pour résoudre le système"""
+    def _SolveProblem(self, problemType : ModelType):
+        """Resolution du problème.\n
+        Il faut privilégier l'utilisation de Solve()"""        
         # ici il faut specifier le type de probleme car une simulation peut posséder plusieurs Modèle physique        
 
         algo = self.__algo
@@ -510,7 +529,7 @@ class Simu(ABC):
         v_n = self.get_v_n(problemType)
         a_n = self.get_a_n(problemType)
 
-        x = _Solveur(self, problemType, resolution)
+        x = _SolveProblem(self, problemType, resolution)
         
         if algo == AlgoType.elliptic:
 
@@ -1200,7 +1219,7 @@ class Simu(ABC):
     # ------------------------------------------- LIAISONS ------------------------------------------- 
     # Fonctions pour créer des liaisons entre degré de liberté    
 
-    def Bc_Add_LagrangeAffichage(self,noeuds: np.ndarray, directions: List[str], description: str):
+    def Bc_Add_LagrangeAffichage(self,noeuds: np.ndarray, directions: list[str], description: str):
         
         # Ajoute une condition pour l'affichage
         nbddl = self.Get_nbddl_n(self.problemType)
@@ -1314,7 +1333,7 @@ class Simu_Displacement(Simu):
 
         # init
         self.Set_Rayleigh_Damping_Coefs()
-        self.Solveur_Set_Elliptic_Algorithm()
+        self.Solver_Set_Elliptic_Algorithm()
 
     def Get_Resultats_disponibles(self) -> list[str]:
 
@@ -1877,7 +1896,7 @@ class Simu_PhaseField(Simu):
         # init resultats
         self.__psiP_e_pg = []
         self.__old_psiP_e_pg = [] #ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe
-        self.Solveur_Set_Elliptic_Algorithm()
+        self.Solver_Set_Elliptic_Algorithm()
 
     def Get_Resultats_disponibles(self) -> list[str]:
 
@@ -2207,7 +2226,7 @@ class Simu_PhaseField(Simu):
     def __Solve_u(self) -> np.ndarray:
         """Resolution du probleme de déplacement"""
             
-        self._Solveur(ModelType.displacement)
+        self._SolveProblem(ModelType.displacement)
 
         # On renseigne au model phase field qu'il va falloir mettre à jour le split
         self.phaseFieldModel.Need_Split_Update()
@@ -2361,7 +2380,7 @@ class Simu_PhaseField(Simu):
     def __Solve_d(self) -> np.ndarray:
         """Resolution du problème d'endommagement"""
         
-        self._Solveur(ModelType.damage)
+        self._SolveProblem(ModelType.damage)
 
         return self.damage
 
@@ -2869,7 +2888,7 @@ class Simu_Beam(Simu):
         super().__init__(mesh, model, verbosity, useNumba)
 
         # init
-        self.Solveur_Set_Elliptic_Algorithm()
+        self.Solver_Set_Elliptic_Algorithm()
     
     def Get_Resultats_disponibles(self) -> list[str]:
 
@@ -2991,7 +3010,7 @@ class Simu_Beam(Simu):
         
         self.add_liaisonPoutre(noeuds, directions, description)
 
-    def add_liaisonPoutre(self, noeuds: np.ndarray, directions: List[str], description: str):        
+    def add_liaisonPoutre(self, noeuds: np.ndarray, directions: list[str], description: str):        
 
         nbddl_n = self.Get_nbddl_n(self.problemType)
         problemType = self.problemType
@@ -3388,7 +3407,7 @@ class Simu_Thermal(Simu):
         super().__init__(mesh, model, verbosity, useNumba)
 
         # init
-        self.Solveur_Set_Elliptic_Algorithm()
+        self.Solver_Set_Elliptic_Algorithm()
     
     def Get_Directions(self, problemType: ModelType) -> list[str]:
         return [""]

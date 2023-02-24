@@ -138,9 +138,9 @@ def Iteration(steadyState: bool, isLoading: bool):
     # plt.spy(K)
 
     if steadyState:
-        simu.Solveur_Set_Elliptic_Algorithm()
+        simu.Solver_Set_Elliptic_Algorithm()
     else:
-        simu.Solveur_Set_Newton_Raphson_Algorithm(dt=dt)
+        simu.Solver_Set_Newton_Raphson_Algorithm(dt=dt)
 
     simu.Solve()
     

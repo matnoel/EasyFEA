@@ -1,15 +1,13 @@
 from enum import Enum
-import platform
-
 import numpy as np
 import scipy.sparse as sparse
-
-from TicTac import Tic
 
 # Solveurs
 import scipy.optimize as optimize
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
+
+from TicTac import Tic
 
 try:
     import pypardiso
@@ -24,7 +22,7 @@ except:
     canUseCholesky = False
 
 try:
-    import scikits.umfpack as umfpack
+    from scikits.umfpack import umfpackSpsolve    
     canUseUmfpack = True
 except:
     canUseUmfpack = False
@@ -58,11 +56,17 @@ class ResolutionType(str, Enum):
     r3 = "3"
     """pénalisation"""
 
-class __SolversLibrary(str, Enum):
-    pypardiso = "pypardiso"
-    umfpack = "umfpack"
-    mumps = "mumps"
-    petsc = "petsc"
+def Solvers():
+    """Renvoie les solveurs utilisables"""
+
+    solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
+    
+    if canUsePetsc: solvers.insert(0, "pypardiso")
+    if canUsePetsc: solvers.insert(1, "petsc")
+    if canUseMumps: solvers.insert(2, "mumps")
+    if canUseUmfpack: solvers.insert(3, "umfpack")
+
+    return solvers
 
 def __Cast_Simu(simu):
 
@@ -96,9 +100,6 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     np.ndarray
         x : solution de A x = b
     """
-    
-    # Detection du système
-    syst = platform.system()
 
     from Simulations import Simu, ModelType
 
@@ -110,22 +111,12 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     # Choisie le solveur
 
     if len(lb) > 0 and len(lb) > 0:        
-        solveur = "BoundConstrain"            
+        solveur = "BoundConstrain"
     else:
-        if syst == "Darwin":            
-            if simu.problemType == ModelType.beam:
-                solveur = "scipy"
-            else:
-                # solveur = "cg"
-                solveur = "petsc"
-                # solveur = "scipy"
-        elif syst == "Linux":
-            solveur = "pypardiso"
-            # method = "umfpack" # Plus rapide de ne pas passer par umfpack
-            # method = "scipy"
+        if simu.problemType == ModelType.beam:
+            solveur = "scipy"
         else:
-            solveur = "pypardiso"
-            # method = "cg" # minimise le residu sans la contrainte
+            solveur = simu.solver
 
     solveur = __Check_solveurLibrary(solveur)
     
@@ -140,7 +131,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         x = _Cholesky(A, b)
 
     elif solveur == "BoundConstrain":
-        x = __DamageBoundConstrain(A, b , lb, ub)
+        x = _BoundConstrain(A, b , lb, ub)
 
     elif solveur == "pypardiso":
         x = pypardiso.spsolve(A, b.toarray())
@@ -164,12 +155,12 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     elif solveur == "umfpack":
         # lu = umfpack.splu(A)
         # x = lu.solve(b).reshape(-1)
-        x = umfpack.spsolve(A, b)
+        x = umfpackSpsolve(A, b)
 
-    elif solveur == "mumps" and syst == 'Linux':
+    elif solveur == "mumps":
         x = mumps.spsolve(A,b)
 
-    elif solveur == "petsc" and syst in ['Linux', "Darwin"]:
+    elif solveur == "petsc":
         x, option = _PETSc(A, b, x0)
 
         solveur += option
@@ -186,18 +177,19 @@ def __Check_solveurLibrary(solveur: str) -> str:
     """Verifie si la librairie du solveur selectionné est disponible\n
     Si c'est pas le cas renvoie le solveur utilisable dans tout les cas (scipy)"""
     solveurDeBase="scipy"
-    if solveur == __SolversLibrary.pypardiso:
+    if solveur == "pypardiso":
         return solveur if canUsePypardiso else solveurDeBase
-    elif solveur == __SolversLibrary.umfpack:
+    elif solveur == "umfpack":
         return solveur if canUseUmfpack else solveurDeBase
-    elif solveur == __SolversLibrary.mumps:
+    elif solveur == "mumps":
         return solveur if canUseMumps else solveurDeBase
-    elif solveur == __SolversLibrary.petsc:
+    elif solveur == "petsc":
         return solveur if canUsePetsc else solveurDeBase
     else:
         return solveur
 
-def _Solveur(simu, problemType: str, resol: ResolutionType):
+def _SolveProblem(simu, problemType: str, resol: ResolutionType):
+    """Résolution du problème en fonction du type de résolution"""
     if resol == ResolutionType.r1:
         return __Solveur_1(simu, problemType)
     elif resol == ResolutionType.r2:
@@ -424,7 +416,7 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
 
     return x
 
-def __DamageBoundConstrain(A, b, lb: np.ndarray, ub: np.ndarray):
+def _BoundConstrain(A, b, lb: np.ndarray, ub: np.ndarray):
 
     assert len(lb) == len(ub), "Doit être de la même taille"
     

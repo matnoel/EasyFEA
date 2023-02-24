@@ -68,7 +68,7 @@ N = 50
 dt = Tmax/N #s
 t=0
 
-simu.Solveur_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
+simu.Solver_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
 
 if Tmax == 0:
     steadyState=True

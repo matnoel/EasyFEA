@@ -70,7 +70,7 @@ mu = comportement.get_mu()
 simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 
 simu.Set_Rayleigh_Damping_Coefs(0, 0)
-simu.Solveur_Set_Newton_Raphson_Algorithm(betha=1/4, gamma=1/2, dt=dt)
+simu.Solver_Set_Newton_Raphson_Algorithm(betha=1/4, gamma=1/2, dt=dt)
 
 t=0
 
