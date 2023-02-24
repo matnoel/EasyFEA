@@ -16,7 +16,7 @@ import Folder
 # gmsh.view.s
 
 dim = 2
-N = 10
+N = 50
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -122,8 +122,7 @@ comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E
 
 simu = Simulations.Simu_Displacement(mesh, comportement)
 
-simu.solver = "umfpack"
-
+simu.solver = "scipy"
 
 if simulationType == SimulationType.CPEF:
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z==0), [0,0,0], ['x','y','z'])

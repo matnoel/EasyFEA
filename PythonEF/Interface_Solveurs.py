@@ -61,7 +61,7 @@ def Solvers():
 
     solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
     
-    if canUsePetsc: solvers.insert(0, "pypardiso")
+    if canUsePypardiso: solvers.insert(0, "pypardiso")
     if canUsePetsc: solvers.insert(1, "petsc")
     if canUseMumps: solvers.insert(2, "mumps")
     if canUseUmfpack: solvers.insert(3, "umfpack")
@@ -165,7 +165,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
         solveur += option
             
-    tic.Tac("Solveur",f"Solve {problemType} ({solveur})", verbosity)
+    tic.Tac("Solver",f"Solve {problemType} ({solveur})", verbosity)
 
     # # Verification du residu
     # residu = np.linalg.norm(A.dot(x)-b.toarray().reshape(-1))
@@ -222,7 +222,7 @@ def __Solveur_1(simu, problemType: str) -> np.ndarray:
     bi = b[ddl_Inconnues,0]
     xc = x[ddl_Connues,0]
 
-    tic.Tac("Solveur",f"Construit système ({problemType})", simu._verbosity)
+    tic.Tac("Solver",f"Construit système ({problemType})", simu._verbosity)
 
     x0 = simu.Get_x0(problemType)
     x0 = x0[ddl_Inconnues]    
@@ -295,7 +295,7 @@ def __Solveur_2(simu, problemType: str):
 
         [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1)]
 
-    tic.Tac("Solveur",f"Lagrange ({problemType})", simu._verbosity)
+    tic.Tac("Solver",f"Lagrange ({problemType})", simu._verbosity)
 
     x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
     

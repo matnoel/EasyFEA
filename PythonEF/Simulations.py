@@ -278,10 +278,13 @@ class Simu(ABC):
         # récupère les solveurs utilisables
         solveurs = Solvers()
 
+        if self.problemType != "damage":
+            solveurs.remove("BoundConstrain")
+
         if value in solveurs:
             self.__solveur = value
         else:
-            print(Fore.RED + f"Le solveur {value} est inconnu. Le solveur doit être dans {solveurs}"+ Fore.WHITE)
+            print(Fore.RED + f"Le solveur {value} n'est pas utilisable. Le solveur doit être dans {solveurs}"+ Fore.WHITE)
 
     def Save(self, folder:str):
         "Sauvegarde la simulation et son résumé dans le dossier"    
@@ -641,7 +644,7 @@ class Simu(ABC):
             b -= C.dot(vTild_np1.reshape(-1,1))
             b = sparse.csr_matrix(b)
 
-        tic.Tac("Solveur",f"Neumann ({problemType}, {algo})", self._verbosity)
+        tic.Tac("Solver",f"Neumann ({problemType}, {algo})", self._verbosity)
 
         return b
 
@@ -686,7 +689,7 @@ class Simu(ABC):
 
         A, x = self.__Get_Dirichlet_A_x(problemType, resolution, A, b, valeurs_ddls)
 
-        tic.Tac("Solveur",f"Dirichlet ({problemType}, {algo})", self._verbosity)
+        tic.Tac("Solver",f"Dirichlet ({problemType}, {algo})", self._verbosity)
 
         return A, x
 
@@ -834,7 +837,7 @@ class Simu(ABC):
         verifTaille = unique_ddl_Connues.shape[0] + ddls_Inconnues.shape[0]
         assert verifTaille == taille, f"Problème dans les conditions ddls_Connues + ddls_Inconnues - taille = {verifTaille-taille}"
 
-        tic.Tac("Solveur",f"Construit ddls ({problemType})", self._verbosity)
+        tic.Tac("Solver",f"Construit ddls ({problemType})", self._verbosity)
 
         return ddls_Connues, ddls_Inconnues    
 
