@@ -122,6 +122,9 @@ comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E
 
 simu = Simulations.Simu_Displacement(mesh, comportement)
 
+simu.solver = "umfpack"
+
+
 if simulationType == SimulationType.CPEF:
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z==0), [0,0,0], ['x','y','z'])
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z<-50), [2], ["z"])
