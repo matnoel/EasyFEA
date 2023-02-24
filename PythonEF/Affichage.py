@@ -187,7 +187,13 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
                 # on va afficher le résultat sur les noeuds
                 # récupération des triangles de chaque face pour utiliser la fonction trisurf
                 connectTri = mesh.dict_connect_Triangle
-                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=__cmap)                
+
+                dispersion = np.std(valeurs)/np.mean(valeurs)
+                if dispersion < 1e-12:
+                    # si il n'y a aucune dispersion sur les valeurs il n'est pas possible d'avoir trop de niveau de couleurs
+                    valeurs = np.round(valeurs, 12)
+
+                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=__cmap)
                 # tripcolor, tricontour, tricontourf
 
         ax.autoscale()
