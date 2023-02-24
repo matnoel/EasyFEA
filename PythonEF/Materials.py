@@ -292,8 +292,9 @@ class Displacement_Model(IModel):
 
         # on verfie que les invariants du tenseur ne change pas !
         # if np.linalg.norm(P.T-P) <= 1e-12:        
-        test_trace_c = np.abs(np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
-        assert test_trace_c <1e-12, "La trace n'est pas conservé pendant la transformation"
+        if np.abs(np.trace(matrice_P) - np.trace(Matrice)) != np.trace(matrice_P):
+            test_trace_c = np.abs(np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
+            assert test_trace_c <1e-12, "La trace n'est pas conservé pendant la transformation"
         detMatrice = np.linalg.det(Matrice)
         if detMatrice > 0:
             test_det_c = np.abs(np.linalg.det(matrice_P) - np.linalg.det(Matrice))/detMatrice
@@ -698,7 +699,7 @@ class Elas_Anisot(Displacement_Model):
             resume += f"\nCP = {self.contraintesPlanes}, ep = {self.epaisseur:.2e}"
         return resume
 
-    def __init__(self, dim: int, C: np.ndarray, axis1:np.ndarray, axis2=None, useVoigtNotation=True, contraintesPlanes=True, epaisseur=1.0):
+    def __init__(self, dim: int, C: np.ndarray, axis1=None, axis2=None, useVoigtNotation=True, contraintesPlanes=True, epaisseur=1.0):
         """Création d'une loi de comportement elastique anisotrope
 
         Parameters
@@ -707,8 +708,8 @@ class Elas_Anisot(Displacement_Model):
             dimension
         C : np.ndarray
             matrice de rigidité dans la base d'anisotropie
-        axis1 : np.ndarray
-            vecteur de l'axe1
+        axis1 : np.ndarray, optional
+            vecteur de l'axe1, by default None
         axis2 : np.ndarray, optional
             vecteur de l'axe2, by default None
         useVoigtNotation : bool, optional
@@ -731,9 +732,13 @@ class Elas_Anisot(Displacement_Model):
         self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
         """type de simplification 2D"""
 
-        # Verification et construction des vecteurs
-        assert axis1.size == 3, "Doit fournir un vecteur" 
+        if axis1 == None:
+            axis1 = np.array([1,0,0])
+        else:
+            # Verification et construction des vecteurs
+            assert len(axis1) == 3, "Doit fournir un vecteur" 
         self.__axis1 = axis1
+
         def Calc_axis2():
             theta = np.pi/2
             rot = np.array([[np.cos(theta), -np.sin(theta), 0],
@@ -758,7 +763,7 @@ class Elas_Anisot(Displacement_Model):
         # ici ne fait rien car pour mettre a jour les loi on utilise Set_C
         return super()._Update()
 
-    def Set_C(self, C: np.ndarray, useVoigtNotation=True):
+    def Set_C(self, C: np.ndarray, useVoigtNotation=True, update_S=True):
         """Mets à jour la loi de comportement C et S
 
         Parameters
@@ -767,13 +772,16 @@ class Elas_Anisot(Displacement_Model):
            Loi de comportement pour la loi de Lamé
         useVoigtNotation : bool, optional
             La loi de comportement utilise la notation de kevin mandel, by default True
+        update_S : bool, optional
+            Met à jour la matrice de souplesse, by default True
         """
         
         C_mandelP = self.__Comportement(C, useVoigtNotation)
-        S_mandelP = np.linalg.inv(C_mandelP)
-
         self.C = C_mandelP
-        self.S = S_mandelP
+        
+        if update_S:
+            S_mandelP = np.linalg.inv(C_mandelP)
+            self.S = S_mandelP
     
     def __Comportement(self, C: np.ndarray, useVoigtNotation: bool):
 
