@@ -732,11 +732,11 @@ class Elas_Anisot(Displacement_Model):
         self.__contraintesPlanes = contraintesPlanes if dim == 2 else False
         """type de simplification 2D"""
 
-        if axis1 == None:
-            axis1 = np.array([1,0,0])
-        else:
+        if isinstance(axis1, np.ndarray):        
             # Verification et construction des vecteurs
             assert len(axis1) == 3, "Doit fournir un vecteur" 
+        else:
+            axis1 = np.array([1,0,0])
         self.__axis1 = axis1
 
         def Calc_axis2():
