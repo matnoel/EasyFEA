@@ -278,6 +278,8 @@ def __Solveur_2(simu, problemType: str):
     A[ddls_Dirichlet, listeLignesDirichlet] = 1
     b[listeLignesDirichlet] = values_Dirichlet
 
+    tic.Tac("Solver",f"Lagrange ({problemType}) Dirichlet", simu._verbosity)
+
     # Pour chaque condition de lagrange on va rajouter un coef dans la matrice
 
     if len(list_Bc_Lagrange) > 0:
@@ -295,12 +297,12 @@ def __Solveur_2(simu, problemType: str):
 
         [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1)]
     
+    tic.Tac("Solver",f"Lagrange ({problemType}) Couplage", simu._verbosity)
+
     x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=True, verbosity=simu._verbosity)
 
     # On renvoie pas les forces de réactions
     x = x[range(decalage)]
-    
-    tic.Tac("Solver",f"Lagrange ({problemType})", simu._verbosity)
 
     return x 
 

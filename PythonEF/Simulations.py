@@ -521,7 +521,7 @@ class Simu(ABC):
 
         algo = self.__algo
 
-        if len(self.__Bc_Lagrange) > 0:
+        if len(self.Bc_ddls_Lagrange(problemType)) > 0:
             # Des condtions de lagrange son renseigné
             resolution = ResolutionType.r2
         else:
