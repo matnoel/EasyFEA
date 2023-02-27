@@ -15,16 +15,16 @@ class Interface_Gmsh:
     """Classe interface Gmsh"""    
 
     def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=False):
-        """Construction d'une interface qui peut intéragir avec gmsh
+        """Construction d'une interface qui peut interagir avec gmsh
 
         Parameters
         ----------
         affichageGmsh : bool, optional
             affichage du maillage construit dans gmsh, by default False
         gmshVerbosity : bool, optional
-            gmsh peut ecrire dans le terminal, by default False
+            gmsh peut écrire dans le terminal, by default False
         verbosity : bool, optional
-            la classe interfaceGmsh peut ecrire le résumé de la construction dans le terminale, by default False
+            la classe interfaceGmsh peut écrire le résumé de la construction dans le terminale, by default False
         """
     
         self.__affichageGmsh = affichageGmsh
@@ -38,7 +38,7 @@ class Interface_Gmsh:
             Affichage.NouvelleSection("Maillage Gmsh")
 
     def __CheckType(self, dim: int, elemType: str):
-        """Verification si le type d'element est bien possible"""
+        """Vérification si le type d'element est bien utilisable."""
         if dim == 1:
             assert elemType in GroupElem.get_Types1D()
         if dim == 2:
@@ -47,7 +47,7 @@ class Interface_Gmsh:
             assert elemType in GroupElem.get_Types3D()
     
     def __initGmsh(self, factory: str):
-        """Initialise gmsh"""
+        """Initialise gmsh."""
         gmsh.initialize()
         if self.__gmshVerbosity == False:
             gmsh.option.setNumber('General.Verbosity', 0)
@@ -61,7 +61,7 @@ class Interface_Gmsh:
     
 
     def __Loop_From_Points(self, points: List[Point], taille: float) -> tuple[int, int]:
-        """Création d'une boucle associée à la liste de points\n
+        """Création d'une boucle associée à la liste de points.\n
         return loop
         """
         
@@ -168,7 +168,7 @@ class Interface_Gmsh:
         return loop
 
     def __Loop_From_Circle(self, circle: Circle) -> tuple[int, int]:
-        """Création d'une boucle associée à un cercle\n
+        """Création d'une boucle associée à un cercle.\n
         return loop
         """
 
@@ -202,7 +202,7 @@ class Interface_Gmsh:
         return loop
 
     def __Loop_From_Domain(self, domain: Domain) -> tuple[int, int]:
-        """Création d'une boucle associée à un domaine\n
+        """Création d'une boucle associée à un domaine.\n
         return loop
         """
         pt1 = domain.pt1
@@ -218,7 +218,7 @@ class Interface_Gmsh:
         return loop
 
     def __Surface_From_Loops(self, loops: List[int]) -> tuple[int, int]:
-        """Création d'une surface associée à une boucle\n
+        """Création d'une surface associée à une boucle.\n
         return surface
         """
 
@@ -278,7 +278,7 @@ class Interface_Gmsh:
         return pgSurf
     
     def __Add_PhysicalVolume(self, volume: int) -> int:
-        """Ajoute le volume fermée ou ouverte dans les physical group"""
+        """Ajoute le volume fermée ou ouverte dans les physical group."""
         pgVol = gmsh.model.addPhysicalGroup(3, [volume], name=f"V{volume}")
         return pgVol
 
@@ -293,7 +293,7 @@ class Interface_Gmsh:
             self.__Add_PhysicalVolume(tag)
 
     def __Set_PhysicalGroups(self, buildPoint=True, buildLine=True, buildSurface=True, buildVolume=True):
-        """Création des groupes physiques en fonction des entités du model"""
+        """Création des groupes physiques en fonction des entités du modèle."""
         self.__factory.synchronize()
         entities = np.array(gmsh.model.getEntities())       
         
@@ -464,7 +464,7 @@ class Interface_Gmsh:
         Parameters
         ----------
         fichier : str
-            fichier (.stp, .igs) que gmsh va charger pour creer le maillage
+            fichier (.stp, .igs) que gmsh va charger pour créer le maillage
         tailleElement : float
             taille de maille
         refineGeom : GeomObject, optional
@@ -679,7 +679,7 @@ class Interface_Gmsh:
         Parameters
         ----------
         domain : Domain
-            surface qui doit etre contenu dans le plan (x,y)
+            surface qui doit être contenu dans le plan (x,y)
         circle : Circle
             cercle creux ou plein
         elemType : str, optional

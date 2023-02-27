@@ -148,7 +148,7 @@ class Simu(ABC):
         indexMax = len(self._results)-1
         assert index <= indexMax, f"L'index doit etre < {indexMax}]"
 
-        # On va venir récupérer les resultats stocké dans le tableau pandas
+        # On va venir récupérer les résultats stockés dans le tableau pandas
         results =  self._results[index]
 
         self.__Update_mesh(index)
@@ -171,7 +171,7 @@ class Simu(ABC):
 
     @abstractmethod
     def Resultats_Get_dict_Energie(self) -> dict[str, float]:
-        """Renvoie une liste de tuple contenant les noms et les valeurs des energies calculés"""
+        """Renvoie une liste de tuple contenant les noms et les valeurs des énergies calculées"""
         return {}
     
     @abstractmethod
@@ -195,11 +195,11 @@ class Simu(ABC):
 
     def __Check_ProblemTypes(self, problemType : ModelType):
         """Vérifie si ce type de problème est disponible par la simulation"""
-        assert problemType in self.Get_problemTypes(), f"Ce type de probleme n'est pas disponible dans cette simulation ({self.Get_problemTypes()})"
+        assert problemType in self.Get_problemTypes(), f"Ce type de problème n'est pas disponible dans cette simulation ({self.Get_problemTypes()})"
     
     def Check_dim_mesh_materiau(self) -> None:
         """On vérifie que la dimension du matériau correspond à la dimension du maillage"""
-        assert self.__model.dim == self.__mesh.dim, "Le materiau doit avoir la meme dimension que le maillage"
+        assert self.__model.dim == self.__mesh.dim, "Le matériau doit avoir la même dimension que le maillage"
 
     def __init__(self, mesh: Mesh, model: IModel, verbosity=True, useNumba=True):
         """Creation d'une simulation
@@ -208,7 +208,7 @@ class Simu(ABC):
             dim (int): Dimension de la simulation (2D ou 3D)
             mesh (Mesh): Maillage que la simulation va utiliser
             model (IModel): Modèle utilisé
-            verbosity (bool, optional): La simulation peut ecrire dans la console. Defaults to True.
+            verbosity (bool, optional): La simulation peut écrire dans la console. Defaults to True.
         """
         
         if verbosity:
@@ -220,7 +220,7 @@ class Simu(ABC):
 
         # Renseigne le premier maillage
         self.__indexMesh = -1
-        """index du maillage actuelle dans self.__listMesh"""
+        """index du maillage actuel dans self.__listMesh"""
         self.__listMesh = cast(list[Mesh], [])
         self.mesh = mesh
 
@@ -234,7 +234,7 @@ class Simu(ABC):
         self.__dim = model.dim
         """dimension de la simulation 2D ou 3D"""
         self._verbosity = verbosity
-        """la simulation peut ecrire dans la console"""
+        """la simulation peut écrire dans la console"""
         
         self.__algo = AlgoType.elliptic
         """algorithme de résolution du système lors de la simulation"""
@@ -276,19 +276,19 @@ class Simu(ABC):
     def solver(self, value: str):
 
         # récupère les solveurs utilisables
-        solveurs = Solvers()
+        solvers = Solvers()
 
         if self.problemType != "damage":
-            solveurs.remove("BoundConstrain")
+            solvers.remove("BoundConstrain")
 
-        if value in solveurs:
+        if value in solvers:
             self.__solveur = value
         else:
-            print(Fore.RED + f"Le solveur {value} n'est pas utilisable. Le solveur doit être dans {solveurs}"+ Fore.WHITE)
+            print(Fore.RED + f"Le solveur {value} n'est pas utilisable. Le solveur doit être dans {solvers}"+ Fore.WHITE)
 
     def Save(self, folder:str):
         "Sauvegarde la simulation et son résumé dans le dossier"    
-        # Il faut vider les matrices dans les groupes d'elements
+        # Il faut vider les matrices dans les groupes d'éléments
         self.mesh.ResetMatrices()
     
         # returns current date and time
@@ -395,7 +395,7 @@ class Simu(ABC):
     def mesh(self, mesh: Mesh):
         """applique un nouveau maillage"""
         if isinstance(mesh, Mesh):
-            # Pour tout les anciens maillage j'efface les matrices
+            # Pour tous les anciens maillages, j'efface les matrices
             listMesh = cast(list[Mesh], self.__listMesh)
             [m.ResetMatrices() for m in listMesh]
 
@@ -417,7 +417,7 @@ class Simu(ABC):
 
     @property
     def useCholesky(self) -> bool:
-        """La matrice A de Ax=b est definie symetrique positive"""
+        """La matrice A de Ax=b est définie symétrique positive"""
         return True
 
     @property
@@ -447,18 +447,18 @@ class Simu(ABC):
         return self.__matricesUpdated
 
     def Need_Update(self, value=True):
-        """Renseigne si la simulation à besoin de reconstruire ces matrices K, C et M"""
+        """Renseigne si la simulation a besoin de reconstruire ces matrices K, C et M"""
         self.__matricesUpdated = value 
 
     # ================================================ Solveur ================================================
 
     def Solver_Set_Elliptic_Algorithm(self):
-        """Renseigne les propriétes de résolution de l'algorithme\n
+        """Renseigne les propriétés de résolution de l'algorithme\n
         Pour résolution K u = F"""
         self.__algo = AlgoType.elliptic
 
     def Solver_Set_Parabolic_Algorithm(self, dt=0.1, alpha=1/2):
-        """Renseigne les propriétes de résolution de l'algorithme\n
+        """Renseigne les propriétés de résolution de l'algorithme\n
         Pour résolution K u + C v = F
 
         Parameters
@@ -472,7 +472,7 @@ class Simu(ABC):
         self.__algo = AlgoType.parabolic
 
         # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
-        # Est-il possible davoir au dela de 1 ?
+        # Est-il possible d’avoir au-delà de 1 ?
 
         assert dt > 0, "l'incrément temporel doit être > 0"
 
@@ -480,7 +480,7 @@ class Simu(ABC):
         self.dt = dt
 
     def Solver_Set_Newton_Raphson_Algorithm(self, betha=1/4, gamma=1/2, dt=0.1):
-        """Renseigne les propriétes de résolution de l'algorithme\n
+        """Renseigne les propriétés de résolution de l'algorithme\n
         Pour résolution K u + C v + M a = F
 
         Parameters
@@ -496,7 +496,7 @@ class Simu(ABC):
         self.__algo = AlgoType.hyperbolic
 
         # assert alpha >= 0 and alpha <= 1, "alpha doit être compris entre [0, 1]"
-        # Est-il possible davoir au dela de 1 ?
+        # Est-il possible d’avoir au-delà de 1 ?
 
         assert dt > 0, "l'incrément temporel doit être > 0"
 
@@ -517,7 +517,7 @@ class Simu(ABC):
     def _SolveProblem(self, problemType : ModelType):
         """Resolution du problème.\n
         Il faut privilégier l'utilisation de Solve()"""        
-        # ici il faut specifier le type de probleme car une simulation peut posséder plusieurs Modèle physique        
+        # ici il faut spécifier le type de problème, car une simulation peut posséder plusieurs Modèles physiques        
 
         algo = self.__algo
 
@@ -882,7 +882,7 @@ class Simu(ABC):
         directions : list
             directions ou on va appliquer les valeurs
         problemType : ModelType, optional
-            type du probleme, si non renseingé, on prend le le problème de base du problem
+            type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
             Description de la condition, by default ""
         """
@@ -931,7 +931,7 @@ class Simu(ABC):
         directions : list
             directions ou on va appliquer les valeurs
         problemType : ModelType, optional
-            type du probleme, si non renseingé, on prend le le problème de base du problem
+            type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
             Description de la condition, by default ""
         """
@@ -962,7 +962,7 @@ class Simu(ABC):
         directions : list
             directions ou on va appliquer les valeurs
         problemType : ModelType, optional
-            type du probleme, si non renseingé, on prend le le problème de base du problem
+            type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
             Description de la condition, by default ""
         """
@@ -993,7 +993,7 @@ class Simu(ABC):
         directions : list
             directions ou on va appliquer les valeurs
         problemType : ModelType, optional
-            type du probleme, si non renseingé, on prend le le problème de base du problem
+            type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
             Description de la condition, by default ""
         """
@@ -1029,7 +1029,7 @@ class Simu(ABC):
         directions : list
             directions ou on va appliquer les valeurs
         problemType : ModelType, optional
-            type du probleme, si non renseingé, on prend le le problème de base du problem
+            type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
             Description de la condition, by default ""
         """
@@ -1076,7 +1076,7 @@ class Simu(ABC):
         return valeurs_ddls, ddls
 
     def __Bc_IntegrationDim(self, dim: int, problemType : ModelType, noeuds: np.ndarray, valeurs: list, directions: list):
-        """Intégration des valeurs sur les elements"""
+        """Intégration des valeurs sur les éléments"""
 
         valeurs_ddls=np.array([])
         ddls=np.array([], dtype=int)
@@ -1093,7 +1093,7 @@ class Simu(ABC):
         # Récupération des matrices pour le calcul
         for groupElem in listGroupElemDim:
 
-            # Récupère les elements qui utilisent exclusivement les noeuds
+            # Récupère les éléments qui utilisent exclusivement les noeuds
             elements = groupElem.Get_Elements_Nodes(noeuds, exclusivement=exclusivement)
             if elements.shape[0] == 0: continue
             connect_e = groupElem.connect_e[elements]
@@ -1245,7 +1245,7 @@ class Simu(ABC):
         if resultat in listResultats:
             return True
         else:
-            print(f"\nPour un probleme ({self.problemType}) l'option doit etre dans : \n {listResultats}")
+            print(f"\nPour un problème ({self.problemType}) l'option doit etre dans : \n {listResultats}")
             return False
 
     def Resultats_Set_Resume_Iteration(self):
@@ -1331,7 +1331,7 @@ class Simu_Displacement(Simu):
 
     def __init__(self, mesh: Mesh, model: Displacement_Model, verbosity=False, useNumba=True):
         """Creation d'une simulation de déplacement"""
-        assert model.modelType == ModelType.displacement, "Le materiau doit être de type displacement"
+        assert model.modelType == ModelType.displacement, "Le matériau doit être de type displacement"
         super().__init__(mesh, model, verbosity, useNumba)
 
         # init
@@ -1426,7 +1426,7 @@ class Simu_Displacement(Simu):
 
         tic = Tic()
 
-        # Ici on le materiau est homogène
+        # Ici on le matériau est homogène
         matC = comportement.C
 
         # Matrices rigi
@@ -1743,7 +1743,7 @@ class Simu_Displacement(Simu):
         Returns
         -------
         np.ndarray
-            Deformations stockées aux elements et points de gauss (Ne,pg,(3 ou 6))
+            Deformations stockées aux éléments et points de gauss (Ne,pg,(3 ou 6))
         """
 
         # useNumba = self.useNumba
@@ -1768,7 +1768,7 @@ class Simu_Displacement(Simu):
         Parameters
         ----------
         Epsilon_e_pg : np.ndarray
-            Deformations stockées aux elements et points de gauss (Ne,pg,(3 ou 6))
+            Deformations stockées aux éléments et points de gauss (Ne,pg,(3 ou 6))
 
         Returns
         -------
@@ -1895,10 +1895,10 @@ class Simu_PhaseField(Simu):
     def __init__(self, mesh: Mesh, model: PhaseField_Model, verbosity=False, useNumba=True):
         """Creation d'une simulation d'endommagement en champ de phase"""
 
-        assert model.modelType == ModelType.damage, "Le materiau doit être de type damage"
+        assert model.modelType == ModelType.damage, "Le matériau doit être de type damage"
         super().__init__(mesh, model, verbosity, useNumba)
 
-        # init resultats
+        # init résultats
         self.__psiP_e_pg = []
         self.__old_psiP_e_pg = [] #ancienne densitée d'energie elastique positive PsiPlus(e, pg, 1) pour utiliser le champ d'histoire de miehe
         self.Solver_Set_Elliptic_Algorithm()
@@ -2040,7 +2040,7 @@ class Simu_PhaseField(Simu):
         self.__Assemblage_u()
     
     def Solve(self, tolConv=1.0, maxIter=500, convOption=0) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
-        """Résolution du probleme d'endommagement de façon étagée
+        """Résolution du problème d'endommagement de façon étagée
 
         Parameters
         ----------
@@ -2232,7 +2232,7 @@ class Simu_PhaseField(Simu):
         return self.__Ku
 
     def __Solve_u(self) -> np.ndarray:
-        """Resolution du probleme de déplacement"""
+        """Resolution du problème de déplacement"""
             
         self._SolveProblem(ModelType.displacement)
 
@@ -2245,7 +2245,7 @@ class Simu_PhaseField(Simu):
 
     def __Calc_psiPlus_e_pg(self):
         """Calcul de la densité denergie positive\n
-        Pour chaque point de gauss de tout les elements du maillage on va calculer psi+
+        Pour chaque point de gauss de tout les éléments du maillage on va calculer psi+
        
         Returns:
             np.ndarray: self.__psiP_e_pg
@@ -2277,7 +2277,7 @@ class Simu_PhaseField(Simu):
 
             inc_H = psiP_e_pg - old_psiPlus_e_pg
 
-            elements, pdGs = np.where(inc_H < 0)
+            éléments, pdGs = np.where(inc_H < 0)
 
             psiP_e_pg[elements, pdGs] = old_psiPlus_e_pg[elements, pdGs]
 
@@ -2359,7 +2359,7 @@ class Simu_PhaseField(Simu):
         return Kd_e, Fd_e
 
     def __Assemblage_d(self):
-        """Construit Kglobal pour le probleme d'endommagement
+        """Construit Kglobal pour le problème d'endommagement
         """
        
         # Data
@@ -2375,11 +2375,11 @@ class Simu_PhaseField(Simu):
         tic = Tic()        
 
         self.__Kd = sparse.csr_matrix((Kd_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
-        """Kglob pour le probleme d'endommagement (Nn, Nn)"""
+        """Kglob pour le problème d'endommagement (Nn, Nn)"""
         
         lignes = mesh.connect.reshape(-1)
         self.__Fd = sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1))
-        """Fglob pour le probleme d'endommagement (Nn, 1)"""        
+        """Fglob pour le problème d'endommagement (Nn, 1)"""        
 
         tic.Tac("Matrices","Assemblage Kd et Fd", self._verbosity)        
 
@@ -2706,7 +2706,7 @@ class Simu_PhaseField(Simu):
         Returns
         -------
         np.ndarray
-            Deformations stockées aux elements et points de gauss (Ne,pg,(3 ou 6))
+            Deformations stockées aux éléments et points de gauss (Ne,pg,(3 ou 6))
         """
 
         useNumba = self.useNumba
@@ -2731,7 +2731,7 @@ class Simu_PhaseField(Simu):
         Parameters
         ----------
         Epsilon_e_pg : np.ndarray
-            Deformations stockées aux elements et points de gauss (Ne,pg,(3 ou 6))
+            Deformations stockées aux éléments et points de gauss (Ne,pg,(3 ou 6))
 
         Returns
         -------
@@ -2770,7 +2770,7 @@ class Simu_PhaseField(Simu):
 
     def Resultats_Set_Resume_Chargement(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):        
         
-        assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Doit etre de la meme dimension"
+        assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Doit etre de la même dimension"
         
         resumeChargement = 'Chargement :'
         resumeChargement += f'\n\tload max = {loadMax:.3}'
@@ -2790,7 +2790,7 @@ class Simu_PhaseField(Simu):
             return ""
 
     def Resultats_Set_Resume_Iteration(self, resol: int, load: float, uniteLoad: str, pourcentage=0.0, remove=False):
-        """Construit le résumé de l'itération pour le probleme d'endommagement
+        """Construit le résumé de l'itération pour le problème d'endommagement
 
         Parameters
         ----------
@@ -2892,7 +2892,7 @@ class Simu_Beam(Simu):
     def __init__(self, mesh: Mesh, model: Beam_Model, verbosity=False, useNumba=True):
         """Creation d'une simulation poutre"""
 
-        assert model.modelType == ModelType.beam, "Le materiau doit être de type beam"
+        assert model.modelType == ModelType.beam, "Le matériau doit être de type beam"
         super().__init__(mesh, model, verbosity, useNumba)
 
         # init
@@ -2956,7 +2956,7 @@ class Simu_Beam(Simu):
         return self.beamModel.nbddl_n
 
     def Check_dim_mesh_materiau(self) -> None:
-        # Dans le cadre d'un probleme de poutre on à pas besoin de verifier cette condition
+        # Dans le cadre d'un problème de poutre on à pas besoin de verifier cette condition
         pass
     
     @property
@@ -2972,11 +2972,11 @@ class Simu_Beam(Simu):
         return self.get_u_n(self.problemType)
 
     def add_surfLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
-        print("Il est impossible d'appliquer une charge surfacique dans un probleme poutre")
+        print("Il est impossible d'appliquer une charge surfacique dans un problème poutre")
         return
 
     def add_volumeLoad(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=None, description=""):
-        print("Il est impossible d'appliquer une charge volumique sur un probleme poutre")
+        print("Il est impossible d'appliquer une charge volumique sur un problème poutre")
         return
 
     def add_liaison_Encastrement(self, noeuds: np.ndarray, description="Encastrement"):
@@ -3411,7 +3411,7 @@ class Simu_Thermal(Simu):
     def __init__(self, mesh: Mesh, model: Thermal_Model, verbosity=False, useNumba=True):
         """Creation d'une simulation thermique"""
 
-        assert model.modelType == ModelType.thermal, "Le materiau doit être de type thermal"
+        assert model.modelType == ModelType.thermal, "Le matériau doit être de type thermal"
         super().__init__(mesh, model, verbosity, useNumba)
 
         # init
@@ -3489,7 +3489,7 @@ class Simu_Thermal(Simu):
         return Kt_e, Mt_e
 
     def Assemblage(self):
-        """Construit du systeme matricielle pour le probleme thermique en régime stationnaire ou transitoire
+        """Construit du systeme matricielle pour le problème thermique en régime stationnaire ou transitoire
         """
 
         if self.needUpdate:
@@ -3507,13 +3507,13 @@ class Simu_Thermal(Simu):
             tic = Tic()
 
             self.__Kt = sparse.csr_matrix((Kt_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
-            """Kglob pour le probleme thermique (Nn, Nn)"""
+            """Kglob pour le problème thermique (Nn, Nn)"""
             
             self.__Ft = sparse.csr_matrix((taille, 1))
             """Vecteur Fglob pour le problème en thermique (Nn, 1)"""
 
             self.__Ct = sparse.csr_matrix((Mt_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
-            """Mglob pour le probleme thermique (Nn, Nn)"""
+            """Mglob pour le problème thermique (Nn, Nn)"""
 
             tic.Tac("Matrices","Assemblage Kt, Mt et Ft", self._verbosity)
 

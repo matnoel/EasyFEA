@@ -8,15 +8,15 @@ from GroupElem import GroupElem, ElemType, MatriceType
 class Mesh:
 
     def __init__(self, dict_groupElem: dict[ElemType,GroupElem], verbosity=True):
-        """Création du maillage depuis coordo et connection
-        Le maillage est l'entité qui possède les groupes d'élements
+        """Création du maillage depuis coordo et connexion
+        Le maillage est l'entité qui possède les groupes d'éléments
         """
 
         list_GroupElem = []
         dim=0
         for grp in dict_groupElem.values():
             if grp.dim > dim:
-                # Ici on garrantie que l'element type du maillage utilisé est celui a la plus grande dimension
+                # Ici on garrantie que l'élément type du maillage utilisé est celui a la plus grande dimension
                 dim = grp.dim
                 self.__groupElem = grp
             list_GroupElem.append(grp)
@@ -40,7 +40,7 @@ class Mesh:
         return resume
     
     def Get_list_groupElem(self, dim=None) -> list[GroupElem]:
-        """Liste de group d'element du maillage"""
+        """Liste de group d'élément du maillage"""
         if dim == None:
             dim = self.__dim
             
@@ -53,23 +53,23 @@ class Mesh:
 
     @property
     def dict_groupElem(self) -> dict[ElemType, GroupElem]:
-        """dictionnaire qui contient tout les groupe d'element du maillage"""
+        """dictionnaire qui contient tous les groupes d'élément du maillage"""
         return self.__dict_groupElem
 
     @property
     def groupElem(self) -> GroupElem:
-        """Groupe d'element du maillage
+        """Groupe d'élément du maillage
         """
         return self.__groupElem
     
     @property
     def elemType(self) -> ElemType:
-        "Type d'element utilisé pour le maillage"
+        "Type d'élément utilisé pour le maillage"
         return self.groupElem.elemType
     
     @property
     def Ne(self) -> int:
-        """Nombre d'élements du maillage"""
+        """Nombre d'éléments du maillage"""
         return self.groupElem.Ne
     
     @property
@@ -111,11 +111,11 @@ class Mesh:
 
     @property
     def connect(self) -> np.ndarray:
-        """Matrice de connection des elements (Ne, nPe)"""
+        """Matrice de connexion des éléments (Ne, nPe)"""
         return self.groupElem.connect_e
     
     def Get_connect_n_e(self) -> sp.csr_matrix:
-        """Matrices creuses de 0 et 1 avec les 1 lorsque le noeud possède l'element (Nn, Ne).\nCette matrice permet de faire l'interpolation des valeurs des elements aux noeuds : 
+        """Matrices creuses de 0 et 1 avec les 1 lorsque le noeud possède l'élément (Nn, Ne).\nCette matrice permet de faire l'interpolation des valeurs des éléments aux noeuds : 
         valeurs_n(Nn,1) = connect_n_e(Nn,Ne) * valeurs_e(Ne,1)
         """
         return self.groupElem.Get_connect_n_e()
@@ -133,7 +133,7 @@ class Mesh:
     
     @property
     def dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:
-        """Récupère les faces de chaque element et renvoie un dictionnaire pour chaque elements
+        """Récupère les faces de chaque élément et renvoie un dictionnaire pour chaque elements
         """
         return self.groupElem.Get_dict_connect_Faces()
 
@@ -249,22 +249,22 @@ class Mesh:
         return self.groupElem.Get_jacobien_e_pg(matriceType)
     
     def Get_N_scalaire_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Fonctions de formes dans l'element isoparamétrique pour un scalaire (npg, 1, npe)\n
-        Matrice des fonctions de forme dans element de référence (ksi, eta)\n
+        """Fonctions de formes dans l'élément isoparamétrique pour un scalaire (npg, 1, npe)\n
+        Matrice des fonctions de forme dans élément de référence (ksi, eta)\n
         [N1(ksi,eta) N2(ksi,eta) Nn(ksi,eta)] \n
         """
         return self.groupElem.Get_N_pg(matriceType)
 
     def Get_N_vecteur_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Fonctions de formes dans l'element de reférences pour un vecteur (npg, dim, npe*dim)\n
-        Matrice des fonctions de forme dans element de référence (ksi, eta)\n
+        """Fonctions de formes dans l'élément de reférences pour un vecteur (npg, dim, npe*dim)\n
+        Matrice des fonctions de forme dans élément de référence (ksi, eta)\n
         [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
         0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]\n
         """
         return self.groupElem.Get_N_pg_rep(matriceType, self.__dim)
 
     def Get_dN_sclaire_e_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Derivé des fonctions de formes dans la base réele en sclaire\n
+        """Derivé des fonctions de formes dans la base réelle en sclaire\n
         [dN1,x dN2,x dNn,x\n
         dN1,y dN2,y dNn,y]\n        
         (epij)
@@ -272,7 +272,7 @@ class Mesh:
         return self.groupElem.Get_dN_e_pg(matriceType)
 
     def Get_dNv_sclaire_e_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Derivé des fonctions de formes de la poutre dans la base réele en sclaire\n
+        """Derivé des fonctions de formes de la poutre dans la base réelle en sclaire\n
         [dNv1,x dNv2,x dNvn,x\n
         dNv1,y dNv2,y dNvn,y]\n        
         (epij)
@@ -280,7 +280,7 @@ class Mesh:
         return self.groupElem.Get_dNv_e_pg(matriceType)
     
     def Get_ddNv_sclaire_e_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Derivé segonde des fonctions de formes de la poutre dans la base réele en sclaire\n
+        """Derivé seconde des fonctions de formes de la poutre dans la base réelle en sclaire\n
         [dNv1,xx dNv2,xx dNvn,xx\n
         dNv1,yy dNv2,yy dNvn,yy]\n        
         (epij)
@@ -288,7 +288,7 @@ class Mesh:
         return self.groupElem.Get_ddNv_e_pg(matriceType)
 
     def Get_ddN_sclaire_e_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Derivé segonde des fonctions de formes dans la base réele en sclaire\n
+        """Derivé seconde des fonctions de formes dans la base réelle en scalaire\n
         [dN1,xx dN2,xx dNn,xx\n
         dN1,yy dN2,yy dNn,yy]\n        
         (epij)
@@ -296,18 +296,18 @@ class Mesh:
         return self.groupElem.Get_ddN_e_pg(matriceType)
 
     def Get_B_dep_e_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Derivé des fonctions de formes dans la base réele pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n
+        """Derivé des fonctions de formes dans la base réelle pour le problème de déplacement (e, pg, (3 ou 6), nPe*dim)\n
         exemple en 2D :\n
         [dN1,x 0 dN2,x 0 dNn,x 0\n
         0 dN1,y 0 dN2,y 0 dNn,y\n
         dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]\n
 
-        (epij) Dans la base de l'element et en Kelvin Mandel
+        (epij) Dans la base de l'élément et en Kelvin Mandel
         """
         return self.groupElem.Get_B_dep_e_pg(matriceType)
 
     def Get_leftDepPart(self, matriceType: MatriceType) -> np.ndarray:
-        """Renvoie la partie qui construit le therme de gauche de déplacement\n
+        """Renvoie la partie qui construit le terme de gauche de déplacement\n
         Ku_e = jacobien_e_pg * poid_pg * B_dep_e_pg' * c_e_pg * B_dep_e_pg\n
         
         Renvoie (epij) -> jacobien_e_pg * poid_pg * B_dep_e_pg'
@@ -315,7 +315,7 @@ class Mesh:
         return self.groupElem.Get_leftDepPart(matriceType)
     
     def Get_phaseField_ReactionPart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Renvoie la partie qui construit le therme de reaction\n
+        """Renvoie la partie qui construit le terme de reaction\n
         K_r_e_pg = jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg\n
         
         Renvoie (epij) -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
@@ -323,7 +323,7 @@ class Mesh:
         return self.groupElem.Get_phaseField_ReactionPart_e_pg(matriceType)
 
     def Get_phaseField_DiffusePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Renvoie la partie qui construit le therme de diffusion\n
+        """Renvoie la partie qui construit le terme de diffusion\n
         DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * Bd_e_pg\n
         
         Renvoie (epij) -> jacobien_e_pg * poid_pg * Bd_e_pg' * Bd_e_pg
@@ -331,7 +331,7 @@ class Mesh:
         return self.groupElem.Get_phaseField_DiffusePart_e_pg(matriceType)
 
     def Get_phaseField_SourcePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Renvoie la partie qui construit le therme de source\n
+        """Renvoie la partie qui construit le terme de source\n
         SourcePart_e_pg = jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'\n
         
         Renvoie (epij) -> jacobien_e_pg, poid_pg, Nd_pg'
@@ -381,7 +381,7 @@ class Mesh:
         return self.groupElem.Get_Nodes_Cylindre(circle, direction)
 
     def Elements_Nodes(self, nodes: np.ndarray, exclusivement=True):
-        """Renvoie les élements qui utilisent exclusivement ou non les noeuds renseignés en fonction du groupe d'element (elements de la dimension du maillage)"""
+        """Renvoie les éléments qui utilisent exclusivement ou non les noeuds renseignés en fonction du groupe d'élément (éléments de la dimension du maillage)"""
         elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusivement=exclusivement)
         return elements
 
@@ -407,7 +407,7 @@ class Mesh:
         return np.unique(nodes)
 
     def Elements_Tag(self, tags: list[str]) -> np.ndarray:
-        """Renvoie les elements qui utilisent le tag"""
+        """Renvoie les éléments qui utilisent le tag"""
         elements = []
         [elements.extend(grp.Get_Elements_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(Mesh.__Dim_For_Tag(tag))]
 
