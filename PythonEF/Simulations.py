@@ -64,15 +64,15 @@ class Simu(ABC):
             
         def Get_Resultats_disponibles(self) -> list[str]:
 
-        def Get_Directions(self, problemType : ModelType):
+        def Get_Directions(self, problemType=None):
         
-        def Get_nbddl_n(self, problemType="") -> int:
+        def Get_nbddl_n(self, problemType=None) -> int:
 
     - Solveur :
     
-        def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:    
+        def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:    
         
-        def Get_x0(self, problemType: ModelType):
+        def Get_x0(self, problemType=None):
         
         def Assemblage(self):
 
@@ -93,7 +93,7 @@ class Simu(ABC):
     #     
     @abstractmethod
     def Get_problemTypes(self) -> list[ModelType]:
-        """Problemes/modèles disponibles par la simulation"""
+        """Problèmes/modèles disponibles par la simulation"""
         pass
     
     @abstractmethod
@@ -108,13 +108,13 @@ class Simu(ABC):
 
     @abstractmethod
     def Get_nbddl_n(self, problemType=None) -> int:
-        """degrés de libertés par noeud"""
+        """Degrés de liberté par noeud"""
         pass
 
     # Solveurs
     @abstractmethod
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        """Renvoie les matrices assemblés de K u + C v + M a = F"""
+        """Renvoie les matrices assemblées de K u + C v + M a = F"""
         pass
     
     @abstractmethod
@@ -124,7 +124,7 @@ class Simu(ABC):
 
     @abstractmethod
     def Assemblage(self):
-        """Assemblage du système matricielle"""
+        """Assemblage du système matriciel"""
         pass
 
     # Itérations
@@ -141,7 +141,7 @@ class Simu(ABC):
     
     @abstractmethod
     def Update_iter(self, index=-1) -> list[dict]:
-        """Met la simulation à l'iteration renseignée (de base la dernière) et renvoie la liste de dictionnaire"""
+        """Mets la simulation à l'itération renseignée (de base la dernière) et renvoie la liste de dictionnaire"""
         index = int(index)
         assert isinstance(index, int), print("Doit fournir un entier")
 
@@ -158,14 +158,14 @@ class Simu(ABC):
     # Resultats
 
     @abstractmethod
-    def Get_Resultat(self, option: str, nodeValues=True, iter=None):
-        """ Renvoie le résultat de la simulation (np.ndarray ou float)
+    def Get_Resultat(self, option: str, nodeValues=True, iter=None) -> np.ndarray | float:
+        """Renvoie le résultat de la simulation (np.ndarray ou float)
         """
         pass
 
     @abstractmethod
     def Resultats_Get_ResumeIter_values(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
-        """Renvoie les valeurs a afficher dans Plot_ResumeIter\n
+        """Renvoie les valeurs a afficher dans Plot_ResumeIter
         """
         return [], []
 
@@ -182,23 +182,23 @@ class Simu(ABC):
 
     @abstractmethod
     def Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
-        """Renvoie les listes detaillées ou non pour la récupération des nodesField et elementsField qui seront utilisés dans paraview.
+        """Renvoie les listes détaillées ou non pour la récupération des nodesField et elementsField affichés dans paraview.
         """
         return [], []
 
     # ================================================ SIMU ================================================
 
     def Check_Directions(self, problemType : ModelType, directions:list):
-        """Verifie si les directions renseignées sont possible pour le probleme"""
+        """Vérifie si les directions renseignées sont possibles pour le problème"""
         listDirections = self.Get_Directions(problemType)
         for d in directions: assert d in listDirections, f"{d} n'est pas dans [{listDirections}]"
 
     def __Check_ProblemTypes(self, problemType : ModelType):
-        """Verifie si ce type de probleme est disponible par la simulation"""
+        """Vérifie si ce type de problème est disponible par la simulation"""
         assert problemType in self.Get_problemTypes(), f"Ce type de probleme n'est pas disponible dans cette simulation ({self.Get_problemTypes()})"
     
     def Check_dim_mesh_materiau(self) -> None:
-        """On verifie que la dimension du materiau correspond a la dimension du maillage"""
+        """On vérifie que la dimension du matériau correspond à la dimension du maillage"""
         assert self.__model.dim == self.__mesh.dim, "Le materiau doit avoir la meme dimension que le maillage"
 
     def __init__(self, mesh: Mesh, model: IModel, verbosity=True, useNumba=True):
@@ -338,34 +338,35 @@ class Simu(ABC):
             self.__dict_a_n[problemType] = vectInit    
 
     def __Check_New_Sol_Values(self, problemType: ModelType, values: np.ndarray):
+        """Vérifie que la solution renseignée est de la bonne taille"""
         self.__Check_ProblemTypes(problemType)
         taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         assert values.shape[0] == taille, f"Doit être de taille {taille}"
 
     def get_u_n(self, problemType: ModelType) -> np.ndarray:
-        """Renvoie la solution associée au probleme renseigné"""
+        """Renvoie la solution associée au problème renseigné"""
         return self.__dict_u_n[problemType].copy()
     
     def set_u_n(self, problemType: ModelType, values: np.ndarray):
-        """Renseigne la solution associée au probleme renseigné"""
+        """Renseigne la solution associée au problème renseigné"""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_u_n[problemType] = values
 
     def get_v_n(self, problemType: ModelType) -> np.ndarray:
-        """Renvoie la solution en vitesse associée au probleme renseigné"""
+        """Renvoie la solution en vitesse associée au problème renseigné"""
         return self.__dict_v_n[problemType].copy()
 
     def set_v_n(self, problemType: ModelType, values: np.ndarray):
-        """Renseigne la solution en vitesse associée au probleme renseigné"""
+        """Renseigne la solution en vitesse associée au problème renseigné"""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_v_n[problemType] = values
 
     def get_a_n(self, problemType: ModelType) -> np.ndarray:
-        """Renvoie la solution en accel associée au probleme renseigné"""
+        """Renvoie la solution en accel associée au problème renseigné"""
         return self.__dict_a_n[problemType].copy()
 
     def set_a_n(self, problemType: ModelType, values: np.ndarray):
-        """Renseigne la solution en vitesse associée au probleme renseigné"""
+        """Renseigne la solution en vitesse associée au problème renseigné"""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_a_n[problemType] = values
 
@@ -426,7 +427,7 @@ class Simu(ABC):
 
     @property
     def useNumba(self) -> bool:
-        """La simulation peut utilser des fonctions numba"""
+        """La simulation peut utiliser des fonctions numba"""
         return self.__useNumba
     
     @useNumba.setter
