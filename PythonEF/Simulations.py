@@ -97,7 +97,7 @@ class Simu(ABC):
         pass
     
     @abstractmethod
-    def Get_Directions(self, problemType: ModelType) -> list[str]:
+    def Get_Directions(self, problemType=None) -> list[str]:
         """Liste de directions disponibles dans la simulation"""
         pass
     
@@ -107,18 +107,18 @@ class Simu(ABC):
         pass
 
     @abstractmethod
-    def Get_nbddl_n(self, problemType="") -> int:
+    def Get_nbddl_n(self, problemType=None) -> int:
         """degrés de libertés par noeud"""
         pass
 
     # Solveurs
     @abstractmethod
-    def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
         """Renvoie les matrices assemblés de K u + C v + M a = F"""
         pass
     
     @abstractmethod
-    def Get_x0(self, problemType: ModelType):
+    def Get_x0(self, problemType=None):
         """Renvoie la solution de l'itération précédente"""
         return []
 
@@ -375,7 +375,6 @@ class Simu(ABC):
         return np.array([]), np.array([])
 
     # Properties
-
     @property
     def problemType(self) -> ModelType:
         """problème de la simulation"""
@@ -1370,7 +1369,7 @@ class Simu_Displacement(Simu):
             elementsField = ["Stress"]                        
         return nodesField, elementsField
     
-    def Get_Directions(self, problemType: ModelType) -> list[str]:
+    def Get_Directions(self, problemType=None) -> list[str]:
         dict_dim_directions = {
             2 : ["x", "y"],
             3 : ["x", "y", "z"]
@@ -1380,7 +1379,7 @@ class Simu_Displacement(Simu):
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.displacement]
         
-    def Get_nbddl_n(self, problemType: ModelType) -> int:
+    def Get_nbddl_n(self, problemType=None) -> int:
         return self.dim
 
     @property
@@ -1449,7 +1448,9 @@ class Simu_Displacement(Simu):
 
         return Ku_e, Mu_e
 
-    def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+        if problemType==None:
+            problemType = self.problemType
         if self.needUpdate: self.Assemblage()
         return self.__Ku.copy(), self.Get_Rayleigh_Damping(), self.__Mu.copy(), self.__Fu.copy()
  
@@ -1504,7 +1505,7 @@ class Simu_Displacement(Simu):
         else:
             return None
 
-    def Get_x0(self, problemType: ModelType):
+    def Get_x0(self, problemType=None):
         algo = self.algo
         if self.displacement.size != self.mesh.Nn*self.dim:
             return np.zeros(self.mesh.Nn*self.dim)
@@ -1934,10 +1935,10 @@ class Simu_PhaseField(Simu):
             elementsField = ["Stress"]
         return nodesField, elementsField
 
-    def Get_Directions(self, problemType: ModelType) -> list[str]:
+    def Get_Directions(self, problemType=None) -> list[str]:        
         if problemType == ModelType.damage:
             return [""]
-        elif problemType == ModelType.displacement:
+        elif problemType in [ModelType.displacement, None]:
             _dict_dim_directions_displacement = {
                 2 : ["x", "y"],
                 3 : ["x", "y", "z"]
@@ -1970,10 +1971,10 @@ class Simu_PhaseField(Simu):
             
         return lb, ub
 
-    def Get_nbddl_n(self, problemType: ModelType) -> int:
+    def Get_nbddl_n(self, problemType=None) -> int:        
         if problemType == ModelType.damage:
             return 1
-        elif problemType == ModelType.displacement:
+        elif problemType in [ModelType.displacement, None]:
             return self.dim
 
     @property
@@ -2003,7 +2004,10 @@ class Simu_PhaseField(Simu):
     def add_neumann(self, noeuds: np.ndarray, valeurs: list, directions: list, problemType=ModelType.displacement, description=""):
         return super().add_neumann(noeuds, valeurs, directions, problemType, description)
 
-    def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+        
+        if problemType==None:
+            problemType = ModelType.displacement
 
         taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         initcsr = sparse.csr_matrix((taille, taille))
@@ -2017,14 +2021,14 @@ class Simu_PhaseField(Simu):
             print("Sytème pas encore assemblé")
             return initcsr, initcsr, initcsr, initcsr
 
-    def Get_x0(self, problemType: ModelType):
+    def Get_x0(self, problemType=None):
         
         if problemType == ModelType.damage:
             if self.damage.size != self.mesh.Nn:
                 return np.zeros(self.mesh.Nn)
             else:
                 return self.damage
-        elif problemType == ModelType.displacement:
+        elif problemType in [ModelType.displacement, None]:
             if self.displacement.size != self.mesh.Nn*self.dim:
                 return np.zeros(self.mesh.Nn*self.dim)
             else:
@@ -2923,7 +2927,7 @@ class Simu_Beam(Simu):
             elementsField = ["Stress"]
         return nodesField, elementsField
 
-    def Get_Directions(self, problemType: ModelType) -> list[str]:
+    def Get_Directions(self, problemType=None) -> list[str]:
         dict_nbddl_directions = {
             1 : ["x"],
             3 : ["x","y","rz"],
@@ -2947,7 +2951,7 @@ class Simu_Beam(Simu):
     def A_isSymetric(self) -> bool:
         return False
 
-    def Get_nbddl_n(self, problemType: ModelType) -> int:
+    def Get_nbddl_n(self, problemType=None) -> int:
         return self.beamModel.nbddl_n
 
     def Check_dim_mesh_materiau(self) -> None:
@@ -3230,12 +3234,12 @@ class Simu_Beam(Simu):
 
             tic.Tac("Matrices","Assemblage Kbeam et Fbeam", self._verbosity)
 
-    def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
         taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         initcsr = sparse.csr_matrix((taille, taille))
         return self.__Kbeam, initcsr, initcsr, self.__Fbeam
 
-    def Get_x0(self, problemType: ModelType):
+    def Get_x0(self, problemType=None):
         if self.beamDisplacement.size != self.mesh.Nn*self.Get_nbddl_n(problemType):
             return np.zeros(self.mesh.Nn*self.Get_nbddl_n(problemType))
         else:
@@ -3412,7 +3416,7 @@ class Simu_Thermal(Simu):
         # init
         self.Solver_Set_Elliptic_Algorithm()
     
-    def Get_Directions(self, problemType: ModelType) -> list[str]:
+    def Get_Directions(self, problemType=None) -> list[str]:
         return [""]
 
     def Get_Resultats_disponibles(self) -> list[str]:
@@ -3428,7 +3432,7 @@ class Simu_Thermal(Simu):
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.thermal]
     
-    def Get_nbddl_n(self, problemType: ModelType) -> int:
+    def Get_nbddl_n(self, problemType=None) -> int:
         return 1
 
     @property
@@ -3446,13 +3450,13 @@ class Simu_Thermal(Simu):
         """Copie de la dérivée du champ scalaire de température"""
         return self.get_v_n(self.problemType)
 
-    def Get_x0(self, problemType: ModelType):
+    def Get_x0(self, problemType=None):
         if self.thermal.size != self.mesh.Nn:
             return np.zeros(self.mesh.Nn)
         else:
             return self.thermal
 
-    def Get_K_C_M_F(self, problemType: ModelType) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
         if self.needUpdate: self.Assemblage()
         taille = self.mesh.Nn * self.Get_nbddl_n(problemType)
         initcsr = sparse.csr_matrix((taille, taille))
