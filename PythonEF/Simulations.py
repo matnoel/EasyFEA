@@ -576,7 +576,7 @@ class Simu(ABC):
             self.set_a_n(problemType, a_np1)    
 
     def _Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
-        """Renseigne les conditiosn limites de neumann en construisant b de A x = b"""
+        """Renseigne les conditions limites de neumann en construisant b de A x = b"""
         tic = Tic()
         
         algo = self.algo
@@ -588,8 +588,9 @@ class Simu(ABC):
         dimSupl = len(self.Bc_Lagrange)
         if dimSupl > 0:
             dimSupl += len(self.Bc_ddls_Dirichlet(problemType))
+            taille += dimSupl
             
-        b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille+dimSupl,1))
+        b = sparse.csr_matrix((valeurs_ddls, (ddls,  np.zeros(len(ddls)))), shape = (taille,1))
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
@@ -764,8 +765,8 @@ class Simu(ABC):
         """Renvoie une copie des conditions de Lagrange"""
         return self.__Bc_Lagrange.copy()
     
-    def _Bc_Lagrange_New(self, newBc: LagrangeCondition):
-        """Renvoie une copie des conditions de Lagrange"""
+    def _Bc_Add_Lagrange(self, newBc: LagrangeCondition):
+        """Ajoute les conditions de Lagrange"""
         assert isinstance(newBc, LagrangeCondition)
         self.__Bc_Lagrange.append(newBc)
     
@@ -1462,6 +1463,12 @@ class Simu_Displacement(Simu):
             # Data
             mesh = self.mesh        
             taille = mesh.Nn*self.dim
+
+            # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
+            dimSupl = len(self.Bc_Lagrange)
+            if dimSupl > 0:
+                dimSupl += len(self.Bc_ddls_Dirichlet(ModelType.displacement))
+                taille += dimSupl
 
             # Construit dict_Ku_e
             Ku_e, Mu_e = self.__ConstruitMatElem_Dep()            
@@ -2207,6 +2214,12 @@ class Simu_PhaseField(Simu):
         mesh = self.mesh        
         taille = mesh.Nn*self.dim
 
+        # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
+        dimSupl = len(self.Bc_Lagrange)
+        if dimSupl > 0:
+            dimSupl += len(self.Bc_ddls_Dirichlet(ModelType.displacement))
+            taille += dimSupl
+
         Ku_e = self.__ConstruitMatElem_Dep()        
 
         # Prépare assemblage
@@ -2277,7 +2290,7 @@ class Simu_PhaseField(Simu):
 
             inc_H = psiP_e_pg - old_psiPlus_e_pg
 
-            éléments, pdGs = np.where(inc_H < 0)
+            elements, pdGs = np.where(inc_H < 0)
 
             psiP_e_pg[elements, pdGs] = old_psiPlus_e_pg[elements, pdGs]
 
@@ -2367,6 +2380,12 @@ class Simu_PhaseField(Simu):
         taille = mesh.Nn
         lignesScalar_e = mesh.lignesScalar_e
         colonnesScalar_e = mesh.colonnesScalar_e
+
+        # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
+        dimSupl = len(self.Bc_Lagrange)
+        if dimSupl > 0:
+            dimSupl += len(self.Bc_ddls_Dirichlet(ModelType.damage))
+            taille += dimSupl
         
         # Calul les matrices elementaires
         Kd_e, Fd_e = self.__ConstruitMatElem_Pfm()
@@ -3034,7 +3053,7 @@ class Simu_Beam(Simu):
 
             new_LagrangeBc = LagrangeCondition(problemType, noeuds, ddls, [dir], [0], [1,-1], description)
 
-            self._Bc_Lagrange_New(new_LagrangeBc)
+            self._Bc_Add_Lagrange(new_LagrangeBc)
         
         # Il n'est pas possible de poser u1-u2 + v1-v2 = 0
         # Il faut appliquer une seule condition à la fois
@@ -3212,7 +3231,8 @@ class Simu_Beam(Simu):
             # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
             dimSupl = len(self.Bc_Lagrange)
             if dimSupl > 0:
-                dimSupl += len(self.Bc_ddls_Dirichlet(MatriceType.beam))
+                dimSupl += len(self.Bc_ddls_Dirichlet(ModelType.beam))                
+                taille += dimSupl
 
             # Prépare assemblage
             lignesVector_e = mesh.Get_lignesVectorBeam_e(model.nbddl_n)
@@ -3221,11 +3241,11 @@ class Simu_Beam(Simu):
             tic = Tic()
 
             # Assemblage
-            self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille+dimSupl, taille+dimSupl))
+            self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(taille, taille))
             """Matrice Kglob pour le problème poutre (Nn*nbddl_e, Nn*nbddl_e)"""
 
             # Ici j'initialise Fu calr il faudrait calculer les forces volumiques dans __ConstruitMatElem_Dep !!!
-            self.__Fbeam = sparse.csr_matrix((taille+dimSupl, 1))
+            self.__Fbeam = sparse.csr_matrix((taille, 1))
             """Vecteur Fglob pour le problème poutre (Nn*nbddl_e, 1)"""
 
             # import matplotlib.pyplot as plt
@@ -3499,6 +3519,12 @@ class Simu_Thermal(Simu):
             taille = mesh.Nn
             lignesScalar_e = mesh.lignesScalar_e
             colonnesScalar_e = mesh.colonnesScalar_e
+
+            # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
+            dimSupl = len(self.Bc_Lagrange)
+            if dimSupl > 0:
+                dimSupl += len(self.Bc_ddls_Dirichlet(ModelType.thermal))
+                taille += dimSupl
             
             # Calul les matrices elementaires
             Kt_e, Mt_e = self.__ConstruitMatElem_Thermal()

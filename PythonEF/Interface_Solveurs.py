@@ -112,8 +112,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
     if len(lb) > 0 and len(lb) > 0:        
         solveur = "BoundConstrain"
-    else:
-        if simu.problemType == ModelType.beam:
+    else:        
+        if len(simu.Bc_Lagrange) > 0:
             solveur = "scipy"
         else:
             solveur = simu.solver
@@ -294,13 +294,13 @@ def __Solveur_2(simu, problemType: str):
             b[-i] = valeurs[0]
 
         [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1)]
-
-    tic.Tac("Solver",f"Lagrange ({problemType})", simu._verbosity)
-
-    x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
     
+    x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=True, verbosity=simu._verbosity)
+
     # On renvoie pas les forces de réactions
     x = x[range(decalage)]
+    
+    tic.Tac("Solver",f"Lagrange ({problemType})", simu._verbosity)
 
     return x 
 
@@ -397,16 +397,19 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
     # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
 
     hideFacto = False # Cache la décomposition
-    # permc_spec = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
-    # if A_isSymetric and not isDamaged:
+    # permute = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
+    
+    # if A_isSymetric:
     #     permute="MMD_AT_PLUS_A"
     # else:
     #     permute="COLAMD"
+    #     # permute="NATURAL"
 
-    permute="MMD_AT_PLUS_A"
+    permute = "MMD_AT_PLUS_A"
 
     if hideFacto:                   
         x = sla.spsolve(A, b, permc_spec=permute)
+        # x = sla.spsolve(A, b)
         
     else:
         # superlu : https://portal.nersc.gov/project/sparse/superlu/
