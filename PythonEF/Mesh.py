@@ -35,7 +35,7 @@ class Mesh:
     
     def Resume(self, verbosity=True):
         resume = f"\nTypes d'elements: {self.elemType}"
-        resume += f"\nNe = {self.Ne}, Nn = {self.Nn}, nbDdl = {self.Nn*self.__dim}"
+        resume += f"\nNe = {self.Ne}, Nn = {self.Nn}, nDof = {self.Nn*self.__dim}"
         if verbosity: print(resume)
         return resume
     
