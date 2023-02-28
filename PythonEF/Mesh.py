@@ -241,7 +241,7 @@ class Mesh:
         return self.groupElem.Get_gauss(matriceType).nPg
 
     def Get_poid_pg(self, matriceType: MatriceType) -> np.ndarray:
-        """Points d'intégration (pg, dim, poid)"""
+        """Renvoie les poids des points d'intégration en fonction du type de matrice"""
         return self.groupElem.Get_gauss(matriceType).poids
 
     def Get_jacobien_e_pg(self, matriceType: MatriceType) -> np.ndarray:

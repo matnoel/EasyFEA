@@ -307,6 +307,10 @@ class GroupElem(ABC):
         """Renvoie les points d'intégration en fonction du type de matrice"""
         return Gauss(self.elemType, matriceType)
     
+    def Get_poid_pg(self, matriceType: MatriceType) -> np.ndarray:
+        """Renvoie les poids des points d'intégration en fonction du type de matrice"""
+        return Gauss(self.elemType, matriceType).poids
+    
     def Get_coordo_e_p(self, matriceType: MatriceType, elements: np.ndarray) -> np.ndarray:
         """Renvoie les coordonnées des points d'intégration pour chaque element"""
 
