@@ -34,7 +34,9 @@ except:
     canUseMumps = False
 
 try:
-    import petsc4py    
+    # import petsc4py    
+    # from mpi4py import MPI
+    # import sys
     from petsc4py import PETSc
     canUsePetsc = True
 except:
@@ -114,7 +116,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         solveur = "BoundConstrain"
     else:        
         if len(simu.Bc_Lagrange) > 0:
-            solveur = "scipy"
+            # solveur = "scipy"
+            solveur = "petsc"
         else:
             solveur = simu.solver
 
@@ -342,7 +345,7 @@ def _Cholesky(A, b):
 def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     # Utilise PETSc
 
-    # petsc4py.init(sys.argv)
+    # petsc4py.init(sys.argv, comm=MPI.COMM_WORLD)
 
     lignes, colonnes, valeurs = sparse.find(A)
 
@@ -354,11 +357,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     nnz = np.array(count, dtype=np.int32)
     
     matrice = PETSc.Mat()
-    matrice.createAIJ([dimI, dimJ], nnz=nnz)
-
-    # matrice = PETSc.MatSeqAIJ()
-    # matrice.createSeqAIJ([dimI, dimJ], nnz=nnz)
-    # matrice.create(A)
+    matrice.createAIJ([dimI, dimJ], nnz=nnz)    
     
     [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)]    
 
@@ -375,8 +374,9 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     x = matrice.createVecRight()
     x.array[:] = x0
 
-    pc = "lu" # "none", "lu"
-    kspType = "cg" # "cg", "bicg, "gmres"
+    pc = "lu" # "none", "lu", "jacobi", "cholesky"
+    # pc = "none" # "none", "lu"
+    kspType = "cg" # "cg", "bicg", "gmres", "bcgs"
 
     ksp = PETSc.KSP().create()
     ksp.setOperators(matrice)
