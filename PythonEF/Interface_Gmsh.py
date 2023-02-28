@@ -128,7 +128,19 @@ class Interface_Gmsh:
                 B = F(j, n).dot(np.array([d,0,0])) + P0
                 C = F(i, n).dot(np.array([d, point.r,0])) + P0
 
-                pA = factory.addPoint(A[0], A[1], A[2], taille) # point d'intersection entre i et le cercle
+                if index > 0:
+                    # Récupère le dernier point gmsh crée
+                    prevPoint = points[index-1]
+                    factory.synchronize()
+                    lastPoint = dict_point_pointsGmsh[prevPoint][-1]
+                    # récupère les coordonnées du point
+                    lastCoordo = gmsh.model.getValue(0, lastPoint, [])
+
+                if index > 0 and np.linalg.norm(lastCoordo - A) <= 1e-12:
+                    # si la coordonée est identique on ne recrée pas le point
+                    pA = lastPoint
+                else:
+                    pA = factory.addPoint(A[0], A[1], A[2], taille) # point d'intersection entre i et le cercle
                 pC = factory.addPoint(C[0], C[1], C[2], taille) # centre du cercle                
                 pB = factory.addPoint(B[0], B[1], B[2], taille) # point d'intersection entre j et le cercle
 
@@ -157,10 +169,12 @@ class Interface_Gmsh:
             else:
                 indexAfter = index + 1
 
-            # Récupère le prochain point gmsh dans le point d'après
+            # Récupère le prochain point gmsh pour creer la ligne entre les points
             gmshPointAfter = dict_point_pointsGmsh[points[indexAfter]][0]
 
-            lignes.append(factory.addLine(gmshPoints[-1], gmshPointAfter))
+            if gmshPoints[-1] != gmshPointAfter:
+                # On ne crée pas le lien si les points gmsh sont identiques
+                lignes.append(factory.addLine(gmshPoints[-1], gmshPointAfter))
 
         # Create a closed loop connecting the lines for the surface        
         loop = factory.addCurveLoop(lignes)
