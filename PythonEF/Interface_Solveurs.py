@@ -115,9 +115,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     if len(lb) > 0 and len(lb) > 0:        
         solveur = "BoundConstrain"
     else:        
-        if len(simu.Bc_Lagrange) > 0:
-            # solveur = "scipy"
-            solveur = "petsc"
+        if len(simu.Bc_ddls_Lagrange(problemType)) > 0:
+            solveur = "scipy"
         else:
             solveur = simu.solver
 
