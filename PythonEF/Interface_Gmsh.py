@@ -40,11 +40,11 @@ class Interface_Gmsh:
     def __CheckType(self, dim: int, elemType: str):
         """Vérification si le type d'element est bien utilisable."""
         if dim == 1:
-            assert elemType in GroupElem.get_Types1D()
+            assert elemType in GroupElem.get_Types1D(), f"Doit être dans {GroupElem.get_Types1D()}"
         if dim == 2:
-            assert elemType in GroupElem.get_Types2D()
+            assert elemType in GroupElem.get_Types2D(), f"Doit être dans {GroupElem.get_Types2D()}"
         elif dim == 3:
-            assert elemType in GroupElem.get_Types3D()
+            assert elemType in GroupElem.get_Types3D(), f"Doit être dans {GroupElem.get_Types3D()}"
     
     def __initGmsh(self, factory: str):
         """Initialise gmsh."""
