@@ -6,6 +6,7 @@ from colorama import Fore
 from datetime import datetime
 from types import LambdaType
 from typing import cast
+import platform
 
 import numpy as np
 import pandas as pd
@@ -239,9 +240,14 @@ class Simu(ABC):
         self.__algo = AlgoType.elliptic
         """algorithme de résolution du système lors de la simulation"""
         # de base l'algo résout des problèmes stationnaires
-
-        self.solver = "petsc"
-        """Solveur utilisé lors de la résolution"""
+        
+        # Solveur utilisé lors de la résolution
+        self.__solver = "scipy" # initialise au cas ou
+        if "arm" in platform.machine():
+            # peut pas utiliser pypardiso ;(
+            self.solver = "petsc"
+        else:
+            self.solver = "pypardiso"        
 
         self.__Init_Sols_n()
 
@@ -270,7 +276,7 @@ class Simu(ABC):
     @property
     def solver(self) -> str:
         """Solveur utilisé lors de la résolution"""
-        return self.__solveur
+        return self.__solver
     
     @solver.setter
     def solver(self, value: str):
@@ -282,7 +288,7 @@ class Simu(ABC):
             solvers.remove("BoundConstrain")
 
         if value in solvers:
-            self.__solveur = value
+            self.__solver = value
         else:
             print(Fore.RED + f"Le solveur {value} n'est pas utilisable. Le solveur doit être dans {solvers}"+ Fore.WHITE)
 
