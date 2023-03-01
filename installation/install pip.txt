@@ -1,2 +1,0 @@
-pip install numpy scipy matplotlib gmsh pandas pypardiso numba scikit-umfpack colorama
-scikit-sparse -> erreur sur linux

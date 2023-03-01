@@ -1,16 +1,16 @@
 Le projet est sur git https://github.com/matnoel/PythonEF.git
 
 il faut installer sur python :
-	numpy -> pour les calculs rapides notament einsum
-	scipy -> pour la construction de matrices creuses
-	matplotlib -> pour afficher les résultats
-	gmsh -> pour creer le maillage (Regarder installation gmsh sur macos il faut reconstruire le projet et ajouter le python patch pour le module gmsh)
-	pandas -> pour creer des tableaux
-	pypardiso -> tres important pour résoudre les système matricielle direct en parallel (installation intel mkl nécessaire)
-	numba -> module pour compiler des fonctions executables en parallel
-    colorama -> pour afficher de la couleur dans le terminal
-	scikit-umfpack -> Pas obligatoire
-	scikits-sparse -> installer cholmod pour la decomposition de cholesky
+	numpy
+	scipy
+	matplotlib
+	gmsh
+	pandas
+	pypardiso (optional)
+	numba
+    colorama
+	scikit-umfpack  (optional)
+	scikits-sparse  (optional)
 
 
 Il faut impérativement ajouter le dossier dans lequel est contenu les modules et classes dans le path
@@ -18,16 +18,16 @@ Pour ça on ajoute dans le PYTHONPATH:
 	
 	sur macOs :
 		dans le .zprofile ajouter 
-		export PYTHONPATH:"$PYTHONPATH:/Documents/PythonEF/PythonEF"
+		export PYTHONPATH:"$PYTHONPATH: .../PythonEF/classes"
 
 	sur linux :
-		export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/PythonEF
+		export PYTHONPATH=$PYTHONPATH: .../PythonEF/classes
 		
 	sur windows : 
 		modifier les variables du système -> variables d'environnement -> variables utilisateur
-		PYTHONPATH D:\SOFT\PythonEF\PythonEF
+		PYTHONPATH ...\PythonEF\classes
 
-Build gmsh:
+Build gmsh on macos:
 
 	il faut dabord  installer opencascade : sudo port install opencascade
 	il faut ensuite installer fltk : sudo port install fltk
@@ -45,4 +45,4 @@ Build gmsh:
 	make install
 
 	il faut ensuite ajouter le path vers gmsh.py
-	export PYTHONPATH="/Users/matnoel/Documents/PythonEF/PythonEF:/Applications/gmsh/bin/lib"
+	export PYTHONPATH=".../PythonEF/classes:/Applications/gmsh/bin/lib"
