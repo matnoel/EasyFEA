@@ -1293,16 +1293,12 @@ class Simu(ABC):
         if verbosity:
             print(resume)
 
-        return resume    
-    
-    def Resultats_InterpolationAuxNoeuds(self, resultat_e: np.ndarray):
-        """Pour chaque noeuds on récupère les valeurs des élements autour de lui pour on en fait la moyenne
-        """
-        return Simu.Resultats_InterpolationAuxNoeuds(self.__mesh, resultat_e=resultat_e)
+        return resume
         
     @staticmethod
     def Resultats_InterpolationAuxNoeuds(mesh: Mesh, resultat_e: np.ndarray):
         """Pour chaque noeuds on récupère les valeurs des élements autour de lui pour on en fait la moyenne
+        (staticmethod)
         """
 
         tic = Tic()
@@ -1582,7 +1578,7 @@ class Simu_Displacement(Simu):
             psi_e = self.__Calc_Psi_Elas(returnScalar=False)
 
             if nodeValues:
-                return self.Resultats_InterpolationAuxNoeuds(psi_e)
+                return self.Resultats_InterpolationAuxNoeuds(self.mesh, psi_e)
             else:
                 return psi_e
 
@@ -1670,7 +1666,7 @@ class Simu_Displacement(Simu):
                 resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
 
             if nodeValues:
-                resultat_n = self.Resultats_InterpolationAuxNoeuds(resultat_e)
+                resultat_n = self.Resultats_InterpolationAuxNoeuds(self.mesh, resultat_e)
                 return resultat_n
             else:
                 return resultat_e
@@ -2483,7 +2479,7 @@ class Simu_PhaseField(Simu):
             resultat_e = np.mean(resultat_e_pg, axis=1)
 
             if nodeValues:
-                return self.Resultats_InterpolationAuxNoeuds(resultat_e)
+                return self.Resultats_InterpolationAuxNoeuds(self.mesh, resultat_e)
             else:
                 return resultat_e
 
@@ -2570,9 +2566,8 @@ class Simu_PhaseField(Simu):
             if option in ["Stress","Strain"]:
                 resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
 
-            if nodeValues:
-                resultat_n = self.Resultats_InterpolationAuxNoeuds(resultat_e)
-                return resultat_n
+            if nodeValues:                
+                return self.Resultats_InterpolationAuxNoeuds(self.mesh, resultat_e)
             else:
                 return resultat_e
         

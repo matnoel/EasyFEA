@@ -124,7 +124,7 @@ Sigma_e_pg = np.einsum("ij,epj->epi", comportement.C, Epsilon_e_pg)
 Wdef_e = 1/2 * b * np.einsum("ep,p,epi,epi->e", jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
 Wdef = np.sum(Wdef_e)
 
-Sigma_n = simu.Resultats_InterpolationAuxNoeuds(np.mean(Sigma_e_pg, 1))
+Sigma_n = simu.Resultats_InterpolationAuxNoeuds(simu.mesh, np.mean(Sigma_e_pg, 1))
 
 Sigma_n_e = simu.mesh.Localises_sol_e(Sigma_n)
 sigmaliss_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
