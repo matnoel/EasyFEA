@@ -12,19 +12,15 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.collections
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-__cmap = 'jet'
-# __cmap = 'RdBu'
-# __cmap = 'seismic'
-
 import Folder
 
-def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, colorbarIsClose=False):
+def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, colorbarIsClose=False, cmap="jet"):
     """Affichage d'un résulat de la simulation
 
     Parameters
     ----------
-    simu : _Simu
-        Simulation
+    obj : _Simu or Mesh
+        objet qui contient le maillage
     option : str
         resultat que l'on souhaite utiliser. doit être compris dans Simu.ResultatsCalculables()
     deformation : bool, optional
@@ -47,6 +43,9 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
         ancien axe de matplotlib, by default None
     colorbarIsClose : bool, optional
         la color bar est affiché proche de la figure, by default False
+    cmap : str, optional
+        la color map utilisée proche de la figure, by default "jet" \n
+        \t ["jet", "RdBu", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
 
     Returns
     -------
@@ -54,20 +53,38 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
         fig, ax, cb
     """
 
-    # TODO recuperer la valeur comme pour Plot Model
+    from Simulations import Simu, Mesh, MatriceType
+
+    # ici on detecte la nature de l'objet
+    if isinstance(obj, Simu):
+        simu = obj
+        mesh = simu.mesh
+        use3DBeamModel = simu.use3DBeamModel
+
+        if simu.problemType == MatriceType.beam:
+            # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
+            nodeValues = False
+
+    elif isinstance(obj, Mesh):
+        mesh = obj
+
+        if deformation == True:
+            deformation = False
+            print("Il faut donner la simulation pour afficher le maillage déformée")
+        use3DBeamModel = False
+
+        if isinstance(option, str):
+            raise Exception("Quand obj est un maillage il faut que option soit une array de dimension Nn ou Ne")
+        
+    else:
+        raise Exception("Doit être une simulation ou un maillage")    
     
     if ax != None:
         assert isinstance(ax, plt.Axes)
         fig = ax.figure
-
-    from Simulations import Simu, MatriceType
-    assert isinstance(simu, Simu)
     
-    mesh = simu.mesh # récupération du maillage
     dim = mesh.dim # dimension du maillage    
-    inDim = mesh.inDim # dimension dans lequel se trouve le maillage
-
-    use3DBeamModel = simu.use3DBeamModel
+    inDim = mesh.inDim # dimension dans lequel se trouve le maillage    
 
     # Construction de la figure et de l'axe si nécessaire
     if ax == None:
@@ -87,14 +104,10 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
         # Pour prendre moin de place
         # En plus, il faut tracer la solution que sur les eléments 2D
 
-    if simu.problemType == MatriceType.beam:
-        # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
-        nodeValues = False
-
-
     if isinstance(option, str):
         valeurs = simu.Get_Resultat(option, nodeValues) # Récupération du résultat
         if not isinstance(valeurs, np.ndarray): return
+
     elif isinstance(option, np.ndarray):
         # Recupère la taille de l'array, la taille doit être aux noeuds ou aux elements
         # Si la taille n'est pas egale au nombre de noeuds ou d'elements renvoie une erreur
@@ -107,24 +120,26 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
         valeurs = option
         
         if sizeVecteur == mesh.Ne and nodeValues:
-            valeurs = simu.Resultats_InterpolationAuxNoeuds(valeurs)
+            valeurs = Simu.Resultats_InterpolationAuxNoeuds(mesh, valeurs)
         elif sizeVecteur == mesh.Nn and not nodeValues:
             valeursLoc_e = mesh.Localises_sol_e(valeurs)
             valeurs = np.mean(valeursLoc_e, 1)
     else:
         raise Exception("Dois renseigner une chaine de caractère ou une array")
-        return
     
     valeurs *= coef # Application d'un coef sur les valeurs
 
-    coordoNonDef = simu.mesh.coordo # coordonnées des noeuds sans déformations
+    coordoNonDef = mesh.coordo # coordonnées des noeuds sans déformations
 
-    # Recupération des coordonnée déformées si la simulation le permet
-    coordoDef, deformation = __GetCoordo(simu, deformation, facteurDef)
-    
-    connect_Faces = mesh.dict_connect_Faces # construit la matrice de connection pour les faces
+    if deformation:
+        # Recupération des coordonnée déformées si la simulation le permet
+        coordoDef, deformation = __GetCoordo(simu, deformation, facteurDef)
+    else:
+        coordoDef = coordoNonDef.copy()
     
     coordoDef_InDim = coordoDef[:,range(inDim)]
+    
+    connect_Faces = mesh.dict_connect_Faces # construit la matrice de connection pour les faces    
 
     # Construit les niveaux pour la colorbar
     if isinstance(option, str) and option == "damage":
@@ -174,11 +189,11 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
                 # on va afficher le résultat sur les elements
                 if mesh.dim == 1:
                     # on va afficher le résulat sur chaque ligne
-                    pc = matplotlib.collections.LineCollection(vertices, lw=1.5, cmap=__cmap)
+                    pc = matplotlib.collections.LineCollection(vertices, lw=1.5, cmap=cmap)
                 else:
                     # on va afficher le résultat sur les faces
-                    pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap=__cmap)                
-                pc.set_clim(valeurs.min(), valeurs.max())
+                    pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap=cmap)                
+                pc.set_clim(min, max)
                 pc.set_array(valeurs)
                 ax.add_collection(pc)
 
@@ -194,7 +209,7 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
                         # si il n'y a aucune dispersion sur les valeurs il n'est pas possible d'avoir trop de niveau de couleurs
                         valeurs = np.round(valeurs, 12)
 
-                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=__cmap)
+                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=cmap)
                 # tripcolor, tricontour, tricontourf
 
         ax.autoscale()
@@ -262,14 +277,14 @@ def Plot_Result(simu, option: str|np.ndarray, deformation=False, facteurDef=4, c
             # On affiche le résultat avec ou sans l'affichage du maillage
             if plotMesh:
                 if dim == 1:
-                    pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=__cmap)
+                    pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=cmap)
                 elif dim == 2:
-                    pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=__cmap)
+                    pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=cmap)
             else:
                 if dim == 1:
-                    pc = Line3DCollection(vertices, cmap=__cmap)
+                    pc = Line3DCollection(vertices, cmap=cmap)
                 if dim == 2:
-                    pc = Poly3DCollection(vertices, cmap=__cmap)
+                    pc = Poly3DCollection(vertices, cmap=cmap)
 
             # On applique les couleurs aux faces
             pc.set_array(valeursAuxFaces)

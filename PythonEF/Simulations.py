@@ -1287,16 +1287,22 @@ class Simu(ABC):
         if verbosity:
             print(resume)
 
-        return resume
-
+        return resume    
+    
     def Resultats_InterpolationAuxNoeuds(self, resultat_e: np.ndarray):
+        """Pour chaque noeuds on récupère les valeurs des élements autour de lui pour on en fait la moyenne
+        """
+        return Simu.Resultats_InterpolationAuxNoeuds(self.__mesh, resultat_e=resultat_e)
+        
+    @staticmethod
+    def Resultats_InterpolationAuxNoeuds(mesh: Mesh, resultat_e: np.ndarray):
         """Pour chaque noeuds on récupère les valeurs des élements autour de lui pour on en fait la moyenne
         """
 
         tic = Tic()
 
-        Ne = self.__mesh.Ne
-        Nn = self.__mesh.Nn
+        Ne = mesh.Ne
+        Nn = mesh.Nn
 
         if len(resultat_e.shape) == 1:
             resultat_e = resultat_e.reshape(Ne,1)
@@ -1312,9 +1318,9 @@ class Simu(ABC):
 
             valeurs_e = resultat_e[:, c]
 
-            connect_n_e = self.__mesh.Get_connect_n_e()
-            nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(self.__mesh.Nn,1)
-            valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(self.__mesh.Ne,1))
+            connect_n_e = mesh.Get_connect_n_e()
+            nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(mesh.Nn,1)
+            valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(mesh.Ne,1))
             valeurs_n = valeurs_n_e/nombreApparition
 
             resultat_n[:,c] = valeurs_n.reshape(-1)
