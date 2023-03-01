@@ -13,19 +13,19 @@ il faut installer sur python :
 	scikits-sparse  (optional)
 
 
-Il faut impérativement ajouter le dossier dans lequel est contenu les modules et classes dans le path
+Il faut impérativement ajouter le dossier dans lequel est contenu les modules dans le path
 Pour ça on ajoute dans le PYTHONPATH:
 	
 	sur macOs :
 		dans le .zprofile ajouter 
-		export PYTHONPATH:"$PYTHONPATH: .../PythonEF/classes"
+		export PYTHONPATH:"$PYTHONPATH: .../PythonEF/modules"
 
 	sur linux :
-		export PYTHONPATH=$PYTHONPATH: .../PythonEF/classes
+		export PYTHONPATH=$PYTHONPATH: .../PythonEF/modules
 		
 	sur windows : 
 		modifier les variables du système -> variables d'environnement -> variables utilisateur
-		PYTHONPATH ...\PythonEF\classes
+		PYTHONPATH ...\PythonEF\modules
 
 Build gmsh on macos:
 
@@ -45,4 +45,4 @@ Build gmsh on macos:
 	make install
 
 	il faut ensuite ajouter le path vers gmsh.py
-	export PYTHONPATH=".../PythonEF/classes:/Applications/gmsh/bin/lib"
+	export PYTHONPATH=".../PythonEF/modules:/Applications/gmsh/bin/lib"
