@@ -20,8 +20,8 @@ L = 120 # mm
 h = 13
 b = 13
 
-nL = 50 # bombre inclusion suivant L
-nH = 5
+nL = 10 # nombre d'inclusion suivant L
+nH = 2 # nombre d'inclusion suivant h
 
 # c = 13/2
 cL = L/(2*nL)
@@ -248,6 +248,13 @@ def Simulation(simu: Simulations.Simu, title=""):
 
 Simulation(simuInclusions, "inclusions")
 Simulation(simu, "non hom")
+
+testSym = np.linalg.norm(C_hom.T - C_hom)/np.linalg.norm(C_hom)
+
+if testSym >= 1e-12 and testSym <= 1e-7:
+    C_hom = 1/2 * (C_hom.T + C_hom)
+else:
+    raise "C_hom non symétrique"
 comp.Set_C(C_hom, False)
 Simulation(simu, "hom")
 

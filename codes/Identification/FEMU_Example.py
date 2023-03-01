@@ -11,6 +11,10 @@ import Geom
 
 Affichage.Clear()
 
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
+
 pltVerif = False
 useRescale = True
 
@@ -27,6 +31,10 @@ mat = "bois" # "acier" "bois"
 tol = 1e-14
 
 sig = 10
+
+# ----------------------------------------------
+# Maillage
+# ----------------------------------------------
 
 gmshInterface = Interface_Gmsh.Interface_Gmsh()
 
@@ -59,6 +67,10 @@ if useRescale:
 Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)
 # Affichage.Plot_Nodes(mesh, nodesX0)
+
+# ----------------------------------------------
+# Comportement
+# ----------------------------------------------
 
 tol0 = 1e-6
 bSup = np.inf
@@ -100,6 +112,9 @@ elif mat == "bois":
     compIdentif = Materials.Elas_IsotTrans(2, El=EL0, Et=ET0, Gl=GL0, vl=vL0, vt=0.3,
     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), contraintesPlanes=True, epaisseur=b)
 
+# ----------------------------------------------
+# Simulation et chargement
+# ----------------------------------------------
 
 simu = Simulations.Simu_Displacement(mesh, comp)
 
@@ -117,12 +132,21 @@ Affichage.Plot_Result(simu, "uy")
 # Affichage.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
 # simu.Resultats_Resume()
 
+# ----------------------------------------------
+# Identification
+# ----------------------------------------------
+
 Affichage.NouvelleSection("Identification")
+
+# perturbations = [0, 0.02]
+perturbations = np.linspace(0, 0.05, 6)
 
 simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
 
 def func(x):
+    # Fonction coût
 
+    # Mise à jour des paramètres
     if mat == "acier":
         # x0 = [E0, v0]
         E = x[0]
@@ -138,20 +162,20 @@ def func(x):
 
     simuIdentif.Need_Update()
 
-    u = simuIdentif.Solve()    
+    u = simuIdentif.Solve()
 
     # diff = u[ddlsInconnues] - u_exp_bruit[ddlsInconnues]
     diff = u - u_exp_bruit
 
     return diff
 
-# perturbations = [0, 0.02]
-perturbations = np.linspace(0, 0.05, 6)
-
 list_dict = []
+# liste de dictionnaire qui va contenir pour les différentes perturbations les
+# propriétés identifiées
 
 for perturbation in perturbations:
 
+    # bruitage de la solution
     bruit = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
     u_exp_bruit = u_exp + bruit
 
@@ -220,8 +244,6 @@ for param in params:
 
 ax.legend()
 ax.set_xlabel("perturbation")
-
-
 
 if mat == "acier":
     print(f"\nE = {res.x[0]:.3e}")

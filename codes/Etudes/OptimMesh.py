@@ -12,33 +12,20 @@ from TicTac import Tic
 
 # Affichage.Clear()
 
+# TODO Adaptation de maillage 
+# gmsh.view.addListData()
+# gmsh.view.s
+
+# import gmsh
+# gmsh.model.mesh.refine()
+
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
 
 dim = 2
-folder = Folder.New_File(f"Etude{dim}D", results=True)
+folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 plotResult = True
-
-isLoading = False
-initSimu = True
-
-saveParaview = False; NParaview = 500
-pltMovie = False; NMovie = 400
-plotIter = True; affichageIter = "uy"
-
-coefM = 1e-2
-coefK = 1e-2*2
-
-# coefM = 0
-# coefK = 0
-
-tic_Tot = Tic()
-
-Tmax = 0.5
-N = 100
-dt = Tmax/N
-t = 0
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -53,7 +40,6 @@ surfLoad = P/h/b #N/mm2
 # taille = h/1
 # taille = L/2
 taille = h/10
-
 
 # ----------------------------------------------
 # Maillage
@@ -100,98 +86,70 @@ noeuds_en_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2) # noeuds_en_h= mesh.
 # Comportement et Simu
 # ----------------------------------------------
 
-comportement = Materials.Elas_Isot(dim, epaisseur=b)
-simu = Simulations.Simu_Displacement(mesh, comportement, useNumba=True, verbosity=False)
+comportement = Materials.Elas_Isot(dim, E=210000, v=0.3, epaisseur=b)
+simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 simu.rho = 8100*1e-9
-simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
-def Chargement(isLoading: bool):
+simu.Bc_Init()
 
-    simu.Bc_Init()
+# Renseigne les condtions limites
 
-    # Renseigne les condtions limites
+if dim == 2:
+    simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
+elif dim == 3:
+    simu.add_dirichlet(noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
 
-    if dim == 2:
-        simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
-    elif dim == 3:
-        simu.add_dirichlet(noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
-    
-    # simu.add_volumeLoad(mesh.Nodes_Conditions(conditionX=lambda x: x>1e-4), [-9.81*1e-3], ["y"])
+simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
 
-    if isLoading:
-        # simu.add_dirichlet(noeuds_en_h, [lambda x,y,z : -x/L], ["y"], description="f(x)=x/L")
+Affichage.Plot_BoundaryConditions(simu)
+# plt.show()
 
-        # simu.add_lineLoad(noeuds_en_h, [lambda x,y,z : -surfLoad], ["y"], description="Encastrement")
-        simu.add_dirichlet(noeuds_en_L, [-7], ["y"], description="dep")
+simu.Solve()
 
-        # simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
-        # simu.add_surfLoad(noeuds_en_L, [-surfLoad*(t/Tmax)], ["y"])
-        # simu.add_lineLoad(noeuds_en_L, [-lineLoad], ["y"])        
+# ----------------------------------------------
+# Calcul de l'erreur
+# ----------------------------------------------
 
+matriceType = "rigi"
+B_e_pg = simu.mesh.Get_B_dep_e_pg(matriceType)
+jacobien_e_pg = simu.mesh.Get_jacobien_e_pg(matriceType)
+poid_pg = simu.mesh.Get_poid_pg(matriceType)
+N_pg = simu.mesh.Get_N_scalaire_pg(matriceType)
 
-def Iteration(steadyState: bool, isLoading: bool):
+u_e = simu.mesh.Localises_sol_e(simu.displacement)
 
-    Chargement(isLoading)    
+Epsilon_e_pg = np.einsum("epij,ej->epi", B_e_pg, u_e)
+Sigma_e_pg = np.einsum("ij,epj->epi", comportement.C, Epsilon_e_pg)
 
-    if steadyState:
-        simu.Solver_Set_Elliptic_Algorithm()
-    else:
-        simu.Solver_Set_Newton_Raphson_Algorithm(dt=dt)
+Wdef_e = 1/2 * b * np.einsum("ep,p,epi,epi->e", jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
+Wdef = np.sum(Wdef_e)
 
-    simu.Solve()
-    
-    simu.Save_Iteration()
+Sigma_n = simu.Resultats_InterpolationAuxNoeuds(np.mean(Sigma_e_pg, 1))
 
-if initSimu:
-    # Init
-    Iteration(steadyState=True, isLoading=True)
+Sigma_n_e = simu.mesh.Localises_sol_e(Sigma_n)
+sigmaliss_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
 
-if N > 1:
-    steadyState=False
-else:
-    steadyState=True
+WdefLisse_e = 1/2 * b * np.einsum("ep,p,epi,epi->e", jacobien_e_pg, poid_pg, sigmaliss_e_pg, Epsilon_e_pg)
+WdefLisse = np.sum(WdefLisse_e)
 
-if plotIter:
-    fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, deformation=True)
+erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef    
 
-while t <= Tmax:
+Affichage.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
 
-    Iteration(steadyState=steadyState, isLoading=isLoading)
+# erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)
+# Affichage.Plot_Result(simu, erreur_e, nodeValues=False, title="erreur_e mJ")
 
-    if plotIter:
-        cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, ax=ax, deformation=True)
-        plt.pause(1e-12)
+erreur = np.abs(Wdef-WdefLisse)/Wdef
 
-    t += dt
-
-    print(f"{np.round(t,3)} s", end='\r')
-
-# PostTraitement.Save_Simu(simu, folder)
-
-tic_Tot.Tac("Temps script","Temps total", True)        
+print(f"erreur = {erreur*100:.3} %")
 
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
 Affichage.NouvelleSection("Post traitement")
 
-simu.Resultats_Get_Resume_Iteration()
-
-Affichage.Plot_BoundaryConditions(simu)
-# plt.show()
-
 # folder=""
-
-if saveParaview:        
-    filename = Folder.New_File(os.path.join("Etude2D","solution2D"), results=True)
-    PostTraitement.Make_Paraview(folder, simu,Niter=NParaview)
-
-if pltMovie:
-    PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=True, Niter=NMovie, deformation=True, nodeValues=True)
-
 if plotResult:
-
     tic = Tic()
     simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
@@ -202,6 +160,5 @@ if plotResult:
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-# tic_Tot.Resume()
-Tic.Plot_History(folder ,details=True)
+Tic.Plot_History(details=True)
 plt.show()

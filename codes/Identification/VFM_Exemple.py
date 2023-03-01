@@ -1,4 +1,3 @@
-from scipy.optimize import least_squares
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -10,19 +9,27 @@ import Geom
 
 Affichage.Clear()
 
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
+
 pltVerif = False
 
 L=120
 h=13
 b=13
-taille = 20
+meshSize = h/20
 p = 800
+
+# ----------------------------------------------
+# Maillage
+# ----------------------------------------------
 
 gmshInterface = Interface_Gmsh.Interface_Gmsh()
 
 pt1 = Geom.Point()
 pt2 = Geom.Point(L, h)
-domain = Geom.Domain(pt1, pt2, h/taille)
+domain = Geom.Domain(pt1, pt2, meshSize)
 
 mesh = gmshInterface.Mesh_Rectangle_2D(domain, "QUAD4", isOrganised=True)
 xn = mesh.coordo[:,0]
@@ -32,19 +39,33 @@ nodesEdge = mesh.Nodes_Tag(["L1", "L2", "L3", "L4"])
 nodesX0 = mesh.Nodes_Tag(["L4"])
 nodesXL = mesh.Nodes_Tag(["L2"])
 
+# Récupération des array pour l'intégration numérique
 matriceType = "masse" 
 jacob2D_e_pg = mesh.Get_jacobien_e_pg(matriceType)
 poid2D_pg = mesh.Get_poid_pg(matriceType)
+aire_e = jacob2D_e_pg @ poid2D_pg
 
 groupElem1D = mesh.Get_list_groupElem(1)[0]
 jacob1D_e_pg = groupElem1D.Get_jacobien_e_pg(matriceType)
 poid1D_pg = groupElem1D.Get_poid_pg(matriceType)
+longueur_e = jacob1D_e_pg @ poid1D_pg
+
+assembly1D_e = groupElem1D.Get_assembly_e(2)
 
 # Affichage.Plot_Mesh(mesh)
 # Affichage.Plot_Model(mesh)
 
+# ----------------------------------------------
+# Comportement
+# ----------------------------------------------
+
 E_exp, v_exp = 210000, 0.3 
 comp = Materials.Elas_Isot(2, epaisseur=b)
+
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
+
 simu = Simulations.Simu_Displacement(mesh, comp)
 
 simu.add_dirichlet(nodesX0, [0,0], ["x","y"])
@@ -54,18 +75,21 @@ simu.add_surfLoad(nodesXL, [-p/b/h], ["y"])
 # Affichage.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
-f_exp = simu._Apply_Neumann("displacement").toarray().reshape(-1)
-# f_exp = simu.Get_K_C_M_F("displacement")[0] @ u_exp
-
-assembly1D_e = groupElem1D.Get_assembly_e(2)
+# f_exp = simu._Apply_Neumann("displacement").toarray().reshape(-1)
+f_exp = simu.Get_K_C_M_F()[0] @ u_exp
 
 f_exp_loc = f_exp[assembly1D_e]
 
 # Affichage.Plot_Result(simu, "uy")
-simu.Resultats_Resume()
+# simu.Resultats_Resume()
+
+# ----------------------------------------------
+# Identification
+# ----------------------------------------------
 
 Affichage.NouvelleSection("Identification")
 
+# Récupération des déformations aux elements
 Eps_exp_e = simu.Get_Resultat("Strain", nodeValues=False)
 E11_exp_e = Eps_exp_e[:,0]
 E22_exp_e = Eps_exp_e[:,1]
@@ -75,37 +99,30 @@ E12_exp_e = Eps_exp_e[:,2]
 # Affichage.Plot_Result(simu, "Eyy", nodeValues=False)
 # Affichage.Plot_Result(simu, "Exy", nodeValues=False)
 
-def Get_u_n_and_Eps_e(champVirtuel_x, champVirtuel_y):
+def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, pltSol=False):
+    # Fonction qui renvoie les intégrales calculés
 
-    result = np.zeros((mesh.Nn, 2))    
-
+    # Calcul les déplacements associés aux champs virtuels.
+    result = np.zeros((mesh.Nn, 2))
     result[:,0] = champVirtuel_x(xn, yn)
     result[:,1] = champVirtuel_y(xn, yn)
-
     u_n = result.reshape(-1)
 
+    # Calcul les déformations associées aux champs virtuels.
     simu.set_u_n("displacement", u_n)
-
     Eps_e = simu.Get_Resultat("Strain", nodeValues=False)
+    E11_e = Eps_e[:,0]
+    E22_e = Eps_e[:,1]
+    E12_e = Eps_e[:,2]
 
-    return u_n, Eps_e
-
-def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, pltSol=False):
-
-    u_n, Eps_e = Get_u_n_and_Eps_e(champVirtuel_x, champVirtuel_y)
-
-    if pltSol:
-        simu.set_u_n("displacement", u_n)
+    if pltSol:        
         Affichage.Plot_Result(simu, "ux", title=r"$u_x^*$")
         Affichage.Plot_Result(simu, "uy", title=r"$u_y^*$")
         Affichage.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False)
         Affichage.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False)
         Affichage.Plot_Result(simu, "Evm", title=r"$\epsilon_{xy}^*$", nodeValues=False)
-
-    E11_e = Eps_e[:,0]
-    E22_e = Eps_e[:,1]
-    E12_e = Eps_e[:,2]
-
+    
+    # Calcul des intégrales.
     A = b * np.einsum('ep,p,e->', jacob2D_e_pg, poid2D_pg, E11_e * E11_exp_e)
     B = b * np.einsum('ep,p,e->', jacob2D_e_pg, poid2D_pg, E22_e * E22_exp_e)
     C = b * np.einsum('ep,p,e->', jacob2D_e_pg, poid2D_pg, E11_e * E22_exp_e + E22_e * E11_exp_e)

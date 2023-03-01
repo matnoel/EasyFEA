@@ -37,7 +37,7 @@ h = H/2
 
 r3 = 3
 
-epFissure = 1
+epFissure = 0.5
 lFissure = 20
 a = 20
 c = 20
@@ -70,8 +70,8 @@ p10 = Point(x=a+(d1+d)*np.sin(alpha1), y=h-(d1+d)*np.cos(alpha1), r=r3)
 p11 = Point(x=a, y=h)
 p12 = Point(x=0, y=h)
 p13 = Point(x=0, y=epFissure/2)
-p14 = Point(x=lFissure, y=epFissure/2, r=epFissure/2.1)
-p15 = Point(x=lFissure, y=-epFissure/2, r=epFissure/2.1)
+p14 = Point(x=lFissure, y=epFissure/2, r=epFissure/2)
+p15 = Point(x=lFissure, y=-epFissure/2, r=epFissure/2)
 
 listPoint = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15]
 
@@ -93,20 +93,20 @@ geomObjectsInDomain = [c1, c2, c3, c4]
 
 interface = Interface_Gmsh.Interface_Gmsh(False, False)
 
-zone = 6*epFissure
+zone = 10
 refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), taille=tailleFin)
 mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=tailleGros, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI6")
 
-Affichage.Plot_Mesh(mesh)
+# Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)
-plt.show()
+# plt.show()
 
 
 # MATERIAU
 
 # El=11580*1e6
 # Gc = 300*1e6 # J/mm2
-Gc = 1*1e6 # J/mm2
+Gc = 1*1e-1 # J/mm2
 El=12000
 # Et=500
 Et=500*3
@@ -123,8 +123,8 @@ pfm = Materials.PhaseField_Model(comportement, splits.Zhang, reg.AT2, Gc, l0)
 
 simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
 
-noeudsHaut = mesh.Nodes_Tag(["L31","L30"])
-noeudsBas = mesh.Nodes_Tag(["L16","L17"])
+noeudsHaut = mesh.Nodes_Tag(["L35","L34"])
+noeudsBas = mesh.Nodes_Tag(["L20","L21"])
 
 def Chargement(force: float):
     simu.Bc_Init()
@@ -132,13 +132,17 @@ def Chargement(force: float):
     SIG = force/(np.pi*r**2/2)
 
     # simu.add_dirichlet(noeudsBas, [0,0], ["x","y"])
+    
     simu.add_dirichlet(noeudsBas, [0], ["y"])
-    simu.add_dirichlet(mesh.Nodes_Tag(["P17"]), [0], ["x"])
+    simu.add_dirichlet(mesh.Nodes_Tag(["P26"]), [0], ["x"])
 
     # # simu.add_dirichlet(noeudsBas, [0], ["x"])
     # simu.add_surfLoad(noeudsBas, [lambda x,y,z: -SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
 
     simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
+
+    # simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
+    # simu.add_surfLoad(noeudsBas, [lambda x,y,z: -SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
 
 Chargement(0)
 
@@ -147,23 +151,27 @@ Affichage.Plot_BoundaryConditions(simu)
 
 fig_Damage, ax_Damage, cb_Damage = Affichage.Plot_Result(simu, "damage")
 
-for iter, force, dep in zip(range(len(forces)), forces, displacements):
+# for iter, force, dep in zip(range(len(forces)), forces, displacements):
+nf = 70*2
+for iter, force in enumerate(np.linspace(0, 30, nf)):
 
     Chargement(force)
 
-    simu.Solve(1e-1)
+    simu.Solve(1e-0)
 
     simu.Save_Iteration()
 
     depNum = np.max(simu.displacement[noeudsHaut])
 
-    ecart = np.abs(depNum-dep)/dep
-    print(ecart)
+    # ecart = np.abs(depNum-dep)/dep
+    # print(ecart)
 
     # Affichage.Plot_Result(simu, "Syy")
     # plt.show()
 
-    simu.Resultats_Set_Resume_Iteration(iter, force, "N", dep/displacements[-1],True)
+    pourcent = iter/len(forces)
+
+    simu.Resultats_Set_Resume_Iteration(iter, force, "N", pourcent, True)
 
     cb_Damage.remove()
     fig_Damage, ax_Damage, cb_Damage = Affichage.Plot_Result(simu, "damage", ax=ax_Damage)

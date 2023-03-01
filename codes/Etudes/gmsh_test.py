@@ -12,8 +12,7 @@ import Folder
 
 # import gmsh
 
-# gmsh.view.addListData()
-# gmsh.view.s
+
 
 dim = 2
 N = 50
@@ -23,7 +22,7 @@ class SimulationType(str, Enum):
     EQUERRE = "EQUERRE",
     TEF2 = "TEF2"
 
-simulationType = SimulationType.TEF2
+simulationType = SimulationType.EQUERRE
 
 interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
@@ -64,12 +63,12 @@ elif simulationType == SimulationType.EQUERRE:
     listPoint = [pt1, pt2, pt3, pt4, pt5, pt6]
     # listPoint = [pt1, pt2, pt3, pt7]
 
-    listObjetsInter = [Circle(Point(x=h/2, y=h*(i+1)), h/4, isCreux=True) for i in range(3)]
+    listObjetsInter = [Circle(Point(x=h/2, y=h*(i+1)), h/4, taille=h/N, isCreux=True) for i in range(3)]
 
     listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, taille=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, tailleElement=h/N, cracks=[], folder=folder)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, inclusions=listObjetsInter, tailleElement=h/N, cracks=[], folder=folder)
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
