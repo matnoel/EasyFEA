@@ -1,17 +1,12 @@
 Le projet est sur git https://github.com/matnoel/PythonEF.git
 
-il faut installer sur python :
-	numpy
-	scipy
-	matplotlib
-	gmsh
-	pandas
-	pypardiso (optional)
-	numba
-    colorama
-	scikit-umfpack  (optional)
-	scikits-sparse  (optional)
+il faut installer sur python :	
+    pip install numpy scipy matplotlib gmsh pandas numba colorama pickle
 
+    (optional) :
+    pip install pypardiso petsc4py mpi4py scikit-umfpack scikits-sparse
+
+	pypardiso ne fonctionne pas pour les processeurs ARM
 
 Il faut impérativement ajouter le dossier dans lequel est contenu les modules dans le path
 Pour ça on ajoute dans le PYTHONPATH:
@@ -27,7 +22,7 @@ Pour ça on ajoute dans le PYTHONPATH:
 		modifier les variables du système -> variables d'environnement -> variables utilisateur
 		PYTHONPATH ...\PythonEF\modules
 
-Build gmsh on macos:
+Build gmsh comme un grand (optional):
 
 	il faut dabord  installer opencascade : sudo port install opencascade
 	il faut ensuite installer fltk : sudo port install fltk
@@ -35,6 +30,7 @@ Build gmsh on macos:
 	Sur Mac il faut construire le projet gmsh
 	https://gitlab.onelab.info/gmsh/gmsh
 	Dans le dossier applications:
+
 	git clone 
 	cd gmsh
 	mkdir build
