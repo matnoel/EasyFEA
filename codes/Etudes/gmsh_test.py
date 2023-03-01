@@ -12,10 +12,8 @@ import Folder
 
 # import gmsh
 
-
-
 dim = 2
-N = 50
+N = 20
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
