@@ -248,6 +248,8 @@ class Simu(ABC):
             self.solver = "pypardiso"
         elif "petsc" in solvers:
             self.solver = "petsc"
+        else:
+            self.solver = "cg"
 
         self.__Init_Sols_n()
 
