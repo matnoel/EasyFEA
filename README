@@ -1,44 +1,45 @@
-Le projet est sur git https://github.com/matnoel/PythonEF.git
+Below is the procedure for the installation.
 
-il faut installer sur python :	
-    pip install numpy scipy matplotlib gmsh pandas numba colorama pickle
+For the installation you need the following modules:
+    numpy scipy matplotlib gmsh pandas numba colorama pickle
 
     (optional) :
-    pip install pypardiso petsc4py mpi4py scikit-umfpack scikits-sparse
+    pypardiso petsc4py mpi4py scikit-umfpack scikits-sparse
 
-	pypardiso ne fonctionne pas pour les processeurs ARM
+	pypardiso does not work for ARM processors
 
-Il faut impérativement ajouter le dossier dans lequel est contenu les modules dans le path
-Pour ça on ajoute dans le PYTHONPATH:
+It is necessary to add in the PYTHONPATH the modules folder:
 	
-	sur macOs :
-		dans le .zprofile ajouter 
+	on macOs :
 		export PYTHONPATH:"$PYTHONPATH: .../PythonEF/modules"
+		(in the .zprofile)
 
-	sur linux :
+	on linux :
 		export PYTHONPATH=$PYTHONPATH: .../PythonEF/modules
+        (in the .bash_aliases)
 		
-	sur windows : 
-		modifier les variables du système -> variables d'environnement -> variables utilisateur
-		PYTHONPATH ...\PythonEF\modules
+	on windows : 
+		modify system variables -> environment variables -> user variables
+		PYTHONPATH .../PythonEF/modules
+        
 
-Build gmsh comme un grand (optional):
+Build gmsh like a big person (optional):
 
-	il faut dabord  installer opencascade : sudo port install opencascade
-	il faut ensuite installer fltk : sudo port install fltk
+	first you have to install opencascade : sudo port install opencascade
+	then install fltk : sudo port install fltk
 
-	Sur Mac il faut construire le projet gmsh
+	On Mac you have to build the gmsh project
 	https://gitlab.onelab.info/gmsh/gmsh
-	Dans le dossier applications:
+	In the applications folder:
 
 	git clone 
 	cd gmsh
 	mkdir build
 	mkdir bin
 	cd build
-	cmake -DCMAKE_INSTALL_PREFIX=/Applications/gmsh/bin -DENABLE_BUILD_DYNAMIC=1 .. 
+	cmake -DCMAKE_INSTALL_PREFIX=/Applications/gmsh/bin -DENABLE_BUILD_DYNAMIC=1 . 
 	make 
 	make install
 
-	il faut ensuite ajouter le path vers gmsh.py
+	then add the path to gmsh.py
 	export PYTHONPATH=".../PythonEF/modules:/Applications/gmsh/bin/lib"
