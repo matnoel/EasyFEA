@@ -225,7 +225,7 @@ class GroupElem(ABC):
         return self.__nbCorners
     
     @property
-    def connect_e(self) -> np.ndarray:
+    def connect(self) -> np.ndarray:
         """nodesID des elements (Ne, nPe)"""
         return self.__connect.copy()
     
@@ -242,7 +242,7 @@ class GroupElem(ABC):
         nPe = self.nPe
         listElem = np.arange(Ne)
 
-        lignes = self.connect_e.reshape(-1)
+        lignes = self.connect.reshape(-1)
 
         Nn = int(lignes.max()+1)
         colonnes = np.repeat(listElem, nPe)
@@ -257,7 +257,7 @@ class GroupElem(ABC):
         taille = nPe * dim
 
         assembly = np.zeros((self.Ne, taille), dtype=np.int64)
-        connect = self.connect_e
+        connect = self.connect
 
         for d in range(dim):
             colonnes = np.arange(d, taille, dim)
@@ -272,7 +272,7 @@ class GroupElem(ABC):
         taille = nbddl_e*nPe
 
         assembly = np.zeros((self.Ne, taille), dtype=np.int64)
-        connect = self.connect_e
+        connect = self.connect
 
         for d in range(nbddl_e):
             colonnes = np.arange(d, taille, nbddl_e)
@@ -1335,7 +1335,7 @@ class GroupElem(ABC):
         inDim = self.inDim        
         coordoMesh = self.coordo
         indexesFace = self.indexesFaces[:-1]
-        connectMesh = self.connect_e[:, indexesFace]
+        connectMesh = self.connect[:, indexesFace]
         coordConnect = coordoMesh[connectMesh]
         invF_e_pg = self.Get_invF_e_pg("rigi")
 
@@ -1887,7 +1887,7 @@ class POINT(GroupElem):
     def ddNvtild(self) -> np.ndarray:
         pass
 
-class SEG2(GroupElem):
+class SEG2(GroupElem):    
     #       v
     #       ^
     #       |
@@ -3311,8 +3311,8 @@ class PRISM6(GroupElem):
 
     def Get_dict_connect_Faces(self) -> dict[np.ndarray]:
         dict_connect_Faces = {
-            ElemType.QUAD4: self.connect_e[:, QUAD4._indexesFaces],
-            ElemType.TRI3: self.connect_e[:, TRI3._indexesFaces]
+            ElemType.QUAD4: self.connect[:, QUAD4._indexesFaces],
+            ElemType.TRI3: self.connect[:, TRI3._indexesFaces]
         }
         return dict_connect_Faces
 

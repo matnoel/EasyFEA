@@ -118,9 +118,9 @@ def DoSimu(i=0):
 
     groupElem = mesh.groupElem
     coordo = groupElem.coordo
-    connect0 = groupElem.connect_e[:, range(groupElem.nbCorners)]
+    connect0 = groupElem.connect[:, range(groupElem.nbCorners)]
     index = np.append(np.arange(1, groupElem.nbCorners, 1, dtype=int), 0)
-    connect1 = groupElem.connect_e[:,index]
+    connect1 = groupElem.connect[:,index]
 
     h_e_b = np.linalg.norm(coordo[connect1] - coordo[connect0], axis=2)
     h_e = np.mean(h_e_b, axis=1)

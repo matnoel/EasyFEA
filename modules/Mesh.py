@@ -112,7 +112,7 @@ class Mesh:
     @property
     def connect(self) -> np.ndarray:
         """Matrice de connexion des éléments (Ne, nPe)"""
-        return self.groupElem.connect_e
+        return self.groupElem.connect
     
     def Get_connect_n_e(self) -> sp.csr_matrix:
         """Matrices creuses de 0 et 1 avec les 1 lorsque le noeud possède l'élément (Nn, Ne).\nCette matrice permet de faire l'interpolation des valeurs des éléments aux noeuds : 

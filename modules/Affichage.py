@@ -257,7 +257,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
 
         for groupElemDim in mesh.Get_list_groupElem(dim):
             # Récupération de la liste de noeuds de chaque element
-            connectDim = groupElemDim.connect_e
+            connectDim = groupElemDim.connect
             # Récupération de la coordonnée des noeuds
             coordoDim = groupElemDim.coordoGlob
             # coordonnées des noeuds pour chaque element
@@ -501,7 +501,7 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
 
             for groupElemDim in mesh.Get_list_groupElem(dim):
 
-                connectDim = groupElemDim.connect_e
+                connectDim = groupElemDim.connect
                 coordoDim = groupElemDim.coordoGlob
                 coordFaces = coordoDim[connectDim]
 
@@ -628,7 +628,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
 
         elementsID = groupElemDim.elementsID
 
-        connect_e = groupElemDim.connect_e
+        connect_e = groupElemDim.connect
         coordo_n = groupElemDim.coordoGlob
         coordoFaces_e = coordo_n[connect_e]
         coordoFaces = coordoFaces_e[elements]

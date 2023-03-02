@@ -1103,7 +1103,7 @@ class Simu(ABC):
             # Récupère les éléments qui utilisent exclusivement les noeuds
             elements = groupElem.Get_Elements_Nodes(noeuds, exclusivement=exclusivement)
             if elements.shape[0] == 0: continue
-            connect_e = groupElem.connect_e[elements]
+            connect = groupElem.connect[elements]
             Ne = elements.shape[0]
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
@@ -1131,7 +1131,7 @@ class Simu(ABC):
             new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
             
-            new_ddls = BoundaryCondition.Get_ddls_connect(nbddl_n, problemType, connect_e, directions)
+            new_ddls = BoundaryCondition.Get_ddls_connect(nbddl_n, problemType, connect, directions)
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
