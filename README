@@ -1,6 +1,6 @@
 Below is the procedure for the installation.
 
-For the installation you need the following modules:
+For the installation you need the following libraries:
     numpy scipy matplotlib gmsh pandas numba colorama pickle
 
     (optional) :
