@@ -1,10 +1,13 @@
-Below is the procedure for the installation.
+You will find below the installation procedure.
 
 For the installation you need the following libraries:
+    (required) :
     numpy scipy matplotlib gmsh pandas numba colorama pickle
 
-    (optional) : The following libraries are optional but can be useful to reduce your resolution time. I recommend the use of pypardiso or petsc4py.
+    (optional) :
     pypardiso petsc4py mpi4py scikit-umfpack scikits-sparse
+    The following libraries are optional but can be useful to reduce your resolution time. I recommend the use of pypardiso or petsc4py. Otherwise, the resolution time will be much slower.
+    
 	Note that pypardiso does not work with ARM processors
 
 It is necessary to add in the PYTHONPATH the modules folder:
