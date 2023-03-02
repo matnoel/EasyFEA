@@ -36,10 +36,10 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # meshSize = h/1
 # meshSize = L/2
-meshSize = h/10
+meshSize = h
 
 if dim == 2:
-    elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
     elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
@@ -54,10 +54,10 @@ pt4 = Point(0, h)
 
 points = [pt1, pt2, pt3, pt4]
 
-circle = Circle(Point(x=L/2, y=h/2), h*0.3, isCreux=True)
+circle = Circle(Point(x=h, y=h/2), h*0.3, isCreux=True)
 
-# inclusions = [circle]
-inclusions = []
+inclusions = [circle]
+# inclusions = []
 
 interfaceGmsh = Interface_Gmsh(False)
 
@@ -122,7 +122,11 @@ def DoSimu(i=0):
     index = np.append(np.arange(1, groupElem.nbCorners, 1, dtype=int), 0)
     connect1 = groupElem.connect[:,index]
 
-    h_e_b = np.linalg.norm(coordo[connect1] - coordo[connect0], axis=2)
+    indexesSegments = groupElem.indexesSegments
+
+    segments_e = groupElem.connect[:, indexesSegments]
+
+    h_e_b = np.linalg.norm(coordo[segments_e[:,:,1]] - coordo[segments_e[:,:,0]], axis=2)
     h_e = np.mean(h_e_b, axis=1)
 
     c_e = (rapport-1)/erreur_e.max() * erreur_e + 1
@@ -141,7 +145,11 @@ def DoSimu(i=0):
 
 path = None
 
-for i in range(5):
+erreur = 1
+i = -1
+while erreur >= 0.1 and i < 6:
+
+    i += 1
 
     mesh = DoMesh(path)
     simu.mesh = mesh

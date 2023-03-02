@@ -1467,6 +1467,22 @@ class GroupElem(ABC):
     def indexesTriangles(self) -> list[int]:
         """Liste d'indexes pour former les triangles d'un element qui seront utilisées pour la fonction trisurf en 2D"""
         pass
+
+    @property
+    def indexesSegments(self) -> np.ndarray:
+        """Indexes pour la formation des coins"""
+        
+        if self.__dim == 1:
+            return np.array([[0, 1]], dtype=int)
+        elif self.__dim == 2:
+            segments = np.zeros((self.nbCorners, 2), dtype=int)
+            segments[:,0] = np.arange(self.nbCorners)
+            segments[:,1] = np.append(np.arange(1, self.nbCorners, 1), 0)
+            return segments
+        elif self.__dim == 3:
+            raise Exception("À définir pour les groupes d'elements 3D")
+
+
     
     def Get_dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
         """Transforme la matrice de connectivité pour la passer dans la fonction trisurf en 2D\n
@@ -3063,6 +3079,10 @@ class TETRA4(GroupElem):
     @property
     def indexesFaces(self) -> list[int]:
         return [0,1,2,0,1,3,0,2,3,1,2,3]
+    
+    @property
+    def indexesSegments(self) -> np.ndarray:
+        return np.array([[0,1],[0,3],[3,1],[2,0],[2,3],[2,1]])
 
     def Ntild(self) -> np.ndarray:
 
@@ -3135,6 +3155,10 @@ class TETRA10(GroupElem):
     @property
     def indexesFaces(self) -> list[int]:
         return [0,4,1,5,2,6,0,4,1,9,3,7,0,6,2,8,3,7,1,5,2,8,3,9]
+    
+    @property
+    def indexesSegments(self) -> np.ndarray:
+        return np.array([[0,1],[0,3],[3,1],[2,0],[2,3],[2,1]])
 
     def Ntild(self) -> np.ndarray:
 
@@ -3228,6 +3252,10 @@ class HEXA8(GroupElem):
     @property
     def indexesFaces(self) -> list[int]:
         return [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]
+    
+    @property
+    def indexesSegments(self) -> np.ndarray:
+        return np.array([[0,1],[1,5],[5,4],[4,0],[3,2],[2,6],[6,7],[7,3],[0,3],[1,2],[5,6],[4,7]])
 
     def Ntild(self) -> np.ndarray:
 
@@ -3298,7 +3326,6 @@ class PRISM6(GroupElem):
     #     1-------------2
 
     def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
-
         super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
 
     @property
@@ -3308,6 +3335,10 @@ class PRISM6(GroupElem):
     @property
     def indexesFaces(self) -> list[int]:
         return super().indexesFaces
+    
+    @property
+    def indexesSegments(self) -> np.ndarray:
+        return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
 
     def Get_dict_connect_Faces(self) -> dict[np.ndarray]:
         dict_connect_Faces = {
