@@ -23,8 +23,8 @@ if not os.path.exists(folder): os.makedirs(folder)
 plotResult = True
 
 rapport = 1/10
-cible = 0.01
-iterMax = 20
+cible = 0.01/2
+iterMax = 15
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -38,12 +38,14 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # meshSize = h/1
 # meshSize = L/2
-meshSize = h/3
+meshSize = h/4
+
+# TODO permettre de réutiliser le .geo pour construire la geométrie ?
 
 if dim == 2:
-    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
-    elemType = "TETRA10" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
+    elemType = "TETRA4" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
 # Maillage
@@ -56,22 +58,47 @@ pt4 = Point(0, h)
 
 points = PointsList([pt1, pt2, pt3, pt4], meshSize)
 
-circle = Circle(Point(x=h, y=h/2), h*0.3, isCreux=True)
+# circle = Circle(Point(x=h, y=h/2), h*0.3, isCreux=True)
+# inclusions = [circle]
 
-inclusions = [circle]
-# inclusions = []
+# xC=h; tC=h/3
+# ptC1 = Point(xC-tC/2, h/2-tC/2, r=tC/2) 
+# ptC2 = Point(xC+tC/2, h/2-tC/2)
+# ptC3 = Point(xC+tC/2, h/2+tC/2, r=tC/2)
+# ptC4 = Point(xC-tC/2, h/2+tC/2)
+# carre = PointsList([ptC1, ptC2, ptC3, ptC4], meshSize, isCreux=True)
+# inclusions = [carre]
+
+inclusions = []
+# nL = 10
+# nH = 2
+# cL = L/(2*nL)
+# cH = h/(2*nH)
+# for i in range(nL):
+#     x = cL + cL*(2*i)
+#     for j in range(nH):
+#         y = cH + cH*(2*j)
+
+#         ptd1 = Point(x-cL/2, y-cH/2)
+#         ptd2 = Point(x+cL/2, y+cH/2)
+
+#         domain = Domain(ptd1, ptd2, meshSize, isCreux=True)
+
+#         inclusions.append(domain)
 
 interfaceGmsh = Interface_Gmsh(False)
 
 # Fonction utilisée pour la construction du maillage
 def DoMesh(refineGeom=None) -> Mesh:
     if dim == 2:
-        return interfaceGmsh.Mesh_From_Points_2D(points, elemType, inclusions, [], refineGeom, meshSize)
+        return interfaceGmsh.Mesh_From_Points_2D(points, elemType, inclusions, [], refineGeom)
     else:
-        return interfaceGmsh.Mesh_From_Points_3D(points, [0,0,b], 1, elemType, inclusions, refineGeom, meshSize)
+        return interfaceGmsh.Mesh_From_Points_3D(points, [0,0,b], 1, elemType, inclusions, refineGeom)
 
 # construit le premier maillage
 mesh = DoMesh()
+
+Affichage.Plot_Mesh(mesh)
 
 # ----------------------------------------------
 # Comportement et Simu
@@ -110,9 +137,7 @@ def DoSimu(i=0):
 
     erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
 
-    erreur = np.abs(Wdef-WdefLisse)/Wdef
-
-    
+    erreur = np.abs(Wdef-WdefLisse)/Wdef   
 
     # ----------------------------------------------
     # Refine mesh
@@ -120,9 +145,6 @@ def DoSimu(i=0):
 
     groupElem = mesh.groupElem
     coordo = groupElem.coordo
-    connect0 = groupElem.connect[:, range(groupElem.nbCorners)]
-    index = np.append(np.arange(1, groupElem.nbCorners, 1, dtype=int), 0)
-    connect1 = groupElem.connect[:,index]
 
     indexesSegments = groupElem.indexesSegments
 
@@ -151,14 +173,20 @@ erreur = 1
 i = -1
 while erreur >= cible and i < iterMax:
 
-    i += 1
+    i += 1   
 
     mesh = DoMesh(path)
     simu.mesh = mesh
 
+    if i > 0:
+        os.remove(path)
+
     path, erreur = DoSimu(i)
 
     print(f"{i} erreur = {erreur*100:.3} %")
+
+if i > 0:
+    os.remove(path)
 
 # ----------------------------------------------
 # Post traitement
@@ -173,14 +201,13 @@ if plotResult:
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
     Affichage.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
     Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
-    # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
-
-    
+    # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)   
 
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-
 PostTraitement.Make_Paraview(folder, simu)
+
+# PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False)
 
 # Tic.Plot_History(details=True)
 plt.show()
