@@ -243,11 +243,11 @@ class Simu(ABC):
         
         # Solveur utilisé lors de la résolution
         self.__solver = "scipy" # initialise au cas ou
-        if "arm" in platform.machine():
-            # peut pas utiliser pypardiso ;(
+        solvers = Solvers() # récupération des solveurs utilisables
+        if "pypardiso" in solvers:
+            self.solver = "pypardiso"
+        elif "petsc" in solvers:
             self.solver = "petsc"
-        else:
-            self.solver = "pypardiso"        
 
         self.__Init_Sols_n()
 
