@@ -97,7 +97,7 @@ class PointsList(Geom):
 
     __nbPointsList = 0
 
-    def __init__(self, points: list[Point], meshSize: float):
+    def __init__(self, points: list[Point], meshSize: float, isCreux=False):
         """Construit une liste de point
 
         Parameters
@@ -105,8 +105,12 @@ class PointsList(Geom):
         points : list[Point]
             liste de points pour construire l'objet géométrique
         meshSize : float
-            taille de maillage qui sera utilisé pour creer le maillage >= 0        
+            taille de maillage qui sera utilisé pour creer le maillage >= 0
+        isCreux : bool, optional
+            le domaine formé est creux, by default False        
         """
+
+        self.isCreux=isCreux
 
         PointsList.__nbPointsList += 1
         name = f"PointsList{PointsList.__nbPointsList}"
