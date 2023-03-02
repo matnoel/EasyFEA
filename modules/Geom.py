@@ -1,6 +1,4 @@
-from typing import List
 import numpy as np
-
 
 class Point:
     """Classe Point"""
@@ -60,32 +58,32 @@ class Point:
 
 class Geom:
 
-    def __init__(self, points: List[Point], taille: float, name: str):
+    def __init__(self, points: list[Point], meshSize: float, name: str):
         """Construit un objet géométrique
 
         Parameters
         ----------
-        points : List[Point]
+        points : list[Point]
             liste de points pour construire l'objet géométrique
-        taille : float
+        meshSize : float
             taille de maillage qui sera utilisé pour creer le maillage >= 0
         name : str
             nom de l'objet
         """
-        assert taille >= 0
-        self.__taille = taille
+        assert meshSize >= 0
+        self.__meshSize = meshSize
 
         self.__points = points
 
         self.__name = name
 
     @property
-    def taille(self) -> bool:
+    def meshSize(self) -> bool:
         """Taille d'element utilisé pour le maillage"""
-        return self.__taille
+        return self.__meshSize
 
     @property
-    def points(self) -> List[Point]:
+    def points(self) -> list[Point]:
         """Points utilisés pour construire l'objet"""
         return self.__points
 
@@ -93,7 +91,26 @@ class Geom:
     def name(self) -> str:
         """Nom de l'objet"""
         return self.__name
-        
+
+class PointsList(Geom):
+    """Classe PointsList"""
+
+    __nbPointsList = 0
+
+    def __init__(self, points: list[Point], meshSize: float):
+        """Construit une liste de point
+
+        Parameters
+        ----------
+        points : list[Point]
+            liste de points pour construire l'objet géométrique
+        meshSize : float
+            taille de maillage qui sera utilisé pour creer le maillage >= 0        
+        """
+
+        PointsList.__nbPointsList += 1
+        name = f"PointsList{PointsList.__nbPointsList}"
+        super().__init__(points, meshSize, name)
 
 class Line(Geom):
     """Classe Line"""
@@ -113,7 +130,7 @@ class Line(Geom):
         v = np.array([pt2.x-pt1.x, pt2.y-pt1.y, pt2.z-pt1.z])/length
         return v   
 
-    def __init__(self, pt1: Point, pt2: Point, taille=0.0, isOpen=False):
+    def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isOpen=False):
         """Construit une ligne
 
         Parameters
@@ -122,7 +139,7 @@ class Line(Geom):
             premier point
         pt2 : Point
             deuxième point
-        taille : float, optional
+        meshSize : float, optional
             taille qui sera utilisée pour la construction du maillage, by default 0.0
         """
         self.pt1 = pt1
@@ -133,7 +150,7 @@ class Line(Geom):
 
         Line.__nbLine += 1
         name = f"Line{Line.__nbLine}"
-        Geom.__init__(self, points=[pt1, pt2], taille=taille, name=name)
+        Geom.__init__(self, points=[pt1, pt2], meshSize=meshSize, name=name)
     
 
     @property
@@ -156,7 +173,7 @@ class Domain(Geom):
 
     __nbDomain = 0
 
-    def __init__(self, pt1: Point, pt2: Point, taille=0.0, isCreux=False):
+    def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isCreux=False):
         """Construit d'un domaine entre 2 points\n
         Ce domaine n'est pas tourné !
 
@@ -166,7 +183,7 @@ class Domain(Geom):
             point 1
         pt2 : Point
             point 2
-        taille : float, optional
+        meshSize : float, optional
             taille qui sera utilisée pour la construction du maillage, by default 0.0
         isCreux : bool, optional
             le domaine est creux, by default False
@@ -178,14 +195,14 @@ class Domain(Geom):
 
         Domain.__nbDomain += 1
         name = f"Domain{Domain.__nbDomain}"
-        Geom.__init__(self, points=[pt1, pt2], taille=taille, name=name)
+        Geom.__init__(self, points=[pt1, pt2], meshSize=meshSize, name=name)
 
 class Circle(Geom):
     """Classe Circle"""
 
     __nbCircle = 0
 
-    def __init__(self, center: Point, diam: float, taille=0.0, isCreux=True):
+    def __init__(self, center: Point, diam: float, meshSize=0.0, isCreux=True):
         """Construction d'un cercle en fonction de son centre et de son diamètre \n
         Ce cercle sera projeté dans le plan (x,y)
 
@@ -195,7 +212,7 @@ class Circle(Geom):
             point 1
         diam : float
             diamètre
-        taille : float, optional
+        meshSize : float, optional
             taille qui sera utilisée pour la construction du maillage, by default 0.0
         isCreux : bool, optional
             le cercle est creux, by default True
@@ -210,7 +227,7 @@ class Circle(Geom):
 
         Circle.__nbCircle += 1
         name = f"Circle{Circle.__nbCircle}"
-        Geom.__init__(self, points=[center], taille=taille, name=name)
+        Geom.__init__(self, points=[center], meshSize=meshSize, name=name)
 
 class Section:
 

@@ -23,7 +23,7 @@ if dim == 2:
     domain = Domain(Point(), Point(a, a), a/20)
 else:
     domain = Domain(Point(), Point(a, a), a/20)
-circle = Circle(Point(a/2, a/2), diam=a/3, isCreux=True, taille=a/50)
+circle = Circle(Point(a/2, a/2), diam=a/3, isCreux=True, meshSize=a/50)
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, True)
 
 if dim == 2:

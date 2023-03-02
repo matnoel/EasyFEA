@@ -22,7 +22,9 @@ folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
 plotResult = True
 
-rapport = 1/2
+rapport = 1/10
+cible = 0.01
+iterMax = 20
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -36,12 +38,12 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # meshSize = h/1
 # meshSize = L/2
-meshSize = h
+meshSize = h/3
 
 if dim == 2:
     elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
-    elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
+    elemType = "TETRA10" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
 # Maillage
@@ -52,7 +54,7 @@ pt2 = Point(L, 0)
 pt3 = Point(L, h)
 pt4 = Point(0, h)
 
-points = [pt1, pt2, pt3, pt4]
+points = PointsList([pt1, pt2, pt3, pt4], meshSize)
 
 circle = Circle(Point(x=h, y=h/2), h*0.3, isCreux=True)
 
@@ -66,7 +68,7 @@ def DoMesh(refineGeom=None) -> Mesh:
     if dim == 2:
         return interfaceGmsh.Mesh_From_Points_2D(points, elemType, inclusions, [], refineGeom, meshSize)
     else:
-        return interfaceGmsh.Mesh_From_Points_3D(points, [0,0,b], 3, elemType, inclusions, refineGeom, meshSize)
+        return interfaceGmsh.Mesh_From_Points_3D(points, [0,0,b], 1, elemType, inclusions, refineGeom, meshSize)
 
 # construit le premier maillage
 mesh = DoMesh()
@@ -147,7 +149,7 @@ path = None
 
 erreur = 1
 i = -1
-while erreur >= 0.1 and i < 6:
+while erreur >= cible and i < iterMax:
 
     i += 1
 

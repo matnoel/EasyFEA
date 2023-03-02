@@ -60,12 +60,13 @@ for i in range(nL):
 
 interfaceGmsh = Interface_Gmsh(False)
 
+points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
 # maillage avec les inclusions
-meshInclusions = interfaceGmsh.Mesh_From_Points_2D([pt1, pt2, pt3, pt4], elemType, inclusions=listGeomInDomain, tailleElement=meshSize)
+meshInclusions = interfaceGmsh.Mesh_From_Points_2D(points, elemType, inclusions=listGeomInDomain)
 
 # maillage sans les inclusions
-mesh = interfaceGmsh.Mesh_From_Points_2D([pt1, pt2, pt3, pt4], elemType, tailleElement=meshSize)
+mesh = interfaceGmsh.Mesh_From_Points_2D(points, elemType)
 
 
 ptI1 = Geom.Point(-cL,-cH)
@@ -73,7 +74,9 @@ ptI2 = Geom.Point(cL,-cH)
 ptI3 = Geom.Point(cL, cH)
 ptI4 = Geom.Point(-cL, cH)
 
-meshVER = interfaceGmsh.Mesh_From_Points_2D([ptI1, ptI2, ptI3, ptI4], elemType, inclusions=[Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize, isCreux=True)], tailleElement=meshSize)
+pointsI = Geom.PointsList([ptI1, ptI2, ptI3, ptI4], meshSize)
+
+meshVER = interfaceGmsh.Mesh_From_Points_2D(pointsI, elemType, inclusions=[Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize, isCreux=True)])
 
 Affichage.Plot_Mesh(meshInclusions)
 Affichage.Plot_Mesh(mesh)

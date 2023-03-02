@@ -11,7 +11,7 @@ plt = Affichage.plt
 
 # CONFIGURATION
 
-useLagrange = True
+useLagrange = False
 test = False
 
 pltIter = True
@@ -32,12 +32,13 @@ pt1 = Geom.Point(-L/2, -L/2)
 pt2 = Geom.Point(L/2, -L/2)
 pt3 = Geom.Point(L/2, L/2)
 pt4 = Geom.Point(-L/2, L/2)
+points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
 circle = Geom.Circle(Geom.Point(), L*0.5, meshSize, isCreux=True)
 
 gmshInterface = Interface_Gmsh()
 
-mesh = gmshInterface.Mesh_From_Points_2D([pt1, pt2, pt3, pt4], "TRI3", inclusions=[circle], tailleElement=meshSize)
+mesh = gmshInterface.Mesh_From_Points_2D(points, "TRI3", inclusions=[circle])
 
 Affichage.Plot_Model(mesh)
 ax = Affichage.Plot_Mesh(mesh)

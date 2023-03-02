@@ -79,7 +79,7 @@ for t, elemType in enumerate(elemTypes):
         
         taille = b/nbElem
 
-        domain = Domain(Point(), Point(x=L, y=h), taille=taille)
+        domain = Domain(Point(), Point(x=L, y=h), meshSize=taille)
 
         # Construction du modele et du maillage --------------------------------------------------------------------------------
         interfaceGmsh = Interface_Gmsh(verbosity=False)

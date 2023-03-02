@@ -51,7 +51,7 @@ point = Point()
 domain = Domain(point, Point(x=L, y=H), clD)
 circle = Circle(Point(x=L/2, y=H-h), diam, clC, isCreux=True)
 val = diam*2
-refineGeom = Domain(Point(x=L/2-val/2, y=(H-h)-val/2), Point(x=L/2+val/2, y=(H-h)+val/2), taille=clC/2)
+refineGeom = Domain(Point(x=L/2-val/2, y=(H-h)-val/2), Point(x=L/2+val/2, y=(H-h)+val/2), meshSize=clC/2)
 # refineGeom = Circle(Point(x=L/2, y=H-h), val, clC)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)

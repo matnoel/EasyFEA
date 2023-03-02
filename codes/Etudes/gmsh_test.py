@@ -13,16 +13,16 @@ import Folder
 # import gmsh
 
 dim = 2
-N = 20
+N = 5
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
     EQUERRE = "EQUERRE",
     TEF2 = "TEF2"
 
-simulationType = SimulationType.EQUERRE
+simulationType = SimulationType.TEF2
 
-interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
+interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=True)
 
 coef = 1
 E=210000 # MPa
@@ -58,20 +58,20 @@ elif simulationType == SimulationType.EQUERRE:
     # crack = Line(pt1, Point(h/3, h/3), h/10, isOpen=False)
     crack = Line(pt1, Point(h/3, h/3), h/10, isOpen=False)
 
-    listPoint = [pt1, pt2, pt3, pt4, pt5, pt6]
-    # listPoint = [pt1, pt2, pt3, pt7]
+    listPoint = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
+    # listPoint = PointsList([pt1, pt2, pt3, pt7], h/N)
 
-    listObjetsInter = [Circle(Point(x=h/2, y=h*(i+1)), h/4, taille=h/N, isCreux=True) for i in range(3)]
+    listObjetsInter = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize=h/N, isCreux=True) for i in range(3)]
 
-    listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, taille=h/N)])    
+    listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, inclusions=listObjetsInter, tailleElement=h/N, cracks=[], folder=folder)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, cracks=[], folder=folder)
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, tailleElement=h/N, folder=folder)
+        mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, folder=folder)
 
 
         noeudsS3 = mesh.Nodes_Tag(["S9","S15","S14","S21"])
@@ -103,7 +103,7 @@ elif simulationType == SimulationType.TEF2:
     listPoint = [pt1, pt2, pt3]
     
     if dim == 2:
-        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.TRI6, inclusions=[], tailleElement=taille, folder=folder)
+        mesh = interface.Mesh_From_Points_2D(listPoint, elemType=ElemType.QUAD4, inclusions=[], tailleElement=taille, folder=folder)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
         mesh = interface.Mesh_From_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, inclusions=[], tailleElement=taille, folder=folder)

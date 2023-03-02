@@ -74,7 +74,7 @@ if dim == 2:
     aire = mesh.aire - L*h
 elif dim == 3:
     # # Sans importation
-    domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
+    domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=taille)
     # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
     # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     

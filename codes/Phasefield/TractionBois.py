@@ -6,7 +6,7 @@ plt = Affichage.plt
 
 import PostTraitement
 
-from Geom import np, Point, Domain, Circle
+from Geom import np, Point, Domain, Circle, PointsList
 import Folder
 import pandas as pd
 
@@ -75,6 +75,8 @@ p15 = Point(x=lFissure, y=-epFissure/2, r=epFissure/2)
 
 listPoint = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15]
 
+points = PointsList(listPoint, tailleGros)
+
 diam = 5
 r = diam/2
 c1 = Circle(Point(a/2, -h+7.5), diam, tailleFin, isCreux=True)
@@ -94,8 +96,8 @@ geomObjectsInDomain = [c1, c2, c3, c4]
 interface = Interface_Gmsh.Interface_Gmsh(False, False)
 
 zone = 10
-refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), taille=tailleFin)
-mesh = interface.Mesh_From_Points_2D(listPoint, tailleElement=tailleGros, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI6")
+refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), meshSize=tailleFin)
+mesh = interface.Mesh_From_Points_2D(points, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI6")
 
 # Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)

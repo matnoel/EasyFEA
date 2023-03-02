@@ -110,16 +110,16 @@ for split in ["Miehe"]:
         if simulation == "Tension":
             # On rafine horizontalement
             if comportement_str == "Elas_Isot":                
-                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), taille=taille)
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), meshSize=taille)
             else:                
-                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L*0.8), taille=taille)
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L*0.8), meshSize=taille)
         elif simulation == "Shear":
             if split == "Bourdin":
                 # On rafine en haut et en bas 
-                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L), taille=taille)
+                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L), meshSize=taille)
             else:
                 # On rafine en bas
-                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L/2+zone), taille=taille)
+                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L/2+zone), meshSize=taille)
         taille *= 3
     else:
         refineDomain = None
@@ -133,10 +133,10 @@ for split in ["Miehe"]:
 
         interfaceGmsh = Interface_Gmsh(False)
 
-        domain = Domain(Point(), Point(x=L, y=L), taille=taille)       
+        domain = Domain(Point(), Point(x=L, y=L), meshSize=taille)       
 
-        line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), taille=taille, isOpen=openCrack)
-        line2 = Line(Point(y=L/4, isOpen=True), Point(x=3*L/4, y=L/4), taille=taille, isOpen=openCrack)
+        line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), meshSize=taille, isOpen=openCrack)
+        line2 = Line(Point(y=L/4, isOpen=True), Point(x=3*L/4, y=L/4), meshSize=taille, isOpen=openCrack)
 
         # cracks = [line, line2]
         cracks = [line]

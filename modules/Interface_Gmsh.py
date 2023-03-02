@@ -1,4 +1,4 @@
-from typing import List, cast
+from typing import cast
 import gmsh
 import sys
 import os
@@ -62,7 +62,7 @@ class Interface_Gmsh:
             raise Exception("Factory inconnue")
     
 
-    def __Loop_From_Points(self, points: List[Point], taille: float) -> tuple[int, int]:
+    def __Loop_From_Points(self, points: list[Point], meshSize: float) -> tuple[int, int]:
         """Création d'une boucle associée à la liste de points.\n
         return loop
         """
@@ -83,7 +83,7 @@ class Interface_Gmsh:
             # on detecte si le point doit être arrondi
             if point.r == 0:
                 # Sans arrondi
-                p0 = factory.addPoint(point.x, point.y, point.z, taille)
+                p0 = factory.addPoint(point.x, point.y, point.z, meshSize)
                 dict_point_pointsGmsh[point] = [p0]
 
             else:
@@ -142,9 +142,9 @@ class Interface_Gmsh:
                     # si la coordonée est identique on ne recrée pas le point
                     pA = lastPoint
                 else:
-                    pA = factory.addPoint(A[0], A[1], A[2], taille) # point d'intersection entre i et le cercle
-                pC = factory.addPoint(C[0], C[1], C[2], taille) # centre du cercle                
-                pB = factory.addPoint(B[0], B[1], B[2], taille) # point d'intersection entre j et le cercle
+                    pA = factory.addPoint(A[0], A[1], A[2], meshSize) # point d'intersection entre i et le cercle
+                pC = factory.addPoint(C[0], C[1], C[2], meshSize) # centre du cercle                
+                pB = factory.addPoint(B[0], B[1], B[2], meshSize) # point d'intersection entre j et le cercle
 
                 dict_point_pointsGmsh[point] = [pA, pC, pB]
             
@@ -194,11 +194,11 @@ class Interface_Gmsh:
         rayon = circle.diam/2
 
         # Points cercle                
-        p0 = factory.addPoint(center.x, center.y, 0, circle.taille) #centre
-        p1 = factory.addPoint(center.x-rayon, center.y, 0, circle.taille)
-        p2 = factory.addPoint(center.x, center.y-rayon, 0, circle.taille)
-        p3 = factory.addPoint(center.x+rayon, center.y, 0, circle.taille)
-        p4 = factory.addPoint(center.x, center.y+rayon, 0, circle.taille)
+        p0 = factory.addPoint(center.x, center.y, 0, circle.meshSize) #centre
+        p1 = factory.addPoint(center.x-rayon, center.y, 0, circle.meshSize)
+        p2 = factory.addPoint(center.x, center.y-rayon, 0, circle.meshSize)
+        p3 = factory.addPoint(center.x+rayon, center.y, 0, circle.meshSize)
+        p4 = factory.addPoint(center.x, center.y+rayon, 0, circle.meshSize)
         # [self.__Add_PhysicalPoint(pt) for pt in [p1, p2, p3, p4]]
 
         # Lignes cercle
@@ -229,11 +229,11 @@ class Interface_Gmsh:
         p3 = Point(x=pt2.x, y=pt2.y, z=0)
         p4 = Point(x=pt1.x, y=pt2.y, z=0)
 
-        loop = self.__Loop_From_Points([p1, p2, p3, p4], domain.taille)
+        loop = self.__Loop_From_Points([p1, p2, p3, p4], domain.meshSize)
         
         return loop
 
-    def __Surface_From_Loops(self, loops: List[int]) -> tuple[int, int]:
+    def __Surface_From_Loops(self, loops: list[int]) -> tuple[int, int]:
         """Création d'une surface associée à une boucle.\n
         return surface
         """
@@ -256,7 +256,7 @@ class Interface_Gmsh:
         pt2 = line.pt2
         assert pt1.z == 0 and pt2.z == 0
         
-        taille = line.taille
+        taille = line.meshSize
         
         # Create the crack points
         p1 = factory.addPoint(pt1.x, pt1.y, 0, taille)
@@ -406,11 +406,11 @@ class Interface_Gmsh:
 
         if isinstance(refineGeom, Domain):
 
-            assert not refineGeom.taille == 0, "Il faut définir une taille d'element pour le domaine"
+            assert not refineGeom.meshSize == 0, "Il faut définir une taille d'element pour le domaine"
 
             pt21 = refineGeom.pt1
             pt22 = refineGeom.pt2
-            taille2 = refineGeom.taille
+            taille2 = refineGeom.meshSize
 
             # We could also use a `Box' field to impose a step change in element sizes
             # inside a box
@@ -438,7 +438,7 @@ class Interface_Gmsh:
             
             field_Thershold = gmsh.model.mesh.field.add("Threshold")
             gmsh.model.mesh.field.setNumber(field_Thershold, "InField", field_Distance)            
-            gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMin", refineGeom.taille)
+            gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMin", refineGeom.meshSize)
             gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMax", tailleOut)
             gmsh.model.mesh.field.setNumber(field_Thershold, "DistMin", 0.15)
             gmsh.model.mesh.field.setNumber(field_Thershold, "DistMax", 0.5)
@@ -502,14 +502,14 @@ class Interface_Gmsh:
 
         return self.__Recuperation_Maillage(coef)
 
-    def Mesh_Import_part3D(self, fichier: str, tailleElement: float, refineGeom=None, folder=""):
+    def Mesh_Import_part3D(self, fichier: str, meshSize: float, refineGeom=None, folder=""):
         """Construis le maillage 3D depuis l'importation d'un fichier 3D et création du maillage (.stp ou .igs)
 
         Parameters
         ----------
         fichier : str
             fichier (.stp, .igs) que gmsh va charger pour créer le maillage
-        tailleElement : float
+        meshSize : float
             taille de maille
         refineGeom : GeomObject, optional
             deuxième domaine pour la concentration de maillage, by default None
@@ -527,7 +527,7 @@ class Interface_Gmsh:
 
         self.__initGmsh('occ') # Ici ne fonctionne qu'avec occ !! ne pas changer
 
-        assert tailleElement >= 0.0, "Doit être supérieur ou égale à 0"
+        assert meshSize >= 0.0, "Doit être supérieur ou égale à 0"
         self.__CheckType(3, elemType)
         
         tic = Tic()
@@ -539,12 +539,12 @@ class Interface_Gmsh:
         else:
             print("Doit être un fichier .stp")
 
-        self.__Set_BackgroundMesh(refineGeom, tailleElement)
+        self.__Set_BackgroundMesh(refineGeom, meshSize)
 
         self.__Set_PhysicalGroups(buildPoint=False, buildLine=True, buildSurface=True, buildVolume=False)
 
-        gmsh.option.setNumber("Mesh.MeshSizeMin", tailleElement)
-        gmsh.option.setNumber("Mesh.MeshSizeMax", tailleElement)
+        gmsh.option.setNumber("Mesh.MeshSizeMin", meshSize)
+        gmsh.option.setNumber("Mesh.MeshSizeMax", meshSize)
 
         tic.Tac("Mesh","Importation du fichier step", self.__verbosity)
 
@@ -637,7 +637,7 @@ class Interface_Gmsh:
         # if isinstance(factory, gmsh.model.geo):
         #     surface = factory.addPhysicalGroup(2, [surface]) # obligatoire pour creer la surface organisée
 
-        self.__Set_BackgroundMesh(refineGeom, domain.taille)
+        self.__Set_BackgroundMesh(refineGeom, domain.meshSize)
 
         if returnSurfaces: return [surface]
 
@@ -709,7 +709,7 @@ class Interface_Gmsh:
         # Regénération des groupes physiques
         self.__Set_PhysicalGroups(buildSurface=False)
         
-        self.__Set_BackgroundMesh(refineGeom, domain.taille)
+        self.__Set_BackgroundMesh(refineGeom, domain.meshSize)
 
         tic.Tac("Mesh","Construction rectangle fissuré", self.__verbosity)
 
@@ -764,13 +764,13 @@ class Interface_Gmsh:
             # Cylindre plein
             # Création d'une surface pour le cercle plein
             surfaceCercle = self.__Surface_From_Loops([loopCercle])
-            p0 = factory.addPoint(circle.center.x, circle.center.y, 0, circle.taille)
+            p0 = factory.addPoint(circle.center.x, circle.center.y, 0, circle.meshSize)
             factory.synchronize()
             gmsh.model.mesh.embed(0, [p0], 2, surfaceCercle)
             factory.synchronize()
             surfaces = [surfaceCercle, surfaceDomain]
 
-        self.__Set_BackgroundMesh(refineGeom, domain.taille)
+        self.__Set_BackgroundMesh(refineGeom, domain.meshSize)
         
         if returnSurfaces: return surfaces
 
@@ -826,12 +826,12 @@ class Interface_Gmsh:
         
         return self.__Recuperation_Maillage()
 
-    def Mesh_From_Lines_1D(self, listPoutres: List[Poutre_Elas_Isot], elemType=ElemType.SEG2 ,folder=""):
+    def Mesh_From_Lines_1D(self, listPoutres: list[Poutre_Elas_Isot], elemType=ElemType.SEG2 ,folder=""):
         """Construction d'un maillage de segment
 
         Parameters
         ----------
-        listPoutre : List[Poutre]
+        listPoutre : list[Poutre]
             liste de Poutres
         elemType : str, optional
             type d'element, by default "SEG2" ["SEG2", "SEG3"]
@@ -861,8 +861,8 @@ class Interface_Gmsh:
             pt1 = line.pt1; x1 = pt1.x; y1 = pt1.y; z1 = pt1.z
             pt2 = line.pt2; x2 = pt2.x; y2 = pt2.y; z2 = pt2.z
 
-            p1 = factory.addPoint(x1, y1, z1, line.taille)
-            p2 = factory.addPoint(x2, y2, z2, line.taille)
+            p1 = factory.addPoint(x1, y1, z1, line.meshSize)
+            p2 = factory.addPoint(x2, y2, z2, line.meshSize)
             listPoints.append(p1)
             listPoints.append(p2)
 
@@ -900,6 +900,8 @@ class Interface_Gmsh:
                 loop = self.__Loop_From_Circle(objetGeom)
             elif isinstance(objetGeom, Domain):                
                 loop = self.__Loop_From_Domain(objetGeom)
+            elif isinstance(objetGeom, PointsList):                
+                loop = self.__Loop_From_Points(objetGeom.points, objetGeom.meshSize)
             loops.append(loop)
 
             if not objetGeom.isCreux:
@@ -907,23 +909,21 @@ class Interface_Gmsh:
 
         return loops, filledLoops
 
-    def Mesh_From_Points_2D(self, points: List[Point], elemType=ElemType.TRI3, inclusions=[], cracks=[], refineGeom=None, tailleElement=0.0, folder="", returnSurfaces=False):
+    def Mesh_From_Points_2D(self, pointsList: PointsList, elemType=ElemType.TRI3, inclusions=[], cracks=[], refineGeom=None, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
         Parameters
         ----------
-        points : List[Point]
+        points : PointsList
             liste de points
         elemType : str, optional
             type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-        inclusions : List[Domain, Circle], optional
+        inclusions : list[Domain, Circle, PointsList], optional
             liste d'objets creux ou non à l'intérieur du domaine 
-        cracks : List[Line]
+        cracks : list[Line]
             liste de ligne utilisées pour la création de fissures
         refineGeom : GeomObject, optional
             deuxième domaine pour la concentration de maillage, by default None
-        tailleElement : float, optional
-            taille d'element pour le maillage, by default 0.0
         folder : str, optional
             dossier de sauvegarde du maillage mesh.msh, by default ""
         returnSurfaces : bool, optional
@@ -942,8 +942,11 @@ class Interface_Gmsh:
 
         factory = self.__factory
 
+        points = pointsList.points
+        meshSize = pointsList.meshSize
+
         # Création de la surface de contour
-        loopSurface = self.__Loop_From_Points(points, tailleElement)
+        loopSurface = self.__Loop_From_Points(points, meshSize)
 
         # Création de toutes les boucles associés aux objets à l'intérieur du domaine
         hollowLoops, filledLoops = self.__Get_hollowLoops_And_filledLoops(inclusions)
@@ -970,7 +973,7 @@ class Interface_Gmsh:
             # Regénération des groupes physiques des fissures ont été crées
             self.__Set_PhysicalGroups(buildSurface=False)        
 
-        self.__Set_BackgroundMesh(refineGeom, tailleElement)
+        self.__Set_BackgroundMesh(refineGeom, meshSize)
         
         # Création des surfaces creuses
         if returnSurfaces: return surfacesPleines
@@ -983,12 +986,12 @@ class Interface_Gmsh:
 
         return self.__Recuperation_Maillage()
 
-    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], refineGeom=None, tailleElement=0.0, folder=""):
+    def Mesh_From_Points_3D(self, pointsList: PointsList, extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], refineGeom=None, folder=""):
         """Construction d'un maillage 3D depuis une liste de points
 
         Parameters
         ----------
-        pointsList : List[Point]
+        pointsList : PointsList
             liste de points
         extrude : list, optional
             extrusion, by default [0,0,1]
@@ -996,12 +999,10 @@ class Interface_Gmsh:
             nombre de couches dans l'extrusion, by default 1
         elemType : str, optional
             type d'element, by default "TETRA4" ["TETRA4", "HEXA8", "PRISM6"]
-        inclusions : List[Domain, Circle], optional
+        inclusions : list[Domain, Circle, PointsList], optional
             liste d'objets creux ou non à l'intérieur du domaine
         refineGeom : GeomObject, optional
-            deuxième domaine pour la concentration de maillage, by default None 
-        tailleElement : float, optional
-            taille d'element pour le maillage, by default 0.0
+            deuxième domaine pour la concentration de maillage, by default None
         folder : str, optional
             dossier de sauvegarde du maillage mesh.msh, by default ""
 
@@ -1017,7 +1018,7 @@ class Interface_Gmsh:
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Mesh_From_Points_2D(pointsList, elemType=ElemType.TRI3, inclusions=inclusions, refineGeom=refineGeom, tailleElement=tailleElement, returnSurfaces=True)
+        surfaces = self.Mesh_From_Points_2D(pointsList, elemType=ElemType.TRI3, inclusions=inclusions, refineGeom=refineGeom, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)
 
@@ -1075,7 +1076,7 @@ class Interface_Gmsh:
             dimension du maillage
         elemType : str
             type d'element
-        surfaces : List[int], optional
+        surfaces : list[int], optional
             liste de surfaces que l'on va mailler, by default []
         isOrganised : bool, optional
             le maillage est organisé, by default False
@@ -1405,11 +1406,11 @@ class Interface_Gmsh:
 
         list_mesh2D = []
         
-        domain = Domain(Point(0,0,0), Point(L, h, 0), taille=taille)
-        line = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), taille=taille, isOpen=False)
-        lineOpen = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), taille=taille, isOpen=True)
-        circle = Circle(Point(x=L/2, y=h/2), L/3, taille=taille, isCreux=True)
-        circleClose = Circle(Point(x=L/2, y=h/2), L/3, taille=taille, isCreux=False)
+        domain = Domain(Point(0,0,0), Point(L, h, 0), meshSize=taille)
+        line = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), meshSize=taille, isOpen=False)
+        lineOpen = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), meshSize=taille, isOpen=True)
+        circle = Circle(Point(x=L/2, y=h/2), L/3, meshSize=taille, isCreux=True)
+        circleClose = Circle(Point(x=L/2, y=h/2), L/3, meshSize=taille, isCreux=False)
 
         aireDomain = L*h
         aireCircle = np.pi * (circleClose.diam/2)**2
@@ -1450,9 +1451,9 @@ class Interface_Gmsh:
         """Construction des maillage possibles en 3D"""
         # Pour chaque type d'element 3D
 
-        domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
-        circleCreux = Circle(Point(x=L/2, y=0), h*0.7, taille=taille, isCreux=True)
-        circle = Circle(Point(x=L/2, y=0), h*0.7, taille=taille, isCreux=False)
+        domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=taille)
+        circleCreux = Circle(Point(x=L/2, y=0), h*0.7, meshSize=taille, isCreux=True)
+        circle = Circle(Point(x=L/2, y=0), h*0.7, meshSize=taille, isCreux=False)
 
         volume = L*h*b
 
@@ -1469,9 +1470,9 @@ class Interface_Gmsh:
             interfaceGmsh = Interface_Gmsh(verbosity=False, affichageGmsh=False)
             
             if useImport3D and elemType == "TETRA4":
-                meshCpef = interfaceGmsh.Mesh_Import_part3D(cpefPath, tailleElement=10)
+                meshCpef = interfaceGmsh.Mesh_Import_part3D(cpefPath, meshSize=10)
                 list_mesh3D.append(meshCpef)
-                meshPart = interfaceGmsh.Mesh_Import_part3D(partPath, tailleElement=taille)
+                meshPart = interfaceGmsh.Mesh_Import_part3D(partPath, meshSize=taille)
                 list_mesh3D.append(meshPart)
 
             for isOrganised in [True, False]:
