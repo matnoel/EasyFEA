@@ -1,7 +1,9 @@
 from typing import List, cast
 import gmsh
 import sys
+import os
 import numpy as np
+from colorama import Fore
 
 import Folder
 from Geom import *
@@ -444,6 +446,34 @@ class Interface_Gmsh:
             minField = gmsh.model.mesh.field.add("Min")
             gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
 
+            gmsh.model.mesh.field.setAsBackgroundMesh(minField)
+
+        elif isinstance(refineGeom, str):
+
+            if not os.path.exists(refineGeom) :
+                print(Fore.RED + "Le fichier .pos renseignée n'existe pas" + Fore.WHITE)
+                return
+
+            if ".pos" not in refineGeom:
+                print(Fore.RED + "Doit fournir un fichier .pos" + Fore.WHITE)
+                return
+
+            gmsh.merge(refineGeom)
+
+            # Add the post-processing view as a new size field:
+            minField = gmsh.model.mesh.field.add("PostView")
+            gmsh.model.mesh.field.setNumber(minField, "ViewIndex", 0)
+
+            # Apply the view as the current background mesh size field:
+            gmsh.model.mesh.field.setAsBackgroundMesh(minField)
+
+            # In order to compute the mesh sizes from the background mesh only, and
+            # disregard any other size constraints, one can set:
+            gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
+            gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
+            gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
+            
+
     def Mesh_Import_msh(self, fichier: str, coef=1, setPhysicalGroups=False):
         """Importation d'un fichier .msh
 
@@ -592,11 +622,11 @@ class Interface_Gmsh:
             Maillage construit
         """
 
-        self.__initGmsh('geo')                
+        self.__initGmsh('geo')
         
         self.__CheckType(2, elemType)
 
-        tic = Tic()
+        tic = Tic()        
 
         # Création de la boucle
         loop = self.__Loop_From_Domain(domain)
@@ -953,7 +983,7 @@ class Interface_Gmsh:
 
         return self.__Recuperation_Maillage()
 
-    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], tailleElement=0.0, folder=""):
+    def Mesh_From_Points_3D(self, pointsList: List[Point], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], refineGeom=None, tailleElement=0.0, folder=""):
         """Construction d'un maillage 3D depuis une liste de points
 
         Parameters
@@ -967,7 +997,9 @@ class Interface_Gmsh:
         elemType : str, optional
             type d'element, by default "TETRA4" ["TETRA4", "HEXA8", "PRISM6"]
         inclusions : List[Domain, Circle], optional
-            liste d'objets creux ou non à l'intérieur du domaine 
+            liste d'objets creux ou non à l'intérieur du domaine
+        refineGeom : GeomObject, optional
+            deuxième domaine pour la concentration de maillage, by default None 
         tailleElement : float, optional
             taille d'element pour le maillage, by default 0.0
         folder : str, optional
@@ -985,7 +1017,7 @@ class Interface_Gmsh:
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Mesh_From_Points_2D(pointsList, elemType=ElemType.TRI3,inclusions=inclusions, tailleElement=tailleElement, returnSurfaces=True)
+        surfaces = self.Mesh_From_Points_2D(pointsList, elemType=ElemType.TRI3, inclusions=inclusions, refineGeom=refineGeom, tailleElement=tailleElement, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)
 
@@ -996,6 +1028,29 @@ class Interface_Gmsh:
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
         return self.__Recuperation_Maillage()
+    
+    def Create_posFile(self, coordo: np.ndarray, values: np.ndarray, folder: str, filename="data") -> str:
+
+        assert isinstance(coordo, np.ndarray), "Doit être une array numpy"
+        assert coordo.shape[1] == 3, "Doit être de dimension (n, 3)"
+
+        assert values.shape[0] == coordo.shape[0], "values et coordo ne sont pas de la bonne dimension"
+
+        data = np.append(coordo, values.reshape(-1, 1), axis=1)
+
+        z = coordo[:,2]
+
+        self.__initGmsh("occ")
+
+        view = gmsh.view.add("view for new mesh")
+
+        gmsh.view.addListData(view, "SP", coordo.shape[0], data.reshape(-1))
+
+        path = Folder.Join([folder, f"{filename}.pos"])
+
+        gmsh.view.write(view, path)
+
+        return path
 
     @staticmethod
     def __Set_order(elemType: str):
@@ -1140,7 +1195,7 @@ class Interface_Gmsh:
             # gmsh.write(Dossier.Join([folder, "model.geo"])) # Il semblerait que ça marche pas c'est pas grave          
             self.__factory.synchronize()  
             # gmsh.model.geo.synchronize()
-            # gmsh.model.occ.synchronize()            
+            # gmsh.model.occ.synchronize()
             gmsh.write(Folder.Join([folder, "mesh.msh"]))
             tic.Tac("Mesh","Sauvegarde du .geo et du .msh", self.__verbosity)
 

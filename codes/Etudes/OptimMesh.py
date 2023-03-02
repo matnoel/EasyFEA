@@ -6,18 +6,12 @@ import PostTraitement
 import Affichage
 from Geom import *
 import Materials
+from Mesh import Mesh
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
 from TicTac import Tic
 
-# Affichage.Clear()
-
-# TODO Adaptation de maillage 
-# gmsh.view.addListData()
-# gmsh.view.s
-
-# import gmsh
-# gmsh.model.mesh.refine()
+Affichage.Clear()
 
 # ----------------------------------------------
 # Configuration
@@ -25,7 +19,10 @@ from TicTac import Tic
 
 dim = 2
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
+if not os.path.exists(folder): os.makedirs(folder)
 plotResult = True
+
+rapport = 1/2
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -37,50 +34,42 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-# taille = h/1
-# taille = L/2
-taille = h/10
+# meshSize = h/1
+# meshSize = L/2
+meshSize = h/10
+
+if dim == 2:
+    elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+else:
+    elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
 
+pt1 = Point(0, 0)
+pt2 = Point(L, 0)
+pt3 = Point(L, h)
+pt4 = Point(0, h)
+
+points = [pt1, pt2, pt3, pt4]
+
+circle = Circle(Point(x=L/2, y=h/2), h*0.3, isCreux=True)
+
+# inclusions = [circle]
+inclusions = []
+
 interfaceGmsh = Interface_Gmsh(False)
-if dim == 2:
-    domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), taille)
-    Line0 = Line(Point(y=-h/2), Point(y=h/2))
-    LineL = Line(Point(x=L,y=-h/2), Point(x=L, y=h/2))
-    LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
-    circle = Circle(Point(x=L/2, y=0), h*0.2, isCreux=False)
-    
-    elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
-    mesh = interfaceGmsh.Mesh_Rectangle_2D(domain=domain, elemType=elemType, isOrganised=True)
-    # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
-    aire = mesh.aire - L*h
-elif dim == 3:
-    # # Sans importation
-    domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), taille=taille)
-    # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
-    # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
-    
-    elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
-    mesh = interfaceGmsh.Mesh_Poutre3D(domain, [0,0,b], elemType=elemType, isOrganised=False, nCouches=3)
+# Fonction utilisée pour la construction du maillage
+def DoMesh(refineGeom=None) -> Mesh:
+    if dim == 2:
+        return interfaceGmsh.Mesh_From_Points_2D(points, elemType, inclusions, [], refineGeom, meshSize)
+    else:
+        return interfaceGmsh.Mesh_From_Points_3D(points, [0,0,b], 3, elemType, inclusions, refineGeom, meshSize)
 
-    volume = mesh.volume - L*b*h
-    aire = mesh.aire - (L*h*4 + 2*b*h)
-
-Affichage.Plot_Mesh(mesh)
-# Affichage.Plot_NoeudsMaillage(mesh,showId=True)
-# plt.show()
-
-noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0) # noeuds_en_0 = mesh.Nodes_Line(Line0)
-noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L) # noeuds_en_L = mesh.Nodes_Line(LineL)
-
-# Affichage.Plot_Maillage(mesh)
-# plt.show()
-
-noeuds_en_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2) # noeuds_en_h= mesh.Nodes_Line(LineH)
+# construit le premier maillage
+mesh = DoMesh()
 
 # ----------------------------------------------
 # Comportement et Simu
@@ -90,58 +79,76 @@ comportement = Materials.Elas_Isot(dim, E=210000, v=0.3, epaisseur=b)
 simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 simu.rho = 8100*1e-9
 
-simu.Bc_Init()
+def DoSimu(i=0):    
+    
+    noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+    noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
+    
+    simu.Bc_Init()
+    if dim == 2:
+        simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
+    elif dim == 3:
+        simu.add_dirichlet(noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
 
-# Renseigne les condtions limites
+    simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
 
-if dim == 2:
-    simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
-elif dim == 3:
-    simu.add_dirichlet(noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
+    simu.Solve()
 
-simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+    simu.Save_Iteration()
 
-Affichage.Plot_BoundaryConditions(simu)
-# plt.show()
+    # ----------------------------------------------
+    # Calcul de l'erreur
+    # ----------------------------------------------
 
-simu.Solve()
+    Wdef_e = simu.Get_Resultat("energy", nodeValues=False)
+    Wdef = np.sum(Wdef_e)
 
-# ----------------------------------------------
-# Calcul de l'erreur
-# ----------------------------------------------
+    WdefLisse_e = simu.Get_Resultat("energy_smoothed", nodeValues=False)
+    WdefLisse = np.sum(WdefLisse_e)
 
-matriceType = "rigi"
-B_e_pg = simu.mesh.Get_B_dep_e_pg(matriceType)
-jacobien_e_pg = simu.mesh.Get_jacobien_e_pg(matriceType)
-poid_pg = simu.mesh.Get_poid_pg(matriceType)
-N_pg = simu.mesh.Get_N_scalaire_pg(matriceType)
+    erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
 
-u_e = simu.mesh.Localises_sol_e(simu.displacement)
+    erreur = np.abs(Wdef-WdefLisse)/Wdef
 
-Epsilon_e_pg = np.einsum("epij,ej->epi", B_e_pg, u_e)
-Sigma_e_pg = np.einsum("ij,epj->epi", comportement.C, Epsilon_e_pg)
+    
 
-Wdef_e = 1/2 * b * np.einsum("ep,p,epi,epi->e", jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg)
-Wdef = np.sum(Wdef_e)
+    # ----------------------------------------------
+    # Refine mesh
+    # ----------------------------------------------
 
-Sigma_n = simu.Resultats_InterpolationAuxNoeuds(simu.mesh, np.mean(Sigma_e_pg, 1))
+    groupElem = mesh.groupElem
+    coordo = groupElem.coordo
+    connect0 = groupElem.connect_e[:, range(groupElem.nbCorners)]
+    index = np.append(np.arange(1, groupElem.nbCorners, 1, dtype=int), 0)
+    connect1 = groupElem.connect_e[:,index]
 
-Sigma_n_e = simu.mesh.Localises_sol_e(Sigma_n)
-sigmaliss_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
+    h_e_b = np.linalg.norm(coordo[connect1] - coordo[connect0], axis=2)
+    h_e = np.mean(h_e_b, axis=1)
 
-WdefLisse_e = 1/2 * b * np.einsum("ep,p,epi,epi->e", jacobien_e_pg, poid_pg, sigmaliss_e_pg, Epsilon_e_pg)
-WdefLisse = np.sum(WdefLisse_e)
+    c_e = (rapport-1)/erreur_e.max() * erreur_e + 1
+    # c_e = (rapport-1) * erreur_e + 1
 
-erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef    
+    # Affichage.Plot_Result(simu, h_e, nodeValues=False)
+    # Affichage.Plot_Result(simu, c_e, nodeValues=False)
 
-Affichage.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
+    meshSize_n = simu.Resultats_InterpolationAuxNoeuds(mesh, c_e * h_e)
 
-# erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)
-# Affichage.Plot_Result(simu, erreur_e, nodeValues=False, title="erreur_e mJ")
+    Affichage.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
 
-erreur = np.abs(Wdef-WdefLisse)/Wdef
+    path = interfaceGmsh.Create_posFile(groupElem.coordo, meshSize_n, folder, f"simu{i}")
 
-print(f"erreur = {erreur*100:.3} %")
+    return path, erreur
+
+path = None
+
+for i in range(5):
+
+    mesh = DoMesh(path)
+    simu.mesh = mesh
+
+    path, erreur = DoSimu(i)
+
+    print(f"{i} erreur = {erreur*100:.3} %")
 
 # ----------------------------------------------
 # Post traitement
@@ -151,14 +158,19 @@ Affichage.NouvelleSection("Post traitement")
 # folder=""
 if plotResult:
     tic = Tic()
-    simu.Resultats_Resume(True)
+    # simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
     Affichage.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
-    Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=False, nodeValues=False)
+    Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
     # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
+
     
+
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-Tic.Plot_History(details=True)
+
+PostTraitement.Make_Paraview(folder, simu)
+
+# Tic.Plot_History(details=True)
 plt.show()

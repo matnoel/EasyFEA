@@ -1366,7 +1366,7 @@ class Simu_Displacement(Simu):
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"])
         
-        options.extend(["Wdef","Psi_Elas","energy"])
+        options.extend(["Wdef","Psi_Elas","energy","energy_smoothed"])
 
         return options
 
@@ -1581,6 +1581,14 @@ class Simu_Displacement(Simu):
                 return self.Resultats_InterpolationAuxNoeuds(self.mesh, psi_e)
             else:
                 return psi_e
+            
+        if option == "energy_smoothed":
+            psi_e = self.__Calc_Psi_Elas(returnScalar=False, smoothedStress=True)
+
+            if nodeValues:
+                return self.Resultats_InterpolationAuxNoeuds(self.mesh, psi_e)
+            else:
+                return psi_e
 
         if option == "displacement":
             return self.displacement
@@ -1712,7 +1720,7 @@ class Simu_Displacement(Simu):
                     else:
                         return resultat_e.reshape(-1)
 
-    def __Calc_Psi_Elas(self, returnScalar=True) -> float:
+    def __Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False) -> float:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
@@ -1724,6 +1732,7 @@ class Simu_Displacement(Simu):
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(sol_u, matriceType)
         jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = self.mesh.Get_poid_pg(matriceType)
+        N_pg = self.mesh.Get_N_scalaire_pg(matriceType)
 
         if self.dim == 2:
             ep = self.comportement.epaisseur
@@ -1731,6 +1740,12 @@ class Simu_Displacement(Simu):
             ep = 1
 
         Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg, matriceType)
+
+        if smoothedStress:
+            Sigma_n = self.Resultats_InterpolationAuxNoeuds(self.mesh, np.mean(Sigma_e_pg, 1))
+
+            Sigma_n_e = self.mesh.Localises_sol_e(Sigma_n)
+            Sigma_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
 
         if returnScalar:
 

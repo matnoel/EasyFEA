@@ -97,7 +97,7 @@ class GroupElem(ABC):
         """
 
         self.__gmshId = gmshId
-        self.__elemType, self.__nPe, self.__dim, self.__ordre, self.__nbFaces = GroupElem_Factory.Get_ElemInFos(gmshId)
+        self.__elemType, self.__nPe, self.__dim, self.__ordre, self.__nbFaces, self.__nbCorners = GroupElem_Factory.Get_ElemInFos(gmshId)
         
         # Elements
         self.__elementsID = elementsID
@@ -218,6 +218,11 @@ class GroupElem(ABC):
     def nbFaces(self) -> int:
         """Nombre de faces"""
         return self.__nbFaces
+    
+    @property
+    def nbCorners(self) -> int:
+        """Nombre de coins"""
+        return self.__nbCorners
     
     @property
     def connect_e(self) -> np.ndarray:
@@ -1507,33 +1512,33 @@ class GroupElem_Factory:
         """return elemType, nPe, dim, ordre, nbFaces
         """
         if gmshId == 15:
-            elemType = ElemType.POINT; nPe = 1; dim = 0; ordre = 0; nbFaces = 0
+            elemType = ElemType.POINT; nPe = 1; dim = 0; ordre = 0; nbFaces = 0; nbCorners = 0
         elif gmshId == 1:
-            elemType = ElemType.SEG2; nPe = 2; dim = 1; ordre = 1; nbFaces = 0
+            elemType = ElemType.SEG2; nPe = 2; dim = 1; ordre = 1; nbFaces = 0; nbCorners = 2
             #       v
             #       ^
             #       |
             #       |
             #  0----+----1 --> u
         elif gmshId == 8:
-            elemType = ElemType.SEG3; nPe = 3; dim = 1; ordre = 2; nbFaces = 0
+            elemType = ElemType.SEG3; nPe = 3; dim = 1; ordre = 2; nbFaces = 0; nbCorners = 2
             #       v
             #       ^
             #       |
             #       |
             #  0----2----1 --> u
         elif gmshId == 26:
-            elemType = ElemType.SEG4; nPe = 4; dim = 1; ordre = 3; nbFaces = 0
+            elemType = ElemType.SEG4; nPe = 4; dim = 1; ordre = 3; nbFaces = 0; nbCorners = 2
             #        v
             #        ^
             #        |
             #        |
             #  0---2-+-3---1 --> u
         elif gmshId == 27:
-            elemType = ElemType.SEG5; nPe = 5; dim = 1; ordre = 4; nbFaces = 0
+            elemType = ElemType.SEG5; nPe = 5; dim = 1; ordre = 4; nbFaces = 0; nbCorners = 2
             
         elif gmshId == 2:
-            elemType = ElemType.TRI3; nPe = 3; dim = 2; ordre = 2; nbFaces = 1
+            elemType = ElemType.TRI3; nPe = 3; dim = 2; ordre = 2; nbFaces = 1; nbCorners = 3
             # v
             # ^
             # |
@@ -1545,7 +1550,7 @@ class GroupElem_Factory:
             # |        `\
             # 0----------1 --> u
         elif gmshId == 9:
-            elemType = ElemType.TRI6; nPe = 6; dim = 2; ordre = 2; nbFaces = 1
+            elemType = ElemType.TRI6; nPe = 6; dim = 2; ordre = 2; nbFaces = 1; nbCorners = 3
             # v
             # ^
             # |
@@ -1557,7 +1562,7 @@ class GroupElem_Factory:
             # |        `\
             # 0----3-----1 --> u
         elif gmshId == 21:
-            elemType = ElemType.TRI10; nPe = 10; dim = 2; ordre = 3; nbFaces = 1
+            elemType = ElemType.TRI10; nPe = 10; dim = 2; ordre = 3; nbFaces = 1; nbCorners = 3
             # v
             # ^
             # |
@@ -1569,7 +1574,7 @@ class GroupElem_Factory:
             # |         \
             # 0---3---4---1
         elif gmshId == 23:
-            elemType = ElemType.TRI15; nPe = 15; dim = 2; ordre = 4; nbFaces = 1
+            elemType = ElemType.TRI15; nPe = 15; dim = 2; ordre = 4; nbFaces = 1; nbCorners = 3
             # 
             # 2
             # | \
@@ -1581,7 +1586,7 @@ class GroupElem_Factory:
             # |             \
             # 0---3---4---5---1
         elif gmshId == 3:
-            elemType = ElemType.QUAD4; nPe = 4; dim = 2; ordre = 1; nbFaces = 1
+            elemType = ElemType.QUAD4; nPe = 4; dim = 2; ordre = 1; nbFaces = 1; nbCorners = 4
             #       v
             #       ^
             #       |
@@ -1593,7 +1598,7 @@ class GroupElem_Factory:
             # |           |
             # 0-----------1
         elif gmshId == 16:
-            elemType = ElemType.QUAD8; nPe = 8; dim = 2; ordre = 2; nbFaces = 1
+            elemType = ElemType.QUAD8; nPe = 8; dim = 2; ordre = 2; nbFaces = 1; nbCorners = 4
             #       v
             #       ^
             #       |
@@ -1605,7 +1610,7 @@ class GroupElem_Factory:
             # |           |
             # 0-----4-----1
         elif gmshId == 10:
-            elemType = ElemType.QUAD9; nPe = 9; dim = 2; ordre = 3; nbFaces = 1
+            elemType = ElemType.QUAD9; nPe = 9; dim = 2; ordre = 3; nbFaces = 1; nbCorners = 4
             #       v
             #       ^
             #       |
@@ -1617,7 +1622,7 @@ class GroupElem_Factory:
             # |           |
             # 0-----4-----1
         elif gmshId == 4:
-            elemType = ElemType.TETRA4; nPe = 4; dim = 3; ordre = 1; nbFaces = 4
+            elemType = ElemType.TETRA4; nPe = 4; dim = 3; ordre = 1; nbFaces = 4; nbCorners = 4
             #                    v
             #                  .
             #                ,/
@@ -1637,7 +1642,7 @@ class GroupElem_Factory:
             #                 `\.
             #                    ` w
         elif gmshId == 11:
-            elemType = ElemType.TETRA10; nPe = 10; dim = 3; ordre = 2; nbFaces = 4
+            elemType = ElemType.TETRA10; nPe = 10; dim = 3; ordre = 2; nbFaces = 4; nbCorners = 4
             #                    v
             #                  .
             #                ,/
@@ -1657,7 +1662,7 @@ class GroupElem_Factory:
             #                 `\.
             #                    ` w
         elif gmshId == 5:
-            elemType = ElemType.HEXA8; nPe = 8; dim = 3; ordre = 1; nbFaces = 6
+            elemType = ElemType.HEXA8; nPe = 8; dim = 3; ordre = 1; nbFaces = 6; nbCorners = 8
             #        v
             # 3----------2
             # |\     ^   |\
@@ -1671,7 +1676,7 @@ class GroupElem_Factory:
             #    \|      w  \|
             #     4----------5
         elif gmshId == 12:
-            elemType = ElemType.HEXA27; nPe = 27; dim = 3; ordre = 2; nbFaces = 6
+            elemType = ElemType.HEXA27; nPe = 27; dim = 3; ordre = 2; nbFaces = 6; nbCorners = 8
             #        v
             # 3----13----2
             # |\         |\
@@ -1685,7 +1690,7 @@ class GroupElem_Factory:
             #    \|         \|
             #     4----16----5
         elif gmshId == 6:
-            elemType = ElemType.PRISM6; nPe = 6; dim = 3; ordre = 1; nbFaces = 5
+            elemType = ElemType.PRISM6; nPe = 6; dim = 3; ordre = 1; nbFaces = 5; nbCorners = 6
             #            w
             #            ^
             #            |
@@ -1705,7 +1710,7 @@ class GroupElem_Factory:
             #     |,/         `\|
             #     1-------------2
         elif gmshId == 18:
-            elemType = ElemType.PRISM15; nPe = 15; dim = 3; ordre = 2; nbFaces = 5
+            elemType = ElemType.PRISM15; nPe = 15; dim = 3; ordre = 2; nbFaces = 5; nbCorners = 6
             #            w
             #            ^
             #            |
@@ -1725,7 +1730,7 @@ class GroupElem_Factory:
             #     |,/         `\|
             #     1-------------2
         elif gmshId == 13:
-            elemType = ElemType.PRISM18; nPe = 18; dim = 3; ordre = 2; nbFaces = 5
+            elemType = ElemType.PRISM18; nPe = 18; dim = 3; ordre = 2; nbFaces = 5; nbCorners = 6
             #            w
             #            ^
             #            |
@@ -1745,7 +1750,7 @@ class GroupElem_Factory:
             #     |,/         `\|
             #     1------9------2
         elif gmshId == 7:
-            elemType = ElemType.PYRA5; nPe = 5; dim = 3; ordre = 1; nbFaces = 5
+            elemType = ElemType.PYRA5; nPe = 5; dim = 3; ordre = 1; nbFaces = 5; nbCorners = 5
             #                4
             #              ,/|\
             #            ,/ .'|\
@@ -1763,7 +1768,7 @@ class GroupElem_Factory:
             #                     `\
             #                       u
         elif gmshId == 19:
-            elemType = ElemType.PYRA13; nPe = 13; dim = 3; ordre = 2; nbFaces = 5
+            elemType = ElemType.PYRA13; nPe = 13; dim = 3; ordre = 2; nbFaces = 5; nbCorners = 5
             #                4
             #              ,/|\
             #            ,/ .'|\
@@ -1781,7 +1786,7 @@ class GroupElem_Factory:
             #                     `\
             #                       u
         elif gmshId == 14:
-            elemType = ElemType.PYRA14; nPe = 14; dim = 3; ordre = 2; nbFaces = 5
+            elemType = ElemType.PYRA14; nPe = 14; dim = 3; ordre = 2; nbFaces = 5; nbCorners = 5
             #                4
             #              ,/|\
             #            ,/ .'|\
@@ -1801,7 +1806,7 @@ class GroupElem_Factory:
         else: 
             raise Exception("Type d'élement inconnue")
             
-        return elemType, nPe, dim, ordre, nbFaces
+        return elemType, nPe, dim, ordre, nbFaces, nbCorners
     
     @staticmethod
     def Create_GroupElem(gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray) -> GroupElem:
