@@ -195,12 +195,12 @@ for split in ["Zhang"]:
             else:
                 domainFissure = Domain(Point(x=L/2-ecartZone, y=0), Point(x=L/2+ecartZone, y=h), clC)
             if dim == 2:
-                mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3", domainFissure)
+                mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "TRI3", domainFissure)
             elif dim == 3:
-                mesh = interfaceGmsh.Mesh_PlaqueAvecCercle3D(domain, circle, extrude=[0,0,ep], nCouches=4, elemType="HEXA8", refineGeom=domainFissure)
+                mesh = interfaceGmsh.Mesh_Domain_Circle_3D(domain, circle, extrude=[0,0,ep], nCouches=4, elemType="HEXA8", refineGeom=domainFissure)
 
         else:
-            mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
+            mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "TRI3")
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)

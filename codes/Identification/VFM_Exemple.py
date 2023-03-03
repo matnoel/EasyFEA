@@ -31,7 +31,7 @@ pt1 = Geom.Point()
 pt2 = Geom.Point(L, h)
 domain = Geom.Domain(pt1, pt2, meshSize)
 
-mesh = gmshInterface.Mesh_Rectangle_2D(domain, "QUAD4", isOrganised=True)
+mesh = gmshInterface.Mesh_Domain_2D(domain, "QUAD4", isOrganised=True)
 xn = mesh.coordo[:,0]
 yn = mesh.coordo[:,1]
 

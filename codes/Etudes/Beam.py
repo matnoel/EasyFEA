@@ -41,7 +41,7 @@ elif problem == "Traction":
     q = ro * g * (h*b)
     charge = 5000
 
-section = Section(interfaceGmsh.Mesh_Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
+section = Section(interfaceGmsh.Mesh_Domain_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
 # Affichage.Plot_Model(section.mesh)
 # Affichage.Plot_Maillage(mesh)
@@ -97,7 +97,7 @@ elif problem == "Portique":
     poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
     listePoutre = [poutre1, poutre2]
 
-mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemType)
+mesh = interfaceGmsh.Mesh_Lines_1D(listPoutres=listePoutre, elemType=elemType)
 
 # Affichage.Plot_Model(mesh)
 # # Affichage.Plot_Maillage(mesh)

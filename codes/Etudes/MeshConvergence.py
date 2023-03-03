@@ -85,9 +85,9 @@ for t, elemType in enumerate(elemTypes):
         interfaceGmsh = Interface_Gmsh(verbosity=False)
 
         if dim == 2:
-            mesh = interfaceGmsh.Mesh_Rectangle_2D(domain, elemType=elemType, isOrganised=True)
+            mesh = interfaceGmsh.Mesh_Domain_2D(domain, elemType=elemType, isOrganised=True)
         else:
-            mesh = interfaceGmsh.Mesh_Poutre3D(domain, elemType=elemType, extrude=[0,0,b], nCouches=4, isOrganised=True)
+            mesh = interfaceGmsh.Mesh_Domain_3D(domain, elemType=elemType, extrude=[0,0,b], nCouches=4, isOrganised=True)
 
         mesh = cast(Mesh, mesh)
         # Récupère les noeuds qui m'interessent
