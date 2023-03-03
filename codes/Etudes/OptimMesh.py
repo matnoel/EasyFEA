@@ -22,9 +22,9 @@ folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
 plotResult = True
 
-rapport = 1/10
-cible = 0.01/2
-iterMax = 15
+rapport = 1/5
+cible = 0.01
+iterMax = 20
 
 # Paramètres géométrie
 L = 120;  #mm
@@ -38,12 +38,12 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # meshSize = h/1
 # meshSize = L/2
-meshSize = h/4
+meshSize = h
 
 # TODO permettre de réutiliser le .geo pour construire la geométrie ?
 
 if dim == 2:
-    elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
     elemType = "TETRA4" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
@@ -51,7 +51,7 @@ else:
 # Maillage
 # ----------------------------------------------
 
-pt1 = Point(0, 0)
+pt1 = Point(0, 0, isOpen=True)
 pt2 = Point(L, 0)
 pt3 = Point(L, h)
 pt4 = Point(0, h)
@@ -86,19 +86,63 @@ inclusions = []
 
 #         inclusions.append(domain)
 
-interfaceGmsh = Interface_Gmsh(False)
+if dim == 2:
+
+    tC = h/3
+    ptC1 = Point(h, h/2-tC/2, isOpen=True)
+    ptC2 = Point(h, h/2+tC/2, isOpen=True)
+
+    # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC1+[h], ptC2+[h], meshSize, isOpen=True)]
+    cracks = []
+    # cracks = [Line(Point(L,h/2, isOpen=True), Point(L-h,h/2), isOpen=True, meshSize=meshSize)]
+    # cracks = [Line(ptC1+[0,tC/2-h], ptC2+[0,-tC/2+h], meshSize, isOpen=True), Line(ptC1+[h], ptC2+[h], meshSize, isOpen=True)]
+
+if dim == 3:
+    # ptC1 = Point(h, h/2-tC/2, b/2-tC/2, isOpen=False)
+    # cracks = [PointsList([ptC1, ptC1+[0,tC], ptC1+[0,tC,tC], ptC1+[0,0,tC]], isCreux=True)]    
+    
+    ptC1 = Point(h, h, 0, isOpen=False)
+    ptC2 = Point(h, h/2, 0, isOpen=False)
+    ptC3 = Point(h, h/2, b, isOpen=False)
+    ptC4 = Point(h, h, b, isOpen=False)
+
+    cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], isCreux=True)]
+
+    cracks.append(Line(ptC1, ptC4, meshSize, isOpen=True))
+    cracks.append(Line(ptC1, ptC2, meshSize, isOpen=True))
+    cracks.append(Line(ptC3, ptC4, meshSize, isOpen=True))
+    # cracks.append(Line(ptC3, ptC2, meshSize, isOpen=True))
+
+# cracks = [Line(ptC1, ptC2, meshSize, isOpen=True)]
+# cracks = []
+
+interfaceGmsh = Interface_Gmsh(False, False)
 
 # Fonction utilisée pour la construction du maillage
 def DoMesh(refineGeom=None) -> Mesh:
     if dim == 2:
-        return interfaceGmsh.Mesh_From_Points_2D(points, elemType, inclusions, [], refineGeom)
+        return interfaceGmsh.Mesh_Points_2D(points, elemType, inclusions, cracks, refineGeom)
     else:
-        return interfaceGmsh.Mesh_From_Points_3D(points, [0,0,b], 1, elemType, inclusions, refineGeom)
+        return interfaceGmsh.Mesh_Points_3D(points, [0,0,b], 1, elemType, inclusions, cracks, refineGeom)        
+
 
 # construit le premier maillage
 mesh = DoMesh()
 
+# tt = mesh.Nodes_Point(ptC1)
+
 Affichage.Plot_Mesh(mesh)
+Affichage.Plot_Model(mesh, alpha=0)
+
+if dim==2:
+    nodesCrack = []
+    for crack in cracks:
+        nodesCrack.extend(mesh.Nodes_Line(crack))    
+if dim==3:
+    nodesCrack = mesh.Nodes_Conditions(lambda x,y,z: x==h)
+
+
+Affichage.Plot_Nodes(mesh, nodesCrack, showId=True)
 
 # ----------------------------------------------
 # Comportement et Simu
@@ -120,6 +164,7 @@ def DoSimu(i=0):
         simu.add_dirichlet(noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
 
     simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+    # simu.add_surfLoad(noeuds_en_L, [surfLoad], ["x"])
 
     simu.Solve()
 
@@ -199,7 +244,7 @@ if plotResult:
     # simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
-    Affichage.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
+    Affichage.Plot_Result(simu, "ux", deformation=True, nodeValues=False)        
     Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
     # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)   
 
@@ -207,7 +252,7 @@ if plotResult:
 
 PostTraitement.Make_Paraview(folder, simu)
 
-# PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False)
+PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False, fps=1, nodeValues=False)
 
 # Tic.Plot_History(details=True)
 plt.show()
