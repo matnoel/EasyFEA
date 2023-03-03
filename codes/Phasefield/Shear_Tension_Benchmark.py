@@ -19,12 +19,16 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 2
-simulation = "Shear" # "Shear" , "Tension"
-nomDossier = '_'.join([simulation,"Benchmark"])
+dim = 3
+simulation = "Tension" # "Shear" , "Tension"
 
 if dim == 3:
     simulation += "_3D"
+    ep = 0.1/1000
+else:
+    ep = 0
+
+nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = True
 solve = True
@@ -32,7 +36,7 @@ solve = True
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = False
+plotMesh = True
 plotResult = True
 plotEnergie = False
 getFissure = False
@@ -41,14 +45,14 @@ showResult = True
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = False; Nparaview=400
-makeMovie = False
+saveParaview = True; Nparaview=400
+makeMovie = True
 
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
 openCrack = True
-optimMesh = True
+optimMesh = False
 
 # ----------------------------------------------
 # Convergence
@@ -95,76 +99,91 @@ for split in ["Miehe"]:
 
     # Paramètres maillage
     if test:
-        taille = l0 #taille maille test fem object
+        meshSize = l0 #taille maille test fem object
         # taille = 0.001  
-        taille *= 1
+        meshSize *= 3
     else:
         # On raffin pour avoir au moin 2 element par demie largeur de fissure
-        taille = l0/2 #l0/2 2.5e-6 
+        meshSize = l0/2 #l0/2 2.5e-6 
         # taille = l0/1.2 #l0/2 2.5e-6
         # taille = 7.5e-6
 
     # Definition une zone pour raffiner le maillage
     if optimMesh:
+        
         zone = L*0.05
-        if simulation == "Tension":
+        if "Tension" in simulation:
             # On rafine horizontalement
             if comportement_str == "Elas_Isot":                
-                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone), meshSize=taille)
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone, z=ep), meshSize=meshSize)
             else:                
-                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L*0.8), meshSize=taille)
-        elif simulation == "Shear":
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L*0.8, z=ep), meshSize=meshSize)
+        if "Shear" in simulation:
             if split == "Bourdin":
                 # On rafine en haut et en bas 
-                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L), meshSize=taille)
+                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L, z=ep), meshSize=meshSize)
             else:
                 # On rafine en bas
-                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L/2+zone), meshSize=taille)
-        taille *= 3
+                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L/2+zone, z=ep), meshSize=meshSize)
+        meshSize *= 3
     else:
         refineDomain = None
 
     # Construit le path vers le dossier en fonction des données du problèmes
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, v=0, theta=theta, optimMesh=optimMesh)
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, v=0, theta=theta, optimMesh=optimMesh)    
 
     if solve:
 
         elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
 
-        interfaceGmsh = Interface_Gmsh(False)
+        interfaceGmsh = Interface_Gmsh(False, False)
 
-        domain = Domain(Point(), Point(x=L, y=L), meshSize=taille)       
+        pt1 = Point()
+        pt2 = Point(L)
+        pt3 = Point(L,L)
+        pt4 = Point(0,L)
+        pointsList = PointsList([pt1, pt2, pt3, pt4], meshSize)
 
-        line = Line(Point(y=L/2, isOpen=True), Point(x=L/2, y=L/2), meshSize=taille, isOpen=openCrack)
-        line2 = Line(Point(y=L/4, isOpen=True), Point(x=3*L/4, y=L/4), meshSize=taille, isOpen=openCrack)
+        if dim == 2:
+            ptC1 = Point(0,L/2, isOpen=True)
+            ptC2 = Point(L/2,L/2)
+            cracks = [Line(ptC1, ptC2, meshSize, isOpen=True)]
+        if dim == 3:
+            ptC1 = Point(0,L/2,0, isOpen=True)
+            ptC2 = Point(L/2,L/2, 0)
+            ptC3 = Point(L/2,L/2, ep)
+            ptC4 = Point(0,L/2, ep, isOpen=True)
+            cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], meshSize, isCreux=True)]
+            cracks.append(Line(ptC1, ptC2, meshSize, isOpen=True))
+            cracks.append(Line(ptC4, ptC3, meshSize, isOpen=True))
+            cracks.append(Line(ptC1, ptC4, meshSize, isOpen=True))
 
-        # cracks = [line, line2]
-        cracks = [line]
         
         if dim == 2:
-            mesh = interfaceGmsh.Mesh_Domain_Lines_2D(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
+            mesh = interfaceGmsh.Mesh_Points_2D(pointsList, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         elif dim == 3:
-            fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
-            mesh = interfaceGmsh.Mesh_Import_msh(fichier)
-
-
-
+            # fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
+            # mesh = interfaceGmsh.Mesh_Import_msh(fichier)
+            mesh = interfaceGmsh.Mesh_Points_3D(pointsList, [0,0,ep], 1, cracks=cracks, elemType="TETRA4", refineGeom=refineDomain)
+            # mesh = interfaceGmsh.Mesh_Points_3D(pointsList, [0,0,ep], 2, cracks=cracks, elemType="HEXA8", refineGeom=refineDomain)
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)
-            # # Affichage.Plot_Model(mesh)
+            Affichage.Plot_Model(mesh, alpha=0)
             # noeudsCracks = list(mesh.Nodes_Line(line2))
             # noeudsCracks.extend(mesh.Nodes_Line(line))
             # Affichage.Plot_Noeuds(mesh, noeudsCracks, showId=True)
             # # print(len(noeudsCracks))
-            plt.show()
+            # plt.show()
 
         # Récupération des noeuds
-        noeuds_Milieu = mesh.Nodes_Line(line)        
+        noeuds_Milieu = mesh.Nodes_Conditions(lambda x,y,z: (y==L/2) & (x<=L/2))
         noeuds_Haut = mesh.Nodes_Conditions(lambda x,y,z: y == L)
         noeuds_Bas = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
         noeuds_Gauche = mesh.Nodes_Conditions(lambda x,y,z: (x == 0) & (y>0) & (y<L))
         noeuds_Droite = mesh.Nodes_Conditions(lambda x,y,z: (x == L) & (y>0) & (y<L))
+
+        Affichage.Plot_Nodes(mesh, noeuds_Milieu, True)
 
         # Construit les noeuds du bord
         NoeudsBord=[]
@@ -231,7 +250,10 @@ for split in ["Miehe"]:
                 # simu.add_dirichlet(noeuds_Haut, [dep], ["x"])
 
                 # Conditions en déplacements en Bas
-                simu.add_dirichlet(noeuds_Bas, [0,0],["x","y"])
+                if dim == 2:
+                    simu.add_dirichlet(noeuds_Bas, [0,0],["x","y"])
+                else:
+                    simu.add_dirichlet(noeuds_Bas, [0,0,0],["x","y","z"])
 
             elif "Tension" in simulation:
                 if dim == 2:
@@ -431,7 +453,7 @@ for split in ["Miehe"]:
         
         p0 = np.array([L/2, L/2])
 
-        diamCercle = 1*taille
+        diamCercle = 1*meshSize
         tolDamageValide = 0.95
 
         vecteurs = []
