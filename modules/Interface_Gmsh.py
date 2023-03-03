@@ -1233,8 +1233,11 @@ class Interface_Gmsh:
             self.__factory.synchronize()  
             # gmsh.model.geo.synchronize()
             # gmsh.model.occ.synchronize()
+            
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             gmsh.write(Folder.Join([folder, "mesh.msh"]))
-            tic.Tac("Mesh","Sauvegarde du .geo et du .msh", self.__verbosity)
+            tic.Tac("Mesh","Sauvegarde du .msh", self.__verbosity)
 
     def __Recuperation_Maillage(self, coef=1):
         """Récupération du maillage construit
