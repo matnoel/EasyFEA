@@ -774,7 +774,7 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     return ax
 
-def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
+def Plot_Model(obj, showId=True,  ax=None, folder="", alpha=1) -> plt.Axes:
 
     from Simulations import Simu
     from Mesh import Mesh, GroupElem
@@ -790,8 +790,6 @@ def Plot_Model(obj, showId=True,  ax=None, folder="") -> plt.Axes:
         raise Exception("Doit être une simulation ou un maillage")
 
     inDim = mesh.inDim
-
-    alpha = 1
 
     # Création des axes si nécessaire
     if ax == None:
