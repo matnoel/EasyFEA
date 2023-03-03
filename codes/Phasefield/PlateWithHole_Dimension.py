@@ -70,7 +70,7 @@ for cc in list_cc:
     circle = Circle(Point(x=L/2, y=H-h), diam, clC)
 
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
-    mesh = interfaceGmsh.Mesh_PlaqueAvecCercle2D(domain, circle, "TRI3")
+    mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "TRI3")
 
     # Affichage.Plot_Maillage(mesh)
 

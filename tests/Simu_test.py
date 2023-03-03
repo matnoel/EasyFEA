@@ -58,7 +58,7 @@ class Test_Simu(unittest.TestCase):
             
             # SECTION
 
-            section = Section(interfaceGmsh.Mesh_Rectangle_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
+            section = Section(interfaceGmsh.Mesh_Domain_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
             self.assertTrue((section.aire - b*h) <= 1e-12)
             self.assertTrue((section.Iz - ((b*h**3)/12)) <= 1e-12)
@@ -83,7 +83,7 @@ class Test_Simu(unittest.TestCase):
                 poutre = Materials.Poutre_Elas_Isot(line, section, E, v)
                 listePoutre = [poutre]
 
-            mesh = interfaceGmsh.Mesh_From_Lines_1D(listPoutres=listePoutre, elemType=elemType)
+            mesh = interfaceGmsh.Mesh_Lines_1D(listPoutres=listePoutre, elemType=elemType)
 
             # Modele poutre
 

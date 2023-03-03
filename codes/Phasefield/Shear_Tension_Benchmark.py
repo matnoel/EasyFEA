@@ -142,7 +142,7 @@ for split in ["Miehe"]:
         cracks = [line]
         
         if dim == 2:
-            mesh = interfaceGmsh.Mesh_Rectangle2D_Avec_Fissures(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
+            mesh = interfaceGmsh.Mesh_Domain_Lines_2D(domain=domain, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         elif dim == 3:
             fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
             mesh = interfaceGmsh.Mesh_Import_msh(fichier)

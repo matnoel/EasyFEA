@@ -2,19 +2,18 @@ import Interface_Gmsh
 import Simulations
 import Materials
 import Affichage
-plt = Affichage.plt
-
 import PostTraitement
-
 from Geom import np, Point, Domain, Circle, PointsList
 import Folder
+
+plt = Affichage.plt
 import pandas as pd
+
 
 Affichage.Clear()
 
 folder = Folder.New_File("TractionBois", results=True)
 
-# pathData = Folder.Join([Folder.Get_Path(), "data", "TractionBois", 'data.xlsx'])
 pathData = "/Users/matnoel/Library/CloudStorage/OneDrive-Personal/__Doctorat/Essais/TractionBois/data.xlsx"
 
 df = pd.read_excel(pathData)
@@ -53,7 +52,7 @@ betha = (np.pi - alpha3 - (np.pi/2-alpha1))/2
 d = r3/np.tan(betha)
 
 l0 = H/100
-tailleFin = l0
+tailleFin = l0/1
 tailleGros = l0*5
 
 p0 = Point(x=0, y=-epFissure/2)
@@ -97,7 +96,7 @@ interface = Interface_Gmsh.Interface_Gmsh(False, False)
 
 zone = 10
 refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), meshSize=tailleFin)
-mesh = interface.Mesh_From_Points_2D(points, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI6")
+mesh = interface.Mesh_Points_2D(points, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI3")
 
 # Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)
@@ -127,6 +126,9 @@ simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
 
 noeudsHaut = mesh.Nodes_Tag(["L35","L34"])
 noeudsBas = mesh.Nodes_Tag(["L20","L21"])
+
+noeudsBord = mesh.Nodes_Tag([f"L{i}" for i in np.arange(1, 16)])
+# Affichage.Plot_Nodes(mesh, noeudsBord)
 
 def Chargement(force: float):
     simu.Bc_Init()
@@ -178,5 +180,8 @@ for iter, force in enumerate(np.linspace(0, 30, nf)):
     cb_Damage.remove()
     fig_Damage, ax_Damage, cb_Damage = Affichage.Plot_Result(simu, "damage", ax=ax_Damage)
     plt.pause(1e-12)
+
+    if np.max(simu.damage[noeudsBord]) >= 0.95:
+        break
 
 PostTraitement.Make_Paraview(folder, simu)
