@@ -55,6 +55,76 @@ class Point:
     def isOpen(self):
         """Le point est ouvert"""
         return self.__isOpen
+    
+    def __radd__(self, value):
+        return self.__add__(value)
+
+    def __add__(self, value):
+        if isinstance(value, float) and isinstance(value, int):
+            x = self.x + value
+            y = self.y + value
+            z = self.z + value
+            return Point(x, y, z, self.isOpen, self.r)
+        elif isinstance(value, list):
+            x = self.x + value[0] if len(value) > 0 else self.x
+            y = self.y + value[1] if len(value) > 1 else self.y
+            z = self.z + value[2] if len(value) > 2 else self.z
+            return Point(x, y, z, self.isOpen, self.r)
+        elif isinstance(value, Point):
+            x = self.x + value.x
+            y = self.y + value.y
+            z = self.z + value.z
+            return Point(x, y, z, self.isOpen, self.r)
+        elif isinstance(value, list[Point]):
+            points = [] 
+            for point in value:
+                x = self.x + point.x
+                y = self.y + point.y
+                z = self.z + point.z
+            points.append(Point(x, y, z, self.isOpen, self.r))
+        elif isinstance(value, np.ndarray):
+            points = []
+            for x, y, z in zip(value[:,0], value[:,1], value[:,2]):
+                x = self.x + x
+                y = self.y + y
+                z = self.z + z
+                points.append(Point(x, y, z, self.isOpen, self.r))
+
+    def __rsub__(self, value):
+        return self.__add__(value)
+    
+    def __sub__(self, value):
+        if isinstance(value, float) and isinstance(value, int):
+            x = self.x - value
+            y = self.y - value
+            z = self.z - value
+            return Point(x, y, z, self.isOpen, self.r)
+        elif isinstance(value, list):
+            x = self.x - value[0] if len(value) > 0 else self.x
+            y = self.y - value[1] if len(value) > 1 else self.y
+            z = self.z - value[2] if len(value) > 2 else self.z
+            return Point(x, y, z, self.isOpen, self.r)
+        elif isinstance(value, Point):
+            x = self.x - value.x
+            y = self.y - value.y
+            z = self.z - value.z
+            return Point(x, y, z, self.isOpen, self.r)
+        elif isinstance(value, list[Point]):
+            points = [] 
+            for point in value:
+                x = self.x - point.x
+                y = self.y - point.y
+                z = self.z - point.z
+            points.append(Point(x, y, z, self.isOpen, self.r))
+        elif isinstance(value, np.ndarray):
+            points = []
+            for x, y, z in zip(value[:,0], value[:,1], value[:,2]):
+                x = self.x - x
+                y = self.y - y
+                z = self.z - z
+                points.append(Point(x, y, z, self.isOpen, self.r))
+
+    
 
 class Geom:
 
@@ -97,17 +167,17 @@ class PointsList(Geom):
 
     __nbPointsList = 0
 
-    def __init__(self, points: list[Point], meshSize: float, isCreux=False):
+    def __init__(self, points: list[Point], meshSize=0.0, isCreux=False):
         """Construit une liste de point
 
         Parameters
         ----------
         points : list[Point]
             liste de points pour construire l'objet géométrique
-        meshSize : float
-            taille de maillage qui sera utilisé pour creer le maillage >= 0
+        meshSize : float, optional
+            taille de maillage qui sera utilisé pour creer le maillage >= 0, by default 0.0
         isCreux : bool, optional
-            le domaine formé est creux, by default False        
+            le domaine formé est creux, by default False
         """
 
         self.isCreux=isCreux
