@@ -417,3 +417,75 @@ class Mesh:
         """sur chaque elements on récupère les valeurs de sol"""
         return self.groupElem.Localise_sol_e(sol)
     
+def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
+    """Construit la matrice utilisée pour projeter la solution de l'ancien maillage vers le nouveau maillage.
+
+    Parameters
+    ----------
+    oldMesh : Mesh
+        ancien maillage 
+    newMesh : Mesh
+        nouveau maillage
+
+    Returns
+    -------
+    sp.csr_matrix
+        matrice de projection de dimension (newMesh.Nn, oldMesh.Nn)
+    """
+
+    assert oldMesh.dim == newMesh.dim, "Les maillages doivent être de la même dimension"
+    dim = oldMesh.dim
+
+    # Récupération des noeuds detectés dans les elements de l'ancien maillage
+    # la connnectivité de ces noeuds dans les elements
+    # la position des noeuds dans l'element de référence
+    nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Nodes_Elements_CoordoInElemRef(newMesh.coordo)
+
+    # Evaluation des fonctions de formes
+    Ntild = oldMesh.groupElem.Ntild()        
+    nPe = oldMesh.nPe
+    phi_n_nPe = np.zeros((coordo_n.shape[0], nPe))
+    for n in range(nPe):
+        if dim == 1:
+            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0])
+        elif dim == 2:
+            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1])
+        elif dim == 3:
+            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1], coordo_n[:,2])
+
+    # Constuction du projecteur
+    connect_e = oldMesh.connect
+    lignes = []
+    colonnes = []
+    valeurs = []
+    nnn = []
+    def FuncExtend_Proj(e: int, nodes: np.ndarray):
+        nnn.extend(nodes)
+        valeurs.extend(phi_n_nPe[nodes].reshape(-1))
+        lignes.extend(np.repeat(nodes, nPe))
+        colonnes.extend(np.asarray(list(connect_e[e]) * nodes.size))
+
+    [FuncExtend_Proj(e, nodes) for e, nodes in enumerate(connect_e_n)]
+    
+    proj = sp.csr_matrix((valeurs, (lignes, colonnes)), (newMesh.Nn, oldMesh.Nn), dtype=float)
+
+    # On détecte les noeuds qui se superposent entre les deux maillages
+    counts = np.unique(nnn, return_counts=True)[1]
+    idx = np.where(counts > 1)[0]
+    oldCoordo = oldMesh.coordo[idx]        
+    oldNodes = []
+    newNodes = []
+    def FuncExtend_Detect(n: int):
+        xn, yn, zn =  tuple(oldCoordo[n])
+        nodes=oldMesh.Nodes_Conditions(lambda x,y,z: (x==xn) & (y==yn)& (z==zn))
+        oldNodes.extend(nodes)
+        newNodes.extend([n]*nodes.size)
+
+    [FuncExtend_Detect(n) for n in range(idx.size)]
+    
+    # Vide les lignes associées aux noeuds doubles et met un 1 pour relier les noeuds aux memes coordonnées
+    proj = proj.tolil()
+    proj[newNodes] = 0
+    proj[newNodes, oldNodes] = 1
+
+    return proj.tocsr()
