@@ -129,7 +129,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     
     valeurs *= coef # Application d'un coef sur les valeurs
 
-    coordoNonDef = mesh.coordo # coordonnées des noeuds sans déformations
+    coordoNonDef = mesh.coordoGlob # coordonnées des noeuds sans déformations
 
     if deformation:
         # Recupération des coordonnée déformées si la simulation le permet
@@ -256,12 +256,13 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
             dim = 2
 
         for groupElemDim in mesh.Get_list_groupElem(dim):
+            indexeFaces = groupElemDim.indexesFaces
             # Récupération de la liste de noeuds de chaque element
             connectDim = groupElemDim.connect
             # Récupération de la coordonnée des noeuds
             coordoDim = groupElemDim.coordoGlob
             # coordonnées des noeuds pour chaque element
-            vertices = np.asarray(coordoDim[connectDim]) # (Ne, nPe, 3)
+            vertices = np.asarray(coordoDim[connectDim[:,indexeFaces]]) # (Ne, nPe, 3)
             
             if nodeValues:
                 # Si le résultat est stocké aux noeuds on va faire la moyenne des valeurs aux noeuds sur l'element
@@ -500,8 +501,9 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
             # Affiche que les elements 1D ou 2D en fonction du type de maillage
 
             for groupElemDim in mesh.Get_list_groupElem(dim):
-
-                connectDim = groupElemDim.connect
+                
+                indexesFaces = groupElemDim.indexesFaces
+                connectDim = groupElemDim.connect[:, indexesFaces]
                 coordoDim = groupElemDim.coordoGlob
                 coordFaces = coordoDim[connectDim]
 
@@ -626,8 +628,6 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
 
         if elements.size == 0: continue
 
-        elementsID = groupElemDim.elementsID
-
         connect_e = groupElemDim.connect
         coordo_n = groupElemDim.coordoGlob
         coordoFaces_e = coordo_n[connect_e]
@@ -644,19 +644,16 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
                 ax.add_collection(pc)
 
             # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=3)
-            if showId:            
-                for element in elements:
-                    ax.text(coordo_e[element,0], coordo_e[element,1], str(elementsID[element]),
-                    zorder=25, ha='center', va='center')
+            if showId:
+                [ax.text(coordo_e[element,0], coordo_e[element,1], element,
+                zorder=25, ha='center', va='center') for element in elements]
         elif mesh.dim == 3:
             if len(nodes) > 0:
                 ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1), zdir='z')
 
             # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=3)
             if showId:
-                for element in elements:
-                    ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], str(elementsID[element]),
-                    zorder=25, ha='center', va='center')
+                [ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], element, zorder=25, ha='center', va='center') for element in elements]
 
     # ax.axis('off')
     

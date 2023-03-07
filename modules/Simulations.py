@@ -1110,7 +1110,7 @@ class Simu(ABC):
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
             matriceType = MatriceType.masse
-            coordo_e_p = groupElem.Get_coordo_e_p(matriceType,elements)
+            coordo_e_p = groupElem.Get_coordo_e_p(matriceType, elements)
             nPg = coordo_e_p.shape[1]
 
             N_pg = groupElem.Get_N_pg(matriceType)

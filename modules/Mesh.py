@@ -101,7 +101,7 @@ class Mesh:
     @property
     def nodes(self) -> np.ndarray:
         """Numéros des noeuds du maillage"""
-        return self.groupElem.nodesID
+        return self.groupElem.nodes
 
     @property
     def coordoGlob(self) -> np.ndarray:
@@ -385,7 +385,6 @@ class Mesh:
         elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusivement=exclusivement)
         return elements
 
-
     @staticmethod
     def __Dim_For_Tag(tag):
         if 'P' in tag:
@@ -473,10 +472,11 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     nodesElemUnique, counts = np.unique(nodesElem, return_counts=True)    
     nodesDetect = nodesElemUnique[np.where(counts > 1)[0]]
     
+
     oldNodes = []
     newNodes = []
     def FuncExtend_Detect(n: int):
-        xn, yn, zn = tuple(newMesh.coordoGlob[n])
+        xn, yn, zn = tuple(newMesh.coordo[n])
         nodes = oldMesh.Nodes_Conditions(lambda x,y,z: (x==xn) & (y==yn)& (z==zn))
         oldNodes.extend(nodes)
         newNodes.extend([n]*nodes.size)
@@ -485,7 +485,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     
     # Vide les lignes associées aux noeuds doubles et met un 1 pour relier les noeuds aux memes coordonnées
     proj = proj.tolil()
-    proj[newNodes] = 0
+    proj[newNodes, :] = 0
     proj[newNodes, oldNodes] = 1
 
     return proj.tocsr()

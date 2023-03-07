@@ -1396,7 +1396,7 @@ class Interface_Gmsh:
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
 
             # Création du groupe d'element 
-            groupElem = GroupElem_Factory.Create_GroupElem(gmshId, connect, elementsID, coordo, nodes)
+            groupElem = GroupElem_Factory.Create_GroupElem(gmshId, connect, coordo, nodes)
             
             # On rajoute le groupe d'element au dictionnaire contenant tout les groupes
             dict_groupElem[groupElem.elemType] = groupElem

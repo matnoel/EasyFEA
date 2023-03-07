@@ -79,7 +79,7 @@ class GroupElem(ABC):
         liste3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.PRISM6]
         return liste3D
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
         """Construction d'un groupe d'element
 
         Parameters
@@ -87,40 +87,31 @@ class GroupElem(ABC):
         gmshId : int
             id gmsh
         connect : np.ndarray
-            matrice de connectivité
-        elementsID : np.ndarray
-            identifiants des noeuds
+            matrice de connectivité        
         coordoGlob : np.ndarray
             matrice de coordonnée totale du maillage (contient toutes les coordonnées du maillage)
         nodesID : np.ndarray
-            identifiants des noeuds
+            noeuds utilisés par le groupe d'elements
         """
 
         self.__gmshId = gmshId
         self.__elemType, self.__nPe, self.__dim, self.__ordre, self.__nbFaces, self.__nbCorners = GroupElem_Factory.Get_ElemInFos(gmshId)
         
         # Elements
-        self.__elementsID = elementsID
-        # ici on consruit une liste permettant de donner la position de l'element dans connect en fonction de son numéro
-        self.__elementsIndex = np.zeros(elementsID.max()+1, dtype=int)
-        self.__elementsIndex[elementsID] = np.arange(elementsID.shape[0])
+        self.__elements = np.arange(connect.shape[0], dtype=int)
         self.__connect = connect
 
         # Noeuds
-        self.__nodesID = nodesID
-        # ici on consruit une liste permettant de donner la position du noeuds dans coordo ou connect_n_e en fonction de son numéro
-        self.__nodesIndex = np.zeros(nodesID.max()+1, dtype=int)
-        self.__nodesIndex[nodesID] = np.arange(nodesID.shape[0])
-
+        self.__nodes = nodes
         self.__coordoGlob = coordoGlob
-        self.__coordo = cast(np.ndarray, coordoGlob[nodesID])
+        self.__coordo = cast(np.ndarray, coordoGlob[nodes])
         
         if self.elemType in GroupElem.get_Types3D():
             self.__inDim = 3
         else:
-            if self.__coordo[:,1].max()==0:
+            if np.abs(self.__coordo)[:,1].max()==0:
                 self.__inDim = 1
-            if self.__coordo[:,2].max()==0:
+            if np.abs(self.__coordo)[:,2].max()==0:
                 self.__inDim = 2
             else:
                 self.__inDim = 3
@@ -178,26 +169,14 @@ class GroupElem(ABC):
         return self.__connect.shape[0]
 
     @property
-    def nodesID(self) -> int:
-        """Numéro des noeuds, attention ID n'est pas index (voir nodesIndex)\n
-        Pourquoi ? -> Parce que le noeuds 10 peut être a la lignes 3 dans coordo !"""
-        return self.__nodesID.copy()
+    def nodes(self) -> int:
+        """Noeuds utilisés par le groupe d'elements"""
+        return self.__nodes.copy()
 
     @property
-    def nodesIndex(self) -> int:
-        """Position du noeud dans coordo ou connect_n_e"""
-        return self.__nodesIndex.copy()
-
-    @property
-    def elementsID(self) -> np.ndarray:
-        """Numéro des elements, attention ID n'est pas index (voir elementsIndex)\n
-        Pourquoi ? -> Parce que l'element 3 peut être a la lignes 7 dans connect !"""
-        return self.__elementsID.copy()
-
-    @property
-    def elementsIndex(self) -> int:
-        """Position de l'element dans connect"""
-        return self.__elementsIndex.copy()
+    def elements(self) -> np.ndarray:
+        """Elements du groupe d'elements"""
+        return self.__elements.copy()
 
     @property
     def Nn(self) -> int:
@@ -291,20 +270,18 @@ class GroupElem(ABC):
             # On enlève tout les noeuds en trop
             indexNoeudsSansDepassement = np.where(nodes < self.Nn)[0]
             nodes = nodes[indexNoeudsSansDepassement]
+        
+        lignes, colonnes, valeurs = sparse.find(connect_n_e[nodes])
 
-        nodesId = nodes
-        lignes, colonnes, valeurs = sparse.find(connect_n_e[nodesId])
-
-        elementsIndex = np.unique(colonnes)
-        # elementsIndex = self.elementsIndex[elementsID]
+        elements = np.unique(colonnes)
 
         if exclusivement:
             # Verifie si les elements utilisent exculisevement les noeuds dans la liste de noeuds
             # Pour chaque element, si lelement contient un noeuds n'appartenant pas à la liste de noeuds on l'enlève
-            listElemIndex = [e for e in elementsIndex if not False in [n in nodes for n in connect[e]]]        
+            listElemIndex = [e for e in elements if not False in [n in nodes for n in connect[e]]]        
             listElemIndex = np.array(listElemIndex)
         else:
-            listElemIndex = elementsIndex
+            listElemIndex = elements
 
         return listElemIndex
 
@@ -316,7 +293,7 @@ class GroupElem(ABC):
         """Renvoie les poids des points d'intégration en fonction du type de matrice"""
         return Gauss(self.elemType, matriceType).poids
     
-    def Get_coordo_e_p(self, matriceType: MatriceType, elements: np.ndarray) -> np.ndarray:
+    def Get_coordo_e_p(self, matriceType: MatriceType, elements=np.array([])) -> np.ndarray:
         """Renvoie les coordonnées des points d'intégration pour chaque element"""
 
         N_scalaire = self.Get_N_pg(matriceType)
@@ -326,9 +303,9 @@ class GroupElem(ABC):
 
         # coordonnées localisées sur l'elements
         if elements.size == 0:
-            coordo_e =  coordo[self.__connect]
+            coordo_e = coordo[self.__connect]
         else:
-            coordo_e =  coordo[self.__connect[elements]]
+            coordo_e = coordo[self.__connect[elements]]
 
         # on localise les coordonnées sur les points de gauss
         coordo_e_p = np.einsum('pij,ejn->epn', N_scalaire, coordo_e, optimize='optimal')
@@ -727,8 +704,8 @@ class GroupElem(ABC):
 
         matriceType = MatriceType.masse
 
-        coordo_e_p = self.Get_coordo_e_p(matriceType, self.elementsIndex)
-        x = coordo_e_p[self.elementsID, :, 0]
+        coordo_e_p = self.Get_coordo_e_p(matriceType)
+        x = coordo_e_p[:, :, 0]
 
         Ix = np.einsum('ep,p,ep->', self.Get_jacobien_e_pg(matriceType), self.Get_gauss(matriceType).poids, x**2, optimize='optimal')
         return float(Ix)
@@ -740,8 +717,8 @@ class GroupElem(ABC):
 
         matriceType = MatriceType.masse
 
-        coordo_e_p = self.Get_coordo_e_p(matriceType, self.elementsIndex)
-        y = coordo_e_p[self.elementsID, :, 1]
+        coordo_e_p = self.Get_coordo_e_p(matriceType)
+        y = coordo_e_p[:, :, 1]
 
         Iy = np.einsum('ep,p,ep->', self.Get_jacobien_e_pg(matriceType), self.Get_gauss(matriceType).poids, y**2, optimize='optimal')
         return float(Iy)
@@ -753,9 +730,9 @@ class GroupElem(ABC):
 
         matriceType = MatriceType.masse
 
-        coordo_e_p = self.Get_coordo_e_p(matriceType, self.elementsIndex)
-        x = coordo_e_p[self.elementsID, :, 0]
-        y = coordo_e_p[self.elementsID, :, 1]
+        coordo_e_p = self.Get_coordo_e_p(matriceType)
+        x = coordo_e_p[:, :, 0]
+        y = coordo_e_p[:, :, 1]
 
         Ixy = np.einsum('ep,p,ep,ep->', self.Get_jacobien_e_pg(matriceType), self.Get_gauss(matriceType).poids, x, y, optimize='optimal')
         return float(Ixy)
@@ -1127,8 +1104,8 @@ class GroupElem(ABC):
         try:
             arrayTest = np.asarray(lambdaFunction(xn, yn, zn))
             if arrayTest.dtype == bool:
-                nodesIndex = np.where(arrayTest)[0]
-                return self.__nodesID[nodesIndex].copy()
+                idx = np.where(arrayTest)[0]
+                return self.__nodes[idx].copy()
             else:
                 print("La fonction renseignée doit renvoyer un booléen.")
         except TypeError:
@@ -1140,9 +1117,9 @@ class GroupElem(ABC):
 
         coordo = self.__coordo
         
-        nodesIndex = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
+        idx = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]
 
-        if len(nodesIndex) == 0:
+        if len(idx) == 0:
             # la condition précédente peut être trop restrictive
 
             tolerance = 1e-3
@@ -1166,9 +1143,9 @@ class GroupElem(ABC):
             else:
                 erreurZ = 0
             
-            nodesIndex = np.where((erreurX <= tolerance) & (erreurY <= tolerance) & (erreurZ <= tolerance))[0]
+            idx = np.where((erreurX <= tolerance) & (erreurY <= tolerance) & (erreurZ <= tolerance))[0]
 
-        return self.__nodesID[nodesIndex].copy()
+        return self.__nodes[idx].copy()
 
     def Get_Nodes_Line(self, line: Line) -> np.ndarray:
         """Renvoie les noeuds sur la ligne"""
@@ -1185,9 +1162,9 @@ class GroupElem(ABC):
 
         eps = np.finfo(float).eps
 
-        nodesIndex = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
+        idx = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
 
-        return self.__nodesID[nodesIndex].copy()
+        return self.__nodes[idx].copy()
     
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Renvoie les noeuds dans le domaine"""
@@ -1196,11 +1173,11 @@ class GroupElem(ABC):
 
         eps = np.finfo(float).eps
 
-        nodesIndex = np.where(  (coordo[:,0] >= domain.pt1.x-eps) & (coordo[:,0] <= domain.pt2.x+eps) &
-                            (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
-                            (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))[0]
+        idx = np.where( (coordo[:,0] >= domain.pt1.x-eps) & (coordo[:,0] <= domain.pt2.x+eps) &
+                        (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
+                        (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))[0]
         
-        return self.__nodesID[nodesIndex].copy()
+        return self.__nodes[idx].copy()
 
     def Get_Nodes_Circle(self, circle: Circle) -> np.ndarray:
         """Renvoie les noeuds dans le cercle"""
@@ -1209,9 +1186,9 @@ class GroupElem(ABC):
 
         eps = np.finfo(float).eps
 
-        nodesIndex = np.where(np.sqrt((coordo[:,0]-circle.center.x)**2+(coordo[:,1]-circle.center.y)**2+(coordo[:,2]-circle.center.z)**2)<=circle.diam/2+eps)
+        idx = np.where(np.sqrt((coordo[:,0]-circle.center.x)**2+(coordo[:,1]-circle.center.y)**2+(coordo[:,2]-circle.center.z)**2)<=circle.diam/2+eps)
 
-        return self.__nodesID[nodesIndex]
+        return self.__nodes[idx]
 
     def Get_Nodes_Cylindre(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
         """Renvoie les noeuds dans le cylindre"""
@@ -1237,9 +1214,9 @@ class GroupElem(ABC):
         else:
             conditionZ = np.zeros_like(coordo[:,2])
 
-        nodesIndex = np.where(np.sqrt(conditionX**2+conditionY**2+conditionZ**2)<=circle.diam/2+eps)
+        idx = np.where(np.sqrt(conditionX**2+conditionY**2+conditionZ**2)<=circle.diam/2+eps)
 
-        return self.__nodesID[nodesIndex]
+        return self.__nodes[idx]
 
     def Set_Nodes_Tag(self, noeuds: np.ndarray, tag: str):
         """Ajoute un tag sur les noeuds
@@ -1409,8 +1386,13 @@ class GroupElem(ABC):
             p1_f = [f[1] for f in faces]
             p2_f = [f[-1] for f in faces]
 
-            n_f = np.cross(coordo[p1_f]-coordo[p0_f],coordo[p2_f]-coordo[p0_f], 1, 1)
+            i_f = coordo[p1_f]-coordo[p0_f]
+            i_f = np.einsum("ni,n->ni", i_f, 1/np.linalg.norm(i_f, axis=1), optimize="optimal")
 
+            j_f = coordo[p2_f]-coordo[p0_f]
+            j_f = np.einsum("ni,n->ni", j_f, 1/np.linalg.norm(j_f, axis=1), optimize="optimal")
+
+            n_f = np.cross(i_f, j_f, 1, 1)
             n_f = np.einsum("ni,n->ni", n_f, 1/np.linalg.norm(n_f, axis=1), optimize="optimal")
 
             coordinates_n_b = coordinates[:, np.newaxis].repeat(nbFaces, 1)
@@ -1424,11 +1406,6 @@ class GroupElem(ABC):
             idx = np.where(filtre == nbFaces)[0]
 
             return idx
-
-        
-
-
-
 
     def Get_Nodes_Elements_CoordoInElemRef(self, coordinates: np.ndarray, elements=None):
         """Fonction qui permet de renvoyer les noeuds dans les elements, la connectivité et les coordonnées (ksi, eta) des points.
@@ -1452,7 +1429,7 @@ class GroupElem(ABC):
         On renvoie les coordonnées détectées, la matrice de connectivité entre élément et coordonnées et les coordonnées de ces noeuds dans les éléments de référence pour pouvoir évaluer les fonctions de formes"""
         
         # données du groupe d'element
-        coordo = self.__coordoGlob
+        coordo = self.__coordo
         connect = self.__connect        
         invF_e_pg = self.Get_invF_e_pg("rigi")
 
@@ -1894,9 +1871,9 @@ class GroupElem_Factory:
         return elemType, nPe, dim, ordre, nbFaces, nbCorners
     
     @staticmethod
-    def Create_GroupElem(gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray) -> GroupElem:
+    def Create_GroupElem(gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray) -> GroupElem:
 
-        params = (gmshId, connect, elementsID, coordoGlob, nodesID)
+        params = (gmshId, connect, coordoGlob, nodes)
 
         elemType = GroupElem_Factory.Get_ElemInFos(gmshId)[0]
         
@@ -1936,9 +1913,9 @@ class GroupElem_Factory:
 
 class POINT(GroupElem):
     
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -1979,9 +1956,9 @@ class SEG2(GroupElem):
     #       |
     #  0----+----1 --> u
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2058,9 +2035,9 @@ class SEG3(GroupElem):
     #       |
     #  0----2----1 --> u
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2152,9 +2129,9 @@ class SEG4(GroupElem):
     #        |
     #  0---2-+-3---1 --> u
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2162,7 +2139,7 @@ class SEG4(GroupElem):
 
     @property
     def indexesFaces(self) -> list[int]:
-        return [0, 2, 3, 1]
+        return [0,2,3,1]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2263,9 +2240,9 @@ class SEG5(GroupElem):
     #          |
     #  0---2---3---4---1 --> u
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2273,7 +2250,7 @@ class SEG5(GroupElem):
 
     @property
     def indexesFaces(self) -> list[int]:
-        return [0, 2, 3, 4, 1]
+        return [0,2,3,4,1]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2397,11 +2374,9 @@ class TRI3(GroupElem):
     # |        `\
     # 0----------1 --> u
 
-    _indexesFaces = [0,1,2,0]
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
-
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2409,7 +2384,8 @@ class TRI3(GroupElem):
 
     @property
     def indexesFaces(self) -> list[int]:
-        return TRI3._indexesFaces
+        return [0,1,2,0]
+    _indexesFaces = [0,1,2,0]
 
     def Ntild(self) -> np.ndarray:
 
@@ -2461,9 +2437,9 @@ class TRI6(GroupElem):
     # |        `\
     # 0----3-----1 --> u
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2538,9 +2514,9 @@ class TRI10(GroupElem):
     # |         \
     # 0---3---4---1 --> u
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2708,9 +2684,9 @@ class TRI15(GroupElem):
     # |             \
     # 0---3---4---5---1 --> u
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2979,11 +2955,11 @@ class QUAD4(GroupElem):
     # |           |
     # 0-----------1
 
-    _indexesFaces = [0,1,2,3,0]
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -2991,7 +2967,8 @@ class QUAD4(GroupElem):
 
     @property
     def indexesFaces(self) -> list[int]:
-        return QUAD4._indexesFaces
+        return [0,1,2,3,0]
+    _indexesFaces = [0,1,2,3,0]
 
     def Ntild(self) -> np.ndarray:
 
@@ -3045,9 +3022,9 @@ class QUAD8(GroupElem):
     # |           |
     # 0-----4-----1
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -3137,9 +3114,9 @@ class TETRA4(GroupElem):
     #                 `\.
     #                    ` w
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -3213,9 +3190,9 @@ class TETRA10(GroupElem):
     #                 `\.
     #                    ` w
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -3310,9 +3287,9 @@ class HEXA8(GroupElem):
     #    \|      w  \|
     #     4----------5
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
@@ -3394,8 +3371,9 @@ class PRISM6(GroupElem):
     #     |,/         `\|
     #     1-------------2
 
-    def __init__(self, gmshId: int, connect: np.ndarray, elementsID: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
-        super().__init__(gmshId, connect, elementsID, coordoGlob, nodesID)
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
 
     @property
     def indexesTriangles(self) -> list[int]:
