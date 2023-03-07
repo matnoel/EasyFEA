@@ -1309,6 +1309,126 @@ class GroupElem(ABC):
             return
         
         return sol_e
+    
+    def Get_pointsInElem(self, coordinates: np.ndarray, elem: int) -> np.ndarray:
+        """Fonction qui renvoie les indexes des coordonnées contenues dans l'élément.
+
+        Parameters
+        ----------
+        coordinates : np.ndarray
+            coordonnées
+        elem : int
+            element
+
+        Returns
+        -------
+        np.ndarray
+            indexes des coordonnées contenues dans l'element
+        """
+
+        dim = self.__dim        
+
+        tol = 1e-12
+
+        if dim == 0:
+
+            coordo = self.__coordo[self.__connect[elem,0]]
+
+            idx = np.where((coordinates[:,0] == coordo[0]) & (coordinates[:,1] == coordo[1]) & (coordinates[:,2] == coordo[2]))[0]
+
+        elif dim == 1:
+
+            p1 = self.__connect[elem,0]
+            p2 = self.__connect[elem,1]
+
+            vect_i = self.__coordo[p2] - self.__coordo[p1]
+            longueur = np.linalg.norm(vect_i)
+            vect_i = vect_i / longueur # sans normalisé fonctionne pas
+
+            vect_j_n = coordinates - self.__coordo[p1]
+
+            cross_n = np.cross(vect_i, vect_j_n, 0, 1)
+            norm_n = np.linalg.norm(cross_n, axis=1)
+
+            dot_n = vect_j_n @ vect_i
+            
+            idx = np.where((norm_n <= tol) & (dot_n >= -tol) & (dot_n <= longueur+tol))[0]
+
+            return idx
+        
+        elif dim == 2:
+            
+            coordoMesh = self.__coordo
+            indexesFace = self.indexesFaces[:-1]
+            nPe = len(indexesFace)
+            connectMesh = self.connect[elem, indexesFace]
+            coordConnect = coordoMesh[connectMesh]
+
+            # calcul des vecteurs
+            indexReord = np.append(np.arange(1, nPe), 0)
+            # Vecteurs i pour les segments du bord
+            vect_i_b = coordoMesh[connectMesh[indexReord]] - coordoMesh[connectMesh]
+            # vect_i_b = np.einsum("ni,n->ni", vect_i_b, 1/np.linalg.norm(vect_i_b, axis=1), optimize="optimal")
+
+            # Vecteur normal à la face de l'element
+            vect_n = np.cross(vect_i_b[0], -vect_i_b[-1])
+
+            coordinates_n_b = coordinates[:, np.newaxis].repeat(nPe, 1)
+
+            # Construit les vecteurs v partant des coins
+            vectv_n_b = coordinates_n_b - coordConnect
+
+            cross_n_b = np.cross(vect_i_b, vectv_n_b, 1, 2)
+
+            test_n_b = cross_n_b @ vect_n >= -tol
+
+            filtre = np.sum(test_n_b, 1)
+
+            # Renvoie l'indexe des noeuds autour de l'element qui respecte toutes les conditions
+            idx = np.where(filtre == nPe)[0]
+
+            return idx
+        
+        elif dim == 3:
+        
+            indexesFaces = self.indexesFaces
+            nbFaces = self.nbFaces
+            coordo = self.__coordo[self.__connect[elem]]
+
+            if isinstance(self, PRISM6):
+                indexesFaces = np.array(indexesFaces)
+                faces = np.array([indexesFaces[[0,1,2,3]],
+                                  indexesFaces[[4,5,6,7]],
+                                  indexesFaces[[8,9,10,11]],
+                                  indexesFaces[[12,13,14]],
+                                  indexesFaces[[15,16,17]]], dtype=object)
+            else:
+                faces = np.reshape(indexesFaces, (nbFaces,-1))
+
+            p0_f = [f[0] for f in faces]
+            p1_f = [f[1] for f in faces]
+            p2_f = [f[-1] for f in faces]
+
+            n_f = np.cross(coordo[p1_f]-coordo[p0_f],coordo[p2_f]-coordo[p0_f], 1, 1)
+
+            n_f = np.einsum("ni,n->ni", n_f, 1/np.linalg.norm(n_f, axis=1), optimize="optimal")
+
+            coordinates_n_b = coordinates[:, np.newaxis].repeat(nbFaces, 1)
+
+            v_f = coordinates_n_b - coordo[p0_f]
+
+            t_f = np.einsum("nfi,fi->nf", v_f, n_f, optimize="optimal") >= -tol
+
+            filtre = np.sum(t_f, 1)
+
+            idx = np.where(filtre == nbFaces)[0]
+
+            return idx
+
+        
+
+
+
 
     def Get_Nodes_Elements_CoordoInElemRef(self, coordinates: np.ndarray, elements=None):
         """Fonction qui permet de renvoyer les noeuds dans les elements, la connectivité et les coordonnées (ksi, eta) des points.
@@ -1317,44 +1437,31 @@ class GroupElem(ABC):
 
         # TODO est ce que le principe fonctionne si la face est orientée dans l'espace ? inDim = 3 ?
 
-        if self.dim != 2: return
+        # if self.dim != 2: return
+        # if self.dim != 2: raise Exception("Pas encore implémenté en 3D")
 
         if elements == None:
             elements = np.arange(self.Ne, dtype=int)
 
         assert coordinates.shape[1] == 3, "Doit être de dimension (n, 3)"
 
-        return self.__Get_Nodes_Elements_CoordoInElemRef_2D(coordinates, elements)
+        return self.__Get_Nodes_Elements_CoordoInElemRef(coordinates, elements)
 
-    def __Get_Nodes_Elements_CoordoInElemRef_2D(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
+    def __Get_Nodes_Elements_CoordoInElemRef(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
         """Cette fonction permet de localiser les coordonnées dans les éléments.
         On renvoie les coordonnées détectées, la matrice de connectivité entre élément et coordonnées et les coordonnées de ces noeuds dans les éléments de référence pour pouvoir évaluer les fonctions de formes"""
-
-
-        # coordonnées du groupe d'élement
-        inDim = self.inDim        
-        coordoMesh = self.coordo
-        indexesFace = self.indexesFaces[:-1]
-        connectMesh = self.connect[:, indexesFace]
-        coordConnect = coordoMesh[connectMesh]
+        
+        # données du groupe d'element
+        coordo = self.__coordoGlob
+        connect = self.__connect        
         invF_e_pg = self.Get_invF_e_pg("rigi")
-
-        # Permet de transformer connect ex : [0,1,2,3] -> [3,0,1,2]
-        nPe = len(indexesFace)
-        indexReord = np.append(np.arange(1, nPe), 0)
-
-        vecti_e_b = coordoMesh[connectMesh[:, indexReord]] - coordoMesh[connectMesh]
-        vectj_e = coordoMesh[connectMesh[:, -1]] - coordoMesh[connectMesh[:, 0]]
-        vectn_e = np.cross(vecti_e_b[:,0], vectj_e, 1, 1)
-
-        coordinates_n_b = coordinates_n[:, np.newaxis].repeat(nPe, 1)
 
         # Detecte si les coordonnées proviennent d'une grille
         repX = np.unique(coordinates_n[:,0], return_counts=True)[1]; stdX = np.std(repX)
         repY = np.unique(coordinates_n[:,1], return_counts=True)[1]; stdY = np.std(repY)
         repZ = np.unique(coordinates_n[:,2], return_counts=True)[1]; stdZ = np.std(repZ)        
 
-        if coordinates_n.dtype==int and stdX == 0 and stdY == 0 and stdZ == 0:
+        if coordinates_n.dtype==int and stdX == 0 and stdY == 0 and stdZ == 0:            
             useGrid = True
             # ici on recupère le nombre de couche en Y et en X
             nY = int(np.mean(repX))
@@ -1362,9 +1469,9 @@ class GroupElem(ABC):
         else:
             useGrid = False
 
-        def Get_coordoInZoneElem(coord: np.ndarray) -> np.ndarray:
-            
-            # Récupération des indexes de coordinates_n qui sont dans la zone des coordonnées renseignées
+        def Get_coordoInZoneElem(coord: np.ndarray) -> np.ndarray:            
+            """Récupération des indexes de coordinates_n qui sont dans la zone des coordonnées renseignées.
+            Cette fonction permet d'effectuer un près tri"""
 
             if useGrid:
 
@@ -1384,83 +1491,45 @@ class GroupElem(ABC):
                                 (coordinates_n[:,2] <= np.max(coord[:,2])))[0]               
 
             return idx
-
-        # import matplotlib.pyplot as plt
-        # ax = plt.gca()
         
         # matrice de connection qui contient les noeuds utilisés par les élements
         connect_e_n = []
         # coordonnées des noeuds dans la base de référence de l'element
-        coordo_n = np.zeros_like(coordinates_n[:,:self.inDim], dtype=float)
+        coordoInElem_n = np.zeros_like(coordinates_n[:,:self.inDim], dtype=float)
         # noeuds indentifiés
-        nodes = []        
+        nodes = []
 
-        for e in elements_e:
-            
+        def FuncRecherche(e: int):
             # Récupération des coordonnées des noeuds de l'element
-            coordoZone = coordConnect[e]
+            coordoZone = coordo[connect[e]]
 
             # Récupère les indexes dans coordinates_n qui sont dans les bornes de l'element
             idxAroundElem = Get_coordoInZoneElem(coordoZone)
 
-            # ax.scatter(coordinates_n_b[idxAroundElem,0,0], coordinates_n_b[idxAroundElem,0,1], c="orange")
-            
-            if inDim == 2:
-
-                dx = vecti_e_b[e,:,0]
-                dy = vecti_e_b[e,:,1]
-
-                xn, yn = coordoZone[:,0], coordoZone[:,1]
-
-                xc, yc = np.mean(xn), np.mean(yn)
-
-                a = dy * (coordinates_n_b[idxAroundElem,:,0] - xn) - dx * (coordinates_n_b[idxAroundElem,:,1] - yn)
-                b = dy * (xc - xn) - dx * (yc - yn)
-
-                test_n_b = a * b >= -1e-12
-
-            else:
-            
-                # Vecteurs i pour les bords
-                vecti_b = vecti_e_b[e]
-
-                # Vecteur normal à la face
-                vectn = vectn_e[e]
-
-                # Fonction qui construit les vecteurs v
-                vectv_n_b = coordinates_n_b[idxAroundElem] - coordConnect[e]
-
-                cross_n_b = np.cross(vecti_b, vectv_n_b, 1, 2)
-
-                # Réalise le produit vectoriel pour tourver les noeuds à gauche des bords i            
-                test_n_b = cross_n_b @ vectn >= -1e-12            
-
-            filtreNoeuds = np.sum(test_n_b, 1)
-
             # Renvoie l'indexe des noeuds autour de l'element qui respecte toutes les conditions
-            idxInElem = np.where(filtreNoeuds == nPe)[0]
+            idxInElem = self.Get_pointsInElem(coordinates_n[idxAroundElem], e)
 
             # noeuds qui respectent toutes les conditions
             nodesInElement = idxAroundElem[idxInElem]
 
-            # ax.scatter(coordinates_n_b[nodesInElement, 0, 0], coordinates_n_b[nodesInElement, 0, 1], c="red")
-
             # coordonnées de ces noeuds dans l'element dans la base reel
-            nodesCoordinatesInElem = coordinates_n_b[nodesInElement, 0] - coordConnect[e,0]
+            nodesCoordinatesInElem = coordinates_n[nodesInElement] - coordoZone[0]
             # coordonnées de ces noeuds dans l'element dans la base de l'element            
             nodesCoordinatesInElemRef = nodesCoordinatesInElem[:,:self.inDim] @ invF_e_pg[e,0]
 
             connect_e_n.append(nodesInElement)
 
-            coordo_n[nodesInElement,:] = nodesCoordinatesInElemRef
+            coordoInElem_n[nodesInElement,:] = nodesCoordinatesInElemRef
 
             nodes.extend(nodesInElement)
+
+        [FuncRecherche(e) for e in elements_e]
         
         connect_e_n = np.array(connect_e_n, dtype=object)
 
         nodes, count = np.unique(nodes, return_counts=True)        
 
-        return nodes, connect_e_n, coordo_n
+        return nodes, connect_e_n, coordoInElem_n
 
 
     @abstractproperty
@@ -3078,7 +3147,7 @@ class TETRA4(GroupElem):
 
     @property
     def indexesFaces(self) -> list[int]:
-        return [0,1,2,0,1,3,0,2,3,1,2,3]
+        return [0,1,2,0,3,1,0,2,3,1,3,2]
     
     @property
     def indexesSegments(self) -> np.ndarray:
@@ -3153,8 +3222,8 @@ class TETRA10(GroupElem):
         return super().indexesTriangles
 
     @property
-    def indexesFaces(self) -> list[int]:
-        return [0,4,1,5,2,6,0,4,1,9,3,7,0,6,2,8,3,7,1,5,2,8,3,9]
+    def indexesFaces(self) -> list[int]:        
+        return [0,4,1,5,2,6,0,7,3,9,1,4,0,6,2,8,3,7,1,9,3,8,2,5]
     
     @property
     def indexesSegments(self) -> np.ndarray:
@@ -3251,7 +3320,7 @@ class HEXA8(GroupElem):
 
     @property
     def indexesFaces(self) -> list[int]:
-        return [0,1,2,3,0,1,5,4,0,3,7,4,6,2,3,7,6,2,1,5,6,7,4,5]
+        return [0,1,2,3,0,4,5,1,0,3,7,4,6,7,3,2,6,2,1,5,6,5,4,7]
     
     @property
     def indexesSegments(self) -> np.ndarray:
@@ -3334,7 +3403,7 @@ class PRISM6(GroupElem):
 
     @property
     def indexesFaces(self) -> list[int]:
-        return super().indexesFaces
+        return [0,3,4,1,0,2,5,3,1,4,5,2,3,5,4,0,1,2]
     
     @property
     def indexesSegments(self) -> np.ndarray:
