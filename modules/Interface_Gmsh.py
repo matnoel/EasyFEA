@@ -194,11 +194,11 @@ class Interface_Gmsh:
         rayon = circle.diam/2
 
         # Points cercle                
-        p0 = factory.addPoint(center.x, center.y, 0, circle.meshSize) #centre
-        p1 = factory.addPoint(center.x-rayon, center.y, 0, circle.meshSize)
-        p2 = factory.addPoint(center.x, center.y-rayon, 0, circle.meshSize)
-        p3 = factory.addPoint(center.x+rayon, center.y, 0, circle.meshSize)
-        p4 = factory.addPoint(center.x, center.y+rayon, 0, circle.meshSize)
+        p0 = factory.addPoint(center.x, center.y, center.z, circle.meshSize) #centre
+        p1 = factory.addPoint(center.x-rayon, center.y, center.z, circle.meshSize)
+        p2 = factory.addPoint(center.x, center.y-rayon, center.z, circle.meshSize)
+        p3 = factory.addPoint(center.x+rayon, center.y, center.z, circle.meshSize)
+        p4 = factory.addPoint(center.x, center.y+rayon, center.z, circle.meshSize)
         # [self.__Add_PhysicalPoint(pt) for pt in [p1, p2, p3, p4]]
 
         # Lignes cercle
@@ -224,10 +224,11 @@ class Interface_Gmsh:
         pt1 = domain.pt1
         pt2 = domain.pt2
 
-        p1 = Point(x=pt1.x, y=pt1.y, z=0)
-        p2 = Point(x=pt2.x, y=pt1.y, z=0)
-        p3 = Point(x=pt2.x, y=pt2.y, z=0)
-        p4 = Point(x=pt1.x, y=pt2.y, z=0)
+        p1 = Point(x=pt1.x, y=pt1.y, z=pt1.z)
+        p2 = Point(x=pt2.x, y=pt1.y, z=pt1.z)
+        p3 = Point(x=pt2.x, y=pt2.y, z=pt2.z)
+        p4 = Point(x=pt1.x, y=pt2.y, z=pt2.z)
+        # Ici laisser les coordonnées en z à 0
 
         loop = self.__Loop_From_Points([p1, p2, p3, p4], domain.meshSize)
         
@@ -325,6 +326,8 @@ class Interface_Gmsh:
         if factory == gmsh.model.occ:
             isOrganised = False
 
+        extruEntities = []
+
         for surf in surfaces:
 
             if isOrganised:
@@ -349,6 +352,10 @@ class Interface_Gmsh:
             # Creer les nouveaux elements pour l'extrusion
             # nCouches = np.max([np.ceil(np.abs(extrude[2] - domain.taille)), 1])
             extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=numElements)
+
+            extruEntities.extend(extru)
+
+        return extruEntities
 
     # TODO générer plusieurs maillage en désactivant initGmsh et en utilisant plusieurs fonctions ?
     # mettre en place une liste de surfaces ?
@@ -619,13 +626,13 @@ class Interface_Gmsh:
         """Création des groupes physiques associés aux fissures\n
         return crackLines, crackSurfaces, openPoints, openLines
         """
+
+        dim = entities[0][0]
         
         # listes contenants les entitées ouvertes
         openPoints = []
         openLines = []
-        openSurfaces = []
-
-        dim = entities[0][0]
+        openSurfaces = []        
 
         entities0D = []
         entities1D = []
@@ -658,8 +665,9 @@ class Interface_Gmsh:
                     # o2, m2 = self.__factory.fragment([(0, p2), (1, line)], entities)
                     # openPoints.append(p2)
                     # entities0D.append(p2)
-
                 
+                # self.__factory.synchronize()
+                # gmsh.model.mesh.embed(1, [line], dim, entities[0][1])
                 
             else:
                 # Récupération des boucles
@@ -674,11 +682,16 @@ class Interface_Gmsh:
                 if crack.isCreux:
                     openSurfaces.append(surface)
 
+                # self.__factory.synchronize()
+                # gmsh.model.mesh.embed(2, [surface], dim, entities[0][1])
+
+
         newEntities = [(0, point) for point in entities0D]
         newEntities.extend([(1, line) for line in entities1D])
         newEntities.extend([(2, surf) for surf in entities2D])
         
-        o, m = gmsh.model.occ.fragment(newEntities, entities)
+        # o, m = gmsh.model.occ.fragment(newEntities, entities)
+        o, m = gmsh.model.occ.fragment(entities, newEntities)
         self.__factory.synchronize()
         
         # if dim == 2:
@@ -791,8 +804,8 @@ class Interface_Gmsh:
         else:
             # Cylindre plein
             # Création d'une surface pour le cercle plein
-            surfaceCercle = self.__Surface_From_Loops([loopCercle])
-            p0 = factory.addPoint(circle.center.x, circle.center.y, 0, circle.meshSize)
+            surfaceCercle = self.__Surface_From_Loops([loopCercle])            
+            p0 = factory.addPoint(circle.center.x, circle.center.y, circle.center.z, circle.meshSize)
             factory.synchronize()
             gmsh.model.mesh.embed(0, [p0], 2, surfaceCercle)
             factory.synchronize()
@@ -1044,6 +1057,8 @@ class Interface_Gmsh:
         self.__CheckType(3, elemType)
         
         tic = Tic()
+
+        cracks1D = [crack for crack in cracks if isinstance(crack, Line)]
         
         # le maillage 2D de départ n'a pas d'importance
         surfaces = self.Mesh_Points_2D(pointsList, elemType=ElemType.TRI3, inclusions=inclusions, cracks=[], refineGeom=refineGeom, returnSurfaces=True)
@@ -1063,8 +1078,12 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Mesh from points", self.__verbosity)
 
+        surfaces = entities3D[0][1]
+
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder,
         crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
+
+        # self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
         return self.__Recuperation_Maillage()
     
@@ -1194,8 +1213,9 @@ class Interface_Gmsh:
                 for surf in surfaces:
                     gmsh.model.mesh.setRecombine(2, surf)
                 
+                self.__factory.synchronize()
                 gmsh.model.mesh.setRecombine(3, 1)
-
+            
             gmsh.model.mesh.generate(3)
 
             Interface_Gmsh.__Set_order(elemType)
@@ -1491,8 +1511,8 @@ class Interface_Gmsh:
         # Pour chaque type d'element 3D
 
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=taille)
-        circleCreux = Circle(Point(x=L/2, y=0), h*0.7, meshSize=taille, isCreux=True)
-        circle = Circle(Point(x=L/2, y=0), h*0.7, meshSize=taille, isCreux=False)
+        circleCreux = Circle(Point(x=L/2, y=0,z=-b/2), h*0.7, meshSize=taille, isCreux=True)
+        circle = Circle(Point(x=L/2, y=0 ,z=-b/2), h*0.7, meshSize=taille, isCreux=False)
 
         volume = L*h*b
 
