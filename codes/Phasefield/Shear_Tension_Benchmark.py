@@ -19,7 +19,7 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 3
+dim = 2
 simulation = "Tension" # "Shear" , "Tension"
 
 if dim == 3:
@@ -66,7 +66,7 @@ tolConv = 1e-0
 # Comportement 
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-regularisation = "AT1" # "AT1", "AT2"
+regularisation = "AT2" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
 for split in ["Miehe"]:
@@ -101,7 +101,7 @@ for split in ["Miehe"]:
     if test:
         meshSize = l0 #taille maille test fem object
         # taille = 0.001  
-        meshSize *= 3
+        meshSize *= 1
     else:
         # On raffin pour avoir au moin 2 element par demie largeur de fissure
         meshSize = l0/2 #l0/2 2.5e-6 
@@ -149,14 +149,16 @@ for split in ["Miehe"]:
             ptC2 = Point(L/2,L/2)
             cracks = [Line(ptC1, ptC2, meshSize, isOpen=True)]
         if dim == 3:
-            ptC1 = Point(0,L/2,0, isOpen=True)
+            ptC1 = Point(0,L/2,0, isOpen=False)
             ptC2 = Point(L/2,L/2, 0)
             ptC3 = Point(L/2,L/2, ep)
-            ptC4 = Point(0,L/2, ep, isOpen=True)
-            cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], meshSize, isCreux=True)]
-            cracks.append(Line(ptC1, ptC2, meshSize, isOpen=True))
-            cracks.append(Line(ptC4, ptC3, meshSize, isOpen=True))
-            cracks.append(Line(ptC1, ptC4, meshSize, isOpen=True))
+            ptC4 = Point(0,L/2, ep, isOpen=False)
+            cracks = []
+            # cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], meshSize, isCreux=True)]
+            cracks = [Domain(ptC1, ptC3, meshSize, isCreux=True)]
+            # cracks.append(Line(ptC1, ptC2, meshSize, isOpen=True))
+            # cracks.append(Line(ptC4, ptC3, meshSize, isOpen=True))
+            # cracks.append(Line(ptC1, ptC4, meshSize, isOpen=True))
 
         
         if dim == 2:
@@ -164,8 +166,7 @@ for split in ["Miehe"]:
         elif dim == 3:
             # fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
             # mesh = interfaceGmsh.Mesh_Import_msh(fichier)
-            mesh = interfaceGmsh.Mesh_Points_3D(pointsList, [0,0,ep], 1, cracks=cracks, elemType="TETRA4", refineGeom=refineDomain)
-            # mesh = interfaceGmsh.Mesh_Points_3D(pointsList, [0,0,ep], 2, cracks=cracks, elemType="HEXA8", refineGeom=refineDomain)
+            mesh = interfaceGmsh.Mesh_Points_3D(pointsList, [0,0,ep], 3, cracks=cracks, elemType="TETRA4", refineGeom=refineDomain)
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)
@@ -178,12 +179,14 @@ for split in ["Miehe"]:
 
         # Récupération des noeuds
         noeuds_Milieu = mesh.Nodes_Conditions(lambda x,y,z: (y==L/2) & (x<=L/2))
+        # noeuds_Milieu = mesh.Nodes_Domain(cracks[0])
         noeuds_Haut = mesh.Nodes_Conditions(lambda x,y,z: y == L)
         noeuds_Bas = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
         noeuds_Gauche = mesh.Nodes_Conditions(lambda x,y,z: (x == 0) & (y>0) & (y<L))
         noeuds_Droite = mesh.Nodes_Conditions(lambda x,y,z: (x == L) & (y>0) & (y<L))
 
-        Affichage.Plot_Nodes(mesh, noeuds_Milieu, True)
+        if noeuds_Milieu.size > 0:
+            Affichage.Plot_Nodes(mesh, noeuds_Milieu, True)
 
         # Construit les noeuds du bord
         NoeudsBord=[]

@@ -1,12 +1,13 @@
 import os
 import matplotlib.pyplot as plt
+from scipy import sparse
 
 import Folder
 import PostTraitement
 import Affichage
 from Geom import *
 import Materials
-from Mesh import Mesh
+from Mesh import Mesh, Calc_projector
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
 from TicTac import Tic
@@ -17,10 +18,12 @@ Affichage.Clear()
 # Configuration
 # ----------------------------------------------
 
-dim = 2
+dim = 3
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
 plotResult = True
+plotErreur = True
+plotProj = True
 
 rapport = 1/5
 cible = 0.01
@@ -38,14 +41,14 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # meshSize = h/1
 # meshSize = L/2
-meshSize = h
+meshSize = h/4
 
 # TODO permettre de réutiliser le .geo pour construire la geométrie ?
 
 if dim == 2:
-    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "TRI10" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
-    elemType = "TETRA4" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
+    elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
 # Maillage
@@ -93,9 +96,9 @@ if dim == 2:
     ptC2 = Point(h, h/2+tC/2, isOpen=True)
 
     # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC1+[h], ptC2+[h], meshSize, isOpen=True)]
-    cracks = []
+    # cracks = []
     # cracks = [Line(Point(L,h/2, isOpen=True), Point(L-h,h/2), isOpen=True, meshSize=meshSize)]
-    # cracks = [Line(ptC1+[0,tC/2-h], ptC2+[0,-tC/2+h], meshSize, isOpen=True), Line(ptC1+[h], ptC2+[h], meshSize, isOpen=True)]
+    cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC2, ptC2+[h], meshSize, isOpen=True)]
 
 if dim == 3:
     # ptC1 = Point(h, h/2-tC/2, b/2-tC/2, isOpen=False)
@@ -113,6 +116,8 @@ if dim == 3:
     cracks.append(Line(ptC3, ptC4, meshSize, isOpen=True))
     # cracks.append(Line(ptC3, ptC2, meshSize, isOpen=True))
 
+    cracks = []
+
 # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True)]
 # cracks = []
 
@@ -123,7 +128,7 @@ def DoMesh(refineGeom=None) -> Mesh:
     if dim == 2:
         return interfaceGmsh.Mesh_Points_2D(points, elemType, inclusions, cracks, refineGeom)
     else:
-        return interfaceGmsh.Mesh_Points_3D(points, [0,0,b], 1, elemType, inclusions, cracks, refineGeom)        
+        return interfaceGmsh.Mesh_Points_3D(points, [0,0,b], 5, elemType, inclusions, cracks, refineGeom)        
 
 
 # construit le premier maillage
@@ -131,7 +136,7 @@ mesh = DoMesh()
 
 # tt = mesh.Nodes_Point(ptC1)
 
-Affichage.Plot_Mesh(mesh)
+# Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh, alpha=0)
 
 if dim==2:
@@ -141,8 +146,8 @@ if dim==2:
 if dim==3:
     nodesCrack = mesh.Nodes_Conditions(lambda x,y,z: x==h)
 
-
-Affichage.Plot_Nodes(mesh, nodesCrack, showId=True)
+if len(nodesCrack) > 0:
+    Affichage.Plot_Nodes(mesh, nodesCrack, showId=True)
 
 # ----------------------------------------------
 # Comportement et Simu
@@ -206,7 +211,8 @@ def DoSimu(i=0):
 
     meshSize_n = simu.Resultats_InterpolationAuxNoeuds(mesh, c_e * h_e)
 
-    Affichage.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
+    if plotErreur:
+        Affichage.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
 
     path = interfaceGmsh.Create_posFile(groupElem.coordo, meshSize_n, folder, f"simu{i}")
 
@@ -218,13 +224,51 @@ erreur = 1
 i = -1
 while erreur >= cible and i < iterMax:
 
-    i += 1   
+    i += 1
+
+    if i > 0:
+        oldMesh = simu.mesh
+        oldU = simu.displacement
+
+        if plotProj:
+            Affichage.Plot_Result(simu, "ux", plotMesh=True)
 
     mesh = DoMesh(path)
     simu.mesh = mesh
 
     if i > 0:
         os.remove(path)
+
+        if plotProj:
+
+            # ax = Affichage.Plot_Mesh(oldMesh, alpha=0)
+            # groupp = oldMesh.Get_list_groupElem(2)[0]            
+            # nodess = []            
+            # [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(oldMesh.Ne)]            
+            # if dim == 2:
+            #     ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], marker="+", c="red", zorder=3)
+            #     # [ax.text(mesh.coordo[i,0], mesh.coordo[i,1], f"{i}") for i in range(mesh.Nn)]
+            #     ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1])
+            # else:
+            #     ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2], marker="+", c="red", zorder=3)
+            #     ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1], mesh.coordo[nodess, 2])
+
+            proj = Calc_projector(oldMesh, mesh)        
+
+            uproj = np.zeros(mesh.Nn*dim)        
+
+            ddlsNew = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", mesh.nodes, ["x"])
+            ddlsOld = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", oldMesh.nodes, ["x"])
+            
+            for d in range(dim):
+                uproj[ddlsNew+d] = proj @ oldU[ddlsOld+d]
+
+            simu.set_u_n("displacement", uproj)
+
+            Affichage.Plot_Result(simu, "ux", plotMesh=True)
+
+            pass
+
 
     path, erreur = DoSimu(i)
 
@@ -252,7 +296,7 @@ if plotResult:
 
 PostTraitement.Make_Paraview(folder, simu)
 
-PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False, fps=1, nodeValues=False)
+# PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False, fps=1, nodeValues=False)
 
 # Tic.Plot_History(details=True)
 plt.show()
