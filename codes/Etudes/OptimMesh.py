@@ -26,7 +26,7 @@ plotErreur = True
 plotProj = True
 
 rapport = 1/5
-cible = 0.01
+cible = 0.02
 iterMax = 20
 
 # Paramètres géométrie
@@ -41,7 +41,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # meshSize = h/1
 # meshSize = L/2
-meshSize = h/4
+meshSize = h
 
 # TODO permettre de réutiliser le .geo pour construire la geométrie ?
 
@@ -95,10 +95,10 @@ if dim == 2:
     ptC1 = Point(h, h/2-tC/2, isOpen=True)
     ptC2 = Point(h, h/2+tC/2, isOpen=True)
 
-    # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC1+[h], ptC2+[h], meshSize, isOpen=True)]
+    cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC1+[h], ptC2+[h], meshSize, isOpen=True)]
     # cracks = []
     # cracks = [Line(Point(L,h/2, isOpen=True), Point(L-h,h/2), isOpen=True, meshSize=meshSize)]
-    cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC2, ptC2+[h], meshSize, isOpen=True)]
+    # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC2, ptC2+[h], meshSize, isOpen=True)]
 
 if dim == 3:
     # ptC1 = Point(h, h/2-tC/2, b/2-tC/2, isOpen=False)
@@ -119,7 +119,7 @@ if dim == 3:
     cracks = []
 
 # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True)]
-# cracks = []
+cracks = []
 
 interfaceGmsh = Interface_Gmsh(False, False)
 
@@ -136,8 +136,10 @@ mesh = DoMesh()
 
 # tt = mesh.Nodes_Point(ptC1)
 
-# Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh, alpha=0)
+Affichage.Plot_Mesh(mesh)
+# ax = Affichage.Plot_Model(mesh, alpha=0)
+# Affichage.Plot_Elements(mesh, mesh.nodes, 2, ax=ax, showId=True)
+# Affichage.Plot_Nodes(mesh, mesh.Nodes_Tag(["P1"]))
 
 if dim==2:
     nodesCrack = []
@@ -241,18 +243,20 @@ while erreur >= cible and i < iterMax:
 
         if plotProj:
 
-            # ax = Affichage.Plot_Mesh(oldMesh, alpha=0)
-            # groupp = oldMesh.Get_list_groupElem(2)[0]            
-            # nodess = []            
-            # [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(oldMesh.Ne)]            
-            # if dim == 2:
-            #     ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], marker="+", c="red", zorder=3)
-            #     # [ax.text(mesh.coordo[i,0], mesh.coordo[i,1], f"{i}") for i in range(mesh.Nn)]
-            #     ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1])
-            # else:
-            #     ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2], marker="+", c="red", zorder=3)
-            #     ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1], mesh.coordo[nodess, 2])
+            ax = Affichage.Plot_Mesh(oldMesh, alpha=0)
+            groupp = oldMesh.Get_list_groupElem(3)[0]            
+            nodess = []            
+            [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(oldMesh.Ne)]
+            # [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(2)]
+            if dim == 2:
+                # ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], marker="+", c="red", zorder=3)
+                # [ax.text(mesh.coordo[i,0], mesh.coordo[i,1], f"{i}") for i in range(mesh.Nn)]
+                ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1])
+            else:
+                # ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2], marker="+", c="red", zorder=3)
+                ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1], mesh.coordo[nodess, 2])
 
+            # TODO projection ne fonciton pas correctement pour les elements HEXA8 et PRISM6
             proj = Calc_projector(oldMesh, mesh)        
 
             uproj = np.zeros(mesh.Nn*dim)        
@@ -296,7 +300,7 @@ if plotResult:
 
 PostTraitement.Make_Paraview(folder, simu)
 
-# PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False, fps=1, nodeValues=False)
+PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False, fps=1, nodeValues=False)
 
 # Tic.Plot_History(details=True)
 plt.show()
