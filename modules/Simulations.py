@@ -1092,18 +1092,13 @@ class Simu(ABC):
 
         listGroupElemDim = self.mesh.Get_list_groupElem(dim)
 
-        if len(listGroupElemDim) > 1:
-            exclusivement=True
-        else:
-            exclusivement=True
-
         nbddl_n = self.Get_nbddl_n(problemType)
 
         # Récupération des matrices pour le calcul
         for groupElem in listGroupElemDim:
 
             # Récupère les éléments qui utilisent exclusivement les noeuds
-            elements = groupElem.Get_Elements_Nodes(noeuds, exclusivement=exclusivement)
+            elements = groupElem.Get_Elements_Nodes(noeuds, exclusivement=True)
             if elements.shape[0] == 0: continue
             connect = groupElem.connect[elements]
             Ne = elements.shape[0]
