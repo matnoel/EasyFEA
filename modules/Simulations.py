@@ -1064,7 +1064,7 @@ class Simu(ABC):
         Renvoie valeurs_ddls, ddls"""
 
         Nn = noeuds.shape[0]
-        coordo = self.mesh.coordo
+        coordo = self.mesh.coordoGlob
         coordo_n = coordo[noeuds]
 
         # initialise le vecteur de valeurs pour chaque noeuds
@@ -2128,9 +2128,15 @@ class Simu_PhaseField(Simu):
             if convOption == 0:
                 convIter = np.max(np.abs(d_kp1-dk))
             elif convOption == 1:
-                convIter = np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
+                if psi_crack_k == 0:
+                    convIter = np.abs(psi_crack_kp1 - psi_crack_k)
+                else:
+                    convIter = np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
             elif convOption == 2:
-                convIter = np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_k
+                if psi_tot_k == 0:
+                    convIter = np.abs(psi_tot_kp1 - psi_tot_k)
+                else:
+                    convIter = np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_k
             
             if tolConv == 1.0:
                 convergence=True
@@ -2344,7 +2350,7 @@ class Simu_PhaseField(Simu):
 
         # Probleme de la forme K*Laplacien(d) + r*d = F        
         ReactionPart_e_pg = mesh.Get_phaseField_ReactionPart_e_pg(matriceType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
-        DiffusePart_e_pg = mesh.Get_phaseField_DiffusePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Bd_e_pg', Bd_e_pg
+        DiffusePart_e_pg = mesh.Get_phaseField_DiffusePart_e_pg(matriceType, phaseFieldModel.A) # -> jacobien_e_pg, poid_pg, Bd_e_pg', A, Bd_e_pg
         SourcePart_e_pg = mesh.Get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'
         
         tic = Tic()
@@ -3254,8 +3260,8 @@ class Simu_Beam(Simu):
                 taille += dimSupl
 
             # Prépare assemblage
-            lignesVector_e = mesh.Get_lignesVectorBeam_e(model.nbddl_n)
-            colonnesVector_e = mesh.Get_colonnesVectorBeam_e(model.nbddl_n)
+            lignesVector_e = mesh.Get_lignesVector_e(model.nbddl_n)
+            colonnesVector_e = mesh.Get_colonnesVector_e(model.nbddl_n)
             
             tic = Tic()
 

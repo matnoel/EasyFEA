@@ -1072,7 +1072,7 @@ class PhaseField_Model(IModel):
         HistoryDamage = "HistoryDamage"
         BoundConstrain = "BoundConstrain"    
 
-    def __init__(self, comportement: Displacement_Model, split: str, regularization: RegularizationType, Gc: float, l_0: float, solveur=SolveurType.History):
+    def __init__(self, comportement: Displacement_Model, split: str, regularization: RegularizationType, Gc: float, l_0: float, solveur=SolveurType.History, A=None):
         """Crétation d'un modèle à gradient d'endommagement
 
         Parameters
@@ -1089,6 +1089,8 @@ class PhaseField_Model(IModel):
             Demie largeur de fissure 
         solveur : SolveurType, optional
             Type de résolution de l'endommagement, by default History (voir SolveurType)        
+        A : np.ndarray, optional
+            Matrice caractérisant la direction de l'anisotropie du modèle pour l'énergie de fissure
         """
     
         assert isinstance(comportement, Displacement_Model), "Doit être une loi de comportement"
@@ -1114,6 +1116,13 @@ class PhaseField_Model(IModel):
 
         self.__solveur = solveur
         """Solveur d'endommagement"""
+
+        if not isinstance(A, np.ndarray):
+            self.__A = np.eye(self.dim)
+        else:
+            dim = self.dim
+            assert A.shape[-2] == dim and A.shape[-1] == dim, "Mauvaise dimension"
+            self.__A = A
 
         self.__useNumba = True
         """Utilise ou non les fonctions numba"""
@@ -1222,7 +1231,12 @@ class PhaseField_Model(IModel):
         assert mesh.Ne == g_e_pg.shape[0]
         assert mesh.Get_nPg(matriceType) == g_e_pg.shape[1]
         
-        return g_e_pg    
+        return g_e_pg
+    
+    @property
+    def A(self) -> np.ndarray:
+        """Matrice caractérisant la direction de l'anisotropie du modèle pour l'énergie de fissure"""
+        return self.__A
 
     @property
     def split(self) -> str:

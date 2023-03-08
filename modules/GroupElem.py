@@ -548,11 +548,11 @@ class GroupElem(ABC):
         
         return self.__dict_phaseField_ReactionPart_e_pg[matriceType].copy()
     
-    def Get_phaseField_DiffusePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_phaseField_DiffusePart_e_pg(self, matriceType: MatriceType, A: np.ndarray) -> np.ndarray:
         """Renvoie la partie qui construit le therme de diffusion\n
-        DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * Bd_e_pg\n
+        DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * A * Bd_e_pg\n
         
-        Renvoie -> jacobien_e_pg * poid_pg * Bd_e_pg' * Bd_e_pg
+        Renvoie -> jacobien_e_pg * poid_pg * Bd_e_pg' * A * Bd_e_pg
         """
 
         assert matriceType in GroupElem.get_MatriceType()
@@ -563,7 +563,7 @@ class GroupElem(ABC):
             poid_pg = self.Get_gauss(matriceType).poids
             Bd_e_pg = self.Get_dN_e_pg(matriceType)
 
-            DiffusePart_e_pg = np.einsum('ep,p,epki,epkj->epij', jacobien_e_pg, poid_pg, Bd_e_pg, Bd_e_pg, optimize='optimal')
+            DiffusePart_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, poid_pg, Bd_e_pg, A, Bd_e_pg, optimize='optimal')
 
             self.__dict_phaseField_DiffusePart_e_pg[matriceType] = DiffusePart_e_pg
         
