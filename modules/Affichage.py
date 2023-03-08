@@ -567,11 +567,11 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
     
     coordo = mesh.coordoGlob
 
-    if mesh.dim == 2:
+    if mesh.inDim == 2:
         ax.scatter(coordo[nodes,0], coordo[nodes,1], marker=marker, c=c, zorder=2.5)
         if showId:            
             [ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud), c=c) for noeud in nodes]
-    elif  mesh.dim == 3:            
+    elif mesh.inDim == 3:            
         ax.scatter(coordo[nodes,0], coordo[nodes,1], coordo[nodes,2], marker=marker, c=c)
         if showId:
             [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in nodes]
