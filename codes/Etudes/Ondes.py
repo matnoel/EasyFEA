@@ -45,9 +45,9 @@ mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "TRI3")
 if plotModel:
     Affichage.Plot_Model(mesh)
     plt.show()
-noeudsBord = mesh.Nodes_Tag(["L1","L2","L3","L4"])
-# noeudCentreCercle = mesh.Nodes_Tag(["L5","L6","L7","L8"])
-noeudCentreCercle = mesh.Nodes_Tag(["P9"])
+noeudsBord = mesh.Nodes_Tags(["L0","L1","L2","L3"])
+# noeudCentreCercle = mesh.Nodes_Tag(["L4","L5","L6","L7"])
+noeudCentreCercle = mesh.Nodes_Tags(["P8"])
 # Affichage.Plot_Noeuds(mesh, noeudCentreCercle)
 # plt.show()
 

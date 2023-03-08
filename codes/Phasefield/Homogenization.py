@@ -43,16 +43,16 @@ mesh = gmshInterface.Mesh_Points_2D(points, "TRI3", inclusions=[circle])
 Affichage.Plot_Model(mesh)
 ax = Affichage.Plot_Mesh(mesh)
 
-noeudsCoins = mesh.Nodes_Tag(["P1", "P2", "P3", "P4"])
-noeudsBords = mesh.Nodes_Tag(["L1", "L2", "L3", "L4"])
+noeudsCoins = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
+noeudsBords = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
 listnodes0 = []
 listnodes1 = []
 
-for line1, line2 in zip(["L1", "L2"], ["L3", "L4"]):
+for line1, line2 in zip(["L0", "L1"], ["L2", "L3"]):
 
-    nodes0 = mesh.Nodes_Tag([line1])
-    nodes1 = mesh.Nodes_Tag([line2])
+    nodes0 = mesh.Nodes_Tags([line1])
+    nodes1 = mesh.Nodes_Tags([line2])
 
     if line1 == "L1":
         nodes0 = nodes0[np.argsort(mesh.coordo[nodes0, 0])]

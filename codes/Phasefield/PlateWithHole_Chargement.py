@@ -16,8 +16,8 @@ Affichage.Clear()
 # Options
 dim = 3
 comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
-regu = "AT1" # "AT1", "AT2"
+split = "Zhang" # ["Bourdin","Amor","Miehe","Stress"]
+regu = "AT2"
 contraintesPlanes = True
 
 nom="_".join([comp, split, regu])
@@ -68,7 +68,7 @@ Affichage.Plot_Mesh(mesh,folder=folder)
 B_lower = Line(point,Point(x=L))
 B_upper = Line(Point(y=H),Point(x=L, y=H))
 
-noeuds_22 = mesh.Nodes_Tag(["S6","S7"])
+noeuds_22 = mesh.Nodes_Tags(["S5","S6"])
 
 if len(noeuds_22) > 0:
     Affichage.Plot_Nodes(mesh, nodes=noeuds_22)

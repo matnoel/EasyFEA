@@ -98,9 +98,9 @@ vect_i = np.array([calc_vect(n1, n2), calc_vect(n2, n3), calc_vect(n3, n4), calc
 
 noeuds_bord = []
 
-for l, line in enumerate(["L1", "L2", "L3", "L4"]):
+for l, line in enumerate(["L0", "L1", "L2", "L3"]):
 
-    nodes = meshVER.Nodes_Tag([line])
+    nodes = meshVER.Nodes_Tags([line])
 
     vect_j = meshVER.coordo[nodes] - coins[l]
 
@@ -163,9 +163,9 @@ E12 = np.array([[0, 1/r2],[1/r2, 0]])
 # u12 = np.einsum('ij,nj->ni', E12, meshInclusion.coordo[noeudsDuBord, 0:2])
 
 if useLagrange:
-    noeudsDuBord = meshVER.Nodes_Tag(["P1","P2","P3","P4"])
+    noeudsDuBord = meshVER.Nodes_Tags(["P0","P1","P2","P3"])
 else:
-    noeudsDuBord = meshVER.Nodes_Tag(["L1", "L2", "L3", "L4"])
+    noeudsDuBord = meshVER.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
 def CalcDisplacement(Ekl: np.ndarray):
 
@@ -238,8 +238,8 @@ def Simulation(simu: Simulations.Simu, title=""):
 
     simu.Need_Update()
 
-    simu.add_dirichlet(simu.mesh.Nodes_Tag(['L4']), [0,0], ['x', 'y'])
-    simu.add_surfLoad(simu.mesh.Nodes_Tag(['L2']), [-load/(b*h)], ['y'])
+    simu.add_dirichlet(simu.mesh.Nodes_Tags(['L3']), [0,0], ['x', 'y'])
+    simu.add_surfLoad(simu.mesh.Nodes_Tags(['L1']), [-load/(b*h)], ['y'])
 
     simu.Solve()
 

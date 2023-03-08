@@ -145,7 +145,7 @@ class Mesh:
         Permet de positionner les matrices de type rigi dans la matrice globale"""
         return self.groupElem.assembly_e
     
-    def Get_assemblyBeam_e(self, nbddl_n: int) -> np.ndarray:
+    def Get_assembly_e(self, nbddl_n: int) -> np.ndarray:
         """matrice d'assemblage pour les poutres (Ne, nPe*nbddl_n)
         Permet de positionner les matrices de type beam dans la matrice globale"""
         return self.groupElem.Get_assembly_e(nbddl_n)
@@ -153,32 +153,26 @@ class Mesh:
     @property
     def lignesVector_e(self) -> np.ndarray:
         """lignes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
-        assembly_e = self.assembly_e
-        nPe = self.nPe
-        Ne = self.Ne
-        return np.repeat(assembly_e, nPe*self.__dim).reshape((Ne,-1))
+        return self.Get_lignesVector_e(self.__dim)
     
-    def Get_lignesVectorBeam_e(self, nbddl_n: int) -> np.ndarray:
+    def Get_lignesVector_e(self, nbddl_n: int) -> np.ndarray:
         """lignes pour remplir la matrice d'assemblage en vecteur (poutre)"""
-        assemblyBeam_e = self.Get_assemblyBeam_e(nbddl_n)
+        assembly_e = self.Get_assembly_e(nbddl_n)
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(assemblyBeam_e, nPe*nbddl_n).reshape((Ne,-1))
+        return np.repeat(assembly_e, nPe*nbddl_n).reshape((Ne,-1))
 
     @property
     def colonnesVector_e(self) -> np.ndarray:
         """colonnes pour remplir la matrice d'assemblage en vecteur (déplacement)"""
-        assembly_e = self.assembly_e
-        nPe = self.nPe
-        Ne = self.Ne
-        return np.repeat(assembly_e, nPe*self.__dim, axis=0).reshape((Ne,-1))
+        return self.Get_colonnesVector_e(self.__dim)
     
-    def Get_colonnesVectorBeam_e(self, nbddl_n: int) -> np.ndarray:
+    def Get_colonnesVector_e(self, nbddl_n: int) -> np.ndarray:
         """colonnes pour remplir la matrice d'assemblage en vecteur (poutre)"""
-        assemblyBeam_e = self.Get_assemblyBeam_e(nbddl_n)
+        assembly_e = self.Get_assembly_e(nbddl_n)
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(assemblyBeam_e, nPe*nbddl_n, axis=0).reshape((Ne,-1))
+        return np.repeat(assembly_e, nPe*nbddl_n, axis=0).reshape((Ne,-1))
 
     @property
     def lignesScalar_e(self) -> np.ndarray:
@@ -322,13 +316,13 @@ class Mesh:
         """
         return self.groupElem.Get_phaseField_ReactionPart_e_pg(matriceType)
 
-    def Get_phaseField_DiffusePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
+    def Get_phaseField_DiffusePart_e_pg(self, matriceType: MatriceType, A: np.ndarray) -> np.ndarray:
         """Renvoie la partie qui construit le terme de diffusion\n
-        DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * Bd_e_pg\n
+        DiffusePart_e_pg = jacobien_e_pg * poid_pg * k * Bd_e_pg' * A * Bd_e_pg\n
         
-        Renvoie (epij) -> jacobien_e_pg * poid_pg * Bd_e_pg' * Bd_e_pg
+        Renvoie (epij) -> jacobien_e_pg * poid_pg * Bd_e_pg' * A * Bd_e_pg
         """
-        return self.groupElem.Get_phaseField_DiffusePart_e_pg(matriceType)
+        return self.groupElem.Get_phaseField_DiffusePart_e_pg(matriceType, A)
 
     def Get_phaseField_SourcePart_e_pg(self, matriceType: MatriceType) -> np.ndarray:
         """Renvoie la partie qui construit le terme de source\n
@@ -361,23 +355,23 @@ class Mesh:
         return self.groupElem.Get_Nodes_Conditions(lambdaFunction)
     
     def Nodes_Point(self, point: Point) -> np.ndarray:
-        """Renvoie les noeuds sur le point (identifiants)"""
+        """Renvoie les noeuds sur le point (idx dans coordoGlob)"""
         return self.groupElem.Get_Nodes_Point(point)
 
     def Nodes_Line(self, line: Line) -> np.ndarray:
-        """Renvoie les noeuds qui sont sur la ligne (identifiants)"""
+        """Renvoie les noeuds qui sont sur la ligne (idx dans coordoGlob)"""
         return self.groupElem.Get_Nodes_Line(line)
 
     def Nodes_Domain(self, domain: Domain) -> np.ndarray:
-        """Renvoie les noeuds qui sont dans le domaine  (identifiants)"""
+        """Renvoie les noeuds qui sont dans le domaine (idx dans coordoGlob)"""
         return self.groupElem.Get_Nodes_Domain(domain)
     
     def Nodes_Circle(self, circle: Circle) -> np.ndarray:
-        """Renvoie les noeuds qui sont dans le cercle  (identifiants)"""
+        """Renvoie les noeuds qui sont dans le cercle (idx dans coordoGlob)"""
         return self.groupElem.Get_Nodes_Circle(circle)
 
     def Nodes_Cylindre(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
-        """Renvoie les noeuds qui sont dans le cylindre (identifiants)"""
+        """Renvoie les noeuds qui sont dans le cylindre (idx dans coordoGlob)"""
         return self.groupElem.Get_Nodes_Cylindre(circle, direction)
 
     def Elements_Nodes(self, nodes: np.ndarray, exclusivement=True):
@@ -398,14 +392,14 @@ class Mesh:
         
         return dim
 
-    def Nodes_Tag(self, tags: list[str]) -> np.ndarray:
-        """Renvoie les noeuds qui utilisent le tag (identifiants)"""
+    def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
+        """Renvoie les noeuds qui utilisent le tag"""
         nodes = []
         [nodes.extend(grp.Get_Nodes_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(Mesh.__Dim_For_Tag(tag))]
 
         return np.unique(nodes)
 
-    def Elements_Tag(self, tags: list[str]) -> np.ndarray:
+    def Elements_Tags(self, tags: list[str]) -> np.ndarray:
         """Renvoie les éléments qui utilisent le tag"""
         elements = []
         [elements.extend(grp.Get_Elements_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(Mesh.__Dim_For_Tag(tag))]

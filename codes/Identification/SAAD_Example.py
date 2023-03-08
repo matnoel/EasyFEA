@@ -40,10 +40,10 @@ circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isCreux=True)
 
 mesh = gmshInterface.Mesh_Points_2D(points, elemType, [circle])
 
-nodes = mesh.Nodes_Tag(["L1", "L2", "L3", "L4"])
-nodes_p1 = mesh.Nodes_Tag(["P1"])
-nodesBas = mesh.Nodes_Tag(["L1"])
-nodesHaut = mesh.Nodes_Tag(["L3"])
+nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+nodes_p1 = mesh.Nodes_Tags(["P0"])
+nodesBas = mesh.Nodes_Tags(["L0"])
+nodesHaut = mesh.Nodes_Tags(["L2"])
 
 Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)

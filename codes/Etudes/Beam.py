@@ -97,9 +97,9 @@ elif problem == "Portique":
     poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
     listePoutre = [poutre1, poutre2]
 
-mesh = interfaceGmsh.Mesh_Lines_1D(listPoutres=listePoutre, elemType=elemType)
+mesh = interfaceGmsh.Mesh_Poutres(listPoutres=listePoutre, elemType=elemType)
 
-# Affichage.Plot_Model(mesh)
+Affichage.Plot_Model(mesh)
 # # Affichage.Plot_Maillage(mesh)
 # plt.show()
 

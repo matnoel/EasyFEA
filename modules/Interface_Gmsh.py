@@ -60,7 +60,6 @@ class Interface_Gmsh:
             self.__factory = gmsh.model.geo
         else:
             raise Exception("Factory inconnue")
-    
 
     def __Loop_From_Points(self, points: list[Point], meshSize: float) -> tuple[int, int]:
         """Création d'une boucle associée à la liste de points.\n
@@ -241,26 +240,26 @@ class Interface_Gmsh:
 
         surface = self.__factory.addPlaneSurface(loops)
 
-        return surface    
+        return surface
     
     def __Add_PhysicalPoint(self, point: int) -> int:
         """Ajoute le point dans le physical group"""
-        pgPoint = gmsh.model.addPhysicalGroup(0, [point], name=f"P{point}")
+        pgPoint = gmsh.model.addPhysicalGroup(0, [point])
         return pgPoint
-
+    
     def __Add_PhysicalLine(self, ligne: int) -> int:
         """Ajoute la ligne dans les physical group"""
-        pgLine = gmsh.model.addPhysicalGroup(1, [ligne], name=f"L{ligne}")
+        pgLine = gmsh.model.addPhysicalGroup(1, [ligne])
         return pgLine
-
+    
     def __Add_PhysicalSurface(self, surface: int) -> int:
         """Ajoute la surface fermée ou ouverte dans les physical group"""
-        pgSurf = gmsh.model.addPhysicalGroup(2, [surface], name=f"S{surface}")
-        return pgSurf
+        pgSurf = gmsh.model.addPhysicalGroup(2, [surface])
+        return pgSurf    
     
     def __Add_PhysicalVolume(self, volume: int) -> int:
         """Ajoute le volume fermée ou ouverte dans les physical group."""
-        pgVol = gmsh.model.addPhysicalGroup(3, [volume], name=f"V{volume}")
+        pgVol = gmsh.model.addPhysicalGroup(3, [volume])
         return pgVol
 
     def __Add_PhysicalGroup(self, dim: int, tag: int):
@@ -867,7 +866,7 @@ class Interface_Gmsh:
         
         return self.__Recuperation_Maillage()
 
-    def Mesh_Lines_1D(self, listPoutres: list[Poutre_Elas_Isot], elemType=ElemType.SEG2 ,folder=""):
+    def Mesh_Poutres(self, listPoutres: list[Poutre_Elas_Isot], elemType=ElemType.SEG2 ,folder=""):
         """Construction d'un maillage de segment
 
         Parameters
@@ -909,17 +908,25 @@ class Interface_Gmsh:
 
             ligne = factory.addLine(p1, p2)
             listeLines.append(ligne)
-
-            factory.synchronize()
-            gmsh.model.addPhysicalGroup(1, [ligne], name=f"{poutre.name}")
-
+        
+        factory.synchronize()
         self.__Set_PhysicalGroups()
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
         self.__Construction_Maillage(1, elemType, surfaces=[], folder=folder)
 
-        return self.__Recuperation_Maillage()
+        mesh = self.__Recuperation_Maillage()
+
+        def FuncAddTags(poutre: Poutre_Elas_Isot):
+            nodes = mesh.Nodes_Line(poutre.line)
+            for grp in mesh.Get_list_groupElem():
+                grp.Set_Nodes_Tag(nodes, poutre.name)
+                grp.Set_Elements_Tag(nodes, poutre.name)
+
+        [FuncAddTags(poutre) for poutre in listPoutres]
+
+        return mesh
 
     def __Get_hollowLoops_And_filledLoops(self, inclusions: list) -> tuple[list, list]:
         """Création des boucles les liste de boucles creuses et pleines
@@ -1324,13 +1331,7 @@ class Interface_Gmsh:
 
         def __name(dim: int, n: int) -> str:
             # Construit le nom de l'entitié
-            index = n+nbPhysicalGroup
-            tag = physicalGroups[index][1]
-            name = gmsh.model.getPhysicalName(dim, tag)
-
-            if name == "":
-                name = f"{Interface_Gmsh.__dict_name_dim[dim]}{n+1}"
-
+            name = f"{Interface_Gmsh.__dict_name_dim[dim]}{n}"
             return name
 
         for dim in range(pgArray[:,0].max()+1):

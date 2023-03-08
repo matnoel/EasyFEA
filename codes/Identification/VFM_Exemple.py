@@ -35,9 +35,9 @@ mesh = gmshInterface.Mesh_Domain_2D(domain, "QUAD4", isOrganised=True)
 xn = mesh.coordo[:,0]
 yn = mesh.coordo[:,1]
 
-nodesEdge = mesh.Nodes_Tag(["L1", "L2", "L3", "L4"])
-nodesX0 = mesh.Nodes_Tag(["L4"])
-nodesXL = mesh.Nodes_Tag(["L2"])
+nodesEdge = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+nodesX0 = mesh.Nodes_Tags(["L3"])
+nodesXL = mesh.Nodes_Tags(["L1"])
 
 # Récupération des array pour l'intégration numérique
 matriceType = "masse" 
