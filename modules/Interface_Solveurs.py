@@ -253,9 +253,11 @@ def __Solveur_2(simu, problemType: str):
 
     # Construit le système matricielle pénalisé
     b = simu._Apply_Neumann(problemType)
-    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r2)    
+    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r2)
 
     tic = Tic()
+
+    alpha = A.data.max()
 
     A = A.tolil()
     b = b.tolil()
@@ -276,9 +278,9 @@ def __Solveur_2(simu, problemType: str):
 
     listeLignesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
     
-    A[listeLignesDirichlet, ddls_Dirichlet] = 1
-    A[ddls_Dirichlet, listeLignesDirichlet] = 1
-    b[listeLignesDirichlet] = values_Dirichlet
+    A[listeLignesDirichlet, ddls_Dirichlet] = alpha
+    A[ddls_Dirichlet, listeLignesDirichlet] = alpha
+    b[listeLignesDirichlet] = values_Dirichlet * alpha
 
     tic.Tac("Solver",f"Lagrange ({problemType}) Dirichlet", simu._verbosity)
 
@@ -291,6 +293,9 @@ def __Solveur_2(simu, problemType: str):
             ddls = lagrangeBc.ddls
             valeurs = lagrangeBc.valeurs_ddls
             coefs = lagrangeBc.lagrangeCoefs
+
+            valeurs = np.array(valeurs) * alpha
+            coefs = np.array(coefs) * alpha
 
             A[ddls,-i] = coefs
             A[-i,ddls] = coefs
