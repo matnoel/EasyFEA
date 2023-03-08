@@ -1160,7 +1160,7 @@ class GroupElem(ABC):
         prodVecteur = np.cross(vect, vectUnitaire)
         norm = np.linalg.norm(prodVecteur, axis=1)
 
-        eps = np.finfo(float).eps
+        eps = 1e-12
 
         idx = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
 
@@ -1171,7 +1171,7 @@ class GroupElem(ABC):
 
         coordo = self.__coordo
 
-        eps = np.finfo(float).eps
+        eps = 1e-12
 
         idx = np.where( (coordo[:,0] >= domain.pt1.x-eps) & (coordo[:,0] <= domain.pt2.x+eps) &
                         (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
@@ -1184,7 +1184,7 @@ class GroupElem(ABC):
 
         coordo = self.__coordo
 
-        eps = np.finfo(float).eps
+        eps = 1e-12
 
         idx = np.where(np.sqrt((coordo[:,0]-circle.center.x)**2+(coordo[:,1]-circle.center.y)**2+(coordo[:,2]-circle.center.z)**2)<=circle.diam/2+eps)
 
@@ -1195,7 +1195,7 @@ class GroupElem(ABC):
 
         coordo = self.__coordo
 
-        eps = np.finfo(float).eps
+        eps = 1e-12
         dx, dy, dz = direction[0], direction[1], direction[2]
         # Ne fonctionne certainement pas pour le moment pour un cylindre orienté !
 
