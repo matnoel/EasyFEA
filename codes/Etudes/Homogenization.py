@@ -20,8 +20,8 @@ L = 120 # mm
 h = 13
 b = 13
 
-nL = 10 # nombre d'inclusion suivant L
-nH = 2 # nombre d'inclusion suivant h
+nL = 40 # nombre d'inclusion suivant L
+nH = 4 # nombre d'inclusion suivant h
 
 # c = 13/2
 cL = L/(2*nL)
@@ -35,7 +35,7 @@ load = 800
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
-elemType = "TRI3"
+elemType = "QUAD4"
 meshSize = h/20
 
 pt1 = Geom.Point()
@@ -54,29 +54,36 @@ for i in range(nL):
         ptd1 = Geom.Point(x-cL/2, y-cH/2)
         ptd2 = Geom.Point(x+cL/2, y+cH/2)
 
-        domain = Geom.Domain(ptd1, ptd2, meshSize, isCreux=True)
+        inclusion = Geom.Domain(ptd1, ptd2, meshSize, isCreux=True)
 
-        listGeomInDomain.append(domain)
+        listGeomInDomain.append(inclusion)
 
 interfaceGmsh = Interface_Gmsh(False)
+
+inclusion = Geom.Domain(ptd1, ptd2, meshSize, isCreux=True)
+surfaceInclu = interfaceGmsh.Mesh_Domain_2D(inclusion).aire
 
 points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
 # maillage avec les inclusions
-meshInclusions = interfaceGmsh.Mesh_Points_2D(points, elemType, inclusions=listGeomInDomain)
+meshInclusions = interfaceGmsh.Mesh_2D(points, elemType, inclusions=listGeomInDomain)
 
 # maillage sans les inclusions
-mesh = interfaceGmsh.Mesh_Points_2D(points, elemType)
-
+mesh = interfaceGmsh.Mesh_2D(points, elemType)
 
 ptI1 = Geom.Point(-cL,-cH)
 ptI2 = Geom.Point(cL,-cH)
 ptI3 = Geom.Point(cL, cH)
 ptI4 = Geom.Point(-cL, cH)
 
-pointsI = Geom.PointsList([ptI1, ptI2, ptI3, ptI4], meshSize)
+pointsI = Geom.PointsList([ptI1, ptI2, ptI3, ptI4], meshSize/4)
 
-meshVER = interfaceGmsh.Mesh_Points_2D(pointsI, elemType, inclusions=[Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize, isCreux=True)])
+meshVER = interfaceGmsh.Mesh_2D(pointsI, elemType, inclusions=[Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize/4, isCreux=True)])
+
+surfaceVer = meshVER.aire
+
+rapport = (1 - surfaceInclu/surfaceVer)
+rapport = 1
 
 Affichage.Plot_Mesh(meshInclusions)
 Affichage.Plot_Mesh(mesh)
@@ -226,6 +233,8 @@ B_e_pg = meshVER.Get_B_dep_e_pg(matriceType)
 
 C_hom = np.einsum('ep,p,ij,epjk,ekl->il', jacobien_e_pg, poids_pg, CMandel, B_e_pg, U_e, optimize='optimal') * 1/meshVER.aire
 
+C_hom *= rapport
+
 # print(np.linalg.eigvals(C_hom))
 
 # ----------------------------------------------
@@ -256,8 +265,7 @@ testSym = np.linalg.norm(C_hom.T - C_hom)/np.linalg.norm(C_hom)
 
 if testSym >= 1e-12 and testSym <= 1e-7:
     C_hom = 1/2 * (C_hom.T + C_hom)
-else:
-    raise "C_hom non symétrique"
+
 comp.Set_C(C_hom, False)
 Simulation(simu, "hom")
 

@@ -3,7 +3,7 @@ import Simulations
 import Materials
 import Affichage
 import PostTraitement
-from Geom import np, Point, Domain, Circle, PointsList
+from Geom import np, Point, Domain, Circle, PointsList, Line
 import Folder
 
 plt = Affichage.plt
@@ -13,6 +13,8 @@ import pandas as pd
 Affichage.Clear()
 
 folder = Folder.New_File("TractionBois", results=True)
+
+useSmallCrack = True
 
 pathData = "/Users/matnoel/Library/CloudStorage/OneDrive-Personal/__Doctorat/Essais/TractionBois/data.xlsx"
 
@@ -51,9 +53,9 @@ alpha3 = 34 * np.pi/180
 betha = (np.pi - alpha3 - (np.pi/2-alpha1))/2
 d = r3/np.tan(betha)
 
-l0 = H/100
-tailleFin = l0/1
-tailleGros = l0*5
+l0 = H/70
+tailleFin = l0/2
+tailleGros = l0*3
 
 p0 = Point(x=0, y=-epFissure/2)
 p1 = Point(x=0, y=-h)
@@ -72,7 +74,14 @@ p13 = Point(x=0, y=epFissure/2)
 p14 = Point(x=lFissure, y=epFissure/2, r=epFissure/2)
 p15 = Point(x=lFissure, y=-epFissure/2, r=epFissure/2)
 
-listPoint = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15]
+if useSmallCrack:
+    p0 = Point(isOpen=True)
+    listPoint = [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12]
+    crack = Line(p0, Point(x=lFissure), tailleFin, isOpen=True)
+    cracks = [crack]
+else:
+    listPoint = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15]
+    cracks = []
 
 points = PointsList(listPoint, tailleGros)
 
@@ -85,18 +94,11 @@ c4 = Circle(Point(a/2, h-7.5), diam, tailleFin, isCreux=True)
 
 geomObjectsInDomain = [c1, c2, c3, c4]
 
-# fig, ax = plt.subplots()
-# [ax.scatter(point.x, point.y, label=p) for p, point in enumerate(listPoint)]
-# ax.autoscale()
-# ax.legend()
-# plt.show()
-
-
 interface = Interface_Gmsh.Interface_Gmsh(False, False)
 
 zone = 10
 refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), meshSize=tailleFin)
-mesh = interface.Mesh_Points_2D(points, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI3")
+mesh = interface.Mesh_2D(points, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI3", cracks=cracks)
 
 # Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh)
@@ -109,8 +111,8 @@ Affichage.Plot_Model(mesh)
 # Gc = 300*1e6 # J/mm2
 Gc = 1*1e-1 # J/mm2
 El=12000
-# Et=500
-Et=500*3
+Et=500
+# Et=50
 Gl=450
 vl=0.02
 vt=0.44
@@ -120,33 +122,53 @@ comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, co
 splits = Materials.PhaseField_Model.SplitType
 reg = Materials.PhaseField_Model.RegularizationType
 
-pfm = Materials.PhaseField_Model(comportement, splits.Zhang, reg.AT2, Gc, l0)
+a1 = np.array([1,0])
+M1 = np.einsum("i,j->ij", a1, a1)
+
+a2 = np.array([0,1])
+M2 = np.einsum("i,j->ij", a2, a2)
+
+coef = El/Et
+A = np.eye(2) + coef * M1 + 0 * M2
+
+pfm = Materials.PhaseField_Model(comportement, splits.Zhang, reg.AT2, Gc, l0, A=A)
 
 simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
 
-noeudsHaut = mesh.Nodes_Tag(["L35","L34"])
-noeudsBas = mesh.Nodes_Tag(["L20","L21"])
+noeudsHaut = mesh.Nodes_Circle(c4)
+noeudsHaut = noeudsHaut[np.where(mesh.coordoGlob[noeudsHaut,1]>=c4.center.y)] 
 
-noeudsBord = mesh.Nodes_Tag([f"L{i}" for i in np.arange(1, 16)])
+noeudsBas = mesh.Nodes_Circle(c1)
+noeudsBas = noeudsBas[np.where(mesh.coordoGlob[noeudsBas,1]<=c1.center.y)]
+
+noeudPoint = mesh.Nodes_Point(c1.center - [0, diam/2])
+
+# if len(cracks) > 0: Affichage.Plot_Nodes(mesh, mesh.Nodes_Line(cracks[0]), showId=True)
+
+
+if useSmallCrack:
+    noeudsBord = mesh.Nodes_Tags(mesh.Get_list_groupElem(1)[0].nodeTags)
+    noeudsCrack = mesh.Nodes_Line(crack)
+    noeudsBord = list(set(noeudsBord) - set(noeudsCrack))
+else:
+    noeudsBord = mesh.Nodes_Tags([f"L{i}" for i in range(15)])
+
 # Affichage.Plot_Nodes(mesh, noeudsBord)
 
 def Chargement(force: float):
     simu.Bc_Init()
 
     SIG = force/(np.pi*r**2/2)
-
-    # simu.add_dirichlet(noeudsBas, [0,0], ["x","y"])
     
-    simu.add_dirichlet(noeudsBas, [0], ["y"])
-    simu.add_dirichlet(mesh.Nodes_Tag(["P26"]), [0], ["x"])
+    simu.add_dirichlet(noeudPoint, [0], ["x"])
 
-    # # simu.add_dirichlet(noeudsBas, [0], ["x"])
-    # simu.add_surfLoad(noeudsBas, [lambda x,y,z: -SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
-
-    simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
-
+    
+    # simu.add_dirichlet(noeudsBas, [0], ["y"])
     # simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
-    # simu.add_surfLoad(noeudsBas, [lambda x,y,z: -SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
+
+    SIG *= 1/2
+    simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
+    simu.add_surfLoad(noeudsBas, [lambda x,y,z: -SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
 
 Chargement(0)
 
@@ -156,12 +178,14 @@ Affichage.Plot_BoundaryConditions(simu)
 fig_Damage, ax_Damage, cb_Damage = Affichage.Plot_Result(simu, "damage")
 
 # for iter, force, dep in zip(range(len(forces)), forces, displacements):
-nf = 70*2
-for iter, force in enumerate(np.linspace(0, 30, nf)):
+
+nf = 100
+for iter, force in enumerate(np.linspace(0, 35, nf)):
 
     Chargement(force)
 
-    simu.Solve(1e-0)
+    # simu.Solve(1e-1, maxIter=50, convOption=1)
+    simu.Solve(1e-0, maxIter=50, convOption=2)
 
     simu.Save_Iteration()
 
@@ -173,7 +197,7 @@ for iter, force in enumerate(np.linspace(0, 30, nf)):
     # Affichage.Plot_Result(simu, "Syy")
     # plt.show()
 
-    pourcent = iter/len(forces)
+    pourcent = iter/nf
 
     simu.Resultats_Set_Resume_Iteration(iter, force, "N", pourcent, True)
 

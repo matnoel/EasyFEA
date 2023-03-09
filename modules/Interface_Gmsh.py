@@ -82,7 +82,8 @@ class Interface_Gmsh:
             # on detecte si le point doit être arrondi
             if point.r == 0:
                 # Sans arrondi
-                p0 = factory.addPoint(point.x, point.y, point.z, meshSize)
+
+                p0 = factory.addPoint(point.x, point.y, point.z, meshSize)                    
                 dict_point_pointsGmsh[point] = [p0]
 
             else:
@@ -110,24 +111,7 @@ class Interface_Gmsh:
                 P1 = points[index_p1].coordo
                 P2 = points[index_p2].coordo
 
-                # vecteurs
-                i = P1-P0
-                j = P2-P0
-                k = (i+j)/2 # vecteur entre les 2
-                n = np.cross(i, j) # vecteur normal au plan formé par i, j
-
-                # angle de i vers k            
-                betha = angleBetween_a_b(i, j)/2
-                
-                d = point.r/np.tan(betha) # disante entre P0 et A sur i et disante entre P0 et B sur j
-
-                d *= np.sign(betha)
-
-                F = matriceJacobienne                
-
-                A = F(i, n).dot(np.array([d,0,0])) + P0
-                B = F(j, n).dot(np.array([d,0,0])) + P0
-                C = F(i, n).dot(np.array([d, point.r,0])) + P0
+                A, B, C = PointsRayon(P0, P1, P2, point.r)
 
                 if index > 0:
                     # Récupère le dernier point gmsh crée
@@ -142,13 +126,24 @@ class Interface_Gmsh:
                     pA = lastPoint
                 else:
                     pA = factory.addPoint(A[0], A[1], A[2], meshSize) # point d'intersection entre i et le cercle
-                pC = factory.addPoint(C[0], C[1], C[2], meshSize) # centre du cercle                
-                pB = factory.addPoint(B[0], B[1], B[2], meshSize) # point d'intersection entre j et le cercle
+                    
+                pC = factory.addPoint(C[0], C[1], C[2], meshSize) # centre du cercle
+                
+                if index > 0 and (np.linalg.norm(B - firstCoordo) <= 1e-12):
+                    pB = firstPoint
+                else:
+                    pB = factory.addPoint(B[0], B[1], B[2], meshSize) # point d'intersection entre j et le cercle
 
                 dict_point_pointsGmsh[point] = [pA, pC, pB]
+
+            if index == 0:
+                self.__factory.synchronize()
+                firstPoint = dict_point_pointsGmsh[point][0]
+                firstCoordo = gmsh.model.getValue(0, firstPoint, [])
+
             
         lignes = []        
-
+        self.__factory.synchronize()
         for index, point in enumerate(points):
             # Pour chaque point on va creer la loop associé au point et on va creer une ligne avec le prochain point
             # Par exemple si le point possède un rayon il va tout dabord falloir construire l'arc de cerlce
@@ -158,7 +153,7 @@ class Interface_Gmsh:
             gmshPoints = dict_point_pointsGmsh[point]
 
             # Si le coin doit être arrondi, il est nécessaire de créer l'arc de cercle
-            if point.r > 0:
+            if point.r != 0:
                 lignes.append(factory.addCircleArc(gmshPoints[0], gmshPoints[1], gmshPoints[2]))
                 # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
                 factory.remove([(0,gmshPoints[1])], False)
@@ -172,10 +167,13 @@ class Interface_Gmsh:
 
             # Récupère le prochain point gmsh pour creer la ligne entre les points
             gmshPointAfter = dict_point_pointsGmsh[points[indexAfter]][0]
-
+            
             if gmshPoints[-1] != gmshPointAfter:
-                # On ne crée pas le lien si les points gmsh sont identiques
-                lignes.append(factory.addLine(gmshPoints[-1], gmshPointAfter))
+                c1 = gmsh.model.getValue(0, gmshPoints[-1], [])
+                c2 = gmsh.model.getValue(0, gmshPointAfter, [])
+                if np.linalg.norm(c1-c2) >= 1e-12:
+                    # On ne crée pas le lien si les points gmsh sont identiques et si ils ont la meme coordonnées
+                    lignes.append(factory.addLine(gmshPoints[-1], gmshPointAfter))
 
         # Create a closed loop connecting the lines for the surface        
         loop = factory.addCurveLoop(lignes)
@@ -681,9 +679,6 @@ class Interface_Gmsh:
                 if crack.isCreux:
                     openSurfaces.append(surface)
 
-                # self.__factory.synchronize()
-                # gmsh.model.mesh.embed(2, [surface], dim, entities[0][1])
-
 
         newEntities = [(0, point) for point in entities0D]
         newEntities.extend([(1, line) for line in entities1D])
@@ -941,7 +936,7 @@ class Interface_Gmsh:
         tuple[list, list]
             toutes les boucles créés, suivit des boucles pleines (non creuses)
         """
-        loops = []
+        hollowLoops = []
         filledLoops = []
         for objetGeom in inclusions:
             if isinstance(objetGeom, Circle):
@@ -950,20 +945,21 @@ class Interface_Gmsh:
                 loop = self.__Loop_From_Domain(objetGeom)
             elif isinstance(objetGeom, PointsList):                
                 loop = self.__Loop_From_Points(objetGeom.points, objetGeom.meshSize)
-            loops.append(loop)
 
-            if not objetGeom.isCreux:
+            if objetGeom.isCreux:
+                hollowLoops.append(loop)
+            else:                
                 filledLoops.append(loop)
 
-        return loops, filledLoops
+        return hollowLoops, filledLoops
 
-    def Mesh_Points_2D(self, pointsList: PointsList, elemType=ElemType.TRI3, inclusions=[], cracks=[], refineGeom=None, folder="", returnSurfaces=False):
+    def Mesh_2D(self, contour: Geom, elemType=ElemType.TRI3, inclusions=[], cracks=[], refineGeom=None, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
         Parameters
         ----------
-        points : PointsList
-            liste de points
+        contour : Geom
+            geometrie qui construit le contour
         elemType : str, optional
             type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
         inclusions : list[Domain, Circle, PointsList], optional
@@ -989,12 +985,18 @@ class Interface_Gmsh:
         tic = Tic()
 
         factory = self.__factory
-
-        points = pointsList.points
-        meshSize = pointsList.meshSize
+        
+        meshSize = contour.meshSize
 
         # Création de la surface de contour
-        loopSurface = self.__Loop_From_Points(points, meshSize)
+        if isinstance(contour, Circle):
+            loopContour = self.__Loop_From_Circle(contour)
+        elif isinstance(contour, Domain):                
+            loopContour = self.__Loop_From_Domain(contour)
+        elif isinstance(contour, PointsList):                
+            loopContour = self.__Loop_From_Points(contour.points, meshSize)
+        else:
+            raise Exception("L'object contour doit etre un cercle, un domaine ou une liste de points")
 
         # Création de toutes les boucles associés aux objets à l'intérieur du domaine
         hollowLoops, filledLoops = self.__Get_hollowLoops_And_filledLoops(inclusions)
@@ -1002,7 +1004,7 @@ class Interface_Gmsh:
         # Pour chaque objetGeom plein, il est nécessaire de créer une surface
         surfacesPleines = [factory.addPlaneSurface([loop]) for loop in filledLoops]
         
-        listeLoop = [loopSurface] # surface du domaine
+        listeLoop = [loopContour] # surface du domaine
         listeLoop.extend(hollowLoops) # On rajoute les surfaces creuses
 
         surfaceDomain = self.__Surface_From_Loops(listeLoop)
@@ -1010,14 +1012,14 @@ class Interface_Gmsh:
         # Rajoute la surface du domaine en dernier
         surfacesPleines.insert(0, surfaceDomain)
 
-        # Récupère l'entité 3D
+        # Récupère l'entité 2D
         self.__factory.synchronize()
         entities2D = gmsh.model.getEntities(2)
 
         # Création des fissures
         crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_craks(cracks, entities2D)
         
-        physicalSurfaces = [gmsh.model.addPhysicalGroup(2, [surface]) for surface in surfacesPleines]
+        # physicalSurfaces = [gmsh.model.addPhysicalGroup(2, [surface]) for surface in surfacesPleines]
         
         # Création des surfaces creuses
         if returnSurfaces: return surfacesPleines
@@ -1028,11 +1030,11 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
 
-        self.__Construction_Maillage(2, elemType, surfaces=physicalSurfaces, crackLines=crackLines, openPoints=openPoints, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfaces=surfacesPleines, crackLines=crackLines, openPoints=openPoints, isOrganised=False, folder=folder)
 
         return self.__Recuperation_Maillage()
 
-    def Mesh_Points_3D(self, pointsList: PointsList, extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], cracks=[], refineGeom=None, folder=""):
+    def Mesh_3D(self, pointsList: PointsList, extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, inclusions=[], cracks=[], refineGeom=None, folder=""):
         """Construction d'un maillage 3D depuis une liste de points
 
         Parameters
@@ -1068,7 +1070,7 @@ class Interface_Gmsh:
         cracks1D = [crack for crack in cracks if isinstance(crack, Line)]
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Mesh_Points_2D(pointsList, elemType=ElemType.TRI3, inclusions=inclusions, cracks=[], refineGeom=refineGeom, returnSurfaces=True)
+        surfaces = self.Mesh_2D(pointsList, elemType=ElemType.TRI3, inclusions=inclusions, cracks=[], refineGeom=refineGeom, returnSurfaces=True)
 
         self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)        
 

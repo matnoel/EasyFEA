@@ -66,7 +66,7 @@ tolConv = 1e-0
 # Comportement 
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-regularisation = "AT2" # "AT1", "AT2"
+regularisation = "AT1" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
 for split in ["Miehe"]:
@@ -162,11 +162,11 @@ for split in ["Miehe"]:
 
         
         if dim == 2:
-            mesh = interfaceGmsh.Mesh_Points_2D(pointsList, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
+            mesh = interfaceGmsh.Mesh_2D(pointsList, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         elif dim == 3:
             # fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
             # mesh = interfaceGmsh.Mesh_Import_msh(fichier)
-            mesh = interfaceGmsh.Mesh_Points_3D(pointsList, [0,0,ep], 3, cracks=cracks, elemType="TETRA4", refineGeom=refineDomain)
+            mesh = interfaceGmsh.Mesh_3D(pointsList, [0,0,ep], 3, cracks=cracks, elemType="TETRA4", refineGeom=refineDomain)
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)

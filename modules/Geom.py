@@ -22,7 +22,7 @@ class Point:
         self.__x = x
         self.__y = y
         self.__z = z        
-        self.__r = np.abs(r)
+        self.__r = r
         self.__coordo = np.array([x, y, z])
         self.__isOpen = isOpen
 
@@ -47,7 +47,7 @@ class Point:
         return self.__r
 
     @property
-    def coordo(self) -> float:
+    def coordo(self) -> np.ndarray:
         """coordonnées x,y,z (3,)"""
         return self.__coordo
 
@@ -424,3 +424,32 @@ def matriceJacobienne(i: np.ndarray, k: np.ndarray) -> np.ndarray:
     F[:,2] = k
 
     return F
+
+def PointsRayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float):
+                
+    # vecteurs
+    i = P1-P0
+    j = P2-P0
+    
+    n = np.cross(i, j) # vecteur normal au plan formé par i, j
+
+    F = matriceJacobienne
+
+    if r > 0:
+        # angle de i vers k            
+        betha = angleBetween_a_b(i, j)/2
+        
+        d = np.abs(r)/np.tan(betha) # disante entre P0 et A sur i et disante entre P0 et B sur j
+
+        d *= np.sign(betha)
+
+        A = F(i, n) @ np.array([d,0,0]) + P0
+        B = F(j, n) @ np.array([d,0,0]) + P0
+        C = F(i, n) @ np.array([d, r,0]) + P0
+    else:
+        d = np.abs(r)
+        A = F(i, n) @ np.array([d,0,0]) + P0
+        B = F(j, n) @ np.array([d,0,0]) + P0
+        C = P0
+
+    return A, B, C

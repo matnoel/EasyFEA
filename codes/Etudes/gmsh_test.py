@@ -20,9 +20,9 @@ class SimulationType(str, Enum):
     EQUERRE = "EQUERRE",
     TEF2 = "TEF2"
 
-simulationType = SimulationType.TEF2
+simulationType = SimulationType.EQUERRE
 
-interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=True)
+interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
 coef = 1
 E=210000 # MPa
@@ -66,12 +66,12 @@ elif simulationType == SimulationType.EQUERRE:
     listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_Points_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, cracks=[], folder=folder)
+        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, cracks=[], folder=folder)
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_Points_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, folder=folder)
+        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, folder=folder)
 
 
         noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
@@ -103,10 +103,10 @@ elif simulationType == SimulationType.TEF2:
     listPoint = PointsList([pt1, pt2, pt3], taille)
     
     if dim == 2:
-        mesh = interface.Mesh_Points_2D(listPoint, elemType=ElemType.TRI3, inclusions=[], folder=folder)
+        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=[], folder=folder)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_Points_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, inclusions=[], folder=folder)
+        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, inclusions=[], folder=folder)
 
     noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
     noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))

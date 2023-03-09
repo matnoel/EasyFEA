@@ -46,7 +46,9 @@ points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
 circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isCreux=True)
 
-mesh = gmshInterface.Mesh_Points_2D(points, elemType, [circle])
+mesh = gmshInterface.Mesh_2D(points, elemType, [circle])
+
+Affichage.Plot_Model(mesh)
 
 nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 nodesp0 = mesh.Nodes_Tags(["P0"])

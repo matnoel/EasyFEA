@@ -38,7 +38,7 @@ circle = Geom.Circle(Geom.Point(), L*0.5, meshSize, isCreux=True)
 
 gmshInterface = Interface_Gmsh()
 
-mesh = gmshInterface.Mesh_Points_2D(points, "TRI3", inclusions=[circle])
+mesh = gmshInterface.Mesh_2D(points, "TRI3", inclusions=[circle])
 
 Affichage.Plot_Model(mesh)
 ax = Affichage.Plot_Mesh(mesh)

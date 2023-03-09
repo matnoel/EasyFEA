@@ -18,7 +18,7 @@ Affichage.Clear()
 # Configuration
 # ----------------------------------------------
 
-dim = 3
+dim = 2
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
 plotResult = True
@@ -73,21 +73,21 @@ points = PointsList([pt1, pt2, pt3, pt4], meshSize)
 # inclusions = [carre]
 
 inclusions = []
-# nL = 10
-# nH = 2
-# cL = L/(2*nL)
-# cH = h/(2*nH)
-# for i in range(nL):
-#     x = cL + cL*(2*i)
-#     for j in range(nH):
-#         y = cH + cH*(2*j)
+nL = 10
+nH = 2
+cL = L/(2*nL)
+cH = h/(2*nH)
+for i in range(nL):
+    x = cL + cL*(2*i)
+    for j in range(nH):
+        y = cH + cH*(2*j)
 
-#         ptd1 = Point(x-cL/2, y-cH/2)
-#         ptd2 = Point(x+cL/2, y+cH/2)
+        ptd1 = Point(x-cL/2, y-cH/2)
+        ptd2 = Point(x+cL/2, y+cH/2)
 
-#         domain = Domain(ptd1, ptd2, meshSize, isCreux=True)
+        domain = Domain(ptd1, ptd2, meshSize, isCreux=True)
 
-#         inclusions.append(domain)
+        inclusions.append(domain)
 
 if dim == 2:
 
@@ -126,9 +126,9 @@ interfaceGmsh = Interface_Gmsh(False, False)
 # Fonction utilisée pour la construction du maillage
 def DoMesh(refineGeom=None) -> Mesh:
     if dim == 2:
-        return interfaceGmsh.Mesh_Points_2D(points, elemType, inclusions, cracks, refineGeom)
+        return interfaceGmsh.Mesh_2D(points, elemType, inclusions, cracks, refineGeom)
     else:
-        return interfaceGmsh.Mesh_Points_3D(points, [0,0,b], 5, elemType, inclusions, cracks, refineGeom)        
+        return interfaceGmsh.Mesh_3D(points, [0,0,b], 5, elemType, inclusions, cracks, refineGeom)        
 
 
 # construit le premier maillage
@@ -243,18 +243,19 @@ while erreur >= cible and i < iterMax:
 
         if plotProj:
 
-            ax = Affichage.Plot_Mesh(oldMesh, alpha=0)
-            groupp = oldMesh.Get_list_groupElem(3)[0]            
-            nodess = []            
-            [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(oldMesh.Ne)]
-            # [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(2)]
-            if dim == 2:
-                # ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], marker="+", c="red", zorder=3)
-                # [ax.text(mesh.coordo[i,0], mesh.coordo[i,1], f"{i}") for i in range(mesh.Nn)]
-                ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1])
-            else:
-                # ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2], marker="+", c="red", zorder=3)
-                ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1], mesh.coordo[nodess, 2])
+            groupp = oldMesh.Get_list_groupElem(0)[0]
+
+            # ax = Affichage.Plot_Mesh(oldMesh, alpha=0)
+            # nodess = []            
+            # [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(oldMesh.Ne)]
+            # # [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(2)]
+            # if dim == 2:
+            #     # ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], marker="+", c="red", zorder=3)
+            #     # [ax.text(mesh.coordo[i,0], mesh.coordo[i,1], f"{i}") for i in range(mesh.Nn)]
+            #     ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1])
+            # else:
+            #     # ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2], marker="+", c="red", zorder=3)
+            #     ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1], mesh.coordo[nodess, 2])
 
             # TODO projection ne fonciton pas correctement pour les elements HEXA8 et PRISM6
             proj = Calc_projector(oldMesh, mesh)        
