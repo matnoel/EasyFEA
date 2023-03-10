@@ -19,8 +19,8 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 2
-simulation = "Tension" # "Shear" , "Tension"
+dim = 3
+simulation = "Shear" # "Shear" , "Tension"
 
 if dim == 3:
     simulation += "_3D"
@@ -45,14 +45,14 @@ showResult = True
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = True; Nparaview=400
-makeMovie = True
+saveParaview = False; Nparaview=400
+makeMovie = False
 
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
 openCrack = True
-optimMesh = False
+optimMesh = True
 
 # ----------------------------------------------
 # Convergence
@@ -66,7 +66,7 @@ tolConv = 1e-0
 # Comportement 
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-regularisation = "AT1" # "AT1", "AT2"
+regularisation = "AT2" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
 for split in ["Miehe"]:
@@ -101,7 +101,7 @@ for split in ["Miehe"]:
     if test:
         meshSize = l0 #taille maille test fem object
         # taille = 0.001  
-        meshSize *= 1
+        meshSize *= 3
     else:
         # On raffin pour avoir au moin 2 element par demie largeur de fissure
         meshSize = l0/2 #l0/2 2.5e-6 

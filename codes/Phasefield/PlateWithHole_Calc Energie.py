@@ -19,7 +19,7 @@ plotAllResult = False
 
 comp = "Elas_Isot" # "Elas_Isot" "Elas_IsotTrans"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
-regu = "AT1" # "AT1", "AT2"
+regu = "AT2"
 contraintesPlanes = True
 
 nom="_".join([comp, split, regu])

@@ -163,12 +163,12 @@ def Chargement(force: float):
     simu.add_dirichlet(noeudPoint, [0], ["x"])
 
     
-    # simu.add_dirichlet(noeudsBas, [0], ["y"])
-    # simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
-
-    SIG *= 1/2
+    simu.add_dirichlet(noeudsBas, [0], ["y"])
     simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
-    simu.add_surfLoad(noeudsBas, [lambda x,y,z: -SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
+
+    # SIG *= 1/2
+    # simu.add_surfLoad(noeudsHaut, [lambda x,y,z: SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
+    # simu.add_surfLoad(noeudsBas, [lambda x,y,z: -SIG*(y-c4.center.y)/r * np.abs((y-c4.center.y)/r)], ["y"])
 
 Chargement(0)
 

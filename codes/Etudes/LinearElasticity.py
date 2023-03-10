@@ -35,16 +35,22 @@ v = np.zeros_like(mesh.groupElem.elements, dtype=float)
 
 Affichage.Plot_Nodes(mesh, mesh.Nodes_Tags(["S0"]))
 Affichage.Plot_Elements(mesh, mesh.Nodes_Tags(["S1"]))
+Affichage.Plot_Elements(mesh, mesh.Nodes_Tags(["S0"]))
 
 E[elementsCircle] = 400000
 E[elementsDomain] = 210000
 
 v[elementsCircle] = 0.3
-v[elementsDomain] = 0.3
+v[elementsDomain] = 0.4
 
 comp = Materials.Elas_Isot(2, E, v)
 
-simu = Simulations.Simu_Displacement(mesh, comp)
+simu = Simulations.Simu_Displacement(mesh, comp, useNumba=True)
+
+rho = np.ones_like(E)
+rho[elementsCircle] = 2
+
+simu.rho = rho
 
 nodesY0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 nodesY1 = mesh.Nodes_Conditions(lambda x,y,z: y==1)
@@ -57,7 +63,8 @@ simu.Solve()
 
 Affichage.Plot_Result(simu, "uy", plotMesh=True)
 Affichage.Plot_Result(simu, "Syy", plotMesh=True)
-Affichage.Plot_Result(simu, E, nodeValues=False, plotMesh=True)
+E[elementsCircle] = 0
+Affichage.Plot_Result(simu, v, nodeValues=False, plotMesh=True)
 
 nodesInCircle = mesh.Nodes_Circle(circle)
 

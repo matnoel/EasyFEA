@@ -9,18 +9,19 @@ import Simulations
 from Mesh import ElemType
 import Materials
 import Folder
+import TicTac
 
 # import gmsh
 
 dim = 2
-N = 5
+N = 15
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
     EQUERRE = "EQUERRE",
     TEF2 = "TEF2"
 
-simulationType = SimulationType.EQUERRE
+simulationType = SimulationType.TEF2
 
 interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
@@ -106,10 +107,10 @@ elif simulationType == SimulationType.TEF2:
         mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=[], folder=folder)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.HEXA8, inclusions=[], folder=folder)
+        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.TETRA4, inclusions=[], folder=folder)
 
-    noeudsBas = mesh.Nodes_Line(Line(pt1, pt2))
-    noeudsGauche = mesh.Nodes_Line(Line(pt1, pt3))
+    noeudsBas = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+    noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x==0)
 
 Affichage.Plot_Mesh(mesh)
 Affichage.Plot_Model(mesh, showId=False)
@@ -155,5 +156,6 @@ Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
 Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
 Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, deformation=True,coef=1/coef)
 
+# TicTac.Tic.Plot_History()
 
 plt.show()
