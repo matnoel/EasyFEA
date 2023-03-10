@@ -64,7 +64,23 @@ class IModel(ABC):
 
     def Need_Update(self, value=True):
         """Renseigne si le model à besoin d'être mis à jour"""
-        self.__needUpdate = value    
+        self.__needUpdate = value
+
+    @staticmethod
+    def _Test_Sup0(value: float|np.ndarray):
+        texteErreur = "Doit être > 0 !"
+        if isinstance(value, (float, int)):
+            assert value > 0.0, texteErreur
+        if isinstance(value, np.ndarray):
+            assert value.min() > 0.0, texteErreur
+
+    @staticmethod
+    def _Test_Borne(value: float|np.ndarray, bInf=-1, bSup=0.5):
+        texteErreur = f"Doit être compris entre ]{bInf};{bSup}["
+        if isinstance(value, (float, int)):
+            assert value > bInf and value < bSup, texteErreur
+        if isinstance(value, np.ndarray):
+            assert value.min() > bInf and value.max() < bSup, texteErreur
 
 class Displacement_Model(IModel):
     """Classe des lois de comportements élastiques
@@ -231,7 +247,7 @@ class Displacement_Model(IModel):
         self.__S = array
 
     @staticmethod
-    def AppliqueCoefSurBrigi(dim: int, B_rigi_e_pg: np.ndarray):
+    def AppliqueCoefSurBrigi(dim: int, B_rigi_e_pg: np.ndarray) -> np.ndarray:
 
         if dim == 2:
             coord=2
@@ -247,7 +263,7 @@ class Displacement_Model(IModel):
         return B_rigi_e_pg
     
     @staticmethod
-    def ApplyKelvinMandelCoefTo_Matrice(dim: int, Matrice: np.ndarray):        
+    def ApplyKelvinMandelCoefTo_Matrice(dim: int, Matrice: np.ndarray) -> np.ndarray:        
         """Applique ces coefs à la matrice\n
         si 2D:
         \n
@@ -287,17 +303,32 @@ class Displacement_Model(IModel):
         return matriceMandelCoef
 
     @staticmethod
-    def Apply_P(P: np.ndarray, Matrice: np.ndarray):
-        matrice_P = np.einsum('ji,jk,kl->il',P, Matrice, P, optimize='optimal')
+    def Apply_P(P: np.ndarray, Matrice: np.ndarray) -> np.ndarray:
+
+        shape = Matrice.shape
+        if len(shape) == 2:
+            matrice_P = np.einsum('ji,jk,kl->il',P, Matrice, P, optimize='optimal')
+            axis1, axis2 = 0, 1
+        elif len(shape) == 3:
+            matrice_P = np.einsum('ji,ejk,kl->eil',P, Matrice, P, optimize='optimal')
+            axis1, axis2 = 1, 2
+        elif len(shape) == 4:
+            matrice_P = np.einsum('ji,epjk,kl->epil',P, Matrice, P, optimize='optimal')
+            axis1, axis2 = 2, 3
+        else:
+            raise Exception("Doit être de dimension (ij) ou (eij) ou (epij)")
 
         # on verfie que les invariants du tenseur ne change pas !
-        # if np.linalg.norm(P.T-P) <= 1e-12:        
-        if np.abs(np.trace(matrice_P) - np.trace(Matrice)) != np.trace(matrice_P):
-            test_trace_c = np.abs(np.trace(matrice_P) - np.trace(Matrice))/np.trace(matrice_P)
+        # if np.linalg.norm(P.T-P) <= 1e-12:
+        tr1 = np.trace(matrice_P, 0, axis1, axis2)
+        tr2 = np.trace(Matrice, 0, axis1, axis2)
+        diffTrace = np.linalg.norm(tr1-tr2)
+        if diffTrace > 1e-12:
+            test_trace_c = diffTrace/np.linalg.norm(tr2)
             assert test_trace_c <1e-12, "La trace n'est pas conservé pendant la transformation"
         detMatrice = np.linalg.det(Matrice)
-        if detMatrice > 0:
-            test_det_c = np.abs(np.linalg.det(matrice_P) - np.linalg.det(Matrice))/detMatrice
+        if np.max(detMatrice) > 1e-12:
+            test_det_c = np.linalg.norm(np.linalg.det(matrice_P) - detMatrice)/np.linalg.norm(detMatrice)
             assert test_det_c <1e-10, "Le determinant n'est pas conservé pendant la transformation"
         
         return matrice_P
@@ -311,9 +342,9 @@ class Elas_Isot(Displacement_Model):
         ----------
         dim : int
             Dimension de la simulation 2D ou 3D
-        E : float, optional
+        E : float|np.ndarray, optional
             Module d'elasticité du matériau en MPa (> 0)
-        v : float, optional
+        v : float|np.ndarray, optional
             Coef de poisson ]-1;0.5]
         contraintesPlanes : bool
             Contraintes planes si dim = 2 et True, by default True        
@@ -337,8 +368,12 @@ class Elas_Isot(Displacement_Model):
     def contraintesPlanes(self) -> bool:
         return self.__contraintesPlanes
 
-    def _Update(self):        
+    def _Update(self):
         C, S = self.__Comportement()
+        # try:        
+        #     C, S = self.__Comportement()
+        # except ValueError:
+        #     raise Exception(str(_erreurConstMateriau))
         self.C = C
         self.S = S        
 
@@ -351,24 +386,24 @@ class Elas_Isot(Displacement_Model):
         return resume
 
     @property
-    def E(self) -> float:
+    def E(self) -> float|np.ndarray:
         """Module de Young"""
         return self.__E
     
     @E.setter
-    def E(self, value: float):
-        assert value > 0.0, "Le module élastique doit être > 0 !"
+    def E(self, value):
+        self._Test_Sup0(value)
         self.Need_Update()
         self.__E = value
 
     @property
-    def v(self) -> float:
+    def v(self) -> float|np.ndarray:
         """Coef de poisson"""
         return self.__v
     
     @v.setter
     def v(self, value: float):
-        assert value > -1.0 and value < 0.5, "Le coef de poisson doit être compris entre ]-1;0.5["
+        self._Test_Borne(value)
         self.Need_Update()
         self.__v = value
 
@@ -432,13 +467,15 @@ class Elas_Isot(Displacement_Model):
         mu = self.get_mu()
         l = self.get_lambda()
 
+        dtype = object if True in [isinstance(p, np.ndarray) for p in [E, v]] else float
+
         if dim == 2:
 
             # Attention ici ça marche car lambda change en fonction de la simplification 2D
 
             cVoigt = np.array([ [l + 2*mu, l, 0],
                                 [l, l + 2*mu, 0],
-                                [0, 0, mu]])
+                                [0, 0, mu]], dtype=dtype)
 
             # if self.contraintesPlanes:
             #     # C = np.array([  [4*(mu+l), 2*l, 0],
@@ -465,7 +502,9 @@ class Elas_Isot(Displacement_Model):
                                 [l, l, l+2*mu, 0, 0, 0],
                                 [0, 0, 0, mu, 0, 0],
                                 [0, 0, 0, 0, mu, 0],
-                                [0, 0, 0, 0, 0, mu]])
+                                [0, 0, 0, 0, 0, mu]], dtype=dtype)
+            
+        cVoigt = Uniform_Array(cVoigt)
         
         c = Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(dim, cVoigt)
 
@@ -504,7 +543,7 @@ class Elas_IsotTrans(Displacement_Model):
         return self.__contraintesPlanes
 
     @property
-    def Gt(self) -> float:
+    def Gt(self) -> float|np.ndarray:
         
         Et = self.Et
         vt = self.vt
@@ -514,68 +553,68 @@ class Elas_IsotTrans(Displacement_Model):
         return Gt
 
     @property
-    def El(self) -> float:
+    def El(self) -> float|np.ndarray:
         """Module de Young longitudinale"""
         return self.__El
 
     @El.setter
-    def El(self, value: float):
-        assert value > 0.0, "Doit être > 0"
+    def El(self, value: float|np.ndarray):
+        self._Test_Sup0(value)
         self.Need_Update()
         self.__El = value
 
     @property
-    def Et(self) -> float:
+    def Et(self) -> float|np.ndarray:
         """Module de Young transverse"""
         return self.__Et
     
     @Et.setter
-    def Et(self, value: float):
-        assert value > 0.0, "Doit être > 0"
+    def Et(self, value: float|np.ndarray):
+        self._Test_Sup0(value)
         self.Need_Update()
         self.__Et = value
 
     @property
-    def Gl(self) -> float:
+    def Gl(self) -> float|np.ndarray:
         """Module de Cisaillent longitudinale"""
         return self.__Gl
 
     @Gl.setter
-    def Gl(self, value: float):
-        assert value > 0.0, "Doit être > 0"
+    def Gl(self, value: float|np.ndarray):
+        self._Test_Sup0(value)
         self.Need_Update()
         self.__Gl = value
 
     @property
-    def vl(self) -> float:
+    def vl(self) -> float|np.ndarray:
         """Coef de poisson longitudianale"""
         return self.__vl
 
     @vl.setter
-    def vl(self, value: float):
+    def vl(self, value: float|np.ndarray):
         # -1<vt<1
         # -1<vl<0.5
         # Regarder torquato 328
-        assert value > -1.0 and value < 0.5, f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
+        self._Test_Borne(value, -1, 1)
         self.Need_Update()
         self.__vl = value
     
     @property
-    def vt(self) -> float:
+    def vt(self) -> float|np.ndarray:
         """Coef de poisson transverse"""
         return self.__vt
 
     @vt.setter
-    def vt(self, value: float):
+    def vt(self, value: float|np.ndarray):
         # -1<vt<1
         # -1<vl<0.5
         # Regarder torquato 328
-        assert value > -1.0 and value < 0.5, f"Les coefs de poisson vt et vl doivent être compris entre ]-1;0.5["
+        self._Test_Borne(value)
         self.Need_Update()
         self.__vt = value
 
     @property
-    def kt(self) -> float:
+    def kt(self) -> float|np.ndarray:
         # Source : torquato 2002
         El = self.El
         Et = self.Et
@@ -593,11 +632,14 @@ class Elas_IsotTrans(Displacement_Model):
             useSameAxis=True
         else:
             useSameAxis=False
-
-        C, S = self.__Comportement(P, useSameAxis)
+        
+        try:
+            C, S = self.__Comportement(P, useSameAxis)
+        except ValueError:
+            raise Exception(str(_erreurConstMateriau))
 
         self.C = C
-        self.S = S        
+        self.S = S
 
     @property
     def resume(self) -> str:
@@ -636,6 +678,8 @@ class Elas_IsotTrans(Displacement_Model):
         Gt = self.Gt
 
         kt = self.kt
+        
+        dtype = object if isinstance(kt, np.ndarray) else float
 
         # Matrice de souplesse et de rigidité en mandel dans la base du matériau
         # [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]
@@ -645,14 +689,18 @@ class Elas_IsotTrans(Displacement_Model):
                       [-vl/El, -vt/Et, 1/Et, 0, 0, 0],
                       [0, 0, 0, 1/(2*Gt), 0, 0],
                       [0, 0, 0, 0, 1/(2*Gl), 0],
-                      [0, 0, 0, 0, 0, 1/(2*Gl)]])
+                      [0, 0, 0, 0, 0, 1/(2*Gl)]], dtype=dtype)
+        
+        material_sM = Uniform_Array(material_sM)
 
         material_cM = np.array([[El+4*vl**2*kt, 2*kt*vl, 2*kt*vl, 0, 0, 0],
                       [2*kt*vl, kt+Gt, kt-Gt, 0, 0, 0],
                       [2*kt*vl, kt-Gt, kt+Gt, 0, 0, 0],
                       [0, 0, 0, 2*Gt, 0, 0],
                       [0, 0, 0, 0, 2*Gl, 0],
-                      [0, 0, 0, 0, 0, 2*Gl]])
+                      [0, 0, 0, 0, 0, 2*Gl]], dtype=dtype)
+        
+        material_cM = Uniform_Array(material_cM)
 
         # # Verifie que C = S^-1
         # assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10        
@@ -675,13 +723,26 @@ class Elas_IsotTrans(Displacement_Model):
 
         if dim == 2:
             x = np.array([0,1,5])
+
+            shape = c.shape
             
-            if self.contraintesPlanes == True:                
-                s = global_sM[x,:][:,x]
+            if self.contraintesPlanes == True:
+                if len(shape) == 2:
+                    s = global_sM[x,:][:,x]
+                elif len(shape) == 3:
+                    s = global_sM[:,x,:][:,:,x]
+                elif len(shape) == 4:
+                    s = global_sM[:,:,x,:][:,:,:,x]
+                    
                 c = np.linalg.inv(s)
-            else:
-                c = global_cM[x,:][:,x]
-                # s = global_sM[x,:][:,x]
+            else:                
+                if len(shape) == 2:
+                    c = global_cM[x,:][:,x]
+                elif len(shape) == 3:
+                    c = global_cM[:,x,:][:,:,x]
+                elif len(shape) == 4:
+                    c = global_cM[:,:,x,:][:,:,:,x]
+                
                 s = np.linalg.inv(c)
 
                 # testS = np.linalg.norm(s-s2)/np.linalg.norm(s2)            
@@ -787,11 +848,13 @@ class Elas_Anisot(Displacement_Model):
 
         dim = self.__dim
 
+        shape = C.shape
+
         # Verification sur la matrice
         if dim == 2:
-            assert C.shape == (3,3), "La matrice doit être de dimension 3x3"
+            assert (shape[-2], shape[-1]) == (3,3), "La matrice doit être de dimension 3x3"
         else:
-            assert C.shape == (6,6), "La matrice doit être de dimension 6x6"
+            assert (shape[-2], shape[-1]) == (6,6), "La matrice doit être de dimension 6x6"
         testSym = np.linalg.norm(C.T - C)/np.linalg.norm(C)
         assert testSym <= 1e-12, "La matrice n'est pas symétrique"
 
@@ -808,14 +871,23 @@ class Elas_Anisot(Displacement_Model):
 
         if dim == 2:
 
-            C_mandel_global = np.zeros((6,6))
-
             listIndex = np.array([0,1,5])
-            
-            for i, I in enumerate(listIndex):
-                for j, J in enumerate(listIndex):
-                    C_mandel_global[I,J] = C_mandel[i, j]
 
+            if len(shape)==2:
+                C_mandel_global = np.zeros((6,6))
+                for i, I in enumerate(listIndex):
+                    for j, J in enumerate(listIndex):
+                        C_mandel_global[I,J] = C_mandel[i,j]
+            if len(shape)==3:
+                C_mandel_global = np.zeros((shape[0],6,6))
+                for i, I in enumerate(listIndex):
+                    for j, J in enumerate(listIndex):
+                        C_mandel_global[:,I,J] = C_mandel[:,i,j]
+            elif len(shape)==4:
+                C_mandel_global = np.zeros((shape[0],shape[1],6,6))
+                for i, I in enumerate(listIndex):
+                    for j, J in enumerate(listIndex):
+                        C_mandel_global[:,:,I,J] = C_mandel[:,:,i,j]
         else:
             C_mandel_global = C
 
@@ -823,7 +895,14 @@ class Elas_Anisot(Displacement_Model):
 
         if dim == 2:
             listIndex = np.array([0,1,5])
-            C_mandelP = C_mandelP_global[listIndex, :][:, listIndex]
+
+            if len(shape)==2:
+                C_mandelP = C_mandelP_global[listIndex,:][:,listIndex]
+            if len(shape)==3:
+                C_mandelP = C_mandelP_global[:,listIndex,:][:,:,listIndex]
+            elif len(shape)==4:
+                C_mandelP = C_mandelP_global[:,:,listIndex,:][:,:,:,listIndex]
+            
         else:
             C_mandelP = C_mandelP_global
 
@@ -1291,24 +1370,13 @@ class PhaseField_Model(IModel):
         SigmaP_e_pg = cP_e_pg * Epsilon_e_pg\n
         SigmaM_e_pg = cM_e_pg * Epsilon_e_pg        
         """
-        
-        # Data
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
 
         SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
 
-        useNumba = self.__useNumba
-        # useNumba = False
-
         tic = Tic()
 
-        if useNumba:
-            # Plus rapide
-            psiP_e_pg, psiM_e_pg = CalcNumba.Calc_psi_e_pg(Epsilon_e_pg, SigmaP_e_pg, SigmaM_e_pg)
-        else:
-            psiP_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
-            psiM_e_pg = 1/2 * np.einsum('epi,epi->ep', SigmaM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg))
+        psiP_e_pg = np.sum(1/2 * Epsilon_e_pg * SigmaP_e_pg, -1)
+        psiM_e_pg = np.sum(1/2 * Epsilon_e_pg * SigmaM_e_pg, -1)
 
         tic.Tac("Matrices", "psiP_e_pg et psiM_e_pg", False)
 
@@ -1334,20 +1402,15 @@ class PhaseField_Model(IModel):
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
         comp = Epsilon_e_pg.shape[2]
-
-        useNumba = self.__useNumba
-        # useNumba = False
-
+        
         cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 
         tic = Tic()
+        
+        Epsilon_e_pg = Epsilon_e_pg.reshape((Ne,nPg,comp,1))
 
-        if useNumba:
-            # Plus rapide
-            SigmaP_e_pg, SigmaM_e_pg = CalcNumba.Calc_Sigma_e_pg(Epsilon_e_pg, cP_e_pg, cM_e_pg)
-        else:
-            SigmaP_e_pg = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
-            SigmaM_e_pg = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal').reshape((Ne, nPg, comp))
+        SigmaP_e_pg = np.reshape(cP_e_pg @ Epsilon_e_pg, (Ne,nPg,-1))
+        SigmaM_e_pg = np.reshape(cM_e_pg @ Epsilon_e_pg, (Ne,nPg,-1))
 
         tic.Tac("Matrices", "SigmaP_e_pg et SigmaM_e_pg", False)
 
@@ -1539,6 +1602,8 @@ class PhaseField_Model(IModel):
         elif "Strain" in self.__split:
             
             c = self.__comportement.C
+
+            # TODO a optim ?
             
             if useNumba:
                 # Plus rapide
@@ -2369,12 +2434,83 @@ class Thermal_Model(IModel):
         self.Need_Update()
 
     @property
-    def k(self) -> float:
+    def k(self) -> float|np.ndarray:
         """conduction thermique [W . m^-1]"""
         return self.__k
 
     @property
-    def c(self) -> float:
+    def c(self) -> float|np.ndarray:
         """capacité thermique massique [J K^-1 kg^-1]"""
         return self.__c
 
+_erreurConstMateriau = "Il faut faire attention aux dimensions des constantes matériaux.\nSi les constantes matériaux sont dans des array, ces array doivent être de même dimension."
+
+def Resize_variable(variable: int|float|np.ndarray, Ne: int, nPg: int):
+    """Redimensionne la variable pour quelle soit sous la forme ep.."""
+
+    if isinstance(variable, (int,float)):
+        return np.ones((Ne, nPg)) * variable
+    
+    elif isinstance(variable, np.ndarray):
+        shape = variable.shape
+        if len(shape) == 1:
+            if shape[0] == Ne:
+                variable = variable[:,np.newaxis].repeat(nPg, axis=1)
+                return variable
+            elif shape[0] == nPg:
+                variable = variable[np.newaxis].repeat(Ne, axis=0)
+                return variable
+            else:
+                raise Exception("La variable renseigné doit êrtre de dimension (e) ou (p)")
+
+        if len(shape) == 2:
+            if shape == (Ne, nPg):
+                return variable
+            else:
+                variable = variable[np.newaxis, np.newaxis]
+                variable = variable.repeat(Ne, axis=0)
+                variable = variable.repeat(nPg, axis=1)
+                return variable
+            
+        elif len(shape) == 3:
+            if shape[0] == Ne:
+                variable = variable[:, np.newaxis].repeat(nPg, axis=1)
+                return variable
+            elif shape[0] == nPg:
+                variable = variable[np.newaxis].repeat(Ne, axis=0)
+                return variable
+            else:
+                raise Exception("La variable renseigné doit êrtre de dimension (eij) ou (pij)")
+
+
+
+def Uniform_Array(array: np.ndarray):
+    """Redimensionne l'array"""
+
+    dimI, dimJ = array.shape
+    
+    shapes = [np.shape(array[i,j]) for i in range(dimI) for j in range(dimJ) if len(np.shape(array[i,j]))>0]
+    if len(shapes) > 0:
+        idx = np.argmax([len(shape) for shape in shapes])
+        shape = shapes[idx]
+    else:
+        shape = ()
+
+    shapeNew = list(shape); shapeNew.extend(array.shape)
+
+    newArray = np.zeros(shapeNew)
+    def SetMat(i,j):
+        values = array[i,j]
+        if isinstance(values, (int, float)):
+            values = np.ones(shape) * values
+        if len(shape) == 0:
+            newArray[i,j] = values
+        elif len(shape) == 1:
+            newArray[:,i,j] = values
+        elif len(shape) == 2:
+            newArray[:,:,i,j] = values
+        else:
+            raise Exception("Les constantes matériaux doivent être au maximum de dimension (Ne, nPg)")
+    [SetMat(i,j) for i in range(dimI) for j in range(dimJ)]
+
+    return newArray

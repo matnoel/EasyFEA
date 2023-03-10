@@ -6,7 +6,6 @@ from colorama import Fore
 from datetime import datetime
 from types import LambdaType
 from typing import cast
-import platform
 
 import numpy as np
 import pandas as pd
@@ -15,9 +14,8 @@ from scipy import sparse
 # Meme si pas utilisé laissé l'acces
 from Mesh import Mesh, MatriceType, ElemType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
-from Materials import ModelType, IModel, Displacement_Model, Beam_Model, PhaseField_Model, Thermal_Model
+from Materials import ModelType, IModel, Displacement_Model, Beam_Model, PhaseField_Model, Thermal_Model, Resize_variable
 from TicTac import Tic
-import CalcNumba
 from Interface_Solveurs import ResolutionType, AlgoType, _SolveProblem, _Solve_Axb, Solvers
 import Folder
 
@@ -266,13 +264,13 @@ class Simu(ABC):
         return self.__model
 
     @property
-    def rho(self) -> float:
+    def rho(self) -> float|np.ndarray:
         """masse volumique"""
         return self.__rho
 
     @rho.setter
-    def rho(self, value: float):
-        assert value > 0.0 , "Doit être supérieur à 0"
+    def rho(self, value: float|np.ndarray):
+        IModel._Test_Sup0(value)
         self.__rho = value
 
     @property
@@ -1413,16 +1411,15 @@ class Simu_Displacement(Simu):
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
         """
 
-        useNumba = self.useNumba
-        # useNumba = False
-
         matriceType=MatriceType.rigi
 
         # Recupère les matrices pour travailler
-        mesh = self.mesh
+        mesh = self.mesh; Ne = mesh.Ne
         jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = mesh.Get_poid_pg(matriceType)
-        N_vecteur_e_pg = mesh.Get_N_vecteur_pg(matriceType)
+        nPg = poid_pg.size
+
+        N_vecteur_pg = mesh.Get_N_vecteur_pg(matriceType)
         rho = self.rho
         
         B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)
@@ -1436,15 +1433,12 @@ class Simu_Displacement(Simu):
         matC = comportement.C
 
         # Matrices rigi
-        if useNumba:
-            # Plus rapide
-            Ku_e = CalcNumba.epij_jk_epkl_to_eil(leftDepPart, matC, B_dep_e_pg)
-        else:
-            # Ku_e = np.einsum('ep,p,epki,kl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, matC, B_dep_e_pg, optimize='optimal')
-            Ku_e = np.einsum('epij,jk,epkl->eil', leftDepPart, matC, B_dep_e_pg, optimize='optimal')           
+        matC = Resize_variable(matC, Ne, nPg)
+        Ku_e = np.sum(leftDepPart @ matC @ B_dep_e_pg, axis=1)
         
         # Matrices masse
-        Mu_e = np.einsum('ep,p,pki,,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_e_pg, rho, N_vecteur_e_pg, optimize="optimal")            
+        rho_e_pg = Resize_variable(rho, Ne, nPg)
+        Mu_e = np.einsum(f'ep,p,pki,ep,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_pg, rho_e_pg, N_vecteur_pg, optimize="optimal")
 
         if self.dim == 2:
             epaisseur = self.comportement.epaisseur
@@ -1526,7 +1520,6 @@ class Simu_Displacement(Simu):
             return self.displacement
         elif algo == AlgoType.hyperbolic:
             return self.accel
-
     
     def Save_Iteration(self):
         
@@ -1569,10 +1562,10 @@ class Simu_Displacement(Simu):
             self.Update_iter(iter)
 
         if option in ["Wdef","Psi_Elas"]:
-            return self.__Calc_Psi_Elas()
+            return self._Calc_Psi_Elas()
 
         if option == "energy":
-            psi_e = self.__Calc_Psi_Elas(returnScalar=False)
+            psi_e = self._Calc_Psi_Elas(returnScalar=False)
 
             if nodeValues:
                 return self.Resultats_InterpolationAuxNoeuds(self.mesh, psi_e)
@@ -1580,7 +1573,7 @@ class Simu_Displacement(Simu):
                 return psi_e
             
         if option == "energy_smoothed":
-            psi_e = self.__Calc_Psi_Elas(returnScalar=False, smoothedStress=True)
+            psi_e = self._Calc_Psi_Elas(returnScalar=False, smoothedStress=True)
 
             if nodeValues:
                 return self.Resultats_InterpolationAuxNoeuds(self.mesh, psi_e)
@@ -1604,8 +1597,8 @@ class Simu_Displacement(Simu):
         coef = self.comportement.coef
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
-        Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
+        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
         # Moyenne sur l'élement
         Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
@@ -1717,16 +1710,15 @@ class Simu_Displacement(Simu):
                     else:
                         return resultat_e.reshape(-1)
 
-    def __Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False) -> float:
+    def _Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False, matriceType=MatriceType.rigi) -> float:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
         tic = Tic()
 
         sol_u  = self.displacement
-
-        matriceType = MatriceType.rigi
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(sol_u, matriceType)
+        
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matriceType)
         jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = self.mesh.Get_poid_pg(matriceType)
         N_pg = self.mesh.Get_N_scalaire_pg(matriceType)
@@ -1736,7 +1728,7 @@ class Simu_Displacement(Simu):
         else:
             ep = 1
 
-        Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg, matriceType)
+        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg, matriceType)
 
         if smoothedStress:
             Sigma_n = self.Resultats_InterpolationAuxNoeuds(self.mesh, np.mean(Sigma_e_pg, 1))
@@ -1759,7 +1751,7 @@ class Simu_Displacement(Simu):
         
         return Wdef
 
-    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -1773,23 +1765,17 @@ class Simu_Displacement(Simu):
             Deformations stockées aux éléments et points de gauss (Ne,pg,(3 ou 6))
         """
 
-        # useNumba = self.useNumba
-        useNumba = False
-        
         tic = Tic()
 
         u_e = self.mesh.Localises_sol_e(sol)
         B_dep_e_pg = self.mesh.Get_B_dep_e_pg(matriceType)
-        if useNumba: # Moins rapide
-            Epsilon_e_pg = CalcNumba.epij_ej_to_epi(B_dep_e_pg, u_e)
-        else: # Plus rapide
-            Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
+        Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
         
         tic.Tac("Matrices", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
                     
-    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -1802,22 +1788,20 @@ class Simu_Displacement(Simu):
         np.ndarray
             Renvoie les contrainres endommagé ou non (Ne,pg,(3 ou 6))
         """
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
 
-        assert Epsilon_e_pg.shape[0] == self.mesh.Ne
-        assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matriceType)
-
-        useNumba = self.useNumba
+        assert Ne == self.mesh.Ne
+        assert nPg == self.mesh.Get_nPg(matriceType)
 
         tic = Tic()
 
         c = self.comportement.C
-        if useNumba:
-            # Plus rapide sur les gros système > 500 000 ddl (ordre de grandeur)
-            # sinon legerement plus lent
-            Sigma_e_pg = CalcNumba.ij_epj_to_epi(c, Epsilon_e_pg)
-        else:
-            # Plus rapide sur les plus petits système
-            Sigma_e_pg = np.einsum('ik,epk->epi', c, Epsilon_e_pg, optimize='optimal')
+        
+        c_e_p = Resize_variable(c, Ne, nPg)
+
+        Sigma_e_pg = c_e_p @ Epsilon_e_pg[:,:,:,np.newaxis]
+        Sigma_e_pg = Sigma_e_pg.reshape((Ne,nPg,-1))
             
         tic.Tac("Matrices", "Sigma_e_pg", False)
 
@@ -1860,7 +1844,7 @@ class Simu_Displacement(Simu):
 
     def Resultats_Get_dict_Energie(self) -> list[tuple[str, float]]:
         dict_Energie = {
-            r"$\Psi_{elas}$": self.__Calc_Psi_Elas()
+            r"$\Psi_{elas}$": self._Calc_Psi_Elas()
             }
         return dict_Energie
 
@@ -2109,9 +2093,9 @@ class Simu_PhaseField(Simu):
             if convOption == 0:
                 dk = self.damage
             elif convOption == 1:
-                psi_crack_k = self.__Calc_Psi_Crack()
+                psi_crack_k = self._Calc_Psi_Crack()
             elif convOption == 2:
-                psi_tot_k = self.__Calc_Psi_Crack() + self.__Calc_Psi_Elas()
+                psi_tot_k = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
 
             # Damage
             self.__Assemblage_d()
@@ -2121,9 +2105,9 @@ class Simu_PhaseField(Simu):
             u_np1 = self.__Solve_u()
             
             if convOption == 1:
-                psi_crack_kp1 = self.__Calc_Psi_Crack()
+                psi_crack_kp1 = self._Calc_Psi_Crack()
             elif convOption == 2:
-                psi_tot_kp1 = self.__Calc_Psi_Crack() + self.__Calc_Psi_Elas()
+                psi_tot_kp1 = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
 
             if convOption == 0:
                 convIter = np.max(np.abs(d_kp1-dk))
@@ -2175,14 +2159,10 @@ class Simu_PhaseField(Simu):
             dict_Ku_e: les matrices elementaires pour chaque groupe d'element
         """
 
-        useNumba = self.useNumba
-        # useNumba = False
-
         matriceType=MatriceType.rigi
 
         # Data
         mesh = self.mesh
-        nPg = mesh.Get_nPg(matriceType)
         
         # Recupère les matrices pour travailler
         
@@ -2195,7 +2175,7 @@ class Simu_PhaseField(Simu):
         phaseFieldModel = self.phaseFieldModel
         
         # Calcul la deformation nécessaire pour le split
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, matriceType)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, matriceType)
 
         # Split de la loi de comportement
         cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
@@ -2204,25 +2184,12 @@ class Simu_PhaseField(Simu):
         
         # Endommage : c = g(d) * cP + cM
         g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matriceType)
-        useNumba=False
-        if useNumba:
-            # Moins rapide
-            cP_e_pg = CalcNumba.ep_epij_to_epij(g_e_pg, cP_e_pg)
-            # testcP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal') - cP_e_pg
-        else:
-            # Plus rapide
-            cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
+        cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
 
-        c_e_pg = cP_e_pg+cM_e_pg
+        c_e_pg = cP_e_pg + cM_e_pg
         
         # Matrice de rigidité élementaire
-        useNumba = self.useNumba
-        if useNumba:
-            # Plus rapide
-            Ku_e = CalcNumba.epij_epjk_epkl_to_eil(leftDepPart, c_e_pg, B_dep_e_pg)
-        else:
-            # Ku_e = np.einsum('ep,p,epki,epkl,eplj->eij', jacobien_e_pg, poid_pg, B_dep_e_pg, c_e_pg, B_dep_e_pg, optimize='optimal')
-            Ku_e = np.einsum('epij,epjk,epkl->eil', leftDepPart, c_e_pg, B_dep_e_pg, optimize='optimal') 
+        Ku_e = np.sum(leftDepPart @ c_e_pg @ B_dep_e_pg, axis=1)
 
         if self.dim == 2:
             epaisseur = self.phaseFieldModel.epaisseur
@@ -2300,7 +2267,7 @@ class Simu_PhaseField(Simu):
 
         assert testu or testd,"Problème de dimension"
 
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(u, MatriceType.masse)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, MatriceType.masse)
         # ici le therme masse est important sinon on sous intègre
 
         # Calcul l'energie
@@ -2326,7 +2293,6 @@ class Simu_PhaseField(Simu):
             
         self.__psiP_e_pg = psiP_e_pg
 
-
         return self.__psiP_e_pg
     
     def __ConstruitMatElem_Pfm(self):
@@ -2347,6 +2313,8 @@ class Simu_PhaseField(Simu):
         matriceType=MatriceType.masse
 
         mesh = self.mesh
+        Ne = mesh.Ne
+        nPg = r_e_pg.shape[1]
 
         # Probleme de la forme K*Laplacien(d) + r*d = F        
         ReactionPart_e_pg = mesh.Get_phaseField_ReactionPart_e_pg(matriceType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
@@ -2355,44 +2323,24 @@ class Simu_PhaseField(Simu):
         
         tic = Tic()
 
-        # useNumba = self.__useNumba
-        useNumba = False        
-        if useNumba:
-            # Moin rapide et beug Fd_e
+        # Partie qui fait intervenir le therme de reaction r ->  jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg
+        K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
 
-            Kd_e, Fd_e = CalcNumba.Construit_Kd_e_and_Fd_e(r_e_pg, ReactionPart_e_pg,
-            k, DiffusePart_e_pg,
-            f_e_pg, SourcePart_e_pg)
-            # testFd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') - Fd_e
-
-            # assert np.max(testFd_e) == 0, "Erreur"
-
-            # K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
-            # K_K_e = np.einsum('epij->eij', DiffusePart_e_pg * k, optimize='optimal')
-            # testFd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') - Fd_e
-            # testKd_e = K_r_e+K_K_e - Kd_e
-
-        else:
-            # Plus rapide sans beug
-
-            # jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-            # poid_pg = mesh.Get_poid_pg(matriceType)
-            # Nd_pg = mesh.Get_N_scalaire_pg(matriceType)
-            # Bd_e_pg = mesh.Get_B_sclaire_e_pg(matriceType)
-
-            # Partie qui fait intervenir le therme de reaction r ->  jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg
-            K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
-            # K_r_e = np.einsum('ep,p,ep,pki,pkj->eij', jacobien_e_pg, poid_pg, r_e_pg, Nd_pg, Nd_pg, optimize='optimal')
-
-            # Partie qui fait intervenir le therme de diffusion K -> jacobien_e_pg, poid_pg, k, Bd_e_pg', Bd_e_pg
-            K_K_e = np.einsum('epij->eij', DiffusePart_e_pg * k, optimize='optimal')
-            # K_K_e = np.einsum('ep,p,,epki,epkj->eij', jacobien_e_pg, poid_pg, k, Bd_e_pg, Bd_e_pg, optimize='optimal')
-            
-            # Construit Fd_e -> jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'
-            Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal') #Ici on somme sur les points d'integrations
+        # Partie qui fait intervenir le therme de diffusion K -> jacobien_e_pg, poid_pg, k, Bd_e_pg', Bd_e_pg
+        k_e_pg = Resize_variable(k, Ne, nPg)
+        K_K_e = np.einsum('ep,epij->eij', k_e_pg, DiffusePart_e_pg, optimize='optimal')
         
-            Kd_e = K_r_e + K_K_e
+        # Construit Fd_e -> jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'
+        Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal')
+    
+        Kd_e = K_r_e + K_K_e
 
+        if self.dim == 2:
+            # TODO EPAISSEUR ?
+            epaisseur = phaseFieldModel.epaisseur
+            Kd_e *= epaisseur
+            Fd_e *= epaisseur
+        
         tic.Tac("Matrices","Construction Kd_e et Fd_e", self._verbosity)
 
         return Kd_e, Fd_e
@@ -2484,10 +2432,10 @@ class Simu_PhaseField(Simu):
             self.Update_iter(iter)
 
         if option in ["Wdef","Psi_Elas"]:
-            return self.__Calc_Psi_Elas()
+            return self._Calc_Psi_Elas()
 
         if option == "Psi_Crack":
-            return self.__Calc_Psi_Crack()
+            return self._Calc_Psi_Crack()
 
         if option == "damage":
             return self.damage
@@ -2518,8 +2466,8 @@ class Simu_PhaseField(Simu):
         coef = self.phaseFieldModel.comportement.coef       
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(displacement)
-        Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
+        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
         # Moyenne sur l'élement
         Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
@@ -2660,7 +2608,7 @@ class Simu_PhaseField(Simu):
                 elif dim == 3:
                     return 5
 
-    def __Calc_Psi_Elas(self) -> float:
+    def _Calc_Psi_Elas(self) -> float:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
@@ -2669,7 +2617,7 @@ class Simu_PhaseField(Simu):
         sol_u  = self.displacement
 
         matriceType = MatriceType.rigi
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(sol_u, matriceType)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matriceType)
         jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
         poid_pg = self.mesh.Get_poid_pg(matriceType)
 
@@ -2696,7 +2644,7 @@ class Simu_PhaseField(Simu):
         
         return Wdef
 
-    def __Calc_Psi_Crack(self) -> float:
+    def _Calc_Psi_Crack(self) -> float:
         """Calcul l'energie de fissure"""
 
         tic = Tic()
@@ -2720,13 +2668,18 @@ class Simu_PhaseField(Simu):
         grad_e_pg = np.einsum('epij,ej->epi',Bd_e_pg,d_e, optimize='optimal')
         diffuse_e_pg = grad_e_pg**2
 
-        gradPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, Gc*l0/c0, diffuse_e_pg, optimize='optimal')
+        Ne = grad_e_pg.shape[0]
+        nPg = grad_e_pg.shape[1]
+        
+        gcGrad = Resize_variable(Gc*l0/c0, Ne, nPg)
+        gradPart = np.einsum('ep,p,ep,epi->',jacobien_e_pg, poid_pg, gcGrad, diffuse_e_pg, optimize='optimal')
 
         alpha_e_pg = np.einsum('pij,ej->epi', Nd_pg, d_e, optimize='optimal')
         if pfm.regularization == PhaseField_Model.RegularizationType.AT2:
             alpha_e_pg = alpha_e_pg**2
         
-        alphaPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, Gc/(c0*l0), alpha_e_pg, optimize='optimal')
+        gcAlpha = Resize_variable(Gc/(c0*l0), Ne, nPg)
+        alphaPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, gcAlpha, alpha_e_pg, optimize='optimal')
 
         if self.dim == 2:
             ep = self.phaseFieldModel.epaisseur
@@ -2739,7 +2692,7 @@ class Simu_PhaseField(Simu):
 
         return Psi_Crack
 
-    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -2752,24 +2705,18 @@ class Simu_PhaseField(Simu):
         np.ndarray
             Deformations stockées aux éléments et points de gauss (Ne,pg,(3 ou 6))
         """
-
-        useNumba = self.useNumba
-        useNumba = False
         
         tic = Tic()
 
         u_e = self.mesh.Localises_sol_e(sol)
         B_dep_e_pg = self.mesh.Get_B_dep_e_pg(matriceType)
-        if useNumba: # Moins rapide
-            Epsilon_e_pg = CalcNumba.epij_ej_to_epi(B_dep_e_pg, u_e)
-        else: # Plus rapide
-            Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
+        Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')            
         
         tic.Tac("Matrices", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
 
-    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -2786,8 +2733,6 @@ class Simu_PhaseField(Simu):
         assert Epsilon_e_pg.shape[0] == self.mesh.Ne
         assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matriceType)
 
-        useNumba = self.useNumba
-
         d = self.damage
 
         phaseFieldModel = self.phaseFieldModel
@@ -2796,15 +2741,10 @@ class Simu_PhaseField(Simu):
         
         # Endommage : Sig = g(d) * SigP + SigM
         g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
-
-        useNumba = False
+        
         tic = Tic()
-        if useNumba:
-            # Moins rapide 
-            SigmaP_e_pg = CalcNumba.ep_epi_to_epi(g_e_pg, SigmaP_e_pg)
-        else:
-            # Plus rapide
-            SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
+        
+        SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
 
         Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
             
@@ -2881,8 +2821,8 @@ class Simu_PhaseField(Simu):
         return self.__resumeIter
 
     def Resultats_Get_dict_Energie(self) -> list[tuple[str, float]]:
-        PsiElas = self.__Calc_Psi_Elas()
-        PsiCrack = self.__Calc_Psi_Crack()
+        PsiElas = self._Calc_Psi_Elas()
+        PsiCrack = self._Calc_Psi_Crack()
         dict_Energie = {
             r"$\Psi_{elas}$": PsiElas,
             r"$\Psi_{crack}$": PsiCrack,
@@ -3337,7 +3277,7 @@ class Simu_Beam(Simu):
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self.__Calc_Epsilon_e_pg(self.beamDisplacement)
-        Sigma_e_pg = self.__Calc_Sigma_e_pg(Epsilon_e_pg)
+        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
         if option == "Stress":
             return np.mean(Sigma_e_pg, axis=1)
@@ -3407,7 +3347,7 @@ class Simu_Beam(Simu):
 
         return Epsilon_e_pg
 
-    def __Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations
         """
 
@@ -3514,6 +3454,8 @@ class Simu_Thermal(Simu):
 
         # Data
         k = thermalModel.k
+        rho = self.rho
+        c = thermalModel.c
 
         matriceType=MatriceType.rigi
 
@@ -3523,13 +3465,22 @@ class Simu_Thermal(Simu):
         poid_pg = mesh.Get_poid_pg(matriceType)
         N_e_pg = mesh.Get_N_scalaire_pg(matriceType)
         D_e_pg = mesh.Get_dN_sclaire_e_pg(matriceType)
+        Ne = mesh.Ne
+        nPg = poid_pg.size
 
-        Kt_e = np.einsum('ep,p,epji,,epjk->eik', jacobien_e_pg, poid_pg, D_e_pg, k, D_e_pg, optimize="optimal")
+        k_e_pg = Resize_variable(k, Ne, nPg)
 
-        rho = self.rho
-        c = thermalModel.c
+        Kt_e = np.einsum('ep,p,epji,ep,epjk->eik', jacobien_e_pg, poid_pg, D_e_pg, k_e_pg, D_e_pg, optimize="optimal")
 
-        Mt_e = np.einsum('ep,p,pji,,,pjk->eik', jacobien_e_pg, poid_pg, N_e_pg, rho, c, N_e_pg, optimize="optimal")
+        rho_e_pg = Resize_variable(rho, Ne, nPg)
+        c_e_pg = Resize_variable(c, Ne, nPg)
+
+        Mt_e = np.einsum('ep,p,pji,ep,ep,pjk->eik', jacobien_e_pg, poid_pg, N_e_pg, rho_e_pg, c_e_pg, N_e_pg, optimize="optimal")
+
+        if self.dim == 2:
+            epaisseur = thermalModel.epaisseur
+            Kt_e *= epaisseur
+            Mt_e *= epaisseur
 
         return Kt_e, Mt_e
 
