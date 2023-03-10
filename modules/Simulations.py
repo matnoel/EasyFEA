@@ -2679,7 +2679,7 @@ class Simu_PhaseField(Simu):
             alpha_e_pg = alpha_e_pg**2
         
         gcAlpha = Resize_variable(Gc/(c0*l0), Ne, nPg)
-        alphaPart = np.einsum('ep,p,,epi->',jacobien_e_pg, poid_pg, gcAlpha, alpha_e_pg, optimize='optimal')
+        alphaPart = np.einsum('ep,p,ep,epi->',jacobien_e_pg, poid_pg, gcAlpha, alpha_e_pg, optimize='optimal')
 
         if self.dim == 2:
             ep = self.phaseFieldModel.epaisseur

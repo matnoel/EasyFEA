@@ -153,9 +153,9 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
                 max = 1
         levels = np.linspace(min, max, 200)
     else:
-        max = np.max(valeurs)
-        min = np.min(valeurs)
-        levels = 200
+        max = np.max(valeurs)+1e-12
+        min = np.min(valeurs)-1e-12
+        levels = np.linspace(min, max, 200)
 
     if inDim in [1,2] and not use3DBeamModel:
         # Maillage contenu dans un plan 2D
