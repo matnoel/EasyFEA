@@ -1251,7 +1251,7 @@ class GroupElem(ABC):
 
         # Récupère les elements associés aux noeuds
         # exclusivement=False car on veut avoir tout les elements qui utilisent les noeuds
-        elements = self.Get_Elements_Nodes(nodes=noeuds, exclusivement=False)
+        elements = self.Get_Elements_Nodes(nodes=noeuds, exclusivement=True)
 
         self.__dict_elements_tags[tag] = elements
 
