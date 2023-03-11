@@ -1,6 +1,5 @@
 import os
 import matplotlib.pyplot as plt
-from scipy import sparse
 
 import Folder
 import PostTraitement
@@ -21,12 +20,12 @@ Affichage.Clear()
 dim = 2
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
-plotResult = True
-plotErreur = True
-plotProj = True
+plotResult = False
+plotErreur = False
+plotProj = False
 
-rapport = 1/5
-cible = 0.02
+rapport = 1/10
+cible = 0.01 if dim == 2 else 0.06
 iterMax = 20
 
 # Paramètres géométrie
@@ -39,16 +38,14 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-# meshSize = h/1
-# meshSize = L/2
 meshSize = h
 
 # TODO permettre de réutiliser le .geo pour construire la geométrie ?
 
 if dim == 2:
-    elemType = "TRI10" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
-    elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
+    elemType = "TETRA4" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
 # Maillage
@@ -136,7 +133,7 @@ mesh = DoMesh()
 
 # tt = mesh.Nodes_Point(ptC1)
 
-Affichage.Plot_Mesh(mesh)
+# Affichage.Plot_Mesh(mesh)
 # ax = Affichage.Plot_Model(mesh, alpha=0)
 # Affichage.Plot_Elements(mesh, mesh.nodes, 2, ax=ax, showId=True)
 # Affichage.Plot_Nodes(mesh, mesh.Nodes_Tag(["P1"]))
@@ -181,10 +178,10 @@ def DoSimu(i=0):
     # Calcul de l'erreur
     # ----------------------------------------------
 
-    Wdef_e = simu.Get_Resultat("energy", nodeValues=False)
+    Wdef_e = simu._Calc_Psi_Elas(False)
     Wdef = np.sum(Wdef_e)
 
-    WdefLisse_e = simu.Get_Resultat("energy_smoothed", nodeValues=False)
+    WdefLisse_e = simu._Calc_Psi_Elas(False, True)
     WdefLisse = np.sum(WdefLisse_e)
 
     erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
@@ -206,10 +203,6 @@ def DoSimu(i=0):
     h_e = np.mean(h_e_b, axis=1)
 
     c_e = (rapport-1)/erreur_e.max() * erreur_e + 1
-    # c_e = (rapport-1) * erreur_e + 1
-
-    # Affichage.Plot_Result(simu, h_e, nodeValues=False)
-    # Affichage.Plot_Result(simu, c_e, nodeValues=False)
 
     meshSize_n = simu.Resultats_InterpolationAuxNoeuds(mesh, c_e * h_e)
 
@@ -243,28 +236,13 @@ while erreur >= cible and i < iterMax:
 
         if plotProj:
 
-            groupp = oldMesh.Get_list_groupElem(0)[0]
-
-            # ax = Affichage.Plot_Mesh(oldMesh, alpha=0)
-            # nodess = []            
-            # [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(oldMesh.Ne)]
-            # # [nodess.extend(groupp.Get_pointsInElem(mesh.coordo, e)) for e in range(2)]
-            # if dim == 2:
-            #     # ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], marker="+", c="red", zorder=3)
-            #     # [ax.text(mesh.coordo[i,0], mesh.coordo[i,1], f"{i}") for i in range(mesh.Nn)]
-            #     ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1])
-            # else:
-            #     # ax.scatter(mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2], marker="+", c="red", zorder=3)
-            #     ax.scatter(mesh.coordo[nodess, 0], mesh.coordo[nodess, 1], mesh.coordo[nodess, 2])
-
             # TODO projection ne fonciton pas correctement pour les elements HEXA8 et PRISM6
             proj = Calc_projector(oldMesh, mesh)        
 
-            uproj = np.zeros(mesh.Nn*dim)        
 
             ddlsNew = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", mesh.nodes, ["x"])
             ddlsOld = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", oldMesh.nodes, ["x"])
-            
+            uproj = np.zeros(mesh.Nn*dim)        
             for d in range(dim):
                 uproj[ddlsNew+d] = proj @ oldU[ddlsOld+d]
 
@@ -301,7 +279,7 @@ if plotResult:
 
 PostTraitement.Make_Paraview(folder, simu)
 
-PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False, fps=1, nodeValues=False)
+# PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False, fps=1, nodeValues=False)
 
 # Tic.Plot_History(details=True)
 plt.show()

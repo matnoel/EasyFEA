@@ -4,6 +4,7 @@ from types import LambdaType
 
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatriceType
+import TicTac
 
 class Mesh:
 
@@ -429,10 +430,12 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     assert oldMesh.dim == newMesh.dim, "Les maillages doivent être de la même dimension"
     dim = oldMesh.dim
 
+    tic = TicTac.Tic()
+
     # Récupération des noeuds detectés dans les elements de l'ancien maillage
     # la connnectivité de ces noeuds dans les elements
     # la position des noeuds dans l'element de référence
-    nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Nodes_Elements_CoordoInElemRef(newMesh.coordo)
+    nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Nodes_Connect_CoordoInElemRef(newMesh.coordo)
 
     # Evaluation des fonctions de formes
     Ntild = oldMesh.groupElem.Ntild()        
@@ -445,6 +448,13 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
             phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1])
         elif dim == 3:
             phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1], coordo_n[:,2])
+    
+    # Ici on detecte si les noeuds apparaissent plusieurs fois 
+    counts = np.unique(nodes, return_counts=True)[1]
+    idxSup1 = np.where(counts > 1)[0]
+    if idxSup1.size > 0:
+        # si des noeuds sont utilisés plusieurs fois on divise les valeurs de fonctions de forme par le nombre d'apparation. Pour a la fin faire comme une moyenne
+        phi_n_nPe[idxSup1] = np.einsum("ni,n->ni", phi_n_nPe[idxSup1], 1/counts[idxSup1], optimize="optimal")
 
     # Constuction du projecteur
     connect_e = oldMesh.connect
@@ -462,24 +472,6 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     
     proj = sp.csr_matrix((valeurs, (lignes, colonnes)), (newMesh.Nn, oldMesh.Nn), dtype=float)
 
-    # On détecte les noeuds qui se superposent entre les deux maillages
-    nodesElemUnique, counts = np.unique(nodesElem, return_counts=True)    
-    nodesDetect = nodesElemUnique[np.where(counts > 1)[0]]
-    
-
-    oldNodes = []
-    newNodes = []
-    def FuncExtend_Detect(n: int):
-        xn, yn, zn = tuple(newMesh.coordo[n])
-        nodes = oldMesh.Nodes_Conditions(lambda x,y,z: (x==xn) & (y==yn)& (z==zn))
-        oldNodes.extend(nodes)
-        newNodes.extend([n]*nodes.size)
-
-    [FuncExtend_Detect(n) for n in nodesDetect]
-    
-    # Vide les lignes associées aux noeuds doubles et met un 1 pour relier les noeuds aux memes coordonnées
-    proj = proj.tolil()
-    proj[newNodes, :] = 0
-    proj[newNodes, oldNodes] = 1
+    tic.Tac("Mesh", "Construction du projecteur", False)
 
     return proj.tocsr()

@@ -814,7 +814,7 @@ class GroupElem(ABC):
         est utlisée pour obtenir la derivée des fonctions de formes dN_e_pg dans l'element réeel\n
         dN_e_pg = invF_e_pg . dN_pg
         """
-        if self.dim == 0: return
+        if self.dim == 0: return 
         if matriceType not in self.__dict_invF_e_pg.keys():
 
             F_e_pg = self.Get_F_e_pg(matriceType)
@@ -1407,10 +1407,9 @@ class GroupElem(ABC):
 
             return idx
 
-    def Get_Nodes_Elements_CoordoInElemRef(self, coordinates: np.ndarray, elements=None):
-        """Fonction qui permet de renvoyer les noeuds dans les elements, la connectivité et les coordonnées (ksi, eta) des points.
-        Depuis la la matrice de coordonnée coordinates\n
-        (e,n)"""
+    def Get_Nodes_Connect_CoordoInElemRef(self, coordinates: np.ndarray, elements=None):
+        """Fonction qui permet de renvoyer les noeuds dans les elements, la connectivité et les coordonnées (ksi, eta) des points.\n
+        return nodes, connect_e_n, coordoInElem_n"""
 
         # TODO est ce que le principe fonctionne si la face est orientée dans l'espace ? inDim = 3 ?
 
@@ -1422,9 +1421,9 @@ class GroupElem(ABC):
 
         assert coordinates.shape[1] == 3, "Doit être de dimension (n, 3)"
 
-        return self.__Get_Nodes_Elements_CoordoInElemRef(coordinates, elements)
+        return self.__Get_Nodes_Connect_CoordoInElemRef(coordinates, elements)
 
-    def __Get_Nodes_Elements_CoordoInElemRef(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
+    def __Get_Nodes_Connect_CoordoInElemRef(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
         """Cette fonction permet de localiser les coordonnées dans les éléments.
         On renvoie les coordonnées détectées, la matrice de connectivité entre élément et coordonnées et les coordonnées de ces noeuds dans les éléments de référence pour pouvoir évaluer les fonctions de formes"""
         
@@ -1491,8 +1490,14 @@ class GroupElem(ABC):
 
             # coordonnées de ces noeuds dans l'element dans la base reel
             nodesCoordinatesInElem = coordinates_n[nodesInElement] - coordoZone[0]
-            # coordonnées de ces noeuds dans l'element dans la base de l'element            
+            # coordonnées de ces noeuds dans l'element dans la base de l'element
             nodesCoordinatesInElemRef = nodesCoordinatesInElem[:,:self.inDim] @ invF_e_pg[e,0]
+
+            # décalage si nécessaire
+            # ici introduit un décalage, car tous les éléments a l'exception des TRI et TETRA on leurs points 0 en -1 -1
+            dec = [0] if "T" in self.elemType else [-1]
+            dec = dec * self.inDim
+            nodesCoordinatesInElemRef = nodesCoordinatesInElemRef + dec
 
             connect_e_n.append(nodesInElement)
 
@@ -1504,7 +1509,7 @@ class GroupElem(ABC):
         
         connect_e_n = np.array(connect_e_n, dtype=object)
 
-        nodes, count = np.unique(nodes, return_counts=True)        
+        nodes = np.asarray(nodes)
 
         return nodes, connect_e_n, coordoInElem_n
 

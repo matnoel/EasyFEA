@@ -1028,7 +1028,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Construction plaque trouée", self.__verbosity)
+        tic.Tac("Mesh","Construction 2D", self.__verbosity)
 
         self.__Construction_Maillage(2, elemType, surfaces=surfacesPleines, crackLines=crackLines, openPoints=openPoints, isOrganised=False, folder=folder)
 
@@ -1085,7 +1085,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Mesh from points", self.__verbosity)
+        tic.Tac("Mesh","Construction 3D", self.__verbosity)
 
         surfaces = entities3D[0][1]
 
