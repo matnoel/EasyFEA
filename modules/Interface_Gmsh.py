@@ -208,7 +208,6 @@ class Interface_Gmsh:
 
         # Ici on supprime le point du centre du cercle TRES IMPORTANT sinon le points reste au centre du cercle
         factory.remove([(0,p0)], False)
-            
         
         loop = factory.addCurveLoop([l1,l2,l3,l4])
 
@@ -623,8 +622,6 @@ class Interface_Gmsh:
         """Création des groupes physiques associés aux fissures\n
         return crackLines, crackSurfaces, openPoints, openLines
         """
-
-        dim = entities[0][0]
         
         # listes contenants les entitées ouvertes
         openPoints = []
@@ -652,19 +649,10 @@ class Interface_Gmsh:
                 if pt1.isOpen:
                     entities0D.append(p1)
                     openPoints.append(p1)
-                    # o1, m1 = self.__factory.fragment([(0, p1), (1, line)], entities)
-                    # openPoints.append(p1)
-                    # entities0D.append(p1)
 
                 if pt2.isOpen:
                     entities0D.append(p2)
                     openPoints.append(p2)
-                    # o2, m2 = self.__factory.fragment([(0, p2), (1, line)], entities)
-                    # openPoints.append(p2)
-                    # entities0D.append(p2)
-                
-                # self.__factory.synchronize()
-                # gmsh.model.mesh.embed(1, [line], dim, entities[0][1])
                 
             else:
                 # Récupération des boucles
@@ -679,19 +667,12 @@ class Interface_Gmsh:
                 if crack.isCreux:
                     openSurfaces.append(surface)
 
-
         newEntities = [(0, point) for point in entities0D]
         newEntities.extend([(1, line) for line in entities1D])
         newEntities.extend([(2, surf) for surf in entities2D])
         
-        # o, m = gmsh.model.occ.fragment(newEntities, entities)
         o, m = gmsh.model.occ.fragment(entities, newEntities)
         self.__factory.synchronize()
-        
-        # if dim == 2:
-        #     gmsh.model.mesh.embed(1, entities1D, 2, entities[0][1])
-        # elif dim == 3:
-        #     gmsh.model.mesh.embed(2, entities2D, 3, entities[0][1])        
 
         crackLines = gmsh.model.addPhysicalGroup(1, openLines) if len(openLines) > 0 else None
         crackSurfaces = gmsh.model.addPhysicalGroup(2, openSurfaces) if len(openSurfaces) > 0 else None
@@ -1000,17 +981,15 @@ class Interface_Gmsh:
 
         # Création de toutes les boucles associés aux objets à l'intérieur du domaine
         hollowLoops, filledLoops = self.__Get_hollowLoops_And_filledLoops(inclusions)
-
-        # Pour chaque objetGeom plein, il est nécessaire de créer une surface
-        surfacesPleines = [factory.addPlaneSurface([loop]) for loop in filledLoops]
         
         listeLoop = [loopContour] # surface du domaine
         listeLoop.extend(hollowLoops) # On rajoute les surfaces creuses
 
         surfaceDomain = self.__Surface_From_Loops(listeLoop)
 
-        # Rajoute la surface du domaine en dernier
-        surfacesPleines.insert(0, surfaceDomain)
+        # Pour chaque objetGeom plein, il est nécessaire de créer une surface
+        surfacesPleines = [surfaceDomain]
+        [surfacesPleines.append(factory.addPlaneSurface([loop])) for loop in filledLoops]
 
         # Récupère l'entité 2D
         self.__factory.synchronize()
