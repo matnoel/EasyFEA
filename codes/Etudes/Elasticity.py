@@ -9,7 +9,6 @@ import Simulations
 from Mesh import ElemType
 import Materials
 import Folder
-import TicTac
 
 # import gmsh
 
@@ -21,7 +20,7 @@ class SimulationType(str, Enum):
     EQUERRE = "EQUERRE",
     TEF2 = "TEF2"
 
-simulationType = SimulationType.TEF2
+simulationType = SimulationType.EQUERRE
 
 interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
@@ -40,15 +39,13 @@ if simulationType == SimulationType.CPEF:
     mesh = interface.Mesh_Import_part3D(fichier, 5)
 
     noeuds134 = mesh.Nodes_Tags(['S134'])
-    Affichage.Plot_Elements(mesh, noeuds134)
-    plt.show()
     
 elif simulationType == SimulationType.EQUERRE:
 
     L = 120 #mm
-    h = L*0.3
+    h = L * 0.3
 
-    pt1 = Point(isOpen=True, r=0)
+    pt1 = Point(isOpen=True, r=-10)
     pt2 = Point(x=L)
     pt3 = Point(x=L,y=h)
     pt4 = Point(x=h, y=h, r=10)
@@ -56,23 +53,22 @@ elif simulationType == SimulationType.EQUERRE:
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
 
-    # crack = Line(pt1, Point(h/3, h/3), h/10, isOpen=False)
-    crack = Line(pt1, Point(h/3, h/3), h/10, isOpen=False)
+    crack = Line(Point(y=3*h, isOpen=True), Point(x=3*h, y=3*h), h/10, isOpen=False)
 
     listPoint = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
     # listPoint = PointsList([pt1, pt2, pt3, pt7], h/N)
 
-    listObjetsInter = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize=h/N, isCreux=True) for i in range(3)]
+    inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize=h/N, isCreux=True) for i in range(3)]
 
-    listObjetsInter.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
+    inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.QUAD4, inclusions=listObjetsInter, cracks=[], folder=folder)
+        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.QUAD4, inclusions=inclusions, folder=folder)
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=listObjetsInter, folder=folder)
+        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=inclusions, folder=folder)
 
 
         noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
@@ -113,7 +109,7 @@ elif simulationType == SimulationType.TEF2:
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x==0)
 
 Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh, showId=False)
+Affichage.Plot_Model(mesh, showId=True)
 # plt.show()
 
 comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
