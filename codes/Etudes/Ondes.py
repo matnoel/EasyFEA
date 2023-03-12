@@ -13,30 +13,28 @@ import TicTac
 Affichage.Clear()
 
 plotModel = False
-plotIter = True; resultat = "amplitudeSpeed"
+plotIter = True
+resultat = "amplitudeSpeed"
 
 makeMovie = False
 
-Nt = 50
-dt = 1e-6
-tMax = dt*Nt
-load = 1
+tMax = 1e-7
+Nt = 80
+dt = tMax/Nt
+load = 1e-3
 
 f0=2
 a0=1
 
-t0 = dt
-Gt = lambda t: a0*2*((np.pi*f0*(t-t0))**2-1)*np.exp(-(np.pi*f0*(t-t0))**2)
-Gx = lambda x: 1/np.sqrt(np.pi)*np.exp(-x**2*10)
-# Gx = lambda x: 1
+t0 = dt*2
 
 a = 1
-taille = a/40
+meshSize = a/100
 diam = a/10
 r = diam/2
 
-domain = Domain(Point(x=-a/2, y=-a/2), Point(x=a/2, y=a/2), taille)
-circle = Circle(Point(), diam, taille, isCreux=False)
+domain = Domain(Point(x=-a/2, y=-a/2), Point(x=a/2, y=a/2), meshSize)
+circle = Circle(Point(), diam, meshSize, isCreux=False)
 
 
 interfaceGmsh = Interface_Gmsh(False)
@@ -45,27 +43,14 @@ mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "TRI3")
 if plotModel:
     Affichage.Plot_Model(mesh)
     plt.show()
+
 noeudsBord = mesh.Nodes_Tags(["L0","L1","L2","L3"])
-# noeudCentreCercle = mesh.Nodes_Tag(["L4","L5","L6","L7"])
 noeudCentreCercle = mesh.Nodes_Tags(["P8"])
-# Affichage.Plot_Noeuds(mesh, noeudCentreCercle)
-# plt.show()
 
 comportement = Materials.Elas_Isot(2, E=210000e6, v=0.3, contraintesPlanes=False, epaisseur=1)
 
 l = comportement.get_lambda()
 mu = comportement.get_mu()
-
-
-# cp = np.sqrt((l+2*mu)/ro)
-# cs = np.sqrt(r/ro)
-# a0 = 1
-# yx = a0 * np.exp(-(10*x/cp)**2)
-
-
-
-# Gt = lambda t: a0*2*((np.pi*f0*(t-t0))**2-1)*np.exp(-(np.pi*f0*(t-t0))**2)
-
 
 simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 
@@ -78,17 +63,8 @@ def Chargement():
 
     simu.add_dirichlet(noeudsBord, [0,0], ["x","y"], description="[0,0]")
 
-
-    # fonctionX = 0
-    # fonctionX = lambda x,y,z: load*(y-circle.center.y)/r
-    # fonctionY = lambda x,y,z: load*(x-circle.center.x)/r
-    
-    fonctionX = lambda x,y,z: Gx(x)*Gt(t)
-    fonctionY = lambda x,y,z: Gx(x)*Gt(t)
-    simu.add_neumann(noeudCentreCercle, [fonctionX, fonctionY], ["x","y"])
-
-    # if t == dt:
-    #     simu.add_dirichlet(noeudCentreCercle, [1e-2,1e-2], ["x","y"], description="[load,load]")
+    if t == t0:
+        simu.add_neumann(noeudCentreCercle, [load,load], ["x","y"], description="[load,load]")
         
 
 if plotIter:
