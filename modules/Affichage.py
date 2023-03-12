@@ -153,9 +153,10 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
                 max = 1
         levels = np.linspace(min, max, 200)
     else:
-        max = np.max(valeurs)+1e-12
-        min = np.min(valeurs)-1e-12
-        levels = np.linspace(min, max, 200)
+        max = np.max(valeurs)
+        min = np.min(valeurs)
+        # levels = np.linspace(min, max, 200)
+        levels = 200
 
     if inDim in [1,2] and not use3DBeamModel:
         # Maillage contenu dans un plan 2D
@@ -203,11 +204,11 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
                 # récupération des triangles de chaque face pour utiliser la fonction trisurf
                 connectTri = mesh.dict_connect_Triangle
                 
-                if np.mean(valeurs) != 0:
-                    dispersion = np.std(valeurs)/np.mean(valeurs)
-                    if dispersion < 1e-12:
-                        # si il n'y a aucune dispersion sur les valeurs il n'est pas possible d'avoir trop de niveau de couleurs
-                        valeurs = np.round(valeurs, 12)
+                # if np.mean(valeurs) != 0:
+                #     dispersion = np.std(valeurs)/np.mean(valeurs)
+                #     if dispersion < 1e-12:
+                #         # si il n'y a aucune dispersion sur les valeurs il n'est pas possible d'avoir trop de niveau de couleurs
+                #         valeurs = np.round(valeurs, 12)
 
                 pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=cmap)
                 # tripcolor, tricontour, tricontourf
@@ -630,7 +631,8 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
 
         connect_e = groupElemDim.connect
         coordo_n = groupElemDim.coordoGlob
-        coordoFaces_e = coordo_n[connect_e]
+        indexeFaces = groupElemDim.indexesFaces
+        coordoFaces_e = coordo_n[connect_e[:, indexeFaces]]
         coordoFaces = coordoFaces_e[elements]
 
         coordo_e = np.mean(coordoFaces_e, axis=1)
