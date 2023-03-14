@@ -1045,8 +1045,6 @@ class Interface_Gmsh:
         self.__CheckType(3, elemType)
         
         tic = Tic()
-
-        cracks1D = [crack for crack in cracks if isinstance(crack, Line)]
         
         # le maillage 2D de départ n'a pas d'importance
         surfaces = self.Mesh_2D(pointsList, elemType=ElemType.TRI3, inclusions=inclusions, cracks=[], refineGeom=refineGeom, returnSurfaces=True)
@@ -1070,8 +1068,6 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder,
         crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
-
-        # self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder)
         
         return self.__Recuperation_Maillage()
     
@@ -1184,10 +1180,10 @@ class Interface_Gmsh:
                         surf = entities[-1][-1]
                         gmsh.model.mesh.setRecombine(2, surf)
                 
-                # Génère le maillage
-                gmsh.model.mesh.generate(2)
-                
-                Interface_Gmsh.__Set_order(elemType)
+            # Génère le maillage
+            gmsh.model.mesh.generate(2)
+            
+            Interface_Gmsh.__Set_order(elemType)
         
         elif dim == 3:
             self.__factory.synchronize()
@@ -1410,13 +1406,13 @@ class Interface_Gmsh:
             # Pour chaque groupe physique je vais venir récupéré les noeuds
             # et associé les tags
             i = -1
+
             for dim, tag in listPhysicalGroups:
                 i += 1
 
-                # name = gmsh.model.getPhysicalName(groupElem.dim, tag)
                 name = listName[i]
 
-                nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(groupElem.dim, tag)
+                nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(dim, tag)
                 # Si aucun noeud à été récupéré passe au prochain groupePhysique
                 if nodeTags.size == 0: continue
 
