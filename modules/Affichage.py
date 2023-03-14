@@ -141,7 +141,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     
     connect_Faces = mesh.dict_connect_Faces # construit la matrice de connection pour les faces    
 
-    # Construit les niveaux pour la colorbar
+    # Construit les bornes pour la colorbar
     if isinstance(option, str) and option == "damage":
         min = valeurs.min()-1e-12
         openCrack = False
@@ -150,13 +150,12 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         else:
             max = valeurs.max()+1e-12
             if max < 1:
-                max = 1
-        levels = np.linspace(min, max, 200)
+                max = 1        
     else:
-        max = np.max(valeurs)
-        min = np.min(valeurs)
-        # levels = np.linspace(min, max, 200)
-        levels = 200
+        max = np.max(valeurs)+1e-12
+        min = np.min(valeurs)-1e-12
+
+    levels = np.linspace(min, max, 200)
 
     if inDim in [1,2] and not use3DBeamModel:
         # Maillage contenu dans un plan 2D
@@ -210,7 +209,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
                 #         # si il n'y a aucune dispersion sur les valeurs il n'est pas possible d'avoir trop de niveau de couleurs
                 #         valeurs = np.round(valeurs, 12)
 
-                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=cmap)
+                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=cmap, vmin=min, vmax=max)
                 # tripcolor, tricontour, tricontourf
 
         ax.autoscale()
@@ -230,10 +229,9 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         
         # Construction les ticks pour la colorbar
         if isinstance(option, str) and option == "damage":
-            ticks = np.linspace(0,1,11)            
+            ticks = np.linspace(0,1,11)
         else:
-            ticks = np.linspace(valeurs.min(),valeurs.max(),11)            
-
+            ticks = np.linspace(min,max,11)
         cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
         
         # Renome les axes
@@ -279,14 +277,14 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
             # On affiche le résultat avec ou sans l'affichage du maillage
             if plotMesh:
                 if dim == 1:
-                    pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=cmap)
+                    pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
                 elif dim == 2:
-                    pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=cmap)
+                    pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
             else:
                 if dim == 1:
-                    pc = Line3DCollection(vertices, cmap=cmap)
+                    pc = Line3DCollection(vertices, cmap=cmap, zorder=0)
                 if dim == 2:
-                    pc = Poly3DCollection(vertices, cmap=cmap)
+                    pc = Poly3DCollection(vertices, cmap=cmap, zorder=0)
 
             # On applique les couleurs aux faces
             pc.set_array(valeursAuxFaces)
