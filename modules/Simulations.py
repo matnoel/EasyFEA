@@ -1496,7 +1496,7 @@ class Simu_Displacement(Simu):
 
             tic.Tac("Matrices","Assemblage Ku, Mu et Fu", self._verbosity)
 
-            self.Need_Update()
+            self.Need_Update(False)
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         self.__coefM = coefM
@@ -3218,6 +3218,8 @@ class Simu_Beam(Simu):
             # plt.spy(self.__Ku)
             # plt.show()
 
+            self.Need_Update(False)
+
             tic.Tac("Matrices","Assemblage Kbeam et Fbeam", self._verbosity)
 
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
@@ -3519,7 +3521,7 @@ class Simu_Thermal(Simu):
 
             tic.Tac("Matrices","Assemblage Kt, Mt et Ft", self._verbosity)
 
-            self.Need_Update()
+            self.Need_Update(False)
 
     def Save_Iteration(self):
 
