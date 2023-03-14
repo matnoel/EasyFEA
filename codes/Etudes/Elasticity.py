@@ -8,12 +8,11 @@ import Affichage
 import Simulations
 from Mesh import ElemType
 import Materials
+import TicTac
 import Folder
 
-# import gmsh
-
 dim = 2
-N = 15
+N = 50
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -28,7 +27,7 @@ coef = 1
 E=210000 # MPa
 v=0.3
 
-folder = Folder.New_File("gmshTest", results=True)
+folder = Folder.New_File("Elasticity", results=True)
 if not os.path.exists(folder):
     os.makedirs(folder)
 
@@ -63,12 +62,12 @@ elif simulationType == SimulationType.EQUERRE:
     inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.QUAD4, inclusions=inclusions, folder=folder)
+        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=inclusions)
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=inclusions, folder=folder)
+        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=inclusions)
 
 
         noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
@@ -100,10 +99,10 @@ elif simulationType == SimulationType.TEF2:
     listPoint = PointsList([pt1, pt2, pt3], taille)
     
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=[], folder=folder)
+        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=[])
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.TETRA4, inclusions=[], folder=folder)
+        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.TETRA4, inclusions=[])
 
     noeudsBas = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x==0)
@@ -152,6 +151,6 @@ Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
 Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
 Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, deformation=True,coef=1/coef)
 
-# TicTac.Tic.Plot_History()
+TicTac.Tic.Plot_History()
 
 plt.show()
