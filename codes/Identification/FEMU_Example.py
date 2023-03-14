@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import Simulations
+import Folder
 import Affichage
 import Interface_Gmsh
 import Materials
@@ -14,6 +15,8 @@ Affichage.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
+
+folder = Folder.New_File("Identification", results=True)
 
 pltVerif = False
 useRescale = True
@@ -28,7 +31,7 @@ elemType = "TRI3"
 
 mat = "bois" # "acier" "bois"
 
-tol = 1e-14
+tol = 1e-6
 
 sig = 10
 
@@ -48,7 +51,7 @@ circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isCreux=True)
 
 mesh = gmshInterface.Mesh_2D(points, elemType, [circle])
 
-Affichage.Plot_Model(mesh)
+# Affichage.Plot_Model(mesh)
 
 nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 nodesp0 = mesh.Nodes_Tags(["P0"])
@@ -68,8 +71,8 @@ if useRescale:
     ddlsHautY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesHaut, ["y"])
 
 
-Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh)
+# Affichage.Plot_Mesh(mesh)
+# Affichage.Plot_Model(mesh)
 # Affichage.Plot_Nodes(mesh, nodesX0)
 
 # ----------------------------------------------
@@ -83,6 +86,11 @@ if mat == "acier":
     E_exp, v_exp = 210000, 0.3
     comp = Materials.Elas_Isot(2, epaisseur=b)
 
+    dict_param = {
+        "E" : E_exp,
+        "v0" : v_exp
+    }
+
     Emax=300000
     vmax=0.49
     E0, v0 = Emax, vmax
@@ -90,20 +98,21 @@ if mat == "acier":
     
     compIdentif = Materials.Elas_Isot(2, E0, v0, epaisseur=b)
     bounds=([tol0]*2, [bSup, vmax])
-    
+
 elif mat == "bois":
     EL_exp, GL_exp, ET_exp, vL_exp = 12000, 450, 500, 0.3
+
+    dict_param = {
+        "EL" : EL_exp,
+        "GL" : GL_exp,
+        "ET" : ET_exp,
+        "vL" : vL_exp
+    }
     
     EL0 = EL_exp * 10
     GL0 = GL_exp * 10
     ET0 = ET_exp * 10
     vL0 = vL_exp
-
-    EL0 = np.random.uniform(tol0, EL_exp*100)
-    GL0 = np.random.uniform(tol0, GL_exp*100)
-    ET0 = np.random.uniform(tol0, ET_exp*100)
-    vL0 = np.random.uniform(tol0, 0.5-tol0)
-    vL0 = 0.3
 
     lb = [tol0]*4
     ub = (bSup, bSup, bSup, 0.5-tol0)
@@ -126,11 +135,11 @@ simu.add_dirichlet(nodesBas, [0], ["y"])
 simu.add_dirichlet(nodesp0, [0], ["x"])
 simu.add_surfLoad(nodesHaut, [-sig], ["y"])
 
-Affichage.Plot_BoundaryConditions(simu)
+# Affichage.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
 
-Affichage.Plot_Result(simu, "uy")
+# Affichage.Plot_Result(simu, "uy")
 # Affichage.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
 # Affichage.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
 # Affichage.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
@@ -142,8 +151,7 @@ Affichage.Plot_Result(simu, "uy")
 
 Affichage.NouvelleSection("Identification")
 
-# perturbations = [0, 0.02]
-perturbations = np.linspace(0, 0.05, 6)
+
 
 simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
 
@@ -173,81 +181,128 @@ def func(x):
 
     return diff
 
-list_dict = []
 # liste de dictionnaire qui va contenir pour les différentes perturbations les
 # propriétés identifiées
 
+list_dict_perturbation = []
+
+# perturbations = [0.01, 0.02]
+perturbations = np.linspace(0, 0.05, 6)
+
 for perturbation in perturbations:
 
-    # bruitage de la solution
-    bruit = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
-    u_exp_bruit = u_exp + bruit
+    print(f"\nperturbation = {perturbation}")
 
-    if mat == "acier":
-        compIdentif.E = E0
-        compIdentif.v = v0
-    elif mat == "bois":
-        compIdentif.El = EL0
-        compIdentif.Gl = GL0
-        compIdentif.Et = ET0
-        compIdentif.vl = vL0
+    list_dict_tirage = []
 
-    simuIdentif.Bc_Init()
-    
-    if useRescale:        
-        simuIdentif.add_dirichlet(nodesBas, [u_exp_bruit[ddlsBasX], u_exp_bruit[ddlsBasY]], ["x","y"])
-        simuIdentif.add_dirichlet(nodesHaut, [u_exp_bruit[ddlsHautX]], ["x"])
-        simuIdentif.add_surfLoad(nodesHaut, [-sig], ["y"])
-    else:    
-        simuIdentif.add_dirichlet(nodes, [u_exp_bruit[ddlsX], u_exp_bruit[ddlsY]], ["x","y"])
+    for tirage in range(80):
 
-    ddlsConnues, ddlsInconnues = simuIdentif.Bc_ddls_connues_inconnues(simuIdentif.problemType)
-    # Affichage.Plot_BoundaryConditions(simuIdentif)
+        print(f"tirage = {tirage}", end='\r')
 
-    # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
-    res = least_squares(func, x0, bounds=bounds, verbose=1, ftol=tol, gtol=tol, xtol=tol)
+        # bruitage de la solution
+        bruit = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
+        u_exp_bruit = u_exp + bruit
 
-    dict = {
-        "perturbation": perturbation        
+        if mat == "acier":
+            compIdentif.E = E0
+            compIdentif.v = v0
+        elif mat == "bois":
+            compIdentif.El = EL0
+            compIdentif.Gl = GL0
+            compIdentif.Et = ET0
+            compIdentif.vl = vL0
+
+        simuIdentif.Bc_Init()
+        
+        if useRescale:        
+            simuIdentif.add_dirichlet(nodesBas, [u_exp_bruit[ddlsBasX], u_exp_bruit[ddlsBasY]], ["x","y"])
+            simuIdentif.add_dirichlet(nodesHaut, [u_exp_bruit[ddlsHautX]], ["x"])
+            simuIdentif.add_surfLoad(nodesHaut, [-sig], ["y"])
+        else:    
+            simuIdentif.add_dirichlet(nodes, [u_exp_bruit[ddlsX], u_exp_bruit[ddlsY]], ["x","y"])
+
+        ddlsConnues, ddlsInconnues = simuIdentif.Bc_ddls_connues_inconnues(simuIdentif.problemType)
+        # Affichage.Plot_BoundaryConditions(simuIdentif)
+
+        # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
+        res = least_squares(func, x0, bounds=bounds, verbose=0, ftol=tol, gtol=tol, xtol=tol)
+
+        dict_tirage = {
+            "tirage" : tirage
+        }
+
+        if mat == "acier":
+            dict_tirage["E"]=res.x[0]
+            dict_tirage["v"]=res.x[1]
+        elif mat == "bois":
+            dict_tirage["EL"]=res.x[0]
+            dict_tirage["GL"]=res.x[1]
+            dict_tirage["ET"]=res.x[2]
+            dict_tirage["vL"]=res.x[3]
+
+        list_dict_tirage.append(dict_tirage)
+
+    df_tirage = pd.DataFrame(list_dict_tirage)
+
+    dict_perturbation = {
+        "perturbation" : perturbation,
     }
 
     if mat == "acier":
-        dict["E"]=res.x[0]
-        dict["v"]=res.x[1]
+        dict_perturbation["E"] = df_tirage["E"].values
+        dict_perturbation["v"] = df_tirage["E"].values
     elif mat == "bois":
-        dict["EL"]=res.x[0]
-        dict["GL"]=res.x[1]
-        dict["ET"]=res.x[2]
-        dict["vL"]=res.x[3]
+        dict_perturbation["EL"] = df_tirage["EL"].values
+        dict_perturbation["GL"] = df_tirage["GL"].values
+        dict_perturbation["ET"] = df_tirage["ET"].values
+        dict_perturbation["vL"] = df_tirage["vL"].values
 
-    dict["bruit"]= bruit
-    dict["u_exp_bruit"]= u_exp_bruit
+    list_dict_perturbation.append(dict_perturbation)
+    
 
-    list_dict.append(dict)
-
-df = pd.DataFrame(list_dict)
+df_pertubation = pd.DataFrame(list_dict_perturbation)
 
 # print(df)
-
-ax = plt.subplots()[1]
 
 if mat == "acier":
     params = ["E","v"]
 elif mat == "bois":
     params = ["EL", "GL", "ET", "vL"]
 
+borne = 0.95
+bInf = 0.5 - (0.95/2)
+bSup = 0.5 + (0.95/2)
+
 for param in params:
 
-    values = df[param].values
+    axParam = plt.subplots()[1]
+    
+    paramExp = dict_param[param]
 
-    err = np.abs(values - values[0])/values[0]
+    perturbations = df_pertubation["perturbation"]
 
-    label = f"| {param} - {param}_exp | / {param}_exp"
+    nPertu = perturbations.size
+    nTirage = df_pertubation[param].values[0].size
+    values = np.zeros((nPertu, nTirage))
+    for p in range(nPertu):
+        values[p] = df_pertubation[param].values[p]
+    values *= 1/paramExp
 
-    ax.plot(df["perturbation"], err, label=label)
+    mean = values.mean(axis=1)
+    std = values.std(axis=1)
 
-ax.legend()
-ax.set_xlabel("perturbation")
+    paramInf, paramSup = tuple(np.quantile(values, (bInf, bSup), axis=1))
+
+    axParam.plot(perturbations, [1]*nPertu, label=f"{param}_exp", c="black", ls='--')
+    axParam.plot(perturbations, mean, label=f"{param}_moy")
+    axParam.fill_between(perturbations, paramInf, paramSup, alpha=0.3, label=f"{borne*100} %")
+    axParam.set_xlabel("perturbations")
+    axParam.set_ylabel(fr"$1 \ / \ {param}$")
+    axParam.legend()
+    
+    Affichage.Save_fig(folder, param, extension='pdf')
+
+    pass
 
 if mat == "acier":
     print(f"\nE = {res.x[0]:.3e}")
