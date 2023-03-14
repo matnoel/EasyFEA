@@ -263,27 +263,41 @@ class GroupElem(ABC):
         """Récupérations des élements qui utilisent exclusivement ou non les noeuds renseignés"""
         connect = self.__connect
         connect_n_e = self.Get_connect_n_e()
-        
+
         # Verifie si il n'y a pas de noeuds en trop
         # Il est possible que les noeuds renseignés n'appartiennent pas au groupe
         if self.Nn < nodes.max():
             # On enlève tout les noeuds en trop
             indexNoeudsSansDepassement = np.where(nodes < self.Nn)[0]
             nodes = nodes[indexNoeudsSansDepassement]
+
+        # Construit une liste permettant d'acceder a la position de nodes dans connect
+        nodesIndex = np.zeros(self.__coordoGlob.shape[0], dtype=int)
+        nodesIndex[self.__nodes] = np.arange(self.Nn)
         
-        lignes, colonnes, valeurs = sparse.find(connect_n_e[nodes])
+        lignes, colonnes, valeurs = sparse.find(connect_n_e[nodesIndex[nodes]])
 
-        elements = np.unique(colonnes)
-
+        elements, counts = np.unique(colonnes, return_counts=True)
+        
         if exclusivement:
-            # Verifie si les elements utilisent exculisevement les noeuds dans la liste de noeuds
-            # Pour chaque element, si lelement contient un noeuds n'appartenant pas à la liste de noeuds on l'enlève
-            listElemIndex = [e for e in elements if not False in [n in nodes for n in connect[e]]]        
-            listElemIndex = np.array(listElemIndex)
-        else:
-            listElemIndex = elements
+            # Verifie si les elements utilisent exclusivement les noeuds dans la liste de noeuds
+            
+            # on recupère les noeuds utilisée par les elements
+            nodesElem = np.unique(np.reshape(connect[elements], -1))
 
-        return listElemIndex
+            # dans cette liste de noeuds on enlève les noeuds renseignés
+            # il reste a la fin une liste de noeuds qui ne sont pas utilisés
+            nodesIntru = list(set(nodesElem) - set(nodes))
+
+            # On detecte la liste d'element associés aux noeuds non utilisés
+            elementsIntru = np.unique(sparse.find(connect_n_e[nodesIndex[nodesIntru]])[1])
+            elementsIntru = elementsIntru[np.where(elementsIntru < elements.max())[0]]
+
+            # On enlève les elements détectés
+            elements = list(set(elements) - set(elementsIntru))
+            elements = np.array(elements)
+
+        return elements
 
     def Get_gauss(self, matriceType: MatriceType) -> Gauss:
         """Renvoie les points d'intégration en fonction du type de matrice"""
@@ -1250,7 +1264,6 @@ class GroupElem(ABC):
         if noeuds.size == 0: return
 
         # Récupère les elements associés aux noeuds
-        # exclusivement=False car on veut avoir tout les elements qui utilisent les noeuds
         elements = self.Get_Elements_Nodes(nodes=noeuds, exclusivement=True)
 
         self.__dict_elements_tags[tag] = elements
