@@ -990,18 +990,15 @@ class Interface_Gmsh:
         # Pour chaque objetGeom plein, il est nécessaire de créer une surface
         surfacesPleines = [surfaceDomain]
         [surfacesPleines.append(factory.addPlaneSurface([loop])) for loop in filledLoops]
-
-        # Récupère l'entité 2D
+        
         self.__factory.synchronize()
+        if returnSurfaces: return surfacesPleines
+        
+        # Récupère les entités 2D
         entities2D = gmsh.model.getEntities(2)
 
         # Création des fissures
         crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_craks(cracks, entities2D)
-        
-        # physicalSurfaces = [gmsh.model.addPhysicalGroup(2, [surface]) for surface in surfacesPleines]
-        
-        # Création des surfaces creuses
-        if returnSurfaces: return surfacesPleines
 
         self.__Set_BackgroundMesh(refineGeom, meshSize)
 
