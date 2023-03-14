@@ -23,17 +23,17 @@ class ElemType(str, Enum):
     TRI15 = "TRI15"
     QUAD4 = "QUAD4"
     QUAD8 = "QUAD8"
-    QUAD9 = "QUAD9"
+    # QUAD9 = "QUAD9"
     TETRA4 = "TETRA4"
     TETRA10 = "TETRA10"
     HEXA8 = "HEXA8"
-    HEXA27 = "HEXA27"
+    # HEXA27 = "HEXA27"
     PRISM6 = "PRISM6"
-    PRISM15 = "PRISM15"
-    PRISM18 = "PRISM18"
-    PYRA5 = "PYRA5"
-    PYRA13 = "PYRA13"
-    PYRA14 = "PYRA14"
+    # PRISM15 = "PRISM15"
+    # PRISM18 = "PRISM18"
+    # PYRA5 = "PYRA5"
+    # PYRA13 = "PYRA13"
+    # PYRA14 = "PYRA14"
 
 class MatriceType(str, Enum):
     rigi = "rigi"
@@ -291,11 +291,12 @@ class GroupElem(ABC):
 
             # On detecte la liste d'element associés aux noeuds non utilisés
             elementsIntru = np.unique(sparse.find(connect_n_e[nodesIndex[nodesIntru]])[1])
-            elementsIntru = elementsIntru[np.where(elementsIntru < elements.max())[0]]
+            if elementsIntru.size > 0:
+                elementsIntru = elementsIntru[np.where(elementsIntru < elements.max())[0]]
 
-            # On enlève les elements détectés
-            elements = list(set(elements) - set(elementsIntru))
-            elements = np.array(elements)
+                # On enlève les elements détectés
+                elements = list(set(elements) - set(elementsIntru))
+                elements = np.array(elements)
 
         return elements
 
@@ -1911,8 +1912,6 @@ class GroupElem_Factory:
             return TRI6(*params)
         elif elemType == ElemType.TRI10:
             return TRI10(*params)
-        elif elemType == ElemType.TRI15:
-            return TRI15(*params)
         elif elemType == ElemType.QUAD4:
             return QUAD4(*params)
         elif elemType == ElemType.QUAD8:
