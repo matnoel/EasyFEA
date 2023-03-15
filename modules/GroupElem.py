@@ -291,9 +291,8 @@ class GroupElem(ABC):
 
             # On detecte la liste d'element associés aux noeuds non utilisés
             elementsIntru = np.unique(sparse.find(connect_n_e[nodesIndex[nodesIntru]])[1])
-            if elementsIntru.size > 0:
-                elementsIntru = elementsIntru[np.where(elementsIntru < elements.max())[0]]
 
+            if elementsIntru.size > 0:
                 # On enlève les elements détectés
                 elements = list(set(elements) - set(elementsIntru))
                 elements = np.array(elements)
