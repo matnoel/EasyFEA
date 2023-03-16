@@ -202,12 +202,6 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
                 # on va afficher le résultat sur les noeuds
                 # récupération des triangles de chaque face pour utiliser la fonction trisurf
                 connectTri = mesh.dict_connect_Triangle
-                
-                # if np.mean(valeurs) != 0:
-                #     dispersion = np.std(valeurs)/np.mean(valeurs)
-                #     if dispersion < 1e-12:
-                #         # si il n'y a aucune dispersion sur les valeurs il n'est pas possible d'avoir trop de niveau de couleurs
-                #         valeurs = np.round(valeurs, 12)
 
                 pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=cmap, vmin=min, vmax=max)
                 # tripcolor, tricontour, tricontourf
@@ -422,19 +416,19 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
 
                 # Superpose maillage non deformé et deformé
                 # Maillage non deformés            
-                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
+                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
                 ax.add_collection(pc)
 
                 # Maillage deformé                
-                pc = matplotlib.collections.LineCollection(coordDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
+                pc = matplotlib.collections.LineCollection(coordDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
                 ax.add_collection(pc)
 
             else:
                 # Maillage non deformé
                 if alpha == 0:
-                    pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw)
+                    pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=0)
                 else:
-                    pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw)
+                    pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw, zorder=0)
                 ax.add_collection(pc)
 
             if mesh.dim == 1:
@@ -476,20 +470,20 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
                     # Supperpose les deux maillages
                     # Maillage non deformé
                     # ax.scatter(x,y,z, linewidth=0, alpha=0)
-                    pcNonDef = Poly3DCollection(coordFaces, edgecolor=edgecolor, linewidths=0.5, alpha=0)
+                    pcNonDef = Poly3DCollection(coordFaces, edgecolor=edgecolor, linewidths=0.5, alpha=0, zorder=0)
                     ax.add_collection3d(pcNonDef)
 
                     # Maillage deformé
-                    pcDef = Poly3DCollection(coordDeformeFaces, edgecolor='red', linewidths=0.5, alpha=0)
+                    pcDef = Poly3DCollection(coordDeformeFaces, edgecolor='red', linewidths=0.5, alpha=0, zorder=0)
                     ax.add_collection3d(pcDef)
                 else:
                     # Superpose maillage non deformé et deformé
                     # Maillage non deformés            
-                    pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
+                    pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
                     ax.add_collection3d(pc)
 
                     # Maillage deformé                
-                    pc = Line3DCollection(coordDeformeFaces, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
+                    pc = Line3DCollection(coordDeformeFaces, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
                     ax.add_collection3d(pc)
                     
                     ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
@@ -507,9 +501,9 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
                 coordFaces = coordoDim[connectDim]
 
                 if dim > 1:
-                    pc = Poly3DCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, linewidths=0.5, alpha=alpha)
+                    pc = Poly3DCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=0)
                 else:
-                    pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
+                    pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
                     ax.scatter(coordoDim[:,0], coordoDim[:,1], coordoDim[:,2], c='black', lw=lw, marker='.')
 
                 ax.add_collection3d(pc, zs=0, zdir='z')
@@ -649,7 +643,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
                 zorder=25, ha='center', va='center') for element in elements]
         elif mesh.dim == 3:
             if len(nodes) > 0:
-                ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1), zdir='z')
+                ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1, zorder=3), zdir='z')
 
             # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=3)
             if showId:
