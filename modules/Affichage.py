@@ -416,19 +416,19 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
 
                 # Superpose maillage non deformé et deformé
                 # Maillage non deformés            
-                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
+                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
                 ax.add_collection(pc)
 
                 # Maillage deformé                
-                pc = matplotlib.collections.LineCollection(coordDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
+                pc = matplotlib.collections.LineCollection(coordDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
                 ax.add_collection(pc)
 
             else:
                 # Maillage non deformé
                 if alpha == 0:
-                    pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=0)
+                    pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=1)
                 else:
-                    pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw, zorder=0)
+                    pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw, zorder=1)
                 ax.add_collection(pc)
 
             if mesh.dim == 1:
@@ -565,7 +565,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
         if showId:            
             [ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud), c=c) for noeud in nodes]
     elif mesh.inDim == 3:            
-        ax.scatter(coordo[nodes,0], coordo[nodes,1], coordo[nodes,2], marker=marker, c=c)
+        ax.scatter(coordo[nodes,0], coordo[nodes,1], coordo[nodes,2], marker=marker, c=c, zorder=2.5)
         if showId:
             [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in nodes]
     
@@ -1222,7 +1222,7 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     ax.set_zlim([zmid-maxRange, zmid+maxRange])
     ax.set_box_aspect([1,1,1])
         
-def Save_fig(folder:str, filename: str,transparent=False, extension='png', dpi=200):
+def Save_fig(folder:str, filename: str,transparent=False, extension='pdf', dpi='figure'):
 
     if folder == "": return
 
