@@ -2066,11 +2066,11 @@ class Simu_PhaseField(Simu):
         Returns
         -------
         np.ndarray, np.ndarray, int, float
-            u, d, Kglob, nombreIter, dincMax\n
+            u_np1, d_np1, Kglob, convergence\n
 
             tel que :\n
-            u : champ vectorielle de déplacement
-            d : champ scalaire d'endommagement
+            u_np1 : champ vectorielle de déplacement
+            d_np1 : champ scalaire d'endommagement
             Kglob : matrice de rigidité en déplacement
             convergence : la solution a convérgé
         """
