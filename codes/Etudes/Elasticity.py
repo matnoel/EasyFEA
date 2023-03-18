@@ -63,7 +63,7 @@ elif simulationType == SimulationType.EQUERRE:
     inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI6, inclusions=inclusions, cracks=[crack, crack2])
+        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=inclusions, cracks=[crack, crack2])
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:

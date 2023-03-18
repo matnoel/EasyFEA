@@ -25,7 +25,7 @@ p2 = Point(1/2, 1/2)
 p3 = Point(-1/2, 1/2)
 pts = [p0, p1, p2, p3]
 
-meshSize = 1/25
+meshSize = 1/30
 
 points = PointsList(pts, meshSize, isCreux=False)
 
@@ -79,9 +79,12 @@ E[elementsDomain] = 1
 v[elementsCircle] = 0.3
 v[elementsDomain] = 0.45
 
+
 comp = Materials.Elas_Isot(2, E, v, contraintesPlanes=False)
 
 simu = Simulations.Simu_Displacement(mesh, comp, useNumba=True)
+
+# Affichage.Plot_Result(simu, E, nodeValues=False)
 
 # --------------------------------------
 # Homogenization
@@ -94,9 +97,11 @@ E12 = np.array([[0, 1/r2],[1/r2, 0]])
 
 def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
 
-    simu.Bc_Init()    
+    simu.Bc_Init()
 
     simu.add_dirichlet(nodesBord, [lambda x, y, z: Ekl.dot([x, y])[0], lambda x, y, z: Ekl.dot([x, y])[1]], ["x","y"])
+
+    # Affichage.Plot_BoundaryConditions(simu)
 
     if usePER:
 
@@ -132,7 +137,7 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
     return ukl
 
 u11 = CalcDisplacement(E11, False)
-u22 = CalcDisplacement(E22)
+u22 = CalcDisplacement(E22, False)
 u12 = CalcDisplacement(E12, True)
 
 u11_e = mesh.Localises_sol_e(u11)

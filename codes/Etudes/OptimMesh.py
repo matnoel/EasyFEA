@@ -21,7 +21,7 @@ dim = 2
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
 plotResult = False
-plotErreur = False
+plotErreur = True
 plotProj = False
 
 rapport = 1/10
@@ -82,9 +82,15 @@ for i in range(nL):
         ptd1 = Point(x-cL/2, y-cH/2)
         ptd2 = Point(x+cL/2, y+cH/2)
 
-        domain = Domain(ptd1, ptd2, meshSize, isCreux=True)
+        isCreux = True
+        
+        if i % 2 == 1:
+            obj = Domain(ptd1, ptd2, meshSize, isCreux=isCreux)
+        else:
+            obj = Circle(Point(x, y), cH, meshSize, isCreux=isCreux)
 
-        inclusions.append(domain)
+
+        inclusions.append(obj)
 
 if dim == 2:
 

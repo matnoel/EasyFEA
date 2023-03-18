@@ -18,6 +18,10 @@ Affichage.Clear()
 
 folder = Folder.New_File("Identification", results=True)
 
+# perturbations = [0.01, 0.02]
+perturbations = np.linspace(0, 0.07, 7)
+nTirage = 100
+
 pltVerif = False
 useRescale = True
 
@@ -31,7 +35,7 @@ elemType = "TRI3"
 
 mat = "bois" # "acier" "bois"
 
-tol = 1e-6
+tol = 1e-10
 
 sig = 10
 
@@ -88,7 +92,7 @@ if mat == "acier":
 
     dict_param = {
         "E" : E_exp,
-        "v0" : v_exp
+        "v" : v_exp
     }
 
     Emax=300000
@@ -151,8 +155,6 @@ u_exp = simu.Solve()
 
 Affichage.NouvelleSection("Identification")
 
-
-
 simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
 
 def func(x):
@@ -175,9 +177,9 @@ def func(x):
     simuIdentif.Need_Update()
 
     u = simuIdentif.Solve()
-
-    # diff = u[ddlsInconnues] - u_exp_bruit[ddlsInconnues]
+    
     diff = u - u_exp_bruit
+    diff = diff[ddlsInconnues]
 
     return diff
 
@@ -186,16 +188,13 @@ def func(x):
 
 list_dict_perturbation = []
 
-# perturbations = [0.01, 0.02]
-perturbations = np.linspace(0, 0.05, 6)
-
 for perturbation in perturbations:
 
     print(f"\nperturbation = {perturbation}")
 
     list_dict_tirage = []
 
-    for tirage in range(80):
+    for tirage in range(nTirage):
 
         print(f"tirage = {tirage}", end='\r')
 
@@ -222,7 +221,7 @@ for perturbation in perturbations:
             simuIdentif.add_dirichlet(nodes, [u_exp_bruit[ddlsX], u_exp_bruit[ddlsY]], ["x","y"])
 
         ddlsConnues, ddlsInconnues = simuIdentif.Bc_ddls_connues_inconnues(simuIdentif.problemType)
-        # Affichage.Plot_BoundaryConditions(simuIdentif)
+        Affichage.Plot_BoundaryConditions(simuIdentif)
 
         # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
         res = least_squares(func, x0, bounds=bounds, verbose=0, ftol=tol, gtol=tol, xtol=tol)
@@ -250,7 +249,7 @@ for perturbation in perturbations:
 
     if mat == "acier":
         dict_perturbation["E"] = df_tirage["E"].values
-        dict_perturbation["v"] = df_tirage["E"].values
+        dict_perturbation["v"] = df_tirage["v"].values
     elif mat == "bois":
         dict_perturbation["EL"] = df_tirage["EL"].values
         dict_perturbation["GL"] = df_tirage["GL"].values
@@ -262,7 +261,9 @@ for perturbation in perturbations:
 
 df_pertubation = pd.DataFrame(list_dict_perturbation)
 
-# print(df)
+# ----------------------------------------------
+# Affichage
+# ----------------------------------------------
 
 if mat == "acier":
     params = ["E","v"]
@@ -282,7 +283,6 @@ for param in params:
     perturbations = df_pertubation["perturbation"]
 
     nPertu = perturbations.size
-    nTirage = df_pertubation[param].values[0].size
     values = np.zeros((nPertu, nTirage))
     for p in range(nPertu):
         values[p] = df_pertubation[param].values[p]
@@ -295,23 +295,16 @@ for param in params:
 
     axParam.plot(perturbations, [1]*nPertu, label=f"{param}_exp", c="black", ls='--')
     axParam.plot(perturbations, mean, label=f"{param}_moy")
-    axParam.fill_between(perturbations, paramInf, paramSup, alpha=0.3, label=f"{borne*100} %")
+    axParam.fill_between(perturbations, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nTirage} tirages)")
     axParam.set_xlabel("perturbations")
-    axParam.set_ylabel(fr"$1 \ / \ {param}$")
-    axParam.legend()
+    axParam.set_ylabel(fr"$1 \ / \ {param}_{'{exp}'}$")
+    axParam.grid()
+    axParam.legend(loc="upper left")
     
-    Affichage.Save_fig(folder, param, extension='pdf')
+    Affichage.Save_fig(folder, "FEMU_"+param, extension='pdf')
 
-    pass
+    print(f"{param} = {mean.mean():.3e}")
 
-if mat == "acier":
-    print(f"\nE = {res.x[0]:.3e}")
-    print(f"v = {res.x[1]}")
-elif mat == "bois":
-    print(f"\nEL = {compIdentif.El}")
-    print(f"GL = {compIdentif.Gl}")
-    print(f"ET = {compIdentif.Et}")
-    print(f"vL = {compIdentif.vl}")
 
 diff_n = np.reshape(simuIdentif.displacement - u_exp, (mesh.Nn, 2))
 

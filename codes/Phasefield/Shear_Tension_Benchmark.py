@@ -232,6 +232,9 @@ for split in ["Miehe"]:
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
             raise Exception("Pas implémenté pour le moment")
+        
+        if dim==3:
+            Gc *= 1/ep
 
         phaseFieldModel = Materials.PhaseField_Model(comp, split, regularisation, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
 
