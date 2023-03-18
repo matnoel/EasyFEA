@@ -12,7 +12,7 @@ import TicTac
 import Folder
 
 dim = 2
-N = 50
+N = 100
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -52,7 +52,8 @@ elif simulationType == SimulationType.EQUERRE:
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
 
-    crack = Line(Point(y=3*h, isOpen=True), Point(x=3*h, y=3*h), h/10, isOpen=False)
+    crack = Line(Point(100, h, isOpen=True), Point(100-h/3, h*0.9, isOpen=True), h/N, isOpen=True)
+    crack2 = Line(crack.pt2, Point(100-h/2, h*0.9, isOpen=True), h/N, isOpen=True)
 
     listPoint = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
     # listPoint = PointsList([pt1, pt2, pt3, pt7], h/N)
@@ -62,13 +63,12 @@ elif simulationType == SimulationType.EQUERRE:
     inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=inclusions)
+        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI6, inclusions=inclusions, cracks=[crack, crack2])
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
         mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=inclusions)
-
 
         noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
         Affichage.Plot_Elements(mesh, noeudsS3)
@@ -99,7 +99,7 @@ elif simulationType == SimulationType.TEF2:
     listPoint = PointsList([pt1, pt2, pt3], taille)
     
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=[])
+        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI6, inclusions=[])
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
         mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.TETRA4, inclusions=[])
@@ -137,9 +137,12 @@ elif simulationType == SimulationType.TEF2:
     simu.add_surfLoad(noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], description="[w*g*(h-y)]")
 
 simu.Solve()
-
 simu.Save_Iteration()
-# PostTraitement.Save_Simulation_in_Paraview(Dossier.NewFile("gmsh test",results=True), simu)
+
+
+# import PostTraitement
+# PostTraitement.Make_Paraview(folder, simu)
+
 simu.Resultats_Resume()
 
 # Affichage.Plot_ElementsMaillage(mesh, nodes=noeudsDroit, dimElem =2)
@@ -149,7 +152,8 @@ Affichage.Plot_BoundaryConditions(simu)
 Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
 Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
 Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, deformation=True,coef=1/coef)
+Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef)
+# Affichage.Plot_Result(simu, "ux")
 
 TicTac.Tic.Plot_History()
 
