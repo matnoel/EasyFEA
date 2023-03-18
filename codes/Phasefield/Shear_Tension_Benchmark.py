@@ -19,7 +19,7 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 3
+dim = 2
 simulation = "Shear" # "Shear" , "Tension"
 
 if dim == 3:
@@ -30,7 +30,7 @@ else:
 
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = True
+test = False
 solve = True
 
 # ----------------------------------------------
@@ -38,9 +38,9 @@ solve = True
 # ----------------------------------------------
 plotMesh = True
 plotResult = True
-plotEnergie = False
+plotEnergie = True
 getFissure = False
-showResult = True
+showResult = False
 
 # ----------------------------------------------
 # Animation
@@ -69,8 +69,8 @@ comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 regularisation = "AT2" # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
-for split in ["Miehe"]:
-# for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
+# for split in ["Miehe"]:
+for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
 #for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 #for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
 
@@ -232,9 +232,6 @@ for split in ["Miehe"]:
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
             raise Exception("Pas implémenté pour le moment")
-        
-        if dim==3:
-            Gc *= 1/ep
 
         phaseFieldModel = Materials.PhaseField_Model(comp, split, regularisation, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
 
