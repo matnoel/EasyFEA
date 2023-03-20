@@ -31,16 +31,16 @@ else:
 nomDossier = '_'.join([simulation,"Benchmark"])
 
 test = False
-solve = True
+solve = False
 
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = True
-plotResult = True
-plotEnergie = True
-getFissure = False
-showResult = False
+plotMesh = False
+plotResult = False
+plotEnergie = False
+getFissure = True
+showResult = True
 
 # ----------------------------------------------
 # Animation
@@ -66,21 +66,27 @@ tolConv = 1e-0
 # Comportement 
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-regularisation = "AT2" # "AT1", "AT2"
+regularisations = ["AT1", "AT2"]
+# regularisations = ["AT2"] # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
-# for split in ["Miehe"]:
-for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
-#for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
-#for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
+splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
+splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 
+nSplits = len(splits)
+nRegus = len(regularisations)
 
-# listAnisotWithBourdin = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]*9 # Splits Anisotropes
-# listAnisotWithBourdin = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]*3 # Splits Anisotropes
+regularisations = regularisations * nSplits
+splits = np.repeat(splits, nRegus)
+
+for split, regu in zip(splits, regularisations):
+
+# splits = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]*9 # Splits Anisotropes
+# splits = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]*3 # Splits Anisotropes
 # # listTheta = [-0, -10, -20, -30, -45, -60]*5
 # listTheta = [-70, -80, -90]*5
 # listTheta.sort(); listTheta.reverse()
-# for split, theta in zip(listAnisotWithBourdin, listTheta):
+# for split, theta in zip(splits, listTheta):
 
     
 
@@ -130,7 +136,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
         refineDomain = None
 
     # Construit le path vers le dossier en fonction des données du problèmes
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regularisation, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, v=0, theta=theta, optimMesh=optimMesh)    
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regu, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, theta=theta, optimMesh=optimMesh)    
 
     if solve:
 
@@ -233,7 +239,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
             raise Exception("Pas implémenté pour le moment")
 
-        phaseFieldModel = Materials.PhaseField_Model(comp, split, regularisation, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
+        phaseFieldModel = Materials.PhaseField_Model(comp, split, regu, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
@@ -456,7 +462,7 @@ for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
         
         p0 = np.array([L/2, L/2])
 
-        diamCercle = 1*meshSize
+        diamCercle = 2*meshSize
         tolDamageValide = 0.95
 
         vecteurs = []

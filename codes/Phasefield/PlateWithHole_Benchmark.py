@@ -43,7 +43,7 @@ makeMovie = False; NMovie = 200
 # ----------------------------------------------
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 # regus = ["AT2"] # ["AT1", "AT2"]
-regus = ["AT1", "AT2"]
+regularisations = ["AT1", "AT2"]
 
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
@@ -70,13 +70,13 @@ tolConv = 1e-0
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
 
-nSplits = len(splits)
-nRegus = len(regus)
+nSplit = len(splits)
+nRegu = len(regularisations)
 
-regus = regus * nSplits
-splits = np.repeat(splits, nRegus)
+regularisations = regularisations * nSplit
+splits = np.repeat(splits, nRegu)
 
-for split, regu in zip(splits, regus):
+for split, regu in zip(splits, regularisations):
 
     # ----------------------------------------------
     # Geometrie et chargement de la simulation
@@ -183,7 +183,7 @@ for split, regu in zip(splits, regus):
 
     # Nom du dossier
     nomDossier = "PlateWithHole_" + problem
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solveur, test=test, closeCrack=False, v=v, nL=nL)
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solveur, test=test, closeCrack=False, nL=nL)
     
     if solve:
 

@@ -80,7 +80,7 @@ def Join(list: List[str]) -> str:
         
     return file
 
-def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, v=0.0, nL=0, theta=0.0):
+def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0):
 
     import Materials
 
@@ -97,11 +97,8 @@ def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simp
         nom += '_' + solveur
 
     if tolConv < 1:
-        nom += f'_conv{tolConv}'
-        
-    if comp == "Elas_Isot" and v != 0:
-        nom = f"{nom} pour v={v}"
-
+        nom += f'_conv{tolConv}'        
+    
     if theta != 0.0:
         nom = f"{nom} theta={theta}"
 
