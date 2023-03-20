@@ -115,7 +115,7 @@ Affichage.Plot_Mesh(mesh)
 # ----------------------------------------------
 
 # récupère les proritétés identifiées
-pathParams = Folder.Join([folder_file, "DIC", "Strategie2", "params_Essais.xlsx"])
+pathParams = Folder.Join([folder_file, "params_Essais.xlsx"])
 
 dfParams = pd.read_excel(pathParams)
 
