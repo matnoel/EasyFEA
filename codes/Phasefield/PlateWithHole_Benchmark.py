@@ -15,34 +15,36 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-problem = "FCBA" # ["Benchmark","FCBA"]
+problem = "Benchmark" # ["Benchmark","FCBA"]
 dim = 2
 if dim == 3:
     problem += "_3D"
 
-test = True
+test = False
 solve = True
 
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = True
-plotIter = True
+plotMesh = False
+plotIter = False
 plotResult = True
-plotEnergie = False
-showFig = True
+plotEnergie = True
+showFig = False
 
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = True; NParaview=300
+saveParaview = False; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
-regu = "AT2" # ["AT1", "AT2"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+# regus = ["AT2"] # ["AT1", "AT2"]
+regus = ["AT1", "AT2"]
+
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 
@@ -57,13 +59,24 @@ optimMesh = True
 maxIter = 1000
 tolConv = 1e-0
 
+# ----------------------------------------------
+# Configurations
+# ----------------------------------------------
+
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-for split in ["Zhang"]:
-#for split in ["Bourdin","Amor","Miehe","Stress"]: # Splits Isotropes
-# for split in ["He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes sans bourdin
-# for split in ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]: # Splits Anisotropes
+# splits = ["Zhang"]
+# splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
+splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
+
+nSplits = len(splits)
+nRegus = len(regus)
+
+regus = regus * nSplits
+splits = np.repeat(splits, nRegus)
+
+for split, regu in zip(splits, regus):
 
     # ----------------------------------------------
     # Geometrie et chargement de la simulation
