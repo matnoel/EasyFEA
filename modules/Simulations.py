@@ -662,7 +662,7 @@ class Simu(ABC):
 
         algo = self.algo
         ddls = self.Bc_ddls_Dirichlet(problemType)
-        valeurs_ddls = self.BC_values_Dirichlet(problemType)
+        valeurs_ddls = self.Bc_values_Dirichlet(problemType)
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
         
@@ -787,7 +787,7 @@ class Simu(ABC):
             problemType = self.problemType
         return BoundaryCondition.Get_ddls(problemType, self.__Bc_Dirichlet)
 
-    def BC_values_Dirichlet(self, problemType=None) -> list[float]:
+    def Bc_values_Dirichlet(self, problemType=None) -> list[float]:
         """Renvoie les valeurs ddls liés aux conditions de Dirichlet"""
         if problemType == None:
             problemType = self.problemType
@@ -2083,6 +2083,7 @@ class Simu_PhaseField(Simu):
         dn = self.damage
 
         solveur = self.phaseFieldModel.solveur
+        regu = self.phaseFieldModel.regularization
 
         tic = Tic()
 
@@ -2099,7 +2100,20 @@ class Simu_PhaseField(Simu):
 
             # Damage
             self.__Assemblage_d()
-            d_kp1 = self.__Solve_d()            
+            d_kp1 = self.__Solve_d()
+            if d_kp1.max() == np.inf and regu == "AT1":
+                # ici il peut arriver qua la première itération la solution d'endommagement soit infinie
+                # pour eviter que ça pose probleme pour la suite l'endommagement  
+                d_kp1 = np.zeros_like(d_kp1)
+
+                # récupère les ddls ou des endommagements on été imposés
+                ddls_Dirichlet = np.array(self.Bc_ddls_Dirichlet("damage"))
+                if ddls_Dirichlet.size > 0:
+                    values_Dirichlet = np.array(self.Bc_values_Dirichlet("damage"))
+                    d_kp1[ddls_Dirichlet] = values_Dirichlet
+
+                self.set_u_n("damage", d_kp1)
+
             # Displacement
             Kglob = self.__Assemblage_u()            
             u_np1 = self.__Solve_u()

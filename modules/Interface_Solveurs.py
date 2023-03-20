@@ -263,7 +263,7 @@ def __Solveur_2(simu, problemType: str):
     b = b.tolil()
 
     ddls_Dirichlet = np.array(simu.Bc_ddls_Dirichlet(problemType))
-    values_Dirichlet = np.array(simu.BC_values_Dirichlet(problemType))
+    values_Dirichlet = np.array(simu.Bc_values_Dirichlet(problemType))
     
     list_Bc_Lagrange = simu.Bc_Lagrange
 
