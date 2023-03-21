@@ -696,11 +696,10 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     for bc_Conditions in Conditions:
 
-        problemType = bc_Conditions.problemType
-        ddls = bc_Conditions.ddls
+        problemType = bc_Conditions.problemType        
         valeurs_ddls = bc_Conditions.valeurs_ddls
         directions = bc_Conditions.directions
-        
+
         # récupère les noeuds
         noeuds = bc_Conditions.noeuds
 
@@ -713,19 +712,6 @@ def Plot_BoundaryConditions(simu, folder=""):
 
         titre = f"{description} {directions}"
 
-        # if 'Neumann' in description and problemType == 'displacement':
-        #     facteur = coordo.max()/50
-        #     for n in noeuds:            
-        #         dx=facteur
-        #         dy=facteur
-        #         ax.arrow(coordo[n,0], coordo[n,1],dx, dy, head_width = 0.05, head_length = 0.1, label=titre)
-        #     continue
-        
-        # filled_markers = ('o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd', 'P', 'X')
-
-        # simu.
-
-
         if problemType in ["damage","thermal"]:
             marker='o'
         elif problemType in ["displacement","beam"]:
@@ -733,7 +719,7 @@ def Plot_BoundaryConditions(simu, folder=""):
                 signe = np.sign(valeurs[0])
                 if directions[0] == 'x':
                     if signe == -1:
-                        marker='<'
+                        marker = '<'
                     else:
                         marker='>'
                 elif directions[0] == 'y':
