@@ -19,8 +19,8 @@ Affichage.Clear()
 folder = Folder.New_File("Identification", results=True)
 
 # perturbations = [0.01, 0.02]
-perturbations = np.linspace(0, 0.07, 7)
-nTirage = 100
+perturbations = np.linspace(0, 0.02, 3)
+nTirage = 50
 
 pltVerif = False
 useRescale = True
@@ -37,7 +37,8 @@ mat = "bois" # "acier" "bois"
 
 tol = 1e-10
 
-sig = 10
+f=40
+sig = f/(l*b)
 
 # ----------------------------------------------
 # Maillage
@@ -57,15 +58,15 @@ mesh = gmshInterface.Mesh_2D(points, elemType, [circle])
 
 # Affichage.Plot_Model(mesh)
 
-nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+nodesBord = mesh.Nodes_Tags(["L0", "L2"])
 nodesp0 = mesh.Nodes_Tags(["P0"])
 nodesBas = mesh.Nodes_Tags(["L0"])
 nodesHaut = mesh.Nodes_Tags(["L2"])
 
-ddlsX = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["x"])
-ddlsY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["y"])
+ddlsX = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesBord, ["x"])
+ddlsY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesBord, ["y"])
 
-assert nodes.size*2 == (ddlsX.size + ddlsY.size)
+assert nodesBord.size*2 == (ddlsX.size + ddlsY.size)
 
 if useRescale:
     ddlsBasX = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesBas, ["x"])
@@ -73,6 +74,7 @@ if useRescale:
     
     ddlsHautX = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesHaut, ["x"])
     ddlsHautY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesHaut, ["y"])
+    ddlsHautXY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesHaut, ["x","y"])
 
 
 # Affichage.Plot_Mesh(mesh)
@@ -213,15 +215,61 @@ for perturbation in perturbations:
 
         simuIdentif.Bc_Init()
         
-        if useRescale:        
-            simuIdentif.add_dirichlet(nodesBas, [u_exp_bruit[ddlsBasX], u_exp_bruit[ddlsBasY]], ["x","y"])
-            simuIdentif.add_dirichlet(nodesHaut, [u_exp_bruit[ddlsHautX]], ["x"])
-            simuIdentif.add_surfLoad(nodesHaut, [-sig], ["y"])
-        else:    
-            simuIdentif.add_dirichlet(nodes, [u_exp_bruit[ddlsX], u_exp_bruit[ddlsY]], ["x","y"])
+        if useRescale:
+
+            optionRescale = 2
+            # ici quand on bruite la solution le vecteur de force calculé n'est plus correct
+            # l'indentifiacation en rescalant le vecteur ne peut donc pas fonctionner
+            # il faut choisir l'option 2
+            
+            K = simuIdentif.Get_K_C_M_F("displacement")[0]
+
+            if optionRescale == 0:
+                f_num_ddls = K[ddlsHautY,:] @ u_exp_bruit
+                f_r = f_num_ddls.copy()
+            elif optionRescale == 1:
+                f_num_ddls = K[ddlsHautXY,:] @ u_exp_bruit
+                f_num_ddls = f_num_ddls.reshape(-1,2)
+                f_r = np.linalg.norm(f_num_ddls, axis=1)
+
+            if optionRescale in [0, 1]:
+                # suuumm = np.sum(f_num_ddls[:,1])
+
+                correct = f / np.sum(f_r)
+
+                f_num_ddls *= correct
+
+                # suuumm = np.sum(f_num_ddls[:,1])
+
+                verifF =  np.sum(f_r*correct) - f
+                assert np.abs(verifF) <= 1e-10
+
+            if optionRescale == 0:
+                # applique sur les surfaces en contact avec les mors les déplacements suivant x 
+                simuIdentif.add_dirichlet(nodesBord, [u_exp_bruit[ddlsX]], ["x"])
+                # applique sur la surface inférieure les déplacements suivants y 
+                simuIdentif.add_dirichlet(nodesBas, [u_exp_bruit[ddlsBasY]], ["y"])
+                # applique sur la surface supérieure le vecteur de force corrigé suivant y
+                simuIdentif.add_neumann(nodesHaut, [f_num_ddls], ["y"])
+
+            elif optionRescale == 1:
+                # applique sur les surfaces en contact avec le plateau inférieur
+                simuIdentif.add_dirichlet(nodesBas, [u_exp_bruit[ddlsBasX], u_exp_bruit[ddlsBasY]], ["x","y"])
+                
+                # applique sur la surface supérieure le vecteur de force corrigé suivant y
+                simuIdentif.add_neumann(nodesHaut, [f_num_ddls[:,0], f_num_ddls[:,1]], ["x","y"])            
+
+            elif optionRescale == 2:                
+                simuIdentif.add_dirichlet(nodesBas, [u_exp_bruit[ddlsBasX], u_exp_bruit[ddlsBasY]], ["x","y"])
+                simuIdentif.add_dirichlet(nodesHaut, [u_exp_bruit[ddlsHautX]], ["x"])
+                simuIdentif.add_surfLoad(nodesHaut, [-sig], ["y"])    
+                
+        else:
+
+            simuIdentif.add_dirichlet(nodesBord, [u_exp_bruit[ddlsX], u_exp_bruit[ddlsY]], ["x","y"])
 
         ddlsConnues, ddlsInconnues = simuIdentif.Bc_ddls_connues_inconnues(simuIdentif.problemType)
-        Affichage.Plot_BoundaryConditions(simuIdentif)
+        # Affichage.Plot_BoundaryConditions(simuIdentif)
 
         # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
         res = least_squares(func, x0, bounds=bounds, verbose=0, ftol=tol, gtol=tol, xtol=tol)
@@ -286,6 +334,9 @@ for param in params:
     values = np.zeros((nPertu, nTirage))
     for p in range(nPertu):
         values[p] = df_pertubation[param].values[p]
+    
+    print(f"{param} = {values.mean()}")
+
     values *= 1/paramExp
 
     mean = values.mean(axis=1)
@@ -297,13 +348,13 @@ for param in params:
     axParam.plot(perturbations, mean, label=f"{param}_moy")
     axParam.fill_between(perturbations, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nTirage} tirages)")
     axParam.set_xlabel("perturbations")
-    axParam.set_ylabel(fr"$1 \ / \ {param}_{'{exp}'}$")
+    axParam.set_ylabel(fr"${param} \ / \ {param}_{'{exp}'}$")
     axParam.grid()
     axParam.legend(loc="upper left")
     
     Affichage.Save_fig(folder, "FEMU_"+param, extension='pdf')
 
-    print(f"{param} = {mean.mean():.3e}")
+    
 
 
 diff_n = np.reshape(simuIdentif.displacement - u_exp, (mesh.Nn, 2))
