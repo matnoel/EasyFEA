@@ -2062,7 +2062,7 @@ class Simu_PhaseField(Simu):
         convOption : int, optional
             0 -> convergence sur l'endommagement np.max(np.abs(d_kp1-dk)) équivalent normInf(d_kp1-dk)\n
             1 -> convergence sur l'energie de fissure np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
-            2 -> convergence sur l'energie de fissure np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
+            2 -> convergence sur l'energie de totale np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_k
 
         Returns
         -------
