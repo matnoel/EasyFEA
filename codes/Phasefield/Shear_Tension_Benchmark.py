@@ -70,8 +70,10 @@ regularisations = ["AT1", "AT2"]
 # regularisations = ["AT2"] # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
-splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
-splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
+# splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
+# splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
+
+splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)

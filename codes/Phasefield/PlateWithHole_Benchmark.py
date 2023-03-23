@@ -21,7 +21,7 @@ if dim == 3:
     problem += "_3D"
 
 test = False
-solve = True
+solve = False
 
 # ----------------------------------------------
 # Post traitement
@@ -29,7 +29,7 @@ solve = True
 plotMesh = False
 plotIter = False
 plotResult = True
-plotEnergie = True
+plotEnergie = False
 showFig = False
 
 # ----------------------------------------------
@@ -42,8 +42,6 @@ makeMovie = False; NMovie = 200
 # Comportement 
 # ----------------------------------------------
 comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
-# regus = ["AT2"] # ["AT1", "AT2"]
-regularisations = ["AT1", "AT2"]
 
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
@@ -51,7 +49,7 @@ solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
-optimMesh = True
+optimMesh = False
 
 # ----------------------------------------------
 # Convergence
@@ -68,7 +66,11 @@ tolConv = 1e-0
 
 # splits = ["Zhang"]
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
-splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
+# splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
+splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
+
+# regularisations = ["AT2"] # ["AT1", "AT2"]
+regularisations = ["AT1", "AT2"]
 
 nSplit = len(splits)
 nRegu = len(regularisations)
@@ -385,11 +387,7 @@ for split, regu in zip(splits, regularisations):
         elif "FCBA" in problem:
             Affichage.Plot_ForceDep(displacement*1e3, load*1e-3, 'ud [mm]', 'f [kN]', folder)
 
-        filenameDamage = f"{split} damage_n"
-        # titleDamage = fr"$\phi$"
-        titleDamage = f"{split}"
-
-        Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename=filenameDamage, title=titleDamage)
+        Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename="damage")
 
     if saveParaview:
         PostTraitement.Make_Paraview(folder, simu, Niter=NParaview)        
