@@ -32,12 +32,24 @@ points = PointsList(pts, meshSize, isCreux=False)
 f = 0.4
 
 r = 1 * np.sqrt(f/np.pi)
+<<<<<<< Updated upstream
 
 circle = Circle(Point(), 2*r, meshSize, isCreux=False)
 
 gmshInterface = Interface_Gmsh(False, False)
 
 mesh = gmshInterface.Mesh_2D(points, inclusions=[circle], elemType="TRI6")
+=======
+inclusion = Circle(Point(), 2*r, meshSize, isCreux=False)
+
+# e = 1/6
+# l = 1-(2*e)
+# inclusion = Domain(Point(-e, -l/2), Point(e, l/2), meshSize)
+
+gmshInterface = Interface_Gmsh(False, False)
+
+mesh = gmshInterface.Mesh_2D(points, inclusions=[inclusion], elemType="TRI6")
+>>>>>>> Stashed changes
 coordo = mesh.coordoGlob
 
 Affichage.Plot_Mesh(mesh)
@@ -67,17 +79,30 @@ else:
 # Model and simu
 # --------------------------------------
 
+<<<<<<< Updated upstream
 elementsCircle = mesh.Elements_Tags(["S0"])
 elementsDomain = mesh.Elements_Tags(["S1"])
+=======
+elementsInclusion = mesh.Elements_Tags(["S0"])
+elementsMatrice = mesh.Elements_Tags(["S1"])
+>>>>>>> Stashed changes
 
 E = np.zeros_like(mesh.groupElem.elements, dtype=float)
 v = np.zeros_like(mesh.groupElem.elements, dtype=float)
 
+<<<<<<< Updated upstream
 E[elementsCircle] = 50
 E[elementsDomain] = 1
 
 v[elementsCircle] = 0.3
 v[elementsDomain] = 0.45
+=======
+E[elementsInclusion] = 50
+E[elementsMatrice] = 1
+
+v[elementsInclusion] = 0.3
+v[elementsMatrice] = 0.45
+>>>>>>> Stashed changes
 
 
 comp = Materials.Elas_Isot(2, E, v, contraintesPlanes=False)
