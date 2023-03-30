@@ -84,6 +84,9 @@ E[elementsMatrice] = 1
 v[elementsInclusion] = 0.3
 v[elementsMatrice] = 0.45
 
+# E[:] = 50
+# v[:] = 0.3
+
 comp = Materials.Elas_Isot(2, E, v, contraintesPlanes=False)
 
 simu = Simulations.Simu_Displacement(mesh, comp, useNumba=True)
