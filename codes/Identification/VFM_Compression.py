@@ -1,11 +1,8 @@
 import numpy as np
-<<<<<<< Updated upstream
-=======
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
 
 from scipy.linalg import lstsq
->>>>>>> Stashed changes
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -26,29 +23,19 @@ folder = Folder.New_File("Identification", results=True)
 
 mat = "bois" # "bois", "acier"
 
-<<<<<<< Updated upstream
-perturbations = np.linspace(0, 0.07, 15)
-nTirage = 100
-
-=======
 perturbations = np.linspace(0, 0.02, 5)
 nTirage = 100
 
 useSpecVirtual = True
 
->>>>>>> Stashed changes
 pltVerif = False
 
 L=45
 h=90
 b=20
 d=10
-<<<<<<< Updated upstream
-meshSize = h/40
-=======
 # meshSize = h/40
 meshSize = h/50
->>>>>>> Stashed changes
 f = 40
 sig = f/(L*b)
 
@@ -56,11 +43,7 @@ sig = f/(L*b)
 # Maillage
 # ----------------------------------------------
 
-<<<<<<< Updated upstream
-gmshInterface = Interface_Gmsh.Interface_Gmsh()
-=======
 gmshInterface = Interface_Gmsh.Interface_Gmsh(False)
->>>>>>> Stashed changes
 
 pt1 = Geom.Point(0,0)
 pt2 = Geom.Point(L, h)
@@ -82,20 +65,7 @@ yn = mesh.coordo[:,1]
 nodesEdge = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 nodesLower = mesh.Nodes_Tags(["L0"])
 nodesUpper = mesh.Nodes_Tags(["L2"])
-<<<<<<< Updated upstream
 
-ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesUpper, ["y"])
-
-nodesZone = mesh.Nodes_Circle(circleZone)
-# Affichage.Plot_Nodes(mesh, nodesZone)
-# Affichage.Save_fig(folder, "vfm zone cisaillement")
-
-# Récupération des array pour l'intégration numérique
-matriceType = "rigi" 
-jacob2D_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-poid2D_pg = mesh.Get_poid_pg(matriceType)
-
-=======
 nodesUpperLower = mesh.Nodes_Tags(["L0", "L2"])
 nodesZone = mesh.Nodes_Circle(circleZone)
 
@@ -117,7 +87,6 @@ assembly1D = groupElem1D.Get_assembly_e(2)[elems1D]
 jacob1D_e_pg = groupElem1D.Get_jacobien_e_pg(matriceType)[elems1D]
 poid1D_pg = groupElem1D.Get_poid_pg(matriceType)
 
->>>>>>> Stashed changes
 # ----------------------------------------------
 # Comportement
 # ----------------------------------------------
@@ -159,35 +128,14 @@ simu.add_surfLoad(nodesUpper, [-sig], ["y"])
 
 u_exp = simu.Solve()
 
-<<<<<<< Updated upstream
-f_exp = simu._Apply_Neumann("displacement").toarray().reshape(-1)
-forceR2 = np.sum(f_exp[ddlsY_Upper])
-# f_exp = simu.Get_K_C_M_F()[0] @ u_exp
-
-# Affichage.Plot_Result(simu, "Exx")
-# Affichage.Plot_Result(simu, "Eyy")
-# Affichage.Plot_Result(simu, "Exy")
-
-forces = simu.Get_K_C_M_F()[0] @ u_exp
-forceR = np.sum(f_exp[ddlsY_Upper])
-
-# Affichage.Plot_Result(simu, forces[ddls], cmap="seismic")
-
-=======
->>>>>>> Stashed changes
 # ----------------------------------------------
 # Identification
 # ----------------------------------------------
 
 Affichage.NouvelleSection("Identification")
 
-<<<<<<< Updated upstream
-def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes,  pltSol=False):
-    # Fonction qui renvoie les intégrales calculés
-=======
 def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False, f=None):
     """Calcul des intégrales"""
->>>>>>> Stashed changes
 
     # Calcul les déplacements associés aux champs virtuels.
     result = np.zeros((mesh.Nn, 2))
@@ -203,13 +151,8 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False
     E12_e_pg = Eps_e_pg[:,:,2]
 
     if pltSol:        
-<<<<<<< Updated upstream
-        Affichage.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, deformation=False, facteurDef=0.01)
-        Affichage.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, deformation=False, facteurDef=0.01)
-=======
         Affichage.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, colorbarIsClose=True)
         Affichage.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, colorbarIsClose=True)
->>>>>>> Stashed changes
         # Affichage.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False, plotMesh=True)
         # Affichage.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
         # Affichage.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
@@ -220,9 +163,6 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False
     C = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_e_pg * E22_exp + E22_e_pg * E11_exp)
     D = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E12_e_pg * E12_exp)
 
-<<<<<<< Updated upstream
-    E = np.sum(f_exp_bruit * u_n)
-=======
     if isinstance(f, float|int):
         uloc = u_n[assembly1D]
         E = np.einsum("ep,p,ei->", jacob1D_e_pg, poid1D_pg, uloc) * f * b
@@ -230,7 +170,6 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False
         E = np.sum(u_n[ddlsY_Upper]*f)
     else:
         E = np.sum(f_exp_bruit * u_n) 
->>>>>>> Stashed changes
 
     return A, B, C, D, E
 
@@ -251,44 +190,11 @@ for perturbation in perturbations:
         u_exp_bruit = u_exp + bruit
 
         # Récupération des déformations aux elements
-<<<<<<< Updated upstream
-        Eps_exp = simu._Calc_Epsilon_e_pg(u_exp, matriceType)
-=======
         Eps_exp = simu._Calc_Epsilon_e_pg(u_exp_bruit, matriceType)
->>>>>>> Stashed changes
         E11_exp = Eps_exp[:,:,0]
         E22_exp = Eps_exp[:,:,1]
         E12_exp = Eps_exp[:,:,2]
 
-<<<<<<< Updated upstream
-        f_exp_bruit = simu.Get_K_C_M_F()[0] @ u_exp_bruit
-        # f_exp_bruit = f_exp.copy()
-
-        fbruit = np.sum(f_exp_bruit[ddlsY_Upper])
-        fbruit = -f
-
-        u1, v1 = lambda x, y: x, lambda x, y: 0
-        A1,B1,C1,D1,E1 = Get_A_B_C_D_E(u1, v1, pltSol=False)
-        # A1,B1,C1,D1,E1 = 1, -1, 0, 0, 0
-        E1 = 0
-
-        u2, v2 = lambda x, y: 0, lambda x, y: y
-        A2,B2,C2,D2,E2 = Get_A_B_C_D_E(u2, v2, pltSol=False)
-        E2 = fbruit * h
-
-        # u3, v3 = lambda x, y: x*(x-L), lambda x, y: y*(y-h)
-        # u3, v3 = lambda x, y: x, lambda x, y: y
-        u3, v3 = lambda x, y: x**2, lambda x, y: y**2
-        A3,B3,C3,D3,E3 = Get_A_B_C_D_E(u3, v3, pltSol=False)
-        E3 = fbruit * h**2
-
-        # u4, v4 = lambda x, y: y-pZone.y, lambda x, y: x-pZone.x
-        u4, v4 = lambda x, y: y, lambda x, y: x
-        # u4, v4 = lambda x, y: 1, lambda x, y: 1
-        A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, nodesZone, pltSol=False)
-        # A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False)
-        E4 = 0
-=======
         # Attention, normalement on  a pas accès a cette information dans un essai réel !        
         f_exp_bruit = simu.Get_K_C_M_F()[0] @ u_exp_bruit
 
@@ -493,10 +399,13 @@ for perturbation in perturbations:
             u3, v3 = Get_u_v([0,0,1,0])
             u4, v4 = Get_u_v([0,0,0,1])
 
-            A1,B1,C1,D1,E1 = Get_A_B_C_D_E(u1, v1, pltSol=False, f=-f)
-            A2,B2,C2,D2,E2 = Get_A_B_C_D_E(u2, v2, pltSol=False, f=-f)
-            A3,B3,C3,D3,E3 = Get_A_B_C_D_E(u3, v3, pltSol=False, f=-f)
-            A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False, f=-f)
+            ff = None
+            # ff = -f            
+
+            A1,B1,C1,D1,E1 = Get_A_B_C_D_E(u1, v1, pltSol=False, f=ff)
+            A2,B2,C2,D2,E2 = Get_A_B_C_D_E(u2, v2, pltSol=False, f=ff)
+            A3,B3,C3,D3,E3 = Get_A_B_C_D_E(u3, v3, pltSol=False, f=ff)
+            A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False, f=ff)
 
             tt = (E1, E2, E3, E4)
 
@@ -584,7 +493,6 @@ for perturbation in perturbations:
         # ----------------------------------------------
         # Résolution
         # ----------------------------------------------
->>>>>>> Stashed changes
 
         systMat = np.array([[A1, B1, C1, D1],
                             [A2, B2, C2, D2],
@@ -696,11 +604,7 @@ for param in params:
     axParam.plot(perturbations, mean, label=f"{param}_moy")
     axParam.fill_between(perturbations, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nTirage} tirages)")
     axParam.set_xlabel("perturbations")
-<<<<<<< Updated upstream
-    axParam.set_ylabel(fr"$1 \ / \ {param}_{'{exp}'}$")
-=======
     axParam.set_ylabel(fr"${param} \ / \ {param}_{'{exp}'}$")
->>>>>>> Stashed changes
     axParam.grid()
     axParam.legend(loc="upper left")
     
