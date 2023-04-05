@@ -15,9 +15,9 @@ import Simulations
 Affichage.Clear()
 
 test = False
-loadSimu = True
-plotDamage = True
-savefig = False
+loadSimu = False
+plotDamage = False
+savefig = True
 
 # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark"
 simulation = "Shear_Benchmark"
@@ -51,19 +51,20 @@ if not savefig:
 listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 
 # listRegu = ["AT1", "AT2"] # ["AT1", "AT2"]
-listRegu = ["AT2"] # ["AT1", "AT2"]
+listRegu = ["AT1"] # ["AT1", "AT2"]
 
 listSimpli2D = ["DP"] # ["CP","DP"]
 listSolveur = ["History"]
 
+listSplit = ["Bourdin","Amor","Miehe","He","Zhang"]
 # listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
 # listSplit = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
 # listSplit = ["He","AnisotStrain","AnisotStress", "Zhang"]
-listSplit = ["Bourdin"]
+# listSplit = ["Bourdin"]
 
 listOptimMesh=[True] # [True, False]
 
-listTol = [1e-1] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+listTol = [1e-0] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
 
 listnL = [0] # [100] [100, 120, 140, 180, 200]
 

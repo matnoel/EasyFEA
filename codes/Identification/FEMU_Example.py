@@ -19,8 +19,8 @@ Affichage.Clear()
 folder = Folder.New_File("Identification", results=True)
 
 # perturbations = [0.01, 0.02]
-perturbations = np.linspace(0, 0.02, 3)
-nTirage = 50
+perturbations = np.linspace(0, 0.02, 4)
+nTirage = 100
 
 pltVerif = False
 useRescale = True
@@ -198,7 +198,7 @@ for perturbation in perturbations:
 
     for tirage in range(nTirage):
 
-        print(f"tirage = {tirage}", end='\r')
+        print(f"tirage = {tirage}", end='\r')        
 
         # bruitage de la solution
         bruit = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation

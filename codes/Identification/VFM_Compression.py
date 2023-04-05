@@ -8,7 +8,7 @@ import pandas as pd
 
 import Simulations
 import Affichage
-import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh
 import Materials
 import Geom
 import Folder
@@ -26,36 +26,37 @@ mat = "bois" # "bois", "acier"
 perturbations = np.linspace(0, 0.02, 5)
 nTirage = 100
 
-useSpecVirtual = True
+useSpecVirtual = False
 
 pltVerif = False
 
 L=45
-h=90
+H=90
+
+l = L/2
+h = H/2
+
 b=20
 d=10
-# meshSize = h/40
-meshSize = h/50
+
+meshSize = H/50
 f = 40
 sig = f/(L*b)
 
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
-
-gmshInterface = Interface_Gmsh.Interface_Gmsh(False)
-
-pt1 = Geom.Point(0,0)
-pt2 = Geom.Point(L, h)
+pt1 = Geom.Point(-L/2, -H/2)
+pt2 = Geom.Point(L/2, H/2)
 domain = Geom.Domain(pt1, pt2, meshSize)
-pC = Geom.Point(L/2, h/2)
+pC = Geom.Point(0, 0)
 circle = Geom.Circle(pC, d, meshSize, isCreux=True)
 
 diam = d
 pZone = pC + [diam/2,diam/2]
 circleZone = Geom.Circle(pZone, diam)
 
-mesh = gmshInterface.Mesh_Domain_Circle_2D(domain, circle, "TRI3")
+mesh = Interface_Gmsh().Mesh_Domain_Circle_2D(domain, circle, "TRI3")
 xn = mesh.coordo[:,0]
 yn = mesh.coordo[:,1]
 
@@ -134,7 +135,7 @@ u_exp = simu.Solve()
 
 Affichage.NouvelleSection("Identification")
 
-def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False, f=None):
+def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False, f=None, pltEps=True):
     """Calcul des intégrales"""
 
     # Calcul les déplacements associés aux champs virtuels.
@@ -153,9 +154,10 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False
     if pltSol:        
         Affichage.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, colorbarIsClose=True)
         Affichage.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, colorbarIsClose=True)
-        # Affichage.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False, plotMesh=True)
-        # Affichage.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
-        # Affichage.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
+        if pltEps:
+            Affichage.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False, plotMesh=True)
+            Affichage.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
+            Affichage.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
     
     # Calcul des intégrales.
     A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_e_pg * E11_exp)
@@ -212,19 +214,17 @@ for perturbation in perturbations:
 
             dimS2 = dimConditions/2
             
-            # m=6
-            # n=3            
+            # m=8
+            # n=5            
 
-            # p=6
-            # q=3
+            # p=8
+            # q=5
 
-            m=3
-            n=3            
+            m=5
+            n=5            
 
-            p=3
-            q=3
-
-            
+            p=5
+            q=5            
 
             sizeA = (m+1) * (n+1)
             sizeB = (p+1) * (q+1)
@@ -245,7 +245,8 @@ for perturbation in perturbations:
 
             def Add_Conditions(noeuds: np.ndarray, condU: float, condV: float, l=-1):
 
-                # conditions u et v pour les noeuds renseignés
+                # conditions u et v pour les noeuds renseignés:
+                pass
                 
                 for noeud in noeuds:
                     
@@ -278,7 +279,7 @@ for perturbation in perturbations:
             
             lastLigne = Add_Conditions(nodesLower, 0, 0)
 
-            const = h
+            const = H
             lastLigne = Add_Conditions(nodesUpper, 0, const, lastLigne)
 
             condNodes = np.unique(lignes).size
@@ -300,7 +301,7 @@ for perturbation in perturbations:
                     dy_ij_e_p = xn_e_g**i * j*yn_e_g**(j-1)
                     # dy_ij_e_p = (xn_e_g/L)**i * j/h*(yn_e_g/h)**(j-1)
 
-                    if i > 0:
+                    if i > -1:
                         lignes.append(lastLigne + 1)
                         colonnes.append(pos_Aij[c])
                         cond1_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_exp * dx_ij_e_p)
@@ -311,10 +312,10 @@ for perturbation in perturbations:
                         cond3_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E22_exp * dx_ij_e_p)
                         values.append(cond3_A)
 
-                    if j > 0:
+                    if j > -1:
                         lignes.append(lastLigne + 4)
                         colonnes.append(pos_Aij[c])
-                        cond4_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E12_exp * dy_ij_e_p)
+                        cond4_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E12_exp * dy_ij_e_p) * np.sqrt(2)/2
                         values.append(cond4_A)
 
             c = -1
@@ -329,7 +330,7 @@ for perturbation in perturbations:
                     dy_ij_e_p = xn_e_g**i * j*yn_e_g**(j-1)
                     # dy_ij_e_p = (xn_e_g/L)**i * j/h*(yn_e_g/h)**(j-1)
 
-                    if j > 0:
+                    if j > -1:
                         lignes.append(lastLigne + 2)
                         colonnes.append(pos_Bij[c])
                         cond2_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E22_exp * dy_ij_e_p)
@@ -340,10 +341,10 @@ for perturbation in perturbations:
                         cond3_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_exp * dy_ij_e_p)
                         values.append(cond3_B)  
 
-                    if i > 0:
+                    if i > -1:
                         lignes.append(lastLigne + 4)
                         colonnes.append(pos_Bij[c])
-                        cond4_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E12_exp * dx_ij_e_p)
+                        cond4_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E12_exp * dx_ij_e_p) * np.sqrt(2)/2
                         values.append(cond4_B)
 
             
@@ -399,6 +400,9 @@ for perturbation in perturbations:
             u3, v3 = Get_u_v([0,0,1,0])
             u4, v4 = Get_u_v([0,0,0,1])
 
+            coord_e_n = np.mean(mesh.coordoGlob[mesh.connect], axis=1)
+            x_e_n, y_e_n = coord_e_n[:,0], coord_e_n[:,1]
+
             ff = None
             # ff = -f            
 
@@ -440,55 +444,105 @@ for perturbation in perturbations:
             # Champ 1
             # ----------------------------------------------
             
-            u1, v1 = lambda x, y: (y-h) * y * -(x-L/2), lambda x, y: 0 # tonneau
-            # u1, v1 = lambda x, y: (y-h) * y, lambda x, y: 0 # tonneau
+            u1 = lambda x, y: x/l  # [Kim & al 2020]
+            # u1 = lambda x, y: x/l * (y-h)*(y+h)/h**2
+            # u1 = lambda x, y: 0
 
-            # u1, v1 = lambda x, y: x, lambda x, y: 0
-            # u1, v1 = lambda x, y: x**2, lambda x, y: 0
-            
-            A1,B1,C1,D1,E1 = Get_A_B_C_D_E(u1, v1, pltSol=False)        
-            E1 = 0
+            v1 = lambda x, y: y/h  # [Kim & al 2020]
+
+            A1,B1,C1,D1,E1 = Get_A_B_C_D_E(u1, v1, pltSol=False)
+            E1 = -2*f
 
             # ----------------------------------------------
             # Champ 2
             # ----------------------------------------------
 
-            u2, v2 = lambda x, y: 0, lambda x, y: y
-            # u2, v2 = lambda x, y: 0, lambda x, y: y**2
+            u2 = lambda x, y: (x/l)**3  # [Kim & al 2020]
+            # u2 = lambda x, y: (x/l)**3 * (y-h)*(y+h)/h**2
+
+            v2 = lambda x, y: (y/h)**3  # [Kim & al 2020]
+            # v2 = lambda x, y: 0
             
             A2,B2,C2,D2,E2 = Get_A_B_C_D_E(u2, v2, pltSol=False)
-            E2 = - f * h        
+            E2 = -2*f
+            # E2 = 0
 
             # ----------------------------------------------
             # Champ 3
             # ----------------------------------------------
             
-            # u3, v3 = lambda x, y: (x**3/3)-(L*x**2/2), lambda x, y: (y**3/3)-(h*y**2/2)
-            # u3, v3 = lambda x, y: (x**3/3)-(L*x**2/2), lambda x, y: 0
-            # u3, v3 = lambda x, y: x*(L-x), lambda x, y: y*(y-h)
-            # u3, v3 = lambda x, y: x*(L-x), lambda x, y: 0
-            # u3, v3 = lambda x, y: y*(y-h), lambda x, y: x*(L-x)
-            # u3, v3 = lambda x, y: y**2, lambda x, y: x**2
+            u3 = lambda x,y: np.cos(np.pi/h*y) * np.sin(np.pi/l*x)  # [Kim & al 2020]
+            # u3 = lambda x,y: np.cos(np.pi/h*y) * np.sin(np.pi/l*x) * (y-h)*(y+h)/h**2
 
-            u3, v3 = lambda x, y: y*(y-h), lambda x, y:  (x-L/2)**2 * y*(y-h)/h**2
-            # u3, v3 = lambda x, y: (y-h) * y * -(x-L/2), lambda x, y:  (x-L/2)**2 * y*(y-h)/h**2
-
+            v3 = lambda x,y: y/h  # [Kim & al 2020]
+            # v3 = lambda x,y: 0
 
             A3,B3,C3,D3,E3 = Get_A_B_C_D_E(u3, v3, pltSol=False)
-            E3=0
+            E3 = -2*f
+            # E3 = 0
 
             # ----------------------------------------------
             # Champ 4
             # ----------------------------------------------
 
-            # u4, v4 = lambda x, y: y-pZone.y, lambda x, y: x-pZone.x
-            # u4, v4 = lambda x, y: y, lambda x, y: x
-            u4, v4 = lambda x, y: 0, lambda x, y:  (x-L/2)**2 * y*(y-h)/h**2 + y
-            # u4, v4 = lambda x, y: (x-L/2)**2 * y*(y-h)/h**2 + y, lambda x, y:  0
+            u4 = lambda x,y: (y/h)**2 * (x/l) # [Kim & al 2020]
+            # u4 = lambda x,y: (y/h)**2 * (x/l) * (y-h)*(y+h)/h**2
             
-            # A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, nodesZone, pltSol=False)
+            v4 = lambda x,y: (y/h)**3  # [Kim & al 2020]
+            # v4 = lambda x,y: 0
+
             A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False)
-            E4 = - f * h
+            E4 = -2*f
+            # E4 = 0
+
+            # u4 = lambda x,y: y
+            # v4 = lambda x,y: x
+            
+            # A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False, nodes=nodesZone)
+            # E4 = 0
+        
+        # cc = -1
+        # for u, v in zip([u1,u2,u3,u4], [v1,v2,v3,v4]):
+
+        #     # opt = " Kim"
+        #     opt = ""
+
+        #     cc += 1
+
+        #     # Calcul les déplacements associés aux champs virtuels.
+        #     result = np.zeros((mesh.Nn, 2))
+        #     result[:,0] = u(xn, yn)
+        #     result[:,1] = v(xn, yn)
+        #     u_n = result.reshape(-1)
+
+        #     simu.set_u_n("displacement", u_n)
+            
+        #     ax = Affichage.Plot_Result(simu, "ux",title=" ", colorbarIsClose=True)[1]
+        #     ax.axis("off")
+        #     ax.set_title("$u_x^{" + f"*({cc+1})" + "}$")
+        #     Affichage.Save_fig(folder, f"VFM_ux{cc+1}{opt}")
+
+        #     ax = Affichage.Plot_Result(simu, "uy",title=" ", colorbarIsClose=True)[1]
+        #     ax.axis("off")
+        #     ax.set_title("$u_y^{" + f"*({cc+1})" + "}$")
+        #     Affichage.Save_fig(folder, f"VFM_uy{cc+1}{opt}")
+
+        #     ax = Affichage.Plot_Result(simu, "Exx",title=" ", colorbarIsClose=True)[1]
+        #     ax.axis("off")
+        #     ax.set_title("$\epsilon_{xx}^{" + f"*({cc+1})" + "}$")
+        #     Affichage.Save_fig(folder, f"VFM_Exx{cc+1}{opt}")
+
+        #     ax = Affichage.Plot_Result(simu, "Eyy", title=" ", colorbarIsClose=True)[1]
+        #     ax.axis("off")
+        #     ax.set_title("$\epsilon_{yy}^{" + f"*({cc+1})" + "}$")
+        #     Affichage.Save_fig(folder, f"VFM_Eyy{cc+1}{opt}")
+
+        #     ax = Affichage.Plot_Result(simu, "Exy",title=" ", colorbarIsClose=True)[1]
+        #     ax.axis("off")
+        #     ax.set_title("$\epsilon_{xy}^{" + f"*({cc+1})" + "}$")
+        #     Affichage.Save_fig(folder, f"VFM_Exy{cc+1}{opt}")
+        #     pass            
+        
 
         # ----------------------------------------------
         # Résolution
@@ -581,6 +635,9 @@ bSup = 0.5 + (0.95/2)
 
 print("\n")
 
+opt = " Kim"
+# opt = ""
+
 for param in params:
 
     axParam = plt.subplots()[1]
@@ -608,7 +665,7 @@ for param in params:
     axParam.grid()
     axParam.legend(loc="upper left")
     
-    Affichage.Save_fig(folder, "VFM_"+param, extension='pdf')
+    Affichage.Save_fig(folder, "VFM_"+param+opt, extension='pdf')
 
     print(f"{param} = {mean.mean()*paramExp}")
 
