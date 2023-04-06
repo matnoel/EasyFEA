@@ -14,7 +14,7 @@ Affichage.Clear()
 # L'objectif de ce script est de voir du chargement
 
 # Options
-dim = 3
+dim = 2
 comp = "Elas_Isot"
 split = "Zhang" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT2"
@@ -41,7 +41,7 @@ v=0.2
 SIG = 10 #Pa
 
 gc = 1.4
-l_0 = 0.12 *coef*10
+l_0 = 0.12 *coef*3
 
 # Création du maillage
 clD = l_0*2
@@ -52,13 +52,12 @@ domain = Domain(point, Point(x=L, y=H), clD)
 circle = Circle(Point(x=L/2, y=H-h), diam, clC, isCreux=True)
 val = diam*2
 refineGeom = Domain(Point(x=L/2-val/2, y=(H-h)-val/2), Point(x=L/2+val/2, y=(H-h)+val/2), meshSize=clC/2)
-# refineGeom = Circle(Point(x=L/2, y=H-h), val, clC)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
 if dim == 2:
     mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "QUAD8", refineGeom=refineGeom)
 else:
-    mesh = interfaceGmsh.Mesh_Domain_Circle_3D(domain, circle, [0,0,6*coef], nCouches=6, elemType="HEXA8", refineGeom=refineGeom)
+    mesh = interfaceGmsh.Mesh_Domain_Circle_3D(domain, circle, [0,0,6*coef], nCouches=6, elemType="TETRA10", refineGeom=refineGeom)
 
 Affichage.Plot_Model(mesh)
 # plt.show()
@@ -99,10 +98,10 @@ simu.add_dirichlet(node00, [0], ["x"])
 
 # Sx = F * cos tet * abs(sin tet)
 # Sy = F * sin tet * abs(sin tet)
-simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
-simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
+# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
+# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
 
-# simu.add_surfLoad(nodesh, [-SIG], ["y"])
+simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
 Affichage.Plot_BoundaryConditions(simu)
 
@@ -117,59 +116,42 @@ Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_
 Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 Affichage.Plot_Result(simu, "Svm", coef=1/SIG, title=r"$\sigma_{vm}/\sigma$", folder=folder, filename='Svm')
 
-# mini = np.min(simu.Get_Resultat("Syy", nodeValues=False))/SIG
+# # mini = np.min(simu.Get_Resultat("Syy", nodeValues=False))/SIG
 
-# PostTraitement.Save_Simulation_in_Paraview(folder, simu)
+# # PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 
-R = 10
-Load=15
-tet = np.linspace(-np.pi,0,31)
+# R = 10
+# Load=15
+# tet = np.linspace(-np.pi,0,31)
 
-xR = R * np.cos(tet)
-yR = R * np.sin(tet)
+# xR = R * np.cos(tet)
+# yR = R * np.sin(tet)
 
-# xf = Load * np.cos(tet) 
-# yf = Load * np.sin(tet)
+# # xf = Load * np.cos(tet) 
+# # yf = Load * np.sin(tet)
 
-# xf = Load * np.cos(tet)* np.abs(np.sin(tet)) + R * np.cos(tet)
-xf = xR
-# yf = Load * np.sin(tet)* np.abs(np.sin(tet))
-yf = Load * np.sin(tet)**2
+# # xf = Load * np.cos(tet)* np.abs(np.sin(tet)) + R * np.cos(tet)
+# xf = xR
+# # yf = Load * np.sin(tet)* np.abs(np.sin(tet))
+# yf = Load * np.sin(tet)**2
 
-# xf = Load * np.cos(tet)* 1 + R * np.cos(tet)
-# yf = Load * np.sin(tet)* 1
+# # xf = Load * np.cos(tet)* 1 + R * np.cos(tet)
+# # yf = Load * np.sin(tet)* 1
 
-# xf = - Load * np.cos(tet) * np.sin(tet)
-# yf = - Load * np.sin(tet) * np.sin(tet)
+# # xf = - Load * np.cos(tet) * np.sin(tet)
+# # yf = - Load * np.sin(tet) * np.sin(tet)
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
-ax.plot(tet, yf)
+# ax.plot(tet, yf)
 
-# ax.plot(xR,yR)
-# ax.plot(xf,yf)
-# for x,y,dx,dy in zip(xR,yR,xf-xR,yf-yR):
-#     ax.arrow(x,y,dx,dy,width=0.1,length_includes_head=True)
-# ax.axis('equal')
+# # ax.plot(xR,yR)
+# # ax.plot(xf,yf)
+# # for x,y,dx,dy in zip(xR,yR,xf-xR,yf-yR):
+# #     ax.arrow(x,y,dx,dy,width=0.1,length_includes_head=True)
+# # ax.axis('equal')
 
-ax.grid()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# ax.grid()
 
 
 
