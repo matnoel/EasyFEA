@@ -14,7 +14,7 @@ folder = Folder.New_File("Beam", results=True)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
-problem = "Flexion"
+problem = "Portique"
 
 elemType = "SEG4"
 

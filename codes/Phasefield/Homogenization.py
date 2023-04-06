@@ -121,6 +121,8 @@ def Solve(Eij: np.ndarray):
 
         u, d, Kglob, convergence = simu.Solve(tolConv=1e-0, maxIter=50)
 
+        simu.Save_Iteration()
+
         Sxy_e = simu.Get_Resultat("Sxy", nodeValues=False)
 
         Sxy = np.mean(Sxy_e)

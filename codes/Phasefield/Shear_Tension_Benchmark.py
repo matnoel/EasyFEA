@@ -20,7 +20,7 @@ from matplotlib.collections import LineCollection
 # Simulation
 # ----------------------------------------------
 dim = 2
-simulation = "Shear" # "Shear" , "Tension"
+simulation = "Tension" # "Shear" , "Tension"
 
 if dim == 3:
     simulation += "_3D"
@@ -30,8 +30,8 @@ else:
 
 nomDossier = '_'.join([simulation,"Benchmark"])
 
-test = False
-solve = False
+test = True
+solve = True
 
 # ----------------------------------------------
 # Post traitement
@@ -39,14 +39,14 @@ solve = False
 plotMesh = False
 plotResult = False
 plotEnergie = False
-getFissure = True
+getFissure = False
 showResult = True
 
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
 saveParaview = False; Nparaview=400
-makeMovie = False
+makeMovie = True
 
 # ----------------------------------------------
 # Maillage
@@ -65,15 +65,16 @@ tolConv = 1e-0
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
-regularisations = ["AT1", "AT2"]
-# regularisations = ["AT2"] # "AT1", "AT2"
+comportement_str = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
+# regularisations = ["AT1", "AT2"]
+regularisations = ["AT2"] # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 
-splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+splits = ["Zhang"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)
@@ -99,7 +100,7 @@ for split, regu in zip(splits, regularisations):
     # Paramètres géométrie
     L = 1e-3;  #m
     if comportement_str == "Elas_Anisot":
-        theta = -0
+        theta = -45
         l0 = 8.5e-6
     else:
         theta = 0
@@ -109,7 +110,7 @@ for split, regu in zip(splits, regularisations):
     if test:
         meshSize = l0 #taille maille test fem object
         # taille = 0.001  
-        meshSize *= 3
+        meshSize *= 1
     else:
         # On raffin pour avoir au moin 2 element par demie largeur de fissure
         meshSize = l0/2 #l0/2 2.5e-6 
@@ -324,7 +325,7 @@ for split, regu in zip(splits, regularisations):
             listInc = [uinc0, uinc1]
             listThreshold = [tresh0, tresh1]
             optionTreshold = ["damage"]*2
-            chargement = ["crack bord"]
+            # chargement = ["crack bord"]
 
         simu.Resultats_Set_Resume_Chargement(chargement[-1],listInc, listThreshold, optionTreshold)        
 
