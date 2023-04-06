@@ -16,7 +16,7 @@ from TicTac import Tic
 # Configuration
 # ----------------------------------------------
 
-dim = 2
+dim = 3
 folder = Folder.New_File(f"Etude{dim}D", results=True)
 plotResult = True
 
@@ -27,11 +27,11 @@ saveParaview = False; NParaview = 500
 pltMovie = False; NMovie = 400
 plotIter = True; affichageIter = "uy"
 
-# coefM = 1e-2
-# coefK = 1e-2*2
+coefM = 1e-2
+coefK = 1e-2*2
 
-coefM = 0
-coefK = 0
+# coefM = 0
+# coefK = 0
 
 tic_Tot = Tic()
 
@@ -52,7 +52,7 @@ surfLoad = P/h/b #N/mm2
 # Paramètres maillage
 # taille = h/1
 # taille = L/2
-taille = h/10
+taille = h/5
 
 
 # ----------------------------------------------
@@ -79,7 +79,7 @@ elif dim == 3:
     # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     
     elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
-    mesh = interfaceGmsh.Mesh_Domain_3D(domain, [0,0,b], elemType=elemType, isOrganised=False, nCouches=3)
+    mesh = interfaceGmsh.Mesh_Domain_3D(domain, [0,0,b], elemType=elemType, isOrganised=True, nCouches=3)
 
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)

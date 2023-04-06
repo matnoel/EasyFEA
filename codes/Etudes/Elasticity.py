@@ -12,14 +12,14 @@ import TicTac
 import Folder
 
 dim = 2
-N = 100
+N = 10
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
     EQUERRE = "EQUERRE",
     TEF2 = "TEF2"
 
-simulationType = SimulationType.EQUERRE
+simulationType = SimulationType.TEF2
 
 interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
@@ -38,6 +38,12 @@ if simulationType == SimulationType.CPEF:
     mesh = interface.Mesh_Import_part3D(fichier, 5)
 
     noeuds134 = mesh.Nodes_Tags(['S134'])
+
+    comportement = Materials.Elas_Isot(dim, E=E, v=v)
+    simu = Simulations.Simu_Displacement(mesh, comportement)
+
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z==0), [0,0,0], ['x','y','z'])
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z<-50), [2], ["z"])
     
 elif simulationType == SimulationType.EQUERRE:
 
@@ -68,7 +74,7 @@ elif simulationType == SimulationType.EQUERRE:
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8, inclusions=inclusions)
+        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.PRISM6, inclusions=inclusions)
 
         noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
         Affichage.Plot_Elements(mesh, noeudsS3)
@@ -76,6 +82,16 @@ elif simulationType == SimulationType.EQUERRE:
 
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(lambda x,y,z: x == L)
+
+    comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
+    simu = Simulations.Simu_Displacement(mesh, comportement)
+
+    if dim == 2:
+        simu.add_dirichlet(noeudsGauche, [0,0], ["x","y"])
+        simu.add_lineLoad(noeudsDroit, [-800/h], ["y"])
+    else:
+        simu.add_dirichlet(noeudsGauche, [0,0,0], ["x","y","z"])
+        simu.add_surfLoad(noeudsDroit, [-800/(h*h)], ["y"])
     
 elif simulationType == SimulationType.TEF2:
 
@@ -102,32 +118,14 @@ elif simulationType == SimulationType.TEF2:
         mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI6, inclusions=[])
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.TETRA4, inclusions=[])
+        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.PRISM6, inclusions=[])
 
     noeudsBas = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x==0)
 
-Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh, showId=True)
-# plt.show()
+    comportement = Materials.Elas_Isot(dim, contraintesPlanes=False, epaisseur=h, E=E, v=v)
+    simu = Simulations.Simu_Displacement(mesh, comportement)
 
-comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
-
-simu = Simulations.Simu_Displacement(mesh, comportement)
-
-if simulationType == SimulationType.CPEF:
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z==0), [0,0,0], ['x','y','z'])
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: z<-50), [2], ["z"])
-
-elif simulationType == SimulationType.EQUERRE:
-    if dim == 2:
-        simu.add_dirichlet(noeudsGauche, [0,0], ["x","y"])
-        simu.add_lineLoad(noeudsDroit, [-800/h], ["y"])
-    else:
-        simu.add_dirichlet(noeudsGauche, [0,0,0], ["x","y","z"])
-        simu.add_surfLoad(noeudsDroit, [-800/(h*h)], ["y"])
-
-elif simulationType == SimulationType.TEF2:
     if dim == 2:
         simu.add_dirichlet(noeudsBas, [0,0], ["x","y"])
     else:
@@ -135,6 +133,9 @@ elif simulationType == SimulationType.TEF2:
 
     simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
     simu.add_surfLoad(noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], description="[w*g*(h-y)]")
+
+Affichage.Plot_Mesh(mesh)
+Affichage.Plot_Model(mesh, showId=True)
 
 simu.Solve()
 simu.Save_Iteration()
