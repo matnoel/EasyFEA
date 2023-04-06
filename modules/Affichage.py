@@ -93,6 +93,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         else:
             fig = plt.figure()
             ax = fig.add_subplot(projection="3d")
+            ax.view_init(elev=105, azim=-90)
     else:
         fig = fig
         ax = ax
@@ -101,13 +102,13 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     if dim == 3:
         nodeValues = True # Ne pas modifier, il faut passer par la solution aux noeuds pour localiser aux elements 2D !!!
         # Quand on fait une simulation en 3D on affiche les résultats que sur les elements 2D
-        # Pour prendre moin de place
-        # En plus, il faut tracer la solution que sur les eléments 2D
+        # Pour prendre moin de place        
 
+    # Récupération des valeurs à afficher
     if isinstance(option, str):
         valeurs = simu.Get_Resultat(option, nodeValues) # Récupération du résultat
         if not isinstance(valeurs, np.ndarray): return
-
+    
     elif isinstance(option, np.ndarray):
         # Recupère la taille de l'array, la taille doit être aux noeuds ou aux elements
         # Si la taille n'est pas egale au nombre de noeuds ou d'elements renvoie une erreur
@@ -131,15 +132,15 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
 
     coordoNonDef = mesh.coordoGlob # coordonnées des noeuds sans déformations
 
-    if deformation:
-        # Recupération des coordonnée déformées si la simulation le permet
+    # Recupération des coordonnée déformées si la simulation le permet
+    if deformation:        
         coordoDef, deformation = __GetCoordo(simu, deformation, facteurDef)
     else:
         coordoDef = coordoNonDef.copy()
     
     coordoDef_InDim = coordoDef[:,range(inDim)]
     
-    connect_Faces = mesh.dict_connect_Faces # construit la matrice de connection pour les faces    
+    dict_connect_Faces = mesh.Get_dict_connect_Faces() # construit les faces de chaque groupe d'elements
 
     # Construit les bornes pour la colorbar
     if isinstance(option, str) and option == "damage":
@@ -154,58 +155,50 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     else:
         max = np.max(valeurs)+1e-12
         min = np.min(valeurs)-1e-12
-
     levels = np.linspace(min, max, 200)
+
 
     if inDim in [1,2] and not use3DBeamModel:
         # Maillage contenu dans un plan 2D
+        # Actuellement conçu que pour un groupe d'element !!
 
-        # dictionnaire pour stocker les coordonnées par faces
-        dict_coordoFaceElem = {}
-        for elem in connect_Faces:
-            faces = connect_Faces[elem] # Récupérations des noeuds par faces
-            # recupere la coordonnée des noeuds de chaque elements
-            dict_coordoFaceElem[elem] = coordoDef_InDim[faces]
+        faces = dict_connect_Faces[mesh.groupElem.elemType]
 
-        for elem in dict_coordoFaceElem:
-            # Pour chaque type d'element du maillage on va tracer la solution
+        coordFaces = coordoDef_InDim[faces]        
 
-            # coordonnées par element
-            vertices = dict_coordoFaceElem[elem]
-
-            # Trace le maillage
-            if plotMesh:
-                if mesh.dim == 1:
-                    # le maillage pour des elements 1D sont des points
-                    coordFaces = vertices.reshape(-1,inDim)
-                    ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=0.1, marker='.')
-                else:
-                    # le maillage pour des elements 2D sont des lignes
-                    pc = matplotlib.collections.LineCollection(vertices, edgecolor='black', lw=0.5)
-                    ax.add_collection(pc)
-
-            # Valeurs aux elements
-            if mesh.Ne == len(valeurs):
-                # on va afficher le résultat sur les elements
-                if mesh.dim == 1:
-                    # on va afficher le résulat sur chaque ligne
-                    pc = matplotlib.collections.LineCollection(vertices, lw=1.5, cmap=cmap)
-                else:
-                    # on va afficher le résultat sur les faces
-                    pc = matplotlib.collections.PolyCollection(vertices, lw=0.5, cmap=cmap)                
-                pc.set_clim(min, max)
-                pc.set_array(valeurs)
+        # Trace le maillage
+        if plotMesh:
+            if mesh.dim == 1:
+                # le maillage pour des elements 1D sont des points
+                coordFaces = coordFaces.reshape(-1,inDim)
+                ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=0.1, marker='.')
+            else:
+                # le maillage pour des elements 2D sont des lignes
+                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=0.5)
                 ax.add_collection(pc)
 
-            # Valeur aux noeuds
-            elif mesh.Nn == len(valeurs):
-                # on va afficher le résultat sur les noeuds
-                # récupération des triangles de chaque face pour utiliser la fonction trisurf
-                connectTri = mesh.dict_connect_Triangle
+        # Valeurs aux elements
+        if mesh.Ne == len(valeurs):            
+            if mesh.dim == 1:
+                # on va afficher le résulat sur chaque ligne
+                pc = matplotlib.collections.LineCollection(coordFaces, lw=1.5, cmap=cmap)
+            else:
+                # on va afficher le résultat sur les faces
+                pc = matplotlib.collections.PolyCollection(coordFaces, lw=0.5, cmap=cmap)                
+            pc.set_clim(min, max)
+            pc.set_array(valeurs)
+            ax.add_collection(pc)
 
-                pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri[elem], valeurs, levels, cmap=cmap, vmin=min, vmax=max)
-                # tripcolor, tricontour, tricontourf
+        # Valeur aux noeuds
+        elif mesh.Nn == len(valeurs):
+            # on va afficher le résultat sur les noeuds
+            # récupération des triangles de chaque face pour utiliser la fonction trisurf
+            connectTri = mesh.dict_connect_Triangle[mesh.groupElem.elemType]
 
+            pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri, valeurs, levels, cmap=cmap, vmin=min, vmax=max)
+            # tripcolor, tricontour, tricontourf
+
+        # mets les axes à l'echelle
         ax.autoscale()
         epX = np.abs(coordoDef[:,0].max() - coordoDef[:,0].min())
         epY = np.abs(coordoDef[:,1].max() - coordoDef[:,1].min())
@@ -221,7 +214,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         else:
             cax=None
         
-        # Construction les ticks pour la colorbar
+        # Construction de la colorbar
         if isinstance(option, str) and option == "damage":
             ticks = np.linspace(0,1,11)
         else:
@@ -234,7 +227,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
 
     
     elif inDim == 3 or use3DBeamModel:
-        # initialisation des valeurs max et min de la colorbar         
+        # initialisation des valeurs max et min de la colorbar
         
         maxVal = max
         minVal = min
@@ -248,48 +241,52 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
             # En gros la couche extérieur
             dim = 2
 
-        for groupElemDim in mesh.Get_list_groupElem(dim):
-            indexeFaces = groupElemDim.indexesFaces
-            # Récupération de la liste de noeuds de chaque element
-            connectDim = groupElemDim.connect
-            # Récupération de la coordonnée des noeuds
-            coordoDim = groupElemDim.coordoGlob
-            # coordonnées des noeuds pour chaque element
-            vertices = np.asarray(coordoDim[connectDim[:,indexeFaces]]) # (Ne, nPe, 3)
-            
-            if nodeValues:
-                # Si le résultat est stocké aux noeuds on va faire la moyenne des valeurs aux noeuds sur l'element
-                valeursNoeudsSurElement = valeurs[connectDim]
-                valeursAuxFaces = np.asarray(np.mean(valeursNoeudsSurElement, axis=1))
-            else:
-                valeursAuxFaces = valeurs
+        # construit la matrice de connexion des faces
+        connectFaces = []
+        list_groupElemDim = mesh.Get_list_groupElem(dim)
+        for groupElem in list_groupElemDim:
+            connectFaces.extend(dict_connect_Faces[groupElem.elemType])
+        connectFaces = np.array(connectFaces)
 
-            # mise à jour 
-            maxVal = np.max([maxVal, valeursAuxFaces.max()])
-            minVal = np.min([minVal, valeursAuxFaces.min()])
+        coordFaces = coordoDef[connectFaces]
 
-            # On affiche le résultat avec ou sans l'affichage du maillage
-            if plotMesh:
-                if dim == 1:
-                    pc = Line3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
-                elif dim == 2:
-                    pc = Poly3DCollection(vertices, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
-            else:
-                if dim == 1:
-                    pc = Line3DCollection(vertices, cmap=cmap, zorder=0)
-                if dim == 2:
-                    pc = Poly3DCollection(vertices, cmap=cmap, zorder=0)
+        if nodeValues:
+            # Si le résultat est stocké aux noeuds on va faire la moyenne des valeurs aux noeuds sur l'element           
 
-            # On applique les couleurs aux faces
-            pc.set_array(valeursAuxFaces)
+            valeursAuxFaces = []
+            # pour chaque groupe d'element on va calculer la valeur à afficher sur chaque element
+            for groupElem in list_groupElemDim:
+                valeursNoeudsSurElement = valeurs[groupElem.connect]
+                values = np.asarray(np.mean(valeursNoeudsSurElement, axis=1))
+                valeursAuxFaces.extend(values)
+            valeursAuxFaces = np.asarray(valeursAuxFaces)
+        else:
+            valeursAuxFaces = valeurs
 
-            # ax.add_collection3d(pc, zs=2, zdir='x')
-            ax.add_collection3d(pc)
-            # ax.add_collection3d(pc)
+        # mise à jour du max et 
+        maxVal = valeursAuxFaces.max()
+        minVal = valeursAuxFaces.min()
 
+        # On affiche le résultat avec ou sans l'affichage du maillage
+        if plotMesh:
+            if dim == 1:
+                pc = Line3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
+            elif dim == 2:
+                pc = Poly3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
+        else:
+            if dim == 1:
+                pc = Line3DCollection(coordFaces, cmap=cmap, zorder=0)
+            if dim == 2:
+                pc = Poly3DCollection(coordFaces, cmap=cmap, zorder=0)
+
+        # On applique les couleurs aux faces
+        pc.set_array(valeursAuxFaces)        
+        ax.add_collection3d(pc)        
+        
         # On pose les limites de la colorbar et on l'affiche
         pc.set_clim(minVal, maxVal)
-        cb = fig.colorbar(pc, ax=ax)
+        ticks = np.linspace(minVal,maxVal,11)
+        cb = fig.colorbar(pc, ax=ax, ticks=ticks)
 
         # renome les axes
         ax.set_xlabel(r"$x$")
@@ -384,59 +381,65 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     inDim = mesh.groupElem.inDim
 
     # construit la matrice de connection pour les faces
-    connect_Faces = mesh.dict_connect_Faces
+    dict_connect_Faces = mesh.Get_dict_connect_Faces()
 
-    # Construit les faces non deformées
-    coord_NonDeforme_redim = coordo[:,range(inDim)]
-
-    coord_par_face = {}
-
+    # récupération des coordonnées
+    inDim = 3 if use3DBeamModel else mesh.groupElem.inDim
+    coordo = coordo[:,range(inDim)]
     if deformation:
         coordoDeforme, deformation = __GetCoordo(simu, deformation, facteurDef)
-        coordo_Deforme_redim = coordoDeforme[:,range(inDim)]
-        coordo_par_face_deforme = {}
+        coordoDeforme = coordoDeforme[:,range(inDim)]    
 
-    for elemType in connect_Faces:
-        faces = connect_Faces[elemType]
-        coord_par_face[elemType] = coord_NonDeforme_redim[faces]
+    # La dimension des elements affichés
+    dimElem = mesh.dim
+    if dimElem == 3:
+        # Si le maillage est un maillage 3D alors on ne va affichier que les elements 2D du maillage
+        # En gros la couche extérieur
+        dimElem = 2
 
-        if deformation:
-            coordo_par_face_deforme[elemType] = coordo_Deforme_redim[faces]
+    # construit la matrice de connexion des faces
+    connectFaces = []
+    for groupElem in mesh.Get_list_groupElem(dimElem):
+        connectFaces.extend(dict_connect_Faces[groupElem.elemType])
+    connectFaces = np.array(connectFaces)
+
+    coordFaces = coordo[connectFaces]
+
+    if deformation:
+        coordFacesDeforme = coordoDeforme[connectFaces]
         
     if inDim in [1,2] and not use3DBeamModel:
-        
+
         if ax == None:
             fig, ax = plt.subplots()
 
-        for elemType in coord_par_face:
-            coordFaces = coord_par_face[elemType]
+        if deformation:
 
-            if deformation:
-                coordDeforme = coordo_par_face_deforme[elemType]
+            coordFacesDeforme = coordoDeforme[connectFaces]
 
-                # Superpose maillage non deformé et deformé
-                # Maillage non deformés            
-                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
-                ax.add_collection(pc)
+            # Superpose maillage non deformé et deformé
+            # Maillage non deformés            
+            pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
+            ax.add_collection(pc)
 
-                # Maillage deformé                
-                pc = matplotlib.collections.LineCollection(coordDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
-                ax.add_collection(pc)
+            # Maillage deformé                
+            pc = matplotlib.collections.LineCollection(coordFacesDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
+            ax.add_collection(pc)
 
+        else:
+            # Maillage non deformé
+            if alpha == 0:
+                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=1)
             else:
-                # Maillage non deformé
-                if alpha == 0:
-                    pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=1)
-                else:
-                    pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw, zorder=1)
-                ax.add_collection(pc)
+                pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw, zorder=1)
+            ax.add_collection(pc)
 
-            if mesh.dim == 1:
-                coordFaces = coordFaces.reshape(-1,inDim)
-                ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=lw, marker='.')
-                if deformation:
-                    coordDeforme = coordo_par_face_deforme[elemType].reshape(-1, inDim)
-                    ax.scatter(coordDeforme[:,0], coordDeforme[:,1], c='red', lw=lw, marker='.')
+        if mesh.dim == 1:
+            coordFaces = coordFaces.reshape(-1,inDim)
+            ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=lw, marker='.')
+            if deformation:
+                coordDeforme = coordFacesDeforme.reshape(-1, inDim)
+                ax.scatter(coordDeforme[:,0], coordDeforme[:,1], c='red', lw=lw, marker='.')            
         
         ax.autoscale()
         ax.axis('equal')
@@ -445,68 +448,47 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
 
     # ETUDE 3D    
     elif inDim == 3 or use3DBeamModel:
-        
+
         if ax == None:
             fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
-
-        # fig = plt.figure()            
-        # ax = fig.add_subplot(projection="3d")
-
-        dim = mesh.dim
-        if dim == 3:
-            # Si le maillage est un maillage 3D alors on ne va affichier que les elements 2D du maillage
-            # En gros la couche extérieur
-            dim = 2
+            ax.view_init(elev=105, azim=-90)
 
         if deformation:
             # Affiche que les elements 1D ou 2D en fonction du type de maillage
 
-            for groupElemDim in mesh.Get_list_groupElem(dim):
-                faces = groupElemDim.Get_dict_connect_Faces()[groupElemDim.elemType]
-                coordDeformeFaces = coordoDeforme[faces]
-                coordFaces = groupElemDim.coordoGlob[faces]
+            if dimElem > 1:
+                # Supperpose les deux maillages
+                # Maillage non deformé
+                # ax.scatter(x,y,z, linewidth=0, alpha=0)
+                pcNonDef = Poly3DCollection(coordFaces, edgecolor=edgecolor, linewidths=0.5, alpha=0, zorder=0)
+                ax.add_collection3d(pcNonDef)
 
-                if dim > 1:
-                    # Supperpose les deux maillages
-                    # Maillage non deformé
-                    # ax.scatter(x,y,z, linewidth=0, alpha=0)
-                    pcNonDef = Poly3DCollection(coordFaces, edgecolor=edgecolor, linewidths=0.5, alpha=0, zorder=0)
-                    ax.add_collection3d(pcNonDef)
+                # Maillage deformé
+                pcDef = Poly3DCollection(coordFacesDeforme, edgecolor='red', linewidths=0.5, alpha=0, zorder=0)
+                ax.add_collection3d(pcDef)
+            else:
+                # Superpose maillage non deformé et deformé
+                # Maillage non deformés            
+                pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
+                ax.add_collection3d(pc)
 
-                    # Maillage deformé
-                    pcDef = Poly3DCollection(coordDeformeFaces, edgecolor='red', linewidths=0.5, alpha=0, zorder=0)
-                    ax.add_collection3d(pcDef)
-                else:
-                    # Superpose maillage non deformé et deformé
-                    # Maillage non deformés            
-                    pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
-                    ax.add_collection3d(pc)
-
-                    # Maillage deformé                
-                    pc = Line3DCollection(coordDeformeFaces, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
-                    ax.add_collection3d(pc)
-                    
-                    ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
-                    ax.scatter(coordoDeforme[:,0], coordoDeforme[:,1], coordoDeforme[:,2], c='red', lw=lw, marker='.')
+                # Maillage deformé                
+                pc = Line3DCollection(coordFacesDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
+                ax.add_collection3d(pc)
+                
+                ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
+                ax.scatter(coordoDeforme[:,0], coordoDeforme[:,1], coordoDeforme[:,2], c='red', lw=lw, marker='.')                
 
         else:
             # Maillage non deformé
             # Affiche que les elements 1D ou 2D en fonction du type de maillage
 
-            for groupElemDim in mesh.Get_list_groupElem(dim):
-                
-                indexesFaces = groupElemDim.indexesFaces
-                connectDim = groupElemDim.connect[:, indexesFaces]
-                coordoDim = groupElemDim.coordoGlob
-                coordFaces = coordoDim[connectDim]
-
-                if dim > 1:
-                    pc = Poly3DCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=0)
-                else:
-                    pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
-                    ax.scatter(coordoDim[:,0], coordoDim[:,1], coordoDim[:,2], c='black', lw=lw, marker='.')
-
-                ax.add_collection3d(pc, zs=0, zdir='z')
+            if dimElem > 1:
+                pc = Poly3DCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=0)
+            else:
+                pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
+                ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
+            ax.add_collection3d(pc, zs=0, zdir='z')
             
         __ChangeEchelle(ax, coordo)
         ax.set_xlabel(r"$x$")
@@ -574,7 +556,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
 
     return ax
 
-def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder="", ax=None):
+def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', alpha=0, folder="", ax=None):
     """Affiche les elements du maillage en fonction des numéros de noeuds
 
     Parameters
@@ -589,6 +571,8 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
         affiche les numéros, by default False    
     c : str, optional
         couleur utilisé pour afficher les elements, by default 'red'
+    alpha : int, optional
+        transparence des faces, by default 1
     folder : str, optional
         dossier de sauvegarde, by default ""
     ax : plt.Axes, optional
@@ -606,11 +590,11 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', folder=""
     if dimElem == None:
         dimElem = mesh.dim-1 if mesh.inDim == 3 else mesh.dim
 
-    list_groupElem = mesh.Get_list_groupElem(dimElem)
+    list_groupElem = mesh.Get_list_groupElem(dimElem)[:1]
     if len(list_groupElem) == 0: return
 
     if ax == None:
-        ax = Plot_Mesh(mesh, alpha=1)
+        ax = Plot_Mesh(mesh, alpha=alpha)
 
     for groupElemDim in list_groupElem:
 
@@ -751,7 +735,7 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     return ax
 
-def Plot_Model(obj, showId=True,  ax=None, folder="", alpha=1) -> plt.Axes:
+def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
 
     from Simulations import Simu
     from Mesh import Mesh, GroupElem
@@ -777,11 +761,12 @@ def Plot_Model(obj, showId=True,  ax=None, folder="", alpha=1) -> plt.Axes:
         else:
             fig = plt.figure()
             ax = fig.add_subplot(projection="3d")
+            ax.view_init(elev=105, azim=-90)
 
     # Ici pour chaque group d'element du maillage, on va tracer les elements appartenant au groupe d'element
 
     listGroupElem = cast(list[GroupElem], [])
-    listDim = np.arange(mesh.dim+1, -1, -1, dtype=int)
+    listDim = np.arange(mesh.dim, -1, -1, dtype=int)
     for dim in listDim:
         if dim < 3:
             # On ajoute pas les groupes d'elements 3D
@@ -796,7 +781,7 @@ def Plot_Model(obj, showId=True,  ax=None, folder="", alpha=1) -> plt.Axes:
         tags_e = groupElem.elementTags
         dim = groupElem.dim
         coordo = groupElem.coordoGlob[:, range(inDim)]
-        faces = groupElem.Get_dict_connect_Faces()[groupElem.elemType]
+        faces = mesh.Get_dict_connect_Faces()[groupElem.elemType]
         coordoFaces = coordo[faces]
         coordo_e = np.mean(coordoFaces, axis=1)
 

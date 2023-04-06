@@ -132,11 +132,22 @@ class Mesh:
         """Transforme la matrice de connectivité pour la passer dans le trisurf en 2D"""
         return self.groupElem.Get_dict_connect_Triangle()
     
-    @property
-    def dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:
-        """Récupère les faces de chaque élément et renvoie un dictionnaire pour chaque elements
+    def Get_dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:        
+        """Récupère les identifiants des noeuds construisant les faces et renvoie les faces pour chaque type d'éléments.
         """
-        return self.groupElem.Get_dict_connect_Faces()
+
+        dict_connect_faces = {}
+        
+        for elemType, groupElem in self.dict_groupElem.items():
+
+            indexesFaces = groupElem.indexesFaces
+
+            if self.__groupElem.elemType == ElemType.PRISM6 and elemType == ElemType.TRI3:
+                indexesFaces.append(indexesFaces[0])
+
+            dict_connect_faces[elemType] = groupElem.connect[:, indexesFaces]
+            
+        return dict_connect_faces
 
     # Assemblage des matrices 
 

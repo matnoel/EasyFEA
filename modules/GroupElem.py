@@ -170,7 +170,7 @@ class GroupElem(ABC):
 
     @property
     def nodes(self) -> int:
-        """Noeuds utilisés par le groupe d'elements"""
+        """Noeuds utilisés par le groupe d'elements. Le noeud i est à la ligne i dans coordoGlob."""
         return self.__nodes.copy()
 
     @property
@@ -205,7 +205,7 @@ class GroupElem(ABC):
     
     @property
     def connect(self) -> np.ndarray:
-        """nodesID des elements (Ne, nPe)"""
+        """noeuds utilisés par les elements (Ne, nPe)"""
         return self.__connect.copy()
     
     def Get_connect_n_e(self) -> sparse.csr_matrix:
@@ -266,16 +266,12 @@ class GroupElem(ABC):
 
         # Verifie si il n'y a pas de noeuds en trop
         # Il est possible que les noeuds renseignés n'appartiennent pas au groupe
-        if self.Nn < nodes.max():
+        if connect_n_e.shape[0] < nodes.max():
             # On enlève tout les noeuds en trop
             indexNoeudsSansDepassement = np.where(nodes < self.Nn)[0]
             nodes = nodes[indexNoeudsSansDepassement]
-
-        # Construit une liste permettant d'acceder a la position de nodes dans connect
-        nodesIndex = np.zeros(self.__coordoGlob.shape[0], dtype=int)
-        nodesIndex[self.__nodes] = np.arange(self.Nn)
         
-        lignes, colonnes, valeurs = sparse.find(connect_n_e[nodesIndex[nodes]])
+        lignes, colonnes, valeurs = sparse.find(connect_n_e[nodes])
 
         elements, counts = np.unique(colonnes, return_counts=True)
         
@@ -283,14 +279,14 @@ class GroupElem(ABC):
             # Verifie si les elements utilisent exclusivement les noeuds dans la liste de noeuds
             
             # on recupère les noeuds utilisée par les elements
-            nodesElem = np.unique(np.reshape(connect[elements], -1))
+            nodesElem = np.unique(connect[elements])
 
-            # dans cette liste de noeuds on enlève les noeuds renseignés
-            # il reste a la fin une liste de noeuds qui ne sont pas utilisés
+            # detecte les noeuds utilisés par les elements qui ne sont pas dans les noeuds renseignés
             nodesIntru = list(set(nodesElem) - set(nodes))
 
             # On detecte la liste d'element associés aux noeuds non utilisés
-            elementsIntru = np.unique(sparse.find(connect_n_e[nodesIndex[nodesIntru]])[1])
+            elemIntru = sparse.find(connect_n_e[nodesIntru])[1]
+            elementsIntru = np.unique(elemIntru)
 
             if elementsIntru.size > 0:
                 # On enlève les elements détectés
@@ -672,13 +668,16 @@ class GroupElem(ABC):
                 if "TRI" in self.elemType:
                     points3 = coordo[self.__connect[:,2]]
                 elif "QUAD" in self.elemType:
-                    points3 = coordo[self.__connect[:,3]]
+                    points3 = coordo[self.__connect[:,3]]                
 
                 j = points3-points1
                 j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
                 
                 k = np.cross(i, j, axis=1)
                 k = np.einsum('ei,e->ei',k, 1/np.linalg.norm(k, axis=1), optimize='optimal')
+
+                j = np.cross(k,i)
+                j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
 
             sysCoord_e = np.zeros((self.Ne, 3, 3))
             
@@ -1545,8 +1544,6 @@ class GroupElem(ABC):
             return segments
         elif self.__dim == 3:
             raise Exception("À définir pour les groupes d'elements 3D")
-
-
     
     def Get_dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
         """Transforme la matrice de connectivité pour la passer dans la fonction trisurf en 2D\n
@@ -1569,21 +1566,7 @@ class GroupElem(ABC):
     @abstractproperty
     def indexesFaces(self) -> list[int]:
         """Liste d'indexes pour former les faces qui constituent l'element"""
-        pass
-    
-    def Get_dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:
-        """Récupère les identifiants des noeud constuisant les faces et renvoie les faces pour chaque types d'elements. Dictionnaire car un element peut avoir différents type d'elements.\n
-        PRISM6 -> QUAD4 et TRI3
-
-        Returns
-        -------
-        list de list
-            Renvoie une liste de face
-        """
-        indexesFaces = self.indexesFaces
-        dict_connect_faces = {self.elemType: self.__connect[:, indexesFaces]}
-        return dict_connect_faces
-    
+        pass    
 
 class GroupElem_Factory:
 
@@ -3402,13 +3385,6 @@ class PRISM6(GroupElem):
     @property
     def indexesSegments(self) -> np.ndarray:
         return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
-
-    def Get_dict_connect_Faces(self) -> dict[np.ndarray]:
-        dict_connect_Faces = {
-            ElemType.QUAD4: self.connect[:, QUAD4._indexesFaces],
-            ElemType.TRI3: self.connect[:, TRI3._indexesFaces]
-        }
-        return dict_connect_Faces
 
     def Ntild(self) -> np.ndarray:
 
