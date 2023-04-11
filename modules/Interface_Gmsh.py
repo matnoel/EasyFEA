@@ -77,13 +77,26 @@ class Interface_Gmsh:
         for index, point in enumerate(points):
 
             # pi -> id gmsh du point i
-            # Pi -> coordonnées du point i           
+            # Pi -> coordonnées du point i 
+            # 
+            if index > 0:
+                # Récupère le dernier point gmsh crée
+                prevPoint = points[index-1]
+                factory.synchronize()
+                lastPoint = dict_point_pointsGmsh[prevPoint][-1]
+                # récupère les coordonnées du point
+                lastCoordo = gmsh.model.getValue(0, lastPoint, [])          
 
             # on detecte si le point doit être arrondi
             if point.r == 0:
                 # Sans arrondi
 
-                p0 = factory.addPoint(point.x, point.y, point.z, meshSize)                    
+                coordP=np.array([point.x, point.y, point.z])
+
+                if index > 0 and np.linalg.norm(lastCoordo - coordP) <= 1e-12:
+                    p0 = lastPoint
+                else:
+                    p0 = factory.addPoint(point.x, point.y, point.z, meshSize)                    
                 dict_point_pointsGmsh[point] = [p0]
 
             else:
@@ -113,13 +126,7 @@ class Interface_Gmsh:
 
                 A, B, C = PointsRayon(P0, P1, P2, point.r)
 
-                if index > 0:
-                    # Récupère le dernier point gmsh crée
-                    prevPoint = points[index-1]
-                    factory.synchronize()
-                    lastPoint = dict_point_pointsGmsh[prevPoint][-1]
-                    # récupère les coordonnées du point
-                    lastCoordo = gmsh.model.getValue(0, lastPoint, [])
+                
 
                 if index > 0 and np.linalg.norm(lastCoordo - A) <= 1e-12:
                     # si la coordonée est identique on ne recrée pas le point
