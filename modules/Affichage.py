@@ -762,6 +762,8 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
             fig = plt.figure()
             ax = fig.add_subplot(projection="3d")
             ax.view_init(elev=105, azim=-90)
+    else:
+        fig = ax.figure
 
     # Ici pour chaque group d'element du maillage, on va tracer les elements appartenant au groupe d'element
 
@@ -880,7 +882,7 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
         ax.set_zlabel(r"$z$")
     
     if folder != "":
-        Save_fig(folder, "noeuds")
+        Save_fig(folder, "geom")
 
     __Annotation_Evenemenent(collections, fig, ax)
 
