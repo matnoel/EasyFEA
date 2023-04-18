@@ -297,7 +297,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         __ChangeEchelle(ax, coordoNonDef)
 
     # On prépare le titre
-    optionTex = ""
+    optionTex = option
     if isinstance(option, str):
         if option == "damage":
             optionTex = "\phi"
