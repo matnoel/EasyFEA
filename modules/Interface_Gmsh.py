@@ -216,7 +216,7 @@ class Interface_Gmsh:
             elif isinstance(geom, CircleArc):                
 
                 pC =  factory.addPoint(geom.center.x, geom.center.y, geom.center.z, geom.meshSize)
-                
+
                 p3 = factory.addPoint(geom.pt3.x, geom.pt3.y, geom.pt3.z, geom.meshSize)
 
                 line1 = factory.addCircleArc(p0, pC, p3)
@@ -1153,8 +1153,6 @@ class Interface_Gmsh:
         assert values.shape[0] == coordo.shape[0], "values et coordo ne sont pas de la bonne dimension"
 
         data = np.append(coordo, values.reshape(-1, 1), axis=1)
-
-        z = coordo[:,2]
 
         self.__initGmsh("occ")
 
