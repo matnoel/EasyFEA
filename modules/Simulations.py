@@ -1361,7 +1361,7 @@ class Simu_Displacement(Simu):
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
             options.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"])
         
-        options.extend(["Wdef","Psi_Elas","energy","energy_smoothed"])
+        options.extend(["Wdef","Psi_Elas","energy","energy_smoothed","ZZ1"])
 
         return options
 
@@ -1579,6 +1579,14 @@ class Simu_Displacement(Simu):
                 return self.Resultats_InterpolationAuxNoeuds(self.mesh, psi_e)
             else:
                 return psi_e
+            
+        if option == "ZZ1":
+            erreur_e = self._Calc_ZZ1()[1]
+
+            if nodeValues:
+                return self.Resultats_InterpolationAuxNoeuds(self.mesh, erreur_e)
+            else:
+                return erreur_e
 
         if option == "displacement":
             return self.displacement
@@ -1750,6 +1758,28 @@ class Simu_Displacement(Simu):
         tic.Tac("PostTraitement","Calcul Psi Elas",False)
         
         return Wdef
+    
+    def _Calc_ZZ1(self) -> tuple[float, np.ndarray]:
+        """Calcul de l'erreur ZZ1. Pour plus de détail voir.
+        [F.Pled, Vers une stratégie robuste ... ingénierie mécanique] page 20/21
+        Renvoie l'erreur globale et l'erreur sur chaque element.
+
+        Returns
+        -------
+        erreur, erreur_e            
+        """
+
+        Wdef_e = self._Calc_Psi_Elas(False)
+        Wdef = np.sum(Wdef_e)
+
+        WdefLisse_e = self._Calc_Psi_Elas(False, True)
+        WdefLisse = np.sum(WdefLisse_e)
+
+        erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
+
+        erreur = np.abs(Wdef-WdefLisse)/Wdef
+
+        return erreur, erreur_e
 
     def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
         """Construit epsilon pour chaque element et chaque points de gauss

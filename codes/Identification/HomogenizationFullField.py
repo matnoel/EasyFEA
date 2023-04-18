@@ -82,8 +82,8 @@ meshVER = interfaceGmsh.Mesh_2D(pointsI, elemType, inclusions=[Geom.Domain(Geom.
 
 surfaceVer = meshVER.aire
 
-rapport = (1 - surfaceInclu/surfaceVer)
-rapport = 1
+coef = (1 - surfaceInclu/surfaceVer)
+coef = 1
 
 Affichage.Plot_Mesh(meshInclusions)
 Affichage.Plot_Mesh(mesh)
@@ -233,7 +233,7 @@ B_e_pg = meshVER.Get_B_dep_e_pg(matriceType)
 
 C_hom = np.einsum('ep,p,ij,epjk,ekl->il', jacobien_e_pg, poids_pg, CMandel, B_e_pg, U_e, optimize='optimal') * 1/meshVER.aire
 
-C_hom *= rapport
+C_hom *= coef
 
 # print(np.linalg.eigvals(C_hom))
 

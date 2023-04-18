@@ -6,7 +6,7 @@ import PostTraitement
 import Affichage
 from Geom import *
 import Materials
-from Mesh import Mesh, Calc_projector
+from Mesh import Mesh, Calc_projector, Calc_meshSize_n
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
 from TicTac import Tic
@@ -21,11 +21,11 @@ dim = 2
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
 plotResult = False
-plotErreur = True
+plotErreur = False
 plotProj = False
 
-rapport = 1/10
-cible = 0.01 if dim == 2 else 0.06
+coef = 1/3
+cible = 2/100 if dim == 2 else 0.06
 iterMax = 20
 
 # Paramètres géométrie
@@ -88,7 +88,6 @@ for i in range(nL):
             obj = Domain(ptd1, ptd2, meshSize, isCreux=isCreux)
         else:
             obj = Circle(Point(x, y), cH, meshSize, isCreux=isCreux)
-
 
         inclusions.append(obj)
 
@@ -184,38 +183,18 @@ def DoSimu(i=0):
     # Calcul de l'erreur
     # ----------------------------------------------
 
-    Wdef_e = simu._Calc_Psi_Elas(False)
-    Wdef = np.sum(Wdef_e)
-
-    WdefLisse_e = simu._Calc_Psi_Elas(False, True)
-    WdefLisse = np.sum(WdefLisse_e)
-
-    erreur_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
-
-    erreur = np.abs(Wdef-WdefLisse)/Wdef   
+    erreur, erreur_e = simu._Calc_ZZ1()
 
     # ----------------------------------------------
     # Refine mesh
     # ----------------------------------------------
 
-    groupElem = mesh.groupElem
-    coordo = groupElem.coordo
-
-    indexesSegments = groupElem.indexesSegments
-
-    segments_e = groupElem.connect[:, indexesSegments]
-
-    h_e_b = np.linalg.norm(coordo[segments_e[:,:,1]] - coordo[segments_e[:,:,0]], axis=2)
-    h_e = np.mean(h_e_b, axis=1)
-
-    c_e = (rapport-1)/erreur_e.max() * erreur_e + 1
-
-    meshSize_n = simu.Resultats_InterpolationAuxNoeuds(mesh, c_e * h_e)
+    meshSize_n = Calc_meshSize_n(simu.mesh, erreur_e, coef)
 
     if plotErreur:
         Affichage.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
 
-    path = interfaceGmsh.Create_posFile(groupElem.coordo, meshSize_n, folder, f"simu{i}")
+    path = interfaceGmsh.Create_posFile(simu.mesh.coordo, meshSize_n, folder, f"simu{i}")
 
     return path, erreur
 
@@ -254,7 +233,7 @@ while erreur >= cible and i < iterMax:
 
             simu.set_u_n("displacement", uproj)
 
-            Affichage.Plot_Result(simu, "ux", plotMesh=True)
+            Affichage.Plot_Result(simu, "ux", plotMesh=True, title="ux proj")
 
             pass
 
@@ -285,7 +264,7 @@ if plotResult:
 
 PostTraitement.Make_Paraview(folder, simu)
 
-# PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=False, fps=1, nodeValues=False)
+PostTraitement.Make_Movie(folder, "ZZ1", simu, plotMesh=True, fps=1, nodeValues=True)
 
 # Tic.Plot_History(details=True)
 plt.show()

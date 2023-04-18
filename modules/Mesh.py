@@ -422,6 +422,48 @@ class Mesh:
         """sur chaque elements on récupère les valeurs de sol"""
         return self.groupElem.Localise_sol_e(sol)
     
+def Calc_meshSize_n(mesh: Mesh, erreur_e: np.ndarray, coef=1/2) -> np.ndarray:
+    """Renvoie le champ scalaire (aux noeuds) à utiliser pour raffiner le maillage.
+    
+    meshSize = (coef - 1) * err / max(err) + 1
+
+    Parameters
+    ----------
+    mesh : Mesh
+        maillage support
+    erreur_e : np.ndarray
+        erreur évalués des éléments
+    coef : float, optional
+        rapport de division de la taille de maille, by default 1/2
+
+    Returns
+    -------
+    np.ndarray
+        meshSize_n, nouvelle taille de maille aux noeuds (Nn)
+    """
+
+    assert mesh.Ne == erreur_e.size, "Doit être une array de dimension (Ne)"
+
+    # récupération du groupe physique et des coordonées
+    groupElem = mesh.groupElem
+    coordo = groupElem.coordo
+
+    # recupréation des indexes pour accéder aux segments de chaque elements
+    indexesSegments = groupElem.indexesSegments
+    segments_e = groupElem.connect[:, indexesSegments]
+
+    # Calcul la longueur de chaque segment (s) des elements (e) du maillage. 
+    h_e_s = np.linalg.norm(coordo[segments_e[:,:,1]] - coordo[segments_e[:,:,0]], axis=2)
+    # taille moyenne des segments par element
+    h_e = np.mean(h_e_s, axis=1)
+    
+    meshSize_e = (coef-1)/erreur_e.max() * erreur_e + 1
+
+    import Simulations
+    meshSize_n = Simulations.Simu.Resultats_InterpolationAuxNoeuds(mesh, meshSize_e * h_e)
+
+    return meshSize_n
+    
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     """Construit la matrice utilisée pour projeter la solution de l'ancien maillage vers le nouveau maillage.
 
