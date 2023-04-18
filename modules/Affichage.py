@@ -501,7 +501,7 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     ax.set_title(title)
 
     if folder != "":
-        Save_fig(folder, title)
+        Save_fig(folder, "mesh")
 
     return ax
 
