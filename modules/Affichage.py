@@ -297,17 +297,18 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         __ChangeEchelle(ax, coordoNonDef)
 
     # On prépare le titre
+    optionTex = ""
     if isinstance(option, str):
         if option == "damage":
-            option = "\phi"
+            optionTex = "\phi"
         elif option == "thermal":
-            option = "T"
+            optionTex = "T"
         elif "S" in option and not option in ["amplitudeSpeed"]:
             optionFin = option.split('S')[-1]
-            option = f"\sigma_{'{'+optionFin+'}'}"
+            optionTex = f"\sigma_{'{'+optionFin+'}'}"
         elif "E" in option:
             optionFin = option.split('E')[-1]
-            option = f"\epsilon_{'{'+optionFin+'}'}"
+            optionTex = f"\epsilon_{'{'+optionFin+'}'}"
     
     # On specifie si les valeurs sont sur les noeuds ou sur les elements
     if nodeValues:
@@ -318,7 +319,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     
     # si aucun titre n'a été renseigné on utilise le titre construit
     if title == "" and isinstance(option, str):
-        title = option+loc
+        title = optionTex+loc
         ax.set_title(fr"${title}$")
     else:
         ax.set_title(f"{title}")
@@ -326,7 +327,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     # Si le dossier à été renseigné on sauvegarde la figure
     if folder != "":
         if filename=="":
-            filename=title
+            filename=option
         Save_fig(folder, filename, transparent=False)
 
     # Renvoie la figure, l'axe et la colorbar
