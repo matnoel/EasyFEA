@@ -267,7 +267,7 @@ class GroupElem(ABC):
         # Verifie si il n'y a pas de noeuds en trop
         # Il est possible que les noeuds renseignés n'appartiennent pas au groupe
         if connect_n_e.shape[0] < nodes.max():
-            # On enlève tout les noeuds en trop
+            # On enlève tous les noeuds en trop
             indexNoeudsSansDepassement = np.where(nodes < self.Nn)[0]
             nodes = nodes[indexNoeudsSansDepassement]
         

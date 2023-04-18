@@ -124,9 +124,7 @@ class Interface_Gmsh:
                 P1 = points[index_p1].coordo
                 P2 = points[index_p2].coordo
 
-                A, B, C = PointsRayon(P0, P1, P2, point.r)
-
-                
+                A, B, C = Points_Rayon(P0, P1, P2, point.r)                
 
                 if index > 0 and np.linalg.norm(lastCoordo - A) <= 1e-12:
                     # si la coordonée est identique on ne recrée pas le point
@@ -186,8 +184,56 @@ class Interface_Gmsh:
         loop = factory.addCurveLoop(lignes)
 
         return loop
+    
+    def __Loop_From_Contour(self, contour: Contour) -> int:
 
-    def __Loop_From_Circle(self, circle: Circle) -> tuple[int, int]:
+        factory = self.__factory
+
+        listGeom = []        
+
+        nGeom = len(contour.geoms)
+
+        for i, geom in enumerate(contour.geoms):
+
+            assert isinstance(geom, (Line, CircleArc)) 
+
+            if i == 0:
+                p0 = factory.addPoint(geom.pt1.x, geom.pt1.y, geom.pt1.z, geom.meshSize)
+                p1 = factory.addPoint(geom.pt2.x, geom.pt2.y, geom.pt2.z, geom.meshSize)
+            elif i > 0 and i+1 < nGeom:
+                p0 = p1
+                p1 = factory.addPoint(geom.pt2.x, geom.pt2.y, geom.pt2.z, geom.meshSize)
+            else:
+                p0 = p1
+                p1 = firstPoint           
+
+            if isinstance(geom, Line):
+
+                line = factory.addLine(p0, p1)
+
+                listGeom.append(line)
+
+            elif isinstance(geom, CircleArc):                
+
+                pC =  factory.addPoint(geom.center.x, geom.center.y, geom.center.z, geom.meshSize)
+                
+                p3 = factory.addPoint(geom.pt3.x, geom.pt3.y, geom.pt3.z, geom.meshSize)
+
+                line1 = factory.addCircleArc(p0, pC, p3)
+                line2 = factory.addCircleArc(p3, pC, p1)
+
+                listGeom.extend([line1, line2])
+
+                factory.synchronize()
+                factory.remove([(0,pC)], False)
+
+            if i == 0:
+                firstPoint = p0
+
+        return factory.addCurveLoop(listGeom)
+
+
+    def __Loop_From_Circle(self, circle: Circle) -> int:
         """Création d'une boucle associée à un cercle.\n
         return loop
         """
@@ -363,12 +409,12 @@ class Interface_Gmsh:
     # TODO générer plusieurs maillage en désactivant initGmsh et en utilisant plusieurs fonctions ?
     # mettre en place une liste de surfaces ?
 
-    def __Set_BackgroundMesh(self, refineGeom, tailleOut: float):
+    def __Set_BackgroundMesh(self, refineGeom: Geom, tailleOut: float):
         """Renseigne un maillage de fond
 
         Parameters
         ----------
-        refineGeom : Objet geom de fond
+        refineGeom : Geom
             Objet geometrique pour le maillage de fond
         tailleOut : float
             taille des élements en dehors du domaine
@@ -407,22 +453,42 @@ class Interface_Gmsh:
 
         elif isinstance(refineGeom, Circle):
 
-            loopCercle = self.__Loop_From_Circle(refineGeom)
+            pt = refineGeom.center
 
-            field_Distance = gmsh.model.mesh.field.add("Distance")
-            gmsh.model.mesh.field.setNumbers(1, "PointsList", [loopCercle])
-            
-            field_Thershold = gmsh.model.mesh.field.add("Threshold")
-            gmsh.model.mesh.field.setNumber(field_Thershold, "InField", field_Distance)            
-            gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMin", refineGeom.meshSize)
-            gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMax", tailleOut)
-            gmsh.model.mesh.field.setNumber(field_Thershold, "DistMin", 0.15)
-            gmsh.model.mesh.field.setNumber(field_Thershold, "DistMax", 0.5)
+            # point = self.__factory.addPoint(pt.x, pt.y, pt.z, refineGeom.meshSize)
+
+            # field_Distance = gmsh.model.mesh.field.add("Distance")
+            # gmsh.model.mesh.field.setNumbers(field_Distance, "PointsList", [point])            
+
+            # minField = gmsh.model.mesh.field.add("Min")
+            # gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Distance])
+
+            field = gmsh.model.mesh.field.add("MathEval")
+            gmsh.model.mesh.field.setString(field, "F", f"{pt.x} + {pt.y}")
 
             minField = gmsh.model.mesh.field.add("Min")
-            gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
+            gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field])
 
-            gmsh.model.mesh.field.setAsBackgroundMesh(minField)
+            
+
+            # self.__factory.remove([(0,point)])
+
+            # loopCercle = self.__Loop_From_Circle(refineGeom)
+
+            # field_Distance = gmsh.model.mesh.field.add("Distance")
+            # gmsh.model.mesh.field.setNumbers(field_Distance, "PointsList", [loopCercle])
+            
+            # field_Thershold = gmsh.model.mesh.field.add("Threshold")
+            # gmsh.model.mesh.field.setNumber(field_Thershold, "InField", field_Distance)            
+            # gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMin", refineGeom.meshSize)
+            # gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMax", tailleOut)
+            # gmsh.model.mesh.field.setNumber(field_Thershold, "DistMin", 0.15)
+            # gmsh.model.mesh.field.setNumber(field_Thershold, "DistMax", 0.5)
+
+            # minField = gmsh.model.mesh.field.add("Min")
+            # gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
+
+            gmsh.model.mesh.field.setAsBackgroundMesh(minField)            
 
         elif isinstance(refineGeom, str):
 
@@ -933,6 +999,8 @@ class Interface_Gmsh:
                 loop = self.__Loop_From_Domain(objetGeom)
             elif isinstance(objetGeom, PointsList):                
                 loop = self.__Loop_From_Points(objetGeom.points, objetGeom.meshSize)
+            elif isinstance(objetGeom, Contour):
+                loop = self.__Loop_From_Contour(objetGeom)
 
             if objetGeom.isCreux:
                 hollowLoops.append(loop)
@@ -950,7 +1018,7 @@ class Interface_Gmsh:
             geometrie qui construit le contour
         elemType : str, optional
             type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
-        inclusions : list[Domain, Circle, PointsList], optional
+        inclusions : list[Domain, Circle, PointsList, Contour], optional
             liste d'objets creux ou non à l'intérieur du domaine 
         cracks : list[Line]
             liste de ligne utilisées pour la création de fissures
@@ -974,7 +1042,7 @@ class Interface_Gmsh:
 
         factory = self.__factory
         
-        meshSize = contour.meshSize
+        meshSize = contour.meshSize        
 
         # Création de la surface de contour
         if isinstance(contour, Circle):
@@ -983,6 +1051,8 @@ class Interface_Gmsh:
             loopContour = self.__Loop_From_Domain(contour)
         elif isinstance(contour, PointsList):                
             loopContour = self.__Loop_From_Points(contour.points, meshSize)
+        elif isinstance(contour, Contour):
+            loopContour = self.__Loop_From_Contour(contour)
         else:
             raise Exception("L'object contour doit etre un cercle, un domaine ou une liste de points")
 

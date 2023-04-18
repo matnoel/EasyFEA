@@ -122,9 +122,7 @@ class Point:
                 x = self.x - x
                 y = self.y - y
                 z = self.z - z
-                points.append(Point(x, y, z, self.isOpen, self.r))
-
-    
+                points.append(Point(x, y, z, self.isOpen, self.r))    
 
 class Geom:
 
@@ -167,13 +165,13 @@ class PointsList(Geom):
 
     __nbPointsList = 0
 
-    def __init__(self, points: list[Point], meshSize=0.0, isCreux=False):
+    def __init__(self, contour: list[Point], meshSize=0.0, isCreux=False):
         """Construit une liste de point
 
         Parameters
         ----------
         points : list[Point]
-            liste de points pour construire l'objet géométrique
+            liste d'objet geom pour construire un contour
         meshSize : float, optional
             taille de maillage qui sera utilisé pour creer le maillage >= 0, by default 0.0
         isCreux : bool, optional
@@ -184,7 +182,7 @@ class PointsList(Geom):
 
         PointsList.__nbPointsList += 1
         name = f"PointsList{PointsList.__nbPointsList}"
-        super().__init__(points, meshSize, name)
+        super().__init__(contour, meshSize, name)
 
 class Line(Geom):
     """Classe Line"""
@@ -283,7 +281,7 @@ class Circle(Geom):
         Parameters
         ----------
         center : Point
-            point 1
+            centre du cercle
         diam : float
             diamètre
         meshSize : float, optional
@@ -302,6 +300,115 @@ class Circle(Geom):
         Circle.__nbCircle += 1
         name = f"Circle{Circle.__nbCircle}"
         Geom.__init__(self, points=[center], meshSize=meshSize, name=name)
+
+class CircleArc(Geom):
+
+    __nbCircleArc = 0
+
+    def __init__(self, pt1: Point, center: Point, pt2: Point, meshSize=0.0, coef=1.0):
+        """Construction d'un arc de cercle en fonction de son centre et du point de départ et de fin. \n
+        Cet arc de cercle sera projeté dans le plan (x,y)
+
+        Parameters
+        ----------        
+        pt1 : Point
+            point de départ
+        center : Point
+            centre de l'arc de cercle
+        pt2 : Point
+            point de fin
+        meshSize : float, optional
+            taille qui sera utilisée pour la construction du maillage, by default 0.0
+        coef : float, optional
+            coef pour la multiplication avec le rayon -1 ou 1, by default 1.0
+        """
+
+        assert coef in [-1, 1], "coef doit être dans [-1, 1]"
+
+        r1 = np.linalg.norm((pt1-center).coordo)
+        r2 = np.linalg.norm((pt2-center).coordo)
+
+        assert r1 == r2, "Les points ne sont pas sur le même arc de cercle."
+
+        self.center = center
+        """Point du centre de l'arc de cercle."""
+        self.pt1 = pt1
+        """Point du début de l'arc de cercle."""
+        self.pt2 = pt2
+        """Point de fin de l'arc de cercle."""
+
+        # Ici on va creer un point intermédiaire car dans gmsh les arcs de cercle sont limités à un angle pi.
+
+        i1 = (pt1-center).coordo
+        i2 = (pt2-center).coordo
+
+        # construction de la matrice de passage 
+        i = normalize_vect((i1+i2)/2)
+        k = np.array([0,0,1])
+        j = np.cross(k, i)
+
+        mat = np.array([i,j,k]).T
+
+        # coordonnées du point médian
+        pt3 = center.coordo + mat @ [coef*r1,0,0]
+
+        self.pt3 = Point(pt3[0], pt3[1], pt3[2])
+        """Point du milieu de l'arc de cercle."""
+
+        CircleArc.__nbCircleArc += 1
+        name = f"Circle{CircleArc.__nbCircleArc}"
+        Geom.__init__(self, points=[pt1, center, pt2], meshSize=meshSize, name=name)
+
+class Contour(Geom):
+
+    __nbContour = 0
+
+    def __init__(self, geoms: list[Geom], isCreux=True):
+        """Construction d'un contour depuis une liste de ligne ou d'arc de cercle.
+
+        Parameters
+        ----------
+        geoms : list[Line, CircleArc]
+            liste d'objets utilisés pour construire le contour
+        isCreux : bool, optional
+            le contour est creux, by default True        
+        """
+
+        # Verifie que les points font bien une boucle fermée        
+        points = []
+
+        tol = 1e-12        
+
+        for i, geom in enumerate(geoms):
+
+            assert isinstance(geom, (Line, CircleArc)), "Doit donner une liste de ligne et d'arc de cercle"            
+
+            if i == 0:
+                ecart = tol
+            elif i > 0 and i < len(geoms)-1:
+                # verifie que le point de départ est bien a la meme coordonée que le dernié point de l'objet précédent
+                ecart = np.linalg.norm(geom.points[0].coordo - points[-1].coordo)
+
+                assert ecart <= tol, "Le contour doit former une boucle fermée"
+            else:
+                # verifie que le point de fin du dernier objet geométrique est bien le premier point crée.
+                ecart1 = np.linalg.norm(geom.points[0].coordo - points[-1].coordo)
+                ecart2 = np.linalg.norm(geom.points[-1].coordo - points[0].coordo)
+
+                assert ecart1 <= tol and ecart2 <= tol, "Le contour doit former une boucle fermée"            
+
+            # Ajoute le premier et le dernier point
+            points.extend(geom.points)
+
+        self.geoms = geoms
+
+        self.isCreux = isCreux
+
+        Contour.__nbContour += 1
+        name = f"Contour{Contour.__nbContour}"
+        meshSize = np.mean([geom.meshSize for geom in geoms])
+        Geom.__init__(self, points=points, meshSize=meshSize, name=name)
+
 
 class Section:
 
@@ -373,10 +480,14 @@ class Section:
         return self.__mesh.J
 
 # Fonctions pour faire des caluls de distances d'angles etc
-
 def normalize_vect(vect: np.ndarray) -> np.ndarray:
     """Renvoie le vecteur normalisé"""
-    return vect / np.linalg.norm(vect)
+    if len(vect.shape) == 1:
+        return vect / np.linalg.norm(vect)
+    elif len(vect.shape) == 2:
+        return np.einsum('ij,i->ij',vect, 1/np.linalg.norm(vect, axis=1), optimize="optimal")
+    else:
+        raise Exception("Le vecteur n'est pas de la bonne dimension")
 
 def angleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
     """calcul l'angle entre le vecteur a et le vecteur b
@@ -425,7 +536,25 @@ def matriceJacobienne(i: np.ndarray, k: np.ndarray) -> np.ndarray:
 
     return F
 
-def PointsRayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float):
+def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float):
+    """Calcul de coordonnée des points pour la création d'un rayon.
+
+    Parameters
+    ----------
+    P0 : np.ndarray
+        coordonnées du points avec le rayon
+    P1 : np.ndarray
+        coordonnées avant les coordonnées P0
+    P2 : np.ndarray
+        coordonnées après les coordonnées P0
+    r : float
+        rayon au point P0
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray]
+        coordonées calculées pour construire le rayon
+    """
                 
     # vecteurs
     i = P1-P0
@@ -453,3 +582,53 @@ def PointsRayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float):
         C = P0
 
     return A, B, C
+
+def Points_IntersectCircles(circle1: Circle, circle2: Circle) -> np.ndarray:
+    """Calcul les coordonnées à l'intersection des deux cercles.
+
+    Parameters
+    ----------
+    circle1 : Circle
+        cercle 1
+    circle2 : Circle
+        cercle 2
+
+    Returns
+    -------
+    np.ndarray
+        coordonnées identifiées (i, 3)
+    """
+
+    r1 = circle1.diam/2
+    r2 = circle2.diam/2
+
+    p1 = circle1.center.coordo
+    p2 = circle2.center.coordo
+
+    d = np.linalg.norm(p2 - p1)
+
+    if d > r1 + r2:
+        print("Les cercles sont séparés")
+        return None
+    elif d < np.abs(r1 - r2):
+        print("Les cercles sont concentriques")
+        return None
+    elif d == 0 and r1 == r2:
+        print("Les cercles sont identiques")
+        return None
+    
+    a = (r1**2  - r2**2 + d**2)/(2*d)
+    h = np.sqrt(r1**2 - a**2)
+
+    p3 = p1 + a*(p2-p1)/d
+
+    if d == r1 + r2:
+        return p3.reshape(1, 3)
+    else:
+        coord = np.zeros((2, 3))
+        coord[0,0] = p3[0] + h*(p2[1]-p1[1])/d
+        coord[1,0] = p3[0] - h*(p2[1]-p1[1])/d
+
+        coord[0,1] = p3[1] - h*(p2[0]-p1[0])/d
+        coord[1,1] = p3[1] + h*(p2[0]-p1[0])/d
+        return coord
