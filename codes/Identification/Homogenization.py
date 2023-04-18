@@ -91,7 +91,8 @@ comp = Materials.Elas_Isot(2, E, v, contraintesPlanes=False)
 
 simu = Simulations.Simu_Displacement(mesh, comp, useNumba=True)
 
-# Affichage.Plot_Result(simu, E, nodeValues=False)
+Affichage.Plot_Result(simu, E, nodeValues=False, title="E")
+Affichage.Plot_Result(simu, v, nodeValues=False, title="v")
 
 # --------------------------------------
 # Homogenization
