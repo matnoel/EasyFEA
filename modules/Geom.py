@@ -625,10 +625,14 @@ def Points_IntersectCircles(circle1: Circle, circle2: Circle) -> np.ndarray:
     if d == r1 + r2:
         return p3.reshape(1, 3)
     else:
-        coord = np.zeros((2, 3))
-        coord[0,0] = p3[0] + h*(p2[1]-p1[1])/d
-        coord[1,0] = p3[0] - h*(p2[1]-p1[1])/d
 
-        coord[0,1] = p3[1] - h*(p2[0]-p1[0])/d
-        coord[1,1] = p3[1] + h*(p2[0]-p1[0])/d
+        i = normalize_vect(p2-p1)
+        k = np.array([0,0,1])
+        j = np.cross(k, i)
+
+        mat = np.array([i,j,k]).T
+
+        coord = np.zeros((2, 3))
+        coord[0,:] = p3 + mat @ np.array([0,-h,0]) 
+        coord[1,:] = p3 + mat @ np.array([0,+h,0])
         return coord
