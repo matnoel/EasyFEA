@@ -3,7 +3,7 @@ from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Materials
 import Simulations
-import BoundaryCondition
+from BoundaryCondition import BoundaryCondition, LagrangeCondition
 
 plt = Affichage.plt
 
@@ -11,7 +11,7 @@ plt = Affichage.plt
 # http://link.springer.com/10.1007/978-3-030-18383-7
 # SECTION 4.7
 
-Affichage.Clear()
+# Affichage.Clear()
 
 # use PER boundary conditions ?
 usePER = True 
@@ -111,7 +111,10 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
 
     # Affichage.Plot_BoundaryConditions(simu)
 
-    if usePER:
+    if usePER:        
+        
+        # impose que le champ u soit à moyenne nulle
+        useMean0 = False
 
         for n0, n1 in zip(nodesB0, nodesB1):
                 
@@ -120,17 +123,35 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
             # plt.gca().scatter(coordo[nodes, 0],coordo[nodes, 1], marker='+', c='red')
 
             for direction in ["x", "y"]:
-                ddls = BoundaryCondition.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, [direction])                   
+                ddls = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, [direction])
                 
                 values = Ekl @ [coordo[n0,0]-coordo[n1,0], coordo[n0,1]-coordo[n1,1]]
                 value = values[0] if direction == "x" else values[1]
 
                 # value = 0
 
-                condition = BoundaryCondition.LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
+                condition = LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
                 simu._Bc_Add_Lagrange(condition)
 
+        if useMean0:            
+
+            nodes = mesh.nodes
+            vect = np.ones(mesh.Nn) * 1/mesh.Nn 
+
+            # sum u_i / Nn = 0
+            ddls = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["x"])        
+            condition = LagrangeCondition("displacement", nodes, ddls, ["x"], [0], [vect])
+            simu._Bc_Add_Lagrange(condition)
+
+            # sum v_i / Nn = 0
+            ddls = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["y"])        
+            condition = LagrangeCondition("displacement", nodes, ddls, ["y"], [0], [vect])
+            simu._Bc_Add_Lagrange(condition)
+
     ukl = simu.Solve()
+
+    # print(np.mean(simu.Get_Resultat("ux")))
+    # print(np.mean(simu.Get_Resultat("uy")))
 
     simu.Save_Iteration()
 
