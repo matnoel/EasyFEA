@@ -615,20 +615,18 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', alpha=0, 
         coordo_e = np.mean(coordoFaces_e, axis=1)
         
         if mesh.dim in [1,2]:
-            if len(nodes) > 0:
-                if groupElemDim.dim == 1:
-                    pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor=c, lw=1, zorder=3)
-                else:
-                    pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.dim)], facecolors=c, edgecolor='black', lw=0.5, alpha=1, zorder=3)
-                ax.add_collection(pc)
+            if groupElemDim.dim == 1:
+                pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor=c, lw=1, zorder=3)
+            else:
+                pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.dim)], facecolors=c, edgecolor='black', lw=0.5, alpha=1, zorder=3)
+            ax.add_collection(pc)
 
             # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=3)
             if showId:
                 [ax.text(coordo_e[element,0], coordo_e[element,1], element,
                 zorder=25, ha='center', va='center') for element in elements]
         elif mesh.dim == 3:
-            if len(nodes) > 0:
-                ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1, zorder=3), zdir='z')
+            ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1, zorder=3), zdir='z')
 
             # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=3)
             if showId:
