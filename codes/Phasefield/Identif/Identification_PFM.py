@@ -21,22 +21,14 @@ folder_file = Folder.Get_Path(__file__)
 
 idxEssai = 1
 
-<<<<<<< Updated upstream
-folder_Save = Folder.Join([folder_file, "Identification_PFM"])
-
-test = False
-=======
 folder_Save = Folder.New_File("Identification_PFM", results=True)
 
 test = True
->>>>>>> Stashed changes
 optimMesh = True
 
 pltLoad = True
 pltIter = True
 
-<<<<<<< Updated upstream
-=======
 split = "AnisotStress"
 # split = "He"
 # split = "Zhang"
@@ -58,7 +50,6 @@ meshSize = l0 if test else l0/2
 
 tolConv = 1e-0
 
->>>>>>> Stashed changes
 # ----------------------------------------------
 # Forces & Déplacements
 # ----------------------------------------------
@@ -75,11 +66,6 @@ deplacements = dfLoad["deplacements"][idxEssai]
 
 idx_fmax = np.argmax(forces)
 
-<<<<<<< Updated upstream
-
-
-=======
->>>>>>> Stashed changes
 # calcul de la pente pour connaitre le décrochage
 idxElas = np.where((forces <= 15) & (deplacements<=deplacements[idx_fmax]))[0]
 idx1, idx2 = idxElas[0], idxElas[-1]
@@ -92,30 +78,17 @@ droiteElas = a * np.linspace(0, deplacements[idx_fmax], idx_fmax) + b
 
 idxMax = np.where(droiteElas<=forces[idx_fmax])[0]
 
-<<<<<<< Updated upstream
-ecartDep = np.abs(forces[idxMax] - droiteElas[idxMax])/forces[idxMax]
-
-# indexe permettant d'acceder au décrochage de la zone élastique
-# idxDamage = np.where(ecartDep >= 3e-2)[0][0]
-idxDamage = np.where(ecartDep >= 2e-2)[0][0]
-=======
 ecartLoad = np.abs(forces[idxMax] - droiteElas[idxMax])/forces[idxMax]
 
 # indexe permettant d'acceder au décrochage de la zone élastique
 # idxDamage = np.where(ecartDep >= 3e-2)[0][0]
 idxDamage = np.where(ecartLoad >= 5e-2)[0][0]
->>>>>>> Stashed changes
 
 if pltLoad:
     axLoad = plt.subplots()[1]
     axLoad.plot(deplacements, forces)
-<<<<<<< Updated upstream
-    axLoad.set_xlabel("displacement [kN]")
-    axLoad.set_ylabel("load [mm]")
-=======
     axLoad.set_xlabel("displacement [mm]")
     axLoad.set_ylabel("load [kN]")
->>>>>>> Stashed changes
 
     axLoad.plot(deplacements[idxMax], droiteElas[idxMax])
 
@@ -125,18 +98,6 @@ if pltLoad:
 # Mesh
 # ----------------------------------------------
 
-<<<<<<< Updated upstream
-h = 90
-l = 45
-b = 20
-d = 10
-
-l0 = l/50
-
-meshSize = l0 if test else l0/3
-
-=======
->>>>>>> Stashed changes
 if optimMesh:
     epRefine = d
     refineGeom = Domain(Point(l/2-epRefine), Point(l/2+epRefine, h), meshSize)
@@ -177,29 +138,6 @@ Gl = dfParams["Gl"][idxEssai]
 vl = 0.02
 vt = 0.44
 
-<<<<<<< Updated upstream
-axis_l = np.array([0,1,0])
-axis_t = np.array([1,0,0])
-
-comp = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, b)
-
-Gc = 1e-2
-
-a1 = np.array([1,0])
-M1 = np.einsum("i,j->ij", a1, a1)
-
-a2 = np.array([0,1])
-M2 = np.einsum("i,j->ij", a2, a2)
-
-# coef = El/Et
-coef = Et/El
-# A = np.eye(2)
-# A = np.eye(2) + 0 * M1 + 0 * M2
-# A = np.array([[coef, 0],[0, 1-coef]])
-A = np.array([[coef, 0],[0, 1-coef]])
-
-pfm = Materials.PhaseField_Model(comp, "AnisotStress", "AT1", Gc, l0, A=A)
-=======
 # axis_l = np.array([0,1,0])
 # axis_t = np.array([1,0,0])
 
@@ -239,18 +177,11 @@ A += 0 * M1 + 1/coef * M2
 
 
 pfm = Materials.PhaseField_Model(comp, split, "AT2", Gc, l0, A=A)
->>>>>>> Stashed changes
 
 simu = Simulations.Simu_PhaseField(mesh, pfm)
 
 depMax = deplacements[idx_fmax]
 
-<<<<<<< Updated upstream
-inc0 = 1e-2
-inc1 = inc0/2
-
-=======
->>>>>>> Stashed changes
 dep = -inc0
 i = -1
 while dep <= depMax:
@@ -263,11 +194,7 @@ while dep <= depMax:
     simu.add_dirichlet(nodes0, [0], ["x"])    
     simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
 
-<<<<<<< Updated upstream
-    u, d, Kglob, convergence = simu.Solve(1e-0)
-=======
     u, d, Kglob, convergence = simu.Solve(tolConv, convOption=1)
->>>>>>> Stashed changes
 
     simu.Resultats_Set_Resume_Iteration(i, dep, "mm", dep/depMax, True)
 
@@ -277,11 +204,7 @@ while dep <= depMax:
 
     if pltLoad:
         plt.figure(axLoad.figure)
-<<<<<<< Updated upstream
-        axLoad.scatter(dep, fr/1000, c='black')
-=======
         axLoad.scatter(dep, fr/1000, c='black', marker='.')
->>>>>>> Stashed changes
         plt.pause(1e-12)
 
     if pltIter:
@@ -294,18 +217,13 @@ while dep <= depMax:
         plt.pause(1e-12)
 
     if not convergence or True in (d[nodes_Boundary] >= 0.98):
-<<<<<<< Updated upstream
-=======
         print("\nPas de convergence")
->>>>>>> Stashed changes
         break
 
 
 PostTraitement.Make_Paraview(folder_Save, simu)
 
  
-<<<<<<< Updated upstream
-=======
 if pltLoad:
     plt.figure(axLoad.figure)
     Affichage.Save_fig(folder_Save, "forcedep")
@@ -315,7 +233,6 @@ if pltIter:
     Affichage.Save_fig(folder_Save, "damage")
 
 
->>>>>>> Stashed changes
 
 
 
