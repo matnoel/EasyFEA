@@ -395,6 +395,8 @@ class Mesh:
     def __Dim_For_Tag(tag):
         if 'P' in tag:
             dim = 0
+            if "Poutre" in tag:
+                dim = 1
         elif 'L' in tag:
             dim = 1            
         elif 'S' in tag:
