@@ -77,7 +77,7 @@ class AnalyseDiC:
         self.__lr = lr
         """longeur de régularisation"""
 
-        self.verbosity = verbosity
+        self._verbosity = verbosity
 
         # initialise la ROI et les fonctions de formes et dérivés des fonction de formes
         
@@ -120,7 +120,7 @@ class AnalyseDiC:
         # Affichage.Plot_Mesh(mesh, ax=ax, alpha=0)
         # # # [ax.text(mesh.coordo[n,0], mesh.coordo[n,1], n, c='red')for n in mesh.nodes]
 
-        tic.Tac("DIC", "ROI", self.verbosity)
+        tic.Tac("DIC", "ROI", self._verbosity)
     
     def __init__Phi_opLap(self):
         """Initialisation des fonctions de forme et de l'opérateur laplacien"""
@@ -185,7 +185,7 @@ class AnalyseDiC:
         Op = self._Phi_x @ self._Phi_x.T + self._Phi_y @ self._Phi_y.T
         self.__Op_LU = splu(Op.tocsc())
         
-        tic.Tac("DIC", "Phi_x et Phi_y", self.verbosity)
+        tic.Tac("DIC", "Phi_x et Phi_y", self._verbosity)
 
         # ----------------------------------------------
         # Construction de l'opérateur laplacien
@@ -221,7 +221,7 @@ class AnalyseDiC:
         self._opLap = sparse.csr_matrix((B_e.reshape(-1), (lignesB.reshape(-1), colonnesB.reshape(-1))), (nDof, nDof))  
         """opérateur laplacien"""      
 
-        tic.Tac("DIC", "Operateur laplacien", self.verbosity)
+        tic.Tac("DIC", "Operateur laplacien", self._verbosity)
 
     def __Get_ldic(self):
         """Calcul ldic la longeur caractéristique du maillage soit 8 x la moyenne de la longeur des bords des elements"""
@@ -294,7 +294,7 @@ class AnalyseDiC:
         # self._M_LU = splu(self._M.tocsc(), permc_spec="MMD_AT_PLUS_A")
         self._M_LU = splu(self._M.tocsc())
 
-        tic.Tac("DIC", "Construit L et M", self.verbosity)
+        tic.Tac("DIC", "Construit L et M", self._verbosity)
 
     def __Get_u_from_images(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
         """Utilise open cv pour calculer les déplacements entre images."""        
@@ -336,7 +336,7 @@ class AnalyseDiC:
 
         return imgRef
 
-    def Solve(self, img: np.ndarray, iterMax=1000, tolConv=1e-6, imgRef=None):
+    def Solve(self, img: np.ndarray, iterMax=1000, tolConv=1e-6, imgRef=None, verbosity=True):
         """Résolution du champ de déplacement.
 
         Parameters
@@ -349,6 +349,8 @@ class AnalyseDiC:
             tolérance de convergence, by default 1e-6
         imgRef : np.ndarray, optional
             image de référence à utiliser, by default None
+        verbosity : bool, optional
+            affiche les itérations, by default True
 
         Returns
         -------
@@ -386,7 +388,8 @@ class AnalyseDiC:
             du = self._M_LU.solve(b)
             u += du
             
-            print(f"Iter {iter+1:2d} ||b|| {np.linalg.norm(b):.3}     ", end='\r')
+            if verbosity:
+                print(f"Iter {iter+1:2d} ||b|| {np.linalg.norm(b):.3}     ", end='\r')
             if iter == 0:
                 b0 = np.linalg.norm(b)
             elif np.linalg.norm(b) < b0 * tolConv:
