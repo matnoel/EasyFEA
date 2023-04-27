@@ -419,7 +419,7 @@ class AnalyseDiC:
 
         imgRef = self.__Get_imgRef(imgRef)
 
-        # Récupération de le coordonnées des pixels de l'image
+        # Récupération de la coordonnée des pixels de l'image
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
         coordX, coordY = gridX.reshape(-1), gridY.reshape(-1)
 
