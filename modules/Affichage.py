@@ -616,9 +616,9 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', alpha=0, 
         
         if mesh.dim in [1,2]:
             if groupElemDim.dim == 1:
-                pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.dim)], edgecolor=c, lw=1, zorder=3)
+                pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.inDim)], edgecolor=c, lw=1, zorder=3)
             else:
-                pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.dim)], facecolors=c, edgecolor='black', lw=0.5, alpha=1, zorder=3)
+                pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.inDim)], facecolors=c, edgecolor='black', lw=0.5, alpha=1, zorder=3)
             ax.add_collection(pc)
 
             # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=3)
