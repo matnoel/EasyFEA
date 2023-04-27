@@ -2996,7 +2996,7 @@ class Simu_Beam(Simu):
             return False
 
     @property
-    def beamDisplacement(self) -> np.ndarray:
+    def displacement(self) -> np.ndarray:
         """Copie du champ vectoriel de déplacement pour le problème poutre"""
         return self.get_u_n(self.problemType)
 
@@ -3273,16 +3273,16 @@ class Simu_Beam(Simu):
         return self.__Kbeam, initcsr, initcsr, self.__Fbeam
 
     def Get_x0(self, problemType=None):
-        if self.beamDisplacement.size != self.mesh.Nn*self.Get_nbddl_n(problemType):
+        if self.displacement.size != self.mesh.Nn*self.Get_nbddl_n(problemType):
             return np.zeros(self.mesh.Nn*self.Get_nbddl_n(problemType))
         else:
-            return self.beamDisplacement
+            return self.displacement
 
     def Save_Iteration(self):
 
         iter = super().Save_Iteration()
         
-        iter['beamDisplacement'] = self.beamDisplacement
+        iter['beamDisplacement'] = self.displacement
             
         self._results.append(iter)
 
@@ -3302,28 +3302,28 @@ class Simu_Beam(Simu):
             self.Update_iter(iter)
 
         if option == "beamDisplacement":
-            return self.beamDisplacement.copy()
+            return self.displacement.copy()
     
         if option == 'matrice_displacement':
             return self.Resultats_matrice_displacement()
 
         if option in ["fx","fy","fz","cx","cy","cz"]:
 
-            force = np.array(self.__Kbeam.dot(self.beamDisplacement))
+            force = np.array(self.__Kbeam.dot(self.displacement))
             force_redim = force.reshape(self.mesh.Nn, -1)
             index = Simu.Resultats_indexe_option(self.dim, self.problemType, option)
             resultat_ddl = force_redim[:, index]
 
         else:
 
-            resultat_ddl = self.beamDisplacement
+            resultat_ddl = self.displacement
             resultat_ddl = resultat_ddl.reshape((self.mesh.Nn,-1))
 
         index = self.__indexResulat(option)
 
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
-        Epsilon_e_pg = self.__Calc_Epsilon_e_pg(self.beamDisplacement)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
         Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
         if option == "Stress":
@@ -3378,7 +3378,7 @@ class Simu_Beam(Simu):
                 else:
                     return 5
 
-    def __Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
         """Construit les déformations pour chaque element et chaque points de gauss
         """
         
@@ -3393,10 +3393,14 @@ class Simu_Beam(Simu):
         tic.Tac("Matrices", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
-
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
-        """Calcul les contraintes depuis les deformations
-        """
+    
+    def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+        """Calcul des forces internes.\n
+        1D -> [N]\n
+        2D -> [N, Mz]\n
+        3D -> [N, Mx, My, Mz]
+        """ 
+        # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m       
 
         assert Epsilon_e_pg.shape[0] == self.mesh.Ne
         assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matriceType)
@@ -3404,7 +3408,76 @@ class Simu_Beam(Simu):
         tic = Tic()
 
         D_e_pg = self.beamModel.Calc_D_e_pg(self.mesh.groupElem, matriceType)
-        Sigma_e_pg = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
+        InternalForces_e_pg = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
+            
+        tic.Tac("Matrices", "InternalForces_e_pg", False)
+
+        return InternalForces_e_pg
+
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+        """Calcul les contraintes depuis les deformations.
+        1D -> [Sxx]
+        2D -> [Sxx, Syy, Sxy]
+        3D -> [Sxx, Syy, Szz, Syz, Sxz, Sxy]
+        """
+        # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
+
+        Ne = self.mesh.Ne
+        nPg = self.mesh.Get_nPg(matriceType)
+
+        assert Epsilon_e_pg.shape[0] == Ne
+        assert Epsilon_e_pg.shape[1] == nPg
+
+        dim = self.beamModel.dim
+
+        InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg, matriceType)
+
+        tic = Tic()
+
+        S_e_pg = np.zeros((Ne, nPg))
+        Iy_e_pg = np.zeros_like(S_e_pg)
+        Iz_e_pg = np.zeros_like(S_e_pg)
+        J_e_pg = np.zeros_like(S_e_pg)        
+
+        for poutre in self.beamModel.listePoutres:
+
+            elements = self.mesh.Elements_Tags([poutre.name])            
+
+            S_e_pg[elements, :] = poutre.section.aire
+            Iy_e_pg[elements, :] = poutre.section.Iy
+            Iz_e_pg[elements, :] = poutre.section.Iz
+            J_e_pg[elements, :] = poutre.section.J
+
+        y_e_pg = np.sqrt(S_e_pg)
+        z_e_pg = np.sqrt(S_e_pg)
+
+        Sigma_e_pg = np.zeros((Ne, nPg, dim))
+
+        N_e_pg = InternalForces_e_pg[:,:,0]
+
+        if dim == 1:
+            # [N]
+            Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg  # Sxx = N/S
+        elif dim == 2:
+            # [N, Mz]
+            Mz_e_pg = InternalForces_e_pg[:,:,1]
+            Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg - (Mz_e_pg*y_e_pg/Iz_e_pg)  # Sxx = N/S - Mz*y/Iz
+            Sigma_e_pg[:,:,1] = 0 # Syy = 0
+            Sigma_e_pg[:,:,2] = 0 # Sxy = Ty/S il faut calculer Ty
+        elif dim == 3:
+            # [N, Mx, My, Mz]
+            Mx_e_pg = InternalForces_e_pg[:,:,1]
+            My_e_pg = InternalForces_e_pg[:,:,2]
+            Mz_e_pg = InternalForces_e_pg[:,:,3]
+            
+            Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg + My_e_pg/Iy_e_pg*z_e_pg - Mz_e_pg/Iz_e_pg*y_e_pg # Sxx = N/S + My/Iy*z - Mz/Iz*y
+            Sigma_e_pg[:,:,1] = 0 # Syy = 0
+            Sigma_e_pg[:,:,2] = 0 # Szz = 0
+            Sigma_e_pg[:,:,3] = 0 # Syz = 0
+            Sigma_e_pg[:,:,4] = Mx_e_pg/J_e_pg*y_e_pg # Sxz = Tz/S + Mx/Ix*y
+            Sigma_e_pg[:,:,5] = -Mx_e_pg/J_e_pg*z_e_pg # Sxy = Ty/S - Mx/Ix*z
+            
+        # P_e_pg = self.mesh.groupElem.sysCoord_e
             
         tic.Tac("Matrices", "Sigma_e_pg", False)
 
@@ -3422,7 +3495,7 @@ class Simu_Beam(Simu):
     def Resultats_matrice_displacement(self) -> np.ndarray:
         
         Nn = self.mesh.Nn
-        beamDisplacementRedim = self.beamDisplacement.reshape((Nn,-1))
+        beamDisplacementRedim = self.displacement.reshape((Nn,-1))
         nbddl = self.Get_nbddl_n(self.problemType)
 
         coordo = np.zeros((Nn, 3))
