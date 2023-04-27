@@ -3433,7 +3433,7 @@ class Simu_Beam(Simu):
         InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg, matriceType)
 
         tic = Tic()
-
+        
         S_e_pg = np.zeros((Ne, nPg))
         Iy_e_pg = np.zeros_like(S_e_pg)
         Iz_e_pg = np.zeros_like(S_e_pg)
@@ -3451,21 +3451,26 @@ class Simu_Beam(Simu):
         y_e_pg = np.sqrt(S_e_pg)
         z_e_pg = np.sqrt(S_e_pg)
 
-        Sigma_e_pg = np.zeros((Ne, nPg, dim))
+        
 
         N_e_pg = InternalForces_e_pg[:,:,0]
 
         if dim == 1:
             # [N]
+            Sigma_e_pg = np.zeros((Ne, nPg, 1))            
             Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg  # Sxx = N/S
         elif dim == 2:
             # [N, Mz]
+            Sigma_e_pg = np.zeros((Ne, nPg, 3))
+
             Mz_e_pg = InternalForces_e_pg[:,:,1]
             Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg - (Mz_e_pg*y_e_pg/Iz_e_pg)  # Sxx = N/S - Mz*y/Iz
             Sigma_e_pg[:,:,1] = 0 # Syy = 0
             Sigma_e_pg[:,:,2] = 0 # Sxy = Ty/S il faut calculer Ty
         elif dim == 3:
             # [N, Mx, My, Mz]
+            Sigma_e_pg = np.zeros((Ne, nPg, 6))
+
             Mx_e_pg = InternalForces_e_pg[:,:,1]
             My_e_pg = InternalForces_e_pg[:,:,2]
             Mz_e_pg = InternalForces_e_pg[:,:,3]
