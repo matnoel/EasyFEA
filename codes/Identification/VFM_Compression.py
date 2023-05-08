@@ -24,6 +24,7 @@ folder = Folder.New_File("Identification", results=True)
 mat = "bois" # "bois", "acier"
 
 perturbations = np.linspace(0, 0.02, 5)
+# perturbations = [0, 0.005]
 nTirage = 100
 
 useSpecVirtual = False
@@ -39,7 +40,7 @@ h = H/2
 b=20
 d=10
 
-meshSize = H/50
+meshSize = H/70
 f = 40
 sig = f/(L*b)
 
@@ -53,15 +54,26 @@ pC = Geom.Point(0, 0)
 circle = Geom.Circle(pC, d, meshSize, isCreux=True)
 
 diam = d
-pZone = pC + [diam/2,diam/2]
-circleZone = Geom.Circle(pZone, diam)
+pZone = pC + [1*diam/2,1*diam/2]
+# pZone = pC + [1.5*diam/2,0]
+# pZone = pC + [0,0]
+circleZone = Geom.Circle(pZone, diam, meshSize)
 
-mesh = Interface_Gmsh().Mesh_Domain_Circle_2D(domain, circle, "TRI3")
+coordInter = Geom.Points_IntersectCircles(circle, circleZone)
+
+pt1 = Geom.Point(*coordInter[0, :])
+pt2 = Geom.Point(*coordInter[1, :])
+
+circleArc1 = Geom.CircleArc(pt1, pZone, pt2, meshSize, coef=-1)
+circleArc2 = Geom.CircleArc(pt2, pC, pt1, meshSize)
+contour = Geom.Contour([circleArc1, circleArc2], isCreux=False)
+
+mesh = Interface_Gmsh().Mesh_2D(domain, "TRI6", [circle, contour])
 xn = mesh.coordo[:,0]
 yn = mesh.coordo[:,1]
 
-# Affichage.Plot_Mesh(mesh)
-# Affichage.Plot_Model(mesh)
+Affichage.Plot_Model(mesh)
+Affichage.Plot_Mesh(mesh)
 
 nodesEdge = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 nodesLower = mesh.Nodes_Tags(["L0"])
@@ -77,7 +89,7 @@ ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", n
 # Affichage.Plot_Elements(mesh, nodesUpper, 1)
 
 # Récupération des array pour l'intégration numérique
-matriceType = "masse" 
+matriceType = "rigi" 
 jacob2D_e_pg = mesh.Get_jacobien_e_pg(matriceType)
 poid2D_pg = mesh.Get_poid_pg(matriceType)
 
@@ -215,16 +227,16 @@ for perturbation in perturbations:
             dimS2 = dimConditions/2
             
             # m=8
-            # n=5            
+            # n=5
 
             # p=8
             # q=5
 
-            m=5
-            n=5            
+            m=4
+            n=3
 
-            p=5
-            q=5            
+            p=6
+            q=3
 
             sizeA = (m+1) * (n+1)
             sizeB = (p+1) * (q+1)
@@ -241,7 +253,7 @@ for perturbation in perturbations:
             lignes = []        
             colonnes = []
             values = []
-            vectCond = []            
+            vectCond = []
 
             def Add_Conditions(noeuds: np.ndarray, condU: float, condV: float, l=-1):
 
@@ -258,8 +270,8 @@ for perturbation in perturbations:
                             c += 1
                             lignes.append(l)
                             colonnes.append(pos_Aij[c])
-                            values.append(xn[noeud]**i * yn[noeud]**j)                    
-                            # values.append((xn[noeud]/L)**i * (yn[noeud]/h)**j)
+                            # values.append(xn[noeud]**i * yn[noeud]**j)                    
+                            values.append((xn[noeud]/L)**i * (yn[noeud]/h)**j)
                     vectCond.append(condU)
 
                     # conditions v
@@ -270,8 +282,8 @@ for perturbation in perturbations:
                             c += 1
                             lignes.append(l)
                             colonnes.append(pos_Bij[c])
-                            values.append(xn[noeud]**i * yn[noeud]**j)                    
-                            # values.append((xn[noeud]/L)**i * (yn[noeud]/h)**j)
+                            # values.append(xn[noeud]**i * yn[noeud]**j)                    
+                            values.append((xn[noeud]/L)**i * (yn[noeud]/h)**j)
                     vectCond.append(condV)
 
                 return l
@@ -295,11 +307,13 @@ for perturbation in perturbations:
 
                     c += 1                    
 
-                    dx_ij_e_p = i*xn_e_g**(i-1) * yn_e_g**j
+                    # dx_ij_e_p = i*xn_e_g**(i-1) * yn_e_g**j
                     # dx_ij_e_p = i/L*(xn_e_g/L)**(i-1) * (yn_e_g/h)**j
+                    dx_ij_e_p = i*(xn_e_g**(i-1)/l**i) * (yn_e_g/h)**j
 
-                    dy_ij_e_p = xn_e_g**i * j*yn_e_g**(j-1)
+                    # dy_ij_e_p = xn_e_g**i * j*yn_e_g**(j-1)
                     # dy_ij_e_p = (xn_e_g/L)**i * j/h*(yn_e_g/h)**(j-1)
+                    dy_ij_e_p = (xn_e_g/l)**i * j*(yn_e_g**(j-1)/h**j)
 
                     if i > -1:
                         lignes.append(lastLigne + 1)
@@ -324,11 +338,13 @@ for perturbation in perturbations:
 
                     c += 1
 
-                    dx_ij_e_p = i*xn_e_g**(i-1) * yn_e_g**j
+                    # dx_ij_e_p = i*xn_e_g**(i-1) * yn_e_g**j
                     # dx_ij_e_p = i/L*(xn_e_g/L)**(i-1) * (yn_e_g/h)**j
+                    dx_ij_e_p = i*(xn_e_g**(i-1)/l**i) * (yn_e_g/h)**j
 
-                    dy_ij_e_p = xn_e_g**i * j*yn_e_g**(j-1)
+                    # dy_ij_e_p = xn_e_g**i * j*yn_e_g**(j-1)
                     # dy_ij_e_p = (xn_e_g/L)**i * j/h*(yn_e_g/h)**(j-1)
+                    dy_ij_e_p = (xn_e_g/l)**i * j*(yn_e_g**(j-1)/h**j)
 
                     if j > -1:
                         lignes.append(lastLigne + 2)
@@ -444,62 +460,95 @@ for perturbation in perturbations:
             # Champ 1
             # ----------------------------------------------
             
-            u1 = lambda x, y: x/l  # [Kim & al 2020]
+            # # [Kim & al 2020]
+            # u1 = lambda x, y: x/l  
+            # v1 = lambda x, y: y/h
+            # A1,B1,C1,D1,E1 = Get_A_B_C_D_E(u1, v1, pltSol=False)
+            # E1 = -2*f
+
             # u1 = lambda x, y: x/l * (y-h)*(y+h)/h**2
             # u1 = lambda x, y: 0
+            # v1 = lambda x, y: 0
+            # u1 = lambda x, y: x/l
 
-            v1 = lambda x, y: y/h  # [Kim & al 2020]
-
+            u1 = lambda x, y: x/l
+            v1 = lambda x, y: 0
             A1,B1,C1,D1,E1 = Get_A_B_C_D_E(u1, v1, pltSol=False)
-            E1 = -2*f
+            E1 = 0
+
+            # axs = plt.subplots(ncols=2)[1]
+            # Affichage.Plot_Result(simu, "Exy", nodeValues=False, ax=axs[0], title="num")
+            # # rr = np.ones(mesh.Nn)
+            # rr = np.ones(mesh.Nn)*1/2/l # 3*xn**2/l**3            
+            # Affichage.Plot_Result(simu, rr, nodeValues=False, ax=axs[1], title="analytique")
+            pass
+
 
             # ----------------------------------------------
             # Champ 2
             # ----------------------------------------------
 
-            u2 = lambda x, y: (x/l)**3  # [Kim & al 2020]
+            # # [Kim & al 2020]
+            # u2 = lambda x, y: (x/l)**3  
+            # v2 = lambda x, y: (y/h)**3
+            # A2,B2,C2,D2,E2 = Get_A_B_C_D_E(u2, v2, pltSol=False)
+            # E2 = -2*f
+            
             # u2 = lambda x, y: (x/l)**3 * (y-h)*(y+h)/h**2
 
-            v2 = lambda x, y: (y/h)**3  # [Kim & al 2020]
-            # v2 = lambda x, y: 0
-            
+            u2 = lambda x, y: 0
+            v2 = lambda x, y: y/h
             A2,B2,C2,D2,E2 = Get_A_B_C_D_E(u2, v2, pltSol=False)
             E2 = -2*f
-            # E2 = 0
 
             # ----------------------------------------------
             # Champ 3
             # ----------------------------------------------
             
-            u3 = lambda x,y: np.cos(np.pi/h*y) * np.sin(np.pi/l*x)  # [Kim & al 2020]
+            # # [Kim & al 2020]
+            # u3 = lambda x,y: np.cos(np.pi/h*y) * np.sin(np.pi/l*x)
+            # v3 = lambda x,y: y/h
+            # A3,B3,C3,D3,E3 = Get_A_B_C_D_E(u3, v3, pltSol=False)
+            # E3 = -2*f
+            
             # u3 = lambda x,y: np.cos(np.pi/h*y) * np.sin(np.pi/l*x) * (y-h)*(y+h)/h**2
 
-            v3 = lambda x,y: y/h  # [Kim & al 2020]
-            # v3 = lambda x,y: 0
-
+            u3 = lambda x,y: x/h
+            v3 = lambda x, y: (y/h)**3
             A3,B3,C3,D3,E3 = Get_A_B_C_D_E(u3, v3, pltSol=False)
-            E3 = -2*f
             # E3 = 0
+            E3 = -2*f
 
             # ----------------------------------------------
             # Champ 4
             # ----------------------------------------------
 
-            u4 = lambda x,y: (y/h)**2 * (x/l) # [Kim & al 2020]
+            # # [Kim & al 2020]
+            # u4 = lambda x,y: (y/h)**2 * (x/l)
+            # v4 = lambda x,y: (y/h)**3
+            # A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False)
+            # E4 = -2*f
+
             # u4 = lambda x,y: (y/h)**2 * (x/l) * (y-h)*(y+h)/h**2
-            
-            v4 = lambda x,y: (y/h)**3  # [Kim & al 2020]
+            # u4 = lambda x,y: x*y            
             # v4 = lambda x,y: 0
-
-            A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False)
-            E4 = -2*f
-            # E4 = 0
-
-            # u4 = lambda x,y: y
-            # v4 = lambda x,y: x
+            # v4 = lambda x,y: x*y
             
-            # A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False, nodes=nodesZone)
+            # u4 = lambda x,y: x*y            
+            # v4 = lambda x,y: 0
+            # A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False)
             # E4 = 0
+
+            # Champ discontinu
+
+            u4 = lambda x,y: 1
+            v4 = lambda x,y: 1
+
+            # u4 = lambda x,y: y/h
+            # v4 = lambda x,y: x/h
+            
+            A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=True, nodes=nodesZone)
+            E4 = 0
         
         # cc = -1
         # for u, v in zip([u1,u2,u3,u4], [v1,v2,v3,v4]):
@@ -552,6 +601,8 @@ for perturbation in perturbations:
                             [A2, B2, C2, D2],
                             [A3, B3, C3, D3],
                             [A4, B4, C4, D4]])
+        
+        cond = np.linalg.norm(systMat) * np.linalg.norm(np.linalg.inv(systMat))
 
         # c11 c22 c12 c33
 
