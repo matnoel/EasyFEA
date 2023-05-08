@@ -213,6 +213,8 @@ class Line(Geom):
             deuxième point
         meshSize : float, optional
             taille qui sera utilisée pour la construction du maillage, by default 0.0
+        isOpen : bool, optional
+            la ligne peut s'ouvrir, by default False
         """
         self.pt1 = pt1
         self.pt2 = pt2
@@ -305,7 +307,7 @@ class CircleArc(Geom):
 
     __nbCircleArc = 0
 
-    def __init__(self, pt1: Point, center: Point, pt2: Point, meshSize=0.0, coef=1.0):
+    def __init__(self, pt1: Point, center: Point, pt2: Point, meshSize=0.0, coef=1.0, isOpen=False):
         """Construction d'un arc de cercle en fonction de son centre et du point de départ et de fin. \n
         Cet arc de cercle sera projeté dans le plan (x,y)
 
@@ -321,6 +323,8 @@ class CircleArc(Geom):
             taille qui sera utilisée pour la construction du maillage, by default 0.0
         coef : float, optional
             coef pour la multiplication avec le rayon -1 ou 1, by default 1.0
+        isOpen : bool, optional
+            l'arc de cercle peut s'ouvrir, by default False
         """
 
         assert coef in [-1, 1], "coef doit être dans [-1, 1]"
@@ -336,6 +340,8 @@ class CircleArc(Geom):
         """Point du début de l'arc de cercle."""
         self.pt2 = pt2
         """Point de fin de l'arc de cercle."""
+
+        self.__isOpen = isOpen
 
         # Ici on va creer un point intermédiaire car dans gmsh les arcs de cercle sont limités à un angle pi.
 
@@ -358,6 +364,11 @@ class CircleArc(Geom):
         CircleArc.__nbCircleArc += 1
         name = f"Circle{CircleArc.__nbCircleArc}"
         Geom.__init__(self, points=[pt1, center, pt2], meshSize=meshSize, name=name)
+
+    @property
+    def isOpen(self) -> bool:
+        """Renvoie si l'arc de cercle peut s'ouvrir pour représenter une fissure"""
+        return self.__isOpen
 
 class Contour(Geom):
 
@@ -489,7 +500,7 @@ def normalize_vect(vect: np.ndarray) -> np.ndarray:
     else:
         raise Exception("Le vecteur n'est pas de la bonne dimension")
 
-def angleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
+def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
     """calcul l'angle entre le vecteur a et le vecteur b
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors"""
 
@@ -501,11 +512,16 @@ def angleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
     
     cosAngle = a.dot(b)/(norm_a * norm_b)
     sinAngle = np.cross(a,b)/(norm_a * norm_b)
-    angle = np.arctan2(sinAngle, cosAngle)
-    
-    return angle[-1]
+    angles = np.arctan2(sinAngle, cosAngle)
 
-def matriceJacobienne(i: np.ndarray, k: np.ndarray) -> np.ndarray:
+    vectNorm = normalize_vect(np.cross(b,a))
+
+    # angle = angles[-1]
+    angle = np.dot(angles, vectNorm)
+    
+    return angle
+
+def JacobianMatrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
     """Calcul la matrice jacobienne de passage de la base (i,j,k) vers la base (x,y,z)\n
     p(x,y) = matrice.dot(p(i,j))
 
@@ -536,7 +552,7 @@ def matriceJacobienne(i: np.ndarray, k: np.ndarray) -> np.ndarray:
 
     return F
 
-def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float):
+def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calcul de coordonnée des points pour la création d'un rayon.
 
     Parameters
@@ -562,23 +578,21 @@ def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float):
     
     n = np.cross(i, j) # vecteur normal au plan formé par i, j
 
-    F = matriceJacobienne
-
     if r > 0:
         # angle de i vers k            
-        betha = angleBetween_a_b(i, j)/2
+        betha = AngleBetween_a_b(i, j)/2
         
         d = np.abs(r)/np.tan(betha) # disante entre P0 et A sur i et disante entre P0 et B sur j
 
         d *= np.sign(betha)
 
-        A = F(i, n) @ np.array([d,0,0]) + P0
-        B = F(j, n) @ np.array([d,0,0]) + P0
-        C = F(i, n) @ np.array([d, r,0]) + P0
+        A = JacobianMatrix(i, n) @ np.array([d,0,0]) + P0
+        B = JacobianMatrix(j, n) @ np.array([d,0,0]) + P0
+        C = JacobianMatrix(i, n) @ np.array([d, r,0]) + P0
     else:
         d = np.abs(r)
-        A = F(i, n) @ np.array([d,0,0]) + P0
-        B = F(j, n) @ np.array([d,0,0]) + P0
+        A = JacobianMatrix(i, n) @ np.array([d,0,0]) + P0
+        B = JacobianMatrix(j, n) @ np.array([d,0,0]) + P0
         C = P0
 
     return A, B, C
