@@ -14,7 +14,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 import Folder
 
-def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, colorbarIsClose=False, cmap="jet"):
+def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
     """Affichage d'un résulat de la simulation
 
     Parameters
@@ -40,12 +40,14 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     title : str, optional
         titre de la figure, by default ""
     ax : axe, optional
-        ancien axe de matplotlib, by default None
-    colorbarIsClose : bool, optional
-        la color bar est affiché proche de la figure, by default False
+        ancien axe de matplotlib, by default None    
     cmap : str, optional
         la color map utilisée proche de la figure, by default "jet" \n
         \t ["jet", "RdBu", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
+    colorbarIsClose : bool, optional
+        la color bar est affiché proche de la figure, by default False
+    nColors : int, optional
+        nombre de couleurs pour la colorbar
 
     Returns
     -------
@@ -155,7 +157,8 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     else:
         max = np.max(valeurs)+1e-12
         min = np.min(valeurs)-1e-12
-    levels = np.linspace(min, max, 200)
+    
+    levels = np.linspace(min, max, nColors)
 
 
     if inDim in [1,2] and not use3DBeamModel:
