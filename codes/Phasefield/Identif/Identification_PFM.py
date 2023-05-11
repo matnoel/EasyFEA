@@ -37,14 +37,14 @@ split = "AnisotStress"
 # inc1 = 1e-2/3
 
 inc0 = 1e-2
-inc1 = 1e-2/4
+inc1 = inc0/8
 
 h = 90
 l = 45
 ep = 20
 d = 10
 
-l0 = l/100
+l0 = l/120
 
 meshSize = l0 if test else l0/2
 
@@ -174,6 +174,38 @@ if pltLoad:
 # Gc *= 2
 
 Gc = 0.05
+
+# coord_e = np.mean(mesh.coordo[mesh.connect], axis=1)
+# x_e = coord_e[:,0]
+
+# Nc = 10
+# dc = l/Nc
+
+# l1 = l0*2; elems1 = []
+# l2 = l1*4; elems2 = []
+
+# ax = Affichage.Plot_Mesh(mesh, alpha=0)
+
+# x = 0
+# i = 0
+# while x < l:
+#     i += 1
+#     ll = l1 if i % 2 == 0 else l2
+#     b1 = x
+#     b2 = x + ll
+#     x += ll
+#     elems = np.where((x_e-1e-12 >= b1) & (x_e+1e-12 <= b2))[0]
+
+#     if i % 2 == 0:
+#         elems1.extend(elems)
+#         ax.scatter(coord_e[elems,0], coord_e[elems,1], c="red")
+#     else:
+#         elems2.extend(elems)
+#         ax.scatter(coord_e[elems,0], coord_e[elems,1], c="blue")
+#     pass
+
+# Gc = np.ones(mesh.Ne) * 0.05*10
+# Gc[elems1] = 0.03
 
 a1 = np.array([1,0])
 a2 = axis_t[:2]

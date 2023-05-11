@@ -1184,10 +1184,8 @@ class PhaseField_Model(IModel):
         assert regularization in PhaseField_Model.get_regularisations(), f"Doit être compris dans {PhaseField_Model.get_regularisations()}"
         self.__regularization = regularization
         """Modèle de régularisation de la fissure ["AT1","AT2"]"""
-
-        assert Gc > 0, "Doit être supérieur à 0" 
-        self.__Gc = Gc
-        """Taux de libération d'énergie critque [J/m^2]"""
+        
+        self.Gc = Gc
 
         assert l_0 > 0, "Doit être supérieur à 0"
         self.__l0 = l_0
@@ -1267,9 +1265,10 @@ class PhaseField_Model(IModel):
         return k
 
     def get_r_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
-        Gc = self.__Gc
-        l0 = self.__l0
-
+        
+        Gc = Resize_variable(self.__Gc, PsiP_e_pg.shape[0], PsiP_e_pg.shape[1])
+        
+        l0 = self.__l0        
         r = 2 * PsiP_e_pg
 
         if self.__regularization == PhaseField_Model.RegularizationType.AT2:
@@ -1278,7 +1277,8 @@ class PhaseField_Model(IModel):
         return r
 
     def get_f_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
-        Gc = self.__Gc
+        
+        Gc = Resize_variable(self.__Gc, PsiP_e_pg.shape[0], PsiP_e_pg.shape[1])
         l0 = self.__l0
 
         f = 2 * PsiP_e_pg
@@ -1339,6 +1339,12 @@ class PhaseField_Model(IModel):
     def Gc(self):
         """Taux de libération d'énergie critque [J/m^2]"""
         return self.__Gc
+    
+    @Gc.setter
+    def Gc(self, value):
+        self._Test_Sup0(value)
+        self.Need_Update()
+        self.__Gc = value
 
     @property
     def l0(self):
