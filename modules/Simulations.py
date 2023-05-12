@@ -214,6 +214,11 @@ class Simu(ABC):
             import Affichage
             Affichage.NouvelleSection("Simulation")
 
+        self.__model = model
+
+        self.__dim = model.dim
+        """dimension de la simulation 2D ou 3D"""
+
         self.__results = []
         """liste de dictionnaire qui contient les résultats"""
 
@@ -225,13 +230,9 @@ class Simu(ABC):
 
         self.__rho = 1
         """masse volumique"""
-        
-        self.__model = model
 
         self.Check_dim_mesh_materiau()
-
-        self.__dim = model.dim
-        """dimension de la simulation 2D ou 3D"""
+        
         self._verbosity = verbosity
         """la simulation peut écrire dans la console"""
         
@@ -411,6 +412,11 @@ class Simu(ABC):
 
             # le maillage change, il faut donc reconstruire les matrices
             self.Need_Update()
+            
+            # initialise les conditions limites et les vecteurs solutions 
+            self.Bc_Init()
+            # self.__Init_Sols_n()
+            
 
     @property
     def dim(self) -> int:
