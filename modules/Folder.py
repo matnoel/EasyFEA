@@ -55,8 +55,7 @@ def New_File(filename: str, pathname=Get_Path(), results=False) -> str:
     filename = os.path.join(pathname, filename)
 
     if not os.path.exists(pathname):
-        os.mkdir(pathname)
-
+        os.makedirs(pathname)
             
     return filename
 
@@ -84,7 +83,19 @@ def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simp
 
     import Materials
 
-    nom="_".join([comp, split, regu, simpli2D])
+    nom = ""
+
+    if comp != "":
+        nom += f"_{comp}"
+
+    if split != "":
+        nom += f"_{split}"
+
+    if regu != "":
+        nom += f"_{regu}"
+
+    if simpli2D != "":
+        nom += f"_{simpli2D}"
 
     if closeCrack: 
         nom += '_closeCrack'
@@ -92,8 +103,8 @@ def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simp
     if optimMesh:
         nom += '_optimMesh'
 
-    assert solveur in Materials.PhaseField_Model.get_solveurs()
-    if solveur != "History":
+    if solveur != "History" and solveur != "":
+        assert solveur in Materials.PhaseField_Model.get_solveurs()
         nom += '_' + solveur
 
     if tolConv < 1:
