@@ -12,11 +12,11 @@ Affichage.Clear()
 
 plotIter = True; affichageIter = "thermal"
 
-pltMovie = True; NMovie = 300
+pltMovie = False; NMovie = 300
 
 folder = Folder.New_File(filename="Thermal", results=True)
 
-dim = 2
+dim = 3
 
 a = 1
 if dim == 2:
@@ -27,10 +27,10 @@ circle = Circle(Point(a/2, a/2), diam=a/3, isCreux=True, meshSize=a/50)
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, True)
 
 if dim == 2:
-    # mesh = interfaceGmsh.Rectangle_2D(domain, "QUAD4")
-    mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "QUAD4")
+    # mesh = interfaceGmsh.Mesh_2D(domain, [], "QUAD4")
+    mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD4")
 else:
-    mesh = interfaceGmsh.Mesh_Domain_Circle_3D(domain, circle, [0,0,a], 4, elemType="HEXA8")
+    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,a], 4, "HEXA8")
 
 thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=1)
 

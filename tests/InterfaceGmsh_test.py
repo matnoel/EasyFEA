@@ -34,7 +34,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
         
         # plt.show()
     
-    def test_Importation3D(self):
+    def test_Construction3D(self):
         list_mesh3D = Interface_Gmsh.Construction3D()
         for mesh3D in list_mesh3D:
             ax = Affichage.Plot_Mesh(mesh3D)

@@ -35,7 +35,7 @@ if simulationType == SimulationType.CPEF:
     dim = 3
     h=1
     fichier = Folder.Join([Folder.Get_Path(), "3Dmodels", "CPEF.stp"])
-    mesh = interface.Mesh_Import_part3D(fichier, 5)
+    mesh = interface.Mesh_Import_part(fichier, 5)
 
     noeuds134 = mesh.Nodes_Tags(['S134'])
 
@@ -69,12 +69,12 @@ elif simulationType == SimulationType.EQUERRE:
     inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI3, inclusions=inclusions, cracks=[crack, crack2])
+        mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI3, [crack, crack2])
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,h], nCouches=3, elemType=ElemType.PRISM6, inclusions=inclusions)
+        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.PRISM6)
 
         noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
         Affichage.Plot_Elements(mesh, noeudsS3)
@@ -115,10 +115,10 @@ elif simulationType == SimulationType.TEF2:
     listPoint = PointsList([pt1, pt2, pt3], taille)
     
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, elemType=ElemType.TRI6, inclusions=[])
+        mesh = interface.Mesh_2D(listPoint, [], ElemType.TRI6)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, extrude=[0,0,2*h], nCouches=10, elemType=ElemType.PRISM6, inclusions=[])
+        mesh = interface.Mesh_3D(listPoint, [], extrude=[0,0,2*h], nCouches=10, elemType=ElemType.PRISM6)
 
     noeudsBas = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x==0)

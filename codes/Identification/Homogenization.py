@@ -41,7 +41,7 @@ inclusion = Circle(Point(), 2*r, meshSize, isCreux=False)
 
 gmshInterface = Interface_Gmsh(False, False)
 
-mesh = gmshInterface.Mesh_2D(points, inclusions=[inclusion], elemType="TRI6")
+mesh = gmshInterface.Mesh_2D(points, [inclusion], "TRI6")
 
 coordo = mesh.coordoGlob
 

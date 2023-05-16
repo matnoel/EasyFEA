@@ -57,7 +57,7 @@ domain = Domain(point, Point(x=L, y=h), clD)
 circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
-mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "TRI3")
+mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
 # Récupérations des noeuds de chargement
 B_lower = Line(point,Point(x=L))

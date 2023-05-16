@@ -66,10 +66,10 @@ surfaceInclu = interfaceGmsh.Mesh_Domain_2D(inclusion).aire
 points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
 # maillage avec les inclusions
-meshInclusions = interfaceGmsh.Mesh_2D(points, elemType, inclusions=listGeomInDomain)
+meshInclusions = interfaceGmsh.Mesh_2D(points, listGeomInDomain, elemType)
 
 # maillage sans les inclusions
-mesh = interfaceGmsh.Mesh_2D(points, elemType)
+mesh = interfaceGmsh.Mesh_2D(points, [], elemType)
 
 ptI1 = Geom.Point(-cL,-cH)
 ptI2 = Geom.Point(cL,-cH)
@@ -78,7 +78,7 @@ ptI4 = Geom.Point(-cL, cH)
 
 pointsI = Geom.PointsList([ptI1, ptI2, ptI3, ptI4], meshSize/4)
 
-meshVER = interfaceGmsh.Mesh_2D(pointsI, elemType, inclusions=[Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize/4, isCreux=True)])
+meshVER = interfaceGmsh.Mesh_2D(pointsI, [Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize/4, isCreux=True)], elemType)
 
 surfaceVer = meshVER.aire
 

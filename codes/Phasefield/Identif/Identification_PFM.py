@@ -29,6 +29,7 @@ optimMesh = True
 pltLoad = True
 pltIter = True
 
+GcHeterogene = False
 split = "AnisotStress"
 # split = "He"
 # split = "Zhang"
@@ -37,7 +38,7 @@ split = "AnisotStress"
 # inc1 = 1e-2/3
 
 inc0 = 1e-2
-inc1 = inc0/8
+inc1 = inc0/3
 
 h = 90
 l = 45
@@ -102,7 +103,7 @@ else:
 domain = Domain(Point(), Point(l, h), meshSize)
 circle = Circle(Point(l/2, h/2), d, meshSize)
 
-mesh = Interface_Gmsh().Mesh_Domain_Circle_2D(domain, circle, "TRI3", refineGeom)
+mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
 
 nodes_Lower = mesh.Nodes_Tags(["L0"])
 nodes_Upper = mesh.Nodes_Tags(["L2"])
@@ -159,7 +160,7 @@ coef_a = a_num/a_exp
 
 if pltLoad:
     axLoad = plt.subplots()[1]
-    axLoad.plot(deplacements, forces)
+    # axLoad.plot(deplacements, forces)
     axLoad.set_xlabel("displacement [mm]")
     axLoad.set_ylabel("load [kN]")
     axLoad.scatter(deplacements[idx_crit]/coef_a, forces[idx_crit], marker='+', c='red', zorder=2)
@@ -173,39 +174,47 @@ if pltLoad:
 # Gc = 39.565*1e-2/18.1109745566610
 # Gc *= 2
 
-Gc = 0.05
+if GcHeterogene:
 
-# coord_e = np.mean(mesh.coordo[mesh.connect], axis=1)
-# x_e = coord_e[:,0]
+    coord_e = np.mean(mesh.coordo[mesh.connect], axis=1)
+    x_e = coord_e[:,0]
 
-# Nc = 10
-# dc = l/Nc
+    Nc = 10
+    dc = l/Nc
 
-# l1 = l0*2; elems1 = []
-# l2 = l1*4; elems2 = []
+    l1 = l0*2; elems1 = []
+    l2 = l1*4; elems2 = []
 
-# ax = Affichage.Plot_Mesh(mesh, alpha=0)
+    ax = Affichage.Plot_Mesh(mesh, alpha=0)
 
-# x = 0
-# i = 0
-# while x < l:
-#     i += 1
-#     ll = l1 if i % 2 == 0 else l2
-#     b1 = x
-#     b2 = x + ll
-#     x += ll
-#     elems = np.where((x_e-1e-12 >= b1) & (x_e+1e-12 <= b2))[0]
+    x = 0
+    i = 0
 
-#     if i % 2 == 0:
-#         elems1.extend(elems)
-#         ax.scatter(coord_e[elems,0], coord_e[elems,1], c="red")
-#     else:
-#         elems2.extend(elems)
-#         ax.scatter(coord_e[elems,0], coord_e[elems,1], c="blue")
-#     pass
+    elems1 = []; elems2 = []
 
-# Gc = np.ones(mesh.Ne) * 0.05*10
-# Gc[elems1] = 0.03
+    while x < l:
+        i += 1
+        ll = l1 if i % 2 == 0 else l2
+        b1 = x
+        b2 = x + ll
+        x += ll
+        elems = np.where((x_e-1e-12 >= b1) & (x_e+1e-12 <= b2))[0]
+
+        if i % 2 == 0:
+            elems1.extend(elems)
+            ax.scatter(coord_e[elems,0], coord_e[elems,1], c="red")
+        else:
+            elems2.extend(elems)
+            ax.scatter(coord_e[elems,0], coord_e[elems,1], c="blue")
+        pass
+
+    Gc = np.ones(mesh.Ne) * 0.05*10
+    Gc[elems1] = 0.03
+
+else:
+
+    Gc = 0.05
+
 
 a1 = np.array([1,0])
 a2 = axis_t[:2]

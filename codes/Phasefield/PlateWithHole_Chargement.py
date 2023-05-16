@@ -55,9 +55,9 @@ refineGeom = Domain(Point(x=L/2-val/2, y=(H-h)-val/2), Point(x=L/2+val/2, y=(H-h
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
 if dim == 2:
-    mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "QUAD8", refineGeom=refineGeom)
+    mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD8", refineGeom=refineGeom)
 else:
-    mesh = interfaceGmsh.Mesh_Domain_Circle_3D(domain, circle, [0,0,6*coef], nCouches=6, elemType="TETRA10", refineGeom=refineGeom)
+    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,6*coef], 6, "HEXA8", refineGeom=refineGeom)
 
 Affichage.Plot_Model(mesh)
 # plt.show()

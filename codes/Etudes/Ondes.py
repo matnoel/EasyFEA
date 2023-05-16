@@ -38,7 +38,7 @@ circle = Circle(Point(), diam, meshSize, isCreux=False)
 
 
 interfaceGmsh = Interface_Gmsh(False)
-mesh = interfaceGmsh.Mesh_Domain_Circle_2D(domain, circle, "TRI3")
+mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
 if plotModel:
     Affichage.Plot_Model(mesh)

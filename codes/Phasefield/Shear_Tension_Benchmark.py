@@ -151,7 +151,7 @@ for split, regu in zip(splits, regularisations):
         pt2 = Point(L)
         pt3 = Point(L,L)
         pt4 = Point(0,L)
-        pointsList = PointsList([pt1, pt2, pt3, pt4], meshSize)
+        contour = PointsList([pt1, pt2, pt3, pt4], meshSize)
 
         if dim == 2:
             ptC1 = Point(0,L/2, isOpen=True)
@@ -171,11 +171,11 @@ for split, regu in zip(splits, regularisations):
 
         
         if dim == 2:
-            mesh = interfaceGmsh.Mesh_2D(pointsList, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
+            mesh = interfaceGmsh.Mesh_2D(contour, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
         elif dim == 3:
             # fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
             # mesh = interfaceGmsh.Mesh_Import_msh(fichier)
-            mesh = interfaceGmsh.Mesh_3D(pointsList, [0,0,ep], 3, cracks=cracks, elemType="TETRA4", refineGeom=refineDomain)
+            mesh = interfaceGmsh.Mesh_3D(contour, [], [0,0,ep], 3, "TETRA4", cracks, refineGeom=refineDomain)
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)
