@@ -719,10 +719,13 @@ class Interface_Gmsh:
         
         return self.__Recuperation_Maillage()
 
-    def __PhysicalGroups_craks(self, cracks: list, entities: list[tuple]):
+    def __PhysicalGroups_craks(self, cracks: list, entities: list[tuple]) -> tuple[int, int, int, int]:
         """Création des groupes physiques associés aux fissures\n
         return crackLines, crackSurfaces, openPoints, openLines
         """
+
+        if len(cracks) == 0:
+            return None, None, None, None
         
         # listes contenants les entitées ouvertes
         openPoints = []
@@ -974,7 +977,7 @@ class Interface_Gmsh:
         entities2D = gmsh.model.getEntities(2)
 
         # Création des fissures
-        crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_craks(cracks, entities2D)
+        crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_craks(cracks, entities2D)            
 
         self.__Set_BackgroundMesh(refineGeom, meshSize)
 
