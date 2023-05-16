@@ -21,35 +21,38 @@ folder_file = Folder.Get_Path(__file__)
 
 idxEssai = 1
 
-folder_Save = Folder.New_File("Identification_PFM", results=True)
+nL = 100
+tolConv = 1e-2
+split = "AnisotStress"
+# split = "He"
+# split = "Zhang"
 
-test = True
+test = False
 optimMesh = True
+
+folderSource = Folder.New_File(Folder.Join(["Identification_PFM", f"Essai{idxEssai}"]), results=True)    
+
+folder_Save = Folder.PhaseField_Folder(folderSource, "", split, "", "", tolConv, "", test, optimMesh, nL=nL)
 
 pltLoad = True
 pltIter = True
 
 GcHeterogene = False
-split = "AnisotStress"
-# split = "He"
-# split = "Zhang"
 
 # inc0 = 1e-2
 # inc1 = 1e-2/3
 
-inc0 = 1e-2
-inc1 = inc0/3
+inc0 = 1e-2/2
+inc1 = inc0/4
 
 h = 90
 l = 45
 ep = 20
 d = 10
 
-l0 = l/120
+l0 = l/nL
 
 meshSize = l0 if test else l0/2
-
-tolConv = 1e-0
 
 # ----------------------------------------------
 # Forces & Déplacements
@@ -87,7 +90,7 @@ def Calc_a_b(forces, deplacements, fmax):
 
     return a, b
 
-a_exp, b_exp = Calc_a_b(forces, deplacements, 15)
+k_exp, __ = Calc_a_b(forces, deplacements, 15)
 
 # ----------------------------------------------
 # Mesh
@@ -154,25 +157,22 @@ simuElas.add_surfLoad(nodes_Upper, [-f_crit*1000/l/ep], ["y"])
 u_num = simuElas.Solve()
 fr_num = - np.sum(simuElas.Get_K_C_M_F()[0][ddlsY_Upper] @ u_num)/1000
 
-a_num, b_num = Calc_a_b(np.linspace(0, fr_num, 50), np.linspace(0, -np.mean(u_num[ddlsY_Upper]), 50), f_crit)
+k_mat, __ = Calc_a_b(np.linspace(0, fr_num, 50), np.linspace(0, -np.mean(u_num[ddlsY_Upper]), 50), f_crit)
 
-coef_a = a_num/a_exp
+k_montage = 1/(1/k_exp - 1/k_mat)
 
 if pltLoad:
     axLoad = plt.subplots()[1]
     # axLoad.plot(deplacements, forces)
     axLoad.set_xlabel("displacement [mm]")
     axLoad.set_ylabel("load [kN]")
-    axLoad.scatter(deplacements[idx_crit]/coef_a, forces[idx_crit], marker='+', c='red', zorder=2)
-    axLoad.plot(deplacements/coef_a, forces)
 
-# Gc = 1e-2 # -> 32
-# # Gc = 42 * 1e-2/32
-
-# # 1e-2 -> 22.86724860286298
-# #      -> 39.356
-# Gc = 39.565*1e-2/18.1109745566610
-# Gc *= 2
+    # coef_a = k_mat/k_exp    
+    # axLoad.plot(deplacements/coef_a, forces)
+       
+    deplacements = deplacements-forces/k_montage
+    axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=2)
+    axLoad.plot(deplacements, forces)
 
 if GcHeterogene:
 
@@ -213,8 +213,16 @@ if GcHeterogene:
 
 else:
 
-    Gc = 0.05
+    Gc = 0.07
+    # Gc = 0.05
 
+# Gc = 1e-2 # -> 32
+# # Gc = 42 * 1e-2/32
+
+# # 1e-2 -> 22.86724860286298
+# #      -> 39.356
+# Gc = 39.565*1e-2/18.1109745566610
+# Gc *= 2
 
 a1 = np.array([1,0])
 a2 = axis_t[:2]
@@ -243,10 +251,10 @@ list_dep = []
 dep = -inc0
 fr = 0
 i = -1
-while fr <= f_max*1.2:
+while fr <= f_max*1.05:
 
     i += 1
-    dep += inc0 if simu.damage.max()<=0.5 else inc1
+    dep += inc0 if simu.damage.max()<=0.6 else inc1
 
     simu.Bc_Init()
     simu.add_dirichlet(nodes_Lower, [0], ["y"])
@@ -301,6 +309,8 @@ if pltIter:
     plt.figure(axIter.figure)
     Affichage.Save_fig(folder_Save, "damage")
 
-PostTraitement.Make_Paraview(folder_Save, simu)
+# PostTraitement.Make_Paraview(folder_Save, simu)
+
+Affichage.Plot_ResumeIter(simu, folder_Save)
 
 plt.show()
