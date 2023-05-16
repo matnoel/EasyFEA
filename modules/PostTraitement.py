@@ -178,7 +178,7 @@ def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False)
 
     nodesField, elementsField = simu.Paraview_nodesField_elementsField(details)
 
-    if len(nodesField) == 0 or len(elementsField) == 0:
+    if len(nodesField) == 0 and len(elementsField) == 0:
         print("La simulation ne possède pas de champs de solution à afficher dans paraview")
 
     for i, iter in enumerate(listIter):
