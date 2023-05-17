@@ -239,6 +239,24 @@ class Mesh:
         if self.dim != 3: return
         volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
         return np.sum(volumes)
+    
+    def Get_h_e(self) -> np.ndarray:
+        """Renvoie la taille des éléments du maillage."""
+
+        # récupération du groupe physique et des coordonées
+        groupElem = self.groupElem
+        coordo = groupElem.coordo
+
+        # recupréation des indexes pour accéder aux segments de chaque elements
+        indexesSegments = groupElem.indexesSegments
+        segments_e = groupElem.connect[:, indexesSegments]
+
+        # Calcul la longueur de chaque segment (s) des elements (e) du maillage. 
+        h_e_s = np.linalg.norm(coordo[segments_e[:,:,1]] - coordo[segments_e[:,:,0]], axis=2)
+        # taille moyenne des segments par element
+        h_e = np.mean(h_e_s, axis=1)
+        
+        return h_e
 
     # Construction des matrices élémentaires
     
@@ -446,18 +464,7 @@ def Calc_meshSize_n(mesh: Mesh, erreur_e: np.ndarray, coef=1/2) -> np.ndarray:
 
     assert mesh.Ne == erreur_e.size, "Doit être une array de dimension (Ne)"
 
-    # récupération du groupe physique et des coordonées
-    groupElem = mesh.groupElem
-    coordo = groupElem.coordo
-
-    # recupréation des indexes pour accéder aux segments de chaque elements
-    indexesSegments = groupElem.indexesSegments
-    segments_e = groupElem.connect[:, indexesSegments]
-
-    # Calcul la longueur de chaque segment (s) des elements (e) du maillage. 
-    h_e_s = np.linalg.norm(coordo[segments_e[:,:,1]] - coordo[segments_e[:,:,0]], axis=2)
-    # taille moyenne des segments par element
-    h_e = np.mean(h_e_s, axis=1)
+    h_e = mesh.Get_h_e()
     
     meshSize_e = (coef-1)/erreur_e.max() * erreur_e + 1
 
@@ -467,7 +474,9 @@ def Calc_meshSize_n(mesh: Mesh, erreur_e: np.ndarray, coef=1/2) -> np.ndarray:
     return meshSize_n
     
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
-    """Construit la matrice utilisée pour projeter la solution de l'ancien maillage vers le nouveau maillage.
+    """Construit la matrice utilisée pour projeter la solution de l'ancien maillage vers le nouveau maillage.\n
+    newU = proj * oldU\n
+    (newNn) = (newNn x oldNn) (oldNn) 
 
     Parameters
     ----------
@@ -491,6 +500,8 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     # la connnectivité de ces noeuds dans les elements
     # la position des noeuds dans l'element de référence
     nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Nodes_Connect_CoordoInElemRef(newMesh.coordo)
+
+    tic.Tac("Mesh", "Localisation des noeuds dans l'ancien maillage", False)
 
     # Evaluation des fonctions de formes
     Ntild = oldMesh.groupElem.Ntild()        

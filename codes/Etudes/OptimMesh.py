@@ -25,7 +25,7 @@ plotErreur = False
 plotProj = False
 
 coef = 1/3
-cible = 2/100 if dim == 2 else 0.06
+cible = 1/100 if dim == 2 else 0.06
 iterMax = 20
 
 # Paramètres géométrie
@@ -38,14 +38,14 @@ lineLoad = P/h #N/mm
 surfLoad = P/h/b #N/mm2
 
 # Paramètres maillage
-meshSize = h
+meshSize = h/3
 
 # TODO permettre de réutiliser le .geo pour construire la geométrie ?
 
 if dim == 2:
     elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
-    elemType = "TETRA4" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
+    elemType = "PRISM6" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
 # Maillage
@@ -90,6 +90,8 @@ for i in range(nL):
             obj = Circle(Point(x, y), cH, meshSize, isCreux=isCreux)
 
         inclusions.append(obj)
+
+inclusions = []
 
 if dim == 2:
 
@@ -220,10 +222,8 @@ while erreur >= cible and i < iterMax:
         os.remove(path)
 
         if plotProj:
-
-            # TODO projection ne fonciton pas correctement pour les elements HEXA8 et PRISM6
-            proj = Calc_projector(oldMesh, mesh)        
-
+            
+            proj = Calc_projector(oldMesh, mesh)
 
             ddlsNew = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", mesh.nodes, ["x"])
             ddlsOld = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", oldMesh.nodes, ["x"])
@@ -262,9 +262,9 @@ if plotResult:
 
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-PostTraitement.Make_Paraview(folder, simu)
+# PostTraitement.Make_Paraview(folder, simu)
 
 PostTraitement.Make_Movie(folder, "ZZ1", simu, plotMesh=True, fps=1, nodeValues=True)
 
-# Tic.Plot_History(details=True)
+Tic.Plot_History(details=True)
 plt.show()
