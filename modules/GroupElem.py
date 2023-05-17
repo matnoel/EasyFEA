@@ -1501,9 +1501,20 @@ class GroupElem(ABC):
             nodesCoordinatesInElemRef = nodesCoordinatesInElem[:,:self.inDim] @ invF_e_pg[e,0]
 
             # décalage si nécessaire
-            # ici introduit un décalage, car tous les éléments a l'exception des TRI et TETRA on leurs points 0 en -1 -1
-            dec = [0] if "T" in self.elemType else [-1]
-            dec = dec * self.inDim
+            # ici introduit un décalage, car le premier noeuds n'est pas forcement à l'origine du repère de référence            
+            if "SEG" in self.elemType:
+                dec = [-1]
+            elif "TRI" in self.elemType:
+                dec = [0, 0]
+            elif "QUAD" in self.elemType:
+                dec = [-1, -1]
+            elif "TETRA" in self.elemType:
+                dec = [0, 0, 0]
+            elif "HEXA" in self.elemType:
+                dec = [-1, -1, -1]
+            elif "PRISM" in self.elemType:
+                dec = [0, 0, -1]
+
             nodesCoordinatesInElemRef = nodesCoordinatesInElemRef + dec
 
             connect_e_n.append(nodesInElement)
@@ -2949,8 +2960,6 @@ class QUAD4(GroupElem):
     # |           |
     # 0-----------1
 
-
-
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
 
         super().__init__(gmshId, connect, coordoGlob, nodesID)
@@ -3381,31 +3390,28 @@ class PRISM6(GroupElem):
     def indexesSegments(self) -> np.ndarray:
         return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
 
-    def Ntild(self) -> np.ndarray:
+    def Ntild(self) -> np.ndarray:        
 
-        N1t = lambda x,y,z: 1/2 * y * (1-x)
-        N2t = lambda x,y,z: 1/2 * z * (1-x)
-        N3t = lambda x,y,z: 1/2 * (1-y-z) * (1-x)
-        N4t = lambda x,y,z: 1/2 * y * (1+x)
-        N5t = lambda x,y,z: 1/2 * z * (1+x)
-        N6t = lambda x,y,z: 1/2 * (1-y-z) * (1+x)
-        
-        # Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t])
-        Ntild = np.array([N3t, N1t, N2t, N6t, N4t, N5t]).reshape(-1, 1)
+        N1t = lambda x,y,z: 0.5*x*z + 0.0*y*z + -0.5*x + 0.0*y + -0.5*z + 0.5
+        N2t = lambda x,y,z: -0.5*x*z + 0.5*y*z + 0.5*x + -0.5*y + 0.0*z + 0.0
+        N3t = lambda x,y,z: 0.0*x*z + -0.5*y*z + 0.0*x + 0.5*y + 0.0*z + 0.0
+        N4t = lambda x,y,z: -0.5*x*z + 0.0*y*z + -0.5*x + 0.0*y + 0.5*z + 0.5
+        N5t = lambda x,y,z: 0.5*x*z + -0.5*y*z + 0.5*x + -0.5*y + 0.0*z + 0.0
+        N6t = lambda x,y,z: 0.0*x*z + 0.5*y*z + 0.0*x + 0.5*y + 0.0*z + 0.0
+        Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t]).reshape(-1, 1)
 
         return Ntild
     
-    def dNtild(self) -> np.ndarray:
+    def dNtild(self) -> np.ndarray:        
 
-        dN1t = [lambda x,y,z: -1/2 * y,         lambda x,y,z: 1/2 * (1-x),      lambda x,y,z: 0]
-        dN2t = [lambda x,y,z: -1/2 * z,         lambda x,y,z: 0,                lambda x,y,z: 1/2 * (1-x)]
-        dN3t = [lambda x,y,z: -1/2 * (1-y-z),   lambda x,y,z: -1/2 * (1-x),     lambda x,y,z: -1/2 * (1-x)]
-        dN4t = [lambda x,y,z: 1/2 * y,          lambda x,y,z: 1/2 * (1+x),      lambda x,y,z: 0]
-        dN5t = [lambda x,y,z: 1/2 * z,          lambda x,y,z: 0,                lambda x,y,z: 1/2 * (1+x)]
-        dN6t = [lambda x,y,z: 1/2 * (1-y-z),    lambda x,y,z: -1/2 * (1+x),     lambda x,y,z: -1/2 * (1+x)]
+        dN1t = [lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: 0.0*z + 0.0,  lambda x,y,z: 0.5*x + 0.0*y + -0.5]
+        dN2t = [lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: -0.5*x + 0.5*y + 0.0]
+        dN3t = [lambda x,y,z: 0.0*z + 0.0,  lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.0*x + -0.5*y + 0.0]
+        dN4t = [lambda x,y,z: -0.5*z + -0.5,    lambda x,y,z: 0.0*z + 0.0,  lambda x,y,z: -0.5*x + 0.0*y + 0.5]
+        dN5t = [lambda x,y,z: 0.5*z + 0.5,  lambda x,y,z: -0.5*z + -0.5,    lambda x,y,z: 0.5*x + -0.5*y + 0.0]
+        dN6t = [lambda x,y,z: 0.0*z + 0.0,  lambda x,y,z: 0.5*z + 0.5,  lambda x,y,z: 0.0*x + 0.5*y + 0.0]
 
-        # dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
-        dNtild = np.array([dN3t, dN1t, dN2t, dN6t, dN4t, dN5t])
+        dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])        
 
         return dNtild
 
