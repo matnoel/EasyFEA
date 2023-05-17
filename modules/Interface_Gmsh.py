@@ -1225,7 +1225,7 @@ class Interface_Gmsh:
             Maillage construit
         """
 
-        # TODO rendre cette classe accessible
+        # TODO rendre cette classe accessible ?
 
         # Ancienne méthode qui beugait
         # Le beug a été réglé car je norganisait pas bien les noeuds lors de la création 
@@ -1358,6 +1358,7 @@ class Interface_Gmsh:
                 # TODO faire en sorte de pouvoir le faire ?
                 # Peut etre compliqué surtout dans la création des matrices elementaire et assemblage
                 # Pas impossible mais pas trivial
+                # Relance la procédure si ça marche pas ?
             dimAjoute.append(groupElem.dim)
 
             # Ici on va récupérer les noeuds et elements faisant partie d'un groupe
