@@ -1610,6 +1610,7 @@ class PhaseField_Model(IModel):
             c = self.__comportement.C
 
             # TODO a optim ?
+            # ici fonctionne pas si c est heterogène
             
             if useNumba:
                 # Plus rapide

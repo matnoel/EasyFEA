@@ -2387,7 +2387,7 @@ class Simu_PhaseField(Simu):
         Kd_e = K_r_e + K_K_e
 
         if self.dim == 2:
-            # TODO EPAISSEUR ?
+            # TODO EPAISSEUR pas utilisé dans femobject ?
             epaisseur = phaseFieldModel.epaisseur
             Kd_e *= epaisseur
             Fd_e *= epaisseur

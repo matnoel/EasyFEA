@@ -301,7 +301,7 @@ class AnalyseDiC:
         
         DIS = cv2.DISOpticalFlow_create()        
         IMG1_uint8 = np.uint8(img1*2**(8-round(np.log2(img1.max()))))
-        IMG2_uint8 = np.uint8(img2*2**(8-round(np.log2(img1.max())))) # TODO Ici normal que img1 ?
+        IMG2_uint8 = np.uint8(img2*2**(8-round(np.log2(img1.max()))))
         Flow = DIS.calc(IMG1_uint8,IMG2_uint8,None)
 
         # Projete ces déplacements sur les noeuds du maillage

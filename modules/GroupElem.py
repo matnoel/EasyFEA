@@ -1422,12 +1422,7 @@ class GroupElem(ABC):
     def Get_Nodes_Connect_CoordoInElemRef(self, coordinates: np.ndarray, elements=None):
         """Fonction qui permet de renvoyer les noeuds dans les elements, la connectivité et les coordonnées (ksi, eta) des points.\n
         return nodes, connect_e_n, coordoInElem_n"""
-
-        # TODO est ce que le principe fonctionne si la face est orientée dans l'espace ? inDim = 3 ?
-
-        # if self.dim != 2: return
-        # if self.dim != 2: raise Exception("Pas encore implémenté en 3D")
-
+        
         if elements == None:
             elements = np.arange(self.Ne, dtype=int)
 
