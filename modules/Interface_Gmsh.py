@@ -936,7 +936,7 @@ class Interface_Gmsh:
             Maillage 2D
         """
 
-        self.__initGmsh('occ')
+        self.__initGmsh('occ')        
         self.__CheckType(2, elemType)
 
         tic = Tic()
@@ -985,7 +985,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction 2D", self.__verbosity)
 
-        self.__Construction_Maillage(2, elemType, surfaces=surfacesPleines, crackLines=crackLines, openPoints=openPoints, isOrganised=False, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfacesPleines, crackLines=crackLines, openPoints=openPoints, folder=folder)
 
         return self.__Recuperation_Maillage()
 
