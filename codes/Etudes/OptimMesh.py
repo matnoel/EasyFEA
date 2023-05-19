@@ -248,7 +248,7 @@ if i > 0:
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-Affichage.NouvelleSection("Post traitement")
+Affichage.NewSection("Post traitement")
 
 # folder=""
 if plotResult:

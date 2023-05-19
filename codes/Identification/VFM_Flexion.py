@@ -88,7 +88,7 @@ f_exp_loc = f_exp[assembly1D_e]
 # Identification
 # ----------------------------------------------
 
-Affichage.NouvelleSection("Identification")
+Affichage.NewSection("Identification")
 
 # Récupération des déformations aux elements
 Eps_exp = simu._Calc_Epsilon_e_pg(u_exp, matriceType)

@@ -106,7 +106,7 @@ for cc in list_cc:
     list_SyyB.append(simu.Get_Resultat("Syy", True)[nodeB])
     list_SxyB.append(simu.Get_Resultat("Sxy", True)[nodeB])
 
-Affichage.NouvelleSection("Résultats")
+Affichage.NewSection("Résultats")
 
 Affichage.Plot_Mesh(mesh,folder=folder, title=f"mesh_{param_name}")
 Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')

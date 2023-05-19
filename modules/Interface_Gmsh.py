@@ -37,7 +37,7 @@ class Interface_Gmsh:
         """modelGmsh peut ecrire dans la console"""
 
         if gmshVerbosity:
-            Affichage.NouvelleSection("Maillage Gmsh")
+            Affichage.NewSection("Maillage Gmsh")
 
     def __CheckType(self, dim: int, elemType: str):
         """Vérification si le type d'element est bien utilisable."""

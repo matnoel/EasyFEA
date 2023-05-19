@@ -109,7 +109,7 @@ simu.Solve()
 
 simu.Save_Iteration()
 
-Affichage.NouvelleSection("Résultats")
+Affichage.NewSection("Résultats")
 
 Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
 Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')

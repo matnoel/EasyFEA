@@ -174,7 +174,7 @@ tic_Tot.Tac("Temps script","Temps total", True)
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-Affichage.NouvelleSection("Post traitement")
+Affichage.NewSection("Post traitement")
 
 simu.Resultats_Get_Resume_Iteration()
 

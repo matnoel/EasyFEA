@@ -90,7 +90,7 @@ fy = f_exp.reshape((mesh.Nn, 2))[:,1]
 # Affichage.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
 # simu.Resultats_Resume()
 
-Affichage.NouvelleSection("Identification")
+Affichage.NewSection("Identification")
 
 compIdentif = Materials.Elas_Anisot(2, comp.C, useVoigtNotation=False, epaisseur=comp.epaisseur)
 

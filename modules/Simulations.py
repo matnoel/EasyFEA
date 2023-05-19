@@ -212,7 +212,7 @@ class Simu(ABC):
         
         if verbosity:
             import Affichage
-            Affichage.NouvelleSection("Simulation")
+            Affichage.NewSection("Simulation")
 
         self.__model = model
 
@@ -1276,19 +1276,19 @@ class Simu(ABC):
 
         import Affichage
 
-        resume = Affichage.NouvelleSection("Maillage", False)
+        resume = Affichage.NewSection("Maillage", False)
         resume += self.mesh.Resume(False)
 
-        resume += Affichage.NouvelleSection("Materiau", False)
+        resume += Affichage.NewSection("Materiau", False)
         resume += '\n' + self.model.resume
 
-        resume += Affichage.NouvelleSection("Chargement", False)
+        resume += Affichage.NewSection("Chargement", False)
         resume += '\n' + self.Resultats_Get_Resume_Chargement()
 
-        resume += Affichage.NouvelleSection("Résultat", False)
+        resume += Affichage.NewSection("Résultat", False)
         resume += '\n' + self.Resultats_Get_Resume_Iteration()
 
-        resume += Affichage.NouvelleSection("TicTac", False)
+        resume += Affichage.NewSection("TicTac", False)
         resume += Tic.Resume(False)
 
         if verbosity:

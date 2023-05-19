@@ -1211,7 +1211,7 @@ def Save_fig(folder:str, filename: str,transparent=False, extension='pdf', dpi='
     # dpi = 500    
     plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches='tight')   
 
-def NouvelleSection(text: str, verbosity=True):
+def NewSection(text: str, verbosity=True):
     """Creation d'une nouvelle section
 
     Parameters

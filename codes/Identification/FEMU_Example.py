@@ -155,7 +155,7 @@ u_exp = simu.Solve()
 # Identification
 # ----------------------------------------------
 
-Affichage.NouvelleSection("Identification")
+Affichage.NewSection("Identification")
 
 simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
 

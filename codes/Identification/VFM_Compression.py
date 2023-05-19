@@ -145,7 +145,7 @@ u_exp = simu.Solve()
 # Identification
 # ----------------------------------------------
 
-Affichage.NouvelleSection("Identification")
+Affichage.NewSection("Identification")
 
 def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False, f=None, pltEps=True):
     """Calcul des intégrales"""

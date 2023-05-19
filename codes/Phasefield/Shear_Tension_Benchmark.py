@@ -280,7 +280,7 @@ for split, regu in zip(splits, regularisations):
             
         Chargement(0)
 
-        Affichage.NouvelleSection("Simulations")
+        Affichage.NewSection("Simulations")
 
         # ----------------------------------------------
         # Paramètres de chargement
@@ -412,7 +412,7 @@ for split, regu in zip(splits, regularisations):
     # ----------------------------------------------
     # Post Traitement
     # ---------------------------------------------
-    Affichage.NouvelleSection("Affichage")
+    Affichage.NewSection("Affichage")
     
 
     if plotResult:

@@ -150,7 +150,7 @@ for v in list_V:
 
 # df.to_excel(Folder.Join([folder, f"{nom}.xlsx"]), index=False)
 
-Affichage.NouvelleSection("Résultats")
+Affichage.NewSection("Résultats")
 
 print(nom+'\n')
 print(df)
@@ -176,7 +176,7 @@ if plotAllResult:
 
 
 
-Affichage.NouvelleSection("Calcul analytique")
+Affichage.NewSection("Calcul analytique")
 
 
 fig, axp = plt.subplots()

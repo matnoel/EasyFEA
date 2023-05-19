@@ -163,7 +163,7 @@ if beamModel.dim > 1:
     Affichage.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
     Affichage.Plot_Mesh(simu, deformation=True, facteurDef=10)
 
-Affichage.NouvelleSection("Resultats")
+Affichage.NewSection("Resultats")
 
 print()
 u = simu.Get_Resultat("ux", nodeValues=True); affichage("ux",u)
