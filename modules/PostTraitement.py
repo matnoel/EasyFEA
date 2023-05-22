@@ -65,6 +65,20 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
+def Get_ffmpegpath() -> str:
+    """Renvoie le path vers ffmpeg."""
+
+    paths = ["D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe",
+                "D:\\Pro\\ffmpeg\\bin\\ffmpeg.exe",
+                "/opt/local/bin/ffmpeg",
+                "/home/m/matnoel/Applications/ffmpeg"]
+    
+    for p in paths:
+        if os.path.exists(p):
+            return p
+    
+    raise Exception("Dossier inexistant")
+
 def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, facteurDef=4, nodeValues=True, fps=30):
     
     resultat = simu.Get_Resultat(option)
@@ -97,23 +111,10 @@ def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, Nite
     # Trace la première figure
     fig, ax, cb = Affichage.Plot_Result(simu, option, plotMesh=plotMesh, deformation=deformation, facteurDef=facteurDef, nodeValues=nodeValues)
     
-    # Donne le lien vers ffmpeg.exe
-
-    def Get_ffmpegpath():
-        paths = ["D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe",
-                 "D:\\Pro\\ffmpeg\\bin\\ffmpeg.exe",
-                 "/opt/local/bin/ffmpeg",
-                 "/home/m/matnoel/Applications/ffmpeg"]
-        
-        for p in paths:
-            if os.path.exists(p):
-                return p
-        
-        raise Exception("Dossier inexistant")
+    # Donne le lien vers ffmpeg.exe    
 
     ffmpegpath = Get_ffmpegpath()
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
-
     
     listTemps = []
     writer = animation.FFMpegWriter(fps)
@@ -183,11 +184,12 @@ def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False)
 
     for i, iter in enumerate(listIter):
 
-        f = Folder.Join([folder,f'solution_{iter}.vtu'])
+        f = Folder.Join([folder,f'solution_{iter}.vtu'])        
 
         vtuFile = __Make_vtu(simu, iter, f, nodesField=nodesField, elementsField=elementsField)
         
-        vtuFiles.append(vtuFile)
+        # vtuFiles.append(vtuFile)
+        vtuFiles.append(f'solution_{iter}.vtu')
 
         temps = tic.Tac("Paraview","Make vtu", False)
         listTemps.append(temps)
