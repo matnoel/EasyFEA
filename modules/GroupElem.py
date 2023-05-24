@@ -27,9 +27,9 @@ class ElemType(str, Enum):
     TETRA4 = "TETRA4"
     TETRA10 = "TETRA10"
     HEXA8 = "HEXA8"
-    # HEXA27 = "HEXA27"
+    HEXA20 = "HEXA20"
     PRISM6 = "PRISM6"
-    # PRISM15 = "PRISM15"
+    PRISM15 = "PRISM15"
     # PRISM18 = "PRISM18"
     # PYRA5 = "PYRA5"
     # PYRA13 = "PYRA13"
@@ -76,7 +76,7 @@ class GroupElem(ABC):
     @staticmethod
     def get_Types3D() -> List[ElemType]:
         """type d'elements disponibles en 3D"""
-        liste3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.PRISM6]
+        liste3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.HEXA20, ElemType.PRISM6, ElemType.PRISM15]
         return liste3D
 
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
@@ -1744,19 +1744,19 @@ class GroupElem_Factory:
             #   \ |     \  \ |
             #    \|      w  \|
             #     4----------5
-        elif gmshId == 12:
-            elemType = ElemType.HEXA27; nPe = 27; dim = 3; ordre = 2; nbFaces = 6; nbCorners = 8
+        elif gmshId == 17:
+            elemType = ElemType.HEXA20; nPe = 20; dim = 3; ordre = 2; nbFaces = 6; nbCorners = 8
             #        v
             # 3----13----2
-            # |\         |\
-            # |15    24  | 14
-            # 9  \ 20    11 \
+            # |\     ^   |\
+            # | 15   |   | 14
+            # 9  \   |   11 \
             # |   7----19+---6
-            # |22 |  26  | 23|
-            # 0---+-8----1   |
-            #  \ 17    25 \  18
-            #  10 |  21    12|
-            #    \|         \|
+            # |   |  +-- |-- | -> u
+            # 0---+-8-\--1   |
+            #  \  17   \  \  18
+            #  10 |     \  12|
+            #    \|      w  \|
             #     4----16----5
         elif gmshId == 6:
             elemType = ElemType.PRISM6; nPe = 6; dim = 3; ordre = 1; nbFaces = 5; nbCorners = 6
@@ -1797,7 +1797,7 @@ class GroupElem_Factory:
             # u   |    ,/ `\    |   v
             #     |  ,6     `7  |
             #     |,/         `\|
-            #     1-------------2
+            #     1------9------2
         elif gmshId == 13:
             elemType = ElemType.PRISM18; nPe = 18; dim = 3; ordre = 2; nbFaces = 5; nbCorners = 6
             #            w
@@ -1910,8 +1910,12 @@ class GroupElem_Factory:
             return TETRA10(*params)
         elif elemType == ElemType.HEXA8:
             return HEXA8(*params)
+        elif elemType == ElemType.HEXA20:
+            return HEXA20(*params)
         elif elemType == ElemType.PRISM6:
             return PRISM6(*params)
+        elif elemType == ElemType.PRISM15:
+                return PRISM15(*params)
         else:
             raise Exception("Pas implémenté")
 
@@ -2148,10 +2152,10 @@ class SEG4(GroupElem):
 
     def Ntild(self) -> np.ndarray:
 
-        N1t = lambda x : -0.5625*x**3 + 0.5625*x**2 + 0.0625*x + -0.0625
-        N2t = lambda x : 0.5625*x**3 + 0.5625*x**2 + -0.0625*x + -0.0625
-        N3t = lambda x : 1.6875*x**3 + -0.5625*x**2 + -1.6875*x + 0.5625
-        N4t = lambda x : -1.6875*x**3 + -0.5625*x**2 + 1.6875*x + 0.5625
+        N1t = lambda x : -0.5625*x**3 + 0.5625*x**2 + 0.0625*x - 0.0625
+        N2t = lambda x : 0.5625*x**3 + 0.5625*x**2 - 0.0625*x - 0.0625
+        N3t = lambda x : 1.6875*x**3 - 0.5625*x**2 - 1.6875*x + 0.5625
+        N4t = lambda x : -1.6875*x**3 - 0.5625*x**2 + 1.6875*x + 0.5625
 
         Ntild = np.array([N1t, N2t, N3t, N4t]).reshape(-1, 1)
 
@@ -2159,21 +2163,21 @@ class SEG4(GroupElem):
 
     def dNtild(self) -> np.ndarray:
 
-        dN1t = [lambda x : -1.688*x**2 + 1.125*x + 0.0625]
-        dN2t = [lambda x : 1.688*x**2 + 1.125*x + -0.0625]
-        dN3t = [lambda x : 5.062*x**2 + -1.125*x + -1.688]
-        dN4t = [lambda x : -5.062*x**2 + -1.125*x + 1.688]
+        dN1t = [lambda x : -1.6875*x**2 + 1.125*x + 0.0625]
+        dN2t = [lambda x : 1.6875*x**2 + 1.125*x - 0.0625]
+        dN3t = [lambda x : 5.0625*x**2 - 1.125*x - 1.6875]
+        dN4t = [lambda x : -5.0625*x**2 - 1.125*x + 1.6875]
 
-        dNtild = np.array([dN1t, dN2t, dN3t, dN4t]).reshape(-1,1)
+        dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
 
         return dNtild
     
     def ddNtild(self) -> np.ndarray:
 
-        ddN1t = lambda x : -3.375*x + 1.125
-        ddN2t = lambda x : 3.375*x + 1.125
-        ddN3t = lambda x : 10.125*x + -1.125
-        ddN4t = lambda x : -10.125*x + -1.125
+        ddN1t = [lambda x : -3.375*x + 1.125]
+        ddN2t = [lambda x : 3.375*x + 1.125]
+        ddN3t = [lambda x : 10.125*x - 1.125]
+        ddN4t = [lambda x : -10.125*x - 1.125]
 
         ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t])
 
@@ -2181,10 +2185,10 @@ class SEG4(GroupElem):
 
     def dddNtild(self) -> np.ndarray:
         
-        dddN1t = lambda x : -3.375
-        dddN2t = lambda x : 3.375
-        dddN3t = lambda x : 10.125
-        dddN4t = lambda x : -10.125
+        dddN1t = [lambda x : -3.375]
+        dddN2t = [lambda x : 3.375]
+        dddN3t = [lambda x : 10.125]
+        dddN4t = [lambda x : -10.125]
 
         dddNtild = np.array([dddN1t, dddN2t, dddN3t, dddN4t])
 
@@ -2259,11 +2263,11 @@ class SEG5(GroupElem):
 
     def Ntild(self) -> np.ndarray:
 
-        N1t = lambda x : 0.6667*x**4 + -0.6667*x**3 + -0.1667*x**2 + 0.1667*x + 0.0
-        N2t = lambda x : 0.6667*x**4 + 0.6667*x**3 + -0.1667*x**2 + -0.1667*x + 0.0
-        N3t = lambda x : -2.667*x**4 + 1.333*x**3 + 2.667*x**2 + -1.333*x + 0.0
-        N4t = lambda x : 4.0*x**4 + 0.0*x**3 + -5.0*x**2 + 0.0*x + 1.0
-        N5t = lambda x : -2.667*x**4 + -1.333*x**3 + 2.667*x**2 + 1.333*x + 0.0
+        N1t = lambda x : 0.6667*x**4 - 0.6667*x**3 - 0.1667*x**2 + 0.1667*x + 0.0
+        N2t = lambda x : 0.6667*x**4 + 0.6667*x**3 - 0.1667*x**2 - 0.1667*x + 0.0
+        N3t = lambda x : -2.667*x**4 + 1.333*x**3 + 2.667*x**2 - 1.333*x + 0.0
+        N4t = lambda x : 4.0*x**4 + 0.0*x**3 - 5.0*x**2 + 0.0*x + 1.0
+        N5t = lambda x : -2.667*x**4 - 1.333*x**3 + 2.667*x**2 + 1.333*x + 0.0
 
         Ntild = np.array([N1t, N2t, N3t, N4t, N5t]).reshape(-1, 1)
 
@@ -2271,11 +2275,11 @@ class SEG5(GroupElem):
     
     def dNtild(self) -> np.ndarray:
 
-        dN1t = [lambda x : 2.667*x**3 + -2.0*x**2 + -0.3333*x + 0.1667]
-        dN2t = [lambda x : 2.667*x**3 + 2.0*x**2 + -0.3333*x + -0.1667]
-        dN3t = [lambda x : -10.67*x**3 + 4.0*x**2 + 5.333*x + -1.333]
-        dN4t = [lambda x : 16.0*x**3 + 0.0*x**2 + -10.0*x + 0.0]
-        dN5t = [lambda x : -10.67*x**3 + -4.0*x**2 + 5.333*x + 1.333]
+        dN1t = [lambda x : 2.667*x**3 - 2.0*x**2 - 0.3333*x + 0.1667]
+        dN2t = [lambda x : 2.667*x**3 + 2.0*x**2 - 0.3333*x - 0.1667]
+        dN3t = [lambda x : -10.67*x**3 + 4.0*x**2 + 5.333*x - 1.333]
+        dN4t = [lambda x : 16.0*x**3 + 0.0*x**2 - 10.0*x + 0.0]
+        dN5t = [lambda x : -10.67*x**3 - 4.0*x**2 + 5.333*x + 1.333]        
 
         dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t])
 
@@ -2283,23 +2287,23 @@ class SEG5(GroupElem):
     
     def ddNtild(self) -> np.ndarray:
 
-        ddN1t = [lambda x : 8.0*x**2 + -4.0*x + -0.3333]
-        ddN2t = [lambda x : 8.0*x**2 + 4.0*x + -0.3333]
+        ddN1t = [lambda x : 8.0*x**2 - 4.0*x - 0.3333]
+        ddN2t = [lambda x : 8.0*x**2 + 4.0*x - 0.3333]
         ddN3t = [lambda x : -32.0*x**2 + 8.0*x + 5.333]
-        ddN4t = [lambda x : 48.0*x**2 + 0.0*x + -10.0]
-        ddN5t = [lambda x : -32.0*x**2 + -8.0*x + 5.333]
+        ddN4t = [lambda x : 48.0*x**2 + 0.0*x - 10.0]
+        ddN5t = [lambda x : -32.0*x**2 - 8.0*x + 5.333]
 
         ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t])
 
         return ddNtild    
 
     def dddNtild(self) -> np.ndarray:
-        
-        dddN1t = [lambda x : 16.0*x + -4.0]
+
+        dddN1t = [lambda x : 16.0*x - 4.0]
         dddN2t = [lambda x : 16.0*x + 4.0]
         dddN3t = [lambda x : -64.0*x + 8.0]
         dddN4t = [lambda x : 96.0*x + 0.0]
-        dddN5t = [lambda x : -64.0*x + -8.0]
+        dddN5t = [lambda x : -64.0*x - 8.0]
 
         dddNtild = np.array([dddN1t, dddN2t, dddN3t, dddN4t, dddN5t])
 
@@ -3354,6 +3358,177 @@ class HEXA8(GroupElem):
     def ddNvtild(self) -> np.ndarray:
         pass
 
+class HEXA20(GroupElem):
+    #        v
+    # 3----13----2
+    # |\     ^   |\
+    # | 15   |   | 14
+    # 9  \   |   11 \
+    # |   7----19+---6
+    # |   |  +-- |-- | -> u
+    # 0---+-8-\--1   |
+    #  \  17   \  \  18
+    #  10 |     \  12|
+    #    \|      w  \|
+    #     4----16----5
+
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
+
+    @property
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    @property
+    def indexesFaces(self) -> list[int]:
+        return [0,8,1,11,2,13,3,9,
+                0,10,4,16,5,12,1,8,
+                0,9,3,15,7,17,4,10,
+                6,19,7,15,3,13,2,14,
+                6,14,2,11,1,12,5,18,
+                6,18,5,16,4,17,7,19]
+    
+    @property
+    def indexesSegments(self) -> np.ndarray:
+        return np.array([[0,1],[1,5],[5,4],[4,0],[3,2],[2,6],[6,7],[7,3],[0,3],[1,2],[5,6],[4,7]])
+
+    def Ntild(self) -> np.ndarray:        
+
+        N1t = lambda x,y,z: 0.125*x**2*y*z + 0.125*y**2*x*z + 0.125*z**2*x*y + -0.125*x**2*y + -0.125*y**2*x + -0.125*z**2*x + -0.125*x**2*z + -0.125*y**2*z + -0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.125*x + 0.125*y + 0.125*z + -0.125*x*y*z + -0.25
+        N2t = lambda x,y,z: 0.125*x**2*y*z + -0.125*y**2*x*z + -0.125*z**2*x*y + -0.125*x**2*y + 0.125*y**2*x + 0.125*z**2*x + -0.125*x**2*z + -0.125*y**2*z + -0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + -0.125*x + 0.125*y + 0.125*z + 0.125*x*y*z + -0.25
+        N3t = lambda x,y,z: -0.125*x**2*y*z + -0.125*y**2*x*z + 0.125*z**2*x*y + 0.125*x**2*y + 0.125*y**2*x + 0.125*z**2*x + -0.125*x**2*z + -0.125*y**2*z + 0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + -0.125*x + -0.125*y + 0.125*z + -0.125*x*y*z + -0.25
+        N4t = lambda x,y,z: -0.125*x**2*y*z + 0.125*y**2*x*z + -0.125*z**2*x*y + 0.125*x**2*y + -0.125*y**2*x + -0.125*z**2*x + -0.125*x**2*z + -0.125*y**2*z + 0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.125*x + -0.125*y + 0.125*z + 0.125*x*y*z + -0.25
+        N5t = lambda x,y,z: -0.125*x**2*y*z + -0.125*y**2*x*z + 0.125*z**2*x*y + -0.125*x**2*y + -0.125*y**2*x + -0.125*z**2*x + 0.125*x**2*z + 0.125*y**2*z + -0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.125*x + 0.125*y + -0.125*z + 0.125*x*y*z + -0.25
+        N6t = lambda x,y,z: -0.125*x**2*y*z + 0.125*y**2*x*z + -0.125*z**2*x*y + -0.125*x**2*y + 0.125*y**2*x + 0.125*z**2*x + 0.125*x**2*z + 0.125*y**2*z + -0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + -0.125*x + 0.125*y + -0.125*z + -0.125*x*y*z + -0.25
+        N7t = lambda x,y,z: 0.125*x**2*y*z + 0.125*y**2*x*z + 0.125*z**2*x*y + 0.125*x**2*y + 0.125*y**2*x + 0.125*z**2*x + 0.125*x**2*z + 0.125*y**2*z + 0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + -0.125*x + -0.125*y + -0.125*z + 0.125*x*y*z + -0.25
+        N8t = lambda x,y,z: 0.125*x**2*y*z + -0.125*y**2*x*z + -0.125*z**2*x*y + 0.125*x**2*y + -0.125*y**2*x + -0.125*z**2*x + 0.125*x**2*z + 0.125*y**2*z + 0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.125*x + -0.125*y + -0.125*z + -0.125*x*y*z + -0.25
+        N9t = lambda x,y,z: -0.25*x**2*y*z + 0.0*y**2*x*z + 0.0*z**2*x*y + 0.25*x**2*y + 0.0*y**2*x + 0.0*z**2*x + 0.25*x**2*z + 0.0*y**2*z + 0.0*z**2*y + -0.25*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + 0.25*y*z + 0.0*x + -0.25*y + -0.25*z + 0.0*x*y*z + 0.25
+        N10t = lambda x,y,z: 0.0*x**2*y*z + -0.25*y**2*x*z + 0.0*z**2*x*y + 0.0*x**2*y + 0.25*y**2*x + 0.0*z**2*x + 0.0*x**2*z + 0.25*y**2*z + 0.0*z**2*y + 0.0*x**2 + -0.25*y**2 + 0.0*z**2 + 0.0*x*y + 0.25*x*z + 0.0*y*z + -0.25*x + 0.0*y + -0.25*z + 0.0*x*y*z + 0.25
+        N11t = lambda x,y,z: 0.0*x**2*y*z + 0.0*y**2*x*z + -0.25*z**2*x*y + 0.0*x**2*y + 0.0*y**2*x + 0.25*z**2*x + 0.0*x**2*z + 0.0*y**2*z + 0.25*z**2*y + 0.0*x**2 + 0.0*y**2 + -0.25*z**2 + 0.25*x*y + 0.0*x*z + 0.0*y*z + -0.25*x + -0.25*y + 0.0*z + 0.0*x*y*z + 0.25
+        N12t = lambda x,y,z: 0.0*x**2*y*z + 0.25*y**2*x*z + 0.0*z**2*x*y + 0.0*x**2*y + -0.25*y**2*x + 0.0*z**2*x + 0.0*x**2*z + 0.25*y**2*z + 0.0*z**2*y + 0.0*x**2 + -0.25*y**2 + 0.0*z**2 + 0.0*x*y + -0.25*x*z + 0.0*y*z + 0.25*x + 0.0*y + -0.25*z + 0.0*x*y*z + 0.25
+        N13t = lambda x,y,z: 0.0*x**2*y*z + 0.0*y**2*x*z + 0.25*z**2*x*y + 0.0*x**2*y + 0.0*y**2*x + -0.25*z**2*x + 0.0*x**2*z + 0.0*y**2*z + 0.25*z**2*y + 0.0*x**2 + 0.0*y**2 + -0.25*z**2 + -0.25*x*y + 0.0*x*z + 0.0*y*z + 0.25*x + -0.25*y + 0.0*z + 0.0*x*y*z + 0.25
+        N14t = lambda x,y,z: 0.25*x**2*y*z + 0.0*y**2*x*z + 0.0*z**2*x*y + -0.25*x**2*y + 0.0*y**2*x + 0.0*z**2*x + 0.25*x**2*z + 0.0*y**2*z + 0.0*z**2*y + -0.25*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + -0.25*y*z + 0.0*x + 0.25*y + -0.25*z + 0.0*x*y*z + 0.25
+        N15t = lambda x,y,z: 0.0*x**2*y*z + 0.0*y**2*x*z + -0.25*z**2*x*y + 0.0*x**2*y + 0.0*y**2*x + -0.25*z**2*x + 0.0*x**2*z + 0.0*y**2*z + -0.25*z**2*y + 0.0*x**2 + 0.0*y**2 + -0.25*z**2 + 0.25*x*y + 0.0*x*z + 0.0*y*z + 0.25*x + 0.25*y + 0.0*z + 0.0*x*y*z + 0.25
+        N16t = lambda x,y,z: 0.0*x**2*y*z + 0.0*y**2*x*z + 0.25*z**2*x*y + 0.0*x**2*y + 0.0*y**2*x + 0.25*z**2*x + 0.0*x**2*z + 0.0*y**2*z + -0.25*z**2*y + 0.0*x**2 + 0.0*y**2 + -0.25*z**2 + -0.25*x*y + 0.0*x*z + 0.0*y*z + -0.25*x + 0.25*y + 0.0*z + 0.0*x*y*z + 0.25
+        N17t = lambda x,y,z: 0.25*x**2*y*z + 0.0*y**2*x*z + 0.0*z**2*x*y + 0.25*x**2*y + 0.0*y**2*x + 0.0*z**2*x + -0.25*x**2*z + 0.0*y**2*z + 0.0*z**2*y + -0.25*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + -0.25*y*z + 0.0*x + -0.25*y + 0.25*z + 0.0*x*y*z + 0.25
+        N18t = lambda x,y,z: 0.0*x**2*y*z + 0.25*y**2*x*z + 0.0*z**2*x*y + 0.0*x**2*y + 0.25*y**2*x + 0.0*z**2*x + 0.0*x**2*z + -0.25*y**2*z + 0.0*z**2*y + 0.0*x**2 + -0.25*y**2 + 0.0*z**2 + 0.0*x*y + -0.25*x*z + 0.0*y*z + -0.25*x + 0.0*y + 0.25*z + 0.0*x*y*z + 0.25
+        N19t = lambda x,y,z: 0.0*x**2*y*z + -0.25*y**2*x*z + 0.0*z**2*x*y + 0.0*x**2*y + -0.25*y**2*x + 0.0*z**2*x + 0.0*x**2*z + -0.25*y**2*z + 0.0*z**2*y + 0.0*x**2 + -0.25*y**2 + 0.0*z**2 + 0.0*x*y + 0.25*x*z + 0.0*y*z + 0.25*x + 0.0*y + 0.25*z + 0.0*x*y*z + 0.25
+        N20t = lambda x,y,z: -0.25*x**2*y*z + 0.0*y**2*x*z + 0.0*z**2*x*y + -0.25*x**2*y + 0.0*y**2*x + 0.0*z**2*x + -0.25*x**2*z + 0.0*y**2*z + 0.0*z**2*y + -0.25*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + 0.25*y*z + 0.0*x + 0.25*y + 0.25*z + 0.0*x*y*z + 0.25
+
+        Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t, N9t, N10t, N11t, N12t, N13t, N14t, N15t, N16t, N17t, N18t, N19t, N20t]).reshape(-1, 1)
+
+        return Ntild
+    
+    def dNtild(self) -> np.ndarray:
+
+        dN1t = [lambda x,y,z: 0.25*x*y*z + 0.125*y**2*z + 0.125*z**2*y + -0.25*x*y + -0.125*y**2 + -0.125*z**2 + -0.25*x*z + 0.25*x + 0.0*y + 0.0*z + 0.125 + -0.125*y*z,
+            lambda x,y,z: 0.125*x**2*z + 0.25*y*x*z + 0.125*z**2*x + -0.125*x**2 + -0.25*y*x + -0.25*y*z + -0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + 0.125 + -0.125*x*z,
+            lambda x,y,z: 0.125*x**2*y + 0.125*y**2*x + 0.25*z*x*y + -0.25*z*x + -0.125*x**2 + -0.125*y**2 + -0.25*z*y + 0.25*z + 0.0*x + 0.0*y + 0.125 + -0.125*x*y]
+        dN2t = [lambda x,y,z: 0.25*x*y*z + -0.125*y**2*z + -0.125*z**2*y + -0.25*x*y + 0.125*y**2 + 0.125*z**2 + -0.25*x*z + 0.25*x + 0.0*y + 0.0*z + -0.125 + 0.125*y*z,
+            lambda x,y,z: 0.125*x**2*z + -0.25*y*x*z + -0.125*z**2*x + -0.125*x**2 + 0.25*y*x + -0.25*y*z + -0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + 0.125 + 0.125*x*z,
+            lambda x,y,z: 0.125*x**2*y + -0.125*y**2*x + -0.25*z*x*y + 0.25*z*x + -0.125*x**2 + -0.125*y**2 + -0.25*z*y + 0.25*z + 0.0*x + 0.0*y + 0.125 + 0.125*x*y]
+        dN3t = [lambda x,y,z: -0.25*x*y*z + -0.125*y**2*z + 0.125*z**2*y + 0.25*x*y + 0.125*y**2 + 0.125*z**2 + -0.25*x*z + 0.25*x + 0.0*y + 0.0*z + -0.125 + -0.125*y*z,
+            lambda x,y,z: -0.125*x**2*z + -0.25*y*x*z + 0.125*z**2*x + 0.125*x**2 + 0.25*y*x + -0.25*y*z + 0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + -0.125 + -0.125*x*z,
+            lambda x,y,z: -0.125*x**2*y + -0.125*y**2*x + 0.25*z*x*y + 0.25*z*x + -0.125*x**2 + -0.125*y**2 + 0.25*z*y + 0.25*z + 0.0*x + 0.0*y + 0.125 + -0.125*x*y]
+        dN4t = [lambda x,y,z: -0.25*x*y*z + 0.125*y**2*z + -0.125*z**2*y + 0.25*x*y + -0.125*y**2 + -0.125*z**2 + -0.25*x*z + 0.25*x + 0.0*y + 0.0*z + 0.125 + 0.125*y*z,
+            lambda x,y,z: -0.125*x**2*z + 0.25*y*x*z + -0.125*z**2*x + 0.125*x**2 + -0.25*y*x + -0.25*y*z + 0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + -0.125 + 0.125*x*z,
+            lambda x,y,z: -0.125*x**2*y + 0.125*y**2*x + -0.25*z*x*y + -0.25*z*x + -0.125*x**2 + -0.125*y**2 + 0.25*z*y + 0.25*z + 0.0*x + 0.0*y + 0.125 + 0.125*x*y]
+        dN5t = [lambda x,y,z: -0.25*x*y*z + -0.125*y**2*z + 0.125*z**2*y + -0.25*x*y + -0.125*y**2 + -0.125*z**2 + 0.25*x*z + 0.25*x + 0.0*y + 0.0*z + 0.125 + 0.125*y*z,
+            lambda x,y,z: -0.125*x**2*z + -0.25*y*x*z + 0.125*z**2*x + -0.125*x**2 + -0.25*y*x + 0.25*y*z + -0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + 0.125 + 0.125*x*z,
+            lambda x,y,z: -0.125*x**2*y + -0.125*y**2*x + 0.25*z*x*y + -0.25*z*x + 0.125*x**2 + 0.125*y**2 + -0.25*z*y + 0.25*z + 0.0*x + 0.0*y + -0.125 + 0.125*x*y]
+        dN6t = [lambda x,y,z: -0.25*x*y*z + 0.125*y**2*z + -0.125*z**2*y + -0.25*x*y + 0.125*y**2 + 0.125*z**2 + 0.25*x*z + 0.25*x + 0.0*y + 0.0*z + -0.125 + -0.125*y*z,
+            lambda x,y,z: -0.125*x**2*z + 0.25*y*x*z + -0.125*z**2*x + -0.125*x**2 + 0.25*y*x + 0.25*y*z + -0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + 0.125 + -0.125*x*z,
+            lambda x,y,z: -0.125*x**2*y + 0.125*y**2*x + -0.25*z*x*y + 0.25*z*x + 0.125*x**2 + 0.125*y**2 + -0.25*z*y + 0.25*z + 0.0*x + 0.0*y + -0.125 + -0.125*x*y]
+        dN7t = [lambda x,y,z: 0.25*x*y*z + 0.125*y**2*z + 0.125*z**2*y + 0.25*x*y + 0.125*y**2 + 0.125*z**2 + 0.25*x*z + 0.25*x + 0.0*y + 0.0*z + -0.125 + 0.125*y*z,
+            lambda x,y,z: 0.125*x**2*z + 0.25*y*x*z + 0.125*z**2*x + 0.125*x**2 + 0.25*y*x + 0.25*y*z + 0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + -0.125 + 0.125*x*z,
+            lambda x,y,z: 0.125*x**2*y + 0.125*y**2*x + 0.25*z*x*y + 0.25*z*x + 0.125*x**2 + 0.125*y**2 + 0.25*z*y + 0.25*z + 0.0*x + 0.0*y + -0.125 + 0.125*x*y]
+        dN8t = [lambda x,y,z: 0.25*x*y*z + -0.125*y**2*z + -0.125*z**2*y + 0.25*x*y + -0.125*y**2 + -0.125*z**2 + 0.25*x*z + 0.25*x + 0.0*y + 0.0*z + 0.125 + -0.125*y*z,
+            lambda x,y,z: 0.125*x**2*z + -0.25*y*x*z + -0.125*z**2*x + 0.125*x**2 + -0.25*y*x + 0.25*y*z + 0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + -0.125 + -0.125*x*z,
+            lambda x,y,z: 0.125*x**2*y + -0.125*y**2*x + -0.25*z*x*y + -0.25*z*x + 0.125*x**2 + 0.125*y**2 + 0.25*z*y + 0.25*z + 0.0*x + 0.0*y + -0.125 + -0.125*x*y]
+        dN9t = [lambda x,y,z: -0.5*x*y*z + 0.0*y**2*z + 0.0*z**2*y + 0.5*x*y + 0.0*y**2 + 0.0*z**2 + 0.5*x*z + -0.5*x + 0.0*y + 0.0*z + 0.0 + 0.0*y*z,
+            lambda x,y,z: -0.25*x**2*z + 0.0*y*x*z + 0.0*z**2*x + 0.25*x**2 + 0.0*y*x + 0.0*y*z + 0.0*z**2 + 0.0*y + 0.0*x + 0.25*z + -0.25 + 0.0*x*z,
+            lambda x,y,z: -0.25*x**2*y + 0.0*y**2*x + 0.0*z*x*y + 0.0*z*x + 0.25*x**2 + 0.0*y**2 + 0.0*z*y + 0.0*z + 0.0*x + 0.25*y + -0.25 + 0.0*x*y]
+        dN10t = [lambda x,y,z: 0.0*x*y*z + -0.25*y**2*z + 0.0*z**2*y + 0.0*x*y + 0.25*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*x + 0.0*y + 0.25*z + -0.25 + 0.0*y*z,
+            lambda x,y,z: 0.0*x**2*z + -0.5*y*x*z + 0.0*z**2*x + 0.0*x**2 + 0.5*y*x + 0.5*y*z + 0.0*z**2 + -0.5*y + 0.0*x + 0.0*z + 0.0 + 0.0*x*z,
+            lambda x,y,z: 0.0*x**2*y + -0.25*y**2*x + 0.0*z*x*y + 0.0*z*x + 0.0*x**2 + 0.25*y**2 + 0.0*z*y + 0.0*z + 0.25*x + 0.0*y + -0.25 + 0.0*x*y]
+        dN11t = [lambda x,y,z: 0.0*x*y*z + 0.0*y**2*z + -0.25*z**2*y + 0.0*x*y + 0.0*y**2 + 0.25*z**2 + 0.0*x*z + 0.0*x + 0.25*y + 0.0*z + -0.25 + 0.0*y*z,
+            lambda x,y,z: 0.0*x**2*z + 0.0*y*x*z + -0.25*z**2*x + 0.0*x**2 + 0.0*y*x + 0.0*y*z + 0.25*z**2 + 0.0*y + 0.25*x + 0.0*z + -0.25 + 0.0*x*z,
+            lambda x,y,z: 0.0*x**2*y + 0.0*y**2*x + -0.5*z*x*y + 0.5*z*x + 0.0*x**2 + 0.0*y**2 + 0.5*z*y + -0.5*z + 0.0*x + 0.0*y + 0.0 + 0.0*x*y]
+        dN12t = [lambda x,y,z: 0.0*x*y*z + 0.25*y**2*z + 0.0*z**2*y + 0.0*x*y + -0.25*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*x + 0.0*y + -0.25*z + 0.25 + 0.0*y*z,
+            lambda x,y,z: 0.0*x**2*z + 0.5*y*x*z + 0.0*z**2*x + 0.0*x**2 + -0.5*y*x + 0.5*y*z + 0.0*z**2 + -0.5*y + 0.0*x + 0.0*z + 0.0 + 0.0*x*z,
+            lambda x,y,z: 0.0*x**2*y + 0.25*y**2*x + 0.0*z*x*y + 0.0*z*x + 0.0*x**2 + 0.25*y**2 + 0.0*z*y + 0.0*z + -0.25*x + 0.0*y + -0.25 + 0.0*x*y]
+        dN13t = [lambda x,y,z: 0.0*x*y*z + 0.0*y**2*z + 0.25*z**2*y + 0.0*x*y + 0.0*y**2 + -0.25*z**2 + 0.0*x*z + 0.0*x + -0.25*y + 0.0*z + 0.25 + 0.0*y*z,
+            lambda x,y,z: 0.0*x**2*z + 0.0*y*x*z + 0.25*z**2*x + 0.0*x**2 + 0.0*y*x + 0.0*y*z + 0.25*z**2 + 0.0*y + -0.25*x + 0.0*z + -0.25 + 0.0*x*z,
+            lambda x,y,z: 0.0*x**2*y + 0.0*y**2*x + 0.5*z*x*y + -0.5*z*x + 0.0*x**2 + 0.0*y**2 + 0.5*z*y + -0.5*z + 0.0*x + 0.0*y + 0.0 + 0.0*x*y]
+        dN14t = [lambda x,y,z: 0.5*x*y*z + 0.0*y**2*z + 0.0*z**2*y + -0.5*x*y + 0.0*y**2 + 0.0*z**2 + 0.5*x*z + -0.5*x + 0.0*y + 0.0*z + 0.0 + 0.0*y*z,
+            lambda x,y,z: 0.25*x**2*z + 0.0*y*x*z + 0.0*z**2*x + -0.25*x**2 + 0.0*y*x + 0.0*y*z + 0.0*z**2 + 0.0*y + 0.0*x + -0.25*z + 0.25 + 0.0*x*z,
+            lambda x,y,z: 0.25*x**2*y + 0.0*y**2*x + 0.0*z*x*y + 0.0*z*x + 0.25*x**2 + 0.0*y**2 + 0.0*z*y + 0.0*z + 0.0*x + -0.25*y + -0.25 + 0.0*x*y]
+        dN15t = [lambda x,y,z: 0.0*x*y*z + 0.0*y**2*z + -0.25*z**2*y + 0.0*x*y + 0.0*y**2 + -0.25*z**2 + 0.0*x*z + 0.0*x + 0.25*y + 0.0*z + 0.25 + 0.0*y*z,
+            lambda x,y,z: 0.0*x**2*z + 0.0*y*x*z + -0.25*z**2*x + 0.0*x**2 + 0.0*y*x + 0.0*y*z + -0.25*z**2 + 0.0*y + 0.25*x + 0.0*z + 0.25 + 0.0*x*z,
+            lambda x,y,z: 0.0*x**2*y + 0.0*y**2*x + -0.5*z*x*y + -0.5*z*x + 0.0*x**2 + 0.0*y**2 + -0.5*z*y + -0.5*z + 0.0*x + 0.0*y + 0.0 + 0.0*x*y]
+        dN16t = [lambda x,y,z: 0.0*x*y*z + 0.0*y**2*z + 0.25*z**2*y + 0.0*x*y + 0.0*y**2 + 0.25*z**2 + 0.0*x*z + 0.0*x + -0.25*y + 0.0*z + -0.25 + 0.0*y*z,
+            lambda x,y,z: 0.0*x**2*z + 0.0*y*x*z + 0.25*z**2*x + 0.0*x**2 + 0.0*y*x + 0.0*y*z + -0.25*z**2 + 0.0*y + -0.25*x + 0.0*z + 0.25 + 0.0*x*z,
+            lambda x,y,z: 0.0*x**2*y + 0.0*y**2*x + 0.5*z*x*y + 0.5*z*x + 0.0*x**2 + 0.0*y**2 + -0.5*z*y + -0.5*z + 0.0*x + 0.0*y + 0.0 + 0.0*x*y]
+        dN17t = [lambda x,y,z: 0.5*x*y*z + 0.0*y**2*z + 0.0*z**2*y + 0.5*x*y + 0.0*y**2 + 0.0*z**2 + -0.5*x*z + -0.5*x + 0.0*y + 0.0*z + 0.0 + 0.0*y*z,
+            lambda x,y,z: 0.25*x**2*z + 0.0*y*x*z + 0.0*z**2*x + 0.25*x**2 + 0.0*y*x + 0.0*y*z + 0.0*z**2 + 0.0*y + 0.0*x + -0.25*z + -0.25 + 0.0*x*z,
+            lambda x,y,z: 0.25*x**2*y + 0.0*y**2*x + 0.0*z*x*y + 0.0*z*x + -0.25*x**2 + 0.0*y**2 + 0.0*z*y + 0.0*z + 0.0*x + -0.25*y + 0.25 + 0.0*x*y]
+        dN18t = [lambda x,y,z: 0.0*x*y*z + 0.25*y**2*z + 0.0*z**2*y + 0.0*x*y + 0.25*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*x + 0.0*y + -0.25*z + -0.25 + 0.0*y*z,
+            lambda x,y,z: 0.0*x**2*z + 0.5*y*x*z + 0.0*z**2*x + 0.0*x**2 + 0.5*y*x + -0.5*y*z + 0.0*z**2 + -0.5*y + 0.0*x + 0.0*z + 0.0 + 0.0*x*z,
+            lambda x,y,z: 0.0*x**2*y + 0.25*y**2*x + 0.0*z*x*y + 0.0*z*x + 0.0*x**2 + -0.25*y**2 + 0.0*z*y + 0.0*z + -0.25*x + 0.0*y + 0.25 + 0.0*x*y]
+        dN19t = [lambda x,y,z: 0.0*x*y*z + -0.25*y**2*z + 0.0*z**2*y + 0.0*x*y + -0.25*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*x + 0.0*y + 0.25*z + 0.25 + 0.0*y*z,
+            lambda x,y,z: 0.0*x**2*z + -0.5*y*x*z + 0.0*z**2*x + 0.0*x**2 + -0.5*y*x + -0.5*y*z + 0.0*z**2 + -0.5*y + 0.0*x + 0.0*z + 0.0 + 0.0*x*z,
+            lambda x,y,z: 0.0*x**2*y + -0.25*y**2*x + 0.0*z*x*y + 0.0*z*x + 0.0*x**2 + -0.25*y**2 + 0.0*z*y + 0.0*z + 0.25*x + 0.0*y + 0.25 + 0.0*x*y]
+        dN20t = [lambda x,y,z: -0.5*x*y*z + 0.0*y**2*z + 0.0*z**2*y + -0.5*x*y + 0.0*y**2 + 0.0*z**2 + -0.5*x*z + -0.5*x + 0.0*y + 0.0*z + 0.0 + 0.0*y*z,
+            lambda x,y,z: -0.25*x**2*z + 0.0*y*x*z + 0.0*z**2*x + -0.25*x**2 + 0.0*y*x + 0.0*y*z + 0.0*z**2 + 0.0*y + 0.0*x + 0.25*z + 0.25 + 0.0*x*z,
+            lambda x,y,z: -0.25*x**2*y + 0.0*y**2*x + 0.0*z*x*y + 0.0*z*x + -0.25*x**2 + 0.0*y**2 + 0.0*z*y + 0.0*z + 0.0*x + 0.25*y + 0.25 + 0.0*x*y]
+        
+        dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t, dN9t, dN10t, dN11t, dN12t, dN13t, dN14t, dN15t, dN16t, dN17t, dN18t, dN19t, dN20t])        
+
+        return dNtild
+
+    def ddNtild(self) -> np.ndarray:
+
+        ddN1t = [lambda x,y,z: 0.25*y*z + -0.25*y + -0.25*z + 0.25, lambda x,y,z: 0.25*x*z + -0.25*x + -0.25*z + 0.25, lambda x,y,z: 0.25*x*y + -0.25*x + -0.25*y + 0.25]
+        ddN2t = [lambda x,y,z: 0.25*y*z + -0.25*y + -0.25*z + 0.25,lambda x,y,z: -0.25*x*z + 0.25*x + -0.25*z + 0.25, lambda x,y,z: -0.25*x*y + 0.25*x + -0.25*y + 0.25]
+        ddN3t = [lambda x,y,z: -0.25*y*z + 0.25*y + -0.25*z + 0.25, lambda x,y,z: -0.25*x*z + 0.25*x + -0.25*z + 0.25, lambda x,y,z: 0.25*x*y + 0.25*x + 0.25*y + 0.25]
+        ddN4t = [lambda x,y,z: -0.25*y*z + 0.25*y + -0.25*z + 0.25, lambda x,y,z: 0.25*x*z + -0.25*x + -0.25*z + 0.25, lambda x,y,z: -0.25*x*y + -0.25*x + 0.25*y + 0.25]
+        ddN5t = [lambda x,y,z: -0.25*y*z + -0.25*y + 0.25*z + 0.25, lambda x,y,z: -0.25*x*z + -0.25*x + 0.25*z + 0.25, lambda x,y,z: 0.25*x*y + -0.25*x + -0.25*y + 0.25]
+        ddN6t = [lambda x,y,z: -0.25*y*z + -0.25*y + 0.25*z + 0.25, lambda x,y,z: 0.25*x*z + 0.25*x + 0.25*z + 0.25, lambda x,y,z: -0.25*x*y + 0.25*x + -0.25*y + 0.25]
+        ddN7t = [lambda x,y,z: 0.25*y*z + 0.25*y + 0.25*z + 0.25, lambda x,y,z: 0.25*x*z + 0.25*x + 0.25*z + 0.25, lambda x,y,z: 0.25*x*y + 0.25*x + 0.25*y + 0.25]
+        ddN8t = [lambda x,y,z: 0.25*y*z + 0.25*y + 0.25*z + 0.25, lambda x,y,z: -0.25*x*z + -0.25*x + 0.25*z + 0.25, lambda x,y,z: -0.25*x*y + -0.25*x + 0.25*y + 0.25]
+        ddN9t = [lambda x,y,z: -0.5*y*z + 0.5*y + 0.5*z + -0.5, lambda x,y,z: 0.0*x*z + 0.0*x + 0.0*z + 0.0, lambda x,y,z: 0.0*x*y + 0.0*x + 0.0*y + 0.0]
+        ddN10t = [lambda x,y,z: 0.0*y*z + 0.0*y + 0.0*z + 0.0, lambda x,y,z: -0.5*x*z + 0.5*x + 0.5*z + -0.5, lambda x,y,z: 0.0*x*y + 0.0*x + 0.0*y + 0.0]
+        ddN11t = [lambda x,y,z: 0.0*y*z + 0.0*y + 0.0*z + 0.0, lambda x,y,z: 0.0*x*z + 0.0*x + 0.0*z + 0.0, lambda x,y,z: -0.5*x*y + 0.5*x + 0.5*y + -0.5]
+        ddN12t = [lambda x,y,z: 0.0*y*z + 0.0*y + 0.0*z + 0.0, lambda x,y,z: 0.5*x*z + -0.5*x + 0.5*z + -0.5, lambda x,y,z: 0.0*x*y + 0.0*x + 0.0*y + 0.0]
+        ddN13t = [lambda x,y,z: 0.0*y*z + 0.0*y + 0.0*z + 0.0, lambda x,y,z: 0.0*x*z + 0.0*x + 0.0*z + 0.0, lambda x,y,z: 0.5*x*y + -0.5*x + 0.5*y + -0.5]
+        ddN14t = [lambda x,y,z: 0.5*y*z + -0.5*y + 0.5*z + -0.5, lambda x,y,z: 0.0*x*z + 0.0*x + 0.0*z + 0.0, lambda x,y,z: 0.0*x*y + 0.0*x + 0.0*y + 0.0]
+        ddN15t = [lambda x,y,z: 0.0*y*z + 0.0*y + 0.0*z + 0.0, lambda x,y,z: 0.0*x*z + 0.0*x + 0.0*z + 0.0, lambda x,y,z: -0.5*x*y + -0.5*x + -0.5*y + -0.5]
+        ddN16t = [lambda x,y,z: 0.0*y*z + 0.0*y + 0.0*z + 0.0, lambda x,y,z: 0.0*x*z + 0.0*x + 0.0*z + 0.0, lambda x,y,z: 0.5*x*y + 0.5*x + -0.5*y + -0.5]
+        ddN17t = [lambda x,y,z: 0.5*y*z + 0.5*y + -0.5*z + -0.5, lambda x,y,z: 0.0*x*z + 0.0*x + 0.0*z + 0.0, lambda x,y,z: 0.0*x*y + 0.0*x + 0.0*y + 0.0]
+        ddN18t = [lambda x,y,z: 0.0*y*z + 0.0*y + 0.0*z + 0.0, lambda x,y,z: 0.5*x*z + 0.5*x + -0.5*z + -0.5, lambda x,y,z: 0.0*x*y + 0.0*x + 0.0*y + 0.0]
+        ddN19t = [lambda x,y,z: 0.0*y*z + 0.0*y + 0.0*z + 0.0, lambda x,y,z: -0.5*x*z + -0.5*x + -0.5*z + -0.5, lambda x,y,z: 0.0*x*y + 0.0*x + 0.0*y + 0.0]
+        ddN20t = [lambda x,y,z: -0.5*y*z + -0.5*y + -0.5*z + -0.5, lambda x,y,z: 0.0*x*z + 0.0*x + 0.0*z + 0.0, lambda x,y,z: 0.0*x*y + 0.0*x + 0.0*y + 0.0]
+
+        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t, ddN9t, ddN10t, ddN11t, ddN12t, ddN13t, ddN14t, ddN15t, ddN16t, ddN17t, ddN18t, ddN19t, ddN20t])        
+
+        return ddNtild
+
+    def dddNtild(self) -> np.ndarray:
+        return super().dddNtild()
+    
+    def ddddNtild(self) -> np.ndarray:
+        return super().ddddNtild()
+
+    def Nvtild(self) -> np.ndarray:
+        pass
+
+    def dNvtild(self) -> np.ndarray:
+        pass
+
+    def ddNvtild(self) -> np.ndarray:
+        pass
+
 class PRISM6(GroupElem):
     #            w
     #            ^
@@ -3392,24 +3567,25 @@ class PRISM6(GroupElem):
 
     def Ntild(self) -> np.ndarray:        
 
-        N1t = lambda x,y,z: 0.5*x*z + 0.0*y*z + -0.5*x + 0.0*y + -0.5*z + 0.5
-        N2t = lambda x,y,z: -0.5*x*z + 0.5*y*z + 0.5*x + -0.5*y + 0.0*z + 0.0
+        N1t = lambda x,y,z: 0.5*x*z + 0.5*y*z + -0.5*x + -0.5*y + -0.5*z + 0.5
+        N2t = lambda x,y,z: -0.5*x*z + 0.0*y*z + 0.5*x + 0.0*y + 0.0*z + 0.0
         N3t = lambda x,y,z: 0.0*x*z + -0.5*y*z + 0.0*x + 0.5*y + 0.0*z + 0.0
-        N4t = lambda x,y,z: -0.5*x*z + 0.0*y*z + -0.5*x + 0.0*y + 0.5*z + 0.5
-        N5t = lambda x,y,z: 0.5*x*z + -0.5*y*z + 0.5*x + -0.5*y + 0.0*z + 0.0
-        N6t = lambda x,y,z: 0.0*x*z + 0.5*y*z + 0.0*x + 0.5*y + 0.0*z + 0.0
+        N4t = lambda x,y,z: -0.5*x*z + -0.5*y*z + -0.5*x + -0.5*y + 0.5*z + 0.5
+        N5t = lambda x,y,z: 0.5*x*z + 0.0*y*z + 0.5*x + 0.0*y + 0.0*z + 0.0
+        N6t = lambda x,y,z: 0.0*x*z + 0.5*y*z + 0.0*x + 0.5*y + 0.0*z + 0.0        
+
         Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t]).reshape(-1, 1)
 
         return Ntild
     
     def dNtild(self) -> np.ndarray:        
 
-        dN1t = [lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: 0.0*z + 0.0,  lambda x,y,z: 0.5*x + 0.0*y + -0.5]
-        dN2t = [lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: -0.5*x + 0.5*y + 0.0]
-        dN3t = [lambda x,y,z: 0.0*z + 0.0,  lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.0*x + -0.5*y + 0.0]
-        dN4t = [lambda x,y,z: -0.5*z + -0.5,    lambda x,y,z: 0.0*z + 0.0,  lambda x,y,z: -0.5*x + 0.0*y + 0.5]
-        dN5t = [lambda x,y,z: 0.5*z + 0.5,  lambda x,y,z: -0.5*z + -0.5,    lambda x,y,z: 0.5*x + -0.5*y + 0.0]
-        dN6t = [lambda x,y,z: 0.0*z + 0.0,  lambda x,y,z: 0.5*z + 0.5,  lambda x,y,z: 0.0*x + 0.5*y + 0.0]
+        dN1t = [lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: 0.5*x + 0.5*y + -0.5]
+        dN2t = [lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -0.5*x + 0.0*y + 0.0]
+        dN3t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.0*x + -0.5*y + 0.0]
+        dN4t = [lambda x,y,z: -0.5*z + -0.5, lambda x,y,z: -0.5*z + -0.5, lambda x,y,z: -0.5*x + -0.5*y + 0.5]
+        dN5t = [lambda x,y,z: 0.5*z + 0.5, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.5*x + 0.0*y + 0.0]
+        dN6t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.5*z + 0.5, lambda x,y,z: 0.0*x + 0.5*y + 0.0]
 
         dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])        
 
@@ -3417,6 +3593,157 @@ class PRISM6(GroupElem):
 
     def ddNtild(self) -> np.ndarray:
         return super().ddNtild()
+
+    def dddNtild(self) -> np.ndarray:
+        return super().dddNtild()
+    
+    def ddddNtild(self) -> np.ndarray:
+        return super().ddddNtild()
+
+    def Nvtild(self) -> np.ndarray:
+        pass
+
+    def dNvtild(self) -> np.ndarray:
+        pass
+
+    def ddNvtild(self) -> np.ndarray:
+        pass
+
+class PRISM15(GroupElem):
+    #            w
+    #            ^
+    #            |
+    #            3
+    #          ,/|`\
+    #        12  |  13
+    #      ,/    |    `\
+    #     4------14-----5
+    #     |      8      |
+    #     |    ,/|`\    |
+    #     |  ,/  |  `\  |
+    #     |,/    |    `\|
+    #    ,10      |     11
+    #  ,/ |      0      | \
+    # u   |    ,/ `\    |   v
+    #     |  ,6     `7  |
+    #     |,/         `\|
+    #     1------9------2
+
+    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodesID: np.ndarray):
+
+        super().__init__(gmshId, connect, coordoGlob, nodesID)
+
+    @property
+    def indexesTriangles(self) -> list[int]:
+        return super().indexesTriangles
+
+    @property
+    def indexesFaces(self) -> list[int]:
+        return [0,8,3,12,4,10,1,6,
+                0,7,2,11,5,13,3,8,
+                1,10,4,14,5,11,2,9,
+                3,13,5,14,4,12,
+                0,6,1,9,2,7]
+    
+    @property
+    def indexesSegments(self) -> np.ndarray:
+        return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
+
+    def Ntild(self) -> np.ndarray:        
+
+        N1t = lambda x,y,z: -1.0*x**2*z + 4.0*x**2*y + -1.0*y**2*z + -0.5*z**2*x + -0.5*z**2*y + -2.0*x*y*z + 1.0*x**2 + 1.0*y**2 + 0.5*z**2 + 1.5*x*z + 1.5*y*z + -1.0*x + -1.0*y + -0.5*z + 0.0
+        N2t = lambda x,y,z: -1.0*x**2*z + 0.0*x**2*y + 0.0*y**2*z + 0.5*z**2*x + 0.0*z**2*y + 0.0*x*y*z + 1.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.5*x*z + 0.0*y*z + -1.0*x + 0.0*y + 0.0*z + 0.0
+        N3t = lambda x,y,z: 0.0*x**2*z + 0.0*x**2*y + -1.0*y**2*z + 0.0*z**2*x + 0.5*z**2*y + 0.0*x*y*z + 0.0*x**2 + 1.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.5*y*z + 0.0*x + -1.0*y + 0.0*z + 0.0
+        N4t = lambda x,y,z: 1.0*x**2*z + 4.0*x**2*y + 1.0*y**2*z + -0.5*z**2*x + -0.5*z**2*y + 2.0*x*y*z + 1.0*x**2 + 1.0*y**2 + 0.5*z**2 + -1.5*x*z + -1.5*y*z + -1.0*x + -1.0*y + 0.5*z + 0.0
+        N5t = lambda x,y,z: 1.0*x**2*z + 0.0*x**2*y + 0.0*y**2*z + 0.5*z**2*x + 0.0*z**2*y + 0.0*x*y*z + 1.0*x**2 + 0.0*y**2 + 0.0*z**2 + -0.5*x*z + 0.0*y*z + -1.0*x + 0.0*y + 0.0*z + 0.0
+        N6t = lambda x,y,z: 0.0*x**2*z + 0.0*x**2*y + 1.0*y**2*z + 0.0*z**2*x + 0.5*z**2*y + 0.0*x*y*z + 0.0*x**2 + 1.0*y**2 + 0.0*z**2 + 0.0*x*z + -0.5*y*z + 0.0*x + -1.0*y + 0.0*z + 0.0
+        N7t = lambda x,y,z: 2.0*x**2*z + -4.0*x**2*y + 0.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + 2.0*x*y*z + -2.0*x**2 + 0.0*y**2 + 0.0*z**2 + -2.0*x*z + 0.0*y*z + 2.0*x + 0.0*y + 0.0*z + 0.0
+        N8t = lambda x,y,z: 0.0*x**2*z + -4.0*x**2*y + 2.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + 2.0*x*y*z + 0.0*x**2 + -2.0*y**2 + 0.0*z**2 + 0.0*x*z + -2.0*y*z + 0.0*x + 2.0*y + 0.0*z + 0.0
+        N9t = lambda x,y,z: 0.0*x**2*z + 0.0*x**2*y + 0.0*y**2*z + 1.0*z**2*x + 1.0*z**2*y + 0.0*x*y*z + 0.0*x**2 + 0.0*y**2 + -1.0*z**2 + 0.0*x*z + 0.0*y*z + -1.0*x + -1.0*y + 0.0*z + 1.0
+        N10t = lambda x,y,z: 0.0*x**2*z + 4.0*x**2*y + 0.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + -2.0*x*y*z + 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + 0.0*z + 0.0
+        N11t = lambda x,y,z: 0.0*x**2*z + 0.0*x**2*y + 0.0*y**2*z + -1.0*z**2*x + 0.0*z**2*y + 0.0*x*y*z + 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*y*z + 1.0*x + 0.0*y + 0.0*z + 0.0
+        N12t = lambda x,y,z: 0.0*x**2*z + 0.0*x**2*y + 0.0*y**2*z + 0.0*z**2*x + -1.0*z**2*y + 0.0*x*y*z + 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*y*z + 0.0*x + 1.0*y + 0.0*z + 0.0
+        N13t = lambda x,y,z: -2.0*x**2*z + -4.0*x**2*y + 0.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + -2.0*x*y*z + -2.0*x**2 + 0.0*y**2 + 0.0*z**2 + 2.0*x*z + 0.0*y*z + 2.0*x + 0.0*y + 0.0*z + 0.0
+        N14t = lambda x,y,z: 0.0*x**2*z + -4.0*x**2*y + -2.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + -2.0*x*y*z + 0.0*x**2 + -2.0*y**2 + 0.0*z**2 + 0.0*x*z + 2.0*y*z + 0.0*x + 2.0*y + 0.0*z + 0.0
+        N15t = lambda x,y,z: 0.0*x**2*z + 4.0*x**2*y + 0.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + 2.0*x*y*z + 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + 0.0*z + 0.0
+
+        Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t, N9t, N10t, N11t, N12t, N13t, N14t, N15t]).reshape(-1, 1)
+
+        return Ntild
+    
+    def dNtild(self) -> np.ndarray:        
+
+        dN1t = [lambda x,y,z: -2.0*x*z + 8.0*x*y + -0.5*z**2 + -2.0*y*z + 2.0*x + 1.5*z + -1.0,
+            lambda x,y,z: 4.0*x**2 + -2.0*y*z + -0.5*z**2 + -2.0*x*z + 2.0*y + 1.5*z + -1.0,
+            lambda x,y,z: -1.0*x**2 + -1.0*y**2 + -1.0*z*x + -1.0*z*y + -2.0*x*y + 1.0*z + 1.5*x + 1.5*y + -0.5]
+        dN2t = [lambda x,y,z: -2.0*x*z + 0.0*x*y + 0.5*z**2 + 0.0*y*z + 2.0*x + 0.5*z + -1.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y*z + 0.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + 0.0,
+            lambda x,y,z: -1.0*x**2 + 0.0*y**2 + 1.0*z*x + 0.0*z*y + 0.0*x*y + 0.0*z + 0.5*x + 0.0*y + 0.0]
+        dN3t = [lambda x,y,z: 0.0*x*z + 0.0*x*y + 0.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + 0.0,
+            lambda x,y,z: 0.0*x**2 + -2.0*y*z + 0.5*z**2 + 0.0*x*z + 2.0*y + 0.5*z + -1.0,
+            lambda x,y,z: 0.0*x**2 + -1.0*y**2 + 0.0*z*x + 1.0*z*y + 0.0*x*y + 0.0*z + 0.0*x + 0.5*y + 0.0]
+        dN4t = [lambda x,y,z: 2.0*x*z + 8.0*x*y + -0.5*z**2 + 2.0*y*z + 2.0*x + -1.5*z + -1.0,
+            lambda x,y,z: 4.0*x**2 + 2.0*y*z + -0.5*z**2 + 2.0*x*z + 2.0*y + -1.5*z + -1.0,
+            lambda x,y,z: 1.0*x**2 + 1.0*y**2 + -1.0*z*x + -1.0*z*y + 2.0*x*y + 1.0*z + -1.5*x + -1.5*y + 0.5]
+        dN5t = [lambda x,y,z: 2.0*x*z + 0.0*x*y + 0.5*z**2 + 0.0*y*z + 2.0*x + -0.5*z + -1.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y*z + 0.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + 0.0,
+            lambda x,y,z: 1.0*x**2 + 0.0*y**2 + 1.0*z*x + 0.0*z*y + 0.0*x*y + 0.0*z + -0.5*x + 0.0*y + 0.0]
+        dN6t = [lambda x,y,z: 0.0*x*z + 0.0*x*y + 0.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + 0.0,
+            lambda x,y,z: 0.0*x**2 + 2.0*y*z + 0.5*z**2 + 0.0*x*z + 2.0*y + -0.5*z + -1.0,
+            lambda x,y,z: 0.0*x**2 + 1.0*y**2 + 0.0*z*x + 1.0*z*y + 0.0*x*y + 0.0*z + 0.0*x + -0.5*y + 0.0]
+        dN7t = [lambda x,y,z: 4.0*x*z + -8.0*x*y + 0.0*z**2 + 2.0*y*z + -4.0*x + -2.0*z + 2.0,
+            lambda x,y,z: -4.0*x**2 + 0.0*y*z + 0.0*z**2 + 2.0*x*z + 0.0*y + 0.0*z + 0.0,
+            lambda x,y,z: 2.0*x**2 + 0.0*y**2 + 0.0*z*x + 0.0*z*y + 2.0*x*y + 0.0*z + -2.0*x + 0.0*y + 0.0]
+        dN8t = [lambda x,y,z: 0.0*x*z + -8.0*x*y + 0.0*z**2 + 2.0*y*z + 0.0*x + 0.0*z + 0.0,
+            lambda x,y,z: -4.0*x**2 + 4.0*y*z + 0.0*z**2 + 2.0*x*z + -4.0*y + -2.0*z + 2.0,
+            lambda x,y,z: 0.0*x**2 + 2.0*y**2 + 0.0*z*x + 0.0*z*y + 2.0*x*y + 0.0*z + 0.0*x + -2.0*y + 0.0]
+        dN9t = [lambda x,y,z: 0.0*x*z + 0.0*x*y + 1.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + -1.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y*z + 1.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + -1.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 2.0*z*x + 2.0*z*y + 0.0*x*y + -2.0*z + 0.0*x + 0.0*y + 0.0]
+        dN10t = [lambda x,y,z: 0.0*x*z + 8.0*x*y + 0.0*z**2 + -2.0*y*z + 0.0*x + 0.0*z + 0.0,
+            lambda x,y,z: 4.0*x**2 + 0.0*y*z + 0.0*z**2 + -2.0*x*z + 0.0*y + 0.0*z + 0.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z*x + 0.0*z*y + -2.0*x*y + 0.0*z + 0.0*x + 0.0*y + 0.0]
+        dN11t = [lambda x,y,z: 0.0*x*z + 0.0*x*y + -1.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + 1.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y*z + 0.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + 0.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y**2 + -2.0*z*x + 0.0*z*y + 0.0*x*y + 0.0*z + 0.0*x + 0.0*y + 0.0]
+        dN12t = [lambda x,y,z: 0.0*x*z + 0.0*x*y + 0.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + 0.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y*z + -1.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + 1.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z*x + -2.0*z*y + 0.0*x*y + 0.0*z + 0.0*x + 0.0*y + 0.0]
+        dN13t = [lambda x,y,z: -4.0*x*z + -8.0*x*y + 0.0*z**2 + -2.0*y*z + -4.0*x + 2.0*z + 2.0,
+            lambda x,y,z: -4.0*x**2 + 0.0*y*z + 0.0*z**2 + -2.0*x*z + 0.0*y + 0.0*z + 0.0,
+            lambda x,y,z: -2.0*x**2 + 0.0*y**2 + 0.0*z*x + 0.0*z*y + -2.0*x*y + 0.0*z + 2.0*x + 0.0*y + 0.0]
+        dN14t = [lambda x,y,z: 0.0*x*z + -8.0*x*y + 0.0*z**2 + -2.0*y*z + 0.0*x + 0.0*z + 0.0,
+            lambda x,y,z: -4.0*x**2 + -4.0*y*z + 0.0*z**2 + -2.0*x*z + -4.0*y + 2.0*z + 2.0,
+            lambda x,y,z: 0.0*x**2 + -2.0*y**2 + 0.0*z*x + 0.0*z*y + -2.0*x*y + 0.0*z + 0.0*x + 2.0*y + 0.0]
+        dN15t = [lambda x,y,z: 0.0*x*z + 8.0*x*y + 0.0*z**2 + 2.0*y*z + 0.0*x + 0.0*z + 0.0,
+            lambda x,y,z: 4.0*x**2 + 0.0*y*z + 0.0*z**2 + 2.0*x*z + 0.0*y + 0.0*z + 0.0,
+            lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z*x + 0.0*z*y + 2.0*x*y + 0.0*z + 0.0*x + 0.0*y + 0.0]
+
+        dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t, dN9t, dN10t, dN11t, dN12t, dN13t, dN14t, dN15t])
+
+        return dNtild
+
+    def ddNtild(self) -> np.ndarray:
+
+        ddN1t = [lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: -1.0*x + -1.0*y + 1.0]
+        ddN2t = [lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 1.0*x + 0.0*y + 0.0]
+        ddN3t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: 0.0*x + 1.0*y + 0.0]
+        ddN4t = [lambda x,y,z: 2.0*z + 2.0, lambda x,y,z: 2.0*z + 2.0, lambda x,y,z: -1.0*x + -1.0*y + 1.0]
+        ddN5t = [lambda x,y,z: 2.0*z + 2.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 1.0*x + 0.0*y + 0.0]
+        ddN6t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 2.0*z + 2.0, lambda x,y,z: 0.0*x + 1.0*y + 0.0]
+        ddN7t = [lambda x,y,z: 4.0*z + -4.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
+        ddN8t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 4.0*z + -4.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
+        ddN9t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 2.0*x + 2.0*y + -2.0]
+        ddN10t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
+        ddN11t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -2.0*x + 0.0*y + 0.0]
+        ddN12t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + -2.0*y + 0.0]
+        ddN13t = [lambda x,y,z: -4.0*z + -4.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
+        ddN14t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -4.0*z + -4.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
+        ddN15t = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
+
+        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t, ddN9t, ddN10t, ddN11t, ddN12t, ddN13t, ddN14t, ddN15t])
+
+        return ddNtild
 
     def dddNtild(self) -> np.ndarray:
         return super().dddNtild()

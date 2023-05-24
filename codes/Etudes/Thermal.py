@@ -30,7 +30,7 @@ if dim == 2:
     # mesh = interfaceGmsh.Mesh_2D(domain, [], "QUAD4")
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD4")
 else:
-    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,a], 4, "HEXA8")
+    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,a], 4, "PRISM6")
 
 thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=1)
 

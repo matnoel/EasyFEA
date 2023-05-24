@@ -11,7 +11,7 @@ import Materials
 import TicTac
 import Folder
 
-dim = 2
+dim = 3
 N = 10
 
 class SimulationType(str, Enum):
@@ -19,7 +19,7 @@ class SimulationType(str, Enum):
     EQUERRE = "EQUERRE",
     TEF2 = "TEF2"
 
-simulationType = SimulationType.TEF2
+simulationType = SimulationType.EQUERRE
 
 interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
 
@@ -69,15 +69,17 @@ elif simulationType == SimulationType.EQUERRE:
     inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI3, [crack, crack2])
+        mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI10, [crack, crack2])
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.PRISM6)
+        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.PRISM15)
 
-        noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
-        Affichage.Plot_Elements(mesh, noeudsS3)
+        # TODO wdef trop grand PRISM6 4.46 -> PRISM15 9.48
+
+        # noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
+        # Affichage.Plot_Elements(mesh, noeudsS3)
         # plt.show()
 
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
@@ -118,7 +120,7 @@ elif simulationType == SimulationType.TEF2:
         mesh = interface.Mesh_2D(listPoint, [], ElemType.TRI6)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, [], extrude=[0,0,2*h], nCouches=10, elemType=ElemType.PRISM6)
+        mesh = interface.Mesh_3D(listPoint, [], extrude=[0,0,2*h], nCouches=10, elemType=ElemType.PRISM15)
 
     noeudsBas = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x==0)
@@ -134,28 +136,37 @@ elif simulationType == SimulationType.TEF2:
     simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
     simu.add_surfLoad(noeudsGauche, [lambda x,y,z : w*g*(h-y)], ["x"], description="[w*g*(h-y)]")
 
+if dim == 3:
+    print(f"\nVolume = {mesh.volume:3f}")
+else:
+    print(f"\nVolume = {mesh.aire*comportement.epaisseur:3f}")
+
 Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh, showId=True)
+# Affichage.Plot_Model(mesh, showId=True)
 
 simu.Solve()
 simu.Save_Iteration()
 
+ddlsF = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", noeudsDroit, ["y"])
+fr = np.sum(simu.Get_K_C_M_F()[0][ddlsF,:] @ simu.displacement)
 
 # import PostTraitement
 # PostTraitement.Make_Paraview(folder, simu)
 
 simu.Resultats_Resume()
 
-# Affichage.Plot_ElementsMaillage(mesh, nodes=noeudsDroit, dimElem =2)
+Affichage.Plot_Elements(mesh, nodes=noeudsDroit, dimElem=2)
 Affichage.Plot_BoundaryConditions(simu)
 
 # Affichage.Plot_Maillage(simu, deformation=True)
-Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
+# Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
+# Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
+# Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
 Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef)
 # Affichage.Plot_Result(simu, "ux")
 
-TicTac.Tic.Plot_History()
+# TicTac.Tic.Plot_History()
+
+
 
 plt.show()

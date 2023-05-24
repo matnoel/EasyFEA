@@ -299,11 +299,15 @@ def __Make_vtu(simu: Simulations.Simu, iter: int, filename: str, nodesField: lis
         "QUAD4" : 9,
         "QUAD8" : 23,
         "TETRA4" : 10,
-        # "TETRA10" : 24,
+        "TETRA10" : 24,
         "TETRA10" : 10,
         "HEXA8": 12,
-        "PRISM6": 13
-    } # regarder https://github.com/Kitware/VTK/blob/master/Common/DataModel/vtkCellType.h
+        # "HEXA20": 29,
+        "HEXA20": 12,
+        "PRISM6": 13,
+        # "PRISM15": 15
+        "PRISM15": 13
+    } # regarder https://github.com/Kitware/VTK/blob/master/Common/DataModel/vtkCellType.h    
 
     typeParaviewElement = typesParaviewElement[simu.mesh.elemType]
     

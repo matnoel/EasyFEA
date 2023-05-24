@@ -69,7 +69,7 @@ if dim == 2:
     
     elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
-    mesh = interfaceGmsh.Mesh_Domain_2D(domain=domain, elemType=elemType, isOrganised=True)
+    mesh = interfaceGmsh.Mesh_2D(domain=domain, elemType=elemType, isOrganised=True)
     # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
     aire = mesh.aire - L*h
 elif dim == 3:

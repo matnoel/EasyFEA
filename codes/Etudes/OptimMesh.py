@@ -45,7 +45,7 @@ meshSize = h/3
 if dim == 2:
     elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
-    elemType = "PRISM6" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
+    elemType = "PRISM15" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
 # Maillage

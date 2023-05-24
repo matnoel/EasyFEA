@@ -14,10 +14,9 @@ import PostTraitement
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 Affichage.Clear()
 
-dim = 2
+dim = 3
 
 folder = Folder.New_File(f"Convergence {dim}D", results=True)
 
@@ -56,7 +55,7 @@ if dim == 2:
     # listNbElement = list(range(2,20,1))
     # listNbElement = list(range(1,10))
 else:
-    listNbElement = np.arange(1,8,2)
+    listNbElement = np.arange(1,6,2)
 
 
 tic = Tic()
@@ -67,8 +66,16 @@ simu = None
 
 elemTypes = GroupElem.get_Types2D() if dim == 2 else GroupElem.get_Types3D()
 
+# elemTypes = ["QUAD4"]
+
+# elemTypes = ["PRISM6","PRISM15"]
+# elemTypes = ["PRISM6","PRISM15"]
+# elemTypes = ["HEXA20"]
+# elemTypes = ["TETRA10"]
+
+interfaceGmsh = Interface_Gmsh(False, False)
+
 for t, elemType in enumerate(elemTypes):
-# for t, elemType in enumerate(["TRI3"]):
         
     listTemps_nb = []
     listWdef_nb = []
@@ -82,15 +89,22 @@ for t, elemType in enumerate(elemTypes):
         domain = Domain(Point(), Point(x=L, y=h), meshSize=taille)
 
         # Construction du modele et du maillage --------------------------------------------------------------------------------
-        interfaceGmsh = Interface_Gmsh(verbosity=False)
-
-        if dim == 2:
-            mesh = interfaceGmsh.Mesh_Domain_2D(domain, elemType=elemType, isOrganised=True)
-        else:
-            mesh = interfaceGmsh.Mesh_Domain_3D(domain, elemType=elemType, extrude=[0,0,b], nCouches=4, isOrganised=True)
+        if dim == 2:            
+            mesh = interfaceGmsh.Mesh_2D(domain, [], elemType, isOrganised=True)
+        else:            
+            mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0,0,b], nCouches=4)
 
         mesh = cast(Mesh, mesh)
         # Récupère les noeuds qui m'interessent
+
+        # Affichage.Plot_Mesh(mesh)
+
+        if mesh.dim == 3:
+            volume  = mesh.volume
+        else:
+            volume  = mesh.aire * comportement.epaisseur
+
+        assert np.abs(volume - (L*h*b))/volume <= 1e-10
         
         noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
         noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
@@ -123,7 +137,10 @@ for t, elemType in enumerate(elemTypes):
         listWdef_nb.append(Wdef)
         listDdl_nb.append(mesh.Nn*dim)
 
-        print(f"Elem : {elemType}, nby : {nbElem:2}, Wdef = {np.round(Wdef, 3)}, erreur = {np.abs(WdefRef-Wdef)/WdefRef:3e} ")
+        if elemType != mesh.elemType:
+            print("erreur lors de la création du maillage")
+
+        print(f"Elem : {mesh.elemType}, nby : {nbElem:2}, Wdef = {np.round(Wdef, 3)}, erreur = {np.abs(WdefRef-Wdef)/WdefRef:3e} ")
     
     listTemps_e_nb.append(listTemps_nb)
     listWdef_e_nb.append(listWdef_nb)
@@ -145,7 +162,6 @@ print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 # WdefRef = 391.76
 
 for t, elemType in enumerate(elemTypes):
-# for t, elemType in enumerate(["TRI3"]):
 
     # Convergence Energie
     ax_Wdef.plot(listDdl_e_nb[t], listWdef_e_nb[t])
@@ -164,29 +180,28 @@ ax_Wdef.grid()
 ax_Wdef.set_xlim([-10,8000])
 ax_Wdef.set_xlabel('ddl')
 ax_Wdef.set_ylabel('Wdef [mJ]')
-ax_Wdef.legend(GroupElem.get_Types2D())
+ax_Wdef.legend(elemTypes)
 ax_Wdef.fill_between(listDdl_nb, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
 
 # Erreur
 ax_Temps_Erreur.grid()
 ax_Temps_Erreur.set_xlabel('ddl')
 ax_Temps_Erreur.set_ylabel('Erreur [%]')
-ax_Temps_Erreur.legend(GroupElem.get_Types2D())
+ax_Temps_Erreur.legend(elemTypes)
 
 
 # Temps
 ax_Temps.grid()
 ax_Temps.set_xlabel('ddl')
 ax_Temps.set_ylabel('Temps [s]')
-ax_Temps.legend(GroupElem.get_Types2D())
+ax_Temps.legend(elemTypes)
 
+Affichage.Plot_Result(simu, "Svm", nColors=20)
 
 PostTraitement.Make_Paraview(folder, simu, details=True)
 
 Tic.Resume()
 
-Tic.Plot_History(folder)
+# Tic.Plot_History(folder)
 
 plt.show()
-
-# %%

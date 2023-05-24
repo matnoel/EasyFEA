@@ -41,7 +41,7 @@ elif problem == "Traction":
     q = ro * g * (h*b)
     charge = 5000
 
-section = Section(interfaceGmsh.Mesh_Domain_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
+section = Section(interfaceGmsh.Mesh_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
 # Affichage.Plot_Model(section.mesh)
 # Affichage.Plot_Maillage(mesh)

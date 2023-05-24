@@ -58,7 +58,7 @@ class Test_Simu(unittest.TestCase):
             
             # SECTION
 
-            section = Section(interfaceGmsh.Mesh_Domain_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
+            section = Section(interfaceGmsh.Mesh_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
             self.assertTrue((section.aire - b*h) <= 1e-12)
             self.assertTrue((section.Iz - ((b*h**3)/12)) <= 1e-12)

@@ -144,6 +144,8 @@ class Mesh:
 
             if self.__groupElem.elemType == ElemType.PRISM6 and elemType == ElemType.TRI3:
                 indexesFaces.append(indexesFaces[0])
+            elif self.__groupElem.elemType == ElemType.PRISM15 and elemType == ElemType.TRI6:
+                indexesFaces.extend([indexesFaces[0]]*2)
 
             dict_connect_faces[elemType] = groupElem.connect[:, indexesFaces]
             

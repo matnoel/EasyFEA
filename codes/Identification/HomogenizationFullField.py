@@ -61,7 +61,7 @@ for i in range(nL):
 interfaceGmsh = Interface_Gmsh(False)
 
 inclusion = Geom.Domain(ptd1, ptd2, meshSize, isCreux=True)
-surfaceInclu = interfaceGmsh.Mesh_Domain_2D(inclusion).aire
+surfaceInclu = interfaceGmsh.Mesh_2D(inclusion).aire
 
 points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 

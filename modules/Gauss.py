@@ -159,6 +159,78 @@ class Gauss:
             poids = [p1, p2, p2, p2, p2, p3, p3, p3, p3, p4, p4, p4, p4, p4, p4]
 
         return x, y, z, poids
+    
+    @staticmethod
+    def __CoordoPoidsGaussHexa(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """[8]"""
+        if nPg == 8:            
+
+            m1r3 = -1/np.sqrt(3)
+            p1r3 = 1/np.sqrt(3)
+
+            x = [m1r3, m1r3, m1r3, m1r3, p1r3, p1r3, p1r3, p1r3]
+            y = [m1r3, m1r3, p1r3, p1r3, m1r3, m1r3, p1r3, p1r3]
+            z = [m1r3, p1r3, m1r3, p1r3, m1r3, p1r3, m1r3, p1r3]
+
+            poids = [1]*nPg
+
+        if nPg == 27:
+
+            a = np.sqrt(3/5)
+            c1 = 5/9
+            c2 = 8/9
+
+            x = [-a]*9; x.extend([0]*9); x.extend([a]*9)
+            y = [-a,-a,-a,0,0,0,a,a,a]*3
+            z = [-a,0,a]*9
+
+            c13 = c1**3
+            c23 = c2**3
+
+            c12 = c1**2*c2
+            c22 = c1*c2**2
+
+            poids = [c13,c12,c13, c12,c22,c12, c13,c12,c13, c12,c22,c12, c22,c23,c22, c12,c22,c12, c13,c12,c13, c12,c22,c12, c13,c12,c13]
+
+        return x, y, z, poids
+    
+    @staticmethod
+    def __CoordoPoidsGaussPrism(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """[6, 8]"""
+        if nPg == 6:
+            
+            m1r3 = -1/np.sqrt(3)
+            p1r3 = 1/np.sqrt(3)
+
+            # X, Y, Z -> base code aster
+            X = [m1r3, m1r3, m1r3, p1r3, p1r3, p1r3]
+            Y = [0.5, 0, 0.5, 0.5, 0, 0.5]
+            Z = [0.5, 0.5, 0, 0.5, 0.5, 0]
+
+            # x <- y, y <- z, z <- x  
+            x = np.array(Y)
+            y = np.array(Z)
+            z = np.array(X)
+
+            poids = [1/6]*nPg
+
+        elif nPg == 8:
+            
+            a=0.577350269189626
+
+            # X, Y, Z -> base code aster
+            X = [-a, -a, -a, -a, a, a, a, a]
+            Y = [1/3, 0.6, 0.2, 0.2]*2
+            Z = [1/3, 0.2, 0.6, 0.2]*2
+
+            # x <- y, y <- z, z <- x  
+            x = np.array(Y)
+            y = np.array(Z)
+            z = np.array(X)
+
+            poids = [-27/96, 25/96, 25/96, 25/96]*2
+
+        return x, y, z, poids
 
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
@@ -280,35 +352,27 @@ class Gauss:
             dim = 3            
             if matriceType in [MatriceType.rigi, MatriceType.masse]:
                 nPg = 8
+                x, y, z, poids = Gauss.__CoordoPoidsGaussHexa(nPg)
 
-                m1r3 = -1/np.sqrt(3)
-                p1r3 = 1/np.sqrt(3)
-
-                x = [m1r3, m1r3, m1r3, m1r3, p1r3, p1r3, p1r3, p1r3]
-                y = [m1r3, m1r3, p1r3, p1r3, m1r3, m1r3, p1r3, p1r3]
-                z = [m1r3, p1r3, m1r3, p1r3, m1r3, p1r3, m1r3, p1r3]
-
-                poids = [1]*nPg
+        elif elemType == ElemType.HEXA20:
+            dim = 3
+            if matriceType in [MatriceType.rigi, MatriceType.masse]:
+                nPg = 8
+                x, y, z, poids = Gauss.__CoordoPoidsGaussHexa(nPg)
 
         elif elemType == ElemType.PRISM6:
             dim = 3            
             if matriceType in [MatriceType.rigi, MatriceType.masse]:
                 nPg = 6
 
-                m1r3 = -1/np.sqrt(3)
-                p1r3 = 1/np.sqrt(3)
+                x, y, z, poids = Gauss.__CoordoPoidsGaussPrism(nPg)
 
-                ordre = [2,0,1,5,3,4]
+        elif elemType == ElemType.PRISM15:
+            dim = 3            
+            if matriceType in [MatriceType.rigi, MatriceType.masse]:
+                nPg = 6
 
-                x = [m1r3, m1r3, m1r3, p1r3, p1r3, p1r3]
-                y = [0.5, 0, 0.5, 0.5, 0, 0.5]
-                z = [0.5, 0.5, 0, 0.5, 0.5, 0]
-
-                x = np.array(x)[ordre]
-                y = np.array(y)[ordre]
-                z = np.array(z)[ordre]
-
-                poids = [1/6]*nPg
+                x, y, z, poids = Gauss.__CoordoPoidsGaussPrism(nPg)
 
         else:
             raise Exception("Element non implémenté")

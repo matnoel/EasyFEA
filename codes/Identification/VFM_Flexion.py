@@ -31,7 +31,7 @@ pt1 = Geom.Point(0,-h/2)
 pt2 = Geom.Point(L, h/2)
 domain = Geom.Domain(pt1, pt2, meshSize)
 
-mesh = gmshInterface.Mesh_Domain_2D(domain, "TRI10", isOrganised=True)
+mesh = gmshInterface.Mesh_2D(domain, "TRI10")
 xn = mesh.coordo[:,0]
 yn = mesh.coordo[:,1]
 

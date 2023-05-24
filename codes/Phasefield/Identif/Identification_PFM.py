@@ -19,7 +19,7 @@ folder_file = Folder.Get_Path(__file__)
 # Config
 # ----------------------------------------------
 
-idxEssai = 1
+idxEssai = 4
 
 nL = 100
 tolConv = 1e-2
@@ -27,7 +27,7 @@ split = "AnisotStress"
 # split = "He"
 # split = "Zhang"
 
-test = False
+test = True
 optimMesh = True
 
 folderSource = Folder.New_File(Folder.Join(["Identification_PFM", f"Essai{idxEssai}"]), results=True)    
@@ -74,7 +74,8 @@ forces = dfLoad["forces"][idxEssai]
 deplacements = dfLoad["deplacements"][idxEssai]
 
 f_max = np.max(forces)
-f_crit = dfLoadMax["Load [kN]"][idxEssai]
+# f_crit = dfLoadMax["Load [kN]"][idxEssai]
+f_crit = 10
 idx_crit = np.where(forces >= f_crit)[0][0]
 dep_crit = deplacements[idx_crit]
 
@@ -163,16 +164,23 @@ k_montage = 1/(1/k_exp - 1/k_mat)
 
 if pltLoad:
     axLoad = plt.subplots()[1]
-    # axLoad.plot(deplacements, forces)
+    axLoad.plot(deplacements, forces, label="exp")
     axLoad.set_xlabel("displacement [mm]")
     axLoad.set_ylabel("load [kN]")
 
-    # coef_a = k_mat/k_exp    
-    # axLoad.plot(deplacements/coef_a, forces)
+    deplMat = np.linspace(0, -np.mean(u_num[ddlsY_Upper]), 20)
+    forcesMat = np.linspace(forces[0], fr_num, 20)
+    axLoad.scatter(deplMat, forcesMat, label="mat", marker=".", c="black", zorder=10)    
+
+    coef_a = k_mat/k_exp    
+    # axLoad.plot(deplacements/coef_a, forces, label="(1)")    
        
     deplacements = deplacements-forces/k_montage
-    axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=2)
-    axLoad.plot(deplacements, forces)
+    # axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=2)
+    # axLoad.plot(deplacements, forces, label="(2)")
+    axLoad.legend()
+    axLoad.grid()
+    Affichage.Save_fig(folder_Save, "load")
 
 if GcHeterogene:
 

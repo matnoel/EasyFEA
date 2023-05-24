@@ -60,6 +60,22 @@ class Interface_Gmsh:
             self.__factory = gmsh.model.geo
         else:
             raise Exception("Factory inconnue")
+        
+    def __Loop_From_Geom(self, geom: Geom) -> int:
+        """Création de la boucle en fonction de l'objet geométrique."""
+
+        if isinstance(geom, Circle):
+            loop = self.__Loop_From_Circle(geom)
+        elif isinstance(geom, Domain):                
+            loop = self.__Loop_From_Domain(geom)
+        elif isinstance(geom, PointsList):                
+            loop = self.__Loop_From_Points(geom.points, geom.meshSize)[0]
+        elif isinstance(geom, Contour):
+            loop = self.__Loop_From_Contour(geom)[0]
+        else:
+            raise Exception("Doit etre un cercle, un domaine, une liste de points ou un contour")
+        
+        return loop
 
     def __Loop_From_Points(self, points: list[Point], meshSize: float) -> tuple[int, list[int], list[int]]:
         """Création d'une boucle associée à la liste de points.\n
@@ -263,7 +279,6 @@ class Interface_Gmsh:
 
         return loop, openLines, openPoints
 
-
     def __Loop_From_Circle(self, circle: Circle) -> int:
         """Création d'une boucle associée à un cercle.\n
         return loop
@@ -383,8 +398,7 @@ class Interface_Gmsh:
         2 : "S",
         3 : "V"
     }
-
-    def __Extrusion(self, surfaces: list, extrude=[0,0,1], elemType=ElemType.HEXA8, isOrganised=True, nCouches=1):
+    def __Extrusion(self, surfaces: list, extrude=[0,0,1], elemType=ElemType.HEXA8, nCouches=1):
         """Fonction qui effectue l'extrusion depuis plusieurs surfaces
 
         Parameters
@@ -394,40 +408,29 @@ class Interface_Gmsh:
         extrude : list, optional
             directions et valeurs d'extrusion, by default [0,0,1]
         elemType : str, optional
-            type d'element utilisé, by default "HEXA8"
-        isOrganised : bool, optional
-            le maillage est organisé, by default True
+            type d'element utilisé, by default "HEXA8"        
         nCouches : int, optional
             nombre de couches dans l'extrusion, by default 1
         """
         
         factory = self.__factory
 
-        if factory == gmsh.model.occ:
-            isOrganised = False
-
         extruEntities = []
+
+        if "TETRA" in elemType:
+            numElements = []
+            combine = False
+        else:
+            numElements = [nCouches]
+            combine = True
 
         for surf in surfaces:
 
-            if isOrganised:
-
-                factory = cast(gmsh.model.geo, factory)
+            if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
+                # https://onelab.info/pipermail/gmsh/2010/005359.html
 
                 factory.synchronize()
-
-                points = np.array(gmsh.model.getEntities(0))[:,1]
-                if points.shape[0] <= 4:
-                    factory.mesh.setTransfiniteSurface(surf, cornerTags=points)
-                    # factory.mesh.setTransfiniteSurface(surf)
-
-            if elemType in [ElemType.HEXA8, ElemType.PRISM6]:
-                # ICI si je veux faire des PRISM6 J'ai juste à l'aisser l'option activée
-                numElements = [nCouches]
-                combine = True
-            elif elemType in [ElemType.TETRA4, ElemType.TETRA10]:
-                numElements = []
-                combine = False
+                gmsh.model.mesh.setRecombine(2, surf)
             
             # Creer les nouveaux elements pour l'extrusion
             # nCouches = np.max([np.ceil(np.abs(extrude[2] - domain.taille)), 1])
@@ -500,8 +503,6 @@ class Interface_Gmsh:
             minField = gmsh.model.mesh.field.add("Min")
             gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field])
 
-            
-
             # self.__factory.remove([(0,point)])
 
             # loopCercle = self.__Loop_From_Circle(refineGeom)
@@ -544,8 +545,7 @@ class Interface_Gmsh:
             # disregard any other size constraints, one can set:
             gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
             gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
-            gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
-            
+            gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)            
 
     def Mesh_Import_msh(self, fichier: str, coef=1, setPhysicalGroups=False):
         """Importation d'un fichier .msh
@@ -623,100 +623,6 @@ class Interface_Gmsh:
 
         self.__Construction_Maillage(3, elemType, folder=folder)
 
-        return self.__Recuperation_Maillage()
-
-    def Mesh_Domain_3D(self, domain: Domain, extrude=[0,0,1], nCouches=1, elemType=ElemType.HEXA8, refineGeom=None, isOrganised=True, folder=""):
-        """Construis le maillage 3D d'une poutre depuis une surface/domaine 2D que l'on extrude
-
-        Parameters
-        ----------
-        domain : Domain
-            domaine / surface que l'on va extruder
-        extrude : list, optional
-            directions et valeurs d'extrusion, by default [0,0,1]
-        nCouches : int, optional
-            nombre de couhes dans l'extrusion, by default 1
-        elemType : str, optional
-            type d'element utilisé, by default "HEXA8"
-        refineGeom : Geom, optional
-            deuxième domaine pour la concentration de maillage, by default None
-        isOrganised : bool, optional
-            le maillage est organisé, by default True
-        folder : str, optional
-            dossier de sauvegarde du maillage mesh.msh, by default ""
-
-        Returns
-        -------
-        Mesh 
-            Maillage construit
-        """
-
-        self.__initGmsh('geo')
-        self.__CheckType(3, elemType)
-        
-        tic = Tic()
-        
-        if elemType == ElemType.TETRA4:    isOrganised=False #Il n'est pas possible d'oganiser le maillage quand on utilise des TETRA4
-        
-        # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Mesh_Domain_2D(domain, elemType=ElemType.TRI3, refineGeom=refineGeom, isOrganised=isOrganised, folder=folder, returnSurfaces=True)
-
-        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=isOrganised, nCouches=nCouches)
-
-        self.__Set_PhysicalGroups()
-
-        tic.Tac("Mesh","Construction Poutre3D", self.__verbosity)
-
-        self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=isOrganised, folder=folder)
-        
-        return self.__Recuperation_Maillage()
-
-    def Mesh_Domain_2D(self, domain: Domain, elemType=ElemType.TRI3, refineGeom=None, isOrganised=False, folder="", returnSurfaces=False):
-        """Maillage d'un rectange 2D
-
-        Parameters
-        ----------
-        domain : Domain
-            domaine 2D qui doit être dans le plan (x,y)
-        elemType : str, optional
-            type d'element utilisé, by default "TRI3"
-        refineGeom : Geom, optional
-            deuxième domaine pour la concentration de maillage, by default None
-        isOrganised : bool, optional
-            le maillage est organisé, by default False
-        folder : str, optional
-            dossier de sauvegarde du maillage mesh.msh, by default ""
-        returnSurfaces : bool, optional
-            renvoie la surface crée, by default False
-
-        Returns
-        -------
-        Mesh
-            Maillage construit
-        """
-
-        self.__initGmsh('geo')
-        
-        self.__CheckType(2, elemType)
-
-        tic = Tic()        
-
-        # Création de la boucle
-        loop = self.__Loop_From_Domain(domain)
-
-        # Création de la surface
-        surface = self.__Surface_From_Loops([loop])        
-
-        self.__Set_BackgroundMesh(refineGeom, domain.meshSize)
-
-        if returnSurfaces: return [surface]
-
-        self.__Set_PhysicalGroups()
-        
-        tic.Tac("Mesh","Construction Rectangle", self.__verbosity)
-        
-        self.__Construction_Maillage(2, elemType, surfaces=[surface], isOrganised=isOrganised, folder=folder)
-        
         return self.__Recuperation_Maillage()
 
     def __PhysicalGroups_craks(self, cracks: list, entities: list[tuple]) -> tuple[int, int, int, int]:
@@ -894,14 +800,8 @@ class Interface_Gmsh:
         hollowLoops = []
         filledLoops = []
         for objetGeom in inclusions:
-            if isinstance(objetGeom, Circle):
-                loop = self.__Loop_From_Circle(objetGeom)
-            elif isinstance(objetGeom, Domain):                
-                loop = self.__Loop_From_Domain(objetGeom)
-            elif isinstance(objetGeom, PointsList):                
-                loop = self.__Loop_From_Points(objetGeom.points, objetGeom.meshSize)[0]
-            elif isinstance(objetGeom, Contour):
-                loop = self.__Loop_From_Contour(objetGeom)[0]
+            
+            loop = self.__Loop_From_Geom(objetGeom)
 
             if objetGeom.isCreux:
                 hollowLoops.append(loop)
@@ -910,7 +810,7 @@ class Interface_Gmsh:
 
         return hollowLoops, filledLoops
 
-    def Mesh_2D(self, contour: Geom, inclusions=[], elemType=ElemType.TRI3, cracks=[], refineGeom=None, folder="", returnSurfaces=False):
+    def Mesh_2D(self, contour: Geom, inclusions=[], elemType=ElemType.TRI3, cracks=[], isOrganised=False, refineGeom=None, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
         Parameters
@@ -923,6 +823,8 @@ class Interface_Gmsh:
             type d'element, by default "TRI3" ["TRI3", "TRI6", "QUAD4", "QUAD8"]
         cracks : list[Line]
             liste de ligne utilisées pour la création de fissures
+        isOrganised : bool, optional
+            le maillage est organisé, by default False
         refineGeom : Geom, optional
             deuxième domaine pour la concentration de maillage, by default None
         folder : str, optional
@@ -936,26 +838,21 @@ class Interface_Gmsh:
             Maillage 2D
         """
 
-        self.__initGmsh('occ')        
+        if isOrganised and isinstance(contour, Domain) and len(inclusions)==0 and len(cracks)==0:
+            self.__initGmsh('geo')
+        else:
+            self.__initGmsh('occ')
+            isOrganised = False
         self.__CheckType(2, elemType)
 
         tic = Tic()
 
         factory = self.__factory
         
-        meshSize = contour.meshSize        
+        meshSize = contour.meshSize
 
         # Création de la surface de contour
-        if isinstance(contour, Circle):
-            loopContour = self.__Loop_From_Circle(contour)
-        elif isinstance(contour, Domain):                
-            loopContour = self.__Loop_From_Domain(contour)
-        elif isinstance(contour, PointsList):                
-            loopContour = self.__Loop_From_Points(contour.points, meshSize)[0]
-        elif isinstance(contour, Contour):
-            loopContour = self.__Loop_From_Contour(contour)[0]
-        else:
-            raise Exception("L'object contour doit etre un cercle, un domaine, une liste de points ou un contour")
+        loopContour = self.__Loop_From_Geom(contour)
 
         # Création de toutes les boucles associés aux objets à l'intérieur du domaine
         hollowLoops, filledLoops = self.__Get_hollow_And_filled_Loops(inclusions)
@@ -985,7 +882,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Construction 2D", self.__verbosity)
 
-        self.__Construction_Maillage(2, elemType, surfacesPleines, crackLines=crackLines, openPoints=openPoints, folder=folder)
+        self.__Construction_Maillage(2, elemType, surfacesPleines, isOrganised, crackLines=crackLines, openPoints=openPoints, folder=folder)
 
         return self.__Recuperation_Maillage()
 
@@ -1003,7 +900,7 @@ class Interface_Gmsh:
         nCouches : int, optional
             nombre de couches dans l'extrusion, by default 1
         elemType : str, optional
-            type d'element, by default "TETRA4" ["TETRA4", "HEXA8", "PRISM6"]
+            type d'element, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6"]
         cracks : list[Geom]
             liste de ligne utilisées pour la création de fissures
         refineGeom : Geom, optional
@@ -1016,16 +913,15 @@ class Interface_Gmsh:
         Mesh
             Maillage 3D
         """
-
-        self.__initGmsh('occ')
+        
         self.__CheckType(3, elemType)
         
         tic = Tic()
         
         # le maillage 2D de départ n'a pas d'importance
-        surfaces = self.Mesh_2D(contour, inclusions, ElemType.TRI3, [], refineGeom, returnSurfaces=True)
+        surfaces = self.Mesh_2D(contour, inclusions, ElemType.TRI3, [], False, refineGeom, returnSurfaces=True)
 
-        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, isOrganised=False, nCouches=nCouches)        
+        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, nCouches=nCouches)        
 
         # Récupère l'entité 3D
         self.__factory.synchronize()
@@ -1038,12 +934,9 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Construction 3D", self.__verbosity)
+        tic.Tac("Mesh","Construction 3D", self.__verbosity)        
 
-        surfaces = entities3D[0][1]
-
-        self.__Construction_Maillage(3, elemType, surfaces=surfaces, isOrganised=False, folder=folder,
-        crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
+        self.__Construction_Maillage(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
         
         return self.__Recuperation_Maillage()
     
@@ -1072,15 +965,14 @@ class Interface_Gmsh:
     def __Set_order(elemType: str):
         if elemType in ["TRI3","QUAD4"]:
             gmsh.model.mesh.set_order(1)
-        elif elemType in ["SEG3", "TRI6", "QUAD8", "TETRA10"]:
-            if elemType in ["QUAD8"]:
+        elif elemType in ["SEG3", "TRI6", "QUAD8", "TETRA10", "HEXA20", "PRISM15"]:
+            if elemType in ["QUAD8", "HEXA20", "PRISM15"]:
                 gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
             gmsh.model.mesh.set_order(2)
         elif elemType in ["SEG4", "TRI10"]:
             gmsh.model.mesh.set_order(3)
         elif elemType in ["SEG5", "TRI15"]:
             gmsh.model.mesh.set_order(4)
-
 
     def __Construction_Maillage(self, dim: int, elemType: str, surfaces=[], isOrganised=False, crackLines=None, crackSurfaces=None, openPoints=None, openLines=None, folder=""):
         """Construction du maillage gmsh depuis la geométrie qui a été construit ou importée.
@@ -1162,17 +1054,24 @@ class Interface_Gmsh:
         elif dim == 3:
             self.__factory.synchronize()
 
-            if elemType in [ElemType.HEXA8]:
+            entities = gmsh.model.getEntities(2)
+            surfaces = np.array(entities)[:,1]
 
-                # https://onelab.info/pipermail/gmsh/2010/005359.html
+            # for surf in surfaces:
+                    
+            #     if isOrganised:
 
-                entities = gmsh.model.getEntities(2)
-                surfaces = np.array(entities)[:,1]
-                for surf in surfaces:
-                    gmsh.model.mesh.setRecombine(2, surf)
+            #         factory = cast(gmsh.model.geo, factory)
+
+            #         factory.synchronize()
+
+            #         points = np.array(gmsh.model.getEntities(0))[:,1]
+            #         factory.mesh.setTransfiniteSurface(surf)
+            #         # if points.shape[0] <= 4:
+            #         #     factory.mesh.setTransfiniteSurface(surf, cornerTags=points)
                 
-                self.__factory.synchronize()
-                gmsh.model.mesh.setRecombine(3, 1)
+            # factory.synchronize()
+            # gmsh.model.mesh.setRecombine(3, 1)
             
             gmsh.model.mesh.generate(3)
 
@@ -1434,10 +1333,10 @@ class Interface_Gmsh:
 
             print(elemType)
 
-            mesh1 = interfaceGmsh.Mesh_Domain_2D(domain=domain,elemType=elemType, isOrganised=False)
+            mesh1 = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=False)
             testAire(mesh1.aire)
             
-            mesh2 = interfaceGmsh.Mesh_Domain_2D(domain=domain,elemType=elemType, isOrganised=True)
+            mesh2 = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
             testAire(mesh2.aire)
 
             mesh3 = interfaceGmsh.Mesh_2D(domain, [circle], elemType)
@@ -1475,10 +1374,10 @@ class Interface_Gmsh:
         cpefPath = Folder.Join([folder,"3Dmodels","CPEF.stp"])
         partPath = Folder.Join([folder,"3Dmodels","part.stp"])
 
-        list_mesh3D = []
-        for t, elemType in enumerate(GroupElem.get_Types3D()):
+        interfaceGmsh = Interface_Gmsh(verbosity=False, affichageGmsh=False)
 
-            interfaceGmsh = Interface_Gmsh(verbosity=False, affichageGmsh=False)
+        list_mesh3D = []
+        for t, elemType in enumerate(GroupElem.get_Types3D()):            
             
             if useImport3D and elemType == "TETRA4":
                 meshCpef = interfaceGmsh.Mesh_Import_part(cpefPath, meshSize=10)
@@ -1486,16 +1385,16 @@ class Interface_Gmsh:
                 meshPart = interfaceGmsh.Mesh_Import_part(partPath, meshSize=taille)
                 list_mesh3D.append(meshPart)
 
-            for isOrganised in [True, False]:
-                mesh1 = interfaceGmsh.Mesh_Domain_3D(domain, [0,0,b], elemType=elemType, isOrganised=isOrganised)
-                list_mesh3D.append(mesh1)
-                testVolume(mesh1.volume)
+            mesh1 = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], 3, elemType=elemType)
+            list_mesh3D.append(mesh1)
+            testVolume(mesh1.volume)                
 
             mesh2 = interfaceGmsh.Mesh_3D(domain, [circleCreux], [0,0,b], 3, elemType)
-            list_mesh3D.append(mesh2)
+            list_mesh3D.append(mesh2)            
 
             mesh3 = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,b], 3, elemType)
             list_mesh3D.append(mesh3)
             testVolume(mesh3.volume)
+
 
         return list_mesh3D
