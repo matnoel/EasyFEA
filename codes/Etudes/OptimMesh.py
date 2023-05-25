@@ -17,15 +17,15 @@ Affichage.Clear()
 # Configuration
 # ----------------------------------------------
 
-dim = 3
+dim = 2
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
 plotResult = False
 plotErreur = False
 plotProj = False
 
-coef = 1/3
-cible = 1/100 if dim == 2 else 0.06
+coef = 1/10
+cible = 1/100/3 if dim == 2 else 0.06
 iterMax = 20
 
 # Paramètres géométrie
@@ -130,10 +130,9 @@ interfaceGmsh = Interface_Gmsh(False, False)
 # Fonction utilisée pour la construction du maillage
 def DoMesh(refineGeom=None) -> Mesh:
     if dim == 2:
-        return interfaceGmsh.Mesh_2D(points, inclusions, elemType, cracks, refineGeom)
+        return interfaceGmsh.Mesh_2D(points, inclusions, elemType, cracks, False, refineGeom)
     else:
         return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], 5, elemType, cracks, refineGeom)
-
 
 # construit le premier maillage
 mesh = DoMesh()
@@ -215,7 +214,8 @@ while erreur >= cible and i < iterMax:
         if plotProj:
             Affichage.Plot_Result(simu, "ux", plotMesh=True)
 
-    mesh = DoMesh(path)
+    mesh = DoMesh(path)    
+
     simu.mesh = mesh
 
     if i > 0:
@@ -240,7 +240,7 @@ while erreur >= cible and i < iterMax:
 
     path, erreur = DoSimu(i)
 
-    print(f"{i} erreur = {erreur*100:.3} %")
+    print(f"{i} erreur = {erreur*100:.3} %, Wdef = {simu.Get_Resultat('Wdef'):.3f} mJ")
 
 if i > 0:
     os.remove(path)

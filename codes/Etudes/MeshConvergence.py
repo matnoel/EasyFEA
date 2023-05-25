@@ -55,7 +55,7 @@ if dim == 2:
     # listNbElement = list(range(2,20,1))
     # listNbElement = list(range(1,10))
 else:
-    listNbElement = np.arange(1,6,2)
+    listNbElement = np.arange(1,4,2)
 
 
 tic = Tic()
@@ -140,7 +140,7 @@ for t, elemType in enumerate(elemTypes):
         if elemType != mesh.elemType:
             print("erreur lors de la création du maillage")
 
-        print(f"Elem : {mesh.elemType}, nby : {nbElem:2}, Wdef = {np.round(Wdef, 3)}, erreur = {np.abs(WdefRef-Wdef)/WdefRef:3e} ")
+        print(f"Elem : {mesh.elemType}, nby : {nbElem:2}, Wdef = {np.round(Wdef, 3)}, erreur = {np.abs(WdefRef-Wdef)/WdefRef:.2e} ")
     
     listTemps_e_nb.append(listTemps_nb)
     listWdef_e_nb.append(listWdef_nb)

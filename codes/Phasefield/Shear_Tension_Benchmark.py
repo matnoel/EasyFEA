@@ -19,7 +19,7 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 2
+dim = 3
 simulation = "Tension" # "Shear" , "Tension"
 
 if dim == 3:
@@ -36,7 +36,7 @@ solve = True
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = False
+plotMesh = True
 plotResult = False
 plotEnergie = False
 getFissure = False
@@ -89,9 +89,7 @@ for split, regu in zip(splits, regularisations):
 # # listTheta = [-0, -10, -20, -30, -45, -60]*5
 # listTheta = [-70, -80, -90]*5
 # listTheta.sort(); listTheta.reverse()
-# for split, theta in zip(splits, listTheta):
-
-    
+# for split, theta in zip(splits, listTheta):    
 
     # ----------------------------------------------
     # Construction du maillage

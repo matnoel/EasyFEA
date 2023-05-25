@@ -12,7 +12,7 @@ import TicTac
 import Folder
 
 dim = 3
-N = 10
+N = 40 if dim == 2 else 10
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -27,7 +27,7 @@ coef = 1
 E=210000 # MPa
 v=0.3
 
-folder = Folder.New_File("Elasticity", results=True)
+folder = Folder.New_File(f"Elasticity{dim}D", results=True)
 if not os.path.exists(folder):
     os.makedirs(folder)
 
@@ -61,6 +61,9 @@ elif simulationType == SimulationType.EQUERRE:
     crack = Line(Point(100, h, isOpen=True), Point(100-h/3, h*0.9, isOpen=True), h/N, isOpen=True)
     crack2 = Line(crack.pt2, Point(100-h/2, h*0.9, isOpen=True), h/N, isOpen=True)
 
+    cracks = [crack, crack2]
+    cracks = []
+
     listPoint = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
     # listPoint = PointsList([pt1, pt2, pt3, pt7], h/N)
 
@@ -69,12 +72,12 @@ elif simulationType == SimulationType.EQUERRE:
     inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
 
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI10, [crack, crack2])
+        mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI10, cracks)
 
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.PRISM15)
+        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA20)
 
         # TODO wdef trop grand PRISM6 4.46 -> PRISM15 9.48
 
@@ -141,7 +144,7 @@ if dim == 3:
 else:
     print(f"\nVolume = {mesh.aire*comportement.epaisseur:3f}")
 
-Affichage.Plot_Mesh(mesh)
+Affichage.Plot_Mesh(mesh, folder=folder)
 # Affichage.Plot_Model(mesh, showId=True)
 
 simu.Solve()
@@ -162,7 +165,7 @@ Affichage.Plot_BoundaryConditions(simu)
 # Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
 # Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
 # Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef)
+Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef, folder=folder)
 # Affichage.Plot_Result(simu, "ux")
 
 # TicTac.Tic.Plot_History()
