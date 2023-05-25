@@ -547,28 +547,27 @@ class Interface_Gmsh:
             gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
             gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)            
 
-    def Mesh_Import_msh(self, fichier: str, coef=1, setPhysicalGroups=False):
+    def Mesh_Import_msh(self, mesh: str, setPhysicalGroups=False, coef=1.0):
         """Importation d'un fichier .msh
 
         Parameters
         ----------
-        fichier : str
-            fichier (.msh) que gmsh va charger pour creer le maillage
-        coef : int, optional
-            coef appliqué aux coordonnées des noeuds, by default 1
+        mesh : str
+            fichier (.msh) que gmsh va charger pour creer le maillage        
         setPhysicalGroups : bool, optional
             récupération des entités pour créer des groupes physiques d'éléments, by default False
+        coef : float, optional
+            coef appliqué aux coordonnées des noeuds, by default 1.0
 
         Returns
         -------
         Mesh
             Maillage construit
         """
-        # 
 
         self.__initGmsh('occ')
 
-        gmsh.open(fichier)
+        gmsh.open(mesh)        
 
         if setPhysicalGroups:
             self.__Set_PhysicalGroups()
@@ -941,6 +940,24 @@ class Interface_Gmsh:
         return self.__Recuperation_Maillage()
     
     def Create_posFile(self, coordo: np.ndarray, values: np.ndarray, folder: str, filename="data") -> str:
+        """Création d'un fichier .pos qui pourra être utilisé pour raffiner un maillage dans une zone.
+
+        Parameters
+        ----------
+        coordo : np.ndarray
+            coordonnées des valeurs
+        values : np.ndarray
+            valeurs aux coordonées
+        folder : str
+            fichier de sauvegarde
+        filename : str, optional
+            nom du fichier .pos, by default "data"
+
+        Returns
+        -------
+        str
+            Renvoie le path vers le fichier .pos
+        """
 
         assert isinstance(coordo, np.ndarray), "Doit être une array numpy"
         assert coordo.shape[1] == 3, "Doit être de dimension (n, 3)"
@@ -951,7 +968,7 @@ class Interface_Gmsh:
 
         self.__initGmsh("occ")
 
-        view = gmsh.view.add("view for new mesh")
+        view = gmsh.view.add("scalar points")
 
         gmsh.view.addListData(view, "SP", coordo.shape[0], data.reshape(-1))
 
