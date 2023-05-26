@@ -146,7 +146,7 @@ class Geom:
         self.__name = name
 
     @property
-    def meshSize(self) -> bool:
+    def meshSize(self) -> float:
         """Taille d'element utilisé pour le maillage"""
         return self.__meshSize
 
