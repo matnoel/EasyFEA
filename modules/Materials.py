@@ -2468,7 +2468,7 @@ def Resize_variable(variable: int|float|np.ndarray, Ne: int, nPg: int):
                 variable = variable[np.newaxis].repeat(Ne, axis=0)
                 return variable
             else:
-                raise Exception("La variable renseigné doit êrtre de dimension (e) ou (p)")
+                raise Exception("La variable renseigné doit être de dimension (e) ou (p)")
 
         if len(shape) == 2:
             if shape == (Ne, nPg):
