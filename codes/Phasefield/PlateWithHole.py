@@ -20,17 +20,17 @@ dim = 3
 if dim == 3:
     problem += "_3D"
 
-test = True
+test = False
 solve = True
 
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = True
+plotMesh = False
 plotIter = False
 plotResult = True
 plotEnergie = False
-showFig = False
+showFig = True
 
 # ----------------------------------------------
 # Animation
@@ -119,8 +119,8 @@ for split, regu in zip(splits, regularisations):
         
         gc = 3000
         # l_0 = 0.12e-3
-        # nL = 150
-        nL = 180
+        nL = 150
+        # nL = 180
         l0 = L/nL
 
         u_max = 5e-3
@@ -151,7 +151,8 @@ for split, regu in zip(splits, regularisations):
                 clC = l0
     else:        
         if optimMesh:
-            clD = l0*2
+            clD = l0*4
+            # clD = l0*10
             clC = l0/2
         else:
             clD = l0/2
@@ -196,30 +197,30 @@ for split, regu in zip(splits, regularisations):
         domain = Domain(point, Point(x=L, y=h), clD)
         circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
         
-        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False)
+        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, True)
         
         if optimMesh:
             # Concentration de maillage sur la fissure
-            if "Benchmark" in problem:
-                ecartZone = diam*1.5/2
-            elif "FCBA" in problem:
-                ecartZone = diam
+            ecartZone = diam*1.5/2
 
             if split in ["Bourdin", "Amor"]:
                 domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
             else:
                 domainFissure = Domain(Point(x=L/2-ecartZone, y=0), Point(x=L/2+ecartZone, y=h), clC)
             if dim == 2:
-                mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3", [domainFissure])
+                mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3", refineGeom=domainFissure)
             elif dim == 3:
-                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, "HEXA8", refineGeom=domainFissure)
+                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, "PRISM6", refineGeom=domainFissure)
 
         else:
-            mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
+            if dim == 2:
+                mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
+            elif dim == 3:
+                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, "PRISM6")
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)
-            plt.show()
+            # plt.show()
 
         # Récupérations des noeuds
         nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
