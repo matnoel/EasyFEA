@@ -93,7 +93,7 @@ def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simp
         nom += f"{start}{split}"
 
     if regu != "":        
-        nom += f"{regu}"
+        nom += f"_{regu}"
 
     if simpli2D != "":
         nom += f"_{simpli2D}"
