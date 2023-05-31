@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-problem = "Benchmark" # ["Benchmark","FCBA"]
+problem = "FCBA" # ["Benchmark","FCBA"]
 dim = 2
 if dim == 3:
     problem += "_3D"
@@ -41,7 +41,7 @@ makeMovie = False; NMovie = 200
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
