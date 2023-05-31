@@ -16,12 +16,12 @@ import matplotlib.pyplot as plt
 # Simulation
 # ----------------------------------------------
 problem = "FCBA" # ["Benchmark","FCBA"]
-dim = 2
+dim = 3
 if dim == 3:
     problem += "_3D"
 
 test = False
-solve = False
+solve = True
 
 # ----------------------------------------------
 # Post traitement
@@ -35,7 +35,7 @@ showFig = False
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = False; NParaview=300
+saveParaview = True; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
@@ -49,7 +49,7 @@ solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
-optimMesh = False
+optimMesh = True
 
 # ----------------------------------------------
 # Convergence
@@ -64,13 +64,13 @@ tolConv = 1e-0
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-# splits = ["Zhang"]
+splits = ["Zhang"]
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
-splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
+# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
 
-# regularisations = ["AT2"] # ["AT1", "AT2"]
-regularisations = ["AT1", "AT2"]
+regularisations = ["AT2"] # ["AT1", "AT2"]
+# regularisations = ["AT1", "AT2"]
 
 nSplit = len(splits)
 nRegu = len(regularisations)
