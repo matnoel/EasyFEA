@@ -1386,11 +1386,18 @@ class GroupElem(ABC):
 
             if isinstance(self, PRISM6):
                 indexesFaces = np.array(indexesFaces)
-                faces = np.array([indexesFaces[[0,1,2,3]],
-                                  indexesFaces[[4,5,6,7]],
-                                  indexesFaces[[8,9,10,11]],
-                                  indexesFaces[[12,13,14]],
-                                  indexesFaces[[15,16,17]]], dtype=object)
+                faces = np.array([indexesFaces[np.arange(0,4)],
+                                  indexesFaces[np.arange(4,8)],
+                                  indexesFaces[np.arange(8,12)],
+                                  indexesFaces[np.arange(12,15)],
+                                  indexesFaces[np.arange(15,18)]], dtype=object)
+            elif isinstance(self, PRISM15):
+                indexesFaces = np.array(indexesFaces)
+                faces = np.array([indexesFaces[np.arange(0,8)],
+                                  indexesFaces[np.arange(8,16)],
+                                  indexesFaces[np.arange(16,24)],
+                                  indexesFaces[np.arange(24,30)],
+                                  indexesFaces[np.arange(30,36)]], dtype=object)
             else:
                 faces = np.reshape(indexesFaces, (nbFaces,-1))
 
