@@ -20,13 +20,13 @@ dim = 3
 if dim == 3:
     problem += "_3D"
 
-test = False
+test = True
 solve = True
 
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = False
+plotMesh = True
 plotIter = False
 plotResult = True
 plotEnergie = False
@@ -120,10 +120,10 @@ for split, regu in zip(splits, regularisations):
         gc = 3000
         # l_0 = 0.12e-3
         # nL = 150
-        nL = 100
+        nL = 180
         l0 = L/nL
 
-        u_max = 2e-3
+        u_max = 5e-3
 
         inc0 = 8e-6; tresh0 = 0.2
         inc1 = 2e-6; tresh1 = 0.6
@@ -219,7 +219,7 @@ for split, regu in zip(splits, regularisations):
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)
-            # plt.show()
+            plt.show()
 
         # Récupérations des noeuds
         nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
@@ -295,7 +295,7 @@ for split, regu in zip(splits, regularisations):
             resol += 1
 
             if dim == 3:
-                if resol > 200:
+                if resol > 1500:
                     break
             
             Chargement(ud)
