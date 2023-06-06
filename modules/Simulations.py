@@ -2331,6 +2331,11 @@ class Simu_PhaseField(Simu):
             if isinstance(old_psiPlus_e_pg, list) and len(old_psiPlus_e_pg) == 0:
                 # Pas encore d'endommagement disponible
                 old_psiPlus_e_pg = np.zeros_like(psiP_e_pg)
+            
+            if old_psiPlus_e_pg.shape != psiP_e_pg.shape:
+                # le maillage a ete changé, il faut recalculer la valeur
+                # ici je fais rien
+                old_psiPlus_e_pg = np.zeros_like(psiP_e_pg)
 
             inc_H = psiP_e_pg - old_psiPlus_e_pg
 
@@ -2849,7 +2854,7 @@ class Simu_PhaseField(Simu):
 
         min_d = d.min()
         max_d = d.max()
-        resumeIter = f"{resol:4} : ud = {np.round(load,3)} {uniteLoad},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
+        resumeIter = f"{resol:4} : {np.round(load,3)} {uniteLoad},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
         
         if remove:
             end='\r'
@@ -2889,7 +2894,7 @@ class Simu_PhaseField(Simu):
         df = pd.DataFrame(resultats)
         iterations = np.arange(df.shape[0])
         
-        damageMaxIter = np.max(list(df["damage"].values), axis=1)
+        damageMaxIter = np.array([np.max(damage) for damage in df["damage"].values])
         list_label_values.append((r"$\phi$", damageMaxIter))
 
         tolConvergence = df["convIter"].values

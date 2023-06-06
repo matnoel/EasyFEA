@@ -541,11 +541,11 @@ class Interface_Gmsh:
             # Apply the view as the current background mesh size field:
             gmsh.model.mesh.field.setAsBackgroundMesh(minField)
 
-            # In order to compute the mesh sizes from the background mesh only, and
-            # disregard any other size constraints, one can set:
-            gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
-            gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
-            gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)            
+            # # In order to compute the mesh sizes from the background mesh only, and
+            # # disregard any other size constraints, one can set:
+            # gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
+            # gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
+            # gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0) 
 
     def Mesh_Import_msh(self, mesh: str, setPhysicalGroups=False, coef=1.0):
         """Importation d'un fichier .msh
@@ -972,7 +972,7 @@ class Interface_Gmsh:
 
         gmsh.view.addListData(view, "SP", coordo.shape[0], data.reshape(-1))
 
-        path = Folder.Join([folder, f"{filename}.pos"])
+        path = Folder.New_File(f"{filename}.pos", folder)
 
         gmsh.view.write(view, path)
 

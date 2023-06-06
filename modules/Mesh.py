@@ -503,7 +503,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     # la position des noeuds dans l'element de référence
     nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Nodes_Connect_CoordoInElemRef(newMesh.coordo)
 
-    tic.Tac("Mesh", "Localisation des noeuds dans l'ancien maillage", False)
+    tic.Tac("Mesh", "Mapping entre les maillages", False)
 
     # Evaluation des fonctions de formes
     Ntild = oldMesh.groupElem.Ntild()        

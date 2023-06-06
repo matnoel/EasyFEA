@@ -264,6 +264,9 @@ class GroupElem(ABC):
         connect = self.__connect
         connect_n_e = self.Get_connect_n_e()
 
+        if isinstance(nodes, list):
+            nodes = np.array(nodes)
+
         # Verifie si il n'y a pas de noeuds en trop
         # Il est possible que les noeuds renseignés n'appartiennent pas au groupe
         if connect_n_e.shape[0] < nodes.max():
@@ -1435,7 +1438,7 @@ class GroupElem(ABC):
 
         assert coordinates.shape[1] == 3, "Doit être de dimension (n, 3)"
 
-        return self.__Get_Nodes_Connect_CoordoInElemRef(coordinates, elements)
+        return self.__Get_Nodes_Connect_CoordoInElemRef(coordinates, elements)    
 
     def __Get_Nodes_Connect_CoordoInElemRef(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
         """Cette fonction permet de localiser les coordonnées dans les éléments.
@@ -1459,7 +1462,7 @@ class GroupElem(ABC):
         else:
             useGrid = False
 
-        def Get_coordoInZoneElem(coord: np.ndarray) -> np.ndarray:            
+        def Get_coordoInZoneElem(coord: np.ndarray) -> np.ndarray:
             """Récupération des indexes de coordinates_n qui sont dans la zone des coordonnées renseignées.
             Cette fonction permet d'effectuer un près tri"""
 
@@ -1487,8 +1490,8 @@ class GroupElem(ABC):
         # coordonnées des noeuds dans la base de référence de l'element
         coordoInElem_n = np.zeros_like(coordinates_n[:,:self.inDim], dtype=float)
         # noeuds indentifiés
-        nodes = []
-
+        nodes = []        
+        
         def FuncRecherche(e: int):
             # Récupération des coordonnées des noeuds de l'element
             coordoZone = coordo[connect[e]]
@@ -1537,7 +1540,6 @@ class GroupElem(ABC):
         nodes = np.asarray(nodes)
 
         return nodes, connect_e_n, coordoInElem_n
-
 
     @abstractproperty
     def indexesTriangles(self) -> list[int]:

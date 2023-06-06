@@ -143,7 +143,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, Nite
 
 # ========================================== Paraview =================================================
 
-def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False):
+def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False, nodesResult=[], elementsResult=[]):
     """Sauvegarde de la simulation sur paraview
 
     Parameters
@@ -156,6 +156,10 @@ def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False)
         Nombre d'iteration maximum d'affichage, by default 200
     details: bool, optional
         details de nodesField et elementsField utilisé dans le .vtu
+    nodesResult: list, optonal
+        nodesField supplémentaire, by default []
+    elementsResult: list, optonal
+        elemsField supplémentaire, by default []
     """
     print('\n')
 
@@ -178,6 +182,12 @@ def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False)
     tic = Tic()    
 
     nodesField, elementsField = simu.Paraview_nodesField_elementsField(details)
+
+    checkNodesField = [n for n in nodesResult if simu.Resultats_Check_Options_disponibles(n)]
+    checkElemsField = [n for n in elementsResult if simu.Resultats_Check_Options_disponibles(n)]
+
+    nodesField.extend(checkNodesField)
+    elementsField.extend(checkElemsField)
 
     if len(nodesField) == 0 and len(elementsField) == 0:
         print("La simulation ne possède pas de champs de solution à afficher dans paraview")
@@ -234,9 +244,7 @@ def Make_listIter(NiterMax: int, NiterFin: int, NiterCyble: int) -> np.ndarray:
     else:
         listIter = np.arange(NiterMax+1)
 
-
     return listIter
-
 
 def _GetPourcentageEtTemps(listIter: list[int], listTemps: list[float], i: int) -> str:
     """Calul le pourcentage et le temps restant

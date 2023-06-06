@@ -1,4 +1,3 @@
-import numba
 from numba import njit, prange, jit
 import numpy as np
 
