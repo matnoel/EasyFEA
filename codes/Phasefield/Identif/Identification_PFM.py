@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
+from scipy.optimize import least_squares, minimize
 
 import Folder
 import Affichage
@@ -19,40 +20,43 @@ folder_file = Folder.Get_Path(__file__)
 # Config
 # ----------------------------------------------
 
-idxEssai = 4
+idxEssai = 1
 
 nL = 100
-tolConv = 1e-2
-split = "AnisotStress"
-# split = "He"
-# split = "Zhang"
+# tolConv = 1e-0
+tolConv = 1e-6
 
+# option = 0 # least_squares
+option = 1 # regle de 3
+
+# split = "AnisotStress"
+# split = "He"
+split = "Zhang"
+
+useContact = False
+detectL0 = False
 test = True
 optimMesh = True
 
-folderSource = Folder.New_File(Folder.Join(["Identification_PFM", f"Essai{idxEssai}"]), results=True)    
+folder_Save = Folder.New_File(Folder.Join(["Essais FCBA", "Identification", f"Essai{idxEssai}"]), results=True)
 
-folder_Save = Folder.PhaseField_Folder(folderSource, "", split, "", "", tolConv, "", test, optimMesh, nL=nL)
+if test:
+    folder_Save = Folder.Join([folder_Save, "Test"])
 
 pltLoad = True
 pltIter = True
+pltContact = False
 
-GcHeterogene = False
+# inc0 = 8e-3 # incrément platewith hole
+# inc1 = 2e-3
 
 # inc0 = 1e-2
 # inc1 = 1e-2/3
+# inc0 = 1e-2/3
+# inc1 = inc0/3
 
 inc0 = 1e-2/2
-inc1 = inc0/4
-
-h = 90
-l = 45
-ep = 20
-d = 10
-
-l0 = l/nL
-
-meshSize = l0 if test else l0/2
+inc1 = inc0/3
 
 # ----------------------------------------------
 # Forces & Déplacements
@@ -74,53 +78,19 @@ forces = dfLoad["forces"][idxEssai]
 deplacements = dfLoad["deplacements"][idxEssai]
 
 f_max = np.max(forces)
-# f_crit = dfLoadMax["Load [kN]"][idxEssai]
-f_crit = 10
+f_crit = dfLoadMax["Load [kN]"][idxEssai]
+print(f"fcrit = {f_crit}")
+# f_crit = 10
 idx_crit = np.where(forces >= f_crit)[0][0]
 dep_crit = deplacements[idx_crit]
 
-def Calc_a_b(forces, deplacements, fmax):
-    """Calcul des coefs de f(x) = a x + b"""
-
-    idxElas = np.where((forces <= fmax))[0]
-    idx1, idx2 = idxElas[0], idxElas[-1]
-    x1, x2 = deplacements[idx1], deplacements[idx2]
-    f1, f2 = forces[idx1], forces[idx2]
-    vect_ab = np.linalg.inv(np.array([[x1, 1],[x2, 1]])).dot(np.array([f1, f2]))
-    a, b = vect_ab[0], vect_ab[1]
-
-    return a, b
-
-k_exp, __ = Calc_a_b(forces, deplacements, 15)
+h = 90
+l = 45
+ep = 20
+d = 10
 
 # ----------------------------------------------
-# Mesh
-# ----------------------------------------------
-
-if optimMesh:
-    epRefine = d
-    refineGeom = Domain(Point(l/2-epRefine), Point(l/2+epRefine, h), meshSize)
-    meshSize *= 3
-else:
-    refineGeom = None
-
-domain = Domain(Point(), Point(l, h), meshSize)
-circle = Circle(Point(l/2, h/2), d, meshSize)
-
-mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
-
-nodes_Lower = mesh.Nodes_Tags(["L0"])
-nodes_Upper = mesh.Nodes_Tags(["L2"])
-nodes0 = mesh.Nodes_Tags(["P0"])
-nodes_Boundary = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-
-ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["y"])
-
-Affichage.Plot_Mesh(mesh)
-# Affichage.Plot_Model(mesh)
-
-# ----------------------------------------------
-# Comp and Simu
+# Comportement
 # ----------------------------------------------
 
 # récupère les proritétés identifiées
@@ -151,86 +121,42 @@ axis_t = matRot @ axis_l
 
 comp = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, ep)
 
-# Calcul de la pente numérique
-simuElas = Simulations.Simu_Displacement(mesh, comp)
-simuElas.add_dirichlet(nodes_Lower, [0,0], ["x","y"])
-simuElas.add_surfLoad(nodes_Upper, [-f_crit*1000/l/ep], ["y"])
-u_num = simuElas.Solve()
-fr_num = - np.sum(simuElas.Get_K_C_M_F()[0][ddlsY_Upper] @ u_num)/1000
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
 
-k_mat, __ = Calc_a_b(np.linspace(0, fr_num, 50), np.linspace(0, -np.mean(u_num[ddlsY_Upper]), 50), f_crit)
+l00 = l/nL
 
-k_montage = 1/(1/k_exp - 1/k_mat)
+def DoMesh(l0: float):
 
-if pltLoad:
-    axLoad = plt.subplots()[1]
-    axLoad.plot(deplacements, forces, label="exp")
-    axLoad.set_xlabel("displacement [mm]")
-    axLoad.set_ylabel("load [kN]")
+    meshSize = l0 if test else l0/2
 
-    deplMat = np.linspace(0, -np.mean(u_num[ddlsY_Upper]), 20)
-    forcesMat = np.linspace(forces[0], fr_num, 20)
-    axLoad.scatter(deplMat, forcesMat, label="mat", marker=".", c="black", zorder=10)    
+    if optimMesh:
+        epRefine = d
+        refineGeom = Domain(Point(l/2-epRefine), Point(l/2+epRefine, h), meshSize)
+        meshSize *= 3
+    else:
+        refineGeom = None
 
-    coef_a = k_mat/k_exp    
-    # axLoad.plot(deplacements/coef_a, forces, label="(1)")    
-       
-    deplacements = deplacements-forces/k_montage
-    # axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=2)
-    # axLoad.plot(deplacements, forces, label="(2)")
-    axLoad.legend()
-    axLoad.grid()
-    Affichage.Save_fig(folder_Save, "load")
+    domain = Domain(Point(), Point(l, h), meshSize)
+    circle = Circle(Point(l/2, h/2), d, meshSize)
 
-if GcHeterogene:
+    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
 
-    coord_e = np.mean(mesh.coordo[mesh.connect], axis=1)
-    x_e = coord_e[:,0]
+    return mesh
 
-    Nc = 10
-    dc = l/Nc
+mesh = DoMesh(l00)
+# Affichage.Plot_Mesh(mesh)
+# Affichage.Plot_Model(mesh)
 
-    l1 = l0*2; elems1 = []
-    l2 = l1*4; elems2 = []
+# ----------------------------------------------
+# phase field
+# ----------------------------------------------
 
-    ax = Affichage.Plot_Mesh(mesh, alpha=0)
-
-    x = 0
-    i = 0
-
-    elems1 = []; elems2 = []
-
-    while x < l:
-        i += 1
-        ll = l1 if i % 2 == 0 else l2
-        b1 = x
-        b2 = x + ll
-        x += ll
-        elems = np.where((x_e-1e-12 >= b1) & (x_e+1e-12 <= b2))[0]
-
-        if i % 2 == 0:
-            elems1.extend(elems)
-            ax.scatter(coord_e[elems,0], coord_e[elems,1], c="red")
-        else:
-            elems2.extend(elems)
-            ax.scatter(coord_e[elems,0], coord_e[elems,1], c="blue")
-        pass
-
-    Gc = np.ones(mesh.Ne) * 0.05*10
-    Gc[elems1] = 0.03
-
-else:
-
-    Gc = 0.07
-    # Gc = 0.05
-
-# Gc = 1e-2 # -> 32
-# # Gc = 42 * 1e-2/32
-
-# # 1e-2 -> 22.86724860286298
-# #      -> 39.356
-# Gc = 39.565*1e-2/18.1109745566610
-# Gc *= 2
+Gc0 = 0.07
+# Gc0 = 6.4339e-02
+# Gc0 = 0.0758867295417314
+# 0.0719550
 
 a1 = np.array([1,0])
 a2 = axis_t[:2]
@@ -248,77 +174,197 @@ A = np.eye(2)
 # A = np.array([[coef, 0],[0, 1-coef]])
 # A = np.array([[1-coef, 0],[0, coef]])
 
-pfm = Materials.PhaseField_Model(comp, split, "AT2", Gc, l0, A=A)
+# ----------------------------------------------
+# Simu
+# ----------------------------------------------
 
-simu = Simulations.Simu_PhaseField(mesh, pfm)
+dCible = 1
 
-damageMax = []
-list_fr = []
-list_dep = []
+returnSimu = False
 
-dep = -inc0
-fr = 0
-i = -1
-while fr <= f_max*1.05:
+def DoSimu(x) -> float:
 
-    i += 1
-    dep += inc0 if simu.damage.max()<=0.6 else inc1
+    Gc = x[0]
 
-    simu.Bc_Init()
-    simu.add_dirichlet(nodes_Lower, [0], ["y"])
-    simu.add_dirichlet(nodes0, [0], ["x"])    
-    simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
+    if detectL0:
+        l0 = x[1]
 
-    u, d, Kglob, convergence = simu.Solve(tolConv, convOption=1)
+        # reconstruit le maillage
+        meshSimu = DoMesh(l0)
+    else:
+        l0 = l00
+        meshSimu = mesh
+        
+    yn = meshSimu.coordo[:, 1]
+    nodes_Lower = meshSimu.Nodes_Tags(["L0"])
+    nodes_Upper = meshSimu.Nodes_Tags(["L2"])
+    nodes0 = meshSimu.Nodes_Tags(["P0"])    
+    ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["y"])
+    
+    # construit le modèle d'endommagement
+    pfm = Materials.PhaseField_Model(comp, split, "AT2", Gc, l0, A=A)
+    
+    simu = Simulations.Simu_PhaseField(meshSimu, pfm)
 
-    damageMax.append(np.max(d))
+    dep = -inc0
 
-    simu.Resultats_Set_Resume_Iteration(i, dep, "mm", dep/dep_crit, True)
+    if detectL0:
+        print(f"\nGc = {x[0]:.5f}, l0 = {x[1]:.5f}")
+    else:
+        print(f"\nGc = {x[0]:.5f}")
 
-    simu.Save_Iteration()
+    i = -1
+    fr = 0
+    while fr <= f_max*1.05:
 
-    fr = - np.sum(Kglob[ddlsY_Upper] @ u)/1000
+        i += 1
+        dep += inc0 if simu.damage.max() <= 0.6 else inc1
 
-    list_fr.append(fr)
-    list_dep.append(dep)
+        simu.Bc_Init()
+        simu.add_dirichlet(nodes_Lower, [0], ["y"])
+        simu.add_dirichlet(nodes0, [0], ["x"])
 
-    if pltLoad:
-        plt.figure(axLoad.figure)
-        axLoad.scatter(dep, fr, c='black', marker='.')
-        # if fr >= f_crit:
-        if np.max(d) >= 0.9:
-            axLoad.scatter(dep, fr, c='red', marker='.')
-        plt.pause(1e-12)
+        if useContact:
+            frontiere = 90 - dep
 
-    if pltIter:
-        if i == 0:
-            _, axIter, cbIter = Affichage.Plot_Result(simu, "damage")
+            yn_c = yn[nodes_Upper] + simu.displacement[ddlsY_Upper]
+
+            ecart = frontiere - yn_c
+
+            idxContact = np.where(ecart < 0)[0]
+
+            if len(idxContact) > 0:
+                simu.add_dirichlet(nodes_Upper[idxContact], [ecart[idxContact]], ["y"])        
+            
         else:
-            cbIter.remove()
-            _, axIter, cbIter = Affichage.Plot_Result(simu, "damage", ax=axIter)
-        plt.figure(axIter.figure)
-        plt.pause(1e-12)
+            simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
 
-    if not convergence or True in (d[nodes_Boundary] >= 0.98):
-        print("\nPas de convergence")
-        break
+        u, d, Kglob, convergence = simu.Solve(tolConv, convOption=2)
 
-damageMax = np.array(damageMax)
-list_fr = np.array(list_fr)
+        simu.Save_Iteration()
 
-fDamageSimu = list_fr[np.where(damageMax >= 0.95)[0][0]]
+        f = Kglob[ddlsY_Upper,:] @ u        
 
- 
-if pltLoad:
-    plt.figure(axLoad.figure)
-    Affichage.Save_fig(folder_Save, "forcedep")
+        fr = - np.sum(f)/1000
 
-if pltIter:    
-    plt.figure(axIter.figure)
-    Affichage.Save_fig(folder_Save, "damage")
+        simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/f_crit, True)
 
-# PostTraitement.Make_Paraview(folder_Save, simu)
+        # if not convergence or True in (d[nodes_Boundary] >= 0.98):
+        #     print("\nPas de convergence")
+        #     break
 
-Affichage.Plot_ResumeIter(simu, folder_Save)
+        if d.max() >= dCible:
+            break
+
+    list_Gc.append(x)
+
+    if option == 0:
+        ecart = (f_crit - fr)/f_crit
+        # ecart = f_crit - fr
+
+        print(f"\necart = {ecart:.4e}")
+    
+    elif option == 1:
+        ecart = fr
+
+    if returnSimu:
+        return simu
+    else:
+        return ecart
+
+list_Gc = []
+
+tol = 1e-12
+
+if option == 0:
+    
+    GcMax = 2
+    lb = [0] if not detectL0 else [0, 0]
+    ub = [GcMax] if not detectL0 else [GcMax, np.inf]
+    x0 = [Gc0] if not detectL0 else [Gc0, l00]
+
+    res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=tol)
+    
+    # res = minimize(DoSimu, x0, tol=tol)
+    # res = minimize(DoSimu, x0, method="trust-constr", bounds=(lb, ub), tol=tol)
+    if detectL0:
+        print(f"Gc = {res.x[0]:.4e}, l0 = {res.x[1]:.4e}")
+    else:
+        print(f"Gc = {res.x[0]:.4e}")
+
+    x = res.x
+
+elif option == 1:
+
+    ecart = 1
+    Gc = Gc0
+    while ecart >= tol:
+        fr = DoSimu([Gc])
+
+        ecart = np.abs(f_crit - fr)/f_crit
+
+        print(f"\nGc = {Gc:.4f}, ecart = {ecart:.5e}")
+        Gc = f_crit * Gc/fr
+
+    x = [Gc,l00]
+
+# ----------------------------------------------
+# PostTraitement
+# ----------------------------------------------
+
+returnSimu = True
+simu = DoSimu(x)
+
+assert isinstance(simu, Simulations.Simu_PhaseField)
+
+PostTraitement.Make_Paraview(folder_Save, simu)
+
+deplacementsIdentif = []
+forcesIdentif = []
+
+for iter in range(len(simu._results)):
+
+    simu.Update_iter(iter)
+
+    displacement = simu.displacement
+    ddlsY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==h), ["y"])
+
+    deplacementsIdentif.append(-np.mean(displacement[ddlsY]))
+    forcesIdentif.append(-np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ displacement)/1000)
+
+deplacementsIdentif = np.asarray(deplacementsIdentif)
+forcesIdentif = np.asarray(forcesIdentif)
+
+axLoad = plt.subplots()[1]
+axLoad.set_xlabel("displacement [mm]")
+axLoad.set_ylabel("load [kN]")
+
+axLoad.grid()
+
+def Calc_a_b(forces, deplacements, fmax):
+    """Calcul des coefs de f(x) = a x + b"""
+
+    idxElas = np.where((forces <= fmax))[0]
+    idx1, idx2 = idxElas[0], idxElas[-1]
+    x1, x2 = deplacements[idx1], deplacements[idx2]
+    f1, f2 = forces[idx1], forces[idx2]
+    vect_ab = np.linalg.inv(np.array([[x1, 1],[x2, 1]])).dot(np.array([f1, f2]))
+    a, b = vect_ab[0], vect_ab[1]
+
+    return a, b
+
+k_exp, __ = Calc_a_b(forces, deplacements, 15)
+k_mat, __ = Calc_a_b(forcesIdentif, deplacementsIdentif, 15)
+k_montage = 1/(1/k_exp - 1/k_mat)
+deplacements = deplacements-forces/k_montage
+
+axLoad.plot(deplacements, forces, label="exp")
+axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=3)
+axLoad.plot(deplacementsIdentif, forcesIdentif, label="identif")
+axLoad.legend()
+Affichage.Save_fig(folder_Save, "load")
+
+simu.Save(folder_Save)
+
 
 plt.show()

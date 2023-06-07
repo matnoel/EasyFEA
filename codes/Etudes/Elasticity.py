@@ -150,15 +150,15 @@ Affichage.Plot_Mesh(mesh, folder=folder)
 simu.Solve()
 simu.Save_Iteration()
 
-ddlsF = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", noeudsDroit, ["y"])
-fr = np.sum(simu.Get_K_C_M_F()[0][ddlsF,:] @ simu.displacement)
+# Affichage.Plot_Elements(mesh, nodes=noeudsDroit, dimElem=2)
+# ddlsF = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", noeudsDroit, ["y"])
+# fr = np.sum(simu.Get_K_C_M_F()[0][ddlsF,:] @ simu.displacement)
 
 # import PostTraitement
 # PostTraitement.Make_Paraview(folder, simu)
 
 simu.Resultats_Resume()
 
-Affichage.Plot_Elements(mesh, nodes=noeudsDroit, dimElem=2)
 Affichage.Plot_BoundaryConditions(simu)
 
 # Affichage.Plot_Maillage(simu, deformation=True)

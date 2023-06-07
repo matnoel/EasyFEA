@@ -3,7 +3,8 @@ import Materials
 from BoundaryCondition import BoundaryCondition
 from Geom import *
 import Affichage as Affichage
-import Interface_Gmsh as Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh
+from Mesh import Mesh, Calc_projector
 import Simulations
 import PostTraitement as PostTraitement
 import Folder
@@ -20,7 +21,7 @@ dim = 3
 if dim == 3:
     problem += "_3D"
 
-test = False
+test = True
 solve = True
 
 # ----------------------------------------------
@@ -41,7 +42,7 @@ makeMovie = False; NMovie = 200
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
@@ -50,6 +51,8 @@ solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 # Maillage
 # ----------------------------------------------
 optimMesh = True
+updateMesh = False
+damagedNodes = []
 
 # ----------------------------------------------
 # Convergence
@@ -119,7 +122,8 @@ for split, regu in zip(splits, regularisations):
         
         gc = 3000
         # l_0 = 0.12e-3
-        nL = 150
+        # nL = 50
+        nL = 100
         # nL = 180
         l0 = L/nL
 
@@ -140,8 +144,15 @@ for split, regu in zip(splits, regularisations):
     if test:
         coef = 1 if dim == 2 else 3
         if optimMesh:
-            clD = l0*3*coef
-            clC = l0*coef
+            # clD = l0*3*coef
+            # clC = l0*coef
+            
+            clD = l0*4
+            clC = l0
+            
+        elif updateMesh:
+            clD = l0*4
+            clC = l0
         else:
             if "Benchmark" in problem:
                 clD = 0.25e-3
@@ -193,47 +204,35 @@ for split, regu in zip(splits, regularisations):
         # ----------------------------------------------
         # Maillage
         # ----------------------------------------------
-        point = Point()
-        domain = Domain(point, Point(x=L, y=h), clD)
-        circle = Circle(Point(x=L/2, y=h/2), diam, clC, isCreux=True)
-        
-        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, True)
-        
         if optimMesh:
-            # Concentration de maillage sur la fissure
             ecartZone = diam*1.5/2
-
             if split in ["Bourdin", "Amor"]:
                 domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
             else:
                 domainFissure = Domain(Point(x=L/2-ecartZone, y=0), Point(x=L/2+ecartZone, y=h), clC)
-            if dim == 2:
-                mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3", refineGeom=domainFissure)
-            elif dim == 3:
-                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, "PRISM6", refineGeom=domainFissure)
-
         else:
+            domainFissure = None
+
+        def DoMesh(refineGeom=None) -> Mesh:
+
+            point = Point()
+            domain = Domain(point, Point(x=L, y=h), clD)
+            circle = Circle(Point(x=L/2, y=h/2), diam, clD, isCreux=True)
+            
+            interfaceGmsh = Interface_Gmsh(False, False)
+
             if dim == 2:
-                mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
+                mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
             elif dim == 3:
-                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, "PRISM6")
+                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, "HEXA8", refineGeom=refineGeom)
+
+            return mesh
+        
+        mesh = DoMesh(domainFissure)
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)
-            # plt.show()
-
-        # Récupérations des noeuds
-        nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)
-        nodes_left = mesh.Nodes_Conditions(lambda x,y,z: x==0)
-        nodes_right = mesh.Nodes_Conditions(lambda x,y,z: x==L)
-        nodesX00 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
-        nodesY00 = mesh.Nodes_Conditions(lambda x,y,z: (y==0) & (z==0))
-
-        noeuds_bord = []
-        for ns in [nodes_lower, nodes_upper, nodes_left, nodes_right]:
-            noeuds_bord.extend(ns)
-        noeuds_bord = np.unique(noeuds_bord)
+            plt.show()        
 
         # ----------------------------------------------
         # Matériau
@@ -249,22 +248,6 @@ for split, regu in zip(splits, regularisations):
         phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0, solveur=solveur)
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
-
-        ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
-
-        def Chargement(ud: float):
-            simu.Bc_Init()
-            simu.add_dirichlet(nodes_lower, [0], ["y"])
-            simu.add_dirichlet(nodesX00, [0], ["x"])
-            simu.add_dirichlet(nodes_upper, [-ud], ["y"])
-            if dim == 3:
-                simu.add_dirichlet(nodesY00, [0], ["z"])
-
-        # Premier Chargement
-        Chargement(0)
-
-        # Affichage.Plot_BoundaryConditions(simu)
-        # plt.show()
 
         simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
 
@@ -283,6 +266,21 @@ for split, regu in zip(splits, regularisations):
             elif "FCBA" in problem:
                 figLoad, axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]')
 
+        def Chargement(ud: float):
+            
+            # Récupérations des noeuds
+            nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+            nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)            
+            nodesX00 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
+            nodesY00 = mesh.Nodes_Conditions(lambda x,y,z: (y==0) & (z==0))
+
+            simu.Bc_Init()
+            simu.add_dirichlet(nodes_lower, [0], ["y"])
+            simu.add_dirichlet(nodesX00, [0], ["x"])
+            simu.add_dirichlet(nodes_upper, [-ud], ["y"])
+            if dim == 3:
+                simu.add_dirichlet(nodesY00, [0], ["z"])
+
         def Condition():
             """Fonction qui traduit la condition de chargement"""
             if "Benchmark" in problem :
@@ -294,19 +292,73 @@ for split, regu in zip(splits, regularisations):
         while Condition():
 
             resol += 1
+            
+            noeuds_bord = simu.mesh.Nodes_Tags(["L0","L1","L2","L3"])
+            nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h) 
+
+            ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
 
             if dim == 3:
                 if resol > 1500:
                     break
             
             Chargement(ud)
+            # Affichage.Plot_BoundaryConditions(simu)
+            # plt.show()
 
             u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
+
+            # Si on converge pas on arrête la simulation
+            if not convergence: break
+
+            if updateMesh:
+
+                meshSize_n = (clC-clD) * d + clD                
+
+                # Affichage.Plot_Result(simu, meshSize_n)
+                # nodes = np.where(d>=1e-3)[0]
+                # test = [n for n in nodes if n not in damagedNodes]
+                # if len(test) == 0: continue
+
+                refineDomain = Interface_Gmsh().Create_posFile(simu.mesh.coordo, meshSize_n, folder)
+
+                newMesh = DoMesh(refineDomain)
+
+                if newMesh.Nn > simu.mesh.Nn:
+
+                    # Affichage.Plot_Mesh(simu.mesh)
+                    # Affichage.Plot_Mesh(newMesh)
+
+                    proj = Calc_projector(simu.mesh, newMesh)
+
+                    newU = np.zeros((newMesh.Nn, 2))
+
+                    for i in range(dim):
+                        newU[:,i] = proj @ u.reshape(-1,2)[:,i]
+
+                    newD = proj @ d
+                    
+                    # Affichage.Plot_Result(simu.mesh, d, plotMesh=True)
+                    # Affichage.Plot_Result(newMesh, newD, plotMesh=True)                    
+
+                    # Affichage.Plot_Result(simu.mesh, u.reshape(-1,2)[:,0])
+                    # Affichage.Plot_Result(newMesh, newU[:,0])
+
+                    # plt.pause(1e-12)
+                    # Tic.Plot_History()
+
+                    simu.mesh = newMesh
+                    mesh = newMesh
+                    simu.set_u_n("displacement", newU.reshape(-1))
+                    simu.set_u_n("damage", newD.reshape(-1))
+
+                    # pass
+                    # plt.close("all")
 
             simu.Save_Iteration()
 
             max_d = d.max()
-            f = float(np.einsum('ij,j->', Kglob[ddls_upper, :].toarray(), u, optimize='optimal'))
+            f = np.sum(Kglob[ddls_upper, :] @ u)
 
             if "Benchmark" in problem:
                 pourcentage = ud/u_max
@@ -316,11 +368,8 @@ for split, regu in zip(splits, regularisations):
             if "Benchmark" in problem:
                 simu.Resultats_Set_Resume_Iteration(resol, ud*1e6, "µm", pourcentage, True)
             elif "FCBA" in problem:
-                simu.Resultats_Set_Resume_Iteration(resol, ud*1e3, "mm", pourcentage, True)            
-            
-            # Si on converge pas on arrête la simulation
-            if not convergence: break
-
+                simu.Resultats_Set_Resume_Iteration(resol, ud*1e3, "mm", pourcentage, True)
+           
             if max_d<tresh0:
                 ud += inc0
             else:
@@ -353,6 +402,8 @@ for split, regu in zip(splits, regularisations):
                 plt.figure(axLoad.figure)
 
                 plt.pause(1e-12)
+
+            
 
         load = np.array(load)
         displacement = np.array(displacement)

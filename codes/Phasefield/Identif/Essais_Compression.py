@@ -22,11 +22,12 @@ folder_file = Folder.Get_Path(__file__)
 idxEssai = 4
 
 nL = 100
-tolConv = 1e-0
+# tolConv = 1e-1/2
+tolConv = 1e-6
 
-split = "AnisotStress"
+# split = "AnisotStress"
 # split = "He"
-# split = "Zhang"
+split = "Zhang"
 
 useContact = False
 test = True
@@ -42,11 +43,14 @@ pltContact = False
 
 GcHeterogene = False
 
+# inc0 = 8e-3 # incréments utilisés pour platwith hole
+# inc1 = 2e-3
+
 # inc0 = 1e-2
 # inc1 = 1e-2/3
 
 inc0 = 1e-2/2
-inc1 = inc0/4
+inc1 = inc0/3
 
 h = 90
 l = 45
@@ -77,8 +81,8 @@ forces = dfLoad["forces"][idxEssai]
 deplacements = dfLoad["deplacements"][idxEssai]
 
 f_max = np.max(forces)
-# f_crit = dfLoadMax["Load [kN]"][idxEssai]
-f_crit = 10
+f_crit = dfLoadMax["Load [kN]"][idxEssai]
+# f_crit = 10
 idx_crit = np.where(forces >= f_crit)[0][0]
 dep_crit = deplacements[idx_crit]
 
@@ -123,7 +127,7 @@ ddlsX_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", n
 ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["y"])
 
 Affichage.Plot_Mesh(mesh)
-# Affichage.Plot_Model(mesh)
+# Affichage.Plot_Nodes(mesh, nodes_Upper, True)
 
 # ----------------------------------------------
 # Comp and Simu
@@ -156,6 +160,7 @@ matRot = np.array([ [np.cos(np.pi/2), -np.sin(np.pi/2), 0],
 axis_t = matRot @ axis_l
 
 comp = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, ep)
+# comp = Materials.Elas_IsotTrans(2, El, El, Gl, vl, vl, axis_l, axis_t, True, ep)
 
 # Calcul de la pente numérique
 simuElas = Simulations.Simu_Displacement(mesh, comp)
@@ -182,7 +187,7 @@ if pltLoad:
     # axLoad.plot(deplacements/coef_a, forces, label="(1)")    
        
     deplacements = deplacements-forces/k_montage
-    # axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=2)
+    axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=2)
     axLoad.plot(deplacements, forces, label="(2)")
     axLoad.legend()
     axLoad.grid()
@@ -228,6 +233,7 @@ if GcHeterogene:
 else:
 
     Gc = 0.07
+    
     # Gc = 0.05
     # Gc = 0.01
 
@@ -271,10 +277,14 @@ if pltContact:
 dep = -inc0
 fr = 0
 i = -1
-while fr <= f_max*1.05:
+
+fStop = f_max*1.05
+fStop = f_crit
+
+while fr <= fStop:
 
     i += 1
-    dep += inc0 if simu.damage.max()<=0.6 else inc1
+    dep += inc0 if simu.damage.max()<=0.1 else inc1
 
     simu.Bc_Init()
     simu.add_dirichlet(nodes_Lower, [0], ["y"])
@@ -293,13 +303,16 @@ while fr <= f_max*1.05:
             simu.add_dirichlet(nodes_Upper[idxContact], [ecart[idxContact]], ["y"])        
         
     else:
+
         simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
 
-    u, d, Kglob, convergence = simu.Solve(tolConv, convOption=1)
+        # simu.add_dirichlet(nodes_Upper, [-10/(90*45)], ["y"])
 
-    damageMax.append(np.max(d))    
+    # Affichage.Plot_BoundaryConditions(simu)
 
-    simu.Resultats_Set_Resume_Iteration(i, dep, "mm", dep/dep_crit, True)
+    u, d, Kglob, convergence = simu.Solve(tolConv, convOption=2)
+
+    damageMax.append(np.max(d))
 
     simu.Save_Iteration()
 
@@ -309,10 +322,12 @@ while fr <= f_max*1.05:
 
     fr = - np.sum(f_Upper)/1000
 
+    simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/fStop, True)
+
     if fr != -0.0 and pltContact:
-        # Affichage.Plot_Result(simu, f.reshape(-1,2)[:,1])
-        # ax = Affichage.Plot_Mesh(simu, alpha=0)    
-        # ax.quiver(xn[nodes_Upper], yn[nodes_Upper], f[ddlsX_Upper]*5/fr, f[ddlsY_Upper]*5/fr, color='red', width=1e-3)
+        Affichage.Plot_Result(simu, f.reshape(-1,2)[:,1])
+        ax = Affichage.Plot_Mesh(simu, alpha=0)    
+        ax.quiver(xn[nodes_Upper], yn[nodes_Upper], f[ddlsX_Upper]*5/fr, f[ddlsY_Upper]*5/fr, color='red', width=1e-3)
 
         axContact.plot(mesh.coordo[nodes_Upper[idxSort],0], f_Upper[idxSort]/1000)
         plt.figure(axContact.figure)
@@ -322,11 +337,14 @@ while fr <= f_max*1.05:
     list_dep.append(dep)
 
     if pltLoad:
+
+        depp = -np.mean(simu.displacement[ddlsY_Upper]) if useContact else dep
+
         plt.figure(axLoad.figure)
-        axLoad.scatter(dep, fr, c='black', marker='.')
+        axLoad.scatter(depp, fr, c='black', marker='.')
         # if fr >= f_crit:
         if np.max(d) >= 0.9:
-            axLoad.scatter(dep, fr, c='red', marker='.')
+            axLoad.scatter(depp, fr, c='red', marker='.')
         plt.pause(1e-12)
 
     if pltIter:

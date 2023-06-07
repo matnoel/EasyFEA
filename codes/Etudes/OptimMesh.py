@@ -17,15 +17,16 @@ Affichage.Clear()
 # Configuration
 # ----------------------------------------------
 
-dim = 2
+dim = 3
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
 if not os.path.exists(folder): os.makedirs(folder)
 plotResult = False
 plotErreur = False
 plotProj = False
 
-coef = 1/10
-cible = 1/100/3 if dim == 2 else 0.06
+# coef = 1/10
+coef = 1/2
+cible = 1/100 if dim == 2 else 0.04
 iterMax = 20
 
 # Paramètres géométrie
@@ -43,9 +44,9 @@ meshSize = h/3
 # TODO permettre de réutiliser le .geo pour construire la geométrie ?
 
 if dim == 2:
-    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = "TRI6" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
-    elemType = "PRISM15" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
+    elemType = "PRISM6" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
 # Maillage
@@ -70,8 +71,8 @@ points = PointsList([pt1, pt2, pt3, pt4], meshSize)
 # inclusions = [carre]
 
 inclusions = []
-nL = 10
-nH = 2
+nL = 20
+nH = 3
 cL = L/(2*nL)
 cH = h/(2*nH)
 for i in range(nL):
@@ -87,11 +88,12 @@ for i in range(nL):
         if i % 2 == 1:
             obj = Domain(ptd1, ptd2, meshSize, isCreux=isCreux)
         else:
-            obj = Circle(Point(x, y), cH, meshSize, isCreux=isCreux)
+            obj = Domain(ptd1, ptd2, meshSize, isCreux=isCreux)
+            # obj = Circle(Point(x, y), cH, meshSize, isCreux=isCreux)
 
         inclusions.append(obj)
 
-inclusions = []
+# inclusions = []
 
 if dim == 2:
 
@@ -211,9 +213,6 @@ while erreur >= cible and i < iterMax:
         oldMesh = simu.mesh
         oldU = simu.displacement
 
-        if plotProj:
-            Affichage.Plot_Result(simu, "ux", plotMesh=True)
-
     mesh = DoMesh(path)    
 
     simu.mesh = mesh
@@ -222,6 +221,8 @@ while erreur >= cible and i < iterMax:
         os.remove(path)
 
         if plotProj:
+            
+            # Affichage.Plot_Result(simu, "ux", plotMesh=True)
             
             proj = Calc_projector(oldMesh, mesh)
 
@@ -233,7 +234,7 @@ while erreur >= cible and i < iterMax:
 
             simu.set_u_n("displacement", uproj)
 
-            Affichage.Plot_Result(simu, "ux", plotMesh=True, title="ux proj")
+            # Affichage.Plot_Result(simu, "ux", plotMesh=True, title="ux proj")
 
             pass
 
@@ -262,7 +263,7 @@ if plotResult:
 
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-# PostTraitement.Make_Paraview(folder, simu)
+PostTraitement.Make_Paraview(folder, simu, nodesResult=["ZZ1"])
 
 PostTraitement.Make_Movie(folder, "ZZ1", simu, plotMesh=True, fps=1, nodeValues=True)
 

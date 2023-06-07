@@ -1,14 +1,13 @@
 from BoundaryCondition import BoundaryCondition
-
-import PostTraitement as PostTraitement
+import PostTraitement
 import Folder
-import Affichage as Affichage
-
+import Affichage
 import Materials
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
 from TicTac import Tic
+from Mesh import Calc_projector
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,8 +18,8 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 3
-simulation = "Tension" # "Shear" , "Tension"
+dim = 2
+simulation = "Shear" # "Shear" , "Tension"
 
 if dim == 3:
     simulation += "_3D"
@@ -36,7 +35,7 @@ solve = True
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-plotMesh = True
+plotMesh = False
 plotResult = False
 plotEnergie = False
 getFissure = False
@@ -45,14 +44,15 @@ showResult = True
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = False; Nparaview=400
-makeMovie = True
+saveParaview = True; Nparaview=400
+makeMovie = False
 
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
 openCrack = True
-optimMesh = True
+optimMesh = False
+updateMesh = False
 
 # ----------------------------------------------
 # Convergence
@@ -65,7 +65,7 @@ tolConv = 1e-0
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comportement_str = "Elas_Anisot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
+comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 # regularisations = ["AT1", "AT2"]
 regularisations = ["AT2"] # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
@@ -74,7 +74,7 @@ solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Zhang"]
+splits = ["Miehe"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)
@@ -106,74 +106,80 @@ for split, regu in zip(splits, regularisations):
 
     # Paramètres maillage
     if test:
-        meshSize = l0 #taille maille test fem object
-        # taille = 0.001  
-        meshSize *= 1
+        clC = l0 #taille maille test fem object        
     else:
-        # On raffin pour avoir au moin 2 element par demie largeur de fissure
-        meshSize = l0/2 #l0/2 2.5e-6 
+        # On raffine pour avoir au moin 2 element par demie largeur de fissure
+        clC = l0/2 #l0/2 2.5e-6 
         # taille = l0/1.2 #l0/2 2.5e-6
         # taille = 7.5e-6
 
     # Definition une zone pour raffiner le maillage
-    if optimMesh:
-        
+    if updateMesh:        
+        clD = clC * 2
+        refineDomain = None
+
+    elif optimMesh:        
         zone = L*0.05
         if "Tension" in simulation:
             # On rafine horizontalement
             if comportement_str == "Elas_Isot":                
-                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone, z=ep), meshSize=meshSize)
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L/2+zone, z=ep), meshSize=clC)
             else:                
-                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L*0.8, z=ep), meshSize=meshSize)
+                refineDomain = Domain(Point(x=L/2-zone, y=L/2-zone), Point(x=L, y=L*0.8, z=ep), meshSize=clC)
         if "Shear" in simulation:
             if split == "Bourdin":
                 # On rafine en haut et en bas 
-                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L, z=ep), meshSize=meshSize)
+                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L, z=ep), meshSize=clC)
             else:
                 # On rafine en bas
-                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L/2+zone, z=ep), meshSize=meshSize)
-        meshSize *= 3
-    else:
+                refineDomain = Domain(Point(x=L/2-zone, y=0), Point(x=L, y=L/2+zone, z=ep), meshSize=clC)
+        clD = clC * 3
+
+    else:        
+        clD = clC
         refineDomain = None
 
     # Construit le path vers le dossier en fonction des données du problèmes
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regu, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, theta=theta, optimMesh=optimMesh)    
+    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regu, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, theta=theta, optimMesh=optimMesh)
 
     if solve:
 
-        elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]
+        def DoMesh(refineDomain=None):
 
-        interfaceGmsh = Interface_Gmsh(False, False)
+            elemType = "TRI3" # ["TRI3", "TRI6", "QUAD4", "QUAD8"]            
 
-        pt1 = Point()
-        pt2 = Point(L)
-        pt3 = Point(L,L)
-        pt4 = Point(0,L)
-        contour = PointsList([pt1, pt2, pt3, pt4], meshSize)
+            pt1 = Point()
+            pt2 = Point(L)
+            pt3 = Point(L,L)
+            pt4 = Point(0,L)
+            contour = PointsList([pt1, pt2, pt3, pt4], clD)
 
-        if dim == 2:
-            ptC1 = Point(0,L/2, isOpen=True)
-            ptC2 = Point(L/2,L/2)
-            cracks = [Line(ptC1, ptC2, meshSize, isOpen=True)]
-        if dim == 3:
-            ptC1 = Point(0,L/2,0, isOpen=False)
-            ptC2 = Point(L/2,L/2, 0)
-            ptC3 = Point(L/2,L/2, ep)
-            ptC4 = Point(0,L/2, ep, isOpen=False)
-            cracks = []
-            # cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], meshSize, isCreux=True)]
-            cracks = [Domain(ptC1, ptC3, meshSize, isCreux=True)]
-            # cracks.append(Line(ptC1, ptC2, meshSize, isOpen=True))
-            # cracks.append(Line(ptC4, ptC3, meshSize, isOpen=True))
-            # cracks.append(Line(ptC1, ptC4, meshSize, isOpen=True))
+            if dim == 2:
+                ptC1 = Point(0,L/2, isOpen=True)
+                ptC2 = Point(L/2,L/2)
+                cracks = [Line(ptC1, ptC2, clC, isOpen=True)]
+            if dim == 3:
+                ptC1 = Point(0,L/2,0, isOpen=False)
+                ptC2 = Point(L/2,L/2, 0)
+                ptC3 = Point(L/2,L/2, ep)
+                ptC4 = Point(0,L/2, ep, isOpen=False)
+                cracks = []
+                # cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], clC, isCreux=True)]
+                cracks = [Domain(ptC1, ptC3, clC, isCreux=True)]
+                # cracks.append(Line(ptC1, ptC2, clC, isOpen=True))
+                # cracks.append(Line(ptC4, ptC3, clC, isOpen=True))
+                # cracks.append(Line(ptC1, ptC4, clC, isOpen=True))
+            
+            if dim == 2:
+                mesh = Interface_Gmsh().Mesh_2D(contour, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
+            elif dim == 3:
+                # fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
+                # mesh = Interface_Gmsh(True).Mesh_Import_msh(fichier)
+                mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,ep], 3, "TETRA4", cracks, refineGeom=refineDomain)
 
+            return mesh
         
-        if dim == 2:
-            mesh = interfaceGmsh.Mesh_2D(contour, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
-        elif dim == 3:
-            # fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
-            # mesh = interfaceGmsh.Mesh_Import_msh(fichier)
-            mesh = interfaceGmsh.Mesh_3D(contour, [], [0,0,ep], 3, "TETRA4", cracks, refineGeom=refineDomain)
+        mesh = DoMesh(refineDomain)
         
         if plotMesh:
             Affichage.Plot_Mesh(mesh)
@@ -183,28 +189,6 @@ for split, regu in zip(splits, regularisations):
             # Affichage.Plot_Noeuds(mesh, noeudsCracks, showId=True)
             # # print(len(noeudsCracks))
             # plt.show()
-
-        # Récupération des noeuds
-        noeuds_Milieu = mesh.Nodes_Conditions(lambda x,y,z: (y==L/2) & (x<=L/2))
-        # noeuds_Milieu = mesh.Nodes_Domain(cracks[0])
-        noeuds_Haut = mesh.Nodes_Conditions(lambda x,y,z: y == L)
-        noeuds_Bas = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
-        noeuds_Gauche = mesh.Nodes_Conditions(lambda x,y,z: (x == 0) & (y>0) & (y<L))
-        noeuds_Droite = mesh.Nodes_Conditions(lambda x,y,z: (x == L) & (y>0) & (y<L))
-
-        if noeuds_Milieu.size > 0:
-            Affichage.Plot_Nodes(mesh, noeuds_Milieu, True)
-
-        # Construit les noeuds du bord
-        NoeudsBord=[]
-        for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Haut]:
-            NoeudsBord.extend(noeuds)
-
-        # Récupération des ddls pour le calcul de la force
-        if simulation == "Shear":
-            ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["x"])
-        else:
-            ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["y"])
 
         # Simulation  -------------------------------------------------------------------------------------------        
 
@@ -247,10 +231,10 @@ for split, regu in zip(splits, regularisations):
         def Chargement(dep):
             """Renseignement des conditions limites"""
 
-            simu.Bc_Init()
+            simu.Bc_Init()            
 
             if not openCrack:
-                simu.add_dirichlet(noeuds_Milieu, [1], ["d"], problemType="damage")
+                simu.add_dirichlet(noeuds_Milieu, [1], ["d"], problemType="damage")            
             
             if "Shear" in simulation:
                 # Conditions en déplacements à Gauche et droite
@@ -275,8 +259,6 @@ for split, regu in zip(splits, regularisations):
             else:
 
                 raise Exception("chargement inconnue pour cette simulation")
-            
-        Chargement(0)
 
         Affichage.NewSection("Simulations")
 
@@ -350,13 +332,34 @@ for split, regu in zip(splits, regularisations):
         iter = 0
         while Condition():
 
+            # Récupération des noeuds
+            noeuds_Milieu = mesh.Nodes_Conditions(lambda x,y,z: (y==L/2) & (x<=L/2))
+            noeuds_Haut = mesh.Nodes_Conditions(lambda x,y,z: y == L)
+            noeuds_Bas = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
+            noeuds_Gauche = mesh.Nodes_Conditions(lambda x,y,z: (x == 0) & (y>0) & (y<L))
+            noeuds_Droite = mesh.Nodes_Conditions(lambda x,y,z: (x == L) & (y>0) & (y<L))
+
+            # if noeuds_Milieu.size > 0:
+            #     Affichage.Plot_Nodes(mesh, noeuds_Milieu, True)
+
+            # Construit les noeuds du bord
+            NoeudsBord=[]
+            for noeuds in [noeuds_Bas,noeuds_Droite,noeuds_Haut]:
+                NoeudsBord.extend(noeuds)
+
+            # Récupération des ddls pour le calcul de la force
+            if simulation == "Shear":
+                ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["x"])
+            else:
+                ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["y"])
+
             Chargement(dep)
 
             u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
 
             simu.Save_Iteration()
             
-            f = np.sum(np.einsum('ij,j->i', Kglob[ddls_Haut, :].toarray(), u, optimize='optimal'))
+            f = np.sum(Kglob[ddls_Haut, :] @ u)
 
             if isinstance(comp, Materials.Elas_Anisot):
                 pourcentage = 0
@@ -387,6 +390,84 @@ for split, regu in zip(splits, regularisations):
                     break
 
             iter += 1
+
+            if updateMesh:
+
+                meshSize_n = (clC-clD) * d + clD                
+
+                # Affichage.Plot_Result(simu, meshSize_n)
+
+                refineDomain = Interface_Gmsh().Create_posFile(simu.mesh.coordo, meshSize_n, folder)
+
+                newMesh = DoMesh(refineDomain)
+
+                if newMesh.Nn > simu.mesh.Nn:
+                    
+                    oldNodes = simu.mesh.Nodes_Conditions(lambda x,y,z: (x<L/2)&(y==L/2))
+                    oldNodes = np.unique(oldNodes)
+                    # oldNodes = oldNodes[np.argsort(simu.mesh.coordo[oldNodes,0])]
+
+                    newNodes = newMesh.Nodes_Conditions(lambda x,y,z: (x<L/2)&(y==L/2))
+                    newNodes = np.unique(newNodes)
+                    # newNodes = newNodes[np.argsort(newMesh.coordo[newNodes,0])]
+
+                    assert len(oldNodes) == len(newNodes)
+                    
+                    # axOld = Affichage.Plot_Mesh(simu.mesh, alpha=0)
+                    # axNew = Affichage.Plot_Mesh(newMesh, alpha=0)
+                    # for n in range(len(newNodes)):
+                    #     if n > len(newNodes)//2:
+                    #         c="black"
+                    #     else:
+                    #         c="red"
+                    #     Affichage.Plot_Nodes(simu.mesh, [oldNodes[n]], True, ax=axOld, c=c)
+                    #     # Affichage.Plot_Nodes(newMesh, [newNodes[n]], True, ax=axNew, c=c)
+                    #     pass
+                    
+                    # for n in range(len(newNodes)):
+                    #     plt.close("all")
+                    #     Affichage.Plot_Nodes(simu.mesh, [oldNodes[n]], True)
+                    #     Affichage.Plot_Nodes(newMesh, [newNodes[n]], True)
+                    #     pass                    
+
+                    proj = Calc_projector(simu.mesh, newMesh)
+                    proj = proj.tolil()
+                    proj[newNodes, :] = 0                    
+                    proj[newNodes, oldNodes] = 1
+
+                    newU = np.zeros((newMesh.Nn, 2))
+
+                    for i in range(dim):
+                        newU[:,i] = proj @ u.reshape(-1,2)[:,i]
+
+                    newD = proj @ d
+
+                    plt.close("all")
+                    # Affichage.Plot_Result(simu.mesh, d, plotMesh=True)
+                    # Affichage.Plot_Result(newMesh, newD, plotMesh=True)                    
+
+                    Affichage.Plot_Result(simu.mesh, u.reshape(-1,2)[:,0])
+                    Affichage.Plot_Result(newMesh, newU[:,0])
+
+                    plt.pause(1e-12)
+                    # Tic.Plot_History()
+
+                    simu.mesh = newMesh
+                    mesh = newMesh
+                    simu.set_u_n("displacement", newU.reshape(-1))
+                    simu.set_u_n("damage", newD.reshape(-1))
+
+
+                    pass
+
+            
+
+            pass
+
+
+
+
+
                 
         # ----------------------------------------------
         # Sauvegarde
