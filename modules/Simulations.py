@@ -2163,15 +2163,15 @@ class Simu_PhaseField(Simu):
             if convOption == 0:
                 convIter = np.max(np.abs(d_kp1-dk))
             elif convOption == 1:
-                if psi_crack_k == 0:
+                if psi_crack_kp1 == 0:
                     convIter = np.abs(psi_crack_kp1 - psi_crack_k)
                 else:
-                    convIter = np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k
+                    convIter = np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_kp1
             elif convOption == 2:
-                if psi_tot_k == 0:
+                if psi_tot_kp1 == 0:
                     convIter = np.abs(psi_tot_kp1 - psi_tot_k)
                 else:
-                    convIter = np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_k
+                    convIter = np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_kp1
             
             if tolConv == 1.0:
                 convergence=True
