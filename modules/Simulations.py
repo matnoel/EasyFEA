@@ -2519,17 +2519,17 @@ class Simu_PhaseField(Simu):
 
         displacement = self.displacement
 
-        coef = self.phaseFieldModel.comportement.coef       
-
-        # Deformation et contraintes pour chaque element et chaque points de gauss        
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
-        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
-
-        # Moyenne sur l'élement
-        Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
-        Sigma_e = np.mean(Sigma_e_pg, axis=1)
+        coef = self.phaseFieldModel.comportement.coef
         
         if "S" in option or "E" in option and option != "amplitudeSpeed":
+
+            # Deformation et contraintes pour chaque element et chaque points de gauss        
+            Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
+            Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
+
+            # Moyenne sur l'élement
+            Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
+            Sigma_e = np.mean(Sigma_e_pg, axis=1)
 
             if "S" in option and option != "Strain":
                 val_e = Sigma_e
