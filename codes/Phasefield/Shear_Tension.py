@@ -18,7 +18,7 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 2
+dim = 3
 simulation = "Shear" # "Shear" , "Tension"
 
 if dim == 3:
@@ -36,7 +36,7 @@ solve = True
 # Post traitement
 # ----------------------------------------------
 plotMesh = False
-plotResult = False
+plotResult = True
 plotEnergie = False
 getFissure = False
 showResult = True
@@ -44,14 +44,14 @@ showResult = True
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = True; Nparaview=400
+saveParaview = False; Nparaview=400
 makeMovie = False
 
 # ----------------------------------------------
 # Maillage
 # ----------------------------------------------
 openCrack = True
-optimMesh = False
+optimMesh = True
 updateMesh = False
 
 # ----------------------------------------------
@@ -74,7 +74,7 @@ solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Miehe"]
+splits = ["Amor"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)
@@ -159,23 +159,25 @@ for split, regu in zip(splits, regularisations):
                 ptC2 = Point(L/2,L/2)
                 cracks = [Line(ptC1, ptC2, clC, isOpen=True)]
             if dim == 3:
-                ptC1 = Point(0,L/2,0, isOpen=False)
+                ptC1 = Point(0,L/2,0, isOpen=True)
                 ptC2 = Point(L/2,L/2, 0)
                 ptC3 = Point(L/2,L/2, ep)
-                ptC4 = Point(0,L/2, ep, isOpen=False)
+                ptC4 = Point(0,L/2, ep, isOpen=True)
                 cracks = []
-                # cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], clC, isCreux=True)]
-                cracks = [Domain(ptC1, ptC3, clC, isCreux=True)]
-                # cracks.append(Line(ptC1, ptC2, clC, isOpen=True))
-                # cracks.append(Line(ptC4, ptC3, clC, isOpen=True))
-                # cracks.append(Line(ptC1, ptC4, clC, isOpen=True))
+
+                l1 = Line(ptC1, ptC2, clC, True)
+                l2 = Line(ptC2, ptC3, clC, False)
+                l3 = Line(ptC3, ptC4, clC, True)
+                l4 = Line(ptC4, ptC1, clC, True)
+                
+                cracks = [Contour([l1, l2, l3, l4])]
             
             if dim == 2:
                 mesh = Interface_Gmsh().Mesh_2D(contour, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
             elif dim == 3:
                 # fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
                 # mesh = Interface_Gmsh(True).Mesh_Import_msh(fichier)
-                mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,ep], 3, "TETRA4", cracks, refineGeom=refineDomain)
+                mesh = Interface_Gmsh(False, False).Mesh_3D(contour, [], [0,0,ep], 3, "TETRA4", cracks, refineGeom=refineDomain)
 
             return mesh
         
@@ -184,11 +186,9 @@ for split, regu in zip(splits, regularisations):
         if plotMesh:
             Affichage.Plot_Mesh(mesh)
             Affichage.Plot_Model(mesh, alpha=0)
-            # noeudsCracks = list(mesh.Nodes_Line(line2))
-            # noeudsCracks.extend(mesh.Nodes_Line(line))
-            # Affichage.Plot_Noeuds(mesh, noeudsCracks, showId=True)
-            # # print(len(noeudsCracks))
-            # plt.show()
+            noeudsCracks = mesh.Nodes_Conditions(lambda x,y,z: (x<=L/2)&(y==L/2))            
+            Affichage.Plot_Nodes(mesh, noeudsCracks, showId=True)            
+            plt.show()
 
         # Simulation  -------------------------------------------------------------------------------------------        
 
