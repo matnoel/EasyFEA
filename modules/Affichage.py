@@ -269,6 +269,9 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         # mise à jour du max et 
         maxVal = valeursAuxFaces.max()
         minVal = valeursAuxFaces.min()
+        
+        maxVal = np.max([maxVal, max])
+        minVal = np.min([minVal, min])
 
         # On affiche le résultat avec ou sans l'affichage du maillage
         if plotMesh:
