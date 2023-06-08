@@ -2274,35 +2274,14 @@ class PhaseField_Model(IModel):
             thetap[elems, pdgs, 2] = (valp[elems,pdgs,1]-valp[elems,pdgs,2])/(2*v2_m_v3)
             thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)
 
-            tic.Tac("Decomposition", "thetap et thetam", False)
+            tic.Tac("Decomposition", "thetap et thetam", False)            
 
             if useNumba:
                 # Beaucoup plus rapide (environ 2x plus rapide)
 
-                G12_ijkl, G13_ijkl, G23_ijkl = CalcNumba.Get_G12_G13_G23(M1, M2, M3)
+                G12_ij, G13_ij, G23_ij = CalcNumba.Get_G12_G13_G23(M1, M2, M3)
 
-                listI = [0]*6; listI.extend([1]*6); listI.extend([2]*6); listI.extend([1]*6); listI.extend([0]*12)
-                listJ = [0]*6; listJ.extend([1]*6); listJ.extend([2]*18); listJ.extend([1]*6)
-                listK = [0,1,2,1,0,0]*6
-                listL = [0,1,2,2,2,1]*6
-                
-                colonnes = np.arange(0,6, dtype=int).reshape((1,6)).repeat(6,axis=0).reshape(-1)
-                lignes = np.sort(colonnes)
-
-                def __get_Gab_ij(Gab_ijkl: np.ndarray):
-                    Gab_ij = np.zeros((Ne, nPg, 6, 6))
-
-                    Gab_ij[:,:,lignes, colonnes] = Gab_ijkl[:,:,listI,listJ,listK,listL]
-                
-                    Gab_ij[:,:,:3,3:6] = Gab_ij[:,:,:3,3:6] * coef
-                    Gab_ij[:,:,3:6,:3] = Gab_ij[:,:,3:6,:3] * coef
-                    Gab_ij[:,:,3:6,3:6] = Gab_ij[:,:,3:6,3:6] * 2
-
-                    return Gab_ij
-
-                G12_ij = __get_Gab_ij(G12_ijkl)
-                G13_ij = __get_Gab_ij(G13_ijkl)
-                G23_ij = __get_Gab_ij(G23_ijkl)
+                tic.Tac("Decomposition", "Gab", False)
 
                 list_mi = [m1, m2, m3]
                 list_Gab = [G12_ij, G13_ij, G23_ij]
@@ -2347,13 +2326,13 @@ class PhaseField_Model(IModel):
                 G13 = __Construction_Gij(M1, M3)
                 G23 = __Construction_Gij(M2, M3)
 
-                tic.Tac("Decomposition", "Gab", False)
+                tic.Tac("Decomposition", "Gab", True)
 
                 m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
                 m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
                 m3xm3 = np.einsum('epi,epj->epij', m3, m3, optimize='optimal')
 
-                tic.Tac("Decomposition", "mixmi", False)
+                tic.Tac("Decomposition", "mixmi", True)
 
                 # func = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
                 func = lambda ep, epij: ep[:,:,np.newaxis,np.newaxis].repeat(epij.shape[2], axis=2).repeat(epij.shape[3], axis=3) * epij
@@ -2368,7 +2347,7 @@ class PhaseField_Model(IModel):
             # Verification de la décomposition et de l'orthogonalité
             # projecteur en [1; 1; 1]
             vecteurP = np.einsum('epij,epj->epi', projP, vecteur_e_pg, optimize='optimal')
-            vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize='optimal')           
+            vecteurM = np.einsum('epij,epj->epi', projM, vecteur_e_pg, optimize='optimal')
             
             # Décomposition vecteur_e_pg = vecteurP_e_pg + vecteurM_e_pg
             decomp = vecteur_e_pg-(vecteurP + vecteurM)

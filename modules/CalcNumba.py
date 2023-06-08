@@ -99,7 +99,7 @@ def Get_G12_G13_G23(M1: np.ndarray, M2: np.ndarray, M3: np.ndarray) -> tuple[np.
 
     G12_ijkl = np.zeros((Ne, nPg, 3, 3, 3, 3))
     G13_ijkl = np.zeros_like(G12_ijkl)
-    G23_ijkl = np.zeros_like(G12_ijkl)    
+    G23_ijkl = np.zeros_like(G12_ijkl)
 
     for e in range(Ne):
         for p in range(nPg):
@@ -116,9 +116,48 @@ def Get_G12_G13_G23(M1: np.ndarray, M2: np.ndarray, M3: np.ndarray) -> tuple[np.
 
                             G12_ijkl[e,p,i,j,k,l] = g12
                             G13_ijkl[e,p,i,j,k,l] = g13
-                            G23_ijkl[e,p,i,j,k,l] = g23    
+                            G23_ijkl[e,p,i,j,k,l] = g23
 
-    return G12_ijkl, G13_ijkl, G23_ijkl
+    G12_ij = np.zeros((Ne, nPg, 6, 6))
+    G13_ij = np.zeros_like(G12_ij)
+    G23_ij = np.zeros_like(G12_ij)
+
+    listI = np.array([0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0])
+    listJ = np.array([0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1])
+    listK = np.array([0,1,2,1,0,0,0,1,2,1,0,0,0,1,2,1,0,0,0,1,2,1,0,0,0,1,2,1,0,0,0,1,2,1,0,0])
+    listL = np.array([0,1,2,2,2,1,0,1,2,2,2,1,0,1,2,2,2,1,0,1,2,2,2,1,0,1,2,2,2,1,0,1,2,2,2,1])
+
+    colonnes = np.array([0,1,2,3,4,5,0,1,2,3,4,5,0,1,2,3,4,5,0,1,2,3,4,5,0,1,2,3,4,5,0,1,2,3,4,5])
+    lignes = np.array([0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,5,5,5,5,5,5])    
+
+    for c in range(36):
+        G12_ij[:,:,lignes[c], colonnes[c]] = G12_ijkl[:,:,listI[c],listJ[c],listK[c],listL[c]]
+        G13_ij[:,:,lignes[c], colonnes[c]] = G13_ijkl[:,:,listI[c],listJ[c],listK[c],listL[c]]
+        G23_ij[:,:,lignes[c], colonnes[c]] = G23_ijkl[:,:,listI[c],listJ[c],listK[c],listL[c]]
+
+    l03 = np.array([0,1,2])
+    l36 = np.array([3,4,5])
+
+    coef = np.sqrt(2)
+
+    for c in range(3):
+
+        G12_ij[:,:,l03[c],l36[c]] = G12_ij[:,:,l03[c],l36[c]] * coef
+        G12_ij[:,:,l36[c],l03[c]] = G12_ij[:,:,l36[c],l03[c]] * coef
+        G12_ij[:,:,l36[c],l36[c]] = G12_ij[:,:,l36[c],l36[c]] * 2
+
+        G13_ij[:,:,l03[c],l36[c]] = G13_ij[:,:,l03[c],l36[c]] * coef
+        G13_ij[:,:,l36[c],l03[c]] = G13_ij[:,:,l36[c],l03[c]] * coef
+        G13_ij[:,:,l36[c],l36[c]] = G13_ij[:,:,l36[c],l36[c]] * 2
+
+        G23_ij[:,:,l03[c],l36[c]] = G23_ij[:,:,l03[c],l36[c]] * coef
+        G23_ij[:,:,l36[c],l03[c]] = G23_ij[:,:,l36[c],l03[c]] * coef
+        G23_ij[:,:,l36[c],l36[c]] = G23_ij[:,:,l36[c],l36[c]] * 2
+
+    # return G12_ijkl, G13_ijkl, G23_ijkl
+    return G12_ij, G13_ij, G23_ij
+
+
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Get_projP_projM_2D(BetaP: np.ndarray, gammap: np.ndarray, BetaM: np.ndarray, gammam: np.ndarray,m1: np.ndarray, m2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
