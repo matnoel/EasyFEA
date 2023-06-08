@@ -2182,7 +2182,7 @@ class PhaseField_Model(IModel):
         renvoie projP, projM
         """
 
-        useNumba = self.__useNumba
+        useNumba = self.__useNumba        
 
         dim = self.__comportement.dim        
 
@@ -2276,10 +2276,12 @@ class PhaseField_Model(IModel):
             thetap[elems, pdgs, 2] = (valp[elems,pdgs,1]-valp[elems,pdgs,2])/(2*v2_m_v3)
             thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)
 
-            tic.Tac("Decomposition", "thetap et thetam", False)            
+            tic.Tac("Decomposition", "thetap et thetam", False)
 
-            if self.useNumba:
-                # Beaucoup plus rapide (environ 2x plus rapide)
+            useNumba = False
+
+            if useNumba:
+                # Moin rapide
 
                 G12_ijkl, G13_ijkl, G23_ijkl = CalcNumba.Get_G12_G13_G23(M1, M2, M3)
 
