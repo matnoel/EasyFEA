@@ -1900,7 +1900,7 @@ class PhaseField_Model(IModel):
         
         elif self.dim == 3:
 
-            version = 'eigh' # 'matthieu', 'eigh'
+            version = 'matthieu' # 'matthieu', 'eigh'
 
             if version == 'matthieu':
 
