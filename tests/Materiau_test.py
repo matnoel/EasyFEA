@@ -144,9 +144,6 @@ class Test_Materiau(unittest.TestCase):
             matC = comp.C
             testSymetry = np.linalg.norm(matC.T - matC)
             assert testSymetry <= 1e-12
-
-
-
     
     def test_ElasIsoTrans2D(self):
         # Ici on verife que lorsque l'on change les axes ça fonctionne bien

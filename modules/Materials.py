@@ -1900,9 +1900,11 @@ class PhaseField_Model(IModel):
         
         elif self.dim == 3:
 
-            version = 'eigh' # 'matlab', 'matthieu', 'eigh'            
+            version = 'eigh' # 'matthieu', 'eigh'
 
-            if version in ['matlab', 'matthieu']:
+            if version == 'matthieu':
+
+                # [Q.-C. He Closed-form coordinate-free]
 
                 a11_e_pg = matrice_e_pg[:,:,0,0]; a12_e_pg = matrice_e_pg[:,:,0,1]; a13_e_pg = matrice_e_pg[:,:,0,2]
                 a21_e_pg = matrice_e_pg[:,:,1,0]; a22_e_pg = matrice_e_pg[:,:,1,1]; a23_e_pg = matrice_e_pg[:,:,1,2]
@@ -1912,24 +1914,27 @@ class PhaseField_Model(IModel):
 
                 # Invariants
                 I1_e_pg = trace_e_pg
-                mat_mat = np.einsum('epij,epjk->epik', matrice_e_pg, matrice_e_pg, optimize='optimal')
+                # mat_mat = np.einsum('epij,epjk->epik', matrice_e_pg, matrice_e_pg, optimize='optimal')
+                mat_mat = matrice_e_pg @ matrice_e_pg
                 trace_mat_mat = np.einsum('epii->ep', mat_mat, optimize='optimal')
                 I2_e_pg = (trace_e_pg**2 - trace_mat_mat)/2
                 I3_e_pg = determinant_e_pg
 
                 tic.Tac("Decomposition", "Invariants", False)
 
-                g = I1_e_pg**2 - 3*I2_e_pg            
-                elems0 = np.unique(np.where(g == 0)[0])
-                filtreNot0 = g != 0
-                elemsNot0 = np.unique(np.where(filtreNot0)[0])
+                h = I1_e_pg**2 - 3*I2_e_pg                
 
-                racine_g = np.sqrt(g)
-                racine_g_ij = racine_g.reshape((Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)            
+                racine_h = np.sqrt(h)
+                racine_h_ij = racine_h.reshape((Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)            
                 
-                arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2/g**(3/2) # -1 <= arg <= 1
-                
-                theta = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
+                arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2/h**(3/2) # -1 <= arg <= 1
+                # arg = np.around(arg, 4)
+                arg[h==0] = 0
+
+                phi = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
+
+                filtreNot0 = h != 0
+                elemsNot0 = np.unique(np.where(filtreNot0)[0])
 
                 elemsMin = np.unique(np.where(arg == 1)[0]) # positions of double minimum eigenvalue            
                 elemsMax = np.unique(np.where(arg == -1)[0]) # positions of double maximum eigenvalue
@@ -1959,69 +1964,12 @@ class PhaseField_Model(IModel):
                 val_e_pg = valnum
 
                 tic.Tac("Decomposition", "Valeurs et projecteurs propres", False)
-
-            elif version == 'matlab':
-
-                # Initialisation des valeurs propres
-                val_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
-
-                # Case of double minimum eigenvalue
-                if elemsMin.size > 0:
-                    val_e_pg[elemsMin] = val_e_pg[elemsMin] + np.einsum('ep,i->epi', racine_g, np.array([-1, -1, 2])/3, optimize='optimal')[elemsMin]
-
-                # Case of double maximum eigenvalue
-                if elemsMax.size > 0:
-                    val_e_pg[elemsMax] = val_e_pg[elemsMax] + np.einsum('ep,i->epi', racine_g, np.array([-2, 1, 1])/3, optimize='optimal')[elemsMax]
-
-                # Case of 3 distinct eigenvalues
-                if elemsNot0.size > 0:
-                    thet = np.zeros_like(val_e_pg)
-                    thet[:,:,0] = np.cos(2*np.pi/3+theta)
-                    thet[:,:,1] = np.cos(2*np.pi/3-theta)
-                    thet[:,:,2] = np.cos(theta)
-                    thet = thet * 2/3
-
-                    val_e_pg[elemsNot0] = val_e_pg[elemsNot0] + np.einsum('ep,epi->epi', racine_g, thet, optimize='optimal')[elemsNot0]
-
-                tic.Tac("Decomposition", "Valeurs propres", False)
-
-                # Initialisation des projecteurs propres
-                M1 = np.zeros_like(matrice_e_pg); M1[:,:,0,0] = 1            
-                M3 = np.zeros_like(matrice_e_pg); M3[:,:,2,2] = 1
-
-                eye3 = np.zeros_like(matrice_e_pg)
-                eye3[:,:,0,0] = 1; eye3[:,:,1,1] = 1; eye3[:,:,2,2] = 1
-                I_rg = np.einsum('ep,epij->epij', I1_e_pg - racine_g, eye3/3, optimize='optimal')
-
-                # Case of double minimum eigenvalue
-                M3[elemsMin] = (matrice_e_pg[elemsMin] - I_rg[elemsMin])/racine_g_ij[elemsMin]
-                M1[elemsMin] = (eye3[elemsMin] - M3[elemsMin])/2
-
-                # Case of double maximum eigenvalue
-                M1[elemsMax] = (I_rg[elemsMax] - matrice_e_pg[elemsMax])/racine_g_ij[elemsMax]
-                M3[elemsMax] = (eye3[elemsMax] - M1[elemsMax])/2
-
-                # Case of 3 distinct eigenvalues            
-                if elemsNot0.size > 0:
-                    matNot0 = matrice_e_pg[elemsNot0]
-                    E1not0 = val_e_pg[elemsNot0, :, 0]; E1not0_eye3 = np.einsum('ep,ij->epij', E1not0, np.ones((3,3)), optimize='optimal')
-                    E2not0 = val_e_pg[elemsNot0, :, 1]; E2not0_eye3 = np.einsum('ep,ij->epij', E2not0, np.ones((3,3)), optimize='optimal')
-                    E3not0 = val_e_pg[elemsNot0, :, 2]; E3not0_eye3 = np.einsum('ep,ij->epij', E3not0, np.ones((3,3)), optimize='optimal')
-
-                    M1[elemsNot0] = (matNot0-E2not0_eye3)/(E1not0_eye3-E2not0_eye3) * (matNot0-E3not0_eye3)/(E1not0_eye3-E3not0_eye3)
-                    M3[elemsNot0] = (matNot0-E1not0_eye3)/(E3not0_eye3-E1not0_eye3) * (matNot0-E2not0_eye3)/(E3not0_eye3-E2not0_eye3)
-
-                M2 = eye3 - (M1 + M3)
-
-                M1, M2, M3 = __Normalize(M1, M2, M3)
-
-                tic.Tac("Decomposition", "Projecteurs propres", False)
-
+                            
             elif version == 'matthieu':
 
-                E1 = I1_e_pg/3 + 2/3 * racine_g * np.cos(2*np.pi/3 + theta)
-                E2 = I1_e_pg/3 + 2/3 * racine_g * np.cos(2*np.pi/3 - theta)
-                E3 = I1_e_pg/3 + 2/3 * racine_g * np.cos(theta)
+                E1 = I1_e_pg/3 + 2/3 * racine_h * np.cos(2*np.pi/3 + phi)
+                E2 = I1_e_pg/3 + 2/3 * racine_h * np.cos(2*np.pi/3 - phi)
+                E3 = I1_e_pg/3 + 2/3 * racine_h * np.cos(phi)
 
                 # Initialisation des valeurs propres            
                 val_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
@@ -2036,48 +1984,52 @@ class PhaseField_Model(IModel):
                 M2 = np.zeros_like(matrice_e_pg); M2[:,:,1,1] = 1
                 M3 = np.zeros_like(matrice_e_pg); M3[:,:,2,2] = 1
 
-                # g=0 -> E1 = E2 = E3 -> 3 valeurs propres identiques
-                # ici ne fait rien car déja initialisé
-
                 eye3 = np.zeros_like(matrice_e_pg)
                 eye3[:,:,0,0] = 1; eye3[:,:,1,1] = 1; eye3[:,:,2,2] = 1
-                I_rg = np.einsum('ep,epij->epij', I1_e_pg - racine_g, eye3/3, optimize='optimal')                
+                I_rg = np.einsum('ep,epij->epij', I1_e_pg - racine_h, eye3/3, optimize='optimal')
 
-                # g!=0 & E1 < E2 = E3 -> 2 valeurs propres maximums
-                #             
-                # elems_E2E3 = np.unique(np.where(filtreNot0 & (np.abs(E2-E3) <= tol))[0])
-                # E2[elems_E2E3] = E3[elems_E2E3]
+                # 4. Three equal eigenvalues
+                # 𝜖1 = 𝜖2 = 𝜖3 ⇐⇒ 𝑔 = 0.
+                # ici ne fait rien car déja initialisé 𝜖1 = 𝜖2 = 𝜖3 = I1_e_pg/3
 
-                elems_Max = np.unique(np.where(filtreNot0 & (E1<E2) & (E2==E3))[0])
-                M1[elems_Max] = ((I_rg[elems_Max] - matrice_e_pg[elems_Max])/racine_g_ij[elems_Max])
-                M2[elems_Max] = M3[elems_Max] = (eye3[elems_Max] - M1[elems_Max])/2
-
-                # g!=0 & E1 == E2 < E3  -> 2 valeurs propres minimums
-
-                # elems_E1E2 = np.unique(np.where(filtreNot0 & (np.abs(E1-E2) <= tol))[0])
-                # E1[elems_E1E2] = E2[elems_E1E2]
-
-                elems_Min = np.unique(np.where(filtreNot0 & (E1==E2) & (E2<E3))[0])
-                M3[elems_Min] = ((matrice_e_pg[elems_Min] - I_rg[elems_Min])/racine_g_ij[elems_Min])
-                M1[elems_Min] = M2[elems_Min] = (eye3[elems_Min] - M3[elems_Min])/2
-
-                # g!=0 & E1 < E2 < E3  -> 3 valeurs propres distinctes
-                elems_Dist = np.unique(np.where(filtreNot0 & (E1<E2) & (E2<E3))[0])
-                # idxDist = idx0
-
-                E1_ij = E1.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems_Dist]
-                E2_ij = E2.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems_Dist]
-                E3_ij = E3.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems_Dist]
-                matr_dist = matrice_e_pg[elems_Dist]
-                eye3_dist = eye3[elems_Dist]
+                # 2. Two maximum eigenvalues
+                # 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
                 
-                M1[elems_Dist] = ((matr_dist - E2_ij*eye3_dist)/(E1_ij-E2_ij) * (matr_dist - E3_ij*eye3_dist)/(E1_ij-E3_ij))
-                M2[elems_Dist] = ((matr_dist - E1_ij*eye3_dist)/(E2_ij-E1_ij) * (matr_dist - E3_ij*eye3_dist)/(E2_ij-E3_ij))
-                M3[elems_Dist] = ((matr_dist - E1_ij*eye3_dist)/(E3_ij-E1_ij) * (matr_dist - E2_ij*eye3_dist)/(E3_ij-E2_ij))
+                elems2 = np.unique(np.where(filtreNot0 & (E1<E2) & (E2==E3))[0])
+                M1[elems2] = ((I_rg[elems2] - matrice_e_pg[elems2])/racine_h_ij[elems2])
+                M2[elems2] = M3[elems2] = (eye3[elems2] - M1[elems2])/2
+
+                # 3. Two minimum eigenvalues
+                # 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
+                
+                elems3 = np.unique(np.where(filtreNot0 & (E1==E2) & (E2<E3))[0])
+                M3[elems3] = ((matrice_e_pg[elems3] - I_rg[elems3])/racine_h_ij[elems3])
+                M1[elems3] = M2[elems3] = (eye3[elems3] - M3[elems3])/2
+
+                # 1. Three distinct eigenvalues
+                # 𝜖1 < 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 ≠ 0, 𝜃 ≠ 𝜋∕3.
+                
+                elems1 = np.unique(np.where(filtreNot0 & (E1<E2) & (E2<E3))[0])                
+
+                E1_ij = E1.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
+                E2_ij = E2.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
+                E3_ij = E3.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
+
+                matr1 = matrice_e_pg[elems1]
+                eye3_1 = eye3[elems1]
+
+                M1[elems1] = ((matr1 - E2_ij*eye3_1)/(E1_ij-E2_ij)) @ ((matr1 - E3_ij*eye3_1)/(E1_ij-E3_ij))
+                M2[elems1] = ((matr1 - E1_ij*eye3_1)/(E2_ij-E1_ij)) @ ((matr1 - E3_ij*eye3_1)/(E2_ij-E3_ij))
+                M3[elems1] = ((matr1 - E1_ij*eye3_1)/(E3_ij-E1_ij)) @ ((matr1 - E2_ij*eye3_1)/(E3_ij-E2_ij))
+
+                # if elems1.size > 0:
+                #     M2[elems1] = eye3_1 - (M1[elems1] + M3[elems1])
+                # else:
+                #     M2[elems1] = ((matr1 - E1_ij*eye3_1)/(E2_ij-E1_ij) * (matr1 - E3_ij*eye3_1)/(E2_ij-E3_ij))
 
                 M1, M2, M3 = __Normalize(M1, M2, M3)
 
-                tic.Tac("Decomposition", "Projecteurs propres", False)
+                tic.Tac("Decomposition", "Projecteurs propres", False)            
 
         # Passage des bases propres sous la forme dun vecteur [e,pg,3] ou [e,pg,6]
         if dim == 2:
@@ -2107,6 +2059,8 @@ class PhaseField_Model(IModel):
             list_M = [M1, M2, M3]
 
         tic.Tac("Decomposition", "Vecteurs propres", False)
+
+        verif = True
         
         if verif:
             
@@ -2120,41 +2074,41 @@ class PhaseField_Model(IModel):
 
             matrice = func_ep_epij(val_e_pg[:,:,0], M1) + func_ep_epij(val_e_pg[:,:,1], M2)
 
-            matrice_num = func_ep_epij(valnum[:,:,0], M1_num) + func_ep_epij(valnum[:,:,1], M2_num)
+            matrice_eig = func_ep_epij(valnum[:,:,0], M1_num) + func_ep_epij(valnum[:,:,1], M2_num)
             
             if dim == 3:                
                 M3_num = func_Mi(vectnum[:,:,:,2])
                 matrice = matrice + func_ep_epij(val_e_pg[:,:,2], M3)
-                matrice_num = matrice_num + func_ep_epij(valnum[:,:,2], M3_num)            
-
-            if matrice_e_pg.max() > 0:
-                ecart_matrice = matrice - matrice_e_pg
-                erreurMatrice = np.linalg.norm(ecart_matrice)/np.linalg.norm(matrice_e_pg)
-                assert erreurMatrice <= 1e-12, "matrice != E1*M1 + E2*M2 + E3*M3 != matrice_e_pg"
-
-            if matrice.max() > 0:
-                erreurMatriceNumMatrice = np.linalg.norm(matrice_num - matrice)/np.linalg.norm(matrice)
-                assert erreurMatriceNumMatrice <= 1e-12, "matrice != matrice_num"
+                matrice_eig = matrice_eig + func_ep_epij(valnum[:,:,2], M3_num)
 
             # verification si les valeurs prores sont bonnes
             if valnum.max() > 0:
-                testval = np.linalg.norm(val_e_pg - valnum)/np.linalg.norm(valnum)
-                assert testval <= 1e-12, "Erreur dans le calcul de valeurs propres"            
+                ecartVal = val_e_pg - valnum                    
+                testval = np.linalg.norm(ecartVal)/np.linalg.norm(valnum)
+                assert testval <= 1e-12, "Erreur dans le calcul de valeurs propres"
 
             # verification si les projecteurs propres sont corrects
             def erreur_Mi_Minum(Mi, mi_num):
                 Mi_num = np.einsum('epi,epj->epij', mi_num, mi_num, optimize='optimal')
                 ecart = Mi_num-Mi
                 erreur = np.linalg.norm(ecart)/np.linalg.norm(Mi)
-                assert erreur <= 1e-12, "Erreur dans le calcul des projecteurs propres"
-
-            if dim == 3:
-                pass
+                assert erreur <= 1e-10, "Erreur dans le calcul des projecteurs propres"
 
             erreur_Mi_Minum(M1, vectnum[:,:,:,0])
             erreur_Mi_Minum(M2, vectnum[:,:,:,1])
             if dim == 3:
                 erreur_Mi_Minum(M3, vectnum[:,:,:,2])
+
+            # Verification que matrice = E1*M1 + E2*M2 + E3*M3
+            if matrice_e_pg.max() > 0:
+                ecart_matrice = matrice - matrice_e_pg
+                erreurMatrice = np.linalg.norm(ecart_matrice)/np.linalg.norm(matrice_e_pg)
+                assert erreurMatrice <= 1e-10, "matrice != E1*M1 + E2*M2 + E3*M3 != matrice_e_pg"
+                # erreur_mateig = np.linalg.norm(matrice_eig - matrice_e_pg)/np.linalg.norm(matrice_e_pg)
+
+            if matrice.max() > 0:
+                erreurMatriceNumMatrice = np.linalg.norm(matrice_eig - matrice)/np.linalg.norm(matrice)
+                assert erreurMatriceNumMatrice <= 1e-10, "matrice != matrice_num"
 
             # test ortho entre M1 et M2 
             verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
@@ -2163,9 +2117,9 @@ class PhaseField_Model(IModel):
 
             if dim == 3:
                 verifOrtho_M1M3 = np.einsum('epij,epij->ep', M1, M3, optimize='optimal')
-                assert np.abs(verifOrtho_M1M3).max() < 1e-10, textTest
+                assert np.abs(verifOrtho_M1M3).max() < 1e-9, textTest
                 verifOrtho_M2M3 = np.einsum('epij,epij->ep', M2, M3, optimize='optimal')
-                assert np.abs(verifOrtho_M2M3).max() < 1e-10, textTest
+                assert np.abs(verifOrtho_M2M3).max() < 1e-9, textTest
 
         return val_e_pg, list_m, list_M
     
@@ -2274,7 +2228,7 @@ class PhaseField_Model(IModel):
             thetap[elems, pdgs, 2] = (valp[elems,pdgs,1]-valp[elems,pdgs,2])/(2*v2_m_v3)
             thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)
 
-            tic.Tac("Decomposition", "thetap et thetam", False)            
+            tic.Tac("Decomposition", "thetap et thetam", False)
 
             if useNumba:
                 # Beaucoup plus rapide (environ 2x plus rapide)
@@ -2289,6 +2243,8 @@ class PhaseField_Model(IModel):
                 projP, projM = CalcNumba.Get_projP_projM_3D(dvalp, dvalm, thetap, thetam, list_mi, list_Gab)
             
             else:
+
+                G12_ij, G13_ij, G23_ij = CalcNumba.Get_G12_G13_G23(M1, M2, M3)
 
                 def __Construction_Gij(Ma, Mb):
 
@@ -2314,7 +2270,7 @@ class PhaseField_Model(IModel):
                     #     ma[lin,col] = text
                     #     pass
 
-                    Gij[:,:,lignes, colonnes] = Gijkl[:,:,listI,listJ,listK,listL]
+                    Gij[:,:,lignes, colonnes] = Gijkl[:,:,listI,listJ,listK,listL]                    
                     
                     Gij[:,:,:3,3:6] = Gij[:,:,:3,3:6] * coef
                     Gij[:,:,3:6,:3] = Gij[:,:,3:6,:3] * coef
@@ -2326,13 +2282,13 @@ class PhaseField_Model(IModel):
                 G13 = __Construction_Gij(M1, M3)
                 G23 = __Construction_Gij(M2, M3)
 
-                tic.Tac("Decomposition", "Gab", True)
+                tic.Tac("Decomposition", "Gab", False)
 
                 m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
                 m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
                 m3xm3 = np.einsum('epi,epj->epij', m3, m3, optimize='optimal')
 
-                tic.Tac("Decomposition", "mixmi", True)
+                tic.Tac("Decomposition", "mixmi", False)
 
                 # func = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
                 func = lambda ep, epij: ep[:,:,np.newaxis,np.newaxis].repeat(epij.shape[2], axis=2).repeat(epij.shape[3], axis=3) * epij

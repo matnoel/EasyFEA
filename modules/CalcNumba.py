@@ -133,31 +133,30 @@ def Get_G12_G13_G23(M1: np.ndarray, M2: np.ndarray, M3: np.ndarray) -> tuple[np.
     for c in range(36):
         G12_ij[:,:,lignes[c], colonnes[c]] = G12_ijkl[:,:,listI[c],listJ[c],listK[c],listL[c]]
         G13_ij[:,:,lignes[c], colonnes[c]] = G13_ijkl[:,:,listI[c],listJ[c],listK[c],listL[c]]
-        G23_ij[:,:,lignes[c], colonnes[c]] = G23_ijkl[:,:,listI[c],listJ[c],listK[c],listL[c]]
+        G23_ij[:,:,lignes[c], colonnes[c]] = G23_ijkl[:,:,listI[c],listJ[c],listK[c],listL[c]]    
 
-    l03 = np.array([0,1,2])
-    l36 = np.array([3,4,5])
+    l03 = np.array([0,0,0,1,1,1,2,2,2])
+    l36 = np.array([3,3,3,4,4,4,5,5,5])
+    c03 = np.array([0,1,2,0,1,2,0,1,2])
+    c36 = np.array([3,4,5,3,4,5,3,4,5])
 
     coef = np.sqrt(2)
 
-    for c in range(3):
+    for c in range(9):
 
-        G12_ij[:,:,l03[c],l36[c]] = G12_ij[:,:,l03[c],l36[c]] * coef
-        G12_ij[:,:,l36[c],l03[c]] = G12_ij[:,:,l36[c],l03[c]] * coef
-        G12_ij[:,:,l36[c],l36[c]] = G12_ij[:,:,l36[c],l36[c]] * 2
+        G12_ij[:,:,l03[c],c36[c]] *= coef
+        G12_ij[:,:,l36[c],c03[c]] *= coef
+        G12_ij[:,:,l36[c],c36[c]] *= 2
 
-        G13_ij[:,:,l03[c],l36[c]] = G13_ij[:,:,l03[c],l36[c]] * coef
-        G13_ij[:,:,l36[c],l03[c]] = G13_ij[:,:,l36[c],l03[c]] * coef
-        G13_ij[:,:,l36[c],l36[c]] = G13_ij[:,:,l36[c],l36[c]] * 2
+        G13_ij[:,:,l03[c],c36[c]] *= coef
+        G13_ij[:,:,l36[c],c03[c]] *= coef
+        G13_ij[:,:,l36[c],c36[c]] *= 2
 
-        G23_ij[:,:,l03[c],l36[c]] = G23_ij[:,:,l03[c],l36[c]] * coef
-        G23_ij[:,:,l36[c],l03[c]] = G23_ij[:,:,l36[c],l03[c]] * coef
-        G23_ij[:,:,l36[c],l36[c]] = G23_ij[:,:,l36[c],l36[c]] * 2
+        G23_ij[:,:,l03[c],c36[c]] *= coef
+        G23_ij[:,:,l36[c],c03[c]] *= coef
+        G23_ij[:,:,l36[c],c36[c]] *= 2
 
-    # return G12_ijkl, G13_ijkl, G23_ijkl
     return G12_ij, G13_ij, G23_ij
-
-
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Get_projP_projM_2D(BetaP: np.ndarray, gammap: np.ndarray, BetaM: np.ndarray, gammam: np.ndarray,m1: np.ndarray, m2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -192,6 +191,8 @@ def Get_projP_projM_2D(BetaP: np.ndarray, gammap: np.ndarray, BetaM: np.ndarray,
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Get_projP_projM_3D(dvalp: np.ndarray, dvalm: np.ndarray, thetap: np.ndarray, thetam: np.ndarray, list_mi: list[np.ndarray], list_Gab: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
+
+    # ../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_ISOT/calc_proj_Miehe.m
 
     if useParallel:
         range = prange
