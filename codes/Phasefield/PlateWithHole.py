@@ -36,13 +36,13 @@ showFig = True
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
-saveParaview = True; NParaview=300
+saveParaview = False; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
 # Comportement 
 # ----------------------------------------------
-comp = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 
 svType = Materials.PhaseField_Model.SolveurType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
@@ -447,7 +447,7 @@ for split, regu in zip(splits, regularisations):
     if makeMovie:
         # Affichage.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
         # plt.show()
-        PostTraitement.Make_Movie(folder, "damage", simu, Niter=NMovie, plotMesh=False, deformation=True, NiterFin=0, facteurDef=20)
+        PostTraitement.Make_Movie(folder, "ux", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, facteurDef=1.5)
 
     # Tic.getResume()
 
