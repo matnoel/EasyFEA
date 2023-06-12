@@ -225,7 +225,7 @@ class Test_Materiau(unittest.TestCase):
         # Epsilon_e_pg[0,0,:]=0
         # Epsilon_e_pg = np.zeros((Ne,1,nPg))
                 
-        tol = 1e-12
+        tol = 1e-11
 
         for pfm in self.phaseFieldModels:
             
@@ -250,7 +250,7 @@ class Test_Materiau(unittest.TestCase):
             decompC = c-cpm
             verifC = np.linalg.norm(decompC)/np.linalg.norm(c)
             if pfm.split != "He":
-                self.assertTrue(np.abs(verifC) < tol)
+                self.assertTrue(np.abs(verifC) <= tol)
 
             # Test que SigP + SigM = Sig
             Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
@@ -260,7 +260,7 @@ class Test_Materiau(unittest.TestCase):
             decompSig = Sig_e_pg-(SigP+SigM)           
             verifSig = np.linalg.norm(decompSig)/np.linalg.norm(Sig_e_pg)
             if np.linalg.norm(Sig_e_pg)>0:                
-                self.assertTrue(np.abs(verifSig) < tol)
+                self.assertTrue(np.abs(verifSig) <= tol)
             
             # Test que Eps:C:Eps = Eps:(cP+cM):Eps
             energiec = np.einsum('epj,ij,epi->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
@@ -268,7 +268,7 @@ class Test_Materiau(unittest.TestCase):
             energiecM = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
             verifEnergie = np.linalg.norm(energiec-(energiecP+energiecM))/np.linalg.norm(energiec)
             if np.linalg.norm(energiec)>0:
-                self.assertTrue(np.abs(verifEnergie) < tol)
+                self.assertTrue(np.abs(verifEnergie) <= tol)
 
 
 

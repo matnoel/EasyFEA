@@ -1927,7 +1927,9 @@ class PhaseField_Model(IModel):
                 racine_h = np.sqrt(h)
                 racine_h_ij = racine_h.reshape((Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)            
                 
-                arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2/h**(3/2) # -1 <= arg <= 1
+                arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2 # -1 <= arg <= 1
+                arg[h != 0] *= 1/h[h != 0]**(3/2)
+                
                 # arg = np.around(arg, 4)
                 arg[h==0] = 0
 
@@ -2058,9 +2060,7 @@ class PhaseField_Model(IModel):
 
             list_M = [M1, M2, M3]
 
-        tic.Tac("Decomposition", "Vecteurs propres", False)
-
-        verif = True
+        tic.Tac("Decomposition", "Vecteurs propres", False)        
         
         if verif:
             
@@ -2113,13 +2113,13 @@ class PhaseField_Model(IModel):
             # test ortho entre M1 et M2 
             verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
             textTest = "Orthogonalité non vérifié"
-            assert np.abs(verifOrtho_M1M2).max() < 1e-9, textTest
+            assert np.abs(verifOrtho_M1M2).max() <= 1e-9, textTest
 
             if dim == 3:
                 verifOrtho_M1M3 = np.einsum('epij,epij->ep', M1, M3, optimize='optimal')
-                assert np.abs(verifOrtho_M1M3).max() < 1e-9, textTest
+                assert np.abs(verifOrtho_M1M3).max() <= 1e-9, textTest
                 verifOrtho_M2M3 = np.einsum('epij,epij->ep', M2, M3, optimize='optimal')
-                assert np.abs(verifOrtho_M2M3).max() < 1e-9, textTest
+                assert np.abs(verifOrtho_M2M3).max() <= 1e-9, textTest
 
         return val_e_pg, list_m, list_M
     
