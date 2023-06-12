@@ -1900,9 +1900,32 @@ class PhaseField_Model(IModel):
         
         elif self.dim == 3:
 
-            version = 'matthieu' # 'matthieu', 'eigh'
+            def __Normalize(M1, M2, M3):
+                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(2,3)))
+                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(2,3)))
+                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(2,3)))
 
-            if version == 'matthieu':
+                return M1, M2, M3
+
+            version = 'invariants' # 'invariants', 'eigh'
+
+            if version == 'eigh':
+
+                valnum, vectnum = np.linalg.eigh(matrice_e_pg)
+
+                tic.Tac("Decomposition", "np.linalg.eigh", False)
+
+                func_Mi = lambda mi: np.einsum('epi,epj->epij', mi, mi, optimize='optimal')
+
+                M1 = func_Mi(vectnum[:,:,:,0])
+                M2 = func_Mi(vectnum[:,:,:,1])
+                M3 = func_Mi(vectnum[:,:,:,2])
+                
+                val_e_pg = valnum
+
+                tic.Tac("Decomposition", "Valeurs et projecteurs propres", False)
+
+            elif version == 'invariants':
 
                 # [Q.-C. He Closed-form coordinate-free]
 
@@ -1942,38 +1965,13 @@ class PhaseField_Model(IModel):
                 elemsMax = np.unique(np.where(arg == -1)[0]) # positions of double maximum eigenvalue
 
                 elemsNot0 = np.setdiff1d(elemsNot0, elemsMin)
-                elemsNot0 = np.setdiff1d(elemsNot0, elemsMax)
+                elemsNot0 = np.setdiff1d(elemsNot0, elemsMax)                
 
-            def __Normalize(M1, M2, M3):
-                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(2,3)))
-                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(2,3)))
-                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(2,3)))
-
-                return M1, M2, M3
-
-            if version == 'eigh':
-
-                valnum, vectnum = np.linalg.eigh(matrice_e_pg)
-
-                tic.Tac("Decomposition", "np.linalg.eigh", False)
-
-                func_Mi = lambda mi: np.einsum('epi,epj->epij', mi, mi, optimize='optimal')
-
-                M1 = func_Mi(vectnum[:,:,:,0])
-                M2 = func_Mi(vectnum[:,:,:,1])
-                M3 = func_Mi(vectnum[:,:,:,2])
-                
-                val_e_pg = valnum
-
-                tic.Tac("Decomposition", "Valeurs et projecteurs propres", False)
-                            
-            elif version == 'matthieu':
-
+                # Initialisation des valeurs propres
                 E1 = I1_e_pg/3 + 2/3 * racine_h * np.cos(2*np.pi/3 + phi)
                 E2 = I1_e_pg/3 + 2/3 * racine_h * np.cos(2*np.pi/3 - phi)
                 E3 = I1_e_pg/3 + 2/3 * racine_h * np.cos(phi)
 
-                # Initialisation des valeurs propres            
                 val_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
                 val_e_pg[elemsNot0, :, 0] = E1[elemsNot0]
                 val_e_pg[elemsNot0, :, 1] = E2[elemsNot0]
