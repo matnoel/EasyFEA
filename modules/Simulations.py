@@ -2127,68 +2127,78 @@ class Simu_PhaseField(Simu):
         while not convergence and nombreIter <= maxIter:
                     
             nombreIter += 1
-            # Ancien endommagement dans la procedure de la convergence
-            if convOption == 0:
-                dk = self.damage
-            elif convOption == 1:
-                psi_crack_k = self._Calc_Psi_Crack()
-            elif convOption == 2:
-                psi_tot_k = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
+            if tolConv != 1:
+                if convOption == 0:                    
+                    d_n = self.damage
+                elif convOption == 1:
+                    psi_crack_n = self._Calc_Psi_Crack()
+                elif convOption == 2:
+                    psi_tot_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
+                elif convOption == 3:
+                    d_n = self.damage
+                    u_n = self.displacement
 
             # Damage
             self.__Assemblage_d()
-            d_kp1 = self.__Solve_d()
-            if d_kp1.max() == np.inf and regu == "AT1":
+            d_np1 = self.__Solve_d()
+            if d_np1.max() == np.inf and regu == "AT1":
                 # ici il peut arriver qua la première itération la solution d'endommagement soit infinie
                 # pour eviter que ça pose probleme pour la suite l'endommagement  
-                d_kp1 = np.zeros_like(d_kp1)
+                d_np1 = np.zeros_like(d_np1)
 
                 # récupère les ddls ou des endommagements on été imposés
                 ddls_Dirichlet = np.array(self.Bc_ddls_Dirichlet("damage"))
                 if ddls_Dirichlet.size > 0:
                     values_Dirichlet = np.array(self.Bc_values_Dirichlet("damage"))
-                    d_kp1[ddls_Dirichlet] = values_Dirichlet
+                    d_np1[ddls_Dirichlet] = values_Dirichlet
 
-                self.set_u_n("damage", d_kp1)
+                self.set_u_n("damage", d_np1)
 
             # Displacement
             Kglob = self.__Assemblage_u()            
             u_np1 = self.__Solve_u()
-            
-            if convOption == 1:
-                psi_crack_kp1 = self._Calc_Psi_Crack()
-            elif convOption == 2:
-                psi_tot_kp1 = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
 
-            if convOption == 0:
-                convIter = np.max(np.abs(d_kp1-dk))
-            elif convOption == 1:
-                if psi_crack_kp1 == 0:
-                    convIter = np.abs(psi_crack_kp1 - psi_crack_k)
-                else:
-                    convIter = np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_kp1
-            elif convOption == 2:
-                if psi_tot_kp1 == 0:
-                    convIter = np.abs(psi_tot_kp1 - psi_tot_k)
-                else:
-                    convIter = np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_kp1
-            
-            if tolConv == 1.0:
-                convergence=True
+            if tolConv == 1:
+                convergence = True                
             else:
-                # Condition de convergence
-                # convergence = dincMax <= tolConv and iterConv > 1 # idée de florent
-                convergence = convIter <= tolConv
+                if convOption == 0:                
+                    convIter = np.max(np.abs(d_np1 - d_n))
+                elif convOption == 1:
+                    psi_crack_np1 = self._Calc_Psi_Crack()
+                    if psi_crack_np1 == 0:
+                        convIter = np.abs(psi_crack_np1 - psi_crack_n)
+                    else:
+                        convIter = np.abs(psi_crack_np1 - psi_crack_n)/psi_crack_np1
+                elif convOption == 2:
+                    psi_tot_np1 = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
+                    if psi_tot_np1 == 0:
+                        convIter = np.abs(psi_tot_np1 - psi_tot_n)
+                    else:
+                        convIter = np.abs(psi_tot_np1 - psi_tot_n)/psi_tot_np1
+                elif convOption == 3:
+                    diffU = np.abs(u_np1 - u_n); diffU[u_np1 != 0] *= 1/np.abs(u_np1[u_np1 != 0])
+                    diffD = np.abs(d_np1 - d_n); diffD[d_np1 != 0] *= 1/np.abs(d_np1[d_np1 != 0])
+                    convU = np.sum(diffU)
+                    convD = np.sum(diffD)
 
+                # Condition de convergence
+                if convOption == 3:
+                    convIter = np.max([convD, convU])
+                    convergence = (convD <= tolConv) and (convU <= tolConv*0.999)
+                else:
+                    convergence = convIter <= tolConv
+
+                pass
+                
         solveurTypes = PhaseField_Model.SolveurType
 
         if solveur in [solveurTypes.History, solveurTypes.BoundConstrain]:
-            d_np1 = d_kp1
+            d_np1 = d_np1
             
         elif solveur == solveurTypes.HistoryDamage:
-            oldAndNewDamage = np.zeros((d_kp1.shape[0], 2))
+            oldAndNewDamage = np.zeros((d_np1.shape[0], 2))
             oldAndNewDamage[:, 0] = dn
-            oldAndNewDamage[:, 1] = d_kp1
+            oldAndNewDamage[:, 1] = d_np1
             d_np1 = np.max(oldAndNewDamage, 1)
 
         else:
