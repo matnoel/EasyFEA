@@ -12,7 +12,7 @@ import TicTac
 import Folder
 
 dim = 3
-N = 40 if dim == 2 else 10
+N = 40 if dim == 2 else 40
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -77,7 +77,7 @@ elif simulationType == SimulationType.EQUERRE:
         # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
     elif dim == 3:
         # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA20)
+        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8)
 
         # TODO wdef trop grand PRISM6 4.46 -> PRISM15 9.48
 
