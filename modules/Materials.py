@@ -1901,9 +1901,9 @@ class PhaseField_Model(IModel):
         elif self.dim == 3:
 
             def __Normalize(M1, M2, M3):
-                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(2,3)))
-                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(2,3)))
-                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(2,3)))
+                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(2,3)), optimize='optimal')
+                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(2,3)), optimize='optimal')
+                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(2,3)), optimize='optimal')
 
                 return M1, M2, M3
 
@@ -1952,9 +1952,6 @@ class PhaseField_Model(IModel):
                 
                 arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2 # -1 <= arg <= 1
                 arg[h != 0] *= 1/h[h != 0]**(3/2)
-                
-                # arg = np.around(arg, 4)
-                arg[h==0] = 0
 
                 phi = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
 
@@ -2022,14 +2019,9 @@ class PhaseField_Model(IModel):
                 M2[elems1] = ((matr1 - E1_ij*eye3_1)/(E2_ij-E1_ij)) @ ((matr1 - E3_ij*eye3_1)/(E2_ij-E3_ij))
                 M3[elems1] = ((matr1 - E1_ij*eye3_1)/(E3_ij-E1_ij)) @ ((matr1 - E2_ij*eye3_1)/(E3_ij-E2_ij))
 
-                # if elems1.size > 0:
-                #     M2[elems1] = eye3_1 - (M1[elems1] + M3[elems1])
-                # else:
-                #     M2[elems1] = ((matr1 - E1_ij*eye3_1)/(E2_ij-E1_ij) * (matr1 - E3_ij*eye3_1)/(E2_ij-E3_ij))
-
                 M1, M2, M3 = __Normalize(M1, M2, M3)
 
-                tic.Tac("Decomposition", "Projecteurs propres", False)            
+                tic.Tac("Decomposition", "Projecteurs propres", False)
 
         # Passage des bases propres sous la forme dun vecteur [e,pg,3] ou [e,pg,6]
         if dim == 2:

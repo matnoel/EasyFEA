@@ -1,3 +1,4 @@
+import sys
 from enum import Enum
 import numpy as np
 import scipy.sparse as sparse
@@ -34,9 +35,8 @@ except:
     canUseMumps = False
 
 try:
-    # import petsc4py    
-    # from mpi4py import MPI
-    # import sys
+    import petsc4py    
+    from mpi4py import MPI
     from petsc4py import PETSc
     canUsePetsc = True
 except:
@@ -349,6 +349,11 @@ def _Cholesky(A, b):
 def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     # Utilise PETSc
 
+    comm   = MPI.COMM_WORLD
+    nprocs = comm.Get_size()
+    rank   = comm.Get_rank()
+    # comm = PETSc.COMM_WORLD
+
     # petsc4py.init(sys.argv, comm=MPI.COMM_WORLD)
 
     lignes, colonnes, valeurs = sparse.find(A)
@@ -356,18 +361,17 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     dimI = A.shape[0]
     dimJ = A.shape[1]
     
-    # nb = len(np.where(lignes==299)[0])
-    uniqueLignes, count = np.unique(lignes, return_counts = True)
+    _, count = np.unique(lignes, return_counts = True)
     nnz = np.array(count, dtype=np.int32)
-    
+
+    # Old
     matrice = PETSc.Mat()
-    matrice.createAIJ([dimI, dimJ], nnz=nnz)    
+    # matrice.createAIJ([dimI, dimJ], nnz=nnz, comm=comm)
+    matrice.createAIJ([dimI, dimJ], nnz=nnz)
     
-    [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)]    
+    [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)]
 
     matrice.assemble()
-
-    # matrice.isSymmetric()    
 
     vectb = matrice.createVecLeft()
 
@@ -378,15 +382,20 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     x = matrice.createVecRight()
     x.array[:] = x0
 
-    pc = "lu" # "none", "lu", "jacobi", "cholesky"
+    pcType = "lu" # "none", "lu", "jacobi", "cholesky"
     # pc = "none" # "none", "lu"
     kspType = "cg" # "cg", "bicg", "gmres", "bcgs"
 
     ksp = PETSc.KSP().create()
     ksp.setOperators(matrice)
     ksp.setType(kspType)
-    # ksp.getPC().setType('none')
-    ksp.getPC().setType(pc)
+    
+    pc = ksp.getPC()    
+    pc.setType(pcType)
+    # pc.setType("none")
+
+    # pc.setFactorSolverType("matlab")
+
     ksp.solve(vectb, x)
     
     # print(f'Solving with PETSc {ksp.getType()}') 
