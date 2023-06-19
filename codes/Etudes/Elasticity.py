@@ -11,8 +11,8 @@ import Materials
 import TicTac
 import Folder
 
-dim = 3
-N = 40 if dim == 2 else 40
+dim = 2
+N = 100 if dim == 2 else 10
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -168,7 +168,7 @@ Affichage.Plot_BoundaryConditions(simu)
 Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef, folder=folder)
 # Affichage.Plot_Result(simu, "ux")
 
-# TicTac.Tic.Plot_History()
+TicTac.Tic.Plot_History()
 
 
 

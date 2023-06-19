@@ -349,11 +349,9 @@ def _Cholesky(A, b):
 def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     # Utilise PETSc
 
-    comm   = MPI.COMM_WORLD
-    nprocs = comm.Get_size()
-    rank   = comm.Get_rank()
-    # comm = PETSc.COMM_WORLD
-
+    # comm   = MPI.COMM_WORLD
+    # nprocs = comm.Get_size()
+    # rank   = comm.Get_rank()
     # petsc4py.init(sys.argv, comm=MPI.COMM_WORLD)
 
     lignes, colonnes, valeurs = sparse.find(A)
@@ -402,7 +400,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
 
     x = x.array
 
-    option = f", {pc}, {kspType}"
+    option = f", {pcType}, {kspType}"
 
     return x, option
     
