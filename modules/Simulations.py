@@ -190,7 +190,7 @@ class Simu(ABC):
     def Check_Directions(self, problemType : ModelType, directions:list):
         """Vérifie si les directions renseignées sont possibles pour le problème"""
         listDirections = self.Get_Directions(problemType)
-        for d in directions: assert d in listDirections, f"{d} n'est pas dans [{listDirections}]"
+        for d in directions: assert d in listDirections, f"{d} n'est pas dans {listDirections}"
 
     def __Check_ProblemTypes(self, problemType : ModelType):
         """Vérifie si ce type de problème est disponible par la simulation"""
@@ -864,7 +864,7 @@ class Simu(ABC):
             valeurs_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
         
         if isinstance(valeurs, LambdaType):
-            # Evalue la fonction aux coordonnées
+            # Evalue la fonction aux coordonnées            
             try:
                 if option == "noeuds":
                     valeurs_eval[:] = valeurs(coordo[:,0], coordo[:,1], coordo[:,2])
@@ -915,7 +915,7 @@ class Simu(ABC):
         coordo_n = coordo[noeuds]
 
         # initialise le vecteur de valeurs pour chaque noeuds
-        valeurs_ddl_dir = np.zeros((Nn, len(directions)))
+        valeurs_ddl_dir = np.zeros((Nn, len(directions)))        
 
         for d, dir in enumerate(directions):
             eval_n = self.__Bc_evalue(coordo_n, valeurs[d], option="noeuds")
@@ -924,7 +924,6 @@ class Simu(ABC):
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
         nbddl_n = self.Get_nbddl_n(problemType)
-
         ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, noeuds, directions)
 
         self.__Bc_Add_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
@@ -1119,20 +1118,27 @@ class Simu(ABC):
             gauss = groupElem.Get_gauss(matriceType)
             poid_pg = gauss.poids
 
-            # initialise le vecteur de valeurs pour chaque element et chaque pts de gauss
+            # initialise le matrice de valeurs pour chaque noeuds utilisé par les elements et chaque pts de gauss (Ne*nPe, dir)
             valeurs_ddl_dir = np.zeros((Ne*groupElem.nPe, len(directions)))
+            # initialise le vecteur des ddls
+            new_ddls = np.zeros_like(valeurs_ddl_dir, dtype=int)
 
             # Intègre sur chaque direction
             for d, dir in enumerate(directions):
+                # evalue les valeurs
                 eval_e_p = self.__Bc_evalue(coordo_e_p, valeurs[d], option="gauss")
+                # intègre sur les elements
                 valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
+                # somme sur les points d'intégrations
                 valeurs_e = np.sum(valeurs_e_p, axis=1)
+                # positionne les valeurs et les ddls calculés
                 valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
+                new_ddls[:,d] = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, connect.reshape(-1), directions[d])
 
-            new_valeurs_ddls = valeurs_ddl_dir.reshape(-1)
+            new_valeurs_ddls = valeurs_ddl_dir.reshape(-1) # mets sous forme de vecteur
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
             
-            new_ddls = BoundaryCondition.Get_ddls_connect(nbddl_n, problemType, connect, directions)
+            new_ddls = new_ddls.reshape(-1) # mets sous forme de vecteur
             ddls = np.append(ddls, new_ddls)
 
         return valeurs_ddls, ddls
