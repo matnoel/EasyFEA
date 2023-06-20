@@ -43,7 +43,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         ancien axe de matplotlib, by default None    
     cmap : str, optional
         la color map utilisée proche de la figure, by default "jet" \n
-        \t ["jet", "RdBu", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
+        \t ["jet", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
     colorbarIsClose : bool, optional
         la color bar est affiché proche de la figure, by default False
     nColors : int, optional
