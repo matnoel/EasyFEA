@@ -38,70 +38,80 @@ r=diam/2
 
 E=12e9
 v=0.2
-SIG = 10 #Pa
+SIG = 5 #Pa
 
 gc = 1.4
 l_0 = 0.12 *coef*3
 
 # Création du maillage
 clD = l_0*2
-clC = l_0
+clC = l_0/2
 
 point = Point()
 domain = Domain(point, Point(x=L, y=H), clD)
 circle = Circle(Point(x=L/2, y=H-h), diam, clC, isCreux=True)
 val = diam*2
-refineGeom = Domain(Point(x=L/2-val/2, y=(H-h)-val/2), Point(x=L/2+val/2, y=(H-h)+val/2), meshSize=clC/2)
+# refineGeom = Domain(Point(x=L/2-val/2, y=(H-h)-val/2), Point(x=L/2+val/2, y=(H-h)+val/2), meshSize=clC/2)
+refineGeom = None
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
 if dim == 2:
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD8", refineGeom=refineGeom)
 else:
-    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,6*coef], 6, "HEXA8", refineGeom=refineGeom)
-
-Affichage.Plot_Model(mesh)
-# plt.show()
-Affichage.Plot_Mesh(mesh,folder=folder)
+    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,10*coef], 4, "HEXA8", refineGeom=refineGeom)
 
 # Récupérations des noeuds de chargement
-B_lower = Line(point,Point(x=L))
-B_upper = Line(Point(y=H),Point(x=L, y=H))
-
-noeuds_22 = mesh.Nodes_Tags(["S5","S6"])
-
-if len(noeuds_22) > 0:
-    Affichage.Plot_Nodes(mesh, nodes=noeuds_22)
-    # plt.show()
-
-# nodes0 = mesh.Nodes_Line(B_lower)
-nodes0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-# nodesh = mesh.Nodes_Line(B_upper)
-nodesh = mesh.Nodes_Conditions(lambda x,y,z: y==H)
-node00 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
+nodesY0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+nodesH = mesh.Nodes_Conditions(lambda x,y,z: y==H)
+nodeX0Y0 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
 if dim == 2:
     noeuds_cercle = mesh.Nodes_Circle(circle)
 else:
     noeuds_cercle = mesh.Nodes_Cylindre(circle,[0,0,1])
 
+# prends les noeuds du bas
 noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]
 
+# loi de comportement
 comportement = Materials.Elas_Isot(dim, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
 phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
 
 simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
-simu.add_dirichlet(nodes0, [0], ["y"])
-simu.add_dirichlet(node00, [0], ["x"])
-# simu.add_surfLoad(noeuds_cercle, [-SIG], ["y"])
-# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r], ["y"])
-# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r*(y-circle.center.y)/r], ["x"])
+simu.add_dirichlet(nodesY0, [0], ["y"])
+simu.add_dirichlet(nodeX0Y0, [0], ["x"])
 
-# Sx = F * cos tet * abs(sin tet)
-# Sy = F * sin tet * abs(sin tet)
-# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
-# simu.add_surfLoad(noeuds_cercle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
+pc = circle.center.coordo
 
-simu.add_surfLoad(nodesh, [-SIG], ["y"])
+def FuncEval(x: np.ndarray, y: np.ndarray, z: np.ndarray):
+    """Evaluation de la fonction sig cos(theta)^2 vect_n"""
+    
+    # Calcul de l'angle
+    theta = np.arctan((x-pc[0])/(y-pc[1]))
+
+    # Coordonnées des points de gauss sous forme de matrice
+    coord = np.zeros((x.shape[0],x.shape[1],3))
+    coord[:,:,0] = x
+    coord[:,:,1] = y
+    coord[:,:,2] = z
+
+    # Construction du vecteur normal
+    vect = coord - pc
+    vectN = np.einsum('npi,np->npi', vect, 1/np.linalg.norm(vect, axis=2))
+    
+    # Chargement
+    loads = SIG * np.einsum('np,npi->npi',np.cos(theta)**2, vectN)
+
+    return loads
+
+funcEvalX = lambda x,y,z: FuncEval(x,y,z)[:,:,0]
+funcEvalY = lambda x,y,z: FuncEval(x,y,z)[:,:,1]
+
+# simu.add_surfLoad(noeuds_cercle, [funcEvalX], ["x"])
+# simu.add_surfLoad(noeuds_cercle, [funcEvalY], ["y"])
+simu.add_surfLoad(noeuds_cercle, [funcEvalX, funcEvalY], ["x","y"], description=r"$\mathbf{q}(\theta) = \sigma \ cos^2(\theta) \ \mathbf{n}(\theta)$")
+
+# simu.add_surfLoad(nodesH, [-SIG], ['y'])
 
 Affichage.Plot_BoundaryConditions(simu)
 
@@ -111,49 +121,22 @@ simu.Save_Iteration()
 
 Affichage.NewSection("Résultats")
 
-Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
+# Affichage.Plot_Model(mesh)
+# Affichage.Plot_Mesh(mesh)
+
+Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx', cmap='seismic')
 Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
 Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 Affichage.Plot_Result(simu, "Svm", coef=1/SIG, title=r"$\sigma_{vm}/\sigma$", folder=folder, filename='Svm')
 
-# # mini = np.min(simu.Get_Resultat("Syy", nodeValues=False))/SIG
+Affichage.Plot_Result(simu, "psiP")
 
-# # PostTraitement.Save_Simulation_in_Paraview(folder, simu)
-
-# R = 10
-# Load=15
-# tet = np.linspace(-np.pi,0,31)
-
-# xR = R * np.cos(tet)
-# yR = R * np.sin(tet)
-
-# # xf = Load * np.cos(tet) 
-# # yf = Load * np.sin(tet)
-
-# # xf = Load * np.cos(tet)* np.abs(np.sin(tet)) + R * np.cos(tet)
-# xf = xR
-# # yf = Load * np.sin(tet)* np.abs(np.sin(tet))
-# yf = Load * np.sin(tet)**2
-
-# # xf = Load * np.cos(tet)* 1 + R * np.cos(tet)
-# # yf = Load * np.sin(tet)* 1
-
-# # xf = - Load * np.cos(tet) * np.sin(tet)
-# # yf = - Load * np.sin(tet) * np.sin(tet)
-
-# fig, ax = plt.subplots()
-
-# ax.plot(tet, yf)
-
-# # ax.plot(xR,yR)
-# # ax.plot(xf,yf)
-# # for x,y,dx,dy in zip(xR,yR,xf-xR,yf-yR):
-# #     ax.arrow(x,y,dx,dy,width=0.1,length_includes_head=True)
-# # ax.axis('equal')
-
-# ax.grid()
+# Affichage.Plot_Result(simu, "ux")
+# Affichage.Plot_Result(simu, "uy")
 
 
+# vectF = simu.Get_K_C_M_F()[0] @ simu.displacement
+# Affichage.Plot_Result(simu, vectF.reshape(-1,dim)[:,1])
 
 Tic.Resume()
 
