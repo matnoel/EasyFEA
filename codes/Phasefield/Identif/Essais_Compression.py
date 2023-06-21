@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 import Folder
 import Affichage
+from Mesh import Mesh
 from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, Domain, Circle
 import Materials
@@ -22,12 +23,24 @@ folder_file = Folder.Get_Path(__file__)
 idxEssai = 4
 
 nL = 100
-# tolConv = 1e-1/2
-tolConv = 1e-6
+
+tolConv = 1e-2/2
+
+solveur = 0 # least_squares
+# solveur = 1 # minimize
+# solveur = 2 # regle de 3
 
 # split = "AnisotStress"
 # split = "He"
 split = "Zhang"
+
+# tolConv = 1e-0
+tolConv = 1e-3
+# tolConv = 1e-2
+
+# convOption = 0 # bourdin
+# convOption = 1 # energie crack
+convOption = 2 # energie tot
 
 useContact = False
 test = True
@@ -58,8 +71,6 @@ ep = 20
 d = 10
 
 l0 = l/nL
-
-meshSize = l0 if test else l0/2
 
 # ----------------------------------------------
 # Forces & Déplacements
@@ -98,25 +109,32 @@ def Calc_a_b(forces, deplacements, fmax):
 
     return a, b
 
+# calcul la raideur expérimentale
 k_exp, __ = Calc_a_b(forces, deplacements, 15)
 
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
 
-if optimMesh:
-    epRefine = d
-    refineGeom = Domain(Point(l/2-epRefine), Point(l/2+epRefine, h), meshSize)
-    meshSize *= 3
-else:
-    refineGeom = None
+def DoMesh(l0: float) -> Mesh:
 
-domain = Domain(Point(), Point(l, h), meshSize)
-circle = Circle(Point(l/2, h/2), d, meshSize)
+    meshSize = l0 if test else l0/2
 
-mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
-xn = mesh.coordo[:,0]
-yn = mesh.coordo[:,1]
+    if optimMesh:
+        epRefine = d
+        refineGeom = Domain(Point(l/2-epRefine), Point(l/2+epRefine, h), meshSize)
+        meshSize *= 3
+    else:
+        refineGeom = None
+
+    domain = Domain(Point(), Point(l, h), meshSize)
+    circle = Circle(Point(l/2, h/2), d, meshSize)
+
+    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
+
+    return mesh
+
+mesh = DoMesh(l0)
 
 nodes_Lower = mesh.Nodes_Tags(["L0"])
 nodes_Upper = mesh.Nodes_Tags(["L2"])
@@ -181,9 +199,9 @@ if pltLoad:
 
     deplMat = np.linspace(0, -np.mean(u_num[ddlsY_Upper]), 20)
     forcesMat = np.linspace(forces[0], fr_num, 20)
-    # axLoad.scatter(deplMat, forcesMat, label="mat", marker=".", c="black", zorder=10)    
+    # axLoad.scatter(deplMat, forcesMat, label="mat", marker=".", c="black", zorder=10)
 
-    coef_a = k_mat/k_exp    
+    # coef_a = k_mat/k_exp    
     # axLoad.plot(deplacements/coef_a, forces, label="(1)")    
        
     deplacements = deplacements-forces/k_montage
@@ -232,8 +250,7 @@ if GcHeterogene:
 
 else:
 
-    Gc = 0.07
-    
+    Gc = 0.07    
     # Gc = 0.05
     # Gc = 0.01
 
@@ -270,6 +287,9 @@ list_fr = []
 list_dep = []
 
 if pltContact:
+    xn = mesh.coordo[:,0]
+    yn = mesh.coordo[:,1]
+
     axContact = plt.subplots()[1]
     axContact.set_xlabel("xn [mm]"), axContact.set_ylabel("f [kN]")
     idxSort = np.argsort(xn[nodes_Upper])
