@@ -11,8 +11,8 @@ import Materials
 import TicTac
 import Folder
 
-dim = 2
-N = 100 if dim == 2 else 10
+dim = 3
+N = 50 if dim == 2 else 10
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -69,21 +69,12 @@ elif simulationType == SimulationType.EQUERRE:
 
     inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize=h/N, isCreux=True) for i in range(3)]
 
-    inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])    
+    inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])
 
     if dim == 2:
         mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI10, cracks)
-
-        # Affichage.Plot_Noeuds(mesh, mesh.Nodes_Line(crack), showId=True)
-    elif dim == 3:
-        # ["TETRA4", "HEXA8", "PRISM6"]
-        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.HEXA8)
-
-        # TODO wdef trop grand PRISM6 4.46 -> PRISM15 9.48
-
-        # noeudsS3 = mesh.Nodes_Tags(["S9","S15","S14","S21"])
-        # Affichage.Plot_Elements(mesh, noeudsS3)
-        # plt.show()
+    elif dim == 3:        
+        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.PRISM6)
 
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(lambda x,y,z: x == L)

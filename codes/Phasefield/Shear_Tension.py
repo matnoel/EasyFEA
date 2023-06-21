@@ -32,6 +32,7 @@ nomDossier = '_'.join([simulation,"Benchmark"])
 test = True
 solve = True
 
+
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
@@ -74,7 +75,7 @@ solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Amor"]
+splits = ["AnisotStress"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)
@@ -106,7 +107,7 @@ for split, regu in zip(splits, regularisations):
 
     # Paramètres maillage
     if test:
-        clC = l0 #taille maille test fem object        
+        clC = l0 #taille maille test fem object
     else:
         # On raffine pour avoir au moin 2 element par demie largeur de fissure
         clC = l0/2 #l0/2 2.5e-6 
@@ -165,10 +166,12 @@ for split, regu in zip(splits, regularisations):
                 ptC4 = Point(0,L/2, ep, isOpen=True)
                 cracks = []
 
-                l1 = Line(ptC1, ptC2, clC, True)
-                l2 = Line(ptC2, ptC3, clC, False)
-                l3 = Line(ptC3, ptC4, clC, True)
-                l4 = Line(ptC4, ptC1, clC, True)
+                meshSize = clD if optimMesh else clC
+
+                l1 = Line(ptC1, ptC2, meshSize, True)
+                l2 = Line(ptC2, ptC3, meshSize, False)
+                l3 = Line(ptC3, ptC4, meshSize, True)
+                l4 = Line(ptC4, ptC1, meshSize, True)
                 
                 cracks = [Contour([l1, l2, l3, l4])]
             
@@ -355,7 +358,7 @@ for split, regu in zip(splits, regularisations):
 
             Chargement(dep)
 
-            u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
+            u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter, convOption=1)
 
             simu.Save_Iteration()
             
@@ -517,7 +520,7 @@ for split, regu in zip(splits, regularisations):
         # ----------------------------------------------
         # Movie
         # ---------------------------------------------
-        PostTraitement.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
+        PostTraitement.Make_Movie(folder, "damage", simu, deformation=False, NiterFin=0)
         # PostTraitement.MakeMovie(folder, "Svm", simu)        
         # PostTraitement.MakeMovie(filename, "Syy", simu, nodeValues=True, deformation=True)
             

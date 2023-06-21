@@ -809,6 +809,8 @@ class Interface_Gmsh:
 
         return hollowLoops, filledLoops
 
+    # TODO faire la revolution autour d'un axe
+
     def Mesh_2D(self, contour: Geom, inclusions=[], elemType=ElemType.TRI3, cracks=[], isOrganised=False, refineGeom=None, folder="", returnSurfaces=False):
         """Construis le maillage 2D en créant une surface depuis une liste de points
 
