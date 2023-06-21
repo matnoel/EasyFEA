@@ -354,10 +354,9 @@ for idxEssai in range(4,5):
 
     else:        
 
-        Gc_array = np.linspace(0.01, 0.12, 5)
+        Gc_array = np.linspace(0.01, 0.12, 20)        
+        l0_array = np.linspace(L/100, L/5, 20)
         
-        # l0_array = np.linspace(L/100, L/10, 2)
-        l0_array = np.linspace(L/50, L/10, 5)
 
         GC, L0 = np.meshgrid(Gc_array, l0_array)
 
@@ -375,7 +374,7 @@ for idxEssai in range(4,5):
 
         path = Folder.New_File("data.pickle", folder_Save)
 
-        importData = False
+        importData = True
 
         if not importData:
         
@@ -402,23 +401,26 @@ for idxEssai in range(4,5):
                 data = pickle.load(file)
                 GC = data['GC']
                 L0 = data['L0']
-                results = data['results']        
+                results = data['results']
 
         fig = plt.figure()
         ax1 = fig.add_subplot(projection="3d")
-        ax1.plot_surface(GC, L0, results, cmap='jet')
+        cc = ax1.plot_surface(GC, L0, results, cmap='jet')
+        fig.colorbar(cc)
         ax1.set_xlabel("Gc")
         ax1.set_ylabel("l0")
-        ax1.set_zlabel("J")        
+        ax1.set_zlabel("J")
+
         # ax1.contour(GC, L0, results)
 
         Affichage.Save_fig(folder_Save, "J surface")
 
 
         ax2 = plt.subplots()[1]
-        ax2.contourf(GC, L0, results, cmap='jet')
+        cc = ax2.contourf(GC, L0, results, cmap='jet')
         ax2.set_xlabel("GC")
         ax2.set_ylabel("L0")
+        ax2.figure.colorbar(cc)
 
         Affichage.Save_fig(folder_Save, "J contourf")
 
