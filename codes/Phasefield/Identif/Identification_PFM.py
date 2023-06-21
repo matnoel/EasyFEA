@@ -99,7 +99,7 @@ if doIdentif:
 else:
     folder = Folder.New_File(Folder.Join(["Essais FCBA", "Grille"]), results=True)
 
-for idxEssai in range(1):
+for idxEssai in range(4,5):
 
     # Dossier de l'essai
     essai = f"Essai{idxEssai}"
@@ -373,7 +373,7 @@ for idxEssai in range(1):
         #     plt.pause(1e-12)
         # # Affichage.Save_fig(folder_Save, "J")
 
-        path = Folder.Join([folder_Save, "data.pickle"])
+        path = Folder.New_File("data.pickle", folder_Save)
 
         importData = False
 

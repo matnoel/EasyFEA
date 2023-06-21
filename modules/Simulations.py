@@ -2880,7 +2880,7 @@ class Simu_PhaseField(Simu):
             tempsCoef, unite = Tic.Get_temps_unite(tempsRestant)
 
             # Rajoute le pourcentage et lestimation du temps restant
-            resumeIter = resumeIter+f"{np.round(pourcentage*100,2)} % -> {np.round(tempsCoef,1)} {unite}   "
+            resumeIter = resumeIter+f"{np.round(pourcentage*100,2):3.2f} % -> {tempsCoef:.2e} {unite}  "
 
         print(resumeIter, end=end)
 
