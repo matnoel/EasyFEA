@@ -23,11 +23,11 @@ folder_file = Folder.Get_Path(__file__)
 # Config
 # ----------------------------------------------
 
-doIdentif = False
-detectL0 = False
+doIdentif = True
+detectL0 = True
 useContact = False
 
-test = True
+test = False
 optimMesh = True
 
 solveur = 0 # least_squares
@@ -42,7 +42,7 @@ ftol = 1e-2/2
 # split = "He"
 split = "Zhang"
 
-tolConv = 1e-0
+tolConv = 1e-2
 # tolConv = 1e-3
 # tolConv = 1e-2
 
@@ -67,10 +67,10 @@ L = 45
 ep = 20
 D = 10
 
-Gc0 = 0.07
+Gc0 = 0.02
 GcMax = 2
 
-nL = 50
+nL = 100
 l00 = L/nL
 
 # ----------------------------------------------
