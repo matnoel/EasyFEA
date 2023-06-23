@@ -23,7 +23,7 @@ folder_file = Folder.Get_Path(__file__)
 # Config
 # ----------------------------------------------
 
-doIdentif = True
+doIdentif = False
 detectL0 = False
 useContact = False
 
@@ -41,9 +41,10 @@ ftol = 1e-2/2
 # split = "AnisotStress"
 # split = "He"
 split = "Zhang"
+regu = "AT2"
 
-# tolConv = 1e-2
-tolConv = 1e-3
+tolConv = 1e0
+# tolConv = 1e-3
 # tolConv = 1e-2
 
 # convOption = 0 # bourdin
@@ -70,7 +71,8 @@ D = 10
 Gc0 = 0.02
 GcMax = 2
 
-nL = 100
+# nL = 100
+nL = 10
 l00 = L/nL
 
 # ----------------------------------------------
@@ -94,10 +96,12 @@ pathParams = Folder.Join([folder_file, "params_Essais.xlsx"])
 dfParams = pd.read_excel(pathParams)
 # print(dfParams)
 
+folder_FCBA = Folder.New_File("Essais FCBA",results=True)
+
 if doIdentif:
-    folder = Folder.New_File(Folder.Join(["Essais FCBA", "Identification"]), results=True)
+    folder = Folder.Join([folder_FCBA, "Identification"])
 else:
-    folder = Folder.New_File(Folder.Join(["Essais FCBA", "Grille"]), results=True)
+    folder = Folder.Join([folder_FCBA, "Grille"])
 
 for idxEssai in range(4,5):
 
@@ -105,10 +109,15 @@ for idxEssai in range(4,5):
     essai = f"Essai{idxEssai}"
 
     print(essai)
-    
-    folder_Save = Folder.Join([folder, essai])
+
+    folder_Essai = Folder.Join([folder, essai])
+
     if test:
-        folder_Save = Folder.Join([folder_Save, "Test"])
+        folder_Essai = Folder.Join([folder_Essai, "Test"])
+
+    simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh} ftol{ftol}"
+    
+    folder_Save = Folder.Join([folder_Essai, simuOptions])    
 
     if not doSimulation:
         simu = Simulations.Load_Simu(folder_Save)
@@ -230,7 +239,7 @@ for idxEssai in range(4,5):
         ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["y"])
         
         # construit le modèle d'endommagement
-        pfm = Materials.PhaseField_Model(comp, split, "AT2", Gc, l0, A=A)
+        pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0, A=A)
         
         simu = Simulations.Simu_PhaseField(meshSimu, pfm)        
 
@@ -358,29 +367,19 @@ for idxEssai in range(4,5):
 
             x = [Gc,l00]
 
-    else:        
+    else:
 
-        Gc_array = np.linspace(0.01, 0.12, 20)        
-        l0_array = np.linspace(L/100, L/5, 20)
-        
+        # Gc_array = np.linspace(0.01, 0.12, 20)
+        # l0_array = np.linspace(L/100, L/5, 20)
 
-        GC, L0 = np.meshgrid(Gc_array, l0_array)
+        Gc_array = np.linspace(0.01, 0.12, 10)
+        l0_array = np.linspace(L/50, L/10, 4)
 
-        # ax = plt.subplots()[1]
-        # ax.set_xlabel("Gc")
-        # ax.set_ylabel("J")
-        # for gc in Gc_array:            
-
-        #     ecart, fr = DoSimu(np.array([gc]))
-
-        #     ax.scatter(gc, ecart)
-
-        #     plt.pause(1e-12)
-        # # Affichage.Save_fig(folder_Save, "J")
+        L0, GC = np.meshgrid(l0_array, Gc_array)        
 
         path = Folder.New_File("data.pickle", folder_Save)
 
-        importData = True
+        importData = False
 
         if not importData:
         
@@ -416,6 +415,17 @@ for idxEssai in range(4,5):
         ax1.set_xlabel("Gc")
         ax1.set_ylabel("l0")
         ax1.set_zlabel("J")
+
+        Js = []
+        for gc in Gc_array:            
+
+            ecart, fr = DoSimu(np.array([gc]))
+
+            Js.append(ecart)
+
+            ax1.scatter(gc, l00, ecart, c='black')
+            plt.pause(1e-12)
+        
 
         # ax1.contour(GC, L0, results)
 
