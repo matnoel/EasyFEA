@@ -2867,7 +2867,7 @@ class Simu_PhaseField(Simu):
 
         min_d = d.min()
         max_d = d.max()
-        resumeIter = f"{resol:4} : {np.round(load,3)} {uniteLoad},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:4.2f}  "
+        resumeIter = f"{resol:4} : {np.round(load,3)} {uniteLoad},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
         
         if remove:
             end='\r'
@@ -2880,7 +2880,7 @@ class Simu_PhaseField(Simu):
             tempsCoef, unite = Tic.Get_temps_unite(tempsRestant)
 
             # Rajoute le pourcentage et lestimation du temps restant
-            resumeIter = resumeIter+f"{np.round(pourcentage*100,2):3.2f} % -> {tempsCoef:.2e} {unite}  "
+            resumeIter = resumeIter+f"{np.round(pourcentage*100,2):3.2f} % -> {tempsCoef:4.2f} {unite}  "
 
         print(resumeIter, end=end)
 
