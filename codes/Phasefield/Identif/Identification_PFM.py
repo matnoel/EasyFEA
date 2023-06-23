@@ -72,7 +72,7 @@ Gc0 = 0.02
 GcMax = 2
 
 # nL = 100
-nL = 10
+nL = 50
 l00 = L/nL
 
 # ----------------------------------------------
@@ -379,7 +379,7 @@ for idxEssai in range(4,5):
 
         path = Folder.New_File("data.pickle", folder_Save)
 
-        importData = False
+        importData = True
 
         if not importData:
         
@@ -415,19 +415,13 @@ for idxEssai in range(4,5):
         ax1.set_xlabel("Gc")
         ax1.set_ylabel("l0")
         ax1.set_zlabel("J")
-
-        Js = []
-        for gc in Gc_array:            
-
-            ecart, fr = DoSimu(np.array([gc]))
-
-            Js.append(ecart)
-
-            ax1.scatter(gc, l00, ecart, c='black')
-            plt.pause(1e-12)
+        # ax1.contour(GC, L0, results)        
         
+        # for gc in Gc_array:
+        #     ecart, fr = DoSimu(np.array([gc]))
+        #     ax1.scatter(gc, l00, ecart, c='black')
+        #     plt.pause(1e-12)
 
-        # ax1.contour(GC, L0, results)
 
         Affichage.Save_fig(folder_Save, "J surface")
 
