@@ -373,7 +373,7 @@ for idxEssai in range(4,5):
         # l0_array = np.linspace(L/100, L/5, 20)
 
         Gc_array = np.linspace(0.01, 0.12, 10)
-        l0_array = np.linspace(L/50, L/10, 4)
+        l0_array = np.linspace(L/80, L/50, 4)
 
         L0, GC = np.meshgrid(l0_array, Gc_array)        
 
