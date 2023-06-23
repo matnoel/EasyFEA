@@ -24,10 +24,10 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 
 doIdentif = True
-detectL0 = True
+detectL0 = False
 useContact = False
 
-test = False
+test = True
 optimMesh = True
 
 solveur = 0 # least_squares
@@ -42,8 +42,8 @@ ftol = 1e-2/2
 # split = "He"
 split = "Zhang"
 
-tolConv = 1e-2
-# tolConv = 1e-3
+# tolConv = 1e-2
+tolConv = 1e-3
 # tolConv = 1e-2
 
 # convOption = 0 # bourdin
@@ -103,6 +103,8 @@ for idxEssai in range(4,5):
 
     # Dossier de l'essai
     essai = f"Essai{idxEssai}"
+
+    print(essai)
     
     folder_Save = Folder.Join([folder, essai])
     if test:
@@ -215,11 +217,11 @@ for idxEssai in range(4,5):
             l0 = x[1]
             # reconstruit le maillage
             meshSimu = DoMesh(l0)
-            print(f"\nGc = {x[0]:.10e}, l0 = {x[1]:.5e}")
+            print(f"\nGc = {x[0]:.5e}, l0 = {x[1]:.5e}")
         else:
             l0 = l00
             meshSimu = mesh
-            print(f"\nGc = {x[0]:.10e}")
+            print(f"\nGc = {x[0]:.5e}")
             
         yn = meshSimu.coordo[:, 1]
         nodes_Lower = meshSimu.Nodes_Tags(["L0"])
@@ -230,7 +232,7 @@ for idxEssai in range(4,5):
         # construit le modèle d'endommagement
         pfm = Materials.PhaseField_Model(comp, split, "AT2", Gc, l0, A=A)
         
-        simu = Simulations.Simu_PhaseField(meshSimu, pfm)
+        simu = Simulations.Simu_PhaseField(meshSimu, pfm)        
 
         dep = -inc0            
 
@@ -269,14 +271,16 @@ for idxEssai in range(4,5):
 
             fr = - np.sum(f)/1000
 
-            simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/f_crit, True)
+            maxD = d.max()
+
+            simu.Resultats_Set_Resume_Iteration(i, fr, "kN", maxD/dCible, True)
 
             # if not convergence or True in (d[nodes_Boundary] >= 0.98):
             #     print("\nPas de convergence")
             #     break        
 
-            if d.max() >= dCible:
-                break        
+            if maxD >= dCible:
+                break
 
         if returnSimu:
             return simu
@@ -287,7 +291,7 @@ for idxEssai in range(4,5):
             if solveur in [0,1]:
                 ecart = (fr - f_crit)/f_crit
                 # ecart = (fr - f_crit)
-                print(f"\necart = {ecart:.10e}")            
+                print(f"\necart = {ecart:.5e}")            
             elif solveur == 2:
                 ecart = fr
 
@@ -297,6 +301,8 @@ for idxEssai in range(4,5):
             axEcart.scatter(Niter, ecarts[-1], c="black")
             plt.figure(axEcart.figure)
             plt.pause(1e-12)
+
+            print()
 
             return ecart
         else:
@@ -320,7 +326,7 @@ for idxEssai in range(4,5):
         if solveur in [0,1]:
             
             if solveur == 0:
-                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol)
+                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=ftol, gtol=ftol)
             elif solveur == 1:
                 # res = minimize(DoSimu, x0, tol=tol)
 
