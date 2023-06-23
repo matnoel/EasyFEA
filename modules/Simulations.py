@@ -2141,12 +2141,12 @@ class Simu_PhaseField(Simu):
                 psi_tot_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
             elif convOption == 3:
                 d_n = self.damage
-                u_n = self.displacement
-                
+                u_n = self.displacement                
 
             # Damage
             self.__Assemblage_d()
             d_np1 = self.__Solve_d()
+
             if d_np1.max() == np.inf and regu == "AT1":
                 # ici il peut arriver qua la première itération la solution d'endommagement soit infinie
                 # pour eviter que ça pose probleme pour la suite l'endommagement  
@@ -2867,7 +2867,7 @@ class Simu_PhaseField(Simu):
 
         min_d = d.min()
         max_d = d.max()
-        resumeIter = f"{resol:4} : {np.round(load,3)} {uniteLoad},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
+        resumeIter = f"{resol:4} : {np.round(load,3)} {uniteLoad},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:4.2f}  "
         
         if remove:
             end='\r'
