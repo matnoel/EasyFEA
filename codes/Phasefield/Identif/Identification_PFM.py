@@ -23,27 +23,43 @@ folder_file = Folder.Get_Path(__file__)
 # Config
 # ----------------------------------------------
 
-doIdentif = False
+doSimulation = True
+doIdentif = True
 detectL0 = False
 useContact = False
 
-test = True
+test = False
 optimMesh = True
+# Affichage
+pltLoad = True 
+pltIter = True
+pltContact = False
+
+# nL = 100
+nL = 50
+Gc0 = 0.02
+GcMax = 2
+
+# inc0 = 8e-3 # incrément platewith hole
+# inc1 = 2e-3
+inc0 = 1e-2/2
+inc1 = inc0/4
 
 solveur = 0 # least_squares
 # solveur = 1 # minimize
 # solveur = 2 # regle de 3
 
 # ftol = 1e-12
-# ftol = 1e-4
-ftol = 1e-2/2
+ftol = 1e-5
+# ftol = 1e-2/2
+# ftol = 1e-1/2
 
 # split = "AnisotStress"
 # split = "He"
 split = "Zhang"
 regu = "AT2"
 
-tolConv = 1e0
+tolConv = 1e-0
 # tolConv = 1e-3
 # tolConv = 1e-2
 
@@ -51,28 +67,11 @@ tolConv = 1e0
 # convOption = 1 # energie crack
 convOption = 2 # energie tot
 
-# Affichage
-pltLoad = True
-pltIter = True
-pltContact = False
-
-doSimulation = True
-
-# inc0 = 8e-3 # incrément platewith hole
-# inc1 = 2e-3
-inc0 = 1e-2/2
-inc1 = inc0/4
-
 H = 90
 L = 45
 ep = 20
 D = 10
 
-Gc0 = 0.02
-GcMax = 2
-
-# nL = 100
-nL = 50
 l00 = L/nL
 
 # ----------------------------------------------
@@ -103,12 +102,13 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(4,5):
+# for idxEssai in range(4,5):
+for idxEssai in range(18):
 
     # Dossier de l'essai
     essai = f"Essai{idxEssai}"
 
-    print(essai)
+    print(essai)    
 
     folder_Essai = Folder.Join([folder, essai])
 
@@ -282,7 +282,7 @@ for idxEssai in range(4,5):
 
             maxD = d.max()
 
-            simu.Resultats_Set_Resume_Iteration(i, fr, "kN", maxD/dCible, True)
+            simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/f_crit, True)
 
             # if not convergence or True in (d[nodes_Boundary] >= 0.98):
             #     print("\nPas de convergence")
@@ -509,9 +509,10 @@ for idxEssai in range(4,5):
             {
                 "Essai": essai,
                 "split": simu.phaseFieldModel.split,
-                "regu": simu.phaseFieldModel.regularization,        
-                "A": A,
+                "regu": simu.phaseFieldModel.regularization,
+                # "A": A,
                 "tolConv": tolConv,
+                "test": test,
                 "optimMesh": optimMesh,
                 "solveur": solveur,
                 "ftol": ftol,
