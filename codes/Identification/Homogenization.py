@@ -46,7 +46,7 @@ mesh = gmshInterface.Mesh_2D(points, [inclusion], "TRI6")
 coordo = mesh.coordoGlob
 
 Affichage.Plot_Mesh(mesh)
-# Affichage.Plot_Model(mesh)
+Affichage.Plot_Model(mesh)
 
 nodesLeft = mesh.Nodes_Conditions(lambda x,y,z: x==-1/2)
 nodesLeft = nodesLeft[np.argsort(coordo[nodesLeft,1])][1:-1]
@@ -72,8 +72,8 @@ else:
 # Model and simu
 # --------------------------------------
 
-elementsInclusion = mesh.Elements_Tags(["S0"])
-elementsMatrice = mesh.Elements_Tags(["S1"])
+elementsInclusion = mesh.Elements_Tags(["S1"])
+elementsMatrice = mesh.Elements_Tags(["S0"])
 
 E = np.zeros_like(mesh.groupElem.elements, dtype=float)
 v = np.zeros_like(mesh.groupElem.elements, dtype=float)
@@ -107,9 +107,7 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
 
     simu.Bc_Init()
 
-    simu.add_dirichlet(nodesBord, [lambda x, y, z: Ekl.dot([x, y])[0], lambda x, y, z: Ekl.dot([x, y])[1]], ["x","y"])
-
-    # Affichage.Plot_BoundaryConditions(simu)
+    simu.add_dirichlet(nodesBord, [lambda x, y, z: Ekl.dot([x, y])[0], lambda x, y, z: Ekl.dot([x, y])[1]], ["x","y"])    
 
     if usePER:        
         
@@ -147,6 +145,10 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
             ddls = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["y"])        
             condition = LagrangeCondition("displacement", nodes, ddls, ["y"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)
+
+    # Affichage.Plot_BoundaryConditions(simu)
+
+    pass
 
     ukl = simu.Solve()
 
@@ -189,6 +191,8 @@ B_e_pg = mesh.Get_B_dep_e_pg(matriceType)
 C_Mat = Materials.Resize_variable(comp.C, mesh.Ne, poids_pg.size)
 
 C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobien_e_pg, poids_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1/mesh.aire
+
+# TODO attention ici il faut utiliser toute l'ai meme si il y'a des trous remarques ZAKARIA
 
 
 print(f"f = {f}")
