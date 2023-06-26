@@ -12,7 +12,7 @@ np = Affichage.np
 pltIter = False
 pltLoad = True
 
-makeMovie = True
+makeMovie = False
 makeParaview = False
 
 doSimu = True
@@ -202,7 +202,7 @@ if doSimu:
 
         load.append(fr)
 
-        simu.Resultats_Set_Resume_Iteration(iter, ud*1e6, "µm", ud/uMax, True)
+        simu.Resultats_Set_Resume_Iteration(iter, ud*1e6, "µm", iter/displacement.size, True)
 
         simu.Save_Iteration()
 
