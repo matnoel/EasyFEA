@@ -33,14 +33,15 @@ folder = Folder.New_File(name, results=True)
 # ----------------------------------------------
 
 test = True
-optimMesh = True
+optimMesh = False
+useNotchCrack = False
 
 unit = 1e-3; # for mm [Guidault, Allix, Champaney, Cornuault, 2008, CMAME], [Miehe, Welschinger, Hofacker, 2010, IJNME], [Miehe, Hofacker, Welschinger, 2010, CMAME],[Passieux, Rethore, Gravouil, Baietto, 2013, CM]
 
 L = 8*unit # height
 L1 = 10*unit
 L2 = 9*unit
-ep = 1
+ep = 0.5*unit
 nw = 0.05*unit # notch width mm
 diam = 0.5*unit # hole diameter
  
@@ -99,18 +100,25 @@ else:
     refineDomain = None
     hD = 0.1*unit # 8 * hC -> 0.025*unit/2 * 8
 
-contour = PointsList([p0,p1,p2,p3,pC1,pC2,pC3,pC4,p4,p5,p6], hD)
+if useNotchCrack:
+    contour = PointsList([p0,p1,p2,p3,pC1,pC2,pC3,pC4,p4,p5,p6], hD)
+    cracks = []
+else:
+    contour = PointsList([p0,p1,p2,p3,p4,p5,p6], hD)
+
+    cracks = [Line(Point(-e1,0, isOpen=True), Point(-e1,e2), hC, True)]
 
 inclusions = [c1, c2, c3]
 
 circlePos1 = Circle(p3, e2)
 circlePos2 = Circle(p4, e2)
+circlePos3 = Circle(p0, e2)
 
 if dim == 2:
-    mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, "TRI3", refineGeom=refineDomain)
+    mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, "TRI3", refineGeom=refineDomain, cracks=cracks)
     directions = ["x","y"]
 else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,ep], 3, "HEXA8", refineGeom=refineDomain)
+    mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,ep], 3, "HEXA8", refineGeom=refineDomain, cracks=cracks)
     directions = ["x","y","z"]
 
 Affichage.Plot_Mesh(mesh)
@@ -122,7 +130,8 @@ nodesEnca = np.concatenate([node3, node4])
 
 nodesCircle1 = mesh.Nodes_Cylindre(circlePos1, [0,0,ep])
 nodesCircle2 = mesh.Nodes_Cylindre(circlePos2, [0,0,ep])
-nodesDamage = np.concatenate([nodesCircle1, nodesCircle2])
+nodesCircle3 = mesh.Nodes_Cylindre(circlePos3, [0,0,ep])
+nodesDamage = np.concatenate([nodesCircle1, nodesCircle2, nodesCircle3])
 
 ddlsY_Load = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", nodesLoad, ['y'])
 
@@ -136,7 +145,7 @@ v = 0.3
 Gc = 1e-3 # kN / mm
 Gc *= 1000*1000 # 1e3 N / m -> J/m2
 
-comportement = Materials.Elas_Isot(dim, E, v, True, ep)
+comportement = Materials.Elas_Isot(dim, E, v, False, ep)
 
 pfm = Materials.PhaseField_Model(comportement, split, regu, Gc, l0)
 
@@ -144,28 +153,7 @@ folderSimu = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization,
 
 if doSimu:
 
-    simu = Simulations.Simu_PhaseField(mesh, pfm)
-
-    def Add_Dep(x,y,z):
-        """Fonction qui projete le déplacement dans la bonne direction"""
-        
-        # récupère le déplacement
-        dep = simu.Resultats_matrice_displacement()
-        # nouvelles coordonées du maillage
-        newCoordo = simu.mesh.coordo + dep
-
-        vectBord = newCoordo[node4] - newCoordo[node3]
-        vectBord = normalize_vect(vectBord)
-
-        vectDep = np.cross([0,0,1], vectBord)
-        vectDep = normalize_vect(vectDep)
-
-        displ = ud * vectDep[0,:2]
-
-        return displ
-    
-    loadX = lambda x,y,z: Add_Dep(x,y,z)[0]
-    loadY = lambda x,y,z: Add_Dep(x,y,z)[1]
+    simu = Simulations.Simu_PhaseField(mesh, pfm)    
     
     if pltIter:
         __, axIter, cb = Affichage.Plot_Result(simu, 'damage')
@@ -203,12 +191,11 @@ if doSimu:
         simu.add_dirichlet(nodesDamage, [0], ['d'], "damage")
         simu.add_dirichlet(nodesEnca, [0]*dim, directions)       
         
-        simu.add_dirichlet(nodesLoad, [-ud], ['y'])
-        # simu.add_dirichlet(nodesLoad, [loadX, loadY], ['x','y'])
+        simu.add_dirichlet(nodesLoad, [-ud], ['y'])        
 
-        # Affichage.Plot_BoundaryConditions(simu)        
+        Affichage.Plot_BoundaryConditions(simu)
 
-        u, diam, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
+        u, d, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
 
         fr = np.abs(np.sum(Kglob[ddlsY_Load,:] @ u))
 
