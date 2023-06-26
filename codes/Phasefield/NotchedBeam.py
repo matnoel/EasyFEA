@@ -9,10 +9,10 @@ import PostTraitement
 plt = Affichage.plt
 np = Affichage.np
 
-pltIter = True
+pltIter = False
 pltLoad = True
 
-makeMovie = False
+makeMovie = True
 makeParaview = False
 
 doSimu = True
@@ -32,8 +32,8 @@ folder = Folder.New_File(name, results=True)
 # Config
 # ----------------------------------------------
 
-test = True
-optimMesh = False
+test = False
+optimMesh = True
 useNotchCrack = False
 
 unit = 1e-3; # for mm [Guidault, Allix, Champaney, Cornuault, 2008, CMAME], [Miehe, Welschinger, Hofacker, 2010, IJNME], [Miehe, Hofacker, Welschinger, 2010, CMAME],[Passieux, Rethore, Gravouil, Baietto, 2013, CM]
@@ -45,12 +45,12 @@ ep = 0.5*unit
 nw = 0.05*unit # notch width mm
 diam = 0.5*unit # hole diameter
  
-e1 = 5 # inch
-e2 = 1.5
+e1 = 6*unit # mm
+e2 = 1*unit
 
 l0 = 0.025*unit # mm [Miehe, Welschinger, Hofacker, 2010, IJNME], [Miehe, Hofacker, Welschinger, 2010, CMAME], [Wu, Nguyen, 2018, JMPS], [Wu, Nguyen, Nguyen, Sutula, Bordas, Sinaie, 2019, AAM]
 
-# l0 = L/100
+# l0 = L/120
 
 split = "Miehe"
 regu = "AT2"
@@ -61,9 +61,6 @@ convOption = 2
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
-
-e1 *= unit
-e2 *= unit
 
 if test:
     hC = l0
@@ -95,10 +92,12 @@ if optimMesh:
     z = e2 /2
     refineDomain = Domain(Point(-e1-z,0), Point(-4*unit+z,L), hC)
     # hD = hC*5
-    hD = 8*hC
+    # hD = 8*hC
+    hD = 10*hC
 else:
     refineDomain = None
-    hD = 0.1*unit # 8 * hC -> 0.025*unit/2 * 8
+    # hD = 0.1*unit # 8 * hC -> 0.025*unit/2 * 8
+    # hD = 0.2*unit # 8 * hC -> 0.025*unit/2 * 8
 
 if useNotchCrack:
     contour = PointsList([p0,p1,p2,p3,pC1,pC2,pC3,pC4,p4,p5,p6], hD)
@@ -123,6 +122,7 @@ else:
 
 Affichage.Plot_Mesh(mesh)
 # Affichage.Plot_Model(mesh)
+# Affichage.Plot_Nodes(mesh, mesh.Nodes_Line(cracks[0]), True)
 
 nodesLoad = mesh.Nodes_Point(p0)
 node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
@@ -182,18 +182,19 @@ if doSimu:
 
     displacement = np.unique(np.concatenate([disp1, disp2]))  
 
-    uMax = displacement[-1]    
+    uMax = displacement[-1]
     load = []
 
     for iter, ud in enumerate(displacement):
 
         simu.Bc_Init()
         simu.add_dirichlet(nodesDamage, [0], ['d'], "damage")
-        simu.add_dirichlet(nodesEnca, [0]*dim, directions)       
+        # simu.add_dirichlet(nodesEnca, [0]*dim, directions)       
+        simu.add_dirichlet(nodesEnca, [0], ['y'])       
         
         simu.add_dirichlet(nodesLoad, [-ud], ['y'])        
 
-        Affichage.Plot_BoundaryConditions(simu)
+        # Affichage.Plot_BoundaryConditions(simu)
 
         u, d, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
 
@@ -201,7 +202,7 @@ if doSimu:
 
         load.append(fr)
 
-        simu.Resultats_Set_Resume_Iteration(iter, ud, "mm", ud/uMax, True)
+        simu.Resultats_Set_Resume_Iteration(iter, ud*1e6, "µm", ud/uMax, True)
 
         simu.Save_Iteration()
 
@@ -212,7 +213,7 @@ if doSimu:
             plt.pause(1e-12)
 
             plt.figure(axLoad.figure)
-            axLoad.scatter(ud, fr/1000, c='black')            
+            axLoad.scatter(ud, fr, c='black')            
             plt.pause(1e-12)
 
         if not convergence:
@@ -225,9 +226,7 @@ if doSimu:
 
     simu.Save(folderSimu)
 
-    PostTraitement.Tic.Plot_History(folderSimu, True)
-
-    PostTraitement.Make_Paraview(folderSimu, simu)
+    PostTraitement.Tic.Plot_History(folderSimu, True)    
 
 else:
 
@@ -240,12 +239,14 @@ load, displacement = PostTraitement.Load_Load_Displacement(folderSimu)
 # PostTraitement
 # ----------------------------------------------
 
+Affichage.Plot_BoundaryConditions(simu)
+
 Affichage.Plot_Result(simu, 'damage', folder=folderSimu)
 
 axLoad = plt.subplots()[1]
 axLoad.set_xlabel('displacement [mm]')
 axLoad.set_ylabel('load [kN]')
-axLoad.plot(displacement, load/1000, c="blue")
+axLoad.plot(displacement*1000, load/1000, c="blue")
 Affichage.Save_fig(folderSimu, "forcedep")
 
 Affichage.Plot_ResumeIter(simu, folderSimu)
@@ -256,7 +257,7 @@ if makeMovie:
     PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=True, facteurDef=facteur, plotMesh=False)
 
 if makeParaview:
-    Affichage.Plot_BoundaryConditions(simu, folderSimu)
+    PostTraitement.Make_Paraview(folderSimu, simu)
 
 plt.show()
 
