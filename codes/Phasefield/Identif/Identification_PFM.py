@@ -35,8 +35,8 @@ pltLoad = True
 pltIter = True
 pltContact = False
 
-# nL = 100
-nL = 50
+nL = 100
+# nL = 50
 Gc0 = 0.02
 GcMax = 2
 
@@ -102,8 +102,8 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-# for idxEssai in range(4,5):
-for idxEssai in range(18):
+for idxEssai in range(0,18):
+# for idxEssai in range(18):
 
     # Dossier de l'essai
     essai = f"Essai{idxEssai}"
@@ -115,7 +115,7 @@ for idxEssai in range(18):
     if test:
         folder_Essai = Folder.Join([folder_Essai, "Test"])
 
-    simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh} ftol{ftol}"
+    simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh} ftol{ftol} nL{nL}"
     
     folder_Save = Folder.Join([folder_Essai, simuOptions])    
 
@@ -545,10 +545,14 @@ for idxEssai in range(18):
 
         simu.Save(folder_Save)
 
+        Affichage.Plot_ResumeIter(simu, folder_Save)
+
         del simu
 
-    else:
+    else:        
 
         pass
+
+
 
     plt.close('all')
