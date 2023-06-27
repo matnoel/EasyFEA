@@ -1,6 +1,6 @@
 import Affichage
 from Interface_Gmsh import Interface_Gmsh
-from Geom import Point, PointsList, Line, Domain, Circle
+from Geom import Point, PointsList, Line, Domain, Circle, normalize_vect
 import Materials
 import Simulations
 import Folder
@@ -10,15 +10,26 @@ plt = Affichage.plt
 np = Affichage.np
 
 pltIter = True
+pltLoad = True
+
+makeMovie = False
+makeParaview = False
+
 doSimu = True
 
 Affichage.Clear()
 
-dim = 3
+dim = 2
 
-folder = Folder.New_File(f"L_Shape_Benchmark_{dim}D", results=True)
+name = "L_Shape_Benchmark" if dim == 2 else "L_Shape_Benchmark_3D"
 
-test = True
+folder = Folder.New_File(name, results=True)
+
+# ----------------------------------------------
+# Config
+# ----------------------------------------------
+
+test = False
 optimMesh = True
 
 L = 250
@@ -27,11 +38,21 @@ ep = 100
 # l0 = 10
 l0 = 5
 
+split = "Zhang"
+regu = "AT2"
+
+tolConv = 1e-0
+convOption = 2
+
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
+
 if test:
     hC = l0/2
 else:
     hC = 0.5
-    hC = 0.25
+    # hC = 0.25
 
 nL = L/hC
 
@@ -46,7 +67,7 @@ p7 = Point(0,2*L)
 if optimMesh:
     # hauteur zone rafinée
     h = 100
-    refineDomain = Domain(Point(0,L-h/3), Point(L+h/2,L+h), hC)
+    refineDomain = Domain(Point(0,L-h/3), Point(L+h/3,L+h), hC)
     hD = hC*5
 else:
     refineDomain = None
@@ -68,39 +89,56 @@ Affichage.Plot_Mesh(mesh)
 
 nodesEnca = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 nodesLoad = mesh.Nodes_Conditions(lambda x,y,z: (y==L) & (x>=2*L-30))
-# nodesLoad = mesh.Nodes_Point(p4)
+node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
 nodesCircle = mesh.Nodes_Cylindre(circle, [0,0,ep])
 
 ddlsY_Load = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", nodesLoad, ['y'])
 
+# ----------------------------------------------
+# Material
+# ----------------------------------------------
 E = 2e4 # MPa
 v = 0.18
 Gc = 130 # J/m2
 Gc *= 1000/1e6
 
-tolConv = 1e-0
-convOption = 2
-
 comportement = Materials.Elas_Isot(dim, E, v, True, ep)
 
-pfm = Materials.PhaseField_Model(comportement, "Amor", "AT2", Gc, l0)
-
-simu = Simulations.Simu_PhaseField(mesh, pfm)
+pfm = Materials.PhaseField_Model(comportement, split, regu, Gc, l0)
 
 folderSimu = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization, "CP", tolConv, "", test, optimMesh, nL=nL)
 
-
 if doSimu:
 
+    simu = Simulations.Simu_PhaseField(mesh, pfm)
+
+    def Add_Dep(x,y,z):
+        """Fonction qui projete le déplacement dans la bonne direction"""
+        
+        # récupère le déplacement
+        dep = simu.Resultats_matrice_displacement()
+        # nouvelles coordonées du maillage
+        newCoordo = simu.mesh.coordo + dep
+
+        vectBord = newCoordo[node4] - newCoordo[node3]
+        vectBord = normalize_vect(vectBord)
+
+        vectDep = np.cross([0,0,1], vectBord)
+        vectDep = normalize_vect(vectDep)
+
+        displ = ud * vectDep[0,:2]
+
+        return displ
+    
+    loadX = lambda x,y,z: Add_Dep(x,y,z)[0]
+    loadY = lambda x,y,z: Add_Dep(x,y,z)[1]
+    
     if pltIter:
         __, axIter, cb = Affichage.Plot_Result(simu, 'damage')
 
         axLoad = plt.subplots()[1]
         axLoad.set_xlabel('displacement [mm]')
         axLoad.set_ylabel('load [kN]')
-
-    # loads = np.linspace(0,25,500) * 1e3
-    # for iter, load in enumerate(loads):
 
     uMax = 1.2 # mm
 
@@ -111,6 +149,9 @@ if doSimu:
 
     iter = -1
 
+    displacement = []
+    load = []
+
     while ud <= uMax:
 
         iter += 1
@@ -119,17 +160,19 @@ if doSimu:
 
         simu.Bc_Init()
         simu.add_dirichlet(nodesCircle, [0], ['d'], "damage")
-        simu.add_dirichlet(nodesEnca, [0]*dim, directions)
+        simu.add_dirichlet(nodesEnca, [0]*dim, directions)       
+        
         simu.add_dirichlet(nodesLoad, [ud], ['y'])
+        # simu.add_dirichlet(nodesLoad, [loadX, loadY], ['x','y'])
 
-        # Affichage.Plot_BoundaryConditions(simu)
-
-        # simu.add_lineLoad(nodesLoad, [load/30], ['y'])
-        # simu.add_neumann(nodePoint, [load], ['y'])
+        # Affichage.Plot_BoundaryConditions(simu)        
 
         u, d, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
 
         fr = np.sum(Kglob[ddlsY_Load,:] @ u)
+
+        displacement.append(ud)
+        load.append(fr)
 
         simu.Resultats_Set_Resume_Iteration(iter, ud, "mm", ud/uMax, True)
 
@@ -148,31 +191,45 @@ if doSimu:
         if not convergence:
             break
 
-        pass
+    displacement = np.array(displacement)
+    load = np.array(load)
+
+    PostTraitement.Save_Load_Displacement(load, displacement, folderSimu)
 
     simu.Save(folderSimu)
+
+    PostTraitement.Tic.Plot_History(folderSimu, True)
+
+    PostTraitement.Make_Paraview(folderSimu, simu)
 
 else:
 
     simu = Simulations.Load_Simu(folderSimu)
     mesh = simu.mesh
 
+load, displacement = PostTraitement.Load_Load_Displacement(folderSimu)
 
-    simu.Update_iter(-1)
-
-    depMax = simu.Get_Resultat("amplitude").max()
-
-    facteur = 10*depMax
-
-    PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=True, facteurDef=facteur)
-
-
-PostTraitement.Make_Paraview(folderSimu, simu)
+# ----------------------------------------------
+# PostTraitement
+# ----------------------------------------------
 
 Affichage.Plot_Result(simu, 'damage', folder=folderSimu)
 
-Affichage.Plot_BoundaryConditions(simu, folderSimu)
+axLoad = plt.subplots()[1]
+axLoad.set_xlabel('displacement [mm]')
+axLoad.set_ylabel('load [kN]')
+axLoad.plot(displacement, load/1000, c="blue")
+Affichage.Save_fig(folderSimu, "forcedep")
 
+Affichage.Plot_ResumeIter(simu, folderSimu)
+
+if makeMovie:
+    depMax = simu.Get_Resultat("amplitude").max()
+    facteur = 10*depMax
+    PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=True, facteurDef=facteur, plotMesh=False)
+
+if makeParaview:
+    Affichage.Plot_BoundaryConditions(simu, folderSimu)
 
 plt.show()
 
