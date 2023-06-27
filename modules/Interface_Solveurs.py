@@ -350,6 +350,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     # Utilise PETSc
 
     # comm   = MPI.COMM_WORLD
+    comm   = None
     # nprocs = comm.Get_size()
     # rank   = comm.Get_rank()
     # petsc4py.init(sys.argv, comm=MPI.COMM_WORLD)
@@ -364,10 +365,9 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
 
     # Old
     matrice = PETSc.Mat()
-    # matrice.createAIJ([dimI, dimJ], nnz=nnz, comm=comm)
-    matrice.createAIJ([dimI, dimJ], nnz=nnz)
-    
-    [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)]
+    csr = (A.indptr, A.indices, A.data)    
+    matrice.createAIJ([dimI, dimJ], nnz=nnz, comm=comm, csr=csr)
+    # [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)] # ancienne façon pas optimisée avec csr=None
 
     matrice.assemble()
 
@@ -392,7 +392,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     pc.setType(pcType)
     # pc.setType("none")
 
-    # pc.setFactorSolverType("matlab")
+    # pc.setFactorSolverType("superlu")
 
     ksp.solve(vectb, x)
     
