@@ -14,13 +14,13 @@ import Simulations
 
 Affichage.Clear()
 
-test = False
+test = True
 loadSimu = False
 plotDamage = False
-savefig = True
+savefig = False
 
-# "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark"
-simulation = "Shear_Benchmark"
+# "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
+simulation = "L_Shape_Benchmark"
 
 if simulation == "PlateWithHole_Benchmark":
     colorBarIsClose = True
@@ -48,33 +48,37 @@ if not savefig:
 # ["AnisotStrain","He"]
 # ["AnisotStrain", "He", "AnisotStress", "Stress"]
 
-listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+# listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+listComp = [""]
 
 # listRegu = ["AT1", "AT2"] # ["AT1", "AT2"]
-listRegu = ["AT1"] # ["AT1", "AT2"]
+listRegu = ["AT2"] # ["AT1", "AT2"]
 
-listSimpli2D = ["DP"] # ["CP","DP"]
+listSimpli2D = ["CP"] # ["CP","DP"]
 listSolveur = ["History"]
 
-listSplit = ["Bourdin","Amor","Miehe","He","Zhang"]
+# listSplit = ["Bourdin","Amor","Miehe","He","Zhang"]
 # listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
 # listSplit = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
 # listSplit = ["He","AnisotStrain","AnisotStress", "Zhang"]
-# listSplit = ["Bourdin"]
+listSplit = ["Zhang"]
 
 listOptimMesh=[True] # [True, False]
 
-listTol = [1e-0] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+listTol = [1e-0, 1e-1, 1e-2, 1e-3, 1e-4] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
 
-listnL = [0] # [100] [100, 120, 140, 180, 200]
+# listnL = [100] # [100] [100, 120, 140, 180, 200]
+listnL = [100.0] # [100] [100, 120, 140, 180, 200]
 
 listTheta = [0]
 # listTheta = [-0, -10, -20, -30, -45, -60, -70, -80, -90]
 
 # snapshot = [18.5, 24.6, 25, 28, 35]
-snapshot = [24.6]
+# snapshot = [24.6]
+snapshot = []
 
-depMax = 80000 # µm 35 ou 80
+# depMax = 80000 # µm 35 ou 80
+depMax = 0
 
 # Génération des configurations
 listConfig = []
@@ -122,6 +126,14 @@ for config in listConfig:
     # Charge la force et le déplacement
     try:
         load, displacement = PostTraitement.Load_Load_Displacement(foldername, False)
+
+        if depMax == 0:
+            depMax = displacement[-1]
+            
+        indexLim = np.where(displacement <= depMax)[0]
+        
+        ax.plot(displacement[indexLim], np.abs(load[indexLim]), label=texte)
+
     except AssertionError:
         if nomSimu not in simulationsManquantes: simulationsManquantes.append(nomSimu)
         print("données indisponibles")
@@ -149,8 +161,7 @@ for config in listConfig:
         # Affiche le dernier endommagement
         Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose,
         folder=folderSauvegarde, filename=f"{split} tol{tolConv} last", plotMesh=False,
-        title=split)
-        
+        title=split)        
 
         # Récupère les itérations à 18.5, 24.6, 30 et trace l'endommagement
         for dep in snapshot:
@@ -173,13 +184,9 @@ for config in listConfig:
     # texte = nom.replace(f" pour v={v}", "")
     # texte = nomSimu
     texte = split
-
+    texte = foldername.replace(Folder.Get_Path(foldername), "")
      
     # texte = texte.replace("AnisotStrain","Spectral")
-
-    indexLim = np.where(displacement*1e6 <= depMax)[0]
-    ax.plot(displacement[indexLim]*1e6, np.abs(load[indexLim]*1e-6), label=texte)
-
     tic.Tac("Post traitement", split, False)
 
     if loadSimu:
@@ -194,8 +201,10 @@ for config in listConfig:
             # Les informations n'ont pas été renseingées
             pass
 
-ax.set_xlabel("displacement [µm]")
-ax.set_ylabel("load [kN/mm]")
+# ax.set_xlabel("displacement [µm]")
+# ax.set_ylabel("load [kN/mm]")
+ax.set_xlabel("displacement")
+ax.set_ylabel("load")
 ax.grid()
 ax.legend()
 plt.figure(fig)
