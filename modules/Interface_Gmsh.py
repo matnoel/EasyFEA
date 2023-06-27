@@ -574,7 +574,7 @@ class Interface_Gmsh:
 
         return self.__Recuperation_Maillage(coef)
 
-    def Mesh_Import_part(self, fichier: str, meshSize=0.0, refineGeom=None, folder=""):
+    def Mesh_Import_part(self, fichier: str, meshSize=0.0, elemType=ElemType.TETRA4, refineGeom=None, folder=""):
         """Construis le maillage depuis l'importation d'un fichier (.stp ou .igs)
 
         Parameters
@@ -583,6 +583,8 @@ class Interface_Gmsh:
             fichier (.stp, .igs) que gmsh va charger pour créer le maillage
         meshSize : float, optional
             taille de maille, by default 0.0
+        elemType : str, optional
+            type d'element, by default "TETRA4" ["TETRA4", "TETRA10"]
         refineGeom : Geom, optional
             deuxième domaine pour la concentration de maillage, by default None
         folder : str, optional
@@ -593,8 +595,7 @@ class Interface_Gmsh:
         Mesh
             Maillage construit
         """
-        # Lorsqu'on importe une pièce on ne peut utiliser que du TETRA4
-        elemType = ElemType.TETRA4
+        # Lorsqu'on importe une pièce on ne peut utiliser que du TETRA4 ou TETRA10        
         # Permettre d'autres maillage -> ça semble impossible il faut creer le maillage par gmsh pour maitriser le type d'element
 
         self.__initGmsh('occ') # Ici ne fonctionne qu'avec occ !! ne pas changer
@@ -1090,7 +1091,7 @@ class Interface_Gmsh:
             #         #     factory.mesh.setTransfiniteSurface(surf, cornerTags=points)
                 
             # factory.synchronize()
-            # gmsh.model.mesh.setRecombine(3, 1)
+            # gmsh.model.mesh.setRecombine(3, 1)            
             
             gmsh.model.mesh.generate(3)
 
@@ -1398,10 +1399,10 @@ class Interface_Gmsh:
         list_mesh3D = []
         for t, elemType in enumerate(GroupElem.get_Types3D()):            
             
-            if useImport3D and elemType == "TETRA4":
-                meshCpef = interfaceGmsh.Mesh_Import_part(cpefPath, meshSize=10)
+            if useImport3D and elemType in ["TETRA4","TETRA10"]:
+                meshCpef = interfaceGmsh.Mesh_Import_part(cpefPath, meshSize=10, elemType=elemType)
                 list_mesh3D.append(meshCpef)
-                meshPart = interfaceGmsh.Mesh_Import_part(partPath, meshSize=taille)
+                meshPart = interfaceGmsh.Mesh_Import_part(partPath, meshSize=taille, elemType=elemType)
                 list_mesh3D.append(meshPart)
 
             mesh1 = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], 3, elemType=elemType)
