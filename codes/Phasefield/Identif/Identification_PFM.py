@@ -24,7 +24,7 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 
 doSimulation = True
-doIdentif = False
+doIdentif = True
 detectL0 = False
 useContact = False
 
@@ -50,8 +50,8 @@ solveur = 0 # least_squares
 # solveur = 2 # regle de 3
 
 # ftol = 1e-12
-ftol = 1e-5
-# ftol = 1e-3
+# ftol = 1e-5
+ftol = 1e-3
 # ftol = 1e-2/2
 # ftol = 1e-1/2
 
@@ -111,7 +111,7 @@ for idxEssai in range(4,5):
 
     essai = f"Essai{add}{idxEssai}"
 
-    print(essai)    
+    print(essai)
 
     folder_Essai = Folder.Join([folder, essai])
 
@@ -123,6 +123,8 @@ for idxEssai in range(4,5):
     if doIdentif:
         simuOptions += f" nL{nL}"
     
+    print(simuOptions)
+
     folder_Save = Folder.Join([folder_Essai, simuOptions])
     
     # ----------------------------------------------
