@@ -29,7 +29,7 @@ folder = Folder.New_File(name, results=True)
 # Config
 # ----------------------------------------------
 
-test = False
+test = True
 optimMesh = True
 
 L = 250
@@ -48,13 +48,13 @@ convOption = 2
 # Mesh
 # ----------------------------------------------
 
+nL = L//l0
+
 if test:
     hC = l0/2
 else:
     hC = 0.5
     # hC = 0.25
-
-nL = L/hC
 
 p1 = Point()
 p2 = Point(L,0)
@@ -198,9 +198,7 @@ if doSimu:
 
     simu.Save(folderSimu)
 
-    PostTraitement.Tic.Plot_History(folderSimu, True)
-
-    PostTraitement.Make_Paraview(folderSimu, simu)
+    PostTraitement.Tic.Plot_History(folderSimu, True)    
 
 else:
 
@@ -213,7 +211,10 @@ load, displacement = PostTraitement.Load_Load_Displacement(folderSimu)
 # PostTraitement
 # ----------------------------------------------
 
+Affichage.Plot_BoundaryConditions(simu, folderSimu)
+
 Affichage.Plot_Result(simu, 'damage', folder=folderSimu)
+
 
 axLoad = plt.subplots()[1]
 axLoad.set_xlabel('displacement [mm]')
@@ -229,7 +230,8 @@ if makeMovie:
     PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=True, facteurDef=facteur, plotMesh=False)
 
 if makeParaview:
-    Affichage.Plot_BoundaryConditions(simu, folderSimu)
+    PostTraitement.Make_Paraview(folderSimu, simu)
+    
 
 plt.show()
 

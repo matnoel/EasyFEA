@@ -51,8 +51,8 @@ if not savefig:
 # listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 listComp = [""]
 
-# listRegu = ["AT1", "AT2"] # ["AT1", "AT2"]
-listRegu = ["AT2"] # ["AT1", "AT2"]
+listRegu = ["AT1", "AT2"] # ["AT1", "AT2"]
+# listRegu = ["AT2"] # ["AT1", "AT2"]
 
 listSimpli2D = ["CP"] # ["CP","DP"]
 listSolveur = ["History"]
@@ -66,9 +66,10 @@ listSplit = ["Zhang"]
 listOptimMesh=[True] # [True, False]
 
 listTol = [1e-0, 1e-1, 1e-2, 1e-3, 1e-4] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+# listTol = [1e-0]
 
 # listnL = [100] # [100] [100, 120, 140, 180, 200]
-listnL = [100.0] # [100] [100, 120, 140, 180, 200]
+listnL = [50]
 
 listTheta = [0]
 # listTheta = [-0, -10, -20, -30, -45, -60, -70, -80, -90]
@@ -122,6 +123,11 @@ for config in listConfig:
     foldername = Folder.PhaseField_Folder(folder, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, nL=nL, theta=theta)
 
     nomSimu = foldername.split(comp+'_')[-1]
+
+    # texte = nom.replace(f" pour v={v}", "")
+    # texte = nomSimu
+    texte = split
+    texte = foldername.replace(Folder.Get_Path(foldername), "")[1:]
 
     # Charge la force et le déplacement
     try:
@@ -181,10 +187,7 @@ for config in listConfig:
 
             Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose, folder=folderSauvegarde, filename=filenameDamage,title=titleDamage)
 
-    # texte = nom.replace(f" pour v={v}", "")
-    # texte = nomSimu
-    texte = split
-    texte = foldername.replace(Folder.Get_Path(foldername), "")
+    
      
     # texte = texte.replace("AnisotStrain","Spectral")
     tic.Tac("Post traitement", split, False)

@@ -12,10 +12,10 @@ np = Affichage.np
 pltIter = False
 pltLoad = True
 
-makeMovie = False
+makeMovie = True
 makeParaview = False
 
-doSimu = True
+doSimu = False
 
 Affichage.Clear()
 
@@ -104,7 +104,6 @@ if useNotchCrack:
     cracks = []
 else:
     contour = PointsList([p0,p1,p2,p3,p4,p5,p6], hD)
-
     cracks = [Line(Point(-e1,0, isOpen=True), Point(-e1,e2), hC, True)]
 
 inclusions = [c1, c2, c3]
@@ -239,7 +238,7 @@ load, displacement = PostTraitement.Load_Load_Displacement(folderSimu)
 # PostTraitement
 # ----------------------------------------------
 
-Affichage.Plot_BoundaryConditions(simu)
+Affichage.Plot_BoundaryConditions(simu, folderSimu)
 
 Affichage.Plot_Result(simu, 'damage', folder=folderSimu)
 
@@ -254,7 +253,7 @@ Affichage.Plot_ResumeIter(simu, folderSimu)
 if makeMovie:
     depMax = simu.Get_Resultat("amplitude").max()
     facteur = 10*depMax
-    PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=True, facteurDef=facteur, plotMesh=False)
+    PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=False, facteurDef=facteur, plotMesh=False)
 
 if makeParaview:
     PostTraitement.Make_Paraview(folderSimu, simu)
