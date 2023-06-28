@@ -12,7 +12,7 @@ import TicTac
 import Folder
 
 dim = 3
-N = 50 if dim == 2 else 10
+N = 50 if dim == 2 else 20
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -35,7 +35,7 @@ if simulationType == SimulationType.CPEF:
     dim = 3
     h=1
     fichier = Folder.Join([Folder.Get_Path(), "3Dmodels", "CPEF.stp"])
-    mesh = interface.Mesh_Import_part(fichier, 5)
+    mesh = interface.Mesh_Import_part(fichier, 5, ElemType.TETRA4)
 
     noeuds134 = mesh.Nodes_Tags(['S134'])
 
@@ -72,9 +72,9 @@ elif simulationType == SimulationType.EQUERRE:
     inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])
 
     if dim == 2:
-        mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI10, cracks)
+        mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI3, cracks)
     elif dim == 3:        
-        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=3, elemType=ElemType.PRISM6)
+        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=4, elemType=ElemType.HEXA8)
 
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(lambda x,y,z: x == L)
@@ -160,7 +160,5 @@ Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef,
 # Affichage.Plot_Result(simu, "ux")
 
 TicTac.Tic.Plot_History()
-
-
 
 plt.show()
