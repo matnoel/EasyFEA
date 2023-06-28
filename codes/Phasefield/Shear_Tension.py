@@ -21,17 +21,16 @@ from matplotlib.collections import LineCollection
 dim = 3
 simulation = "Shear" # "Shear" , "Tension"
 
+nomDossier = '_'.join([simulation,"Benchmark"])
+
 if dim == 3:
-    simulation += "_3D"
+    nomDossier += "_3D"
     ep = 0.1/1000
 else:
     ep = 0
 
-nomDossier = '_'.join([simulation,"Benchmark"])
-
 test = True
 solve = True
-
 
 # ----------------------------------------------
 # Post traitement
