@@ -50,7 +50,8 @@ solveur = 0 # least_squares
 # solveur = 2 # regle de 3
 
 # ftol = 1e-12
-ftol = 1e-5
+# ftol = 1e-5
+ftol = 1e-3
 # ftol = 1e-2/2
 # ftol = 1e-1/2
 
@@ -103,10 +104,13 @@ else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
 for idxEssai in range(0,18):
-# for idxEssai in range(18):
+# for idxEssai in range(18):    
 
     # Dossier de l'essai
-    essai = f"Essai{idxEssai}"
+
+    add = "0" if idxEssai < 10 else ""
+
+    essai = f"Essai{add}{idxEssai}"
 
     print(essai)    
 
@@ -117,14 +121,7 @@ for idxEssai in range(0,18):
 
     simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh} ftol{ftol} nL{nL}"
     
-    folder_Save = Folder.Join([folder_Essai, simuOptions])    
-
-    if not doSimulation:
-        simu = Simulations.Load_Simu(folder_Save)
-        Affichage.Plot_Mesh(simu.mesh)
-        Affichage.Plot_Result(simu, "damage")
-        plt.show()
-        continue
+    folder_Save = Folder.Join([folder_Essai, simuOptions])
     
     # ----------------------------------------------
     # Données de l'essai
@@ -379,7 +376,7 @@ for idxEssai in range(0,18):
 
         path = Folder.New_File("data.pickle", folder_Save)
 
-        importData = True
+        importData = False
 
         if not importData:
         
@@ -441,9 +438,6 @@ for idxEssai in range(0,18):
 
 
         pass
-
-
-
 
     # ----------------------------------------------
     # PostTraitement
@@ -545,7 +539,7 @@ for idxEssai in range(0,18):
 
         simu.Save(folder_Save)
 
-        Affichage.Plot_ResumeIter(simu, folder_Save)
+        Affichage.Plot_ResumeIter(simu, folder_Save) 
 
         del simu
 
