@@ -24,7 +24,7 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 
 doSimulation = True
-doIdentif = True
+doIdentif = False
 detectL0 = False
 useContact = False
 
@@ -50,8 +50,8 @@ solveur = 0 # least_squares
 # solveur = 2 # regle de 3
 
 # ftol = 1e-12
-# ftol = 1e-5
-ftol = 1e-3
+ftol = 1e-5
+# ftol = 1e-3
 # ftol = 1e-2/2
 # ftol = 1e-1/2
 
@@ -60,8 +60,8 @@ ftol = 1e-3
 split = "Zhang"
 regu = "AT2"
 
-tolConv = 1e-0
-# tolConv = 1e-3
+# tolConv = 1e-0
+tolConv = 1e-3
 # tolConv = 1e-2
 
 # convOption = 0 # bourdin
@@ -103,8 +103,7 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(0,18):
-# for idxEssai in range(18):    
+for idxEssai in range(4,5):
 
     # Dossier de l'essai
 
@@ -119,7 +118,10 @@ for idxEssai in range(0,18):
     if test:
         folder_Essai = Folder.Join([folder_Essai, "Test"])
 
-    simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh} ftol{ftol} nL{nL}"
+    simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh} ftol{ftol}"
+
+    if doIdentif:
+        simuOptions += f" nL{nL}"
     
     folder_Save = Folder.Join([folder_Essai, simuOptions])
     
@@ -208,11 +210,6 @@ for idxEssai in range(0,18):
     dCible = 1
 
     returnSimu = False
-
-    if doIdentif:
-        axEcart = plt.subplots()[1]
-        axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
-        ecarts = []
 
     def DoSimu(x: np.ndarray) -> float:
         """Simulation pour les paramètres x=[Gc,l0]"""
@@ -323,6 +320,10 @@ for idxEssai in range(0,18):
 
     if doIdentif:
 
+        axEcart = plt.subplots()[1]
+        axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
+        ecarts = []
+
         list_Gc = []
         
         lb = [0] if not detectL0 else [0, 0]
@@ -366,11 +367,8 @@ for idxEssai in range(0,18):
 
     else:
 
-        # Gc_array = np.linspace(0.01, 0.12, 20)
-        # l0_array = np.linspace(L/100, L/5, 20)
-
-        Gc_array = np.linspace(0.01, 0.12, 10)
-        l0_array = np.linspace(L/80, L/10, 10)
+        Gc_array = np.linspace(0.01, 0.2, 20)
+        l0_array = np.linspace(L/100, L/10, 20)
 
         L0, GC = np.meshgrid(l0_array, Gc_array)        
 
@@ -378,8 +376,18 @@ for idxEssai in range(0,18):
 
         importData = False
 
-        if not importData:
+        if importData:
+            # récupère les données
+
+            with open(path, 'rb') as file:
+                data = pickle.load(file)
+                GC = data['GC']
+                L0 = data['L0']
+                results = data['results']
         
+        else:
+            # Sauvegarde les données
+
             results = np.zeros_like(GC)
 
             for g, gc in enumerate(Gc_array):
@@ -395,15 +403,7 @@ for idxEssai in range(0,18):
                     'L0': L0,
                     'results': results
                 }
-                pickle.dump(data, file)
-        
-        else:
-
-            with open(path, 'rb') as file:
-                data = pickle.load(file)
-                GC = data['GC']
-                L0 = data['L0']
-                results = data['results']
+                pickle.dump(data, file)            
 
         fig = plt.figure()
         ax1 = fig.add_subplot(projection="3d")
