@@ -378,7 +378,7 @@ for idxEssai in range(0,18):
 
         path = Folder.New_File("data.pickle", folder_Save)        
 
-        if doSimulation:
+        if not doSimulation:
             # récupère les données
 
             with open(path, 'rb') as file:
