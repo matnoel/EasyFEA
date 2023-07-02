@@ -24,7 +24,7 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 
 doSimulation = True
-doIdentif = True
+doIdentif = False
 detectL0 = False
 useContact = False
 
@@ -103,7 +103,7 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(4,5):
+for idxEssai in range(0,18):
 
     # Dossier de l'essai
 
@@ -118,10 +118,12 @@ for idxEssai in range(4,5):
     if test:
         folder_Essai = Folder.Join([folder_Essai, "Test"])
 
-    simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh} ftol{ftol}"
+    simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh}"
 
     if doIdentif:
-        simuOptions += f" nL{nL}"
+        simuOptions += f" ftol{ftol}"
+        if not detectL0:
+            simuOptions += f" nL{nL}"
     
     print(simuOptions)
 
@@ -374,11 +376,9 @@ for idxEssai in range(4,5):
 
         L0, GC = np.meshgrid(l0_array, Gc_array)        
 
-        path = Folder.New_File("data.pickle", folder_Save)
+        path = Folder.New_File("data.pickle", folder_Save)        
 
-        importData = False
-
-        if importData:
+        if doSimulation:
             # récupère les données
 
             with open(path, 'rb') as file:
@@ -411,9 +411,9 @@ for idxEssai in range(4,5):
         ax1 = fig.add_subplot(projection="3d")
         cc = ax1.plot_surface(GC, L0, results, cmap='jet')
         fig.colorbar(cc)
-        ax1.set_xlabel("Gc")
-        ax1.set_ylabel("l0")
-        ax1.set_zlabel("J")
+        ax1.set_xlabel("$G_c$", fontsize=14)
+        ax1.set_ylabel("$\ell_0$", fontsize=14)
+        ax1.set_zlabel("$J$", fontsize=14)
         # ax1.contour(GC, L0, results)        
         
         # for gc in Gc_array:
@@ -427,8 +427,8 @@ for idxEssai in range(4,5):
 
         ax2 = plt.subplots()[1]
         cc = ax2.contourf(GC, L0, results, cmap='jet')
-        ax2.set_xlabel("GC")
-        ax2.set_ylabel("L0")
+        ax2.set_xlabel("$G_c$", fontsize=14)
+        ax2.set_ylabel("$\ell_0$", fontsize=14)
         ax2.figure.colorbar(cc)
 
         Affichage.Save_fig(folder_Save, "J contourf")
