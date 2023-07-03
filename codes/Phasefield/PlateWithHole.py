@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 # Simulation
 # ----------------------------------------------
 problem = "FCBA" # ["Benchmark","FCBA"]
-dim = 3
+dim = 2
 if dim == 3:
     problem += "_3D"
 
@@ -28,7 +28,7 @@ solve = True
 # Post traitement
 # ----------------------------------------------
 plotMesh = False
-plotIter = False
+plotIter = True
 plotResult = True
 plotEnergie = False
 showFig = True
@@ -67,7 +67,8 @@ tolConv = 1e-0
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-splits = ["Zhang"]
+# splits = ["Zhang"]
+splits = ["He"]
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
@@ -120,14 +121,15 @@ for split, regu in zip(splits, regularisations):
         diam = 1e-2
         r = diam/2
         
-        gc = 3000
+        # gc = 3000
+        gc = 0.07 * 1000
         # l_0 = 0.12e-3
         # nL = 50
         nL = 100
         # nL = 180
         l0 = L/nL
 
-        u_max = 5e-3
+        u_max = 1e-3
 
         inc0 = 8e-6; tresh0 = 0.2
         inc1 = 2e-6; tresh1 = 0.6
@@ -287,7 +289,8 @@ for split, regu in zip(splits, regularisations):
                 return ud <= u_max
             elif "FCBA" in problem:
                 # On va charger jusqua la rupture
-                return True
+                # return True
+                return ud <= u_max
 
         while Condition():
 
