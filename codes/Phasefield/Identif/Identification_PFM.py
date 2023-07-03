@@ -38,7 +38,8 @@ pltContact = False
 nL = 100
 # nL = 50
 Gc0 = 0.02
-GcMax = 2
+# GcMax = 2
+GcMax = 1
 
 # inc0 = 8e-3 # incrément platewith hole
 # inc1 = 2e-3
@@ -50,8 +51,8 @@ solveur = 0 # least_squares
 # solveur = 2 # regle de 3
 
 # ftol = 1e-12
-# ftol = 1e-5
-ftol = 1e-3
+ftol = 1e-5
+# ftol = 1e-3
 # ftol = 1e-2/2
 # ftol = 1e-1/2
 
@@ -60,8 +61,8 @@ ftol = 1e-3
 split = "Zhang"
 regu = "AT2"
 
-# tolConv = 1e-0
-tolConv = 1e-3
+tolConv = 1e-0
+# tolConv = 1e-3
 # tolConv = 1e-2
 
 # convOption = 0 # bourdin
@@ -111,6 +112,7 @@ for idxEssai in range(0,18):
 
     essai = f"Essai{add}{idxEssai}"
 
+    print()
     print(essai)
 
     folder_Essai = Folder.Join([folder, essai])
@@ -371,8 +373,8 @@ for idxEssai in range(0,18):
 
     else:
 
-        Gc_array = np.linspace(0.01, 0.2, 20)
-        l0_array = np.linspace(L/100, L/10, 20)
+        Gc_array = np.linspace(0.01, 0.2, 10)
+        l0_array = np.linspace(L/100, L/10, 10)
 
         L0, GC = np.meshgrid(l0_array, Gc_array)        
 
@@ -434,10 +436,7 @@ for idxEssai in range(0,18):
         Affichage.Save_fig(folder_Save, "J contourf")
 
         # Affichage.Save_fig(folder_Save, "J_grid")
-        plt.show()
-
-        
-
+        # plt.show()
 
         pass
 
@@ -469,8 +468,8 @@ for idxEssai in range(0,18):
         forcesIdentif = np.asarray(forcesIdentif)
 
         axLoad = plt.subplots()[1]
-        axLoad.set_xlabel("displacement [mm]")
-        axLoad.set_ylabel("load [kN]")
+        axLoad.set_xlabel("x [mm]")
+        axLoad.set_ylabel("f [kN]")
 
         axLoad.grid()
 
