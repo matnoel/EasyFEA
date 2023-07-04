@@ -32,7 +32,7 @@ test = True
 optimMesh = True
 # Affichage
 pltLoad = True 
-plt_J = True
+pltIter = True
 pltContact = False
 
 nL = 100
@@ -40,7 +40,7 @@ nL = 100
 Gc0 = 0.06
 
 inc0 = 1e-2/2 # inc0 = 8e-3 # incrément platewith hole
-inc1 = inc0/4 # inc1 = 2e-3
+inc1 = inc0/5 # inc1 = 2e-3
 treshold = 0.2
 
 solveur = 0 # least_squares
@@ -49,13 +49,13 @@ solveur = 0 # least_squares
 
 # ftol = 1e-12
 # ftol = 1e-5
-ftol = 1e-4
-# ftol = 1e-2/2
+# ftol = 1e-4
+ftol = 1e-2
 # ftol = 1e-1/2
 
-# split = "AnisotStress"
+split = "AnisotStress"
 # split = "He"
-split = "Zhang"
+# split = "Zhang"
 regu = "AT2"
 
 # tolConv = 1e-0
@@ -123,11 +123,11 @@ for idxEssai in range(3,4):
         simuOptions += f" ftol{ftol}"
         if not detectL0:
             simuOptions += f" nL{nL}"
-    
-    print(simuOptions)
 
     folder_Save = Folder.Join([folder_Essai, simuOptions])
     
+    print(folder_Save)
+
     # ----------------------------------------------
     # Données de l'essai
     # ----------------------------------------------
@@ -294,7 +294,7 @@ for idxEssai in range(3,4):
             ecarts.append(ecart)
             Niter = len(ecarts)
 
-            if plt_J:      
+            if pltIter:      
                 axEcart.scatter(Niter, ecarts[-1], c="black")
                 plt.figure(axEcart.figure)
                 plt.pause(1e-12)
@@ -319,9 +319,9 @@ for idxEssai in range(3,4):
         
             ecarts = []
 
-            if plt_J:
+            if pltIter:
                 axEcart = plt.subplots()[1]
-                axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
+                axEcart.set_xlabel("iter"); axEcart.set_ylabel("J")
 
             GcMax = 2
             
@@ -373,9 +373,13 @@ for idxEssai in range(3,4):
             # Sauvegarde des données
             # ----------------------------------------------
             
-            if plt_J:
+            if pltIter:
                 plt.figure(axEcart.figure)
-                Affichage.Save_fig(folder_Save, "iterations")
+            else:
+                axEcart = plt.subplots()[1]
+                axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
+                axEcart.scatter(np.arange(len(ecarts)), ecarts, c='black')
+            Affichage.Save_fig(folder_Save, "iterations")
             
             simu.Save(folder_Save)
             Affichage.Plot_ResumeIter(simu, folder_Save)
