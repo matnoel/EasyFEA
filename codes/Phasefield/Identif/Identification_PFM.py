@@ -24,11 +24,11 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 
 doSimulation = True
-doIdentif = False
+doIdentif = True
 detectL0 = False
 useContact = False
 
-test = False
+test = True
 optimMesh = True
 # Affichage
 pltLoad = True 
@@ -37,22 +37,19 @@ pltContact = False
 
 nL = 100
 # nL = 50
-Gc0 = 0.02
-# GcMax = 2
-GcMax = 1
+Gc0 = 0.06
 
-# inc0 = 8e-3 # incrément platewith hole
-# inc1 = 2e-3
-inc0 = 1e-2/2
-inc1 = inc0/4
+inc0 = 1e-2/2 # inc0 = 8e-3 # incrément platewith hole
+inc1 = inc0/4 # inc1 = 2e-3
+treshold = 0.2
 
 solveur = 0 # least_squares
 # solveur = 1 # minimize
 # solveur = 2 # regle de 3
 
 # ftol = 1e-12
-ftol = 1e-5
-# ftol = 1e-3
+# ftol = 1e-5
+ftol = 1e-4
 # ftol = 1e-2/2
 # ftol = 1e-1/2
 
@@ -61,9 +58,9 @@ ftol = 1e-5
 split = "Zhang"
 regu = "AT2"
 
-tolConv = 1e-0
+# tolConv = 1e-0
+tolConv = 1e-2
 # tolConv = 1e-3
-# tolConv = 1e-2
 
 # convOption = 0 # bourdin
 # convOption = 1 # energie crack
@@ -104,7 +101,7 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(0,18):
+for idxEssai in range(1,2):
 
     # Dossier de l'essai
 
@@ -140,8 +137,9 @@ for idxEssai in range(0,18):
 
     f_max = np.max(forces)
     f_crit = dfLoadMax["Load [kN]"][idxEssai]
-    print(f"fcrit = {f_crit}")
     # f_crit = 10
+    print(f"fcrit = {f_crit}")
+    
     idx_crit = np.where(forces >= f_crit)[0][0]
     dep_crit = deplacements[idx_crit]
     
@@ -252,7 +250,7 @@ for idxEssai in range(0,18):
 
             i += 1
             # dep += inc0 if simu.damage.max() <= 0.6 else inc1
-            dep += inc0 if simu.damage.max() <= 0.2 else inc1
+            dep += inc0 if simu.damage.max() <= treshold else inc1
 
             simu.Bc_Init()
             simu.add_dirichlet(nodes_Lower, [0], ["y"])
@@ -298,8 +296,7 @@ for idxEssai in range(0,18):
             list_Gc.append(x)
 
             if solveur in [0,1]:
-                ecart = (fr - f_crit)/f_crit
-                # ecart = (fr - f_crit)
+                ecart = (fr - f_crit)/f_crit                
                 print(f"\necart = {ecart:.5e}")            
             elif solveur == 2:
                 ecart = fr
@@ -316,7 +313,7 @@ for idxEssai in range(0,18):
             return ecart
         else:
 
-            ecart = np.sqrt((fr - f_crit)**2/f_crit**2)
+            ecart = (fr - f_crit)**2/f_crit**2
 
             return ecart, fr
 
@@ -331,6 +328,8 @@ for idxEssai in range(0,18):
         ecarts = []
 
         list_Gc = []
+
+        GcMax = 2
         
         lb = [0] if not detectL0 else [0, 0]
         ub = [GcMax] if not detectL0 else [GcMax, np.inf]
@@ -339,7 +338,7 @@ for idxEssai in range(0,18):
         if solveur in [0,1]:
             
             if solveur == 0:
-                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=ftol, gtol=ftol)
+                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=2, ftol=ftol, xtol=ftol, gtol=ftol)
             elif solveur == 1:
                 # res = minimize(DoSimu, x0, tol=tol)
 
