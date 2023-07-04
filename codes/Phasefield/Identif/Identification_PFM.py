@@ -15,7 +15,7 @@ import Simulations
 import PostTraitement
 import pickle
 
-Affichage.Clear()
+# Affichage.Clear()
 
 folder_file = Folder.Get_Path(__file__)
 
@@ -32,7 +32,7 @@ test = True
 optimMesh = True
 # Affichage
 pltLoad = True 
-pltIter = True
+plt_J = True
 pltContact = False
 
 nL = 100
@@ -101,7 +101,7 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(1,2):
+for idxEssai in range(3,4):
 
     # Dossier de l'essai
 
@@ -245,17 +245,17 @@ for idxEssai in range(1,2):
 
         i = -1
         fr = 0
-        # while fr <= f_max*2:
-        while True:
+        
+        while simu.damage.max() <= dCible:
 
             i += 1
-            # dep += inc0 if simu.damage.max() <= 0.6 else inc1
+            
             dep += inc0 if simu.damage.max() <= treshold else inc1
 
+            # chargement
             simu.Bc_Init()
             simu.add_dirichlet(nodes_Lower, [0], ["y"])
             simu.add_dirichlet(nodes0, [0], ["x"])
-
             if useContact:
                 frontiere = 90 - dep
 
@@ -270,49 +270,41 @@ for idxEssai in range(1,2):
             else:
                 simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
 
+            # resolution
             u, d, Kglob, convergence = simu.Solve(tolConv, convOption=convOption)
-
-            simu.Save_Iteration()
-
-            f = Kglob[ddlsY_Upper,:] @ u        
-
-            fr = - np.sum(f)/1000
-
-            maxD = d.max()
 
             simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/f_crit, True)
 
-            # if not convergence or True in (d[nodes_Boundary] >= 0.98):
-            #     print("\nPas de convergence")
-            #     break        
+            simu.Save_Iteration()
 
-            if maxD >= dCible:
-                break
+            # force résultante
+            f = Kglob[ddlsY_Upper,:] @ u
+
+            fr = - np.sum(f)/1000
 
         if returnSimu:
+            # renvoie la simulation
             return simu
+        
         elif doIdentif:
-            
-            list_Gc.append(x)
-
-            if solveur in [0,1]:
-                ecart = (fr - f_crit)/f_crit                
-                print(f"\necart = {ecart:.5e}")            
-            elif solveur == 2:
-                ecart = fr
+            # calcul de l'erreur entre la force résultante calculée et la force expérimentale
+            ecart = (fr - f_crit)/f_crit
+            print(f"\necart = {ecart:.5e}")
 
             ecarts.append(ecart)
             Niter = len(ecarts)
-                    
-            axEcart.scatter(Niter, ecarts[-1], c="black")
-            plt.figure(axEcart.figure)
-            plt.pause(1e-12)
+
+            if plt_J:      
+                axEcart.scatter(Niter, ecarts[-1], c="black")
+                plt.figure(axEcart.figure)
+                plt.pause(1e-12)
 
             print()
 
             return ecart
+        
         else:
-
+            # si on ne procède pas à lidentification on evalue la fonction cout
             ecart = (fr - f_crit)**2/f_crit**2
 
             return ecart, fr
@@ -323,52 +315,154 @@ for idxEssai in range(1,2):
 
     if doIdentif:
 
-        axEcart = plt.subplots()[1]
-        axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
-        ecarts = []
-
-        list_Gc = []
-
-        GcMax = 2
+        if doSimulation:
         
-        lb = [0] if not detectL0 else [0, 0]
-        ub = [GcMax] if not detectL0 else [GcMax, np.inf]
-        x0 = [Gc0] if not detectL0 else [Gc0, l00]
+            ecarts = []
 
-        if solveur in [0,1]:
+            if plt_J:
+                axEcart = plt.subplots()[1]
+                axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
+
+            GcMax = 2
             
-            if solveur == 0:
-                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=2, ftol=ftol, xtol=ftol, gtol=ftol)
-            elif solveur == 1:
-                # res = minimize(DoSimu, x0, tol=tol)
+            lb = [0] if not detectL0 else [0, 0]
+            ub = [GcMax] if not detectL0 else [GcMax, np.inf]
+            x0 = [Gc0] if not detectL0 else [Gc0, l00]
 
-                bounds = [(l, u) for l, u in zip(lb, ub)]
+            if solveur in [0,1]:
+                
+                if solveur == 0:
+                    res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=1, ftol=ftol, xtol=None, gtol=None)
+                elif solveur == 1:
+                    # res = minimize(DoSimu, x0, tol=tol)
 
-                res = minimize(DoSimu, x0, bounds=bounds, tol=ftol)
+                    bounds = [(l, u) for l, u in zip(lb, ub)]
 
-            Gc = res.x[0]
-            if detectL0:
-                l0 = res.x[1]
-                print(f"Gc = {Gc:.10e}, l0 = {l0:.4e}")
+                    res = minimize(DoSimu, x0, bounds=bounds, tol=ftol)
+
+                Gc = res.x[0]
+                if detectL0:
+                    l0 = res.x[1]
+                    print(f"Gc = {Gc:.10e}, l0 = {l0:.4e}")
+                else:
+                    l0 = l00
+                    print(f"Gc = {Gc:.10e}")
+
+                x = res.x
+
+            elif solveur == 2:
+
+                ecart = 1
+                Gc = Gc0
+                while ecart >= ftol:
+                    fr = DoSimu([Gc])
+
+                    ecart = (f_crit - fr)/f_crit
+
+                    print(f"\nGc = {Gc:.4f}, ecart = {ecart:.5e}")
+                    Gc = f_crit * Gc/fr
+
+                x = [Gc,l00]
+            
+            # Refais la simulation
+            returnSimu = True
+            simu = DoSimu(x)
+            assert isinstance(simu, Simulations.Simu_PhaseField)
+
+            # ----------------------------------------------
+            # Sauvegarde des données
+            # ----------------------------------------------
+            
+            if plt_J:
+                plt.figure(axEcart.figure)
+                Affichage.Save_fig(folder_Save, "iterations")
+            
+            simu.Save(folder_Save)
+            Affichage.Plot_ResumeIter(simu, folder_Save)
+
+            pathData = Folder.Join([folder, "identification.xlsx"])
+
+            data = [
+                {
+                    "Essai": essai,
+                    "split": simu.phaseFieldModel.split,
+                    "regu": simu.phaseFieldModel.regularization,
+                    # "A": A,
+                    "tolConv": tolConv,
+                    "test": test,
+                    "optimMesh": optimMesh,
+                    "solveur": solveur,
+                    "ftol": ftol,
+                    "detectL0": detectL0,
+                    "f_crit": f_crit,
+                    "fr": forcesIdentif[-1],
+                    "err": np.abs(f_crit-forcesIdentif[-1])/f_crit,
+                    "Gc": Gc,
+                    "l0": l0
+                }
+            ]
+
+            if os.path.exists(pathData):
+
+                df = pd.read_excel(pathData)
+
+                newDf = pd.DataFrame(data)
+                df = pd.concat([df,newDf])        
+
             else:
-                l0 = l00
-                print(f"Gc = {Gc:.10e}")
 
-            x = res.x
+                df = pd.DataFrame(data)
 
-        elif solveur == 2:
+            df.to_excel(pathData, index=False)
 
-            ecart = 1
-            Gc = Gc0
-            while ecart >= ftol:
-                fr = DoSimu([Gc])
+        else:
+            # charge la simulation
+            simu = Simulations.Load_Simu(folder_Save)
+            assert isinstance(simu, Simulations.Simu_PhaseField)
 
-                ecart = (f_crit - fr)/f_crit
+        # reconstruction de la courbe force déplacement
+        deplacementsIdentif = []
+        forcesIdentif = []
+        for iter in range(len(simu._results)):
 
-                print(f"\nGc = {Gc:.4f}, ecart = {ecart:.5e}")
-                Gc = f_crit * Gc/fr
+            simu.Update_iter(iter)
 
-            x = [Gc,l00]
+            displacement = simu.displacement
+            ddlsY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
+
+            deplacementsIdentif.append(-np.mean(displacement[ddlsY]))
+            forcesIdentif.append(-np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ displacement)/1000)
+
+        deplacementsIdentif = np.asarray(deplacementsIdentif)
+        forcesIdentif = np.asarray(forcesIdentif)            
+
+        def Calc_a_b(forces, deplacements, fmax):
+            """Calcul des coefs de f(x) = a x + b"""
+
+            idxElas = np.where((forces <= fmax))[0]
+            idx1, idx2 = idxElas[0], idxElas[-1]
+            x1, x2 = deplacements[idx1], deplacements[idx2]
+            f1, f2 = forces[idx1], forces[idx2]
+            vect_ab = np.linalg.inv(np.array([[x1, 1],[x2, 1]])).dot(np.array([f1, f2]))
+            a, b = vect_ab[0], vect_ab[1]
+
+            return a, b
+
+        k_exp, __ = Calc_a_b(forces, deplacements, 15)
+        k_mat, __ = Calc_a_b(forcesIdentif, deplacementsIdentif, 15)
+        k_montage = 1/(1/k_exp - 1/k_mat)
+        deplacements = deplacements-forces/k_montage
+
+        # trace la fonction force déplacement
+        axLoad = plt.subplots()[1]
+        axLoad.set_xlabel("x [mm]"); axLoad.set_ylabel("f [kN]"); axLoad.grid()
+        axLoad.plot(deplacements, forces, label="exp")
+        axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=3)
+        axLoad.plot(deplacementsIdentif, forcesIdentif, label="identif")
+        axLoad.legend()
+        Affichage.Save_fig(folder_Save, "load")
+
+        Affichage.Plot_Result(simu, "damage", folder=folder_Save)
 
     else:
 
@@ -439,107 +533,11 @@ for idxEssai in range(1,2):
 
         pass
 
-    # ----------------------------------------------
-    # PostTraitement
-    # ----------------------------------------------
+    
     
     if doIdentif:
 
-        returnSimu = True
-        simu = DoSimu(x)
-
-        assert isinstance(simu, Simulations.Simu_PhaseField)
-
-        deplacementsIdentif = []
-        forcesIdentif = []
-
-        for iter in range(len(simu._results)):
-
-            simu.Update_iter(iter)
-
-            displacement = simu.displacement
-            ddlsY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
-
-            deplacementsIdentif.append(-np.mean(displacement[ddlsY]))
-            forcesIdentif.append(-np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ displacement)/1000)
-
-        deplacementsIdentif = np.asarray(deplacementsIdentif)
-        forcesIdentif = np.asarray(forcesIdentif)
-
-        axLoad = plt.subplots()[1]
-        axLoad.set_xlabel("x [mm]")
-        axLoad.set_ylabel("f [kN]")
-
-        axLoad.grid()
-
-        def Calc_a_b(forces, deplacements, fmax):
-            """Calcul des coefs de f(x) = a x + b"""
-
-            idxElas = np.where((forces <= fmax))[0]
-            idx1, idx2 = idxElas[0], idxElas[-1]
-            x1, x2 = deplacements[idx1], deplacements[idx2]
-            f1, f2 = forces[idx1], forces[idx2]
-            vect_ab = np.linalg.inv(np.array([[x1, 1],[x2, 1]])).dot(np.array([f1, f2]))
-            a, b = vect_ab[0], vect_ab[1]
-
-            return a, b
-
-        k_exp, __ = Calc_a_b(forces, deplacements, 15)
-        k_mat, __ = Calc_a_b(forcesIdentif, deplacementsIdentif, 15)
-        k_montage = 1/(1/k_exp - 1/k_mat)
-        deplacements = deplacements-forces/k_montage
-
-        axLoad.plot(deplacements, forces, label="exp")
-        axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=3)
-        axLoad.plot(deplacementsIdentif, forcesIdentif, label="identif")
-        axLoad.legend()
-        Affichage.Save_fig(folder_Save, "load")    
-
-        # Sauvegarde les données identifiées
-
-        pathData = Folder.Join([folder, "identification.xlsx"])
-
-        data = [
-            {
-                "Essai": essai,
-                "split": simu.phaseFieldModel.split,
-                "regu": simu.phaseFieldModel.regularization,
-                # "A": A,
-                "tolConv": tolConv,
-                "test": test,
-                "optimMesh": optimMesh,
-                "solveur": solveur,
-                "ftol": ftol,
-                "detectL0": detectL0,
-                "f_crit": f_crit,
-                "fr": forcesIdentif[-1],
-                "err": np.abs(f_crit-forcesIdentif[-1])/f_crit,
-                "Gc": Gc,
-                "l0": l0
-            }
-        ]
-
-        if os.path.exists(pathData):
-
-            df = pd.read_excel(pathData)
-
-            newDf = pd.DataFrame(data)
-            df = pd.concat([df,newDf])        
-
-        else:
-
-            df = pd.DataFrame(data)
-
-        df.to_excel(pathData, index=False)
-
-        plt.figure(axEcart.figure)
-        Affichage.Save_fig(folder_Save, "iterations")
-
-        # PostTraitement.Make_Paraview(folder_Save, simu)
-
-        simu.Save(folder_Save)
-
-        Affichage.Plot_ResumeIter(simu, folder_Save) 
+         
 
         del simu
 
