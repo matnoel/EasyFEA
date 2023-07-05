@@ -8,53 +8,33 @@ useFastmath = True
 # Calcul de splits
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def Get_Anisot_C(aP_e_pg: np.ndarray, b: np.ndarray, aM_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Permet de calculer les 4 matrices de comportement Cpp, Cpm, Cmp et Cmm\n
-    Permet d'executer cette opération :\n
-    projP_e_pg.T x C x projM_e_pg  (epki, kl, eplj) -> (epij) \n
-
-    ou cette opération :\n
-    cP_e_pg.T x S x cM_e_pg  (epki, kl, eplj) -> (epij)
-
-    Parameters
-    ----------
-    aP_e_pg : np.ndarray
-        projP_e_pg ou cP_e_pg (epij)
-    b : np.ndarray
-        _description_
-    aM_e_pg : np.ndarray
-        projM_e_pg ou cM_e_pg (epij)
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-        Cpp_e_pg, Cpm_e_pg, Cmp_e_pg, Cmm_e_pg
-    """
+def Get_Anisot_C(Cp_e_pg: np.ndarray, S: np.ndarray, Cm_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    
     if useParallel:
         range = prange
     else:
         range = np.arange
 
-    Ne = aP_e_pg.shape[0]
-    nPg = aP_e_pg.shape[1]
-    dimc = b.shape[0]
+    Ne = Cp_e_pg.shape[0]
+    nPg = Cp_e_pg.shape[1]
+    dimc = S.shape[0]
 
     Cpp_e_pg = np.zeros((Ne, nPg, dimc, dimc))
     Cpm_e_pg = np.zeros_like(Cpp_e_pg)
     Cmp_e_pg = np.zeros_like(Cpp_e_pg)
     Cmm_e_pg = np.zeros_like(Cpp_e_pg)
 
-    for e in range(aP_e_pg.shape[0]):
-        for p in range(aP_e_pg.shape[1]):
-            for i in range(b.shape[0]):                
-                for j in range(b.shape[0]):
-                    for l in range(b.shape[0]):
-                        for k in range(b.shape[0]):
+    for e in range(Cp_e_pg.shape[0]):
+        for p in range(Cp_e_pg.shape[1]):
+            for i in range(S.shape[0]):                
+                for j in range(S.shape[0]):
+                    for l in range(S.shape[0]):
+                        for k in range(S.shape[0]):
 
-                            Cpp_e_pg[e,p,i,j] += aP_e_pg[e,p,k,i] * b[k,l] * aP_e_pg[e,p,l,j]
-                            Cpm_e_pg[e,p,i,j] += aP_e_pg[e,p,k,i] * b[k,l] * aM_e_pg[e,p,l,j]
-                            Cmp_e_pg[e,p,i,j] += aM_e_pg[e,p,k,i] * b[k,l] * aP_e_pg[e,p,l,j]
-                            Cmm_e_pg[e,p,i,j] += aM_e_pg[e,p,k,i] * b[k,l] * aM_e_pg[e,p,l,j]
+                            Cpp_e_pg[e,p,i,j] += Cp_e_pg[e,p,k,i] * S[k,l] * Cp_e_pg[e,p,l,j]
+                            Cpm_e_pg[e,p,i,j] += Cp_e_pg[e,p,k,i] * S[k,l] * Cm_e_pg[e,p,l,j]
+                            Cmp_e_pg[e,p,i,j] += Cm_e_pg[e,p,k,i] * S[k,l] * Cp_e_pg[e,p,l,j]
+                            Cmm_e_pg[e,p,i,j] += Cm_e_pg[e,p,k,i] * S[k,l] * Cm_e_pg[e,p,l,j]
     
     return Cpp_e_pg, Cpm_e_pg, Cmp_e_pg, Cmm_e_pg
 
