@@ -25,19 +25,20 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 
 doSimulation = True
-doIdentif = True
+doIdentif = False
 detectL0 = False
 useContact = False
 
-test = False
+test = True
 optimMesh = True
-# Affichage
+
 pltLoad = True 
 pltIter = True
 pltContact = False
 
-nL = 100
-# nL = 50
+# nL = 100
+# nL = 80
+nL = 50
 Gc0 = 0.06
 
 inc0 = 1e-2/2 # inc0 = 8e-3 # incrément platewith hole
@@ -62,8 +63,8 @@ regu = "AT2"
 # convOption = 1 # energie crack
 convOption = 2 # energie tot
 
-tolConv = 1e-0
-# tolConv = 1e-2
+# tolConv = 1e-0
+tolConv = 1e-2
 # tolConv = 1e-3
 
 H = 90
@@ -259,12 +260,12 @@ for idxEssai in range(0,18):
 
                 yn_c = yn[nodes_Upper] + simu.displacement[ddlsY_Upper]
 
-                ecart = frontiere - yn_c
+                J = frontiere - yn_c
 
-                idxContact = np.where(ecart < 0)[0]
+                idxContact = np.where(J < 0)[0]
 
                 if len(idxContact) > 0:
-                    simu.add_dirichlet(nodes_Upper[idxContact], [ecart[idxContact]], ["y"])
+                    simu.add_dirichlet(nodes_Upper[idxContact], [J[idxContact]], ["y"])
             else:
                 simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
 
@@ -282,30 +283,23 @@ for idxEssai in range(0,18):
         if returnSimu:
             return simu
 
-        if doIdentif:
-            # calcul de l'erreur entre la force résultante calculée et la force expérimentale
-            ecart = fr - f_crit
-            # ecart = (fr - f_crit)/f_crit
+        # calcul de l'erreur entre la force résultante calculée et la force expérimentale
+        J = (fr - f_crit)/f_crit
+        if doIdentif:            
             print(f'\nfr = {fr}')
-            print(f"\necart = {ecart}")
-
-            ecarts.append(ecart)
-            Niter = len(ecarts)
+            print(f"J = {J:.5e}")
+            
+            evals.append(J)
+            Niter = len(evals)
 
             if pltIter:      
-                axEcart.scatter(Niter, ecarts[-1], c="black")
-                plt.figure(axEcart.figure)
-                plt.pause(1e-12)
+                ax_J.scatter(Niter, evals[-1], c="black", zorder=4)
+                plt.figure(ax_J.figure)
+                plt.pause(1e-12)            
 
-            print()
-
-            return ecart
+        return J
         
-        else:
-            # si on ne procède pas à lidentification on evalue la fonction cout
-            ecart = (fr - f_crit)**2/f_crit**2
-
-            return ecart, fr
+        
 
     # ----------------------------------------------
     # Simulations
@@ -315,11 +309,12 @@ for idxEssai in range(0,18):
 
         if doSimulation:
         
-            ecarts = []
+            evals = []
 
-            if pltIter:
-                axEcart = plt.subplots()[1]
-                axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
+            # création de la figure pour tracer J
+            ax_J = plt.subplots()[1]
+            ax_J.set_xlabel("$N$"); ax_J.set_ylabel("$J$")
+            ax_J.grid()                
 
             GcMax = 2
             
@@ -364,11 +359,9 @@ for idxEssai in range(0,18):
             # ----------------------------------------------
             
             if pltIter:
-                plt.figure(axEcart.figure)
-            else:
-                axEcart = plt.subplots()[1]
-                axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
-                axEcart.scatter(np.arange(len(ecarts)), ecarts, c='black')
+                plt.figure(ax_J.figure)
+            else:                
+                ax_J.scatter(np.arange(len(evals)), evals, c='black', zorder=4)
             Affichage.Save_fig(folder_Save, "iterations")
             
             simu.Save(folder_Save)
@@ -459,12 +452,12 @@ for idxEssai in range(0,18):
         axLoad.legend()
         Affichage.Save_fig(folder_Save, "load")
 
-        Affichage.Plot_Result(simu, "damage", folder=folder_Save)
+        Affichage.Plot_Result(simu, "damage", folder=folder_Save, colorbarIsClose=True)
 
     else:
 
-        Gc_array = np.linspace(0.01, 0.2, 10)
-        l0_array = np.linspace(L/100, L/10, 10)
+        Gc_array = np.linspace(0.01, 0.2, 14)
+        l0_array = np.linspace(L/100, L/10, 14)
 
         L0, GC = np.meshgrid(l0_array, Gc_array)        
 
@@ -487,7 +480,7 @@ for idxEssai in range(0,18):
             for g, gc in enumerate(Gc_array):
                 for l, l0 in enumerate(l0_array):
                     
-                    ecart, fr = DoSimu(np.array([gc,l0]))
+                    ecart = DoSimu(np.array([gc,l0]))
 
                     results[g,l] = ecart
 
