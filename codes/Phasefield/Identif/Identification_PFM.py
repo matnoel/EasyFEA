@@ -36,8 +36,8 @@ pltLoad = True
 pltIter = True
 pltContact = False
 
-nL = 100
-# nL = 50
+# nL = 100
+nL = 50
 Gc0 = 0.06
 
 inc0 = 1e-2/2 # inc0 = 8e-3 # incrément platewith hole
@@ -46,17 +46,16 @@ treshold = 0.2
 
 solveur = 0 # least_squares
 # solveur = 1 # minimize
-# solveur = 2 # regle de 3
 
 # ftol = 1e-12
 # ftol = 1e-5
-# ftol = 1e-4
-ftol = 1e-2
+ftol = 1e-3
+# ftol = 1e-2
 # ftol = 1e-1/2
 
-split = "AnisotStress"
+# split = "AnisotStress"
 # split = "He"
-# split = "Zhang"
+split = "Zhang"
 regu = "AT2"
 
 # convOption = 0 # bourdin
@@ -125,7 +124,7 @@ for idxEssai in range(3,4):
     folder_Save = Folder.Join([folder_Essai, simuOptions])
     
     print()
-    print(folder_Save)
+    print(folder_Save.replace(folder, ''))
 
     # ----------------------------------------------
     # Données de l'essai
@@ -238,7 +237,7 @@ for idxEssai in range(3,4):
         # construit le modèle d'endommagement
         pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0, A=A)
         
-        simu = Simulations.Simu_PhaseField(meshSimu, pfm)        
+        simu = Simulations.Simu_PhaseField(meshSimu, pfm)
 
         dep = -inc0            
 
@@ -272,23 +271,23 @@ for idxEssai in range(3,4):
             # resolution
             u, d, Kglob, convergence = simu.Solve(tolConv, convOption=convOption)
 
-            simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/f_crit, True)
-
             simu.Save_Iteration()
-
             # force résultante
             f = Kglob[ddlsY_Upper,:] @ u
-
             fr = - np.sum(f)/1000
 
+            # simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/f_crit, True)
+            simu.Resultats_Set_Resume_Iteration(i, fr, "kN", 0, True)            
+
         if returnSimu:
-            # renvoie la simulation
             return simu
-        
-        elif doIdentif:
+
+        if doIdentif:
             # calcul de l'erreur entre la force résultante calculée et la force expérimentale
-            ecart = (fr - f_crit)/f_crit
-            print(f"\necart = {ecart:.5e}")
+            ecart = fr - f_crit
+            # ecart = (fr - f_crit)/f_crit
+            print(f'\nfr = {fr}')
+            print(f"\necart = {ecart}")
 
             ecarts.append(ecart)
             Niter = len(ecarts)
@@ -331,7 +330,7 @@ for idxEssai in range(3,4):
             if solveur in [0,1]:
                 
                 if solveur == 0:
-                    res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=1, ftol=ftol, xtol=None, gtol=None)
+                    res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None)
                 elif solveur == 1:
                     # res = minimize(DoSimu, x0, tol=tol)
 
@@ -349,25 +348,17 @@ for idxEssai in range(3,4):
 
                 x = res.x
 
-            elif solveur == 2:
+                print(res)
 
-                ecart = 1
-                Gc = Gc0
-                while ecart >= ftol:
-                    fr = DoSimu([Gc])
+            else:
 
-                    ecart = (f_crit - fr)/f_crit
+                raise Exception("Pas implémenté")
 
-                    print(f"\nGc = {Gc:.4f}, ecart = {ecart:.5e}")
-                    Gc = f_crit * Gc/fr
-
-                x = [Gc,l00]
-            
-            # Refais la simulation
+            # Récupère la simulation
             returnSimu = True
             simu = DoSimu(x)
             assert isinstance(simu, Simulations.Simu_PhaseField)
-
+            
             # ----------------------------------------------
             # Sauvegarde des données
             # ----------------------------------------------
