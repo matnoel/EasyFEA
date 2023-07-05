@@ -29,15 +29,15 @@ doIdentif = True
 detectL0 = False
 useContact = False
 
-test = True
+test = False
 optimMesh = True
 # Affichage
 pltLoad = True 
 pltIter = True
 pltContact = False
 
-# nL = 100
-nL = 50
+nL = 100
+# nL = 50
 Gc0 = 0.06
 
 inc0 = 1e-2/2 # inc0 = 8e-3 # incrément platewith hole
@@ -53,9 +53,9 @@ ftol = 1e-3
 # ftol = 1e-2
 # ftol = 1e-1/2
 
-# split = "AnisotStress"
+split = "AnisotStress"
 # split = "He"
-split = "Zhang"
+# split = "Zhang"
 regu = "AT2"
 
 # convOption = 0 # bourdin
@@ -101,7 +101,7 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(3,4):
+for idxEssai in range(0,18):
 
     # Dossier de l'essai
 
