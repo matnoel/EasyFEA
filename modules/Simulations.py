@@ -2141,7 +2141,7 @@ class Simu_PhaseField(Simu):
                 psi_tot_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
             elif convOption == 3:
                 d_n = self.damage
-                u_n = self.displacement                
+                u_n = self.displacement
 
             # Damage
             self.__Assemblage_d()
