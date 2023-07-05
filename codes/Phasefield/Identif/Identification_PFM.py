@@ -12,6 +12,7 @@ from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, Domain, Circle
 import Materials
 import Simulations
+from Simulations import BoundaryCondition
 import PostTraitement
 import pickle
 
@@ -58,13 +59,13 @@ split = "AnisotStress"
 # split = "Zhang"
 regu = "AT2"
 
-# tolConv = 1e-0
-tolConv = 1e-2
-# tolConv = 1e-3
-
 # convOption = 0 # bourdin
 # convOption = 1 # energie crack
 convOption = 2 # energie tot
+
+tolConv = 1e-0
+# tolConv = 1e-2
+# tolConv = 1e-3
 
 H = 90
 L = 45
@@ -109,9 +110,6 @@ for idxEssai in range(3,4):
 
     essai = f"Essai{add}{idxEssai}"
 
-    print()
-    print(essai)
-
     folder_Essai = Folder.Join([folder, essai])
 
     if test:
@@ -126,6 +124,7 @@ for idxEssai in range(3,4):
 
     folder_Save = Folder.Join([folder_Essai, simuOptions])
     
+    print()
     print(folder_Save)
 
     # ----------------------------------------------
@@ -321,7 +320,7 @@ for idxEssai in range(3,4):
 
             if pltIter:
                 axEcart = plt.subplots()[1]
-                axEcart.set_xlabel("iter"); axEcart.set_ylabel("J")
+                axEcart.set_xlabel("iter"); axEcart.set_ylabel("ecart")
 
             GcMax = 2
             
@@ -384,6 +383,10 @@ for idxEssai in range(3,4):
             simu.Save(folder_Save)
             Affichage.Plot_ResumeIter(simu, folder_Save)
 
+            simu.Update_iter(-1)
+            ddlsY = BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
+            fr = -np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ simu.displacement)/1000
+
             pathData = Folder.Join([folder, "identification.xlsx"])
 
             data = [
@@ -399,8 +402,8 @@ for idxEssai in range(3,4):
                     "ftol": ftol,
                     "detectL0": detectL0,
                     "f_crit": f_crit,
-                    "fr": forcesIdentif[-1],
-                    "err": np.abs(f_crit-forcesIdentif[-1])/f_crit,
+                    "fr": fr,
+                    "err": np.abs(fr-f_crit)/f_crit,
                     "Gc": Gc,
                     "l0": l0
                 }
@@ -427,13 +430,12 @@ for idxEssai in range(3,4):
         # reconstruction de la courbe force déplacement
         deplacementsIdentif = []
         forcesIdentif = []
+        ddlsY = BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
         for iter in range(len(simu._results)):
 
             simu.Update_iter(iter)
 
             displacement = simu.displacement
-            ddlsY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
-
             deplacementsIdentif.append(-np.mean(displacement[ddlsY]))
             forcesIdentif.append(-np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ displacement)/1000)
 
@@ -534,18 +536,6 @@ for idxEssai in range(3,4):
 
         # Affichage.Save_fig(folder_Save, "J_grid")
         # plt.show()
-
-        pass
-
-    
-    
-    if doIdentif:
-
-         
-
-        del simu
-
-    else:        
 
         pass
 
