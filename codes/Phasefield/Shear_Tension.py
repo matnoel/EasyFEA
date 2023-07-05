@@ -546,7 +546,7 @@ for split, regu in zip(splits, regularisations):
         
         p0 = np.array([L/2, L/2])
 
-        diamCercle = 2*meshSize
+        diamCercle = 2*clC
         tolDamageValide = 0.95
 
         vecteurs = []
