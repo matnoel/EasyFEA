@@ -34,7 +34,7 @@ class Tic:
 
         return temps*coef, unite
 
-    def Tac(self, categorie="", texte="", affichage=False):
+    def Tac(self, categorie="", texte="", affichage=False) -> float:
         """calcul le temps et stock dans l'historique"""
 
         tf = np.abs(self.__start - time.time())
