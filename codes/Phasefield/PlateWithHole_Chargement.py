@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 Affichage.Clear()
 
-# L'objectif de ce script est de voir du chargement
+# L'objectif de regarder les champs de contraintes en fonctions des chargements
 
 # Options
 dim = 2

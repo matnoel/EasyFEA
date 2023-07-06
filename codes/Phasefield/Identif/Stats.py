@@ -15,7 +15,7 @@ Affichage.Clear()
 df = pd.read_excel(pathData)
 
 filtre = df["err"] >= 1e-2
-filtre &= df["regu"] == "AT2"
+# filtre &= df["regu"] == "AT2"
 # filtre = df["Essai"] <= 'Essai10'
 # filtre = [True]*df.shape[0]
 
