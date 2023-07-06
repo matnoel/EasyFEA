@@ -36,10 +36,24 @@ pltLoad = True
 pltIter = True
 pltContact = False
 
-# nL = 100
+H = 90
+L = 45
+ep = 20
+D = 10
+
+nL = 100
 # nL = 80
-nL = 50
-Gc0 = 0.06
+# nL = 50
+l00 = L/nL
+
+Gc0 = 0.06 # mJ/mm2
+
+# 1 J -> 1000 mJ
+# 1 mJ -> 1e-3 J
+# 1 m -> 1e3 mm
+# 1 m^2 -> 1e6 mm^2
+# 1 mm^2 -> 1e-6 m^2
+tt = Gc0 / 1e3 * 1e6
 
 inc0 = 1e-2/2 # inc0 = 8e-3 # incrément platewith hole
 inc1 = inc0/5 # inc1 = 2e-3
@@ -50,9 +64,9 @@ solveur = 0 # least_squares
 
 # ftol = 1e-12
 # ftol = 1e-5
-ftol = 1e-3
-# ftol = 1e-2
-# ftol = 1e-1/2
+# ftol = 1e-3
+ftol = 1e-2
+# ftol = 1e-1
 
 split = "AnisotStress"
 # split = "He"
@@ -66,13 +80,6 @@ convOption = 2 # energie tot
 # tolConv = 1e-0
 tolConv = 1e-2
 # tolConv = 1e-3
-
-H = 90
-L = 45
-ep = 20
-D = 10
-
-l00 = L/nL
 
 # ----------------------------------------------
 # Données
@@ -102,7 +109,7 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(0,18):
+for idxEssai in range(4,5):
 
     # Dossier de l'essai
 
@@ -151,12 +158,7 @@ for idxEssai in range(0,18):
 
     rot = 90 * np.pi/180
     axis_l = np.array([np.cos(rot), np.sin(rot), 0])
-
-    matRot = np.array([ [np.cos(np.pi/2), -np.sin(np.pi/2), 0],
-                        [np.sin(np.pi/2), np.cos(np.pi/2), 0],
-                        [0, 0, 1]])
-
-    axis_t = matRot @ axis_l
+    axis_t = np.cross(np.array([0,0,1]), axis_l)
 
     comp = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, ep)
 
@@ -181,10 +183,6 @@ for idxEssai in range(0,18):
         mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
 
         return mesh
-
-    mesh = DoMesh(l00)
-    # Affichage.Plot_Mesh(mesh)
-    # Affichage.Plot_Model(mesh)
 
     # ----------------------------------------------
     # phase field
@@ -220,25 +218,21 @@ for idxEssai in range(0,18):
         Gc = x[0]
 
         if x.size > 1:
-            l0 = x[1]
-            # reconstruit le maillage
-            meshSimu = DoMesh(l0)
+            l0 = x[1]            
             print(f"\nGc = {x[0]:.5e}, l0 = {x[1]:.5e}")
-        else:
-            l0 = l00
-            meshSimu = mesh
+        else:            
             print(f"\nGc = {x[0]:.5e}")
             
-        yn = meshSimu.coordo[:, 1]
-        nodes_Lower = meshSimu.Nodes_Tags(["L0"])
-        nodes_Upper = meshSimu.Nodes_Tags(["L2"])
-        nodes0 = meshSimu.Nodes_Tags(["P0"])    
+        yn = mesh.coordo[:, 1]
+        nodes_Lower = mesh.Nodes_Tags(["L0"])
+        nodes_Upper = mesh.Nodes_Tags(["L2"])
+        nodes0 = mesh.Nodes_Tags(["P0"])    
         ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["y"])
         
         # construit le modèle d'endommagement
         pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0, A=A)
         
-        simu = Simulations.Simu_PhaseField(meshSimu, pfm)
+        simu = Simulations.Simu_PhaseField(mesh, pfm)
 
         dep = -inc0            
 
@@ -260,12 +254,12 @@ for idxEssai in range(0,18):
 
                 yn_c = yn[nodes_Upper] + simu.displacement[ddlsY_Upper]
 
-                J = frontiere - yn_c
+                diff = frontiere - yn_c
 
-                idxContact = np.where(J < 0)[0]
+                idxContact = np.where(diff < 0)[0]
 
                 if len(idxContact) > 0:
-                    simu.add_dirichlet(nodes_Upper[idxContact], [J[idxContact]], ["y"])
+                    simu.add_dirichlet(nodes_Upper[idxContact], [diff[idxContact]], ["y"])
             else:
                 simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
 
@@ -308,6 +302,8 @@ for idxEssai in range(0,18):
     if doIdentif:
 
         if doSimulation:
+
+            mesh = DoMesh(l00)
         
             evals = []
 
@@ -319,7 +315,7 @@ for idxEssai in range(0,18):
             GcMax = 2
             
             lb = [0] if not detectL0 else [0, 0]
-            ub = [GcMax] if not detectL0 else [GcMax, np.inf]
+            ub = [GcMax] if not detectL0 else [GcMax, L/20]
             x0 = [Gc0] if not detectL0 else [Gc0, l00]
 
             if solveur in [0,1]:
@@ -456,8 +452,14 @@ for idxEssai in range(0,18):
 
     else:
 
-        Gc_array = np.linspace(0.01, 0.2, 14)
-        l0_array = np.linspace(L/100, L/10, 14)
+        N = 10
+        # N = 4
+
+        Gc_array = np.linspace(0.01, 0.2, N)
+        # l0_array = np.linspace(L/100, L/10, N)
+        l0_array = np.linspace(L/20, L/10, N)
+
+        mesh = DoMesh(l0_array.min()) # ici on prend le meme maillage pour toutes les simulations
 
         L0, GC = np.meshgrid(l0_array, Gc_array)        
 
@@ -490,7 +492,18 @@ for idxEssai in range(0,18):
                     'L0': L0,
                     'results': results
                 }
-                pickle.dump(data, file)            
+                pickle.dump(data, file)
+
+        results = results**2
+
+        lMax = L/10
+        lMax = L0[0,-4]
+        lMax = L0.max()
+
+        cols = np.where(L0[0] < lMax)[0]
+        GC = GC[:,cols]
+        L0 = L0[:,cols]
+        results = results[:,cols]
 
         fig = plt.figure()
         ax1 = fig.add_subplot(projection="3d")
@@ -498,7 +511,7 @@ for idxEssai in range(0,18):
         fig.colorbar(cc)
         ax1.set_xlabel("$G_c$", fontsize=14)
         ax1.set_ylabel("$\ell_0$", fontsize=14)
-        ax1.set_zlabel("$J$", fontsize=14)
+        ax1.set_title("$J^2$", fontsize=14)
         # ax1.contour(GC, L0, results)        
         
         # for gc in Gc_array:
@@ -506,20 +519,19 @@ for idxEssai in range(0,18):
         #     ax1.scatter(gc, l00, ecart, c='black')
         #     plt.pause(1e-12)
 
-
         Affichage.Save_fig(folder_Save, "J surface")
-
 
         ax2 = plt.subplots()[1]
         cc = ax2.contourf(GC, L0, results, cmap='jet')
         ax2.set_xlabel("$G_c$", fontsize=14)
         ax2.set_ylabel("$\ell_0$", fontsize=14)
+        ax2.set_title("$J^2$", fontsize=14)
         ax2.figure.colorbar(cc)
 
         Affichage.Save_fig(folder_Save, "J contourf")
 
         # Affichage.Save_fig(folder_Save, "J_grid")
-        # plt.show()
+        plt.show()
 
         pass
 
