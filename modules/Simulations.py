@@ -2148,8 +2148,7 @@ class Simu_PhaseField(Simu):
             d_np1 = self.__Solve_d()
 
             if d_np1.max() == np.inf and regu == "AT1":
-                # ici il peut arriver qua la première itération la solution d'endommagement soit infinie
-                # pour eviter que ça pose probleme pour la suite l'endommagement  
+                # ici il peut arriver qua la première itération la solution d'endommagement soit infinie (solveur itératif)
                 d_np1 = np.zeros_like(d_np1)
 
                 # récupère les ddls ou des endommagements on été imposés
