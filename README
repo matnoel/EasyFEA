@@ -25,7 +25,7 @@ It is necessary to add in the PYTHONPATH the modules folder:
 		PYTHONPATH .../PythonEF/modules
         
 
-Build gmsh like a big person (optional):
+Build gmsh (optional) :
 
 	first you have to install opencascade : sudo port install opencascade
 	then install fltk : sudo port install fltk
@@ -37,11 +37,10 @@ Build gmsh like a big person (optional):
 	git clone 
 	cd gmsh
 	mkdir build
-	mkdir bin
 	cd build
-	cmake -DCMAKE_INSTALL_PREFIX=/Applications/gmsh/bin -DENABLE_BUILD_DYNAMIC=1 . 
+	cmake -DCMAKE_INSTALL_PREFIX=/Applications/gmsh-install -DENABLE_BUILD_DYNAMIC=1 ..
 	make 
 	make install
 
 	then add the path to gmsh.py
-	export PYTHONPATH=".../PythonEF/modules:/Applications/gmsh/bin/lib"
+	export PYTHONPATH=".../PythonEF/modules:/Applications/gmsh-install/lib"
