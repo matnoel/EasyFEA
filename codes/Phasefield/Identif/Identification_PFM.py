@@ -218,9 +218,10 @@ for idxEssai in range(0,18):
         Gc = x[0]
 
         if x.size > 1:
-            l0 = x[1]            
+            l0 = x[1]
             print(f"\nGc = {x[0]:.5e}, l0 = {x[1]:.5e}")
-        else:            
+        else:
+            l0 = l00
             print(f"\nGc = {x[0]:.5e}")
             
         yn = mesh.coordo[:, 1]
