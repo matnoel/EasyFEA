@@ -120,7 +120,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
             print("Le vecteur renseigné doit être de dimension Nn ou Ne")
             return
 
-        valeurs = option
+        valeurs = option*coef
         
         if sizeVecteur == mesh.Ne and nodeValues:
             valeurs = Simu.Resultats_InterpolationAuxNoeuds(mesh, valeurs)
@@ -563,7 +563,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
 
     return ax
 
-def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', alpha=0, folder="", ax=None):
+def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor='black', alpha=0, folder="", ax=None):
     """Affiche les elements du maillage en fonction des numéros de noeuds
 
     Parameters
@@ -577,7 +577,9 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', alpha=0, 
     showId : bool, optional
         affiche les numéros, by default False    
     c : str, optional
-        couleur utilisé pour afficher les elements, by default 'red'
+        couleur utilisé pour afficher les faces, by default 'red'
+    edgecolor : str, optional
+        couleur utilisé pour afficher les segments, by default 'black'
     alpha : int, optional
         transparence des faces, by default 1
     folder : str, optional
@@ -624,7 +626,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', alpha=0, 
             if groupElemDim.dim == 1:
                 pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.inDim)], edgecolor=c, lw=1, zorder=3)
             else:
-                pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.inDim)], facecolors=c, edgecolor='black', lw=0.5, alpha=1, zorder=3)
+                pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.inDim)], facecolors=c, edgecolor=edgecolor, lw=0.5, alpha=alpha, zorder=3)
             ax.add_collection(pc)
 
             # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=3)
@@ -632,7 +634,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', alpha=0, 
                 [ax.text(coordo_e[element,0], coordo_e[element,1], element,
                 zorder=25, ha='center', va='center') for element in elements]
         elif mesh.dim == 3:
-            ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor='black', linewidths=0.5, alpha=1, zorder=3), zdir='z')
+            ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=3), zdir='z')
 
             # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=3)
             if showId:
