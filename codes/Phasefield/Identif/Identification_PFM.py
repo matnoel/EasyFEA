@@ -25,11 +25,11 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 
 doSimulation = True
-doIdentif = False
+doIdentif = True
 detectL0 = False
 useContact = False
 
-test = True
+test = False
 optimMesh = True
 
 pltLoad = True 
@@ -109,7 +109,7 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(4,5):
+for idxEssai in range(0,18):
 
     # Dossier de l'essai
 
@@ -456,8 +456,8 @@ for idxEssai in range(4,5):
         # N = 4
 
         Gc_array = np.linspace(0.01, 0.2, N)
-        # l0_array = np.linspace(L/100, L/10, N)
-        l0_array = np.linspace(L/20, L/10, N)
+        l0_array = np.linspace(L/100, L/10, N)
+        # l0_array = np.linspace(L/20, L/10, N)
 
         mesh = DoMesh(l0_array.min()) # ici on prend le meme maillage pour toutes les simulations
 
@@ -500,7 +500,7 @@ for idxEssai in range(4,5):
         lMax = L0[0,-4]
         lMax = L0.max()
 
-        cols = np.where(L0[0] < lMax)[0]
+        cols = np.where(L0[0] <= lMax)[0]
         GC = GC[:,cols]
         L0 = L0[:,cols]
         results = results[:,cols]
