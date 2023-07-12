@@ -1484,11 +1484,9 @@ class PhaseField_Model(IModel):
         
         tic = Tic()
         c = self.__comportement.C
-        c = c[np.newaxis, np.newaxis,:,:]
-        c = np.repeat(c, Ne, axis=0)
-        c = np.repeat(c, nPg, axis=1)
+        c_e_pg = Resize_variable(c, Ne, nPg)
 
-        cP_e_pg = c
+        cP_e_pg = c_e_pg
         cM_e_pg = np.zeros_like(cP_e_pg)
         tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
@@ -1500,7 +1498,12 @@ class PhaseField_Model(IModel):
         
         tic = Tic()
         
-        loiDeComportement = self.__comportement                
+        loiDeComportement = self.__comportement
+        
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
+
+        isHeterogene = len(loiDeComportement.C.shape) > 2
 
         bulk = loiDeComportement.get_bulk()
         mu = loiDeComportement.get_mu()
@@ -1518,32 +1521,27 @@ class PhaseField_Model(IModel):
 
         IxI = np.array(Ivoigt.dot(Ivoigt.T))
 
+        spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
+        spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
+
         # Projecteur deviatorique
         Pdev = np.eye(taille) - 1/dim * IxI
-        partieDeviateur = 2*mu*Pdev
 
-        # projetcteur spherique
-        # useNumba = self.__useNumba
-        useNumba=False
-        if useNumba:
-            # Moins rapide
-            cP_e_pg, cM_e_pg = CalcNumba.Split_Amor(Rp_e_pg, Rm_e_pg, partieDeviateur, IxI, bulk)
+        # einsum plus rapide qu'avec le redimensionnement (il nest pas necessaire dessayer avec numba)
+        if isHeterogene:
+            mu_e_pg = Resize_variable(mu, Ne, nPg)
+            bulk_e_pg = Resize_variable(bulk, Ne, nPg)
+
+            devPart_e_pg = np.einsum("ep,ij->epij",2*mu_e_pg, Pdev, optimize="optimal")        
+    
+            cP_e_pg = np.einsum('ep,epij->epij', bulk_e_pg, spherP_e_pg, optimize='optimal')  + devPart_e_pg
+            cM_e_pg = np.einsum('ep,epij->epij', bulk_e_pg, spherM_e_pg, optimize='optimal')
+
         else:
-            
-            # # Mois rapide que einsum
-            # IxI = IxI[np.newaxis, np.newaxis, :, :].repeat(Rp_e_pg.shape[0], axis=0).repeat(Rp_e_pg.shape[1], axis=1)
+            devPart = 2*mu * Pdev
 
-            # Rp_e_pg = Rp_e_pg[:,:, np.newaxis, np.newaxis].repeat(taille, axis=2).repeat(taille, axis=3)
-            # Rm_e_pg = Rm_e_pg[:,:, np.newaxis, np.newaxis].repeat(taille, axis=2).repeat(taille, axis=3)
-
-            # spherP_e_pg = Rp_e_pg * IxI
-            # spherM_e_pg = Rm_e_pg * IxI
-
-            spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
-            spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')            
-        
-            cP_e_pg = bulk*spherP_e_pg + partieDeviateur
-            cM_e_pg = bulk*spherM_e_pg
+            cP_e_pg = bulk * spherP_e_pg  + devPart
+            cM_e_pg = bulk * spherM_e_pg
 
         tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
@@ -1578,6 +1576,11 @@ class PhaseField_Model(IModel):
 
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Epsilon_e_pg, verif)
 
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
+
+        isHeterogene = len(self.__comportement.C.shape) > 2
+
         tic = Tic()
 
         if self.__split == PhaseField_Model.SplitType.Miehe:
@@ -1602,24 +1605,39 @@ class PhaseField_Model(IModel):
             lamb = self.__comportement.get_lambda()
             mu = self.__comportement.get_mu()
 
-            cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
-            cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
+            if isHeterogene:
+                lamb_e_pg = Resize_variable(lamb, Ne, nPg)
+                mu_e_pg = Resize_variable(mu, Ne, nPg)
+
+                funcMult = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
+
+                cP_e_pg = funcMult(lamb_e_pg,spherP_e_pg) + funcMult(2*mu_e_pg, projP_e_pg)
+                cM_e_pg = funcMult(lamb_e_pg,spherM_e_pg) + funcMult(2*mu_e_pg, projM_e_pg)
+
+            else:
+                cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
+                cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
         
         elif "Strain" in self.__split:
             
             c = self.__comportement.C
-
-            # TODO a optim ?
-            # ici fonctionne pas si c est heterogène
             
-            if useNumba:
-                # Plus rapide
+            # ici utilise pas numba si le comportement est hetérogène
+            if useNumba and not isHeterogene:
+                # Plus rapide (x2) mais pas utilisable si c est hétérogène
                 Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(projP_e_pg, c, projM_e_pg)
+
             else:
-                Cpp = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projP_e_pg, optimize='optimal')
-                Cpm = np.einsum('epji,jk,epkl->epil', projP_e_pg, c, projM_e_pg, optimize='optimal')
-                Cmm = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projM_e_pg, optimize='optimal')
-                Cmp = np.einsum('epji,jk,epkl->epil', projM_e_pg, c, projP_e_pg, optimize='optimal')
+                # Ici on utilise pas einsum sinon c'est beaucoup plus long
+                c_e_pg = Resize_variable(c, Ne, nPg)
+
+                pc = np.transpose(projP_e_pg, [0,1,3,2]) @ c_e_pg
+                mc = np.transpose(projM_e_pg, [0,1,3,2]) @ c_e_pg
+                
+                Cpp = pc @ projP_e_pg
+                Cpm = pc @ projM_e_pg
+                Cmm = mc @ projM_e_pg
+                Cmp = mc @ projP_e_pg
             
             if self.__split == PhaseField_Model.SplitType.AnisotStrain:
 
@@ -1647,7 +1665,6 @@ class PhaseField_Model(IModel):
         tic.Tac("Decomposition",f"cP_e_pg et cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
-
     
     def __Split_Stress(self, Epsilon_e_pg: np.ndarray, verif=False):
         """Construit Cp et Cm pour le split en contraintse"""
@@ -1655,8 +1672,23 @@ class PhaseField_Model(IModel):
         # Récupère les contraintes
         # Ici le matériau est supposé homogène
         loiDeComportement = self.__comportement
-        C = loiDeComportement.C    
-        Sigma_e_pg = np.einsum('ij,epj->epi',C, Epsilon_e_pg, optimize='optimal')
+        c = loiDeComportement.C
+
+        shape_c = len(c.shape)
+
+        Ne = Epsilon_e_pg.shape[0]
+        nPg = Epsilon_e_pg.shape[1]
+
+        isHeterogene = shape_c > 2
+
+        if shape_c == 2:
+            indices = ''
+        elif shape_c == 3:
+            indices = 'e'
+        elif shape_c == 4:
+            indices = 'ep'
+
+        Sigma_e_pg = np.einsum(f'{indices}ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
 
         # Construit les projecteurs tel que SigmaP = Pp : Sigma et SigmaM = Pm : Sigma                    
         projP_e_pg, projM_e_pg = self.__Decomposition_Spectrale(Sigma_e_pg, verif)
@@ -1684,36 +1716,53 @@ class PhaseField_Model(IModel):
                 I = np.array([1,1,1,0,0,0]).reshape((6,1))
             IxI = I.dot(I.T)
 
-            RpIxI_e_pg = np.einsum('ep,ij->epij',Rp_e_pg, IxI, optimize='optimal')
-            RmIxI_e_pg = np.einsum('ep,ij->epij',Rm_e_pg, IxI, optimize='optimal')
+            RpIxI_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
+            RmIxI_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
+            
+            def funcMult(a, epij: np.ndarray, indices=indices):
+                return np.einsum(f'{indices},epij->epij', a, epij, optimize='optimal')
 
             if dim == 2:
                 if loiDeComportement.contraintesPlanes:
-                    sP_e_pg = (1+v)/E*projP_e_pg - v/E * RpIxI_e_pg
-                    sM_e_pg = (1+v)/E*projM_e_pg - v/E * RmIxI_e_pg
+                    sP_e_pg = funcMult((1+v)/E, projP_e_pg) - funcMult(v/E, RpIxI_e_pg)
+                    sM_e_pg = funcMult((1+v)/E, projM_e_pg) - funcMult(v/E, RmIxI_e_pg) 
                 else:
-                    sP_e_pg = (1+v)/E*projP_e_pg - v*(1+v)/E * RpIxI_e_pg
-                    sM_e_pg = (1+v)/E*projM_e_pg - v*(1+v)/E * RmIxI_e_pg
+                    sP_e_pg = funcMult((1+v)/E, projP_e_pg) - funcMult(v*(1+v)/E, RpIxI_e_pg) 
+                    sM_e_pg = funcMult((1+v)/E, projM_e_pg) - funcMult(v*(1+v)/E, RmIxI_e_pg) 
             elif dim == 3:
                 mu = loiDeComportement.get_mu()
 
-                sP_e_pg = 1/(2*mu)*projP_e_pg - v/E * RpIxI_e_pg
-                sM_e_pg = 1/(2*mu)*projM_e_pg - v/E * RmIxI_e_pg
+                if isinstance(mu, (float, int)):
+                    ind = ''
+                elif len(mu.shape) == 1:
+                    ind = 'e'
+                elif len(mu.shape) == 2:
+                    ind = 'ep'                    
+
+                sP_e_pg = funcMult(1/(2*mu), projP_e_pg, ind) - funcMult(v/E, RpIxI_e_pg) 
+                sM_e_pg = funcMult(1/(2*mu), projM_e_pg, ind) - funcMult(v/E, RmIxI_e_pg) 
             
             useNumba = self.__useNumba
-            if useNumba:
+            if useNumba and not isHeterogene:
                 # Plus rapide
                 cP_e_pg, cM_e_pg = CalcNumba.Get_Cp_Cm_Stress(c, sP_e_pg, sM_e_pg)
             else:
-                cT = c.T
-                cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
-                cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
+                if isHeterogene:
+                    c_e_pg = Resize_variable(c, Ne, nPg)
+                    cT = np.transpose(c_e_pg, [0,1,3,2])
+
+                    cP_e_pg = cT @ sP_e_pg @ c_e_pg
+                    cM_e_pg = cT @ sM_e_pg @ c_e_pg
+                else:
+                    cT = c.T
+                    cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
+                    cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
         
         elif self.__split == PhaseField_Model.SplitType.Zhang or "Stress" in self.__split:
 
             # Construit les ppc_e_pg = Pp : C et ppcT_e_pg = transpose(Pp : C)
-            Cp_e_pg = np.einsum('epij,jk->epik', projP_e_pg, C, optimize='optimal')
-            Cm_e_pg = np.einsum('epij,jk->epik', projM_e_pg, C, optimize='optimal')
+            Cp_e_pg = np.einsum(f'epij,{indices}jk->epik', projP_e_pg, c, optimize='optimal')
+            Cm_e_pg = np.einsum(f'epij,{indices}jk->epik', projM_e_pg, c, optimize='optimal')
 
             if self.__split == PhaseField_Model.SplitType.Zhang:
                 cP_e_pg = Cp_e_pg
@@ -1722,14 +1771,20 @@ class PhaseField_Model(IModel):
             else:
                 # Construit Cp et Cm
                 S = loiDeComportement.S
-                if self.__useNumba:
+                if self.__useNumba and not isHeterogene:
                     # Plus rapide
                     Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
                 else:
-                    Cpp = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cp_e_pg, optimize='optimal')
-                    Cpm = np.einsum('epji,jk,epkl->epil', Cp_e_pg, S, Cm_e_pg, optimize='optimal')
-                    Cmm = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cm_e_pg, optimize='optimal')
-                    Cmp = np.einsum('epji,jk,epkl->epil', Cm_e_pg, S, Cp_e_pg, optimize='optimal')                    
+                    # Ici on utilise pas einsum sinon c'est beaucoup plus long
+                    s_e_pg = Resize_variable(S, Ne, nPg)
+
+                    ps = np.transpose(Cp_e_pg, [0,1,3,2]) @ s_e_pg
+                    ms = np.transpose(Cm_e_pg, [0,1,3,2]) @ s_e_pg
+                    
+                    Cpp = ps @ Cp_e_pg
+                    Cpm = ps @ Cm_e_pg
+                    Cmm = ms @ Cm_e_pg
+                    Cmp = ms @ Cp_e_pg
                 
                 if self.__split == PhaseField_Model.SplitType.AnisotStress:
 
@@ -1763,10 +1818,10 @@ class PhaseField_Model(IModel):
         # Ici le matériau est supposé homogène
         loiDeComportement = self.__comportement
 
-        C = loiDeComportement.C 
-
-        # Mettre ça direct dans la loi de comportement ?
-
+        C = loiDeComportement.C        
+        
+        assert len(C.shape) == 2, "La décomposition de He n'a pas été implémentée pour les matériaux hétérogènes"
+        # pour les matériaux hétérogènes comment faire sqrtm pose probleme?
         sqrtC = sqrtm(C)
         
         if verif :

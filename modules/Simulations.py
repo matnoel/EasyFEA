@@ -2092,7 +2092,7 @@ class Simu_PhaseField(Simu):
         self.__Assemblage_d()
         self.__Assemblage_u()
     
-    def Solve(self, tolConv=1.0, maxIter=500, convOption=0) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
+    def Solve(self, tolConv=1.0, maxIter=500, convOption=2) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
         """Résolution du problème d'endommagement de façon étagée
 
         Parameters
@@ -2103,8 +2103,8 @@ class Simu_PhaseField(Simu):
             Nombre d'itération maximum pour atteindre la convergence, by default 500
         convOption : int, optional
             0 -> convergence sur l'endommagement np.max(np.abs(d_kp1-dk)) équivalent normInf(d_kp1-dk)\n
-            1 -> convergence sur l'energie de fissure np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_k \n
-            2 -> convergence sur l'energie de totale np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_k
+            1 -> convergence sur l'energie de fissure np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_kp1 \n
+            2 -> convergence sur l'energie de totale np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_kp1
 
         Returns
         -------

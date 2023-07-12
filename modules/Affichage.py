@@ -1037,10 +1037,10 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
     # Récupère l'axe qui sera utilisé pour les abscisses
     if len(deplacements)>0:
         listX = deplacements[listIter] 
-        nomX = "deplacement"
+        xlabel = "displacement"
     else:
         listX = listIter 
-        nomX = "iter"    
+        xlabel = "iter"    
 
     # Transforme list_dict_Energie en dataframe    
     df = pd.DataFrame(list_dict_Energie)
@@ -1050,8 +1050,7 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
     # Pour chaque energie on trace les valeurs
     for energie_str in df.columns:
         valeurs = df[energie_str].values
-        ax[row].plot(listX, valeurs, label=energie_str)
-    ax[row].set_ylabel(r"$Joules$")
+        ax[row].plot(listX, valeurs, label=energie_str)    
     ax[row].legend()
     ax[row].grid()
 
@@ -1066,10 +1065,10 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
         # Affiche la force
         row = next(iter_rows)
         ax[row].plot(listX, np.abs(forces[listIter])*1e-3)
-        ax[row].set_ylabel(r"$load \ [kN]$")
+        ax[row].set_ylabel("load")
         ax[row].grid()        
     
-    ax[-1].set_xlabel(nomX)
+    ax[-1].set_xlabel(xlabel)
 
     if folder != "":        
         Save_fig(folder, "Energie")

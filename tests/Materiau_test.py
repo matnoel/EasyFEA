@@ -205,6 +205,7 @@ class Test_Materiau(unittest.TestCase):
 
     
     def test_Decomposition_psi(self):
+        """Fonction qui permet de réaliser de testter tous les modèles de decomposition d'energie"""
         
         Ne = 50
         nPg = 2

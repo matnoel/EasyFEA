@@ -8,7 +8,9 @@ useFastmath = True
 # Calcul de splits
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def Get_Anisot_C(Cp_e_pg: np.ndarray, S: np.ndarray, Cm_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def Get_Anisot_C(Cp_e_pg: np.ndarray, mat: np.ndarray, Cm_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    
+    # WARNING : Il peut y avoir un probleme de mémoire si mat est hétérogène (epij). Cest pour ça que mat n'est pas hétérogène.
     
     if useParallel:
         range = prange
@@ -17,50 +19,26 @@ def Get_Anisot_C(Cp_e_pg: np.ndarray, S: np.ndarray, Cm_e_pg: np.ndarray) -> tup
 
     Ne = Cp_e_pg.shape[0]
     nPg = Cp_e_pg.shape[1]
-    dimc = S.shape[0]
+    dimMat = mat.shape[0]
 
-    Cpp_e_pg = np.zeros((Ne, nPg, dimc, dimc))
+    Cpp_e_pg = np.zeros((Ne, nPg, dimMat, dimMat))
     Cpm_e_pg = np.zeros_like(Cpp_e_pg)
     Cmp_e_pg = np.zeros_like(Cpp_e_pg)
     Cmm_e_pg = np.zeros_like(Cpp_e_pg)
 
     for e in range(Cp_e_pg.shape[0]):
         for p in range(Cp_e_pg.shape[1]):
-            for i in range(S.shape[0]):                
-                for j in range(S.shape[0]):
-                    for l in range(S.shape[0]):
-                        for k in range(S.shape[0]):
+            for i in range(dimMat):                
+                for j in range(dimMat):
+                    for l in range(dimMat):
+                        for k in range(dimMat):
 
-                            Cpp_e_pg[e,p,i,j] += Cp_e_pg[e,p,k,i] * S[k,l] * Cp_e_pg[e,p,l,j]
-                            Cpm_e_pg[e,p,i,j] += Cp_e_pg[e,p,k,i] * S[k,l] * Cm_e_pg[e,p,l,j]
-                            Cmp_e_pg[e,p,i,j] += Cm_e_pg[e,p,k,i] * S[k,l] * Cp_e_pg[e,p,l,j]
-                            Cmm_e_pg[e,p,i,j] += Cm_e_pg[e,p,k,i] * S[k,l] * Cm_e_pg[e,p,l,j]
+                            Cpp_e_pg[e,p,i,j] += Cp_e_pg[e,p,k,i] * mat[k,l] * Cp_e_pg[e,p,l,j]
+                            Cpm_e_pg[e,p,i,j] += Cp_e_pg[e,p,k,i] * mat[k,l] * Cm_e_pg[e,p,l,j]
+                            Cmp_e_pg[e,p,i,j] += Cm_e_pg[e,p,k,i] * mat[k,l] * Cp_e_pg[e,p,l,j]
+                            Cmm_e_pg[e,p,i,j] += Cm_e_pg[e,p,k,i] * mat[k,l] * Cm_e_pg[e,p,l,j]
     
     return Cpp_e_pg, Cpm_e_pg, Cmp_e_pg, Cmm_e_pg
-
-
-# Pas tres efficace
-@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
-def Split_Amor(Rp_e_pg: np.ndarray, Rm_e_pg: np.ndarray,
-partieDeviateur: np.ndarray, IxI: np.ndarray, bulk) -> tuple[np.ndarray, np.ndarray]:
-    if useParallel:
-        range = prange
-    else:
-        range = np.arange
-
-    Ne = Rp_e_pg.shape[0]
-    pg = Rp_e_pg.shape[1]
-    dim = IxI.shape[0]
-
-    cP_e_pg = np.zeros((Ne, pg, dim, dim))
-    cM_e_pg = np.zeros((Ne, pg, dim, dim))
-
-    for e in range(Ne):
-        for p in range(pg):
-            cP_e_pg[e,p] = bulk*(Rp_e_pg[e,p] * IxI) + partieDeviateur
-            cM_e_pg[e,p] = bulk*(Rm_e_pg[e,p] * IxI) + partieDeviateur
-
-    return cP_e_pg, cM_e_pg
 
 @njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
 def Get_G12_G13_G23(M1: np.ndarray, M2: np.ndarray, M3: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
