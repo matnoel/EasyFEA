@@ -27,9 +27,8 @@ folder_file = Folder.Get_Path(__file__)
 doSimulation = True
 doIdentif = True
 detectL0 = False
-useContact = False
 
-test = False
+test = True
 optimMesh = True
 
 pltLoad = True 
@@ -185,24 +184,16 @@ for idxEssai in range(0,18):
         return mesh
 
     # ----------------------------------------------
-    # phase field
+    # Phase field
     # ----------------------------------------------
 
-    a1 = np.array([1,0])
-    a2 = axis_t[:2]
-    M1 = np.einsum("i,j->ij", a1, a1)
+    vectB = np.array([1,0])
+    vectB = axis_t[:2]
+    matB = np.einsum("i,j->ij", vectB, vectB)
 
-    a2 = np.array([0,1])
-    a2 = axis_l[:2]
-    M2 = np.einsum("i,j->ij", a2, a2)
-
-    A = np.eye(2)
-
-    # coef = Et/El
-    # A += 0 * M1 + 1/coef * M2
-    # A += + 1/coef * M1 + 0 * M2
-    # A = np.array([[coef, 0],[0, 1-coef]])
-    # A = np.array([[1-coef, 0],[0, coef]])
+    # Betha = El/Et # 5
+    Betha = 0
+    A = np.eye(2) + Betha * (np.eye(2) - matB)
 
     # ----------------------------------------------
     # Simu
@@ -211,6 +202,8 @@ for idxEssai in range(0,18):
     dCible = 1
 
     returnSimu = False
+
+    list_J = []
 
     def DoSimu(x: np.ndarray) -> float:
         """Simulation pour les paramètres x=[Gc,l0]"""
@@ -235,7 +228,7 @@ for idxEssai in range(0,18):
         
         simu = Simulations.Simu_PhaseField(mesh, pfm)
 
-        dep = -inc0            
+        dep = -inc0
 
         i = -1
         fr = 0
@@ -250,24 +243,12 @@ for idxEssai in range(0,18):
             simu.Bc_Init()
             simu.add_dirichlet(nodes_Lower, [0], ["y"])
             simu.add_dirichlet(nodes0, [0], ["x"])
-            if useContact:
-                frontiere = 90 - dep
-
-                yn_c = yn[nodes_Upper] + simu.displacement[ddlsY_Upper]
-
-                diff = frontiere - yn_c
-
-                idxContact = np.where(diff < 0)[0]
-
-                if len(idxContact) > 0:
-                    simu.add_dirichlet(nodes_Upper[idxContact], [diff[idxContact]], ["y"])
-            else:
-                simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
+            simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
 
             # resolution
             u, d, Kglob, convergence = simu.Solve(tolConv, convOption=convOption)
-
             simu.Save_Iteration()
+
             # force résultante
             f = Kglob[ddlsY_Upper,:] @ u
             fr = - np.sum(f)/1000
@@ -279,7 +260,7 @@ for idxEssai in range(0,18):
             return simu
 
         # calcul de l'erreur entre la force résultante calculée et la force expérimentale
-        J = (fr - f_crit)/f_crit
+        J = (fr - f_crit)/f_crit        
         if doIdentif:            
             print(f'\nfr = {fr}')
             print(f"J = {J:.5e}")
@@ -287,14 +268,15 @@ for idxEssai in range(0,18):
             evals.append(J)
             Niter = len(evals)
 
+            # if np.sqrt(J**2) <= ftol:
+            #     return evals[-2]
+
             if pltIter:      
                 ax_J.scatter(Niter, evals[-1], c="black", zorder=4)
                 plt.figure(ax_J.figure)
                 plt.pause(1e-12)            
 
         return J
-        
-        
 
     # ----------------------------------------------
     # Simulations
@@ -311,15 +293,14 @@ for idxEssai in range(0,18):
             # création de la figure pour tracer J
             ax_J = plt.subplots()[1]
             ax_J.set_xlabel("$N$"); ax_J.set_ylabel("$J$")
-            ax_J.grid()                
-
-            GcMax = 2
-            
-            lb = [0] if not detectL0 else [0, 0]
-            ub = [GcMax] if not detectL0 else [GcMax, L/20]
-            x0 = [Gc0] if not detectL0 else [Gc0, l00]
+            ax_J.grid()
 
             if solveur in [0,1]:
+
+                GcMax = 2            
+                lb = [0] if not detectL0 else [0, 0]
+                ub = [GcMax] if not detectL0 else [GcMax, L/20]
+                x0 = [Gc0] if not detectL0 else [Gc0, l00]
                 
                 if solveur == 0:
                     res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None)
@@ -506,13 +487,21 @@ for idxEssai in range(0,18):
         L0 = L0[:,cols]
         results = results[:,cols]
 
+        levels = np.linspace(results.min(), results.max(), 255)
+        ticks = np.linspace(results.min(), results.max(), 11)
+        argmin = np.where(results == results.min())
+
+        axeX = "$G_c \ [mJ \ mm^{-2}]$"
+        axeY = "$\ell_0 \ [mm]$"
+
         fig = plt.figure()
         ax1 = fig.add_subplot(projection="3d")
         cc = ax1.plot_surface(GC, L0, results, cmap='jet')
-        fig.colorbar(cc)
-        ax1.set_xlabel("$G_c$", fontsize=14)
-        ax1.set_ylabel("$\ell_0$", fontsize=14)
+        fig.colorbar(cc, ticks=ticks)
+        ax1.set_xlabel(axeX, fontsize=14)
+        ax1.set_ylabel(axeY, fontsize=14)
         ax1.set_title("$J^2$", fontsize=14)
+        ax1.scatter(GC[argmin], L0[argmin], results[argmin], c='red', marker='.', zorder=10)
         # ax1.contour(GC, L0, results)        
         
         # for gc in Gc_array:
@@ -522,12 +511,13 @@ for idxEssai in range(0,18):
 
         Affichage.Save_fig(folder_Save, "J surface")
 
-        ax2 = plt.subplots()[1]
-        cc = ax2.contourf(GC, L0, results, cmap='jet')
-        ax2.set_xlabel("$G_c$", fontsize=14)
-        ax2.set_ylabel("$\ell_0$", fontsize=14)
+        ax2 = plt.subplots()[1]        
+        cc = ax2.contourf(GC, L0, results,levels,  cmap='jet')
+        ax2.set_xlabel(axeX, fontsize=14)
+        ax2.set_ylabel(axeY, fontsize=14)
         ax2.set_title("$J^2$", fontsize=14)
-        ax2.figure.colorbar(cc)
+        ax2.scatter(GC[argmin], L0[argmin], 200, c='red', marker='.', zorder=10,edgecolors='white')
+        ax2.figure.colorbar(cc, ticks=ticks)
 
         Affichage.Save_fig(folder_Save, "J contourf")
 

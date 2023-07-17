@@ -16,7 +16,7 @@ from TicTac import Tic
 # Configuration
 # ----------------------------------------------
 
-dim = 3
+dim = 2
 folder = Folder.New_File(f"Etude{dim}D", results=True)
 plotResult = True
 
@@ -69,24 +69,19 @@ if dim == 2:
     
     elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
-    mesh = interfaceGmsh.Mesh_2D(domain=domain, elemType=elemType, isOrganised=True)
-    # mesh = interfaceGmsh.PlaqueAvecCercle(domain=domain, circle=circle, isOrganised=False)
+    mesh = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
     aire = mesh.aire - L*h
 elif dim == 3:
     # # Sans importation
     domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=taille)
-    # circle = Circle(Point(x=L/2, y=0), h*0.8, taille=taille, isCreux=False)
-    # mesh = interfaceGmsh.PlaqueAvecCercle3D(domain,circle ,[0,0,b], elemType="HEXA8", isOrganised=False, nCouches=3)
     
     elemType = "HEXA8" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
-    mesh = interfaceGmsh.Mesh_Domain_3D(domain, [0,0,b], elemType=elemType, isOrganised=True, nCouches=3)
+    mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, nCouches=3)
 
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)
 
 Affichage.Plot_Mesh(mesh)
-# Affichage.Plot_NoeudsMaillage(mesh,showId=True)
-# plt.show()
 
 noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0) # noeuds_en_0 = mesh.Nodes_Line(Line0)
 noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L) # noeuds_en_L = mesh.Nodes_Line(LineL)
