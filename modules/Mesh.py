@@ -96,7 +96,7 @@ class Mesh:
     
     @property
     def coordo(self) -> np.ndarray:
-        """Matrice des coordonnées de noeuds (Nn,3)"""
+        """Matrice de coordonnées des noeuds (Nn,3)"""
         return self.groupElem.coordo
     
     @property

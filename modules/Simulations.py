@@ -894,6 +894,7 @@ class Simu(ABC):
             Attention, les fonctions à évaluer doivent obligatoirement prendre 3 paramètres d'entrée dans l'ordre x, y, z que le problème soit 1D, 2D ou 3D
         directions : list
             directions ou on va appliquer les valeurs
+            ex = ['y', 'x']
         problemType : ModelType, optional
             type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
@@ -942,6 +943,7 @@ class Simu(ABC):
             Attention, les fonctions à évaluer doivent obligatoirement prendre 3 paramètres d'entrée dans l'ordre x, y, z que le problème soit 1D, 2D ou 3D
         directions : list
             directions ou on va appliquer les valeurs
+            ex = ['y', 'x']
         problemType : ModelType, optional
             type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
@@ -973,6 +975,7 @@ class Simu(ABC):
             Attention, les fonctions à évaluer doivent obligatoirement prendre 3 paramètres d'entrée dans l'ordre x, y, z que le problème soit 1D, 2D ou 3D
         directions : list
             directions ou on va appliquer les valeurs
+            ex = ['y', 'x']
         problemType : ModelType, optional
             type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
@@ -1004,6 +1007,7 @@ class Simu(ABC):
             Attention, les fonctions à évaluer doivent obligatoirement prendre 3 paramètres d'entrée dans l'ordre x, y, z que le problème soit 1D, 2D ou 3D
         directions : list
             directions ou on va appliquer les valeurs
+            ex = ['y', 'x']
         problemType : ModelType, optional
             type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
@@ -1040,6 +1044,7 @@ class Simu(ABC):
             Attention, les fonctions à évaluer doivent obligatoirement prendre 3 paramètres d'entrée dans l'ordre x, y, z que le problème soit 1D, 2D ou 3D
         directions : list
             directions ou on va appliquer les valeurs
+            ex = ['y', 'x']
         problemType : ModelType, optional
             type du problème, si non renseingé, on prend le le problème de base du problem
         description : str, optional
