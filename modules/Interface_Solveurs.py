@@ -12,34 +12,34 @@ from TicTac import Tic
 
 try:
     import pypardiso
-    canUsePypardiso = True
+    __canUsePypardiso = True
 except ModuleNotFoundError:
-    canUsePypardiso = False
+    __canUsePypardiso = False
 
 try:
     from sksparse.cholmod import cholesky, cholesky_AAt
-    canUseCholesky = True
-except:
-    canUseCholesky = False
+    __canUseCholesky = True
+except ModuleNotFoundError:
+    __canUseCholesky = False
 
 try:
     from scikits.umfpack import umfpackSpsolve    
-    canUseUmfpack = True
-except:
-    canUseUmfpack = False
+    __canUseUmfpack = True
+except (ModuleNotFoundError, ImportError):
+    __canUseUmfpack = False
 
 try:
     import mumps as mumps
-    canUseMumps = True
-except:
-    canUseMumps = False
+    __canUseMumps = True
+except ModuleNotFoundError:
+    __canUseMumps = False
 
 try:
     import petsc4py    
     from mpi4py import MPI
     from petsc4py import PETSc
     canUsePetsc = True
-except:
+except ModuleNotFoundError:
     canUsePetsc = False
 
 class AlgoType(str, Enum):
@@ -63,10 +63,10 @@ def Solvers():
 
     solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
     
-    if canUsePypardiso: solvers.insert(0, "pypardiso")
+    if __canUsePypardiso: solvers.insert(0, "pypardiso")
     if canUsePetsc: solvers.insert(1, "petsc")
-    if canUseMumps: solvers.insert(2, "mumps")
-    if canUseUmfpack: solvers.insert(3, "umfpack")
+    if __canUseMumps: solvers.insert(2, "mumps")
+    if __canUseUmfpack: solvers.insert(3, "umfpack")
 
     return solvers
 
@@ -82,6 +82,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
     Parameters
     ----------
+    simu : Simu
+        Simulation
     A : sparse.csr_matrix
         Matrice A
     b : sparse.csr_matrix
@@ -108,10 +110,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     assert isinstance(simu, Simu)
     assert isinstance(problemType, ModelType)
 
-    useCholesky = False
-
     # Choisie le solveur
-
     if len(lb) > 0 and len(lb) > 0:        
         solveur = "BoundConstrain"
     else:        
@@ -124,12 +123,9 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     
     tic = Tic()
 
-    if canUseUmfpack:
-        sla.use_solver(useUmfpack=True)
-    else:
-        sla.use_solver(useUmfpack=False)    
+    sla.use_solver(useUmfpack=__canUseUmfpack)
     
-    if useCholesky and A_isSymetric and canUseCholesky:
+    if  solveur == "umfpack" and useCholesky and A_isSymetric and __canUseCholesky:
         x = _Cholesky(A, b)
 
     elif solveur == "BoundConstrain":
@@ -180,11 +176,11 @@ def __Check_solveurLibrary(solveur: str) -> str:
     Si c'est pas le cas renvoie le solveur utilisable dans tout les cas (scipy)"""
     solveurDeBase="scipy"
     if solveur == "pypardiso":
-        return solveur if canUsePypardiso else solveurDeBase
+        return solveur if __canUsePypardiso else solveurDeBase
     elif solveur == "umfpack":
-        return solveur if canUseUmfpack else solveurDeBase
+        return solveur if __canUseUmfpack else solveurDeBase
     elif solveur == "mumps":
-        return solveur if canUseMumps else solveurDeBase
+        return solveur if __canUseMumps else solveurDeBase
     elif solveur == "petsc":
         return solveur if canUsePetsc else solveurDeBase
     else:
@@ -355,18 +351,18 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     # rank   = comm.Get_rank()
     # petsc4py.init(sys.argv, comm=MPI.COMM_WORLD)
 
-    lignes, colonnes, valeurs = sparse.find(A)
-
     dimI = A.shape[0]
-    dimJ = A.shape[1]
-    
-    _, count = np.unique(lignes, return_counts = True)
-    nnz = np.array(count, dtype=np.int32)
+    dimJ = A.shape[1]    
 
-    # Old
     matrice = PETSc.Mat()
     csr = (A.indptr, A.indices, A.data)    
-    matrice.createAIJ([dimI, dimJ], nnz=nnz, comm=comm, csr=csr)
+    matrice.createAIJ([dimI, dimJ], comm=comm, csr=csr)
+
+    # Old
+    # lignes, colonnes, valeurs = sparse.find(A)
+    # _, count = np.unique(lignes, return_counts = True)
+    # nnz = np.array(count, dtype=np.int32)
+    # matrice.createAIJ([dimI, dimJ], nnz=nnz, comm=comm, csr=csr)
     # [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)] # ancienne façon pas optimisée avec csr=None
 
     matrice.assemble()
@@ -380,9 +376,8 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     x = matrice.createVecRight()
     x.array[:] = x0
 
-    pcType = "lu" # "none", "lu", "jacobi", "cholesky"
-    # pc = "none" # "none", "lu"
-    kspType = "cg" # "cg", "bicg", "gmres", "bcgs"
+    pcType = "ilu" # "none", "bjacobi", "ilu", 'icc', "lu", "jacobi", "cholesky"
+    kspType = "cg" # "cg", "bicg", "gmres", "bcgs", "richardson", "groppcg"
 
     ksp = PETSc.KSP().create()
     ksp.setOperators(matrice)
@@ -392,12 +387,9 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     pc.setType(pcType)
     # pc.setType("none")
 
-    # pc.setFactorSolverType("superlu")
+    # pc.setFactorSolverType("superlu") #"mumps"
 
     ksp.solve(vectb, x)
-    
-    # print(f'Solving with PETSc {ksp.getType()}') 
-
     x = x.array
 
     option = f", {pcType}, {kspType}"
