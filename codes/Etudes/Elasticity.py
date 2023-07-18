@@ -74,7 +74,7 @@ elif simulationType == SimulationType.EQUERRE:
     if dim == 2:
         mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI3, cracks)
     elif dim == 3:        
-        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,h], nCouches=4, elemType=ElemType.HEXA8)
+        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,-h], nCouches=4, elemType=ElemType.HEXA8)
 
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(lambda x,y,z: x == L)
