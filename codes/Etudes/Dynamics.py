@@ -16,15 +16,15 @@ from TicTac import Tic
 # Configuration
 # ----------------------------------------------
 
-dim = 2
-folder = Folder.New_File(f"Etude{dim}D", results=True)
+dim = 3
+folder = Folder.New_File(f"Dynamics{dim}D", results=True)
 plotResult = True
 
 isLoading = False
 initSimu = True
 
 saveParaview = False; NParaview = 500
-pltMovie = False; NMovie = 400
+pltMovie = True; NMovie = 400
 plotIter = True; affichageIter = "uy"
 
 coefM = 1e-2
@@ -178,8 +178,7 @@ Affichage.Plot_BoundaryConditions(simu)
 
 # folder=""
 
-if saveParaview:        
-    filename = Folder.New_File(os.path.join("Etude2D","solution2D"), results=True)
+if saveParaview:
     PostTraitement.Make_Paraview(folder, simu,Niter=NParaview)
 
 if pltMovie:
