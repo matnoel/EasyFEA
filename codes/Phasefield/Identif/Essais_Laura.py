@@ -13,9 +13,9 @@ Affichage.Clear()
 folder_FCBA = Folder.New_File("Essais FCBA",results=True)
 folder = Folder.Join([folder_FCBA, "Essais Laura"])
 
-dim = 2
+dim = 3
 test = True
-optimMesh = False
+optimMesh = True
 
 # loadType = 0 # nodesLower
 loadType = 1 # in hole
@@ -62,7 +62,7 @@ if dim == 2:
     mesh = Interface_Gmsh().Mesh_2D(contour, [circle], "TRI6", refineGeom=refineGeom)
     directions = ['x','y']
 else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,ep], 3, "HEXA8", refineGeom=refineGeom)
+    mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-ep], 3, "HEXA8", refineGeom=refineGeom)
     directions = ['x','y','z']
 
 
