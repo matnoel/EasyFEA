@@ -33,7 +33,7 @@ class Tic:
 
         return time*coef, unite
 
-    def Tac(self, category="", text="", show=False) -> float:
+    def Tac(self, category="", text="", verbosity=False) -> float:
         """Get time from previous tic or tac."""
 
         tf = np.abs(self.__start - time.time())
@@ -53,7 +53,7 @@ class Tic:
         
         self.__start = time.time()
 
-        if show:
+        if verbosity:
             print(textWithTime)
 
         return tf
