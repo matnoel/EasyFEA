@@ -1,14 +1,14 @@
 from Interface_Gmsh import Interface_Gmsh
 import Geom
-import Affichage
+import Display
 import Simulations
 import BoundaryCondition
 import Materials
 
 np = Materials.np
-plt = Affichage.plt
+plt = Display.plt
 
-Affichage.Clear()
+Display.Clear()
 
 useLagrange = True
 
@@ -85,9 +85,9 @@ surfaceVer = meshVER.aire
 coef = (1 - surfaceInclu/surfaceVer)
 coef = 1
 
-Affichage.Plot_Mesh(meshInclusions)
-Affichage.Plot_Mesh(mesh)
-axVer = Affichage.Plot_Mesh(meshVER)
+Display.Plot_Mesh(meshInclusions)
+Display.Plot_Mesh(mesh)
+axVer = Display.Plot_Mesh(meshVER)
 
 # Verification que les elements 1D font tous la même taille
 group1d = meshVER.Get_list_groupElem(1)[0]
@@ -253,7 +253,7 @@ def Simulation(simu: Simulations.Simu, title=""):
     simu.Solve()
 
     # Affichage.Plot_BoundaryConditions(simu)
-    Affichage.Plot_Result(simu, "uy", title=f"{title} uy")
+    Display.Plot_Result(simu, "uy", title=f"{title} uy")
     # Affichage.Plot_Result(simu, "Eyy")
 
     print(f"{title}: dy={np.max(simu.Get_Resultat('uy')[simu.mesh.Nodes_Point(Geom.Point(L,0))])}")

@@ -1,14 +1,14 @@
 from TicTac import Tic
 import Materials
 from Geom import *
-import Affichage
+import Display
 import Interface_Gmsh
 import Simulations
 import Folder
 
 import matplotlib.pyplot as plt
 
-Affichage.Clear()
+Display.Clear()
 
 # L'objectif de ce script est de voir l'influence du chamgement de taille du probleme
 
@@ -106,12 +106,12 @@ for cc in list_cc:
     list_SyyB.append(simu.Get_Resultat("Syy", True)[nodeB])
     list_SxyB.append(simu.Get_Resultat("Sxy", True)[nodeB])
 
-Affichage.NewSection("Résultats")
+Display.Section("Résultats")
 
-Affichage.Plot_Mesh(mesh,folder=folder, title=f"mesh_{param_name}")
-Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
-Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
-Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
+Display.Plot_Mesh(mesh,folder=folder, title=f"mesh_{param_name}")
+Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
+Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
+Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 
 fig, ax = plt.subplots()
 
@@ -126,7 +126,7 @@ plt.legend()
 ax.set_title(param_name)
 ax.set_xlabel('coef')
 
-Affichage.Save_fig(folder, param_name)
+Display.Save_fig(folder, param_name)
 
 Tic.Resume()
 

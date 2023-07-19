@@ -7,7 +7,7 @@ import os
 import pandas as pd
 
 import Folder
-import Affichage
+import Display
 from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, Domain, Circle
 import Materials
@@ -60,6 +60,7 @@ treshold = 0.2
 
 solveur = 0 # least_squares
 # solveur = 1 # minimize
+# solveur = 2
 
 # ftol = 1e-12
 # ftol = 1e-5
@@ -268,15 +269,15 @@ for idxEssai in range(0,18):
             evals.append(J)
             Niter = len(evals)
 
-            # if np.sqrt(J**2) <= ftol:
-            #     return evals[-2]
-
             if pltIter:      
                 ax_J.scatter(Niter, evals[-1], c="black", zorder=4)
                 plt.figure(ax_J.figure)
-                plt.pause(1e-12)            
+                plt.pause(1e-12)
 
-        return J
+        if solveur == 2:
+            return np.sqrt(J**2)
+        else:
+            return J
 
     # ----------------------------------------------
     # Simulations
@@ -295,12 +296,12 @@ for idxEssai in range(0,18):
             ax_J.set_xlabel("$N$"); ax_J.set_ylabel("$J$")
             ax_J.grid()
 
-            if solveur in [0,1]:
+            GcMax = 2            
+            lb = [0] if not detectL0 else [0, 0]
+            ub = [GcMax] if not detectL0 else [GcMax, L/20]
+            x0 = [Gc0] if not detectL0 else [Gc0, l00]
 
-                GcMax = 2            
-                lb = [0] if not detectL0 else [0, 0]
-                ub = [GcMax] if not detectL0 else [GcMax, L/20]
-                x0 = [Gc0] if not detectL0 else [Gc0, l00]
+            if solveur in [0,1]:
                 
                 if solveur == 0:
                     res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None)
@@ -325,6 +326,72 @@ for idxEssai in range(0,18):
 
             else:
 
+                x0 = np.array(x0)
+
+                firstGuess = DoSimu(x0)
+
+                list_x = [x0]
+                list_f = [firstGuess]
+                list_gradF = []
+
+                def CalcGradF(x: np.ndarray):
+                    # Fonction qui permet d'evaluer le gradient
+                    
+                    x = np.asarray(x, dtype=float)
+
+                    grad = np.zeros_like(x)
+
+                    p = 1e-12
+
+                    for i in range(x.size):
+                        dpi = np.zeros_like(x)
+                        dpi[i] = x[i] * p
+                        
+                        grad[i] = (DoSimu(x+dpi) - list_f[-1]) / dpi[i]
+
+                    return grad
+
+                list_gradF = [CalcGradF(x0)]
+
+                iter = 0
+                # alpha = 0.1
+                alpha = 0.5
+                ftol = 1e-10
+                gtol = 1e-10
+                xtol = 1e-10
+                iterMax = 100
+
+                while iter < 100:
+
+                    iter += 1
+
+                    # anciennes valeurs
+                    old_x = list_x[-1]
+                    old_f = list_f[-1]
+                    old_gradF = list_gradF[-1]
+
+                    # nouvelles valeurs
+                    new_x = old_x - alpha * CalcGradF(old_x)
+                    if new_x.min()<0:
+                        new_x = np.array([1e-3])
+                    new_f = DoSimu(new_x)
+                    new_gradF = CalcGradF(new_x)
+
+                    list_x.append(new_x)
+                    list_f.append(new_f)
+                    list_gradF.append(new_gradF)
+
+                    rx = np.linalg.norm(list_x[-2] - list_x[-1])
+                    rf = np.linalg.norm(list_f[-2] - list_f[-1])
+                    rg = np.linalg.norm(list_gradF[-2] - list_gradF[-1])
+
+                    test_x = rx <= xtol
+                    test_f = rf <= ftol
+                    test_gradF = rg <= gtol                   
+
+                    if True in [test_x, test_f, test_gradF]:
+                        break
+
                 raise Exception("Pas implémenté")
 
             # Récupère la simulation
@@ -340,10 +407,10 @@ for idxEssai in range(0,18):
                 plt.figure(ax_J.figure)
             else:                
                 ax_J.scatter(np.arange(len(evals)), evals, c='black', zorder=4)
-            Affichage.Save_fig(folder_Save, "iterations")
+            Display.Save_fig(folder_Save, "iterations")
             
             simu.Save(folder_Save)
-            Affichage.Plot_ResumeIter(simu, folder_Save)
+            Display.Plot_ResumeIter(simu, folder_Save)
 
             simu.Update_iter(-1)
             ddlsY = BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
@@ -428,9 +495,9 @@ for idxEssai in range(0,18):
         axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=3)
         axLoad.plot(deplacementsIdentif, forcesIdentif, label="identif")
         axLoad.legend()
-        Affichage.Save_fig(folder_Save, "load")
+        Display.Save_fig(folder_Save, "load")
 
-        Affichage.Plot_Result(simu, "damage", folder=folder_Save, colorbarIsClose=True)
+        Display.Plot_Result(simu, "damage", folder=folder_Save, colorbarIsClose=True)
 
     else:
 
@@ -509,7 +576,7 @@ for idxEssai in range(0,18):
         #     ax1.scatter(gc, l00, ecart, c='black')
         #     plt.pause(1e-12)
 
-        Affichage.Save_fig(folder_Save, "J surface")
+        Display.Save_fig(folder_Save, "J surface")
 
         ax2 = plt.subplots()[1]        
         cc = ax2.contourf(GC, L0, results,levels,  cmap='jet')
@@ -519,7 +586,7 @@ for idxEssai in range(0,18):
         ax2.scatter(GC[argmin], L0[argmin], 200, c='red', marker='.', zorder=10,edgecolors='white')
         ax2.figure.colorbar(cc, ticks=ticks)
 
-        Affichage.Save_fig(folder_Save, "J contourf")
+        Display.Save_fig(folder_Save, "J contourf")
 
         # Affichage.Save_fig(folder_Save, "J_grid")
         plt.show()

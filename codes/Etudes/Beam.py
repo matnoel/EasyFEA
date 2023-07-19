@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import Interface_Gmsh
 from Geom import Domain, Line, Point, Section
-import Affichage
+import Display
 import Materials
 import Simulations
 import Folder
 import PostTraitement
 
-Affichage.Clear()
+Display.Clear()
 
 folder = Folder.New_File("Beam", results=True)
 
@@ -99,7 +99,7 @@ elif problem == "Portique":
 
 mesh = interfaceGmsh.Mesh_Poutres(listPoutres=listePoutre, elemType=elemType)
 
-Affichage.Plot_Model(mesh)
+Display.Plot_Model(mesh)
 # # Affichage.Plot_Maillage(mesh)
 # plt.show()
 
@@ -145,7 +145,7 @@ elif problem == "Traction":
     simu.add_neumann(mesh.Nodes_Point(point3), [charge],["x"])
     # simu.add_dirichlet(mesh.Nodes_Point(point3), [1], ["x"])
 
-Affichage.Plot_BoundaryConditions(simu)
+Display.Plot_BoundaryConditions(simu)
 
 beamDisplacement = simu.Solve()
 
@@ -157,13 +157,13 @@ forces = stress/section.aire
 
 affichage = lambda name, result: print(f"{name} = [{result.min():2.2}; {result.max():2.2}]") if isinstance(result, np.ndarray) else ""
 
-Affichage.Plot_BoundaryConditions(simu)
-Affichage.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
+Display.Plot_BoundaryConditions(simu)
+Display.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
 if beamModel.dim > 1:
-    Affichage.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
-    Affichage.Plot_Mesh(simu, deformation=True, facteurDef=10)
+    Display.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
+    Display.Plot_Mesh(simu, deformation=True, facteurDef=10)
 
-Affichage.NewSection("Resultats")
+Display.Section("Resultats")
 
 print()
 u = simu.Get_Resultat("ux", nodeValues=True); affichage("ux",u)

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 import Folder
 import PostTraitement
-import Affichage
+import Display
 from Geom import *
 import Materials
 from Interface_Gmsh import Interface_Gmsh
@@ -81,7 +81,7 @@ elif dim == 3:
     volume = mesh.volume - L*b*h
     aire = mesh.aire - (L*h*4 + 2*b*h)
 
-Affichage.Plot_Mesh(mesh)
+Display.Plot_Mesh(mesh)
 
 noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0) # noeuds_en_0 = mesh.Nodes_Line(Line0)
 noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L) # noeuds_en_L = mesh.Nodes_Line(LineL)
@@ -147,7 +147,7 @@ else:
     steadyState=True
 
 if plotIter:
-    fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, deformation=True)
+    fig, ax, cb = Display.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, deformation=True)
 
 while t <= Tmax:
 
@@ -155,7 +155,7 @@ while t <= Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, ax=ax, deformation=True)
+        fig, ax, cb = Display.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, ax=ax, deformation=True)
         plt.pause(1e-12)
 
     t += dt
@@ -169,11 +169,11 @@ tic_Tot.Tac("Temps script","Temps total", True)
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-Affichage.NewSection("Post traitement")
+Display.Section("Post traitement")
 
 simu.Resultats_Get_Resume_Iteration()
 
-Affichage.Plot_BoundaryConditions(simu)
+Display.Plot_BoundaryConditions(simu)
 # plt.show()
 
 # folder=""
@@ -190,8 +190,8 @@ if plotResult:
     simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
-    Affichage.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
-    Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=False, nodeValues=False)
+    Display.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
+    Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=False, nodeValues=False)
     # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
     
     tic.Tac("Affichage","Affichage des figures", plotResult)

@@ -1,4 +1,4 @@
-import Affichage
+import Display
 from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, PointsList, Line, Domain, Circle, normalize_vect
 import Materials
@@ -6,8 +6,8 @@ import Simulations
 import Folder
 import PostTraitement
 
-plt = Affichage.plt
-np = Affichage.np
+plt = Display.plt
+np = Display.np
 
 pltIter = False
 pltLoad = True
@@ -17,7 +17,7 @@ makeParaview = False
 
 doSimu = False
 
-Affichage.Clear()
+Display.Clear()
 
 dim = 2
 
@@ -119,7 +119,7 @@ else:
     mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,ep], 3, "HEXA8", refineGeom=refineDomain, cracks=cracks)
     directions = ["x","y","z"]
 
-Affichage.Plot_Mesh(mesh)
+Display.Plot_Mesh(mesh)
 # Affichage.Plot_Model(mesh)
 # Affichage.Plot_Nodes(mesh, mesh.Nodes_Line(cracks[0]), True)
 
@@ -155,7 +155,7 @@ if doSimu:
     simu = Simulations.Simu_PhaseField(mesh, pfm)    
     
     if pltIter:
-        __, axIter, cb = Affichage.Plot_Result(simu, 'damage')
+        __, axIter, cb = Display.Plot_Result(simu, 'damage')
 
         axLoad = plt.subplots()[1]
         axLoad.set_xlabel('displacement [mm]')
@@ -208,7 +208,7 @@ if doSimu:
         if pltIter:
             plt.figure(axIter.figure)
             cb.remove()
-            cb = Affichage.Plot_Result(simu, 'damage', ax=axIter)[2]
+            cb = Display.Plot_Result(simu, 'damage', ax=axIter)[2]
             plt.pause(1e-12)
 
             plt.figure(axLoad.figure)
@@ -238,17 +238,17 @@ load, displacement = PostTraitement.Load_Load_Displacement(folderSimu)
 # PostTraitement
 # ----------------------------------------------
 
-Affichage.Plot_BoundaryConditions(simu, folderSimu)
+Display.Plot_BoundaryConditions(simu, folderSimu)
 
-Affichage.Plot_Result(simu, 'damage', folder=folderSimu)
+Display.Plot_Result(simu, 'damage', folder=folderSimu)
 
 axLoad = plt.subplots()[1]
 axLoad.set_xlabel('displacement [mm]')
 axLoad.set_ylabel('load [kN]')
 axLoad.plot(displacement*1000, load/1000, c="blue")
-Affichage.Save_fig(folderSimu, "forcedep")
+Display.Save_fig(folderSimu, "forcedep")
 
-Affichage.Plot_ResumeIter(simu, folderSimu)
+Display.Plot_ResumeIter(simu, folderSimu)
 
 if makeMovie:
     depMax = simu.Get_Resultat("amplitude").max()

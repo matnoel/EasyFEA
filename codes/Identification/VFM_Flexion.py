@@ -2,12 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import Simulations
-import Affichage
+import Display
 import Interface_Gmsh
 import Materials
 import Geom
 
-Affichage.Clear()
+Display.Clear()
 
 # ----------------------------------------------
 # Configuration
@@ -88,7 +88,7 @@ f_exp_loc = f_exp[assembly1D_e]
 # Identification
 # ----------------------------------------------
 
-Affichage.NewSection("Identification")
+Display.Section("Identification")
 
 # Récupération des déformations aux elements
 Eps_exp = simu._Calc_Epsilon_e_pg(u_exp, matriceType)
@@ -117,11 +117,11 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, pltSol=False):
     E12_e_pg = Eps_e_pg[:,:,2]
 
     if pltSol:        
-        Affichage.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, deformation=False, facteurDef=0.01)
-        Affichage.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, deformation=False, facteurDef=0.01)
-        Affichage.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False, plotMesh=True)
-        Affichage.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
-        Affichage.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
+        Display.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, deformation=False, facteurDef=0.01)
+        Display.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, deformation=False, facteurDef=0.01)
+        Display.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False, plotMesh=True)
+        Display.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
+        Display.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
     
     # Calcul des intégrales.
     A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_e_pg * E11_exp)

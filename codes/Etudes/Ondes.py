@@ -5,12 +5,12 @@ import Simulations
 import Materials
 from Geom import Domain, Point, Circle
 from Interface_Gmsh import Interface_Gmsh
-import Affichage
+import Display
 import PostTraitement
 import Folder
 import TicTac
 
-Affichage.Clear()
+Display.Clear()
 
 plotModel = False
 plotIter = True
@@ -41,7 +41,7 @@ interfaceGmsh = Interface_Gmsh(False)
 mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
 if plotModel:
-    Affichage.Plot_Model(mesh)
+    Display.Plot_Model(mesh)
     plt.show()
 
 noeudsBord = mesh.Nodes_Tags(["L0","L1","L2","L3"])
@@ -68,7 +68,7 @@ def Chargement():
         
 
 if plotIter:
-    fig, ax, cb = Affichage.Plot_Result(simu, resultat, nodeValues=True)
+    fig, ax, cb = Display.Plot_Result(simu, resultat, nodeValues=True)
 
 tic = TicTac.Tic()
 
@@ -84,7 +84,7 @@ while t <= tMax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, resultat, nodeValues=True, ax=ax)
+        fig, ax, cb = Display.Plot_Result(simu, resultat, nodeValues=True, ax=ax)
         plt.pause(1e-12)
 
     print(f"{t//dt}",end="\r")

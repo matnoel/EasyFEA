@@ -5,14 +5,14 @@ import pandas as pd
 
 import Simulations
 import Folder
-import Affichage
+import Display
 import Interface_Gmsh
 import Materials
 import Geom
 
 Get_ddls_noeuds = Simulations.BoundaryCondition.Get_ddls_noeuds
 
-Affichage.Clear()
+Display.Clear()
 
 # ----------------------------------------------
 # Configuration
@@ -157,7 +157,7 @@ u_exp = simu.Solve()
 # Identification
 # ----------------------------------------------
 
-Affichage.NewSection("Identification")
+Display.Section("Identification")
 
 simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
 
@@ -246,12 +246,17 @@ for perturbation in perturbations:
             if optionRescale == 0:
                 # prends que les ddls suivant y
                 f_ddls = K[ddlsHautY,:] @ u_exp_bruit
-                f_r = f_ddls.copy()
+                f_r = - f_ddls.copy()                
+
             elif optionRescale == 1:
                 # prends les ddls suivant x et y
                 f_ddls = K[ddlsHautXY,:] @ u_exp_bruit
-                f_ddls = f_ddls.reshape(-1,2)
-                f_r = np.linalg.norm(f_ddls, axis=1)
+                f_ddls = - f_ddls.reshape(-1,2)                
+                
+                # f_r = np.sum(f_ddls, 0)
+                # f_r = np.linalg.norm(f_r)
+
+                f_r = np.sum(f_ddls, 0)[1]
 
             if optionRescale in [0, 1]:
                 # suuumm = np.sum(f_num_ddls[:,1])
@@ -277,7 +282,7 @@ for perturbation in perturbations:
                 # applique sur les surfaces en contact avec le plateau inférieur
                 Add_Dirichlet(nodesBas, ['x','y'])
                 # applique sur la surface supérieure le vecteur de force corrigé suivant y
-                simuIdentif.add_neumann(nodesHaut, [f_ddls[:,0], f_ddls[:,1]], ["x","y"])            
+                simuIdentif.add_neumann(nodesHaut, [f_ddls[:,0], f_ddls[:,1]], ["x","y"])
 
             elif optionRescale == 2:
                 # applique sur les surfaces en contact avec le plateau inférieur
@@ -374,7 +379,7 @@ for param in params:
     axParam.grid()
     axParam.legend(loc="upper left")
     
-    Affichage.Save_fig(folder, "FEMU_"+param, extension='pdf')
+    Display.Save_fig(folder, "FEMU_"+param, extension='pdf')
 
     
 
@@ -385,7 +390,7 @@ diff_n = np.reshape(simuIdentif.displacement - u_exp, (mesh.Nn, 2))
 err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp)
 # err_n = np.linalg.norm(diff_n, axis=1)
 
-Affichage.Plot_Result(simuIdentif, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
+Display.Plot_Result(simuIdentif, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
 
 # print(np.linalg.norm(diff_n)/np.linalg.norm(u_exp))
 

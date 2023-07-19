@@ -6,13 +6,13 @@ from TicTac import Tic
 from Mesh import Mesh, GroupElem
 import CalcNumba as CalcNumba
 import numpy as np
-import Affichage as Affichage
+import Display as Display
 from Geom import Line, Section
 
 from scipy.linalg import sqrtm
 
 class ModelType(str, Enum):
-    """Modèles physiques"""
+    """Physical models available"""
 
     displacement = "displacement"
     damage = "damage"

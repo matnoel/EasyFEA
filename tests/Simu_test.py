@@ -2,7 +2,7 @@ import unittest
 import Materials
 from Geom import Domain, Circle, Point, Section, Line
 import numpy as np
-import Affichage as Affichage
+import Display as Display
 from Mesh import Mesh
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
@@ -121,14 +121,14 @@ class Test_Simu(unittest.TestCase):
 
             simu.Solve()
 
-            Affichage.Plot_BoundaryConditions(simu)
+            Display.Plot_BoundaryConditions(simu)
             PlotAndDelete()
-            Affichage.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
+            Display.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
             PlotAndDelete()
             if beamModel.dim > 1:
-                Affichage.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
+                Display.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
                 PlotAndDelete()
-                Affichage.Plot_Mesh(simu, deformation=True, facteurDef=10)
+                Display.Plot_Mesh(simu, deformation=True, facteurDef=10)
                 PlotAndDelete()
 
         
@@ -215,13 +215,13 @@ class Test_Simu(unittest.TestCase):
             
             simu.Solve()
 
-            fig, ax, cb = Affichage.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
+            fig, ax, cb = Display.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
             plt.pause(1e-12)
             plt.close(fig)
             
             simu.Solver_Set_Newton_Raphson_Algorithm(dt=0.5)
             simu.Solve()
-            fig, ax, cb = Affichage.Plot_Result(simu, "ax", plotMesh=True,nodeValues=True)
+            fig, ax, cb = Display.Plot_Result(simu, "ax", plotMesh=True,nodeValues=True)
             plt.pause(1e-12)
             plt.close(fig)
 
@@ -254,13 +254,13 @@ class Test_Simu(unittest.TestCase):
             simu.Solve()
             simu.Save_Iteration()
 
-            fig, ax, cb = Affichage.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
+            fig, ax, cb = Display.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
             plt.pause(1e-12)
             plt.close(fig)
 
 if __name__ == '__main__':        
     try:
-        Affichage.Clear()
+        Display.Clear()
         unittest.main(verbosity=2)    
     except:
         print("")   

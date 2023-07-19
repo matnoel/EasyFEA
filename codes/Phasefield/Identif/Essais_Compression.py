@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 
 import Folder
-import Affichage
+import Display
 from Mesh import Mesh
 from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, Domain, Circle
@@ -13,7 +13,7 @@ import Materials
 import Simulations
 import PostTraitement
 
-Affichage.Clear()
+Display.Clear()
 
 folder_file = Folder.Get_Path(__file__)
 
@@ -23,7 +23,7 @@ folder_file = Folder.Get_Path(__file__)
 
 doSimulation = True
 
-test = False
+test = True
 optimMesh = True
 useContact = False
 GcHeterogene = False
@@ -42,9 +42,9 @@ solveur = 0 # least_squares
 # solveur = 1 # minimize
 # solveur = 2 # regle de 3
 
-# split = "AnisotStress"
+split = "AnisotStress"
 # split = "He"
-split = "Zhang"
+# split = "Zhang"
 regu = "AT2"
 
 # tolConv = 1e-0
@@ -167,7 +167,7 @@ nodes_Boundary = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 ddlsX_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["x"])
 ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["y"])
 
-Affichage.Plot_Mesh(mesh)
+Display.Plot_Mesh(mesh)
 # Affichage.Plot_Nodes(mesh, nodes_Upper, True)
 
 # ----------------------------------------------
@@ -225,7 +225,7 @@ if GcHeterogene:
     l1 = l0*2; elems1 = []
     l2 = l1*4; elems2 = []
 
-    ax = Affichage.Plot_Mesh(mesh, alpha=0)
+    ax = Display.Plot_Mesh(mesh, alpha=0)
 
     x = 0
     i = 0
@@ -257,8 +257,8 @@ else:
     # Gc = 0.05
     # Gc = 0.01
 
-vectM = axis_t[:2]
-M = np.einsum("i,j->ij", vectM, vectM)
+vectFibre = axis_t[:2]
+M = np.einsum("i,j->ij", vectFibre, vectFibre)
 
 Kic_L = 410 # RL kPa m^(1/2)
 Kic_T = 260 # TL 
@@ -266,10 +266,11 @@ Kic_T = 260 # TL
 # coefK = 1e-3 * 1e6 * 1000**(1/2) # kPa m^(1/2) -> MPa mm^(1/2)
 # Kic_L *= coefK
 # Kic_T *= coefK
-# Betha = 
-# A = np.eye(2) - 
+Betha = El/Et
+Betha = 0
+A = np.eye(2) + Betha * (np.eye(2) - M)
 
-A = np.eye(2)
+# A = np.eye(2)
 
 # coef = Et/El
 # A += 0 * M1 + 1/coef * M2
@@ -309,12 +310,12 @@ if doSimulation:
         axLoad.plot(deplacements, forces, label="redim")
         # axLoad.legend()
         axLoad.grid()
-        Affichage.Save_fig(folder_Save, "load")
+        Display.Save_fig(folder_Save, "load")
 
+    
     if pltContact:
         xn = mesh.coordo[:,0]
         yn = mesh.coordo[:,1]
-
         axContact = plt.subplots()[1]
         axContact.set_xlabel("xn [mm]"), axContact.set_ylabel("f [kN]")
         idxSort = np.argsort(xn[nodes_Upper])
@@ -329,23 +330,28 @@ if doSimulation:
     while fr <= fStop:
 
         i += 1
-        dep += inc0 if tresh0 <= 0.1 else inc1
+        dep += inc0 if simu.damage.max() <= tresh0 else inc1
 
         simu.Bc_Init()
         simu.add_dirichlet(nodes_Lower, [0], ["y"])
         simu.add_dirichlet(nodes0, [0], ["x"])
 
         if useContact:
-            frontiere = 90 - dep
+            frontiere = 90 - dep # coordonnée y du plan maitre
 
-            yn_c = yn[nodes_Upper] + simu.displacement[ddlsY_Upper]
+            yn_c = simu.mesh.coordo[nodes_Upper,1] + simu.displacement[ddlsY_Upper] # coordonnées y du plan esclave
+            # yn_c = simu.mesh.coordo[nodes_Upper,1] # coordonnées y du plan esclave
 
             ecart = frontiere - yn_c
 
             idxContact = np.where(ecart < 0)[0]
 
             if len(idxContact) > 0:
-                simu.add_dirichlet(nodes_Upper[idxContact], [ecart[idxContact]], ["y"])        
+                simu.add_dirichlet(nodes_Upper[idxContact], [ecart[idxContact]], ["y"])                
+
+            # axContact.clear()
+            # axContact.plot([-10, l+10], [frontiere, frontiere])
+            # axContact.scatter(simu.mesh.coordo[nodes_Upper,0], yn_c)
             
         else:
 
@@ -369,14 +375,14 @@ if doSimulation:
 
         simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/fStop, True)
 
-        if fr != -0.0 and pltContact:
-            Affichage.Plot_Result(simu, f.reshape(-1,2)[:,1])
-            ax = Affichage.Plot_Mesh(simu, alpha=0)    
-            ax.quiver(xn[nodes_Upper], yn[nodes_Upper], f[ddlsX_Upper]*5/fr, f[ddlsY_Upper]*5/fr, color='red', width=1e-3)
+        # if fr != -0.0 and pltContact:
+        #     Affichage.Plot_Result(simu, f.reshape(-1,2)[:,1])
+        #     ax = Affichage.Plot_Mesh(simu, alpha=0)    
+        #     ax.quiver(xn[nodes_Upper], yn[nodes_Upper], f[ddlsX_Upper]*5/fr, f[ddlsY_Upper]*5/fr, color='red', width=1e-3)
 
-            axContact.plot(mesh.coordo[nodes_Upper[idxSort],0], f_Upper[idxSort]/1000)
-            plt.figure(axContact.figure)
-            pass
+        #     axContact.plot(mesh.coordo[nodes_Upper[idxSort],0], f_Upper[idxSort]/1000)
+        #     plt.figure(axContact.figure)
+        #     pass
 
         list_fr.append(fr)
         list_dep.append(dep)
@@ -387,16 +393,17 @@ if doSimulation:
 
             plt.figure(axLoad.figure)
             axLoad.scatter(depp, fr, c='black', marker='.')        
+            # axLoad.scatter(depp, fr, marker='.')        
             if np.max(d) >= 1:
                 axLoad.scatter(depp, fr, c='red', marker='.')
             plt.pause(1e-12)
 
         if pltIter:
             if i == 0:
-                _, axIter, cbIter = Affichage.Plot_Result(simu, "damage")
+                _, axIter, cbIter = Display.Plot_Result(simu, "damage")
             else:
                 cbIter.remove()
-                _, axIter, cbIter = Affichage.Plot_Result(simu, "damage", ax=axIter)
+                _, axIter, cbIter = Display.Plot_Result(simu, "damage", ax=axIter)
 
             plt.figure(axIter.figure)        
             
@@ -416,13 +423,13 @@ if doSimulation:
     
     if pltLoad:
         plt.figure(axLoad.figure)
-        Affichage.Save_fig(folder_Save, "forcedep")
+        Display.Save_fig(folder_Save, "forcedep")
 
-    Affichage.Plot_ResumeIter(simu, folder_Save)
+    Display.Plot_ResumeIter(simu, folder_Save)
 
     simu.Save(folder_Save)
 
-Affichage.Plot_Result(simu, 'damage', folder=folder_Save, colorbarIsClose=True)
+Display.Plot_Result(simu, 'damage', folder=folder_Save, colorbarIsClose=True)
 
 if makeParaview:
     PostTraitement.Make_Paraview(folder_Save, simu)

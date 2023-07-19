@@ -1,13 +1,13 @@
 from Interface_Gmsh import Interface_Gmsh
-import Affichage
+import Display
 import Materials
 import Simulations
 import TicTac
 import BoundaryCondition
 import Geom
 
-np = Affichage.np
-plt = Affichage.plt
+np = Display.np
+plt = Display.plt
 
 # CONFIGURATION
 
@@ -40,8 +40,8 @@ gmshInterface = Interface_Gmsh()
 
 mesh = gmshInterface.Mesh_2D(points, [circle], "TRI3")
 
-Affichage.Plot_Model(mesh)
-ax = Affichage.Plot_Mesh(mesh)
+Display.Plot_Model(mesh)
+ax = Display.Plot_Mesh(mesh)
 
 noeudsCoins = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
 noeudsBords = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
@@ -99,7 +99,7 @@ def Solve(Eij: np.ndarray):
     coefs = np.linspace(0, 1.2, 60)
 
     if pltIter:
-        figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", nodeValues=True)
+        figIter, axIter, cb = Display.Plot_Result(simu, "damage", nodeValues=True)
 
     for i, coef in enumerate(coefs):
 
@@ -136,7 +136,7 @@ def Solve(Eij: np.ndarray):
 
         if pltIter:
             cb.remove()
-            figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
+            figIter, axIter, cb = Display.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
             axIter.set_title(f"{i} {axIter.get_title()}")
 
             plt.figure(figIter)

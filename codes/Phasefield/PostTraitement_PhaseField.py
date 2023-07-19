@@ -1,7 +1,7 @@
 import pandas as pd
 
 import PostTraitement as PostTraitement
-import Affichage as Affichage
+import Display as Display
 import Folder
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,15 +12,15 @@ import Simulations
 # Didentifier 3 itérations de déplacement (18.5, 24.6, 30) µm 
 # Pour ces 3 itérations tracer endommagement
 
-Affichage.Clear()
+Display.Clear()
 
-test = True
-loadSimu = False
-plotDamage = False
+test = False
+loadSimu = True
+plotDamage = True
 savefig = False
 
 # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
-simulation = "L_Shape_Benchmark"
+simulation = "Shear_Benchmark"
 
 if simulation == "PlateWithHole_Benchmark":
     colorBarIsClose = True
@@ -48,28 +48,28 @@ if not savefig:
 # ["AnisotStrain","He"]
 # ["AnisotStrain", "He", "AnisotStress", "Stress"]
 
-# listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
-listComp = [""]
+listComp = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+# listComp = [""]
 
 listRegu = ["AT1", "AT2"] # ["AT1", "AT2"]
 # listRegu = ["AT2"] # ["AT1", "AT2"]
 
-listSimpli2D = ["CP"] # ["CP","DP"]
+listSimpli2D = ["DP"] # ["CP","DP"]
 listSolveur = ["History"]
 
 # listSplit = ["Bourdin","Amor","Miehe","He","Zhang"]
 # listSplit = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
 # listSplit = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
 # listSplit = ["He","AnisotStrain","AnisotStress", "Zhang"]
-listSplit = ["Zhang"]
+listSplit = ["Miehe"]
 
 listOptimMesh=[True] # [True, False]
 
-listTol = [1e-0, 1e-1, 1e-2, 1e-3, 1e-4] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
-# listTol = [1e-0]
+# listTol = [1e-0, 1e-1, 1e-2, 1e-3, 1e-4] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+listTol = [1e-0]
 
 # listnL = [100] # [100] [100, 120, 140, 180, 200]
-listnL = [50]
+listnL = [0]
 
 listTheta = [0]
 # listTheta = [-0, -10, -20, -30, -45, -60, -70, -80, -90]
@@ -165,7 +165,7 @@ for config in listConfig:
         # titre = split.replace("AnisotStrain","Spectral")
 
         # Affiche le dernier endommagement
-        Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose,
+        Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose,
         folder=folderSauvegarde, filename=f"{split} tol{tolConv} last", plotMesh=False,
         title=split)        
 
@@ -185,7 +185,7 @@ for config in listConfig:
             titleDamage = split
             filenameDamage = f"PlateBench {comp}_{split}_{regu}_{simpli2D}"
 
-            Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose, folder=folderSauvegarde, filename=filenameDamage,title=titleDamage)
+            Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose, folder=folderSauvegarde, filename=filenameDamage,title=titleDamage)
 
     
      
@@ -211,7 +211,7 @@ ax.set_ylabel("load")
 ax.grid()
 ax.legend()
 plt.figure(fig)
-Affichage.Save_fig(folderSauvegarde, "load displacement")
+Display.Save_fig(folderSauvegarde, "load displacement")
 
 
 print('\n Simulations manquantes :')

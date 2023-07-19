@@ -3,7 +3,7 @@ import pandas as pd
 
 from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, PointsList, Circle
-import Affichage
+import Display
 import Materials
 import Simulations
 import Folder
@@ -11,9 +11,9 @@ import Folder
 Get_ddls_noeuds = Simulations.BoundaryCondition.Get_ddls_noeuds
 
 np = Materials.np
-plt = Affichage.plt
+plt = Display.plt
 
-Affichage.Clear()
+Display.Clear()
 
 folder = Folder.New_File("Identification Biaxial", results=True)
 
@@ -55,7 +55,7 @@ circle = Circle(Point(h/3, h/3), 10, meshSize, False)
 mesh = Interface_Gmsh(False, False).Mesh_2D(contour, [circle], "QUAD4")
 
 if pltMesh:
-    Affichage.Plot_Mesh(mesh)
+    Display.Plot_Mesh(mesh)
 
 # récupère les noeuds
 
@@ -145,7 +145,7 @@ perturbations = np.linspace(0, 0.02, 4)
 nTirage = 10
 tol = 1e-10
 
-Affichage.NewSection("Identification")
+Display.Section("Identification")
 
 simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
 
@@ -247,7 +247,7 @@ for perturbation in perturbations:
 
     list_dict_perturbation.append(dict_perturbation)
     
-Affichage.Plot_BoundaryConditions(simuIdentif, folder)
+Display.Plot_BoundaryConditions(simuIdentif, folder)
 
 df_pertubation = pd.DataFrame(list_dict_perturbation)
 
@@ -291,7 +291,7 @@ for param in params:
     axParam.grid()
     axParam.legend(loc="upper left")
     
-    Affichage.Save_fig(folder, "FEMU_"+param, extension='pdf')
+    Display.Save_fig(folder, "FEMU_"+param, extension='pdf')
 
     
 
@@ -302,7 +302,7 @@ diff_n = np.reshape(simuIdentif.displacement - u_exp, (mesh.Nn, 2))
 err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp)
 # err_n = np.linalg.norm(diff_n, axis=1)
 
-Affichage.Plot_Result(simuIdentif, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
+Display.Plot_Result(simuIdentif, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
 
 # print(np.linalg.norm(diff_n)/np.linalg.norm(u_exp))
 

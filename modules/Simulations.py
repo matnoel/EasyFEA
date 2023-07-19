@@ -211,8 +211,8 @@ class Simu(ABC):
         """
         
         if verbosity:
-            import Affichage
-            Affichage.NewSection("Simulation")
+            import Display
+            Display.Section("Simulation")
 
         self.__model = model
 
@@ -1273,21 +1273,21 @@ class Simu(ABC):
         
     def Resultats_Resume(self, verbosity=True) -> str:
 
-        import Affichage
+        import Display
 
-        resume = Affichage.NewSection("Maillage", False)
+        resume = Display.Section("Maillage", False)
         resume += self.mesh.Resume(False)
 
-        resume += Affichage.NewSection("Materiau", False)
+        resume += Display.Section("Materiau", False)
         resume += '\n' + self.model.resume
 
-        resume += Affichage.NewSection("Chargement", False)
+        resume += Display.Section("Chargement", False)
         resume += '\n' + self.Resultats_Get_Resume_Chargement()
 
-        resume += Affichage.NewSection("Résultat", False)
+        resume += Display.Section("Résultat", False)
         resume += '\n' + self.Resultats_Get_Resume_Iteration()
 
-        resume += Affichage.NewSection("TicTac", False)
+        resume += Display.Section("TicTac", False)
         resume += Tic.Resume(False)
 
         if verbosity:

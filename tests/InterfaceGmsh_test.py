@@ -5,7 +5,7 @@ from Interface_Gmsh import Interface_Gmsh
 import numpy as np
 
 from Geom import *
-import Affichage as Affichage
+import Display as Display
 import matplotlib.pyplot as plt
 
 class Test_InterfaceGmsh(unittest.TestCase):
@@ -21,14 +21,14 @@ class Test_InterfaceGmsh(unittest.TestCase):
         colonnes = np.repeat(np.arange(ncols).reshape(1,-1), nrows, axis=0).reshape(-1)
         for m, mesh2D in enumerate(list_mesh2D):
             axx = ax[lignes[m],colonnes[m]]
-            Affichage.Plot_Mesh(mesh2D, ax= axx)
-            Affichage.Plot_Nodes(mesh2D, showId=False, ax=axx, c='black')
+            Display.Plot_Mesh(mesh2D, ax= axx)
+            Display.Plot_Nodes(mesh2D, showId=False, ax=axx, c='black')
             axx.set_title("")
             axx.get_xaxis().set_visible(False)
             axx.get_yaxis().set_visible(False)
             plt.pause(1e-12)
 
-            Affichage.Plot_Model(mesh2D)
+            Display.Plot_Model(mesh2D)
             plt.pause(1e-12)
             plt.close()
         
@@ -37,12 +37,12 @@ class Test_InterfaceGmsh(unittest.TestCase):
     def test_Construction3D(self):
         list_mesh3D = Interface_Gmsh.Construction3D()
         for mesh3D in list_mesh3D:
-            ax = Affichage.Plot_Mesh(mesh3D)
-            Affichage.Plot_Nodes(mesh3D, showId=False, ax=ax, c='black')
+            ax = Display.Plot_Mesh(mesh3D)
+            Display.Plot_Nodes(mesh3D, showId=False, ax=ax, c='black')
             plt.pause(1e-12)
             plt.close()
 
-            Affichage.Plot_Model(mesh3D)
+            Display.Plot_Model(mesh3D)
             plt.pause(1e-12)
             plt.close()
 
@@ -50,8 +50,8 @@ class Test_InterfaceGmsh(unittest.TestCase):
         
 if __name__ == '__main__':        
     try:
-        import Affichage
-        Affichage.Clear()
+        import Display
+        Display.Clear()
         unittest.main(verbosity=2)
     except:
         print("")

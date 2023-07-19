@@ -1,14 +1,15 @@
-import Affichage
+import Display
 from Geom import Point, PointsList, Circle, Domain, normalize_vect
 from Interface_Gmsh import Interface_Gmsh
 import Materials
 import Simulations
 import Folder
+import PostTraitement
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-Affichage.Clear()
+Display.Clear()
 
 folder_FCBA = Folder.New_File("Essais FCBA",results=True)
 folder = Folder.Join([folder_FCBA, "Essais Laura"])
@@ -107,7 +108,7 @@ if loadType == 0:
 
 elif loadType == 1:
     surf = np.pi * d/2 * ep
-    nodesLoad = mesh.Nodes_Cylindre(circle, [0,0,ep])
+    nodesLoad = mesh.Nodes_Cylindre(circle, [0,0,-ep])
     nodesLoad = nodesLoad[mesh.coordo[nodesLoad,1] <= pC.y]
     # Affichage.Plot_Nodes(mesh, nodesLoad)
 
@@ -226,12 +227,12 @@ if len(list_psiP) > 1:
     axLoad.plot([0,array_f[-1]/1000], [1, 1], zorder=3, c='black')
     axLoad.plot(array_f/1000, array_psiP/psiC, zorder=3, c='blue')
  
-    Affichage.Save_fig(folder, "Load")
+    Display.Save_fig(folder, "Load")
 
 
 
-Affichage.Plot_Mesh(mesh)
-ax = Affichage.Plot_BoundaryConditions(simu, folder=folder)
+Display.Plot_Mesh(mesh)
+ax = Display.Plot_BoundaryConditions(simu, folder=folder)
 # f_v = simu.Get_K_C_M_F()[0] @ simu.displacement
 # f_m = f_v.reshape(-1,2)
 # f_m *= 1
@@ -242,19 +243,21 @@ ax = Affichage.Plot_BoundaryConditions(simu, folder=folder)
 #     ax.quiver(xn, yn, f_m[:,0], f_m[:,1], color='red', width=1e-3, scale=1e4)
 
 
-Affichage.Plot_Result(simu, psiP_e, title="$\psi^+$", nodeValues=False)
-ax = Affichage.Plot_Result(simu, psiP_e/psiC, nodeValues=True, title="$\psi^+ \ / \ \psi_c$", colorbarIsClose=False)[1]
+Display.Plot_Result(simu, psiP_e, title="$\psi^+$", nodeValues=False)
+ax = Display.Plot_Result(simu, psiP_e/psiC, nodeValues=True, title="$\psi^+ \ / \ \psi_c$", colorbarIsClose=False)[1]
 
 elemtsDamage = np.where(psiP_e >= psiC)[0]
 if elemtsDamage.size > 0:
     nodes = np.unique(mesh.connect[elemtsDamage])
     # Affichage.Plot_Elements(mesh, nodes, alpha=0.2, edgecolor='black', ax=ax)
-Affichage.Save_fig(folder, "psiPpsiC")
+Display.Save_fig(folder, "psiPpsiC")
 
-Affichage.Plot_Result(simu, "Sxx", plotMesh=False)
-Affichage.Plot_Result(simu, "Syy", plotMesh=False)
-Affichage.Plot_Result(simu, "Sxy", plotMesh=False)
+Display.Plot_Result(simu, "Sxx", plotMesh=False)
+Display.Plot_Result(simu, "Syy", plotMesh=False)
+Display.Plot_Result(simu, "Sxy", plotMesh=False)
 
 simu.Resultats_Resume()
+
+PostTraitement.Make_Paraview(folder, simu)
 
 plt.show()

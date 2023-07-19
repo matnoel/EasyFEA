@@ -7,13 +7,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import Simulations
-import Affichage
+import Display
 from Interface_Gmsh import Interface_Gmsh
 import Materials
 import Geom
 import Folder
 
-Affichage.Clear()
+Display.Clear()
 
 # ----------------------------------------------
 # Configuration
@@ -72,8 +72,8 @@ mesh = Interface_Gmsh().Mesh_2D(domain, [circle, contour], "TRI6")
 xn = mesh.coordo[:,0]
 yn = mesh.coordo[:,1]
 
-Affichage.Plot_Model(mesh)
-Affichage.Plot_Mesh(mesh)
+Display.Plot_Model(mesh)
+Display.Plot_Mesh(mesh)
 
 nodesEdge = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 nodesLower = mesh.Nodes_Tags(["L0"])
@@ -145,7 +145,7 @@ u_exp = simu.Solve()
 # Identification
 # ----------------------------------------------
 
-Affichage.NewSection("Identification")
+Display.Section("Identification")
 
 def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False, f=None, pltEps=True):
     """Calcul des intégrales"""
@@ -164,12 +164,12 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False
     E12_e_pg = Eps_e_pg[:,:,2]
 
     if pltSol:        
-        Affichage.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, colorbarIsClose=True)
-        Affichage.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, colorbarIsClose=True)
+        Display.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, colorbarIsClose=True)
+        Display.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, colorbarIsClose=True)
         if pltEps:
-            Affichage.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False, plotMesh=True)
-            Affichage.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
-            Affichage.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
+            Display.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False, plotMesh=True)
+            Display.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
+            Display.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
     
     # Calcul des intégrales.
     A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_e_pg * E11_exp)
@@ -716,7 +716,7 @@ for param in params:
     axParam.grid()
     axParam.legend(loc="upper left")
     
-    Affichage.Save_fig(folder, "VFM_"+param+opt, extension='pdf')
+    Display.Save_fig(folder, "VFM_"+param+opt, extension='pdf')
 
     print(f"{param} = {mean.mean()*paramExp}")
 

@@ -2,7 +2,7 @@ from TicTac import Tic
 import Materials
 from BoundaryCondition import BoundaryCondition
 from Geom import *
-import Affichage as Affichage
+import Display as Display
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh, Calc_projector
 import Simulations
@@ -233,7 +233,7 @@ for split, regu in zip(splits, regularisations):
         mesh = DoMesh(domainFissure)
         
         if plotMesh:
-            Affichage.Plot_Mesh(mesh)
+            Display.Plot_Mesh(mesh)
             plt.show()        
 
         # ----------------------------------------------
@@ -260,13 +260,13 @@ for split, regu in zip(splits, regularisations):
         load = []
 
         if plotIter:
-            figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", nodeValues=True)
+            figIter, axIter, cb = Display.Plot_Result(simu, "damage", nodeValues=True)
 
             arrayDisplacement, arrayLoad = np.array(displacement), np.array(load)
             if "Benchmark" in problem:
-                figLoad, axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e6, arrayLoad*1e-6, 'ud [µm]', 'f [kN/mm]')
+                figLoad, axLoad = Display.Plot_Load_Displacement(arrayDisplacement*1e6, arrayLoad*1e-6, 'ud [µm]', 'f [kN/mm]')
             elif "FCBA" in problem:
-                figLoad, axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]')
+                figLoad, axLoad = Display.Plot_Load_Displacement(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]')
 
         def Chargement(ud: float):
             
@@ -389,7 +389,7 @@ for split, regu in zip(splits, regularisations):
 
             if plotIter:
                 cb.remove()
-                figIter, axIter, cb = Affichage.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
+                figIter, axIter, cb = Display.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
 
                 plt.figure(figIter)
 
@@ -398,9 +398,9 @@ for split, regu in zip(splits, regularisations):
                 arrayDisplacement, arrayLoad = np.array(displacement), np.array(load)
 
                 if "Benchmark" in problem:
-                    axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e6, arrayLoad*1e-6, 'ud [µm]', 'f [kN/mm]', ax=axLoad)[1]
+                    axLoad = Display.Plot_Load_Displacement(arrayDisplacement*1e6, arrayLoad*1e-6, 'ud [µm]', 'f [kN/mm]', ax=axLoad)[1]
                 elif "FCBA" in problem:
-                    axLoad = Affichage.Plot_ForceDep(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]', ax=axLoad)[1]
+                    axLoad = Display.Plot_Load_Displacement(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]', ax=axLoad)[1]
 
                 plt.figure(axLoad.figure)
 
@@ -430,19 +430,19 @@ for split, regu in zip(splits, regularisations):
     # ---------------------------------------------
 
     if plotEnergie:
-        Affichage.Plot_Energie(simu, load, displacement, Niter=400, folder=folder)
+        Display.Plot_Energy(simu, load, displacement, Niter=400, folder=folder)
 
     if plotResult:
-        Affichage.Plot_BoundaryConditions(simu)
+        Display.Plot_BoundaryConditions(simu)
 
-        Affichage.Plot_ResumeIter(simu, folder, None, None)
+        Display.Plot_ResumeIter(simu, folder, None, None)
 
         if "Benchmark" in problem:
-            Affichage.Plot_ForceDep(displacement*1e3, load*1e-6, 'ud [mm]', 'f [kN/mm]', folder)
+            Display.Plot_Load_Displacement(displacement*1e3, load*1e-6, 'ud [mm]', 'f [kN/mm]', folder)
         elif "FCBA" in problem:
-            Affichage.Plot_ForceDep(displacement*1e3, load*1e-3, 'ud [mm]', 'f [kN]', folder)
+            Display.Plot_Load_Displacement(displacement*1e3, load*1e-3, 'ud [mm]', 'f [kN]', folder)
 
-        Affichage.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename="damage")
+        Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename="damage")
 
     if saveParaview:
         PostTraitement.Make_Paraview(folder, simu, Niter=NParaview)        

@@ -1,8 +1,8 @@
-import Affichage
+import Display
 import Folder
 
-plt = Affichage.plt
-np = Affichage.np
+plt = Display.plt
+np = Display.np
 import pandas as pd
 
 folder_FCBA = Folder.New_File("Essais FCBA",results=True)
@@ -10,7 +10,7 @@ folder_Identif = Folder.Join([folder_FCBA, "Identification"])
 
 pathData = Folder.Join([folder_Identif, 'identification.xlsx'])
 
-Affichage.Clear()
+Display.Clear()
 
 df = pd.read_excel(pathData)
 

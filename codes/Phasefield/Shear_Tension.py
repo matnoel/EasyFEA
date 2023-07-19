@@ -1,7 +1,7 @@
 from BoundaryCondition import BoundaryCondition
 import PostTraitement
 import Folder
-import Affichage
+import Display
 import Materials
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh
@@ -18,7 +18,7 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-dim = 3
+dim = 2
 simulation = "Shear" # "Shear" , "Tension"
 
 nomDossier = '_'.join([simulation,"Benchmark"])
@@ -74,7 +74,7 @@ solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["AnisotStress"]
+splits = ["Amor"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)
@@ -186,10 +186,10 @@ for split, regu in zip(splits, regularisations):
         mesh = DoMesh(refineDomain)
         
         if plotMesh:
-            Affichage.Plot_Mesh(mesh)
-            Affichage.Plot_Model(mesh, alpha=0)
+            Display.Plot_Mesh(mesh)
+            Display.Plot_Model(mesh, alpha=0)
             noeudsCracks = mesh.Nodes_Conditions(lambda x,y,z: (x<=L/2)&(y==L/2))            
-            Affichage.Plot_Nodes(mesh, noeudsCracks, showId=True)            
+            Display.Plot_Nodes(mesh, noeudsCracks, showId=True)            
             plt.show()
 
         # Simulation  -------------------------------------------------------------------------------------------        
@@ -262,7 +262,7 @@ for split, regu in zip(splits, regularisations):
 
                 raise Exception("chargement inconnue pour cette simulation")
 
-        Affichage.NewSection("Simulations")
+        Display.Section("Simulations")
 
         # ----------------------------------------------
         # Paramètres de chargement
@@ -448,8 +448,8 @@ for split, regu in zip(splits, regularisations):
                     # Affichage.Plot_Result(simu.mesh, d, plotMesh=True)
                     # Affichage.Plot_Result(newMesh, newD, plotMesh=True)                    
 
-                    Affichage.Plot_Result(simu.mesh, u.reshape(-1,2)[:,0])
-                    Affichage.Plot_Result(newMesh, newU[:,0])
+                    Display.Plot_Result(simu.mesh, u.reshape(-1,2)[:,0])
+                    Display.Plot_Result(newMesh, newU[:,0])
 
                     plt.pause(1e-12)
                     # Tic.Plot_History()
@@ -493,18 +493,18 @@ for split, regu in zip(splits, regularisations):
     # ----------------------------------------------
     # Post Traitement
     # ---------------------------------------------
-    Affichage.NewSection("Affichage")
+    Display.Section("Affichage")
     
 
     if plotResult:
 
-        Affichage.Plot_ResumeIter(simu, folder, None, None)
+        Display.Plot_ResumeIter(simu, folder, None, None)
 
-        Affichage.Plot_BoundaryConditions(simu)
+        Display.Plot_BoundaryConditions(simu)
 
-        Affichage.Plot_ForceDep(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN', folder)
+        Display.Plot_Load_Displacement(deplacements*1e6, forces*1e-3, 'ud en µm', 'f en kN', folder)
 
-        Affichage.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
+        Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
         
 
         # Affichage.Plot_Result(simu, "uy", folder=folder, deformation=True)
@@ -528,13 +528,13 @@ for split, regu in zip(splits, regularisations):
         # Energie
         # ---------------------------------------------   
         # Affichage.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)
-        Affichage.Plot_Energie(simu, Niter=400, folder=folder)
+        Display.Plot_Energy(simu, Niter=400, folder=folder)
 
     if getFissure:
         # ----------------------------------------------
         # Récupération de la fissure
         # ----------------------------------------------
-        axDamage = Affichage.Plot_Result(simu, "damage")[1]
+        axDamage = Display.Plot_Result(simu, "damage")[1]
 
         coordoMesh = simu.mesh.coordo[:, :2] # coordonnées du maillage
         connectMesh = simu.mesh.connect
@@ -611,7 +611,7 @@ for split, regu in zip(splits, regularisations):
                 elements.remove(mostDamagedElement)
                 unwantedElements.extend(elements)                
         
-        [Affichage.Plot_Elements(simu.mesh, connectMesh[element], dimElem=2, ax=axDamage, c='white') for element in damagedElements]
+        [Display.Plot_Elements(simu.mesh, connectMesh[element], dimElem=2, ax=axDamage, c='white') for element in damagedElements]
 
         lignes = np.array(lignes)
         collection = LineCollection(lignes, zorder=3, colors='white')

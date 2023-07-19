@@ -1,7 +1,7 @@
 import os
 from colorama import Fore
 
-import Affichage as Affichage
+import Display as Display
 import Simulations
 import Folder
 from TicTac import Tic
@@ -109,7 +109,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, Nite
     simu.Update_iter(0)
 
     # Trace la première figure
-    fig, ax, cb = Affichage.Plot_Result(simu, option, plotMesh=plotMesh, deformation=deformation, facteurDef=facteurDef, nodeValues=nodeValues)
+    fig, ax, cb = Display.Plot_Result(simu, option, plotMesh=plotMesh, deformation=deformation, facteurDef=facteurDef, nodeValues=nodeValues)
     
     # Donne le lien vers ffmpeg.exe    
 
@@ -125,7 +125,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, Nite
 
             cb.remove()
             
-            fig, ax, cb = Affichage.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=plotMesh, facteurDef=facteurDef, nodeValues=nodeValues)
+            fig, ax, cb = Display.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=plotMesh, facteurDef=facteurDef, nodeValues=nodeValues)
 
             title1 = ax.get_title()
             ax.set_title(f'{title1} : {iter}/{N-1}')

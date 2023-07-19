@@ -10,7 +10,7 @@ from Geom import *
 from GroupElem import GroupElem, ElemType, MatriceType, GroupElem_Factory
 from Mesh import Mesh
 from TicTac import Tic
-import Affichage as Affichage
+import Display as Display
 from Materials import Poutre_Elas_Isot
 
 class Interface_Gmsh:
@@ -37,7 +37,7 @@ class Interface_Gmsh:
         """modelGmsh peut ecrire dans la console"""
 
         if gmshVerbosity:
-            Affichage.NewSection("Maillage Gmsh")
+            Display.Section("Maillage Gmsh")
 
     def __CheckType(self, dim: int, elemType: str):
         """Vérification si le type d'element est bien utilisable."""

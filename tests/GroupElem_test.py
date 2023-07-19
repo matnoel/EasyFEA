@@ -26,8 +26,8 @@ class Test_GroupElem(unittest.TestCase):
 
 if __name__ == '__main__' or __file__ == '__file__':
     try:
-        import Affichage
-        Affichage.Clear()
+        import Display
+        Display.Clear()
         unittest.main(verbosity=2)    
     except:
         print("")

@@ -1,16 +1,16 @@
 import Interface_Gmsh
 import Simulations
 import Materials
-import Affichage
+import Display
 import PostTraitement
 from Geom import np, Point, Domain, Circle, PointsList, Line
 import Folder
 
-plt = Affichage.plt
+plt = Display.plt
 import pandas as pd
 
 
-Affichage.Clear()
+Display.Clear()
 
 folder = Folder.New_File("TractionBois", results=True)
 
@@ -101,7 +101,7 @@ refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), meshSize=tail
 mesh = interface.Mesh_2D(points, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI3", cracks=cracks)
 
 # Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh)
+Display.Plot_Model(mesh)
 # plt.show()
 
 
@@ -172,10 +172,10 @@ def Chargement(force: float):
 
 Chargement(0)
 
-Affichage.Plot_BoundaryConditions(simu)
+Display.Plot_BoundaryConditions(simu)
 # plt.show()
 
-fig_Damage, ax_Damage, cb_Damage = Affichage.Plot_Result(simu, "damage")
+fig_Damage, ax_Damage, cb_Damage = Display.Plot_Result(simu, "damage")
 
 # for iter, force, dep in zip(range(len(forces)), forces, displacements):
 
@@ -202,7 +202,7 @@ for iter, force in enumerate(np.linspace(0, 35, nf)):
     simu.Resultats_Set_Resume_Iteration(iter, force, "N", pourcent, True)
 
     cb_Damage.remove()
-    fig_Damage, ax_Damage, cb_Damage = Affichage.Plot_Result(simu, "damage", ax=ax_Damage)
+    fig_Damage, ax_Damage, cb_Damage = Display.Plot_Result(simu, "damage", ax=ax_Damage)
     plt.pause(1e-12)
 
     if np.max(simu.damage[noeudsBord]) >= 0.95:

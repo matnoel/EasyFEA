@@ -6,65 +6,67 @@ import numpy as np
 import pandas as pd
 
 # Figures
+import matplotlib
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 # Pour tracer des collections
 import matplotlib.collections
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 import Folder
 
 def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
-    """Affichage d'un résulat de la simulation
+    """Display a simulation result
 
     Parameters
     ----------
-    obj : _Simu or Mesh
-        objet qui contient le maillage
+    obj : Simu or Mesh
+        object containing the mesh
     option : str
-        resultat que l'on souhaite utiliser. doit être compris dans Simu.ResultatsCalculables()
+        result you wish to use. must be included in Simu.ResultCalculables()
     deformation : bool, optional
-        affiche la deformation, by default False
-    facteurDef : int, optional
-        facteur de deformation, by default 4
+        displays deformation, by default False
+    factorDef : int, optional
+        deformation factor, by default 4
     coef : int, optional
-        coef qui sera appliqué a la solution, by default 1
+        coef to be applied to solution, by default 1
     plotMesh : bool, optional
-        affiche le maillage, by default False
+        displays mesh, by default False
     nodeValues : bool, optional
-        affiche le resultat aux noeuds sinon l'affiche aux elements, by default True
+        displays result to nodes otherwise displays it to elements, by default True
     folder : str, optional
-        dossier de sauvegarde, by default ""
+        save folder, by default ""
     filename : str, optional
-        nom du fichier de sauvegarde, by default ""
-    title : str, optional
-        titre de la figure, by default ""
-    ax : axe, optional
-        ancien axe de matplotlib, by default None    
-    cmap : str, optional
-        la color map utilisée proche de la figure, by default "jet" \n
-        \t ["jet", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
+        name of backup file, by default "" title: str, optional
+    title: str, optional
+        figure title, by default ""
+    ax: axis, optional
+        Axis to use, default None, by default None    
+    cmap: str, optional
+        the color map used near the figure, by default "jet" \n
+        ["jet", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
     colorbarIsClose : bool, optional
-        la color bar est affiché proche de la figure, by default False
+        color bar is displayed close to figure, by default False
     nColors : int, optional
-        nombre de couleurs pour la colorbar
+        number of colors for colorbar
 
     Returns
     -------
-    Figure, Axe, colorbar
+    Figure, Axis, colorbar
         fig, ax, cb
     """
 
     from Simulations import Simu, Mesh, MatriceType
 
-    # ici on detecte la nature de l'objet
+    # here we detect the nature of the object
     if isinstance(obj, Simu):
         simu = obj
-        mesh = simu.mesh
-        use3DBeamModel = simu.use3DBeamModel
+        mesh = simu.mesh        
 
+        use3DBeamModel = simu._use3DBeamModel
+        
         if simu.problemType == MatriceType.beam:
-            # Actuellement je ne sais pas comment afficher les résultats nodaux donc j'affiche sur les elements
+            # Currently I don't know how to display nodal results, so I'm displaying on elements.
             nodeValues = False
 
     elif isinstance(obj, Mesh):
@@ -72,23 +74,23 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
 
         if deformation == True:
             deformation = False
-            print("Il faut donner la simulation pour afficher le maillage déformée")
+            print("You have to give the simulation to display the deformed mesh.")
         use3DBeamModel = False
 
         if isinstance(option, str):
-            raise Exception("Quand obj est un maillage il faut que option soit une array de dimension Nn ou Ne")
+            raise Exception("When obj is a mesh, the option must be an array of dimension Nn or Ne.")
         
     else:
-        raise Exception("Doit être une simulation ou un maillage")    
+        raise Exception("Must be a simulation or mesh")
     
     if ax != None:
         assert isinstance(ax, plt.Axes)
         fig = ax.figure
     
-    dim = mesh.dim # dimension du maillage    
-    inDim = mesh.inDim # dimension dans lequel se trouve le maillage    
+    dim = mesh.dim # mesh dimension
+    inDim = mesh.inDim # dimension in which the mesh is located
 
-    # Construction de la figure et de l'axe si nécessaire
+    # Construction of figure and axis if necessary
     if ax == None:
         if inDim in [1,2] and not use3DBeamModel:
             fig, ax = plt.subplots()
@@ -102,22 +104,22 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         ax.clear()
 
     if dim == 3:
-        nodeValues = True # Ne pas modifier, il faut passer par la solution aux noeuds pour localiser aux elements 2D !!!
-        # Quand on fait une simulation en 3D on affiche les résultats que sur les elements 2D
-        # Pour prendre moin de place        
+        nodeValues = True # Do not modify, you must use the node solution to locate the 2D elements!!!!
+        # When mesh use 3D elements, results are displayed only on 2D elements.
+        # To take up less space.
 
-    # Récupération des valeurs à afficher
+    # Retrieve values to be displayed
     if isinstance(option, str):
-        valeurs = simu.Get_Resultat(option, nodeValues) # Récupération du résultat
+        valeurs = simu.Get_Resultat(option, nodeValues) # Retrieve result from option
         if not isinstance(valeurs, np.ndarray): return
     
     elif isinstance(option, np.ndarray):
-        # Recupère la taille de l'array, la taille doit être aux noeuds ou aux elements
-        # Si la taille n'est pas egale au nombre de noeuds ou d'elements renvoie une erreur
+        # Gets the size of the array, the size must be nodes or elements
+        # If the size is not equal to the number of nodes or elements, returns an error
         sizeVecteur = option.size
 
         if sizeVecteur not in [mesh.Ne, mesh.Nn]:
-            print("Le vecteur renseigné doit être de dimension Nn ou Ne")
+            print("The vector must be of dimension Nn or Ne.")
             return
 
         valeurs = option*coef
@@ -128,13 +130,12 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
             valeursLoc_e = mesh.Localises_sol_e(valeurs)
             valeurs = np.mean(valeursLoc_e, 1)
     else:
-        raise Exception("Dois renseigner une chaine de caractère ou une array")
+        raise Exception("Must fill a string or an array")
     
-    valeurs *= coef # Application d'un coef sur les valeurs
+    valeurs *= coef # Apply coef to values
+    coordoNonDef = mesh.coordoGlob # node coordinates without deformations
 
-    coordoNonDef = mesh.coordoGlob # coordonnées des noeuds sans déformations
-
-    # Recupération des coordonnée déformées si la simulation le permet
+    # Recover deformed coordinates if simulation permits
     if deformation:        
         coordoDef, deformation = __GetCoordo(simu, deformation, facteurDef)
     else:
@@ -142,9 +143,9 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     
     coordoDef_InDim = coordoDef[:,range(inDim)]
     
-    dict_connect_Faces = mesh.Get_dict_connect_Faces() # construit les faces de chaque groupe d'elements
+    dict_connect_Faces = mesh.Get_dict_connect_Faces() # build faces for each group of elements
 
-    # Construit les bornes pour la colorbar
+    # Builds boundary markers for the colorbar
     if isinstance(option, str) and option == "damage":
         min = valeurs.min()-1e-12
         openCrack = False
@@ -156,60 +157,57 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
                 max = 1        
     else:
         max = np.max(valeurs)+1e-12
-        min = np.min(valeurs)-1e-12
-    
+        min = np.min(valeurs)-1e-12    
     levels = np.linspace(min, max, nColors)
 
-
     if inDim in [1,2] and not use3DBeamModel:
-        # Maillage contenu dans un plan 2D
-        # Actuellement conçu que pour un groupe d'element !!
+        # Mesh contained in a 2D plane
+        # Currently only designed for one element group!
 
         faces = dict_connect_Faces[mesh.groupElem.elemType]
 
         coordFaces = coordoDef_InDim[faces]        
 
-        # Trace le maillage
+        # Plot the mesh
         if plotMesh:
             if mesh.dim == 1:
-                # le maillage pour des elements 1D sont des points
+                # mesh for 1D elements are points
                 coordFaces = coordFaces.reshape(-1,inDim)
                 ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=0.1, marker='.')
             else:
-                # le maillage pour des elements 2D sont des lignes
+                # mesh for 2D elements are lines
                 pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=0.5)
                 ax.add_collection(pc)
 
-        # Valeurs aux elements
+        # Element values
         if mesh.Ne == len(valeurs):            
             if mesh.dim == 1:
-                # on va afficher le résulat sur chaque ligne
+                # we will display the result on each line
                 pc = matplotlib.collections.LineCollection(coordFaces, lw=1.5, cmap=cmap)
             else:
-                # on va afficher le résultat sur les faces
+                # we'll display the result on the faces
                 pc = matplotlib.collections.PolyCollection(coordFaces, lw=0.5, cmap=cmap)                
             pc.set_clim(min, max)
             pc.set_array(valeurs)
             ax.add_collection(pc)
 
-        # Valeur aux noeuds
+        # Node values
         elif mesh.Nn == len(valeurs):
-            # on va afficher le résultat sur les noeuds
-            # récupération des triangles de chaque face pour utiliser la fonction trisurf
+            # display the result on the nodes
+            # retrieve triangles from each face to use the trisurf function
             connectTri = mesh.dict_connect_Triangle[mesh.groupElem.elemType]
-
             pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri, valeurs, levels, cmap=cmap, vmin=min, vmax=max)
             # tripcolor, tricontour, tricontourf
 
-        # mets les axes à l'echelle
+        # scale the axis
         ax.autoscale()
         epX = np.abs(coordoDef[:,0].max() - coordoDef[:,0].min())
         epY = np.abs(coordoDef[:,1].max() - coordoDef[:,1].min())
         if (epX > 0 and epY > 0):
             if np.abs(epX-epY)/epX > 0.2:
                 ax.axis('equal')
-        
-        # procédure pour essayer de rapporcher la colorbar de l'ax
+
+        # procedure for trying to retrieve the colorbar from the axis
         divider = make_axes_locatable(ax)
         if colorbarIsClose:
             cax = divider.append_axes('right', size='10%', pad=0.1)
@@ -217,34 +215,34 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         else:
             cax=None
         
-        # Construction de la colorbar
+        # Building the colorbar
         if isinstance(option, str) and option == "damage":
             ticks = np.linspace(0,1,11)
         else:
             ticks = np.linspace(min,max,11)
         cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
         
-        # Renome les axes
+        # rename the axis
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
 
     
     elif inDim == 3 or use3DBeamModel:
-        # initialisation des valeurs max et min de la colorbar
-        
+        # initialization of max and min colorbar values
+                
         maxVal = max
         minVal = min
 
-        # dimenson du maillage
+        # mesh dimension
         dim = mesh.dim
         if dim == 3:
-            # Si le maillage est un maillage 3D alors on ne va affichier que les elements 2D du maillage
-            # Un maillage 3D peut contenir plusieurs types d'element 2D
-            # Par exemple quand PRISM6 -> TRI6 et QUAD8 en meme temps
-            # En gros la couche extérieur
+            # If the mesh is a 3D mesh, then only the 2D elements of the mesh will be displayed.
+            # A 3D mesh can contain several types of 2D element.
+            # For example, when PRISM6 -> TRI3 and QUAD4 at the same time
+            # Basically, the outer layer
             dim = 2
 
-        # construit la matrice de connexion des faces
+        # constructs the face connection matrix
         connectFaces = []
         list_groupElemDim = mesh.Get_list_groupElem(dim)
         for groupElem in list_groupElemDim:
@@ -254,10 +252,10 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         coordFaces = coordoDef[connectFaces]
 
         if nodeValues:
-            # Si le résultat est stocké aux noeuds on va faire la moyenne des valeurs aux noeuds sur l'element           
+            # If the result is stored at nodes, we'll average the node values over the element.
 
             valeursAuxFaces = []
-            # pour chaque groupe d'element on va calculer la valeur à afficher sur chaque element
+            # for each group of elements, we'll calculate the value to be displayed on each element
             for groupElem in list_groupElemDim:
                 valeursNoeudsSurElement = valeurs[groupElem.connect]
                 values = np.asarray(np.mean(valeursNoeudsSurElement, axis=1))
@@ -266,14 +264,13 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         else:
             valeursAuxFaces = valeurs
 
-        # mise à jour du max et 
+        # update max and min
         maxVal = valeursAuxFaces.max()
-        minVal = valeursAuxFaces.min()
-        
+        minVal = valeursAuxFaces.min()        
         maxVal = np.max([maxVal, max])
         minVal = np.min([minVal, min])
 
-        # On affiche le résultat avec ou sans l'affichage du maillage
+        # Display result with or without mesh display
         if plotMesh:
             if dim == 1:
                 pc = Line3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
@@ -285,24 +282,24 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
             if dim == 2:
                 pc = Poly3DCollection(coordFaces, cmap=cmap, zorder=0)
 
-        # On applique les couleurs aux faces
+        # Colors are applied to the faces
         pc.set_array(valeursAuxFaces)        
         ax.add_collection3d(pc)        
         
-        # On pose les limites de la colorbar et on l'affiche
+        # We set the colorbar limits and display it
         pc.set_clim(minVal, maxVal)
         ticks = np.linspace(minVal,maxVal,11)
         cb = fig.colorbar(pc, ax=ax, ticks=ticks)
 
-        # renome les axes
+        # rename the axis
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_zlabel(r"$z$")
         
-        # Change l'echelle des axes
-        __ChangeEchelle(ax, coordoNonDef)
+        # Change axis scale
+        __ScaleChange(ax, coordoNonDef)
 
-    # On prépare le titre
+    # Title
     optionTex = option
     if isinstance(option, str):
         if option == "damage":
@@ -316,55 +313,54 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
             optionFin = option.split('E')[-1]
             optionTex = f"\epsilon_{'{'+optionFin+'}'}"
     
-    # On specifie si les valeurs sont sur les noeuds ou sur les elements
+    # Specify whether values are on nodes or elements
     if nodeValues:
         # loc = "^{n}"
         loc = ""
     else:
         loc = "^{e}"
     
-    # si aucun titre n'a été renseigné on utilise le titre construit
+    # if no title has been entered, the constructed title is used
     if title == "" and isinstance(option, str):
         title = optionTex+loc
         ax.set_title(fr"${title}$")
     else:
         ax.set_title(f"{title}")
 
-    # Si le dossier à été renseigné on sauvegarde la figure
+    # If the folder has been filled in, save the figure.
     if folder != "":
         if filename=="":
             filename=option
         Save_fig(folder, filename, transparent=False)
 
-    # Renvoie la figure, l'axe et la colorbar
+    # Returns figure, axis and colorbar
     return fig, ax, cb
     
-def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1, facecolors='c', edgecolor='black') -> plt.Axes:
-    """Dessine le maillage de la simulation
+def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1.0, facecolors='c', edgecolor='black') -> plt.Axes:
+    """Plot Mesh
 
     Parameters
     ----------
-    obj : _Simu or Mesh
-        objet qui contient le maillage
-    facteurDef : int, optional
-        facteur de deformation, by default 4
+    obj : Simu or Mesh
+        object containing the mesh
+    factorDef : int, optional
+        deformation factor, default 4
     deformation : bool, optional
-        affiche la deformation, by default False
+        displays deformation, default False
     folder : str, optional
-        dossier de sauvegarde, by default ""
-    title : str, optional
-        nom du fichier de sauvegarde, by default ""
-    ax : plt.Axes, optional
-        Axes dans lequel on va creer la figure, by default None
-    lw : float, optional
-        epaisseur des traits, by default 0.5
-    alpha : int, optional
-        transparence des faces, by default 1
+        save folder, default "".
+    title: str, optional
+        backup file name, default "".
+    ax: plt.Axes, optional
+        Axis to use, default None
+    lw: float, optional
+        line thickness, default 0.5
+    alpha : float, optional
+        face transparency, default 1.0
 
     Returns
     -------
     plt.Axes
-        Axes dans lequel on va creer la figure
     """
 
     from Simulations import Simu, Mesh
@@ -372,39 +368,37 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     if isinstance(obj, Simu):
         simu = obj
         mesh = simu.mesh
-        use3DBeamModel = simu.use3DBeamModel
+        use3DBeamModel = simu._use3DBeamModel
     elif isinstance(obj, Mesh):
         mesh = obj
         if deformation == True:
-            print("Il faut donner la simulation pour afficher le maillage déformée")
+            print("You have to give the simulation to display the distorted mesh.")
         use3DBeamModel = False
     else:
-        raise Exception("Doit être une simulation ou un maillage")
+        raise Exception("Must be a simulation or mesh.")
     
-    assert facteurDef > 1, "Le facteur de deformation doit être >= 1"
+    assert facteurDef > 1, "The deformation factor must be >= 1"
 
     coordo = mesh.coordoGlob
 
     inDim = mesh.groupElem.inDim
 
-    # construit la matrice de connection pour les faces
-    dict_connect_Faces = mesh.Get_dict_connect_Faces()
-
-    # récupération des coordonnées
+    # coordinates
     inDim = 3 if use3DBeamModel else mesh.groupElem.inDim
     coordo = coordo[:,range(inDim)]
     if deformation:
         coordoDeforme, deformation = __GetCoordo(simu, deformation, facteurDef)
         coordoDeforme = coordoDeforme[:,range(inDim)]    
 
-    # La dimension des elements affichés
+    # Dimensions of displayed elements
     dimElem = mesh.dim
     if dimElem == 3:
-        # Si le maillage est un maillage 3D alors on ne va affichier que les elements 2D du maillage
-        # En gros la couche extérieur
+        # If the mesh is a 3D mesh, then only the 2D elements of the mesh will be displayed.
+        # Basically the outer layer
         dimElem = 2
-
-    # construit la matrice de connexion des faces
+    
+    # constructs the connection matrix for the faces
+    dict_connect_Faces = mesh.Get_dict_connect_Faces()
     connectFaces = []
     for groupElem in mesh.Get_list_groupElem(dimElem):
         connectFaces.extend(dict_connect_Faces[groupElem.elemType])
@@ -423,18 +417,18 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
         if deformation:
 
             coordFacesDeforme = coordoDeforme[connectFaces]
-
-            # Superpose maillage non deformé et deformé
-            # Maillage non deformés            
+            
+            # Overlay undeformed and deformed mesh
+            # Undeformed mesh
             pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
             ax.add_collection(pc)
 
-            # Maillage deformé                
+            # Deformed mesh
             pc = matplotlib.collections.LineCollection(coordFacesDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
             ax.add_collection(pc)
 
         else:
-            # Maillage non deformé
+            # Undeformed mesh
             if alpha == 0:
                 pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=1)
             else:
@@ -461,11 +455,11 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
             ax.view_init(elev=105, azim=-90)
 
         if deformation:
-            # Affiche que les elements 1D ou 2D en fonction du type de maillage
+            # Displays only 1D or 2D elements, depending on the mesh type
 
             if dimElem > 1:
-                # Supperpose les deux maillages
-                # Maillage non deformé
+                # Overlay the two meshes
+                # Undeformed mesh
                 # ax.scatter(x,y,z, linewidth=0, alpha=0)
                 pcNonDef = Poly3DCollection(coordFaces, edgecolor=edgecolor, linewidths=0.5, alpha=0, zorder=0)
                 ax.add_collection3d(pcNonDef)
@@ -474,12 +468,12 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
                 pcDef = Poly3DCollection(coordFacesDeforme, edgecolor='red', linewidths=0.5, alpha=0, zorder=0)
                 ax.add_collection3d(pcDef)
             else:
-                # Superpose maillage non deformé et deformé
-                # Maillage non deformés            
+                # Overlay undeformed and deformed mesh
+                # Undeformed mesh
                 pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
                 ax.add_collection3d(pc)
 
-                # Maillage deformé                
+                # Deformed mesh
                 pc = Line3DCollection(coordFacesDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
                 ax.add_collection3d(pc)
                 
@@ -487,8 +481,8 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
                 ax.scatter(coordoDeforme[:,0], coordoDeforme[:,1], coordoDeforme[:,2], c='red', lw=lw, marker='.')                
 
         else:
-            # Maillage non deformé
-            # Affiche que les elements 1D ou 2D en fonction du type de maillage
+            # Undeformed mesh
+            # Displays only 1D or 2D elements, depending on the mesh type
 
             if dimElem > 1:
                 pc = Poly3DCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=0)
@@ -497,7 +491,7 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
                 ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
             ax.add_collection3d(pc, zs=0, zdir='z')
             
-        __ChangeEchelle(ax, coordo)
+        __ScaleChange(ax, coordo)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_zlabel(r"$z$")
@@ -512,30 +506,29 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
 
     return ax
 
-def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=None):
-    """Affiche les noeuds du maillage
+def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=None) -> plt.Axes:
+    """Plot mesh nodes
 
     Parameters
     ----------
     mesh : Mesh
-        maillage
+        mesh
     ax : plt.Axes, optional
-        Axes dans lequel on va creer la figure, by default None
+        Axis to use, default None, default None
     nodes : list[np.ndarray], optional
-        noeuds à afficher, by default []
+        nodes to display, default []
     showId : bool, optional
-        affiche les numéros, by default False
+        display numbers, default False
     marker : str, optional
-        type de marker (matplotlib.markers), by default '.'
+        marker type (matplotlib.markers), default ''
     c : str, optional
-        couleur du maillage, by default 'blue'
+        mesh color, default 'blue'
     folder : str, optional
-        dossier de sauvegarde, by default ""    
+        save folder, default "".    
 
     Returns
     -------
     plt.Axes
-        Axes dans lequel on va creer la figure
     """
     
     from Mesh import Mesh
@@ -563,34 +556,33 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
 
     return ax
 
-def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor='black', alpha=1, folder="", ax=None):
-    """Affiche les elements du maillage en fonction des numéros de noeuds
+def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor='black', alpha=1.0, folder="", ax=None) -> plt.Axes:
+    """Display mesh elements based on nodes
 
     Parameters
     ----------
     mesh : Mesh
-        maillage
+        mesh
     nodes : list, optional
-        numeros des noeuds, by default []
+        node numbers, by default []
     dimElem : int, optional
-        dimension de l'element recherché, by default None
+        dimension of elements, by default None
     showId : bool, optional
-        affiche les numéros, by default False    
+        display numbers, by default False    
     c : str, optional
-        couleur utilisé pour afficher les faces, by default 'red'
+        color used to display faces, by default 'red
     edgecolor : str, optional
-        couleur utilisé pour afficher les segments, by default 'black'
-    alpha : int, optional
-        transparence des faces, by default 1
+        color used to display segments, by default 'black
+    alpha : float, optional
+        transparency of faces, by default 1.0
     folder : str, optional
-        dossier de sauvegarde, by default ""
+        save folder, by default ""
     ax : plt.Axes, optional
-        Axes dans lequel on va creer la figure, by default None
+        Axis to use, default None
 
     Returns
     -------
     plt.Axes
-        Axes dans lequel on va creer la figure
     """
 
     from Mesh import Mesh
@@ -647,20 +639,19 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor
 
     return ax
 
-def Plot_BoundaryConditions(simu, folder=""):
-    """Affichage des conditions limites
+def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
+    """Plot boundary conditions
 
     Parameters
     ----------
-    simu : _Simu
+    simu : Simu
         simulation
     folder : str, optional
-        dossier de sauvegarde, by default ""
+        save folder, by default ""
 
     Returns
     -------
     plt.Axes
-        Axes dans lequel on va creer la figure
     """
 
     from Simulations import Simu
@@ -742,7 +733,26 @@ def Plot_BoundaryConditions(simu, folder=""):
 
     return ax
 
-def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
+def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1.0) -> plt.Axes:
+    """Plot the model.
+
+    Parameters
+    ----------    
+    obj : Simu or Mesh
+        object containing the mesh
+    showId : bool, optional
+        show tags, by default True
+    ax : plt.Axes, optional
+        Axis to use, default None
+    folder : str, optional
+        save folder, by default ""
+    alpha : float, optional
+        transparency, by default 1.0
+
+    Returns
+    -------
+    plt.Axes
+    """
 
     from Simulations import Simu
     from Mesh import Mesh, GroupElem
@@ -755,11 +765,11 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
     elif typeobj == Mesh.__name__:
         mesh = cast(Mesh, obj)
     else:
-        raise Exception("Doit être une simulation ou un maillage")
+        raise Exception("Must be a simulation or a mesh.")
 
     inDim = mesh.inDim
 
-    # Création des axes si nécessaire
+    # Create axes if necessary
     if ax == None:
         # ax = Plot_Maillage(mesh, facecolors='c', edgecolor='black')
         # fig = ax.figure
@@ -772,21 +782,18 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
     else:
         fig = ax.figure
 
-    # Ici pour chaque group d'element du maillage, on va tracer les elements appartenant au groupe d'element
-
+    # Here, for each element group in the mesh, we plot the elements belonging to the element group.
     listGroupElem = cast(list[GroupElem], [])
     listDim = np.arange(mesh.dim, -1, -1, dtype=int)
     for dim in listDim:
         if dim < 3:
-            # On ajoute pas les groupes d'elements 3D
+            # 3D elements are not added
             listGroupElem.extend(mesh.Get_list_groupElem(dim))
 
-    # Liste de collections pendant la création
+    # List of collections during creation
     collections = []
-
-    for groupElem in listGroupElem:
-        
-        # Tags disponibles par le groupe d'element
+    for groupElem in listGroupElem:        
+        # Tags available by element group
         tags_e = groupElem.elementTags
         dim = groupElem.dim
         coordo = groupElem.coordoGlob[:, range(inDim)]
@@ -805,7 +812,7 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
 
             needPlot = True
             
-            # Attribue la couleur
+            # Assigns color
             if 'L' in tag_e:
                 color = 'black'
             elif 'P' in tag_e:
@@ -883,7 +890,7 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
     else:
-        __ChangeEchelle(ax, coordo)
+        __ScaleChange(ax, coordo)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_zlabel(r"$z$")
@@ -891,12 +898,12 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1) -> plt.Axes:
     if folder != "":
         Save_fig(folder, "geom")
 
-    __Annotation_Evenemenent(collections, fig, ax)
+    __Annotation_Event(collections, fig, ax)
 
     return ax
 
-def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
-    """Création d'un evenement qui va afficher dans le bas de figure le tag actuellement actif sous la souris"""
+def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None:
+    """Create an event to display the element tag currently active under the mouse (at the bottom of the figure)."""
     
     def Set_Message(collection, event):
         if collection.contains(event)[0]:
@@ -913,28 +920,28 @@ def __Annotation_Evenemenent(collections: list, fig: plt.Figure, ax: plt.Axes):
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
-def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud [m]', ylabel='f [N]', folder="", ax=None) -> tuple[plt.Figure, plt.Axes]:
-    """Trace la courbe force en fonction du déplacement
+def Plot_Load_Displacement(deplacements: np.ndarray, forces: np.ndarray, xlabel='u', ylabel='f', folder="", ax=None) -> tuple[plt.Figure, plt.Axes]:
+    """Plots force versus displacement curve
 
     Parameters
     ----------
-    deplacements : np.ndarray
-        array de valeurs pour les déplacements
+    displacements : np.ndarray
+        array of values for displacements
     forces : np.ndarray
-        array de valeurs pour les forces
+        array of values for forces
     xlabel : str, optional
-        titre de l'axe x, by default 'ud [m]'
+        x-axis title, by default 'u'.
     ylabel : str, optional
-        titre de l'axe y, by default 'f [N]'
+        y-axis title, by default 'f' folder : str, optional
     folder : str, optional
-        path vers le dossier de sauvegarde, by default ""
+        save folder, by default ""
     ax : plt.Axes, optional
-        ax dans lequel on va tracer la figure, by default None
+        ax in which to plot the figure, by default None
 
     Returns
     -------
     tuple[plt.Figure, plt.Axes]
-        renvoie la figure et l'ax
+        returns figure and ax
     """
 
     if isinstance(ax, plt.Axes):
@@ -949,29 +956,29 @@ def Plot_ForceDep(deplacements: np.ndarray, forces: np.ndarray, xlabel='ud [m]',
     ax.grid()
 
     if folder != "":
-        Save_fig(folder, "forcedep")
+        Save_fig(folder, "load_displacement")
 
     return fig, ax
     
-def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMax=True, Niter=200, NiterFin=100, folder=""):
-    """Trace l'energie de chacune des itérations
+def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=True, Niter=200, NiterFin=100, folder="") -> None:
+    """Plot the energy for each iteration
 
     Parameters
     ----------
-    simu : _Simu
+    simu : Simu
         simulation
-    forces : np.ndarray, optional
-        array de valeurs, by default np.array([])
-    deplacements : _type_, optional
-        _description_, by default np.array([])
+    load : np.ndarray, optional
+        array of values, by default np.array([])
+    displacement : np.ndarray, optional
+        array of values, by default np.array([])
     plotSolMax : bool, optional
-        affiche l'evolution de la solution maximul au cours des itération. (endommagement max pour une simulation d'endommagement), by default True
+        displays the evolution of the maximul solution over iterations. (max damage for damage simulation), by default True
     Niter : int, optional
-        nombre d'itération pour lesquels on va calculer l'energie, by default 200
+        number of iterations for which energy will be calculated, by default 200
     NiterFin : int, optional
-        nombre d'itération avant la fin, by default 100
-    folder : str, optional
-        dossier de sauvagarde de la figure, by default ""
+        number of iterations before end, by default 100
+    folder : str, optional        
+        save folder, by default ""
     """
 
     from Simulations import Simu
@@ -980,74 +987,73 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
 
     assert isinstance(simu, Simu)
 
-    # On verfie d'abord si la simulation peut calculer des energies
+    # First we check whether the simulation can calculate energies
     if len(simu.Resultats_Get_dict_Energie())== 0:
         print("Cette simulation ne peut calculer les energies")
         return
 
-    # Verifie si il est possible de tracer la courbe force déplacement
-    testLoadAndDisplacement = len(forces) == len(deplacements) and len(forces) > 0    
+    # Check whether it is possible to plot the force-displacement curve
+    pltLoad = len(load) == len(displacement) and len(load) > 0    
         
-    # Pour chaque incrément de déplacement on va caluler l'energie
+    # For each displacement increment we calculate the energy
     tic = Tic()
     
-    # récupère les resultats de la simulation
+    # recovers simulation results
     results =  simu._results
     N = len(results)
-
-    if len(forces) > 0:
-        ecart = np.abs(len(results) - len(forces))
+    if len(load) > 0:
+        ecart = np.abs(len(results) - len(load))
         if ecart != 0:
             N -= ecart
     listIter = PostTraitement.Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
     Niter = len(listIter)
 
-    list_dict_Energie = cast(list[dict[str, float]], [])
+    list_dict_Energy = cast(list[dict[str, float]], [])
     listTemps = []
     if plotSolMax : listSolMax = []
 
     for i, iteration in enumerate(listIter):
 
-        # Met a jour la simulation à l'iter i
+        # Update simulation at iteration i
         simu.Update_iter(iteration)
 
         if plotSolMax : listSolMax.append(simu.get_u_n(simu.problemType).max())
 
-        list_dict_Energie.append(simu.Resultats_Get_dict_Energie())
+        list_dict_Energy.append(simu.Resultats_Get_dict_Energie())
 
-        temps = tic.Tac("PostTraitement","Calc Energie", False)
+        temps = tic.Tac("PostTraitement","Calc Energy", False)
         listTemps.append(temps)
 
         pourcentageEtTempsRestant = PostTraitement._GetPourcentageEtTemps(listIter, listTemps, i)
 
-        print(f"Calc Energie {iteration+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
+        print(f"Calc Energy {iteration+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')
 
-    # Construction de la figure
+    # Figure construction
     nrows = 1
     if plotSolMax:
         nrows += 1
-    if testLoadAndDisplacement:
+    if pltLoad:
         nrows += 1
     fig, ax = plt.subplots(nrows, 1, sharex=True)
 
     iter_rows = iter(np.arange(nrows))
 
-    # Récupère l'axe qui sera utilisé pour les abscisses
-    if len(deplacements)>0:
-        listX = deplacements[listIter] 
+    # Retrieves the axis to be used for x-axes
+    if len(displacement)>0:
+        listX = displacement[listIter] 
         xlabel = "displacement"
     else:
         listX = listIter 
         xlabel = "iter"    
 
-    # Transforme list_dict_Energie en dataframe    
-    df = pd.DataFrame(list_dict_Energie)
+    # Transforms list_dict_Energie into a dataframe
+    df = pd.DataFrame(list_dict_Energy)
 
     # Affiche les energies
     row = next(iter_rows)
-    # Pour chaque energie on trace les valeurs
+    # For each energy, we plot the values
     for energie_str in df.columns:
         valeurs = df[energie_str].values
         ax[row].plot(listX, valeurs, label=energie_str)    
@@ -1055,47 +1061,46 @@ def Plot_Energie(simu, forces=np.array([]), deplacements=np.array([]), plotSolMa
     ax[row].grid()
 
     if plotSolMax:
-        # Affiche l'endommagement max
+        # plot max solution
         row = next(iter_rows)
         ax[row].plot(listX, listSolMax)
         ax[row].set_ylabel(r"$max(u_n)$")
         ax[row].grid()
 
-    if testLoadAndDisplacement:
-        # Affiche la force
+    if pltLoad:
+        # plot the loading
         row = next(iter_rows)
-        ax[row].plot(listX, np.abs(forces[listIter])*1e-3)
+        ax[row].plot(listX, np.abs(load[listIter])*1e-3)
         ax[row].set_ylabel("load")
         ax[row].grid()        
     
     ax[-1].set_xlabel(xlabel)
 
     if folder != "":        
-        Save_fig(folder, "Energie")
+        Save_fig(folder, "Energy")
 
-    tic.Tac("PostTraitement","Cacul Energie phase field", False)
+    tic.Tac("PostTraitement","Calc Energy", False)
 
-def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None):
-    """Affiche le resumé des itératons entre iterMin et iterMax
+def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None) -> None:
+    """Display summary of iterations between iterMin and iterMax
 
     Parameters
     ----------
-    simu : _Simu
+    simu : Simu
         Simulation
     folder : str, optional
-        dossier de sauvegarde, by default ""
+        backup folder, by default ""
     iterMin : int, optional
-        borne inférieur, by default None
+        lower bound, by default None
     iterMax : int, optional
-        borne supérieur, by default None
+        upper bound, by default None
     """
-
 
     from Simulations import Simu
 
     assert isinstance(simu, Simu)
 
-    # Recupère les résultats de simulation
+    # Recovers simulation results
     iterations, list_label_values = simu.Resultats_Get_ResumeIter_values()
 
     if iterMax == None:
@@ -1135,22 +1140,21 @@ __colors = {
     10 : 'tab:cyan'
 }
         
-def __GetCoordo(simu, deformation: bool, facteurDef: float):
-    """Recupération des coordonnée déformées si la simulation le permet avec la réponse de reussie ou non.
+def __GetCoordo(simu, deformation: bool, facteurDef: float) -> np.ndarray:
+    """Recover deformed coordinates if the simulation allows it with the response of passed or failed.
 
     Parameters
     ----------
-    simu : _Simu
+    simu : Simu
         simulation
     deformation : bool
-        calcul de la deformation
-    facteurDef : float
-        facteur de deformation
+        deformation calculation
+    factorDef : float
+        deformation factor
 
     Returns
     -------
     np.ndarray
-        coordonnées du maillage globle déformé
     """
     
     from Simulations import Simu
@@ -1172,19 +1176,18 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float):
     else:
         return coordo, deformation
 
-def __ChangeEchelle(ax, coordo: np.ndarray):
-    """Change la taille des axes pour l'affichage en 3D\n
-    Va centrer la pièce et faire en sorte que les axes soient de la bonne taille
-
+def __ScaleChange(ax, coordo: np.ndarray) -> None:
+    """Change axis size for 3D display
+    Will center the part and make the axes the right size
     Parameters
     ----------
     ax : plt.Axes
-        Axes dans lequel on va creer la figure
+        Axes in which figure will be created
     coordo : np.ndarray
-        coordonnées du maillage
+        mesh coordinates
     """
 
-    # Change la taille des axes
+    # Change axis size
     xmin = np.min(coordo[:,0]); xmax = np.max(coordo[:,0])
     ymin = np.min(coordo[:,1]); ymax = np.max(coordo[:,1])
     zmin = np.min(coordo[:,2]); zmax = np.max(coordo[:,2])
@@ -1201,10 +1204,26 @@ def __ChangeEchelle(ax, coordo: np.ndarray):
     ax.set_zlim([zmid-maxRange, zmid+maxRange])
     ax.set_box_aspect([1,1,1])
         
-def Save_fig(folder:str, filename: str,transparent=False, extension='pdf', dpi='figure'):
+def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi='figure') -> None:
+    """Save the current figure
+
+    Parameters
+    ----------
+    folder : str
+        save folder
+    filename : str
+        filenemae
+    transparent : bool, optional
+        transparent, by default False
+    extension : str, optional
+        extension, by default 'pdf'
+    dpi : str, optional
+        dpi, by default 'figure'
+    """
 
     if folder == "": return
 
+    # the filename must not contain these characters
     for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: filename = filename.replace(char, '')
 
     path = Folder.Join([folder, filename+'.'+extension])
@@ -1212,19 +1231,12 @@ def Save_fig(folder:str, filename: str,transparent=False, extension='pdf', dpi='
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    # dpi = 500    
+    # dpi = 500
     plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches='tight')   
 
-def NewSection(text: str, verbosity=True):
-    """Creation d'une nouvelle section
-
-    Parameters
-    ----------
-    text : str
-        titre de la section
-    """
-    # print("\n==========================================================")
-    # print("{} :".format(text))
+def Section(text: str, verbosity=True) -> None:
+    """New section
+    """    
     bord = "======================="
 
     longeurTexte = len(text)
@@ -1239,8 +1251,8 @@ def NewSection(text: str, verbosity=True):
 
     return section
 
-def Clear():
-    """Nettoie le terminal"""
+def Clear() -> None:
+    """Clear the terminal"""
     syst = platform.system()
     if syst in ["Linux","Darwin"]:
         os.system("clear")

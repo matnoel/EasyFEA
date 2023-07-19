@@ -6,7 +6,7 @@ from GroupElem import GroupElem
 import Materials
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
-import Affichage as Affichage
+import Display as Display
 from TicTac import Tic
 import Folder
 import PostTraitement
@@ -14,7 +14,7 @@ import PostTraitement
 import numpy as np
 import matplotlib.pyplot as plt
 
-Affichage.Clear()
+Display.Clear()
 
 dim = 3
 
@@ -196,7 +196,7 @@ ax_Temps.set_xlabel('ddl')
 ax_Temps.set_ylabel('Temps [s]')
 ax_Temps.legend(elemTypes)
 
-Affichage.Plot_Result(simu, "Svm", nColors=20)
+Display.Plot_Result(simu, "Svm", nColors=20)
 
 PostTraitement.Make_Paraview(folder, simu, details=True)
 

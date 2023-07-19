@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import Simulations
-import Affichage
+import Display
 import Interface_Gmsh
 import Materials
 import Geom
 
-Affichage.Clear()
+Display.Clear()
 
 pltVerif = False
 built_b_tild = False
@@ -45,8 +45,8 @@ nodes_p1 = mesh.Nodes_Tags(["P0"])
 nodesBas = mesh.Nodes_Tags(["L0"])
 nodesHaut = mesh.Nodes_Tags(["L2"])
 
-Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh)
+Display.Plot_Mesh(mesh)
+Display.Plot_Model(mesh)
 # Affichage.Plot_Nodes(mesh, nodesX0)
 
 tol0 = 1e-6
@@ -68,7 +68,7 @@ simu.add_dirichlet(nodesBas, [0], ["y"])
 simu.add_dirichlet(nodes_p1, [0], ["x"])
 simu.add_surfLoad(nodesHaut, [-sig], ["y"])
 
-Affichage.Plot_BoundaryConditions(simu)
+Display.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
 
@@ -90,7 +90,7 @@ fy = f_exp.reshape((mesh.Nn, 2))[:,1]
 # Affichage.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
 # simu.Resultats_Resume()
 
-Affichage.NewSection("Identification")
+Display.Section("Identification")
 
 compIdentif = Materials.Elas_Anisot(2, comp.C, useVoigtNotation=False, epaisseur=comp.epaisseur)
 

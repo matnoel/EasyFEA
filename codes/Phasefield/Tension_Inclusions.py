@@ -1,4 +1,4 @@
-import Affichage
+import Display
 from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, Domain, Circle
 import Materials
@@ -7,7 +7,7 @@ import Simulations
 import numpy as np
 import matplotlib.pyplot as plt
 
-Affichage.Clear()
+Display.Clear()
 
 L = 1 # mm
 h = 0.2*2
@@ -51,8 +51,8 @@ if elem_inclu.size > 0:
     E[elem_inclu] = E_inclu
     Gc[elem_inclu] = Gc_inclu
 
-Affichage.Plot_Result(mesh, E, nodeValues=False, title='$E$')
-Affichage.Plot_Result(mesh, Gc, nodeValues=False, title='$G_c$')
+Display.Plot_Result(mesh, E, nodeValues=False, title='$E$')
+Display.Plot_Result(mesh, Gc, nodeValues=False, title='$G_c$')
 
 comp = Materials.Elas_Isot(2, E, v, False, 1)
 
@@ -70,7 +70,7 @@ displacements = np.linspace(0, 5e-4, N)
 axLoad = plt.subplots()[1]
 axLoad.set_xlabel('u [mm]'); axLoad.set_ylabel('f [N/mm]')
 
-__, axDamage, cb = Affichage.Plot_Result(simu, 'damage')
+__, axDamage, cb = Display.Plot_Result(simu, 'damage')
 
 forces = []
 
@@ -84,7 +84,7 @@ for i, ud in enumerate(displacements):
     simu.add_dirichlet(nodesUpper, [ud], ['y'])
 
     if i == 0:
-        Affichage.Plot_BoundaryConditions(simu)
+        Display.Plot_BoundaryConditions(simu)
 
     u, d, Kglob, convergence  = simu.Solve(1e-2)
     simu.Save_Iteration()
@@ -100,7 +100,7 @@ for i, ud in enumerate(displacements):
     plt.pause(1e-12)
 
     cb.remove()
-    cb = Affichage.Plot_Result(simu, 'damage', ax=axDamage)[2]
+    cb = Display.Plot_Result(simu, 'damage', ax=axDamage)[2]
     plt.figure(axDamage.figure)
     plt.pause(1e-12)
 
@@ -112,7 +112,7 @@ for i, ud in enumerate(displacements):
 
 forces = np.array(forces)
 
-Affichage.Plot_ResumeIter(simu)
-Affichage.Plot_Energie(simu, forces, displacements)
+Display.Plot_ResumeIter(simu)
+Display.Plot_Energy(simu, forces, displacements)
 
 plt.show()

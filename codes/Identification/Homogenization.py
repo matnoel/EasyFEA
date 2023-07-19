@@ -1,11 +1,11 @@
-import Affichage
+import Display
 from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Materials
 import Simulations
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 
-plt = Affichage.plt
+plt = Display.plt
 
 # Example from : Computational Homogenization of Heterogeneous Materials with Finite Elements
 # http://link.springer.com/10.1007/978-3-030-18383-7
@@ -45,8 +45,8 @@ mesh = gmshInterface.Mesh_2D(points, [inclusion], "TRI6")
 
 coordo = mesh.coordoGlob
 
-Affichage.Plot_Mesh(mesh)
-Affichage.Plot_Model(mesh)
+Display.Plot_Mesh(mesh)
+Display.Plot_Model(mesh)
 
 nodesLeft = mesh.Nodes_Conditions(lambda x,y,z: x==-1/2)
 nodesLeft = nodesLeft[np.argsort(coordo[nodesLeft,1])][1:-1]
@@ -91,8 +91,8 @@ comp = Materials.Elas_Isot(2, E, v, contraintesPlanes=False)
 
 simu = Simulations.Simu_Displacement(mesh, comp, useNumba=True)
 
-Affichage.Plot_Result(simu, E, nodeValues=False, title="E")
-Affichage.Plot_Result(simu, v, nodeValues=False, title="v")
+Display.Plot_Result(simu, E, nodeValues=False, title="E")
+Display.Plot_Result(simu, v, nodeValues=False, title="v")
 
 # --------------------------------------
 # Homogenization
@@ -161,9 +161,9 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
         # Affichage.Plot_Result(simu, "ux", deformation=False)
         # Affichage.Plot_Result(simu, "uy", deformation=False)
 
-        Affichage.Plot_Result(simu, "Sxx", facteurDef=0.3, deformation=True, nodeValues=True)
-        Affichage.Plot_Result(simu, "Syy", facteurDef=0.3, deformation=True, nodeValues=True)
-        Affichage.Plot_Result(simu, "Sxy", facteurDef=0.3, deformation=True, nodeValues=True)
+        Display.Plot_Result(simu, "Sxx", facteurDef=0.3, deformation=True, nodeValues=True)
+        Display.Plot_Result(simu, "Syy", facteurDef=0.3, deformation=True, nodeValues=True)
+        Display.Plot_Result(simu, "Sxy", facteurDef=0.3, deformation=True, nodeValues=True)
 
     return ukl
 

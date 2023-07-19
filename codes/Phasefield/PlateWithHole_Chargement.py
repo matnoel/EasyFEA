@@ -1,7 +1,7 @@
 from TicTac import Tic
 import Materials
 from Geom import *
-import Affichage as Affichage
+import Display as Display
 import Interface_Gmsh as Interface_Gmsh
 import Simulations
 import Folder
@@ -9,7 +9,7 @@ import PostTraitement as PostTraitement
 
 import matplotlib.pyplot as plt
 
-Affichage.Clear()
+Display.Clear()
 
 # L'objectif de regarder les champs de contraintes en fonctions des chargements
 
@@ -113,23 +113,23 @@ simu.add_surfLoad(noeuds_cercle, [funcEvalX, funcEvalY], ["x","y"], description=
 
 # simu.add_surfLoad(nodesH, [-SIG], ['y'])
 
-Affichage.Plot_BoundaryConditions(simu)
+Display.Plot_BoundaryConditions(simu)
 
 simu.Solve()
 
 simu.Save_Iteration()
 
-Affichage.NewSection("Résultats")
+Display.Section("Résultats")
 
 # Affichage.Plot_Model(mesh)
 # Affichage.Plot_Mesh(mesh)
 
-Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx', cmap='seismic')
-Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
-Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
-Affichage.Plot_Result(simu, "Svm", coef=1/SIG, title=r"$\sigma_{vm}/\sigma$", folder=folder, filename='Svm')
+Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx', cmap='seismic')
+Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
+Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
+Display.Plot_Result(simu, "Svm", coef=1/SIG, title=r"$\sigma_{vm}/\sigma$", folder=folder, filename='Svm')
 
-Affichage.Plot_Result(simu, "psiP")
+Display.Plot_Result(simu, "psiP")
 
 # Affichage.Plot_Result(simu, "ux")
 # Affichage.Plot_Result(simu, "uy")

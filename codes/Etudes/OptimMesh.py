@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 import Folder
 import PostTraitement
-import Affichage
+import Display
 from Geom import *
 import Materials
 from Mesh import Mesh, Calc_projector, Calc_meshSize_n
@@ -11,7 +11,7 @@ from Interface_Gmsh import Interface_Gmsh
 import Simulations
 from TicTac import Tic
 
-Affichage.Clear()
+Display.Clear()
 
 # ----------------------------------------------
 # Configuration
@@ -261,7 +261,7 @@ def DoSimu(i=0):
     meshSize_n = Calc_meshSize_n(simu.mesh, erreur_e, coef)
 
     if plotErreur:
-        Affichage.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
+        Display.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
 
     path = interfaceGmsh.Create_posFile(simu.mesh.coordo, meshSize_n, folder, f"simu{i}")
 
@@ -313,7 +313,7 @@ if i > 0:
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-Affichage.NewSection("Post traitement")
+Display.Section("Post traitement")
 
 # folder=""
 if plotResult:
@@ -321,8 +321,8 @@ if plotResult:
     # simu.Resultats_Resume(True)
     # Affichage.Plot_Result(simu, "amplitude")
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
-    Affichage.Plot_Result(simu, "ux", deformation=True, nodeValues=False)        
-    Affichage.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
+    Display.Plot_Result(simu, "ux", deformation=True, nodeValues=False)        
+    Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
     # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)   
 
     tic.Tac("Affichage","Affichage des figures", plotResult)

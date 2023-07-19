@@ -4,14 +4,14 @@ import os
 
 from Interface_Gmsh import Interface_Gmsh
 from Geom import *
-import Affichage
+import Display
 import Simulations
 from Mesh import ElemType
 import Materials
 import TicTac
 import Folder
 
-dim = 3
+dim = 2
 N = 50 if dim == 2 else 20
 
 class SimulationType(str, Enum):
@@ -135,7 +135,7 @@ if dim == 3:
 else:
     print(f"\nVolume = {mesh.aire*comportement.epaisseur:3f}")
 
-Affichage.Plot_Mesh(mesh, folder=folder)
+Display.Plot_Mesh(mesh, folder=folder)
 # Affichage.Plot_Model(mesh, showId=True)
 
 simu.Solve()
@@ -150,13 +150,13 @@ simu.Save_Iteration()
 
 simu.Resultats_Resume()
 
-Affichage.Plot_BoundaryConditions(simu)
+Display.Plot_BoundaryConditions(simu)
 
 # Affichage.Plot_Maillage(simu, deformation=True)
 # Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
 # Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
 # Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
-Affichage.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef, folder=folder)
+Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef, folder=folder)
 # Affichage.Plot_Result(simu, "ux")
 
 TicTac.Tic.Plot_History()

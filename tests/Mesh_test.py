@@ -4,7 +4,7 @@ import os
 from Materials import Displacement_Model, _Materiau
 import numpy as np
 from Mesh import Mesh
-import Affichage
+import Display
 
 class Test_Mesh(unittest.TestCase):
 
@@ -91,8 +91,8 @@ class Test_Mesh(unittest.TestCase):
 
 if __name__ == '__main__':        
     try:
-        import Affichage
-        Affichage.Clear()
+        import Display
+        Display.Clear()
         unittest.main(verbosity=2)
     except:
         print("")

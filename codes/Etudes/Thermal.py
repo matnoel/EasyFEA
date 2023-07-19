@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import Affichage
+import Display
 import PostTraitement
 import Folder
 import Interface_Gmsh
@@ -8,7 +8,7 @@ import Materials
 import Simulations
 import numpy as np
 
-Affichage.Clear()
+Display.Clear()
 
 plotIter = True; affichageIter = "thermal"
 
@@ -77,7 +77,7 @@ else:
     steadyState=False
 
 if plotIter:
-    fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True)
+    fig, ax, cb = Display.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True)
 
 print()
 
@@ -89,7 +89,7 @@ while t < Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Affichage.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, ax=ax)
+        fig, ax, cb = Display.Plot_Result(simu, affichageIter, nodeValues=True, plotMesh=True, ax=ax)
         plt.pause(1e-12)
 
     print(f"{np.round(t)} s",end='\r')
@@ -97,7 +97,7 @@ while t < Tmax:
 
 # Affichage.Plot_NoeudsMaillage(mesh, noeuds=noeudsCircle)
 # Affichage.Plot_ElementsMaillage(mesh, noeuds=noeudsCircle, dimElem=3)
-Affichage.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True)
+Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True)
 
 
 
