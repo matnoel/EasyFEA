@@ -38,52 +38,55 @@ try:
     import petsc4py    
     from mpi4py import MPI
     from petsc4py import PETSc
-    canUsePetsc = True
+    __canUsePetsc = True
 except ModuleNotFoundError:
-    canUsePetsc = False
+    __canUsePetsc = False
 
 class AlgoType(str, Enum):
     elliptic = "elliptic"
-    """Résolution K u = F"""
+    """Solve K u = F"""
     parabolic = "parabolic"
-    """Résolution K u + C v = F"""
+    """Solve K u + C v = F"""
     hyperbolic = "hyperbolic"
-    """Résolution K u + C v + M a = F"""
+    """Solve K u + C v + M a = F"""
 
 class ResolutionType(str, Enum):
     r1 = "1"
     """ui = inv(Aii) * (bi - Aic * xc)"""
     r2 = "2"
-    """multiplicateur lagrange"""
+    """Lagrange multiplier"""
     r3 = "3"
-    """pénalisation"""
+    """Penalty"""
 
 def Solvers():
-    """Renvoie les solveurs utilisables"""
+    """Usable solvers"""
 
     solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
     
     if __canUsePypardiso: solvers.insert(0, "pypardiso")
-    if canUsePetsc: solvers.insert(1, "petsc")
+    if __canUsePetsc: solvers.insert(1, "petsc")
     if __canUseMumps: solvers.insert(2, "mumps")
     if __canUseUmfpack: solvers.insert(3, "umfpack")
 
     return solvers
 
 def __Cast_Simu(simu):
+    """cast the simu as a Simulations.Simu"""
 
     import Simulations
 
     if isinstance(simu, Simulations.Simu):
         return simu
 
-def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray, useCholesky: bool, A_isSymetric: bool, verbosity: bool) -> np.ndarray:
-    """Resolution de A x = b
+def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray) -> np.ndarray:
+    """Solve A x = b
 
     Parameters
     ----------
     simu : Simu
         Simulation
+    problemType : ModelType
+        Specify the problemType because a simulation can have several physcal models (such as a damage simulation).
     A : sparse.csr_matrix
         Matrice A
     b : sparse.csr_matrix
@@ -93,31 +96,37 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     lb : np.ndarray
         lowerBoundary de la solution
     ub : np.ndarray
-        upperBoundary de la solution
-    useCholesky : bool, optional
-        autorise l'utilisation de la décomposition de cholesky, by default False
-    A_isSymetric : bool, optional
-        A est simetric, by default False
+        upperBoundary de la solution    
 
     Returns
     -------
     np.ndarray
-        x : solution de A x = b
+        x : solution of A x = b
     """
 
+    # check types
     from Simulations import Simu, ModelType
-
     assert isinstance(simu, Simu)
     assert isinstance(problemType, ModelType)
+    assert isinstance(A, sparse.csr_matrix)
+    assert isinstance(b, sparse.csr_matrix)
 
-    # Choisie le solveur
+    # Choose the solver
     if len(lb) > 0 and len(lb) > 0:        
         solveur = "BoundConstrain"
     else:        
         if len(simu.Bc_ddls_Lagrange(problemType)) > 0:
+            # if lagrange multiplier are found we cannot use iterative solvers
             solveur = "scipy"
         else:
             solveur = simu.solver
+
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.spy(A, marker='.')
+    testSymetric = sla.norm(A-A.transpose())/sla.norm(A)
+    A_isSymetric = testSymetric <= 1e-12
+    useCholesky = True if simu.problemType == 'displacement' else False
 
     solveur = __Check_solveurLibrary(solveur)
     
@@ -125,17 +134,29 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
     sla.use_solver(useUmfpack=__canUseUmfpack)
     
-    if  solveur == "umfpack" and useCholesky and A_isSymetric and __canUseCholesky:
-        x = _Cholesky(A, b)
-
-    elif solveur == "BoundConstrain":
-        x = _BoundConstrain(A, b , lb, ub)
-
-    elif solveur == "pypardiso":
+    if solveur == "pypardiso":
         x = pypardiso.spsolve(A, b.toarray())
 
+    elif solveur == "petsc":
+        if simu.problemType == 'damage':
+            if problemType == 'damage':
+                pcType = 'ilu'
+            else:                
+                pcType = 'none' # ilu decomposition doesn't seem to work for the displacement problem in a damage simulation
+        else:
+            pcType = 'ilu' # fast on displacement problem dont work for HEXA20
+            # pcType = 'none'
+        kspType = 'cg'
+
+        x, option = _PETSc(A, b, x0, kspType, pcType)
+
+        solveur += option
+    
     elif solveur == "scipy":
         x = _ScipyLinearDirect(A, b, A_isSymetric)
+    
+    elif solveur == "BoundConstrain":
+        x = _BoundConstrain(A, b , lb, ub)
 
     elif solveur == "cg":
         x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
@@ -157,23 +178,18 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
     elif solveur == "mumps":
         x = mumps.spsolve(A,b)
-
-    elif solveur == "petsc":
-        x, option = _PETSc(A, b, x0)
-
-        solveur += option
             
-    tic.Tac("Solver",f"Solve {problemType} ({solveur})", verbosity)
+    tic.Tac("Solver",f"Solve {problemType} ({solveur})", simu._verbosity)
 
-    # # Verification du residu
+    # # A x - b = 0
     # residu = np.linalg.norm(A.dot(x)-b.toarray().reshape(-1))
     # print(residu/np.linalg.norm(b.toarray().reshape(-1)))
 
     return np.array(x)
 
 def __Check_solveurLibrary(solveur: str) -> str:
-    """Verifie si la librairie du solveur selectionné est disponible\n
-    Si c'est pas le cas renvoie le solveur utilisable dans tout les cas (scipy)"""
+    """Checks whether the selected solver library is available
+    If not, returns the solver usable in all cases (scipy)."""
     solveurDeBase="scipy"
     if solveur == "pypardiso":
         return solveur if __canUsePypardiso else solveurDeBase
@@ -182,20 +198,20 @@ def __Check_solveurLibrary(solveur: str) -> str:
     elif solveur == "mumps":
         return solveur if __canUseMumps else solveurDeBase
     elif solveur == "petsc":
-        return solveur if canUsePetsc else solveurDeBase
+        return solveur if __canUsePetsc else solveurDeBase
     else:
         return solveur
 
-def _SolveProblem(simu, problemType: str, resol: ResolutionType):
-    """Résolution du problème en fonction du type de résolution"""
+def Solve(simu, problemType: str, resol: ResolutionType):
+    """Solving the problem according to the resolution type"""
     if resol == ResolutionType.r1:
-        return __Solveur_1(simu, problemType)
+        return __Solver_1(simu, problemType)
     elif resol == ResolutionType.r2:
-        return __Solveur_2(simu, problemType)
+        return __Solver_2(simu, problemType)
     elif resol == ResolutionType.r3:
-        return __Solveur_3(simu, problemType)
+        return __Solver_3(simu, problemType)
 
-def __Solveur_1(simu, problemType: str) -> np.ndarray:
+def __Solver_1(simu, problemType: str) -> np.ndarray:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |    
     # | Aci Acc |  | xc | = | bc | 
@@ -204,57 +220,51 @@ def __Solveur_1(simu, problemType: str) -> np.ndarray:
 
     simu = __Cast_Simu(simu)
 
-    # Construit le système matricielle
+    # Builds the matrix system
     b = simu._Apply_Neumann(problemType)
     A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r1)
 
-    # Récupère les ddls
+    # Recovers ddls
     ddl_Connues, ddl_Inconnues = simu.Bc_ddls_connues_inconnues(problemType)
 
     tic = Tic()
-    # Décomposition du système matricielle en connues et inconnues 
-    # Résolution de : Aii * ui = bi - Aic * xc
+    # Decomposition of the matrix system into known and unknowns
+    # Solve : Aii * ui = bi - Aic * xc
     Ai = A[ddl_Inconnues, :].tocsc()
     Aii = Ai[:, ddl_Inconnues].tocsr()
     Aic = Ai[:, ddl_Connues].tocsr()
     bi = b[ddl_Inconnues,0]
     xc = x[ddl_Connues,0]
 
-    tic.Tac("Solver",f"Construit système ({problemType})", simu._verbosity)
+    tic.Tac("Solver",f"System-built ({problemType})", simu._verbosity)
 
     x0 = simu.Get_x0(problemType)
     x0 = x0[ddl_Inconnues]    
 
-    bDirichlet = Aic.dot(xc) # Plus rapide
-    # bDirichlet = np.einsum('ij,jk->ik', Aic.toarray(), xc.toarray(), optimize='optimal')
-    # bDirichlet = sparse.csr_matrix(bDirichlet)
-
-    useCholesky = simu.useCholesky
-    A_isSymetric = simu.A_isSymetric
+    bDirichlet = Aic @ xc
 
     lb, ub = simu.Get_lb_ub(problemType)
 
-    xi = _Solve_Axb(simu=simu, problemType=problemType, A=Aii, b=bi-bDirichlet, x0=x0, lb=lb, ub=ub, useCholesky=useCholesky, A_isSymetric=A_isSymetric, verbosity=simu._verbosity)
+    xi = _Solve_Axb(simu, problemType, Aii, bi-bDirichlet, x0, lb, ub)
 
-    # Reconstruction de la solution
+    # apply result to global vector
     x = x.toarray().reshape(x.shape[0])
     x[ddl_Inconnues] = xi
 
     return x
 
-def __Solveur_2(simu, problemType: str):
-    # Résolution par la méthode des coefs de lagrange
+def __Solver_2(simu, problemType: str):
+    # Solving with the Lagrange multiplier method
 
     simu = __Cast_Simu(simu)
 
-    # Construit le système matricielle pénalisé
+    # Builds the penalized matrix system
     b = simu._Apply_Neumann(problemType)
     A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r2)
 
     tic = Tic()
 
-    alpha = A.data.max()
-
+    # set to lil matrix
     A = A.tolil()
     b = b.tolil()
 
@@ -274,6 +284,8 @@ def __Solveur_2(simu, problemType: str):
 
     listeLignesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
     
+    # apply lagrange multiplier
+    alpha = A.data.max()
     A[listeLignesDirichlet, ddls_Dirichlet] = alpha
     A[ddls_Dirichlet, listeLignesDirichlet] = alpha
     b[listeLignesDirichlet] = values_Dirichlet * alpha
@@ -300,50 +312,55 @@ def __Solveur_2(simu, problemType: str):
 
         [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1)]
     
-    tic.Tac("Solver",f"Lagrange ({problemType}) Couplage", simu._verbosity)
+    tic.Tac("Solver",f"Lagrange ({problemType}) Coupling", simu._verbosity)
 
-    x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=True, verbosity=simu._verbosity)
+    x = _Solve_Axb(simu, problemType, A, b, x0, [], [])
 
-    # On renvoie pas les forces de réactions
+    # We don't send back reaction forces
     x = x[range(decalage)]
 
     return x 
 
-def __Solveur_3(simu, problemType: str):
-    # Résolution par la méthode des pénalisations
+def __Solver_3(simu, problemType: str):
+    # Resolution using the penalty method
 
     simu = __Cast_Simu(simu)
 
-    # Construit le système matricielle pénalisé
+    # Builds the penalized matrix system
     b = simu._Apply_Neumann(problemType)
     A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r3)
 
-    # Résolution du système matricielle pénalisé
-
-    x = _Solve_Axb(simu=simu, problemType=problemType, A=A, b=b, x0=[], lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=simu._verbosity)
-
-    return x
-
-def _Cholesky(A, b):
-    
-    # Décomposition de cholesky 
-    
-    # exemple matrice 3x3 : https://www.youtube.com/watch?v=r-P3vkKVutU&t=5s 
-    # doc : https://scikit-sparse.readthedocs.io/en/latest/cholmod.html#sksparse.cholmod.analyze
-    # Installation : https://www.programmersought.com/article/39168698851/                
-
-    factor = cholesky(A.tocsc())
-    # factor = cholesky_AAt(A.tocsc())
-    
-    # x_chol = factor(b.tocsc())
-    x_chol = factor.solve_A(b.tocsc())                
-
-    x = x_chol.toarray().reshape(x_chol.shape[0])
+    # Solving the penalized matrix system
+    x = _Solve_Axb(simu, problemType, A, b, [], [], [])
 
     return x
 
-def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
-    # Utilise PETSc
+def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='cg', pcType='ilu') -> np.ndarray:
+    """PETSc insterface to solve A x = b
+
+    Parameters
+    ----------
+    A : sparse.csr_matrix
+        sparse matrix (N, N)
+    b : sparse.csr_matrix
+        sparse vector (N, 1)
+    x0 : np.ndarray
+        initial guess (N)
+    kspType : str, optional
+        PETSc Krylov method, by default 'cg'\n
+        "cg", "bicg", "gmres", "bcgs", "groppcg"\n
+        https://petsc.org/release/manualpages/KSP/KSPType/
+    pcType : str, optional
+        preconditioner, by default 'ilu'\n
+        "ilu", "none", "bjacobi", 'icc', "lu", "jacobi", "cholesky"\n
+        more -> https://petsc.org/release/manualpages/PC/PCType/\n
+        remark : The ilu preconditioner does not seem to work for systems using HEXA20 elements.    
+
+    Returns
+    -------
+    np.ndarray
+        x solution to A x = b
+    """
 
     # comm   = MPI.COMM_WORLD
     comm   = None
@@ -358,14 +375,13 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     csr = (A.indptr, A.indices, A.data)    
     matrice.createAIJ([dimI, dimJ], comm=comm, csr=csr)
 
-    # Old
+    # Old way
     # lignes, colonnes, valeurs = sparse.find(A)
     # _, count = np.unique(lignes, return_counts = True)
     # nnz = np.array(count, dtype=np.int32)
     # matrice.createAIJ([dimI, dimJ], nnz=nnz, comm=comm, csr=csr)
     # [matrice.setValue(l, c, v) for l, c, v in zip(lignes, colonnes, valeurs)] # ancienne façon pas optimisée avec csr=None
-
-    matrice.assemble()
+    # matrice.assemble()
 
     vectb = matrice.createVecLeft()
 
@@ -376,23 +392,19 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray):
     x = matrice.createVecRight()
     x.array[:] = x0
 
-    pcType = "ilu" # "none", "bjacobi", "ilu", 'icc', "lu", "jacobi", "cholesky"
-    kspType = "cg" # "cg", "bicg", "gmres", "bcgs", "richardson", "groppcg"
-
     ksp = PETSc.KSP().create()
     ksp.setOperators(matrice)
     ksp.setType(kspType)
     
     pc = ksp.getPC()    
     pc.setType(pcType)
-    # pc.setType("none")
 
     # pc.setFactorSolverType("superlu") #"mumps"
 
     ksp.solve(vectb, x)
     x = x.array
 
-    option = f", {pcType}, {kspType}"
+    option = f", {kspType}, {pcType}"
 
     return x, option
     
@@ -437,7 +449,3 @@ def _BoundConstrain(A, b, lb: np.ndarray, ub: np.ndarray):
     x = x['x']
 
     return x
-
-
-
-

@@ -16,7 +16,7 @@ from Mesh import Mesh, MatriceType, ElemType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import ModelType, IModel, Displacement_Model, Beam_Model, PhaseField_Model, Thermal_Model, Resize_variable
 from TicTac import Tic
-from Interface_Solveurs import ResolutionType, AlgoType, _SolveProblem, _Solve_Axb, Solvers
+from SolversInterface import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
 import Folder
 
 def Load_Simu(folder: str, verbosity=False):
@@ -325,12 +325,11 @@ class Simu(ABC):
     # TODO Permettre de creer des simulation depuis le formulation variationnelle ?    
 
     # SOLUTIONS
-
     @property
     def _results(self) -> list[dict]:
         """Renvoie la liste de dictionnaire qui contient les résultats de chaque itération
         """
-        return self.__results
+        return self.__results.copy()
 
     def __Init_Sols_n(self):
         """On vient initialiser les solutions"""
@@ -424,18 +423,8 @@ class Simu(ABC):
         return self.__dim
 
     @property
-    def use3DBeamModel(self) -> bool:
-        return False
-
-    @property
-    def useCholesky(self) -> bool:
-        """La matrice A de Ax=b est définie symétrique positive"""
-        return True
-
-    @property
-    def A_isSymetric(self) -> bool:
-        """La matrice A de Ax=b est symétrique"""
-        return True   
+    def _use3DBeamModel(self) -> bool:
+        return False  
 
     @property
     def useNumba(self) -> bool:
@@ -517,16 +506,15 @@ class Simu(ABC):
         self.dt = dt
 
     def Solve(self) -> np.ndarray:
-        """Resolution de la simulation et renvoie la solution
-        """
+        """Solving the simulation for current boundary conditions"""
 
         if self.needUpdate: self.Assemblage()
 
-        self._SolveProblem(self.problemType)
+        self.__SolveProblem(self.problemType)
         
         return self.get_u_n(self.problemType)
 
-    def _SolveProblem(self, problemType : ModelType):
+    def __SolveProblem(self, problemType : ModelType):
         """Resolution du problème.\n
         Il faut privilégier l'utilisation de Solve()"""        
         # ici il faut spécifier le type de problème, car une simulation peut posséder plusieurs Modèles physiques        
@@ -544,7 +532,7 @@ class Simu(ABC):
         v_n = self.get_v_n(problemType)
         a_n = self.get_a_n(problemType)
 
-        x = _SolveProblem(self, problemType, resolution)
+        x = Solve(self, problemType, resolution)
         
         if algo == AlgoType.elliptic:
 
@@ -638,7 +626,7 @@ class Simu(ABC):
 
                 x0 = a_n[ddl_Inconnues]
 
-                ai_n = _Solve_Axb(simu=self, problemType=problemType, A=Aii, b=bbi, x0=x0, lb=[], ub=[], useCholesky=False, A_isSymetric=False, verbosity=self._verbosity)
+                ai_n = _Solve_Axb(self, problemType, Aii, bbi, x0, [], [])
 
                 a_n[ddl_Inconnues] = ai_n 
 
@@ -2007,14 +1995,6 @@ class Simu_PhaseField(Simu):
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.damage, ModelType.displacement]
 
-    @property
-    def useCholesky(self) -> bool:
-        return False
-
-    @property
-    def A_isSymetric(self) -> bool:
-        return False
-
     def Get_lb_ub(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
         
         if problemType == ModelType.damage:
@@ -2308,7 +2288,7 @@ class Simu_PhaseField(Simu):
     def __Solve_u(self) -> np.ndarray:
         """Resolution du problème de déplacement"""
             
-        self._SolveProblem(ModelType.displacement)
+        self.__SolveProblem(ModelType.displacement)
 
         # On renseigne au model phase field qu'il va falloir mettre à jour le split
         self.phaseFieldModel.Need_Split_Update()
@@ -2454,7 +2434,7 @@ class Simu_PhaseField(Simu):
     def __Solve_d(self) -> np.ndarray:
         """Resolution du problème d'endommagement"""
         
-        self._SolveProblem(ModelType.damage)
+        self.__SolveProblem(ModelType.damage)
 
         return self.damage
 
@@ -3001,14 +2981,6 @@ class Simu_Beam(Simu):
         """Modèle poutre de la simulation"""
         return self.model
 
-    @property
-    def useCholesky(self) -> bool:
-        return False
-
-    @property
-    def A_isSymetric(self) -> bool:
-        return False
-
     def Get_nbddl_n(self, problemType=None) -> int:
         return self.beamModel.nbddl_n
 
@@ -3017,7 +2989,7 @@ class Simu_Beam(Simu):
         pass
     
     @property
-    def use3DBeamModel(self) -> bool:
+    def _use3DBeamModel(self) -> bool:
         if self.beamModel.dim == 3:
             return True
         else:
