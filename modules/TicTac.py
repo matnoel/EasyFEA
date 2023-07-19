@@ -9,40 +9,40 @@ class Tic:
         self.__start = time.time()
 
     @staticmethod
-    def Get_time_unity(temps):
+    def Get_time_unity(time: float) -> tuple[float, str]:
         """Returns time with unity"""
-        if temps > 1:
-            if temps < 60:
+        if time > 1:
+            if time < 60:
                 unite = "s"
                 coef = 1
-            elif temps > 60 and temps < 3600:
+            elif time > 60 and time < 3600:
                 unite = "m"
                 coef = 1/60
-            elif temps > 3600 and temps < 86400:
+            elif time > 3600 and time < 86400:
                 unite = "h"
                 coef = 1/3600
             else:
                 unite = "j"
                 coef = 1/86400
-        elif temps < 1 and temps > 1e-3:
+        elif time < 1 and time > 1e-3:
             coef = 1e3
             unite = "ms"
-        elif temps < 1e-3:
+        elif time < 1e-3:
             coef = 1e6
             unite = "µs"
 
-        return temps*coef, unite
+        return time*coef, unite
 
-    def Tac(self, category="", texte="", affichage=False) -> float:
+    def Tac(self, category="", text="", show=False) -> float:
         """Get time from previous tic or tac."""
 
         tf = np.abs(self.__start - time.time())
 
         tfCoef, unite = Tic.Get_time_unity(tf)
 
-        textWithTime = f"{texte} ({tfCoef:.3f} {unite})"
+        textWithTime = f"{text} ({tfCoef:.3f} {unite})"
         
-        value = [texte, tf]
+        value = [text, tf]
 
         if category in Tic.__History:
             old = list(Tic.__History[category])
@@ -53,7 +53,7 @@ class Tic:
         
         self.__start = time.time()
 
-        if affichage:
+        if show:
             print(textWithTime)
 
         return tf
@@ -85,7 +85,8 @@ class Tic:
         return resume            
 
     @staticmethod
-    def __plotBar(ax: plt.Axes, categories: list, temps: list, reps: int, titre: str) -> None:
+    def __plotBar(ax: plt.Axes, categories: list, temps: list, reps: int, titre: str) -> None:        
+
         # Axis parameters
         ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
         ax.yaxis.set_visible(False)
@@ -190,11 +191,3 @@ class Tic:
 
         if folder != "":            
             Display.Save_fig(folder, "TicTac_Summary")
-
-        # # Camembert
-        # my_circle = plt.Circle( (0,0), 0, color='white')
-        # # Give color names
-        # plt.pie(tempsCatégories, labels=tempsCatégories,
-        # wedgeprops = { 'linewidth' : 0, 'edgecolor' : 'white' })
-        # p = plt.gcf()
-        # ax1.add_artist(my_circle)

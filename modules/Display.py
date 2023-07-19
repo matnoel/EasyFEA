@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 import matplotlib.collections
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
-
 import Folder
 
 def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
@@ -1148,7 +1147,7 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float) -> np.ndarray:
     simu : Simu
         simulation
     deformation : bool
-        deformation calculation
+        deformation
     factorDef : float
         deformation factor
 
