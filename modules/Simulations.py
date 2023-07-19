@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod, abstractproperty
-
 import os
 import pickle
 from colorama import Fore
 from datetime import datetime
 from types import LambdaType
 from typing import cast
-
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -2861,7 +2859,7 @@ class Simu_PhaseField(Simu):
         if pourcentage > 0:
             tempsRestant = (1/pourcentage-1)*temps*resol
             
-            tempsCoef, unite = Tic.Get_temps_unite(tempsRestant)
+            tempsCoef, unite = Tic.Get_time_unity(tempsRestant)
 
             # Rajoute le pourcentage et lestimation du temps restant
             resumeIter = resumeIter+f"{np.round(pourcentage*100,2):3.2f} % -> {tempsCoef:4.2f} {unite}  "

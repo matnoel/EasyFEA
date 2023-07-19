@@ -269,7 +269,7 @@ def _GetPourcentageEtTemps(listIter: list[int], listTemps: list[float], i: int) 
     pourcentage = listIter[i]/listIter[-1]
     if pourcentage > 0:
         tempsRestant = np.min(listTemps)*(len(listIter)-i-1)
-        tempsCoef, unite = Tic.Get_temps_unite(tempsRestant)
+        tempsCoef, unite = Tic.Get_time_unity(tempsRestant)
         pourcentageEtTempsRestant = f"({int(pourcentage*100):3}%) {np.round(tempsCoef, 3)} {unite}"
     else:
         pourcentageEtTempsRestant = ""

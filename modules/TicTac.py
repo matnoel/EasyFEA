@@ -1,4 +1,3 @@
-
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,8 +9,8 @@ class Tic:
         self.__start = time.time()
 
     @staticmethod
-    def Get_temps_unite(temps):
-        """Renvoie le temps et l'unité"""
+    def Get_time_unity(temps):
+        """Returns time with unity"""
         if temps > 1:
             if temps < 60:
                 unite = "s"
@@ -34,61 +33,60 @@ class Tic:
 
         return temps*coef, unite
 
-    def Tac(self, categorie="", texte="", affichage=False) -> float:
-        """calcul le temps et stock dans l'historique"""
+    def Tac(self, category="", texte="", affichage=False) -> float:
+        """Get time from previous tic or tac."""
 
         tf = np.abs(self.__start - time.time())
 
-        tfCoef, unite = Tic.Get_temps_unite(tf)
+        tfCoef, unite = Tic.Get_time_unity(tf)
 
-        texteAvecLeTemps = f"{texte} ({tfCoef:.3f} {unite})"
+        textWithTime = f"{texte} ({tfCoef:.3f} {unite})"
         
         value = [texte, tf]
 
-        if categorie in Tic.__Historique:
-            old = list(Tic.__Historique[categorie])
+        if category in Tic.__History:
+            old = list(Tic.__History[category])
             old.append(value)
-            Tic.__Historique[categorie] = old
+            Tic.__History[category] = old
         else:
-            Tic.__Historique[categorie] = [value]
+            Tic.__History[category] = [value]
         
         self.__start = time.time()
 
         if affichage:
-            print(texteAvecLeTemps)
+            print(textWithTime)
 
         return tf
     
     @staticmethod
-    def Clear():
-        """Supprime l'historique"""
-        Tic.__Historique = {}
+    def Clear() -> None:
+        """Delete history"""
+        Tic.__History = {}
     
-    __Historique = {}
-    """historique des temps = { catégorie: list( [texte, temps] ) }"""
+    __History = {}
+    """history = { category: list( [text, time] ) }"""
        
     @staticmethod
-    def Resume(verbosity=True):
-        """Construit le résumé de TicTac"""
+    def Resume(verbosity=True) -> str:
+        """Builds the TicTac summary"""
 
-        if Tic.__Historique == {}: return
+        if Tic.__History == {}: return
 
         resume = ""
 
-        for categorie in Tic.__Historique:
-            histoCategorie = np.array(np.array(Tic.__Historique[categorie])[:,1] , dtype=np.float64)
+        for categorie in Tic.__History:
+            histoCategorie = np.array(np.array(Tic.__History[categorie])[:,1] , dtype=np.float64)
             tempsCatégorie = np.sum(histoCategorie)
-            tempsCatégorie, unite = Tic.Get_temps_unite(tempsCatégorie)
+            tempsCatégorie, unite = Tic.Get_time_unity(tempsCatégorie)
             resumeCatégorie = f"{categorie} : {tempsCatégorie:.3f} {unite}"
             if verbosity: print(resumeCatégorie)
             resume += '\n' + resumeCatégorie
 
-        return resume
-            
+        return resume            
 
     @staticmethod
-    def __plotBar(ax: plt.Axes, categories: list, temps: list, reps: int, titre: str):
-        # Parmètres axes
+    def __plotBar(ax: plt.Axes, categories: list, temps: list, reps: int, titre: str) -> None:
+        # Axis parameters
         ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
         ax.yaxis.set_visible(False)
         ax.set_axisbelow(True)
@@ -102,18 +100,18 @@ class Tic:
 
         tempsMax = np.max(temps)
 
-        # Je veux que si le temps représente < 0.5 tempsTotal on affiche le texte a droite
-        # Sinon on va lafficher a gauche
+        # I want to display the text on the right if the time represents < 0.5 timeTotal
+        # Otherwise, we'll display it on the left
 
         for i, (texte, tmps, rep) in enumerate(zip(categories, temps, reps)):
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)            
             ax.barh(i, tmps, align="center", label=texte)
             
-            # On rajoute un peu d'espace a la fin du texte
+            # We add a space at the end of the text
             espace = " "
 
-            temps, unite = Tic.Get_temps_unite(tmps/rep)
+            temps, unite = Tic.Get_time_unity(tmps/rep)
 
             
             if rep > 1:
@@ -134,64 +132,64 @@ class Tic:
         ax.set_title(titre)
 
     @staticmethod 
-    def Plot_History(folder="", details=True):
-        """Affiche l'historique
+    def Plot_History(folder="", details=True) -> None:
+        """Display history
 
         Parameters
         ----------
         folder : str, optional
-            dossier dans lequel on va sauvegarder les figures, by default ""
+            save folder, by default ""
         details : bool, optional
-            Affiche de détails de l'historique, by default True
+            History details, by default True
         """
 
         import Display
 
-        if Tic.__Historique == {}: return
+        if Tic.__History == {}: return
 
-        historique = Tic.__Historique        
-        tempsTotCategorie = []
+        historique = Tic.__History        
+        totalTime = []
         categories = list(historique.keys())
 
-        # récupère le temps de chaque catégorie
+        # recovers the time for each category
         tempsCategorie = [np.sum(np.array(np.array(historique[c])[:,1] , dtype=np.float64)) for c in categories]
 
         categories = np.array(categories)[np.argsort(tempsCategorie)][::-1]
 
         for i, c in enumerate(categories):
 
-            #temps des sous categories de c
-            tempsSousCategorie = np.array(np.array(historique[c])[:,1] , dtype=np.float64)
-            tempsTotCategorie.append(np.sum(tempsSousCategorie)) #somme tout les temps de cette catégorie
+            # c subcategory times
+            timeSubCategory = np.array(np.array(historique[c])[:,1] , dtype=np.float64)
+            totalTime.append(np.sum(timeSubCategory)) #somme tout les temps de cette catégorie
 
-            sousCategories = np.array(np.array(historique[c])[:,0] , dtype=str) #sous catégories
+            subCategories = np.array(np.array(historique[c])[:,0] , dtype=str)
 
-            # On construit un tableau pour les sommé sur les sous catégories
-            dfSousCategorie = pd.DataFrame({'sous categories' : sousCategories, 'temps': tempsSousCategorie, 'rep': 1})
-            dfSousCategorie = dfSousCategorie.groupby(['sous categories']).sum()
-            dfSousCategorie = dfSousCategorie.sort_values(by='temps')
-            sousCategories = dfSousCategorie.index.tolist()
+            # We build a table to sum them over the sub-categories
+            dfSubCategory = pd.DataFrame({'sub-categories' : subCategories, 'time': timeSubCategory, 'rep': 1})
+            dfSubCategory = dfSubCategory.groupby(['sub-categories']).sum()
+            dfSubCategory = dfSubCategory.sort_values(by='time')
+            subCategories = dfSubCategory.index.tolist()
 
             # print(dfSousCategorie)
 
-            if len(sousCategories) > 1 and details and tempsTotCategorie[-1]>0:
+            if len(subCategories) > 1 and details and totalTime[-1]>0:
                 fig, ax = plt.subplots()
-                Tic.__plotBar(ax, sousCategories, dfSousCategorie['temps'].tolist(), dfSousCategorie['rep'].tolist(), c)
+                Tic.__plotBar(ax, subCategories, dfSubCategory['time'].tolist(), dfSubCategory['rep'].tolist(), c)
             
                 if folder != "":                        
                     Display.Save_fig(folder, f"TicTac{i}_{c}")
 
         # On construit un tableau pour les sommé sur les sous catégories
-        dfCategorie = pd.DataFrame({'categories' : categories, 'temps': tempsTotCategorie})
+        dfCategorie = pd.DataFrame({'categories' : categories, 'time': totalTime})
         dfCategorie = dfCategorie.groupby(['categories']).sum()
-        dfCategorie = dfCategorie.sort_values(by='temps')
+        dfCategorie = dfCategorie.sort_values(by='time')
         categories = dfCategorie.index.tolist()
         
         fig, ax = plt.subplots()
-        Tic.__plotBar(ax, categories, dfCategorie['temps'], [1]*dfCategorie.shape[0], "Simulation")
+        Tic.__plotBar(ax, categories, dfCategorie['time'], [1]*dfCategorie.shape[0], "Summary")
 
         if folder != "":            
-            Display.Save_fig(folder, "TicTac_Simulation")
+            Display.Save_fig(folder, "TicTac_Summary")
 
         # # Camembert
         # my_circle = plt.Circle( (0,0), 0, color='white')
@@ -200,6 +198,3 @@ class Tic:
         # wedgeprops = { 'linewidth' : 0, 'edgecolor' : 'white' })
         # p = plt.gcf()
         # ax1.add_artist(my_circle)
-
-        # # On contstruit un disque pour chaque sous catégorie d'une catégorie
-    
