@@ -1,17 +1,16 @@
 import numpy as np
 
 class Gauss:
-    """Classe des points d'intégration"""
 
     def __init__(self, elemType: str, matriceType: str):
-        """Construction de points d'intégration
+        """Construction of integration points
 
         Parameters
         ----------
         elemType : str
-            type d'element
-        matriceType : str
-            [MatriceType.rigi, MatriceType.masse,MatriceType.beam]
+            element type
+        matrixType : str
+            [MatrixType.rigi, MatrixType.mass,MatrixType.beam]
         """
 
         coord, poids = Gauss.__calc_gauss(elemType, matriceType)
@@ -21,22 +20,22 @@ class Gauss:
 
     @property
     def coord(self) -> np.ndarray:
-        """coordonnées des points d'intégration"""
+        """integration point coordinates"""
         return self.__coord
     
     @property
     def poids(self) -> np.ndarray:
-        """poids des points d'intégration"""
+        """integration point weights"""
         return self.__poids
 
     @property
     def nPg(self) -> int:
-        """nombres de points d'intégration"""
+        """number of integration points"""
         return self.__poids.size
 
     @staticmethod
     def __CoordoPoidsGaussTriangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """[1, 3, 6, 7, 12]"""
+        """available [1, 3, 6, 7, 12]"""
         if nPg == 1:
             ksis = 1/3
             etas = 1/3
@@ -89,7 +88,7 @@ class Gauss:
 
     @staticmethod
     def __CoordoPoidsGaussQuad(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """[4, 9]"""
+        """available [4, 9]"""
         if nPg == 4:
             a = 1/np.sqrt(3)
             ksis = [-a, a, a, -a]
@@ -107,7 +106,7 @@ class Gauss:
 
     @staticmethod
     def __CoordoPoidsGaussTetra(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """[1, 4, 5, 15]"""
+        """available [1, 4, 5, 15]"""
         if nPg == 1:            
 
             x = 1/4
@@ -162,7 +161,7 @@ class Gauss:
     
     @staticmethod
     def __CoordoPoidsGaussHexa(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """[8]"""
+        """available [8]"""
         if nPg == 8:            
 
             m1r3 = -1/np.sqrt(3)
@@ -196,7 +195,7 @@ class Gauss:
     
     @staticmethod
     def __CoordoPoidsGaussPrism(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """[6, 8]"""
+        """available [6, 8]"""
         if nPg == 6:
             
             m1r3 = -1/np.sqrt(3)
@@ -234,19 +233,7 @@ class Gauss:
 
     @staticmethod
     def __calc_gauss(elemType: str, matriceType: str):
-        """Calcul des points d'intégrations en fonction du type d'element et de matrice
-
-        Parameters
-        ----------
-        elemType : ElemType
-            type d'element
-        matriceType : MatriceType
-            type de matrice
-
-        Returns
-        -------
-        np.ndarray, np.ndarray
-            coord, poids
+        """Calculation of integration points according to element and matrix type
         """
 
         from GroupElem import GroupElem, ElemType, MatriceType
@@ -375,7 +362,7 @@ class Gauss:
                 x, y, z, poids = Gauss.__CoordoPoidsGaussPrism(nPg)
 
         else:
-            raise Exception("Element non implémenté")
+            raise Exception("Element not implemented")
 
         if dim == 1:
             coord = np.array([x]).T.reshape((nPg,1))
