@@ -1,18 +1,16 @@
 from numba import njit, prange, jit
 import numpy as np
 
-useCache = True
-useParallel = True
-useFastmath = True
+__useCache = True
+__useParallel = True
+__useFastmath = True
 
-# Calcul de splits
-
-@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
+@njit(cache=__useCache, parallel=__useParallel, fastmath=__useFastmath)
 def Get_Anisot_C(Cp_e_pg: np.ndarray, mat: np.ndarray, Cm_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     
-    # WARNING : Il peut y avoir un probleme de mémoire si mat est hétérogène (epij). Cest pour ça que mat n'est pas hétérogène.
+    # WARNING: There may be a memory problem if mat is heterogeneous (epij). That's why mat is not heterogeneous.
     
-    if useParallel:
+    if __useParallel:
         range = prange
     else:
         range = np.arange
@@ -40,10 +38,10 @@ def Get_Anisot_C(Cp_e_pg: np.ndarray, mat: np.ndarray, Cm_e_pg: np.ndarray) -> t
     
     return Cpp_e_pg, Cpm_e_pg, Cmp_e_pg, Cmm_e_pg
 
-@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
+@njit(cache=__useCache, parallel=__useParallel, fastmath=__useFastmath)
 def Get_G12_G13_G23(M1: np.ndarray, M2: np.ndarray, M3: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
-    if useParallel:
+    if __useParallel:
         range = prange
     else:
         range = np.arange
@@ -116,10 +114,10 @@ def Get_G12_G13_G23(M1: np.ndarray, M2: np.ndarray, M3: np.ndarray) -> tuple[np.
 
     return G12_ij, G13_ij, G23_ij
 
-@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
+@njit(cache=__useCache, parallel=__useParallel, fastmath=__useFastmath)
 def Get_projP_projM_2D(BetaP: np.ndarray, gammap: np.ndarray, BetaM: np.ndarray, gammam: np.ndarray,m1: np.ndarray, m2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
-    if useParallel:
+    if __useParallel:
         range = prange
     else:
         range = np.arange
@@ -147,12 +145,12 @@ def Get_projP_projM_2D(BetaP: np.ndarray, gammap: np.ndarray, BetaM: np.ndarray,
 
     return projP, projM
 
-@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
+@njit(cache=__useCache, parallel=__useParallel, fastmath=__useFastmath)
 def Get_projP_projM_3D(dvalp: np.ndarray, dvalm: np.ndarray, thetap: np.ndarray, thetam: np.ndarray, list_mi: list[np.ndarray], list_Gab: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
 
     # ../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_ISOT/calc_proj_Miehe.m
 
-    if useParallel:
+    if __useParallel:
         range = prange
     else:
         range = np.arange
@@ -181,10 +179,10 @@ def Get_projP_projM_3D(dvalp: np.ndarray, dvalm: np.ndarray, thetap: np.ndarray,
 
     return projP, projM
 
-@njit(cache=useCache, parallel=useParallel, fastmath=useFastmath)
+@njit(cache=__useCache, parallel=__useParallel, fastmath=__useFastmath)
 def Get_Cp_Cm_Stress(c: np.ndarray, sP_e_pg: np.ndarray, sM_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     
-    if useParallel:
+    if __useParallel:
         range = prange
     else:
         range = np.arange
