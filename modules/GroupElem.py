@@ -1166,7 +1166,7 @@ class GroupElem(ABC):
     def Get_Nodes_Line(self, line: Line) -> np.ndarray:
         """Renvoie les noeuds sur la ligne"""
         
-        vectUnitaire = line.vecteurUnitaire
+        vectUnitaire = line.unitVector
 
         coordo = self.__coordo
 

@@ -1,23 +1,21 @@
 import numpy as np
 
-class Point:
-    """Classe Point"""
+class Point:    
 
     def __init__(self, x=0.0, y=0.0, z=0.0, isOpen=False, r=0.0):
-        """Construit un point
-
+        """Build a point
         Parameters
         ----------
         x : float, optional
-            coordo en x, by default 0.0
+            x coordinate, default 0.0
         y : float, optional
-            coordo en y, by default 0.0
+            y coordinate, default 0.0
         z : float, optional
-            coordo en z, by default 0.0
+            z coordinate, default 0.0
         isOpen : bool, optional
-            le point peut s'ouvrir, by default False
+            point can open, default False
         r : float, optional
-            rayon utilisé pour le congé
+            radius used for fillet
         """
         self.__x = x
         self.__y = y
@@ -28,32 +26,32 @@ class Point:
 
     @property
     def x(self) -> float:
-        """coordo x du point"""
+        """x coordinate"""
         return self.__x
 
     @property
     def y(self) -> float:
-        """coordo y du point"""
+        """y coordinate"""
         return self.__y
 
     @property
     def z(self) -> float:
-        """coordo z du point"""
+        """z coordinate"""
         return self.__z
 
     @property
     def r(self) -> float:
-        """rayon utilisé pour le congé"""
+        """radius used for fillet"""
         return self.__r
 
     @property
     def coordo(self) -> np.ndarray:
-        """coordonnées x,y,z (3,)"""
+        """[x,y,z] coordinates"""
         return self.__coordo
 
     @property
     def isOpen(self):
-        """Le point est ouvert"""
+        """point can open"""
         return self.__isOpen
     
     def __radd__(self, value):
@@ -127,16 +125,16 @@ class Point:
 class Geom:
 
     def __init__(self, points: list[Point], meshSize: float, name: str):
-        """Construit un objet géométrique
+        """Builds a geometric object
 
         Parameters
         ----------
         points : list[Point]
-            liste de points pour construire l'objet géométrique
+            list of points to build the geometric object
         meshSize : float
-            taille de maillage qui sera utilisé pour creer le maillage >= 0
+            mesh size that will be used to create the mesh >= 0
         name : str
-            nom de l'objet
+            object name
         """
         assert meshSize >= 0
         self.__meshSize = meshSize
@@ -147,35 +145,34 @@ class Geom:
 
     @property
     def meshSize(self) -> float:
-        """Taille d'element utilisé pour le maillage"""
+        """Element size used for meshing"""
         return self.__meshSize
 
     @property
     def points(self) -> list[Point]:
-        """Points utilisés pour construire l'objet"""
+        """Points used to build the object"""
         return self.__points
 
     @property
     def name(self) -> str:
-        """Nom de l'objet"""
+        """object name"""
         return self.__name
 
 class PointsList(Geom):
-    """Classe PointsList"""
 
     __nbPointsList = 0
 
     def __init__(self, contour: list[Point], meshSize=0.0, isCreux=False):
-        """Construit une liste de point
+        """Builds a point list
 
         Parameters
         ----------
         points : list[Point]
-            liste d'objet geom pour construire un contour
+            list of geom objects to build a contour
         meshSize : float, optional
-            taille de maillage qui sera utilisé pour creer le maillage >= 0, by default 0.0
+            mesh size that will be used to create the mesh >= 0, by default 0.0
         isCreux : bool, optional
-            le domaine formé est creux, by default False
+            formed domain is hollow, by default False
         """
 
         self.isCreux=isCreux
@@ -185,36 +182,35 @@ class PointsList(Geom):
         super().__init__(contour, meshSize, name)
 
 class Line(Geom):
-    """Classe Line"""
 
     __nbLine = 0
 
     @staticmethod
     def distance(pt1: Point, pt2: Point) -> float:
-        """Calcul la distance entre deux points"""
+        """Calculate the distance between two points"""
         length = np.sqrt((pt1.x-pt2.x)**2 + (pt1.y-pt2.y)**2 + (pt1.z-pt2.z)**2)
         return np.abs(length)
     
     @staticmethod
-    def get_vecteurUnitaire(pt1: Point, pt2: Point) -> np.ndarray:
-        """Construit le vecteur unitaire qui passe entre deux points"""
+    def get_unitVector(pt1: Point, pt2: Point) -> np.ndarray:
+        """Construct the unit vector between two points"""
         length = Line.distance(pt1, pt2)        
         v = np.array([pt2.x-pt1.x, pt2.y-pt1.y, pt2.z-pt1.z])/length
         return v   
 
     def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isOpen=False):
-        """Construit une ligne
+        """Builds a line
 
         Parameters
         ----------
         pt1 : Point
-            premier point
+            first point
         pt2 : Point
-            deuxième point
+            second point
         meshSize : float, optional
-            taille qui sera utilisée pour la construction du maillage, by default 0.0
+            mesh size that will be used to create the mesh >= 0, by default 0.0
         isOpen : bool, optional
-            la ligne peut s'ouvrir, by default False
+            line can open, by default False
         """
         self.pt1 = pt1
         self.pt2 = pt2
@@ -229,38 +225,36 @@ class Line(Geom):
 
     @property
     def isOpen(self) -> bool:
-        """Renvoie si la ligne peut s'ouvrir pour représenter une fissure"""
+        """Returns whether the line can open to represent an open crack"""
         return self.__isOpen
     
     @property
-    def vecteurUnitaire(self) -> np.ndarray:
-        """Construction du vecteur unitaire pour les deux points de la ligne"""
-        return Line.get_vecteurUnitaire(self.pt1, self.pt2)
+    def unitVector(self) -> np.ndarray:
+        """The unit vector for the two points on the line (p2-p1)"""
+        return Line.get_unitVector(self.pt1, self.pt2)
 
     @property
     def length(self) -> float:
-        """Calcul la longeur de la ligne"""
+        """Calculate the distance between the two points on the line"""
         return Line.distance(self.pt1, self.pt2)
 
 class Domain(Geom):
-    """Classe Domain"""
 
     __nbDomain = 0
 
     def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isCreux=False):
-        """Construit d'un domaine entre 2 points\n
-        Ce domaine n'est pas tourné !
+        """Builds a domain
 
         Parameters
         ----------
         pt1 : Point
-            point 1
+            first point
         pt2 : Point
-            point 2
+            second point
         meshSize : float, optional
-            taille qui sera utilisée pour la construction du maillage, by default 0.0
+            mesh size that will be used to create the mesh >= 0, by default 0.0
         isCreux : bool, optional
-            le domaine est creux, by default False
+            formed domain is hollow, by default False
         """
         self.pt1 = pt1
         self.pt2 = pt2
@@ -272,24 +266,23 @@ class Domain(Geom):
         Geom.__init__(self, points=[pt1, pt2], meshSize=meshSize, name=name)
 
 class Circle(Geom):
-    """Classe Circle"""
 
     __nbCircle = 0
 
     def __init__(self, center: Point, diam: float, meshSize=0.0, isCreux=True):
-        """Construction d'un cercle en fonction de son centre et de son diamètre \n
-        Ce cercle sera projeté dans le plan (x,y)
+        """Constructing a circle according to its center and diameter
+        This circle will be projected onto the (x,y) plane.
 
         Parameters
         ----------
         center : Point
-            centre du cercle
+            center of circle
         diam : float
-            diamètre
+            diameter
         meshSize : float, optional
-            taille qui sera utilisée pour la construction du maillage, by default 0.0
+            mesh size that will be used to create the mesh >= 0, by default 0.0
         isCreux : bool, optional
-            le cercle est creux, by default True
+            circle is hollow, by default True
         """
         
         assert diam > 0.0
@@ -308,23 +301,23 @@ class CircleArc(Geom):
     __nbCircleArc = 0
 
     def __init__(self, pt1: Point, center: Point, pt2: Point, meshSize=0.0, coef=1.0, isOpen=False):
-        """Construction d'un arc de cercle en fonction de son centre et du point de départ et de fin. \n
-        Cet arc de cercle sera projeté dans le plan (x,y)
+        """Construct a circular arc based on its center, start and end points. \n
+        This circular arc will be projected onto the (x,y) plane.
 
         Parameters
         ----------        
         pt1 : Point
-            point de départ
-        center : Point
-            centre de l'arc de cercle
-        pt2 : Point
-            point de fin
+            starting point
+        center: Point
+            center of arc
+        pt2: Point
+            end point
         meshSize : float, optional
-            taille qui sera utilisée pour la construction du maillage, by default 0.0
+            size to be used for mesh construction, by default 0.0
         coef : float, optional
-            coef pour la multiplication avec le rayon -1 ou 1, by default 1.0
+            coef for multiplication with radius -1 or 1, by default 1.0
         isOpen : bool, optional
-            l'arc de cercle peut s'ouvrir, by default False
+            arc can open, by default False
         """
 
         assert coef in [-1, 1], "coef doit être dans [-1, 1]"
@@ -335,31 +328,31 @@ class CircleArc(Geom):
         assert r1 == r2, "Les points ne sont pas sur le même arc de cercle."
 
         self.center = center
-        """Point du centre de l'arc de cercle."""
+        """Point at the center of the arc."""
         self.pt1 = pt1
-        """Point du début de l'arc de cercle."""
+        """Starting point of the arc."""
         self.pt2 = pt2
-        """Point de fin de l'arc de cercle."""
+        """Ending point of the arc."""
 
         self.__isOpen = isOpen
 
-        # Ici on va creer un point intermédiaire car dans gmsh les arcs de cercle sont limités à un angle pi.
+        # Here we'll create an intermediate point, because in gmsh, circular arcs are limited to an angle pi.
 
         i1 = (pt1-center).coordo
         i2 = (pt2-center).coordo
 
-        # construction de la matrice de passage 
+        # construction of the passage matrix 
         i = normalize_vect((i1+i2)/2)
         k = np.array([0,0,1])
         j = np.cross(k, i)
 
         mat = np.array([i,j,k]).T
 
-        # coordonnées du point médian
+        # midpoint coordinates
         pt3 = center.coordo + mat @ [coef*r1,0,0]
 
         self.pt3 = Point(pt3[0], pt3[1], pt3[2])
-        """Point du milieu de l'arc de cercle."""
+        """Midpoint of the circular arc."""
 
         CircleArc.__nbCircleArc += 1
         name = f"Circle{CircleArc.__nbCircleArc}"
@@ -367,22 +360,22 @@ class CircleArc(Geom):
 
     @property
     def isOpen(self) -> bool:
-        """Renvoie si l'arc de cercle peut s'ouvrir pour représenter une fissure"""
+        """Returns whether the arc can open to represent a crack."""
         return self.__isOpen
 
 class Contour(Geom):
 
     __nbContour = 0
 
-    def __init__(self, geoms: list[Geom], isCreux=True):
-        """Construction d'un contour depuis une liste de ligne ou d'arc de cercle.
+    def __init__(self, geoms: list[Line|CircleArc], isCreux=True):
+        """Create a contour from a list of lines or arcs.
 
         Parameters
         ----------
         geoms : list[Line, CircleArc]
-            liste d'objets utilisés pour construire le contour
+            list of objects used to build the contour
         isCreux : bool, optional
-            le contour est creux, by default True        
+            contour is hollow, by default True
         """
 
         # Verifie que les points font bien une boucle fermée        
@@ -392,23 +385,23 @@ class Contour(Geom):
 
         for i, geom in enumerate(geoms):
 
-            assert isinstance(geom, (Line, CircleArc)), "Doit donner une liste de ligne et d'arc de cercle"            
+            assert isinstance(geom, (Line, CircleArc)), "Must give a list of lines and arcs."
 
             if i == 0:
                 ecart = tol
             elif i > 0 and i < len(geoms)-1:
-                # verifie que le point de départ est bien a la meme coordonée que le dernié point de l'objet précédent
+                # check that the starting point has the same coordinate as the last point of the previous object
                 ecart = np.linalg.norm(geom.points[0].coordo - points[-1].coordo)
 
-                assert ecart <= tol, "Le contour doit former une boucle fermée"
+                assert ecart <= tol, "The contour must form a closed loop."
             else:
-                # verifie que le point de fin du dernier objet geométrique est bien le premier point crée.
+                # checks that the end point of the last geometric object is the first point created.
                 ecart1 = np.linalg.norm(geom.points[0].coordo - points[-1].coordo)
                 ecart2 = np.linalg.norm(geom.points[-1].coordo - points[0].coordo)
 
-                assert ecart1 <= tol and ecart2 <= tol, "Le contour doit former une boucle fermée"            
+                assert ecart1 <= tol and ecart2 <= tol, "The contour must form a closed loop."
 
-            # Ajoute le premier et le dernier point
+            # Adds the first and last points
             points.extend(geom.points)
 
         self.geoms = geoms
@@ -425,83 +418,77 @@ class Section:
 
     def __init__(self, mesh):
         """Section
-
-        Parameters
-        ----------
-        mesh : Mesh
-            Maillage
         """
 
         from Mesh import Mesh
-        assert isinstance(mesh, Mesh), "Doit être un maillage 2D"
+        assert isinstance(mesh, Mesh), "Must be a 2D mesh"
 
-        assert mesh.dim == 2, "Doit être un maillage 2D"
+        assert mesh.dim == 2, "Must be a 2D mesh"
         
         self.__mesh = mesh
 
     @property
     def mesh(self):
-        """Maillage de la section"""
+        """Section Mesh"""
         return self.__mesh
 
     @property
     def epaisseur(self) -> float:
-        """Epaisseur de la section"""
-        # ici l'epaisseur est suivant x
+        """Section thickness (x)"""
         coordo = self.__mesh.coordo
         epaisseur = np.abs(coordo[:,0].max() - coordo[:,0].min())
         return epaisseur
     
     @property
     def hauteur(self) -> float:
-        """Hauteur de la section"""
-        # ici l'epaisseur est suivant x
+        """Section height (y)"""
         coordo = self.__mesh.coordo
         hauteur = np.abs(coordo[:,1].max() - coordo[:,1].min())
         return hauteur
     
     @property
     def aire(self) -> float:
-        """Surface de la section"""
+        """Section area"""
         return self.__mesh.aire
 
     @property
-    def Iy(self) -> float:
-        """Moment quadratique de la section suivant y\n
+    def Iy(self) -> float:        
+        """Squared moment of the section following y\n
         int_S z^2 dS """
         return self.__mesh.Ix
 
     @property
     def Iz(self) -> float:
-        """Moment quadratique de la section suivant z\n
+        """Squared moment of the section following z\n
         int_S y^2 dS """
         return self.__mesh.Iy
 
     @property
     def Iyz(self) -> float:
-        """Moment quadratique de la section suivant yz\n
+        """Squared moment of the section following yz\n
         int_S y z dS """
         return self.__mesh.Ixy
 
     @property
     def J(self) -> float:
-        """Moment quadratique polaire\n
+        """Polar quadratic moment\n
         J = Iz + Iy
         """
         return self.__mesh.J
 
-# Fonctions pour faire des caluls de distances d'angles etc
+# Functions for calculating distances, angles, etc.
+
 def normalize_vect(vect: np.ndarray) -> np.ndarray:
-    """Renvoie le vecteur normalisé"""
+    """Returns the normalized vector"""
     if len(vect.shape) == 1:
         return vect / np.linalg.norm(vect)
     elif len(vect.shape) == 2:
         return np.einsum('ij,i->ij',vect, 1/np.linalg.norm(vect, axis=1), optimize="optimal")
     else:
-        raise Exception("Le vecteur n'est pas de la bonne dimension")
+        raise Exception("The vector is the wrong size")
 
 def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
-    """calcul l'angle entre le vecteur a et le vecteur b
+    """calculates the angle between vector a and vector b
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors"""
 
     assert isinstance(a, np.ndarray) and isinstance(b, np.ndarray), "a et b doivent être des np.array"
@@ -522,20 +509,15 @@ def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
     return angle
 
 def JacobianMatrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
-    """Calcul la matrice jacobienne de passage de la base (i,j,k) vers la base (x,y,z)\n
-    p(x,y) = matrice.dot(p(i,j))
+    """Compute the Jacobian matrix for the transition from the (i,j,k) basis to the (x,y,z) basis.\n
+    p(x,y) = matrice • p(i,j)
 
     Parameters
     ----------
     i : np.ndarray
-        vecteur i
+        i vector
     k : np.ndarray
-        vecteur
-
-    Returns
-    -------
-    np.ndarray
-        La matrice jacobienne            
+        j vector
     """        
 
     i = normalize_vect(i)
@@ -553,36 +535,36 @@ def JacobianMatrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
     return F
 
 def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Calcul de coordonnée des points pour la création d'un rayon.
+    """Calculation of point coordinates to create a radius in a corner.
 
     Parameters
     ----------
     P0 : np.ndarray
-        coordonnées du points avec le rayon
+        coordinates of point with radius
     P1 : np.ndarray
-        coordonnées avant les coordonnées P0
+        coordinates before P0 coordinates
     P2 : np.ndarray
-        coordonnées après les coordonnées P0
+        coordinates after P0 coordinates
     r : float
-        rayon au point P0
+        radius at point P0
 
     Returns
     -------
     tuple[np.ndarray, np.ndarray, np.ndarray]
-        coordonées calculées pour construire le rayon
+        coordinates calculated to construct the radius
     """
                 
-    # vecteurs
+    # vectors
     i = P1-P0
     j = P2-P0
     
-    n = np.cross(i, j) # vecteur normal au plan formé par i, j
+    n = np.cross(i, j) # normal vector to the plane formed by i, j
 
     if r > 0:
-        # angle de i vers k            
+        # angle from i to k
         betha = AngleBetween_a_b(i, j)/2
         
-        d = np.abs(r)/np.tan(betha) # disante entre P0 et A sur i et disante entre P0 et B sur j
+        d = np.abs(r)/np.tan(betha) # distance between P0 and A on i and distance between P0 and B on j
 
         d *= np.sign(betha)
 
@@ -598,19 +580,14 @@ def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tu
     return A, B, C
 
 def Points_IntersectCircles(circle1: Circle, circle2: Circle) -> np.ndarray:
-    """Calcul les coordonnées à l'intersection des deux cercles.
+    """Calculates the coordinates at the intersection of the two circles (i,3). This only works if they're on the same plane.
 
     Parameters
     ----------
     circle1 : Circle
-        cercle 1
+        circle 1
     circle2 : Circle
-        cercle 2
-
-    Returns
-    -------
-    np.ndarray
-        coordonnées identifiées (i, 3)
+        circle 2
     """
 
     r1 = circle1.diam/2
@@ -622,13 +599,13 @@ def Points_IntersectCircles(circle1: Circle, circle2: Circle) -> np.ndarray:
     d = np.linalg.norm(p2 - p1)
 
     if d > r1 + r2:
-        print("Les cercles sont séparés")
+        print("The circles are separated")
         return None
     elif d < np.abs(r1 - r2):
-        print("Les cercles sont concentriques")
+        print("The circles are concentric")
         return None
     elif d == 0 and r1 == r2:
-        print("Les cercles sont identiques")
+        print("The circles are the same")
         return None
     
     a = (r1**2  - r2**2 + d**2)/(2*d)
