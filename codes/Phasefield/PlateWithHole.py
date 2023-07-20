@@ -1,6 +1,6 @@
 from TicTac import Tic
 import Materials
-from BoundaryCondition import BoundaryCondition
+from BoundaryConditions import BoundaryCondition
 from Geom import *
 import Display as Display
 from Interface_Gmsh import Interface_Gmsh
@@ -299,7 +299,7 @@ for split, regu in zip(splits, regularisations):
             noeuds_bord = simu.mesh.Nodes_Tags(["L0","L1","L2","L3"])
             nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h) 
 
-            ddls_upper = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_upper, ["y"])
+            ddls_upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
 
             if dim == 3:
                 if resol > 1500:

@@ -298,8 +298,8 @@ def __Solver_2(simu, problemType: str):
         from Simulations import LagrangeCondition
 
         def __apply_lagrange(i: int, lagrangeBc: LagrangeCondition):
-            ddls = lagrangeBc.ddls
-            valeurs = lagrangeBc.valeurs_ddls
+            ddls = lagrangeBc.dofs
+            valeurs = lagrangeBc.dofsValues
             coefs = lagrangeBc.lagrangeCoefs
 
             valeurs = np.array(valeurs) * alpha

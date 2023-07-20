@@ -132,7 +132,7 @@ nodesCircle2 = mesh.Nodes_Cylindre(circlePos2, [0,0,ep])
 nodesCircle3 = mesh.Nodes_Cylindre(circlePos3, [0,0,ep])
 nodesDamage = np.concatenate([nodesCircle1, nodesCircle2, nodesCircle3])
 
-ddlsY_Load = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", nodesLoad, ['y'])
+ddlsY_Load = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", nodesLoad, ['y'])
 
 # ----------------------------------------------
 # Material

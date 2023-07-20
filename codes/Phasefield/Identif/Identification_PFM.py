@@ -222,7 +222,7 @@ for idxEssai in range(0,18):
         nodes_Lower = mesh.Nodes_Tags(["L0"])
         nodes_Upper = mesh.Nodes_Tags(["L2"])
         nodes0 = mesh.Nodes_Tags(["P0"])    
-        ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["y"])
+        ddlsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_Upper, ["y"])
         
         # construit le modèle d'endommagement
         pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0, A=A)
@@ -413,7 +413,7 @@ for idxEssai in range(0,18):
             Display.Plot_ResumeIter(simu, folder_Save)
 
             simu.Update_iter(-1)
-            ddlsY = BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
+            ddlsY = BoundaryCondition.Get_dofs_nodes(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
             fr = -np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ simu.displacement)/1000
 
             pathData = Folder.Join([folder, "identification.xlsx"])
@@ -459,7 +459,7 @@ for idxEssai in range(0,18):
         # reconstruction de la courbe force déplacement
         deplacementsIdentif = []
         forcesIdentif = []
-        ddlsY = BoundaryCondition.Get_ddls_noeuds(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
+        ddlsY = BoundaryCondition.Get_dofs_nodes(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
         for iter in range(len(simu._results)):
 
             simu.Update_iter(iter)

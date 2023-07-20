@@ -10,7 +10,7 @@ import Interface_Gmsh
 import Materials
 import Geom
 
-Get_ddls_noeuds = Simulations.BoundaryCondition.Get_ddls_noeuds
+Get_ddls_noeuds = Simulations.BoundaryCondition.Get_dofs_nodes
 
 Display.Clear()
 
@@ -65,18 +65,18 @@ nodesp0 = mesh.Nodes_Tags(["P0"])
 nodesBas = mesh.Nodes_Tags(["L0"])
 nodesHaut = mesh.Nodes_Tags(["L2"])
 
-ddlsX = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesBord, ["x"])
-ddlsY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesBord, ["y"])
+ddlsX = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesBord, ["x"])
+ddlsY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesBord, ["y"])
 
 assert nodesBord.size*2 == (ddlsX.size + ddlsY.size)
 
 if useRescale:
-    ddlsBasX = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesBas, ["x"])
-    ddlsBasY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesBas, ["y"])
+    ddlsBasX = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesBas, ["x"])
+    ddlsBasY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesBas, ["y"])
     
-    ddlsHautX = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesHaut, ["x"])
-    ddlsHautY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesHaut, ["y"])
-    ddlsHautXY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesHaut, ["x","y"])
+    ddlsHautX = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesHaut, ["x"])
+    ddlsHautY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesHaut, ["y"])
+    ddlsHautXY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesHaut, ["x","y"])
 
 
 # Affichage.Plot_Mesh(mesh)

@@ -6,7 +6,7 @@ import os
 import pickle
 import cv2
 
-from BoundaryCondition import BoundaryCondition
+from BoundaryConditions import BoundaryCondition
 from Mesh import Mesh
 import TicTac
 
@@ -166,8 +166,8 @@ class AnalyseDiC:
             phi = phi_n_pixels[:,pixels]
 
             # construction des lignes 
-            lignesX = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
-            lignesY = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["y"]).reshape(-1,1).repeat(pixels.size)            
+            lignesX = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
+            lignesY = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"]).reshape(-1,1).repeat(pixels.size)            
 
             # construction des colonnes où placer les valeurs
             colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).reshape(-1)            

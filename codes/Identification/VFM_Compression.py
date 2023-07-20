@@ -82,7 +82,7 @@ nodesUpper = mesh.Nodes_Tags(["L2"])
 nodesUpperLower = mesh.Nodes_Tags(["L0", "L2"])
 nodesZone = mesh.Nodes_Circle(circleZone)
 
-ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodesUpper, ["y"])
+ddlsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesUpper, ["y"])
 
 # Affichage.Plot_Nodes(mesh, nodesZone)
 # Affichage.Save_fig(folder, "vfm zone cisaillement")

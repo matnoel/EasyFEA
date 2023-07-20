@@ -3,7 +3,7 @@ from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Materials
 import Simulations
-from BoundaryCondition import BoundaryCondition, LagrangeCondition
+from BoundaryConditions import BoundaryCondition, LagrangeCondition
 
 plt = Display.plt
 
@@ -121,7 +121,7 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
             # plt.gca().scatter(coordo[nodes, 0],coordo[nodes, 1], marker='+', c='red')
 
             for direction in ["x", "y"]:
-                ddls = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, [direction])
+                ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, [direction])
                 
                 values = Ekl @ [coordo[n0,0]-coordo[n1,0], coordo[n0,1]-coordo[n1,1]]
                 value = values[0] if direction == "x" else values[1]
@@ -137,12 +137,12 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
             vect = np.ones(mesh.Nn) * 1/mesh.Nn 
 
             # sum u_i / Nn = 0
-            ddls = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["x"])        
+            ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"])        
             condition = LagrangeCondition("displacement", nodes, ddls, ["x"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)
 
             # sum v_i / Nn = 0
-            ddls = BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, ["y"])        
+            ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"])        
             condition = LagrangeCondition("displacement", nodes, ddls, ["y"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)
 

@@ -92,7 +92,7 @@ nodesLoad = mesh.Nodes_Conditions(lambda x,y,z: (y==L) & (x>=2*L-30))
 node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
 nodesCircle = mesh.Nodes_Cylindre(circle, [0,0,ep])
 
-ddlsY_Load = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", nodesLoad, ['y'])
+ddlsY_Load = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", nodesLoad, ['y'])
 
 # ----------------------------------------------
 # Material

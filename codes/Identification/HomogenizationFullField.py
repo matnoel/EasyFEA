@@ -2,7 +2,7 @@ from Interface_Gmsh import Interface_Gmsh
 import Geom
 import Display
 import Simulations
-import BoundaryCondition
+import BoundaryConditions
 import Materials
 
 np = Materials.np
@@ -191,14 +191,14 @@ def CalcDisplacement(Ekl: np.ndarray):
                 axVer.scatter(meshVER.coordo[nodes, 0],meshVER.coordo[nodes, 1], marker='+', c='red')
 
                 for direction in ["x", "y"]:
-                    ddls = BoundaryCondition.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, [direction])                   
+                    ddls = BoundaryConditions.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, [direction])                   
                     
                     values = Ekl @ [meshVER.coordo[n0,0]-meshVER.coordo[n1,0], meshVER.coordo[n0,1]-meshVER.coordo[n1,1]]
                     value = values[0] if direction == "x" else values[1]
 
                     # value = 0
 
-                    condition = BoundaryCondition.LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
+                    condition = BoundaryConditions.LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
                     simuVER._Bc_Add_Lagrange(condition)
 
     ukl = simuVER.Solve()

@@ -556,7 +556,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
     return ax
 
 def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor='black', alpha=1.0, folder="", ax=None) -> plt.Axes:
-    """Display mesh elements based on nodes
+    """Display mesh elements from given nodes
 
     Parameters
     ----------
@@ -678,11 +678,11 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
     for bc_Conditions in Conditions:
 
         problemType = bc_Conditions.problemType        
-        valeurs_ddls = bc_Conditions.valeurs_ddls
+        valeurs_ddls = bc_Conditions.dofsValues
         directions = bc_Conditions.directions
 
         # récupère les noeuds
-        noeuds = bc_Conditions.noeuds
+        noeuds = bc_Conditions.nodes
 
         if problemType == "damage":
             valeurs = [valeurs_ddls[0]]

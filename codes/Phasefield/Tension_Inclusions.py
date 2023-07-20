@@ -25,7 +25,7 @@ mesh = Interface_Gmsh().Mesh_2D(domain, [inclusion], 'QUAD4')
 nodesLeftRight = mesh.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2))
 nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==-L/2)
 nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: y==L/2)
-ddlsY = Simulations.BoundaryCondition.Get_ddls_noeuds(2, 'displacement', nodesUpper, ['y'])
+ddlsY = Simulations.BoundaryCondition.Get_dofs_nodes(2, 'displacement', nodesUpper, ['y'])
 
 nodes_inclu = mesh.Nodes_Circle(inclusion)
 elem_inclu = mesh.Elements_Nodes(nodes_inclu)

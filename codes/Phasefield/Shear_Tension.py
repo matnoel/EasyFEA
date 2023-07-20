@@ -1,4 +1,4 @@
-from BoundaryCondition import BoundaryCondition
+from BoundaryConditions import BoundaryCondition
 import PostTraitement
 import Folder
 import Display
@@ -351,9 +351,9 @@ for split, regu in zip(splits, regularisations):
 
             # Récupération des ddls pour le calcul de la force
             if simulation == "Shear":
-                ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["x"])
+                ddls_Haut = BoundaryCondition.Get_dofs_nodes(2, "displacement", noeuds_Haut, ["x"])
             else:
-                ddls_Haut = BoundaryCondition.Get_ddls_noeuds(2, "displacement", noeuds_Haut, ["y"])
+                ddls_Haut = BoundaryCondition.Get_dofs_nodes(2, "displacement", noeuds_Haut, ["y"])
 
             Chargement(dep)
 

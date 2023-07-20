@@ -79,7 +79,7 @@ forceR = np.sum(f_exp)
 
 
 forces = simu.Get_K_C_M_F()[0] @ u_exp
-ddls = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", mesh.nodes, ["y"])
+ddls = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", mesh.nodes, ["y"])
 # Affichage.Plot_Result(simu, fff[ddls], cmap="seismic")
 
 f_exp_loc = f_exp[assembly1D_e]

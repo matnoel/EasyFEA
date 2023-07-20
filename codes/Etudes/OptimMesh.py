@@ -290,8 +290,8 @@ while erreur >= cible and i < iterMax:
             
             proj = Calc_projector(oldMesh, mesh)
 
-            ddlsNew = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", mesh.nodes, ["x"])
-            ddlsOld = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", oldMesh.nodes, ["x"])
+            ddlsNew = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", mesh.nodes, ["x"])
+            ddlsOld = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", oldMesh.nodes, ["x"])
             uproj = np.zeros(mesh.Nn*dim)        
             for d in range(dim):
                 uproj[ddlsNew+d] = proj @ oldU[ddlsOld+d]

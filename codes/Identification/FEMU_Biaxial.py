@@ -8,7 +8,7 @@ import Materials
 import Simulations
 import Folder
 
-Get_ddls_noeuds = Simulations.BoundaryCondition.Get_ddls_noeuds
+Get_ddls_noeuds = Simulations.BoundaryCondition.Get_dofs_nodes
 
 np = Materials.np
 plt = Display.plt

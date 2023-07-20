@@ -3,7 +3,7 @@ import Display
 import Materials
 import Simulations
 import TicTac
-import BoundaryCondition
+import BoundaryConditions
 import Geom
 
 np = Display.np
@@ -86,12 +86,12 @@ axLoad = plt.subplots()[1]
 def Add_Lagrange(Eps: np.ndarray, n0, n1):
     nodes = np.array([n0, n1])
     for direction in ["x", "y"]:
-        ddls = BoundaryCondition.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes, [direction])                   
+        ddls = BoundaryConditions.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, [direction])                   
         
         values = Eps @ [mesh.coordo[n0,0]-mesh.coordo[n1,0], mesh.coordo[n0,1]-mesh.coordo[n1,1]]
         value = values[0] if direction == "x" else values[1]
 
-        condition = BoundaryCondition.LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
+        condition = BoundaryConditions.LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
         simu._Bc_Add_Lagrange(condition)
 
 def Solve(Eij: np.ndarray):

@@ -11,7 +11,7 @@ from scipy import sparse
 
 # Meme si pas utilisé laissé l'acces
 from Mesh import Mesh, MatriceType, ElemType
-from BoundaryCondition import BoundaryCondition, LagrangeCondition
+from BoundaryConditions import BoundaryCondition, LagrangeCondition
 from Materials import ModelType, IModel, Displacement_Model, Beam_Model, PhaseField_Model, Thermal_Model, Resize_variable
 from TicTac import Tic
 from SolversInterface import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
@@ -777,7 +777,7 @@ class Simu(ABC):
         """Renvoie les ddls liés aux conditions de Dirichlet"""
         if problemType == None:
             problemType = self.problemType
-        return BoundaryCondition.Get_ddls(problemType, self.__Bc_Dirichlet)
+        return BoundaryCondition.Get_dofs(problemType, self.__Bc_Dirichlet)
 
     def Bc_values_Dirichlet(self, problemType=None) -> list[float]:
         """Renvoie les valeurs ddls liés aux conditions de Dirichlet"""
@@ -789,7 +789,7 @@ class Simu(ABC):
         """Renvoie les ddls liés aux conditions de Neumann"""
         if problemType == None:
             problemType = self.problemType
-        return BoundaryCondition.Get_ddls(problemType, self.__Bc_Neumann)
+        return BoundaryCondition.Get_dofs(problemType, self.__Bc_Neumann)
     
     def Bc_values_Neumann(self, problemType=None) -> list[float]:
         """Renvoie les valeurs ddls liés aux conditions de Neumann"""
@@ -801,7 +801,7 @@ class Simu(ABC):
         """Renvoie les ddls liés aux conditions de Lagrange"""
         if problemType == None:
             problemType = self.problemType
-        return BoundaryCondition.Get_ddls(problemType, self.__Bc_Lagrange)
+        return BoundaryCondition.Get_dofs(problemType, self.__Bc_Lagrange)
     
     def Bc_values_Lagrange(self, problemType=None) -> list[float]:
         """Renvoie les valeurs ddls liés aux conditions de Lagrange"""
@@ -911,7 +911,7 @@ class Simu(ABC):
         valeurs_ddls = valeurs_ddl_dir.reshape(-1)
 
         nbddl_n = self.Get_nbddl_n(problemType)
-        ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, noeuds, directions)
+        ddls = BoundaryCondition.Get_dofs_nodes(nbddl_n, problemType, noeuds, directions)
 
         self.__Bc_Add_Dirichlet(problemType, noeuds, valeurs_ddls, ddls, directions, description)
 
@@ -1074,7 +1074,7 @@ class Simu(ABC):
 
         nbddl_n = self.Get_nbddl_n(problemType)
 
-        ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, noeuds, directions)
+        ddls = BoundaryCondition.Get_dofs_nodes(nbddl_n, problemType, noeuds, directions)
 
         return valeurs_ddls, ddls
 
@@ -1124,7 +1124,7 @@ class Simu(ABC):
                 valeurs_e = np.sum(valeurs_e_p, axis=1)
                 # positionne les valeurs et les ddls calculés
                 valeurs_ddl_dir[:,d] = valeurs_e.reshape(-1)
-                new_ddls[:,d] = BoundaryCondition.Get_ddls_noeuds(nbddl_n, problemType, connect.reshape(-1), directions[d])
+                new_ddls[:,d] = BoundaryCondition.Get_dofs_nodes(nbddl_n, problemType, connect.reshape(-1), directions[d])
 
             new_valeurs_ddls = valeurs_ddl_dir.reshape(-1) # mets sous forme de vecteur
             valeurs_ddls = np.append(valeurs_ddls, new_valeurs_ddls)
@@ -1235,7 +1235,7 @@ class Simu(ABC):
         # Prend le premier noeuds de la liaison
         noeuds1 = np.array([noeuds[0]])
 
-        ddls = BoundaryCondition.Get_ddls_noeuds(param=nbddl,  problemType=ModelType.beam, noeuds=noeuds1, directions=directions)
+        ddls = BoundaryCondition.Get_dofs_nodes(param=nbddl,  problemType=ModelType.beam, nodes=noeuds1, directions=directions)
         valeurs_ddls =  np.array([0]*len(ddls))
 
         new_Bc = BoundaryCondition(ModelType.beam, noeuds1, ddls, directions, valeurs_ddls, description)
@@ -3057,7 +3057,7 @@ class Simu_Beam(Simu):
 
         # On va venir pour chaque directions appliquer les conditions
         for d, dir in enumerate(directions):
-            ddls = BoundaryCondition.Get_ddls_noeuds(nbddl_n,  problemType=problemType, noeuds=noeuds, directions=[dir])
+            ddls = BoundaryCondition.Get_dofs_nodes(nbddl_n,  problemType=problemType, nodes=noeuds, directions=[dir])
 
             new_LagrangeBc = LagrangeCondition(problemType, noeuds, ddls, [dir], [0], [1,-1], description)
 

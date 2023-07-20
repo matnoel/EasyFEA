@@ -164,8 +164,8 @@ nodes_Upper = mesh.Nodes_Tags(["L2"])
 nodes0 = mesh.Nodes_Tags(["P0"])
 nodes_Boundary = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
-ddlsX_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["x"])
-ddlsY_Upper = Simulations.BoundaryCondition.Get_ddls_noeuds(2, "displacement", nodes_Upper, ["y"])
+ddlsX_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_Upper, ["x"])
+ddlsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_Upper, ["y"])
 
 Display.Plot_Mesh(mesh)
 # Affichage.Plot_Nodes(mesh, nodes_Upper, True)
