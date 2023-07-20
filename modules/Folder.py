@@ -2,76 +2,44 @@ import os
 from typing import List
 from colorama import Fore
 
-# import 
-# export PYTHONPATH=$PYTHONPATH:/home/matthieu/Documents/PythonEF/classes
-# export PYTHONPATH=$PYTHONPATH:/home/m/matnoel/Documents/PythonEF/classes
-
 def Get_Path(filename="") -> str:
-    """Renvoie le path du fichier ou renvoie le path vers le dossier PythonEF
-
-    Parameters
-    ----------
-    filename : str, optional
-        fichier, by default ""
-
-    Returns
-    -------
-    str
-        filename complet
+    """Returns the folder containing the file. Otherwise returns the PythonEF folder
     """
     
     if filename == "":
-        # Renvoie le path vers PythonEF
+        # Returns the path to PythonEF
         path = os.path.dirname(__file__)
         path = os.path.dirname(path)
     else:
-        # Renvoie le path vers le fichier
-        path = os.path.dirname(filename)    
+        # Returns the path to the file
+        path = os.path.dirname(filename)
 
     return path
 
-def New_File(filename: str, pathname=Get_Path(), results=False) -> str:
-    """Renvoie le path vers le fichier avec l'extension ou non\n
-    filename peut etre : un fichier ou un dossier\n
-    De base le path renvoie vers le path ou est PythonEF
+def New_File(filename: str, folder=Get_Path(), results=False) -> str:
+    """Returns the path to the file/folder (filename can be a file or a folder). If the path does not exist, the function will create directories.
 
     Parameters
     ----------
     filename : str
-        nom du fichier ou du dossier
-    pathname : str, optional
-        _description_, by default GetPath()
+        file or folder name
+    folder : str, optional
+        folder to use, default Get_Path() -> PythonEF
     results : bool, optional
-        enregistre dans PythonEF/results/filename ou pathname/filename, by default False
-
-    Returns
-    -------
-    str
-        filename complet
+        saves in folder/results/filename or folder/filename, default False
     """
     
     if results:
-        pathname = os.path.join(pathname, "results")
-    filename = os.path.join(pathname, filename)
+        folder = Join([folder, "results"])
+    filename = Join([folder, filename])
 
-    if not os.path.exists(pathname):
-        os.makedirs(pathname)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
             
     return filename
 
 def Join(list: List[str]) -> str:
-    """Construit le path en fonction d'une liste de nom
-
-    Parameters
-    ----------
-    list : List[str]
-        liste de nom
-
-    Returns
-    -------
-    str
-        filename complet
-    """
+    """Builds the path based on a list of str."""
 
     file = ""
     for f in list:
