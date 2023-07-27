@@ -51,7 +51,7 @@ class Point:
 
     @property
     def isOpen(self):
-        """point can open"""
+        """point is open"""
         return self.__isOpen
     
     def __radd__(self, value):
