@@ -593,7 +593,7 @@ for split, regu in zip(splits, regularisations):
                 if len(elements) == 0: continue
 
                 # Sur chaque element on va sommer la valeurs des endommagement et on va prendre le plus endommagé            
-                localizedDamage = simu.mesh.Localises_sol_e(simu.damage)[elements] # localise l'endommagement sur tout les elements
+                localizedDamage = simu.mesh.Locates_sol_e(simu.damage)[elements] # localise l'endommagement sur tout les elements
                 mostDamagedElement = elements[np.argmax(np.sum(localizedDamage, axis=1))] # element le plus endommagé
                 
                 # Renseigne l'itération ou un nouvelle element a ete detectée

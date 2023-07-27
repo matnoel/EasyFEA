@@ -133,12 +133,12 @@ class AnalyseDiC:
         coordInElem = self.__coordPixelInElem        
         
         # Données du maillage
-        matriceType="masse"
-        Ntild = mesh.groupElem.Ntild()
-        dN_pg = mesh.groupElem.Get_dN_pg(matriceType)
-        invF_e_pg = mesh.groupElem.Get_invF_e_pg(matriceType) #; print(invF_e_pg[0,0]); print()
-        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.Get_poid_pg(matriceType)        
+        matrixType="mass"
+        Ntild = mesh.groupElem._Ntild()
+        dN_pg = mesh.groupElem.Get_dN_pg(matrixType)
+        invF_e_pg = mesh.groupElem.Get_invF_e_pg(matrixType) #; print(invF_e_pg[0,0]); print()
+        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        poid_pg = mesh.Get_weight_pg(matrixType)        
 
         # ----------------------------------------------
         # Construction de la matrice de fonction de formes pour les pixels
@@ -191,7 +191,7 @@ class AnalyseDiC:
         # Construction de l'opérateur laplacien
         # ----------------------------------------------
 
-        # dN_e_pg = mesh.Get_dN_sclaire_e_pg(matriceType)
+        # dN_e_pg = mesh.Get_dN_sclaire_e_pg(matrixType)
         # dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
         dN_e_pg = np.array(np.einsum('epki,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
 
@@ -215,8 +215,8 @@ class AnalyseDiC:
 
         B_e[:,lignes0, colonnes0] = 0
 
-        lignesB = mesh.lignesVector_e
-        colonnesB = mesh.colonnesVector_e        
+        lignesB = mesh.linesVector_e
+        colonnesB = mesh.columnsVector_e        
 
         self._opLap = sparse.csr_matrix((B_e.reshape(-1), (lignesB.reshape(-1), colonnesB.reshape(-1))), (nDof, nDof))  
         """opérateur laplacien"""      

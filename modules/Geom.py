@@ -449,7 +449,7 @@ class Section:
     @property
     def aire(self) -> float:
         """Section area"""
-        return self.__mesh.aire
+        return self.__mesh.area
 
     @property
     def Iy(self) -> float:        

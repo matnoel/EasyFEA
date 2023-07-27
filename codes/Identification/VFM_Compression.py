@@ -89,16 +89,16 @@ ddlsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", no
 # Affichage.Plot_Elements(mesh, nodesUpper, 1)
 
 # Récupération des array pour l'intégration numérique
-matriceType = "rigi" 
-jacob2D_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-poid2D_pg = mesh.Get_poid_pg(matriceType)
+matrixType = "rigi" 
+jacob2D_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+poid2D_pg = mesh.Get_weight_pg(matrixType)
 
 groupElem1D = mesh.Get_list_groupElem(1)[0]
 elems1D = groupElem1D.Get_Elements_Nodes(nodesUpper)
 
 assembly1D = groupElem1D.Get_assembly_e(2)[elems1D]
-jacob1D_e_pg = groupElem1D.Get_jacobien_e_pg(matriceType)[elems1D]
-poid1D_pg = groupElem1D.Get_poid_pg(matriceType)
+jacob1D_e_pg = groupElem1D.Get_jacobian_e_pg(matrixType)[elems1D]
+poid1D_pg = groupElem1D.Get_weight_pg(matrixType)
 
 # ----------------------------------------------
 # Comportement
@@ -158,7 +158,7 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False
     simu.set_u_n("displacement", u_n)
 
     # Calcul les déformations associées aux champs virtuels.
-    Eps_e_pg = simu._Calc_Epsilon_e_pg(u_n, matriceType)
+    Eps_e_pg = simu._Calc_Epsilon_e_pg(u_n, matrixType)
     E11_e_pg = Eps_e_pg[:,:,0]
     E22_e_pg = Eps_e_pg[:,:,1]
     E12_e_pg = Eps_e_pg[:,:,2]
@@ -204,7 +204,7 @@ for perturbation in perturbations:
         u_exp_bruit = u_exp + bruit
 
         # Récupération des déformations aux elements
-        Eps_exp = simu._Calc_Epsilon_e_pg(u_exp_bruit, matriceType)
+        Eps_exp = simu._Calc_Epsilon_e_pg(u_exp_bruit, matrixType)
         E11_exp = Eps_exp[:,:,0]
         E22_exp = Eps_exp[:,:,1]
         E12_exp = Eps_exp[:,:,2]
@@ -297,7 +297,7 @@ for perturbation in perturbations:
             condNodes = np.unique(lignes).size
             
             # conditions sur les déformations
-            coord_e_p = mesh.groupElem.Get_coordo_e_p(matriceType)
+            coord_e_p = mesh.groupElem.Get_GaussCoordinates_e_p(matrixType)
             xn_e_g = coord_e_p[:,:,0]
             yn_e_g = coord_e_p[:,:,1]
             

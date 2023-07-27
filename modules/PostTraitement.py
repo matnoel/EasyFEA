@@ -294,7 +294,7 @@ def __Make_vtu(simu: Simulations.Simu, iter: int, filename: str, nodesField: lis
     coordo = simu.mesh.coordo
     Ne = simu.mesh.Ne
     Nn = simu.mesh.Nn
-    nPe = simu.mesh.nPe
+    nPe = simu.mesh.groupElem.nPe
 
     typesParaviewElement = {
         "SEG2" : 3,

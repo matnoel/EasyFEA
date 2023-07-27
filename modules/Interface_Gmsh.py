@@ -7,7 +7,7 @@ from colorama import Fore
 
 import Folder
 from Geom import *
-from GroupElem import GroupElem, ElemType, MatriceType, GroupElem_Factory
+from GroupElem import GroupElem, ElemType, MatrixType, GroupElem_Factory
 from Mesh import Mesh
 from TicTac import Tic
 import Display as Display
@@ -1354,22 +1354,22 @@ class Interface_Gmsh:
             print(elemType)
 
             mesh1 = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=False)
-            testAire(mesh1.aire)
+            testAire(mesh1.area)
             
             mesh2 = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
-            testAire(mesh2.aire)
+            testAire(mesh2.area)
 
             mesh3 = interfaceGmsh.Mesh_2D(domain, [circle], elemType)
             # Ici on ne verifie pas car il ya trop peu delement pour bien representer le perçage
 
             mesh4 = interfaceGmsh.Mesh_2D(domain, [circleClose], elemType)
-            testAire(mesh4.aire)
+            testAire(mesh4.area)
 
             mesh5 = interfaceGmsh.Mesh_2D(domain, cracks=[line], elemType=elemType)
-            testAire(mesh5.aire)
+            testAire(mesh5.area)
 
             mesh6 = interfaceGmsh.Mesh_2D(domain, cracks=[lineOpen], elemType=elemType)
-            testAire(mesh6.aire)
+            testAire(mesh6.area)
 
             for m in [mesh1, mesh2, mesh3, mesh4, mesh5, mesh6]:
                 list_mesh2D.append(m)

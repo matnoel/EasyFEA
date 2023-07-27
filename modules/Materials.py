@@ -1064,13 +1064,13 @@ class Beam_Model(IModel):
             
             self.__list_D.append(D)
 
-    def Calc_D_e_pg(self, groupElem: GroupElem, matriceType: str):
+    def Calc_D_e_pg(self, groupElem: GroupElem, matrixType: str):
         # Construction de D_e_pg: 
         listePoutres = self.__listePoutres
         list_D = self.__list_D
         # Pour chaque poutre, on va construire la loi de comportement
         Ne = groupElem.Ne
-        nPg = groupElem.Get_gauss(matriceType).nPg
+        nPg = groupElem.Get_gauss(matrixType).nPg
         D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))
         for poutre, D in zip(listePoutres, list_D):
             # recupère les element
@@ -1290,15 +1290,15 @@ class PhaseField_Model(IModel):
         
         return f
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matriceType: str, k_residu=1e-12) -> np.ndarray:
+    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_residu=1e-12) -> np.ndarray:
         """Fonction de dégradation en energies / contraintes
         k_residu=1e-10
         Args:
             d_n (np.ndarray): Endomagement localisé aux noeuds (Nn,1)
             mesh (Mesh): maillage
         """
-        d_e_n = mesh.Localises_sol_e(d_n)
-        Nd_pg = mesh.Get_N_scalaire_pg(matriceType)
+        d_e_n = mesh.Locates_sol_e(d_n)
+        Nd_pg = mesh.Get_N_pg(matrixType)
 
         d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize='optimal')        
 
@@ -1308,7 +1308,7 @@ class PhaseField_Model(IModel):
             raise Exception("Pas implémenté")
 
         assert mesh.Ne == g_e_pg.shape[0]
-        assert mesh.Get_nPg(matriceType) == g_e_pg.shape[1]
+        assert mesh.Get_nPg(matrixType) == g_e_pg.shape[1]
         
         return g_e_pg
     

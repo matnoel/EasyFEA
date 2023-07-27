@@ -55,7 +55,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         fig, ax, cb
     """
 
-    from Simulations import Simu, Mesh, MatriceType
+    from Simulations import Simu, Mesh, MatrixType
 
     # here we detect the nature of the object
     if isinstance(obj, Simu):
@@ -64,7 +64,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
 
         use3DBeamModel = simu._use3DBeamModel
         
-        if simu.problemType == MatriceType.beam:
+        if simu.problemType == MatrixType.beam:
             # Currently I don't know how to display nodal results, so I'm displaying on elements.
             nodeValues = False
 
@@ -124,9 +124,9 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         valeurs = option*coef
         
         if sizeVecteur == mesh.Ne and nodeValues:
-            valeurs = Simu.Resultats_InterpolationAuxNoeuds(mesh, valeurs)
+            valeurs = Simu.Results_NodeInterpolation(mesh, valeurs)
         elif sizeVecteur == mesh.Nn and not nodeValues:
-            valeursLoc_e = mesh.Localises_sol_e(valeurs)
+            valeursLoc_e = mesh.Locates_sol_e(valeurs)
             valeurs = np.mean(valeursLoc_e, 1)
     else:
         raise Exception("Must fill a string or an array")
@@ -200,11 +200,12 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
 
         # scale the axis
         ax.autoscale()
-        epX = np.abs(coordoDef[:,0].max() - coordoDef[:,0].min())
-        epY = np.abs(coordoDef[:,1].max() - coordoDef[:,1].min())
-        if (epX > 0 and epY > 0):
-            if np.abs(epX-epY)/epX > 0.2:
-                ax.axis('equal')
+        ax.axis('equal')
+        # epX = np.abs(coordoDef[:,0].max() - coordoDef[:,0].min())
+        # epY = np.abs(coordoDef[:,1].max() - coordoDef[:,1].min())
+        # if (epX > 0 and epY > 0):
+        #     if np.abs(epX-epY)/epX > 0.2:
+        #         ax.axis('equal')
 
         # procedure for trying to retrieve the colorbar from the axis
         divider = make_axes_locatable(ax)

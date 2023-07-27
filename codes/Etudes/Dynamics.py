@@ -70,7 +70,7 @@ if dim == 2:
     elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 
     mesh = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
-    aire = mesh.aire - L*h
+    aire = mesh.area - L*h
 elif dim == 3:
     # # Sans importation
     domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=taille)
@@ -79,7 +79,7 @@ elif dim == 3:
     mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, nCouches=3)
 
     volume = mesh.volume - L*b*h
-    aire = mesh.aire - (L*h*4 + 2*b*h)
+    aire = mesh.area - (L*h*4 + 2*b*h)
 
 Display.Plot_Mesh(mesh)
 

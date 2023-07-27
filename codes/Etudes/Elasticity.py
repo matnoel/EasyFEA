@@ -133,7 +133,7 @@ elif simulationType == SimulationType.TEF2:
 if dim == 3:
     print(f"\nVolume = {mesh.volume:3f}")
 else:
-    print(f"\nVolume = {mesh.aire*comportement.epaisseur:3f}")
+    print(f"\nVolume = {mesh.area*comportement.epaisseur:3f}")
 
 Display.Plot_Mesh(mesh, folder=folder)
 # Affichage.Plot_Model(mesh, showId=True)

@@ -10,7 +10,7 @@ import pandas as pd
 from scipy import sparse
 
 # Meme si pas utilisé laissé l'acces
-from Mesh import Mesh, MatriceType, ElemType
+from Mesh import Mesh, MatrixType, ElemType
 from BoundaryConditions import BoundaryCondition, LagrangeCondition
 from Materials import ModelType, IModel, Displacement_Model, Beam_Model, PhaseField_Model, Thermal_Model, Resize_variable
 from TicTac import Tic
@@ -294,7 +294,7 @@ class Simu(ABC):
     def Save(self, folder:str):
         "Sauvegarde la simulation et son résumé dans le dossier"    
         # Il faut vider les matrices dans les groupes d'éléments
-        self.mesh.ResetMatrices()
+        self.mesh._ResetMatrix()
     
         # returns current date and time
         dateEtHeure = datetime.now()
@@ -401,7 +401,7 @@ class Simu(ABC):
         if isinstance(mesh, Mesh):
             # Pour tous les anciens maillages, j'efface les matrices
             listMesh = cast(list[Mesh], self.__listMesh)
-            [m.ResetMatrices() for m in listMesh]
+            [m._ResetMatrix() for m in listMesh]
 
             self.__indexMesh += 1
             self.__listMesh.append(mesh)
@@ -1092,22 +1092,22 @@ class Simu(ABC):
         for groupElem in listGroupElemDim:
 
             # Récupère les éléments qui utilisent exclusivement les noeuds
-            elements = groupElem.Get_Elements_Nodes(noeuds, exclusivement=True)
+            elements = groupElem.Get_Elements_Nodes(noeuds, exclusively=True)
             if elements.shape[0] == 0: continue
             connect = groupElem.connect[elements]
             Ne = elements.shape[0]
             
             # récupère les coordonnées des points de gauss dans le cas ou on a besoin dévaluer la fonction
-            matriceType = MatriceType.masse
-            coordo_e_p = groupElem.Get_coordo_e_p(matriceType, elements)
+            matrixType = MatrixType.mass
+            coordo_e_p = groupElem.Get_GaussCoordinates_e_p(matrixType, elements)
             nPg = coordo_e_p.shape[1]
 
-            N_pg = groupElem.Get_N_pg(matriceType)
+            N_pg = groupElem.Get_N_pg(matrixType)
 
             # objets d'integration
-            jacobien_e_pg = groupElem.Get_jacobien_e_pg(matriceType)[elements]
-            gauss = groupElem.Get_gauss(matriceType)
-            poid_pg = gauss.poids
+            jacobien_e_pg = groupElem.Get_jacobian_e_pg(matrixType)[elements]
+            gauss = groupElem.Get_gauss(matrixType)
+            poid_pg = gauss.weights
 
             # initialise le matrice de valeurs pour chaque noeuds utilisé par les elements et chaque pts de gauss (Ne*nPe, dir)
             valeurs_ddl_dir = np.zeros((Ne*groupElem.nPe, len(directions)))
@@ -1294,7 +1294,7 @@ class Simu(ABC):
         return resume
         
     @staticmethod
-    def Resultats_InterpolationAuxNoeuds(mesh: Mesh, resultat_e: np.ndarray):
+    def Results_NodeInterpolation(mesh: Mesh, resultat_e: np.ndarray):
         """Pour chaque noeuds on récupère les valeurs des élements autour de lui pour on en fait la moyenne
         (staticmethod)
         """
@@ -1414,19 +1414,19 @@ class Simu_Displacement(Simu):
         """Construit les matrices de rigidités élementaires pour le problème en déplacement
         """
 
-        matriceType=MatriceType.rigi
+        matrixType=MatrixType.rigi
 
         # Recupère les matrices pour travailler
         mesh = self.mesh; Ne = mesh.Ne
-        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.Get_poid_pg(matriceType)
+        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        poid_pg = mesh.Get_weight_pg(matrixType)
         nPg = poid_pg.size
 
-        N_vecteur_pg = mesh.Get_N_vecteur_pg(matriceType)
+        N_vecteur_pg = mesh.Get_N_vector_pg(matrixType)
         rho = self.rho
         
-        B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)
-        leftDepPart = mesh.Get_leftDepPart(matriceType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+        B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
+        leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
 
         comportement = self.comportement
 
@@ -1476,8 +1476,8 @@ class Simu_Displacement(Simu):
             Ku_e, Mu_e = self.__ConstruitMatElem_Dep()            
 
             # Prépare assemblage
-            lignesVector_e = mesh.lignesVector_e
-            colonnesVector_e = mesh.colonnesVector_e
+            lignesVector_e = mesh.linesVector_e
+            colonnesVector_e = mesh.columnsVector_e
             
             tic = Tic()
 
@@ -1571,7 +1571,7 @@ class Simu_Displacement(Simu):
             psi_e = self._Calc_Psi_Elas(returnScalar=False)
 
             if nodeValues:
-                return self.Resultats_InterpolationAuxNoeuds(self.mesh, psi_e)
+                return self.Results_NodeInterpolation(self.mesh, psi_e)
             else:
                 return psi_e
             
@@ -1579,7 +1579,7 @@ class Simu_Displacement(Simu):
             psi_e = self._Calc_Psi_Elas(returnScalar=False, smoothedStress=True)
 
             if nodeValues:
-                return self.Resultats_InterpolationAuxNoeuds(self.mesh, psi_e)
+                return self.Results_NodeInterpolation(self.mesh, psi_e)
             else:
                 return psi_e
             
@@ -1587,7 +1587,7 @@ class Simu_Displacement(Simu):
             erreur_e = self._Calc_ZZ1()[1]
 
             if nodeValues:
-                return self.Resultats_InterpolationAuxNoeuds(self.mesh, erreur_e)
+                return self.Results_NodeInterpolation(self.mesh, erreur_e)
             else:
                 return erreur_e
 
@@ -1675,7 +1675,7 @@ class Simu_Displacement(Simu):
                 resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
 
             if nodeValues:
-                resultat_n = self.Resultats_InterpolationAuxNoeuds(self.mesh, resultat_e)
+                resultat_n = self.Results_NodeInterpolation(self.mesh, resultat_e)
                 return resultat_n
             else:
                 return resultat_e
@@ -1708,7 +1708,7 @@ class Simu_Displacement(Simu):
             else:
 
                 # recupere pour chaque element les valeurs de ses noeuds
-                resultat_e_n = self.mesh.Localises_sol_e(resultat_ddl)
+                resultat_e_n = self.mesh.Locates_sol_e(resultat_ddl)
                 resultat_e = resultat_e_n.mean(axis=1)
 
                 if "amplitude" in option:
@@ -1721,7 +1721,7 @@ class Simu_Displacement(Simu):
                     else:
                         return resultat_e.reshape(-1)
 
-    def _Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False, matriceType=MatriceType.rigi) -> float:
+    def _Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False, matrixType=MatrixType.rigi) -> float:
         """Calcul de l'energie de deformation cinématiquement admissible endommagé ou non
         Calcul de Wdef = 1/2 int_Omega jacobien * poid * Sig : Eps dOmega x epaisseur"""
 
@@ -1729,22 +1729,22 @@ class Simu_Displacement(Simu):
 
         sol_u  = self.displacement
         
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matriceType)
-        jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = self.mesh.Get_poid_pg(matriceType)
-        N_pg = self.mesh.Get_N_scalaire_pg(matriceType)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
+        jacobien_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
+        poid_pg = self.mesh.Get_weight_pg(matrixType)
+        N_pg = self.mesh.Get_N_pg(matrixType)
 
         if self.dim == 2:
             ep = self.comportement.epaisseur
         else:
             ep = 1
 
-        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg, matriceType)
+        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg, matrixType)
 
         if smoothedStress:
-            Sigma_n = self.Resultats_InterpolationAuxNoeuds(self.mesh, np.mean(Sigma_e_pg, 1))
+            Sigma_n = self.Results_NodeInterpolation(self.mesh, np.mean(Sigma_e_pg, 1))
 
-            Sigma_n_e = self.mesh.Localises_sol_e(Sigma_n)
+            Sigma_n_e = self.mesh.Locates_sol_e(Sigma_n)
             Sigma_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
 
         if returnScalar:
@@ -1784,7 +1784,7 @@ class Simu_Displacement(Simu):
 
         return erreur, erreur_e
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -1800,15 +1800,15 @@ class Simu_Displacement(Simu):
 
         tic = Tic()
 
-        u_e = self.mesh.Localises_sol_e(sol)
-        B_dep_e_pg = self.mesh.Get_B_dep_e_pg(matriceType)
+        u_e = self.mesh.Locates_sol_e(sol)
+        B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
         
         tic.Tac("Matrices", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
                     
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -1825,7 +1825,7 @@ class Simu_Displacement(Simu):
         nPg = Epsilon_e_pg.shape[1]
 
         assert Ne == self.mesh.Ne
-        assert nPg == self.mesh.Get_nPg(matriceType)
+        assert nPg == self.mesh.Get_nPg(matrixType)
 
         tic = Tic()
 
@@ -2205,15 +2205,15 @@ class Simu_PhaseField(Simu):
             dict_Ku_e: les matrices elementaires pour chaque groupe d'element
         """
 
-        matriceType=MatriceType.rigi
+        matrixType=MatrixType.rigi
 
         # Data
         mesh = self.mesh
         
         # Recupère les matrices pour travailler
         
-        B_dep_e_pg = mesh.Get_B_dep_e_pg(matriceType)
-        leftDepPart = mesh.Get_leftDepPart(matriceType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+        B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
+        leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
 
         d = self.damage
         u = self.displacement
@@ -2221,7 +2221,7 @@ class Simu_PhaseField(Simu):
         phaseFieldModel = self.phaseFieldModel
         
         # Calcul la deformation nécessaire pour le split
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, matriceType)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, matrixType)
 
         # Split de la loi de comportement
         cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
@@ -2229,7 +2229,7 @@ class Simu_PhaseField(Simu):
         tic = Tic()
         
         # Endommage : c = g(d) * cP + cM
-        g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matriceType)
+        g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matrixType)
         cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
 
         c_e_pg = cP_e_pg + cM_e_pg
@@ -2262,8 +2262,8 @@ class Simu_PhaseField(Simu):
         Ku_e = self.__ConstruitMatElem_Dep()        
 
         # Prépare assemblage
-        lignesVector_e = mesh.lignesVector_e
-        colonnesVector_e = mesh.colonnesVector_e
+        lignesVector_e = mesh.linesVector_e
+        colonnesVector_e = mesh.columnsVector_e
         
         tic = Tic()
 
@@ -2313,7 +2313,7 @@ class Simu_PhaseField(Simu):
 
         assert testu or testd,"Problème de dimension"
 
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, MatriceType.masse)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, MatrixType.mass)
         # ici le therme masse est important sinon on sous intègre
 
         # Calcul l'energie
@@ -2361,16 +2361,16 @@ class Simu_PhaseField(Simu):
         r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
         f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
 
-        matriceType=MatriceType.masse
+        matrixType=MatrixType.mass
 
         mesh = self.mesh
         Ne = mesh.Ne
         nPg = r_e_pg.shape[1]
 
         # Probleme de la forme K*Laplacien(d) + r*d = F        
-        ReactionPart_e_pg = mesh.Get_phaseField_ReactionPart_e_pg(matriceType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
-        DiffusePart_e_pg = mesh.Get_phaseField_DiffusePart_e_pg(matriceType, phaseFieldModel.A) # -> jacobien_e_pg, poid_pg, Bd_e_pg', A, Bd_e_pg
-        SourcePart_e_pg = mesh.Get_phaseField_SourcePart_e_pg(matriceType) # -> jacobien_e_pg, poid_pg, Nd_pg'
+        ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
+        DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType, phaseFieldModel.A) # -> jacobien_e_pg, poid_pg, Bd_e_pg', A, Bd_e_pg
+        SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType) # -> jacobien_e_pg, poid_pg, Nd_pg'
         
         tic = Tic()
 
@@ -2403,8 +2403,8 @@ class Simu_PhaseField(Simu):
         # Data
         mesh = self.mesh
         taille = mesh.Nn
-        lignesScalar_e = mesh.lignesScalar_e
-        colonnesScalar_e = mesh.colonnesScalar_e
+        lignesScalar_e = mesh.linesScalar_e
+        colonnesScalar_e = mesh.columnsScalar_e
 
         # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
         dimSupl = len(self.Bc_Lagrange)
@@ -2496,7 +2496,7 @@ class Simu_PhaseField(Simu):
             resultat_e = np.mean(resultat_e_pg, axis=1)
 
             if nodeValues:
-                return self.Resultats_InterpolationAuxNoeuds(self.mesh, resultat_e)
+                return self.Results_NodeInterpolation(self.mesh, resultat_e)
             else:
                 return resultat_e
 
@@ -2584,7 +2584,7 @@ class Simu_PhaseField(Simu):
                 resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
 
             if nodeValues:                
-                return self.Resultats_InterpolationAuxNoeuds(self.mesh, resultat_e)
+                return self.Results_NodeInterpolation(self.mesh, resultat_e)
             else:
                 return resultat_e
         
@@ -2616,7 +2616,7 @@ class Simu_PhaseField(Simu):
             else:
 
                 # recupere pour chaque element les valeurs de ses noeuds
-                resultat_e_n = self.mesh.Localises_sol_e(resultat_ddl)
+                resultat_e_n = self.mesh.Locates_sol_e(resultat_ddl)
                 resultat_e = resultat_e_n.mean(axis=1)
 
                 if "amplitude" in option:
@@ -2667,10 +2667,10 @@ class Simu_PhaseField(Simu):
 
         sol_u  = self.displacement
 
-        matriceType = MatriceType.rigi
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matriceType)
-        jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = self.mesh.Get_poid_pg(matriceType)
+        matrixType = MatrixType.rigi
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
+        jacobien_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
+        poid_pg = self.mesh.Get_weight_pg(matrixType)
 
         if self.dim == 2:
             ep = self.phaseFieldModel.epaisseur
@@ -2683,7 +2683,7 @@ class Simu_PhaseField(Simu):
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
         # Endommage : psiP_e_pg = g(d) * PsiP_e_pg 
-        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
+        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matrixType)
         psiP_e_pg = np.einsum('ep,ep->ep', g_e_pg, psiP_e_pg, optimize='optimal')
         psi_e_pg = psiP_e_pg + psiM_e_pg
 
@@ -2702,19 +2702,19 @@ class Simu_PhaseField(Simu):
 
         pfm = self.phaseFieldModel 
 
-        matriceType = MatriceType.masse
+        matrixType = MatrixType.mass
 
         Gc = pfm.Gc
         l0 = pfm.l0
         c0 = pfm.c0
 
         d_n = self.damage
-        d_e = self.mesh.Localises_sol_e(d_n)
+        d_e = self.mesh.Locates_sol_e(d_n)
 
-        jacobien_e_pg = self.mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = self.mesh.Get_poid_pg(matriceType)
-        Nd_pg = self.mesh.Get_N_scalaire_pg(matriceType)
-        Bd_e_pg = self.mesh.Get_dN_sclaire_e_pg(matriceType)
+        jacobien_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
+        poid_pg = self.mesh.Get_weight_pg(matrixType)
+        Nd_pg = self.mesh.Get_N_pg(matrixType)
+        Bd_e_pg = self.mesh.Get_dN_e_pg(matrixType)
 
         grad_e_pg = np.einsum('epij,ej->epi',Bd_e_pg,d_e, optimize='optimal')
         diffuse_e_pg = grad_e_pg**2
@@ -2743,7 +2743,7 @@ class Simu_PhaseField(Simu):
 
         return Psi_Crack
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi):
         """Construit epsilon pour chaque element et chaque points de gauss
 
         Parameters
@@ -2759,15 +2759,15 @@ class Simu_PhaseField(Simu):
         
         tic = Tic()
 
-        u_e = self.mesh.Localises_sol_e(sol)
-        B_dep_e_pg = self.mesh.Get_B_dep_e_pg(matriceType)
+        u_e = self.mesh.Locates_sol_e(sol)
+        B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')            
         
         tic.Tac("Matrices", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
 
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations
 
         Parameters
@@ -2782,7 +2782,7 @@ class Simu_PhaseField(Simu):
         """
 
         assert Epsilon_e_pg.shape[0] == self.mesh.Ne
-        assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matriceType)
+        assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matrixType)
 
         d = self.damage
 
@@ -2791,7 +2791,7 @@ class Simu_PhaseField(Simu):
         SigmaP_e_pg, SigmaM_e_pg = phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
         
         # Endommage : Sig = g(d) * SigP + SigM
-        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matriceType)
+        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matrixType)
         
         tic = Tic()
         
@@ -3086,16 +3086,16 @@ class Simu_Beam(Simu):
         beamModel = self.beamModel
         if not isinstance(beamModel, Beam_Model): return
         
-        matriceType=MatriceType.beam
+        matrixType=MatrixType.beam
         
         tic = Tic()
         
-        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.Get_poid_pg(matriceType)
+        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        poid_pg = mesh.Get_weight_pg(matrixType)
 
-        D_e_pg = beamModel.Calc_D_e_pg(groupElem, matriceType)
+        D_e_pg = beamModel.Calc_D_e_pg(groupElem, matrixType)
         
-        B_beam_e_pg = self.__Get_B_beam_e_pg(matriceType)
+        B_beam_e_pg = self.__Get_B_beam_e_pg(matrixType)
         
         Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobien_e_pg, poid_pg, B_beam_e_pg, D_e_pg, B_beam_e_pg, optimize='optimal')
             
@@ -3103,7 +3103,7 @@ class Simu_Beam(Simu):
 
         return Kbeam_e
 
-    def __Get_B_beam_e_pg(self, matriceType: str):
+    def __Get_B_beam_e_pg(self, matrixType: str):
 
         # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_B.m
 
@@ -3117,7 +3117,7 @@ class Simu_Beam(Simu):
 
         # Data
         mesh = self.mesh
-        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
+        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
         groupElem = mesh.groupElem
         elemType = groupElem.elemType
         nPe = groupElem.nPe
@@ -3125,9 +3125,9 @@ class Simu_Beam(Simu):
         nPg = jacobien_e_pg.shape[1]
 
         # Recupère les matrices pour travailler
-        dN_e_pg = mesh.Get_dN_sclaire_e_pg(matriceType)
+        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
         if beamModel.dim > 1:
-            ddNv_e_pg = mesh.Get_ddNv_sclaire_e_pg(matriceType)
+            ddNv_e_pg = mesh.Get_ddNv_e_pg(matrixType)
 
         if dim == 1:
             # u = [u1, . . . , un]
@@ -3243,8 +3243,8 @@ class Simu_Beam(Simu):
                 taille += dimSupl
 
             # Prépare assemblage
-            lignesVector_e = mesh.Get_lignesVector_e(model.nbddl_n)
-            colonnesVector_e = mesh.Get_colonnesVector_e(model.nbddl_n)
+            lignesVector_e = mesh.Get_linesVector_e(model.nbddl_n)
+            colonnesVector_e = mesh.Get_columnsVector_e(model.nbddl_n)
             
             tic = Tic()
 
@@ -3338,7 +3338,7 @@ class Simu_Beam(Simu):
                     return resultat_ddl.reshape(-1)
         else:
             # recupere pour chaque element les valeurs de ses noeuds
-                resultat_e_n = self.mesh.Localises_sol_e(resultat_ddl)
+                resultat_e_n = self.mesh.Locates_sol_e(resultat_ddl)
                 resultat_e = resultat_e_n.mean(axis=1)
 
                 if option == "amplitude":
@@ -3376,7 +3376,7 @@ class Simu_Beam(Simu):
                 else:
                     return 5
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matriceType=MatriceType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi):
         """Construit les déformations pour chaque element et chaque points de gauss
         """
         
@@ -3385,14 +3385,14 @@ class Simu_Beam(Simu):
         nbddl_n = self.beamModel.nbddl_n
         assemblyBeam_e = self.mesh.groupElem.Get_assembly_e(nbddl_n)
         sol_e = sol[assemblyBeam_e]
-        B_beam_e_pg = self.__Get_B_beam_e_pg(matriceType)
+        B_beam_e_pg = self.__Get_B_beam_e_pg(matrixType)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
         
         tic.Tac("Matrices", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
     
-    def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+    def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Calcul des forces internes.\n
         1D -> [N]\n
         2D -> [N, Mz]\n
@@ -3401,18 +3401,18 @@ class Simu_Beam(Simu):
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m       
 
         assert Epsilon_e_pg.shape[0] == self.mesh.Ne
-        assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matriceType)
+        assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matrixType)
 
         tic = Tic()
 
-        D_e_pg = self.beamModel.Calc_D_e_pg(self.mesh.groupElem, matriceType)
+        D_e_pg = self.beamModel.Calc_D_e_pg(self.mesh.groupElem, matrixType)
         InternalForces_e_pg = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
             
         tic.Tac("Matrices", "InternalForces_e_pg", False)
 
         return InternalForces_e_pg
 
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matriceType=MatriceType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Calcul les contraintes depuis les deformations.
         1D -> [Sxx]
         2D -> [Sxx, Syy, Sxy]
@@ -3421,14 +3421,14 @@ class Simu_Beam(Simu):
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
         Ne = self.mesh.Ne
-        nPg = self.mesh.Get_nPg(matriceType)
+        nPg = self.mesh.Get_nPg(matrixType)
 
         assert Epsilon_e_pg.shape[0] == Ne
         assert Epsilon_e_pg.shape[1] == nPg
 
         dim = self.beamModel.dim
 
-        InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg, matriceType)
+        InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg, matrixType)
 
         tic = Tic()
         
@@ -3580,14 +3580,14 @@ class Simu_Thermal(Simu):
         rho = self.rho
         c = thermalModel.c
 
-        matriceType=MatriceType.rigi
+        matrixType=MatrixType.rigi
 
         mesh = self.mesh
 
-        jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-        poid_pg = mesh.Get_poid_pg(matriceType)
-        N_e_pg = mesh.Get_N_scalaire_pg(matriceType)
-        D_e_pg = mesh.Get_dN_sclaire_e_pg(matriceType)
+        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        poid_pg = mesh.Get_weight_pg(matrixType)
+        N_e_pg = mesh.Get_N_pg(matrixType)
+        D_e_pg = mesh.Get_dN_e_pg(matrixType)
         Ne = mesh.Ne
         nPg = poid_pg.size
 
@@ -3616,8 +3616,8 @@ class Simu_Thermal(Simu):
             # Data
             mesh = self.mesh
             taille = mesh.Nn
-            lignesScalar_e = mesh.lignesScalar_e
-            colonnesScalar_e = mesh.colonnesScalar_e
+            lignesScalar_e = mesh.linesScalar_e
+            colonnesScalar_e = mesh.columnsScalar_e
 
             # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
             dimSupl = len(self.Bc_Lagrange)

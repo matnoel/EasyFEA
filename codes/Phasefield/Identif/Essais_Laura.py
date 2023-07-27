@@ -115,7 +115,7 @@ elif loadType == 1:
     group = mesh.Get_list_groupElem(dim-1)[0]
     elems = group.Get_Elements_Nodes(nodesLoad)
 
-    aire = np.einsum('ep,p->', group.Get_jacobien_e_pg("masse")[elems], group.Get_poid_pg("masse"))
+    aire = np.einsum('ep,p->', group.Get_jacobian_e_pg("mass")[elems], group.Get_weight_pg("mass"))
 
     if dim == 2:
         aire *= ep 
@@ -207,7 +207,7 @@ for f in array_f:
     simu.Save_Iteration()
 
     # Calcul l'energie
-    Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement, "masse")
+    Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement, "mass")
     psiP_e_pg, psiM_e_pg = pfm.Calc_psi_e_pg(Epsilon_e_pg)
     psiP_e = np.max(psiP_e_pg, axis=1)
 

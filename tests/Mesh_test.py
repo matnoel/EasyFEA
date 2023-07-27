@@ -30,12 +30,12 @@ class Test_Mesh(unittest.TestCase):
 
         # Verification lignes_e 
         lignes_e_test = np.array([[i for i in mesh.assembly_e[e] for j in mesh.assembly_e[e]] for e in listElement])
-        testLignes = np.testing.assert_array_almost_equal(lignes_e_test, mesh.lignesVector_e, verbose=False)
+        testLignes = np.testing.assert_array_almost_equal(lignes_e_test, mesh.linesVector_e, verbose=False)
         self.assertIsNone(testLignes)
 
         # Verification lignes_e 
         colonnes_e_test = np.array([[j for i in mesh.assembly_e[e] for j in mesh.assembly_e[e]] for e in listElement])
-        testColonnes = np.testing.assert_array_almost_equal(colonnes_e_test, mesh.colonnesVector_e, verbose=False)
+        testColonnes = np.testing.assert_array_almost_equal(colonnes_e_test, mesh.columnsVector_e, verbose=False)
         self.assertIsNone(testColonnes)
 
         list_B_rigi_e_pg = []
@@ -46,7 +46,7 @@ class Test_Mesh(unittest.TestCase):
                 if dim == 2:
                     B_dep_pg = np.zeros((3, nPe*dim))
                     colonne = 0
-                    B_sclaire_e_pg = mesh.Get_dN_sclaire_e_pg("rigi")
+                    B_sclaire_e_pg = mesh.Get_dN_e_pg("rigi")
                     dN = B_sclaire_e_pg[e,pg]
                     for n in range(nPe):
                         dNdx = dN[0, n]
@@ -81,7 +81,7 @@ class Test_Mesh(unittest.TestCase):
         
         list_B_rigi_e_pg = Displacement_Model.AppliqueCoefSurBrigi(dim, np.array(list_B_rigi_e_pg))
 
-        B_rigi_e_pg = mesh.Get_B_dep_e_pg("rigi")
+        B_rigi_e_pg = mesh.Get_B_e_pg("rigi")
 
         testB_rigi = np.testing.assert_array_almost_equal(np.array(list_B_rigi_e_pg), B_rigi_e_pg, verbose=False)
         self.assertIsNone(testB_rigi)

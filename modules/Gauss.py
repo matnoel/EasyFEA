@@ -2,7 +2,7 @@ import numpy as np
 
 class Gauss:
 
-    def __init__(self, elemType: str, matriceType: str):
+    def __init__(self, elemType: str, matrixType: str):
         """Integration point construction
 
         Parameters
@@ -13,10 +13,10 @@ class Gauss:
             [MatrixType.rigi, MatrixType.mass,MatrixType.beam]
         """
 
-        coord, poids = Gauss.__calc_gauss(elemType, matriceType)
+        coord, weights = Gauss.__calc_gauss(elemType, matrixType)
 
         self.__coord = coord
-        self.__poids = poids
+        self.__weights = weights
 
     @property
     def coord(self) -> np.ndarray:
@@ -24,14 +24,14 @@ class Gauss:
         return self.__coord
     
     @property
-    def poids(self) -> np.ndarray:
+    def weights(self) -> np.ndarray:
         """integration point weights"""
-        return self.__poids
+        return self.__weights
 
     @property
     def nPg(self) -> int:
         """number of integration points"""
-        return self.__poids.size
+        return self.__weights.size
 
     @staticmethod
     def __CoordoPoidsGaussTriangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -232,134 +232,134 @@ class Gauss:
         return x, y, z, poids
 
     @staticmethod
-    def __calc_gauss(elemType: str, matriceType: str):
+    def __calc_gauss(elemType: str, matrixType: str):
         """Calculation of integration points according to element and matrix type
         """
 
-        from GroupElem import GroupElem, ElemType, MatriceType
+        from GroupElem import GroupElem, ElemType, MatrixType
 
-        assert matriceType in GroupElem.get_MatriceType()
+        assert matrixType in GroupElem.get_MatrixType()
 
         # TODO faire une fonction pour calculer directement lordre ?
 
         if elemType == ElemType.SEG2:
             dim = 1
-            if matriceType == MatriceType.rigi:
+            if matrixType == MatrixType.rigi:
                 nPg = 1
-            elif matriceType in [MatriceType.masse, MatriceType.beam]:
+            elif matrixType in [MatrixType.mass, MatrixType.beam]:
                 nPg = 2
-            x, poids =  np.polynomial.legendre.leggauss(nPg)
+            x, weights =  np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.SEG3:
             dim = 1
-            if matriceType == MatriceType.rigi:
+            if matrixType == MatrixType.rigi:
                 nPg = 1
-            elif matriceType in [MatriceType.masse]:
+            elif matrixType in [MatrixType.mass]:
                 nPg = 3
-            elif matriceType == MatriceType.beam:
+            elif matrixType == MatrixType.beam:
                 nPg = 4
-            x, poids =  np.polynomial.legendre.leggauss(nPg)
+            x, weights =  np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.SEG4:
             dim = 1
-            if matriceType == MatriceType.rigi:
+            if matrixType == MatrixType.rigi:
                 nPg = 2
-            elif matriceType == MatriceType.masse:
+            elif matrixType == MatrixType.mass:
                 nPg = 4
-            elif matriceType == MatriceType.beam:
+            elif matrixType == MatrixType.beam:
                 nPg = 6
-            x, poids =  np.polynomial.legendre.leggauss(nPg)
+            x, weights =  np.polynomial.legendre.leggauss(nPg)
             
         elif elemType == ElemType.SEG5:
             dim = 1
-            if matriceType == MatriceType.rigi:
+            if matrixType == MatrixType.rigi:
                 nPg = 4
-            elif matriceType  == MatriceType.masse:
+            elif matrixType  == MatrixType.mass:
                 nPg = 5
-            elif matriceType == MatriceType.beam:
+            elif matrixType == MatrixType.beam:
                 nPg = 8
-            x, poids =  np.polynomial.legendre.leggauss(nPg)
+            x, weights =  np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.TRI3:
             dim = 2            
-            if matriceType == MatriceType.rigi:
+            if matrixType == MatrixType.rigi:
                 nPg = 1
-            elif matriceType == MatriceType.masse:
+            elif matrixType == MatrixType.mass:
                 nPg = 3
-            ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+            ksis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
 
         elif elemType == ElemType.TRI6:
             dim = 2            
-            if matriceType == MatriceType.rigi:
+            if matrixType == MatrixType.rigi:
                 nPg = 3
-            elif matriceType == MatriceType.masse:
+            elif matrixType == MatrixType.mass:
                 nPg = 6
-            ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+            ksis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
 
         elif elemType == ElemType.TRI10:
             dim = 2            
             nPg = 6
-            ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+            ksis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
 
-        elif elemType == ElemType.TRI15:
-            dim = 2            
-            if matriceType == MatriceType.rigi:
-                nPg = 6
-            elif matriceType == MatriceType.masse:
-                nPg = 12
-            ksis, etas, poids = Gauss.__CoordoPoidsGaussTriangle(nPg)
+        # elif elemType == ElemType.TRI15:
+        #     dim = 2            
+        #     if matrixType == MatrixType.rigi:
+        #         nPg = 6
+        #     elif matrixType == MatrixType.masse:
+        #         nPg = 12
+        #     ksis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
 
         elif elemType == ElemType.QUAD4:
             dim = 2            
             nPg = 4
-            ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
+            ksis, etas, weights = Gauss.__CoordoPoidsGaussQuad(nPg)
             
         elif elemType == ElemType.QUAD8:
             dim = 2            
-            if matriceType == MatriceType.rigi:
+            if matrixType == MatrixType.rigi:
                 nPg = 4
-            elif matriceType == MatriceType.masse:
+            elif matrixType == MatrixType.mass:
                 nPg = 9
-            ksis, etas, poids = Gauss.__CoordoPoidsGaussQuad(nPg)
+            ksis, etas, weights = Gauss.__CoordoPoidsGaussQuad(nPg)
                     
         elif elemType == ElemType.TETRA4:
             dim = 3            
-            if matriceType == MatriceType.rigi:
+            if matrixType == MatrixType.rigi:
                 nPg = 1
-            elif matriceType == MatriceType.masse:
+            elif matrixType == MatrixType.mass:
                 nPg = 4            
-            x, y, z, poids = Gauss.__CoordoPoidsGaussTetra(nPg)
+            x, y, z, weights = Gauss.__CoordoPoidsGaussTetra(nPg)
 
         elif elemType == ElemType.TETRA10:
             dim = 3            
             nPg = 4
-            x, y, z, poids = Gauss.__CoordoPoidsGaussTetra(nPg)
+            x, y, z, weights = Gauss.__CoordoPoidsGaussTetra(nPg)
 
         elif elemType == ElemType.HEXA8:
             dim = 3            
-            if matriceType in [MatriceType.rigi, MatriceType.masse]:
+            if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 8
-                x, y, z, poids = Gauss.__CoordoPoidsGaussHexa(nPg)
+                x, y, z, weights = Gauss.__CoordoPoidsGaussHexa(nPg)
 
         elif elemType == ElemType.HEXA20:
             dim = 3
-            if matriceType in [MatriceType.rigi, MatriceType.masse]:
+            if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 8
-                x, y, z, poids = Gauss.__CoordoPoidsGaussHexa(nPg)
+                x, y, z, weights = Gauss.__CoordoPoidsGaussHexa(nPg)
 
         elif elemType == ElemType.PRISM6:
             dim = 3            
-            if matriceType in [MatriceType.rigi, MatriceType.masse]:
+            if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 6
 
-                x, y, z, poids = Gauss.__CoordoPoidsGaussPrism(nPg)
+                x, y, z, weights = Gauss.__CoordoPoidsGaussPrism(nPg)
 
         elif elemType == ElemType.PRISM15:
             dim = 3            
-            if matriceType in [MatriceType.rigi, MatriceType.masse]:
+            if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 6
 
-                x, y, z, poids = Gauss.__CoordoPoidsGaussPrism(nPg)
+                x, y, z, weights = Gauss.__CoordoPoidsGaussPrism(nPg)
 
         else:
             raise Exception("Element not implemented")
@@ -371,6 +371,6 @@ class Gauss:
         elif dim == 3:
             coord = np.array([x, y, z]).T.reshape((nPg,3))
 
-        poids = np.array(poids).reshape(nPg)
+        weights = np.array(weights).reshape(nPg)
 
-        return coord, poids
+        return coord, weights

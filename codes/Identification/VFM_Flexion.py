@@ -40,13 +40,13 @@ nodesX0 = mesh.Nodes_Tags(["L3"])
 nodesXL = mesh.Nodes_Tags(["L1"])
 
 # Récupération des array pour l'intégration numérique
-matriceType = "rigi" 
-jacob2D_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-poid2D_pg = mesh.Get_poid_pg(matriceType)
+matrixType = "rigi" 
+jacob2D_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+poid2D_pg = mesh.Get_weight_pg(matrixType)
 
 groupElem1D = mesh.Get_list_groupElem(1)[0]
-jacob1D_e_pg = groupElem1D.Get_jacobien_e_pg(matriceType)
-poid1D_pg = groupElem1D.Get_poid_pg(matriceType)
+jacob1D_e_pg = groupElem1D.Get_jacobian_e_pg(matrixType)
+poid1D_pg = groupElem1D.Get_weight_pg(matrixType)
 
 assembly1D_e = groupElem1D.Get_assembly_e(2)
 
@@ -91,7 +91,7 @@ f_exp_loc = f_exp[assembly1D_e]
 Display.Section("Identification")
 
 # Récupération des déformations aux elements
-Eps_exp = simu._Calc_Epsilon_e_pg(u_exp, matriceType)
+Eps_exp = simu._Calc_Epsilon_e_pg(u_exp, matrixType)
 E11_exp = Eps_exp[:,:,0]
 E22_exp = Eps_exp[:,:,1]
 E12_exp = Eps_exp[:,:,2]
@@ -111,7 +111,7 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, pltSol=False):
     simu.set_u_n("displacement", u_n)
 
     # Calcul les déformations associées aux champs virtuels.
-    Eps_e_pg = simu._Calc_Epsilon_e_pg(u_n, matriceType)
+    Eps_e_pg = simu._Calc_Epsilon_e_pg(u_n, matrixType)
     E11_e_pg = Eps_e_pg[:,:,0]
     E22_e_pg = Eps_e_pg[:,:,1]
     E12_e_pg = Eps_e_pg[:,:,2]

@@ -61,7 +61,7 @@ for i in range(nL):
 interfaceGmsh = Interface_Gmsh(False)
 
 inclusion = Geom.Domain(ptd1, ptd2, meshSize, isCreux=True)
-surfaceInclu = interfaceGmsh.Mesh_2D(inclusion).aire
+surfaceInclu = interfaceGmsh.Mesh_2D(inclusion).area
 
 points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
@@ -80,7 +80,7 @@ pointsI = Geom.PointsList([ptI1, ptI2, ptI3, ptI4], meshSize/4)
 
 meshVER = interfaceGmsh.Mesh_2D(pointsI, [Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize/4, isCreux=True)], elemType)
 
-surfaceVer = meshVER.aire
+surfaceVer = meshVER.area
 
 coef = (1 - surfaceInclu/surfaceVer)
 coef = 1
@@ -91,7 +91,7 @@ axVer = Display.Plot_Mesh(meshVER)
 
 # Verification que les elements 1D font tous la même taille
 group1d = meshVER.Get_list_groupElem(1)[0]
-l = np.einsum('ep,p->e', group1d.Get_jacobien_e_pg("rigi"), group1d.Get_gauss("rigi").poids)
+l = np.einsum('ep,p->e', group1d.Get_jacobian_e_pg("rigi"), group1d.Get_gauss("rigi").weights)
 
 n1 = meshVER.Nodes_Point(ptI1)
 n2 = meshVER.Nodes_Point(ptI2)
@@ -218,20 +218,20 @@ u11 = CalcDisplacement(E11)
 u22 = CalcDisplacement(E22)
 u12 = CalcDisplacement(E12)
 
-u11_e = meshVER.Localises_sol_e(u11)
-u22_e = meshVER.Localises_sol_e(u22)
-u12_e = meshVER.Localises_sol_e(u12)
+u11_e = meshVER.Locates_sol_e(u11)
+u22_e = meshVER.Locates_sol_e(u22)
+u12_e = meshVER.Locates_sol_e(u12)
 
 U_e = np.zeros((u11_e.shape[0],u11_e.shape[1], 3))
 
 U_e[:,:,0] = u11_e; U_e[:,:,1] = u22_e; U_e[:,:,2] = u12_e
 
-matriceType = "rigi"
-jacobien_e_pg = meshVER.Get_jacobien_e_pg(matriceType)
-poids_pg = meshVER.Get_poid_pg(matriceType)
-B_e_pg = meshVER.Get_B_dep_e_pg(matriceType)
+matrixType = "rigi"
+jacobien_e_pg = meshVER.Get_jacobian_e_pg(matrixType)
+poids_pg = meshVER.Get_weight_pg(matrixType)
+B_e_pg = meshVER.Get_B_e_pg(matrixType)
 
-C_hom = np.einsum('ep,p,ij,epjk,ekl->il', jacobien_e_pg, poids_pg, CMandel, B_e_pg, U_e, optimize='optimal') * 1/meshVER.aire
+C_hom = np.einsum('ep,p,ij,epjk,ekl->il', jacobien_e_pg, poids_pg, CMandel, B_e_pg, U_e, optimize='optimal') * 1/meshVER.area
 
 C_hom *= coef
 

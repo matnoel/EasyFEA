@@ -102,7 +102,7 @@ for t, elemType in enumerate(elemTypes):
         if mesh.dim == 3:
             volume  = mesh.volume
         else:
-            volume  = mesh.aire * comportement.epaisseur
+            volume  = mesh.area * comportement.epaisseur
 
         assert np.abs(volume - (L*h*b))/volume <= 1e-10
         

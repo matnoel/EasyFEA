@@ -171,9 +171,9 @@ u11 = CalcDisplacement(E11, False)
 u22 = CalcDisplacement(E22, False)
 u12 = CalcDisplacement(E12, True)
 
-u11_e = mesh.Localises_sol_e(u11)
-u22_e = mesh.Localises_sol_e(u22)
-u12_e = mesh.Localises_sol_e(u12)
+u11_e = mesh.Locates_sol_e(u11)
+u22_e = mesh.Locates_sol_e(u22)
+u12_e = mesh.Locates_sol_e(u12)
 
 # --------------------------------------
 # Effective elasticity tensor
@@ -183,14 +183,14 @@ U_e = np.zeros((u11_e.shape[0],u11_e.shape[1], 3))
 
 U_e[:,:,0] = u11_e; U_e[:,:,1] = u22_e; U_e[:,:,2] = u12_e
 
-matriceType = "masse"
-jacobien_e_pg = mesh.Get_jacobien_e_pg(matriceType)
-poids_pg = mesh.Get_poid_pg(matriceType)
-B_e_pg = mesh.Get_B_dep_e_pg(matriceType)
+matrixType = "mass"
+jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+poids_pg = mesh.Get_weight_pg(matrixType)
+B_e_pg = mesh.Get_B_e_pg(matrixType)
 
 C_Mat = Materials.Resize_variable(comp.C, mesh.Ne, poids_pg.size)
 
-C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobien_e_pg, poids_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1/mesh.aire
+C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobien_e_pg, poids_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1/mesh.area
 
 # TODO attention ici il faut utiliser toute l'ai meme si il y'a des trous remarques ZAKARIA
 
