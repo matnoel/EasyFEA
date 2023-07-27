@@ -3,7 +3,7 @@ import numpy as np
 class Gauss:
 
     def __init__(self, elemType: str, matriceType: str):
-        """Construction of integration points
+        """Integration point construction
 
         Parameters
         ----------
