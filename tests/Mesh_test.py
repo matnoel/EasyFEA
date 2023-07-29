@@ -10,7 +10,7 @@ class Test_Mesh(unittest.TestCase):
 
     def test_ConstructionMatrices2D(self):
         from Interface_Gmsh import Interface_Gmsh
-        list_Mesh = Interface_Gmsh.Construction2D()
+        list_Mesh = Interface_Gmsh.Construction_2D()
         for mesh in list_Mesh:
             self.__VerficiationConstructionMatrices(mesh)
 

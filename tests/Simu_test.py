@@ -70,7 +70,7 @@ class Test_Simu(unittest.TestCase):
                 point1 = Point()
                 point2 = Point(x=L)
                 line = Line(point1, point2, L/nL)
-                poutre = Materials.Poutre_Elas_Isot(line, section, E, v)
+                poutre = Materials.Beam_Elas_Isot(line, section, E, v)
                 listePoutre = [poutre]
 
             elif problem in ["Flexion","BiEnca"]:
@@ -80,10 +80,10 @@ class Test_Simu(unittest.TestCase):
                 point3 = Point(x=L)
                 
                 line = Line(point1, point3, L/nL)
-                poutre = Materials.Poutre_Elas_Isot(line, section, E, v)
+                poutre = Materials.Beam_Elas_Isot(line, section, E, v)
                 listePoutre = [poutre]
 
-            mesh = interfaceGmsh.Mesh_Poutres(listPoutres=listePoutre, elemType=elemType)
+            mesh = interfaceGmsh.Mesh_Beams(listPoutres=listePoutre, elemType=elemType)
 
             # Modele poutre
 
@@ -191,8 +191,8 @@ class Test_Simu(unittest.TestCase):
         # Paramètres maillage
         taille = L/2
 
-        listMesh = Interface_Gmsh.Construction2D(L=L, h=h, taille=taille)
-        listMesh.extend(Interface_Gmsh.Construction3D(L=L, h=h, b=b, taille=h/4))
+        listMesh = Interface_Gmsh.Construction_2D(L=L, h=h, taille=taille)
+        listMesh.extend(Interface_Gmsh.Construction_3D(L=L, h=h, b=b, taille=h/4))
 
         # Pour chaque type d'element 2D       
         for mesh in listMesh:           
@@ -230,9 +230,9 @@ class Test_Simu(unittest.TestCase):
 
         a = 1
 
-        listMesh = Interface_Gmsh.Construction2D(L=a, h=a, taille=a/10)
+        listMesh = Interface_Gmsh.Construction_2D(L=a, h=a, taille=a/10)
 
-        listMesh.extend(Interface_Gmsh.Construction3D(L=a, h=a, b=a, taille=a/10, useImport3D=False))
+        listMesh.extend(Interface_Gmsh.Construction_3D(L=a, h=a, b=a, taille=a/10, useImport3D=False))
 
         self.simulationsThermique = []
 

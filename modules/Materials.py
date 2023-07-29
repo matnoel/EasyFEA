@@ -912,7 +912,7 @@ class Elas_Anisot(Displacement_Model):
     def contraintesPlanes(self) -> bool:
         return self.__contraintesPlanes
 
-class Poutre_Elas_Isot():
+class Beam_Elas_Isot():
 
     @property
     def resume(self) -> str:
@@ -956,8 +956,8 @@ class Poutre_Elas_Isot():
         Iyz = section.Iyz 
         assert Iyz <=  1e-12, "La section doit être symétrique"
 
-        Poutre_Elas_Isot.__nbPoutre += 1
-        self.__name = f"Poutre{Poutre_Elas_Isot.__nbPoutre}"
+        Beam_Elas_Isot.__nbPoutre += 1
+        self.__name = f"Poutre{Beam_Elas_Isot.__nbPoutre}"
 
     @property
     def line(self) -> Line:
@@ -1012,7 +1012,7 @@ class Beam_Model(IModel):
         resume += f"\nNombre de Poutre = {self.nbPoutres} :\n"
         # Réalise un résumé pour chaque poutre
         
-        def __resumePoutreElast(resume: str, poutre: Poutre_Elas_Isot, E: float, v: float):
+        def __resumePoutreElast(resume: str, poutre: Beam_Elas_Isot, E: float, v: float):
             resume += poutre.resume
             if isinstance(E, int):
                 resume += f"\n\tE = {E:6}, v = {v}"
@@ -1023,7 +1023,7 @@ class Beam_Model(IModel):
             
         return resume
 
-    def __init__(self, dim: int, listePoutres: list[Poutre_Elas_Isot]):
+    def __init__(self, dim: int, listePoutres: list[Beam_Elas_Isot]):
         """Creation du model poutre
 
         Parameters
@@ -1094,7 +1094,7 @@ class Beam_Model(IModel):
         return self.__dim
     
     @property
-    def listePoutres(self) -> List[Poutre_Elas_Isot]:
+    def listePoutres(self) -> List[Beam_Elas_Isot]:
         """Liste des poutres"""
         return self.__listePoutres
 

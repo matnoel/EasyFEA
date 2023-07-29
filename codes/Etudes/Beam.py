@@ -61,8 +61,8 @@ if problem in ["Traction"]:
     # Poutre 2 partie
     line1 = Line(point1, point2, L/nL)
     line2 = Line(point2, point3, L/nL)
-    poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
-    poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
+    poutre1 = Materials.Beam_Elas_Isot(line1, section, E, v)
+    poutre2 = Materials.Beam_Elas_Isot(line2, section, E, v)
     listePoutre = [poutre1, poutre2]
     
 elif problem in ["Flexion","BiEnca"]:
@@ -80,8 +80,8 @@ elif problem in ["Flexion","BiEnca"]:
     line1 = Line(point1, point2, L/nL)
     line2 = Line(point2, point3, L/nL)
     line = Line(point1, point3)
-    poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
-    poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
+    poutre1 = Materials.Beam_Elas_Isot(line1, section, E, v)
+    poutre2 = Materials.Beam_Elas_Isot(line2, section, E, v)
     listePoutre = [poutre1, poutre2]
 
 elif problem == "Portique":
@@ -93,11 +93,11 @@ elif problem == "Portique":
     # Poutre en 2 partie
     line1 = Line(point1, point2, L/nL)
     line2 = Line(point2, point3, L/nL)
-    poutre1 = Materials.Poutre_Elas_Isot(line1, section, E, v)
-    poutre2 = Materials.Poutre_Elas_Isot(line2, section, E, v)
+    poutre1 = Materials.Beam_Elas_Isot(line1, section, E, v)
+    poutre2 = Materials.Beam_Elas_Isot(line2, section, E, v)
     listePoutre = [poutre1, poutre2]
 
-mesh = interfaceGmsh.Mesh_Poutres(listPoutres=listePoutre, elemType=elemType)
+mesh = interfaceGmsh.Mesh_Beams(listPoutres=listePoutre, elemType=elemType)
 
 Display.Plot_Model(mesh)
 # # Affichage.Plot_Maillage(mesh)

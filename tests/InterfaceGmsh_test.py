@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 class Test_InterfaceGmsh(unittest.TestCase):
 
     def test_Construction2D(self):
-        list_mesh2D = Interface_Gmsh.Construction2D()
+        list_mesh2D = Interface_Gmsh.Construction_2D()
         nbMesh = len(list_mesh2D)
         nrows = 3
         ncols = 10
@@ -35,7 +35,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
         # plt.show()
     
     def test_Construction3D(self):
-        list_mesh3D = Interface_Gmsh.Construction3D()
+        list_mesh3D = Interface_Gmsh.Construction_3D()
         for mesh3D in list_mesh3D:
             ax = Display.Plot_Mesh(mesh3D)
             Display.Plot_Nodes(mesh3D, showId=False, ax=ax, c='black')

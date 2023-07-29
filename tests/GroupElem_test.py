@@ -11,7 +11,7 @@ class Test_GroupElem(unittest.TestCase):
         from Interface_Gmsh import Interface_Gmsh
         from Mesh import Mesh
 
-        list_mesh2D = Interface_Gmsh.Construction2D(L=1, h=1, taille=0.5)
+        list_mesh2D = Interface_Gmsh.Construction_2D(L=1, h=1, taille=0.5)
 
         for mesh in list_mesh2D:
             
