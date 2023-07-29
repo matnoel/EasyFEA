@@ -6,7 +6,7 @@ import PostTraitement
 import Display
 from Geom import *
 import Materials
-from Mesh import Mesh, Calc_projector, Calc_meshSize_n
+from Mesh import Mesh, Calc_projector, Calc_New_meshSize_n
 from Interface_Gmsh import Interface_Gmsh
 import Simulations
 from TicTac import Tic
@@ -258,7 +258,7 @@ def DoSimu(i=0):
     # if plotProj:            
     #     Affichage.Plot_Result(simu, "ux", plotMesh=True)
 
-    meshSize_n = Calc_meshSize_n(simu.mesh, erreur_e, coef)
+    meshSize_n = Calc_New_meshSize_n(simu.mesh, erreur_e, coef)
 
     if plotErreur:
         Display.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)

@@ -213,8 +213,8 @@ class Mesh:
     @property
     def area(self) -> float:
         if self.dim in [0,1]: return
-        aires = [group2D.aera for group2D in self.Get_list_groupElem(2)]
-        return np.sum(aires)
+        areas = [group2D.area for group2D in self.Get_list_groupElem(2)]
+        return np.sum(areas)
 
     @property
     def Ix(self) -> float:
@@ -334,10 +334,10 @@ class Mesh:
         return self.groupElem.Get_B_e_pg(matrixType)
 
     def Get_leftDispPart(self, matrixType: MatrixType) -> np.ndarray:
-        """Renvoie la partie qui construit le terme de gauche de déplacement\n
-        Ku_e = jacobien_e_pg * poid_pg * B_dep_e_pg' * c_e_pg * B_dep_e_pg\n
+        """Left side of local displacement matrices\n
+        Ku_e = jacobian_e_pg * weight_pg * B_e_pg' * c_e_pg * B_e_pg\n
         
-        Renvoie (epij) -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+        Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'.
         """
         return self.groupElem.Get_leftDispPart(matrixType)
     
@@ -373,17 +373,17 @@ class Mesh:
         Parameters
         ----------
         lambdaFunction : LambdaType
-            function that evaluates tests
+            Function using the x, y and z nodes coordinates and returning a boolean value.
 
             examples :
-            \t lambda x, y, z: (x < 40) & (x > 20) & (y<10)
-            \t lambda x, y, z: (x == 40) | (x == 50)
+            \t lambda x, y, z: (x < 40) & (x > 20) & (y<10) \n
+            \t lambda x, y, z: (x == 40) | (x == 50) \n
             \t lambda x, y, z: x >= 0
 
         Returns
         -------
         np.ndarray
-            nodes that meet conditions
+            nodes that meet the specified conditions.
         """
         return self.groupElem.Get_Nodes_Conditions(lambdaFunction)
     
@@ -445,7 +445,7 @@ class Mesh:
         """locates sol on elements"""
         return self.groupElem.Locates_sol_e(sol)
     
-def Calc_meshSize_n(mesh: Mesh, erreur_e: np.ndarray, coef=1/2) -> np.ndarray:
+def Calc_New_meshSize_n(mesh: Mesh, erreur_e: np.ndarray, coef=1/2) -> np.ndarray:
     """Returns the scalar field (at nodes) to be used to refine the mesh.
     
     meshSize = (coef - 1) * err / max(err) + 1

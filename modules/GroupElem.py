@@ -674,7 +674,7 @@ class GroupElem(ABC):
         return self.sysCoord_e[:,:,range(self.dim)]
 
     @property
-    def aera(self) -> float:
+    def area(self) -> float:
         """Area covered by elements"""
         if self.dim == 1: return
         matrixType = MatrixType.rigi
@@ -1104,11 +1104,11 @@ class GroupElem(ABC):
         Parameters
         ----------
         lambdaFunction : LambdaType
-            function that evaluates tests
+            Function using the x, y and z nodes coordinates and returning a boolean value.
 
             examples :
-            \t lambda x, y, z: (x < 40) & (x > 20) & (y<10)
-            \t lambda x, y, z: (x == 40) | (x == 50)
+            \t lambda x, y, z: (x < 40) & (x > 20) & (y<10) \n
+            \t lambda x, y, z: (x == 40) | (x == 50) \n
             \t lambda x, y, z: x >= 0
 
         Returns
