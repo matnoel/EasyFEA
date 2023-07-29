@@ -11,10 +11,10 @@ from scipy import sparse
 
 # Meme si pas utilisé laissé l'acces
 from Mesh import Mesh, MatrixType, ElemType
-from BoundaryConditions import BoundaryCondition, LagrangeCondition
+from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import ModelType, IModel, Displacement_Model, Beam_Model, PhaseField_Model, Thermal_Model, Resize_variable
 from TicTac import Tic
-from SolversInterface import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
+from Interface_Solveurs import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
 import Folder
 
 def Load_Simu(folder: str, verbosity=False):

@@ -6,7 +6,7 @@ import os
 import pickle
 import cv2
 
-from BoundaryConditions import BoundaryCondition
+from BoundaryCondition import BoundaryCondition
 from Mesh import Mesh
 import TicTac
 

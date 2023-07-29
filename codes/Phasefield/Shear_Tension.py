@@ -1,4 +1,4 @@
-from BoundaryConditions import BoundaryCondition
+from BoundaryCondition import BoundaryCondition
 import PostTraitement
 import Folder
 import Display

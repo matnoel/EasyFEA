@@ -3,7 +3,7 @@ from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Materials
 import Simulations
-from BoundaryConditions import BoundaryCondition, LagrangeCondition
+from BoundaryCondition import BoundaryCondition, LagrangeCondition
 
 plt = Display.plt
 

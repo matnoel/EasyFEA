@@ -1,6 +1,6 @@
 from TicTac import Tic
 import Materials
-from BoundaryConditions import BoundaryCondition
+from BoundaryCondition import BoundaryCondition
 from Geom import *
 import Display as Display
 from Interface_Gmsh import Interface_Gmsh
