@@ -450,7 +450,7 @@ for split, regu in zip(splits, regularisations):
     if makeMovie:
         # Affichage.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
         # plt.show()
-        PostTraitement.Make_Movie(folder, "ux", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, facteurDef=1.5)
+        PostTraitement.Make_Movie(folder, "ux", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, factorDef=1.5)
 
     # Tic.getResume()
 

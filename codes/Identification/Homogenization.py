@@ -161,9 +161,9 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
         # Affichage.Plot_Result(simu, "ux", deformation=False)
         # Affichage.Plot_Result(simu, "uy", deformation=False)
 
-        Display.Plot_Result(simu, "Sxx", facteurDef=0.3, deformation=True, nodeValues=True)
-        Display.Plot_Result(simu, "Syy", facteurDef=0.3, deformation=True, nodeValues=True)
-        Display.Plot_Result(simu, "Sxy", facteurDef=0.3, deformation=True, nodeValues=True)
+        Display.Plot_Result(simu, "Sxx", factorDef=0.3, deformation=True, nodeValues=True)
+        Display.Plot_Result(simu, "Syy", factorDef=0.3, deformation=True, nodeValues=True)
+        Display.Plot_Result(simu, "Sxy", factorDef=0.3, deformation=True, nodeValues=True)
 
     return ukl
 

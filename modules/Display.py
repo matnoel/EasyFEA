@@ -14,7 +14,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import Folder
 
-def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
+def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
     """Display a simulation result
 
     Parameters
@@ -136,7 +136,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
 
     # Recover deformed coordinates if simulation permits
     if deformation:        
-        coordoDef, deformation = __GetCoordo(simu, deformation, facteurDef)
+        coordoDef, deformation = __GetCoordo(simu, deformation, factorDef)
     else:
         coordoDef = coordoNonDef.copy()
     
@@ -1020,7 +1020,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         temps = tic.Tac("PostTraitement","Calc Energy", False)
         listTemps.append(temps)
 
-        pourcentageEtTempsRestant = PostTraitement._GetPourcentageEtTemps(listIter, listTemps, i)
+        pourcentageEtTempsRestant = PostTraitement._RemainingTime(listIter, listTemps, i)
 
         print(f"Calc Energy {iteration+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')

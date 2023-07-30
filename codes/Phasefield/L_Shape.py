@@ -227,7 +227,7 @@ Display.Plot_ResumeIter(simu, folderSimu)
 if makeMovie:
     depMax = simu.Get_Resultat("amplitude").max()
     facteur = 10*depMax
-    PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=True, facteurDef=facteur, plotMesh=False)
+    PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=True, factorDef=facteur, plotMesh=False)
 
 if makeParaview:
     PostTraitement.Make_Paraview(folderSimu, simu)

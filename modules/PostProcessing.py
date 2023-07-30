@@ -16,15 +16,14 @@ from datetime import datetime
 # Il est possible de sinspirer de :
 # https://www.python-graph-gallery.com/
 
-
 # =========================================== Load and Displacement ==================================================
 
 def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:str):
-    "Sauvegarde les valeurs de forces [N] et déplacements [m] dans le dossier"
+    "Save the values of load and displacements in the folder"
     
     filename = Folder.Join([folder, "load and displacement.pickle"])
 
-    print(Fore.GREEN + f'\nSauvegarde de :\n  - load and displacement.pickle' + Fore.WHITE)
+    print(Fore.GREEN + f'\nSaving :\n  - load and displacement.pickle' + Fore.WHITE)
 
     values = {
         'load': load,
@@ -38,18 +37,18 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
         pickle.dump(values, file)
     
 def Load_Load_Displacement(folder:str, verbosity=False):
-    """Charge les forces [N] et déplacements [m]
+    """Load forces and displacements
 
     Parameters
     ----------
     folder : str
-        nom du dossier dans lequel les valeurs de forces et de déplacements sont sauvegardées
+        name of the folder in which the force and displacement values are saved
 
     return load, displacement
     """
 
     filename = Folder.Join([folder, "load and displacement.pickle"])
-    assert os.path.exists(filename), Fore.RED + "Le fichier load and displacement.pickle est introuvable" + Fore.WHITE
+    assert os.path.exists(filename), Fore.RED + "Load and displacement.pickle file not found" + Fore.WHITE
 
     with open(filename, 'rb') as file:
         values = pickle.load(file)
@@ -58,7 +57,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     displacement = np.array(values['displacement'])
 
     if verbosity:
-        print(f'\nChargement de :\n {filename}\n')
+        print(f'\nLoading of:\n {filename}\n')
 
     return load, displacement
 
@@ -66,7 +65,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 # =========================================== Animation ==================================================
 
 def Get_ffmpegpath() -> str:
-    """Renvoie le path vers ffmpeg."""
+    """Return the path to ffmpeg."""
 
     paths = ["D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe",
                 "D:\\Pro\\ffmpeg\\bin\\ffmpeg.exe",
@@ -77,21 +76,46 @@ def Get_ffmpegpath() -> str:
         if os.path.exists(p):
             return p
     
-    raise Exception("Dossier inexistant")
+    raise Exception("Folder does not exist")
 
-def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, facteurDef=4, nodeValues=True, fps=30):
+def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, factorDef=4, nodeValues=True, fps=30) -> None:
+    """Make a movie from a simulation
+
+    Parameters
+    ----------
+    folder : str
+        save folder
+    option : str
+        result to display
+    simu : Simulations._Simu
+        simulation
+    Niter : int, optional
+        Maximum number of display iterations, by default 200
+    NiterFin : int, optional
+        Numbre or iterations before the end, by default 100
+    deformation : bool, optional
+        Displays the deformation, by default False
+    plotMesh : bool, optional
+        Plot the mesh, by default False
+    factorDef : int, optional
+        deformation factor, by default 4
+    nodeValues : bool, optional
+        displays result to nodes otherwise displays it to elements, by default True
+    fps : int, optional
+        frames per second, by default 30
+    """
     
     resultat = simu.Get_Resultat(option)
     if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
         return
 
-    # Ajoute le caractère de fin
+    # Add the end character
     if nodeValues:
         name = f'{option}_n'
     else:
         name = f'{option}_e'
     
-    # Nom de la vidéo dans le dossier ou est communiqué le dossier
+    # Name of the video in the folder where the folder is communicated
     filename = Folder.Join([folder, f'{name}.mp4'])
 
     if not os.path.exists(folder):
@@ -105,14 +129,13 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     
     Niter = len(listIter)
 
-    # Met à jour la simulation pour creer la première figure qui sera utilisée pour l'animation
+    # Update the simulation to create the first figure that will be used for the animation
     simu.Update_iter(0)
 
-    # Trace la première figure
-    fig, ax, cb = Display.Plot_Result(simu, option, plotMesh=plotMesh, deformation=deformation, facteurDef=facteurDef, nodeValues=nodeValues)
+    # Display the first figure
+    fig, ax, cb = Display.Plot_Result(simu, option, plotMesh=plotMesh, deformation=deformation, factorDef=factorDef, nodeValues=nodeValues)
     
-    # Donne le lien vers ffmpeg.exe    
-
+    # Give the link to ffmpeg.exe
     ffmpegpath = Get_ffmpegpath()
     matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
     
@@ -125,7 +148,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
 
             cb.remove()
             
-            fig, ax, cb = Display.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=plotMesh, facteurDef=facteurDef, nodeValues=nodeValues)
+            fig, ax, cb = Display.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=plotMesh, factorDef=factorDef, nodeValues=nodeValues)
 
             title1 = ax.get_title()
             ax.set_title(f'{title1} : {iter}/{N-1}')
@@ -137,29 +160,29 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
             tf = tic.Tac("Animation",f"Plot {title1}", False)
             listTemps.append(tf)
 
-            pourcentageEtTempsRestant = _GetPourcentageEtTemps(listIter, listTemps, i)
+            pourcentageEtTempsRestant = _RemainingTime(listIter, listTemps, i)
 
             print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
 
 # ========================================== Paraview =================================================
 
 def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False, nodesResult=[], elementsResult=[]):
-    """Sauvegarde de la simulation sur paraview
+    """Saving the simulation on paraview
 
     Parameters
     ----------
-    folder : str
-        dossier dans lequel on va creer le dossier Paraview
-    simu : Simu
+    folder: str
+        folder in which we will create the Paraview folder
+    simulation : Sim
         Simulation
     Niter : int, optional
-        Nombre d'iteration maximum d'affichage, by default 200
+        Maximum number of display iterations, by default 200
     details: bool, optional
-        details de nodesField et elementsField utilisé dans le .vtu
-    nodesResult: list, optonal
-        nodesField supplémentaire, by default []
-    elementsResult: list, optonal
-        elemsField supplémentaire, by default []
+        details of nodesField and elementsField used in the .vtu
+    nodesResult: list, optional
+        Additional nodesField, by default []
+    elementsResult: list, optional
+        Additional elemsField, by default []
     """
     print('\n')
 
@@ -204,7 +227,7 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
         temps = tic.Tac("Paraview","Make vtu", False)
         listTemps.append(temps)
 
-        pourcentageEtTempsRestant = _GetPourcentageEtTemps(listIter, listTemps, i)
+        pourcentageEtTempsRestant = _RemainingTime(listIter, listTemps, i)
 
         print(f"SaveParaview {iter}/{NiterMax} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')
@@ -217,21 +240,21 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
     tic.Tac("Paraview","Make pvd", False)
 
 def Make_listIter(NiterMax: int, NiterFin: int, NiterCyble: int) -> np.ndarray:
-    """Découpage de la liste ditération 
+    """Cutting the iteration list 
 
     Parameters
     ----------
     NiterMax : int
-        Nombre ditération de la liste
+        Number of list diteration
     NiterFin : int
-        Nombre d'itération à la fin
+        Number of iterations to end
     NiterCyble : int
-        Nombre d'itération maximale selectionnée dans la liste
+        Maximum number of iterations selected in the list
 
     Returns
     -------
     np.ndarray
-        la liste d'itération
+        iteration list
     """
 
     NavantFin = NiterMax-NiterFin
@@ -246,22 +269,22 @@ def Make_listIter(NiterMax: int, NiterFin: int, NiterCyble: int) -> np.ndarray:
 
     return listIter
 
-def _GetPourcentageEtTemps(listIter: list[int], listTemps: list[float], i: int) -> str:
-    """Calul le pourcentage et le temps restant
+def _RemainingTime(listIter: list[int], listTemps: list[float], i: int) -> str:
+    """Calculation of remaining time
 
     Parameters
     ----------
-    listIter : list[int]
-        liste d'itération
-    listTemps : list
-        liste de temps en s
-    i : int
-        iteration dans la boucle
+    listIter : list[int]        
+        iteration list
+    listTime: list
+        list from time to time
+    i: int
+        loop iteration
 
     Returns
     -------
     str
-        string contenant le pourcentage et le temps restant
+        string containing the percentage and the remaining time
     """
     if listIter[-1] == 0:
         return ""
@@ -277,14 +300,14 @@ def _GetPourcentageEtTemps(listIter: list[int], listTemps: list[float], i: int) 
     return pourcentageEtTempsRestant
 
 def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
-    """Creer le .vtu qui peut être lu sur paraview
+    """Create the .vtu which can be read on paraview
     """
 
     options = nodesField+elementsField
    
     simu.Update_iter(iter)
 
-    # Verification si la liste de résultats est compatible avec la simulation
+    # Verification if the results list is compatible with the simulation
     for option in options:
         resultat = simu.Get_Resultat(option)
         if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
@@ -322,7 +345,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
     types = np.ones(Ne, dtype=int)*typeParaviewElement
 
     node = coordo.reshape(-1)
-    """coordonnées des noeuds en lignes"""
+    """coordinates of nodes in lines"""
 
     connectivity = connect.reshape(-1)
 
@@ -344,7 +367,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         file.write('\t<UnstructuredGrid>\n')
         file.write(f'\t\t<Piece NumberOfPoints="{Nn}" NumberOfCells="{Ne}">\n')
 
-        # Valeurs aux noeuds
+        # Values at nodes
         file.write('\t\t\t<PointData scalars="scalar"> \n')
         offset=0
         list_valeurs_n=[]
@@ -360,7 +383,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
 
         file.write('\t\t\t</PointData> \n')
 
-        # Valeurs aux elements
+        # Element values
         file.write('\t\t\t<CellData> \n')
         list_valeurs_e=[]
         for resultat_e in elementsField:
@@ -394,23 +417,23 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         file.write('\t\t</Piece>\n')
         file.write('\t</UnstructuredGrid> \n')
         
-        # Ajout des valeurs
+        # Adding values
         file.write('\t<AppendedData encoding="raw"> \n_')
 
-    # Ajoute toutes les valeurs en binaire
+    # Add all values in binary
     with open(filename, "ab") as file:
 
-        # Valeurs aux noeuds
+        # Nodes values
         for valeurs_n in list_valeurs_n:
             __WriteBinary(const*(valeurs_n.size), "uint32", file)
             __WriteBinary(valeurs_n, "float32", file)
 
-        # Valeurs aux elements
+        # Elements values
         for valeurs_e in list_valeurs_e:                
             __WriteBinary(const*(valeurs_e.size), "uint32", file)
             __WriteBinary(valeurs_e, "float32", file)
 
-        # Noeuds
+        # Nodes
         __WriteBinary(const*(node.size), "uint32", file)
         __WriteBinary(node, "float32", file)
 
@@ -422,16 +445,16 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         __WriteBinary(const*Ne, "uint32", file)
         __WriteBinary(offsets+3, "int32", file)
 
-        # Type d'element
+        # Element tyoes
         __WriteBinary(types.size, "uint32", file)
         __WriteBinary(types, "int8", file)
 
     with open(filename, "a") as file:
 
-        # Fin de l'ajout des données
+        # End of adding data
         file.write('\n\t</AppendedData>\n')
 
-        # Fin du vtk
+        # End of vtk
         file.write('</VTKFile> \n')
     
     path = Folder.Get_Path(filename)
@@ -464,15 +487,10 @@ def __Make_pvd(filename: str, vtuFiles=[]):
     t = tic.Tac("Paraview","Make pvd", False)
 
 def __WriteBinary(valeur, type: str, file):
-        """Convertie en byte
-
-        Args:
-            valeur (_type_): valeur a convertir
-            type (str): type de conversion 'uint32','float32','int32','int8'
-        """            
+        """Convert to Binary"""
 
         if type not in ['uint32','float32','int32','int8']:
-            raise Exception("Type non implémenté")
+            raise Exception("Type not implemented")
 
         if type == "uint32":
             valeur = np.uint32(valeur)

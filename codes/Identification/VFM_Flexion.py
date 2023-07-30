@@ -117,8 +117,8 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, pltSol=False):
     E12_e_pg = Eps_e_pg[:,:,2]
 
     if pltSol:        
-        Display.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, deformation=False, facteurDef=0.01)
-        Display.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, deformation=False, facteurDef=0.01)
+        Display.Plot_Result(simu, "ux", title=r"$u_x^*$", plotMesh=True, deformation=False, factorDef=0.01)
+        Display.Plot_Result(simu, "uy", title=r"$u_y^*$", plotMesh=True, deformation=False, factorDef=0.01)
         Display.Plot_Result(simu, "Exx", title=r"$\epsilon_{xx}^*$", nodeValues=False, plotMesh=True)
         Display.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
         Display.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
