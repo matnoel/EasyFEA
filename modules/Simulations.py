@@ -14,7 +14,7 @@ from Mesh import Mesh, MatrixType, ElemType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 from Materials import ModelType, IModel, _Displacement_Model, Beam_Structure, PhaseField_Model, Thermal_Model, Reshape_variable
 from TicTac import Tic
-from Interface_Solveurs import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
+from Interface_Solvers import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
 import Folder
 
 def Load_Simu(folder: str, verbosity=False):
