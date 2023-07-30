@@ -4,7 +4,7 @@ from Geom import Point, PointsList, Line, Domain, Circle, normalize_vect
 import Materials
 import Simulations
 import Folder
-import PostTraitement
+import PostProcessing
 
 plt = Display.plt
 np = Display.np
@@ -221,18 +221,18 @@ if doSimu:
     displacement = np.array(displacement)
     load = np.array(load)
 
-    PostTraitement.Save_Load_Displacement(load, displacement, folderSimu)
+    PostProcessing.Save_Load_Displacement(load, displacement, folderSimu)
 
     simu.Save(folderSimu)
 
-    PostTraitement.Tic.Plot_History(folderSimu, True)    
+    PostProcessing.Tic.Plot_History(folderSimu, True)    
 
 else:
 
     simu = Simulations.Load_Simu(folderSimu)
     mesh = simu.mesh
 
-load, displacement = PostTraitement.Load_Load_Displacement(folderSimu)
+load, displacement = PostProcessing.Load_Load_Displacement(folderSimu)
 
 # ----------------------------------------------
 # PostTraitement
@@ -253,10 +253,10 @@ Display.Plot_ResumeIter(simu, folderSimu)
 if makeMovie:
     depMax = simu.Get_Resultat("amplitude").max()
     facteur = 10*depMax
-    PostTraitement.Make_Movie(folderSimu, 'damage', simu, deformation=False, factorDef=facteur, plotMesh=False)
+    PostProcessing.Make_Movie(folderSimu, 'damage', simu, deformation=False, factorDef=facteur, plotMesh=False)
 
 if makeParaview:
-    PostTraitement.Make_Paraview(folderSimu, simu)
+    PostProcessing.Make_Paraview(folderSimu, simu)
 
 plt.show()
 

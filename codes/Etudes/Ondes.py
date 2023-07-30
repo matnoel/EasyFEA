@@ -6,7 +6,7 @@ import Materials
 from Geom import Domain, Point, Circle
 from Interface_Gmsh import Interface_Gmsh
 import Display
-import PostTraitement
+import PostProcessing
 import Folder
 import TicTac
 
@@ -96,7 +96,7 @@ while t <= tMax:
 folder = Folder.New_File("Ondes", results=True)
 
 if makeMovie:
-    PostTraitement.Make_Movie(folder, resultat, simu)
+    PostProcessing.Make_Movie(folder, resultat, simu)
 
 # PostTraitement.Save_Simulation_in_Paraview(folder, simu)
 

@@ -11,7 +11,7 @@ from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, Domain, Circle
 import Materials
 import Simulations
-import PostTraitement
+import PostProcessing
 
 Display.Clear()
 
@@ -417,7 +417,7 @@ if doSimulation:
     list_fr = np.array(list_fr)
     list_dep = np.array(list_dep)
 
-    PostTraitement.Save_Load_Displacement(list_fr, list_dep, folder_Save)
+    PostProcessing.Save_Load_Displacement(list_fr, list_dep, folder_Save)
 
     fDamageSimu = list_fr[np.where(damageMax >= 0.95)[0][0]]
     
@@ -432,10 +432,10 @@ if doSimulation:
 Display.Plot_Result(simu, 'damage', folder=folder_Save, colorbarIsClose=True)
 
 if makeParaview:
-    PostTraitement.Make_Paraview(folder_Save, simu)
+    PostProcessing.Make_Paraview(folder_Save, simu)
 
 if makeMovie:
-    PostTraitement.Make_Movie(folder_Save, "damage", simu)
+    PostProcessing.Make_Movie(folder_Save, "damage", simu)
 
 
 

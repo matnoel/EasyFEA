@@ -6,7 +6,7 @@ import Display
 import Materials
 import Simulations
 import Folder
-import PostTraitement
+import PostProcessing
 
 Display.Clear()
 
@@ -212,6 +212,6 @@ elif problem == "Traction":
 
 # Affichage.Plot_ ElementsMaillage(section, showId=True)
 
-PostTraitement.Make_Paraview(folder, simu)
+PostProcessing.Make_Paraview(folder, simu)
 
 plt.show()

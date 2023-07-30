@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import Display
-import PostTraitement
+import PostProcessing
 import Folder
 import Interface_Gmsh
 from Geom import Circle, Domain, Line, Point
@@ -104,10 +104,10 @@ Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True)
 if dim == 3:
     print(f"Volume : {mesh.volume:.3}")
 
-PostTraitement.Make_Paraview(folder, simu)
+PostProcessing.Make_Paraview(folder, simu)
 
 if pltMovie:
-    PostTraitement.Make_Movie(folder, affichageIter, simu, NMovie)
+    PostProcessing.Make_Movie(folder, affichageIter, simu, NMovie)
 
 print(thermal.min())
 

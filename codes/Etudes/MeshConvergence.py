@@ -9,7 +9,7 @@ import Simulations
 import Display as Display
 from TicTac import Tic
 import Folder
-import PostTraitement
+import PostProcessing
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -198,7 +198,7 @@ ax_Temps.legend(elemTypes)
 
 Display.Plot_Result(simu, "Svm", nColors=20)
 
-PostTraitement.Make_Paraview(folder, simu, details=True)
+PostProcessing.Make_Paraview(folder, simu, details=True)
 
 Tic.Resume()
 

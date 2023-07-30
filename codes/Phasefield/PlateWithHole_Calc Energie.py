@@ -7,7 +7,7 @@ import Interface_Gmsh as Interface_Gmsh
 import Simulations
 import Folder
 import pandas as pd
-import PostTraitement as PostTraitement
+import PostProcessing as PostProcessing
 
 import matplotlib.pyplot as plt
 

@@ -2,7 +2,7 @@ import os
 import matplotlib.pyplot as plt
 
 import Folder
-import PostTraitement
+import PostProcessing
 import Display
 from Geom import *
 import Materials
@@ -327,9 +327,9 @@ if plotResult:
 
     tic.Tac("Affichage","Affichage des figures", plotResult)
 
-PostTraitement.Make_Paraview(folder, simu, nodesResult=["ZZ1"])
+PostProcessing.Make_Paraview(folder, simu, nodesResult=["ZZ1"])
 
-PostTraitement.Make_Movie(folder, "ZZ1", simu, plotMesh=True, fps=1, nodeValues=True)
+PostProcessing.Make_Movie(folder, "ZZ1", simu, plotMesh=True, fps=1, nodeValues=True)
 
 Tic.Plot_History(details=True)
 plt.show()

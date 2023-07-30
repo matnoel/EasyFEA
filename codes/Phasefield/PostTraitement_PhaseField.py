@@ -1,6 +1,6 @@
 import pandas as pd
 
-import PostTraitement as PostTraitement
+import PostProcessing as PostProcessing
 import Display as Display
 import Folder
 import numpy as np
@@ -131,7 +131,7 @@ for config in listConfig:
 
     # Charge la force et le déplacement
     try:
-        load, displacement = PostTraitement.Load_Load_Displacement(foldername, False)
+        load, displacement = PostProcessing.Load_Load_Displacement(foldername, False)
 
         if depMax == 0:
             depMax = displacement[-1]

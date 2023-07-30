@@ -13,7 +13,7 @@ from Geom import Point, Domain, Circle
 import Materials
 import Simulations
 from Simulations import BoundaryCondition
-import PostTraitement
+import PostProcessing
 import pickle
 
 # Affichage.Clear()

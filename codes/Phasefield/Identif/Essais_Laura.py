@@ -4,7 +4,7 @@ from Interface_Gmsh import Interface_Gmsh
 import Materials
 import Simulations
 import Folder
-import PostTraitement
+import PostProcessing
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -257,6 +257,6 @@ Display.Plot_Result(simu, "Sxy", plotMesh=False)
 
 simu.Resultats_Resume()
 
-PostTraitement.Make_Paraview(folder, simu)
+PostProcessing.Make_Paraview(folder, simu)
 
 plt.show()

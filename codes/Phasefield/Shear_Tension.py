@@ -1,5 +1,5 @@
 from BoundaryCondition import BoundaryCondition
-import PostTraitement
+import PostProcessing
 import Folder
 import Display
 import Materials
@@ -475,7 +475,7 @@ for split, regu in zip(splits, regularisations):
         # Sauvegarde
         # ----------------------------------------------
         print()
-        PostTraitement.Save_Load_Displacement(forces, deplacements, folder)
+        PostProcessing.Save_Load_Displacement(forces, deplacements, folder)
         simu.Save(folder)        
 
         forces = np.array(forces)
@@ -486,7 +486,7 @@ for split, regu in zip(splits, regularisations):
         # Chargement
         # ---------------------------------------------
         simu = Simulations.Load_Simu(folder)
-        forces, deplacements = PostTraitement.Load_Load_Displacement(folder)
+        forces, deplacements = PostProcessing.Load_Load_Displacement(folder)
 
         
 
@@ -513,13 +513,13 @@ for split, regu in zip(splits, regularisations):
         # ----------------------------------------------
         # Paraview
         # ---------------------------------------------
-        PostTraitement.Make_Paraview(folder, simu, Nparaview)
+        PostProcessing.Make_Paraview(folder, simu, Nparaview)
 
     if makeMovie:
         # ----------------------------------------------
         # Movie
         # ---------------------------------------------
-        PostTraitement.Make_Movie(folder, "damage", simu, deformation=False, NiterFin=0)
+        PostProcessing.Make_Movie(folder, "damage", simu, deformation=False, NiterFin=0)
         # PostTraitement.MakeMovie(folder, "Svm", simu)        
         # PostTraitement.MakeMovie(filename, "Syy", simu, nodeValues=True, deformation=True)
             

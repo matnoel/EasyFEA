@@ -978,7 +978,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
 
     from Simulations import _Simu
     from TicTac import Tic
-    import PostTraitement as PostTraitement 
+    import PostProcessing as PostProcessing 
 
     assert isinstance(simu, _Simu)
 
@@ -1000,7 +1000,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         ecart = np.abs(len(results) - len(load))
         if ecart != 0:
             N -= ecart
-    listIter = PostTraitement.Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
+    listIter = PostProcessing.Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
     
     Niter = len(listIter)
 
@@ -1020,7 +1020,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         temps = tic.Tac("PostTraitement","Calc Energy", False)
         listTemps.append(temps)
 
-        pourcentageEtTempsRestant = PostTraitement._RemainingTime(listIter, listTemps, i)
+        pourcentageEtTempsRestant = PostProcessing._RemainingTime(listIter, listTemps, i)
 
         print(f"Calc Energy {iteration+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
     print('\n')

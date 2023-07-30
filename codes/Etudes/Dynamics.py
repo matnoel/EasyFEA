@@ -2,7 +2,7 @@ import os
 import matplotlib.pyplot as plt
 
 import Folder
-import PostTraitement
+import PostProcessing
 import Display
 from Geom import *
 import Materials
@@ -179,10 +179,10 @@ Display.Plot_BoundaryConditions(simu)
 # folder=""
 
 if saveParaview:
-    PostTraitement.Make_Paraview(folder, simu,Niter=NParaview)
+    PostProcessing.Make_Paraview(folder, simu,Niter=NParaview)
 
 if pltMovie:
-    PostTraitement.Make_Movie(folder, "Svm", simu, plotMesh=True, Niter=NMovie, deformation=True, nodeValues=True)
+    PostProcessing.Make_Movie(folder, "Svm", simu, plotMesh=True, Niter=NMovie, deformation=True, nodeValues=True)
 
 if plotResult:
 

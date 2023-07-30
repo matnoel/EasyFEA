@@ -6,7 +6,7 @@ import Display as Display
 from Interface_Gmsh import Interface_Gmsh
 from Mesh import Mesh, Calc_projector
 import Simulations
-import PostTraitement as PostTraitement
+import PostProcessing as PostProcessing
 import Folder
 
 import matplotlib.pyplot as plt
@@ -415,14 +415,14 @@ for split, regu in zip(splits, regularisations):
         # Sauvegarde
         # ----------------------------------------------
         print()
-        PostTraitement.Save_Load_Displacement(load, displacement, folder)
+        PostProcessing.Save_Load_Displacement(load, displacement, folder)
         simu.Save(folder)
             
     else:
         # ----------------------------------------------
         # Chargement
         # ----------------------------------------------
-        load, displacement = PostTraitement.Load_Load_Displacement(folder)
+        load, displacement = PostProcessing.Load_Load_Displacement(folder)
         simu = Simulations.Load_Simu(folder)
 
     # ----------------------------------------------
@@ -445,12 +445,12 @@ for split, regu in zip(splits, regularisations):
         Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename="damage")
 
     if saveParaview:
-        PostTraitement.Make_Paraview(folder, simu, Niter=NParaview)        
+        PostProcessing.Make_Paraview(folder, simu, Niter=NParaview)        
 
     if makeMovie:
         # Affichage.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
         # plt.show()
-        PostTraitement.Make_Movie(folder, "ux", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, factorDef=1.5)
+        PostProcessing.Make_Movie(folder, "ux", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, factorDef=1.5)
 
     # Tic.getResume()
 

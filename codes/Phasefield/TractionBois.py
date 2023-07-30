@@ -2,7 +2,7 @@ import Interface_Gmsh
 import Simulations
 import Materials
 import Display
-import PostTraitement
+import PostProcessing
 from Geom import np, Point, Domain, Circle, PointsList, Line
 import Folder
 
@@ -208,4 +208,4 @@ for iter, force in enumerate(np.linspace(0, 35, nf)):
     if np.max(simu.damage[noeudsBord]) >= 0.95:
         break
 
-PostTraitement.Make_Paraview(folder, simu)
+PostProcessing.Make_Paraview(folder, simu)
