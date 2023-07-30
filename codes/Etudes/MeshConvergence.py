@@ -34,7 +34,7 @@ P = 800 #N
 # Paramètres maillage
 E=210000
 v=0.25
-comportement = Materials.Elas_Isot(dim, epaisseur=b, E=E, v=v, contraintesPlanes=True)
+comportement = Materials.Elas_Isot(dim, thickness=b, E=E, v=v, planeStress=True)
 
 WdefRef = 2*P**2*L/E/h/b * (L**2/h/b + (1+v)*3/5)
 
@@ -102,7 +102,7 @@ for t, elemType in enumerate(elemTypes):
         if mesh.dim == 3:
             volume  = mesh.volume
         else:
-            volume  = mesh.area * comportement.epaisseur
+            volume  = mesh.area * comportement.thickness
 
         assert np.abs(volume - (L*h*b))/volume <= 1e-10
         

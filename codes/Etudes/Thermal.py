@@ -32,7 +32,7 @@ if dim == 2:
 else:
     mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,a], 4, "PRISM6")
 
-thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=1)
+thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, thickness=1)
 
 simu = Simulations.Simu_Thermal(mesh, thermalModel, False)
 simu.rho = 1

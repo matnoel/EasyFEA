@@ -479,7 +479,7 @@ class GroupElem(ABC):
                 B_e_pg[:,:,5,colonnes0] = dNdy; B_e_pg[:,:,5,colonnes1] = dNdx
 
             import Materials
-            B_e_pg = Materials.Displacement_Model.AppliqueCoefSurBrigi(dim, B_e_pg)
+            B_e_pg = Materials._Displacement_Model.KelvinMandel_B_e_pg(dim, B_e_pg)
 
             self.__dict_B_e_pg[matrixType] = B_e_pg
         

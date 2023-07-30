@@ -145,7 +145,7 @@ for p in range(2):
 # ----------------------------------------------
 
 # comportement élastique de la poutre
-compInclusions = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=b)
+compInclusions = Materials.Elas_Isot(2, E=E, v=v, planeStress=True, thickness=b)
 CMandel = compInclusions.C
 
 comp = Materials.Elas_Anisot(2, CMandel, np.array([1,0,0]), useVoigtNotation=False)
@@ -241,7 +241,7 @@ C_hom *= coef
 # Comparaison
 # ----------------------------------------------
 
-def Simulation(simu: Simulations.Simu, title=""):
+def Simulation(simu: Simulations._Simu, title=""):
 
     simu.Bc_Init()
 

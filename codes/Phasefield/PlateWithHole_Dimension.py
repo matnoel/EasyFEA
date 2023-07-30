@@ -85,7 +85,7 @@ for cc in list_cc:
     nodeA = mesh.Nodes_Point(Point(x=L/2, y=H-h+diam/2))
     nodeB = mesh.Nodes_Point(Point(x=L/2+diam/2, y=H-h))
 
-    comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+    comportement = Materials.Elas_Isot(2, E=E, v=v, planeStress=True, thickness=ep)
     phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
 
     simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)

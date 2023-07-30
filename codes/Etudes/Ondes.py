@@ -47,7 +47,7 @@ if plotModel:
 noeudsBord = mesh.Nodes_Tags(["L0","L1","L2","L3"])
 noeudCentreCercle = mesh.Nodes_Tags(["P8"])
 
-comportement = Materials.Elas_Isot(2, E=210000e6, v=0.3, contraintesPlanes=False, epaisseur=1)
+comportement = Materials.Elas_Isot(2, E=210000e6, v=0.3, planeStress=False, thickness=1)
 
 l = comportement.get_lambda()
 mu = comportement.get_mu()

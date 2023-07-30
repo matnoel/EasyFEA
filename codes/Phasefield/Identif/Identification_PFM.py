@@ -460,7 +460,7 @@ for idxEssai in range(0,18):
         deplacementsIdentif = []
         forcesIdentif = []
         ddlsY = BoundaryCondition.Get_dofs_nodes(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
-        for iter in range(len(simu._results)):
+        for iter in range(len(simu.results)):
 
             simu.Update_iter(iter)
 

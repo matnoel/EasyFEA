@@ -44,7 +44,7 @@ makeMovie = False; NMovie = 200
 # ----------------------------------------------
 comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 
-svType = Materials.PhaseField_Model.SolveurType
+svType = Materials.PhaseField_Model.SolverType
 solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
 
 # ----------------------------------------------
@@ -185,7 +185,7 @@ for split, regu in zip(splits, regularisations):
     if comp == "Elas_Isot":
         E = 12e9
         v = 0.3
-        comportement = Materials.Elas_Isot(dim, E=E, v=v, contraintesPlanes=isCp, epaisseur=ep)
+        comportement = Materials.Elas_Isot(dim, E=E, v=v, planeStress=isCp, thickness=ep)
 
     elif comp == "Elas_IsotTrans":
         # El = 11580*1e6        
@@ -195,7 +195,7 @@ for split, regu in zip(splits, regularisations):
         vl = 0.02
         vt = 0.44
         v = 0
-        comportement = Materials.Elas_IsotTrans(dim, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=isCp, epaisseur=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+        comportement = Materials.Elas_IsotTrans(dim, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, planeStress=isCp, thickness=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
     # Nom du dossier
     nomDossier = "PlateWithHole_" + problem
@@ -247,7 +247,7 @@ for split, regu in zip(splits, regularisations):
         else:
             isCp = False       
 
-        phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0, solveur=solveur)
+        phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0, solver=solveur)
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 

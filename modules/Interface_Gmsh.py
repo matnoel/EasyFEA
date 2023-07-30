@@ -11,7 +11,7 @@ from GroupElem import GroupElem, ElemType, MatrixType, GroupElem_Factory
 from Mesh import Mesh
 from TicTac import Tic
 import Display as Display
-from Materials import Beam_Elas_Isot
+from Materials import _Beam_Model
 
 class Interface_Gmsh:
 
@@ -721,12 +721,12 @@ class Interface_Gmsh:
 
         return crackLines, crackSurfaces, openPoints, openLines
 
-    def Mesh_Beams(self, listPoutres: list[Beam_Elas_Isot], elemType=ElemType.SEG2, folder=""):
+    def Mesh_Beams(self, beamList: list[_Beam_Model], elemType=ElemType.SEG2, folder=""):
         """Construction of a segment mesh
 
         Parameters
         ----------
-        listBeam : list[Beam]
+        listBeam : list[Beam_Model]
             list of Beams
         elemType : str, optional
             element type, by default "SEG2" ["SEG2", "SEG3", "SEG4"]
@@ -749,9 +749,9 @@ class Interface_Gmsh:
         listPoints = [] 
         listeLines = []
 
-        for poutre in listPoutres:
+        for beam in beamList:
 
-            line = poutre.line
+            line = beam.line
             
             pt1 = line.pt1; x1 = pt1.x; y1 = pt1.y; z1 = pt1.z
             pt2 = line.pt2; x2 = pt2.x; y2 = pt2.y; z2 = pt2.z
@@ -773,13 +773,13 @@ class Interface_Gmsh:
 
         mesh = self.__Construct_Mesh()
 
-        def FuncAddTags(poutre: Beam_Elas_Isot):
-            nodes = mesh.Nodes_Line(poutre.line)
+        def FuncAddTags(beam: _Beam_Model):
+            nodes = mesh.Nodes_Line(beam.line)
             for grp in mesh.Get_list_groupElem():
-                grp.Set_Nodes_Tag(nodes, poutre.name)
-                grp.Set_Elements_Tag(nodes, poutre.name)
+                grp.Set_Nodes_Tag(nodes, beam.name)
+                grp.Set_Elements_Tag(nodes, beam.name)
 
-        [FuncAddTags(poutre) for poutre in listPoutres]
+        [FuncAddTags(poutre) for poutre in beamList]
 
         return mesh
 

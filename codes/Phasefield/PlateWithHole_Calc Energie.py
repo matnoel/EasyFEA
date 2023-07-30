@@ -100,7 +100,7 @@ for v in list_V:
         'v': v
     }
     for isCP in [False,True]:
-        comportement = Materials.Elas_Isot(2, E=E, v=v, contraintesPlanes=isCP, epaisseur=ep)
+        comportement = Materials.Elas_Isot(2, E=E, v=v, planeStress=isCP, thickness=ep)
         phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)

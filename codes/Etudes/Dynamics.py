@@ -95,7 +95,7 @@ noeuds_en_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2) # noeuds_en_h= mesh.
 # Comportement et Simu
 # ----------------------------------------------
 
-comportement = Materials.Elas_Isot(dim, epaisseur=b)
+comportement = Materials.Elas_Isot(dim, thickness=b)
 simu = Simulations.Simu_Displacement(mesh, comportement, useNumba=True, verbosity=False)
 simu.rho = 8100*1e-9
 simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)

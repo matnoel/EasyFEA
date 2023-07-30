@@ -447,7 +447,7 @@ class Section:
         return hauteur
     
     @property
-    def aire(self) -> float:
+    def area(self) -> float:
         """Section area"""
         return self.__mesh.area
 

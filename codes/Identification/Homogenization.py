@@ -87,7 +87,7 @@ v[elementsMatrice] = 0.45
 # E[:] = 50
 # v[:] = 0.3
 
-comp = Materials.Elas_Isot(2, E, v, contraintesPlanes=False)
+comp = Materials.Elas_Isot(2, E, v, planeStress=False)
 
 simu = Simulations.Simu_Displacement(mesh, comp, useNumba=True)
 
@@ -188,7 +188,7 @@ jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
 poids_pg = mesh.Get_weight_pg(matrixType)
 B_e_pg = mesh.Get_B_e_pg(matrixType)
 
-C_Mat = Materials.Resize_variable(comp.C, mesh.Ne, poids_pg.size)
+C_Mat = Materials.Reshape_variable(comp.C, mesh.Ne, poids_pg.size)
 
 C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobien_e_pg, poids_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1/mesh.area
 

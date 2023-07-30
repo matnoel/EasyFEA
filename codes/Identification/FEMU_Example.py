@@ -92,7 +92,7 @@ bSup = np.inf
 
 if mat == "acier":
     E_exp, v_exp = 210000, 0.3
-    comp = Materials.Elas_Isot(2, epaisseur=b)
+    comp = Materials.Elas_Isot(2, thickness=b)
 
     dict_param = {
         "E" : E_exp,
@@ -104,7 +104,7 @@ if mat == "acier":
     E0, v0 = Emax, vmax
     x0 = [E0, v0]
     
-    compIdentif = Materials.Elas_Isot(2, E0, v0, epaisseur=b)
+    compIdentif = Materials.Elas_Isot(2, E0, v0, thickness=b)
     bounds=([tol0]*2, [bSup, vmax])
 
 elif mat == "bois":
@@ -128,10 +128,10 @@ elif mat == "bois":
     x0 = [EL0, GL0, ET0, vL0]
 
     comp = Materials.Elas_IsotTrans(2, El=EL_exp, Et=ET_exp, Gl=GL_exp, vl=vL_exp, vt=0.3,
-    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), contraintesPlanes=True, epaisseur=b)
+    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), planeStress=True, thickness=b)
 
     compIdentif = Materials.Elas_IsotTrans(2, El=EL0, Et=ET0, Gl=GL0, vl=vL0, vt=0.3,
-    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), contraintesPlanes=True, epaisseur=b)
+    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), planeStress=True, thickness=b)
 
 # ----------------------------------------------
 # Simulation et chargement

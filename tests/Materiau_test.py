@@ -1,7 +1,7 @@
 # %%
 import unittest
 import os
-from Materials import Elas_Anisot, Elas_IsotTrans, PhaseField_Model, Displacement_Model, Elas_Isot
+from Materials import Elas_Anisot, Elas_IsotTrans, PhaseField_Model, _Displacement_Model, Elas_Isot
 import numpy as np
 
 class Test_Materiau(unittest.TestCase):
@@ -12,13 +12,13 @@ class Test_Materiau(unittest.TestCase):
         v = 0.3
         self.comportements2D = []
         self.comportements3D = []
-        for comp in Displacement_Model.get_LoisDeComportement():
+        for comp in _Displacement_Model.get_behaviorLaws():
             if comp == Elas_Isot:
                 self.comportements2D.append(
-                    Elas_Isot(2, E=E, v=v, contraintesPlanes=True)
+                    Elas_Isot(2, E=E, v=v, planeStress=True)
                     )
                 self.comportements2D.append(
-                    Elas_Isot(2, E=E, v=v, contraintesPlanes=False)
+                    Elas_Isot(2, E=E, v=v, planeStress=False)
                     )
                 self.comportements3D.append(
                     Elas_Isot(3, E=E, v=v)
@@ -31,10 +31,10 @@ class Test_Materiau(unittest.TestCase):
                     Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,axis_l=[0,1,0], axis_t=[1,0,0])
                     )
                 self.comportements2D.append(
-                    Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, contraintesPlanes=True)
+                    Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=True)
                     )
                 self.comportements2D.append(
-                    Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, contraintesPlanes=False))
+                    Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=False))
 
             elif comp == Elas_Anisot:
                 C_voigt2D = np.array([  [60, 20, 0],
@@ -47,17 +47,17 @@ class Test_Materiau(unittest.TestCase):
                 axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
 
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, contraintesPlanes=True)
+                    Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, planeStress=True)
                     )
 
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, contraintesPlanes=False)
+                    Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, planeStress=False)
                 )
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, contraintesPlanes=True)
+                    Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, planeStress=True)
                     )
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, contraintesPlanes=False)
+                    Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, planeStress=False)
                     )
         
         # phasefieldModel
@@ -84,12 +84,12 @@ class Test_Materiau(unittest.TestCase):
     def test_LoiComportementBienCree(self):
 
         for comp in self.comportements3D:
-            self.assertIsInstance(comp, Displacement_Model)
+            self.assertIsInstance(comp, _Displacement_Model)
             if isinstance(comp, Elas_Isot):
                 E = comp.E
                 v = comp.v
                 if comp.dim == 2:
-                    if comp.contraintesPlanes:
+                    if comp.planeStress:
                         C_voigt = E/(1-v**2) * np.array([   [1, v, 0],
                                                             [v, 1, 0],
                                                             [0, 0, (1-v)/2]])
@@ -105,7 +105,7 @@ class Test_Materiau(unittest.TestCase):
                                                                 [0, 0, 0, 0, (1-2*v)/2, 0],
                                                                 [0, 0, 0, 0, 0, (1-2*v)/2]  ])
                 
-                c = Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(comp.dim, C_voigt)
+                c = _Displacement_Model.KelvinMandel_Matrix(comp.dim, C_voigt)
                     
                 verifC = np.linalg.norm(c-comp.C)/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
@@ -129,11 +129,11 @@ class Test_Materiau(unittest.TestCase):
         tetha = 30*np.pi/130
         axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
 
-        comportement2D_CP_1 = Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, contraintesPlanes=True)
-        comportement2D_DP_1 = Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, contraintesPlanes=False)
+        comportement2D_CP_1 = Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, planeStress=True)
+        comportement2D_DP_1 = Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, planeStress=False)
         
-        comportement2D_CP_2 = Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, contraintesPlanes=True)
-        comportement2D_DP_2 = Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, contraintesPlanes=False)
+        comportement2D_CP_2 = Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, planeStress=True)
+        comportement2D_DP_2 = Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, planeStress=False)
         
         comportement3D_1 = Elas_Anisot(3, C_voigt3D, axis1=axis1_1, axis2=None)
         comportement3D_2 = Elas_Anisot(3, C_voigt3D, axis1=axis1_2, axis2=None)
@@ -164,7 +164,7 @@ class Test_Materiau(unittest.TestCase):
         # Verif1 axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
         compElasIsotTrans1 = Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
-                    contraintesPlanes=False,
+                    planeStress=False,
                     axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]))
 
         Gt = compElasIsotTrans1.Gt
@@ -180,7 +180,7 @@ class Test_Materiau(unittest.TestCase):
         # Verif2 axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
         compElasIsotTrans2 = Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
-                    contraintesPlanes=False,
+                    planeStress=False,
                     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
         c2 = np.array([[kt+Gt, 2*kt*vl, 0],
@@ -193,7 +193,7 @@ class Test_Materiau(unittest.TestCase):
         # Verif3 axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
         compElasIsotTrans3 = Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
-                    contraintesPlanes=False,
+                    planeStress=False,
                     axis_l=np.array([0,0,1]), axis_t=np.array([1,0,0]))
 
         c3 = np.array([[kt+Gt, kt-Gt, 0],
@@ -232,12 +232,12 @@ class Test_Materiau(unittest.TestCase):
             
             assert isinstance(pfm, PhaseField_Model)
 
-            comportement = pfm.comportement
+            comportement = pfm.material
             
-            if isinstance(comportement, Displacement_Model):
+            if isinstance(comportement, _Displacement_Model):
                 c = comportement.C
             
-            print(f"{comportement.nom} {comportement.simplification} {pfm.split} {pfm.regularization}")
+            print(f"{type(comportement).__name__} {comportement.simplification} {pfm.split} {pfm.regularization}")
 
             if comportement.dim == 2:
                 Epsilon_e_pg = Epsilon2D_e_pg

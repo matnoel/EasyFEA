@@ -24,8 +24,7 @@ class Test_Simu(unittest.TestCase):
 
         def PlotAndDelete():
             plt.pause(1e-12)
-            plt.close('all')
-            
+            plt.close('all')            
 
         for problem, elemType, beamDim in listConfig:
             
@@ -60,7 +59,7 @@ class Test_Simu(unittest.TestCase):
 
             section = Section(interfaceGmsh.Mesh_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
-            self.assertTrue((section.aire - b*h) <= 1e-12)
+            self.assertTrue((section.area - b*h) <= 1e-12)
             self.assertTrue((section.Iz - ((b*h**3)/12)) <= 1e-12)
 
             # MAILLAGE
@@ -70,7 +69,7 @@ class Test_Simu(unittest.TestCase):
                 point1 = Point()
                 point2 = Point(x=L)
                 line = Line(point1, point2, L/nL)
-                poutre = Materials.Beam_Elas_Isot(line, section, E, v)
+                poutre = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
                 listePoutre = [poutre]
 
             elif problem in ["Flexion","BiEnca"]:
@@ -80,30 +79,30 @@ class Test_Simu(unittest.TestCase):
                 point3 = Point(x=L)
                 
                 line = Line(point1, point3, L/nL)
-                poutre = Materials.Beam_Elas_Isot(line, section, E, v)
+                poutre = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
                 listePoutre = [poutre]
 
-            mesh = interfaceGmsh.Mesh_Beams(listPoutres=listePoutre, elemType=elemType)
+            mesh = interfaceGmsh.Mesh_Beams(beamList=listePoutre, elemType=elemType)
 
             # Modele poutre
 
-            beamModel = Materials.Beam_Model(dim=beamDim, listePoutres=listePoutre)
+            beamStruct = Materials.Beam_Structure(listePoutre)
 
             # Simulation
 
-            simu = Simulations.Simu_Beam(mesh, beamModel, verbosity=False)
+            simu = Simulations.Simu_Beam(mesh, beamStruct, verbosity=False)
 
             # Conditions
 
-            if beamModel.dim == 1:
+            if beamStruct.dim == 1:
                 simu.add_dirichlet(mesh.Nodes_Point(point1),[0],["x"])
                 if problem == "BiEnca":
                     simu.add_dirichlet(mesh.Nodes_Point(point3),[0],["x"])
-            elif beamModel.dim == 2:
+            elif beamStruct.dim == 2:
                 simu.add_dirichlet(mesh.Nodes_Point(point1),[0,0,0],["x","y","rz"])
                 if problem == "BiEnca":
                     simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0],["x","y","rz"])
-            elif beamModel.dim == 3:
+            elif beamStruct.dim == 3:
                 simu.add_dirichlet(mesh.Nodes_Point(point1),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
                 if problem == "BiEnca":
                     simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
@@ -125,7 +124,7 @@ class Test_Simu(unittest.TestCase):
             PlotAndDelete()
             Display.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
             PlotAndDelete()
-            if beamModel.dim > 1:
+            if beamStruct.dim > 1:
                 Display.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
                 PlotAndDelete()
                 Display.Plot_Mesh(simu, deformation=True, facteurDef=10)
@@ -133,7 +132,7 @@ class Test_Simu(unittest.TestCase):
 
         
             u = simu.Get_Resultat("ux", nodeValues=True)
-            if beamModel.dim > 1:
+            if beamStruct.dim > 1:
                 v = simu.Get_Resultat("uy", nodeValues=True)
                 rz = simu.Get_Resultat("rz", nodeValues=True)
 
@@ -156,7 +155,6 @@ class Test_Simu(unittest.TestCase):
                 rotalytique = -charge*L**2/(2*E*section.Iz)
                 self.assertTrue((np.abs(rotalytique + rz.min())/rotalytique) <= erreurMaxAnalytique)
 
-
                 fig, ax = plt.subplots()
                 ax.plot(listX, rz_x, label='Analytique', c='blue')
                 ax.scatter(mesh.coordo[:,0], rz, label='EF', c='red', marker='x', zorder=2)
@@ -164,7 +162,7 @@ class Test_Simu(unittest.TestCase):
                 ax.legend()
                 PlotAndDelete()
             elif problem == "Traction":
-                u_x = (charge*listX/(E*(section.aire))) + (ro*g*listX/2/E*(2*L-listX))
+                u_x = (charge*listX/(E*(section.area))) + (ro*g*listX/2/E*(2*L-listX))
 
                 self.assertTrue((np.abs(u_x[-1] - u.max())/u_x[-1]) <= erreurMaxAnalytique)
 
@@ -201,7 +199,7 @@ class Test_Simu(unittest.TestCase):
 
             dim = mesh.dim
 
-            comportement = Materials.Elas_Isot(dim, epaisseur=b)
+            comportement = Materials.Elas_Isot(dim, thickness=b)
             
             simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 
@@ -242,7 +240,7 @@ class Test_Simu(unittest.TestCase):
 
             dim = mesh.dim
 
-            thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, epaisseur=a)
+            thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, thickness=a)
 
             simu = Simulations.Simu_Thermal(mesh , thermalModel, False)            
 

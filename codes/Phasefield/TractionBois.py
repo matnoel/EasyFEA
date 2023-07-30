@@ -117,7 +117,7 @@ Gl=450
 vl=0.02
 vt=0.44
 v=0
-comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, contraintesPlanes=True, epaisseur=12.5, axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]))
+comportement = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, planeStress=True, thickness=12.5, axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]))
 
 splits = Materials.PhaseField_Model.SplitType
 reg = Materials.PhaseField_Model.RegularizationType

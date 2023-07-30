@@ -36,7 +36,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
     folder : str, optional
         save folder, by default ""
     filename : str, optional
-        name of backup file, by default "" title: str, optional
+        filename, by default "" title: str, optional
     title: str, optional
         figure title, by default ""
     ax: axis, optional
@@ -55,10 +55,10 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         fig, ax, cb
     """
 
-    from Simulations import Simu, Mesh, MatrixType
+    from Simulations import _Simu, Mesh, MatrixType
 
     # here we detect the nature of the object
-    if isinstance(obj, Simu):
+    if isinstance(obj, _Simu):
         simu = obj
         mesh = simu.mesh        
 
@@ -124,7 +124,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
         valeurs = option*coef
         
         if sizeVecteur == mesh.Ne and nodeValues:
-            valeurs = Simu.Results_NodeInterpolation(mesh, valeurs)
+            valeurs = _Simu.Results_NodeInterpolation(mesh, valeurs)
         elif sizeVecteur == mesh.Nn and not nodeValues:
             valeursLoc_e = mesh.Locates_sol_e(valeurs)
             valeurs = np.mean(valeursLoc_e, 1)
@@ -200,12 +200,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, facteurDef=4, co
 
         # scale the axis
         ax.autoscale()
-        ax.axis('equal')
-        # epX = np.abs(coordoDef[:,0].max() - coordoDef[:,0].min())
-        # epY = np.abs(coordoDef[:,1].max() - coordoDef[:,1].min())
-        # if (epX > 0 and epY > 0):
-        #     if np.abs(epX-epY)/epX > 0.2:
-        #         ax.axis('equal')
+        if mesh.dim != 1: ax.axis('equal')
 
         # procedure for trying to retrieve the colorbar from the axis
         divider = make_axes_locatable(ax)
@@ -363,9 +358,9 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     plt.Axes
     """
 
-    from Simulations import Simu, Mesh
+    from Simulations import _Simu, Mesh
 
-    if isinstance(obj, Simu):
+    if isinstance(obj, _Simu):
         simu = obj
         mesh = simu.mesh
         use3DBeamModel = simu._use3DBeamModel
@@ -497,7 +492,7 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
         ax.set_zlabel(r"$z$")
     
     if title == "":
-        title = f"{mesh.elemType} : Ne = {mesh.Ne} et Nn = {mesh.Nn}"
+        title = f"{mesh.elemType} : Ne = {mesh.Ne}, Nn = {mesh.Nn}"
 
     ax.set_title(title)
 
@@ -654,9 +649,9 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
     plt.Axes
     """
 
-    from Simulations import Simu
+    from Simulations import _Simu
 
-    simu = cast(Simu, simu)
+    simu = cast(_Simu, simu)
 
     dim = simu.dim
 
@@ -754,13 +749,13 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1.0) -> plt.Axes:
     plt.Axes
     """
 
-    from Simulations import Simu
+    from Simulations import _Simu
     from Mesh import Mesh, GroupElem
 
     typeobj = type(obj).__name__
 
-    if typeobj == Simu.__name__:
-        simu = cast(Simu, obj)
+    if typeobj == _Simu.__name__:
+        simu = cast(_Simu, obj)
         mesh = simu.mesh
     elif typeobj == Mesh.__name__:
         mesh = cast(Mesh, obj)
@@ -981,11 +976,11 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         save folder, by default ""
     """
 
-    from Simulations import Simu
+    from Simulations import _Simu
     from TicTac import Tic
     import PostTraitement as PostTraitement 
 
-    assert isinstance(simu, Simu)
+    assert isinstance(simu, _Simu)
 
     # First we check whether the simulation can calculate energies
     if len(simu.Resultats_Get_dict_Energie())== 0:
@@ -999,7 +994,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     tic = Tic()
     
     # recovers simulation results
-    results =  simu._results
+    results =  simu.results
     N = len(results)
     if len(load) > 0:
         ecart = np.abs(len(results) - len(load))
@@ -1096,9 +1091,9 @@ def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None) -> None:
         upper bound, by default None
     """
 
-    from Simulations import Simu
+    from Simulations import _Simu
 
-    assert isinstance(simu, Simu)
+    assert isinstance(simu, _Simu)
 
     # Recovers simulation results
     iterations, list_label_values = simu.Resultats_Get_ResumeIter_values()
@@ -1157,9 +1152,9 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float) -> np.ndarray:
     np.ndarray
     """
     
-    from Simulations import Simu
+    from Simulations import _Simu
 
-    simu = cast(Simu, simu)
+    simu = cast(_Simu, simu)
 
     coordo = simu.mesh.coordoGlob
 

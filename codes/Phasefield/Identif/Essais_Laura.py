@@ -66,8 +66,7 @@ else:
     mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-ep], 3, "HEXA8", refineGeom=refineGeom)
     directions = ['x','y','z']
 
-
-mesh.Resume()
+print(mesh)
 
 # ----------------------------------------------
 # Materials

@@ -14,6 +14,8 @@ folder = Folder.New_File("Beam", results=True)
 
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
 
+# problem = "Flexion"
+# problem = "BiEnca"
 problem = "Portique"
 
 elemType = "SEG4"
@@ -61,9 +63,9 @@ if problem in ["Traction"]:
     # Poutre 2 partie
     line1 = Line(point1, point2, L/nL)
     line2 = Line(point2, point3, L/nL)
-    poutre1 = Materials.Beam_Elas_Isot(line1, section, E, v)
-    poutre2 = Materials.Beam_Elas_Isot(line2, section, E, v)
-    listePoutre = [poutre1, poutre2]
+    poutre1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
+    poutre2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
+    liste_Poutre = [poutre1, poutre2]
     
 elif problem in ["Flexion","BiEnca"]:
 
@@ -80,9 +82,9 @@ elif problem in ["Flexion","BiEnca"]:
     line1 = Line(point1, point2, L/nL)
     line2 = Line(point2, point3, L/nL)
     line = Line(point1, point3)
-    poutre1 = Materials.Beam_Elas_Isot(line1, section, E, v)
-    poutre2 = Materials.Beam_Elas_Isot(line2, section, E, v)
-    listePoutre = [poutre1, poutre2]
+    poutre1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
+    poutre2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
+    liste_Poutre = [poutre1, poutre2]
 
 elif problem == "Portique":
 
@@ -93,35 +95,35 @@ elif problem == "Portique":
     # Poutre en 2 partie
     line1 = Line(point1, point2, L/nL)
     line2 = Line(point2, point3, L/nL)
-    poutre1 = Materials.Beam_Elas_Isot(line1, section, E, v)
-    poutre2 = Materials.Beam_Elas_Isot(line2, section, E, v)
-    listePoutre = [poutre1, poutre2]
+    poutre1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
+    poutre2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
+    liste_Poutre = [poutre1, poutre2]
 
-mesh = interfaceGmsh.Mesh_Beams(listPoutres=listePoutre, elemType=elemType)
+mesh = interfaceGmsh.Mesh_Beams(beamList=liste_Poutre, elemType=elemType)
 
 Display.Plot_Model(mesh)
 # # Affichage.Plot_Maillage(mesh)
 # plt.show()
 
-beamModel = Materials.Beam_Model(dim=beamDim, listePoutres=listePoutre)
+beamStructure = Materials.Beam_Structure(liste_Poutre)
 
-simu = Simulations.Simu_Beam(mesh, beamModel, verbosity=True)
+simu = Simulations.Simu_Beam(mesh, beamStructure, verbosity=True)
 
-if beamModel.dim == 1:
+if beamStructure.dim == 1:
     simu.add_dirichlet(mesh.Nodes_Point(point1),[0],["x"])
     if problem == "BiEnca":
         simu.add_dirichlet(mesh.Nodes_Point(point3),[0],["x"])
-elif beamModel.dim == 2:
+elif beamStructure.dim == 2:
     simu.add_dirichlet(mesh.Nodes_Point(point1),[0,0,0],["x","y","rz"])
     if problem == "BiEnca":
         simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0],["x","y","rz"])
-elif beamModel.dim == 3:
+elif beamStructure.dim == 3:
     simu.add_dirichlet(mesh.Nodes_Point(point1),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
     if problem == "BiEnca":
         simu.add_dirichlet(mesh.Nodes_Point(point3),[0,0,0,0,0,0],["x","y","z","rx","ry","rz"])
 
 
-if beamModel.nbPoutres > 1:
+if beamStructure.nBeam > 1:
     # verfie si il ya pas une poutre libre ?
     simu.add_liaison_Encastrement(mesh.Nodes_Point(point2))
     # simu.add_dirichlet("beam",mesh.Nodes_Point(point2), [0],['y'])
@@ -153,13 +155,13 @@ simu.Save_Iteration()
 
 stress = simu.Get_Resultat("Stress")
 
-forces = stress/section.aire
+forces = stress/section.area
 
 affichage = lambda name, result: print(f"{name} = [{result.min():2.2}; {result.max():2.2}]") if isinstance(result, np.ndarray) else ""
 
 Display.Plot_BoundaryConditions(simu)
 Display.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
-if beamModel.dim > 1:
+if beamStructure.dim > 1:
     Display.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
     Display.Plot_Mesh(simu, deformation=True, facteurDef=10)
 
@@ -167,7 +169,7 @@ Display.Section("Resultats")
 
 print()
 u = simu.Get_Resultat("ux", nodeValues=True); affichage("ux",u)
-if beamModel.dim > 1:
+if beamStructure.dim > 1:
     v = simu.Get_Resultat("uy", nodeValues=True); affichage("uy",v)
     rz = simu.Get_Resultat("rz", nodeValues=True); affichage("rz",rz)
 
@@ -199,7 +201,7 @@ if problem == "Flexion":
     ax.set_title(fr"$r_z(x)$")
     ax.legend()
 elif problem == "Traction":
-    u_x = (charge*listX/(E*(section.aire))) + (ro*g*listX/2/E*(2*L-listX))
+    u_x = (charge*listX/(E*(section.area))) + (ro*g*listX/2/E*(2*L-listX))
     rapport  = u_x[-1] / u.max()
 
     fig, ax = plt.subplots()

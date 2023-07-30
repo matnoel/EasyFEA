@@ -12,7 +12,7 @@ import TicTac
 import Folder
 
 dim = 2
-N = 50 if dim == 2 else 20
+N = 50*1.5 if dim == 2 else 20
 
 class SimulationType(str, Enum):
     CPEF = "CPEF",
@@ -74,12 +74,12 @@ elif simulationType == SimulationType.EQUERRE:
     if dim == 2:
         mesh = interface.Mesh_2D(listPoint, inclusions, ElemType.TRI3, cracks)
     elif dim == 3:        
-        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,-h], nCouches=4, elemType=ElemType.HEXA8)
+        mesh = interface.Mesh_3D(listPoint, inclusions, extrude=[0,0,-h], nCouches=4, elemType=ElemType.HEXA20)
 
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
     noeudsDroit = mesh.Nodes_Conditions(lambda x,y,z: x == L)
 
-    comportement = Materials.Elas_Isot(dim, contraintesPlanes=True, epaisseur=h, E=E, v=v)
+    comportement = Materials.Elas_Isot(dim, planeStress=True, thickness=h, E=E, v=v)
     simu = Simulations.Simu_Displacement(mesh, comportement)
 
     if dim == 2:
@@ -119,7 +119,7 @@ elif simulationType == SimulationType.TEF2:
     noeudsBas = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     noeudsGauche = mesh.Nodes_Conditions(lambda x,y,z: x==0)
 
-    comportement = Materials.Elas_Isot(dim, contraintesPlanes=False, epaisseur=h, E=E, v=v)
+    comportement = Materials.Elas_Isot(dim, planeStress=False, thickness=h, E=E, v=v)
     simu = Simulations.Simu_Displacement(mesh, comportement)
 
     if dim == 2:
@@ -133,7 +133,7 @@ elif simulationType == SimulationType.TEF2:
 if dim == 3:
     print(f"\nVolume = {mesh.volume:3f}")
 else:
-    print(f"\nVolume = {mesh.area*comportement.epaisseur:3f}")
+    print(f"\nVolume = {mesh.area*comportement.thickness:3f}")
 
 Display.Plot_Mesh(mesh, folder=folder)
 # Affichage.Plot_Model(mesh, showId=True)
@@ -160,5 +160,6 @@ Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef, f
 # Affichage.Plot_Result(simu, "ux")
 
 TicTac.Tic.Plot_History()
+
 
 plt.show()

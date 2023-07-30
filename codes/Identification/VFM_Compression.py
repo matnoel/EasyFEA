@@ -106,7 +106,7 @@ poid1D_pg = groupElem1D.Get_weight_pg(matrixType)
 
 if mat == "acier":
     E_exp, v_exp = 210000, 0.3
-    comp = Materials.Elas_Isot(2, epaisseur=b, E=E_exp, v=v_exp)
+    comp = Materials.Elas_Isot(2, thickness=b, E=E_exp, v=v_exp)
 
     dict_param = {
         "lambda" : comp.get_lambda(),
@@ -124,7 +124,7 @@ elif mat == "bois":
     }
 
     comp = Materials.Elas_IsotTrans(2, El=EL_exp, Et=ET_exp, Gl=GL_exp, vl=vL_exp, vt=0.3,
-    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), contraintesPlanes=True, epaisseur=b)
+    axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), planeStress=True, thickness=b)
 
 # ----------------------------------------------
 # Simulation

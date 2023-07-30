@@ -35,16 +35,15 @@ class Mesh:
         """The mesh can write to the console"""
         
         if self.__verbosity:
-            self.Resume()
+            print(self)
 
     def _ResetMatrix(self) -> None:
         [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]            
     
-    def Resume(self, verbosity=True):
-        resume = f"\nElement type : {self.elemType}"
-        resume += f"\nNe = {self.Ne}, Nn = {self.Nn}, nDof = {self.Nn*self.__dim}"
-        if verbosity: print(resume)
-        return resume
+    def __str__(self) -> str:
+        text = f"\nElement type : {self.elemType}"
+        text += f"\nNe = {self.Ne}, Nn = {self.Nn}, dof = {self.Nn*self.__dim}"
+        return text
     
     def Get_list_groupElem(self, dim=None) -> list[GroupElem]:
         """Mesh element group list"""
@@ -415,15 +414,15 @@ class Mesh:
     @staticmethod
     def __Dim_For_Tag(tag):
         if 'P' in tag:
-            dim = 0
-            if "Poutre" in tag:
-                dim = 1
+            dim = 0            
         elif 'L' in tag:
             dim = 1            
         elif 'S' in tag:
             dim = 2            
         elif 'V' in tag:
             dim = 3
+        elif "beam" in tag:
+            dim = 1
         
         return dim
 
@@ -472,7 +471,7 @@ def Calc_New_meshSize_n(mesh: Mesh, erreur_e: np.ndarray, coef=1/2) -> np.ndarra
     meshSize_e = (coef-1)/erreur_e.max() * erreur_e + 1
 
     import Simulations
-    meshSize_n = Simulations.Simu.Results_NodeInterpolation(mesh, meshSize_e * h_e)
+    meshSize_n = Simulations._Simu.Results_NodeInterpolation(mesh, meshSize_e * h_e)
 
     return meshSize_n
     

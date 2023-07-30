@@ -68,13 +68,13 @@ tolConv = 1e-0
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 # regularisations = ["AT1", "AT2"]
 regularisations = ["AT2"] # "AT1", "AT2"
-solveurPhaseField = Simulations.PhaseField_Model.SolveurType.History
+solveurPhaseField = Simulations.PhaseField_Model.SolverType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Amor"]
+splits = ["Miehe"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)
@@ -195,7 +195,7 @@ for split, regu in zip(splits, regularisations):
         # Simulation  -------------------------------------------------------------------------------------------        
 
         if comportement_str == "Elas_Isot":            
-            comp = Materials.Elas_Isot(dim, E=210e9, v=0.3, contraintesPlanes=False)
+            comp = Materials.Elas_Isot(dim, E=210e9, v=0.3, planeStress=False)
             Gc = 2.7e3 # J/m2
         elif comportement_str == "Elas_Anisot":
             if dim == 2:
@@ -209,7 +209,7 @@ for split, regu in zip(splits, regularisations):
                                     [c12, c22, 0],
                                     [0, 0, c33]])*1e9
 
-                C_mandel = Materials.Displacement_Model.ApplyKelvinMandelCoefTo_Matrice(dim, C_voigt)
+                C_mandel = Materials._Displacement_Model.KelvinMandel_Matrix(dim, C_voigt)
 
                 
                 theta_rad = theta * np.pi/180
@@ -220,13 +220,13 @@ for split, regu in zip(splits, regularisations):
             else:
                 raise Exception("Pas implémenté")
 
-            comp = Materials.Elas_Anisot(dim, C=C_voigt, axis1=axis1, contraintesPlanes=False)
+            comp = Materials.Elas_Anisot(dim, C=C_voigt, axis1=axis1, planeStress=False)
             Gc = 1e3 # J/m2
         else:
             # comp = Elas_IsotTrans(2, El=210e9, Et=20e9, Gl=)
             raise Exception("Pas implémenté pour le moment")
 
-        phaseFieldModel = Materials.PhaseField_Model(comp, split, regu, Gc=Gc, l_0=l0, solveur=solveurPhaseField)
+        phaseFieldModel = Materials.PhaseField_Model(comp, split, regu, Gc=Gc, l0=l0, solver=solveurPhaseField)
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
@@ -553,7 +553,7 @@ for split, regu in zip(splits, regularisations):
         lignes = []
         listIter = []
 
-        for iter in range(len(simu._results)):
+        for iter in range(len(simu.results)):
 
             simu.Update_iter(iter)
 
@@ -635,7 +635,7 @@ for split, regu in zip(splits, regularisations):
 
         Longeurs = np.array(Longeurs)
         
-        aires = Longeurs*simu.phaseFieldModel.comportement.epaisseur
+        aires = Longeurs*simu.phaseFieldModel.material.thickness
 
         plt.figure()
         plt.plot(aires, raideurs)

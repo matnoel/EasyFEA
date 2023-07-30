@@ -223,7 +223,7 @@ mesh = DoMesh()
 # Comportement et Simu
 # ----------------------------------------------
 
-comportement = Materials.Elas_Isot(dim, E=210000, v=0.3, epaisseur=b)
+comportement = Materials.Elas_Isot(dim, E=210000, v=0.3, thickness=b)
 simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 simu.rho = 8100*1e-9
 

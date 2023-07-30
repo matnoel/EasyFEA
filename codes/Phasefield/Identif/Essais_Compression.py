@@ -284,7 +284,7 @@ if doSimulation:
     simu = Simulations.Simu_PhaseField(mesh, pfm)
 else:
     pfm = simu.phaseFieldModel
-    comp = pfm.comportement
+    comp = pfm.material
 
 damageMax = []
 list_fr = []

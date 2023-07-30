@@ -8,6 +8,8 @@ import scipy.optimize as optimize
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
+# TODO solveur -> Solver to have everything in English
+
 from TicTac import Tic
 
 try:
@@ -75,7 +77,7 @@ def __Cast_Simu(simu):
 
     import Simulations
 
-    if isinstance(simu, Simulations.Simu):
+    if isinstance(simu, Simulations._Simu):
         return simu
 
 def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray) -> np.ndarray:
@@ -105,8 +107,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     """
 
     # check types
-    from Simulations import Simu, ModelType
-    assert isinstance(simu, Simu)
+    from Simulations import _Simu, ModelType
+    assert isinstance(simu, _Simu)
     assert isinstance(problemType, ModelType)
     assert isinstance(A, sparse.csr_matrix)
     assert isinstance(b, sparse.csr_matrix)
@@ -261,10 +263,11 @@ def __Solver_2(simu, problemType: str):
     # Builds the penalized matrix system
     b = simu._Apply_Neumann(problemType)
     A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r2)
+    alpha = A.data.max()
 
     tic = Tic()
 
-    # set to lil matrix
+    # set to lil matrix because its faster
     A = A.tolil()
     b = b.tolil()
 
@@ -285,7 +288,6 @@ def __Solver_2(simu, problemType: str):
     listeLignesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
     
     # apply lagrange multiplier
-    alpha = A.data.max()
     A[listeLignesDirichlet, ddls_Dirichlet] = alpha
     A[ddls_Dirichlet, listeLignesDirichlet] = alpha
     b[listeLignesDirichlet] = values_Dirichlet * alpha
@@ -293,7 +295,6 @@ def __Solver_2(simu, problemType: str):
     tic.Tac("Solver",f"Lagrange ({problemType}) Dirichlet", simu._verbosity)
 
     # Pour chaque condition de lagrange on va rajouter un coef dans la matrice
-
     if len(list_Bc_Lagrange) > 0:
         from Simulations import LagrangeCondition
 
@@ -314,7 +315,7 @@ def __Solver_2(simu, problemType: str):
     
     tic.Tac("Solver",f"Lagrange ({problemType}) Coupling", simu._verbosity)
 
-    x = _Solve_Axb(simu, problemType, A, b, x0, [], [])
+    x = _Solve_Axb(simu, problemType, A.tocsr(), b.tocsr(), x0, [], [])
 
     # We don't send back reaction forces
     x = x[range(decalage)]

@@ -58,7 +58,7 @@ assembly1D_e = groupElem1D.Get_assembly_e(2)
 # ----------------------------------------------
 
 E_exp, v_exp = 210000, 0.3 
-comp = Materials.Elas_Isot(2, epaisseur=b, E=E_exp, v=v_exp)
+comp = Materials.Elas_Isot(2, thickness=b, E=E_exp, v=v_exp)
 
 # ----------------------------------------------
 # Simulation

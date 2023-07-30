@@ -73,7 +73,7 @@ else:
 noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]
 
 # loi de comportement
-comportement = Materials.Elas_Isot(dim, E=E, v=v, contraintesPlanes=True, epaisseur=ep)
+comportement = Materials.Elas_Isot(dim, E=E, v=v, planeStress=True, thickness=ep)
 phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
 
 simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)

@@ -79,7 +79,7 @@ def Get_ffmpegpath() -> str:
     
     raise Exception("Dossier inexistant")
 
-def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, facteurDef=4, nodeValues=True, fps=30):
+def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, facteurDef=4, nodeValues=True, fps=30):
     
     resultat = simu.Get_Resultat(option)
     if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
@@ -97,7 +97,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, Nite
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    resultats = simu._results
+    resultats = simu.results
 
     N = len(resultats)
 
@@ -143,7 +143,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations.Simu, Niter=200, Nite
 
 # ========================================== Paraview =================================================
 
-def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False, nodesResult=[], elementsResult=[]):
+def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False, nodesResult=[], elementsResult=[]):
     """Sauvegarde de la simulation sur paraview
 
     Parameters
@@ -165,7 +165,7 @@ def Make_Paraview(folder: str, simu: Simulations.Simu, Niter=200, details=False,
 
     vtuFiles=[]
 
-    resultats = simu._results
+    resultats = simu.results
 
     NiterMax = len(resultats)-1
 
@@ -276,7 +276,7 @@ def _GetPourcentageEtTemps(listIter: list[int], listTemps: list[float], i: int) 
 
     return pourcentageEtTempsRestant
 
-def __Make_vtu(simu: Simulations.Simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
+def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
     """Creer le .vtu qui peut être lu sur paraview
     """
 

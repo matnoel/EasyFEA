@@ -73,7 +73,7 @@ def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simp
         nom += '_optimMesh'
 
     if solveur != "History" and solveur != "":
-        assert solveur in Materials.PhaseField_Model.get_solveurs()
+        assert solveur in Materials.PhaseField_Model.get_solvers()
         nom += '_' + solveur
 
     if tolConv < 1:
