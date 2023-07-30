@@ -10,12 +10,13 @@ import matplotlib.pyplot as plt
 
 class Test_InterfaceGmsh(unittest.TestCase):
 
-    def test_Construction2D(self):
+    def test_Construction_2D(self):
+        """Builds all 2D meshes"""
         list_mesh2D = Interface_Gmsh.Construction_2D()
         nbMesh = len(list_mesh2D)
         nrows = 3
         ncols = 10
-        # assert nbMesh == nrows*ncols , "Pas assez de place"
+        # assert nbMesh == nrows*ncols , "Not enough space"
         fig, ax = plt.subplots(nrows, ncols)
         lignes = np.repeat(np.arange(nrows), ncols)
         colonnes = np.repeat(np.arange(ncols).reshape(1,-1), nrows, axis=0).reshape(-1)
@@ -34,7 +35,8 @@ class Test_InterfaceGmsh(unittest.TestCase):
         
         # plt.show()
     
-    def test_Construction3D(self):
+    def test_Construction_3D(self):
+        """Builds all 3D meshes"""
         list_mesh3D = Interface_Gmsh.Construction_3D()
         for mesh3D in list_mesh3D:
             ax = Display.Plot_Mesh(mesh3D)

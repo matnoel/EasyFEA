@@ -4,10 +4,10 @@ import os
 from Materials import Elas_Anisot, Elas_IsotTrans, PhaseField_Model, _Displacement_Model, Elas_Isot
 import numpy as np
 
-class Test_Materiau(unittest.TestCase):
+class Test_Materials(unittest.TestCase):
     def setUp(self):
 
-        # Comportement Elatique Isotrope
+        # Isotropic Elastic Behavior
         E = 210e9
         v = 0.3
         self.comportements2D = []
@@ -81,7 +81,7 @@ class Test_Materiau(unittest.TestCase):
                     self.phaseFieldModels.append(pfm)
             
 
-    def test_LoiComportementBienCree(self):
+    def test_Elas_Isot(self):
 
         for comp in self.comportements3D:
             self.assertIsInstance(comp, _Displacement_Model)
@@ -110,7 +110,7 @@ class Test_Materiau(unittest.TestCase):
                 verifC = np.linalg.norm(c-comp.C)/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
 
-    def test_ElasAnisot(self):
+    def test_Elas_Anisot(self):
 
         C_voigt2D = np.array([  [60, 20, 0],
                                 [20, 120, 0],
@@ -145,8 +145,8 @@ class Test_Materiau(unittest.TestCase):
             testSymetry = np.linalg.norm(matC.T - matC)
             assert testSymetry <= 1e-12
     
-    def test_ElasIsoTrans2D(self):
-        # Ici on verife que lorsque l'on change les axes ça fonctionne bien
+    def test_ElasIsotTrans(self):
+        # Here we check that when we change the axes it works well
 
         El=11580
         Et=500
@@ -204,24 +204,23 @@ class Test_Materiau(unittest.TestCase):
         self.assertTrue(verifc3 < 1e-12)
 
     
-    def test_Decomposition_psi(self):
-        """Fonction qui permet de réaliser de testter tous les modèles de decomposition d'energie"""
+    def test_split_phaseField(self):
+        """Function that allows you to test all energy decomposition models"""
         
         Ne = 50
         nPg = 2
 
         np.random.seed(3)
 
-        # Création de 2 espilons quelconques 2D
+        # Creation of any 2 2D spilons
         Epsilon2D_e_pg = np.random.randn(Ne,nPg,3)
 
-        # Création de 2 espilons quelconques 3D
+        # Creation of any 2 3D spilons
         Epsilon3D_e_pg = np.random.randn(Ne,nPg,6)
         
         # Epsilon_e_pg = np.random.rand(1,1,3)
         # Epsilon_e_pg[0,:] = np.array([1,-1,0])
         # # Epsilon_e_pg[1,:] = np.array([-100,500,0])
-
 
         # Epsilon_e_pg[0,0,:]=0
         # Epsilon_e_pg = np.zeros((Ne,1,nPg))
@@ -246,14 +245,14 @@ class Test_Materiau(unittest.TestCase):
 
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
 
-            # Test que cP + cM = c
+            # Test that cP + cM = c
             cpm = cP_e_pg+cM_e_pg
             decompC = c-cpm
             verifC = np.linalg.norm(decompC)/np.linalg.norm(c)
             if pfm.split != "He":
                 self.assertTrue(np.abs(verifC) <= tol)
 
-            # Test que SigP + SigM = Sig
+            # Test that SigP + SigM = Sig
             Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
             
             SigP = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal')
@@ -263,7 +262,8 @@ class Test_Materiau(unittest.TestCase):
             if np.linalg.norm(Sig_e_pg)>0:                
                 self.assertTrue(np.abs(verifSig) <= tol)
             
-            # Test que Eps:C:Eps = Eps:(cP+cM):Eps
+            
+            # Test that Eps:C:Eps = Eps:(cP+cM):Eps
             energiec = np.einsum('epj,ij,epi->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
             energiecP = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cP_e_pg, Epsilon_e_pg, optimize='optimal')
             energiecM = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
@@ -280,4 +280,3 @@ if __name__ == '__main__':
         unittest.main(verbosity=2)
     except:
         print("")
-# %%

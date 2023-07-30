@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 class Test_Simu(unittest.TestCase):
     
-    def test_SimulationsPoutreUnitaire(self):
+    def test_Beams(self):
         
         interfaceGmsh = Interface_Gmsh()
 
@@ -19,7 +19,7 @@ class Test_Simu(unittest.TestCase):
         listElemType = ["SEG2","SEG3","SEG4"]
         listBeamDim = [1,2,3]
 
-        # Géneration des configs
+        # Generating configs
         listConfig = [(problem, elemType, beamDim) for problem in listProblem for elemType in listElemType for beamDim in listBeamDim]
 
         def PlotAndDelete():
@@ -29,7 +29,7 @@ class Test_Simu(unittest.TestCase):
         for problem, elemType, beamDim in listConfig:
             
             if problem in ["Flexion","BiEnca"] and beamDim == 1:
-                # Exclusion des configs impossible
+                # not available
                 continue
 
             print(f"{problem} {elemType} {beamDim}")
@@ -55,14 +55,14 @@ class Test_Simu(unittest.TestCase):
                 q = ro * g * (h*b)
                 charge = 5000
             
-            # SECTION
+            # Section
 
             section = Section(interfaceGmsh.Mesh_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
 
             self.assertTrue((section.area - b*h) <= 1e-12)
             self.assertTrue((section.Iz - ((b*h**3)/12)) <= 1e-12)
 
-            # MAILLAGE
+            # Mesh
 
             if problem in ["Traction"]:
 
@@ -173,29 +173,27 @@ class Test_Simu(unittest.TestCase):
                 ax.legend()
                 PlotAndDelete()
 
-    def test_ResolutionDesSimulationsElastique(self):
-        # Pour chaque type de maillage on simule
+    def test_Dynamic(self):
+        # For each type of mesh one simulates
         
         dim = 2
 
-        # Paramètres géométrie
+        # Geometry parameters
         L = 120;  #mm
         h = 120;    
         b = 13
 
-        # Charge a appliquer
+        # Charge to apply
         P = -800 #N
 
-        # Paramètres maillage
+        # Mesh parameters
         taille = L/2
 
         listMesh = Interface_Gmsh.Construction_2D(L=L, h=h, taille=taille)
         listMesh.extend(Interface_Gmsh.Construction_3D(L=L, h=h, b=b, taille=h/4))
 
-        # Pour chaque type d'element 2D       
-        for mesh in listMesh:           
-
-            assert isinstance(mesh, Mesh)
+        # For each mesh
+        for mesh in listMesh:
 
             dim = mesh.dim
 
@@ -223,8 +221,7 @@ class Test_Simu(unittest.TestCase):
             plt.pause(1e-12)
             plt.close(fig)
 
-    def test_SimulationsThermique(self):
-        # Pour chaque type de maillage on simule
+    def test_Thermal(self):
 
         a = 1
 
@@ -232,7 +229,7 @@ class Test_Simu(unittest.TestCase):
 
         listMesh.extend(Interface_Gmsh.Construction_3D(L=a, h=a, b=a, taille=a/10, useImport3D=False))
 
-        self.simulationsThermique = []
+        self.thermalSimulation = []
 
         for mesh in listMesh:
 
@@ -255,6 +252,8 @@ class Test_Simu(unittest.TestCase):
             fig, ax, cb = Display.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
             plt.pause(1e-12)
             plt.close(fig)
+
+    # TODO test phase field
 
 if __name__ == '__main__':        
     try:

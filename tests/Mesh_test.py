@@ -8,14 +8,14 @@ import Display
 
 class Test_Mesh(unittest.TestCase):
 
-    def test_ConstructionMatrices2D(self):
+    def test_Matrix(self):
         from Interface_Gmsh import Interface_Gmsh
         list_Mesh = Interface_Gmsh.Construction_2D()
         for mesh in list_Mesh:
-            self.__VerficiationConstructionMatrices(mesh)
+            self.__Construct_B_e_pg(mesh)
 
     # Verifivation
-    def __VerficiationConstructionMatrices(self, mesh: Mesh):
+    def __Construct_B_e_pg(self, mesh: Mesh):
 
         dim = mesh.dim
         connect = mesh.connect
@@ -85,8 +85,6 @@ class Test_Mesh(unittest.TestCase):
 
         testB_rigi = np.testing.assert_array_almost_equal(np.array(list_B_rigi_e_pg), B_rigi_e_pg, verbose=False)
         self.assertIsNone(testB_rigi)
-
-            
 
 
 if __name__ == '__main__':        
