@@ -8,19 +8,19 @@ import TicTac
 
 class Mesh:
 
-    def __init__(self, dict_groupElem: dict[ElemType,GroupElem], verbosity=True):
+    def __init__(self, dict_groupElem: dict[ElemType, GroupElem], verbosity=True):
         """Setup the mesh
 
         Parameters
         ----------
-        dict_groupElem : dict[ElemType,GroupElem]
+        dict_groupElem : dict[ElemType, GroupElem]
             element group dictionary
         verbosity : bool, optional
             can write in terminal, by default True
         """
 
         list_GroupElem = []
-        dim=0
+        dim = 0
         for grp in dict_groupElem.values():
             if grp.dim > dim:
                 # Here we guarantee that the mesh element used is the one with the largest dimension
@@ -33,25 +33,37 @@ class Mesh:
 
         self.__verbosity = verbosity
         """The mesh can write to the console"""
-        
+
         if self.__verbosity:
             print(self)
 
     def _ResetMatrix(self) -> None:
-        [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]            
-    
+        [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]
+
     def __str__(self) -> str:
+        """Return a string representation of the mesh."""
         text = f"\nElement type : {self.elemType}"
-        text += f"\nNe = {self.Ne}, Nn = {self.Nn}, dof = {self.Nn*self.__dim}"
+        text += f"\nNe = {self.Ne}, Nn = {self.Nn}, dof = {self.Nn * self.__dim}"
         return text
-    
+
     def Get_list_groupElem(self, dim=None) -> list[GroupElem]:
-        """Mesh element group list"""
-        if dim == None:
+        """Get the list of mesh element groups.
+
+        Parameters
+        ----------
+        dim : int, optional
+            The dimension of elements to retrieve, by default None (uses the main mesh dimension).
+
+        Returns
+        -------
+        list[GroupElem]
+            A list of GroupElem objects with the specified dimension.
+        """
+        if dim is None:
             dim = self.__dim
-            
+
         list_groupElem = [grp for grp in self.__dict_groupElem.values() if grp.dim == dim]
-        list_groupElem.reverse() # reverse the list
+        list_groupElem.reverse()  # reverse the list
 
         return list_groupElem
 
@@ -64,22 +76,22 @@ class Mesh:
     def groupElem(self) -> GroupElem:
         """Main mesh element group"""
         return self.__groupElem
-    
+
     @property
     def elemType(self) -> ElemType:
         """Element type used for meshing"""
         return self.groupElem.elemType
-    
+
     @property
     def Ne(self) -> int:
         """Number of elements in the mesh"""
         return self.groupElem.Ne
-    
+
     @property
     def Nn(self, dim=None) -> int:
         """Number of nodes in the mesh"""
         return self.groupElem.Nn
-    
+
     @property
     def dim(self):
         """Mesh dimension"""
@@ -90,17 +102,17 @@ class Mesh:
         """Dimension in which the mesh is located
         A 2D mesh can be oriented in space"""
         return self.__groupElem.inDim
-    
+
     @property
     def nPe(self) -> int:
         """Nodes per element"""
         return self.groupElem.nPe
-    
+
     @property
     def coordo(self) -> np.ndarray:
         """Node coordinates matrix (Nn,3) for the main groupElem"""
         return self.groupElem.coordo
-    
+
     @property
     def nodes(self) -> np.ndarray:
         """Mesh nodes"""
@@ -116,7 +128,7 @@ class Mesh:
     def connect(self) -> np.ndarray:
         """Connectivity matrix (Ne, nPe)"""
         return self.groupElem.connect
-    
+
     def Get_connect_n_e(self) -> sp.csr_matrix:
         """Sparse matrix of zeros and ones with ones when the node has the element either
         such that: values_n = connect_n_e * values_e
@@ -124,9 +136,9 @@ class Mesh:
         (Nn,1) = (Nn,Ne) * (Ne,1)
         """
         return self.groupElem.Get_connect_n_e()
-    
+
     # Affichage
-    
+
     @property
     def dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
         """Transform the connectivity matrix to pass it to the trisurf function in 2D.
@@ -135,13 +147,12 @@ class Mesh:
 
         Returns a dictionary by type"""
         return self.groupElem.Get_dict_connect_Triangle()
-    
-    def Get_dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:        
+
+    def Get_dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:
         """Retrieves face-building nodes and returns faces for each element type.
         """
-
         dict_connect_faces = {}
-        
+
         for elemType, groupElem in self.dict_groupElem.items():
 
             indexesFaces = groupElem.indexesFaces
@@ -149,20 +160,20 @@ class Mesh:
             if self.__groupElem.elemType == ElemType.PRISM6 and elemType == ElemType.TRI3:
                 indexesFaces.append(indexesFaces[0])
             elif self.__groupElem.elemType == ElemType.PRISM15 and elemType == ElemType.TRI6:
-                indexesFaces.extend([indexesFaces[0]]*2)
+                indexesFaces.extend([indexesFaces[0]] * 2)
 
             dict_connect_faces[elemType] = groupElem.connect[:, indexesFaces]
-            
+
         return dict_connect_faces
 
-    # Assemblage des matrices 
+    # Assemblage des matrices
 
     @property
     def assembly_e(self) -> np.ndarray:
         """assembly matrix (Ne, nPe*dim)\n
         Allows rigi matrix to be positioned in the global matrix"""
         return self.groupElem.assembly_e
-    
+
     def Get_assembly_e(self, dof_n: int) -> np.ndarray:
         """Assembly matrix for specified dof_n (Ne, nPe*dof_n)
         Used to position matrices in the global matrix"""
@@ -172,25 +183,25 @@ class Mesh:
     def linesVector_e(self) -> np.ndarray:
         """lines to fill the assembly matrix in vector (displacement)"""
         return self.Get_linesVector_e(self.__dim)
-    
+
     def Get_linesVector_e(self, dof_n: int) -> np.ndarray:
         """lines to fill the assembly matrix in vector"""
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(assembly_e, nPe*dof_n).reshape((Ne,-1))
+        return np.repeat(assembly_e, nPe * dof_n).reshape((Ne, -1))
 
     @property
     def columnsVector_e(self) -> np.ndarray:
         """columns to fill the assembly matrix in vector (displacement)"""
         return self.Get_columnsVector_e(self.__dim)
-    
+
     def Get_columnsVector_e(self, dof_n: int) -> np.ndarray:
         """columns to fill the vector assembly matrix"""
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(assembly_e, nPe*dof_n, axis=0).reshape((Ne,-1))
+        return np.repeat(assembly_e, nPe * dof_n, axis=0).reshape((Ne, -1))
 
     @property
     def linesScalar_e(self) -> np.ndarray:
@@ -198,7 +209,7 @@ class Mesh:
         connect = self.connect
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(connect, nPe).reshape((Ne,-1))
+        return np.repeat(connect, nPe).reshape((Ne, -1))
 
     @property
     def columnsScalar_e(self) -> np.ndarray:
@@ -206,48 +217,59 @@ class Mesh:
         connect = self.connect
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(connect, nPe, axis=0).reshape((Ne,-1))    
+        return np.repeat(connect, nPe, axis=0).reshape((Ne, -1))
 
     # Calculation of areas, volumes and quadratic moments etc ...
     @property
     def area(self) -> float:
-        if self.dim in [0,1]: return
+        """Calculate the total area of the mesh."""
+        if self.dim in [0, 1]:
+            return None
         areas = [group2D.area for group2D in self.Get_list_groupElem(2)]
         return np.sum(areas)
 
     @property
     def Ix(self) -> float:
-        if self.dim in [0,1]: return
+        """Calculate the total Ix (moment of inertia) of the mesh."""
+        if self.dim in [0, 1]:
+            return None
         Ixs = [group2D.Ix for group2D in self.Get_list_groupElem(2)]
         return np.sum(Ixs)
-    
+
     @property
     def Iy(self) -> float:
-        if self.dim in [0,1]: return
+        """Calculate the total Iy (moment of inertia) of the mesh."""
+        if self.dim in [0, 1]:
+            return None
         Iys = [group2D.Iy for group2D in self.Get_list_groupElem(2)]
         return np.sum(Iys)
 
     @property
     def Ixy(self) -> float:
-        if self.dim in [0,1]: return
+        """Calculate the total Ixy (moment of inertia) of the mesh."""
+        if self.dim in [0, 1]:
+            return None
         Ixys = [group2D.Ixy for group2D in self.Get_list_groupElem(2)]
         return np.sum(Ixys)
 
     @property
     def J(self) -> float:
-        if self.dim in [0,1]: return
+        """Calculate the total J (polar moment of inertia) of the mesh."""
+        if self.dim in [0, 1]:
+            return None
         Js = [group2D.Iy + group2D.Ix for group2D in self.Get_list_groupElem(2)]
         return np.sum(Js)
 
     @property
     def volume(self) -> float:
-        if self.dim != 3: return
+        """Calculate the total volume of the mesh."""
+        if self.dim != 3:
+            return None
         volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
         return np.sum(volumes)
-    
+
     def Get_meshSize_e(self) -> np.ndarray:
         """Returns the mesh size for each element."""
-
         # recovery of the physical group and coordinates
         groupElem = self.groupElem
         coordo = groupElem.coordo
@@ -257,14 +279,14 @@ class Mesh:
         segments_e = groupElem.connect[:, indexesSegments]
 
         # Calculates the length of each segment (s) of the mesh elements (e).
-        h_e_s = np.linalg.norm(coordo[segments_e[:,:,1]] - coordo[segments_e[:,:,0]], axis=2)
+        h_e_s = np.linalg.norm(coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2)
         # average segment size per element
         h_e = np.mean(h_e_s, axis=1)
-        
+
         return h_e
 
     # Construction of elementary matrices
-    
+
     def Get_nPg(self, matrixType: MatrixType) -> np.ndarray:
         """number of integration points"""
         return self.groupElem.Get_gauss(matrixType).nPg
@@ -278,7 +300,7 @@ class Mesh:
         variation in size (length, area or volume) between the reference element and the real element
         """
         return self.groupElem.Get_jacobian_e_pg(matrixType)
-    
+
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluated shape functions (pg), in the base (ksi, eta . . . )
         [N1, N2, . . . ,Nn]
@@ -286,8 +308,8 @@ class Mesh:
         return self.groupElem.Get_N_pg(matrixType)
 
     def Get_N_vector_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Shape functions in reference element for vector (npg, dim, npe*dim)\n
-        Matrix of shape functions in reference element (ksi, eta)\n
+        """Shape functions in the reference element for vector (npg, dim, npe*dim)\n
+        Matrix of shape functions in the reference element (ksi, eta)\n
         [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
         0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]\n
         """
@@ -306,7 +328,7 @@ class Mesh:
         dNv1,y dNv2,y dNvn,y]\n
         """
         return self.groupElem.Get_dNv_e_pg(matrixType)
-    
+
     def Get_ddNv_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Derivation (2) of beam shape functions in real base (epij)\n
         [dNv1,xx dNv2,xx dNvn,xx\n
@@ -335,15 +357,15 @@ class Mesh:
     def Get_leftDispPart(self, matrixType: MatrixType) -> np.ndarray:
         """Left side of local displacement matrices\n
         Ku_e = jacobian_e_pg * weight_pg * B_e_pg' * c_e_pg * B_e_pg\n
-        
+
         Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'.
         """
         return self.groupElem.Get_leftDispPart(matrixType)
-    
+
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the reaction term (scalar).
         ReactionPart_e_pg = jacobian_e_pg * weight_pg * r_e_pg * N_pg' * N_pg\n
-        
+
         Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
         """
         return self.groupElem.Get_ReactionPart_e_pg(matrixType)
@@ -351,7 +373,7 @@ class Mesh:
     def Get_DiffusePart_e_pg(self, matrixType: MatrixType, A: np.ndarray) -> np.ndarray:
         """Returns the part that builds the diffusion term (scalar).
         DiffusePart_e_pg = jacobian_e_pg * weight_pg * k * dN_e_pg' * A * dN_e_pg\n
-        
+
         Returns -> jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg
         """
         return self.groupElem.Get_DiffusePart_e_pg(matrixType, A)
@@ -359,11 +381,11 @@ class Mesh:
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the source term (scalar).
         SourcePart_e_pg = jacobian_e_pg, weight_pg, f_e_pg, N_pg'\n
-        
+
         Returns -> jacobian_e_pg, weight_pg, N_pg'
         """
         return self.groupElem.Get_SourcePart_e_pg(matrixType)
-    
+
     # Node recovery
 
     def Nodes_Conditions(self, lambdaFunction: LambdaType) -> np.ndarray:
@@ -385,7 +407,7 @@ class Mesh:
             nodes that meet the specified conditions.
         """
         return self.groupElem.Get_Nodes_Conditions(lambdaFunction)
-    
+
     def Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""
         return self.groupElem.Get_Nodes_Point(point)
@@ -397,14 +419,14 @@ class Mesh:
     def Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Returns nodes in the domain."""
         return self.groupElem.Get_Nodes_Domain(domain)
-    
+
     def Nodes_Circle(self, circle: Circle) -> np.ndarray:
         """Returns the nodes in the circle."""
         return self.groupElem.Get_Nodes_Circle(circle)
 
-    def Nodes_Cylindre(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
+    def Nodes_Cylinder(self, circle: Circle, direction=[0, 0, 1]) -> np.ndarray:
         """Returns the nodes in the cylinder."""
-        return self.groupElem.Get_Nodes_Cylindre(circle, direction)
+        return self.groupElem.Get_Nodes_Cylinder(circle, direction)
 
     def Elements_Nodes(self, nodes: np.ndarray, exclusively=True):
         """Returns elements that exclusively or not use the specified nodes."""
@@ -414,16 +436,16 @@ class Mesh:
     @staticmethod
     def __Dim_For_Tag(tag):
         if 'P' in tag:
-            dim = 0            
+            dim = 0
         elif 'L' in tag:
-            dim = 1            
+            dim = 1
         elif 'S' in tag:
-            dim = 2            
+            dim = 2
         elif 'V' in tag:
             dim = 3
         elif "beam" in tag:
             dim = 1
-        
+
         return dim
 
     def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
@@ -441,12 +463,13 @@ class Mesh:
         return np.unique(elements)
 
     def Locates_sol_e(self, sol: np.ndarray) -> np.ndarray:
-        """locates sol on elements"""
+        """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol)
-    
-def Calc_New_meshSize_n(mesh: Mesh, erreur_e: np.ndarray, coef=1/2) -> np.ndarray:
+
+
+def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarray:
     """Returns the scalar field (at nodes) to be used to refine the mesh.
-    
+
     meshSize = (coef - 1) * err / max(err) + 1
 
     Parameters
@@ -464,26 +487,27 @@ def Calc_New_meshSize_n(mesh: Mesh, erreur_e: np.ndarray, coef=1/2) -> np.ndarra
         meshSize_n, new mesh size at nodes (Nn)
     """
 
-    assert mesh.Ne == erreur_e.size, "erreur_e must be an array of dim Ne"
+    assert mesh.Ne == error_e.size, "error_e must be an array of dim Ne"
 
     h_e = mesh.Get_meshSize_e()
-    
-    meshSize_e = (coef-1)/erreur_e.max() * erreur_e + 1
+
+    meshSize_e = (coef - 1) / error_e.max() * error_e + 1
 
     import Simulations
     meshSize_n = Simulations._Simu.Results_NodeInterpolation(mesh, meshSize_e * h_e)
 
     return meshSize_n
-    
+
+
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     """Builds the matrix used to project the solution from the old mesh to the new mesh.
     newU = proj * oldU\n
-    (newNn) = (newNn x oldNn) (oldNn) 
+    (newNn) = (newNn x oldNn) (oldNn)
 
     Parameters
     ----------
     oldMesh : Mesh
-        old mesh 
+        old mesh
     newMesh : Mesh
         new mesh
 
@@ -498,48 +522,38 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     tic = TicTac.Tic()
 
-    # recovery of nodes detected in old mesh elements
-    # connnectivity of these nodes in the elements
-    # position of nodes in reference element
-    nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Nodes_Connect_CoordoInElemRef(newMesh.coordo)
+    # recovery of nodes detected
+    detectedNodes = np.unique(newMesh.groupElem.Get_Nodes_Tag('detected'))
 
-    tic.Tac("Mesh", "Mapping between meshes", False)
+    # extraction of the matrices necessary for the projection
+    newG = newMesh.Get_N_vector_pg(MatrixType.TOTAL)
+    newG_t = np.transpose(newG, (1, 2, 0))
 
-    # Evaluation of shape functions
-    Ntild = oldMesh.groupElem._Ntild()        
-    nPe = oldMesh.groupElem.nPe
-    phi_n_nPe = np.zeros((coordo_n.shape[0], nPe))
-    for n in range(nPe):
-        if dim == 1:
-            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0])
-        elif dim == 2:
-            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1])
-        elif dim == 3:
-            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1], coordo_n[:,2])
-    
-    # Here we detect whether nodes appear more than once
-    counts = np.unique(nodes, return_counts=True)[1]
-    idxSup1 = np.where(counts > 1)[0]
-    if idxSup1.size > 0:
-        # if nodes are used several times, divide the shape function values by the number of appearances. At the end, do like an average
-        phi_n_nPe[idxSup1] = np.einsum("ni,n->ni", phi_n_nPe[idxSup1], 1/counts[idxSup1], optimize="optimal")
+    oldG = oldMesh.Get_N_vector_pg(MatrixType.TOTAL)
+    oldG_t = np.transpose(oldG, (1, 2, 0))
 
-    # Projector construction
-    connect_e = oldMesh.connect
-    lignes = []
-    colonnes = []
-    valeurs = []
-    nodesElem = []
-    def FuncExtend_Proj(e: int, nodes: np.ndarray):
-        nodesElem.extend(nodes)
-        valeurs.extend(phi_n_nPe[nodes].reshape(-1))
-        lignes.extend(np.repeat(nodes, nPe))
-        colonnes.extend(np.asarray(list(connect_e[e]) * nodes.size))
+    # extraction of oldU on the nodes of newU
+    detectedNodes = np.unique(newMesh.groupElem.Get_Nodes_Tag('detected'))
 
-    [FuncExtend_Proj(e, nodes) for e, nodes in enumerate(connect_e_n)]
-    
-    proj = sp.csr_matrix((valeurs, (lignes, colonnes)), (newMesh.Nn, oldMesh.Nn), dtype=float)
+    # (nn_old)
+    vec_oldU = oldMesh.groupElem.Locates_sol_n(1, detectedNodes)
+    n = newMesh.groupElem.nPe * dim
 
-    tic.Tac("Mesh", "Projector construction", False)
+    # the data for the new matrix
+    data = np.zeros((n, vec_oldU.shape[1]))
+    for i in range(n):
+        vec_newU = newG[i, detectedNodes] @ vec_oldU
+        data[i] = vec_newU
 
-    return proj.tocsr()
+    # newU
+    mat = sp.csr_matrix((data.flatten(), newG_t.shape[:2]), dtype=np.float32)
+    # print("projection time : {}".format(tic.Tac()))
+
+    return mat
+
+def main():
+    # You can write your test code here to verify if everything is working as expected.
+    pass
+
+if __name__ == "__main__":
+    main()
