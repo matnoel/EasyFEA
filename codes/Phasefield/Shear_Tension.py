@@ -29,17 +29,17 @@ if dim == 3:
 else:
     ep = 0
 
-test = True
+test = False
 solve = True
 
 # ----------------------------------------------
-# Post traitement
+# Post processing
 # ----------------------------------------------
 plotMesh = False
 plotResult = True
-plotEnergie = False
-getFissure = False
-showResult = True
+plotEnergy = False
+getCrack = False
+showResult = False
 
 # ----------------------------------------------
 # Animation
@@ -67,14 +67,13 @@ tolConv = 1e-0
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 # regularisations = ["AT1", "AT2"]
-regularisations = ["AT2"] # "AT1", "AT2"
+regularisations = ["AT1"] # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolverType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
-
-# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Miehe"]
+splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+# splits = ["Miehe"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)
@@ -523,14 +522,14 @@ for split, regu in zip(splits, regularisations):
         # PostTraitement.MakeMovie(folder, "Svm", simu)        
         # PostTraitement.MakeMovie(filename, "Syy", simu, nodeValues=True, deformation=True)
             
-    if plotEnergie:
+    if plotEnergy:
         # ----------------------------------------------
         # Energie
         # ---------------------------------------------   
         # Affichage.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)
         Display.Plot_Energy(simu, Niter=400, folder=folder)
 
-    if getFissure:
+    if getCrack:
         # ----------------------------------------------
         # Récupération de la fissure
         # ----------------------------------------------
