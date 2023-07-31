@@ -67,7 +67,7 @@ nodeX0Y0 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
 if dim == 2:
     noeuds_cercle = mesh.Nodes_Circle(circle)
 else:
-    noeuds_cercle = mesh.Nodes_Cylindre(circle,[0,0,1])
+    noeuds_cercle = mesh.Nodes_Cylinder(circle,[0,0,1])
 
 # prends les noeuds du bas
 noeuds_cercle = noeuds_cercle[np.where(mesh.coordo[noeuds_cercle,1]<=circle.center.y)]

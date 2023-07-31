@@ -12,7 +12,7 @@ np = Display.np
 pltIter = True
 pltLoad = True
 
-makeMovie = False
+makeMovie = True
 makeParaview = False
 
 doSimu = True
@@ -38,10 +38,10 @@ ep = 100
 # l0 = 10
 l0 = 5
 
-split = "Zhang"
+split = "AnisotStress"
 regu = "AT2"
 
-tolConv = 1e-0
+tolConv = 1e-2
 convOption = 2
 
 # ----------------------------------------------
@@ -81,7 +81,7 @@ if dim == 2:
     mesh = Interface_Gmsh().Mesh_2D(contour, [], "TRI3", refineGeom=refineDomain)
     directions = ["x","y"]
 else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,ep], 3, "HEXA8", refineGeom=refineDomain)
+    mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,-ep], 3, "HEXA8", refineGeom=refineDomain)
     directions = ["x","y","z"]
 
 Display.Plot_Mesh(mesh)
@@ -90,7 +90,8 @@ Display.Plot_Mesh(mesh)
 nodesEnca = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 nodesLoad = mesh.Nodes_Conditions(lambda x,y,z: (y==L) & (x>=2*L-30))
 node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
-nodesCircle = mesh.Nodes_Cylindre(circle, [0,0,ep])
+nodesCircle = mesh.Nodes_Cylinder(circle, [0,0,ep])
+nodesBord = mesh.Nodes_Conditions(lambda x,y,z: (x==0) | (x==L) | (y==L)| (y==0))
 
 ddlsY_Load = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", nodesLoad, ['y'])
 
@@ -188,7 +189,7 @@ if doSimu:
             axLoad.scatter(ud, fr/1000, c='black')            
             plt.pause(1e-12)
 
-        if not convergence:
+        if not convergence or np.max(d[nodesBord]) >= 1:
             break
 
     displacement = np.array(displacement)

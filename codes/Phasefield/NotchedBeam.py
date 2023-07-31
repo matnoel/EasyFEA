@@ -127,9 +127,9 @@ nodesLoad = mesh.Nodes_Point(p0)
 node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
 nodesEnca = np.concatenate([node3, node4])
 
-nodesCircle1 = mesh.Nodes_Cylindre(circlePos1, [0,0,ep])
-nodesCircle2 = mesh.Nodes_Cylindre(circlePos2, [0,0,ep])
-nodesCircle3 = mesh.Nodes_Cylindre(circlePos3, [0,0,ep])
+nodesCircle1 = mesh.Nodes_Cylinder(circlePos1, [0,0,ep])
+nodesCircle2 = mesh.Nodes_Cylinder(circlePos2, [0,0,ep])
+nodesCircle3 = mesh.Nodes_Cylinder(circlePos3, [0,0,ep])
 nodesDamage = np.concatenate([nodesCircle1, nodesCircle2, nodesCircle3])
 
 ddlsY_Load = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", nodesLoad, ['y'])

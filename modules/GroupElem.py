@@ -1211,7 +1211,7 @@ class GroupElem(ABC):
 
         return self.__nodes[idx]
 
-    def Get_Nodes_Cylindre(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
+    def Get_Nodes_Cylinder(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
         """Returns the nodes in the cylinder."""
 
         coordo = self.__coordo

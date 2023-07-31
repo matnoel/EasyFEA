@@ -43,7 +43,7 @@ noeudsL = mesh.Nodes_Conditions(lambda x,y,z: x == a)
 if dim == 2:
     noeudsCircle = mesh.Nodes_Circle(circle)
 else:
-    noeudsCircle = mesh.Nodes_Cylindre(circle, [0,0,a])
+    noeudsCircle = mesh.Nodes_Cylinder(circle, [0,0,a])
 
 def Iteration(steadyState: bool):
 

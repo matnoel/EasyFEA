@@ -107,7 +107,7 @@ if loadType == 0:
 
 elif loadType == 1:
     surf = np.pi * d/2 * ep
-    nodesLoad = mesh.Nodes_Cylindre(circle, [0,0,-ep])
+    nodesLoad = mesh.Nodes_Cylinder(circle, [0,0,-ep])
     nodesLoad = nodesLoad[mesh.coordo[nodesLoad,1] <= pC.y]
     # Affichage.Plot_Nodes(mesh, nodesLoad)
 

@@ -2038,7 +2038,7 @@ class Simu_Displacement(_Simu):
 class Simu_PhaseField(_Simu):
 
     def __init__(self, mesh: Mesh, model: PhaseField_Model, verbosity=False, useNumba=True):
-        """Initialize displacement simulation."""
+        """Initialize phase field simulation."""
 
         assert model.modelType == ModelType.damage, "The material must be damage model"
         super().__init__(mesh, model, verbosity, useNumba)
