@@ -203,7 +203,7 @@ def CalcDisplacement(Ekl: np.ndarray):
 
     ukl = simuVER.Solve()
 
-    simuVER.Save_Iteration()
+    simuVER.Save_Iter()
 
     # Affichage.Plot_Result(simuVER, "ux", deformation=False)
     # Affichage.Plot_Result(simuVER, "uy", deformation=False)
@@ -256,7 +256,7 @@ def Simulation(simu: Simulations._Simu, title=""):
     Display.Plot_Result(simu, "uy", title=f"{title} uy")
     # Affichage.Plot_Result(simu, "Eyy")
 
-    print(f"{title}: dy={np.max(simu.Get_Resultat('uy')[simu.mesh.Nodes_Point(Geom.Point(L,0))])}")
+    print(f"{title}: dy={np.max(simu.Get_Result('uy')[simu.mesh.Nodes_Point(Geom.Point(L,0))])}")
 
 Simulation(simuInclusions, "inclusions")
 Simulation(simu, "non hom")

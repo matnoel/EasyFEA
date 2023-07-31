@@ -121,9 +121,9 @@ def Solve(Eij: np.ndarray):
 
         u, d, Kglob, convergence = simu.Solve(tolConv=1e-0, maxIter=50)
 
-        simu.Save_Iteration()
+        simu.Save_Iter()
 
-        Sxy_e = simu.Get_Resultat("Sxy", nodeValues=False)
+        Sxy_e = simu.Get_Result("Sxy", nodeValues=False)
 
         Sxy = np.mean(Sxy_e)
 
@@ -132,7 +132,7 @@ def Solve(Eij: np.ndarray):
         plt.pause(1e-12)
 
 
-        simu.Resultats_Set_Resume_Iteration(i, 0, "µm", i/len(coefs), True)
+        simu.Results_Set_Iteration_Summary(i, 0, "µm", i/len(coefs), True)
 
         if pltIter:
             cb.remove()

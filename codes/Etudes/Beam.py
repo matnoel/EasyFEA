@@ -125,7 +125,7 @@ elif beamStructure.dim == 3:
 
 if beamStructure.nBeam > 1:
     # verfie si il ya pas une poutre libre ?
-    simu.add_liaison_Encastrement(mesh.Nodes_Point(point2))
+    simu.add_connection_fixed(mesh.Nodes_Point(point2))
     # simu.add_dirichlet("beam",mesh.Nodes_Point(point2), [0],['y'])
     # simu.add_liaison_Rotule(mesh.Nodes_Point(point2))
 
@@ -151,9 +151,9 @@ Display.Plot_BoundaryConditions(simu)
 
 beamDisplacement = simu.Solve()
 
-simu.Save_Iteration()
+simu.Save_Iter()
 
-stress = simu.Get_Resultat("Stress")
+stress = simu.Get_Result("Stress")
 
 forces = stress/section.area
 
@@ -168,10 +168,10 @@ if beamStructure.dim > 1:
 Display.Section("Resultats")
 
 print()
-u = simu.Get_Resultat("ux", nodeValues=True); affichage("ux",u)
+u = simu.Get_Result("ux", nodeValues=True); affichage("ux",u)
 if beamStructure.dim > 1:
-    v = simu.Get_Resultat("uy", nodeValues=True); affichage("uy",v)
-    rz = simu.Get_Resultat("rz", nodeValues=True); affichage("rz",rz)
+    v = simu.Get_Result("uy", nodeValues=True); affichage("uy",v)
+    rz = simu.Get_Result("rz", nodeValues=True); affichage("rz",rz)
 
     # fy = simu.Get_Resultat("fy", nodeValues=True)
 

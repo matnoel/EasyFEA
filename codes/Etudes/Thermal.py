@@ -59,7 +59,7 @@ def Iteration(steadyState: bool):
 
     thermal = simu.Solve()
 
-    simu.Save_Iteration()
+    simu.Save_Iter()
 
     return thermal
 

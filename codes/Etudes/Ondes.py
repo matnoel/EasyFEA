@@ -78,7 +78,7 @@ while t <= tMax:
 
     simu.Solve()
 
-    simu.Save_Iteration()
+    simu.Save_Iter()
 
     tic.Tac("Simu","Resol\r",True)
 

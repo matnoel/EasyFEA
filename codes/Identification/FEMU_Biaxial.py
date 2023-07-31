@@ -126,7 +126,7 @@ simu.add_lineLoad(nodesLower, [-fexp/h], ['y'])
 # Affichage.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
-simu.Save_Iteration()
+simu.Save_Iter()
 
 # Affichage.Plot_Result(simu, "ux")
 # Affichage.Plot_Result(simu, "uy")
@@ -217,7 +217,7 @@ for perturbation in perturbations:
         # simuIdentif.add_lineLoad(nodesLower, [-fexp/h], ['y'])
         Add_Dirichlet(nodesLower, ['x','y'])        
 
-        ddlsConnues, ddlsInconnues = simuIdentif.Bc_ddls_connues_inconnues(simuIdentif.problemType)        
+        ddlsConnues, ddlsInconnues = simuIdentif.Bc_dofs_known_unknow(simuIdentif.problemType)        
 
         # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
         res = least_squares(func, x0, bounds=bounds, verbose=0, ftol=tol, gtol=tol, xtol=tol)

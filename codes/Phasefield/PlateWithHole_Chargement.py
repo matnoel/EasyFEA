@@ -117,7 +117,7 @@ Display.Plot_BoundaryConditions(simu)
 
 simu.Solve()
 
-simu.Save_Iteration()
+simu.Save_Iter()
 
 Display.Section("Résultats")
 

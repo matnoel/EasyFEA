@@ -128,9 +128,9 @@ for t, elemType in enumerate(elemTypes):
 
         simu.Solve()
 
-        simu.Save_Iteration()
+        simu.Save_Iter()
 
-        Wdef = simu.Get_Resultat("Wdef")
+        Wdef = simu.Get_Result("Wdef")
 
         # Stockage des valeurs
         listTemps_nb.append(tic.Tac("Résolutions","Temps total", False))

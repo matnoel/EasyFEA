@@ -14,14 +14,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import Folder
 
-def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
+def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
     """Display a simulation result
 
     Parameters
     ----------
     obj : Simu or Mesh
         object containing the mesh
-    option : str
+    result : str
         result you wish to use. must be included in Simu.ResultCalculables()
     deformation : bool, optional
         displays deformation, by default False
@@ -55,18 +55,18 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coe
         fig, ax, cb
     """
 
-    from Simulations import _Simu, Mesh, MatrixType
+    from Simulations import _Simu, Mesh, ModelType
 
     # here we detect the nature of the object
     if isinstance(obj, _Simu):
         simu = obj
         mesh = simu.mesh        
-
-        use3DBeamModel = simu._use3DBeamModel
-        
-        if simu.problemType == MatrixType.beam:
+        if simu.problemType == ModelType.beam:
             # Currently I don't know how to display nodal results, so I'm displaying on elements.
             nodeValues = False
+            use3DBeamModel = simu.model.dim == 3
+        else:
+            use3DBeamModel = False
 
     elif isinstance(obj, Mesh):
         mesh = obj
@@ -76,7 +76,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coe
             print("You have to give the simulation to display the deformed mesh.")
         use3DBeamModel = False
 
-        if isinstance(option, str):
+        if isinstance(result, str):
             raise Exception("When obj is a mesh, the option must be an array of dimension Nn or Ne.")
         
     else:
@@ -108,23 +108,23 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coe
         # To take up less space.
 
     # Retrieve values to be displayed
-    if isinstance(option, str):
-        valeurs = simu.Get_Resultat(option, nodeValues) # Retrieve result from option
+    if isinstance(result, str):
+        valeurs = simu.Get_Result(result, nodeValues) # Retrieve result from option
         if not isinstance(valeurs, np.ndarray): return
     
-    elif isinstance(option, np.ndarray):
+    elif isinstance(result, np.ndarray):
         # Gets the size of the array, the size must be nodes or elements
         # If the size is not equal to the number of nodes or elements, returns an error
-        sizeVecteur = option.size
+        sizeVecteur = result.size
 
         if sizeVecteur not in [mesh.Ne, mesh.Nn]:
             print("The vector must be of dimension Nn or Ne.")
             return
 
-        valeurs = option*coef
+        valeurs = result*coef
         
         if sizeVecteur == mesh.Ne and nodeValues:
-            valeurs = _Simu.Results_NodeInterpolation(mesh, valeurs)
+            valeurs = _Simu.Results_Nodes_Values(mesh, valeurs)
         elif sizeVecteur == mesh.Nn and not nodeValues:
             valeursLoc_e = mesh.Locates_sol_e(valeurs)
             valeurs = np.mean(valeursLoc_e, 1)
@@ -145,7 +145,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coe
     dict_connect_Faces = mesh.Get_dict_connect_Faces() # build faces for each group of elements
 
     # Builds boundary markers for the colorbar
-    if isinstance(option, str) and option == "damage":
+    if isinstance(result, str) and result == "damage":
         min = valeurs.min()-1e-12
         openCrack = False
         if openCrack:
@@ -211,7 +211,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coe
             cax=None
         
         # Building the colorbar
-        if isinstance(option, str) and option == "damage":
+        if isinstance(result, str) and result == "damage":
             ticks = np.linspace(0,1,11)
         else:
             ticks = np.linspace(min,max,11)
@@ -295,17 +295,17 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coe
         __ScaleChange(ax, coordoNonDef)
 
     # Title
-    optionTex = option
-    if isinstance(option, str):
-        if option == "damage":
+    optionTex = result
+    if isinstance(result, str):
+        if result == "damage":
             optionTex = "\phi"
-        elif option == "thermal":
+        elif result == "thermal":
             optionTex = "T"
-        elif "S" in option and not option in ["amplitudeSpeed"]:
-            optionFin = option.split('S')[-1]
+        elif "S" in result and not result in ["amplitudeSpeed"]:
+            optionFin = result.split('S')[-1]
             optionTex = f"\sigma_{'{'+optionFin+'}'}"
-        elif "E" in option:
-            optionFin = option.split('E')[-1]
+        elif "E" in result:
+            optionFin = result.split('E')[-1]
             optionTex = f"\epsilon_{'{'+optionFin+'}'}"
     
     # Specify whether values are on nodes or elements
@@ -316,7 +316,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coe
         loc = "^{e}"
     
     # if no title has been entered, the constructed title is used
-    if title == "" and isinstance(option, str):
+    if title == "" and isinstance(result, str):
         title = optionTex+loc
         ax.set_title(fr"${title}$")
     else:
@@ -325,7 +325,7 @@ def Plot_Result(obj, option: str|np.ndarray, deformation=False, factorDef=4, coe
     # If the folder has been filled in, save the figure.
     if folder != "":
         if filename=="":
-            filename=option
+            filename=result
         Save_fig(folder, filename, transparent=False)
 
     # Returns figure, axis and colorbar
@@ -363,7 +363,7 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     if isinstance(obj, _Simu):
         simu = obj
         mesh = simu.mesh
-        use3DBeamModel = simu._use3DBeamModel
+        use3DBeamModel = simu.problemType == "beam" and simu.model == 3
     elif isinstance(obj, Mesh):
         mesh = obj
         if deformation == True:
@@ -662,7 +662,7 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
     neumanns = simu.Bc_Neuman
     Conditions.extend(neumanns)
 
-    lagranges = simu.Bc_LagrangeAffichage
+    lagranges = simu.Bc_LagrangeDisplay
     Conditions.extend(lagranges)
 
     ax = Plot_Mesh(simu, alpha=0)
@@ -983,7 +983,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     assert isinstance(simu, _Simu)
 
     # First we check whether the simulation can calculate energies
-    if len(simu.Resultats_Get_dict_Energie())== 0:
+    if len(simu.Results_dict_Energy())== 0:
         print("Cette simulation ne peut calculer les energies")
         return
 
@@ -1011,13 +1011,13 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     for i, iteration in enumerate(listIter):
 
         # Update simulation at iteration i
-        simu.Update_iter(iteration)
+        simu.Update_Iter(iteration)
 
         if plotSolMax : listSolMax.append(simu.get_u_n(simu.problemType).max())
 
-        list_dict_Energy.append(simu.Resultats_Get_dict_Energie())
+        list_dict_Energy.append(simu.Results_dict_Energy())
 
-        temps = tic.Tac("PostTraitement","Calc Energy", False)
+        temps = tic.Tac("PostProcessing","Calc Energy", False)
         listTemps.append(temps)
 
         pourcentageEtTempsRestant = PostProcessing._RemainingTime(listIter, listTemps, i)
@@ -1074,9 +1074,9 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     if folder != "":        
         Save_fig(folder, "Energy")
 
-    tic.Tac("PostTraitement","Calc Energy", False)
+    tic.Tac("PostProcessing","Calc Energy", False)
 
-def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None) -> None:
+def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     """Display summary of iterations between iterMin and iterMax
 
     Parameters
@@ -1096,7 +1096,7 @@ def Plot_ResumeIter(simu, folder="", iterMin=None, iterMax=None) -> None:
     assert isinstance(simu, _Simu)
 
     # Recovers simulation results
-    iterations, list_label_values = simu.Resultats_Get_ResumeIter_values()
+    iterations, list_label_values = simu.Results_Iter_Summary()
 
     if iterMax == None:
         iterMax = iterations.max()
@@ -1160,7 +1160,7 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float) -> np.ndarray:
 
     if deformation:
 
-        uglob = simu.Resultats_matrice_displacement()
+        uglob = simu.Results_displacement_matrix()
         
         test = isinstance(uglob, np.ndarray)
 

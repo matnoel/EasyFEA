@@ -365,7 +365,7 @@ if doSimulation:
 
         damageMax.append(np.max(d))
 
-        simu.Save_Iteration()
+        simu.Save_Iter()
 
         f = Kglob @ u
 
@@ -373,7 +373,7 @@ if doSimulation:
 
         fr = - np.sum(f_Upper)/1000
 
-        simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/fStop, True)
+        simu.Results_Set_Iteration_Summary(i, fr, "kN", fr/fStop, True)
 
         # if fr != -0.0 and pltContact:
         #     Affichage.Plot_Result(simu, f.reshape(-1,2)[:,1])
@@ -425,7 +425,7 @@ if doSimulation:
         plt.figure(axLoad.figure)
         Display.Save_fig(folder_Save, "forcedep")
 
-    Display.Plot_ResumeIter(simu, folder_Save)
+    Display.Plot_Iter_Summary(simu, folder_Save)
 
     simu.Save(folder_Save)
 

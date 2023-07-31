@@ -155,7 +155,7 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
     # print(np.mean(simu.Get_Resultat("ux")))
     # print(np.mean(simu.Get_Resultat("uy")))
 
-    simu.Save_Iteration()
+    simu.Save_Iter()
 
     if pltSol:
         # Affichage.Plot_Result(simu, "ux", deformation=False)

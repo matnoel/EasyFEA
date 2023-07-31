@@ -243,7 +243,7 @@ def DoSimu(i=0):
 
     simu.Solve()
 
-    simu.Save_Iteration()
+    simu.Save_Iter()
 
     # ----------------------------------------------
     # Calcul de l'erreur
@@ -305,7 +305,7 @@ while erreur >= cible and i < iterMax:
 
     path, erreur = DoSimu(i)
 
-    print(f"{i} erreur = {erreur*100:.3} %, Wdef = {simu.Get_Resultat('Wdef'):.3f} mJ")
+    print(f"{i} erreur = {erreur*100:.3} %, Wdef = {simu.Get_Result('Wdef'):.3f} mJ")
 
 if i > 0:
     os.remove(path)
@@ -313,7 +313,7 @@ if i > 0:
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-Display.Section("Post traitement")
+Display.Section("Post processing")
 
 # folder=""
 if plotResult:

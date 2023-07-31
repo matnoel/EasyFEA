@@ -203,7 +203,7 @@ for f in array_f:
                           description=r"$\mathbf{q}(\theta) = \sigma \ sin^2(\theta) \ \mathbf{n}(\theta)$")
 
     simu.Solve()
-    simu.Save_Iteration()
+    simu.Save_Iter()
 
     # Calcul l'energie
     Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement, "mass")
@@ -255,7 +255,7 @@ Display.Plot_Result(simu, "Sxx", plotMesh=False)
 Display.Plot_Result(simu, "Syy", plotMesh=False)
 Display.Plot_Result(simu, "Sxy", plotMesh=False)
 
-simu.Resultats_Resume()
+print(simu)
 
 PostProcessing.Make_Paraview(folder, simu)
 

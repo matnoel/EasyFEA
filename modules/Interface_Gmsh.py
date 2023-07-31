@@ -1397,14 +1397,14 @@ class Interface_Gmsh:
                 meshPart = interfaceGmsh.Mesh_Import_part(partPath, meshSize=taille, elemType=elemType)
                 list_mesh3D.append(meshPart)
 
-            mesh1 = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], 3, elemType=elemType)
+            mesh1 = interfaceGmsh.Mesh_3D(domain, [], [0,0,-b], 3, elemType=elemType)
             list_mesh3D.append(mesh1)
             testVolume(mesh1.volume)                
 
-            mesh2 = interfaceGmsh.Mesh_3D(domain, [circleCreux], [0,0,b], 3, elemType)
+            mesh2 = interfaceGmsh.Mesh_3D(domain, [circleCreux], [0,0,-b], 3, elemType)
             list_mesh3D.append(mesh2)            
 
-            mesh3 = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,b], 3, elemType)
+            mesh3 = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,-b], 3, elemType)
             list_mesh3D.append(mesh3)
             testVolume(mesh3.volume)
 

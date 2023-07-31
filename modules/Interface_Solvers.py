@@ -117,7 +117,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     if len(lb) > 0 and len(lb) > 0:        
         solveur = "BoundConstrain"
     else:        
-        if len(simu.Bc_ddls_Lagrange(problemType)) > 0:
+        if len(simu.Bc_dofs_Lagrange(problemType)) > 0:
             # if lagrange multiplier are found we cannot use iterative solvers
             solveur = "scipy"
         else:
@@ -227,21 +227,21 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
     A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r1)
 
     # Recovers ddls
-    ddl_Connues, ddl_Inconnues = simu.Bc_ddls_connues_inconnues(problemType)
+    dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknow(problemType)
 
     tic = Tic()
     # Decomposition of the matrix system into known and unknowns
     # Solve : Aii * ui = bi - Aic * xc
-    Ai = A[ddl_Inconnues, :].tocsc()
-    Aii = Ai[:, ddl_Inconnues].tocsr()
-    Aic = Ai[:, ddl_Connues].tocsr()
-    bi = b[ddl_Inconnues,0]
-    xc = x[ddl_Connues,0]
+    Ai = A[dofsUnknown, :].tocsc()
+    Aii = Ai[:, dofsUnknown].tocsr()
+    Aic = Ai[:, dofsKnown].tocsr()
+    bi = b[dofsUnknown,0]
+    xc = x[dofsKnown,0]
 
     tic.Tac("Solver",f"System-built ({problemType})", simu._verbosity)
 
     x0 = simu.Get_x0(problemType)
-    x0 = x0[ddl_Inconnues]    
+    x0 = x0[dofsUnknown]    
 
     bDirichlet = Aic @ xc
 
@@ -251,7 +251,7 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
 
     # apply result to global vector
     x = x.toarray().reshape(x.shape[0])
-    x[ddl_Inconnues] = xi
+    x[dofsUnknown] = xi
 
     return x
 
@@ -271,7 +271,7 @@ def __Solver_2(simu, problemType: str):
     A = A.tolil()
     b = b.tolil()
 
-    ddls_Dirichlet = np.array(simu.Bc_ddls_Dirichlet(problemType))
+    ddls_Dirichlet = np.array(simu.Bc_dofs_Dirichlet(problemType))
     values_Dirichlet = np.array(simu.Bc_values_Dirichlet(problemType))
     
     list_Bc_Lagrange = simu.Bc_Lagrange

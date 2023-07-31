@@ -295,7 +295,7 @@ for perturbation in perturbations:
             # applique les ddls sur le bord
             Add_Dirichlet(nodesBord, ['x','y'])
 
-        ddlsConnues, ddlsInconnues = simuIdentif.Bc_ddls_connues_inconnues(simuIdentif.problemType)
+        ddlsConnues, ddlsInconnues = simuIdentif.Bc_dofs_known_unknow(simuIdentif.problemType)
         # Affichage.Plot_BoundaryConditions(simuIdentif)
 
         # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')

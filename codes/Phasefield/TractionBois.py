@@ -187,7 +187,7 @@ for iter, force in enumerate(np.linspace(0, 35, nf)):
     # simu.Solve(1e-1, maxIter=50, convOption=1)
     simu.Solve(1e-0, maxIter=50, convOption=2)
 
-    simu.Save_Iteration()
+    simu.Save_Iter()
 
     depNum = np.max(simu.displacement[noeudsHaut])
 
@@ -199,7 +199,7 @@ for iter, force in enumerate(np.linspace(0, 35, nf)):
 
     pourcent = iter/nf
 
-    simu.Resultats_Set_Resume_Iteration(iter, force, "N", pourcent, True)
+    simu.Results_Set_Iteration_Summary(iter, force, "N", pourcent, True)
 
     cb_Damage.remove()
     fig_Damage, ax_Damage, cb_Damage = Display.Plot_Result(simu, "damage", ax=ax_Damage)

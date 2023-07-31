@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 class Test_Simu(unittest.TestCase):
     
-    def test_Beams(self):
+    def test_Beam(self):
         
         interfaceGmsh = Interface_Gmsh()
 
@@ -131,10 +131,10 @@ class Test_Simu(unittest.TestCase):
                 PlotAndDelete()
 
         
-            u = simu.Get_Resultat("ux", nodeValues=True)
+            u = simu.Get_Result("ux", nodeValues=True)
             if beamStruct.dim > 1:
-                v = simu.Get_Resultat("uy", nodeValues=True)
-                rz = simu.Get_Resultat("rz", nodeValues=True)
+                v = simu.Get_Result("uy", nodeValues=True)
+                rz = simu.Get_Result("rz", nodeValues=True)
 
             listX = np.linspace(0,L,100)
             erreurMaxAnalytique = 1e-2
@@ -247,13 +247,46 @@ class Test_Simu(unittest.TestCase):
             simu.add_dirichlet(noeuds0, [0], [""])
             simu.add_dirichlet(noeudsL, [40], [""])
             simu.Solve()
-            simu.Save_Iteration()
+            simu.Save_Iter()
 
             fig, ax, cb = Display.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
             plt.pause(1e-12)
             plt.close(fig)
 
     # TODO test phase field
+
+    def test_PhaseField(self):
+        
+        a = 1
+        l0 = a/10
+        meshSize = l0/2
+        mesh = Interface_Gmsh.Construction_2D(L=a, h=a, taille=meshSize)[5] # take the first mesh
+
+        nodes_0 = mesh.Nodes_Conditions(lambda x,y,z: x==0)
+        nodes_a = mesh.Nodes_Conditions(lambda x,y,z: x==a)
+
+        material = Materials.Elas_Isot(2, E=210000, v=0.3, planeStress=True, thickness=1)
+
+        splits = list(Materials.PhaseField_Model.SplitType)
+        regularizations = list(Materials.PhaseField_Model.RegularizationType)
+
+        for split in splits: 
+            for regu in regularizations:
+
+                pfm = Materials.PhaseField_Model(material, split, regu, 2700, l0)
+
+                print(f"{split} {regu}")
+
+                simu = Simulations.Simu_PhaseField(mesh, pfm)
+
+                for ud in np.linspace(0, 5e-8*400, 3):
+
+                    simu.Bc_Init()
+                    simu.add_dirichlet(nodes_0, [0, 0], ['x', 'y'])
+                    simu.add_dirichlet(nodes_a, [ud], ['x'])
+
+                    simu.Solve()
+                    simu.Save_Iter()
 
 if __name__ == '__main__':        
     try:

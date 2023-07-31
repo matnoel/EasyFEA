@@ -177,7 +177,7 @@ for config in listConfig:
                 # i n'a pas été trouvé on continue les iterations
                 continue
             
-            simu.Update_iter(i)
+            simu.Update_Iter(i)
 
             filenameDamage = f"{nomSimu} et ud = {np.round(displacement[i]*1e6,2)}"
             # titleDamage = filenameDamage
@@ -190,7 +190,7 @@ for config in listConfig:
     
      
     # texte = texte.replace("AnisotStrain","Spectral")
-    tic.Tac("Post traitement", split, False)
+    tic.Tac("Post processing", split, False)
 
     if loadSimu:
         try:

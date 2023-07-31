@@ -121,8 +121,8 @@ for v in list_V:
 
         simu.Solve()
 
-        psipa = np.mean(simu.Get_Resultat("psiP", True)[nodeA])*E/SIG**2
-        psipb = np.mean(simu.Get_Resultat("psiP", True)[nodeB])*E/SIG**2
+        psipa = np.mean(simu.Get_Result("psiP", True)[nodeA])*E/SIG**2
+        psipb = np.mean(simu.Get_Result("psiP", True)[nodeB])*E/SIG**2
 
         if isCP:
             result['A (CP)'] = psipa
@@ -155,16 +155,16 @@ Display.Section("Résultats")
 print(nom+'\n')
 print(df)
 
-SxxA = simu.Get_Resultat("Sxx", True)[nodeA][0]
-SyyA = simu.Get_Resultat("Syy", True)[nodeA][0]
-SxyA = simu.Get_Resultat("Sxy", True)[nodeA][0]
+SxxA = simu.Get_Result("Sxx", True)[nodeA][0]
+SyyA = simu.Get_Result("Syy", True)[nodeA][0]
+SxyA = simu.Get_Result("Sxy", True)[nodeA][0]
 
 Sig_A=np.array([[SxxA, SxyA, 0],[SxyA, SyyA, 0],[0,0,0]])
 print(f"\nEn A : Sig/SIG = \n{Sig_A/SIG}\n")
 
-SxxB = simu.Get_Resultat("Sxx", True)[nodeB][0]
-SyyB = simu.Get_Resultat("Syy", True)[nodeB][0]
-SxyB = simu.Get_Resultat("Sxy", True)[nodeB][0]
+SxxB = simu.Get_Result("Sxx", True)[nodeB][0]
+SyyB = simu.Get_Result("Syy", True)[nodeB][0]
+SxyB = simu.Get_Result("Sxy", True)[nodeB][0]
 
 Sig_B=np.array([[SxxB, SxyB, 0],[SxyB, SyyB, 0],[0,0,0]])
 print(f"\nEn B : Sig/SIG = \n{Sig_B/SIG}\n")

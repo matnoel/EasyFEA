@@ -38,6 +38,7 @@ class Mesh:
             print(self)
 
     def _ResetMatrix(self) -> None:
+        """Reset matrix for each groupElem"""
         [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]
 
     def __str__(self) -> str:
@@ -494,7 +495,7 @@ def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarr
     meshSize_e = (coef - 1) / error_e.max() * error_e + 1
 
     import Simulations
-    meshSize_n = Simulations._Simu.Results_NodeInterpolation(mesh, meshSize_e * h_e)
+    meshSize_n = Simulations._Simu.Results_Nodes_Values(mesh, meshSize_e * h_e)
 
     return meshSize_n
 

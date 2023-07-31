@@ -251,7 +251,7 @@ for split, regu in zip(splits, regularisations):
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
-        simu.Resultats_Set_Resume_Chargement(u_max, listInc, listTresh, listOption)
+        simu.Results_Set_Bc_Summary(u_max, listInc, listTresh, listOption)
 
         ud=0
         resol = 0
@@ -358,7 +358,7 @@ for split, regu in zip(splits, regularisations):
                     # pass
                     # plt.close("all")
 
-            simu.Save_Iteration()
+            simu.Save_Iter()
 
             max_d = d.max()
             f = np.sum(Kglob[ddls_upper, :] @ u)
@@ -369,9 +369,9 @@ for split, regu in zip(splits, regularisations):
                 pourcentage = 0
 
             if "Benchmark" in problem:
-                simu.Resultats_Set_Resume_Iteration(resol, ud*1e6, "µm", pourcentage, True)
+                simu.Results_Set_Iteration_Summary(resol, ud*1e6, "µm", pourcentage, True)
             elif "FCBA" in problem:
-                simu.Resultats_Set_Resume_Iteration(resol, ud*1e3, "mm", pourcentage, True)
+                simu.Results_Set_Iteration_Summary(resol, ud*1e3, "mm", pourcentage, True)
            
             if max_d<tresh0:
                 ud += inc0
@@ -435,7 +435,7 @@ for split, regu in zip(splits, regularisations):
     if plotResult:
         Display.Plot_BoundaryConditions(simu)
 
-        Display.Plot_ResumeIter(simu, folder, None, None)
+        Display.Plot_Iter_Summary(simu, folder, None, None)
 
         if "Benchmark" in problem:
             Display.Plot_Load_Displacement(displacement*1e3, load*1e-6, 'ud [mm]', 'f [kN/mm]', folder)

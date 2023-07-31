@@ -98,13 +98,13 @@ for cc in list_cc:
 
     simu.Solve()
 
-    list_SxxA.append(simu.Get_Resultat("Sxx", True)[nodeA])
-    list_SyyA.append(simu.Get_Resultat("Syy", True)[nodeA])
-    list_SxyA.append(simu.Get_Resultat("Sxy", True)[nodeA])
+    list_SxxA.append(simu.Get_Result("Sxx", True)[nodeA])
+    list_SyyA.append(simu.Get_Result("Syy", True)[nodeA])
+    list_SxyA.append(simu.Get_Result("Sxy", True)[nodeA])
 
-    list_SxxB.append(simu.Get_Resultat("Sxx", True)[nodeB])
-    list_SyyB.append(simu.Get_Resultat("Syy", True)[nodeB])
-    list_SxyB.append(simu.Get_Resultat("Sxy", True)[nodeB])
+    list_SxxB.append(simu.Get_Result("Sxx", True)[nodeB])
+    list_SyyB.append(simu.Get_Result("Syy", True)[nodeB])
+    list_SxyB.append(simu.Get_Result("Sxy", True)[nodeB])
 
 Display.Section("Résultats")
 

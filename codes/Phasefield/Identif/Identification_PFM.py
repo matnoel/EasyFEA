@@ -248,14 +248,14 @@ for idxEssai in range(0,18):
 
             # resolution
             u, d, Kglob, convergence = simu.Solve(tolConv, convOption=convOption)
-            simu.Save_Iteration()
+            simu.Save_Iter()
 
             # force résultante
             f = Kglob[ddlsY_Upper,:] @ u
             fr = - np.sum(f)/1000
 
             # simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/f_crit, True)
-            simu.Resultats_Set_Resume_Iteration(i, fr, "kN", 0, True)            
+            simu.Results_Set_Iteration_Summary(i, fr, "kN", 0, True)            
 
         if returnSimu:
             return simu
@@ -410,9 +410,9 @@ for idxEssai in range(0,18):
             Display.Save_fig(folder_Save, "iterations")
             
             simu.Save(folder_Save)
-            Display.Plot_ResumeIter(simu, folder_Save)
+            Display.Plot_Iter_Summary(simu, folder_Save)
 
-            simu.Update_iter(-1)
+            simu.Update_Iter(-1)
             ddlsY = BoundaryCondition.Get_dofs_nodes(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
             fr = -np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ simu.displacement)/1000
 
@@ -462,7 +462,7 @@ for idxEssai in range(0,18):
         ddlsY = BoundaryCondition.Get_dofs_nodes(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
         for iter in range(len(simu.results)):
 
-            simu.Update_iter(iter)
+            simu.Update_Iter(iter)
 
             displacement = simu.displacement
             deplacementsIdentif.append(-np.mean(displacement[ddlsY]))

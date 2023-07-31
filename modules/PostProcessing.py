@@ -105,7 +105,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
         frames per second, by default 30
     """
     
-    resultat = simu.Get_Resultat(option)
+    resultat = simu.Get_Result(option)
     if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
         return
 
@@ -130,7 +130,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     Niter = len(listIter)
 
     # Update the simulation to create the first figure that will be used for the animation
-    simu.Update_iter(0)
+    simu.Update_Iter(0)
 
     # Display the first figure
     fig, ax, cb = Display.Plot_Result(simu, option, plotMesh=plotMesh, deformation=deformation, factorDef=factorDef, nodeValues=nodeValues)
@@ -144,7 +144,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     with writer.saving(fig, filename, 200):
         tic = Tic()
         for i, iter in enumerate(listIter):
-            simu.Update_iter(iter)
+            simu.Update_Iter(iter)
 
             cb.remove()
             
@@ -206,8 +206,8 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
 
     nodesField, elementsField = simu.Paraview_nodesField_elementsField(details)
 
-    checkNodesField = [n for n in nodesResult if simu.Resultats_Check_Options_disponibles(n)]
-    checkElemsField = [n for n in elementsResult if simu.Resultats_Check_Options_disponibles(n)]
+    checkNodesField = [n for n in nodesResult if simu._Results_Check_Available(n)]
+    checkElemsField = [n for n in elementsResult if simu._Results_Check_Available(n)]
 
     nodesField.extend(checkNodesField)
     elementsField.extend(checkElemsField)
@@ -305,11 +305,11 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
 
     options = nodesField+elementsField
    
-    simu.Update_iter(iter)
+    simu.Update_Iter(iter)
 
     # Verification if the results list is compatible with the simulation
     for option in options:
-        resultat = simu.Get_Resultat(option)
+        resultat = simu.Get_Result(option)
         if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
             return
 
@@ -373,11 +373,11 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         list_valeurs_n=[]
         for resultat_n in nodesField:
 
-            valeurs_n = simu.Get_Resultat(resultat_n, nodeValues=True).reshape(-1)
+            valeurs_n = simu.Get_Result(resultat_n, nodeValues=True).reshape(-1)
             list_valeurs_n.append(valeurs_n)
 
             nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
-            if resultat_n == "matrice_displacement": resultat_n="displacement"
+            if resultat_n == "matrix_displacement": resultat_n="displacement"
             file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
             offset = CalcOffset(offset, valeurs_n.size)
 
@@ -388,7 +388,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         list_valeurs_e=[]
         for resultat_e in elementsField:
 
-            valeurs_e = simu.Get_Resultat(resultat_e, nodeValues=False).reshape(-1)
+            valeurs_e = simu.Get_Result(resultat_e, nodeValues=False).reshape(-1)
             list_valeurs_e.append(valeurs_e)
 
             nombreDeComposantes = int(valeurs_e.size/Ne)

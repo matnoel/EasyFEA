@@ -309,7 +309,7 @@ for split, regu in zip(splits, regularisations):
             optionTreshold = ["damage"]*2
             # chargement = ["crack bord"]
 
-        simu.Resultats_Set_Resume_Chargement(chargement[-1],listInc, listThreshold, optionTreshold)        
+        simu.Results_Set_Bc_Summary(chargement[-1],listInc, listThreshold, optionTreshold)        
 
         # ----------------------------------------------
         # Simulation
@@ -359,7 +359,7 @@ for split, regu in zip(splits, regularisations):
 
             u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter, convOption=1)
 
-            simu.Save_Iteration()
+            simu.Save_Iter()
             
             f = np.sum(Kglob[ddls_Haut, :] @ u)
 
@@ -368,7 +368,7 @@ for split, regu in zip(splits, regularisations):
             else:
                 pourcentage = iter/N
 
-            simu.Resultats_Set_Resume_Iteration(iter, dep*1e6, "µm", pourcentage, True)
+            simu.Results_Set_Iteration_Summary(iter, dep*1e6, "µm", pourcentage, True)
 
             # Si on converge pas on arrête la simulation
             if not convergence: break
@@ -498,7 +498,7 @@ for split, regu in zip(splits, regularisations):
 
     if plotResult:
 
-        Display.Plot_ResumeIter(simu, folder, None, None)
+        Display.Plot_Iter_Summary(simu, folder, None, None)
 
         Display.Plot_BoundaryConditions(simu)
 
@@ -555,7 +555,7 @@ for split, regu in zip(splits, regularisations):
 
         for iter in range(len(simu.results)):
 
-            simu.Update_iter(iter)
+            simu.Update_Iter(iter)
 
             # récupére les endommagés pour l'iération
             noeuds = np.where(simu.damage >= 1)[0]        

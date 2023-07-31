@@ -87,9 +87,9 @@ for i, ud in enumerate(displacements):
         Display.Plot_BoundaryConditions(simu)
 
     u, d, Kglob, convergence  = simu.Solve(1e-2)
-    simu.Save_Iteration()
+    simu.Save_Iter()
 
-    simu.Resultats_Set_Resume_Iteration(i, 0, '', i/N, True)
+    simu.Results_Set_Iteration_Summary(i, 0, '', i/N, True)
 
     fr = np.sum(Kglob[ddlsY,:]@u)/1000
     forces.append(fr)
@@ -112,7 +112,7 @@ for i, ud in enumerate(displacements):
 
 forces = np.array(forces)
 
-Display.Plot_ResumeIter(simu)
+Display.Plot_Iter_Summary(simu)
 Display.Plot_Energy(simu, forces, displacements)
 
 plt.show()

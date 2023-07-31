@@ -201,9 +201,9 @@ if doSimu:
 
         load.append(fr)
 
-        simu.Resultats_Set_Resume_Iteration(iter, ud*1e6, "µm", iter/displacement.size, True)
+        simu.Results_Set_Iteration_Summary(iter, ud*1e6, "µm", iter/displacement.size, True)
 
-        simu.Save_Iteration()
+        simu.Save_Iter()
 
         if pltIter:
             plt.figure(axIter.figure)
@@ -248,10 +248,10 @@ axLoad.set_ylabel('load [kN]')
 axLoad.plot(displacement*1000, load/1000, c="blue")
 Display.Save_fig(folderSimu, "forcedep")
 
-Display.Plot_ResumeIter(simu, folderSimu)
+Display.Plot_Iter_Summary(simu, folderSimu)
 
 if makeMovie:
-    depMax = simu.Get_Resultat("amplitude").max()
+    depMax = simu.Get_Result("amplitude").max()
     facteur = 10*depMax
     PostProcessing.Make_Movie(folderSimu, 'damage', simu, deformation=False, factorDef=facteur, plotMesh=False)
 

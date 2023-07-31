@@ -139,7 +139,7 @@ Display.Plot_Mesh(mesh, folder=folder)
 # Affichage.Plot_Model(mesh, showId=True)
 
 simu.Solve()
-simu.Save_Iteration()
+simu.Save_Iter()
 
 # Affichage.Plot_Elements(mesh, nodes=noeudsDroit, dimElem=2)
 # ddlsF = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", noeudsDroit, ["y"])
@@ -148,7 +148,7 @@ simu.Save_Iteration()
 # import PostTraitement
 # PostTraitement.Make_Paraview(folder, simu)
 
-simu.Resultats_Resume()
+print(simu)
 
 Display.Plot_BoundaryConditions(simu)
 

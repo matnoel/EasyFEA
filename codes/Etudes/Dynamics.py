@@ -16,7 +16,7 @@ from TicTac import Tic
 # Configuration
 # ----------------------------------------------
 
-dim = 3
+dim = 2
 folder = Folder.New_File(f"Dynamics{dim}D", results=True)
 plotResult = True
 
@@ -135,7 +135,7 @@ def Iteration(steadyState: bool, isLoading: bool):
 
     simu.Solve()
     
-    simu.Save_Iteration()
+    simu.Save_Iter()
 
 if initSimu:
     # Init
@@ -169,9 +169,7 @@ tic_Tot.Tac("Temps script","Temps total", True)
 # ----------------------------------------------
 # Post traitement
 # ----------------------------------------------
-Display.Section("Post traitement")
-
-simu.Resultats_Get_Resume_Iteration()
+Display.Section("Post processing")
 
 Display.Plot_BoundaryConditions(simu)
 # plt.show()
@@ -187,7 +185,7 @@ if pltMovie:
 if plotResult:
 
     tic = Tic()
-    simu.Resultats_Resume(True)
+    print(simu)
     # Affichage.Plot_Result(simu, "amplitude")
     # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
     Display.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
