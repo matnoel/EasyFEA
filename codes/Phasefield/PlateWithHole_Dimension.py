@@ -72,7 +72,7 @@ for cc in list_cc:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
-    # Display.Plot_Maillage(mesh)
+    # Display.Plot_Mesh(mesh)
 
     # Récupérations des noeuds de chargement
     B_lower = Line(point,Point(x=L))

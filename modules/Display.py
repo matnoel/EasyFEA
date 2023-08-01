@@ -766,7 +766,7 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1.0) -> plt.Axes:
 
     # Create axes if necessary
     if ax == None:
-        # ax = Plot_Maillage(mesh, facecolors='c', edgecolor='black')
+        # ax = Plot_Mesh(mesh, facecolors='c', edgecolor='black')
         # fig = ax.figure
         if mesh.inDim in [0,1,2]:
             fig, ax = plt.subplots()

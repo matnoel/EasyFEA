@@ -162,7 +162,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
 
             pourcentageEtTempsRestant = _RemainingTime(listIter, listTemps, i)
 
-            print(f"Makemovie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
+            print(f"Make_Movie {iter}/{N-1} {pourcentageEtTempsRestant}    ", end='\r')
 
 # ========================================== Paraview =================================================
 

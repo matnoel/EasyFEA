@@ -152,7 +152,7 @@ print(simu)
 
 Display.Plot_BoundaryConditions(simu)
 
-# Display.Plot_Maillage(simu, deformation=True)
+# Display.Plot_Mesh(simu, deformation=True)
 # Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
 # Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
 # Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)

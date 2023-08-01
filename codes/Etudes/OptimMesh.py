@@ -320,7 +320,7 @@ if plotResult:
     tic = Tic()
     # simu.Resultats_Resume(True)
     # Display.Plot_Result(simu, "amplitude")
-    # Display.Plot_Maillage(simu, deformation=True, folder=folder)
+    # Display.Plot_Mesh(simu, deformation=True, folder=folder)
     Display.Plot_Result(simu, "ux", deformation=True, nodeValues=False)        
     Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
     # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)   
