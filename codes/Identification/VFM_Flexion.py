@@ -50,8 +50,8 @@ poid1D_pg = groupElem1D.Get_weight_pg(matrixType)
 
 assembly1D_e = groupElem1D.Get_assembly_e(2)
 
-# Affichage.Plot_Mesh(mesh)
-# Affichage.Plot_Model(mesh)
+# Display.Plot_Mesh(mesh)
+# Display.Plot_Model(mesh)
 
 # ----------------------------------------------
 # Comportement
@@ -70,7 +70,7 @@ simu.add_dirichlet(nodesX0, [0,0], ["x","y"])
 simu.add_surfLoad(nodesXL, [-p/b/h], ["y"])
 # simu.add_surfLoad(nodesXL, [-p/b/h], ["x"])
 
-# Affichage.Plot_BoundaryConditions(simu)
+# Display.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
 f_exp = simu._Apply_Neumann("displacement").toarray().reshape(-1)
@@ -80,7 +80,7 @@ forceR = np.sum(f_exp)
 
 forces = simu.Get_K_C_M_F()[0] @ u_exp
 ddls = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", mesh.nodes, ["y"])
-# Affichage.Plot_Result(simu, fff[ddls], cmap="seismic")
+# Display.Plot_Result(simu, fff[ddls], cmap="seismic")
 
 f_exp_loc = f_exp[assembly1D_e]
 
@@ -96,9 +96,9 @@ E11_exp = Eps_exp[:,:,0]
 E22_exp = Eps_exp[:,:,1]
 E12_exp = Eps_exp[:,:,2]
 
-# Affichage.Plot_Result(simu, "Exx", nodeValues=False)
-# Affichage.Plot_Result(simu, "Eyy", nodeValues=False)
-# Affichage.Plot_Result(simu, "Exy", nodeValues=False)
+# Display.Plot_Result(simu, "Exx", nodeValues=False)
+# Display.Plot_Result(simu, "Eyy", nodeValues=False)
+# Display.Plot_Result(simu, "Exy", nodeValues=False)
 
 def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, pltSol=False):
     # Fonction qui renvoie les intégrales calculés

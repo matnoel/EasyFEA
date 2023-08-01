@@ -158,7 +158,7 @@ for config in listConfig:
             print("simulation indisponible")
             
 
-        # Affichage.Plot_Maillage(simu.mesh)
+        # Display.Plot_Maillage(simu.mesh)
 
     if plotDamage:
 

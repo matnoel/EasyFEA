@@ -11,7 +11,7 @@ plt = Display.plt
 # http://link.springer.com/10.1007/978-3-030-18383-7
 # SECTION 4.7
 
-# Affichage.Clear()
+# Display.Clear()
 
 # use PER boundary conditions ?
 usePER = True 
@@ -146,7 +146,7 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
             condition = LagrangeCondition("displacement", nodes, ddls, ["y"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)
 
-    # Affichage.Plot_BoundaryConditions(simu)
+    # Display.Plot_BoundaryConditions(simu)
 
     pass
 
@@ -158,8 +158,8 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
     simu.Save_Iter()
 
     if pltSol:
-        # Affichage.Plot_Result(simu, "ux", deformation=False)
-        # Affichage.Plot_Result(simu, "uy", deformation=False)
+        # Display.Plot_Result(simu, "ux", deformation=False)
+        # Display.Plot_Result(simu, "uy", deformation=False)
 
         Display.Plot_Result(simu, "Sxx", factorDef=0.3, deformation=True, nodeValues=True)
         Display.Plot_Result(simu, "Syy", factorDef=0.3, deformation=True, nodeValues=True)

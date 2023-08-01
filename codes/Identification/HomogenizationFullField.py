@@ -205,12 +205,12 @@ def CalcDisplacement(Ekl: np.ndarray):
 
     simuVER.Save_Iter()
 
-    # Affichage.Plot_Result(simuVER, "ux", deformation=False)
-    # Affichage.Plot_Result(simuVER, "uy", deformation=False)
+    # Display.Plot_Result(simuVER, "ux", deformation=False)
+    # Display.Plot_Result(simuVER, "uy", deformation=False)
 
-    # Affichage.Plot_Result(simuVER, "Exx")
-    # Affichage.Plot_Result(simuVER, "Eyy")
-    # Affichage.Plot_Result(simuVER, "Exy")
+    # Display.Plot_Result(simuVER, "Exx")
+    # Display.Plot_Result(simuVER, "Eyy")
+    # Display.Plot_Result(simuVER, "Exy")
 
     return ukl
 
@@ -252,9 +252,9 @@ def Simulation(simu: Simulations._Simu, title=""):
 
     simu.Solve()
 
-    # Affichage.Plot_BoundaryConditions(simu)
+    # Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "uy", title=f"{title} uy")
-    # Affichage.Plot_Result(simu, "Eyy")
+    # Display.Plot_Result(simu, "Eyy")
 
     print(f"{title}: dy={np.max(simu.Get_Result('uy')[simu.mesh.Nodes_Point(Geom.Point(L,0))])}")
 
@@ -269,7 +269,7 @@ if testSym >= 1e-12 and testSym <= 1e-7:
 comp.Set_C(C_hom, False)
 Simulation(simu, "hom")
 
-# ax = Affichage.Plot_Result(simu, "uy")[1]
-# Affichage.Plot_Result(simuInclusions, "uy", ax=ax)
+# ax = Display.Plot_Result(simu, "uy")[1]
+# Display.Plot_Result(simuInclusions, "uy", ax=ax)
 
 plt.show()

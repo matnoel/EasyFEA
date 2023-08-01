@@ -84,9 +84,9 @@ nodesZone = mesh.Nodes_Circle(circleZone)
 
 ddlsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesUpper, ["y"])
 
-# Affichage.Plot_Nodes(mesh, nodesZone)
-# Affichage.Save_fig(folder, "vfm zone cisaillement")
-# Affichage.Plot_Elements(mesh, nodesUpper, 1)
+# Display.Plot_Nodes(mesh, nodesZone)
+# Display.Save_fig(folder, "vfm zone cisaillement")
+# Display.Plot_Elements(mesh, nodesUpper, 1)
 
 # Récupération des array pour l'intégration numérique
 matrixType = "rigi" 
@@ -136,8 +136,8 @@ simu.add_dirichlet(nodesLower, [0], ["y"])
 simu.add_dirichlet(mesh.Nodes_Tags((["P0"])), [0], ["x"])
 simu.add_surfLoad(nodesUpper, [-sig], ["y"])
 
-# Affichage.Plot_BoundaryConditions(simu)
-# Affichage.Save_fig(folder, "Boundary Compression")
+# Display.Plot_BoundaryConditions(simu)
+# Display.Save_fig(folder, "Boundary Compression")
 
 u_exp = simu.Solve()
 
@@ -477,10 +477,10 @@ for perturbation in perturbations:
             E1 = 0
 
             # axs = plt.subplots(ncols=2)[1]
-            # Affichage.Plot_Result(simu, "Exy", nodeValues=False, ax=axs[0], title="num")
+            # Display.Plot_Result(simu, "Exy", nodeValues=False, ax=axs[0], title="num")
             # # rr = np.ones(mesh.Nn)
             # rr = np.ones(mesh.Nn)*1/2/l # 3*xn**2/l**3            
-            # Affichage.Plot_Result(simu, rr, nodeValues=False, ax=axs[1], title="analytique")
+            # Display.Plot_Result(simu, rr, nodeValues=False, ax=axs[1], title="analytique")
             pass
 
 
@@ -566,30 +566,30 @@ for perturbation in perturbations:
 
         #     simu.set_u_n("displacement", u_n)
             
-        #     ax = Affichage.Plot_Result(simu, "ux",title=" ", colorbarIsClose=True)[1]
+        #     ax = Display.Plot_Result(simu, "ux",title=" ", colorbarIsClose=True)[1]
         #     ax.axis("off")
         #     ax.set_title("$u_x^{" + f"*({cc+1})" + "}$")
-        #     Affichage.Save_fig(folder, f"VFM_ux{cc+1}{opt}")
+        #     Display.Save_fig(folder, f"VFM_ux{cc+1}{opt}")
 
-        #     ax = Affichage.Plot_Result(simu, "uy",title=" ", colorbarIsClose=True)[1]
+        #     ax = Display.Plot_Result(simu, "uy",title=" ", colorbarIsClose=True)[1]
         #     ax.axis("off")
         #     ax.set_title("$u_y^{" + f"*({cc+1})" + "}$")
-        #     Affichage.Save_fig(folder, f"VFM_uy{cc+1}{opt}")
+        #     Display.Save_fig(folder, f"VFM_uy{cc+1}{opt}")
 
-        #     ax = Affichage.Plot_Result(simu, "Exx",title=" ", colorbarIsClose=True)[1]
+        #     ax = Display.Plot_Result(simu, "Exx",title=" ", colorbarIsClose=True)[1]
         #     ax.axis("off")
         #     ax.set_title("$\epsilon_{xx}^{" + f"*({cc+1})" + "}$")
-        #     Affichage.Save_fig(folder, f"VFM_Exx{cc+1}{opt}")
+        #     Display.Save_fig(folder, f"VFM_Exx{cc+1}{opt}")
 
-        #     ax = Affichage.Plot_Result(simu, "Eyy", title=" ", colorbarIsClose=True)[1]
+        #     ax = Display.Plot_Result(simu, "Eyy", title=" ", colorbarIsClose=True)[1]
         #     ax.axis("off")
         #     ax.set_title("$\epsilon_{yy}^{" + f"*({cc+1})" + "}$")
-        #     Affichage.Save_fig(folder, f"VFM_Eyy{cc+1}{opt}")
+        #     Display.Save_fig(folder, f"VFM_Eyy{cc+1}{opt}")
 
-        #     ax = Affichage.Plot_Result(simu, "Exy",title=" ", colorbarIsClose=True)[1]
+        #     ax = Display.Plot_Result(simu, "Exy",title=" ", colorbarIsClose=True)[1]
         #     ax.axis("off")
         #     ax.set_title("$\epsilon_{xy}^{" + f"*({cc+1})" + "}$")
-        #     Affichage.Save_fig(folder, f"VFM_Exy{cc+1}{opt}")
+        #     Display.Save_fig(folder, f"VFM_Exy{cc+1}{opt}")
         #     pass            
         
 

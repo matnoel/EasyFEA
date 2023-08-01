@@ -58,7 +58,7 @@ circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isCreux=True)
 
 mesh = gmshInterface.Mesh_2D(points, [circle], elemType)
 
-# Affichage.Plot_Model(mesh)
+# Display.Plot_Model(mesh)
 
 nodesBord = mesh.Nodes_Tags(["L0", "L2"])
 nodesp0 = mesh.Nodes_Tags(["P0"])
@@ -79,9 +79,9 @@ if useRescale:
     ddlsHautXY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesHaut, ["x","y"])
 
 
-# Affichage.Plot_Mesh(mesh)
-# Affichage.Plot_Model(mesh)
-# Affichage.Plot_Nodes(mesh, nodesX0)
+# Display.Plot_Mesh(mesh)
+# Display.Plot_Model(mesh)
+# Display.Plot_Nodes(mesh, nodesX0)
 
 # ----------------------------------------------
 # Comportement
@@ -143,14 +143,14 @@ simu.add_dirichlet(nodesBas, [0], ["y"])
 simu.add_dirichlet(nodesp0, [0], ["x"])
 simu.add_surfLoad(nodesHaut, [-sig], ["y"])
 
-# Affichage.Plot_BoundaryConditions(simu)
+# Display.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
 
-# Affichage.Plot_Result(simu, "uy")
-# Affichage.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
-# Affichage.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
-# Affichage.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
+# Display.Plot_Result(simu, "uy")
+# Display.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
+# Display.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
+# Display.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
 # simu.Resultats_Resume()
 
 # ----------------------------------------------
@@ -296,7 +296,7 @@ for perturbation in perturbations:
             Add_Dirichlet(nodesBord, ['x','y'])
 
         ddlsConnues, ddlsInconnues = simuIdentif.Bc_dofs_known_unknow(simuIdentif.problemType)
-        # Affichage.Plot_BoundaryConditions(simuIdentif)
+        # Display.Plot_BoundaryConditions(simuIdentif)
 
         # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
         res = least_squares(func, x0, bounds=bounds, verbose=0, ftol=tol, gtol=tol, xtol=tol)

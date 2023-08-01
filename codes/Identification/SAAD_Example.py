@@ -47,7 +47,7 @@ nodesHaut = mesh.Nodes_Tags(["L2"])
 
 Display.Plot_Mesh(mesh)
 Display.Plot_Model(mesh)
-# Affichage.Plot_Nodes(mesh, nodesX0)
+# Display.Plot_Nodes(mesh, nodesX0)
 
 tol0 = 1e-6
 bSup = np.inf
@@ -82,12 +82,12 @@ f_exp = simu.Get_K_C_M_F()[0] @ u_exp
 fx = f_exp.reshape((mesh.Nn, 2))[:,0]
 fy = f_exp.reshape((mesh.Nn, 2))[:,1]
 
-# Affichage.Plot_Result(simu, fx, title="fx")
-# Affichage.Plot_Result(simu, fy, title="fy")
-# Affichage.Plot_Result(simu, "uy")
-# Affichage.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
-# Affichage.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
-# Affichage.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
+# Display.Plot_Result(simu, fx, title="fx")
+# Display.Plot_Result(simu, fy, title="fy")
+# Display.Plot_Result(simu, "uy")
+# Display.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
+# Display.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
+# Display.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
 # simu.Resultats_Resume()
 
 Display.Section("Identification")

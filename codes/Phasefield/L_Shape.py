@@ -85,7 +85,7 @@ else:
     directions = ["x","y","z"]
 
 Display.Plot_Mesh(mesh)
-# Affichage.Plot_Model(mesh)
+# Display.Plot_Model(mesh)
 
 nodesEnca = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 nodesLoad = mesh.Nodes_Conditions(lambda x,y,z: (y==L) & (x>=2*L-30))
@@ -166,7 +166,7 @@ if doSimu:
         simu.add_dirichlet(nodesLoad, [ud], ['y'])
         # simu.add_dirichlet(nodesLoad, [loadX, loadY], ['x','y'])
 
-        # Affichage.Plot_BoundaryConditions(simu)        
+        # Display.Plot_BoundaryConditions(simu)        
 
         u, d, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
 
@@ -209,7 +209,7 @@ else:
 load, displacement = PostProcessing.Load_Load_Displacement(folderSimu)
 
 # ----------------------------------------------
-# PostTraitement
+# PostProcessing
 # ----------------------------------------------
 
 Display.Plot_BoundaryConditions(simu, folderSimu)

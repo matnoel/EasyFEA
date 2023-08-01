@@ -10,7 +10,7 @@ from Interface_Gmsh import Interface_Gmsh
 import Simulations
 from TicTac import Tic
 
-# Affichage.Clear()
+# Display.Clear()
 
 # ----------------------------------------------
 # Configuration
@@ -86,7 +86,7 @@ Display.Plot_Mesh(mesh)
 noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0) # noeuds_en_0 = mesh.Nodes_Line(Line0)
 noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L) # noeuds_en_L = mesh.Nodes_Line(LineL)
 
-# Affichage.Plot_Maillage(mesh)
+# Display.Plot_Maillage(mesh)
 # plt.show()
 
 noeuds_en_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2) # noeuds_en_h= mesh.Nodes_Line(LineH)
@@ -162,7 +162,7 @@ while t <= Tmax:
 
     print(f"{np.round(t,3)} s", end='\r')
 
-# PostTraitement.Save_Simu(simu, folder)
+# PostProcessing.Save_Simu(simu, folder)
 
 tic_Tot.Tac("Temps script","Temps total", True)        
 
@@ -186,11 +186,11 @@ if plotResult:
 
     tic = Tic()
     print(simu)
-    # Affichage.Plot_Result(simu, "amplitude")
-    # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
+    # Display.Plot_Result(simu, "amplitude")
+    # Display.Plot_Maillage(simu, deformation=True, folder=folder)
     Display.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
     Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=False, nodeValues=False)
-    # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
+    # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
     
     tic.Tac("Affichage","Affichage des figures", plotResult)
 

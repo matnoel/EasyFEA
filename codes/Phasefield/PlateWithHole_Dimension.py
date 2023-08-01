@@ -72,7 +72,7 @@ for cc in list_cc:
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
-    # Affichage.Plot_Maillage(mesh)
+    # Display.Plot_Maillage(mesh)
 
     # Récupérations des noeuds de chargement
     B_lower = Line(point,Point(x=L))
@@ -94,7 +94,7 @@ for cc in list_cc:
     simu.add_dirichlet(node00, [0], ["x"])
     simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
-    # Affichage.Plot_BoundaryConditions(simu)
+    # Display.Plot_BoundaryConditions(simu)
 
     simu.Solve()
 

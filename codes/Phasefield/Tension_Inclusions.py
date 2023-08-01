@@ -31,7 +31,7 @@ nodes_inclu = mesh.Nodes_Circle(inclusion)
 elem_inclu = mesh.Elements_Nodes(nodes_inclu)
 elem_matrice = np.array(set(np.arange(mesh.Ne)) - set(elem_inclu))
 
-# Affichage.Plot_Elements(mesh, nodes_inclu)
+# Display.Plot_Elements(mesh, nodes_inclu)
 
 E_mat = 52 # MPa
 E_inclu = 10000

@@ -117,7 +117,7 @@ for v in list_V:
         else:
             simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
-        # Affichage.Plot_BoundaryConditions(simu)
+        # Display.Plot_BoundaryConditions(simu)
 
         simu.Solve()
 

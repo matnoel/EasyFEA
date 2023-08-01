@@ -16,7 +16,7 @@ from Simulations import BoundaryCondition
 import PostProcessing
 import pickle
 
-# Affichage.Clear()
+# Display.Clear()
 
 folder_file = Folder.Get_Path(__file__)
 
@@ -588,7 +588,7 @@ for idxEssai in range(0,18):
 
         Display.Save_fig(folder_Save, "J contourf")
 
-        # Affichage.Save_fig(folder_Save, "J_grid")
+        # Display.Save_fig(folder_Save, "J_grid")
         plt.show()
 
         pass

@@ -121,8 +121,8 @@ simu.Save_Iter()
 
 Display.Section("Résultats")
 
-# Affichage.Plot_Model(mesh)
-# Affichage.Plot_Mesh(mesh)
+# Display.Plot_Model(mesh)
+# Display.Plot_Mesh(mesh)
 
 Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx', cmap='seismic')
 Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
@@ -131,12 +131,12 @@ Display.Plot_Result(simu, "Svm", coef=1/SIG, title=r"$\sigma_{vm}/\sigma$", fold
 
 Display.Plot_Result(simu, "psiP")
 
-# Affichage.Plot_Result(simu, "ux")
-# Affichage.Plot_Result(simu, "uy")
+# Display.Plot_Result(simu, "ux")
+# Display.Plot_Result(simu, "uy")
 
 
 # vectF = simu.Get_K_C_M_F()[0] @ simu.displacement
-# Affichage.Plot_Result(simu, vectF.reshape(-1,dim)[:,1])
+# Display.Plot_Result(simu, vectF.reshape(-1,dim)[:,1])
 
 Tic.Resume()
 

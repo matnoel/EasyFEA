@@ -136,28 +136,28 @@ else:
     print(f"\nVolume = {mesh.area*comportement.thickness:3f}")
 
 Display.Plot_Mesh(mesh, folder=folder)
-# Affichage.Plot_Model(mesh, showId=True)
+# Display.Plot_Model(mesh, showId=True)
 
 simu.Solve()
 simu.Save_Iter()
 
-# Affichage.Plot_Elements(mesh, nodes=noeudsDroit, dimElem=2)
+# Display.Plot_Elements(mesh, nodes=noeudsDroit, dimElem=2)
 # ddlsF = Simulations.BoundaryCondition.Get_ddls_noeuds(dim, "displacement", noeudsDroit, ["y"])
 # fr = np.sum(simu.Get_K_C_M_F()[0][ddlsF,:] @ simu.displacement)
 
-# import PostTraitement
-# PostTraitement.Make_Paraview(folder, simu)
+# import PostProcessing
+# PostProcessing.Make_Paraview(folder, simu)
 
 print(simu)
 
 Display.Plot_BoundaryConditions(simu)
 
-# Affichage.Plot_Maillage(simu, deformation=True)
-# Affichage.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
-# Affichage.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
-# Affichage.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
+# Display.Plot_Maillage(simu, deformation=True)
+# Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/coef)
+# Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/coef)
+# Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/coef)
 Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1/coef, folder=folder)
-# Affichage.Plot_Result(simu, "ux")
+# Display.Plot_Result(simu, "ux")
 
 TicTac.Tic.Plot_History()
 

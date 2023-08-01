@@ -168,7 +168,7 @@ ddlsX_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", no
 ddlsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_Upper, ["y"])
 
 Display.Plot_Mesh(mesh)
-# Affichage.Plot_Nodes(mesh, nodes_Upper, True)
+# Display.Plot_Nodes(mesh, nodes_Upper, True)
 
 # ----------------------------------------------
 # Comp and Simu
@@ -359,7 +359,7 @@ if doSimulation:
 
             # simu.add_dirichlet(nodes_Upper, [-10/(90*45)], ["y"])
 
-        # Affichage.Plot_BoundaryConditions(simu)
+        # Display.Plot_BoundaryConditions(simu)
 
         u, d, Kglob, convergence = simu.Solve(tolConv, convOption=2)
 
@@ -376,8 +376,8 @@ if doSimulation:
         simu.Results_Set_Iteration_Summary(i, fr, "kN", fr/fStop, True)
 
         # if fr != -0.0 and pltContact:
-        #     Affichage.Plot_Result(simu, f.reshape(-1,2)[:,1])
-        #     ax = Affichage.Plot_Mesh(simu, alpha=0)    
+        #     Display.Plot_Result(simu, f.reshape(-1,2)[:,1])
+        #     ax = Display.Plot_Mesh(simu, alpha=0)    
         #     ax.quiver(xn[nodes_Upper], yn[nodes_Upper], f[ddlsX_Upper]*5/fr, f[ddlsY_Upper]*5/fr, color='red', width=1e-3)
 
         #     axContact.plot(mesh.coordo[nodes_Upper[idxSort],0], f_Upper[idxSort]/1000)

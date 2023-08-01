@@ -11,7 +11,7 @@ import Folder
 
 import matplotlib.pyplot as plt
 
-# Affichage.Clear()
+# Display.Clear()
 
 # ----------------------------------------------
 # Simulation
@@ -306,7 +306,7 @@ for split, regu in zip(splits, regularisations):
                     break
             
             Chargement(ud)
-            # Affichage.Plot_BoundaryConditions(simu)
+            # Display.Plot_BoundaryConditions(simu)
             # plt.show()
 
             u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
@@ -318,7 +318,7 @@ for split, regu in zip(splits, regularisations):
 
                 meshSize_n = (clC-clD) * d + clD                
 
-                # Affichage.Plot_Result(simu, meshSize_n)
+                # Display.Plot_Result(simu, meshSize_n)
                 # nodes = np.where(d>=1e-3)[0]
                 # test = [n for n in nodes if n not in damagedNodes]
                 # if len(test) == 0: continue
@@ -329,8 +329,8 @@ for split, regu in zip(splits, regularisations):
 
                 if newMesh.Nn > simu.mesh.Nn:
 
-                    # Affichage.Plot_Mesh(simu.mesh)
-                    # Affichage.Plot_Mesh(newMesh)
+                    # Display.Plot_Mesh(simu.mesh)
+                    # Display.Plot_Mesh(newMesh)
 
                     proj = Calc_projector(simu.mesh, newMesh)
 
@@ -341,11 +341,11 @@ for split, regu in zip(splits, regularisations):
 
                     newD = proj @ d
                     
-                    # Affichage.Plot_Result(simu.mesh, d, plotMesh=True)
-                    # Affichage.Plot_Result(newMesh, newD, plotMesh=True)                    
+                    # Display.Plot_Result(simu.mesh, d, plotMesh=True)
+                    # Display.Plot_Result(newMesh, newD, plotMesh=True)                    
 
-                    # Affichage.Plot_Result(simu.mesh, u.reshape(-1,2)[:,0])
-                    # Affichage.Plot_Result(newMesh, newU[:,0])
+                    # Display.Plot_Result(simu.mesh, u.reshape(-1,2)[:,0])
+                    # Display.Plot_Result(newMesh, newU[:,0])
 
                     # plt.pause(1e-12)
                     # Tic.Plot_History()
@@ -448,7 +448,7 @@ for split, regu in zip(splits, regularisations):
         PostProcessing.Make_Paraview(folder, simu, Niter=NParaview)        
 
     if makeMovie:
-        # Affichage.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
+        # Display.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
         # plt.show()
         PostProcessing.Make_Movie(folder, "ux", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, factorDef=1.5)
 

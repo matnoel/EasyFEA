@@ -95,8 +95,8 @@ while t < Tmax:
     print(f"{np.round(t)} s",end='\r')
     
 
-# Affichage.Plot_NoeudsMaillage(mesh, noeuds=noeudsCircle)
-# Affichage.Plot_ElementsMaillage(mesh, noeuds=noeudsCircle, dimElem=3)
+# Display.Plot_NoeudsMaillage(mesh, noeuds=noeudsCircle)
+# Display.Plot_ElementsMaillage(mesh, noeuds=noeudsCircle, dimElem=3)
 Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True)
 
 

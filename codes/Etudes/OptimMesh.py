@@ -204,10 +204,10 @@ mesh = DoMesh()
 
 # tt = mesh.Nodes_Point(ptC1)
 
-# Affichage.Plot_Mesh(mesh)
-# ax = Affichage.Plot_Model(mesh, alpha=0)
-# Affichage.Plot_Elements(mesh, mesh.nodes, 2, ax=ax, showId=True)
-# Affichage.Plot_Nodes(mesh, mesh.Nodes_Tag(["P1"]))
+# Display.Plot_Mesh(mesh)
+# ax = Display.Plot_Model(mesh, alpha=0)
+# Display.Plot_Elements(mesh, mesh.nodes, 2, ax=ax, showId=True)
+# Display.Plot_Nodes(mesh, mesh.Nodes_Tag(["P1"]))
 
 # if dim==2:
 #     nodesCrack = []
@@ -217,7 +217,7 @@ mesh = DoMesh()
 #     nodesCrack = mesh.Nodes_Conditions(lambda x,y,z: x==h)
 
 # if len(nodesCrack) > 0:
-#     Affichage.Plot_Nodes(mesh, nodesCrack, showId=True)
+#     Display.Plot_Nodes(mesh, nodesCrack, showId=True)
 
 # ----------------------------------------------
 # Comportement et Simu
@@ -256,7 +256,7 @@ def DoSimu(i=0):
     # ----------------------------------------------
 
     # if plotProj:            
-    #     Affichage.Plot_Result(simu, "ux", plotMesh=True)
+    #     Display.Plot_Result(simu, "ux", plotMesh=True)
 
     meshSize_n = Calc_New_meshSize_n(simu.mesh, erreur_e, coef)
 
@@ -298,7 +298,7 @@ while erreur >= cible and i < iterMax:
 
             simu.set_u_n("displacement", uproj)
 
-            # Affichage.Plot_Result(simu, "ux", plotMesh=True, title="ux proj")
+            # Display.Plot_Result(simu, "ux", plotMesh=True, title="ux proj")
 
             pass
 
@@ -319,11 +319,11 @@ Display.Section("Post processing")
 if plotResult:
     tic = Tic()
     # simu.Resultats_Resume(True)
-    # Affichage.Plot_Result(simu, "amplitude")
-    # Affichage.Plot_Maillage(simu, deformation=True, folder=folder)
+    # Display.Plot_Result(simu, "amplitude")
+    # Display.Plot_Maillage(simu, deformation=True, folder=folder)
     Display.Plot_Result(simu, "ux", deformation=True, nodeValues=False)        
     Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
-    # Affichage.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)   
+    # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)   
 
     tic.Tac("Affichage","Affichage des figures", plotResult)
 

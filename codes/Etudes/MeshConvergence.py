@@ -97,7 +97,7 @@ for t, elemType in enumerate(elemTypes):
         mesh = cast(Mesh, mesh)
         # Récupère les noeuds qui m'interessent
 
-        # Affichage.Plot_Mesh(mesh)
+        # Display.Plot_Mesh(mesh)
 
         if mesh.dim == 3:
             volume  = mesh.volume

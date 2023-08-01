@@ -120,8 +120,8 @@ else:
     directions = ["x","y","z"]
 
 Display.Plot_Mesh(mesh)
-# Affichage.Plot_Model(mesh)
-# Affichage.Plot_Nodes(mesh, mesh.Nodes_Line(cracks[0]), True)
+# Display.Plot_Model(mesh)
+# Display.Plot_Nodes(mesh, mesh.Nodes_Line(cracks[0]), True)
 
 nodesLoad = mesh.Nodes_Point(p0)
 node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
@@ -193,7 +193,7 @@ if doSimu:
         
         simu.add_dirichlet(nodesLoad, [-ud], ['y'])        
 
-        # Affichage.Plot_BoundaryConditions(simu)
+        # Display.Plot_BoundaryConditions(simu)
 
         u, d, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
 
@@ -235,7 +235,7 @@ else:
 load, displacement = PostProcessing.Load_Load_Displacement(folderSimu)
 
 # ----------------------------------------------
-# PostTraitement
+# PostProcessing
 # ----------------------------------------------
 
 Display.Plot_BoundaryConditions(simu, folderSimu)

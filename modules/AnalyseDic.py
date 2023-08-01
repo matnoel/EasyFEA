@@ -117,7 +117,7 @@ class AnalyseDiC:
         # ax = plt.subplots()[1]
         # ax.imshow(imgRef)
         # ax.scatter(coordPx[self._roi], coordPy[self._roi], c='white')
-        # Affichage.Plot_Mesh(mesh, ax=ax, alpha=0)
+        # Display.Plot_Mesh(mesh, ax=ax, alpha=0)
         # # # [ax.text(mesh.coordo[n,0], mesh.coordo[n,1], n, c='red')for n in mesh.nodes]
 
         tic.Tac("DIC", "ROI", self._verbosity)

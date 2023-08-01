@@ -13,13 +13,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 
-# Affichage.Clear()
+# Display.Clear()
 
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
 dim = 2
-simulation = "Shear" # "Shear" , "Tension"
+simulation = "Tension" # "Shear" , "Tension"
 
 nomDossier = '_'.join([simulation,"Benchmark"])
 
@@ -39,13 +39,13 @@ plotMesh = False
 plotResult = True
 plotEnergy = False
 getCrack = False
-showResult = False
+showResult = True
 
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
 saveParaview = False; Nparaview=400
-makeMovie = False
+makeMovie = True
 
 # ----------------------------------------------
 # Maillage
@@ -67,13 +67,13 @@ tolConv = 1e-0
 # ----------------------------------------------
 comportement_str = "Elas_Isot" # "Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"
 # regularisations = ["AT1", "AT2"]
-regularisations = ["AT1"] # "AT1", "AT2"
+regularisations = ["AT2"] # "AT1", "AT2"
 solveurPhaseField = Simulations.PhaseField_Model.SolverType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
-splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-# splits = ["Miehe"]
+# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+splits = ["Bourdin"]
 
 nSplits = len(splits)
 nRegus = len(regularisations)
@@ -341,7 +341,7 @@ for split, regu in zip(splits, regularisations):
             noeuds_Droite = mesh.Nodes_Conditions(lambda x,y,z: (x == L) & (y>0) & (y<L))
 
             # if noeuds_Milieu.size > 0:
-            #     Affichage.Plot_Nodes(mesh, noeuds_Milieu, True)
+            #     Display.Plot_Nodes(mesh, noeuds_Milieu, True)
 
             # Construit les noeuds du bord
             NoeudsBord=[]
@@ -396,7 +396,7 @@ for split, regu in zip(splits, regularisations):
 
                 meshSize_n = (clC-clD) * d + clD                
 
-                # Affichage.Plot_Result(simu, meshSize_n)
+                # Display.Plot_Result(simu, meshSize_n)
 
                 refineDomain = Interface_Gmsh().Create_posFile(simu.mesh.coordo, meshSize_n, folder)
 
@@ -414,21 +414,21 @@ for split, regu in zip(splits, regularisations):
 
                     assert len(oldNodes) == len(newNodes)
                     
-                    # axOld = Affichage.Plot_Mesh(simu.mesh, alpha=0)
-                    # axNew = Affichage.Plot_Mesh(newMesh, alpha=0)
+                    # axOld = Display.Plot_Mesh(simu.mesh, alpha=0)
+                    # axNew = Display.Plot_Mesh(newMesh, alpha=0)
                     # for n in range(len(newNodes)):
                     #     if n > len(newNodes)//2:
                     #         c="black"
                     #     else:
                     #         c="red"
-                    #     Affichage.Plot_Nodes(simu.mesh, [oldNodes[n]], True, ax=axOld, c=c)
-                    #     # Affichage.Plot_Nodes(newMesh, [newNodes[n]], True, ax=axNew, c=c)
+                    #     Display.Plot_Nodes(simu.mesh, [oldNodes[n]], True, ax=axOld, c=c)
+                    #     # Display.Plot_Nodes(newMesh, [newNodes[n]], True, ax=axNew, c=c)
                     #     pass
                     
                     # for n in range(len(newNodes)):
                     #     plt.close("all")
-                    #     Affichage.Plot_Nodes(simu.mesh, [oldNodes[n]], True)
-                    #     Affichage.Plot_Nodes(newMesh, [newNodes[n]], True)
+                    #     Display.Plot_Nodes(simu.mesh, [oldNodes[n]], True)
+                    #     Display.Plot_Nodes(newMesh, [newNodes[n]], True)
                     #     pass                    
 
                     proj = Calc_projector(simu.mesh, newMesh)
@@ -444,8 +444,8 @@ for split, regu in zip(splits, regularisations):
                     newD = proj @ d
 
                     plt.close("all")
-                    # Affichage.Plot_Result(simu.mesh, d, plotMesh=True)
-                    # Affichage.Plot_Result(newMesh, newD, plotMesh=True)                    
+                    # Display.Plot_Result(simu.mesh, d, plotMesh=True)
+                    # Display.Plot_Result(newMesh, newD, plotMesh=True)                    
 
                     Display.Plot_Result(simu.mesh, u.reshape(-1,2)[:,0])
                     Display.Plot_Result(newMesh, newU[:,0])
@@ -506,7 +506,7 @@ for split, regu in zip(splits, regularisations):
         Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
         
 
-        # Affichage.Plot_Result(simu, "uy", folder=folder, deformation=True)
+        # Display.Plot_Result(simu, "uy", folder=folder, deformation=True)
             
     if saveParaview:
         # ----------------------------------------------
@@ -518,15 +518,15 @@ for split, regu in zip(splits, regularisations):
         # ----------------------------------------------
         # Movie
         # ---------------------------------------------
-        PostProcessing.Make_Movie(folder, "damage", simu, deformation=False, NiterFin=0)
-        # PostTraitement.MakeMovie(folder, "Svm", simu)        
-        # PostTraitement.MakeMovie(filename, "Syy", simu, nodeValues=True, deformation=True)
+        PostProcessing.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
+        # PostProcessing.MakeMovie(folder, "Svm", simu)        
+        # PostProcessing.MakeMovie(filename, "Syy", simu, nodeValues=True, deformation=True)
             
     if plotEnergy:
         # ----------------------------------------------
         # Energie
         # ---------------------------------------------   
-        # Affichage.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)
+        # Display.Plot_Energie(simu, forces, deplacements, Niter=400, folder=folder)
         Display.Plot_Energy(simu, Niter=400, folder=folder)
 
     if getCrack:

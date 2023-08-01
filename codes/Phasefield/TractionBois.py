@@ -100,7 +100,7 @@ zone = 10
 refineDomain = Domain(Point(lFissure-zone, -zone), Point(L, zone), meshSize=tailleFin)
 mesh = interface.Mesh_2D(points, refineGeom=refineDomain, inclusions=geomObjectsInDomain, elemType="TRI3", cracks=cracks)
 
-# Affichage.Plot_Mesh(mesh)
+# Display.Plot_Mesh(mesh)
 Display.Plot_Model(mesh)
 # plt.show()
 
@@ -143,7 +143,7 @@ noeudsBas = noeudsBas[np.where(mesh.coordoGlob[noeudsBas,1]<=c1.center.y)]
 
 noeudPoint = mesh.Nodes_Point(c1.center - [0, diam/2])
 
-# if len(cracks) > 0: Affichage.Plot_Nodes(mesh, mesh.Nodes_Line(cracks[0]), showId=True)
+# if len(cracks) > 0: Display.Plot_Nodes(mesh, mesh.Nodes_Line(cracks[0]), showId=True)
 
 
 if useSmallCrack:
@@ -153,7 +153,7 @@ if useSmallCrack:
 else:
     noeudsBord = mesh.Nodes_Tags([f"L{i}" for i in range(15)])
 
-# Affichage.Plot_Nodes(mesh, noeudsBord)
+# Display.Plot_Nodes(mesh, noeudsBord)
 
 def Chargement(force: float):
     simu.Bc_Init()
@@ -194,7 +194,7 @@ for iter, force in enumerate(np.linspace(0, 35, nf)):
     # ecart = np.abs(depNum-dep)/dep
     # print(ecart)
 
-    # Affichage.Plot_Result(simu, "Syy")
+    # Display.Plot_Result(simu, "Syy")
     # plt.show()
 
     pourcent = iter/nf

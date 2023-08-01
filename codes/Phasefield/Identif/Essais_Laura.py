@@ -109,7 +109,7 @@ elif loadType == 1:
     surf = np.pi * d/2 * ep
     nodesLoad = mesh.Nodes_Cylinder(circle, [0,0,-ep])
     nodesLoad = nodesLoad[mesh.coordo[nodesLoad,1] <= pC.y]
-    # Affichage.Plot_Nodes(mesh, nodesLoad)
+    # Display.Plot_Nodes(mesh, nodesLoad)
 
     group = mesh.Get_list_groupElem(dim-1)[0]
     elems = group.Get_Elements_Nodes(nodesLoad)
@@ -172,7 +172,7 @@ elif loadType == 1:
     # ax.plot((coord+f)[:,0], (coord+f)[:,1], c='red')
     # ax.set_axis_off()
 
-    # Affichage.Save_fig(folder, 'illustration')
+    # Display.Save_fig(folder, 'illustration')
 
     # # ax.annotate("$x$",xy=(1,0),xytext=(0,0),arrowprops=dict(arrowstyle="->"), c='black')
 
@@ -248,7 +248,7 @@ ax = Display.Plot_Result(simu, psiP_e/psiC, nodeValues=True, title="$\psi^+ \ / 
 elemtsDamage = np.where(psiP_e >= psiC)[0]
 if elemtsDamage.size > 0:
     nodes = np.unique(mesh.connect[elemtsDamage])
-    # Affichage.Plot_Elements(mesh, nodes, alpha=0.2, edgecolor='black', ax=ax)
+    # Display.Plot_Elements(mesh, nodes, alpha=0.2, edgecolor='black', ax=ax)
 Display.Save_fig(folder, "psiPpsiC")
 
 Display.Plot_Result(simu, "Sxx", plotMesh=False)

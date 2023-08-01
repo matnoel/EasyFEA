@@ -123,18 +123,18 @@ simu.add_lineLoad(nodesLower, [-fexp/h], ['y'])
 
 
 
-# Affichage.Plot_BoundaryConditions(simu)
+# Display.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
 simu.Save_Iter()
 
-# Affichage.Plot_Result(simu, "ux")
-# Affichage.Plot_Result(simu, "uy")
+# Display.Plot_Result(simu, "ux")
+# Display.Plot_Result(simu, "uy")
 
-# Affichage.Plot_Result(simu, "Sxx")
-# Affichage.Plot_Result(simu, "Syy")
-# Affichage.Plot_Result(simu, "Sxy")
-# Affichage.Plot_Result(simu, "Svm")
+# Display.Plot_Result(simu, "Sxx")
+# Display.Plot_Result(simu, "Syy")
+# Display.Plot_Result(simu, "Sxy")
+# Display.Plot_Result(simu, "Svm")
 
 # ----------------------------------------------
 # Identification
