@@ -17,42 +17,53 @@ Display.Clear()
 # Configuration
 # ----------------------------------------------
 
+# Dimension of the problem (2D or 3D)
 dim = 2
+
+# Creating a folder to store the results
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
-if not os.path.exists(folder): os.makedirs(folder)
+if not os.path.exists(folder):
+    os.makedirs(folder)
+
+# Options for plotting the results
 plotResult = False
-plotErreur = False
+plotError = False
 plotProj = False
 
+# Scaling coefficient for the optimization process
 coef = 1/10
-# coef = 1/2
+# Target error for the optimization process
 cible = 1/100 if dim == 2 else 0.04
+# Maximum number of iterations for the optimization process
 iterMax = 20
 
-# Paramètres géométrie
-L = 120;  #mm
+# Parameters for the geometry
+L = 120  # mm
 h = 13
 b = 13
 
-P = 800 #N
-lineLoad = P/h #N/mm
-surfLoad = P/h/b #N/mm2
+P = 800  # N
+lineLoad = P / h  # N/mm
+surfLoad = P / h / b  # N/mm2
 
-# TODO permettre de réutiliser le .geo pour construire la geométrie ?
+# TODO use .geo to build geometry ?
 
+# Selecting the element type for the mesh
 if dim == 2:
     elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
 else:
     elemType = "PRISM6" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
 
 # ----------------------------------------------
-# Maillage
+# Meshing
 # ----------------------------------------------
 
-# part = "equerre"
+# Choosing the part type (you can uncomment one of the parts)
+part = "equerre"
 # part = "lmt"
-part = "autre"
+# part = "other"
 
+# Define the geometry based on the chosen part type
 if part == "equerre":
 
     L = 120 #mm
@@ -76,7 +87,6 @@ if part == "equerre":
     cracks = []
 
     points = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
-    # listPoint = PointsList([pt1, pt2, pt3, pt7], h/N)
 
     inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize=h/N, isCreux=True) for i in range(3)]
 
@@ -190,41 +200,25 @@ else:
     # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True)]
     cracks = []
 
+# Create an instance of the Gmsh interface
 interfaceGmsh = Interface_Gmsh(False, False)
 
-# Fonction utilisée pour la construction du maillage
 def DoMesh(refineGeom=None) -> Mesh:
+    """Function used for mesh generation"""
     if dim == 2:
         return interfaceGmsh.Mesh_2D(points, inclusions, elemType, cracks, False, refineGeom)
     else:
         return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], 5, elemType, cracks, refineGeom)
 
-# construit le premier maillage
+# Construct the initial mesh
 mesh = DoMesh()
 
-# tt = mesh.Nodes_Point(ptC1)
-
-# Display.Plot_Mesh(mesh)
-# ax = Display.Plot_Model(mesh, alpha=0)
-# Display.Plot_Elements(mesh, mesh.nodes, 2, ax=ax, showId=True)
-# Display.Plot_Nodes(mesh, mesh.Nodes_Tag(["P1"]))
-
-# if dim==2:
-#     nodesCrack = []
-#     for crack in cracks:
-#         nodesCrack.extend(mesh.Nodes_Line(crack))
-# if dim==3:
-#     nodesCrack = mesh.Nodes_Conditions(lambda x,y,z: x==h)
-
-# if len(nodesCrack) > 0:
-#     Display.Plot_Nodes(mesh, nodesCrack, showId=True)
-
 # ----------------------------------------------
-# Comportement et Simu
+# Material and Simulation
 # ----------------------------------------------
 
-comportement = Materials.Elas_Isot(dim, E=210000, v=0.3, thickness=b)
-simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
+material = Materials.Elas_Isot(dim, E=210000, v=0.3, thickness=b)
+simu = Simulations.Simu_Displacement(mesh, material, verbosity=False)
 simu.rho = 8100*1e-9
 
 def DoSimu(i=0):    
@@ -246,32 +240,31 @@ def DoSimu(i=0):
     simu.Save_Iter()
 
     # ----------------------------------------------
-    # Calcul de l'erreur
+    # Calc ZZ1
     # ----------------------------------------------
-
-    erreur, erreur_e = simu._Calc_ZZ1()
+    error, error_e = simu._Calc_ZZ1()
 
     # ----------------------------------------------
     # Refine mesh
     # ----------------------------------------------
 
-    # if plotProj:            
+    # if plotProj:
     #     Display.Plot_Result(simu, "ux", plotMesh=True)
 
-    meshSize_n = Calc_New_meshSize_n(simu.mesh, erreur_e, coef)
+    meshSize_n = Calc_New_meshSize_n(simu.mesh, error_e, coef)
 
-    if plotErreur:
-        Display.Plot_Result(simu, erreur_e*100, nodeValues=True, title="erreur %", plotMesh=True)
+    if plotError:
+        Display.Plot_Result(simu, error_e*100, nodeValues=True, title="error %", plotMesh=True)
 
     path = interfaceGmsh.Create_posFile(simu.mesh.coordo, meshSize_n, folder, f"simu{i}")
 
-    return path, erreur
+    return path, error
 
 path = None
 
-erreur = 1
+error = 1
 i = -1
-while erreur >= cible and i < iterMax:
+while error >= cible and i < iterMax:
 
     i += 1
 
@@ -303,15 +296,15 @@ while erreur >= cible and i < iterMax:
             pass
 
 
-    path, erreur = DoSimu(i)
+    path, error = DoSimu(i)
 
-    print(f"{i} erreur = {erreur*100:.3} %, Wdef = {simu.Get_Result('Wdef'):.3f} mJ")
+    print(f"{i} error = {error*100:.3} %, Wdef = {simu.Get_Result('Wdef'):.3f} mJ")
 
 if i > 0:
     os.remove(path)
 
 # ----------------------------------------------
-# Post traitement
+# Post processing
 # ----------------------------------------------
 Display.Section("Post processing")
 
