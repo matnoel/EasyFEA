@@ -139,7 +139,7 @@ for split, regu in zip(splits, regularisations):
         refineDomain = None
 
     # Construit le path vers le dossier en fonction des données du problèmes
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comportement_str, split=split, regu=regu, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, theta=theta, optimMesh=optimMesh)
+    folder = Folder.PhaseField_Folder(folder=nomDossier, material=comportement_str, split=split, regu=regu, simpli2D='DP',tolConv=tolConv, solveur=solveurPhaseField, test=test, closeCrack= not openCrack, theta=theta, optimMesh=optimMesh)
 
     if solve:
 

@@ -2281,7 +2281,7 @@ class Simu_PhaseField(_Simu):
             d_np1 = np.max(oldAndNewDamage, 1)
 
         else:
-            raise Exception("Solveur phase field inconnue")
+            raise Exception("Solveur phase field unknown")
 
         temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
@@ -2962,13 +2962,13 @@ class Simu_PhaseField(_Simu):
         list_label_values.append((r"$\phi$", damageMaxIter))
 
         tolConvergence = df["convIter"].values
-        list_label_values.append(("convergence", tolConvergence))
+        list_label_values.append(("converg", tolConvergence))
 
         nombreIter = df["Niter"].values
-        list_label_values.append(("nombre Iter", nombreIter))
+        list_label_values.append(("Niter", nombreIter))
 
         tempsIter = df["timeIter"].values
-        list_label_values.append(("temps Iter", tempsIter))
+        list_label_values.append(("time", tempsIter))
         
         return iterations, list_label_values
     

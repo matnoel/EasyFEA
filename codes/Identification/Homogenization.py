@@ -11,7 +11,7 @@ plt = Display.plt
 # http://link.springer.com/10.1007/978-3-030-18383-7
 # SECTION 4.7
 
-# Display.Clear()
+Display.Clear()
 
 # use PER boundary conditions ?
 usePER = True 

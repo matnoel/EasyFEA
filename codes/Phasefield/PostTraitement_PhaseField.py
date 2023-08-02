@@ -120,7 +120,7 @@ for config in listConfig:
 
     tic = TicTac.Tic()
 
-    foldername = Folder.PhaseField_Folder(folder, comp=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, nL=nL, theta=theta)
+    foldername = Folder.PhaseField_Folder(folder, material=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solveur=solveur, test=test, optimMesh=optimMesh, closeCrack=False, nL=nL, theta=theta)
 
     nomSimu = foldername.split(comp+'_')[-1]
 

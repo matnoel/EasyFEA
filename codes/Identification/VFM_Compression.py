@@ -66,7 +66,7 @@ pt2 = Geom.Point(*coordInter[1, :])
 
 circleArc1 = Geom.CircleArc(pt1, pZone, pt2, meshSize, coef=-1)
 circleArc2 = Geom.CircleArc(pt2, pC, pt1, meshSize)
-contour = Geom.Contour([circleArc1, circleArc2], isCreux=False)
+contour = Geom.Contour([circleArc1, circleArc2], isCreux=True)
 
 mesh = Interface_Gmsh().Mesh_2D(domain, [circle, contour], "TRI6")
 xn = mesh.coordo[:,0]

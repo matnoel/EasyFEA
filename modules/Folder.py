@@ -47,55 +47,53 @@ def Join(list: List[str]) -> str:
         
     return file
 
-def PhaseField_Folder(dossierSource: str, comp: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0):
+def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0):
 
     import Materials
 
-    nom = ""
+    name = ""
 
-    if comp != "":
-        nom += f"{comp}"        
+    if material != "":
+        name += f"{material}"        
 
     if split != "":
-        start = "" if nom == "" else "_"
-        nom += f"{start}{split}"
+        start = "" if name == "" else "_"
+        name += f"{start}{split}"
 
     if regu != "":        
-        nom += f"_{regu}"
+        name += f"_{regu}"
 
     if simpli2D != "":
-        nom += f"_{simpli2D}"
+        name += f"_{simpli2D}"
 
     if closeCrack: 
-        nom += '_closeCrack'
+        name += '_closeCrack'
 
     if optimMesh:
-        nom += '_optimMesh'
+        name += '_optimMesh'
 
     if solveur != "History" and solveur != "":
         assert solveur in Materials.PhaseField_Model.get_solvers()
-        nom += '_' + solveur
+        name += '_' + solveur
 
     if tolConv < 1:
-        nom += f'_conv{tolConv}'        
+        name += f'_conv{tolConv}'        
     
     if theta != 0.0:
-        nom = f"{nom} theta={theta}"
+        name = f"{name} theta={theta}"
 
     if nL != 0:
         assert nL > 0
-        nom = f"{nom} nL={nL}"
+        name = f"{name} nL={nL}"
 
-    folder = New_File(dossierSource, results=True)
+    workFolder = New_File(folder, results=True)
+    path = workFolder.split(folder)[0]
 
     if test:
-        folder = Join([folder, "Test", nom])
+        workFolder = Join([folder, "Test", name])
     else:
-        folder = Join([folder, nom])
+        workFolder = Join([folder, name])
 
-    texteAvantPythonEF = folder.split('PythonEF')[0]
-    folderSansArbre = folder.replace(texteAvantPythonEF, "")
+    print(Fore.CYAN + '\nWorking in :\n'+ workFolder + Fore.WHITE)    
 
-    print(Fore.CYAN + '\nSimulation dans :\n'+folderSansArbre + Fore.WHITE)
-
-    return folder
+    return Join([path, workFolder])

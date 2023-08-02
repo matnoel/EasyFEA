@@ -16,49 +16,40 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-problem = "FCBA" # ["Benchmark","FCBA"]
+problem = "Benchmark" # ["Benchmark","FCBA"]
 dim = 2
 if dim == 3:
     problem += "_3D"
 
-test = True
+test = False
 solve = True
 
 # ----------------------------------------------
-# Post traitement
+# Post processing
 # ----------------------------------------------
 plotMesh = False
-plotIter = True
+plotIter = False
 plotResult = True
-plotEnergie = False
+plotEnergy = False
 showFig = True
 
-# ----------------------------------------------
-# Animation
-# ----------------------------------------------
 saveParaview = False; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
-# Comportement 
+# Material
 # ----------------------------------------------
-comp = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
-
-svType = Materials.PhaseField_Model.SolverType
-solveur = svType.History # ["History", "HistoryDamage", "BoundConstrain"]
+materialType = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+solver = Materials.PhaseField_Model.SolverType.History # ["History", "HistoryDamage", "BoundConstrain"]
+maxIter = 1000
+tolConv = 1e-0
 
 # ----------------------------------------------
-# Maillage
+# Mesh Option
 # ----------------------------------------------
 optimMesh = True
 updateMesh = False
 damagedNodes = []
-
-# ----------------------------------------------
-# Convergence
-# ----------------------------------------------
-maxIter = 1000
-tolConv = 1e-0
 
 # ----------------------------------------------
 # Configurations
@@ -67,13 +58,13 @@ tolConv = 1e-0
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-# splits = ["Zhang"]
-splits = ["He"]
+# splits = ["Bourdin"]
+# splits = ["He"]
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
-# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
+splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 
-regularisations = ["AT2"] # ["AT1", "AT2"]
+regularisations = ["AT1"] # ["AT1", "AT2"]
 # regularisations = ["AT1", "AT2"]
 
 nSplit = len(splits)
@@ -85,7 +76,7 @@ splits = np.repeat(splits, nRegu)
 for split, regu in zip(splits, regularisations):
 
     # ----------------------------------------------
-    # Geometrie et chargement de la simulation
+    # Geometry
     # ----------------------------------------------
     if "Benchmark" in problem:
         L = 15e-3
@@ -97,7 +88,7 @@ for split, regu in zip(splits, regularisations):
         nL = 0
         l0 = 0.12e-3
 
-        if comp == "Elas_Isot":
+        if materialType == "Elas_Isot":
             # u_max = 25e-6
             u_max = 35e-6    
         else:
@@ -122,9 +113,7 @@ for split, regu in zip(splits, regularisations):
         r = diam/2
         
         # gc = 3000
-        gc = 0.07 * 1000
-        # l_0 = 0.12e-3
-        # nL = 50
+        gc = 0.07 * 1000        
         nL = 100
         # nL = 180
         l0 = L/nL
@@ -141,17 +130,13 @@ for split, regu in zip(splits, regularisations):
         listOption = ["damage"]*2
 
     # ----------------------------------------------
-    # Taille d'elements
+    # meshSize
     # ----------------------------------------------
     if test:
         coef = 1 if dim == 2 else 3
-        if optimMesh:
-            # clD = l0*3*coef
-            # clC = l0*coef
-            
+        if optimMesh:            
             clD = l0*4
-            clC = l0
-            
+            clC = l0            
         elif updateMesh:
             clD = l0*4
             clC = l0
@@ -165,14 +150,13 @@ for split, regu in zip(splits, regularisations):
     else:        
         if optimMesh:
             clD = l0*4
-            # clD = l0*10
             clC = l0/2
         else:
             clD = l0/2
             clC = l0/2
 
     # ----------------------------------------------
-    # Modlèle en deplacement
+    # Elastic material
     # ----------------------------------------------
     if dim == 2:
         if simpli2D == "CP":
@@ -182,38 +166,37 @@ for split, regu in zip(splits, regularisations):
     else:
         isCp = False
 
-    if comp == "Elas_Isot":
+    if materialType == "Elas_Isot":
         E = 12e9
         v = 0.3
-        comportement = Materials.Elas_Isot(dim, E=E, v=v, planeStress=isCp, thickness=ep)
+        material = Materials.Elas_Isot(dim, E=E, v=v, planeStress=isCp, thickness=ep)
 
-    elif comp == "Elas_IsotTrans":
-        # El = 11580*1e6        
+    elif materialType == "Elas_IsotTrans":        
         El = 12e9
         Et = 500*1e6
         Gl = 450*1e6
         vl = 0.02
         vt = 0.44
         v = 0
-        comportement = Materials.Elas_IsotTrans(dim, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, planeStress=isCp, thickness=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+        material = Materials.Elas_IsotTrans(dim, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, planeStress=isCp, thickness=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
-    # Nom du dossier
-    nomDossier = "PlateWithHole_" + problem
-    folder = Folder.PhaseField_Folder(dossierSource=nomDossier, comp=comp, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solveur, test=test, closeCrack=False, nL=nL)
+    # folder name
+    folderName = "PlateWithHole_" + problem
+    folder = Folder.PhaseField_Folder(folder=folderName, material=materialType, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solver, test=test, closeCrack=False, nL=nL)
     
     if solve:
 
         # ----------------------------------------------
-        # Maillage
+        # Meshing
         # ----------------------------------------------
         if optimMesh:
-            ecartZone = diam*1.5/2
+            refineZone = diam*1.5/2
             if split in ["Bourdin", "Amor"]:
-                domainFissure = Domain(Point(y=h/2-ecartZone, x=0), Point(y=h/2+ecartZone, x=L), clC)
+                refineGeom = Domain(Point(y=h/2-refineZone, x=0), Point(y=h/2+refineZone, x=L), clC)
             else:
-                domainFissure = Domain(Point(x=L/2-ecartZone, y=0), Point(x=L/2+ecartZone, y=h), clC)
+                refineGeom = Domain(Point(x=L/2-refineZone, y=0), Point(x=L/2+refineZone, y=h), clC)
         else:
-            domainFissure = None
+            refineGeom = None
 
         def DoMesh(refineGeom=None) -> Mesh:
 
@@ -230,14 +213,14 @@ for split, regu in zip(splits, regularisations):
 
             return mesh
         
-        mesh = DoMesh(domainFissure)
+        mesh = DoMesh(refineGeom)
         
         if plotMesh:
             Display.Plot_Mesh(mesh)
             plt.show()        
 
         # ----------------------------------------------
-        # Matériau
+        # Material
         # ----------------------------------------------
         if dim == 2:
             if simpli2D == "CP":
@@ -247,7 +230,7 @@ for split, regu in zip(splits, regularisations):
         else:
             isCp = False       
 
-        phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0, solver=solveur)
+        phaseFieldModel = Materials.PhaseField_Model(material, split, regu, gc, l0, solver=solver)
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
@@ -268,50 +251,40 @@ for split, regu in zip(splits, regularisations):
             elif "FCBA" in problem:
                 figLoad, axLoad = Display.Plot_Load_Displacement(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]')
 
-        def Chargement(ud: float):
+        def Loading(ud: float):
             
-            # Récupérations des noeuds
-            nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-            nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)            
-            nodesX00 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
-            nodesY00 = mesh.Nodes_Conditions(lambda x,y,z: (y==0) & (z==0))
+            # Get Nodes
+            nodes_Lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+            nodes_Upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)            
+            nodes_X0Y0 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
+            nodes_Y0Z0 = mesh.Nodes_Conditions(lambda x,y,z: (y==0) & (z==0))
 
             simu.Bc_Init()
-            simu.add_dirichlet(nodes_lower, [0], ["y"])
-            simu.add_dirichlet(nodesX00, [0], ["x"])
-            simu.add_dirichlet(nodes_upper, [-ud], ["y"])
+            simu.add_dirichlet(nodes_Lower, [0], ["y"])
+            simu.add_dirichlet(nodes_X0Y0, [0], ["x"])
+            simu.add_dirichlet(nodes_Upper, [-ud], ["y"])
             if dim == 3:
-                simu.add_dirichlet(nodesY00, [0], ["z"])
+                simu.add_dirichlet(nodes_Y0Z0, [0], ["z"])                
 
-        def Condition():
-            """Fonction qui traduit la condition de chargement"""
-            if "Benchmark" in problem :
-                return ud <= u_max
-            elif "FCBA" in problem:
-                # On va charger jusqua la rupture
-                # return True
-                return ud <= u_max
-
-        while Condition():
+        while ud <= u_max:
 
             resol += 1
             
-            noeuds_bord = simu.mesh.Nodes_Tags(["L0","L1","L2","L3"])
-            nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h) 
+            nodes_Edges = simu.mesh.Nodes_Tags(["L0","L1","L2","L3"])
+            nodes_Upper = mesh.Nodes_Conditions(lambda x,y,z: y==h) 
 
-            ddls_upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
+            dofsY_Upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_Upper, ["y"])
 
-            if dim == 3:
-                if resol > 1500:
-                    break
+            if dim == 3 and resol > 1500:
+                break
             
-            Chargement(ud)
+            Loading(ud)
             # Display.Plot_BoundaryConditions(simu)
             # plt.show()
 
             u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
 
-            # Si on converge pas on arrête la simulation
+            # stop if the simulation does not converge
             if not convergence: break
 
             if updateMesh:
@@ -361,25 +334,20 @@ for split, regu in zip(splits, regularisations):
             simu.Save_Iter()
 
             max_d = d.max()
-            f = np.sum(Kglob[ddls_upper, :] @ u)
+            f = np.sum(Kglob[dofsY_Upper, :] @ u)
 
             if "Benchmark" in problem:
-                pourcentage = ud/u_max
-            else: 
-                pourcentage = 0
-
-            if "Benchmark" in problem:
-                simu.Results_Set_Iteration_Summary(resol, ud*1e6, "µm", pourcentage, True)
+                simu.Results_Set_Iteration_Summary(resol, ud*1e6, "µm", ud/u_max, True)
             elif "FCBA" in problem:
-                simu.Results_Set_Iteration_Summary(resol, ud*1e3, "mm", pourcentage, True)
+                simu.Results_Set_Iteration_Summary(resol, ud*1e3, "mm", 0, True)
            
-            if max_d<tresh0:
+            if max_d < tresh0:
                 ud += inc0
             else:
                 ud += inc1
 
-            # Detection si on a touché le bord
-            if np.any(d[noeuds_bord] >= 0.98):
+            # Detection if the edges has been touched
+            if np.any(d[nodes_Edges] >= 0.98):
                 bord += 1
                 if bord == 10:                    
                     break
@@ -406,13 +374,11 @@ for split, regu in zip(splits, regularisations):
 
                 plt.pause(1e-12)
 
-            
-
         load = np.array(load)
         displacement = np.array(displacement)
 
         # ----------------------------------------------
-        # Sauvegarde
+        # Saving
         # ----------------------------------------------
         print()
         PostProcessing.Save_Load_Displacement(load, displacement, folder)
@@ -420,16 +386,16 @@ for split, regu in zip(splits, regularisations):
             
     else:
         # ----------------------------------------------
-        # Chargement
+        # Load
         # ----------------------------------------------
         load, displacement = PostProcessing.Load_Load_Displacement(folder)
         simu = Simulations.Load_Simu(folder)
 
     # ----------------------------------------------
-    # Post Traitement
+    # Post processing
     # ---------------------------------------------
 
-    if plotEnergie:
+    if plotEnergy:
         Display.Plot_Energy(simu, load, displacement, Niter=400, folder=folder)
 
     if plotResult:
@@ -447,12 +413,8 @@ for split, regu in zip(splits, regularisations):
     if saveParaview:
         PostProcessing.Make_Paraview(folder, simu, Niter=NParaview)        
 
-    if makeMovie:
-        # Display.Plot_Result(simu, "damage", deformation=True, facteurDef=20)
-        # plt.show()
-        PostProcessing.Make_Movie(folder, "ux", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, factorDef=1.5)
-
-    # Tic.getResume()
+    if makeMovie:        
+        PostProcessing.Make_Movie(folder, "damage", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, factorDef=1.5)
 
     if solve:
         Tic.Plot_History(folder, details=True)
