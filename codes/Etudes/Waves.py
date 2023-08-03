@@ -43,7 +43,7 @@ r = diam / 2
 
 # Define the domain and create the mesh
 domain = Domain(Point(x=-a / 2, y=-a / 2), Point(x=a / 2, y=a / 2), meshSize)
-circle = Circle(Point(), diam, meshSize, isCreux=False)
+circle = Circle(Point(), diam, meshSize, isHollow=False)
 line = Line(Point(), Point(diam / 4))
 interfaceGmsh = Interface_Gmsh(False)
 mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3", cracks=[line])

@@ -51,7 +51,7 @@ pt1 = Geom.Point(-L/2, -H/2)
 pt2 = Geom.Point(L/2, H/2)
 domain = Geom.Domain(pt1, pt2, meshSize)
 pC = Geom.Point(0, 0)
-circle = Geom.Circle(pC, d, meshSize, isCreux=True)
+circle = Geom.Circle(pC, d, meshSize, isHollow=True)
 
 diam = d
 pZone = pC + [1*diam/2,1*diam/2]
@@ -66,7 +66,7 @@ pt2 = Geom.Point(*coordInter[1, :])
 
 circleArc1 = Geom.CircleArc(pt1, pZone, pt2, meshSize, coef=-1)
 circleArc2 = Geom.CircleArc(pt2, pC, pt1, meshSize)
-contour = Geom.Contour([circleArc1, circleArc2], isCreux=True)
+contour = Geom.Contour([circleArc1, circleArc2], isHollow=True)
 
 mesh = Interface_Gmsh().Mesh_2D(domain, [circle, contour], "TRI6")
 xn = mesh.coordo[:,0]

@@ -54,13 +54,13 @@ for i in range(nL):
         ptd1 = Geom.Point(x-cL/2, y-cH/2)
         ptd2 = Geom.Point(x+cL/2, y+cH/2)
 
-        inclusion = Geom.Domain(ptd1, ptd2, meshSize, isCreux=True)
+        inclusion = Geom.Domain(ptd1, ptd2, meshSize, isHollow=True)
 
         listGeomInDomain.append(inclusion)
 
 interfaceGmsh = Interface_Gmsh(False)
 
-inclusion = Geom.Domain(ptd1, ptd2, meshSize, isCreux=True)
+inclusion = Geom.Domain(ptd1, ptd2, meshSize, isHollow=True)
 surfaceInclu = interfaceGmsh.Mesh_2D(inclusion).area
 
 points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
@@ -78,7 +78,7 @@ ptI4 = Geom.Point(-cL, cH)
 
 pointsI = Geom.PointsList([ptI1, ptI2, ptI3, ptI4], meshSize/4)
 
-meshVER = interfaceGmsh.Mesh_2D(pointsI, [Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize/4, isCreux=True)], elemType)
+meshVER = interfaceGmsh.Mesh_2D(pointsI, [Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2), meshSize/4, isHollow=True)], elemType)
 
 surfaceVer = meshVER.area
 

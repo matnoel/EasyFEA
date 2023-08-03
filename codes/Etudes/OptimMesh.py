@@ -88,9 +88,9 @@ if part == "equerre":
 
     points = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
 
-    inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize=h/N, isCreux=True) for i in range(3)]
+    inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize=h/N, isHollow=True) for i in range(3)]
 
-    inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isCreux=False, meshSize=h/N)])
+    inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isHollow=False, meshSize=h/N)])
 
 elif part == "lmt":
 
@@ -159,9 +159,9 @@ else:
             isCreux = True
             
             if i % 2 == 1:
-                obj = Domain(ptd1, ptd2, meshSize, isCreux=isCreux)
+                obj = Domain(ptd1, ptd2, meshSize, isHollow=isCreux)
             else:
-                obj = Domain(ptd1, ptd2, meshSize, isCreux=isCreux)
+                obj = Domain(ptd1, ptd2, meshSize, isHollow=isCreux)
                 # obj = Circle(Point(x, y), cH, meshSize, isCreux=isCreux)
 
             inclusions.append(obj)
@@ -188,7 +188,7 @@ else:
         ptC3 = Point(h, h/2, b, isOpen=False)
         ptC4 = Point(h, h, b, isOpen=False)
 
-        cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], isCreux=True)]
+        cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], isHollow=True)]
 
         cracks.append(Line(ptC1, ptC4, meshSize, isOpen=True))
         cracks.append(Line(ptC1, ptC2, meshSize, isOpen=True))

@@ -1,3 +1,5 @@
+"""Interface module with gmsh (https://gmsh.info/). This module lets you manipulate Geom objects to create meshes."""
+
 from typing import cast
 import gmsh
 import sys
@@ -15,12 +17,12 @@ from Materials import _Beam_Model
 
 class Interface_Gmsh:
 
-    def __init__(self, affichageGmsh=False, gmshVerbosity=False, verbosity=False):
-        """Building an interface that can interact with gmsh
+    def __init__(self, openGmsh=False, gmshVerbosity=False, verbosity=False):
+        """Building an interface that can interact with gmsh.
 
         Parameters
         ----------
-        affichageGmsh : bool, optional
+        openGmsh : bool, optional
             display mesh built in gmsh, by default False
         gmshVerbosity : bool, optional
             gmsh can write to terminal, by default False
@@ -28,7 +30,7 @@ class Interface_Gmsh:
             interfaceGmsh class can write construction summary to terminal, by default False
         """
     
-        self.__affichageGmsh = affichageGmsh
+        self.__openGmsh = openGmsh
         """gmsh can display the mesh"""
         self.__gmshVerbosity = gmshVerbosity
         """gmsh can write to the console"""
@@ -36,7 +38,7 @@ class Interface_Gmsh:
         """the interface can write to the console"""
 
         if gmshVerbosity:
-            Display.Section("New interface with gmsh")
+            Display.Section("New interface with gmsh.")
 
     def __CheckType(self, dim: int, elemType: str):
         """Check that the element type is usable."""
@@ -674,7 +676,7 @@ class Interface_Gmsh:
                 surface = self.__Surface_From_Loops([loop])                
                 entities2D.append(surface)
 
-                if crack.isCreux:
+                if crack.isHollow:
                     openLines.extend(lines)
                     openSurfaces.append(surface)
 
@@ -689,7 +691,7 @@ class Interface_Gmsh:
                 surface = self.__Surface_From_Loops([loop])                
                 entities2D.append(surface)
 
-                if crack.isCreux:
+                if crack.isHollow:
                     openLines.extend(openLns)
                     openSurfaces.append(surface)
                 
@@ -703,7 +705,7 @@ class Interface_Gmsh:
                     surface = self.__Surface_From_Loops([loop])
                     entities2D.append(surface)
 
-                    if crack.isCreux:
+                    if crack.isHollow:
                         openSurfaces.append(surface)
 
         newEntities = [(0, point) for point in entities0D]
@@ -802,7 +804,7 @@ class Interface_Gmsh:
             
             loop = self.__Loop_From_Geom(objetGeom)
 
-            if objetGeom.isCreux:
+            if objetGeom.isHollow:
                 hollowLoops.append(loop)
             else:                
                 filledLoops.append(loop)
@@ -1115,7 +1117,7 @@ class Interface_Gmsh:
             gmsh.plugin.run("Crack")            
         
         # Open gmsh interface if necessary
-        if '-nopopup' not in sys.argv and self.__affichageGmsh:
+        if '-nopopup' not in sys.argv and self.__openGmsh:
             gmsh.fltk.run()
         
         tic.Tac("Mesh","Meshing", self.__verbosity)
@@ -1322,17 +1324,17 @@ class Interface_Gmsh:
     
     @staticmethod
     def Construction_2D(L=10, h=10, taille=3) -> list[Mesh]:
-        """2D mesh generation"""
+        """2D mesh generation."""
 
-        interfaceGmsh = Interface_Gmsh(affichageGmsh=False, verbosity=False)
+        interfaceGmsh = Interface_Gmsh(openGmsh=False, verbosity=False)
 
         list_mesh2D = []
         
         domain = Domain(Point(0,0,0), Point(L, h, 0), meshSize=taille)
         line = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), meshSize=taille, isOpen=False)
         lineOpen = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), meshSize=taille, isOpen=True)
-        circle = Circle(Point(x=L/2, y=h/2), L/3, meshSize=taille, isCreux=True)
-        circleClose = Circle(Point(x=L/2, y=h/2), L/3, meshSize=taille, isCreux=False)
+        circle = Circle(Point(x=L/2, y=h/2), L/3, meshSize=taille, isHollow=True)
+        circleClose = Circle(Point(x=L/2, y=h/2), L/3, meshSize=taille, isHollow=False)
 
         aireDomain = L*h
         aireCircle = np.pi * (circleClose.diam/2)**2
@@ -1370,11 +1372,11 @@ class Interface_Gmsh:
 
     @staticmethod
     def Construction_3D(L=130, h=13, b=13, taille=7.5, useImport3D=False):
-        """3D mesh generation"""        
+        """3D mesh generation."""        
 
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=taille)
-        circleCreux = Circle(Point(x=L/2, y=0,z=-b/2), h*0.7, meshSize=taille, isCreux=True)
-        circle = Circle(Point(x=L/2, y=0 ,z=-b/2), h*0.7, meshSize=taille, isCreux=False)
+        circleCreux = Circle(Point(x=L/2, y=0,z=-b/2), h*0.7, meshSize=taille, isHollow=True)
+        circle = Circle(Point(x=L/2, y=0 ,z=-b/2), h*0.7, meshSize=taille, isHollow=False)
 
         volume = L*h*b
 
@@ -1385,7 +1387,7 @@ class Interface_Gmsh:
         cpefPath = Folder.Join([folder,"3Dmodels","CPEF.stp"])
         partPath = Folder.Join([folder,"3Dmodels","part.stp"])
 
-        interfaceGmsh = Interface_Gmsh(verbosity=False, affichageGmsh=False)
+        interfaceGmsh = Interface_Gmsh(verbosity=False, openGmsh=False)
 
         list_mesh3D = []
         # For each type of 3D element

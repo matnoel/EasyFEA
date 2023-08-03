@@ -1,3 +1,5 @@
+"""Module for creating simulations."""
+
 from abc import ABC, abstractmethod
 import os
 import pickle
@@ -46,7 +48,6 @@ def Load_Simu(folder: str, verbosity=False):
         print(simu.model)
     return simu
 
-
 class _Simu(ABC):
     """
     Parent class of simulation types:
@@ -54,6 +55,9 @@ class _Simu(ABC):
     - Simu_Damage
     - Simu_Beam
     - Simu_Thermal
+
+    To create new simulations, take inspiration from existing classes. You'll need to respect the interface with _Simu.
+    The Simu_Thermal class is simple enough to understand the implementation.
 
     To use the interface/inheritance, 14 methods need to be defined.
 

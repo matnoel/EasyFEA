@@ -1,3 +1,5 @@
+"""Module for timing operations."""
+
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -134,7 +136,7 @@ class Tic:
 
     @staticmethod 
     def Plot_History(folder="", details=True) -> None:
-        """Display history
+        """Display history.
 
         Parameters
         ----------

@@ -1,3 +1,6 @@
+"""Interface module with various solvers available on python for solving linear systems of type A x = b.
+Interface with PETsC, pypardiso and others ..."""
+
 import sys
 from enum import Enum
 import numpy as np

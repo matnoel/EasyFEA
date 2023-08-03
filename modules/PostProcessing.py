@@ -1,3 +1,5 @@
+"""Post-processing module, used to create video or Paraview files."""
+
 import os
 from colorama import Fore
 
@@ -13,13 +15,13 @@ import matplotlib.animation as animation
 import pickle
 from datetime import datetime
 
-# Il est possible de sinspirer de :
+# It is possible to draw inspiration from :
 # https://www.python-graph-gallery.com/
 
 # =========================================== Load and Displacement ==================================================
 
 def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:str):
-    "Save the values of load and displacements in the folder"
+    """Save the values of load and displacements in the folder"""
     
     filename = Folder.Join([folder, "load and displacement.pickle"])
 

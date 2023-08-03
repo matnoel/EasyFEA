@@ -1,3 +1,5 @@
+"""Module for using numba functions."""
+
 from numba import njit, prange, jit
 import numpy as np
 

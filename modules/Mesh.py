@@ -1,3 +1,5 @@
+"""Mesh module. Allows you to manipulate different element groups. These element groups are used to construct finite element matrix."""
+
 import numpy as np
 import scipy.sparse as sp
 from types import LambdaType
@@ -9,7 +11,7 @@ import TicTac
 class Mesh:
 
     def __init__(self, dict_groupElem: dict[ElemType, GroupElem], verbosity=True):
-        """Setup the mesh
+        """Setup the mesh.
 
         Parameters
         ----------

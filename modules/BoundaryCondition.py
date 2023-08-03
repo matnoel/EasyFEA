@@ -1,3 +1,5 @@
+"""Module for creating boundary conditions."""
+
 from typing import cast
 import numpy as np
 

@@ -34,7 +34,7 @@ else:
     domain = Domain(Point(), Point(a, a), a / 20)
 
 # Create a circular region inside the domain
-circle = Circle(Point(a / 2, a / 2), diam=a / 3, isCreux=True, meshSize=a / 50)
+circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 50)
 
 # Create an interface to Gmsh for meshing
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, True)

@@ -1,3 +1,5 @@
+"""Module for creating behavior models. Such as elastic models or damage models."""
+
 from abc import ABC, abstractmethod, abstractproperty
 from typing import List
 from enum import Enum

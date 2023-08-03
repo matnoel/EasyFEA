@@ -27,13 +27,13 @@ pts = [p0, p1, p2, p3]
 
 meshSize = 1/30
 
-points = PointsList(pts, meshSize, isCreux=False)
+points = PointsList(pts, meshSize, isHollow=False)
 
 f = 0.4
 
 r = 1 * np.sqrt(f/np.pi)
 
-inclusion = Circle(Point(), 2*r, meshSize, isCreux=False)
+inclusion = Circle(Point(), 2*r, meshSize, isHollow=False)
 
 # e = 1/6
 # l = 1-(2*e)

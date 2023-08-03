@@ -18,7 +18,7 @@ clC = L/nL # taille de maille
 l0 = 2 * clC
 
 domain = Domain(Point(-1/2,-1/2), Point(1/2, 1/2), clC)
-inclusion = Circle(Point(), h, clC, isCreux=False)
+inclusion = Circle(Point(), h, clC, isHollow=False)
 
 mesh = Interface_Gmsh().Mesh_2D(domain, [inclusion], 'QUAD4')
 

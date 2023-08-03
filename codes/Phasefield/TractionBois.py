@@ -87,10 +87,10 @@ points = PointsList(listPoint, tailleGros)
 
 diam = 5
 r = diam/2
-c1 = Circle(Point(a/2, -h+7.5), diam, tailleFin, isCreux=True)
-c2 = Circle(Point(L-c/2, -h+7.5), diam, tailleFin, isCreux=True)
-c3 = Circle(Point(L-c/2, h-7.5), diam, tailleFin, isCreux=True)
-c4 = Circle(Point(a/2, h-7.5), diam, tailleFin, isCreux=True)
+c1 = Circle(Point(a/2, -h+7.5), diam, tailleFin, isHollow=True)
+c2 = Circle(Point(L-c/2, -h+7.5), diam, tailleFin, isHollow=True)
+c3 = Circle(Point(L-c/2, h-7.5), diam, tailleFin, isHollow=True)
+c4 = Circle(Point(a/2, h-7.5), diam, tailleFin, isHollow=True)
 
 geomObjectsInDomain = [c1, c2, c3, c4]
 

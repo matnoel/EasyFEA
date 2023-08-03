@@ -1,10 +1,11 @@
+"""Folder and file creation module."""
+
 import os
 from typing import List
 from colorama import Fore
 
 def Get_Path(filename="") -> str:
-    """Returns the folder containing the file. Otherwise returns the PythonEF folder
-    """
+    """Returns the folder containing the file. Otherwise returns the PythonEF folder."""
     
     if filename == "":
         # Returns the path to PythonEF
@@ -47,7 +48,8 @@ def Join(list: List[str]) -> str:
         
     return file
 
-def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0):
+def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0) -> str:
+    """Create a phase field folder based on the specified arguments."""
 
     import Materials
 

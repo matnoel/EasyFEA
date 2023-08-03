@@ -54,7 +54,7 @@ pt3 = Geom.Point(l, h)
 pt4 = Geom.Point(0, h)
 points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
-circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isCreux=True)
+circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isHollow=True)
 
 mesh = gmshInterface.Mesh_2D(points, [circle], elemType)
 

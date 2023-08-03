@@ -27,7 +27,7 @@ class SimulationType(str, Enum):
 simulationType = SimulationType.EQUERRE
 
 # Create an instance of the Gmsh interface
-interface = Interface_Gmsh(affichageGmsh=False, gmshVerbosity=False)
+interface = Interface_Gmsh(openGmsh=False, gmshVerbosity=False)
 
 # Define material properties
 coef = 1
@@ -70,9 +70,9 @@ elif simulationType == SimulationType.EQUERRE:
     cracks = []
 
     contour = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
-    inclusions = [Circle(Point(x=h / 2, y=h * (i + 1)), h / 4, meshSize=h / N, isCreux=True) for i in range(3)]
+    inclusions = [Circle(Point(x=h / 2, y=h * (i + 1)), h / 4, meshSize=h / N, isHollow=True) for i in range(3)]
 
-    inclusions.extend([Domain(Point(x=h, y=h / 2 - h * 0.1), Point(x=h * 2.1, y=h / 2 + h * 0.1), isCreux=False, meshSize=h / N)])
+    inclusions.extend([Domain(Point(x=h, y=h / 2 - h * 0.1), Point(x=h * 2.1, y=h / 2 + h * 0.1), isHollow=False, meshSize=h / N)])
 
     if dim == 2:
         mesh = interface.Mesh_2D(contour, inclusions, ElemType.TRI3, cracks)

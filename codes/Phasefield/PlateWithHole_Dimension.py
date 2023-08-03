@@ -69,7 +69,7 @@ for cc in list_cc:
     domain = Domain(point, Point(x=L, y=H), clD)
     circle = Circle(Point(x=L/2, y=H-h), diam, clC)
 
-    interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
+    interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False, verbosity=False)
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
     # Display.Plot_Mesh(mesh)

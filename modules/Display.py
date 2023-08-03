@@ -14,21 +14,21 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import Folder
 
-def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coef=1, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
-    """Display a simulation result
+def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coef=1.0, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
+    """Display a simulation result.
 
     Parameters
     ----------
     obj : Simu or Mesh
         object containing the mesh
     result : str
-        result you wish to use. must be included in Simu.ResultCalculables()
+        result you want to display. Must be included in simu.Get_Results()
     deformation : bool, optional
         displays deformation, by default False
     factorDef : int, optional
         deformation factor, by default 4
-    coef : int, optional
-        coef to be applied to solution, by default 1
+    coef : float, optional
+        coef to be applied to solution, by default 1.0
     plotMesh : bool, optional
         displays mesh, by default False
     nodeValues : bool, optional
@@ -60,7 +60,7 @@ def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coe
     # here we detect the nature of the object
     if isinstance(obj, _Simu):
         simu = obj
-        mesh = simu.mesh        
+        mesh = simu.mesh
         if simu.problemType == ModelType.beam:
             # Currently I don't know how to display nodal results, so I'm displaying on elements.
             nodeValues = False
@@ -332,7 +332,7 @@ def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coe
     return fig, ax, cb
     
 def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1.0, facecolors='c', edgecolor='black') -> plt.Axes:
-    """Plot Mesh
+    """Plot the mesh.
 
     Parameters
     ----------
@@ -502,14 +502,12 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     return ax
 
 def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=None) -> plt.Axes:
-    """Plot mesh nodes
+    """Plot mesh nodes.
 
     Parameters
     ----------
     mesh : Mesh
-        mesh
-    ax : plt.Axes, optional
-        Axis to use, default None, default None
+        mesh    
     nodes : list[np.ndarray], optional
         nodes to display, default []
     showId : bool, optional
@@ -520,6 +518,8 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
         mesh color, default 'blue'
     folder : str, optional
         save folder, default "".    
+    ax : plt.Axes, optional
+        Axis to use, default None, default None
 
     Returns
     -------
@@ -547,12 +547,12 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
             [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in nodes]
     
     if folder != "":
-        Save_fig(folder, "noeuds")
+        Save_fig(folder, "nodes")
 
     return ax
 
 def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor='black', alpha=1.0, folder="", ax=None) -> plt.Axes:
-    """Display mesh elements from given nodes
+    """Display mesh elements from given nodes.
 
     Parameters
     ----------
@@ -635,7 +635,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor
     return ax
 
 def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
-    """Plot boundary conditions
+    """Plot boundary conditions.
 
     Parameters
     ----------
@@ -915,8 +915,8 @@ def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
-def Plot_Load_Displacement(deplacements: np.ndarray, forces: np.ndarray, xlabel='u', ylabel='f', folder="", ax=None) -> tuple[plt.Figure, plt.Axes]:
-    """Plots force versus displacement curve
+def Plot_Load_Displacement(displacement: np.ndarray, forces: np.ndarray, xlabel='u', ylabel='f', folder="", ax=None) -> tuple[plt.Figure, plt.Axes]:
+    """Plot the forces displacement curve.
 
     Parameters
     ----------
@@ -945,7 +945,7 @@ def Plot_Load_Displacement(deplacements: np.ndarray, forces: np.ndarray, xlabel=
     else:        
         fig, ax = plt.subplots()
 
-    ax.plot(np.abs(deplacements), np.abs(forces), c='blue')
+    ax.plot(np.abs(displacement), np.abs(forces), c='blue')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid()
@@ -956,7 +956,7 @@ def Plot_Load_Displacement(deplacements: np.ndarray, forces: np.ndarray, xlabel=
     return fig, ax
     
 def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=True, Niter=200, NiterFin=100, folder="") -> None:
-    """Plot the energy for each iteration
+    """Plot the energy for each iteration.
 
     Parameters
     ----------
@@ -983,8 +983,8 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     assert isinstance(simu, _Simu)
 
     # First we check whether the simulation can calculate energies
-    if len(simu.Results_dict_Energy())== 0:
-        print("Cette simulation ne peut calculer les energies")
+    if len(simu.Results_dict_Energy()) == 0:
+        print("This simulation don't calculate energies.")
         return
 
     # Check whether it is possible to plot the force-displacement curve
@@ -1077,7 +1077,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     tic.Tac("PostProcessing","Calc Energy", False)
 
 def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
-    """Display summary of iterations between iterMin and iterMax
+    """Display summary of iterations between iterMin and iterMax.
 
     Parameters
     ----------
@@ -1200,7 +1200,7 @@ def __ScaleChange(ax, coordo: np.ndarray) -> None:
     ax.set_box_aspect([1,1,1])
         
 def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi='figure') -> None:
-    """Save the current figure
+    """Save the current figure.
 
     Parameters
     ----------
@@ -1230,8 +1230,7 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
     plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches='tight')   
 
 def Section(text: str, verbosity=True) -> None:
-    """New section
-    """    
+    """New section."""    
     bord = "======================="
 
     longeurTexte = len(text)
@@ -1247,7 +1246,7 @@ def Section(text: str, verbosity=True) -> None:
     return section
 
 def Clear() -> None:
-    """Clear the terminal"""
+    """Clear the terminal."""
     syst = platform.system()
     if syst in ["Linux","Darwin"]:
         os.system("clear")

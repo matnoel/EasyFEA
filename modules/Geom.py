@@ -1,9 +1,12 @@
+"""Module for creating geometric objects."""
+
 import numpy as np
 
 class Point:    
 
     def __init__(self, x=0.0, y=0.0, z=0.0, isOpen=False, r=0.0):
-        """Build a point
+        """Build a point.
+
         Parameters
         ----------
         x : float, optional
@@ -125,7 +128,7 @@ class Point:
 class Geom:
 
     def __init__(self, points: list[Point], meshSize: float, name: str):
-        """Builds a geometric object
+        """Builds a geometric object.
 
         Parameters
         ----------
@@ -162,7 +165,7 @@ class PointsList(Geom):
 
     __nbPointsList = 0
 
-    def __init__(self, contour: list[Point], meshSize=0.0, isCreux=False):
+    def __init__(self, contour: list[Point], meshSize=0.0, isHollow=False):
         """Builds a point list
 
         Parameters
@@ -171,11 +174,11 @@ class PointsList(Geom):
             list of geom objects to build a contour
         meshSize : float, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
-        isCreux : bool, optional
-            formed domain is hollow, by default False
+        isHollow : bool, optional
+            formed domain is hollow/empty, by default False
         """
 
-        self.isCreux=isCreux
+        self.isHollow=isHollow
 
         PointsList.__nbPointsList += 1
         name = f"PointsList{PointsList.__nbPointsList}"
@@ -187,19 +190,19 @@ class Line(Geom):
 
     @staticmethod
     def distance(pt1: Point, pt2: Point) -> float:
-        """Calculate the distance between two points"""
+        """Calculate the distance between two points."""
         length = np.sqrt((pt1.x-pt2.x)**2 + (pt1.y-pt2.y)**2 + (pt1.z-pt2.z)**2)
         return np.abs(length)
     
     @staticmethod
     def get_unitVector(pt1: Point, pt2: Point) -> np.ndarray:
-        """Construct the unit vector between two points"""
+        """Construct the unit vector between two points."""
         length = Line.distance(pt1, pt2)        
         v = np.array([pt2.x-pt1.x, pt2.y-pt1.y, pt2.z-pt1.z])/length
         return v   
 
     def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isOpen=False):
-        """Builds a line
+        """Builds a line.
 
         Parameters
         ----------
@@ -242,7 +245,7 @@ class Domain(Geom):
 
     __nbDomain = 0
 
-    def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isCreux=False):
+    def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isHollow=False):
         """Builds a domain
 
         Parameters
@@ -253,13 +256,13 @@ class Domain(Geom):
             second point
         meshSize : float, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
-        isCreux : bool, optional
-            formed domain is hollow, by default False
+        isHollow : bool, optional
+            formed domain is hollow/empty, by default False
         """
         self.pt1 = pt1
         self.pt2 = pt2
 
-        self.isCreux = isCreux
+        self.isHollow = isHollow
 
         Domain.__nbDomain += 1
         name = f"Domain{Domain.__nbDomain}"
@@ -269,7 +272,7 @@ class Circle(Geom):
 
     __nbCircle = 0
 
-    def __init__(self, center: Point, diam: float, meshSize=0.0, isCreux=True):
+    def __init__(self, center: Point, diam: float, meshSize=0.0, isHollow=True):
         """Constructing a circle according to its center and diameter
         This circle will be projected onto the (x,y) plane.
 
@@ -281,7 +284,7 @@ class Circle(Geom):
             diameter
         meshSize : float, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
-        isCreux : bool, optional
+        isHollow : bool, optional
             circle is hollow, by default True
         """
         
@@ -290,7 +293,7 @@ class Circle(Geom):
         self.center = center
         self.diam = diam
         
-        self.isCreux = isCreux
+        self.isHollow = isHollow
 
         Circle.__nbCircle += 1
         name = f"Circle{Circle.__nbCircle}"
@@ -320,12 +323,12 @@ class CircleArc(Geom):
             arc can open, by default False
         """
 
-        assert coef in [-1, 1], "coef doit être dans [-1, 1]"
+        assert coef in [-1, 1], "coef must be in [-1, 1]."
 
         r1 = np.linalg.norm((pt1-center).coordo)
         r2 = np.linalg.norm((pt2-center).coordo)
 
-        assert r1 == r2, "Les points ne sont pas sur le même arc de cercle."
+        assert r1 == r2, "The points are not on the same arc."
 
         self.center = center
         """Point at the center of the arc."""
@@ -367,18 +370,18 @@ class Contour(Geom):
 
     __nbContour = 0
 
-    def __init__(self, geoms: list[Line|CircleArc], isCreux=True):
+    def __init__(self, geoms: list[Line|CircleArc], isHollow=True):
         """Create a contour from a list of lines or arcs.
 
         Parameters
         ----------
         geoms : list[Line, CircleArc]
             list of objects used to build the contour
-        isCreux : bool, optional
-            contour is hollow, by default True
+        isHollow : bool, optional
+            contour is hollow/empty, by default True
         """
 
-        # Verifie que les points font bien une boucle fermée        
+        # Check that the points form a closed loop
         points = []
 
         tol = 1e-12        
@@ -406,7 +409,7 @@ class Contour(Geom):
 
         self.geoms = geoms
 
-        self.isCreux = isCreux
+        self.isHollow = isHollow
 
         Contour.__nbContour += 1
         name = f"Contour{Contour.__nbContour}"
@@ -417,12 +420,10 @@ class Contour(Geom):
 class Section:
 
     def __init__(self, mesh):
-        """Section
-        """
+        """Section."""
 
         from Mesh import Mesh
         assert isinstance(mesh, Mesh), "Must be a 2D mesh"
-
         assert mesh.dim == 2, "Must be a 2D mesh"
         
         self.__mesh = mesh
@@ -479,7 +480,7 @@ class Section:
 # Functions for calculating distances, angles, etc.
 
 def normalize_vect(vect: np.ndarray) -> np.ndarray:
-    """Returns the normalized vector"""
+    """Returns the normalized vector."""
     if len(vect.shape) == 1:
         return vect / np.linalg.norm(vect)
     elif len(vect.shape) == 2:
@@ -488,7 +489,7 @@ def normalize_vect(vect: np.ndarray) -> np.ndarray:
         raise Exception("The vector is the wrong size")
 
 def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
-    """calculates the angle between vector a and vector b
+    """Calculates the angle between vector a and vector b.
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors"""
 
     assert isinstance(a, np.ndarray) and isinstance(b, np.ndarray), "a et b doivent être des np.array"

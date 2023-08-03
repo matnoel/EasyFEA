@@ -49,12 +49,12 @@ clC = l_0/2
 
 point = Point()
 domain = Domain(point, Point(x=L, y=H), clD)
-circle = Circle(Point(x=L/2, y=H-h), diam, clC, isCreux=True)
+circle = Circle(Point(x=L/2, y=H-h), diam, clC, isHollow=True)
 val = diam*2
 # refineGeom = Domain(Point(x=L/2-val/2, y=(H-h)-val/2), Point(x=L/2+val/2, y=(H-h)+val/2), meshSize=clC/2)
 refineGeom = None
 
-interfaceGmsh = Interface_Gmsh.Interface_Gmsh(affichageGmsh=False, verbosity=False)
+interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False, verbosity=False)
 if dim == 2:
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD8", refineGeom=refineGeom)
 else:

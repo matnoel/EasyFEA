@@ -1,3 +1,5 @@
+"""Module used to create integration / Gauss points."""
+
 import numpy as np
 
 class Gauss:

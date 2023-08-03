@@ -202,7 +202,7 @@ for split, regu in zip(splits, regularisations):
 
             point = Point()
             domain = Domain(point, Point(x=L, y=h), clD)
-            circle = Circle(Point(x=L/2, y=h/2), diam, clD, isCreux=True)
+            circle = Circle(Point(x=L/2, y=h/2), diam, clD, isHollow=True)
             
             interfaceGmsh = Interface_Gmsh(False, False)
 

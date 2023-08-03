@@ -55,7 +55,7 @@ if dim == 2:
     Line0 = Line(Point(y=-h/2), Point(y=h/2))
     LineL = Line(Point(x=L,y=-h/2), Point(x=L, y=h/2))
     LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
-    circle = Circle(Point(x=L/2, y=0), h*0.2, isCreux=False)
+    circle = Circle(Point(x=L/2, y=0), h*0.2, isHollow=False)
 
     mesh = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
     area = mesh.area - L*h
