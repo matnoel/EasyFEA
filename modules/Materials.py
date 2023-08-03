@@ -319,7 +319,7 @@ class _Displacement_Model(IModel):
 class Elas_Isot(_Displacement_Model):
 
     def __str__(self) -> str:
-        text = f"{type(self).__name__} :"
+        text = f"{type(self).__name__}:"
         text += f"\nE = {self.E:.2e}, v = {self.v}"
         if self.dim == 2:
             text += f"\nCP = {self.planeStress}, ep = {self.thickness:.2e}"            
@@ -495,7 +495,7 @@ class Elas_Isot(_Displacement_Model):
 class Elas_IsotTrans(_Displacement_Model):
 
     def __str__(self) -> str:
-        text = f"{type(self).__name__} :"
+        text = f"{type(self).__name__}:"
         text += f"\nEl = {self.El:.2e}, Et = {self.Et:.2e}, Gl = {self.Gl:.2e}"
         text += f"\nvl = {self.vl}, vt = {self.vt}"
         text += f"\naxi_l = {self.__axis1},  axi_t = {self.__axis2}"
@@ -758,7 +758,7 @@ class Elas_IsotTrans(_Displacement_Model):
 class Elas_Anisot(_Displacement_Model):
     
     def __str__(self) -> str:
-        text = f"\n{type(self).__name__}) :"
+        text = f"\n{type(self).__name__}):"
         text += f"\n{self.C}"
         text += f"\naxi1 = {self.__axis1},  axi2 = {self.__axis2}"
         if self.__dim == 2:
@@ -988,7 +988,7 @@ class _Beam_Model(IModel):
     
     def __str__(self) -> str:
         text = ""
-        text += f"\n{self.name} :"        
+        text += f"\n{self.name}:"        
         text += f"\n  area = {self.__section.area:.2}, Iz = {self.__section.Iz:.2}, Iy = {self.__section.Iy:.2}, J = {self.__section.J:.2}"
 
         return text
