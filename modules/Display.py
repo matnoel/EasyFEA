@@ -1,3 +1,5 @@
+"""Display module for simulations and meshes."""
+
 import platform
 from typing import List, cast
 from colorama import Fore
