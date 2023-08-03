@@ -1,3 +1,5 @@
+"""DIC analysis module"""
+
 import numpy as np
 from scipy import interpolate, sparse
 from scipy.sparse.linalg import splu
@@ -10,46 +12,48 @@ from BoundaryCondition import BoundaryCondition
 from Mesh import Mesh
 import TicTac
 
-class AnalyseDiC:
+class DIC_Analysis:
 
-    def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray, forces=None, deplacements=None, lr=0.0, verbosity=False):
-        """Analyse de corrélation d'images
+    def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray, loads=None, displacements=None, lr=0.0, verbosity=False):
+        """DIC Analysys.
 
         Parameters
         ----------
         mesh : Mesh
-            maillage de la ROI
+            ROI mesh
         idxImgRef : int
-            index de l'image de référence dans forces
+            index of reference image in forces
         imgRef : np.ndarray
-            image de référence
+            reference image
         forces : np.ndarray, optional
-            vecteurs de force, by default None
-        deplacements : np.ndarray, optional
-            vecteurs de déplacement, by default None
+            force vectors, by default None
+        displacements : np.ndarray, optional
+            displacement vectors, by default None
         lr : float, optional
-            longueur de régularisation, by default 0.0
+            regularization length, by default 0.0
         verbosity : bool, optional
-            l'analyse peut ecrire dans la console, by default False
+            analysis can write to console, by default False
 
         Returns
         -------
         AnalyseDiC
-            Objet pour réaliser la corrélation d'images
+            Object for image correlation
         """
 
-        self._forces = forces
-        """valeur des efforts bruts relevés pendant les essais en kN"""
+        self._loads = loads
+        """forces measured during the tests."""
 
-        self._deplacements = deplacements
-        """valeur des déplacements bruts relevés pendant les essais en mm"""
+        self._displacements = displacements
+        """displacements measured during the tests."""
 
         self._mesh = mesh
-        """maillage dans la base en pixel utilisé pour réaliser la corrélation d'images"""
+        """pixel-based mesh used for image correlation."""
+        assert mesh.dim == 2, "Must be a 2D mesh."
+
         self._meshCoef = None
-        """maillage mis à l'échelle"""
+        """scaled mesh."""
         self._coef = 1.0
-        """coef de mise à l'echelle"""
+        """scaling coef."""
 
         self.__Nn = mesh.Nn
         self.__dim = mesh.dim
@@ -57,30 +61,29 @@ class AnalyseDiC:
         self.__ldic = self.__Get_ldic()
 
         self._idxImgRef = idxImgRef
-        """Indexe de l'image de référence"""
+        """Reference image index in _loads."""
 
         self._imgRef = imgRef        
-        """Image utilisée comme image de référence"""
+        """Image used as reference."""
 
         self.__shapeImages = imgRef.shape
-        """Shape des images à utiliser pour les analyses"""
+        """Shape of images to be used for analysis."""
 
         self._list_u_exp = []
-        """liste qui contient les champs de déplacement calculés"""
+        """List containing calculated displacement fields."""
 
         self._list_idx_exp = []
-        """liste qui contient indexes pour lesquels on a calculé le champ de déplacement"""
+        """List containing indexes for which the displacement field has been calculated."""
 
         self._list_img_exp = []
-        """liste qui contient image pour lesquels on a calculé le champ de déplacement"""
+        """List containing images for which the displacement field has been calculated."""
 
         self.__lr = lr
-        """longeur de régularisation"""
+        """regulation length."""
 
         self._verbosity = verbosity
 
-        # initialise la ROI et les fonctions de formes et dérivés des fonction de formes
-        
+        # initialize ROI and shape functions and shape function derivatives        
         self.__init__roi()       
 
         self.__init__Phi_opLap()        
@@ -88,31 +91,33 @@ class AnalyseDiC:
         self.Compute_L_M(imgRef)
 
     def __init__roi(self):
-        """Initialisation de la ROI"""
+        """ROI initialization."""
 
         tic = TicTac.Tic()
 
         imgRef = self._imgRef
         mesh = self._mesh
 
-        # récupération de la coordonnées des pixels
+        # recovery of pixel coordinates
         coordPx = np.arange(imgRef.shape[1]).reshape((1,-1)).repeat(imgRef.shape[0], 0).reshape(-1)
         coordPy = np.arange(imgRef.shape[0]).reshape((-1,1)).repeat(imgRef.shape[1]).reshape(-1)
         coordPixel = np.zeros((coordPx.shape[0], 3), dtype=int);  coordPixel[:,0] = coordPx;  coordPixel[:,1] = coordPy
 
-        # récupération des pixels utilisés dans les elements avec leurs coordonnées
+        # recovery of pixels used in elements with their coordinates
         pixels, connectPixel, coordPixelInElem = mesh.groupElem.Get_Nodes_Connect_CoordoInElemRef(coordPixel)
 
         self.__connectPixel = connectPixel
-        """matrice de connectivité qui relié pour chaque element les pixels utilisés"""
+        """connectivity matrix which links the pixels used for each element."""
         self.__coordPixelInElem = coordPixelInElem
-        """coordonnées des pixels dans l'element de référence"""        
+        """pixel coordinates in the reference element."""
         
-        # Création de la ROI
+        # ROI creation
         self._roi = np.zeros(coordPx.shape[0])
         self._roi[pixels] = 1
         self._roi = np.asarray(self._roi == 1, dtype=bool)
-        """filre permettant d'acceder aux pixels contenues dans le maillage"""
+        """vector filter for accessing the pixels contained in the mesh."""
+        self._ROI = self._roi.reshape(self.__shapeImages)
+        """matrix filter for accessing the pixels contained in the mesh."""
 
         # ax = plt.subplots()[1]
         # ax.imshow(imgRef)
@@ -123,7 +128,7 @@ class AnalyseDiC:
         tic.Tac("DIC", "ROI", self._verbosity)
     
     def __init__Phi_opLap(self):
-        """Initialisation des fonctions de forme et de l'opérateur laplacien"""
+        """Initializing shape functions and the Laplacian operator."""
         
         mesh = self._mesh 
         dim = self.__dim       
@@ -132,44 +137,42 @@ class AnalyseDiC:
         connectPixel = self.__connectPixel
         coordInElem = self.__coordPixelInElem        
         
-        # Données du maillage
+        # Initializing shape functions and the Laplacian operator
         matrixType="mass"
         Ntild = mesh.groupElem._Ntild()
         dN_pg = mesh.groupElem.Get_dN_pg(matrixType)
-        invF_e_pg = mesh.groupElem.Get_invF_e_pg(matrixType) #; print(invF_e_pg[0,0]); print()
+        invF_e_pg = mesh.groupElem.Get_invF_e_pg(matrixType)
         jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
         poid_pg = mesh.Get_weight_pg(matrixType)        
 
         # ----------------------------------------------
-        # Construction de la matrice de fonction de formes pour les pixels
+        # Construction of shape function matrix for pixels
         # ----------------------------------------------
         lignes_x = []
         lignes_y = []
         colonnes_Phi = []
         values_phi = []
 
-        # Evaluation des fonctions de formes pour les pixels utilisés
+        # Evaluation of shape functions for the pixels used
         arrayCoordInElem = coordInElem
         phi_n_pixels = np.array([np.reshape([Ntild[n,0](arrayCoordInElem[:,0], arrayCoordInElem[:,1])], -1) for n in range(mesh.nPe)])
          
         tic = TicTac.Tic()
 
-        # TODO possible sans la boucle ?
+        # TODO possible without the loop?
 
         for e in range(mesh.Ne):
 
-            # Récupération des noeuds et des pixels de l'element            
-            nodes = mesh.connect[e]
-            # pixels = sparse.find(connectPixel[e])[1]
-            pixels = connectPixel[e]
-            # Récupère les fonctions évaluées            
+            # Retrieve element nodes and pixels
+            nodes = mesh.connect[e]            
+            pixels: np.ndarray = connectPixel[e]
+            # Retrieves evaluated functions
             phi = phi_n_pixels[:,pixels]
 
-            # construction des lignes 
+            # line construction
             lignesX = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
-            lignesY = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"]).reshape(-1,1).repeat(pixels.size)            
-
-            # construction des colonnes où placer les valeurs
+            lignesY = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
+            # construction of columns in which to place values
             colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).reshape(-1)            
 
             lignes_x.extend(lignesX)
@@ -178,21 +181,19 @@ class AnalyseDiC:
             values_phi.extend(np.reshape(phi, -1))
 
         self._Phi_x = sparse.csr_matrix((values_phi, (lignes_x, colonnes_Phi)), (nDof, coordInElem.shape[0]))
-        """Matrice des fonctions de formes x (nDof, nPixels)"""
+        """Shape function matrix x (nDof, nPixels)"""
         self._Phi_y = sparse.csr_matrix((values_phi, (lignes_y, colonnes_Phi)), (nDof, coordInElem.shape[0]))
-        """Matrice des fonctions de formes y (nDof, nPixels)"""
+        """Shape function matrix y (nDof, nPixels)"""
 
         Op = self._Phi_x @ self._Phi_x.T + self._Phi_y @ self._Phi_y.T
         self.__Op_LU = splu(Op.tocsc())
         
-        tic.Tac("DIC", "Phi_x et Phi_y", self._verbosity)
+        tic.Tac("DIC", "Phi_x and Phi_y", self._verbosity)
 
         # ----------------------------------------------
-        # Construction de l'opérateur laplacien
+        # Construction of the Laplacian operator
         # ----------------------------------------------
-
-        # dN_e_pg = mesh.Get_dN_sclaire_e_pg(matrixType)
-        # dN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
+        
         dN_e_pg = np.array(np.einsum('epki,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
 
         dNxdx = dN_e_pg[:,:,0]
@@ -208,7 +209,7 @@ class AnalyseDiC:
 
         B_e = np.einsum('ep,p,epji,epjk->eik', jacobien_e_pg, poid_pg, dN_vector, dN_vector, optimize='optimal')
         
-        # Récupération des lignes et des colonnes ou appliquer les 0
+        # Retrieve rows and columns or apply 0s
         lignes0 = np.arange(mesh.nPe*dim).repeat(mesh.nPe)
         ddlsX = np.arange(0, mesh.nPe*dim, dim)
         colonnes0 = np.concatenate((ddlsX+1, ddlsX)).reshape(1,-1).repeat(mesh.nPe, axis=0).reshape(-1)
@@ -219,26 +220,26 @@ class AnalyseDiC:
         colonnesB = mesh.columnsVector_e        
 
         self._opLap = sparse.csr_matrix((B_e.reshape(-1), (lignesB.reshape(-1), colonnesB.reshape(-1))), (nDof, nDof))  
-        """opérateur laplacien"""      
+        """Laplacian operator"""      
 
-        tic.Tac("DIC", "Operateur laplacien", self._verbosity)
+        tic.Tac("DIC", "Laplacian operator", self._verbosity)
 
     def __Get_ldic(self):
-        """Calcul ldic la longeur caractéristique du maillage soit 8 x la moyenne de la longeur des bords des elements"""
+        """Calculation ldic the characteristic length of the mesh, i.e. 8 x the average length of the edges of the elements."""
 
         indexReord = np.append(np.arange(1, self._mesh.nPe), 0)
         coord = self._mesh.coordo
         connect = self._mesh.connect        
 
-        # Calcul de la taille des elements moyen         
-        bords_e_b_c = coord[connect[:,indexReord]] - coord[connect] # vecteurs des bords
-        h_e_b = np.sqrt(np.sum(bords_e_b_c**2, 2)) # longeur des bords
+        # Calculation of average element size
+        bords_e_b_c = coord[connect[:,indexReord]] - coord[connect] # edge vectors
+        h_e_b = np.sqrt(np.sum(bords_e_b_c**2, 2)) # edge lengths
         ldic = 8 * np.mean(h_e_b)
         
         return ldic
 
     def __Get_v(self):
-        """Renvoie un déplacement sinusoïdal caractéristique qui correspond à la taille d'element"""
+        """Returns characteristic sinusoidal displacement corresponding to element size."""
 
         ldic = self.__ldic
 
@@ -252,17 +253,17 @@ class AnalyseDiC:
         return v
 
     def Compute_L_M(self, img: np.ndarray, lr=None):
-        """Mise à jour des matrices pour réaliser la DIC"""
+        """Updating matrix to produce for DIC with TIKONOV."""
 
         tic = TicTac.Tic()
 
         if lr == None:
             lr = self.__lr
         else:
-            assert lr >= 0.0, "lr doit être >= 0"
+            assert lr >= 0.0, "lr must be >= 0"
             self.__lr = lr
         
-        # Récupèré le gradient de l'image
+        # Recover image gradient
         grid_Gradfy, grid_Gradfx = np.gradient(img)
         gradY = grid_Gradfy.reshape(-1)
         gradX = grid_Gradfx.reshape(-1)        
@@ -274,7 +275,7 @@ class AnalyseDiC:
         self.M_Dic = self.L[:,roi] @ self.L[:,roi].T
 
         v = self.__Get_v()
-        # onde plane
+        # plane wave
 
         coef_M_Dic = v.T @ self.M_Dic @ v
         coef_Op = v.T @ self._opLap @ v
@@ -287,25 +288,22 @@ class AnalyseDiC:
         else:
             self.__alpha = (self.__ldic/lr)**2
 
-        self._M = self.M_Dic / coef_M_Dic + self.__alpha * self._opLap / coef_Op        
-
-        # TIKONOV
-
+        self._M = self.M_Dic / coef_M_Dic + self.__alpha * self._opLap / coef_Op 
+        
         # self._M_LU = splu(self._M.tocsc(), permc_spec="MMD_AT_PLUS_A")
         self._M_LU = splu(self._M.tocsc())
 
-        tic.Tac("DIC", "Construit L et M", self._verbosity)
+        tic.Tac("DIC", "Construct L and M", self._verbosity)
 
     def __Get_u_from_images(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
-        """Utilise open cv pour calculer les déplacements entre images."""        
+        """Use open cv to calculate displacements between images."""
         
         DIS = cv2.DISOpticalFlow_create()        
         IMG1_uint8 = np.uint8(img1*2**(8-round(np.log2(img1.max()))))
         IMG2_uint8 = np.uint8(img2*2**(8-round(np.log2(img1.max()))))
         Flow = DIS.calc(IMG1_uint8,IMG2_uint8,None)
 
-        # Projete ces déplacements sur les noeuds du maillage
-
+        # Project these displacements onto the mesh nodes
         mapx = Flow[:,:,0]
         mapy = Flow[:,:,1]
 
@@ -321,60 +319,60 @@ class AnalyseDiC:
         return DofValues
 
     def __Test_img(self, img: np.ndarray):
-        """Fonction qui test si l'image est de la bonne dimension"""
+        """Function to test whether the image is the right size."""
 
-        assert img.shape == self.__shapeImages, f"L'image renseignée n'est pas de la bonne dimension. Doit être de dimension {self.__shapeImages}"
+        assert img.shape == self.__shapeImages, f"The image entered is the wrong size. Must be {self.__shapeImages}"
 
     def __Get_imgRef(self, imgRef) -> np.ndarray:
-        """Fonction qui renvoie l'image de référence ou verifie si l'image renseigné est bien de la bonne taille"""
+        """Function that returns the reference image or checks whether the image entered is the correct size."""
 
         if imgRef == None:
             imgRef = self._imgRef
         else:
-            assert isinstance(imgRef, np.ndarray), "L'image de référence doit être une array numpy"
-            assert imgRef.size == self._roi.size, f"L'image de référence renseignée n'est pas de la bonne dimension. Doit être de dimension {self.__shapeImages}"
+            assert isinstance(imgRef, np.ndarray), "The reference image must be an numpy array."
+            assert imgRef.size == self._roi.size, f"The reference image entered is the wrong size. Must be {self.__shapeImages}"
 
         return imgRef
 
-    def Solve(self, img: np.ndarray, iterMax=1000, tolConv=1e-6, imgRef=None, verbosity=True):
-        """Résolution du champ de déplacement.
+    def Solve(self, img: np.ndarray, iterMax=1000, tolConv=1e-6, imgRef=None, verbosity=True) -> tuple[np.ndarray, int]:
+        """Displacement field between the img and the imgRef.
 
         Parameters
         ----------
         img : np.ndarray
-            image utilisée pour le calcul
+            image used for calculation
         iterMax : int, optional
-            nombre d'itération maximum, by default 1000
+            maximum number of iterations, by default 1000
         tolConv : float, optional
-            tolérance de convergence, by default 1e-6
+            convergence tolerance, by default 1e-6
         imgRef : np.ndarray, optional
-            image de référence à utiliser, by default None
+            reference image to use, by default None
         verbosity : bool, optional
-            affiche les itérations, by default True
+            display iterations, by default True
 
         Returns
         -------
         u, iter
-            champ de déplacement et nombre d'itérations pou convergence
+            displacement field and number of iterations for convergence
         """
 
         self.__Test_img(img)
         imgRef = self.__Get_imgRef(imgRef)
-        # initalisation du vecteur de déplacement
+        # initalization of displacement vector
         u = self.__Get_u_from_images(imgRef, img)
 
-        # Récupération de le coordonnées des pixels de l'image
+        # Recovery of image pixel coordinates
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
         coordX, coordY = gridX.reshape(-1), gridY.reshape(-1)
 
         img_fct = interpolate.RectBivariateSpline(np.arange(img.shape[0]),np.arange(img.shape[1]),img)
         roi = self._roi
-        f = imgRef.reshape(-1)[roi] # image de référence mi sous forme d'un vecteur et en récupérant les pixels dans la Roi
+        f = imgRef.reshape(-1)[roi] # reference image as a vector and retrieving pixels in the roi
         
-        # Ici l'hypothèse des petits déplacements est utilisée
-        # On suppose que le gradiant des deux images et identiques
-        # Pour des grands déplacements, il faudrait recalculer les matrices en utilisant Compute_L_M
-        opLapReg = self.__alpha * self._opLap / self.__coef_opLap # opérateur laplacian régularisé
+        # Here the small displacement hypothesis is used
+        # The gradient of the two images is assumed to be identical
+        # For large displacements, the matrices would have to be recalculated using Compute_L_M
+        opLapReg = self.__alpha * self._opLap / self.__coef_opLap # operator laplacian regularized
         Lcoef = self.L[:,roi] / self.__coef_M_Dic
 
         for iter in range(iterMax):
@@ -398,34 +396,34 @@ class AnalyseDiC:
         return u, iter
 
     def Residu(self, u: np.ndarray, img: np.ndarray, imgRef=None) -> np.ndarray:
-        """Calcul du résidu entre les images.
+        """Residual calculation between images.
 
         Parameters
         ----------
         u : np.ndarray
-            champ de déplacement
+            displacement field
         img : np.ndarray
-            image utilisée pour le calcul
+            image used for calculation
         imgRef : np.ndarray, optional
-            image de référence à utiliser, by default None
+            reference image to use, by default None
 
         Returns
         -------
         np.ndarray
-            résidu entre les images
+            residual between images
         """
         
         self.__Test_img(img)
 
         imgRef = self.__Get_imgRef(imgRef)
 
-        # Récupération de la coordonnée des pixels de l'image
+        # Recover image pixel coordinates
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
         coordX, coordY = gridX.reshape(-1), gridY.reshape(-1)
 
         img_fct = interpolate.RectBivariateSpline(np.arange(img.shape[0]),np.arange(img.shape[1]),img)
 
-        f = imgRef.reshape(-1) # image de référence mi sous forme d'un vecteur et en récupérant les pixels dans la Roi
+        f = imgRef.reshape(-1) # reference image as a vector and retrieving pixels in the roi
 
         ux_p, uy_p = self.__Calc_pixelDisplacement(u)
 
@@ -437,22 +435,22 @@ class AnalyseDiC:
         return r_dic
 
     def Set_meshCoef_coef(self, mesh: Mesh, coef: float):
-        """Renseigne le maillage et le coef de mise à l'échelle
+        """Set mesh size and scaling factor
 
         Parameters
         ----------
         mesh : Mesh
-            maillage
+            mesh
         coef : float
-            coefficient de mise à l'échelle
+            scaling coefficient
         """
-        assert isinstance(mesh, Mesh), "Doit être un maillage"
+        assert isinstance(mesh, Mesh) and mesh.dim == 2, "Must be a 2D mesh."
         self._meshCoef = mesh
         self._coef = coef
 
 
     def __Calc_pixelDisplacement(self, u: np.ndarray):
-        """Calcul le déplacement des pixels depuis le déplacement des noeuds du maillage en utilisant les fonctions de formes"""        
+        """Calculates pixel displacement from mesh node displacement using shape functions."""        
 
         ux_p = u @ self._Phi_x
         uy_p = u @ self._Phi_y
@@ -460,21 +458,23 @@ class AnalyseDiC:
         return ux_p, uy_p
 
     def Add_Result(self, idx: int, u_exp: np.ndarray, img: np.ndarray):
-        """Ajoute le champ de déplacement calculé.
+        """Adds the calculated displacement field.
 
         Parameters
         ----------
         idx : int
-            indexe de l'image
+            image index
         u_exp : np.ndarray
-            champ de déplacement
+            displacement field
         img : np.ndarray
-            image utilisée
+            image used
         """
-        if idx not in self._list_idx_exp:            
-            # verifications
+        if idx not in self._list_idx_exp:
+            
             self.__Test_img(img)
-            u_exp.size == self.__nDof, f"Le champ vectorielle de déplacement n'est pas de la bonne dimension. Doit être de dimension {self.__nDof}"
+            if u_exp.size != self.__nDof:
+                print(f"The displacement vector field is the wrong dimension. Must be of dimension {self.__nDof}")
+                return
 
             self._list_idx_exp.append(idx)
             self._list_u_exp.append(u_exp)
@@ -487,21 +487,21 @@ class AnalyseDiC:
             pickle.dump(self, file)
 
 
-def Load_Analyse(path: str) -> AnalyseDiC:
-    """Procédure de chargement"""
+def Load_Analyse(path: str) -> DIC_Analysis:
+    """Loading procedure"""
 
     if not os.path.exists(path):
-        raise Exception(f"L'analyse n'existe pas dans {path}")
+        raise Exception(f"The analysis does not exist in {path}")
 
     with open(path, 'rb') as file:
         analyseDic = pickle.load(file)
 
-    assert isinstance(analyseDic, AnalyseDiC)
+    assert isinstance(analyseDic, DIC_Analysis)
 
     return analyseDic
 
-def CalculEnergie(deplacements: np.ndarray, forces: np.ndarray, ax=None) -> float:
-    """Fonction qui calul l'energie sous la courbe"""
+def Calc_Energy(deplacements: np.ndarray, forces: np.ndarray, ax=None) -> float:
+    """Function that calculates the energy under the curve."""
 
     if isinstance(ax, plt.Axes):
         ax.plot(deplacements, forces)
@@ -538,34 +538,34 @@ def CalculEnergie(deplacements: np.ndarray, forces: np.ndarray, ax=None) -> floa
 
     return energie
 
-def Get_Circle(img:np.ndarray, seuil: float, boundary=None, coefRayon=1.0):
-    """Recupère le cercle dans l'image.
+def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0):
+    """Recovers the circle in the image.
 
     Parameters
     ----------
     img : np.ndarray
-        image utilisée
-    seuil : float
-        seuil pour la couleur des pixels
-    boundary : tuple[tuple[float, float], tuple[float, float]], optional
+        image used
+    threshold : float
+        threshold for pixel color
+    boundary: tuple[tuple[float, float], tuple[float, float]], optional
         ((xMin, xMax),(yMin, yMax)), by default None
-    coefRayon : float, optional
-        coef multiplicateur pour le rayon, by default 1.0
+    radiusCoef : float, optional
+        multiplier coef for radius, by default 1.0
 
     Returns
     -------
-    XC, YC, rayon
-        coordonnées et rayon du cercle
+    XC, YC, radius
+        circle coordinates and radius
     """
 
-    yColor, xColor = np.where(img <= seuil)
+    yColor, xColor = np.where(img <= threshold)
 
     if boundary == None:
         xMin, xMax = 0, img.shape[1]
         yMin, yMax = 0, img.shape[0]
     else:
-        assert isinstance(boundary[0], tuple), "Doit etre une liste de tuple"
-        assert isinstance(boundary[1], tuple), "Doit etre une liste de tuple"
+        assert isinstance(boundary[0], tuple), "Must be a tuple list."
+        assert isinstance(boundary[1], tuple), "Must be a tuple list."
 
         xMin, xMax = boundary[0]
         yMin, yMax = boundary[1]        
@@ -583,6 +583,6 @@ def Get_Circle(img:np.ndarray, seuil: float, boundary=None, coefRayon=1.0):
     rayons.append(YC - np.min(coordoSeuil[:,1]))
     rayons.append(np.max(coordoSeuil[:,1]) - YC)
     
-    rayon = np.max(rayons) * coefRayon
+    rayon = np.max(rayons) * radiusCoef
 
     return XC, YC, rayon
