@@ -10,15 +10,14 @@ import matplotlib.pyplot as plt
 
 Display.Clear()
 
-# L'objectif de ce script est de voir l'influence du chamgement de taille du probleme
-
-# Il peut etre interessant de faire varier le domaine la taille et la position du trou
+# The aim of this script is to see the influence of changing the problem size.
+# It may be interesting to vary the size and position of the hole in the domain.
 
 # Options
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
-contraintesPlanes = True
+planeStress = True
 
 nom="_".join([comp, split, regu])
 
@@ -31,7 +30,6 @@ coef = 1e-3
 
 L=15*coef
 H=30*coef
-h=H/2
 ep=1*coef
 diam=6*coef
 r=diam/2
@@ -41,11 +39,11 @@ v=0.2
 SIG = 10 #Pa
 
 gc = 1.4
-l_0 = 0.12 *coef*1.5
+l0 = 0.12 *coef*1.5
 
-# Création du maillage
-clD = l_0*5
-clC = l_0
+# meshSize
+clD = l0*5
+clC = l0
 
 list_SxxA = []
 list_SyyA = []
@@ -54,47 +52,49 @@ list_SxxB = []
 list_SyyB = []
 list_SxyB = []
 
-param_name='H'
 param1 = H
 param2 = L
+param3 = diam
 list_cc = np.linspace(1/2,5,30)
 
 for cc in list_cc:
 
-    H = param1*cc
-    # L = param2*cc
-    h=H/2
+    # H = param1 * cc
+    L = param2 * cc
+    # diam = param3 * cc
+
+    if diam > L or diam > H: continue
+
     print(cc)
+
     point = Point()
     domain = Domain(point, Point(x=L, y=H), clD)
-    circle = Circle(Point(x=L/2, y=H-h), diam, clC)
+    circle = Circle(Point(x=L/2, y=H-H/2), diam, clC)
 
     interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False, verbosity=False)
-    mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
+    mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD4")
 
     # Display.Plot_Mesh(mesh)
 
-    # Récupérations des noeuds de chargement
+    # Gets nodes
     B_lower = Line(point,Point(x=L))
     B_upper = Line(Point(y=H),Point(x=L, y=H))
     nodes0 = mesh.Nodes_Line(B_lower)
     nodesh = mesh.Nodes_Line(B_upper)
     node00 = mesh.Nodes_Point(Point())   
 
-    # Noeuds en A et en B
-    nodeA = mesh.Nodes_Point(Point(x=L/2, y=H-h+diam/2))
-    nodeB = mesh.Nodes_Point(Point(x=L/2+diam/2, y=H-h))
+    # Nodes in A and B
+    nodeA = mesh.Nodes_Point(Point(x=L/2, y=H-H/2+diam/2))
+    nodeB = mesh.Nodes_Point(Point(x=L/2+diam/2, y=H-H/2))
 
     comportement = Materials.Elas_Isot(2, E=E, v=v, planeStress=True, thickness=ep)
-    phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
+    phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0)
 
     simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
     simu.add_dirichlet(nodes0, [0], ["y"])
     simu.add_dirichlet(node00, [0], ["x"])
     simu.add_surfLoad(nodesh, [-SIG], ["y"])
-
-    # Display.Plot_BoundaryConditions(simu)
 
     simu.Solve()
 
@@ -106,14 +106,21 @@ for cc in list_cc:
     list_SyyB.append(simu.Get_Result("Syy", True)[nodeB])
     list_SxyB.append(simu.Get_Result("Sxy", True)[nodeB])
 
-Display.Section("Résultats")
+Display.Section("Results")
 
-Display.Plot_Mesh(mesh,folder=folder, title=f"mesh_{param_name}")
+paramName=''
+if param1/H != 1: paramName += "H "
+if param2/L != 1: paramName += "L "
+if param3/diam != 1: paramName += "diam"
+
+Display.Plot_Mesh(mesh,folder=folder, title=f"mesh_{paramName}")
 Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
 Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
 Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
 
 fig, ax = plt.subplots()
+
+list_cc = [list_cc[i] for i in range(len(list_SxxA))]
 
 ax.plot(list_cc, np.array(list_SxxA)/SIG,label='SxxA/SIG')
 ax.plot(list_cc, np.array(list_SxyA)/SIG,label='SxyA/SIG')
@@ -123,16 +130,11 @@ ax.plot(list_cc, np.array(list_SxyB)/SIG,label='SxyB/SIG')
 ax.plot(list_cc, np.array(list_SyyB)/SIG,label='SyyB/SIG')
 ax.grid()
 plt.legend()
-ax.set_title(param_name)
+ax.set_title(paramName)
 ax.set_xlabel('coef')
 
-Display.Save_fig(folder, param_name)
+Display.Save_fig(folder, paramName)
 
 Tic.Resume()
 
 plt.show()
-
-
-
-
-
