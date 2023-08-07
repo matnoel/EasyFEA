@@ -111,9 +111,9 @@ elif simulationType == SimulationType.TEF2:
     contour = PointsList([pt1, pt2, pt3], taille)
 
     if dim == 2:
-        mesh = interface.Mesh_2D(contour, [], ElemType.TRI6)
+        mesh = interface.Mesh_2D(contour, [], ElemType.TRI3)
     elif dim == 3:
-        mesh = interface.Mesh_3D(contour, [], extrude=[0, 0, 2 * h], nCouches=10, elemType=ElemType.PRISM15)
+        mesh = interface.Mesh_3D(contour, [], extrude=[0, 0, 2 * h], nCouches=10, elemType=ElemType.PRISM6)
 
     noeudsBas = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     noeudsGauche = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
