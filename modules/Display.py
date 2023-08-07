@@ -726,7 +726,7 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
     plt.legend()
 
     if folder != "":
-        Save_fig(folder, "Conditions limites")
+        Save_fig(folder, "Boundary conditions")
 
     return ax
 
