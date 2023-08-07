@@ -1,4 +1,3 @@
-
 from TicTac import Tic
 import Materials
 from Geom import *
@@ -20,18 +19,19 @@ plotAllResult = False
 comp = "Elas_Isot" # "Elas_Isot" "Elas_IsotTrans"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
 regu = "AT2"
-contraintesPlanes = True
+planeStress = False
 
 nom="_".join([comp, split, regu])
 
 loadInHole = False
 
-nomDossier = "Calcul Energie plaque trouée"
+nomDossier = "PlateWithHole_Energy"
 
 if loadInHole:
     nomDossier += "_loadInHole"
 
 folder = Folder.New_File(nomDossier, results=True)
+folder = ""
 
 # Data
 
@@ -46,11 +46,11 @@ v=0.2
 SIG = 10 #Pa
 
 gc = 1.4
-l_0 = 0.12e-3*5
+l0 = 0.12e-3*5
 
-# Création du maillage
-clD = l_0*2
-clC = l_0
+# meshSize
+clC = l0/2
+clD = l0
 
 point = Point()
 domain = Domain(point, Point(x=L, y=h), clD)
@@ -59,23 +59,22 @@ circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False)
 mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
-# Récupérations des noeuds de chargement
+# Nodes
 B_lower = Line(point,Point(x=L))
 B_upper = Line(Point(y=h),Point(x=L, y=h))
 nodes0 = mesh.Nodes_Line(B_lower)
-nodesh = mesh.Nodes_Line(B_upper)
+nodesH = mesh.Nodes_Line(B_upper)
 node00 = mesh.Nodes_Point(Point())
 nodesCircle = mesh.Nodes_Circle(circle)
 nodesCircle = nodesCircle[np.where(mesh.coordo[nodesCircle,1]<= circle.center.y)]
 
-
-# Noeuds en A et en B
+# Nodes in A and B
 nodeA = mesh.Nodes_Point(Point(x=L/2, y=h/2+r))
 nodeB = mesh.Nodes_Point(Point(x=L/2+r, y=h/2))
 
 if plotAllResult:
     ax = Display.Plot_Mesh(mesh)
-    for ns in [nodes0, nodesh, node00, nodeA, nodeB]:
+    for ns in [nodes0, nodesH, node00, nodeA, nodeB]:
         Display.Plot_Nodes(mesh, ax=ax, nodes=ns,c='red')
     Display.Save_fig(folder, 'mesh')
 
@@ -99,9 +98,9 @@ for v in list_V:
     result = {
         'v': v
     }
-    for isCP in [False,True]:
-        comportement = Materials.Elas_Isot(2, E=E, v=v, planeStress=isCP, thickness=ep)
-        phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l_0)
+    for isCP in [False,True]:        
+        material = Materials.Elas_Isot(2, E=E, v=v, planeStress=isCP, thickness=ep)
+        phaseFieldModel = Materials.PhaseField_Model(material, split, regu, gc, l0)
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
@@ -109,36 +108,26 @@ for v in list_V:
         simu.add_dirichlet(node00, [0], ["x"])
 
         if loadInHole:
-
             simu.add_surfLoad(nodesCircle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
             simu.add_surfLoad(nodesCircle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
-
-            # simu.add_surfLoad(nodesCircle, [lambda x,y,z : SIG*(y-circle.center.y)/r], ["y"])
         else:
-            simu.add_surfLoad(nodesh, [-SIG], ["y"])
-
-        # Display.Plot_BoundaryConditions(simu)
+            simu.add_surfLoad(nodesH, [-SIG], ["y"])
 
         simu.Solve()
 
         psipa = np.mean(simu.Get_Result("psiP", True)[nodeA])*E/SIG**2
         psipb = np.mean(simu.Get_Result("psiP", True)[nodeB])*E/SIG**2
 
-        if isCP:
-            result['A (CP)'] = psipa
-            result['B (CP)'] = psipb
+        ext = "CP" if isCP else "DP"
 
-            result['errA (CP)'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
-            result['errB (CP)'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
+        result[f'A ({ext})'] = psipa
+        result[f'B ({ext})'] = psipb
 
-            Display.Plot_Result(simu, "psiP", nodeValues=True, coef=E/SIG**2, title=fr"$\psi_{0}^+\ E / \sigma^2 \ pour \ \nu={v}$", folder=folder,filename=f"psiP {nom} v={v}", colorbarIsClose=True)
-        else:
-            result['A (DP)'] = psipa
-            result['B (DP)'] = psipb
+        result[f'errA ({ext})'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
+        result[f'errB ({ext})'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
 
-            result['errA (DP)'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
-            result['errB (DP)'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
-
+        Display.Plot_Result(simu, "psiP", nodeValues=True, coef=E/SIG**2, title=fr"$\psi_{0}^+\ E / \sigma^2 \ pour \ \nu={v} \ {ext}$",
+                            folder=folder, filename=f"psiP {nom} v={v}", colorbarIsClose=True)
     
 
     result['A (ana CP)'] = Miehe_psiP_A(v)
@@ -173,11 +162,6 @@ if plotAllResult:
     Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx} / \sigma$",folder=folder, filename='Sxx', colorbarIsClose=True)
     Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$", folder=folder, filename='Syy', colorbarIsClose=True)
     Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$", folder=folder, filename='Sxy', colorbarIsClose=True)
-
-
-
-Display.Section("Calcul analytique")
-
 
 fig, axp = plt.subplots()
 
@@ -255,14 +239,12 @@ for v in list_v:
     list_Stress_psiP_A.append(Stress_psiP_A)
     list_Stress_psiP_B.append(Miehe_psiP_B)
 
-
-
 fig, ax1 = plt.subplots()
 
 ax1.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label='A')
 ax1.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label='B')
 ax1.grid()
-if split == "Miehe":    
+if split == "Miehe":
     ax1.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
     ax1.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
 ax1.legend(fontsize=14)
@@ -305,10 +287,6 @@ ax3.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
 ax3.set_title('Split Amor',fontsize=14)
 
 Display.Save_fig(folder, "Amor psiP")
-
-
-
-
 
 
 
