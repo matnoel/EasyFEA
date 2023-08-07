@@ -62,6 +62,44 @@ class Interface_Gmsh:
         else:
             raise Exception("Unknow factory")
         
+    def __Set_algorithm(self, elemType: ElemType) -> None:
+        """Set the mesh algorithm.\n
+        2D:
+        1: MeshAdapt
+        2: Automatic
+        3: Initial mesh only
+        5: Delaunay
+        6: Frontal-Delaunay
+        7: BAMG
+        8: Frontal-Delaunay for Quads
+        9: Packing of Parallelograms
+        11: Quasi-structured Quad
+
+        3D:
+        1: Delaunay
+        3: Initial mesh only
+        4: Frontal
+        7: MMG3D
+        9: R-tree
+        10: HXT
+        """
+
+        if elemType in GroupElem.get_Types1D():
+            dim = 1
+        elif elemType in GroupElem.get_Types2D():
+            dim = 2
+        elif elemType in GroupElem.get_Types3D():
+            dim = 3
+
+        if elemType in [ElemType.QUAD4, ElemType.QUAD8]:
+            self.__algorithm = 6
+        elif elemType in [ElemType.HEXA8, ElemType.HEXA20]:
+            self.__algorithm = 1
+        elif dim in [1,2]:
+            self.__algorithm = 6 # 6: Frontal-Delaunay
+        elif dim == 3:
+            self.__algorithm = 1 # 1: Delaunay
+        
     def __Loop_From_Geom(self, geom: Geom) -> int:
         """Creation of a loop based on the geometric object."""
 
@@ -840,13 +878,13 @@ class Interface_Gmsh:
         Mesh
             2D mesh
         """
-        Point
+        
         if isOrganised and isinstance(contour, Domain) and len(inclusions)==0 and len(cracks)==0:
             self.__initGmsh('geo')
         else:
             self.__initGmsh('occ')
             isOrganised = False
-        self.__CheckType(2, elemType)
+        self.__CheckType(2, elemType)       
 
         tic = Tic()
 
@@ -883,7 +921,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Geometry", self.__verbosity)
+        tic.Tac("Mesh","Geometry", self.__verbosity)                
 
         self.__Meshing(2, elemType, surfacesPleines, isOrganised, crackLines=crackLines, openPoints=openPoints, folder=folder)
 
@@ -917,7 +955,7 @@ class Interface_Gmsh:
             3D mesh
         """
         
-        self.__CheckType(3, elemType)
+        self.__CheckType(3, elemType)        
         
         tic = Tic()
         
@@ -937,7 +975,7 @@ class Interface_Gmsh:
 
         self.__Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Geometry", self.__verbosity)        
+        tic.Tac("Mesh","Geometry", self.__verbosity)
 
         self.__Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
         
@@ -1030,6 +1068,8 @@ class Interface_Gmsh:
             factory = cast(gmsh.model.geo, factory)
         else:
             raise Exception("Unknow factory")
+        
+        self.__Set_algorithm(elemType)
 
         tic = Tic()
         if dim == 1:
@@ -1064,7 +1104,8 @@ class Interface_Gmsh:
                         entities = gmsh.model.getEntities()
                         surf = entities[-1][-1]
                         gmsh.model.mesh.setRecombine(2, surf)
-                
+            
+            gmsh.option.setNumber("Mesh.Algorithm", self.__algorithm)
             # Generates mesh
             gmsh.model.mesh.generate(2)
             
@@ -1092,6 +1133,7 @@ class Interface_Gmsh:
             # factory.synchronize()
             # gmsh.model.mesh.setRecombine(3, 1)            
             
+            gmsh.option.setNumber("Mesh.Algorithm", self.__algorithm)
             gmsh.model.mesh.generate(3)
 
             Interface_Gmsh.__Set_order(elemType)
