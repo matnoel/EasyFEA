@@ -1,3 +1,16 @@
+The aim of this free Python library is to enable you to carry out finite element simulations with ease.
+
+Four simulation types are currently available:
+- thermal (stationary and transient)
+- elastic (stationary and transient)
+- damage (quasi-static phase field)
+- beam structure (stationary Euler-Bernoulli)
+
+Several examples are available in PythonEF/codes/Studies.
+
+For each simulation, you need to build a mesh and a model. Once the simulation has been created, you can set boundary conditions, solve and display results.
+
+
 You will find below the installation procedure.
 
 For the installation you need the following libraries:
