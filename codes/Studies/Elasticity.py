@@ -3,7 +3,6 @@ from enum import Enum
 import matplotlib.pyplot as plt
 import os
 
-# Import custom modules required for the simulation
 from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Display
@@ -15,7 +14,7 @@ import Folder
 
 # Define dimension and mesh size parameters
 dim = 2
-N = 50 * 1.5 if dim == 2 else 20
+N = 50 * 1 if dim == 2 else 20
 
 # Define an enumeration class for different simulation types
 class SimulationType(str, Enum):
@@ -75,9 +74,9 @@ elif simulationType == SimulationType.EQUERRE:
     inclusions.extend([Domain(Point(x=h, y=h / 2 - h * 0.1), Point(x=h * 2.1, y=h / 2 + h * 0.1), isHollow=False, meshSize=h / N)])
 
     if dim == 2:
-        mesh = interface.Mesh_2D(contour, inclusions, ElemType.TRI3, cracks)
+        mesh = interface.Mesh_2D(contour, inclusions, ElemType.QUAD4, cracks)
     elif dim == 3:
-        mesh = interface.Mesh_3D(contour, inclusions, extrude=[0, 0, -h], nCouches=4, elemType=ElemType.HEXA20)
+        mesh = interface.Mesh_3D(contour, inclusions, extrude=[0, 0, -h], nCouches=4, elemType=ElemType.HEXA8)
 
     noeudsGauche = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == L)
@@ -145,6 +144,7 @@ else:
 
 # Plot the mesh for visualization
 Display.Plot_Mesh(mesh, folder=folder)
+Display.Plot_Model(mesh)
 
 # Solve the simulation
 simu.Solve()
@@ -154,7 +154,7 @@ simu.Save_Iter()
 print(simu)
 
 # Plot boundary conditions
-Display.Plot_BoundaryConditions(simu)
+Display.Plot_BoundaryConditions(simu, folder)
 
 # Plot the results
 Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1 / coef, folder=folder)
