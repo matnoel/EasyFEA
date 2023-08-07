@@ -1194,7 +1194,7 @@ class PhaseField_Model(IModel):
             AT1 or AT2 crack regularization model
         Gc : float | np.ndarray
             Critical energy restitution rate in J.m^-2
-        l_0 : float | np.ndarray
+        l0 : float | np.ndarray
             Half crack width
         solver : SolverType, optional
             Solver used to manage crack irreversibility, by default History (see SolverType)        
