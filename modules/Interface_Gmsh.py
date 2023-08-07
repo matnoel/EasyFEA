@@ -64,41 +64,41 @@ class Interface_Gmsh:
         
     def __Set_algorithm(self, elemType: ElemType) -> None:
         """Set the mesh algorithm.\n
-        2D:
-        1: MeshAdapt
-        2: Automatic
-        3: Initial mesh only
-        5: Delaunay
-        6: Frontal-Delaunay
-        7: BAMG
-        8: Frontal-Delaunay for Quads
-        9: Packing of Parallelograms
-        11: Quasi-structured Quad
+        Mesh.Algorithm
+            2D mesh algorithm (1: MeshAdapt, 2: Automatic, 3: Initial mesh only, 5: Delaunay, 6: Frontal-Delaunay, 7: BAMG, 8: Frontal-Delaunay for Quads, 9: Packing of Parallelograms, 11: Quasi-structured Quad)
+            Default value: 6
 
-        3D:
-        1: Delaunay
-        3: Initial mesh only
-        4: Frontal
-        7: MMG3D
-        9: R-tree
-        10: HXT
+        Mesh.Algorithm3D
+            3D mesh algorithm (1: Delaunay, 3: Initial mesh only, 4: Frontal, 7: MMG3D, 9: R-tree, 10: HXT)
+            Default value: 1            
+
+        Mesh.RecombinationAlgorithm
+            Mesh recombination algorithm (0: simple, 1: blossom, 2: simple full-quad, 3: blossom full-quad)
+            Default value: 1        
+
+        Mesh.SubdivisionAlgorithm
+            Mesh subdivision algorithm (0: none, 1: all quadrangles, 2: all hexahedra, 3: barycentric)
+            Default value: 0
         """
 
-        if elemType in GroupElem.get_Types1D():
-            dim = 1
-        elif elemType in GroupElem.get_Types2D():
-            dim = 2
+        if elemType in GroupElem.get_Types1D() or elemType in GroupElem.get_Types2D():
+            meshAlgorithm = 6 # 6: Frontal-Delaunay
         elif elemType in GroupElem.get_Types3D():
-            dim = 3
+            meshAlgorithm = 1 # 1: Delaunay
+        gmsh.option.setNumber("Mesh.Algorithm", meshAlgorithm)
 
         if elemType in [ElemType.QUAD4, ElemType.QUAD8]:
-            self.__algorithm = 6
+            recombineAlgorithm = 2
+            subdivisionAlgorithm = 0
         elif elemType in [ElemType.HEXA8, ElemType.HEXA20]:
-            self.__algorithm = 1
-        elif dim in [1,2]:
-            self.__algorithm = 6 # 6: Frontal-Delaunay
-        elif dim == 3:
-            self.__algorithm = 1 # 1: Delaunay
+            recombineAlgorithm = 2
+            subdivisionAlgorithm = 2
+        else:
+            recombineAlgorithm = 1        
+            subdivisionAlgorithm = 0
+
+        gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
+        gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)        
         
     def __Loop_From_Geom(self, geom: Geom) -> int:
         """Creation of a loop based on the geometric object."""
@@ -433,7 +433,7 @@ class Interface_Gmsh:
         3 : "V"
     }
 
-    def __Extrusion(self, surfaces: list, extrude=[0,0,1], elemType=ElemType.HEXA8, nCouches=1):
+    def __Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.HEXA8, nLayers=1):
         """Function that extrudes multiple surfaces
 
         Parameters
@@ -453,11 +453,11 @@ class Interface_Gmsh:
         extruEntities = []
 
         if "TETRA" in elemType:
-            numElements = []
-            combine = False
-        else:
-            numElements = [nCouches]
-            combine = True
+            recombine = False
+            numElements = [nLayers] if nLayers > 1 else []
+        else:            
+            recombine = True
+            numElements = [nLayers]
 
         for surf in surfaces:
 
@@ -468,11 +468,65 @@ class Interface_Gmsh:
                 gmsh.model.mesh.setRecombine(2, surf)
             
             # Create new elements for extrusion
-            extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=combine, numElements=numElements)
+            extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=recombine, numElements=numElements)
 
             extruEntities.extend(extru)
 
         return extruEntities
+    
+    def __Revolve(self, surfaces: list[int], axis: Line, angle: float, elemType: ElemType, nLayers=360):
+        """Function that revolves multiple surfaces.
+
+        Parameters
+        ----------
+        surfaces : list[int]
+            list of surfaces
+        axis : Line
+            revolution axis
+        angle: float
+            revolution angle
+        elemType : str
+            element type used
+        nLayers: int, optional
+            number of layers in extrusion, by default 360
+        """
+        
+        factory = self.__factory
+
+        angleIs2PI = np.abs(angle) == 2 * np.pi
+
+        if angleIs2PI:
+            angle = angle / 2
+            nLayers = nLayers // 2 if nLayers > 1 else 1
+
+        revolEntities = []
+        if "TETRA" in elemType:
+            recombine = False
+            numElements = [nLayers] if nLayers > 1 else []
+        else:            
+            recombine = True
+            numElements = [nLayers//2] if 'HEXA' in elemType else [nLayers]
+
+        for surf in surfaces:
+
+            if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
+                # https://onelab.info/pipermail/gmsh/2010/005359.html
+
+                factory.synchronize()
+                gmsh.model.mesh.setRecombine(2, surf)
+
+        entities = gmsh.model.getEntities(2)
+
+        # Create new entites for revolution
+        revol = factory.revolve(entities, axis.pt1.x, axis.pt1.y, axis.pt1.z, axis.pt2.x, axis.pt2.y, axis.pt2.z, angle, numElements, recombine=recombine)
+        revolEntities.extend(revol)
+
+        if angleIs2PI:
+            revol = factory.revolve(entities, axis.pt1.x, axis.pt1.y, axis.pt1.z, axis.pt2.x, axis.pt2.y, axis.pt2.z, -angle, numElements, recombine=recombine)
+            revolEntities.extend(revol)
+
+        return revolEntities
+
 
     # TODO generate multiple meshes by disabling initGmsh and using multiple functions?
     # set up a list of surfaces?
@@ -927,7 +981,7 @@ class Interface_Gmsh:
 
         return self.__Construct_Mesh()
 
-    def Mesh_3D(self, contour: Geom, inclusions=[], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, cracks=[], refineGeom=None, folder=""):
+    def Mesh_3D(self, contour: Geom, inclusions=[], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, cracks=[], refineGeom=None, folder="") -> Mesh:
         """Build the 3D mesh by creating a surface from a Geom object
 
         Parameters
@@ -962,9 +1016,9 @@ class Interface_Gmsh:
         # the starting 2D mesh is irrelevant
         surfaces = self.Mesh_2D(contour, inclusions, ElemType.TRI3, [], False, refineGeom, returnSurfaces=True)
 
-        self.__Extrusion(surfaces=surfaces, extrude=extrude, elemType=elemType, nCouches=nCouches)        
+        self.__Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, nLayers=nCouches)        
 
-        # Recovers 3D entity
+        # Recovers 3D entities
         self.__factory.synchronize()
         entities3D = gmsh.model.getEntities(3)
 
@@ -979,6 +1033,62 @@ class Interface_Gmsh:
 
         self.__Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
         
+        return self.__Construct_Mesh()
+    
+    def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[], axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, nLayers=180, elemType=ElemType.TETRA4, cracks=[], refineGeom=None, folder="") -> Mesh:
+        """Builds a 3D mesh by rotating a surface along an axis.
+
+        Parameters
+        ----------
+        contour : Geom
+            geometry that builds the contour
+        inclusions : list[Domain, Circle, PointsList, Contour], optional
+            list of hollow and non-hollow objects inside the domain
+        axis : Line, optional
+            revolution axis, by default Line(Point(), Point(0,1))
+        angle : _type_, optional
+            revolution angle, by default 2*np.pi
+        nLayers : int, optional
+            number of layers in revolution, by default 180
+        elemType : ElemType, optional
+            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
+        cracks : list[Line | PointsList | Countour]
+            list of object used to create cracks
+        refineGeom : Geom, optional
+            second domain for mesh concentration, by default None
+        folder : str, optional
+            mesh.msh backup folder, by default ""
+
+        Returns
+        -------
+        Mesh
+            3D mesh
+        """
+
+        self.__CheckType(3, elemType)        
+        
+        tic = Tic()
+        
+        # the starting 2D mesh is irrelevant
+        surfaces = self.Mesh_2D(contour, inclusions, ElemType.TRI3, [], False, refineGeom, returnSurfaces=True)
+        
+        self.__Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers)           
+
+        # Recovers 3D entities
+        self.__factory.synchronize()
+        entities3D = gmsh.model.getEntities(3)
+
+        # Crack creation
+        crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_cracks(cracks, entities3D)
+
+        self.__Set_BackgroundMesh(refineGeom, contour.meshSize)
+
+        self.__Set_PhysicalGroups()
+
+        tic.Tac("Mesh","Geometry", self.__verbosity)
+
+        self.__Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
+
         return self.__Construct_Mesh()
     
     def Create_posFile(self, coordo: np.ndarray, values: np.ndarray, folder: str, filename="data") -> str:
@@ -1105,7 +1215,6 @@ class Interface_Gmsh:
                         surf = entities[-1][-1]
                         gmsh.model.mesh.setRecombine(2, surf)
             
-            gmsh.option.setNumber("Mesh.Algorithm", self.__algorithm)
             # Generates mesh
             gmsh.model.mesh.generate(2)
             
@@ -1114,26 +1223,6 @@ class Interface_Gmsh:
         elif dim == 3:
             self.__factory.synchronize()
 
-            entities = gmsh.model.getEntities(2)
-            surfaces = np.array(entities)[:,1]
-
-            # for surf in surfaces:
-                    
-            #     if isOrganised:
-
-            #         factory = cast(gmsh.model.geo, factory)
-
-            #         factory.synchronize()
-
-            #         points = np.array(gmsh.model.getEntities(0))[:,1]
-            #         factory.mesh.setTransfiniteSurface(surf)
-            #         # if points.shape[0] <= 4:
-            #         #     factory.mesh.setTransfiniteSurface(surf, cornerTags=points)
-                
-            # factory.synchronize()
-            # gmsh.model.mesh.setRecombine(3, 1)            
-            
-            gmsh.option.setNumber("Mesh.Algorithm", self.__algorithm)
             gmsh.model.mesh.generate(3)
 
             Interface_Gmsh.__Set_order(elemType)
