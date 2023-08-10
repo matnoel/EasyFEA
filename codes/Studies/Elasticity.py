@@ -13,7 +13,7 @@ import TicTac
 import Folder
 
 # Define dimension and mesh size parameters
-dim = 2
+dim = 3
 N = 50 * 1 if dim == 2 else 20
 
 # Define an enumeration class for different simulation types
@@ -76,7 +76,7 @@ elif simulationType == SimulationType.EQUERRE:
     if dim == 2:
         mesh = interface.Mesh_2D(contour, inclusions, ElemType.QUAD4, cracks)
     elif dim == 3:
-        mesh = interface.Mesh_3D(contour, inclusions, extrude=[0, 0, -h], nCouches=4, elemType=ElemType.HEXA8)
+        mesh = interface.Mesh_3D(contour, inclusions, extrude=[0, 0, -h], nLayers=4, elemType=ElemType.HEXA8)
 
     noeudsGauche = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == L)
@@ -113,7 +113,7 @@ elif simulationType == SimulationType.TEF2:
     if dim == 2:
         mesh = interface.Mesh_2D(contour, [], ElemType.TRI3)
     elif dim == 3:
-        mesh = interface.Mesh_3D(contour, [], extrude=[0, 0, 2 * h], nCouches=10, elemType=ElemType.PRISM6)
+        mesh = interface.Mesh_3D(contour, [], extrude=[0, 0, 2 * h], nLayers=10, elemType=ElemType.PRISM6)
 
     noeudsBas = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     noeudsGauche = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
@@ -158,6 +158,8 @@ Display.Plot_BoundaryConditions(simu, folder)
 
 # Plot the results
 Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1 / coef, folder=folder)
+# plt.gca().axis('off')
+# Display.Save_fig(folder, "Svm axis off")
 
 # Plot the history of computation time
 TicTac.Tic.Plot_History()

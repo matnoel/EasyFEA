@@ -26,7 +26,7 @@ if not os.path.exists(folder):
     os.makedirs(folder)
 
 # Options for plotting the results
-plotResult = False
+plotResult = True
 plotError = False
 plotProj = False
 
@@ -316,6 +316,8 @@ if plotResult:
     # Display.Plot_Mesh(simu, deformation=True, folder=folder)
     Display.Plot_Result(simu, "ux", deformation=True, nodeValues=False)        
     Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
+    Display.Plot_Result(simu, "ZZ1", deformation=False, plotMesh=True)
+    # Display.Plot_Mesh(mesh, alpha=0, edgecolor='white', ax=plt.gca())
     # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)   
 
     tic.Tac("Affichage","Affichage des figures", plotResult)

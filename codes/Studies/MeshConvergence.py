@@ -78,7 +78,7 @@ for t, elemType in enumerate(elemTypes):
         if dim == 2:
             mesh = interfaceGmsh.Mesh_2D(domain, [], elemType, isOrganised=True)
         else:
-            mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], nCouches=4)
+            mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], nLayers=4)
 
         mesh = cast(Mesh, mesh)
 

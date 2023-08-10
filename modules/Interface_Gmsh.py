@@ -457,7 +457,7 @@ class Interface_Gmsh:
             numElements = [nLayers] if nLayers > 1 else []
         else:            
             recombine = True
-            numElements = [nLayers]
+            numElements = [nLayers//2] if 'HEXA' in elemType and nLayers > 1 else [nLayers]
 
         for surf in surfaces:
 
@@ -981,7 +981,7 @@ class Interface_Gmsh:
 
         return self.__Construct_Mesh()
 
-    def Mesh_3D(self, contour: Geom, inclusions=[], extrude=[0,0,1], nCouches=1, elemType=ElemType.TETRA4, cracks=[], refineGeom=None, folder="") -> Mesh:
+    def Mesh_3D(self, contour: Geom, inclusions=[], extrude=[0,0,1], nLayers=1, elemType=ElemType.TETRA4, cracks=[], refineGeom=None, folder="") -> Mesh:
         """Build the 3D mesh by creating a surface from a Geom object
 
         Parameters
@@ -1016,7 +1016,7 @@ class Interface_Gmsh:
         # the starting 2D mesh is irrelevant
         surfaces = self.Mesh_2D(contour, inclusions, ElemType.TRI3, [], False, refineGeom, returnSurfaces=True)
 
-        self.__Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, nLayers=nCouches)        
+        self.__Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, nLayers=nLayers)        
 
         # Recovers 3D entities
         self.__factory.synchronize()
