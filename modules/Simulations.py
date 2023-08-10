@@ -3377,6 +3377,10 @@ class Simu_Beam(_Simu):
         
         if not self._Results_Check_Available(result): return None
 
+        dof_n = self.beamModel.dof_n
+
+        # TODO to improve
+
         if iter != None:
             self.Update_Iter(iter)
 
@@ -3387,10 +3391,13 @@ class Simu_Beam(_Simu):
             return self.Results_displacement_matrix()
 
         if result in ["fx","fy","fz","cx","cy","cz"]:
+            
+            dofs = np.arange(self.mesh.Nn*dof_n)
+            Kglob = self.__Kbeam.tocsr()[dofs].tocsc()[:,dofs]            
 
-            force = np.array(self.__Kbeam.dot(self.displacement))
+            force = Kglob @ self.displacement
             force_redim = force.reshape(self.mesh.Nn, -1)
-            index = _Simu.Resultats_indexe_option(self.dim, self.problemType, result)
+            index = self.__indexResulat(result)
             resultat_ddl = force_redim[:, index]
 
         else:
@@ -3585,6 +3592,37 @@ class Simu_Beam(_Simu):
             coordo[:,:3] = displacementRedim[:,:3]
 
         return coordo
+    
+    def Results_Get_Iteration_Summary(self) -> str:        
+
+        summary = ""
+
+        # TODO to improve
+
+        # if not self._Results_Check_Available("Wdef"):
+            # return
+        
+        # Wdef = self.Get_Result("Wdef")
+        # summary += f"\nW def = {Wdef:.2f}"
+        
+        # Svm = self.Get_Result("Svm", nodeValues=False)
+        # summary += f"\n\nSvm max = {Svm.max():.2f}"
+
+        # Affichage des déplacements
+        dx = self.Get_Result("ux", nodeValues=True)
+        summary += f"\n\nUx max = {dx.max():.2e}"
+        summary += f"\nUx min = {dx.min():.2e}"
+
+        dy = self.Get_Result("uy", nodeValues=True)
+        summary += f"\n\nUy max = {dy.max():.2e}"
+        summary += f"\nUy min = {dy.min():.2e}"
+
+        if self.dim == 3:
+            dz = self.Get_Result("uz", nodeValues=True)
+            summary += f"\n\nUz max = {dz.max():.2e}"
+            summary += f"\nUz min = {dz.min():.2e}"
+
+        return summary
 
 ###################################################################################################
 
