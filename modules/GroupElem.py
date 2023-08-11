@@ -93,7 +93,7 @@ class GroupElem(ABC):
         """
 
         self.__gmshId = gmshId
-        self.__elemType, self.__nPe, self.__dim, self.__ordre, self.__nbFaces, self.__nbCorners = GroupElem_Factory.Get_ElemInFos(gmshId)
+        self.__elemType, self.__nPe, self.__dim, self.__order, self.__nbFaces, self.__nbCorners = GroupElem_Factory.Get_ElemInFos(gmshId)
         
         # Elements
         self.__elements = np.arange(connect.shape[0], dtype=int)
@@ -152,9 +152,9 @@ class GroupElem(ABC):
         return self.__dim
     
     @property
-    def ordre(self) -> int:
+    def order(self) -> int:
         """Element order"""
-        return self.__ordre    
+        return self.__order    
 
     @property
     def inDim(self) -> int:
@@ -891,11 +891,11 @@ class GroupElem(ABC):
 
     def __Init_Functions(self, order: int) -> np.ndarray:
         """Methods for initializing functions to be evaluated at gauss points."""
-        if self.dim == 1 and self.ordre < order:
+        if self.dim == 1 and self.order < order:
             fonctions = np.array([lambda x: 0]*self.nPe)
-        elif self.dim == 2 and self.ordre < order:
+        elif self.dim == 2 and self.order < order:
             fonctions = np.array([lambda ksi,eta: 0, lambda ksi,eta: 0]*self.nPe)
-        elif self.dim == 3 and self.ordre < order:
+        elif self.dim == 3 and self.order < order:
             fonctions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
         return fonctions
 
