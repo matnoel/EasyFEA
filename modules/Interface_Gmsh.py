@@ -88,16 +88,13 @@ class Interface_Gmsh:
         gmsh.option.setNumber("Mesh.Algorithm", meshAlgorithm)
 
         recombineAlgorithm = 1
-
         if elemType in [ElemType.QUAD4, ElemType.QUAD8]:
             subdivisionAlgorithm = 1
-        elif elemType in [ElemType.HEXA8, ElemType.HEXA20]:
-            subdivisionAlgorithm = 0
         else:
             subdivisionAlgorithm = 0        
 
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
-        gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)        
+        gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
         
     def __Loop_From_Geom(self, geom: Geom) -> int:
         """Creation of a loop based on the geometric object."""
@@ -674,7 +671,7 @@ class Interface_Gmsh:
         meshSize : float, optional
             mesh size, by default 0.0
         elemType : str, optional
-            element type, by default "TETRA4" ["TETRA4", "TETRA10"]
+            element type, by default "TETRA4" ["TETRA4", "TETRA10"]            
         refineGeom : Geom, optional
             second domain for mesh concentration, by default None
         folder : str, optional
