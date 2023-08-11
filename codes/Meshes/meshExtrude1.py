@@ -22,7 +22,7 @@ def DoMesh(dim, elemType):
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType)
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude=[0, 0, -h], nLayers=4, elemType=elemType)
+        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude=[0, 0, -h], nLayers=3, elemType=elemType)
 
     Display.Plot_Mesh(mesh)
 

@@ -87,15 +87,14 @@ class Interface_Gmsh:
             meshAlgorithm = 1 # 1: Delaunay
         gmsh.option.setNumber("Mesh.Algorithm", meshAlgorithm)
 
+        recombineAlgorithm = 1
+
         if elemType in [ElemType.QUAD4, ElemType.QUAD8]:
-            recombineAlgorithm = 2
-            subdivisionAlgorithm = 0
+            subdivisionAlgorithm = 1
         elif elemType in [ElemType.HEXA8, ElemType.HEXA20]:
-            recombineAlgorithm = 2
-            subdivisionAlgorithm = 2
-        else:
-            recombineAlgorithm = 1        
             subdivisionAlgorithm = 0
+        else:
+            subdivisionAlgorithm = 0        
 
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)        
@@ -457,13 +456,12 @@ class Interface_Gmsh:
             numElements = [nLayers] if nLayers > 1 else []
         else:            
             recombine = True
-            numElements = [np.floor(nLayers/2)] if 'HEXA' in elemType and nLayers > 1 else [nLayers]
+            numElements = [nLayers]
 
         for surf in surfaces:
-
+            
             if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
                 # https://onelab.info/pipermail/gmsh/2010/005359.html
-
                 factory.synchronize()
                 gmsh.model.mesh.setRecombine(2, surf)
             
@@ -505,13 +503,12 @@ class Interface_Gmsh:
             numElements = [nLayers] if nLayers > 1 else []
         else:            
             recombine = True
-            numElements = [np.floor(nLayers/2)] if 'HEXA' in elemType and nLayers > 1 else [nLayers]
+            numElements = [nLayers]
 
         for surf in surfaces:
 
             if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
                 # https://onelab.info/pipermail/gmsh/2010/005359.html
-
                 factory.synchronize()
                 gmsh.model.mesh.setRecombine(2, surf)
 
