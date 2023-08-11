@@ -29,6 +29,8 @@ if not os.path.exists(folder):
 plotResult = True
 plotError = False
 plotProj = False
+makeMovie = False
+makeParaview = False
 
 # Scaling coefficient for the optimization process
 coef = 1/10
@@ -59,8 +61,8 @@ else:
 # ----------------------------------------------
 
 # Choosing the part type (you can uncomment one of the parts)
-part = "equerre"
-# part = "lmt"
+# part = "equerre"
+part = "lmt"
 # part = "other"
 
 # Define the geometry based on the chosen part type
@@ -306,7 +308,6 @@ if i > 0:
 # ----------------------------------------------
 # Post processing
 # ----------------------------------------------
-Display.Section("Post processing")
 
 # folder=""
 if plotResult:
@@ -318,13 +319,13 @@ if plotResult:
     Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
     Display.Plot_Result(simu, "ZZ1", deformation=False, plotMesh=True)
     # Display.Plot_Mesh(mesh, alpha=0, edgecolor='white', ax=plt.gca())
-    # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)   
+    # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
 
-    tic.Tac("Affichage","Affichage des figures", plotResult)
+if makeParaview:
+    PostProcessing.Make_Paraview(folder, simu, nodesResult=["ZZ1"])
 
-PostProcessing.Make_Paraview(folder, simu, nodesResult=["ZZ1"])
-
-PostProcessing.Make_Movie(folder, "ZZ1", simu, plotMesh=True, fps=1, nodeValues=True)
+if makeMovie:
+    PostProcessing.Make_Movie(folder, "ZZ1", simu, plotMesh=True, fps=1, nodeValues=True)
 
 Tic.Plot_History(details=True)
 plt.show()

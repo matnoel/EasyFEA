@@ -24,6 +24,7 @@ folder = Folder.New_File(f"Convergence {dim}D", results=True)
 
 # Define whether to plot the results
 plotResult = True
+makeParaview = False
 
 # Define geometry parameters
 L = 120  # mm
@@ -38,7 +39,7 @@ v = 0.25    # Poisson's ratio
 # Define the material behavior (elasticity with plane stress assumption)
 comportement = Materials.Elas_Isot(dim, thickness=b, E=E, v=v, planeStress=True)
 
-# Compute the theoretical deformation energy (reference value) using simplified formula
+# Compute the theoretical deformation energy (reference value)
 WdefRef = 2 * P**2 * L / E / h / b * (L**2 / h / b + (1 + v) * 3 / 5)
 
 # Lists to store data for plotting
@@ -181,8 +182,9 @@ ax_Temps.legend(elemTypes)
 # Plot the von Mises stress result using 20 color levels
 Display.Plot_Result(simu, "Svm", nColors=20)
 
-# Generate Paraview files for visualization
-PostProcessing.Make_Paraview(folder, simu, details=True)
+if makeParaview:
+    # Generate Paraview files for visualization
+    PostProcessing.Make_Paraview(folder, simu, details=True)
 
 # Show the total computation time
 Tic.Resume()
