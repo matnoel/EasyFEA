@@ -1,13 +1,13 @@
 import Display
 import Materials
 import Simulations
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import Point, PointsList, Domain, Circle
 
 
 Display.Clear()
 
-dim = 2
+dim = 3
 model = 1 # symmetric
 # model = 2 # total
 
@@ -31,9 +31,9 @@ elif model == 2:
     inclusions = [Circle(Point(), 2*a, meshSize, isHollow=True)]
 
 if dim == 2:
-    mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType='TRI6')
+    mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType=ElemType.TRI3)
 else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,thickness], 4, 'PRISM15')
+    mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,thickness], 4, ElemType.PRISM6)
 
 material = Materials.Elas_Isot(dim, E=210000, v=0.3, planeStress=True, thickness=thickness)
 

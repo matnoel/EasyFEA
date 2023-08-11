@@ -3,8 +3,7 @@ import Materials
 from Geom import Domain, Circle, Point, Section, Line
 import numpy as np
 import Display as Display
-from Mesh import Mesh
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, Mesh, GroupElem
 import Simulations
 from TicTac import Tic
 import matplotlib.pyplot as plt
@@ -173,51 +172,43 @@ class Test_Simu(unittest.TestCase):
                 ax.legend()
                 PlotAndDelete()
 
-    def test_Dynamic(self):
+    def test_Elasticity(self):
         # For each type of mesh one simulates
         
-        dim = 2
+        dim = 2        
 
-        # Geometry parameters
-        L = 120;  #mm
-        h = 120;    
-        b = 13
-
-        # Charge to apply
+        # Load to apply
         P = -800 #N
 
-        # Mesh parameters
-        taille = L/2
+        a = 1
 
-        listMesh = Interface_Gmsh.Construction_2D(L=L, h=h, taille=taille)
-        listMesh.extend(Interface_Gmsh.Construction_3D(L=L, h=h, b=b, taille=h/4))
+        domain = Domain(Point(0, 0), Point(a, a), a/10)
+        inclusions = [Circle(Point(a/2, a/2), a/3, a/10)]
+
+        doMesh2D = lambda elemType: Interface_Gmsh().Mesh_2D(domain, inclusions, elemType)
+        doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], 3, elemType)
+
+        listMesh = [doMesh2D(elemType) for elemType in GroupElem.get_Types2D()]
+        [listMesh.append(doMesh3D(elemType)) for elemType in GroupElem.get_Types3D()]
 
         # For each mesh
         for mesh in listMesh:
 
             dim = mesh.dim
 
-            comportement = Materials.Elas_Isot(dim, thickness=b)
+            comportement = Materials.Elas_Isot(dim, thickness=a)
             
             simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
 
             noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
-            noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
+            noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == a)
 
-            simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
-            # simu.add_lineLoad(noeuds_en_L, [-P/h], ["y"])
-            simu.add_dirichlet(noeuds_en_L, [lambda x,y,z: 1], ['x'])
-            simu.add_surfLoad(noeuds_en_L, [P/h/b], ["y"])
+            simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"])            
+            simu.add_surfLoad(noeuds_en_L, [P/a/a], ["y"])
             
             simu.Solve()
 
             fig, ax, cb = Display.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
-            plt.pause(1e-12)
-            plt.close(fig)
-            
-            simu.Solver_Set_Newton_Raphson_Algorithm(dt=0.5)
-            simu.Solve()
-            fig, ax, cb = Display.Plot_Result(simu, "ax", plotMesh=True,nodeValues=True)
             plt.pause(1e-12)
             plt.close(fig)
 
@@ -225,9 +216,14 @@ class Test_Simu(unittest.TestCase):
 
         a = 1
 
-        listMesh = Interface_Gmsh.Construction_2D(L=a, h=a, taille=a/10)
+        domain = Domain(Point(0, 0), Point(a, a), a/10)
+        inclusions = [Circle(Point(a/2, a/2), a/3, a/10)]
 
-        listMesh.extend(Interface_Gmsh.Construction_3D(L=a, h=a, b=a, taille=a/10, useImport3D=False))
+        doMesh2D = lambda elemType: Interface_Gmsh().Mesh_2D(domain, inclusions, elemType)
+        doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], 3, elemType)
+
+        listMesh = [doMesh2D(elemType) for elemType in GroupElem.get_Types2D()]
+        [listMesh.append(doMesh3D(elemType)) for elemType in GroupElem.get_Types3D()]
 
         self.thermalSimulation = []
 

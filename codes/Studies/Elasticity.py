@@ -3,11 +3,10 @@ from enum import Enum
 import matplotlib.pyplot as plt
 import os
 
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import *
 import Display
 import Simulations
-from Mesh import ElemType
 import Materials
 import TicTac
 import Folder
