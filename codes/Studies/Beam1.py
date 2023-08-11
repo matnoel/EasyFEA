@@ -194,8 +194,8 @@ elif problem == "Traction":
     ax.set_title(fr"$u(x)$")
     ax.legend()
 
-# Post-process and save results in Paraview format
-PostProcessing.Make_Paraview(folder, simu)
+# # Post-process and save results in Paraview format
+# PostProcessing.Make_Paraview(folder, simu)
 
 # Display all plots
 plt.show()

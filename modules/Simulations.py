@@ -1437,7 +1437,7 @@ class _Simu(ABC):
 
             resultat_n[:,c] = valeurs_n.reshape(-1)
 
-        tic.Tac("Post processing","Element to nodes values", False)
+        tic.Tac("PostProcessing","Element to nodes values", False)
 
         if isDim1:
             return resultat_n.reshape(-1)

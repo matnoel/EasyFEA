@@ -12,9 +12,11 @@ import Materials
 import TicTac
 import Folder
 
+Display.Clear()
+
 # Define dimension and mesh size parameters
-dim = 3
-N = 50 * 1 if dim == 2 else 20
+dim = 2
+N = 20 if dim == 2 else 10
 
 # Define an enumeration class for different simulation types
 class SimulationType(str, Enum):
@@ -99,7 +101,6 @@ elif simulationType == SimulationType.TEF2:
     g = 9.81          # m/s^2 (acceleration due to gravity)
 
     h = 180  # m (thickness)
-    taille = h / N
 
     pt1 = Point()
     pt2 = Point(x=h)
@@ -108,12 +109,12 @@ elif simulationType == SimulationType.TEF2:
     ro = 2400  # kg/m^3 (density)
     w = 1000   # kg/m^3 (density)
 
-    contour = PointsList([pt1, pt2, pt3], taille)
+    contour = PointsList([pt1, pt2, pt3], h / N)
 
     if dim == 2:
-        mesh = interface.Mesh_2D(contour, [], ElemType.TRI3)
+        mesh = interface.Mesh_2D(contour, [], ElemType.QUAD4)
     elif dim == 3:
-        mesh = interface.Mesh_3D(contour, [], extrude=[0, 0, 2 * h], nLayers=10, elemType=ElemType.PRISM6)
+        mesh = interface.Mesh_3D(contour, [], extrude=[0, 0, -2 * h], nLayers=3, elemType=ElemType.HEXA8)
 
     noeudsBas = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     noeudsGauche = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
@@ -157,7 +158,7 @@ print(simu)
 Display.Plot_BoundaryConditions(simu, folder)
 
 # Plot the results
-Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1 / coef, folder=folder)
+Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=True, coef=1 / coef, folder=folder, nColors=20)
 # plt.gca().axis('off')
 # Display.Save_fig(folder, "Svm axis off")
 

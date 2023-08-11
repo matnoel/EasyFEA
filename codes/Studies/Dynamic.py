@@ -16,15 +16,15 @@ Display.Clear()
 # Configuration
 # ----------------------------------------------
 
-dim = 3
+dim = 2
 folder = Folder.New_File(f"Dynamics{dim}D", results=True)
 plotResult = True
 
 isLoading = True
 initSimu = True
 
-saveParaview = False; NParaview = 500
-pltMovie = True; NMovie = 400
+makeParaview = False; NParaview = 500
+makeMovie = False; NMovie = 400
 plotIter = True; resultToPlot = "uy"
 
 # Dumping
@@ -143,10 +143,10 @@ Display.Plot_BoundaryConditions(simu)
 
 # folder=""
 
-if saveParaview:
+if makeParaview:
     PostProcessing.Make_Paraview(folder, simu,Niter=NParaview)
 
-if pltMovie:
+if makeMovie:
     PostProcessing.Make_Movie(folder, resultToPlot, simu, plotMesh=True, Niter=NMovie, deformation=True, nodeValues=True, factorDef=1)
 
 if plotResult:
