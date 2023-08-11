@@ -344,9 +344,15 @@ class CircleArc(Geom):
         i1 = (pt1-center).coordo
         i2 = (pt2-center).coordo
 
-        # construction of the passage matrix 
-        i = normalize_vect((i1+i2)/2)
+        collinear = np.linalg.norm(np.cross(i1, i2)) <= 1e-12
+
+        # construction of the passage matrix
         k = np.array([0,0,1])
+        if collinear:
+            vect = normalize_vect(i2-i1)
+            i = np.cross(k,vect)
+        else:
+            i = normalize_vect((i1+i2)/2)
         j = np.cross(k, i)
 
         mat = np.array([i,j,k]).T

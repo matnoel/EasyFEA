@@ -1,8 +1,8 @@
 import numpy as np
 
 import Display
+from Interface_Gmsh import Interface_Gmsh, GroupElem
 from Geom import Point, PointsList, Circle, Line
-from Interface_Gmsh import Interface_Gmsh
 
 Display.Clear()
 
@@ -27,7 +27,7 @@ inclusions = [circle1, circle2, circle3]
 axis = Line(Point(), Point(radius/3,height))
 
 ax = Display.plt.subplots()[1]
-ax.plot(axis.coordo[:,:2][:,0], axis.coordo[:,:2][:,1], c='black', ls='-.', label='revolve axis')
+ax.plot(axis.coordo[:,:2][:,0], axis.coordo[:,:2][:,1], c='black', ls='-.', label='axis')
 mesh2D = Interface_Gmsh().Mesh_2D(contour, inclusions)
 ax.legend()
 Display.Plot_Model(mesh2D, ax=ax)
@@ -37,17 +37,11 @@ angle = np.pi * 2 * 4/6
 perimeter = angle * radius
 
 nLayers = perimeter // meshSize
-# nLayers = 100
 
-mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, nLayers, "TETRA4")
-Display.Plot_Mesh(mesh)
+def DoMesh(dim, elemType):
+    mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, nLayers, elemType)
+    Display.Plot_Mesh(mesh)
 
-mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, nLayers, "PRISM6")
-Display.Plot_Mesh(mesh)
-
-mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, nLayers, "HEXA8")
-Display.Plot_Mesh(mesh)
-
-# Display.Plot_Model(mesh)
+[DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
 
 Display.plt.show()

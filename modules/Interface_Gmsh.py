@@ -457,7 +457,7 @@ class Interface_Gmsh:
             numElements = [nLayers] if nLayers > 1 else []
         else:            
             recombine = True
-            numElements = [nLayers//2] if 'HEXA' in elemType and nLayers > 1 else [nLayers]
+            numElements = [np.floor(nLayers/2)] if 'HEXA' in elemType and nLayers > 1 else [nLayers]
 
         for surf in surfaces:
 
@@ -505,7 +505,7 @@ class Interface_Gmsh:
             numElements = [nLayers] if nLayers > 1 else []
         else:            
             recombine = True
-            numElements = [nLayers//2] if 'HEXA' in elemType else [nLayers]
+            numElements = [np.floor(nLayers/2)] if 'HEXA' in elemType and nLayers > 1 else [nLayers]
 
         for surf in surfaces:
 
