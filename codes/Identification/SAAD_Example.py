@@ -5,13 +5,12 @@ import pandas as pd
 
 import Simulations
 import Display
-import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 import Materials
 import Geom
 
 Display.Clear()
 
-pltVerif = False
 built_b_tild = False
 verifOrtho = False
 
@@ -21,7 +20,7 @@ b = 20
 d = 10
 
 meshSize = l/15
-elemType = "TRI3"
+elemType = ElemType.TRI3
 
 mat = "bois" # "acier" "bois"
 
@@ -29,7 +28,7 @@ tol = 1e-14
 
 sig = 10
 
-gmshInterface = Interface_Gmsh.Interface_Gmsh()
+gmshInterface = Interface_Gmsh()
 
 pt1 = Geom.Point()
 pt2 = Geom.Point(l, 0)
@@ -72,22 +71,18 @@ Display.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
 
-bruit = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * 0.2
-u_exp = u_exp + bruit
+perturbation = 0.02
+coefBruit = np.abs(u_exp).max()
+bruit = coefBruit * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
+u_exp_bruit = u_exp + bruit
 
-f_exp = simu.Get_K_C_M_F()[0] @ u_exp
+f_exp = simu.Get_K_C_M_F()[0] @ u_exp_bruit
+# ici fonctionne parce que l'on connait les données matériaux a ce moment la.
 
-# f_exp = simu._Apply_Neumann("displacement").toarray().reshape(-1)
-
-fx = f_exp.reshape((mesh.Nn, 2))[:,0]
-fy = f_exp.reshape((mesh.Nn, 2))[:,1]
-
-# Display.Plot_Result(simu, fx, title="fx")
-# Display.Plot_Result(simu, fy, title="fy")
 # Display.Plot_Result(simu, "uy")
 # Display.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
 # Display.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
-# Display.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
+# Display.Plot_Result(simu, u_exp_bruit.reshape((mesh.Nn,2))[:,1], title='uy bruit')
 # simu.Resultats_Resume()
 
 Display.Section("Identification")
@@ -115,7 +110,7 @@ for m_c in list_c:
 
     K_c = simuIdentif.Get_K_C_M_F()[0]
 
-    list_b.append(K_c @ u_exp)
+    list_b.append(K_c @ u_exp_bruit)
 
 list_b = np.asarray(list_b)
 
