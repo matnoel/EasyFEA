@@ -2,7 +2,7 @@ import Display
 import Materials
 import Simulations
 from Geom import Line, Point, Section, Domain
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 
 import numpy as np
 
@@ -36,7 +36,7 @@ beamDim = 2
 listBeam = [Materials.Beam_Elas_Isot(beamDim, line, section, E, v) for line in listLine]
 structure = Materials.Beam_Structure(listBeam)
 
-mesh = Interface_Gmsh().Mesh_Beams(listBeam, "SEG2")
+mesh = Interface_Gmsh().Mesh_Beams(listBeam, ElemType.SEG2)
 Display.Plot_Mesh(mesh)
 Display.Plot_Model(mesh)
 

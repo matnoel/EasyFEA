@@ -2,9 +2,8 @@
 from typing import cast
 from Geom import Domain, Point
 from Mesh import Mesh
-from GroupElem import GroupElem
 import Materials
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, GroupElem
 import Simulations
 import Display as Display
 from TicTac import Tic

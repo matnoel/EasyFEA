@@ -1,7 +1,7 @@
 # Import required libraries and modules
 import matplotlib.pyplot as plt
 import numpy as np
-import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import Domain, Line, Point, Section
 import Display
 import Materials
@@ -15,14 +15,14 @@ Display.Clear()
 folder = Folder.New_File("Beam", results=True)
 
 # Initialize the Gmsh interface
-interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, False)
+interfaceGmsh = Interface_Gmsh(False, False, False)
 
 # Define the problem type and beam dimensions
 # problem = "Flexion"
 # problem = "BiEnca"
 problem = "Portique"
 
-elemType = "SEG4"
+elemType = ElemType.SEG4
 
 beamDim = 3
 

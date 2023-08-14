@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import Display
 import PostProcessing
 import Folder
-import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import Circle, Domain, Line, Point
 import Materials
 import Simulations
@@ -37,13 +37,13 @@ else:
 circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 50)
 
 # Create an interface to Gmsh for meshing
-interfaceGmsh = Interface_Gmsh.Interface_Gmsh(False, False, True)
+interfaceGmsh = Interface_Gmsh(False, False, True)
 
 # Generate the mesh based on the specified dimension
 if dim == 2:
-    mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD4")
+    mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.QUAD4)
 else:
-    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0, 0, -a], 4, "PRISM6")
+    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0, 0, -a], 4, ElemType.PRISM6)
 
 # Create a thermal material model
 thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, thickness=1)

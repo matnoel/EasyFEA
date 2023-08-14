@@ -6,7 +6,7 @@ import PostProcessing
 import Display
 from Geom import *
 import Materials
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 import Simulations
 from TicTac import Tic
 
@@ -16,7 +16,7 @@ Display.Clear()
 # Configuration
 # ----------------------------------------------
 
-dim = 2
+dim = 3
 folder = Folder.New_File(f"Dynamics{dim}D", results=True)
 plotResult = True
 
@@ -50,7 +50,7 @@ meshSize = h/5
 
 interfaceGmsh = Interface_Gmsh(False)
 if dim == 2:
-    elemType = "QUAD4" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = ElemType.QUAD4 # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8
     domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), meshSize)
     Line0 = Line(Point(y=-h/2), Point(y=h/2))
     LineL = Line(Point(x=L,y=-h/2), Point(x=L, y=h/2))
@@ -60,7 +60,7 @@ if dim == 2:
     mesh = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
     area = mesh.area - L*h
 elif dim == 3:
-    elemType = "PRISM6" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"    
+    elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
     domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
     mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, nLayers=3)
 
