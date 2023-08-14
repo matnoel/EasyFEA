@@ -204,13 +204,19 @@ class Test_Simu(unittest.TestCase):
             noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == a)
 
             simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"])            
-            simu.add_surfLoad(noeuds_en_L, [P/a/a], ["y"])
+            simu.add_surfLoad(noeuds_en_L, [P/a/a], ['y'])            
             
             simu.Solve()
 
+            # static
             fig, ax, cb = Display.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
             plt.pause(1e-12)
             plt.close(fig)
+
+            # dynamic      
+            simu.Solver_Set_Newton_Raphson_Algorithm(dt=0.1)
+            simu.Solve()
+            # don't plot because result is not relevant
 
     def test_Thermal(self):
 
