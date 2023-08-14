@@ -17,7 +17,7 @@ plotIter = True
 resultIter = "thermal"
 
 # Set pltMovie and NMovie for creating a movie of simulation results
-makeMovie = True
+makeMovie = False
 NMovie = 300
 
 # Set the simulation dimension (2D or 3D)
