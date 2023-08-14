@@ -66,7 +66,7 @@ class IModel(ABC):
             assert value.min() > 0.0, errorText
 
     @staticmethod
-    def _Test_Borne(value: float|np.ndarray, bInf=-1, bSup=0.5):
+    def _Test_In(value: float|np.ndarray, bInf=-1, bSup=0.5):
         errorText = f"Must be between ]{bInf};{bSup}["
         if isinstance(value, (float, int)):
             assert value > bInf and value < bSup, errorText
@@ -383,7 +383,7 @@ class Elas_Isot(_Displacement_Model):
     
     @v.setter
     def v(self, value: float):
-        self._Test_Borne(value)
+        self._Test_In(value)
         self.Need_Update()
         self.__v = value
 
@@ -611,7 +611,7 @@ class Elas_IsotTrans(_Displacement_Model):
         # -1<vt<1
         # -1<vl<0.5
         # Torquato 328
-        self._Test_Borne(value, -1, 1)
+        self._Test_In(value, -1, 1)
         self.Need_Update()
         self.__vl = value
     
@@ -625,7 +625,7 @@ class Elas_IsotTrans(_Displacement_Model):
         # -1<vt<1
         # -1<vl<0.5
         # Torquato 328
-        self._Test_Borne(value)
+        self._Test_In(value)
         self.Need_Update()
         self.__vt = value
 
@@ -1017,7 +1017,7 @@ class Beam_Elas_Isot(_Beam_Model):
         IModel._Test_Sup0(E)        
         self.__E = E
 
-        IModel._Test_Borne(v, -1, 0.5)
+        IModel._Test_In(v, -1, 0.5)
         self.__v = v
 
         # Checks if the section is symmetrical Iyz = 0

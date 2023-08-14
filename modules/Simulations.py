@@ -235,7 +235,7 @@ class _Simu(ABC):
 
         return text
 
-    def __init__(self, mesh: Mesh, model: IModel, verbosity=True, useNumba=True):
+    def __init__(self, mesh: Mesh, model: IModel, verbosity=True, useNumba=True, useIterativeSolvers=True):
         """
         Creates a simulation.
 
@@ -249,6 +249,8 @@ class _Simu(ABC):
             If True, the simulation can write to the console. Defaults to True.
         useNumba : bool, optional
             If True, numba can be used. Defaults to True.
+        useIterativeSolvers : bool, optional
+            If True, iterative solvers can be used. Defaults to True.
         """
 
         if verbosity:
@@ -286,16 +288,18 @@ class _Simu(ABC):
         solvers = Solvers()  # Available solvers
         if "pypardiso" in solvers:
             self.solver = "pypardiso"
-        elif "petsc" in solvers:
+        elif "petsc" in solvers and useIterativeSolvers:
             self.solver = "petsc"
-        else:
+        elif useIterativeSolvers:
             self.solver = "cg"
 
         self.__Init_Sols_n()
 
         self.useNumba = useNumba
 
-        # Initialize Boundary condition
+        self.__useIterativeSolvers = useIterativeSolvers
+
+        # Initialize Boundary conditions
         self.Bc_Init()
 
         self.Need_Update()
@@ -314,6 +318,11 @@ class _Simu(ABC):
     def rho(self, value: float | np.ndarray):
         IModel._Test_Sup0(value)
         self.__rho = value
+
+    @property
+    def useIterativeSolvers(self) -> bool:
+        """Iterative solvers can be used."""
+        return self.__useIterativeSolvers
 
     @property
     def solver(self) -> str:
@@ -1248,9 +1257,9 @@ class _Simu(ABC):
             N_pg = groupElem.Get_N_pg(matrixType)
 
             # integration objects
-            jacobien_e_pg = groupElem.Get_jacobian_e_pg(matrixType)[elements]
+            jacobian_e_pg = groupElem.Get_jacobian_e_pg(matrixType)[elements]
             gauss = groupElem.Get_gauss(matrixType)
-            poid_pg = gauss.weights
+            weight_pg = gauss.weights
 
             # initializes the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
             values_dofs_dir = np.zeros((Ne*groupElem.nPe, len(directions)))
@@ -1262,7 +1271,7 @@ class _Simu(ABC):
                 # evaluates values
                 eval_e_p = self.__Bc_evaluate(coordo_e_p, values[d], option="gauss")
                 # integrates the elements
-                valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobien_e_pg, poid_pg, eval_e_p, N_pg, optimize='optimal')
+                valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobian_e_pg, weight_pg, eval_e_p, N_pg, optimize='optimal')
                 # sum over integration points
                 values_e = np.sum(valeurs_e_p, axis=1)
                 # sets calculated values and dofs
@@ -1448,10 +1457,25 @@ class _Simu(ABC):
 
 class Simu_Displacement(_Simu):
 
-    def __init__(self, mesh: Mesh, model: _Displacement_Model, verbosity=False, useNumba=True):
-        """Initialize displacement simulation."""
+    def __init__(self, mesh: Mesh, model: _Displacement_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
+        """
+        Creates a displacement simulation.
+
+        Parameters
+        ----------
+        mesh : Mesh
+            The mesh the simulation will use.
+        model : IModel
+            The model used.
+        verbosity : bool, optional
+            If True, the simulation can write to the console. Defaults to False.
+        useNumba : bool, optional
+            If True, numba can be used. Defaults to True.
+        useIterativeSolvers : bool, optional
+            If True, iterative solvers can be used. Defaults to True.
+        """
         assert model.modelType == ModelType.displacement, "The material must be displacement model"
-        super().__init__(mesh, model, verbosity, useNumba)
+        super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
         self.Set_Rayleigh_Damping_Coefs()
@@ -1529,15 +1553,15 @@ class Simu_Displacement(_Simu):
 
         # Recovers matrices to work with
         mesh = self.mesh; Ne = mesh.Ne
-        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        poid_pg = mesh.Get_weight_pg(matrixType)
-        nPg = poid_pg.size
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = mesh.Get_weight_pg(matrixType)
+        nPg = weight_pg.size
 
         N_vecteur_pg = mesh.Get_N_vector_pg(matrixType)
         rho = self.rho
         
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
-        leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+        leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobian_e_pg * weight_pg * B_dep_e_pg'
 
         comportement = self.material
 
@@ -1551,7 +1575,7 @@ class Simu_Displacement(_Simu):
         
         # Mass
         rho_e_pg = Reshape_variable(rho, Ne, nPg)
-        Mu_e = np.einsum(f'ep,p,pki,ep,pkj->eij', jacobien_e_pg, poid_pg, N_vecteur_pg, rho_e_pg, N_vecteur_pg, optimize="optimal")
+        Mu_e = np.einsum(f'ep,p,pki,ep,pkj->eij', jacobian_e_pg, weight_pg, N_vecteur_pg, rho_e_pg, N_vecteur_pg, optimize="optimal")
 
         if self.dim == 2:
             thickness = self.material.thickness
@@ -1840,8 +1864,8 @@ class Simu_Displacement(_Simu):
         sol_u  = self.displacement
         
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
-        jacobien_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
-        poid_pg = self.mesh.Get_weight_pg(matrixType)
+        jacobian_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = self.mesh.Get_weight_pg(matrixType)
         N_pg = self.mesh.Get_N_pg(matrixType)
 
         if self.dim == 2:
@@ -1859,12 +1883,12 @@ class Simu_Displacement(_Simu):
 
         if returnScalar:
 
-            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')
+            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobian_e_pg, weight_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')
             Wdef = float(Wdef)
 
         else:
 
-            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->e', ep, jacobien_e_pg, poid_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')        
+            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->e', ep, jacobian_e_pg, weight_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')        
 
 
         tic.Tac("PostProcessing","Calc Psi Elas",False)
@@ -2041,11 +2065,26 @@ class Simu_Displacement(_Simu):
 
 class Simu_PhaseField(_Simu):
 
-    def __init__(self, mesh: Mesh, model: PhaseField_Model, verbosity=False, useNumba=True):
-        """Initialize phase field simulation."""
+    def __init__(self, mesh: Mesh, model: PhaseField_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
+        """
+        Creates a damage simulation.
+
+        Parameters
+        ----------
+        mesh : Mesh
+            The mesh the simulation will use.
+        model : IModel
+            The model used.
+        verbosity : bool, optional
+            If True, the simulation can write to the console. Defaults to False.
+        useNumba : bool, optional
+            If True, numba can be used. Defaults to True.
+        useIterativeSolvers : bool, optional
+            If True, iterative solvers can be used. Defaults to True.
+        """
 
         assert model.modelType == ModelType.damage, "The material must be damage model"
-        super().__init__(mesh, model, verbosity, useNumba)
+        super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init résultats
         self.__psiP_e_pg = []
@@ -2306,7 +2345,7 @@ class Simu_PhaseField(_Simu):
         
         # Recovers matrices to work with        
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
-        leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobien_e_pg * poid_pg * B_dep_e_pg'
+        leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobian_e_pg * weight_pg * B_dep_e_pg'
 
         d = self.damage
         u = self.displacement
@@ -2451,20 +2490,20 @@ class Simu_PhaseField(_Simu):
         nPg = r_e_pg.shape[1]
 
         # K * Laplacien(d) + r * d = F        
-        ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType) # -> jacobien_e_pg * poid_pg * Nd_pg' * Nd_pg
-        DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType, phaseFieldModel.A) # -> jacobien_e_pg, poid_pg, Bd_e_pg', A, Bd_e_pg
-        SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType) # -> jacobien_e_pg, poid_pg, Nd_pg'
+        ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType) # -> jacobian_e_pg * weight_pg * Nd_pg' * Nd_pg
+        DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType, phaseFieldModel.A) # -> jacobian_e_pg, weight_pg, Bd_e_pg', A, Bd_e_pg
+        SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType) # -> jacobian_e_pg, weight_pg, Nd_pg'
         
         tic = Tic()
 
-        # Part that involves the reaction term r ->  jacobien_e_pg * poid_pg * r_e_pg * Nd_pg' * Nd_pg
+        # Part that involves the reaction term r ->  jacobian_e_pg * weight_pg * r_e_pg * Nd_pg' * Nd_pg
         K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
 
-        # The part that involves diffusion K -> jacobien_e_pg, poid_pg, k, Bd_e_pg', Bd_e_pg
+        # The part that involves diffusion K -> jacobian_e_pg, weight_pg, k, Bd_e_pg', Bd_e_pg
         k_e_pg = Reshape_variable(k, Ne, nPg)
         K_K_e = np.einsum('ep,epij->eij', k_e_pg, DiffusePart_e_pg, optimize='optimal')
         
-        # Source part Fd_e -> jacobien_e_pg, poid_pg, f_e_pg, Nd_pg'
+        # Source part Fd_e -> jacobian_e_pg, weight_pg, f_e_pg, Nd_pg'
         Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal')
     
         Kd_e = K_r_e + K_K_e
@@ -2738,8 +2777,8 @@ class Simu_PhaseField(_Simu):
 
         matrixType = MatrixType.rigi
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
-        jacobien_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
-        poid_pg = self.mesh.Get_weight_pg(matrixType)
+        jacobian_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = self.mesh.Get_weight_pg(matrixType)
 
         if self.dim == 2:
             ep = self.phaseFieldModel.thickness
@@ -2756,7 +2795,7 @@ class Simu_PhaseField(_Simu):
         psiP_e_pg = np.einsum('ep,ep->ep', g_e_pg, psiP_e_pg, optimize='optimal')
         psi_e_pg = psiP_e_pg + psiM_e_pg
 
-        Wdef = np.einsum(',ep,p,ep->', ep, jacobien_e_pg, poid_pg, psi_e_pg, optimize='optimal')
+        Wdef = np.einsum(',ep,p,ep->', ep, jacobian_e_pg, weight_pg, psi_e_pg, optimize='optimal')
         
         Wdef = float(Wdef)
 
@@ -2780,8 +2819,8 @@ class Simu_PhaseField(_Simu):
         d_n = self.damage
         d_e = self.mesh.Locates_sol_e(d_n)
 
-        jacobien_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
-        poid_pg = self.mesh.Get_weight_pg(matrixType)
+        jacobian_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = self.mesh.Get_weight_pg(matrixType)
         Nd_pg = self.mesh.Get_N_pg(matrixType)
         Bd_e_pg = self.mesh.Get_dN_e_pg(matrixType)
 
@@ -2792,14 +2831,14 @@ class Simu_PhaseField(_Simu):
         nPg = grad_e_pg.shape[1]
         
         gcGrad = Reshape_variable(Gc*l0/c0, Ne, nPg)
-        gradPart = np.einsum('ep,p,ep,epi->',jacobien_e_pg, poid_pg, gcGrad, diffuse_e_pg, optimize='optimal')
+        gradPart = np.einsum('ep,p,ep,epi->',jacobian_e_pg, weight_pg, gcGrad, diffuse_e_pg, optimize='optimal')
 
         alpha_e_pg = np.einsum('pij,ej->epi', Nd_pg, d_e, optimize='optimal')
         if pfm.regularization == PhaseField_Model.RegularizationType.AT2:
             alpha_e_pg = alpha_e_pg**2
         
         gcAlpha = Reshape_variable(Gc/(c0*l0), Ne, nPg)
-        alphaPart = np.einsum('ep,p,ep,epi->',jacobien_e_pg, poid_pg, gcAlpha, alpha_e_pg, optimize='optimal')
+        alphaPart = np.einsum('ep,p,ep,epi->',jacobian_e_pg, weight_pg, gcAlpha, alpha_e_pg, optimize='optimal')
 
         if self.dim == 2:
             ep = self.phaseFieldModel.thickness
@@ -2997,11 +3036,26 @@ class Simu_PhaseField(_Simu):
 
 class Simu_Beam(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Beam_Structure, verbosity=False, useNumba=True):
-        """Creating a beam simulation."""
+    def __init__(self, mesh: Mesh, model: Beam_Structure, verbosity=False, useNumba=True, useIterativeSolvers=True):
+        """
+        Creates a beam simulation.
+
+        Parameters
+        ----------
+        mesh : Mesh
+            The mesh the simulation will use.
+        model : IModel
+            The model used.
+        verbosity : bool, optional
+            If True, the simulation can write to the console. Defaults to False.
+        useNumba : bool, optional
+            If True, numba can be used. Defaults to True.
+        useIterativeSolvers : bool, optional
+            If True, iterative solvers can be used. Defaults to True.
+        """
         
         assert model.modelType == ModelType.beam, "The material must be beam model"
-        super().__init__(mesh, model, verbosity, useNumba)
+        super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
         self.Solver_Set_Elliptic_Algorithm()
@@ -3177,14 +3231,14 @@ class Simu_Beam(_Simu):
         
         tic = Tic()
         
-        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        poid_pg = mesh.Get_weight_pg(matrixType)
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = mesh.Get_weight_pg(matrixType)
 
         D_e_pg = beamModel.Calc_D_e_pg(groupElem, matrixType)        
 
         B_beam_e_pg = self.__Get_B_beam_e_pg(matrixType)
         
-        Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobien_e_pg, poid_pg, B_beam_e_pg, D_e_pg, B_beam_e_pg, optimize='optimal')
+        Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobian_e_pg, weight_pg, B_beam_e_pg, D_e_pg, B_beam_e_pg, optimize='optimal')
             
         tic.Tac("Matrix","Construct Kbeam_e", self._verbosity)
 
@@ -3203,12 +3257,12 @@ class Simu_Beam(_Simu):
 
         # Data
         mesh = self.mesh
-        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
         groupElem = mesh.groupElem
         elemType = groupElem.elemType
         nPe = groupElem.nPe
-        Ne = jacobien_e_pg.shape[0]
-        nPg = jacobien_e_pg.shape[1]
+        Ne = jacobian_e_pg.shape[0]
+        nPg = jacobian_e_pg.shape[1]
 
         # Recovers matrices to work with
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
@@ -3628,11 +3682,26 @@ class Simu_Beam(_Simu):
 
 class Simu_Thermal(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Thermal_Model, verbosity=False, useNumba=True):
-        """Creating a thermal simulation."""
+    def __init__(self, mesh: Mesh, model: Thermal_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
+        """
+        Creates a thermal simulation.
+
+        Parameters
+        ----------
+        mesh : Mesh
+            The mesh the simulation will use.
+        model : IModel
+            The model used.
+        verbosity : bool, optional
+            If True, the simulation can write to the console. Defaults to False.
+        useNumba : bool, optional
+            If True, numba can be used. Defaults to True.
+        useIterativeSolvers : bool, optional
+            If True, iterative solvers can be used. Defaults to True.
+        """
 
         assert model.modelType == ModelType.thermal, "The material must be thermal model"
-        super().__init__(mesh, model, verbosity, useNumba)
+        super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
         self.Solver_Set_Elliptic_Algorithm()
@@ -3696,21 +3765,21 @@ class Simu_Thermal(_Simu):
 
         mesh = self.mesh
 
-        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        poid_pg = mesh.Get_weight_pg(matrixType)
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = mesh.Get_weight_pg(matrixType)
         N_e_pg = mesh.Get_N_pg(matrixType)
         D_e_pg = mesh.Get_dN_e_pg(matrixType)
         Ne = mesh.Ne
-        nPg = poid_pg.size
+        nPg = weight_pg.size
 
         k_e_pg = Reshape_variable(k, Ne, nPg)
 
-        Kt_e = np.einsum('ep,p,epji,ep,epjk->eik', jacobien_e_pg, poid_pg, D_e_pg, k_e_pg, D_e_pg, optimize="optimal")
+        Kt_e = np.einsum('ep,p,epji,ep,epjk->eik', jacobian_e_pg, weight_pg, D_e_pg, k_e_pg, D_e_pg, optimize="optimal")
 
         rho_e_pg = Reshape_variable(rho, Ne, nPg)
         c_e_pg = Reshape_variable(c, Ne, nPg)
 
-        Mt_e = np.einsum('ep,p,pji,ep,ep,pjk->eik', jacobien_e_pg, poid_pg, N_e_pg, rho_e_pg, c_e_pg, N_e_pg, optimize="optimal")
+        Mt_e = np.einsum('ep,p,pji,ep,ep,pjk->eik', jacobian_e_pg, weight_pg, N_e_pg, rho_e_pg, c_e_pg, N_e_pg, optimize="optimal")
 
         if self.dim == 2:
             epaisseur = thermalModel.thickness

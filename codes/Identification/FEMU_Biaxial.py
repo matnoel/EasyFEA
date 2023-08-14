@@ -147,7 +147,8 @@ tol = 1e-10
 
 Display.Section("Identification")
 
-simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
+# IMPORTANT : L'identification ne fonctionne pas si la simulation utilise un solveur itératif !
+simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif, useIterativeSolvers=False)
 
 def func(x):
     # Fonction coût

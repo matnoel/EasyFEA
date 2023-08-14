@@ -64,7 +64,7 @@ class ResolutionType(str, Enum):
     """Penalty"""
 
 def Solvers():
-    """Usable solvers"""
+    """Available solvers."""
 
     solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
     
@@ -151,7 +151,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         else:
             if simu.mesh.dim == 3 and simu.mesh.groupElem.order == 1:
                 pcType = 'ilu' # fast on displacement problem dont work for HEXA20 or PRISM15
-            else:                
+            else:
                 pcType = 'none'
         kspType = 'cg'
 

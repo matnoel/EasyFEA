@@ -159,7 +159,8 @@ u_exp = simu.Solve()
 
 Display.Section("Identification")
 
-simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
+# IMPORTANT : L'identification ne fonctionne pas si la simulation utilise un solveur itératif !
+simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif, useIterativeSolvers=False)
 
 def func(x):
     # Fonction coût
@@ -214,10 +215,12 @@ for perturbation in perturbations:
 
     for tirage in range(nTirage):
 
-        print(f"tirage = {tirage}", end='\r')        
+        print(f"tirage = {tirage+1}", end='\r')        
 
         # bruitage de la solution
-        bruit = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
+        # coefBruit = np.abs(u_exp).max()
+        coefBruit = np.abs(u_exp).mean()
+        bruit = coefBruit * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation        
         u_exp_bruit = u_exp + bruit
 
         if mat == "acier":
@@ -229,6 +232,7 @@ for perturbation in perturbations:
             compIdentif.Et = ET0
             compIdentif.vl = vL0
 
+        simuIdentif.Need_Update()
         simuIdentif.Bc_Init()
         
         if useRescale:
@@ -236,10 +240,11 @@ for perturbation in perturbations:
             # ici quand on bruite la solution le vecteur de force calculé n'est plus correct
             # l'indentifiacation en rescalant le vecteur ne peut donc pas fonctionner
             # il faut choisir l'option 2
+            # avec l'option 2 on fait l'hypothèse que l'on connait la répartition de la charge sur la surface supérieure est homogène
             
             # optionRescale = 0 # dirichlet x et neumann sur y haut
-            # optionRescale = 1 # dirichlet x,y bas et neumann x,y sur haut
-            optionRescale = 2 # dirichlet x,y bas, dirichlet x haut et surfload y haut
+            optionRescale = 1 # dirichlet x,y bas et neumann x,y sur haut
+            # optionRescale = 2 # dirichlet x,y bas, dirichlet x haut et surfload y haut
             
             K = simuIdentif.Get_K_C_M_F("displacement")[0]
 
@@ -251,21 +256,15 @@ for perturbation in perturbations:
             elif optionRescale == 1:
                 # prends les ddls suivant x et y
                 f_ddls = K[ddlsHautXY,:] @ u_exp_bruit
-                f_ddls = - f_ddls.reshape(-1,2)                
-                
-                # f_r = np.sum(f_ddls, 0)
-                # f_r = np.linalg.norm(f_r)
+                f_ddls = f_ddls.reshape(-1,2)
 
-                f_r = np.sum(f_ddls, 0)[1]
+                f_r = np.sum(-f_ddls, 0)[1] # force suivant y
 
             if optionRescale in [0, 1]:
-                # suuumm = np.sum(f_num_ddls[:,1])
 
                 correct = f / np.sum(f_r)
 
                 f_ddls *= correct
-
-                # suuumm = np.sum(f_num_ddls[:,1])
 
                 verifF =  np.sum(f_r*correct) - f
                 assert np.abs(verifF) <= 1e-10
@@ -331,8 +330,7 @@ for perturbation in perturbations:
         dict_perturbation["ET"] = df_tirage["ET"].values
         dict_perturbation["vL"] = df_tirage["vL"].values
 
-    list_dict_perturbation.append(dict_perturbation)
-    
+    list_dict_perturbation.append(dict_perturbation)        
 
 df_pertubation = pd.DataFrame(list_dict_perturbation)
 
