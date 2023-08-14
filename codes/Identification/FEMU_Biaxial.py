@@ -1,7 +1,7 @@
 from scipy.optimize import least_squares
 import pandas as pd
 
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import Point, PointsList, Circle
 import Display
 import Materials
@@ -27,9 +27,9 @@ h = 40
 r = (L-h)/2
 ep = 0.5
 
-meshSize = h/20
+meshSize = h/10
 
-pltMesh = False
+pltMesh = True
 
 # --------------------------------------
 # Mesh
@@ -52,7 +52,7 @@ contour = PointsList([pt1,pt2,pt3,pt4,pt5,pt6,pt7,pt8,pt9,pt10,pt11,pt12], meshS
 
 circle = Circle(Point(h/3, h/3), 10, meshSize, False)
 
-mesh = Interface_Gmsh(False, False).Mesh_2D(contour, [circle], "QUAD4")
+mesh = Interface_Gmsh(False, False).Mesh_2D(contour, [circle], ElemType.TRI3)
 
 if pltMesh:
     Display.Plot_Mesh(mesh)
@@ -199,7 +199,9 @@ for perturbation in perturbations:
         print(f"tirage = {tirage}", end='\r')        
 
         # bruitage de la solution
-        bruit = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
+        # coefBruit = np.abs(u_exp).max()
+        coefBruit = np.abs(u_exp).mean()
+        bruit = coefBruit * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
         u_exp_bruit = u_exp + bruit
 
         compIdentif.El = El0
@@ -208,15 +210,16 @@ for perturbation in perturbations:
         compIdentif.vl = vl0            
 
         simuIdentif.Bc_Init()
+
+        Add_Dirichlet(nodesLower, ['x','y'])
+        Add_Dirichlet(nodesUpper, ['x', 'y'])
+        Add_Dirichlet(nodesLeft, ['x','y'])
+        # Add_Dirichlet(nodesRight, ['x','y'])
         
-        simuIdentif.add_lineLoad(nodesRight, [fexp/h], ['x'])
-        simuIdentif.add_lineLoad(nodesUpper, [fexp/h], ['y'])
-
-        simuIdentif.add_lineLoad(nodesLeft, [-fexp/h], ['x'])
-        # Add_Dirichlet(nodesLeft, ['x','y'])
-
         # simuIdentif.add_lineLoad(nodesLower, [-fexp/h], ['y'])
-        Add_Dirichlet(nodesLower, ['x','y'])        
+        # simuIdentif.add_lineLoad(nodesUpper, [fexp/h], ['y'])
+        # simuIdentif.add_lineLoad(nodesLeft, [-fexp/h], ['x'])
+        simuIdentif.add_lineLoad(nodesRight, [fexp/h], ['x'])
 
         ddlsConnues, ddlsInconnues = simuIdentif.Bc_dofs_known_unknow(simuIdentif.problemType)        
 
