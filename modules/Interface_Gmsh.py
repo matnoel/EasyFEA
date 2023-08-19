@@ -943,9 +943,7 @@ class Interface_Gmsh:
             else:                
                 filledLoops.append(loop)
 
-        return hollowLoops, filledLoops
-
-    # TODO make the revolution around an axis
+        return hollowLoops, filledLoops    
 
     def Mesh_2D(self, contour: Geom, inclusions: list[Geom]=[], elemType=ElemType.TRI3, cracks=[], isOrganised=False, refineGeom=None, folder=""):
         """Build the 2D mesh by creating a surface from a Geom object
