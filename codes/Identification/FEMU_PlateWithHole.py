@@ -151,7 +151,6 @@ u_exp = simu.Solve()
 # Display.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
 # Display.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
 # Display.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
-# simu.Resultats_Resume()
 
 # ----------------------------------------------
 # Identification

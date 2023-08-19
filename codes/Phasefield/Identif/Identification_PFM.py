@@ -253,8 +253,7 @@ for idxEssai in range(0,18):
             # force résultante
             f = Kglob[ddlsY_Upper,:] @ u
             fr = - np.sum(f)/1000
-
-            # simu.Resultats_Set_Resume_Iteration(i, fr, "kN", fr/f_crit, True)
+            
             simu.Results_Set_Iteration_Summary(i, fr, "kN", 0, True)            
 
         if returnSimu:

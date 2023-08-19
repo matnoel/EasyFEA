@@ -83,7 +83,6 @@ f_exp = simu.Get_K_C_M_F()[0] @ u_exp_bruit
 # Display.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
 # Display.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
 # Display.Plot_Result(simu, u_exp_bruit.reshape((mesh.Nn,2))[:,1], title='uy bruit')
-# simu.Resultats_Resume()
 
 Display.Section("Identification")
 

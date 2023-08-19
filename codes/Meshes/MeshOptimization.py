@@ -7,7 +7,7 @@ import Display
 from Geom import *
 import Materials
 from Mesh import Mesh, Calc_projector, Calc_New_meshSize_n
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 import Simulations
 from TicTac import Tic
 
@@ -52,9 +52,9 @@ surfLoad = P / h / b  # N/mm2
 
 # Selecting the element type for the mesh
 if dim == 2:
-    elemType = "TRI3" # ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8"]
+    elemType = ElemType.TRI3 # ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
 else:
-    elemType = "PRISM6" # "TETRA4", "TETRA10", "HEXA8", "PRISM6"
+    elemType = ElemType.PRISM6 # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"
 
 # ----------------------------------------------
 # Meshing
@@ -62,8 +62,8 @@ else:
 
 # Choosing the part type (you can uncomment one of the parts)
 # part = "equerre"
-part = "lmt"
-# part = "other"
+# part = "lmt"
+part = "other"
 
 # Define the geometry based on the chosen part type
 if part == "equerre":
@@ -168,7 +168,7 @@ else:
 
             inclusions.append(obj)
 
-    # inclusions = []
+    inclusions = []
 
     if dim == 2:
 
@@ -311,13 +311,12 @@ if i > 0:
 
 # folder=""
 if plotResult:
-    tic = Tic()
-    # simu.Resultats_Resume(True)
+    tic = Tic()    
     # Display.Plot_Result(simu, "amplitude")
     # Display.Plot_Mesh(simu, deformation=True, folder=folder)
-    Display.Plot_Result(simu, "ux", deformation=True, nodeValues=False)        
-    Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=True, nodeValues=False)
-    Display.Plot_Result(simu, "ZZ1", deformation=False, plotMesh=True)
+    Display.Plot_Result(simu, "ux", nodeValues=False)        
+    Display.Plot_Result(simu, "Svm", plotMesh=True, nodeValues=False)
+    Display.Plot_Result(simu, "ZZ1", plotMesh=True)
     # Display.Plot_Mesh(mesh, alpha=0, edgecolor='white', ax=plt.gca())
     # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
 
