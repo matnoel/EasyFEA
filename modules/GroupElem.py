@@ -125,9 +125,9 @@ class GroupElem(ABC):
         self.__dict_dNv_e_pg = {}
         self.__dict_ddNv_e_pg = {}
         self.__dict_ddN_e_pg = {}
-        self.__dict_F_e_pg = {}                
-        self.__dict_invF_e_pg = {}                
-        self.__dict_jacobian_e_pg = {}   
+        self.__dict_F_e_pg = {}
+        self.__dict_invF_e_pg = {}
+        self.__dict_jacobian_e_pg = {}
         self.__dict_B_e_pg = {}
         self.__dict_leftDispPart = {}
         self.__dict_phaseField_ReactionPart_e_pg = {}
@@ -136,6 +136,11 @@ class GroupElem(ABC):
 
     ################################################ METHODS ##################################################
     
+    @property
+    def gmshId(self) -> int:
+        """Gmsh Id"""
+        return self.__gmshId
+
     @property
     def elemType(self) -> ElemType:
         """Element type"""
