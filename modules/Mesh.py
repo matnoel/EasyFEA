@@ -131,6 +131,11 @@ class Mesh:
     def connect(self) -> np.ndarray:
         """Connectivity matrix (Ne, nPe)"""
         return self.groupElem.connect
+    
+    @property
+    def verbosity(self) -> bool:
+        """The mesh can write to the console"""
+        return self.__verbosity
 
     def Get_connect_n_e(self) -> sp.csr_matrix:
         """Sparse matrix of zeros and ones with ones when the node has the element either
@@ -469,7 +474,6 @@ class Mesh:
         """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol)
 
-
 def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarray:
     """Returns the scalar field (at nodes) to be used to refine the mesh.
 
@@ -554,9 +558,52 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     return mat
 
-def main():
-    # You can write your test code here to verify if everything is working as expected.
-    pass
+def Get_new_mesh(mesh: Mesh, displacementMatrix: np.ndarray) -> Mesh:
+    """Builds a new mesh by updating node coordinates with the displacement vector.
 
-if __name__ == "__main__":
-    main()
+    Parameters
+    ----------
+    mesh : Mesh
+        old mesh
+    displacementMatrix : np.ndarray
+        displacement matrix
+
+    Returns
+    -------
+    Mesh
+        new mesh
+    """
+
+    # check that the displacement field as good dimension
+    assert mesh.coordoGlob.size == displacementMatrix.size, f"You must give a displacement vector field of shape : {mesh.coordoGlob.shape}"    
+
+    from GroupElem import GroupElem_Factory
+
+    # new mesh coordinates
+    newCoordo = mesh.coordoGlob + displacementMatrix
+
+    # for each groupElem update the nodes coordinates
+    dict_groupElem = mesh.dict_groupElem
+    new_dict_groupElem = {}
+
+    for elemType in dict_groupElem.keys():
+        
+        # get old groupElem
+        old_groupElem = dict_groupElem[elemType]
+
+        # get data to create the new one
+        gmshId = old_groupElem.gmshId
+        connect = old_groupElem.connect
+        nodes = old_groupElem.nodes
+        
+        # new groupElem
+        new_groupElem = GroupElem_Factory.Create_GroupElem(gmshId, connect, newCoordo, nodes)
+        
+        # add the elements and nodes tag
+        [new_groupElem.Set_Elements_Tag(old_groupElem.Get_Nodes_Tag(tag), tag) for tag in old_groupElem.elementTags]
+        [new_groupElem.Set_Nodes_Tag(old_groupElem.Get_Nodes_Tag(tag), tag) for tag in old_groupElem.nodeTags]
+
+        # add to the dictionnary
+        new_dict_groupElem[elemType] = new_groupElem
+
+    return Mesh(new_dict_groupElem, mesh.verbosity)
