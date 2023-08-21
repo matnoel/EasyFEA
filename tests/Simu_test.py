@@ -126,7 +126,7 @@ class Test_Simu(unittest.TestCase):
             if beamStruct.dim > 1:
                 Display.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
                 PlotAndDelete()
-                Display.Plot_Mesh(simu, deformation=True, facteurDef=10)
+                Display.Plot_Mesh(simu, deformation=True, factorDef=10)
                 PlotAndDelete()
 
         

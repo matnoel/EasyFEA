@@ -143,7 +143,7 @@ Display.Plot_BoundaryConditions(simu)
 Display.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
 if beamStructure.dim > 1:
     Display.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
-    Display.Plot_Mesh(simu, deformation=True, facteurDef=10)
+    Display.Plot_Mesh(simu, deformation=True, factorDef=10)
 
 # Display section for results
 Display.Section("Resultats")

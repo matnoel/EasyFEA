@@ -8,8 +8,8 @@ from Geom import Point, PointsList, Domain, Circle
 Display.Clear()
 
 dim = 3
-model = 1 # symmetric
-# model = 2 # total
+# model = 1 # symmetric
+model = 2 # total
 
 a = 10
 l = 50

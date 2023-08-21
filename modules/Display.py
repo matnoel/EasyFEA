@@ -333,7 +333,7 @@ def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coe
     # Returns figure, axis and colorbar
     return fig, ax, cb
     
-def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None, lw=0.5, alpha=1.0, facecolors='c', edgecolor='black') -> plt.Axes:
+def Plot_Mesh(obj, deformation=False, factorDef=4, folder="", title="", ax=None, lw=0.5, alpha=1.0, facecolors='c', edgecolor='black') -> plt.Axes:
     """Plot the mesh.
 
     Parameters
@@ -374,7 +374,7 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     else:
         raise Exception("Must be a simulation or mesh.")
     
-    assert facteurDef > 1, "The deformation factor must be >= 1"
+    assert factorDef > 0, "The deformation factor must be > 0"
 
     coordo = mesh.coordoGlob
 
@@ -384,7 +384,7 @@ def Plot_Mesh(obj, deformation=False, facteurDef=4, folder="", title="", ax=None
     inDim = 3 if use3DBeamModel else mesh.groupElem.inDim
     coordo = coordo[:,range(inDim)]
     if deformation:
-        coordoDeforme, deformation = __GetCoordo(simu, deformation, facteurDef)
+        coordoDeforme, deformation = __GetCoordo(simu, deformation, factorDef)
         coordoDeforme = coordoDeforme[:,range(inDim)]    
 
     # Dimensions of displayed elements
