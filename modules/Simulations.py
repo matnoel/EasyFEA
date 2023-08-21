@@ -2026,6 +2026,9 @@ class Simu_Displacement(_Simu):
         Svm = self.Get_Result("Svm", nodeValues=False)
         summary += f"\n\nSvm max = {Svm.max():.2f}"
 
+        Evm = self.Get_Result("Evm", nodeValues=False)
+        summary += f"\n\nEvm max = {Evm.max()*100:3.2f} %"
+
         # Affichage des déplacements
         dx = self.Get_Result("ux", nodeValues=True)
         summary += f"\n\nUx max = {dx.max():.2e}"
