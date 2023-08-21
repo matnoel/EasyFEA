@@ -1505,12 +1505,12 @@ class Simu_Displacement(_Simu):
         return results
 
     def Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
-        if details:
-            nodesField = ["matrix_displacement", "speed", "accel"]
+        nodesField = ["matrix_displacement"]
+        if details:            
             elementsField = ["Stress", "Strain"]
-        else:
-            nodesField = ["matrix_displacement", "speed", "accel"]
-            elementsField = ["Stress"]                        
+        else:            
+            elementsField = ["Stress"]
+        if self.algo == AlgoType.hyperbolic: nodesField.extend(["speed", "accel"])
         return nodesField, elementsField
     
     def Get_directions(self, problemType=None) -> list[str]:

@@ -795,8 +795,8 @@ class GroupElem(ABC):
 
             # test = np.linalg.det(F_e_pg) - jacobien_e_pg
 
-            # self.__dict_jacobien_e_pg[matrixType] = jacobien_e_pg
-            self.__dict_jacobian_e_pg[matrixType] = np.abs(jacobien_e_pg)
+            self.__dict_jacobian_e_pg[matrixType] = jacobien_e_pg
+            # self.__dict_jacobian_e_pg[matrixType] = np.abs(jacobien_e_pg)
 
         return self.__dict_jacobian_e_pg[matrixType].copy()
     
