@@ -359,6 +359,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     pcType : str, optional
         preconditioner, by default 'ilu'\n
         "ilu", "none", "bjacobi", 'icc', "lu", "jacobi", "cholesky"\n
+        # TODO iluk ?
         more -> https://petsc.org/release/manualpages/PC/PCType/\n
         remark : The ilu preconditioner does not seem to work for systems using HEXA20 elements.    
 
