@@ -33,7 +33,7 @@ f = 0.4
 
 r = 1 * np.sqrt(f/np.pi)
 
-inclusion = Circle(Point(), 2*r, meshSize, isHollow=False)
+inclusion = Circle(Point(), 2*r, meshSize, isHollow=True)
 
 # e = 1/6
 # l = 1-(2*e)
@@ -78,10 +78,12 @@ elementsMatrice = mesh.Elements_Tags(["S0"])
 E = np.zeros_like(mesh.groupElem.elements, dtype=float)
 v = np.zeros_like(mesh.groupElem.elements, dtype=float)
 
-E[elementsInclusion] = 50
+if elementsInclusion.size > 0:
+    E[elementsInclusion] = 50
 E[elementsMatrice] = 1
 
-v[elementsInclusion] = 0.3
+if elementsInclusion.size > 0:
+    v[elementsInclusion] = 0.3
 v[elementsMatrice] = 0.45
 
 # E[:] = 50
@@ -190,9 +192,9 @@ B_e_pg = mesh.Get_B_e_pg(matrixType)
 
 C_Mat = Materials.Reshape_variable(comp.C, mesh.Ne, poids_pg.size)
 
-C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobien_e_pg, poids_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1/mesh.area
-
-# TODO attention ici il faut utiliser toute l'ai meme si il y'a des trous remarques ZAKARIA
+# Attention ici il faut utiliser toute l'ai meme si il y'a des trous remarques ZAKARIA confirmer par saad
+area = 1
+C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobien_e_pg, poids_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1 / area
 
 
 print(f"f = {f}")

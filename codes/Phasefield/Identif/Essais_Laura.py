@@ -1,6 +1,6 @@
 import Display
 from Geom import Point, PointsList, Circle, Domain, normalize_vect
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 import Materials
 import Simulations
 import Folder
@@ -60,10 +60,10 @@ pC = Point(L/2, H-h); pc = pC.coordo
 circle = Circle(pC, d, clC, True)
 
 if dim == 2:
-    mesh = Interface_Gmsh().Mesh_2D(contour, [circle], "TRI6", refineGeom=refineGeom)
+    mesh = Interface_Gmsh().Mesh_2D(contour, [circle], ElemType.TRI6, refineGeom=refineGeom)
     directions = ['x','y']
 else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-ep], 3, "HEXA8", refineGeom=refineGeom)
+    mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-ep], 3, ElemType.PRISM6, refineGeom=refineGeom)
     directions = ['x','y','z']
 
 print(mesh)
@@ -122,7 +122,8 @@ elif loadType == 1:
     print(f"errSurf = {np.abs(surf-aire)/surf:.3e}")
 
     def FuncEval(x: np.ndarray, y: np.ndarray, z: np.ndarray):
-        """Evaluation de la fonction sig cos(theta)^2 vect_n"""
+        """Evaluation de la fonction sig cos(theta)^2 vect_n\n
+        x,y,z (ep)"""
         
         # Calcul de l'angle
         theta = np.arctan((x-pc[0])/(y-pc[1]))
@@ -131,7 +132,7 @@ elif loadType == 1:
         coord = np.zeros((x.shape[0],x.shape[1],3))
         coord[:,:,0] = x
         coord[:,:,1] = y
-        coord[:,:,2] = z
+        coord[:,:,2] = 0
 
         # Construction du vecteur normal
         vect = coord - pc
