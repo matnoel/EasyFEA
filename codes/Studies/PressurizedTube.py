@@ -23,7 +23,7 @@ e = 5
 sig = 5 # bar
 sig *= 1e-1 # 1 bar = 0.1 MPa 
 
-meshSize = e/10
+meshSize = e/5
 thickness = 100
 
 center = Point()
@@ -48,11 +48,12 @@ elif model == 2:
 
 extrude = [0,0,-thickness]
 
-l = e/5
+l = e/4
 p = r+e/2
 alpha = np.pi/3
 pc1 = Point((p-l/2)*np.cos(alpha), (p-l/2)*np.sin(alpha))
 pc2 = Point((p+l/2)*np.cos(alpha), (p+l/2)*np.sin(alpha))
+
 crack = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
 
 if dim == 2:
@@ -76,17 +77,16 @@ def FuncEval(x: np.ndarray, y: np.ndarray, z: np.ndarray):
     """Evaluation de la fonction sig vect_n\n
     x,y,z (ep)"""
 
-    # Coordonnées des points de gauss sous forme de matrice
+    # Gauss point coordinates in form (Ne, nPg, 3)
     coord = np.zeros((x.shape[0], x.shape[1], 3))
     coord[:,:,0] = x
     coord[:,:,1] = y
     coord[:,:,2] = 0
 
-    # Construction du vecteur normal
+    # Construction of the normal vector to the inner surface
     vect = coord - center.coordo
     vectN = np.einsum('npi,np->npi', vect, 1/np.linalg.norm(vect, axis=2))
-    
-    # Chargement
+   
     loads = sig * vectN
 
     return loads
@@ -101,11 +101,10 @@ simu.Save_Iter()
 
 factorDef = r/5 / simu.Get_Result('amplitude').max()
 
-Display.Plot_Model(mesh, alpha=0)
+# Display.Plot_Model(mesh, alpha=0)
 Display.Plot_BoundaryConditions(simu)
 
 Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=True, deformation=True, factorDef=factorDef, plotMesh=True)
-Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=False, deformation=True, factorDef=factorDef)
 Display.Plot_Result(simu, 'ux', nColors=10, nodeValues=True)
 Display.Plot_Result(simu, 'uy', nColors=10, nodeValues=True)
 

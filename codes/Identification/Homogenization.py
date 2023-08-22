@@ -27,21 +27,21 @@ pts = [p0, p1, p2, p3]
 
 meshSize = 1/30
 
-points = PointsList(pts, meshSize, isHollow=False)
+contour = PointsList(pts, meshSize)
 
 f = 0.4
 
 r = 1 * np.sqrt(f/np.pi)
 
-inclusion = Circle(Point(), 2*r, meshSize, isHollow=True)
+inclusion = Circle(Point(), 2*r, meshSize, isHollow=False)
 
 # e = 1/6
 # l = 1-(2*e)
 # inclusion = Domain(Point(-e, -l/2), Point(e, l/2), meshSize)
 
-gmshInterface = Interface_Gmsh(False, False)
+gmshInterface = Interface_Gmsh()
 
-mesh = gmshInterface.Mesh_2D(points, [inclusion], "TRI6")
+mesh = gmshInterface.Mesh_2D(contour, [inclusion], "TRI6")
 
 coordo = mesh.coordoGlob
 
@@ -78,13 +78,12 @@ elementsMatrice = mesh.Elements_Tags(["S0"])
 E = np.zeros_like(mesh.groupElem.elements, dtype=float)
 v = np.zeros_like(mesh.groupElem.elements, dtype=float)
 
-if elementsInclusion.size > 0:
-    E[elementsInclusion] = 50
 E[elementsMatrice] = 1
+v[elementsMatrice] = 0.45
 
 if elementsInclusion.size > 0:
+    E[elementsInclusion] = 50
     v[elementsInclusion] = 0.3
-v[elementsMatrice] = 0.45
 
 # E[:] = 50
 # v[:] = 0.3
@@ -186,16 +185,20 @@ U_e = np.zeros((u11_e.shape[0],u11_e.shape[1], 3))
 U_e[:,:,0] = u11_e; U_e[:,:,1] = u22_e; U_e[:,:,2] = u12_e
 
 matrixType = "mass"
-jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-poids_pg = mesh.Get_weight_pg(matrixType)
+jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+weight_pg = mesh.Get_weight_pg(matrixType)
 B_e_pg = mesh.Get_B_e_pg(matrixType)
 
-C_Mat = Materials.Reshape_variable(comp.C, mesh.Ne, poids_pg.size)
+C_Mat = Materials.Reshape_variable(comp.C, mesh.Ne, weight_pg.size)
 
-# Attention ici il faut utiliser toute l'ai meme si il y'a des trous remarques ZAKARIA confirmer par saad
-area = 1
-C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobien_e_pg, poids_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1 / area
+# Be careful here you have to use all the air even if there are holes remarks ZAKARIA confirmed by saad
+# area = 1
+area = mesh.area
+# if you use the mesh area, multiply C_hom by the porosity (1-f)
+C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobian_e_pg, weight_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1 / area
 
+if inclusion.isHollow and area != 1:
+    C_hom *= (1-f)
 
 print(f"f = {f}")
 print(f"c1111 = {C_hom[0,0]}")

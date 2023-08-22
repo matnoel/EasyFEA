@@ -993,31 +993,31 @@ class _Simu(ABC):
 
         return dofsKnown, dofsUnknown    
 
-    def __Bc_evaluate(self, coordo: np.ndarray, valeurs, option="nodes") -> np.ndarray:
+    def __Bc_evaluate(self, coordo: np.ndarray, values, option="nodes") -> np.ndarray:
         """Evaluates values at nodes or gauss points."""
         
         assert option in ["nodes","gauss"], f"Must be in ['nodes','gauss']"
         if option == "nodes":
-            valeurs_eval = np.zeros(coordo.shape[0])
+            values_eval = np.zeros(coordo.shape[0])
         elif option == "gauss":
-            valeurs_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
+            values_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
         
-        if isinstance(valeurs, LambdaType):
+        if isinstance(values, LambdaType):
             # Evaluates function at coordinates   
             try:
                 if option == "nodes":
-                    valeurs_eval[:] = valeurs(coordo[:,0], coordo[:,1], coordo[:,2])
+                    values_eval[:] = values(coordo[:,0], coordo[:,1], coordo[:,2])
                 elif option == "gauss":
-                    valeurs_eval[:,:] = valeurs(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
+                    values_eval[:,:] = values(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
             except:
                 raise Exception("Must provide a lambda function of the form\n lambda x,y,z, : f(x,y,z)")
         else:            
             if option == "nodes":
-                valeurs_eval[:] = valeurs
+                values_eval[:] = values
             elif option == "gauss":
-                valeurs_eval[:,:] = valeurs
+                values_eval[:,:] = values
 
-        return valeurs_eval
+        return values_eval
     
     def add_dirichlet(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
         """Add dirichlet conditions.
@@ -1064,9 +1064,9 @@ class _Simu(ABC):
         dofsValues = dofsValues_dir.reshape(-1)
 
         dof_n = self.Get_dof_n(problemType)
-        ddls = BoundaryCondition.Get_dofs_nodes(dof_n, problemType, nodes, directions)
+        dofs = BoundaryCondition.Get_dofs_nodes(dof_n, problemType, nodes, directions)
 
-        self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, ddls, directions, description)
+        self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_neumann(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
         """Point force
@@ -1096,9 +1096,9 @@ class _Simu(ABC):
 
         self.__Check_ProblemTypes(problemType)
 
-        valeurs_ddls, ddls = self.__Bc_pointLoad(problemType, nodes, values, directions)
+        dofsValues, dofs = self.__Bc_pointLoad(problemType, nodes, values, directions)
 
-        self.__Bc_Add_Neumann(problemType, nodes, valeurs_ddls, ddls, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
         
     def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
         """Apply a linear force.
@@ -1128,9 +1128,9 @@ class _Simu(ABC):
 
         self.__Check_ProblemTypes(problemType)
 
-        valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, nodes, values, directions)
+        dofsValues, dofs = self.__Bc_lineLoad(problemType, nodes, values, directions)
 
-        self.__Bc_Add_Neumann(problemType, nodes, valeurs_ddls, ddls, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
         """Apply a surface force
@@ -1161,13 +1161,13 @@ class _Simu(ABC):
         self.__Check_ProblemTypes(problemType)
             
         if self.__dim == 2:
-            valeurs_ddls, ddls = self.__Bc_lineLoad(problemType, nodes, values, directions)
+            dofsValues, dofs = self.__Bc_lineLoad(problemType, nodes, values, directions)
             # multiplied by thickness
-            valeurs_ddls *= self.model.thickness
+            dofsValues *= self.model.thickness
         elif self.__dim == 3:
-            valeurs_ddls, ddls = self.__Bc_surfload(problemType, nodes, values, directions)
+            dofsValues, dofs = self.__Bc_surfload(problemType, nodes, values, directions)
 
-        self.__Bc_Add_Neumann(problemType, nodes, valeurs_ddls, ddls, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
         """Apply a volumetric force.
@@ -1198,13 +1198,13 @@ class _Simu(ABC):
         self.__Check_ProblemTypes(problemType)
         
         if self.__dim == 2:
-            valeurs_ddls, ddls = self.__Bc_surfload(problemType, nodes, values, directions)
+            dofsValues, dofs = self.__Bc_surfload(problemType, nodes, values, directions)
             # multiplied by thickness
-            valeurs_ddls = valeurs_ddls*self.model.thickness
+            dofsValues = dofsValues*self.model.thickness
         elif self.__dim == 3:
-            valeurs_ddls, ddls = self.__Bc_volumeload(problemType, nodes, values, directions)
+            dofsValues, dofs = self.__Bc_volumeload(problemType, nodes, values, directions)
 
-        self.__Bc_Add_Neumann(problemType, nodes, valeurs_ddls, ddls, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
     
     def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
         """Apply a linear force."""
@@ -1271,9 +1271,9 @@ class _Simu(ABC):
                 # evaluates values
                 eval_e_p = self.__Bc_evaluate(coordo_e_p, values[d], option="gauss")
                 # integrates the elements
-                valeurs_e_p = np.einsum('ep,p,ep,pij->epij', jacobian_e_pg, weight_pg, eval_e_p, N_pg, optimize='optimal')
+                values_e_p = np.einsum('ep,p,ep,pij->epij', jacobian_e_pg, weight_pg, eval_e_p, N_pg, optimize='optimal')
                 # sum over integration points
-                values_e = np.sum(valeurs_e_p, axis=1)
+                values_e = np.sum(values_e_p, axis=1)
                 # sets calculated values and dofs
                 values_dofs_dir[:,d] = values_e.reshape(-1)
                 new_dofs[:,d] = BoundaryCondition.Get_dofs_nodes(dof_n, problemType, connect.reshape(-1), directions[d])
