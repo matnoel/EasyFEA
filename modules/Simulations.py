@@ -1377,6 +1377,8 @@ class _Simu(ABC):
 
     def _Bc_Add_LagrangeDisplay(self, nodes: np.ndarray, directions: list[str], description: str) -> None:
         """Add Lagrange conditions for display"""
+
+        # TODO dont work
         
         dof_n = self.Get_dof_n(self.problemType)        
         # Takes the first node of the link

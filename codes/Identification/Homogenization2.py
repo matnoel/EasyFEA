@@ -10,7 +10,7 @@ Display.Clear()
 np = Display.np
 
 # use Periodic boundary conditions ?
-usePER = False
+usePER = True
 
 # --------------------------------------
 # Mesh
