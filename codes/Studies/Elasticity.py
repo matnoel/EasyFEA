@@ -39,7 +39,7 @@ if simulationType == SimulationType.CPEF:
     # For CPEF simulation, set specific parameters
     dim = 3
     h = 1
-    stpFile = Folder.Join([Folder.Get_Path(), "3Dmodels", "CPEF.stp"])
+    stpFile = Folder.Join([Folder.Get_Path(), "codes", "_parts_and_meshes", "CPEF.stp"])
     mesh = interface.Mesh_Import_part(stpFile, 5, ElemType.TETRA4)
     noeuds134 = mesh.Nodes_Tags(['S134'])
 
@@ -47,7 +47,7 @@ if simulationType == SimulationType.CPEF:
     simu = Simulations.Simu_Displacement(mesh, material)
 
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: z == 0), [0, 0, 0], ['x', 'y', 'z'])
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: z < -50), [2], ["z"])
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: z < -50), [1], ["z"])
 
 elif simulationType == SimulationType.EQUERRE:
     # For EQUERRE simulation, set specific parameters

@@ -13,12 +13,13 @@ plt = Display.plt
 
 Display.Clear()
 
-# use PER boundary conditions ?
+# use Periodic boundary conditions ?
 usePER = True 
 
 # --------------------------------------
 # Mesh
 # --------------------------------------
+
 p0 = Point(-1/2, -1/2)
 p1 = Point(1/2, -1/2)
 p2 = Point(1/2, 1/2)
@@ -35,10 +36,6 @@ r = 1 * np.sqrt(f/np.pi)
 
 inclusion = Circle(Point(), 2*r, meshSize, isHollow=False)
 
-# e = 1/6
-# l = 1-(2*e)
-# inclusion = Domain(Point(-e, -l/2), Point(e, l/2), meshSize)
-
 gmshInterface = Interface_Gmsh()
 
 mesh = gmshInterface.Mesh_2D(contour, [inclusion], "TRI6")
@@ -49,50 +46,53 @@ Display.Plot_Mesh(mesh)
 Display.Plot_Model(mesh)
 
 nodesLeft = mesh.Nodes_Conditions(lambda x,y,z: x==-1/2)
+# sort by y and exclude first and last nodes
 nodesLeft = nodesLeft[np.argsort(coordo[nodesLeft,1])][1:-1]
 
 nodesRight = mesh.Nodes_Conditions(lambda x,y,z: x==1/2)
+# sort by y and exclude first and last nodes
 nodesRight = nodesRight[np.argsort(coordo[nodesRight,1])][1:-1]
 
 nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: y==1/2)
+# sort by x and exclude first and last nodes
 nodesUpper = nodesUpper[np.argsort(coordo[nodesUpper,0])][1:-1]
 
 nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==-1/2)
+# sort by x and exclude first and last nodes
 nodesLower = nodesLower[np.argsort(coordo[nodesLower,0])][1:-1]
 
 nodesB0 = np.concatenate((nodesLower, nodesLeft))
 nodesB1 = np.concatenate((nodesUpper, nodesRight))
 
+assert nodesB0.size == nodesB1.size, 'Edges must contain the same number of nodes.'
+
 if usePER:
-    nodesBord = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
+    nodes_border = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
 else:
-    nodesBord = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+    nodes_border = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
 # --------------------------------------
 # Model and simu
 # --------------------------------------
 
-elementsInclusion = mesh.Elements_Tags(["S1"])
-elementsMatrice = mesh.Elements_Tags(["S0"])
+elements_inclusion = mesh.Elements_Tags(["S1"])
+elements_matrix = mesh.Elements_Tags(["S0"])
 
 E = np.zeros_like(mesh.groupElem.elements, dtype=float)
 v = np.zeros_like(mesh.groupElem.elements, dtype=float)
 
-E[elementsMatrice] = 1
-v[elementsMatrice] = 0.45
+E[elements_matrix] = 1 # MPa
+v[elements_matrix] = 0.45
 
-if elementsInclusion.size > 0:
-    E[elementsInclusion] = 50
-    v[elementsInclusion] = 0.3
+if elements_inclusion.size > 0:
+    E[elements_inclusion] = 50
+    v[elements_inclusion] = 0.3
 
-# E[:] = 50
-# v[:] = 0.3
+material = Materials.Elas_Isot(2, E, v, planeStress=False)
 
-comp = Materials.Elas_Isot(2, E, v, planeStress=False)
+simu = Simulations.Simu_Displacement(mesh, material, useNumba=True)
 
-simu = Simulations.Simu_Displacement(mesh, comp, useNumba=True)
-
-Display.Plot_Result(simu, E, nodeValues=False, title="E")
+Display.Plot_Result(simu, E, nodeValues=False, title="E [MPa]")
 Display.Plot_Result(simu, v, nodeValues=False, title="v")
 
 # --------------------------------------
@@ -104,15 +104,17 @@ E11 = np.array([[1, 0],[0, 0]])
 E22 = np.array([[0, 0],[0, 1]])
 E12 = np.array([[0, 1/r2],[1/r2, 0]])
 
-def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
+def Calc_ukl(Ekl: np.ndarray, pltSol=False):
 
     simu.Bc_Init()
 
-    simu.add_dirichlet(nodesBord, [lambda x, y, z: Ekl.dot([x, y])[0], lambda x, y, z: Ekl.dot([x, y])[1]], ["x","y"])    
+    func_ux = lambda x, y, z: Ekl.dot([x, y])[0]
+    func_uy = lambda x, y, z: Ekl.dot([x, y])[1]
+    simu.add_dirichlet(nodes_border, [func_ux, func_uy], ["x","y"])
 
     if usePER:        
         
-        # impose que le champ u soit à moyenne nulle
+        # requires the u field to have zero mean
         useMean0 = False
 
         for n0, n1 in zip(nodesB0, nodesB1):
@@ -126,8 +128,6 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
                 
                 values = Ekl @ [coordo[n0,0]-coordo[n1,0], coordo[n0,1]-coordo[n1,1]]
                 value = values[0] if direction == "x" else values[1]
-
-                # value = 0
 
                 condition = LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
                 simu._Bc_Add_Lagrange(condition)
@@ -145,11 +145,9 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
             # sum v_i / Nn = 0
             ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"])        
             condition = LagrangeCondition("displacement", nodes, ddls, ["y"], [0], [vect])
-            simu._Bc_Add_Lagrange(condition)
+            simu._Bc_Add_Lagrange(condition)            
 
     # Display.Plot_BoundaryConditions(simu)
-
-    pass
 
     ukl = simu.Solve()
 
@@ -168,9 +166,9 @@ def CalcDisplacement(Ekl: np.ndarray, pltSol=False):
 
     return ukl
 
-u11 = CalcDisplacement(E11, False)
-u22 = CalcDisplacement(E22, False)
-u12 = CalcDisplacement(E12, True)
+u11 = Calc_ukl(E11, False)
+u22 = Calc_ukl(E22, False)
+u12 = Calc_ukl(E12, True)
 
 u11_e = mesh.Locates_sol_e(u11)
 u22_e = mesh.Locates_sol_e(u22)
@@ -189,7 +187,7 @@ jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
 weight_pg = mesh.Get_weight_pg(matrixType)
 B_e_pg = mesh.Get_B_e_pg(matrixType)
 
-C_Mat = Materials.Reshape_variable(comp.C, mesh.Ne, weight_pg.size)
+C_Mat = Materials.Reshape_variable(material.C, mesh.Ne, weight_pg.size)
 
 # Be careful here you have to use all the air even if there are holes remarks ZAKARIA confirmed by saad
 # area = 1
@@ -199,6 +197,8 @@ C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobian_e_pg, weight_pg, C_Mat, B_e
 
 if inclusion.isHollow and area != 1:
     C_hom *= (1-f)
+
+# Display.Plot_BoundaryConditions(simu)
 
 print(f"f = {f}")
 print(f"c1111 = {C_hom[0,0]}")
