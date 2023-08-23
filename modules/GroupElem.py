@@ -2,8 +2,6 @@
 
 from abc import ABC, abstractmethod, abstractproperty
 from enum import Enum
-from typing import cast
-from types import LambdaType
 
 from Geom import *
 from Gauss import Gauss
@@ -102,7 +100,7 @@ class GroupElem(ABC):
         # Noeuds
         self.__nodes = nodes
         self.__coordoGlob = coordoGlob
-        self.__coordo = cast(np.ndarray, coordoGlob[nodes])
+        self.__coordo = np.asarray(coordoGlob[nodes])
         
         if self.elemType in GroupElem.get_Types3D():
             self.__inDim = 3
@@ -1105,13 +1103,13 @@ class GroupElem(ABC):
 
         return elements
 
-    def Get_Nodes_Conditions(self, lambdaFunction: LambdaType) -> np.ndarray:
+    def Get_Nodes_Conditions(self, func) -> np.ndarray:
         """Returns nodes that meet the specified conditions.
 
         Parameters
         ----------
-        lambdaFunction : LambdaType
-            Function using the x, y and z nodes coordinates and returning a boolean value.
+        func
+            Function using the x, y and z nodes coordinates and returning boolean values.
 
             examples :
             \t lambda x, y, z: (x < 40) & (x > 20) & (y<10) \n
@@ -1131,7 +1129,7 @@ class GroupElem(ABC):
         zn = coordo[:,2]        
 
         try:
-            arrayTest = np.asarray(lambdaFunction(xn, yn, zn))
+            arrayTest = np.asarray(func(xn, yn, zn))
             if arrayTest.dtype == bool:
                 idx = np.where(arrayTest)[0]
                 return self.__nodes[idx].copy()

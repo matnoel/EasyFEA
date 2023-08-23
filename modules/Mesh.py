@@ -2,7 +2,6 @@
 
 import numpy as np
 import scipy.sparse as sp
-from types import LambdaType
 
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatrixType
@@ -396,13 +395,13 @@ class Mesh:
 
     # Node recovery
 
-    def Nodes_Conditions(self, lambdaFunction: LambdaType) -> np.ndarray:
+    def Nodes_Conditions(self, func) -> np.ndarray:
         """Returns nodes that meet the specified conditions.
 
         Parameters
         ----------
-        lambdaFunction : LambdaType
-            Function using the x, y and z nodes coordinates and returning a boolean value.
+        func : function 
+            Function using the x, y and z nodes coordinates and returning boolean values.
 
             examples :
             \t lambda x, y, z: (x < 40) & (x > 20) & (y<10) \n
@@ -414,7 +413,7 @@ class Mesh:
         np.ndarray
             nodes that meet the specified conditions.
         """
-        return self.groupElem.Get_Nodes_Conditions(lambdaFunction)
+        return self.groupElem.Get_Nodes_Conditions(func)
 
     def Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""

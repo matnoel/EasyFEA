@@ -1333,6 +1333,7 @@ class Interface_Gmsh:
         
         # Builds physical groups
         physicalGroups = gmsh.model.getPhysicalGroups()
+        createTags = len(physicalGroups) > 0
         pgArray = np.array(physicalGroups)
         # To be optimized
         physicalGroupsPoint = []; namePoint = []
@@ -1340,48 +1341,49 @@ class Interface_Gmsh:
         physicalGroupsSurf = []; nameSurf = []
         physicalGroupsVol = []; nameVol = []
 
-        nbPhysicalGroup = 0
-
-        def __name(dim: int, n: int) -> str:
-            # Builds entity name
-            name = f"{Interface_Gmsh.__dict_name_dim[dim]}{n}"
-            return name
+        nbPhysicalGroup = 0        
         
-        for dim in range(pgArray[:,0].max()+1):
-            # For each dimension available in the physical groups.
-            
-            # We retrieve the entities of the dimension
-            indexDim = np.where(pgArray[:,0] == dim)[0]
-            listTupleDim = tuple(map(tuple, pgArray[indexDim]))
-            nbEnti = indexDim.size
+        if createTags:
+            def __name(dim: int, n: int) -> str:
+                # Builds entity name
+                name = f"{Interface_Gmsh.__dict_name_dim[dim]}{n}"
+                return name
 
-            # Depending on the dimension of the entities, we'll give them names
-            # Then we'll add the entity tuples (dim, tag) to the PhysicalGroup list associated with the dimension.
-            if dim == 0:
-                namePoint.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                nbEnti = len(namePoint)
-                physicalGroupsPoint.extend(listTupleDim)
-            elif dim == 1:
-                nameLine.extend([__name(dim, n) for n in range(nbEnti)])
-                nbEnti = len(nameLine)
-                physicalGroupsLine.extend(listTupleDim)
-            elif dim == 2:
-                nameSurf.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                nbEnti = len(nameSurf)
-                physicalGroupsSurf.extend(listTupleDim)
-            elif dim == 3:
-                nameVol.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                nbEnti = len(nameVol)
-                physicalGroupsVol.extend(listTupleDim)
+            for dim in range(pgArray[:,0].max()+1):
+                # For each dimension available in the physical groups.
+                
+                # We retrieve the entities of the dimension
+                indexDim = np.where(pgArray[:,0] == dim)[0]
+                listTupleDim = tuple(map(tuple, pgArray[indexDim]))
+                nbEnti = indexDim.size
 
-            nbPhysicalGroup += nbEnti
+                # Depending on the dimension of the entities, we'll give them names
+                # Then we'll add the entity tuples (dim, tag) to the PhysicalGroup list associated with the dimension.
+                if dim == 0:
+                    namePoint.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
+                    nbEnti = len(namePoint)
+                    physicalGroupsPoint.extend(listTupleDim)
+                elif dim == 1:
+                    nameLine.extend([__name(dim, n) for n in range(nbEnti)])
+                    nbEnti = len(nameLine)
+                    physicalGroupsLine.extend(listTupleDim)
+                elif dim == 2:
+                    nameSurf.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
+                    nbEnti = len(nameSurf)
+                    physicalGroupsSurf.extend(listTupleDim)
+                elif dim == 3:
+                    nameVol.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
+                    nbEnti = len(nameVol)
+                    physicalGroupsVol.extend(listTupleDim)
+
+                nbPhysicalGroup += nbEnti
 
         # Check that everything has been added correctly
         assert len(physicalGroups) == nbPhysicalGroup
 
         # Builds element groups
         dimAjoute = []
-        meshDim = pgArray[:,0].max()
+        meshDim = 0
 
         for gmshId in elementTypes:
             # For each element type
