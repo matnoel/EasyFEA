@@ -446,7 +446,9 @@ class Interface_Gmsh:
     def __Set_PhysicalGroups(self, buildPoint=True, buildLine=True, buildSurface=True, buildVolume=True) -> None:
         """Create physical groups based on model entities."""
         self.__factory.synchronize()
-        entities = np.array(gmsh.model.getEntities())       
+        entities = np.array(gmsh.model.getEntities()) 
+
+        if entities.size == 0: return
         
         listDim = []
         if buildPoint:
@@ -708,8 +710,9 @@ class Interface_Gmsh:
 
         return self.__Construct_Mesh(coef)
 
-    def Mesh_Import_part(self, fichier: str, meshSize=0.0, elemType=ElemType.TETRA4, refineGeom=None, folder=""):
-        """Build mesh from imported file (.stp or .igs)
+    def Mesh_Import_part(self, file: str, dim: int, meshSize=0.0, elemType: ElemType=None, refineGeom=None, folder=""):
+        """Build mesh from imported file (.stp or .igs).\n
+        You can only use triangles or tetrahedrons.
 
         Parameters
         ----------
@@ -718,8 +721,8 @@ class Interface_Gmsh:
             Note that for igs files, entities cannot be recovered.
         meshSize : float, optional
             mesh size, by default 0.0
-        elemType : str, optional
-            element type, by default "TETRA4" ["TETRA4", "TETRA10"]            
+        elemType : ElemType, optional
+            element type, by default "TRI3" or "TETRA4" depending on dim.
         refineGeom : Geom, optional
             second domain for mesh concentration, by default None
         folder : str, optional
@@ -730,20 +733,24 @@ class Interface_Gmsh:
         Mesh
             Built mesh
         """
-        # When importing a part, only TETRA4 or TETRA10 can be used.        
+        
         # Allow other meshes -> this seems impossible - you have to create the mesh using gmsh to control the type of element.
+
+        if elemType == None:
+            elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
+
 
         self.__init_gmsh_factory('occ') # Only work with occ !! Do not change
 
         assert meshSize >= 0.0, "Must be greater than or equal to 0."
-        self.__CheckType(3, elemType)
+        self.__CheckType(dim, elemType)
         
         tic = Tic()
 
         factory = self.__factory
 
-        if '.stp' in fichier or '.igs' in fichier:
-            factory.importShapes(fichier)
+        if '.stp' in file or '.igs' in file:
+            factory.importShapes(file)
         else:
             print("Must be a .stp or .igs file")
 
@@ -756,7 +763,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","File import", self.__verbosity)
 
-        self.__Meshing(3, elemType, folder=folder)
+        self.__Meshing(dim, elemType, folder=folder)
 
         return self.__Construct_Mesh()
 
@@ -1242,7 +1249,7 @@ class Interface_Gmsh:
             Interface_Gmsh.__Set_mesh_order(elemType)
         
         elif dim == 3:
-            self.__factory.synchronize()
+            self.__factory.synchronize()            
 
             gmsh.model.mesh.generate(3)
 
@@ -1538,9 +1545,8 @@ class Interface_Gmsh:
         def testVolume(val):
             assert np.abs(volume-val)/volume <= 1e-6, "Incorrect volume"
 
-        folder = Folder.Get_Path()
-        cpefPath = Folder.Join([folder,"3Dmodels","CPEF.stp"])
-        partPath = Folder.Join([folder,"3Dmodels","part.stp"])
+        folder = Folder.Get_Path()        
+        partPath = Folder.Join([folder,"3Dmodels","beam.stp"])
 
         interfaceGmsh = Interface_Gmsh()
 
@@ -1549,9 +1555,7 @@ class Interface_Gmsh:
         for t, elemType in enumerate(GroupElem.get_Types3D()):
             
             if useImport3D and elemType in ["TETRA4","TETRA10"]:
-                meshCpef = interfaceGmsh.Mesh_Import_part(cpefPath, meshSize=10, elemType=elemType)
-                list_mesh3D.append(meshCpef)
-                meshPart = interfaceGmsh.Mesh_Import_part(partPath, meshSize=taille, elemType=elemType)
+                meshPart = interfaceGmsh.Mesh_Import_part(partPath, 3, meshSize=taille, elemType=elemType)
                 list_mesh3D.append(meshPart)
 
             mesh1 = interfaceGmsh.Mesh_3D(domain, [], [0,0,-b], 3, elemType=elemType)

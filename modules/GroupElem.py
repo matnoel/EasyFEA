@@ -669,22 +669,60 @@ class GroupElem(ABC):
         [ix, jx, kx\n
         iy, jy, ky\n
         iz, jz, kz]\n
+
+        - [ix,iy,iz] is the tangent vector\n
+        - [jx,jy,jz] is the normal vector
         
-        such as coordo_e * sysCoordLocal_e -> coordinates of nodes in element base"""
+        coordo_e * sysCoordLocal_e -> coordinates of nodes in element base.
+        """
         return self.__Get_sysCoord_e()
 
     @property
     def sysCoordLocal_e(self) -> np.ndarray:
         """Base change matrix for each element (dim)"""
         return self.sysCoord_e[:,:,range(self.dim)]
+    
+    @property
+    def length_e(self) -> np.ndarray:
+        """Length covered by each element"""
+        if self.dim != 1: return
+        matrixType = MatrixType.rigi
+        length_e = np.einsum('ep,p->e', self.Get_jacobian_e_pg(matrixType), self.Get_weight_pg(matrixType), optimize='optimal')
+        return length_e
+
+    @property
+    def length(self) -> float:
+        """Length covered by elements"""
+        if self.dim != 1: return
+        return np.sum(self.length_e)
+    
+    @property
+    def area_e(self) -> np.ndarray:
+        """Area covered by each element"""
+        if self.dim != 2: return
+        matrixType = MatrixType.rigi
+        area_e = np.einsum('ep,p->e', self.Get_jacobian_e_pg(matrixType), self.Get_weight_pg(matrixType), optimize='optimal')
+        return area_e
 
     @property
     def area(self) -> float:
         """Area covered by elements"""
-        if self.dim == 1: return
+        if self.dim != 2: return
+        return np.sum(self.area_e)
+    
+    @property
+    def volume_e(self) -> np.ndarray:
+        """Volume covered by each element"""
+        if self.dim != 3: return
         matrixType = MatrixType.rigi
-        aire = np.einsum('ep,p->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, optimize='optimal')
-        return float(aire)
+        volume_e = np.einsum('ep,p->e', self.Get_jacobian_e_pg(matrixType), self.Get_weight_pg(matrixType), optimize='optimal')
+        return volume_e
+    
+    @property
+    def volume(self) -> float:
+        """Volume covered by elements"""
+        if self.dim != 3: return
+        return np.sum(self.volume_e)
 
     @property
     def Ix(self) -> float:
@@ -725,14 +763,6 @@ class GroupElem(ABC):
 
         Ixy = np.einsum('ep,p,ep,ep->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, x, y, optimize='optimal')
         return float(Ixy)
-
-    @property
-    def volume(self) -> float:
-        """Volume covered by elements"""
-        if self.dim != 3: return
-        matrixType = MatrixType.mass
-        volume = np.einsum('ep,p->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, optimize='optimal')
-        return float(volume)        
 
     def Get_F_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the Jacobian matrix
