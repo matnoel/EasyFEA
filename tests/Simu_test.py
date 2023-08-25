@@ -81,7 +81,7 @@ class Test_Simu(unittest.TestCase):
                 poutre = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
                 listePoutre = [poutre]
 
-            mesh = interfaceGmsh.Mesh_Beams(beamList=listePoutre, elemType=elemType)
+            mesh = interfaceGmsh.Mesh_Beams(beams=listePoutre, elemType=elemType)
 
             # Modele poutre
 

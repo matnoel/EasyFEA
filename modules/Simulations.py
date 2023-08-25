@@ -1205,9 +1205,6 @@ class _Simu(ABC):
             dofsValues, dofs = self.__Bc_volumeload(problemType, nodes, values, directions)
 
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
-
-    # TODO add_pressure
-    # use groupElem.syscord_e to acces normal to the vect
     
     def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
         """Apply a linear force."""
@@ -1418,7 +1415,7 @@ class _Simu(ABC):
 
     def Results_Get_Bc_Summary(self) -> str:
         """Simulation loading summary"""
-        return "Unknown"
+        return "Unknown load"
         
     @staticmethod
     def Results_Nodes_Values(mesh: Mesh, result_e: np.ndarray):

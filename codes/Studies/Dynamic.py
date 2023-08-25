@@ -15,7 +15,6 @@ Display.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-
 dim = 3
 folder = Folder.New_File(f"Dynamics{dim}D", results=True)
 plotResult = True
@@ -43,7 +42,6 @@ b = 13
 # ----------------------------------------------
 # Meshing
 # ----------------------------------------------
-
 # meshSize = h/1
 # meshSize = L/2
 meshSize = h/5
@@ -74,9 +72,8 @@ nodes_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
 nodes_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2)
 
 # ----------------------------------------------
-# Material and Simulation
+# Simulation
 # ----------------------------------------------
-
 material = Materials.Elas_Isot(dim, thickness=b)
 simu = Simulations.Simu_Displacement(mesh, material, useNumba=True, verbosity=False)
 simu.rho = 8100*1e-9
@@ -136,7 +133,6 @@ tic_Tot.Tac("Time","total time", True)
 # ----------------------------------------------
 # Post processing
 # ----------------------------------------------
-
 Display.Section("Post processing")
 
 Display.Plot_BoundaryConditions(simu)

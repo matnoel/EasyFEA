@@ -1,4 +1,3 @@
-# Import necessary modules
 import matplotlib.pyplot as plt
 import Display
 import PostProcessing
@@ -9,8 +8,20 @@ import Materials
 import Simulations
 import numpy as np
 
-# Clear the existing display
 Display.Clear()
+
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
+dim = 3 # Set the simulation dimension (2D or 3D)
+
+# Define simulation time parameters
+Tmax = 0.5  # Total simulation time
+N = 50  # Number of time steps
+dt = Tmax / N  # Time step size
+
+# Create a folder for storing simulation results
+folder = Folder.New_File(filename=f"Thermal{dim}D", results=True)
 
 # Set plotIter and affichageIter for result visualization
 plotIter = True
@@ -20,12 +31,9 @@ resultIter = "thermal"
 makeMovie = False
 NMovie = 300
 
-# Set the simulation dimension (2D or 3D)
-dim = 3
-
-# Create a folder for storing simulation results
-folder = Folder.New_File(filename=f"Thermal{dim}D", results=True)
-
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
 # Define the domain
 a = 1
 if dim == 2:
@@ -36,25 +44,12 @@ else:
 # Create a circular region inside the domain
 circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 50)
 
-# Create an interface to Gmsh for meshing
-interfaceGmsh = Interface_Gmsh(False, False, True)
-
 # Generate the mesh based on the specified dimension
 if dim == 2:
-    mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.QUAD4)
+    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.QUAD4)
 else:
-    mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0, 0, -a], 4, ElemType.PRISM6)
+    mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0, 0, -a], 4, ElemType.PRISM6)
 
-# Create a thermal material model
-thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, thickness=1)
-
-# Initialize the thermal simulation with the mesh and material model
-simu = Simulations.Simu_Thermal(mesh, thermalModel, False)
-
-# Set the density of the material
-simu.rho = 1
-
-# Define boundary conditions
 noeuds0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
 noeudsL = mesh.Nodes_Conditions(lambda x, y, z: x == a)
 
@@ -63,8 +58,18 @@ if dim == 2:
 else:
     noeudsCircle = mesh.Nodes_Cylinder(circle, [0, 0, a])
 
-# Function to perform one iteration of the simulation
+
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
+thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, thickness=1)
+simu = Simulations.Simu_Thermal(mesh, thermalModel, False)
+
+# Set the density of the material
+simu.rho = 1
+
 def Iteration(steadyState: bool):
+    """Function to perform one iteration of the simulation"""
     # Initialize the boundary conditions for the current iteration
     simu.Bc_Init()
 
@@ -85,12 +90,6 @@ def Iteration(steadyState: bool):
 
     return thermal
 
-# Define simulation time parameters
-Tmax = 0.5  # Total simulation time
-N = 50  # Number of time steps
-dt = Tmax / N  # Time step size
-t = 0  # Current time
-
 # Set the parabolic algorithm for the solver
 simu.Solver_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
 
@@ -106,7 +105,7 @@ if plotIter:
     fig, ax, cb = Display.Plot_Result(simu, resultIter, nodeValues=True, plotMesh=True)
 
 print()
-
+t = 0  # init time
 # Main loop for time-dependent simulation
 while t < Tmax:
     # Perform one iteration of the simulation
@@ -124,10 +123,9 @@ while t < Tmax:
     # Print the current simulation time
     print(f"{np.round(t)} s", end='\r')
 
-# Uncomment the following lines to display specific mesh elements or nodes
-# Display.Plot_NoeudsMaillage(mesh, noeuds=noeudsCircle)
-# Display.Plot_ElementsMaillage(mesh, noeuds=noeudsCircle, dimElem=3)
-
+# ----------------------------------------------
+# PostProcessing
+# ----------------------------------------------
 # Display the final thermal distribution
 Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True)
 
@@ -145,5 +143,4 @@ if makeMovie:
 # Print the minimum temperature achieved in the simulation
 print(thermal.min())
 
-# Display the plots
 plt.show()

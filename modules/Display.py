@@ -294,7 +294,7 @@ def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coe
         ax.set_zlabel(r"$z$")
         
         # Change axis scale
-        __ScaleChange(ax, coordoNonDef)
+        _ScaleChange(ax, coordoNonDef)
 
     # Title
     optionTex = result
@@ -488,7 +488,7 @@ def Plot_Mesh(obj, deformation=False, factorDef=4, folder="", title="", ax=None,
                 ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
             ax.add_collection3d(pc, zs=0, zdir='z')
             
-        __ScaleChange(ax, coordo)
+        _ScaleChange(ax, coordo)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_zlabel(r"$z$")
@@ -887,7 +887,7 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1.0) -> plt.Axes:
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
     else:
-        __ScaleChange(ax, coordo)
+        _ScaleChange(ax, coordo)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_zlabel(r"$z$")
@@ -1173,7 +1173,7 @@ def __GetCoordo(simu, deformation: bool, facteurDef: float) -> np.ndarray:
     else:
         return coordo, deformation
 
-def __ScaleChange(ax, coordo: np.ndarray) -> None:
+def _ScaleChange(ax, coordo: np.ndarray) -> None:
     """Change axis size for 3D display
     Will center the part and make the axes the right size
     Parameters

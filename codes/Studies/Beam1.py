@@ -1,4 +1,3 @@
-# Import required libraries and modules
 import matplotlib.pyplot as plt
 import numpy as np
 from Interface_Gmsh import Interface_Gmsh, ElemType
@@ -14,8 +13,9 @@ Display.Clear()
 # Create a new folder for storing results
 folder = Folder.New_File("Beam", results=True)
 
-# Initialize the Gmsh interface
-interfaceGmsh = Interface_Gmsh(False, False, False)
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
 
 # Define the problem type and beam dimensions
 # problem = "Flexion"
@@ -48,7 +48,7 @@ elif problem == "Traction":
     charge = 5000
 
 # Create a section object for the beam mesh
-section = Section(interfaceGmsh.Mesh_2D(Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2))))
+section = Section(Interface_Gmsh().Mesh_2D(Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2))))
 
 # Depending on the problem type, create appropriate beam segments
 if problem in ["Traction"]:
@@ -57,9 +57,9 @@ if problem in ["Traction"]:
     point3 = Point(x=L)
     line1 = Line(point1, point2, L / nL)
     line2 = Line(point2, point3, L / nL)
-    poutre1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
-    poutre2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
-    liste_Poutre = [poutre1, poutre2]
+    beam1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
+    beam2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
+    beams = [beam1, beam2]
 
 elif problem in ["Flexion", "BiEnca"]:
     point1 = Point()
@@ -68,9 +68,9 @@ elif problem in ["Flexion", "BiEnca"]:
     line1 = Line(point1, point2, L / nL)
     line2 = Line(point2, point3, L / nL)
     line = Line(point1, point3)
-    poutre1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
-    poutre2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
-    liste_Poutre = [poutre1, poutre2]
+    beam1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
+    beam2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
+    beams = [beam1, beam2]
 
 elif problem == "Portique":
     point1 = Point()
@@ -78,21 +78,22 @@ elif problem == "Portique":
     point3 = Point(y=L, x=L / 2)
     line1 = Line(point1, point2, L / nL)
     line2 = Line(point2, point3, L / nL)
-    poutre1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
-    poutre2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
-    liste_Poutre = [poutre1, poutre2]
+    beam1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
+    beam2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
+    beams = [beam1, beam2]
 
 # Generate the beam mesh
-mesh = interfaceGmsh.Mesh_Beams(beamList=liste_Poutre, elemType=elemType)
+mesh = Interface_Gmsh().Mesh_Beams(beams=beams, elemType=elemType)
 
-# Plot the initial model and boundary conditions
-Display.Plot_Model(mesh)
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
 
 # Initialize the beam structure with the defined beam segments
-beamStructure = Materials.Beam_Structure(liste_Poutre)
+beamStructure = Materials.Beam_Structure(beams)
 
 # Create the beam simulation
-simu = Simulations.Simu_Beam(mesh, beamStructure, verbosity=True)
+simu = Simulations.Simu_Beam(mesh, beamStructure)
 
 # Set Dirichlet boundary conditions based on the beam's dimension and problem type
 if beamStructure.dim == 1:
@@ -128,7 +129,7 @@ elif problem == "Traction":
 Display.Plot_BoundaryConditions(simu)
 
 # Solve the beam problem and get displacement results
-beamDisplacement = simu.Solve()
+displacement = simu.Solve()
 simu.Save_Iter()
 
 # Calculate stresses and forces
@@ -138,6 +139,10 @@ forces = stress / section.area
 # Function for printing result information
 affichage = lambda name, result: print(f"{name} = [{result.min():2.2}; {result.max():2.2}]") if isinstance(result, np.ndarray) else ""
 
+# ----------------------------------------------
+# PostProcessing
+# ----------------------------------------------
+
 # Plot the boundary conditions and displacement results
 Display.Plot_BoundaryConditions(simu)
 Display.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
@@ -146,7 +151,7 @@ if beamStructure.dim > 1:
     Display.Plot_Mesh(simu, deformation=True, factorDef=10)
 
 # Display section for results
-Display.Section("Resultats")
+Display.Section("Results")
 
 # Print displacement results at nodes
 print()
@@ -194,8 +199,4 @@ elif problem == "Traction":
     ax.set_title(fr"$u(x)$")
     ax.legend()
 
-# # Post-process and save results in Paraview format
-# PostProcessing.Make_Paraview(folder, simu)
-
-# Display all plots
 plt.show()

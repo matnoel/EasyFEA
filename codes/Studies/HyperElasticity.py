@@ -13,6 +13,9 @@ from Mesh import Get_new_mesh
 
 Display.Clear()
 
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
 dim = 2
 makeParaview = False
 useHyperElastic = True # reactualized lagrangian
@@ -29,6 +32,9 @@ meshSize = L/20
 sigMax = 8*1e5/(w*thickness)
 uMax = 50
 
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
 p1 = Point(0,0)
 p2 = Point(L,0)
 p3 = Point(L,L, r=50)
@@ -45,37 +51,18 @@ if dim == 2:
 else:
     mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,-thickness], 3, ElemType.PRISM6)
 
-if calcE:
-    matrixType = "rigi"
-    dN_e_pg = mesh.Get_dN_e_pg(matrixType)
-    Bu_e_pg = mesh.Get_B_e_pg(matrixType)
-
-    B_e_pg = np.zeros_like(Bu_e_pg)
-
-    pos = np.arange(0, mesh.nPe*dim, 2)
-
-    for n, p in zip(range(mesh.nPe), pos):
-
-        dNx = dN_e_pg[:,:,0,n]
-        dNy = dN_e_pg[:,:,1,n]
-
-        for d in range(dim):        
-            if dim == 2:
-                B_e_pg[:,:,0,p+d] = 1/2 * dNx**2
-                B_e_pg[:,:,1,p+d] = 1/2 * dNy**2
-                B_e_pg[:,:,2,p+d] = 1/2 * dNy*dNx / np.sqrt(2)
-            else:
-                raise Exception('Not implemented')
-
 nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 # nodes_Load = mesh.Nodes_Conditions(lambda x,y,z: (y==2*L) & (x>=2*L-30))
 nodes_Load = mesh.Nodes_Conditions(lambda x,y,z: x==2*L)
 
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
 material = Materials.Elas_Isot(dim, E=210000, v=0.25, planeStress=True, thickness=thickness)
 
 simu = Simulations.Simu_Displacement(mesh, material)
 
-N = 2
+N = 10
 iter = 0
 
 while iter < N:
@@ -102,7 +89,34 @@ while iter < N:
 
         pass
 
+# ----------------------------------------------
+# PostProcessing
+# ----------------------------------------------
+
 if calcE:
+    #  WARNING : unverified implementation
+
+    matrixType = "rigi"
+    dN_e_pg = mesh.Get_dN_e_pg(matrixType)
+    Bu_e_pg = mesh.Get_B_e_pg(matrixType)
+
+    B_e_pg = np.zeros_like(Bu_e_pg)
+
+    pos = np.arange(0, mesh.nPe*dim, 2)
+
+    for n, p in zip(range(mesh.nPe), pos):
+
+        dNx = dN_e_pg[:,:,0,n]
+        dNy = dN_e_pg[:,:,1,n]
+
+        for d in range(dim):        
+            if dim == 2:
+                B_e_pg[:,:,0,p+d] = 1/2 * dNx**2
+                B_e_pg[:,:,1,p+d] = 1/2 * dNy**2
+                B_e_pg[:,:,2,p+d] = 1/2 * dNy*dNx / np.sqrt(2)
+            else:
+                raise Exception('Not implemented')
+
     sol_e = simu.displacement[mesh.assembly_e]
 
     E_e_pg = np.einsum('epij,ej->epi', Bu_e_pg, sol_e, optimize='optimal')
@@ -125,6 +139,5 @@ print(simu)
 
 if makeParaview:
     PostProcessing.Make_Paraview(folder, simu, elementsResult=['Strain'])
-
 
 Display.plt.show()

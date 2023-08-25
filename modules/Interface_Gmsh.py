@@ -864,12 +864,12 @@ class Interface_Gmsh:
 
         return crackLines, crackSurfaces, openPoints, openLines
 
-    def Mesh_Beams(self, beamList: list[_Beam_Model], elemType=ElemType.SEG2, folder=""):
+    def Mesh_Beams(self, beams: list[_Beam_Model], elemType=ElemType.SEG2, folder=""):
         """Construction of a segment mesh
 
         Parameters
-        ----------
-        listBeam : list[Beam_Model]
+        beams
+        listBeam : list[_Beam_Model]
             list of Beams
         elemType : str, optional
             element type, by default "SEG2" ["SEG2", "SEG3", "SEG4"]
@@ -889,11 +889,10 @@ class Interface_Gmsh:
         
         factory = self.__factory
 
-        listPoints = [] 
-        listeLines = []
+        points = [] 
+        lines = []
 
-        for beam in beamList:
-
+        for beam in beams:
             line = beam.line
             
             pt1 = line.pt1; x1 = pt1.x; y1 = pt1.y; z1 = pt1.z
@@ -901,14 +900,14 @@ class Interface_Gmsh:
 
             p1 = factory.addPoint(x1, y1, z1, line.meshSize)
             p2 = factory.addPoint(x2, y2, z2, line.meshSize)
-            listPoints.append(p1)
-            listPoints.append(p2)
+            points.append(p1)
+            points.append(p2)
 
-            ligne = factory.addLine(p1, p2)
-            listeLines.append(ligne)
+            line = factory.addLine(p1, p2)
+            lines.append(line)
         
         factory.synchronize()
-        self.__Set_PhysicalGroups()
+        self.__Set_PhysicalGroups(buildLine=False)
 
         tic.Tac("Mesh","Beam mesh construction", self.__verbosity)
 
@@ -922,7 +921,7 @@ class Interface_Gmsh:
                 grp.Set_Nodes_Tag(nodes, beam.name)
                 grp.Set_Elements_Tag(nodes, beam.name)
 
-        [FuncAddTags(poutre) for poutre in beamList]
+        [FuncAddTags(beam) for beam in beams]
 
         return mesh
 

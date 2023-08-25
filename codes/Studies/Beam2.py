@@ -8,6 +8,9 @@ import numpy as np
 
 Display.Clear()
 
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
 l = 100 # mm
 
 pA = Point(2*l, 0)
@@ -26,20 +29,26 @@ listLine = [line1, line2, line3, line4, line5, line6]
 
 meshSection = Interface_Gmsh().Mesh_2D(Domain(Point(-4/2, -8/2), Point(4/2, 8/2)))
 section = Section(meshSection)
-Display.Plot_Mesh(meshSection)
+Display.Plot_Mesh(meshSection, title='Cross section')
 
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
 E = 276 # MPa
 v = 0.3
 
 beamDim = 2
 
-listBeam = [Materials.Beam_Elas_Isot(beamDim, line, section, E, v) for line in listLine]
-structure = Materials.Beam_Structure(listBeam)
+beams = [Materials.Beam_Elas_Isot(beamDim, line, section, E, v) for line in listLine]
+structure = Materials.Beam_Structure(beams)
 
-mesh = Interface_Gmsh().Mesh_Beams(listBeam, ElemType.SEG2)
+mesh = Interface_Gmsh().Mesh_Beams(beams, ElemType.SEG2)
 Display.Plot_Mesh(mesh)
 Display.Plot_Model(mesh)
 
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
 simu = Simulations.Simu_Beam(mesh, structure)
 
 nodesToLink = []
@@ -67,6 +76,9 @@ simu.add_neumann(nodesA, [-40*9.81], ['y'])
 
 simu.Solve()
 
+# ----------------------------------------------
+# PostProcessing
+# ----------------------------------------------
 matrixDep = simu.Results_displacement_matrix()
 depMax = np.max(np.linalg.norm(matrixDep, axis=1))
 
