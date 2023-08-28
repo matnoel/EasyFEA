@@ -9,35 +9,25 @@ import PostProcessing
 plt = Display.plt
 np = Display.np
 
+Display.Clear()
+
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
+solve = True
+test = True
+optimMesh = True
+
 pltIter = False
 pltLoad = True
-
 makeMovie = True
 makeParaview = False
 
-doSimu = False
-
-Display.Clear()
-
+# geom
 dim = 2
-
-name = "NotchedBeam_Benchmark"
-
-if dim == 3:
-    name += '_3D'
-
-folder = Folder.New_File(name, results=True)
-
-# ----------------------------------------------
-# Config
-# ----------------------------------------------
-
-test = False
-optimMesh = True
 useNotchCrack = False
 
 unit = 1e-3; # for mm [Guidault, Allix, Champaney, Cornuault, 2008, CMAME], [Miehe, Welschinger, Hofacker, 2010, IJNME], [Miehe, Hofacker, Welschinger, 2010, CMAME],[Passieux, Rethore, Gravouil, Baietto, 2013, CM]
-
 L = 8*unit # height
 L1 = 10*unit
 L2 = 9*unit
@@ -45,23 +35,52 @@ ep = 0.5*unit
 nw = 0.05*unit # notch width mm
 diam = 0.5*unit # hole diameter
  
-e1 = 6*unit # mm
+e1 = 6*unit
 e2 = 1*unit
 
-l0 = 0.025*unit # mm [Miehe, Welschinger, Hofacker, 2010, IJNME], [Miehe, Hofacker, Welschinger, 2010, CMAME], [Wu, Nguyen, 2018, JMPS], [Wu, Nguyen, Nguyen, Sutula, Bordas, Sinaie, 2019, AAM]
+# material
+# [Ambati, Gerasimov, De Lorenzis, 2015, CM]
+E = 20.8e9 # Pa
+v = 0.3
 
-# l0 = L/120
-
+# phase field
 split = "Miehe"
 regu = "AT2"
-
+Gc = 1e-3 # kN / mm
+Gc *= 1000*1000 # 1e3 N / m -> J/m2
 tolConv = 1e-0
 convOption = 2
+l0 = 0.025*unit # [Miehe, Welschinger, Hofacker, 2010, IJNME], [Miehe, Hofacker, Welschinger, 2010, CMAME], [Wu, Nguyen, 2018, JMPS], [Wu, Nguyen, Nguyen, Sutula, Bordas, Sinaie, 2019, AAM]
+l0 = L/120
+
+# loading
+if test:
+    inc0 = 2e-3*unit
+    Nt0 = 100        
+    inc1 = 2e-4*unit
+    Nt1 = 250
+else:
+    inc0 = 1e-3*unit
+    Nt0 = 200
+    inc1 = 1e-4*unit
+    Nt1 = 500
+# [Ambati, Gerasimov, De Lorenzis, 2015, CM]
+# du = 1e-3 mm during the first 200 time steps (up to u = 0.2 mm)
+# du = 1e-4 mm during the last  500 time steps (up to u = 0.25 mm)    
+
+disp1 = np.linspace(0, inc0*Nt0, Nt0)
+start = disp1[-1]
+disp2 = np.linspace(start, start+inc1*Nt1, Nt1)
+displacement = np.unique(np.concatenate([disp1, disp2]))
+
+name = "NotchedBeam_Benchmark"
+if dim == 3:
+    name += '_3D'
+folder = Folder.New_File(name, results=True)
 
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
-
 if test:
     hC = l0
 else:
@@ -114,43 +133,36 @@ circlePos3 = Circle(p0, e2)
 
 if dim == 2:
     mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, "TRI3", refineGeom=refineDomain, cracks=cracks)
-    directions = ["x","y"]
 else:
     mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,ep], 3, "HEXA8", refineGeom=refineDomain, cracks=cracks)
-    directions = ["x","y","z"]
 
 Display.Plot_Mesh(mesh)
 # Display.Plot_Model(mesh)
 # Display.Plot_Nodes(mesh, mesh.Nodes_Line(cracks[0]), True)
 
-nodesLoad = mesh.Nodes_Point(p0)
-node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
-nodesEnca = np.concatenate([node3, node4])
+nodes_load = mesh.Nodes_Point(p0)
+nodes_fixed = np.concatenate([mesh.Nodes_Point(p3), mesh.Nodes_Point(p4)])
 
-nodesCircle1 = mesh.Nodes_Cylinder(circlePos1, [0,0,ep])
-nodesCircle2 = mesh.Nodes_Cylinder(circlePos2, [0,0,ep])
-nodesCircle3 = mesh.Nodes_Cylinder(circlePos3, [0,0,ep])
-nodesDamage = np.concatenate([nodesCircle1, nodesCircle2, nodesCircle3])
+nodes_c1 = mesh.Nodes_Cylinder(circlePos1, [0,0,ep])
+nodes_c2 = mesh.Nodes_Cylinder(circlePos2, [0,0,ep])
+nodes_c3 = mesh.Nodes_Cylinder(circlePos3, [0,0,ep])
+nodes_damage = np.concatenate([nodes_c1, nodes_c2, nodes_c3])
 
-ddlsY_Load = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", nodesLoad, ['y'])
+dofsY_load = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", nodes_load, ['y'])
 
 # ----------------------------------------------
 # Material
 # ----------------------------------------------
-# [Ambati, Gerasimov, De Lorenzis, 2015, CM]
-E = 20.8e9 # Pa
-v = 0.3
+material = Materials.Elas_Isot(dim, E, v, False, ep)
 
-Gc = 1e-3 # kN / mm
-Gc *= 1000*1000 # 1e3 N / m -> J/m2
-
-comportement = Materials.Elas_Isot(dim, E, v, False, ep)
-
-pfm = Materials.PhaseField_Model(comportement, split, regu, Gc, l0)
+pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0)
 
 folderSimu = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization, "DP", tolConv, "", test, optimMesh, nL=nL)
 
-if doSimu:
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
+if solve:
 
     simu = Simulations.Simu_PhaseField(mesh, pfm)    
     
@@ -159,50 +171,29 @@ if doSimu:
 
         axLoad = plt.subplots()[1]
         axLoad.set_xlabel('displacement [mm]')
-        axLoad.set_ylabel('load [kN]')
-
-    # [Ambati, Gerasimov, De Lorenzis, 2015, CM]
-    # du = 1e-3 mm during the first 200 time steps (up to u = 0.2 mm)
-    # du = 1e-4 mm during the last  500 time steps (up to u = 0.25 mm)    
-    if test:
-        inc0 = 2e-3*unit
-        Nt0 = 100        
-        inc1 = 2e-4*unit
-        Nt1 = 250
-    else:
-        inc0 = 1e-3*unit
-        Nt0 = 200
-        inc1 = 1e-4*unit
-        Nt1 = 500
-
-    disp1 = np.linspace(0, inc0*Nt0, Nt0)
-    start = disp1[-1]
-    disp2 = np.linspace(start, start+inc1*Nt1, Nt1)
-
-    displacement = np.unique(np.concatenate([disp1, disp2]))  
+        axLoad.set_ylabel('load [kN]')    
 
     uMax = displacement[-1]
     load = []
 
     for iter, ud in enumerate(displacement):
 
+        # add boundary conditions
         simu.Bc_Init()
-        simu.add_dirichlet(nodesDamage, [0], ['d'], "damage")
-        # simu.add_dirichlet(nodesEnca, [0]*dim, directions)       
-        simu.add_dirichlet(nodesEnca, [0], ['y'])       
-        
-        simu.add_dirichlet(nodesLoad, [-ud], ['y'])        
+        simu.add_dirichlet(nodes_damage, [0], ['d'], "damage")
+        # simu.add_dirichlet(nodes_fixed, [0]*dim, simu.Get_directions())
+        simu.add_dirichlet(nodes_fixed, [0], ['y'])
+        simu.add_dirichlet(nodes_load, [-ud], ['y'])
 
-        # Display.Plot_BoundaryConditions(simu)
-
+        # solve
         u, d, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
 
-        fr = np.abs(np.sum(Kglob[ddlsY_Load,:] @ u))
-
+        # calc load
+        fr = np.abs(np.sum(Kglob[dofsY_load,:] @ u))        
         load.append(fr)
 
-        simu.Results_Set_Iteration_Summary(iter, ud*1e6, "µm", iter/displacement.size, True)
-
+        # print and save iter
+        simu.Results_Set_Iteration_Summary(iter, ud*1e6, "µm", iter/displacement.size, True)        
         simu.Save_Iter()
 
         if pltIter:
@@ -216,13 +207,14 @@ if doSimu:
             plt.pause(1e-12)
 
         if not convergence:
+            # stop if the simulation has not converged
             break
-
+    
+    # save load and displacement
     displacement = np.array(displacement)
     load = np.array(load)
-
     PostProcessing.Save_Load_Displacement(load, displacement, folderSimu)
-
+    # save the simulation
     simu.Save(folderSimu)
 
     PostProcessing.Tic.Plot_History(folderSimu, True)    
@@ -237,7 +229,6 @@ load, displacement = PostProcessing.Load_Load_Displacement(folderSimu)
 # ----------------------------------------------
 # PostProcessing
 # ----------------------------------------------
-
 Display.Plot_BoundaryConditions(simu, folderSimu)
 
 Display.Plot_Result(simu, 'damage', folder=folderSimu)
@@ -259,5 +250,3 @@ if makeParaview:
     PostProcessing.Make_Paraview(folderSimu, simu)
 
 plt.show()
-
-pass

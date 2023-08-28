@@ -3,7 +3,7 @@ import Materials
 from BoundaryCondition import BoundaryCondition
 from Geom import *
 import Display as Display
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Mesh import Mesh, Calc_projector
 import Simulations
 import PostProcessing as PostProcessing
@@ -16,12 +16,12 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-problem = "Benchmark" # ["Benchmark","FCBA"]
+problem = "Benchmark" # ["Benchmark", "FCBA"]
 dim = 2
 if dim == 3:
     problem += "_3D"
 
-test = False
+test = True
 solve = True
 
 # ----------------------------------------------
@@ -48,7 +48,7 @@ tolConv = 1e-0
 # Mesh Option
 # ----------------------------------------------
 optimMesh = True
-updateMesh = False
+updateMesh = False # non-validated implementation
 damagedNodes = []
 
 # ----------------------------------------------
@@ -58,11 +58,11 @@ damagedNodes = []
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-# splits = ["Bourdin"]
+splits = ["Bourdin"]
 # splits = ["He"]
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
-splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 
 regularisations = ["AT1"] # ["AT1", "AT2"]
 # regularisations = ["AT1", "AT2"]
@@ -76,55 +76,58 @@ splits = np.repeat(splits, nRegu)
 for split, regu in zip(splits, regularisations):
 
     # ----------------------------------------------
-    # Geometry
+    # config options
     # ----------------------------------------------
     if "Benchmark" in problem:
+        
+        # geom
         L = 15e-3
         h = 30e-3
         ep = 1 
         diam = 6e-3
 
+        # material
+        simpli2D = "DP" # ["CP","DP"]
+
+        # phase field
         gc = 1.4
         nL = 0
         l0 = 0.12e-3
 
+        # loading
         if materialType == "Elas_Isot":
             # u_max = 25e-6
             u_max = 35e-6    
         else:
             u_max = 80e-6
-
         inc0 = 8e-8; tresh0 = 0.6
         inc1 = 2e-8; tresh1 = 1
-
-        simpli2D = "DP" # ["CP","DP"]
-
         listInc = [inc0, inc1]
         listTresh = [tresh0, tresh1]
         listOption = ["damage"]*len(listTresh)
 
     elif "FCBA" in problem:
-
+        # geom
         L = 4.5e-2
         h = 9e-2
         ep = 2e-2
-
         diam = 1e-2
         r = diam/2
+
+        # material
+        simpli2D = "CP" # ["CP","DP"]
         
+        # phase field
         # gc = 3000
-        gc = 0.07 * 1000        
+        gc = 0.07 * 1000
         nL = 100
         # nL = 180
         l0 = L/nL
 
+        # loading
         u_max = 1e-3
-
         inc0 = 8e-6; tresh0 = 0.2
         inc1 = 2e-6; tresh1 = 0.6
-
-        simpli2D = "CP" # ["CP","DP"]
-
         listInc = [inc0, inc1]
         listTresh = [tresh0, tresh1]
         listOption = ["damage"]*2
@@ -133,7 +136,6 @@ for split, regu in zip(splits, regularisations):
     # meshSize
     # ----------------------------------------------
     if test:
-        coef = 1 if dim == 2 else 3
         if optimMesh:            
             clD = l0*4
             clC = l0            
@@ -160,16 +162,16 @@ for split, regu in zip(splits, regularisations):
     # ----------------------------------------------
     if dim == 2:
         if simpli2D == "CP":
-            isCp = True
+            planeStress = True
         else:
-            isCp = False
+            planeStress = False
     else:
-        isCp = False
+        planeStress = False
 
     if materialType == "Elas_Isot":
         E = 12e9
         v = 0.3
-        material = Materials.Elas_Isot(dim, E=E, v=v, planeStress=isCp, thickness=ep)
+        material = Materials.Elas_Isot(dim, E=E, v=v, planeStress=planeStress, thickness=ep)
 
     elif materialType == "Elas_IsotTrans":        
         El = 12e9
@@ -178,7 +180,7 @@ for split, regu in zip(splits, regularisations):
         vl = 0.02
         vt = 0.44
         v = 0
-        material = Materials.Elas_IsotTrans(dim, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, planeStress=isCp, thickness=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
+        material = Materials.Elas_IsotTrans(dim, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt, planeStress=planeStress, thickness=ep, axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
 
     # folder name
     folderName = "PlateWithHole_" + problem
@@ -204,12 +206,12 @@ for split, regu in zip(splits, regularisations):
             domain = Domain(point, Point(x=L, y=h), clD)
             circle = Circle(Point(x=L/2, y=h/2), diam, clD, isHollow=True)
             
-            interfaceGmsh = Interface_Gmsh(False, False)
+            interfaceGmsh = Interface_Gmsh()
 
             if dim == 2:
-                mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
+                mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.TRI3, refineGeom=refineGeom)
             elif dim == 3:
-                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, "HEXA8", refineGeom=refineGeom)
+                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, ElemType.HEXA8,refineGeom=refineGeom)
 
             return mesh
         
@@ -220,25 +222,17 @@ for split, regu in zip(splits, regularisations):
             plt.show()        
 
         # ----------------------------------------------
-        # Material
+        # Simulation
         # ----------------------------------------------
-        if dim == 2:
-            if simpli2D == "CP":
-                isCp = True
-            else:
-                isCp = False
-        else:
-            isCp = False       
+        pfm = Materials.PhaseField_Model(material, split, regu, gc, l0, solver=solver)
 
-        phaseFieldModel = Materials.PhaseField_Model(material, split, regu, gc, l0, solver=solver)
-
-        simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
+        simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
 
         simu.Results_Set_Bc_Summary(u_max, listInc, listTresh, listOption)
 
         ud=0
         resol = 0
-        bord = 0
+        nDetect = 0
         displacement = []
         load = []
 
@@ -252,6 +246,7 @@ for split, regu in zip(splits, regularisations):
                 figLoad, axLoad = Display.Plot_Load_Displacement(arrayDisplacement*1e3, arrayLoad*1e-3, 'ud [mm]', 'f [kN]')
 
         def Loading(ud: float):
+            """Boundary conditions"""
             
             # Get Nodes
             nodes_Lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
@@ -269,18 +264,11 @@ for split, regu in zip(splits, regularisations):
         while ud <= u_max:
 
             resol += 1
-            
-            nodes_Edges = simu.mesh.Nodes_Tags(["L0","L1","L2","L3"])
-            nodes_Upper = mesh.Nodes_Conditions(lambda x,y,z: y==h) 
-
-            dofsY_Upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_Upper, ["y"])
 
             if dim == 3 and resol > 1500:
                 break
             
             Loading(ud)
-            # Display.Plot_BoundaryConditions(simu)
-            # plt.show()
 
             u, d, Kglob, convergence = simu.Solve(tolConv=tolConv, maxIter=maxIter)
 
@@ -333,7 +321,10 @@ for split, regu in zip(splits, regularisations):
 
             simu.Save_Iter()
 
-            max_d = d.max()
+            nodes_Edges = simu.mesh.Nodes_Tags(["L0","L1","L2","L3"])
+            nodes_Upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)
+            dofsY_Upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_Upper, ["y"])
+
             f = np.sum(Kglob[dofsY_Upper, :] @ u)
 
             if "Benchmark" in problem:
@@ -341,15 +332,15 @@ for split, regu in zip(splits, regularisations):
             elif "FCBA" in problem:
                 simu.Results_Set_Iteration_Summary(resol, ud*1e3, "mm", 0, True)
            
-            if max_d < tresh0:
+            if d.max() < tresh0:
                 ud += inc0
             else:
                 ud += inc1
 
             # Detection if the edges has been touched
             if np.any(d[nodes_Edges] >= 0.98):
-                bord += 1
-                if bord == 10:                    
+                nDetect += 1
+                if nDetect == 10:                    
                     break
 
             displacement.append(ud)

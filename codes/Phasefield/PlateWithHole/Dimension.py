@@ -13,37 +13,35 @@ Display.Clear()
 # The aim of this script is to see the influence of changing the problem size.
 # It may be interesting to vary the size and position of the hole in the domain.
 
-# Options
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
+# material
+E=12e9
+v=0.2
+planeStress = True
+
+# phase field
 comp = "Elas_Isot"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
 regu = "AT1" # "AT1", "AT2"
-planeStress = True
+gc = 1.4
 
-nom="_".join([comp, split, regu])
-
-nomDossier = "PlateWithHole_Dimension"
-
-folder = Folder.New_File(nomDossier, results=True)
-
-# Data
-coef = 1e-3
-
-L=15*coef
-H=30*coef
-ep=1*coef
-diam=6*coef
+# geom
+unit = 1e-3
+L=15*unit
+H=30*unit
+ep=1*unit
+diam=6*unit
 r=diam/2
+l0 = 0.12 *unit*1.5
 
-E=12e9
-v=0.2
+# loading
 SIG = 10 #Pa
 
-gc = 1.4
-l0 = 0.12 *coef*1.5
-
 # meshSize
-clD = l0*5
-clC = l0
+clD = l0*5 # domain
+clC = l0 # near crack
 
 list_SxxA = []
 list_SyyA = []
@@ -106,17 +104,18 @@ for cc in list_cc:
     list_SyyB.append(simu.Get_Result("Syy", True)[nodeB])
     list_SxyB.append(simu.Get_Result("Sxy", True)[nodeB])
 
-Display.Section("Results")
-
+# ----------------------------------------------
+# PosProcessing
+# ----------------------------------------------
 paramName=''
 if param1/H != 1: paramName += "H "
 if param2/L != 1: paramName += "L "
 if param3/diam != 1: paramName += "diam"
 
-Display.Plot_Mesh(mesh,folder=folder, title=f"mesh_{paramName}")
-Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", folder=folder, filename='Sxx')
-Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", folder=folder, filename='Syy')
-Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", folder=folder, filename='Sxy')
+Display.Plot_Mesh(mesh, title=f"mesh_{paramName}")
+Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", filename='Sxx')
+Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", filename='Syy')
+Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", filename='Sxy')
 
 fig, ax = plt.subplots()
 
@@ -132,8 +131,6 @@ ax.grid()
 plt.legend()
 ax.set_title(paramName)
 ax.set_xlabel('coef')
-
-Display.Save_fig(folder, paramName)
 
 Tic.Resume()
 

@@ -12,43 +12,38 @@ import matplotlib.pyplot as plt
 
 Display.Clear()
 
-# Options
-
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
 plotAllResult = False
 
+# material
+E=12e9
+v=0.2
+planeStress = False
+
+# phase field
 comp = "Elas_Isot" # "Elas_Isot" "Elas_IsotTrans"
 split = "Miehe" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
 regu = "AT2"
-planeStress = False
+gc = 1.4
 
-nom="_".join([comp, split, regu])
+name="_".join([comp, split, regu])
 
-loadInHole = False
-
-nomDossier = "PlateWithHole_Energy"
-
-if loadInHole:
-    nomDossier += "_loadInHole"
-
-folder = Folder.New_File(nomDossier, results=True)
-folder = ""
-
-# Data
-
+# Geom
 L=15e-3
 h=30e-3
 ep=1e-3
 diam=6e-3
 r=diam/2
+l0 = 0.12e-3*2
 
-E=12e9
-v=0.2
+# loading
 SIG = 10 #Pa
 
-gc = 1.4
-l0 = 0.12e-3*5
-
-# meshSize
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
 clC = l0/2
 clD = l0
 
@@ -62,8 +57,8 @@ mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 # Nodes
 B_lower = Line(point,Point(x=L))
 B_upper = Line(Point(y=h),Point(x=L, y=h))
-nodes0 = mesh.Nodes_Line(B_lower)
-nodesH = mesh.Nodes_Line(B_upper)
+nodesLower = mesh.Nodes_Line(B_lower)
+nodesUpper = mesh.Nodes_Line(B_upper)
 node00 = mesh.Nodes_Point(Point())
 nodesCircle = mesh.Nodes_Circle(circle)
 nodesCircle = nodesCircle[np.where(mesh.coordo[nodesCircle,1]<= circle.center.y)]
@@ -74,10 +69,12 @@ nodeB = mesh.Nodes_Point(Point(x=L/2+r, y=h/2))
 
 if plotAllResult:
     ax = Display.Plot_Mesh(mesh)
-    for ns in [nodes0, nodesH, node00, nodeA, nodeB]:
+    for ns in [nodesLower, nodesUpper, node00, nodeA, nodeB]:
         Display.Plot_Nodes(mesh, ax=ax, nodes=ns,c='red')
-    Display.Save_fig(folder, 'mesh')
 
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
 columns = ['v','A (ana CP)','B (ana CP)',
             'A (CP)','errA (CP)','B (CP)','errB (CP)',
             'A (DP)','errA (DP)','B (DP)','errB (DP)']
@@ -89,11 +86,6 @@ list_V = [0.2,0.3,0.4]
 Miehe_psiP_A = lambda v: 1**2*(v*(1-2*v)+1)/(2*(1+v))
 Miehe_psiP_B = lambda v: 3**2*v**2/(1+v)
 
-# l = lambda v: v*E/((1+v)*(1-2*v))
-# mu = lambda v: E/(2*(1+v))
-# Miehe_psiP_A = lambda v: (l(v)/2+mu(v))*(SIG/E*(1.358-v*0.042))**2*E/SIG**2
-# Miehe_psiP_B = lambda v: 3**2*v**2/(1+v)
-
 for v in list_V:
     result = {
         'v': v
@@ -104,14 +96,9 @@ for v in list_V:
 
         simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
-        simu.add_dirichlet(nodes0, [0], ["y"])
+        simu.add_dirichlet(nodesLower, [0], ["y"])
         simu.add_dirichlet(node00, [0], ["x"])
-
-        if loadInHole:
-            simu.add_surfLoad(nodesCircle, [lambda x,y,z: SIG*(x-circle.center.x)/r * np.abs((y-circle.center.y)/r)], ["x"])
-            simu.add_surfLoad(nodesCircle, [lambda x,y,z: SIG*(y-circle.center.y)/r * np.abs((y-circle.center.y)/r)], ["y"])
-        else:
-            simu.add_surfLoad(nodesH, [-SIG], ["y"])
+        simu.add_surfLoad(nodesUpper, [-SIG], ["y"])            
 
         simu.Solve()
 
@@ -126,9 +113,7 @@ for v in list_V:
         result[f'errA ({ext})'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
         result[f'errB ({ext})'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
 
-        Display.Plot_Result(simu, "psiP", nodeValues=True, coef=E/SIG**2, title=fr"$\psi_{0}^+\ E / \sigma^2 \ pour \ \nu={v} \ {ext}$",
-                            folder=folder, filename=f"psiP {nom} v={v}", colorbarIsClose=True)
-    
+        Display.Plot_Result(simu, "psiP", nodeValues=True, coef=E/SIG**2, title=fr"$\psi_{0}^+\ E / \sigma^2 \ \nu={v} \ {ext}$", filename=f"psiP {name} v={v}", colorbarIsClose=True)    
 
     result['A (ana CP)'] = Miehe_psiP_A(v)
     result['B (ana CP)'] = Miehe_psiP_B(v)
@@ -137,11 +122,10 @@ for v in list_V:
 
     df = pd.concat([df, new], ignore_index=True)
 
-# df.to_excel(Folder.Join([folder, f"{nom}.xlsx"]), index=False)
-
-Display.Section("Résultats")
-
-print(nom+'\n')
+# ----------------------------------------------
+# PosProcessing
+# ----------------------------------------------
+print(name+'\n')
 print(df)
 
 SxxA = simu.Get_Result("Sxx", True)[nodeA][0]
@@ -159,9 +143,9 @@ Sig_B=np.array([[SxxB, SxyB, 0],[SxyB, SyyB, 0],[0,0,0]])
 print(f"\nEn B : Sig/SIG = \n{Sig_B/SIG}\n")
 
 if plotAllResult:
-    Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx} / \sigma$",folder=folder, filename='Sxx', colorbarIsClose=True)
-    Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$", folder=folder, filename='Syy', colorbarIsClose=True)
-    Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$", folder=folder, filename='Sxy', colorbarIsClose=True)
+    Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx} / \sigma$", filename='Sxx', colorbarIsClose=True)
+    Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$", filename='Syy', colorbarIsClose=True)
+    Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$", filename='Sxy', colorbarIsClose=True)
 
 fig, axp = plt.subplots()
 
@@ -174,11 +158,9 @@ axp.plot(list_v, Miehe_psiP_A(list_v), label='A')
 axp.plot(list_v, Miehe_psiP_B(list_v), label='B')
 axp.grid()
 axp.legend(fontsize=14)
-axp.set_xlabel(r"$\nu$",fontsize=14)
+axp.set_xlabel("$\nu$",fontsize=14)
 axp.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-axp.set_title(r'Split sur $\varepsilon$',fontsize=14)
-
-Display.Save_fig(folder, "calc analytique")
+axp.set_title(r'Split sur $\varepsilon$ an',fontsize=14)
 
 list_Amor_psiP_A=[]
 list_Amor_psiP_B=[]
@@ -189,6 +171,7 @@ list_Miehe_psiP_B=[]
 list_Stress_psiP_A=[]
 list_Stress_psiP_B=[]
 
+# calc num part
 for v in list_v:
     
     Eps_A = (1+v)/E*Sig_A - v/E*np.trace(Sig_A)*np.eye(3); trEps_A = np.trace(Eps_A); trEpsP_A = (trEps_A+np.abs(trEps_A))/2
@@ -250,9 +233,7 @@ if split == "Miehe":
 ax1.legend(fontsize=14)
 ax1.set_xlabel(r"$\nu$",fontsize=14)
 ax1.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-ax1.set_title(r'Split sur $\varepsilon$',fontsize=14)
-
-Display.Save_fig(folder, "Miehe psiP")
+ax1.set_title(r'Split sur $\varepsilon$ num',fontsize=14)
 
 fig, ax2 = plt.subplots()
 
@@ -269,9 +250,7 @@ if split == "Stress":
 ax2.legend(fontsize=14)
 ax2.set_xlabel(r"$\nu$",fontsize=14)
 ax2.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-ax2.set_title('Split sur $\sigma$',fontsize=14)
-
-Display.Save_fig(folder, "Stress psiP")
+ax2.set_title('Split sur $\sigma$ num',fontsize=14)
 
 fig, ax3 = plt.subplots()
 
@@ -284,18 +263,8 @@ if split == "Amor":
 ax3.legend(fontsize=14)
 ax3.set_xlabel(r"$\nu$",fontsize=14)
 ax3.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-ax3.set_title('Split Amor',fontsize=14)
-
-Display.Save_fig(folder, "Amor psiP")
-
-
+ax3.set_title('Split Amor num',fontsize=14)
 
 Tic.Resume()
 
 plt.show()
-
-
-
-pass
-
-
