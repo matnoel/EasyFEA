@@ -282,7 +282,7 @@ for split, regu in zip(splits, regularisations):
                 simu.add_dirichlet(nodes_left, [0],["y"])
                 simu.add_dirichlet(nodes_right, [0],["y"])
                 simu.add_dirichlet(nodes_upper, [dep,0], ["x","y"])
-                simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_directions(s))
+                simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_directions())
 
             elif "Tension" in problem:
                 if dim == 2:
