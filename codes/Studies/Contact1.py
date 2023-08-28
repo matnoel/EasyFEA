@@ -12,7 +12,7 @@ np = Display.np
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-dim = 3
+dim = 2
 
 R = 10
 height = R
@@ -72,7 +72,7 @@ Display.Plot_Mesh(mesh_slave, ax=ax)
 # add nodes interface
 Display.Plot_Nodes(mesh_master, nodes_master, ax=ax)
 Display.Plot_Nodes(mesh_slave, nodes_slave, ax=ax)
-ax.set_title('Geom')
+ax.set_title('Contact nodes')
 
 # ----------------------------------------------
 # Simulation
