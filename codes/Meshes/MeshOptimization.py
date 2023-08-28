@@ -16,9 +16,12 @@ Display.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
+dim = 2 # Dimension of the problem (2D or 3D)
 
-# Dimension of the problem (2D or 3D)
-dim = 2
+# Choosing the part type (you can uncomment one of the parts)
+part = "equerre"
+# part = "lmt"
+# part = "other"
 
 # Creating a folder to store the results
 folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
@@ -60,11 +63,6 @@ else:
 # Meshing
 # ----------------------------------------------
 
-# Choosing the part type (you can uncomment one of the parts)
-# part = "equerre"
-# part = "lmt"
-part = "other"
-
 # Define the geometry based on the chosen part type
 if part == "equerre":
 
@@ -81,12 +79,6 @@ if part == "equerre":
     pt5 = Point(x=h, y=L)
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
-
-    crack = Line(Point(100, h, isOpen=True), Point(100-h/3, h*0.9, isOpen=True), h/N, isOpen=True)
-    crack2 = Line(crack.pt2, Point(100-h/2, h*0.9, isOpen=True), h/N, isOpen=True)
-
-    cracks = [crack, crack2]
-    cracks = []
 
     points = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
 
@@ -118,10 +110,8 @@ elif part == "lmt":
     pt11 = Point(e,h)
     pt12 = Point(0,h)
 
-    points = PointsList([pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, pt9, pt10, pt11, pt12], meshSize)
-    
+    points = PointsList([pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, pt9, pt10, pt11, pt12], meshSize)    
     inclusions = []
-    cracks = []
 
 else:
 
@@ -132,18 +122,7 @@ else:
     pt3 = Point(L, h)
     pt4 = Point(0, h)
 
-    points = PointsList([pt1, pt2, pt3, pt4], meshSize)
-
-    # circle = Circle(Point(x=h, y=h/2), h*0.3, isCreux=True)
-    # inclusions = [circle]
-
-    # xC=h; tC=h/3
-    # ptC1 = Point(xC-tC/2, h/2-tC/2, r=tC/2) 
-    # ptC2 = Point(xC+tC/2, h/2-tC/2)
-    # ptC3 = Point(xC+tC/2, h/2+tC/2, r=tC/2)
-    # ptC4 = Point(xC-tC/2, h/2+tC/2)
-    # carre = PointsList([ptC1, ptC2, ptC3, ptC4], meshSize, isCreux=True)
-    # inclusions = [carre]
+    points = PointsList([pt1, pt2, pt3, pt4], meshSize)    
 
     inclusions = []
     nL = 20
@@ -157,60 +136,27 @@ else:
 
             ptd1 = Point(x-cL/2, y-cH/2)
             ptd2 = Point(x+cL/2, y+cH/2)
-
-            isCreux = True
             
-            if i % 2 == 1:
-                obj = Domain(ptd1, ptd2, meshSize, isHollow=isCreux)
+            isHollow = True
+            
+            if (i+j)//2 % 2 == 1:
+                inclusion = Domain(ptd1, ptd2, meshSize, isHollow=isHollow)
             else:
-                obj = Domain(ptd1, ptd2, meshSize, isHollow=isCreux)
-                # obj = Circle(Point(x, y), cH, meshSize, isCreux=isCreux)
+                # obj = Domain(ptd1, ptd2, meshSize, isHollow=isHollow)
+                inclusion = Circle(Point(x, y), cH, meshSize, isHollow=isHollow)
 
-            inclusions.append(obj)
-
-    inclusions = []
-
-    if dim == 2:
-
-        tC = h/3
-        ptC1 = Point(h, h/2-tC/2, isOpen=True)
-        ptC2 = Point(h, h/2+tC/2, isOpen=True)
-
-        cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC1+[h], ptC2+[h], meshSize, isOpen=True)]
-        # cracks = []
-        # cracks = [Line(Point(L,h/2, isOpen=True), Point(L-h,h/2), isOpen=True, meshSize=meshSize)]
-        # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True), Line(ptC2, ptC2+[h], meshSize, isOpen=True)]
-
-    if dim == 3:
-        # ptC1 = Point(h, h/2-tC/2, b/2-tC/2, isOpen=False)
-        # cracks = [PointsList([ptC1, ptC1+[0,tC], ptC1+[0,tC,tC], ptC1+[0,0,tC]], isCreux=True)]    
-        
-        ptC1 = Point(h, h, 0, isOpen=False)
-        ptC2 = Point(h, h/2, 0, isOpen=False)
-        ptC3 = Point(h, h/2, b, isOpen=False)
-        ptC4 = Point(h, h, b, isOpen=False)
-
-        cracks = [PointsList([ptC1, ptC2, ptC3, ptC4], isHollow=True)]
-
-        cracks.append(Line(ptC1, ptC4, meshSize, isOpen=True))
-        cracks.append(Line(ptC1, ptC2, meshSize, isOpen=True))
-        cracks.append(Line(ptC3, ptC4, meshSize, isOpen=True))
-        # cracks.append(Line(ptC3, ptC2, meshSize, isOpen=True))
-
-        cracks = []
-
-    # cracks = [Line(ptC1, ptC2, meshSize, isOpen=True)]
-    cracks = []
+            inclusions.append(inclusion)
+    # inclusions = []
 
 # Create an instance of the Gmsh interface
-interfaceGmsh = Interface_Gmsh(False, False)
+interfaceGmsh = Interface_Gmsh()
 
 def DoMesh(refineGeom=None) -> Mesh:
     """Function used for mesh generation"""
     if dim == 2:
-        return interfaceGmsh.Mesh_2D(points, inclusions, elemType, cracks, False, refineGeom)
+        return interfaceGmsh.Mesh_2D(points, inclusions, elemType, [], False, refineGeom)
     else:
-        return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], 5, elemType, cracks, refineGeom)
+        return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], 5, elemType, [], refineGeom)
 
 # Construct the initial mesh
 mesh = DoMesh()
@@ -218,23 +164,22 @@ mesh = DoMesh()
 # ----------------------------------------------
 # Material and Simulation
 # ----------------------------------------------
-
 material = Materials.Elas_Isot(dim, E=210000, v=0.3, thickness=b)
 simu = Simulations.Simu_Displacement(mesh, material, verbosity=False)
 simu.rho = 8100*1e-9
 
 def DoSimu(i=0):    
     
-    noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
-    noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
+    nodes_x0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+    nodes_xL = mesh.Nodes_Conditions(lambda x,y,z: x == L)
     
     simu.Bc_Init()
     if dim == 2:
-        simu.add_dirichlet(noeuds_en_0, [0, 0], ["x","y"], description="Encastrement")
+        simu.add_dirichlet(nodes_x0, [0, 0], ["x","y"], description="Encastrement")
     elif dim == 3:
-        simu.add_dirichlet(noeuds_en_0, [0, 0, 0], ["x","y","z"], description="Encastrement")
+        simu.add_dirichlet(nodes_x0, [0, 0, 0], ["x","y","z"], description="Encastrement")
 
-    simu.add_surfLoad(noeuds_en_L, [-surfLoad], ["y"])
+    simu.add_surfLoad(nodes_xL, [-surfLoad], ["y"])
     # simu.add_surfLoad(noeuds_en_L, [surfLoad], ["x"])
 
     simu.Solve()
@@ -306,9 +251,8 @@ if i > 0:
     os.remove(path)
 
 # ----------------------------------------------
-# Post processing
+# PostProcessing
 # ----------------------------------------------
-
 # folder=""
 if plotResult:
     tic = Tic()    
