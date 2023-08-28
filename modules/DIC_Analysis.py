@@ -487,7 +487,7 @@ class DIC_Analysis:
             pickle.dump(self, file)
 
 
-def Load_Analyse(path: str) -> DIC_Analysis:
+def Load(path: str) -> DIC_Analysis:
     """Loading procedure"""
 
     if not os.path.exists(path):

@@ -12,24 +12,24 @@ import numpy as np
 Display.Clear()
 
 folder_FCBA = Folder.New_File("Essais FCBA",results=True)
-folder = Folder.Join([folder_FCBA, "Essais Laura"])
+folder = Folder.Join([folder_FCBA, "Compression_Laura"])
 
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
 dim = 3
+
 test = True
 optimMesh = True
+loadInHole = True
+makeParaview = False
 
-# loadType = 0 # nodesLower
-loadType = 1 # in hole
-
-# ----------------------------------------------
-# GEOM
-# ----------------------------------------------
-
+# geom
 H = 120 # mm
 L = 90
 h = 35 
 d = 10
-ep = 20
+thickness = 20
 
 # nL = 50
 # l0 = L/nL
@@ -39,13 +39,12 @@ nL = L//l0
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
-
 clC = l0 if test else l0/2
 clD = clC*2 if optimMesh else clC
 
 if optimMesh:
     pr0 = Point(L/2-d, 0, 0)
-    pr1 = Point(L/2+d, H, ep)
+    pr1 = Point(L/2+d, H, thickness)
     refineGeom = Domain(pr0, pr1, clC)
 else:
     refineGeom = None
@@ -63,19 +62,19 @@ if dim == 2:
     mesh = Interface_Gmsh().Mesh_2D(contour, [circle], ElemType.TRI6, refineGeom=refineGeom)
     directions = ['x','y']
 else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-ep], 3, ElemType.PRISM6, refineGeom=refineGeom)
+    mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-thickness], 3, ElemType.PRISM6, refineGeom=refineGeom)
     directions = ['x','y','z']
 
 print(mesh)
 
 # ----------------------------------------------
-# Materials
+# Material
 # ----------------------------------------------
 
-# Propriétés pour l'essai 4
+# Properties for test 4
 Gc = 0.075 # mJ/mm2
 
-psiC = (3*Gc)/(16*l0)
+psiC = (3*Gc)/(16*l0) 
 
 El = 15716.16722094732 
 Et = 232.6981580878141
@@ -90,24 +89,20 @@ axis_t = np.cross(np.array([0,0,1]), axis_l)
 split = "AnisotStress"
 regu = "AT1"
 
-comp = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt, axis_l, axis_t, True, ep)
+comp = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt, axis_l, axis_t, True, thickness)
 pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0)
 
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-
 simu = Simulations.Simu_Displacement(mesh, comp)
 
 nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 
-if loadType == 0:
-    surf = ep * L
-    nodesLoad = mesh.Nodes_Conditions(lambda x,y,z: y==H)    
+if loadInHole:
 
-elif loadType == 1:
-    surf = np.pi * d/2 * ep
-    nodesLoad = mesh.Nodes_Cylinder(circle, [0,0,-ep])
+    surf = np.pi * d/2 * thickness
+    nodesLoad = mesh.Nodes_Cylinder(circle, [0,0,-thickness])
     nodesLoad = nodesLoad[mesh.coordo[nodesLoad,1] <= pC.y]
     # Display.Plot_Nodes(mesh, nodesLoad)
 
@@ -117,36 +112,35 @@ elif loadType == 1:
     aire = np.einsum('ep,p->', group.Get_jacobian_e_pg("mass")[elems], group.Get_weight_pg("mass"))
 
     if dim == 2:
-        aire *= ep 
+        aire *= thickness 
 
     print(f"errSurf = {np.abs(surf-aire)/surf:.3e}")
 
-    def FuncEval(x: np.ndarray, y: np.ndarray, z: np.ndarray):
-        """Evaluation de la fonction sig cos(theta)^2 vect_n\n
+    def Eval(x: np.ndarray, y: np.ndarray, z: np.ndarray):
+        """Evaluation of the sig cos(theta)^2 vect_n function\n
         x,y,z (ep)"""
         
-        # Calcul de l'angle
+        # Angle calculation
         theta = np.arctan((x-pc[0])/(y-pc[1]))
 
-        # Coordonnées des points de gauss sous forme de matrice
+        # Coordinates of Gauss points in matrix form
         coord = np.zeros((x.shape[0],x.shape[1],3))
         coord[:,:,0] = x
         coord[:,:,1] = y
         coord[:,:,2] = 0
 
-        # Construction du vecteur normal
+        # Construction of the normal vector
         vect = coord - pc
         vectN = np.einsum('npi,np->npi', vect, 1/np.linalg.norm(vect, axis=2))
         
-        # Chargement
+        # Loading
         loads = f/surf * np.einsum('np,npi->npi',np.cos(theta)**2, vectN)
 
         return loads
 
-    funcEvalX = lambda x,y,z: FuncEval(x,y,z)[:,:,0]
-    funcEvalY = lambda x,y,z: FuncEval(x,y,z)[:,:,1]
+    EvalX = lambda x,y,z: Eval(x,y,z)[:,:,0]
+    EvalY = lambda x,y,z: Eval(x,y,z)[:,:,1]    
     
-    # # Affichage
     # ax = plt.subplots()[1]
     # ax.axis('equal')
     # angle = np.linspace(0, np.pi*2, 360)
@@ -165,7 +159,6 @@ elif loadType == 1:
 
     # vectN = normalize_vect(coord)
 
-
     # f = sig * np.einsum("n,ni->ni", np.sin(angle)**2, vectN)
     # f[np.abs(f)<=1e-12] = 0
 
@@ -175,16 +168,11 @@ elif loadType == 1:
 
     # Display.Save_fig(folder, 'illustration')
 
-    # # ax.annotate("$x$",xy=(1,0),xytext=(0,0),arrowprops=dict(arrowstyle="->"), c='black')
+    # # ax.annotate("$x$",xy=(1,0),xytext=(0,0),arrowprops=dict(arrowstyle="->"), c='black')    
 
-    pass
-    
-
-
-
-
-
-
+else:
+    surf = thickness * L
+    nodesLoad = mesh.Nodes_Conditions(lambda x,y,z: y==H)
 
 # simu.Solve()
 
@@ -197,16 +185,17 @@ for f in array_f:
 
     simu.Bc_Init()
     simu.add_dirichlet(nodesLower, [0]*dim, directions)
-    if loadType == 0:
-        simu.add_surfLoad(nodesLoad, [-f/surf], ['y'])
-    elif loadType == 1:
-        simu.add_surfLoad(nodesLoad, [funcEvalX, funcEvalY], ["x","y"],
+    if loadInHole:
+        simu.add_surfLoad(nodesLoad, [EvalX, EvalY], ["x","y"],
                           description=r"$\mathbf{q}(\theta) = \sigma \ sin^2(\theta) \ \mathbf{n}(\theta)$")
-
+    else:
+        simu.add_surfLoad(nodesLoad, [-f/surf], ['y'])
+    
+    # solve and save iteraton
     simu.Solve()
     simu.Save_Iter()
 
-    # Calcul l'energie
+    # Energy calculation
     Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement, "mass")
     psiP_e_pg, psiM_e_pg = pfm.Calc_psi_e_pg(Epsilon_e_pg)
     psiP_e = np.max(psiP_e_pg, axis=1)
@@ -215,12 +204,13 @@ for f in array_f:
 
     print(f"f = {f/1000:.3f} kN -> psiP/psiC = {list_psiP[-1]/psiC:.2e}")
 
-
+# ----------------------------------------------
+# PostProcessing
+# ----------------------------------------------
 if len(list_psiP) > 1:
     axLoad = plt.subplots()[1]
     axLoad.set_xlabel("$f \ [kN]$"); axLoad.set_ylabel("$\psi^+ \ / \ \psi_c$")
     axLoad.grid() 
-
 
     array_psiP = np.array(list_psiP)
 
@@ -229,19 +219,16 @@ if len(list_psiP) > 1:
  
     Display.Save_fig(folder, "Load")
 
-
-
 Display.Plot_Mesh(mesh)
 ax = Display.Plot_BoundaryConditions(simu, folder=folder)
-# f_v = simu.Get_K_C_M_F()[0] @ simu.displacement
-# f_m = f_v.reshape(-1,2)
-# f_m *= 1
-# nodes = np.concatenate([nodesLoad, nodesLower])
-# xn,yn,zn = mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2]
 # if dim == 2:    
+#     f_v = simu.Get_K_C_M_F()[0] @ simu.displacement
+#     f_m = f_v.reshape(-1,2)
+#     f_m *= 1
+#     nodes = np.concatenate([nodesLoad, nodesLower])
+#     xn,yn,zn = mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2]
 #     # ax.quiver(xn[nodes], yn[nodes], f_m[nodes,0], f_m[nodes,1], color='red', width=1e-3, scale=1e3)
 #     ax.quiver(xn, yn, f_m[:,0], f_m[:,1], color='red', width=1e-3, scale=1e4)
-
 
 Display.Plot_Result(simu, psiP_e, title="$\psi^+$", nodeValues=False)
 ax = Display.Plot_Result(simu, psiP_e/psiC, nodeValues=True, title="$\psi^+ \ / \ \psi_c$", colorbarIsClose=False)[1]
@@ -258,6 +245,7 @@ Display.Plot_Result(simu, "Sxy", plotMesh=False)
 
 print(simu)
 
-PostProcessing.Make_Paraview(folder, simu)
+if makeParaview:
+    PostProcessing.Make_Paraview(folder, simu)
 
 plt.show()

@@ -21,15 +21,13 @@ import pickle
 folder_file = Folder.Get_Path(__file__)
 
 # ----------------------------------------------
-# Config
+# Configuration
 # ----------------------------------------------
-
+test = True
+optimMesh = True
 doSimulation = True
 doIdentif = True
 detectL0 = False
-
-test = True
-optimMesh = True
 
 pltLoad = True 
 pltIter = True
@@ -47,20 +45,12 @@ l00 = L/nL
 
 Gc0 = 0.06 # mJ/mm2
 
-# 1 J -> 1000 mJ
-# 1 mJ -> 1e-3 J
-# 1 m -> 1e3 mm
-# 1 m^2 -> 1e6 mm^2
-# 1 mm^2 -> 1e-6 m^2
-tt = Gc0 / 1e3 * 1e6
-
 inc0 = 1e-2/2 # inc0 = 8e-3 # incrément platewith hole
 inc1 = inc0/5 # inc1 = 2e-3
 treshold = 0.2
 
-solveur = 0 # least_squares
+solver = 0 # least_squares
 # solveur = 1 # minimize
-# solveur = 2
 
 # ftol = 1e-12
 # ftol = 1e-5
@@ -273,7 +263,7 @@ for idxEssai in range(0,18):
                 plt.figure(ax_J.figure)
                 plt.pause(1e-12)
 
-        if solveur == 2:
+        if solver == 2:
             return np.sqrt(J**2)
         else:
             return J
@@ -300,98 +290,26 @@ for idxEssai in range(0,18):
             ub = [GcMax] if not detectL0 else [GcMax, L/20]
             x0 = [Gc0] if not detectL0 else [Gc0, l00]
 
-            if solveur in [0,1]:
-                
-                if solveur == 0:
-                    res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None)
-                elif solveur == 1:
-                    # res = minimize(DoSimu, x0, tol=tol)
+            if solver == 0:
+                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None)
+            elif solver == 1:
+                # res = minimize(DoSimu, x0, tol=tol)
 
-                    bounds = [(l, u) for l, u in zip(lb, ub)]
+                bounds = [(l, u) for l, u in zip(lb, ub)]
 
-                    res = minimize(DoSimu, x0, bounds=bounds, tol=ftol)
+                res = minimize(DoSimu, x0, bounds=bounds, tol=ftol)
 
-                Gc = res.x[0]
-                if detectL0:
-                    l0 = res.x[1]
-                    print(f"Gc = {Gc:.10e}, l0 = {l0:.4e}")
-                else:
-                    l0 = l00
-                    print(f"Gc = {Gc:.10e}")
-
-                x = res.x
-
-                print(res)
-
+            Gc = res.x[0]
+            if detectL0:
+                l0 = res.x[1]
+                print(f"Gc = {Gc:.10e}, l0 = {l0:.4e}")
             else:
+                l0 = l00
+                print(f"Gc = {Gc:.10e}")
 
-                x0 = np.array(x0)
+            x = res.x
 
-                firstGuess = DoSimu(x0)
-
-                list_x = [x0]
-                list_f = [firstGuess]
-                list_gradF = []
-
-                def CalcGradF(x: np.ndarray):
-                    # Fonction qui permet d'evaluer le gradient
-                    
-                    x = np.asarray(x, dtype=float)
-
-                    grad = np.zeros_like(x)
-
-                    p = 1e-12
-
-                    for i in range(x.size):
-                        dpi = np.zeros_like(x)
-                        dpi[i] = x[i] * p
-                        
-                        grad[i] = (DoSimu(x+dpi) - list_f[-1]) / dpi[i]
-
-                    return grad
-
-                list_gradF = [CalcGradF(x0)]
-
-                iter = 0
-                # alpha = 0.1
-                alpha = 0.5
-                ftol = 1e-10
-                gtol = 1e-10
-                xtol = 1e-10
-                iterMax = 100
-
-                while iter < 100:
-
-                    iter += 1
-
-                    # anciennes valeurs
-                    old_x = list_x[-1]
-                    old_f = list_f[-1]
-                    old_gradF = list_gradF[-1]
-
-                    # nouvelles valeurs
-                    new_x = old_x - alpha * CalcGradF(old_x)
-                    if new_x.min()<0:
-                        new_x = np.array([1e-3])
-                    new_f = DoSimu(new_x)
-                    new_gradF = CalcGradF(new_x)
-
-                    list_x.append(new_x)
-                    list_f.append(new_f)
-                    list_gradF.append(new_gradF)
-
-                    rx = np.linalg.norm(list_x[-2] - list_x[-1])
-                    rf = np.linalg.norm(list_f[-2] - list_f[-1])
-                    rg = np.linalg.norm(list_gradF[-2] - list_gradF[-1])
-
-                    test_x = rx <= xtol
-                    test_f = rf <= ftol
-                    test_gradF = rg <= gtol                   
-
-                    if True in [test_x, test_f, test_gradF]:
-                        break
-
-                raise Exception("Pas implémenté")
+            print(res)
 
             # Récupère la simulation
             returnSimu = True
@@ -426,7 +344,7 @@ for idxEssai in range(0,18):
                     "tolConv": tolConv,
                     "test": test,
                     "optimMesh": optimMesh,
-                    "solveur": solveur,
+                    "solveur": solver,
                     "ftol": ftol,
                     "detectL0": detectL0,
                     "f_crit": f_crit,
