@@ -19,7 +19,6 @@ usePER = True
 # --------------------------------------
 # Mesh
 # --------------------------------------
-
 p0 = Point(-1/2, -1/2)
 p1 = Point(1/2, -1/2)
 p2 = Point(1/2, 1/2)
@@ -45,26 +44,26 @@ coordo = mesh.coordoGlob
 Display.Plot_Mesh(mesh)
 Display.Plot_Model(mesh)
 
-nodesLeft = mesh.Nodes_Conditions(lambda x,y,z: x==-1/2)
+nodes_left = mesh.Nodes_Conditions(lambda x,y,z: x==-1/2)
 # sort by y and exclude first and last nodes
-nodesLeft = nodesLeft[np.argsort(coordo[nodesLeft,1])][1:-1]
+nodes_left = nodes_left[np.argsort(coordo[nodes_left,1])][1:-1]
 
-nodesRight = mesh.Nodes_Conditions(lambda x,y,z: x==1/2)
+nodes_right = mesh.Nodes_Conditions(lambda x,y,z: x==1/2)
 # sort by y and exclude first and last nodes
-nodesRight = nodesRight[np.argsort(coordo[nodesRight,1])][1:-1]
+nodes_right = nodes_right[np.argsort(coordo[nodes_right,1])][1:-1]
 
-nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: y==1/2)
+nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==1/2)
 # sort by x and exclude first and last nodes
-nodesUpper = nodesUpper[np.argsort(coordo[nodesUpper,0])][1:-1]
+nodes_upper = nodes_upper[np.argsort(coordo[nodes_upper,0])][1:-1]
 
-nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==-1/2)
+nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==-1/2)
 # sort by x and exclude first and last nodes
-nodesLower = nodesLower[np.argsort(coordo[nodesLower,0])][1:-1]
+nodes_lower = nodes_lower[np.argsort(coordo[nodes_lower,0])][1:-1]
 
-nodesB0 = np.concatenate((nodesLower, nodesLeft))
-nodesB1 = np.concatenate((nodesUpper, nodesRight))
+nodes_b0 = np.concatenate((nodes_lower, nodes_left))
+nodes_b1 = np.concatenate((nodes_upper, nodes_right))
 
-assert nodesB0.size == nodesB1.size, 'Edges must contain the same number of nodes.'
+assert nodes_b0.size == nodes_b1.size, 'Edges must contain the same number of nodes.'
 
 if usePER:
     nodes_border = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
@@ -72,9 +71,8 @@ else:
     nodes_border = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
 # --------------------------------------
-# Model and simu
+# Material and Simulation
 # --------------------------------------
-
 elements_inclusion = mesh.Elements_Tags(["S1"])
 elements_matrix = mesh.Elements_Tags(["S0"])
 
@@ -98,7 +96,6 @@ Display.Plot_Result(simu, v, nodeValues=False, title="v")
 # --------------------------------------
 # Homogenization
 # --------------------------------------
-
 r2 = np.sqrt(2)
 E11 = np.array([[1, 0],[0, 0]])
 E22 = np.array([[0, 0],[0, 1]])
@@ -117,19 +114,19 @@ def Calc_ukl(Ekl: np.ndarray, pltSol=False):
         # requires the u field to have zero mean
         useMean0 = False
 
-        for n0, n1 in zip(nodesB0, nodesB1):
+        for n0, n1 in zip(nodes_b0, nodes_b1):
                 
             nodes = np.array([n0, n1])
 
             # plt.gca().scatter(coordo[nodes, 0],coordo[nodes, 1], marker='+', c='red')
 
             for direction in ["x", "y"]:
-                ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, [direction])
+                dofs = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, [direction])
                 
                 values = Ekl @ [coordo[n0,0]-coordo[n1,0], coordo[n0,1]-coordo[n1,1]]
                 value = values[0] if direction == "x" else values[1]
 
-                condition = LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
+                condition = LagrangeCondition("displacement", nodes, dofs, [direction], [value], [1, -1])
                 simu._Bc_Add_Lagrange(condition)
 
         if useMean0:            
@@ -138,13 +135,13 @@ def Calc_ukl(Ekl: np.ndarray, pltSol=False):
             vect = np.ones(mesh.Nn) * 1/mesh.Nn 
 
             # sum u_i / Nn = 0
-            ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"])        
-            condition = LagrangeCondition("displacement", nodes, ddls, ["x"], [0], [vect])
+            dofs = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"])        
+            condition = LagrangeCondition("displacement", nodes, dofs, ["x"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)
 
             # sum v_i / Nn = 0
-            ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"])        
-            condition = LagrangeCondition("displacement", nodes, ddls, ["y"], [0], [vect])
+            dofs = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"])        
+            condition = LagrangeCondition("displacement", nodes, dofs, ["y"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)            
 
     # Display.Plot_BoundaryConditions(simu)
@@ -175,9 +172,8 @@ u22_e = mesh.Locates_sol_e(u22)
 u12_e = mesh.Locates_sol_e(u12)
 
 # --------------------------------------
-# Effective elasticity tensor
+# Effective elasticity tensor (C_hom)
 # --------------------------------------
-
 U_e = np.zeros((u11_e.shape[0],u11_e.shape[1], 3))
 
 U_e[:,:,0] = u11_e; U_e[:,:,1] = u22_e; U_e[:,:,2] = u12_e

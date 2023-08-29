@@ -6,7 +6,7 @@ import pandas as pd
 import Simulations
 import Folder
 import Display
-import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 import Materials
 import Geom
 
@@ -17,12 +17,11 @@ Display.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
+noises = np.linspace(0, 0.02, 4)
+nRuns = 10
+tol = 1e-10
 
-folder = Folder.New_File("Identification", results=True)
-
-# perturbations = [0.01, 0.02]
-perturbations = np.linspace(0, 0.02, 4)
-nTirage = 10
+folder = Folder.New_File(Folder.Join(["Identification","PlateWithHole"]), results=True)
 
 pltVerif = False
 useRescale = True
@@ -33,21 +32,16 @@ b = 20
 d = 10
 
 meshSize = l/15
-elemType = "TRI3"
+elemType = ElemType.TRI3
 
-mat = "bois" # "acier" "bois"
-
-tol = 1e-10
+mat = "wood" # "steel" "wood"
 
 f=40
 sig = f/(l*b)
 
 # ----------------------------------------------
-# Maillage
+# Mesh
 # ----------------------------------------------
-
-gmshInterface = Interface_Gmsh.Interface_Gmsh()
-
 pt1 = Geom.Point()
 pt2 = Geom.Point(l, 0)
 pt3 = Geom.Point(l, h)
@@ -56,43 +50,39 @@ points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
 circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isHollow=True)
 
-mesh = gmshInterface.Mesh_2D(points, [circle], elemType)
+mesh = Interface_Gmsh().Mesh_2D(points, [circle], elemType)
 
-# Display.Plot_Model(mesh)
+nodes_contact = mesh.Nodes_Tags(["L0", "L2"])
+nodes_p0 = mesh.Nodes_Tags(["P0"])
+nodes_lower = mesh.Nodes_Tags(["L0"])
+nodes_upper = mesh.Nodes_Tags(["L2"])
 
-nodesBord = mesh.Nodes_Tags(["L0", "L2"])
-nodesp0 = mesh.Nodes_Tags(["P0"])
-nodesBas = mesh.Nodes_Tags(["L0"])
-nodesHaut = mesh.Nodes_Tags(["L2"])
+dofsX = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_contact, ["x"])
+dofsY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_contact, ["y"])
 
-ddlsX = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesBord, ["x"])
-ddlsY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesBord, ["y"])
-
-assert nodesBord.size*2 == (ddlsX.size + ddlsY.size)
+assert nodes_contact.size*2 == (dofsX.size + dofsY.size)
 
 if useRescale:
-    ddlsBasX = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesBas, ["x"])
-    ddlsBasY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesBas, ["y"])
+    dofsX_lower = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_lower, ["x"])
+    dofsY_lower = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_lower, ["y"])
     
-    ddlsHautX = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesHaut, ["x"])
-    ddlsHautY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesHaut, ["y"])
-    ddlsHautXY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesHaut, ["x","y"])
-
+    dofsX_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["x"])
+    dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
+    dofsXY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["x","y"])
 
 # Display.Plot_Mesh(mesh)
 # Display.Plot_Model(mesh)
 # Display.Plot_Nodes(mesh, nodesX0)
 
 # ----------------------------------------------
-# Comportement
+# Material
 # ----------------------------------------------
-
 tol0 = 1e-6
 bSup = np.inf
 
-if mat == "acier":
+if mat == "steel":
     E_exp, v_exp = 210000, 0.3
-    comp = Materials.Elas_Isot(2, thickness=b)
+    material = Materials.Elas_Isot(2, thickness=b)
 
     dict_param = {
         "E" : E_exp,
@@ -104,10 +94,10 @@ if mat == "acier":
     E0, v0 = Emax, vmax
     x0 = [E0, v0]
     
-    compIdentif = Materials.Elas_Isot(2, E0, v0, thickness=b)
+    material_FEMU = Materials.Elas_Isot(2, E0, v0, thickness=b)
     bounds=([tol0]*2, [bSup, vmax])
 
-elif mat == "bois":
+elif mat == "wood":
     EL_exp, GL_exp, ET_exp, vL_exp = 12000, 450, 500, 0.3
 
     dict_param = {
@@ -127,21 +117,20 @@ elif mat == "bois":
     bounds = (lb, ub)
     x0 = [EL0, GL0, ET0, vL0]
 
-    comp = Materials.Elas_IsotTrans(2, El=EL_exp, Et=ET_exp, Gl=GL_exp, vl=vL_exp, vt=0.3,
+    material = Materials.Elas_IsotTrans(2, El=EL_exp, Et=ET_exp, Gl=GL_exp, vl=vL_exp, vt=0.3,
     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), planeStress=True, thickness=b)
 
-    compIdentif = Materials.Elas_IsotTrans(2, El=EL0, Et=ET0, Gl=GL0, vl=vL0, vt=0.3,
+    material_FEMU = Materials.Elas_IsotTrans(2, El=EL0, Et=ET0, Gl=GL0, vl=vL0, vt=0.3,
     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), planeStress=True, thickness=b)
 
 # ----------------------------------------------
-# Simulation et chargement
+# Simulation
 # ----------------------------------------------
+simu = Simulations.Simu_Displacement(mesh, material)
 
-simu = Simulations.Simu_Displacement(mesh, comp)
-
-simu.add_dirichlet(nodesBas, [0], ["y"])
-simu.add_dirichlet(nodesp0, [0], ["x"])
-simu.add_surfLoad(nodesHaut, [-sig], ["y"])
+simu.add_dirichlet(nodes_lower, [0], ["y"])
+simu.add_dirichlet(nodes_p0, [0], ["x"])
+simu.add_surfLoad(nodes_upper, [-sig], ["y"])
 
 # Display.Plot_BoundaryConditions(simu)
 
@@ -155,191 +144,179 @@ u_exp = simu.Solve()
 # ----------------------------------------------
 # Identification
 # ----------------------------------------------
-
 Display.Section("Identification")
 
-# IMPORTANT : L'identification ne fonctionne pas si la simulation utilise un solveur itératif !
-simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif, useIterativeSolvers=False)
+# WARNING: Identification does not work if the simulation uses an iterative solver !
+simu_FEMU = Simulations.Simu_Displacement(mesh, material_FEMU, useIterativeSolvers=False)
 
 def func(x):
     # Fonction coût
 
     # Mise à jour des paramètres
-    if mat == "acier":
+    if mat == "steel":
         # x0 = [E0, v0]
         E = x[0]
         v = x[1]
-        compIdentif.E = E
-        compIdentif.v = v
-    elif mat == "bois":
+        material_FEMU.E = E
+        material_FEMU.v = v
+    elif mat == "wood":
         # x0 = [EL0, GL0, ET0, vL0]
-        compIdentif.El = x[0]
-        compIdentif.Gl = x[1]
-        compIdentif.Et = x[2]
-        compIdentif.vl = x[3]
+        material_FEMU.El = x[0]
+        material_FEMU.Gl = x[1]
+        material_FEMU.Et = x[2]
+        material_FEMU.vl = x[3]
 
-    simuIdentif.Need_Update()
+    simu_FEMU.Need_Update()
 
-    u = simuIdentif.Solve()
+    u = simu_FEMU.Solve()
     
-    diff = u - u_exp_bruit
-    diff = diff[ddlsInconnues]
+    diff = u - u_exp_noise
+    diff = diff[dofsUnknow]
 
     return diff
 
 def Add_Dirichlet(nodes: np.ndarray, directions=["x","y"]):
-    """Ajoute les conditions de déplacements"""
 
-    ddls = Get_dofs_nodes(2, "displacement", nodes, directions)
-
+    dofs = Get_dofs_nodes(2, "displacement", nodes, directions)
     nDim = len(directions)
 
-    values = u_exp_bruit[ddls]
+    values = u_exp_noise[dofs]
     values = np.reshape(values, (-1,nDim))
+    list_values = [values[:,d] for d in range(nDim)]
 
-    valeurs = [values[:,d] for d in range(nDim)]
+    simu_FEMU.add_dirichlet(nodes, list_values, directions)
 
-    simuIdentif.add_dirichlet(nodes, valeurs, directions)
+# dictionary list that will contain for the various disturbances the
+# properties identified
+list_dict_noise = []
 
-# liste de dictionnaire qui va contenir pour les différentes perturbations les
-# propriétés identifiées
+for noise in noises:
 
-list_dict_perturbation = []
+    print(f"\nnoise = {noise}")
 
-for perturbation in perturbations:
+    list_dict_run = []
 
-    print(f"\nperturbation = {perturbation}")
+    for run in range(nRuns):
 
-    list_dict_tirage = []
+        print(f"run = {run+1}", end='\r')
+        
+        uMax = np.abs(u_exp).mean()
+        u_noise = uMax * (np.random.rand(u_exp.shape[0]) - 1/2) * noise        
+        u_exp_noise = u_exp + u_noise
 
-    for tirage in range(nTirage):
+        if mat == "steel":
+            material_FEMU.E = E0
+            material_FEMU.v = v0
+        elif mat == "wood":
+            material_FEMU.El = EL0
+            material_FEMU.Gl = GL0
+            material_FEMU.Et = ET0
+            material_FEMU.vl = vL0
 
-        print(f"tirage = {tirage+1}", end='\r')        
-
-        # bruitage de la solution
-        # coefBruit = np.abs(u_exp).max()
-        coefBruit = np.abs(u_exp).mean()
-        bruit = coefBruit * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation        
-        u_exp_bruit = u_exp + bruit
-
-        if mat == "acier":
-            compIdentif.E = E0
-            compIdentif.v = v0
-        elif mat == "bois":
-            compIdentif.El = EL0
-            compIdentif.Gl = GL0
-            compIdentif.Et = ET0
-            compIdentif.vl = vL0
-
-        simuIdentif.Need_Update()
-        simuIdentif.Bc_Init()
+        simu_FEMU.Need_Update()
+        simu_FEMU.Bc_Init()
         
         if useRescale:
-
-            # ici quand on bruite la solution le vecteur de force calculé n'est plus correct
-            # l'indentifiacation en rescalant le vecteur ne peut donc pas fonctionner
-            # il faut choisir l'option 2
-            # avec l'option 2 on fait l'hypothèse que l'on connait la répartition de la charge sur la surface supérieure est homogène
+            # here, when the solution is noisy, the calculated force vector is no longer correct
+            # identification by rescalating the vector can therefore not work
+            # option 2 must be chosen
+            # with option 2, we assume that the load distribution on the upper surface is homogeneous
             
-            # optionRescale = 0 # dirichlet x et neumann sur y haut
-            optionRescale = 1 # dirichlet x,y bas et neumann x,y sur haut
-            # optionRescale = 2 # dirichlet x,y bas, dirichlet x haut et surfload y haut
+            # optionRescale = 0 # dirichlet x and neumann on y nodes_upper
+            optionRescale = 1 # dirichlet x,y low and neumann x,y nodes_upper
+            # optionRescale = 2 # dirichlet x,y nodes_lower, dirichlet x haut and surfload y nodes_upper
             
-            K = simuIdentif.Get_K_C_M_F("displacement")[0]
+            K = simu_FEMU.Get_K_C_M_F("displacement")[0]
 
             if optionRescale == 0:
-                # prends que les ddls suivant y
-                f_ddls = K[ddlsHautY,:] @ u_exp_bruit
-                f_r = - f_ddls.copy()                
+                # take only the following ddls y
+                f_dofs = K[dofsY_upper,:] @ u_exp_noise
+                f_r = - f_dofs.copy()                
 
             elif optionRescale == 1:
-                # prends les ddls suivant x et y
-                f_ddls = K[ddlsHautXY,:] @ u_exp_bruit
-                f_ddls = f_ddls.reshape(-1,2)
+                # take the dofs according to x and y
+                f_dofs = K[dofsXY_upper,:] @ u_exp_noise
+                f_dofs = f_dofs.reshape(-1,2)
 
-                f_r = np.sum(-f_ddls, 0)[1] # force suivant y
+                f_r = np.sum(-f_dofs, 0)[1] # force following y
 
             if optionRescale in [0, 1]:
 
                 correct = f / np.sum(f_r)
 
-                f_ddls *= correct
+                f_dofs *= correct
 
                 verifF =  np.sum(f_r*correct) - f
                 assert np.abs(verifF) <= 1e-10
 
             if optionRescale == 0:
-                # applique sur les surfaces en contact avec les mors les déplacements suivant x 
-                Add_Dirichlet(nodesBord, ['x'])
-                # applique sur la surface inférieure les déplacements suivants y 
-                Add_Dirichlet(nodesBas, ['y'])
-                # applique sur la surface supérieure le vecteur de force corrigé suivant y
-                simuIdentif.add_neumann(nodesHaut, [f_ddls], ["y"])
+                # apply the following displacements x to the surfaces in contact with the jaws
+                Add_Dirichlet(nodes_contact, ['x'])
+                # applies the following displacements to the lower surface y
+                Add_Dirichlet(nodes_lower, ['y'])
+                # applies the following corrected force vector to the upper surface y
+                simu_FEMU.add_neumann(nodes_upper, [f_dofs], ["y"])
 
             elif optionRescale == 1:
-                # applique sur les surfaces en contact avec le plateau inférieur
-                Add_Dirichlet(nodesBas, ['x','y'])
-                # applique sur la surface supérieure le vecteur de force corrigé suivant y
-                simuIdentif.add_neumann(nodesHaut, [f_ddls[:,0], f_ddls[:,1]], ["x","y"])
+                # applied to surfaces in contact with the bottom tray
+                Add_Dirichlet(nodes_lower, ['x','y'])
+                # applies the following corrected force vector to the upper surface y
+                simu_FEMU.add_neumann(nodes_upper, [f_dofs[:,0], f_dofs[:,1]], ["x","y"])
 
             elif optionRescale == 2:
-                # applique sur les surfaces en contact avec le plateau inférieur
-                Add_Dirichlet(nodesBas, ['x','y'])
-                # applique les deplacements suivant y sur les noeuds du haut
-                Add_Dirichlet(nodesHaut, ['x'])
-                # applique la charge surfacique
-                simuIdentif.add_surfLoad(nodesHaut, [-sig], ["y"])                
+                # applied to surfaces in contact with the bottom tray
+                Add_Dirichlet(nodes_lower, ['x','y'])
+                # applies y displacements to top nodes
+                Add_Dirichlet(nodes_upper, ['x'])
+                # applies surface load
+                simu_FEMU.add_surfLoad(nodes_upper, [-sig], ["y"])                
         else:
-            # applique les ddls sur le bord
-            Add_Dirichlet(nodesBord, ['x','y'])
+            # apply dofs on edge
+            Add_Dirichlet(nodes_contact, ['x','y'])
 
-        ddlsConnues, ddlsInconnues = simuIdentif.Bc_dofs_known_unknow(simuIdentif.problemType)
-        # Display.Plot_BoundaryConditions(simuIdentif)
+        dofsKnown, dofsUnknow = simu_FEMU.Bc_dofs_known_unknow(simu_FEMU.problemType)
 
         # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
         res = least_squares(func, x0, bounds=bounds, verbose=0, ftol=tol, gtol=tol, xtol=tol)
 
-        dict_tirage = {
-            "tirage" : tirage
+        dict_run = {
+            "run" : run
         }
+        if mat == "steel":
+            dict_run["E"]=res.x[0]
+            dict_run["v"]=res.x[1]
+        elif mat == "wood":
+            dict_run["EL"]=res.x[0]
+            dict_run["GL"]=res.x[1]
+            dict_run["ET"]=res.x[2]
+            dict_run["vL"]=res.x[3]
 
-        if mat == "acier":
-            dict_tirage["E"]=res.x[0]
-            dict_tirage["v"]=res.x[1]
-        elif mat == "bois":
-            dict_tirage["EL"]=res.x[0]
-            dict_tirage["GL"]=res.x[1]
-            dict_tirage["ET"]=res.x[2]
-            dict_tirage["vL"]=res.x[3]
+        list_dict_run.append(dict_run)
 
-        list_dict_tirage.append(dict_tirage)
+    df_run = pd.DataFrame(list_dict_run)
 
-    df_tirage = pd.DataFrame(list_dict_tirage)
-
-    dict_perturbation = {
-        "perturbation" : perturbation,
+    dict_noise = {
+        "noise" : noise,
     }
+    if mat == "steel":
+        dict_noise["E"] = df_run["E"].values
+        dict_noise["v"] = df_run["v"].values
+    elif mat == "wood":
+        dict_noise["EL"] = df_run["EL"].values
+        dict_noise["GL"] = df_run["GL"].values
+        dict_noise["ET"] = df_run["ET"].values
+        dict_noise["vL"] = df_run["vL"].values
 
-    if mat == "acier":
-        dict_perturbation["E"] = df_tirage["E"].values
-        dict_perturbation["v"] = df_tirage["v"].values
-    elif mat == "bois":
-        dict_perturbation["EL"] = df_tirage["EL"].values
-        dict_perturbation["GL"] = df_tirage["GL"].values
-        dict_perturbation["ET"] = df_tirage["ET"].values
-        dict_perturbation["vL"] = df_tirage["vL"].values
+    list_dict_noise.append(dict_noise)        
 
-    list_dict_perturbation.append(dict_perturbation)        
-
-df_pertubation = pd.DataFrame(list_dict_perturbation)
+df_noise = pd.DataFrame(list_dict_noise)
 
 # ----------------------------------------------
-# Affichage
+# Display
 # ----------------------------------------------
-
-if mat == "acier":
+if mat == "steel":
     params = ["E","v"]
-elif mat == "bois":
+elif mat == "wood":
     params = ["EL", "GL", "ET", "vL"]
 
 borne = 0.95
@@ -351,13 +328,11 @@ for param in params:
     axParam = plt.subplots()[1]
     
     paramExp = dict_param[param]
-
-    perturbations = df_pertubation["perturbation"]
-
-    nPertu = perturbations.size
-    values = np.zeros((nPertu, nTirage))
+    
+    nPertu = noises.size
+    values = np.zeros((nPertu, nRuns))
     for p in range(nPertu):
-        values[p] = df_pertubation[param].values[p]
+        values[p] = df_noise[param].values[p]
     
     print(f"{param} = {values.mean()}")
 
@@ -368,26 +343,23 @@ for param in params:
 
     paramInf, paramSup = tuple(np.quantile(values, (bInf, bSup), axis=1))
 
-    axParam.plot(perturbations, [1]*nPertu, label=f"{param}_exp", c="black", ls='--')
-    axParam.plot(perturbations, mean, label=f"{param}_moy")
-    axParam.fill_between(perturbations, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nTirage} tirages)")
-    axParam.set_xlabel("perturbations")
+    axParam.plot(noises, [1]*nPertu, label=f"{param}_exp", c="black", ls='--')
+    axParam.plot(noises, mean, label=f"{param}_moy")
+    axParam.fill_between(noises, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nRuns} runs)")
+    axParam.set_xlabel("noises")
     axParam.set_ylabel(fr"${param} \ / \ {param}_{'{exp}'}$")
     axParam.grid()
     axParam.legend(loc="upper left")
     
     Display.Save_fig(folder, "FEMU_"+param, extension='pdf')
 
-    
-
-
-diff_n = np.reshape(simuIdentif.displacement - u_exp, (mesh.Nn, 2))
+diff_n = np.reshape(simu_FEMU.displacement - u_exp, (mesh.Nn, 2))
 
 # err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp.reshape((mesh.Nn,2)), axis=1)
 err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp)
 # err_n = np.linalg.norm(diff_n, axis=1)
 
-Display.Plot_Result(simuIdentif, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
+Display.Plot_Result(simu_FEMU, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
 
 # print(np.linalg.norm(diff_n)/np.linalg.norm(u_exp))
 

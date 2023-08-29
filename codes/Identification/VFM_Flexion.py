@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 import Simulations
 import Display
-import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
 import Materials
 import Geom
 
@@ -12,8 +12,9 @@ Display.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-
 pltVerif = False
+
+noise = 0.02
 
 L=120
 h=13
@@ -22,16 +23,13 @@ meshSize = h/1
 p = 800
 
 # ----------------------------------------------
-# Maillage
+# Mesh
 # ----------------------------------------------
-
-gmshInterface = Interface_Gmsh.Interface_Gmsh()
-
 pt1 = Geom.Point(0,-h/2)
 pt2 = Geom.Point(L, h/2)
 domain = Geom.Domain(pt1, pt2, meshSize)
 
-mesh = gmshInterface.Mesh_2D(domain, "TRI10")
+mesh = Interface_Gmsh().Mesh_2D(domain,[],ElemType.TRI10)
 xn = mesh.coordo[:,0]
 yn = mesh.coordo[:,1]
 
@@ -39,7 +37,7 @@ nodesEdge = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 nodesX0 = mesh.Nodes_Tags(["L3"])
 nodesXL = mesh.Nodes_Tags(["L1"])
 
-# Récupération des array pour l'intégration numérique
+# Recovery of arrays for digital integration
 matrixType = "rigi" 
 jacob2D_e_pg = mesh.Get_jacobian_e_pg(matrixType)
 poid2D_pg = mesh.Get_weight_pg(matrixType)
@@ -50,21 +48,13 @@ poid1D_pg = groupElem1D.Get_weight_pg(matrixType)
 
 assembly1D_e = groupElem1D.Get_assembly_e(2)
 
-# Display.Plot_Mesh(mesh)
-# Display.Plot_Model(mesh)
-
 # ----------------------------------------------
-# Comportement
+# Material and simulation
 # ----------------------------------------------
-
 E_exp, v_exp = 210000, 0.3 
-comp = Materials.Elas_Isot(2, thickness=b, E=E_exp, v=v_exp)
+material = Materials.Elas_Isot(2, thickness=b, E=E_exp, v=v_exp)
 
-# ----------------------------------------------
-# Simulation
-# ----------------------------------------------
-
-simu = Simulations.Simu_Displacement(mesh, comp)
+simu = Simulations.Simu_Displacement(mesh, material)
 
 simu.add_dirichlet(nodesX0, [0,0], ["x","y"])
 simu.add_surfLoad(nodesXL, [-p/b/h], ["y"])
@@ -77,21 +67,22 @@ f_exp = simu._Apply_Neumann("displacement").toarray().reshape(-1)
 
 forceR = np.sum(f_exp)
 
-
 forces = simu.Get_K_C_M_F()[0] @ u_exp
-ddls = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", mesh.nodes, ["y"])
-# Display.Plot_Result(simu, fff[ddls], cmap="seismic")
+dofs = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", mesh.nodes, ["y"])
 
 f_exp_loc = f_exp[assembly1D_e]
 
 # ----------------------------------------------
 # Identification
 # ----------------------------------------------
-
 Display.Section("Identification")
 
-# Récupération des déformations aux elements
-Eps_exp = simu._Calc_Epsilon_e_pg(u_exp, matrixType)
+uMax = np.abs(u_exp).mean()
+u_noise = uMax * (np.random.rand(u_exp.shape[0]) - 1/2) * noise
+u_exp_noise = u_exp + u_noise
+
+# Recovering element deformations
+Eps_exp = simu._Calc_Epsilon_e_pg(u_exp_noise, matrixType)
 E11_exp = Eps_exp[:,:,0]
 E22_exp = Eps_exp[:,:,1]
 E12_exp = Eps_exp[:,:,2]
@@ -100,17 +91,17 @@ E12_exp = Eps_exp[:,:,2]
 # Display.Plot_Result(simu, "Eyy", nodeValues=False)
 # Display.Plot_Result(simu, "Exy", nodeValues=False)
 
-def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, pltSol=False):
-    # Fonction qui renvoie les intégrales calculés
+def Get_A_B_C_D_E(virtualX, virtualY, pltSol=False):
+    # Function that returns calculated integrals
 
-    # Calcul les déplacements associés aux champs virtuels.
+    # Calculates displacements associated with virtual fields.
     result = np.zeros((mesh.Nn, 2))
-    result[:,0] = champVirtuel_x(xn, yn)
-    result[:,1] = champVirtuel_y(xn, yn)
+    result[:,0] = virtualX(xn, yn)
+    result[:,1] = virtualY(xn, yn)
     u_n = result.reshape(-1)
     simu.set_u_n("displacement", u_n)
 
-    # Calcul les déformations associées aux champs virtuels.
+    # Calculates deformations associated with virtual fields.
     Eps_e_pg = simu._Calc_Epsilon_e_pg(u_n, matrixType)
     E11_e_pg = Eps_e_pg[:,:,0]
     E22_e_pg = Eps_e_pg[:,:,1]
@@ -123,7 +114,7 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, pltSol=False):
         Display.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
         Display.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
     
-    # Calcul des intégrales.
+    # Calculating integrals.
     A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_e_pg * E11_exp)
     B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E22_e_pg * E22_exp)
     C = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_e_pg * E22_exp + E22_e_pg * E11_exp)
@@ -140,8 +131,8 @@ A1, B1, C1, D1, E1 = Get_A_B_C_D_E(lambda x, y: 0, lambda x, y: x, pltSol=False)
 c33 = E1/D1/2
 # muIdentif = - p * L /D1/2 # - E1/D1/2
 
-mu = comp.get_mu()
-lamb = comp.get_lambda()
+mu = material.get_mu()
+lamb = material.get_lambda()
 
 A2,B2,C2,D2,E2 = Get_A_B_C_D_E(lambda x, y: x*y, lambda x, y: 0, pltSol=False)
 c11 = - c33 * (D2-C2)/(A2+B2+C2)
@@ -153,10 +144,10 @@ systMat = np.array([[A1, B1, C1, D1],[A2, B2, C2, D2],[1,-1,0,0],[1,0,-1,-1]])
 # cijIdentif = np.linalg.solve(systMat, [-800*120,0,0,0])
 cijIdentif = np.linalg.solve(systMat, [E1,E2,0,0])
 
-cijMat = np.array([comp.C[0,0], comp.C[1,1], comp.C[0,1], comp.C[2,2]])
+cijMat = np.array([material.C[0,0], material.C[1,1], material.C[0,1], material.C[2,2]])
 
-erreur = np.abs(cijIdentif - cijMat)/np.linalg.norm(cijMat)
+error = np.abs(cijIdentif - cijMat)/np.linalg.norm(cijMat)
 
-print(erreur)
+print(error)
 
 plt.show()

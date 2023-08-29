@@ -11,6 +11,13 @@ import Geom
 
 Display.Clear()
 
+# Allows you to find the components of the behavior law
+# If the behavior law is not known, it doesn't work
+# WARNING : here works because we know the material data at the time.
+
+# ----------------------------------------------
+# Configuration
+# ----------------------------------------------
 built_b_tild = False
 verifOrtho = False
 
@@ -22,14 +29,15 @@ d = 10
 meshSize = l/15
 elemType = ElemType.TRI3
 
-mat = "bois" # "acier" "bois"
+mat = "wood" # "steel" "wood"
 
 tol = 1e-14
 
 sig = 10
 
-gmshInterface = Interface_Gmsh()
-
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
 pt1 = Geom.Point()
 pt2 = Geom.Point(l, 0)
 pt3 = Geom.Point(l, h)
@@ -37,58 +45,66 @@ pt4 = Geom.Point(0, h)
 points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
 circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isHollow=True)
 
-mesh = gmshInterface.Mesh_2D(points, [circle], elemType)
+mesh = Interface_Gmsh().Mesh_2D(points, [circle], elemType)
 
 nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 nodes_p1 = mesh.Nodes_Tags(["P0"])
-nodesBas = mesh.Nodes_Tags(["L0"])
-nodesHaut = mesh.Nodes_Tags(["L2"])
+nodes_lower = mesh.Nodes_Tags(["L0"])
+nodes_upper = mesh.Nodes_Tags(["L2"])
 
 Display.Plot_Mesh(mesh)
 Display.Plot_Model(mesh)
 # Display.Plot_Nodes(mesh, nodesX0)
 
+# ----------------------------------------------
+# Material
+# ----------------------------------------------
 tol0 = 1e-6
 bSup = np.inf
 
-if mat == "acier":
+if mat == "steel":
     E_exp, v_exp = 210000, 0.3
-    comp = Materials.Elas_Isot(2, thickness=b)
+    material = Materials.Elas_Isot(2, thickness=b)
     
-elif mat == "bois":
+elif mat == "wood":
     EL_exp, GL_exp, ET_exp, vL_exp = 12000, 450, 500, 0.3
 
-    comp = Materials.Elas_IsotTrans(2, El=EL_exp, Et=ET_exp, Gl=GL_exp, vl=vL_exp, vt=0.3,
+    material = Materials.Elas_IsotTrans(2, El=EL_exp, Et=ET_exp, Gl=GL_exp, vl=vL_exp, vt=0.3,
     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), planeStress=True, thickness=b)
 
-simu = Simulations.Simu_Displacement(mesh, comp)
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
+simu = Simulations.Simu_Displacement(mesh, material)
 
-simu.add_dirichlet(nodesBas, [0], ["y"])
+simu.add_dirichlet(nodes_lower, [0], ["y"])
 simu.add_dirichlet(nodes_p1, [0], ["x"])
-simu.add_surfLoad(nodesHaut, [-sig], ["y"])
+simu.add_surfLoad(nodes_upper, [-sig], ["y"])
 
 Display.Plot_BoundaryConditions(simu)
 
 u_exp = simu.Solve()
 
-perturbation = 0.02
-coefBruit = np.abs(u_exp).max()
-bruit = coefBruit * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
-u_exp_bruit = u_exp + bruit
+noise = 0.02
+uMax = np.abs(u_exp).max()
+u_noise = uMax * (np.random.rand(u_exp.shape[0]) - 1/2) * noise
+u_exp_bruit = u_exp + u_noise
 
 f_exp = simu.Get_K_C_M_F()[0] @ u_exp_bruit
-# ici fonctionne parce que l'on connait les données matériaux a ce moment la.
 
 # Display.Plot_Result(simu, "uy")
 # Display.Plot_Result(simu, "Syy", coef=1/sig, nodeValues=False)
 # Display.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
 # Display.Plot_Result(simu, u_exp_bruit.reshape((mesh.Nn,2))[:,1], title='uy bruit')
 
+# ----------------------------------------------
+# Identification
+# ----------------------------------------------
 Display.Section("Identification")
 
-compIdentif = Materials.Elas_Anisot(2, comp.C, useVoigtNotation=False, thickness=comp.thickness)
+material_Identif = Materials.Elas_Anisot(2, material.C, useVoigtNotation=False, thickness=material.thickness)
 
-simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif)
+simu_Identif = Simulations.Simu_Displacement(mesh, material_Identif)
 
 mat_c11 = np.array([[1,0,0],[0,0,0],[0,0,0]])
 mat_c22 = np.array([[0,0,0],[0,1,0],[0,0,0]])
@@ -103,11 +119,11 @@ list_b = []
 
 for m_c in list_c:
 
-    compIdentif.Set_C(m_c, useVoigtNotation=False, update_S=False)
+    material_Identif.Set_C(m_c, useVoigtNotation=False, update_S=False)
 
-    simuIdentif.Need_Update()
+    simu_Identif.Need_Update()
 
-    K_c = simuIdentif.Get_K_C_M_F()[0]
+    K_c = simu_Identif.Get_K_C_M_F()[0]
 
     list_b.append(K_c @ u_exp_bruit)
 
@@ -160,7 +176,7 @@ else:
 
 c = np.linalg.solve(Gamma, p)
 
-C = comp.C
+C = material.C
 c_exp = [C[0,0],C[1,1],C[2,2],C[1,2],C[0,2],C[0,1]]
 
 diff = c - c_exp

@@ -18,14 +18,12 @@ Display.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
+folder = Folder.New_File(Folder.Join(["Identification","VFM"]), results=True)
 
-folder = Folder.New_File("Identification", results=True)
+mat = "wood" # "wood", "steel"
 
-mat = "bois" # "bois", "acier"
-
-perturbations = np.linspace(0, 0.02, 5)
-# perturbations = [0, 0.005]
-nTirage = 100
+noises = np.linspace(0, 0.02, 5)
+nRuns = 100
 
 useSpecVirtual = False
 
@@ -38,82 +36,74 @@ l = L/2
 h = H/2
 
 b=20
-d=10
+diam=10
 
 meshSize = H/70
 f = 40
 sig = f/(L*b)
 
 # ----------------------------------------------
-# Maillage
+# Mesh
 # ----------------------------------------------
 pt1 = Geom.Point(-L/2, -H/2)
 pt2 = Geom.Point(L/2, H/2)
 domain = Geom.Domain(pt1, pt2, meshSize)
 pC = Geom.Point(0, 0)
-circle = Geom.Circle(pC, d, meshSize, isHollow=True)
+circle = Geom.Circle(pC, diam, meshSize, isHollow=True)
 
-diam = d
-pZone = pC + [1*diam/2,1*diam/2]
-# pZone = pC + [1.5*diam/2,0]
-# pZone = pC + [0,0]
-circleZone = Geom.Circle(pZone, diam, meshSize)
+pZone = pC + [diam/2,diam/2]
+circleZone = Geom.Circle(pZone, diam*1.2, meshSize)
 
 coordInter = Geom.Points_IntersectCircles(circle, circleZone)
 
 pt1 = Geom.Point(*coordInter[0, :])
 pt2 = Geom.Point(*coordInter[1, :])
-
 circleArc1 = Geom.CircleArc(pt1, pZone, pt2, meshSize, coef=-1)
-circleArc2 = Geom.CircleArc(pt2, pC, pt1, meshSize)
-contour = Geom.Contour([circleArc1, circleArc2], isHollow=True)
 
-mesh = Interface_Gmsh().Mesh_2D(domain, [circle, contour], "TRI6")
+mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", cracks=[circleArc1])
 xn = mesh.coordo[:,0]
 yn = mesh.coordo[:,1]
 
 Display.Plot_Model(mesh)
-Display.Plot_Mesh(mesh)
+ax = Display.Plot_Mesh(mesh)
+ax.scatter(*coordInter[0, :2], zorder=5)
+ax.scatter(*coordInter[1, :2], zorder=5)
+ax.scatter(*circleArc1.pt3.coordo[:2], zorder=5)
 
-nodesEdge = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-nodesLower = mesh.Nodes_Tags(["L0"])
-nodesUpper = mesh.Nodes_Tags(["L2"])
+nodes_edges = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+nodes_lower = mesh.Nodes_Tags(["L0"])
+nodes_upper = mesh.Nodes_Tags(["L2"])
 
-nodesUpperLower = mesh.Nodes_Tags(["L0", "L2"])
-nodesZone = mesh.Nodes_Circle(circleZone)
+nodes_contact = mesh.Nodes_Tags(["L0", "L2"])
+nodes_zone = mesh.Nodes_Circle(circleZone)
 
-ddlsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodesUpper, ["y"])
+dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
 
-# Display.Plot_Nodes(mesh, nodesZone)
-# Display.Save_fig(folder, "vfm zone cisaillement")
-# Display.Plot_Elements(mesh, nodesUpper, 1)
-
-# Récupération des array pour l'intégration numérique
+# Recovery of arrays for digital integration
 matrixType = "rigi" 
 jacob2D_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-poid2D_pg = mesh.Get_weight_pg(matrixType)
+weight2D_pg = mesh.Get_weight_pg(matrixType)
 
 groupElem1D = mesh.Get_list_groupElem(1)[0]
-elems1D = groupElem1D.Get_Elements_Nodes(nodesUpper)
+elems1D = groupElem1D.Get_Elements_Nodes(nodes_upper)
 
 assembly1D = groupElem1D.Get_assembly_e(2)[elems1D]
 jacob1D_e_pg = groupElem1D.Get_jacobian_e_pg(matrixType)[elems1D]
-poid1D_pg = groupElem1D.Get_weight_pg(matrixType)
+weight1D_pg = groupElem1D.Get_weight_pg(matrixType)
 
 # ----------------------------------------------
-# Comportement
+# Material
 # ----------------------------------------------
-
-if mat == "acier":
+if mat == "steel":
     E_exp, v_exp = 210000, 0.3
-    comp = Materials.Elas_Isot(2, thickness=b, E=E_exp, v=v_exp)
+    material = Materials.Elas_Isot(2, thickness=b, E=E_exp, v=v_exp)
 
     dict_param = {
-        "lambda" : comp.get_lambda(),
-        "mu" : comp.get_mu()
+        "lambda" : material.get_lambda(),
+        "mu" : material.get_mu()
     }
 
-elif mat == "bois":
+elif mat == "wood":
     EL_exp, GL_exp, ET_exp, vL_exp = 12000, 450, 500, 0.3
 
     dict_param = {
@@ -123,18 +113,17 @@ elif mat == "bois":
         "vL" : vL_exp
     }
 
-    comp = Materials.Elas_IsotTrans(2, El=EL_exp, Et=ET_exp, Gl=GL_exp, vl=vL_exp, vt=0.3,
+    material = Materials.Elas_IsotTrans(2, El=EL_exp, Et=ET_exp, Gl=GL_exp, vl=vL_exp, vt=0.3,
     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]), planeStress=True, thickness=b)
 
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
+simu = Simulations.Simu_Displacement(mesh, material)
 
-simu = Simulations.Simu_Displacement(mesh, comp)
-
-simu.add_dirichlet(nodesLower, [0], ["y"])
+simu.add_dirichlet(nodes_lower, [0], ["y"])
 simu.add_dirichlet(mesh.Nodes_Tags((["P0"])), [0], ["x"])
-simu.add_surfLoad(nodesUpper, [-sig], ["y"])
+simu.add_surfLoad(nodes_upper, [-sig], ["y"])
 
 # Display.Plot_BoundaryConditions(simu)
 # Display.Save_fig(folder, "Boundary Compression")
@@ -144,20 +133,19 @@ u_exp = simu.Solve()
 # ----------------------------------------------
 # Identification
 # ----------------------------------------------
-
 Display.Section("Identification")
 
-def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False, f=None, pltEps=True):
-    """Calcul des intégrales"""
+def Get_A_B_C_D_E(virtualX, virtualY, nodes=mesh.nodes, pltSol=False, f=None, pltEps=True):
+    """Calculating integrals constants"""
 
-    # Calcul les déplacements associés aux champs virtuels.
+    # Calculates displacements associated with virtual fields.
     result = np.zeros((mesh.Nn, 2))
-    result[nodes,0] = champVirtuel_x(xn[nodes], yn[nodes])
-    result[nodes,1] = champVirtuel_y(xn[nodes], yn[nodes])
+    result[nodes,0] = virtualX(xn[nodes], yn[nodes])
+    result[nodes,1] = virtualY(xn[nodes], yn[nodes])
     u_n = result.reshape(-1)
     simu.set_u_n("displacement", u_n)
 
-    # Calcul les déformations associées aux champs virtuels.
+    # Calculates deformations associated with virtual fields.
     Eps_e_pg = simu._Calc_Epsilon_e_pg(u_n, matrixType)
     E11_e_pg = Eps_e_pg[:,:,0]
     E22_e_pg = Eps_e_pg[:,:,1]
@@ -171,58 +159,54 @@ def Get_A_B_C_D_E(champVirtuel_x, champVirtuel_y, nodes=mesh.nodes, pltSol=False
             Display.Plot_Result(simu, "Eyy", title=r"$\epsilon_{yy}^*$", nodeValues=False, plotMesh=True)
             Display.Plot_Result(simu, "Exy", title=r"$\epsilon_{xy}^*$", nodeValues=False, plotMesh=True)
     
-    # Calcul des intégrales.
-    A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_e_pg * E11_exp)
-    B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E22_e_pg * E22_exp)
-    C = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_e_pg * E22_exp + E22_e_pg * E11_exp)
-    D = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E12_e_pg * E12_exp)
+    # Calculating integrals.
+    A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E11_e_pg * E11_exp)
+    B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E22_e_pg * E22_exp)
+    C = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E11_e_pg * E22_exp + E22_e_pg * E11_exp)
+    D = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E12_e_pg * E12_exp)
 
     if isinstance(f, float|int):
         uloc = u_n[assembly1D]
-        E = np.einsum("ep,p,ei->", jacob1D_e_pg, poid1D_pg, uloc) * f * b
+        E = np.einsum("ep,p,ei->", jacob1D_e_pg, weight1D_pg, uloc) * f * b
         pass
-        E = np.sum(u_n[ddlsY_Upper]*f)
+        E = np.sum(u_n[dofsY_upper]*f)
     else:
-        E = np.sum(f_exp_bruit * u_n) 
+        E = np.sum(f_exp_noise * u_n) 
 
     return A, B, C, D, E
 
-list_dict_perturbation = []
+list_dict_noises = []
 
-for perturbation in perturbations:
+for noise in noises:
 
-    print(f"\nperturbation = {perturbation}")
+    print(f"\nnoise = {noise}")
 
     list_dict_tirage = []
 
-    for tirage in range(nTirage):
+    for run in range(nRuns):
 
-        print(f"tirage = {tirage}", end='\r')
+        print(f"run = {run}", end='\r')
 
-        # bruitage de la solution
-        bruit = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
-        u_exp_bruit = u_exp + bruit
+        u_noise = np.abs(u_exp).max() * (np.random.rand(u_exp.shape[0]) - 1/2) * noise
+        u_exp_noise = u_exp + u_noise
 
-        # Récupération des déformations aux elements
-        Eps_exp = simu._Calc_Epsilon_e_pg(u_exp_bruit, matrixType)
+        # Recovering element deformations
+        Eps_exp = simu._Calc_Epsilon_e_pg(u_exp_noise, matrixType)
         E11_exp = Eps_exp[:,:,0]
         E22_exp = Eps_exp[:,:,1]
         E12_exp = Eps_exp[:,:,2]
 
-        # Attention, normalement on  a pas accès a cette information dans un essai réel !        
-        f_exp_bruit = simu.Get_K_C_M_F()[0] @ u_exp_bruit
-
-        # f_exp_bruit = f_exp.copy()       
+        # This information is not normally available in a real test!
+        f_exp_noise = simu.Get_K_C_M_F()[0] @ u_exp_noise        
 
         if useSpecVirtual:
 
             # ----------------------------------------------
-            # Champs spéciaux
+            # Special fields
             # ----------------------------------------------
-
             # print("\n")
 
-            dimConditions = nodesUpperLower.size * 2  + 4
+            dimConditions = nodes_contact.size * 2  + 4
 
             dimS2 = dimConditions/2
             
@@ -255,12 +239,10 @@ for perturbation in perturbations:
             values = []
             vectCond = []
 
-            def Add_Conditions(noeuds: np.ndarray, condU: float, condV: float, l=-1):
-
-                # conditions u et v pour les noeuds renseignés:
-                pass
+            def Add_Conditions(nodes: np.ndarray, condU: float, condV: float, l=-1):
+                # u and v conditions for nodes with information:
                 
-                for noeud in noeuds:
+                for node in nodes:
                     
                     # conditions u
                     l += 1                
@@ -271,7 +253,7 @@ for perturbation in perturbations:
                             lignes.append(l)
                             colonnes.append(pos_Aij[c])
                             # values.append(xn[noeud]**i * yn[noeud]**j)                    
-                            values.append((xn[noeud]/L)**i * (yn[noeud]/h)**j)
+                            values.append((xn[node]/L)**i * (yn[node]/h)**j)
                     vectCond.append(condU)
 
                     # conditions v
@@ -283,20 +265,20 @@ for perturbation in perturbations:
                             lignes.append(l)
                             colonnes.append(pos_Bij[c])
                             # values.append(xn[noeud]**i * yn[noeud]**j)                    
-                            values.append((xn[noeud]/L)**i * (yn[noeud]/h)**j)
+                            values.append((xn[node]/L)**i * (yn[node]/h)**j)
                     vectCond.append(condV)
 
                 return l
 
             
-            lastLigne = Add_Conditions(nodesLower, 0, 0)
+            lastLine = Add_Conditions(nodes_lower, 0, 0)
 
             const = H
-            lastLigne = Add_Conditions(nodesUpper, 0, const, lastLigne)
+            lastLine = Add_Conditions(nodes_upper, 0, const, lastLine)
 
             condNodes = np.unique(lignes).size
             
-            # conditions sur les déformations
+            # deformation conditions
             coord_e_p = mesh.groupElem.Get_GaussCoordinates_e_p(matrixType)
             xn_e_g = coord_e_p[:,:,0]
             yn_e_g = coord_e_p[:,:,1]
@@ -316,20 +298,20 @@ for perturbation in perturbations:
                     dy_ij_e_p = (xn_e_g/l)**i * j*(yn_e_g**(j-1)/h**j)
 
                     if i > -1:
-                        lignes.append(lastLigne + 1)
+                        lignes.append(lastLine + 1)
                         colonnes.append(pos_Aij[c])
-                        cond1_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_exp * dx_ij_e_p)
+                        cond1_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E11_exp * dx_ij_e_p)
                         values.append(cond1_A)
 
-                        lignes.append(lastLigne + 3)
+                        lignes.append(lastLine + 3)
                         colonnes.append(pos_Aij[c])
-                        cond3_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E22_exp * dx_ij_e_p)
+                        cond3_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E22_exp * dx_ij_e_p)
                         values.append(cond3_A)
 
                     if j > -1:
-                        lignes.append(lastLigne + 4)
+                        lignes.append(lastLine + 4)
                         colonnes.append(pos_Aij[c])
-                        cond4_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E12_exp * dy_ij_e_p) * np.sqrt(2)/2
+                        cond4_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E12_exp * dy_ij_e_p) * np.sqrt(2)/2
                         values.append(cond4_A)
 
             c = -1
@@ -347,20 +329,20 @@ for perturbation in perturbations:
                     dy_ij_e_p = (xn_e_g/l)**i * j*(yn_e_g**(j-1)/h**j)
 
                     if j > -1:
-                        lignes.append(lastLigne + 2)
+                        lignes.append(lastLine + 2)
                         colonnes.append(pos_Bij[c])
-                        cond2_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E22_exp * dy_ij_e_p)
+                        cond2_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E22_exp * dy_ij_e_p)
                         values.append(cond2_B)
 
-                        lignes.append(lastLigne + 3)
+                        lignes.append(lastLine + 3)
                         colonnes.append(pos_Bij[c])
-                        cond3_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E11_exp * dy_ij_e_p)
+                        cond3_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E11_exp * dy_ij_e_p)
                         values.append(cond3_B)  
 
                     if i > -1:
-                        lignes.append(lastLigne + 4)
+                        lignes.append(lastLine + 4)
                         colonnes.append(pos_Bij[c])
-                        cond4_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, poid2D_pg, E12_exp * dx_ij_e_p) * np.sqrt(2)/2
+                        cond4_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E12_exp * dx_ij_e_p) * np.sqrt(2)/2
                         values.append(cond4_B)
 
             
@@ -436,20 +418,20 @@ for perturbation in perturbations:
             tol = 1e-9
             
             # verifie que le champ vaut 90 en haut suivant y
-            testY_Haut_1 = np.linalg.norm(np.mean(dd[nodesUpper, 1]) - const)/const
+            testY_Haut_1 = np.linalg.norm(np.mean(dd[nodes_upper, 1]) - const)/const
             # verifie que le champ est constant
-            testY_Haut_2 = np.std(dd[nodesUpper, 1])/const
+            testY_Haut_2 = np.std(dd[nodes_upper, 1])/const
             assert testY_Haut_1 <= tol and testY_Haut_2 <= tol  
 
             # verifie que le champ vaut 0 en bas suivant y
-            testYBas_1 = np.linalg.norm(np.mean(dd[nodesLower, 1]))/const
+            testYBas_1 = np.linalg.norm(np.mean(dd[nodes_lower, 1]))/const
             # verifie que le champ est constant
-            testY_Bas_2 = np.std(dd[nodesLower, 1])/const
+            testY_Bas_2 = np.std(dd[nodes_lower, 1])/const
             assert testYBas_1 <= tol and testY_Bas_2 <= tol  
 
             # verifie que le champ vaut 0 en haut suivant x
-            testX_1 = np.linalg.norm(np.mean(dd[nodesUpperLower, 0]))/const
-            testX_2 = np.std(dd[nodesUpperLower, 0])/const
+            testX_1 = np.linalg.norm(np.mean(dd[nodes_contact, 0]))/const
+            testX_2 = np.std(dd[nodes_contact, 0])/const
             assert testX_1 <= tol and testX_2 <= tol  
 
             pass
@@ -457,7 +439,7 @@ for perturbation in perturbations:
         else:            
             
             # ----------------------------------------------
-            # Champ 1
+            # Field 1
             # ----------------------------------------------
             
             # # [Kim & al 2020]
@@ -485,7 +467,7 @@ for perturbation in perturbations:
 
 
             # ----------------------------------------------
-            # Champ 2
+            # Field 2
             # ----------------------------------------------
 
             # # [Kim & al 2020]
@@ -502,7 +484,7 @@ for perturbation in perturbations:
             E2 = -2*f
 
             # ----------------------------------------------
-            # Champ 3
+            # Field 3
             # ----------------------------------------------
             
             # # [Kim & al 2020]
@@ -520,7 +502,7 @@ for perturbation in perturbations:
             E3 = -2*f
 
             # ----------------------------------------------
-            # Champ 4
+            # Field 4
             # ----------------------------------------------
 
             # # [Kim & al 2020]
@@ -539,15 +521,14 @@ for perturbation in perturbations:
             # A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False)
             # E4 = 0
 
-            # Champ discontinu
-
+            # Discontinuous field
             u4 = lambda x,y: 1
             v4 = lambda x,y: 1
 
             # u4 = lambda x,y: y/h
             # v4 = lambda x,y: x/h
             
-            A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=True, nodes=nodesZone)
+            A4,B4,C4,D4,E4 = Get_A_B_C_D_E(u4, v4, pltSol=False, nodes=nodes_zone)
             E4 = 0
         
         # cc = -1
@@ -608,11 +589,9 @@ for perturbation in perturbations:
 
         cijIdentif = np.linalg.solve(systMat, [E1,E2,E3,E4])
 
-        cijMat = np.array([comp.C[0,0], comp.C[1,1], comp.C[0,1], comp.C[2,2]])
+        cijMat = np.array([material.C[0,0], material.C[1,1], material.C[0,1], material.C[2,2]])
 
-        erreur = np.abs(cijIdentif - cijMat)/cijMat
-
-        # print(erreur)
+        error = np.abs(cijIdentif - cijMat)/cijMat
 
         c11 = cijIdentif[0]
         c22 = cijIdentif[1]
@@ -623,19 +602,19 @@ for perturbation in perturbations:
                                 [c12, c22, 0],
                                 [0, 0, c33]])
 
-        dict_tirage = {
-            "tirage" : tirage
+        dict_run = {
+            "run" : run
         }
 
-        if mat == "acier":
+        if mat == "steel":
 
             lamb = cijIdentif[2]
             mu = cijIdentif[3]/2
 
-            dict_tirage["lambda"] = lamb
-            dict_tirage["mu"] = mu
+            dict_run["lambda"] = lamb
+            dict_run["mu"] = mu
 
-        elif mat == "bois":
+        elif mat == "wood":
 
             matS = np.linalg.inv(matC_Identif)
 
@@ -644,40 +623,40 @@ for perturbation in perturbations:
             Gl = 1/matS[2,2]/2
             vl = - matS[0,1] * El
 
-            dict_tirage["EL"] = El
-            dict_tirage["GL"] = Gl
-            dict_tirage["ET"] = Et
-            dict_tirage["vL"] = vl
+            dict_run["EL"] = El
+            dict_run["GL"] = Gl
+            dict_run["ET"] = Et
+            dict_run["vL"] = vl
 
-        list_dict_tirage.append(dict_tirage)
+        list_dict_tirage.append(dict_run)
 
     df_tirage = pd.DataFrame(list_dict_tirage)
 
     dict_perturbation = {
-        "perturbation" : perturbation,
+        "noise" : noise,
     }
 
-    if mat == "acier":
+    if mat == "steel":
         dict_perturbation["lambda"] = df_tirage["lambda"].values
         dict_perturbation["mu"] = df_tirage["mu"].values
-    elif mat == "bois":
+    elif mat == "wood":
         dict_perturbation["EL"] = df_tirage["EL"].values
         dict_perturbation["GL"] = df_tirage["GL"].values
         dict_perturbation["ET"] = df_tirage["ET"].values
         dict_perturbation["vL"] = df_tirage["vL"].values
 
-    list_dict_perturbation.append(dict_perturbation)
+    list_dict_noises.append(dict_perturbation)
     
 
-df_pertubation = pd.DataFrame(list_dict_perturbation)
+df_pertubation = pd.DataFrame(list_dict_noises)
 
 # ----------------------------------------------
 # Affichage
 # ----------------------------------------------
 
-if mat == "acier":
+if mat == "steel":
     params = ["lambda","mu"]
-elif mat == "bois":
+elif mat == "wood":
     params = ["EL", "GL", "ET", "vL"]
 
 borne = 0.95
@@ -686,8 +665,8 @@ bSup = 0.5 + (0.95/2)
 
 print("\n")
 
-opt = " Kim"
-# opt = ""
+# opt = " Kim"
+opt = ""
 
 for param in params:
 
@@ -695,10 +674,10 @@ for param in params:
     
     paramExp = dict_param[param]
 
-    perturbations = df_pertubation["perturbation"]
+    noises = df_pertubation["noise"]
 
-    nPertu = perturbations.size
-    values = np.zeros((nPertu, nTirage))
+    nPertu = noises.size
+    values = np.zeros((nPertu, nRuns))
     for p in range(nPertu):
         values[p] = df_pertubation[param].values[p]
     values *= 1/paramExp
@@ -708,15 +687,15 @@ for param in params:
 
     paramInf, paramSup = tuple(np.quantile(values, (bInf, bSup), axis=1))
 
-    axParam.plot(perturbations, [1]*nPertu, label=f"{param}_exp", c="black", ls='--')
-    axParam.plot(perturbations, mean, label=f"{param}_moy")
-    axParam.fill_between(perturbations, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nTirage} tirages)")
-    axParam.set_xlabel("perturbations")
+    axParam.plot(noises, [1]*nPertu, label=f"{param}_exp", c="black", ls='--')
+    axParam.plot(noises, mean, label=f"{param}_moy")
+    axParam.fill_between(noises, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nRuns} runs)")
+    axParam.set_xlabel("noises")
     axParam.set_ylabel(fr"${param} \ / \ {param}_{'{exp}'}$")
     axParam.grid()
     axParam.legend(loc="upper left")
     
-    Display.Save_fig(folder, "VFM_"+param+opt, extension='pdf')
+    Display.Save_fig(folder, param+opt, extension='pdf')
 
     print(f"{param} = {mean.mean()*paramExp}")
 

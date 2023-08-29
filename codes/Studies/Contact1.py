@@ -172,7 +172,7 @@ for i, ud in enumerate(displacements):
 
     simu.Save_Iter()
 
-    print(simu.Get_Result('Strain').max()*100)
+    print(f"Eps max = {simu.Get_Result('Strain').max()*100:3.2f} %")
     
     # ax.clear()
     cb.remove()

@@ -15,59 +15,51 @@ plt = Display.plt
 
 Display.Clear()
 
-folder = Folder.New_File("Identification Biaxial", results=True)
+folder = Folder.New_File(Folder.Join(["Identification","Biaxial"]), results=True)
 
 # --------------------------------------
-# Config
+# Configuration
 # --------------------------------------
+useRescale = True
+noises = np.linspace(0, 0.02, 4)
+nRuns = 10
+tol = 1e-10
 
 L = 70 #mm
 h = 40
-# r = 15 # 14
-r = (L-h)/2
+r = -(L-h)/2
 ep = 0.5
 
 meshSize = h/10
+isHollow = True # circle is hollow
 
 pltMesh = True
 
 # --------------------------------------
 # Mesh
 # --------------------------------------
+pt1 = Point(-L/2, -L/2, r=r)
+pt2 = Point(L/2, -L/2, r=r)
+pt3 = Point(L/2, L/2, r=r)
+pt4 = Point(-L/2, L/2, r=r)
 
-pt1 = Point(-L/2, h/2)
-pt2 = Point(-L/2, -h/2)
-pt3 = Point(-h/2, -h/2, r=r)
-pt4 = Point(-h/2, -L/2)
-pt5 = Point(h/2, -L/2)
-pt6 = Point(h/2, -h/2, r=r)
-pt7 = Point(L/2, -h/2)
-pt8 = Point(L/2, h/2)
-pt9 = Point(h/2, h/2, r=r)
-pt10 = Point(h/2, L/2)
-pt11 = Point(-h/2, L/2)
-pt12 = Point(-h/2, h/2, r=r)
+contour = PointsList([pt1,pt2,pt3,pt4], meshSize)
 
-contour = PointsList([pt1,pt2,pt3,pt4,pt5,pt6,pt7,pt8,pt9,pt10,pt11,pt12], meshSize)
-
-circle = Circle(Point(h/3, h/3), 10, meshSize, False)
+circle = Circle(Point(h/3, h/3), 10, meshSize, isHollow)
 
 mesh = Interface_Gmsh(False, False).Mesh_2D(contour, [circle], ElemType.TRI3)
 
 if pltMesh:
     Display.Plot_Mesh(mesh)
 
-# récupère les noeuds
-
-nodesLeft = mesh.Nodes_Conditions(lambda x,y,z: x==-L/2)
-nodesRight = mesh.Nodes_Conditions(lambda x,y,z: x==L/2)
-nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: y==L/2)
-nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==-L/2)
+nodes_left = mesh.Nodes_Conditions(lambda x,y,z: x==-L/2)
+nodes_right = mesh.Nodes_Conditions(lambda x,y,z: x==L/2)
+nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==L/2)
+nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==-L/2)
 
 # --------------------------------------
-# Comportement
+# Material
 # --------------------------------------
-
 tol0 = 1e-6
 bSup = np.inf
 
@@ -79,7 +71,6 @@ vt = 0.4
 
 axisL = np.array([0,1,0])
 axisT = np.array([1,0,0])
-
 
 dict_param = {
     "El" : El,
@@ -98,15 +89,14 @@ ub = (bSup, bSup, bSup, 0.5-tol0)
 bounds = (lb, ub)
 x0 = [El0, Gl0, Et0, vl0]
 
-comp = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axisL, axisT, True, ep)
+material = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axisL, axisT, True, ep)
 
-compIdentif = Materials.Elas_IsotTrans(2, El0, Et0, Gl0, vl0, vt, axisL, axisT, True, ep)
+material_FEMU = Materials.Elas_IsotTrans(2, El0, Et0, Gl0, vl0, vt, axisL, axisT, True, ep)
 
 # --------------------------------------
 # Simulation
 # --------------------------------------
-
-simu = Simulations.Simu_Displacement(mesh, comp)
+simu = Simulations.Simu_Displacement(mesh, material)
 
 # dep = 1 # mm
 # simu.add_dirichlet(nodesLeft, [-dep], ['x'])
@@ -116,12 +106,10 @@ simu = Simulations.Simu_Displacement(mesh, comp)
 
 
 fexp = 1 # N
-simu.add_lineLoad(nodesLeft, [-fexp/h], ['x'])
-simu.add_lineLoad(nodesRight, [fexp/h], ['x'])
-simu.add_lineLoad(nodesUpper, [fexp/h], ['y'])
-simu.add_lineLoad(nodesLower, [-fexp/h], ['y'])
-
-
+simu.add_lineLoad(nodes_left, [-fexp/h], ['x'])
+simu.add_lineLoad(nodes_right, [fexp/h], ['x'])
+simu.add_lineLoad(nodes_upper, [fexp/h], ['y'])
+simu.add_lineLoad(nodes_lower, [-fexp/h], ['y'])
 
 # Display.Plot_BoundaryConditions(simu)
 
@@ -130,7 +118,6 @@ simu.Save_Iter()
 
 # Display.Plot_Result(simu, "ux")
 # Display.Plot_Result(simu, "uy")
-
 # Display.Plot_Result(simu, "Sxx")
 # Display.Plot_Result(simu, "Syy")
 # Display.Plot_Result(simu, "Sxy")
@@ -139,146 +126,131 @@ simu.Save_Iter()
 # ----------------------------------------------
 # Identification
 # ----------------------------------------------
-
-useRescale = True
-perturbations = np.linspace(0, 0.02, 4)
-nTirage = 10
-tol = 1e-10
-
 Display.Section("Identification")
 
-# IMPORTANT : L'identification ne fonctionne pas si la simulation utilise un solveur itératif !
-simuIdentif = Simulations.Simu_Displacement(mesh, compIdentif, useIterativeSolvers=False)
+# WARNING: Identification does not work if the simulation uses an iterative solver !
+simu_FEMU = Simulations.Simu_Displacement(mesh, material_FEMU, useIterativeSolvers=False)
 
 def func(x):
     # Fonction coût
 
     # x0 = [EL0, GL0, ET0, vL0]
-    compIdentif.El = x[0]
-    compIdentif.Gl = x[1]
-    compIdentif.Et = x[2]
-    compIdentif.vl = x[3]        
+    material_FEMU.El = x[0]
+    material_FEMU.Gl = x[1]
+    material_FEMU.Et = x[2]
+    material_FEMU.vl = x[3]        
 
-    simuIdentif.Need_Update()
+    simu_FEMU.Need_Update()
 
-    u = simuIdentif.Solve()
+    u = simu_FEMU.Solve()
     
-    diff = u - u_exp_bruit
-    diff = diff[ddlsInconnues]
+    diff = u - u_exp_noise
+    diff = diff[dofsUnknow]
 
     return diff
 
 def Add_Dirichlet(nodes: np.ndarray, directions=["x","y"]):
-    """Ajoute les conditions de déplacements"""
 
-    ddls = Get_dofs_nodes(2, "displacement", nodes, directions)
+    dofs = Get_dofs_nodes(2, "displacement", nodes, directions)
 
     nDim = len(directions)
-
-    values = u_exp_bruit[ddls]
+    values = u_exp_noise[dofs]
     values = np.reshape(values, (-1,nDim))
 
-    valeurs = [values[:,d] for d in range(nDim)]
+    list_values = [values[:,d] for d in range(nDim)]
 
-    simuIdentif.add_dirichlet(nodes, valeurs, directions)
+    simu_FEMU.add_dirichlet(nodes, list_values, directions)
+
+# dictionary list that will contain for the various disturbances the
+# properties identified
+list_dict_noise = []
+
+for noise in noises:
+
+    print(f"\nnoise = {noise}")
+
+    list_dict_run = []
+
+    for run in range(nRuns):
+
+        print(f"run = {run+1}", end='\r')
+
+        # noise on displacement
+        uMax = np.abs(u_exp).mean()
+        u_noise = uMax * (np.random.rand(u_exp.shape[0]) - 1/2) * noise
+        u_exp_noise = u_exp + u_noise
+
+        material_FEMU.El = El0
+        material_FEMU.Gl = Gl0
+        material_FEMU.Et = Et0
+        material_FEMU.vl = vl0
+
+        simu_FEMU.Bc_Init()
+
+        Add_Dirichlet(nodes_lower, ['x','y'])
+        Add_Dirichlet(nodes_upper, ['x', 'y'])
+        # Add_Dirichlet(nodes_left, ['x','y'])
+        # Add_Dirichlet(nodes_right, ['x','y'])
         
+        # simuIdentif.add_lineLoad(nodes_lower, [-fexp/h], ['y'])
+        # simuIdentif.add_lineLoad(nodes_upper, [fexp/h], ['y'])
+        simu_FEMU.add_lineLoad(nodes_left, [-fexp/h], ['x'])
+        simu_FEMU.add_lineLoad(nodes_right, [fexp/h], ['x'])
 
-# liste de dictionnaire qui va contenir pour les différentes perturbations les
-# propriétés identifiées
-
-list_dict_perturbation = []
-
-for perturbation in perturbations:
-
-    print(f"\nperturbation = {perturbation}")
-
-    list_dict_tirage = []
-
-    for tirage in range(nTirage):
-
-        print(f"tirage = {tirage}", end='\r')        
-
-        # bruitage de la solution
-        # coefBruit = np.abs(u_exp).max()
-        coefBruit = np.abs(u_exp).mean()
-        bruit = coefBruit * (np.random.rand(u_exp.shape[0]) - 1/2) * perturbation
-        u_exp_bruit = u_exp + bruit
-
-        compIdentif.El = El0
-        compIdentif.Gl = Gl0
-        compIdentif.Et = Et0
-        compIdentif.vl = vl0            
-
-        simuIdentif.Bc_Init()
-
-        Add_Dirichlet(nodesLower, ['x','y'])
-        Add_Dirichlet(nodesUpper, ['x', 'y'])
-        Add_Dirichlet(nodesLeft, ['x','y'])
-        # Add_Dirichlet(nodesRight, ['x','y'])
-        
-        # simuIdentif.add_lineLoad(nodesLower, [-fexp/h], ['y'])
-        # simuIdentif.add_lineLoad(nodesUpper, [fexp/h], ['y'])
-        # simuIdentif.add_lineLoad(nodesLeft, [-fexp/h], ['x'])
-        simuIdentif.add_lineLoad(nodesRight, [fexp/h], ['x'])
-
-        ddlsConnues, ddlsInconnues = simuIdentif.Bc_dofs_known_unknow(simuIdentif.problemType)        
+        dofsKnown, dofsUnknow = simu_FEMU.Bc_dofs_known_unknow(simu_FEMU.problemType)        
 
         # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
         res = least_squares(func, x0, bounds=bounds, verbose=0, ftol=tol, gtol=tol, xtol=tol)
 
-        dict_tirage = {
-            "tirage" : tirage
+        dict_run = {
+            "run" : run
         }
+        dict_run["El"]=res.x[0]
+        dict_run["Gl"]=res.x[1]
+        dict_run["Et"]=res.x[2]
+        dict_run["vl"]=res.x[3]
 
-        dict_tirage["El"]=res.x[0]
-        dict_tirage["Gl"]=res.x[1]
-        dict_tirage["Et"]=res.x[2]
-        dict_tirage["vl"]=res.x[3]
-            
+        list_dict_run.append(dict_run)
 
-        list_dict_tirage.append(dict_tirage)
+    df_run = pd.DataFrame(list_dict_run)
 
-    df_tirage = pd.DataFrame(list_dict_tirage)
-
-    dict_perturbation = {
-        "perturbation" : perturbation,
+    dict_noise = {
+        "noise" : noise,
     }
+    dict_noise["El"] = df_run["El"].values
+    dict_noise["Gl"] = df_run["Gl"].values
+    dict_noise["Et"] = df_run["Et"].values
+    dict_noise["vl"] = df_run["vl"].values        
 
-    dict_perturbation["El"] = df_tirage["El"].values
-    dict_perturbation["Gl"] = df_tirage["Gl"].values
-    dict_perturbation["Et"] = df_tirage["Et"].values
-    dict_perturbation["vl"] = df_tirage["vl"].values        
-
-    list_dict_perturbation.append(dict_perturbation)
+    list_dict_noise.append(dict_noise)
     
-Display.Plot_BoundaryConditions(simuIdentif, folder)
+Display.Plot_BoundaryConditions(simu_FEMU, folder)
 
-df_pertubation = pd.DataFrame(list_dict_perturbation)
+df_noise = pd.DataFrame(list_dict_noise)
 
 # ----------------------------------------------
-# Affichage
+# Display
 # ----------------------------------------------
-
-params = ["El", "Gl", "Et", "vl"]    
+params = ["El", "Gl", "Et", "vl"]
 
 borne = 0.95
 bInf = 0.5 - (0.95/2)
 bSup = 0.5 + (0.95/2)
 
+print('\n')
+
 for param in params:
 
     axParam = plt.subplots()[1]
     
-    paramExp = dict_param[param]
+    paramExp = dict_param[param]    
 
-    perturbations = df_pertubation["perturbation"]
-
-    nPertu = perturbations.size
-    values = np.zeros((nPertu, nTirage))
+    nPertu = noises.size
+    values = np.zeros((nPertu, nRuns))
     for p in range(nPertu):
-        values[p] = df_pertubation[param].values[p]
+        values[p] = df_noise[param].values[p]
     
-    print(f"{param} = {values.mean()}")
+    print(f"{param} = {values.mean():.2f}")
 
     values *= 1/paramExp
 
@@ -287,26 +259,23 @@ for param in params:
 
     paramInf, paramSup = tuple(np.quantile(values, (bInf, bSup), axis=1))
 
-    axParam.plot(perturbations, [1]*nPertu, label=f"{param}_exp", c="black", ls='--')
-    axParam.plot(perturbations, mean, label=f"{param}_moy")
-    axParam.fill_between(perturbations, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nTirage} tirages)")
-    axParam.set_xlabel("perturbations")
+    axParam.plot(noises, [1]*nPertu, label=f"{param}_exp", c="black", ls='--')
+    axParam.plot(noises, mean, label=f"{param}_moy")
+    axParam.fill_between(noises, paramInf, paramSup, alpha=0.3, label=f"{borne*100} % ({nRuns} runs)")
+    axParam.set_xlabel("noises")
     axParam.set_ylabel(fr"${param} \ / \ {param}_{'{exp}'}$")
     axParam.grid()
     axParam.legend(loc="upper left")
     
     Display.Save_fig(folder, "FEMU_"+param, extension='pdf')
 
-    
-
-
-diff_n = np.reshape(simuIdentif.displacement - u_exp, (mesh.Nn, 2))
+diff_n = np.reshape(simu_FEMU.displacement - u_exp, (mesh.Nn, 2))
 
 # err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp.reshape((mesh.Nn,2)), axis=1)
 err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp)
 # err_n = np.linalg.norm(diff_n, axis=1)
 
-Display.Plot_Result(simuIdentif, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
+Display.Plot_Result(simu_FEMU, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
 
 # print(np.linalg.norm(diff_n)/np.linalg.norm(u_exp))
 

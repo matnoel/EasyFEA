@@ -99,7 +99,7 @@ class Interface_Gmsh:
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
         
     def __Loop_From_Geom(self, geom: Geom) -> int:
-        """Creation of a loop based on the geometric object."""
+        """Creation of a loop based on the geometric object."""        
 
         if isinstance(geom, Circle):
             loop = self.__Loop_From_Circle(geom)
@@ -302,12 +302,11 @@ class Interface_Gmsh:
                 line2 = factory.addCircleArc(p3, pC, p1)
 
                 lines.extend([line1, line2])
-
                 if geom.isOpen:
                     openLines.extend([line1, line2])
 
                 factory.synchronize()
-                factory.remove([(0,pC)], False)
+                factory.remove([(0,pC)], False)                
 
             if i == 0:
                 firstPoint = p0
@@ -798,13 +797,8 @@ class Interface_Gmsh:
                 if crack.isOpen:
                     openLines.append(line)
 
-                if pt1.isOpen:
-                    entities0D.append(p1)
-                    openPoints.append(p1)
-
-                if pt2.isOpen:
-                    entities0D.append(p2)
-                    openPoints.append(p2)
+                if pt1.isOpen: entities0D.append(p1); openPoints.append(p1)
+                if pt2.isOpen: entities0D.append(p2); openPoints.append(p2)
 
             elif isinstance(crack, PointsList):
 
@@ -814,7 +808,7 @@ class Interface_Gmsh:
                 openPoints.extend(openPts)
                 entities1D.extend(lines)
 
-                surface = self.__Surface_From_Loops([loop])                
+                surface = self.__Surface_From_Loops([loop])
                 entities2D.append(surface)
 
                 if crack.isHollow:
@@ -829,12 +823,33 @@ class Interface_Gmsh:
                 openPoints.extend(openPts)
                 entities1D.extend(openLns)
 
-                surface = self.__Surface_From_Loops([loop])                
+                surface = self.__Surface_From_Loops([loop])
                 entities2D.append(surface)
 
                 if crack.isHollow:
                     openLines.extend(openLns)
                     openSurfaces.append(surface)
+
+            elif isinstance(crack, CircleArc):
+                
+                pC =  self.__factory.addPoint(crack.center.x, crack.center.y, crack.center.z, crack.meshSize)
+                p1 = self.__factory.addPoint(crack.pt1.x, crack.pt1.y, crack.pt1.z, crack.meshSize)
+                p2 = self.__factory.addPoint(crack.pt2.x, crack.pt2.y, crack.pt2.z, crack.meshSize)
+                p3 = self.__factory.addPoint(crack.pt3.x, crack.pt3.y, crack.pt3.z, crack.meshSize)
+
+                if crack.pt1.isOpen: entities0D.append(p1); openPoints.append(p1)
+                if crack.pt2.isOpen: entities0D.append(p2); openPoints.append(p2)
+                if crack.pt3.isOpen: entities0D.append(p3); openPoints.append(p3)
+
+                line1 = self.__factory.addCircleArc(p1, pC, p3)
+                line2 = self.__factory.addCircleArc(p3, pC, p2)
+                lines = [line1, line2]
+                entities1D.extend(lines)
+                if crack.isOpen:
+                    openLines.extend(lines)
+
+                self.__factory.synchronize()
+                self.__factory.remove([(0,pC)], False)
                 
             else:
                 # Loop recovery

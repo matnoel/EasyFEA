@@ -23,7 +23,6 @@ hollowInclusion = True
 # --------------------------------------
 # Mesh
 # --------------------------------------
-
 N = 10
 
 if geom == 'D666':
@@ -189,8 +188,8 @@ if usePER:
         else:
             next_corner = corners[c+1]
 
-        line = next_corner.coordo - corner.coordo
-        lineLength = np.linalg.norm(line)
+        line = next_corner.coordo - corner.coordo # construct line between 2 corners
+        lineLength = np.linalg.norm(line) # length of the line
         vect = normalize_vect(line) # normalized vector between the edge corners
         vect_i = coordo - corner.coordo # vector coordinates from the first corner of the edge
         scalarProduct = np.einsum('ni,i', vect_i, vect, optimize="optimal")
@@ -199,7 +198,7 @@ if usePER:
 
         eps=1e-12
         nodes = np.where((norm<eps) & (scalarProduct>=-eps) & (scalarProduct<=lineLength+eps))[0]
-
+        # sort the nodes along the lines and take and remove the first and the last nodes
         nodes = nodes[np.argsort(scalarProduct[nodes])][1:-1]
 
         if c+1 > nEdges:
@@ -227,9 +226,8 @@ else:
     nodes_border = mesh.Nodes_Tags([f'L{i}' for i in range(6)])
 
 # --------------------------------------
-# Simulation
+# Material and simulation
 # --------------------------------------
-
 E = np.ones(mesh.Ne) * 70 * 1e9
 v = np.ones(mesh.Ne) * 0.45
 
@@ -247,7 +245,6 @@ simu = Simulations.Simu_Displacement(mesh, material, useIterativeSolvers=False)
 # --------------------------------------
 # Homogenization
 # --------------------------------------
-
 r2 = np.sqrt(2)
 E11 = np.array([[1, 0],[0, 0]])
 E22 = np.array([[0, 0],[0, 1]])
@@ -323,9 +320,8 @@ u22_e = mesh.Locates_sol_e(u22)
 u12_e = mesh.Locates_sol_e(u12)
 
 # --------------------------------------
-# Effective elasticity tensor
+# Effective elasticity tensor (C_hom)
 # --------------------------------------
-
 U_e = np.zeros((u11_e.shape[0],u11_e.shape[1], 3))
 
 U_e[:,:,0] = u11_e; U_e[:,:,1] = u22_e; U_e[:,:,2] = u12_e
