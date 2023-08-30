@@ -822,9 +822,7 @@ class GroupElem(ABC):
                 jacobien_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))
 
             # test = np.linalg.det(F_e_pg) - jacobien_e_pg
-
-            self.__dict_jacobian_e_pg[matrixType] = jacobien_e_pg
-            # self.__dict_jacobian_e_pg[matrixType] = np.abs(jacobien_e_pg)
+            self.__dict_jacobian_e_pg[matrixType] = np.abs(jacobien_e_pg)
 
         return self.__dict_jacobian_e_pg[matrixType].copy()
     
