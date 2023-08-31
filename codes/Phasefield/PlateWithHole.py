@@ -184,7 +184,7 @@ for split, regu in zip(splits, regularisations):
 
     # folder name
     folderName = "PlateWithHole_" + problem
-    folder = Folder.PhaseField_Folder(folder=folderName, material=materialType, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solveur=solver, test=test, closeCrack=False, nL=nL)
+    folder = Folder.PhaseField_Folder(folder=folderName, material=materialType, split=split, regu=regu, simpli2D=simpli2D, optimMesh=optimMesh, tolConv=tolConv, solver=solver, test=test, closeCrack=False, nL=nL)
     
     if solve:
 

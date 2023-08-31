@@ -2920,8 +2920,7 @@ class Simu_PhaseField(_Simu):
 
         return Sigma_e_pg
 
-    def Results_Set_Bc_Summary(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):        
-        
+    def Results_Set_Bc_Summary(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):
         assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Must be the same dimension."
         
         resumeChargement = 'Chargement :'

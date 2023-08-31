@@ -48,7 +48,7 @@ def Join(list: List[str]) -> str:
         
     return file
 
-def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2D: str, tolConv: float, solveur: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0) -> str:
+def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2D: str, tolConv: float, solver: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0) -> str:
     """Create a phase field folder based on the specified arguments."""
 
     import Materials
@@ -74,9 +74,9 @@ def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2
     if optimMesh:
         name += '_optimMesh'
 
-    if solveur != "History" and solveur != "":
-        assert solveur in Materials.PhaseField_Model.get_solvers()
-        name += '_' + solveur
+    if solver != "History" and solver != "":
+        assert solver in Materials.PhaseField_Model.get_solvers()
+        name += '_' + solver
 
     if tolConv < 1:
         name += f'_conv{tolConv}'        

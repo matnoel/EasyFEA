@@ -70,10 +70,6 @@ pfm = Materials.PhaseField_Model(comp, "AnisotStress", "AT2", Gc, l0)
 # ----------------------------------------------
 simu = Simulations.Simu_PhaseField(mesh, pfm)
 
-# nPg = mesh.groupElem.Get_gauss("rigi").poids.size
-# Epsilon_e_pg = np.random.rand(mesh.Ne, nPg, 3)
-# cP, cM = pfm.Calc_C(Epsilon_e_pg)
-
 N = 300
 displacements = np.linspace(0, 5e-4, N)
 
