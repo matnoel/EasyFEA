@@ -15,7 +15,7 @@ Display.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-dim = 3
+dim = 2
 folder = Folder.New_File(f"Dynamics{dim}D", results=True)
 plotResult = True
 

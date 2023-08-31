@@ -1,3 +1,5 @@
+# WARNING : the assumption of small displacements is more than questionable for this simulation
+
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
 from Geom import Point, Domain, Circle, PointsList, Geom
@@ -30,8 +32,6 @@ cx, cy = 1, 0
 dec = [R, 2]
 
 # dep = [cx, cy] * ud
-
-# small displacements is more than questionable for this simulation
 
 # ----------------------------------------------
 # Meshes
