@@ -55,9 +55,9 @@ surfLoad = P / h / b  # N/mm2
 
 # Selecting the element type for the mesh
 if dim == 2:
-    elemType = ElemType.TRI3 # ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
+    elemType = ElemType.TRI3 # TRI3, TRI6, TRI10, QUAD4, QUAD8
 else:
-    elemType = ElemType.PRISM6 # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"
+    elemType = ElemType.PRISM6 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
 
 # ----------------------------------------------
 # Meshing
@@ -70,7 +70,8 @@ if part == "equerre":
     h = L * 0.3
     b = h
 
-    N = 10
+    N = 5
+    meshSize = h/N
 
     pt1 = Point(isOpen=True, r=-10)
     pt2 = Point(x=L)
@@ -82,9 +83,9 @@ if part == "equerre":
 
     points = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
 
-    inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize=h/N, isHollow=True) for i in range(3)]
+    inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize, isHollow=True) for i in range(3)]
 
-    inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), isHollow=False, meshSize=h/N)])
+    inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), meshSize, False)])
 
 elif part == "lmt":
 
@@ -151,12 +152,12 @@ else:
 # Create an instance of the Gmsh interface
 interfaceGmsh = Interface_Gmsh()
 
-def DoMesh(refineGeom=None) -> Mesh:
+def DoMesh(refineGeoms=[]) -> Mesh:
     """Function used for mesh generation"""
     if dim == 2:
-        return interfaceGmsh.Mesh_2D(points, inclusions, elemType, [], False, refineGeom)
+        return interfaceGmsh.Mesh_2D(points, inclusions, elemType, [], refineGeoms)
     else:
-        return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], 5, elemType, [], refineGeom)
+        return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], 5, elemType, [], refineGeoms)
 
 # Construct the initial mesh
 mesh = DoMesh()
@@ -194,10 +195,6 @@ def DoSimu(i=0):
     # ----------------------------------------------
     # Refine mesh
     # ----------------------------------------------
-
-    # if plotProj:
-    #     Display.Plot_Result(simu, "ux", plotMesh=True)
-
     meshSize_n = Calc_New_meshSize_n(simu.mesh, error_e, coef)
 
     if plotError:
@@ -208,7 +205,6 @@ def DoSimu(i=0):
     return path, error
 
 path = None
-
 error = 1
 i = -1
 while error >= cible and i < iterMax:
@@ -219,7 +215,7 @@ while error >= cible and i < iterMax:
         oldMesh = simu.mesh
         oldU = simu.displacement
 
-    mesh = DoMesh(path)    
+    mesh = DoMesh([path])    
 
     simu.mesh = mesh
 
@@ -230,17 +226,25 @@ while error >= cible and i < iterMax:
             
             proj = Calc_projector(oldMesh, mesh)
 
-            ddlsNew = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", mesh.nodes, ["x"])
-            ddlsOld = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", oldMesh.nodes, ["x"])
+            newDofs = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", mesh.nodes, ["x"])
+            oldDofs = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", oldMesh.nodes, ["x"])
             uproj = np.zeros(mesh.Nn*dim)        
             for d in range(dim):
-                uproj[ddlsNew+d] = proj @ oldU[ddlsOld+d]
+                uproj[newDofs+d] = proj @ oldU[oldDofs+d]
 
             simu.set_u_n("displacement", uproj)
 
-            # Display.Plot_Result(simu, "ux", plotMesh=True, title="ux proj")
+            ax1 = Display.Plot_Result(oldMesh, oldU.reshape(-1,dim)[:,0], plotMesh=True, title="old ux")[1]
+            ax2 = Display.Plot_Result(simu, "ux", plotMesh=True, title="ux proj")[1]
+            if dim == 2:
+                ax2.scatter(oldMesh.coordo[:,0], oldMesh.coordo[:,1], marker='+', c='black')
+            else:
+                ax2.scatter(oldMesh.coordo[:,0], oldMesh.coordo[:,1], oldMesh.coordo[:,2], marker='+', c='black')
 
             pass
+
+            plt.close(ax1.figure)
+            plt.close(ax2.figure)
 
 
     path, error = DoSimu(i)

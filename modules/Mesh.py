@@ -504,58 +504,73 @@ def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarr
 
     return meshSize_n
 
-
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     """Builds the matrix used to project the solution from the old mesh to the new mesh.
     newU = proj * oldU\n
+    (newNn) = (newNn x oldNn) (oldNn) 
     (newNn) = (newNn x oldNn) (oldNn)
-
     Parameters
     ----------
     oldMesh : Mesh
+        old mesh 
         old mesh
     newMesh : Mesh
         new mesh
-
     Returns
     -------
     sp.csr_matrix
         dimensional projection matrix (newMesh.Nn, oldMesh.Nn)
     """
-
     assert oldMesh.dim == newMesh.dim, "Mesh dimensions must be the same."
     dim = oldMesh.dim
 
     tic = TicTac.Tic()
 
-    # recovery of nodes detected
-    detectedNodes = np.unique(newMesh.groupElem.Get_Nodes_Tag('detected'))
+    # recovery of nodes detected in old mesh elements
+    # connnectivity of these nodes in the elements
+    # position of nodes in reference element
+    nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Nodes_Connect_CoordoInElemRef(newMesh.coordo)
 
-    # extraction of the matrices necessary for the projection
-    newG = newMesh.Get_N_vector_pg(MatrixType.TOTAL)
-    newG_t = np.transpose(newG, (1, 2, 0))
+    tic.Tac("Mesh", "Mapping between meshes", False)
 
-    oldG = oldMesh.Get_N_vector_pg(MatrixType.TOTAL)
-    oldG_t = np.transpose(oldG, (1, 2, 0))
+    # Evaluation of shape functions
+    Ntild = oldMesh.groupElem._Ntild()        
+    nPe = oldMesh.groupElem.nPe
+    phi_n_nPe = np.zeros((coordo_n.shape[0], nPe))
+    for n in range(nPe):
+        if dim == 1:
+            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0])
+        elif dim == 2:
+            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1])
+        elif dim == 3:
+            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1], coordo_n[:,2])
 
-    # extraction of oldU on the nodes of newU
-    detectedNodes = np.unique(newMesh.groupElem.Get_Nodes_Tag('detected'))
+    # Here we detect whether nodes appear more than once
+    counts = np.unique(nodes, return_counts=True)[1]
+    idxSup1 = np.where(counts > 1)[0]
+    if idxSup1.size > 0:
+        # if nodes are used several times, divide the shape function values by the number of appearances. At the end, do like an average
+        phi_n_nPe[idxSup1] = np.einsum("ni,n->ni", phi_n_nPe[idxSup1], 1/counts[idxSup1], optimize="optimal")
 
-    # (nn_old)
-    vec_oldU = oldMesh.groupElem.Locates_sol_n(1, detectedNodes)
-    n = newMesh.groupElem.nPe * dim
+    # Projector construction
+    connect_e = oldMesh.connect
+    lignes = []
+    colonnes = []
+    valeurs = []
+    nodesElem = []
+    def FuncExtend_Proj(e: int, nodes: np.ndarray):
+        nodesElem.extend(nodes)
+        valeurs.extend(phi_n_nPe[nodes].reshape(-1))
+        lignes.extend(np.repeat(nodes, nPe))
+        colonnes.extend(np.asarray(list(connect_e[e]) * nodes.size))
 
-    # the data for the new matrix
-    data = np.zeros((n, vec_oldU.shape[1]))
-    for i in range(n):
-        vec_newU = newG[i, detectedNodes] @ vec_oldU
-        data[i] = vec_newU
+    [FuncExtend_Proj(e, nodes) for e, nodes in enumerate(connect_e_n)]
 
-    # newU
-    mat = sp.csr_matrix((data.flatten(), newG_t.shape[:2]), dtype=np.float32)
-    # print("projection time : {}".format(tic.Tac()))
+    proj = sp.csr_matrix((valeurs, (lignes, colonnes)), (newMesh.Nn, oldMesh.Nn), dtype=float)
 
-    return mat
+    tic.Tac("Mesh", "Projector construction", False)
+
+    return proj.tocsr()
 
 def Get_new_mesh(mesh: Mesh, displacementMatrix: np.ndarray) -> Mesh:
     """Builds a new mesh by updating node coordinates with the displacement vector.

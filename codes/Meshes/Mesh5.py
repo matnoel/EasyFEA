@@ -25,7 +25,7 @@ def DoMesh(dim, elemType):
     simu = Simulations.Simu_Displacement(mesh, material)
 
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*dim, simu.Get_directions())
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==L), [3e-2], ['y'])
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==L), [L*0.05], ['y'])
     simu.Solve()
     Display.Plot_Result(simu, 'uy', True, 1, plotMesh=True)
 
@@ -40,8 +40,8 @@ meshes2D = [DoMesh(2, elemType) for elemType in GroupElem.get_Types2D()]
 Display.Plot_Model(meshes2D[0], alpha=0)
 
 line1 = Line(Point(L/4, L/2), Point(3*L/4, L/2), isOpen=openCrack)
-line2 = Line(line1.pt2, line1.pt2+[0,0.08,L])
-line3 = Line(line2.pt2, line1.pt1+[0,0.08,L], isOpen=openCrack)
+line2 = Line(line1.pt2, line1.pt2+[0,0.25,L])
+line3 = Line(line2.pt2, line1.pt1+[0,0.25,L], isOpen=openCrack)
 line4 = Line(line3.pt2, line1.pt1)
 cracks = [Contour([line1, line2, line3, line4], openCrack)]
 meshes3D = [DoMesh(3, elemType) for elemType in [ElemType.TETRA4, ElemType.TETRA10]]

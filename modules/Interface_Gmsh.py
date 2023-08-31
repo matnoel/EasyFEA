@@ -64,40 +64,6 @@ class Interface_Gmsh:
         else:
             raise Exception("Unknow factory")
         
-    def __Set_algorithm(self, elemType: ElemType) -> None:
-        """Set the mesh algorithm.\n
-        Mesh.Algorithm
-            2D mesh algorithm (1: MeshAdapt, 2: Automatic, 3: Initial mesh only, 5: Delaunay, 6: Frontal-Delaunay, 7: BAMG, 8: Frontal-Delaunay for Quads, 9: Packing of Parallelograms, 11: Quasi-structured Quad)
-            Default value: 6
-
-        Mesh.Algorithm3D
-            3D mesh algorithm (1: Delaunay, 3: Initial mesh only, 4: Frontal, 7: MMG3D, 9: R-tree, 10: HXT)
-            Default value: 1            
-
-        Mesh.RecombinationAlgorithm
-            Mesh recombination algorithm (0: simple, 1: blossom, 2: simple full-quad, 3: blossom full-quad)
-            Default value: 1        
-
-        Mesh.SubdivisionAlgorithm
-            Mesh subdivision algorithm (0: none, 1: all quadrangles, 2: all hexahedra, 3: barycentric)
-            Default value: 0
-        """
-
-        if elemType in GroupElem.get_Types1D() or elemType in GroupElem.get_Types2D():
-            meshAlgorithm = 6 # 6: Frontal-Delaunay
-        elif elemType in GroupElem.get_Types3D():
-            meshAlgorithm = 1 # 1: Delaunay
-        gmsh.option.setNumber("Mesh.Algorithm", meshAlgorithm)
-
-        recombineAlgorithm = 1
-        if elemType in [ElemType.QUAD4, ElemType.QUAD8]:
-            subdivisionAlgorithm = 1
-        else:
-            subdivisionAlgorithm = 0        
-
-        gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
-        gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
-        
     def __Loop_From_Geom(self, geom: Geom) -> int:
         """Creation of a loop based on the geometric object."""        
 
@@ -578,86 +544,7 @@ class Interface_Gmsh:
         return revolEntities
 
     # TODO generate multiple meshes by disabling initGmsh and using multiple functions?
-    # set up a list of surfaces?
-
-    def __RefineMesh(self, refineGeoms: list[Domain|Circle|str], meshSize: float):
-        """Sets a background mesh
-
-        Parameters
-        ----------
-        refineGeoms : list[Domain|Circle|str]
-            Geometric objects to refine de background mesh
-        meshSize : float
-            size of elements outside the domain
-        """
-
-        # See t10.py in the gmsh tutorials
-        # https://gitlab.onelab.info/gmsh/gmsh/blob/master/tutorials/python/t10.py
-
-        if len(refineGeoms) == 0:
-            return
-
-        fields = []
-
-        for geom in refineGeoms:
-
-            if isinstance(geom, Domain):
-
-                coordo = np.array([point.coordo  for point in geom.points])
-
-                field = gmsh.model.mesh.field.add("Box")
-                gmsh.model.mesh.field.setNumber(field, "VIn", geom.meshSize)
-                gmsh.model.mesh.field.setNumber(field, "VOut", meshSize)
-                gmsh.model.mesh.field.setNumber(field, "XMin", coordo[:,0].min())
-                gmsh.model.mesh.field.setNumber(field, "XMax", coordo[:,0].max())
-                gmsh.model.mesh.field.setNumber(field, "YMin", coordo[:,1].min())
-                gmsh.model.mesh.field.setNumber(field, "YMax", coordo[:,1].max())
-                gmsh.model.mesh.field.setNumber(field, "ZMin", coordo[:,2].min())
-                gmsh.model.mesh.field.setNumber(field, "ZMax", coordo[:,2].max())
-
-            elif isinstance(geom, Circle):
-
-                pC = geom.center
-                field = gmsh.model.mesh.field.add("Cylinder")
-                gmsh.model.mesh.field.setNumber(field, "VIn", geom.meshSize)
-                gmsh.model.mesh.field.setNumber(field, "VOut", meshSize)
-                gmsh.model.mesh.field.setNumber(field, "Radius", geom.diam/2)
-                gmsh.model.mesh.field.setNumber(field, "XCenter", pC.x)
-                gmsh.model.mesh.field.setNumber(field, "YCenter", pC.y)
-                gmsh.model.mesh.field.setNumber(field, "ZCenter", pC.z)
-
-            elif isinstance(geom, str):
-
-                if not os.path.exists(geom) :
-                    print(Fore.RED + "The .pos file does not exist." + Fore.WHITE)
-                    continue
-
-                if ".pos" not in geom:
-                    print(Fore.RED + "Must provide a .pos file" + Fore.WHITE)
-                    continue
-
-                gmsh.merge(geom)
-
-                # Add the post-processing view as a new size field:
-                field = gmsh.model.mesh.field.add("PostView")
-                # gmsh.model.mesh.field.setNumber(field, "ViewIndex", 0)
-                # gmsh.model.mesh.field.setNumber(field, "UseClosest", 0)
-
-            else:
-                print(Fore.RED + "refineGeoms must be of type Domain, Circle, str(.pos file)" + Fore.WHITE)
-            
-            fields.append(field)
-
-        # Let's use the minimum of all the fields as the mesh size field:
-        minField = gmsh.model.mesh.field.add("Min")
-        gmsh.model.mesh.field.setNumbers(minField, "FieldsList", fields)
-        gmsh.model.mesh.field.setAsBackgroundMesh(minField)
-
-        # Finally, while the default "Frontal-Delaunay" 2D meshing algorithm
-        # (Mesh.Algorithm = 6) usually leads to the highest quality meshes, the
-        # "Delaunay" algorithm (Mesh.Algorithm = 5) will handle complex mesh size fields
-        # better - in particular size fields with large element size gradients:
-        gmsh.option.setNumber("Mesh.Algorithm", 5)
+    # set up a list of surfaces?    
 
     def Mesh_Import_mesh(self, mesh: str, setPhysicalGroups=False, coef=1.0):
         """Importing an .msh file. Must be an gmsh file.
@@ -1158,6 +1045,88 @@ class Interface_Gmsh:
         gmsh.view.write(view, path)
 
         return path
+    
+    def __RefineMesh(self, refineGeoms: list[Domain|Circle|str], meshSize: float):
+        """Sets a background mesh
+
+        Parameters
+        ----------
+        refineGeoms : list[Domain|Circle|str]
+            Geometric objects to refine de background mesh
+        meshSize : float
+            size of elements outside the domain
+        """
+
+        # See t10.py in the gmsh tutorials
+        # https://gitlab.onelab.info/gmsh/gmsh/blob/master/tutorials/python/t10.py
+
+        if len(refineGeoms) == 0:
+            return
+
+        fields = []
+
+        for geom in refineGeoms:
+
+            if isinstance(geom, Domain):
+
+                coordo = np.array([point.coordo  for point in geom.points])
+
+                field = gmsh.model.mesh.field.add("Box")
+                gmsh.model.mesh.field.setNumber(field, "VIn", geom.meshSize)
+                gmsh.model.mesh.field.setNumber(field, "VOut", meshSize)
+                gmsh.model.mesh.field.setNumber(field, "XMin", coordo[:,0].min())
+                gmsh.model.mesh.field.setNumber(field, "XMax", coordo[:,0].max())
+                gmsh.model.mesh.field.setNumber(field, "YMin", coordo[:,1].min())
+                gmsh.model.mesh.field.setNumber(field, "YMax", coordo[:,1].max())
+                gmsh.model.mesh.field.setNumber(field, "ZMin", coordo[:,2].min())
+                gmsh.model.mesh.field.setNumber(field, "ZMax", coordo[:,2].max())
+
+            elif isinstance(geom, Circle):
+
+                pC = geom.center
+                field = gmsh.model.mesh.field.add("Cylinder")
+                gmsh.model.mesh.field.setNumber(field, "VIn", geom.meshSize)
+                gmsh.model.mesh.field.setNumber(field, "VOut", meshSize)
+                gmsh.model.mesh.field.setNumber(field, "Radius", geom.diam/2)
+                gmsh.model.mesh.field.setNumber(field, "XCenter", pC.x)
+                gmsh.model.mesh.field.setNumber(field, "YCenter", pC.y)
+                gmsh.model.mesh.field.setNumber(field, "ZCenter", pC.z)
+
+            elif isinstance(geom, str):
+
+                if not os.path.exists(geom) :
+                    print(Fore.RED + "The .pos file does not exist." + Fore.WHITE)
+                    continue
+
+                if ".pos" not in geom:
+                    print(Fore.RED + "Must provide a .pos file" + Fore.WHITE)
+                    continue
+
+                gmsh.merge(geom)
+
+                # Add the post-processing view as a new size field:
+                field = gmsh.model.mesh.field.add("PostView")
+                # gmsh.model.mesh.field.setNumber(field, "ViewIndex", 0)
+                # gmsh.model.mesh.field.setNumber(field, "UseClosest", 0)
+
+            elif geom is None:
+                continue
+
+            else:
+                print(Fore.RED + "refineGeoms must be of type Domain, Circle, str(.pos file)" + Fore.WHITE)
+            
+            fields.append(field)
+
+        # Let's use the minimum of all the fields as the mesh size field:
+        minField = gmsh.model.mesh.field.add("Min")
+        gmsh.model.mesh.field.setNumbers(minField, "FieldsList", fields)
+        gmsh.model.mesh.field.setAsBackgroundMesh(minField)
+
+        # Finally, while the default "Frontal-Delaunay" 2D meshing algorithm
+        # (Mesh.Algorithm = 6) usually leads to the highest quality meshes, the
+        # "Delaunay" algorithm (Mesh.Algorithm = 5) will handle complex mesh size fields
+        # better - in particular size fields with large element size gradients:
+        gmsh.option.setNumber("Mesh.Algorithm", 5)
 
     @staticmethod
     def __Set_mesh_order(elemType: str):
@@ -1172,6 +1141,40 @@ class Interface_Gmsh:
             gmsh.model.mesh.set_order(3)
         elif elemType in ["SEG5", "TRI15"]:
             gmsh.model.mesh.set_order(4)
+
+    def __Set_algorithm(self, elemType: ElemType) -> None:
+        """Set the mesh algorithm.\n
+        Mesh.Algorithm
+            2D mesh algorithm (1: MeshAdapt, 2: Automatic, 3: Initial mesh only, 5: Delaunay, 6: Frontal-Delaunay, 7: BAMG, 8: Frontal-Delaunay for Quads, 9: Packing of Parallelograms, 11: Quasi-structured Quad)
+            Default value: 6
+
+        Mesh.Algorithm3D
+            3D mesh algorithm (1: Delaunay, 3: Initial mesh only, 4: Frontal, 7: MMG3D, 9: R-tree, 10: HXT)
+            Default value: 1            
+
+        Mesh.RecombinationAlgorithm
+            Mesh recombination algorithm (0: simple, 1: blossom, 2: simple full-quad, 3: blossom full-quad)
+            Default value: 1        
+
+        Mesh.SubdivisionAlgorithm
+            Mesh subdivision algorithm (0: none, 1: all quadrangles, 2: all hexahedra, 3: barycentric)
+            Default value: 0
+        """
+
+        if elemType in GroupElem.get_Types1D() or elemType in GroupElem.get_Types2D():
+            meshAlgorithm = 6 # 6: Frontal-Delaunay
+        elif elemType in GroupElem.get_Types3D():
+            meshAlgorithm = 1 # 1: Delaunay
+        gmsh.option.setNumber("Mesh.Algorithm", meshAlgorithm)
+
+        recombineAlgorithm = 1
+        if elemType in [ElemType.QUAD4, ElemType.QUAD8]:
+            subdivisionAlgorithm = 1
+        else:
+            subdivisionAlgorithm = 0        
+
+        gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
+        gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
 
     def __Meshing(self, dim: int, elemType: str, isOrganised=False, crackLines=None, crackSurfaces=None, openPoints=None, openLines=None, folder=""):
         """Construction of gmsh mesh from geometry that has been built or imported.
@@ -1377,7 +1380,7 @@ class Interface_Gmsh:
 
         # Builds element groups
         dimAjoute = []
-        meshDim = 0
+        meshDim = gmsh.model.getEntities()[-1][0]
 
         for gmshId in elementTypes:
             # For each element type
@@ -1415,7 +1418,7 @@ class Interface_Gmsh:
             # Check that the mesh does not have a group of elements of this dimension
             if groupElem.dim in dimAjoute and groupElem.dim == meshDim:
                 recoElement = 'Triangular' if meshDim == 2 else 'Tetrahedron'
-                raise Exception(f"Importing the mesh is impossible because several {meshDim}D elements have been detected. Try out {recoElement} elements.")
+                raise Exception(f"Importing the mesh is impossible because several {meshDim}D elements have been detected. Try out {recoElement} elements.\n You can also try standardizing the mesh size")
                 # TODO make it work ?
                 # Can be complicated especially in the creation of elemental matrices and assembly
                 # Not impossible but not trivial
