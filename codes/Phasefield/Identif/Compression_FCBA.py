@@ -127,7 +127,7 @@ def DoMesh(l0: float) -> Mesh:
     domain = Domain(Point(), Point(l, h), meshSize)
     circle = Circle(Point(l/2, h/2), d, meshSize)
 
-    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
+    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeoms=[refineGeom])
 
     return mesh
 

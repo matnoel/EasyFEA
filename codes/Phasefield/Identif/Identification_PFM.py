@@ -170,7 +170,7 @@ for idxEssai in range(0,18):
         domain = Domain(Point(), Point(L, H), meshSize)
         circle = Circle(Point(L/2, H/2), D, meshSize)
 
-        mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeom=refineGeom)
+        mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeoms=[refineGeom])
 
         return mesh
 

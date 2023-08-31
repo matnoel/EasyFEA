@@ -209,9 +209,9 @@ for split, regu in zip(splits, regularisations):
             interfaceGmsh = Interface_Gmsh()
 
             if dim == 2:
-                mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.TRI3, refineGeom=refineGeom)
+                mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
             elif dim == 3:
-                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, ElemType.HEXA8,refineGeom=refineGeom)
+                mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,ep], 4, ElemType.HEXA8,refineGeoms=[refineGeom])
 
             return mesh
         

@@ -59,10 +59,10 @@ pC = Point(L/2, H-h); pc = pC.coordo
 circle = Circle(pC, d, clC, True)
 
 if dim == 2:
-    mesh = Interface_Gmsh().Mesh_2D(contour, [circle], ElemType.TRI6, refineGeom=refineGeom)
+    mesh = Interface_Gmsh().Mesh_2D(contour, [circle], ElemType.TRI6, refineGeoms=[refineGeom])
     directions = ['x','y']
 else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-thickness], 3, ElemType.PRISM6, refineGeom=refineGeom)
+    mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-thickness], 3, ElemType.PRISM6, refineGeoms=[refineGeom])
     directions = ['x','y','z']
 
 print(mesh)

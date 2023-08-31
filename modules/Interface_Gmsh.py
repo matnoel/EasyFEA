@@ -102,7 +102,7 @@ class Interface_Gmsh:
         """Creation of a loop based on the geometric object."""        
 
         if isinstance(geom, Circle):
-            loop = self.__Loop_From_Circle(geom)
+            loop = self.__Loop_From_Circle(geom)[0]
         elif isinstance(geom, Domain):                
             loop = self.__Loop_From_Domain(geom)
         elif isinstance(geom, PointsList):                
@@ -115,7 +115,7 @@ class Interface_Gmsh:
         return loop
 
     def __Loop_From_Points(self, points: list[Point], meshSize: float) -> tuple[int, list[int], list[int]]:
-        """Creation of a loop associated with the list of points.
+        """Creation of a loop associated with the list of points.\n
         return loop, lines, openPoints
         """
         
@@ -251,7 +251,7 @@ class Interface_Gmsh:
         return loop, lines, openPoints
     
     def __Loop_From_Contour(self, contour: Contour) -> tuple[int, list[int], list[int]]:
-        """Create a loop associated with a list of 1D objects.
+        """Create a loop associated with a list of 1D objects.\n
         return loop, openLines, openPoints
         """
 
@@ -317,9 +317,9 @@ class Interface_Gmsh:
 
         return loop, openLines, openPoints
 
-    def __Loop_From_Circle(self, circle: Circle) -> int:
-        """Creation of a loop associated with a circle.
-        return loop
+    def __Loop_From_Circle(self, circle: Circle) -> tuple[int, list[int], list[int]]:
+        """Creation of a loop associated with a circle.\n
+        return loop, lines, points
         """
 
         factory = self.__factory
@@ -332,13 +332,15 @@ class Interface_Gmsh:
         p1 = factory.addPoint(center.x-rayon, center.y, center.z, circle.meshSize)
         p2 = factory.addPoint(center.x, center.y-rayon, center.z, circle.meshSize)
         p3 = factory.addPoint(center.x+rayon, center.y, center.z, circle.meshSize)
-        p4 = factory.addPoint(center.x, center.y+rayon, center.z, circle.meshSize)        
+        p4 = factory.addPoint(center.x, center.y+rayon, center.z, circle.meshSize)
+        points = [p1, p2, p3, p4]
 
         # Circle arcs
         l1 = factory.addCircleArc(p1, p0, p2)
         l2 = factory.addCircleArc(p2, p0, p3)
         l3 = factory.addCircleArc(p3, p0, p4)
         l4 = factory.addCircleArc(p4, p0, p1)
+        lines = [l1, l2, l3, l4]
 
         # Here we remove the point from the center of the circle VERY IMPORTANT otherwise the point remains at the center of the circle.
         factory.remove([(0,p0)], False)
@@ -347,10 +349,10 @@ class Interface_Gmsh:
 
         factory.synchronize()
 
-        return loop
+        return loop, lines, points
 
     def __Loop_From_Domain(self, domain: Domain) -> tuple[int, int]:
-        """Create a loop associated with a domain.
+        """Create a loop associated with a domain.\n
         return loop
         """
         pt1 = domain.pt1
@@ -368,10 +370,10 @@ class Interface_Gmsh:
         return loop
 
     def __Surface_From_Loops(self, loops: list[int]) -> tuple[int, int]:
-        """Create a surface associated with a loop.
+        """Create a surface associated with a loop.\n
         return surface
         """
-
+        
         surface = self.__factory.addPlaneSurface(loops)
 
         self.__factory.synchronize()
@@ -379,14 +381,16 @@ class Interface_Gmsh:
         return surface
     
     def _Surfaces(self, contour: Geom, inclusions: list[Geom]) -> list[int]:
-        """Create surfaces.
+        """Create surfaces.\n
+        return filled surfaces
 
         Parameters
         ----------
         contour : Geom
             the object that creates the surface area
         inclusions : list[Geom]
-            objects that create hollow or filled surfaces in the first surface
+            objects that create hollow or filled surfaces in the first surface.\n
+            CAUTION : objects must be contained within the contour
         """
 
         factory = self.__factory
@@ -501,6 +505,8 @@ class Interface_Gmsh:
             recombine = True
             numElements = [nLayers]
 
+        surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]
+
         for surf in surfaces:
             
             if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
@@ -574,109 +580,84 @@ class Interface_Gmsh:
     # TODO generate multiple meshes by disabling initGmsh and using multiple functions?
     # set up a list of surfaces?
 
-    def __Set_BackgroundMesh(self, refineGeom: Geom, tailleOut: float):
+    def __RefineMesh(self, refineGeoms: list[Domain|Circle|str], meshSize: float):
         """Sets a background mesh
 
         Parameters
         ----------
-        refineGeom : Geom
-            Geometric object for background mesh
-        tailleOut : float
+        refineGeoms : list[Domain|Circle|str]
+            Geometric objects to refine de background mesh
+        meshSize : float
             size of elements outside the domain
         """
 
-        # Example extracted from t10.py in the gmsh tutorials
+        # See t10.py in the gmsh tutorials
+        # https://gitlab.onelab.info/gmsh/gmsh/blob/master/tutorials/python/t10.py
 
-        # See also t11.py to make a line
+        if len(refineGeoms) == 0:
+            return
 
-        if isinstance(refineGeom, Domain):
+        fields = []
 
-            assert not refineGeom.meshSize == 0, "Domain mesh size is required."
+        for geom in refineGeoms:
 
-            pt21 = refineGeom.pt1
-            pt22 = refineGeom.pt2
-            taille2 = refineGeom.meshSize
+            if isinstance(geom, Domain):
 
-            # We could also use a `Box' field to impose a step change in element sizes
-            # inside a box
-            field_Box = gmsh.model.mesh.field.add("Box")
-            gmsh.model.mesh.field.setNumber(field_Box, "VIn", taille2)
-            gmsh.model.mesh.field.setNumber(field_Box, "VOut", tailleOut)
-            gmsh.model.mesh.field.setNumber(field_Box, "XMin", np.min([pt21.x, pt22.x]))
-            gmsh.model.mesh.field.setNumber(field_Box, "XMax", np.max([pt21.x, pt22.x]))
-            gmsh.model.mesh.field.setNumber(field_Box, "YMin", np.min([pt21.y, pt22.y]))
-            gmsh.model.mesh.field.setNumber(field_Box, "YMax", np.max([pt21.y, pt22.y]))
-            gmsh.model.mesh.field.setNumber(field_Box, "ZMin", np.min([pt21.z, pt22.z]))
-            gmsh.model.mesh.field.setNumber(field_Box, "ZMax", np.max([pt21.z, pt22.z]))
-            # gmsh.model.mesh.field.setNumber(field_Box, "Thickness", np.abs(pt21.z - pt22.z))
+                coordo = np.array([point.coordo  for point in geom.points])
 
-            # Let's use the minimum of all the fields as the background mesh field:
-            minField = gmsh.model.mesh.field.add("Min")
-            gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Box])
+                field = gmsh.model.mesh.field.add("Box")
+                gmsh.model.mesh.field.setNumber(field, "VIn", geom.meshSize)
+                gmsh.model.mesh.field.setNumber(field, "VOut", meshSize)
+                gmsh.model.mesh.field.setNumber(field, "XMin", coordo[:,0].min())
+                gmsh.model.mesh.field.setNumber(field, "XMax", coordo[:,0].max())
+                gmsh.model.mesh.field.setNumber(field, "YMin", coordo[:,1].min())
+                gmsh.model.mesh.field.setNumber(field, "YMax", coordo[:,1].max())
+                gmsh.model.mesh.field.setNumber(field, "ZMin", coordo[:,2].min())
+                gmsh.model.mesh.field.setNumber(field, "ZMax", coordo[:,2].max())
 
-            gmsh.model.mesh.field.setAsBackgroundMesh(minField)
+            elif isinstance(geom, Circle):
 
-        elif isinstance(refineGeom, Circle):
+                pC = geom.center
+                field = gmsh.model.mesh.field.add("Cylinder")
+                gmsh.model.mesh.field.setNumber(field, "VIn", geom.meshSize)
+                gmsh.model.mesh.field.setNumber(field, "VOut", meshSize)
+                gmsh.model.mesh.field.setNumber(field, "Radius", geom.diam/2)
+                gmsh.model.mesh.field.setNumber(field, "XCenter", pC.x)
+                gmsh.model.mesh.field.setNumber(field, "YCenter", pC.y)
+                gmsh.model.mesh.field.setNumber(field, "ZCenter", pC.z)
 
-            pt = refineGeom.center
+            elif isinstance(geom, str):
 
-            # point = self.__factory.addPoint(pt.x, pt.y, pt.z, refineGeom.meshSize)
+                if not os.path.exists(geom) :
+                    print(Fore.RED + "The .pos file does not exist." + Fore.WHITE)
+                    continue
 
-            # field_Distance = gmsh.model.mesh.field.add("Distance")
-            # gmsh.model.mesh.field.setNumbers(field_Distance, "PointsList", [point])            
+                if ".pos" not in geom:
+                    print(Fore.RED + "Must provide a .pos file" + Fore.WHITE)
+                    continue
 
-            # minField = gmsh.model.mesh.field.add("Min")
-            # gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Distance])
+                gmsh.merge(geom)
 
-            field = gmsh.model.mesh.field.add("MathEval")
-            gmsh.model.mesh.field.setString(field, "F", f"{pt.x} + {pt.y}")
+                # Add the post-processing view as a new size field:
+                field = gmsh.model.mesh.field.add("PostView")
+                # gmsh.model.mesh.field.setNumber(field, "ViewIndex", 0)
+                # gmsh.model.mesh.field.setNumber(field, "UseClosest", 0)
 
-            minField = gmsh.model.mesh.field.add("Min")
-            gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field])
-
-            # self.__factory.remove([(0,point)])
-
-            # loopCercle = self.__Loop_From_Circle(refineGeom)
-
-            # field_Distance = gmsh.model.mesh.field.add("Distance")
-            # gmsh.model.mesh.field.setNumbers(field_Distance, "PointsList", [loopCercle])
+            else:
+                print(Fore.RED + "refineGeoms must be of type Domain, Circle, str(.pos file)" + Fore.WHITE)
             
-            # field_Thershold = gmsh.model.mesh.field.add("Threshold")
-            # gmsh.model.mesh.field.setNumber(field_Thershold, "InField", field_Distance)            
-            # gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMin", refineGeom.meshSize)
-            # gmsh.model.mesh.field.setNumber(field_Thershold, "SizeMax", tailleOut)
-            # gmsh.model.mesh.field.setNumber(field_Thershold, "DistMin", 0.15)
-            # gmsh.model.mesh.field.setNumber(field_Thershold, "DistMax", 0.5)
+            fields.append(field)
 
-            # minField = gmsh.model.mesh.field.add("Min")
-            # gmsh.model.mesh.field.setNumbers(minField, "FieldsList", [field_Thershold])
+        # Let's use the minimum of all the fields as the mesh size field:
+        minField = gmsh.model.mesh.field.add("Min")
+        gmsh.model.mesh.field.setNumbers(minField, "FieldsList", fields)
+        gmsh.model.mesh.field.setAsBackgroundMesh(minField)
 
-            gmsh.model.mesh.field.setAsBackgroundMesh(minField)            
-
-        elif isinstance(refineGeom, str):
-
-            if not os.path.exists(refineGeom) :
-                print(Fore.RED + "The .pos file does not exist." + Fore.WHITE)
-                return
-
-            if ".pos" not in refineGeom:
-                print(Fore.RED + "Must provide a .pos file" + Fore.WHITE)
-                return
-
-            gmsh.merge(refineGeom)
-
-            # Add the post-processing view as a new size field:
-            minField = gmsh.model.mesh.field.add("PostView")
-            gmsh.model.mesh.field.setNumber(minField, "ViewIndex", 0)
-
-            # Apply the view as the current background mesh size field:
-            gmsh.model.mesh.field.setAsBackgroundMesh(minField)
-
-            # # In order to compute the mesh sizes from the background mesh only, and
-            # # disregard any other size constraints, one can set:
-            # gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
-            # gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
-            # gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0) 
+        # Finally, while the default "Frontal-Delaunay" 2D meshing algorithm
+        # (Mesh.Algorithm = 6) usually leads to the highest quality meshes, the
+        # "Delaunay" algorithm (Mesh.Algorithm = 5) will handle complex mesh size fields
+        # better - in particular size fields with large element size gradients:
+        gmsh.option.setNumber("Mesh.Algorithm", 5)
 
     def Mesh_Import_mesh(self, mesh: str, setPhysicalGroups=False, coef=1.0):
         """Importing an .msh file. Must be an gmsh file.
@@ -738,7 +719,6 @@ class Interface_Gmsh:
         if elemType == None:
             elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
 
-
         self.__init_gmsh_factory('occ') # Only work with occ !! Do not change
 
         assert meshSize >= 0.0, "Must be greater than or equal to 0."
@@ -753,7 +733,7 @@ class Interface_Gmsh:
         else:
             print("Must be a .stp or .igs file")
 
-        self.__Set_BackgroundMesh(refineGeom, meshSize)
+        self.__RefineMesh(refineGeom, meshSize)
 
         self.__Set_PhysicalGroups(buildPoint=False, buildLine=True, buildSurface=True, buildVolume=False)
 
@@ -966,7 +946,9 @@ class Interface_Gmsh:
 
         return hollowLoops, filledLoops    
 
-    def Mesh_2D(self, contour: Geom, inclusions: list[Geom]=[], elemType=ElemType.TRI3, cracks=[], isOrganised=False, refineGeom=None, folder=""):
+    def Mesh_2D(self, contour: Geom, inclusions: list[Geom]=[],
+                elemType=ElemType.TRI3,
+                cracks:list[Geom]=[], refineGeoms: list[Geom|str]=[], isOrganised=False, folder=""):
         """Build the 2D mesh by creating a surface from a Geom object
 
         Parameters
@@ -978,11 +960,11 @@ class Interface_Gmsh:
         elemType : str, optional
             element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
         cracks : list[Line | PointsList | Countour]
-            list of object used to create cracks
+            list of object used to create cracks        
+        refineGeoms : list[Domain|Circle|str], optional
+            geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        refineGeom : Geom, optional
-            second domain for mesh concentration, by default None
         folder : str, optional
             mesh save folder mesh.msh, by default ""
 
@@ -997,33 +979,35 @@ class Interface_Gmsh:
         else:
             self.__init_gmsh_factory('occ')
             isOrganised = False
-        self.__CheckType(2, elemType)       
+        self.__CheckType(2, elemType)
 
         tic = Tic()
 
         factory = self.__factory
         
         meshSize = contour.meshSize
-
-        surfacesFilled = self._Surfaces(contour, inclusions)
         
+        self._Surfaces(contour, inclusions)
+
         # Recovers 2D entities
         entities2D = gmsh.model.getEntities(2)
 
         # Crack creation
-        crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_cracks(cracks, entities2D)            
+        crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_cracks(cracks, entities2D)
 
-        self.__Set_BackgroundMesh(refineGeom, meshSize)
+        self.__RefineMesh(refineGeoms, meshSize)
 
         self.__Set_PhysicalGroups()
 
         tic.Tac("Mesh","Geometry", self.__verbosity)                
 
-        self.__Meshing(2, elemType, surfacesFilled, isOrganised, crackLines=crackLines, openPoints=openPoints, folder=folder)
+        self.__Meshing(2, elemType, isOrganised, crackLines=crackLines, openPoints=openPoints, folder=folder)
 
         return self.__Construct_Mesh()
 
-    def Mesh_3D(self, contour: Geom, inclusions: list[Geom]=[], extrude=[0,0,1], nLayers=1, elemType=ElemType.TETRA4, cracks=[], refineGeom=None, folder="") -> Mesh:
+    def Mesh_3D(self, contour: Geom, inclusions: list[Geom]=[],
+                extrude=[0,0,1], nLayers=1, elemType=ElemType.TETRA4,
+                cracks: list[Geom]=[], refineGeoms: list[Geom|str]=[], folder="") -> Mesh:
         """Build the 3D mesh by creating a surface from a Geom object
 
         Parameters
@@ -1040,8 +1024,8 @@ class Interface_Gmsh:
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
         cracks : list[Line | PointsList | Countour]
             list of object used to create cracks
-        refineGeom : Geom, optional
-            second domain for mesh concentration, by default None
+        refineGeoms : list[Domain|Circle|str], optional
+            geometric objects for mesh refinement, by default []
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -1052,7 +1036,7 @@ class Interface_Gmsh:
         """
         
         self.__init_gmsh_factory()
-        self.__CheckType(3, elemType)        
+        self.__CheckType(3, elemType)
         
         tic = Tic()
         
@@ -1067,7 +1051,7 @@ class Interface_Gmsh:
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_cracks(cracks, entities3D)
 
-        self.__Set_BackgroundMesh(refineGeom, contour.meshSize)
+        self.__RefineMesh(refineGeoms, contour.meshSize)
 
         self.__Set_PhysicalGroups()
 
@@ -1077,7 +1061,10 @@ class Interface_Gmsh:
         
         return self.__Construct_Mesh()
     
-    def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[], axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, nLayers=180, elemType=ElemType.TETRA4, cracks=[], refineGeom=None, folder="") -> Mesh:
+    def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[],
+                     axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, nLayers=180, elemType=ElemType.TETRA4,
+                     cracks: list[Geom]=[], refineGeoms: list[Geom|str]=[],
+                     folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
 
         Parameters
@@ -1096,8 +1083,8 @@ class Interface_Gmsh:
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
         cracks : list[Line | PointsList | Countour]
             list of object used to create cracks
-        refineGeom : Geom, optional
-            second domain for mesh concentration, by default None
+        refineGeoms : list[Domain|Circle|str], optional
+            geometric objects for mesh refinement, by default []
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -1113,7 +1100,7 @@ class Interface_Gmsh:
         tic = Tic()
         
         # the starting 2D mesh is irrelevant
-        surfaces = self._Surfaces(contour, inclusions)
+        surfaces = self._Surfaces(contour, inclusions)        
         
         self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers)           
 
@@ -1123,7 +1110,7 @@ class Interface_Gmsh:
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_cracks(cracks, entities3D)
 
-        self.__Set_BackgroundMesh(refineGeom, contour.meshSize)
+        self.__RefineMesh(refineGeoms, contour.meshSize)
 
         self.__Set_PhysicalGroups()
 
@@ -1186,7 +1173,7 @@ class Interface_Gmsh:
         elif elemType in ["SEG5", "TRI15"]:
             gmsh.model.mesh.set_order(4)
 
-    def __Meshing(self, dim: int, elemType: str, surfaces=[], isOrganised=False, crackLines=None, crackSurfaces=None, openPoints=None, openLines=None, folder=""):
+    def __Meshing(self, dim: int, elemType: str, isOrganised=False, crackLines=None, crackSurfaces=None, openPoints=None, openLines=None, folder=""):
         """Construction of gmsh mesh from geometry that has been built or imported.
 
         Parameters
@@ -1195,8 +1182,6 @@ class Interface_Gmsh:
             mesh size
         elemType : str
             element type
-        surfaces : list[int], optional
-            list of surfaces to be meshed, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
         crackLines : int, optional
@@ -1215,47 +1200,35 @@ class Interface_Gmsh:
 
         if factory == gmsh.model.occ:
             isOrganised = False
-            factory = cast(gmsh.model.occ, factory)
-        elif factory == gmsh.model.geo:
-            factory = cast(gmsh.model.geo, factory)
-        else:
-            raise Exception("Unknow factory")
         
         self.__Set_algorithm(elemType)
+        self.__factory.synchronize()
 
         tic = Tic()
-        if dim == 1:
-            self.__factory.synchronize()
+        if dim == 1:            
             gmsh.model.mesh.generate(1)
             Interface_Gmsh.__Set_mesh_order(elemType)
         elif dim == 2:
 
-            assert isinstance(surfaces, list)
+            surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]
             
-            for surf in surfaces:
+            for surface in surfaces:
                 
                 if isOrganised:
                     # Only works for a simple surface (no holes or cracks) and when the model is built with geo and not occ!
                     # It's not possible to create a setTransfiniteSurface with occ
-                    # If you have to use occ, it's not possible to create an organized mesh.
-                                        
+                    # If you have to use occ, it's not possible to create an organized mesh.                                        
                     gmsh.model.geo.synchronize()
                     points = np.array(gmsh.model.getEntities(0))[:,1]
                     if points.shape[0] <= 4:
                         #It is imperative to give the contour points when more than 3 or 4 points are used.
-                        gmsh.model.geo.mesh.setTransfiniteSurface(surf, cornerTags=points)
+                        gmsh.model.geo.mesh.setTransfiniteSurface(surface, cornerTags=points)
 
                 # Synchronisation
                 self.__factory.synchronize()
 
                 if elemType in [ElemType.QUAD4,ElemType.QUAD8]:
-                    try:
-                        gmsh.model.mesh.setRecombine(2, surf)
-                    except Exception:
-                        # Recover surface
-                        entities = gmsh.model.getEntities()
-                        surf = entities[-1][-1]
-                        gmsh.model.mesh.setRecombine(2, surf)
+                    gmsh.model.mesh.setRecombine(2, surface)
             
             # Generates mesh
             gmsh.model.mesh.generate(2)

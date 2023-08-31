@@ -18,7 +18,7 @@ folder = Folder.New_File("TractionWood", results=True)
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-L = 105
+L = 105 # mm
 H = 70
 h = H/2
 r3 = 3
@@ -30,7 +30,7 @@ d2 = 40.85
 # init crack
 useSmallCrack = True
 crackThickness = 0.5
-crackLength = 20
+crackLength = 40
 
 alpha1 = 2.5 * np.pi/180
 alpha2 = 20 * np.pi/180
@@ -102,9 +102,9 @@ c4 = Circle(Point(a/2, h-7.5), diam, clC, isHollow=True)
 inclusions = [c1, c2, c3, c4]
 
 zone = 5
-refineDomain = Domain(Point(crackLength-zone, -zone), Point(L, zone), meshSize=clC)
-# refineDomain = None
-mesh = Interface_Gmsh().Mesh_2D(points, inclusions, ElemType.TRI3, cracks, refineGeom=refineDomain)
+# refineDomain = Domain(Point(crackLength-zone, -zone), Point(L, zone), meshSize=clC)
+refineDomain = Circle(Point(crackLength), 20, clC)
+mesh = Interface_Gmsh().Mesh_2D(points, inclusions, ElemType.TRI3, cracks, refineGeoms=[refineDomain])
 
 Display.Plot_Model(mesh)
 Display.Plot_Mesh(mesh)
@@ -113,9 +113,8 @@ Display.Plot_Mesh(mesh)
 # Material
 # ----------------------------------------------
 # El=11580*1e6
-# Gc = 300*1e6 # J/mm2
-Gc = 1*1e-1 # J/mm2
-El=12000
+Gc = 0.07 # mJ/mm2
+El=12000 # MPa
 Et=500
 # Et=50
 Gl=450
@@ -129,6 +128,7 @@ material = Materials.Elas_IsotTrans(2, El=El, Et=Et, Gl=Gl, vl=vl, vt=vt,
 a1 = np.array([0,1])
 M1 = np.einsum("i,j->ij", a1, a1)
 Betha = El/Et
+Betha = 50
 A = np.eye(2) + Betha * (np.eye(2) - M1)
 
 pfm = Materials.PhaseField_Model(material, "AnisotStress", "AT1", Gc, l0, A=A)

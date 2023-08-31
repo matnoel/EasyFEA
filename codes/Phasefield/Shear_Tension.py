@@ -171,11 +171,11 @@ for split, regu in zip(splits, regularisations):
                 cracks = [Contour([l1, l2, l3, l4])]
             
             if dim == 2:
-                mesh = Interface_Gmsh().Mesh_2D(contour, cracks=cracks, elemType=elemType, refineGeom=refineDomain)
+                mesh = Interface_Gmsh().Mesh_2D(contour, cracks=cracks, elemType=elemType, refineGeoms=[refineDomain])
             elif dim == 3:
                 # fichier = "/Users/matnoel/Desktop/gmsh_domain_single_edge_crack.msh"
                 # mesh = Interface_Gmsh(True).Mesh_Import_msh(fichier)
-                mesh = Interface_Gmsh(False, False).Mesh_3D(contour, [], [0,0,ep], 3, "TETRA4", cracks, refineGeom=refineDomain)
+                mesh = Interface_Gmsh(False, False).Mesh_3D(contour, [], [0,0,ep], 3, "TETRA4", cracks, refineGeoms=[refineDomain])
 
             return mesh
         

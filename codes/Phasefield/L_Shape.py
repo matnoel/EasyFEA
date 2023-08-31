@@ -86,9 +86,9 @@ contour = PointsList([p1,p2,p3,p4,p5,p6,p7], hD)
 circle = Circle(p5, 100)
 
 if dim == 2:
-    mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI3, refineGeom=refineDomain)
+    mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI3, refineGeoms=[refineDomain])
 else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,-ep], 3, ElemType.HEXA8, refineGeom=refineDomain)
+    mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,-ep], 3, ElemType.HEXA8, refineGeoms=[refineDomain])
 
 Display.Plot_Mesh(mesh)
 # Display.Plot_Model(mesh)
