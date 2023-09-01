@@ -7,7 +7,6 @@ from Geom import *
 from Interface_Gmsh import Interface_Gmsh, ElemType
 import Simulations
 from TicTac import Tic
-from Mesh import Calc_projector
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -50,12 +49,13 @@ makeMovie = False
 # ----------------------------------------------
 # Simulations 
 # ----------------------------------------------
-nSplits = len(splits)
-nRegus = len(regus)
-regus = regus * nSplits
-splits = np.repeat(splits, nRegus)
+Splits = []; Regus = []
+for split in splits.copy():
+    for regu in regus.copy():
+        Splits.append(split)
+        Regus.append(regu)
 
-for split, regu in zip(splits, regus):    
+for split, regu in zip(Splits, Regus):    
 
     # Builds the path to the folder based on the problem data
     folderName = "Shear_Benchmark"
@@ -131,16 +131,15 @@ for split, regu in zip(splits, regus):
         for nodes in [nodes_lower,nodes_right,nodes_upper]:
             nodes_edges.extend(nodes)
 
-        dofs_upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["x"])
+        dofsX_upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["x"])
 
         # ----------------------------------------------
         # Material
         # ----------------------------------------------
         material = Materials.Elas_Isot(dim, E=210e9, v=0.3,
-        planeStress=False, thickness=thickness)
+                                       planeStress=False, thickness=thickness)
         Gc = 2.7e3 # J/m2
-
-        pfm = Materials.PhaseField_Model(material, split, regu, Gc=Gc, l0=l0, solver=pfmSolver)
+        pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0, pfmSolver)
 
         # ----------------------------------------------
         # Boundary conditions
@@ -197,7 +196,7 @@ for split, regu in zip(splits, regus):
             if not converg: break            
             
             # resulting force on upper edge
-            f = np.sum(Kglob[dofs_upper, :] @ u)
+            f = np.sum(Kglob[dofsX_upper, :] @ u)
 
             displacements.append(dep)
             forces.append(f)

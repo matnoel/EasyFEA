@@ -7,7 +7,6 @@ from Geom import *
 from Interface_Gmsh import Interface_Gmsh, ElemType
 import Simulations
 from TicTac import Tic
-from Mesh import Calc_projector
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -56,17 +55,16 @@ makeMovie = False
 # ----------------------------------------------
 # Simulations 
 # ----------------------------------------------
-nSplits = len(splits)
-nRegus = len(regus)
-nThetas = len(thetas)
-
-regus = regus * nSplits
-thetas = thetas * nSplits
-splits = np.repeat(splits, nRegus)
 
 # for split, theta in zip(splits, thetas):
 
-for split, regu in zip(splits, regus):
+Splits = []; Regus = []
+for split in splits.copy():
+    for regu in regus.copy():
+        Splits.append(split)
+        Regus.append(regu)
+
+for split, regu in zip(Splits, Regus):
 
     # Builds the path to the folder based on the problem data
     folderName = "Tension_Benchmark"
@@ -133,19 +131,23 @@ for split, regu in zip(splits, regus):
             Display.Plot_Mesh(mesh)
             plt.show()
 
-        # Node recovery
-        nodes_crack = mesh.Nodes_Conditions(lambda x,y,z: (y==L/2) & (x<=L/2))
+        # Nodes recovery
         nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y == L)
         nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
         nodes_left = mesh.Nodes_Conditions(lambda x,y,z: (x == 0) & (y>0) & (y<L))
         nodes_right = mesh.Nodes_Conditions(lambda x,y,z: (x == L) & (y>0) & (y<L))
+        nodes_crack = mesh.Nodes_Conditions(lambda x,y,z: (y==L/2) & (x<=L/2))
+        if openCrack:
+            nodes_detect = mesh.nodes.copy()
+        else:
+            nodes_detect = np.array(list(set(mesh.nodes)-set(nodes_crack)))
 
         # Builds edge nodes
         nodes_edges=[]
         for nodes in [nodes_lower,nodes_right,nodes_upper]:
             nodes_edges.extend(nodes)
 
-        dofs_upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
+        dofsY_upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
 
         # ----------------------------------------------
         # Material
@@ -243,11 +245,10 @@ for split, regu in zip(splits, regus):
         while True:            
             
             iter += 1
-
             if materialType == 'Elas_Isot':
                 dep += uinc0 if dep < treshold else uinc1
             else:
-                if simu.damage.max() < treshold:
+                if np.max( simu.damage[nodes_detect]) < treshold:
                     dep += uinc0
                 else:
                     dep += uinc1
@@ -266,7 +267,7 @@ for split, regu in zip(splits, regus):
             if not converg: break            
             
             # resulting force on upper edge
-            f = np.sum(Kglob[dofs_upper, :] @ u)
+            f = np.sum(Kglob[dofsY_upper, :] @ u)
 
             displacements.append(dep)
             forces.append(f)
