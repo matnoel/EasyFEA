@@ -321,8 +321,9 @@ class Elas_Isot(_Displacement_Model):
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
         text += f"\nE = {self.E:.2e}, v = {self.v}"
-        if self.dim == 2:
-            text += f"\nCP = {self.planeStress}, ep = {self.thickness:.2e}"            
+        if self.__dim == 2:
+            text += f"\nplaneStress = {self.planeStress}"
+            text += f"\nthickness = {self.thickness:.2e}"
         return text
 
     def __init__(self, dim: int, E=210000.0, v=0.3, planeStress=True, thickness=1.0):
@@ -498,9 +499,11 @@ class Elas_IsotTrans(_Displacement_Model):
         text = f"{type(self).__name__}:"
         text += f"\nEl = {self.El:.2e}, Et = {self.Et:.2e}, Gl = {self.Gl:.2e}"
         text += f"\nvl = {self.vl}, vt = {self.vt}"
-        text += f"\naxi_l = {self.__axis1},  axi_t = {self.__axis2}"
+        text += f"\naxis_l = {self.__axis1}"
+        text += f"\naxis_t = {self.__axis2}"
         if self.__dim == 2:
-            text += f"\nCP = {self.planeStress}, ep = {self.thickness:.2e}"            
+            text += f"\nplaneStress = {self.planeStress}"
+            text += f"\nthickness = {self.thickness:.2e}"
         return text
 
     def __init__(self, dim: int, El: float, Et: float, Gl: float, vl: float, vt: float, axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]), planeStress=True, thickness=1.0):
@@ -760,9 +763,11 @@ class Elas_Anisot(_Displacement_Model):
     def __str__(self) -> str:
         text = f"\n{type(self).__name__}):"
         text += f"\n{self.C}"
-        text += f"\naxi1 = {self.__axis1},  axi2 = {self.__axis2}"
+        text += f"\naxis1 = {self.__axis1}"
+        text += f"\naxis2 = {self.__axis2}"
         if self.__dim == 2:
-            text += f"\nCP = {self.planeStress}, ep = {self.thickness:.2e}"
+            text += f"\nplaneStress = {self.planeStress}"
+            text += f"\nthickness = {self.thickness:.2e}"
         return text
 
     def __init__(self, dim: int, C: np.ndarray, axis1=None, axis2=None, useVoigtNotation=True, planeStress=True, thickness=1.0):
@@ -1971,6 +1976,7 @@ class PhaseField_Model(IModel):
             M1 = np.zeros((Ne,nPg,2,2))
             M1[:,:,0,0] = 1
             if elems.size > 0:
+                v1_m_v2[v1_m_v2==0] = 1 # to avoid dividing by 0
                 m1_tot = np.einsum('epij,ep->epij', matrix_e_pg-v2I, 1/v1_m_v2, optimize='optimal')
                 M1[elems, pdgs] = m1_tot[elems, pdgs]
             M2 = np.eye(2) - M1
