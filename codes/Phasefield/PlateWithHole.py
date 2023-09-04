@@ -31,7 +31,7 @@ plotResult = True
 plotEnergy = False
 showFig = True
 
-saveParaview = False; NParaview=300
+saveParaview = True; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
@@ -45,7 +45,7 @@ tolConv = 1e-0
 # ----------------------------------------------
 # Mesh Option
 # ----------------------------------------------
-optimMesh = True
+optimMesh = False
 damagedNodes = []
 
 # ----------------------------------------------
@@ -55,13 +55,13 @@ damagedNodes = []
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-splits = ["Bourdin"]
-# splits = ["AnisotStress"]
+# splits = ["Zhang"]
+splits = ["Miehe"]
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 
-regus = ["AT1"] # ["AT1", "AT2"]
+regus = ["AT2"] # ["AT1", "AT2"]
 # regus = ["AT1", "AT2"]
 
 Splits = []; Regus = []

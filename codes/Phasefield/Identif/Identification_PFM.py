@@ -244,7 +244,7 @@ for idxEssai in range(0,18):
             f = Kglob[ddlsY_Upper,:] @ u
             fr = - np.sum(f)/1000
             
-            simu.Results_Set_Iteration_Summary(i, fr, "kN", 0, True)            
+            simu.Results_Set_Iteration_Summary(i, fr, "kN", 0, True)
 
         if returnSimu:
             return simu

@@ -1,3 +1,4 @@
+from typing import cast
 import numpy as np
 import pandas as pd
 import pickle
@@ -44,8 +45,8 @@ makeParaview = False
 makeMovie = False
 
 # phase field
-split = "AnisotStress" # he, Zhang
-regu = "AT2"
+split = "Zhang" # he, Zhang, AnisotStress
+regu = "AT1"
 tolConv = 1e-2 # 1e-0, 1e-1, 1e-2
 convOption = 2
 # (0, bourdin)
@@ -64,12 +65,13 @@ if not os.path.exists(pathSimu) and not solve:
 # ----------------------------------------------
 # Loading
 # ----------------------------------------------
-inc0 = 8e-3; tresh0 = 0.2
-inc1 = 2e-3; tresh1 = 0.6
+treshold = 0.2
+inc0 = 8e-3
+inc1 = 2e-3
 
 if not solve:
     simu = Simulations.Load_Simu(folder_save)
-    assert isinstance(simu, Simulations.Simu_PhaseField)
+    simu = cast(Simulations.Simu_PhaseField, simu)
 
 # ----------------------------------------------
 # Import Loading
@@ -113,8 +115,7 @@ k_exp, __ = Calc_a_b(forces, displacements, 15)
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
-def DoMesh(l0: float) -> Mesh:
-
+if solve:    
     meshSize = l0 if test else l0/2
 
     if optimMesh:
@@ -128,12 +129,6 @@ def DoMesh(l0: float) -> Mesh:
     circle = Circle(Point(l/2, h/2), d, meshSize)
 
     mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeoms=[refineGeom])
-
-    return mesh
-
-
-if solve:
-    mesh = DoMesh(l0)
 else:
     mesh = simu.mesh
 
@@ -237,7 +232,7 @@ if solve:
     while fr <= fStop:
 
         i += 1
-        dep += inc0 if simu.damage.max() <= tresh0 else inc1
+        dep += inc0 if simu.damage.max() <= treshold else inc1
 
         simu.Bc_Init()
         simu.add_dirichlet(nodes_lower, [0], ["y"])
