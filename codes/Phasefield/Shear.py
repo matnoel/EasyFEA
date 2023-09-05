@@ -18,7 +18,7 @@ from matplotlib.collections import LineCollection
 # Configuration
 # ----------------------------------------------
 dim = 2
-test = True
+test = False
 solve = True
 
 # Mesh
@@ -29,14 +29,14 @@ optimMesh = False
 maxIter = 1000
 tolConv = 1e-0 # 1e-1, 1e-2, 1e-3
 
-regus = ["AT2"] # "AT1", "AT2"
-# regus = ["AT1", "AT2"]
+# regus = ["AT2"] # "AT1", "AT2"
+regus = ["AT1", "AT2"]
 pfmSolver = Materials.PhaseField_Model.SolverType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
-# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Miehe"]
+splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+# splits = ["Miehe"]
 
 # PostProcessing
 plotMesh = False
