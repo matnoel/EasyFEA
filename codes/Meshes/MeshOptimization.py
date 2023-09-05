@@ -226,8 +226,8 @@ while error >= cible and i < iterMax:
             
             proj = Calc_projector(oldMesh, mesh)
 
-            newDofs = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", mesh.nodes, ["x"])
-            oldDofs = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", oldMesh.nodes, ["x"])
+            newDofs = simu.Bc_dofs_nodes(mesh.nodes, ["x"])
+            oldDofs = simu.Bc_dofs_nodes(oldMesh.nodes, ["x"])
             uproj = np.zeros(mesh.Nn*dim)        
             for d in range(dim):
                 uproj[newDofs+d] = proj @ oldU[oldDofs+d]

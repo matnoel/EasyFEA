@@ -77,8 +77,6 @@ nodes_upper = mesh.Nodes_Tags(["L2"])
 nodes_contact = mesh.Nodes_Tags(["L0", "L2"])
 nodes_zone = mesh.Nodes_Circle(circleZone)
 
-dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
-
 # Recovery of arrays for digital integration
 matrixType = "rigi" 
 jacob2D_e_pg = mesh.Get_jacobian_e_pg(matrixType)
@@ -129,6 +127,8 @@ simu.add_surfLoad(nodes_upper, [-sig], ["y"])
 # Display.Save_fig(folder, "Boundary Compression")
 
 u_exp = simu.Solve()
+
+dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
 
 # ----------------------------------------------
 # Identification

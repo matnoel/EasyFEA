@@ -148,7 +148,7 @@ nodes_c2 = mesh.Nodes_Cylinder(circlePos2, [0,0,ep])
 nodes_c3 = mesh.Nodes_Cylinder(circlePos3, [0,0,ep])
 nodes_damage = np.concatenate([nodes_c1, nodes_c2, nodes_c3])
 
-dofsY_load = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", nodes_load, ['y'])
+
 
 # ----------------------------------------------
 # Material
@@ -164,7 +164,8 @@ folderSimu = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization,
 # ----------------------------------------------
 if solve:
 
-    simu = Simulations.Simu_PhaseField(mesh, pfm)    
+    simu = Simulations.Simu_PhaseField(mesh, pfm)
+    dofsY_load = simu.Bc_dofs_nodes(nodes_load, ['y'])
     
     if pltIter:
         __, axIter, cb = Display.Plot_Result(simu, 'damage')

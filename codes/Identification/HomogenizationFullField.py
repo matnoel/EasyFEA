@@ -182,7 +182,7 @@ def Calc_ukl(Ekl: np.ndarray):
                 axVer.scatter(mesh_VER.coordo[nodes, 0],mesh_VER.coordo[nodes, 1], marker='+', c='red')
 
                 for direction in ["x", "y"]:
-                    dofs = BoundaryCondition.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, [direction])                   
+                    dofs = simu_VER.Bc_dofs_nodes(nodes, [direction])
                     
                     values = Ekl @ [mesh_VER.coordo[n0,0]-mesh_VER.coordo[n1,0], mesh_VER.coordo[n0,1]-mesh_VER.coordo[n1,1]]
                     value = values[0] if direction == "x" else values[1]

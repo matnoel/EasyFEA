@@ -12,7 +12,6 @@ from Interface_Gmsh import Interface_Gmsh
 from Geom import Point, Domain, Circle
 import Materials
 import Simulations
-from Simulations import BoundaryCondition
 import PostProcessing
 import pickle
 
@@ -212,12 +211,14 @@ for idxEssai in range(0,18):
         nodes_Lower = mesh.Nodes_Tags(["L0"])
         nodes_Upper = mesh.Nodes_Tags(["L2"])
         nodes0 = mesh.Nodes_Tags(["P0"])    
-        ddlsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_Upper, ["y"])
+        
         
         # construit le modèle d'endommagement
         pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0, A=A)
         
         simu = Simulations.Simu_PhaseField(mesh, pfm)
+
+        ddlsY_Upper = simu.Bc_dofs_nodes(nodes_Upper, ["y"])
 
         dep = -inc0
 
@@ -330,8 +331,9 @@ for idxEssai in range(0,18):
             Display.Plot_Iter_Summary(simu, folder_Save)
 
             simu.Update_Iter(-1)
-            ddlsY = BoundaryCondition.Get_dofs_nodes(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
-            fr = -np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ simu.displacement)/1000
+
+            dofsY = simu.Bc_dofs_nodes(simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
+            fr = -np.sum(simu.Get_K_C_M_F()[0][dofsY,:] @ simu.displacement)/1000
 
             pathData = Folder.Join([folder, "identification.xlsx"])
 
@@ -376,14 +378,14 @@ for idxEssai in range(0,18):
         # reconstruction de la courbe force déplacement
         deplacementsIdentif = []
         forcesIdentif = []
-        ddlsY = BoundaryCondition.Get_dofs_nodes(2, "displacement", simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
+        dofsY = simu.Bc_dofs_nodes(simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
         for iter in range(len(simu.results)):
 
             simu.Update_Iter(iter)
 
             displacement = simu.displacement
-            deplacementsIdentif.append(-np.mean(displacement[ddlsY]))
-            forcesIdentif.append(-np.sum(simu.Get_K_C_M_F()[0][ddlsY,:] @ displacement)/1000)
+            deplacementsIdentif.append(-np.mean(displacement[dofsY]))
+            forcesIdentif.append(-np.sum(simu.Get_K_C_M_F()[0][dofsY,:] @ displacement)/1000)
 
         deplacementsIdentif = np.asarray(deplacementsIdentif)
         forcesIdentif = np.asarray(forcesIdentif)            

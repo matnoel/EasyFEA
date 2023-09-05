@@ -99,8 +99,6 @@ node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
 nodes_circle = mesh.Nodes_Cylinder(circle, [0,0,ep])
 nodes_edges = mesh.Nodes_Conditions(lambda x,y,z: (x==0) | (x==L) | (y==L)| (y==0))
 
-dofsY_load = Simulations.BoundaryCondition.Get_dofs_nodes(dim, "displacement", nodes_load, ['y'])
-
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
@@ -112,6 +110,8 @@ folderSimu = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization,
 if solve:
 
     simu = Simulations.Simu_PhaseField(mesh, pfm)
+    
+    dofsY_load = simu.Bc_dofs_nodes(nodes_load, ['y'])
 
     if adaptLoad:
         def Add_Dep(x,y,z):

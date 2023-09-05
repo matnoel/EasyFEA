@@ -137,9 +137,6 @@ nodes_upper = mesh.Nodes_Tags(["L2"])
 nodes0 = mesh.Nodes_Tags(["P0"])
 nodes_edges = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
-dofsX_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["x"])
-dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
-
 Display.Plot_Mesh(mesh)
 
 # ----------------------------------------------
@@ -169,6 +166,8 @@ simuElas = Simulations.Simu_Displacement(mesh, material)
 simuElas.add_dirichlet(nodes_lower, [0,0], ["x","y"])
 simuElas.add_surfLoad(nodes_upper, [-f_crit*1000/l/ep], ["y"])
 u_num = simuElas.Solve()
+
+dofsY_upper = simuElas.Bc_dofs_nodes(nodes_upper, ["y"])
 fr_num = - np.sum(simuElas.Get_K_C_M_F()[0][dofsY_upper] @ u_num)/1000
 k_mat, __ = Calc_a_b(np.linspace(0, fr_num, 50), np.linspace(0, -np.mean(u_num[dofsY_upper]), 50), f_crit)
 
@@ -185,7 +184,7 @@ A = np.eye(2) + Betha * (np.eye(2) - M)
 pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0, A=A)
 
 if solve:
-    simu = Simulations.Simu_PhaseField(mesh, pfm)
+    simu = Simulations.Simu_PhaseField(mesh, pfm)    
 else:
     pfm = simu.phaseFieldModel
     material = pfm.material

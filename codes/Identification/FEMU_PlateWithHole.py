@@ -10,8 +10,6 @@ from Interface_Gmsh import Interface_Gmsh, ElemType
 import Materials
 import Geom
 
-Get_dofs_nodes = Simulations.BoundaryCondition.Get_dofs_nodes
-
 Display.Clear()
 
 # ----------------------------------------------
@@ -56,19 +54,6 @@ nodes_contact = mesh.Nodes_Tags(["L0", "L2"])
 nodes_p0 = mesh.Nodes_Tags(["P0"])
 nodes_lower = mesh.Nodes_Tags(["L0"])
 nodes_upper = mesh.Nodes_Tags(["L2"])
-
-dofsX = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_contact, ["x"])
-dofsY = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_contact, ["y"])
-
-assert nodes_contact.size*2 == (dofsX.size + dofsY.size)
-
-if useRescale:
-    dofsX_lower = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_lower, ["x"])
-    dofsY_lower = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_lower, ["y"])
-    
-    dofsX_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["x"])
-    dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
-    dofsXY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["x","y"])
 
 # Display.Plot_Mesh(mesh)
 # Display.Plot_Model(mesh)
@@ -141,6 +126,19 @@ u_exp = simu.Solve()
 # Display.Plot_Result(simu, np.linalg.norm(vectRand.reshape((mesh.Nn), 2), axis=1), title="bruit")
 # Display.Plot_Result(simu, u_exp.reshape((mesh.Nn,2))[:,1], title='uy bruit')
 
+dofsX = simu.Bc_dofs_nodes(nodes_contact, ["x"])
+dofsY = simu.Bc_dofs_nodes(nodes_contact, ["y"])
+
+assert nodes_contact.size*2 == (dofsX.size + dofsY.size)
+
+if useRescale:
+    dofsX_lower = simu.Bc_dofs_nodes(nodes_lower, ["x"])
+    dofsY_lower = simu.Bc_dofs_nodes(nodes_lower, ["y"])    
+    
+    dofsX_upper = simu.Bc_dofs_nodes(nodes_upper, ["x"])
+    dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
+    dofsXY_upper = simu.Bc_dofs_nodes(nodes_upper, ["x","y"])
+
 # ----------------------------------------------
 # Identification
 # ----------------------------------------------
@@ -177,7 +175,8 @@ def func(x):
 
 def Add_Dirichlet(nodes: np.ndarray, directions=["x","y"]):
 
-    dofs = Get_dofs_nodes(2, "displacement", nodes, directions)
+
+    dofs = simu_FEMU.Bc_dofs_nodes(nodes, directions)
     nDim = len(directions)
 
     values = u_exp_noise[dofs]

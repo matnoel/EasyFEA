@@ -4,7 +4,7 @@ from Geom import normalize_vect, Point, PointsList, Line, Circle
 import Display
 import Materials
 import Simulations
-from BoundaryCondition import BoundaryCondition, LagrangeCondition
+from BoundaryCondition import LagrangeCondition
 
 Display.Clear()
 np = Display.np
@@ -270,12 +270,12 @@ def Calc_ukl(Ekl: np.ndarray, pltSol=False):
             # plt.gca().scatter(coordo[nodes, 0],coordo[nodes, 1], marker='+', c='red')
 
             for direction in ["x", "y"]:
-                ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, [direction])
+                dofs = simu.Bc_dofs_nodes(nodes, [direction])
                 
                 values = Ekl @ [coordo[n1,0]-coordo[n2,0], coordo[n1,1]-coordo[n2,1]]
                 value = values[0] if direction == "x" else values[1]
 
-                condition = LagrangeCondition("displacement", nodes, ddls, [direction], [value], [1, -1])
+                condition = LagrangeCondition("displacement", nodes, dofs, [direction], [value], [1, -1])
                 simu._Bc_Add_Lagrange(condition)
 
         if useMean0:            
@@ -284,13 +284,13 @@ def Calc_ukl(Ekl: np.ndarray, pltSol=False):
             vect = np.ones(mesh.Nn) * 1/mesh.Nn 
 
             # sum u_i / Nn = 0
-            ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"])        
-            condition = LagrangeCondition("displacement", nodes, ddls, ["x"], [0], [vect])
+            dofs = simu.Bc_dofs_nodes(nodes, ["x"])
+            condition = LagrangeCondition("displacement", nodes, dofs, ["x"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)
 
             # sum v_i / Nn = 0
-            ddls = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"])        
-            condition = LagrangeCondition("displacement", nodes, ddls, ["y"], [0], [vect])
+            dofs = simu.Bc_dofs_nodes(nodes, ["y"])
+            condition = LagrangeCondition("displacement", nodes, dofs, ["y"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)
 
     ukl = simu.Solve()

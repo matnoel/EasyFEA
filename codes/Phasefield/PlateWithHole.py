@@ -1,6 +1,5 @@
 from TicTac import Tic
 import Materials
-from BoundaryCondition import BoundaryCondition
 from Geom import *
 import Display as Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
@@ -226,14 +225,15 @@ for split, regu in zip(Splits, Regus):
             plt.show()
 
         nodes_edges = mesh.Nodes_Tags(["L0","L1","L2","L3"])
-        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)
-        dofsY_upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["y"])
+        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)        
 
         # ----------------------------------------------
         # Simulation
         # ----------------------------------------------
         pfm = Materials.PhaseField_Model(material, split, regu, gc, l0, solver=solver)
         simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
+
+        dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
         
         # ----------------------------------------------
         # Boundary conditions

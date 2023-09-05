@@ -664,8 +664,8 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
     neumanns = simu.Bc_Neuman
     Conditions.extend(neumanns)
 
-    lagranges = simu.Bc_LagrangeDisplay
-    Conditions.extend(lagranges)
+    displays = simu.Bc_Display # boundary conditions for display
+    Conditions.extend(displays)
 
     ax = Plot_Mesh(simu, alpha=0)
 
@@ -709,7 +709,7 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
                 elif directions[0] == 'z':
                     marker='d'
             elif len(directions) == 2:
-                if "Liaison" in description:
+                if "Connection" in description:
                     marker='o'
                 else:
                     marker='X'

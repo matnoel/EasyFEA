@@ -1,7 +1,6 @@
-from BoundaryCondition import BoundaryCondition
+import Display
 import PostProcessing
 import Folder
-import Display
 import Materials
 from Geom import *
 from Interface_Gmsh import Interface_Gmsh, ElemType
@@ -131,8 +130,6 @@ for split, regu in zip(Splits, Regus):
         for nodes in [nodes_lower,nodes_right,nodes_upper]:
             nodes_edges.extend(nodes)
 
-        dofsX_upper = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes_upper, ["x"])
-
         # ----------------------------------------------
         # Material
         # ----------------------------------------------
@@ -172,6 +169,8 @@ for split, regu in zip(Splits, Regus):
         # ----------------------------------------------
         simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
         simu.Results_Set_Bc_Summary(loadings[-1],listInc, listThreshold, optionTreshold)
+
+        dofsX_upper = simu.Bc_dofs_nodes(nodes_upper, ["x"])
 
         tic = Tic()
         

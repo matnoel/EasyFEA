@@ -902,8 +902,8 @@ class _Simu(ABC):
         # LAGRANGE
         self.__Bc_Lagrange = _Simu.__Bc_Init_List_LagrangeCondition()
         """Lagrange conditions list[BoundaryCondition]"""
-        self.__Bc_LagrangeDisplay = []
-        """Lagrange conditions list[BoundaryCondition]"""
+        self.__Bc_Display = []
+        """Boundary conditions for display list[BoundaryCondition]"""
 
     @property
     def Bc_Dirichlet(self) -> list[BoundaryCondition]:
@@ -926,9 +926,9 @@ class _Simu(ABC):
         self.__Bc_Lagrange.append(newBc)
     
     @property
-    def Bc_LagrangeDisplay(self) -> list[LagrangeCondition]:
-        """Returns a copy of the Lagrange conditions for the display."""
-        return self.__Bc_LagrangeDisplay.copy()
+    def Bc_Display(self) -> list[LagrangeCondition]:
+        """Returns a copy of the boundary conditions for display."""
+        return self.__Bc_Display.copy()
 
     def Bc_dofs_Dirichlet(self, problemType=None) -> list[int]:
         """Returns dofs related to Dirichlet conditions."""
@@ -991,7 +991,37 @@ class _Simu(ABC):
 
         tic.Tac("Solver",f"Get dofs ({problemType})", self._verbosity)
 
-        return dofsKnown, dofsUnknown    
+        return dofsKnown, dofsUnknown
+
+    def Bc_dofs_nodes(self, nodes: np.ndarray, directions: list[str], problemType=None) -> np.ndarray:
+        """Get degrees of freedom associated with nodes based on the problem and directions.
+
+        Parameters
+        ----------
+        nodes : np.ndarray
+            Nodes.
+        directions : list
+            Directions.        
+        problemType : str
+            Problem type.
+
+        Returns
+        -------
+        np.ndarray
+            Degrees of freedom.
+        """
+
+        if problemType == None:
+            problemType = self.problemType
+
+        self.__Check_ProblemTypes(problemType)
+        
+        assert len(nodes) > 0, "Empty node list"
+        nodes = np.asarray(nodes)
+
+        dof_n = self.Get_dof_n(problemType)
+
+        return BoundaryCondition.Get_dofs_nodes(dof_n, problemType, nodes, directions)
 
     def __Bc_evaluate(self, coordo: np.ndarray, values, option="nodes") -> np.ndarray:
         """Evaluates values at nodes or gauss points."""
@@ -1062,9 +1092,8 @@ class _Simu(ABC):
             dofsValues_dir[:,d] = eval_n.reshape(-1)
         
         dofsValues = dofsValues_dir.reshape(-1)
-
-        dof_n = self.Get_dof_n(problemType)
-        dofs = BoundaryCondition.Get_dofs_nodes(dof_n, problemType, nodes, directions)
+        
+        dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
 
         self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
 
@@ -1207,7 +1236,7 @@ class _Simu(ABC):
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
     
     def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
-        """Apply a linear force."""
+        """Apply a point load."""
 
         Nn = nodes.shape[0]
         coordo = self.mesh.coordoGlob
@@ -1224,9 +1253,7 @@ class _Simu(ABC):
         
         dofsValues = valeurs_ddl_dir.reshape(-1)
 
-        dof_n = self.Get_dof_n(problemType)
-
-        dofs = BoundaryCondition.Get_dofs_nodes(dof_n, problemType, nodes, directions)
+        dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
 
         return dofsValues, dofs
 
@@ -1276,7 +1303,7 @@ class _Simu(ABC):
                 values_e = np.sum(values_e_p, axis=1)
                 # sets calculated values and dofs
                 values_dofs_dir[:,d] = values_e.reshape(-1)
-                new_dofs[:,d] = BoundaryCondition.Get_dofs_nodes(dof_n, problemType, connect.reshape(-1), directions[d])
+                new_dofs[:,d] = self.Bc_dofs_nodes(connect.reshape(-1), directions[d], problemType)
 
             new_values_dofs = values_dofs_dir.reshape(-1) # Put in vector form
             dofsValues = np.append(dofsValues, new_values_dofs)
@@ -1375,20 +1402,20 @@ class _Simu(ABC):
     
     # Functions to create links between degrees of freedom
 
-    def _Bc_Add_LagrangeDisplay(self, nodes: np.ndarray, directions: list[str], description: str) -> None:
-        """Add Lagrange conditions for display"""
+    def _Bc_Add_Display(self, nodes: np.ndarray, directions: list[str], description: str, problemType=None) -> None:
+        """Add condition for display"""
 
-        # TODO dont work
+        if problemType == None:
+            problemType = self.problemType
+
+        self.__Check_ProblemTypes(problemType)        
+
+        dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
         
-        dof_n = self.Get_dof_n(self.problemType)        
-        # Takes the first node of the link
-        firstNode = np.array([nodes[0]])
-
-        dofs = BoundaryCondition.Get_dofs_nodes(param=dof_n,  problemType=ModelType.beam, nodes=firstNode, directions=directions)
         dofsValues =  np.array([0]*len(dofs))
 
-        new_Bc = BoundaryCondition(ModelType.beam, firstNode, dofs, directions, dofsValues, description)
-        self.__Bc_LagrangeDisplay.append(new_Bc)
+        new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, description)
+        self.__Bc_Display.append(new_Bc)
     
     # ------------------------------------------- Results ------------------------------------------- 
 
@@ -3202,7 +3229,6 @@ class Simu_Beam(_Simu):
             description
         """
 
-        dof_n = self.Get_dof_n(self.problemType)
         problemType = self.problemType        
         self._Check_Directions(problemType, directions)
 
@@ -3210,15 +3236,14 @@ class Simu_Beam(_Simu):
 
         # For each direction, we'll apply the conditions
         for d, dir in enumerate(directions):
-            ddls = BoundaryCondition.Get_dofs_nodes(dof_n,  problemType=problemType, nodes=nodes, directions=[dir])
-
-            new_LagrangeBc = LagrangeCondition(problemType, nodes, ddls, [dir], [0], [1,-1], description)
+            dofs = self.Bc_dofs_nodes(nodes, [dir], problemType)
+            new_LagrangeBc = LagrangeCondition(problemType, nodes, dofs, [dir], [0], [1,-1], description)
 
             self._Bc_Add_Lagrange(new_LagrangeBc)
 
         tic.Tac("Boundary Conditions","Connection", self._verbosity)
 
-        self._Bc_Add_LagrangeDisplay(nodes, directions, description)
+        self._Bc_Add_Display(nodes, directions, description, problemType)
 
     def __Construct_Beam_Matrix(self) -> np.ndarray:
         """Construct the elementary stiffness matrices for the beam problem."""

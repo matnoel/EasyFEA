@@ -8,8 +8,6 @@ import Materials
 import Simulations
 import Folder
 
-Get_dofs_nodes = Simulations.BoundaryCondition.Get_dofs_nodes
-
 np = Materials.np
 plt = Display.plt
 
@@ -150,8 +148,8 @@ def func(x):
     return diff
 
 def Add_Dirichlet(nodes: np.ndarray, directions=["x","y"]):
-
-    dofs = Get_dofs_nodes(2, "displacement", nodes, directions)
+    
+    dofs = simu_FEMU.Bc_dofs_nodes(nodes, directions)
 
     nDim = len(directions)
     values = u_exp_noise[dofs]

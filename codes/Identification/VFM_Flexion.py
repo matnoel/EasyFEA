@@ -68,7 +68,7 @@ f_exp = simu._Apply_Neumann("displacement").toarray().reshape(-1)
 forceR = np.sum(f_exp)
 
 forces = simu.Get_K_C_M_F()[0] @ u_exp
-dofs = Simulations.BoundaryCondition.Get_dofs_nodes(2, "displacement", mesh.nodes, ["y"])
+dofs = simu.Bc_dofs_nodes(mesh.nodes, ["y"])
 
 f_exp_loc = f_exp[assembly1D_e]
 

@@ -114,7 +114,7 @@ class BoundaryCondition:
         Returns
         -------
         np.ndarray
-            List of degrees of freedom.
+            Degrees of freedom.
         """
         from Simulations import ModelType
 

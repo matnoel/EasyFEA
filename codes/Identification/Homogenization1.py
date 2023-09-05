@@ -3,7 +3,7 @@ from Interface_Gmsh import Interface_Gmsh
 from Geom import *
 import Materials
 import Simulations
-from BoundaryCondition import BoundaryCondition, LagrangeCondition
+from BoundaryCondition import LagrangeCondition
 
 plt = Display.plt
 
@@ -121,7 +121,7 @@ def Calc_ukl(Ekl: np.ndarray, pltSol=False):
             # plt.gca().scatter(coordo[nodes, 0],coordo[nodes, 1], marker='+', c='red')
 
             for direction in ["x", "y"]:
-                dofs = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, [direction])
+                dofs = simu.Bc_dofs_nodes(nodes, [direction])
                 
                 values = Ekl @ [coordo[n0,0]-coordo[n1,0], coordo[n0,1]-coordo[n1,1]]
                 value = values[0] if direction == "x" else values[1]
@@ -135,12 +135,12 @@ def Calc_ukl(Ekl: np.ndarray, pltSol=False):
             vect = np.ones(mesh.Nn) * 1/mesh.Nn 
 
             # sum u_i / Nn = 0
-            dofs = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"])        
+            dofs = simu.Bc_dofs_nodes(nodes, ["x"])
             condition = LagrangeCondition("displacement", nodes, dofs, ["x"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)
 
             # sum v_i / Nn = 0
-            dofs = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"])        
+            dofs = simu.Bc_dofs_nodes(nodes, ["y"])
             condition = LagrangeCondition("displacement", nodes, dofs, ["y"], [0], [vect])
             simu._Bc_Add_Lagrange(condition)            
 

@@ -31,7 +31,6 @@ mesh = Interface_Gmsh().Mesh_2D(domain, [inclusion], ElemType.TRI3)
 nodesLeftRight = mesh.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2))
 nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==-L/2)
 nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: y==L/2)
-dofsY_Upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, 'displacement', nodesUpper, ['y'])
 
 nodes_inclu = mesh.Nodes_Circle(inclusion)
 elem_inclu = mesh.Elements_Nodes(nodes_inclu)
@@ -69,6 +68,8 @@ pfm = Materials.PhaseField_Model(comp, "AnisotStress", "AT2", Gc, l0)
 # Simulation
 # ----------------------------------------------
 simu = Simulations.Simu_PhaseField(mesh, pfm)
+
+dofsY_Upper = simu.Bc_dofs_nodes(nodesUpper, ["y"])
 
 N = 300
 displacements = np.linspace(0, 5e-4, N)
