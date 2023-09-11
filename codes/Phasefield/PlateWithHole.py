@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 dim = 2
 problem = "Benchmark" # ["Benchmark", "FCBA"]
 
-test = True
+test = False
 solve = True
 
 # ----------------------------------------------
@@ -28,9 +28,9 @@ plotMesh = False
 plotIter = False
 plotResult = True
 plotEnergy = False
-showFig = True
+showFig = False
 
-saveParaview = True; NParaview=300
+saveParaview = False; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
@@ -39,12 +39,12 @@ makeMovie = False; NMovie = 200
 materialType = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 solver = Materials.PhaseField_Model.SolverType.History # ["History", "HistoryDamage", "BoundConstrain"]
 maxIter = 1000
-tolConv = 1e-0
+tolConv = 1e-1
 
 # ----------------------------------------------
 # Mesh Option
 # ----------------------------------------------
-optimMesh = False
+optimMesh = True
 damagedNodes = []
 
 # ----------------------------------------------
@@ -55,10 +55,10 @@ damagedNodes = []
 #     split = "Zhang"
 
 # splits = ["Zhang"]
-splits = ["Miehe"]
+# splits = ["Miehe"]
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
-# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 
 regus = ["AT2"] # ["AT1", "AT2"]
 # regus = ["AT1", "AT2"]
