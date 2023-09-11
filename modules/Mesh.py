@@ -8,6 +8,12 @@ from GroupElem import GroupElem, ElemType, MatrixType
 import TicTac
 
 class Mesh:
+    """A mesh uses several groups of elements. For example, a mesh with cubes (HEXA8) uses :
+    - POINT (dim=0)
+    - SEG2 (dim=1)
+    - QUAD4 (dim=2)
+    - HEXA8 (dim=3)
+    """
 
     def __init__(self, dict_groupElem: dict[ElemType, GroupElem], verbosity=True):
         """Setup the mesh.
@@ -302,11 +308,11 @@ class Mesh:
         """integration point weights"""
         return self.groupElem.Get_gauss(matrixType).weights
 
-    def Get_jacobian_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> np.ndarray:
         """Returns the jacobians\n
         variation in size (length, area or volume) between the reference element and the real element
         """
-        return self.groupElem.Get_jacobian_e_pg(matrixType)
+        return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluated shape functions (pg), in the base (ksi, eta . . . )
@@ -527,46 +533,83 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     tic = TicTac.Tic()
 
     # recovery of nodes detected in old mesh elements
-    # connnectivity of these nodes in the elements
+    # connectivity of these nodes in the elements for the new mesh
     # position of nodes in reference element
-    nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Nodes_Connect_CoordoInElemRef(newMesh.coordo)
+    nodes, connect_e_n, coordo_n = oldMesh.groupElem.Get_Mapping(newMesh.coordo)
 
     tic.Tac("Mesh", "Mapping between meshes", False)
 
     # Evaluation of shape functions
     Ntild = oldMesh.groupElem._Ntild()        
     nPe = oldMesh.groupElem.nPe
-    phi_n_nPe = np.zeros((coordo_n.shape[0], nPe))
+    phi_n_nPe = np.zeros((coordo_n.shape[0], nPe)) # functions evaluated at identified coordinates
+
     for n in range(nPe):
-        if dim == 1:
-            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0])
-        elif dim == 2:
-            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1])
-        elif dim == 3:
-            phi_n_nPe[:,n] = Ntild[n,0](coordo_n[:,0], coordo_n[:,1], coordo_n[:,2])
+        phi_n_nPe[:,n] = Ntild[n,0](*coordo_n.T)
+        # *coordo_n.T give a list for every direction *(ksis, etas, ..)    
+    
+    # Here we check that the evaluated shape functions give values between [0, 1].
+    valMax = phi_n_nPe.max()
+    valMin = phi_n_nPe.min()
+    # assert valMin > -1e-12 and valMax <= 1+1e-12, "the coordinates of the nodes in the reference elements have been incorrectly evaluated"
+
+    nodesExact = np.where((phi_n_nPe >= 1-1e-12) & (phi_n_nPe <= 1+1e-12))[0]
+
+    if valMin < -1e-12 or valMax >= 1+1e-12:
+        phi_n_nPe[phi_n_nPe>1] = 1
+        # phi_n_nPe[phi_n_nPe<0] = 0
+        print("ERROR in PROJ")
 
     # Here we detect whether nodes appear more than once
     counts = np.unique(nodes, return_counts=True)[1]
-    idxSup1 = np.where(counts > 1)[0]
-    if idxSup1.size > 0:
-        # if nodes are used several times, divide the shape function values by the number of appearances. At the end, do like an average
-        phi_n_nPe[idxSup1] = np.einsum("ni,n->ni", phi_n_nPe[idxSup1], 1/counts[idxSup1], optimize="optimal")
+    nodesSup1 = np.where(counts > 1)[0]
+    if nodesSup1.size > 0:
+        # detect if notdes are used severral times
+        # divide the shape function values by the number of appearances.
+        # Its like doing an average on shapes functions
+        phi_n_nPe[nodesSup1] = np.einsum("ni,n->ni", phi_n_nPe[nodesSup1], 1/counts[nodesSup1], optimize="optimal")
 
     # Projector construction
     connect_e = oldMesh.connect
-    lignes = []
-    colonnes = []
-    valeurs = []
+    lines = []
+    columns = []
+    values = []
     nodesElem = []
     def FuncExtend_Proj(e: int, nodes: np.ndarray):
         nodesElem.extend(nodes)
-        valeurs.extend(phi_n_nPe[nodes].reshape(-1))
-        lignes.extend(np.repeat(nodes, nPe))
-        colonnes.extend(np.asarray(list(connect_e[e]) * nodes.size))
+        values.extend(phi_n_nPe[nodes].reshape(-1))
+        lines.extend(np.repeat(nodes, nPe))
+        columns.extend(np.asarray(list(connect_e[e]) * nodes.size))
 
     [FuncExtend_Proj(e, nodes) for e, nodes in enumerate(connect_e_n)]
 
-    proj = sp.csr_matrix((valeurs, (lignes, colonnes)), (newMesh.Nn, oldMesh.Nn), dtype=float)
+    proj = sp.csr_matrix((values, (lines, columns)), (newMesh.Nn, oldMesh.Nn), dtype=float)
+
+    proj = proj.tolil()
+
+    # get back the corners to link nodes
+    newCorners = newMesh.Get_list_groupElem(0)[0].nodes
+    oldCorners = oldMesh.Get_list_groupElem(0)[0].nodes
+    # link nodes
+    for newNode, oldNode in zip(newCorners, oldCorners):
+        proj[newNode,:] = 0
+        proj[newNode, oldNode] = 1
+
+    nodesExact = list(set(nodesExact) - set(newCorners))
+
+    tt = phi_n_nPe[nodesExact]
+    for node in nodesExact:
+        oldNode = oldMesh.Nodes_Point(Point(*newMesh.coordo[node]))
+        if oldNode.size == 0: continue
+        proj[node,:] = 0
+        proj[node, oldNode] = 1
+
+    # import Display
+    # ax = Display.Plot_Mesh(oldMesh)
+    # ax.scatter(*newMesh.coordo[nodesSup1,:dim].T,label='sup1')
+    # ax.scatter(*newMesh.coordo[newCorners,:dim].T,label='corners')
+    # ax.scatter(*newMesh.coordo[nodesExact,:dim].T,label='exact')
+    # ax.legend()
 
     tic.Tac("Mesh", "Projector construction", False)
 

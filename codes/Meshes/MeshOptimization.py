@@ -31,7 +31,7 @@ if not os.path.exists(folder):
 # Options for plotting the results
 plotResult = True
 plotError = False
-plotProj = False
+plotProj = True
 makeMovie = False
 makeParaview = False
 
@@ -57,7 +57,7 @@ surfLoad = P / h / b  # N/mm2
 if dim == 2:
     elemType = ElemType.TRI3 # TRI3, TRI6, TRI10, QUAD4, QUAD8
 else:
-    elemType = ElemType.PRISM6 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
+    elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
 
 # ----------------------------------------------
 # Meshing
@@ -147,7 +147,7 @@ else:
                 inclusion = Circle(Point(x, y), cH, meshSize, isHollow=isHollow)
 
             inclusions.append(inclusion)
-    # inclusions = []
+    inclusions = []
 
 # Create an instance of the Gmsh interface
 interfaceGmsh = Interface_Gmsh()
@@ -234,12 +234,12 @@ while error >= cible and i < iterMax:
 
             simu.set_u_n("displacement", uproj)
 
-            ax1 = Display.Plot_Result(oldMesh, oldU.reshape(-1,dim)[:,0], plotMesh=True, title="old ux")[1]
-            ax2 = Display.Plot_Result(simu, "ux", plotMesh=True, title="ux proj")[1]
+            ax1 = Display.Plot_Result(oldMesh, oldU.reshape(-1,dim)[:,1], plotMesh=True, title="old uy")[1]
+            ax2 = Display.Plot_Result(simu, "uy", plotMesh=True, title="uy proj")[1]
             if dim == 2:
-                ax2.scatter(oldMesh.coordo[:,0], oldMesh.coordo[:,1], marker='+', c='black')
+                ax1.scatter(mesh.coordo[:,0], mesh.coordo[:,1], marker='+', c='black')
             else:
-                ax2.scatter(oldMesh.coordo[:,0], oldMesh.coordo[:,1], oldMesh.coordo[:,2], marker='+', c='black')
+                ax1.scatter(mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2], marker='+', c='black')
 
             pass
 

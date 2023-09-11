@@ -23,13 +23,13 @@ thickness = R/3
 
 N = 30
 
-# displacements = np.ones(N) * 1e-0/N
-# cx, cy = 0, -1
-# dec = [0, 0]
+displacements = np.ones(N) * 1e-0/N
+cx, cy = 0, -1
+dec = [0, 0]
 
-displacements = np.ones(N) * 2*R/N
-cx, cy = 1, 0
-dec = [R, 2]
+# displacements = np.ones(N) * 2*R/N
+# cx, cy = 1, 0
+# dec = [R, 2]
 
 # dep = [cx, cy] * ud
 
@@ -87,7 +87,7 @@ def nodesInMaster():
     # update nodes coordinates
     newCoordo = simu.Results_displacement_matrix() + simu.mesh.coordo
     # check nodes in master mesh
-    idx = mesh_master.groupElem.Get_Nodes_Connect_CoordoInElemRef(newCoordo[nodes_slave])[0]
+    idx = mesh_master.groupElem.Get_Mapping(newCoordo[nodes_slave])[0]
     idx = np.unique(idx)
 
     if idx.size > 0:

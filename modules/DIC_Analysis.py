@@ -104,7 +104,7 @@ class DIC_Analysis:
         coordPixel = np.zeros((coordPx.shape[0], 3), dtype=int);  coordPixel[:,0] = coordPx;  coordPixel[:,1] = coordPy
 
         # recovery of pixels used in elements with their coordinates
-        pixels, connectPixel, coordPixelInElem = mesh.groupElem.Get_Nodes_Connect_CoordoInElemRef(coordPixel)
+        pixels, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(coordPixel)
 
         self.__connectPixel = connectPixel
         """connectivity matrix which links the pixels used for each element."""

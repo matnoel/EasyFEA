@@ -12,7 +12,7 @@ class Gauss:
         elemType : str
             element type
         matrixType : str
-            [MatrixType.rigi, MatrixType.mass,MatrixType.beam]
+            [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
         """
 
         coord, weights = Gauss.__calc_gauss(elemType, matrixType)
