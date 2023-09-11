@@ -349,15 +349,12 @@ class _Simu(ABC):
         self.mesh._ResetMatrix()
 
         # Returns current date and time
-        dateEtHeure = datetime.now()
-        resume = f"Simulation completed on: {dateEtHeure}"
-        nomSimu = "simulation.pickle"
-        filename = Folder.Join([folder, nomSimu])
-        print(Fore.GREEN + f'\nSaving:')
-        print(Fore.GREEN + f'  - {nomSimu}' + Fore.WHITE)
-
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+        resume = f"Simulation completed on: {datetime.now()}"
+        simuFile = "simulation.pickle"
+        
+        filename = Folder.New_File(simuFile, folder)
+        print(Fore.GREEN + f'\nSaving:' + Fore.WHITE)
+        print(Fore.GREEN + f'  - {simuFile}' + Fore.WHITE)
 
         # Save simulation
         with open(filename, "wb") as file:
@@ -365,9 +362,9 @@ class _Simu(ABC):
 
         # Save simulation summary
         resume += str(self)
-        summaryName = "summary.txt"
-        print(Fore.GREEN + f'  - {summaryName} \n' + Fore.WHITE)
-        filenameResume = Folder.Join([folder, summaryName])
+        summaryFile = "summary.txt"
+        print(Fore.GREEN + f'  - {summaryFile} \n' + Fore.WHITE)
+        filenameResume = Folder.New_File(summaryFile, folder)
 
         with open(filenameResume, 'w', encoding='utf8') as file:
             file.write(resume)
