@@ -18,7 +18,7 @@ from matplotlib.collections import LineCollection
 # ----------------------------------------------
 dim = 2
 test = False
-solve = True
+solve = False
 
 # Mesh
 openCrack = True
@@ -222,8 +222,8 @@ for split, regu in zip(Splits, Regus):
         # Loading
         # ---------------------------------------------
         simu = Simulations.Load_Simu(folder)
-        forces, displacements = PostProcessing.Load_Load_Displacement(folder)        
-
+        forces, displacements = PostProcessing.Load_Load_Displacement(folder)
+        
     # ----------------------------------------------
     # PostProcessing
     # ---------------------------------------------
@@ -246,9 +246,7 @@ for split, regu in zip(Splits, Regus):
     Tic.Resume()
 
     if solve:
-        Tic.Plot_History(folder, True)
-    else:
-        Tic.Plot_History(details=True)
+        Tic.Plot_History(folder, False)
 
     if showResult:
         plt.show()

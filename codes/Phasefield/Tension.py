@@ -17,15 +17,15 @@ from matplotlib.collections import LineCollection
 # Configuration
 # ----------------------------------------------
 dim = 2
-test = True
-solve = True
+test = False
+solve = False
 
 # Mesh
 openCrack = True
 optimMesh = True
 
 # material
-materialType = "Elas_Anisot" #  "Elas_Isot", "Elas_Anisot"
+materialType = "Elas_Isot" #  "Elas_Isot", "Elas_Anisot"
 
 # phasefield
 maxIter = 1000
@@ -38,10 +38,10 @@ pfmSolver = Materials.PhaseField_Model.SolverType.History
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Bourdin"]
+splits = ["Amor"]
 
 thetas = [-70, -80, -90] # [-0, -10, -20, -30, -45, -60]
-theta = -45 # default value
+theta = -0 # default value
 
 # PostProcessing
 plotMesh = False
@@ -293,7 +293,21 @@ for split, regu in zip(Splits, Regus):
         # Loading
         # ---------------------------------------------
         simu = Simulations.Load_Simu(folder)
-        forces, displacements = PostProcessing.Load_Load_Displacement(folder)        
+        forces, displacements = PostProcessing.Load_Load_Displacement(folder)
+
+    nodes = simu.mesh.Nodes_Conditions(lambda x,y,z: y==1e-3)
+    dofsY = simu.Bc_dofs_nodes(nodes, ['y'])    
+    load2 = []
+    for i in range(len(simu.results)):
+        simu.Update_Iter(i)
+        load2.append(np.sum(simu.Get_K_C_M_F()[0][dofsY]@simu.displacement))
+    load2 = np.array(load2)
+    ax = Display.Plot_Load_Displacement(displacements*1e6, forces*1e-6, 'ud [µm]', 'f [kN/mm]')[1]
+    ax.plot(displacements*1e6, load2*1e-6)
+
+
+    
+
 
     # ----------------------------------------------
     # PostProcessing
@@ -317,9 +331,7 @@ for split, regu in zip(Splits, Regus):
     Tic.Resume()
 
     if solve:
-        Tic.Plot_History(folder, True)
-    else:
-        Tic.Plot_History(details=True)
+        Tic.Plot_History(folder, False)
 
     if showResult:
         plt.show()
