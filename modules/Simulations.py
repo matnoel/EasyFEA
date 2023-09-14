@@ -698,7 +698,7 @@ class _Simu(ABC):
         tic = Tic()
 
         algo = self.algo
-        dofs = self.Bc_ddls_Neumann(problemType)
+        dofs = self.Bc_dofs_Neumann(problemType)
         dofsValues = self.Bc_values_Neumann(problemType)
         size = self.mesh.Nn * self.Get_dof_n(problemType)
 
@@ -939,7 +939,7 @@ class _Simu(ABC):
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
     
-    def Bc_ddls_Neumann(self, problemType=None) -> list[int]:
+    def Bc_dofs_Neumann(self, problemType=None) -> list[int]:
         """Returns dofs related to Neumann conditions."""
         if problemType == None:
             problemType = self.problemType
@@ -1046,7 +1046,7 @@ class _Simu(ABC):
 
         return values_eval
     
-    def add_dirichlet(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
+    def add_dirichlet(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Add dirichlet conditions.
 
         Parameters
@@ -1058,7 +1058,7 @@ class _Simu(ABC):
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
             The functions use the x, y and z coordinates of the nodes entered.
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list
+        directions : list[str]
             directions where values will be applied
             ex = ['y', 'x']
         problemType : ModelType, optional
@@ -1094,7 +1094,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
 
-    def add_neumann(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
+    def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Point force
 
         Parameters
@@ -1106,7 +1106,7 @@ class _Simu(ABC):
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
             The functions use the x, y and z coordinates of the nodes entered.
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list
+        directions : list[str]
             directions where values will be applied
             ex = ['y', 'x']
         problemType : ModelType, optional
@@ -1126,7 +1126,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
         
-    def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
+    def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Apply a linear force.
 
         Parameters
@@ -1138,7 +1138,7 @@ class _Simu(ABC):
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z coordinates of integration points
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list
+        directions : list[str]
             directions where values will be applied
             ex = ['y', 'x']
         problemType : ModelType, optional
@@ -1158,7 +1158,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
-    def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
+    def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Apply a surface force
         
         Parameters
@@ -1170,7 +1170,7 @@ class _Simu(ABC):
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z coordinates of integration points
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list
+        directions : list[str]
             directions where values will be applied
             ex = ['y', 'x']
         problemType : ModelType, optional
@@ -1195,7 +1195,7 @@ class _Simu(ABC):
 
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
-    def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description="") -> None:
+    def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Apply a volumetric force.
         
         Parameters
@@ -1207,7 +1207,7 @@ class _Simu(ABC):
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z coordinates of integration points
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list
+        directions : list[str]
             directions where values will be applied
             ex = ['y', 'x']
         problemType : ModelType, optional
@@ -1389,9 +1389,9 @@ class _Simu(ABC):
             new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, f'Dirichlet {description}')
 
             # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
-            ddl_Neumann = self.Bc_ddls_Neumann(problemType)
+            dofs_Neumann = self.Bc_dofs_Neumann(problemType)
             for d in dofs: 
-                assert d not in ddl_Neumann, "You can't apply dirchlet and neumann conditions on the same dofs."
+                assert d not in dofs_Neumann, "You can't apply dirchlet and neumann conditions on the same dofs."
 
         self.__Bc_Dirichlet.append(new_Bc)
 
@@ -2197,17 +2197,20 @@ class Simu_PhaseField(_Simu):
     def damage(self) -> np.ndarray:
         """Copy of the damage scalar field."""
         return self.get_u_n(ModelType.damage)
+    
+    def Bc_dofs_nodes(self, nodes: np.ndarray, directions: list[str], problemType=ModelType.displacement) -> np.ndarray:
+        return super().Bc_dofs_nodes(nodes, directions, problemType)
 
-    def add_dirichlet(self, nodes: np.ndarray, values: np.ndarray, directions: list, problemType=ModelType.displacement, description=""):        
+    def add_dirichlet(self, nodes: np.ndarray, values: np.ndarray, directions: list[str], problemType=ModelType.displacement, description=""):        
         return super().add_dirichlet(nodes, values, directions, problemType, description)
     
-    def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=ModelType.displacement, description=""):
+    def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=ModelType.displacement, description=""):
         return super().add_lineLoad(nodes, values, directions, problemType, description)
 
-    def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=ModelType.displacement, description=""):
+    def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=ModelType.displacement, description=""):
         return super().add_surfLoad(nodes, values, directions, problemType, description)
         
-    def add_neumann(self, nodes: np.ndarray, values: list, directions: list, problemType=ModelType.displacement, description=""):
+    def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=ModelType.displacement, description=""):
         return super().add_neumann(nodes, values, directions, problemType, description)
 
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
