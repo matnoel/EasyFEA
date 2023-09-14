@@ -2273,7 +2273,7 @@ class Simu_PhaseField(_Simu):
         assert tolConv > 0 and tolConv <= 1 , "tolConv must be between 0 and 1."
         assert maxIter > 1 , "Must be > 1."
 
-        nombreIter = 0
+        Niter = 0
         convergence = False
         dn = self.damage
 
@@ -2282,9 +2282,9 @@ class Simu_PhaseField(_Simu):
 
         tic = Tic()
 
-        while not convergence and nombreIter <= maxIter:
+        while not convergence and Niter <= maxIter:
                     
-            nombreIter += 1
+            Niter += 1
             if convOption == 0:                    
                 d_n = self.damage
             elif convOption == 1:
@@ -2355,11 +2355,11 @@ class Simu_PhaseField(_Simu):
         else:
             raise Exception("Solveur phase field unknown")
 
-        temps = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
+        timeIter = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
 
-        self.__nombreIter = nombreIter
+        self.__Niter = Niter
         self.__convIter = convIter
-        self.__tempsIter = temps
+        self.__timeIter = timeIter
             
         return u_np1, d_np1, Kglob, convergence
 
@@ -2591,8 +2591,8 @@ class Simu_PhaseField(_Simu):
         iter = super().Save_Iter()
 
         # convergence information        
-        iter["Niter"] = self.__nombreIter
-        iter["timeIter"] = self.__tempsIter
+        iter["Niter"] = self.__Niter
+        iter["timeIter"] = self.__timeIter
         iter["convIter"] = self.__convIter
     
         if self.phaseFieldModel.solver == PhaseField_Model.SolverType.History:
@@ -2983,13 +2983,13 @@ class Simu_PhaseField(_Simu):
 
         d = self.damage
 
-        nombreIter = self.__nombreIter
+        nombreIter = self.__Niter
         dincMax = self.__convIter
-        temps = self.__tempsIter
+        temps = self.__timeIter
 
         min_d = d.min()
         max_d = d.max()
-        summaryIter = f"{iter:4} : {np.round(load,3)} {uniteLoad},  d = [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
+        summaryIter = f"{iter:4} : {np.round(load,3)} {uniteLoad}, [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
         
         if remove:
             end='\r'

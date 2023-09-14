@@ -54,14 +54,14 @@ damagedNodes = []
 # for tolConv in [1e-0, 1e-1, 1e-2]:
 #     split = "Zhang"
 
-# splits = ["Zhang"]
-# splits = ["Miehe"]
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
-splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
+# splits = ["Zhang"]
+splits = ["Miehe"]
 
-regus = ["AT2"] # ["AT1", "AT2"]
-# regus = ["AT1", "AT2"]
+# regus = ["AT2"] # ["AT1", "AT2"]
+regus = ["AT1", "AT2"]
 
 Splits = []; Regus = []
 for split in splits.copy():
@@ -77,7 +77,7 @@ for split, regu in zip(Splits, Regus):
     if "Benchmark" in problem:
         unitU = 'μm'
         unitF = 'kN/mm'
-        unit = 1e3
+        unit = 1e6
         
         # geom
         L = 15e-3
@@ -267,8 +267,7 @@ for split, regu in zip(Splits, Regus):
             figIter, axIter, cb = Display.Plot_Result(simu, "damage", nodeValues=True)
 
             arrayDisplacement, arrayLoad = np.array(displacement), np.array(load)
-            figLoad, axLoad = Display.Plot_Load_Displacement(arrayDisplacement*unit, arrayLoad/unit,
-                                                             f'ud [{unitU}]', f'f [{unitF}]')
+            figLoad, axLoad = Display.Plot_Load_Displacement(arrayDisplacement*unit, arrayLoad/unit, f'ud [{unitU}]', f'f [{unitF}]')
 
         while ud <= u_max:
 
@@ -349,9 +348,7 @@ for split, regu in zip(Splits, Regus):
         PostProcessing.Make_Movie(folder, "damage", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, factorDef=1.5)
 
     if solve:
-        Tic.Plot_History(folder, details=True)
-    else:        
-        Tic.Plot_History(details=True)
+        Tic.Plot_History(folder, details=False)
 
     if showFig:
         plt.show()
