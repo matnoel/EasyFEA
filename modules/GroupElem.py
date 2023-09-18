@@ -663,9 +663,6 @@ class GroupElem(ABC):
         [ix, jx, kx\n
         iy, jy, ky\n
         iz, jz, kz]\n
-
-        - [ix,iy,iz] is the tangent vector\n
-        - [jx,jy,jz] is the normal vector
         
         coordo_e * sysCoord_e -> coordinates of nodes in element base.
         """
