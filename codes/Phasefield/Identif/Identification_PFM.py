@@ -22,30 +22,26 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-test = True
+test = False
 optimMesh = True
 doSimulation = True
 doIdentif = True
 detectL0 = False
 
-pltLoad = True 
-pltIter = True
-pltContact = False
+pltIter = False
 
 H = 90
 L = 45
 ep = 20
 D = 10
 
-nL = 100
-# nL = 80
-# nL = 50
+nL = 100 # 80, 50
 l00 = L/nL
 
 Gc0 = 0.06 # mJ/mm2
 
-inc0 = 1e-2/2 # inc0 = 8e-3 # incrément platewith hole
-inc1 = inc0/5 # inc1 = 2e-3
+inc0 = 5e-3 # inc0 = 8e-3 # incrément platewith hole
+inc1 = 1e-3 # inc1 = 2e-3
 treshold = 0.2
 
 solver = 0 # least_squares
@@ -57,10 +53,10 @@ solver = 0 # least_squares
 ftol = 1e-2
 # ftol = 1e-1
 
-split = "AnisotStress"
-# split = "He"
+# split = "AnisotStress"
+split = "He"
 # split = "Zhang"
-regu = "AT2"
+regu = "AT1"
 
 # convOption = 0 # bourdin
 # convOption = 1 # energie crack
@@ -191,7 +187,7 @@ for idxEssai in range(0,18):
 
     dCible = 1
 
-    returnSimu = False
+    lastSimu = None
 
     list_J = []
 
@@ -247,12 +243,9 @@ for idxEssai in range(0,18):
             
             simu.Results_Set_Iteration_Summary(i, fr, "kN", 0, True)
 
-        if returnSimu:
-            return simu
-
         # calcul de l'erreur entre la force résultante calculée et la force expérimentale
         J = (fr - f_crit)/f_crit        
-        if doIdentif:            
+        if doIdentif:
             print(f'\nfr = {fr}')
             print(f"J = {J:.5e}")
             
@@ -264,10 +257,9 @@ for idxEssai in range(0,18):
                 plt.figure(ax_J.figure)
                 plt.pause(1e-12)
 
-        if solver == 2:
-            return np.sqrt(J**2)
-        else:
-            return J
+        lastSimu = simu
+        return J
+            
 
     # ----------------------------------------------
     # Simulations
@@ -294,10 +286,7 @@ for idxEssai in range(0,18):
             if solver == 0:
                 res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None)
             elif solver == 1:
-                # res = minimize(DoSimu, x0, tol=tol)
-
                 bounds = [(l, u) for l, u in zip(lb, ub)]
-
                 res = minimize(DoSimu, x0, bounds=bounds, tol=ftol)
 
             Gc = res.x[0]
@@ -311,11 +300,6 @@ for idxEssai in range(0,18):
             x = res.x
 
             print(res)
-
-            # Récupère la simulation
-            returnSimu = True
-            simu = DoSimu(x)
-            assert isinstance(simu, Simulations.Simu_PhaseField)
             
             # ----------------------------------------------
             # Sauvegarde des données
@@ -327,6 +311,9 @@ for idxEssai in range(0,18):
                 ax_J.scatter(np.arange(len(evals)), evals, c='black', zorder=4)
             Display.Save_fig(folder_Save, "iterations")
             
+            # Récupère la simulation            
+            simu: Simulations.Simu_PhaseField = lastSimu
+
             simu.Save(folder_Save)
             Display.Plot_Iter_Summary(simu, folder_Save)
 
@@ -358,14 +345,10 @@ for idxEssai in range(0,18):
             ]
 
             if os.path.exists(pathData):
-
                 df = pd.read_excel(pathData)
-
                 newDf = pd.DataFrame(data)
-                df = pd.concat([df,newDf])        
-
+                df = pd.concat([df,newDf])
             else:
-
                 df = pd.DataFrame(data)
 
             df.to_excel(pathData, index=False)
