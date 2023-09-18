@@ -2291,9 +2291,9 @@ class Simu_PhaseField(_Simu):
             if convOption == 0:                    
                 d_n = self.damage
             elif convOption == 1:
-                psi_crack_n = self._Calc_Psi_Crack()
+                psi_n = self._Calc_Psi_Crack()
             elif convOption == 2:
-                psi_tot_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
+                psi_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
             elif convOption == 3:
                 d_n = self.damage
                 u_n = self.displacement
@@ -2318,19 +2318,19 @@ class Simu_PhaseField(_Simu):
 
             if convOption == 0:                
                 convIter = np.max(np.abs(d_np1 - d_n))
-            elif convOption == 1:
-                psi_crack_np1 = self._Calc_Psi_Crack()
-                if psi_crack_np1 == 0:
-                    convIter = np.abs(psi_crack_np1 - psi_crack_n)
+
+            elif convOption in [1,2]:
+                psi_np1 = self._Calc_Psi_Crack()
+                if convOption == 2:
+                   psi_np1 += self._Calc_Psi_Elas()
+
+                if psi_np1 == 0:
+                    convIter = np.abs(psi_np1 - psi_n)
                 else:
-                    convIter = np.abs(psi_crack_np1 - psi_crack_n)/psi_crack_np1
-            elif convOption == 2:
-                psi_tot_np1 = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
-                if psi_tot_np1 == 0:
-                    convIter = np.abs(psi_tot_np1 - psi_tot_n)
-                else:
-                    convIter = np.abs(psi_tot_np1 - psi_tot_n)/psi_tot_np1
+                    convIter = np.abs(psi_np1 - psi_n)/psi_np1
+
             elif convOption == 3:
+                # eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
                 diffU = np.abs(u_np1 - u_n); diffU[u_np1 != 0] *= 1/np.abs(u_np1[u_np1 != 0])
                 diffD = np.abs(d_np1 - d_n); diffD[d_np1 != 0] *= 1/np.abs(d_np1[d_np1 != 0])
                 convU = np.sum(diffU)
@@ -2988,11 +2988,11 @@ class Simu_PhaseField(_Simu):
 
         nombreIter = self.__Niter
         dincMax = self.__convIter
-        temps = self.__timeIter
+        timeIter = self.__timeIter
 
         min_d = d.min()
         max_d = d.max()
-        summaryIter = f"{iter:4} : {np.round(load,3)} {uniteLoad}, [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{np.round(temps,3)} s, tol={dincMax:.2e}  "
+        summaryIter = f"{iter:4} : {load:4.3f} {uniteLoad}, [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
         
         if remove:
             end='\r'
@@ -3000,12 +3000,12 @@ class Simu_PhaseField(_Simu):
             end=''
 
         if percentage > 0:
-            tempsRestant = (1/percentage-1)*temps*iter
+            timeLeft = (1/percentage-1)*timeIter*iter
             
-            tempsCoef, unite = Tic.Get_time_unity(tempsRestant)
+            timeCoef, unite = Tic.Get_time_unity(timeLeft)
 
             # Adds percentage and estimated time remaining
-            summaryIter = summaryIter+f"{np.round(percentage*100,2):3.2f} % -> {tempsCoef:4.2f} {unite}  "
+            summaryIter = summaryIter+f"{np.round(percentage*100,2):3.2f} % -> {timeCoef:4.2f} {unite}  "
 
         print(summaryIter, end=end)
 
