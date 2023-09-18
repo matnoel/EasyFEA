@@ -92,7 +92,7 @@ def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coe
     inDim = mesh.inDim # dimension in which the mesh is located
 
     # Construction of figure and axis if necessary
-    if ax == None:
+    if ax is None:
         if inDim in [1,2] and not use3DBeamModel:
             fig, ax = plt.subplots()
         else:
@@ -408,7 +408,7 @@ def Plot_Mesh(obj, deformation=False, factorDef=4, folder="", title="", ax=None,
         
     if inDim in [1,2] and not use3DBeamModel:
 
-        if ax == None:
+        if ax is None:
             fig, ax = plt.subplots()
 
         if deformation:
@@ -447,7 +447,7 @@ def Plot_Mesh(obj, deformation=False, factorDef=4, folder="", title="", ax=None,
     # ETUDE 3D    
     elif inDim == 3 or use3DBeamModel:
 
-        if ax == None:
+        if ax is None:
             fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
             ax.view_init(elev=105, azim=-90)
 
@@ -531,7 +531,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
-    if ax == None:
+    if ax is None:
         ax = Plot_Mesh(mesh, alpha=0)
     
     if len(nodes) == 0:
@@ -585,13 +585,13 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
-    if dimElem == None:
+    if dimElem is None:
         dimElem = mesh.dim-1 if mesh.inDim == 3 else mesh.dim
 
     list_groupElem = mesh.Get_list_groupElem(dimElem)[:1]
     if len(list_groupElem) == 0: return
 
-    if ax == None:
+    if ax is None:
         ax = Plot_Mesh(mesh, alpha=alpha)
 
     for groupElemDim in list_groupElem:
@@ -767,7 +767,7 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1.0) -> plt.Axes:
     inDim = mesh.inDim
 
     # Create axes if necessary
-    if ax == None:
+    if ax is None:
         # ax = Plot_Mesh(mesh, facecolors='c', edgecolor='black')
         # fig = ax.figure
         if mesh.inDim in [0,1,2]:
@@ -1100,10 +1100,10 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     # Recovers simulation results
     iterations, list_label_values = simu.Results_Iter_Summary()
 
-    if iterMax == None:
+    if iterMax is None:
         iterMax = iterations.max()
 
-    if iterMin == None:
+    if iterMin is None:
         iterMin = iterations.min()
     
     selectionIndex = list(filter(lambda iterations: iterations >= iterMin and iterations <= iterMax, iterations))

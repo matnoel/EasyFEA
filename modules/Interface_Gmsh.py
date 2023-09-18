@@ -603,7 +603,7 @@ class Interface_Gmsh:
         
         # Allow other meshes -> this seems impossible - you have to create the mesh using gmsh to control the type of element.
 
-        if elemType == None:
+        if elemType is None:
             elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
 
         self.__init_gmsh_factory('occ') # Only work with occ !! Do not change

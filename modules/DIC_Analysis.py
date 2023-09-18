@@ -257,7 +257,7 @@ class DIC_Analysis:
 
         tic = TicTac.Tic()
 
-        if lr == None:
+        if lr is None:
             lr = self.__lr
         else:
             assert lr >= 0.0, "lr must be >= 0"
@@ -326,7 +326,7 @@ class DIC_Analysis:
     def __Get_imgRef(self, imgRef) -> np.ndarray:
         """Function that returns the reference image or checks whether the image entered is the correct size."""
 
-        if imgRef == None:
+        if imgRef is None:
             imgRef = self._imgRef
         else:
             assert isinstance(imgRef, np.ndarray), "The reference image must be an numpy array."
@@ -560,7 +560,7 @@ def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0):
 
     yColor, xColor = np.where(img <= threshold)
 
-    if boundary == None:
+    if boundary is None:
         xMin, xMax = 0, img.shape[1]
         yMin, yMax = 0, img.shape[0]
     else:

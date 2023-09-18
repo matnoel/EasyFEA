@@ -929,37 +929,37 @@ class _Simu(ABC):
 
     def Bc_dofs_Dirichlet(self, problemType=None) -> list[int]:
         """Returns dofs related to Dirichlet conditions."""
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_dofs(problemType, self.__Bc_Dirichlet)
 
     def Bc_values_Dirichlet(self, problemType=None) -> list[float]:
         """Returns dofs values related to Dirichlet conditions."""
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
     
     def Bc_dofs_Neumann(self, problemType=None) -> list[int]:
         """Returns dofs related to Neumann conditions."""
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_dofs(problemType, self.__Bc_Neumann)
     
     def Bc_values_Neumann(self, problemType=None) -> list[float]:
         """Returns dofs values related to Neumann conditions."""
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
 
     def Bc_dofs_Lagrange(self, problemType=None) -> list[int]:
         """Returns the dofs related to the Lagrange conditions."""
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_dofs(problemType, self.__Bc_Lagrange)
     
     def Bc_values_Lagrange(self, problemType=None) -> list[float]:
         """Returns dofs values related to Lagrange conditions."""
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Lagrange)
 
@@ -1008,7 +1008,7 @@ class _Simu(ABC):
             Degrees of freedom.
         """
 
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)
@@ -1069,7 +1069,7 @@ class _Simu(ABC):
 
         if len(values) == 0 or len(values) != len(directions): return        
 
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)
@@ -1117,7 +1117,7 @@ class _Simu(ABC):
         
         if len(values) == 0 or len(values) != len(directions): return
 
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)
@@ -1149,7 +1149,7 @@ class _Simu(ABC):
 
         if len(values) == 0 or len(values) != len(directions): return
 
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)
@@ -1181,7 +1181,7 @@ class _Simu(ABC):
 
         if len(values) == 0 or len(values) != len(directions): return
 
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)
@@ -1218,7 +1218,7 @@ class _Simu(ABC):
         
         if len(values) == 0 or len(values) != len(directions): return
 
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)
@@ -1402,7 +1402,7 @@ class _Simu(ABC):
     def _Bc_Add_Display(self, nodes: np.ndarray, directions: list[str], description: str, problemType=None) -> None:
         """Add condition for display"""
 
-        if problemType == None:
+        if problemType is None:
             problemType = self.problemType
 
         self.__Check_ProblemTypes(problemType)        
@@ -1413,6 +1413,80 @@ class _Simu(ABC):
 
         new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, description)
         self.__Bc_Display.append(new_Bc)
+
+    def Get_contact(self, masterMesh: Mesh, slaveNodes: np.ndarray=None) -> tuple[np.ndarray, np.ndarray]:
+        """Retrieves the simulation nodes detected in the master mesh with the associated displacement matrix to the interface.
+
+        Parameters
+        ----------
+        masterMesh : Mesh
+            master mesh
+        slaveNodes : np.ndarray, optional
+            interface nodes, by default None
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            nodes, displacementMatrix
+        """
+
+        assert self.mesh.dim == masterMesh.dim, "Must be same dimension"
+
+        # Here the first element group is selected. Regardless of whether there are several group of the same dimension.
+        masterGroup = masterMesh.Get_list_groupElem(masterMesh.dim-1)[0]
+
+        if slaveNodes is None:
+            slaveGroup = self.mesh.Get_list_groupElem(masterMesh.dim-1)[0]
+            slaveNodes = slaveGroup.nodes
+
+        # update nodes coordinates
+        newCoordo = self.Results_displacement_matrix() + self.mesh.coordo
+        
+        # check nodes in master mesh
+        idx = masterMesh.groupElem.Get_Mapping(newCoordo[slaveNodes])[0]
+        idx = np.unique(idx)
+
+        nodes = np.array([])
+        displacementMatrix = np.array([])
+
+        if idx.size > 0:
+            # slave nodes have been detected in the master mesh
+            nodes: np.ndarray = slaveNodes[idx]
+
+            # get the elemGroup on the interface        
+            gaussCoordo_e_p = masterGroup.Get_GaussCoordinates_e_p(MatrixType.mass)
+            
+            # empty new displacement
+            displacementMatrix = []
+            # for each nodes in master mesh we will detects the shortest displacement vector to the interface
+            for node in nodes:
+                # vectors between the interface coordinates and the detected node
+                vi_e_pg  = gaussCoordo_e_p - newCoordo[node]
+                # distance between the interface coordinates and the detected node
+                d_e_pg = np.linalg.norm(vi_e_pg, axis=2)
+                e, p = np.where(d_e_pg == d_e_pg.min())
+                # retrieves the nearest coordinate
+                closeCoordo = np.reshape(gaussCoordo_e_p[e[0],p[0]], -1)
+                
+                # normal vector
+                if masterGroup.dim == 1: # lines
+                    normal_vect = - masterGroup.sysCoord_e[e[0],:,1]
+                elif masterGroup.dim == 2: # surfaces                
+                    normal_vect = masterGroup.sysCoord_e[e[0],:,2]
+                else:
+                    raise "The master group must be dimension 1 or 2. Must be lines or surfaces."
+                
+                # distance to project the node to the element
+                d = np.abs((newCoordo[node] - closeCoordo) @ normal_vect)
+                # vector to the interface
+                u = d * normal_vect
+                displacementMatrix.append(u)
+
+            # Apply the displacement to meet the interface 
+            oldU = self.Results_displacement_matrix()[nodes]
+            displacementMatrix = np.array(displacementMatrix) + oldU
+        
+        return nodes, displacementMatrix
     
     # ------------------------------------------- Results ------------------------------------------- 
 
@@ -1699,7 +1773,7 @@ class Simu_Displacement(_Simu):
         
         results = super().Update_Iter(iter)
 
-        if results == None: return
+        if results is None: return
 
         displacementType = ModelType.displacement
 
@@ -2611,7 +2685,7 @@ class Simu_PhaseField(_Simu):
 
         results = super().Update_Iter(iter)
 
-        if results == None: return
+        if results is None: return
 
         self.__old_psiP_e_pg = [] # It's really useful to do this otherwise when we calculate psiP there will be a problem
 
@@ -3452,7 +3526,7 @@ class Simu_Beam(_Simu):
         
         results = super().Update_Iter(iter)
 
-        if results == None: return
+        if results is None: return
 
         self.set_u_n(self.problemType, results["displacement"])
 
@@ -3867,7 +3941,7 @@ class Simu_Thermal(_Simu):
         
         results = super().Update_Iter(iter)
 
-        if results == None: return
+        if results is None: return
 
         self.set_u_n(ModelType.thermal, results["thermal"])
 

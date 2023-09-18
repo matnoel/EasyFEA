@@ -1468,7 +1468,7 @@ class GroupElem(ABC):
         """Function to return the nodes in the elements, the connectivity and the coordinates (ksi, eta) of the points.
         return nodes, connect_e_n, coordoInElem_n"""
         
-        if elements == None:
+        if elements is None:
             elements = np.arange(self.Ne, dtype=int)
 
         assert coordinates.shape[1] == 3, "Must be of dimension (n, 3)."
