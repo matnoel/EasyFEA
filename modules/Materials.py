@@ -1868,26 +1868,26 @@ class PhaseField_Model(IModel):
 
         tic = Tic()        
 
-        # projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
-        # projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
+        projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
+        projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
         
-        # projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize='optimal')
-        # projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize='optimal')
+        projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize='optimal')
+        projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize='optimal')
 
-        # projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
-        # projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
-
-        # cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
-        # cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
-
-        projP_e_pg = inv_sqrtC @ (projPt_e_pg @ sqrtC)
-        projM_e_pg = inv_sqrtC @ (projMt_e_pg @ sqrtC)
-        
         projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
         projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
 
-        cP_e_pg = projPT_e_pg @ C @ projP_e_pg
-        cM_e_pg = projMT_e_pg @ C @ projM_e_pg
+        cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
+        cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
+
+        # projP_e_pg = inv_sqrtC @ (projPt_e_pg @ sqrtC)
+        # projM_e_pg = inv_sqrtC @ (projMt_e_pg @ sqrtC)
+        
+        # projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
+        # projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
+
+        # cP_e_pg = projPT_e_pg @ C @ projP_e_pg
+        # cM_e_pg = projMT_e_pg @ C @ projM_e_pg
 
 
         tic.Tac("Split",f"cP_e_pg et cM_e_pg", False)
