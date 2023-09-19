@@ -1700,8 +1700,8 @@ class PhaseField_Model(IModel):
         """Construct Cp and Cm for the split in stress"""
 
         # Recovers stresses        
-        loiDeComportement = self.__material
-        c = loiDeComportement.C
+        material = self.__material
+        c = material.C
 
         shape_c = len(c.shape)
 
@@ -1726,12 +1726,12 @@ class PhaseField_Model(IModel):
 
         if self.__split == PhaseField_Model.SplitType.Stress:
         
-            assert isinstance(loiDeComportement, Elas_Isot)
+            assert isinstance(material, Elas_Isot)
 
-            E = loiDeComportement.E
-            v = loiDeComportement.v
+            E = material.E
+            v = material.v
 
-            c = loiDeComportement.C
+            c = material.C
 
             dim = self.dim
 
@@ -1752,14 +1752,14 @@ class PhaseField_Model(IModel):
                 return np.einsum(f'{indices},epij->epij', a, epij, optimize='optimal')
 
             if dim == 2:
-                if loiDeComportement.planeStress:
+                if material.planeStress:
                     sP_e_pg = funcMult((1+v)/E, projP_e_pg) - funcMult(v/E, RpIxI_e_pg)
                     sM_e_pg = funcMult((1+v)/E, projM_e_pg) - funcMult(v/E, RmIxI_e_pg) 
                 else:
                     sP_e_pg = funcMult((1+v)/E, projP_e_pg) - funcMult(v*(1+v)/E, RpIxI_e_pg) 
                     sM_e_pg = funcMult((1+v)/E, projM_e_pg) - funcMult(v*(1+v)/E, RmIxI_e_pg) 
             elif dim == 3:
-                mu = loiDeComportement.get_mu()
+                mu = material.get_mu()
 
                 if isinstance(mu, (float, int)):
                     ind = ''
@@ -1799,7 +1799,7 @@ class PhaseField_Model(IModel):
             
             else:
                 # Builds Cp and Cm
-                S = loiDeComportement.S
+                S = material.S
                 if self.__useNumba and not isHeterogene:
                     # Faster
                     Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
@@ -1845,9 +1845,9 @@ class PhaseField_Model(IModel):
     def __Split_He(self, Epsilon_e_pg: np.ndarray, verif=False):
             
         # Here the material is supposed to be homogeneous
-        loiDeComportement = self.__material
+        material = self.__material
 
-        C = loiDeComportement.C        
+        C = material.C        
         
         assert len(C.shape) == 2, "He decomposition has not been implemented for heterogeneous materials"
         # for heterogeneous materials how to make sqrtm ?
@@ -1866,18 +1866,29 @@ class PhaseField_Model(IModel):
         # On calcule les projecteurs
         projPt_e_pg, projMt_e_pg = self.__Spectral_Decomposition(Epsilont_e_pg, verif)
 
-        tic = Tic()
+        tic = Tic()        
 
-        projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
-        projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
+        # projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
+        # projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
+        
+        # projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize='optimal')
+        # projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize='optimal')
 
-        projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize='optimal')
+        # projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
+        # projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
+
+        # cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
+        # cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
+
+        projP_e_pg = inv_sqrtC @ (projPt_e_pg @ sqrtC)
+        projM_e_pg = inv_sqrtC @ (projMt_e_pg @ sqrtC)
+        
         projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
-        projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize='optimal')
         projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
 
-        cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
-        cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
+        cP_e_pg = projPT_e_pg @ C @ projP_e_pg
+        cM_e_pg = projMT_e_pg @ C @ projM_e_pg
+
 
         tic.Tac("Split",f"cP_e_pg et cM_e_pg", False)
 
