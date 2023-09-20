@@ -8,7 +8,7 @@ import pandas as pd
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, Mesh
 from Geom import Point, Domain, Circle
 import Materials
 import Simulations
@@ -149,8 +149,7 @@ for idxEssai in range(0,18):
 
     # ----------------------------------------------
     # Mesh
-    # ----------------------------------------------    
-
+    # ----------------------------------------------
     def DoMesh(l0: float):
 
         meshSize = l0 if test else l0/2
@@ -172,7 +171,6 @@ for idxEssai in range(0,18):
     # ----------------------------------------------
     # Phase field
     # ----------------------------------------------
-
     vectB = np.array([1,0])
     vectB = axis_t[:2]
     matB = np.einsum("i,j->ij", vectB, vectB)
@@ -187,17 +185,14 @@ for idxEssai in range(0,18):
 
     dCible = 1
 
-    lastSimu = None
-
-    list_J = []
-
-    def DoSimu(x: np.ndarray) -> float:
+    def DoSimu(x: np.ndarray, mesh: Mesh) -> float:
         """Simulation pour les paramètres x=[Gc,l0]"""
 
         Gc = x[0]
 
         if x.size > 1:
             l0 = x[1]
+            mesh = DoMesh(l0)            
             print(f"\nGc = {x[0]:.5e}, l0 = {x[1]:.5e}")
         else:
             l0 = l00
@@ -206,13 +201,13 @@ for idxEssai in range(0,18):
         yn = mesh.coordo[:, 1]
         nodes_Lower = mesh.Nodes_Tags(["L0"])
         nodes_Upper = mesh.Nodes_Tags(["L2"])
-        nodes0 = mesh.Nodes_Tags(["P0"])    
-        
+        nodes0 = mesh.Nodes_Tags(["P0"])
         
         # construit le modèle d'endommagement
         pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0, A=A)
         
         simu = Simulations.Simu_PhaseField(mesh, pfm)
+        simus.clear(); simus.append(simu)
 
         ddlsY_Upper = simu.Bc_dofs_nodes(nodes_Upper, ["y"])
 
@@ -251,13 +246,13 @@ for idxEssai in range(0,18):
             
             evals.append(J)
             Niter = len(evals)
+            
 
             if pltIter:      
                 ax_J.scatter(Niter, evals[-1], c="black", zorder=4)
                 plt.figure(ax_J.figure)
                 plt.pause(1e-12)
-
-        lastSimu = simu
+        
         return J
             
 
@@ -272,6 +267,7 @@ for idxEssai in range(0,18):
             mesh = DoMesh(l00)
         
             evals = []
+            simus: list[Simulations.Simu_PhaseField] = []
 
             # création de la figure pour tracer J
             ax_J = plt.subplots()[1]
@@ -284,7 +280,7 @@ for idxEssai in range(0,18):
             x0 = [Gc0] if not detectL0 else [Gc0, l00]
 
             if solver == 0:
-                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None)
+                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None, args=(mesh,))
             elif solver == 1:
                 bounds = [(l, u) for l, u in zip(lb, ub)]
                 res = minimize(DoSimu, x0, bounds=bounds, tol=ftol)
@@ -304,7 +300,6 @@ for idxEssai in range(0,18):
             # ----------------------------------------------
             # Sauvegarde des données
             # ----------------------------------------------
-            
             if pltIter:
                 plt.figure(ax_J.figure)
             else:                
@@ -312,7 +307,7 @@ for idxEssai in range(0,18):
             Display.Save_fig(folder_Save, "iterations")
             
             # Récupère la simulation            
-            simu: Simulations.Simu_PhaseField = lastSimu
+            simu = simus[-1]
 
             simu.Save(folder_Save)
             Display.Plot_Iter_Summary(simu, folder_Save)
@@ -355,8 +350,7 @@ for idxEssai in range(0,18):
 
         else:
             # charge la simulation
-            simu = Simulations.Load_Simu(folder_Save)
-            assert isinstance(simu, Simulations.Simu_PhaseField)
+            simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder_Save)
 
         # reconstruction de la courbe force déplacement
         deplacementsIdentif = []
@@ -371,7 +365,8 @@ for idxEssai in range(0,18):
             forcesIdentif.append(-np.sum(simu.Get_K_C_M_F()[0][dofsY,:] @ displacement)/1000)
 
         deplacementsIdentif = np.asarray(deplacementsIdentif)
-        forcesIdentif = np.asarray(forcesIdentif)            
+        forcesIdentif = np.asarray(forcesIdentif)
+        PostProcessing.Save_Load_Displacement(forcesIdentif, deplacementsIdentif, folder_Save)
 
         def Calc_a_b(forces, deplacements, fmax):
             """Calcul des coefs de f(x) = a x + b"""
@@ -414,7 +409,7 @@ for idxEssai in range(0,18):
 
         L0, GC = np.meshgrid(l0_array, Gc_array)        
 
-        path = Folder.New_File("data.pickle", folder_Save)        
+        path = Folder.New_File("data.pickle", folder_Save)
 
         if not doSimulation:
             # récupère les données
