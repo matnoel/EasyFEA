@@ -25,7 +25,8 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
     
     filename = Folder.Join([folder, "load and displacement.pickle"])
 
-    print(Fore.GREEN + f'\nSaving :\n  - load and displacement.pickle' + Fore.WHITE)
+    # print(Fore.GREEN + f'\nSaving :\n  - load and displacement.pickle' + Fore.WHITE)
+    print(f'\nSaving :\n  - load and displacement.pickle')
 
     values = {
         'load': load,

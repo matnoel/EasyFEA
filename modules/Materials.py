@@ -1818,7 +1818,7 @@ class PhaseField_Model(IModel):
                 if self.__split == PhaseField_Model.SplitType.AnisotStress:
 
                     cP_e_pg = Cpp + Cpm + Cmp
-                    cM_e_pg = Cmm                    
+                    cM_e_pg = Cmm
 
                 elif self.__split == PhaseField_Model.SplitType.AnisotStress_PM:
                     

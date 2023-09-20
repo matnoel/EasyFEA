@@ -348,31 +348,32 @@ class _Simu(ABC):
         # Empty matrices in element groups
         self.mesh._ResetMatrix()
 
-        # Returns current date and time
-        resume = f"Simulation completed on: {datetime.now()}"
-        simuFile = "simulation.pickle"
+        file_simu = "simulation.pickle"
+        file_summary = "summary.txt"
         
-        filename = Folder.New_File(simuFile, folder)
-        print(Fore.GREEN + f'\nSaving:' + Fore.WHITE)
-        print(Fore.GREEN + f'  - {simuFile}' + Fore.WHITE)
+        # print(Fore.GREEN + f'\nSaving:' + Fore.WHITE)
+        # print(Fore.GREEN + f'  - {simuFile}' + Fore.WHITE)
+        print(f'\nSaving:')
+        print(f'  - {file_simu}')
 
         # Save simulation
-        with open(filename, "wb") as file:
+        with open(Folder.New_File(file_simu, folder), "wb") as file:
             pickle.dump(self, file)
-
+        
+        summary = f"Simulation completed on: {datetime.now()}"
         # Save simulation summary
-        resume += str(self)
-        summaryFile = "summary.txt"
-        print(Fore.GREEN + f'  - {summaryFile} \n' + Fore.WHITE)
-        filenameResume = Folder.New_File(summaryFile, folder)
+        summary += str(self)
+        
+        # print(Fore.GREEN + f'  - {summaryFile} \n' + Fore.WHITE)
+        print(f'  - {file_summary} \n')
 
-        with open(filenameResume, 'w', encoding='utf8') as file:
-            file.write(resume)
+        # Save summary
+        with open(Folder.New_File(file_summary, folder), 'w', encoding='utf8') as file:
+            file.write(summary)
 
     # TODO Enable simulation creation from the variational formulation ?
 
     # Solutions
-
     @property
     def results(self) -> list[dict]:
         """Returns a copy of the dictionary list containing the results of each iteration."""
