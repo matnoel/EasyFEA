@@ -25,7 +25,7 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 test = False
 doSimulation = True
-doIdentif = False
+doIdentif = True # False -> Plot grid values
 detectL0 = False
 
 optimMesh = True
@@ -95,7 +95,7 @@ if doIdentif:
 else:
     folder = Folder.Join([folder_FCBA, "Grille"])
 
-for idxEssai in range(0,18):
+for idxEssai in range(1,18):
 
     # Dossier de l'essai
 
@@ -413,16 +413,7 @@ for idxEssai in range(0,18):
 
         path = Folder.New_File("data.pickle", folder_save)
 
-        if not doSimulation:
-            # récupère les données
-
-            with open(path, 'rb') as file:
-                data = pickle.load(file)
-                GC = data['GC']
-                L0 = data['L0']
-                results = data['results']
-        
-        else:
+        if doSimulation:
             # Sauvegarde les données
 
             results = np.zeros_like(GC)
@@ -441,6 +432,14 @@ for idxEssai in range(0,18):
                     'results': results
                 }
                 pickle.dump(data, file)
+        
+        else:
+            # récupère les données
+            with open(path, 'rb') as file:
+                data = pickle.load(file)
+                GC = data['GC']
+                L0 = data['L0']
+                results = data['results']
 
         results = results**2
 
@@ -488,7 +487,7 @@ for idxEssai in range(0,18):
         Display.Save_fig(folder_save, "J contourf")
 
         # Display.Save_fig(folder_Save, "J_grid")
-        plt.show()
+        # plt.show()
 
         pass
 
