@@ -1094,7 +1094,7 @@ class Interface_Gmsh:
 
             elif isinstance(geom, str):
 
-                if not os.path.exists(geom) :
+                if not Folder.Exists(geom) :
                     print(Fore.RED + "The .pos file does not exist." + Fore.WHITE)
                     continue
 

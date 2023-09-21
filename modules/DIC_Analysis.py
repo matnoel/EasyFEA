@@ -11,6 +11,7 @@ import cv2
 from BoundaryCondition import BoundaryCondition
 from Mesh import Mesh
 import TicTac
+import Folder
 
 class DIC_Analysis:
 
@@ -490,7 +491,7 @@ class DIC_Analysis:
 def Load(path: str) -> DIC_Analysis:
     """Loading procedure"""
 
-    if not os.path.exists(path):
+    if not Folder.Exists(path):
         raise Exception(f"The analysis does not exist in {path}")
 
     with open(path, 'rb') as file:

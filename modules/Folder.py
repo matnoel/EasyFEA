@@ -48,6 +48,10 @@ def Join(list: List[str]) -> str:
         
     return file
 
+def Exists(path: str) -> bool:
+    """Test whether a path exists. Returns False for broken symbolic links"""
+    return os.path.exists(path)
+
 def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2D: str, tolConv: float, solver: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0) -> str:
     """Create a phase field folder based on the specified arguments."""
 

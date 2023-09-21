@@ -51,7 +51,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     """
 
     filename = Folder.Join([folder, "load and displacement.pickle"])
-    assert os.path.exists(filename), Fore.RED + "load and displacement.pickle does not exist" + Fore.WHITE
+    assert Folder.Exists(filename), Fore.RED + "load and displacement.pickle does not exist" + Fore.WHITE
 
     with open(filename, 'rb') as file:
         values = pickle.load(file)

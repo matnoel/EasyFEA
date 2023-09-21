@@ -61,7 +61,7 @@ if useContact:
 folder_save = Folder.PhaseField_Folder(folder_essai, "", split, regu, "", tolConv, "", test, optimMesh, nL=nL)
 
 pathSimu = Folder.Join([folder_save, "simulation.pickle"])
-if not os.path.exists(pathSimu) and not solve:
+if not Folder.Exists(pathSimu) and not solve:
     print(folder_save)
     print("la simulation n'existe pas")
     solve = True

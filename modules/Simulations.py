@@ -35,7 +35,7 @@ def Load_Simu(folder: str, verbosity=False):
 
     filename = Folder.Join([folder, "simulation.pickle"])
     erreur = Fore.RED + "The file simulation.pickle cannot be found." + Fore.WHITE
-    assert os.path.exists(filename), erreur
+    assert Folder.Exists(filename), erreur
 
     with open(filename, 'rb') as file:
         simu = pickle.load(file)

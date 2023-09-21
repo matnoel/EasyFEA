@@ -14,6 +14,7 @@ import Materials
 import Simulations
 import PostProcessing
 import pickle
+import Folder
 
 # Display.Clear()
 
@@ -338,7 +339,9 @@ for idxEssai in range(0,18):
                 }
             ]
 
-            if os.path.exists(pathData):
+
+
+            if Folder.Exists(pathData):
                 df = pd.read_excel(pathData)
                 newDf = pd.DataFrame(data)
                 df = pd.concat([df,newDf])
