@@ -16,10 +16,12 @@ import matplotlib.pyplot as plt
 # Simulation
 # ----------------------------------------------
 dim = 2
-problem = "Benchmark" # ["Benchmark", "FCBA"]
+problem = "FCBA" # ["Benchmark", "FCBA"]
 
-test = False
+test = True
 solve = True
+
+optimMesh = False
 
 # ----------------------------------------------
 # Post processing
@@ -30,22 +32,16 @@ plotResult = True
 plotEnergy = False
 showFig = False
 
-saveParaview = False; NParaview=300
+saveParaview = True; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
 # Material
 # ----------------------------------------------
-materialType = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
+materialType = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
 solver = Materials.PhaseField_Model.SolverType.History # ["History", "HistoryDamage", "BoundConstrain"]
 maxIter = 1000
 tolConv = 1e-1
-
-# ----------------------------------------------
-# Mesh Option
-# ----------------------------------------------
-optimMesh = True
-damagedNodes = []
 
 # ----------------------------------------------
 # Configurations
@@ -58,10 +54,10 @@ damagedNodes = []
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 # splits = ["Zhang"]
-splits = ["Miehe"]
+splits = ["AnisotStress"]
 
-# regus = ["AT2"] # ["AT1", "AT2"]
-regus = ["AT1", "AT2"]
+regus = ["AT2"] # ["AT1", "AT2"]
+# regus = ["AT1", "AT2"]
 
 Splits = []; Regus = []
 for split in splits.copy():
@@ -86,7 +82,7 @@ for split, regu in zip(Splits, Regus):
         diam = 6e-3
 
         # material
-        simpli2D = "DP" # ["CP","DP"]
+        planeStress = False
 
         # phase field
         gc = 1.4
@@ -119,7 +115,7 @@ for split, regu in zip(Splits, Regus):
         r = diam/2
 
         # material
-        simpli2D = "CP" # ["CP","DP"]
+        planeStress = True
         
         # phase field
         
@@ -145,43 +141,34 @@ for split, regu in zip(Splits, Regus):
     # ----------------------------------------------
     # meshSize
     # ----------------------------------------------
-    if test:
-        if optimMesh:            
-            clD = l0*4
-            clC = l0
+    clC = l0 if test else l0/2
+    if optimMesh:
+        clD = l0*4
+        
+        refineZone = diam*1.5/2
+        if split in ["Bourdin", "Amor"]:
+            refineGeom = Domain(Point(0, h/2-refineZone), Point(L, h/2+refineZone), clC)
         else:
-            if "Benchmark" in problem:
-                clD = 0.25e-3
-                clC = 0.12e-3
-            else:
-                clD = l0
-                clC = l0
-    else:        
-        if optimMesh:
-            clD = l0*4
-            clC = l0/2
-        else:
-            clD = l0/2
-            clC = l0/2
+            refineGeom = Domain(Point(L/2-refineZone, 0), Point(L/2+refineZone, h), clC)
+    else:
+        # clD = l0*2 if test else l0/2
+        clD = l0 if test else l0/2
+
+        refineGeom = None
 
     # ----------------------------------------------
     # Elastic material
     # ----------------------------------------------
-    if dim == 2 and simpli2D == "CP":
-        planeStress = True
-    else:
-        planeStress = False
-
     if materialType == "Elas_Isot":
         E = 12e9
         v = 0.3
         material = Materials.Elas_Isot(dim, E, v, planeStress, thickness)
 
     elif materialType == "Elas_IsotTrans":        
-        El = 12e9
-        Et = 500*1e6
-        Gl = 450*1e6
-        vl = 0.02
+        El = 15585.5*1e6 # 12e9        
+        Et = 209.22*1e6 #500*1e6
+        Gl = 640.61*1e6 #450*1e6
+        vl = 0.3 #0.02
         vt = 0.44
         v = 0
         axis_l = np.array([0,1,0])
@@ -193,6 +180,7 @@ for split, regu in zip(Splits, Regus):
     if dim == 3:
         problem += "_3D"
     folderName = "PlateWithHole_" + problem
+    simpli2D = "CP" if planeStress else "DP"
     folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, simpli2D, tolConv, solver, test, optimMesh, nL=nL)
     
     if solve:
@@ -200,32 +188,26 @@ for split, regu in zip(Splits, Regus):
         # ----------------------------------------------
         # Mesh
         # ----------------------------------------------
-        if optimMesh:
-            refineZone = diam*1.5/2
-            if split in ["Bourdin", "Amor"]:
-                refineGeom = Domain(Point(0, h/2-refineZone), Point(L, h/2+refineZone), clC)
-            else:
-                refineGeom = Domain(Point(L/2-refineZone, 0), Point(L/2+refineZone, h), clC)
-        else:
-            refineGeom = None
-
         point = Point()
         domain = Domain(point, Point(L, h), clD)
         circle = Circle(Point(L/2, h/2), diam, clD, isHollow=True)
 
         if dim == 2:
-            mesh = Interface_Gmsh().Mesh_2D(domain, [circle],
-                                            ElemType.TRI3, refineGeoms=[refineGeom])
+            mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
         elif dim == 3:
-            mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,thickness], 4,
-                                            ElemType.HEXA8,refineGeoms=[refineGeom])
+            mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,thickness], 4, ElemType.HEXA8,refineGeoms=[refineGeom])
                     
         if plotMesh:
             Display.Plot_Mesh(mesh)
             plt.show()
 
+        # Get Nodes
+        nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)
+        nodes_x0y0 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
+        nodes_y0z0 = mesh.Nodes_Conditions(lambda x,y,z: (y==0) & (z==0))
         nodes_edges = mesh.Nodes_Tags(["L0","L1","L2","L3"])
-        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)        
+        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)
 
         # ----------------------------------------------
         # Simulation
@@ -238,17 +220,11 @@ for split, regu in zip(Splits, Regus):
         # ----------------------------------------------
         # Boundary conditions
         # ----------------------------------------------
-        simu.Results_Set_Bc_Summary(u_max, listInc, listTresh, listOption)        
+        simu.Results_Set_Bc_Summary(u_max, listInc, listTresh, listOption)
 
         def Loading(ud: float):
-            """Boundary conditions"""
+            """Boundary conditions"""            
             
-            # Get Nodes
-            nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-            nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)            
-            nodes_x0y0 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
-            nodes_y0z0 = mesh.Nodes_Conditions(lambda x,y,z: (y==0) & (z==0))
-
             simu.Bc_Init()
             simu.add_dirichlet(nodes_lower, [0], ["y"])
             simu.add_dirichlet(nodes_x0y0, [0], ["x"])

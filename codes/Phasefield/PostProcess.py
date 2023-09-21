@@ -18,10 +18,11 @@ Display.Clear()
 # Configuration
 # ----------------------------------------------
 # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
-simulation = "Shear_Benchmark"
+simulation = "Tension_Benchmark"
 
 test = False
 loadSimu = True
+
 plotDamage = True
 savefig = False
 
@@ -48,12 +49,13 @@ list_solver = ["History"]
 # list_split = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
 # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
 # list_split = ["He","AnisotStrain","AnisotStress", "Zhang"]
-list_split = ["Amor"]
+list_split = ["Zhang"]
 
+# listOptimMesh=[True, False] # [True, False]
 listOptimMesh=[True] # [True, False]
 
-# listTol = [1e-0, 1e-1, 1e-2, 1e-3, 1e-4] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
-listTol = [1e-0]
+# listTol = [1e-0, 1e-1, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+listTol = [1e-0, 1e-1, 1e-2]
 
 # listnL = [100] # [100] [100, 120, 140, 180, 200]
 listnL = [0]
@@ -111,7 +113,7 @@ for config in listConfig:
     
     # text = nomSimu
     text = split
-    text = foldername.replace(Folder.Get_Path(foldername), "")[1:]
+    text = foldername.replace(Folder.Get_Path(foldername), "")[1:]    
 
     # Loads force and displacement
     try:
@@ -126,9 +128,9 @@ for config in listConfig:
 
     except AssertionError:
         if nomSimu not in missingSimulations: missingSimulations.append(nomSimu)
-        print("données indisponibles")        
+        print("données indisponibles")
 
-    if loadSimu:
+    if loadSimu or plotDamage:
         # Load simulation
         try:
             simu = Simulations.Load_Simu(foldername, False)
@@ -136,6 +138,12 @@ for config in listConfig:
             temps = results["timeIter"].values.sum()
             temps_str, unite = TicTac.Tic.Get_time_unity(temps)
             print(len(results),f"-> {temps_str:.3} {unite}")
+
+            # # trace le point lorsque l'endommagement renseignée est atteint
+            # damageMax = np.array([result["damage"].max() for result in simu.results])
+            # idxFirst = np.where(damageMax >= 0.6)[0][0]
+            # ax_load.scatter(displacement[idxFirst], load[idxFirst])
+
         except AssertionError:
             if nomSimu not in missingSimulations: missingSimulations.append(nomSimu)
             print("simulation not available")
@@ -168,7 +176,7 @@ for config in listConfig:
             # titleDamage = filenameDamage
 
             titleDamage = split
-            filenameDamage = f"PlateBench {comp}_{split}_{regu}_{simpli2D}"
+            # filenameDamage = f"PlateBench {comp}_{split}_{regu}_{simpli2D}"
 
             Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose, folder=folder_save, filename=filenameDamage,title=titleDamage)
     

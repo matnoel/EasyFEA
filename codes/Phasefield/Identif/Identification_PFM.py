@@ -23,10 +23,11 @@ folder_file = Folder.Get_Path(__file__)
 # Configuration
 # ----------------------------------------------
 test = False
-optimMesh = True
 doSimulation = True
-doIdentif = True
+doIdentif = False
 detectL0 = False
+
+optimMesh = True
 
 pltIter = False
 
@@ -36,9 +37,8 @@ ep = 20
 D = 10
 
 nL = 100 # 80, 50
-l00 = L/nL
-
-Gc0 = 0.06 # mJ/mm2
+l0_init = L/nL
+Gc_init = 0.06 # mJ/mm2
 
 inc0 = 5e-3 # inc0 = 8e-3 # incrément platewith hole
 inc1 = 1e-3 # inc1 = 2e-3
@@ -56,7 +56,7 @@ ftol = 1e-2
 # split = "AnisotStress"
 split = "He"
 # split = "Zhang"
-regu = "AT1"
+regu = "AT2"
 
 # convOption = 0 # bourdin
 # convOption = 1 # energie crack
@@ -102,27 +102,26 @@ for idxEssai in range(0,18):
 
     essai = f"Essai{add}{idxEssai}"
 
-    folder_Essai = Folder.Join([folder, essai])
+    folder_essai = Folder.Join([folder, essai])
 
     if test:
-        folder_Essai = Folder.Join([folder_Essai, "Test"])
+        folder_essai = Folder.Join([folder_essai, "Test"])
 
-    simuOptions = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh}"
+    simu_name = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh}"
 
     if doIdentif:
-        simuOptions += f" ftol{ftol}"
+        simu_name += f" ftol{ftol}"
         if not detectL0:
-            simuOptions += f" nL{nL}"
+            simu_name += f" nL{nL}"
 
-    folder_Save = Folder.Join([folder_Essai, simuOptions])
+    folder_save = Folder.Join([folder_essai, simu_name])
     
     print()
-    print(folder_Save.replace(folder, ''))
+    print(folder_save.replace(folder, ''))
 
     # ----------------------------------------------
     # Données de l'essai
     # ----------------------------------------------
-
     forces = dfLoad["forces"][idxEssai]
     deplacements = dfLoad["deplacements"][idxEssai]
 
@@ -145,7 +144,7 @@ for idxEssai in range(0,18):
     axis_l = np.array([np.cos(rot), np.sin(rot), 0])
     axis_t = np.cross(np.array([0,0,1]), axis_l)
 
-    comp = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, ep)
+    material = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, ep)
 
     # ----------------------------------------------
     # Mesh
@@ -184,6 +183,8 @@ for idxEssai in range(0,18):
     # ----------------------------------------------
 
     dCible = 1
+    evals = []
+    simus: list[Simulations.Simu_PhaseField] = []
 
     def DoSimu(x: np.ndarray, mesh: Mesh) -> float:
         """Simulation pour les paramètres x=[Gc,l0]"""
@@ -191,11 +192,12 @@ for idxEssai in range(0,18):
         Gc = x[0]
 
         if x.size > 1:
-            l0 = x[1]
-            mesh = DoMesh(l0)            
+            l0 = x[1]            
             print(f"\nGc = {x[0]:.5e}, l0 = {x[1]:.5e}")
+            if detectL0:
+                mesh = DoMesh(l0)
         else:
-            l0 = l00
+            l0 = l0_init
             print(f"\nGc = {x[0]:.5e}")
             
         yn = mesh.coordo[:, 1]
@@ -204,7 +206,7 @@ for idxEssai in range(0,18):
         nodes0 = mesh.Nodes_Tags(["P0"])
         
         # construit le modèle d'endommagement
-        pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0, A=A)
+        pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0, A=A)
         
         simu = Simulations.Simu_PhaseField(mesh, pfm)
         simus.clear(); simus.append(simu)
@@ -264,33 +266,30 @@ for idxEssai in range(0,18):
 
         if doSimulation:
 
-            mesh = DoMesh(l00)
-        
-            evals = []
-            simus: list[Simulations.Simu_PhaseField] = []
+            mesh = DoMesh(l0_init)
 
             # création de la figure pour tracer J
             ax_J = plt.subplots()[1]
             ax_J.set_xlabel("$N$"); ax_J.set_ylabel("$J$")
             ax_J.grid()
 
-            GcMax = 2            
+            GcMax = 2
             lb = [0] if not detectL0 else [0, 0]
             ub = [GcMax] if not detectL0 else [GcMax, L/20]
-            x0 = [Gc0] if not detectL0 else [Gc0, l00]
+            x0 = [Gc_init] if not detectL0 else [Gc_init, l0_init]
 
             if solver == 0:
                 res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None, args=(mesh,))
             elif solver == 1:
                 bounds = [(l, u) for l, u in zip(lb, ub)]
-                res = minimize(DoSimu, x0, bounds=bounds, tol=ftol)
+                res = minimize(DoSimu, x0, bounds=bounds, tol=ftol, args=(mesh,))
 
             Gc = res.x[0]
             if detectL0:
                 l0 = res.x[1]
                 print(f"Gc = {Gc:.10e}, l0 = {l0:.4e}")
             else:
-                l0 = l00
+                l0 = l0_init
                 print(f"Gc = {Gc:.10e}")
 
             x = res.x
@@ -304,13 +303,13 @@ for idxEssai in range(0,18):
                 plt.figure(ax_J.figure)
             else:                
                 ax_J.scatter(np.arange(len(evals)), evals, c='black', zorder=4)
-            Display.Save_fig(folder_Save, "iterations")
+            Display.Save_fig(folder_save, "iterations")
             
             # Récupère la simulation            
             simu = simus[-1]
 
-            simu.Save(folder_Save)
-            Display.Plot_Iter_Summary(simu, folder_Save)
+            simu.Save(folder_save)
+            Display.Plot_Iter_Summary(simu, folder_save)
 
             simu.Update_Iter(-1)
 
@@ -350,7 +349,7 @@ for idxEssai in range(0,18):
 
         else:
             # charge la simulation
-            simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder_Save)
+            simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder_save)
 
         # reconstruction de la courbe force déplacement
         deplacementsIdentif = []
@@ -366,7 +365,7 @@ for idxEssai in range(0,18):
 
         deplacementsIdentif = np.asarray(deplacementsIdentif)
         forcesIdentif = np.asarray(forcesIdentif)
-        PostProcessing.Save_Load_Displacement(forcesIdentif, deplacementsIdentif, folder_Save)
+        PostProcessing.Save_Load_Displacement(forcesIdentif, deplacementsIdentif, folder_save)
 
         def Calc_a_b(forces, deplacements, fmax):
             """Calcul des coefs de f(x) = a x + b"""
@@ -392,9 +391,9 @@ for idxEssai in range(0,18):
         axLoad.scatter(deplacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=3)
         axLoad.plot(deplacementsIdentif, forcesIdentif, label="identif")
         axLoad.legend()
-        Display.Save_fig(folder_Save, "load")
+        Display.Save_fig(folder_save, "load")
 
-        Display.Plot_Result(simu, "damage", folder=folder_Save, colorbarIsClose=True)
+        Display.Plot_Result(simu, "damage", folder=folder_save, colorbarIsClose=True)
 
     else:
 
@@ -409,7 +408,7 @@ for idxEssai in range(0,18):
 
         L0, GC = np.meshgrid(l0_array, Gc_array)        
 
-        path = Folder.New_File("data.pickle", folder_Save)
+        path = Folder.New_File("data.pickle", folder_save)
 
         if not doSimulation:
             # récupère les données
@@ -428,7 +427,7 @@ for idxEssai in range(0,18):
             for g, gc in enumerate(Gc_array):
                 for l, l0 in enumerate(l0_array):
                     
-                    ecart = DoSimu(np.array([gc,l0]))
+                    ecart = DoSimu(np.array([gc,l0]), mesh)
 
                     results[g,l] = ecart
 
@@ -473,7 +472,7 @@ for idxEssai in range(0,18):
         #     ax1.scatter(gc, l00, ecart, c='black')
         #     plt.pause(1e-12)
 
-        Display.Save_fig(folder_Save, "J surface")
+        Display.Save_fig(folder_save, "J surface")
 
         ax2 = plt.subplots()[1]        
         cc = ax2.contourf(GC, L0, results,levels,  cmap='jet')
@@ -483,7 +482,7 @@ for idxEssai in range(0,18):
         ax2.scatter(GC[argmin], L0[argmin], 200, c='red', marker='.', zorder=10,edgecolors='white')
         ax2.figure.colorbar(cc, ticks=ticks)
 
-        Display.Save_fig(folder_Save, "J contourf")
+        Display.Save_fig(folder_save, "J contourf")
 
         # Display.Save_fig(folder_Save, "J_grid")
         plt.show()

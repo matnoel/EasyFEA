@@ -7,8 +7,8 @@ import os
 
 import Folder
 import Display
-from Mesh import Mesh
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Interface_Gmsh, ElemType
+from Mesh import Get_new_mesh
 from Geom import Point, Domain, Circle
 import Materials
 import Simulations
@@ -23,8 +23,8 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 idxEssai = 4
 
-solve = True
 test = True
+solve = True
 optimMesh = True
 useContact = False
 
@@ -40,13 +40,13 @@ l0 = l/nL
 # posProcessing
 pltLoad = True
 pltIter = True
-pltContact = False
+pltContact = True
 makeParaview = False
 makeMovie = False
 
 # phase field
-split = "Zhang" # he, Zhang, AnisotStress
-regu = "AT1"
+split = "He" # he, Zhang, AnisotStress
+regu = "AT2"
 tolConv = 1e-2 # 1e-0, 1e-1, 1e-2
 convOption = 2
 # (0, bourdin)
@@ -54,6 +54,10 @@ convOption = 2
 # (2, crack + strain energy)
 
 folder_essai = Folder.New_File(Folder.Join(["Essais FCBA","Simu", f"Essai{idxEssai}"]), results=True)
+
+if useContact:
+    folder_essai = Folder.Join([folder_essai, 'Contact'])
+
 folder_save = Folder.PhaseField_Folder(folder_essai, "", split, regu, "", tolConv, "", test, optimMesh, nL=nL)
 
 pathSimu = Folder.Join([folder_save, "simulation.pickle"])
@@ -139,6 +143,21 @@ nodes_edges = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
 Display.Plot_Mesh(mesh)
 
+if useContact:    
+
+    width = 5
+    upper_contour = Domain(Point(-width, h), Point(l+width, h+width), (l+2*width)/20)
+    upper_mesh = Interface_Gmsh().Mesh_2D(upper_contour, [], ElemType.QUAD4, isOrganised=True)
+    
+    lower_contour = Domain(Point(-width), Point(l+width, -width), (l+2*width)/20)
+    lower_mesh = Interface_Gmsh().Mesh_2D(lower_contour, [], ElemType.QUAD4, isOrganised=True)
+
+    Display.Plot_Mesh(upper_mesh, ax=plt.gca(), alpha=0)
+    Display.Plot_Mesh(lower_mesh, ax=plt.gca(), alpha=0)
+
+    slaveNodes = mesh.Nodes_Conditions(lambda x,y,z: (y==0) | (y==h))
+    Display.Plot_Nodes(mesh, slaveNodes, ax=plt.gca())
+
 # ----------------------------------------------
 # Material
 # ----------------------------------------------
@@ -211,51 +230,44 @@ if solve:
         displacements = displacements-forces/k_montage
         axLoad.scatter(displacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=10)
         axLoad.plot(displacements, forces, label="redim")
+
+        argMax = np.argmax(forces)
+        axLoad.scatter(displacements[argMax], forces[argMax], marker='+', c='blue', zorder=10)
+
         # axLoad.legend()
         axLoad.grid()
         Display.Save_fig(folder_save, "load")
-    
-    if pltContact:
-        xn = mesh.coordo[:,0]
-        yn = mesh.coordo[:,1]
-        axContact = plt.subplots()[1]
-        axContact.set_xlabel("xn [mm]"), axContact.set_ylabel("f [kN]")
-        idxSort = np.argsort(xn[nodes_upper])
 
     dep = -inc0
     fr = 0
     i = -1
     
-    fStop = f_crit*1.2
+    # fStop = f_crit*1.2
+    fStop = f_max
 
     while fr <= fStop:
 
         i += 1
         dep += inc0 if simu.damage.max() <= treshold else inc1
 
-        simu.Bc_Init()
-        simu.add_dirichlet(nodes_lower, [0], ["y"])
-        simu.add_dirichlet(nodes0, [0], ["x"])
+        simu.Bc_Init()        
 
         if useContact:
-            frontiere = 90 - dep # coordonnée y du plan maitre
+            simu.add_dirichlet(nodes_lower, [0], ["y"])
 
-            yn_c = simu.mesh.coordo[nodes_upper,1] + simu.displacement[dofsY_upper] # coordonnées y du plan esclave
-            # yn_c = simu.mesh.coordo[nodes_Upper,1] # coordonnées y du plan esclave
-
-            ecart = frontiere - yn_c
-
-            idxContact = np.where(ecart < 0)[0]
-
-            if len(idxContact) > 0:
-                simu.add_dirichlet(nodes_upper[idxContact], [ecart[idxContact]], ["y"])                
-
-            # axContact.clear()
-            # axContact.plot([-10, l+10], [frontiere, frontiere])
-            # axContact.scatter(simu.mesh.coordo[nodes_Upper,0], yn_c)
+            # update master mesh coordinates
+            displacementMatrix = np.zeros((upper_mesh.Nn, 3))
+            displacementMatrix[:,1] = -inc0 if simu.damage.max() <= treshold else -inc1
+            upper_mesh = Get_new_mesh(upper_mesh, displacementMatrix)            
+            
+            nodes_cU, newU = simu.Get_contact(upper_mesh, slaveNodes)
+            if nodes_cU.size > 0:
+                simu.add_dirichlet(nodes_cU, [newU[:,0], newU[:,1]], ['x','y'])
             
         else:
-
+            
+            simu.add_dirichlet(nodes_lower, [0], ["y"])
+            simu.add_dirichlet(nodes0, [0], ["x"])
             simu.add_dirichlet(nodes_upper, [-dep], ["y"])        
 
         # solve and save iter
@@ -300,7 +312,15 @@ if solve:
                 _, axIter, cbIter = Display.Plot_Result(simu, "damage")
             else:
                 cbIter.remove()
-                _, axIter, cbIter = Display.Plot_Result(simu, "damage", ax=axIter)
+                _, axIter, cbIter = Display.Plot_Result(simu, "damage", ax=axIter, deformation=pltContact, factorDef=1)
+
+            title = axIter.get_title()
+
+            if pltContact and useContact:
+                Display.Plot_Mesh(lower_mesh, alpha=0, ax=axIter)
+                Display.Plot_Mesh(upper_mesh, alpha=0, ax=axIter)
+
+            title = axIter.set_title(title)
 
             plt.figure(axIter.figure)        
             

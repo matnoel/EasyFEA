@@ -305,10 +305,6 @@ for split, regu in zip(Splits, Regus):
     ax = Display.Plot_Load_Displacement(displacements*1e6, forces*1e-6, 'ud [µm]', 'f [kN/mm]')[1]
     ax.plot(displacements*1e6, load2*1e-6)
 
-
-    
-
-
     # ----------------------------------------------
     # PostProcessing
     # ---------------------------------------------
