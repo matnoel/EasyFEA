@@ -55,15 +55,7 @@ makeMovie = False
 # Simulations 
 # ----------------------------------------------
 
-# for split, theta in zip(splits, thetas):
-
-Splits = []; Regus = []
-for split in splits.copy():
-    for regu in regus.copy():
-        Splits.append(split)
-        Regus.append(regu)
-
-for split, regu in zip(Splits, Regus):
+def DoSimu(split: str, regu: str):
 
     # Builds the path to the folder based on the problem data
     folderName = "Tension_Benchmark"
@@ -72,7 +64,7 @@ for split, regu in zip(Splits, Regus):
     folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, 'DP',
                                       tolConv, pfmSolver, test, optimMesh, not openCrack,
                                       theta=theta)
-        
+            
     if solve:
 
         # ----------------------------------------------
@@ -181,7 +173,7 @@ for split, regu in zip(Splits, Regus):
         # ----------------------------------------------
         # Boundary conditions
         # ----------------------------------------------
-        if materialType == "Elas_Isot":            
+        if materialType == "Elas_Isot":
             # load < treshold
             uinc0 = 1e-7 if test else 1e-8
             N0 = 40 if test else 400
@@ -196,8 +188,7 @@ for split, regu in zip(Splits, Regus):
             
             listInc = [uinc0, uinc1]
             listThreshold = [dep0, dep1]
-            optionTreshold = ["displacement"]*2            
-
+            optionTreshold = ["displacement"]*2
         else:
             # load < treshold
             uinc0 = 12e-8 if test else 6e-8
@@ -237,11 +228,11 @@ for split, regu in zip(Splits, Regus):
         # INIT
         nDetect = 0
         displacements=[]
-        forces=[]
+        loads=[]
 
         dep = -uinc0
         iter = -1
-        while True:            
+        while True: # simu until break
             
             iter += 1
             if materialType == 'Elas_Isot':
@@ -269,7 +260,7 @@ for split, regu in zip(Splits, Regus):
             f = np.sum(Kglob[dofsY_upper, :] @ u)
 
             displacements.append(dep)
-            forces.append(f)
+            loads.append(f)
 
             # check for damaged edges
             if np.any(simu.damage[nodes_edges] >= 0.98):
@@ -282,18 +273,18 @@ for split, regu in zip(Splits, Regus):
         # Saving
         # ----------------------------------------------
         print()
-        PostProcessing.Save_Load_Displacement(forces, displacements, folder)
+        PostProcessing.Save_Load_Displacement(loads, displacements, folder)
         simu.Save(folder)        
 
-        forces = np.array(forces)
+        loads = np.array(loads)
         displacements = np.array(displacements)
 
     else:
         # ----------------------------------------------
         # Loading
         # ---------------------------------------------
-        simu = Simulations.Load_Simu(folder)
-        forces, displacements = PostProcessing.Load_Load_Displacement(folder)
+        simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder)
+        loads, displacements = PostProcessing.Load_Load_Displacement(folder)
 
     nodes = simu.mesh.Nodes_Conditions(lambda x,y,z: y==1e-3)
     dofsY = simu.Bc_dofs_nodes(nodes, ['y'])    
@@ -302,7 +293,7 @@ for split, regu in zip(Splits, Regus):
         simu.Update_Iter(i)
         load2.append(np.sum(simu.Get_K_C_M_F()[0][dofsY]@simu.displacement))
     load2 = np.array(load2)
-    ax = Display.Plot_Load_Displacement(displacements*1e6, forces*1e-6, 'ud [µm]', 'f [kN/mm]')[1]
+    ax = Display.Plot_Load_Displacement(displacements*1e6, loads*1e-6, 'ud [µm]', 'f [kN/mm]')[1]
     ax.plot(displacements*1e6, load2*1e-6)
 
     # ----------------------------------------------
@@ -311,7 +302,7 @@ for split, regu in zip(Splits, Regus):
     if plotResult:
         Display.Plot_Iter_Summary(simu, folder, None, None)
         Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Load_Displacement(displacements*1e6, forces*1e-6, 'ud [µm]', 'f [kN/mm]', folder)
+        Display.Plot_Load_Displacement(displacements*1e6, loads*1e-6, 'ud [µm]', 'f [kN/mm]', folder)
         Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
         # Display.Plot_Result(simu, "uy", folder=folder, deformation=True)
             
@@ -335,8 +326,20 @@ for split, regu in zip(Splits, Regus):
     Tic.Clear()
     plt.close('all')
 
-    if solve:
-        del simu
-        del mesh
-    else:        
-        del simu
+if __name__ == '__main__':
+
+    # generates configs
+    Splits = []; Regus = []
+    for split in splits.copy():
+        for regu in regus.copy():
+            Splits.append(split)
+            Regus.append(regu)
+
+    # for split, regu in zip(Splits, Regus):
+    #     DoSimu(split, regu)
+
+    items = [(split, regu) for split, regu in zip(Splits, Regus)]
+    import multiprocessing
+    with multiprocessing.Pool() as pool:
+        for result in pool.starmap(DoSimu, items):
+            pass

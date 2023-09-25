@@ -16,12 +16,12 @@ import matplotlib.pyplot as plt
 # Simulation
 # ----------------------------------------------
 dim = 2
-problem = "FCBA" # ["Benchmark", "FCBA"]
+problem = "Benchmark" # ["Benchmark", "FCBA"]
 
-test = True
+test = False
 solve = True
 
-optimMesh = False
+optimMesh = True
 
 # ----------------------------------------------
 # Post processing
@@ -32,16 +32,16 @@ plotResult = True
 plotEnergy = False
 showFig = False
 
-saveParaview = True; NParaview=300
+saveParaview = False; NParaview=300
 makeMovie = False; NMovie = 200
 
 # ----------------------------------------------
 # Material
 # ----------------------------------------------
-materialType = "Elas_IsotTrans" # ["Elas_Isot", "Elas_IsotTrans"]
+materialType = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 solver = Materials.PhaseField_Model.SolverType.History # ["History", "HistoryDamage", "BoundConstrain"]
 maxIter = 1000
-tolConv = 1e-1
+tolConv = 1e-2
 
 # ----------------------------------------------
 # Configurations
@@ -54,10 +54,10 @@ tolConv = 1e-1
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 # splits = ["Zhang"]
-splits = ["AnisotStress"]
+splits = ["AnisotStrain","AnisotStress","Zhang"]
 
-regus = ["AT2"] # ["AT1", "AT2"]
-# regus = ["AT1", "AT2"]
+# regus = ["AT2"] # ["AT1", "AT2"]
+regus = ["AT1", "AT2"]
 
 Splits = []; Regus = []
 for split in splits.copy():
@@ -65,11 +65,12 @@ for split in splits.copy():
         Splits.append(split)
         Regus.append(regu)
 
-for split, regu in zip(Splits, Regus):
+# ----------------------------------------------
+# Simulations 
+# ----------------------------------------------
 
-    # ----------------------------------------------
-    # config options
-    # ----------------------------------------------
+def DoSimu(split: str, regu: str):
+
     if "Benchmark" in problem:
         unitU = 'μm'
         unitF = 'kN/mm'
@@ -101,7 +102,6 @@ for split, regu in zip(Splits, Regus):
         listInc = [uinc0, uinc1]
         listTresh = [0, treshold]
         listOption = ["damage"]*len(listTresh)
-
     elif "FCBA" in problem:
         unitU = 'mm'
         unitF = 'kN'
@@ -117,8 +117,7 @@ for split, regu in zip(Splits, Regus):
         # material
         planeStress = True
         
-        # phase field
-        
+        # phase field            
         gc = 0.07 # mJ/mm2
         # 1 J -> 1000 mJ
         # 1 m2 -> 1e6 mm2
@@ -138,56 +137,32 @@ for split, regu in zip(Splits, Regus):
         listTresh = [0, treshold]
         listOption = ["damage"]*2
 
-    # ----------------------------------------------
-    # meshSize
-    # ----------------------------------------------
-    clC = l0 if test else l0/2
-    if optimMesh:
-        clD = l0*4
-        
-        refineZone = diam*1.5/2
-        if split in ["Bourdin", "Amor"]:
-            refineGeom = Domain(Point(0, h/2-refineZone), Point(L, h/2+refineZone), clC)
-        else:
-            refineGeom = Domain(Point(L/2-refineZone, 0), Point(L/2+refineZone, h), clC)
-    else:
-        # clD = l0*2 if test else l0/2
-        clD = l0 if test else l0/2
-
-        refineGeom = None
-
-    # ----------------------------------------------
-    # Elastic material
-    # ----------------------------------------------
-    if materialType == "Elas_Isot":
-        E = 12e9
-        v = 0.3
-        material = Materials.Elas_Isot(dim, E, v, planeStress, thickness)
-
-    elif materialType == "Elas_IsotTrans":        
-        El = 15585.5*1e6 # 12e9        
-        Et = 209.22*1e6 #500*1e6
-        Gl = 640.61*1e6 #450*1e6
-        vl = 0.3 #0.02
-        vt = 0.44
-        v = 0
-        axis_l = np.array([0,1,0])
-        axis_t = np.array([1,0,0])
-        material = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt,
-                                            axis_l, axis_t, planeStress, thickness)
-
     # folder name
+    folderName = "PlateWithHole_" + problem    
     if dim == 3:
-        problem += "_3D"
-    folderName = "PlateWithHole_" + problem
+        folderName += "_3D"
     simpli2D = "CP" if planeStress else "DP"
-    folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, simpli2D, tolConv, solver, test, optimMesh, nL=nL)
+    folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, simpli2D, tolConv, solver, test, optimMesh, nL=nL)    
     
     if solve:
 
         # ----------------------------------------------
         # Mesh
         # ----------------------------------------------
+        clC = l0 if test else l0/2
+        if optimMesh:
+            clD = l0*4
+            
+            refineZone = diam*1.5/2
+            if split in ["Bourdin", "Amor"]:
+                refineGeom = Domain(Point(0, h/2-refineZone), Point(L, h/2+refineZone), clC)
+            else:
+                refineGeom = Domain(Point(L/2-refineZone, 0), Point(L/2+refineZone, h), clC)
+        else:
+            # clD = l0*2 if test else l0/2
+            clD = l0 if test else l0/2
+            refineGeom = None
+
         point = Point()
         domain = Domain(point, Point(L, h), clD)
         circle = Circle(Point(L/2, h/2), diam, clD, isHollow=True)
@@ -196,10 +171,6 @@ for split, regu in zip(Splits, Regus):
             mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
         elif dim == 3:
             mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,thickness], 4, ElemType.HEXA8,refineGeoms=[refineGeom])
-                    
-        if plotMesh:
-            Display.Plot_Mesh(mesh)
-            plt.show()
 
         # Get Nodes
         nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
@@ -208,6 +179,25 @@ for split, regu in zip(Splits, Regus):
         nodes_y0z0 = mesh.Nodes_Conditions(lambda x,y,z: (y==0) & (z==0))
         nodes_edges = mesh.Nodes_Tags(["L0","L1","L2","L3"])
         nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)
+        
+        # ----------------------------------------------
+        # Material
+        # ----------------------------------------------
+        if materialType == "Elas_Isot":
+            E = 12e9
+            v = 0.3
+            material = Materials.Elas_Isot(dim, E, v, planeStress, thickness)
+        elif materialType == "Elas_IsotTrans":
+            El = 15585.5*1e6 # 12e9, 15585.5*1e6
+            Et = 209.22*1e6 #500*1e6, 209.22*1e6
+            Gl = 640.61*1e6 #450*1e6, 640.61*1e6
+            vl = 0.02 #0.02, 0.3
+            vt = 0.44
+            v = 0
+            axis_l = np.array([0,1,0])
+            axis_t = np.array([1,0,0])
+            material = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt,
+                                                axis_l, axis_t, planeStress, thickness)
 
         # ----------------------------------------------
         # Simulation
@@ -233,8 +223,8 @@ for split, regu in zip(Splits, Regus):
                 simu.add_dirichlet(nodes_y0z0, [0], ["z"])
         
         # INIT
-        displacement = []
-        load = []
+        displacements = []
+        loads = []
         ud = -uinc0
         iter = 0
         nDetect = 0
@@ -242,7 +232,7 @@ for split, regu in zip(Splits, Regus):
         if plotIter:
             figIter, axIter, cb = Display.Plot_Result(simu, "damage", nodeValues=True)
 
-            arrayDisplacement, arrayLoad = np.array(displacement), np.array(load)
+            arrayDisplacement, arrayLoad = np.array(displacements), np.array(loads)
             figLoad, axLoad = Display.Plot_Load_Displacement(arrayDisplacement*unit, arrayLoad/unit, f'ud [{unitU}]', f'f [{unitF}]')
 
         while ud <= u_max:
@@ -274,8 +264,8 @@ for split, regu in zip(Splits, Regus):
                 if nDetect == 10:                    
                     break
 
-            displacement.append(ud)
-            load.append(f)
+            displacements.append(ud)
+            loads.append(f)
 
             if plotIter:
                 cb.remove()
@@ -283,39 +273,42 @@ for split, regu in zip(Splits, Regus):
                 plt.figure(figIter)
                 plt.pause(1e-12)
 
-                arrayDisplacement, arrayLoad = np.array(displacement), np.array(load)
+                arrayDisplacement, arrayLoad = np.array(displacements), np.array(loads)
                 axLoad = Display.Plot_Load_Displacement(arrayDisplacement*unit, arrayLoad/unit, f'ud [{unitU}]', f'f [{unitF}]')[1]
                 plt.figure(axLoad.figure)
                 plt.pause(1e-12)
 
-        load = np.array(load)
-        displacement = np.array(displacement)
+        loads = np.array(loads)
+        displacements = np.array(displacements)
 
         # ----------------------------------------------
         # Saving
         # ----------------------------------------------
         print()
-        PostProcessing.Save_Load_Displacement(load, displacement, folder)
+        PostProcessing.Save_Load_Displacement(loads, displacements, folder)
         simu.Save(folder)
             
     else:
         # ----------------------------------------------
         # Load
         # ----------------------------------------------
-        load, displacement = PostProcessing.Load_Load_Displacement(folder)
-        simu = Simulations.Load_Simu(folder)
+        simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder)
+        loads, displacements = PostProcessing.Load_Load_Displacement(folder)
 
     # ----------------------------------------------
     # Post processing
     # ---------------------------------------------
     if plotEnergy:
-        Display.Plot_Energy(simu, load, displacement, Niter=400, folder=folder)
+        Display.Plot_Energy(simu, loads, displacements, Niter=400, folder=folder)
 
     if plotResult:
         Display.Plot_BoundaryConditions(simu)
         Display.Plot_Iter_Summary(simu, folder, None, None)
-        Display.Plot_Load_Displacement(displacement*unit, load/unit, f'ud [{unitU}]', f'f [{unitF}]', folder)
+        Display.Plot_Load_Displacement(displacements*unit, loads/unit, f'ud [{unitU}]', f'f [{unitF}]', folder)
         Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename="damage")
+
+    if plotMesh:
+        Display.Plot_Mesh(mesh)
 
     if saveParaview:
         PostProcessing.Make_Paraview(folder, simu, Niter=NParaview)        
@@ -332,8 +325,20 @@ for split, regu in zip(Splits, Regus):
     Tic.Clear()
     plt.close('all')
 
-    if solve:
-        del simu
-        del mesh
-    else:        
-        del simu
+if __name__ == "__main__":
+    
+    # generates configs
+    Splits = []; Regus = []
+    for split in splits.copy():
+        for regu in regus.copy():
+            Splits.append(split)
+            Regus.append(regu)
+
+    # for split, regu in zip(Splits, Regus):
+    #     DoSimu(split, regu)
+
+    items = [(split, regu) for split, regu in zip(Splits, Regus)]
+    import multiprocessing
+    with multiprocessing.Pool() as pool:
+        for result in pool.starmap(DoSimu, items):
+            pass

@@ -18,7 +18,7 @@ Display.Clear()
 # Configuration
 # ----------------------------------------------
 # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
-simulation = "Tension_Benchmark"
+simulation = "PlateWithHole_Benchmark"
 
 test = False
 loadSimu = True
@@ -49,13 +49,13 @@ list_solver = ["History"]
 # list_split = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
 # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
 # list_split = ["He","AnisotStrain","AnisotStress", "Zhang"]
-list_split = ["Zhang"]
+list_split = ["He"]
 
 # listOptimMesh=[True, False] # [True, False]
 listOptimMesh=[True] # [True, False]
 
-# listTol = [1e-0, 1e-1, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
-listTol = [1e-0, 1e-1, 1e-2]
+listTol = [1e-0, 1e-1, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+# listTol = [1e-0]
 
 # listnL = [100] # [100] [100, 120, 140, 180, 200]
 listnL = [0]

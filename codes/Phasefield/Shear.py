@@ -28,43 +28,33 @@ optimMesh = False
 maxIter = 1000
 tolConv = 1e-0 # 1e-1, 1e-2, 1e-3
 
-regus = ["AT2"] # "AT1", "AT2" 
-# regus = ["AT1", "AT2"]
+# regus = ["AT2"] # "AT1", "AT2" 
+regus = ["AT1", "AT2"]
 pfmSolver = Materials.PhaseField_Model.SolverType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["He"]
+splits = ["AnisotStress"]
 
 # PostProcessing
-plotMesh = False
 plotResult = True
-showResult = True
+showResult = False
+plotMesh = False
 plotEnergy = False
 saveParaview = False; Nparaview=400
 makeMovie = False
 
-# ----------------------------------------------
-# Simulations 
-# ----------------------------------------------
-Splits = []; Regus = []
-for split in splits.copy():
-    for regu in regus.copy():
-        Splits.append(split)
-        Regus.append(regu)
-
-for split, regu in zip(Splits, Regus):    
+def DoSimu(split: str, regu: str):
 
     # Builds the path to the folder based on the problem data
     folderName = "Shear_Benchmark"
     if dim == 3:
         folderName += "_3D"
     folder = Folder.PhaseField_Folder(folderName, "Elas_Isot", split, regu, 'DP',
-                                      tolConv, pfmSolver, test, optimMesh, not openCrack)
-        
-    if solve:
+                                    tolConv, pfmSolver, test, optimMesh, not openCrack)
 
+    if solve:
         # ----------------------------------------------
         # Mesh
         # ----------------------------------------------    
@@ -81,7 +71,7 @@ for split, regu in zip(Splits, Regus):
             gap = L*0.05
             h = L if split == "Bourdin" else L/2+gap
             refineDomain = Domain(Point(L/2-gap, 0), Point(L, h, thickness), clC)
-        else:        
+        else:
             clD = clC
             refineDomain = None
 
@@ -113,12 +103,8 @@ for split, regu in zip(Splits, Regus):
         elif dim == 3:
             mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], 3,
                                             ElemType.TETRA4, cracks, [refineDomain])
-        
-        if plotMesh:
-            Display.Plot_Mesh(mesh)
-            plt.show()
 
-        # Node recovery
+        # Nodes recovery
         nodes_crack = mesh.Nodes_Conditions(lambda x,y,z: (y==L/2) & (x<=L/2))
         nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y == L)
         nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
@@ -134,7 +120,7 @@ for split, regu in zip(Splits, Regus):
         # Material
         # ----------------------------------------------
         material = Materials.Elas_Isot(dim, E=210e9, v=0.3,
-                                       planeStress=False, thickness=thickness)
+                                        planeStress=False, thickness=thickness)
         Gc = 2.7e3 # J/m2
         pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0, pfmSolver)
 
@@ -178,7 +164,7 @@ for split, regu in zip(Splits, Regus):
         N = len(loadings)
         nDetect = 0
         displacements=[]
-        forces=[]        
+        loads=[]        
         for iter, dep in enumerate(loadings):
             
             # apply new boundary conditions
@@ -198,7 +184,7 @@ for split, regu in zip(Splits, Regus):
             f = np.sum(Kglob[dofsX_upper, :] @ u)
 
             displacements.append(dep)
-            forces.append(f)
+            loads.append(f)
 
             # check for damaged edges
             if np.any(simu.damage[nodes_edges] >= 0.98):
@@ -211,28 +197,27 @@ for split, regu in zip(Splits, Regus):
         # Saving
         # ----------------------------------------------
         print()
-        PostProcessing.Save_Load_Displacement(forces, displacements, folder)
+        PostProcessing.Save_Load_Displacement(loads, displacements, folder)
         simu.Save(folder)        
 
-        forces = np.array(forces)
+        loads = np.array(loads)
         displacements = np.array(displacements)
-
     else:
-        # ----------------------------------------------
-        # Loading
-        # ---------------------------------------------
-        simu = Simulations.Load_Simu(folder)
-        forces, displacements = PostProcessing.Load_Load_Displacement(folder)
-        
+        simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder)
+        loads, displacements = PostProcessing.Load_Load_Displacement(folder)
+
     # ----------------------------------------------
     # PostProcessing
     # ---------------------------------------------
     if plotResult:
         Display.Plot_Iter_Summary(simu, folder, None, None)
         Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Load_Displacement(displacements*1e6, forces*1e-6, 'ud [µm]', 'f [kN/mm]', folder)
+        Display.Plot_Load_Displacement(displacements*1e6, loads*1e-6, 'ud [µm]', 'f [kN/mm]', folder)
         Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
         # Display.Plot_Result(simu, "uy", folder=folder, deformation=True)
+
+    if plotMesh:
+        Display.Plot_Mesh(simu.mesh)            
             
     if saveParaview:
         PostProcessing.Make_Paraview(folder, simu, Nparaview)
@@ -246,7 +231,7 @@ for split, regu in zip(Splits, Regus):
     Tic.Resume()
 
     if solve:
-        Tic.Plot_History(folder, True)
+        Tic.Plot_History(folder, False)
 
     if showResult:
         plt.show()
@@ -254,8 +239,20 @@ for split, regu in zip(Splits, Regus):
     Tic.Clear()
     plt.close('all')
 
-    if solve:
-        del simu
-        del mesh
-    else:        
-        del simu
+if __name__ == "__main__":
+    
+    # generates configs
+    Splits = []; Regus = []
+    for split in splits.copy():
+        for regu in regus.copy():
+            Splits.append(split)
+            Regus.append(regu)
+
+    # for split, regu in zip(Splits, Regus):
+    #     DoSimu(split, regu)
+
+    items = [(split, regu) for split, regu in zip(Splits, Regus)]
+    import multiprocessing
+    with multiprocessing.Pool() as pool:
+        for result in pool.starmap(DoSimu, items):
+            pass
