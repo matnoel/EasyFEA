@@ -23,10 +23,10 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 idxEssai = 4
 
-test = True
+test = False
 solve = True
 optimMesh = True
-useContact = False
+useContact = True
 
 # geom
 h = 90
@@ -46,8 +46,8 @@ makeMovie = False
 
 # phase field
 split = "He" # he, Zhang, AnisotStress
-regu = "AT2"
-tolConv = 1e-2 # 1e-0, 1e-1, 1e-2
+regu = "AT1"
+tolConv = 1e-0 # 1e-0, 1e-1, 1e-2
 convOption = 2
 # (0, bourdin)
 # (1, crack energy)
