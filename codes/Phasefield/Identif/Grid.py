@@ -151,7 +151,7 @@ def DoSimu(e: int, g: int, l: int) -> tuple[int, int, int, float]:
     
     simu = Simulations.Simu_PhaseField(mesh, pfm)
     # simu.solver = "cg"
-    simu.solver = "umfpack"
+    # simu.solver = "umfpack"
 
     dofsY_Upper = simu.Bc_dofs_nodes(nodes_Upper, ["y"])
 
@@ -189,14 +189,13 @@ def DoSimu(e: int, g: int, l: int) -> tuple[int, int, int, float]:
 if __name__ == "__main__":
 
     nEssais = 17    
-    essais = np.arange(nEssais+1)
+    # essais = np.arange(nEssais+1)
+    essais = np.arange(0,5)
 
     if doSimulation:
 
-        results_e = np.zeros((nEssais+1, N, N), dtype=float)
-        items = [(e,g,l) for e in essais for g in range(N) for l in range(N)]        
-
-        DoSimu(0,0,0)
+        results_e = np.zeros((essais.size, N, N), dtype=float)
+        items = [(e,g,l) for e in essais for g in range(N) for l in range(N)]
 
         with multiprocessing.Pool() as pool:
             for res in pool.starmap(DoSimu, items):
