@@ -2,8 +2,7 @@ from TicTac import Tic
 import Materials
 from Geom import *
 import Display as Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
-from Mesh import Mesh, Calc_projector
+from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
 import Simulations
 import PostProcessing as PostProcessing
 import Folder
@@ -13,19 +12,16 @@ import matplotlib.pyplot as plt
 # Display.Clear()
 
 # ----------------------------------------------
-# Simulation
+# Configurations
 # ----------------------------------------------
 dim = 2
 problem = "Benchmark" # ["Benchmark", "FCBA"]
 
 test = False
-solve = True
-
+solve = False
 optimMesh = True
 
-# ----------------------------------------------
 # Post processing
-# ----------------------------------------------
 plotMesh = False
 plotIter = False
 plotResult = True
@@ -35,38 +31,54 @@ showFig = False
 saveParaview = False; NParaview=300
 makeMovie = False; NMovie = 200
 
-# ----------------------------------------------
 # Material
-# ----------------------------------------------
 materialType = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 solver = Materials.PhaseField_Model.SolverType.History # ["History", "HistoryDamage", "BoundConstrain"]
 maxIter = 1000
 tolConv = 1e-2
 
-# ----------------------------------------------
-# Configurations
-# ----------------------------------------------
-
-# for tolConv in [1e-0, 1e-1, 1e-2]:
-#     split = "Zhang"
-
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 # splits = ["Zhang"]
-splits = ["AnisotStrain","AnisotStress","Zhang"]
+# splits = ["AnisotStrain","AnisotStress","Zhang"]
+splits = ["AnisotStrain"]
 
 # regus = ["AT2"] # ["AT1", "AT2"]
 regus = ["AT1", "AT2"]
 
-Splits = []; Regus = []
-for split in splits.copy():
-    for regu in regus.copy():
-        Splits.append(split)
-        Regus.append(regu)
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
+def DoMesh(L: float, h: float, diam: float, thickness: float, l0: float, split: str) -> Mesh:
+
+    clC = l0 if test else l0/2
+    if optimMesh:
+        clD = l0*4
+        
+        refineZone = diam*1.5/2
+        if split in ["Bourdin", "Amor"]:
+            refineGeom = Domain(Point(0, h/2-refineZone), Point(L, h/2+refineZone), clC)
+        else:
+            refineGeom = Domain(Point(L/2-refineZone, 0), Point(L/2+refineZone, h), clC)
+    else:
+        # clD = l0*2 if test else l0/2
+        clD = l0 if test else l0/2
+        refineGeom = None
+
+    point = Point()
+    domain = Domain(point, Point(L, h), clD)
+    circle = Circle(Point(L/2, h/2), diam, clD, isHollow=True)
+
+    if dim == 2:
+        mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
+    elif dim == 3:
+        mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,thickness], 4, ElemType.HEXA8,refineGeoms=[refineGeom])
+
+    return mesh
 
 # ----------------------------------------------
-# Simulations 
+# Simu
 # ----------------------------------------------
 
 def DoSimu(split: str, regu: str):
@@ -146,31 +158,7 @@ def DoSimu(split: str, regu: str):
     
     if solve:
 
-        # ----------------------------------------------
-        # Mesh
-        # ----------------------------------------------
-        clC = l0 if test else l0/2
-        if optimMesh:
-            clD = l0*4
-            
-            refineZone = diam*1.5/2
-            if split in ["Bourdin", "Amor"]:
-                refineGeom = Domain(Point(0, h/2-refineZone), Point(L, h/2+refineZone), clC)
-            else:
-                refineGeom = Domain(Point(L/2-refineZone, 0), Point(L/2+refineZone, h), clC)
-        else:
-            # clD = l0*2 if test else l0/2
-            clD = l0 if test else l0/2
-            refineGeom = None
-
-        point = Point()
-        domain = Domain(point, Point(L, h), clD)
-        circle = Circle(Point(L/2, h/2), diam, clD, isHollow=True)
-
-        if dim == 2:
-            mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
-        elif dim == 3:
-            mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,thickness], 4, ElemType.HEXA8,refineGeoms=[refineGeom])
+        mesh = DoMesh(L, h, diam, thickness, l0, split)
 
         # Get Nodes
         nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
@@ -204,12 +192,12 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         pfm = Materials.PhaseField_Model(material, split, regu, gc, l0, solver=solver)
         simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
-
-        dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
         
         # ----------------------------------------------
         # Boundary conditions
         # ----------------------------------------------
+        dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
+
         simu.Results_Set_Bc_Summary(u_max, listInc, listTresh, listOption)
 
         def Loading(ud: float):
@@ -334,11 +322,11 @@ if __name__ == "__main__":
             Splits.append(split)
             Regus.append(regu)
 
-    # for split, regu in zip(Splits, Regus):
-    #     DoSimu(split, regu)
+    for split, regu in zip(Splits, Regus):
+        DoSimu(split, regu)
 
-    items = [(split, regu) for split, regu in zip(Splits, Regus)]
-    import multiprocessing
-    with multiprocessing.Pool() as pool:
-        for result in pool.starmap(DoSimu, items):
-            pass
+    # items = [(split, regu) for split, regu in zip(Splits, Regus)]
+    # import multiprocessing
+    # with multiprocessing.Pool() as pool:
+    #     for result in pool.starmap(DoSimu, items):
+    #         pass

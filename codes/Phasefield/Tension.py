@@ -3,7 +3,7 @@ import PostProcessing
 import Folder
 import Materials
 from Geom import *
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
 import Simulations
 from TicTac import Tic
 
@@ -14,7 +14,7 @@ from matplotlib.collections import LineCollection
 # Display.Clear()
 
 # ----------------------------------------------
-# Configuration
+# Configurations
 # ----------------------------------------------
 dim = 2
 test = False
@@ -30,15 +30,15 @@ materialType = "Elas_Isot" #  "Elas_Isot", "Elas_Anisot"
 # phasefield
 maxIter = 1000
 tolConv = 1e-0 # 1e-1, 1e-2, 1e-3
-
-regus = ["AT1"] # "AT1", "AT2"
-# regus = ["AT1", "AT2"]
 pfmSolver = Materials.PhaseField_Model.SolverType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 splits = ["Amor"]
+
+regus = ["AT1"] # "AT1", "AT2"
+# regus = ["AT1", "AT2"]
 
 thetas = [-70, -80, -90] # [-0, -10, -20, -30, -45, -60]
 theta = -0 # default value
@@ -52,7 +52,61 @@ saveParaview = False; Nparaview=400
 makeMovie = False
 
 # ----------------------------------------------
-# Simulations 
+# Mesh
+# ----------------------------------------------    
+L = 1e-3;  #m
+l0 = 8.5e-6 if materialType == "Elas_Anisot" else 1e-5
+thickness = 1 if dim == 2 else 0.1/1000
+
+def DoMesh(materialType: str= "Elas_Isot") -> Mesh:
+
+    # meshSize
+    clC = l0 if test else l0/2
+    if optimMesh:
+        # a coarser mesh can be used outside the refined zone
+        clD = clC * 3
+        # refines the mesh in the area where the crack will propagate
+        gap = L*0.05
+        if materialType == "Elas_Isot":                
+            refineDomain = Domain(Point(L/2-gap, L/2-gap), Point(L, L/2+gap, thickness), clC)
+        else:                
+            refineDomain = Domain(Point(L/2-gap, L/2-gap), Point(L, L*0.8, thickness), clC)
+    else:        
+        clD = clC
+        refineDomain = None
+
+    # geom
+    pt1 = Point()
+    pt2 = Point(L)
+    pt3 = Point(L,L)
+    pt4 = Point(0,L)
+    contour = PointsList([pt1, pt2, pt3, pt4], clD)
+
+    if dim == 2:
+        ptC1 = Point(0,L/2, isOpen=openCrack)
+        ptC2 = Point(L/2,L/2)
+        cracks = [Line(ptC1, ptC2, clC, isOpen=openCrack)]
+    if dim == 3:
+        meshSize = clD if optimMesh else clC
+        ptC1 = Point(0,L/2,0, isOpen=openCrack)
+        ptC2 = Point(L/2,L/2, 0)
+        ptC3 = Point(L/2,L/2, thickness)
+        ptC4 = Point(0,L/2, thickness, isOpen=openCrack)
+        l1 = Line(ptC1, ptC2, meshSize, openCrack)
+        l2 = Line(ptC2, ptC3, meshSize, False)
+        l3 = Line(ptC3, ptC4, meshSize, openCrack)
+        l4 = Line(ptC4, ptC1, meshSize, openCrack)            
+        cracks = [Contour([l1, l2, l3, l4])]
+
+    if dim == 2:
+        mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
+    elif dim == 3:
+        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], 3, ElemType.TETRA4, cracks, [refineDomain])
+
+    return mesh
+
+# ----------------------------------------------
+# Simu
 # ----------------------------------------------
 
 def DoSimu(split: str, regu: str):
@@ -67,60 +121,7 @@ def DoSimu(split: str, regu: str):
             
     if solve:
 
-        # ----------------------------------------------
-        # Mesh
-        # ----------------------------------------------    
-        L = 1e-3;  #m
-        l0 = 8.5e-6 if materialType == "Elas_Anisot" else 1e-5
-        thickness = 1 if dim == 2 else 0.1/1000
-        
-        # meshSize
-        clC = l0 if test else l0/2
-        if optimMesh:
-            # a coarser mesh can be used outside the refined zone
-            clD = clC * 3
-            # refines the mesh in the area where the crack will propagate
-            gap = L*0.05
-            if materialType == "Elas_Isot":                
-                refineDomain = Domain(Point(L/2-gap, L/2-gap), Point(L, L/2+gap, thickness), clC)
-            else:                
-                refineDomain = Domain(Point(L/2-gap, L/2-gap), Point(L, L*0.8, thickness), clC)
-        else:        
-            clD = clC
-            refineDomain = None
-
-        # geom
-        pt1 = Point()
-        pt2 = Point(L)
-        pt3 = Point(L,L)
-        pt4 = Point(0,L)
-        contour = PointsList([pt1, pt2, pt3, pt4], clD)
-
-        if dim == 2:
-            ptC1 = Point(0,L/2, isOpen=openCrack)
-            ptC2 = Point(L/2,L/2)
-            cracks = [Line(ptC1, ptC2, clC, isOpen=openCrack)]
-        if dim == 3:
-            meshSize = clD if optimMesh else clC
-            ptC1 = Point(0,L/2,0, isOpen=openCrack)
-            ptC2 = Point(L/2,L/2, 0)
-            ptC3 = Point(L/2,L/2, thickness)
-            ptC4 = Point(0,L/2, thickness, isOpen=openCrack)
-            l1 = Line(ptC1, ptC2, meshSize, openCrack)
-            l2 = Line(ptC2, ptC3, meshSize, False)
-            l3 = Line(ptC3, ptC4, meshSize, openCrack)
-            l4 = Line(ptC4, ptC1, meshSize, openCrack)            
-            cracks = [Contour([l1, l2, l3, l4])]
-        
-        if dim == 2:
-            mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
-        elif dim == 3:
-            mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], 3,
-                                            ElemType.TETRA4, cracks, [refineDomain])
-        
-        if plotMesh:
-            Display.Plot_Mesh(mesh)
-            plt.show()
+        mesh = DoMesh(materialType)
 
         # Nodes recovery
         nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y == L)
@@ -141,7 +142,7 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Material
         # ----------------------------------------------
-        if materialType == "Elas_Isot":            
+        if materialType == "Elas_Isot":
             material = Materials.Elas_Isot(dim, E=210e9, v=0.3,
                                            planeStress=False, thickness=thickness)
             Gc = 2.7e3 # J/m2
@@ -165,8 +166,6 @@ def DoSimu(split: str, regu: str):
                 Gc = 1e3 # J/m2
             else:
                 raise Exception("Not implemented in 3D")
-        else:
-            raise Exception("Unknown material")
 
         pfm = Materials.PhaseField_Model(material, split, regu, Gc=Gc, l0=l0, solver=pfmSolver)
 
@@ -286,16 +285,6 @@ def DoSimu(split: str, regu: str):
         simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder)
         loads, displacements = PostProcessing.Load_Load_Displacement(folder)
 
-    nodes = simu.mesh.Nodes_Conditions(lambda x,y,z: y==1e-3)
-    dofsY = simu.Bc_dofs_nodes(nodes, ['y'])    
-    load2 = []
-    for i in range(len(simu.results)):
-        simu.Update_Iter(i)
-        load2.append(np.sum(simu.Get_K_C_M_F()[0][dofsY]@simu.displacement))
-    load2 = np.array(load2)
-    ax = Display.Plot_Load_Displacement(displacements*1e6, loads*1e-6, 'ud [µm]', 'f [kN/mm]')[1]
-    ax.plot(displacements*1e6, load2*1e-6)
-
     # ----------------------------------------------
     # PostProcessing
     # ---------------------------------------------
@@ -311,6 +300,9 @@ def DoSimu(split: str, regu: str):
 
     if makeMovie:
         PostProcessing.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
+
+    if plotMesh:
+        Display.Plot_Mesh(simu.mesh)
             
     if plotEnergy:
         Display.Plot_Energy(simu, Niter=400, folder=folder)
@@ -335,11 +327,10 @@ if __name__ == '__main__':
             Splits.append(split)
             Regus.append(regu)
 
-    # for split, regu in zip(Splits, Regus):
-    #     DoSimu(split, regu)
+    [DoSimu(split, regu) for split, regu in zip(Splits, Regus)]        
 
-    items = [(split, regu) for split, regu in zip(Splits, Regus)]
-    import multiprocessing
-    with multiprocessing.Pool() as pool:
-        for result in pool.starmap(DoSimu, items):
-            pass
+    # items = [(split, regu) for split, regu in zip(Splits, Regus)]
+    # import multiprocessing
+    # with multiprocessing.Pool() as pool:
+    #     for result in pool.starmap(DoSimu, items):
+    #         pass

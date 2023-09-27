@@ -38,8 +38,8 @@ else:
 
 list_mat = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 
-list_regu = ["AT1", "AT2"] # ["AT1", "AT2"]
-# list_regu = ["AT2"] # ["AT1", "AT2"]
+# list_regu = ["AT1", "AT2"] # ["AT1", "AT2"]
+list_regu = ["AT1"] # ["AT1", "AT2"]
 
 list_simpli2D = ["DP"] # ["CP","DP"]
 list_solver = ["History"]
@@ -49,7 +49,7 @@ list_solver = ["History"]
 # list_split = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
 # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
 # list_split = ["He","AnisotStrain","AnisotStress", "Zhang"]
-list_split = ["He"]
+list_split = ["AnisotStress"]
 
 # listOptimMesh=[True, False] # [True, False]
 listOptimMesh=[True] # [True, False]
@@ -68,7 +68,7 @@ listTheta = [0]
 snapshots = []
 
 # depMax = 80000 # µm 35 ou 80
-depMax = 0
+depMax = 80000
 
 # Génération des configurations
 listConfig = []
@@ -160,7 +160,7 @@ for config in listConfig:
         # Displays last damage
         Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose,
         folder=folder_save, filename=f"{split} tol{tolConv} last", plotMesh=False,
-        title=split+regu)        
+        title=split+regu+f"_tol{tolConv}")        
 
         # Recover snapshot iterations
         for dep in snapshots:
