@@ -3,41 +3,38 @@ import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
 import multiprocessing
-import pandas as pd
 
-import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, Mesh
-from Geom import Point, Domain, Circle
 import Materials
 import Simulations
 import PostProcessing
-import pickle
 import Folder
+import Functions
 
 # Display.Clear()
 
 folder_file = Folder.Get_Path(__file__)
 
+folder = Folder.Join([Folder.New_File("Essais FCBA",results=True), "Grille"])
+
+useParallel = True
+nProcs = 4 # number of processes in parallel
+
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-test = False
+test = True
 doSimulation = True
 optimMesh = True
 
 H = 90
 L = 45
-ep = 20
+thickness = 20
 D = 10
 
 nL = 100 # 80, 50
 l0_init = L/nL
 Gc_init = 0.06 # mJ/mm2
-
-inc0 = 5e-3 # inc0 = 8e-3 # incrément platewith hole
-inc1 = 1e-3 # inc1 = 2e-3
-treshold = 0.2
 
 # split = "AnisotStress"
 # split = "Zhang"
@@ -52,115 +49,48 @@ convOption = 2 # energie tot
 tolConv = 1e-2
 # tolConv = 1e-3
 
-N = 10 # 10, 4
+N = 3 # 10, 4
 Gc_array = np.linspace(0.01, 0.2, N)
 l0_array = np.linspace(L/100, L/10, N)
 
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
-def DoMesh(l0: float):
-
-    meshSize = l0 if test else l0/2
-
-    if optimMesh:
-        epRefine = D
-        refineGeom = Domain(Point(L/2-epRefine), Point(L/2+epRefine, H), meshSize)
-        meshSize *= 3
-    else:
-        refineGeom = None
-
-    domain = Domain(Point(), Point(L, H), meshSize)
-    circle = Circle(Point(L/2, H/2), D, meshSize)
-
-    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", refineGeoms=[refineGeom])
-
-    return mesh
-
-mesh = DoMesh(l0_array.min()) # ici on prend le meme maillage pour toutes les simulations
+# here we use the same mesh for all simulations
+mesh = Functions.DoMesh(L, H, D, l0_array.min(), test, optimMesh)
+yn = mesh.coordo[:, 1]
+nodes_Lower = mesh.Nodes_Tags(["L0"])
+nodes_Upper = mesh.Nodes_Tags(["L2"])
+nodes0 = mesh.Nodes_Tags(["P0"])  
 
 # ----------------------------------------------
-# Datas
+# Simu
 # ----------------------------------------------
+def DoSimu(idxEssai: int, g: int, l: int) -> tuple[int, int, int, float]:
 
-# récupère les courbes forces déplacements
-# pathDataFrame = Folder.Join([folder_file, "data_dfEssais.pickle"])
-pathDataFrame = Folder.Join([folder_file, "data_dfEssaisRedim.pickle"])
-with open(pathDataFrame, "rb") as file:
-    dfLoad = pd.DataFrame(pickle.load(file))
-# print(dfLoad)
-
-pathDataLoadMax = Folder.Join([folder_file, "data_df_loadMax.pickle"])
-with open(pathDataLoadMax, "rb") as file:
-    dfLoadMax = pd.DataFrame(pickle.load(file))
-# print(dfLoadMax)
-
-# récupère les proritétés identifiées
-pathParams = Folder.Join([folder_file, "params_Essais.xlsx"])
-dfParams = pd.read_excel(pathParams)
-# print(dfParams)
-
-folder = Folder.Join([Folder.New_File("Essais FCBA",results=True), "Grille"])
-
-# ----------------------------------------------
-# Simulations
-# ----------------------------------------------
-
-dCible = 1
-
-def DoSimu(e: int, g: int, l: int) -> tuple[int, int, int, float]:
-
+    # datas to do the simulation
+    f_crit = Functions.Get_loads_informations(idxEssai)[-1]
+    material = Functions.Get_material(idxEssai, thickness)
     Gc = Gc_array[g]
     l0 = l0_array[l]
 
-    # ----------------------------------------------
-    # Material
-    # ----------------------------------------------
-    forces = dfLoad["forces"][e]
-    deplacements = dfLoad["deplacements"][e]
-
-    f_max = np.max(forces)
-    f_crit = dfLoadMax["Load [kN]"][e]
-
-    print(f"\nEssai{e}, fcrit = {f_crit:.2f}, Gc = {Gc:.5e}, l0 = {l0:.5e}")
+    print(f"\nGc = {Gc:.3e}, l0 = {l0:.3e}")      
     
-    idx_crit = np.where(forces >= f_crit)[0][0]
-    dep_crit = deplacements[idx_crit]
-    
-    El = dfParams["El"][e]
-    Et = dfParams["Et"][e]
-    Gl = dfParams["Gl"][e]
-    # vl = dfParams["vl"][idxEssai]
-    vl = 0.02
-    vt = 0.44
-
-    rot = 90 * np.pi/180
-    axis_l = np.array([np.cos(rot), np.sin(rot), 0])
-    axis_t = np.cross(np.array([0,0,1]), axis_l)
-
-    material = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, ep)
-    
-    # mesh
-    yn = mesh.coordo[:, 1]
-    nodes_Lower = mesh.Nodes_Tags(["L0"])
-    nodes_Upper = mesh.Nodes_Tags(["L2"])
-    nodes0 = mesh.Nodes_Tags(["P0"])
-    
-    # construit le modèle d'endommagement
-    pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0)
-    
+    # construct phase field simulation
+    pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0)    
     simu = Simulations.Simu_PhaseField(mesh, pfm)
-    # simu.solver = "cg"
-    # simu.solver = "umfpack"
+    # simu.solver = "cg" 
 
+    # boundary conditions
     dofsY_Upper = simu.Bc_dofs_nodes(nodes_Upper, ["y"])
-
-    dep = -inc0
-
-    i = -1
-    fr = 0
+    inc0 = 5e-3 # inc0 = 8e-3 # platewith hole increment
+    inc1 = 1e-3 # inc1 = 2e-3
+    treshold = 0.2
     
-    while simu.damage.max() <= dCible:
+    dep = -inc0
+    i = -1
+    fr = 0    
+    while simu.damage.max() <= 1:
 
         i += 1
         
@@ -172,7 +102,7 @@ def DoSimu(e: int, g: int, l: int) -> tuple[int, int, int, float]:
         simu.add_dirichlet(nodes0, [0], ["x"])
         simu.add_dirichlet(nodes_Upper, [-dep], ["y"])
 
-        # resolution
+        # solve
         u, d, Kglob, convergence = simu.Solve(tolConv, convOption=convOption)
         simu.Save_Iter()
 
@@ -184,53 +114,48 @@ def DoSimu(e: int, g: int, l: int) -> tuple[int, int, int, float]:
 
     J: float = (fr - f_crit)/f_crit
 
-    return e, g, l, J
+    return g, l, J
 
 if __name__ == "__main__":
 
     nEssais = 17    
-    # essais = np.arange(nEssais+1)
-    essais = np.arange(0,5)
+    # idxEssais = np.arange(nEssais+1)
+    idxEssais = np.arange(0,1)
 
-    if doSimulation:
-
-        results_e = np.zeros((essais.size, N, N), dtype=float)
-        items = [(e,g,l) for e in essais for g in range(N) for l in range(N)]
-
-        with multiprocessing.Pool() as pool:
-            for res in pool.starmap(DoSimu, items):
-                e, g, l, J = tuple(res)
-                results_e[e, g, l] = J
-
-        print(results_e)
-
-    # ----------------------------------------------
-    # PostProcessing
-    # ----------------------------------------------
-    for e in essais:
+    for idxEssai in idxEssais:
 
         # ----------------------------------------------
         # Folder
         # ----------------------------------------------
-        add = "0" if e < 10 else ""
-        essai = f"Essai{add}{e}"
+        add = "0" if idxEssai < 10 else ""
+        essai = f"Essai{add}{idxEssai}"
         folder_essai = Folder.Join([folder, essai])
         if test:
             folder_essai = Folder.Join([folder_essai, "Test"])
         simu_name = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh}"        
         folder_save = Folder.Join([folder_essai, simu_name])        
+        print("\n"+folder_save.replace(folder, ''))
         print()
-        print(folder_save.replace(folder, ''))
 
         path = Folder.New_File("data.pickle", folder_save)
-        
-        # ----------------------------------------------
-        # Save / Load
-        # ----------------------------------------------
+
         if doSimulation:
 
             L0, GC = np.meshgrid(l0_array, Gc_array)
-            results = results_e[e]
+            
+            results = np.zeros((N, N), dtype=float)
+
+            if useParallel:
+                items = [(idxEssai,g,l) for g in range(N) for l in range(N)]
+                with multiprocessing.Pool(nProcs) as pool:
+                    for res in pool.starmap(DoSimu, items):
+                        g, l, J = tuple(res)
+                        results[g, l] = J
+            else:
+                for g in range(N):
+                    for l in range(N):
+                        J = DoSimu(idxEssai, g, l)[-1]
+                        results[g,l] = J
 
             with open(path, 'wb') as file:
                 data = {
