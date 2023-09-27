@@ -8,8 +8,12 @@ import PostProcessing as PostProcessing
 import Folder
 
 import matplotlib.pyplot as plt
+import multiprocessing
 
 # Display.Clear()
+
+useParallel = True
+nProcs = 4 # number of processes in parallel
 
 # ----------------------------------------------
 # Configurations
@@ -322,11 +326,10 @@ if __name__ == "__main__":
             Splits.append(split)
             Regus.append(regu)
 
-    for split, regu in zip(Splits, Regus):
-        DoSimu(split, regu)
-
-    # items = [(split, regu) for split, regu in zip(Splits, Regus)]
-    # import multiprocessing
-    # with multiprocessing.Pool() as pool:
-    #     for result in pool.starmap(DoSimu, items):
-    #         pass
+    if useParallel:
+        items = [(split, regu) for split, regu in zip(Splits, Regus)]        
+        with multiprocessing.Pool(nProcs) as pool:
+            for result in pool.starmap(DoSimu, items):
+                pass
+    else:
+        [DoSimu(split, regu) for split, regu in zip(Splits, Regus)]
