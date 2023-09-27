@@ -1,3 +1,5 @@
+"""Functions for importing samples data"""
+
 import Folder
 import pickle
 import pandas as pd
@@ -72,3 +74,15 @@ def DoMesh(L: float, H: float, D: float, l0: float, test: bool, optimMesh: bool)
     mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
 
     return mesh
+
+def Calc_a_b(forces, deplacements, fmax):
+    """Calcul des coefs de f(x) = a x + b"""
+
+    idxElas = np.where((forces <= fmax))[0]
+    idx1, idx2 = idxElas[0], idxElas[-1]
+    x1, x2 = deplacements[idx1], deplacements[idx2]
+    f1, f2 = forces[idx1], forces[idx2]
+    vect_ab = np.linalg.inv(np.array([[x1, 1],[x2, 1]])).dot(np.array([f1, f2]))
+    a, b = vect_ab[0], vect_ab[1]
+
+    return a, b

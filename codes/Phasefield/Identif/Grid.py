@@ -13,8 +13,6 @@ import Functions
 
 # Display.Clear()
 
-folder_file = Folder.Get_Path(__file__)
-
 folder = Folder.Join([Folder.New_File("Essais FCBA",results=True), "Grille"])
 
 useParallel = True
