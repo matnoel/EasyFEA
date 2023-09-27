@@ -13,6 +13,7 @@ from Geom import Point, Domain, Circle
 import Materials
 import Simulations
 import PostProcessing
+import Functions
 
 Display.Clear()
 
@@ -101,20 +102,8 @@ f_crit = dfLoadMax["Load [kN]"][idxEssai]
 idx_crit = np.where(forces >= f_crit)[0][0]
 dep_crit = displacements[idx_crit]
 
-def Calc_a_b(forces, deplacements, fmax):
-    """Calculating the coefficients of f(x) = a x + b"""
-
-    idxElas = np.where((forces <= fmax))[0]
-    idx1, idx2 = idxElas[0], idxElas[-1]
-    x1, x2 = deplacements[idx1], deplacements[idx2]
-    f1, f2 = forces[idx1], forces[idx2]
-    vect_ab = np.linalg.inv(np.array([[x1, 1],[x2, 1]])).dot(np.array([f1, f2]))
-    a, b = vect_ab[0], vect_ab[1]
-
-    return a, b
-
 # calculation of experimental stiffness
-k_exp, __ = Calc_a_b(forces, displacements, 15)
+k_exp, __ = Functions.Calc_a_b(forces, displacements, 15)
 
 # ----------------------------------------------
 # Mesh
@@ -188,7 +177,7 @@ u_num = simuElas.Solve()
 
 dofsY_upper = simuElas.Bc_dofs_nodes(nodes_upper, ["y"])
 fr_num = - np.sum(simuElas.Get_K_C_M_F()[0][dofsY_upper] @ u_num)/1000
-k_mat, __ = Calc_a_b(np.linspace(0, fr_num, 50), np.linspace(0, -np.mean(u_num[dofsY_upper]), 50), f_crit)
+k_mat, __ = Functions.Calc_a_b(np.linspace(0, fr_num, 50), np.linspace(0, -np.mean(u_num[dofsY_upper]), 50), f_crit)
 
 k_montage = 1/(1/k_exp - 1/k_mat)
 

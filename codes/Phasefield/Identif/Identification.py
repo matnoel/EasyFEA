@@ -152,7 +152,7 @@ if __name__ == '__main__':
         forces, deplacements, f_crit = Functions.Get_loads_informations(idxEssai)
         print(f"fcrit = {f_crit}")
 
-        mesh = Functions.DoMesh(L, H, D, l0_init, test, optimMesh)
+        mesh_init = Functions.DoMesh(L, H, D, l0_init, test, optimMesh)
 
         # ----------------------------------------------
         # Solve
@@ -161,10 +161,10 @@ if __name__ == '__main__':
             
             evals.clear() # clear evals to store new J
             if solver == 0:
-                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None, args=(mesh,idxEssai))
+                res = least_squares(DoSimu, x0, bounds=(lb, ub), verbose=0, ftol=ftol, xtol=None, gtol=None, args=(mesh_init,idxEssai))
             elif solver == 1:
                 bounds = [(l, u) for l, u in zip(lb, ub)]
-                res = minimize(DoSimu, x0, bounds=bounds, tol=ftol, args=(mesh,idxEssai))
+                res = minimize(DoSimu, x0, bounds=bounds, tol=ftol, args=(mesh_init,idxEssai))
 
             Gc = res.x[0]
             if detectL0:
