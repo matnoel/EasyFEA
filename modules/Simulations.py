@@ -33,17 +33,17 @@ def Load_Simu(folder: str, verbosity=False):
         The loaded simulation.
     """
 
-    filename = Folder.Join([folder, "simulation.pickle"])
-    erreur = Fore.RED + "The file simulation.pickle cannot be found." + Fore.WHITE
-    assert Folder.Exists(filename), erreur
+    path_simu = Folder.Join([folder, "simulation.pickle"])
+    error = Fore.RED + "The file simulation.pickle cannot be found." + Fore.WHITE
+    assert Folder.Exists(path_simu), error
 
-    with open(filename, 'rb') as file:
+    with open(path_simu, 'rb') as file:
         simu = pickle.load(file)
 
     assert isinstance(simu, _Simu)
 
     if verbosity:
-        print(Fore.CYAN + f'\nLoading:\n{filename}\n' + Fore.WHITE)
+        print(Fore.CYAN + f'\nLoading:\n{path_simu}\n' + Fore.WHITE)
         print(simu.mesh)
         print(simu.model)
     return simu
@@ -348,28 +348,22 @@ class _Simu(ABC):
         # Empty matrices in element groups
         self.mesh._ResetMatrix()
 
-        file_simu = "simulation.pickle"
-        file_summary = "summary.txt"
-        
-        # print(Fore.GREEN + f'\nSaving:' + Fore.WHITE)
-        # print(Fore.GREEN + f'  - {simuFile}' + Fore.WHITE)
-        print(f'\nSaving:')
-        print(f'  - {file_simu}')
+        folder_PythonEF = Folder.Get_Path(Folder.Get_Path()) # path the PythonEF folder
+        # this path will be removed in print
 
         # Save simulation
-        with open(Folder.New_File(file_simu, folder), "wb") as file:
+        path_simu = Folder.New_File("simulation.pickle", folder)
+        with open(path_simu, "wb") as file:
             pickle.dump(self, file)
+        print(Fore.GREEN + f'\n{path_simu.replace(folder_PythonEF,"")} (saved)' + Fore.WHITE)
         
-        summary = f"Simulation completed on: {datetime.now()}"
         # Save simulation summary
-        summary += str(self)
-        
-        # print(Fore.GREEN + f'  - {summaryFile} \n' + Fore.WHITE)
-        print(f'  - {file_summary} \n')
-
-        # Save summary
-        with open(Folder.New_File(file_summary, folder), 'w', encoding='utf8') as file:
+        path_summary = Folder.New_File("summary.txt", folder)
+        summary = f"Simulation completed on: {datetime.now()}"
+        summary += str(self)        
+        with open(path_summary, 'w', encoding='utf8') as file:
             file.write(summary)
+        print(Fore.GREEN + f'{path_summary.replace(folder_PythonEF,"")} (saved)' + Fore.WHITE)
 
     # TODO Enable simulation creation from the variational formulation ?
 
