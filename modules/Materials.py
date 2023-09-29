@@ -499,8 +499,8 @@ class Elas_IsotTrans(_Displacement_Model):
         text = f"{type(self).__name__}:"
         text += f"\nEl = {self.El:.2e}, Et = {self.Et:.2e}, Gl = {self.Gl:.2e}"
         text += f"\nvl = {self.vl}, vt = {self.vt}"
-        text += f"\naxis_l = {self.__axis1}"
-        text += f"\naxis_t = {self.__axis2}"
+        text += f"\naxis_l = {self.__axis1:.3f}"
+        text += f"\naxis_t = {self.__axis2:.3f}"
         if self.__dim == 2:
             text += f"\nplaneStress = {self.planeStress}"
             text += f"\nthickness = {self.thickness:.2e}"
@@ -763,8 +763,8 @@ class Elas_Anisot(_Displacement_Model):
     def __str__(self) -> str:
         text = f"\n{type(self).__name__}):"
         text += f"\n{self.C}"
-        text += f"\naxis1 = {self.__axis1}"
-        text += f"\naxis2 = {self.__axis2}"
+        text += f"\naxis1 = {self.__axis1:.3f}"
+        text += f"\naxis2 = {self.__axis2:.3f}"
         if self.__dim == 2:
             text += f"\nplaneStress = {self.planeStress}"
             text += f"\nthickness = {self.thickness:.2e}"
@@ -1258,8 +1258,8 @@ class PhaseField_Model(IModel):
         text += f'\n\n{type(self).__name__} :'
         text += f'\nsplit : {self.__split}'
         text += f'\nregularisation : {self.__regularization}'
-        text += f'\nGc : {self.__Gc:.2e}'
-        text += f'\nl0 : {self.__l0:.2e}'
+        text += f'\nGc : {self.__Gc:.4e}'
+        text += f'\nl0 : {self.__l0:.4e}'
         return text
     
     @staticmethod

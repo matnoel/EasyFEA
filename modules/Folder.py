@@ -100,6 +100,8 @@ def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2
     else:
         workFolder = Join([folder, name])
 
-    print(Fore.CYAN + '\nWorking in :\n'+ workFolder + Fore.WHITE)    
+    path_PythonEf = Get_Path(Get_Path())
+
+    print(Fore.CYAN + workFolder.replace(path_PythonEf,"") + Fore.WHITE)    
 
     return Join([path, workFolder])

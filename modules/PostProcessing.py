@@ -23,21 +23,20 @@ from datetime import datetime
 def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:str):
     """Save the values of load and displacements in the folder"""
     
+    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
     filename = Folder.Join([folder, "load and displacement.pickle"])
 
-    # print(Fore.GREEN + f'\nSaving :\n  - load and displacement.pickle' + Fore.WHITE)
-    print(f'\nSaving :\n  - load and displacement.pickle')
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
     values = {
         'load': load,
         'displacement' : displacement
     }
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
     with open(filename, "wb") as file:
         pickle.dump(values, file)
+    print(Fore.GREEN + f'{filename.replace(folder_PythonEF,"")} (saved)' + Fore.WHITE)
     
 def Load_Load_Displacement(folder:str, verbosity=False):
     """Load forces and displacements
@@ -50,8 +49,11 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     return load, displacement
     """
 
+    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
+
     filename = Folder.Join([folder, "load and displacement.pickle"])
-    assert Folder.Exists(filename), Fore.RED + "load and displacement.pickle does not exist" + Fore.WHITE
+    error = f"{filename.replace(folder_PythonEF,'')} does not exist"
+    assert Folder.Exists(filename), Fore.RED + error + Fore.WHITE
 
     with open(filename, 'rb') as file:
         values = pickle.load(file)

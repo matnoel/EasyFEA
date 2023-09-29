@@ -3024,7 +3024,7 @@ class Simu_PhaseField(_Simu):
 
         for inc, treshold, option in zip(listInc, listTreshold, listOption):
 
-            resumeChargement += f'\n\tinc = {inc} -> {option} < {treshold}'
+            resumeChargement += f'\n\tinc = {inc} -> {option} < {treshold:.4e}'
         
         self.__resumeChargement = resumeChargement
 
