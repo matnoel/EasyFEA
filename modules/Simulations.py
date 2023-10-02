@@ -3765,9 +3765,10 @@ class Simu_Beam(_Simu):
         summary += f"\n\nUx max = {dx.max():.2e}"
         summary += f"\nUx min = {dx.min():.2e}"
 
-        dy = self.Get_Result("uy", nodeValues=True)
-        summary += f"\n\nUy max = {dy.max():.2e}"
-        summary += f"\nUy min = {dy.min():.2e}"
+        if self.beamModel.dim > 1:
+            dy = self.Get_Result("uy", nodeValues=True)
+            summary += f"\n\nUy max = {dy.max():.2e}"
+            summary += f"\nUy min = {dy.min():.2e}"
 
         if self.dim == 3:
             dz = self.Get_Result("uz", nodeValues=True)
