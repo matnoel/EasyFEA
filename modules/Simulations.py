@@ -1491,7 +1491,7 @@ class _Simu(ABC):
         if result in availableResults:
             return True
         else:
-            print(f"\nFor a problem ({self.problemType}) result must be in : \n {availableResults}")
+            print(f"\nFor a {self.problemType} problem result must be in : \n {availableResults}")
             return False
 
     def Results_Set_Iteration_Summary(self) -> None:
