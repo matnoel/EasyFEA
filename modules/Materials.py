@@ -1544,13 +1544,13 @@ class PhaseField_Model(IModel):
         dim = self.__material.dim
 
         if dim == 2:
-            Ivoigt = np.array([1,1,0]).reshape((3,1))
+            Ivect = np.array([1,1,0]).reshape((3,1))
             taille = 3
         else:
-            Ivoigt = np.array([1,1,1,0,0,0]).reshape((6,1))
+            Ivect = np.array([1,1,1,0,0,0]).reshape((6,1))
             taille = 6
 
-        IxI = np.array(Ivoigt.dot(Ivoigt.T))
+        IxI = np.array(Ivect.dot(Ivect.T))
 
         spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
         spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
