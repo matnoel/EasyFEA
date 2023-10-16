@@ -642,6 +642,16 @@ class Elas_IsotTrans(_Displacement_Model):
         kt = El*Et/((2*(1-vtt)*El)-(4*vtl**2*Et))
 
         return kt
+    
+    @property
+    def axis_l(self) -> np.ndarray:
+        """Longitudinal axis"""
+        return self.__axis1.copy()
+    
+    @property
+    def axis_t(self) -> np.ndarray:
+        """Transverse axis"""
+        return self.__axis1.copy()
 
     def _Update(self) -> None:
         axis_l, axis_t = self.__axis1, self.__axis2
@@ -917,6 +927,16 @@ class Elas_Anisot(_Displacement_Model):
     @property
     def planeStress(self) -> bool:
         return self.__planeStress
+    
+    @property
+    def axis1(self) -> np.ndarray:
+        """axis1 vector"""
+        return self.__axis1.copy()
+    
+    @property
+    def axis2(self) -> np.ndarray:
+        """axis1 vector"""
+        return self.__axis1.copy()
 
 class _Beam_Model(IModel):
 
