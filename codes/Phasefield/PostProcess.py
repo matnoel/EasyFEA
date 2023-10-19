@@ -44,7 +44,6 @@ list_regu = ["AT1"] # ["AT1", "AT2"]
 list_simpli2D = ["DP"] # ["CP","DP"]
 list_solver = ["History"]
 
-
 # list_split = ["Bourdin","Amor","Miehe","He","Zhang"]
 # list_split = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
 # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
@@ -55,7 +54,7 @@ list_split = ["AnisotStress"]
 listOptimMesh=[True] # [True, False]
 
 listTol = [1e-0, 1e-1, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
-# listTol = [1e-0]
+# listTol = [1e-0, 1e-2]
 
 # listnL = [100] # [100] [100, 120, 140, 180, 200]
 listnL = [0]
@@ -115,7 +114,7 @@ for config in listConfig:
     text = split
     text = foldername.replace(Folder.Get_Path(foldername), "")[1:]    
 
-    # Loads force and displacement
+    # Loads force and displacement    
     try:
         load, displacement = PostProcessing.Load_Load_Displacement(foldername, False)
 
@@ -160,7 +159,7 @@ for config in listConfig:
         # Displays last damage
         Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=colorBarIsClose,
         folder=folder_save, filename=f"{split} tol{tolConv} last", plotMesh=False,
-        title=split+regu+f"_tol{tolConv}")        
+        title=f"{split}_{regu}_tol{tolConv}")
 
         # Recover snapshot iterations
         for dep in snapshots:
