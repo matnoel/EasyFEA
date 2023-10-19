@@ -22,12 +22,12 @@ folder_file = Folder.Get_Path(__file__)
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-idxEssai = 4
+idxEssai = 10
 
-test = False
+test = True
 solve = True
 optimMesh = True
-useContact = True
+useContact = False
 
 # geom
 h = 90
@@ -48,7 +48,7 @@ makeMovie = False
 # phase field
 split = "He" # he, Zhang, AnisotStress
 regu = "AT1"
-tolConv = 1e-0 # 1e-0, 1e-1, 1e-2
+tolConv = 1e-2 # 1e-0, 1e-1, 1e-2
 convOption = 2
 # (0, bourdin)
 # (1, crack energy)
@@ -181,7 +181,8 @@ k_mat, __ = Functions.Calc_a_b(np.linspace(0, fr_num, 50), np.linspace(0, -np.me
 
 k_montage = 1/(1/k_exp - 1/k_mat)
 
-Gc = 0.07 # mJ/mm2
+# Gc = 0.07 # mJ/mm2
+Gc = 7.6061e-02
 
 fibreVector = axis_t[:2]
 M = np.einsum("i,j->ij", fibreVector, fibreVector)
@@ -217,11 +218,15 @@ if solve:
         # axLoad.plot(deplacements/coef_a, forces, label="(1)")    
         
         displacements = displacements-forces/k_montage
-        axLoad.scatter(displacements[idx_crit], forces[idx_crit], marker='+', c='red', zorder=10)
-        axLoad.plot(displacements, forces, label="redim")
+        axLoad.scatter(displacements[idx_crit], forces[idx_crit], marker='.', c='red', zorder=10)
+        axLoad.text(displacements[idx_crit], forces[idx_crit],'$max(\phi)=1$',size=14,va='top')
+        axLoad.plot(displacements, forces, label="redim", c='blue')
+
 
         argMax = np.argmax(forces)
-        axLoad.scatter(displacements[argMax], forces[argMax], marker='+', c='blue', zorder=10)
+        axLoad.axhline(np.max(forces),c='gray',ls='--')
+        # axLoad.scatter(displacements[argMax], forces[argMax], marker='.', c='blue', zorder=10)
+        # axLoad.text(displacements[argMax], forces[argMax],'(2)')
 
         # axLoad.legend()
         axLoad.grid()
