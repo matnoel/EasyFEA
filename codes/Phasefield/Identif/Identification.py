@@ -37,8 +37,8 @@ lb = [0] if not detectL0 else [0, 0]
 ub = [GcMax] if not detectL0 else [GcMax, L/20]
 x0 = [Gc_init] if not detectL0 else [Gc_init, l0_init]
 
-solver = 0 # least_squares
-# solver = 1 # minimize
+# solver = 0 # least_squares
+solver = 1 # minimize
 
 # ftol = 1e-12
 # ftol = 1e-5
@@ -119,7 +119,11 @@ def DoSimu(x: np.ndarray, mesh: Mesh, idxEssai: int) -> float:
         
         simu.Results_Set_Iteration_Summary(i, fr, "kN", 0, True)
 
-    J = (fr - f_crit)/f_crit        
+    if solver == 0: # least_squares    
+        J = (fr - f_crit)/f_crit
+    elif solver == 1: # minimize
+        J = (fr - f_crit)**2/f_crit**2
+    
     print(f'\nfr = {fr}')
     print(f"J = {J:.5e}")        
     evals.append(J)
