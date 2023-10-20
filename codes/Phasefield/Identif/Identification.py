@@ -33,7 +33,7 @@ nL = 100 # 80, 50
 l0_init = L/nL
 Gc_init = 0.06 # mJ/mm2
 GcMax = 2
-lb = [0] if not detectL0 else [0, 0]
+lb = [1e-12] if not detectL0 else [1e-12, 1e-12]
 ub = [GcMax] if not detectL0 else [GcMax, L/20]
 x0 = [Gc_init] if not detectL0 else [Gc_init, l0_init]
 
@@ -132,7 +132,7 @@ def DoSimu(x: np.ndarray, mesh: Mesh, idxEssai: int) -> float:
 
 if __name__ == '__main__':
 
-    for idxEssai in np.arange(0,18):
+    for idxEssai in np.arange(0,9):
 
         # folder to save in
         add = "0" if idxEssai < 10 else ""
