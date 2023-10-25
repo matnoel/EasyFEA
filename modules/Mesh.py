@@ -202,7 +202,8 @@ class Mesh:
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(assembly_e, nPe * dof_n).reshape((Ne, -1))
+        linesVector_e = np.repeat(assembly_e, nPe * dof_n).reshape((Ne, -1))
+        return linesVector_e
 
     @property
     def columnsVector_e(self) -> np.ndarray:
@@ -214,7 +215,8 @@ class Mesh:
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
         Ne = self.Ne
-        return np.repeat(assembly_e, nPe * dof_n, axis=0).reshape((Ne, -1))
+        columnsVector_e = np.repeat(assembly_e, nPe * dof_n, axis=0).reshape((Ne, -1))
+        return columnsVector_e
 
     @property
     def linesScalar_e(self) -> np.ndarray:
