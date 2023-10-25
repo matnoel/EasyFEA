@@ -1511,9 +1511,24 @@ class _Simu(ABC):
         return "Unknown load"
         
     @staticmethod
-    def Results_Nodes_Values(mesh: Mesh, result_e: np.ndarray):
+    def Results_Nodes_Values(mesh: Mesh, result_e: np.ndarray) -> np.ndarray:
         """Get node values from element values.\n
-        For each node, the values of the elements around it are collected and averaged."""
+        The value of a node is calculated by averaging the values of the surrounding elements.
+
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        result_e : np.ndarray
+            element values (Ne, i)
+
+        Returns
+        -------
+        np.ndarray
+            nodes values (Nn, i)
+        """
+
+        assert mesh.Ne == result_e.shape[0], "Must be of size (Ne,i)"
 
         tic = Tic()
 
@@ -1530,14 +1545,14 @@ class _Simu(ABC):
 
         resultat_n = np.zeros((Nn, Ncolonnes))
 
+        connect_n_e = mesh.Get_connect_n_e()
+        nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(mesh.Nn,1)
+
         for c in range(Ncolonnes):
 
-            valeurs_e = result_e[:, c]
+            valeurs_e = result_e[:, c].reshape(mesh.Ne,1)
 
-            connect_n_e = mesh.Get_connect_n_e()
-            nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(mesh.Nn,1)
-            valeurs_n_e = connect_n_e.dot(valeurs_e.reshape(mesh.Ne,1))
-            valeurs_n = valeurs_n_e/nombreApparition
+            valeurs_n = (connect_n_e @ valeurs_e) * 1/nombreApparition            
 
             resultat_n[:,c] = valeurs_n.reshape(-1)
 

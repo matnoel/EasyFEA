@@ -2557,3 +2557,96 @@ def Heterogeneous_Array(array: np.ndarray):
     [SetMat(i,j) for i in range(dimI) for j in range(dimJ)]
 
     return newArray
+
+def TensorProduct(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
+    """Do the tensor product.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        array A
+    B : np.ndarray
+        array B 
+    symmetric : bool, optional
+        do symmetric product, by default False
+
+    Returns
+    -------
+    np.ndarray
+        the calculated tensor product
+    """
+        
+    sizeA = A.size
+    sizeB = B.size
+
+    assert sizeA is sizeB, "A and B must have the same dimensions"
+
+    dim = len(A.shape)
+
+    assert dim in [1,2], "A and B must be vectors (i) or matrices (ij)"
+
+    if dim == 1:
+        # Ai Bj
+        res = np.einsum('i,j->ij',A,B)
+    elif dim == 2:
+        if symmetric:
+            # 1/2 * (Aij Bjl + Ail Bjk)
+            res = 1/2 * (np.einsum('ik,jl->ijkl',A,B)+np.einsum('il,jk->ijkl',A,B))
+        else:
+            # Aij Bkl
+            res = np.einsum('ij,kl->ijkl', A, B)
+    else:
+        raise "Not implemented"
+    
+    return res
+
+def Project_Kelvin(A: np.ndarray) -> np.ndarray:
+    """Project the tensor A in Kelvin Mandel notation.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        tensor A
+
+    Returns
+    -------
+    np.ndarray
+        Projected tensor
+    """
+    
+    shapeA = A.shape
+    assert np.std(shapeA) == 0, "Must have the same number of indices in all dimensions."
+    orderA = len(shapeA)
+
+    e = np.array([[1,6,5],[6,2,4],[5,4,3]]) - 1
+    kron = lambda a,b: 1 if a==b else 0        
+
+    if orderA == 2:
+        # Aij -> AI
+        assert shapeA == (3,3), "Must be a (3,3) array"
+        
+        A_I = np.zeros(6)
+        def add(i,j) -> None:
+            A_I[e[i,j]] = np.sqrt((2-kron(i,j))) * A[i,j]
+
+        [add(i,j) for i in range(3) for j in range(3)]
+
+        res = A_I
+
+    elif orderA == 4:
+        # Aijkl -> AIJ
+        assert shapeA == (3,3,3,3), "Must be a (3,3,3,3) array"
+        
+        A_IJ = np.zeros((6,6))
+        def add(i,j,k,l) -> None:
+            A_IJ[e[i,j],e[k,l]] = np.sqrt((2-kron(i,j))*(2-kron(k,l))) * A[i,j,k,l]
+
+        [add(i,j,k,l) for i in range(3) for j in range(3) for k in range(3) for l in range(3)]
+
+        res = A_IJ
+
+    else:
+        raise "Not implemented"
+
+    return res
+
