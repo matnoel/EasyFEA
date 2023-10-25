@@ -16,12 +16,12 @@ import Functions
 folder = Folder.Join([Folder.New_File("Essais FCBA",results=True), "Grille"])
 
 useParallel = True
-nProcs = 4 # number of processes in parallel
+nProcs = 6 # number of processes in parallel
 
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-test = True
+test = False
 doSimulation = True
 optimMesh = True
 
@@ -47,7 +47,7 @@ convOption = 2 # energie tot
 tolConv = 1e-2
 # tolConv = 1e-3
 
-N = 3 # 10, 4
+N = 20 # 10, 4
 Gc_array = np.linspace(0.01, 0.2, N)
 l0_array = np.linspace(L/100, L/10, N)
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
     nEssais = 17    
     # idxEssais = np.arange(nEssais+1)
-    idxEssais = np.arange(0,1)
+    idxEssais = np.arange(10,11)
 
     for idxEssai in idxEssais:
 
