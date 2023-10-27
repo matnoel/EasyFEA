@@ -58,7 +58,7 @@ class IModel(ABC):
         self.__needUpdate = value
 
     @staticmethod
-    def _Test_Sup0(value: Union(float,np.ndarray)):
+    def _Test_Sup0(value: Union[float,np.ndarray]):
         errorText = "Must be > 0!"
         if isinstance(value, (float, int)):
             assert value > 0.0, errorText
@@ -66,7 +66,7 @@ class IModel(ABC):
             assert value.min() > 0.0, errorText
 
     @staticmethod
-    def _Test_In(value: Union(float,np.ndarray), bInf=-1, bSup=0.5):
+    def _Test_In(value: Union[float,np.ndarray], bInf=-1, bSup=0.5):
         errorText = f"Must be between ]{bInf};{bSup}["
         if isinstance(value, (float, int)):
             assert value > bInf and value < bSup, errorText
@@ -367,7 +367,7 @@ class Elas_Isot(_Displacement_Model):
         self.S = S
 
     @property
-    def E(self) -> Union(float,np.ndarray):
+    def E(self) -> Union[float,np.ndarray]:
         """Young modulus"""
         return self.__E
     
@@ -378,7 +378,7 @@ class Elas_Isot(_Displacement_Model):
         self.__E = value
 
     @property
-    def v(self) -> Union(float,np.ndarray):
+    def v(self) -> Union[float,np.ndarray]:
         """Poisson coefficient"""
         return self.__v
     
@@ -561,7 +561,7 @@ class Elas_IsotTrans(_Displacement_Model):
         return self.__planeStress
 
     @property
-    def Gt(self) -> Union(float,np.ndarray):
+    def Gt(self) -> Union[float,np.ndarray]:
         """Transverse shear modulus"""
         
         Et = self.Et
@@ -572,45 +572,45 @@ class Elas_IsotTrans(_Displacement_Model):
         return Gt
 
     @property
-    def El(self) -> Union(float,np.ndarray):
+    def El(self) -> Union[float,np.ndarray]:
         """Longitudinal Young modulus"""
         return self.__El
 
     @El.setter
-    def El(self, value: Union(float,np.ndarray)):
+    def El(self, value: Union[float,np.ndarray]):
         self._Test_Sup0(value)
         self.Need_Update()
         self.__El = value
 
     @property
-    def Et(self) -> Union(float,np.ndarray):
+    def Et(self) -> Union[float,np.ndarray]:
         """Transverse Young modulus"""
         return self.__Et
     
     @Et.setter
-    def Et(self, value: Union(float,np.ndarray)):
+    def Et(self, value: Union[float,np.ndarray]):
         self._Test_Sup0(value)
         self.Need_Update()
         self.__Et = value
 
     @property
-    def Gl(self) -> Union(float,np.ndarray):
+    def Gl(self) -> Union[float,np.ndarray]:
         """Longitudinal shear modulus"""
         return self.__Gl
 
     @Gl.setter
-    def Gl(self, value: Union(float,np.ndarray)):
+    def Gl(self, value: Union[float,np.ndarray]):
         self._Test_Sup0(value)
         self.Need_Update()
         self.__Gl = value
 
     @property
-    def vl(self) -> Union(float,np.ndarray):
+    def vl(self) -> Union[float,np.ndarray]:
         """Longitudinal Poisson ratio"""
         return self.__vl
 
     @vl.setter
-    def vl(self, value: Union(float,np.ndarray)):
+    def vl(self, value: Union[float,np.ndarray]):
         # -1<vt<1
         # -1<vl<0.5
         # Torquato 328
@@ -619,12 +619,12 @@ class Elas_IsotTrans(_Displacement_Model):
         self.__vl = value
     
     @property
-    def vt(self) -> Union(float,np.ndarray):
+    def vt(self) -> Union[float,np.ndarray]:
         """Transverse Poisson ratio"""
         return self.__vt
 
     @vt.setter
-    def vt(self, value: Union(float,np.ndarray)):
+    def vt(self, value: Union[float,np.ndarray]):
         # -1<vt<1
         # -1<vl<0.5
         # Torquato 328
@@ -633,7 +633,7 @@ class Elas_IsotTrans(_Displacement_Model):
         self.__vt = value
 
     @property
-    def kt(self) -> Union(float,np.ndarray):
+    def kt(self) -> Union[float,np.ndarray]:
         # Torquato 2002 13.3.2 (iii)
         El = self.El
         Et = self.Et
@@ -1206,7 +1206,7 @@ class PhaseField_Model(IModel):
         BoundConstrain = "BoundConstrain"
 
 
-    def __init__(self, material: _Displacement_Model, split: SplitType, regularization: RegularizationType, Gc: Union(float,np.ndarray), l0: Union(float,np.ndarray), solver=SolverType.History, A=None):
+    def __init__(self, material: _Displacement_Model, split: SplitType, regularization: RegularizationType, Gc: Union[float,np.ndarray], l0: Union[float,np.ndarray], solver=SolverType.History, A=None):
         """Creation of a gradient damage model
 
         Parameters
@@ -2479,18 +2479,18 @@ class Thermal_Model(IModel):
         self.Need_Update()
 
     @property
-    def k(self) -> Union(float,np.ndarray):
+    def k(self) -> Union[float,np.ndarray]:
         """thermal conduction [W m^-1]"""
         return self.__k
 
     @property
-    def c(self) -> Union(float,np.ndarray):
+    def c(self) -> Union[float,np.ndarray]:
         """specific heat capacity [J K^-1 kg^-1]"""
         return self.__c
 
 _erreurConstMateriau = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
 
-def Reshape_variable(variable: Union(int,float,np.ndarray), Ne: int, nPg: int):
+def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int):
     """Reshape the variable so that it is in the form ep.."""
 
     if isinstance(variable, (int,float)):
