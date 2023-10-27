@@ -1,7 +1,7 @@
 """Display module for simulations and meshes."""
 
 import platform
-from typing import List, cast
+from typing import cast, Union
 from colorama import Fore
 import os
 import numpy as np
@@ -16,7 +16,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import Folder
 
-def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coef=1.0, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255, max=None, min=None):
+def Plot_Result(obj, result: Union(str,np.ndarray), deformation=False, factorDef=4, coef=1.0, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255, max=None, min=None):
     """Display a simulation result.
 
     Parameters

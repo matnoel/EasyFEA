@@ -835,7 +835,7 @@ class Interface_Gmsh:
 
     def Mesh_2D(self, contour: Geom, inclusions: list[Geom]=[],
                 elemType=ElemType.TRI3,
-                cracks:list[Geom]=[], refineGeoms: list[Geom|str]=[], isOrganised=False, folder=""):
+                cracks:list[Geom]=[], refineGeoms: list[Union(Geom,str)]=[], isOrganised=False, folder=""):
         """Build the 2D mesh by creating a surface from a Geom object
 
         Parameters
@@ -894,7 +894,7 @@ class Interface_Gmsh:
 
     def Mesh_3D(self, contour: Geom, inclusions: list[Geom]=[],
                 extrude=[0,0,1], nLayers=1, elemType=ElemType.TETRA4,
-                cracks: list[Geom]=[], refineGeoms: list[Geom|str]=[], folder="") -> Mesh:
+                cracks: list[Geom]=[], refineGeoms: list[Union(Geom,str)]=[], folder="") -> Mesh:
         """Build the 3D mesh by creating a surface from a Geom object
 
         Parameters
@@ -950,7 +950,7 @@ class Interface_Gmsh:
     
     def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[],
                      axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, nLayers=180, elemType=ElemType.TETRA4,
-                     cracks: list[Geom]=[], refineGeoms: list[Geom|str]=[],
+                     cracks: list[Geom]=[], refineGeoms: list[Union(Geom,str)]=[],
                      folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
 
@@ -1046,7 +1046,7 @@ class Interface_Gmsh:
 
         return path
     
-    def __RefineMesh(self, refineGeoms: list[Domain|Circle|str], meshSize: float):
+    def __RefineMesh(self, refineGeoms: list[Union(Domain,Circle,str)], meshSize: float):
         """Sets a background mesh
 
         Parameters

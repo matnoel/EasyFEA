@@ -6,7 +6,7 @@ import pickle
 from colorama import Fore
 from datetime import datetime
 from types import LambdaType
-from typing import cast
+from typing import Union, cast
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -165,7 +165,7 @@ class _Simu(ABC):
         pass
 
     @abstractmethod
-    def Get_Result(self, option: str, nodeValues=True, iter=None) -> np.ndarray | float:
+    def Get_Result(self, option: str, nodeValues=True, iter=None) -> Union(np.ndarray, float):
         """Returns the result."""
         pass
 
@@ -310,12 +310,12 @@ class _Simu(ABC):
         return self.__model
 
     @property
-    def rho(self) -> float | np.ndarray:
+    def rho(self) -> Union(float, np.ndarray):
         """Mass density."""
         return self.__rho
 
     @rho.setter
-    def rho(self, value: float | np.ndarray):
+    def rho(self, value: Union(float, np.ndarray)):
         IModel._Test_Sup0(value)
         self.__rho = value
 
@@ -1797,7 +1797,7 @@ class Simu_Displacement(_Simu):
             self.set_v_n(displacementType, initZeros)
             self.set_a_n(displacementType, initZeros)
 
-    def Get_Result(self, result: str, nodeValues=True, iter=None) -> np.ndarray | float:
+    def Get_Result(self, result: str, nodeValues=True, iter=None) -> Union(np.ndarray, float):
         
         dim = self.dim
         Ne = self.mesh.Ne
@@ -2707,7 +2707,7 @@ class Simu_PhaseField(_Simu):
 
         self.phaseFieldModel.Need_Split_Update()
 
-    def Get_Result(self, result: str, nodeValues=True, iter=None) -> np.ndarray | float:
+    def Get_Result(self, result: str, nodeValues=True, iter=None) -> Union(np.ndarray, float):
         
         dim = self.dim
         Ne = self.mesh.Ne
@@ -3540,7 +3540,7 @@ class Simu_Beam(_Simu):
 
         self.set_u_n(self.problemType, results["displacement"])
 
-    def Get_Result(self, result: str, nodeValues=True, iter=None) -> np.ndarray | float:
+    def Get_Result(self, result: str, nodeValues=True, iter=None) -> Union(np.ndarray, float):
         
         if not self._Results_Check_Available(result): return None
 
@@ -3961,7 +3961,7 @@ class Simu_Thermal(_Simu):
         else:
             self.set_v_n(ModelType.thermal, np.zeros_like(self.thermal))
 
-    def Get_Result(self, result: str, nodeValues=True, iter=None) -> np.ndarray | float:
+    def Get_Result(self, result: str, nodeValues=True, iter=None) -> Union(np.ndarray, float):
         
         if not self._Results_Check_Available(result): return None
 
