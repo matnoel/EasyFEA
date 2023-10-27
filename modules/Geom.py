@@ -1,5 +1,6 @@
 """Module for creating geometric objects."""
 
+from typing import Union
 import numpy as np
 
 class Point:    
@@ -376,7 +377,7 @@ class Contour(Geom):
 
     __nbContour = 0
 
-    def __init__(self, geoms: list[Line|CircleArc], isHollow=True):
+    def __init__(self, geoms: list[Union(Line,CircleArc)], isHollow=True):
         """Create a contour from a list of lines or arcs.
 
         Parameters
