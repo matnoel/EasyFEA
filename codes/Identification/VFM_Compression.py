@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
-
+from typing import Union
 from scipy.linalg import lstsq
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -165,7 +165,7 @@ def Get_A_B_C_D_E(virtualX, virtualY, nodes=mesh.nodes, pltSol=False, f=None, pl
     C = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E11_e_pg * E22_exp + E22_e_pg * E11_exp)
     D = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E12_e_pg * E12_exp)
 
-    if isinstance(f, float|int):
+    if isinstance(f, Union[float,int]):
         uloc = u_n[assembly1D]
         E = np.einsum("ep,p,ei->", jacob1D_e_pg, weight1D_pg, uloc) * f * b
         pass

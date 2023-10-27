@@ -377,7 +377,7 @@ class Contour(Geom):
 
     __nbContour = 0
 
-    def __init__(self, geoms: list[Union(Line,CircleArc)], isHollow=True):
+    def __init__(self, geoms: list[Union[Line,CircleArc]], isHollow=True):
         """Create a contour from a list of lines or arcs.
 
         Parameters
