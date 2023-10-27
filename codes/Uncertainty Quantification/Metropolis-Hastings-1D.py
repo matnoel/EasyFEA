@@ -57,15 +57,19 @@ def Metropolis_Hastings_1D(x_0: float, sig: float, burn_in: int, nSamples: int):
         if isAccepted and i >= burn_in:
             samples.append(x_t)
 
-    return np.array(samples)
+    assert len(samples) > 0
+
+    rejectRatio = 1 - len(samples)/nSamples
+
+    return np.array(samples), rejectRatio
 
 
 nSamples = 200000
 burn_in = 1000
 
-samples = Metropolis_Hastings_1D(x_0, sig, burn_in, nSamples)
+samples, rejectRatio = Metropolis_Hastings_1D(x_0, sig, burn_in, nSamples)
 
-rejectRatio = 1 - samples.shape[0]/nSamples
+
 
 print(f"rejectRatio = {rejectRatio*100:.3f}%")
 

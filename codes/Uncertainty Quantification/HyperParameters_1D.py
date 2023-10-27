@@ -7,7 +7,7 @@ from Display import plt, np
 
 Display.Clear()
 
-n = 20
+n = 20000
 x = np.linspace(1e-12,500,1000)
 
 a = 90 # shape

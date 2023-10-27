@@ -61,15 +61,19 @@ def Metropolis_Hastings_2D(z_0: np.ndarray, cov: np.ndarray, burn_in: int, nSamp
         if isAccepted and i >= burn_in:
             samples.append(z_t)
 
-    return np.array(samples)
+    assert len(samples) > 0
+
+    rejectRatio: float = 1 - len(samples)/nSamples
+
+    return np.array(samples), rejectRatio
 
 
 nSamples = 10000
 burn_in = 100
 
-samples = Metropolis_Hastings_2D(z_0, sig, burn_in, nSamples)
+samples, rejectRatio = Metropolis_Hastings_2D(z_0, sig, burn_in, nSamples)
 
-rejectRatio = 1 - samples.shape[0]/nSamples
+
 
 print(f"rejectRatio = {rejectRatio*100:.3f}%")
 
@@ -83,7 +87,7 @@ print(f"rejectRatio = {rejectRatio*100:.3f}%")
 ax2 = plt.subplots()[1]
 ax2.contourf(Z1, Z2, pZ(Z1,Z2))
 ax2.scatter(*samples.T,c='red',marker='.')
-ax2.set_xlabel("z1"); ax2.set_ylabel("z2")
+ax2.set_xlabel("z1"); ax2.set_ylabel("z2"); ax2.set_title('tirages')
 
 
 plt.show()
