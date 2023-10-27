@@ -16,7 +16,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import Folder
 
-def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coef=1.0, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255):
+def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coef=1.0, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255, max=None, min=None):
     """Display a simulation result.
 
     Parameters
@@ -50,6 +50,10 @@ def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coe
         color bar is displayed close to figure, by default False
     nColors : int, optional
         number of colors for colorbar
+    max: float, optional
+        maximum value in the colorbar, by default None
+    min: float, optional
+        minimum value in the colorbar, by default None
 
     Returns
     -------
@@ -157,8 +161,8 @@ def Plot_Result(obj, result: str|np.ndarray, deformation=False, factorDef=4, coe
             if max < 1:
                 max = 1        
     else:
-        max = np.max(valeurs)+1e-12
-        min = np.min(valeurs)-1e-12    
+        max = np.max(valeurs)+1e-12 if max is None else max
+        min = np.min(valeurs)-1e-12 if min is None else min
     levels = np.linspace(min, max, nColors)
 
     if inDim in [1,2] and not use3DBeamModel:
