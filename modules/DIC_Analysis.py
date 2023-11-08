@@ -577,13 +577,16 @@ def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0):
     coordoSeuil[:,0] = xColor[filtre]
     coordoSeuil[:,1] = yColor[filtre]
 
-    XC = np.mean(coordoSeuil[:,0])
-    YC = np.mean(coordoSeuil[:,1])
-    rayons = [np.max(coordoSeuil[:,0]) - XC]
-    rayons.append(XC - np.min(coordoSeuil[:,0]))
-    rayons.append(YC - np.min(coordoSeuil[:,1]))
-    rayons.append(np.max(coordoSeuil[:,1]) - YC)
-    
-    rayon = np.max(rayons) * radiusCoef
+    XC: float = np.mean(coordoSeuil[:,0])
+    YC: float = np.mean(coordoSeuil[:,1])
+
+    rayons = np.linalg.norm(coordoSeuil - [XC,YC],axis=1)
+    rayon: float = np.max(rayons)
+
+    # rayons = [np.max(coordoSeuil[:,0]) - XC]
+    # rayons.append(XC - np.min(coordoSeuil[:,0]))
+    # rayons.append(YC - np.min(coordoSeuil[:,1]))
+    # rayons.append(np.max(coordoSeuil[:,1]) - YC)    
+    # rayon = np.max(rayons) * radiusCoef
 
     return XC, YC, rayon
