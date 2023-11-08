@@ -41,7 +41,7 @@ for param in params:
     param_latex = param.replace("l","_L")
     param_latex = param_latex.replace("t","_T")    
     ax.set_title(f"${param_latex}$" + unite)
-    ax.set_xlabel("Essais")
+    ax.set_xlabel("Samples")
     ax.set_xticks(essais)
 
     Display.Save_fig(folder_save, param + " essais")    

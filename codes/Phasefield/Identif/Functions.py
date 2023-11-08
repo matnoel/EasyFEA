@@ -111,21 +111,28 @@ if __name__ == "__main__":
 
     # df.
 
-    ax_histo = plt.subplots()[1]
-    ax_histo.bar(df.index, df["f_crit"].values)
-    ax_histo.set_xticks(df.index)
-    ax_histo.set_xlabel("Samples")
-    ax_histo.set_ylabel("Crack initiation forces")
+    axFcrit = plt.subplots()[1]
+    axFcrit.bar(df.index, df["f_crit"].values)
+    axFcrit.set_xticks(df.index)
+    axFcrit.set_xlabel("Samples")
+    axFcrit.set_ylabel("Crack initiation forces")
     Display.Save_fig(folderIden, 'crack init essais')
-    # ax_histo.tick_params(axis='x', labelrotation = 45)
+    # axFcrit.tick_params(axis='x', labelrotation = 45)
     # plt.xlim([0, None])
     # plt.ylim([0, y_max])
 
-    errors = [2,6,8,9,11,13,17]
-    # errors = []
+    axGc = plt.subplots()[1]
+    axGc.bar(df.index, df["Gc"].values)
+    axGc.set_xticks(df.index)
+    # axGc.set_xlabel("Samples", fontsize=14)
+    axGc.set_xlabel("Samples")
+    axGc.set_ylabel("$G_c \ [mJ \ mm^{-2}]$")
+    Display.Save_fig(folderIden, 'Gc essais')
 
-    df.drop(errors, axis=0, inplace=True)    
+    # errors = [2,6,8,9,11,13,17]
+    errors = []
 
+    df.drop(errors, axis=0, inplace=True)
 
     ax_fit = plt.subplots()[1]
     ax_fit.set_xlabel('$G_c$')
