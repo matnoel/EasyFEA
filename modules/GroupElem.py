@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod, abstractproperty
 from enum import Enum
+from scipy.optimize import least_squares
 
 from Geom import *
 from Gauss import Gauss
@@ -1475,8 +1476,8 @@ class GroupElem(ABC):
 
         return self.__Get_Mapping(coordinates, elements)
     
-    def __Get_coordoNearElem_idx(self, coordinates_n: np.ndarray, coordElem: np.ndarray) -> np.ndarray:
-        """Retrieves indexes in coordinates_n that are within the element's bounds.
+    def __Get_coordoNear(self, coordinates_n: np.ndarray, coordElem: np.ndarray, dims: np.ndarray) -> np.ndarray:
+        """Retrieves indexes in coordinates_n that are within the coordElem's bounds.
 
         Parameters
         ----------
@@ -1484,6 +1485,8 @@ class GroupElem(ABC):
             coordinates to check
         coordElem : np.ndarray
             element's bounds
+        dims : np.ndarray
+            (nX, nY, nZ) = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1
 
         Returns
         -------
@@ -1491,23 +1494,20 @@ class GroupElem(ABC):
             indexes in element's bounds. 
         """
 
-        # Detects whether coordinates come from a grid
-        repX = np.unique(coordinates_n[:,0], return_counts=True)[1]; stdX = np.std(repX)
-        repY = np.unique(coordinates_n[:,1], return_counts=True)[1]; stdY = np.std(repY)
-        repZ = np.unique(coordinates_n[:,2], return_counts=True)[1]; stdZ = np.std(repZ)        
+        nX, nY, nZ = dims
+        
+        # If all the coordinates appear the same number of times and the coordinates are of type int, we are on a grid/image.
+        testShape = nX * nY - coordinates_n.shape[0] == 0
+        usePixel = coordinates_n.dtype==int and testShape and nZ == 1
 
-        if coordinates_n.dtype==int and stdX == 0 and stdY == 0 and stdZ == 0:                
-            # here coordinates_n comes from a grid
-            
-            # here we retrieve the number of Y and X layers
-            nY = int(np.mean(repX))
-            nX = int(np.mean(repY))
+        if usePixel:
+            # here coordinates_n are pixels
 
             xe = np.arange(np.floor(coordElem[:,0].min()), np.ceil(coordElem[:,0].max()), dtype=int)
             ye = np.arange(np.floor(coordElem[:,1].min()), np.ceil(coordElem[:,1].max()), dtype=int)
             Xe, Ye = np.meshgrid(xe,ye)
-            
-            idx = np.ravel_multi_index(np.concatenate(([Ye.ravel()],[Xe.ravel()])), (nY, nX))
+
+            idx = np.ravel_multi_index(np.concatenate(([Ye.ravel()],[Xe.ravel()])), (nY, nX))            
         
         else:
 
@@ -1523,6 +1523,13 @@ class GroupElem(ABC):
     def __Get_Mapping(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
         """This function locates coordinates in elements.
         We return the detected coordinates, the connectivity matrix between element and coordinates and the coordinates of these nodes in the reference elements, so that we can evaluate the shape functions."""
+
+        # # Calculates the number of times a coordinate appears
+        # repX = np.unique(coordinates_n[:,0], return_counts=True)[1]
+        # repY = np.unique(coordinates_n[:,1], return_counts=True)[1]
+        # repZ = np.unique(coordinates_n[:,2], return_counts=True)[1]
+        # dims = (repX, repY, repZ) # same as below
+        dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1 # faster
         
         # retrieves informations from element group
         dim = self.dim
@@ -1530,7 +1537,6 @@ class GroupElem(ABC):
         coordo = self.coordo
         connect = self.connect
         sysCoord_e = self.sysCoord_e # base change matrix for each element
-        
         matrixType = MatrixType.rigi
         invF_e_pg = self.Get_invF_e_pg(matrixType)
         nPg = invF_e_pg.shape[1]
@@ -1542,25 +1548,22 @@ class GroupElem(ABC):
         diff_e = jacobian_e_pg.min(1) * 1/jacobian_e_pg.max(1)
         error_e = 1 - diff_e # a perfect element has an error max <= 1e-12
         # a distorted element has a max error greater than 0
+        useIterative = np.max(error_e) > 1e-12        
         
         # connection matrix containing the nodes used by the elements
         connect_e_n = []
         # node coordinates in the element's reference base
         coordoInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
         # nodes identified
-        nodes = [] 
+        nodes = []        
 
-        elems = []
-        
         def ResearchFunction(e: int):
-
-            useIterative = np.max(error_e[e]) > 1e-12
-
+    
             # Retrieve element node coordinates
             coordoElem: np.ndarray = coordo[connect[e]]
 
             # Retrieves indexes in coordinates_n that are within the element's bounds
-            idxNearElem = self.__Get_coordoNearElem_idx(coordinates_n, coordoElem)
+            idxNearElem = self.__Get_coordoNear(coordinates_n, coordoElem, dims)
 
             # Returns the index of nodes around the element that meet all conditions
             idxInElem = self.Get_pointsInElem(coordinates_n[idxNearElem], e)
@@ -1568,6 +1571,8 @@ class GroupElem(ABC):
             # nodes that meet all conditions (nodes in the element e)
             nodesInElement = idxNearElem[idxInElem]
 
+            # project coordinates in the basis of the element if dim != inDim
+            # its the case when a 2D mesh is in 3D space
             coordoElemBase = coordoElem.copy()
             coordinatesBase_n: np.ndarray = coordinates_n[nodesInElement].copy()
             if dim != inDim:            
@@ -1578,15 +1583,11 @@ class GroupElem(ABC):
             ksi0 = self.origin # origin of the reference element (ksi, eta)            
             x0  = coordoElemBase[0,:dim] # orign of the real element (x,y)
             # xPs = coordinates_n[nodesInElement,:dim] # points coordinates
-            xPs = coordinatesBase_n[:,:dim] # points coordinates
+            xPs = coordinatesBase_n[:,:dim] # points coordinates            
             
-            useIterative = False if idxInElem.size == 0 else useIterative
-            useIterative = False
-
+            # points coordinates in the reference base
             if useIterative:
-
-                from scipy.optimize import least_squares                
-
+                
                 def Eval(ksi: np.ndarray, xP):
                     dN = GroupElem.Evaluates_Functions(dN_tild, ksi.reshape(1, -1))
                     F = dN[0] @ coordoElemBase[:,:dim]                    
@@ -1600,71 +1601,24 @@ class GroupElem(ABC):
                     ksiP.append(res.x)
 
                 ksiP = np.array(ksiP)
-
             else:
-                # # points coordinates in the reference base
-                # ksiP: np.ndarray = ksi0 + (xPs - x0) @ invF_e_pg[e,0]
+                if nPg == 1:
+                    # invF_e_pg is constant in the element
+                    ksiP: np.ndarray = ksi0 + (xPs - x0) @ invF_e_pg[e,0]
 
-                # If the element is distorted, it is necessary to choose the closest integration points. Because invF_e_pg is not constant in the element
+                else:
+                    # If the element have more than 1 integration point, it is necessary to choose the closest integration points. Because invF_e_pg is not constant in the element
 
-                # for each node detected, we'll calculate its distance from all integration points and see where it's closest
-                dist = np.zeros((xPs.shape[0], nPg))
-                for p in range(nPg):
-                    dist[:,p] = np.linalg.norm(xPs - gaussCoord_e_pg[e, p, :dim], axis=1)
-                invMin = invF_e_pg[e, np.argmin(dist, axis=1)]
+                    # for each node detected, we'll calculate its distance from all integration points and see where it's closest
+                    dist = np.zeros((xPs.shape[0], nPg))
+                    for p in range(nPg):
+                        dist[:,p] = np.linalg.norm(xPs - gaussCoord_e_pg[e, p, :dim], axis=1)
+                    invMin = invF_e_pg[e, np.argmin(dist, axis=1)]
 
-                ksiP: np.ndarray = ksi0 + np.einsum('ni,nij->nj',(xPs - x0), invMin, optimize='optimal')
-
-                # tests = ksiP - (ksi0 + (xPs - x0) @ invF_e_pg[e,0])
-                # pass
-
-            nodesCoordinatesInElemRef = ksiP.copy()
-
-            # phi_n_nPe = np.zeros((ksiP.shape[0], self.nPe)) # functions evaluated at identified coordinates
-            # for n in range(self.nPe):
-            #     phi_n_nPe[:,n] = self._Ntild()[n,0](*ksiP.T)
-
-            # if np.any(phi_n_nPe[:,n] >= 1-1e-12) or np.any(phi_n_nPe[:,n] < -1e-12):
-
-            #     import matplotlib.pyplot as plt
-
-            #     idx = np.where((phi_n_nPe[:,n] >= 1-1e-12)&(phi_n_nPe[:,n] < -1e-12))[0]
-
-            #     axReel = plt.subplots()[1]
-            #     axReel.set_title('elem reel'); axReel.axis('equal')
-            #     corners = coordoElem[:,:dim]
-            #     axReel.scatter(*corners.T)
-            #     [axReel.text(c[0], c[1], p) for p, c in enumerate(corners)]
-            #     axReel.scatter(*xPs.T)
-            #     [axReel.text(c[0], c[1], p) for p, c in enumerate(xPs)]                
-
-            #     axRef = plt.subplots()[1]
-            #     axRef.set_title('elem ref'); axRef.axis('equal')
-            #     if useIterative:
-            #         # dist = np.zeros((coordoElem.shape[0], nPg))
-            #         # for p in range(nPg):
-            #         #     dist[:,p] = np.linalg.norm(coordoElem[:,:dim] - gaussCoord_e_pg[e, p, :dim], axis=1)
-            #         # invMin = invF_e_pg[e, np.argmin(dist, axis=1)]
-            #         # corners = ksi0 + np.einsum('ni,nij->nj',(coordoElem[:,:dim] - x0), invMin)
-
-            #         corners = np.array([least_squares(Eval, 0*xP, args=(xP,)).x for xP in coordoElem[:,:dim]])
-            #         # corners = (coordoElem[:,:dim] - x0) @ invF_e_pg[e,0] + ksi0
-            #     else:
-            #         corners = (coordoElem[:,:dim] - x0) @ invF_e_pg[e,0] + ksi0
-            #     axRef.scatter(*corners.T)
-            #     [axRef.text(c[0], c[1], p) for p, c in enumerate(corners)]
-            #     axRef.scatter(*ksiP.T)
-            #     [axRef.text(c[0], c[1], p) for p, c in enumerate(ksiP)]
-
-            #     pass
-
-            #     plt.close(axReel.figure)
-            #     plt.close(axRef.figure)
-
+                    ksiP: np.ndarray = ksi0 + np.einsum('ni,nij->nj',(xPs - x0), invMin, optimize='optimal')
+            
             connect_e_n.append(nodesInElement)
-
-            coordoInElem_n[nodesInElement,:] = nodesCoordinatesInElemRef
-
+            coordoInElem_n[nodesInElement,:] = ksiP.copy()
             nodes.extend(nodesInElement)
 
         [ResearchFunction(e) for e in elements_e]
