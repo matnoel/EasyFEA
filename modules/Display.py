@@ -640,7 +640,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor
 
     return ax
 
-def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
+def Plot_BoundaryConditions(simu, folder="", ax=None) -> plt.Axes:
     """Plot boundary conditions.
 
     Parameters
@@ -649,6 +649,8 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
         simulation
     folder : str, optional
         save folder, by default ""
+    ax : plt.Axes, optional
+        Axis to use, default None
 
     Returns
     -------
@@ -671,7 +673,8 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
     displays = simu.Bc_Display # boundary conditions for display
     Conditions.extend(displays)
 
-    ax = Plot_Mesh(simu, alpha=0)
+    if ax is None:
+        ax = Plot_Mesh(simu, alpha=0)
 
     assert isinstance(ax, plt.Axes)
 
@@ -692,8 +695,10 @@ def Plot_BoundaryConditions(simu, folder="") -> plt.Axes:
             valeurs = np.round(list(np.sum(valeurs_ddls.copy().reshape(-1, len(directions)), axis=0)), 2)
         
         description = bc_Conditions.description
+        
+        directions_str = str(directions).replace("'","")
 
-        titre = f"{description} {directions}"
+        titre = f"{description} {directions_str}"
 
         if problemType in ["damage","thermal"]:
             marker='o'

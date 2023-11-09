@@ -15,7 +15,8 @@ import Folder
 
 class DIC_Analysis:
 
-    def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray, loads=None, displacements=None, lr=0.0, verbosity=False):
+    def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray,
+                 loads: np.ndarray=None, displacements: np.ndarray=None, lr=0.0, verbosity=False):
         """DIC Analysys.
 
         Parameters
@@ -26,7 +27,7 @@ class DIC_Analysis:
             index of reference image in forces
         imgRef : np.ndarray
             reference image
-        forces : np.ndarray, optional
+        loads : np.ndarray, optional
             force vectors, by default None
         displacements : np.ndarray, optional
             displacement vectors, by default None
@@ -54,7 +55,7 @@ class DIC_Analysis:
         self._meshCoef = None
         """scaled mesh."""
         self._coef = 1.0
-        """scaling coef."""
+        """scaling coef (image scale [mm/px])."""
 
         self.__Nn = mesh.Nn
         self.__dim = mesh.dim
@@ -154,14 +155,12 @@ class DIC_Analysis:
         colonnes_Phi = []
         values_phi = []
 
-        # Evaluation of shape functions for the pixels used
-        arrayCoordInElem = coordInElem
-        phi_n_pixels = np.array([np.reshape([Ntild[n,0](arrayCoordInElem[:,0], arrayCoordInElem[:,1])], -1) for n in range(mesh.nPe)])
+        # Evaluation of shape functions for the pixels used        
+        phi_n_pixels = np.array([np.reshape([Ntild[n,0](coordInElem[:,0], coordInElem[:,1])], -1) for n in range(mesh.nPe)])
          
         tic = TicTac.Tic()
 
         # TODO possible without the loop?
-
         for e in range(mesh.Ne):
 
             # Retrieve element nodes and pixels
@@ -171,15 +170,15 @@ class DIC_Analysis:
             phi = phi_n_pixels[:,pixels]
 
             # line construction
-            lignesX = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
-            lignesY = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
+            linesX = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
+            linesY = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
             # construction of columns in which to place values
             colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).reshape(-1)            
 
-            lignes_x.extend(lignesX)
-            lignes_y.extend(lignesY)
+            lignes_x.extend(linesX)
+            lignes_y.extend(linesY)
             colonnes_Phi.extend(colonnes)
-            values_phi.extend(np.reshape(phi, -1))
+            values_phi.extend(np.reshape(phi, -1))        
 
         self._Phi_x = sparse.csr_matrix((values_phi, (lignes_x, colonnes_Phi)), (nDof, coordInElem.shape[0]))
         """Shape function matrix x (nDof, nPixels)"""
@@ -435,19 +434,19 @@ class DIC_Analysis:
 
         return r_dic
 
-    def Set_meshCoef_coef(self, mesh: Mesh, coef: float):
+    def Set_meshCoef_coef(self, mesh: Mesh, imgScale: float):
         """Set mesh size and scaling factor
 
         Parameters
         ----------
         mesh : Mesh
             mesh
-        coef : float
-            scaling coefficient
+        imgScale : float
+            scaling coefficient [mm/px]
         """
         assert isinstance(mesh, Mesh) and mesh.dim == 2, "Must be a 2D mesh."
         self._meshCoef = mesh
-        self._coef = coef
+        self._coef = imgScale
 
 
     def __Calc_pixelDisplacement(self, u: np.ndarray):
