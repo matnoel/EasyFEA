@@ -47,8 +47,8 @@ convOption = 2 # energie tot
 tolConv = 1e-2
 # tolConv = 1e-3
 
-N = 20 # 10, 4
-Gc_array = np.linspace(0.01, 0.2, N)
+N = 25 # 10, 4
+Gc_array = np.linspace(0.01, 0.3, N)
 l0_array = np.linspace(L/100, L/10, N)
 
 # ----------------------------------------------
