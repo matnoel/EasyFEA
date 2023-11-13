@@ -1680,7 +1680,7 @@ class GroupElem_Factory:
 
     @staticmethod
     def Get_ElemInFos(gmshId: int) -> tuple:
-        """return elemType, nPe, dim, order, nbFaces
+        """return elemType, nPe, dim, order, nbFaces associated with the gmsh id.
         """
         if gmshId == 15:
             elemType = ElemType.POINT; nPe = 1; dim = 0; order = 0; nbFaces = 0; nbCorners = 0
@@ -1981,6 +1981,24 @@ class GroupElem_Factory:
     
     @staticmethod
     def Create_GroupElem(gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray) -> GroupElem:
+        """Create an element group
+        
+        Parameters
+        ----------
+        gmshId : int
+            id gmsh
+        connect : np.ndarray
+            connection matrix storing nodes for each element (Ne, nPe)
+        coordoGlob : np.ndarray
+            node coordinates
+        nodes : np.ndarray
+            nodes used by the element group
+        
+        Returns
+        -------
+        GroupeElem
+            the element group
+        """
 
         params = (gmshId, connect, coordoGlob, nodes)
 

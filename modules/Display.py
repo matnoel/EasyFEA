@@ -544,11 +544,11 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
     coordo = mesh.coordoGlob
 
     if mesh.inDim == 2:
-        ax.scatter(coordo[nodes,0], coordo[nodes,1], marker=marker, c=c, zorder=2.5)
+        ax.plot(coordo[nodes,0], coordo[nodes,1], ls='', marker=marker, c=c, zorder=2.5)
         if showId:            
             [ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud), c=c) for noeud in nodes]
     elif mesh.inDim == 3:            
-        ax.scatter(coordo[nodes,0], coordo[nodes,1], coordo[nodes,2], marker=marker, c=c, zorder=2.5)
+        ax.plot(coordo[nodes,0], coordo[nodes,1], coordo[nodes,2], ls='', marker=marker, c=c, zorder=2.5)
         if showId:
             [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in nodes]
     

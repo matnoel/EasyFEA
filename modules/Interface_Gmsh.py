@@ -1296,117 +1296,74 @@ class Interface_Gmsh:
         dict_groupElem = {}
         elementTypes = gmsh.model.mesh.getElementTypes()
         nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
-
-        nodes = np.array(nodes-1) #node number
-        Nn = nodes.shape[0] #Number of nodes
+        
+        nodes = np.array(nodes, dtype=int) - 1 # node numbers
+        Nn = nodes.shape[0] # Number of nodes
 
         # Organize nodes from smallest to largest
-        sortedIndices = np.argsort(nodes)
-        sortedNodes = nodes[sortedIndices]
+        sortedIdx = np.argsort(nodes)
+        sortedNodes = nodes[sortedIdx]
 
         # Here we will detect jumps in node numbering
-        # Example 0 1 2 3 4 5 6 8 Here we will detect the jump between 6 and 8.
-        ecart = sortedNodes - np.arange(Nn)
+        # Example nodes = [0 1 2 3 4 5 6 8]
+        
+        # Here we will detect the jump between 6 and 8.
+        # diff = [0 0 0 0 0 0 0 1]
+        diff = sortedNodes - np.arange(Nn)
+        jumpInNodes = np.max(diff) > 0 # detect if there is a jump in the nodes
 
-        # Nodes to be changed are those where the deviation is > 0
-        noeudsAChanger = np.where(ecart>0)[0]
+        # Array that stores the changes        
+        # For example below -> Changes = [0 1 2 3 4 5 6 0 7]
+        # changes is used such correctedNodes = changes[nodes]
+        changes = np.zeros(nodes.max()+1, dtype=int)        
+        changes[sortedNodes] = sortedNodes - diff
 
-        # Builds a matrix in which we will store in the first column
-        # the old values and in the 2nd the new ones
-        changes = np.zeros((noeudsAChanger.shape[0],2), dtype=int)
-        changes[:,0] = sortedNodes[noeudsAChanger]
-        changes[:,1] = noeudsAChanger
-
-        # Apply the change
-        nodes = np.array(sortedNodes - ecart, dtype=int)
-
-        # The coordinate matrix of all nodes used in the mesh is constructed
-        # Nodes used in 1D 2D and 3D
-        coord = coord.reshape(-1,3)
-        coordo = coord[sortedIndices]
+        # The coordinate matrix of all nodes used in the mesh is constructed        
+        coordo: np.ndarray = coord.reshape(-1,3)[sortedIdx,:]
 
         # Apply coef to scale coordinates
         coordo = coordo * coef
         
         # Builds physical groups
-        physicalGroups = gmsh.model.getPhysicalGroups()
-        createTags = len(physicalGroups) > 0
-        pgArray = np.array(physicalGroups)
-        # To be optimized
-        physicalGroupsPoint = []; namePoint = []
-        physicalGroupsLine = []; nameLine = []
-        physicalGroupsSurf = []; nameSurf = []
-        physicalGroupsVol = []; nameVol = []
-
-        nbPhysicalGroup = 0        
+        physicalGroups = np.array(gmsh.model.getPhysicalGroups(), dtype=int)
+        dims, entities = physicalGroups[:,0], physicalGroups[:,1]
+        createTags = len(dims) > 0
+        tags = [] # tags associated with dims and entities
         
         if createTags:
-            def __name(dim: int, n: int) -> str:
-                # Builds entity name
-                name = f"{Interface_Gmsh.__dict_name_dim[dim]}{n}"
-                return name
-
-            for dim in range(pgArray[:,0].max()+1):
-                # For each dimension available in the physical groups.
-                
+            # Depending on the dimension of the entities, we'll give them names
+            _name = lambda dim, n: f"{Interface_Gmsh.__dict_name_dim[dim]}{n}"
+            # For each dimension available in the physical groups.
+            for dim in range(np.max(dims)+1):
                 # We retrieve the entities of the dimension
-                indexDim = np.where(pgArray[:,0] == dim)[0]
-                listTupleDim = tuple(map(tuple, pgArray[indexDim]))
+                indexDim = np.where(dims == dim)[0]                
                 nbEnti = indexDim.size
-
-                # Depending on the dimension of the entities, we'll give them names
-                # Then we'll add the entity tuples (dim, tag) to the PhysicalGroup list associated with the dimension.
-                if dim == 0:
-                    namePoint.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                    nbEnti = len(namePoint)
-                    physicalGroupsPoint.extend(listTupleDim)
-                elif dim == 1:
-                    nameLine.extend([__name(dim, n) for n in range(nbEnti)])
-                    nbEnti = len(nameLine)
-                    physicalGroupsLine.extend(listTupleDim)
-                elif dim == 2:
-                    nameSurf.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                    nbEnti = len(nameSurf)
-                    physicalGroupsSurf.extend(listTupleDim)
-                elif dim == 3:
-                    nameVol.extend([f"{__name(dim, n)}" for n in range(nbEnti)])
-                    nbEnti = len(nameVol)
-                    physicalGroupsVol.extend(listTupleDim)
-
-                nbPhysicalGroup += nbEnti
+                [tags.append(_name(dim, n)) for n in range(nbEnti)]
 
         # Check that everything has been added correctly
-        assert len(physicalGroups) == nbPhysicalGroup
+        assert len(tags) == dims.size
+        
+        knownDims = [] # known dimensions in the mesh
+        meshDim = gmsh.model.getEntities()[-1][0] # mesh dimension. Here, we check the dimension of the last entity
 
-        # Builds element groups
-        dimAjoute = []
-        meshDim = gmsh.model.getEntities()[-1][0]
-
+        # For each element type
         for gmshId in elementTypes:
-            # For each element type
                                         
             # Retrieves element numbers and connection matrix
             elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)
-            elementTags = np.array(elementTags-1, dtype=int)
-            nodeTags = np.array(nodeTags-1, dtype=int)
+            elementTags = np.array(elementTags, dtype=int) - 1 # tags for each elements
+            nodeTags = np.array(nodeTags, dtype=int) - 1 # connection matrix in shape (e * nPe)
 
+            nodeTags: np.ndarray = changes[nodeTags] # Apply changes to correct jumps in nodes
+            
             # Elements
-            Ne = elementTags.shape[0] #number of elements
-            elementsID = elementTags            
+            Ne = elementTags.shape[0] # number of elements
             nPe = GroupElem_Factory.Get_ElemInFos(gmshId)[1] # nodes per element
-            
-            # Builds connect and changes the necessary nodes
-            connect = nodeTags.reshape(Ne, nPe)
-            def TriConnect(old, new):
-                connect[np.where(connect==old)] = new
-            [TriConnect(old, new) for old, new in zip(changes[:,0], changes[:,1])]
-            # A tester avec l, c = np.where(connect==changes[:,0])
-            
-            # Nodes
-            nodes = np.unique(nodeTags)
+            connect: np.ndarray = nodeTags.reshape(Ne, nPe) # Builds connect matrix
 
-            # Check that max node numbers can be reached in coordo
-            Nmax = nodes.max()
+            # Nodes            
+            nodes = np.unique(nodeTags) 
+            Nmax = nodes.max() # Check that max node numbers can be reached in coordo
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
 
             # Element group creation
@@ -1416,60 +1373,48 @@ class Interface_Gmsh:
             dict_groupElem[groupElem.elemType] = groupElem
             
             # Check that the mesh does not have a group of elements of this dimension
-            if groupElem.dim in dimAjoute and groupElem.dim == meshDim:
+            if groupElem.dim in knownDims and groupElem.dim == meshDim:
                 recoElement = 'Triangular' if meshDim == 2 else 'Tetrahedron'
                 raise Exception(f"Importing the mesh is impossible because several {meshDim}D elements have been detected. Try out {recoElement} elements.\n You can also try standardizing the mesh size")
                 # TODO make it work ?
                 # Can be complicated especially in the creation of elemental matrices and assembly
                 # Not impossible but not trivial
                 # Relaunch the procedure if it doesn't work?
-            dimAjoute.append(groupElem.dim)
+            knownDims.append(groupElem.dim)
 
             # Here we'll retrieve the nodes and elements belonging to a group
-            if groupElem.dim == 0:
-                listPhysicalGroups = physicalGroupsPoint
-                listName = namePoint
-            elif groupElem.dim == 1:
-                listPhysicalGroups = physicalGroupsLine
-                listName = nameLine
-            elif groupElem.dim == 2:
-                listPhysicalGroups = physicalGroupsSurf
-                listName = nameSurf
-            elif groupElem.dim == 3:
-                listPhysicalGroups = physicalGroupsVol
-                listName = nameVol
-            else:
-                listPhysicalGroups = []
+            if createTags:
+                idDim = np.where(dims == groupElem.dim)[0]
 
-            # For each physical group, I'll retrieve the nodes
-            # and associate the tags
-            i = -1
+                # For each physical group, I'll retrieve the nodes associated with the tags
+                for i in idDim:
 
-            for dim, tag in listPhysicalGroups:
-                i += 1
+                    dim = dims[i]
+                    ent = entities[i]
+                    tag = tags[i]
+                    
+                    nodeTags, __ = gmsh.model.mesh.getNodesForPhysicalGroup(dim, ent)
+                    
+                    # If no node has been retrieved, move on to the nextPhysics group.
+                    if nodeTags.size == 0: continue                
+                    nodeTags = np.array(nodeTags, dtype=int) - 1
 
-                name = listName[i]
+                    # nodes associated with the group
+                    nodesGroup = changes[nodeTags] # Apply change
 
-                nodeTags, coord = gmsh.model.mesh.getNodesForPhysicalGroup(dim, tag)
-                # Si aucun noeud à été récupéré passe au prochain groupePhysique
-                if nodeTags.size == 0: continue
-
-                # Récupération de la liste de noeud unique
-                nodeTags = np.array(nodeTags-1, dtype=int)
-                nodes = np.unique(nodeTags)
-
-                def TriNodes(old, new):
-                    nodes[np.where(nodes==old)] = new
-                [TriNodes(old, new) for old, new in zip(changes[:,0], changes[:,1])]
-
-                groupElem.Set_Nodes_Tag(nodes, name)
-                groupElem.Set_Elements_Tag(nodes, name)
+                    # add the group for notes and elements
+                    groupElem.Set_Nodes_Tag(nodesGroup, tag)
+                    groupElem.Set_Elements_Tag(nodesGroup, tag)
         
         tic.Tac("Mesh","Mesh construction", self.__verbosity)
 
         gmsh.finalize()
 
         mesh = Mesh(dict_groupElem, self.__verbosity)
+
+        nNodes = mesh.coordoGlob.shape[0] - mesh.Nn
+
+        testGoodMesh = nNodes > 0
 
         return mesh
     
