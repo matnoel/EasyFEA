@@ -725,12 +725,11 @@ def Plot_BoundaryConditions(simu, folder="", ax=None) -> plt.Axes:
             elif len(directions) > 2:
                 marker='s'
 
+        lw=0
         if dim in [1,2]:
-            lw=0
-            ax.scatter(coordo[noeuds,0], coordo[noeuds,1], marker=marker, linewidths=lw, label=titre, zorder=2.5)
-        else:
-            lw=3
-            ax.scatter(coordo[noeuds,0], coordo[noeuds,1], coordo[noeuds,2], marker=marker, linewidths=lw, label=titre)
+            ax.plot(*coordo[noeuds,:2].T, marker=marker, lw=lw, label=titre, zorder=2.5, ls='')
+        else:            
+            ax.plot(*coordo[noeuds,:3].T, marker=marker, lw=lw, label=titre, zorder=2.5, ls='')
     
     plt.legend()
 
