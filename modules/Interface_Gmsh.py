@@ -37,7 +37,7 @@ class Interface_Gmsh:
         self.__verbosity = verbosity
         """the interface can write to the console"""
 
-        self.__init_gmsh_factory()
+        self._init_gmsh_factory()
 
         if gmshVerbosity:
             Display.Section("New interface with gmsh.")
@@ -51,9 +51,10 @@ class Interface_Gmsh:
         elif dim == 3:
             assert elemType in GroupElem.get_Types3D(), f"Must be in {GroupElem.get_Types3D()}"
     
-    def __init_gmsh_factory(self, factory: str= 'occ'):
-        """Initialize gmsh factory."""
-        gmsh.initialize()
+    def _init_gmsh_factory(self, factory: str= 'occ'):
+        """Initialize gmsh factory."""        
+        if not gmsh.isInitialized():
+            gmsh.initialize()
         if self.__gmshVerbosity == False:
             gmsh.option.setNumber('General.Verbosity', 0)
         gmsh.model.add("model")
@@ -63,24 +64,25 @@ class Interface_Gmsh:
             self.__factory = gmsh.model.geo
         else:
             raise Exception("Unknow factory")
+        return self.__factory
         
-    def __Loop_From_Geom(self, geom: Geom) -> int:
+    def _Loop_From_Geom(self, geom: Geom) -> int:
         """Creation of a loop based on the geometric object."""        
 
         if isinstance(geom, Circle):
-            loop = self.__Loop_From_Circle(geom)[0]
+            loop = self._Loop_From_Circle(geom)[0]
         elif isinstance(geom, Domain):                
-            loop = self.__Loop_From_Domain(geom)
+            loop = self._Loop_From_Domain(geom)
         elif isinstance(geom, PointsList):                
-            loop = self.__Loop_From_Points(geom.points, geom.meshSize)[0]
+            loop = self._Loop_From_Points(geom.points, geom.meshSize)[0]
         elif isinstance(geom, Contour):
-            loop = self.__Loop_From_Contour(geom)[0]
+            loop = self._Loop_From_Contour(geom)[0]
         else:
             raise Exception("Must be a circle, a domain, a list of points or a contour.")
         
         return loop
 
-    def __Loop_From_Points(self, points: list[Point], meshSize: float) -> tuple[int, list[int], list[int]]:
+    def _Loop_From_Points(self, points: list[Point], meshSize: float) -> tuple[int, list[int], list[int]]:
         """Creation of a loop associated with the list of points.\n
         return loop, lines, openPoints
         """
@@ -95,8 +97,9 @@ class Interface_Gmsh:
         
         openPoints = []
 
+        # create the points to make the loops
+        # this loop create a dictionnary of gmsh points for each point in points
         for index, point in enumerate(points):
-
             # pi -> gmsh id of point i
             # Pi -> coordinates of point i
             if index > 0:
@@ -104,7 +107,7 @@ class Interface_Gmsh:
                 prevPoint = points[index-1]
                 factory.synchronize()
                 lastPoint = dict_point_pointsGmsh[prevPoint][-1]
-                # retrieves point coordinates
+                # retrieves last point coordinates
                 lastCoordo = gmsh.model.getValue(0, lastPoint, [])          
 
             # detects whether the point needs to be rounded
@@ -113,8 +116,12 @@ class Interface_Gmsh:
                 coordP=np.array([point.x, point.y, point.z])
 
                 if index > 0 and np.linalg.norm(lastCoordo - coordP) <= 1e-12:
+                    # check if the current point location
+                    # if they have the same coordinates 
+                    # we dont create the point
                     p0 = lastPoint
                 else:
+                    # we create a new point
                     p0 = factory.addPoint(point.x, point.y, point.z, meshSize)
 
                     if point.isOpen:
@@ -124,42 +131,51 @@ class Interface_Gmsh:
 
             else:
                 # With rounding
+                # Construct a radius in the corner
 
-                # The current / active point is P0
-                # The next point is P2
-                # The point before is point P1        
+                # The current / active point is P0 (corner point)
+                # The next point is P2 (next point in the loop)
+                # The point before is point P1 (previous point in the loop)
 
                 # Point / Coint in which to create the fillet
                 P0 = point.coordo
-
-                # Recovers next point
+                # Recovers points 1 and 2 indices in points
                 if index+1 == Npoints:
+                    # here we are on the last point of points
                     index_p1 = index - 1
                     index_p2 = 0
                 elif index == 0:
+                    # here we are on the first point of points
                     index_p1 = -1
                     index_p2 = index + 1
                 else:
                     index_p1 = index - 1
                     index_p2 = index + 1
 
-                # Detect the point before P1 and the point P2
+                # Get the points P1 & P2 coordinates
                 P1 = points[index_p1].coordo
                 P2 = points[index_p2].coordo
+                
+                # Get the points A, B and C to construct the circle arc
+                A, B, C = Points_Rayon(P0, P1, P2, point.r)
+                # A is the point on the line form by P0 P1
+                # B is the point on the line form by P0 P2
+                # C is the point used for the circular arc
+                # C will be delete after the creation of the circle arc
 
-                A, B, C = Points_Rayon(P0, P1, P2, point.r)                
-
+                # A
                 if index > 0 and np.linalg.norm(lastCoordo - A) <= 1e-12:
                     # if the coordinate is identical, the point is not recreated
                     pA = lastPoint
                 else:
-                    pA = factory.addPoint(A[0], A[1], A[2], meshSize) # point of intersection between i and the circle
+                    pA = factory.addPoint(A[0], A[1], A[2], meshSize)
 
                     if point.isOpen:
                         openPoints.append(pA)
-                    
+                # C 
                 pC = factory.addPoint(C[0], C[1], C[2], meshSize) # circle center
                 
+                # B
                 if index > 0 and (np.linalg.norm(B - firstCoordo) <= 1e-12):
                     pB = firstPoint
                 else:
@@ -174,8 +190,7 @@ class Interface_Gmsh:
                 self.__factory.synchronize()
                 firstPoint = dict_point_pointsGmsh[point][0]
                 firstCoordo = gmsh.model.getValue(0, firstPoint, [])
-
-            
+        
         lines = []        
         self.__factory.synchronize()
         for index, point in enumerate(points):
@@ -216,8 +231,8 @@ class Interface_Gmsh:
 
         return loop, lines, openPoints
     
-    def __Loop_From_Contour(self, contour: Contour) -> tuple[int, list[int], list[int]]:
-        """Create a loop associated with a list of 1D objects.\n
+    def _Loop_From_Contour(self, contour: Contour) -> tuple[int, list[int], list[int]]:
+        """Create a loop associated with a list of 1D objects (Line, CircleArc).\n
         return loop, openLines, openPoints
         """
 
@@ -283,7 +298,7 @@ class Interface_Gmsh:
 
         return loop, openLines, openPoints
 
-    def __Loop_From_Circle(self, circle: Circle) -> tuple[int, list[int], list[int]]:
+    def _Loop_From_Circle(self, circle: Circle) -> tuple[int, list[int], list[int]]:
         """Creation of a loop associated with a circle.\n
         return loop, lines, points
         """
@@ -308,7 +323,9 @@ class Interface_Gmsh:
         l4 = factory.addCircleArc(p4, p0, p1)
         lines = [l1, l2, l3, l4]
 
-        # Here we remove the point from the center of the circle VERY IMPORTANT otherwise the point remains at the center of the circle.
+        # Here we remove the point from the center of the circle
+        # VERY IMPORTANT otherwise the point remains at the center of the circle.
+        # We don't want any points not attached to the mesh
         factory.remove([(0,p0)], False)
         
         loop = factory.addCurveLoop([l1,l2,l3,l4])
@@ -317,7 +334,7 @@ class Interface_Gmsh:
 
         return loop, lines, points
 
-    def __Loop_From_Domain(self, domain: Domain) -> tuple[int, int]:
+    def _Loop_From_Domain(self, domain: Domain) -> int:
         """Create a loop associated with a domain.\n
         return loop
         """
@@ -329,13 +346,13 @@ class Interface_Gmsh:
         p3 = Point(x=pt2.x, y=pt2.y, z=pt2.z)
         p4 = Point(x=pt1.x, y=pt2.y, z=pt2.z)
 
-        loop = self.__Loop_From_Points([p1, p2, p3, p4], domain.meshSize)[0]
+        loop = self._Loop_From_Points([p1, p2, p3, p4], domain.meshSize)[0]
 
         self.__factory.synchronize()
         
         return loop
 
-    def __Surface_From_Loops(self, loops: list[int]) -> tuple[int, int]:
+    def _Surface_From_Loops(self, loops: list[int]) -> tuple[int, int]:
         """Create a surface associated with a loop.\n
         return surface
         """
@@ -356,13 +373,13 @@ class Interface_Gmsh:
             the object that creates the surface area
         inclusions : list[Geom]
             objects that create hollow or filled surfaces in the first surface.\n
-            CAUTION : objects must be contained within the contour
+            CAUTION : all inclusions must be contained within the contour and do not cross
         """
 
         factory = self.__factory
 
         # Create contour surface
-        loopContour = self.__Loop_From_Geom(contour)
+        loopContour = self._Loop_From_Geom(contour)
 
         # Creation of all loops associated with objects within the domain
         hollowLoops, filledLoops = self.__Get_hollow_And_filled_Loops(inclusions)
@@ -371,7 +388,7 @@ class Interface_Gmsh:
         listeLoop.extend(hollowLoops) # Hollow contours are added
         listeLoop.extend(filledLoops) # Filled contours are added
 
-        surfaceContour = self.__Surface_From_Loops(listeLoop) # first filled surface
+        surfaceContour = self._Surface_From_Loops(listeLoop) # first filled surface
 
         # For each filled Geom object, it is necessary to create a surface
         surfaces = [surfaceContour]
@@ -379,71 +396,36 @@ class Interface_Gmsh:
 
         factory.synchronize()
 
-        return surfaces
+        return surfaces   
     
-    def __Add_PhysicalPoint(self, point: int) -> int:
-        """Adds the point to the physical group."""
-        pgPoint = gmsh.model.addPhysicalGroup(0, [point])
-        return pgPoint
-    
-    def __Add_PhysicalLine(self, ligne: int) -> int:
-        """Adds the line to the physical group."""
-        pgLine = gmsh.model.addPhysicalGroup(1, [ligne])
-        return pgLine
-    
-    def __Add_PhysicalSurface(self, surface: int) -> int:
-        """Adds closed or open surface to physical groups."""
-        pgSurf = gmsh.model.addPhysicalGroup(2, [surface])
-        return pgSurf    
-    
-    def __Add_PhysicalVolume(self, volume: int) -> int:
-        """Adds closed or open volume to physical groups."""
-        pgVol = gmsh.model.addPhysicalGroup(3, [volume])
-        return pgVol
-
-    def __Add_PhysicalGroup(self, dim: int, tag: int) -> None:
-        """Adds a physical group based on its dimension."""
-        if dim == 0:
-            self.__Add_PhysicalPoint(tag)
-        elif dim == 1:
-            self.__Add_PhysicalLine(tag)
-        elif dim == 2:
-            self.__Add_PhysicalSurface(tag)
-        elif dim == 3:
-            self.__Add_PhysicalVolume(tag)
-
-    def __Set_PhysicalGroups(self, buildPoint=True, buildLine=True, buildSurface=True, buildVolume=True) -> None:
-        """Create physical groups based on model entities."""
-        self.__factory.synchronize()
-        entities = np.array(gmsh.model.getEntities()) 
-
-        if entities.size == 0: return
-        
-        listDim = []
-        if buildPoint:
-            listDim.append(0)
-        if buildLine:
-            listDim.append(1)
-        if buildSurface:
-            listDim.append(2)
-        if buildVolume:
-            listDim.append(3)
-
-        dims = entities[:,0]
-
-        indexes = []
-        [indexes.extend(np.where(dims == d)[0]) for d in listDim]
-
-        entities = entities[indexes]
-
-        [self.__Add_PhysicalGroup(dim, tag) for dim, tag in zip(entities[:,0], entities[:,1])]
-
     __dict_name_dim = {
         0 : "P",
         1 : "L",
         2 : "S",
         3 : "V"
     }
+
+    def _Set_PhysicalGroups(self, buildPoint=True, buildLine=True, buildSurface=True, buildVolume=True) -> None:
+        """Create physical groups based on model entities."""
+        self.__factory.synchronize()
+        entities = np.array(gmsh.model.getEntities())
+        ents = gmsh.model.getEntities()
+
+        if entities.size == 0: return
+        
+        listDim = []
+        if buildPoint: listDim.append(0)            
+        if buildLine: listDim.append(1)            
+        if buildSurface: listDim.append(2)            
+        if buildVolume: listDim.append(3)
+
+        def _addPhysicalGroup(dim: int, tag: int, t:int) -> None:
+            name = f"{self.__dict_name_dim[dim]}{t}"
+            gmsh.model.addPhysicalGroup(dim, [tag], name=name)
+
+        for dim in listDim:            
+            tags = entities[entities[:,0]==dim, 1]
+            [_addPhysicalGroup(dim, tag, t) for t, tag in enumerate(tags)]
 
     def _Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.HEXA8, nLayers=1):
         """Function that extrudes multiple surfaces
@@ -564,7 +546,7 @@ class Interface_Gmsh:
             Built mesh
         """
 
-        self.__init_gmsh_factory()
+        self._init_gmsh_factory()
 
         tic = Tic()
 
@@ -573,9 +555,9 @@ class Interface_Gmsh:
         tic.Tac("Mesh","Mesh import", self.__verbosity)
 
         if setPhysicalGroups:
-            self.__Set_PhysicalGroups()
+            self._Set_PhysicalGroups()
 
-        return self.__Construct_Mesh(coef)
+        return self._Construct_Mesh(coef)
 
     def Mesh_Import_part(self, file: str, dim: int, meshSize=0.0, elemType: ElemType=None, refineGeom=None, folder=""):
         """Build mesh from imported file (.stp or .igs).\n
@@ -606,7 +588,7 @@ class Interface_Gmsh:
         if elemType is None:
             elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
 
-        self.__init_gmsh_factory('occ') # Only work with occ !! Do not change
+        self._init_gmsh_factory('occ') # Only work with occ !! Do not change
 
         assert meshSize >= 0.0, "Must be greater than or equal to 0."
         self.__CheckType(dim, elemType)
@@ -620,20 +602,20 @@ class Interface_Gmsh:
         else:
             print("Must be a .stp or .igs file")
 
-        self.__RefineMesh(refineGeom, meshSize)
+        self._RefineMesh(refineGeom, meshSize)
 
-        self.__Set_PhysicalGroups(buildPoint=False, buildLine=True, buildSurface=True, buildVolume=False)
+        self._Set_PhysicalGroups(buildPoint=False, buildLine=True, buildSurface=True, buildVolume=False)
 
         gmsh.option.setNumber("Mesh.MeshSizeMin", meshSize)
         gmsh.option.setNumber("Mesh.MeshSizeMax", meshSize)
 
         tic.Tac("Mesh","File import", self.__verbosity)
 
-        self.__Meshing(dim, elemType, folder=folder)
+        self._Meshing(dim, elemType, folder=folder)
 
-        return self.__Construct_Mesh()
+        return self._Construct_Mesh()
 
-    def __PhysicalGroups_cracks(self, cracks: list, entities: list[tuple]) -> tuple[int, int, int, int]:
+    def _PhysicalGroups_cracks(self, cracks: list, entities: list[tuple]) -> tuple[int, int, int, int]:
         """Creation of physical groups associated with cracks.\n
         return crackLines, crackSurfaces, openPoints, openLines
         """
@@ -669,13 +651,13 @@ class Interface_Gmsh:
 
             elif isinstance(crack, PointsList):
 
-                loop, lines, openPts = self.__Loop_From_Points(crack.points, crack.meshSize)
+                loop, lines, openPts = self._Loop_From_Points(crack.points, crack.meshSize)
                 
                 entities0D.extend(openPts)
                 openPoints.extend(openPts)
                 entities1D.extend(lines)
 
-                surface = self.__Surface_From_Loops([loop])
+                surface = self._Surface_From_Loops([loop])
                 entities2D.append(surface)
 
                 if crack.isHollow:
@@ -684,13 +666,13 @@ class Interface_Gmsh:
 
             elif isinstance(crack, Contour):
 
-                loop, openLns, openPts = self.__Loop_From_Contour(crack)
+                loop, openLns, openPts = self._Loop_From_Contour(crack)
                 
                 entities0D.extend(openPts)
                 openPoints.extend(openPts)
                 entities1D.extend(openLns)
 
-                surface = self.__Surface_From_Loops([loop])
+                surface = self._Surface_From_Loops([loop])
                 entities2D.append(surface)
 
                 if crack.isHollow:
@@ -725,7 +707,7 @@ class Interface_Gmsh:
                 
                 # Surface construction
                 for loop in loops:
-                    surface = self.__Surface_From_Loops([loop])
+                    surface = self._Surface_From_Loops([loop])
                     entities2D.append(surface)
 
                     if crack.isHollow:
@@ -764,7 +746,7 @@ class Interface_Gmsh:
             construct mesh
         """
 
-        self.__init_gmsh_factory()
+        self._init_gmsh_factory()
         self.__CheckType(1, elemType)
 
         tic = Tic()
@@ -789,13 +771,13 @@ class Interface_Gmsh:
             lines.append(line)
         
         factory.synchronize()
-        self.__Set_PhysicalGroups(buildLine=False)
+        self._Set_PhysicalGroups(buildLine=False)
 
         tic.Tac("Mesh","Beam mesh construction", self.__verbosity)
 
-        self.__Meshing(1, elemType, folder=folder)
+        self._Meshing(1, elemType, folder=folder)
 
-        mesh = self.__Construct_Mesh()
+        mesh = self._Construct_Mesh()
 
         def FuncAddTags(beam: _Beam_Model):
             nodes = mesh.Nodes_Line(beam.line)
@@ -824,7 +806,7 @@ class Interface_Gmsh:
         filledLoops = []
         for objetGeom in inclusions:
             
-            loop = self.__Loop_From_Geom(objetGeom)
+            loop = self._Loop_From_Geom(objetGeom)
 
             if objetGeom.isHollow:
                 hollowLoops.append(loop)
@@ -862,9 +844,9 @@ class Interface_Gmsh:
         """
         
         if isOrganised and isinstance(contour, Domain) and len(inclusions)==0 and len(cracks)==0:
-            self.__init_gmsh_factory('geo')
+            self._init_gmsh_factory('geo')
         else:
-            self.__init_gmsh_factory('occ')
+            self._init_gmsh_factory('occ')
             isOrganised = False
         self.__CheckType(2, elemType)
 
@@ -880,17 +862,17 @@ class Interface_Gmsh:
         entities2D = gmsh.model.getEntities(2)
 
         # Crack creation
-        crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_cracks(cracks, entities2D)
+        crackLines, crackSurfaces, openPoints, openLines = self._PhysicalGroups_cracks(cracks, entities2D)
 
-        self.__RefineMesh(refineGeoms, meshSize)
+        self._RefineMesh(refineGeoms, meshSize)
 
-        self.__Set_PhysicalGroups()
+        self._Set_PhysicalGroups()
 
         tic.Tac("Mesh","Geometry", self.__verbosity)                
 
-        self.__Meshing(2, elemType, isOrganised, crackLines=crackLines, openPoints=openPoints, folder=folder)
+        self._Meshing(2, elemType, isOrganised, crackLines=crackLines, openPoints=openPoints, folder=folder)
 
-        return self.__Construct_Mesh()
+        return self._Construct_Mesh()
 
     def Mesh_3D(self, contour: Geom, inclusions: list[Geom]=[],
                 extrude=[0,0,1], nLayers=1, elemType=ElemType.TETRA4,
@@ -922,7 +904,7 @@ class Interface_Gmsh:
             3D mesh
         """
         
-        self.__init_gmsh_factory()
+        self._init_gmsh_factory()
         self.__CheckType(3, elemType)
         
         tic = Tic()
@@ -936,17 +918,17 @@ class Interface_Gmsh:
         entities3D = gmsh.model.getEntities(3)
 
         # Crack creation
-        crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_cracks(cracks, entities3D)
+        crackLines, crackSurfaces, openPoints, openLines = self._PhysicalGroups_cracks(cracks, entities3D)
 
-        self.__RefineMesh(refineGeoms, contour.meshSize)
+        self._RefineMesh(refineGeoms, contour.meshSize)
 
-        self.__Set_PhysicalGroups()
+        self._Set_PhysicalGroups()
 
         tic.Tac("Mesh","Geometry", self.__verbosity)
 
-        self.__Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
+        self._Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
         
-        return self.__Construct_Mesh()
+        return self._Construct_Mesh()
     
     def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[],
                      axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, nLayers=180, elemType=ElemType.TETRA4,
@@ -981,7 +963,7 @@ class Interface_Gmsh:
             3D mesh
         """
 
-        self.__init_gmsh_factory()
+        self._init_gmsh_factory()
         self.__CheckType(3, elemType)
         
         tic = Tic()
@@ -995,17 +977,17 @@ class Interface_Gmsh:
         entities3D = gmsh.model.getEntities(3)
 
         # Crack creation
-        crackLines, crackSurfaces, openPoints, openLines = self.__PhysicalGroups_cracks(cracks, entities3D)
+        crackLines, crackSurfaces, openPoints, openLines = self._PhysicalGroups_cracks(cracks, entities3D)
 
-        self.__RefineMesh(refineGeoms, contour.meshSize)
+        self._RefineMesh(refineGeoms, contour.meshSize)
 
-        self.__Set_PhysicalGroups()
+        self._Set_PhysicalGroups()
 
         tic.Tac("Mesh","Geometry", self.__verbosity)
 
-        self.__Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
+        self._Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
 
-        return self.__Construct_Mesh()
+        return self._Construct_Mesh()
     
     def Create_posFile(self, coordo: np.ndarray, values: np.ndarray, folder: str, filename="data") -> str:
         """Creation of a .pos file that can be used to refine a mesh in a zone.
@@ -1034,7 +1016,7 @@ class Interface_Gmsh:
 
         data = np.append(coordo, values.reshape(-1, 1), axis=1)
 
-        self.__init_gmsh_factory()
+        self._init_gmsh_factory()
 
         view = gmsh.view.add("scalar points")
 
@@ -1046,7 +1028,7 @@ class Interface_Gmsh:
 
         return path
     
-    def __RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float):
+    def _RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float):
         """Sets a background mesh
 
         Parameters
@@ -1129,7 +1111,7 @@ class Interface_Gmsh:
         gmsh.option.setNumber("Mesh.Algorithm", 5)
 
     @staticmethod
-    def __Set_mesh_order(elemType: str):
+    def _Set_mesh_order(elemType: str):
         """Set mesh order"""
         if elemType in ["TRI3","QUAD4"]:
             gmsh.model.mesh.set_order(1)
@@ -1142,7 +1124,7 @@ class Interface_Gmsh:
         elif elemType in ["SEG5", "TRI15"]:
             gmsh.model.mesh.set_order(4)
 
-    def __Set_algorithm(self, elemType: ElemType) -> None:
+    def _Set_algorithm(self, elemType: ElemType) -> None:
         """Set the mesh algorithm.\n
         Mesh.Algorithm
             2D mesh algorithm (1: MeshAdapt, 2: Automatic, 3: Initial mesh only, 5: Delaunay, 6: Frontal-Delaunay, 7: BAMG, 8: Frontal-Delaunay for Quads, 9: Packing of Parallelograms, 11: Quasi-structured Quad)
@@ -1176,7 +1158,7 @@ class Interface_Gmsh:
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
 
-    def __Meshing(self, dim: int, elemType: str, isOrganised=False, crackLines=None, crackSurfaces=None, openPoints=None, openLines=None, folder=""):
+    def _Meshing(self, dim: int, elemType: str, isOrganised=False, crackLines=None, crackSurfaces=None, openPoints=None, openLines=None, folder="", filename="mesh"):
         """Construction of gmsh mesh from geometry that has been built or imported.
 
         Parameters
@@ -1197,6 +1179,8 @@ class Interface_Gmsh:
             physical group of lines that can open, by default None
         folder : str, optional
             mesh save folder mesh.msh, by default ""
+        filename : str, optional
+            mesh save folder mesh.msh, by default mesh
         """
 
         factory = self.__factory
@@ -1204,17 +1188,15 @@ class Interface_Gmsh:
         if factory == gmsh.model.occ:
             isOrganised = False
         
-        self.__Set_algorithm(elemType)
+        self._Set_algorithm(elemType)
         self.__factory.synchronize()
 
         tic = Tic()
         if dim == 1:            
             gmsh.model.mesh.generate(1)
-            Interface_Gmsh.__Set_mesh_order(elemType)
-        elif dim == 2:
 
-            surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]
-            
+        elif dim == 2:
+            surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]            
             for surface in surfaces:
                 
                 if isOrganised:
@@ -1235,15 +1217,13 @@ class Interface_Gmsh:
             
             # Generates mesh
             gmsh.model.mesh.generate(2)
-            
-            Interface_Gmsh.__Set_mesh_order(elemType)
         
         elif dim == 3:
             self.__factory.synchronize()            
 
             gmsh.model.mesh.generate(3)
 
-            Interface_Gmsh.__Set_mesh_order(elemType)
+        Interface_Gmsh._Set_mesh_order(elemType)
 
         # A single physical group is required for lines and points
         usePluginCrack = False
@@ -1272,20 +1252,17 @@ class Interface_Gmsh:
         tic.Tac("Mesh","Meshing", self.__verbosity)
 
         if folder != "":
-            # gmsh.write(Dossier.Join([folder, "model.geo"])) # Il semblerait que ça marche pas c'est pas grave
+            # gmsh.write(Dossier.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
             self.__factory.synchronize()
-            # gmsh.model.geo.synchronize()
-            # gmsh.model.occ.synchronize()
-            
+
             if not os.path.exists(folder):
                 os.makedirs(folder)
-            gmsh.write(Folder.Join([folder, "mesh.msh"]))
+            msh = Folder.Join([folder, f"{filename}.msh"])
+            gmsh.write(msh)
             tic.Tac("Mesh","Saving .msh", self.__verbosity)
 
-    def __Construct_Mesh(self, coef=1):
+    def _Construct_Mesh(self, coef=1) -> Mesh:
         """Recovering the built mesh"""
-
-        # TODO make this class accessible?
 
         # Old method was boggling
         # The bugs have been fixed because I didn't properly organize the nodes when I created them
@@ -1323,26 +1300,7 @@ class Interface_Gmsh:
 
         # Apply coef to scale coordinates
         coordo = coordo * coef
-        
-        # Builds physical groups
-        physicalGroups = np.array(gmsh.model.getPhysicalGroups(), dtype=int)
-        dims, entities = physicalGroups[:,0], physicalGroups[:,1]
-        createTags = len(dims) > 0
-        tags = [] # tags associated with dims and entities
-        
-        if createTags:
-            # Depending on the dimension of the entities, we'll give them names
-            _name = lambda dim, n: f"{Interface_Gmsh.__dict_name_dim[dim]}{n}"
-            # For each dimension available in the physical groups.
-            for dim in range(np.max(dims)+1):
-                # We retrieve the entities of the dimension
-                indexDim = np.where(dims == dim)[0]                
-                nbEnti = indexDim.size
-                [tags.append(_name(dim, n)) for n in range(nbEnti)]
 
-        # Check that everything has been added correctly
-        assert len(tags) == dims.size
-        
         knownDims = [] # known dimensions in the mesh
         meshDim = gmsh.model.getEntities()[-1][0] # mesh dimension. Here, we check the dimension of the last entity
 
@@ -1383,30 +1341,30 @@ class Interface_Gmsh:
             knownDims.append(groupElem.dim)
 
             # Here we'll retrieve the nodes and elements belonging to a group
-            if createTags:
-                idDim = np.where(dims == groupElem.dim)[0]
+            physicalGroups = gmsh.model.getPhysicalGroups(groupElem.dim)
+            # add nodes and elements associated with physical groups
+            def __addPysicalGroup(group: tuple[int, int]):
 
-                # For each physical group, I'll retrieve the nodes associated with the tags
-                for i in idDim:
+                dim = group[0]
+                tag = group[1]
+                name = gmsh.model.getPhysicalName(dim, tag)
 
-                    dim = dims[i]
-                    ent = entities[i]
-                    tag = tags[i]
+                nodeTags, __ = gmsh.model.mesh.getNodesForPhysicalGroup(dim, tag)
                     
-                    nodeTags, __ = gmsh.model.mesh.getNodesForPhysicalGroup(dim, ent)
-                    
-                    # If no node has been retrieved, move on to the nextPhysics group.
-                    if nodeTags.size == 0: continue                
-                    nodeTags = np.array(nodeTags, dtype=int) - 1
+                # If no node has been retrieved, move on to the nextPhysics group.
+                if nodeTags.size == 0: return
+                nodeTags = np.array(nodeTags, dtype=int) - 1
 
-                    # nodes associated with the group
-                    nodesGroup = changes[nodeTags] # Apply change
+                # nodes associated with the group
+                nodesGroup = changes[nodeTags] # Apply change
 
-                    # add the group for notes and elements
-                    groupElem.Set_Nodes_Tag(nodesGroup, tag)
-                    groupElem.Set_Elements_Tag(nodesGroup, tag)
+                # add the group for notes and elements
+                groupElem.Set_Nodes_Tag(nodesGroup, name)
+                groupElem.Set_Elements_Tag(nodesGroup, name)
+
+            [__addPysicalGroup(group) for group in physicalGroups]
         
-        tic.Tac("Mesh","Mesh construction", self.__verbosity)
+        tic.Tac("Mesh","Construct mesh object", self.__verbosity)
 
         gmsh.finalize()
 
@@ -1414,7 +1372,7 @@ class Interface_Gmsh:
 
         nNodes = mesh.coordoGlob.shape[0] - mesh.Nn
 
-        testGoodMesh = nNodes > 0
+        testGoodMesh = nNodes == 0
 
         return mesh
     

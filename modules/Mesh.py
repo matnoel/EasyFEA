@@ -447,9 +447,8 @@ class Mesh:
         """Returns elements that exclusively or not use the specified nodes."""
         elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusively=exclusively)
         return elements
-
-    @staticmethod
-    def __Dim_For_Tag(tag):
+    
+    def __Dim_For_Tag(self, tag):
         if 'P' in tag:
             dim = 0
         elif 'L' in tag:
@@ -460,20 +459,22 @@ class Mesh:
             dim = 3
         elif "beam" in tag:
             dim = 1
+        else:
+            dim = self.dim
 
         return dim
 
     def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
         """Returns node associated with the tag."""
         nodes = []
-        [nodes.extend(grp.Get_Nodes_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(Mesh.__Dim_For_Tag(tag))]
+        [nodes.extend(grp.Get_Nodes_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(self.__Dim_For_Tag(tag))]
 
         return np.unique(nodes)
 
     def Elements_Tags(self, tags: list[str]) -> np.ndarray:
         """Returns elements associated with the tag."""
         elements = []
-        [elements.extend(grp.Get_Elements_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(Mesh.__Dim_For_Tag(tag))]
+        [elements.extend(grp.Get_Elements_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(self.__Dim_For_Tag(tag))]
 
         return np.unique(elements)
 
