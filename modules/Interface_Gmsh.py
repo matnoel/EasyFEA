@@ -843,11 +843,7 @@ class Interface_Gmsh:
             2D mesh
         """
         
-        if isOrganised and isinstance(contour, Domain) and len(inclusions)==0 and len(cracks)==0:
-            self._init_gmsh_factory('geo')
-        else:
-            self._init_gmsh_factory('occ')
-            isOrganised = False
+        self._init_gmsh_factory('occ')
         self.__CheckType(2, elemType)
 
         tic = Tic()
@@ -1184,30 +1180,22 @@ class Interface_Gmsh:
         """
 
         factory = self.__factory
-
-        if factory == gmsh.model.occ:
-            isOrganised = False
         
         self._Set_algorithm(elemType)
-        self.__factory.synchronize()
+        factory.synchronize()
 
         tic = Tic()
-        if dim == 1:            
+        if dim == 1:
             gmsh.model.mesh.generate(1)
 
         elif dim == 2:
             surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]            
-            for surface in surfaces:
-                
+            for surface in surfaces:                
                 if isOrganised:
-                    # Only works for a simple surface (no holes or cracks) and when the model is built with geo and not occ!
-                    # It's not possible to create a setTransfiniteSurface with occ
-                    # If you have to use occ, it's not possible to create an organized mesh.                                        
-                    gmsh.model.geo.synchronize()
-                    points = np.array(gmsh.model.getEntities(0))[:,1]
-                    if points.shape[0] <= 4:
-                        #It is imperative to give the contour points when more than 3 or 4 points are used.
-                        gmsh.model.geo.mesh.setTransfiniteSurface(surface, cornerTags=points)
+                    # only works if the surface is formed by 4 lines
+                    lines = gmsh.model.getBoundary([(2, surface)])
+                    if len(lines) != 4: continue
+                    gmsh.model.mesh.setTransfiniteSurface(surface, cornerTags=[])
 
                 # Synchronisation
                 self.__factory.synchronize()
