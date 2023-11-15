@@ -1,4 +1,5 @@
-"""Interface module with gmsh (https://gmsh.info/). This module lets you manipulate Geom objects to create meshes."""
+"""Interface module with gmsh (https://gmsh.info/).
+This module lets you manipulate Geom objects to create meshes."""
 
 from typing import cast
 import gmsh
@@ -405,7 +406,7 @@ class Interface_Gmsh:
         3 : "V"
     }
 
-    def _Set_PhysicalGroups(self, buildPoint=True, buildLine=True, buildSurface=True, buildVolume=True) -> None:
+    def _Set_PhysicalGroups(self, setPoints=True, setLines=True, setSurfaces=True, setVolumes=True) -> None:
         """Create physical groups based on model entities."""
         self.__factory.synchronize()
         entities = np.array(gmsh.model.getEntities())
@@ -414,17 +415,18 @@ class Interface_Gmsh:
         if entities.size == 0: return
         
         listDim = []
-        if buildPoint: listDim.append(0)            
-        if buildLine: listDim.append(1)            
-        if buildSurface: listDim.append(2)            
-        if buildVolume: listDim.append(3)
+        if setPoints: listDim.append(0)            
+        if setLines: listDim.append(1)            
+        if setSurfaces: listDim.append(2)            
+        if setVolumes: listDim.append(3)
 
         def _addPhysicalGroup(dim: int, tag: int, t:int) -> None:
             name = f"{self.__dict_name_dim[dim]}{t}"
             gmsh.model.addPhysicalGroup(dim, [tag], name=name)
 
-        for dim in listDim:            
-            tags = entities[entities[:,0]==dim, 1]
+        for dim in listDim:
+            idx = entities[:,0]==dim
+            tags = entities[idx, 1]
             [_addPhysicalGroup(dim, tag, t) for t, tag in enumerate(tags)]
 
     def _Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.HEXA8, nLayers=1):
@@ -604,7 +606,7 @@ class Interface_Gmsh:
 
         self._RefineMesh(refineGeom, meshSize)
 
-        self._Set_PhysicalGroups(buildPoint=False, buildLine=True, buildSurface=True, buildVolume=False)
+        self._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
 
         gmsh.option.setNumber("Mesh.MeshSizeMin", meshSize)
         gmsh.option.setNumber("Mesh.MeshSizeMax", meshSize)
@@ -771,7 +773,7 @@ class Interface_Gmsh:
             lines.append(line)
         
         factory.synchronize()
-        self._Set_PhysicalGroups(buildLine=False)
+        self._Set_PhysicalGroups(setLines=False)
 
         tic.Tac("Mesh","Beam mesh construction", self.__verbosity)
 
@@ -1190,7 +1192,7 @@ class Interface_Gmsh:
 
         elif dim == 2:
             surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]            
-            for surface in surfaces:                
+            for surface in surfaces:
                 if isOrganised:
                     # only works if the surface is formed by 4 lines
                     lines = gmsh.model.getBoundary([(2, surface)])
@@ -1259,6 +1261,7 @@ class Interface_Gmsh:
         tic = Tic()
 
         dict_groupElem = {}
+        meshDim = gmsh.model.getDimension()
         elementTypes = gmsh.model.mesh.getElementTypes()
         nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
         
@@ -1290,8 +1293,6 @@ class Interface_Gmsh:
         coordo = coordo * coef
 
         knownDims = [] # known dimensions in the mesh
-        meshDim = gmsh.model.getEntities()[-1][0] # mesh dimension. Here, we check the dimension of the last entity
-
         # For each element type
         for gmshId in elementTypes:
                                         
@@ -1357,10 +1358,6 @@ class Interface_Gmsh:
         gmsh.finalize()
 
         mesh = Mesh(dict_groupElem, self.__verbosity)
-
-        nNodes = mesh.coordoGlob.shape[0] - mesh.Nn
-
-        testGoodMesh = nNodes == 0
 
         return mesh
     

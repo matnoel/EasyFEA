@@ -257,18 +257,23 @@ class _Simu(ABC):
             import Display
             Display.Section("Simulation")
 
+        if len(mesh.orphanNodes):
+            raise Exception(Fore.RED +
+                            "The simulation cannot be created because orphan nodes have been detected in the mesh."
+                            + Fore.WHITE)
+
         self.__model = model
 
         self.__dim = model.dim
         """Simulation dimension."""
 
-        self._results = cast(list[dict], [])
+        self._results:list[dict] = []
         """Dictionary list containing the results."""
 
         # Fill in the first mesh
         self.__indexMesh = -1
         """Current mesh index in self.__listMesh"""
-        self.__listMesh = cast(list[Mesh], [])
+        self.__listMesh: list[Mesh] = []
         self.mesh = mesh
 
         self.__rho = 1

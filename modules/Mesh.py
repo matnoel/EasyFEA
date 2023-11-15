@@ -6,6 +6,7 @@ import scipy.sparse as sp
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatrixType
 import TicTac
+from colorama import Fore
 
 class Mesh:
     """A mesh uses several groups of elements. For example, a mesh with cubes (HEXA8) uses :
@@ -44,6 +45,15 @@ class Mesh:
         if self.__verbosity:
             print(self)
 
+        # Checks that the mesh does not contain orphan nodes
+        nOrph = self.coordoGlob.shape[0] - self.Nn
+        self.__orphanNodes: list[int] = []
+        if nOrph != 0:
+            print(Fore.RED + f"WARNING: Orphan nodes have been detected." + Fore.WHITE)
+            nodes = set(list(range(self.coordoGlob.shape[0])))
+            usedNodes = set(list(np.unique(self.connect.reshape(-1))))
+            self.__orphanNodes = list(nodes - usedNodes)
+
     def _ResetMatrix(self) -> None:
         """Reset matrix for each groupElem"""
         [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]
@@ -74,6 +84,11 @@ class Mesh:
         list_groupElem.reverse()  # reverse the list
 
         return list_groupElem
+    
+    @property
+    def orphanNodes(self) -> list[int]:
+        """Nodes not connected to the main mesh element group"""
+        return self.__orphanNodes
 
     @property
     def dict_groupElem(self) -> dict[ElemType, GroupElem]:

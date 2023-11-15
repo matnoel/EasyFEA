@@ -76,7 +76,7 @@ if __name__ == '__main__':
     if meshSize > 0:
         factory.mesh.setSize(factory.getEntities(0), meshSize)
 
-    interface._Set_PhysicalGroups(buildPoint=False, buildLine=True, buildSurface=True, buildVolume=False)
+    interface._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
     
     interface._Meshing(dim, elemType)
 

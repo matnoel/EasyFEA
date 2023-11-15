@@ -37,7 +37,7 @@ if __name__ == '__main__':
     interface = Interface_Gmsh(False, True)
     dim, elemType = 2, ElemType.QUAD4
 
-    factory = gmsh.model.occ
+    factory = interface._init_gmsh_factory('occ')
 
     # mesh = interface.Mesh_2D(contour, [circle], elemType)
 
@@ -70,23 +70,37 @@ if __name__ == '__main__':
     points_3 = [p3, p34, p4, p41, p1, p12, p2, p23]
     points_4 = [pc12, pc2, pc23, pc3, pc34, pc4, pc41, pc1]
 
+    fuse = True
+    addedLines = []
     for p in range(len(points_1)):
 
         if p == 0:
             line1 = factory.addLine(points_1[p], points_2[p])
-        else:
+            firsLine = line1
+        elif fuse:
             line1 = line3
-        line2 = factory.addLine(points_2[p], points_3[p])
-        line3 = factory.addLine(points_3[p], points_4[p])
+        else:
+            line1 = factory.addLine(points_1[p], points_2[p])
+        line2 = factory.addLine(points_2[p], points_3[p])    
+        if p+1 == len(points_1) and fuse:
+            line3 = firsLine
+        else:
+            line3 = factory.addLine(points_3[p], points_4[p])
         line4 = factory.addCircleArc(points_4[p], pc, points_1[p])
 
         lines = [line1, line2, line3, line4]
+        addedLines.extend(lines)
+
         loop = factory.addCurveLoop(lines)
         surf = factory.addPlaneSurface([loop])
 
         factory.synchronize()
 
         [gmsh.model.mesh.setTransfiniteCurve(line, N) for line in lines]
+
+    factory.remove([(0, pc)])
+
+    # factory.fragment(factory.getEntities(2), [(1, l) for l in addedLines])
 
     factory.synchronize()
 
@@ -96,10 +110,27 @@ if __name__ == '__main__':
 
     mesh = interface._Construct_Mesh()
 
+    if len(mesh.orphanNodes) > 0:
+        ax = Display.Plot_Nodes(mesh, mesh.orphanNodes)
+        ax.set_title("Orphan nodes")
+
     print(mesh)
 
     if dim == 3:
         print(f'volume = {mesh.volume:.3f}')
+
+
+    import Simulations
+    import Materials
+
+    mat = Materials.Elas_Isot(mesh.dim)
+    simu = Simulations.Simu_Displacement(mesh, mat)
+
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*mesh.dim, simu.Get_directions())
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==H), [1], ['y'])    
+    simu.Solve()
+
+    Display.Plot_Result(simu, 'uy', True, 4, plotMesh=True)
         
     Display.Plot_Model(mesh)
 
