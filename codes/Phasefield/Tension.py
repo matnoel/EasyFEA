@@ -295,7 +295,7 @@ def DoSimu(split: str, regu: str):
         Display.Plot_Iter_Summary(simu, folder, None, None)
         Display.Plot_BoundaryConditions(simu)
         Display.Plot_Load_Displacement(displacements*1e6, loads*1e-6, 'ud [µm]', 'f [kN/mm]', folder)
-        Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False,deformation=False, folder=folder, filename="damage")
+        Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder, filename="damage")
         # Display.Plot_Result(simu, "uy", folder=folder, deformation=True)
             
     if saveParaview:

@@ -82,7 +82,7 @@ simu = Simulations.Simu_Displacement(mesh_slave, material)
 
 list_mesh_master = [mesh_master]
 
-fig, ax, cb = Display.Plot_Result(simu, 'uy', deformation=True, factorDef=1)
+fig, ax, cb = Display.Plot_Result(simu, 'uy', deformFactor=1)
 
 for i, ud in enumerate(displacements):
 
@@ -126,7 +126,7 @@ for i, ud in enumerate(displacements):
     
     ax.clear()
     cb.remove()
-    _,ax,cb = Display.Plot_Result(simu, 'uy', plotMesh=True, deformation=True, factorDef=1, ax=ax)
+    _,ax,cb = Display.Plot_Result(simu, 'uy', plotMesh=True, deformFactor=1, ax=ax)
     Display.Plot_Mesh(mesh_master, alpha=0, ax=ax)
     ax.set_title('uy')
     if dim == 3:

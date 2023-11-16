@@ -292,7 +292,8 @@ if solve:
                 _, axIter, cbIter = Display.Plot_Result(simu, "damage")
             else:
                 cbIter.remove()
-                _, axIter, cbIter = Display.Plot_Result(simu, "damage", ax=axIter, deformation=pltContact, factorDef=1)
+                factorDef = 1 if pltContact else 0
+                _, axIter, cbIter = Display.Plot_Result(simu, "damage", ax=axIter, deformFactor=factorDef)
 
             title = axIter.get_title()
 

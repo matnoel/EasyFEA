@@ -145,10 +145,10 @@ affichage = lambda name, result: print(f"{name} = [{result.min():2.2}; {result.m
 
 # Plot the boundary conditions and displacement results
 Display.Plot_BoundaryConditions(simu)
-Display.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
+Display.Plot_Result(simu, "ux", plotMesh=False)
 if beamStructure.dim > 1:
-    Display.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
-    Display.Plot_Mesh(simu, deformation=True, factorDef=10)
+    Display.Plot_Result(simu, "uy", plotMesh=False)
+    Display.Plot_Mesh(simu, deformFactor=10)
 
 # Display section for results
 Display.Section("Results")

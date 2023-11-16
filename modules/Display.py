@@ -18,35 +18,31 @@ import matplotlib.collections
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-def Plot_Result(obj, result: Union[str,np.ndarray], deformation=False, factorDef=0.0, coef=1.0, plotMesh=False,   
-                nodeValues=True, folder="", filename="", title="",
-                cmap="jet", nColors=255, max=None, min=None,colorbarIsClose=False, ax: plt.Axes=None):
+def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, nodeValues=True, 
+                plotMesh=False, folder="", filename="", title="",
+                cmap="jet", nColors=255, max=None, min=None, colorbarIsClose=False, ax: plt.Axes=None):
     """Display a simulation result.
 
     Parameters
     ----------
     obj : Simu or Mesh
         object containing the mesh
-    result : str
+    result : str or np.ndarray
         result you want to display. Must be included in simu.Get_Results()
-    deformation : bool, optional
-        displays deformation, by default False
-    factorDef : int, optional
-        deformation factor, by default 4
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
     coef : float, optional
-        coef to be applied to solution, by default 1.0
-    plotMesh : bool, optional
-        displays mesh, by default False
+        coef to apply to the solution, by default 1.0
     nodeValues : bool, optional
         displays result to nodes otherwise displays it to elements, by default True
+    plotMesh : bool, optional
+        displays mesh, by default False    
     folder : str, optional
-        save folder, by default ""
+        save folder, by default "".
     filename : str, optional
-        filename, by default "" title: str, optional
+        filename, by default ""
     title: str, optional
         figure title, by default ""
-    ax: axis, optional
-        Axis to use, default None, by default None    
     cmap: str, optional
         the color map used near the figure, by default "jet" \n
         ["jet", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
@@ -58,6 +54,8 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformation=False, factorDef
         minimum value in the colorbar, by default None
     colorbarIsClose : bool, optional
         color bar is displayed close to figure, by default False
+    ax: axis, optional
+        Axis to use, default None, by default None    
 
     Returns
     -------
@@ -65,10 +63,10 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformation=False, factorDef
         fig, ax, cb
     """
     
-    simu, mesh, coordo, inDim = __init_obj(obj, factorDef)
+    simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
     plotDim = mesh.dim # plot dimension
 
-    factorDef = 0 if simu is None else factorDef
+    deformFactor = 0 if simu is None else deformFactor
 
     # I can't yet display nodal values on lines
     nodeValues = False if plotDim is 1 else nodeValues
@@ -279,25 +277,28 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformation=False, factorDef
     # Returns figure, axis and colorbar
     return fig, ax, cb
     
-def Plot_Mesh(obj, deformation=False, factorDef=0.0, folder="", title="", lw=0.5, alpha=1.0, facecolors='c', edgecolor='black', ax: plt.Axes=None) -> plt.Axes:
+def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black', lw=0.5,
+              folder="", title="", ax: plt.Axes=None) -> plt.Axes:
     """Plot the mesh.
 
     Parameters
     ----------
     obj : Simu or Mesh
-        object containing the mesh
-    factorDef : int, optional
-        deformation factor, default 4
-    deformation : bool, optional
-        displays deformation, default False
+        object containing the mesh    
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
+    alpha : float, optional
+        face transparency, default 1.0    
+    facecolors: str, optional
+        facecolors, default 'c' (cyan)
+    edgecolor: str, optional
+        edgecolor, default 'black'
+    lw: float, optional
+        line width, default 0.5    
     folder : str, optional
         save folder, default "".
     title: str, optional
         backup file name, default "".
-    lw: float, optional
-        line thickness, default 0.5
-    alpha : float, optional
-        face transparency, default 1.0
     ax: plt.Axes, optional
         Axis to use, default None
 
@@ -306,9 +307,9 @@ def Plot_Mesh(obj, deformation=False, factorDef=0.0, folder="", title="", lw=0.5
     plt.Axes
     """
 
-    simu, mesh, coordo, inDim = __init_obj(obj, factorDef)
+    simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
 
-    factorDef = 0 if simu is None else factorDef
+    deformFactor = 0 if simu is None else deformFactor
 
     # Dimensions of displayed elements
     plotDim = mesh.dim 
@@ -334,7 +335,7 @@ def Plot_Mesh(obj, deformation=False, factorDef=0.0, folder="", title="", lw=0.5
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
 
-        if factorDef > 0:            
+        if deformFactor > 0:            
             # Deformed mesh
             pc = matplotlib.collections.LineCollection(coordFacesDef, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
             ax.add_collection(pc)
@@ -353,7 +354,7 @@ def Plot_Mesh(obj, deformation=False, factorDef=0.0, folder="", title="", lw=0.5
         if mesh.dim == 1:
             # nodes
             ax.plot(*mesh.coordoGlob[:,:2].T, c='black', lw=lw, marker='.', ls='')
-            if factorDef > 0:
+            if deformFactor > 0:
                 ax.plot(*coordo[:,:2].T, c='red', lw=lw, marker='.', ls='')
         
         ax.autoscale()
@@ -369,7 +370,7 @@ def Plot_Mesh(obj, deformation=False, factorDef=0.0, folder="", title="", lw=0.5
         ax.set_ylabel(r"$y$")
         ax.set_zlabel(r"$z$")
 
-        if factorDef > 0:
+        if deformFactor > 0:
             # Displays only 1D or 2D elements, depending on the mesh type
             if plotDim > 1:
                 # Deformed 2D mesh 
@@ -415,7 +416,8 @@ def Plot_Mesh(obj, deformation=False, factorDef=0.0, folder="", title="", lw=0.5
 
     return ax
 
-def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax: plt.Axes=None) -> plt.Axes:
+def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
+               folder="", ax: plt.Axes=None) -> plt.Axes:
     """Plot mesh nodes.
 
     Parameters
@@ -427,11 +429,11 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax:
     showId : bool, optional
         display numbers, default False
     marker : str, optional
-        marker type (matplotlib.markers), default ''
+        marker type (matplotlib.markers), default '.'
     c : str, optional
-        mesh color, default 'blue'
+        color, default 'red'
     folder : str, optional
-        save folder, default "".    
+        save folder, default "".
     ax : plt.Axes, optional
         Axis to use, default None, default None
 
@@ -466,7 +468,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax:
 
     return ax
 
-def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor='black', alpha=1.0, folder="", ax: plt.Axes=None) -> plt.Axes:
+def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c='red', edgecolor='black', folder="", ax: plt.Axes=None) -> plt.Axes:
     """Display mesh elements from given nodes.
 
     Parameters
@@ -479,12 +481,12 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor
         dimension of elements, by default None
     showId : bool, optional
         display numbers, by default False    
+    alpha : float, optional
+        transparency of faces, by default 1.0
     c : str, optional
         color used to display faces, by default 'red
     edgecolor : str, optional
-        color used to display segments, by default 'black
-    alpha : float, optional
-        transparency of faces, by default 1.0
+        color used to display segments, by default 'black'
     folder : str, optional
         save folder, by default ""
     ax : plt.Axes, optional
@@ -528,6 +530,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor
         # center coordinates for each elements
         center_e = np.mean(coordFaces_e, axis=1)
         
+        # plot the entities associated with the tag
         if mesh.inDim in [1,2]:
             if groupElem.dim == 1:
                 pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=c, lw=1, zorder=2)
@@ -714,7 +717,7 @@ def Plot_Model(obj, showId=True, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
                 color = __colors[nColor]
             else:
                 color = (np.random.random(), np.random.random(), np.random.random())
-
+            
             x_e = center_e[elements,0].mean()
             y_e = center_e[elements,1].mean()
             if inDim == 3:
@@ -1106,7 +1109,7 @@ def Clear() -> None:
     elif syst == "Windows":
         os.system("cls")
 
-def __init_obj(obj, factorDef: float):
+def __init_obj(obj, deformFactor: float=0.0):
 
     from Simulations import _Simu, Mesh
 
@@ -1115,7 +1118,7 @@ def __init_obj(obj, factorDef: float):
         simu = obj
         mesh = simu.mesh
         u = simu.Results_displacement_matrix()
-        coordo = mesh.coordoGlob + u * factorDef
+        coordo = mesh.coordoGlob + u * deformFactor
         inDim = np.max([simu.model.dim, mesh.inDim])
     elif isinstance(obj, Mesh):
         simu = None

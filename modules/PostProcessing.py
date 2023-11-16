@@ -83,7 +83,7 @@ def Get_ffmpegpath() -> str:
     
     raise Exception("Folder does not exist")
 
-def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, factorDef=4, nodeValues=True, fps=30) -> None:
+def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, factorDef=0.0, nodeValues=True, fps=30) -> None:
     """Make a movie from a simulation
 
     Parameters
@@ -103,7 +103,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     plotMesh : bool, optional
         Plot the mesh, by default False
     factorDef : int, optional
-        deformation factor, by default 4
+        deformation factor, by default 0.0
     nodeValues : bool, optional
         displays result to nodes otherwise displays it to elements, by default True
     fps : int, optional
@@ -138,7 +138,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
     simu.Update_Iter(0)
 
     # Display the first figure
-    fig, ax, cb = Display.Plot_Result(simu, option, plotMesh=plotMesh, deformation=deformation, factorDef=factorDef, nodeValues=nodeValues)
+    fig, ax, cb = Display.Plot_Result(simu, option, plotMesh=plotMesh, deformFactor=factorDef, nodeValues=nodeValues)
     
     # Give the link to ffmpeg.exe
     ffmpegpath = Get_ffmpegpath()
@@ -153,7 +153,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
 
             cb.remove()
             
-            fig, ax, cb = Display.Plot_Result(simu, option, ax=ax, deformation=deformation, plotMesh=plotMesh, factorDef=factorDef, nodeValues=nodeValues)
+            fig, ax, cb = Display.Plot_Result(simu, option, ax=ax, plotMesh=plotMesh, deformFactor=factorDef, nodeValues=nodeValues)
 
             title1 = ax.get_title()
             ax.set_title(f'{title1} : {iter}/{N-1}')

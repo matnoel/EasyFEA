@@ -157,9 +157,9 @@ def Calc_ukl(Ekl: np.ndarray, pltSol=False):
         # Display.Plot_Result(simu, "ux", deformation=False)
         # Display.Plot_Result(simu, "uy", deformation=False)
 
-        Display.Plot_Result(simu, "Sxx", factorDef=0.3, deformation=True, nodeValues=True)
-        Display.Plot_Result(simu, "Syy", factorDef=0.3, deformation=True, nodeValues=True)
-        Display.Plot_Result(simu, "Sxy", factorDef=0.3, deformation=True, nodeValues=True)
+        Display.Plot_Result(simu, "Sxx", deformFactor=0.3, nodeValues=True)
+        Display.Plot_Result(simu, "Syy", deformFactor=0.3, nodeValues=True)
+        Display.Plot_Result(simu, "Sxy", deformFactor=0.3, nodeValues=True)
 
     return ukl
 

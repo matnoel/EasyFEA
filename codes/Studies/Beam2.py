@@ -83,17 +83,19 @@ matrixDep = simu.Results_displacement_matrix()
 depMax = np.max(np.linalg.norm(matrixDep, axis=1))
 
 Display.Plot_BoundaryConditions(simu)
-Display.Plot_Result(simu, "ux", deformation=True, factorDef=20/depMax)
-Display.Plot_Result(simu, "uy", deformation=True, factorDef=20/depMax)
-Display.Plot_Result(simu, "rz", deformation=True, factorDef=20/depMax)
-Display.Plot_Result(simu, "fx", deformation=True, factorDef=20/depMax)
-Display.Plot_Result(simu, "fy", deformation=True, factorDef=20/depMax)
+Display.Plot_Result(simu, "ux", deformFactor=5/depMax)
+Display.Plot_Result(simu, "uy", deformFactor=5/depMax)
+Display.Plot_Result(simu, "rz", deformFactor=5/depMax)
+Display.Plot_Result(simu, "fx", deformFactor=5/depMax)
+Display.Plot_Result(simu, "fy", deformFactor=5/depMax)
 
 Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement)
 Internal_e = simu._Calc_InternalForces_e_pg(Epsilon_e_pg).mean(1)
 Sigma_e = simu._Calc_Sigma_e_pg(Epsilon_e_pg).mean(1)
 Display.Plot_Result(simu, Sigma_e[:,0], title='Sxx')
 Display.Plot_Result(simu, Internal_e[:,0], title='N')
+
+Display.Plot_Mesh(simu, deformFactor=5/depMax)
 
 print(simu)
 

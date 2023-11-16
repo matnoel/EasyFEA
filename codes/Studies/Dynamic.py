@@ -15,7 +15,7 @@ Display.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-dim = 2
+dim = 3
 folder = Folder.New_File(f"Dynamics{dim}D", results=True)
 plotResult = True
 
@@ -60,7 +60,7 @@ if dim == 2:
 elif dim == 3:
     elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
     domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
-    mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, nLayers=3)
+    mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, nLayers=3, isOrganised=True)
 
     volume = mesh.volume - L*b*h
     area = mesh.area - (L*h*4 + 2*b*h)
@@ -107,8 +107,10 @@ def Iteration(steadyState: bool, isLoading: bool):
 # first iteration, then drop the beam
 Iteration(steadyState=True, isLoading=True)    
 
+factorDef = 1
+
 if plotIter:
-    fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, deformation=True)
+    fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, deformFactor=factorDef)
 
 Tmax = 0.5
 N = 100
@@ -121,7 +123,7 @@ while t <= Tmax:
 
     if plotIter:
         cb.remove()
-        fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, ax=ax, deformation=True)
+        fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, ax=ax, deformFactor=factorDef)
         plt.pause(1e-12)
 
     t += dt
@@ -151,8 +153,8 @@ if plotResult:
     print(simu)
     # Display.Plot_Result(simu, "amplitude")
     # Display.Plot_Mesh(simu, deformation=True, folder=folder)
-    Display.Plot_Result(simu, "uy", deformation=True, nodeValues=False)        
-    Display.Plot_Result(simu, "Svm", deformation=False, plotMesh=False, nodeValues=False)
+    Display.Plot_Result(simu, "uy", deformFactor=factorDef, nodeValues=False)        
+    Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=False)
     # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
     
     tic.Tac("Display","Results", plotResult)

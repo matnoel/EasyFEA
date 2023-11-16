@@ -104,10 +104,12 @@ simu.Save_Iter()
 # PostProcessing
 # ----------------------------------------------
 factorDef = r/5 / simu.Get_Result('amplitude').max()
+# factorDef = 1
 Display.Plot_BoundaryConditions(simu)
+Display.Plot_Mesh(simu, deformFactor=factorDef)
 Display.Plot_Result(simu, 'ux', nColors=10, nodeValues=True)
 Display.Plot_Result(simu, 'uy', nColors=10, nodeValues=True)
-Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=True, deformation=True, factorDef=factorDef, plotMesh=True)
+Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True)
 
 print(simu)
 

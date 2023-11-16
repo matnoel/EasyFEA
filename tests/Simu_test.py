@@ -121,12 +121,12 @@ class Test_Simu(unittest.TestCase):
 
             Display.Plot_BoundaryConditions(simu)
             PlotAndDelete()
-            Display.Plot_Result(simu, "ux", plotMesh=False, deformation=False)
+            Display.Plot_Result(simu, "ux", plotMesh=False)
             PlotAndDelete()
             if beamStruct.dim > 1:
-                Display.Plot_Result(simu, "uy", plotMesh=False, deformation=False)
+                Display.Plot_Result(simu, "uy", plotMesh=False)
                 PlotAndDelete()
-                Display.Plot_Mesh(simu, deformation=True, factorDef=10)
+                Display.Plot_Mesh(simu, deformFactor=10)
                 PlotAndDelete()
 
         

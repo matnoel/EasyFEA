@@ -298,16 +298,15 @@ def Calc_ukl(Ekl: np.ndarray, pltSol=False):
     simu.Save_Iter()
 
     if pltSol:
-        Display.Plot_Result(simu, "ux", deformation=False)
-        Display.Plot_Result(simu, "uy", deformation=False)
+        Display.Plot_Result(simu, "ux")
+        Display.Plot_Result(simu, "uy")
 
-        Display.Plot_Result(simu, "Sxx", factorDef=0.3, deformation=True, nodeValues=True, coef=1e-9)
-        Display.Plot_Result(simu, "Syy", factorDef=0.3, deformation=True, nodeValues=True, coef=1e-9)
-        Display.Plot_Result(simu, "Sxy", factorDef=0.3, deformation=True, nodeValues=True, coef=1e-9)
-
-        # Display.Plot_Result(simu, "Exx", factorDef=0.3, deformation=True, nodeValues=True)
-        # Display.Plot_Result(simu, "Eyy", factorDef=0.3, deformation=True, nodeValues=True)
-        # Display.Plot_Result(simu, "Exy", factorDef=0.3, deformation=True, nodeValues=True)
+        Display.Plot_Result(simu, "Sxx", deformFactor=0.3, nodeValues=True, coef=1e-9)
+        Display.Plot_Result(simu, "Syy", deformFactor=0.3, nodeValues=True, coef=1e-9)
+        Display.Plot_Result(simu, "Sxy", deformFactor=0.3, nodeValues=True, coef=1e-9)
+        # Display.Plot_Result(simu, "Exx", factorDef=0.3, nodeValues=True)
+        # Display.Plot_Result(simu, "Eyy", factorDef=0.3, nodeValues=True)
+        # Display.Plot_Result(simu, "Exy", factorDef=0.3, nodeValues=True)
 
     return ukl
 

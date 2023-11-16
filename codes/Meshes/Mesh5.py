@@ -27,7 +27,7 @@ def DoMesh(dim, elemType):
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*dim, simu.Get_directions())
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==L), [L*0.05], ['y'])
     simu.Solve()
-    Display.Plot_Result(simu, 'uy', True, 1, plotMesh=True)
+    Display.Plot_Result(simu, 'uy', 1, plotMesh=True)
 
     return mesh
 
