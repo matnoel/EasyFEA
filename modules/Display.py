@@ -1,5 +1,8 @@
 """Display module for simulations and meshes."""
 
+import Folder
+from TicTac import Tic
+
 import platform
 from typing import cast, Union
 from colorama import Fore
@@ -14,9 +17,10 @@ import matplotlib.pyplot as plt
 import matplotlib.collections
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
-import Folder
 
-def Plot_Result(obj, result: Union[str,np.ndarray], deformation=False, factorDef=4, coef=1.0, plotMesh=False, nodeValues=True, folder="", filename="", title="", ax=None, cmap="jet", colorbarIsClose=False, nColors=255, max=None, min=None):
+def Plot_Result(obj, result: Union[str,np.ndarray], deformation=False, factorDef=0.0, coef=1.0, plotMesh=False,   
+                nodeValues=True, folder="", filename="", title="",
+                cmap="jet", nColors=255, max=None, min=None,colorbarIsClose=False, ax: plt.Axes=None):
     """Display a simulation result.
 
     Parameters
@@ -46,283 +50,221 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformation=False, factorDef
     cmap: str, optional
         the color map used near the figure, by default "jet" \n
         ["jet", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
-    colorbarIsClose : bool, optional
-        color bar is displayed close to figure, by default False
     nColors : int, optional
         number of colors for colorbar
     max: float, optional
         maximum value in the colorbar, by default None
     min: float, optional
         minimum value in the colorbar, by default None
+    colorbarIsClose : bool, optional
+        color bar is displayed close to figure, by default False
 
     Returns
     -------
     Figure, Axis, colorbar
         fig, ax, cb
     """
-
-    from Simulations import _Simu, Mesh, ModelType
-
-    # here we detect the nature of the object
-    if isinstance(obj, _Simu):
-        simu = obj
-        mesh = simu.mesh
-        if simu.problemType == ModelType.beam:
-            # Currently I don't know how to display nodal results, so I'm displaying on elements.
-            nodeValues = False
-            use3DBeamModel = simu.model.dim == 3
-        else:
-            use3DBeamModel = False
-
-    elif isinstance(obj, Mesh):
-        mesh = obj
-
-        if deformation == True:
-            deformation = False
-            print("You have to give the simulation to display the deformed mesh.")
-        use3DBeamModel = False
-
-        if isinstance(result, str):
-            raise Exception("When obj is a mesh, the option must be an array of dimension Nn or Ne.")
-        
-    else:
-        raise Exception("Must be a simulation or mesh")
     
-    if ax != None:
-        assert isinstance(ax, plt.Axes)
-        fig = ax.figure
-    
-    dim = mesh.dim # mesh dimension
-    inDim = mesh.inDim # dimension in which the mesh is located
+    simu, mesh, coordo, inDim = __init_obj(obj, factorDef)
+    plotDim = mesh.dim # plot dimension
 
-    # Construction of figure and axis if necessary
-    if ax is None:
-        if inDim in [1,2] and not use3DBeamModel:
-            fig, ax = plt.subplots()
-        else:
-            fig = plt.figure()
-            ax = fig.add_subplot(projection="3d")
-            ax.view_init(elev=105, azim=-90)
-    else:
-        fig = fig
-        ax = ax
-        ax.clear()
+    factorDef = 0 if simu is None else factorDef
 
-    if dim == 3:
-        nodeValues = True # Do not modify, you must use the node solution to locate the 2D elements!!!!
-        # When mesh use 3D elements, results are displayed only on 2D elements.
-        # To take up less space.
+    # I can't yet display nodal values on lines
+    nodeValues = False if plotDim is 1 else nodeValues
+
+    # When mesh use 3D elements, results are displayed only on 2D elements.
+    nodeValues = True if plotDim is 3 else nodeValues
+    # Do not modify, you must use the node solution to locate the 2D elements !!!!
+    # To display values on 2D elements, you first need to know the values at 3D nodes.
 
     # Retrieve values to be displayed
     if isinstance(result, str):
-        valeurs = simu.Get_Result(result, nodeValues) # Retrieve result from option
-        if not isinstance(valeurs, np.ndarray): return
+        if simu is None:
+            raise Exception("obj is a mesh, so the result must be an array of dimension Nn or Ne")
+        values = simu.Get_Result(result, nodeValues) # Retrieve result from option
+        if not isinstance(values, np.ndarray): return
     
     elif isinstance(result, np.ndarray):
-        # Gets the size of the array, the size must be nodes or elements
-        # If the size is not equal to the number of nodes or elements, returns an error
-        sizeVecteur = result.size
-
-        if sizeVecteur not in [mesh.Ne, mesh.Nn]:
-            print("The vector must be of dimension Nn or Ne.")
-            return
-
-        valeurs = result*coef
-        
-        if sizeVecteur == mesh.Ne and nodeValues:
-            valeurs = _Simu.Results_Nodes_Values(mesh, valeurs)
-        elif sizeVecteur == mesh.Nn and not nodeValues:
-            valeursLoc_e = mesh.Locates_sol_e(valeurs)
-            valeurs = np.mean(valeursLoc_e, 1)
+        values = result.copy()
+        size = values.size        
+        if size not in [mesh.Ne, mesh.Nn]:
+            raise Exception("Must be an array of dimension Nn or Ne")
+        if size == mesh.Ne and nodeValues:
+            # calculate nodal values for element values
+            values = simu.Results_Nodes_Values(mesh, values)
+        elif size == mesh.Nn and not nodeValues:
+            values_e = mesh.Locates_sol_e(values)
+            values = np.mean(values_e, 1)        
     else:
-        raise Exception("Must fill a string or an array")
+        raise Exception("result must be a string or an array")
     
-    valeurs *= coef # Apply coef to values
-    coordoNonDef = mesh.coordoGlob # node coordinates without deformations
-
-    # Recover deformed coordinates if simulation permits
-    if deformation:        
-        coordoDef, deformation = __GetCoordo(simu, deformation, factorDef)
-    else:
-        coordoDef = coordoNonDef.copy()
+    values *= coef # Apply coef to values
     
-    coordoDef_InDim = coordoDef[:,range(inDim)]
-    
-    dict_connect_Faces = mesh.Get_dict_connect_Faces() # build faces for each group of elements
+    dict_Faces = mesh.Get_dict_connect_Faces() # build faces for each group of elements
 
     # Builds boundary markers for the colorbar
     if isinstance(result, str) and result == "damage":
-        min = valeurs.min()-1e-12
-        openCrack = False
-        if openCrack:
-            max = 0.98
-        else:
-            max = valeurs.max()+1e-12
-            if max < 1:
-                max = 1        
+        min = values.min()-1e-12
+        max = np.max([values.max()+1e-12, 1])
     else:
-        max = np.max(valeurs)+1e-12 if max is None else max
-        min = np.min(valeurs)-1e-12 if min is None else min
+        max = np.max(values)+1e-12 if max is None else max
+        min = np.min(values)-1e-12 if min is None else min
     levels = np.linspace(min, max, nColors)
 
-    if inDim in [1,2] and not use3DBeamModel:
+    if ax is not None:
+        ax.clear()
+        fig = ax.figure
+
+    if inDim in [1,2]:
         # Mesh contained in a 2D plane
         # Currently only designed for one element group!
 
-        faces = dict_connect_Faces[mesh.groupElem.elemType]
+        if ax is None:
+            fig, ax = plt.subplots()
+        # rename the axis
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
 
-        coordFaces = coordoDef_InDim[faces]        
+        # construct coordinates for each faces
+        faces = dict_Faces[mesh.groupElem.elemType]
+        coordFaces = coordo[faces,:2]
 
         # Plot the mesh
         if plotMesh:
             if mesh.dim == 1:
-                # mesh for 1D elements are points
-                coordFaces = coordFaces.reshape(-1,inDim)
-                ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=0.1, marker='.')
+                # mesh for 1D elements are points                
+                ax.plot(*coordo.T, c='black', lw=0.1, marker='.', ls='')
             else:
                 # mesh for 2D elements are lines
                 pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=0.5)
                 ax.add_collection(pc)
 
-        # Element values
-        if mesh.Ne == len(valeurs):            
+        # Plot element values
+        if mesh.Ne == len(values):
             if mesh.dim == 1:
-                # we will display the result on each line
                 pc = matplotlib.collections.LineCollection(coordFaces, lw=1.5, cmap=cmap)
-            else:
-                # we'll display the result on the faces
+            else:                
                 pc = matplotlib.collections.PolyCollection(coordFaces, lw=0.5, cmap=cmap)                
             pc.set_clim(min, max)
-            pc.set_array(valeurs)
+            pc.set_array(values)
             ax.add_collection(pc)
 
-        # Node values
-        elif mesh.Nn == len(valeurs):
-            # display the result on the nodes
+        # Plot node values
+        elif mesh.Nn == len(values):            
             # retrieve triangles from each face to use the trisurf function
             connectTri = mesh.dict_connect_Triangle[mesh.groupElem.elemType]
-            pc = ax.tricontourf(coordoDef[:,0], coordoDef[:,1], connectTri, valeurs, levels, cmap=cmap, vmin=min, vmax=max)
             # tripcolor, tricontour, tricontourf
+            pc = ax.tricontourf(coordo[:,0], coordo[:,1], connectTri, values,
+                                levels, cmap=cmap, vmin=min, vmax=max)
 
         # scale the axis
         ax.autoscale()
-        if mesh.dim != 1: ax.axis('equal')
-
-        # procedure for trying to retrieve the colorbar from the axis
-        divider = make_axes_locatable(ax)
-        if colorbarIsClose:
-            cax = divider.append_axes('right', size='10%', pad=0.1)
-            # # cax = divider.add_auto_adjustable_area(use_axes=ax, pad=0.1, adjust_dirs='right')
-        else:
-            cax=None
+        if mesh.dim != 1:
+            ax.axis('equal')
         
         # Building the colorbar
         if isinstance(result, str) and result == "damage":
             ticks = np.linspace(0,1,11)
         else:
             ticks = np.linspace(min,max,11)
-        cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
-        
-        # rename the axis
-        ax.set_xlabel(r"$x$")
-        ax.set_ylabel(r"$y$")
 
+        if colorbarIsClose:
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes('right', size='10%', pad=0.1)
+            # # cax = divider.add_auto_adjustable_area(use_axes=ax, pad=0.1, adjust_dirs='right')
+        else:
+            cax=None
     
-    elif inDim == 3 or use3DBeamModel:
-        # initialization of max and min colorbar values
-                
-        maxVal = max
-        minVal = min
+        cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
+    
+    elif inDim == 3:
+        # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
+        # A 3D mesh can contain several types of 2D element.
+        # For example, when PRISM6 -> TRI3 and QUAD4 at the same time
 
-        # mesh dimension
-        dim = mesh.dim
-        if dim == 3:
-            # If the mesh is a 3D mesh, then only the 2D elements of the mesh will be displayed.
-            # A 3D mesh can contain several types of 2D element.
-            # For example, when PRISM6 -> TRI3 and QUAD4 at the same time
-            # Basically, the outer layer
-            dim = 2
+        plotDim = 2 if plotDim == 3 else plotDim
 
-        # constructs the face connection matrix
-        connectFaces = []
-        list_groupElemDim = mesh.Get_list_groupElem(dim)
-        for groupElem in list_groupElemDim:
-            connectFaces.extend(dict_connect_Faces[groupElem.elemType])
-        connectFaces = np.array(connectFaces)
-
-        coordFaces = coordoDef[connectFaces]
-
-        if nodeValues:
-            # If the result is stored at nodes, we'll average the node values over the element.
-
-            valeursAuxFaces = []
-            # for each group of elements, we'll calculate the value to be displayed on each element
-            for groupElem in list_groupElemDim:
-                valeursNoeudsSurElement = valeurs[groupElem.connect]
-                values = np.asarray(np.mean(valeursNoeudsSurElement, axis=1))
-                valeursAuxFaces.extend(values)
-            valeursAuxFaces = np.asarray(valeursAuxFaces)
-        else:
-            valeursAuxFaces = valeurs
-
-        # update max and min
-        maxVal = valeursAuxFaces.max()
-        minVal = valeursAuxFaces.min()        
-        maxVal = np.max([maxVal, max])
-        minVal = np.min([minVal, min])
-
-        # Display result with or without mesh display
-        if plotMesh:
-            if dim == 1:
-                pc = Line3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
-            elif dim == 2:
-                pc = Poly3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
-        else:
-            if dim == 1:
-                pc = Line3DCollection(coordFaces, cmap=cmap, zorder=0)
-            if dim == 2:
-                pc = Poly3DCollection(coordFaces, cmap=cmap, zorder=0)
-
-        # Colors are applied to the faces
-        pc.set_array(valeursAuxFaces)        
-        ax.add_collection3d(pc)        
-        
-        # We set the colorbar limits and display it
-        pc.set_clim(minVal, maxVal)
-        ticks = np.linspace(minVal,maxVal,11)
-        cb = fig.colorbar(pc, ax=ax, ticks=ticks)
-
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection="3d")
+            ax.view_init(elev=105, azim=-90)
         # rename the axis
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         ax.set_zlabel(r"$z$")
+
+        # constructs the face connection matrix
+        connectFaces = []
+        list_groupElemDim = mesh.Get_list_groupElem(plotDim)
+        for groupElem in list_groupElemDim:
+            connectFaces.extend(dict_Faces[groupElem.elemType])
+        connectFaces = np.array(connectFaces)
+
+        coordFaces: np.ndarray = coordo[connectFaces, :3]
+
+        if nodeValues:
+            # If the result is stored at nodes, we'll average the node values over the element.
+            facesValues = []
+            # for each group of elements, we'll calculate the value to be displayed on each element
+            for groupElem in list_groupElemDim:                
+                values_loc = values[groupElem.connect]
+                values_e = np.mean(values_loc, axis=1)
+                facesValues.extend(values_e)
+            facesValues = np.array(facesValues)
+        else:
+            facesValues = values
+
+        # update max and min
+        max = np.max([facesValues.max(), max])
+        min = np.min([facesValues.min(), min])
+
+        # Display result with or without mesh display
+        if plotMesh:
+            if plotDim == 1:
+                pc = Line3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
+            elif plotDim == 2:
+                pc = Poly3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
+        else:
+            if plotDim == 1:
+                pc = Line3DCollection(coordFaces, cmap=cmap, zorder=0)
+            if plotDim == 2:
+                pc = Poly3DCollection(coordFaces, cmap=cmap, zorder=0)
+
+        # Colors are applied to the faces
+        pc.set_array(facesValues)        
+        ax.add_collection3d(pc)        
+        
+        # We set the colorbar limits and display it
+        pc.set_clim(min, max)
+        ticks = np.linspace(min,max,11)
+        cb = fig.colorbar(pc, ax=ax, ticks=ticks)
         
         # Change axis scale
-        _ScaleChange(ax, coordoNonDef)
+        _ScaleChange(ax, mesh.coordoGlob)
 
     # Title
-    optionTex = result
-    if isinstance(result, str):
-        if result == "damage":
-            optionTex = "\phi"
-        elif result == "thermal":
-            optionTex = "T"
-        elif "S" in result and not result in ["amplitudeSpeed"]:
-            optionFin = result.split('S')[-1]
-            optionTex = f"\sigma_{'{'+optionFin+'}'}"
-        elif "E" in result:
-            optionFin = result.split('E')[-1]
-            optionTex = f"\epsilon_{'{'+optionFin+'}'}"
-    
-    # Specify whether values are on nodes or elements
-    if nodeValues:
-        # loc = "^{n}"
-        loc = ""
-    else:
-        loc = "^{e}"
-    
     # if no title has been entered, the constructed title is used
     if title == "" and isinstance(result, str):
+        optionTex = result
+        if isinstance(result, str):
+            if result == "damage":
+                optionTex = "\phi"
+            elif result == "thermal":
+                optionTex = "T"
+            elif "S" in result and not result in ["amplitudeSpeed"]:
+                optionFin = result.split('S')[-1]
+                optionTex = f"\sigma_{'{'+optionFin+'}'}"
+            elif "E" in result:
+                optionFin = result.split('E')[-1]
+                optionTex = f"\epsilon_{'{'+optionFin+'}'}"
+        
+        # Specify whether values are on nodes or elements
+        if nodeValues:
+            # loc = "^{n}"
+            loc = ""
+        else:
+            loc = "^{e}"
         title = optionTex+loc
         ax.set_title(fr"${title}$")
     else:
@@ -331,13 +273,13 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformation=False, factorDef
     # If the folder has been filled in, save the figure.
     if folder != "":
         if filename=="":
-            filename=result
+            filename = result
         Save_fig(folder, filename, transparent=False)
 
     # Returns figure, axis and colorbar
     return fig, ax, cb
     
-def Plot_Mesh(obj, deformation=False, factorDef=4, folder="", title="", ax=None, lw=0.5, alpha=1.0, facecolors='c', edgecolor='black') -> plt.Axes:
+def Plot_Mesh(obj, deformation=False, factorDef=0.0, folder="", title="", lw=0.5, alpha=1.0, facecolors='c', edgecolor='black', ax: plt.Axes=None) -> plt.Axes:
     """Plot the mesh.
 
     Parameters
@@ -352,150 +294,116 @@ def Plot_Mesh(obj, deformation=False, factorDef=4, folder="", title="", ax=None,
         save folder, default "".
     title: str, optional
         backup file name, default "".
-    ax: plt.Axes, optional
-        Axis to use, default None
     lw: float, optional
         line thickness, default 0.5
     alpha : float, optional
         face transparency, default 1.0
+    ax: plt.Axes, optional
+        Axis to use, default None
 
     Returns
     -------
     plt.Axes
     """
 
-    from Simulations import _Simu, Mesh
+    simu, mesh, coordo, inDim = __init_obj(obj, factorDef)
 
-    if isinstance(obj, _Simu):
-        simu = obj
-        mesh = simu.mesh
-        use3DBeamModel = simu.problemType == "beam" and simu.model == 3
-    elif isinstance(obj, Mesh):
-        mesh = obj
-        if deformation == True:
-            print("You have to give the simulation to display the distorted mesh.")
-        use3DBeamModel = False
-    else:
-        raise Exception("Must be a simulation or mesh.")
-    
-    assert factorDef > 0, "The deformation factor must be > 0"
-
-    coordo = mesh.coordoGlob
-
-    inDim = mesh.groupElem.inDim
-
-    # coordinates
-    inDim = 3 if use3DBeamModel else mesh.groupElem.inDim
-    coordo = coordo[:,range(inDim)]
-    if deformation:
-        coordoDeforme, deformation = __GetCoordo(simu, deformation, factorDef)
-        coordoDeforme = coordoDeforme[:,range(inDim)]    
+    factorDef = 0 if simu is None else factorDef
 
     # Dimensions of displayed elements
-    dimElem = mesh.dim
-    if dimElem == 3:
-        # If the mesh is a 3D mesh, then only the 2D elements of the mesh will be displayed.
-        # Basically the outer layer
-        dimElem = 2
+    plotDim = mesh.dim 
+    # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.    
+    if plotDim == 3: plotDim = 2
     
     # constructs the connection matrix for the faces
-    dict_connect_Faces = mesh.Get_dict_connect_Faces()
+    dict_Faces = mesh.Get_dict_connect_Faces()
     connectFaces = []
-    for groupElem in mesh.Get_list_groupElem(dimElem):
-        connectFaces.extend(dict_connect_Faces[groupElem.elemType])
+    for groupElem in mesh.Get_list_groupElem(plotDim):
+        connectFaces.extend(dict_Faces[groupElem.elemType])
     connectFaces = np.array(connectFaces)
 
-    coordFaces = coordo[connectFaces]
-
-    if deformation:
-        coordFacesDeforme = coordoDeforme[connectFaces]
+    # faces coordinates
+    coordFacesDef: np.ndarray = coordo[connectFaces, :inDim]
+    coordFaces = mesh.coordoGlob[connectFaces, :inDim]
         
-    if inDim in [1,2] and not use3DBeamModel:
+    if inDim in [1,2]:
+        # in 2d space
 
         if ax is None:
             fig, ax = plt.subplots()
-
-        if deformation:
-
-            coordFacesDeforme = coordoDeforme[connectFaces]
-            
-            # Overlay undeformed and deformed mesh
-            # Undeformed mesh
-            pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1)
-            ax.add_collection(pc)
-
-            # Deformed mesh
-            pc = matplotlib.collections.LineCollection(coordFacesDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
-            ax.add_collection(pc)
-
-        else:
-            # Undeformed mesh
-            if alpha == 0:
-                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=1)
-            else:
-                pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw, zorder=1)
-            ax.add_collection(pc)
-
-        if mesh.dim == 1:
-            coordFaces = coordFaces.reshape(-1,inDim)
-            ax.scatter(coordFaces[:,0], coordFaces[:,1], c='black', lw=lw, marker='.')
-            if deformation:
-                coordDeforme = coordFacesDeforme.reshape(-1, inDim)
-                ax.scatter(coordDeforme[:,0], coordDeforme[:,1], c='red', lw=lw, marker='.')            
-        
-        ax.autoscale()
-        ax.axis('equal')
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
 
-    # ETUDE 3D    
-    elif inDim == 3 or use3DBeamModel:
+        if factorDef > 0:            
+            # Deformed mesh
+            pc = matplotlib.collections.LineCollection(coordFacesDef, edgecolor='red', lw=lw, antialiaseds=True, zorder=1)
+            ax.add_collection(pc)
+            # Overlay undeformed and deformed mesh
+            # Undeformed mesh
+            pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1) 
+            ax.add_collection(pc)            
+        else:
+            # Undeformed mesh
+            pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=1)
+            ax.add_collection(pc)
+            if alpha > 0:
+                pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, lw=lw, zorder=1, alpha=alpha)            
+                ax.add_collection(pc)
+
+        if mesh.dim == 1:
+            # nodes
+            ax.plot(*mesh.coordoGlob[:,:2].T, c='black', lw=lw, marker='.', ls='')
+            if factorDef > 0:
+                ax.plot(*coordo[:,:2].T, c='red', lw=lw, marker='.', ls='')
+        
+        ax.autoscale()
+        ax.axis('equal')        
+
+    elif inDim == 3:
+        # in 3d space
 
         if ax is None:
             fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
             ax.view_init(elev=105, azim=-90)
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
+        ax.set_zlabel(r"$z$")
 
-        if deformation:
+        if factorDef > 0:
             # Displays only 1D or 2D elements, depending on the mesh type
-
-            if dimElem > 1:
+            if plotDim > 1:
+                # Deformed 2D mesh 
+                pcDef = Poly3DCollection(coordFacesDef, edgecolor='red', linewidths=0.5, alpha=0, zorder=0)
+                ax.add_collection3d(pcDef)                
                 # Overlay the two meshes
                 # Undeformed mesh
                 # ax.scatter(x,y,z, linewidth=0, alpha=0)
                 pcNonDef = Poly3DCollection(coordFaces, edgecolor=edgecolor, linewidths=0.5, alpha=0, zorder=0)
                 ax.add_collection3d(pcNonDef)
 
-                # Maillage deformé
-                pcDef = Poly3DCollection(coordFacesDeforme, edgecolor='red', linewidths=0.5, alpha=0, zorder=0)
-                ax.add_collection3d(pcDef)
             else:
+                # Deformed mesh
+                pc = Line3DCollection(coordFacesDef, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
+                ax.add_collection3d(pc)
                 # Overlay undeformed and deformed mesh
                 # Undeformed mesh
                 pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
                 ax.add_collection3d(pc)
-
-                # Deformed mesh
-                pc = Line3DCollection(coordFacesDeforme, edgecolor='red', lw=lw, antialiaseds=True, zorder=0)
-                ax.add_collection3d(pc)
-                
-                ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
-                ax.scatter(coordoDeforme[:,0], coordoDeforme[:,1], coordoDeforme[:,2], c='red', lw=lw, marker='.')                
+                # nodes
+                ax.plot(*mesh.coordoGlob.T, c='black', lw=lw, marker='.', ls='')
+                ax.plot(*coordo.T, c='red', lw=lw, marker='.', ls='')
 
         else:
             # Undeformed mesh
             # Displays only 1D or 2D elements, depending on the mesh type
-
-            if dimElem > 1:
+            if plotDim > 1:
                 pc = Poly3DCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=0)
             else:
                 pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
-                ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], c='black', lw=lw, marker='.')
+                ax.plot(*coordo.T, c='black', lw=lw, marker='.', ls='')
             ax.add_collection3d(pc, zs=0, zdir='z')
             
-        _ScaleChange(ax, coordo)
-        ax.set_xlabel(r"$x$")
-        ax.set_ylabel(r"$y$")
-        ax.set_zlabel(r"$z$")
+        _ScaleChange(ax, coordo)        
     
     if title == "":
         title = f"{mesh.elemType} : Ne = {mesh.Ne}, Nn = {mesh.Nn}"
@@ -507,7 +415,7 @@ def Plot_Mesh(obj, deformation=False, factorDef=4, folder="", title="", ax=None,
 
     return ax
 
-def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=None) -> plt.Axes:
+def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax: plt.Axes=None) -> plt.Axes:
     """Plot mesh nodes.
 
     Parameters
@@ -537,6 +445,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
 
     if ax is None:
         ax = Plot_Mesh(mesh, alpha=0)
+    ax.set_title("")
     
     if len(nodes) == 0:
         nodes = mesh.nodes    
@@ -544,20 +453,20 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', folder="", ax=
     coordo = mesh.coordoGlob
 
     if mesh.inDim == 2:
-        ax.plot(coordo[nodes,0], coordo[nodes,1], ls='', marker=marker, c=c, zorder=2.5)
+        ax.plot(*coordo[nodes,:2].T, ls='', marker=marker, c=c, zorder=2.5)
         if showId:            
-            [ax.text(coordo[noeud,0], coordo[noeud,1], str(noeud), c=c) for noeud in nodes]
+            [ax.text(*coordo[nodes,:2].T, str(noeud), c=c) for noeud in nodes]
     elif mesh.inDim == 3:            
-        ax.plot(coordo[nodes,0], coordo[nodes,1], coordo[nodes,2], ls='', marker=marker, c=c, zorder=2.5)
+        ax.plot(*coordo[nodes].T, ls='', marker=marker, c=c, zorder=2.5)
         if showId:
-            [ax.text(coordo[noeud,0], coordo[noeud,1], coordo[noeud,2], str(noeud), c=c) for noeud in nodes]
+            [ax.text(*coordo[nodes].T, str(noeud), c=c) for noeud in nodes]
     
     if folder != "":
         Save_fig(folder, "nodes")
 
     return ax
 
-def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor='black', alpha=1.0, folder="", ax=None) -> plt.Axes:
+def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor='black', alpha=1.0, folder="", ax: plt.Axes=None) -> plt.Axes:
     """Display mesh elements from given nodes.
 
     Parameters
@@ -590,48 +499,46 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor
     mesh = cast(Mesh, mesh)
 
     if dimElem is None:
-        dimElem = mesh.dim-1 if mesh.inDim == 3 else mesh.dim
+        dimElem = 2 if mesh.inDim == 3 else mesh.dim
 
+    # list of element group associated with the dimension
     list_groupElem = mesh.Get_list_groupElem(dimElem)[:1]
     if len(list_groupElem) == 0: return
 
     if ax is None:
         ax = Plot_Mesh(mesh, alpha=alpha)
+    # for each group elem
+    for groupElem in list_groupElem:
 
-    for groupElemDim in list_groupElem:
-
+        # get the elements associated with the nodes
         if len(nodes) > 0:
-            elements = groupElemDim.Get_Elements_Nodes(nodes)
+            elements = groupElem.Get_Elements_Nodes(nodes)
         else:
-            elements = np.arange(groupElemDim.Ne)
+            elements = np.arange(groupElem.Ne)
 
         if elements.size == 0: continue
 
-        connect_e = groupElemDim.connect
-        coordo_n = groupElemDim.coordoGlob
-        indexeFaces = groupElemDim.indexesFaces
-        coordoFaces_e = coordo_n[connect_e[:, indexeFaces]]
-        coordoFaces = coordoFaces_e[elements]
+        # Construct the faces coordinates
+        connect_e = groupElem.connect
+        coord_n = groupElem.coordoGlob
+        indexeFaces = groupElem.indexesFaces
+        coordFaces_e = coord_n[connect_e[:, indexeFaces], :mesh.inDim]
+        coordFaces = coordFaces_e[elements]
 
-        coordo_e = np.mean(coordoFaces_e, axis=1)
+        # center coordinates for each elements
+        center_e = np.mean(coordFaces_e, axis=1)
         
-        if mesh.dim in [1,2]:
-            if groupElemDim.dim == 1:
-                pc = matplotlib.collections.LineCollection(coordoFaces[:,:,range(mesh.inDim)], edgecolor=c, lw=1, zorder=2)
+        if mesh.inDim in [1,2]:
+            if groupElem.dim == 1:
+                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=c, lw=1, zorder=2)
             else:
-                pc = matplotlib.collections.PolyCollection(coordoFaces[:,:,range(mesh.inDim)], facecolors=c, edgecolor=edgecolor, lw=0.5, alpha=alpha, zorder=2)
+                pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=c, edgecolor=edgecolor, lw=0.5, alpha=alpha, zorder=2)
             ax.add_collection(pc)
-
-            # ax.scatter(coordo[:,0], coordo[:,1], marker=marker, c=c, zorder=2)
-            if showId:
-                [ax.text(coordo_e[element,0], coordo_e[element,1], element,
-                zorder=25, ha='center', va='center') for element in elements]
-        elif mesh.dim == 3:
-            ax.add_collection3d(Poly3DCollection(coordoFaces, facecolors=c, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=2), zdir='z')
-
-            # ax.scatter(coordo[:,0], coordo[:,1], coordo[:,2], marker=marker, c=c, zorder=2)
-            if showId:
-                [ax.text(coordo_e[element,0], coordo_e[element,1], coordo_e[element,2], element, zorder=25, ha='center', va='center') for element in elements]
+        elif mesh.inDim == 3:
+            pc = Poly3DCollection(coordFaces, facecolors=c, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=2)
+            ax.add_collection3d(pc, zdir='z')
+        if showId:
+            [ax.text(*center_e[element], element, zorder=25, ha='center', va='center') for element in elements]
 
     # ax.axis('off')
     
@@ -640,7 +547,7 @@ def Plot_Elements(mesh, nodes=[], dimElem=None, showId=False, c='red', edgecolor
 
     return ax
 
-def Plot_BoundaryConditions(simu, folder="", ax=None) -> plt.Axes:
+def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
     """Plot boundary conditions.
 
     Parameters
@@ -660,58 +567,45 @@ def Plot_BoundaryConditions(simu, folder="", ax=None) -> plt.Axes:
     from Simulations import _Simu
 
     simu = cast(_Simu, simu)
+    coordo = simu.mesh.coordoGlob
 
-    dim = simu.dim
-
-    # Récupérations des Conditions de chargement de déplacement ou de liaison
+    # get dirichlet and neumann boundary conditions
     dirchlets = simu.Bc_Dirichlet
-    Conditions = dirchlets
-
+    BoundaryConditions = dirchlets
     neumanns = simu.Bc_Neuman
-    Conditions.extend(neumanns)
-
-    displays = simu.Bc_Display # boundary conditions for display
-    Conditions.extend(displays)
+    BoundaryConditions.extend(neumanns)
+    displays = simu.Bc_Display # boundary conditions for display used for lagrangian boundary conditions
+    BoundaryConditions.extend(displays)
 
     if ax is None:
         ax = Plot_Mesh(simu, alpha=0)
 
-    assert isinstance(ax, plt.Axes)
-
-    coordo = simu.mesh.coordoGlob    
-
-    for bc_Conditions in Conditions:
-
-        problemType = bc_Conditions.problemType        
-        valeurs_ddls = bc_Conditions.dofsValues
-        directions = bc_Conditions.directions
-
-        # récupère les noeuds
-        noeuds = bc_Conditions.nodes
-
-        if problemType == "damage":
-            valeurs = [valeurs_ddls[0]]
-        else:
-            valeurs = np.round(list(np.sum(valeurs_ddls.copy().reshape(-1, len(directions)), axis=0)), 2)
+    for bc in BoundaryConditions:
         
-        description = bc_Conditions.description
-        
-        directions_str = str(directions).replace("'","")
-
-        titre = f"{description} {directions_str}"
+        problemType = bc.problemType        
+        dofsValues = bc.dofsValues
+        directions = bc.directions
+        nDir = len(directions)
+        nodes = bc.nodes
+        description = bc.description
 
         if problemType in ["damage","thermal"]:
             marker='o'
         elif problemType in ["displacement","beam"]:
+
+            # get values for each direction
+            sum = np.sum(dofsValues.reshape(-1, nDir), axis=0)
+            values = np.round(sum, 2)
+            # values will be use to choose the marker
             if len(directions) == 1:
-                signe = np.sign(valeurs[0])
+                sign = np.sign(values[0])
                 if directions[0] == 'x':
-                    if signe == -1:
+                    if sign == -1:
                         marker = '<'
                     else:
                         marker='>'
                 elif directions[0] == 'y':
-                    if signe == -1:
+                    if sign == -1:
                         marker='v'
                     else:
                         marker='^'
@@ -725,20 +619,21 @@ def Plot_BoundaryConditions(simu, folder="", ax=None) -> plt.Axes:
             elif len(directions) > 2:
                 marker='s'
 
+        # Title        
+        directions_str = str(directions).replace("'","")
+        title = f"{description} {directions_str}"
+
         lw=0
-        if dim in [1,2]:
-            ax.plot(*coordo[noeuds,:2].T, marker=marker, lw=lw, label=titre, zorder=2.5, ls='')
-        else:            
-            ax.plot(*coordo[noeuds,:3].T, marker=marker, lw=lw, label=titre, zorder=2.5, ls='')
+        ax.plot(*coordo[nodes,:simu.mesh.inDim].T, marker=marker, lw=lw, label=title, zorder=2.5, ls='')
     
-    plt.legend()
+    ax.legend()
 
     if folder != "":
         Save_fig(folder, "Boundary conditions")
 
     return ax
 
-def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1.0) -> plt.Axes:
+def Plot_Model(obj, showId=True, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
     """Plot the model.
 
     Parameters
@@ -747,69 +642,58 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1.0) -> plt.Axes:
         object containing the mesh
     showId : bool, optional
         show tags, by default True
-    ax : plt.Axes, optional
-        Axis to use, default None
     folder : str, optional
         save folder, by default ""
     alpha : float, optional
         transparency, by default 1.0
+    ax : plt.Axes, optional
+        Axis to use, default None
 
     Returns
     -------
     plt.Axes
     """
 
-    from Simulations import _Simu
-    from Mesh import Mesh, GroupElem
+    # tic =
 
-    typeobj = type(obj).__name__
+    simu, mesh, coordo, inDim = __init_obj(obj, 0.0)
 
-    if typeobj == _Simu.__name__:
-        simu = cast(_Simu, obj)
-        mesh = simu.mesh
-    elif typeobj == Mesh.__name__:
-        mesh = cast(Mesh, obj)
-    else:
-        raise Exception("Must be a simulation or a mesh.")
-
-    inDim = mesh.inDim
-
-    # Create axes if necessary
     if ax is None:
-        # ax = Plot_Mesh(mesh, facecolors='c', edgecolor='black')
-        # fig = ax.figure
-        if mesh.inDim in [0,1,2]:
+        if mesh.inDim <= 2:
             fig, ax = plt.subplots()
+            ax.set_xlabel(r"$x$")
+            ax.set_ylabel(r"$y$")
         else:
             fig = plt.figure()
             ax = fig.add_subplot(projection="3d")
             ax.view_init(elev=105, azim=-90)
+            ax.set_xlabel(r"$x$")
+            ax.set_ylabel(r"$y$")
+            ax.set_zlabel(r"$z$")
     else:
         fig = ax.figure
 
-    # Here, for each element group in the mesh, we plot the elements belonging to the element group.
-    listGroupElem = cast(list[GroupElem], [])
-    listDim = np.arange(mesh.dim, -1, -1, dtype=int)
-    for dim in listDim:
-        if dim < 3:
-            # 3D elements are not added
-            listGroupElem.extend(mesh.Get_list_groupElem(dim))
+    # get the group of elements for dimension 2 to 0
+    listGroupElem = mesh.Get_list_groupElem(2)
+    listGroupElem.extend(mesh.Get_list_groupElem(1))
+    listGroupElem.extend(mesh.Get_list_groupElem(0))
 
     # List of collections during creation
     collections = []
     for groupElem in listGroupElem:        
+        
         # Tags available by element group
         tags_e = groupElem.elementTags
         dim = groupElem.dim
-        coordo = groupElem.coordoGlob[:, range(inDim)]
+        coordo = groupElem.coordoGlob[:, :inDim]
         faces = mesh.Get_dict_connect_Faces()[groupElem.elemType]
         coordoFaces = coordo[faces]
-        coordo_e = np.mean(coordoFaces, axis=1)
+        center_e = np.mean(coordoFaces, axis=1) # center of each elements
 
         nColor = 0
         for tag_e in tags_e:
 
-            noeuds = groupElem.Get_Nodes_Tag(tag_e)
+            nodes = groupElem.Get_Nodes_Tag(tag_e)
             elements = groupElem.Get_Elements_Tag(tag_e)
             if len(elements) == 0: continue
 
@@ -828,77 +712,72 @@ def Plot_Model(obj, showId=True, ax=None, folder="", alpha=1.0) -> plt.Axes:
                 if nColor > len(__colors):
                     nColor = 1
                 color = __colors[nColor]
-            elif 'C' in tag_e:
-                needPlot = False
             else:
                 color = (np.random.random(), np.random.random(), np.random.random())
 
-            x_e = coordo_e[elements,0].mean()
-            y_e = coordo_e[elements,1].mean()
+            x_e = center_e[elements,0].mean()
+            y_e = center_e[elements,1].mean()
             if inDim == 3:
-                z_e = coordo_e[elements,2].mean()
+                z_e = center_e[elements,2].mean()
 
-            x_n = coordo[noeuds,0]
-            y_n = coordo[noeuds,1]
+            x_n = coordo[nodes,0]
+            y_n = coordo[nodes,1]
             if inDim == 3:
-                z_n = coordo[noeuds,2]
+                z_n = coordo[nodes,2]
 
             if inDim in [1,2]:
-                
-                if len(noeuds) > 0 and needPlot:
-
+                # in 2D space
+                if len(nodes) > 0:
+                    # lines or surfaces
                     if dim == 0:
-                        collections.append(ax.scatter(x_n, y_n, c='black', marker='.', zorder=2, label=tag_e, lw=2))
+                        # plot points
+                        collections.append(ax.plot(x_n, y_n, c='black', marker='.', zorder=2, label=tag_e, lw=2, ls=''))
                     elif dim == 1:
+                        # plot lines
                         pc = matplotlib.collections.LineCollection(coordo_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
                         collections.append(ax.add_collection(pc))
                     else:
+                        # plot surfaces
                         pc = matplotlib.collections.PolyCollection(coordo_faces, lw=1, alpha=alpha, facecolors=color, label=tag_e, edgecolor=color)
                         collections.append(ax.add_collection(pc))
-                        # ax.legend()
-                    
-                    if showId and dim != 2:
-                        ax.text(x_e, y_e, tag_e, zorder=25)
                 else:
-                    ax.scatter(x_n, y_n, c='black', marker='.', zorder=2)
-                    if showId:
-                        ax.text(x_e, y_e, tag_e, zorder=25)
+                    # points
+                    ax.plot(x_n, y_n, c='black', marker='.', zorder=2, ls='')
                     
+                if showId:
+                    # plot the tag on the center of the element
+                    ax.text(x_e, y_e, tag_e, zorder=25)
+                
             else:
-                if len(noeuds) > 0 and needPlot:
+                # in 3D space
+                if len(nodes) > 0:
+                    # lines or surfaces
                     if dim == 0:
+                        # plot points
                         collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e, lw=2, zdir='z'))
                     elif dim == 1:
+                        # plot lines
                         pc = Line3DCollection(coordo_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
                         # collections.append(ax.add_collection3d(pc, zs=z_e, zdir='z'))
                         collections.append(ax.add_collection3d(pc, zdir='z'))
                     elif dim == 2:
+                        # plot surfaces
                         pc = Poly3DCollection(coordo_faces, lw=0, alpha=alpha, facecolors=color, label=tag_e)
                         pc._facecolors2d = color
-                        pc._edgecolors2d = color
-                        # collections.append(ax.add_collection3d(pc, zs=z_e, zdir='z'))
-                        collections.append(ax.add_collection3d(pc, zdir='z'))
-
-                    if showId:
-                        ax.text(x_e, y_e, z_e, tag_e, zorder=25)
+                        pc._edgecolors2d = color                        
+                        collections.append(ax.add_collection3d(pc, zdir='z'))                    
                 else:
-                    x_n = coordo[noeuds,0]
-                    y_n = coordo[noeuds,1]
-                    y_n = coordo[noeuds,1]
-                    if showId:
-                        ax.text(x_e, y_e, z_e, tag_e, zorder=25)
+                    
                     collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e))
 
+                if showId:
+                    ax.text(x_e, y_e, z_e, tag_e, zorder=25)
+    
     if inDim in [1, 2]:
         ax.autoscale()
-        ax.axis('equal')
-        ax.set_xlabel(r"$x$")
-        ax.set_ylabel(r"$y$")
+        ax.axis('equal')        
     else:
-        _ScaleChange(ax, coordo)
-        ax.set_xlabel(r"$x$")
-        ax.set_ylabel(r"$y$")
-        ax.set_zlabel(r"$z$")
+        _ScaleChange(ax, coordo)        
     
     if folder != "":
         Save_fig(folder, "geom")
@@ -925,7 +804,7 @@ def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
-def Plot_Load_Displacement(displacement: np.ndarray, forces: np.ndarray, xlabel='u', ylabel='f', folder="", ax=None) -> tuple[plt.Figure, plt.Axes]:
+def Plot_Load_Displacement(displacement: np.ndarray, forces: np.ndarray, xlabel='u', ylabel='f', folder="", ax: plt.Axes=None) -> tuple[plt.Figure, plt.Axes]:
     """Plot the forces displacement curve.
 
     Parameters
@@ -1144,42 +1023,6 @@ __colors = {
     9 : 'tab:olive',
     10 : 'tab:cyan'
 }
-        
-def __GetCoordo(simu, deformation: bool, facteurDef: float) -> np.ndarray:
-    """Recover deformed coordinates if the simulation allows it with the response of passed or failed.
-
-    Parameters
-    ----------
-    simu : Simu
-        simulation
-    deformation : bool
-        deformation
-    factorDef : float
-        deformation factor
-
-    Returns
-    -------
-    np.ndarray
-    """
-    
-    from Simulations import _Simu
-
-    simu = cast(_Simu, simu)
-
-    coordo = simu.mesh.coordoGlob
-
-    if deformation:
-
-        uglob = simu.Results_displacement_matrix()
-        
-        test = isinstance(uglob, np.ndarray)
-
-        if test:
-            coordoDef = coordo + uglob * facteurDef
-
-        return coordoDef, test
-    else:
-        return coordo, deformation
 
 def _ScaleChange(ax, coordo: np.ndarray) -> None:
     """Change axis size for 3D display
@@ -1262,3 +1105,24 @@ def Clear() -> None:
         os.system("clear")
     elif syst == "Windows":
         os.system("cls")
+
+def __init_obj(obj, factorDef: float):
+
+    from Simulations import _Simu, Mesh
+
+    # here we detect the nature of the object
+    if isinstance(obj, _Simu):
+        simu = obj
+        mesh = simu.mesh
+        u = simu.Results_displacement_matrix()
+        coordo = mesh.coordoGlob + u * factorDef
+        inDim = np.max([simu.model.dim, mesh.inDim])
+    elif isinstance(obj, Mesh):
+        simu = None
+        mesh = obj
+        coordo = mesh.coordoGlob
+        inDim = mesh.inDim
+    else:
+        raise Exception("Must be a simulation or mesh")
+    
+    return simu, mesh, coordo, inDim
