@@ -37,27 +37,25 @@ lb = [1e-12] if not detectL0 else [1e-12, 1e-12]
 ub = [GcMax] if not detectL0 else [GcMax, L/20]
 x0 = [Gc_init] if not detectL0 else [Gc_init, l0_init]
 
-# solver = 0 # least_squares
-solver = 1 # minimize
 
-# ftol = 1e-12
-# ftol = 1e-5
-# ftol = 1e-3
-ftol = 1e-2
-# ftol = 1e-1
+# solver -> solver used to minimize
+# (0, least_squares), (1, minimize)
+solver = 1
 
-# split = "AnisotStress"
-# split = "Zhang"
-split = "He"
-regu = "AT1"
+# ftol -> converg tolerance
+ftol = 1e-2 # 1e-1, 1e-3, 1e-5, 1e-12
 
-# convOption = 0 # bourdin
-# convOption = 1 # energie crack
-convOption = 2 # energie tot
+# split -> Phase field split
+split = "He" # He, Zhang, AnisotStress
+# regu -> phase field regularisation
+regu = "AT1" # AT1, AT2
 
-# tolConv = 1e-0
-tolConv = 1e-2
-# tolConv = 1e-3
+# tolConv -> phase field tol convergence
+tolConv = 1e-2 # 1e-0, 1e-2 1e-3
+
+# convOption -> convergence option for phasefield
+# (0, bourdin), (1, energie crack), (2, energie tot)
+convOption = 2
 
 # ----------------------------------------------
 # Simu
@@ -91,8 +89,8 @@ def DoSimu(x: np.ndarray, mesh: Mesh, idxEssai: int) -> float:
     simus.clear(); simus.append(simu)
 
     dofsY_Upper = simu.Bc_dofs_nodes(nodes_Upper, ["y"])
-    inc0 = 5e-3 # inc0 = 8e-3 # increment platewith hole
-    inc1 = 1e-3 # inc1 = 2e-3
+    inc0 = 5e-3 # inc0 = 8e-5 # increment platewith hole
+    inc1 = 1e-3 # inc1 = 2e-5
     treshold = 0.2
     dep = -inc0
     i = -1
@@ -157,6 +155,9 @@ if __name__ == '__main__':
         print(f"fcrit = {f_crit}")
 
         mesh_init = Functions.DoMesh(L, H, D, l0_init, test, optimMesh)
+
+        Display.Plot_Mesh(mesh_init)
+        print(mesh_init)
 
         # ----------------------------------------------
         # Solve

@@ -81,23 +81,9 @@ if not solve:
 # ----------------------------------------------
 # Import Loading
 # ----------------------------------------------
-# recovers force-displacement curves
-# pathDataFrame = Folder.Join([folder_file, "data_dfEssais.pickle"])
-pathDataFrame = Folder.Join([folder_file, "data_dfEssaisRedim.pickle"])
-with open(pathDataFrame, "rb") as file:
-    dfLoad = pd.DataFrame(pickle.load(file))
-# print(dfLoad)
-
-pathDataLoadMax = Folder.Join([folder_file, "data_df_loadMax.pickle"])
-with open(pathDataLoadMax, "rb") as file:
-    dfLoadMax = pd.DataFrame(pickle.load(file))
-# print(dfLoadMax)
-
-forces = dfLoad["forces"][idxEssai]
-displacements = dfLoad["deplacements"][idxEssai]
+forces, displacements, f_crit = Functions.Get_loads_informations(idxEssai)
 
 f_max = np.max(forces)
-f_crit = dfLoadMax["Load [kN]"][idxEssai]
 # f_crit = 10
 idx_crit = np.where(forces >= f_crit)[0][0]
 dep_crit = displacements[idx_crit]
@@ -151,7 +137,7 @@ if useContact:
 # Material
 # ----------------------------------------------
 # recovers identified properties
-pathParams = Folder.Join([folder_file, "params_Essais.xlsx"])
+pathParams = Folder.Join([folder_file, "params_Essais ARTICLE.xlsx"])
 dfParams = pd.read_excel(pathParams)
 # print(dfParams)
 

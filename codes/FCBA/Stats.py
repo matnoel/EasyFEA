@@ -7,25 +7,34 @@ import pandas as pd
 
 Display.Clear()
 
+folder = Folder.Get_Path(__file__)
+folder_femu = Folder.New_File(Folder.Join(["Essais FCBA", "FEMU"]), results=True)
+folder_iden = Folder.New_File(Folder.Join(["Essais FCBA", "Identification"]), results=True)
 
 # ----------------------------------------------
 # FEMU
 # ----------------------------------------------
-folder = Folder.Get_Path(__file__)
+Display.Section("FEMU")
 
-folder_save = Folder.New_File(Folder.Join(["Essais FCBA", "FEMU"]), results=True)
-
-df = pd.read_excel(Folder.Join([folder, "params_Essais.xlsx"]))
+# df = pd.read_excel(Folder.Join([folder, "params_Essais ARTICLE.xlsx"]))
+df = pd.read_excel(Folder.Join([folder, "params rm10 scaleY.xlsx"]))
 # df = pd.read_excel(Folder.Join([folder, "params_Essais new.xlsx"]))
+
+# df2 = pd.read_excel(Folder.Join([folder, "params samples rm10.xlsx"]))
+# df = pd.concat([df, df2])
+
+# df = pd.read_excel(Folder.Join([folder, "params all rm10.xlsx"]))
 
 print(df)
 
 params = ["El","Et","Gl","vl"]
-seuil = 0.35
+tolError = 0.4
 
 essais = np.arange(df.shape[0])
 
 errors = []
+# errors = [2, 5, 6, 9, 11, 15, 17, 19, 20, 29, 30, 32]
+notErrors = [essai for essai in essais if essai not in errors]
 
 for param in params:
 
@@ -36,7 +45,8 @@ for param in params:
 
     # plot
     ax = plt.subplots()[1]
-    ax.bar(essais, values_mean, align='center', yerr=values_std, capsize=5)    
+    ax.bar(essais[notErrors], values_mean[notErrors],
+           align='center', yerr=values_std[notErrors], capsize=5)
     unite = " [MPa]" if param in ["El","Et","Gl"] else ""    
     param_latex = param.replace("l","_L")
     param_latex = param_latex.replace("t","_T")    
@@ -44,19 +54,19 @@ for param in params:
     ax.set_xlabel("Samples")
     ax.set_xticks(essais)
 
-    Display.Save_fig(folder_save, param + " essais")    
+    Display.Save_fig(folder_femu, param + " essais")    
 
-    # check for erroes
-    if "v" in param: continue    
-    errors.extend(essais[values_disp>=seuil])
+    # # check for errors
+    # if "v" in param: continue    
+    # errors.extend(essais[values_disp>=seuil])
 
+# 
 errors = np.unique(errors)
 notErrors = [essai for essai in essais if essai not in errors]
+print(f"errors = {errors}")
 
-print(errors)
-
+# Stats on not error samples
 list_dict = []
-
 for param in params:
     
     mean = df[param].values[notErrors].mean()
@@ -70,46 +80,95 @@ for param in params:
          "disp %": disp*100
          }
     )
-    
 df_stats = pd.DataFrame(list_dict)
-
-df_stats.to_excel(Folder.Join([folder_save, f"stats rm{seuil}.xlsx"]), float_format="%.2f")
-
-
-pass
-
-
-
-
+df_stats.to_excel(Folder.Join([folder_femu, f"stats rm{tolError}.xlsx"]), float_format="%.2f")
 
 
 # ----------------------------------------------
 # FEMU GC
 # ----------------------------------------------
-folder_FCBA = Folder.New_File("Essais FCBA",results=True)
-folder_Identif = Folder.Join([folder_FCBA, "Identification"])
+Display.Section("FEMU Gc")
 
-pathData = Folder.Join([folder_Identif, 'identification.xlsx'])
+dfGc = pd.read_excel(Folder.Join([folder_iden, "identification.xlsx"]))
 
-Display.Clear()
+# solver -> solver used to minimize
+# (0, least_squares), (1, minimize)
+# ftol -> converg tolerance: 1e-1, 1e-3, 1e-5, 1e-12
+# split -> Phase field split: He, Zhang, AnisotStress 
+# regu -> phase field regularisation: AT1, AT2
+# tolConv -> phase field tol convergence: # 1e-0, 1e-2 1e-3
+# convOption -> convergence option for phasefield 
+# (0, bourdin), (1, energie crack), (2, energie tot)
 
-df = pd.read_excel(pathData)
 
-# filtre = df["err"] >= 1e-2
-# filtre &= df["regu"] == "AT2"
-# filtre = df["Essai"] <= 'Essai10'
-filtre = df["test"] == False
-# filtre = [True]*df.shape[0]
+dfGc = dfGc[(dfGc['solveur']==1)&(dfGc['ftol']==1e-5)]
+dfGc = dfGc.sort_values(by=['Essai'])
 
-# filtre = filtre & (df['tolConv'] == 1e-3)
-# filtre = filtre & (df['Essai'] == 'Essai00')
-dfFiltre = df[filtre]
-dfFiltre = dfFiltre.sort_values(by=['Essai'])
+dfGc = dfGc.set_index(np.arange(dfGc.shape[0]))
 
-essais = np.unique(dfFiltre['Essai'])
+# print(dfGc)
 
-print(dfFiltre)
+# print(dfGc.describe())
+print(f"mean Gc = {dfGc['Gc'].mean():.3f}")
+print(f"std Gc = {dfGc['Gc'].std():.3f}")
+print(f"disp Gc = {dfGc['Gc'].std()/dfGc['Gc'].mean()*100:.2f} %")
 
-print(essais)
+axFc = plt.subplots()[1]
+axFc.bar(dfGc.index, dfGc["f_crit"].values)
+axFc.set_xticks(dfGc.index)
+axFc.set_xlabel("Samples")
+axFc.set_ylabel("Crack initiation forces")
+Display.Save_fig(folder_iden, 'crack init essais')
+# axFcrit.tick_params(axis='x', labelrotation = 45)
+# plt.xlim([0, None])
+# plt.ylim([0, y_max])
+
+axGc = plt.subplots()[1]
+axGc.bar(dfGc.index, dfGc["Gc"].values)
+axGc.set_xticks(dfGc.index)
+# axGc.set_xlabel("Samples", fontsize=14)
+axGc.set_xlabel("Samples")
+axGc.set_ylabel("$G_c \ [mJ \ mm^{-2}]$")
+Display.Save_fig(folder_iden, 'Gc essais')
+
+# errors = [2,6,8,9,11,13,17]
+errors = []
+
+dfGc.drop(errors, axis=0, inplace=True)
+
+ax_fit = plt.subplots()[1]
+ax_fit.set_xlabel('$G_c$')
+ax_fit.set_ylabel('Crack initiation forces')
+
+f_crit = dfGc["f_crit"].values
+Gc = dfGc["Gc"].values
+for i in range(Gc.size):        
+    ax_fit.scatter(Gc[i],f_crit[i],c='blue')
+    # ax.text(Gc[i],f_crit[i],f'Essai{i}')
+
+
+from scipy.optimize import minimize
+J = lambda x: np.linalg.norm(f_crit - (x[0]*Gc + x[1]))
+
+res = minimize(J, [0,0])
+a, b = tuple(res.x)
+
+Gc_array = np.linspace(Gc.min(), Gc.max(), 100)
+curve: np.ndarray = a*Gc_array + b
+
+
+r = np.mean((Gc-Gc.mean())/Gc.std() * (f_crit-f_crit.mean())/f_crit.std())
+# r = np.corrcoef(Gc,f_crit)[0,1]
+
+
+ax_fit.plot(Gc_array, curve,c='red')
+
+ax_fit.text(Gc_array.mean(), curve.mean(), f"{a:.3f} Gc + {b:.3f}, r={r:.3f}", va='top')
+# bbox=dict(boxstyle="square,pad=0.3",alpha=1,color='white')
+
+Display.Save_fig(folder_iden, "corr")
+
+
+Display.plt.show()
 
 pass
