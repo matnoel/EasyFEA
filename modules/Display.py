@@ -63,6 +63,8 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         fig, ax, cb
     """
     
+    tic = Tic()
+
     simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
     plotDim = mesh.dim # plot dimension
 
@@ -268,11 +270,15 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     else:
         ax.set_title(f"{title}")
 
+    tic.Tac("Display","Plot_Result")
+
     # If the folder has been filled in, save the figure.
     if folder != "":
         if filename=="":
             filename = result
         Save_fig(folder, filename, transparent=False)
+
+    
 
     # Returns figure, axis and colorbar
     return fig, ax, cb
@@ -306,6 +312,8 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
     -------
     plt.Axes
     """
+    
+    tic = Tic()
 
     simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
 
@@ -411,6 +419,8 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
     ax.set_title(title)
 
+    tic.Tac("Display","Plot_Mesh")
+
     if folder != "":
         Save_fig(folder, "mesh")
 
@@ -442,6 +452,8 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
     plt.Axes
     """
     
+    tic = Tic()
+    
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
@@ -462,6 +474,8 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
         ax.plot(*coordo[nodes].T, ls='', marker=marker, c=c, zorder=2.5)
         if showId:
             [ax.text(*coordo[nodes].T, str(noeud), c=c) for noeud in nodes]
+
+    tic.Tac("Display","Plot_Nodes")
     
     if folder != "":
         Save_fig(folder, "nodes")
@@ -496,6 +510,8 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     -------
     plt.Axes
     """
+
+    tic = Tic()
 
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
@@ -544,6 +560,8 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
             [ax.text(*center_e[element], element, zorder=25, ha='center', va='center') for element in elements]
 
     # ax.axis('off')
+
+    tic.Tac("Display","Plot_Elements")
     
     if folder != "":
         Save_fig(folder, "noeuds")
@@ -566,6 +584,8 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
     -------
     plt.Axes
     """
+
+    tic = Tic()
 
     from Simulations import _Simu
 
@@ -631,6 +651,8 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
     
     ax.legend()
 
+    tic.Tac("Display","Plot_BoundaryConditions")
+
     if folder != "":
         Save_fig(folder, "Boundary conditions")
 
@@ -657,7 +679,7 @@ def Plot_Model(obj, showId=True, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
     plt.Axes
     """
 
-    # tic =
+    tic = Tic()
 
     simu, mesh, coordo, inDim = __init_obj(obj, 0.0)
 
@@ -780,7 +802,9 @@ def Plot_Model(obj, showId=True, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
         ax.autoscale()
         ax.axis('equal')        
     else:
-        _ScaleChange(ax, coordo)        
+        _ScaleChange(ax, coordo)
+
+    tic.Tac("Display","Plot_Model")
     
     if folder != "":
         Save_fig(folder, "geom")
@@ -1081,9 +1105,13 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
 
     if not os.path.exists(folder):
         os.makedirs(folder)
+    
+    tic = Tic()
 
     # dpi = 500
     plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches='tight')   
+
+    tic.Tac("Display","Save figure")
 
 def Section(text: str, verbosity=True) -> None:
     """New section."""    
