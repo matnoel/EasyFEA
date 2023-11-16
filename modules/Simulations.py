@@ -3765,7 +3765,7 @@ class Simu_Beam(_Simu):
 
         return coordo
     
-    def Results_Get_Iteration_Summary(self) -> str:        
+    def Results_Get_Iteration_Summary(self) -> str:
 
         summary = ""
 
@@ -3986,5 +3986,4 @@ class Simu_Thermal(_Simu):
         return super().Results_dict_Energy()
     
     def Results_displacement_matrix(self) -> np.ndarray:
-        Nn = self.mesh.Nn
-        return np.array((Nn,3))
+        return super().Results_displacement_matrix()

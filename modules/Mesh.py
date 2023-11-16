@@ -88,7 +88,12 @@ class Mesh:
     @property
     def orphanNodes(self) -> list[int]:
         """Nodes not connected to the main mesh element group"""
-        return self.__orphanNodes
+        try:
+            return self.__orphanNodes
+        except AttributeError:
+            self.__orphanNodes = []
+            return self.__orphanNodes
+    
 
     @property
     def dict_groupElem(self) -> dict[ElemType, GroupElem]:
@@ -122,7 +127,7 @@ class Mesh:
 
     @property
     def inDim(self):
-        """Dimension in which the mesh is located
+        """Dimension in which the mesh is located.\n
         A 2D mesh can be oriented in space"""
         return self.__groupElem.inDim
 
