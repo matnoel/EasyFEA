@@ -26,7 +26,7 @@ dict_EL_NUL = mat73.loadmat(Folder.Join([folder, "data_EL_NUL.mat"]))
 # récupère les proritétés identifiées
 folderPythonEF = Folder.Get_Path()
 
-pathParams = Folder.Join([folderPythonEF,'codes','PhaseField','Identif', "params_Essais.xlsx"])
+pathParams = Folder.Join([folderPythonEF,'codes','PhaseField','Identif', "params_Essais ARTICLE.xlsx"])
 # pathParams = Folder.Join([folder_file, "params_Essais new.xlsx"])
 dfParams = pd.read_excel(pathParams)
 
