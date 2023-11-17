@@ -34,12 +34,10 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    interface = Interface_Gmsh(False, True)
+    interface = Interface_Gmsh(False, False)
     dim, elemType = 2, ElemType.QUAD4
 
     factory = interface._init_gmsh_factory('occ')
-
-    # mesh = interface.Mesh_2D(contour, [circle], elemType)
 
     # gmsh points for the domain
     p1 = factory.addPoint(*P1.coordo, meshSize=mS)
@@ -98,7 +96,7 @@ if __name__ == '__main__':
 
         [gmsh.model.mesh.setTransfiniteCurve(line, N) for line in lines]
 
-    factory.remove([(0, pc)])
+    factory.remove([(0, pc)]) # remove the point pc if you dont want orphan nodes
 
     # factory.fragment(factory.getEntities(2), [(1, l) for l in addedLines])
 
@@ -112,7 +110,8 @@ if __name__ == '__main__':
 
     if len(mesh.orphanNodes) > 0:
         ax = Display.Plot_Nodes(mesh, mesh.orphanNodes)
-        ax.set_title("Orphan nodes")
+        ax.set_title("Orphan nodes detected")
+        Display.plt.show()
 
     print(mesh)
 
@@ -127,13 +126,13 @@ if __name__ == '__main__':
     simu = Simulations.Simu_Displacement(mesh, mat)
 
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*mesh.dim, simu.Get_directions())
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==H), [1], ['y'])    
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==H), [4], ['y'])    
     simu.Solve()
-
-    Display.Plot_Result(simu, 'uy', True, 4, plotMesh=True)
         
     Display.Plot_Model(mesh)
+    Display.Plot_Mesh(simu, 1)
+    Display.Plot_Result(simu, 'uy', 1, plotMesh=True)
 
-    Display.Plot_Mesh(mesh)
+    print(simu)
 
     Display.plt.show()
