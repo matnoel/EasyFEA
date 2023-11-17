@@ -1,7 +1,8 @@
+"""Traction"""
+
 import matplotlib.pyplot as plt
 import numpy as np
-from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import Domain, Line, Point, Section
+from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point, Section
 import Display
 import Materials
 import Simulations
@@ -9,8 +10,6 @@ import Folder
 import PostProcessing
 
 Display.Clear()
-
-# TRACTION
 
 # --------------------------------------------------------------------------------------------
 # Dimensions

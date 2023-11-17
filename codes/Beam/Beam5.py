@@ -1,14 +1,15 @@
+"""Frame with six beams"""
+
+import matplotlib.pyplot as plt
+import numpy as np
+from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point, Section
 import Display
 import Materials
 import Simulations
-from Geom import Line, Point, Section, Domain
-from Interface_Gmsh import Interface_Gmsh, ElemType
-
-import numpy as np
+import Folder
+import PostProcessing
 
 Display.Clear()
-
-# Frame with six beams
 
 # --------------------------------------------------------------------------------------------
 # Mesh
