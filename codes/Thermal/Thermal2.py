@@ -60,8 +60,8 @@ def Iteration(steadyState: bool):
 
     # simu.add_dirichlet(noeudsY0, [40], [""])
     # simu.add_dirichlet(noeudsYH, [40], [""])
-    simu.add_surfLoad(noeudsY0, [1], [""])
-    simu.add_surfLoad(noeudsYH, [1], [""])
+    simu.add_surfLoad(noeudsY0, [5], [""])
+    simu.add_surfLoad(noeudsYH, [5], [""])
     
     thermal = simu.Solve()
     simu.Save_Iter()
