@@ -1430,6 +1430,8 @@ class _Simu(ABC):
             nodes, displacementMatrix
         """
 
+        tic = Tic()
+
         assert self.mesh.dim == masterMesh.dim, "Must be same dimension"
 
         # Here the first element group is selected. Regardless of whether there are several group of the same dimension.
@@ -1485,6 +1487,8 @@ class _Simu(ABC):
             # Apply the displacement to meet the interface 
             oldU = self.Results_displacement_matrix()[nodes]
             displacementMatrix = np.array(displacementMatrix) + oldU
+
+        tic.Tac("PostProcessing","Get contact")
         
         return nodes, displacementMatrix
     
