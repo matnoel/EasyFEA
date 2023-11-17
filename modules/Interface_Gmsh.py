@@ -947,7 +947,7 @@ class Interface_Gmsh:
     def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[],
                      axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, nLayers=180, elemType=ElemType.TETRA4,
                      cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
-                     folder="") -> Mesh:
+                     isOrganised=False, folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
 
         Parameters
@@ -968,6 +968,8 @@ class Interface_Gmsh:
             list of object used to create cracks
         refineGeoms : list[Domain|Circle|str], optional
             geometric objects for mesh refinement, by default []
+        isOrganised : bool, optional
+            mesh is organized, by default False
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -985,7 +987,7 @@ class Interface_Gmsh:
         # the starting 2D mesh is irrelevant
         surfaces = self._Surfaces(contour, inclusions)        
         
-        self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers)           
+        self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers, isOrganised=isOrganised)           
 
         # Recovers 3D entities
         entities3D = gmsh.model.getEntities(3)

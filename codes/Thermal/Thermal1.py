@@ -10,58 +10,44 @@ import numpy as np
 
 Display.Clear()
 
-# ----------------------------------------------
-# Configuration
-# ----------------------------------------------
 dim = 3 # Set the simulation dimension (2D or 3D)
+
+# Create a folder for storing simulation results
+folder = Folder.New_File(Folder.Join(["Thermal",f"{dim}D"]), results=True)
+
+# --------------------------------------------------------------------------------------------
+# Configuration
+# --------------------------------------------------------------------------------------------
+
+plotIter = True; resultIter = "thermal"
+makeMovie = False; NMovie = 300
+
+a = 1
+domain = Domain(Point(), Point(a, a), a / 20)
+circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 50)
 
 # Define simulation time parameters
 Tmax = 0.5  # Total simulation time
 N = 50  # Number of time steps
 dt = Tmax / N  # Time step size
 
-# Create a folder for storing simulation results
-folder = Folder.New_File(filename=f"Thermal{dim}D", results=True)
-
-# Set plotIter and affichageIter for result visualization
-plotIter = True
-resultIter = "thermal"
-
-# Set pltMovie and NMovie for creating a movie of simulation results
-makeMovie = False
-NMovie = 300
-
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Mesh
-# ----------------------------------------------
-# Define the domain
-a = 1
-if dim == 2:
-    domain = Domain(Point(), Point(a, a), a / 20)
-else:
-    domain = Domain(Point(), Point(a, a), a / 20)
-
-# Create a circular region inside the domain
-circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 50)
+# --------------------------------------------------------------------------------------------
 
 # Generate the mesh based on the specified dimension
 if dim == 2:
-    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.QUAD4)
+    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3)
 else:
     mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0, 0, -a], 4, ElemType.PRISM6)
 
-noeuds0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-noeudsL = mesh.Nodes_Conditions(lambda x, y, z: x == a)
+noeudsX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+noeudsXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)
+nodesCircle = mesh.Nodes_Cylinder(circle, [0, 0, -1])
 
-if dim == 2:
-    noeudsCircle = mesh.Nodes_Circle(circle)
-else:
-    noeudsCircle = mesh.Nodes_Cylinder(circle, [0, 0, a])
-
-
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Simulation
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, thickness=1)
 simu = Simulations.Simu_Thermal(mesh, thermalModel, False)
 
@@ -74,13 +60,13 @@ def Iteration(steadyState: bool):
     simu.Bc_Init()
 
     # Apply Dirichlet boundary conditions to specific nodes
-    simu.add_dirichlet(noeuds0, [0], [""])
-    simu.add_dirichlet(noeudsL, [40], [""])
+    simu.add_dirichlet(noeudsX0, [0], [""])
+    simu.add_dirichlet(noeudsXa, [40], [""])
 
     # Uncomment and modify the following lines to apply additional boundary conditions
-    # simu.add_dirichlet(noeudsCircle, [10], [""])
-    # simu.add_dirichlet(noeudsCircle, [10], [""])
-    # simu.add_volumeLoad(noeudsCircle, [100], [""])
+    # simu.add_dirichlet(nodesCircle, [10], [""])
+    # simu.add_dirichlet(nodesCircle, [10], [""])
+    # simu.add_surfLoad(nodesCircle, [1], [""])
 
     # Solve the thermal simulation for the current iteration
     thermal = simu.Solve()
@@ -123,9 +109,9 @@ while t < Tmax:
     # Print the current simulation time
     print(f"{np.round(t)} s", end='\r')
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # PostProcessing
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Display the final thermal distribution
 Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True)
 
