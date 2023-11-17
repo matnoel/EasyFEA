@@ -222,7 +222,8 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # Display result with or without mesh display
         if plotMesh:
             if plotDim == 1:
-                pc = Line3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
+                ax.plot(*mesh.coordoGlob.T, c='black', lw=0.1, marker='.', ls='')
+                pc = Line3DCollection(coordFaces, cmap=cmap, zorder=0)
             elif plotDim == 2:
                 pc = Poly3DCollection(coordFaces, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
         else:
@@ -317,7 +318,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
     simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
 
-    deformFactor = 0 if simu is None else deformFactor
+    deformFactor = 0 if simu is None else np.abs(deformFactor)
 
     # Dimensions of displayed elements
     plotDim = mesh.dim 
@@ -1146,7 +1147,7 @@ def __init_obj(obj, deformFactor: float=0.0):
         simu = obj
         mesh = simu.mesh
         u = simu.Results_displacement_matrix()
-        coordo = mesh.coordoGlob + u * deformFactor
+        coordo = mesh.coordoGlob + u * np.abs(deformFactor)
         inDim = np.max([simu.model.dim, mesh.inDim])
     elif isinstance(obj, Mesh):
         simu = None
