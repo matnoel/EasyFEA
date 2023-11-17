@@ -1056,8 +1056,7 @@ class Interface_Gmsh:
         # See t10.py in the gmsh tutorials
         # https://gitlab.onelab.info/gmsh/gmsh/blob/master/tutorials/python/t10.py
 
-        if len(refineGeoms) == 0:
-            return
+        if refineGeoms is None or len(refineGeoms): return
 
         fields = []
 
