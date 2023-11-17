@@ -1056,7 +1056,7 @@ class _Simu(ABC):
         values : list
             list of values that can contain floats, arrays or lambda functions to be evaluated
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
-            The functions use the x, y and z coordinates of the nodes entered.
+            The functions use the x, y and z coordinates of the nodes entered. \n
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
             directions where values will be applied
@@ -1104,7 +1104,7 @@ class _Simu(ABC):
         values : list
             list of values that can contain floats, arrays or lambda functions to be evaluated
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
-            The functions use the x, y and z coordinates of the nodes entered.
+            The functions use the x, y and z coordinates of the nodes entered. \n
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
             directions where values will be applied
@@ -1136,7 +1136,7 @@ class _Simu(ABC):
         values : list
             list of values that can contain floats, arrays or lambda functions to be evaluated
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
-            functions use x, y and z coordinates of integration points
+            functions use x, y and z coordinates of integration points (arrays of dim (e,p)) \n
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
             directions where values will be applied
@@ -1168,7 +1168,7 @@ class _Simu(ABC):
         values : list
             list of values that can contain floats, arrays or lambda functions to be evaluated
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
-            functions use x, y and z coordinates of integration points
+            functions use x, y and z coordinates of integration points (arrays of dim (e,p)) \n
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
             directions where values will be applied
@@ -1205,7 +1205,7 @@ class _Simu(ABC):
         values : list
             list of values that can contain floats, arrays or lambda functions to be evaluated
             ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
-            functions use x, y and z coordinates of integration points
+            functions use x, y and z coordinates of integration points (arrays of dim (e,p)) \n
             Please note that the functions to be evaluated must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
             directions where values will be applied

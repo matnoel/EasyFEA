@@ -1,4 +1,4 @@
-# Frictionless contact assumption 
+# Frictionless contact assumption
 # WARNING : the assumption of small displacements is more than questionable for this simulation
 
 import Display
@@ -8,13 +8,14 @@ from Mesh import Get_new_mesh
 import Materials
 import Simulations
 
-Display.Clear()
 plt = Display.plt
 np = Display.np
 
-# ----------------------------------------------
+Display.Clear()
+
+# --------------------------------------------------------------------------------------------
 # Configuration
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 dim = 2
 
 R = 10
@@ -34,16 +35,16 @@ dec = [R, 2]
 
 # dep = [cx, cy] * ud
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Meshes
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 
 # slave mesh
 contour_slave = Domain(Point(-R/2,0), Point(R/2,height), meshSize)
 if dim == 2:
     mesh_slave = Interface_Gmsh().Mesh_2D(contour_slave, [], ElemType.QUAD4, isOrganised=True)
 else:
-    mesh_slave = Interface_Gmsh().Mesh_3D(contour_slave, [], [0,0,-thickness], 4, ElemType.PRISM6)
+    mesh_slave = Interface_Gmsh().Mesh_3D(contour_slave, [], [0,0,-thickness], 4, ElemType.PRISM6, isOrganised=True)
 
 nodes_slave = mesh_slave.Get_list_groupElem(dim-1)[0].nodes
 nodes_y0 = mesh_slave.Nodes_Conditions(lambda x,y,z: y==0)
@@ -74,9 +75,9 @@ ax.scatter(*mesh_master.coordo[nodes_master,:dim].T, label='master nodes')
 ax.legend()
 ax.set_title('Contact nodes')
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Simulation
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 material = Materials.Elas_Isot(dim, E=210000, v=0.3, planeStress=True, thickness=thickness)
 simu = Simulations.Simu_Displacement(mesh_slave, material)
 
@@ -150,12 +151,14 @@ for i, ud in enumerate(displacements):
     
     pass
 
-# -----------------------------------(-----------
+# --------------------------------------------------------------------------------------------
 # PostProcessing
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 Display.Plot_Result(simu, 'Eyy', nodeValues=True)
 Display.Plot_Result(simu, 'ux')
 Display.Plot_Result(simu, 'uy')
+
+Simulations.Tic.Plot_History(details=True)
 
 # import Folder
 # import PostProcessing

@@ -39,7 +39,7 @@ if dim == 2:
     mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI6)
     print(f"err area = {np.abs(mesh.area - h**2/2):.3e}")
 elif dim == 3:
-    mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, -thickness], 3, ElemType.PRISM6)
+    mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, -thickness], 3, ElemType.PRISM15)
     print(f"error volume = {np.abs(mesh.volume - h**2/2 * thickness):.3e}")
 
 nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
@@ -69,6 +69,6 @@ Display.Plot_BoundaryConditions(simu)
 Display.Plot_Mesh(simu, h/10/np.abs(sol.max()))
 Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1/coef, nColors=20)
 
-TicTac.Tic.Plot_History(details=False)
+TicTac.Tic.Plot_History(details=True)
 
 plt.show()

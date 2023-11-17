@@ -1,4 +1,4 @@
-# WARNING : implementation is not finished yet
+# WARNING : implementation not validated
 
 import numpy as np
 
