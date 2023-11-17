@@ -44,8 +44,7 @@ inclusions.extend([Domain(Point(x=h, y=h/2 - h*0.1), Point(x=h*2.1, y=h/2 + h*0.
 if dim == 2:
     mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, ElemType.TRI3)
 elif dim == 3:
-    # TODO orphan when TETRA
-    mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0, 0, -h], 4, elemType=ElemType.PRISM6)
+    mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0, 0, -h], 4, elemType=ElemType.TETRA4)
 
 nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
 nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)

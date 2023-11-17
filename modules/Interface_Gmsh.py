@@ -459,6 +459,8 @@ class Interface_Gmsh:
 
         surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]
 
+        factory.synchronize()
+
         for surf in surfaces:
 
             if isOrganised:
@@ -469,7 +471,6 @@ class Interface_Gmsh:
             
             if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
                 # https://onelab.info/pipermail/gmsh/2010/005359.html
-                factory.synchronize()                
                 gmsh.model.mesh.setRecombine(2, surf)
             
             # Create new elements for extrusion
@@ -528,7 +529,6 @@ class Interface_Gmsh:
 
             if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
                 # https://onelab.info/pipermail/gmsh/2010/005359.html
-                # factory.synchronize()
                 gmsh.model.mesh.setRecombine(2, surf)
 
         entities = gmsh.model.getEntities(2)
@@ -1056,7 +1056,7 @@ class Interface_Gmsh:
         # See t10.py in the gmsh tutorials
         # https://gitlab.onelab.info/gmsh/gmsh/blob/master/tutorials/python/t10.py
 
-        if refineGeoms is None or len(refineGeoms): return
+        if refineGeoms is None or len(refineGeoms) == 0: return
 
         fields = []
 
@@ -1226,6 +1226,8 @@ class Interface_Gmsh:
             gmsh.model.mesh.generate(3)
 
         Interface_Gmsh._Set_mesh_order(elemType)
+
+        gmsh.model.mesh.removeDuplicateNodes()
 
         # A single physical group is required for lines and points
         usePluginCrack = False

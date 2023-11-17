@@ -28,6 +28,7 @@ class Mesh:
         """
 
         list_GroupElem = []
+        usedNodes = set()
         dim = 0
         for grp in dict_groupElem.values():
             if grp.dim > dim:
@@ -35,6 +36,8 @@ class Mesh:
                 dim = grp.dim
                 self.__groupElem = grp
             list_GroupElem.append(grp)
+            if grp.dim > 0:
+                usedNodes = usedNodes.union(grp.connect.reshape(-1))
 
         self.__dim = self.__groupElem.dim
         self.__dict_groupElem = dict_groupElem
@@ -44,15 +47,14 @@ class Mesh:
 
         if self.__verbosity:
             print(self)
-
-        # Checks that the mesh does not contain orphan nodes
-        nOrph = self.coordoGlob.shape[0] - self.Nn
-        self.__orphanNodes: list[int] = []
-        if nOrph != 0:
-            print(Fore.RED + f"WARNING: Orphan nodes have been detected." + Fore.WHITE)
-            nodes = set(list(range(self.coordoGlob.shape[0])))
-            usedNodes = set(list(np.unique(self.connect.reshape(-1))))
-            self.__orphanNodes = list(nodes - usedNodes)
+        
+        Nn = self.coordoGlob.shape[0]
+        usedNodes = set(self.groupElem.connect.reshape(-1))
+        nodes = set(list(range(Nn)))
+        orphanNodes = list(nodes - usedNodes)
+        self.__orphanNodes: list[int] = orphanNodes
+        if len(orphanNodes) > 0:
+            print(Fore.RED + f"WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes)." + Fore.WHITE)
 
     def _ResetMatrix(self) -> None:
         """Reset matrix for each groupElem"""
