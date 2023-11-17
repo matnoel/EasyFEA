@@ -1131,7 +1131,7 @@ class Beam_Structure(IModel):
     
     @property
     def nBeam(self) -> int:
-        """Number of beams"""
+        """Number of beams in the structure"""
         return len(self.__listBeam)
     
     @property

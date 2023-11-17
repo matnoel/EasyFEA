@@ -8,9 +8,11 @@ import numpy as np
 
 Display.Clear()
 
-# ----------------------------------------------
+# Frame with six beams
+
+# --------------------------------------------------------------------------------------------
 # Mesh
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 l = 100 # mm
 
 pA = Point(2*l, 0)
@@ -31,9 +33,9 @@ meshSection = Interface_Gmsh().Mesh_2D(Domain(Point(-4/2, -8/2), Point(4/2, 8/2)
 section = Section(meshSection)
 Display.Plot_Mesh(meshSection, title='Cross section')
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Simulation
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 E = 276 # MPa
 v = 0.3
 
@@ -46,9 +48,9 @@ mesh = Interface_Gmsh().Mesh_Beams(beams, ElemType.SEG2)
 Display.Plot_Mesh(mesh)
 Display.Plot_Model(mesh)
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Simulation
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 simu = Simulations.Simu_Beam(mesh, structure)
 
 nodesToLink = []
@@ -59,26 +61,21 @@ nodesRigi = mesh.Nodes_Point(pE)
 nodesRigi = np.append(nodesRigi, mesh.Nodes_Point(pD))
 nodesA = mesh.Nodes_Point(pA)
 
-# Pour chaque point on vient connecter les poutres
+# link beams at specified points
 for point in [pA, pB, pC]:
-
     nodes = mesh.Nodes_Point(point)
-
     firstNodes = nodes[0]
     others = nodes[1:]
-
-    [simu.add_connection_hinged(np.array([firstNodes, n])) for n in others]
-
-    pass
+    [simu.add_connection_hinged(np.array([firstNodes, n])) for n in others]    
 
 simu.add_dirichlet(nodesRigi, [0,0], ['x','y'])
 simu.add_neumann(nodesA, [-40*9.81], ['y'])
 
 simu.Solve()
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # PostProcessing
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 matrixDep = simu.Results_displacement_matrix()
 depMax = np.max(np.linalg.norm(matrixDep, axis=1))
 
