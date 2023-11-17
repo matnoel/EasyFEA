@@ -135,7 +135,7 @@ class Tic:
         ax.set_title(titre)
 
     @staticmethod 
-    def Plot_History(folder="", details=True) -> None:
+    def Plot_History(folder="", details=False) -> None:
         """Display history.
 
         Parameters
