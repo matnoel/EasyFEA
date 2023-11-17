@@ -20,16 +20,16 @@ dim = 2 # Define the dimension of the problem (2D or 3D)
 
 # List of mesh sizes (number of elements) to investigate convergence
 if dim == 2:
-    listNbElement = np.arange(1, 10, 1)
+    listNbElement = np.arange(1, 12, 1)
 else:
-    listNbElement = np.arange(1, 4, 2)
+    listNbElement = np.arange(1, 8, 2)
 
 # Create a folder to store the simulation results
-folder = Folder.New_File(f"Convergence {dim}D", results=True)
+folder = Folder.New_File(Folder.Join([f"Mesh convergence",str(dim)+"D"]), results=True)
 
 # Define whether to plot the results
 plotResult = True
-makeParaview = False
+makeParaview = True
 
 # Define geometry parameters
 L = 120  # mm
@@ -56,7 +56,7 @@ listDofs_e_nb = []    # List to store degrees of freedom for each element type a
 # Simulation
 # ----------------------------------------------
 # Timer
-tic = Tic()
+
 
 # Loop over each element type for both 2D and 3D simulations
 elemTypes = GroupElem.get_Types2D() if dim == 2 else GroupElem.get_Types3D()
@@ -78,7 +78,7 @@ for e, elemType in enumerate(elemTypes):
         if dim == 2:
             mesh = interfaceGmsh.Mesh_2D(domain, [], elemType, isOrganised=True)
         else:
-            mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], nLayers=4)        
+            mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], nLayers=4, isOrganised=True)        
 
         # Calculate the volume of the mesh for verification
         if mesh.dim == 3:
@@ -108,6 +108,8 @@ for e, elemType in enumerate(elemTypes):
 
         # Set surface load on the right boundary (y-direction)
         simu.add_surfLoad(nodes_xL, [-P / h / b], ["y"])
+
+        tic = Tic()
 
         # Solve the simulation
         simu.Solve()
