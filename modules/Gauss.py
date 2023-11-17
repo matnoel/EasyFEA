@@ -272,15 +272,15 @@ class Gauss:
                 nPg = 6
             x, weights =  np.polynomial.legendre.leggauss(nPg)
             
-        elif elemType == ElemType.SEG5:
-            dim = 1
-            if matrixType == MatrixType.rigi:
-                nPg = 4
-            elif matrixType  == MatrixType.mass:
-                nPg = 5
-            elif matrixType == MatrixType.beam:
-                nPg = 8
-            x, weights =  np.polynomial.legendre.leggauss(nPg)
+        # elif elemType == ElemType.SEG5:
+        #     dim = 1
+        #     if matrixType == MatrixType.rigi:
+        #         nPg = 4
+        #     elif matrixType  == MatrixType.mass:
+        #         nPg = 5
+        #     elif matrixType == MatrixType.beam:
+        #         nPg = 8
+        #     x, weights =  np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.TRI3:
             dim = 2            

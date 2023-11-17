@@ -17,7 +17,7 @@ class ElemType(str, Enum):
     SEG2 = "SEG2"
     SEG3 = "SEG3"
     SEG4 = "SEG4"
-    SEG5 = "SEG5"
+    # SEG5 = "SEG5"
     TRI3 = "TRI3"
     TRI6 = "TRI6"
     TRI10 = "TRI10"
@@ -2012,8 +2012,8 @@ class GroupElem_Factory:
             return SEG3(*params)
         elif elemType == ElemType.SEG4:
             return SEG4(*params)
-        elif elemType == ElemType.SEG5:
-            return SEG5(*params)
+        # elif elemType == ElemType.SEG5:
+        #     return SEG5(*params)
         elif elemType == ElemType.TRI3:
             return TRI3(*params)
         elif elemType == ElemType.TRI6:
