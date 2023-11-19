@@ -166,12 +166,11 @@ class Gauss:
         """available [8]"""
         if nPg == 8:            
 
-            m1r3 = -1/np.sqrt(3)
-            p1r3 = 1/np.sqrt(3)
+            a = 1/np.sqrt(3)
 
-            x = [m1r3, m1r3, m1r3, m1r3, p1r3, p1r3, p1r3, p1r3]
-            y = [m1r3, m1r3, p1r3, p1r3, m1r3, m1r3, p1r3, p1r3]
-            z = [m1r3, p1r3, m1r3, p1r3, m1r3, p1r3, m1r3, p1r3]
+            x = [-a, -a, -a, -a, a, a, a, a]
+            y = [-a, -a, a, a, -a, -a, a, a]
+            z = [-a, a, -a, a, -a, a, -a, a]
 
             poids = [1]*nPg
 
@@ -198,38 +197,34 @@ class Gauss:
     @staticmethod
     def __CoordoPoidsGaussPrism(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """available [6, 8]"""
+
+        # X, Y, Z -> base code aster
+        # z, x, y -> gmsh        
+        # Y -> x, Z -> y, X -> z  
+
         if nPg == 6:
             
-            m1r3 = -1/np.sqrt(3)
-            p1r3 = 1/np.sqrt(3)
-
-            # X, Y, Z -> base code aster
-            X = [m1r3, m1r3, m1r3, p1r3, p1r3, p1r3]
+            a = 1/np.sqrt(3)
+            
+            X = [-a, -a, -a, a, a, a]
             Y = [0.5, 0, 0.5, 0.5, 0, 0.5]
             Z = [0.5, 0.5, 0, 0.5, 0.5, 0]
-
-            # x <- y, y <- z, z <- x  
-            x = np.array(Y)
-            y = np.array(Z)
-            z = np.array(X)
 
             poids = [1/6]*nPg
 
         elif nPg == 8:
             
             a=0.577350269189626
-
-            # X, Y, Z -> base code aster
+            
             X = [-a, -a, -a, -a, a, a, a, a]
             Y = [1/3, 0.6, 0.2, 0.2]*2
             Z = [1/3, 0.2, 0.6, 0.2]*2
 
-            # x <- y, y <- z, z <- x  
-            x = np.array(Y)
-            y = np.array(Z)
-            z = np.array(X)
-
             poids = [-27/96, 25/96, 25/96, 25/96]*2
+    
+        x = np.array(Y)
+        y = np.array(Z)
+        z = np.array(X)
 
         return x, y, z, poids
 
@@ -347,6 +342,7 @@ class Gauss:
             dim = 3
             if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 8
+                # nPg = 27
                 x, y, z, weights = Gauss.__CoordoPoidsGaussHexa(nPg)
 
         elif elemType == ElemType.PRISM6:
