@@ -2106,7 +2106,7 @@ class Simu_Displacement(_Simu):
             elif "y" in resultat:
                 return 1
             elif "z" in resultat:
-                return 1
+                return 2
 
         else:
 

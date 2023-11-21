@@ -149,8 +149,9 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
             else:                
                 pcType = 'none' # ilu decomposition doesn't seem to work for the displacement problem in a damage simulation
         else:
-            if simu.mesh.dim == 3 and simu.mesh.groupElem.order == 2:
-                pcType = 'none' 
+            # if simu.mesh.dim == 3 and simu.mesh.groupElem.order == 2:
+            if simu.mesh.dim == 3:
+                pcType = 'none'
             else:
                 pcType = 'ilu' # fast on displacement problem dont work for HEXA20 or PRISM15
         kspType = 'cg'
