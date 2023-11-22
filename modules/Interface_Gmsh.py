@@ -364,7 +364,7 @@ class Interface_Gmsh:
 
         return surface
     
-    def _Surfaces(self, contour: Geom, inclusions: list[Geom]) -> list[int]:
+    def _Surfaces(self, contour: Geom, inclusions: list[Geom]=[]) -> list[int]:
         """Create surfaces.\n
         return filled surfaces
 

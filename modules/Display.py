@@ -367,7 +367,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
                 ax.plot(*coordo[:,:2].T, c='red', lw=lw, marker='.', ls='')
         
         ax.autoscale()
-        ax.axis('equal')        
+        ax.axis('equal')
 
     elif inDim == 3:
         # in 3d space
@@ -413,7 +413,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
                 ax.plot(*coordo.T, c='black', lw=lw, marker='.', ls='')
             ax.add_collection3d(pc, zs=0, zdir='z')
             
-        _ScaleChange(ax, coordo)        
+        _ScaleChange(ax, coordo)
     
     if title == "":
         title = f"{mesh.elemType} : Ne = {mesh.Ne}, Nn = {mesh.Nn}"
@@ -525,7 +525,15 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     if len(list_groupElem) == 0: return
 
     if ax is None:
-        ax = Plot_Mesh(mesh, alpha=alpha)
+        if mesh.inDim in [1,2]:
+            fig, ax = plt.subplots()
+            ax.autoscale()
+            ax.axis('equal')        
+        else:
+            fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+            ax.view_init(elev=105, azim=-90)
+            _ScaleChange(ax, mesh.coordo)
+
     # for each group elem
     for groupElem in list_groupElem:
 
@@ -554,7 +562,7 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
             else:
                 pc = matplotlib.collections.PolyCollection(coordFaces, facecolors=c, edgecolor=edgecolor, lw=0.5, alpha=alpha, zorder=2)
             ax.add_collection(pc)
-        elif mesh.inDim == 3:
+        elif mesh.inDim == 3:            
             pc = Poly3DCollection(coordFaces, facecolors=c, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=2)
             ax.add_collection3d(pc, zdir='z')
         if showId:

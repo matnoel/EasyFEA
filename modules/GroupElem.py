@@ -1268,7 +1268,7 @@ class GroupElem(ABC):
 
         return self.__nodes[idx]
 
-    def Set_Nodes_Tag(self, noeuds: np.ndarray, tag: str):
+    def Set_Nodes_Tag(self, nodes: np.ndarray, tag: str):
         """Add a tag to the nodes
 
         Parameters
@@ -1278,13 +1278,18 @@ class GroupElem(ABC):
         tag : str
             tag used
         """
-        if noeuds.size == 0: return
-        self.__dict_nodes_tags[tag] = noeuds
+        if nodes.size == 0: return
+        self.__dict_nodes_tags[tag] = nodes
 
     @property
     def nodeTags(self) -> list[str]:
         """Returns node tags."""
         return list(self.__dict_nodes_tags.keys())
+    
+    @property
+    def _dict_nodes_tags(self) -> dict[str, np.ndarray]:
+        """Dictionary associating tags with nodes."""
+        return self.__dict_nodes_tags.copy()
 
     def Set_Elements_Tag(self, nodes: np.ndarray, tag: str):
         """Adds a tag to elements associated with nodes
@@ -1308,6 +1313,11 @@ class GroupElem(ABC):
     def elementTags(self) -> list[str]:
         """Returns element tags."""
         return list(self.__dict_elements_tags.keys())
+    
+    @property
+    def _dict_elements_tags(self) -> dict[str, np.ndarray]:
+        """Dictionary associating tags with elements."""
+        return self.__dict_elements_tags.copy()
 
     def Get_Elements_Tag(self, tag: str) -> np.ndarray:
         """Returns elements associated with the tag."""

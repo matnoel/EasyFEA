@@ -469,36 +469,34 @@ class Mesh:
         """Returns elements that exclusively or not use the specified nodes."""
         elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusively=exclusively)
         return elements
-    
-    def __Dim_For_Tag(self, tag):
-        if 'P' in tag:
-            dim = 0
-        elif 'L' in tag:
-            dim = 1
-        elif 'S' in tag:
-            dim = 2
-        elif 'V' in tag:
-            dim = 3
-        elif "beam" in tag:
-            dim = 1
-        else:
-            dim = self.dim
-
-        return dim
 
     def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
         """Returns node associated with the tag."""
         nodes = []
-        [nodes.extend(grp.Get_Nodes_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(self.__Dim_For_Tag(tag))]
 
-        return np.unique(nodes)
+        # get dictionnary linking tags to nodes
+        dict_nodes = {}
+        [dict_nodes.update(grp._dict_nodes_tags) for grp in self.dict_groupElem.values()]
+        # add nodes belonging to the tags
+        [nodes.extend(dict_nodes[tag]) for tag in tags]
+        # make sure that that the list is unique
+        nodes = np.array(list(set().union(nodes)))
+
+        return nodes
 
     def Elements_Tags(self, tags: list[str]) -> np.ndarray:
         """Returns elements associated with the tag."""
         elements = []
-        [elements.extend(grp.Get_Elements_Tag(tag)) for tag in tags for grp in self.Get_list_groupElem(self.__Dim_For_Tag(tag))]
 
-        return np.unique(elements)
+        # get dictionnary linking tags to elements
+        dict_elements = {}
+        [dict_elements.update(grp._dict_elements_tags) for grp in self.dict_groupElem.values()]
+        # add elements belonging to the tags
+        [elements.extend(dict_elements[tag]) for tag in tags]
+        # make sure that that the list is unique
+        elements = np.array(list(set().union(elements)))
+
+        return elements
 
     def Locates_sol_e(self, sol: np.ndarray) -> np.ndarray:
         """Locates solution on elements."""
