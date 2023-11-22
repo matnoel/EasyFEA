@@ -1,44 +1,45 @@
 The aim of this free Python library is to enable you to carry out finite element simulations with ease.
 
 Four simulation types are currently available:
-- thermal (stationary and transient)
-- elastic (stationary and transient)
-- damage (quasi-static phase field)
-- beam structure (stationary Euler-Bernoulli)
-
-Several examples are available in PythonEF/codes/Studies.
+- elastic (static and dynamic) examples in /codes/Elasticity and /codes/Dynamic
+- beam structure (static Euler-Bernoulli) examples in /codes/Beam
+- thermal (stationary and transient) examples in /codes/Thermal
+- damage (quasi-static phase field) examples in /codes/PhaseField
 
 For each simulation, you need to build a mesh and a model. Once the simulation has been created, you can set boundary conditions, solve and display results.
 
+# --------------------------------------------------------------------------------------------
+# INSTALLATION
+# --------------------------------------------------------------------------------------------
+Python >= 3.9 is strongly recommended !
 
-You will find below the installation procedure.
-
-For the installation you need the following libraries:
+Step 1 - install python libraries:
     (required) :
-    numpy scipy matplotlib gmsh pandas numba colorama pickle
+    numba scipy numpy matplotlib gmsh pickle colorama pandas
 
     (optional) :
-    pypardiso petsc4py mpi4py scikit-umfpack scikits-sparse
-    The following libraries are optional but can be useful to reduce your resolution time. I recommend the use of pypardiso or petsc4py. Otherwise, the resolution time will be much slower.
-    
-	Note that pypardiso does not work with ARM processors
+    mpi4py pypardiso petsc petsc4py mumps scikit-umfpack scikits-sparse
 
-It is necessary to add in the PYTHONPATH the modules folder:
+    The following libraries are optional but can be useful to reduce your resolution time (solve Ax=b). I recommend the use of pypardiso or petsc4py. Otherwise, the resolution time will be much slower. Note that pypardiso does not work with ARM processors
+
+Step 2 - add the folder/PythonEF/modules file to the pythonpath:
+
+    folder refers to the directory where PythonEF is installed
 	
 	on macOs :
-		export PYTHONPATH:"$PYTHONPATH: .../PythonEF/modules"
+		export PYTHONPATH="$PYTHONPATH:folder/PythonEF/modules"
 		(in the .zprofile)
 
 	on linux :
-		export PYTHONPATH=$PYTHONPATH: .../PythonEF/modules
+		export PYTHONPATH=$PYTHONPATH:folder/PythonEF/modules
         (in the .bash_aliases)
 		
 	on windows : 
 		modify system variables -> environment variables -> user variables
-		PYTHONPATH .../PythonEF/modules
+		PYTHONPATH folder/PythonEF/modules
         
 
-Build gmsh (optional) :
+(Optional) Procedure if you have to build gmsh yourself:
 
 	first you have to install opencascade : sudo port install opencascade
 	then install fltk : sudo port install fltk
@@ -56,4 +57,4 @@ Build gmsh (optional) :
 	make install
 
 	then add the path to gmsh.py
-	export PYTHONPATH=".../PythonEF/modules:/Applications/gmsh-install/lib"
+	export PYTHONPATH="$PYTHONPATH:/Applications/gmsh-install/lib"
