@@ -65,7 +65,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
-    interface = Interface_Gmsh(True, True)
+    interface = Interface_Gmsh(False, True)
     # dim, elemType = 2, ElemType.TRI3
     dim, elemType = 3, ElemType.TETRA10
 
@@ -283,17 +283,13 @@ if __name__ == '__main__':
 
     mesh = interface._Construct_Mesh()
 
+    print(mesh)
+
     nodesCircle = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+1e-6)
-    nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z==mesh.coordoGlob[:,2].max())
+    nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z>=mesh.coordoGlob[:,2].max()-1e-6)
 
     nodesBlades = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)>=R+e+h)
     nodesCyl = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<R+e+h)
-
-
-    Display.Plot_Nodes(mesh, nodesBlades)
-
-    elements = mesh.Elements_Nodes(nodesBlades)
-    Display.Plot_Elements(mesh, nodesBlades, 2)
 
     mesh.groupElem.Set_Nodes_Tag(nodesCircle, 'blades')
     mesh.groupElem.Set_Nodes_Tag(nodesCyl, 'cylindre')
