@@ -2,10 +2,10 @@
 
 import Folder
 import Display
-import TicTac
 from Interface_Gmsh import Interface_Gmsh, ElemType, Point, PointsList, Circle, Domain
 import Simulations
 import Materials
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -69,6 +69,6 @@ Display.Plot_BoundaryConditions(simu)
 Display.Plot_Mesh(simu, h/10/np.abs(sol.max()))
 Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1/coef, nColors=20)
 
-TicTac.Tic.Plot_History(details=True)
+Simulations.Tic.Plot_History(details=True)
 
 plt.show()
