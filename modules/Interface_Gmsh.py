@@ -41,7 +41,7 @@ class Interface_Gmsh:
         self._init_gmsh_factory()
 
         if gmshVerbosity:
-            Display.Section("New interface with gmsh.")
+            Display.Section("New interface with gmsh")
 
     def __CheckType(self, dim: int, elemType: str):
         """Check that the element type is usable."""
@@ -232,14 +232,15 @@ class Interface_Gmsh:
 
         return loop, lines, openPoints
     
-    def _Loop_From_Contour(self, contour: Contour) -> tuple[int, list[int], list[int]]:
-        """Create a loop associated with a list of 1D objects (Line, CircleArc).\n
-        return loop, openLines, openPoints
+    def _Loop_From_Contour(self, contour: Contour) -> tuple[int, list[int], list[int], list[int], list[int]]:
+        """Create a loop associated with a list of 1D objects (Line, CircleArc, PointsList).\n
+        return loop, lines, points, openLines, openPoints
         """
 
         factory = self.__factory
 
-        lines = []        
+        points: list[int] = []
+        lines: list[int] = []
 
         nGeom = len(contour.geoms)
 
@@ -248,24 +249,26 @@ class Interface_Gmsh:
 
         for i, geom in enumerate(contour.geoms):
 
-            assert isinstance(geom, (Line, CircleArc)), "Must be a line or a CircleArc"
+            assert isinstance(geom, (Line, CircleArc, PointsList)), "Must be a Line, CircleArc or PointsList"
 
             if i == 0:
-                p0 = factory.addPoint(geom.pt1.x, geom.pt1.y, geom.pt1.z, geom.meshSize)
-                if geom.pt1.isOpen: openPoints.append(p0)
-                p1 = factory.addPoint(geom.pt2.x, geom.pt2.y, geom.pt2.z, geom.meshSize)
-                if geom.pt2.isOpen: openPoints.append(p1)
+                p1 = factory.addPoint(geom.pt1.x, geom.pt1.y, geom.pt1.z, geom.meshSize)
+                if geom.pt1.isOpen: openPoints.append(p1)
+                p2 = factory.addPoint(geom.pt2.x, geom.pt2.y, geom.pt2.z, geom.meshSize)
+                if geom.pt2.isOpen: openPoints.append(p2)
+                points.extend([p1,p2])
             elif i > 0 and i+1 < nGeom:
-                p0 = p1
-                p1 = factory.addPoint(geom.pt2.x, geom.pt2.y, geom.pt2.z, geom.meshSize)
-                if geom.pt2.isOpen: openPoints.append(p1)
+                p1 = p2
+                p2 = factory.addPoint(geom.pt2.x, geom.pt2.y, geom.pt2.z, geom.meshSize)
+                if geom.pt2.isOpen: openPoints.append(p2)
+                points.append(p2)
             else:
-                p0 = p1
-                p1 = firstPoint           
+                p1 = p2
+                p2 = firstPoint
 
             if isinstance(geom, Line):
 
-                line = factory.addLine(p0, p1)
+                line = factory.addLine(p1, p2)
 
                 if geom.isOpen:
                     openLines.append(line)
@@ -280,24 +283,37 @@ class Interface_Gmsh:
 
                 if geom.pt3.isOpen: openPoints.append(p3)
 
-                line1 = factory.addCircleArc(p0, pC, p3)
-                line2 = factory.addCircleArc(p3, pC, p1)
+                line1 = factory.addCircleArc(p1, pC, p3)
+                line2 = factory.addCircleArc(p3, pC, p2)
 
                 lines.extend([line1, line2])
                 if geom.isOpen:
                     openLines.extend([line1, line2])
+                
+                factory.remove([(0,pC)])
 
-                factory.synchronize()
-                factory.remove([(0,pC)], False)                
+            elif isinstance(geom, PointsList):
+                
+                # get points to construct the spline
+                splinePoints = [factory.addPoint(*p.coordo, geom.meshSize) for p in geom.points[1:-1]]                
+                splinePoints.insert(0,p1)
+                splinePoints.append(p2)
+
+                line = factory.addSpline(splinePoints)
+                lines.append(line)
+                if geom.isOpen:
+                    openLines.append(line)
+
+                factory.remove([(0,p) for p in splinePoints[1:-1]])
 
             if i == 0:
-                firstPoint = p0
+                firstPoint = p1
 
         loop = factory.addCurveLoop(lines)
 
         factory.synchronize()
 
-        return loop, openLines, openPoints
+        return loop, lines, points, openLines, openPoints
 
     def _Loop_From_Circle(self, circle: Circle) -> tuple[int, list[int], list[int]]:
         """Creation of a loop associated with a circle.\n
@@ -397,7 +413,20 @@ class Interface_Gmsh:
 
         factory.synchronize()
 
-        return surfaces   
+        return surfaces
+    
+    def _Spline_From_Points(self, pointsList: PointsList) -> tuple[int, list[int]]:
+
+        meshSize = pointsList.meshSize
+        gmshPoints = [self.__factory.addPoint(*p.coordo, meshSize) for p in pointsList.points]        
+        
+        spline = self.__factory.addSpline(gmshPoints)
+        tt = gmshPoints[1:-1]
+        self.__factory.remove([(0,p) for p in gmshPoints[1:-1]])
+
+        points = [gmshPoints[0], gmshPoints[-1]]
+        
+        return spline, points
     
     __dict_name_dim = {
         0 : "P",
@@ -632,7 +661,7 @@ class Interface_Gmsh:
 
         return self._Construct_Mesh()
 
-    def _PhysicalGroups_cracks(self, cracks: list, entities: list[tuple]) -> tuple[int, int, int, int]:
+    def _Cracks_SetPhysicalGroups(self, cracks: list, entities: list[tuple]) -> tuple[int, int, int, int]:
         """Creation of physical groups associated with cracks embeded in entities.\n
         return crackLines, crackSurfaces, openPoints, openLines
         """
@@ -641,94 +670,83 @@ class Interface_Gmsh:
             return None, None, None, None
         
         # lists containing open entities
-        openPoints = []
-        openLines = []
-        openSurfaces = []        
+        crack1D = []; openPoints = []
+        crack2D = []; openLines = []
 
         entities0D = []
         entities1D = []
         entities2D = []
 
         for crack in cracks:
-            if isinstance(crack, Line):
+            if isinstance(crack, Line): # 1D CRACK
                 # Creating points
                 pt1 = crack.pt1
                 p1 = self.__factory.addPoint(pt1.x, pt1.y, pt1.z, crack.meshSize)
                 pt2 = crack.pt2
                 p2 = self.__factory.addPoint(pt2.x, pt2.y, pt2.z, crack.meshSize)
+                entities0D.extend([p1,p2])
 
                 # Line creation
                 line = self.__factory.addLine(p1, p2)
                 entities1D.append(line)
+
                 if crack.isOpen:
-                    openLines.append(line)
+                    crack1D.append(line)                
+                    if pt1.isOpen: openPoints.append(p1)                        
+                    if pt2.isOpen: openPoints.append(p2)
 
-                if pt1.isOpen: entities0D.append(p1); openPoints.append(p1)
-                if pt2.isOpen: entities0D.append(p2); openPoints.append(p2)
+            elif isinstance(crack, PointsList):  # 1D CRACK
 
-            elif isinstance(crack, PointsList):
-
-                loop, lines, openPts = self._Loop_From_Points(crack.points, crack.meshSize)
+                line, points = self._Spline_From_Points(crack)
                 
-                entities0D.extend(openPts)
-                openPoints.extend(openPts)
+                entities0D.extend(points)
+                entities1D.append(line)
+                
+                if crack.isOpen:
+                    crack1D.append(line)                    
+                    if crack.pt1.isOpen: openPoints.append(points[0])
+                    if crack.pt2.isOpen: openPoints.append(points[1])
+
+            elif isinstance(crack, Contour):  # 2D CRACK
+
+                loop, lines, points, openLns, openPts = self._Loop_From_Contour(crack)
+                surf = self._Surface_From_Loops([loop])
+                
+                entities0D.extend(points)
                 entities1D.extend(lines)
+                entities2D.append(surf)
 
-                surface = self._Surface_From_Loops([loop])
-                entities2D.append(surface)
+                if crack.isOpen:
+                    crack2D.append(surf)
+                    openLines.extend(openLns)                    
+                    openPoints.extend(openPts)
 
-                if crack.isHollow:
-                    openLines.extend(lines)
-                    openSurfaces.append(surface)
-
-            elif isinstance(crack, Contour):
-
-                loop, openLns, openPts = self._Loop_From_Contour(crack)
+            elif isinstance(crack, CircleArc): # 1D CRACK
                 
-                entities0D.extend(openPts)
-                openPoints.extend(openPts)
-                entities1D.extend(openLns)
-
-                surface = self._Surface_From_Loops([loop])
-                entities2D.append(surface)
-
-                if crack.isHollow:
-                    openLines.extend(openLns)
-                    openSurfaces.append(surface)
-
-            elif isinstance(crack, CircleArc):
-                
+                # add points
                 pC =  self.__factory.addPoint(crack.center.x, crack.center.y, crack.center.z, crack.meshSize)
                 p1 = self.__factory.addPoint(crack.pt1.x, crack.pt1.y, crack.pt1.z, crack.meshSize)
                 p2 = self.__factory.addPoint(crack.pt2.x, crack.pt2.y, crack.pt2.z, crack.meshSize)
                 p3 = self.__factory.addPoint(crack.pt3.x, crack.pt3.y, crack.pt3.z, crack.meshSize)
+                entities0D.extend([p1,p2,p3])
 
-                if crack.pt1.isOpen: entities0D.append(p1); openPoints.append(p1)
-                if crack.pt2.isOpen: entities0D.append(p2); openPoints.append(p2)
-                if crack.pt3.isOpen: entities0D.append(p3); openPoints.append(p3)
-
+                # add lines
                 line1 = self.__factory.addCircleArc(p1, pC, p3)
                 line2 = self.__factory.addCircleArc(p3, pC, p2)
                 lines = [line1, line2]
                 entities1D.extend(lines)
+
                 if crack.isOpen:
-                    openLines.extend(lines)
-
-                self.__factory.synchronize()
-                self.__factory.remove([(0,pC)], False)
+                    crack1D.extend(lines)
+                    if crack.pt1.isOpen: openPoints.append(p1)
+                    if crack.pt2.isOpen: openPoints.append(p2)
+                    if crack.pt3.isOpen: openPoints.append(p3)
                 
+                self.__factory.remove([(0,pC)], False)                
+
             else:
-                # Loop recovery
-                hollowLoops, filledLoops = self.__Get_hollow_And_filled_Loops([crack])
-                loops = []; loops.extend(hollowLoops); loops.extend(filledLoops)
-                
-                # Surface construction
-                for loop in loops:
-                    surface = self._Surface_From_Loops([loop])
-                    entities2D.append(surface)
 
-                    if crack.isHollow:
-                        openSurfaces.append(surface)
+                raise Exception("crack must be a Line, PointsList, Contour or CircleArc")            
 
         newEntities = [(0, point) for point in entities0D]
         newEntities.extend([(1, line) for line in entities1D])
@@ -737,8 +755,8 @@ class Interface_Gmsh:
         o, m = gmsh.model.occ.fragment(entities, newEntities)
         self.__factory.synchronize()
 
-        crackLines = gmsh.model.addPhysicalGroup(1, openLines) if len(openLines) > 0 else None
-        crackSurfaces = gmsh.model.addPhysicalGroup(2, openSurfaces) if len(openSurfaces) > 0 else None
+        crackLines = gmsh.model.addPhysicalGroup(1, crack1D) if len(crack1D) > 0 else None
+        crackSurfaces = gmsh.model.addPhysicalGroup(2, crack2D) if len(crack2D) > 0 else None
 
         openPoints = gmsh.model.addPhysicalGroup(0, openPoints) if len(openPoints) > 0 else None
         openLines = gmsh.model.addPhysicalGroup(1, openLines) if len(openLines) > 0 else None
@@ -874,7 +892,7 @@ class Interface_Gmsh:
         entities2D = gmsh.model.getEntities(2)
 
         # Crack creation
-        crackLines, crackSurfaces, openPoints, openLines = self._PhysicalGroups_cracks(cracks, entities2D)
+        crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities2D)
 
         self._RefineMesh(refineGeoms, meshSize)
 
@@ -932,7 +950,7 @@ class Interface_Gmsh:
         entities3D = gmsh.model.getEntities(3)
 
         # Crack creation
-        crackLines, crackSurfaces, openPoints, openLines = self._PhysicalGroups_cracks(cracks, entities3D)
+        crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
 
         self._RefineMesh(refineGeoms, contour.meshSize)
 
@@ -993,7 +1011,7 @@ class Interface_Gmsh:
         entities3D = gmsh.model.getEntities(3)
 
         # Crack creation
-        crackLines, crackSurfaces, openPoints, openLines = self._PhysicalGroups_cracks(cracks, entities3D)
+        crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
 
         self._RefineMesh(refineGeoms, contour.meshSize)
 
@@ -1185,13 +1203,13 @@ class Interface_Gmsh:
         isOrganised : bool, optional
             mesh is organized, by default False
         crackLines : int, optional
-            PhysicalGroup that groups all cracks on lines, by default None
+            physical group for crack lines (associated with openPoints), by default None
         crackSurfaces : int, optional
-            physical grouping of all cracks on lines, by default None
+            physical group for crack surfaces (associated with openLines), by default None
         openPoints: int, optional
-            physical group of points that can open, by default None
+            physical group for open points, by default None
         openLines : int, optional
-            physical group of lines that can open, by default None
+            physical group for open lines, by default None
         folder : str, optional
             mesh save folder mesh.msh, by default ""
         filename : str, optional
@@ -1226,30 +1244,29 @@ class Interface_Gmsh:
             self.__factory.synchronize()            
 
             gmsh.model.mesh.generate(3)
-
+        
+        # set mest order
         Interface_Gmsh._Set_mesh_order(elemType)
 
+        # remove all duplicated nodes
         gmsh.model.mesh.removeDuplicateNodes()
 
-        # A single physical group is required for lines and points
-        usePluginCrack = False
-        if dim == 2:
-            if crackLines != None:
+        # PLUGIN CRACK
+        if crackSurfaces != None or crackLines != None:
+
+            if crackLines != None: # 1D CRACKS
                 gmsh.plugin.setNumber("Crack", "Dimension", 1)
                 gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackLines)
-                usePluginCrack=True
-            if openPoints != None:
-                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openPoints)
-        elif dim == 3:
-            if crackSurfaces != None:
+                if openPoints != None:
+                    gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openPoints)
+                gmsh.plugin.run("Crack") # DONT DELETE must be called for lines and surfaces
+            
+            if crackSurfaces != None: # 2D CRACKS                
                 gmsh.plugin.setNumber("Crack", "Dimension", 2)
                 gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackSurfaces)
-                usePluginCrack=True
-            if openLines != None:
-                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openLines)        
-
-        if usePluginCrack:
-            gmsh.plugin.run("Crack")            
+                if openLines != None:
+                    gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openLines)
+                gmsh.plugin.run("Crack")
         
         # Open gmsh interface if necessary
         if '-nopopup' not in sys.argv and self.__openGmsh:

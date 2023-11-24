@@ -32,10 +32,14 @@ def DoMesh(dim, elemType):
     return mesh
 
 crack1 = Line(Point(L/4,L/2), Point(3*L/4,L/2), isOpen=openCrack)
+
 crack2 = Line(Point(0,L/3, isOpen=openCrack), Point(L/2,L/3), isOpen=openCrack)
 crack3 = Line(Point(0,2*L/3, isOpen=openCrack), Point(L/2,2*L/3), isOpen=openCrack)
 crack4 = Line(Point(0,4*L/5), Point(L,4*L/5), isOpen=False)
-cracks = [crack1, crack2, crack3, crack4]
+crack5 = PointsList([Point(L/2,L/5),
+                     Point(2*L/3,L/5),
+                     Point(L,L/10, isOpen=True)], isOpen=True)
+cracks = [crack1, crack2, crack3, crack4, crack5]
 meshes2D = [DoMesh(2, elemType) for elemType in GroupElem.get_Types2D()]
 Display.Plot_Model(meshes2D[0], alpha=0)
 
@@ -43,7 +47,11 @@ line1 = Line(Point(L/4, L/2), Point(3*L/4, L/2), isOpen=openCrack)
 line2 = Line(line1.pt2, line1.pt2+[0,0.25,L])
 line3 = Line(line2.pt2, line1.pt1+[0,0.25,L], isOpen=openCrack)
 line4 = Line(line3.pt2, line1.pt1)
-cracks = [Contour([line1, line2, line3, line4], openCrack)]
+crack1 = PointsList([Point(L/2,L/5,L),
+                     Point(2*L/3,L/5,L),
+                     Point(L,L/2,L, isOpen=True)], isOpen=True)
+cracks = [Contour([line1, line2, line3, line4], isOpen=openCrack), crack1]
+# cracks = [crack1]
 meshes3D = [DoMesh(3, elemType) for elemType in [ElemType.TETRA4, ElemType.TETRA10]]
 Display.Plot_Model(meshes3D[0], alpha=0)
 

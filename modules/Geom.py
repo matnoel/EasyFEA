@@ -3,7 +3,7 @@
 from typing import Union
 import numpy as np
 
-class Point:    
+class Point:
 
     def __init__(self, x=0.0, y=0.0, z=0.0, isOpen=False, r=0.0):
         """Build a point.
@@ -17,7 +17,7 @@ class Point:
         z : float, optional
             z coordinate, default 0.0
         isOpen : bool, optional
-            point can open, default False
+            point can open (openCrack), default False
         r : float, optional
             radius used for fillet
         """
@@ -128,7 +128,7 @@ class Point:
 
 class Geom:
 
-    def __init__(self, points: list[Point], meshSize: float, name: str):
+    def __init__(self, points: list[Point], meshSize: float, name: str, isOpen: bool):
         """Builds a geometric object.
 
         Parameters
@@ -139,6 +139,8 @@ class Geom:
             mesh size that will be used to create the mesh >= 0
         name : str
             object name
+        isOpen : bool
+            Indicates whether the object can open to represent an open crack (openCrack)
         """
         assert meshSize >= 0
         self.__meshSize = meshSize
@@ -146,6 +148,8 @@ class Geom:
         self.__points = points
 
         self.__name = name
+
+        self.__isOpen = isOpen
 
     @property
     def meshSize(self) -> float:
@@ -161,29 +165,45 @@ class Geom:
     def name(self) -> str:
         """object name"""
         return self.__name
+    
+    @property
+    def isOpen(self) -> bool:
+        """Indicates whether the object can open to represent an open crack"""
+        return self.__isOpen
 
 class PointsList(Geom):
 
     __nbPointsList = 0
 
-    def __init__(self, contour: list[Point], meshSize=0.0, isHollow=False):
-        """Builds a point list
+    def __init__(self, points: list[Point], meshSize=0.0, isHollow=False, isOpen=False):
+        """Builds a point list. Can be used to construct a closed surface or a spline.
 
         Parameters
         ----------
         points : list[Point]
-            list of geom objects to build a contour
+            list of points
         meshSize : float, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
         isHollow : bool, optional
             formed domain is hollow/empty, by default False
+        isOpen : bool, optional
+            the spline formed by the points list can be opened (openCrack), by default False
         """
+
+        assert len(points) > 1
 
         self.isHollow=isHollow
 
+        self.pt1 = points[0]
+        """First point"""
+        self.pt2 = points[-1]
+        """Last point"""
+
+        self.__isOpen = isOpen
+
         PointsList.__nbPointsList += 1
         name = f"PointsList{PointsList.__nbPointsList}"
-        super().__init__(contour, meshSize, name)
+        super().__init__(points, meshSize, name, isOpen)
 
 class Line(Geom):
 
@@ -214,23 +234,15 @@ class Line(Geom):
         meshSize : float, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
         isOpen : bool, optional
-            line can open, by default False
+            line can be opened (openCrack), by default False
         """
         self.pt1 = pt1
         self.pt2 = pt2
         self.coordo = np.array([[pt1.x, pt1.y, pt1.z], [pt2.x, pt2.y, pt2.z]]).reshape(2,3)
 
-        self.__isOpen = isOpen
-
         Line.__nbLine += 1
         name = f"Line{Line.__nbLine}"
-        Geom.__init__(self, points=[pt1, pt2], meshSize=meshSize, name=name)
-    
-
-    @property
-    def isOpen(self) -> bool:
-        """Returns whether the line can open to represent an open crack"""
-        return self.__isOpen
+        Geom.__init__(self, [pt1, pt2], meshSize, name, isOpen)
     
     @property
     def unitVector(self) -> np.ndarray:
@@ -267,13 +279,14 @@ class Domain(Geom):
 
         Domain.__nbDomain += 1
         name = f"Domain{Domain.__nbDomain}"
-        Geom.__init__(self, points=[pt1, pt2], meshSize=meshSize, name=name)
+        # a domain can't be open
+        Geom.__init__(self, [pt1, pt2], meshSize, name, isOpen=False)
 
 class Circle(Geom):
 
     __nbCircle = 0
 
-    def __init__(self, center: Point, diam: float, meshSize=0.0, isHollow=True):
+    def __init__(self, center: Point, diam: float, meshSize=0.0, isHollow=True, isOpen=False):
         """Constructing a circle according to its center and diameter
         This circle will be projected onto the (x,y) plane.
 
@@ -287,6 +300,8 @@ class Circle(Geom):
             mesh size that will be used to create the mesh >= 0, by default 0.0
         isHollow : bool, optional
             circle is hollow, by default True
+        isOpen : bool, optional
+            circle can be opened (openCrack), by default False
         """
         
         assert diam > 0.0
@@ -298,7 +313,7 @@ class Circle(Geom):
 
         Circle.__nbCircle += 1
         name = f"Circle{Circle.__nbCircle}"
-        Geom.__init__(self, points=[center], meshSize=meshSize, name=name)
+        Geom.__init__(self, [center], meshSize, name, isOpen)
 
 class CircleArc(Geom):
 
@@ -321,7 +336,7 @@ class CircleArc(Geom):
         coef : float, optional
             coef for multiplication with radius -1 or 1, by default 1.0
         isOpen : bool, optional
-            arc can open, by default False
+            arc can be opened, by default False
         """
 
         assert coef in [-1, 1], "coef must be in [-1, 1]."
@@ -337,8 +352,6 @@ class CircleArc(Geom):
         """Starting point of the arc."""
         self.pt2 = pt2
         """Ending point of the arc."""
-
-        self.__isOpen = isOpen
 
         # Here we'll create an intermediate point, because in gmsh, circular arcs are limited to an angle pi.
 
@@ -366,18 +379,13 @@ class CircleArc(Geom):
 
         CircleArc.__nbCircleArc += 1
         name = f"Circle{CircleArc.__nbCircleArc}"
-        Geom.__init__(self, points=[pt1, center, pt2], meshSize=meshSize, name=name)
-
-    @property
-    def isOpen(self) -> bool:
-        """Returns whether the arc can open to represent a crack."""
-        return self.__isOpen
+        Geom.__init__(self, [pt1, center, pt2], meshSize, name, isOpen)
 
 class Contour(Geom):
 
     __nbContour = 0
 
-    def __init__(self, geoms: list[Union[Line,CircleArc]], isHollow=True):
+    def __init__(self, geoms: list[Union[Line,CircleArc,PointsList]], isHollow=True, isOpen=False):
         """Create a contour from a list of lines or arcs.
 
         Parameters
@@ -386,16 +394,18 @@ class Contour(Geom):
             list of objects used to build the contour
         isHollow : bool, optional
             contour is hollow/empty, by default True
+        isOpen : bool, optional
+            contour can be opened, by default False
         """
 
         # Check that the points form a closed loop
-        points = []
+        points: list[Point] = []
 
         tol = 1e-12        
 
         for i, geom in enumerate(geoms):
 
-            assert isinstance(geom, (Line, CircleArc)), "Must give a list of lines and arcs."
+            assert isinstance(geom, (Line, CircleArc,PointsList)), "Must give a list of lines and arcs or points."
 
             if i == 0:
                 ecart = tol
@@ -421,7 +431,7 @@ class Contour(Geom):
         Contour.__nbContour += 1
         name = f"Contour{Contour.__nbContour}"
         meshSize = np.mean([geom.meshSize for geom in geoms])
-        Geom.__init__(self, points=points, meshSize=meshSize, name=name)
+        Geom.__init__(self, points, meshSize, name, isOpen)
 
 
 class Section:
