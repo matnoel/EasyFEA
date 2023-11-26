@@ -67,25 +67,28 @@ class Interface_Gmsh:
             raise Exception("Unknow factory")
         return self.__factory
         
-    def _Loop_From_Geom(self, geom: Geom) -> int:
-        """Creation of a loop based on the geometric object."""        
+    def _Loop_From_Geom(self, geom: Union[Circle, Domain, PointsList, Contour]) -> tuple[int, list[int], list[int]]:
+        """Creation of a loop based on the geometric object.\n
+        return loop, lines, points"""        
 
         if isinstance(geom, Circle):
-            loop = self._Loop_From_Circle(geom)[0]
-        elif isinstance(geom, Domain):                
-            loop = self._Loop_From_Domain(geom)
+            loop, lines, points = self._Loop_From_Circle(geom)[:3]
+        elif isinstance(geom, Domain):
+            loop, lines, points = self._Loop_From_Domain(geom)[:3]
         elif isinstance(geom, PointsList):                
-            loop = self._Loop_From_Points(geom.points, geom.meshSize)[0]
+            loop, lines, points = self._Loop_From_Points(geom.points, geom.meshSize)[:3]
         elif isinstance(geom, Contour):
-            loop = self._Loop_From_Contour(geom)[0]
+            loop, lines, points = self._Loop_From_Contour(geom)[:3]
         else:
             raise Exception("Must be a circle, a domain, a list of points or a contour.")
         
-        return loop
+        self.__factory.synchronize()
+        
+        return loop, lines, points
 
     def _Loop_From_Points(self, points: list[Point], meshSize: float) -> tuple[int, list[int], list[int]]:
         """Creation of a loop associated with the list of points.\n
-        return loop, lines, openPoints
+        return loop, lines, points, openPoints
         """
         
         factory = self.__factory
@@ -94,11 +97,11 @@ class Interface_Gmsh:
         Npoints = len(points)
 
         # dictionary, which takes a Point object as key and contains the id list of gmsh points created
-        dict_point_pointsGmsh = cast(dict[Point, list[int]],{})
+        dict_point_pointsGmsh: dict[Point, list[int]] = {}
         
         openPoints = []
-
-        # create the points to make the loops
+        createdPoints = []
+        # create the points to make th{}e loops
         # this loop create a dictionnary of gmsh points for each point in points
         for index, point in enumerate(points):
             # pi -> gmsh id of point i
@@ -113,10 +116,7 @@ class Interface_Gmsh:
 
             # detects whether the point needs to be rounded
             if point.r == 0:
-                # No rounding
-                coordP=np.array([point.x, point.y, point.z])
-
-                if index > 0 and np.linalg.norm(lastCoordo - coordP) <= 1e-12:
+                if index > 0 and np.linalg.norm(lastCoordo - point.coordo) <= 1e-12:
                     # check if the current point location
                     # if they have the same coordinates 
                     # we dont create the point
@@ -124,7 +124,7 @@ class Interface_Gmsh:
                 else:
                     # we create a new point
                     p0 = factory.addPoint(point.x, point.y, point.z, meshSize)
-
+                    createdPoints.append(p0)
                     if point.isOpen:
                         openPoints.append(p0)
 
@@ -159,41 +159,40 @@ class Interface_Gmsh:
                 
                 # Get the points A, B and C to construct the circle arc
                 A, B, C = Points_Rayon(P0, P1, P2, point.r)
-                # A is the point on the line form by P0 P1
-                # B is the point on the line form by P0 P2
-                # C is the point used for the circular arc
-                # C will be delete after the creation of the circle arc
 
-                # A
+                # A is the point on the line form by P0 P1
                 if index > 0 and np.linalg.norm(lastCoordo - A) <= 1e-12:
                     # if the coordinate is identical, the point is not recreated
                     pA = lastPoint
                 else:
                     pA = factory.addPoint(A[0], A[1], A[2], meshSize)
 
+                    createdPoints.append(pA)
                     if point.isOpen:
                         openPoints.append(pA)
-                # C 
+                # C is the point used for the circular arc
+                # C will be delete after the creation of the circle arc
                 pC = factory.addPoint(C[0], C[1], C[2], meshSize) # circle center
                 
-                # B
+                # B is the point on the line form by P0 P2
                 if index > 0 and (np.linalg.norm(B - firstCoordo) <= 1e-12):
                     pB = firstPoint
                 else:
                     pB = factory.addPoint(B[0], B[1], B[2], meshSize) # point of intersection between j and the circle
 
+                    createdPoints.append(pB)
                     if point.isOpen:
                         openPoints.append(pB)
 
                 dict_point_pointsGmsh[point] = [pA, pC, pB]
 
             if index == 0:
-                self.__factory.synchronize()
+                factory.synchronize()
                 firstPoint = dict_point_pointsGmsh[point][0]
                 firstCoordo = gmsh.model.getValue(0, firstPoint, [])
         
-        lines = []        
-        self.__factory.synchronize()
+        lines = []
+        factory.synchronize() # sync the created points
         for index, point in enumerate(points):
             # For each point we'll create the loop associated with the point and we'll create a line with the next point.
             # For example, if the point has a radius, you'll first need to build the arc of the circle.
@@ -205,6 +204,7 @@ class Interface_Gmsh:
             # If the corner is rounded, it is necessary to create the circular arc
             if point.r != 0:
                 lines.append(factory.addCircleArc(gmshPoints[0], gmshPoints[1], gmshPoints[2]))
+
                 # Here we remove the point from the center of the circle VERY IMPORTANT otherwise the point remains at the center of the circle.
                 factory.remove([(0,gmshPoints[1])], False)
                 
@@ -230,7 +230,7 @@ class Interface_Gmsh:
 
         factory.synchronize()
 
-        return loop, lines, openPoints
+        return loop, lines, createdPoints, openPoints
     
     def _Loop_From_Contour(self, contour: Contour) -> tuple[int, list[int], list[int], list[int], list[int]]:
         """Create a loop associated with a list of 1D objects (Line, CircleArc, PointsList).\n
@@ -252,14 +252,14 @@ class Interface_Gmsh:
             assert isinstance(geom, (Line, CircleArc, PointsList)), "Must be a Line, CircleArc or PointsList"
 
             if i == 0:
-                p1 = factory.addPoint(geom.pt1.x, geom.pt1.y, geom.pt1.z, geom.meshSize)
+                p1 = factory.addPoint(*geom.pt1.coordo, geom.meshSize)
                 if geom.pt1.isOpen: openPoints.append(p1)
-                p2 = factory.addPoint(geom.pt2.x, geom.pt2.y, geom.pt2.z, geom.meshSize)
+                p2 = factory.addPoint(*geom.pt2.coordo, geom.meshSize)
                 if geom.pt2.isOpen: openPoints.append(p2)
                 points.extend([p1,p2])
             elif i > 0 and i+1 < nGeom:
                 p1 = p2
-                p2 = factory.addPoint(geom.pt2.x, geom.pt2.y, geom.pt2.z, geom.meshSize)
+                p2 = factory.addPoint(*geom.pt2.coordo, geom.meshSize)
                 if geom.pt2.isOpen: openPoints.append(p2)
                 points.append(p2)
             else:
@@ -277,20 +277,24 @@ class Interface_Gmsh:
 
             elif isinstance(geom, CircleArc):                
 
-                pC =  factory.addPoint(geom.center.x, geom.center.y, geom.center.z, geom.meshSize)
-
-                p3 = factory.addPoint(geom.pt3.x, geom.pt3.y, geom.pt3.z, geom.meshSize)
-
-                if geom.pt3.isOpen: openPoints.append(p3)
+                pC =  factory.addPoint(*geom.center.coordo, geom.meshSize)
+                p3 = factory.addPoint(*geom.pt3)
 
                 line1 = factory.addCircleArc(p1, pC, p3)
                 line2 = factory.addCircleArc(p3, pC, p2)
 
-                lines.extend([line1, line2])
-                if geom.isOpen:
-                    openLines.extend([line1, line2])
+                rm = [(0,pC)]
+                if factory == gmsh.model.occ:
+                    line = factory.addWire([line1, line2])                
+                    lines.append(line)
+                    rm.extend([(0, p3), (1, line1), (1, line2)])
+                else:
+                    lines.extend([line1, line2])
                 
-                factory.remove([(0,pC)])
+                if geom.isOpen:                    
+                    openLines.append(line)
+                
+                factory.remove(rm)
 
             elif isinstance(geom, PointsList):
                 
@@ -326,11 +330,11 @@ class Interface_Gmsh:
         rayon = circle.diam/2
 
         # Circle points                
-        p0 = factory.addPoint(center.x, center.y, center.z, circle.meshSize) # center
-        p1 = factory.addPoint(center.x-rayon, center.y, center.z, circle.meshSize)
-        p2 = factory.addPoint(center.x, center.y-rayon, center.z, circle.meshSize)
-        p3 = factory.addPoint(center.x+rayon, center.y, center.z, circle.meshSize)
-        p4 = factory.addPoint(center.x, center.y+rayon, center.z, circle.meshSize)
+        p0 = factory.addPoint(*center.coordo, circle.meshSize) # center
+        p1 = factory.addPoint(*circle.pt1.coordo, circle.meshSize)
+        p2 = factory.addPoint(*circle.pt2.coordo, circle.meshSize)
+        p3 = factory.addPoint(*circle.pt3.coordo, circle.meshSize)
+        p4 = factory.addPoint(*circle.pt4.coordo, circle.meshSize)
         points = [p1, p2, p3, p4]
 
         # Circle arcs
@@ -353,7 +357,7 @@ class Interface_Gmsh:
 
     def _Loop_From_Domain(self, domain: Domain) -> int:
         """Create a loop associated with a domain.\n
-        return loop
+        return loop, lines, points, openPoints
         """
         pt1 = domain.pt1
         pt2 = domain.pt2
@@ -363,17 +367,17 @@ class Interface_Gmsh:
         p3 = Point(x=pt2.x, y=pt2.y, z=pt2.z)
         p4 = Point(x=pt1.x, y=pt2.y, z=pt2.z)
 
-        loop = self._Loop_From_Points([p1, p2, p3, p4], domain.meshSize)[0]
+        loop, lines, points, openPoints = self._Loop_From_Points([p1, p2, p3, p4], domain.meshSize)
 
         self.__factory.synchronize()
         
-        return loop
+        return loop, lines, points
 
     def _Surface_From_Loops(self, loops: list[int]) -> tuple[int, int]:
-        """Create a surface associated with a loop.\n
+        """Create a surface associated with a loop (must be a plane surface).\n
         return surface
         """
-        
+        # must form a plane surface
         surface = self.__factory.addPlaneSurface(loops)
 
         self.__factory.synchronize()
@@ -396,7 +400,7 @@ class Interface_Gmsh:
         factory = self.__factory
 
         # Create contour surface
-        loopContour = self._Loop_From_Geom(contour)
+        loopContour, lines, points = self._Loop_From_Geom(contour)
 
         # Creation of all loops associated with objects within the domain
         hollowLoops, filledLoops = self.__Get_hollow_And_filled_Loops(inclusions)
@@ -421,10 +425,12 @@ class Interface_Gmsh:
         gmshPoints = [self.__factory.addPoint(*p.coordo, meshSize) for p in pointsList.points]        
         
         spline = self.__factory.addSpline(gmshPoints)
-        tt = gmshPoints[1:-1]
+        # remove all points except the first and the last points
         self.__factory.remove([(0,p) for p in gmshPoints[1:-1]])
 
         points = [gmshPoints[0], gmshPoints[-1]]
+
+        self.__factory.synchronize()
         
         return spline, points
     
@@ -437,9 +443,8 @@ class Interface_Gmsh:
 
     def _Set_PhysicalGroups(self, setPoints=True, setLines=True, setSurfaces=True, setVolumes=True) -> None:
         """Create physical groups based on model entities."""
-        self.__factory.synchronize()
+        self.__factory.synchronize()        
         entities = np.array(gmsh.model.getEntities())
-        ents = gmsh.model.getEntities()
 
         if entities.size == 0: return
         
@@ -476,6 +481,8 @@ class Interface_Gmsh:
         """
         
         factory = self.__factory
+        
+        factory.synchronize()
 
         extruEntities = []
 
@@ -485,10 +492,6 @@ class Interface_Gmsh:
         else:            
             recombine = True
             numElements = [nLayers]
-
-        surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]
-
-        factory.synchronize()
 
         for surf in surfaces:
 
@@ -532,6 +535,8 @@ class Interface_Gmsh:
         
         factory = self.__factory
 
+        factory.synchronize()
+
         angleIs2PI = np.abs(angle) == 2 * np.pi
 
         if angleIs2PI:
@@ -546,8 +551,6 @@ class Interface_Gmsh:
             recombine = True
             numElements = [nLayers]
 
-        factory.synchronize()
-
         for surf in surfaces:
 
             if isOrganised:
@@ -560,7 +563,7 @@ class Interface_Gmsh:
                 # https://onelab.info/pipermail/gmsh/2010/005359.html
                 gmsh.model.mesh.setRecombine(2, surf)
 
-        entities = gmsh.model.getEntities(2)
+        entities = [(2,s) for s in surfaces]
 
         # Create new entites for revolution
         revol = factory.revolve(entities, axis.pt1.x, axis.pt1.y, axis.pt1.z, axis.pt2.x, axis.pt2.y, axis.pt2.z, angle, numElements, recombine=recombine)
@@ -666,6 +669,9 @@ class Interface_Gmsh:
         return crackLines, crackSurfaces, openPoints, openLines
         """
 
+        factory = self.__factory
+        factory.synchronize()
+
         if len(cracks) == 0:
             return None, None, None, None
         
@@ -681,13 +687,13 @@ class Interface_Gmsh:
             if isinstance(crack, Line): # 1D CRACK
                 # Creating points
                 pt1 = crack.pt1
-                p1 = self.__factory.addPoint(pt1.x, pt1.y, pt1.z, crack.meshSize)
+                p1 = factory.addPoint(pt1.x, pt1.y, pt1.z, crack.meshSize)
                 pt2 = crack.pt2
-                p2 = self.__factory.addPoint(pt2.x, pt2.y, pt2.z, crack.meshSize)
+                p2 = factory.addPoint(pt2.x, pt2.y, pt2.z, crack.meshSize)
                 entities0D.extend([p1,p2])
 
                 # Line creation
-                line = self.__factory.addLine(p1, p2)
+                line = factory.addLine(p1, p2)
                 entities1D.append(line)
 
                 if crack.isOpen:
@@ -724,15 +730,15 @@ class Interface_Gmsh:
             elif isinstance(crack, CircleArc): # 1D CRACK
                 
                 # add points
-                pC =  self.__factory.addPoint(crack.center.x, crack.center.y, crack.center.z, crack.meshSize)
-                p1 = self.__factory.addPoint(crack.pt1.x, crack.pt1.y, crack.pt1.z, crack.meshSize)
-                p2 = self.__factory.addPoint(crack.pt2.x, crack.pt2.y, crack.pt2.z, crack.meshSize)
-                p3 = self.__factory.addPoint(crack.pt3.x, crack.pt3.y, crack.pt3.z, crack.meshSize)
+                pC =  factory.addPoint(*crack.center.coordo, crack.meshSize)
+                p1 = factory.addPoint(*crack.pt1.coordo, crack.meshSize)
+                p2 = factory.addPoint(*crack.pt2.coordo, crack.meshSize)
+                p3 = factory.addPoint(*crack.pt3.coordo, crack.meshSize)
                 entities0D.extend([p1,p2,p3])
 
                 # add lines
-                line1 = self.__factory.addCircleArc(p1, pC, p3)
-                line2 = self.__factory.addCircleArc(p3, pC, p2)
+                line1 = factory.addCircleArc(p1, pC, p3)
+                line2 = factory.addCircleArc(p3, pC, p2)
                 lines = [line1, line2]
                 entities1D.extend(lines)
 
@@ -742,7 +748,7 @@ class Interface_Gmsh:
                     if crack.pt2.isOpen: openPoints.append(p2)
                     if crack.pt3.isOpen: openPoints.append(p3)
                 
-                self.__factory.remove([(0,pC)], False)                
+                factory.remove([(0,pC)], False)                
 
             else:
 
@@ -752,8 +758,10 @@ class Interface_Gmsh:
         newEntities.extend([(1, line) for line in entities1D])
         newEntities.extend([(2, surf) for surf in entities2D])
 
-        o, m = gmsh.model.occ.fragment(entities, newEntities)
-        self.__factory.synchronize()
+        if factory == gmsh.model.occ:
+            o, m = gmsh.model.occ.fragment(entities, newEntities)
+
+        factory.synchronize()
 
         crackLines = gmsh.model.addPhysicalGroup(1, crack1D) if len(crack1D) > 0 else None
         crackSurfaces = gmsh.model.addPhysicalGroup(2, crack2D) if len(crack2D) > 0 else None
@@ -824,12 +832,12 @@ class Interface_Gmsh:
 
         return mesh
 
-    def __Get_hollow_And_filled_Loops(self, inclusions: list) -> tuple[list, list]:
+    def __Get_hollow_And_filled_Loops(self, inclusions: list[Geom]) -> tuple[list, list]:
         """Creation of hollow and filled loops
 
         Parameters
         ----------
-        inclusions : list
+        inclusions : Circle | Domain | PointsList | Contour
             List of geometric objects contained in the domain
 
         Returns
@@ -841,7 +849,7 @@ class Interface_Gmsh:
         filledLoops = []
         for objetGeom in inclusions:
             
-            loop = self._Loop_From_Geom(objetGeom)
+            loop = self._Loop_From_Geom(objetGeom)[0]
 
             if objetGeom.isHollow:
                 hollowLoops.append(loop)
