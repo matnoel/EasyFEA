@@ -352,7 +352,14 @@ class PointsList(Geom):
         return contour
 
     def coordoPlot(self) -> tuple[np.ndarray,np.ndarray]:
-        return super().coordoPlot()    
+        return super().coordoPlot()
+    
+    @property
+    def length(self) -> float:
+        coordo = self.coordo
+        lenght = np.linalg.norm(coordo[1:]-coordo[:-1], axis=1)
+        lenght = np.sum(lenght)
+        return lenght
 
 class Line(Geom):
 
@@ -548,7 +555,11 @@ class Circle(Geom):
         lines = np.einsum('ij,nj->ni', mat, lines) + pC.coordo
 
         return lines, points
-
+    
+    @property
+    def length(self) -> float:
+        """circle perimeter"""
+        return np.pi * self.diam
 
 class CircleArc(Geom):
 
@@ -627,27 +638,38 @@ class CircleArc(Geom):
     
     @property
     def angle(self):
+        """circular arc angle [rad]"""
         i = (self.pt1 - self.center).coordo
         j = (self.pt2 - self.center).coordo
         return AngleBetween_a_b(i,j)
+    
+    @property
+    def r(self):
+        """circular arc radius"""
+        return np.linalg.norm((self.pt1-self.center).coordo)
+    
+    @property
+    def length(self) -> float:
+        """circular arc perimeter"""
+        return np.abs(self.angle * self.r)
 
     def coordoPlot(self) -> tuple[np.ndarray,np.ndarray]:
 
         points = self.coordo
 
         pC = self.center
+        r = self.r
 
         # plot arc circle in 2D space
-        angle = np.linspace(0, np.pi/2, 11)
+        angle = np.linspace(0, np.abs(self.angle), 11)
         lines = np.zeros((angle.size,3))
-        lines[:,0] = np.cos(angle)
-        lines[:,1] = np.sin(angle)
+        lines[:,0] = np.cos(angle) * r
+        lines[:,1] = np.sin(angle) * r
 
         # get the jabobian matrix
-        i = (self.pt1 - self.center).coordo
-        j = (self.pt2 - self.center).coordo
+        i = (self.pt1 - self.center).coordo        
         n = self.n
-        mat = np.array([i,j,n]).T
+        mat = JacobianMatrix(i,n)
 
         # transform coordinates
         lines = np.einsum('ij,nj->ni', mat, lines) + pC.coordo
@@ -721,6 +743,11 @@ class Contour(Geom):
         points = np.reshape(points, (-1,3))
 
         return lines, points
+    
+    @property
+    def length(self) -> float:
+        return np.sum([geom.length for geom in self.geoms])
+
 
 class Section:
 
