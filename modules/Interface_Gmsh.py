@@ -75,8 +75,9 @@ class Interface_Gmsh:
             loop, lines, points = self._Loop_From_Circle(geom)[:3]
         elif isinstance(geom, Domain):
             loop, lines, points = self._Loop_From_Domain(geom)[:3]
-        elif isinstance(geom, PointsList):                
-            loop, lines, points = self._Loop_From_Points(geom.points, geom.meshSize)[:3]
+        elif isinstance(geom, PointsList):
+            contour = geom.Get_Contour()            
+            loop, lines, points = self._Loop_From_Contour(contour)[:3]
         elif isinstance(geom, Contour):
             loop, lines, points = self._Loop_From_Contour(geom)[:3]
         else:
@@ -85,152 +86,6 @@ class Interface_Gmsh:
         self.__factory.synchronize()
         
         return loop, lines, points
-
-    def _Loop_From_Points(self, points: list[Point], meshSize: float) -> tuple[int, list[int], list[int]]:
-        """Creation of a loop associated with the list of points.\n
-        return loop, lines, points, openPoints
-        """
-        
-        factory = self.__factory
-
-        # We create all the points
-        Npoints = len(points)
-
-        # dictionary, which takes a Point object as key and contains the id list of gmsh points created
-        dict_point_pointsGmsh: dict[Point, list[int]] = {}
-        
-        openPoints = []
-        createdPoints = []
-        # create the points to make th{}e loops
-        # this loop create a dictionnary of gmsh points for each point in points
-        for index, point in enumerate(points):
-            # pi -> gmsh id of point i
-            # Pi -> coordinates of point i
-            if index > 0:
-                # Retrieves the last gmsh point created
-                prevPoint = points[index-1]
-                factory.synchronize()
-                lastPoint = dict_point_pointsGmsh[prevPoint][-1]
-                # retrieves last point coordinates
-                lastCoordo = gmsh.model.getValue(0, lastPoint, [])          
-
-            # detects whether the point needs to be rounded
-            if point.r == 0:
-                if index > 0 and np.linalg.norm(lastCoordo - point.coordo) <= 1e-12:
-                    # check if the current point location
-                    # if they have the same coordinates 
-                    # we dont create the point
-                    p0 = lastPoint
-                else:
-                    # we create a new point
-                    p0 = factory.addPoint(point.x, point.y, point.z, meshSize)
-                    createdPoints.append(p0)
-                    if point.isOpen:
-                        openPoints.append(p0)
-
-                dict_point_pointsGmsh[point] = [p0]                
-
-            else:
-                # With rounding
-                # Construct a radius in the corner
-
-                # The current / active point is P0 (corner point)
-                # The next point is P2 (next point in the loop)
-                # The point before is point P1 (previous point in the loop)
-
-                # Point / Coint in which to create the fillet
-                P0 = point.coordo
-                # Recovers points 1 and 2 indices in points
-                if index+1 == Npoints:
-                    # here we are on the last point of points
-                    index_p1 = index - 1
-                    index_p2 = 0
-                elif index == 0:
-                    # here we are on the first point of points
-                    index_p1 = -1
-                    index_p2 = index + 1
-                else:
-                    index_p1 = index - 1
-                    index_p2 = index + 1
-
-                # Get the points P1 & P2 coordinates
-                P1 = points[index_p1].coordo
-                P2 = points[index_p2].coordo
-                
-                # Get the points A, B and C to construct the circle arc
-                A, B, C = Points_Rayon(P0, P1, P2, point.r)
-
-                # A is the point on the line form by P0 P1
-                if index > 0 and np.linalg.norm(lastCoordo - A) <= 1e-12:
-                    # if the coordinate is identical, the point is not recreated
-                    pA = lastPoint
-                else:
-                    pA = factory.addPoint(A[0], A[1], A[2], meshSize)
-
-                    createdPoints.append(pA)
-                    if point.isOpen:
-                        openPoints.append(pA)
-                # C is the point used for the circular arc
-                # C will be delete after the creation of the circle arc
-                pC = factory.addPoint(C[0], C[1], C[2], meshSize) # circle center
-                
-                # B is the point on the line form by P0 P2
-                if index > 0 and (np.linalg.norm(B - firstCoordo) <= 1e-12):
-                    pB = firstPoint
-                else:
-                    pB = factory.addPoint(B[0], B[1], B[2], meshSize) # point of intersection between j and the circle
-
-                    createdPoints.append(pB)
-                    if point.isOpen:
-                        openPoints.append(pB)
-
-                dict_point_pointsGmsh[point] = [pA, pC, pB]
-
-            if index == 0:
-                factory.synchronize()
-                firstPoint = dict_point_pointsGmsh[point][0]
-                firstCoordo = gmsh.model.getValue(0, firstPoint, [])
-        
-        lines = []
-        factory.synchronize() # sync the created points
-        for index, point in enumerate(points):
-            # For each point we'll create the loop associated with the point and we'll create a line with the next point.
-            # For example, if the point has a radius, you'll first need to build the arc of the circle.
-            # Then we need to connect the lastGmsh point to the firstGmsh point of the next node.
-
-            # gmsh points created
-            gmshPoints = dict_point_pointsGmsh[point]
-
-            # If the corner is rounded, it is necessary to create the circular arc
-            if point.r != 0:
-                lines.append(factory.addCircleArc(gmshPoints[0], gmshPoints[1], gmshPoints[2]))
-
-                # Here we remove the point from the center of the circle VERY IMPORTANT otherwise the point remains at the center of the circle.
-                factory.remove([(0,gmshPoints[1])], False)
-                
-            # Retrieves the index of the next node
-            if index+1 == Npoints:
-                # If we are on the last node, we will close the loop by recovering the first point.
-                indexAfter = 0
-            else:
-                indexAfter = index + 1
-
-            # Gets the next gmsh point to create the line between the points
-            gmshPointAfter = dict_point_pointsGmsh[points[indexAfter]][0]
-            
-            if gmshPoints[-1] != gmshPointAfter:
-                c1 = gmsh.model.getValue(0, gmshPoints[-1], [])
-                c2 = gmsh.model.getValue(0, gmshPointAfter, [])
-                if np.linalg.norm(c1-c2) >= 1e-12:
-                    # The link is not created if the gmsh points are identical and have the same coordinates.
-                    lines.append(factory.addLine(gmshPoints[-1], gmshPointAfter))
-
-        # Create a closed loop connecting the lines for the surface
-        loop = factory.addCurveLoop(lines)
-
-        factory.synchronize()
-
-        return loop, lines, createdPoints, openPoints
     
     def _Loop_From_Contour(self, contour: Contour) -> tuple[int, list[int], list[int], list[int], list[int]]:
         """Create a loop associated with a list of 1D objects (Line, CircleArc, PointsList).\n
@@ -278,23 +133,21 @@ class Interface_Gmsh:
             elif isinstance(geom, CircleArc):                
 
                 pC =  factory.addPoint(*geom.center.coordo, geom.meshSize)
-                p3 = factory.addPoint(*geom.pt3)
 
-                line1 = factory.addCircleArc(p1, pC, p3)
-                line2 = factory.addCircleArc(p3, pC, p2)
-
-                rm = [(0,pC)]
-                if factory == gmsh.model.occ:
-                    line = factory.addWire([line1, line2])                
-                    lines.append(line)
-                    rm.extend([(0, p3), (1, line1), (1, line2)])
-                else:
+                if np.abs(geom.angle) > np.pi:
+                    p3 = factory.addPoint(*geom.pt3.coordo)
+                    line1 = factory.addCircleArc(p1, pC, p3)
+                    line2 = factory.addCircleArc(p3, pC, p2)
                     lines.extend([line1, line2])
+                    if geom.isOpen:
+                        openLines.extend([line1, line2])
+                else:
+                    line = factory.addCircleArc(p1, pC, p2)
+                    lines.append(line)
+                    if geom.isOpen:
+                        openLines.append(line)
                 
-                if geom.isOpen:                    
-                    openLines.append(line)
-                
-                factory.remove(rm)
+                factory.remove([(0,pC)])
 
             elif isinstance(geom, PointsList):
                 
@@ -361,13 +214,23 @@ class Interface_Gmsh:
         """
         pt1 = domain.pt1
         pt2 = domain.pt2
+        mS = domain.meshSize
 
-        p1 = Point(x=pt1.x, y=pt1.y, z=pt1.z)
-        p2 = Point(x=pt2.x, y=pt1.y, z=pt1.z)
-        p3 = Point(x=pt2.x, y=pt2.y, z=pt2.z)
-        p4 = Point(x=pt1.x, y=pt2.y, z=pt2.z)
+        factory = self.__factory
 
-        loop, lines, points, openPoints = self._Loop_From_Points([p1, p2, p3, p4], domain.meshSize)
+        p1 = factory.addPoint(pt1.x, pt1.y, pt1.z, mS)
+        p2 = factory.addPoint(pt2.x, pt1.y, pt1.z, mS)
+        p3 = factory.addPoint(pt2.x, pt2.y, pt2.z, mS)
+        p4 = factory.addPoint(pt1.x, pt2.y, pt2.z, mS)
+        points = [p1,p2,p3,p4]
+
+        l1 = factory.addLine(p1, p2)
+        l2 = factory.addLine(p2, p3)
+        l3 = factory.addLine(p3, p4)
+        l4 = factory.addLine(p4, p1)
+        lines = [l1,l2,l3,l4]
+
+        loop = factory.addCurveLoop(lines)
 
         self.__factory.synchronize()
         
