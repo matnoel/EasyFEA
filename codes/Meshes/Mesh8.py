@@ -1,4 +1,5 @@
-from Interface_Gmsh import gmsh, Interface_Gmsh, Point, Circle, Domain, ElemType, PointsList, Line, CircleArc
+from Interface_Gmsh import gmsh, Interface_Gmsh, ElemType
+from Geom import Point, Circle, Domain, PointsList, Line, CircleArc, Contour
 import Display
 import Folder
 import numpy as np
@@ -9,118 +10,87 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Geom
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     H = 90
     L = 45
     D = 10
-    e = 20    
+    e = 20
 
     N = 5
     mS = (np.pi/4 * D/2) / N
 
     # PI for Points
     # pi for gmsh points
-    PC = Point(0, H/2, 0)
+    PC = Point(L/2, H/2, 0)
     circle = Circle(PC, D, mS)
-    
-    P1 = Point(-L/2,0)
-    P2 = Point(L/2,0)
-    P3 = Point(L/2,H)
-    P4 = Point(-L/2,H)
-    contour1 = PointsList([P1, P2, P3, P4])
 
-    # ----------------------------------------------
+    P1 = Point()
+    P2 = Point(L,0)
+    P3 = Point(L,H)
+    P4 = Point(0,H)
+    contour1 = PointsList([(P3+P2)/2,P3,(P3+P4)/2,
+                           P4,(P4+P1)/2,P1,
+                           (P1+P2)/2,P2,(P3+P2)/2], mS)
+
+    # --------------------------------------------------------------------------------------------
     # Mesh
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     interface = Interface_Gmsh(False, False)
-    dim, elemType = 2, ElemType.QUAD4
+    factory = interface.factory
+    elemType =  ElemType.QUAD4
 
-    factory = interface._init_gmsh_factory('occ')
-
-    # gmsh points for the domain
-    p1 = factory.addPoint(*P1.coordo, meshSize=mS)
-    p2 = factory.addPoint(*P2.coordo, meshSize=mS)
-    p3 = factory.addPoint(*P3.coordo, meshSize=mS)
-    p4 = factory.addPoint(*P4.coordo, meshSize=mS)
+    contours = []
     
-    # gmsh points for the circle
-    dx = np.cos(np.pi/4) * D/2
-    dy = np.sin(np.pi/4) * D/2
-    pc = factory.addPoint(*PC.coordo, meshSize=mS)
-    pc1 = factory.addPoint(*(PC+[D/2,0]).coordo, meshSize=mS)
-    pc2 = factory.addPoint(*(PC+[0,D/2]).coordo, meshSize=mS)
-    pc3 = factory.addPoint(*(PC+[-D/2,0]).coordo, meshSize=mS)
-    pc4 = factory.addPoint(*(PC+[0,-D/2]).coordo, meshSize=mS)
-    pc12 = factory.addPoint(*(PC+[dx,dy]).coordo, meshSize=mS)
-    pc23 = factory.addPoint(*(PC+[-dx,dy]).coordo, meshSize=mS)
-    pc34 = factory.addPoint(*(PC+[-dx,-dy]).coordo, meshSize=mS)
-    pc41 = factory.addPoint(*(PC+[dx,-dy]).coordo, meshSize=mS)
+    for c in range(4):
 
-    p23 = factory.addPoint(*(P2+P3).coordo/2, meshSize=mS)
-    p34 = factory.addPoint(*(P3+P4).coordo/2, meshSize=mS)
-    p41 = factory.addPoint(*(P4+P1).coordo/2, meshSize=mS)
-    p12 = factory.addPoint(*(P1+P2).coordo/2, meshSize=mS)
+        pc = circle.center
+        pc1 = circle.contour.geoms[c].pt1
+        pc2 = circle.contour.geoms[c].pt2
+        pc3 = circle.contour.geoms[c].pt3
+        
+        p1,p2,p3 = contour1.points[c*2:c*2+3]
 
-    points_1 = [pc1, pc12, pc2, pc23, pc3, pc34, pc4, pc41]
-    points_2 = [p23, p3, p34, p4, p41, p1, p12, p2]
-    points_3 = [p3, p34, p4, p41, p1, p12, p2, p23]
-    points_4 = [pc12, pc2, pc23, pc3, pc34, pc4, pc41, pc1]
+        cont1 = Contour([Line(pc1, p1), 
+                            Line(p1,p2),
+                            Line(p2,pc3),
+                            CircleArc(pc3,pc,pc1)])
+        loop1, lines1, points1 = interface._Loop_From_Geom(cont1)
 
-    fuse = True
-    addedLines = []
-    for p in range(len(points_1)):
+        cont2 = Contour([Line(pc3, p2),
+                            Line(p2,p3),
+                            Line(p3,pc2),
+                            CircleArc(pc2,pc,pc3)])
+        loop2, lines2, points2 = interface._Loop_From_Geom(cont2)
 
-        if p == 0:
-            line1 = factory.addLine(points_1[p], points_2[p])
-            firsLine = line1
-        elif fuse:
-            line1 = line3
-        else:
-            line1 = factory.addLine(points_1[p], points_2[p])
-        line2 = factory.addLine(points_2[p], points_3[p])    
-        if p+1 == len(points_1) and fuse:
-            line3 = firsLine
-        else:
-            line3 = factory.addLine(points_3[p], points_4[p])
-        line4 = factory.addCircleArc(points_4[p], pc, points_1[p])
+        surf1 = factory.addSurfaceFilling(loop1)
+        surf2 = factory.addSurfaceFilling(loop2)
 
-        lines = [line1, line2, line3, line4]
-        addedLines.extend(lines)
+        interface._OrganiseSurfaces([surf1, surf2], elemType, True, [N]*4)
 
-        loop = factory.addCurveLoop(lines)
-        surf = factory.addPlaneSurface([loop])
+        contours.extend([cont1, cont2])
 
-        factory.synchronize()
-
-        [gmsh.model.mesh.setTransfiniteCurve(line, N) for line in lines]
-
-        gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=points)
-
-
-    factory.remove([(0, pc)]) # remove the point pc if you dont want orphan nodes
-
-    # factory.fragment(factory.getEntities(2), [(1, l) for l in addedLines])
+    
+    cont1.Plot_Geoms(contours)
 
     factory.synchronize()
 
     interface._Set_PhysicalGroups()
     
-    interface._Meshing(dim, elemType)
+    interface._Meshing(2, elemType)
 
     mesh = interface._Construct_Mesh()
+    print(mesh)    
 
     if len(mesh.orphanNodes) > 0:
         ax = Display.Plot_Nodes(mesh, mesh.orphanNodes)
         ax.set_title("Orphan nodes detected")
         Display.plt.show()
 
-    print(mesh)
-
-    if dim == 3:
-        print(f'volume = {mesh.volume:.3f}')
-
+    # --------------------------------------------------------------------------------------------
+    # Simulation
+    # --------------------------------------------------------------------------------------------
 
     import Simulations
     import Materials
@@ -132,7 +102,7 @@ if __name__ == '__main__':
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==H), [4], ['y'])    
     simu.Solve()
         
-    Display.Plot_Model(mesh)
+    Display.Plot_Model(mesh, alpha=1)
     Display.Plot_Mesh(simu, 1)
     Display.Plot_Result(simu, 'uy', 1, plotMesh=True)
 

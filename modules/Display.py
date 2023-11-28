@@ -68,19 +68,19 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
     plotDim = mesh.dim # plot dimension
 
-    deformFactor = 0 if simu is None else deformFactor
+    deformFactor = 0 if simu == None else deformFactor
 
     # I can't yet display nodal values on lines
-    nodeValues = False if plotDim is 1 else nodeValues
+    nodeValues = False if plotDim == 1 else nodeValues
 
     # When mesh use 3D elements, results are displayed only on 2D elements.
-    nodeValues = True if plotDim is 3 else nodeValues
+    nodeValues = True if plotDim == 3 else nodeValues
     # Do not modify, you must use the node solution to locate the 2D elements !!!!
     # To display values on 2D elements, you first need to know the values at 3D nodes.
 
     # Retrieve values to be displayed
     if isinstance(result, str):
-        if simu is None:
+        if simu == None:
             raise Exception("obj is a mesh, so the result must be an array of dimension Nn or Ne")
         values = simu.Get_Result(result, nodeValues) # Retrieve result from option
         if not isinstance(values, np.ndarray): return
@@ -108,8 +108,8 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         min = values.min()-1e-12
         max = np.max([values.max()+1e-12, 1])
     else:
-        max = np.max(values)+1e-12 if max is None else max
-        min = np.min(values)-1e-12 if min is None else min
+        max = np.max(values)+1e-12 if max == None else max
+        min = np.min(values)-1e-12 if min == None else min
     levels = np.linspace(min, max, nColors)
 
     if ax is not None:
@@ -120,7 +120,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # Mesh contained in a 2D plane
         # Currently only designed for one element group!
 
-        if ax is None:
+        if ax == None:
             fig, ax = plt.subplots()
         # rename the axis
         ax.set_xlabel(r"$x$")
@@ -185,7 +185,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
 
         plotDim = 2 if plotDim == 3 else plotDim
 
-        if ax is None:
+        if ax == None:
             fig = plt.figure()
             ax = fig.add_subplot(projection="3d")
             ax.view_init(elev=105, azim=-90)
@@ -318,7 +318,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
     simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
 
-    deformFactor = 0 if simu is None else np.abs(deformFactor)
+    deformFactor = 0 if simu == None else np.abs(deformFactor)
 
     # Dimensions of displayed elements
     plotDim = mesh.dim 
@@ -339,7 +339,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
     if inDim in [1,2]:
         # in 2d space
 
-        if ax is None:
+        if ax == None:
             fig, ax = plt.subplots()
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
@@ -372,7 +372,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
     elif inDim == 3:
         # in 3d space
 
-        if ax is None:
+        if ax == None:
             fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
             ax.view_init(elev=105, azim=-90)
         ax.set_xlabel(r"$x$")
@@ -458,7 +458,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
-    if ax is None:
+    if ax == None:
         ax = Plot_Mesh(mesh, alpha=0)
     ax.set_title("")
     
@@ -517,14 +517,14 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
-    if dimElem is None:
+    if dimElem == None:
         dimElem = 2 if mesh.inDim == 3 else mesh.dim
 
     # list of element group associated with the dimension
     list_groupElem = mesh.Get_list_groupElem(dimElem)[:1]
     if len(list_groupElem) == 0: return
 
-    if ax is None:
+    if ax == None:
         if mesh.inDim in [1,2]:
             fig, ax = plt.subplots()
             ax.autoscale()
@@ -609,7 +609,7 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
     displays = simu.Bc_Display # boundary conditions for display used for lagrangian boundary conditions
     BoundaryConditions.extend(displays)
 
-    if ax is None:
+    if ax == None:
         ax = Plot_Mesh(simu, alpha=0)
 
     for bc in BoundaryConditions:
@@ -692,7 +692,7 @@ def Plot_Model(obj, showId=True, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
 
     simu, mesh, coordo, inDim = __init_obj(obj, 0.0)
 
-    if ax is None:
+    if ax == None:
         if mesh.inDim <= 2:
             fig, ax = plt.subplots()
             ax.set_xlabel(r"$x$")
@@ -772,7 +772,7 @@ def Plot_Model(obj, showId=True, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
                         collections.append(ax.add_collection(pc))
                     else:
                         # plot surfaces
-                        pc = matplotlib.collections.PolyCollection(coordo_faces, lw=1, alpha=alpha, facecolors=color, label=tag_e, edgecolor=color)
+                        pc = matplotlib.collections.PolyCollection(coordo_faces, facecolors=color, label=tag_e, edgecolor=color, alpha=alpha)
                         collections.append(ax.add_collection(pc))
                 else:
                     # points
@@ -826,7 +826,8 @@ def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None
     """Create an event to display the element tag currently active under the mouse (at the bottom of the figure)."""
     
     def Set_Message(collection, event):
-        if collection.contains(event)[0]:
+        if isinstance(collection, list): return
+        if collection.contains(event)[0]:        
             toolbar = ax.figure.canvas.toolbar
             coordo = ax.format_coord(event.xdata, event.ydata)
             toolbar.set_message(f"{collection.get_label()} : {coordo}")
@@ -1023,10 +1024,10 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     # Recovers simulation results
     iterations, list_label_values = simu.Results_Iter_Summary()
 
-    if iterMax is None:
+    if iterMax == None:
         iterMax = iterations.max()
 
-    if iterMin is None:
+    if iterMin == None:
         iterMin = iterations.min()
     
     selectionIndex = list(filter(lambda iterations: iterations >= iterMin and iterations <= iterMax, iterations))

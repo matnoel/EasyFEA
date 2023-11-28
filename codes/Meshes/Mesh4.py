@@ -2,57 +2,46 @@ import numpy as np
 
 import Display
 from Interface_Gmsh import Interface_Gmsh, GroupElem
-from Geom import Point, PointsList, Circle, Line, CircleArc, Contour
+from Geom import Point, PointsList, Circle, Line
 
 Display.Clear()
 
-radius = 20
-w = 10
-a = 4
-height = 100
+width = 1
+height = 2
+radius = 1
 
-meshSize = radius/5
+meshSize = width/5
 
-pt1 = Point(0, 0)
-pt2 = Point(radius, 0)
-pt3 = Point(radius, w)
-pt4 = Point(radius, height-w)
-pt5 = Point(radius, height)
-pt6 = Point(0, height)
-pt7 = Point(0, height/2+a)
-pt8 = Point(0, height/2-a)
+pt1 = Point(radius, 0, r=width/3)
+pt2 = Point(radius+width, 0, r=width/3)
+pt3 = Point(radius+width, height, r=-width/3)
+pt4 = Point(radius, height, r=-width/3)
 
-centerArc1 = Point(height, height/2)
-centerArc2 = Point(0, height/2)
+contour = PointsList([pt1, pt2, pt3, pt4], meshSize)
 
-line1 = Line(pt1, pt2, meshSize)
-line2 = Line(pt2, pt3, meshSize)
-line3 = CircleArc(pt3, centerArc1, pt4, meshSize)
-line4 = Line(pt4, pt5, meshSize)
-line5 = Line(pt5, pt6, meshSize)
-line6 = Line(pt6, pt7, meshSize)
-line7 = CircleArc(pt7, centerArc2, pt8, meshSize)
-line8 = Line(pt8, pt1, meshSize)
+circle1 = Circle(Point(width/2+radius, height*1/4), width/3, width/10)
+circle2 = Circle(Point(width/2+radius, height*3/4), width/3, width/10)
+circle3 = Circle(Point(width/2+radius, height/2), width/3, width/10, False)
+inclusions = [circle1, circle2, circle3]
 
-contour = Contour([line1, line2, line3, line4, line5, line6, line7, line8])
-inclusions = []
+axis = Line(Point(), Point(radius/3,height))
+axis.name = 'rot axis'
 
-axis = Line(Point(-1), Point(-1,height))
+angle = np.pi * 2 * 4/6
 
-ax = Display.plt.subplots()[1]
-ax.plot(axis.coordo[:,:2][:,0], axis.coordo[:,:2][:,1], c='black', ls='-.', label='axis')
-# ax.scatter(*line7.center.coordo[:2])
-mesh2D = Interface_Gmsh().Mesh_2D(contour, inclusions)
-ax.legend()
-Display.Plot_Model(mesh2D, ax=ax)
+perimeter = angle * radius
 
-angle = np.pi*2 *2/3
-nLayers = np.abs(angle * radius) // meshSize
+nLayers = perimeter // meshSize
 
 def DoMesh(dim, elemType):
     mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, nLayers, elemType)
     Display.Plot_Mesh(mesh)
 
 [DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
+
+geoms = [contour.Get_Contour()]
+geoms.extend([circle1, circle2, circle3])
+geoms.append(axis)
+contour.Plot_Geoms(geoms)
 
 Display.plt.show()

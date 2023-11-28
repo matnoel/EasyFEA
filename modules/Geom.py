@@ -247,6 +247,20 @@ class Geom(ABC):
         Display._ScaleChange(ax, lines)
 
         return ax
+    
+    @staticmethod
+    def Plot_Geoms(geoms: list, ax: Display.plt.Axes=None,
+                   color:str="", name:str="") -> Display.plt.Axes:
+        geoms: list[Geom] = geoms
+        for g, geom in enumerate(geoms):
+            if g == 0 and ax == None:
+                ax = geom.Plot(color=color, name=name)
+            else:
+                geom.Plot(ax, color, name)
+
+        ax.legend()
+
+        return ax
 
 class PointsList(Geom):
 
@@ -345,6 +359,7 @@ class PointsList(Geom):
         Link(-1, 0)
 
         contour = Contour(geoms, self.isHollow, self.isOpen).copy()
+        contour.name = self.name + '_contour'
         # do the copy to unlink the points connexion with the list of points
         
         return contour

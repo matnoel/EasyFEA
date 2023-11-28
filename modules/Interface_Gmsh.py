@@ -60,12 +60,12 @@ class Interface_Gmsh:
             gmsh.option.setNumber('General.Verbosity', 0)
         gmsh.model.add("model")
         if factory == 'occ':
-            self.__factory = gmsh.model.occ
+            self.factory = gmsh.model.occ
         elif factory == 'geo':
-            self.__factory = gmsh.model.geo
+            self.factory = gmsh.model.geo
         else:
             raise Exception("Unknow factory")
-        return self.__factory
+        return self.factory
         
     def _Loop_From_Geom(self, geom: Union[Circle, Domain, PointsList, Contour]) -> tuple[int, list[int], list[int]]:
         """Creation of a loop based on the geometric object.\n
@@ -83,7 +83,7 @@ class Interface_Gmsh:
         else:
             raise Exception("Must be a circle, a domain, a list of points or a contour.")
         
-        self.__factory.synchronize()
+        self.factory.synchronize()
         
         return loop, lines, points
     
@@ -92,7 +92,7 @@ class Interface_Gmsh:
         return loop, lines, points, openLines, openPoints
         """
 
-        factory = self.__factory
+        factory = self.factory
 
         points: list[int] = []
         lines: list[int] = []
@@ -177,7 +177,7 @@ class Interface_Gmsh:
         return loop, lines, points
         """
 
-        factory = self.__factory
+        factory = self.factory
 
         center = circle.center
         rayon = circle.diam/2
@@ -216,7 +216,7 @@ class Interface_Gmsh:
         pt2 = domain.pt2
         mS = domain.meshSize
 
-        factory = self.__factory
+        factory = self.factory
 
         p1 = factory.addPoint(pt1.x, pt1.y, pt1.z, mS)
         p2 = factory.addPoint(pt2.x, pt1.y, pt1.z, mS)
@@ -232,7 +232,7 @@ class Interface_Gmsh:
 
         loop = factory.addCurveLoop(lines)
 
-        self.__factory.synchronize()
+        self.factory.synchronize()
         
         return loop, lines, points
 
@@ -241,9 +241,9 @@ class Interface_Gmsh:
         return surface
         """
         # must form a plane surface
-        surface = self.__factory.addPlaneSurface(loops)
+        surface = self.factory.addPlaneSurface(loops)
 
-        self.__factory.synchronize()
+        self.factory.synchronize()
 
         return surface
     
@@ -265,7 +265,7 @@ class Interface_Gmsh:
             mesh is organized, by default False
         """
 
-        factory = self.__factory
+        factory = self.factory
 
         # Create contour surface
         loopContour, lines, points = self._Loop_From_Geom(contour)
@@ -283,28 +283,28 @@ class Interface_Gmsh:
         surfaces = [surfaceContour]
         [surfaces.append(factory.addPlaneSurface([loop])) for loop in filledLoops]
 
-        self.__OrganiseSurfaces(surfaces, elemType, isOrganised)
+        self._OrganiseSurfaces(surfaces, elemType, isOrganised)
 
         return surfaces, lines, points
     
-    def __OrganiseSurfaces(self, surfaces: list[int], elemType: ElemType,
+    def _OrganiseSurfaces(self, surfaces: list[int], elemType: ElemType,
                            isOrganised=False, numElems:list[int]=[]) -> None:
 
-        self.__factory.synchronize()
+        self.factory.synchronize()
 
         setRecombine = elemType in [ElemType.QUAD4, ElemType.QUAD8,
                                     ElemType.HEXA8, ElemType.HEXA20]
         
         for surf in surfaces:
+
+            lines = gmsh.model.getBoundary([(2, surf)])
+            if len(lines) == len(numElems):
+                [gmsh.model.mesh.setTransfiniteCurve(l[1], int(n+1))
+                    for l, n in zip(lines, numElems)]
+
             if isOrganised:
-                # only works if the surface is formed by 4 lines
-                lines = gmsh.model.getBoundary([(2, surf)])
-
-                if len(lines) == len(numElems):
-                    [gmsh.model.mesh.setTransfiniteCurve(l[1], int(n+1))
-                     for l, n in zip(lines, numElems)]
-
                 if len(lines) == 4:
+                    # only works if the surface is formed by 4 lines
                     gmsh.model.mesh.setTransfiniteSurface(surf)
 
             if setRecombine:
@@ -314,15 +314,15 @@ class Interface_Gmsh:
     def _Spline_From_Points(self, pointsList: PointsList) -> tuple[int, list[int]]:
 
         meshSize = pointsList.meshSize
-        gmshPoints = [self.__factory.addPoint(*p.coordo, meshSize) for p in pointsList.points]        
+        gmshPoints = [self.factory.addPoint(*p.coordo, meshSize) for p in pointsList.points]        
         
-        spline = self.__factory.addSpline(gmshPoints)
+        spline = self.factory.addSpline(gmshPoints)
         # remove all points except the first and the last points
-        self.__factory.remove([(0,p) for p in gmshPoints[1:-1]])
+        self.factory.remove([(0,p) for p in gmshPoints[1:-1]])
 
         points = [gmshPoints[0], gmshPoints[-1]]
 
-        self.__factory.synchronize()
+        self.factory.synchronize()
         
         return spline, points
     
@@ -335,7 +335,7 @@ class Interface_Gmsh:
 
     def _Set_PhysicalGroups(self, setPoints=True, setLines=True, setSurfaces=True, setVolumes=True) -> None:
         """Create physical groups based on model entities."""
-        self.__factory.synchronize()        
+        self.factory.synchronize()        
         entities = np.array(gmsh.model.getEntities())
 
         if entities.size == 0: return
@@ -370,7 +370,7 @@ class Interface_Gmsh:
             number of layers in extrusion, by default 1
         """
         
-        factory = self.__factory
+        factory = self.factory
         
         factory.synchronize()
 
@@ -415,7 +415,7 @@ class Interface_Gmsh:
             number of layers in revolve process, by default 360
         """
         
-        factory = self.__factory
+        factory = self.factory
 
         factory.synchronize()
 
@@ -470,7 +470,7 @@ class Interface_Gmsh:
             created entities
         """
 
-        factory = self.__factory
+        factory = self.factory
 
         # specifies if structuring is required when linking entities
         canBeOrganised = len(contour1.geoms) == 4
@@ -491,7 +491,7 @@ class Interface_Gmsh:
             if len(numElems) == 0:
                 numElems = [int(geom.length / geom.meshSize) for geom in contour1.geoms]            
             assert len(numElems) == len(lines1)
-        self.__OrganiseSurfaces(surfaces, elemType, useTransfinite, numElems)
+        self._OrganiseSurfaces(surfaces, elemType, useTransfinite, numElems)
 
         # check that the given entities are linkable
         assert len(lines1) == len(lines2), "Must provide same number of lines."
@@ -629,7 +629,7 @@ class Interface_Gmsh:
         
         tic = Tic()
 
-        factory = self.__factory
+        factory = self.factory
 
         if '.stp' in file or '.igs' in file:
             factory.importShapes(file)
@@ -654,7 +654,7 @@ class Interface_Gmsh:
         return crackLines, crackSurfaces, openPoints, openLines
         """
 
-        factory = self.__factory
+        factory = self.factory
         factory.synchronize()
 
         if len(cracks) == 0:
@@ -779,7 +779,7 @@ class Interface_Gmsh:
 
         tic = Tic()
         
-        factory = self.__factory
+        factory = self.factory
 
         points = [] 
         lines = []
@@ -875,7 +875,7 @@ class Interface_Gmsh:
 
         tic = Tic()
 
-        factory = self.__factory
+        factory = self.factory
         
         meshSize = contour.meshSize
         
@@ -886,6 +886,10 @@ class Interface_Gmsh:
 
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities2D)
+
+        if len(cracks) > 0:
+            surfaces = [s[1] for s in gmsh.model.getEntities(2)]
+            self._OrganiseSurfaces(surfaces, elemType, isOrganised)
 
         self._RefineMesh(refineGeoms, meshSize)
 
@@ -1208,7 +1212,7 @@ class Interface_Gmsh:
         """
         
         self._Set_algorithm(elemType)
-        self.__factory.synchronize()
+        self.factory.synchronize()
 
         tic = Tic()
 
@@ -1245,7 +1249,7 @@ class Interface_Gmsh:
 
         if folder != "":
             # gmsh.write(Dossier.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
-            self.__factory.synchronize()
+            self.factory.synchronize()
 
             if not os.path.exists(folder):
                 os.makedirs(folder)

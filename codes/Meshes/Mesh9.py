@@ -12,7 +12,7 @@ import scipy.io
 folder = Folder.Get_Path(__file__)
 
 addCylinder = True
-repeat = True
+repeat = False
 N=4
 
 # elemType = ElemType.TETRA4

@@ -17,7 +17,7 @@ if __name__ == '__main__':
     r = R-e
     h = R * 2/3
 
-    meshSize = e/4
+    meshSize = e/2
 
     center = Point()
 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     # Mesh
     # ----------------------------------------------
 
-    interface = Interface_Gmsh(True, True)
+    interface = Interface_Gmsh(False, False)
     # dim, elemType = 2, ElemType.TRI3
     dim, elemType = 3, ElemType.TETRA4
 
@@ -87,23 +87,6 @@ if __name__ == '__main__':
     if dim == 3:
         print(f'volume = {mesh.volume:.3f}')
 
-    Display.Plot_Model(mesh)
-
     Display.Plot_Mesh(mesh)
 
     Display.plt.show()
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
