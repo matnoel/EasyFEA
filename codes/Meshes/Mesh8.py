@@ -29,7 +29,7 @@ if __name__ == '__main__':
     P2 = Point(L/2,0)
     P3 = Point(L/2,H)
     P4 = Point(-L/2,H)
-    contour = PointsList([P1, P2, P3, P4])
+    contour1 = PointsList([P1, P2, P3, P4])
 
     # ----------------------------------------------
     # Mesh
@@ -96,6 +96,9 @@ if __name__ == '__main__':
 
         [gmsh.model.mesh.setTransfiniteCurve(line, N) for line in lines]
 
+        gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=points)
+
+
     factory.remove([(0, pc)]) # remove the point pc if you dont want orphan nodes
 
     # factory.fragment(factory.getEntities(2), [(1, l) for l in addedLines])
@@ -104,7 +107,7 @@ if __name__ == '__main__':
 
     interface._Set_PhysicalGroups()
     
-    interface._Meshing(dim, elemType, isOrganised=True)
+    interface._Meshing(dim, elemType)
 
     mesh = interface._Construct_Mesh()
 

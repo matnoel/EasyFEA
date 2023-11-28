@@ -344,8 +344,6 @@ class PointsList(Geom):
                 
         Link(-1, 0)
 
-        self.Plot()
-
         contour = Contour(geoms, self.isHollow, self.isOpen).copy()
         # do the copy to unlink the points connexion with the list of points
         

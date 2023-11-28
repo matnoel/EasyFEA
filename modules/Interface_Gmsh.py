@@ -247,9 +247,10 @@ class Interface_Gmsh:
 
         return surface
     
-    def _Surfaces(self, contour: Geom, inclusions: list[Geom]=[]) -> list[int]:
+    def _Surfaces(self, contour: Geom, inclusions: list[Geom]=[],
+                  elemType=ElemType.TRI3, isOrganised=False) -> tuple[list[int],list[int],list[int]]:
         """Create surfaces.\n
-        return filled surfaces
+        return surfaces, lines, points
 
         Parameters
         ----------
@@ -258,6 +259,10 @@ class Interface_Gmsh:
         inclusions : list[Geom]
             objects that create hollow or filled surfaces in the first surface.\n
             CAUTION : all inclusions must be contained within the contour and do not cross
+        elemType : ElemType, optional
+            element type used, by default TRI3
+        isOrganised : bool, optional
+            mesh is organized, by default False
         """
 
         factory = self.__factory
@@ -278,9 +283,33 @@ class Interface_Gmsh:
         surfaces = [surfaceContour]
         [surfaces.append(factory.addPlaneSurface([loop])) for loop in filledLoops]
 
-        factory.synchronize()
+        self.__OrganiseSurfaces(surfaces, elemType, isOrganised)
 
-        return surfaces
+        return surfaces, lines, points
+    
+    def __OrganiseSurfaces(self, surfaces: list[int], elemType: ElemType,
+                           isOrganised=False, numElems:list[int]=[]) -> None:
+
+        self.__factory.synchronize()
+
+        setRecombine = elemType in [ElemType.QUAD4, ElemType.QUAD8,
+                                    ElemType.HEXA8, ElemType.HEXA20]
+        
+        for surf in surfaces:
+            if isOrganised:
+                # only works if the surface is formed by 4 lines
+                lines = gmsh.model.getBoundary([(2, surf)])
+
+                if len(lines) == len(numElems):
+                    [gmsh.model.mesh.setTransfiniteCurve(l[1], int(n+1))
+                     for l, n in zip(lines, numElems)]
+
+                if len(lines) == 4:
+                    gmsh.model.mesh.setTransfiniteSurface(surf)
+
+            if setRecombine:
+                # https://onelab.info/pipermail/gmsh/2010/005359.html
+                gmsh.model.mesh.setRecombine(2, surf)
     
     def _Spline_From_Points(self, pointsList: PointsList) -> tuple[int, list[int]]:
 
@@ -326,7 +355,7 @@ class Interface_Gmsh:
             tags = entities[idx, 1]
             [_addPhysicalGroup(dim, tag, t) for t, tag in enumerate(tags)]
 
-    def _Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.HEXA8, nLayers=1, isOrganised=False):
+    def _Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.HEXA8, nLayers=1):
         """Function that extrudes multiple surfaces
 
         Parameters
@@ -336,11 +365,9 @@ class Interface_Gmsh:
         extrude : list, optional
             extrusion directions and values, by default [0,0,1]
         elemType : str, optional
-            element type used, by default "HEXA8        
+            element type used, by default "HEXA8"        
         nLayers: int, optional
             number of layers in extrusion, by default 1
-        isOrganised : bool, optional
-            mesh is organized, by default False
         """
         
         factory = self.__factory
@@ -356,28 +383,22 @@ class Interface_Gmsh:
             recombine = True
             numElements = [nLayers]
 
-        for surf in surfaces:
+        # for surf in surfaces:
+        #     # Create new elements for extrusion
+        #     extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=recombine, numElements=numElements)
 
-            if isOrganised:
-                # only works if the surface is formed by 4 lines
-                lines = gmsh.model.getBoundary([(2, surf)])
-                if len(lines) == 4:
-                    gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[])
-            
-            if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
-                # https://onelab.info/pipermail/gmsh/2010/005359.html
-                gmsh.model.mesh.setRecombine(2, surf)
-            
-            # Create new elements for extrusion
-            extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=recombine, numElements=numElements)
+        #     extruEntities.extend(extru)
 
-            extruEntities.extend(extru)
+        entites = [(2, surf) for surf in surfaces]
+        extru = factory.extrude(entites, extrude[0], extrude[1], extrude[2], recombine=recombine, numElements=numElements)
+        extruEntities.extend(extru)       
+            
 
         factory.synchronize()
 
         return extruEntities
     
-    def _Revolve(self, surfaces: list[int], axis: Line, angle: float, elemType: ElemType, nLayers=360, isOrganised=False):
+    def _Revolve(self, surfaces: list[int], axis: Line, angle: float, elemType: ElemType, nLayers=360):
         """Function that revolves multiple surfaces.
 
         Parameters
@@ -391,9 +412,7 @@ class Interface_Gmsh:
         elemType : str
             element type used
         nLayers: int, optional
-            number of layers in extrusion, by default 360
-        isOrganised : bool, optional
-            mesh is organized, by default False
+            number of layers in revolve process, by default 360
         """
         
         factory = self.__factory
@@ -414,18 +433,6 @@ class Interface_Gmsh:
             recombine = True
             numElements = [nLayers]
 
-        for surf in surfaces:
-
-            if isOrganised:
-                # only works if the surface is formed by 4 lines
-                lines = gmsh.model.getBoundary([(2, surf)])
-                if len(lines) == 4:
-                    gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[])
-
-            if elemType in [ElemType.HEXA8, ElemType.HEXA20]:
-                # https://onelab.info/pipermail/gmsh/2010/005359.html
-                gmsh.model.mesh.setRecombine(2, surf)
-
         entities = [(2,s) for s in surfaces]
 
         # Create new entites for revolution
@@ -439,6 +446,121 @@ class Interface_Gmsh:
         factory.synchronize()
 
         return revolEntities
+    
+    def _Link_Contours(self, contour1: Contour, contour2: Contour, elemType: ElemType,
+                      nLayers:int=0, numElems:list[int]=[]) -> list[tuple]:
+        """Link 2 contours and create a volume. Contours must be connectable, i.e. they must have the same number of points and lines.
+
+        Parameters
+        ----------
+        contour1 : Contour
+            the first contour
+        contour2 : Contour
+            the second contour
+        elemType : ElemType
+            element type used to mesh
+        nLayers : int, optional
+            number of layers joining the contours, by default 0
+        numElems : list[int], optional
+            number of elements for each lines in contour, by default []
+
+        Returns
+        -------
+        list[tuple]
+            created entities
+        """
+
+        factory = self.__factory
+
+        # specifies if structuring is required when linking entities
+        canBeOrganised = len(contour1.geoms) == 4
+        useTransfinite = canBeOrganised and ('HEXA' in elemType or 'PRISM' in elemType)
+        
+        loop1, lines1, points1 = self._Loop_From_Geom(contour1)
+        loop2, lines2, points2 = self._Loop_From_Geom(contour2)
+
+        surf1 = factory.addSurfaceFilling(loop1)
+        surf2 = factory.addSurfaceFilling(loop2)
+
+        # append entities together
+        points = points1.copy(); points.extend(points2)
+        lines = lines1.copy(); lines.extend(lines2)
+        surfaces = [surf1, surf2]
+
+        if useTransfinite:
+            if len(numElems) == 0:
+                numElems = [int(geom.length / geom.meshSize) for geom in contour1.geoms]            
+            assert len(numElems) == len(lines1)
+        self.__OrganiseSurfaces(surfaces, elemType, useTransfinite, numElems)
+
+        # check that the given entities are linkable
+        assert len(lines1) == len(lines2), "Must provide same number of lines."
+        nP = len(points1)
+        nL = len(lines1)
+        assert nP == nL, "Must provide the same number of points as lines."
+
+        nLayers = int(nLayers)
+
+        factory.synchronize()
+
+        # create linking between every points belonging to points1 and points2
+        linkingLines = [factory.addLine(pi,pj) for pi, pj in zip(points1, points2)]
+
+        lines.extend(linkingLines)
+
+        if nLayers > 0:
+            # specifies the number of elements in the lines
+            factory.synchronize()
+            [gmsh.model.mesh.setTransfiniteCurve(l, nLayers+1) for l in linkingLines]
+
+        # create the surfaces linking contours        
+        for i in range(nP):
+
+            j = i+1 if i+1 < nP else 0
+            
+            # get the lines to construct the surfaces
+            l1 = lines1[i]
+            l2 = linkingLines[j]
+            l3 = lines2[i]
+            l4 = linkingLines[i]
+            # get the points of the surface
+            p1, p2 = points1[i], points1[j]
+            p3, p4 = points2[i], points2[j]
+            # loop to create the surface (- are optionnal)
+            loop = factory.addCurveLoop([l1,l2,-l3,-l4])
+            # create the surface and add it to linking surfaces
+            surf = factory.addSurfaceFilling(loop)
+            surfaces.append(surf)
+            
+            factory.synchronize()
+            if useTransfinite:
+                if nLayers > 0:
+                    # surf must be transfinite to have a strucutred surfaces during the extrusion
+                    gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[p1,p2,p3,p4])
+                # must recombine the surface in case we use PRISM or HEXA elements
+                gmsh.model.mesh.setRecombine(2, surf)
+        
+        
+        vol = factory.addSurfaceLoop(surfaces)
+        factory.addVolume([vol])
+
+        if useTransfinite:
+            factory.synchronize()
+            gmsh.model.mesh.setTransfiniteVolume(vol, points)
+
+        # return entities
+        entities = self.Get_Entities(points, lines, surfaces, [vol])
+
+        return entities
+    
+    @staticmethod
+    def Get_Entities(points=[], lines=[], surfaces=[], volumes=[]) -> list[tuple]:
+        entities = []
+        entities.extend([(0,p) for p in points])
+        entities.extend([(1,l) for l in lines])
+        entities.extend([(2,s) for s in surfaces])
+        entities.extend([(3,v) for v in volumes])
+        return entities
 
     def Mesh_Import_mesh(self, mesh: str, setPhysicalGroups=False, coef=1.0):
         """Importing an .msh file. Must be an gmsh file.
@@ -757,7 +879,7 @@ class Interface_Gmsh:
         
         meshSize = contour.meshSize
         
-        self._Surfaces(contour, inclusions)
+        self._Surfaces(contour, inclusions, elemType, isOrganised)
 
         # Recovers 2D entities
         entities2D = gmsh.model.getEntities(2)
@@ -771,7 +893,7 @@ class Interface_Gmsh:
 
         tic.Tac("Mesh","Geometry", self.__verbosity)                
 
-        self._Meshing(2, elemType, isOrganised, crackLines=crackLines, openPoints=openPoints, folder=folder)
+        self._Meshing(2, elemType, crackLines=crackLines, openPoints=openPoints, folder=folder)
 
         return self._Construct_Mesh()
 
@@ -813,9 +935,9 @@ class Interface_Gmsh:
         tic = Tic()
         
         # the starting 2D mesh is irrelevant
-        surfaces = self._Surfaces(contour, inclusions)
+        surfaces = self._Surfaces(contour, inclusions, elemType, isOrganised)[0]
 
-        self._Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, nLayers=nLayers, isOrganised=isOrganised)        
+        self._Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, nLayers=nLayers)
 
         # Recovers 3D entities
         entities3D = gmsh.model.getEntities(3)
@@ -874,9 +996,9 @@ class Interface_Gmsh:
         tic = Tic()
         
         # the starting 2D mesh is irrelevant
-        surfaces = self._Surfaces(contour, inclusions)        
+        surfaces = self._Surfaces(contour, inclusions, elemType, isOrganised)[0]
         
-        self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers, isOrganised=isOrganised)           
+        self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers)
 
         # Recovers 3D entities
         entities3D = gmsh.model.getEntities(3)
@@ -1071,8 +1193,6 @@ class Interface_Gmsh:
             mesh size
         elemType : str
             element type
-        isOrganised : bool, optional
-            mesh is organized, by default False
         crackLines : int, optional
             physical group for crack lines (associated with openPoints), by default None
         crackSurfaces : int, optional
@@ -1086,35 +1206,13 @@ class Interface_Gmsh:
         filename : str, optional
             mesh save folder mesh.msh, by default mesh
         """
-
-        factory = self.__factory
         
         self._Set_algorithm(elemType)
-        factory.synchronize()
+        self.__factory.synchronize()
 
         tic = Tic()
-        if dim == 1:
-            gmsh.model.mesh.generate(1)
 
-        elif dim == 2:
-            surfaces = [entity2D[1] for entity2D in gmsh.model.getEntities(2)]            
-            for surface in surfaces:
-                if isOrganised:
-                    # only works if the surface is formed by 4 lines
-                    lines = gmsh.model.getBoundary([(2, surface)])
-                    if len(lines) == 4:
-                        gmsh.model.mesh.setTransfiniteSurface(surface, cornerTags=[])
-
-                if elemType in [ElemType.QUAD4,ElemType.QUAD8]:
-                    gmsh.model.mesh.setRecombine(2, surface)
-            
-            # Generates mesh
-            gmsh.model.mesh.generate(2)
-        
-        elif dim == 3:
-            self.__factory.synchronize()            
-
-            gmsh.model.mesh.generate(3)
+        gmsh.model.mesh.generate(dim)
         
         # set mest order
         Interface_Gmsh._Set_mesh_order(elemType)

@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     factory = interface._init_gmsh_factory('occ')
 
-    surfaces = interface._Surfaces(circle_ext, [circle_int])    
+    surfaces = interface._Surfaces(circle_ext, [circle_int])[0]
     interface._Extrude(surfaces, [0,0,R], elemType)
     vol1 = factory.getEntities(3)    
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
         p3 = Point(R,0, e*4)
         p4 = Point(R-e/2, 0, e*4, r=e/4)
         contour = PointsList([p1, p2, p3, p4])    
-        surf = interface._Surfaces(contour, [])[0]
+        surf = interface._Surfaces(contour, [])[0][0]
 
         rev1 = factory.revolve([(2, surf)], 0,0,0,0,0,R,np.pi)
         rev2 = factory.revolve([(2, surf)], 0,0,0,0,0,R,-np.pi)
