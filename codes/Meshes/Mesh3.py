@@ -2,35 +2,39 @@ import Display
 from Interface_Gmsh import Interface_Gmsh, GroupElem
 from Geom import Point, Line, Circle, PointsList, Domain
 
-L = 120
-h = L * 0.3
-N = 4
+if __name__ == '__main__':
 
-pt1 = Point(isOpen=True, r=-10)
-pt2 = Point(x=L)
-pt3 = Point(x=L, y=h)
-pt4 = Point(x=h, y=h, r=10)
-pt5 = Point(x=h, y=L)
-pt6 = Point(y=L)
-pt7 = Point(x=h, y=h)
+    Display.Clear()
 
-contour = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
-inclusions = [Circle(Point(x=h / 2, y=h * (i + 1)), h / 4, meshSize=h / N, isHollow=True) for i in range(3)]
-inclusions.extend([Domain(Point(x=h, y=h / 2 - h * 0.1), Point(x=h * 2.1, y=h / 2 + h * 0.1), isHollow=False, meshSize=h / N)])
+    L = 120
+    h = L * 0.3
+    N = 4
 
-def DoMesh(dim, elemType):
-    if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType)
-    elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude=[0, 0, -h], nLayers=3, elemType=elemType)
+    pt1 = Point(isOpen=True, r=-10)
+    pt2 = Point(x=L)
+    pt3 = Point(x=L, y=h)
+    pt4 = Point(x=h, y=h, r=10)
+    pt5 = Point(x=h, y=L)
+    pt6 = Point(y=L)
+    pt7 = Point(x=h, y=h)
 
-    Display.Plot_Mesh(mesh)
+    contour = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
+    inclusions = [Circle(Point(x=h / 2, y=h * (i + 1)), h / 4, meshSize=h / N, isHollow=True) for i in range(3)]
+    inclusions.extend([Domain(Point(x=h, y=h / 2 - h * 0.1), Point(x=h * 2.1, y=h / 2 + h * 0.1), isHollow=False, meshSize=h / N)])
 
-[DoMesh(2, elemType) for elemType in GroupElem.get_Types2D()]
+    def DoMesh(dim, elemType):
+        if dim == 2:
+            mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType)
+        elif dim == 3:
+            mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude=[0, 0, -h], nLayers=3, elemType=elemType)
 
-[DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
+        Display.Plot_Mesh(mesh)
 
-geoms = [contour.Get_Contour()]; geoms.extend(inclusions)
-contour.Plot_Geoms(geoms)
+    [DoMesh(2, elemType) for elemType in GroupElem.get_Types2D()]
 
-Display.plt.show()
+    [DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
+
+    geoms = [contour.Get_Contour()]; geoms.extend(inclusions)
+    contour.Plot_Geoms(geoms)
+
+    Display.plt.show()

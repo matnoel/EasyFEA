@@ -567,7 +567,7 @@ class Circle(Geom):
         # change base
         lines = np.einsum('ij,nj->ni', mat, lines) + pC.coordo
 
-        return lines, points
+        return lines, points[1:]
     
     @property
     def length(self) -> float:
@@ -687,7 +687,7 @@ class CircleArc(Geom):
         # transform coordinates
         lines = np.einsum('ij,nj->ni', mat, lines) + pC.coordo
 
-        return lines, points
+        return lines, points[[0,-1]]
 
 class Contour(Geom):
 

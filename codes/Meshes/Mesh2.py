@@ -2,27 +2,31 @@ import Display
 from Interface_Gmsh import Interface_Gmsh, GroupElem
 from Geom import Point, Line, Circle, PointsList, Domain
 
-h = 180
-N = 5
+if __name__ == '__main__':
 
-pt1 = Point()
-pt2 = Point(x=h)
-pt3 = Point(y=h)
+    Display.Clear()
 
-contour = PointsList([pt1, pt2, pt3], h / N)
+    h = 180
+    N = 5
 
-def DoMesh(dim, elemType):
-    if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, [], elemType)
-    elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], extrude=[0, 0, 2*h], nLayers=10, elemType=elemType)
+    pt1 = Point()
+    pt2 = Point(x=h)
+    pt3 = Point(y=h)
 
-    Display.Plot_Mesh(mesh)
+    contour = PointsList([pt1, pt2, pt3], h / N)
 
-[DoMesh(2, elemType) for elemType in GroupElem.get_Types2D()]
+    def DoMesh(dim, elemType):
+        if dim == 2:
+            mesh = Interface_Gmsh().Mesh_2D(contour, [], elemType)
+        elif dim == 3:
+            mesh = Interface_Gmsh().Mesh_3D(contour, [], extrude=[0, 0, 2*h], nLayers=10, elemType=elemType)
 
-[DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
+        Display.Plot_Mesh(mesh)
 
-contour.Get_Contour().Plot()
+    [DoMesh(2, elemType) for elemType in GroupElem.get_Types2D()]
 
-Display.plt.show()
+    [DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
+
+    contour.Get_Contour().Plot()
+
+    Display.plt.show()

@@ -40,7 +40,7 @@ class Interface_Gmsh:
 
         self._init_gmsh_factory()
 
-        if gmshVerbosity:
+        if verbosity:
             Display.Section("New interface with gmsh")
 
     def __CheckType(self, dim: int, elemType: str):
@@ -82,8 +82,6 @@ class Interface_Gmsh:
             loop, lines, points = self._Loop_From_Contour(geom)[:3]
         else:
             raise Exception("Must be a circle, a domain, a list of points or a contour.")
-        
-        self.factory.synchronize()
         
         return loop, lines, points
     
@@ -168,7 +166,7 @@ class Interface_Gmsh:
 
         loop = factory.addCurveLoop(lines)
 
-        factory.synchronize()
+        self.factory.synchronize()
 
         return loop, lines, points, openLines, openPoints
 
@@ -204,8 +202,6 @@ class Interface_Gmsh:
         
         loop = factory.addCurveLoop([l1,l2,l3,l4])
 
-        factory.synchronize()
-
         return loop, lines, points
 
     def _Loop_From_Domain(self, domain: Domain) -> int:
@@ -220,8 +216,8 @@ class Interface_Gmsh:
 
         p1 = factory.addPoint(pt1.x, pt1.y, pt1.z, mS)
         p2 = factory.addPoint(pt2.x, pt1.y, pt1.z, mS)
-        p3 = factory.addPoint(pt2.x, pt2.y, pt2.z, mS)
-        p4 = factory.addPoint(pt1.x, pt2.y, pt2.z, mS)
+        p3 = factory.addPoint(pt2.x, pt2.y, pt1.z, mS)
+        p4 = factory.addPoint(pt1.x, pt2.y, pt1.z, mS)
         points = [p1,p2,p3,p4]
 
         l1 = factory.addLine(p1, p2)
@@ -231,8 +227,6 @@ class Interface_Gmsh:
         lines = [l1,l2,l3,l4]
 
         loop = factory.addCurveLoop(lines)
-
-        self.factory.synchronize()
         
         return loop, lines, points
 
@@ -242,8 +236,6 @@ class Interface_Gmsh:
         """
         # must form a plane surface
         surface = self.factory.addPlaneSurface(loops)
-
-        self.factory.synchronize()
 
         return surface
     
@@ -322,8 +314,6 @@ class Interface_Gmsh:
 
         points = [gmshPoints[0], gmshPoints[-1]]
 
-        self.factory.synchronize()
-        
         return spline, points
     
     __dict_name_dim = {
@@ -371,8 +361,6 @@ class Interface_Gmsh:
         """
         
         factory = self.factory
-        
-        factory.synchronize()
 
         extruEntities = []
 
@@ -385,16 +373,12 @@ class Interface_Gmsh:
 
         # for surf in surfaces:
         #     # Create new elements for extrusion
-        #     extru = factory.extrude([(2, surf)], extrude[0], extrude[1], extrude[2], recombine=recombine, numElements=numElements)
-
+        #     extru = factory.extrude([(2, surf)], *extrude, recombine=recombine, numElements=numElements)
         #     extruEntities.extend(extru)
 
         entites = [(2, surf) for surf in surfaces]
-        extru = factory.extrude(entites, extrude[0], extrude[1], extrude[2], recombine=recombine, numElements=numElements)
-        extruEntities.extend(extru)       
-            
-
-        factory.synchronize()
+        extru = factory.extrude(entites, *extrude, recombine=recombine, numElements=numElements)
+        extruEntities.extend(extru)
 
         return extruEntities
     
@@ -416,8 +400,6 @@ class Interface_Gmsh:
         """
         
         factory = self.factory
-
-        factory.synchronize()
 
         angleIs2PI = np.abs(angle) == 2 * np.pi
 
@@ -442,8 +424,6 @@ class Interface_Gmsh:
         if angleIs2PI:
             revol = factory.revolve(entities, axis.pt1.x, axis.pt1.y, axis.pt1.z, axis.pt2.x, axis.pt2.y, axis.pt2.z, -angle, numElements, recombine=recombine)
             revolEntities.extend(revol)
-
-        factory.synchronize()
 
         return revolEntities
     
@@ -470,16 +450,21 @@ class Interface_Gmsh:
             created entities
         """
 
+        tic = Tic()
+
         factory = self.factory
 
-        # specifies if structuring is required when linking entities
+        
+        # specifies whether contour surfaces can be organized
         canBeOrganised = len(contour1.geoms) == 4
-        useTransfinite = canBeOrganised and ('HEXA' in elemType or 'PRISM' in elemType)
+        # specifies if it is necessary to recombine bonding surfaces
+        recombineLinkingSurf = 'HEXA' in elemType or 'PRISM' in elemType
+        useTransfinite = canBeOrganised and recombineLinkingSurf
         
         loop1, lines1, points1 = self._Loop_From_Geom(contour1)
         loop2, lines2, points2 = self._Loop_From_Geom(contour2)
 
-        surf1 = factory.addSurfaceFilling(loop1)
+        surf1 = factory.addSurfaceFilling(loop1) # here we dont use self._Surfaces()
         surf2 = factory.addSurfaceFilling(loop2)
 
         # append entities together
@@ -488,20 +473,17 @@ class Interface_Gmsh:
         surfaces = [surf1, surf2]
 
         if useTransfinite:
-            if len(numElems) == 0:
+            if len(numElems) == 0:                
                 numElems = [int(geom.length / geom.meshSize) for geom in contour1.geoms]            
-            assert len(numElems) == len(lines1)
-        self._OrganiseSurfaces(surfaces, elemType, useTransfinite, numElems)
+                assert len(numElems) == len(lines1)
+        self._OrganiseSurfaces(surfaces, elemType, canBeOrganised, numElems)
 
         # check that the given entities are linkable
         assert len(lines1) == len(lines2), "Must provide same number of lines."
-        nP = len(points1)
-        nL = len(lines1)
+        nP, nL = len(points1), len(lines1)
         assert nP == nL, "Must provide the same number of points as lines."
 
         nLayers = int(nLayers)
-
-        factory.synchronize()
 
         # create linking between every points belonging to points1 and points2
         linkingLines = [factory.addLine(pi,pj) for pi, pj in zip(points1, points2)]
@@ -513,9 +495,8 @@ class Interface_Gmsh:
             factory.synchronize()
             [gmsh.model.mesh.setTransfiniteCurve(l, nLayers+1) for l in linkingLines]
 
-        # create the surfaces linking contours        
+        # def CreateLinkingSurface(i: int):
         for i in range(nP):
-
             j = i+1 if i+1 < nP else 0
             
             # get the lines to construct the surfaces
@@ -532,14 +513,15 @@ class Interface_Gmsh:
             surf = factory.addSurfaceFilling(loop)
             surfaces.append(surf)
             
-            factory.synchronize()
-            if useTransfinite:
-                if nLayers > 0:
-                    # surf must be transfinite to have a strucutred surfaces during the extrusion
-                    gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[p1,p2,p3,p4])
+            if nLayers > 0:
+                factory.synchronize()
+                # surf must be transfinite to have a strucutred surfaces during the extrusion
+                gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[p1,p2,p3,p4])
+
+            if recombineLinkingSurf:
+                if nLayers == 0: factory.synchronize()
                 # must recombine the surface in case we use PRISM or HEXA elements
                 gmsh.model.mesh.setRecombine(2, surf)
-        
         
         vol = factory.addSurfaceLoop(surfaces)
         factory.addVolume([vol])
@@ -547,6 +529,8 @@ class Interface_Gmsh:
         if useTransfinite:
             factory.synchronize()
             gmsh.model.mesh.setTransfiniteVolume(vol, points)
+
+        tic.Tac("Mesh","Link contours", self.__verbosity)
 
         # return entities
         entities = self.Get_Entities(points, lines, surfaces, [vol])
@@ -882,6 +866,7 @@ class Interface_Gmsh:
         self._Surfaces(contour, inclusions, elemType, isOrganised)
 
         # Recovers 2D entities
+        self.factory.synchronize()
         entities2D = gmsh.model.getEntities(2)
 
         # Crack creation
@@ -944,6 +929,7 @@ class Interface_Gmsh:
         self._Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, nLayers=nLayers)
 
         # Recovers 3D entities
+        self.factory.synchronize()
         entities3D = gmsh.model.getEntities(3)
 
         # Crack creation
@@ -1005,6 +991,7 @@ class Interface_Gmsh:
         self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers)
 
         # Recovers 3D entities
+        self.factory.synchronize()
         entities3D = gmsh.model.getEntities(3)
 
         # Crack creation
@@ -1188,7 +1175,8 @@ class Interface_Gmsh:
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
 
-    def _Meshing(self, dim: int, elemType: str, isOrganised=False, crackLines=None, crackSurfaces=None, openPoints=None, openLines=None, folder="", filename="mesh"):
+    def _Meshing(self, dim: int, elemType: str, isOrganised=False,
+                 crackLines:int=None, crackSurfaces:int=None, openPoints:int=None, openLines:int=None, folder="", filename="mesh"):
         """Construction of gmsh mesh from geometry that has been built or imported.
 
         Parameters
@@ -1223,6 +1211,7 @@ class Interface_Gmsh:
 
         # remove all duplicated nodes
         gmsh.model.mesh.removeDuplicateNodes()
+        gmsh.model.mesh.removeDuplicateElements()
 
         # PLUGIN CRACK
         if crackSurfaces != None or crackLines != None:

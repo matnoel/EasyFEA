@@ -667,7 +667,7 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
 
     return ax
 
-def Plot_Model(obj, showId=True, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
+def Plot_Model(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
     """Plot the model.
 
     Parameters
@@ -675,7 +675,7 @@ def Plot_Model(obj, showId=True, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
     obj : Simu or Mesh
         object containing the mesh
     showId : bool, optional
-        show tags, by default True
+        show tags, by default False
     folder : str, optional
         save folder, by default ""
     alpha : float, optional

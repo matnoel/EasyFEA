@@ -11,20 +11,22 @@ import scipy.io
 
 folder = Folder.Get_Path(__file__)
 
-addCylinder = True
-repeat = False
-N=4
-
-# elemType = ElemType.TETRA4
-elemType = ElemType.PRISM6
-# elemType = ElemType.HEXA8
-
 if __name__ == '__main__':
+
+    N=6 # elements in the blade lenght l
+    addCylinder = True
+    repeat = False
+    angleRev = 2*np.pi/12 # rad
+    saveToMatlab = False
+
+    # elemType = ElemType.TETRA4
+    elemType = ElemType.PRISM6
+    # elemType = ElemType.HEXA8
 
     Display.Clear()
 
-    interface = Interface_Gmsh(False, True)
-    factory = gmsh.model.occ
+    interface = Interface_Gmsh(False, False, False)
+    factory = interface.factory
 
     # --------------------------------------------------------------------------------------------
     # Geom
@@ -38,10 +40,9 @@ if __name__ == '__main__':
     R = 5
     e = 1
     
-    angleRev = 2*np.pi/10 # rad    
-    rot = 30;  coefRot = rot/(H1+H2+H3) # deg
-    rot0 = 0 
-    rot1 = H1 * coefRot - rot0
+    rot = 15;  coefRot = rot/(H1+H2+H3) # deg    
+    rot0 = 2
+    rot1 = H1 * coefRot
     rot2 = (H1+H2) * coefRot - rot1
     rot3 = (H1+H2+H3) * coefRot - rot2
     assert t<R
@@ -50,7 +51,7 @@ if __name__ == '__main__':
 
     vols: list[tuple[Contour, Contour]] = []
 
-    def bladeSection(l:float, t:float, center:np.ndarray, angle=0.0, R:float=0.0, coef=2):
+    def bladeSection(l:float, t:float, center:np.ndarray, angle=0.0, R:float=0.0):
         """Create a blade section
 
         Parameters
@@ -121,40 +122,58 @@ if __name__ == '__main__':
 
         return contour, np.asarray(coord)
     
-    def Cylinder(R, angleRev: float) -> Contour:
+    def Cylinder(R, angleRev: float, coord: np.ndarray, y1: float) -> tuple[Contour, Contour]:
 
         s = np.sin(angleRev/2)
         c = np.cos(angleRev/2)
 
-        P1 = Point(-s*R, -l, c*R)
-        P2 = Point(s*R, -l, c*R)
-        P3 = Point(s*R, -l/2, c*R)
-        P4 = Point(-s*R, -l/2, c*R)
-        C1 = Point(y=-l)
-        C2 = Point(y=-l/2)
+        P1 = Point(-s*R, coord[0,1], c*R)
+        P2 = Point(*coord[0])
+        P3 = Point(s*R, P2.y, c*R)        
+        P4 = Point(s*R, y1, c*R)
+        P5 = Point(P2.x,y1,P2.z)
+        P6 = Point(-s*R, y1, c*R)
+        
+        C1 = Point(y=P2.y)
+        C2 = Point(y=y1)
 
-        L1 = CircleArc(P1, C1, P2, mS)
-        L2 = Line(P2,P3, mS)
-        L3 = CircleArc(P3, C2, P4, mS)
-        L4 = Line(P4,P1, mS)
+        L1_l = CircleArc(P1, C1, P2, mS)
+        L2_l = Line(P2,P5, mS)
+        L3_l = CircleArc(P5, C2, P6, mS)
+        L4_l = Line(P6,P1, mS)
 
-        contour = Contour([L1,L2,L3,L4])
+        contour_l = Contour([L1_l,L2_l,L3_l,L4_l])
 
-        return contour
+        L1_r = CircleArc(P2, C1, P3, mS)
+        L2_r = Line(P3,P4, mS)
+        L3_r = CircleArc(P4, C2, P5, mS)
+        L4_r = Line(P5,P2, mS)
+
+        contour_r = Contour([L1_r,L2_r,L3_r,L4_r])
+
+        return contour_l, contour_r
     
-    def CylinderBlade(P1: Point, L2: PointsList) -> Contour:
-        P2 = L2.pt1
-        P3 = L2.pt2
-        P4 = P1.copy(); P4.translate(dy=l)
+    def CylinderBlade(R, angleRev: float, coord: np.ndarray) -> Contour:
 
-        C1 = Point(0,P2.y,0)
-        C2 = Point(0,P3.y,0)
+        s = np.sin(angleRev/2)
+        c = np.cos(angleRev/2)
 
-        L1 = CircleArc(P1,C1,P2, mS)        
+        y0 = coord[0,1]
+        y1 = coord[-1,1]
+        
+        P1 = Point(-s*R, y0, c*R)
+        P2 = Point(*coord[0])
+        P3 = Point(*coord[-1])
+        P4 = Point(-s*R, y1, c*R)
+
+        C1 = Point(0,y0,0)
+        C2 = Point(0,y1,0)
+
+        L1 = CircleArc(P1,C1,P2, mS)
+        L2 = PointsList([Point(*co) for co in coord], mS)
         L3 = CircleArc(P3,C2,P4, mS)
         L4 = Line(P4,P1, mS)
-
-        # contour = Contour([L1,L2,L3,L4])
+        
         contour = Contour([L1,L2,L3,L4])
 
         return contour
@@ -175,9 +194,11 @@ if __name__ == '__main__':
     # Mesh
     # --------------------------------------------------------------------------------------------
 
-    bladeInf, coordInf = bladeSection(l, t, (0,0,R), rot0, R) # blade in contact with the cylinder in z = R
-    bladeSup, coordSup = bladeSection(l, t, (0,0,R+e), rot0, R) # blade in contact with the cylinder in z = R+e
+    bladeInf, coordInf = bladeSection(l, t, (0,0,R), rot0, R) # blade in z = R
+    bladeSup, coordSup = bladeSection(l, t, (0,0,R+e), rot0, R+e) # blade in z = R+e
 
+    coordInfL, coordInfR = np.reshape(coordInf, (2,-1,3))
+    coordSupL, coordSupR = np.reshape(coordSup, (2,-1,3))
 
     blade1, __ = bladeSection(l,t,(0,0,R+e+H1), rot1)
     blade2, __ = bladeSection(l*2,t,(0,-l/2,R+e+H1+H2), rot2)
@@ -192,47 +213,46 @@ if __name__ == '__main__':
     
     if addCylinder:
 
-        elems = [N*2, l/2/mS] * 2
+        elems = [N, l/2/mS] * 2
         
         # cylinder y=-l
-        contourInf = Cylinder(R, angleRev)
-        contourSup = Cylinder(R+e, angleRev)
+        cylinInf1_l, cylinInf1_r = Cylinder(R, angleRev, coordInfL, -l)
+        cylinSup1_l, cylinSup1_r = Cylinder(R+e, angleRev, coordSupL, -l)        
+        vols.append((cylinInf1_l, cylinSup1_l, e/mS, elems))
+        vols.append((cylinInf1_r, cylinSup1_r, e/mS, elems))
 
         # cylinder y=l
-        contourInf_c = contourInf.copy(); contourInf_c.translate(dy=l+l/2)
-        contourSup_c = contourSup.copy(); contourSup_c.translate(dy=l+l/2)
-                
-        vols.append((contourInf, contourSup, e/mS, elems))
-        vols.append((contourInf_c, contourSup_c, e/mS, elems))
+        cylinInf2_l, cylinInf2_r = Cylinder(R, angleRev, coordInfR, l)
+        cylinSup2_l, cylinSup2_r = Cylinder(R+e, angleRev, coordSupR, l)        
+        vols.append((cylinInf2_l, cylinSup2_l, e/mS, elems))
+        vols.append((cylinInf2_r, cylinSup2_r, e/mS, elems))
         
         elems = [N]*4
         # cylinder blade left
         coordInfL = coordInf[:coordInf.shape[0]//2]
-        splineInfL = PointsList([Point(*co) for co in coordInfL], mS)
-        splineSupL = splineInfL.copy(); splineSupL.translate(dz=e)        
-        contourInf = CylinderBlade(contourInf.points[-1], splineInfL)
-        contourSup = CylinderBlade(contourSup.points[-1], splineSupL)        
+        coordSupfL = coordSup[:coordSup.shape[0]//2]        
+        contourInf = CylinderBlade(R, angleRev, coordInfL)
+        contourSup = CylinderBlade(R+e, angleRev, coordSupfL)
+        
         # cylinder blade right
-        contourSup_c = contourSup.copy(); contourSup_c.rotate(np.pi)
-        contourInf_c = contourInf.copy(); contourInf_c.rotate(np.pi)
+        coordInfR = coordInf[coordInf.shape[0]//2:]
+        coordSupfR = coordSup[coordSup.shape[0]//2:]        
+        contourInf_c = CylinderBlade(R, -angleRev, coordInfR[::-1])
+        contourSup_c = CylinderBlade(R+e, -angleRev, coordSupfR[::-1])
         
         vols.append((contourInf, contourSup, e/mS, elems))
-        vols.append((contourInf_c, contourSup_c, e/mS, elems))
-
-    
-
-
+        vols.append((contourInf_c, contourSup_c, e/mS, elems))        
 
 
     for v, vol in enumerate(vols):
-
-        color = 'blue'
-
+        # color = 'blue'
+        color = ''
         if v==0:
             ax = vol[0].Plot(color=color)
         else:
             vol[0].Plot(ax, color=color)
         vol[1].Plot(ax, color=color)
+        # ax.legend()
 
     firstPart = LinkEveryone(vols)
 
@@ -253,16 +273,13 @@ if __name__ == '__main__':
 
     factory.synchronize()
 
-    # if mS > 0:
-    #     gmsh.model.mesh.setSize(gmsh.model.getEntities(0), mS)
-
     interface._Set_PhysicalGroups(setPoints=False)
     
     interface._Meshing(3, elemType, isOrganised=False)
 
-    # gmsh.write(Folder.Join([folder,"blade.msh"]))
-
     mesh = interface._Construct_Mesh()
+
+    Display.Plot_Model(mesh, alpha=0.1, showId=False)
 
     Display.Plot_Mesh(mesh)
 
@@ -304,8 +321,6 @@ if __name__ == '__main__':
     # Display.Plot_Mesh(simu, deformFactor)
 
     # Display.Plot_BoundaryConditions(simu)
-        
-    Display.Plot_Model(mesh, alpha=0.1, showId=False)
 
     # ax = Display.Plot_Elements(mesh, nodesCyl, c='green')
     # Display.Plot_Elements(mesh, nodesBlades, c='grey', ax=ax)
@@ -315,16 +330,17 @@ if __name__ == '__main__':
 
     # print(simu)
 
-    matFile = Folder.Join([folder, 'mesh.mat'])
-    msh = {
-        'connect': np.asarray(mesh.connect+1, dtype=float),
-        'coordo': mesh.coordoGlob,
-        'bladesNodes': np.asarray(nodesBlades + 1, dtype=float),
-        'bladesElems': np.asarray(mesh.Elements_Nodes(nodesBlades) + 1, dtype=float),
-        'cylindreNodes': np.asarray(nodesCyl + 1, dtype=float),
-        'cylindreElems': np.asarray(mesh.Elements_Nodes(nodesCyl) + 1, dtype=float),
-    }
-    scipy.io.savemat(matFile, msh)
+    if saveToMatlab:
+        matFile = Folder.Join([folder, 'mesh.mat'])
+        msh = {
+            'connect': np.asarray(mesh.connect+1, dtype=float),
+            'coordo': mesh.coordoGlob,
+            'bladesNodes': np.asarray(nodesBlades + 1, dtype=float),
+            'bladesElems': np.asarray(mesh.Elements_Nodes(nodesBlades) + 1, dtype=float),
+            'cylindreNodes': np.asarray(nodesCyl + 1, dtype=float),
+            'cylindreElems': np.asarray(mesh.Elements_Nodes(nodesCyl) + 1, dtype=float),
+        }
+        scipy.io.savemat(matFile, msh)
 
 
     Display.plt.show()
