@@ -1196,7 +1196,7 @@ class Interface_Gmsh:
         folder : str, optional
             mesh save folder mesh.msh, by default ""
         filename : str, optional
-            mesh save folder mesh.msh, by default mesh
+            saving file filename.msh, by default mesh
         """
         
         self._Set_algorithm(elemType)

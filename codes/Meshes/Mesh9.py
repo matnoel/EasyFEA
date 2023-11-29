@@ -9,23 +9,23 @@ import PostProcessing
 import numpy as np
 import scipy.io
 
-folder = Folder.Get_Path(__file__)
-
 if __name__ == '__main__':
+
+    folder = Folder.New_File('Meshes', results=True)
 
     N=6 # elements in the blade lenght l
     addCylinder = True
-    repeat = False
+    repeat = True
     angleRev = 2*np.pi/12 # rad
-    saveToMatlab = False
+    saveToMatlab = True
 
     # elemType = ElemType.TETRA4
-    elemType = ElemType.PRISM6
-    # elemType = ElemType.HEXA8
+    # elemType = ElemType.PRISM6
+    elemType = ElemType.HEXA8
 
     Display.Clear()
 
-    interface = Interface_Gmsh(False, False, False)
+    interface = Interface_Gmsh(False, True, True)
     factory = interface.factory
 
     # --------------------------------------------------------------------------------------------
@@ -275,7 +275,8 @@ if __name__ == '__main__':
 
     interface._Set_PhysicalGroups(setPoints=False)
     
-    interface._Meshing(3, elemType, isOrganised=False)
+    interface._Meshing(3, elemType, isOrganised=False,
+                       folder=folder, filename='blade')
 
     mesh = interface._Construct_Mesh()
 
@@ -331,7 +332,7 @@ if __name__ == '__main__':
     # print(simu)
 
     if saveToMatlab:
-        matFile = Folder.Join(folder, 'mesh.mat')
+        matFile = Folder.Join(folder, 'blade.mat')
         msh = {
             'connect': np.asarray(mesh.connect+1, dtype=float),
             'coordo': mesh.coordoGlob,

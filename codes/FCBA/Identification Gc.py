@@ -202,7 +202,7 @@ if __name__ == '__main__':
             dofsY = simu.Bc_dofs_nodes(simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
             fr = -np.sum(simu.Get_K_C_M_F()[0][dofsY,:] @ simu.displacement)/1000
 
-            pathData = Folder.Join([folder, "identification.xlsx"])
+            pathData = Folder.Join(folder, "identification.xlsx")
 
             data = [
                 {
