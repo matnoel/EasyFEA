@@ -13,7 +13,7 @@ Display.Clear()
 dim = 3 # Set the simulation dimension (2D or 3D)
 
 # Create a folder for storing simulation results
-folder = Folder.New_File(Folder.Join(["Thermal",f"{dim}D"]), results=True)
+folder = Folder.New_File(Folder.Join("Thermal",f"{dim}D"), results=True)
 
 # --------------------------------------------------------------------------------------------
 # Configuration

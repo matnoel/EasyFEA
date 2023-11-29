@@ -13,7 +13,7 @@ import Functions
 
 # Display.Clear()
 
-folder = Folder.Join([Folder.New_File("Essais FCBA",results=True), "Grille"])
+folder = Folder.Join(Folder.New_File("Essais FCBA",results=True), "Grille")
 
 useParallel = True
 nProcs = 6 # number of processes in parallel
@@ -127,11 +127,11 @@ if __name__ == "__main__":
         # ----------------------------------------------
         add = "0" if idxEssai < 10 else ""
         essai = f"Essai{add}{idxEssai}"
-        folder_essai = Folder.Join([folder, essai])
+        folder_essai = Folder.Join(folder, essai)
         if test:
-            folder_essai = Folder.Join([folder_essai, "Test"])
+            folder_essai = Folder.Join(folder_essai, "Test")
         simu_name = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh}"        
-        folder_save = Folder.Join([folder_essai, simu_name])        
+        folder_save = Folder.Join(folder_essai, simu_name)
         print("\n"+folder_save.replace(folder, ''))
         print()
 

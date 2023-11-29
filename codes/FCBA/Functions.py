@@ -14,13 +14,13 @@ folder = Folder.Get_Path(__file__)
 # ----------------------------------------------
 # Datas
 # ----------------------------------------------
-dfEssais: pd.DataFrame = pd.read_pickle(Folder.Join([folder, "_essais.pickle"]))
+dfEssais: pd.DataFrame = pd.read_pickle(Folder.Join(folder, "_essais.pickle"))
 print(dfEssais.columns)
 
 # récupère les proritétés identifiées
 xlsx = "params_Essais ARTICLE.xlsx"
 # xlsx = "params_Essais new.xlsx"
-dfParams = pd.read_excel(Folder.Join([folder, xlsx]))
+dfParams = pd.read_excel(Folder.Join(folder, xlsx))
 
 def Get_material(idxEssai: int, thickness: float) -> Materials.Elas_IsotTrans:
 

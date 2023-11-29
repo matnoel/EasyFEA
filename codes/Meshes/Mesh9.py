@@ -331,7 +331,7 @@ if __name__ == '__main__':
     # print(simu)
 
     if saveToMatlab:
-        matFile = Folder.Join([folder, 'mesh.mat'])
+        matFile = Folder.Join(folder, 'mesh.mat')
         msh = {
             'connect': np.asarray(mesh.connect+1, dtype=float),
             'coordo': mesh.coordoGlob,

@@ -54,14 +54,14 @@ convOption = 2
 # (1, crack energy)
 # (2, crack + strain energy)
 
-folder_essai = Folder.New_File(Folder.Join(["Essais FCBA","Simu", f"Essai{idxEssai}"]), results=True)
+folder_essai = Folder.New_File(Folder.Join("Essais FCBA","Simu", f"Essai{idxEssai}"), results=True)
 
 if useContact:
-    folder_essai = Folder.Join([folder_essai, 'Contact'])
+    folder_essai = Folder.Join(folder_essai, 'Contact')
 
 folder_save = Folder.PhaseField_Folder(folder_essai, "", split, regu, "", tolConv, "", test, optimMesh, nL=nL)
 
-pathSimu = Folder.Join([folder_save, "simulation.pickle"])
+pathSimu = Folder.Join(folder_save, "simulation.pickle")
 if not Folder.Exists(pathSimu) and not solve:
     print(folder_save)
     print("la simulation n'existe pas")
@@ -137,7 +137,7 @@ if useContact:
 # Material
 # ----------------------------------------------
 # recovers identified properties
-pathParams = Folder.Join([folder_file, "params_Essais ARTICLE.xlsx"])
+pathParams = Folder.Join(folder_file, "params_Essais ARTICLE.xlsx")
 dfParams = pd.read_excel(pathParams)
 # print(dfParams)
 

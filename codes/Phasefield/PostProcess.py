@@ -30,9 +30,9 @@ folder = Folder.New_File(simulation, results=True)
 
 if savefig:
     if test:
-        folder_save = Folder.Join([folder, "Test", "_Post processing"])
+        folder_save = Folder.Join(folder, "Test", "_Post processing")
     else:
-        folder_save = Folder.Join([folder, "_Post processing"])
+        folder_save = Folder.Join(folder, "_Post processing")
 else:
     folder_save=""
 

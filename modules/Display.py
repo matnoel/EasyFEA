@@ -1111,7 +1111,7 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
     # the filename must not contain these characters
     for char in ['NUL', '\ ', ',', '/',':','*', '?', '<','>','|']: filename = filename.replace(char, '')
 
-    path = Folder.Join([folder, filename+'.'+extension])
+    path = Folder.Join(folder, filename+'.'+extension)
 
     if not os.path.exists(folder):
         os.makedirs(folder)

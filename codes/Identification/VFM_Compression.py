@@ -18,7 +18,7 @@ Display.Clear()
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
-folder = Folder.New_File(Folder.Join(["Identification","VFM"]), results=True)
+folder = Folder.New_File(Folder.Join("Identification","VFM"), results=True)
 
 mat = "wood" # "wood", "steel"
 

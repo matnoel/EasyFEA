@@ -31,21 +31,19 @@ def New_File(filename: str, folder=Get_Path(), results=False) -> str:
     """
     
     if results:
-        folder = Join([folder, "results"])
-    filename = Join([folder, filename])
+        folder = Join(folder, "results")
+    filename = Join(folder, filename)
 
     if not os.path.exists(folder):
         os.makedirs(folder)
             
     return filename
 
-def Join(list: List[str]) -> str:
+def Join(*args: str) -> str:
     """Builds the path based on a list of str."""
-
     file = ""
-    for f in list:
-        file = os.path.join(file, f)
-        
+    for f in args:
+        file = os.path.join(file, f)        
     return file
 
 def Exists(path: str) -> bool:
@@ -96,12 +94,12 @@ def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2
     path = workFolder.split(folder)[0]
 
     if test:
-        workFolder = Join([folder, "Test", name])
+        workFolder = Join(folder, "Test", name)
     else:
-        workFolder = Join([folder, name])
+        workFolder = Join(folder, name)
 
     path_PythonEf = Get_Path(Get_Path())
 
     print(Fore.CYAN + workFolder.replace(path_PythonEf,"") + Fore.WHITE)    
 
-    return Join([path, workFolder])
+    return Join(path, workFolder)

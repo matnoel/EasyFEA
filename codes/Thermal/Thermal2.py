@@ -11,7 +11,7 @@ import numpy as np
 Display.Clear()
 
 # Create a folder for storing simulation results
-folder = Folder.New_File(Folder.Join(["Thermal",f"Revolve"]), results=True)
+folder = Folder.New_File(Folder.Join("Thermal",f"Revolve"), results=True)
 
 # --------------------------------------------------------------------------------------------
 # Configuration

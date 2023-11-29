@@ -24,7 +24,7 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
     """Save the values of load and displacements in the folder"""
     
     folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
-    filename = Folder.Join([folder, "load and displacement.pickle"])
+    filename = Folder.Join(folder, "load and displacement.pickle")
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -51,7 +51,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
     folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
 
-    filename = Folder.Join([folder, "load and displacement.pickle"])
+    filename = Folder.Join(folder, "load and displacement.pickle")
     error = f"{filename.replace(folder_PythonEF,'')} does not exist"
     assert Folder.Exists(filename), Fore.RED + error + Fore.WHITE
 
@@ -121,7 +121,7 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
         name = f'{option}_e'
     
     # Name of the video in the folder where the folder is communicated
-    filename = Folder.Join([folder, f'{name}.mp4'])
+    filename = Folder.Join(folder, f'{name}.mp4')
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -201,7 +201,7 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
     
     Niter = len(listIter)
 
-    folder = Folder.Join([folder,"Paraview"])
+    folder = Folder.Join(folder,"Paraview")
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -222,7 +222,7 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
 
     for i, iter in enumerate(listIter):
 
-        f = Folder.Join([folder,f'solution_{iter}.vtu'])        
+        f = Folder.Join(folder,f'solution_{iter}.vtu')
 
         vtuFile = __Make_vtu(simu, iter, f, nodesField=nodesField, elementsField=elementsField)
         

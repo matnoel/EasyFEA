@@ -13,7 +13,7 @@ plt = Display.plt
 
 Display.Clear()
 
-folder = Folder.New_File(Folder.Join(["Identification","Biaxial"]), results=True)
+folder = Folder.New_File(Folder.Join("Identification","Biaxial"), results=True)
 
 # --------------------------------------
 # Configuration

@@ -8,22 +8,22 @@ import pandas as pd
 Display.Clear()
 
 folder = Folder.Get_Path(__file__)
-folder_femu = Folder.New_File(Folder.Join(["Essais FCBA", "FEMU"]), results=True)
-folder_iden = Folder.New_File(Folder.Join(["Essais FCBA", "Identification"]), results=True)
+folder_femu = Folder.New_File(Folder.Join("Essais FCBA", "FEMU"), results=True)
+folder_iden = Folder.New_File(Folder.Join("Essais FCBA", "Identification"), results=True)
 
 # ----------------------------------------------
 # FEMU
 # ----------------------------------------------
 Display.Section("FEMU")
 
-# df = pd.read_excel(Folder.Join([folder, "params_Essais ARTICLE.xlsx"]))
-df = pd.read_excel(Folder.Join([folder, "params rm10 scaleY.xlsx"]))
-# df = pd.read_excel(Folder.Join([folder, "params_Essais new.xlsx"]))
+df = pd.read_excel(Folder.Join(folder, "params_Essais ARTICLE.xlsx"))
+# df = pd.read_excel(Folder.Join(folder, "params rm10 scaleY.xlsx"))
+# df = pd.read_excel(Folder.Join(folder, "params_Essais new.xlsx"))
 
-# df2 = pd.read_excel(Folder.Join([folder, "params samples rm10.xlsx"]))
+# df2 = pd.read_excel(Folder.Join(folder, "params samples rm10.xlsx"))
 # df = pd.concat([df, df2])
 
-# df = pd.read_excel(Folder.Join([folder, "params all rm10.xlsx"]))
+# df = pd.read_excel(Folder.Join(folder, "params all rm10.xlsx"))
 
 print(df)
 
@@ -81,7 +81,7 @@ for param in params:
          }
     )
 df_stats = pd.DataFrame(list_dict)
-df_stats.to_excel(Folder.Join([folder_femu, f"stats rm{tolError}.xlsx"]), float_format="%.2f")
+df_stats.to_excel(Folder.Join(folder_femu, f"stats rm{tolError}.xlsx"), float_format="%.2f")
 
 
 # ----------------------------------------------
@@ -89,7 +89,7 @@ df_stats.to_excel(Folder.Join([folder_femu, f"stats rm{tolError}.xlsx"]), float_
 # ----------------------------------------------
 Display.Section("FEMU Gc")
 
-dfGc = pd.read_excel(Folder.Join([folder_iden, "identification.xlsx"]))
+dfGc = pd.read_excel(Folder.Join(folder_iden, "identification.xlsx"))
 
 # solver -> solver used to minimize
 # (0, least_squares), (1, minimize)
@@ -144,7 +144,7 @@ f_crit = dfGc["f_crit"].values
 Gc = dfGc["Gc"].values
 for i in range(Gc.size):        
     ax_fit.scatter(Gc[i],f_crit[i],c='blue')
-    # ax.text(Gc[i],f_crit[i],f'Essai{i}')
+    ax_fit.text(Gc[i],f_crit[i],f'Essai{i}')
 
 
 from scipy.optimize import minimize

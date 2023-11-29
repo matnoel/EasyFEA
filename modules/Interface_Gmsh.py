@@ -1242,7 +1242,7 @@ class Interface_Gmsh:
 
             if not os.path.exists(folder):
                 os.makedirs(folder)
-            msh = Folder.Join([folder, f"{filename}.msh"])
+            msh = Folder.Join(folder, f"{filename}.msh")
             gmsh.write(msh)
             tic.Tac("Mesh","Saving .msh", self.__verbosity)
 
@@ -1419,7 +1419,7 @@ class Interface_Gmsh:
             assert np.abs(volume-val)/volume <= 1e-6, "Incorrect volume"
 
         folder = Folder.Get_Path()        
-        partPath = Folder.Join([folder,"3Dmodels","beam.stp"])
+        partPath = Folder.Join(folder,"3Dmodels","beam.stp")
 
         interfaceGmsh = Interface_Gmsh()
 

@@ -25,7 +25,7 @@ else:
     listNbElement = np.arange(1, 8, 2)
 
 # Create a folder to store the simulation results
-folder = Folder.New_File(Folder.Join([f"Mesh convergence",str(dim)+"D"]), results=True)
+folder = Folder.New_File(Folder.Join("Mesh convergence",str(dim)+"D"), results=True)
 
 # Define whether to plot the results
 plotResult = True

@@ -33,7 +33,7 @@ def Load_Simu(folder: str, verbosity=False):
         The loaded simulation.
     """
 
-    path_simu = Folder.Join([folder, "simulation.pickle"])
+    path_simu = Folder.Join(folder, "simulation.pickle")
     error = Fore.RED + "The file simulation.pickle cannot be found." + Fore.WHITE
     assert Folder.Exists(path_simu), error
 

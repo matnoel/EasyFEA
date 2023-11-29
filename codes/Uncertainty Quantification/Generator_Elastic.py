@@ -20,14 +20,14 @@ folder = Folder.Get_Path(__file__)
 material_str = "Elas_IsotTrans"
 
 # import 
-dict_ET_GL = mat73.loadmat(Folder.Join([folder, "data_ET_GL.mat"]))
-dict_EL_NUL = mat73.loadmat(Folder.Join([folder, "data_EL_NUL.mat"]))
+dict_ET_GL = mat73.loadmat(Folder.Join(folder, "data_ET_GL.mat"))
+dict_EL_NUL = mat73.loadmat(Folder.Join(folder, "data_EL_NUL.mat"))
 
 # récupère les proritétés identifiées
 folderPythonEF = Folder.Get_Path()
 
-pathParams = Folder.Join([folderPythonEF,'codes','PhaseField','Identif', "params_Essais ARTICLE.xlsx"])
-# pathParams = Folder.Join([folder_file, "params_Essais new.xlsx"])
+pathParams = Folder.Join(folderPythonEF,'codes','PhaseField','Identif', "params_Essais ARTICLE.xlsx")
+# pathParams = Folder.Join(folder_file, "params_Essais new.xlsx")
 dfParams = pd.read_excel(pathParams)
 
 if material_str == "Elas_Isot":

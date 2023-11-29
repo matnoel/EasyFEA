@@ -19,7 +19,7 @@ noises = np.linspace(0, 0.02, 4)
 nRuns = 10
 tol = 1e-10
 
-folder = Folder.New_File(Folder.Join(["Identification","PlateWithHole"]), results=True)
+folder = Folder.New_File(Folder.Join("Identification","PlateWithHole"), results=True)
 
 pltVerif = False
 useRescale = True

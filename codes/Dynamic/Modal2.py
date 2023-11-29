@@ -63,7 +63,7 @@ def Construct_struct(L: float,e: float,t: float, meshSize: float = 0.0, openGmsh
 
     gmsh.model.mesh.generate(3)
 
-    msh = Folder.Join([folderSave, 'mesh.msh'])    
+    msh = Folder.Join(folderSave, 'mesh.msh')
     gmsh.write(msh)
 
     if openGmsh: gmsh.fltk.run()
