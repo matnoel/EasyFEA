@@ -169,7 +169,7 @@ for config in listConfig:
                 # i n'a pas été trouvé on continue les iterations
                 continue
             
-            simu.Update_Iter(i)
+            simu.Set_Iter(i)
 
             filenameDamage = f"{nomSimu}, ud = {np.round(displacement[i]*1e6,2)}"
             # titleDamage = filenameDamage

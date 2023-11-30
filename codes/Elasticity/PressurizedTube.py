@@ -103,7 +103,7 @@ simu.Save_Iter()
 # --------------------------------------------------------------------------------------------
 # PostProcessing
 # --------------------------------------------------------------------------------------------
-factorDef = r/5 / simu.Get_Result('amplitude').max()
+factorDef = r/5 / simu.Result('amplitude').max()
 # factorDef = 1
 Display.Plot_BoundaryConditions(simu)
 Display.Plot_Mesh(simu, deformFactor=factorDef)

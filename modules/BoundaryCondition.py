@@ -53,6 +53,26 @@ class BoundaryCondition:
     def directions(self) -> np.ndarray:
         """Associated directions."""
         return self.__directions
+    
+    @staticmethod
+    def Get_nBc(problemType: str, list_Bc_Condition: list) -> int:
+        """Recovers the number of conditions applied to the problem.
+
+        Parameters
+        ----------
+        problemType : str
+            Type of the problem.
+        list_Bc_Condition : list[BoundaryCondition]
+            List of boundary conditions.
+
+        Returns
+        -------
+        int
+            nBc
+        """
+        list_Bc_Condition: list[BoundaryCondition] = list_Bc_Condition
+        return len([1 for bc in list_Bc_Condition if bc.problemType == problemType])
+
 
     @staticmethod
     def Get_dofs(problemType: str, list_Bc_Condition: list) -> list[int]:
@@ -70,7 +90,7 @@ class BoundaryCondition:
         list
             Degrees of freedom.
         """
-        list_Bc_Condition = cast(list[BoundaryCondition], list_Bc_Condition)
+        list_Bc_Condition: list[BoundaryCondition] = list_Bc_Condition
         dofs = []
         [dofs.extend(bc.dofs) for bc in list_Bc_Condition if bc.problemType == problemType]
         return dofs
@@ -91,7 +111,7 @@ class BoundaryCondition:
         list
             Values of degrees of freedom.
         """
-        list_Bc_Condition = cast(list[BoundaryCondition], list_Bc_Condition)
+        list_Bc_Condition: list[BoundaryCondition] = list_Bc_Condition
         values = []
         [values.extend(bc.dofsValues) for bc in list_Bc_Condition if bc.problemType == problemType]
         return values

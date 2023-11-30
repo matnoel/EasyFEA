@@ -249,7 +249,7 @@ while error >= cible and i < iterMax:
 
     path, error = DoSimu(i)
 
-    print(f"{i} error = {error*100:.3} %, Wdef = {simu.Get_Result('Wdef'):.3f} mJ")
+    print(f"{i} error = {error*100:.3} %, Wdef = {simu.Result('Wdef'):.3f} mJ")
 
 if i > 0:
     os.remove(path)

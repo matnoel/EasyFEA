@@ -76,8 +76,8 @@ Display.Plot_BoundaryConditions(simu)
 Display.Plot_Mesh(simu, deformFactor=-L/10/sol.min())
 Display.Plot_Result(simu, "ux")
 
-rz = simu.Get_Result('rz')
-uy = simu.Get_Result('uy')
+rz = simu.Result('rz')
+uy = simu.Result('uy')
 
 x = np.linspace(0, L, 100)
 uy_x = load / (E * section.Iz) * (x ** 3 / 6 - (L * x ** 2) / 2)

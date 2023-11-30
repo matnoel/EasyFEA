@@ -243,7 +243,7 @@ Display.Save_fig(folderSimu, "forcedep")
 Display.Plot_Iter_Summary(simu, folderSimu)
 
 if makeMovie:
-    depMax = simu.Get_Result("amplitude").max()
+    depMax = simu.Result("amplitude").max()
     facteur = 10*depMax
     PostProcessing.Make_Movie(folderSimu, 'damage', simu, deformation=False, factorDef=facteur, plotMesh=False)
 

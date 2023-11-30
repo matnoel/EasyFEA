@@ -116,7 +116,7 @@ for e, elemType in enumerate(elemTypes):
         simu.Save_Iter()
 
         # Get the computed deformation energy
-        Wdef = simu.Get_Result("Wdef")
+        Wdef = simu.Result("Wdef")
 
         # Store the results for the current mesh size
         listTimes_nb.append(tic.Tac("Resolutions", "Temps total", False))

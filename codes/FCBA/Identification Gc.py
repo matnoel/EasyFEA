@@ -197,7 +197,7 @@ if __name__ == '__main__':
             simu.Save(folder_save)
             Display.Plot_Iter_Summary(simu, folder_save)
 
-            simu.Update_Iter(-1)
+            simu.Set_Iter(-1)
 
             dofsY = simu.Bc_dofs_nodes(simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
             fr = -np.sum(simu.Get_K_C_M_F()[0][dofsY,:] @ simu.displacement)/1000
@@ -244,7 +244,7 @@ if __name__ == '__main__':
         dofsY = simu.Bc_dofs_nodes(simu.mesh.Nodes_Conditions(lambda x,y,z: y==H), ["y"])
         for iter in range(len(simu.results)):
 
-            simu.Update_Iter(iter)
+            simu.Set_Iter(iter)
 
             displacement = simu.displacement
             deplacementsIdentif.append(-np.mean(displacement[dofsY]))

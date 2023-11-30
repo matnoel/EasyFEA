@@ -142,7 +142,7 @@ class _Simu(ABC):
         return iter
 
     @abstractmethod
-    def Update_Iter(self, iter=-1) -> list[dict]:
+    def Set_Iter(self, iter=-1) -> list[dict]:
         """Sets the simulation to the specified iteration (usually the last one) and returns the dictionary list."""
         iter = int(iter)
         assert isinstance(iter, int), "Must provide an integer."
@@ -155,18 +155,18 @@ class _Simu(ABC):
 
         self.__Update_mesh(iter)
 
-        return results
+        return results.copy()
 
     # Results
 
     @abstractmethod
-    def Get_Results(self) -> list[str]:
-        """Returns a list of available results in the simulation."""
+    def Result(self, option: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+        """Returns the result."""
         pass
 
     @abstractmethod
-    def Get_Result(self, option: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
-        """Returns the result."""
+    def Results_Available(self) -> list[str]:
+        """Returns a list of available results in the simulation."""
         pass
 
     @abstractmethod
@@ -186,7 +186,7 @@ class _Simu(ABC):
         return np.zeros((Nn, 3))
 
     @abstractmethod
-    def Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         """Returns lists of nodesFields and elementsFields displayed in paraview."""
         return [], []
 
@@ -257,26 +257,26 @@ class _Simu(ABC):
             import Display
             Display.Section("Simulation")
 
-        if len(mesh.orphanNodes):
+        if len(mesh.orphanNodes) > 0:
             raise Exception(Fore.RED +
                             "The simulation cannot be created because orphan nodes have been detected in the mesh."
                             + Fore.WHITE)
 
-        self.__model = model
+        self.__model: IModel = model
 
-        self.__dim = model.dim
+        self.__dim: int = model.dim
         """Simulation dimension."""
 
         self._results:list[dict] = []
         """Dictionary list containing the results."""
 
         # Fill in the first mesh
-        self.__indexMesh = -1
+        self.__indexMesh: int = -1
         """Current mesh index in self.__listMesh"""
         self.__listMesh: list[Mesh] = []
         self.mesh = mesh
 
-        self.__rho = 1
+        self.__rho: float = 1.0
         """Mass density"""
 
         self._Check_dim_mesh_material()
@@ -302,7 +302,7 @@ class _Simu(ABC):
 
         self.useNumba = useNumba
 
-        self.__useIterativeSolvers = useIterativeSolvers
+        self.__useIterativeSolvers: bool = useIterativeSolvers
 
         # Initialize Boundary conditions
         self.Bc_Init()
@@ -377,6 +377,10 @@ class _Simu(ABC):
     def results(self) -> list[dict]:
         """Returns a copy of the dictionary list containing the results of each iteration."""
         return self._results.copy()
+    
+    @property
+    def Niter(self) -> int:
+        return len(self._results)
 
     def __Init_Sols_n(self) -> None:
         """Initializes the solutions."""
@@ -393,8 +397,8 @@ class _Simu(ABC):
     def __Check_New_Sol_Values(self, problemType: ModelType, values: np.ndarray) -> None:
         """Checks that the solution has the right size."""
         self.__Check_ProblemTypes(problemType)
-        taille = self.mesh.Nn * self.Get_dof_n(problemType)
-        assert values.shape[0] == taille, f"Must be size {taille}"
+        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        assert values.shape[0] == size, f"Must be size {size}"
 
     def get_u_n(self, problemType: ModelType) -> np.ndarray:
         """Returns the solution associated with the given problem."""
@@ -700,15 +704,12 @@ class _Simu(ABC):
         algo = self.algo
         dofs = self.Bc_dofs_Neumann(problemType)
         dofsValues = self.Bc_values_Neumann(problemType)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        nDof = self.mesh.Nn * self.Get_dof_n(problemType)
 
         # Additional dimension linked to the use of lagrange coefficients
-        dimSupl = len(self.Bc_Lagrange)
-        if dimSupl > 0:
-            dimSupl += len(self.Bc_dofs_Dirichlet(problemType))
-            size += dimSupl
+        nDof += self._Bc_Lagrange_dim(problemType)
 
-        b = sparse.csr_matrix((dofsValues, (dofs, np.zeros(len(dofs)))), shape=(size, 1))
+        b = sparse.csr_matrix((dofsValues, (dofs, np.zeros(len(dofs)))), shape=(nDof, 1))
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
@@ -921,7 +922,16 @@ class _Simu(ABC):
         """Add Lagrange conditions."""
         assert isinstance(newBc, LagrangeCondition)
         self.__Bc_Lagrange.append(newBc)
-    
+
+    def _Bc_Lagrange_dim(self, problemType=None) -> int:
+        """Calculates the dimension required to resize the system to use Lagrange multipliers."""
+        if problemType is None:
+            problemType = self.problemType
+        nBc = BoundaryCondition.Get_nBc(problemType, self.Bc_Lagrange)
+        if nBc > 0:
+            nBc += len(self.Bc_dofs_Dirichlet(problemType))
+        return nBc
+
     @property
     def Bc_Display(self) -> list[LagrangeCondition]:
         """Returns a copy of the boundary conditions for display."""
@@ -1496,7 +1506,7 @@ class _Simu(ABC):
 
     def _Results_Check_Available(self, result: str) -> bool:
         """Check that the result can be calculated."""
-        availableResults = self.Get_Results()
+        availableResults = self.Results_Available()
         if result in availableResults:
             return True
         else:
@@ -1600,7 +1610,7 @@ class Simu_Displacement(_Simu):
         self.Set_Rayleigh_Damping_Coefs()
         self.Solver_Set_Elliptic_Algorithm()
 
-    def Get_Results(self) -> list[str]:
+    def Results_Available(self) -> list[str]:
 
         results = []
         dim = self.dim
@@ -1623,7 +1633,7 @@ class Simu_Displacement(_Simu):
 
         return results
 
-    def Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         nodesField = ["matrix_displacement"]
         if details:            
             elementsField = ["Stress", "Strain"]
@@ -1720,20 +1730,17 @@ class Simu_Displacement(_Simu):
             nDof = mesh.Nn*self.dim
 
             # Additional dimension linked to the use of lagrange coefficients
-            dimSupl = len(self.Bc_Lagrange)
-            if dimSupl > 0:
-                dimSupl += len(self.Bc_dofs_Dirichlet(ModelType.displacement))
-                nDof += dimSupl
+            nDof += self._Bc_Lagrange_dim(self.problemType)
                             
             Ku_e, Mu_e = self.__Construct_Local_Matrix()
             
             tic = Tic()
 
-            lignesVector_e = mesh.linesVector_e
-            colonnesVector_e = mesh.columnsVector_e
+            linesVector_e = mesh.linesVector_e.reshape(-1)
+            columnsVector_e = mesh.columnsVector_e.reshape(-1)
 
             # Assembly
-            self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(nDof, nDof))
+            self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
             """Kglob matrix for the displacement problem (nDof, nDof)"""
 
             # Here I'm initializing Fu because I'd have to calculate the volumetric forces in __Construct_Local_Matrix.
@@ -1745,7 +1752,7 @@ class Simu_Displacement(_Simu):
             # plt.spy(self.__Ku)
             # plt.show()
 
-            self.__Mu = sparse.csr_matrix((Mu_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(nDof, nDof))
+            self.__Mu = sparse.csr_matrix((Mu_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
             """Mglob matrix for the displacement problem (Nn*dim, Nn*dim)"""
 
             tic.Tac("Matrix","Assembly Ku, Mu and Fu", self._verbosity)
@@ -1788,9 +1795,9 @@ class Simu_Displacement(_Simu):
 
         self._results.append(iter)
     
-    def Update_Iter(self, iter= -1):
+    def Set_Iter(self, iter= -1) -> list[dict]:
         
-        results = super().Update_Iter(iter)
+        results = super().Set_Iter(iter)
 
         if results is None: return
 
@@ -1806,7 +1813,9 @@ class Simu_Displacement(_Simu):
             self.set_v_n(displacementType, initZeros)
             self.set_a_n(displacementType, initZeros)
 
-    def Get_Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+        return results
+
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
         
         dim = self.dim
         Ne = self.mesh.Ne
@@ -1815,7 +1824,7 @@ class Simu_Displacement(_Simu):
         if not self._Results_Check_Available(result): return None
 
         if iter != None:
-            self.Update_Iter(iter)
+            self.Set_Iter(iter)
 
         if result in ["Wdef","Psi_Elas"]:
             return self._Calc_Psi_Elas()
@@ -2139,26 +2148,26 @@ class Simu_Displacement(_Simu):
         if not self._Results_Check_Available("Wdef"):
             return
         
-        Wdef = self.Get_Result("Wdef")
+        Wdef = self.Result("Wdef")
         summary += f"\nW def = {Wdef:.2f}"
         
-        Svm = self.Get_Result("Svm", nodeValues=False)
+        Svm = self.Result("Svm", nodeValues=False)
         summary += f"\n\nSvm max = {Svm.max():.2f}"
 
-        Evm = self.Get_Result("Evm", nodeValues=False)
+        Evm = self.Result("Evm", nodeValues=False)
         summary += f"\n\nEvm max = {Evm.max()*100:3.2f} %"
 
         # Affichage des déplacements
-        dx = self.Get_Result("ux", nodeValues=True)
+        dx = self.Result("ux", nodeValues=True)
         summary += f"\n\nUx max = {dx.max():.2e}"
         summary += f"\nUx min = {dx.min():.2e}"
 
-        dy = self.Get_Result("uy", nodeValues=True)
+        dy = self.Result("uy", nodeValues=True)
         summary += f"\n\nUy max = {dy.max():.2e}"
         summary += f"\nUy min = {dy.min():.2e}"
 
         if self.dim == 3:
-            dz = self.Get_Result("uz", nodeValues=True)
+            dz = self.Result("uz", nodeValues=True)
             summary += f"\n\nUz max = {dz.max():.2e}"
             summary += f"\nUz min = {dz.min():.2e}"
 
@@ -2213,7 +2222,7 @@ class Simu_PhaseField(_Simu):
         self.__old_psiP_e_pg = [] # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
         self.Solver_Set_Elliptic_Algorithm()
 
-    def Get_Results(self) -> list[str]:
+    def Results_Available(self) -> list[str]:
 
         options = []
         dim = self.dim
@@ -2233,7 +2242,7 @@ class Simu_PhaseField(_Simu):
 
         return options
 
-    def Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         if details:
             nodesField = ["matrix_displacement", "damage"]
             elementsField = ["Stress", "Strain", "psiP"]
@@ -2508,22 +2517,18 @@ class Simu_PhaseField(_Simu):
         # Data
         mesh = self.mesh        
         nDof = mesh.Nn*self.dim
-
-        # Dimension supplémentaire lié a l'utilisation des coefs de lagrange
-        dimSupl = len(self.Bc_Lagrange)
-        if dimSupl > 0:
-            dimSupl += len(self.Bc_dofs_Dirichlet(ModelType.displacement))
-            nDof += dimSupl
+        
+        nDof += self._Bc_Lagrange_dim(ModelType.displacement)
 
         Ku_e = self.__Construct_Displacement_Matrix()
 
         tic = Tic()
 
-        lignesVector_e = mesh.linesVector_e
-        colonnesVector_e = mesh.columnsVector_e
+        linesVector_e = mesh.linesVector_e.reshape(-1)
+        columnsVector_e = mesh.columnsVector_e.reshape(-1)
 
         # Assembly
-        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(nDof, nDof))
+        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
         """Kglob matrix for the displacement problem (nDof, nDof)"""
         
         self.__Fu = sparse.csr_matrix((nDof, 1))
@@ -2648,15 +2653,12 @@ class Simu_PhaseField(_Simu):
        
         # Data
         mesh = self.mesh
-        taille = mesh.Nn
-        lignesScalar_e = mesh.linesScalar_e
-        colonnesScalar_e = mesh.columnsScalar_e
+        nDof = mesh.Nn
+        linesScalar_e = mesh.linesScalar_e.reshape(-1)
+        columnsScalar_e = mesh.columnsScalar_e.reshape(-1)
 
-        # Additional dimension linked to the use of lagrange coefficients
-        dimSupl = len(self.Bc_Lagrange)
-        if dimSupl > 0:
-            dimSupl += len(self.Bc_dofs_Dirichlet(ModelType.damage))
-            taille += dimSupl
+        # Additional dimension linked to the use of lagrange coefficients        
+        nDof += self._Bc_Lagrange_dim(ModelType.damage)
         
         # Calculating elementary matrix
         Kd_e, Fd_e = self.__Construct_Damage_Matrix()
@@ -2664,11 +2666,11 @@ class Simu_PhaseField(_Simu):
         # Assemblage
         tic = Tic()        
 
-        self.__Kd = sparse.csr_matrix((Kd_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
+        self.__Kd = sparse.csr_matrix((Kd_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
         """Kglob for damage problem (Nn, Nn)"""
         
         lignes = mesh.connect.reshape(-1)
-        self.__Fd = sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (taille,1))
+        self.__Fd = sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (nDof,1))
         """Fglob for damage problem (Nn, 1)"""        
 
         tic.Tac("Matrix","Assembly Kd and Fd", self._verbosity)        
@@ -2700,9 +2702,9 @@ class Simu_PhaseField(_Simu):
 
         self._results.append(iter)
 
-    def Update_Iter(self, iter=-1):
+    def Set_Iter(self, iter=-1) -> list[dict]:
 
-        results = super().Update_Iter(iter)
+        results = super().Set_Iter(iter)
 
         if results is None: return
 
@@ -2716,7 +2718,9 @@ class Simu_PhaseField(_Simu):
 
         self.phaseFieldModel.Need_Split_Update()
 
-    def Get_Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+        return results
+
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
         
         dim = self.dim
         Ne = self.mesh.Ne
@@ -2725,7 +2729,7 @@ class Simu_PhaseField(_Simu):
         if not self._Results_Check_Available(result): return None
 
         if iter != None:
-            self.Update_Iter(iter)
+            self.Set_Iter(iter)
 
         if result in ["Wdef","Psi_Elas"]:
             return self._Calc_Psi_Elas()
@@ -3184,7 +3188,7 @@ class Simu_Beam(_Simu):
         # init
         self.Solver_Set_Elliptic_Algorithm()
     
-    def Get_Results(self) -> list[str]:
+    def Results_Available(self) -> list[str]:
 
         options = []
         dof_n = self.Get_dof_n(self.problemType)
@@ -3205,7 +3209,7 @@ class Simu_Beam(_Simu):
 
         return options
 
-    def Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         if details:
             nodesField = ["matrix_displacement"]
             elementsField = ["Stress"]
@@ -3496,18 +3500,15 @@ class Simu_Beam(_Simu):
             Ku_beam = self.__Construct_Beam_Matrix()
 
             # Additional dimension linked to the use of lagrange coefficients
-            dimSupl = len(self.Bc_Lagrange)
-            if dimSupl > 0:
-                dimSupl += len(self.Bc_dofs_Dirichlet(ModelType.beam))                
-                nDof += dimSupl            
+            nDof += self._Bc_Lagrange_dim(ModelType.beam)
             
             tic = Tic()
 
-            lignesVector_e = mesh.Get_linesVector_e(model.dof_n)
-            colonnesVector_e = mesh.Get_columnsVector_e(model.dof_n)
+            lignesVector_e = mesh.Get_linesVector_e(model.dof_n).reshape(-1)
+            colonnesVector_e = mesh.Get_columnsVector_e(model.dof_n).reshape(-1)
 
             # Assembly
-            self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e.reshape(-1), colonnesVector_e.reshape(-1))), shape=(nDof, nDof))
+            self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e, colonnesVector_e)), shape=(nDof, nDof))
             """Kglob matrix for beam problem (nDof, nDof)"""
 
             self.__Fbeam = sparse.csr_matrix((nDof, 1))
@@ -3541,15 +3542,17 @@ class Simu_Beam(_Simu):
             
         self._results.append(iter)
 
-    def Update_Iter(self, iter=-1):
+    def Set_Iter(self, iter=-1) -> list[dict]:
         
-        results = super().Update_Iter(iter)
+        results = super().Set_Iter(iter)
 
         if results is None: return
 
         self.set_u_n(self.problemType, results["displacement"])
 
-    def Get_Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+        return results
+
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
         
         if not self._Results_Check_Available(result): return None
 
@@ -3558,7 +3561,7 @@ class Simu_Beam(_Simu):
         # TODO to improve
 
         if iter != None:
-            self.Update_Iter(iter)
+            self.Set_Iter(iter)
 
         if result == "displacement":
             return self.displacement.copy()
@@ -3785,17 +3788,17 @@ class Simu_Beam(_Simu):
         # summary += f"\n\nSvm max = {Svm.max():.2f}"
 
         # Affichage des déplacements
-        dx = self.Get_Result("ux", nodeValues=True)
+        dx = self.Result("ux", nodeValues=True)
         summary += f"\n\nUx max = {dx.max():.2e}"
         summary += f"\nUx min = {dx.min():.2e}"
 
         if self.beamModel.dim > 1:
-            dy = self.Get_Result("uy", nodeValues=True)
+            dy = self.Result("uy", nodeValues=True)
             summary += f"\n\nUy max = {dy.max():.2e}"
             summary += f"\nUy min = {dy.min():.2e}"
 
         if self.dim == 3:
-            dz = self.Get_Result("uz", nodeValues=True)
+            dz = self.Result("uz", nodeValues=True)
             summary += f"\n\nUz max = {dz.max():.2e}"
             summary += f"\nUz min = {dz.min():.2e}"
 
@@ -3831,22 +3834,22 @@ class Simu_Thermal(_Simu):
     
     def Get_directions(self, problemType=None) -> list[str]:
         return [""]
+    
+    def Get_dof_n(self, problemType=None) -> int:
+        return 1
 
-    def Get_Results(self) -> list[str]:
+    def Results_Available(self) -> list[str]:
         options = []
         options.extend(["thermal", "thermalDot"])
         return options
 
-    def Paraview_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         nodesField = ["thermal", "thermalDot"]
         elementsField = []
         return nodesField, elementsField
     
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.thermal]
-    
-    def Get_dof_n(self, problemType=None) -> int:
-        return 1
 
     @property
     def thermalModel(self) -> Thermal_Model:
@@ -3871,8 +3874,8 @@ class Simu_Thermal(_Simu):
 
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
         if self.needUpdate: self.Assembly()
-        taille = self.mesh.Nn * self.Get_dof_n(problemType)
-        initcsr = sparse.csr_matrix((taille, taille))
+        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        initcsr = sparse.csr_matrix((size, size))
         return self.__Kt.copy(), self.__Ct.copy(), initcsr, self.__Ft.copy()
 
     def __Construct_Thermal_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
@@ -3918,31 +3921,28 @@ class Simu_Thermal(_Simu):
        
             # Data
             mesh = self.mesh
-            taille = mesh.Nn
-            lignesScalar_e = mesh.linesScalar_e
-            colonnesScalar_e = mesh.columnsScalar_e
+            nDof = mesh.Nn
+            linesScalar_e = mesh.linesScalar_e.reshape(-1)
+            columnsScalar_e = mesh.columnsScalar_e.reshape(-1)
 
             # Additional dimension linked to the use of lagrange coefficients
-            dimSupl = len(self.Bc_Lagrange)
-            if dimSupl > 0:
-                dimSupl += len(self.Bc_dofs_Dirichlet(ModelType.thermal))
-                taille += dimSupl
+            nDof += self._Bc_Lagrange_dim(self.problemType)
             
             # Calculating elementary matrices
             Kt_e, Mt_e = self.__Construct_Thermal_Matrix()
             
             tic = Tic()
 
-            self.__Kt = sparse.csr_matrix((Kt_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
+            self.__Kt = sparse.csr_matrix((Kt_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
             """Kglob for thermal problem (Nn, Nn)"""
             
-            self.__Ft = sparse.csr_matrix((taille, 1))
+            self.__Ft = sparse.csr_matrix((nDof, 1))
             """Fglob vector for thermal problem (Nn, 1)."""
 
-            self.__Ct = sparse.csr_matrix((Mt_e.reshape(-1), (lignesScalar_e.reshape(-1), colonnesScalar_e.reshape(-1))), shape = (taille, taille))
+            self.__Ct = sparse.csr_matrix((Mt_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
             """Mglob for thermal problem (Nn, Nn)"""
 
-            tic.Tac("Matrix","Assembly Kt, Mt et Ft", self._verbosity)
+            tic.Tac("Matrix","Assembly Kt, Mt and Ft", self._verbosity)
 
             self.Need_Update(False)
 
@@ -3957,9 +3957,9 @@ class Simu_Thermal(_Simu):
             
         self._results.append(iter)
 
-    def Update_Iter(self, iter=-1):
+    def Set_Iter(self, iter=-1) -> list[dict]:
         
-        results = super().Update_Iter(iter)
+        results = super().Set_Iter(iter)
 
         if results is None: return
 
@@ -3970,12 +3970,14 @@ class Simu_Thermal(_Simu):
         else:
             self.set_v_n(ModelType.thermal, np.zeros_like(self.thermal))
 
-    def Get_Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+        return results
+
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
         
         if not self._Results_Check_Available(result): return None
 
         if iter != None:
-            self.Update_Iter(iter)
+            self.Set_Iter(iter)
 
         if result == "thermal":
             return self.thermal

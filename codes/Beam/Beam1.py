@@ -79,7 +79,7 @@ Display.Plot_BoundaryConditions(simu)
 Display.Plot_Mesh(simu, deformFactor=L/10/sol.max())
 Display.Plot_Result(simu, "ux")
 
-ux = simu.Get_Result('ux')
+ux = simu.Result('ux')
 
 x_array = np.linspace(0, L, 100)
 u_x = (load * x_array / (E * (section.area))) + (ro * g * x_array / 2 / E * (2 * L - x_array))

@@ -82,7 +82,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     if isinstance(result, str):
         if simu == None:
             raise Exception("obj is a mesh, so the result must be an array of dimension Nn or Ne")
-        values = simu.Get_Result(result, nodeValues) # Retrieve result from option
+        values = simu.Result(result, nodeValues) # Retrieve result from option
         if not isinstance(values, np.ndarray): return
     
     elif isinstance(result, np.ndarray):
@@ -937,7 +937,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     for i, iteration in enumerate(listIter):
 
         # Update simulation at iteration i
-        simu.Update_Iter(iteration)
+        simu.Set_Iter(iteration)
 
         if plotSolMax : listSolMax.append(simu.get_u_n(simu.problemType).max())
 

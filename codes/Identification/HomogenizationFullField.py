@@ -247,7 +247,7 @@ def Simulation(simu: Simulations._Simu, title=""):
     Display.Plot_Result(simu, "uy", title=f"{title} uy")
     # Display.Plot_Result(simu, "Eyy")
 
-    print(f"{title}: dy = {np.max(simu.Get_Result('uy')[simu.mesh.Nodes_Point(Geom.Point(L,0))]):.3f}")
+    print(f"{title}: dy = {np.max(simu.Result('uy')[simu.mesh.Nodes_Point(Geom.Point(L,0))]):.3f}")
 
 Simulation(simu_inclusions, "inclusions")
 Simulation(simu, "non hom")

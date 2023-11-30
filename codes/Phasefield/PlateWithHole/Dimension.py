@@ -96,13 +96,13 @@ for cc in list_cc:
 
     simu.Solve()
 
-    list_SxxA.append(simu.Get_Result("Sxx", True)[nodeA])
-    list_SyyA.append(simu.Get_Result("Syy", True)[nodeA])
-    list_SxyA.append(simu.Get_Result("Sxy", True)[nodeA])
+    list_SxxA.append(simu.Result("Sxx", True)[nodeA])
+    list_SyyA.append(simu.Result("Syy", True)[nodeA])
+    list_SxyA.append(simu.Result("Sxy", True)[nodeA])
 
-    list_SxxB.append(simu.Get_Result("Sxx", True)[nodeB])
-    list_SyyB.append(simu.Get_Result("Syy", True)[nodeB])
-    list_SxyB.append(simu.Get_Result("Sxy", True)[nodeB])
+    list_SxxB.append(simu.Result("Sxx", True)[nodeB])
+    list_SyyB.append(simu.Result("Syy", True)[nodeB])
+    list_SxyB.append(simu.Result("Sxy", True)[nodeB])
 
 # ----------------------------------------------
 # PosProcessing
