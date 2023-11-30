@@ -43,7 +43,7 @@ class Interface_Gmsh:
         self._init_gmsh()
 
         if verbosity:
-            Display.Section("New interface with gmsh")
+            Display.Section("Init interface GMSH")
 
     def __CheckType(self, dim: int, elemType: str):
         """Check that the element type is usable."""
@@ -1215,6 +1215,8 @@ class Interface_Gmsh:
         gmsh.model.mesh.removeDuplicateNodes()
         gmsh.model.mesh.removeDuplicateElements()
 
+        
+
         # PLUGIN CRACK
         if crackSurfaces != None or crackLines != None:
 
@@ -1236,7 +1238,7 @@ class Interface_Gmsh:
         if '-nopopup' not in sys.argv and self.__openGmsh:
             gmsh.fltk.run()
         
-        tic.Tac("Mesh","Meshing", self.__verbosity)
+        tic.Tac("Mesh","Meshing with gmsh", self.__verbosity)
 
         if folder != "":
             # gmsh.write(Dossier.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
@@ -1446,15 +1448,17 @@ class Interface_Gmsh:
 
         return list_mesh3D
     
-    def Save_Simu(self, simu: _Simu, results: list[str], details=False,
+    def Save_Simu(self, simu: _Simu, results: list[str]=[], details=False,
                   edgeColor='black', plotMesh=True, showAxes=False, folder: str=""):
         
-        rgb = np.asarray(matplotlib.colors.to_rgb(edgeColor)) * 255
-        rgb = np.asarray(rgb, dtype=int)
-
         assert isinstance(results, list), 'results must be a list'
         
         self._init_gmsh()
+
+        def getColor(c:str):
+            rgb = np.asarray(matplotlib.colors.to_rgb(edgeColor)) * 255
+            rgb = np.asarray(rgb, dtype=int)
+            return rgb
 
         def reshape(values: np.ndarray):
             values_e: np.ndarray = values[mesh.connect]
@@ -1485,19 +1489,27 @@ class Interface_Gmsh:
         Ne = mesh.Ne
         nPe = mesh.nPe
         gmshType = types(mesh.elemType)
+        colorElems = getColor(edgeColor)
 
-        dict_results: dict[str, list[np.ndarray]] = {result : [] for result in results}
+        nodesField, elementsField = simu.Results_nodesField_elementsField()
+        [results.append(result) for result in (nodesField + elementsField) if result not in results]
+
+        dict_results: dict[str, list[np.ndarray]] = {result: [] for result in results}
 
         for i in range(simu.Niter):
             simu.Set_Iter(i)
+            [dict_results[result].append(reshape(simu.Result(result))) for result in results]
+            
+        def AddView(name: str, values_e: np.ndarray):
 
-            [dict_results[result].append(reshape(simu.Result(result))) for result in results]               
+            if name == 'matrix_displacement_0':
+                name='ux'
+            elif name == 'matrix_displacement_1':
+                name='uy'
+            elif name == 'matrix_displacement_2':
+                name='uz'                
 
-        for result in results:
-
-            if len(dict_results[result]) == 0: continue
-
-            view = gmsh.view.add(result)
+            view = gmsh.view.add(name)
             
             gmsh.view.option.setNumber(view, "IntervalsType", 3)
             # (1: iso, 2: continuous, 3: discrete, 4: numeric)
@@ -1509,32 +1521,51 @@ class Interface_Gmsh:
             if showAxes:
                 gmsh.view.option.setNumber(view, "Axes", 1)
                 # (0: none, 1: simple axes, 2: box, 3: full grid, 4: open grid, 5: ruler)
-
             
-            gmsh.view.option.setColor(view, 'Lines', *rgb)
-            gmsh.view.option.setColor(view, 'Triangles', *rgb)
-            gmsh.view.option.setColor(view, 'Quadrangles', *rgb)
-            gmsh.view.option.setColor(view, 'Tetrahedra', *rgb)
-            gmsh.view.option.setColor(view, 'Hexahedra', *rgb)
-            gmsh.view.option.setColor(view, 'Pyramids', *rgb)
-            gmsh.view.option.setColor(view, 'Prisms', *rgb)
-
-
-            vals = np.concatenate(dict_results[result], 1)
-
-            res = np.concatenate((elements_e, vals), 1).reshape(-1)
+            gmsh.view.option.setColor(view, 'Lines', *colorElems)
+            gmsh.view.option.setColor(view, 'Triangles', *colorElems)
+            gmsh.view.option.setColor(view, 'Quadrangles', *colorElems)
+            gmsh.view.option.setColor(view, 'Tetrahedra', *colorElems)
+            gmsh.view.option.setColor(view, 'Hexahedra', *colorElems)
+            gmsh.view.option.setColor(view, 'Pyramids', *colorElems)
+            gmsh.view.option.setColor(view, 'Prisms', *colorElems)
 
             # S for scalar, V for vector, T
-            if dict_results[result][0].shape[1] == nPe:
+            if values_e.shape[1] == nPe:
                 vt = 'S'
             else:
-                vt = 'V'
+                vt = 'S'
 
+            res = np.concatenate((elements_e, values_e), 1)
 
-            gmsh.view.addListData(view, vt+gmshType, Ne, res)
+            gmsh.view.addListData(view, vt+gmshType, Ne, res.reshape(-1))
             
             if folder != "":
-                gmsh.view.write(view, "simu.pos", True)
+                gmsh.view.write(view, Folder.Join(folder, "simu.pos"), True)
+
+            return view
+
+        for result in dict_results.keys():
+
+            nIter = len(dict_results[result])
+
+            if nIter == 0: continue
+
+            dof_n = dict_results[result][0].shape[1] // nPe
+
+            vals_e_n = np.concatenate(dict_results[result], 1).reshape((Ne, nIter, dof_n, -1))
+
+            if dof_n == 1:
+                view = AddView(result, vals_e_n[:,:,0].reshape((Ne,-1)))
+            else:
+                views = [AddView(result+f'_{n}', vals_e_n[:,:,n].reshape(Ne,-1)) for n in range(dof_n)]
+
+
+
+
+
+
+            
 
         # Launch the GUI to see the results:
         if '-nopopup' not in sys.argv and self.__openGmsh:
