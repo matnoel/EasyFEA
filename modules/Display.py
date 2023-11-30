@@ -525,14 +525,7 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     if len(list_groupElem) == 0: return
 
     if ax == None:
-        if mesh.inDim in [1,2]:
-            fig, ax = plt.subplots()
-            ax.autoscale()
-            ax.axis('equal')        
-        else:
-            fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
-            ax.view_init(elev=105, azim=-90)
-            _ScaleChange(ax, mesh.coordo)
+        ax = Plot_Mesh(mesh, alpha=0)
 
     # for each group elem
     for groupElem in list_groupElem:
