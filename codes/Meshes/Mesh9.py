@@ -13,10 +13,10 @@ if __name__ == '__main__':
 
     folder = Folder.New_File('Meshes', results=True)
 
-    N=6 # elements in the blade lenght l
+    N=10 # elements in the blade lenght l
     addCylinder = True
-    repeat = True
-    angleRev = 2*np.pi/12 # rad
+    repeat = False
+    angleRev = 2*np.pi/10 # rad
     saveToMatlab = True
 
     # elemType = ElemType.TETRA4
@@ -34,14 +34,14 @@ if __name__ == '__main__':
     
     l = 2
     t = 0.3
-    H1 = 5
-    H2 = 5
-    H3 = 5    
+    H1 = 5; c1 = 1
+    H2 = 5; c2 = 2
+    H3 = 5; c3 = 2
     R = 5
     e = 1
     
     rot = 15;  coefRot = rot/(H1+H2+H3) # deg    
-    rot0 = 2
+    rot0 = 0
     rot1 = H1 * coefRot
     rot2 = (H1+H2) * coefRot - rot1
     rot3 = (H1+H2+H3) * coefRot - rot2
@@ -200,9 +200,9 @@ if __name__ == '__main__':
     coordInfL, coordInfR = np.reshape(coordInf, (2,-1,3))
     coordSupL, coordSupR = np.reshape(coordSup, (2,-1,3))
 
-    blade1, __ = bladeSection(l,t,(0,0,R+e+H1), rot1)
-    blade2, __ = bladeSection(l*2,t,(0,-l/2,R+e+H1+H2), rot2)
-    blade3, __ = bladeSection(l*2,t,(0,-l/2,R+e+H1+H2+H3), rot3)
+    blade1, __ = bladeSection(l*c1,t,(0,-(c1*l-l)/2,R+e+H1), rot1)
+    blade2, __ = bladeSection(l*c2,t,(0,-(c2*l-l)/2,R+e+H1+H2), rot2)
+    blade3, __ = bladeSection(l*c3,t,(0,-(c3*l-l)/2,R+e+H1+H2+H3), rot3)
 
     elems = [N/2] * 4 # number of elements for each lines for blades
     
@@ -217,7 +217,8 @@ if __name__ == '__main__':
         
         # cylinder y=-l
         cylinInf1_l, cylinInf1_r = Cylinder(R, angleRev, coordInfL, -l)
-        cylinSup1_l, cylinSup1_r = Cylinder(R+e, angleRev, coordSupL, -l)        
+        cylinSup1_l, cylinSup1_r = Cylinder(R+e, angleRev, coordSupL, -l)
+
         vols.append((cylinInf1_l, cylinSup1_l, e/mS, elems))
         vols.append((cylinInf1_r, cylinSup1_r, e/mS, elems))
 
@@ -241,12 +242,12 @@ if __name__ == '__main__':
         contourSup_c = CylinderBlade(R+e, -angleRev, coordSupfR[::-1])
         
         vols.append((contourInf, contourSup, e/mS, elems))
-        vols.append((contourInf_c, contourSup_c, e/mS, elems))        
+        vols.append((contourInf_c, contourSup_c, e/mS, elems))
 
 
     for v, vol in enumerate(vols):
-        # color = 'blue'
-        color = ''
+        # color = ''
+        color = 'blue'
         if v==0:
             ax = vol[0].Plot(color=color)
         else:
@@ -265,7 +266,7 @@ if __name__ == '__main__':
 
     if repeat:
 
-        na = int(np.pi*2//angleRev)
+        na = int(np.pi*2/angleRev)
 
         for i in range(na-1):
             print(f"{(i+1)/(na-1)*100:2.0f} %")
@@ -282,9 +283,8 @@ if __name__ == '__main__':
 
     Display.Plot_Model(mesh, alpha=0.1, showId=False)
 
-    Display.Plot_Mesh(mesh)
-
-    print(mesh)
+    ax = Display.Plot_Mesh(mesh)
+    ax.axis('off')
 
     nodesCircle = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+1e-2)
     nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z>=mesh.coordoGlob[:,2].max()-1e-2)
@@ -308,6 +308,9 @@ if __name__ == '__main__':
     # simu.add_dirichlet(nodesUpper, [uz], ["z"])    
     # simu.Solve()
     # simu.Save_Iter()
+
+    # Interface_Gmsh(True).Save_Simu(simu, ['ux','uy','uz','Svm','Stress'])
+    # Interface_Gmsh(True).Save_Simu(simu, ['Sxx','Stress','Svm','energy'], folder=folder)
 
     # --------------------------------------------------------------------------------------------
     # Results
