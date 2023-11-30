@@ -37,7 +37,7 @@ if __name__ == '__main__':
     # dim, elemType = 2, ElemType.TRI3
     dim, elemType = 3, ElemType.TETRA4
 
-    factory = interface._init_gmsh_factory('occ')
+    factory = interface._init_gmsh('occ')
 
     surfaces = interface._Surfaces(circle_ext, [circle_int])[0]
     interface._Extrude(surfaces, [0,0,R], elemType)

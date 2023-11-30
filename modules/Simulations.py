@@ -935,7 +935,10 @@ class _Simu(ABC):
     @property
     def Bc_Display(self) -> list[LagrangeCondition]:
         """Returns a copy of the boundary conditions for display."""
-        return self.__Bc_Display.copy()
+        try:
+            return self.__Bc_Display.copy()
+        except AttributeError:
+            return []
 
     def Bc_dofs_Dirichlet(self, problemType=None) -> list[int]:
         """Returns dofs related to Dirichlet conditions."""

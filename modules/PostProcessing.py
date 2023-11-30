@@ -492,20 +492,20 @@ def __Make_pvd(filename: str, vtuFiles=[]):
     t = tic.Tac("Paraview","Make pvd", False)
 
 def __WriteBinary(valeur, type: str, file):
-        """Convert to Binary"""
+    """Convert to Binary"""
 
-        if type not in ['uint32','float32','int32','int8']:
-            raise Exception("Type not implemented")
+    if type not in ['uint32','float32','int32','int8']:
+        raise Exception("Type not implemented")
 
-        if type == "uint32":
-            valeur = np.uint32(valeur)
-        elif type == "float32":
-            valeur = np.float32(valeur)
-        elif type == "int32":
-            valeur = np.int32(valeur)
-        elif type == "int8":
-            valeur = np.int8(valeur)
+    if type == "uint32":
+        valeur = np.uint32(valeur)
+    elif type == "float32":
+        valeur = np.float32(valeur)
+    elif type == "int32":
+        valeur = np.int32(valeur)
+    elif type == "int8":
+        valeur = np.int8(valeur)
 
-        convert = valeur.tobytes()
-        
-        file.write(convert)
+    convert = valeur.tobytes()
+    
+    file.write(convert)

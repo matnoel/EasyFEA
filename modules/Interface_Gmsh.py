@@ -7,6 +7,7 @@ import sys
 import os
 import numpy as np
 from colorama import Fore
+import matplotlib
 
 import Folder
 from Geom import *
@@ -15,6 +16,7 @@ from Mesh import Mesh
 from TicTac import Tic
 import Display as Display
 from Materials import _Beam_Model
+from Simulations import _Simu
 
 class Interface_Gmsh:
 
@@ -38,7 +40,7 @@ class Interface_Gmsh:
         self.__verbosity = verbosity
         """the interface can write to the console"""
 
-        self._init_gmsh_factory()
+        self._init_gmsh()
 
         if verbosity:
             Display.Section("New interface with gmsh")
@@ -52,8 +54,8 @@ class Interface_Gmsh:
         elif dim == 3:
             assert elemType in GroupElem.get_Types3D(), f"Must be in {GroupElem.get_Types3D()}"
     
-    def _init_gmsh_factory(self, factory: str= 'occ'):
-        """Initialize gmsh factory."""        
+    def _init_gmsh(self, factory: str= 'occ'):
+        """Initialize gmsh."""        
         if not gmsh.isInitialized():
             gmsh.initialize()
         if self.__gmshVerbosity == False:
@@ -564,7 +566,7 @@ class Interface_Gmsh:
             Built mesh
         """
 
-        self._init_gmsh_factory()
+        self._init_gmsh()
 
         tic = Tic()
 
@@ -606,7 +608,7 @@ class Interface_Gmsh:
         if elemType is None:
             elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
 
-        self._init_gmsh_factory('occ') # Only work with occ !! Do not change
+        self._init_gmsh('occ') # Only work with occ !! Do not change
 
         assert meshSize >= 0.0, "Must be greater than or equal to 0."
         self.__CheckType(dim, elemType)
@@ -758,7 +760,7 @@ class Interface_Gmsh:
             construct mesh
         """
 
-        self._init_gmsh_factory()
+        self._init_gmsh()
         self.__CheckType(1, elemType)
 
         tic = Tic()
@@ -854,7 +856,7 @@ class Interface_Gmsh:
             2D mesh
         """
         
-        self._init_gmsh_factory('occ')
+        self._init_gmsh('occ')
         self.__CheckType(2, elemType)
 
         tic = Tic()
@@ -918,7 +920,7 @@ class Interface_Gmsh:
             3D mesh
         """
         
-        self._init_gmsh_factory()
+        self._init_gmsh()
         self.__CheckType(3, elemType)
         
         tic = Tic()
@@ -980,7 +982,7 @@ class Interface_Gmsh:
             3D mesh
         """
 
-        self._init_gmsh_factory()
+        self._init_gmsh()
         self.__CheckType(3, elemType)
         
         tic = Tic()
@@ -1034,7 +1036,7 @@ class Interface_Gmsh:
 
         data = np.append(coordo, values.reshape(-1, 1), axis=1)
 
-        self._init_gmsh_factory()
+        self._init_gmsh()
 
         view = gmsh.view.add("scalar points")
 
@@ -1443,3 +1445,99 @@ class Interface_Gmsh:
             testVolume(mesh3.volume)
 
         return list_mesh3D
+    
+    def Save_Simu(self, simu: _Simu, results: list[str], details=False,
+                  edgeColor='black', plotMesh=True, showAxes=False, folder: str=""):
+        
+        rgb = np.asarray(matplotlib.colors.to_rgb(edgeColor)) * 255
+        rgb = np.asarray(rgb, dtype=int)
+
+        assert isinstance(results, list), 'results must be a list'
+        
+        self._init_gmsh()
+
+        def reshape(values: np.ndarray):
+            values_e: np.ndarray = values[mesh.connect]
+            if len(values_e.shape) == 3:
+                values_e = np.transpose(values_e, (0,2,1))
+            return values_e.reshape((mesh.Ne, -1))
+
+        def types(elemType: str):
+            if 'POINT' in elemType:
+                return 'P'
+            elif 'SEG' in elemType:
+                return 'L'
+            elif 'TRI' in elemType:
+                return 'T'
+            elif 'QUAD' in elemType:
+                return 'Q'
+            elif 'TETRA' in elemType:
+                return 'S'
+            elif 'HEXA' in elemType:
+                return 'H'
+            elif 'PRISM' in elemType:
+                return 'I'
+            elif 'PYRA' in elemType:
+                return 'Y'
+            
+        mesh = simu.mesh
+        elements_e = reshape(mesh.coordo)
+        Ne = mesh.Ne
+        nPe = mesh.nPe
+        gmshType = types(mesh.elemType)
+
+        dict_results: dict[str, list[np.ndarray]] = {result : [] for result in results}
+
+        for i in range(simu.Niter):
+            simu.Set_Iter(i)
+
+            [dict_results[result].append(reshape(simu.Result(result))) for result in results]               
+
+        for result in results:
+
+            if len(dict_results[result]) == 0: continue
+
+            view = gmsh.view.add(result)
+            
+            gmsh.view.option.setNumber(view, "IntervalsType", 3)
+            # (1: iso, 2: continuous, 3: discrete, 4: numeric)
+            gmsh.view.option.setNumber(view, "NbIso", 10)
+
+            if plotMesh:
+                gmsh.view.option.setNumber(view, "ShowElement", 1)
+
+            if showAxes:
+                gmsh.view.option.setNumber(view, "Axes", 1)
+                # (0: none, 1: simple axes, 2: box, 3: full grid, 4: open grid, 5: ruler)
+
+            
+            gmsh.view.option.setColor(view, 'Lines', *rgb)
+            gmsh.view.option.setColor(view, 'Triangles', *rgb)
+            gmsh.view.option.setColor(view, 'Quadrangles', *rgb)
+            gmsh.view.option.setColor(view, 'Tetrahedra', *rgb)
+            gmsh.view.option.setColor(view, 'Hexahedra', *rgb)
+            gmsh.view.option.setColor(view, 'Pyramids', *rgb)
+            gmsh.view.option.setColor(view, 'Prisms', *rgb)
+
+
+            vals = np.concatenate(dict_results[result], 1)
+
+            res = np.concatenate((elements_e, vals), 1).reshape(-1)
+
+            # S for scalar, V for vector, T
+            if dict_results[result][0].shape[1] == nPe:
+                vt = 'S'
+            else:
+                vt = 'V'
+
+
+            gmsh.view.addListData(view, vt+gmshType, Ne, res)
+            
+            if folder != "":
+                gmsh.view.write(view, "simu.pos", True)
+
+        # Launch the GUI to see the results:
+        if '-nopopup' not in sys.argv and self.__openGmsh:
+            gmsh.fltk.run()
+
+        gmsh.finalize()
