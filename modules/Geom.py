@@ -4,7 +4,9 @@ from typing import Union
 import numpy as np
 import copy
 
+from colorama import Fore
 from numpy import ndarray
+from scipy.optimize import minimize
 import Display
 from abc import ABC, abstractmethod
 
@@ -70,7 +72,8 @@ class Point:
         coord = self._getCoord(coord)
         n = np.linalg.norm(self.coordo)
         n = 1 if n == 0 else n
-        return np.linalg.norm(self.coordo - coord)/n <= 1e-12
+        diff = np.linalg.norm(self.coordo - coord)/n
+        return diff <= 1e-12
     
     @staticmethod
     def _getCoord(value) -> np.ndarray:
@@ -95,6 +98,9 @@ class Point:
     def rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:
         """rotate the point around an axis"""
         self.__coordo = Rotate_coordo(self.__coordo, theta, center, direction).reshape(-1)
+
+    def symmetry(self, center=(0,0,0), n=(1,0,0)) -> None:
+        self.__coordo = Symmetry_coordo(self.__coordo, center, n).reshape(-1)
     
     def __radd__(self, value):
         return self.__add__(value)
@@ -217,12 +223,20 @@ class Geom(ABC):
     
     def rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:        
         """turns geometry around an axis"""
-        oldCoordo = self.coordo
-        
-        newCoord = Rotate_coordo(oldCoordo, theta, center, direction)
+        oldCoord = self.coordo        
+        newCoord = Rotate_coordo(oldCoord, theta, center, direction)
 
-        dec = newCoord - oldCoordo
+        dec = newCoord - oldCoord
         [point.translate(*dec[p]) for p, point in enumerate(self.points)]
+
+    def symmetry(self, center=(0,0,0), n=(1,0,0)) -> None:
+
+        oldCoord = self.coordo
+        newCoord = Symmetry_coordo(oldCoord, center, n)
+
+        dec = newCoord - oldCoord
+        [point.translate(*dec[p]) for p, point in enumerate(self.points)]
+
 
     def Plot(self, ax: Display.plt.Axes=None, color:str="", name:str="") -> Display.plt.Axes:
 
@@ -349,7 +363,7 @@ class PointsList(Geom):
                 pB = Point(*B, isOpen)
                 pC = Point(*C, isOpen)
 
-                corners.append(CircleArc(pA, pC, pB, mS))
+                corners.append(CircleArc(pA, pB, pC, meshSize=mS))
             
             if p > 0:
                 Link(-2, -1)
@@ -476,8 +490,7 @@ class Circle(Geom):
     __nbCircle = 0
 
     def __init__(self, center: Point, diam: float, meshSize=0.0, isHollow=True, isOpen=False, n=(0,0,1)):
-        """Constructing a circle according to its center and diameter
-        This circle will be projected onto the (x,y) plane.
+        """Constructing a circle according to its center, diameter and the normal vector
 
         Parameters
         ----------
@@ -507,10 +520,10 @@ class Circle(Geom):
         self.pt3 = center + [-r, 0, 0]
         self.pt4 = center + [0, -r, 0]
         # creates circle arcs associated with the circle
-        circleArc1 = CircleArc(self.pt1, center, self.pt2, meshSize, isOpen=isOpen)
-        circleArc2 = CircleArc(self.pt2, center, self.pt3, meshSize, isOpen=isOpen)
-        circleArc3 = CircleArc(self.pt3, center, self.pt4, meshSize, isOpen=isOpen)
-        circleArc4 = CircleArc(self.pt4, center, self.pt1, meshSize, isOpen=isOpen)
+        circleArc1 = CircleArc(self.pt1, self.pt2, center=center, meshSize=meshSize, isOpen=isOpen)
+        circleArc2 = CircleArc(self.pt2, self.pt3, center=center, meshSize=meshSize, isOpen=isOpen)
+        circleArc3 = CircleArc(self.pt3, self.pt4, center=center, meshSize=meshSize, isOpen=isOpen)
+        circleArc4 = CircleArc(self.pt4, self.pt1, center=center, meshSize=meshSize, isOpen=isOpen)
         # create the contour object associated with the circle
         self.contour = Contour([circleArc1, circleArc2, circleArc3, circleArc4], isHollow, isOpen)
 
@@ -578,32 +591,55 @@ class CircleArc(Geom):
 
     __nbCircleArc = 0
 
-    def __init__(self, pt1: Point, center: Point, pt2: Point, meshSize=0.0, coef=1.0, isOpen=False):
-        """Construct a circular arc based on its center, start and end points. \n
-        This circular arc will be projected onto the (x,y) plane.
+    def __init__(self, pt1: Point, pt2: Point, center:Point=None, R:float=None, P:Point=None, meshSize=0.0, n=(0,0,1), isOpen=False, coef=1):
+        """Construct a circular arc using several methods:
+            1: with 2 points, a radius R and a normal vector n.
+            2: with 2 points and a center
+            3: with 2 points and a point P belonging to the circle\n
+            The methods are chosen in the following order 3 2 1. This means that if you enter P, the other methods will not be used.
 
         Parameters
         ----------        
         pt1 : Point
             starting point
-        center: Point
-            center of arc
         pt2: Point
-            end point
+            ending point
+        R: float, optional
+            radius of the arc circle, by default None
+        center: Point, optional
+            center of circular arc, by default None
+        P: Point, optional
+            a point belonging to the circle, by default None
         meshSize : float, optional
             size to be used for mesh construction, by default 0.0
-        coef : float, optional
-            coef for multiplication with radius -1 or 1, by default 1.0
+        n: np.ndarray | list | tuple, optional
+            normal vector to the arc circle, by default (0,0,1)
         isOpen : bool, optional
             arc can be opened, by default False
         """
 
-        assert coef in [-1, 1], "coef must be in [-1, 1]."
+        # first check that pt1 and pt2 dont share the same coordinates
+        assert not pt1.Check(pt2), 'pt1 and pt2 are on the same coordinates'        
 
+        if P != None:
+            center = Circle_Triangle(pt1, pt2, P)
+            center = Point(*center)
+
+        elif center != None:
+            assert not pt1.Check(center), 'pt1 and center are on the same coordinates'            
+
+        elif R != None:            
+            coordo = np.array([pt1.coordo, pt2.coordo])
+            center = Circle_Coordo(coordo, R, n)
+            center = Point(*center)
+            
+        else:
+
+            raise Exception(Fore.RED + 'must give P, center or R' + Fore.WHITE)
+        
         r1 = np.linalg.norm((pt1-center).coordo)
         r2 = np.linalg.norm((pt2-center).coordo)
-
-        assert (r1 - r2)**2/r2**2 <= 1e-12, "The points are not on the same arc."
+        assert (r1 - r2)**2/r2**2 <= 1e-12, Fore.RED +"The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle." + Fore.WHITE
 
         self.center = center
         """Point at the center of the arc."""
@@ -632,13 +668,14 @@ class CircleArc(Geom):
         mat = np.array([i,j,k]).T
 
         # midpoint coordinates
+        assert coef in [-1, 1], 'coef must be in [-1, 1]'
         pt3 = center.coordo + mat @ [coef*r1,0,0]
 
         self.pt3 = Point(*pt3)
         """Midpoint of the circular arc."""
 
         CircleArc.__nbCircleArc += 1
-        name = f"Circle{CircleArc.__nbCircleArc}"
+        name = f"CircleArc{CircleArc.__nbCircleArc}"
         Geom.__init__(self, [pt1, center, pt2], meshSize, name, False, isOpen)
 
     @property
@@ -646,7 +683,13 @@ class CircleArc(Geom):
         """axis normal to the circle arc"""
         i = normalize_vect((self.pt1 - self.center).coordo)
         j = normalize_vect((self.pt2 - self.center).coordo)
-        n: np.ndarray = normalize_vect(np.cross(i,j))
+        if self.angle in [0, np.pi]:            
+            if tuple(i) == (0,0,1):
+                n = np.array([1,0,0])
+            else:
+                n = np.array([0,0,1])
+        else:
+            n = normalize_vect(np.cross(i,j))
         return n
     
     @property
@@ -674,14 +717,15 @@ class CircleArc(Geom):
         r = self.r
 
         # plot arc circle in 2D space
-        angle = np.linspace(0, np.abs(self.angle), 11)
-        lines = np.zeros((angle.size,3))
-        lines[:,0] = np.cos(angle) * r
-        lines[:,1] = np.sin(angle) * r
+        angles = np.linspace(0, np.abs(self.angle), 11)
+        lines = np.zeros((angles.size,3))
+        lines[:,0] = np.cos(angles) * r
+        lines[:,1] = np.sin(angles) * r
 
         # get the jabobian matrix
         i = (self.pt1 - self.center).coordo        
         n = self.n
+        
         mat = JacobianMatrix(i,n)
 
         # transform coordinates
@@ -866,15 +910,8 @@ def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
 
     else:    
         norm_a = np.linalg.norm(a)
-        norm_b = np.linalg.norm(b)
-        
-        cosAngle = a @ b/(norm_a * norm_b)
-        sinAngle = np.cross(a,b)/(norm_a * norm_b)
-        angles = np.arctan2(sinAngle, cosAngle)
-
-        vectNorm = normalize_vect(np.cross(b,a))
-                
-        angle = angles @ vectNorm
+        norm_b = np.linalg.norm(b)        
+        angle = np.arccos((a @ b)/(norm_a*norm_b))
     
     return angle
 
@@ -921,20 +958,32 @@ def Rotate_coordo(coordo: np.ndarray, theta: float, center: tuple=(0,0,0), direc
 
     return newCoord
 
+def Symmetry_coordo(coordo: np.ndarray, center=(0,0,0), n=(1,0,0)) -> np.ndarray:
+
+    center = Point._getCoord(center)
+    n = normalize_vect(Point._getCoord(n))
+
+    oldCoordo = np.reshape(coordo, (-1,3))
+
+    d = (oldCoordo - center) @ n    
+
+    newCoord = oldCoordo - np.einsum('n,i->ni', 2*d, n, optimize='optimal')
+
+    return newCoord
+
 def JacobianMatrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
     """Compute the Jacobian matrix for the transition from the (i,j,k) basis to the (x,y,z) basis.\n
-    p(x,y) = matrice • p(i,j)\n\n
+    p(x,y,z) = J • p(i,j,k) and p(i,j,k) = inv(J) • p(x,y,z)\n\n
     ix jx kx\n
     iy jy ky\n
     iz jz kz
-
 
     Parameters
     ----------
     i : np.ndarray
         i vector
     k : np.ndarray
-        j vector
+        k vector
     """        
 
     i = normalize_vect(i)
@@ -996,6 +1045,74 @@ def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tu
         C = P0
 
     return A, B, C
+
+def Circle_Triangle(p1, p2, p3) -> np.ndarray:
+    """Return center and radius for the circumcicular arc formed by 3 points.\n
+    return center, R
+    """
+
+    # https://math.stackexchange.com/questions/3001993/what-is-the-equation-for-a-circumcircular-arc-with-3-points
+
+    p1 = Point._getCoord(p1)
+    p2 = Point._getCoord(p2)
+    p3 = Point._getCoord(p3)
+
+
+    v1 = p2-p1
+    v2 = p3-p1
+
+    v11 = v1 @ v1
+    v22 = v2 @ v2
+    v12 = v1 @ v2
+
+    b = 1 / (2*(v11*v22-v12**2))
+    k1 = b * v22 * (v11-v12)
+    k2 = b * v11 * (v22-v12)
+
+    center = p1 + k1 * v1 + k2 * v2
+
+    # a = np.linalg.norm(p2-p1)
+    # b = np.linalg.norm(p3-p2)
+    # c = np.linalg.norm(p1-p3)
+    
+    # v1 = p1 * (a**2 * (b**2 + c**2 - a**2)) / (((b+c)**2 - a**2) * (a**2 - (b-c)** 2))
+    # v2 = p2 * (b**2 * (a**2 + c**2 - b**2)) / (((a+c)**2 - b**2) * (b**2 - (a-c)** 2))
+    # v3 = p3 * (c**2 * (b**2 + a**2 - c**2)) / (((b+a)**2 - c**2) * (c**2 - (b-a)** 2))
+
+    # center = Point._getCoord(v1+v2+v3)
+
+    return center
+
+def Circle_Coordo(coordo: np.ndarray, R: float, n: np.ndarray) -> np.ndarray:
+    """Return center from coordinates a radius and and a vector normal to the circle.\n
+    return center
+    """
+
+    R = np.abs(R)
+
+    coordo = np.reshape(coordo, (-1, 3))
+
+    assert coordo.shape[0] >= 2, 'must give at least 2 points'
+    
+    n = Point._getCoord(n)
+
+    p0 = np.mean(coordo, 0)
+    x0, y0, z0 = coordo[0]        
+
+    def eval(v):
+        x,y,z = v
+        f = np.linalg.norm(np.linalg.norm(coordo-v, axis=1) - R**2)
+        return f
+
+    # point must belong to the plane
+    eqPlane = lambda v: v @ n
+    cons = ({'type': 'eq', 'fun': eqPlane})
+    res = minimize(eval, p0, constraints=cons, tol=1e-12)
+
+    assert res.success, 'the center has not been found'
+    center: np.ndarray = res.x
+
+    return center
 
 def Points_IntersectCircles(circle1: Circle, circle2: Circle) -> np.ndarray:
     """Calculates the coordinates at the intersection of the two circles (i,3). This only works if they're on the same plane.

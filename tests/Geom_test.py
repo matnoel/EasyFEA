@@ -91,11 +91,17 @@ class Test_Geom(unittest.TestCase):
 
         circle = Circle(Point(), 5, n=(1,1,1))
 
-        circleArc = CircleArc(Point(3,0,3), Point(), Point(-3,0,3))
+        circleArc = CircleArc(Point(3,1,3), Point(-3,1,3), center=Point(0,1))       
+        
+        circleArc2 = CircleArc(Point(3,1,3), Point(-3,1,3), R=3)
+
+        self.assertTrue(circleArc.center.Check(circleArc2.center))
 
         contour1 = Contour([Line(Point(), Point(5,0)),
-                           CircleArc(Point(5,0), Point(), Point(0,5)),
-                           Line(Point(0,5), Point())])
+                           CircleArc(Point(5), Point(-5), P=Point(0,5)),
+                           Line(Point(-5), Point())])
+        
+        self.assertTrue(contour1.geoms[1].center.Check((0,0,0)))
         
         points2 = PointsList([Point(), Point(5,0), Point(5,5,r=2), Point(0,5,r=-3)])
         contour2 = points2.Get_Contour()
@@ -121,6 +127,19 @@ class Test_Geom(unittest.TestCase):
             cop = geom.copy()
             cop.translate(-10)
             cop.Plot(ax)
+
+
+            cop.symmetry()
+            cop.Plot(ax)
+
+
+            cop.symmetry(cop.points[0],(0,0,1))
+            cop.Plot(ax)
+
+            cop.symmetry(n=(0,np.cos(np.pi/6),np.sin(np.pi/6)))
+            cop.Plot(ax)
+
+
 
             ax.legend()
             pass

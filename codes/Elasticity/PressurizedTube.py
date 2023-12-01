@@ -38,9 +38,9 @@ if isSymmetric:
     p4 = Point(0,r)
 
     line1 = Line(p1, p2, meshSize)
-    line2 = CircleArc(p2, center, p3, meshSize)
+    line2 = CircleArc(p2, p3, center, meshSize=meshSize)
     line3 = Line(p3, p4, meshSize)
-    line4 = CircleArc(p4, center, p1, meshSize)
+    line4 = CircleArc(p4, p1, center, meshSize=meshSize)
 
     contour = Contour([line1, line2, line3, line4])
     inclusions = []

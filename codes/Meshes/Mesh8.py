@@ -62,13 +62,13 @@ if __name__ == '__main__':
         cont1 = Contour([Line(pc1, p1), 
                             Line(p1,p2),
                             Line(p2,pc3),
-                            CircleArc(pc3,pc,pc1)])
+                            CircleArc(pc3,pc1,pc)])
         loop1, lines1, points1 = interface._Loop_From_Geom(cont1)
 
         cont2 = Contour([Line(pc3, p2),
                             Line(p2,p3),
                             Line(p3,pc2),
-                            CircleArc(pc2,pc,pc3)])
+                            CircleArc(pc2,pc3,pc)])
         loop2, lines2, points2 = interface._Loop_From_Geom(cont2)
 
         surf1 = factory.addSurfaceFilling(loop1)

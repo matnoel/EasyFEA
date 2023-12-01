@@ -137,16 +137,16 @@ if __name__ == '__main__':
         C1 = Point(y=P2.y)
         C2 = Point(y=y1)
 
-        L1_l = CircleArc(P1, C1, P2, mS)
+        L1_l = CircleArc(P1, P2, C1, meshSize=mS)
         L2_l = Line(P2,P5, mS)
-        L3_l = CircleArc(P5, C2, P6, mS)
+        L3_l = CircleArc(P5, P6, C2, meshSize=mS)
         L4_l = Line(P6,P1, mS)
 
         contour_l = Contour([L1_l,L2_l,L3_l,L4_l])
 
-        L1_r = CircleArc(P2, C1, P3, mS)
+        L1_r = CircleArc(P2, P3, C1, meshSize=mS)
         L2_r = Line(P3,P4, mS)
-        L3_r = CircleArc(P4, C2, P5, mS)
+        L3_r = CircleArc(P4, P5, C2, meshSize=mS)
         L4_r = Line(P5,P2, mS)
 
         contour_r = Contour([L1_r,L2_r,L3_r,L4_r])
@@ -169,9 +169,9 @@ if __name__ == '__main__':
         C1 = Point(0,y0,0)
         C2 = Point(0,y1,0)
 
-        L1 = CircleArc(P1,C1,P2, mS)
+        L1 = CircleArc(P1,P2,C1, meshSize=mS)
         L2 = PointsList([Point(*co) for co in coord], mS)
-        L3 = CircleArc(P3,C2,P4, mS)
+        L3 = CircleArc(P3,P4,C2, meshSize=mS)
         L4 = Line(P4,P1, mS)
         
         contour = Contour([L1,L2,L3,L4])

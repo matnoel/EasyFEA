@@ -58,7 +58,7 @@ coordInter = Geom.Points_IntersectCircles(circle, circleZone)
 
 pt1 = Geom.Point(*coordInter[0, :])
 pt2 = Geom.Point(*coordInter[1, :])
-circleArc1 = Geom.CircleArc(pt1, pZone, pt2, meshSize, coef=-1)
+circleArc1 = Geom.CircleArc(pt1, pt2, pZone, meshSize=meshSize, coef=-1)
 
 mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", cracks=[circleArc1])
 xn = mesh.coordo[:,0]
