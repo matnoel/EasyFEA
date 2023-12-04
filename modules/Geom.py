@@ -676,20 +676,17 @@ class CircleArc(Geom):
 
         CircleArc.__nbCircleArc += 1
         name = f"CircleArc{CircleArc.__nbCircleArc}"
-        Geom.__init__(self, [pt1, center, pt2], meshSize, name, False, isOpen)
+        Geom.__init__(self, [pt1, center, self.pt3, pt2], meshSize, name, False, isOpen)
 
     @property
     def n(self) -> np.ndarray:
         """axis normal to the circle arc"""
-        i = normalize_vect((self.pt1 - self.center).coordo)
-        j = normalize_vect((self.pt2 - self.center).coordo)
+        i = normalize_vect((self.pt1 - self.center).coordo)        
         if self.angle in [0, np.pi]:            
-            if tuple(i) == (0,0,1):
-                n = np.array([1,0,0])
-            else:
-                n = np.array([0,0,1])
+            j = normalize_vect((self.pt3 - self.center).coordo)
         else:
-            n = normalize_vect(np.cross(i,j))
+            j = normalize_vect((self.pt2 - self.center).coordo)
+        n = normalize_vect(np.cross(i,j))
         return n
     
     @property
@@ -1051,12 +1048,11 @@ def Circle_Triangle(p1, p2, p3) -> np.ndarray:
     return center, R
     """
 
-    # https://math.stackexchange.com/questions/3001993/what-is-the-equation-for-a-circumcircular-arc-with-3-points
+    # https://math.stackexchange.com/questions/1076177/3d-coordinates-of-circle-center-given-three-point-on-the-circle
 
     p1 = Point._getCoord(p1)
     p2 = Point._getCoord(p2)
     p3 = Point._getCoord(p3)
-
 
     v1 = p2-p1
     v2 = p3-p1
@@ -1070,16 +1066,6 @@ def Circle_Triangle(p1, p2, p3) -> np.ndarray:
     k2 = b * v11 * (v22-v12)
 
     center = p1 + k1 * v1 + k2 * v2
-
-    # a = np.linalg.norm(p2-p1)
-    # b = np.linalg.norm(p3-p2)
-    # c = np.linalg.norm(p1-p3)
-    
-    # v1 = p1 * (a**2 * (b**2 + c**2 - a**2)) / (((b+c)**2 - a**2) * (a**2 - (b-c)** 2))
-    # v2 = p2 * (b**2 * (a**2 + c**2 - b**2)) / (((a+c)**2 - b**2) * (b**2 - (a-c)** 2))
-    # v3 = p3 * (c**2 * (b**2 + a**2 - c**2)) / (((b+a)**2 - c**2) * (c**2 - (b-a)** 2))
-
-    # center = Point._getCoord(v1+v2+v3)
 
     return center
 
