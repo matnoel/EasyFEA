@@ -1461,7 +1461,8 @@ class Interface_Gmsh:
             return rgb
 
         def reshape(values: np.ndarray):
-            values_e: np.ndarray = values[mesh.connect]
+            values_n = np.reshape(values, (mesh.Nn, -1))
+            values_e: np.ndarray = values_n[mesh.connect]
             if len(values_e.shape) == 3:
                 values_e = np.transpose(values_e, (0,2,1))
             return values_e.reshape((mesh.Ne, -1))
