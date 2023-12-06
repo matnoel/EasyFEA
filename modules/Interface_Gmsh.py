@@ -1211,11 +1211,10 @@ class Interface_Gmsh:
         # set mest order
         Interface_Gmsh._Set_mesh_order(elemType)
 
-        # remove all duplicated nodes
-        gmsh.model.mesh.removeDuplicateNodes()
-        gmsh.model.mesh.removeDuplicateElements()
-
-        
+        if dim > 1:
+            # remove all duplicated nodes and elements
+            gmsh.model.mesh.removeDuplicateNodes()
+            gmsh.model.mesh.removeDuplicateElements()
 
         # PLUGIN CRACK
         if crackSurfaces != None or crackLines != None:
