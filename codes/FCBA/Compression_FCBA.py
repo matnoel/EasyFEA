@@ -136,24 +136,7 @@ if useContact:
 # ----------------------------------------------
 # Material
 # ----------------------------------------------
-# recovers identified properties
-pathParams = Folder.Join(folder_file, "params_Essais ARTICLE.xlsx")
-dfParams = pd.read_excel(pathParams)
-# print(dfParams)
-
-El = dfParams["El"][idxEssai]
-Et = dfParams["Et"][idxEssai]
-Gl = dfParams["Gl"][idxEssai]
-# vl = dfParams["vl"][idxEssai]
-vl = 0.02
-vt = 0.44
-
-# set axis
-rot = np.pi/2
-axis_l = np.array([np.cos(rot), np.sin(rot), 0])
-axis_t = np.cross(np.array([0,0,1]), axis_l)
-
-material = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, ep)
+material = Functions.Get_material(idxEssai, ep)
 
 # Numerical slope calculation
 simuElas = Simulations.Simu_Displacement(mesh, material)
