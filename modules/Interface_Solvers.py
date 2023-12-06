@@ -11,8 +11,6 @@ import scipy.optimize as optimize
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
-# TODO solveur -> Solver to have everything in English
-
 from TicTac import Tic
 
 try:

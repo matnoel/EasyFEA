@@ -1160,5 +1160,3 @@ def __init_obj(obj, deformFactor: float=0.0):
         raise Exception("Must be a simulation or mesh")
     
     return simu, mesh, coordo, inDim
-
-# TODO use gmsh like x4_t1_1.msh

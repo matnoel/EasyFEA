@@ -255,8 +255,6 @@ class Test_Simu(unittest.TestCase):
             plt.pause(1e-12)
             plt.close(fig)
 
-    # TODO test phase field
-
     def test_PhaseField(self):
         
         a = 1

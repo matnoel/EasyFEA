@@ -247,7 +247,6 @@ class Geom(ABC):
             ax.set_zlabel('z')
 
         lines, points = self.coordoPlot()
-        # TODO improve ploting by adding new coordinates only for plot purpose
         if color != "":
             ax.plot(*lines.T, color=color, label=self.name)
         else:
@@ -747,8 +746,6 @@ class Contour(Geom):
             contour can be opened, by default False
         """
 
-        # TODO plot
-
         # Check that the points form a closed loop
         points: list[Point] = []
 
@@ -783,7 +780,6 @@ class Contour(Geom):
         Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
 
     def coordoPlot(self) -> tuple[np.ndarray,np.ndarray]:
-
 
         lines = []
         points = []
