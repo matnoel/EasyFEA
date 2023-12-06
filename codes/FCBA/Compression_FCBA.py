@@ -54,7 +54,7 @@ convOption = 2
 # (1, crack energy)
 # (2, crack + strain energy)
 
-folder_essai = Folder.New_File(Folder.Join("Essais FCBA","Simu", f"Essai{idxEssai}"), results=True)
+folder_essai = Folder.New_File(Folder.Join("FCBA","Simu", f"Essai{idxEssai}"), results=True)
 
 if useContact:
     folder_essai = Folder.Join(folder_essai, 'Contact')

@@ -13,7 +13,7 @@ import Functions
 
 # Display.Clear()
 
-folder = Folder.Join(Folder.New_File("Essais FCBA",results=True), "Grille")
+folder = Folder.Join(Folder.New_File("FCBA",results=True), "Grille")
 
 useParallel = True
 nProcs = 6 # number of processes in parallel

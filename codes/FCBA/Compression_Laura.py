@@ -11,7 +11,7 @@ import numpy as np
 
 Display.Clear()
 
-folder_FCBA = Folder.New_File("Essais FCBA",results=True)
+folder_FCBA = Folder.New_File("FCBA",results=True)
 folder = Folder.Join(folder_FCBA, "Compression_Laura")
 
 # ----------------------------------------------

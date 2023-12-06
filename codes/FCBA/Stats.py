@@ -9,8 +9,8 @@ import Functions
 Display.Clear()
 
 folder = Folder.Get_Path(__file__)
-folder_femu = Folder.New_File(Folder.Join("Essais FCBA", "FEMU"), results=True)
-folder_iden = Folder.New_File(Folder.Join("Essais FCBA", "Identification"), results=True)
+folder_femu = Folder.New_File(Folder.Join("FCBA", "FEMU"), results=True)
+folder_iden = Folder.New_File(Folder.Join("FCBA", "Identification"), results=True)
 
 if __name__ == '__main__':
 
@@ -86,10 +86,9 @@ if __name__ == '__main__':
     Display.Section("FEMU Gc")
 
     dfGc = Functions.dfGc.copy()
-
+    
     dfGc = dfGc[(dfGc['solveur']==1)&(dfGc['ftol']==1e-5)]
     dfGc = dfGc.sort_values(by=['Essai'])
-
     dfGc = dfGc.set_index(np.arange(dfGc.shape[0]))
 
     # print(dfGc)

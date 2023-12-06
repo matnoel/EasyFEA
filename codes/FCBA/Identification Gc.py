@@ -14,7 +14,7 @@ import Functions
 
 # Display.Clear()
 
-folder = Folder.Join(Folder.New_File("Essais FCBA",results=True), "Identification")
+folder = Folder.Join(Folder.New_File("FCBA",results=True), "Identification")
 
 # ----------------------------------------------
 # Configuration
