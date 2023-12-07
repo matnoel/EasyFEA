@@ -166,6 +166,7 @@ Simulations.Tic.Plot_History(details=True)
 # PostProcessing.Make_Paraview(folder, simu)
 # # TODO how to plot the two meshes ?
 # TODO bending 3 pts
+# TODO create a contact folder
 
 print(simu)
 

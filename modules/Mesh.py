@@ -638,6 +638,8 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     return proj.tocsr()
 
+# TODO allow translation rotation and symetrise
+
 def Get_new_mesh(mesh: Mesh, displacementMatrix: np.ndarray) -> Mesh:
     """Builds a new mesh by updating node coordinates with the displacement vector.
 
