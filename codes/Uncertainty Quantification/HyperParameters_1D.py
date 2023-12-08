@@ -71,8 +71,8 @@ if __name__ == '__main__':
 
     if importGc:
         print("maximum likehood :")
-        print(f'a = {a_ml:.3f}')
-        print(f'b = {b_ml:.3f}')
+        print(f'a = {a_ml}')
+        print(f'b = {b_ml}')
     else:
         print("maximum likehood errors :")
         print(f'err a = {np.abs(a_ml-a)/a*100:.3f} %')
@@ -109,8 +109,8 @@ if __name__ == '__main__':
 
     if importGc:
         print("\nleast squares :")
-        print(f'a = {a_ls:.3f}')
-        print(f'b = {b_ls:.3f}')
+        print(f'a = {a_ls}')
+        print(f'b = {b_ls}')
     else:
         print("\nleast squares erros :")
         print(f'err a = {np.abs(a_ls-a)/a*100:.3f} %')

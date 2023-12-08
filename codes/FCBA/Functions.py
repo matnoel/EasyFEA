@@ -30,7 +30,7 @@ dfEssais: pd.DataFrame = pd.read_pickle(Folder.Join(folder, "_essais.pickle"))
 """
 
 # récupère les proritétés identifiées
-dfParams = pd.read_excel(Folder.Join(folder, "params_article.xlsx"))
+dfParams = pd.read_excel(Folder.Join(folder, "_params_article.xlsx"))
 """FEMU params [El, Et, Gl, vl]
 "Essai": le nom de l'essai sous la forme Essai_XX
 "elemType": le type d'element
@@ -43,7 +43,7 @@ dfParams = pd.read_excel(Folder.Join(folder, "params_article.xlsx"))
 """
 
 # dfGc = pd.read_excel(Folder.Join(folder_iden, "identification.xlsx"))
-dfGc = pd.read_excel(Folder.Join(folder, "gc_article.xlsx"))# gc_article est une copie de Folder.Join(folder_iden, "identification.xlsx") faite le 6 decembre 2023
+dfGc = pd.read_excel(Folder.Join(folder, "_gc_article.xlsx"))# _gc_article est une copie de Folder.Join(folder_iden, "identification.xlsx") faite le 6 decembre 2023
 """Identified Gc in a pandas dataframe\n
 solver -> solver used to minimize:
     (0, least_squares), (1, minimize)

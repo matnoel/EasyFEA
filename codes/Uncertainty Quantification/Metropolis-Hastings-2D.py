@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     # metropolis-hastings algorithm
     z_0 = np.array([1.4, -0.75]) # starting point
-    sig = 0.01 # standart deviation 0.01 is good
+    sig = 0.1 # standart deviation 0.01 is good
     cov = sig**2 * np.eye(2)
 
     def Metropolis_Hastings_2D(z_0: np.ndarray, cov: np.ndarray, burn_in: int, nSamples: int):
@@ -70,7 +70,7 @@ if __name__ == '__main__':
         return np.array(samples), rejectRatio
 
     nSamples = 10000
-    burn_in = 100
+    burn_in = 0
 
     samples, rejectRatio = Metropolis_Hastings_2D(z_0, sig, burn_in, nSamples)
 

@@ -3,11 +3,11 @@
 from abc import ABC, abstractmethod, abstractproperty
 from typing import List, Union
 from enum import Enum
-from TicTac import Tic
+import numpy as np
 
+from TicTac import Tic
 from Mesh import Mesh, GroupElem
 import CalcNumba as CalcNumba
-import numpy as np
 import Display as Display
 from Geom import Line, Section
 
@@ -56,7 +56,12 @@ class IModel(ABC):
     def Need_Update(self, value=True):
         """Indicates whether the model needs to be updated"""
         self.__needUpdate = value
-
+    
+    @property
+    def isHeterogeneous(self) -> bool:
+        """Indicates whether the model has heterogeneous parameters"""
+        return False
+    
     @staticmethod
     def _Test_Sup0(value: Union[float,np.ndarray]):
         errorText = "Must be > 0!"
@@ -73,7 +78,7 @@ class IModel(ABC):
         if isinstance(value, np.ndarray):
             assert value.min() > bInf and value.max() < bSup, errorText
 
-class _Displacement_Model(IModel):
+class _Displacement_Model(IModel, ABC):
     """Class of elastic behavior laws
     (Elas_Isot, Elas_IsotTrans, Elas_Anisot ...)
     """
@@ -198,7 +203,7 @@ class _Displacement_Model(IModel):
     @property
     def coef(self) -> float:
         """Coef linked to kelvin mandel -> sqrt(2)"""
-        return np.sqrt(2)    
+        return np.sqrt(2)
 
     @property
     def C(self) -> np.ndarray:
@@ -216,6 +221,10 @@ class _Displacement_Model(IModel):
         self.__C = array
 
     @property
+    def isHeterogeneous(self) -> bool:
+        return len(self.__C.shape) > 2
+
+    @property
     def S(self) -> np.ndarray:
         """Behaviour for Hooke's law in Kelvin Mandel\n
         In 2D: S -> S : Sigma = Epsilon [Exx, Eyy, sqrt(2)*Exy]\n
@@ -229,6 +238,12 @@ class _Displacement_Model(IModel):
     @S.setter
     def S(self, array: np.ndarray):
         self.__S = array
+
+    @abstractmethod
+    def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
+        """Walpole's decomposition such as C = sum(ci * Ei) \n
+        return ci, Ei"""
+        return np.array([]), np.array([])
 
     @staticmethod
     def KelvinMandel_B_e_pg(dim: int, B_e_pg: np.ndarray) -> np.ndarray:
@@ -247,7 +262,7 @@ class _Displacement_Model(IModel):
         return B_e_pg
     
     @staticmethod
-    def KelvinMandel_Matrix(dim: int, Matrix: np.ndarray) -> np.ndarray:        
+    def KelvinMandel_Matrix(dim: int, Matrix: np.ndarray) -> np.ndarray:
         """Apply these coefficients to the matrix.
         \nif 2D:
         \n
@@ -315,7 +330,7 @@ class _Displacement_Model(IModel):
             assert test_det_c <= 1e-12, "The determinant is not preserved during processing"
         
         return matrice_P
-
+    
 class Elas_Isot(_Displacement_Model):
 
     def __str__(self) -> str:
@@ -492,6 +507,29 @@ class Elas_Isot(_Displacement_Model):
         s = np.linalg.inv(c)
 
         return c, s
+    
+    def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
+
+        C = self.C
+
+        c1 = self.get_bulk()
+        c2 = self.get_mu()
+
+        Ivect = np.array([1,1,1,0,0,0])
+        Isym = np.eye(6)
+
+        E1 = 1/3 * TensorProduct(Ivect, Ivect)
+        E2 = Isym - E1
+
+        if not self.isHeterogeneous:
+            # only test if the material is heterogeneous
+            test_C = np.linalg.norm((3*c1*E1  + 2*c2*E2) - C)/np.linalg.norm(C)
+            assert test_C <= 1e-12
+
+        ci = np.array([c1, c2])
+        Ei = np.array([E1, E2])
+
+        return ci, Ei
 
 class Elas_IsotTrans(_Displacement_Model):
 
@@ -665,7 +703,7 @@ class Elas_IsotTrans(_Displacement_Model):
         try:
             C, S = self.__Behavior(P, useSameAxis)
         except ValueError:
-            raise Exception(str(_erreurConstMateriau))
+            raise Exception(str(_erroDim))
 
         self.C = C
         self.S = S
@@ -767,6 +805,46 @@ class Elas_IsotTrans(_Displacement_Model):
                 # testS = np.linalg.norm(s-s2)/np.linalg.norm(s2)            
         
         return c, s
+
+    def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
+
+        C = self.C
+
+        El = self.El
+        Et = self.Et
+        Gl = self.Gl
+        vl = self.vl
+        kt = self.kt
+        Gt = self.Gt
+
+        c1 = El + 4*vl**2*kt
+        c2 = 2*kt
+        c3 = 2*np.sqrt(2)*kt*vl
+        c4 = 2*Gt
+        c5 = 2*Gl
+
+        n = self.axis_l
+        p = TensorProduct(n,n)
+        q = np.eye(3) - p
+        
+        E1 = Project_Kelvin(TensorProduct(p,p))
+        E2 = Project_Kelvin(1/2 * TensorProduct(q,q))
+        E3 = Project_Kelvin(1/np.sqrt(2) * TensorProduct(p,q))
+        E4 = Project_Kelvin(1/np.sqrt(2) * TensorProduct(q,p))
+        E5 = Project_Kelvin(TensorProduct(q,q,True) - 1/2*TensorProduct(q,q))
+        I = Project_Kelvin(TensorProduct(np.eye(3),np.eye(3),True))
+        E6 = I - E1 - E2 - E5
+
+        if not self.isHeterogeneous:
+            # only test if the material is heterogeneous
+            diff_C = C - (c1*E1 + c2*E2 + c3*(E3+E4) + c4*E5 + c5*E6)
+            test_C = np.linalg.norm(diff_C)/np.linalg.norm(C)
+            assert test_C <= 1e-12
+
+        ci = np.array([c1, c2, c3, c4, c5])
+        Ei = np.array([E1, E2, E3, E4, E5])
+
+        return ci, Ei
 
 class Elas_Anisot(_Displacement_Model):
     
@@ -937,6 +1015,9 @@ class Elas_Anisot(_Displacement_Model):
     def axis2(self) -> np.ndarray:
         """axis1 vector"""
         return self.__axis1.copy()
+    
+    def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
+        return super().Walpole_Decomposition()
 
 class _Beam_Model(IModel):
 
@@ -1282,6 +1363,10 @@ class PhaseField_Model(IModel):
         text += f'\nl0 : {self.__l0:.4e}'
         return text
     
+    @property
+    def isHeterogeneous(self) -> bool:
+        return isinstance(self.Gc, np.ndarray)
+    
     @staticmethod
     def get_splits() -> List[SplitType]:
         """splits available"""
@@ -1385,12 +1470,12 @@ class PhaseField_Model(IModel):
         return self.__solver
 
     @property
-    def Gc(self):
+    def Gc(self) -> Union[float, np.ndarray]:
         """Critical energy release rate [J/m^2]"""
         return self.__Gc
     
     @Gc.setter
-    def Gc(self, value):
+    def Gc(self, value: Union[float, np.ndarray]):
         self._Test_Sup0(value)
         self.Need_Update()
         self.__Gc = value
@@ -1549,19 +1634,17 @@ class PhaseField_Model(IModel):
         
         tic = Tic()
         
-        loiDeComportement = self.__material
+        material = self.__material
         
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
-        isHeterogene = len(loiDeComportement.C.shape) > 2
-
-        bulk = loiDeComportement.get_bulk()
-        mu = loiDeComportement.get_mu()
+        bulk = material.get_bulk()
+        mu = material.get_mu()
 
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
 
-        dim = self.__material.dim
+        dim = material.dim
 
         if dim == 2:
             Ivect = np.array([1,1,0]).reshape((3,1))
@@ -1579,7 +1662,7 @@ class PhaseField_Model(IModel):
         Pdev = np.eye(taille) - 1/dim * IxI
 
         # einsum faster than with resizing (no need to try with numba)
-        if isHeterogene:
+        if material.isHeterogeneous:
             mu_e_pg = Reshape_variable(mu, Ne, nPg)
             bulk_e_pg = Reshape_variable(bulk, Ne, nPg)
 
@@ -1629,7 +1712,7 @@ class PhaseField_Model(IModel):
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
-        isHeterogene = len(self.__material.C.shape) > 2
+        isHeterogene = self.__material.isHeterogeneous
 
         tic = Tic()
 
@@ -1728,7 +1811,7 @@ class PhaseField_Model(IModel):
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
-        isHeterogene = shape_c > 2
+        isHeterogene = material.isHeterogeneous
 
         if shape_c == 2:
             indices = ''
@@ -1869,7 +1952,7 @@ class PhaseField_Model(IModel):
 
         C = material.C        
         
-        assert len(C.shape) == 2, "He decomposition has not been implemented for heterogeneous materials"
+        assert not material.isHeterogeneous, "He decomposition has not been implemented for heterogeneous materials"
         # for heterogeneous materials how to make sqrtm ?
         sqrtC = sqrtm(C)
         
@@ -2487,8 +2570,12 @@ class Thermal_Model(IModel):
     def c(self) -> Union[float,np.ndarray]:
         """specific heat capacity [J K^-1 kg^-1]"""
         return self.__c
+    
+    @property
+    def isHeterogeneous(self) -> bool:
+        return isinstance(self.k, np.ndarray) or isinstance(self.c, np.ndarray)
 
-_erreurConstMateriau = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
+_erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
 
 def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int):
     """Reshape the variable so that it is in the form ep.."""
