@@ -541,7 +541,7 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
         # Construct the faces coordinates
         connect_e = groupElem.connect
         coord_n = groupElem.coordoGlob
-        indexeFaces = groupElem.indexesFaces
+        indexeFaces = groupElem.faces
         coordFaces_e = coord_n[connect_e[:, indexeFaces], :mesh.inDim]
         coordFaces = coordFaces_e[elements]
 

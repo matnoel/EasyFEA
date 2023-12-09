@@ -89,23 +89,11 @@ class GroupElem(ABC):
         self.__elemType, self.__nPe, self.__dim, self.__order, self.__nbFaces, self.__nbCorners = GroupElem_Factory.Get_ElemInFos(gmshId)
         
         # Elements
-        self.__elements = np.arange(connect.shape[0], dtype=int)
         self.__connect = connect
 
-        # Noeuds
+        # Nodes
         self.__nodes = nodes
         self.__coordoGlob = coordoGlob
-        self.__coordo = np.asarray(coordoGlob[nodes])
-        
-        if self.elemType in GroupElem.get_Types3D():
-            self.__inDim = 3
-        else:
-            if np.abs(self.__coordo)[:,1].max()==0:
-                self.__inDim = 1
-            if np.abs(self.__coordo)[:,2].max()==0:
-                self.__inDim = 2
-            else:
-                self.__inDim = 3
         
         self._InitMatrix()
     
@@ -157,7 +145,17 @@ class GroupElem(ABC):
     @property
     def inDim(self) -> int:
         """Dimension in which the elements are located"""
-        return self.__inDim
+        if self.elemType in GroupElem.get_Types3D():
+            return 3
+        else:
+            x,y,z = np.abs(self.coordo.T)
+            if np.max(y)==0 and np.max(z)==0:
+                inDim = 1
+            if np.max(z)==0:
+                inDim = 2
+            else:
+                inDim = 3
+            return inDim
 
     @property
     def Ne(self) -> int:
@@ -172,17 +170,18 @@ class GroupElem(ABC):
     @property
     def elements(self) -> np.ndarray:
         """Elements"""
-        return self.__elements.copy()
+        return np.arange(self.__connect.shape[0], dtype=int)
 
     @property
     def Nn(self) -> int:
         """Number of nodes"""
-        return self.__coordo.shape[0]
+        return self.__nodes.size
 
     @property
     def coordo(self) -> np.ndarray:
         """This matrix contains the element group coordinates (Nn, 3)"""
-        return self.__coordo.copy()
+        coordo: np.ndarray = self.__coordoGlob[self.__nodes]
+        return coordo.copy()
 
     @property
     def coordoGlob(self) -> np.ndarray:
@@ -1151,7 +1150,7 @@ class GroupElem(ABC):
             nodes that meet conditions
         """
 
-        coordo = self.__coordo
+        coordo = self.coordo
 
         xn = coordo[:,0]
         yn = coordo[:,1]
@@ -1202,7 +1201,7 @@ class GroupElem(ABC):
         
         vectUnitaire = line.unitVector
 
-        coordo = self.__coordo
+        coordo = self.coordo
 
         vect = coordo-line.coordo[0]
 
@@ -1219,7 +1218,7 @@ class GroupElem(ABC):
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Returns nodes in the domain."""
 
-        coordo = self.__coordo
+        coordo = self.coordo
 
         eps = 1e-12
 
@@ -1232,7 +1231,7 @@ class GroupElem(ABC):
     def Get_Nodes_Circle(self, circle: Circle) -> np.ndarray:
         """Returns the nodes in the circle."""
 
-        coordo = self.__coordo
+        coordo = self.coordo
 
         eps = 1e-12
 
@@ -1243,7 +1242,7 @@ class GroupElem(ABC):
     def Get_Nodes_Cylinder(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
         """Returns the nodes in the cylinder."""
 
-        coordo = self.__coordo
+        coordo = self.coordo
 
         eps = 1e-12
         dx, dy, dz = direction[0], direction[1], direction[2]
@@ -1370,20 +1369,24 @@ class GroupElem(ABC):
 
         if dim == 0:
 
-            coordo = self.__coordo[self.__connect[elem,0]]
+            coordo = self.coordo[self.__connect[elem,0]]
 
             idx = np.where((coordinates[:,0] == coordo[0]) & (coordinates[:,1] == coordo[1]) & (coordinates[:,2] == coordo[2]))[0]
 
+            return idx
+
         elif dim == 1:
+
+            coordo = self.coordo
 
             p1 = self.__connect[elem,0]
             p2 = self.__connect[elem,1]
 
-            vect_i = self.__coordo[p2] - self.__coordo[p1]
+            vect_i = coordo[p2] - coordo[p1]
             longueur = np.linalg.norm(vect_i)
             vect_i = vect_i / longueur # without normalized doesn't work
 
-            vect_j_n = coordinates - self.__coordo[p1]
+            vect_j_n = coordinates - coordo[p1]
 
             cross_n = np.cross(vect_i, vect_j_n, 0, 1)
             norm_n = np.linalg.norm(cross_n, axis=1)
@@ -1394,18 +1397,18 @@ class GroupElem(ABC):
 
             return idx
         
-        elif dim == 2:
+        elif dim == 2:            
             
-            coordoMesh = self.__coordo
-            indexesFace = self.indexesFaces[:-1]
-            nPe = len(indexesFace)
-            connectMesh = self.connect[elem, indexesFace]
-            coordConnect = coordoMesh[connectMesh]
+            coordo = self.coordo
+            faces = self.faces[:-1]
+            nPe = len(faces)
+            connectMesh = self.connect[elem, faces]
+            coordConnect = coordo[connectMesh]
 
             # vector calculation
             indexReord = np.append(np.arange(1, nPe), 0)
             # Vectors i for edge segments
-            vect_i_b = coordoMesh[connectMesh[indexReord]] - coordoMesh[connectMesh]
+            vect_i_b = coordo[connectMesh[indexReord]] - coordo[connectMesh]
             # vect_i_b = np.einsum("ni,n->ni", vect_i_b, 1/np.linalg.norm(vect_i_b, axis=1), optimize="optimal")
 
             # normal vector to element face
@@ -1429,26 +1432,26 @@ class GroupElem(ABC):
         
         elif dim == 3:
         
-            indexesFaces = self.indexesFaces
+            faces = self.faces
             nbFaces = self.nbFaces
-            coordo = self.__coordo[self.__connect[elem]]
+            coordo = self.coordo[self.__connect[elem]]
 
             if isinstance(self, PRISM6):
-                indexesFaces = np.array(indexesFaces)
-                faces = np.array([indexesFaces[np.arange(0,4)],
-                                  indexesFaces[np.arange(4,8)],
-                                  indexesFaces[np.arange(8,12)],
-                                  indexesFaces[np.arange(12,15)],
-                                  indexesFaces[np.arange(15,18)]], dtype=object)
+                faces = np.array(faces)
+                faces = np.array([faces[np.arange(0,4)],
+                                  faces[np.arange(4,8)],
+                                  faces[np.arange(8,12)],
+                                  faces[np.arange(12,15)],
+                                  faces[np.arange(15,18)]], dtype=object)
             elif isinstance(self, PRISM15):
-                indexesFaces = np.array(indexesFaces)
-                faces = np.array([indexesFaces[np.arange(0,8)],
-                                  indexesFaces[np.arange(8,16)],
-                                  indexesFaces[np.arange(16,24)],
-                                  indexesFaces[np.arange(24,30)],
-                                  indexesFaces[np.arange(30,36)]], dtype=object)
+                faces = np.array(faces)
+                faces = np.array([faces[np.arange(0,8)],
+                                  faces[np.arange(8,16)],
+                                  faces[np.arange(16,24)],
+                                  faces[np.arange(24,30)],
+                                  faces[np.arange(30,36)]], dtype=object)
             else:
-                faces = np.reshape(indexesFaces, (nbFaces,-1))
+                faces = np.reshape(faces, (nbFaces,-1))
 
             p0_f = [f[0] for f in faces]
             p1_f = [f[1] for f in faces]
@@ -1645,13 +1648,13 @@ class GroupElem(ABC):
         return [0]
 
     @abstractproperty
-    def indexesTriangles(self) -> list[int]:
+    def triangles(self) -> list[int]:
         """List of indexes to form the triangles of an element that will be used for the 2D trisurf function"""
         pass
 
     @property
-    def indexesSegments(self) -> np.ndarray:
-        """Indexes for corner formation"""
+    def segments(self) -> np.ndarray:
+        """List of indexes used to construct segments"""
         
         if self.__dim == 1:
             return np.array([[0, 1]], dtype=int)
@@ -1672,7 +1675,7 @@ class GroupElem(ABC):
         """
         assert self.dim == 2
 
-        indexes = self.indexesTriangles
+        indexes = self.triangles
 
         dict_connect_triangle = {}
         dict_connect_triangle[self.elemType] = np.array(self.__connect[:, indexes]).reshape(-1,3)
@@ -1682,7 +1685,7 @@ class GroupElem(ABC):
         return dict_connect_triangle
 
     @abstractproperty
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         """List of indexes to form the faces that make up the element"""
         pass    
 
@@ -2061,11 +2064,11 @@ class POINT(GroupElem):
         return super().origin
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0]
 
     def _Ntild(self) -> np.ndarray:
@@ -2108,11 +2111,11 @@ class SEG2(GroupElem):
         return [-1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
     
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,1]
 
     def _Ntild(self) -> np.ndarray:
@@ -2191,11 +2194,11 @@ class SEG3(GroupElem):
         return [-1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
     
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,2,1]
 
     def _Ntild(self) -> np.ndarray:
@@ -2289,11 +2292,11 @@ class SEG4(GroupElem):
         return [-1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,2,3,1]
 
     def _Ntild(self) -> np.ndarray:
@@ -2404,11 +2407,11 @@ class SEG5(GroupElem):
         return [-1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,2,3,4,1]
 
     def _Ntild(self) -> np.ndarray:
@@ -2542,13 +2545,12 @@ class TRI3(GroupElem):
         return super().origin
 
     @property
-    def indexesTriangles(self) -> list[int]:
+    def triangles(self) -> list[int]:
         return [0,1,2]
 
     @property
-    def indexesFaces(self) -> list[int]:
-        return [0,1,2,0]
-    _indexesFaces = [0,1,2,0]
+    def faces(self) -> list[int]:
+        return [0,1,2,0]    
 
     def _Ntild(self) -> np.ndarray:
 
@@ -2609,11 +2611,11 @@ class TRI6(GroupElem):
         return super().origin
 
     @property
-    def indexesTriangles(self) -> list[int]:
+    def triangles(self) -> list[int]:
         return [0,3,5,3,1,4,5,4,2,3,4,5]
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,3,1,4,2,5,0]
 
     def _Ntild(self) -> np.ndarray:
@@ -2690,11 +2692,11 @@ class TRI10(GroupElem):
         return super().origin
 
     @property
-    def indexesTriangles(self) -> list[int]:
+    def triangles(self) -> list[int]:
         return list(np.array([10,1,4,10,4,5,10,5,6,10,6,7,10,7,8,10,8,9,10,9,1,2,5,6,3,7,8])-1)
     
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,3,4,1,5,6,2,7,8,0]
 
     def _Ntild(self) -> np.ndarray:
@@ -2864,11 +2866,11 @@ class TRI15(GroupElem):
         return super().origin
 
     @property
-    def indexesTriangles(self) -> list[int]:
+    def triangles(self) -> list[int]:
         return list(np.array([1,4,13,4,5,14,5,6,14,6,7,14,2,6,7,4,13,14,1,12,13,11,12,13,11,13,15,13,14,15,8,14,15,7,8,14,10,11,15,8,9,15,9,10,15,3,9,10])-1)
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,3,4,5,1,6,7,8,2,9,10,11,0]
 
     def _Ntild(self) -> np.ndarray:
@@ -3139,13 +3141,12 @@ class QUAD4(GroupElem):
         return [-1, -1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
+    def triangles(self) -> list[int]:
         return [0,1,3,1,2,3]
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,1,2,3,0]
-    _indexesFaces = [0,1,2,3,0]
 
     def _Ntild(self) -> np.ndarray:
 
@@ -3208,11 +3209,11 @@ class QUAD8(GroupElem):
         return [-1, -1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
+    def triangles(self) -> list[int]:
         return [4,5,7,5,6,7,0,4,7,4,1,5,5,2,6,6,3,7]
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,4,1,5,2,6,3,7,0]
 
     def _Ntild(self) -> np.ndarray:
@@ -3304,15 +3305,15 @@ class TETRA4(GroupElem):
         return super().origin
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,1,2,0,3,1,0,2,3,1,3,2]
     
     @property
-    def indexesSegments(self) -> np.ndarray:
+    def segments(self) -> np.ndarray:
         return np.array([[0,1],[0,3],[3,1],[2,0],[2,3],[2,1]])
 
     def _Ntild(self) -> np.ndarray:
@@ -3384,15 +3385,15 @@ class TETRA10(GroupElem):
         return super().origin
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:        
+    def faces(self) -> list[int]:        
         return [0,4,1,5,2,6,0,7,3,9,1,4,0,6,2,8,3,7,1,9,3,8,2,5]
     
     @property
-    def indexesSegments(self) -> np.ndarray:
+    def segments(self) -> np.ndarray:
         return np.array([[0,1],[0,3],[3,1],[2,0],[2,3],[2,1]])
 
     def _Ntild(self) -> np.ndarray:
@@ -3485,15 +3486,15 @@ class HEXA8(GroupElem):
         return [-1, -1, -1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,1,2,3,0,4,5,1,0,3,7,4,6,7,3,2,6,2,1,5,6,5,4,7]
     
     @property
-    def indexesSegments(self) -> np.ndarray:
+    def segments(self) -> np.ndarray:
         return np.array([[0,1],[1,5],[5,4],[4,0],[3,2],[2,6],[6,7],[7,3],[0,3],[1,2],[5,6],[4,7]])
 
     def _Ntild(self) -> np.ndarray:
@@ -3567,11 +3568,11 @@ class HEXA20(GroupElem):
         return [-1, -1, -1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,8,1,11,2,13,3,9,
                 0,10,4,16,5,12,1,8,
                 0,9,3,15,7,17,4,10,
@@ -3580,7 +3581,7 @@ class HEXA20(GroupElem):
                 6,18,5,16,4,17,7,19]
     
     @property
-    def indexesSegments(self) -> np.ndarray:
+    def segments(self) -> np.ndarray:
         return np.array([[0,1],[1,5],[5,4],[4,0],[3,2],[2,6],[6,7],[7,3],[0,3],[1,2],[5,6],[4,7]])
 
     def _Ntild(self) -> np.ndarray:
@@ -3748,15 +3749,15 @@ class PRISM6(GroupElem):
         return [0, 0, -1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,3,4,1,0,2,5,3,1,4,5,2,3,5,4,0,1,2]
     
     @property
-    def indexesSegments(self) -> np.ndarray:
+    def segments(self) -> np.ndarray:
         return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
 
     def _Ntild(self) -> np.ndarray:        
@@ -3832,11 +3833,11 @@ class PRISM15(GroupElem):
         return [0, 0, -1]
 
     @property
-    def indexesTriangles(self) -> list[int]:
-        return super().indexesTriangles
+    def triangles(self) -> list[int]:
+        return super().triangles
 
     @property
-    def indexesFaces(self) -> list[int]:
+    def faces(self) -> list[int]:
         return [0,8,3,12,4,10,1,6,
                 0,7,2,11,5,13,3,8,
                 1,10,4,14,5,11,2,9,
@@ -3844,7 +3845,7 @@ class PRISM15(GroupElem):
                 0,6,1,9,2,7]
     
     @property
-    def indexesSegments(self) -> np.ndarray:
+    def segments(self) -> np.ndarray:
         return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
 
     def _Ntild(self) -> np.ndarray:

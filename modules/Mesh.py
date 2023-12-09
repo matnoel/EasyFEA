@@ -190,14 +190,14 @@ class Mesh:
 
         for elemType, groupElem in self.dict_groupElem.items():
 
-            indexesFaces = groupElem.indexesFaces
+            faces = groupElem.faces
 
             if self.__groupElem.elemType == ElemType.PRISM6 and elemType == ElemType.TRI3:
-                indexesFaces.append(indexesFaces[0])
+                faces.append(faces[0])
             elif self.__groupElem.elemType == ElemType.PRISM15 and elemType == ElemType.TRI6:
-                indexesFaces.extend([indexesFaces[0]] * 2)
+                faces.extend([faces[0]] * 2)
 
-            dict_connect_faces[elemType] = groupElem.connect[:, indexesFaces]
+            dict_connect_faces[elemType] = groupElem.connect[:, faces]
 
         return dict_connect_faces
 
@@ -305,22 +305,24 @@ class Mesh:
         volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
         return np.sum(volumes)
 
-    def Get_meshSize_e(self) -> np.ndarray:
+    def Get_meshSize(self, doMean=True) -> np.ndarray:
         """Returns the mesh size for each element."""
         # recovery of the physical group and coordinates
         groupElem = self.groupElem
         coordo = groupElem.coordo
 
         # indexes to access segments of each element
-        indexesSegments = groupElem.indexesSegments
-        segments_e = groupElem.connect[:, indexesSegments]
+        segments = groupElem.segments
+        segments_e = groupElem.connect[:, segments]
 
         # Calculates the length of each segment (s) of the mesh elements (e).
         h_e_s = np.linalg.norm(coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2)
-        # average segment size per element
-        h_e = np.mean(h_e_s, axis=1)
 
-        return h_e
+        if doMean:
+            # average segment size per element        
+            return np.mean(h_e_s, axis=1)
+        else:
+            return h_e_s
 
     # Construction of elementary matrices
 
@@ -524,7 +526,7 @@ def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarr
 
     assert mesh.Ne == error_e.size, "error_e must be an array of dim Ne"
 
-    h_e = mesh.Get_meshSize_e()
+    h_e = mesh.Get_meshSize()
 
     meshSize_e = (coef - 1) / error_e.max() * error_e + 1
 
