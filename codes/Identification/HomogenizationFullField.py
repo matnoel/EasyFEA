@@ -142,7 +142,7 @@ for p in range(2):
 material_inclsuion = Materials.Elas_Isot(2, E=E, v=v, planeStress=True, thickness=b)
 CMandel = material_inclsuion.C
 
-material = Materials.Elas_Anisot(2, CMandel, np.array([1,0,0]), useVoigtNotation=False)
+material = Materials.Elas_Anisot(2, CMandel, False)
 testC = np.linalg.norm(material_inclsuion.C-material.C)/np.linalg.norm(material_inclsuion.C)
 assert testC < 1e-12, "the matrices are different"
 

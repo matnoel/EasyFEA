@@ -9,7 +9,7 @@ from TicTac import Tic
 from Mesh import Mesh, GroupElem
 import CalcNumba as CalcNumba
 import Display as Display
-from Geom import Line, Section
+from Geom import Line, Section, Point
 
 from scipy.linalg import sqrtm
 
@@ -82,7 +82,7 @@ class _Displacement_Model(IModel, ABC):
     """Class of elastic behavior laws
     (Elas_Isot, Elas_IsotTrans, Elas_Anisot ...)
     """
-    def __init__(self, dim: int, thickness: float):
+    def __init__(self, dim: int, thickness: float, planeStress: bool):
         
         self.__dim = dim
 
@@ -90,10 +90,8 @@ class _Displacement_Model(IModel, ABC):
             assert thickness > 0 , "Must be greater than 0"
             self.__thickness = thickness
 
-        if self.dim == 2:
-            self.__simplification = "Plane Stress" if self.planeStress else "Plane Strain"
-        else:
-            self.__simplification = "3D"
+        self.__planeStress = planeStress if dim == 2 else False
+        """2D simplification type"""
 
         self.Need_Update()
 
@@ -115,12 +113,21 @@ class _Displacement_Model(IModel, ABC):
     @property
     def planeStress(self) -> bool:
         """The model uses plane stress simplification"""
-        return False
+        return self.__planeStress
+    
+    @planeStress.setter
+    def planeStress(self, value: bool) -> None:
+        if isinstance(value, bool):
+            if self.__planeStress == value: self.Need_Update()
+            self.__planeStress = value
 
     @property
     def simplification(self) -> str:
         """Simplification used for the model"""
-        return self.__simplification
+        if self.__dim == 2:
+            return "Plane Stress" if self.planeStress else "Plane Strain"
+        else:
+            return "3D"
 
     @abstractmethod
     def _Update(self):
@@ -152,33 +159,77 @@ class _Displacement_Model(IModel, ABC):
         if isinstance(axis_2, list):
             axis_2 = np.array(axis_2)
 
-        assert axis_1.shape == (3,), "Must be a numpy array of shape (3,)"
-        assert axis_2.shape == (3,), "Must be a numpy array of shape (3,)"
+        shape1 = axis_1.shape
+        shape2 = axis_2.shape
 
-        axis_1 = axis_1/np.linalg.norm(axis_1)
-        axis_2 = axis_2/np.linalg.norm(axis_2)
+        assert len(shape1) <= 3, "Must be a numpy array of shape (3), (e,3) or (e,p,3)"
+        assert len(shape2) <= 3, "Must be a numpy array of shape (3), (e,3) or (e,p,3)"
 
-        # Detection of whether the 2 vectors are perpendicular        
-        if not np.isclose(axis_1.dot(axis_2), 0, 1e-12):
-            # If not, construct the other vector, taking the z axis normal to the plane
-            axis_3 = np.array([0,0,1])
-            axis_2 = np.cross(axis_3, axis_1, axis=0)
-            axis_2 = axis_2/np.linalg.norm(axis_2)
-            print("Create a new axis_2, because axis_1 and axis_2 are not perpendicular.")
+        assert axis_1.shape == axis_2.shape, "Must be the same size"
+
+        if len(shape1) == 1:
+            id=''
+        elif len(shape1) == 2:
+            id='e'
+            axis_1 = axis_1.transpose((1,0))
+            axis_2 = axis_2.transpose((1,0))
+        elif len(shape1) == 3:
+            id='ep'
+            axis_1 = axis_1.transpose((2,0,1))
+            axis_2 = axis_2.transpose((2,0,1))
+
+        axis_1 = np.einsum(f'i{id},{id}->i{id}', axis_1, np.linalg.norm(axis_1, axis=0), optimize='optimal')
+        axis_2 = np.einsum(f'i{id},{id}->i{id}', axis_2, np.linalg.norm(axis_2, axis=0), optimize='optimal')
+
+        # Detection of whether the 2 vectors are perpendicular
+
+        dotProd = np.einsum(f'{id}i,{id}i->{id}', axis_1, axis_2, optimize='optimal')
+
+        assert np.linalg.norm(dotProd) <= 1e-12, 'must give perpendicular axes'        
 
         axis_3 = np.cross(axis_1, axis_2, axis=0)
-        axis_3 = axis_3/np.linalg.norm(axis_3)
+        axis_3 = np.einsum(f'i{id},{id}->i{id}', axis_3, np.linalg.norm(axis_3, axis=0), optimize='optimal')
 
         # Construct the base shifting matrix x = [P] x'
-        # P goes from global base to material base
-        p = np.zeros((3,3))
-        p[:,0] = axis_1
-        p[:,1] = axis_2
-        p[:,2] = axis_3
+        # P goes from global base to material base        
 
-        p11 = p[0,0]; p12 = p[0,1]; p13 = p[0,2]
-        p21 = p[1,0]; p22 = p[1,1]; p23 = p[1,2]
-        p31 = p[2,0]; p32 = p[2,1]; p33 = p[2,2]
+        if len(shape1) == 1:
+            p = np.zeros((3,3))
+            p[:,0] = axis_1
+            p[:,1] = axis_2
+            p[:,2] = axis_3
+
+            p11 = p[0,0]; p12 = p[0,1]; p13 = p[0,2]
+            p21 = p[1,0]; p22 = p[1,1]; p23 = p[1,2]
+            p31 = p[2,0]; p32 = p[2,1]; p33 = p[2,2]
+            
+            D1 = p.transpose((1,0))**2
+
+        elif len(shape1) == 2:
+
+            p = np.zeros((3,3,shape1[0]))
+            p[:,0,:] = axis_1
+            p[:,1,:] = axis_2
+            p[:,2,:] = axis_3
+
+            p11 = p[0,0]; p12 = p[0,1]; p13 = p[0,2]
+            p21 = p[1,0]; p22 = p[1,1]; p23 = p[1,2]
+            p31 = p[2,0]; p32 = p[2,1]; p33 = p[2,2]
+
+            D1 = p.transpose((1,0,2))**2
+
+        elif len(shape1) == 3:
+
+            p = np.zeros((3,3,shape1[0],shape1[1]))
+            p[:,0,:,:] = axis_1
+            p[:,1,:,:] = axis_2
+            p[:,2,:,:] = axis_3
+
+            p11 = p[0,0]; p12 = p[0,1]; p13 = p[0,2]
+            p21 = p[1,0]; p22 = p[1,1]; p23 = p[1,2]
+            p31 = p[2,0]; p32 = p[2,1]; p33 = p[2,2]
+
+            D1 = p.transpose((1,0,2,3))**2
 
         A = np.array([[p21*p31, p11*p31, p11*p21],
                       [p22*p32, p12*p32, p12*p22],
@@ -188,7 +239,7 @@ class _Displacement_Model(IModel, ABC):
                       [p11*p13, p21*p23, p31*p33],
                       [p11*p12, p21*p22, p31*p32]])
 
-        D1 = p.T**2
+        
 
         D2 = np.array([[p22*p33 + p32*p23, p12*p33 + p32*p13, p12*p23 + p22*p13],
                        [p21*p33 + p31*p23, p11*p33 + p31*p13, p11*p23 + p21*p13],
@@ -196,7 +247,14 @@ class _Displacement_Model(IModel, ABC):
 
         coef = np.sqrt(2)
         M = np.concatenate( (np.concatenate((D1, coef*A), axis=1),
-                            np.concatenate((coef*B, D2), axis=1)), axis=0)        
+                            np.concatenate((coef*B, D2), axis=1)), axis=0)
+
+        if len(shape1) == 1:
+            M = M.transpose((0,1))
+        elif len(shape1) == 2:
+            M = M.transpose((2,0,1))
+        elif len(shape1) == 3:
+            M = M.transpose((2,3,0,1))
         
         return M
 
@@ -241,7 +299,8 @@ class _Displacement_Model(IModel, ABC):
 
     @abstractmethod
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
-        """Walpole's decomposition such as C = sum(ci * Ei) \n
+        """Walpole's decomposition such as C = sum(ci * Ei).\n
+        # Use Kelvin mandel notation ! \n
         return ci, Ei"""
         return np.array([]), np.array([])
 
@@ -302,22 +361,48 @@ class _Displacement_Model(IModel, ABC):
 
     @staticmethod
     def Apply_P(P: np.ndarray, Matrix: np.ndarray) -> np.ndarray:
+        
+        matDim = len(Matrix.shape)
 
-        shape = Matrix.shape
-        if len(shape) == 2:
-            matrice_P = np.einsum('ji,jk,kl->il',P, Matrix, P, optimize='optimal')
+        pDim = len(P.shape)
+        if pDim == 2:
+            id = ''
             axis1, axis2 = 0, 1
-        elif len(shape) == 3:
-            matrice_P = np.einsum('ji,ejk,kl->eil',P, Matrix, P, optimize='optimal')
+        elif pDim == 3:
+            id = 'e'
             axis1, axis2 = 1, 2
-        elif len(shape) == 4:
-            matrice_P = np.einsum('ji,epjk,kl->epil',P, Matrix, P, optimize='optimal')
+        elif pDim == 4:
+            id = 'ep'
             axis1, axis2 = 2, 3
+
+        if matDim == 2:
+            matrice_P = np.einsum(f'{id}ji,jk,{id}kl->{id}il',P, Matrix, P, optimize='optimal')
+            
+        elif matDim == 3:
+            assert pDim <= matDim, 'must give a P array of shape (e,6,6) or (6,6)'
+            if pDim == matDim:
+                assert P.shape[0] == Matrix.shape[0], 'First dimension of P and Matrix must be the same'
+            matrice_P = np.einsum(f'{id}ji,ejk,{id}kl->eil',P, Matrix, P, optimize='optimal')
+            
+        elif matDim == 4:
+            if pDim == 3:
+                assert P.shape[0] == Matrix.shape[0], 'First dimension of P and Matrix must be the same'
+            if pDim == 4:
+                assert P.shape[1] == Matrix.shape[1], 'Second dimension of P and Matrix must be the same'
+            matrice_P = np.einsum(f'{id}ji,epjk,{id}kl->epil',P, Matrix, P, optimize='optimal')
+            
         else:
             raise Exception("The matrix must be of dimension (ij) or (eij) or (epij)")
 
         # We verify that the tensor invariants do not change!
-        # if np.linalg.norm(P.T-P) <= 1e-12:
+        # first we need to reshape Matrix
+        if pDim == 3 and matDim == 2:
+            Matrix = Matrix[np.newaxis].repeat(P.shape[0], axis=0)
+        if pDim == 4 and matDim == 2:
+            Matrix = Matrix[np.newaxis].repeat(P.shape[1], axis=0)
+            Matrix = Matrix[np.newaxis].repeat(P.shape[0], axis=0)
+
+
         tr1 = np.trace(matrice_P, 0, axis1, axis2)
         tr2 = np.trace(Matrix, 0, axis1, axis2)
         diffTrace = np.linalg.norm(tr1-tr2)
@@ -365,19 +450,15 @@ class Elas_Isot(_Displacement_Model):
         self.E=E
         self.v=v
 
-        self.__planeStress = planeStress if dim == 2 else False
-        """2D simplification type"""
-
-        _Displacement_Model.__init__(self, dim, thickness)
+        _Displacement_Model.__init__(self, dim, thickness, planeStress)
 
         self._Update()
 
-    @property
-    def planeStress(self) -> bool:
-        return self.__planeStress
-
     def _Update(self):
-        C, S = self.__Behavior()
+        try:
+            C, S = self._Behavior(self.dim)
+        except ValueError:
+            raise Exception(str(_erroDim))
         self.C = C
         self.S = S
 
@@ -438,7 +519,7 @@ class Elas_Isot(_Displacement_Model):
 
         return bulk
 
-    def __Behavior(self):
+    def _Behavior(self, dim:int=None):
         """"Builds behavior matrices in kelvin mandel\n
         
         In 2D:
@@ -455,10 +536,13 @@ class Elas_Isot(_Displacement_Model):
 
         """
 
+        if dim == None:
+            dim = self.__dim
+        else:
+            assert dim in [2,3]
+
         E=self.E
         v=self.v
-
-        dim = self.__dim
 
         mu = self.get_mu()
         l = self.get_lambda()
@@ -510,8 +594,6 @@ class Elas_Isot(_Displacement_Model):
     
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
 
-        C = self.C
-
         c1 = self.get_bulk()
         c2 = self.get_mu()
 
@@ -522,11 +604,12 @@ class Elas_Isot(_Displacement_Model):
         E2 = Isym - E1
 
         if not self.isHeterogeneous:
+            C = self.C
             # only test if the material is heterogeneous
             test_C = np.linalg.norm((3*c1*E1  + 2*c2*E2) - C)/np.linalg.norm(C)
             assert test_C <= 1e-12
 
-        ci = np.array([c1, c2])
+        ci = np.array([3*c1, 2*c2])
         Ei = np.array([E1, E2])
 
         return ci, Ei
@@ -537,14 +620,14 @@ class Elas_IsotTrans(_Displacement_Model):
         text = f"{type(self).__name__}:"
         text += f"\nEl = {self.El:.2e}, Et = {self.Et:.2e}, Gl = {self.Gl:.2e}"
         text += f"\nvl = {self.vl}, vt = {self.vt}"
-        text += f"\naxis_l = {np.array_str(self.__axis1, precision=3)}"
-        text += f"\naxis_t = {np.array_str(self.__axis2, precision=3)}"
+        text += f"\naxis_l = {np.array_str(self.__axis_l, precision=3)}"
+        text += f"\naxis_t = {np.array_str(self.__axis_t, precision=3)}"
         if self.__dim == 2:
             text += f"\nplaneStress = {self.planeStress}"
             text += f"\nthickness = {self.thickness:.2e}"
         return text
 
-    def __init__(self, dim: int, El: float, Et: float, Gl: float, vl: float, vt: float, axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]), planeStress=True, thickness=1.0):
+    def __init__(self, dim: int, El: float, Et: float, Gl: float, vl: float, vt: float, axis_l=[1,0,0], axis_t=[0,1,0], planeStress=True, thickness=1.0):
         """Transverse isotropic elastic material. More details Torquato 2002 13.3.2 (iii) : http://link.springer.com/10.1007/978-1-4757-6355-3
 
         Parameters
@@ -570,7 +653,6 @@ class Elas_IsotTrans(_Displacement_Model):
         thickness : float, optional
             thickness, by default 1.0
         """
-        
 
         # Checking values
         assert dim in [2,3], "Must be dimension 2 or 3"
@@ -581,22 +663,19 @@ class Elas_IsotTrans(_Displacement_Model):
         self.Gl=Gl
         
         self.vl=vl        
-        self.vt=vt        
+        self.vt=vt
 
-        self.__planeStress = planeStress if dim == 2 else False
-        # 2D simplification type
+        axis_l = np.asarray(axis_l)
+        axis_t = np.asarray(axis_t)
+        assert axis_l.size == 3, 'axis_l must be a 3D vector'
+        assert axis_t.size == 3, 'axis_t must be a 3D vector'
+        assert axis_l @ axis_t <= 1e-12, 'axis1 and axis2 must be perpendicular'
+        self.__axis_l = axis_l
+        self.__axis_t = axis_t
 
-        # Creation of the base change matrix
-        self.__axis1 = axis_l
-        self.__axis2 = axis_t
-
-        _Displacement_Model.__init__(self, dim, thickness)
+        _Displacement_Model.__init__(self, dim, thickness, planeStress)
 
         self._Update()
-
-    @property
-    def planeStress(self) -> bool:
-        return self.__planeStress
 
     @property
     def Gt(self) -> Union[float,np.ndarray]:
@@ -684,31 +763,32 @@ class Elas_IsotTrans(_Displacement_Model):
     @property
     def axis_l(self) -> np.ndarray:
         """Longitudinal axis"""
-        return self.__axis1.copy()
+        return self.__axis_l.copy()
     
     @property
     def axis_t(self) -> np.ndarray:
-        """Transverse axis"""
-        return self.__axis1.copy()
+        """Transversal axis"""
+        return self.__axis_t.copy()
+    
+    @property
+    def _useSameAxis(self) -> bool:
+        testAxis_l = np.linalg.norm(self.axis_l-np.array([1,0,0])) <= 1e-12
+        testAxis_t = np.linalg.norm(self.axis_t-np.array([0,1,0])) <= 1e-12
+        if testAxis_l and testAxis_t:
+            return True
+        else:
+            return False
 
     def _Update(self) -> None:
-        axis_l, axis_t = self.__axis1, self.__axis2
-        P = self.get_P(axis_1=axis_l, axis_2=axis_t)
-
-        if np.linalg.norm(axis_l-np.array([1,0,0]))<1e-12 and np.linalg.norm(axis_t-np.array([0,1,0]))<1e-12:
-            useSameAxis=True
-        else:
-            useSameAxis=False
-        
+        C, S = self._Behavior(self.dim)
         try:
-            C, S = self.__Behavior(P, useSameAxis)
+            C, S = self._Behavior(self.dim)
         except ValueError:
             raise Exception(str(_erroDim))
-
         self.C = C
         self.S = S
 
-    def __Behavior(self, P, useSameAxis: bool):
+    def _Behavior(self, dim: int=None, P: np.ndarray=None):
         """"Constructs behavior matrices in kelvin mandel\n
         
         In 2D:
@@ -725,7 +805,13 @@ class Elas_IsotTrans(_Displacement_Model):
 
         """
 
-        dim = self.__dim
+        if dim == None:
+            dim = self.__dim
+        
+        if not isinstance(P, np.ndarray):
+            P = self.get_P(self.__axis_l, self.__axis_t)
+
+        useSameAxis = self._useSameAxis
 
         El = self.El
         Et = self.Et
@@ -808,8 +894,6 @@ class Elas_IsotTrans(_Displacement_Model):
 
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
 
-        C = self.C
-
         El = self.El
         Et = self.Et
         Gl = self.Gl
@@ -836,13 +920,15 @@ class Elas_IsotTrans(_Displacement_Model):
         E6 = I - E1 - E2 - E5
 
         if not self.isHeterogeneous:
+            P = self.get_P(self.axis_l, self.axis_t)
+            C, S = self._Behavior(3, P)
             # only test if the material is heterogeneous
             diff_C = C - (c1*E1 + c2*E2 + c3*(E3+E4) + c4*E5 + c5*E6)
             test_C = np.linalg.norm(diff_C)/np.linalg.norm(C)
             assert test_C <= 1e-12
 
         ci = np.array([c1, c2, c3, c4, c5])
-        Ei = np.array([E1, E2, E3, E4, E5])
+        Ei = np.array([E1, E2, E3+E4, E5, E6])
 
         return ci, Ei
 
@@ -858,7 +944,7 @@ class Elas_Anisot(_Displacement_Model):
             text += f"\nthickness = {self.thickness:.2e}"
         return text
 
-    def __init__(self, dim: int, C: np.ndarray, axis1=None, axis2=None, useVoigtNotation=True, planeStress=True, thickness=1.0):
+    def __init__(self, dim: int, C: np.ndarray, useVoigtNotation:bool, axis1: np.ndarray=(1,0,0), axis2: np.ndarray=(0,1,0), planeStress=True, thickness=1.0):
         """Anisotropic elastic material.
 
         Parameters
@@ -867,12 +953,12 @@ class Elas_Anisot(_Displacement_Model):
             dimension
         C : np.ndarray
             stiffness matrix in anisotropy basis
+        useVoigtNotation : bool
+            behavior law uses voigt notation
         axis1 : np.ndarray, optional
-            axis1 vector, by default None
-        axis2 : np.ndarray, optional
-            axis2 vector, by default None
-        useVoigtNotation : bool, optional
-            behavior law uses voigt notation, by default True
+            axis1 vector, by default (1,0,0)
+        axis2 : np.ndarray
+            axis2 vector, by default (0,1,0)
         planeStress : bool, optional
             2D simplification, by default True
         thickness: float, optional
@@ -888,31 +974,15 @@ class Elas_Anisot(_Displacement_Model):
         assert dim in [2,3], "Must be dimension 2 or 3"
         self.__dim = dim
 
-        self.__planeStress = planeStress if dim == 2 else False
-        """type de simplification 2D"""
-
-        if isinstance(axis1, np.ndarray):        
-            # Verification et construction des vecteurs
-            assert len(axis1) == 3, "Must provide a vector" 
-        else:
-            axis1 = np.array([1,0,0])
+        axis1 = np.asarray(axis1)
+        axis2 = np.asarray(axis2)
+        assert axis1.size == 3, 'axis1 must be a 3D vector'
+        assert axis2.size == 3, 'axis2 must be a 3D vector'
+        assert axis1 @ axis2 <= 1e-12, 'axis1 and axis2 must be perpendicular'
         self.__axis1 = axis1
-
-        def Calc_axis2():
-            axis3 = np.array([0,0,1])
-            axis2 = np.cross(axis3, axis1, axis=0)
-            axis2 = axis2/np.linalg.norm(axis2)
-            return axis2
-
-        if isinstance(axis2, np.ndarray):
-            assert axis2.size == 3, "Must provide a vector" 
-            if not np.isclose(axis1.dot(axis2), 0, 1e-12):
-                axis2 = Calc_axis2()
-        else:
-            axis2 = Calc_axis2()
         self.__axis2 = axis2
 
-        _Displacement_Model.__init__(self, dim, thickness)
+        _Displacement_Model.__init__(self, dim, thickness, planeStress)
 
         self.Set_C(C, useVoigtNotation)
 
@@ -932,30 +1002,24 @@ class Elas_Anisot(_Displacement_Model):
         update_S : bool, optional
             Updates the compliance matrix, by default True
         """
+
+        # Construction of the rotation matrix
+        P = self.get_P(self.__axis1, self.__axis2)
         
-        C_mandelP = self.__Behavior(C, useVoigtNotation)
+        C_mandelP = self._Behavior(C, useVoigtNotation, P)
         self.C = C_mandelP
         
         if update_S:
             S_mandelP = np.linalg.inv(C_mandelP)
             self.S = S_mandelP
     
-    def __Behavior(self, C: np.ndarray, useVoigtNotation: bool):
-
-        dim = self.__dim
+    def _Behavior(self, C: np.ndarray, useVoigtNotation: bool, P: np.ndarray=None) -> np.ndarray:
 
         shape = C.shape
-
-        # Verification on the matrix
-        if dim == 2:
-            assert (shape[-2], shape[-1]) == (3,3), "The matrix must be 3x3."
-        else:
-            assert (shape[-2], shape[-1]) == (6,6), "The matrix must be 6x6."
+        assert (shape[-2], shape[-1]) in [(3,3), (6,6)], 'C must be a (3,3) or (6,6) matrix'        
+        dim = 3 if C.shape[-1] == 6 else 2
         testSym = np.linalg.norm(C.T - C)/np.linalg.norm(C)
         assert testSym <= 1e-12, "The matrix is not symmetrical."
-
-        # Construction of the rotation matrix
-        P = self.get_P(axis_1=self.__axis1, axis_2=self.__axis2)
 
         # Application of coef if necessary
         if useVoigtNotation:
@@ -964,47 +1028,45 @@ class Elas_Anisot(_Displacement_Model):
             C_mandel = C.copy()
 
         # set to 3D
+        idx = np.array([0,1,5])
         if dim == 2:
-            listIndex = np.array([0,1,5])
-
             if len(shape)==2:
                 C_mandel_global = np.zeros((6,6))
-                for i, I in enumerate(listIndex):
-                    for j, J in enumerate(listIndex):
+                for i, I in enumerate(idx):
+                    for j, J in enumerate(idx):
                         C_mandel_global[I,J] = C_mandel[i,j]
             if len(shape)==3:
                 C_mandel_global = np.zeros((shape[0],6,6))
-                for i, I in enumerate(listIndex):
-                    for j, J in enumerate(listIndex):
+                for i, I in enumerate(idx):
+                    for j, J in enumerate(idx):
                         C_mandel_global[:,I,J] = C_mandel[:,i,j]
             elif len(shape)==4:
                 C_mandel_global = np.zeros((shape[0],shape[1],6,6))
-                for i, I in enumerate(listIndex):
-                    for j, J in enumerate(listIndex):
+                for i, I in enumerate(idx):
+                    for j, J in enumerate(idx):
                         C_mandel_global[:,:,I,J] = C_mandel[:,:,i,j]
         else:
             C_mandel_global = C
 
+        if not isinstance(P, np.ndarray):
+            P = self.get_P(self.__axis1, self.__axis2)
+        else:
+            assert P.shape[-2:] == (6,6), 'must be a 6x6 matrix'
+
         C_mandelP_global = self.Apply_P(P, C_mandel_global)
 
-        if dim == 2:
-            listIndex = np.array([0,1,5])
-
+        if self.__dim == 2:
             if len(shape)==2:
-                C_mandelP = C_mandelP_global[listIndex,:][:,listIndex]
+                C_mandelP = C_mandelP_global[idx,:][:,idx]
             if len(shape)==3:
-                C_mandelP = C_mandelP_global[:,listIndex,:][:,:,listIndex]
+                C_mandelP = C_mandelP_global[:,idx,:][:,:,idx]
             elif len(shape)==4:
-                C_mandelP = C_mandelP_global[:,:,listIndex,:][:,:,:,listIndex]
+                C_mandelP = C_mandelP_global[:,:,idx,:][:,:,:,idx]
             
         else:
             C_mandelP = C_mandelP_global
 
         return C_mandelP
-
-    @property
-    def planeStress(self) -> bool:
-        return self.__planeStress
     
     @property
     def axis1(self) -> np.ndarray:
@@ -1013,8 +1075,8 @@ class Elas_Anisot(_Displacement_Model):
     
     @property
     def axis2(self) -> np.ndarray:
-        """axis1 vector"""
-        return self.__axis1.copy()
+        """axis2 vector"""
+        return self.__axis2.copy()
     
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
         return super().Walpole_Decomposition()

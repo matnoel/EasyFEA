@@ -42,22 +42,24 @@ class Test_Materials(unittest.TestCase):
                                         [0, 0, 30]])
 
                 axis1_1 = np.array([1,0,0])
+                axis2_1 = np.array([0,1,0])
 
                 tetha = 30*np.pi/130
                 axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
+                axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
 
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, planeStress=True)
+                    Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1, planeStress=True)
                     )
 
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, planeStress=False)
+                    Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1, planeStress=False)
                 )
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, planeStress=True)
+                    Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2, planeStress=True)
                     )
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, planeStress=False)
+                    Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2, planeStress=False)
                     )
         
         # phasefieldModel
@@ -124,19 +126,23 @@ class Test_Materials(unittest.TestCase):
                                 [0, 0, 0, 0, 0, 600]])
 
         axis1_1 = np.array([1,0,0])
-
+        axis2_1 = np.array([0,1,0])
 
         tetha = 30*np.pi/130
         axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
+        axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
 
-        comportement2D_CP_1 = Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, planeStress=True)
-        comportement2D_DP_1 = Elas_Anisot(2, C_voigt2D, axis1=axis1_1, axis2=None, planeStress=False)
+        comportement2D_CP_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1, planeStress=True)
+        comportement2D_DP_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1, planeStress=False)
         
-        comportement2D_CP_2 = Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, planeStress=True)
-        comportement2D_DP_2 = Elas_Anisot(2, C_voigt2D, axis1=axis1_2, axis2=None, planeStress=False)
+        comportement2D_CP_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2, planeStress=True)
+        comportement2D_DP_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2, planeStress=False)
+
+        comportement2D_CP_3 = Elas_Anisot(2, C_voigt2D, True, planeStress=True)
+        comportement2D_DP_3 = Elas_Anisot(2, C_voigt2D, True, planeStress=False)
         
-        comportement3D_1 = Elas_Anisot(3, C_voigt3D, axis1=axis1_1, axis2=None)
-        comportement3D_2 = Elas_Anisot(3, C_voigt3D, axis1=axis1_2, axis2=None)
+        comportement3D_1 = Elas_Anisot(3, C_voigt3D, True, axis1_1, axis2_1)
+        comportement3D_2 = Elas_Anisot(3, C_voigt3D, True, axis1_2, axis2_2)
 
         listComp = [comportement2D_CP_1, comportement2D_DP_1, comportement2D_CP_2, comportement2D_DP_2, comportement3D_1, comportement3D_2]
 
@@ -194,7 +200,7 @@ class Test_Materials(unittest.TestCase):
         compElasIsotTrans3 = Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     planeStress=False,
-                    axis_l=np.array([0,0,1]), axis_t=np.array([1,0,0]))
+                    axis_l=[0,0,1], axis_t=[1,0,0])
 
         c3 = np.array([[kt+Gt, kt-Gt, 0],
                       [kt-Gt, kt+Gt, 0],

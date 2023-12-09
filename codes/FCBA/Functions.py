@@ -59,7 +59,7 @@ convOption -> convergence option for phasefield:
     (0, bourdin), (1, energie crack), (2, energie tot)
 """
 
-def Get_material(idxEssai: int, thickness: float) -> Materials.Elas_IsotTrans:
+def Get_material(idxEssai: int, thickness: float, dim=2) -> Materials.Elas_IsotTrans:
 
     El = dfParams["El"][idxEssai]
     Et = dfParams["Et"][idxEssai]
@@ -72,7 +72,7 @@ def Get_material(idxEssai: int, thickness: float) -> Materials.Elas_IsotTrans:
     axis_l = np.array([np.cos(rot), np.sin(rot), 0])
     axis_t = np.cross(np.array([0,0,1]), axis_l)
 
-    material = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axis_l, axis_t, True, thickness)
+    material = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt, axis_l, axis_t, True, thickness)
 
     return material
 

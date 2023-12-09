@@ -164,7 +164,8 @@ def DoSimu(split: str, regu: str):
                 axis1 = np.array([np.cos(theta_rad), np.sin(theta_rad), 0])
                 axis2 = np.array([-np.sin(theta_rad), np.cos(theta_rad), 0])
 
-                material = Materials.Elas_Anisot(dim, C=C_voigt, axis1=axis1,
+                material = Materials.Elas_Anisot(dim, C=C_voigt, useVoigtNotation=True,
+                                                 axis1=axis1, axis2=axis2,
                                                  planeStress=False, thickness=thickness)
                 Gc = 1e3 # J/m2
             else:
