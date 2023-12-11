@@ -4,7 +4,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
 from Geom import Point, Domain, Circle, PointsList, Geom
-from Mesh import Get_new_mesh
 import Materials
 import Simulations
 

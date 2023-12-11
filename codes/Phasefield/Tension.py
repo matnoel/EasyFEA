@@ -16,9 +16,9 @@ import multiprocessing
 useParallel = True
 nProcs = 4 # number of processes in parallel
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Configurations
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 dim = 2
 test = False
 solve = False
@@ -54,9 +54,9 @@ plotEnergy = False
 saveParaview = False; Nparaview=400
 makeMovie = False
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Mesh
-# ----------------------------------------------    
+# --------------------------------------------------------------------------------------------    
 L = 1e-3;  #m
 l0 = 8.5e-6 if materialType == "Elas_Anisot" else 1e-5
 thickness = 1 if dim == 2 else 0.1/1000
@@ -108,9 +108,9 @@ def DoMesh(materialType: str= "Elas_Isot") -> Mesh:
 
     return mesh
 
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 # Simu
-# ----------------------------------------------
+# --------------------------------------------------------------------------------------------
 
 def DoSimu(split: str, regu: str):
 
@@ -142,9 +142,9 @@ def DoSimu(split: str, regu: str):
         for nodes in [nodes_lower,nodes_right,nodes_upper]:
             nodes_edges.extend(nodes)
 
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         # Material
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         if materialType == "Elas_Isot":
             material = Materials.Elas_Isot(dim, E=210e9, v=0.3,
                                            planeStress=False, thickness=thickness)
@@ -173,9 +173,9 @@ def DoSimu(split: str, regu: str):
 
         pfm = Materials.PhaseField_Model(material, split, regu, Gc=Gc, l0=l0, solver=pfmSolver)
 
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         # Boundary conditions
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         if materialType == "Elas_Isot":
             # load < treshold
             uinc0 = 1e-7 if test else 1e-8
@@ -218,9 +218,9 @@ def DoSimu(split: str, regu: str):
                 simu.add_dirichlet(nodes_upper, [0,dep,0], ["x","y","z"])
             simu.add_dirichlet(nodes_lower, [0],["y"])
 
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         # Simulation
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
         simu.Results_Set_Bc_Summary(0.0,listInc, listThreshold, optionTreshold)
 
@@ -272,9 +272,9 @@ def DoSimu(split: str, regu: str):
                     # If the edge has been touched 10 times, stop the simulation
                     break
 
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         # Saving
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         print()
         PostProcessing.Save_Load_Displacement(loads, displacements, folder)
         simu.Save(folder)        
@@ -283,13 +283,13 @@ def DoSimu(split: str, regu: str):
         displacements = np.array(displacements)
 
     else:
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         # Loading
         # ---------------------------------------------
         simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder)
         loads, displacements = PostProcessing.Load_Load_Displacement(folder)
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # PostProcessing
     # ---------------------------------------------
     if plotResult:

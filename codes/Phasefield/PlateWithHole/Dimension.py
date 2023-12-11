@@ -8,130 +8,132 @@ import Folder
 
 import matplotlib.pyplot as plt
 
-Display.Clear()
+if __name__ == '__main__':
 
-# The aim of this script is to see the influence of changing the problem size.
-# It may be interesting to vary the size and position of the hole in the domain.
+    Display.Clear()
 
-# ----------------------------------------------
-# Configuration
-# ----------------------------------------------
-# material
-E=12e9
-v=0.2
-planeStress = True
+    # The aim of this script is to see the influence of changing the problem size.
+    # It may be interesting to vary the size and position of the hole in the domain.
 
-# phase field
-comp = "Elas_Isot"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
-regu = "AT1" # "AT1", "AT2"
-gc = 1.4
+    # --------------------------------------------------------------------------------------------
+    # Configuration
+    # --------------------------------------------------------------------------------------------
+    # material
+    E=12e9
+    v=0.2
+    planeStress = True
 
-# geom
-unit = 1e-3
-L=15*unit
-H=30*unit
-ep=1*unit
-diam=6*unit
-r=diam/2
-l0 = 0.12 *unit*1.5
+    # phase field
+    comp = "Elas_Isot"
+    split = "Miehe" # ["Bourdin","Amor","Miehe","Stress"]
+    regu = "AT1" # "AT1", "AT2"
+    gc = 1.4
 
-# loading
-SIG = 10 #Pa
+    # geom
+    unit = 1e-3
+    L=15*unit
+    H=30*unit
+    ep=1*unit
+    diam=6*unit
+    r=diam/2
+    l0 = 0.12 *unit*1.5
 
-# meshSize
-clD = l0*5 # domain
-clC = l0 # near crack
+    # loading
+    SIG = 10 #Pa
 
-list_SxxA = []
-list_SyyA = []
-list_SxyA = []
-list_SxxB = []
-list_SyyB = []
-list_SxyB = []
+    # meshSize
+    clD = l0*5 # domain
+    clC = l0 # near crack
 
-param1 = H
-param2 = L
-param3 = diam
-list_cc = np.linspace(1/2,5,30)
+    list_SxxA = []
+    list_SyyA = []
+    list_SxyA = []
+    list_SxxB = []
+    list_SyyB = []
+    list_SxyB = []
 
-for cc in list_cc:
+    param1 = H
+    param2 = L
+    param3 = diam
+    list_cc = np.linspace(1/2,5,30)
 
-    # H = param1 * cc
-    L = param2 * cc
-    # diam = param3 * cc
+    for cc in list_cc:
 
-    if diam > L or diam > H: continue
+        # H = param1 * cc
+        L = param2 * cc
+        # diam = param3 * cc
 
-    print(cc)
+        if diam > L or diam > H: continue
 
-    point = Point()
-    domain = Domain(point, Point(x=L, y=H), clD)
-    circle = Circle(Point(x=L/2, y=H-H/2), diam, clC)
+        print(cc)
 
-    interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False, verbosity=False)
-    mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD4")
+        point = Point()
+        domain = Domain(point, Point(x=L, y=H), clD)
+        circle = Circle(Point(x=L/2, y=H-H/2), diam, clC)
 
-    # Display.Plot_Mesh(mesh)
+        interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False, verbosity=False)
+        mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD4")
 
-    # Gets nodes
-    B_lower = Line(point,Point(x=L))
-    B_upper = Line(Point(y=H),Point(x=L, y=H))
-    nodes0 = mesh.Nodes_Line(B_lower)
-    nodesh = mesh.Nodes_Line(B_upper)
-    node00 = mesh.Nodes_Point(Point())   
+        # Display.Plot_Mesh(mesh)
 
-    # Nodes in A and B
-    nodeA = mesh.Nodes_Point(Point(x=L/2, y=H-H/2+diam/2))
-    nodeB = mesh.Nodes_Point(Point(x=L/2+diam/2, y=H-H/2))
+        # Gets nodes
+        B_lower = Line(point,Point(x=L))
+        B_upper = Line(Point(y=H),Point(x=L, y=H))
+        nodes0 = mesh.Nodes_Line(B_lower)
+        nodesh = mesh.Nodes_Line(B_upper)
+        node00 = mesh.Nodes_Point(Point())   
 
-    comportement = Materials.Elas_Isot(2, E=E, v=v, planeStress=True, thickness=ep)
-    phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0)
+        # Nodes in A and B
+        nodeA = mesh.Nodes_Point(Point(x=L/2, y=H-H/2+diam/2))
+        nodeB = mesh.Nodes_Point(Point(x=L/2+diam/2, y=H-H/2))
 
-    simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
+        comportement = Materials.Elas_Isot(2, E=E, v=v, planeStress=True, thickness=ep)
+        phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0)
 
-    simu.add_dirichlet(nodes0, [0], ["y"])
-    simu.add_dirichlet(node00, [0], ["x"])
-    simu.add_surfLoad(nodesh, [-SIG], ["y"])
+        simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
-    simu.Solve()
+        simu.add_dirichlet(nodes0, [0], ["y"])
+        simu.add_dirichlet(node00, [0], ["x"])
+        simu.add_surfLoad(nodesh, [-SIG], ["y"])
 
-    list_SxxA.append(simu.Result("Sxx", True)[nodeA])
-    list_SyyA.append(simu.Result("Syy", True)[nodeA])
-    list_SxyA.append(simu.Result("Sxy", True)[nodeA])
+        simu.Solve()
 
-    list_SxxB.append(simu.Result("Sxx", True)[nodeB])
-    list_SyyB.append(simu.Result("Syy", True)[nodeB])
-    list_SxyB.append(simu.Result("Sxy", True)[nodeB])
+        list_SxxA.append(simu.Result("Sxx", True)[nodeA])
+        list_SyyA.append(simu.Result("Syy", True)[nodeA])
+        list_SxyA.append(simu.Result("Sxy", True)[nodeA])
 
-# ----------------------------------------------
-# PosProcessing
-# ----------------------------------------------
-paramName=''
-if param1/H != 1: paramName += "H "
-if param2/L != 1: paramName += "L "
-if param3/diam != 1: paramName += "diam"
+        list_SxxB.append(simu.Result("Sxx", True)[nodeB])
+        list_SyyB.append(simu.Result("Syy", True)[nodeB])
+        list_SxyB.append(simu.Result("Sxy", True)[nodeB])
 
-Display.Plot_Mesh(mesh, title=f"mesh_{paramName}")
-Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", filename='Sxx')
-Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", filename='Syy')
-Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", filename='Sxy')
+    # --------------------------------------------------------------------------------------------
+    # PosProcessing
+    # --------------------------------------------------------------------------------------------
+    paramName=''
+    if param1/H != 1: paramName += "H "
+    if param2/L != 1: paramName += "L "
+    if param3/diam != 1: paramName += "diam"
 
-fig, ax = plt.subplots()
+    Display.Plot_Mesh(mesh, title=f"mesh_{paramName}")
+    Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx}/\sigma$", filename='Sxx')
+    Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", filename='Syy')
+    Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", filename='Sxy')
 
-list_cc = [list_cc[i] for i in range(len(list_SxxA))]
+    fig, ax = plt.subplots()
 
-ax.plot(list_cc, np.array(list_SxxA)/SIG,label='SxxA/SIG')
-ax.plot(list_cc, np.array(list_SxyA)/SIG,label='SxyA/SIG')
-ax.plot(list_cc, np.array(list_SyyA)/SIG,label='SyyA/SIG')
-ax.plot(list_cc, np.array(list_SxxB)/SIG,label='SxxB/SIG')
-ax.plot(list_cc, np.array(list_SxyB)/SIG,label='SxyB/SIG')
-ax.plot(list_cc, np.array(list_SyyB)/SIG,label='SyyB/SIG')
-ax.grid()
-plt.legend()
-ax.set_title(paramName)
-ax.set_xlabel('coef')
+    list_cc = [list_cc[i] for i in range(len(list_SxxA))]
 
-Tic.Resume()
+    ax.plot(list_cc, np.array(list_SxxA)/SIG,label='SxxA/SIG')
+    ax.plot(list_cc, np.array(list_SxyA)/SIG,label='SxyA/SIG')
+    ax.plot(list_cc, np.array(list_SyyA)/SIG,label='SyyA/SIG')
+    ax.plot(list_cc, np.array(list_SxxB)/SIG,label='SxxB/SIG')
+    ax.plot(list_cc, np.array(list_SxyB)/SIG,label='SxyB/SIG')
+    ax.plot(list_cc, np.array(list_SyyB)/SIG,label='SyyB/SIG')
+    ax.grid()
+    plt.legend()
+    ax.set_title(paramName)
+    ax.set_xlabel('coef')
 
-plt.show()
+    Tic.Resume()
+
+    plt.show()

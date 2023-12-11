@@ -6,111 +6,113 @@ from Geom import Point, Line, Circle, CircleArc, Contour
 import Folder
 np = Display.np
 
-Display.Clear()
+if __name__ == '__main__':
 
-# --------------------------------------------------------------------------------------------
-# Configuration
-# --------------------------------------------------------------------------------------------
-dim = 2
-isSymmetric = True
+    Display.Clear()
 
-folder = Folder.New_File(f"PressurizedTube{dim}D", results=True)
+    # --------------------------------------------------------------------------------------------
+    # Configuration
+    # --------------------------------------------------------------------------------------------
+    dim = 2
+    isSymmetric = True
 
-openCrack = True
+    folder = Folder.New_File(f"PressurizedTube{dim}D", results=True)
 
-r = 10
-e = 5
+    openCrack = True
 
-sig = 5 # bar
-sig *= 1e-1 # 1 bar = 0.1 MPa 
+    r = 10
+    e = 5
 
-meshSize = e/5
-thickness = 100
+    sig = 5 # bar
+    sig *= 1e-1 # 1 bar = 0.1 MPa 
 
-# --------------------------------------------------------------------------------------------
-# Mesh
-# --------------------------------------------------------------------------------------------
-center = Point()
-if isSymmetric:
-    p1 = Point(r,0)
-    p2 = Point(e+r,0)
-    p3 = Point(0,e+r)
-    p4 = Point(0,r)
+    meshSize = e/5
+    thickness = 100
 
-    line1 = Line(p1, p2, meshSize)
-    line2 = CircleArc(p2, p3, center, meshSize=meshSize)
-    line3 = Line(p3, p4, meshSize)
-    line4 = CircleArc(p4, p1, center, meshSize=meshSize)
+    # --------------------------------------------------------------------------------------------
+    # Mesh
+    # --------------------------------------------------------------------------------------------
+    center = Point()
+    if isSymmetric:
+        p1 = Point(r,0)
+        p2 = Point(e+r,0)
+        p3 = Point(0,e+r)
+        p4 = Point(0,r)
 
-    contour = Contour([line1, line2, line3, line4])
-    inclusions = []
-else:    
-    contour = Circle(center, (r+e)*2, meshSize)
-    inclusions = [Circle(center, 2*r, meshSize, isHollow=True)]
+        line1 = Line(p1, p2, meshSize)
+        line2 = CircleArc(p2, p3, center, meshSize=meshSize)
+        line3 = Line(p3, p4, meshSize)
+        line4 = CircleArc(p4, p1, center, meshSize=meshSize)
 
-extrude = [0,0,-thickness]
+        contour = Contour([line1, line2, line3, line4])
+        inclusions = []
+    else:    
+        contour = Circle(center, (r+e)*2, meshSize)
+        inclusions = [Circle(center, 2*r, meshSize, isHollow=True)]
 
-l = e/4
-p = r+e/2
-alpha = np.pi/3
-pc1 = Point((p-l/2)*np.cos(alpha), (p-l/2)*np.sin(alpha))
-pc2 = Point((p+l/2)*np.cos(alpha), (p+l/2)*np.sin(alpha))
-crack = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
+    extrude = [0,0,-thickness]
 
-if dim == 2:
-    mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType=ElemType.TRI6, cracks=[crack])
-else:
-    mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude, 10, ElemType.PRISM6, cracks=[crack])
+    l = e/4
+    p = r+e/2
+    alpha = np.pi/3
+    pc1 = Point((p-l/2)*np.cos(alpha), (p-l/2)*np.sin(alpha))
+    pc2 = Point((p+l/2)*np.cos(alpha), (p+l/2)*np.sin(alpha))
+    crack = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
 
-# --------------------------------------------------------------------------------------------
-# Simulation
-# --------------------------------------------------------------------------------------------
-material = Materials.Elas_Isot(dim, E=210000, v=0.3, planeStress=False, thickness=thickness)
-simu = Simulations.Simu_Displacement(mesh, material)
+    if dim == 2:
+        mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType=ElemType.TRI6, cracks=[crack])
+    else:
+        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude, 10, ElemType.PRISM6, cracks=[crack])
 
-if isSymmetric:
-    nodes_x0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
-    nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
-    simu.add_dirichlet(nodes_x0, [0], ['x'])
-    simu.add_dirichlet(nodes_y0, [0], ['y'])
+    # --------------------------------------------------------------------------------------------
+    # Simulation
+    # --------------------------------------------------------------------------------------------
+    material = Materials.Elas_Isot(dim, E=210000, v=0.3, planeStress=False, thickness=thickness)
+    simu = Simulations.Simu_Displacement(mesh, material)
 
-def Eval(x: np.ndarray, y: np.ndarray, z: np.ndarray):
-    """Evaluation of the sig vect_n function\n
-    x,y,z (ep)"""
+    if isSymmetric:
+        nodes_x0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+        nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
+        simu.add_dirichlet(nodes_x0, [0], ['x'])
+        simu.add_dirichlet(nodes_y0, [0], ['y'])
 
-    # Gauss point coordinates in form (Ne, nPg, 3)
-    coord = np.zeros((x.shape[0], x.shape[1], 3))
-    coord[:,:,0] = x
-    coord[:,:,1] = y
-    coord[:,:,2] = 0
+    def Eval(x: np.ndarray, y: np.ndarray, z: np.ndarray):
+        """Evaluation of the sig vect_n function\n
+        x,y,z (ep)"""
 
-    # Construction of the normal vector to the inner surface
-    vect = coord - center.coordo
-    vectN = np.einsum('npi,np->npi', vect, 1/np.linalg.norm(vect, axis=2))
-   
-    loads = sig * vectN
+        # Gauss point coordinates in form (Ne, nPg, 3)
+        coord = np.zeros((x.shape[0], x.shape[1], 3))
+        coord[:,:,0] = x
+        coord[:,:,1] = y
+        coord[:,:,2] = 0
 
-    return loads
+        # Construction of the normal vector to the inner surface
+        vect = coord - center.coordo
+        vectN = np.einsum('npi,np->npi', vect, 1/np.linalg.norm(vect, axis=2))
+    
+        loads = sig * vectN
 
-EvalX = lambda x,y,z: Eval(x,y,z)[:,:,0]
-EvalY = lambda x,y,z: Eval(x,y,z)[:,:,1]
-nodes_load = mesh.Nodes_Cylinder(Circle(center, r*2), extrude)
-simu.add_surfLoad(nodes_load, [EvalX, EvalY], ['x','y'])
+        return loads
 
-simu.Solve()
-simu.Save_Iter()
+    EvalX = lambda x,y,z: Eval(x,y,z)[:,:,0]
+    EvalY = lambda x,y,z: Eval(x,y,z)[:,:,1]
+    nodes_load = mesh.Nodes_Cylinder(Circle(center, r*2), extrude)
+    simu.add_surfLoad(nodes_load, [EvalX, EvalY], ['x','y'])
 
-# --------------------------------------------------------------------------------------------
-# PostProcessing
-# --------------------------------------------------------------------------------------------
-factorDef = r/5 / simu.Result('amplitude').max()
-# factorDef = 1
-Display.Plot_BoundaryConditions(simu)
-Display.Plot_Mesh(simu, deformFactor=factorDef)
-Display.Plot_Result(simu, 'ux', nColors=10, nodeValues=True)
-Display.Plot_Result(simu, 'uy', nColors=10, nodeValues=True)
-Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True)
+    simu.Solve()
+    simu.Save_Iter()
 
-print(simu)
+    # --------------------------------------------------------------------------------------------
+    # PostProcessing
+    # --------------------------------------------------------------------------------------------
+    factorDef = r/5 / simu.Result('amplitude').max()
+    # factorDef = 1
+    Display.Plot_BoundaryConditions(simu)
+    Display.Plot_Mesh(simu, deformFactor=factorDef)
+    Display.Plot_Result(simu, 'ux', nColors=10, nodeValues=True)
+    Display.Plot_Result(simu, 'uy', nColors=10, nodeValues=True)
+    Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True)
 
-Display.plt.show()
+    print(simu)
+
+    Display.plt.show()

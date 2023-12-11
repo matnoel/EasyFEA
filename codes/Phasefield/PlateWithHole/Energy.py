@@ -10,261 +10,263 @@ import PostProcessing as PostProcessing
 
 import matplotlib.pyplot as plt
 
-Display.Clear()
+if __name__ == '__main__':
 
-# ----------------------------------------------
-# Configuration
-# ----------------------------------------------
-plotAllResult = False
+    Display.Clear()
 
-# material
-E=12e9
-v=0.2
-planeStress = False
+    # --------------------------------------------------------------------------------------------
+    # Configuration
+    # --------------------------------------------------------------------------------------------
+    plotAllResult = False
 
-# phase field
-comp = "Elas_Isot" # "Elas_Isot" "Elas_IsotTrans"
-split = "Miehe" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
-regu = "AT2"
-gc = 1.4
+    # material
+    E=12e9
+    v=0.2
+    planeStress = False
 
-name="_".join([comp, split, regu])
+    # phase field
+    comp = "Elas_Isot" # "Elas_Isot" "Elas_IsotTrans"
+    split = "Miehe" # ["Bourdin","Amor","Miehe","Stress","AnisotMiehe","AnisotStress"]
+    regu = "AT2"
+    gc = 1.4
 
-# Geom
-L=15e-3
-h=30e-3
-ep=1e-3
-diam=6e-3
-r=diam/2
-l0 = 0.12e-3*2
+    name="_".join([comp, split, regu])
 
-# loading
-SIG = 10 #Pa
+    # Geom
+    L=15e-3
+    h=30e-3
+    ep=1e-3
+    diam=6e-3
+    r=diam/2
+    l0 = 0.12e-3*2
 
-# ----------------------------------------------
-# Mesh
-# ----------------------------------------------
-clC = l0/2
-clD = l0
+    # loading
+    SIG = 10 #Pa
 
-point = Point()
-domain = Domain(point, Point(x=L, y=h), clD)
-circle = Circle(Point(x=L/2, y=h/2), diam, clC)
+    # --------------------------------------------------------------------------------------------
+    # Mesh
+    # --------------------------------------------------------------------------------------------
+    clC = l0/2
+    clD = l0
 
-interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False)
-mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
+    point = Point()
+    domain = Domain(point, Point(x=L, y=h), clD)
+    circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
-# Nodes
-B_lower = Line(point,Point(x=L))
-B_upper = Line(Point(y=h),Point(x=L, y=h))
-nodesLower = mesh.Nodes_Line(B_lower)
-nodesUpper = mesh.Nodes_Line(B_upper)
-node00 = mesh.Nodes_Point(Point())
-nodesCircle = mesh.Nodes_Circle(circle)
-nodesCircle = nodesCircle[np.where(mesh.coordo[nodesCircle,1]<= circle.center.y)]
+    interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False)
+    mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
-# Nodes in A and B
-nodeA = mesh.Nodes_Point(Point(x=L/2, y=h/2+r))
-nodeB = mesh.Nodes_Point(Point(x=L/2+r, y=h/2))
+    # Nodes
+    B_lower = Line(point,Point(x=L))
+    B_upper = Line(Point(y=h),Point(x=L, y=h))
+    nodesLower = mesh.Nodes_Line(B_lower)
+    nodesUpper = mesh.Nodes_Line(B_upper)
+    node00 = mesh.Nodes_Point(Point())
+    nodesCircle = mesh.Nodes_Circle(circle)
+    nodesCircle = nodesCircle[np.where(mesh.coordo[nodesCircle,1]<= circle.center.y)]
 
-if plotAllResult:
-    ax = Display.Plot_Mesh(mesh)
-    for ns in [nodesLower, nodesUpper, node00, nodeA, nodeB]:
-        Display.Plot_Nodes(mesh, ax=ax, nodes=ns,c='red')
+    # Nodes in A and B
+    nodeA = mesh.Nodes_Point(Point(x=L/2, y=h/2+r))
+    nodeB = mesh.Nodes_Point(Point(x=L/2+r, y=h/2))
 
-# ----------------------------------------------
-# Simulation
-# ----------------------------------------------
-columns = ['v','A (ana CP)','B (ana CP)',
-            'A (CP)','errA (CP)','B (CP)','errB (CP)',
-            'A (DP)','errA (DP)','B (DP)','errB (DP)']
+    if plotAllResult:
+        ax = Display.Plot_Mesh(mesh)
+        for ns in [nodesLower, nodesUpper, node00, nodeA, nodeB]:
+            Display.Plot_Nodes(mesh, ax=ax, nodes=ns,c='red')
 
-df = pd.DataFrame(columns=columns)
+    # --------------------------------------------------------------------------------------------
+    # Simulation
+    # --------------------------------------------------------------------------------------------
+    columns = ['v','A (ana CP)','B (ana CP)',
+                'A (CP)','errA (CP)','B (CP)','errB (CP)',
+                'A (DP)','errA (DP)','B (DP)','errB (DP)']
 
-list_V = [0.2,0.3,0.4]
+    df = pd.DataFrame(columns=columns)
 
-Miehe_psiP_A = lambda v: 1**2*(v*(1-2*v)+1)/(2*(1+v))
-Miehe_psiP_B = lambda v: 3**2*v**2/(1+v)
+    list_V = [0.2,0.3,0.4]
 
-for v in list_V:
-    result = {
-        'v': v
-    }
-    for isCP in [False,True]:        
-        material = Materials.Elas_Isot(2, E=E, v=v, planeStress=isCP, thickness=ep)
-        phaseFieldModel = Materials.PhaseField_Model(material, split, regu, gc, l0)
+    Miehe_psiP_A = lambda v: 1**2*(v*(1-2*v)+1)/(2*(1+v))
+    Miehe_psiP_B = lambda v: 3**2*v**2/(1+v)
 
-        simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
+    for v in list_V:
+        result = {
+            'v': v
+        }
+        for isCP in [False,True]:        
+            material = Materials.Elas_Isot(2, E=E, v=v, planeStress=isCP, thickness=ep)
+            phaseFieldModel = Materials.PhaseField_Model(material, split, regu, gc, l0)
 
-        simu.add_dirichlet(nodesLower, [0], ["y"])
-        simu.add_dirichlet(node00, [0], ["x"])
-        simu.add_surfLoad(nodesUpper, [-SIG], ["y"])            
+            simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
 
-        simu.Solve()
+            simu.add_dirichlet(nodesLower, [0], ["y"])
+            simu.add_dirichlet(node00, [0], ["x"])
+            simu.add_surfLoad(nodesUpper, [-SIG], ["y"])            
 
-        psipa = np.mean(simu.Result("psiP", True)[nodeA])*E/SIG**2
-        psipb = np.mean(simu.Result("psiP", True)[nodeB])*E/SIG**2
+            simu.Solve()
 
-        ext = "CP" if isCP else "DP"
+            psipa = np.mean(simu.Result("psiP", True)[nodeA])*E/SIG**2
+            psipb = np.mean(simu.Result("psiP", True)[nodeB])*E/SIG**2
 
-        result[f'A ({ext})'] = psipa
-        result[f'B ({ext})'] = psipb
+            ext = "CP" if isCP else "DP"
 
-        result[f'errA ({ext})'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
-        result[f'errB ({ext})'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
+            result[f'A ({ext})'] = psipa
+            result[f'B ({ext})'] = psipb
 
-        Display.Plot_Result(simu, "psiP", nodeValues=True, coef=E/SIG**2, title=fr"$\psi_{0}^+\ E / \sigma^2 \ \nu={v} \ {ext}$", filename=f"psiP {name} v={v}", colorbarIsClose=True)    
+            result[f'errA ({ext})'] = np.abs(psipa-Miehe_psiP_A(v))/Miehe_psiP_A(v)
+            result[f'errB ({ext})'] = np.abs(psipb-Miehe_psiP_B(v))/Miehe_psiP_B(v)
 
-    result['A (ana CP)'] = Miehe_psiP_A(v)
-    result['B (ana CP)'] = Miehe_psiP_B(v)
-    
-    new = pd.DataFrame(result, index=[0])
+            Display.Plot_Result(simu, "psiP", nodeValues=True, coef=E/SIG**2, title=fr"$\psi_{0}^+\ E / \sigma^2 \ \nu={v} \ {ext}$", filename=f"psiP {name} v={v}", colorbarIsClose=True)    
 
-    df = pd.concat([df, new], ignore_index=True)
+        result['A (ana CP)'] = Miehe_psiP_A(v)
+        result['B (ana CP)'] = Miehe_psiP_B(v)
+        
+        new = pd.DataFrame(result, index=[0])
 
-# ----------------------------------------------
-# PosProcessing
-# ----------------------------------------------
-print(name+'\n')
-print(df)
+        df = pd.concat([df, new], ignore_index=True)
 
-SxxA = simu.Result("Sxx", True)[nodeA][0]
-SyyA = simu.Result("Syy", True)[nodeA][0]
-SxyA = simu.Result("Sxy", True)[nodeA][0]
+    # --------------------------------------------------------------------------------------------
+    # PosProcessing
+    # --------------------------------------------------------------------------------------------
+    print(name+'\n')
+    print(df)
 
-Sig_A=np.array([[SxxA, SxyA, 0],[SxyA, SyyA, 0],[0,0,0]])
-print(f"\nEn A : Sig/SIG = \n{Sig_A/SIG}\n")
+    SxxA = simu.Result("Sxx", True)[nodeA][0]
+    SyyA = simu.Result("Syy", True)[nodeA][0]
+    SxyA = simu.Result("Sxy", True)[nodeA][0]
 
-SxxB = simu.Result("Sxx", True)[nodeB][0]
-SyyB = simu.Result("Syy", True)[nodeB][0]
-SxyB = simu.Result("Sxy", True)[nodeB][0]
+    Sig_A=np.array([[SxxA, SxyA, 0],[SxyA, SyyA, 0],[0,0,0]])
+    print(f"\nEn A : Sig/SIG = \n{Sig_A/SIG}\n")
 
-Sig_B=np.array([[SxxB, SxyB, 0],[SxyB, SyyB, 0],[0,0,0]])
-print(f"\nEn B : Sig/SIG = \n{Sig_B/SIG}\n")
+    SxxB = simu.Result("Sxx", True)[nodeB][0]
+    SyyB = simu.Result("Syy", True)[nodeB][0]
+    SxyB = simu.Result("Sxy", True)[nodeB][0]
 
-if plotAllResult:
-    Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx} / \sigma$", filename='Sxx', colorbarIsClose=True)
-    Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$", filename='Syy', colorbarIsClose=True)
-    Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$", filename='Sxy', colorbarIsClose=True)
+    Sig_B=np.array([[SxxB, SxyB, 0],[SxyB, SyyB, 0],[0,0,0]])
+    print(f"\nEn B : Sig/SIG = \n{Sig_B/SIG}\n")
 
-fig, axp = plt.subplots()
+    if plotAllResult:
+        Display.Plot_Result(simu, "Sxx", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xx} / \sigma$", filename='Sxx', colorbarIsClose=True)
+        Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$", filename='Syy', colorbarIsClose=True)
+        Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$", filename='Sxy', colorbarIsClose=True)
 
-list_v = np.arange(0, 0.5,0.0005)
+    fig, axp = plt.subplots()
 
-# test = (vv*(1-2*vv)+1)/(2*(1+vv))
+    list_v = np.arange(0, 0.5,0.0005)
 
-# axp.plot(list_v, (list_v*(1-2*list_v)+1)/(2*(1+list_v)), label="psiP_A*E/Sig^2")
-axp.plot(list_v, Miehe_psiP_A(list_v), label='A')
-axp.plot(list_v, Miehe_psiP_B(list_v), label='B')
-axp.grid()
-axp.legend(fontsize=14)
-axp.set_xlabel("$\nu$",fontsize=14)
-axp.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-axp.set_title(r'Split sur $\varepsilon$ an',fontsize=14)
+    # test = (vv*(1-2*vv)+1)/(2*(1+vv))
 
-list_Amor_psiP_A=[]
-list_Amor_psiP_B=[]
+    # axp.plot(list_v, (list_v*(1-2*list_v)+1)/(2*(1+list_v)), label="psiP_A*E/Sig^2")
+    axp.plot(list_v, Miehe_psiP_A(list_v), label='A')
+    axp.plot(list_v, Miehe_psiP_B(list_v), label='B')
+    axp.grid()
+    axp.legend(fontsize=14)
+    axp.set_xlabel("$\nu$",fontsize=14)
+    axp.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
+    axp.set_title(r'Split sur $\varepsilon$ an',fontsize=14)
 
-list_Miehe_psiP_A=[]
-list_Miehe_psiP_B=[]
+    list_Amor_psiP_A=[]
+    list_Amor_psiP_B=[]
 
-list_Stress_psiP_A=[]
-list_Stress_psiP_B=[]
+    list_Miehe_psiP_A=[]
+    list_Miehe_psiP_B=[]
 
-# calc num part
-for v in list_v:
-    
-    Eps_A = (1+v)/E*Sig_A - v/E*np.trace(Sig_A)*np.eye(3); trEps_A = np.trace(Eps_A); trEpsP_A = (trEps_A+np.abs(trEps_A))/2
-    Eps_B = (1+v)/E*Sig_B - v/E*np.trace(Sig_B)*np.eye(3); trEps_B = np.trace(Eps_B); trEpsP_B = (trEps_B+np.abs(trEps_B))/2
+    list_Stress_psiP_A=[]
+    list_Stress_psiP_B=[]
 
-    # Eps_A = (1+v)/E*Sig_A - v/E*np.trace(Sig_A)*np.eye(3); trEps_A = np.trace(Eps_A); trEpsP_A = (trEps_A+np.abs(trEps_A))/2
-    # Eps_B = (1+v)/E*Sig_B - v/E*np.trace(Sig_B)*np.eye(3); trEps_B = np.trace(Eps_B); trEpsP_B = (trEps_B+np.abs(trEps_B))/2
+    # calc num part
+    for v in list_v:
+        
+        Eps_A = (1+v)/E*Sig_A - v/E*np.trace(Sig_A)*np.eye(3); trEps_A = np.trace(Eps_A); trEpsP_A = (trEps_A+np.abs(trEps_A))/2
+        Eps_B = (1+v)/E*Sig_B - v/E*np.trace(Sig_B)*np.eye(3); trEps_B = np.trace(Eps_B); trEpsP_B = (trEps_B+np.abs(trEps_B))/2
 
-    l = v*E/((1+v)*(1-2*v))
-    # l = v*E/(1-v**2)
-    mu=E/(2*(1+v))
+        # Eps_A = (1+v)/E*Sig_A - v/E*np.trace(Sig_A)*np.eye(3); trEps_A = np.trace(Eps_A); trEpsP_A = (trEps_A+np.abs(trEps_A))/2
+        # Eps_B = (1+v)/E*Sig_B - v/E*np.trace(Sig_B)*np.eye(3); trEps_B = np.trace(Eps_B); trEpsP_B = (trEps_B+np.abs(trEps_B))/2
 
-    # Split Amor
-    bulk = l + 2/3*mu
+        l = v*E/((1+v)*(1-2*v))
+        # l = v*E/(1-v**2)
+        mu=E/(2*(1+v))
 
-    spherA = 1/3*trEps_A*np.eye(3)
-    spherB = 1/3*trEps_B*np.eye(3)
+        # Split Amor
+        bulk = l + 2/3*mu
 
-    EpsD_A = Eps_A-spherA
-    EpsD_B = Eps_B-spherB
+        spherA = 1/3*trEps_A*np.eye(3)
+        spherB = 1/3*trEps_B*np.eye(3)
 
-    Amor_psi_A = 1/2*bulk*trEpsP_A**2 + mu * np.einsum('ij,ij', EpsD_A, EpsD_A)
-    Amor_psi_B = 1/2*bulk*trEpsP_B**2 + mu * np.einsum('ij,ij', EpsD_B, EpsD_B)
+        EpsD_A = Eps_A-spherA
+        EpsD_B = Eps_B-spherB
 
-    list_Amor_psiP_A.append(Amor_psi_A)
-    list_Amor_psiP_B.append(Amor_psi_B)
+        Amor_psi_A = 1/2*bulk*trEpsP_A**2 + mu * np.einsum('ij,ij', EpsD_A, EpsD_A)
+        Amor_psi_B = 1/2*bulk*trEpsP_B**2 + mu * np.einsum('ij,ij', EpsD_B, EpsD_B)
 
-    # Split Miehe
-    Epsi_A = np.diag(np.linalg.eigvals(Eps_A)); Epsip_A = (Epsi_A+np.abs(Epsi_A))/2
-    Epsi_B = np.diag(np.linalg.eigvals(Eps_B)); Epsip_B = (Epsi_B+np.abs(Epsi_B))/2
+        list_Amor_psiP_A.append(Amor_psi_A)
+        list_Amor_psiP_B.append(Amor_psi_B)
 
-    Miehe_psiP_A = l/2*trEpsP_A**2 + mu*np.einsum('ij,ij',Epsip_A,Epsip_A)
-    Miehe_psiP_B = l/2*trEpsP_B**2 + mu*np.einsum('ij,ij',Epsip_B,Epsip_B)
+        # Split Miehe
+        Epsi_A = np.diag(np.linalg.eigvals(Eps_A)); Epsip_A = (Epsi_A+np.abs(Epsi_A))/2
+        Epsi_B = np.diag(np.linalg.eigvals(Eps_B)); Epsip_B = (Epsi_B+np.abs(Epsi_B))/2
 
-    list_Miehe_psiP_A.append(Miehe_psiP_A)
-    list_Miehe_psiP_B.append(Miehe_psiP_B)
+        Miehe_psiP_A = l/2*trEpsP_A**2 + mu*np.einsum('ij,ij',Epsip_A,Epsip_A)
+        Miehe_psiP_B = l/2*trEpsP_B**2 + mu*np.einsum('ij,ij',Epsip_B,Epsip_B)
 
-    # Split Stress
-    Sigi_A = np.diag(np.linalg.eigvals(Sig_A)); Sigip_A = (Sigi_A+np.abs(Sigi_A))/2
-    Sigi_B = np.diag(np.linalg.eigvals(Sig_B)); Sigip_B = (Sigi_B+np.abs(Sigi_B))/2
-    
-    trSig_A = np.trace(Sig_A); trSigP_A = (trSig_A+np.abs(trSig_A))/2
-    trSig_B = np.trace(Sig_B); trSigP_B = (trSig_B+np.abs(trSig_B))/2
+        list_Miehe_psiP_A.append(Miehe_psiP_A)
+        list_Miehe_psiP_B.append(Miehe_psiP_B)
 
-    Stress_psiP_A = ((1+v)/E*np.einsum('ij,ij',Sigip_A,Sigip_A) - v/E * trSigP_A**2)/2
-    Miehe_psiP_B = ((1+v)/E*np.einsum('ij,ij',Sigip_B,Sigip_B) - v/E * trSigP_B**2)/2
+        # Split Stress
+        Sigi_A = np.diag(np.linalg.eigvals(Sig_A)); Sigip_A = (Sigi_A+np.abs(Sigi_A))/2
+        Sigi_B = np.diag(np.linalg.eigvals(Sig_B)); Sigip_B = (Sigi_B+np.abs(Sigi_B))/2
+        
+        trSig_A = np.trace(Sig_A); trSigP_A = (trSig_A+np.abs(trSig_A))/2
+        trSig_B = np.trace(Sig_B); trSigP_B = (trSig_B+np.abs(trSig_B))/2
 
-    list_Stress_psiP_A.append(Stress_psiP_A)
-    list_Stress_psiP_B.append(Miehe_psiP_B)
+        Stress_psiP_A = ((1+v)/E*np.einsum('ij,ij',Sigip_A,Sigip_A) - v/E * trSigP_A**2)/2
+        Miehe_psiP_B = ((1+v)/E*np.einsum('ij,ij',Sigip_B,Sigip_B) - v/E * trSigP_B**2)/2
 
-fig, ax1 = plt.subplots()
+        list_Stress_psiP_A.append(Stress_psiP_A)
+        list_Stress_psiP_B.append(Miehe_psiP_B)
 
-ax1.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label='A')
-ax1.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label='B')
-ax1.grid()
-if split == "Miehe":
-    ax1.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
-    ax1.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
-ax1.legend(fontsize=14)
-ax1.set_xlabel(r"$\nu$",fontsize=14)
-ax1.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-ax1.set_title(r'Split sur $\varepsilon$ num',fontsize=14)
+    fig, ax1 = plt.subplots()
 
-fig, ax2 = plt.subplots()
+    ax1.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label='A')
+    ax1.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label='B')
+    ax1.grid()
+    if split == "Miehe":
+        ax1.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
+        ax1.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
+    ax1.legend(fontsize=14)
+    ax1.set_xlabel(r"$\nu$",fontsize=14)
+    ax1.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
+    ax1.set_title(r'Split sur $\varepsilon$ num',fontsize=14)
 
-stressA = lambda v: 1/E*(SxxA**2+SyyA**2-2*SxxA*SyyA*v)
+    fig, ax2 = plt.subplots()
 
-ax2.plot(list_v, np.array(list_Stress_psiP_A)*E/SIG**2, label='A')
-ax2.plot(list_v, np.array(list_Stress_psiP_B)*E/SIG**2, label='B')
-# ax2.plot(list_v, np.ones(list_v.shape), label='A')
-# ax2.plot(list_v, stressA(list_v)*E/SIG**2, label='AA')
-ax2.grid()
-if split == "Stress":    
-    ax2.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
-    ax2.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
-ax2.legend(fontsize=14)
-ax2.set_xlabel(r"$\nu$",fontsize=14)
-ax2.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-ax2.set_title('Split sur $\sigma$ num',fontsize=14)
+    stressA = lambda v: 1/E*(SxxA**2+SyyA**2-2*SxxA*SyyA*v)
 
-fig, ax3 = plt.subplots()
+    ax2.plot(list_v, np.array(list_Stress_psiP_A)*E/SIG**2, label='A')
+    ax2.plot(list_v, np.array(list_Stress_psiP_B)*E/SIG**2, label='B')
+    # ax2.plot(list_v, np.ones(list_v.shape), label='A')
+    # ax2.plot(list_v, stressA(list_v)*E/SIG**2, label='AA')
+    ax2.grid()
+    if split == "Stress":    
+        ax2.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
+        ax2.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
+    ax2.legend(fontsize=14)
+    ax2.set_xlabel(r"$\nu$",fontsize=14)
+    ax2.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
+    ax2.set_title('Split sur $\sigma$ num',fontsize=14)
 
-ax3.plot(list_v, np.array(list_Amor_psiP_A)*E/SIG**2, label='A')
-ax3.plot(list_v, np.array(list_Amor_psiP_B)*E/SIG**2, label='B')
-ax3.grid()
-if split == "Amor":    
-    ax3.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
-    ax3.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
-ax3.legend(fontsize=14)
-ax3.set_xlabel(r"$\nu$",fontsize=14)
-ax3.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
-ax3.set_title('Split Amor num',fontsize=14)
+    fig, ax3 = plt.subplots()
 
-Tic.Resume()
+    ax3.plot(list_v, np.array(list_Amor_psiP_A)*E/SIG**2, label='A')
+    ax3.plot(list_v, np.array(list_Amor_psiP_B)*E/SIG**2, label='B')
+    ax3.grid()
+    if split == "Amor":    
+        ax3.scatter(list_V, np.array(df['A (CP)'].tolist()),label='num A')
+        ax3.scatter(list_V, np.array(df['B (CP)'].tolist()),label='num B')
+    ax3.legend(fontsize=14)
+    ax3.set_xlabel(r"$\nu$",fontsize=14)
+    ax3.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
+    ax3.set_title('Split Amor num',fontsize=14)
 
-plt.show()
+    Tic.Resume()
+
+    plt.show()

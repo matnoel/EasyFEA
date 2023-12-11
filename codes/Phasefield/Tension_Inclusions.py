@@ -7,121 +7,123 @@ import Simulations
 import numpy as np
 import matplotlib.pyplot as plt
 
-Display.Clear()
+if __name__ == '__main__':
 
-# ----------------------------------------------
-# Configuration
-# ----------------------------------------------
-L = 1 # mm
-h = 0.2*2
+    Display.Clear()
 
-# nL = 150
-nL = 100
-clC = L/nL # taille de maille
-l0 = 2 * clC
+    # --------------------------------------------------------------------------------------------
+    # Configuration
+    # --------------------------------------------------------------------------------------------
+    L = 1 # mm
+    h = 0.2*2
 
-# ----------------------------------------------
-# Mesh
-# ----------------------------------------------
-domain = Domain(Point(-1/2,-1/2), Point(1/2, 1/2), clC)
-inclusion = Circle(Point(), h, clC, isHollow=False)
+    # nL = 150
+    nL = 100
+    clC = L/nL # taille de maille
+    l0 = 2 * clC
 
-mesh = Interface_Gmsh().Mesh_2D(domain, [inclusion], ElemType.TRI3)
+    # --------------------------------------------------------------------------------------------
+    # Mesh
+    # --------------------------------------------------------------------------------------------
+    domain = Domain(Point(-1/2,-1/2), Point(1/2, 1/2), clC)
+    inclusion = Circle(Point(), h, clC, isHollow=False)
 
-nodesLeftRight = mesh.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2))
-nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==-L/2)
-nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: y==L/2)
+    mesh = Interface_Gmsh().Mesh_2D(domain, [inclusion], ElemType.TRI3)
 
-nodes_inclu = mesh.Nodes_Circle(inclusion)
-elem_inclu = mesh.Elements_Nodes(nodes_inclu)
-elem_matrice = np.array(set(np.arange(mesh.Ne)) - set(elem_inclu))
+    nodesLeftRight = mesh.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2))
+    nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==-L/2)
+    nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: y==L/2)
 
-# ----------------------------------------------
-# Material
-# ----------------------------------------------
-E_mat = 52 # MPa
-E_inclu = 10000
-v = 0.3
+    nodes_inclu = mesh.Nodes_Circle(inclusion)
+    elem_inclu = mesh.Elements_Nodes(nodes_inclu)
+    elem_matrice = np.array(set(np.arange(mesh.Ne)) - set(elem_inclu))
 
-sig_inclu = 10000 # MPa
-sig_mat = 0.03
+    # --------------------------------------------------------------------------------------------
+    # Material
+    # --------------------------------------------------------------------------------------------
+    E_mat = 52 # MPa
+    E_inclu = 10000
+    v = 0.3
 
-Gc_mat = l0 * sig_mat **2 / E_mat # mJ/mm^2
-Gc_inclu = l0 * sig_inclu **2 / E_inclu
+    sig_inclu = 10000 # MPa
+    sig_mat = 0.03
 
-E = np.ones(mesh.Ne) * E_mat
-v = np.ones_like(E) * v
-Gc = np.ones_like(E) * Gc_mat
+    Gc_mat = l0 * sig_mat **2 / E_mat # mJ/mm^2
+    Gc_inclu = l0 * sig_inclu **2 / E_inclu
 
-if elem_inclu.size > 0:    
-    E[elem_inclu] = E_inclu
-    Gc[elem_inclu] = Gc_inclu
+    E = np.ones(mesh.Ne) * E_mat
+    v = np.ones_like(E) * v
+    Gc = np.ones_like(E) * Gc_mat
 
-Display.Plot_Result(mesh, E, nodeValues=False, title='$E$')
-Display.Plot_Result(mesh, Gc, nodeValues=False, title='$G_c$')
+    if elem_inclu.size > 0:    
+        E[elem_inclu] = E_inclu
+        Gc[elem_inclu] = Gc_inclu
 
-comp = Materials.Elas_Isot(2, E, v, False, 1)
+    Display.Plot_Result(mesh, E, nodeValues=False, title='$E$')
+    Display.Plot_Result(mesh, Gc, nodeValues=False, title='$G_c$')
 
-pfm = Materials.PhaseField_Model(comp, "AnisotStress", "AT2", Gc, l0)
+    comp = Materials.Elas_Isot(2, E, v, False, 1)
 
-# ----------------------------------------------
-# Simulation
-# ----------------------------------------------
-simu = Simulations.Simu_PhaseField(mesh, pfm)
+    pfm = Materials.PhaseField_Model(comp, "AnisotStress", "AT2", Gc, l0)
 
-dofsY_Upper = simu.Bc_dofs_nodes(nodesUpper, ["y"])
+    # --------------------------------------------------------------------------------------------
+    # Simulation
+    # --------------------------------------------------------------------------------------------
+    simu = Simulations.Simu_PhaseField(mesh, pfm)
 
-N = 300
-displacements = np.linspace(0, 5e-4, N)
+    dofsY_Upper = simu.Bc_dofs_nodes(nodesUpper, ["y"])
 
-axLoad = plt.subplots()[1]
-axLoad.set_xlabel('u [mm]'); axLoad.set_ylabel('f [N/mm]')
-__, axDamage, cb = Display.Plot_Result(simu, 'damage')
+    N = 300
+    displacements = np.linspace(0, 5e-4, N)
 
-forces = []
+    axLoad = plt.subplots()[1]
+    axLoad.set_xlabel('u [mm]'); axLoad.set_ylabel('f [N/mm]')
+    __, axDamage, cb = Display.Plot_Result(simu, 'damage')
 
-nDetect=0 # number of times an edge has been damaged
+    forces = []
 
-for i, ud in enumerate(displacements):
+    nDetect=0 # number of times an edge has been damaged
 
-    # Boundary conditions
-    simu.Bc_Init()
-    simu.add_dirichlet(nodesLower, [0,0], ['x','y'])
-    simu.add_dirichlet(nodesLeftRight, [0], ['x'])
-    simu.add_dirichlet(nodesUpper, [ud], ['y'])
+    for i, ud in enumerate(displacements):
 
-    # solve and save
-    u, d, Kglob, convergence  = simu.Solve(1e-2)
-    simu.Save_Iter()
+        # Boundary conditions
+        simu.Bc_Init()
+        simu.add_dirichlet(nodesLower, [0,0], ['x','y'])
+        simu.add_dirichlet(nodesLeftRight, [0], ['x'])
+        simu.add_dirichlet(nodesUpper, [ud], ['y'])
 
-    # print iteration
-    simu.Results_Set_Iteration_Summary(i, 0, '', i/N, True)
+        # solve and save
+        u, d, Kglob, convergence  = simu.Solve(1e-2)
+        simu.Save_Iter()
 
-    # load on the upper edge
-    fr = np.sum(Kglob[dofsY_Upper,:]@u)/1000
-    forces.append(fr)
+        # print iteration
+        simu.Results_Set_Iteration_Summary(i, 0, '', i/N, True)
 
-    # plot iter
-    axLoad.scatter(ud, fr, c='black')
-    plt.figure(axLoad.figure)
-    plt.pause(1e-12)
+        # load on the upper edge
+        fr = np.sum(Kglob[dofsY_Upper,:]@u)/1000
+        forces.append(fr)
 
-    # plot damage
-    cb.remove()
-    cb = Display.Plot_Result(simu, 'damage', ax=axDamage)[2]
-    plt.figure(axDamage.figure)
-    plt.pause(1e-12)
+        # plot iter
+        axLoad.scatter(ud, fr, c='black')
+        plt.figure(axLoad.figure)
+        plt.pause(1e-12)
 
-    if simu.damage[nodesLeftRight].max() >= 0.95:
-        nDetect += 1
+        # plot damage
+        cb.remove()
+        cb = Display.Plot_Result(simu, 'damage', ax=axDamage)[2]
+        plt.figure(axDamage.figure)
+        plt.pause(1e-12)
 
-    if nDetect==10:
-        break
+        if simu.damage[nodesLeftRight].max() >= 0.95:
+            nDetect += 1
 
-forces = np.array(forces)
+        if nDetect==10:
+            break
 
-Display.Plot_BoundaryConditions(simu)
-Display.Plot_Iter_Summary(simu)
-Display.Plot_Energy(simu, forces, displacements)
+    forces = np.array(forces)
 
-plt.show()
+    Display.Plot_BoundaryConditions(simu)
+    Display.Plot_Iter_Summary(simu)
+    Display.Plot_Energy(simu, forces, displacements)
+
+    plt.show()

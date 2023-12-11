@@ -8,7 +8,6 @@ import os
 import Folder
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Mesh import Get_new_mesh
 from Geom import Point, Domain, Circle
 import Materials
 import Simulations
@@ -29,7 +28,7 @@ if __name__  == '__main__':
     test = True
     solve = True
     optimMesh = True
-    useContact = False
+    useContact = True
 
     # geom
     h = 90
@@ -207,8 +206,8 @@ if __name__  == '__main__':
 
                 # update master mesh coordinates
                 displacementMatrix = np.zeros((upper_mesh.Nn, 3))
-                displacementMatrix[:,1] = -inc0 if simu.damage.max() <= treshold else -inc1
-                upper_mesh = Get_new_mesh(upper_mesh, displacementMatrix)            
+                dy = -inc0 if simu.damage.max() <= treshold else -inc1
+                upper_mesh.translate(dy=dy)
                 
                 nodes_cU, newU = simu.Get_contact(upper_mesh, slaveNodes)
                 if nodes_cU.size > 0:

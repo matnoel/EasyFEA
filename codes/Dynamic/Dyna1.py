@@ -10,154 +10,156 @@ from Interface_Gmsh import Interface_Gmsh, ElemType
 import Simulations
 from TicTac import Tic
 
-Display.Clear()
+if __name__ == '__main__':
 
-# ----------------------------------------------
-# Configuration
-# ----------------------------------------------
-dim = 3
-folder = Folder.New_File(f"Dynamics{dim}D", results=True)
-plotResult = True
+    Display.Clear()
 
-isLoading = True
-initSimu = True
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+    dim = 3
+    folder = Folder.New_File(f"Dynamics{dim}D", results=True)
+    plotResult = True
 
-makeParaview = False; NParaview = 500
-makeMovie = False; NMovie = 400
-plotIter = True; resultToPlot = "uy"
+    isLoading = True
+    initSimu = True
 
-# Dumping
-# coefM = 1e-2
-# coefK = 1e-2*2
-coefM = 1e-3
-coefK = 1e-3
+    makeParaview = False; NParaview = 500
+    makeMovie = False; NMovie = 400
+    plotIter = True; resultToPlot = "uy"
 
-tic_Tot = Tic()
+    # Dumping
+    # coefM = 1e-2
+    # coefK = 1e-2*2
+    coefM = 1e-3
+    coefK = 1e-3
 
-# geom
-L = 120;  #mm
-h = 13
-b = 13
+    tic_Tot = Tic()
 
-# ----------------------------------------------
-# Meshing
-# ----------------------------------------------
-# meshSize = h/1
-# meshSize = L/2
-meshSize = h/5
+    # geom
+    L = 120;  #mm
+    h = 13
+    b = 13
 
-interfaceGmsh = Interface_Gmsh(False)
-if dim == 2:
-    elemType = ElemType.QUAD4 # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8
-    domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), meshSize)
-    Line0 = Line(Point(y=-h/2), Point(y=h/2))
-    LineL = Line(Point(x=L,y=-h/2), Point(x=L, y=h/2))
-    LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
-    circle = Circle(Point(x=L/2, y=0), h*0.2, isHollow=False)
+    # ----------------------------------------------
+    # Meshing
+    # ----------------------------------------------
+    # meshSize = h/1
+    # meshSize = L/2
+    meshSize = h/5
 
-    mesh = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
-    area = mesh.area - L*h
-elif dim == 3:
-    elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
-    domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
-    mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, nLayers=3, isOrganised=True)
-
-    volume = mesh.volume - L*b*h
-    area = mesh.area - (L*h*4 + 2*b*h)
-
-Display.Plot_Mesh(mesh)
-
-nodes_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
-nodes_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
-nodes_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2)
-
-# ----------------------------------------------
-# Simulation
-# ----------------------------------------------
-material = Materials.Elas_Isot(dim, thickness=b)
-simu = Simulations.Simu_Displacement(mesh, material, useNumba=True, verbosity=False)
-simu.rho = 8100*1e-9
-simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
-
-def Loading(isLoading: bool):
-
-    simu.Bc_Init()
-
-    # Boundary conditions
+    interfaceGmsh = Interface_Gmsh(False)
     if dim == 2:
-        simu.add_dirichlet(nodes_0, [0, 0], ["x","y"], description="Fixed")
+        elemType = ElemType.QUAD4 # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8
+        domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), meshSize)
+        Line0 = Line(Point(y=-h/2), Point(y=h/2))
+        LineL = Line(Point(x=L,y=-h/2), Point(x=L, y=h/2))
+        LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
+        circle = Circle(Point(x=L/2, y=0), h*0.2, isHollow=False)
+
+        mesh = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
+        area = mesh.area - L*h
     elif dim == 3:
-        simu.add_dirichlet(nodes_0, [0, 0, 0], ["x","y","z"], description="Fixed")
-    if isLoading:
-        simu.add_dirichlet(nodes_L, [-7], ["y"], description="dep")        
+        elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
+        domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
+        mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, nLayers=3, isOrganised=True)
 
-def Iteration(steadyState: bool, isLoading: bool):
+        volume = mesh.volume - L*b*h
+        area = mesh.area - (L*h*4 + 2*b*h)
 
-    Loading(isLoading)    
+    Display.Plot_Mesh(mesh)
 
-    if steadyState:
-        simu.Solver_Set_Elliptic_Algorithm()
-    else:
-        simu.Solver_Set_Newton_Raphson_Algorithm(dt=dt)
+    nodes_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+    nodes_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
+    nodes_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2)
 
-    simu.Solve()
-    
-    simu.Save_Iter()
+    # ----------------------------------------------
+    # Simulation
+    # ----------------------------------------------
+    material = Materials.Elas_Isot(dim, thickness=b)
+    simu = Simulations.Simu_Displacement(mesh, material, useNumba=True, verbosity=False)
+    simu.rho = 8100*1e-9
+    simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
-# first iteration, then drop the beam
-Iteration(steadyState=True, isLoading=True)    
+    def Loading(isLoading: bool):
 
-factorDef = 1
+        simu.Bc_Init()
 
-if plotIter:
-    fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, deformFactor=factorDef)
+        # Boundary conditions
+        if dim == 2:
+            simu.add_dirichlet(nodes_0, [0, 0], ["x","y"], description="Fixed")
+        elif dim == 3:
+            simu.add_dirichlet(nodes_0, [0, 0, 0], ["x","y","z"], description="Fixed")
+        if isLoading:
+            simu.add_dirichlet(nodes_L, [-7], ["y"], description="dep")        
 
-Tmax = 0.5
-N = 100
-dt = Tmax/N
-t = 0
+    def Iteration(steadyState: bool, isLoading: bool):
 
-while t <= Tmax:
+        Loading(isLoading)    
 
-    Iteration(steadyState=False, isLoading=False)
+        if steadyState:
+            simu.Solver_Set_Elliptic_Algorithm()
+        else:
+            simu.Solver_Set_Newton_Raphson_Algorithm(dt=dt)
+
+        simu.Solve()
+        
+        simu.Save_Iter()
+
+    # first iteration, then drop the beam
+    Iteration(steadyState=True, isLoading=True)    
+
+    factorDef = 1
 
     if plotIter:
-        cb.remove()
-        fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, ax=ax, deformFactor=factorDef)
-        plt.pause(1e-12)
+        fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, deformFactor=factorDef)
 
-    t += dt
+    Tmax = 0.5
+    N = 100
+    dt = Tmax/N
+    t = 0
 
-    print(f"{t:.3f} s", end='\r')
+    while t <= Tmax:
 
-tic_Tot.Tac("Time","total time", True)        
+        Iteration(steadyState=False, isLoading=False)
 
-# ----------------------------------------------
-# Post processing
-# ----------------------------------------------
-Display.Section("Post processing")
+        if plotIter:
+            cb.remove()
+            fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, ax=ax, deformFactor=factorDef)
+            plt.pause(1e-12)
 
-Display.Plot_BoundaryConditions(simu)
+        t += dt
 
-# folder=""
+        print(f"{t:.3f} s", end='\r')
 
-if makeParaview:
-    PostProcessing.Make_Paraview(folder, simu,Niter=NParaview)
+    tic_Tot.Tac("Time","total time", True)        
 
-if makeMovie:
-    PostProcessing.Make_Movie(folder, resultToPlot, simu, plotMesh=True, Niter=NMovie, deformation=True, nodeValues=True, factorDef=1)
+    # ----------------------------------------------
+    # Post processing
+    # ----------------------------------------------
+    Display.Section("Post processing")
 
-if plotResult:
+    Display.Plot_BoundaryConditions(simu)
 
-    tic = Tic()
-    print(simu)
-    # Display.Plot_Result(simu, "amplitude")
-    # Display.Plot_Mesh(simu, deformation=True, folder=folder)
-    Display.Plot_Result(simu, "uy", deformFactor=factorDef, nodeValues=False)        
-    Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=False)
-    # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
-    
-    tic.Tac("Display","Results", plotResult)
+    # folder=""
 
-Tic.Plot_History(details=True)
-plt.show()
+    if makeParaview:
+        PostProcessing.Make_Paraview(folder, simu,Niter=NParaview)
+
+    if makeMovie:
+        PostProcessing.Make_Movie(folder, resultToPlot, simu, plotMesh=True, Niter=NMovie, deformation=True, nodeValues=True, factorDef=1)
+
+    if plotResult:
+
+        tic = Tic()
+        print(simu)
+        # Display.Plot_Result(simu, "amplitude")
+        # Display.Plot_Mesh(simu, deformation=True, folder=folder)
+        Display.Plot_Result(simu, "uy", deformFactor=factorDef, nodeValues=False)        
+        Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=False)
+        # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
+        
+        tic.Tac("Display","Results", plotResult)
+
+    Tic.Plot_History(details=True)
+    plt.show()

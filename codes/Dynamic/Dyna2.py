@@ -9,121 +9,122 @@ import PostProcessing
 import Folder
 import TicTac
 
-# Clear the display to start fresh
-Display.Clear()
+if __name__ == '__main__':
 
-# ----------------------------------------------
-# Configuration
-# ----------------------------------------------
-folder = Folder.New_File("Waves", results=True) # Create a folder for the simulation results
+    Display.Clear()
 
-# Define geometric parameters
-a = 1
-meshSize = a / 100
-diam = a / 10
-r = diam / 2
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+    folder = Folder.New_File("Waves", results=True) # Create a folder for the simulation results
 
-# Time parameters
-tMax = 1e-5 
-Nt = 150
-dt = tMax / Nt
+    # Define geometric parameters
+    a = 1
+    meshSize = a / 100
+    diam = a / 10
+    r = diam / 2
 
-# Load parameters
-load = 1e-3
-f0 = 2
-a0 = 1
-t0 = dt * 4
+    # Time parameters
+    tMax = 1e-5 
+    Nt = 150
+    dt = tMax / Nt
 
-plotModel = False # Define whether to plot the model  
-plotIter = True # Define whether to plot the results at each iteration
+    # Load parameters
+    load = 1e-3
+    f0 = 2
+    a0 = 1
+    t0 = dt * 4
 
-# Specify the result to plot (amplitudeSpeed in this case)
-resultat = "amplitudeSpeed"
+    plotModel = False # Define whether to plot the model  
+    plotIter = True # Define whether to plot the results at each iteration
 
-# Define whether to create a movie
-makeMovie = False
+    # Specify the result to plot (amplitudeSpeed in this case)
+    resultat = "amplitudeSpeed"
 
-# ----------------------------------------------
-# Mesh
-# ----------------------------------------------
+    # Define whether to create a movie
+    makeMovie = False
 
-# Define the domain and create the mesh
-domain = Domain(Point(x=-a / 2, y=-a / 2), Point(x=a / 2, y=a / 2), meshSize)
-circle = Circle(Point(), diam, meshSize, isHollow=False)
-line = Line(Point(), Point(diam / 4))
-interfaceGmsh = Interface_Gmsh(False)
-mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.TRI3, cracks=[line])
+    # ----------------------------------------------
+    # Mesh
+    # ----------------------------------------------
 
-# Plot the model if specified
-if plotModel:
-    Display.Plot_Model(mesh)
-    plt.show()
+    # Define the domain and create the mesh
+    domain = Domain(Point(x=-a / 2, y=-a / 2), Point(x=a / 2, y=a / 2), meshSize)
+    circle = Circle(Point(), diam, meshSize, isHollow=False)
+    line = Line(Point(), Point(diam / 4))
+    interfaceGmsh = Interface_Gmsh(False)
+    mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.TRI3, cracks=[line])
 
-# Get nodes for boundary conditions and loading
-nodesBorders = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-# nodesLoad = mesh.Nodes_Line(line)
-nodesLoad = mesh.Nodes_Point(Point())
+    # Plot the model if specified
+    if plotModel:
+        Display.Plot_Model(mesh)
+        plt.show()
 
-# ----------------------------------------------
-# Simulation
-# ----------------------------------------------
+    # Get nodes for boundary conditions and loading
+    nodesBorders = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+    # nodesLoad = mesh.Nodes_Line(line)
+    nodesLoad = mesh.Nodes_Point(Point())
 
-# Define material properties
-material = Materials.Elas_Isot(2, E=210000e6, v=0.3, planeStress=False, thickness=1)
-l = material.get_lambda()
-mu = material.get_mu()
+    # ----------------------------------------------
+    # Simulation
+    # ----------------------------------------------
 
-# Create the simulation object
-simu = Simulations.Simu_Displacement(mesh, material, verbosity=False)
-simu.Set_Rayleigh_Damping_Coefs(1e-10, 1e-10)
-simu.Solver_Set_Newton_Raphson_Algorithm(betha=1 / 4, gamma=1 / 2, dt=dt)
+    # Define material properties
+    material = Materials.Elas_Isot(2, E=210000e6, v=0.3, planeStress=False, thickness=1)
+    l = material.get_lambda()
+    mu = material.get_mu()
 
-t = 0
+    # Create the simulation object
+    simu = Simulations.Simu_Displacement(mesh, material, verbosity=False)
+    simu.Set_Rayleigh_Damping_Coefs(1e-10, 1e-10)
+    simu.Solver_Set_Newton_Raphson_Algorithm(betha=1 / 4, gamma=1 / 2, dt=dt)
 
-def Loading():
-    # Set displacement boundary conditions
-    simu.add_dirichlet(nodesBorders, [0, 0], ["x", "y"], description="[0,0]")
+    t = 0
 
-    # Set Neumann boundary conditions (loading) at t = t0
-    if t == t0:
-        # simu.add_neumann(nodesLoad, [load, -load], ["x", "y"], description="[load,load]")
-        simu.add_neumann(nodesLoad, [load], ["x"])
-        # simu.add_lineLoad(nodesLoad, [load/line.length], ['x'])
+    def Loading():
+        # Set displacement boundary conditions
+        simu.add_dirichlet(nodesBorders, [0, 0], ["x", "y"], description="[0,0]")
 
-# Plot the result at the initial iteration if specified
-if plotIter:
-    fig, ax, cb = Display.Plot_Result(simu, resultat, nodeValues=True)
+        # Set Neumann boundary conditions (loading) at t = t0
+        if t == t0:
+            # simu.add_neumann(nodesLoad, [load, -load], ["x", "y"], description="[load,load]")
+            simu.add_neumann(nodesLoad, [load], ["x"])
+            # simu.add_lineLoad(nodesLoad, [load/line.length], ['x'])
 
-# Create a timer object
-tic = TicTac.Tic()
-
-# Time loop
-while t <= tMax:
-    # Apply loading conditions
-    Loading()
-
-    # Solve the simulation
-    simu.Solve()
-
-    # Save the iteration results
-    simu.Save_Iter()
-
-    # Print the progress
-    print(f"{t / tMax * 100:.3f}  %", end="\r")
-
-    # Update the plot at each iteration if specified
+    # Plot the result at the initial iteration if specified
     if plotIter:
-        cb.remove()
-        fig, ax, cb = Display.Plot_Result(simu, resultat, nodeValues=True, ax=ax)
-        plt.pause(1e-12)
+        fig, ax, cb = Display.Plot_Result(simu, resultat, nodeValues=True)
 
-    t += dt
+    # Create a timer object
+    tic = TicTac.Tic()
 
-# ----------------------------------------------
-# PostProcessing
-# ----------------------------------------------
-# Make a movie if specified
-if makeMovie:
-    PostProcessing.Make_Movie(folder, resultat, simu)
+    # Time loop
+    while t <= tMax:
+        # Apply loading conditions
+        Loading()
 
-plt.show()
+        # Solve the simulation
+        simu.Solve()
+
+        # Save the iteration results
+        simu.Save_Iter()
+
+        # Print the progress
+        print(f"{t / tMax * 100:.3f}  %", end="\r")
+
+        # Update the plot at each iteration if specified
+        if plotIter:
+            cb.remove()
+            fig, ax, cb = Display.Plot_Result(simu, resultat, nodeValues=True, ax=ax)
+            plt.pause(1e-12)
+
+        t += dt
+
+    # ----------------------------------------------
+    # PostProcessing
+    # ----------------------------------------------
+    # Make a movie if specified
+    if makeMovie:
+        PostProcessing.Make_Movie(folder, resultat, simu)
+
+    plt.show()

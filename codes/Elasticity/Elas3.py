@@ -9,66 +9,68 @@ import Materials
 import matplotlib.pyplot as plt
 import numpy as np
 
-Display.Clear()
+if __name__ == '__main__':
 
-# Define dimension and mesh size parameters
-dim = 2
-N = 20 if dim == 2 else 10
+    Display.Clear()
 
-coef = 1e6
-E = 15000*coef  # Pa (Young's modulus)
-v = 0.25          # Poisson's ratio
+    # Define dimension and mesh size parameters
+    dim = 2
+    N = 20 if dim == 2 else 10
 
-g = 9.81   # m/s^2 (acceleration due to gravity)
-ro = 2400  # kg/m^3 (density)
-w = 1000   # kg/m^3 (density)
+    coef = 1e6
+    E = 15000*coef  # Pa (Young's modulus)
+    v = 0.25          # Poisson's ratio
 
-h = 180  # m (thickness)
-thickness = 2*h
+    g = 9.81   # m/s^2 (acceleration due to gravity)
+    ro = 2400  # kg/m^3 (density)
+    w = 1000   # kg/m^3 (density)
 
-# --------------------------------------------------------------------------------------------
-# Mesh
-# --------------------------------------------------------------------------------------------
+    h = 180  # m (thickness)
+    thickness = 2*h
 
-pt1 = Point()
-pt2 = Point(x=h)
-pt3 = Point(y=h)
-contour = PointsList([pt1, pt2, pt3], h/N)
+    # --------------------------------------------------------------------------------------------
+    # Mesh
+    # --------------------------------------------------------------------------------------------
 
-if dim == 2:
-    mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI6)
-    print(f"err area = {np.abs(mesh.area - h**2/2):.3e}")
-elif dim == 3:
-    mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, -thickness], 3, ElemType.PRISM15)
-    print(f"error volume = {np.abs(mesh.volume - h**2/2 * thickness):.3e}")
+    pt1 = Point()
+    pt2 = Point(x=h)
+    pt3 = Point(y=h)
+    contour = PointsList([pt1, pt2, pt3], h/N)
 
-nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    if dim == 2:
+        mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI6)
+        print(f"err area = {np.abs(mesh.area - h**2/2):.3e}")
+    elif dim == 3:
+        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, -thickness], 3, ElemType.PRISM15)
+        print(f"error volume = {np.abs(mesh.volume - h**2/2 * thickness):.3e}")
 
-# --------------------------------------------------------------------------------------------
-# Simulation
-# --------------------------------------------------------------------------------------------
+    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
 
-material = Materials.Elas_Isot(dim, E, v, planeStress=False, thickness=thickness)
-simu = Simulations.Simu_Displacement(mesh, material)
+    # --------------------------------------------------------------------------------------------
+    # Simulation
+    # --------------------------------------------------------------------------------------------
 
-simu.add_dirichlet(nodesY0, [0]*dim, simu.Get_directions())
-simu.add_surfLoad(nodesX0, [lambda x, y, z: w*g*(h - y)], ["x"], description="[w*g*(h-y)]")
-simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
+    material = Materials.Elas_Isot(dim, E, v, planeStress=False, thickness=thickness)
+    simu = Simulations.Simu_Displacement(mesh, material)
 
-sol = simu.Solve()
-simu.Save_Iter()
+    simu.add_dirichlet(nodesY0, [0]*dim, simu.Get_directions())
+    simu.add_surfLoad(nodesX0, [lambda x, y, z: w*g*(h - y)], ["x"], description="[w*g*(h-y)]")
+    simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
 
-# --------------------------------------------------------------------------------------------
-# Results
-# --------------------------------------------------------------------------------------------
-print(simu)
+    sol = simu.Solve()
+    simu.Save_Iter()
 
-Display.Plot_Model(mesh)
-Display.Plot_BoundaryConditions(simu)
-Display.Plot_Mesh(simu, h/10/np.abs(sol.max()))
-Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1/coef, nColors=20)
+    # --------------------------------------------------------------------------------------------
+    # Results
+    # --------------------------------------------------------------------------------------------
+    print(simu)
 
-Simulations.Tic.Plot_History(details=True)
+    Display.Plot_Model(mesh)
+    Display.Plot_BoundaryConditions(simu)
+    Display.Plot_Mesh(simu, h/10/np.abs(sol.max()))
+    Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1/coef, nColors=20)
 
-plt.show()
+    Simulations.Tic.Plot_History(details=True)
+
+    plt.show()
