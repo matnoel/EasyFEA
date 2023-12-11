@@ -238,7 +238,7 @@ class Geom(ABC):
     def translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
         """translate the object"""
         # to translate an object, all you have to do is move these points
-        [p.translate(dx,dy,dz) for p in self.points]
+        [p.translate(dx,dy,dz) for p in self.__points]
     
     def rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:        
         """Rotate the object coordinates around an axis.

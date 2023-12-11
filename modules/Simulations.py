@@ -1501,6 +1501,8 @@ class _Simu(ABC):
 
         # Here the first element group is selected. Regardless of whether there are several group of the same dimension.
         masterGroup = masterMesh.Get_list_groupElem(masterMesh.dim-1)[0]
+        elements = masterMesh.Elements_Nodes(masterGroup.nodes, False) # retrieve bounndary elements
+        # elements = None
 
         if slaveNodes is None:
             slaveGroup = self.mesh.Get_list_groupElem(masterMesh.dim-1)[0]
@@ -1510,15 +1512,16 @@ class _Simu(ABC):
         newCoordo = self.Results_displacement_matrix() + self.mesh.coordo
         
         # check nodes in master mesh
-        idx = masterMesh.groupElem.Get_Mapping(newCoordo[slaveNodes])[0]
-        idx = np.unique(idx)
+        idx = masterMesh.groupElem.Get_Mapping(newCoordo[slaveNodes], elements)[0]        
+        idx = np.array(list(set().union(idx)))
 
-        nodes = np.array([])
-        displacementMatrix = np.array([])
+        tic.Tac("PostProcessing","Get slave nodes in master mesh")
 
         if idx.size > 0:
             # slave nodes have been detected in the master mesh
             nodes: np.ndarray = slaveNodes[idx]
+
+            sysCoord_e = masterGroup.sysCoord_e
 
             # get the elemGroup on the interface        
             gaussCoordo_e_p = masterGroup.Get_GaussCoordinates_e_p(MatrixType.mass)
@@ -1528,7 +1531,8 @@ class _Simu(ABC):
             # for each nodes in master mesh we will detects the shortest displacement vector to the interface
             for node in nodes:
                 # vectors between the interface coordinates and the detected node
-                vi_e_pg  = gaussCoordo_e_p - newCoordo[node]
+                vi_e_pg  = gaussCoordo_e_p - newCoordo[node]               
+
                 # distance between the interface coordinates and the detected node
                 d_e_pg = np.linalg.norm(vi_e_pg, axis=2)
                 e, p = np.where(d_e_pg == d_e_pg.min())
@@ -1537,9 +1541,9 @@ class _Simu(ABC):
                 
                 # normal vector
                 if masterGroup.dim == 1: # lines
-                    normal_vect = - masterGroup.sysCoord_e[e[0],:,1]
+                    normal_vect = - sysCoord_e[e[0],:,1]
                 elif masterGroup.dim == 2: # surfaces                
-                    normal_vect = masterGroup.sysCoord_e[e[0],:,2]
+                    normal_vect = sysCoord_e[e[0],:,2]
                 else:
                     raise "The master group must be dimension 1 or 2. Must be lines or surfaces."
                 
@@ -1553,7 +1557,11 @@ class _Simu(ABC):
             oldU = self.Results_displacement_matrix()[nodes]
             displacementMatrix = np.array(displacementMatrix) + oldU
 
-        tic.Tac("PostProcessing","Get contact")
+        else:
+            nodes = np.array([])
+            displacementMatrix = np.array([])
+
+        tic.Tac("PostProcessing","Get displacement")
         
         return nodes, displacementMatrix
     
