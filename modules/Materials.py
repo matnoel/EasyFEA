@@ -1098,6 +1098,11 @@ class _Beam_Model(IModel):
     def thickness(self) -> float:
         """Look at the surface/section to know the thickness."""
         return None
+    
+    @property
+    def area(self) -> float:
+        """Look at the surface/section area."""
+        return self.__section.area
 
     def __init__(self, dim: int, line: Line, section: Section):
         """Creating a beam.
@@ -1248,6 +1253,11 @@ class Beam_Structure(IModel):
         """The beam structure can have several beams and therefore different sections.
         You need to look at the section of the beam you are interested in."""
         return None
+    
+    @property
+    def areas(self) -> list[float]:
+        """beams areas"""
+        return [beam.area for beam in self.__listBeam]
 
     def __init__(self, listBeam: list[_Beam_Model]) -> None:
         """Construct a beam structure
@@ -1262,9 +1272,9 @@ class Beam_Structure(IModel):
 
         assert np.unique(dims, return_counts=True)[1] == len(listBeam), "The structure must use beams of identical dimensions."
 
-        self.__dim = dims[0]
+        self.__dim: int = dims[0]
 
-        self.__listBeam = listBeam
+        self.__listBeam: list[_Beam_Model] = listBeam
 
         self.__dof_n = listBeam[0].dof_n
 
@@ -1284,9 +1294,12 @@ class Beam_Structure(IModel):
         2D -> [u1, v1, rz1, . . ., un, vn, rzn]\n
         3D -> [u1, v1, w1, rx1, ry1, rz1, . . ., u2, v2, w2, rx2, ry2, rz2]
         """
-        return self.__dof_n
+        return self.__dof_n        
 
     def Calc_D_e_pg(self, groupElem: GroupElem, matrixType: str) -> np.ndarray:
+
+        if groupElem.dim != 1: return
+
         listBeam = self.__listBeam
         list_D = [beam.Get_D() for beam in listBeam]
 

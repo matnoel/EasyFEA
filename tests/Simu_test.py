@@ -39,7 +39,10 @@ class Test_Simu(unittest.TestCase):
                 b=13
                 E = 210000
                 v = 0.3
-                charge = 800    
+                charge = 800
+
+                ro = 1
+                mass = L * h * b
 
             elif problem == "Traction":
                 L=10 # m
@@ -53,6 +56,8 @@ class Test_Simu(unittest.TestCase):
                 g = 10
                 q = ro * g * (h*b)
                 charge = 5000
+
+                mass = L * h * b * ro
             
             # Section
 
@@ -90,6 +95,11 @@ class Test_Simu(unittest.TestCase):
             # Simulation
 
             simu = Simulations.Simu_Beam(mesh, beamStruct, verbosity=False)
+
+            simu.rho = ro
+
+            testMass = (simu.mass - mass)**2/mass**2
+            self.assertTrue(testMass <= 1e-12) 
 
             # Conditions
 

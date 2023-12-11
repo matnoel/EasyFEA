@@ -2,6 +2,7 @@
 
 import numpy as np
 import scipy.sparse as sp
+import copy
 
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatrixType
@@ -94,8 +95,7 @@ class Mesh:
             return self.__orphanNodes
         except AttributeError:
             self.__orphanNodes = []
-            return self.__orphanNodes
-    
+            return self.__orphanNodes    
 
     @property
     def dict_groupElem(self) -> dict[ElemType, GroupElem]:
@@ -142,6 +142,51 @@ class Mesh:
     def coordo(self) -> np.ndarray:
         """Node coordinates matrix (Nn,3) for the main groupElem"""
         return self.groupElem.coordo
+    
+    def copy(self):
+        newMesh = copy.deepcopy(self)
+        return newMesh
+    
+    def translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
+        """Translate the mesh coordinates."""
+        oldCoord = self.coordoGlob
+        newCoord = oldCoord + np.array([dx, dy, dz])
+        for grp in self.dict_groupElem.values():
+            grp.coordoGlob = newCoord
+    
+    def rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:        
+        """Rotate the mesh coordinates around an axis.
+
+        Parameters
+        ----------        
+        theta : float
+            rotation angle [rad] 
+        center : tuple, optional
+            rotation center, by default (0,0,0)
+        direction : tuple, optional
+            rotation direction, by default (0,0,1)
+        """
+
+        oldCoord = self.coordo
+        newCoord = Rotate_coordo(oldCoord, theta, center, direction)
+        for grp in self.dict_groupElem.values():
+            grp.coordoGlob = newCoord
+
+    def symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
+        """Symmetrise the mesh coordinates with a plane.
+
+        Parameters
+        ----------
+        point : tuple, optional
+            a point belonging to the plane, by default (0,0,0)
+        n : tuple, optional
+            normal to the plane, by default (1,0,0)
+        """
+
+        oldCoord = self.coordo
+        newCoord = Symmetry_coordo(oldCoord, point, n)
+        for grp in self.dict_groupElem.values():
+            grp.coordoGlob = newCoord
 
     @property
     def nodes(self) -> np.ndarray:
@@ -304,6 +349,11 @@ class Mesh:
             return None
         volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
         return np.sum(volumes)
+    
+    @property
+    def center(self) -> np.ndarray:
+        """Center of mass / barycenter / inertia center"""
+        return self.groupElem.center
 
     def Get_meshSize(self, doMean=True) -> np.ndarray:
         """Returns the mesh size for each element."""
@@ -476,6 +526,9 @@ class Mesh:
         """Returns node associated with the tag."""
         nodes = []
 
+        if isinstance(tags, str):
+            tags = [tags]
+
         # get dictionnary linking tags to nodes
         dict_nodes = {}
         [dict_nodes.update(grp._dict_nodes_tags) for grp in self.dict_groupElem.values()]
@@ -489,6 +542,9 @@ class Mesh:
     def Elements_Tags(self, tags: list[str]) -> np.ndarray:
         """Returns elements associated with the tag."""
         elements = []
+
+        if isinstance(tags, str):
+            tags = [tags]
 
         # get dictionnary linking tags to elements
         dict_elements = {}
@@ -639,8 +695,6 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     tic.Tac("Mesh", "Projector construction", False)
 
     return proj.tocsr()
-
-# TODO allow translation rotation and symetrise
 
 def Get_new_mesh(mesh: Mesh, displacementMatrix: np.ndarray) -> Mesh:
     """Builds a new mesh by updating node coordinates with the displacement vector.

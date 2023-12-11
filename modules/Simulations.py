@@ -83,9 +83,9 @@ class _Simu(ABC):
 
     Results:
 
-        - def Get_Results(self) -> list[str]:
+        - def Results_Available(self) -> list[str]:
 
-        - def Get_Result(self, result: str, nodeValues=True, iter=None) -> float | np.ndarray:
+        - def Result(self, result: str, nodeValues=True, iter=None) -> float | np.ndarray:
 
         - def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
 
@@ -323,6 +323,56 @@ class _Simu(ABC):
     def rho(self, value: Union[float, np.ndarray]):
         IModel._Test_Sup0(value)
         self.__rho = value
+
+    @property
+    def mass(self) -> float:
+
+        if self.dim == 1: return None
+
+        matrixType = MatrixType.mass
+
+        group = self.mesh.groupElem
+
+        coordo_e_p = group.Get_GaussCoordinates_e_p(matrixType)
+
+        jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
+        
+        weight_p = group.Get_weight_pg(matrixType)        
+
+        rho_e_p = Reshape_variable(self.__rho, self.mesh.Ne, weight_p.size)
+
+        mass = float(np.einsum('ep,ep,p->', rho_e_p, jacobian_e_p, weight_p, optimize='optimal'))
+
+        if self.dim == 2:
+            mass *= self.model.thickness
+
+        return mass
+    
+    @property
+    def center(self) -> np.ndarray:
+        """Center of mass / barycenter / inertia center"""
+
+        if self.dim == 1: return None
+
+        matrixType = MatrixType.mass
+
+        group = self.mesh.groupElem
+
+        coordo_e_p = group.Get_GaussCoordinates_e_p(matrixType)
+
+        jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
+        weight_p = group.Get_weight_pg(matrixType)        
+
+        rho_e_p = Reshape_variable(self.__rho, self.mesh.Ne, weight_p.size)
+        mass = self.mass
+
+        center: np.ndarray = np.einsum('ep,ep,p,epi->i', rho_e_p, jacobian_e_p, weight_p, coordo_e_p, optimize='optimal') / mass
+
+        if not isinstance(self.__rho, np.ndarray):
+            diff = np.linalg.norm(center - self.mesh.center)/np.linalg.norm(center)
+            assert diff <= 1e-12
+
+        return center
 
     @property
     def useIterativeSolvers(self) -> bool:
@@ -922,6 +972,8 @@ class _Simu(ABC):
         """Add Lagrange conditions."""
         assert isinstance(newBc, LagrangeCondition)
         self.__Bc_Lagrange.append(newBc)
+        # triger the update cause when we use lagrange multiplier we need to update the matrix system
+        self.Need_Update()
 
     def _Bc_Lagrange_dim(self, problemType=None) -> int:
         """Calculates the dimension required to resize the system to use Lagrange multipliers."""
@@ -3372,6 +3424,66 @@ class Simu_Beam(_Simu):
         tic.Tac("Matrix","Construct Kbeam_e", self._verbosity)
 
         return Kbeam_e
+    
+    @property
+    def mass(self) -> float:
+
+        matrixType = MatrixType.mass
+
+        mesh = self.mesh
+
+        group = mesh.groupElem
+
+        coordo_e_p = group.Get_GaussCoordinates_e_p(matrixType)
+
+        jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
+        
+        weight_p = group.Get_weight_pg(matrixType)        
+
+        rho_e_p = Reshape_variable(self.rho, mesh.Ne, weight_p.size)
+
+        area_e = np.zeros(mesh.Ne)
+
+        for beam in self.beamModel.listBeam:
+
+            elements = mesh.Elements_Tags(beam.name)
+
+            area_e[elements] = beam.area
+
+        mass = float(np.einsum('ep,ep,p,e->', rho_e_p, jacobian_e_p, weight_p, area_e, optimize='optimal'))
+
+        return mass
+    
+    @property
+    def center(self) -> np.ndarray:
+        """Center of mass / barycenter / inertia center"""
+
+        matrixType = MatrixType.mass
+
+        mesh = self.mesh
+
+        group = mesh.groupElem
+
+        coordo_e_p = group.Get_GaussCoordinates_e_p(matrixType)
+
+        jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
+        weight_p = group.Get_weight_pg(matrixType)        
+
+        rho_e_p = Reshape_variable(self.rho, mesh.Ne, weight_p.size)
+        mass = self.mass
+
+        area_e = np.zeros(mesh.Ne)
+        for beam in self.beamModel.listBeam:
+            elements = mesh.Elements_Tags(beam.name)
+            area_e[elements] = beam.area
+
+        center: np.ndarray = np.einsum('ep,e,ep,p,epi->i', rho_e_p, area_e, jacobian_e_p, weight_p, coordo_e_p, optimize='optimal') / mass
+
+        if not isinstance(self.rho, np.ndarray):
+            diff = np.linalg.norm(center - mesh.center)/np.linalg.norm(center)
+            assert diff <= 1e-12
+
+        return center
 
     def __Get_B_beam_e_pg(self, matrixType: str):
 

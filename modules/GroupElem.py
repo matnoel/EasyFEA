@@ -94,14 +94,14 @@ class GroupElem(ABC):
         # Nodes
         self.__nodes = nodes
         self.__coordoGlob = coordoGlob
-        
+
+        self.__dict_nodes_tags = {}
+        self.__dict_elements_tags = {}        
         self._InitMatrix()
     
     def _InitMatrix(self) -> None:
         """Initialize matrix dictionaries for finite element construction"""
-        # Dictionaries for each matrix type
-        self.__dict_nodes_tags = {}
-        self.__dict_elements_tags = {}
+        # Dictionaries for each matrix type        
         self.__dict_dN_e_pg = {}
         self.__dict_dNv_e_pg = {}
         self.__dict_ddNv_e_pg = {}
@@ -187,6 +187,12 @@ class GroupElem(ABC):
     def coordoGlob(self) -> np.ndarray:
         """This matrix contains all the mesh coordinates (mesh.Nn, 3)"""
         return self.__coordoGlob.copy()
+    
+    @coordoGlob.setter
+    def coordoGlob(self, coordo: np.ndarray) -> None:
+        if coordo.shape == self.__coordoGlob.shape:
+            self.__coordoGlob = coordo
+            self._InitMatrix()
 
     @property
     def nbFaces(self) -> int:
@@ -749,6 +755,23 @@ class GroupElem(ABC):
 
         Ixy = np.einsum('ep,p,ep,ep->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, x, y, optimize='optimal')
         return float(Ixy)
+    
+    @property
+    def center(self) -> np.ndarray:
+        """Center of mass / barycenter / inertia center"""
+
+        matrixType = MatrixType.mass
+
+        coordo_e_p = self.Get_GaussCoordinates_e_p(matrixType)
+
+        jacobian_e_p = self.Get_jacobian_e_pg(matrixType)
+        weight_p = self.Get_weight_pg(matrixType)
+
+        size = np.einsum('ep,p->', jacobian_e_p, weight_p, optimize='optimal')
+
+        center: np.ndarray = np.einsum('ep,p,epi->i', jacobian_e_p, weight_p, coordo_e_p, optimize='optimal') / size
+
+        return center
 
     def Get_F_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the Jacobian matrix
@@ -1248,20 +1271,11 @@ class GroupElem(ABC):
         dx, dy, dz = direction[0], direction[1], direction[2]
         # Probably doesn't work for an oriented cylinder at the moment!
 
-        if dx == 0:
-            conditionX = coordo[:,0]-circle.center.x
-        else:
-            conditionX = np.zeros_like(coordo[:,0])
+        zeros = np.zeros_like(coordo[:,0])
 
-        if dy == 0:
-            conditionY = coordo[:,1]-circle.center.y
-        else:
-            conditionY = np.zeros_like(coordo[:,1])
-        
-        if dz == 0:
-            conditionZ = coordo[:,2]-circle.center.z
-        else:
-            conditionZ = np.zeros_like(coordo[:,2])
+        conditionX = coordo[:,0]-circle.center.x if dx == 0 else zeros
+        conditionY = coordo[:,1]-circle.center.y if dy == 0 else zeros
+        conditionZ = coordo[:,2]-circle.center.z if dz == 0 else zeros
 
         idx = np.where(np.sqrt(conditionX**2+conditionY**2+conditionZ**2)<=circle.diam/2+eps)
 

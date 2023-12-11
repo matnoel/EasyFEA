@@ -96,11 +96,30 @@ class Point:
         self.__coordo = Translate_coordo(self.__coordo, dx, dy, dz).reshape(-1)
 
     def rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:
-        """rotate the point around an axis"""
+        """Rotate the point with around an axis.
+
+        Parameters
+        ----------
+        theta : float
+            rotation angle [rad] 
+        center : tuple, optional
+            rotation center, by default (0,0,0)
+        direction : tuple, optional
+            rotation direction, by default (0,0,1)
+        """
         self.__coordo = Rotate_coordo(self.__coordo, theta, center, direction).reshape(-1)
 
-    def symmetry(self, center=(0,0,0), n=(1,0,0)) -> None:
-        self.__coordo = Symmetry_coordo(self.__coordo, center, n).reshape(-1)
+    def symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
+        """Symmetrise the point coordinates with a plane.
+
+        Parameters
+        ----------
+        point : tuple, optional
+            a point belonging to the plane, by default (0,0,0)
+        n : tuple, optional
+            normal to the plane, by default (1,0,0)
+        """
+        self.__coordo = Symmetry_coordo(self.__coordo, point, n).reshape(-1)
     
     def __radd__(self, value):
         return self.__add__(value)
@@ -217,22 +236,41 @@ class Geom(ABC):
         return self.__isOpen
     
     def translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
-        """translate object"""
+        """translate the object"""
         # to translate an object, all you have to do is move these points
         [p.translate(dx,dy,dz) for p in self.points]
     
     def rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:        
-        """turns geometry around an axis"""
+        """Rotate the object coordinates around an axis.
+
+        Parameters
+        ----------        
+        theta : float
+            rotation angle [rad] 
+        center : tuple, optional
+            rotation center, by default (0,0,0)
+        direction : tuple, optional
+            rotation direction, by default (0,0,1)
+        """
         oldCoord = self.coordo        
         newCoord = Rotate_coordo(oldCoord, theta, center, direction)
 
         dec = newCoord - oldCoord
         [point.translate(*dec[p]) for p, point in enumerate(self.points)]
 
-    def symmetry(self, center=(0,0,0), n=(1,0,0)) -> None:
+    def symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
+        """Symmetrise the object coordinates with a plane.
+
+        Parameters
+        ----------
+        point : tuple, optional
+            a point belonging to the plane, by default (0,0,0)
+        n : tuple, optional
+            normal to the plane, by default (1,0,0)
+        """
 
         oldCoord = self.coordo
-        newCoord = Symmetry_coordo(oldCoord, center, n)
+        newCoord = Symmetry_coordo(oldCoord, point, n)
 
         dec = newCoord - oldCoord
         [point.translate(*dec[p]) for p, point in enumerate(self.points)]
@@ -951,14 +989,30 @@ def Rotate_coordo(coordo: np.ndarray, theta: float, center: tuple=(0,0,0), direc
 
     return newCoord
 
-def Symmetry_coordo(coordo: np.ndarray, center=(0,0,0), n=(1,0,0)) -> np.ndarray:
+def Symmetry_coordo(coordo: np.ndarray, point=(0,0,0), n=(1,0,0)) -> np.ndarray:
+    """Symmetrise coordinates with a plane.
 
-    center = Point._getCoord(center)
+    Parameters
+    ----------
+    coordo : np.ndarray
+        coordinates that we want to symmetrise
+    point : tuple, optional
+        a point belonging to the plane, by default (0,0,0)
+    n : tuple, optional
+        normal to the plane, by default (1,0,0)
+
+    Returns
+    -------
+    np.ndarray
+        the new coordinates
+    """
+
+    point = Point._getCoord(point)
     n = normalize_vect(Point._getCoord(n))
 
     oldCoordo = np.reshape(coordo, (-1,3))
 
-    d = (oldCoordo - center) @ n    
+    d = (oldCoordo - point) @ n    
 
     newCoord = oldCoordo - np.einsum('n,i->ni', 2*d, n, optimize='optimal')
 
