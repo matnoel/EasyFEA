@@ -609,8 +609,8 @@ class Elas_Isot(_Displacement_Model):
             test_C = np.linalg.norm((3*c1*E1  + 2*c2*E2) - C)/np.linalg.norm(C)
             assert test_C <= 1e-12
 
-        ci = np.array([3*c1, 2*c2])
-        Ei = np.array([E1, E2])
+        ci = np.array([c1, c2])
+        Ei = np.array([3*E1, 2*E2])
 
         return ci, Ei
 
