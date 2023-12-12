@@ -547,8 +547,7 @@ class Circle(Geom):
         
         assert diam > 0.0        
 
-        r = diam/2
-        self.diam = diam
+        r = diam/2        
 
         # creates points associated with the circle
         self.center = center
@@ -587,6 +586,13 @@ class Circle(Geom):
 
         for p, point in enumerate(self.points):
             point.coordo = coordo[p]
+
+    @property
+    def diam(self) -> float:
+        """circle diameter"""
+        p1 = self.pt1.coordo
+        pC = self.center.coordo
+        return np.linalg.norm(p1-pC) * 2
 
     @property
     def n(self) -> np.ndarray:

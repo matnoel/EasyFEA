@@ -1266,25 +1266,24 @@ class GroupElem(ABC):
         """Returns the nodes in the cylinder."""
 
         coordo = self.coordo
-
+        rotAxis = np.cross(circle.n, direction)
+        if np.linalg.norm(rotAxis) <= 1e-12:
+            # n == direction
+            i = (circle.pt1 - circle.center).coordo
+            J = JacobianMatrix(i,direction)
+        else:
+            # n != direction
+            # Change base (rotAxis, j, direction)
+            R = circle.diam/2
+            J = JacobianMatrix(rotAxis, direction)
+            coordN = np.einsum('ij,nj->ni', np.linalg.inv(J), circle.coordo - circle.center.coordo)
+            # Change base (rotAxis, j*cj, direction)
+            cj = (R - coordN[:,1].max())/R
+            J[:,1] *= cj
+        
         eps = 1e-12
-        dx, dy, dz = direction[0], direction[1], direction[2]
-        # TODO Probably doesn't work for an oriented cylinder at the moment!
-        # Need to work in the circle reference using jacobian matrix
-        # The attemps bellow dont work yet
-        # i = (circle.pt1 - circle.center).coordo
-        # # n = circle.n
-        # n = direction
-        # J = JacobianMatrix(i,n)
-        # coordo = np.einsum('ij,nj->ni',np.linalg.inv(J), coordo - circle.center.coordo, optimize='optimal')
-        # tt = np.mean(coordo, 0)
-        # idx = np.where(np.linalg.norm(coordo, axis=1) <=circle.diam/2+eps)[0]
-
-        zeros = np.zeros_like(coordo[:,0])
-        conditionX = coordo[:,0]-circle.center.x if dx == 0 else zeros
-        conditionY = coordo[:,1]-circle.center.y if dy == 0 else zeros
-        conditionZ = coordo[:,2]-circle.center.z if dz == 0 else zeros
-        idx = np.where(np.sqrt(conditionX**2+conditionY**2+conditionZ**2)<=circle.diam/2+eps)[0]
+        coordo = np.einsum('ij,nj->ni', np.linalg.inv(J), coordo - circle.center.coordo)
+        idx = np.where(np.linalg.norm(coordo[:,:2], axis=1) <= circle.diam/2+eps)[0]
 
         return self.__nodes[idx]
     
@@ -1292,7 +1291,7 @@ class GroupElem(ABC):
     # use pointsList.contour also give a normal
     # get all geom contour exept le last one
     # Line -> Plane equation
-    # CircleArc -> Cylinder
+    # CircleArc -> Cylinder do something like Get_Nodes_Cylinder
 
     def Set_Nodes_Tag(self, nodes: np.ndarray, tag: str):
         """Add a tag to the nodes
