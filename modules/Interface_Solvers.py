@@ -40,8 +40,9 @@ except ModuleNotFoundError:
 try:
     import petsc4py    
     from mpi4py import MPI
-    from petsc4py import PETSc
+    from petsc4py import PETSc    
     __canUsePetsc = True
+    __pc_default = 'ilu'
 except ModuleNotFoundError:
     __canUsePetsc = False
 
@@ -141,20 +142,27 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         x = pypardiso.spsolve(A, b.toarray())
 
     elif solveur == "petsc":
+        global __pc_default
         if simu.problemType == 'damage':
             if problemType == 'damage':
                 pcType = 'ilu'
             else:                
-                pcType = 'none'
                 # ilu decomposition doesn't seem to work for the displacement problem in a damage simulation
-        else:            
-            if simu.mesh.dim == 3:
-                pcType = 'none' # errors may occurs if we use ilu
-            else:
-                pcType = 'ilu' # faster on 2D
+                pcType = 'none'
+        else:
+            pcType = __pc_default # 'ilu' by default
+            # if mesh.dim = 3, errors may occurs if we use ilu
+            # works faster on 2D and 3D
         kspType = 'cg'
 
-        x, option = _PETSc(A, b, x0, kspType, pcType)
+        x, option, converg = _PETSc(A, b, x0, kspType, pcType)
+
+        if not converg:
+            print(f'\nWarning petsc did not converge with ksp:{kspType} and pc:{pcType} !')
+            print(f'Try out with  ksp:{kspType} and pc:none.\n')
+            __pc_default = 'none'
+            x, option, converg = _PETSc(A, b, x0, kspType, 'none')
+            assert converg, 'petsc didnt converge 2 times. check for kspType and pcType'
 
         solveur += option
     
@@ -360,7 +368,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
         "ilu", "none", "bjacobi", 'icc', "lu", "jacobi", "cholesky"\n
         # TODO iluk ?
         more -> https://petsc.org/release/manualpages/PC/PCType/\n
-        remark : The ilu preconditioner does not seem to work for systems using HEXA20 elements.    
+        remark : The ilu preconditioner does not seem to work for systems using HEXA20 elements.
 
     Returns
     -------
@@ -368,11 +376,11 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
         x solution to A x = b
     """
 
-    # comm   = MPI.COMM_WORLD
     comm   = None
+    # comm   = MPI.COMM_WORLD
     # nprocs = comm.Get_size()
     # rank   = comm.Get_rank()
-    # petsc4py.init(sys.argv, comm=MPI.COMM_WORLD)
+    petsc4py.init(sys.argv, comm=comm)
     # TODO make it work with mpi
 
     dimI = A.shape[0]
@@ -403,9 +411,13 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     ksp.solve(vectb, x)
     x = x.array
 
+    converg = ksp.converged and not ksp.diverged    
+
+    # PETSc._finalize()
+
     option = f", {kspType}, {pcType}"
 
-    return x, option
+    return x, option, converg
     
 
 def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
