@@ -1560,13 +1560,6 @@ class Interface_Gmsh:
             else:
                 views = [AddView(result+f'_{n}', vals_e_n[:,:,n].reshape(Ne,-1)) for n in range(dof_n)]
 
-
-
-
-
-
-            
-
         # Launch the GUI to see the results:
         if '-nopopup' not in sys.argv and self.__openGmsh:
             gmsh.fltk.run()

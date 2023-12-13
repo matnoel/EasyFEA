@@ -41,10 +41,7 @@ def New_File(filename: str, folder=Get_Path(), results=False) -> str:
 
 def Join(*args: str) -> str:
     """Builds the path based on a list of str."""
-    file = ""
-    for f in args:
-        file = os.path.join(file, f)        
-    return file
+    return os.path.join(*args)
 
 def Exists(path: str) -> bool:
     """Test whether a path exists. Returns False for broken symbolic links"""

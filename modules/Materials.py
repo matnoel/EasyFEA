@@ -42,7 +42,11 @@ class IModel(ABC):
     @property
     def useNumba(self) -> bool:
         """Returns whether the model can use numba functions"""
-        return self.__useNumba
+        try:
+            return self.__useNumba
+        except AttributeError:
+            self.__useNumba = False
+            return self.__useNumba
 
     @useNumba.setter
     def useNumba(self, value: bool):
@@ -113,7 +117,17 @@ class _Displacement_Model(IModel, ABC):
     @property
     def planeStress(self) -> bool:
         """The model uses plane stress simplification"""
-        return self.__planeStress
+        try:
+            return self.__planeStress
+        except AttributeError:
+            # do this in case the object was created in old instances
+            if isinstance(self, Elas_Isot):
+                self.__planeStress = self._Elas_Isot__planeStress
+            elif isinstance(self, Elas_IsotTrans):
+                self.__planeStress = self._Elas_IsotTrans__planeStress
+            elif isinstance(self, Elas_Anisot):
+                self.__planeStress = self._Elas_Anisot__planeStress
+            return self.__planeStress
     
     @planeStress.setter
     def planeStress(self, value: bool) -> None:
