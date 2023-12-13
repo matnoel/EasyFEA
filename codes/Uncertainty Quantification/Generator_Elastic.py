@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # _d for data
     # _s for samples
 
-    material_str = "Elas_Isot"
+    # material_str = "Elas_Isot"
     material_str = "Elas_IsotTrans"
 
     # import datas
@@ -147,6 +147,7 @@ if __name__ == '__main__':
             vL_exp: np.ndarray = dict_EL_NUL['mean_NUL_data']
 
         else:
+            # dfParams = dfParams[:-1]
             # Matthieu
             EL_exp: np.ndarray = dfParams["El"].values * 1e-3
             n = EL_exp.size
@@ -174,6 +175,8 @@ if __name__ == '__main__':
 
         phiC_d = np.log((c1_d*c2_d - c3_d**2) * c4_d**2 * c5_d**2)
         vC_d = np.mean(phiC_d)
+        
+        sol_d = np.append(m_c_d,[vC_d])
 
         c_0 = np.array([m_c1_d, m_c2_d, m_c3_d])
         cov = lambda l: 1/l * np.array([[-m_c1_d**2, -m_c3_d**2, -m_c1_d*m_c3_d],
@@ -188,6 +191,7 @@ if __name__ == '__main__':
             l, l1, l2, l3 = tuple(lamb[:4])
 
             p = (c1*c2-c3**2)**-l * np.exp(-l1*c1 -l2*c2 -l3*c3)
+            # p = np.exp(-l * np.log(c1*c2-c3**2)) * np.exp(-l1*c1 -l2*c2 -l3*c3)
 
             return p
 
@@ -257,7 +261,8 @@ if __name__ == '__main__':
 
             # here we want to get the c1, c2, c3 samples
             # we use Metropolis-Hastings to make samples
-            samples, rejectRatio = Metropolis_Hastings_C(c_0, cov(l), lamb, 0, 10000)            
+            cc = 1 if useZhou else .2
+            samples, rejectRatio = Metropolis_Hastings_C(c_0, cov(l)*cc, lamb, 0, 10000)            
             # _s for samples
             c1_s: np.ndarray = samples[:,0]; m_c1_s: float = np.mean(c1_s)
             c2_s: np.ndarray = samples[:,1]; m_c2_s: float = np.mean(c2_s)
@@ -270,9 +275,8 @@ if __name__ == '__main__':
             vC_s = mPhi_c123_s + mPhi_c4_s + mPhi_c5_s
             
             sol_s = np.append(m_c_s,[vC_s])
-            sol_d = np.append(m_c_d,[vC_d])
-            # J = np.linalg.norm(sol_d-sol_s)**2/np.linalg.norm(sol_d)**2
-            J = np.linalg.norm(sol_d-sol_s)**2
+            J = np.linalg.norm(sol_d-sol_s)**2/np.linalg.norm(sol_d)**2
+            # J = np.linalg.norm(sol_d-sol_s)**2
 
             print(f"{J:.3e}")
 
@@ -342,7 +346,7 @@ if __name__ == '__main__':
         # data
         ax_join_pdf.scatter(c1_d,c2_d,c3_d,zorder=3, c='red', marker='+')
         # samples
-        samples, rejectRatio = Metropolis_Hastings_C(c_0, cov(lamb[0]), lamb, 100, 1000)
+        samples, rejectRatio = Metropolis_Hastings_C(c_0, cov(lamb[0]), lamb, 0, 10000)
         ax_join_pdf.scatter(samples[:,0],samples[:,1],samples[:,2],zorder=3, c='blue', marker='.')
 
         plt.show()
