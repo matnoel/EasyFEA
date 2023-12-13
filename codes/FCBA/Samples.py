@@ -53,18 +53,24 @@ if __name__ == '__main__':
 
         mat_exp = Materials.Elas_IsotTrans(3, EL_exp, ET_exp, GL_exp, vL_exp, vT_exp)
         ci, Ei = mat_exp.Walpole_Decomposition()
+
         
         m_c_d = np.mean(ci, 1)
 
         m_c1_d, m_c2_d, m_c3_d = m_c_d[:3]
-
-        a_gc = 25.28238478947907
-        b_gc = 0.002563875860029356
         
+        # # ls
+        # a_gc = 25.28238478947907
+        # b_gc = 0.002563875860029356
 
-        lambdaFile = Folder.Join(folder, 'lambda.pickle')
+        # ml
+        a_gc = 27.213736823238317
+        b_gc = 0.002381901273972565
+
+        # lambdaFile = Folder.Join(folder, '_lambda.pickle')
+        lambdaFile = Folder.Join(folder, 'lambda17.pickle') # with sample17 removed
         with open(lambdaFile, 'rb') as f:
-            lamb = pickle.load(f)
+            lamb = pickle.load(f)        
 
         l,l1,l2,l3,l4,l5 = lamb
 
@@ -78,6 +84,8 @@ if __name__ == '__main__':
         gc_s = stats.gamma.rvs(a_gc, scale=b_gc, size=N)
         c4_s = stats.gamma.rvs(a4, scale=b4, size=N)
         c5_s = stats.gamma.rvs(a5, scale=b5, size=N)
+
+        t = stats.gamma.interval(0.95, a_gc, scale=b_gc)
 
         cov = 1/l * np.array([[-m_c1_d**2, -m_c3_d**2, -m_c1_d*m_c3_d],
                             [-m_c3_d**2, -m_c2_d**2, -m_c2_d*m_c3_d],
@@ -136,17 +144,19 @@ if __name__ == '__main__':
         # samples = (c1, c2, c3, c4, c5, gc) # MPa and mJ/mm2
         n = c1c2c3_s.shape[0]
         samples = np.zeros((n, 6), float)
-        samples[:,:3] = c1c2c3_s * 1e3
-        samples[:,3] = c4_s[:n] * 1e3
-        samples[:,4] = c5_s[:n] * 1e3
+        samples[:,:3] = c1c2c3_s
+        samples[:,3] = c4_s[:n]
+        samples[:,4] = c5_s[:n]
         samples[:,5] = gc_s[:n]
+        
+        C_s = np.mean(np.einsum('nc,cij->nij', samples[:,:-1], Ei), 0)
 
-        id = np.random.randint(0,n)
-        C_s = np.einsum('nc,cij->nij', samples[:,:-1], Ei)
-        C = np.sum([c * e for c, e in zip(samples[id,:-1], Ei)], 0)
+        C_mean = np.sum([c*e for c,e in zip(m_c_d, Ei)], 0)
 
-        err = np.linalg.norm(C-C_s[id])/np.linalg.norm(C)
-        assert err <= 1e-12
+        err = np.linalg.norm(m_c_d-np.mean(samples[:,:-1], 0))**2/np.linalg.norm(m_c_d)**2
+        err2 = (m_c_d-np.mean(samples[:,:-1], 0))/np.linalg.norm(m_c_d)
+        err3 = np.linalg.norm(C_mean-C_s)**2/np.linalg.norm(C_mean)**2
+        assert err <= 1e-3, 'generated samples are not close enough to the data'
 
         with open(samplesFile, 'wb') as f:
             pickle.dump(samples, f)
@@ -166,10 +176,10 @@ if __name__ == '__main__':
 
         ax = plt.subplots()[1]
         ax.plot(range(n), samples[:,i], ls='',marker='.', c='blue', label='samples')
-        unit = ' [mJ/mm2]' if 'g' in params[i] else ' [MPa]'
+        unit = ' [mJ/mm2]' if 'g' in params[i] else ' [GPa]'
         mean = np.mean(samples[:,i])
         ax.hlines(mean, 0, n, 'red', label=f'{mean:.3f}')
-        ax.set_xlabel('N samples')
+        ax.set_xlabel('N')
         ax.set_ylabel(params[i] + unit)
         ax.legend(loc='upper right')
         if saveFig:
