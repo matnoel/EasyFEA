@@ -1,12 +1,14 @@
 """Functions for importing samples data"""
 
 import Folder
-import pandas as pd
-import numpy as np
 import Materials
 from Interface_Gmsh import Interface_Gmsh, Mesh, ElemType
 from Geom import Point, Domain, Circle
 import Display
+
+import pandas as pd
+import numpy as np
+from dataclasses import dataclass
 
 folder = Folder.Get_Path(__file__)
 
@@ -115,3 +117,74 @@ def Calc_a_b(forces, deplacements, fmax) -> tuple[float, float]:
     a, b = vect_ab[0], vect_ab[1]
 
     return a, b
+
+@dataclass
+class Config:
+    start: int
+    N: int
+    test: bool
+    split: str # Bourdin, Amor, Miehe, He etc ..   
+    regu: str # AT1, AT2
+    tolConv: float # tolerance used in staggered scheme
+    convOption: int # convergence option
+    # (0, bourdin)
+    # (1, crack energy)
+    # (2, crack + strain energy
+    nL: int # the half crack length l0 = L/nL 
+    optimMesh: bool
+
+    @property
+    def config_name(self) -> str:
+        """configuration name"""
+        
+        config_name = f'{self.split}_'
+        config_name += f'{self.regu}_'
+        config_name += f'tolConv{self.tolConv:1.0e}_'
+        config_name += f'conv{self.convOption}_'
+        config_name += f'nL{self.nL}_'
+        if self.optimMesh:
+            config_name += 'optimMesh'
+
+        return config_name
+    
+    @property
+    def path(self) -> str:
+        """configuration path"""
+        path = f'{self.start}_{self.N}'
+        config = self.config_name
+
+        if self.test:
+            path = Folder.Join(path, 'Test', config)
+        else:
+            path = Folder.Join(path, config)
+
+        return path
+    
+    @staticmethod
+    def Config_From_Path(path: str):
+
+        sep = Folder.os.path.sep
+
+        folders = path.split(sep)
+        
+        params = folders[-1]
+
+        # config
+        split, regu = params.split('_')[:2]
+        tolConv = float(params.split('tolConv')[1].split('_')[0])
+        convOption = int(params.split('conv')[1].split('_')[0])
+        nL = int(params.split('nL')[1].split('_')[0])
+        optimMesh = 'optimMesh' in params
+
+        test = 'Test' in folders[-2]
+
+        if test:
+            start_N = folders[-3]
+        else:
+            start_N = folders[-2]
+
+        start, N = [int(s) for s in start_N.split('_')]
+
+        config = Config(start, N, test, split, regu, tolConv, convOption, nL, optimMesh)
+
+        return config
