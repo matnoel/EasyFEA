@@ -137,28 +137,26 @@ class Config:
     def config_name(self) -> str:
         """configuration name"""
         
-        config_name = f'{self.split}_'
+        config_name = f'{self.start}_'
+        config_name += f'{self.N}_'
+        config_name += f'{self.split}_'
         config_name += f'{self.regu}_'
         config_name += f'tolConv{self.tolConv:1.0e}_'
         config_name += f'conv{self.convOption}_'
-        config_name += f'nL{self.nL}_'
+        config_name += f'nL{self.nL}'
         if self.optimMesh:
-            config_name += 'optimMesh'
+            config_name += '_optimMesh'
 
         return config_name
     
     @property
     def path(self) -> str:
-        """configuration path"""
-        path = f'{self.start}_{self.N}'
+        """configuration path"""        
         config = self.config_name
-
         if self.test:
-            path = Folder.Join(path, 'Test', config)
+            return Folder.Join('Test', config)
         else:
-            path = Folder.Join(path, config)
-
-        return path
+            return config
     
     @staticmethod
     def Config_From_Path(path: str):
@@ -170,20 +168,14 @@ class Config:
         params = folders[-1]
 
         # config
-        split, regu = params.split('_')[:2]
+        start, N, split, regu = params.split('_')[:4]
+        start, N = int(start), int(N)
         tolConv = float(params.split('tolConv')[1].split('_')[0])
         convOption = int(params.split('conv')[1].split('_')[0])
         nL = int(params.split('nL')[1].split('_')[0])
         optimMesh = 'optimMesh' in params
 
-        test = 'Test' in folders[-2]
-
-        if test:
-            start_N = folders[-3]
-        else:
-            start_N = folders[-2]
-
-        start, N = [int(s) for s in start_N.split('_')]
+        test = 'Test' == folders[-2]
 
         config = Config(start, N, test, split, regu, tolConv, convOption, nL, optimMesh)
 

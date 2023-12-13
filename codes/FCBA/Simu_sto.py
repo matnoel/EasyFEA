@@ -4,6 +4,7 @@ import Simulations
 import Materials
 import Functions
 from Samples import folder_save as samplesFolder
+from TicTac import Tic
 
 import pickle
 from Display import plt, np
@@ -14,34 +15,33 @@ folder = Folder.Get_Path(__file__)
 
 folder_Sto = Folder.New_File(Folder.Join('FCBA','Sto'), results=True)
 
-# Save in FCBA/Sto/start_N/config
-
-doSimulation = False
-useParallel = False
-nProcs = 5
-
 start = 0
-N = 20 # N simulations
-# t = list(range(start, start+N))
+N = 500 # N simulations
+doSimulation = True
+
+useParallel = True
+nProcs = 20
 
 Display.Clear()
+
+doPlot = False
 
 # --------------------------------------------------------------------------------------------
 # Configuration
 # --------------------------------------------------------------------------------------------
-
-test = True    
-optimMesh = True
 
 L = 45
 H = 90
 D = 10
 t = 20
 
+# mesh
 nL = 100
+test = True
+optimMesh = True
+
 l0 = L/nL
 
-# mesh
 mesh = Functions.DoMesh(L,H,D,l0,test,optimMesh)
 nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
@@ -95,7 +95,9 @@ errCi = np.linalg.norm(ci - mean[:-1])**2/np.linalg.norm(ci)**2
 # Simu
 # --------------------------------------------------------------------------------------------
 
-def DoSimu(s: int, sample: np.ndarray, mesh: Simulations.Mesh) -> tuple[int, list, list, list]:
+def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list]:
+
+    tic = Tic()
 
     c1,c2,c3,c4,c5,gc = sample    
 
@@ -106,7 +108,7 @@ def DoSimu(s: int, sample: np.ndarray, mesh: Simulations.Mesh) -> tuple[int, lis
     pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)
 
     simu = Simulations.Simu_PhaseField(mesh, pfm)
-    # if useParallel: simu.solver = 'cg'
+    simu.solver = 'petsc'
 
     list_du: list[float] = []
     list_f: list[float] = []
@@ -132,9 +134,11 @@ def DoSimu(s: int, sample: np.ndarray, mesh: Simulations.Mesh) -> tuple[int, lis
             list_f.append(f)
             list_d.append(dmax)
         else:
-            return (s, [], [], [])
+            return (s, [], [], [], 0)
+        
+    time = tic.Tac()
 
-    return (s, list_du, list_f, list_d)
+    return (s, list_du, list_f, list_d, time)
 
 # --------------------------------------------------------------------------------------------
 # Simulations
@@ -163,10 +167,10 @@ if __name__ == '__main__':
 
         results: list[dict] = []
 
-        items = [(i, samples[i], mesh) for i in range(start,start+N)]
+        items = [(i, samples[i]) for i in range(start,start+N)]
 
         def addResult(res):
-            i, list_du, list_f, list_d = tuple(res)
+            i, list_du, list_f, list_d, time = tuple(res)
             result = {
                     "i": i,
                     label_u: np.asarray(list_du, dtype=float),
@@ -175,12 +179,19 @@ if __name__ == '__main__':
                     "sample": samples[i]
                 }
             results.append(result)
-            print(f'{len(results)/len(items)*100:3.0f} %', end='\r')
+            # get percentage and remaining time
+            nSim = len(results)
+            p = nSim/len(items)
+            timeLeft = (1/p-1)*time*len(results)            
+            
+            timeCoef, unite = Tic.Get_time_unity(timeLeft)
+            print(f'{p*100:3.0f} %, approximate time remaining {timeCoef:.2f} {unite}', end='\r')
 
         if useParallel:            
             with multiprocessing.Pool(nProcs) as pool:
                 for res in pool.starmap(DoSimu, items):
                     addResult(res)
+            Display.Clear()
         else:
             for item in items:
                 addResult(DoSimu(*item))
@@ -200,22 +211,20 @@ if __name__ == '__main__':
     # df1: pd.DataFrame = pd.read_pickle(Folder.Join(folder_save, '_data_par.pickle'))
     # df2: pd.DataFrame = pd.read_pickle(Folder.Join(folder_save, '_data.pickle'))
 
-    # diff_u = (df1[label_u].values - df2[label_u].values).reshape(-1)
-    # diff_f = (df1[label_f].values - df2[label_f].values).reshape(-1)
-    # print(np.linalg.norm(diff_u))
-    # print(np.linalg.norm(diff_f))
+    # diff_u = df1[label_u].values - df2[label_u].values
+    # diff_f = df1[label_f].values - df2[label_f].values
+    # print(diff_u)
+    # print(diff_f)
     # ax = plt.subplots()[1]
     # for i in range(N):
     #     ax.plot(df1[label_u][i], df1[label_f][i], c='blue')
     #     ax.plot(df2[label_u][i], df2[label_f][i], c='red')
     
-    ax = plt.subplots()[1]
-    for i in range(N):
-        ax.plot(df[label_u][i], df[label_f][i])
+    if doPlot:
 
-
-    
-
+        ax = plt.subplots()[1]
+        for i in range(N):
+            ax.plot(df[label_u][i], df[label_f][i])
 
     print(df)
 
