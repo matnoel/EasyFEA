@@ -10,6 +10,7 @@ import pickle
 from Display import plt, np
 import pandas as pd
 import multiprocessing
+from datetime import datetime
 
 folder = Folder.Get_Path(__file__)
 
@@ -20,7 +21,7 @@ N = 500 # N simulations
 doSimulation = True
 
 useParallel = True
-nProcs = 20
+nProcs = 10 # None means every processors
 
 Display.Clear()
 
@@ -108,7 +109,6 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list]:
     pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)
 
     simu = Simulations.Simu_PhaseField(mesh, pfm)
-    simu.solver = 'petsc'
 
     list_du: list[float] = []
     list_f: list[float] = []
@@ -134,11 +134,18 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list]:
             list_f.append(f)
             list_d.append(dmax)
         else:
-            return (s, [], [], [], 0)
+            return (s, [], [], [])
         
     time = tic.Tac()
 
-    return (s, list_du, list_f, list_d, time)
+    # get percentage and remaining time    
+    p = (s-start)/N
+    if p > 0:
+        timeLeft = (1/p-1)*time*N    
+        timeCoef, unite = Tic.Get_time_unity(timeLeft)
+        print(f'{p*100:3.0f} %, time left {timeCoef:.2f} {unite}')
+
+    return (s, list_du, list_f, list_d)
 
 # --------------------------------------------------------------------------------------------
 # Simulations
@@ -170,7 +177,7 @@ if __name__ == '__main__':
         items = [(i, samples[i]) for i in range(start,start+N)]
 
         def addResult(res):
-            i, list_du, list_f, list_d, time = tuple(res)
+            i, list_du, list_f, list_d = tuple(res)
             result = {
                     "i": i,
                     label_u: np.asarray(list_du, dtype=float),
@@ -179,33 +186,47 @@ if __name__ == '__main__':
                     "sample": samples[i]
                 }
             results.append(result)
-            # get percentage and remaining time
-            nSim = len(results)
-            p = nSim/len(items)
-            timeLeft = (1/p-1)*time*len(results)            
-            
-            timeCoef, unite = Tic.Get_time_unity(timeLeft)
-            print(f'{p*100:3.0f} %, approximate time remaining {timeCoef:.2f} {unite}', end='\r')
 
-        if useParallel:            
-            with multiprocessing.Pool(nProcs) as pool:
+        tic = Tic()
+
+        if useParallel:
+            with multiprocessing.Pool(nProcs) as pool:                
                 for res in pool.starmap(DoSimu, items):
                     addResult(res)
-            Display.Clear()
+            # Display.Clear()
+
         else:
             for item in items:
                 addResult(DoSimu(*item))
+
+        timeSpend = tic.Tac()
+
+        # Save simulation summary
+        path_summary = Folder.Join(folder_save, "summary.txt")
+        summary = f"Simulations completed on: {datetime.now()}"
+        summary += f'\n\nWith config:\n{config.config_name}'
+        time, unit = Tic.Get_time_unity(timeSpend)
+        summary += f'\n\nElapsed time {time:.2f} {unit}'
+        with open(path_summary, 'w', encoding='utf8') as file:
+            file.write(summary)
 
         df = pd.DataFrame(results)
         df.set_index('i', inplace=True)
         df.sort_index()
         df.to_pickle(filePickle)
 
+        print(f'saving:\n{filePickle}')
+
     else:
         if not Folder.Exists(filePickle):
             print(f"the file \n'{filePickle}'\n does not exists")
             exit()
-        df = pd.read_pickle(filePickle)
+        else:
+            print(f'loading:\n{filePickle}')
+            df = pd.read_pickle(filePickle)
+
+    print(df)
+
 
 
     # df1: pd.DataFrame = pd.read_pickle(Folder.Join(folder_save, '_data_par.pickle'))
@@ -219,13 +240,62 @@ if __name__ == '__main__':
     # for i in range(N):
     #     ax.plot(df1[label_u][i], df1[label_f][i], c='blue')
     #     ax.plot(df2[label_u][i], df2[label_f][i], c='red')
+
+
+    # labels = [label_u, label_f, label_d]
+
+    # vals = [[df[label][i][[0, df[label][i].size//2 ,-1]] for label in labels] for i in range(N)]
+    # u, f, d = np.asarray(vals).transpose((1,0,2))
+
+    # # y = a x + b
+    # a = (f[:,1] - f[:,0])/(u[:,1] - u[:,0])
+    # b = 0
+
+    # uu = np.linspace(0, np.max(u), 1000)
+    # ff = np.einsum('n,i->ni', a, uu)
+
+    # if doPlot:
+    #     ax = plt.subplots()[1]
+    #     ax_d = plt.subplots()[1]
+
+    #     [ax.plot(uu, ff[i],c='gray', alpha=.3) for i in range(N)]
+
+    #     tt = np.quantile(a, (0.025, 0.975))
+
+
+    #     ax.fill_between(uu, tt[0]*uu, tt[1]*uu, zorder=10, alpha=.5)
+
+    #     ax.plot(uu, np.mean(a)*uu, c='black', ls='--')
+
+    #     pass
+
+
+
+    # # uMax, fMax, dMax = np.asarray([(df[]) for i in range(N)])
     
-    if doPlot:
+    
 
-        ax = plt.subplots()[1]
-        for i in range(N):
-            ax.plot(df[label_u][i], df[label_f][i])
+    # ab = []
 
-    print(df)
+    # for i in range(N):
 
-    plt.show()
+    #     size = df[label_u][i].size
+
+    #     u0, u1, umax = df[label_u][i][[0, size//2, -1]]
+    #     f0, f1, fmax = df[label_f][i][[0, size//2, -1]]
+    #     d0, d1, dmax = df[label_d][i][[0, size//2, -1]]
+
+    #     u.append(u0,u1,umax)
+    #     f.append(f0,f1,fmax)
+    #     d.append(d0,d1,dmax)
+
+    #     mat = np.array([[u0,1],[u1, 1]])
+    #     a, b = np.linalg.solve(mat, [f0, f1])
+
+    #     ab.append((a,b))
+
+    #     if doPlot:
+    #         ax.plot(df[label_u][i], df[label_f][i])
+    #         ax_d.plot(df[label_u][i], df[label_d][i])
+
+    # plt.show()
