@@ -31,19 +31,27 @@ try:
 except (ModuleNotFoundError, ImportError):
     __canUseUmfpack = False
 
-try:
-    import mumps as mumps
+try:    
     from mumps import DMumpsContext
     __canUseMumps = True
 except ModuleNotFoundError:
     __canUseMumps = False
 
 try:
+    # TODO make it work with mpi
     import petsc4py    
-    from mpi4py import MPI
     from petsc4py import PETSc    
+    from mpi4py import MPI
+
+    __comm = MPI.COMM_WORLD
+    nprocs = __comm.Get_size()
+    rank   = __comm.Get_rank()
+    if nprocs == 1:
+        __comm = None
+    
     __canUsePetsc = True
     __pc_default = 'ilu'
+
 except ModuleNotFoundError:
     __canUsePetsc = False
 
@@ -192,6 +200,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         x = umfpackSpsolve(A, b)
 
     elif solveur == "mumps":
+        # TODO dont work
         ctx = DMumpsContext()
         if ctx.myid == 0:
             ctx.set_centralized_sparse(A)
@@ -384,19 +393,14 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
         x solution to A x = b
     """
 
-    comm   = None
-    # comm   = MPI.COMM_WORLD
-    # nprocs = comm.Get_size()
-    # rank   = comm.Get_rank()
-    petsc4py.init(sys.argv, comm=comm)
-    # TODO make it work with mpi
+    petsc4py.init(sys.argv, comm=__comm)
 
     dimI = A.shape[0]
-    dimJ = A.shape[1]    
+    dimJ = A.shape[1]
 
     matrice = PETSc.Mat()
     csr = (A.indptr, A.indices, A.data)    
-    matrice.createAIJ([dimI, dimJ], comm=comm, csr=csr)
+    matrice.createAIJ([dimI, dimJ], comm=__comm, csr=csr)
 
     vectb = matrice.createVecLeft()
 
