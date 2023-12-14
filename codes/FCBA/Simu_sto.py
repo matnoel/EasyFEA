@@ -21,7 +21,7 @@ N = 500 # N simulations
 doSimulation = True
 
 useParallel = True
-nProcs = 5 # None means every processors
+nProcs = 6 # None means every processors
 
 Display.Clear()
 
@@ -138,7 +138,7 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list]:
         
     time = tic.Tac()
     timeCoef, unite = Tic.Get_time_unity(time)
-    print(f'{s}\t {s/N*100:3.2f}% \t {timeCoef} {unite}')    
+    print(f'{s}\t {s/N*100:3.2f}%\t {timeCoef:.2f} {unite}')    
 
     return (s, list_du, list_f, list_d)
 
@@ -185,7 +185,7 @@ if __name__ == '__main__':
         tic = Tic()
 
         if useParallel:
-            with multiprocessing.Pool(nProcs) as pool:                
+            with multiprocessing.Pool(nProcs) as pool:
                 for res in pool.starmap(DoSimu, items):
                     addResult(res)
             # Display.Clear()
