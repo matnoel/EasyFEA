@@ -387,12 +387,11 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
         x solution to A x = b
     """
 
-    # TODO make it work with mpi
+    # # TODO make it work with mpi
     # __comm = MPI.COMM_WORLD
     # nprocs = __comm.Get_size()
     # rank   = __comm.Get_rank()
-    # if nprocs == 1:
-    #     __comm = None
+    
     __comm = None
     petsc4py.init(sys.argv, comm=__comm)
 
