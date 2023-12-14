@@ -33,6 +33,7 @@ except (ModuleNotFoundError, ImportError):
 
 try:
     import mumps as mumps
+    from mumps import DMumpsContext
     __canUseMumps = True
 except ModuleNotFoundError:
     __canUseMumps = False
@@ -191,7 +192,14 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         x = umfpackSpsolve(A, b)
 
     elif solveur == "mumps":
-        x = mumps.spsolve(A,b)
+        ctx = DMumpsContext()
+        if ctx.myid == 0:
+            ctx.set_centralized_sparse(A)
+            x = b.copy()
+            ctx.set_rhs(x) # Modified in place
+        ctx.run(job=-1) # Analysis + Factorization + Solve
+        ctx.destroy() # Cleanup
+        # x = mumps.spsolve(A,b)
             
     tic.Tac("Solver",f"Solve {problemType} ({solveur})", simu._verbosity)
 
