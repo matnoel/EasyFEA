@@ -41,9 +41,6 @@ if __name__ == '__main__':
         # --------------------------------------------------------------------------------------------
 
         dfParams = Functions.dfParams.copy()
-
-        coef = .2 # coef to multiply cov
-
         n = dfParams.shape[0]
         EL_exp: np.ndarray = dfParams["El"].values * 1e-3 # GPa
         ET_exp: np.ndarray = dfParams["Et"].values * 1e-3
@@ -53,10 +50,8 @@ if __name__ == '__main__':
 
         mat_exp = Materials.Elas_IsotTrans(3, EL_exp, ET_exp, GL_exp, vL_exp, vT_exp)
         ci, Ei = mat_exp.Walpole_Decomposition()
-
         
         m_c_d = np.mean(ci, 1)
-
         m_c1_d, m_c2_d, m_c3_d = m_c_d[:3]
         
         # # ls
@@ -68,7 +63,7 @@ if __name__ == '__main__':
         b_gc = 0.002381901273972565
 
         # lambdaFile = Folder.Join(folder, '_lambda.pickle')
-        lambdaFile = Folder.Join(folder, 'lambda17.pickle') # with sample17 removed
+        lambdaFile = Folder.Join(folder, '_lambda17.pickle') # with sample17 removed
         with open(lambdaFile, 'rb') as f:
             lamb = pickle.load(f)        
 
@@ -85,8 +80,9 @@ if __name__ == '__main__':
         c4_s = stats.gamma.rvs(a4, scale=b4, size=N)
         c5_s = stats.gamma.rvs(a5, scale=b5, size=N)
 
-        t = stats.gamma.interval(0.95, a_gc, scale=b_gc)
+        # t = stats.gamma.interval(0.95, a_gc, scale=b_gc)
 
+        coef = .2 # coef to multiply cov
         cov = 1/l * np.array([[-m_c1_d**2, -m_c3_d**2, -m_c1_d*m_c3_d],
                             [-m_c3_d**2, -m_c2_d**2, -m_c2_d*m_c3_d],
                             [-m_c1_d*m_c3_d, -m_c2_d*m_c3_d, -(m_c3_d**2 + m_c1_d*m_c2_d)/2]])
@@ -162,14 +158,8 @@ if __name__ == '__main__':
             pickle.dump(samples, f)
 
     else:
-        try:
-            with open(samplesFile, 'rb') as f:
-                samples: np.ndarray = pickle.load(f)
-        except AssertionError:
-            print("pickle don't work, use np.load instead")
-            file_npy = Folder.Join(folder_save, 'samples_article.npy')
-            # np.save(file_npy, samples, allow_pickle=False)
-            samples = np.load(file_npy, allow_pickle=False)
+        with open(samplesFile, 'rb') as f:
+            samples: np.ndarray = pickle.load(f)
 
     # --------------------------------------------------------------------------------------------
     # Make samples
