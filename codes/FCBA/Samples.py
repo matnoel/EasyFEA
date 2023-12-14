@@ -27,7 +27,7 @@ if __name__ == '__main__':
             print('the file will be overwritten')
             makeSamples = True
         elif input == 'no':
-            print('the file will not be overwritten')
+            print('loading the file')
             makeSamples = False
         else:
             raise Exception('Type yes or no')
@@ -162,8 +162,14 @@ if __name__ == '__main__':
             pickle.dump(samples, f)
 
     else:
-        with open(samplesFile, 'rb') as f:
-            samples: np.ndarray = pickle.load(f)
+        try:
+            with open(samplesFile, 'rb') as f:
+                samples: np.ndarray = pickle.load(f)
+        except AssertionError:
+            print("pickle don't work, use np.load instead")
+            file_npy = Folder.Join(folder_save, 'samples_article.npy')
+            # np.save(file_npy, samples, allow_pickle=False)
+            samples = np.load(file_npy, allow_pickle=False)
 
     # --------------------------------------------------------------------------------------------
     # Make samples
