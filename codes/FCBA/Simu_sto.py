@@ -21,7 +21,7 @@ N = 500 # N simulations
 doSimulation = True
 
 useParallel = True
-nProcs = 10 # None means every processors
+nProcs = 5 # None means every processors
 
 Display.Clear()
 
@@ -108,7 +108,7 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list]:
 
     pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)
 
-    simu = Simulations.Simu_PhaseField(mesh, pfm)
+    simu = Simulations.Simu_PhaseField(mesh, pfm, useNumba=False)
 
     list_du: list[float] = []
     list_f: list[float] = []
@@ -137,13 +137,8 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list]:
             return (s, [], [], [])
         
     time = tic.Tac()
-
-    # get percentage and remaining time    
-    p = (s-start)/N
-    if p > 0:
-        timeLeft = (1/p-1)*time*N    
-        timeCoef, unite = Tic.Get_time_unity(timeLeft)
-        print(f'{p*100:3.0f} %, time left {timeCoef:.2f} {unite}')
+    timeCoef, unite = Tic.Get_time_unity(time)
+    print(f'{s}\t {s/N*100:3.2f}% \t {timeCoef} {unite}')    
 
     return (s, list_du, list_f, list_d)
 
