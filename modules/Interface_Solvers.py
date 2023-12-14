@@ -197,7 +197,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
             ctx.set_centralized_sparse(A)
             x = b.copy()
             ctx.set_rhs(x) # Modified in place
-        ctx.run(job=-1) # Analysis + Factorization + Solve
+        ctx.run(job=6) # Analysis + Factorization + Solve
         ctx.destroy() # Cleanup
         # x = mumps.spsolve(A,b)
             
