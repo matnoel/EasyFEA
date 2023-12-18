@@ -368,6 +368,9 @@ class _Simu(ABC):
 
         center: np.ndarray = np.einsum('ep,ep,p,epi->i', rho_e_p, jacobian_e_p, weight_p, coordo_e_p, optimize='optimal') / mass
 
+        if self.dim == 2:
+            center *= self.model.thickness
+
         if not isinstance(self.__rho, np.ndarray):
             diff = np.linalg.norm(center - self.mesh.center)/np.linalg.norm(center)
             assert diff <= 1e-12
