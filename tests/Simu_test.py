@@ -217,6 +217,7 @@ class Test_Simu(unittest.TestCase):
             simu.add_surfLoad(noeuds_en_L, [P/a/a], ['y'])            
             
             simu.Solve()
+            simu.Save_Iter()
 
             # static
             fig, ax, cb = Display.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
