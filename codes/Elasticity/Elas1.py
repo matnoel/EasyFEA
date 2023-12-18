@@ -17,7 +17,6 @@ if __name__ == '__main__':
     dim = 2
     N = 20 if dim == 2 else 10
 
-
     # Define material properties
     E = 210000  # MPa (Young's modulus)
     v = 0.3     # Poisson's ratio
@@ -31,14 +30,14 @@ if __name__ == '__main__':
     # Mesh
     # --------------------------------------------------------------------------------------------
 
-    meshSize = h/10
+    meshSize = h/N
 
     domain = Domain(Point(), Point(L,h), meshSize)
 
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(domain, [], [0,0,-h], 4, ElemType.PRISM6, isOrganised=True)
+        mesh = Interface_Gmsh().Mesh_3D(domain, [], [0,0,-h], 4, ElemType.HEXA8, isOrganised=True)
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
