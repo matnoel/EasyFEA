@@ -78,11 +78,15 @@ def Get_material(idxEssai: int, thickness: float, dim=2) -> Materials.Elas_IsotT
 
     return material
 
-def Get_loads_informations(idxEssai: int) -> tuple[np.ndarray, np.ndarray, float]:
+def Get_loads_informations(idxEssai: int, useRedim=False) -> tuple[np.ndarray, np.ndarray, float]:
     """return forces, displacements, f_crit"""
 
-    forces = dfEssais["Forces [kN]"][idxEssai]
-    displacements = dfEssais["Deplacements [mm]"][idxEssai]
+    if useRedim:
+        forces = dfEssais["Forces redim [kN]"][idxEssai]
+        displacements = dfEssais["Deplacements redim [mm]"][idxEssai]
+    else:
+        forces = dfEssais["Forces [kN]"][idxEssai]
+        displacements = dfEssais["Deplacements [mm]"][idxEssai]
     
     f_crit = dfEssais["Force crack [kN]"][idxEssai]
 

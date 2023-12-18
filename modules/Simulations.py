@@ -2383,8 +2383,14 @@ class Simu_PhaseField(_Simu):
         if problemType==None:
             problemType = ModelType.displacement
 
-        taille = self.mesh.Nn * self.Get_dof_n(problemType)
-        initcsr = sparse.csr_matrix((taille, taille))
+        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        initcsr = sparse.csr_matrix((size, size))
+
+        if self.needUpdate:
+            if problemType == ModelType.displacement:
+                self.__Assembly_displacement()
+            else:
+                self.__Assembly_damage()
 
         try:    
             if problemType == ModelType.damage:            
@@ -2771,6 +2777,7 @@ class Simu_PhaseField(_Simu):
 
         if results is None: return
 
+        self.Need_Update() # damage field will change thats why we need to update the assembled matrices
         self.__old_psiP_e_pg = [] # It's really useful to do this otherwise when we calculate psiP there will be a problem
 
         damageType = ModelType.damage
@@ -2778,8 +2785,6 @@ class Simu_PhaseField(_Simu):
 
         displacementType = ModelType.displacement
         self.set_u_n(displacementType, results[displacementType])
-
-        self.phaseFieldModel.Need_Split_Update()
 
         return results
 
@@ -3647,9 +3652,10 @@ class Simu_Beam(_Simu):
             tic.Tac("Matrix","Assembly Kbeam and Fbeam", self._verbosity)
 
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        taille = self.mesh.Nn * self.Get_dof_n(problemType)
-        initcsr = sparse.csr_matrix((taille, taille))
-        return self.__Kbeam, initcsr, initcsr, self.__Fbeam
+        if self.needUpdate: self.Assembly()
+        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        initcsr = sparse.csr_matrix((size, size))
+        return self.__Kbeam.copy(), initcsr.copy(), initcsr.copy(), self.__Fbeam.copy()
 
     def Get_x0(self, problemType=None):
         if self.displacement.size != self.mesh.Nn*self.Get_dof_n(problemType):

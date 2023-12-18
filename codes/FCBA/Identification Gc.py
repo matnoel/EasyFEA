@@ -20,7 +20,7 @@ folder = Folder.Join(Folder.New_File("FCBA",results=True), "Identification")
 # Configuration
 # --------------------------------------------------------------------------------------------
 test = False
-doSimulation = True
+doSimulation = False
 detectL0 = False
 optimMesh = True
 
@@ -151,12 +151,12 @@ if __name__ == '__main__':
         # --------------------------------------------------------------------------------------------
         # Datas
         # --------------------------------------------------------------------------------------------
-        forces, deplacements, f_crit = Functions.Get_loads_informations(idxEssai)
+        forces, deplacements, f_crit = Functions.Get_loads_informations(idxEssai, useRedim=True)
         print(f"fcrit = {f_crit}")
 
         mesh_init = Functions.DoMesh(L, H, D, l0_init, test, optimMesh)
 
-        Display.Plot_Mesh(mesh_init)
+        # Display.Plot_Mesh(mesh_init)
         print(mesh_init)
 
         # --------------------------------------------------------------------------------------------
