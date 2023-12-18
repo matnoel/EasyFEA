@@ -17,11 +17,11 @@ folder = Folder.Get_Path(__file__)
 folder_Sto = Folder.New_File(Folder.Join('FCBA','Sto'), results=True)
 
 start = 0
-N = 500 # N simulations
+N = 1000 # N simulations
 doSimulation = True
 
 useParallel = True
-nProcs = 6 # None means every processors
+nProcs = 15 # None means every processors
 
 Display.Clear()
 
@@ -38,7 +38,7 @@ t = 20
 
 # mesh
 nL = 100
-test = True
+test = False
 optimMesh = True
 
 l0 = L/nL
@@ -96,15 +96,16 @@ errCi = np.linalg.norm(ci - mean[:-1])**2/np.linalg.norm(ci)**2
 # Simu
 # --------------------------------------------------------------------------------------------
 
-def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list]:
+def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list, float]:
 
     tic = Tic()
 
     c1,c2,c3,c4,c5,gc = sample    
 
-    C = c1*E1 + c2*E2 + c3*E3 + c4*E4 + c5*E5
+    C = c1*E1 + c2*E2 + c3*E3 + c4*E4 + c5*E5 # GPa
+    C *= 1e3 # MPa
 
-    material = Materials.Elas_Anisot(2, C*1e3, False)
+    material = Materials.Elas_Anisot(2, C, False, planeStress=True, thickness=t)
 
     pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)
 
@@ -134,13 +135,13 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list]:
             list_f.append(f)
             list_d.append(dmax)
         else:
-            return (s, [], [], [])
+            return (s, [], [], [], 0)
         
     time = tic.Tac()
     timeCoef, unite = Tic.Get_time_unity(time)
     print(f'{s}\t {s/N*100:3.2f}%\t {timeCoef:.2f} {unite}')    
 
-    return (s, list_du, list_f, list_d)
+    return (s, list_du, list_f, list_d, time)
 
 # --------------------------------------------------------------------------------------------
 # Simulations
@@ -172,13 +173,14 @@ if __name__ == '__main__':
         items = [(i, samples[i]) for i in range(start,start+N)]
 
         def addResult(res):
-            i, list_du, list_f, list_d = tuple(res)
+            i, list_du, list_f, list_d, time = tuple(res)
             result = {
                     "i": i,
                     label_u: np.asarray(list_du, dtype=float),
                     label_f: np.asarray(list_f, dtype=float),
                     label_d: np.asarray(list_d, dtype=float),
-                    "sample": samples[i]
+                    "sample": samples[i], 
+                    'time': time
                 }
             results.append(result)
 
@@ -222,8 +224,7 @@ if __name__ == '__main__':
 
     print(df)
 
-
-
+    # # Make sure that we get the same results using useParallel or not
     # df1: pd.DataFrame = pd.read_pickle(Folder.Join(folder_save, '_data_par.pickle'))
     # df2: pd.DataFrame = pd.read_pickle(Folder.Join(folder_save, '_data.pickle'))
 
@@ -237,6 +238,48 @@ if __name__ == '__main__':
     #     ax.plot(df2[label_u][i], df2[label_f][i], c='red')
 
 
+
+
+
+
+
+
+
+    # list_forces = []
+    # list_displacements = []
+
+    # for i in range(18):
+
+    #     mat = Functions.Get_material(i, t, 2)
+
+    #     forces, displacements, fcrit = Functions.Get_loads_informations(i, useRedim=True)
+
+    #     simu = Simulations.Simu_Displacement(mesh, mat)
+
+    #     simu.add_dirichlet(nodes_lower, [0], ['y'])
+    #     simu.add_dirichlet(nodes_corner, [0], ['x'])
+    #     simu.add_surfLoad(nodes_upper, [-15000/L/t], ['y'])
+    #     simu.Solve()
+
+    #     f = -np.sum(simu.Get_K_C_M_F()[0][dofsY_upper] @ simu.displacement)/1000
+    #     u = - simu.displacement[dofsY_upper].mean()        
+
+    #     k_exp, __ = Functions.Calc_a_b(forces, displacements, 15)
+    #     k_mat, __ = Functions.Calc_a_b([0, f], [0, u], f)
+    #     k_montage = 1/(1/k_exp - 1/k_mat)
+        
+    #     displacements = displacements - forces/k_montage
+
+    #     list_displacements.append(displacements)
+    #     list_forces.append(forces)
+
+    #     pass
+
+
+
+
+
+
     # labels = [label_u, label_f, label_d]
 
     # vals = [[df[label][i][[0, df[label][i].size//2 ,-1]] for label in labels] for i in range(N)]
@@ -246,51 +289,23 @@ if __name__ == '__main__':
     # a = (f[:,1] - f[:,0])/(u[:,1] - u[:,0])
     # b = 0
 
-    # uu = np.linspace(0, np.max(u), 1000)
-    # ff = np.einsum('n,i->ni', a, uu)
+    # a *= t
+
+    # u_array = np.linspace(0, np.max(u), 1000)
+    # f_arrays = np.einsum('n,i->ni', a, u_array)
 
     # if doPlot:
-    #     ax = plt.subplots()[1]
-    #     ax_d = plt.subplots()[1]
+    #     ax = plt.subplots()[1]        
 
-    #     [ax.plot(uu, ff[i],c='gray', alpha=.3) for i in range(N)]
+    #     # [ax.plot(u_array, f_arrays[i],c='gray', alpha=.3) for i in range(N)]
+    #     [ax.plot(df[label_u][i], df[label_f][i],c='gray', alpha=.3) for i in range(N)]
 
-    #     tt = np.quantile(a, (0.025, 0.975))
+    #     a_lower, a_upper = np.quantile(a, (0.025, 0.975))
 
+    #     ax.fill_between(u_array, a_lower*u_array, a_upper*u_array, zorder=10, alpha=.5)
 
-    #     ax.fill_between(uu, tt[0]*uu, tt[1]*uu, zorder=10, alpha=.5)
+    #     ax.plot(u_array, np.mean(a)*u_array, c='black', ls='--')
 
-    #     ax.plot(uu, np.mean(a)*uu, c='black', ls='--')
+    #     [ax.plot(list_displacements[i], list_forces[i], alpha=.3) for i in range(18)]
 
-    #     pass
-
-
-
-    # # uMax, fMax, dMax = np.asarray([(df[]) for i in range(N)])
-    
-    
-
-    # ab = []
-
-    # for i in range(N):
-
-    #     size = df[label_u][i].size
-
-    #     u0, u1, umax = df[label_u][i][[0, size//2, -1]]
-    #     f0, f1, fmax = df[label_f][i][[0, size//2, -1]]
-    #     d0, d1, dmax = df[label_d][i][[0, size//2, -1]]
-
-    #     u.append(u0,u1,umax)
-    #     f.append(f0,f1,fmax)
-    #     d.append(d0,d1,dmax)
-
-    #     mat = np.array([[u0,1],[u1, 1]])
-    #     a, b = np.linalg.solve(mat, [f0, f1])
-
-    #     ab.append((a,b))
-
-    #     if doPlot:
-    #         ax.plot(df[label_u][i], df[label_f][i])
-    #         ax_d.plot(df[label_u][i], df[label_d][i])
-
-    # plt.show()
+    #     plt.show()
