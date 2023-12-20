@@ -21,7 +21,7 @@ if __name__ == '__main__':
     folder = Folder.New_File(f"Dynamics{dim}D", results=True)
     plotResult = True
     
-    initSimu = False
+    initSimu = True
     depInit = -7
     load = -800 # N
 
