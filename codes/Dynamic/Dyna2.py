@@ -13,9 +13,9 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Configuration
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     folder = Folder.New_File("Waves", results=True) # Create a folder for the simulation results
 
     # Define geometric parameters
@@ -44,9 +44,9 @@ if __name__ == '__main__':
     # Define whether to create a movie
     makeMovie = False
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Mesh
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
 
     # Define the domain and create the mesh
     domain = Domain(Point(x=-a / 2, y=-a / 2), Point(x=a / 2, y=a / 2), meshSize)
@@ -65,9 +65,9 @@ if __name__ == '__main__':
     # nodesLoad = mesh.Nodes_Line(line)
     nodesLoad = mesh.Nodes_Point(Point())
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Simulation
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
 
     # Define material properties
     material = Materials.Elas_Isot(2, E=210000e6, v=0.3, planeStress=False, thickness=1)
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     mu = material.get_mu()
 
     # Create the simulation object
-    simu = Simulations.Simu_Displacement(mesh, material, verbosity=False)
+    simu = Simulations.Simu_Displacement(mesh, material)
     simu.Set_Rayleigh_Damping_Coefs(1e-10, 1e-10)
     simu.Solver_Set_Newton_Raphson_Algorithm(betha=1 / 4, gamma=1 / 2, dt=dt)
 
@@ -120,9 +120,9 @@ if __name__ == '__main__':
 
         t += dt
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # PostProcessing
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Make a movie if specified
     if makeMovie:
         PostProcessing.Make_Movie(folder, resultat, simu)
