@@ -276,15 +276,13 @@ if __name__ == '__main__':
 
     interface._Set_PhysicalGroups(setPoints=False)
     
-    interface._Meshing(3, elemType, isOrganised=False,
-                       folder=folder, filename='blade')
+    interface._Meshing(3, elemType, folder=folder, filename='blade')
 
     mesh = interface._Construct_Mesh()
 
     Display.Plot_Model(mesh, alpha=0.1, showId=False)
 
     ax = Display.Plot_Mesh(mesh)
-    ax.axis('off')
 
     nodesCircle = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+1e-2)
     nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z>=mesh.coordoGlob[:,2].max()-1e-2)
