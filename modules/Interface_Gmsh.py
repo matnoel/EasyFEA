@@ -875,6 +875,7 @@ class Interface_Gmsh:
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities2D)
 
         if len(cracks) > 0:
+            # dont delete
             surfaces = [s[1] for s in gmsh.model.getEntities(2)]
             self._OrganiseSurfaces(surfaces, elemType, isOrganised)
 
@@ -1177,7 +1178,7 @@ class Interface_Gmsh:
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
 
-    def _Meshing(self, dim: int, elemType: str, isOrganised=False,
+    def _Meshing(self, dim: int, elemType: str,
                  crackLines:int=None, crackSurfaces:int=None, openPoints:int=None, openLines:int=None, folder="", filename="mesh"):
         """Construction of gmsh mesh from geometry that has been built or imported.
 
