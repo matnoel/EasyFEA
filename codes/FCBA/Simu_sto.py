@@ -23,11 +23,11 @@ folder_Sto = Folder.New_File(Folder.Join('FCBA','Sto'), results=True)
 
 # simulations [start, start+N]
 start = 0
-N = 600 # N simulations
+N = 1000 # N simulations
 
 # mesh
 nL = 100
-test = True
+test = False
 optimMesh = True
 
 # phase field
@@ -93,8 +93,8 @@ errCi = np.linalg.norm(ci - mean[:-1])**2/np.linalg.norm(ci)**2
 
 # Loading increments
 treshold = 0.2
-inc0 = 8e-3
-inc1 = 2e-3
+inc0 = 5e-3
+inc1 = 1e-3
 
 def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list, float]:
 
@@ -107,7 +107,7 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list, float]:
 
     material = Materials.Elas_Anisot(2, C, False, planeStress=True, thickness=t)
 
-    pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)
+    pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)    
 
     simu = Simulations.Simu_PhaseField(mesh, pfm, useNumba=not useParallel)
 
@@ -167,7 +167,8 @@ if __name__ == '__main__':
 
         print(config.config_name)
         if useParallel:
-            print(nProcs)
+            print(f"nProcs = {nProcs}")        
+        print(f'working in\n{folder_save}')
 
         if not Folder.Exists(folder_save):
             Folder.os.makedirs(folder_save)
@@ -257,7 +258,11 @@ if __name__ == '__main__':
         list_forces = []
         list_displacements = []
 
-        mesh = Functions.DoMesh(L,H,D,l0,True,False)
+        mesh = Functions.DoMesh(L,H,D,l0,True, False)
+        nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
+        nodes_corner = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
+        dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, 'displacement', nodes_upper, ['y'])
 
         for i in range(17):
 
@@ -266,10 +271,11 @@ if __name__ == '__main__':
             forces, displacements, fcrit = Functions.Get_loads_informations(i, useRedim=True)
 
             simu = Simulations.Simu_Displacement(mesh, mat)
+            # simu.solver = 'cg'
 
             simu.add_dirichlet(nodes_lower, [0], ['y'])
             simu.add_dirichlet(nodes_corner, [0], ['x'])
-            simu.add_surfLoad(nodes_upper, [-15000/L/t], ['y'])
+            simu.add_surfLoad(nodes_upper, [-15000/(L*t)], ['y'])
             simu.Solve()
 
             f = -np.sum(simu.Get_K_C_M_F()[0][dofsY_upper] @ simu.displacement)/1000
@@ -296,25 +302,22 @@ if __name__ == '__main__':
         a = (f[:,1] - f[:,0])/(u[:,1] - u[:,0])
         b = 0
 
-        a *= t
-
         u_array = np.linspace(0, np.max(u), 1000)
         f_arrays = np.einsum('n,i->ni', a, u_array)
 
-        if doPlot:
-            ax = plt.subplots()[1]        
+        ax = plt.subplots()[1]        
 
-            # [ax.plot(u_array, f_arrays[i],c='gray', alpha=.3) for i in range(N)]
-            # [ax.plot(df[label_u][i], df[label_f][i],c='gray', alpha=.3) for i in range(N)]
-            [ax.plot(df[label_u][i], df[label_f][i]*t, alpha=.3) for i in range(N)]
-            ax.plot(u[:,-1], f[:,-1]*t, c='red', ls='', marker='.')
+        # [ax.plot(u_array, f_arrays[i],c='gray', alpha=.3) for i in range(N)]
+        # [ax.plot(df[label_u][i], df[label_f][i],c='gray', alpha=.3) for i in range(N)]
+        # [ax.plot(df[label_u][i], df[label_f][i], alpha=.3) for i in range(N)]
+        ax.plot(u[:,-1], f[:,-1], c='red', ls='', marker='.')
 
-            a_lower, a_upper = np.quantile(a, (0.025, 0.975))
+        a_lower, a_upper = np.quantile(a, (0.025, 0.975))
 
-            ax.fill_between(u_array, a_lower*u_array, a_upper*u_array, zorder=10, alpha=.5)
+        ax.fill_between(u_array, a_lower*u_array, a_upper*u_array, zorder=10, alpha=.5)
 
-            ax.plot(u_array, np.mean(a)*u_array, c='black', ls='--')
+        ax.plot(u_array, np.mean(a)*u_array, c='black', ls='--')
 
-            [ax.plot(list_displacements[i], list_forces[i], alpha=.3) for i in range(17)]
+        # [ax.plot(list_displacements[i], list_forces[i], alpha=.3) for i in range(17)]
 
-            plt.show()
+        plt.show()
