@@ -14,15 +14,16 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Configuration
-    # ----------------------------------------------
-    dim = 3
+    # --------------------------------------------------------------------------------------------
+    dim = 2
     folder = Folder.New_File(f"Dynamics{dim}D", results=True)
     plotResult = True
-
-    isLoading = True
-    initSimu = True
+    
+    initSimu = False
+    depInit = -7
+    load = -800 # N
 
     makeParaview = False; NParaview = 500
     makeMovie = False; NMovie = 400
@@ -41,9 +42,9 @@ if __name__ == '__main__':
     h = 13
     b = 13
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Meshing
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # meshSize = h/1
     # meshSize = L/2
     meshSize = h/5
@@ -73,70 +74,57 @@ if __name__ == '__main__':
     nodes_L = mesh.Nodes_Conditions(lambda x,y,z: x == L)
     nodes_h = mesh.Nodes_Conditions(lambda x,y,z: y == h/2)
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Simulation
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
+
     material = Materials.Elas_Isot(dim, thickness=b)
-    simu = Simulations.Simu_Displacement(mesh, material, useNumba=True, verbosity=False)
+    simu = Simulations.Simu_Displacement(mesh, material, useIterativeSolvers=initSimu)    
     simu.rho = 8100*1e-9
-    simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
-    def Loading(isLoading: bool):
-
+    if initSimu:
         simu.Bc_Init()
-
-        # Boundary conditions
-        if dim == 2:
-            simu.add_dirichlet(nodes_0, [0, 0], ["x","y"], description="Fixed")
-        elif dim == 3:
-            simu.add_dirichlet(nodes_0, [0, 0, 0], ["x","y","z"], description="Fixed")
-        if isLoading:
-            simu.add_dirichlet(nodes_L, [-7], ["y"], description="dep")        
-
-    def Iteration(steadyState: bool, isLoading: bool):
-
-        Loading(isLoading)    
-
-        if steadyState:
-            simu.Solver_Set_Elliptic_Algorithm()
-        else:
-            simu.Solver_Set_Newton_Raphson_Algorithm(dt=dt)
-
+        simu.add_dirichlet(nodes_0, [0]*dim, simu.Get_directions(), description="Fixed")
+        simu.add_dirichlet(nodes_L, [depInit], ["y"], description="dep")
         simu.Solve()
-        
         simu.Save_Iter()
 
-    # first iteration, then drop the beam
-    Iteration(steadyState=True, isLoading=True)    
-
     factorDef = 1
-
     if plotIter:
         fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, deformFactor=factorDef)
 
     Tmax = 0.5
     N = 100
     dt = Tmax/N
-    t = 0
+    time = -dt
 
-    while t <= Tmax:
+    simu.Solver_Set_Newton_Raphson_Algorithm(dt)
+    simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
-        Iteration(steadyState=False, isLoading=False)
+    while time <= Tmax:
+        
+        time += dt
+
+        simu.Bc_Init()
+        simu.add_dirichlet(nodes_0, [0]*dim, simu.Get_directions(), description="Fixed")
+        if not initSimu:            
+            simu.add_surfLoad(nodes_L, [load*time/Tmax/(h*b)], ['y'])
+        simu.Solve()
+        simu.Save_Iter()
 
         if plotIter:
             cb.remove()
             fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, ax=ax, deformFactor=factorDef)
             plt.pause(1e-12)
 
-        t += dt
 
-        print(f"{t:.3f} s", end='\r')
+        print(f"{time:.3f} s", end='\r')
 
     tic_Tot.Tac("Time","total time", True)        
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Post processing
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     Display.Section("Post processing")
 
     Display.Plot_BoundaryConditions(simu)
@@ -161,5 +149,5 @@ if __name__ == '__main__':
         
         tic.Tac("Display","Results", plotResult)
 
-    Tic.Plot_History(details=True)
+    Tic.Plot_History(details=False)
     plt.show()
