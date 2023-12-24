@@ -32,6 +32,9 @@ class Tic:
         elif time < 1e-3:
             coef = 1e6
             unite = "µs"
+        else:
+            unite = "s"
+            coef = 1
 
         return time*coef, unite
 
