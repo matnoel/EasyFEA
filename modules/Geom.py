@@ -746,7 +746,7 @@ class CircleArc(Geom):
     
     @property
     def length(self) -> float:
-        """circular arc perimeter"""
+        """circular arc length"""
         return np.abs(self.angle * self.r)
 
     def coordoPlot(self) -> tuple[np.ndarray,np.ndarray]:

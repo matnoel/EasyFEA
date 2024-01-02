@@ -830,8 +830,9 @@ class Interface_Gmsh:
         return hollowLoops, filledLoops    
 
     def Mesh_2D(self, contour: Geom, inclusions: list[Geom]=[], elemType=ElemType.TRI3,
-                cracks:list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[], isOrganised=False, folder=""):
-        """Build the 2D mesh by creating a surface from a Geom object
+                cracks:list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
+                isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[], folder=""):
+        """Build the 2D mesh by creating a surface from a contour and inclusions
 
         Parameters
         ----------
@@ -847,6 +848,8 @@ class Interface_Gmsh:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
+        surfaces : list[tuple[Geom, list[Geom]]]
+            additional surfaces. Ex = [Domain, [Circle, Contour, PointsList]]
         folder : str, optional
             mesh save folder mesh.msh, by default ""
 
@@ -855,35 +858,39 @@ class Interface_Gmsh:
         Mesh
             2D mesh
         """
-        
+
         self._init_gmsh('occ')
         self.__CheckType(2, elemType)
 
         tic = Tic()
 
         factory = self.factory
-        
-        meshSize = contour.meshSize
-        
+
         self._Surfaces(contour, inclusions, elemType, isOrganised)
 
+        for surface in surfaces:
+            factory.synchronize()
+            ents = factory.getEntities(2)
+            newSurfaces = self._Surfaces(surface[0], surface[1], elemType, isOrganised)[0]
+            factory.fragment(ents, [(2, surf) for surf in newSurfaces])        
+
         # Recovers 2D entities
-        self.factory.synchronize()
+        factory.synchronize()
         entities2D = gmsh.model.getEntities(2)
 
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities2D)
 
-        if len(cracks) > 0:
+        if (len(cracks) > 0 and 'QUAD' in elemType) or len(surfaces) > 0:
             # dont delete
-            surfaces = [s[1] for s in gmsh.model.getEntities(2)]
-            self._OrganiseSurfaces(surfaces, elemType, isOrganised)
+            surfaceTags = [s[1] for s in gmsh.model.getEntities(2)]
+            self._OrganiseSurfaces(surfaceTags, elemType, isOrganised)
 
-        self._RefineMesh(refineGeoms, meshSize)
+        self._RefineMesh(refineGeoms, contour.meshSize)
 
         self._Set_PhysicalGroups()
 
-        tic.Tac("Mesh","Geometry", self.__verbosity)                
+        tic.Tac("Mesh","Geometry", self.__verbosity)
 
         self._Meshing(2, elemType, crackLines=crackLines, openPoints=openPoints, folder=folder)
 
@@ -891,7 +898,8 @@ class Interface_Gmsh:
 
     def Mesh_3D(self, contour: Geom, inclusions: list[Geom]=[],
                 extrude=[0,0,1], nLayers=1, elemType=ElemType.TETRA4,
-                cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[], isOrganised=False, folder="") -> Mesh:
+                cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
+                isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[], folder="") -> Mesh:
         """Build the 3D mesh by creating a surface from a Geom object
 
         Parameters
@@ -912,6 +920,8 @@ class Interface_Gmsh:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
+        surfaces : list[tuple[Geom, list[Geom]]]
+            additional surfaces. Ex = [Domain, [Circle, Contour, PointsList]]
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -925,14 +935,25 @@ class Interface_Gmsh:
         self.__CheckType(3, elemType)
         
         tic = Tic()
-        
-        # the starting 2D mesh is irrelevant
-        surfaces = self._Surfaces(contour, inclusions, elemType, isOrganised)[0]
+
+        factory = self.factory
+
+        self._Surfaces(contour, inclusions)
+        for surface in surfaces:
+            factory.synchronize()
+            ents = factory.getEntities(2)
+            newSurfaces = self._Surfaces(surface[0], surface[1])[0]
+            factory.fragment(ents, [(2, surf) for surf in newSurfaces])
+
+        # get created surfaces
+        factory.synchronize()
+        surfaces = [entity[1] for entity in factory.getEntities(2)]
+        self._OrganiseSurfaces(surfaces, elemType, isOrganised)
 
         self._Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, nLayers=nLayers)
 
         # Recovers 3D entities
-        self.factory.synchronize()
+        factory.synchronize()
         entities3D = gmsh.model.getEntities(3)
 
         # Crack creation
@@ -951,7 +972,7 @@ class Interface_Gmsh:
     def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[],
                      axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, nLayers=180, elemType=ElemType.TETRA4,
                      cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
-                     isOrganised=False, folder="") -> Mesh:
+                     isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[],  folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
 
         Parameters
@@ -974,6 +995,8 @@ class Interface_Gmsh:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
+        surfaces : list[tuple[Geom, list[Geom]]]
+            additional surfaces. Ex = [Domain, [Circle, Contour, PointsList]]
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -988,8 +1011,19 @@ class Interface_Gmsh:
         
         tic = Tic()
         
-        # the starting 2D mesh is irrelevant
-        surfaces = self._Surfaces(contour, inclusions, elemType, isOrganised)[0]
+        factory = self.factory
+
+        self._Surfaces(contour, inclusions)
+        for surface in surfaces:
+            factory.synchronize()
+            ents = factory.getEntities(2)
+            newSurfaces = self._Surfaces(surface[0], surface[1])[0]
+            factory.fragment(ents, [(2, surf) for surf in newSurfaces])
+
+        # get created surfaces
+        factory.synchronize()
+        surfaces = [entity[1] for entity in factory.getEntities(2)]
+        self._OrganiseSurfaces(surfaces, elemType, isOrganised)
         
         self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers)
 
