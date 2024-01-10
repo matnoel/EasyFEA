@@ -133,21 +133,26 @@ class Interface_Gmsh:
             elif isinstance(geom, CircleArc):                
 
                 pC =  factory.addPoint(*geom.center.coordo, geom.meshSize)
+                p3 = factory.addPoint(*geom.pt3.coordo)
 
                 if np.abs(geom.angle) > np.pi:
-                    p3 = factory.addPoint(*geom.pt3.coordo)
                     line1 = factory.addCircleArc(p1, pC, p3)
                     line2 = factory.addCircleArc(p3, pC, p2)
                     lines.extend([line1, line2])
                     if geom.isOpen:
                         openLines.extend([line1, line2])
-                else:
-                    line = factory.addCircleArc(p1, pC, p2)
+                else:                    
+                    if factory == gmsh.model.occ:                        
+                        line = factory.addCircleArc(p1, p3, p2, center=False)
+                    else:
+                        n = geom.n
+                        line = factory.addCircleArc(p1, pC, p2, nx=n[0], ny=n[1], nz=n[2])
                     lines.append(line)
                     if geom.isOpen:
                         openLines.append(line)
                 
                 factory.remove([(0,pC)])
+                factory.remove([(0,p3)])
 
             elif isinstance(geom, PointsList):
                 

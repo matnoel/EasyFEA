@@ -283,19 +283,26 @@ class Geom(ABC):
             ax.set_xlabel('x')
             ax.set_ylabel('y')
             ax.set_zlabel('z')
+            ax.view_init(elev=105, azim=-90)
+            inDim = 3
+        else:
+            if isinstance(ax, Display.plt.Axes):
+                inDim = 2
+            else:
+                inDim = 3
 
         lines, points = self.coordoPlot()
         if color != "":
-            ax.plot(*lines.T, color=color, label=self.name)
+            ax.plot(*lines[:,:inDim].T, color=color, label=self.name)
         else:
-            ax.plot(*lines.T, label=self.name)
-        ax.plot(*points.T, ls='', marker='.',c='black')
+            ax.plot(*lines[:,:inDim].T, label=self.name)
+        ax.plot(*points[:,:inDim].T, ls='', marker='.',c='black')
 
-        # if addLastBounds:
-        xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()
-        oldBounds = np.array([xlim, ylim, zlim]).T
-        lines = np.concatenate((lines, oldBounds), 0)
-        Display._ScaleChange(ax, lines)
+        if inDim == 3:
+            xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()
+            oldBounds = np.array([xlim, ylim, zlim]).T
+            lines = np.concatenate((lines, oldBounds), 0)
+            Display._ScaleChange(ax, lines)
 
         return ax
     
@@ -659,6 +666,8 @@ class CircleArc(Geom):
             normal vector to the arc circle, by default (0,0,1)
         isOpen : bool, optional
             arc can be opened, by default False
+        coef: int, optional
+            Change direction, by default 1 or -1
         """
 
         # first check that pt1 and pt2 dont share the same coordinates
