@@ -48,7 +48,7 @@ if __name__ == '__main__':
         param_latex = param.replace("l","_L")
         param_latex = param_latex.replace("t","_T")    
         ax.set_title(f"${param_latex}$" + unite)
-        ax.set_xlabel("Samples")
+        ax.set_xlabel("Essais")
         ax.set_xticks(essais)
 
         Display.Save_fig(folder_femu, param + " essais")    
@@ -90,6 +90,7 @@ if __name__ == '__main__':
     dfGc = dfGc[(dfGc['solveur']==1)&(dfGc['ftol']==1e-5)]
     dfGc = dfGc.sort_values(by=['Essai'])
     dfGc = dfGc.set_index(np.arange(dfGc.shape[0]))
+    # dfGc = dfGc[:-1] # enlève essai 17
 
     # print(dfGc)
 
@@ -101,7 +102,7 @@ if __name__ == '__main__':
     axFc = plt.subplots()[1]
     axFc.bar(dfGc.index, dfGc["f_crit"].values)
     axFc.set_xticks(dfGc.index)
-    axFc.set_xlabel("Samples")
+    axFc.set_xlabel("Essais")
     axFc.set_ylabel("Crack initiation forces")
     Display.Save_fig(folder_iden, 'crack init essais')
     # axFcrit.tick_params(axis='x', labelrotation = 45)
@@ -111,8 +112,8 @@ if __name__ == '__main__':
     axGc = plt.subplots()[1]
     axGc.bar(dfGc.index, dfGc["Gc"].values)
     axGc.set_xticks(dfGc.index)
-    # axGc.set_xlabel("Samples", fontsize=14)
-    axGc.set_xlabel("Samples")
+    # axGc.set_xlabel("Essais", fontsize=14)
+    axGc.set_xlabel("Essais")
     axGc.set_ylabel("$G_c \ [mJ \ mm^{-2}]$")
     Display.Save_fig(folder_iden, 'Gc essais')
 
@@ -149,9 +150,10 @@ if __name__ == '__main__':
     ax_fit.plot(Gc_array, curve,c='red')
 
     ax_fit.text(Gc_array.mean(), curve.mean(), f"{a:.3f} Gc + {b:.3f}, r={r:.3f}", va='top')
+    ax_fit.grid()
     # bbox=dict(boxstyle="square,pad=0.3",alpha=1,color='white')
 
-    Display.Save_fig(folder_iden, "corr")
+    Display.Save_fig(folder_iden, "corr Gc fcrit", extension='pdf')
 
 
     Display.plt.show()
