@@ -8,6 +8,8 @@ import Folder
 
 Display.Clear()
 
+folder_save = Folder.New_File(Folder.Join('FCBA','Samples'), results=True)
+
 if __name__ == '__main__':
 
     importGc = True
@@ -121,6 +123,8 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     ax = plt.subplots()[1]
     ax.set_title('pdf')
+    ax.set_xlabel('$G_c$')
+    ax.grid()
     if importGc:
         print("\nmaximum likehood vs least squares :")
         print(f'err a = {np.abs(a_ls-a_ml)/a_ml*100:.3f} %')
@@ -134,6 +138,8 @@ if __name__ == '__main__':
     ax.plot(x,y2,label='maximum likehood')
     ax.plot(x,y3,label='least squares')
     ax.legend()
+
+    Display.Save_fig(folder_save, 'Gc gamma function')
 
     plt.show()
     pass
