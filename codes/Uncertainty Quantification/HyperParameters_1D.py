@@ -50,6 +50,7 @@ if __name__ == '__main__':
     x0 = np.array([50,2])
     mean = np.mean(y)
     std = np.std(y, ddof=1) # non bias sigma
+    disp = std/mean
 
     # --------------------------------------------------------------------------------------------
     # Maximal likehood
@@ -89,11 +90,13 @@ if __name__ == '__main__':
 
         mean_num = stats.gamma.mean(a, scale=b)
         std_num = stats.gamma.std(a, scale=b)
+        disp_num = std_num/mean_num
         if option==1:
-            # dont work for least squares
-            J = (mean_num-mean)**2/mean**2 + (std_num-std)**2/std**2
-        elif option==2:        
-            J = np.array([mean_num, std_num]) - np.array([mean, std])
+            # dont work for least squares            
+            # J = (mean_num-mean)**2/mean**2 + (disp_num-disp)**2/disp**2
+            J = (mean_num-mean)**2 + (disp_num-disp)**2
+        elif option==2:            
+            J = np.array([mean_num, disp_num]) - np.array([mean, disp])
 
         return J
 
