@@ -854,7 +854,7 @@ class Interface_Gmsh:
         isOrganised : bool, optional
             mesh is organized, by default False
         surfaces : list[tuple[Geom, list[Geom]]]
-            additional surfaces. Ex = [Domain, [Circle, Contour, PointsList]]
+            additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
         folder : str, optional
             mesh save folder mesh.msh, by default ""
 
@@ -926,7 +926,7 @@ class Interface_Gmsh:
         isOrganised : bool, optional
             mesh is organized, by default False
         surfaces : list[tuple[Geom, list[Geom]]]
-            additional surfaces. Ex = [Domain, [Circle, Contour, PointsList]]
+            additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -1001,7 +1001,7 @@ class Interface_Gmsh:
         isOrganised : bool, optional
             mesh is organized, by default False
         surfaces : list[tuple[Geom, list[Geom]]]
-            additional surfaces. Ex = [Domain, [Circle, Contour, PointsList]]
+            additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
         folder : str, optional
             mesh.msh backup folder, by default ""
 
