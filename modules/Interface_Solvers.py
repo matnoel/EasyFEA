@@ -294,13 +294,13 @@ def __Solver_2(simu, problemType: str):
     A = A.tolil()
     b = b.tolil()
 
-    ddls_Dirichlet = np.array(simu.Bc_dofs_Dirichlet(problemType))
+    dofs_Dirichlet = np.array(simu.Bc_dofs_Dirichlet(problemType))
     values_Dirichlet = np.array(simu.Bc_values_Dirichlet(problemType))
     
     list_Bc_Lagrange = simu.Bc_Lagrange
 
     nColEnPlusLagrange = len(list_Bc_Lagrange)
-    nColEnPlusDirichlet = len(ddls_Dirichlet)
+    nColEnPlusDirichlet = len(dofs_Dirichlet)
     nColEnPlus = nColEnPlusLagrange + nColEnPlusDirichlet
 
     decalage = A.shape[0]-nColEnPlus
@@ -308,12 +308,12 @@ def __Solver_2(simu, problemType: str):
     x0 = simu.Get_x0(problemType)
     x0 = np.append(x0, np.zeros(nColEnPlus))
 
-    listeLignesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
+    linesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
     
     # apply lagrange multiplier
-    A[listeLignesDirichlet, ddls_Dirichlet] = alpha
-    A[ddls_Dirichlet, listeLignesDirichlet] = alpha
-    b[listeLignesDirichlet] = values_Dirichlet * alpha
+    A[linesDirichlet, dofs_Dirichlet] = alpha
+    A[dofs_Dirichlet, linesDirichlet] = alpha
+    b[linesDirichlet] = values_Dirichlet * alpha
 
     tic.Tac("Solver",f"Lagrange ({problemType}) Dirichlet", simu._verbosity)
 
@@ -347,6 +347,10 @@ def __Solver_2(simu, problemType: str):
 
 def __Solver_3(simu, problemType: str):
     # Resolution using the penalty method
+
+    # This method does not give preference to dirichlet conditions over neumann conditions. This means that if a dof is applied in Neumann and in Dirichlet, it will be privileged over the dof applied in Neumann.
+
+    # Normally, this method is never used. It is just implemented as an example
 
     simu = __Cast_Simu(simu)
 
@@ -409,7 +413,8 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     vectb.array[lines] = values
 
     x = matrice.createVecRight()
-    x.array[:] = x0
+    if len(x0) > 0:
+        x.array[:] = x0
 
     ksp = PETSc.KSP().create()
     ksp.setOperators(matrice)
