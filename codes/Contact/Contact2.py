@@ -49,7 +49,7 @@ if __name__ == '__main__':
     p1 = Point(R/2, height, r=r)
     p2 = Point(R/2, height+R)
     p3 = Point(-R/2, height+R)
-    contour_master = PointsList([p0,p1,p2,p3], meshSize*2)
+    contour_master = PointsList([p0,p1,p2,p3])
     if dim == 2:
         contour_master.translate(-R, -2)
     else:

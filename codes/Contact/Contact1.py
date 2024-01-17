@@ -17,7 +17,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 2
+    dim = 3
 
     R = 10
     height = R
@@ -38,26 +38,34 @@ if __name__ == '__main__':
     if dim == 2:
         mesh_slave = Interface_Gmsh().Mesh_2D(contour_slave, [], ElemType.QUAD4, isOrganised=True)
     else:
-        mesh_slave = Interface_Gmsh().Mesh_3D(contour_slave, [], [0,0,-thickness], 4, ElemType.PRISM6, isOrganised=True)
+        mesh_slave = Interface_Gmsh().Mesh_3D(contour_slave, [], [0,0,-thickness], 4, ElemType.HEXA8, isOrganised=True)
 
-    nodes_slave = mesh_slave.Get_list_groupElem(dim-1)[0].nodes
+    # nodes_slave = mesh_slave.Get_list_groupElem(dim-1)[0].nodes
+    nodes_slave = mesh_slave.Nodes_Conditions(lambda x,y,z: y==height)
     nodes_y0 = mesh_slave.Nodes_Conditions(lambda x,y,z: y==0)
 
-    # master mesh    
+    # master mesh
     r = R/2
     p0 = Point(-R/2, height, r=r)
     p1 = Point(R/2, height, r=r)
     p2 = Point(R/2, height+R)
     p3 = Point(-R/2, height+R)
-    contour_master = PointsList([p0,p1,p2,p3], meshSize*2)
+    contour_master = PointsList([p0,p1,p2,p3])
     yMax = height+np.abs(r)
     if dim == 2:
         mesh_master = Interface_Gmsh().Mesh_2D(contour_master, [], ElemType.TRI3)
     else:    
-        mesh_master = Interface_Gmsh().Mesh_3D(contour_master, [], [0,0,-thickness-2], 4, ElemType.PRISM6)
+        mesh_master = Interface_Gmsh().Mesh_3D(contour_master, [], [0,0,-thickness-2], 4, ElemType.TETRA4)
+    mesh_master.translate(dz=-(mesh_master.center[2]-mesh_slave.center[2]))
+
+    # Display.Plot_Model(mesh_master, alpha=0.1, showId=True)
 
     # get master nodes
-    nodes_master = mesh_master.Get_list_groupElem(dim-1)[0].nodes
+    # nodes_master = mesh_master.Get_list_groupElem(dim-1)[0].nodes
+    if dim == 2:
+        nodes_master = mesh_master.Nodes_Tags(['L0','L1'])
+    else:
+        nodes_master = mesh_master.Nodes_Tags(['S1','S2'])
 
     # plot meshes
     ax = Display.Plot_Mesh(mesh_master, alpha=0)
@@ -99,17 +107,16 @@ if __name__ == '__main__':
             simu.Bc_Init()
             simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_directions())
 
-            nodes, newU = simu.Get_contact(mesh_master, nodes_slave)
+            nodes, newU = simu.Get_contact(mesh_master, nodes_slave, nodes_master)
 
-            if nodes.size > 0:        
+            if nodes.size > 0:
                 simu.add_dirichlet(nodes, [newU[:,0], newU[:,1]], ['x','y'])
 
             simu.Solve()
 
             # check if there is no new nodes in the master mesh
             oldSize = nodes.size
-            nodes, _ = simu.Get_contact(mesh_master, nodes_slave)
-
+            nodes, __ = simu.Get_contact(mesh_master, nodes_slave, nodes_master)
             convergence = oldSize == nodes.size
 
         simu.Save_Iter()
