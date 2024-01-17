@@ -1160,7 +1160,7 @@ class _Simu(ABC):
         
         dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
 
-        self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
+        self._Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Point force
@@ -1192,7 +1192,7 @@ class _Simu(ABC):
 
         dofsValues, dofs = self.__Bc_pointLoad(problemType, nodes, values, directions)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
         
     def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Apply a linear force.
@@ -1224,7 +1224,7 @@ class _Simu(ABC):
 
         dofsValues, dofs = self.__Bc_lineLoad(problemType, nodes, values, directions)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Apply a surface force
@@ -1261,7 +1261,7 @@ class _Simu(ABC):
         elif self.__dim == 3:
             dofsValues, dofs = self.__Bc_surfload(problemType, nodes, values, directions)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Apply a volumetric force.
@@ -1298,7 +1298,7 @@ class _Simu(ABC):
         elif self.__dim == 3:
             dofsValues, dofs = self.__Bc_volumeload(problemType, nodes, values, directions)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
     
     def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
         """Apply a point load."""
@@ -1405,61 +1405,28 @@ class _Simu(ABC):
 
         return dofsValues, dofs
     
-    def __Bc_Add_Neumann(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, directions: list, description="") -> None:
-        """Add Neumann conditions."""
+    def _Bc_Add_Neumann(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, directions: list, description="") -> None:
+        """Add Neumann conditions.\n
+        If a neumann condition is already applied to the dof, the condition will not be taken into account for the dof."""
 
         tic = Tic()
 
         self._Check_Directions(problemType, directions)
 
-        if problemType in [ModelType.damage,ModelType.thermal]:
-            
-            new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, f'Neumann {description}')
-
-        elif problemType in [ModelType.displacement,ModelType.beam]:
-
-            # If a dof is already known under dirichlet conditions
-            # then we remove the value and the associated dof
-            
-            dofs_Dirchlet = self.Bc_dofs_Dirichlet(problemType)
-            valuesTri_dofs = list(dofsValues)
-            dofsTri = list(dofs.copy())
-
-            def tri(d, ddl):
-                if ddl in dofs_Dirchlet:
-                    dofsTri.remove(ddl)
-                    valuesTri_dofs.remove(dofsValues[d])
-
-            [tri(d, ddl) for d, ddl in enumerate(dofs)]
-
-            valuesTri_dofs = np.array(valuesTri_dofs)
-            dofsTri = np.array(dofsTri)
-
-            new_Bc = BoundaryCondition(problemType, nodes, dofsTri, directions, valuesTri_dofs, f'Neumann {description}')
-
+        new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, f'Neumann {description}')
         self.__Bc_Neumann.append(new_Bc)
 
         tic.Tac("Boundary Conditions","Add Neumann condition ", self._verbosity)   
      
-    def __Bc_Add_Dirichlet(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, directions: list, description="") -> None:
-        """Add Dirichlet conditions."""
+    def _Bc_Add_Dirichlet(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, directions: list, description="") -> None:
+        """Add Dirichlet conditions.\n
+        If a Dirichlet's dof is entered more than once, the conditions are added together."""
 
         tic = Tic()
 
         self.__Check_ProblemTypes(problemType)
 
-        if problemType in [ModelType.damage,ModelType.thermal]:
-            
-            new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, f'Dirichlet {description}')
-
-        elif problemType in [ModelType.displacement,ModelType.beam]:
-
-            new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, f'Dirichlet {description}')
-
-            # Verifie si les ddls de Neumann ne coincidenet pas avec dirichlet
-            dofs_Neumann = self.Bc_dofs_Neumann(problemType)
-            for d in dofs: 
-                assert d not in dofs_Neumann, "You can't apply dirchlet and neumann conditions on the same dofs."
+        new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, f'Dirichlet {description}')
 
         self.__Bc_Dirichlet.append(new_Bc)
 
@@ -1482,7 +1449,7 @@ class _Simu(ABC):
         new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, description)
         self.__Bc_Display.append(new_Bc)
 
-    def Get_contact(self, masterMesh: Mesh, slaveNodes: np.ndarray=None) -> tuple[np.ndarray, np.ndarray]:
+    def Get_contact(self, masterMesh: Mesh, slaveNodes: np.ndarray=None, masterNodes: np.ndarray=None) -> tuple[np.ndarray, np.ndarray]:
         """Retrieves the simulation nodes detected in the master mesh with the associated displacement matrix to the interface.
 
         Parameters
@@ -1490,7 +1457,9 @@ class _Simu(ABC):
         masterMesh : Mesh
             master mesh
         slaveNodes : np.ndarray, optional
-            interface nodes, by default None
+            slave nodes, by default None
+        masterNodes : np.ndarray, optional
+            master nodes, by default None
 
         Returns
         -------
@@ -1504,8 +1473,11 @@ class _Simu(ABC):
 
         # Here the first element group is selected. Regardless of whether there are several group of the same dimension.
         masterGroup = masterMesh.Get_list_groupElem(masterMesh.dim-1)[0]
-        elements = masterMesh.Elements_Nodes(masterGroup.nodes, False) # retrieve bounndary elements
-        # elements = None
+         # retrieve bounndary elements
+        if masterNodes is None:
+            elements = masterMesh.Elements_Nodes(masterGroup.nodes, False)
+        else:
+            elements = masterMesh.Elements_Nodes(masterNodes, False)        
 
         if slaveNodes is None:
             slaveGroup = self.mesh.Get_list_groupElem(masterMesh.dim-1)[0]
@@ -1516,7 +1488,7 @@ class _Simu(ABC):
         
         # check nodes in master mesh
         idx = masterMesh.groupElem.Get_Mapping(newCoordo[slaveNodes], elements)[0]        
-        idx = np.array(list(set().union(idx)))
+        idx = np.asarray(list(set().union(idx)))
 
         tic.Tac("PostProcessing","Get slave nodes in master mesh")
 
@@ -1527,7 +1499,7 @@ class _Simu(ABC):
             sysCoord_e = masterGroup.sysCoord_e
 
             # get the elemGroup on the interface        
-            gaussCoordo_e_p = masterGroup.Get_GaussCoordinates_e_p(MatrixType.mass)
+            gaussCoordo_e_p = masterGroup.Get_GaussCoordinates_e_p(MatrixType.rigi)
             
             # empty new displacement
             displacementMatrix = []
@@ -1538,15 +1510,15 @@ class _Simu(ABC):
 
                 # distance between the interface coordinates and the detected node
                 d_e_pg = np.linalg.norm(vi_e_pg, axis=2)
-                e, p = np.where(d_e_pg == d_e_pg.min())
+                e, p = np.unravel_index(np.argmin(d_e_pg), d_e_pg.shape)
                 # retrieves the nearest coordinate
-                closeCoordo = np.reshape(gaussCoordo_e_p[e[0],p[0]], -1)
+                closeCoordo = np.reshape(gaussCoordo_e_p[e,p], -1)
                 
                 # normal vector
                 if masterGroup.dim == 1: # lines
-                    normal_vect = - sysCoord_e[e[0],:,1]
+                    normal_vect = - sysCoord_e[e,:,1]
                 elif masterGroup.dim == 2: # surfaces                
-                    normal_vect = sysCoord_e[e[0],:,2]
+                    normal_vect = sysCoord_e[e,:,2]
                 else:
                     raise "The master group must be dimension 1 or 2. Must be lines or surfaces."
                 
@@ -1558,7 +1530,7 @@ class _Simu(ABC):
 
             # Apply the displacement to meet the interface 
             oldU = self.Results_displacement_matrix()[nodes]
-            displacementMatrix = np.array(displacementMatrix) + oldU
+            displacementMatrix = np.asarray(displacementMatrix) + oldU
 
         else:
             nodes = np.array([])
