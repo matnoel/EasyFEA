@@ -74,7 +74,7 @@ if __name__ == '__main__':
     factory.synchronize()
 
     if meshSize > 0:
-        factory.mesh.setSize(factory.getEntities(0), meshSize)
+        interface.Set_meshSize(meshSize)
 
     interface._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
     
