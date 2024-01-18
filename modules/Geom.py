@@ -286,10 +286,10 @@ class Geom(ABC):
             ax.view_init(elev=105, azim=-90)
             inDim = 3
         else:
-            if isinstance(ax, Display.plt.Axes):
-                inDim = 2
-            else:
+            if ax.name == '3d':
                 inDim = 3
+            else:
+                inDim = 2
 
         lines, points = self.coordoPlot()
         if color != "":
