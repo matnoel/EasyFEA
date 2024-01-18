@@ -92,7 +92,7 @@ def Get_loads_informations(idxEssai: int, useRedim=False) -> tuple[np.ndarray, n
 
     return forces, displacements, f_crit
 
-def DoMesh(L: float, H: float, D: float, l0: float, test: bool, optimMesh: bool) -> Mesh:
+def DoMesh(L: float, H: float, D: float, l0: float, test: bool, optimMesh: bool, h:float=None) -> Mesh:
 
     meshSize = l0 if test else l0/2
 
@@ -104,7 +104,10 @@ def DoMesh(L: float, H: float, D: float, l0: float, test: bool, optimMesh: bool)
         refineGeom = None
 
     domain = Domain(Point(), Point(L, H), meshSize)
-    circle = Circle(Point(L/2, H/2), D, meshSize)
+    
+    if h == None:
+        h=H/2
+    circle = Circle(Point(L/2, H-h), D, meshSize)
 
     mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
 

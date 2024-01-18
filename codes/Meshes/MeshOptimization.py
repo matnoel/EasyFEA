@@ -159,7 +159,7 @@ if __name__ == '__main__':
         if dim == 2:
             return interfaceGmsh.Mesh_2D(points, inclusions, elemType, [], refineGeoms)
         else:
-            return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], 5, elemType, [], refineGeoms)
+            return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], [5], elemType, [], refineGeoms)
 
     # Construct the initial mesh
     mesh = DoMesh()

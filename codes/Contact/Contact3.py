@@ -51,8 +51,8 @@ if __name__ == '__main__':
         mesh = Interface_Gmsh().Mesh_2D(contour, elemType=ElemType.TRI3)
         master_mesh = Interface_Gmsh().Mesh_2D(enca, elemType=ElemType.QUAD4, isOrganised=True)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], nLayers=thickness//mS)
-        master_mesh = Interface_Gmsh().Mesh_3D(enca, [], [0,0,4*thickness], nLayers=thickness//mS, elemType=ElemType.HEXA8, isOrganised=True)
+        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], [thickness//mS])
+        master_mesh = Interface_Gmsh().Mesh_3D(enca, [], [0,0,4*thickness], [thickness//mS], elemType=ElemType.HEXA8, isOrganised=True)
 
         mesh.translate(dz=-thickness/2)
         master_mesh.translate(dz=-4*thickness/2)

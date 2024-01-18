@@ -95,7 +95,7 @@ def DoMesh(split: str) -> Mesh:
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], 3, ElemType.TETRA4, cracks, [refineDomain])
+        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], [3], ElemType.TETRA4, cracks, [refineDomain])
 
     return mesh
 

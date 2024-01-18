@@ -63,7 +63,7 @@ if __name__ == '__main__':
     elif dim == 3:
         elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
-        mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, nLayers=3, isOrganised=True)
+        mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, layers=[3], isOrganised=True)
 
         volume = mesh.volume - L*b*h
         area = mesh.area - (L*h*4 + 2*b*h)

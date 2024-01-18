@@ -136,7 +136,7 @@ if __name__ == '__main__':
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, "TRI3", refineGeoms=[refineDomain], cracks=cracks)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,ep], 3, "HEXA8", refineGeoms=[refineDomain], cracks=cracks)
+        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,ep], [3], "HEXA8", refineGeoms=[refineDomain], cracks=cracks)
 
     Display.Plot_Mesh(mesh)
     # Display.Plot_Model(mesh)

@@ -77,7 +77,7 @@ def DoMesh(L: float, h: float, diam: float, thickness: float, l0: float, split: 
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,thickness], 4, ElemType.HEXA8,refineGeoms=[refineGeom])
+        mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,thickness], [4], ElemType.HEXA8,refineGeoms=[refineGeom])
 
     return mesh
 

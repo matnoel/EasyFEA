@@ -196,7 +196,7 @@ class Test_Simu(unittest.TestCase):
         inclusions = [Circle(Point(a/2, a/2), a/3, a/10)]
 
         doMesh2D = lambda elemType: Interface_Gmsh().Mesh_2D(domain, inclusions, elemType)
-        doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], 3, elemType)
+        doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], [3], elemType)
 
         listMesh = [doMesh2D(elemType) for elemType in GroupElem.get_Types2D()]
         [listMesh.append(doMesh3D(elemType)) for elemType in GroupElem.get_Types3D()]
@@ -237,7 +237,7 @@ class Test_Simu(unittest.TestCase):
         inclusions = [Circle(Point(a/2, a/2), a/3, a/10)]
 
         doMesh2D = lambda elemType: Interface_Gmsh().Mesh_2D(domain, inclusions, elemType)
-        doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], 3, elemType)
+        doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], [3], elemType)
 
         listMesh = [doMesh2D(elemType) for elemType in GroupElem.get_Types2D()]
         [listMesh.append(doMesh3D(elemType)) for elemType in GroupElem.get_Types3D()]

@@ -38,7 +38,7 @@ if __name__ == '__main__':
     if dim == 2:
         mesh_slave = Interface_Gmsh().Mesh_2D(contour_slave, [], ElemType.QUAD4, isOrganised=True)
     else:
-        mesh_slave = Interface_Gmsh().Mesh_3D(contour_slave, [], [0,0,-thickness], 4, ElemType.PRISM6, isOrganised=True)
+        mesh_slave = Interface_Gmsh().Mesh_3D(contour_slave, [], [0,0,-thickness], [4], ElemType.PRISM6, isOrganised=True)
 
     nodes_slave = mesh_slave.Get_list_groupElem(dim-1)[0].nodes
     nodes_y0 = mesh_slave.Nodes_Conditions(lambda x,y,z: y==0)
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     if dim == 2:
         mesh_master = Interface_Gmsh().Mesh_2D(contour_master, [], ElemType.TRI3)
     else:    
-        mesh_master = Interface_Gmsh().Mesh_3D(contour_master, [], [0,0,-thickness-2], 4, ElemType.PRISM6)
+        mesh_master = Interface_Gmsh().Mesh_3D(contour_master, [], [0,0,-thickness-2], [4], ElemType.PRISM6)
 
     # get master nodes
     nodes_master = mesh_master.Get_list_groupElem(dim-1)[0].nodes

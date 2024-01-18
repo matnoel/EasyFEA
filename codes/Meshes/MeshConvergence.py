@@ -79,7 +79,7 @@ if __name__ == '__main__':
             if dim == 2:
                 mesh = interfaceGmsh.Mesh_2D(domain, [], elemType, isOrganised=True)
             else:
-                mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], nLayers=4, isOrganised=True)        
+                mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], layers=[4], isOrganised=True)        
 
             # Calculate the volume of the mesh for verification
             if mesh.dim == 3:

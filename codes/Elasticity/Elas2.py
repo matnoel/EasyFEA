@@ -46,7 +46,7 @@ if __name__ == '__main__':
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, ElemType.TRI3)
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0, 0, -h], 4, elemType=ElemType.TETRA4)
+        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0, 0, -h], [4], elemType=ElemType.TETRA4)
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)

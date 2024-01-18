@@ -40,7 +40,7 @@ if __name__ == '__main__':
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType=ElemType.TRI3)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,thickness], 4, ElemType.PRISM6)
+        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,thickness], [4], ElemType.PRISM6)
 
     # --------------------------------------------------------------------------------------------
     # Simu

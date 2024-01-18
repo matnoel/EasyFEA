@@ -243,12 +243,11 @@ class Interface_Gmsh:
         """
         # must form a plane surface
         surface = self.factory.addPlaneSurface(loops)
-
         return surface
     
     def _Surfaces(self, contour: Geom, inclusions: list[Geom]=[],
                   elemType=ElemType.TRI3, isOrganised=False) -> tuple[list[int],list[int],list[int]]:
-        """Create surfaces.\n
+        """Create surfaces. Must be plane surfaces otherwse use 'factory.addSurfaceFilling' \n
         return surfaces, lines, points
 
         Parameters
@@ -272,14 +271,13 @@ class Interface_Gmsh:
         # Creation of all loops associated with objects within the domain
         hollowLoops, filledLoops = self.__Get_hollow_And_filled_Loops(inclusions)
         
-        listeLoop = [loopContour] # domain surface
-        listeLoop.extend(hollowLoops) # Hollow contours are added
-        listeLoop.extend(filledLoops) # Filled contours are added
+        loops = [loopContour] # domain surface
+        loops.extend(hollowLoops) # Hollow contours are added
+        loops.extend(filledLoops) # Filled contours are added
 
-        surfaceContour = self._Surface_From_Loops(listeLoop) # first filled surface
+        surfaces = [self._Surface_From_Loops(loops)] # first filled surface
 
-        # For each filled Geom object, it is necessary to create a surface
-        surfaces = [surfaceContour]
+        # For each filled object, it is necessary to create a surface
         [surfaces.append(factory.addPlaneSurface([loop])) for loop in filledLoops]
 
         self._OrganiseSurfaces(surfaces, elemType, isOrganised)
@@ -352,7 +350,7 @@ class Interface_Gmsh:
             tags = entities[idx, 1]
             [_addPhysicalGroup(dim, tag, t) for t, tag in enumerate(tags)]
 
-    def _Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.HEXA8, nLayers=1):
+    def _Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.TETRA4, layers:list[int]=[]) -> list[tuple]:
         """Function that extrudes multiple surfaces
 
         Parameters
@@ -361,10 +359,10 @@ class Interface_Gmsh:
             list of surfaces
         extrude : list, optional
             extrusion directions and values, by default [0,0,1]
-        elemType : str, optional
+        elemType : ElemType, optional
             element type used, by default "HEXA8"        
-        nLayers: int, optional
-            number of layers in extrusion, by default 1
+        layers: list[int], optional
+            layers in extrusion, by default []
         """
         
         factory = self.factory
@@ -373,23 +371,18 @@ class Interface_Gmsh:
 
         if "TETRA" in elemType:
             recombine = False
-            numElements = [nLayers] if nLayers > 1 else []
-        else:            
+        else:
             recombine = True
-            numElements = [nLayers]
-
-        # for surf in surfaces:
-        #     # Create new elements for extrusion
-        #     extru = factory.extrude([(2, surf)], *extrude, recombine=recombine, numElements=numElements)
-        #     extruEntities.extend(extru)
+            if len(layers) == 0:
+                layers = [1]
 
         entites = [(2, surf) for surf in surfaces]
-        extru = factory.extrude(entites, *extrude, recombine=recombine, numElements=numElements)
+        extru = factory.extrude(entites, *extrude, recombine=recombine, numElements=layers)
         extruEntities.extend(extru)
 
         return extruEntities
     
-    def _Revolve(self, surfaces: list[int], axis: Line, angle: float, elemType: ElemType, nLayers=360):
+    def _Revolve(self, surfaces: list[int], axis: Line, angle: float= np.pi*2, elemType: ElemType=ElemType.TETRA4, layers:list[int]=[30]) -> list[tuple]:
         """Function that revolves multiple surfaces.
 
         Parameters
@@ -398,12 +391,12 @@ class Interface_Gmsh:
             list of surfaces
         axis : Line
             revolution axis
-        angle: float
-            revolution angle
-        elemType : str
+        angle: float, optional
+            revolution angle, by default 2*pi
+        elemType : ElemType, optional
             element type used
-        nLayers: int, optional
-            number of layers in revolve process, by default 360
+        layers: list[int], optional
+            layers in extrusion, by default [30]
         """
         
         factory = self.factory
@@ -412,24 +405,28 @@ class Interface_Gmsh:
 
         if angleIs2PI:
             angle = angle / 2
-            nLayers = nLayers // 2 if nLayers > 1 else 1
+            layers = [l//2 for l in layers]
 
         revolEntities = []
+
         if "TETRA" in elemType:
             recombine = False
-            numElements = [nLayers] if nLayers > 1 else []
-        else:            
+        else:
             recombine = True
-            numElements = [nLayers]
+            if len(layers) == 0:
+                layers = [3]
 
         entities = [(2,s) for s in surfaces]
 
+        p0 = axis.pt1.coordo
+        a0 = normalize_vect(axis.pt2.coordo - p0)
+
         # Create new entites for revolution
-        revol = factory.revolve(entities, axis.pt1.x, axis.pt1.y, axis.pt1.z, axis.pt2.x, axis.pt2.y, axis.pt2.z, angle, numElements, recombine=recombine)
+        revol = factory.revolve(entities, *p0, *a0, angle, layers, recombine=recombine)
         revolEntities.extend(revol)
 
         if angleIs2PI:
-            revol = factory.revolve(entities, axis.pt1.x, axis.pt1.y, axis.pt1.z, axis.pt2.x, axis.pt2.y, axis.pt2.z, -angle, numElements, recombine=recombine)
+            revol = factory.revolve(entities, *p0, *a0, -angle, layers, recombine=recombine)
             revolEntities.extend(revol)
 
         return revolEntities
@@ -584,7 +581,7 @@ class Interface_Gmsh:
 
         return self._Construct_Mesh(coef)
 
-    def Mesh_Import_part(self, file: str, dim: int, meshSize=0.0, elemType: ElemType=None, refineGeom=None, folder=""):
+    def Mesh_Import_part(self, file: str, dim: int, meshSize=0.0, elemType: ElemType=None, refineGeoms=[None], folder=""):
         """Build mesh from imported file (.stp or .igs).\n
         You can only use triangles or tetrahedrons.
 
@@ -597,8 +594,8 @@ class Interface_Gmsh:
             mesh size, by default 0.0
         elemType : ElemType, optional
             element type, by default "TRI3" or "TETRA4" depending on dim.
-        refineGeom : Geom, optional
-            second domain for mesh concentration, by default None
+        refineGeoms : list[Domain|Circle|str]
+            Geometric objects to refine de background mesh
         folder : str, optional
             mesh save folder mesh.msh, by default ""
 
@@ -627,7 +624,10 @@ class Interface_Gmsh:
         else:
             print("Must be a .stp or .igs file")
 
-        self._RefineMesh(refineGeom, meshSize)
+        if meshSize > 0:
+            self.Set_meshSize(meshSize)
+
+        self._RefineMesh(refineGeoms, meshSize)
 
         self._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
 
@@ -902,7 +902,7 @@ class Interface_Gmsh:
         return self._Construct_Mesh()
 
     def Mesh_3D(self, contour: Geom, inclusions: list[Geom]=[],
-                extrude=[0,0,1], nLayers=1, elemType=ElemType.TETRA4,
+                extrude=[0,0,1], layers:list[int]=[], elemType=ElemType.TETRA4,
                 cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
                 isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[], folder="") -> Mesh:
         """Build the 3D mesh by creating a surface from a Geom object
@@ -915,8 +915,8 @@ class Interface_Gmsh:
             list of hollow and non-hollow objects inside the domain
         extrude : list, optional
             extrusion, by default [0,0,1]
-        nLayers : int, optional
-            number of layers in extrusion, by default 1
+        layers: list[int], optional
+            layers in extrusion, by default []
         elemType : str, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
         cracks : list[Line | PointsList | Countour]
@@ -955,7 +955,7 @@ class Interface_Gmsh:
         surfaces = [entity[1] for entity in factory.getEntities(2)]
         self._OrganiseSurfaces(surfaces, elemType, isOrganised)
 
-        self._Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, nLayers=nLayers)
+        self._Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, layers=layers)
 
         # Recovers 3D entities
         factory.synchronize()
@@ -975,7 +975,7 @@ class Interface_Gmsh:
         return self._Construct_Mesh()
     
     def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[],
-                     axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, nLayers=180, elemType=ElemType.TETRA4,
+                     axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, layers:list[int]=[30], elemType=ElemType.TETRA4,
                      cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
                      isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[],  folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
@@ -990,8 +990,8 @@ class Interface_Gmsh:
             revolution axis, by default Line(Point(), Point(0,1))
         angle : _type_, optional
             revolution angle, by default 2*np.pi
-        nLayers : int, optional
-            number of layers in revolution, by default 180
+        layers: list[int], optional
+            layers in extrusion, by default [30]
         elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
         cracks : list[Line | PointsList | Countour]
@@ -1030,7 +1030,7 @@ class Interface_Gmsh:
         surfaces = [entity[1] for entity in factory.getEntities(2)]
         self._OrganiseSurfaces(surfaces, elemType, isOrganised)
         
-        self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, nLayers=nLayers)
+        self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, layers=layers)
 
         # Recovers 3D entities
         self.factory.synchronize()
@@ -1087,6 +1087,11 @@ class Interface_Gmsh:
         gmsh.view.write(view, path)
 
         return path
+    
+    def Set_meshSize(self, meshSize:float) -> None:
+        """Sets the mesh size"""
+        self.factory.synchronize()
+        gmsh.model.mesh.setSize(self.factory.getEntities(0), meshSize)
     
     def _RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float):
         """Sets a background mesh
@@ -1218,7 +1223,8 @@ class Interface_Gmsh:
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
 
     def _Meshing(self, dim: int, elemType: str,
-                 crackLines:int=None, crackSurfaces:int=None, openPoints:int=None, openLines:int=None, folder="", filename="mesh"):
+                 crackLines:int=None, crackSurfaces:int=None, openPoints:int=None, openLines:int=None,
+                 folder="", filename="mesh"):
         """Construction of gmsh mesh from geometry that has been built or imported.
 
         Parameters
@@ -1474,14 +1480,14 @@ class Interface_Gmsh:
                 meshPart = interfaceGmsh.Mesh_Import_part(partPath, 3, meshSize=taille, elemType=elemType)
                 list_mesh3D.append(meshPart)
 
-            mesh1 = interfaceGmsh.Mesh_3D(domain, [], [0,0,-b], 3, elemType=elemType)
+            mesh1 = interfaceGmsh.Mesh_3D(domain, [], [0,0,-b], [3], elemType=elemType)
             list_mesh3D.append(mesh1)
             testVolume(mesh1.volume)                
 
-            mesh2 = interfaceGmsh.Mesh_3D(domain, [circleCreux], [0,0,-b], 3, elemType)
+            mesh2 = interfaceGmsh.Mesh_3D(domain, [circleCreux], [0,0,-b], [3], elemType)
             list_mesh3D.append(mesh2)            
 
-            mesh3 = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,-b], 3, elemType)
+            mesh3 = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,-b], [3], elemType)
             list_mesh3D.append(mesh3)
             testVolume(mesh3.volume)
 

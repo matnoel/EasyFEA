@@ -40,7 +40,7 @@ if __name__ == '__main__':
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0, 0, -a], 4, ElemType.PRISM6)
+        mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0, 0, -a], [4], ElemType.PRISM6)
 
     noeudsX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     noeudsXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)

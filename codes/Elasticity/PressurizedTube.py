@@ -62,7 +62,7 @@ if __name__ == '__main__':
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType=ElemType.TRI6, cracks=[crack])
     else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude, 10, ElemType.PRISM6, cracks=[crack])
+        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude, [10], ElemType.PRISM6, cracks=[crack])
 
     # --------------------------------------------------------------------------------------------
     # Simulation

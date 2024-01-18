@@ -38,7 +38,7 @@ if __name__  == '__main__':
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, isOrganised=True, elemType='QUAD4', surfaces=surfaces)
     else:        
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,e], 3, isOrganised=True, elemType='HEXA8', surfaces=surfaces)
+        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,e], [3], isOrganised=True, elemType='HEXA8', surfaces=surfaces)
 
     mesh.rotate(-np.pi/4, mesh.center)
     mesh.rotate(np.pi/4, mesh.center, (1,0))

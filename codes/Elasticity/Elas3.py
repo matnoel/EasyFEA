@@ -41,7 +41,7 @@ if __name__ == '__main__':
         mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI6)
         print(f"err area = {np.abs(mesh.area - h**2/2):.3e}")
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, -thickness], 3, ElemType.PRISM15)
+        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, -thickness], [3], ElemType.PRISM15)
         print(f"error volume = {np.abs(mesh.volume - h**2/2 * thickness):.3e}")
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)

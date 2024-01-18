@@ -33,10 +33,10 @@ if __name__ == '__main__':
 
     perimeter = angle * radius
 
-    nLayers = perimeter // meshSize
+    layers = [perimeter // meshSize]
 
     def DoMesh(dim, elemType):
-        mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, nLayers, elemType)
+        mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, layers, elemType)
         Display.Plot_Mesh(mesh)
 
     [DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]

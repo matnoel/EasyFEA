@@ -25,7 +25,7 @@ if __name__ == '__main__':
         if dim == 2:
             mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType, refineGeoms=refineGeoms)
         elif dim == 3:
-            mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0, 0, -L], 3, elemType, refineGeoms=refineGeoms)
+            mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0, 0, -L], [3], elemType, refineGeoms=refineGeoms)
 
         Display.Plot_Mesh(mesh)
 

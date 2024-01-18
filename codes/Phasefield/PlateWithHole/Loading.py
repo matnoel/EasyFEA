@@ -57,7 +57,7 @@ if __name__ == '__main__':
     if dim == 2:
         mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.QUAD8)
     else:
-        mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,10*unit], 4, ElemType.HEXA8)
+        mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,10*unit], [4], ElemType.HEXA8)
 
     # get nodes
     nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)

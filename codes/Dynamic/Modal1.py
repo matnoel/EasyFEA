@@ -33,7 +33,7 @@ if __name__ == '__main__':
         if dim == 2:
             mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.QUAD4, isOrganised=True)
         else:
-            mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,-thickness], 2, ElemType.HEXA8, isOrganised=True)
+            mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,-thickness], [2], ElemType.HEXA8, isOrganised=True)
         nodesY0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
         nodesSupY0 = mesh.Nodes_Conditions(lambda x,y,z: y>0)
 

@@ -19,9 +19,8 @@ if __name__ == '__main__':
         elif dim == 3:
             # WARNING :
             # only works with TETRA4 and TETRA10
-            # only works with nLayers = 1
-            nLayers = 1
-            mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, L], nLayers, elemType, cracks)
+            # only works with nLayers = []            
+            mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, L], [], elemType, cracks)
 
 
         material = Materials.Elas_Isot(dim)
