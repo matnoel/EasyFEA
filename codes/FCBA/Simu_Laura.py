@@ -1,6 +1,6 @@
 import Display
-from Geom import Point, PointsList, Circle, Domain, normalize_vect
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Geom import Point, PointsList, Circle, Domain, normalize_vect, Line
+from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
 import Materials
 import Simulations
 import Folder
@@ -13,6 +13,59 @@ Display.Clear()
 
 folder_FCBA = Folder.New_File("FCBA",results=True)
 folder = Folder.Join(folder_FCBA, "Compression_Laura")
+
+def DoMesh(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float, t:float, l0:float, test:bool, optimMesh:bool) -> Mesh:
+
+    clC = l0 if test else l0/2
+    clD = clC*3 if optimMesh else clC
+
+    if optimMesh:
+        refineGeom = Domain(Point(L/2-D, 0, 0), Point(L/2+D, H, t), clC)
+    else:
+        refineGeom = None
+
+    contour = Domain(Point(), Point(L,H), clD)
+    circle = Circle(Point(L/2, H-h), D, clC, True)
+
+    # Hole        
+    p1 = Point(L/2, H-55, t/2)
+    p2 = Point(L/2+D2/2, p1.y+D2/2, p1.z)
+    p3 = Point(p2.x, H, p1.z)
+    p4 = p3 - [D2/2]        
+    hole = PointsList([p1,p2,p3,p4])
+    axis = Line(p1,p4)
+    # hole.Plot_Geoms([contour, circle, hole, axis])
+
+    if dim == 2:
+        mesh = Interface_Gmsh().Mesh_2D(contour, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
+        
+    elif dim == 3:
+        if D2 == 0:
+            mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,t], [4], ElemType.TETRA4, refineGeoms=[refineGeom])
+        else:
+            interf = Interface_Gmsh(False, False)
+            fact = interf.factory
+
+            # Box and cylinder
+            surf1 = interf._Surfaces(contour, [circle])[0]
+            vol1 = interf._Extrude(surf1, [0,0,t])
+            # Hole
+            surf2 = interf._Surfaces(hole)[0]
+            vol2 = interf._Revolve(surf2, axis)
+            
+            fact.cut(vol1, [(ent) for ent in vol2 if ent[0] == 3])
+
+            interf.Set_meshSize(clD)
+
+            interf._RefineMesh([refineGeom], clD)
+
+            interf._Set_PhysicalGroups()
+
+            interf._Meshing(3, ElemType.TETRA4)
+
+            mesh = interf._Construct_Mesh()
+
+    return mesh
 
 if __name__  == '__main__':
 
@@ -29,9 +82,11 @@ if __name__  == '__main__':
     # geom
     H = 120 # mm
     L = 90
-    h = 35 
-    d = 10
-    thickness = 20
+    D = 10
+    h = 35
+    D2 = 7
+    h2 = 55
+    t = 20
 
     # nL = 50
     # l0 = L/nL
@@ -41,32 +96,10 @@ if __name__  == '__main__':
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
-    clC = l0 if test else l0/2
-    clD = clC*2 if optimMesh else clC
+    
+    mesh = DoMesh(dim, L, H, D, h, D2, h2, t, l0, test, optimMesh)
 
-    if optimMesh:
-        pr0 = Point(L/2-d, 0, 0)
-        pr1 = Point(L/2+d, H, thickness)
-        refineGeom = Domain(pr0, pr1, clC)
-    else:
-        refineGeom = None
-
-    p1 = Point(0,0)
-    p2 = Point(L,0)
-    p3 = Point(L,H)
-    p4 = Point(0,H)
-    contour = PointsList([p1,p2,p3,p4], clD)
-
-    pC = Point(L/2, H-h); pc = pC.coordo
-    circle = Circle(pC, d, clC, True)
-
-    if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, [circle], ElemType.TRI6, refineGeoms=[refineGeom])
-        directions = ['x','y']
-    else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,-thickness], 3, ElemType.PRISM6, refineGeoms=[refineGeom])
-        directions = ['x','y','z']
-
+    Display.Plot_Mesh(mesh)
     print(mesh)
 
     # --------------------------------------------------------------------------------------------
@@ -91,7 +124,7 @@ if __name__  == '__main__':
     split = "AnisotStress"
     regu = "AT1"
 
-    comp = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt, axis_l, axis_t, True, thickness)
+    comp = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt, axis_l, axis_t, True, t)
     pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0)
 
     # --------------------------------------------------------------------------------------------
@@ -103,9 +136,9 @@ if __name__  == '__main__':
 
     if loadInHole:
 
-        surf = np.pi * d/2 * thickness
-        nodesLoad = mesh.Nodes_Cylinder(circle, [0,0,-thickness])
-        nodesLoad = nodesLoad[mesh.coordo[nodesLoad,1] <= pC.y]
+        surf = np.pi * D/2 * t
+        nodesLoad = mesh.Nodes_Cylinder(Circle(Point(L/2,H-h), D), [0,0,-t])
+        nodesLoad = nodesLoad[mesh.coordo[nodesLoad,1] <= H-h]
         # Display.Plot_Nodes(mesh, nodesLoad)
 
         group = mesh.Get_list_groupElem(dim-1)[0]
@@ -114,7 +147,7 @@ if __name__  == '__main__':
         aire = np.einsum('ep,p->', group.Get_jacobian_e_pg("mass")[elems], group.Get_weight_pg("mass"))
 
         if dim == 2:
-            aire *= thickness 
+            aire *= t 
 
         print(f"errSurf = {np.abs(surf-aire)/surf:.3e}")
 
@@ -123,7 +156,7 @@ if __name__  == '__main__':
             x,y,z (ep)"""
             
             # Angle calculation
-            theta = np.arctan((x-pc[0])/(y-pc[1]))
+            theta = np.arctan((x-L/2)/(y-(H-h)))
 
             # Coordinates of Gauss points in matrix form
             coord = np.zeros((x.shape[0],x.shape[1],3))
@@ -132,7 +165,7 @@ if __name__  == '__main__':
             coord[:,:,2] = 0
 
             # Construction of the normal vector
-            vect = coord - pc
+            vect = coord - np.array([L/2, H-h,0])
             vectN = np.einsum('npi,np->npi', vect, 1/np.linalg.norm(vect, axis=2))
             
             # Loading
@@ -173,7 +206,7 @@ if __name__  == '__main__':
         # # ax.annotate("$x$",xy=(1,0),xytext=(0,0),arrowprops=dict(arrowstyle="->"), c='black')    
 
     else:
-        surf = thickness * L
+        surf = t * L
         nodesLoad = mesh.Nodes_Conditions(lambda x,y,z: y==H)
 
     # simu.Solve()
@@ -186,7 +219,7 @@ if __name__  == '__main__':
     for f in array_f:
 
         simu.Bc_Init()
-        simu.add_dirichlet(nodesLower, [0]*dim, directions)
+        simu.add_dirichlet(nodesLower, [0]*dim, simu.Get_directions())
         if loadInHole:
             simu.add_surfLoad(nodesLoad, [EvalX, EvalY], ["x","y"],
                             description=r"$\mathbf{q}(\theta) = \sigma \ sin^2(\theta) \ \mathbf{n}(\theta)$")

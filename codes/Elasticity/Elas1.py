@@ -24,7 +24,11 @@ if __name__ == '__main__':
 
     L = 120 # mm
     h = 13
-    load = 800
+    I = h**4/12 # mm4
+    load = 800 # N
+
+    W_an = 2*load**2*L/E/h**2 * (L**2/h**2 + (1+v)*3/5) # mJ
+    uy_an = load*L**3/(3*E*I)
 
     # --------------------------------------------------------------------------------------------
     # Mesh
@@ -61,10 +65,19 @@ if __name__ == '__main__':
     sol = simu.Solve()
     simu.Save_Iter()
 
+    uy_num = - simu.Result('uy').min()
+    W_num = simu._Calc_Psi_Elas()
+
     # --------------------------------------------------------------------------------------------
     # Results
     # --------------------------------------------------------------------------------------------
     print(simu)
+
+    Display.Section('Result')
+
+    print(f"err W : {np.abs(W_an-W_num)/W_an*100:.2f} %")
+
+    print(f"err uy : {np.abs(uy_an-uy_num)/uy_an*100:.2f} %")
 
     Display.Plot_Model(mesh)
     Display.Plot_BoundaryConditions(simu)

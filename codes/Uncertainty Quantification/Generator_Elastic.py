@@ -147,7 +147,7 @@ if __name__ == '__main__':
             vL_exp: np.ndarray = dict_EL_NUL['mean_NUL_data']
 
         else:
-            # dfParams = dfParams[:-1]
+            dfParams = dfParams[:-1]
             # Matthieu
             EL_exp: np.ndarray = dfParams["El"].values * 1e-3
             n = EL_exp.size
@@ -208,8 +208,9 @@ if __name__ == '__main__':
                 c_tp1 = stats.multivariate_normal.rvs(c_t, cov)
 
                 # accept ratio
-                a = p_C(c_tp1, lamb)/p_C(c_t, lamb)
                 # a = (p_C(c_tp1, lamb) * q(c_t, c_tp1))/(p_C(c_t, lamb) * q(c_tp1, c_t))
+
+                a = p_C(c_tp1, lamb)/p_C(c_t, lamb)
                 test = q(c_t, c_tp1)/q(c_tp1, c_t) # = 1 if the guess function is symmetric
                 assert test == 1
 
@@ -235,9 +236,9 @@ if __name__ == '__main__':
             l4 = lamb[4]
             l5 = lamb[5]
 
-            test_lamb = 2*np.sqrt(l1*l2) - l3
-            # print(test_lamb)
-            assert test_lamb >= 1e-12
+            # test_lamb = 2*np.sqrt(l1*l2) - l3
+            # # print(test_lamb)
+            # assert test_lamb >= 1e-12
 
             a = 1-2*l
             b4 = 1/l4
@@ -261,7 +262,8 @@ if __name__ == '__main__':
 
             # here we want to get the c1, c2, c3 samples
             # we use Metropolis-Hastings to make samples
-            cc = 1 if useZhou else .2
+            # cc = 1 if useZhou else .2
+            cc = 1
             samples, rejectRatio = Metropolis_Hastings_C(c_0, cov(l)*cc, lamb, 0, 10000)            
             # _s for samples
             c1_s: np.ndarray = samples[:,0]; m_c1_s: float = np.mean(c1_s)
@@ -283,7 +285,7 @@ if __name__ == '__main__':
             return J
 
         l0 = -100
-        # l0 = -120
+        # l0 = -300
         cst = l0/(m_c1_d*m_c2_d - m_c3_d**2)
         lamd0 = np.array([l0,
                         -m_c2_d*cst,
@@ -304,6 +306,7 @@ if __name__ == '__main__':
         methods = ["COBYLA", "SLSQP", "trust-constr"]
         # only works with COBYLA
         res = minimize(J_ls, lamd0, bounds=bnds, constraints=cons, method=methods[0])
+        print(res)
         lamb = res.x
 
         print()
@@ -318,9 +321,26 @@ if __name__ == '__main__':
         print(f'\na5 = {1-2*lamb[0]:.4f}')
         print(f'b5 = {1/lamb[5]:.4f}')
 
-        file = Folder.Join(folder, 'lambda.pickle')
-        with open(file, 'wb') as f:
-            pickle.dump(lamb, f)
+        # J = J_ls(lamb)
+        
+        # l0 = -100 -> l0 = -98.713, l1 = 7.019, l2 = 409.955, l3 = -0.217, l4 = 1254.545, l5 = 131.488
+        # J = 5.207e-04
+
+        # l0 = -50 -> l0 = -48.749, l1 = 3.488, l2 = 205.365, l3 = 0.376, l4 = 625.027, l5 = 65.141
+        # J = 4.286e-04
+
+        # l0 > 0 -> ne fonctionne pas
+
+        # l0 = -200 -> l0 = -198.750, l1 = 13.952, l2 = 813.796, l3 = -2.798, l4 = 2522.943, l5 = 262.057
+        # J = 7.087e-04
+
+        # l0 = -500 -> 
+        # J = 
+
+
+        # file = Folder.Join(folder, 'lambda.pickle')
+        # with open(file, 'wb') as f:
+        #     pickle.dump(lamb, f)
 
         # --------------------------------------------------------------------------------------------
         # Plot

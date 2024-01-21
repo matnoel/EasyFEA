@@ -55,7 +55,7 @@ l0_array = np.linspace(L/100, L/10, N)
 # Mesh
 # --------------------------------------------------------------------------------------------
 # here we use the same mesh for all simulations
-mesh = Functions.DoMesh(L, H, D, l0_array.min(), test, optimMesh)
+mesh = Functions.DoMesh(2, L, H, D, thickness, l0_array.min(), test, optimMesh)
 yn = mesh.coordo[:, 1]
 nodes_Lower = mesh.Nodes_Tags(["L0"])
 nodes_Upper = mesh.Nodes_Tags(["L2"])

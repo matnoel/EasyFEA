@@ -718,7 +718,8 @@ class GroupElem(ABC):
 
     @property
     def Ix(self) -> float:
-        """Quadratic moment following x"""
+        """Quadratic moment following x\n
+        int_S x^2 dS"""
         if self.dim != 2: return
 
         matrixType = MatrixType.mass
@@ -731,7 +732,8 @@ class GroupElem(ABC):
 
     @property
     def Iy(self) -> float:
-        """Quadratic moment following y"""
+        """Quadratic moment following y\n
+        int_S y^2 dS"""
         if self.dim != 2: return
 
         matrixType = MatrixType.mass
@@ -741,10 +743,25 @@ class GroupElem(ABC):
 
         Iy = np.einsum('ep,p,ep->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, y**2, optimize='optimal')
         return float(Iy)
+    
+    @property
+    def Iz(self) -> float:
+        """Quadratic moment following z\n
+        int_S z^2 dS"""
+        if self.dim != 2: return
+
+        matrixType = MatrixType.mass
+
+        coordo_e_p = self.Get_GaussCoordinates_e_p(matrixType)
+        z = coordo_e_p[:, :, 2]
+
+        Iz = np.einsum('ep,p,ep->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, z**2, optimize='optimal')
+        return float(Iz)
 
     @property
     def Ixy(self) -> float:
-        """Quadratic moment following xy"""
+        """Quadratic moment following xy\n
+        int_S x y dS"""
         if self.dim != 2: return
 
         matrixType = MatrixType.mass

@@ -71,6 +71,6 @@ if __name__ == '__main__':
     Display.Plot_Mesh(simu, h/10/np.abs(sol.max()))
     Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1/coef, nColors=20)
 
-    Simulations.Tic.Plot_History(details=True)
+    Simulations.Tic.Plot_History(details=False)
 
     plt.show()

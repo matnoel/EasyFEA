@@ -136,7 +136,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         if plotMesh:
             if mesh.dim == 1:
                 # mesh for 1D elements are points                
-                ax.plot(*coordo.T, c='black', lw=0.1, marker='.', ls='')
+                ax.plot(*mesh.coordo[:,:inDim].T, c='black', lw=0.1, marker='.', ls='')
             else:
                 # mesh for 2D elements are lines
                 pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=0.5)
@@ -606,6 +606,7 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
 
     if ax == None:
         ax = Plot_Mesh(simu, alpha=0)
+        ax.set_title('Boundary conditions')
 
     for bc in BoundaryConditions:
         

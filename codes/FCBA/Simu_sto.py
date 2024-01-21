@@ -12,8 +12,8 @@ import pandas as pd
 import multiprocessing
 from datetime import datetime
 
-doSimulation = True
-doPlot = False
+doSimulation = False
+doPlot = True
 
 useParallel = True
 nProcs = 15 # None means every processors
@@ -23,7 +23,7 @@ folder_Sto = Folder.New_File(Folder.Join('FCBA','Sto'), results=True)
 
 # simulations [start, start+N]
 start = 0
-N = 1000 # N simulations
+N = 3000 # N simulations
 
 # mesh
 nL = 100
@@ -52,7 +52,7 @@ t = 20
 
 l0 = L/nL
 
-mesh = Functions.DoMesh(L,H,D,l0,test,optimMesh)
+mesh = Functions.DoMesh(2,L,H,D,t,l0,test,optimMesh)
 nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
 nodes_corner = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
@@ -81,7 +81,7 @@ GL_exp: np.ndarray = dfParams["Gl"].values * 1e-3
 vL_exp = 0.01+0.1*np.random.rand(n) # artificial data for vL varying from 0.01 to 0.11
 vT_exp = 0.1+0.2*np.random.rand(n); # artificial data for vT varying from 0.1 to 0.3        
     
-mat = Materials.Elas_IsotTrans(3,EL_exp.mean(),ET_exp.mean(),GL_exp.mean(),vL_exp.mean(),vT_exp.mean())
+mat = Materials.Elas_IsotTrans(2,EL_exp.mean(),ET_exp.mean(),GL_exp.mean(),vL_exp.mean(),vT_exp.mean())
 ci = mat.Walpole_Decomposition()[0]
 
 errCi = np.linalg.norm(ci - mean[:-1])**2/np.linalg.norm(ci)**2
@@ -253,43 +253,6 @@ if __name__ == '__main__':
 
     if doPlot:
 
-
-        # get back the forces and displacements curve for each test
-        list_forces = []
-        list_displacements = []
-
-        mesh = Functions.DoMesh(L,H,D,l0,True, False)
-        nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
-        nodes_corner = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
-        dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, 'displacement', nodes_upper, ['y'])
-
-        for i in range(17):
-
-            mat = Functions.Get_material(i, t, 2)
-
-            forces, displacements, fcrit = Functions.Get_loads_informations(i, useRedim=True)
-
-            simu = Simulations.Simu_Displacement(mesh, mat)
-            # simu.solver = 'cg'
-
-            simu.add_dirichlet(nodes_lower, [0], ['y'])
-            simu.add_dirichlet(nodes_corner, [0], ['x'])
-            simu.add_surfLoad(nodes_upper, [-15000/(L*t)], ['y'])
-            simu.Solve()
-
-            f = -np.sum(simu.Get_K_C_M_F()[0][dofsY_upper] @ simu.displacement)/1000
-            u = - simu.displacement[dofsY_upper].mean()
-
-            k_exp, __ = Functions.Calc_a_b(forces, displacements, 15)
-            k_mat, __ = Functions.Calc_a_b([0, f], [0, u], f)
-            k_montage = 1/(1/k_exp - 1/k_mat)
-            
-            displacements = displacements - forces/k_montage
-
-            list_displacements.append(displacements)
-            list_forces.append(forces)
-
         # get u, f and d for each simulations
         labels = [label_u, label_f, label_d]
         vals = [[df[label][i][[0, df[label][i].size//2 ,-1]] for label in labels] for i in range(N)]
@@ -304,20 +267,118 @@ if __name__ == '__main__':
 
         u_array = np.linspace(0, np.max(u), 1000)
         f_arrays = np.einsum('n,i->ni', a, u_array)
+        
+        from scipy import stats
 
-        ax = plt.subplots()[1]        
+        mu, sig = stats.norm.fit(f[:,-1])
+
+        ff = np.linspace(f[:,-1].min(), f[:,-1].max(), 1000)
+
+        axHs: list[plt.Axes] = plt.subplots(nrows=2, sharex=True)[1]
+        axHs[0].plot(ff, stats.norm.cdf(ff, mu, sig))
+        axHs[0].set_title('cdf'); axHs[0].grid()
+        axHs[1].hist(f[:,-1], bins='auto', histtype='bar', density=True)
+        axHs[1].plot(ff, stats.norm.pdf(ff,mu, sig), label=f"$\mu = {mu:.2f}, \sigma = {sig:.2f}$")
+        axHs[1].legend(); axHs[1].set_xlabel('f [kN]'); axHs[1].set_title('pdf'); axHs[1].grid()
+        # Display.Save_fig(folder_save, 'pdf de f')
+
+
+
+
+
+
+
+        # get back the forces and displacements curve for each test
+        list_forces = []
+        list_displacements = []
+        list_fcrit = []
+        list_k_montage = []
+
+        mesh = Functions.DoMesh(2,L,H,D,t,l0,True, False)
+        nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
+        nodes_corner = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
+        dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, 'displacement', nodes_upper, ['y'])
+
+        for i in range(17):
+
+            mat = Functions.Get_material(i, t, 2)
+
+            forces, displacements, fcrit = Functions.Get_loads_informations(i, useRedim=True)
+
+            simu = Simulations.Simu_Displacement(mesh, mat)
+
+            simu.add_dirichlet(nodes_lower, [0], ['y'])
+            simu.add_dirichlet(nodes_corner, [0], ['x'])
+            # simu.add_surfLoad(nodes_upper, [-15000/(L*t)], ['y'])
+            simu.add_dirichlet(nodes_upper, [-0.5], ['y'])
+            simu.Solve()
+
+            f = -np.sum(simu.Get_K_C_M_F()[0][dofsY_upper] @ simu.displacement)/1000
+            u = - simu.displacement[dofsY_upper].mean()
+
+            k_exp, __ = Functions.Calc_a_b(forces, displacements, 15)
+            k_mat, __ = Functions.Calc_a_b([0, f], [0, u], f)
+            k_montage = 1/(1/k_exp - 1/k_mat)
+
+            list_k_montage.append(k_montage)
+            list_displacements.append(displacements)
+            list_forces.append(forces)
+            list_fcrit.append(fcrit)
+
+        
+
+        ax = plt.subplots()[1]
+        ax.set_xlabel(r"$\Delta u \ [mm]$")
+        ax.set_ylabel(r"$f \ [kN]$")
+
+        ax.grid()        
 
         # [ax.plot(u_array, f_arrays[i],c='gray', alpha=.3) for i in range(N)]
         # [ax.plot(df[label_u][i], df[label_f][i],c='gray', alpha=.3) for i in range(N)]
         # [ax.plot(df[label_u][i], df[label_f][i], alpha=.3) for i in range(N)]
-        ax.plot(u[:,-1], f[:,-1], c='red', ls='', marker='.')
+        
+        ax.plot(u[:,-1], f[:,-1], c='red', ls='', marker='.', label=f"{np.mean(f[:,2]):.2f} kN")
 
         a_lower, a_upper = np.quantile(a, (0.025, 0.975))
 
-        ax.fill_between(u_array, a_lower*u_array, a_upper*u_array, zorder=10, alpha=.5)
+        ax.fill_between(u_array, a_lower*u_array, a_upper*u_array, zorder=8, alpha=.5)
 
         ax.plot(u_array, np.mean(a)*u_array, c='black', ls='--')
 
-        # [ax.plot(list_displacements[i], list_forces[i], alpha=.3) for i in range(17)]
+
+        k_montage = np.mean(list_k_montage)
+        k_montage = np.mean(a)
+
+        print(list_k_montage)
+        print(np.std(list_k_montage)/k_montage)
+        
+        errors = [2, 8, 11, 13, 17]
+
+        for i in range(17):
+
+            # if i in errors: continue
+
+            displacements = list_displacements[i]
+            forces = list_forces[i]
+            k_montage = list_k_montage[i]
+
+            displacements = displacements - forces/k_montage
+
+            idx = np.where(forces >= list_fcrit[i])[0][0]
+
+            fcrit = forces[idx]
+            displacement_crit = displacements[idx]
+
+            idxMax = np.where(displacements >= 0.5)[0][0]
+
+            ax.plot(displacements[:idxMax], forces[:idxMax], alpha=0.5)
+            label = f"{np.mean(list_fcrit):.2f} kN" if i == 0 else ''
+            ax.scatter(displacement_crit, fcrit, marker='+',c='black', zorder=10, label=label)
+            # ax.text(displacement_crit, fcrit, '{}'.format(i), zorder=10)
+
+        ax.legend()
+
+        Display.Save_fig(folder_save, 'forcedep sto')
 
         plt.show()

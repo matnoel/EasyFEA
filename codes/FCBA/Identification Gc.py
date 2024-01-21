@@ -73,7 +73,7 @@ def DoSimu(x: np.ndarray, mesh: Mesh, idxEssai: int) -> float:
     if detectL0:
         l0 = x[1]            
         print(f"\nGc = {x[0]:.5e}, l0 = {x[1]:.5e}")    
-        mesh = Functions.DoMesh(L, H, D, l0, test, optimMesh)
+        mesh = Functions.DoMesh(2, L, H, D, thickness, l0, test, optimMesh)
     else:
         l0 = l0_init
         print(f"\nGc = {x[0]:.5e}")
@@ -154,7 +154,7 @@ if __name__ == '__main__':
         forces, deplacements, f_crit = Functions.Get_loads_informations(idxEssai, useRedim=True)
         print(f"fcrit = {f_crit}")
 
-        mesh_init = Functions.DoMesh(L, H, D, l0_init, test, optimMesh)
+        mesh_init = Functions.DoMesh(2, L, H, D, thickness, l0_init, test, optimMesh)
 
         # Display.Plot_Mesh(mesh_init)
         print(mesh_init)

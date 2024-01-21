@@ -318,7 +318,8 @@ class Mesh:
 
     @property
     def Ix(self) -> float:
-        """Calculate the total Ix (moment of inertia) of the mesh."""
+        """Calculate the total Ix (moment of inertia along x axis) of the mesh.\n
+        int_S x^2 dS"""
         if self.dim in [0, 1]:
             return None
         Ixs = [group2D.Ix for group2D in self.Get_list_groupElem(2)]
@@ -326,15 +327,26 @@ class Mesh:
 
     @property
     def Iy(self) -> float:
-        """Calculate the total Iy (moment of inertia) of the mesh."""
+        """Calculate the total Iy (moment of inertia along y axis) of the mesh.\n
+        int_S y^2 dS"""
         if self.dim in [0, 1]:
             return None
         Iys = [group2D.Iy for group2D in self.Get_list_groupElem(2)]
         return np.sum(Iys)
+    
+    @property
+    def Iz(self) -> float:
+        """Calculate the total Iz (moment of inertia along z axis) of the mesh.\n
+        int_S z^2 dS"""
+        if self.dim in [0, 1]:
+            return None
+        Izs = [group2D.Iz for group2D in self.Get_list_groupElem(2)]
+        return np.sum(Izs)
 
     @property
     def Ixy(self) -> float:
-        """Calculate the total Ixy (moment of inertia) of the mesh."""
+        """Calculate the total Ixy (moment of inertia) of the mesh.\n
+        int_S x y dS"""
         if self.dim in [0, 1]:
             return None
         Ixys = [group2D.Ixy for group2D in self.Get_list_groupElem(2)]
@@ -342,7 +354,8 @@ class Mesh:
 
     @property
     def J(self) -> float:
-        """Calculate the total J (polar moment of inertia) of the mesh."""
+        """Calculate the total J (polar moment of inertia) of the mesh.\n
+        Ix + Iy"""
         if self.dim in [0, 1]:
             return None
         Js = [group2D.Iy + group2D.Ix for group2D in self.Get_list_groupElem(2)]
