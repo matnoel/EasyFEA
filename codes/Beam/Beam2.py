@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point, Section
+from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point
 import Display
 import Materials
 import Simulations
@@ -34,8 +34,8 @@ if __name__ == '__main__':
 
     # Create a section object for the beam mesh
     interfGmsh = Interface_Gmsh()
-    meshSection = interfGmsh.Mesh_2D(Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2)))
-    section = Section(meshSection)
+    section = interfGmsh.Mesh_2D(Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2)))
+    Iz = section.Iy
 
     point1 = Point()
     point2 = Point(x=L / 2)
@@ -82,9 +82,9 @@ if __name__ == '__main__':
     uy = simu.Result('uy')
 
     x = np.linspace(0, L, 100)
-    uy_x = load / (E * section.Iz) * (x ** 3 / 6 - (L * x ** 2) / 2)
+    uy_x = load / (E * Iz) * (x ** 3 / 6 - (L * x ** 2) / 2)
 
-    flecheanalytique = load * L ** 3 / (3 * E * section.Iz)
+    flecheanalytique = load * L ** 3 / (3 * E * Iz)
     erreur = np.abs(flecheanalytique + uy.min()) / flecheanalytique
 
     # Plot the analytical and finite element solutions for vertical displacement (v)
@@ -94,8 +94,8 @@ if __name__ == '__main__':
     axUy.set_title(fr"$u_y(x)$")
     axUy.legend()
 
-    rz_x = load / E / section.Iz * (x ** 2 / 2 - L * x)
-    rotalytique = -load * L ** 2 / (2 * E * section.Iz)
+    rz_x = load / E / Iz * (x ** 2 / 2 - L * x)
+    rotalytique = -load * L ** 2 / (2 * E * Iz)
 
     # Plot the analytical and finite element solutions for rotation (rz)
     fig, axRz = plt.subplots()

@@ -3812,9 +3812,12 @@ class Simu_Beam(_Simu):
 
             elements = self.mesh.Elements_Tags([beam.name])            
 
+            # dont change here because the mesh is used in 2d plane x,y
+            # z direction is y in the section coordinates
+            # y direction is x in the section coordinates
             S_e_pg[elements, :] = beam.section.area
-            Iy_e_pg[elements, :] = beam.section.Iy
-            Iz_e_pg[elements, :] = beam.section.Iz
+            Iy_e_pg[elements, :] = beam.section.Ix
+            Iz_e_pg[elements, :] = beam.section.Iy
             J_e_pg[elements, :] = beam.section.J
 
         y_e_pg = np.sqrt(S_e_pg)

@@ -1,6 +1,6 @@
 import unittest
 import Materials
-from Geom import Domain, Circle, Point, Section, Line
+from Geom import Domain, Circle, Point, Line
 import numpy as np
 import Display as Display
 from Interface_Gmsh import Interface_Gmsh, Mesh, GroupElem
@@ -61,10 +61,11 @@ class Test_Simu(unittest.TestCase):
             
             # Section
 
-            section = Section(interfaceGmsh.Mesh_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2))))
+            section = interfaceGmsh.Mesh_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2)))
+            Iz = section.Iy
 
             self.assertTrue((section.area - b*h) <= 1e-12)
-            self.assertTrue((section.Iz - ((b*h**3)/12)) <= 1e-12)
+            self.assertTrue((Iz - ((b*h**3)/12)) <= 1e-12)
 
             # Mesh
 
@@ -118,7 +119,7 @@ class Test_Simu(unittest.TestCase):
 
             if problem == "Flexion":
                 simu.add_neumann(mesh.Nodes_Point(point3), [-charge],["y"])
-                # simu.add_surfLoad(mesh.Nodes_Point(point2), [-charge/section.aire],["y"])
+                # simu.add_surfLoad(mesh.Nodes_Point(point2), [-charge/section.area],["y"])
                 
             elif problem == "BiEnca":
                 simu.add_neumann(mesh.Nodes_Point(point2), [-charge],["y"])
@@ -148,8 +149,8 @@ class Test_Simu(unittest.TestCase):
             listX = np.linspace(0,L,100)
             erreurMaxAnalytique = 1e-2
             if problem == "Flexion":
-                v_x = charge/(E*section.Iz) * (listX**3/6 - (L*listX**2)/2)
-                flecheanalytique = charge*L**3/(3*E*section.Iz)
+                v_x = charge/(E*Iz) * (listX**3/6 - (L*listX**2)/2)
+                flecheanalytique = charge*L**3/(3*E*Iz)
 
                 self.assertTrue((np.abs(flecheanalytique + v.min())/flecheanalytique) <= erreurMaxAnalytique)
 
@@ -160,8 +161,8 @@ class Test_Simu(unittest.TestCase):
                 ax.legend()
                 PlotAndDelete()
 
-                rz_x = charge/E/section.Iz*(listX**2/2 - L*listX)
-                rotalytique = -charge*L**2/(2*E*section.Iz)
+                rz_x = charge/E/Iz*(listX**2/2 - L*listX)
+                rotalytique = -charge*L**2/(2*E*Iz)
                 self.assertTrue((np.abs(rotalytique + rz.min())/rotalytique) <= erreurMaxAnalytique)
 
                 fig, ax = plt.subplots()
@@ -181,6 +182,10 @@ class Test_Simu(unittest.TestCase):
                 ax.set_title(fr"$u(x)$")
                 ax.legend()
                 PlotAndDelete()
+            elif problem == "BiEnca":
+                flecheanalytique = charge * L**3 / (192*E*Iz)
+                self.assertTrue((np.abs(flecheanalytique + v.min())/flecheanalytique) <= erreurMaxAnalytique)
+
 
     def test_Elasticity(self):
         # For each type of mesh one simulates

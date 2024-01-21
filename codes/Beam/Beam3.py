@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point, Section
+from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point
 import Display
 import Materials
 import Simulations
@@ -34,8 +34,7 @@ if __name__ == '__main__':
 
     # Create a section object for the beam mesh
     interfGmsh = Interface_Gmsh()
-    meshSection = interfGmsh.Mesh_2D(Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2)))
-    section = Section(meshSection)
+    section = interfGmsh.Mesh_2D(Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2)))
 
     point1 = Point()
     point2 = Point(x=L / 2)

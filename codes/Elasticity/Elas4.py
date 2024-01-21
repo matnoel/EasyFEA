@@ -2,7 +2,7 @@
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Point, PointsList, Circle, Domain, Line, Section
+from Interface_Gmsh import Interface_Gmsh, ElemType, Point, PointsList, Circle, Domain, Line
 import Simulations
 import Materials
 
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     # Simulation Beam
     # --------------------------------------------------------------------------------------------
 
-    beam = Materials.Beam_Elas_Isot(2, Line(Point(-L/2), Point(L/2), L/10), Section(meshSection), E, v)
+    beam = Materials.Beam_Elas_Isot(2, Line(Point(-L/2), Point(L/2), L/10), meshSection, E, v)
 
     mesh_beam = Interface_Gmsh().Mesh_Beams([beam], ElemType.SEG3)
 

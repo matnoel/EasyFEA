@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point, Section
+from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point
 import Display
 import Materials
 import Simulations
@@ -32,9 +32,8 @@ if __name__ == '__main__':
     line6 = Line(pB, pE)
     listLine = [line1, line2, line3, line4, line5, line6]
 
-    meshSection = Interface_Gmsh().Mesh_2D(Domain(Point(-4/2, -8/2), Point(4/2, 8/2)))
-    section = Section(meshSection)
-    Display.Plot_Mesh(meshSection, title='Cross section')
+    section = Interface_Gmsh().Mesh_2D(Domain(Point(-4/2, -8/2), Point(4/2, 8/2)))
+    Display.Plot_Mesh(section, title='Cross section')
 
     # --------------------------------------------------------------------------------------------
     # Simulation

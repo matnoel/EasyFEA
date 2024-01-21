@@ -851,67 +851,6 @@ class Contour(Geom):
     def length(self) -> float:
         return np.sum([geom.length for geom in self.geoms])
 
-
-class Section:
-
-    def __init__(self, mesh):
-        """Section."""
-
-        from Mesh import Mesh
-        assert isinstance(mesh, Mesh), "Must be a 2D mesh"
-        assert mesh.dim == 2, "Must be a 2D mesh"
-        
-        self.__mesh = mesh
-
-    @property
-    def mesh(self):
-        """Section Mesh"""
-        return self.__mesh
-
-    @property
-    def epaisseur(self) -> float:
-        """Section thickness (x)"""
-        coordo = self.__mesh.coordo
-        epaisseur = np.abs(coordo[:,0].max() - coordo[:,0].min())
-        return epaisseur
-    
-    @property
-    def hauteur(self) -> float:
-        """Section height (y)"""
-        coordo = self.__mesh.coordo
-        hauteur = np.abs(coordo[:,1].max() - coordo[:,1].min())
-        return hauteur
-    
-    @property
-    def area(self) -> float:
-        """Section area"""
-        return self.__mesh.area
-
-    @property
-    def Iy(self) -> float:        
-        """Squared moment of the section following y\n
-        int_S z^2 dS """
-        return self.__mesh.Ix
-
-    @property
-    def Iz(self) -> float:
-        """Squared moment of the section following z\n
-        int_S y^2 dS """
-        return self.__mesh.Iy
-
-    @property
-    def Iyz(self) -> float:
-        """Squared moment of the section following yz\n
-        int_S y z dS """
-        return self.__mesh.Ixy
-
-    @property
-    def J(self) -> float:
-        """Polar quadratic moment\n
-        J = Iz + Iy
-        """
-        return self.__mesh.J
-
 # Functions for calculating distances, angles, etc.
 
 def normalize_vect(vect: np.ndarray) -> np.ndarray:

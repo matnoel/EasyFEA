@@ -9,7 +9,7 @@ from TicTac import Tic
 from Mesh import Mesh, GroupElem
 import CalcNumba as CalcNumba
 import Display as Display
-from Geom import Line, Section, Point
+from Geom import Line, Point
 
 from scipy.linalg import sqrtm
 
@@ -1118,7 +1118,7 @@ class _Beam_Model(IModel):
         """Look at the surface/section area."""
         return self.__section.area
 
-    def __init__(self, dim: int, line: Line, section: Section):
+    def __init__(self, dim: int, line: Line, section: Mesh):
         """Creating a beam.
 
         Parameters
@@ -1127,7 +1127,7 @@ class _Beam_Model(IModel):
             Beam dimension (1D, 2D or 3D)
         line : Line
             Line characterizing the neutral fiber.
-        section : Section
+        section : Mesh
             Beam cross-section
         """
 
@@ -1135,6 +1135,12 @@ class _Beam_Model(IModel):
         
         self.__dim = dim
         self.__line = line
+
+        assert section.inDim == 2, 'The section mesh must be contained in the x y plane.'
+
+        # Checks if the section is symmetrical Ixy = 0
+        Ixy = section.Ixy 
+        assert Ixy <=  1e-12, "The cross-section must be symmetrical (Ixy = 0)."
         self.__section = section
 
         self.__name = f"beam{_Beam_Model.__nBeam}"
@@ -1145,7 +1151,7 @@ class _Beam_Model(IModel):
         return self.__line
     
     @property
-    def section(self) -> Section:
+    def section(self) -> Mesh:
         """Beam cross-section"""
         return self.__section
     
@@ -1182,7 +1188,7 @@ class _Beam_Model(IModel):
     
 class Beam_Elas_Isot(_Beam_Model):
 
-    def __init__(self, dim: int, line: Line, section: Section, E: float, v:float):
+    def __init__(self, dim: int, line: Line, section: Mesh, E: float, v:float):
         """Construction of an isotropic elastic beam.
 
         Parameters
@@ -1191,7 +1197,7 @@ class Beam_Elas_Isot(_Beam_Model):
             Beam dimension (1D, 2D or 3D)
         line : Line
             Line characterizing the neutral fiber.
-        section : Section
+        section : Mesh
             Beam cross-section
         E : float
             Young module
@@ -1206,10 +1212,6 @@ class Beam_Elas_Isot(_Beam_Model):
 
         IModel._Test_In(v, -1, 0.5)
         self.__v = v
-
-        # Checks if the section is symmetrical Iyz = 0
-        Iyz = section.Iyz 
-        assert Iyz <=  1e-12, "The cross-section must be symmetrical."
 
     @property
     def E(self) -> float:
@@ -1229,19 +1231,22 @@ class Beam_Elas_Isot(_Beam_Model):
         A = section.area
         E = self.__E
         v = self.__v
+
+        # dont change here because the mesh is used in 2d plane x,y
+        # z direction is y in the section coordinates
+        # y direction is x in the section coordinates
+        Iy = section.Ix
+        Iz = section.Iy
+        J = section.J
         
         if dim == 1:
             # u = [u1, . . . , un]
             D = np.diag([E*A])
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            Iz = section.Iz
             D = np.diag([E*A, E*Iz])
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1 rz1, . . . , un, vn, wn, rxn, ryn rzn]
-            Iy = section.Iy
-            Iz = section.Iz
-            J = section.J
             mu = E/(2*(1+v))
             D = np.diag([E*A, mu*J, E*Iy, E*Iz])
 
