@@ -15,7 +15,7 @@ Python >= 3.9 is strongly recommended !
 
 Step 1 - install python libraries:
     (required) :
-    numba scipy numpy matplotlib gmsh colorama pandas
+    numba scipy numpy matplotlib gmsh colorama pandas tikzplotlib
 
     (optional) :
     mpi4py pypardiso petsc petsc4py mumps scikit-umfpack scikits-sparse
