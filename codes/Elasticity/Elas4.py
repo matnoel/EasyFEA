@@ -28,7 +28,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     
     meshSize = e/2
-    elemType = ElemType.HEXA8
+    elemType = ElemType.TETRA4
 
     def DoSym(p: Point, n: np.ndarray) -> Point:
         pc = p.copy()
@@ -62,8 +62,8 @@ if __name__ == '__main__':
     fact = interf.factory
     surfaces = interf._Surfaces(section, [], elemType)[0]
 
-    # layers = [20]
-    layers = [2*L/meshSize/10]
+    layers = [50]
+    # layers = [2*L/meshSize/10]
 
     interf._Extrude(surfaces, [-L/2,0,0], elemType, layers)
     interf._Extrude(surfaces, [L/2,0,0], elemType, layers)
