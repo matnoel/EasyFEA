@@ -674,104 +674,111 @@ class GroupElem(ABC):
         """
         return self.__Get_sysCoord_e()
     
+    def Integrate_e(self, func=lambda x,y,z: 1) -> np.ndarray:
+        """Integrates the function over elements.
+
+        Parameters
+        ----------
+        func : lambda
+            function that uses the x,y,z coordinates of the element's integration points\n
+            Examples:\n
+            lambda x,y,z: 1 -> that will just integrate the element
+            lambda x,y,z: x
+            lambda x,y,z: x + y\n
+            lambda x,y,z: z**2
+
+        Returns
+        -------
+        np.ndarray
+            integrated values on elements
+        """
+
+        matrixType = MatrixType.mass
+
+        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+        weight_pg = self.Get_weight_pg(matrixType)
+        coord_e_pg = self.Get_GaussCoordinates_e_p(matrixType)
+        eval_e_pg = func(coord_e_pg[:,:,0],coord_e_pg[:,:,1],coord_e_pg[:,:,2])
+
+        if isinstance(eval_e_pg, (float,int)):
+            ind = ''
+        else:
+            ind = 'ep'
+
+        values_e: np.ndarray = np.einsum(f'ep,p,{ind}->e',jacobian_e_pg, weight_pg, eval_e_pg, optimize='optimal')
+
+        return values_e
+    
     @property
     def length_e(self) -> np.ndarray:
         """Length covered by each element"""
-        if self.dim != 1: return
-        matrixType = MatrixType.rigi
-        length_e = np.einsum('ep,p->e', self.Get_jacobian_e_pg(matrixType), self.Get_weight_pg(matrixType), optimize='optimal')
+        if self.dim != 1: return        
+        length_e = self.Integrate_e(lambda x,y,z: 1)
         return length_e
 
     @property
     def length(self) -> float:
         """Length covered by elements"""
         if self.dim != 1: return
-        return np.sum(self.length_e)
+        return self.length_e.sum()
     
     @property
     def area_e(self) -> np.ndarray:
         """Area covered by each element"""
         if self.dim != 2: return
-        matrixType = MatrixType.rigi
-        area_e = np.einsum('ep,p->e', self.Get_jacobian_e_pg(matrixType), self.Get_weight_pg(matrixType), optimize='optimal')
+        area_e = self.Integrate_e(lambda x,y,z: 1)
         return area_e
 
     @property
     def area(self) -> float:
         """Area covered by elements"""
         if self.dim != 2: return
-        return np.sum(self.area_e)
+        return self.area_e.sum()
     
     @property
     def volume_e(self) -> np.ndarray:
         """Volume covered by each element"""
-        if self.dim != 3: return
-        matrixType = MatrixType.rigi
-        volume_e = np.einsum('ep,p->e', self.Get_jacobian_e_pg(matrixType), self.Get_weight_pg(matrixType), optimize='optimal')
+        if self.dim != 3: return        
+        volume_e = self.Integrate_e(lambda x,y,z: 1)
         return volume_e
     
     @property
     def volume(self) -> float:
         """Volume covered by elements"""
         if self.dim != 3: return
-        return np.sum(self.volume_e)
+        return self.volume_e.sum()
 
     @property
     def Ix(self) -> float:
         """Quadratic moment following x\n
         int_S x^2 dS"""
         if self.dim != 2: return
-
-        matrixType = MatrixType.mass
-
-        coordo_e_p = self.Get_GaussCoordinates_e_p(matrixType)
-        x = coordo_e_p[:, :, 0]
-
-        Ix = np.einsum('ep,p,ep->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, x**2, optimize='optimal')
-        return float(Ix)
+        Ix = self.Integrate_e(lambda x,y,z: x**2).sum()
+        return Ix
 
     @property
     def Iy(self) -> float:
         """Quadratic moment following y\n
         int_S y^2 dS"""
         if self.dim != 2: return
-
-        matrixType = MatrixType.mass
-
-        coordo_e_p = self.Get_GaussCoordinates_e_p(matrixType)
-        y = coordo_e_p[:, :, 1]
-
-        Iy = np.einsum('ep,p,ep->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, y**2, optimize='optimal')
-        return float(Iy)
+        Iy = self.Integrate_e(lambda x,y,z: y**2).sum()
+        return Iy
     
     @property
     def Iz(self) -> float:
         """Quadratic moment following z\n
         int_S z^2 dS"""
         if self.dim != 2: return
-
-        matrixType = MatrixType.mass
-
-        coordo_e_p = self.Get_GaussCoordinates_e_p(matrixType)
-        z = coordo_e_p[:, :, 2]
-
-        Iz = np.einsum('ep,p,ep->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, z**2, optimize='optimal')
-        return float(Iz)
+        Iz = self.Integrate_e(lambda x,y,z: z**2).sum()
+        return Iz
 
     @property
     def Ixy(self) -> float:
         """Quadratic moment following xy\n
         int_S x y dS"""
         if self.dim != 2: return
-
-        matrixType = MatrixType.mass
-
-        coordo_e_p = self.Get_GaussCoordinates_e_p(matrixType)
-        x = coordo_e_p[:, :, 0]
-        y = coordo_e_p[:, :, 1]
-
-        Ixy = np.einsum('ep,p,ep,ep->', self.Get_jacobian_e_pg(matrixType), self.Get_gauss(matrixType).weights, x, y, optimize='optimal')
-        return float(Ixy)
+        Ixy = self.Integrate_e(lambda x,y,z: x*y).sum()
+        return Ixy
     
     @property
     def center(self) -> np.ndarray:
