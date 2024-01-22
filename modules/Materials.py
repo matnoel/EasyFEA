@@ -2526,8 +2526,6 @@ class PhaseField_Model(IModel):
             
             else:
 
-                G12_ij, G13_ij, G23_ij = CalcNumba.Get_G12_G13_G23(M1, M2, M3)
-
                 def __Construction_Gij(Ma, Mb):
 
                     Gij = np.zeros((Ne, nPg, 6, 6))
@@ -2572,11 +2570,10 @@ class PhaseField_Model(IModel):
 
                 tic.Tac("Split", "mixmi", False)
 
-                # func = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
-                func = lambda ep, epij: ep[:,:,np.newaxis,np.newaxis].repeat(epij.shape[2], axis=2).repeat(epij.shape[3], axis=3) * epij
+                func = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
+                # func = lambda ep, epij: ep[:,:,np.newaxis,np.newaxis].repeat(epij.shape[2], axis=2).repeat(epij.shape[3], axis=3) * epij
 
                 projP = func(dvalp[:,:,0], m1xm1) + func(dvalp[:,:,1], m2xm2) + func(dvalp[:,:,2], m3xm3) + func(thetap[:,:,0], G12) + func(thetap[:,:,1], G13) + func(thetap[:,:,2], G23)
-
                 projM = func(dvalm[:,:,0], m1xm1) + func(dvalm[:,:,1], m2xm2) + func(dvalm[:,:,2], m3xm3) + func(thetam[:,:,0], G12) + func(thetam[:,:,1], G13) + func(thetam[:,:,2], G23)
 
             tic.Tac("Split", "projP and projM", False)
