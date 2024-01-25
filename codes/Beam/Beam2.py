@@ -34,8 +34,7 @@ if __name__ == '__main__':
 
     # Create a section object for the beam mesh
     interfGmsh = Interface_Gmsh()
-    section = interfGmsh.Mesh_2D(Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2)))
-    Iz = section.Iy
+    section = interfGmsh.Mesh_2D(Domain(Point(), Point(b, h)))
 
     point1 = Point()
     point2 = Point(x=L / 2)
@@ -52,6 +51,9 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Simulation
     # --------------------------------------------------------------------------------------------
+
+    Iy = beam1.Iy
+    Iz = beam1.Iz
 
     # Initialize the beam structure with the defined beam segments
     beamStructure = Materials.Beam_Structure(beams)

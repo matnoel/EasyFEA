@@ -60,22 +60,16 @@ class Test_Simu(unittest.TestCase):
                 mass = L * h * b * ro
             
             # Section
-
             section = interfaceGmsh.Mesh_2D(Domain(Point(x=-b/2, y=-h/2), Point(x=b/2, y=h/2)))
-            Iz = section.Iy
-
-            self.assertTrue((section.area - b*h) <= 1e-12)
-            self.assertTrue((Iz - ((b*h**3)/12)) <= 1e-12)
 
             # Mesh
-
             if problem in ["Traction"]:
 
                 point1 = Point()
                 point2 = Point(x=L)
                 line = Line(point1, point2, L/nL)
-                poutre = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
-                listePoutre = [poutre]
+                beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
+                listePoutre = [beam]
 
             elif problem in ["Flexion","BiEnca"]:
 
@@ -84,8 +78,13 @@ class Test_Simu(unittest.TestCase):
                 point3 = Point(x=L)
                 
                 line = Line(point1, point3, L/nL)
-                poutre = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
-                listePoutre = [poutre]
+                beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
+                listePoutre = [beam]
+
+            Iz = beam.Iz
+
+            self.assertTrue((section.area - b*h) <= 1e-12)
+            self.assertTrue((Iz - ((b*h**3)/12)) <= 1e-12)
 
             mesh = interfaceGmsh.Mesh_Beams(beams=listePoutre, elemType=elemType)
 

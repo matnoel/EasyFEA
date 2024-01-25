@@ -3342,15 +3342,14 @@ class Simu_Beam(_Simu):
             directions = ['x','y']
         elif beamModel.dim == 3:
             directionsDeBase = ['x','y','z']
+            directions = directionsDeBase
             if directions != ['']:
                 # We will block rotation ddls that are not in directions.
                 directionsRot = ['rx','ry','rz']
                 for dir in directions:
                     if dir in directionsRot.copy():
                         directionsRot.remove(dir)
-
-            directions = directionsDeBase
-            directions.extend(directionsRot)
+                directions.extend(directionsRot)
 
         description = f"Connection {description}"
         
@@ -3503,71 +3502,71 @@ class Simu_Beam(_Simu):
             
             # repu = np.arange(0,3*nPe,3) # [0,3] (SEG2) [0,3,6] (SEG3)
             if elemType == ElemType.SEG2:
-                repu = [0,1]
+                idx_u = [0,1]
             elif elemType == ElemType.SEG3:
-                repu = [0,1,2]
+                idx_u = [0,1,2]
             elif elemType == ElemType.SEG4:
-                repu = [0,1,2,3]
+                idx_u = [0,1,2,3]
             elif elemType == ElemType.SEG5:
-                repu = [0,1,2,3,4]
+                idx_u = [0,1,2,3,4]
 
             B_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            B_e_pg[:,:,0, repu] = dN_e_pg[:,:,0]
+            B_e_pg[:,:,0, idx_u] = dN_e_pg[:,:,0]
                 
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
             
             # repu = np.arange(0,3*nPe,3) # [0,3] (SEG2) [0,3,6] (SEG3)
             if elemType == ElemType.SEG2:
-                repu = [0,3]
-                repv = [1,2,4,5]
+                idx_u = [0,3]
+                idx_v = [1,2,4,5]
             elif elemType == ElemType.SEG3:
-                repu = [0,3,6]
-                repv = [1,2,4,5,7,8]
+                idx_u = [0,3,6]
+                idx_v = [1,2,4,5,7,8]
             elif elemType == ElemType.SEG4:
-                repu = [0,3,6,9]
-                repv = [1,2,4,5,7,8,10,11]
+                idx_u = [0,3,6,9]
+                idx_v = [1,2,4,5,7,8,10,11]
             elif elemType == ElemType.SEG5:
-                repu = [0,3,6,9,12]
-                repv = [1,2,4,5,7,8,10,11,13,14]
+                idx_u = [0,3,6,9,12]
+                idx_v = [1,2,4,5,7,8,10,11,13,14]
 
             B_e_pg = np.zeros((Ne, nPg, 2, dof_n*nPe))
             
-            B_e_pg[:,:,0, repu] = dN_e_pg[:,:,0]
-            B_e_pg[:,:,1, repv] = ddNv_e_pg[:,:,0]
+            B_e_pg[:,:,0, idx_u] = dN_e_pg[:,:,0]
+            B_e_pg[:,:,1, idx_v] = ddNv_e_pg[:,:,0]
 
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1, rz1, u2, v2, w2, rx2, ry2, rz2]
 
             if elemType == ElemType.SEG2:
-                repux = [0,6]
-                repvy = [1,5,7,11]
-                repvz = [2,4,8,10]
-                reptx = [3,9]
+                idx_ux = [0,6]
+                idx_vy = [1,5,7,11]
+                idx_vz = [2,4,8,10]
+                idx_tx = [3,9]
             elif elemType == ElemType.SEG3:
-                repux = [0,6,12]
-                repvy = [1,5,7,11,13,17]
-                repvz = [2,4,8,10,14,16]
-                reptx = [3,9,15]
+                idx_ux = [0,6,12]
+                idx_vy = [1,5,7,11,13,17]
+                idx_vz = [2,4,8,10,14,16]
+                idx_tx = [3,9,15]
             elif elemType == ElemType.SEG4:
-                repux = [0,6,12,18]
-                repvy = [1,5,7,11,13,17,19,23]
-                repvz = [2,4,8,10,14,16,20,22]
-                reptx = [3,9,15,21]
+                idx_ux = [0,6,12,18]
+                idx_vy = [1,5,7,11,13,17,19,23]
+                idx_vz = [2,4,8,10,14,16,20,22]
+                idx_tx = [3,9,15,21]
             elif elemType == ElemType.SEG5:
-                repux = [0,6,12,18,24]
-                repvy = [1,5,7,11,13,17,19,23,25,29]
-                repvz = [2,4,8,10,14,16,20,22,26,28]
-                reptx = [3,9,15,21,27]
+                idx_ux = [0,6,12,18,24]
+                idx_vy = [1,5,7,11,13,17,19,23,25,29]
+                idx_vz = [2,4,8,10,14,16,20,22,26,28]
+                idx_tx = [3,9,15,21,27]
 
             B_e_pg = np.zeros((Ne, nPg, 4, dof_n*nPe))
             
-            B_e_pg[:,:,0, repux] = dN_e_pg[:,:,0]
-            B_e_pg[:,:,1, reptx] = dN_e_pg[:,:,0]
-            B_e_pg[:,:,3, repvy] = ddNv_e_pg[:,:,0]
+            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0]
+            B_e_pg[:,:,1, idx_tx] = dN_e_pg[:,:,0]
+            B_e_pg[:,:,3, idx_vy] = ddNv_e_pg[:,:,0]
             ddNvz_e_pg = ddNv_e_pg.copy()
             ddNvz_e_pg[:,:,0,[1,3]] *= -1 # RY = -UZ'
-            B_e_pg[:,:,2, repvz] = ddNvz_e_pg[:,:,0]
+            B_e_pg[:,:,2, idx_vz] = ddNvz_e_pg[:,:,0]
 
         # Fait la rotation si nécessaire
 
@@ -3578,10 +3577,10 @@ class Simu_Beam(_Simu):
             Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))
             Ndim = dof_n*nPe
             N = P.shape[1]
-            listlignes = np.repeat(range(N), N)
-            listColonnes = np.array(list(range(N))*N)
+            lines = np.repeat(range(N), N)
+            columns = np.array(list(range(N))*N)
             for e in range(dof_n*nPe//3):
-                Pglob_e[:,listlignes + e*N, listColonnes + e*N] = P[:,listlignes,listColonnes]
+                Pglob_e[:, lines + e*N, columns + e*N] = P[:,lines,columns]
 
             B_beam_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
 
@@ -3815,10 +3814,10 @@ class Simu_Beam(_Simu):
             # dont change here because the mesh is used in 2d plane x,y
             # z direction is y in the section coordinates
             # y direction is x in the section coordinates
-            S_e_pg[elements, :] = beam.section.area
-            Iy_e_pg[elements, :] = beam.section.Ix
-            Iz_e_pg[elements, :] = beam.section.Iy
-            J_e_pg[elements, :] = beam.section.J
+            S_e_pg[elements, :] = beam.area
+            Iy_e_pg[elements, :] = beam.Iy
+            Iz_e_pg[elements, :] = beam.Iz
+            J_e_pg[elements, :] = beam.J
 
         y_e_pg = np.sqrt(S_e_pg)
         z_e_pg = np.sqrt(S_e_pg)

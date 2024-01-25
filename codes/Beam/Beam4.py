@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     # Create a section object for the beam mesh
     interfGmsh = Interface_Gmsh()
-    section = interfGmsh.Mesh_2D(Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2)))
+    section = interfGmsh.Mesh_2D(Domain(Point(), Point(b, h)))
 
     point1 = Point()
     point2 = Point(y=L)

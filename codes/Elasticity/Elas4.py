@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     Display.Plot_Result(simu_beam, 'uy')
 
-    u_an = load * L**3 / (192*E*meshSection.Iy)
+    u_an = load * L**3 / (192*E*beam.Iz)
 
     uy_1d = np.abs(simu_beam.Result('uy').min())
 

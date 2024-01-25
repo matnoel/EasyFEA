@@ -1110,13 +1110,42 @@ class _Beam_Model(IModel):
     
     @property
     def thickness(self) -> float:
-        """Look at the surface/section to know the thickness."""
-        return None
+        return 1.0
     
     @property
     def area(self) -> float:
-        """Look at the surface/section area."""
+        """Cross-section area."""
         return self.__section.area
+    
+    @property
+    def Iy(self) -> float:
+        """Planar area moment of inertia along y-axis.\n
+        The y axis is the horizontal axis of the section (int_S (x-x0)^2 dS)."""        
+        x0 = self.__section.center[0]
+        func = lambda x,y,z: (x-x0)**2
+        Ix: float = np.sum([grp.Integrate_e(func).sum()
+                            for grp in self.__section.Get_list_groupElem(2)])
+        return Ix
+    
+    @property    
+    def Iz(self) -> float:
+        """Planar area moment of inertia along z-axis.\n
+        The z axis is the vertical axis of the section (int_S (y-y0)^2 dS)."""
+        y0 = self.__section.center[1]
+        func = lambda x,y,z: (y-y0)**2
+        Iy: float = np.sum([grp.Integrate_e(func).sum()
+                            for grp in self.__section.Get_list_groupElem(2)])
+        return Iy
+    
+    @property    
+    def J(self) -> float:
+        """Polar area moment of inertia.\n
+        int_S (x-x0)^2 + (y-y0)^2 dS Same as Iy + Iz"""
+        x0,y0 = self.__section.center[:2]
+        func = lambda x,y,z: (x-x0)**2+(y-y0)**2
+        J: float = np.sum([grp.Integrate_e(func).sum()
+                            for grp in self.__section.Get_list_groupElem(2)])
+        return J
 
     def __init__(self, dim: int, line: Line, section: Mesh):
         """Creating a beam.
@@ -1136,11 +1165,7 @@ class _Beam_Model(IModel):
         self.__dim = dim
         self.__line = line
 
-        assert section.inDim == 2, 'The section mesh must be contained in the x y plane.'
-
-        # Checks if the section is symmetrical Ixy = 0
-        Ixy = section.Ixy 
-        assert Ixy <=  1e-12, "The cross-section must be symmetrical (Ixy = 0)."
+        assert section.inDim == 2, 'The cross-beam section must be contained in the (x,y) plane.'
         self.__section = section
 
         self.__name = f"beam{_Beam_Model.__nBeam}"
@@ -1152,7 +1177,7 @@ class _Beam_Model(IModel):
     
     @property
     def section(self) -> Mesh:
-        """Beam cross-section"""
+        """Beam cross-section in (x,y) plane"""
         return self.__section
     
     @property
@@ -1176,7 +1201,7 @@ class _Beam_Model(IModel):
     
     @abstractmethod
     def Get_D(self) -> np.ndarray:
-        """Returns a matrix characterizing the beam's behavior"""
+        """Returns a matrix characterizing the beam's stiffness behavior"""
         return
     
     def __str__(self) -> str:
@@ -1224,20 +1249,16 @@ class Beam_Elas_Isot(_Beam_Model):
         return self.__v
     
     def Get_D(self) -> np.ndarray:
-        """Builds the behavior law."""
 
         dim = self.dim
         section = self.section
         A = section.area
+        Iy = self.Iy
+        Iz = self.Iz
+        J = self.J
+        
         E = self.__E
         v = self.__v
-
-        # dont change here because the mesh is used in 2d plane x,y
-        # z direction is y in the section coordinates
-        # y direction is x in the section coordinates
-        Iy = section.Ix
-        Iz = section.Iy
-        J = section.J
         
         if dim == 1:
             # u = [u1, . . . , un]

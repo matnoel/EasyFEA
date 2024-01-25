@@ -307,59 +307,21 @@ class Mesh:
         Ne = self.Ne
         return np.repeat(connect, nPe, axis=0).reshape((Ne, -1))
 
-    # Calculation of areas, volumes and quadratic moments etc ...
+    @property
+    def length(self) -> float:
+        """Calculate the total area of the mesh."""
+        if self.dim < 1:
+            return None
+        lengths = [group1D.length for group1D in self.Get_list_groupElem(1)]
+        return np.sum(lengths)
+    
     @property
     def area(self) -> float:
         """Calculate the total area of the mesh."""
-        if self.dim in [0, 1]:
+        if self.dim < 2:
             return None
         areas = [group2D.area for group2D in self.Get_list_groupElem(2)]
         return np.sum(areas)
-
-    @property
-    def Ix(self) -> float:
-        """Calculate the total Ix (moment of inertia along x axis) of the mesh.\n
-        int_S x^2 dS"""
-        if self.dim in [0, 1]:
-            return None
-        Ixs = [group2D.Ix for group2D in self.Get_list_groupElem(2)]
-        return np.sum(Ixs)
-
-    @property
-    def Iy(self) -> float:
-        """Calculate the total Iy (moment of inertia along y axis) of the mesh.\n
-        int_S y^2 dS"""
-        if self.dim in [0, 1]:
-            return None
-        Iys = [group2D.Iy for group2D in self.Get_list_groupElem(2)]
-        return np.sum(Iys)
-    
-    @property
-    def Iz(self) -> float:
-        """Calculate the total Iz (moment of inertia along z axis) of the mesh.\n
-        int_S z^2 dS"""
-        if self.dim in [0, 1]:
-            return None
-        Izs = [group2D.Iz for group2D in self.Get_list_groupElem(2)]
-        return np.sum(Izs)
-
-    @property
-    def Ixy(self) -> float:
-        """Calculate the total Ixy (moment of inertia) of the mesh.\n
-        int_S x y dS"""
-        if self.dim in [0, 1]:
-            return None
-        Ixys = [group2D.Ixy for group2D in self.Get_list_groupElem(2)]
-        return np.sum(Ixys)
-
-    @property
-    def J(self) -> float:
-        """Calculate the total J (polar moment of inertia) of the mesh.\n
-        Ix + Iy"""
-        if self.dim in [0, 1]:
-            return None
-        Js = [group2D.Iy + group2D.Ix for group2D in self.Get_list_groupElem(2)]
-        return np.sum(Js)
 
     @property
     def volume(self) -> float:
