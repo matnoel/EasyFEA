@@ -98,6 +98,12 @@ if __name__ == '__main__':
     # Results
     # --------------------------------------------------------------------------------------------
 
+    u_an = load * L**3 / (192*E*beam1.Iz)
+
+    uy_1d = np.abs(simu.Result('uy').min())
+
+    print(f"err beam model : {np.abs(u_an-uy_1d)/u_an*100:.2f} %")
+
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, L/20/sol.min())
     Display.Plot_Result(simu, "uy", L/20/sol.min())    
