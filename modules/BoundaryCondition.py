@@ -26,7 +26,7 @@ class BoundaryCondition:
         self.__directions = directions
         self.__nodes = nodes
         self.__dofs = np.asarray(dofs, dtype=int)
-        self.__dofsValues = dofsValues
+        self.__dofsValues = np.asarray(dofsValues)
         self.description = description
 
     @property
@@ -229,7 +229,7 @@ class LagrangeCondition(BoundaryCondition):
             Description of the Lagrange condition, by default "".
         """
         super().__init__(problemType, nodes, dofs, directions, dofsValues, description)
-        self.__lagrangeCoefs = lagrangeCoefs
+        self.__lagrangeCoefs = np.asarray(lagrangeCoefs)
 
     @property
     def lagrangeCoefs(self) -> np.ndarray:

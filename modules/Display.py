@@ -162,8 +162,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
 
         # scale the axis
         ax.autoscale()
-        if mesh.dim != 1:
-            ax.axis('equal')
+        ax.axis('equal')
         
         # Building the colorbar
         if isinstance(result, str) and result == "damage":

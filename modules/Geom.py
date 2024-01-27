@@ -973,7 +973,7 @@ def Symmetry_coordo(coordo: np.ndarray, point=(0,0,0), n=(1,0,0)) -> np.ndarray:
     return newCoord
 
 def JacobianMatrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
-    """Compute the Jacobian matrix for the transition from the (i,j,k) basis to the (x,y,z) basis.\n
+    """Compute the Jacobian matrix to transform local coordinates (i,j,k) to global (x,y,z) coordinates.\n
     p(x,y,z) = J • p(i,j,k) and p(i,j,k) = inv(J) • p(x,y,z)\n\n
     ix jx kx\n
     iy jy ky\n

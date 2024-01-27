@@ -372,55 +372,57 @@ class Mesh:
         return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluated shape functions (pg), in the base (ksi, eta . . . )
-        [N1, N2, . . . ,Nn]
+        """Evaluate shape functions in local coordinates.\n
+        [N1, N2, . . . ,Nn]\n
+        (pg, nPe)
         """
         return self.groupElem.Get_N_pg(matrixType)
 
     def Get_N_vector_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Shape functions in the reference element for vector (npg, dim, npe*dim)\n
-        Matrix of shape functions in the reference element (ksi, eta)\n
-        [N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta) 0 \n
-        0 N1(ksi,eta) 0 N2(ksi,eta) 0 Nn(ksi,eta)]\n
+        """Matrix of shape functions in local coordinates\n
+        [N1 0 N2 0 Nn 0 \n
+        0 N1 0 N2 0 Nn]\n
+        (pg, dim, npe*dim)
         """
         return self.groupElem.Get_N_pg_rep(matrixType, self.__dim)
 
     def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Derivation of shape functions in real base (epij)\n
-        [dN1,x dN2,x dNn,x\n
-        dN1,y dN2,y dNn,y]\n        
+        """Evaluate shape functions first derivatives in the global coordinates.\n
+        [Ni,x . . . Nn,x\n
+        Ni,y ... Nn,y]\n
+        (e, pg, dim, nPe)\n
         """
         return self.groupElem.Get_dN_e_pg(matrixType)
 
     def Get_dNv_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Derivation of beam shape functions in real base (epij)\n
-        [dNv1,x dNv2,x dNvn,x\n
-        dNv1,y dNv2,y dNvn,y]\n
+        """Evaluate beam shape functions first derivatives in the global coordinates.\n
+        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
+        (e, pg, 1, nPe*2)
         """
         return self.groupElem.Get_dNv_e_pg(matrixType)
 
     def Get_ddNv_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Derivation (2) of beam shape functions in real base (epij)\n
-        [dNv1,xx dNv2,xx dNvn,xx\n
-        dNv1,yy dNv2,yy dNvn,yy]\n
+        """Evaluate beam shape functions second derivatives in the global coordinates.\n
+        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
+        (e, pg, 1, nPe*2)
         """
         return self.groupElem.Get_ddNv_e_pg(matrixType)
 
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Derivation (2) of shape functions in real base (epij)\n
-        [dN1,xx dN2,xx dNn,xx\n
-        dN1,yy dN2,yy dNn,yy]\n
+        """Evaluate shape functions second derivatives in the global coordinates.\n
+        [Ni,xx . . . Nn,xx\n
+        Ni,yy ... Nn,yy]\n
+        (e, pg, dim, nPe)\n
         """
         return self.groupElem.Get_ddN_e_pg(matrixType)
 
     def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Derivation of shape functions in the real base for the displacement problem (e, pg, (3 or 6), nPe*dim)\n
-        2D example:\n
-        [dN1,x 0 dN2,x 0 dNn,x 0\n
-        0 dN1,y 0 dN2,y 0 dNn,y\n
-        dN1,y dN1,x dN2,y dN2,x dN3,y dN3,x]\n
-
-        (epij) In the element base and in Kelvin Mandel
+        """Construct the matrix used to calculate deformations from displacements.\n
+        WARNING: Use Kelvin Mandel Notation\n
+        [N1,x 0 N2,x 0 Nn,x 0\n
+        0 N1,y 0 N2,y 0 Nn,y\n
+        N1,y N1,x N2,y N2,x N3,y N3,x]\n
+        (e, pg, (3 or 6), nPe*dim)        
         """
         return self.groupElem.Get_B_e_pg(matrixType)
 

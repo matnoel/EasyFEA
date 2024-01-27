@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, deformFactor=-L/10/sol.min())
-    Display.Plot_Result(simu, "ux")
+    Display.Plot_Result(simu, "uy")
 
     rz = simu.Result('rz')
     uy = simu.Result('uy')

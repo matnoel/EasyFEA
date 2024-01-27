@@ -697,7 +697,10 @@ class _Simu(ABC):
         v_n = self.get_v_n(problemType)
         a_n = self.get_a_n(problemType)
 
-        x = Solve(self, problemType, resolution)
+        if resolution == ResolutionType.r2:
+            x, lagrange = Solve(self, problemType, resolution)
+        else:
+            x = Solve(self, problemType, resolution)
 
         if algo == AlgoType.elliptic:
             u_np1 = x
@@ -2026,7 +2029,7 @@ class Simu_Displacement(_Simu):
         Wdef = 1/2 int_Omega jacobian * weight * Sig : Eps dOmega thickness"""
 
         tic = Tic()
-
+        
         sol_u  = self.displacement
         
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
@@ -2099,9 +2102,8 @@ class Simu_Displacement(_Simu):
             Deformations stored at elements and gauss points (Ne,pg,(3 or 6))
         """
 
-        tic = Tic()
-
-        u_e = self.mesh.Locates_sol_e(sol)
+        tic = Tic()        
+        u_e = sol[self.mesh.assembly_e]
         B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
         
@@ -3039,9 +3041,8 @@ class Simu_PhaseField(_Simu):
             Deformations stored at elements and gauss points (Ne,pg,(3 or 6))
         """
         
-        tic = Tic()
-
-        u_e = self.mesh.Locates_sol_e(sol)
+        tic = Tic()        
+        u_e = sol[self.mesh.assembly_e]
         B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')            
         
@@ -3209,7 +3210,7 @@ class Simu_Beam(_Simu):
 
     def __init__(self, mesh: Mesh, model: Beam_Structure, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
-        Creates a beam simulation.
+        Creates a Euler-Bernoulli beam simulation.
 
         Parameters
         ----------
@@ -3267,18 +3268,18 @@ class Simu_Beam(_Simu):
             3 : ["x","y","rz"],
             6 : ["x","y","z","rx","ry","rz"]
         }
-        return dict_nbddl_directions[self.beamModel.dof_n]
+        return dict_nbddl_directions[self.structure.dof_n]
     
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.beam]
 
     @property
-    def beamModel(self) -> Beam_Structure:
-        """Simulation beam model."""
+    def structure(self) -> Beam_Structure:
+        """Beam structure."""
         return self.model
 
     def Get_dof_n(self, problemType=None) -> int:
-        return self.beamModel.dof_n
+        return self.structure.dof_n
 
     def _Check_dim_mesh_material(self) -> None:
         # In the case of a beam problem, we don't need to check this condition.
@@ -3308,7 +3309,7 @@ class Simu_Beam(_Simu):
             description, by default "Fixed"
         """
 
-        beamModel = self.beamModel
+        beamModel = self.structure
 
         if beamModel.dim == 1:
             directions = ['x']
@@ -3334,7 +3335,7 @@ class Simu_Beam(_Simu):
             description, by default "Hinged"
         """
 
-        beamModel = self.beamModel
+        beamModel = self.structure
         
         if beamModel.dim == 1:
             return
@@ -3393,7 +3394,7 @@ class Simu_Beam(_Simu):
         groupElem = mesh.groupElem
 
         # Recovering the beam model
-        beamModel = self.beamModel
+        beamModel = self.structure
         
         matrixType=MatrixType.beam
         
@@ -3431,7 +3432,7 @@ class Simu_Beam(_Simu):
 
         area_e = np.zeros(mesh.Ne)
 
-        for beam in self.beamModel.listBeam:
+        for beam in self.structure.listBeam:
 
             elements = mesh.Elements_Tags(beam.name)
 
@@ -3460,7 +3461,7 @@ class Simu_Beam(_Simu):
         mass = self.mass
 
         area_e = np.zeros(mesh.Ne)
-        for beam in self.beamModel.listBeam:
+        for beam in self.structure.listBeam:
             elements = mesh.Elements_Tags(beam.name)
             area_e[elements] = beam.area
 
@@ -3473,15 +3474,16 @@ class Simu_Beam(_Simu):
         return center
 
     def __Get_B_beam_e_pg(self, matrixType: str):
+        """Euleur-Bernoulli BEAM"""
 
         # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_B.m
 
         tic = Tic()
 
         # Récupération du maodel poutre
-        beamModel = self.beamModel
-        dim = beamModel.dim
-        dof_n = beamModel.dof_n
+        struct = self.structure
+        dim = struct.dim
+        dof_n = struct.dof_n
 
         # Data
         mesh = self.mesh
@@ -3494,41 +3496,26 @@ class Simu_Beam(_Simu):
 
         # Recovers matrices to work with
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
-        if beamModel.dim > 1:
+        if struct.dim > 1:
             ddNv_e_pg = mesh.Get_ddNv_e_pg(matrixType)
 
         if dim == 1:
             # u = [u1, . . . , un]
-            
-            # repu = np.arange(0,3*nPe,3) # [0,3] (SEG2) [0,3,6] (SEG3)
-            if elemType == ElemType.SEG2:
-                idx_u = [0,1]
-            elif elemType == ElemType.SEG3:
-                idx_u = [0,1,2]
-            elif elemType == ElemType.SEG4:
-                idx_u = [0,1,2,3]
-            elif elemType == ElemType.SEG5:
-                idx_u = [0,1,2,3,4]
+
+            idx_u = np.arange(dof_n*nPe)
 
             B_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
             B_e_pg[:,:,0, idx_u] = dN_e_pg[:,:,0]
                 
         elif dim == 2:
-            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            # u = [u1, v1, rz1,
+            #      . . . ,
+            #      un, vn, rzn]
+
+            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
             
-            # repu = np.arange(0,3*nPe,3) # [0,3] (SEG2) [0,3,6] (SEG3)
-            if elemType == ElemType.SEG2:
-                idx_u = [0,3]
-                idx_v = [1,2,4,5]
-            elif elemType == ElemType.SEG3:
-                idx_u = [0,3,6]
-                idx_v = [1,2,4,5,7,8]
-            elif elemType == ElemType.SEG4:
-                idx_u = [0,3,6,9]
-                idx_v = [1,2,4,5,7,8,10,11]
-            elif elemType == ElemType.SEG5:
-                idx_u = [0,3,6,9,12]
-                idx_v = [1,2,4,5,7,8,10,11,13,14]
+            idx_u = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
+            idx_v = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
 
             B_e_pg = np.zeros((Ne, nPg, 2, dof_n*nPe))
             
@@ -3536,28 +3523,15 @@ class Simu_Beam(_Simu):
             B_e_pg[:,:,1, idx_v] = ddNv_e_pg[:,:,0]
 
         elif dim == 3:
-            # u = [u1, v1, w1, rx1, ry1, rz1, u2, v2, w2, rx2, ry2, rz2]
+            # u = [u1, v1, w1, rx1, ry1, rz1,
+            #       . . .
+            #      un, vn, wn, rxn, ryn, rzn]
 
-            if elemType == ElemType.SEG2:
-                idx_ux = [0,6]
-                idx_vy = [1,5,7,11]
-                idx_vz = [2,4,8,10]
-                idx_tx = [3,9]
-            elif elemType == ElemType.SEG3:
-                idx_ux = [0,6,12]
-                idx_vy = [1,5,7,11,13,17]
-                idx_vz = [2,4,8,10,14,16]
-                idx_tx = [3,9,15]
-            elif elemType == ElemType.SEG4:
-                idx_ux = [0,6,12,18]
-                idx_vy = [1,5,7,11,13,17,19,23]
-                idx_vz = [2,4,8,10,14,16,20,22]
-                idx_tx = [3,9,15,21]
-            elif elemType == ElemType.SEG5:
-                idx_ux = [0,6,12,18,24]
-                idx_vy = [1,5,7,11,13,17,19,23,25,29]
-                idx_vz = [2,4,8,10,14,16,20,22,26,28]
-                idx_tx = [3,9,15,21,27]
+            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
+            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
+            idx_vy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
+            idx_vz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_tx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)            
 
             B_e_pg = np.zeros((Ne, nPg, 4, dof_n*nPe))
             
@@ -3565,7 +3539,8 @@ class Simu_Beam(_Simu):
             B_e_pg[:,:,1, idx_tx] = dN_e_pg[:,:,0]
             B_e_pg[:,:,3, idx_vy] = ddNv_e_pg[:,:,0]
             ddNvz_e_pg = ddNv_e_pg.copy()
-            ddNvz_e_pg[:,:,0,[1,3]] *= -1 # RY = -UZ'
+            # ddNvz_e_pg[:,:,0,[1,3]] *= -1 # RY = -UZ'
+            ddNvz_e_pg[:,:,0,1:2:nPe*2] *= -1 # RY = -UZ'
             B_e_pg[:,:,2, idx_vz] = ddNvz_e_pg[:,:,0]
 
         # Fait la rotation si nécessaire
@@ -3573,13 +3548,18 @@ class Simu_Beam(_Simu):
         if dim == 1:
             B_beam_e_pg = B_e_pg
         else:
-            P = mesh.groupElem.sysCoord_e
-            Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))
-            Ndim = dof_n*nPe
+            # Construct the matrix used to change the matrix coordinates 
+            P = np.zeros((self.mesh.Ne, 3, 3), dtype=float)
+            for beam in struct.listBeam:
+                elems = self.mesh.Elements_Tags([beam.name])
+                P[elems] = beam._Calc_P()
+
+            Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))            
             N = P.shape[1]
             lines = np.repeat(range(N), N)
             columns = np.array(list(range(N))*N)
             for e in range(dof_n*nPe//3):
+                # apply P on the diagonal
                 Pglob_e[:, lines + e*N, columns + e*N] = P[:,lines,columns]
 
             B_beam_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
@@ -3595,7 +3575,7 @@ class Simu_Beam(_Simu):
             # Data
             mesh = self.mesh
 
-            model = self.beamModel
+            model = self.structure
 
             nDof = mesh.Nn * model.dof_n
 
@@ -3659,7 +3639,7 @@ class Simu_Beam(_Simu):
         
         if not self._Results_Check_Available(result): return None
 
-        dof_n = self.beamModel.dof_n
+        dof_n = self.structure.dof_n
 
         # TODO to improve
 
@@ -3667,15 +3647,15 @@ class Simu_Beam(_Simu):
             self.Set_Iter(iter)
 
         if result == "displacement":
-            return self.displacement.copy()
+            return self.displacement
     
         if result == "matrix_displacement":
             return self.Results_displacement_matrix()
 
         if result in ["fx","fy","fz","cx","cy","cz"]:
             
-            dofs = np.arange(self.mesh.Nn*dof_n)
-            Kglob = self.__Kbeam.tocsr()[dofs].tocsc()[:,dofs]            
+            dofs = self.mesh.Nn*dof_n
+            Kglob = self.__Kbeam.tocsr()[:dofs].tocsc()[:,:dofs]            
 
             force = Kglob @ self.displacement
             force_redim = force.reshape(self.mesh.Nn, -1)
@@ -3689,14 +3669,12 @@ class Simu_Beam(_Simu):
 
         index = self.__indexResulat(result)
 
-
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
-        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
         if result == "Stress":
+            Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
             return np.mean(Sigma_e_pg, axis=1)
-
 
         if nodeValues:
             if result == "amplitude":
@@ -3708,18 +3686,18 @@ class Simu_Beam(_Simu):
                     return resultat_ddl.reshape(-1)
         else:
             # recupere pour chaque element les valeurs de ses noeuds
-                resultat_e_n = self.mesh.Locates_sol_e(resultat_ddl)
-                resultat_e = resultat_e_n.mean(axis=1)
+            resultat_e_n = self.mesh.Locates_sol_e(resultat_ddl)
+            resultat_e = resultat_e_n.mean(axis=1)
 
-                if result == "amplitude":
-                    return np.sqrt(np.sum(resultat_e**2, axis=1))
-                elif result in ["speed", "accel"]:
-                    return resultat_e
+            if result == "amplitude":
+                return np.sqrt(np.sum(resultat_e**2, axis=1))
+            elif result in ["speed", "accel"]:
+                return resultat_e
+            else:
+                if len(resultat_ddl.shape) > 1:
+                    return resultat_e[:,index]
                 else:
-                    if len(resultat_ddl.shape) > 1:
-                        return resultat_e[:,index]
-                    else:
-                        return resultat_e.reshape(-1)
+                    return resultat_e.reshape(-1)
 
     def __indexResulat(self, resultat: str) -> int:
 
@@ -3747,12 +3725,15 @@ class Simu_Beam(_Simu):
                     return 5
 
     def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi):
-        """Construct deformations for each element and each Gauss point.
+        """Construct deformations for each element and each Gauss point.\n
+        1D -> [Exx]\n
+        2D -> [Exx, 2Exy]\n
+        3D -> [Exx, 2Eyz, 2Exz, 2Exy]
         """
         
         tic = Tic()
 
-        dof_n = self.beamModel.dof_n
+        dof_n = self.structure.dof_n
         assemblyBeam_e = self.mesh.groupElem.Get_assembly_e(dof_n)
         sol_e = sol[assemblyBeam_e]
         B_beam_e_pg = self.__Get_B_beam_e_pg(matrixType)
@@ -3775,7 +3756,7 @@ class Simu_Beam(_Simu):
 
         tic = Tic()
 
-        D_e_pg = self.beamModel.Calc_D_e_pg(self.mesh.groupElem, matrixType)
+        D_e_pg = self.structure.Calc_D_e_pg(self.mesh.groupElem, matrixType)
         InternalForces_e_pg = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
             
         tic.Tac("Matrix", "InternalForces_e_pg", False)
@@ -3796,7 +3777,7 @@ class Simu_Beam(_Simu):
         assert Epsilon_e_pg.shape[0] == Ne
         assert Epsilon_e_pg.shape[1] == nPg
 
-        dim = self.beamModel.dim
+        dim = self.structure.dim
 
         InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg, matrixType)
 
@@ -3805,19 +3786,13 @@ class Simu_Beam(_Simu):
         S_e_pg = np.zeros((Ne, nPg))
         Iy_e_pg = np.zeros_like(S_e_pg)
         Iz_e_pg = np.zeros_like(S_e_pg)
-        J_e_pg = np.zeros_like(S_e_pg)        
-
-        for beam in self.beamModel.listBeam:
-
-            elements = self.mesh.Elements_Tags([beam.name])            
-
-            # dont change here because the mesh is used in 2d plane x,y
-            # z direction is y in the section coordinates
-            # y direction is x in the section coordinates
-            S_e_pg[elements, :] = beam.area
-            Iy_e_pg[elements, :] = beam.Iy
-            Iz_e_pg[elements, :] = beam.Iz
-            J_e_pg[elements, :] = beam.J
+        J_e_pg = np.zeros_like(S_e_pg)
+        for beam in self.structure.listBeam:
+            elems = self.mesh.Elements_Tags([beam.name])
+            S_e_pg[elems,:] = beam.area
+            Iy_e_pg[elems,:] = beam.Iy
+            Iz_e_pg[elems,:] = beam.Iz
+            J_e_pg[elems,:] = beam.J
 
         y_e_pg = np.sqrt(S_e_pg)
         z_e_pg = np.sqrt(S_e_pg)
@@ -3850,6 +3825,9 @@ class Simu_Beam(_Simu):
             Sigma_e_pg[:,:,3] = 0 # Syz = 0
             Sigma_e_pg[:,:,4] = Mx_e_pg/J_e_pg*y_e_pg # Sxz = Tz/S + Mx/Ix*y
             Sigma_e_pg[:,:,5] = -Mx_e_pg/J_e_pg*z_e_pg # Sxy = Ty/S - Mx/Ix*z
+
+        # TODO Make sure that sigma is in the material coordinates
+        print("WARNING: Thoses stress field are defined on global coordinates and not beam coordinates!")
             
         tic.Tac("Matrix", "Sigma_e_pg", False)
 
@@ -3864,9 +3842,9 @@ class Simu_Beam(_Simu):
     def Results_displacement_matrix(self) -> np.ndarray:
         
         Nn = self.mesh.Nn
-        displacementRedim = self.displacement.reshape((Nn,-1))
         nbddl = self.Get_dof_n(self.problemType)
-
+        size = Nn * nbddl
+        displacementRedim = self.displacement[:size].reshape((Nn,-1))
         coordo = np.zeros((Nn, 3))
 
         if nbddl == 1:
@@ -3898,7 +3876,7 @@ class Simu_Beam(_Simu):
         summary += f"\n\nUx max = {dx.max():.2e}"
         summary += f"\nUx min = {dx.min():.2e}"
 
-        if self.beamModel.dim > 1:
+        if self.structure.dim > 1:
             dy = self.Result("uy", nodeValues=True)
             summary += f"\n\nUy max = {dy.max():.2e}"
             summary += f"\nUy min = {dy.min():.2e}"

@@ -9,7 +9,7 @@ from TicTac import Tic
 from Mesh import Mesh, GroupElem
 import CalcNumba as CalcNumba
 import Display as Display
-from Geom import Line, Point
+from Geom import Line, Point, normalize_vect
 
 from scipy.linalg import sqrtm
 
@@ -252,8 +252,6 @@ class _Displacement_Model(IModel, ABC):
         B = np.array([[p12*p13, p22*p23, p32*p33],
                       [p11*p13, p21*p23, p31*p33],
                       [p11*p12, p21*p22, p31*p32]])
-
-        
 
         D2 = np.array([[p22*p33 + p32*p23, p12*p33 + p32*p13, p12*p23 + p22*p13],
                        [p21*p33 + p31*p23, p11*p33 + p31*p13, p11*p23 + p21*p13],
@@ -1118,36 +1116,33 @@ class _Beam_Model(IModel):
         return self.__section.area
     
     @property
-    def Iy(self) -> float:
-        """Planar area moment of inertia along y-axis.\n
-        The y axis is the horizontal axis of the section (int_S (x-x0)^2 dS)."""        
-        x0 = self.__section.center[0]
-        func = lambda x,y,z: (x-x0)**2
-        Ix: float = np.sum([grp.Integrate_e(func).sum()
-                            for grp in self.__section.Get_list_groupElem(2)])
-        return Ix
-    
-    @property    
-    def Iz(self) -> float:
-        """Planar area moment of inertia along z-axis.\n
-        The z axis is the vertical axis of the section (int_S (y-y0)^2 dS)."""
-        y0 = self.__section.center[1]
-        func = lambda x,y,z: (y-y0)**2
+    def Iy(self) -> float:        
+        """Squared moment of the cross-section around y-axis.\n
+        int_S z^2 dS"""
+        # here z is the x axis of the section thats why we use x
+        func = lambda x,y,z: x**2
         Iy: float = np.sum([grp.Integrate_e(func).sum()
-                            for grp in self.__section.Get_list_groupElem(2)])
+                            for grp in self.__section.Get_list_groupElem(2)])        
         return Iy
+    
+    @property
+    def Iz(self) -> float:        
+        """Squared moment of the cross-section around z-axis.\n
+        int_S y^2 dS"""
+        func = lambda x,y,z: y**2
+        Iz: float = np.sum([grp.Integrate_e(func).sum()
+                            for grp in self.__section.Get_list_groupElem(2)])        
+        return Iz
     
     @property    
     def J(self) -> float:
-        """Polar area moment of inertia.\n
-        int_S (x-x0)^2 + (y-y0)^2 dS Same as Iy + Iz"""
-        x0,y0 = self.__section.center[:2]
-        func = lambda x,y,z: (x-x0)**2+(y-y0)**2
+        """Polar area moment of inertia (Iy + Iz)."""        
+        func = lambda x,y,z: x**2+y**2
         J: float = np.sum([grp.Integrate_e(func).sum()
                             for grp in self.__section.Get_list_groupElem(2)])
         return J
 
-    def __init__(self, dim: int, line: Line, section: Mesh):
+    def __init__(self, dim: int, line: Line, section: Mesh, yAxis: Union[list,tuple,np.ndarray]=(0,1,0)):
         """Creating a beam.
 
         Parameters
@@ -1158,17 +1153,24 @@ class _Beam_Model(IModel):
             Line characterizing the neutral fiber.
         section : Mesh
             Beam cross-section
+        yAxis: tuple|list|array, optional
+            vertical cross-beam axis, by default (0,1,0)
         """
 
         _Beam_Model.__nBeam += 1
+        self.__name = f"beam{_Beam_Model.__nBeam}"
         
-        self.__dim = dim
-        self.__line = line
+        self.__dim: int = dim
+        self.__line: Line = line
 
         assert section.inDim == 2, 'The cross-beam section must be contained in the (x,y) plane.'
-        self.__section = section
+        # make sure that the section is centered in (0,0)
+        section.translate(*section.center)
+        Iyz = section.groupElem.Integrate_e(lambda x,y,z: y*z).sum()
+        assert Iyz <= 1e-12, 'The section must have at least 1 symetry axis'
+        self.__section: Mesh = section
 
-        self.__name = f"beam{_Beam_Model.__nBeam}"
+        self.yAxis = yAxis
 
     @property
     def line(self) -> Line:
@@ -1179,6 +1181,34 @@ class _Beam_Model(IModel):
     def section(self) -> Mesh:
         """Beam cross-section in (x,y) plane"""
         return self.__section
+    
+    @property
+    def yAxis(self) -> np.ndarray:
+        """Vertical cross-beam axis."""
+        return self.__yAxis.copy()
+    
+    @yAxis.setter
+    def yAxis(self, value):
+
+        line = self.__line
+
+        # set y axis
+        fiberAxis = line.get_unitVector(line.pt1, line.pt2)
+        yAxis = normalize_vect(Point._getCoord(value))
+
+        # check that the yaxis is not colinear to the fiber axis
+        crossProd = np.cross(fiberAxis, yAxis)
+        if np.linalg.norm(crossProd) <= 1e-12:
+            # Choose x-axis
+            yAxis = normalize_vect(np.cross([0,0,1], fiberAxis))
+            print(f"The beam's vertical axis has been selected incorrectly (collinear with the beam x-axis).\nAxis {np.array_str(yAxis, precision=3)} has been assigned for {self.name}.")
+        else:
+            # get the horizontal direction of the beam
+            zAxis = normalize_vect(np.cross(fiberAxis, yAxis))
+            # then make sure that x,y,z are orthogonal
+            yAxis = normalize_vect(np.cross(zAxis, fiberAxis))
+
+        self.__yAxis: np.ndarray = yAxis
     
     @property
     def name(self) -> str:
@@ -1211,9 +1241,25 @@ class _Beam_Model(IModel):
 
         return text
     
+    def _Calc_P(self) -> np.ndarray:
+        """P matrix use to transform beam coordinates to global coordinates.\n
+        [ix, jx, kx\n
+        iy, jy, ky\n
+        iz, jz, kz]\n
+        coordo(x,y,z) = P • coordo(i,j,k)
+        """
+        line = self.line
+        
+        i = line.get_unitVector(line.pt1, line.pt2)
+        j = self.yAxis
+        k = normalize_vect(np.cross(i,j))
+
+        J = np.array([i,j,k]).T
+        return J
+    
 class Beam_Elas_Isot(_Beam_Model):
 
-    def __init__(self, dim: int, line: Line, section: Mesh, E: float, v:float):
+    def __init__(self, dim: int, line: Line, section: Mesh, E: float, v:float, yAxis: Union[list,tuple,np.ndarray]=(0,1,0)):
         """Construction of an isotropic elastic beam.
 
         Parameters
@@ -1228,9 +1274,11 @@ class Beam_Elas_Isot(_Beam_Model):
             Young module
         v : float
             Poisson ratio
+        yAxis: tuple|list|array, optional
+            vertical cross-beam axis, by default (0,1,0)
         """
 
-        _Beam_Model.__init__(self, dim, line, section)
+        _Beam_Model.__init__(self, dim, line, section, yAxis)
         
         IModel._Test_Sup0(E)        
         self.__E = E

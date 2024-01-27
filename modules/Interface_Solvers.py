@@ -282,6 +282,7 @@ def __Solver_2(simu, problemType: str):
     # Solving with the Lagrange multiplier method
 
     simu = __Cast_Simu(simu)
+    size = simu.mesh.Nn * simu.Get_dof_n(problemType)
 
     # Builds the penalized matrix system
     b = simu._Apply_Neumann(problemType)
@@ -303,12 +304,10 @@ def __Solver_2(simu, problemType: str):
     nColEnPlusDirichlet = len(dofs_Dirichlet)
     nColEnPlus = nColEnPlusLagrange + nColEnPlusDirichlet
 
-    decalage = A.shape[0]-nColEnPlus
-
     x0 = simu.Get_x0(problemType)
     x0 = np.append(x0, np.zeros(nColEnPlus))
 
-    linesDirichlet = np.arange(decalage, decalage+nColEnPlusDirichlet)
+    linesDirichlet = np.arange(size, size+nColEnPlusDirichlet)
     
     # apply lagrange multiplier
     A[linesDirichlet, dofs_Dirichlet] = alpha
@@ -322,28 +321,26 @@ def __Solver_2(simu, problemType: str):
         from Simulations import LagrangeCondition
 
         def __apply_lagrange(i: int, lagrangeBc: LagrangeCondition):
-            ddls = lagrangeBc.dofs
-            valeurs = lagrangeBc.dofsValues
-            coefs = lagrangeBc.lagrangeCoefs
+            dofs = lagrangeBc.dofs
+            values = lagrangeBc.dofsValues * alpha
+            coefs = lagrangeBc.lagrangeCoefs * alpha
 
-            valeurs = np.array(valeurs) * alpha
-            coefs = np.array(coefs) * alpha
-
-            A[ddls,-i] = coefs
-            A[-i,ddls] = coefs
-
-            b[-i] = valeurs[0]
-
-        [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, 1)]
+            A[dofs,i] = coefs
+            A[i,dofs] = coefs
+            b[i] = values[0]
+        
+        start = size + nColEnPlusDirichlet
+        [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, start)]
     
     tic.Tac("Solver",f"Lagrange ({problemType}) Coupling", simu._verbosity)
 
     x = _Solve_Axb(simu, problemType, A.tocsr(), b.tocsr(), x0, [], [])
 
     # We don't send back reaction forces
-    x = x[range(decalage)]
+    sol = x[:size]
+    lagrange = x[size:]
 
-    return x 
+    return sol, lagrange
 
 def __Solver_3(simu, problemType: str):
     # Resolution using the penalty method
