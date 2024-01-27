@@ -158,7 +158,7 @@ def DoSimu(split: str, regu: str):
                 C_voigt = np.array([[c11, c12, 0],
                                     [c12, c22, 0],
                                     [0, 0, c33]])*1e9
-                C_mandel = Materials._Displacement_Model.KelvinMandel_Matrix(dim, C_voigt)
+                C_mandel = Materials.KelvinMandel_Matrix(dim, C_voigt)
 
                 theta_rad = theta * np.pi/180
                 axis1 = np.array([np.cos(theta_rad), np.sin(theta_rad), 0])

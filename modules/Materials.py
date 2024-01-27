@@ -154,122 +154,6 @@ class _Displacement_Model(IModel, ABC):
         laws = [Elas_Isot, Elas_IsotTrans, Elas_Anisot]
         return laws
 
-    @staticmethod
-    def get_P(axis_1: np.ndarray, axis_2: np.ndarray):
-        """Construct P to pass from the material coordinates to the global coordinate \n
-        
-        Tet que :\n
-
-        C et S en [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]
-
-        C_global = P' * C_material * P et S_global = P' * S_material * P
-
-        Here we use "Chevalier 1988 : Comportements élastique et viscoélastique des composites"
-        """
-
-        if isinstance(axis_1, list):
-            axis_1 = np.array(axis_1)
-
-        if isinstance(axis_2, list):
-            axis_2 = np.array(axis_2)
-
-        shape1 = axis_1.shape
-        shape2 = axis_2.shape
-
-        assert len(shape1) <= 3, "Must be a numpy array of shape (3), (e,3) or (e,p,3)"
-        assert len(shape2) <= 3, "Must be a numpy array of shape (3), (e,3) or (e,p,3)"
-
-        assert axis_1.shape == axis_2.shape, "Must be the same size"
-
-        if len(shape1) == 1:
-            id=''
-        elif len(shape1) == 2:
-            id='e'
-            axis_1 = axis_1.transpose((1,0))
-            axis_2 = axis_2.transpose((1,0))
-        elif len(shape1) == 3:
-            id='ep'
-            axis_1 = axis_1.transpose((2,0,1))
-            axis_2 = axis_2.transpose((2,0,1))
-
-        axis_1 = np.einsum(f'i{id},{id}->i{id}', axis_1, np.linalg.norm(axis_1, axis=0), optimize='optimal')
-        axis_2 = np.einsum(f'i{id},{id}->i{id}', axis_2, np.linalg.norm(axis_2, axis=0), optimize='optimal')
-
-        # Detection of whether the 2 vectors are perpendicular
-
-        dotProd = np.einsum(f'{id}i,{id}i->{id}', axis_1, axis_2, optimize='optimal')
-
-        assert np.linalg.norm(dotProd) <= 1e-12, 'must give perpendicular axes'        
-
-        axis_3 = np.cross(axis_1, axis_2, axis=0)
-        axis_3 = np.einsum(f'i{id},{id}->i{id}', axis_3, np.linalg.norm(axis_3, axis=0), optimize='optimal')
-
-        # Construct the base shifting matrix x = [P] x'
-        # P goes from global base to material base        
-
-        if len(shape1) == 1:
-            p = np.zeros((3,3))
-            p[:,0] = axis_1
-            p[:,1] = axis_2
-            p[:,2] = axis_3
-
-            p11 = p[0,0]; p12 = p[0,1]; p13 = p[0,2]
-            p21 = p[1,0]; p22 = p[1,1]; p23 = p[1,2]
-            p31 = p[2,0]; p32 = p[2,1]; p33 = p[2,2]
-            
-            D1 = p.transpose((1,0))**2
-
-        elif len(shape1) == 2:
-
-            p = np.zeros((3,3,shape1[0]))
-            p[:,0,:] = axis_1
-            p[:,1,:] = axis_2
-            p[:,2,:] = axis_3
-
-            p11 = p[0,0]; p12 = p[0,1]; p13 = p[0,2]
-            p21 = p[1,0]; p22 = p[1,1]; p23 = p[1,2]
-            p31 = p[2,0]; p32 = p[2,1]; p33 = p[2,2]
-
-            D1 = p.transpose((1,0,2))**2
-
-        elif len(shape1) == 3:
-
-            p = np.zeros((3,3,shape1[0],shape1[1]))
-            p[:,0,:,:] = axis_1
-            p[:,1,:,:] = axis_2
-            p[:,2,:,:] = axis_3
-
-            p11 = p[0,0]; p12 = p[0,1]; p13 = p[0,2]
-            p21 = p[1,0]; p22 = p[1,1]; p23 = p[1,2]
-            p31 = p[2,0]; p32 = p[2,1]; p33 = p[2,2]
-
-            D1 = p.transpose((1,0,2,3))**2
-
-        A = np.array([[p21*p31, p11*p31, p11*p21],
-                      [p22*p32, p12*p32, p12*p22],
-                      [p23*p33, p13*p33, p13*p23]])
-        
-        B = np.array([[p12*p13, p22*p23, p32*p33],
-                      [p11*p13, p21*p23, p31*p33],
-                      [p11*p12, p21*p22, p31*p32]])
-
-        D2 = np.array([[p22*p33 + p32*p23, p12*p33 + p32*p13, p12*p23 + p22*p13],
-                       [p21*p33 + p31*p23, p11*p33 + p31*p13, p11*p23 + p21*p13],
-                       [p21*p32 + p31*p22, p11*p32 + p31*p12, p11*p22 + p21*p12]])
-
-        coef = np.sqrt(2)
-        M = np.concatenate( (np.concatenate((D1, coef*A), axis=1),
-                            np.concatenate((coef*B, D2), axis=1)), axis=0)
-
-        if len(shape1) == 1:
-            M = M.transpose((0,1))
-        elif len(shape1) == 2:
-            M = M.transpose((2,0,1))
-        elif len(shape1) == 3:
-            M = M.transpose((2,3,0,1))
-        
-        return M
-
     @property
     def coef(self) -> float:
         """Coef linked to kelvin mandel -> sqrt(2)"""
@@ -315,118 +199,6 @@ class _Displacement_Model(IModel, ABC):
         # Use Kelvin mandel notation ! \n
         return ci, Ei"""
         return np.array([]), np.array([])
-
-    @staticmethod
-    def KelvinMandel_B_e_pg(dim: int, B_e_pg: np.ndarray) -> np.ndarray:
-
-        if dim == 2:
-            coord=2
-        elif dim == 3:
-            coord=[3,4,5]
-        else:
-            raise Exception("Not implemented")
-
-        coef = np.sqrt(2)
-
-        B_e_pg[:,:,coord,:] = B_e_pg[:,:,coord,:]/coef
-
-        return B_e_pg
-    
-    @staticmethod
-    def KelvinMandel_Matrix(dim: int, Matrix: np.ndarray) -> np.ndarray:
-        """Apply these coefficients to the matrix.
-        \nif 2D:
-        \n
-        [1,1,r2]\n
-        [1,1,r2]\n
-        [r2, r2, 2]]\n
-
-        \nif 3D:
-        \n
-        [1,1,1,r2,r2,r2]\n
-        [1,1,1,r2,r2,r2]\n
-        [1,1,1,r2,r2,r2]\n
-        [r2,r2,r2,2,2,2]\n
-        [r2,r2,r2,2,2,2]\n
-        [r2,r2,r2,2,2,2]]\n
-        """
-
-        r2 = np.sqrt(2)
-
-        if dim == 2:            
-            transform = np.array([  [1,1,r2],
-                                    [1,1,r2],
-                                    [r2, r2, 2]])
-        elif dim == 3:
-            transform = np.array([  [1,1,1,r2,r2,r2],
-                                    [1,1,1,r2,r2,r2],
-                                    [1,1,1,r2,r2,r2],
-                                    [r2,r2,r2,2,2,2],
-                                    [r2,r2,r2,2,2,2],
-                                    [r2,r2,r2,2,2,2]])
-        else:
-            raise Exception("Not implemented")
-
-        newMatrix = Matrix * transform
-
-        return newMatrix
-
-    @staticmethod
-    def Apply_P(P: np.ndarray, Matrix: np.ndarray) -> np.ndarray:
-        
-        matDim = len(Matrix.shape)
-
-        pDim = len(P.shape)
-        if pDim == 2:
-            id = ''
-            axis1, axis2 = 0, 1
-        elif pDim == 3:
-            id = 'e'
-            axis1, axis2 = 1, 2
-        elif pDim == 4:
-            id = 'ep'
-            axis1, axis2 = 2, 3
-
-        if matDim == 2:
-            matrice_P = np.einsum(f'{id}ji,jk,{id}kl->{id}il',P, Matrix, P, optimize='optimal')
-            
-        elif matDim == 3:
-            assert pDim <= matDim, 'must give a P array of shape (e,6,6) or (6,6)'
-            if pDim == matDim:
-                assert P.shape[0] == Matrix.shape[0], 'First dimension of P and Matrix must be the same'
-            matrice_P = np.einsum(f'{id}ji,ejk,{id}kl->eil',P, Matrix, P, optimize='optimal')
-            
-        elif matDim == 4:
-            if pDim == 3:
-                assert P.shape[0] == Matrix.shape[0], 'First dimension of P and Matrix must be the same'
-            if pDim == 4:
-                assert P.shape[1] == Matrix.shape[1], 'Second dimension of P and Matrix must be the same'
-            matrice_P = np.einsum(f'{id}ji,epjk,{id}kl->epil',P, Matrix, P, optimize='optimal')
-            
-        else:
-            raise Exception("The matrix must be of dimension (ij) or (eij) or (epij)")
-
-        # We verify that the tensor invariants do not change!
-        # first we need to reshape Matrix
-        if pDim == 3 and matDim == 2:
-            Matrix = Matrix[np.newaxis].repeat(P.shape[0], axis=0)
-        if pDim == 4 and matDim == 2:
-            Matrix = Matrix[np.newaxis].repeat(P.shape[1], axis=0)
-            Matrix = Matrix[np.newaxis].repeat(P.shape[0], axis=0)
-
-
-        tr1 = np.trace(matrice_P, 0, axis1, axis2)
-        tr2 = np.trace(Matrix, 0, axis1, axis2)
-        diffTrace = np.linalg.norm(tr1-tr2)
-        if diffTrace > 1e-12:
-            test_trace_c = diffTrace/np.linalg.norm(tr2)
-            assert test_trace_c <= 1e-12, "The trace is not preserved during processing"
-        detMatrice = np.linalg.det(Matrix)
-        if np.max(detMatrice) >= 1e-12:
-            test_det_c = np.linalg.norm(np.linalg.det(matrice_P) - detMatrice)/np.linalg.norm(detMatrice)
-            assert test_det_c <= 1e-12, "The determinant is not preserved during processing"
-        
-        return matrice_P
     
 class Elas_Isot(_Displacement_Model):
 
@@ -598,7 +370,7 @@ class Elas_Isot(_Displacement_Model):
             
         cVoigt = Heterogeneous_Array(cVoigt)
         
-        c = _Displacement_Model.KelvinMandel_Matrix(dim, cVoigt)
+        c = KelvinMandel_Matrix(dim, cVoigt)
 
         s = np.linalg.inv(c)
 
@@ -679,8 +451,8 @@ class Elas_IsotTrans(_Displacement_Model):
 
         axis_l = np.asarray(axis_l)
         axis_t = np.asarray(axis_t)
-        assert axis_l.size == 3, 'axis_l must be a 3D vector'
-        assert axis_t.size == 3, 'axis_t must be a 3D vector'
+        assert axis_l.size == 3 and len(axis_l.shape) == 1, 'axis_l must be a 3D vector'
+        assert axis_t.size == 3 and len(axis_t.shape) == 1, 'axis_t must be a 3D vector'
         assert axis_l @ axis_t <= 1e-12, 'axis1 and axis2 must be perpendicular'
         self.__axis_l = axis_l
         self.__axis_t = axis_t
@@ -821,7 +593,7 @@ class Elas_IsotTrans(_Displacement_Model):
             dim = self.__dim
         
         if not isinstance(P, np.ndarray):
-            P = self.get_P(self.__axis_l, self.__axis_t)
+            P = Get_Pmat(self.__axis_l, self.__axis_t)
 
         useSameAxis = self._useSameAxis
 
@@ -862,8 +634,8 @@ class Elas_IsotTrans(_Displacement_Model):
         # assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
 
         # Performs a base change to orient the material in space
-        global_sM = self.Apply_P(P, material_sM)
-        global_cM = self.Apply_P(P, material_cM)
+        global_sM = Apply_Pmat(P, material_sM)
+        global_cM = Apply_Pmat(P, material_cM)
         
         # verification that if the axes do not change, the same behavior law is obtained
         test_diff_c = global_cM - material_cM
@@ -932,7 +704,7 @@ class Elas_IsotTrans(_Displacement_Model):
         E6 = I - E1 - E2 - E5
 
         if not self.isHeterogeneous:
-            P = self.get_P(self.axis_l, self.axis_t)
+            P = Get_Pmat(self.axis_l, self.axis_t)
             C, S = self._Behavior(3, P)
             # only test if the material is heterogeneous
             diff_C = C - (c1*E1 + c2*E2 + c3*(E3+E4) + c4*E5 + c5*E6)
@@ -988,8 +760,8 @@ class Elas_Anisot(_Displacement_Model):
 
         axis1 = np.asarray(axis1)
         axis2 = np.asarray(axis2)
-        assert axis1.size == 3, 'axis1 must be a 3D vector'
-        assert axis2.size == 3, 'axis2 must be a 3D vector'
+        assert axis1.size == 3 and len(axis1.shape) == 1, 'axis1 must be a 3D vector'
+        assert axis2.size == 3 and len(axis2.shape) == 1, 'axis2 must be a 3D vector'
         assert axis1 @ axis2 <= 1e-12, 'axis1 and axis2 must be perpendicular'
         self.__axis1 = axis1
         self.__axis2 = axis2
@@ -1016,7 +788,7 @@ class Elas_Anisot(_Displacement_Model):
         """
 
         # Construction of the rotation matrix
-        P = self.get_P(self.__axis1, self.__axis2)
+        P = Get_Pmat(self.__axis1, self.__axis2)
         
         C_mandelP = self._Behavior(C, useVoigtNotation, P)
         self.C = C_mandelP
@@ -1035,7 +807,7 @@ class Elas_Anisot(_Displacement_Model):
 
         # Application of coef if necessary
         if useVoigtNotation:
-            C_mandel = self.KelvinMandel_Matrix(dim, C)
+            C_mandel = KelvinMandel_Matrix(dim, C)
         else:
             C_mandel = C.copy()
 
@@ -1061,11 +833,11 @@ class Elas_Anisot(_Displacement_Model):
             C_mandel_global = C
 
         if not isinstance(P, np.ndarray):
-            P = self.get_P(self.__axis1, self.__axis2)
+            P = Get_Pmat(self.__axis1, self.__axis2)
         else:
             assert P.shape[-2:] == (6,6), 'must be a 6x6 matrix'
 
-        C_mandelP_global = self.Apply_P(P, C_mandel_global)
+        C_mandelP_global = Apply_Pmat(P, C_mandel_global)
 
         if self.__dim == 2:
             if len(shape)==2:
@@ -1183,6 +955,11 @@ class _Beam_Model(IModel):
         return self.__section
     
     @property
+    def xAxis(self) -> np.ndarray:
+        """Perpendicular cross-beam axis (fiber)."""
+        return self.__line.unitVector
+    
+    @property
     def yAxis(self) -> np.ndarray:
         """Vertical cross-beam axis."""
         return self.__yAxis.copy()
@@ -1190,23 +967,21 @@ class _Beam_Model(IModel):
     @yAxis.setter
     def yAxis(self, value):
 
-        line = self.__line
-
         # set y axis
-        fiberAxis = line.get_unitVector(line.pt1, line.pt2)
+        xAxis = self.xAxis
         yAxis = normalize_vect(Point._getCoord(value))
 
         # check that the yaxis is not colinear to the fiber axis
-        crossProd = np.cross(fiberAxis, yAxis)
+        crossProd = np.cross(xAxis, yAxis)
         if np.linalg.norm(crossProd) <= 1e-12:
             # Choose x-axis
-            yAxis = normalize_vect(np.cross([0,0,1], fiberAxis))
+            yAxis = normalize_vect(np.cross([0,0,1], xAxis))
             print(f"The beam's vertical axis has been selected incorrectly (collinear with the beam x-axis).\nAxis {np.array_str(yAxis, precision=3)} has been assigned for {self.name}.")
         else:
             # get the horizontal direction of the beam
-            zAxis = normalize_vect(np.cross(fiberAxis, yAxis))
+            zAxis = normalize_vect(np.cross(xAxis, yAxis))
             # then make sure that x,y,z are orthogonal
-            yAxis = normalize_vect(np.cross(zAxis, fiberAxis))
+            yAxis = normalize_vect(np.cross(zAxis, xAxis))
 
         self.__yAxis: np.ndarray = yAxis
     
@@ -1400,10 +1175,30 @@ class Beam_Structure(IModel):
         for beam, D in zip(listBeam, list_D):
             
             # recovers elements
-            elements = groupElem.Get_Elements_Tag(beam.name)
-            D_e_pg[elements] = D
+            elems = groupElem.Get_Elements_Tag(beam.name)
+            D_e_pg[elems] = D
 
         return D_e_pg
+    
+    def Get_axis_e(self, groupElem: GroupElem) -> tuple[np.ndarray, np.ndarray]:
+        """Get the fiber and cross bar vertical axis on every elements.\n
+        return xAxis_e, yAxis_e"""
+
+        if groupElem.dim != 1: return
+
+        beams = self.__listBeam
+
+        Ne = groupElem.Ne
+
+        xAxis_e = np.zeros((Ne,3), dtype=float)
+        yAxis_e = np.zeros((Ne,3), dtype=float)
+
+        for beam in beams:            
+            elems = groupElem.Get_Elements_Tag(beam.name)
+            xAxis_e[elems] = beam.xAxis
+            yAxis_e[elems] = beam.yAxis
+
+        return xAxis_e, yAxis_e
 
 class PhaseField_Model(IModel):
 
@@ -2735,6 +2530,11 @@ class Thermal_Model(IModel):
     def isHeterogeneous(self) -> bool:
         return isinstance(self.k, np.ndarray) or isinstance(self.c, np.ndarray)
 
+
+# --------------------------------------------------------------------------------------------
+# FUNCTIONS
+# --------------------------------------------------------------------------------------------
+    
 _erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
 
 def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int):
@@ -2847,6 +2647,44 @@ def TensorProduct(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
     
     return res
 
+def KelvinMandel_Matrix(dim: int, Matrix: np.ndarray) -> np.ndarray:
+    """Apply these coefficients to the matrix.
+    \nif 2D:
+    \n
+    [1,1,r2]\n
+    [1,1,r2]\n
+    [r2, r2, 2]]\n
+
+    \nif 3D:
+    \n
+    [1,1,1,r2,r2,r2]\n
+    [1,1,1,r2,r2,r2]\n
+    [1,1,1,r2,r2,r2]\n
+    [r2,r2,r2,2,2,2]\n
+    [r2,r2,r2,2,2,2]\n
+    [r2,r2,r2,2,2,2]]\n
+    """
+
+    r2 = np.sqrt(2)
+
+    if dim == 2:            
+        transform = np.array([  [1,1,r2],
+                                [1,1,r2],
+                                [r2, r2, 2]])
+    elif dim == 3:
+        transform = np.array([  [1,1,1,r2,r2,r2],
+                                [1,1,1,r2,r2,r2],
+                                [1,1,1,r2,r2,r2],
+                                [r2,r2,r2,2,2,2],
+                                [r2,r2,r2,2,2,2],
+                                [r2,r2,r2,2,2,2]])
+    else:
+        raise Exception("Not implemented")
+
+    newMatrix = Matrix * transform
+
+    return newMatrix
+
 def Project_Kelvin(A: np.ndarray) -> np.ndarray:
     """Project the tensor A in Kelvin Mandel notation.
 
@@ -2897,3 +2735,189 @@ def Project_Kelvin(A: np.ndarray) -> np.ndarray:
 
     return res
 
+@staticmethod
+def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
+    """Construct Pmat to pass from the material coordinates (x,y,z) to the global coordinate (X,Y,Z) such that:\n
+
+    if useMandel:\n
+        return [Pm]\n
+    else:\n
+        return [Ps], [Pe]\n
+    
+    In mandel's notation\n
+        Sig & Eps en [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]\n
+        [C_global] = [Pm] * [C_material] * [Pm]' & [C_material] = [Pm]' * [C_global] * [Pm]\n
+        [S_global] = [Pm] * [S_material] * [Pm]' & [S_material] = [Pm]' * [S_global] * [Pm]\n
+        Sig_global = [Pm] * Sig_material & Sig_material = [Pm]' * Sig_global\n
+        Eps_global = [Pm] * Eps_material & Eps_material = [Pm]' * Eps_global\n
+
+    Or in voigt's notation
+        Sig [S11, S22, S33, S23, S13, S12]\n
+        Eps [E11, E22, E33, 2*E23, 2*E13, 2*E12]\n
+        [C_global] = [Ps] * [C_material] * [Ps]' & [C_material] = [Pe]' * [C_global] * [Pe]\n
+        S_global = [Pe] * [S_material] * [Pe]' & [S_material] = [Ps]' * S_global * [Ps]\n
+        Sig_global = [Ps] * Sig_material & Sig_material = [Pe]' * Sig_global\n
+        Eps_global = [Pe] * Eps_material & Eps_material = [Ps]' * Eps_global\n
+
+    P matrices are orhogonal -> inv(P) = transpose(P)\n
+
+    Here we use "Chevalier 1988 : Comportements élastique et viscoélastique des composites"
+    """
+
+    axis_1 = np.asarray(axis_1)
+    axis_2 = np.asarray(axis_2)
+
+    dim = axis_1.shape[-1]
+    assert dim in [2,3], "Must be a 2d or 3d vector"
+    shape1 = axis_1.shape
+    shape2 = axis_2.shape
+    assert len(shape1) <= 3, "Must be a numpy array of shape (i), (e,i) or (e,p,i)"
+    assert len(shape2) <= 3, "Must be a numpy array of shape (i), (e,i) or (e,p,i)"
+    assert shape1 == shape2, "axis_1 and axis_2 must be the same size"    
+
+    # get the indices and transpose
+    if len(shape1) == 1:
+        id=''
+        transposeP = (0,1) # (dim*2,dim*2) -> (dim*2,dim*2)
+    elif len(shape1) == 2:
+        id='e'
+        axis_1 = axis_1.transpose((1,0)) # (e,dim) -> (dim,e)
+        axis_2 = axis_2.transpose((1,0))
+        transposeP = (2,0,1) # (dim,dim,e) -> (e,dim,dim)
+    elif len(shape1) == 3:
+        id='ep'
+        axis_1 = axis_1.transpose((2,0,1)) # (e,p,dim) -> (dim,e,p)
+        axis_2 = axis_2.transpose((2,0,1))
+        transposeP = (2,3,0,1) # (dim,dim,e,p) -> (e,p,dim,dim)
+
+    # normalize thoses vectors
+    axis_1 = np.einsum(f'i{id},{id}->i{id}', axis_1, np.linalg.norm(axis_1, axis=0), optimize='optimal')
+    axis_2 = np.einsum(f'i{id},{id}->i{id}', axis_2, np.linalg.norm(axis_2, axis=0), optimize='optimal')
+
+    # Detection of whether the 2 vectors are perpendicular
+    dotProd = np.einsum(f'i{id},i{id}->{id}', axis_1, axis_2, optimize='optimal')    
+    assert np.linalg.norm(dotProd) <= 1e-12, 'Must give perpendicular axes'    
+    
+    if dim == 2:
+        p11, p12 = axis_1
+        p21, p22 = axis_2
+    elif dim == 3:
+        # construct z-axis
+        axis_3 = np.cross(axis_1, axis_2, axis=0)
+        p11, p12, p13 = axis_1
+        p21, p22, p23 = axis_2
+        p31, p32, p33 = axis_3        
+
+    if len(shape1) == 1:            
+        p = np.zeros((dim,dim))
+    elif len(shape1) == 2:
+        p = np.zeros((dim,dim,shape1[0]))
+    elif len(shape1) == 3:
+        p = np.zeros((dim,dim,shape1[0],shape1[1]))
+
+    # apply vectors
+    p[:,0] = axis_1
+    p[:,1] = axis_2    
+    if dim == 3:
+        p[:,2] = axis_3
+
+    D1 = p**2
+
+    if dim == 2:
+
+        A = np.array([[p11*p21],
+                      [p12*p22]])
+        
+        B = np.array([[p11*p12, p21*p22]])
+
+        D2 = np.array([[p11*p22 + p21*p12]])
+
+    elif dim == 3:
+
+        A = np.array([[p21*p31, p11*p31, p11*p21],
+                        [p22*p32, p12*p32, p12*p22],
+                        [p23*p33, p13*p33, p13*p23]])
+        
+        B = np.array([[p12*p13, p22*p23, p32*p33],
+                        [p11*p13, p21*p23, p31*p33],
+                        [p11*p12, p21*p22, p31*p32]])
+
+        D2 = np.array([[p22*p33 + p32*p23, p12*p33 + p32*p13, p12*p23 + p22*p13],
+                        [p21*p33 + p31*p23, p11*p33 + p31*p13, p11*p23 + p21*p13],
+                        [p21*p32 + p31*p22, p11*p32 + p31*p12, p11*p22 + p21*p12]])
+
+    if useMandel:
+        cM = np.sqrt(2)
+        Pmat = np.concatenate((np.concatenate((D1, cM*A), axis=1),
+                               np.concatenate((cM*B, D2), axis=1)), axis=0)
+
+        Pmat = np.transpose(Pmat,transposeP)    
+        return Pmat
+    else:
+        Ps = np.concatenate((np.concatenate((D1, 2*A), axis=1),
+                              np.concatenate((B, D2), axis=1)), axis=0).transpose(transposeP)
+        
+        Pe = np.concatenate((np.concatenate((D1, A), axis=1),
+                              np.concatenate((2*B, D2), axis=1)), axis=0).transpose(transposeP)
+        
+        return Ps, Pe
+
+def Apply_Pmat(P: np.ndarray, Matrix: np.ndarray, toGlobal=True) -> np.ndarray:
+    """Apply change base matrix.\n
+    WARNING: P must be in Kelvin mandel notation
+
+    Parameters
+    ----------
+    P : np.ndarray
+        P in mandel notation obtained with get_Pmat
+    Matrix : np.ndarray
+        3x3 or 6x6 matrix
+    toGlobal : bool, optional
+        sets wheter matrix is C or S, by default True\n
+    toGlobal : bool, optional
+        sets wheter you want to get matrix in global or material coordinates, by default True\n
+        if toGlobal:\n
+            Matrix_global = P * C_material * P'\n
+        else:\n
+            Matrix_material = P' * Matrix_global * P
+
+    Returns
+    -------
+    np.ndarray
+        new matrix
+    """    
+    assert isinstance(Matrix, np.ndarray), 'Matrix must be an array'
+    assert Matrix.shape[-2:] == P.shape[-2:], 'Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)'
+            
+    # Get P indices
+    pDim = P.ndim
+    if pDim == 2:
+        pi = ''
+    elif pDim == 3:
+        pi = 'e'
+    elif pDim == 4:
+        pi = 'ep'
+
+    # Get P last indices
+    if toGlobal:
+        i1 = 'ij'
+        id2 = 'lk'
+    else:            
+        i1 = 'ji'
+        id2 = 'kl'
+
+    # Get matrix indices
+    matDim = Matrix.ndim
+    if matDim == 2:
+        mi = ''            
+    elif matDim == 3:
+        mi = 'e'
+    elif matDim == 4:
+        mi = 'ep'
+    else:
+        raise Exception("The matrix must be of dimension (ij) or (eij) or (epij)")
+    
+    ii = mi if matDim > pDim else pi
+    matrice_P = np.einsum(f'{pi}{i1},{mi}jk,{pi}{id2}->{ii}il',P, Matrix, P, optimize='optimal')
+    
+    return matrice_P

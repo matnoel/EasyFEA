@@ -2,6 +2,7 @@
 import unittest
 import os
 from Materials import Elas_Anisot, Elas_IsotTrans, PhaseField_Model, _Displacement_Model, Elas_Isot
+import Materials
 import numpy as np
 
 class Test_Materials(unittest.TestCase):
@@ -107,7 +108,7 @@ class Test_Materials(unittest.TestCase):
                                                                 [0, 0, 0, 0, (1-2*v)/2, 0],
                                                                 [0, 0, 0, 0, 0, (1-2*v)/2]  ])
                 
-                c = _Displacement_Model.KelvinMandel_Matrix(comp.dim, C_voigt)
+                c = Materials.KelvinMandel_Matrix(comp.dim, C_voigt)
                     
                 verifC = np.linalg.norm(c-comp.C)/np.linalg.norm(c)
                 self.assertTrue(verifC < 1e-12)
@@ -196,7 +197,12 @@ class Test_Materials(unittest.TestCase):
         verifc2 = np.linalg.norm(c2 - compElasIsotTrans2.C)/np.linalg.norm(c2)
         self.assertTrue(verifc2 < 1e-12)
 
-        # Verif3 axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
+        # # Verif3 axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
+        # compElasIsotTrans3 = Elas_IsotTrans(2,
+        #             El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
+        #             planeStress=False,
+        #             axis_l=[0,0,1], axis_t=[1,0,0])
+        
         compElasIsotTrans3 = Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     planeStress=False,
@@ -209,10 +215,114 @@ class Test_Materials(unittest.TestCase):
         verifc3 = np.linalg.norm(c3 - compElasIsotTrans3.C)/np.linalg.norm(c3)
         self.assertTrue(verifc3 < 1e-12)
 
+    def test_getPmat(self):
+        """Test the way we construct Pmat and apply it"""
+
+        Ne = 10
+        p = 3
+
+        _ = 1
+        _e = np.ones((Ne))
+        _e_pg = np.ones((Ne,p))
+        _e2 = np.linspace(1, 1.001, Ne)        
+
+        
+        El = 15716.16722094732 
+        Et = 232.6981580878141
+        Gl = 557.3231495541391
+        vl = 0.02
+        vt = 0.44        
+
+        for dim in [2, 3]:
+
+            axis1 = np.array([1,0,0])[:dim]
+            axis2 = np.array([0,1,0])[:dim]
+
+            angles = np.linspace(0, np.pi, Ne)
+            x1, y1 = np.cos(angles) , np.sin(angles)
+            x2, y2 = -np.sin(angles) , np.cos(angles)
+            axis1_e = np.zeros((Ne,dim)); axis1_e[:,0] = x1; axis1_e[:,1] = y1        
+            axis2_e = np.zeros((Ne,dim)); axis2_e[:,0] = x2; axis2_e[:,1] = y2
+
+            axis1_e_p = axis1_e[:,np.newaxis].repeat(p, 1)
+            axis2_e_p = axis2_e[:,np.newaxis].repeat(p, 1)
+
+            for c in [_, _e, _e_pg, _e2]:
+
+                mat = Elas_IsotTrans(dim, El*c, Et*c, Gl*c, vl*c, vt*c)
+                C = mat.C
+                S = mat.S
+
+                for ax1, ax2 in [(axis1, axis2),(axis1_e, axis2_e),(axis1_e_p, axis2_e_p)]:                
+                    Pmat = Materials.Get_Pmat(ax1, ax2)
+                    
+                    # test mat to global coordo
+                    Cglob = Materials.Apply_Pmat(Pmat, C)
+                    Sglob = Materials.Apply_Pmat(Pmat, S)    
+                    self.__checkInvariants(Cglob, C)
+                    self.__checkInvariants(Sglob, S)
+
+                    # test global to mat coordo
+                    Cmat = Materials.Apply_Pmat(Pmat, Cglob, toGlobal=False)
+                    Smat = Materials.Apply_Pmat(Pmat, Sglob, toGlobal=False)
+                    self.__checkInvariants(Cmat, C, True)
+                    self.__checkInvariants(Smat, S, True)
+
+                    # test Ps, Pe
+                    Ps, Pe = Materials.Get_Pmat(ax1, ax2, False)
+                    transp = np.arange(Ps.ndim)
+                    transp[-1], transp[-2] = transp[-2], transp[-1]
+                    # inv(Ps) = Pe'
+                    testPs = np.linalg.norm(np.linalg.inv(Ps) - Pe.transpose(transp))/np.linalg.norm(Pe.transpose(transp))
+                    assert testPs <= 1e-12, "inv(Ps) != Pe'"
+                    # inv(Pe) = Ps'
+                    testPe = np.linalg.norm(np.linalg.inv(Pe) - Ps.transpose(transp))/np.linalg.norm(Ps.transpose(transp))
+                    assert testPe <= 1e-12, "inv(Pe) = Ps'"
+
+
+    def __checkInvariants(self, mat1: np.ndarray, mat2: np.ndarray, checkSame=False):
+        # We check that the tensor invariants do not change!
+        # first we need to reshape Matrix
+
+        shape1, dim1 = mat1.shape, mat1.ndim
+        shape2, dim2 = mat2.shape, mat2.ndim
+        
+        if dim1 > dim2:
+            pass
+            if dim2==3:
+                mat2 = mat2[:,np.newaxis].repeat(shape1[1], 1)
+            elif dim2==4:                
+                mat2 = mat2[np.newaxis,np.newaxis].repeat(shape1[0],0)
+                mat2 = mat2.repeat(shape1[1],1)
+        elif dim2 > dim1:
+            pass
+            if dim1==3:
+                mat1 = mat1[:,np.newaxis].repeat(shape2[1], 1)
+            elif dim1==4:                
+                mat1 = mat1[np.newaxis,np.newaxis].repeat(shape2[0],0)
+                mat1 = mat1.repeat(shape2[1],1)
+        
+        tr1 = np.trace(mat1, axis1=-2, axis2=-1)
+        tr2 = np.trace(mat2, axis1=-2, axis2=-1)
+        trErr = (tr1 - tr2)/tr2
+        test_trace = np.linalg.norm(trErr)
+        assert test_trace <= 1e-12, "The trace is not preserved during the process"            
+        
+        det1 = np.linalg.det(mat1)
+        det2 = np.linalg.det(mat2)
+        detErr = (det1 - det2)/det2
+        test_det = np.linalg.norm(detErr)
+        assert test_det <= 1e-12, "The determinant is not preserved during the process"
+
+        if checkSame:
+            matErr = (mat1 - mat2)
+            # test_mat = np.linalg.norm(matErr)
+            test_mat = np.linalg.norm((mat1 - mat2))/np.linalg.norm(mat2)
+            assert test_mat <= 1e-12, "mat1 != mat2"
     
     def test_split_phaseField(self):
         """Function that allows you to test all energy decomposition models"""
-        
+        print()
         Ne = 50
         nPg = 2
 
@@ -223,13 +333,6 @@ class Test_Materials(unittest.TestCase):
 
         # Creation of any 2 3D spilons
         Epsilon3D_e_pg = np.random.randn(Ne,nPg,6)
-        
-        # Epsilon_e_pg = np.random.rand(1,1,3)
-        # Epsilon_e_pg[0,:] = np.array([1,-1,0])
-        # # Epsilon_e_pg[1,:] = np.array([-100,500,0])
-
-        # Epsilon_e_pg[0,0,:]=0
-        # Epsilon_e_pg = np.zeros((Ne,1,nPg))
                 
         tol = 1e-11
 

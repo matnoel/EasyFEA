@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     L = 120
     nL = 10
-    h = 13
+    h = 20
     b = 13
     e = 2
     E = 210000
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     elemType = ElemType.SEG2
-    beamDim = 3
+    beamDim = 2
 
     point1 = Point()
     point2 = Point(x=L / 2)
@@ -93,6 +93,13 @@ if __name__ == '__main__':
     # Solve the beam problem and get displacement results
     sol = simu.Solve()
     simu.Save_Iter()
+    
+    # eps = simu._Calc_Epsilon_e_pg(sol)
+    # forces = simu.Results_Nodes_Values(mesh, simu._Calc_InternalForces_e_pg(eps).mean(1))
+    # sig = simu._Calc_Sigma_e_pg(eps)
+    
+    # print(forces[mesh.Nodes_Point(point2)])
+    # print(simu.Result('rz')[mesh.Nodes_Point(point2)])
 
     # --------------------------------------------------------------------------------------------
     # Results

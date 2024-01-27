@@ -450,6 +450,8 @@ class GroupElem(ABC):
             nPg = self.Get_gauss(matrixType).nPg
             nPe = self.nPe
             dim = self.dim
+
+            cM = np.sqrt(2)
             
             columnsX = np.arange(0, nPe*dim, dim)
             columnsY = np.arange(1, nPe*dim, dim)
@@ -463,7 +465,7 @@ class GroupElem(ABC):
 
                 B_e_pg[:,:,0,columnsX] = dNdx
                 B_e_pg[:,:,1,columnsY] = dNdy
-                B_e_pg[:,:,2,columnsX] = dNdy; B_e_pg[:,:,2,columnsY] = dNdx
+                B_e_pg[:,:,2,columnsX] = dNdy*cM; B_e_pg[:,:,2,columnsY] = dNdx*cM
             else:
                 B_e_pg = np.zeros((Ne, nPg, 6, nPe*dim))
 
@@ -474,12 +476,9 @@ class GroupElem(ABC):
                 B_e_pg[:,:,0,columnsX] = dNdx
                 B_e_pg[:,:,1,columnsY] = dNdy
                 B_e_pg[:,:,2,columnsZ] = dNdz
-                B_e_pg[:,:,3,columnsY] = dNdz; B_e_pg[:,:,3,columnsZ] = dNdy
-                B_e_pg[:,:,4,columnsX] = dNdz; B_e_pg[:,:,4,columnsZ] = dNdx
-                B_e_pg[:,:,5,columnsX] = dNdy; B_e_pg[:,:,5,columnsY] = dNdx
-
-            import Materials
-            B_e_pg = Materials._Displacement_Model.KelvinMandel_B_e_pg(dim, B_e_pg)
+                B_e_pg[:,:,3,columnsY] = dNdz*cM; B_e_pg[:,:,3,columnsZ] = dNdy*cM
+                B_e_pg[:,:,4,columnsX] = dNdz*cM; B_e_pg[:,:,4,columnsZ] = dNdx*cM
+                B_e_pg[:,:,5,columnsX] = dNdy*cM; B_e_pg[:,:,5,columnsY] = dNdx*cM
 
             self.__dict_B_e_pg[matrixType] = B_e_pg
         

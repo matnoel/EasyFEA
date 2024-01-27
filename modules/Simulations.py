@@ -13,6 +13,7 @@ from scipy import sparse
 
 from Mesh import Mesh, MatrixType, ElemType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
+import Materials
 from Materials import ModelType, IModel, _Displacement_Model, Beam_Structure, PhaseField_Model, Thermal_Model, Reshape_variable
 from TicTac import Tic
 from Interface_Solvers import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
@@ -1955,7 +1956,7 @@ class Simu_Displacement(_Simu):
                 val_zz_e = val_e[:,2]
                 val_yz_e = val_e[:,3]/coef
                 val_xz_e = val_e[:,4]/coef
-                val_xy_e = val_e[:,5]/coef               
+                val_xy_e = val_e[:,5]/coef
 
                 val_vm_e = np.sqrt(((val_xx_e-val_yy_e)**2+(val_yy_e-val_zz_e)**2+(val_zz_e-val_xx_e)**2+6*(val_xy_e**2+val_yz_e**2+val_xz_e**2))/2)
 
@@ -3671,9 +3672,9 @@ class Simu_Beam(_Simu):
 
         # Deformation et contraintes pour chaque element et chaque points de gauss        
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
+        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
-        if result == "Stress":
-            Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
+        if result == "Stress":            
             return np.mean(Sigma_e_pg, axis=1)
 
         if nodeValues:
@@ -3724,7 +3725,7 @@ class Simu_Beam(_Simu):
                 else:
                     return 5
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray):
         """Construct deformations for each element and each Gauss point.\n
         1D -> [Exx]\n
         2D -> [Exx, 2Exy]\n
@@ -3736,20 +3737,22 @@ class Simu_Beam(_Simu):
         dof_n = self.structure.dof_n
         assemblyBeam_e = self.mesh.groupElem.Get_assembly_e(dof_n)
         sol_e = sol[assemblyBeam_e]
-        B_beam_e_pg = self.__Get_B_beam_e_pg(matrixType)
+        B_beam_e_pg = self.__Get_B_beam_e_pg(MatrixType.beam)
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
     
-    def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray) -> np.ndarray:
         """Calculation of internal forces.\n
         1D -> [N]\n
         2D -> [N, Mz]\n
         3D -> [N, Mx, My, Mz]
         """ 
-        # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m       
+        # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
+
+        matrixType = MatrixType.beam
 
         assert Epsilon_e_pg.shape[0] == self.mesh.Ne
         assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matrixType)
@@ -3763,7 +3766,7 @@ class Simu_Beam(_Simu):
 
         return InternalForces_e_pg
 
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray) -> np.ndarray:
         """Calculates stresses from strains.
         1D -> [Sxx]
         2D -> [Sxx, Syy, Sxy]
@@ -3772,14 +3775,14 @@ class Simu_Beam(_Simu):
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
         Ne = self.mesh.Ne
-        nPg = self.mesh.Get_nPg(matrixType)
+        nPg = self.mesh.Get_nPg(MatrixType.beam)
 
         assert Epsilon_e_pg.shape[0] == Ne
         assert Epsilon_e_pg.shape[1] == nPg
 
         dim = self.structure.dim
 
-        InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg, matrixType)
+        InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
 
         tic = Tic()
         
@@ -3826,8 +3829,12 @@ class Simu_Beam(_Simu):
             Sigma_e_pg[:,:,4] = Mx_e_pg/J_e_pg*y_e_pg # Sxz = Tz/S + Mx/Ix*y
             Sigma_e_pg[:,:,5] = -Mx_e_pg/J_e_pg*z_e_pg # Sxy = Ty/S - Mx/Ix*z
 
-        # TODO Make sure that sigma is in the material coordinates
-        print("WARNING: Thoses stress field are defined on global coordinates and not beam coordinates!")
+        xAxis_e, yAxis_e = self.structure.Get_axis_e(self.mesh.groupElem)
+        
+        d = np.max((2,dim))
+        Ps, Pe = Materials.Get_Pmat(xAxis_e[:,:d], yAxis_e[:,:d], False)
+
+        Sigma_e_pg = np.einsum('eij,epj->epi',Ps, Sigma_e_pg, optimize='optimal')
             
         tic.Tac("Matrix", "Sigma_e_pg", False)
 
