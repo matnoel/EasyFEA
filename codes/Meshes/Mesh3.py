@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, GroupElem
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import Point, Line, Circle, PointsList, Domain
 
 if __name__ == '__main__':
@@ -30,9 +30,9 @@ if __name__ == '__main__':
 
         Display.Plot_Mesh(mesh)
 
-    [DoMesh(2, elemType) for elemType in GroupElem.get_Types2D()]
+    [DoMesh(2, elemType) for elemType in ElemType.get_2D()]
 
-    [DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
+    [DoMesh(3, elemType) for elemType in ElemType.get_3D()]
 
     geoms = [contour.Get_Contour()]; geoms.extend(inclusions)
     contour.Plot_Geoms(geoms)

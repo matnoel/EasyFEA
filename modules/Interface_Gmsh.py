@@ -48,11 +48,11 @@ class Interface_Gmsh:
     def __CheckType(self, dim: int, elemType: str):
         """Check that the element type is usable."""
         if dim == 1:
-            assert elemType in GroupElem.get_Types1D(), f"Must be in {GroupElem.get_Types1D()}"
+            assert elemType in ElemType.get_1D(), f"Must be in {ElemType.get_1D()}"
         if dim == 2:
-            assert elemType in GroupElem.get_Types2D(), f"Must be in {GroupElem.get_Types2D()}"
+            assert elemType in ElemType.get_2D(), f"Must be in {ElemType.get_2D()}"
         elif dim == 3:
-            assert elemType in GroupElem.get_Types3D(), f"Must be in {GroupElem.get_Types3D()}"
+            assert elemType in ElemType.get_3D(), f"Must be in {ElemType.get_3D()}"
     
     def _init_gmsh(self, factory: str= 'occ'):
         """Initialize gmsh."""        
@@ -1207,9 +1207,9 @@ class Interface_Gmsh:
             Default value: 0
         """
 
-        if elemType in GroupElem.get_Types1D() or elemType in GroupElem.get_Types2D():
+        if elemType in ElemType.get_1D() or elemType in ElemType.get_2D():
             meshAlgorithm = 6 # 6: Frontal-Delaunay
-        elif elemType in GroupElem.get_Types3D():
+        elif elemType in ElemType.get_3D():
             meshAlgorithm = 1 # 1: Delaunay
         gmsh.option.setNumber("Mesh.Algorithm", meshAlgorithm)
 
@@ -1426,7 +1426,7 @@ class Interface_Gmsh:
             assert np.abs(aireDomain-aire)/aireDomain <= 1e-6, "Incorrect surface"
 
         # For each type of 2D element
-        for t, elemType in enumerate(GroupElem.get_Types2D()):
+        for t, elemType in enumerate(ElemType.get_2D()):
 
             print(elemType)
 
@@ -1474,7 +1474,7 @@ class Interface_Gmsh:
 
         list_mesh3D = []
         # For each type of 3D element
-        for t, elemType in enumerate(GroupElem.get_Types3D()):
+        for t, elemType in enumerate(ElemType.get_3D()):
             
             if useImport3D and elemType in ["TETRA4","TETRA10"]:
                 meshPart = interfaceGmsh.Mesh_Import_part(partPath, 3, meshSize=taille, elemType=elemType)

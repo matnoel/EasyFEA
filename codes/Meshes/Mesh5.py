@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, GroupElem, ElemType
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import Point, Line, Circle, PointsList, Domain, Contour
 import Simulations
 import Materials
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
     cracks = [crack1, crack2, crack3, crack4, crack5]
 
-    meshes2D = [DoMesh(2, elemType, cracks) for elemType in GroupElem.get_Types2D()]
+    meshes2D = [DoMesh(2, elemType, cracks) for elemType in ElemType.get_2D()]
     Display.Plot_Model(meshes2D[0], alpha=0.1, showId=True)
 
     # ----------------------------------------------

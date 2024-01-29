@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, GroupElem, ElemType
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import Point, Line, Circle, PointsList, Domain, Contour
 import Materials
 import Simulations
@@ -29,9 +29,9 @@ if __name__ == '__main__':
 
         Display.Plot_Mesh(mesh)
 
-    [DoMesh(2, elemType) for elemType in GroupElem.get_Types2D()]
+    [DoMesh(2, elemType) for elemType in ElemType.get_2D()]
 
-    [DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
+    [DoMesh(3, elemType) for elemType in ElemType.get_3D()]
 
     geoms = [contour, circle, refine1, refine2, refine3]
     contour.Plot_Geoms(geoms)

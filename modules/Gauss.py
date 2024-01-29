@@ -235,7 +235,7 @@ class Gauss:
 
         from GroupElem import GroupElem, ElemType, MatrixType
 
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         # TODO faire une fonction pour calculer directement lordre ?
 

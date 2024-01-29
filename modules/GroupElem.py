@@ -3,12 +3,11 @@
 from abc import ABC, abstractmethod, abstractproperty
 from enum import Enum
 from scipy.optimize import least_squares
+import numpy as np
+import scipy.sparse as sparse
 
 from Geom import *
 from Gauss import Gauss
-
-import numpy as np
-import scipy.sparse as sparse
 
 class ElemType(str, Enum):
     """Implemented element types"""
@@ -36,39 +35,37 @@ class ElemType(str, Enum):
     # PYRA13 = "PYRA13"
     # PYRA14 = "PYRA14"
 
+    def __str__(self) -> str:
+        return self.name
+    
+    @staticmethod
+    def get_1D() -> list[str]:
+        """1D element types"""        
+        liste1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4]
+        return liste1D
+    
+    @staticmethod
+    def get_2D() -> list[str]:
+        """2D element types"""
+        liste2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8]
+        return liste2D
+    
+    @staticmethod
+    def get_3D() -> list[str]:
+        """3D element types"""
+        liste3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.HEXA20, ElemType.PRISM6, ElemType.PRISM15]
+        return liste3D
+
 class MatrixType(str, Enum):
     rigi = "rigi"
     mass = "mass"
     beam = "beam"
 
+    @staticmethod
+    def get_types() -> list[str]:
+        return [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
+
 class GroupElem(ABC):
-
-    ################################################ STATIC ##################################################
-
-    @staticmethod
-    def get_MatrixType() -> list[MatrixType]:
-        """available matrix type"""
-        liste = list(MatrixType)
-        return liste
-
-    @staticmethod
-    def get_Types1D() -> list[ElemType]:
-        """1D element type"""        
-        liste1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4]
-        return liste1D
-
-    @staticmethod
-    def get_Types2D() -> list[ElemType]:
-        """2D element type"""        
-        liste2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8]
-        # TODO there are still errors on TRI15, certainly integration points
-        return liste2D
-    
-    @staticmethod
-    def get_Types3D() -> list[ElemType]:
-        """3D element type"""
-        liste3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.HEXA20, ElemType.PRISM6, ElemType.PRISM15]
-        return liste3D
 
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
         """Building an element group
@@ -145,7 +142,7 @@ class GroupElem(ABC):
     @property
     def inDim(self) -> int:
         """Dimension in which the elements are located"""
-        if self.elemType in GroupElem.get_Types3D():
+        if self.elemType in ElemType.get_3D():
             return 3
         else:
             x,y,z = np.abs(self.coordo.T)
@@ -338,7 +335,7 @@ class GroupElem(ABC):
         Ni,y ... Nn,y]\n
         (e, pg, dim, nPe)\n
         """
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_dN_e_pg.keys():
 
@@ -358,7 +355,7 @@ class GroupElem(ABC):
         Ni,yy ... Nn,yy]\n
         (e, pg, dim, nPe)\n
         """
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_ddN_e_pg.keys():
 
@@ -379,7 +376,7 @@ class GroupElem(ABC):
         """
         if self.dim != 1: return
 
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_dNv_e_pg.keys():
 
@@ -408,7 +405,7 @@ class GroupElem(ABC):
         """
         if self.dim != 1: return
         
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_ddNv_e_pg.keys():
 
@@ -440,7 +437,7 @@ class GroupElem(ABC):
         N1,y N1,x N2,y N2,x N3,y N3,x]\n
         (e, pg, (3 or 6), nPe*dim)        
         """
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_B_e_pg.keys():
 
@@ -491,7 +488,7 @@ class GroupElem(ABC):
         Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'.
         """
 
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_leftDispPart.keys():
             
@@ -512,7 +509,7 @@ class GroupElem(ABC):
         Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
         """
 
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_phaseField_ReactionPart_e_pg.keys():
 
@@ -533,7 +530,7 @@ class GroupElem(ABC):
         Returns -> jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg
         """
 
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_DiffusePart_e_pg.keys():
 
@@ -556,7 +553,7 @@ class GroupElem(ABC):
         Returns -> jacobian_e_pg, weight_pg, N_pg'
         """
 
-        assert matrixType in GroupElem.get_MatrixType()
+        assert matrixType in MatrixType.get_types()
 
         if matrixType not in self.__dict_SourcePart_e_pg.keys():
 

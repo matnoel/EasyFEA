@@ -1,6 +1,6 @@
 
 import Display
-from Interface_Gmsh import Interface_Gmsh, GroupElem
+from Interface_Gmsh import Interface_Gmsh, ElemType
 from Geom import Point, PointsList, Circle, Line
 import numpy as np
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, layers, elemType)
         Display.Plot_Mesh(mesh)
 
-    [DoMesh(3, elemType) for elemType in GroupElem.get_Types3D()]
+    [DoMesh(3, elemType) for elemType in ElemType.get_3D()]
 
     geoms = [contour.Get_Contour()]
     geoms.extend([circle1, circle2, circle3])

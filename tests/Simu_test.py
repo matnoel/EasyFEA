@@ -3,7 +3,7 @@ import Materials
 from Geom import Domain, Circle, Point, Line
 import numpy as np
 import Display as Display
-from Interface_Gmsh import Interface_Gmsh, Mesh, GroupElem
+from Interface_Gmsh import Interface_Gmsh, Mesh, ElemType
 import Simulations
 from TicTac import Tic
 import matplotlib.pyplot as plt
@@ -202,8 +202,8 @@ class Test_Simu(unittest.TestCase):
         doMesh2D = lambda elemType: Interface_Gmsh().Mesh_2D(domain, inclusions, elemType)
         doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], [3], elemType)
 
-        listMesh = [doMesh2D(elemType) for elemType in GroupElem.get_Types2D()]
-        [listMesh.append(doMesh3D(elemType)) for elemType in GroupElem.get_Types3D()]
+        listMesh = [doMesh2D(elemType) for elemType in ElemType.get_2D()]
+        [listMesh.append(doMesh3D(elemType)) for elemType in ElemType.get_3D()]
 
         # For each mesh
         for mesh in listMesh:
@@ -243,8 +243,8 @@ class Test_Simu(unittest.TestCase):
         doMesh2D = lambda elemType: Interface_Gmsh().Mesh_2D(domain, inclusions, elemType)
         doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], [3], elemType)
 
-        listMesh = [doMesh2D(elemType) for elemType in GroupElem.get_Types2D()]
-        [listMesh.append(doMesh3D(elemType)) for elemType in GroupElem.get_Types3D()]
+        listMesh = [doMesh2D(elemType) for elemType in ElemType.get_2D()]
+        [listMesh.append(doMesh3D(elemType)) for elemType in ElemType.get_3D()]
 
         self.thermalSimulation = []
 

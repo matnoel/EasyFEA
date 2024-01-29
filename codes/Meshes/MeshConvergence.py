@@ -14,14 +14,17 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Configuration
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     dim = 2 # Define the dimension of the problem (2D or 3D)
+
+    isOrganised = True
 
     # List of mesh sizes (number of elements) to investigate convergence
     if dim == 2:
-        listNbElement = np.arange(1, 12, 1)
+        listNbElement = np.arange(1, 16, 1)
+        # listNbElement = np.arange(1, 30, 1)
     else:
         listNbElement = np.arange(1, 8, 2)
 
@@ -53,14 +56,17 @@ if __name__ == '__main__':
     listWdef_e_nb = []   # List to store deformation energies for each element type and mesh size
     listDofs_e_nb = []    # List to store degrees of freedom for each element type and mesh size
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Simulation
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Timer
 
 
     # Loop over each element type for both 2D and 3D simulations
-    elemTypes = GroupElem.get_Types2D() if dim == 2 else GroupElem.get_Types3D()
+    elemTypes = ElemType.get_2D() if dim == 2 else ElemType.get_3D()
+
+    # elemTypes = [elem.name for elem in elemTypes.copy()]
+
     interfaceGmsh = Interface_Gmsh()
 
     for e, elemType in enumerate(elemTypes):
@@ -77,16 +83,11 @@ if __name__ == '__main__':
 
             # Generate the mesh using Gmsh
             if dim == 2:
-                mesh = interfaceGmsh.Mesh_2D(domain, [], elemType, isOrganised=True)
-            else:
-                mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], layers=[4], isOrganised=True)        
-
-            # Calculate the volume of the mesh for verification
-            if mesh.dim == 3:
-                volume = mesh.volume
-            else:
+                mesh = interfaceGmsh.Mesh_2D(domain, [], elemType, isOrganised=isOrganised)
                 volume = mesh.area * material.thickness
-
+            else:
+                mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], layers=[4], isOrganised=isOrganised)        
+                volume = mesh.volume
             # Ensure that the volume matches the expected value (L * h * b)
             assert np.abs(volume - (L * h * b)) / volume <= 1e-10
 
@@ -96,17 +97,13 @@ if __name__ == '__main__':
 
             # Create or update the simulation object with the current mesh        
             if e == 0 and nbElem == listNbElement[0]:
-                simu = Simulations.Simu_Displacement(mesh, material, verbosity=False, useNumba=False)
+                simu = Simulations.Simu_Displacement(mesh, material, useIterativeSolvers=False)
             else:
                 simu.Bc_Init()
                 simu.mesh = mesh
 
             # Set displacement boundary conditions
-            if dim == 2:
-                simu.add_dirichlet(nodes_x0, [0, 0], ["x", "y"])
-            else:
-                simu.add_dirichlet(nodes_x0, [0, 0, 0], ["x", "y", "z"])
-
+            simu.add_dirichlet(nodes_x0, [0]*dim, simu.Get_directions())
             # Set surface load on the right boundary (y-direction)
             simu.add_surfLoad(nodes_xL, [-P / h / b], ["y"])
 
@@ -135,12 +132,12 @@ if __name__ == '__main__':
         listWdef_e_nb.append(listWdef_nb)
         listDofs_e_nb.append(listDofs_nb)
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # PostProcessing
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Display the convergence of deformation energy
     fig_Wdef, ax_Wdef = plt.subplots()
-    fig_Error, ax_Times_Error = plt.subplots()
+    fig_Error, ax_Error = plt.subplots()
     fig_Times, ax_Times = plt.subplots()
 
     WdefRefArray = np.ones_like(listDofs_e_nb[0]) * WdefRef
@@ -155,30 +152,38 @@ if __name__ == '__main__':
         # Error in deformation energy
         Wdef = np.array(listWdef_e_nb[e])
         erreur = (WdefRef - Wdef) / WdefRef * 100
-        ax_Times_Error.loglog(listDofs_e_nb[e], erreur)
+        ax_Error.loglog(listDofs_e_nb[e], erreur)
 
         # Computation time
         ax_Times.loglog(listDofs_e_nb[e], listTimes_e_nb[e])
+        # ax_Times.plot(listDofs_e_nb[e], listTimes_e_nb[e])
+        # ax_Times.set_xscale('log')
 
     # Deformation energy
     ax_Wdef.grid()
     ax_Wdef.set_xlim([-10, 8000])
-    ax_Wdef.set_xlabel('Degrees of Freedom (DDL)')
+    ax_Wdef.set_xlabel('Degrees of Freedom (DOF)')
     ax_Wdef.set_ylabel('Deformation Energy (Wdef) [mJ]')
     ax_Wdef.legend(elemTypes)
     ax_Wdef.fill_between(listDofs_nb, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
+    plt.figure(ax_Wdef.figure)
+    Display.Save_fig(folder, 'Energy')
 
     # Error in deformation energy
-    ax_Times_Error.grid()
-    ax_Times_Error.set_xlabel('Degrees of Freedom (DDL)')
-    ax_Times_Error.set_ylabel('Error in Deformation Energy [%]')
-    ax_Times_Error.legend(elemTypes)
+    ax_Error.grid()
+    ax_Error.set_xlabel('Degrees of Freedom (DOF)')
+    ax_Error.set_ylabel('Error in Deformation Energy [%]')
+    ax_Error.legend(elemTypes)
+    plt.figure(ax_Error.figure)
+    Display.Save_fig(folder, 'Error')
 
     # Computation time
     ax_Times.grid()
-    ax_Times.set_xlabel('Degrees of Freedom (DDL)')
+    ax_Times.set_xlabel('Degrees of Freedom (DOF)')
     ax_Times.set_ylabel('Computation Time [s]')
     ax_Times.legend(elemTypes)
+    plt.figure(ax_Times.figure)
+    Display.Save_fig(folder, 'Time')
 
     # Plot the von Mises stress result using 20 color levels
     Display.Plot_Result(simu, "Svm", nColors=20)
