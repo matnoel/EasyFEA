@@ -448,7 +448,7 @@ class GroupElem(ABC):
             nPe = self.nPe
             dim = self.dim
 
-            cM = np.sqrt(2)
+            cM = 1/np.sqrt(2)
             
             columnsX = np.arange(0, nPe*dim, dim)
             columnsY = np.arange(1, nPe*dim, dim)
