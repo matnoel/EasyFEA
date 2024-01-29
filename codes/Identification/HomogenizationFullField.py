@@ -256,7 +256,7 @@ if __name__ == '__main__':
 
     testSym = np.linalg.norm(C_hom.T - C_hom)/np.linalg.norm(C_hom)
 
-    if testSym >= 1e-12 and testSym <= 1e-7:
+    if testSym >= 1e-12 and testSym <= 1e-3:
         C_hom = 1/2 * (C_hom.T + C_hom)
 
     material.Set_C(C_hom, False)

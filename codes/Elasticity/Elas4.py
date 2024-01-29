@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     L = 500 # mm
     hx = 13
-    hy = 13
+    hy = 20
     e = 2
     load = 800 # N
 

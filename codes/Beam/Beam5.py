@@ -94,8 +94,14 @@ if __name__ == '__main__':
     Display.Plot_Result(simu, Sigma_e[:,0], title='Sxx')
     Display.Plot_Result(simu, Internal_e[:,0], title='N')
 
-    Display.Plot_Mesh(simu, deformFactor=5/depMax)
+    Display.Plot_Mesh(simu, deformFactor=5/depMax)    
 
-    print(simu)
+    ux, uy, rz = simu.Result('ux'), simu.Result('uy'), simu.Result('rz')
+    fx, fy, cz = simu.Result('fx'), simu.Result('fy'), simu.Result('cz')
+    
+    for i in range(5):
+        print(f"\nNode {i} at {simu.mesh.coordo[i]}")
+        print(f"  ux={ux[i]:.2e} mm, uy={uy[i]:.2e} mm, rz={rz[i]:.2e} rad")
+        print(f"  fx={fx[i]:.2e} N, fy={fy[i]:.2e} N, cz={cz[i]:.2e} N.mm")
 
     Display.plt.show()

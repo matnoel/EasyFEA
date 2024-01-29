@@ -570,7 +570,7 @@ def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarr
     meshSize_e = (coef - 1) / error_e.max() * error_e + 1
 
     import Simulations
-    meshSize_n = Simulations._Simu.Results_Nodes_Values(mesh, meshSize_e * h_e)
+    meshSize_n = Simulations._Simu.Results_Exract_Node_Values(mesh, meshSize_e * h_e)
 
     return meshSize_n
 

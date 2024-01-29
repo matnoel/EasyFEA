@@ -105,7 +105,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # PostProcessing
     # --------------------------------------------------------------------------------------------
-    factorDef = r/5 / simu.Result('amplitude').max()
+    factorDef = r/5 / simu.Result('displacement_norm').max()
     # factorDef = 1
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, deformFactor=factorDef)

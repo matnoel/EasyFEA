@@ -245,7 +245,7 @@ if __name__ == '__main__':
     Display.Plot_Iter_Summary(simu, folderSimu)
 
     if makeMovie:
-        depMax = simu.Result("amplitude").max()
+        depMax = simu.Result("displacement_norm").max()
         facteur = 10*depMax
         PostProcessing.Make_Movie(folderSimu, 'damage', simu, deformation=False, factorDef=facteur, plotMesh=False)
 

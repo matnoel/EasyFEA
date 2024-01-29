@@ -54,17 +54,11 @@ if __name__ == '__main__':
     simu = Simulations.Simu_Displacement(mesh, material)
 
     simu.add_dirichlet(nodesX0, [0]*dim, simu.Get_directions())
-    # # is the same as
-    # if dim == 2:
-    #     simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])    
-    # else:
-    #     simu.add_dirichlet(nodesX0, [0, 0, 0], ["x", "y", "z"]) 
-
     simu.add_surfLoad(nodesXL, [-load/h**2], ["y"])
 
     sol = simu.Solve()
     simu.Save_Iter()
-
+    
     uy_num = - simu.Result('uy').min()
     W_num = simu._Calc_Psi_Elas()
 
@@ -78,6 +72,7 @@ if __name__ == '__main__':
     print(f"err W : {np.abs(W_an-W_num)/W_an*100:.2f} %")
 
     print(f"err uy : {np.abs(uy_an-uy_num)/uy_an*100:.2f} %")
+
 
     Display.Plot_Model(mesh)
     Display.Plot_BoundaryConditions(simu)

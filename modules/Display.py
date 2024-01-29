@@ -94,12 +94,12 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     
     elif isinstance(result, np.ndarray):
         values = result.copy()
-        size = values.size        
+        size = values.size
         if size not in [mesh.Ne, mesh.Nn]:
             raise Exception("Must be an array of dimension Nn or Ne")
         if size == mesh.Ne and nodeValues:
             # calculate nodal values for element values
-            values = simu.Results_Nodes_Values(mesh, values)
+            values = simu.Results_Exract_Node_Values(mesh, values)
         elif size == mesh.Nn and not nodeValues:
             values_e = mesh.Locates_sol_e(values)
             values = np.mean(values_e, 1)        
@@ -259,7 +259,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
                 optionTex = "\phi"
             elif result == "thermal":
                 optionTex = "T"
-            elif "S" in result and not result in ["amplitudeSpeed"]:
+            elif "S" in result and (not "_norm" in result):
                 optionFin = result.split('S')[-1]
                 optionTex = f"\sigma_{'{'+optionFin+'}'}"
             elif "E" in result:

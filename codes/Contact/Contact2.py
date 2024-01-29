@@ -152,14 +152,6 @@ if __name__ == '__main__':
 
     Simulations.Tic.Plot_History(details=True)
 
-    # import Folder
-    # import PostProcessing
-    # folder = Folder.New_File('Contact', results=True)
-    # PostProcessing.Make_Paraview(folder, simu)
-    # # TODO how to plot the two meshes ?
-    # TODO bending 3 pts
-    # TODO create a contact folder
-
     print(simu)
 
     plt.show()

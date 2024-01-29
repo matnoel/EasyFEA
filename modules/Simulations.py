@@ -143,7 +143,7 @@ class _Simu(ABC):
         return iter
 
     @abstractmethod
-    def Set_Iter(self, iter=-1) -> list[dict]:
+    def Set_Iter(self, iter: int=-1) -> list[dict]:
         """Sets the simulation to the specified iteration (usually the last one) and returns the dictionary list."""
         iter = int(iter)
         assert isinstance(iter, int), "Must provide an integer."
@@ -161,13 +161,13 @@ class _Simu(ABC):
     # Results
 
     @abstractmethod
-    def Result(self, option: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
-        """Returns the result."""
+    def Results_Available(self) -> list[str]:
+        """Returns a list of available results in the simulation."""
         pass
 
     @abstractmethod
-    def Results_Available(self) -> list[str]:
-        """Returns a list of available results in the simulation."""
+    def Result(self, option: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+        """Returns the result. Use Results_Available() to know the available results."""
         pass
 
     @abstractmethod
@@ -1572,7 +1572,7 @@ class _Simu(ABC):
         return "Unknown load"
         
     @staticmethod
-    def Results_Nodes_Values(mesh: Mesh, result_e: np.ndarray) -> np.ndarray:
+    def Results_Exract_Node_Values(mesh: Mesh, result_e: np.ndarray) -> np.ndarray:
         """Get node values from element values.\n
         The value of a node is calculated by averaging the values of the surrounding elements.
 
@@ -1597,32 +1597,90 @@ class _Simu(ABC):
         Nn = mesh.Nn
 
         if len(result_e.shape) == 1:
+            # In this case it is a 1d vector
+            # we need to reshape as
             result_e = result_e.reshape(Ne,1)
             isDim1 = True
         else:
             isDim1 = False
         
-        Ncolonnes = result_e.shape[1]
+        nCols = result_e.shape[1]
 
-        resultat_n = np.zeros((Nn, Ncolonnes))
+        result_n = np.zeros((Nn, nCols), dtype=float)
 
+        # connectivity of the nodes
         connect_n_e = mesh.Get_connect_n_e()
-        nombreApparition = np.array(np.sum(connect_n_e, axis=1)).reshape(mesh.Nn,1)
+        # get elements per ndoes
+        elements_n = np.reshape(np.sum(connect_n_e, axis=1), (mesh.Nn, 1))
 
-        for c in range(Ncolonnes):
-
-            valeurs_e = result_e[:, c].reshape(mesh.Ne,1)
-
-            valeurs_n = (connect_n_e @ valeurs_e) * 1/nombreApparition            
-
-            resultat_n[:,c] = valeurs_n.reshape(-1)
+        for c in range(nCols):
+            values_e = result_e[:, c].reshape(mesh.Ne,1)
+            values_n = (connect_n_e @ values_e) * 1/elements_n
+            result_n[:,c] = values_n.reshape(-1)
 
         tic.Tac("PostProcessing","Element to nodes values", False)
 
         if isDim1:
-            return resultat_n.reshape(-1)
+            return result_n.reshape(-1)
         else:
-            return resultat_n
+            return result_n
+        
+    def Results_Reshape_values(self, values: np.ndarray, nodeValues: bool) -> np.ndarray:
+        """
+        Reshapes input values based on whether they are stored at nodes or elements.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            Input values to reshape.
+        nodeValues : bool
+            If True, the output will represent values at nodes; if False, values on elements will be derived.
+
+        Returns
+        -------
+        np.ndarray
+            Reshaped values on nodes or elements.
+
+        Raises
+        ------
+        Exception
+            Raised if unexpected conditions occur during the calculation.
+        """
+        mesh = self.mesh
+        Nn = mesh.Nn
+        Ne = mesh.Ne
+
+        is1d = values.ndim == 1
+        
+        if nodeValues:
+            shape = -1 if is1d else (Nn, -1)
+            if values.size % Nn == 0:
+                # values stored at nodes
+                if is1d:
+                    return values.reshape(-1)
+                else:
+                    return values.reshape(Nn,-1)
+            elif values.size % Ne == 0:
+                # values stored at elements
+                values_e = values.reshape(Ne, -1)
+                # get node values from element values
+                values_n = self.Results_Exract_Node_Values(mesh, values_e)
+                return values_n.reshape(shape)
+        else:
+            shape = -1 if is1d else (Ne, -1)
+            if values.size % Ne == 0:
+                return values.reshape(shape)
+            elif values.size % Nn == 0:
+                # get values stored at nodes (Nn, i)
+                values_n = values.reshape(Nn, -1)
+                # get values on every elements and nPe (Ne, nPe, i)
+                values_e_nPe = values_n[mesh.connect]
+                # get values on elements by averaging over the nodes per elements (nPe)
+                values_e: np.ndarray = np.mean(values_e_nPe, 1)
+                return values_e.reshape(shape)
+
+        # We should never reach this line of code if no unexpected conditions occurs
+        raise Exception("Unexpected conditions occurred during the calculation.")
 
 ###################################################################################################
 
@@ -1650,33 +1708,10 @@ class Simu_Displacement(_Simu):
 
         # init
         self.Set_Rayleigh_Damping_Coefs()
-        self.Solver_Set_Elliptic_Algorithm()
-
-    def Results_Available(self) -> list[str]:
-
-        results = []
-        dim = self.dim
-        
-        if dim == 2:
-            results.extend(["ux", "uy", "amplitude", "displacement", "matrix_displacement"])
-            results.extend(["vx", "vy", "speed", "amplitudeSpeed"])
-            results.extend(["ax", "ay", "accel", "amplitudeAccel"])
-            results.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
-            results.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
-
-        elif dim == 3:
-            results.extend(["ux", "uy", "uz","amplitude","displacement", "matrix_displacement"])
-            results.extend(["vx", "vy", "vz", "speed", "amplitudeSpeed"])
-            results.extend(["ax", "ay", "az", "accel", "amplitudeAccel"])
-            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm", "Stress"])
-            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm", "Strain"])
-        
-        results.extend(["Wdef","Psi_Elas","energy","energy_smoothed","ZZ1"])
-
-        return results
+        self.Solver_Set_Elliptic_Algorithm()    
 
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
-        nodesField = ["matrix_displacement"]
+        nodesField = ["displacement_matrix"]
         if details:            
             elementsField = ["Stress", "Strain"]
         else:            
@@ -1704,17 +1739,23 @@ class Simu_Displacement(_Simu):
 
     @property
     def displacement(self) -> np.ndarray:
-        """Copy the displacement vector field."""
+        """Displacement vector field.\n
+        2D [uxi, uyi, ...]\n
+        3D [uxi, uyi, uzi, ...]"""
         return self.get_u_n(self.problemType)
 
     @property
     def speed(self) -> np.ndarray:
-        """Copy of the velocity vector field."""
+        """Velocity vector field.\n
+        2D [vxi, vyi, ...]\n
+        3D [vxi, vyi, vzi, ...]"""
         return self.get_v_n(self.problemType)
 
     @property
     def accel(self) -> np.ndarray:
-        """Copy of the Acceleration vector field."""
+        """Acceleration vector field.\n
+        2D [axi, ayi, ...]\n
+        3D [axi, ayi, azi, ...]"""
         return self.get_a_n(self.problemType)
 
     def __Construct_Local_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
@@ -1857,173 +1898,122 @@ class Simu_Displacement(_Simu):
 
         return results
 
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
-        
+    def Results_Available(self) -> list[str]:
+
+        results = []
         dim = self.dim
-        Ne = self.mesh.Ne
-        Nn = self.mesh.Nn
         
-        if not self._Results_Check_Available(result): return None
+        if dim == 2:
+            results.extend(["ux", "uy", "displacement", "displacement_norm", "displacement_matrix"])
+            results.extend(["vx", "vy", "speed", "speed_norm"])
+            results.extend(["ax", "ay", "accel", "accel_norm"])
+            results.extend(["Sxx", "Syy", "Sxy", "Svm", "Stress"])
+            results.extend(["Exx", "Eyy", "Exy", "Evm", "Strain"])
+
+        elif dim == 3:
+            results.extend(["ux", "uy", "uz", "displacement", "displacement_norm", "displacement_matrix"])
+            results.extend(["vx", "vy", "vz", "speed", "speed_norm"])
+            results.extend(["ax", "ay", "az", "accel", "accel_norm"])
+            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm", "Stress"])
+            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm", "Strain"])
+        
+        results.extend(["Wdef","Wdef_e","ZZ1","ZZ1_e"])
+
+        return results
+
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
 
         if iter != None:
             self.Set_Iter(iter)
+        
+        if not self._Results_Check_Available(result): return None
 
-        if result in ["Wdef","Psi_Elas"]:
+        # begin cases ----------------------------------------------------
+
+        Nn = self.mesh.Nn
+
+        values = None
+
+        if result in ["Wdef"]:
             return self._Calc_Psi_Elas()
 
-        if result == "energy":
-            psi_e = self._Calc_Psi_Elas(returnScalar=False)
-
-            if nodeValues:
-                return self.Results_Nodes_Values(self.mesh, psi_e)
-            else:
-                return psi_e
+        elif result == "Wdef_e":
+            values = self._Calc_Psi_Elas(returnScalar=False)
             
-        if result == "energy_smoothed":
-            psi_e = self._Calc_Psi_Elas(returnScalar=False, smoothedStress=True)
+        elif result == "ZZ1":
+            return self._Calc_ZZ1()[0]
 
-            if nodeValues:
-                return self.Results_Nodes_Values(self.mesh, psi_e)
-            else:
-                return psi_e
-            
-        if result == "ZZ1":
-            erreur_e = self._Calc_ZZ1()[1]
+        elif result == "ZZ1_e":
+            error, values = self._Calc_ZZ1()
 
-            if nodeValues:
-                return self.Results_Nodes_Values(self.mesh, erreur_e)
-            else:
-                return erreur_e
+        elif result in ["ux", "uy", "uz"]:
+            values_n = self.displacement.reshape(Nn, -1)
+            values = values_n[:,self.__indexResult(result)]
 
-        if result == "displacement":
-            return self.displacement
-
-        if result == "speed":
-            return self.speed
+        elif result == "displacement":
+            values = self.displacement
         
-        if result == "accel":
-            return self.accel
+        elif result == "displacement_norm":
+            val_n = self.displacement.reshape(Nn, -1)
+            values = np.linalg.norm(val_n, axis=1)
+            pass
 
-        if result == "matrix_displacement":
-            return self.Results_displacement_matrix()
+        elif result == "displacement_matrix":
+            values = self.Results_displacement_matrix()
 
-        displacement = self.displacement
+        elif result in ["vx", "vy", "vz"]:
+            values_n = self.speed.reshape(Nn, -1)
+            values = values_n[:,self.__indexResult(result)]
 
-        coef = self.material.coef
-
-        # Strain and stress for each element and gauss point
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
-        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
-
-        # Element average
-        Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
-        Sigma_e = np.mean(Sigma_e_pg, axis=1)
+        elif result == "speed":
+            values = self.speed
         
-        if ("S" in result or "E" in result) and result != "amplitudeSpeed":
+        elif result == "speed_norm":
+            val_n = self.speed.reshape(Nn, -1)
+            values = np.linalg.norm(val_n, axis=1)
 
+        elif result in ["ax", "ay", "az"]:
+            values_n = self.accel.reshape(Nn, -1)
+            values = values_n[:,self.__indexResult(result)]
+        
+        elif result == "accel":
+            values = self.accel
+        
+        elif result == "accel_norm":
+            val_n = self.accel.reshape(Nn, -1)
+            values = np.linalg.norm(val_n, axis=1)
+        
+        elif ("S" in result or "E" in result) and (not "_norm" in result):
+            # Strain and Stress calculation part
+
+            coef = self.material.coef
+
+            displacement = self.displacement
+            # Strain and stress for each element and gauss point
+            Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
+            Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
+
+            # Element average
             if "S" in result and result != "Strain":
-                val_e = Sigma_e
-            
+                val_e = Sigma_e_pg.mean(1)
             elif "E" in result or result == "Strain":
-                val_e = Epsilon_e
-
+                val_e = Epsilon_e_pg.mean(1)
             else:
                 raise Exception("Wrong option")
-
-            if dim == 2:
-
-                val_xx_e = val_e[:,0]
-                val_yy_e = val_e[:,1]
-                val_xy_e = val_e[:,2]/coef
-                
-                # TODO Here Szz should be calculated if plane deformation
-                
-                val_vm_e = np.sqrt(val_xx_e**2+val_yy_e**2-val_xx_e*val_yy_e+3*val_xy_e**2)
-
-                if "xx" in result:
-                    resultat_e = val_xx_e
-                elif "yy" in result:
-                    resultat_e = val_yy_e
-                elif "xy" in result:
-                    resultat_e = val_xy_e
-                elif "vm" in result:
-                    resultat_e = val_vm_e
-
-            elif dim == 3:
-
-                val_xx_e = val_e[:,0]
-                val_yy_e = val_e[:,1]
-                val_zz_e = val_e[:,2]
-                val_yz_e = val_e[:,3]/coef
-                val_xz_e = val_e[:,4]/coef
-                val_xy_e = val_e[:,5]/coef
-
-                val_vm_e = np.sqrt(((val_xx_e-val_yy_e)**2+(val_yy_e-val_zz_e)**2+(val_zz_e-val_xx_e)**2+6*(val_xy_e**2+val_yz_e**2+val_xz_e**2))/2)
-
-                if "xx" in result:
-                    resultat_e = val_xx_e
-                elif "yy" in result:
-                    resultat_e = val_yy_e
-                elif "zz" in result:
-                    resultat_e = val_zz_e
-                elif "yz" in result:
-                    resultat_e = val_yz_e
-                elif "xz" in result:
-                    resultat_e = val_xz_e
-                elif "xy" in result:
-                    resultat_e = val_xy_e
-                elif "vm" in result:
-                    resultat_e = val_vm_e
-
-            if result in ["Stress","Strain"]:
-                resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
-
-            if nodeValues:
-                resultat_n = self.Results_Nodes_Values(self.mesh, resultat_e)
-                return resultat_n
-            else:
-                return resultat_e
-        
-        else:
-
-            Nn = self.mesh.Nn
-
-            if result in ["ux", "uy", "uz", "amplitude"]:
-                resultat_ddl = self.displacement
-            elif result in ["vx", "vy", "vz", "amplitudeSpeed"]:
-                resultat_ddl = self.speed
-            elif result in ["ax", "ay", "az", "amplitudeAccel"]:
-                resultat_ddl = self.accel
-
-            resultat_ddl = resultat_ddl.reshape(Nn, -1)
-
-            index = self.__indexResult(result)
             
-            if nodeValues:
+            res = result if result in ["Strain", "Stress"] else result[-2:]
+            
+            values = Materials.Result_in_Strain_or_Stress_field(val_e, res, coef)
 
-                if "amplitude" in result:
-                    return np.sqrt(np.sum(resultat_ddl**2,axis=1))
-                else:
-                    if len(resultat_ddl.shape) > 1:
-                        return resultat_ddl[:,index]
-                    else:
-                        return resultat_ddl.reshape(-1)
-                        
-            else:
+        if not isinstance(values, np.ndarray):
+            print("This result option is not implemented yet.")
+            return
 
-                # retrieves node values for each element
-                resultat_e_n = self.mesh.Locates_sol_e(resultat_ddl)
-                resultat_e = resultat_e_n.mean(axis=1)
+        # end cases ----------------------------------------------------
 
-                if "amplitude" in result:
-                    return np.sqrt(np.sum(resultat_e**2, axis=1))
-                elif result in ["speed", "accel"]:
-                    return resultat_e.reshape(-1)
-                else:
-                    if len(resultat_e.shape) > 1:
-                        return resultat_e[:,index]
-                    else:
-                        return resultat_e.reshape(-1)
+        # at this point we already got values
+        
+        return self.Results_Reshape_values(values, nodeValues)
 
     def _Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False, matrixType=MatrixType.rigi) -> float:
         """Calculation of the kinematically admissible deformation energy, damaged or not.
@@ -2046,7 +2036,7 @@ class Simu_Displacement(_Simu):
         Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg, matrixType)
 
         if smoothedStress:
-            Sigma_n = self.Results_Nodes_Values(self.mesh, np.mean(Sigma_e_pg, 1))
+            Sigma_n = self.Results_Exract_Node_Values(self.mesh, np.mean(Sigma_e_pg, 1))
 
             Sigma_n_e = self.mesh.Locates_sol_e(Sigma_n)
             Sigma_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
@@ -2058,8 +2048,7 @@ class Simu_Displacement(_Simu):
 
         else:
 
-            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->e', ep, jacobian_e_pg, weight_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')        
-
+            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->e', ep, jacobian_e_pg, weight_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')
 
         tic.Tac("PostProcessing","Calc Psi Elas",False)
         
@@ -2081,13 +2070,13 @@ class Simu_Displacement(_Simu):
         WdefLisse_e = self._Calc_Psi_Elas(False, True)
         WdefLisse = np.sum(WdefLisse_e)
 
-        error_e = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
+        error_e: np.nd = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
 
-        error = np.abs(Wdef-WdefLisse)/Wdef
+        error: float = np.abs(Wdef-WdefLisse)/Wdef
 
         return error, error_e
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Builds epsilon for each element and each gauss point.\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
@@ -2106,7 +2095,7 @@ class Simu_Displacement(_Simu):
         tic = Tic()        
         u_e = sol[self.mesh.assembly_e]
         B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
-        Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
+        Epsilon_e_pg: np.ndarray = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
@@ -2140,41 +2129,24 @@ class Simu_Displacement(_Simu):
         c_e_p = Reshape_variable(c, Ne, nPg)
 
         Sigma_e_pg = c_e_p @ Epsilon_e_pg[:,:,:,np.newaxis]
-        Sigma_e_pg = Sigma_e_pg.reshape((Ne,nPg,-1))
+        Sigma_e_pg: np.ndarray = Sigma_e_pg.reshape((Ne,nPg,-1))
             
         tic.Tac("Matrix", "Sigma_e_pg", False)
 
         return Sigma_e_pg
 
-    def __indexResult(self, resultat: str) -> int:
+    def __indexResult(self, result: str) -> int:
 
         dim = self.dim
 
-        if len(resultat) <= 2:
-            if "x" in resultat:
+        if len(result) <= 2:
+            "Case were ui, vi or ai"
+            if "x" in result:
                 return 0
-            elif "y" in resultat:
+            elif "y" in result:
                 return 1
-            elif "z" in resultat:
+            elif "z" in result:
                 return 2
-
-        else:
-
-            if "xx" in resultat:
-                return 0
-            elif "yy" in resultat:
-                return 1
-            elif "zz" in resultat:
-                return 2
-            elif "yz" in resultat:
-                return 3
-            elif "xz" in resultat:
-                return 4
-            elif "xy" in resultat:
-                if dim == 2:
-                    return 2
-                elif dim == 3:
-                    return 5
 
     def Results_dict_Energy(self) -> dict[str, float]:
         dict_Energie = {
@@ -2263,32 +2235,12 @@ class Simu_PhaseField(_Simu):
         self.__old_psiP_e_pg = [] # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
         self.Solver_Set_Elliptic_Algorithm()
 
-    def Results_Available(self) -> list[str]:
-
-        options = []
-        dim = self.dim
-        
-        if dim == 2:
-            options.extend(["ux", "uy", "uz", "amplitude", "displacement", "matrix_displacement"])
-            options.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
-            options.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
-
-        elif dim == 3:
-            options.extend(["ux", "uy", "uz","amplitude","displacement", "matrix_displacement"])
-            options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
-            options.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"])
-        
-        options.extend(["damage","psiP","Psi_Crack"])
-        options.extend(["Wdef","Psi_Elas"])
-
-        return options
-
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         if details:
-            nodesField = ["matrix_displacement", "damage"]
+            nodesField = ["displacement_matrix", "damage"]
             elementsField = ["Stress", "Strain", "psiP"]
         else:
-            nodesField = ["matrix_displacement", "damage"]
+            nodesField = ["displacement_matrix", "damage"]
             elementsField = ["Stress"]
         return nodesField, elementsField
 
@@ -2333,12 +2285,15 @@ class Simu_PhaseField(_Simu):
 
     @property
     def displacement(self) -> np.ndarray:
-        """Copy of the displacement vector field."""
+        """Displacement vector field.\n
+        2D [uxi, uyi, ...]\n
+        3D [uxi, uyi, uzi, ...]"""
         return self.get_u_n(ModelType.displacement)
 
     @property
     def damage(self) -> np.ndarray:
-        """Copy of the damage scalar field."""
+        """Damage scalar field.\n
+        [di, ...]"""
         return self.get_u_n(ModelType.damage)
     
     def Bc_dofs_nodes(self, nodes: np.ndarray, directions: list[str], problemType=ModelType.displacement) -> np.ndarray:
@@ -2507,7 +2462,7 @@ class Simu_PhaseField(_Simu):
         else:
             raise Exception("Solveur phase field unknown")
 
-        timeIter = tic.Tac("Resolution phase field", "Resolution Phase Field", False)
+        timeIter = tic.Tac("Resolution phase field", "Phase Field iteration", False)
 
         self.__Niter = Niter
         self.__convIter = convIter
@@ -2686,7 +2641,7 @@ class Simu_PhaseField(_Simu):
         Kd_e = K_r_e + K_K_e
 
         if self.dim == 2:
-            # TODO THICKNESS not used in femobject !
+            # THICKNESS not used in femobject !
             thickness = phaseFieldModel.thickness
             Kd_e *= thickness
             Fd_e *= thickness
@@ -2766,153 +2721,102 @@ class Simu_PhaseField(_Simu):
 
         return results
 
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
-        
+    def Results_Available(self) -> list[str]:
+
+        options = []
         dim = self.dim
-        Ne = self.mesh.Ne
-        Nn = self.mesh.Nn
+        
+        if dim == 2:
+            options.extend(["ux", "uy", "uz", "displacement", "displacement_norm", "displacement_matrix"])
+            options.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
+            options.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
+
+        elif dim == 3:
+            options.extend(["ux", "uy", "uz", "displacement", "displacement_norm", "displacement_matrix"])
+            options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
+            options.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"])
+        
+        options.extend(["damage","psiP","Psi_Crack"])
+        options.extend(["Wdef"])
+
+        return options
+    
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
+        
+        if iter != None:
+            self.Set_Iter(iter)
         
         if not self._Results_Check_Available(result): return None
 
-        if iter != None:
-            self.Set_Iter(iter)
+        # begin cases ----------------------------------------------------
 
-        if result in ["Wdef","Psi_Elas"]:
+        Nn = self.mesh.Nn
+
+        values = None
+
+        if result in ["Wdef"]:
             return self._Calc_Psi_Elas()
 
-        if result == "Psi_Crack":
+        elif result == "Wdef_e":
+            values = self._Calc_Psi_Elas(returnScalar=False)
+
+        elif result == "Psi_Crack":
             return self._Calc_Psi_Crack()
 
-        if result == "damage":
-            return self.damage
-
         if result == "psiP":
-            resultat_e_pg = self.__Calc_psiPlus_e_pg()
-            resultat_e = np.mean(resultat_e_pg, axis=1)
+            values_e_pg = self.__Calc_psiPlus_e_pg()
+            values = np.mean(values_e_pg, axis=1)
 
-            if nodeValues:
-                return self.Results_Nodes_Values(self.mesh, resultat_e)
-            else:
-                return resultat_e
+        if result == "damage":
+            values = self.damage
 
-        if result == "displacement":
-            return self.displacement
+        elif result in ["ux", "uy", "uz"]:
+            values_n = self.displacement.reshape(Nn, -1)
+            values = values_n[:,self.__indexResult(result)]
 
-        if result == "matrix_displacement":
-            return self.Results_displacement_matrix()
-
-        displacement = self.displacement
-
-        coef = self.phaseFieldModel.material.coef
+        elif result == "displacement":
+            values = self.displacement
         
-        if "S" in result or "E" in result and result != "amplitudeSpeed":
+        elif result == "displacement_norm":
+            val_n = self.displacement.reshape(Nn, -1)
+            values = np.linalg.norm(val_n, axis=1)
 
-            # Strain and stress for each element and gauss point        
+        elif result == "displacement_matrix":
+            values = self.Results_displacement_matrix()
+        
+        elif ("S" in result or "E" in result) and (not "_norm" in result):
+            # Strain and Stress calculation part
+
+            coef = self.phaseFieldModel.material.coef
+
+            displacement = self.displacement
+            # Strain and stress for each element and gauss point
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
             Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
             # Element average
-            Epsilon_e = np.mean(Epsilon_e_pg, axis=1)
-            Sigma_e = np.mean(Sigma_e_pg, axis=1)
-
             if "S" in result and result != "Strain":
-                val_e = Sigma_e
-            
+                val_e = Sigma_e_pg.mean(1)
             elif "E" in result or result == "Strain":
-                val_e = Epsilon_e
-
+                val_e = Epsilon_e_pg.mean(1)
             else:
                 raise Exception("Wrong option")
-
-            if dim == 2:
-
-                val_xx_e = val_e[:,0]
-                val_yy_e = val_e[:,1]
-                val_xy_e = val_e[:,2]/coef
-                
-                # TODO Here Szz should be calculated if plane deformation
-                
-                val_vm_e = np.sqrt(val_xx_e**2+val_yy_e**2-val_xx_e*val_yy_e+3*val_xy_e**2)
-
-                if "xx" in result:
-                    resultat_e = val_xx_e
-                elif "yy" in result:
-                    resultat_e = val_yy_e
-                elif "xy" in result:
-                    resultat_e = val_xy_e
-                elif "vm" in result:
-                    resultat_e = val_vm_e
-
-            elif dim == 3:
-
-                val_xx_e = val_e[:,0]
-                val_yy_e = val_e[:,1]
-                val_zz_e = val_e[:,2]
-                val_yz_e = val_e[:,3]/coef
-                val_xz_e = val_e[:,4]/coef
-                val_xy_e = val_e[:,5]/coef               
-
-                val_vm_e = np.sqrt(((val_xx_e-val_yy_e)**2+(val_yy_e-val_zz_e)**2+(val_zz_e-val_xx_e)**2+6*(val_xy_e**2+val_yz_e**2+val_xz_e**2))/2)
-
-                if "xx" in result:
-                    resultat_e = val_xx_e
-                elif "yy" in result:
-                    resultat_e = val_yy_e
-                elif "zz" in result:
-                    resultat_e = val_zz_e
-                elif "yz" in result:
-                    resultat_e = val_yz_e
-                elif "xz" in result:
-                    resultat_e = val_xz_e
-                elif "xy" in result:
-                    resultat_e = val_xy_e
-                elif "vm" in result:
-                    resultat_e = val_vm_e
-
-            if result in ["Stress","Strain"]:
-                resultat_e = np.append(val_e, val_vm_e.reshape((Ne,1)), axis=1)
-
-            if nodeValues:                
-                return self.Results_Nodes_Values(self.mesh, resultat_e)
-            else:
-                return resultat_e
-        
-        else:
-
-            Nn = self.mesh.Nn
-
-            if result in ["ux", "uy", "uz", "amplitude"]:
-                resultat_ddl = self.displacement
-
-            resultat_ddl = resultat_ddl.reshape(Nn, -1)
-
-            index = self.__indexResulat(result)
             
-            if nodeValues:
+            res = result if result in ["Strain", "Stress"] else result[-2:]
+            
+            values = Materials.Result_in_Strain_or_Stress_field(val_e, res, coef)
 
-                if "amplitude" in result:
-                    return np.sqrt(np.sum(resultat_ddl**2,axis=1))
-                else:
-                    if len(resultat_ddl.shape) > 1:
-                        return resultat_ddl[:,index]
-                    else:
-                        return resultat_ddl.reshape(-1)
-                        
-            else:
+        if not isinstance(values, np.ndarray):
+            print("This result option is not implemented yet.")
+            return
 
-                # recupere pour chaque element les valeurs de ses noeuds
-                resultat_e_n = self.mesh.Locates_sol_e(resultat_ddl)
-                resultat_e = resultat_e_n.mean(axis=1)
+        # end cases ----------------------------------------------------
 
-                if "amplitude" in result:
-                    return np.sqrt(np.sum(resultat_e**2, axis=1))                
-                else:
-                    if len(resultat_e.shape) > 1:
-                        return resultat_e[:,index]
-                    else:
-                        return resultat_e.reshape(-1)
+        # at this point we already got values
+        
+        return self.Results_Reshape_values(values, nodeValues)
 
-    def __indexResulat(self, resultat: str) -> int:
+    def __indexResult(self, resultat: str) -> int:
 
         dim = self.dim
 
@@ -2923,24 +2827,6 @@ class Simu_PhaseField(_Simu):
                 return 1
             elif "z" in resultat:
                 return 1
-
-        else:
-
-            if "xx" in resultat:
-                return 0
-            elif "yy" in resultat:
-                return 1
-            elif "zz" in resultat:
-                return 2
-            elif "yz" in resultat:
-                return 3
-            elif "xz" in resultat:
-                return 4
-            elif "xy" in resultat:
-                if dim == 2:
-                    return 2
-                elif dim == 3:
-                    return 5
 
     def _Calc_Psi_Elas(self) -> float:
         """Calculation of the kinematically admissible deformation energy, damaged or not.
@@ -3232,34 +3118,13 @@ class Simu_Beam(_Simu):
 
         # init
         self.Solver_Set_Elliptic_Algorithm()
-    
-    def Results_Available(self) -> list[str]:
-
-        options = []
-        dof_n = self.Get_dof_n(self.problemType)
-        
-        if dof_n == 1:
-            options.extend(["ux", "displacement", "matrix_displacement"])
-            options.extend(["fx"])
-
-        elif dof_n == 3:
-            options.extend(["ux","uy","rz", "amplitude", "displacement", "matrix_displacement"])
-            options.extend(["fx", "fy", "cz", "Exx", "Exy", "Sxx", "Sxy"])            
-
-        elif dof_n == 6:
-            options.extend(["ux", "uy", "uz", "rx", "ry", "rz", "amplitude", "displacement", "matrix_displacement"])
-            options.extend(["fx","fy","fz","cx","cy","cz"])
-        
-        options.extend(["Srain", "Stress"])        
-
-        return options
 
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         if details:
-            nodesField = ["matrix_displacement"]
+            nodesField = ["displacement_matrix"]
             elementsField = ["Stress"]
         else:
-            nodesField = ["matrix_displacement"]
+            nodesField = ["displacement_matrix"]
             elementsField = ["Stress"]
         return nodesField, elementsField
 
@@ -3288,7 +3153,10 @@ class Simu_Beam(_Simu):
 
     @property
     def displacement(self) -> np.ndarray:
-        """Copy the displacement vector field."""
+        """Displacement vector field.\n
+        1D [uxi, ...]\n
+        2D [uxi, uyi, rzi, ...]\n
+        3D [uxi, uyi, uzi, rxi, ryi, rzi, ...]"""
         return self.get_u_n(self.problemType)
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
@@ -3636,71 +3504,91 @@ class Simu_Beam(_Simu):
 
         return results
 
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+    def Results_Available(self) -> list[str]:
+
+        options = []
+        dof_n = self.Get_dof_n(self.problemType)
         
-        if not self._Results_Check_Available(result): return None
+        if dof_n == 1:
+            options.extend(["ux", "displacement", "displacement_matrix"])
+            options.extend(["fx"])
+            options.extend(["Exx"])
+            options.extend(["N"])
+            options.extend(["Sxx"])            
 
-        dof_n = self.structure.dof_n
+        elif dof_n == 3:
+            options.extend(["ux","uy","rz", "displacement", "displacement_norm", "displacement_matrix"])
+            options.extend(["fx", "fy", "cz"])
+            options.extend(["Exx", "Exy"])
+            options.extend(["N", "Mz"])
+            options.extend(["Sxx", "Sxy"])
 
-        # TODO to improve
+        elif dof_n == 6:
+            options.extend(["ux", "uy", "uz", "rx", "ry", "rz", "displacement", "displacement_norm", "displacement_matrix"])
+            options.extend(["fx","fy","fz","cx","cy","cz"])
+            options.extend(["Exx", "Eyz", "Exz", "Exy"])
+            options.extend(["N", "Mx", "My", "Mz"])
+            options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
+        
+        options.extend(["Srain", "Stress"])
+
+        return options
+
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
 
         if iter != None:
             self.Set_Iter(iter)
+        
+        if not self._Results_Check_Available(result): return None
 
-        if result == "displacement":
-            return self.displacement
+        # begin cases ----------------------------------------------------
+
+        dof_n = self.structure.dof_n
+        Nn = self.mesh.Nn
+        dofs = Nn*dof_n
+
+        if result in ["ux","uy","uz","rx","ry","rz"]:            
+            values_n = self.displacement.reshape(Nn, -1)
+            index = self.__indexResult(result)
+            values = values_n[:, index]
+
+        elif result == "displacement":
+            values = self.displacement
     
-        if result == "matrix_displacement":
+        elif result == "displacement_matrix":
             return self.Results_displacement_matrix()
 
-        if result in ["fx","fy","fz","cx","cy","cz"]:
-            
-            dofs = self.mesh.Nn*dof_n
-            Kglob = self.__Kbeam.tocsr()[:dofs].tocsc()[:,:dofs]            
-
+        elif result in ["fx","fy","fz","cx","cy","cz"]:
+        
+            Kbeam = self.Get_K_C_M_F()[0]
+            Kglob = Kbeam.tocsr()[:dofs].tocsc()[:,:dofs]
             force = Kglob @ self.displacement
-            force_redim = force.reshape(self.mesh.Nn, -1)
-            index = self.__indexResulat(result)
-            resultat_ddl = force_redim[:, index]
 
-        else:
+            force_n = force.reshape(self.mesh.Nn, -1)
+            index = self.__indexResult(result)
+            values = force_n[:, index]
 
-            resultat_ddl = self.displacement
-            resultat_ddl = resultat_ddl.reshape((self.mesh.Nn,-1))
+        elif result in ["N","Mx","My","Mz"]:
 
-        index = self.__indexResulat(result)
+            Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
 
-        # Deformation et contraintes pour chaque element et chaque points de gauss        
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
-        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
+            internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
 
-        if result == "Stress":            
-            return np.mean(Sigma_e_pg, axis=1)
+            values_e = internalForces_e_pg.mean(1)
 
-        if nodeValues:
-            if result == "amplitude":
-                return np.sqrt(np.sum(resultat_ddl,axis=1))
-            else:
-                if len(resultat_ddl.shape) > 1:
-                    return resultat_ddl[:,index]
-                else:
-                    return resultat_ddl.reshape(-1)
-        else:
-            # recupere pour chaque element les valeurs de ses noeuds
-            resultat_e_n = self.mesh.Locates_sol_e(resultat_ddl)
-            resultat_e = resultat_e_n.mean(axis=1)
+            index = self.__indexResult(result)
 
-            if result == "amplitude":
-                return np.sqrt(np.sum(resultat_e**2, axis=1))
-            elif result in ["speed", "accel"]:
-                return resultat_e
-            else:
-                if len(resultat_ddl.shape) > 1:
-                    return resultat_e[:,index]
-                else:
-                    return resultat_e.reshape(-1)
+            values = values_e[:, index]
 
-    def __indexResulat(self, resultat: str) -> int:
+        # TODO add Stress and strain cases
+
+        # end cases ----------------------------------------------------
+
+        # at this point we already got values
+        
+        return self.Results_Reshape_values(values, nodeValues)
+
+    def __indexResult(self, result: str) -> int:
 
         # "Beam1D" : ["ux" "fx"]
         # "Beam2D : ["ux","uy","rz""fx", "fy", "cz"]
@@ -3708,22 +3596,32 @@ class Simu_Beam(_Simu):
 
         dim = self.dim
 
-        if len(resultat) <= 2:
-            if "ux" in resultat or "fx" in resultat:
-                return 0
-            elif "uy" in resultat or "fy" in resultat:
-                return 1
-            elif "uz" in resultat or "fz" in resultat:
+        if "ux" in result or "fx" in result:
+            return 0
+        elif ("uy" in result or "fy" in result) and dim >= 2:
+            return 1
+        elif ("uz" in result or "fz" in result) and dim == 3:
+            return 2
+        elif ("rx" in result or "cx" in result) and dim == 3:
+            return 3
+        elif ("ry" in result or "cy" in result) and dim == 3:
+            return 4
+        elif ("rz" in result or "cz" in result) and dim >= 2:
+            if dim == 2:
                 return 2
-            elif "rx" in resultat or "cx" in resultat:
+            elif dim == 3:
+                return 5
+        elif result == "N":
+            return 0
+        elif result == "Mx" and dim == 3:
+            return 1
+        elif result == "My" and dim == 3:
+            return 2
+        elif result == "Mz":
+            if dim == 2:
+                return 1
+            elif dim == 3:
                 return 3
-            elif "ry" in resultat or "cy" in resultat:
-                return 4
-            elif "rz" in resultat or "cz" in resultat:
-                if dim == 2:
-                    return 2
-                else:
-                    return 5
 
     def _Calc_Epsilon_e_pg(self, sol: np.ndarray):
         """Construct deformations for each element and each Gauss point.\n
@@ -3760,11 +3658,11 @@ class Simu_Beam(_Simu):
         tic = Tic()
 
         D_e_pg = self.structure.Calc_D_e_pg(self.mesh.groupElem, matrixType)
-        InternalForces_e_pg = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
+        forces_e_pg: np.ndarray = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
             
         tic.Tac("Matrix", "InternalForces_e_pg", False)
 
-        return InternalForces_e_pg
+        return forces_e_pg
 
     def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray) -> np.ndarray:
         """Calculates stresses from strains.
@@ -3869,15 +3767,6 @@ class Simu_Beam(_Simu):
 
         # TODO to improve
 
-        # if not self._Results_Check_Available("Wdef"):
-            # return
-        
-        # Wdef = self.Get_Result("Wdef")
-        # summary += f"\nW def = {Wdef:.2f}"
-        
-        # Svm = self.Get_Result("Svm", nodeValues=False)
-        # summary += f"\n\nSvm max = {Svm.max():.2f}"
-
         # Affichage des déplacements
         dx = self.Result("ux", nodeValues=True)
         summary += f"\n\nUx max = {dx.max():.2e}"
@@ -3929,11 +3818,6 @@ class Simu_Thermal(_Simu):
     def Get_dof_n(self, problemType=None) -> int:
         return 1
 
-    def Results_Available(self) -> list[str]:
-        options = []
-        options.extend(["thermal", "thermalDot"])
-        return options
-
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         nodesField = ["thermal", "thermalDot"]
         elementsField = []
@@ -3949,12 +3833,14 @@ class Simu_Thermal(_Simu):
 
     @property
     def thermal(self) -> np.ndarray:
-        """Copy of the scalar temperature field."""
+        """Scalar temperature field.\n
+        [ti, ....]"""
         return self.get_u_n(self.problemType)
 
     @property
     def thermalDot(self) -> np.ndarray:
-        """Copy of the time derivative of the scalar temperature field"""
+        """Time derivative of the scalar temperature field.\n
+        [d(ti)/dt, ....]"""
         return self.get_v_n(self.problemType)
 
     def Get_x0(self, problemType=None):
@@ -4063,18 +3949,34 @@ class Simu_Thermal(_Simu):
 
         return results
 
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+    def Results_Available(self) -> list[str]:
+        options = []
+        options.extend(["thermal", "thermalDot", "displacement_matrix"])
+        return options
         
-        if not self._Results_Check_Available(result): return None
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
 
         if iter != None:
             self.Set_Iter(iter)
+        
+        if not self._Results_Check_Available(result): return None
+
+        # begin cases ----------------------------------------------------
 
         if result == "thermal":
-            return self.thermal
+            values = self.thermal
 
-        if result == "thermalDot":
-            return self.thermalDot
+        elif result == "thermalDot":
+            values = self.thermalDot
+
+        elif result == "displacement_matrix":
+            values = self.Results_displacement_matrix()
+
+        # end cases ----------------------------------------------------
+
+        # at this point we already got values
+        
+        return self.Results_Reshape_values(values, nodeValues)
 
     def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
         return super().Results_Iter_Summary()

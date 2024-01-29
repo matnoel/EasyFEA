@@ -38,8 +38,8 @@ if __name__ == '__main__':
     plotModel = False # Define whether to plot the model  
     plotIter = True # Define whether to plot the results at each iteration
 
-    # Specify the result to plot (amplitudeSpeed in this case)
-    resultat = "amplitudeSpeed"
+    # Specify the result to plot (speed_norm in this case)
+    result = "speed_norm"
 
     # Define whether to create a movie
     makeMovie = False
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     # Plot the result at the initial iteration if specified
     if plotIter:
-        fig, ax, cb = Display.Plot_Result(simu, resultat, nodeValues=True)
+        fig, ax, cb = Display.Plot_Result(simu, result, nodeValues=True)
 
     # Create a timer object
     tic = TicTac.Tic()
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         # Update the plot at each iteration if specified
         if plotIter:
             cb.remove()
-            fig, ax, cb = Display.Plot_Result(simu, resultat, nodeValues=True, ax=ax)
+            fig, ax, cb = Display.Plot_Result(simu, result, nodeValues=True, ax=ax)
             plt.pause(1e-12)
 
         t += dt
@@ -125,6 +125,6 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Make a movie if specified
     if makeMovie:
-        PostProcessing.Make_Movie(folder, resultat, simu)
+        PostProcessing.Make_Movie(folder, result, simu)
 
     plt.show()

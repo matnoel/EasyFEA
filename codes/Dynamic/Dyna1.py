@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
         tic = Tic()
         print(simu)
-        # Display.Plot_Result(simu, "amplitude")
+        # Display.Plot_Result(simu, "displacement_norm")
         # Display.Plot_Mesh(simu, deformation=True, folder=folder)
         Display.Plot_Result(simu, "uy", deformFactor=factorDef, nodeValues=False)        
         Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=False)

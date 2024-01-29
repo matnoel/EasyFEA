@@ -787,17 +787,16 @@ class Elas_Anisot(_Displacement_Model):
             Updates the compliance matrix, by default True
         """
 
-        # Construction of the rotation matrix
-        P = Get_Pmat(self.__axis1, self.__axis2)
+        dim = 2 if C.shape[0] == 3 else 3
         
-        C_mandelP = self._Behavior(C, useVoigtNotation, P)
+        C_mandelP = self._Behavior(C, useVoigtNotation)
         self.C = C_mandelP
         
         if update_S:
             S_mandelP = np.linalg.inv(C_mandelP)
             self.S = S_mandelP
     
-    def _Behavior(self, C: np.ndarray, useVoigtNotation: bool, P: np.ndarray=None) -> np.ndarray:
+    def _Behavior(self, C: np.ndarray, useVoigtNotation: bool) -> np.ndarray:
 
         shape = C.shape
         assert (shape[-2], shape[-1]) in [(3,3), (6,6)], 'C must be a (3,3) or (6,6) matrix'        
@@ -831,11 +830,8 @@ class Elas_Anisot(_Displacement_Model):
                         C_mandel_global[:,:,I,J] = C_mandel[:,:,i,j]
         else:
             C_mandel_global = C
-
-        if not isinstance(P, np.ndarray):
-            P = Get_Pmat(self.__axis1, self.__axis2)
-        else:
-            assert P.shape[-2:] == (6,6), 'must be a 6x6 matrix'
+        
+        P = Get_Pmat(self.__axis1, self.__axis2)
 
         C_mandelP_global = Apply_Pmat(P, C_mandel_global)
 
@@ -1133,7 +1129,7 @@ class Beam_Structure(IModel):
 
         dims = [beam.dim for beam in listBeam]        
 
-        assert np.unique(dims, return_counts=True)[1] == len(listBeam), "The structure must use beams of identical dimensions."
+        assert np.unique(dims, return_counts=True)[1] == len(listBeam), "The structure must use identical beams dimensions."
 
         self.__dim: int = dims[0]
 
@@ -2735,7 +2731,90 @@ def Project_Kelvin(A: np.ndarray) -> np.ndarray:
 
     return res
 
-@staticmethod
+def Result_in_Strain_or_Stress_field(field_e: np.ndarray, result:str, coef=np.sqrt(2)) -> np.ndarray:
+    """Extracts a specific result from a 2D or 3D strain or stress field.
+
+    Parameters
+    ----------
+    field_e : np.ndarray
+        Strain or stress field in each element.
+    result : str
+        Desired result/value to extract:\n
+            2D: [xx, yy, xy, vm, Strain, Stress] \n
+            3D: [xx, yy, zz, yz, xz, xy, vm, Strain, Stress] \n
+    coef : float, optional
+        Coefficient used to scale cross components in the field (e.g., xy/coef in dim=2, or yz/coef, xz/coef, xy/coef if dim=3).
+
+    Returns
+    -------
+    np.ndarray
+        The extracted field corresponding to the specified result.
+    """
+
+    field_e = np.asarray(field_e)
+
+    Ne = field_e.shape[0]
+
+    if field_e.shape == (Ne, 3):
+        dim = 2
+    elif field_e.shape == (Ne, 6):
+        dim = 3
+    else:
+        raise Exception("field_e must be of shape (Ne, 3) or (Ne, 6)")    
+    
+    if dim == 2:
+
+        xx_e = field_e[:,0]
+        yy_e = field_e[:,1]
+        xy_e = field_e[:,2]/coef
+        
+        val_vm_e = np.sqrt(xx_e**2+yy_e**2-xx_e*yy_e+3*xy_e**2)
+
+        if "xx" in result:
+            result_e = xx_e
+        elif "yy" in result:
+            result_e = yy_e
+        elif "xy" in result:
+            result_e = xy_e
+        elif "vm" in result:
+            result_e = val_vm_e
+        elif result == "Strain" or result == "Stress":
+            result_e = np.append(result_e, val_vm_e.reshape((Ne,1)), axis=1)
+        else:
+            raise Exception("result must be in [xx, yy, xy, vm, Strain, Stress]")
+
+    elif dim == 3:
+
+        xx_e = field_e[:,0]
+        yy_e = field_e[:,1]
+        zz_e = field_e[:,2]
+        yz_e = field_e[:,3]/coef
+        xz_e = field_e[:,4]/coef
+        xy_e = field_e[:,5]/coef
+
+        val_vm_e = np.sqrt(((xx_e-yy_e)**2+(yy_e-zz_e)**2+(zz_e-xx_e)**2+6*(xy_e**2+yz_e**2+xz_e**2))/2)
+
+        if "xx" in result:
+            result_e = xx_e
+        elif "yy" in result:
+            result_e = yy_e
+        elif "zz" in result:
+            result_e = zz_e
+        elif "yz" in result:
+            result_e = yz_e
+        elif "xz" in result:
+            result_e = xz_e
+        elif "xy" in result:
+            result_e = xy_e
+        elif "vm" in result:
+            result_e = val_vm_e
+        elif result == "Strain" or result == "Stress":
+            result_e = np.append(result_e, val_vm_e.reshape((Ne,1)), axis=1)
+        else:
+            raise Exception("result must be in [xx, yy, zz, yz, xz, xy, vm, Strain, Stress]")
+        
+    return result_e
+
 def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
     """Construct Pmat to pass from the material coordinates (x,y,z) to the global coordinate (X,Y,Z) such that:\n
 

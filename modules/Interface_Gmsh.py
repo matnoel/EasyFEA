@@ -1548,11 +1548,11 @@ class Interface_Gmsh:
             
         def AddView(name: str, values_e: np.ndarray):
 
-            if name == 'matrix_displacement_0':
+            if name == 'displacement_matrix_0':
                 name='ux'
-            elif name == 'matrix_displacement_1':
+            elif name == 'displacement_matrix_1':
                 name='uy'
-            elif name == 'matrix_displacement_2':
+            elif name == 'displacement_matrix_2':
                 name='uz'                
 
             view = gmsh.view.add(name)

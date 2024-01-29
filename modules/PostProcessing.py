@@ -384,7 +384,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
             list_valeurs_n.append(valeurs_n)
 
             nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
-            if resultat_n == "matrix_displacement": resultat_n="displacement"
+            if resultat_n == "displacement_matrix": resultat_n="displacement"
             file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
             offset = CalcOffset(offset, valeurs_n.size)
 

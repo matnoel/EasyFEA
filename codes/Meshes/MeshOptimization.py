@@ -262,7 +262,7 @@ if __name__ == '__main__':
     # folder=""
     if plotResult:
         tic = Tic()    
-        # Display.Plot_Result(simu, "amplitude")
+        # Display.Plot_Result(simu, "displacement_norm")
         # Display.Plot_Mesh(simu, deformation=True, folder=folder)
         Display.Plot_Result(simu, "ux", nodeValues=False)        
         Display.Plot_Result(simu, "Svm", plotMesh=True, nodeValues=False)

@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     # Define dimension and mesh size parameters
     dim = 2
-    N = 20 if dim == 2 else 10
+    N = 50 if dim == 2 else 10
 
     coef = 1e6
     E = 15000*coef  # Pa (Young's modulus)
