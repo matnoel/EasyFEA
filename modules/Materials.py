@@ -1155,12 +1155,14 @@ class Beam_Structure(IModel):
         """
         return self.__dof_n        
 
-    def Calc_D_e_pg(self, groupElem: GroupElem, matrixType: str) -> np.ndarray:
+    def Calc_D_e_pg(self, groupElem: GroupElem) -> np.ndarray:
 
         if groupElem.dim != 1: return
 
         listBeam = self.__listBeam
         list_D = [beam.Get_D() for beam in listBeam]
+
+        matrixType = 'beam'
 
         Ne = groupElem.Ne
         nPg = groupElem.Get_gauss(matrixType).nPg

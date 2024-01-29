@@ -3272,9 +3272,9 @@ class Simu_Beam(_Simu):
         jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
         weight_pg = mesh.Get_weight_pg(matrixType)
 
-        D_e_pg = beamModel.Calc_D_e_pg(groupElem, matrixType)        
+        D_e_pg = beamModel.Calc_D_e_pg(groupElem)        
 
-        B_beam_e_pg = self.__Get_B_beam_e_pg(matrixType)
+        B_beam_e_pg = self.__Get_B_beam_e_pg()
         
         Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobian_e_pg, weight_pg, B_beam_e_pg, D_e_pg, B_beam_e_pg, optimize='optimal')
             
@@ -3342,12 +3342,14 @@ class Simu_Beam(_Simu):
 
         return center
 
-    def __Get_B_beam_e_pg(self, matrixType: str):
+    def __Get_B_beam_e_pg(self):
         """Euleur-Bernoulli BEAM"""
 
         # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_B.m
-
+        
         tic = Tic()
+
+        matrixType = MatrixType.beam
 
         # Récupération du maodel poutre
         struct = self.structure
@@ -3397,20 +3399,20 @@ class Simu_Beam(_Simu):
             #      un, vn, wn, rxn, ryn, rzn]
 
             idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_vy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_vz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_u = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
+            idx_v = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
+            idx_w = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
             idx_tx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)            
 
             B_e_pg = np.zeros((Ne, nPg, 4, dof_n*nPe))
             
-            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0]
+            B_e_pg[:,:,0, idx_u] = dN_e_pg[:,:,0]
             B_e_pg[:,:,1, idx_tx] = dN_e_pg[:,:,0]
-            B_e_pg[:,:,3, idx_vy] = ddNv_e_pg[:,:,0]
-            ddNvz_e_pg = ddNv_e_pg.copy()
-            # ddNvz_e_pg[:,:,0,[1,3]] *= -1 # RY = -UZ'
-            ddNvz_e_pg[:,:,0,1:2:nPe*2] *= -1 # RY = -UZ'
-            B_e_pg[:,:,2, idx_vz] = ddNvz_e_pg[:,:,0]
+            B_e_pg[:,:,3, idx_v] = ddNv_e_pg[:,:,0]
+            ddNvz_e_pg = ddNv_e_pg.copy()            
+            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
+            ddNvz_e_pg[:,:,0,idPsi] *= -1 # RY = -UZ' (-psi_i,xx)
+            B_e_pg[:,:,2, idx_w] = ddNvz_e_pg[:,:,0]
 
         # Fait la rotation si nécessaire
 
@@ -3635,7 +3637,7 @@ class Simu_Beam(_Simu):
         dof_n = self.structure.dof_n
         assemblyBeam_e = self.mesh.groupElem.Get_assembly_e(dof_n)
         sol_e = sol[assemblyBeam_e]
-        B_beam_e_pg = self.__Get_B_beam_e_pg(MatrixType.beam)
+        B_beam_e_pg = self.__Get_B_beam_e_pg()
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
@@ -3747,16 +3749,16 @@ class Simu_Beam(_Simu):
     def Results_displacement_matrix(self) -> np.ndarray:
         
         Nn = self.mesh.Nn
-        nbddl = self.Get_dof_n(self.problemType)
-        size = Nn * nbddl
-        displacementRedim = self.displacement[:size].reshape((Nn,-1))
+        dof_n = self.Get_dof_n(self.problemType)        
+        displacementRedim = self.displacement.reshape(Nn,-1)
+
         coordo = np.zeros((Nn, 3))
 
-        if nbddl == 1:
+        if dof_n == 1:
             coordo[:,0] = displacementRedim[:,0]
-        elif nbddl == 3:
+        elif dof_n == 3:
             coordo[:,:2] = displacementRedim[:,:2]
-        elif nbddl == 6:
+        elif dof_n == 6:
             coordo[:,:3] = displacementRedim[:,:3]
 
         return coordo

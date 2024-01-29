@@ -65,7 +65,7 @@ if __name__ == '__main__':
         simu.add_connection_fixed(mesh.Nodes_Point(point2))
 
     # Solve the beam problem and get displacement results
-    sol = np.abs(simu.Solve())
+    sol = simu.Solve()
     simu.Save_Iter()
 
     # --------------------------------------------------------------------------------------------
