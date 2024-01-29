@@ -3659,7 +3659,7 @@ class Simu_Beam(_Simu):
 
         tic = Tic()
 
-        D_e_pg = self.structure.Calc_D_e_pg(self.mesh.groupElem, matrixType)
+        D_e_pg = self.structure.Calc_D_e_pg(self.mesh.groupElem)
         forces_e_pg: np.ndarray = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
             
         tic.Tac("Matrix", "InternalForces_e_pg", False)
