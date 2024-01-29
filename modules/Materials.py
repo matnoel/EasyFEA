@@ -565,10 +565,10 @@ class Elas_IsotTrans(_Displacement_Model):
 
     def _Update(self) -> None:
         C, S = self._Behavior(self.dim)
-        try:
-            C, S = self._Behavior(self.dim)
-        except ValueError:
-            raise Exception(str(_erroDim))
+        # try:
+        #     C, S = self._Behavior(self.dim)
+        # except ValueError:
+        #     raise Exception(str(_erroDim))
         self.C = C
         self.S = S
 
