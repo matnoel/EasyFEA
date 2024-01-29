@@ -21,7 +21,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import tikzplotlib
 
 def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, nodeValues=True, 
-                plotMesh=False, folder="", filename="", title="",
+                plotMesh=False, edgecolor='black', folder="", filename="", title="",
                 cmap="jet", nColors=255, max=None, min=None, colorbarIsClose=False, ax: plt.Axes=None):
     """Display a simulation result.
 
@@ -38,7 +38,9 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     nodeValues : bool, optional
         displays result to nodes otherwise displays it to elements, by default True
     plotMesh : bool, optional
-        displays mesh, by default False    
+        displays mesh, by default False
+    edgecolor : str, optional
+        Color used to plot the mesh, by default 'black'
     folder : str, optional
         save folder, by default "".
     filename : str, optional
@@ -69,6 +71,9 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
 
     simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
     plotDim = mesh.dim # plot dimension
+
+    if ax != None:
+        inDim = 3 if ax.name == '3d' else inDim
 
     deformFactor = 0 if simu == None else deformFactor
 
@@ -136,10 +141,10 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         if plotMesh:
             if mesh.dim == 1:
                 # mesh for 1D elements are points                
-                ax.plot(*mesh.coordo[:,:inDim].T, c='black', lw=0.1, marker='.', ls='')
+                ax.plot(*mesh.coordo[:,:inDim].T, c=edgecolor, lw=0.1, marker='.', ls='')
             else:
                 # mesh for 2D elements are lines
-                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor='black', lw=0.5)
+                pc = matplotlib.collections.LineCollection(coordFaces, edgecolor=edgecolor, lw=0.5)
                 ax.add_collection(pc)
 
         # Plot element values
@@ -319,31 +324,39 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
     simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
 
+    if ax != None:
+        inDim = 3 if ax.name == '3d' else inDim
+
     deformFactor = 0 if simu == None else np.abs(deformFactor)
 
     # Dimensions of displayed elements
-    plotDim = mesh.dim 
+    dimElem = mesh.dim 
     # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.    
-    if plotDim == 3: plotDim = 2
+    if dimElem == 3: dimElem = 2
     
     # constructs the connection matrix for the faces
     dict_Faces = mesh.Get_dict_connect_Faces()
     connectFaces = []
-    for groupElem in mesh.Get_list_groupElem(plotDim):
+    for groupElem in mesh.Get_list_groupElem(dimElem):
         connectFaces.extend(dict_Faces[groupElem.elemType])
     connectFaces = np.array(connectFaces)
 
     # faces coordinates
     coordFacesDef: np.ndarray = coordo[connectFaces, :inDim]
     coordFaces = mesh.coordoGlob[connectFaces, :inDim]
+
+    if title == "":
+        title = f"{mesh.elemType} : Ne = {mesh.Ne}, Nn = {mesh.Nn}"
+    
         
     if inDim in [1,2]:
         # in 2d space
 
         if ax == None:
             fig, ax = plt.subplots()
-        ax.set_xlabel(r"$x$")
-        ax.set_ylabel(r"$y$")
+            ax.set_xlabel(r"$x$")
+            ax.set_ylabel(r"$y$")
+            ax.set_title(title)
 
         if deformFactor > 0:            
             # Deformed mesh
@@ -368,7 +381,8 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
                 ax.plot(*coordo[:,:2].T, c='red', lw=lw, marker='.', ls='')
         
         ax.autoscale()
-        ax.axis('equal')
+        if ax.name != '3d':
+            ax.axis('equal')
 
     elif inDim == 3:
         # in 3d space
@@ -376,13 +390,14 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
         if ax == None:
             fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
             ax.view_init(elev=105, azim=-90)
-        ax.set_xlabel(r"$x$")
-        ax.set_ylabel(r"$y$")
-        ax.set_zlabel(r"$z$")
+            ax.set_xlabel(r"$x$")
+            ax.set_ylabel(r"$y$")
+            ax.set_zlabel(r"$z$")
+            ax.set_title(title)
 
         if deformFactor > 0:
             # Displays only 1D or 2D elements, depending on the mesh type
-            if plotDim > 1:
+            if dimElem > 1:
                 # Deformed 2D mesh 
                 pcDef = Poly3DCollection(coordFacesDef, edgecolor='red', linewidths=0.5, alpha=0, zorder=0)
                 ax.add_collection3d(pcDef)                
@@ -407,7 +422,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
         else:
             # Undeformed mesh
             # Displays only 1D or 2D elements, depending on the mesh type
-            if plotDim > 1:
+            if dimElem > 1:
                 pc = Poly3DCollection(coordFaces, facecolors=facecolors, edgecolor=edgecolor, linewidths=0.5, alpha=alpha, zorder=0)
             else:
                 pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
@@ -415,11 +430,6 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
             ax.add_collection3d(pc, zs=0, zdir='z')
             
         _ScaleChange(ax, coordo)
-    
-    if title == "":
-        title = f"{mesh.elemType} : Ne = {mesh.Ne}, Nn = {mesh.Nn}"
-
-    ax.set_title(title)
 
     tic.Tac("Display","Plot_Mesh")
 
@@ -459,8 +469,12 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
+    inDim = mesh.inDim
+
     if ax == None:
         ax = Plot_Mesh(mesh, alpha=0)
+    else:        
+        inDim = 3 if ax.name == '3d' else inDim
     ax.set_title("")
     
     if len(nodes) == 0:
@@ -468,11 +482,11 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
     
     coordo = mesh.coordoGlob
 
-    if mesh.inDim == 2:
+    if inDim == 2:
         ax.plot(*coordo[nodes,:2].T, ls='', marker=marker, c=c, zorder=2.5)
         if showId:            
             [ax.text(*coordo[noeud,:2].T, str(noeud), c=c) for noeud in nodes]
-    elif mesh.inDim == 3:            
+    elif inDim == 3:            
         ax.plot(*coordo[nodes].T, ls='', marker=marker, c=c, zorder=2.5)
         if showId:
             [ax.text(*coordo[noeud].T, str(noeud), c=c) for noeud in nodes]
@@ -518,6 +532,8 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     from Mesh import Mesh
     mesh = cast(Mesh, mesh)
 
+    inDim = mesh.inDim
+
     if dimElem == None:
         dimElem = 2 if mesh.inDim == 3 else mesh.dim
 
@@ -526,7 +542,9 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     if len(list_groupElem) == 0: return
 
     if ax == None:
-        ax = Plot_Mesh(mesh, alpha=0)
+        ax = Plot_Mesh(mesh, alpha=0)    
+    else:        
+        inDim = 3 if ax.name == '3d' else inDim
 
     # for each group elem
     for groupElem in list_groupElem:
@@ -701,6 +719,7 @@ def Plot_Model(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> pl
             ax.set_zlabel(r"$z$")
     else:
         fig = ax.figure
+        inDim = 3 if ax.name == '3d' else inDim
 
     # get the group of elements for dimension 2 to 0
     listGroupElem = mesh.Get_list_groupElem(2)

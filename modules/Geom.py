@@ -276,7 +276,7 @@ class Geom(ABC):
         [point.translate(*dec[p]) for p, point in enumerate(self.points)]
 
 
-    def Plot(self, ax: Display.plt.Axes=None, color:str="", name:str="") -> Display.plt.Axes:
+    def Plot(self, ax: Display.plt.Axes=None, color:str="", name:str="", plotPoints=True) -> Display.plt.Axes:
 
         if ax is None:
             fig, ax = Display.plt.subplots(subplot_kw=dict(projection='3d'))
@@ -296,7 +296,8 @@ class Geom(ABC):
             ax.plot(*lines[:,:inDim].T, color=color, label=self.name)
         else:
             ax.plot(*lines[:,:inDim].T, label=self.name)
-        ax.plot(*points[:,:inDim].T, ls='', marker='.',c='black')
+        if plotPoints:
+            ax.plot(*points[:,:inDim].T, ls='', marker='.',c='black')
 
         if inDim == 3:
             xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()
@@ -308,13 +309,13 @@ class Geom(ABC):
     
     @staticmethod
     def Plot_Geoms(geoms: list, ax: Display.plt.Axes=None,
-                   color:str="", name:str="") -> Display.plt.Axes:
+                   color:str="", name:str="", plotPoints=True) -> Display.plt.Axes:
         geoms: list[Geom] = geoms
         for g, geom in enumerate(geoms):
             if g == 0 and ax == None:
-                ax = geom.Plot(color=color, name=name)
+                ax = geom.Plot(color=color, name=name, plotPoints=plotPoints)
             else:
-                geom.Plot(ax, color, name)
+                geom.Plot(ax, color, name, plotPoints=plotPoints)
 
         ax.legend()
 
