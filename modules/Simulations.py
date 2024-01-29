@@ -1956,7 +1956,6 @@ class Simu_Displacement(_Simu):
         elif result == "displacement_norm":
             val_n = self.displacement.reshape(Nn, -1)
             values = np.linalg.norm(val_n, axis=1)
-            pass
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()

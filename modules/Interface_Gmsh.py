@@ -1495,24 +1495,33 @@ class Interface_Gmsh:
     
     def Save_Simu(self, simu: _Simu, results: list[str]=[], details=False,
                   edgeColor='black', plotMesh=True, showAxes=False, folder: str=""):
-        
+
         assert isinstance(results, list), 'results must be a list'
         
         self._init_gmsh()
 
         def getColor(c:str):
+            """transform matplotlib color to rgb"""
             rgb = np.asarray(matplotlib.colors.to_rgb(edgeColor)) * 255
             rgb = np.asarray(rgb, dtype=int)
             return rgb
 
         def reshape(values: np.ndarray):
+            """reshape values to get them at the corners of the elements"""
             values_n = np.reshape(values, (mesh.Nn, -1))
-            values_e: np.ndarray = values_n[mesh.connect]
+            values_e: np.ndarray = values_n[connect_e]
             if len(values_e.shape) == 3:
                 values_e = np.transpose(values_e, (0,2,1))
             return values_e.reshape((mesh.Ne, -1))
+        
+        mesh = simu.mesh
+        Ne = mesh.Ne
+        nPe = mesh.groupElem.nbCorners # do this because it is not working for quadratic elements
+        connect_e = mesh.connect[:,:nPe]
+        elements_e = reshape(mesh.coordo)
 
         def types(elemType: str):
+            """get gmsh type associated with elemType"""
             if 'POINT' in elemType:
                 return 'P'
             elif 'SEG' in elemType:
@@ -1529,14 +1538,11 @@ class Interface_Gmsh:
                 return 'I'
             elif 'PYRA' in elemType:
                 return 'Y'
-            
-        mesh = simu.mesh
-        elements_e = reshape(mesh.coordo)
-        Ne = mesh.Ne
-        nPe = mesh.nPe
+        
         gmshType = types(mesh.elemType)
         colorElems = getColor(edgeColor)
 
+        # get nodes and elements field to plot
         nodesField, elementsField = simu.Results_nodesField_elementsField()
         [results.append(result) for result in (nodesField + elementsField) if result not in results]
 
@@ -1547,6 +1553,7 @@ class Interface_Gmsh:
             [dict_results[result].append(reshape(simu.Result(result))) for result in results]
             
         def AddView(name: str, values_e: np.ndarray):
+            """Add a view"""
 
             if name == 'displacement_matrix_0':
                 name='ux'
@@ -1597,14 +1604,14 @@ class Interface_Gmsh:
 
             if nIter == 0: continue
 
-            dof_n = dict_results[result][0].shape[1] // nPe
+            dof_n = dict_results[result][0].shape[-1] // nPe
 
-            vals_e_n = np.concatenate(dict_results[result], 1).reshape((Ne, nIter, dof_n, -1))
+            vals_e_i_n = np.concatenate(dict_results[result], 1).reshape((Ne, nIter, dof_n, -1))
 
             if dof_n == 1:
-                view = AddView(result, vals_e_n[:,:,0].reshape((Ne,-1)))
+                view = AddView(result, vals_e_i_n[:,:,0].reshape((Ne,-1)))
             else:
-                views = [AddView(result+f'_{n}', vals_e_n[:,:,n].reshape(Ne,-1)) for n in range(dof_n)]
+                views = [AddView(result+f'_{n}', vals_e_i_n[:,:,n].reshape(Ne,-1)) for n in range(dof_n)]
 
         # Launch the GUI to see the results:
         if '-nopopup' not in sys.argv and self.__openGmsh:

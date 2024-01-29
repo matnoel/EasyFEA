@@ -2811,6 +2811,7 @@ def Result_in_Strain_or_Stress_field(field_e: np.ndarray, result:str, coef=np.sq
         elif "vm" in result:
             result_e = val_vm_e
         elif result == "Strain" or result == "Stress":
+            result_e = field_e
             result_e = np.append(result_e, val_vm_e.reshape((Ne,1)), axis=1)
         else:
             raise Exception("result must be in [xx, yy, zz, yz, xz, xy, vm, Strain, Stress]")
