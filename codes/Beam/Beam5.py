@@ -68,7 +68,7 @@ if __name__ == '__main__':
         nodes = mesh.Nodes_Point(point)
         firstNodes = nodes[0]
         others = nodes[1:]
-        [simu.add_connection_hinged(np.array([firstNodes, n])) for n in others]    
+        [simu.add_connection_hinged([firstNodes, n]) for n in others]    
 
     simu.add_dirichlet(nodesRigi, [0,0], ['x','y'])
     simu.add_neumann(nodesA, [-40*9.81], ['y'])
