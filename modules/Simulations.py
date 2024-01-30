@@ -2509,8 +2509,8 @@ class Simu_PhaseField(_Simu):
         Ku_e = np.sum(leftDepPart @ c_e_pg @ B_dep_e_pg, axis=1)
 
         if self.dim == 2:
-            epaisseur = self.phaseFieldModel.thickness
-            Ku_e *= epaisseur
+            thickness = self.phaseFieldModel.thickness
+            Ku_e *= thickness
         
         tic.Tac("Matrix","Construction Ku_e", self._verbosity)
 
