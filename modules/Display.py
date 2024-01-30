@@ -18,8 +18,6 @@ import matplotlib.collections
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-import tikzplotlib
-
 def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, nodeValues=True, 
                 plotMesh=False, edgecolor='black', folder="", filename="", title="",
                 cmap="jet", nColors=255, max=None, min=None, colorbarIsClose=False, ax: plt.Axes=None):
@@ -1132,10 +1130,7 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
     
     tic = Tic()
 
-    if extension == 'tex':        
-        tikzplotlib.save(path)
-    else:
-        plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches='tight')
+    plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches='tight')
 
     tic.Tac("Display","Save figure")
 
