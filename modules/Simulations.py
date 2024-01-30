@@ -1902,20 +1902,26 @@ class Simu_Displacement(_Simu):
 
         results = []
         dim = self.dim
+
+        results.extend(["displacement", "displacement_norm", "displacement_matrix"])
+        results.extend(["speed", "speed_norm"])
+        results.extend(["accel", "accel_norm"])
         
         if dim == 2:
-            results.extend(["ux", "uy", "displacement", "displacement_norm", "displacement_matrix"])
-            results.extend(["vx", "vy", "speed", "speed_norm"])
-            results.extend(["ax", "ay", "accel", "accel_norm"])
-            results.extend(["Sxx", "Syy", "Sxy", "Svm", "Stress"])
-            results.extend(["Exx", "Eyy", "Exy", "Evm", "Strain"])
+            results.extend(["ux", "uy"])
+            results.extend(["vx", "vy"])
+            results.extend(["ax", "ay"])
+            results.extend(["Sxx", "Syy", "Sxy"])
+            results.extend(["Exx", "Eyy", "Exy"])
 
         elif dim == 3:
-            results.extend(["ux", "uy", "uz", "displacement", "displacement_norm", "displacement_matrix"])
-            results.extend(["vx", "vy", "vz", "speed", "speed_norm"])
-            results.extend(["ax", "ay", "az", "accel", "accel_norm"])
-            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm", "Stress"])
-            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm", "Strain"])
+            results.extend(["ux", "uy", "uz"])
+            results.extend(["vx", "vy", "vz"])
+            results.extend(["ax", "ay", "az"])
+            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
+            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
+
+        results.extend(["Svm", "Stress","Evm", "Strain"])
         
         results.extend(["Wdef","Wdef_e","ZZ1","ZZ1_e"])
 
@@ -2009,8 +2015,6 @@ class Simu_Displacement(_Simu):
             return
 
         # end cases ----------------------------------------------------
-
-        # at this point we already got values
         
         return self.Results_Reshape_values(values, nodeValues)
 
@@ -2722,23 +2726,27 @@ class Simu_PhaseField(_Simu):
 
     def Results_Available(self) -> list[str]:
 
-        options = []
+        results = []
         dim = self.dim
+
+        results.extend(["displacement", "displacement_norm", "displacement_matrix"])
         
         if dim == 2:
-            options.extend(["ux", "uy", "uz", "displacement", "displacement_norm", "displacement_matrix"])
-            options.extend(["Sxx", "Syy", "Sxy", "Svm","Stress"])
-            options.extend(["Exx", "Eyy", "Exy", "Evm","Strain"])
+            results.extend(["ux", "uy"])
+            results.extend(["Sxx", "Syy", "Sxy"])
+            results.extend(["Exx", "Eyy", "Exy"])
 
         elif dim == 3:
-            options.extend(["ux", "uy", "uz", "displacement", "displacement_norm", "displacement_matrix"])
-            options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy", "Svm","Stress"])
-            options.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy", "Evm","Strain"])
+            results.extend(["ux", "uy", "uz"])
+            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
+            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
         
-        options.extend(["damage","psiP","Psi_Crack"])
-        options.extend(["Wdef"])
+        results.extend(["Svm","Stress","Evm","Strain"])
 
-        return options
+        results.extend(["damage","psiP","Psi_Crack"])
+        results.extend(["Wdef"])
+
+        return results
     
     def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
         
@@ -2810,8 +2818,6 @@ class Simu_PhaseField(_Simu):
             return
 
         # end cases ----------------------------------------------------
-
-        # at this point we already got values
         
         return self.Results_Reshape_values(values, nodeValues)
 
@@ -3509,23 +3515,25 @@ class Simu_Beam(_Simu):
 
         options = []
         dof_n = self.Get_dof_n(self.problemType)
+
+        options.extend(["displacement", "displacement_norm", "displacement_matrix"])
         
         if dof_n == 1:
-            options.extend(["ux", "displacement", "displacement_matrix"])
+            options.extend(["ux"])
             options.extend(["fx"])
             options.extend(["Exx"])
             options.extend(["N"])
             options.extend(["Sxx"])            
 
         elif dof_n == 3:
-            options.extend(["ux","uy","rz", "displacement", "displacement_norm", "displacement_matrix"])
+            options.extend(["ux","uy","rz"])
             options.extend(["fx", "fy", "cz"])
             options.extend(["Exx", "Exy"])
             options.extend(["N", "Mz"])
             options.extend(["Sxx", "Sxy"])
 
         elif dof_n == 6:
-            options.extend(["ux", "uy", "uz", "rx", "ry", "rz", "displacement", "displacement_norm", "displacement_matrix"])
+            options.extend(["ux", "uy", "uz", "rx", "ry", "rz"])
             options.extend(["fx","fy","fz","cx","cy","cz"])
             options.extend(["Exx", "Eyz", "Exz", "Exy"])
             options.extend(["N", "Mx", "My", "Mz"])
@@ -3584,8 +3592,6 @@ class Simu_Beam(_Simu):
         # TODO add Stress and strain cases
 
         # end cases ----------------------------------------------------
-
-        # at this point we already got values
         
         return self.Results_Reshape_values(values, nodeValues)
 
@@ -3974,8 +3980,6 @@ class Simu_Thermal(_Simu):
             values = self.Results_displacement_matrix()
 
         # end cases ----------------------------------------------------
-
-        # at this point we already got values
         
         return self.Results_Reshape_values(values, nodeValues)
 
