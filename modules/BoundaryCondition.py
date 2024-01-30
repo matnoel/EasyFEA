@@ -24,9 +24,9 @@ class BoundaryCondition:
         """
         self.__problemType = problemType
         self.__directions = directions
-        self.__nodes = nodes
+        self.__nodes = np.asarray(nodes, dtype=int)
         self.__dofs = np.asarray(dofs, dtype=int)
-        self.__dofsValues = np.asarray(dofsValues)
+        self.__dofsValues = np.asarray(dofsValues, dtype=float)
         self.description = description
 
     @property
@@ -37,22 +37,22 @@ class BoundaryCondition:
     @property
     def nodes(self) -> np.ndarray:
         """Nodes on which the condition is applied."""
-        return self.__nodes
+        return self.__nodes.copy()
 
     @property
     def dofs(self) -> np.ndarray:
         """Degrees of freedom associated with nodes and directions."""
-        return self.__dofs
+        return self.__dofs.copy()
 
     @property
     def dofsValues(self) -> np.ndarray:
         """Values applied to degrees of freedom."""
-        return self.__dofsValues
+        return self.__dofsValues.copy()
 
     @property
     def directions(self) -> np.ndarray:
         """Associated directions."""
-        return self.__directions
+        return self.__directions.copy()
     
     @staticmethod
     def Get_nBc(problemType: str, list_Bc_Condition: list) -> int:
