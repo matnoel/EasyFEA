@@ -50,7 +50,7 @@ class IModel(ABC):
 
     @useNumba.setter
     def useNumba(self, value: bool):
-        self.__useNumba = value and CalcNumba.numbaIsInstalled
+        self.__useNumba = value
 
     @property
     def needUpdate(self) -> bool:
