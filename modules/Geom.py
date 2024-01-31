@@ -4,7 +4,6 @@ from typing import Union
 import numpy as np
 import copy
 
-from colorama import Fore
 from numpy import ndarray
 from scipy.optimize import minimize
 import Display
@@ -303,7 +302,7 @@ class Geom(ABC):
             xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()
             oldBounds = np.array([xlim, ylim, zlim]).T
             lines = np.concatenate((lines, oldBounds), 0)
-            Display._ScaleChange(ax, lines)
+            Display._Axis_equal_3D(ax, lines)
 
         return ax
     
@@ -688,11 +687,11 @@ class CircleArc(Geom):
             
         else:
 
-            raise Exception(Fore.RED + 'must give P, center or R' + Fore.WHITE)
+            raise Exception('must give P, center or R')
         
         r1 = np.linalg.norm((pt1-center).coordo)
         r2 = np.linalg.norm((pt2-center).coordo)
-        assert (r1 - r2)**2/r2**2 <= 1e-12, Fore.RED +"The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle." + Fore.WHITE
+        assert (r1 - r2)**2/r2**2 <= 1e-12, "The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle."
 
         self.center = center
         """Point at the center of the arc."""

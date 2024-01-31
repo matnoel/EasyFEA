@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 import os
 import pickle
-from colorama import Fore
 from datetime import datetime
 from types import LambdaType
 from typing import Union, cast
@@ -17,6 +16,7 @@ import Materials
 from Materials import ModelType, IModel, _Displacement_Model, Beam_Structure, PhaseField_Model, Thermal_Model, Reshape_variable
 from TicTac import Tic
 from Interface_Solvers import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
+import CalcNumba
 import Folder
 
 def Load_Simu(folder: str, verbosity=False):
@@ -35,7 +35,7 @@ def Load_Simu(folder: str, verbosity=False):
     """
 
     path_simu = Folder.Join(folder, "simulation.pickle")
-    error = Fore.RED + "The file simulation.pickle cannot be found." + Fore.WHITE
+    error = "The file simulation.pickle cannot be found."
     assert Folder.Exists(path_simu), error
 
     with open(path_simu, 'rb') as file:
@@ -44,7 +44,7 @@ def Load_Simu(folder: str, verbosity=False):
     assert isinstance(simu, _Simu)
 
     if verbosity:
-        print(Fore.CYAN + f'\nLoading:\n{path_simu}\n' + Fore.WHITE)
+        print(f'\nLoading:\n{path_simu}\n')
         print(simu.mesh)
         print(simu.model)
     return simu
@@ -249,7 +249,7 @@ class _Simu(ABC):
         verbosity : bool, optional
             If True, the simulation can write to the console. Defaults to True.
         useNumba : bool, optional
-            If True, numba can be used. Defaults to True.
+            If True and numba is installed numba can be used . Defaults to True.
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
@@ -259,9 +259,7 @@ class _Simu(ABC):
             Display.Section("Simulation")
 
         if len(mesh.orphanNodes) > 0:
-            raise Exception(Fore.RED +
-                            "The simulation cannot be created because orphan nodes have been detected in the mesh."
-                            + Fore.WHITE)
+            raise Exception("The simulation cannot be created because orphan nodes have been detected in the mesh.")
 
         self.__model: IModel = model
 
@@ -301,7 +299,7 @@ class _Simu(ABC):
 
         self.__Init_Sols_n()
 
-        self.useNumba = useNumba
+        self.useNumba = useNumba & CalcNumba.numbaIsInstalled
 
         self.__useIterativeSolvers: bool = useIterativeSolvers
 
@@ -400,7 +398,7 @@ class _Simu(ABC):
         if value in solvers:
             self.__solver = value
         else:
-            print(Fore.RED + f"The solver {value} cannot be used. The solver must be in {solvers}" + Fore.WHITE)
+            print(f"The solver {value} cannot be used. The solver must be in {solvers}")
 
     def Save(self, folder: str) -> None:
         """Saves the simulation and its summary in the folder."""
@@ -414,7 +412,7 @@ class _Simu(ABC):
         path_simu = Folder.New_File("simulation.pickle", folder)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        print(Fore.GREEN + f'\n{path_simu.replace(folder_PythonEF,"")} (saved)' + Fore.WHITE)
+        print(f'\n{path_simu.replace(folder_PythonEF,"")} (saved)')
         
         # Save simulation summary
         path_summary = Folder.New_File("summary.txt", folder)
@@ -422,7 +420,7 @@ class _Simu(ABC):
         summary += str(self)        
         with open(path_summary, 'w', encoding='utf8') as file:
             file.write(summary)
-        print(Fore.GREEN + f'{path_summary.replace(folder_PythonEF,"")} (saved)' + Fore.WHITE)
+        print(f'{path_summary.replace(folder_PythonEF,"")} (saved)')
 
     # TODO Enable simulation creation from the variational formulation ?
 
@@ -574,6 +572,7 @@ class _Simu(ABC):
         value : bool
             True to enable numba functions, False otherwise.
         """
+        value = value & CalcNumba.numbaIsInstalled
         self.__model.useNumba = value
         self.__useNumba = value
 

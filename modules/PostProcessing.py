@@ -1,7 +1,6 @@
 """Post-processing module, used to create video or Paraview files."""
 
 import os
-from colorama import Fore
 
 import Display as Display
 import Simulations
@@ -36,7 +35,7 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
 
     with open(filename, "wb") as file:
         pickle.dump(values, file)
-    print(Fore.GREEN + f'{filename.replace(folder_PythonEF,"")} (saved)' + Fore.WHITE)
+    print(f'{filename.replace(folder_PythonEF,"")} (saved)')
     
 def Load_Load_Displacement(folder:str, verbosity=False):
     """Load forces and displacements
@@ -53,7 +52,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
     filename = Folder.Join(folder, "load and displacement.pickle")
     error = f"{filename.replace(folder_PythonEF,'')} does not exist"
-    assert Folder.Exists(filename), Fore.RED + error + Fore.WHITE
+    assert Folder.Exists(filename), error
 
     with open(filename, 'rb') as file:
         values = pickle.load(file)

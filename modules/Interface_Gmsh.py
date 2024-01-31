@@ -6,7 +6,6 @@ import gmsh
 import sys
 import os
 import numpy as np
-from colorama import Fore
 import matplotlib
 
 import Folder
@@ -1141,11 +1140,11 @@ class Interface_Gmsh:
             elif isinstance(geom, str):
 
                 if not Folder.Exists(geom) :
-                    print(Fore.RED + "The .pos file does not exist." + Fore.WHITE)
+                    print("The .pos file does not exist.")
                     continue
 
                 if ".pos" not in geom:
-                    print(Fore.RED + "Must provide a .pos file" + Fore.WHITE)
+                    print("Must provide a .pos file")
                     continue
 
                 gmsh.merge(geom)
@@ -1159,7 +1158,7 @@ class Interface_Gmsh:
                 continue
 
             else:
-                print(Fore.RED + "refineGeoms must be of type Domain, Circle, str(.pos file)" + Fore.WHITE)
+                print("refineGeoms must be of type Domain, Circle, str(.pos file)")
             
             fields.append(field)
 
@@ -1246,6 +1245,7 @@ class Interface_Gmsh:
         filename : str, optional
             saving file filename.msh, by default mesh
         """
+        # TODO make sure that physical groups have been created
         
         self._Set_algorithm(elemType)
         self.factory.synchronize()

@@ -7,7 +7,6 @@ import copy
 from Geom import *
 from GroupElem import GroupElem, ElemType, MatrixType
 import TicTac
-from colorama import Fore
 
 class Mesh:
     """A mesh uses several groups of elements. For example, a mesh with cubes (HEXA8) uses :
@@ -55,7 +54,7 @@ class Mesh:
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
         if len(orphanNodes) > 0:
-            print(Fore.RED + f"WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes)." + Fore.WHITE)
+            print("WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes).")
 
     def _ResetMatrix(self) -> None:
         """Reset matrix for each groupElem"""
@@ -223,8 +222,6 @@ class Mesh:
         """
         return self.groupElem.Get_connect_n_e()
 
-    # Affichage
-
     @property
     def dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
         """Transform the connectivity matrix to pass it to the trisurf function in 2D.
@@ -233,26 +230,6 @@ class Mesh:
 
         Returns a dictionary by type"""
         return self.groupElem.Get_dict_connect_Triangle()
-
-    def Get_dict_connect_Faces(self) -> dict[ElemType, np.ndarray]:
-        """Retrieves face-building nodes and returns faces for each element type.
-        """
-        dict_connect_faces = {}
-
-        for elemType, groupElem in self.dict_groupElem.items():
-
-            faces = groupElem.faces
-
-            if self.__groupElem.elemType == ElemType.PRISM6 and elemType == ElemType.TRI3:
-                faces.append(faces[0])
-            elif self.__groupElem.elemType == ElemType.PRISM15 and elemType == ElemType.TRI6:
-                faces.extend([faces[0]] * 2)
-
-            dict_connect_faces[elemType] = groupElem.connect[:, faces]
-
-        return dict_connect_faces
-
-    # Assemblage des matrices
 
     @property
     def assembly_e(self) -> np.ndarray:

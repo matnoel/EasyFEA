@@ -2,7 +2,6 @@
 
 import os
 from typing import List
-from colorama import Fore
 
 def Get_Path(filename="") -> str:
     """Returns the folder containing the file. Otherwise returns the PythonEF folder."""
@@ -97,6 +96,6 @@ def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2
 
     path_PythonEf = Get_Path(Get_Path())
 
-    print(Fore.CYAN + workFolder.replace(path_PythonEf,"") + Fore.WHITE)    
+    print(workFolder.replace(path_PythonEf,""))
 
     return Join(path, workFolder)
