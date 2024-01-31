@@ -1,60 +1,82 @@
-The aim of this free Python library is to enable you to carry out finite element simulations with ease.
+# PythonEF - Finite Element Simulation Library
 
-Four simulation types are currently available:
-- elastic (static and dynamic) examples in /codes/Elasticity and /codes/Dynamic
-- beam structure (static Euler-Bernoulli) examples in /codes/Beam
-- thermal (stationary and transient) examples in /codes/Thermal
-- damage (quasi-static phase field) examples in /codes/PhaseField
+## Overview
 
-For each simulation, you need to build a mesh and a model. Once the simulation has been created, you can set boundary conditions, solve and display results.
+PythonEF is a free Python library designed to simplify finite element simulations, providing a versatile platform for various simulation types. The library currently supports four simulation types:
 
-# --------------------------------------------------------------------------------------------
-# INSTALLATION
-# --------------------------------------------------------------------------------------------
-Python >= 3.9 is strongly recommended !
+1. Elastic (static and dynamic) - Examples in `/codes/Elasticity` and `/codes/Dynamic`.
+2. Beam structure (static Euler-Bernoulli) - Examples in `/codes/Beam`.
+3. Thermal (stationary and transient) - Examples in `/codes/Thermal`.
+4. Damage (quasi-static phase field) - Examples in `/codes/PhaseField`.
 
-Step 1 - install python libraries:
-    (required) :
-    numba scipy numpy matplotlib gmsh(>=4.12.0) colorama pandas
+For each simulation, users are required to build a mesh and a model. Once the simulation is set up, you can easily define boundary conditions, solve the problem, and visualize the results.
 
-    (optional) :
-    mpi4py pypardiso petsc petsc4py mumps scikit-umfpack scikits-sparse
+## Installation
 
-    The following libraries are optional but can be useful to reduce your resolution time (solve Ax=b). I recommend the use of pypardiso or petsc4py. Otherwise, the resolution time will be much slower. Note that pypardiso does not work with ARM processors
+### Step 1 - Install Python Libraries:
 
-Step 2 - add the folder/PythonEF/modules file to the pythonpath:
+Ensure that you have Python version 3.9 to 3.12 installed. The following libraries are required:
 
-    folder refers to the directory where PythonEF is installed
-	
-	on macOs :
-		export PYTHONPATH="$PYTHONPATH:folder/PythonEF/modules"
-		(in the .zprofile)
+- `numpy`
+- `scipy`
+- `matplotlib`
+- `gmsh` >= 4.12.0
+- `pandas` (3.9 <= Python <= 3.12)
 
-	on linux :
-		export PYTHONPATH=$PYTHONPATH:folder/PythonEF/modules
-        (in the .bash_aliases)
-		
-	on windows : 
-		modify system variables -> environment variables -> user variables
-		PYTHONPATH folder/PythonEF/modules
-        
+Optional Libraries (Recommended for improved resolution time):
 
-(Optional) Procedure if you have to build gmsh yourself:
+- `pypardiso` (Python > 3.8 & Intel oneAPI)
+- `petsc` and `petsc4py`
+- `numba` (3.5.x <= Python < 3.12)
+- `mumps` and `mpi4py`
+- `scikit-umfpack` (Python >= 3.9)
+- `scikits-sparse` (3.6 <= Python <= 3.12)
 
-	first you have to install opencascade : sudo port install opencascade
-	then install fltk : sudo port install fltk
+For more information on installing `numba`, refer to [Numba Installation Guide](https://numba.readthedocs.io/en/stable/user/installing.html#numba-support-info).
 
-	On Mac you have to build the gmsh project
-	https://gitlab.onelab.info/gmsh/gmsh
-	In the applications folder:
+### Step 2 - Add the PythonEF Modules to Python Path:
 
-	git clone 
-	cd gmsh
-	mkdir build
-	cd build
-	cmake -DCMAKE_INSTALL_PREFIX=/Applications/gmsh-install -DENABLE_BUILD_DYNAMIC=1 ..
-	make 
-	make install
+#### On macOS:
 
-	then add the path to gmsh.py
-	export PYTHONPATH="$PYTHONPATH:/Applications/gmsh-install/lib"
+```bash
+export PYTHONPATH="$PYTHONPATH:folder/PythonEF/modules"  # Add this to .zprofile
+```
+
+#### On Linux:
+
+```bash
+export PYTHONPATH=$PYTHONPATH:folder/PythonEF/modules  # Add this to .bash_aliases
+```
+
+#### On Windows:
+
+- Modify system variables -> environment variables -> user variables
+- Add `folder/PythonEF/modules` to PYTHONPATH.
+
+Note: Replace "folder" with the directory where PythonEF is installed.
+
+### Optional: Build Gmsh Yourself
+
+If you need to build Gmsh yourself, follow these steps:
+
+1. Install OpenCascade: `sudo port install opencascade`.
+2. Install FLTK: `sudo port install fltk`.
+3. Clone the Gmsh project from [https://gitlab.onelab.info/gmsh/gmsh](https://gitlab.onelab.info/gmsh/gmsh).
+4. Build Gmsh:
+
+```bash
+cd gmsh
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/Applications/gmsh-install -DENABLE_BUILD_DYNAMIC=1 ..
+make
+make install
+```
+
+5. Add the path to `gmsh.py`:
+
+```bash
+export PYTHONPATH="$PYTHONPATH:/Applications/gmsh-install/lib"
+```
+
+This completes the installation and setup process for PythonEF.
