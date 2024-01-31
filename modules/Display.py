@@ -7,6 +7,7 @@ from typing import cast, Union
 import os
 import numpy as np
 import pandas as pd
+from enum import Enum
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -1116,15 +1117,45 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
 
     tic.Tac("Display","Save figure")
 
-# cyan="$(tput setaf 6)"
-# green="$(tput setaf 2)"
-# reset="$(tput sgr0)"
+class __Colors(str, Enum):
+    blue = '\033[34m'
+    cyan = '\033[36m'
+    white = '\033[37m'
+    green = '\033[32m'
+    black = '\033[30m'
+    red = '\033[31m'    
+    yellow = '\033[33m'    
+    magenta = '\033[35m'
 
-# PS1="${cyan}%n";
-# PS1+="${cyan}@%";
-# PS1+="${green} %1~ ->";
-# PS1+="${reset} ";
-# export PS1;
+class __Sytles(str, Enum):
+    BOLD = '\033[1m'
+    ITALIC = '\033[3m'
+    UNDERLINE = '\033[4m'
+    RESET = '\33[0m'
+
+def Format(text: str, color='blue', bold=False, italic=False, underLine=False) -> str:
+
+    dct = dict(map(lambda item: (item.name, item.value), __Colors))
+
+    if color not in dct:
+        print(Format(f"Color must be in {dct.keys()}", 'red'))
+        return text
+    
+    else:    
+        formatedText = ""
+
+        if bold: formatedText += __Sytles.BOLD
+        if italic: formatedText += __Sytles.ITALIC
+        if underLine: formatedText += __Sytles.UNDERLINE
+        
+        formatedText += dct[color] + text
+
+        formatedText += __Sytles.RESET
+
+        return formatedText
+    
+def Error(text: str) -> str:
+    return Format(text, 'red')
 
 def Section(text: str, verbosity=True) -> None:
     """New section."""    
@@ -1136,7 +1167,7 @@ def Section(text: str, verbosity=True) -> None:
 
     bord = "="*int((longeurMax - longeurTexte)/2)
 
-    section = f"\n\n{bord} {text} {bord}\n"
+    section = Format(f"\n\n{bord} {text} {bord}\n")
 
     if verbosity: print(section)
 

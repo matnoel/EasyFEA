@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
         groupMaster = mesh_master.Get_list_groupElem(dim-1)[0]
         if dim == 3 and i == 0 and len(mesh_master.Get_list_groupElem(dim-1)) > 1:
-            print(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
+            print(Display.Error(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended."))
 
         convergence=False
 

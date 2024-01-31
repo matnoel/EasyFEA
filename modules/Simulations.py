@@ -17,6 +17,7 @@ from Materials import ModelType, IModel, _Displacement_Model, Beam_Structure, Ph
 from TicTac import Tic
 from Interface_Solvers import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
 import Folder
+from Display import Format, Error
 
 def Load_Simu(folder: str, verbosity=False):
     """
@@ -35,15 +36,15 @@ def Load_Simu(folder: str, verbosity=False):
 
     path_simu = Folder.Join(folder, "simulation.pickle")
     error = "The file simulation.pickle cannot be found."
-    assert Folder.Exists(path_simu), error
+    assert Folder.Exists(path_simu), Error(error)
 
     with open(path_simu, 'rb') as file:
         simu = pickle.load(file)
 
-    assert isinstance(simu, _Simu)
+    assert isinstance(simu, _Simu), Error('Must be a simu object')
 
     if verbosity:
-        print(f'\nLoading:\n{path_simu}\n')
+        print(Format(f'\nLoading:\n{path_simu}\n', 'green'))
         print(simu.mesh)
         print(simu.model)
     return simu
@@ -397,7 +398,7 @@ class _Simu(ABC):
         if value in solvers:
             self.__solver = value
         else:
-            print(f"The solver {value} cannot be used. The solver must be in {solvers}")
+            print(Error(f"The solver {value} cannot be used. The solver must be in {solvers}"))
 
     def Save(self, folder: str) -> None:
         """Saves the simulation and its summary in the folder."""
@@ -411,7 +412,7 @@ class _Simu(ABC):
         path_simu = Folder.New_File("simulation.pickle", folder)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        print(f'\n{path_simu.replace(folder_PythonEF,"")} (saved)')
+        print(Format(f'\n{path_simu.replace(folder_PythonEF,"")} (saved)', 'green'))
         
         # Save simulation summary
         path_summary = Folder.New_File("summary.txt", folder)
@@ -419,7 +420,7 @@ class _Simu(ABC):
         summary += str(self)        
         with open(path_summary, 'w', encoding='utf8') as file:
             file.write(summary)
-        print(f'{path_summary.replace(folder_PythonEF,"")} (saved)')
+        print(Format(f'{path_summary.replace(folder_PythonEF,"")} (saved)', 'green'))
 
     # TODO Enable simulation creation from the variational formulation ?
 
@@ -1550,7 +1551,7 @@ class _Simu(ABC):
         if result in availableResults:
             return True
         else:
-            print(f"\nFor a {self.problemType} problem result must be in : \n {availableResults}")
+            print(Error(f"\nFor a {self.problemType} problem result must be in : \n {availableResults}"))
             return False
 
     def Results_Set_Iteration_Summary(self) -> None:
@@ -2009,7 +2010,7 @@ class Simu_Displacement(_Simu):
             values = Materials.Result_in_Strain_or_Stress_field(val_e, res, coef)
 
         if not isinstance(values, np.ndarray):
-            print("This result option is not implemented yet.")
+            print(Error("This result option is not implemented yet."))
             return
 
         # end cases ----------------------------------------------------
@@ -2332,7 +2333,7 @@ class Simu_PhaseField(_Simu):
             elif problemType == ModelType.displacement:            
                 return self.__Ku.copy(), initcsr, initcsr, self.__Fu.copy()
         except AttributeError:
-            print("System not yet assembled")
+            print(Error("System not yet assembled"))
             return initcsr, initcsr, initcsr, initcsr
 
     def Get_x0(self, problemType=None):
@@ -2812,7 +2813,7 @@ class Simu_PhaseField(_Simu):
             values = Materials.Result_in_Strain_or_Stress_field(val_e, res, coef)
 
         if not isinstance(values, np.ndarray):
-            print("This result option is not implemented yet.")
+            print(Error("This result option is not implemented yet."))
             return
 
         # end cases ----------------------------------------------------
@@ -3038,7 +3039,7 @@ class Simu_PhaseField(_Simu):
             # Adds percentage and estimated time remaining
             summaryIter = summaryIter+f"{np.round(percentage*100,2):3.2f} % -> {timeCoef:4.2f} {unite}  "
 
-        print(summaryIter, end=end)
+        print(Format(summaryIter), end=end)
 
         self.__resumeIter = summaryIter
 
@@ -3163,11 +3164,11 @@ class Simu_Beam(_Simu):
         return self.get_u_n(self.problemType)
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
-        print("It is impossible to apply a surface load in a beam problem.")
+        print(Error("It is impossible to apply a surface load in a beam problem."))
         return
 
     def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
-        print("It is impossible to apply a volumetric load to a beam problem.")
+        print(Error("It is impossible to apply a volumetric load to a beam problem."))
         return
 
     def add_connection_fixed(self, nodes: np.ndarray, description="Fixed"):
