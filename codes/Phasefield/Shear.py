@@ -13,7 +13,7 @@ import multiprocessing
 
 # Display.Clear()
 
-useParallel = True
+useParallel = False
 nProcs = 4 # number of processes in parallel
 
 # --------------------------------------------------------------------------------------------
