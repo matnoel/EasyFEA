@@ -126,7 +126,7 @@ if __name__ == '__main__':
         Display.Plot_Mesh(mesh_master, alpha=0, ax=ax)
         ax.set_title('uy')
         if dim == 3:
-            Display._ScaleChange(ax, np.concatenate((mesh_master.coordo, mesh_slave.coordo), 0))
+            Display._Axis_equal_3D(ax, np.concatenate((mesh_master.coordo, mesh_slave.coordo), 0))
         
         # # Plot arrows
         # if nodes.size >0:

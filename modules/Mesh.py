@@ -223,15 +223,6 @@ class Mesh:
         return self.groupElem.Get_connect_n_e()
 
     @property
-    def dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
-        """Transform the connectivity matrix to pass it to the trisurf function in 2D.
-        For example, for a quadrangle, we construct two triangles
-        for a 6-node triangle, 4 triangles are constructed
-
-        Returns a dictionary by type"""
-        return self.groupElem.Get_dict_connect_Triangle()
-
-    @property
     def assembly_e(self) -> np.ndarray:
         """assembly matrix (Ne, nPe*dim)\n
         Allows rigi matrix to be positioned in the global matrix"""

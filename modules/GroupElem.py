@@ -1676,7 +1676,6 @@ class GroupElem(ABC):
     @property
     def segments(self) -> np.ndarray:
         """List of indexes used to construct segments"""
-        
         if self.__dim == 1:
             return np.array([[0, 1]], dtype=int)
         elif self.__dim == 2:
@@ -1687,24 +1686,6 @@ class GroupElem(ABC):
         elif self.__dim == 3:
             raise Exception("To be defined for 3D element groups.")
     
-    def Get_dict_connect_Triangle(self) -> dict[ElemType, np.ndarray]:
-        """Transform the connectivity matrix to pass it to the trisurf function in 2D.
-        For example, for a quadrangle, we construct two triangles
-        for a 6-node triangle, 4 triangles are constructed
-
-        Returns a dictionary by type
-        """
-        assert self.dim == 2
-
-        indexes = self.triangles
-
-        dict_connect_triangle = {}
-        dict_connect_triangle[self.elemType] = np.array(self.__connect[:, indexes]).reshape(-1,3)
-
-        # TODO essayer de faire aussi avec les elements genre pour SEG2 -> dict_connect_triangle[self. elemType] = self.__connect[:,[0,1,0]] ? Est ce que ça marche ?
-
-        return dict_connect_triangle
-
     @abstractproperty
     def faces(self) -> list[int]:
         """List of indexes to form the faces that make up the element"""
@@ -3589,7 +3570,11 @@ class PRISM6(GroupElem):
 
     @property
     def faces(self) -> list[int]:
-        return [0,3,4,1,0,2,5,3,1,4,5,2,3,5,4,0,1,2]
+        return [0,3,4,1,
+                0,2,5,3,
+                1,4,5,2,
+                3,5,4,3,
+                0,1,2,0]
     
     @property
     def segments(self) -> np.ndarray:
@@ -3669,8 +3654,8 @@ class PRISM15(GroupElem):
         return [0,8,3,12,4,10,1,6,
                 0,7,2,11,5,13,3,8,
                 1,10,4,14,5,11,2,9,
-                3,13,5,14,4,12,
-                0,6,1,9,2,7]
+                3,13,5,14,4,12,3,3,
+                0,6,1,9,2,7,0,0]
     
     @property
     def segments(self) -> np.ndarray:

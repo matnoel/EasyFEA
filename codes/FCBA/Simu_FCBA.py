@@ -155,7 +155,7 @@ if __name__  == '__main__':
         
         Display.Plot_Mesh(master_mesh, ax=axMesh)
         Display.Plot_Nodes(mesh, slaveNodes, ax=axMesh)
-        Display._ScaleChange(axMesh, mesh.coordo)
+        Display._Axis_equal_3D(axMesh, mesh.coordo)
 
     # --------------------------------------------------------------------------------------------
     # Import Loading
