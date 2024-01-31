@@ -9,13 +9,15 @@ PythonEF is a free Python library designed to simplify finite element simulation
 3. Thermal (stationary and transient) - Examples in `/codes/Thermal`.
 4. Damage (quasi-static phase field) - Examples in `/codes/PhaseField`.
 
-For each simulation, users are required to build a mesh and a model. Once the simulation is set up, you can easily define boundary conditions, solve the problem, and visualize the results.
+For each simulation, users must build a mesh and a model. Once the simulation has been set up, you can easily define the boundary conditions, solve the problem and visualize the results.
 
 ## Installation
 
 ### Step 1 - Install Python Libraries:
 
-Ensure that you have Python version 3.9 to 3.12 installed. The following libraries are required:
+Make sure that your python version is between 3.9 and 3.11
+
+The following libraries are required:
 
 - `numpy`
 - `scipy`
@@ -78,5 +80,3 @@ make install
 ```bash
 export PYTHONPATH="$PYTHONPATH:/Applications/gmsh-install/lib"
 ```
-
-This completes the installation and setup process for PythonEF.
