@@ -16,7 +16,6 @@ import Materials
 from Materials import ModelType, IModel, _Displacement_Model, Beam_Structure, PhaseField_Model, Thermal_Model, Reshape_variable
 from TicTac import Tic
 from Interface_Solvers import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
-import CalcNumba
 import Folder
 
 def Load_Simu(folder: str, verbosity=False):
@@ -299,7 +298,7 @@ class _Simu(ABC):
 
         self.__Init_Sols_n()
 
-        self.useNumba = useNumba & CalcNumba.numbaIsInstalled
+        self.useNumba = useNumba
 
         self.__useIterativeSolvers: bool = useIterativeSolvers
 
@@ -572,7 +571,7 @@ class _Simu(ABC):
         value : bool
             True to enable numba functions, False otherwise.
         """
-        value = value & CalcNumba.numbaIsInstalled
+        value = value
         self.__model.useNumba = value
         self.__useNumba = value
 

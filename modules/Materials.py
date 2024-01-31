@@ -7,7 +7,7 @@ import numpy as np
 
 from TicTac import Tic
 from Mesh import Mesh, GroupElem
-import CalcNumba as CalcNumba
+import CalcNumba
 import Display as Display
 from Geom import Line, Point, normalize_vect
 
@@ -50,7 +50,7 @@ class IModel(ABC):
 
     @useNumba.setter
     def useNumba(self, value: bool):
-        self.__useNumba = value
+        self.__useNumba = value and CalcNumba.numbaIsInstalled
 
     @property
     def needUpdate(self) -> bool:

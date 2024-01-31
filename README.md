@@ -21,18 +21,18 @@ Ensure that you have Python version 3.9 to 3.12 installed. The following librari
 - `scipy`
 - `matplotlib`
 - `gmsh` >= 4.12.0
+- `numba` (3.5.x <= Python < 3.12)
 - `pandas` (3.9 <= Python <= 3.12)
+
+For more information on installing `numba`, refer to [Numba Installation Guide](https://numba.readthedocs.io/en/stable/user/installing.html#numba-support-info).
 
 Optional Libraries (Recommended for improved resolution time):
 
 - `pypardiso` (Python > 3.8 & Intel oneAPI)
 - `petsc` and `petsc4py`
-- `numba` (3.5.x <= Python < 3.12)
 - `mumps` and `mpi4py`
 - `scikit-umfpack` (Python >= 3.9)
 - `scikits-sparse` (3.6 <= Python <= 3.12)
-
-For more information on installing `numba`, refer to [Numba Installation Guide](https://numba.readthedocs.io/en/stable/user/installing.html#numba-support-info).
 
 ### Step 2 - Add the PythonEF Modules to Python Path:
 
