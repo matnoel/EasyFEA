@@ -2408,16 +2408,6 @@ class Simu_PhaseField(_Simu):
             self.__Assembly_damage()
             d_np1 = self.__Solve_damage()
 
-            if d_np1.max() == np.inf and regu == "AT1":
-                # here it can happen that on the first iteration the damage solution is infinite (iterative solver)
-                d_np1 = np.zeros_like(d_np1)
-                # recovers dofs where damage has been imposed
-                ddls_Dirichlet = np.array(self.Bc_dofs_Dirichlet("damage"))
-                if ddls_Dirichlet.size > 0:
-                    values_Dirichlet = np.array(self.Bc_values_Dirichlet("damage"))
-                    d_np1[ddls_Dirichlet] = values_Dirichlet
-                self.set_u_n("damage", d_np1)
-
             # Displacement
             Kglob = self.__Assembly_displacement()
             u_np1 = self.__Solve_displacement()
@@ -2546,6 +2536,9 @@ class Simu_PhaseField(_Simu):
         tic.Tac("Matrix","Assembly Ku and Fu", self._verbosity)
         return self.__Ku
 
+        # # Here, we always want the matrices to be updated with the latest damage or displacement results.
+        # # That's why we don't say the matrices have been updated
+
     def __Solve_displacement(self) -> np.ndarray:
         """Solving the displacement problem."""
             
@@ -2648,7 +2641,7 @@ class Simu_PhaseField(_Simu):
             Kd_e *= thickness
             Fd_e *= thickness
         
-        tic.Tac("Matrix","Construc Kd_e and Fd_e", self._verbosity)
+        tic.Tac("Matrix","Construc Kd_e and Fd_e", self._verbosity)        
 
         return Kd_e, Fd_e
 
@@ -2677,7 +2670,10 @@ class Simu_PhaseField(_Simu):
         self.__Fd = sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (nDof,1))
         """Fglob for damage problem (Nn, 1)"""        
 
-        tic.Tac("Matrix","Assembly Kd and Fd", self._verbosity)        
+        tic.Tac("Matrix","Assembly Kd and Fd", self._verbosity)
+
+        # # Here, we always want the matrices to be updated with the latest damage or displacement results.
+        # # That's why we don't say the matrices have been updated
 
         return self.__Kd, self.__Fd
     
@@ -2838,31 +2834,10 @@ class Simu_PhaseField(_Simu):
 
         tic = Tic()
 
-        sol_u  = self.displacement
-
-        matrixType = MatrixType.rigi
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
-        jacobian_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = self.mesh.Get_weight_pg(matrixType)
-
-        if self.dim == 2:
-            ep = self.phaseFieldModel.thickness
-        else:
-            ep = 1
-
-        d = self.damage
-
-        phaseFieldModel = self.phaseFieldModel
-        psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
-
-        # Endommage : psiP_e_pg = g(d) * PsiP_e_pg 
-        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matrixType)
-        psiP_e_pg = np.einsum('ep,ep->ep', g_e_pg, psiP_e_pg, optimize='optimal')
-        psi_e_pg = psiP_e_pg + psiM_e_pg
-
-        Wdef = np.einsum(',ep,p,ep->', ep, jacobian_e_pg, weight_pg, psi_e_pg, optimize='optimal')
+        u = self.displacement.reshape(-1,1)
+        Ku = self.__Assembly_displacement()
         
-        Wdef = float(Wdef)
+        Wdef = 1/2 * float(u.T @ Ku @ u)
 
         tic.Tac("PostProcessing","Calc Psi Elas",False)
         
@@ -2872,45 +2847,10 @@ class Simu_PhaseField(_Simu):
         """Calculating crack energy."""
 
         tic = Tic()
-
-        pfm = self.phaseFieldModel 
-
-        matrixType = MatrixType.mass
-
-        Gc = pfm.Gc
-        l0 = pfm.l0
-        c0 = pfm.c0
-
-        d_n = self.damage
-        d_e = self.mesh.Locates_sol_e(d_n)
-
-        jacobian_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = self.mesh.Get_weight_pg(matrixType)
-        Nd_pg = self.mesh.Get_N_pg(matrixType)
-        Bd_e_pg = self.mesh.Get_dN_e_pg(matrixType)
-
-        grad_e_pg = np.einsum('epij,ej->epi',Bd_e_pg,d_e, optimize='optimal')
-        diffuse_e_pg = grad_e_pg**2
-
-        Ne = grad_e_pg.shape[0]
-        nPg = grad_e_pg.shape[1]
         
-        gcGrad = Reshape_variable(Gc*l0/c0, Ne, nPg)
-        gradPart = np.einsum('ep,p,ep,epi->',jacobian_e_pg, weight_pg, gcGrad, diffuse_e_pg, optimize='optimal')
-
-        alpha_e_pg = np.einsum('pij,ej->epi', Nd_pg, d_e, optimize='optimal')
-        if pfm.regularization == PhaseField_Model.RegularizationType.AT2:
-            alpha_e_pg = alpha_e_pg**2
-        
-        gcAlpha = Reshape_variable(Gc/(c0*l0), Ne, nPg)
-        alphaPart = np.einsum('ep,p,ep,epi->',jacobian_e_pg, weight_pg, gcAlpha, alpha_e_pg, optimize='optimal')
-
-        if self.dim == 2:
-            ep = self.phaseFieldModel.thickness
-        else:
-            ep = 1
-
-        Psi_Crack = (alphaPart + gradPart)*ep
+        d = self.damage.reshape(-1,1)
+        Kd = self.__Assembly_damage()[0]
+        Psi_Crack = 1/2 * float(d.T @ Kd @ d)
 
         tic.Tac("PostProcessing","Calc Psi Crack",False)
 

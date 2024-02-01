@@ -1346,11 +1346,12 @@ class PhaseField_Model(IModel):
 
         Gc = self.__Gc
         l0 = self.__l0
-
-        k = Gc * l0
-
-        if self.__regularization == PhaseField_Model.RegularizationType.AT1:
-            k = 3/4 * k
+        
+        # J/m
+        if self.__regularization == self.RegularizationType.AT1:
+            k = 3/4 * Gc * l0 
+        elif self.__regularization == self.RegularizationType.AT2:
+            k = Gc * l0        
 
         return k
 
@@ -1358,12 +1359,13 @@ class PhaseField_Model(IModel):
         """reaction therm"""
 
         Gc = Reshape_variable(self.__Gc, PsiP_e_pg.shape[0], PsiP_e_pg.shape[1])
-        
-        l0 = self.__l0        
-        r = 2 * PsiP_e_pg
+        l0 = self.__l0
 
-        if self.__regularization == PhaseField_Model.RegularizationType.AT2:
-            r = r + (Gc/l0)
+        # J/m3
+        if self.__regularization == self.RegularizationType.AT1:
+            r = 2 * PsiP_e_pg
+        elif self.__regularization == self.RegularizationType.AT2:
+            r = 2 * PsiP_e_pg + (Gc/l0)
         
         return r
 
@@ -1372,13 +1374,14 @@ class PhaseField_Model(IModel):
 
         Gc = Reshape_variable(self.__Gc, PsiP_e_pg.shape[0], PsiP_e_pg.shape[1])
         l0 = self.__l0
-
-        f = 2 * PsiP_e_pg
-
-        if self.__regularization == PhaseField_Model.RegularizationType.AT1:
-            f = f - ( (3*Gc) / (8*l0) )            
+        
+        # J/m3
+        if self.__regularization == self.RegularizationType.AT1:
+            f = 2 * PsiP_e_pg - ( (3*Gc) / (8*l0) )            
             absF = np.abs(f)
             f = (f+absF)/2
+        elif self.__regularization == self.RegularizationType.AT2:
+            f = 2 * PsiP_e_pg
         
         return f
 
@@ -1444,9 +1447,9 @@ class PhaseField_Model(IModel):
     @property
     def c0(self):
         """Scaling parameter for accurate dissipation of crack energy"""
-        if self.__regularization == PhaseField_Model.RegularizationType.AT1:
+        if self.__regularization == self.RegularizationType.AT1:
             c0 = 8/3
-        elif self.__regularization == PhaseField_Model.RegularizationType.AT2:
+        elif self.__regularization == self.RegularizationType.AT2:
             c0 = 2
         return c0
     
@@ -1548,19 +1551,19 @@ class PhaseField_Model(IModel):
         
         else:
 
-            if self.__split == PhaseField_Model.SplitType.Bourdin:
+            if self.__split == self.SplitType.Bourdin:
                 cP_e_pg, cM_e_pg = self.__Split_Bourdin(Ne, nPg)
 
-            elif self.__split == PhaseField_Model.SplitType.Amor:
+            elif self.__split == self.SplitType.Amor:
                 cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
-            elif self.__split == PhaseField_Model.SplitType.Miehe or "Strain" in self.__split:
+            elif self.__split == self.SplitType.Miehe or "Strain" in self.__split:
                 cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
             
-            elif self.__split == PhaseField_Model.SplitType.Zhang or "Stress" in self.__split:
+            elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
                 cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
 
-            elif self.__split == PhaseField_Model.SplitType.He:
+            elif self.__split == self.SplitType.He:
                 cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
             
             else: 
@@ -1672,7 +1675,7 @@ class PhaseField_Model(IModel):
 
         tic = Tic()
 
-        if self.__split == PhaseField_Model.SplitType.Miehe:
+        if self.__split == self.SplitType.Miehe:
             
             assert isinstance(self.__material, Elas_Isot), f"Implemented only for Elas_Isot material"
 
@@ -1728,22 +1731,22 @@ class PhaseField_Model(IModel):
                 Cmm = mc @ projM_e_pg
                 Cmp = mc @ projP_e_pg
             
-            if self.__split == PhaseField_Model.SplitType.AnisotStrain:
+            if self.__split == self.SplitType.AnisotStrain:
 
                 cP_e_pg = Cpp + Cpm + Cmp
                 cM_e_pg = Cmm 
 
-            elif self.__split == PhaseField_Model.SplitType.AnisotStrain_PM:
+            elif self.__split == self.SplitType.AnisotStrain_PM:
                 
                 cP_e_pg = Cpp + Cpm
                 cM_e_pg = Cmm + Cmp
 
-            elif self.__split == PhaseField_Model.SplitType.AnisotStrain_MP:
+            elif self.__split == self.SplitType.AnisotStrain_MP:
                 
                 cP_e_pg = Cpp + Cmp
                 cM_e_pg = Cmm + Cpm
 
-            elif self.__split == PhaseField_Model.SplitType.AnisotStrain_NoCross:
+            elif self.__split == self.SplitType.AnisotStrain_NoCross:
                 
                 cP_e_pg = Cpp
                 cM_e_pg = Cmm + Cpm + Cmp
@@ -1783,7 +1786,7 @@ class PhaseField_Model(IModel):
 
         tic = Tic()
 
-        if self.__split == PhaseField_Model.SplitType.Stress:
+        if self.__split == self.SplitType.Stress:
         
             assert isinstance(material, Elas_Isot)
 
@@ -1846,12 +1849,12 @@ class PhaseField_Model(IModel):
                     cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
                     cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
         
-        elif self.__split == PhaseField_Model.SplitType.Zhang or "Stress" in self.__split:
+        elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
             
             Cp_e_pg = np.einsum(f'epij,{indices}jk->epik', projP_e_pg, c, optimize='optimal')
             Cm_e_pg = np.einsum(f'epij,{indices}jk->epik', projM_e_pg, c, optimize='optimal')
 
-            if self.__split == PhaseField_Model.SplitType.Zhang:
+            if self.__split == self.SplitType.Zhang:
                 # [Zhang 2020] DOI : 10.1016/j.cma.2019.112643
                 cP_e_pg = Cp_e_pg
                 cM_e_pg = Cm_e_pg
@@ -1874,22 +1877,22 @@ class PhaseField_Model(IModel):
                     Cmm = ms @ Cm_e_pg
                     Cmp = ms @ Cp_e_pg
                 
-                if self.__split == PhaseField_Model.SplitType.AnisotStress:
+                if self.__split == self.SplitType.AnisotStress:
 
                     cP_e_pg = Cpp + Cpm + Cmp
                     cM_e_pg = Cmm
 
-                elif self.__split == PhaseField_Model.SplitType.AnisotStress_PM:
+                elif self.__split == self.SplitType.AnisotStress_PM:
                     
                     cP_e_pg = Cpp + Cpm
                     cM_e_pg = Cmm + Cmp
 
-                elif self.__split == PhaseField_Model.SplitType.AnisotStress_MP:
+                elif self.__split == self.SplitType.AnisotStress_MP:
                     
                     cP_e_pg = Cpp + Cmp
                     cM_e_pg = Cmm + Cpm
 
-                elif self.__split == PhaseField_Model.SplitType.AnisotStress_NoCross:
+                elif self.__split == self.SplitType.AnisotStress_NoCross:
                     
                     cP_e_pg = Cpp
                     cM_e_pg = Cmm + Cpm + Cmp
