@@ -96,7 +96,7 @@ def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2
 
     path_PythonEf = Get_Path(Get_Path())
     
-    from Display import Format
-    print(Format(workFolder.replace(path_PythonEf,""), 'green'))
+    from Display import myPrint
+    myPrint(workFolder.replace(path_PythonEf,""), 'green')
 
     return Join(path, workFolder)

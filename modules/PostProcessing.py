@@ -2,7 +2,7 @@
 
 import os
 
-import Display as Display
+import Display
 import Simulations
 import Folder
 from TicTac import Tic
@@ -35,7 +35,7 @@ def Save_Load_Displacement(load: np.ndarray, displacement: np.ndarray, folder:st
 
     with open(filename, "wb") as file:
         pickle.dump(values, file)
-    print(f'{filename.replace(folder_PythonEF,"")} (saved)')
+    Display.myPrint(f'{filename.replace(folder_PythonEF,"")} (saved)','green')
     
 def Load_Load_Displacement(folder:str, verbosity=False):
     """Load forces and displacements
@@ -61,7 +61,7 @@ def Load_Load_Displacement(folder:str, verbosity=False):
     displacement = np.array(values['displacement'])
 
     if verbosity:
-        print(f'\nLoading of:\n {filename}\n')
+        Display.myPrint(f'\nLoading of:\n {filename}\n','green')
 
     return load, displacement
 

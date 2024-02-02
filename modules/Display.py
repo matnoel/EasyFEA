@@ -1133,13 +1133,12 @@ class __Sytles(str, Enum):
     UNDERLINE = '\033[4m'
     RESET = '\33[0m'
 
-def Format(text: str, color='blue', bold=False, italic=False, underLine=False) -> str:
+def myPrint(text: str, color='blue', bold=False, italic=False, underLine=False, end:str=None) -> None:
 
     dct = dict(map(lambda item: (item.name, item.value), __Colors))
 
     if color not in dct:
-        print(Format(f"Color must be in {dct.keys()}", 'red'))
-        return text
+        myPrint(f"Color must be in {dct.keys()}", 'red')
     
     else:    
         formatedText = ""
@@ -1152,10 +1151,10 @@ def Format(text: str, color='blue', bold=False, italic=False, underLine=False) -
 
         formatedText += __Sytles.RESET
 
-        return formatedText
+        print(formatedText, end=end)
     
-def Error(text: str) -> str:
-    return Format(text, 'red')
+def myPrintError(text: str) -> str:
+    return myPrint(text, 'red')
 
 def Section(text: str, verbosity=True) -> None:
     """New section."""    
@@ -1167,9 +1166,9 @@ def Section(text: str, verbosity=True) -> None:
 
     bord = "="*int((longeurMax - longeurTexte)/2)
 
-    section = Format(f"\n\n{bord} {text} {bord}\n")
+    section = f"\n\n{bord} {text} {bord}\n"
 
-    if verbosity: print(section)
+    if verbosity: myPrint(section)
 
     return section
 
