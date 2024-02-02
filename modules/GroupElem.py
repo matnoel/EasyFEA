@@ -1539,7 +1539,10 @@ class GroupElem(ABC):
             ye = np.arange(np.floor(coordElem[:,1].min()), np.ceil(coordElem[:,1].max()), dtype=int)
             Xe, Ye = np.meshgrid(xe,ye)
 
-            idx = np.ravel_multi_index(np.concatenate(([Ye.ravel()],[Xe.ravel()])), (nY, nX))            
+            grid_elements_coordinates = np.concatenate(([Ye.ravel()],[Xe.ravel()]))
+            idx = np.ravel_multi_index(grid_elements_coordinates, (nY, nX))
+
+            # if something goes wrong, check that the mesh is correctly positioned in the image 
         
         else:
 
@@ -1555,13 +1558,6 @@ class GroupElem(ABC):
     def __Get_Mapping(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
         """This function locates coordinates in elements.
         We return the detected coordinates, the connectivity matrix between element and coordinates and the coordinates of these nodes in the reference elements, so that we can evaluate the shape functions."""
-
-        # # Calculates the number of times a coordinate appears
-        # repX = np.unique(coordinates_n[:,0], return_counts=True)[1]
-        # repY = np.unique(coordinates_n[:,1], return_counts=True)[1]
-        # repZ = np.unique(coordinates_n[:,2], return_counts=True)[1]
-        # dims = (repX, repY, repZ) # same as below
-        dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1 # faster
         
         # retrieves informations from element group
         dim = self.dim
@@ -1587,7 +1583,11 @@ class GroupElem(ABC):
         # node coordinates in the element's reference base
         coordoInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
         # nodes identified
-        nodes = []        
+        nodes = []
+
+        # Calculates the number of times a coordinate appears
+        # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image
+        dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1 # faster
 
         def ResearchFunction(e: int):
     

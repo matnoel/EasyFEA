@@ -4,7 +4,6 @@ import numpy as np
 from scipy import interpolate, sparse
 from scipy.sparse.linalg import splu
 import matplotlib.pyplot as plt
-import os
 import pickle
 import cv2
 
@@ -48,7 +47,7 @@ class DIC_Analysis:
         self._displacements = displacements
         """displacements measured during the tests."""
 
-        self._mesh = mesh
+        self._mesh: Mesh = mesh
         """pixel-based mesh used for image correlation."""
         assert mesh.dim == 2, "Must be a 2D mesh."
 
@@ -57,33 +56,33 @@ class DIC_Analysis:
         self._coef = 1.0
         """scaling coef (image scale [mm/px])."""
 
-        self.__Nn = mesh.Nn
-        self.__dim = mesh.dim
-        self.__nDof = self.__Nn * self.__dim
-        self.__ldic = self.__Get_ldic()
+        self.__Nn: int = mesh.Nn
+        self.__dim: int = mesh.dim
+        self.__nDof: int = self.__Nn * self.__dim
+        self.__ldic: float = self.__Get_ldic()
 
-        self._idxImgRef = idxImgRef
+        self._idxImgRef: int = idxImgRef
         """Reference image index in _loads."""
 
-        self._imgRef = imgRef        
+        self._imgRef: np.ndarray = imgRef        
         """Image used as reference."""
 
-        self.__shapeImages = imgRef.shape
+        self.__shapeImages: tuple[int, int] = imgRef.shape
         """Shape of images to be used for analysis."""
 
-        self._list_u_exp = []
+        self._list_u_exp: list[np.ndarray] = []
         """List containing calculated displacement fields."""
 
-        self._list_idx_exp = []
+        self._list_idx_exp: list[int] = []
         """List containing indexes for which the displacement field has been calculated."""
 
-        self._list_img_exp = []
+        self._list_img_exp: list[np.ndarray] = []
         """List containing images for which the displacement field has been calculated."""
 
-        self.__lr = lr
+        self.__lr: float = lr
         """regulation length."""
 
-        self._verbosity = verbosity
+        self._verbosity: bool = verbosity
 
         # initialize ROI and shape functions and shape function derivatives        
         self.__init__roi()       
@@ -108,24 +107,18 @@ class DIC_Analysis:
         # recovery of pixels used in elements with their coordinates
         pixels, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(coordPixel)
 
-        self.__connectPixel = connectPixel
+        self.__connectPixel: np.ndarray = connectPixel
         """connectivity matrix which links the pixels used for each element."""
-        self.__coordPixelInElem = coordPixelInElem
+        self.__coordPixelInElem: np.ndarray = coordPixelInElem
         """pixel coordinates in the reference element."""
         
         # ROI creation
-        self._roi = np.zeros(coordPx.shape[0])
+        self._roi: np.ndarray = np.zeros(coordPx.shape[0])
         self._roi[pixels] = 1
         self._roi = np.asarray(self._roi == 1, dtype=bool)
         """vector filter for accessing the pixels contained in the mesh."""
-        self._ROI = self._roi.reshape(self.__shapeImages)
+        self._ROI: np.ndarray = self._roi.reshape(self.__shapeImages)
         """matrix filter for accessing the pixels contained in the mesh."""
-
-        # ax = plt.subplots()[1]
-        # ax.imshow(imgRef)
-        # ax.scatter(coordPx[self._roi], coordPy[self._roi], c='white')
-        # Display.Plot_Mesh(mesh, ax=ax, alpha=0)
-        # # # [ax.text(mesh.coordo[n,0], mesh.coordo[n,1], n, c='red')for n in mesh.nodes]
 
         tic.Tac("DIC", "ROI", self._verbosity)
     
