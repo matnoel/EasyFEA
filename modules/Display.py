@@ -1147,7 +1147,7 @@ def myPrint(text: str, color='blue', bold=False, italic=False, underLine=False, 
         if italic: formatedText += __Sytles.ITALIC
         if underLine: formatedText += __Sytles.UNDERLINE
         
-        formatedText += dct[color] + text
+        formatedText += dct[color] + str(text)
 
         formatedText += __Sytles.RESET
 
