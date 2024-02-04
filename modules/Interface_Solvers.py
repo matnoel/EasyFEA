@@ -121,8 +121,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     # Choose the solver
     if len(lb) > 0 and len(lb) > 0:        
         solveur = "BoundConstrain"
-    else:        
-        if len(simu.Bc_dofs_Lagrange(problemType)) > 0:
+    else:
+        if len(simu.Bc_Lagrange) > 0:
             # if lagrange multiplier are found we cannot use iterative solvers
             solveur = "scipy"
         else:
@@ -146,17 +146,20 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
     elif solveur == "petsc":
         global __pc_default
+        # TODO find the best for damage problem
         if simu.problemType == 'damage':
             if problemType == 'damage':
                 pcType = 'ilu'
             else:                
                 # ilu decomposition doesn't seem to work for the displacement problem in a damage simulation
-                pcType = 'none'
+                # pcType = 'none'
+                pcType = 'ilu'
         else:
             pcType = __pc_default # 'ilu' by default
             # if mesh.dim = 3, errors may occurs if we use ilu
             # works faster on 2D and 3D
         kspType = 'cg'
+        # kspType = 'bicg'
 
         x, option, converg = _PETSc(A, b, x0, kspType, pcType)
 
@@ -246,8 +249,8 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
     simu = __Cast_Simu(simu)
 
     # Builds the matrix system
-    b = simu._Apply_Neumann(problemType)
-    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r1)
+    b = simu._Solver_Apply_Neumann(problemType)
+    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolutionType.r1)
 
     # Recovers ddls
     dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknow(problemType)
@@ -285,8 +288,8 @@ def __Solver_2(simu, problemType: str):
     size = simu.mesh.Nn * simu.Get_dof_n(problemType)
 
     # Builds the penalized matrix system
-    b = simu._Apply_Neumann(problemType)
-    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r2)
+    b = simu._Solver_Apply_Neumann(problemType)
+    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolutionType.r2)
     alpha = A.data.max()
 
     tic = Tic()
@@ -295,19 +298,19 @@ def __Solver_2(simu, problemType: str):
     A = A.tolil()
     b = b.tolil()
 
-    dofs_Dirichlet = np.array(simu.Bc_dofs_Dirichlet(problemType))
-    values_Dirichlet = np.array(simu.Bc_values_Dirichlet(problemType))
+    dofs_Dirichlet = np.asarray(simu.Bc_dofs_Dirichlet(problemType))
+    values_Dirichlet = np.asarray(simu.Bc_values_Dirichlet(problemType))
     
     list_Bc_Lagrange = simu.Bc_Lagrange
 
-    nColEnPlusLagrange = len(list_Bc_Lagrange)
-    nColEnPlusDirichlet = len(dofs_Dirichlet)
-    nColEnPlus = nColEnPlusLagrange + nColEnPlusDirichlet
+    nLagrange = len(list_Bc_Lagrange)
+    nDirichlet = len(dofs_Dirichlet)
+    nCol = nLagrange + nDirichlet
 
     x0 = simu.Get_x0(problemType)
-    x0 = np.append(x0, np.zeros(nColEnPlus))
+    x0 = np.append(x0, np.zeros(nCol))
 
-    linesDirichlet = np.arange(size, size+nColEnPlusDirichlet)
+    linesDirichlet = np.arange(size, size+nDirichlet)
     
     # apply lagrange multiplier
     A[linesDirichlet, dofs_Dirichlet] = alpha
@@ -329,7 +332,7 @@ def __Solver_2(simu, problemType: str):
             A[i,dofs] = coefs
             b[i] = values[0]
         
-        start = size + nColEnPlusDirichlet
+        start = size + nDirichlet
         [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, start)]
     
     tic.Tac("Solver",f"Lagrange ({problemType}) Coupling", simu._verbosity)
@@ -352,8 +355,8 @@ def __Solver_3(simu, problemType: str):
     simu = __Cast_Simu(simu)
 
     # Builds the penalized matrix system
-    b = simu._Apply_Neumann(problemType)
-    A, x = simu._Apply_Dirichlet(problemType, b, ResolutionType.r3)
+    b = simu._Solver_Apply_Neumann(problemType)
+    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolutionType.r3)
 
     # Solving the penalized matrix system
     x = _Solve_Axb(simu, problemType, A, b, [], [], [])

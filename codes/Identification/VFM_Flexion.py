@@ -65,7 +65,7 @@ if __name__ == '__main__':
     # Display.Plot_BoundaryConditions(simu)
 
     u_exp = simu.Solve()
-    f_exp = simu._Apply_Neumann("displacement").toarray().reshape(-1)
+    f_exp = simu._Solver_Apply_Neumann("displacement").toarray().reshape(-1)
 
     forceR = np.sum(f_exp)
 

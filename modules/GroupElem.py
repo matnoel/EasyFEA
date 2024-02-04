@@ -100,8 +100,6 @@ class GroupElem(ABC):
         """Initialize matrix dictionaries for finite element construction"""
         # Dictionaries for each matrix type        
         self.__dict_dN_e_pg = {}
-        self.__dict_dNv_e_pg = {}
-        self.__dict_ddNv_e_pg = {}
         self.__dict_ddN_e_pg = {}
         self.__dict_F_e_pg = {}
         self.__dict_invF_e_pg = {}
@@ -368,66 +366,87 @@ class GroupElem(ABC):
             self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
 
         return self.__dict_ddN_e_pg[matrixType].copy()
+    
+    def Get_Nv_e_pg(self) -> np.ndarray:
+        """Evaluate beam shape functions in the global coordinates.\n
+        [phi_i psi_i . . . phi_n psi_n]\n
+        (e, pg, 1, nPe*2)
+        """
+        if self.dim != 1: return
 
-    def Get_dNv_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+        matrixType = MatrixType.beam
+
+        invF_e_pg = self.Get_invF_e_pg(matrixType)
+        Nv_pg = self.Get_Nv_pg(matrixType)
+
+        Ne = self.Ne
+        nPe = self.nPe
+        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+        pg = self.Get_gauss(matrixType)
+        
+        Nv_e_pg = invF_e_pg @ Nv_pg
+        
+        # multiply by the beam length on psi_i,xx functions            
+        l_e = self.length_e
+        columns = np.arange(1, nPe*2, 2)
+        for column in columns:
+            Nv_e_pg[:,:,0,column] = np.einsum('ep,e->ep', Nv_e_pg[:,:,0,column], l_e, optimize='optimal')    
+
+        return Nv_e_pg
+
+    def Get_dNv_e_pg(self) -> np.ndarray:
         """Evaluate beam shape functions first derivatives in the global coordinates.\n
         [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
         (e, pg, 1, nPe*2)
         """
         if self.dim != 1: return
 
-        assert matrixType in MatrixType.get_types()
+        matrixType = MatrixType.beam
 
-        if matrixType not in self.__dict_dNv_e_pg.keys():
+        invF_e_pg = self.Get_invF_e_pg(matrixType)
+        dNv_pg = self.Get_dNv_pg(matrixType)
 
-            invF_e_pg = self.Get_invF_e_pg(matrixType)
-            dNv_pg = self.Get_ddNv_pg(matrixType)
+        Ne = self.Ne
+        nPe = self.nPe
+        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+        pg = self.Get_gauss(matrixType)
+        
+        dNv_e_pg = invF_e_pg @ dNv_pg
+        
+        # multiply by the beam length on psi_i,xx functions            
+        l_e = self.length_e
+        columns = np.arange(1, nPe*2, 2)
+        for column in columns:
+            dNv_e_pg[:,:,0,column] = np.einsum('ep,e->ep', dNv_e_pg[:,:,0,column], l_e, optimize='optimal')
 
-            Ne = self.Ne
-            nPe = self.nPe
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-            pg = self.Get_gauss(matrixType)
-            
-            dNv_e_pg = invF_e_pg @ dNv_pg
-            
-            # multiply by the beam length on psi_i,xx functions            
-            l_e = self.length_e
-            columns = np.arange(1, nPe*2, 2)
-            for column in columns:
-                dNv_e_pg[:,:,0,column] = np.einsum('ep,e->ep', dNv_e_pg[:,:,0,column], l_e, optimize='optimal')
+        return dNv_e_pg
 
-        return self.__dict_dNv_e_pg[matrixType].copy()
-
-    def Get_ddNv_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_ddNv_e_pg(self) -> np.ndarray:
         """Evaluate beam shape functions second derivatives in the global coordinates.\n
         [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
         (e, pg, 1, nPe*2)
         """
         if self.dim != 1: return
         
-        assert matrixType in MatrixType.get_types()
+        matrixType = MatrixType.beam        
 
-        if matrixType not in self.__dict_ddNv_e_pg.keys():
+        invF_e_pg = self.Get_invF_e_pg(matrixType)
+        ddNv_pg = self.Get_ddNv_pg(matrixType)
 
-            invF_e_pg = self.Get_invF_e_pg(matrixType)
-            ddNv_pg = self.Get_ddNv_pg(matrixType)
+        Ne = self.Ne
+        nPe = self.nPe
+        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+        pg = self.Get_gauss(matrixType)
+        
+        ddNv_e_pg = invF_e_pg @ invF_e_pg @ ddNv_pg
+        
+        # multiply by the beam length on psi_i,xx functions            
+        l_e = self.length_e
+        columns = np.arange(1, nPe*2, 2)
+        for column in columns:
+            ddNv_e_pg[:,:,0,column] = np.einsum('ep,e->ep', ddNv_e_pg[:,:,0,column], l_e, optimize='optimal')
 
-            Ne = self.Ne
-            nPe = self.nPe
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-            pg = self.Get_gauss(matrixType)
-            
-            ddNv_e_pg = invF_e_pg @ invF_e_pg @ ddNv_pg
-            
-            # multiply by the beam length on psi_i,xx functions            
-            l_e = self.length_e
-            columns = np.arange(1, nPe*2, 2)
-            for column in columns:
-                ddNv_e_pg[:,:,0,column] = np.einsum('ep,e->ep', ddNv_e_pg[:,:,0,column], l_e, optimize='optimal')
-
-            self.__dict_ddNv_e_pg[matrixType] = ddNv_e_pg
-
-        return self.__dict_ddNv_e_pg[matrixType].copy()
+        return ddNv_e_pg
 
     def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Construct the matrix used to calculate deformations from displacements.\n

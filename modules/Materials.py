@@ -933,9 +933,9 @@ class _Beam_Model(IModel):
 
         assert section.inDim == 2, 'The cross-beam section must be contained in the (x,y) plane.'
         # make sure that the section is centered in (0,0)
-        section.translate(*section.center)
-        Iyz = section.groupElem.Integrate_e(lambda x,y,z: y*z).sum()
-        assert Iyz <= 1e-12, 'The section must have at least 1 symetry axis'
+        section.translate(*-section.center)
+        Iyz = section.groupElem.Integrate_e(lambda x,y,z: x*y).sum()
+        assert np.abs(Iyz) <= 1e-9, 'The section must have at least 1 symetry axis'
         self.__section: Mesh = section
 
         self.yAxis = yAxis
@@ -1021,7 +1021,7 @@ class _Beam_Model(IModel):
         """
         line = self.line
         
-        i = line.get_unitVector(line.pt1, line.pt2)
+        i = line.unitVector
         j = self.yAxis
         k = normalize_vect(np.cross(i,j))
 
@@ -1067,6 +1067,11 @@ class Beam_Elas_Isot(_Beam_Model):
         """Poisson ratio"""
         return self.__v
     
+    @property
+    def mu(self) -> float:
+        """Shear modulus"""
+        return self.E/(2*(1+self.v))
+    
     def Get_D(self) -> np.ndarray:
 
         dim = self.dim
@@ -1087,7 +1092,7 @@ class Beam_Elas_Isot(_Beam_Model):
             D = np.diag([E*A, E*Iz])
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1 rz1, . . . , un, vn, wn, rxn, ryn rzn]
-            mu = E/(2*(1+v))
+            mu = self.mu
             D = np.diag([E*A, mu*J, E*Iy, E*Iz])
 
         return D

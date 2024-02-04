@@ -362,20 +362,6 @@ class Mesh:
         """
         return self.groupElem.Get_dN_e_pg(matrixType)
 
-    def Get_dNv_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluate beam shape functions first derivatives in the global coordinates.\n
-        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
-        (e, pg, 1, nPe*2)
-        """
-        return self.groupElem.Get_dNv_e_pg(matrixType)
-
-    def Get_ddNv_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluate beam shape functions second derivatives in the global coordinates.\n
-        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
-        (e, pg, 1, nPe*2)
-        """
-        return self.groupElem.Get_ddNv_e_pg(matrixType)
-
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluate shape functions second derivatives in the global coordinates.\n
         [Ni,xx . . . Nn,xx\n
