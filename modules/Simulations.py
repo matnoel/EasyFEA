@@ -3437,7 +3437,7 @@ class Simu_Beam(_Simu):
             Ku_beam = self.__Construct_Beam_Matrix()
 
             # Additional dimension linked to the use of lagrange coefficients
-            nDof += self._Bc_Lagrange_dim(self.pro)
+            nDof += self._Bc_Lagrange_dim(self.problemType)
             
             tic = Tic()
 
