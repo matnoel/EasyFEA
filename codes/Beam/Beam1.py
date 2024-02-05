@@ -33,7 +33,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     elemType = ElemType.SEG2
-    beamDim = 3
+    beamDim = 1
 
     # Create a section object for the beam mesh
     interfGmsh = Interface_Gmsh()
@@ -84,7 +84,8 @@ if __name__ == '__main__':
 
     x_array = np.linspace(0, L, 100)
     u_x = (load * x_array / (E * (section.area))) + (ro * g * x_array / 2 / E * (2 * L - x_array))
-    error = np.abs(u_x[-1] - ux.max() / ux.max())
+    err_ux = np.abs(u_x[-1] - ux.max()) / ux.max()
+    Display.myPrint(f"err ux: {err_ux*100:.2e} %")
 
     # Plot the analytical and finite element solutions for displacement (u)
     fig, ax = plt.subplots()

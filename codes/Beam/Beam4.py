@@ -30,7 +30,6 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     elemType = ElemType.SEG2
-    beamDim = 3
 
     # Create a section object for the beam mesh
     interfGmsh = Interface_Gmsh()
@@ -41,8 +40,8 @@ if __name__ == '__main__':
     point3 = Point(y=L, x=L / 2)
     line1 = Line(point1, point2, L / nL)
     line2 = Line(point2, point3, L / nL)
-    beam1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
-    beam2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
+    beam1 = Materials.Beam_Elas_Isot(3, line1, section, E, v)
+    beam2 = Materials.Beam_Elas_Isot(3, line2, section, E, v)
     beams = [beam1, beam2]
 
     mesh = interfGmsh.Mesh_Beams(beams=beams, elemType=elemType)

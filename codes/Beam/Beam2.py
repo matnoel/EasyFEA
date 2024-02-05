@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     elemType = ElemType.SEG2
-    beamDim = 3
+    beamDim = 2 # must be >= 2
 
     # Create a section object for the beam mesh
     interfGmsh = Interface_Gmsh()
@@ -87,7 +87,8 @@ if __name__ == '__main__':
     uy_x = load / (E * Iz) * (x ** 3 / 6 - (L * x ** 2) / 2)
 
     flecheanalytique = load * L ** 3 / (3 * E * Iz)
-    erreur = np.abs(flecheanalytique + uy.min()) / flecheanalytique
+    err_uy = np.abs(flecheanalytique + uy.min()) / flecheanalytique
+    Display.myPrint(f"err uy: {err_uy*100:.2e} %")
 
     # Plot the analytical and finite element solutions for vertical displacement (v)
     fig, axUy = plt.subplots()
@@ -97,7 +98,10 @@ if __name__ == '__main__':
     axUy.legend()
 
     rz_x = load / E / Iz * (x ** 2 / 2 - L * x)
-    rotalytique = -load * L ** 2 / (2 * E * Iz)
+    rotalytique = load * L ** 2 / (2 * E * Iz)
+    err_rz = np.abs(rotalytique + rz.min()) / rotalytique
+    Display.myPrint(f"err rz: {err_rz*100:.2e} %")
+
 
     # Plot the analytical and finite element solutions for rotation (rz)
     fig, axRz = plt.subplots()

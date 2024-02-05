@@ -933,7 +933,7 @@ class _Simu(ABC):
         # len(self.Bc_Lagrange) won't work because we need to filter the problemType
         nBc = BoundaryCondition.Get_nBc(problemType, self.Bc_Lagrange)
         if nBc > 0:
-            nBc += len(self.Bc_Dirichlet)
+            nBc += len(self.Bc_dofs_Dirichlet(problemType))
         return nBc
 
     @property
@@ -3251,38 +3251,47 @@ class Simu_Beam(_Simu):
 
         if dim == 1:
             # u = [u1, . . . , un]
+            
+            # N = [N_i, . . . , N_n]
 
-            idx_u = np.arange(dof_n*nPe)
+            idx_ux = np.arange(dof_n*nPe)
 
             N_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            N_e_pg[:,:,0, idx_u] = N_pg[:,:,0]
+            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
                 
         elif dim == 2:
-            # u = [u1, v1, rz1,
-            #      . . . ,
-            #      un, vn, rzn]
+            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            
+            # N = [N_i, 0, 0, ... , N_n, 0, 0,]
+            #     [0, Phi_i, Psi_i, ... , 0, Phi_i, Psi_i]
+            #     [0, dPhi_i, dPsi_i, ... , 0, dPhi_i, dPsi_i]
 
             idx = np.arange(dof_n*nPe).reshape(nPe,-1)
             
-            idx_u = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_v = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
+            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
 
             N_e_pg = np.zeros((Ne, nPg, 3, dof_n*nPe))
             
-            N_e_pg[:,:,0, idx_u] = N_pg[:,:,0]
-            N_e_pg[:,:,1, idx_v] = Nv_e_pg[:,:,0]
-            N_e_pg[:,:,2, idx_v] = dNv_e_pg[:,:,0]
+            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0] # traction / compression to get u
+            N_e_pg[:,:,1, idx_uy] = Nv_e_pg[:,:,0] # flexion z to get v
+            N_e_pg[:,:,2, idx_uy] = dNv_e_pg[:,:,0] # flexion z to get rz
 
         elif dim == 3:
-            # u = [u1, v1, w1, rx1, ry1, rz1,
-            #       . . .
-            #      un, vn, wn, rxn, ryn, rzn]
+            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
+
+            # N = [N_i, 0, 0, 0, 0, 0, ... , N_n, 0, 0, 0, 0, 0]
+            #     [0, Phi_i, 0, 0, 0, Psi_i, ... , 0, Phi_n, 0, 0, 0, Psi_n]
+            #     [0, 0, dPhi_i, 0, -dPsi_i, 0, ... , 0, 0, dPhi_n, 0, -dPsi_n, 0]
+            #     [0, 0, 0, N_i, 0, 0, ... , 0, 0, 0, N_n, 0, 0]
+            #     [0, 0, -dPhi_i, 0, dPsi_i, 0, ... , 0, 0, -dPhi_n, 0, dPsi_n, 0]
+            #     [0, dPhi_i, 0, 0, 0, dPsi_i, ... , 0, dPhi_i, 0, 0, 0, dPsi_n]
 
             idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_u = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_v = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_w = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_tx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
+            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
+            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
+            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
             idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
 
             Nvz_e_pg = Nv_e_pg.copy()
@@ -3293,12 +3302,12 @@ class Simu_Beam(_Simu):
 
             N_e_pg = np.zeros((Ne, nPg, 6, dof_n*nPe))
             
-            N_e_pg[:,:,0, idx_u] = N_pg[:,:,0]
-            N_e_pg[:,:,1, idx_v] = Nv_e_pg[:,:,0]
-            N_e_pg[:,:,2, idx_w] = Nvz_e_pg[:,:,0]
-            N_e_pg[:,:,3, idx_tx] = N_pg[:,:,0]
-            N_e_pg[:,:,4, idx_w] = -dNvz_e_pg[:,:,0] # RY = -UZ
-            N_e_pg[:,:,5, idx_v] = dNv_e_pg[:,:,0] # Rz = UY
+            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
+            N_e_pg[:,:,1, idx_uy] = Nv_e_pg[:,:,0]
+            N_e_pg[:,:,2, idx_uz] = Nvz_e_pg[:,:,0]
+            N_e_pg[:,:,3, idx_rx] = N_pg[:,:,0]
+            N_e_pg[:,:,4, idx_uz] = -dNvz_e_pg[:,:,0] # ry = -uz'
+            N_e_pg[:,:,5, idx_uy] = dNv_e_pg[:,:,0] # rz = uy'
 
         # Fait la rotation si nécessaire
 
@@ -3355,48 +3364,54 @@ class Simu_Beam(_Simu):
 
         if dim == 1:
             # u = [u1, . . . , un]
+            
+            # B = [dN_i, . . . , dN_n]
 
-            idx_u = np.arange(dof_n*nPe)
+            idx_ux = np.arange(dof_n*nPe)
 
             B_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            B_e_pg[:,:,0, idx_u] = dN_e_pg[:,:,0]
+            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0]
                 
         elif dim == 2:
-            # u = [u1, v1, rz1,
-            #      . . . ,
-            #      un, vn, rzn]
+            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            
+            # B = [dN_i, 0, 0, ... , dN_n, 0, 0,]
+            #     [0, ddPhi_i, ddPsi_i, ... , 0, ddPhi_i, ddPsi_i]
 
             idx = np.arange(dof_n*nPe).reshape(nPe,-1)
             
-            idx_u = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_v = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
+            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
 
             B_e_pg = np.zeros((Ne, nPg, 2, dof_n*nPe))
             
-            B_e_pg[:,:,0, idx_u] = dN_e_pg[:,:,0]
-            B_e_pg[:,:,1, idx_v] = ddNv_e_pg[:,:,0]
+            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
+            B_e_pg[:,:,1, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z
 
         elif dim == 3:
-            # u = [u1, v1, w1, rx1, ry1, rz1,
-            #       . . .
-            #      un, vn, wn, rxn, ryn, rzn]
+            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
+
+            # B = [dN_i, 0, 0, 0, 0, 0, ... , dN_n, 0, 0, 0, 0, 0]
+            #     [0, 0, 0, dN_i, 0, 0, ... , 0, 0, 0, dN_n, 0, 0]
+            #     [0, 0, ddPhi_i, 0, -ddPsi_i, 0, ... , 0, 0, ddPhi_n, 0, -ddPsi_n, 0]
+            #     [0, ddPhi_i, 0, 0, 0, ddPsi_i, ... , 0, ddPhi_i, 0, 0, 0, ddPsi_n]
 
             idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_u = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_v = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_w = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_tx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
-            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)           
-
+            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
+            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
+            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
+            
+            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
             ddNvz_e_pg = ddNv_e_pg.copy()
-            ddNvz_e_pg[:,:,0,idPsi] = -1
+            ddNvz_e_pg[:,:,0,idPsi] *= -1 # RY = -UZ'
 
             B_e_pg = np.zeros((Ne, nPg, 4, dof_n*nPe))
             
-            B_e_pg[:,:,0, idx_u] = dN_e_pg[:,:,0]
-            B_e_pg[:,:,1, idx_tx] = dN_e_pg[:,:,0]
-            B_e_pg[:,:,3, idx_v] = ddNv_e_pg[:,:,0]
-            B_e_pg[:,:,2, idx_w] = ddNvz_e_pg[:,:,0] # RY = -UZ' (-psi_i,xx)
+            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
+            B_e_pg[:,:,1, idx_rx] = dN_e_pg[:,:,0] # torsion
+            B_e_pg[:,:,2, idx_uz] = ddNvz_e_pg[:,:,0] # flexion along y
+            B_e_pg[:,:,3, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z
 
         # Fait la rotation si nécessaire
 
@@ -3753,20 +3768,10 @@ class Simu_Beam(_Simu):
             # [Sxx, Syy, Sxy]
             Sigma_e_pg = np.zeros((Ne, nPg, 3))
 
-            rz_e = self.Result('rz')[self.mesh.connect]
-
-            Nrz_e_pg = self.mesh.groupElem.Get_Nv_e_pg().reshape((Ne,nPg,2,-1))[:,:,:,1]
-            dNvx_e_pg = self.mesh.groupElem.Get_dNv_e_pg().reshape((Ne,nPg,2,-1))[:,:,:,0]
             
-            rz_e_pg = np.einsum('epi,ei->ep',Nrz_e_pg, rz_e, optimize='optimal')
-            dvdx_e_pg = np.einsum('epi,ei->ep',dNvx_e_pg, rz_e, optimize='optimal')
-            
-            Ty_e_pg = mu_e_pg * S_e_pg * (dvdx_e_pg - rz_e_pg)
-            
-            # tt = mu_e_pg * S_e_pg * (dvdx_e_pg - rz_e_pg) - (mu_e_pg * S_e_pg * Epsilon_e_pg[:,:,-1])
 
 
-            # Ty_e_pg = mu_e_pg * S_e_pg * Epsilon_e_pg[:,:,-1] # mu * S * 2Exy
+            Ty_e_pg = mu_e_pg * S_e_pg * Epsilon_e_pg[:,:,-1] # mu * S * 2Exy
 
             Mz_e_pg = InternalForces_e_pg[:,:,1]
             Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg - (Mz_e_pg*y_e_pg/Iz_e_pg)  # Sxx = N/S - Mz*y/Iz

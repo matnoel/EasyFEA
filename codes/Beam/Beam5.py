@@ -16,6 +16,10 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
+
+    elemType = ElemType.SEG2
+    dim = 2 # must be >= 2
+
     l = 100 # mm
 
     pA = Point(2*l, 0)
@@ -34,21 +38,16 @@ if __name__ == '__main__':
 
     section = Interface_Gmsh().Mesh_2D(Domain(Point(-4/2, -8/2), Point(4/2, 8/2)))
     Display.Plot_Mesh(section, title='Cross section')
-
-    # --------------------------------------------------------------------------------------------
-    # Simulation
-    # --------------------------------------------------------------------------------------------
+    
     E = 276 # MPa
     v = 0.3
 
-    beamDim = 2
-
-    beams = [Materials.Beam_Elas_Isot(beamDim, line, section, E, v) for line in listLine]
+    beams = [Materials.Beam_Elas_Isot(dim, line, section, E, v) for line in listLine]
     structure = Materials.Beam_Structure(beams)
 
-    mesh = Interface_Gmsh().Mesh_Beams(beams, ElemType.SEG2)
-    Display.Plot_Mesh(mesh)
-    Display.Plot_Model(mesh)
+    mesh = Interface_Gmsh().Mesh_Beams(beams, elemType)
+    # Display.Plot_Mesh(mesh)
+    # Display.Plot_Model(mesh)
 
     # --------------------------------------------------------------------------------------------
     # Simulation

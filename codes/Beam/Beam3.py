@@ -58,7 +58,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     elemType = ElemType.SEG2
-    beamDim = 2
+    beamDim = 2 # must be >= 2
 
     point1 = Point()
     point2 = Point(x=L / 2)
@@ -93,13 +93,6 @@ if __name__ == '__main__':
     # Solve the beam problem and get displacement results
     sol = simu.Solve()
     simu.Save_Iter()
-    
-    # eps = simu._Calc_Epsilon_e_pg(sol)
-    # forces = simu.Results_Nodes_Values(mesh, simu._Calc_InternalForces_e_pg(eps).mean(1))
-    # sig = simu._Calc_Sigma_e_pg(eps)
-    
-    # print(forces[mesh.Nodes_Point(point2)])
-    # print(simu.Result('rz')[mesh.Nodes_Point(point2)])
 
     # --------------------------------------------------------------------------------------------
     # Results
@@ -109,7 +102,7 @@ if __name__ == '__main__':
 
     uy_1d = np.abs(simu.Result('uy').min())
 
-    print(f"err beam model : {np.abs(u_an-uy_1d)/u_an*100:.2f} %")
+    Display.myPrint(f"err uy : {np.abs(u_an-uy_1d)/u_an*100:.2e} %")
 
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, L/20/sol.min())
