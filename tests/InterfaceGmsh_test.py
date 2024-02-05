@@ -29,7 +29,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
             axx.get_yaxis().set_visible(False)
             plt.pause(1e-12)
 
-            Display.Plot_Model(mesh2D)
+            Display.Plot_Tags(mesh2D)
             plt.pause(1e-12)
             plt.close()
         
@@ -44,7 +44,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
             plt.pause(1e-12)
             plt.close()
 
-            Display.Plot_Model(mesh3D)
+            Display.Plot_Tags(mesh3D)
             plt.pause(1e-12)
             plt.close()
 

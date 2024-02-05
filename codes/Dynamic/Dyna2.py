@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     # Plot the model if specified
     if plotModel:
-        Display.Plot_Model(mesh)
+        Display.Plot_Tags(mesh)
         plt.show()
 
     # Get nodes for boundary conditions and loading

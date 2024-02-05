@@ -165,7 +165,7 @@ if __name__ == '__main__':
     mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType)
 
     Display.Plot_Mesh(mesh)
-    Display.Plot_Model(mesh)
+    Display.Plot_Tags(mesh)
     coordo = mesh.coordo
 
     nodes_matrix = mesh.Nodes_Tags(['S0'])

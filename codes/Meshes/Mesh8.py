@@ -113,7 +113,7 @@ if __name__ == '__main__':
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==H), [4], ['y'])    
     simu.Solve()
         
-    Display.Plot_Model(mesh, alpha=0.1, showId=False)
+    Display.Plot_Tags(mesh, alpha=0.1, showId=False)
     Display.Plot_Mesh(simu, 1)
     Display.Plot_Result(simu, 'uy', 1, plotMesh=True)
 

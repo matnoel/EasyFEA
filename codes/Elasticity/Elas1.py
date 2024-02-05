@@ -74,7 +74,7 @@ if __name__ == '__main__':
     print(f"err uy : {np.abs(uy_an-uy_num)/uy_an*100:.2f} %")
 
 
-    Display.Plot_Model(mesh)
+    Display.Plot_Tags(mesh)
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, h/2/np.abs(sol).max())
     Display.Plot_Result(simu, "uy", nodeValues=True, coef=1/coef, nColors=20)

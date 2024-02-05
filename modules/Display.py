@@ -120,7 +120,8 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # Only designed for one element group!
 
         if ax == None:
-            fig, ax = plt.subplots()
+            ax = init_Axes(2)
+            fig = ax.figure
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
 
@@ -179,7 +180,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         plotDim = 2 if plotDim == 3 else plotDim
 
         if ax == None:
-            ax = __init_Axes3D()
+            ax = init_Axes(3)
             fig = ax.figure
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
@@ -336,7 +337,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
         # in 2d space
 
         if ax == None:
-            fig, ax = plt.subplots()
+            ax = init_Axes(2)
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
             ax.set_title(title)
@@ -371,7 +372,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
         # in 3d space
 
         if ax == None:
-            ax = __init_Axes3D()
+            ax = init_Axes(3)
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
             ax.set_zlabel(r"$z$")
@@ -454,7 +455,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
     inDim = mesh.inDim
 
     if ax == None:
-        ax = Plot_Mesh(mesh, alpha=0)
+        ax = init_Axes(inDim)
     else:        
         inDim = 3 if ax.name == '3d' else inDim
     ax.set_title("")
@@ -524,7 +525,7 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     if len(list_groupElem) == 0: return
 
     if ax == None:
-        ax = Plot_Mesh(mesh, alpha=0)    
+        ax = init_Axes(inDim)
     else:        
         inDim = 3 if ax.name == '3d' else inDim
 
@@ -664,8 +665,8 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
 
     return ax
 
-def Plot_Model(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
-    """Plot the model.
+def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
+    """Plot the model tags.
 
     Parameters
     ----------    
@@ -691,14 +692,15 @@ def Plot_Model(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> pl
 
     if ax == None:
         if mesh.inDim <= 2:
-            fig, ax = plt.subplots()
+            ax = init_Axes(2)
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
         else:
-            ax = __init_Axes3D()
+            ax = init_Axes(3)
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
             ax.set_zlabel(r"$z$")
+        fig = ax.figure
     else:
         fig = ax.figure
         inDim = 3 if ax.name == '3d' else inDim
@@ -864,7 +866,8 @@ def Plot_Load_Displacement(displacement: np.ndarray, forces: np.ndarray, xlabel=
         fig = ax.figure
         ax.clear()
     else:        
-        fig, ax = plt.subplots()
+        ax = init_Axes(2)
+        fig = ax.figure
 
     ax.plot(np.abs(displacement), np.abs(forces), c='blue')
     ax.set_xlabel(xlabel)
@@ -1202,10 +1205,13 @@ def __init_obj(obj, deformFactor: float=0.0):
     
     return simu, mesh, coordo, inDim
 
-def __init_Axes3D(elev=105, azim=-90) -> Axes3D:
-    fig = plt.figure()
-    ax: Axes3D = fig.add_subplot(projection="3d")
-    ax.view_init(elev=elev, azim=azim)
+def init_Axes(dim: int, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
+    if dim == 2:
+        ax = plt.subplots()[1]
+    elif dim == 3:
+        fig = plt.figure()
+        ax: Axes3D = fig.add_subplot(projection="3d")
+        ax.view_init(elev=elev, azim=azim)
     return ax
 
 def _get_list_faces(mesh, dimElem:int) -> list[list[int]]:

@@ -55,7 +55,7 @@ if __name__ == '__main__':
     nodes_upper = mesh.Nodes_Tags(["L2"])
 
     Display.Plot_Mesh(mesh)
-    Display.Plot_Model(mesh)
+    Display.Plot_Tags(mesh)
     # Display.Plot_Nodes(mesh, nodesX0)
 
     # --------------------------------------------------------------------------------------------

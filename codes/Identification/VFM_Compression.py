@@ -66,7 +66,7 @@ if __name__ == '__main__':
     xn = mesh.coordo[:,0]
     yn = mesh.coordo[:,1]
 
-    Display.Plot_Model(mesh)
+    Display.Plot_Tags(mesh)
     ax = Display.Plot_Mesh(mesh)
     ax.scatter(*coordInter[0, :2], zorder=5)
     ax.scatter(*coordInter[1, :2], zorder=5)

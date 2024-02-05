@@ -280,7 +280,7 @@ if __name__ == '__main__':
 
     mesh = interface._Construct_Mesh()
 
-    Display.Plot_Model(mesh, alpha=0.1, showId=False)
+    Display.Plot_Tags(mesh, alpha=0.1, showId=False)
 
     ax = Display.Plot_Mesh(mesh)
 

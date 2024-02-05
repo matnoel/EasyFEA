@@ -1514,10 +1514,10 @@ class Interface_Gmsh:
                 values_e = np.transpose(values_e, (0,2,1))
             return values_e.reshape((mesh.Ne, -1))
         
-        mesh = simu.mesh
+        mesh = simu.mesh        
         Ne = mesh.Ne
-        nPe = mesh.groupElem.nbCorners # do this because it is not working for quadratic elements
-        connect_e = mesh.connect[:,:nPe]
+        nbCorners = mesh.groupElem.nbCorners # do this because it is not working for quadratic elements
+        connect_e = mesh.connect[:,:nbCorners]
         elements_e = reshape(mesh.coordo)
 
         def types(elemType: str):
@@ -1584,7 +1584,7 @@ class Interface_Gmsh:
             gmsh.view.option.setColor(view, 'Prisms', *colorElems)
 
             # S for scalar, V for vector, T
-            if values_e.shape[1] == nPe:
+            if values_e.shape[1] == nbCorners:
                 vt = 'S'
             else:
                 vt = 'S'
@@ -1604,7 +1604,7 @@ class Interface_Gmsh:
 
             if nIter == 0: continue
 
-            dof_n = dict_results[result][0].shape[-1] // nPe
+            dof_n = dict_results[result][0].shape[-1] // nbCorners
 
             vals_e_i_n = np.concatenate(dict_results[result], 1).reshape((Ne, nIter, dof_n, -1))
 

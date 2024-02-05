@@ -108,7 +108,7 @@ if __name__ == '__main__':
     refineDomain = Circle(Point(crackLength), 20, clC)
     mesh = Interface_Gmsh().Mesh_2D(points, inclusions, ElemType.TRI3, cracks, refineGeoms=[refineDomain])
 
-    Display.Plot_Model(mesh)
+    Display.Plot_Tags(mesh)
     Display.Plot_Mesh(mesh)
 
     # ----------------------------------------------

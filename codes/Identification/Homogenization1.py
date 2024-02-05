@@ -44,7 +44,7 @@ if __name__ == '__main__':
     coordo = mesh.coordoGlob
 
     Display.Plot_Mesh(mesh)
-    Display.Plot_Model(mesh)
+    Display.Plot_Tags(mesh)
 
     nodes_left = mesh.Nodes_Conditions(lambda x,y,z: x==-1/2)
     # sort by y and exclude first and last nodes

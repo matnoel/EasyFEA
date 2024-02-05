@@ -48,7 +48,7 @@ if __name__ == '__main__':
     cracks = [crack1, crack2, crack3, crack4, crack5]
 
     meshes2D = [DoMesh(2, elemType, cracks) for elemType in ElemType.get_2D()]
-    Display.Plot_Model(meshes2D[0], alpha=0.1, showId=True)
+    Display.Plot_Tags(meshes2D[0], alpha=0.1, showId=True)
 
     # ----------------------------------------------
     # 3D CRACK
@@ -65,6 +65,6 @@ if __name__ == '__main__':
     cracks = [Contour([line1, line2, line3, line4], isOpen=openCrack), crack1]
 
     meshes3D = [DoMesh(3, elemType, cracks) for elemType in [ElemType.TETRA4, ElemType.TETRA10]]
-    Display.Plot_Model(meshes3D[0], alpha=0.1, showId=True)
+    Display.Plot_Tags(meshes3D[0], alpha=0.1, showId=True)
 
     Display.plt.show()

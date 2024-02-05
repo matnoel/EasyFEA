@@ -17,7 +17,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 3
+    dim = 2
 
     R = 10
     height = R
@@ -123,7 +123,6 @@ if __name__ == '__main__':
 
         print(f"Eps max = {simu.Result('Strain').max()*100:3.2f} %")
         
-        ax.clear()
         cb.remove()
         _,ax,cb = Display.Plot_Result(simu, 'uy', plotMesh=True, deformFactor=1, ax=ax)
         Display.Plot_Mesh(mesh_master, alpha=0, ax=ax)
