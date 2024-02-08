@@ -3922,14 +3922,14 @@ class Simu_Thermal(_Simu):
         rho_e_pg = Reshape_variable(rho, Ne, nPg)
         c_e_pg = Reshape_variable(c, Ne, nPg)
 
-        Mt_e = np.einsum('ep,p,pji,ep,ep,pjk->eik', jacobian_e_pg, weight_pg, N_e_pg, rho_e_pg, c_e_pg, N_e_pg, optimize="optimal")
+        Ct_e = np.einsum('ep,p,pji,ep,ep,pjk->eik', jacobian_e_pg, weight_pg, N_e_pg, rho_e_pg, c_e_pg, N_e_pg, optimize="optimal")
 
         if self.dim == 2:
             epaisseur = thermalModel.thickness
             Kt_e *= epaisseur
-            Mt_e *= epaisseur
+            Ct_e *= epaisseur
 
-        return Kt_e, Mt_e
+        return Kt_e, Ct_e
 
     def Assembly(self) -> None:
         """Construct the matrix system for the thermal problem in stationary or transient regime."""
