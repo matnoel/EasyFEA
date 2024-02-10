@@ -1,0 +1,14 @@
+[build-system]
+requires = ['setuptools']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = "EasyFEA"
+version = "0.0.0"
+description = "Coming soon"
+authors = [
+    {name = "Matthieu Noel", email = "matthieu.noel7@gmail.com"},
+]
+
+[project.urls]
+Homepage = "https://github.com/matnoel/EasyFEA"
