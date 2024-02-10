@@ -68,13 +68,14 @@ def Load_Load_Displacement(folder:str, verbosity=False):
 
 # =========================================== Animation ==================================================
 
-def Get_ffmpegpath() -> str:
+def Get_ffmpegpath(ffmpegPath: str="") -> str:
     """Return the path to ffmpeg."""
 
     paths = ["D:\\Soft\\ffmpeg\\bin\\ffmpeg.exe",
                 "D:\\Pro\\ffmpeg\\bin\\ffmpeg.exe",
                 "/opt/local/bin/ffmpeg",
                 "/home/m/matnoel/Applications/ffmpeg"]
+    paths.append(ffmpegPath)
     
     for p in paths:
         if os.path.exists(p):
@@ -82,8 +83,8 @@ def Get_ffmpegpath() -> str:
     
     raise Exception("Folder does not exist")
 
-def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, edgecolor='black', factorDef=0.0, nodeValues=True, fps=30) -> None:
-    """Make a movie from a simulation
+def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, NiterFin=100, deformation=False, plotMesh=False, edgecolor='black', factorDef=0.0, nodeValues=True, fps=30,ffmpegPath:str="") -> None:
+    """Make a movie from a simulation on matplotlib
 
     Parameters
     ----------
@@ -109,6 +110,8 @@ def Make_Movie(folder: str, option: str, simu: Simulations._Simu, Niter=200, Nit
         displays result to nodes otherwise displays it to elements, by default True
     fps : int, optional
         frames per second, by default 30
+    ffmpegPath : str, optional
+        path to ffmpeg, by default ""
     """
     
     resultat = simu.Result(option)
@@ -192,11 +195,11 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
     """
     print('\n')
 
-    vtuFiles=[]
+    vtuFiles: list[str] = []
 
-    resultats = simu.results
+    results = simu.results
 
-    NiterMax = len(resultats)-1
+    NiterMax = len(results)-1
 
     listIter = Make_listIter(NiterMax=NiterMax, NiterFin=100, NiterCyble=Niter)
     
@@ -207,19 +210,19 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    listTemps = []
+    times = []
     tic = Tic()    
 
     nodesField, elementsField = simu.Results_nodesField_elementsField(details)
 
     checkNodesField = [n for n in nodesResult if simu._Results_Check_Available(n)]
-    checkElemsField = [n for n in elementsResult if simu._Results_Check_Available(n)]
+    checkElemsField = [e for e in elementsResult if simu._Results_Check_Available(e)]
 
     nodesField.extend(checkNodesField)
     elementsField.extend(checkElemsField)
 
     if len(nodesField) == 0 and len(elementsField) == 0:
-        print("La simulation ne possède pas de champs de solution à afficher dans paraview")
+        Display.myPrintError("The simulation has no solution fields to display in paraview.")
 
     for i, iter in enumerate(listIter):
 
@@ -229,13 +232,12 @@ def Make_Paraview(folder: str, simu: Simulations._Simu, Niter=200, details=False
         
         # vtuFiles.append(vtuFile)
         vtuFiles.append(f'solution_{iter}.vtu')
+        
+        times.append(tic.Tac("Paraview","Make vtu", False))
 
-        temps = tic.Tac("Paraview","Make vtu", False)
-        listTemps.append(temps)
+        remainingTime = _RemainingTime(listIter, times, i)
 
-        pourcentageEtTempsRestant = _RemainingTime(listIter, listTemps, i)
-
-        print(f"SaveParaview {iter}/{NiterMax} {pourcentageEtTempsRestant}    ", end='\r')
+        Display.myPrint(f"SaveParaview {iter}/{NiterMax} {remainingTime}    ", end='\r')
     print('\n')
 
     tic = Tic()
@@ -306,7 +308,7 @@ def _RemainingTime(listIter: list[int], listTemps: list[float], i: int) -> str:
     return pourcentageEtTempsRestant
 
 def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
-    """Create the .vtu which can be read on paraview
+    """Create the .vtu (as a binary files) which can be read on paraview
     """
 
     options = nodesField+elementsField
@@ -325,7 +327,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
     Nn = simu.mesh.Nn
     nPe = simu.mesh.groupElem.nPe
 
-    typesParaviewElement = {
+    paraviewTypes = {
         "SEG2" : 3,
         "SEG3" : 21,
         "SEG4" : 35,        
@@ -346,11 +348,11 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         "PRISM15": 13
     } # regarder https://github.com/Kitware/VTK/blob/master/Common/DataModel/vtkCellType.h    
 
-    typeParaviewElement = typesParaviewElement[simu.mesh.elemType]
+    paraviewType = paraviewTypes[simu.mesh.elemType]
     
-    types = np.ones(Ne, dtype=int)*typeParaviewElement
+    types = np.ones(Ne, dtype=int)*paraviewType
 
-    node = coordo.reshape(-1)
+    nodes = coordo.reshape(-1)
     """coordinates of nodes in lines"""
 
     connectivity = connect.reshape(-1)
@@ -359,13 +361,14 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
 
     endian_paraview = 'LittleEndian' # 'LittleEndian' 'BigEndian'
 
-    const=4
+    const = 4
 
-    def CalcOffset(offset, taille):
-        return offset + const + (const*taille)
+    def CalcOffset(offset, size):
+        return offset + const + (const*size)
 
     with open(filename, "w") as file:
         
+        # Specifies the mesh
         file.write('<?pickle version="1.0" ?>\n')
         
         file.write(f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n')
@@ -373,44 +376,44 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         file.write('\t<UnstructuredGrid>\n')
         file.write(f'\t\t<Piece NumberOfPoints="{Nn}" NumberOfCells="{Ne}">\n')
 
-        # Values at nodes
+        # Specifies the nodes values
         file.write('\t\t\t<PointData scalars="scalar"> \n')
         offset=0
-        list_valeurs_n=[]
-        for resultat_n in nodesField:
+        list_values_n: list[np.ndarray] = [] # list of nodes values
+        for result_n in nodesField:
 
-            valeurs_n = simu.Result(resultat_n, nodeValues=True).reshape(-1)
-            list_valeurs_n.append(valeurs_n)
+            values_n = simu.Result(result_n, nodeValues=True).reshape(-1)
+            list_values_n.append(values_n)
 
-            nombreDeComposantes = int(valeurs_n.size/Nn) # 1 ou 3
-            if resultat_n == "displacement_matrix": resultat_n="displacement"
-            file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_n}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
-            offset = CalcOffset(offset, valeurs_n.size)
+            dof_n = values_n.size // Nn # 1 ou 3
+            if result_n == "displacement_matrix": result_n="displacement"
+            file.write(f'\t\t\t\t<DataArray type="Float32" Name="{result_n}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n')
+            offset = CalcOffset(offset, values_n.size)
 
         file.write('\t\t\t</PointData> \n')
 
-        # Element values
+        # Specifies the elements values
         file.write('\t\t\t<CellData> \n')
-        list_valeurs_e=[]
-        for resultat_e in elementsField:
+        list_values_e: list[np.ndarray] = []
+        for result_e in elementsField:
 
-            valeurs_e = simu.Result(resultat_e, nodeValues=False).reshape(-1)
-            list_valeurs_e.append(valeurs_e)
+            values_e = simu.Result(result_e, nodeValues=False).reshape(-1)
+            list_values_e.append(values_e)
 
-            nombreDeComposantes = int(valeurs_e.size/Ne)
+            dof_e = values_e.size // Ne
             
-            file.write(f'\t\t\t\t<DataArray type="Float32" Name="{resultat_e}" NumberOfComponents="{nombreDeComposantes}" format="appended" offset="{offset}" />\n')
-            offset = CalcOffset(offset, valeurs_e.size)
+            file.write(f'\t\t\t\t<DataArray type="Float32" Name="{result_e}" NumberOfComponents="{dof_e}" format="appended" offset="{offset}" />\n')
+            offset = CalcOffset(offset, values_e.size)
         
         file.write('\t\t\t</CellData> \n')
 
-        # Points
+        # Points / Nodes coordinates
         file.write('\t\t\t<Points>\n')
         file.write(f'\t\t\t\t<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n')
-        offset = CalcOffset(offset, node.size)
+        offset = CalcOffset(offset, nodes.size)
         file.write('\t\t\t</Points>\n')
 
-        # Elements
+        # Elements -> Connectivity matrix
         file.write('\t\t\t<Cells>\n')
         file.write(f'\t\t\t\t<DataArray type="Int32" Name="connectivity" format="appended" offset="{offset}" />\n')
         offset = CalcOffset(offset, connectivity.size)
@@ -430,18 +433,18 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
     with open(filename, "ab") as file:
 
         # Nodes values
-        for valeurs_n in list_valeurs_n:
-            __WriteBinary(const*(valeurs_n.size), "uint32", file)
-            __WriteBinary(valeurs_n, "float32", file)
+        for values_n in list_values_n:
+            __WriteBinary(const*(values_n.size), "uint32", file)
+            __WriteBinary(values_n, "float32", file)
 
         # Elements values
-        for valeurs_e in list_valeurs_e:                
-            __WriteBinary(const*(valeurs_e.size), "uint32", file)
-            __WriteBinary(valeurs_e, "float32", file)
+        for values_e in list_values_e:                
+            __WriteBinary(const*(values_e.size), "uint32", file)
+            __WriteBinary(values_e, "float32", file)
 
         # Nodes
-        __WriteBinary(const*(node.size), "uint32", file)
-        __WriteBinary(node, "float32", file)
+        __WriteBinary(const*(nodes.size), "uint32", file)
+        __WriteBinary(nodes, "float32", file)
 
         # Connectivity            
         __WriteBinary(const*(connectivity.size), "uint32", file)
@@ -492,21 +495,21 @@ def __Make_pvd(filename: str, vtuFiles=[]):
     
     t = tic.Tac("Paraview","Make pvd", False)
 
-def __WriteBinary(valeur, type: str, file):
-    """Convert to Binary"""
+def __WriteBinary(value, type: str, file):
+    """Convert value (int of array) to Binary"""
 
     if type not in ['uint32','float32','int32','int8']:
         raise Exception("Type not implemented")
 
     if type == "uint32":
-        valeur = np.uint32(valeur)
+        value = np.uint32(value)
     elif type == "float32":
-        valeur = np.float32(valeur)
+        value = np.float32(value)
     elif type == "int32":
-        valeur = np.int32(valeur)
+        value = np.int32(value)
     elif type == "int8":
-        valeur = np.int8(valeur)
+        value = np.int8(value)
 
-    convert = valeur.tobytes()
+    convert = value.tobytes()
     
     file.write(convert)

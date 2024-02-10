@@ -26,7 +26,7 @@ if __name__ == '__main__':
     Display.Clear()
 
     interface = Interface_Gmsh(False, True, True)
-    factory = interface.factory
+    factory = interface._factory
 
     # --------------------------------------------------------------------------------------------
     # Geom

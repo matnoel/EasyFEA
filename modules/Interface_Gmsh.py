@@ -10,12 +10,10 @@ import matplotlib
 
 import Folder
 from Geom import *
-from GroupElem import GroupElem, ElemType, MatrixType, GroupElem_Factory
+from GroupElem import GroupElem_Factory, GroupElem, ElemType
 from Mesh import Mesh
 from TicTac import Tic
-import Display as Display
 from Materials import _Beam_Model
-from Simulations import _Simu
 
 class Interface_Gmsh:
 
@@ -42,9 +40,10 @@ class Interface_Gmsh:
         self._init_gmsh()
 
         if verbosity:
+            import Display
             Display.Section("Init interface GMSH")
 
-    def __CheckType(self, dim: int, elemType: str):
+    def __CheckType(self, dim: int, elemType: str) -> None:
         """Check that the element type is usable."""
         if dim == 1:
             assert elemType in ElemType.get_1D(), f"Must be in {ElemType.get_1D()}"
@@ -53,7 +52,7 @@ class Interface_Gmsh:
         elif dim == 3:
             assert elemType in ElemType.get_3D(), f"Must be in {ElemType.get_3D()}"
     
-    def _init_gmsh(self, factory: str= 'occ'):
+    def _init_gmsh(self, factory: str= 'occ') -> None:
         """Initialize gmsh."""        
         if not gmsh.isInitialized():
             gmsh.initialize()
@@ -61,12 +60,11 @@ class Interface_Gmsh:
             gmsh.option.setNumber('General.Verbosity', 0)
         gmsh.model.add("model")
         if factory == 'occ':
-            self.factory = gmsh.model.occ
+            self._factory = gmsh.model.occ
         elif factory == 'geo':
-            self.factory = gmsh.model.geo
+            self._factory = gmsh.model.geo
         else:
             raise Exception("Unknow factory")
-        return self.factory
         
     def _Loop_From_Geom(self, geom: Union[Circle, Domain, PointsList, Contour]) -> tuple[int, list[int], list[int]]:
         """Creation of a loop based on the geometric object.\n
@@ -91,7 +89,7 @@ class Interface_Gmsh:
         return loop, lines, points, openLines, openPoints
         """
 
-        factory = self.factory
+        factory = self._factory
 
         points: list[int] = []
         lines: list[int] = []
@@ -172,7 +170,7 @@ class Interface_Gmsh:
 
         loop = factory.addCurveLoop(lines)
 
-        self.factory.synchronize()
+        self._factory.synchronize()
 
         return loop, lines, points, openLines, openPoints
 
@@ -181,7 +179,7 @@ class Interface_Gmsh:
         return loop, lines, points
         """
 
-        factory = self.factory
+        factory = self._factory
 
         center = circle.center
         rayon = circle.diam/2
@@ -210,15 +208,15 @@ class Interface_Gmsh:
 
         return loop, lines, points
 
-    def _Loop_From_Domain(self, domain: Domain) -> int:
+    def _Loop_From_Domain(self, domain: Domain) -> tuple[int, list[int], list[int]]:
         """Create a loop associated with a domain.\n
-        return loop, lines, points, openPoints
+        return loop, lines, points
         """
         pt1 = domain.pt1
         pt2 = domain.pt2
         mS = domain.meshSize
 
-        factory = self.factory
+        factory = self._factory
 
         p1 = factory.addPoint(pt1.x, pt1.y, pt1.z, mS)
         p2 = factory.addPoint(pt2.x, pt1.y, pt1.z, mS)
@@ -236,12 +234,12 @@ class Interface_Gmsh:
         
         return loop, lines, points
 
-    def _Surface_From_Loops(self, loops: list[int]) -> tuple[int, int]:
+    def _Surface_From_Loops(self, loops: list[int]) -> int:
         """Create a surface associated with a loop (must be a plane surface).\n
         return surface
         """
         # must form a plane surface
-        surface = self.factory.addPlaneSurface(loops)
+        surface = self._factory.addPlaneSurface(loops)
         return surface
     
     def _Surfaces(self, contour: Geom, inclusions: list[Geom]=[],
@@ -262,7 +260,7 @@ class Interface_Gmsh:
             mesh is organized, by default False
         """
 
-        factory = self.factory
+        factory = self._factory
 
         # Create contour surface
         loopContour, lines, points = self._Loop_From_Geom(contour)
@@ -286,7 +284,7 @@ class Interface_Gmsh:
     def _OrganiseSurfaces(self, surfaces: list[int], elemType: ElemType,
                            isOrganised=False, numElems:list[int]=[]) -> None:
 
-        self.factory.synchronize()
+        self._factory.synchronize()
 
         setRecombine = elemType in [ElemType.QUAD4, ElemType.QUAD8,
                                     ElemType.HEXA8, ElemType.HEXA20]
@@ -308,13 +306,15 @@ class Interface_Gmsh:
                 gmsh.model.mesh.setRecombine(2, surf)
     
     def _Spline_From_Points(self, pointsList: PointsList) -> tuple[int, list[int]]:
+        """Construct a spline from points.\n
+        return spline, points"""
 
         meshSize = pointsList.meshSize
-        gmshPoints = [self.factory.addPoint(*p.coordo, meshSize) for p in pointsList.points]        
+        gmshPoints = [self._factory.addPoint(*p.coordo, meshSize) for p in pointsList.points]        
         
-        spline = self.factory.addSpline(gmshPoints)
+        spline = self._factory.addSpline(gmshPoints)
         # remove all points except the first and the last points
-        self.factory.remove([(0,p) for p in gmshPoints[1:-1]])
+        self._factory.remove([(0,p) for p in gmshPoints[1:-1]])
 
         points = [gmshPoints[0], gmshPoints[-1]]
 
@@ -329,8 +329,8 @@ class Interface_Gmsh:
 
     def _Set_PhysicalGroups(self, setPoints=True, setLines=True, setSurfaces=True, setVolumes=True) -> None:
         """Create physical groups based on model entities."""
-        self.factory.synchronize()        
-        entities = np.array(gmsh.model.getEntities())
+        self._factory.synchronize()        
+        entities = np.asarray(gmsh.model.getEntities())
 
         if entities.size == 0: return
         
@@ -349,8 +349,8 @@ class Interface_Gmsh:
             tags = entities[idx, 1]
             [_addPhysicalGroup(dim, tag, t) for t, tag in enumerate(tags)]
 
-    def _Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.TETRA4, layers:list[int]=[]) -> list[tuple]:
-        """Function that extrudes multiple surfaces
+    def _Extrude(self, surfaces: list[int], extrude=[0,0,1], elemType=ElemType.TETRA4, layers:list[int]=[]) -> list[tuple[int, int]]:
+        """Function that extrudes multiple surfaces and returns extruded entities.
 
         Parameters
         ----------
@@ -364,7 +364,7 @@ class Interface_Gmsh:
             layers in extrusion, by default []
         """
         
-        factory = self.factory
+        factory = self._factory
 
         extruEntities = []
 
@@ -381,8 +381,8 @@ class Interface_Gmsh:
 
         return extruEntities
     
-    def _Revolve(self, surfaces: list[int], axis: Line, angle: float= np.pi*2, elemType: ElemType=ElemType.TETRA4, layers:list[int]=[30]) -> list[tuple]:
-        """Function that revolves multiple surfaces.
+    def _Revolve(self, surfaces: list[int], axis: Line, angle: float= np.pi*2, elemType: ElemType=ElemType.TETRA4, layers:list[int]=[30]) -> list[tuple[int, int]]:
+        """Function that revolves multiple surfaces and returns revolved entities.
 
         Parameters
         ----------
@@ -398,7 +398,7 @@ class Interface_Gmsh:
             layers in extrusion, by default [30]
         """
         
-        factory = self.factory
+        factory = self._factory
 
         angleIs2PI = np.abs(angle) == 2 * np.pi
 
@@ -431,7 +431,7 @@ class Interface_Gmsh:
         return revolEntities
     
     def _Link_Contours(self, contour1: Contour, contour2: Contour, elemType: ElemType,
-                      nLayers:int=0, numElems:list[int]=[]) -> list[tuple]:
+                      nLayers:int=0, numElems:list[int]=[]) -> list[tuple[int, int]]:
         """Link 2 contours and create a volume. Contours must be connectable, i.e. they must have the same number of points and lines.
 
         Parameters
@@ -449,14 +449,13 @@ class Interface_Gmsh:
 
         Returns
         -------
-        list[tuple]
+        list[tuple[int, int]]
             created entities
         """
 
         tic = Tic()
 
-        factory = self.factory
-
+        factory = self._factory
         
         # specifies whether contour surfaces can be organized
         canBeOrganised = len(contour1.geoms) == 4
@@ -541,7 +540,8 @@ class Interface_Gmsh:
         return entities
     
     @staticmethod
-    def Get_Entities(points=[], lines=[], surfaces=[], volumes=[]) -> list[tuple]:
+    def Get_Entities(points=[], lines=[], surfaces=[], volumes=[]) -> list[tuple[int, int]]:
+        """Get entities from from points, lines, surfaces and volumes tags"""
         entities = []
         entities.extend([(0,p) for p in points])
         entities.extend([(1,l) for l in lines])
@@ -549,7 +549,7 @@ class Interface_Gmsh:
         entities.extend([(3,v) for v in volumes])
         return entities
 
-    def Mesh_Import_mesh(self, mesh: str, setPhysicalGroups=False, coef=1.0):
+    def Mesh_Import_mesh(self, mesh: str, setPhysicalGroups=False, coef=1.0) -> Mesh:
         """Importing an .msh file. Must be an gmsh file.
 
         Parameters
@@ -580,7 +580,7 @@ class Interface_Gmsh:
 
         return self._Construct_Mesh(coef)
 
-    def Mesh_Import_part(self, file: str, dim: int, meshSize=0.0, elemType: ElemType=None, refineGeoms=[None], folder=""):
+    def Mesh_Import_part(self, file: str, dim: int, meshSize=0.0, elemType: ElemType=None, refineGeoms=[None], folder="") -> Mesh:
         """Build mesh from imported file (.stp or .igs).\n
         You can only use triangles or tetrahedrons.
 
@@ -609,14 +609,14 @@ class Interface_Gmsh:
         if elemType is None:
             elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
 
-        self._init_gmsh('occ') # Only work with occ !! Do not change
+        self._init_gmsh() # Only work with occ !! Do not change
 
         assert meshSize >= 0.0, "Must be greater than or equal to 0."
         self.__CheckType(dim, elemType)
         
         tic = Tic()
 
-        factory = self.factory
+        factory = self._factory
 
         if '.stp' in file or '.igs' in file:
             factory.importShapes(file)
@@ -644,7 +644,7 @@ class Interface_Gmsh:
         return crackLines, crackSurfaces, openPoints, openLines
         """
 
-        factory = self.factory
+        factory = self._factory
         factory.synchronize()
 
         if len(cracks) == 0:
@@ -746,7 +746,7 @@ class Interface_Gmsh:
 
         return crackLines, crackSurfaces, openPoints, openLines
 
-    def Mesh_Beams(self, beams: list[_Beam_Model], elemType=ElemType.SEG2, folder=""):
+    def Mesh_Beams(self, beams: list[_Beam_Model], elemType=ElemType.SEG2, folder="") -> Mesh:
         """Construction of a segment mesh
 
         Parameters
@@ -769,7 +769,7 @@ class Interface_Gmsh:
 
         tic = Tic()
         
-        factory = self.factory
+        factory = self._factory
 
         points = [] 
         lines = []
@@ -807,7 +807,7 @@ class Interface_Gmsh:
 
         return mesh
 
-    def __Get_hollow_And_filled_Loops(self, inclusions: list[Geom]) -> tuple[list, list]:
+    def __Get_hollow_And_filled_Loops(self, inclusions: list[Geom]) -> tuple[list[int], list[int]]:
         """Creation of hollow and filled loops
 
         Parameters
@@ -817,7 +817,7 @@ class Interface_Gmsh:
 
         Returns
         -------
-        tuple[list, list]
+        tuple[list[int], list[int]]
             all loops created, followed by full (non-hollow) loops
         """
         hollowLoops = []
@@ -835,8 +835,8 @@ class Interface_Gmsh:
 
     def Mesh_2D(self, contour: Geom, inclusions: list[Geom]=[], elemType=ElemType.TRI3,
                 cracks:list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
-                isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[], folder=""):
-        """Build the 2D mesh by creating a surface from a contour and inclusions
+                isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[], folder="") -> Mesh:
+        """Build the 2D mesh from a contour and inclusions that must form a closed surface.
 
         Parameters
         ----------
@@ -863,12 +863,12 @@ class Interface_Gmsh:
             2D mesh
         """
 
-        self._init_gmsh('occ')
+        self._init_gmsh()
         self.__CheckType(2, elemType)
 
         tic = Tic()
 
-        factory = self.factory
+        factory = self._factory
 
         self._Surfaces(contour, inclusions, elemType, isOrganised)
 
@@ -904,7 +904,7 @@ class Interface_Gmsh:
                 extrude=[0,0,1], layers:list[int]=[], elemType=ElemType.TETRA4,
                 cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
                 isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[], folder="") -> Mesh:
-        """Build the 3D mesh by creating a surface from a Geom object
+        """Build the 3D mesh by extruding a surface constructed from a contour and inclusions.
 
         Parameters
         ----------
@@ -940,7 +940,7 @@ class Interface_Gmsh:
         
         tic = Tic()
 
-        factory = self.factory
+        factory = self._factory
 
         self._Surfaces(contour, inclusions)
         for surface in surfaces:
@@ -1015,7 +1015,7 @@ class Interface_Gmsh:
         
         tic = Tic()
         
-        factory = self.factory
+        factory = self._factory
 
         self._Surfaces(contour, inclusions)
         for surface in surfaces:
@@ -1032,7 +1032,7 @@ class Interface_Gmsh:
         self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, layers=layers)
 
         # Recovers 3D entities
-        self.factory.synchronize()
+        self._factory.synchronize()
         entities3D = gmsh.model.getEntities(3)
 
         # Crack creation
@@ -1056,7 +1056,7 @@ class Interface_Gmsh:
         coordo : np.ndarray
             coordinates of values
         values : np.ndarray
-            values at coordinates
+            scalar nodes values
         folder : str
             backup file
         filename : str, optional
@@ -1071,7 +1071,7 @@ class Interface_Gmsh:
         assert isinstance(coordo, np.ndarray), "Must be a numpy array"
         assert coordo.shape[1] == 3, "Must be of dimension (n, 3)"
 
-        assert values.shape[0] == coordo.shape[0], "values and coordo are the wrong size"
+        assert values.shape[0] == coordo.shape[0], "values and coordo must be get the same number of lines"
 
         data = np.append(coordo, values.reshape(-1, 1), axis=1)
 
@@ -1089,10 +1089,10 @@ class Interface_Gmsh:
     
     def Set_meshSize(self, meshSize:float) -> None:
         """Sets the mesh size"""
-        self.factory.synchronize()
-        gmsh.model.mesh.setSize(self.factory.getEntities(0), meshSize)
+        self._factory.synchronize()
+        gmsh.model.mesh.setSize(self._factory.getEntities(0), meshSize)
     
-    def _RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float):
+    def _RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float) -> None:
         """Sets a background mesh
 
         Parameters
@@ -1174,7 +1174,7 @@ class Interface_Gmsh:
         gmsh.option.setNumber("Mesh.Algorithm", 5)
 
     @staticmethod
-    def _Set_mesh_order(elemType: str):
+    def _Set_mesh_order(elemType: str) -> None:
         """Set mesh order"""
         if elemType in ["TRI3","QUAD4"]:
             gmsh.model.mesh.set_order(1)
@@ -1188,7 +1188,7 @@ class Interface_Gmsh:
             gmsh.model.mesh.set_order(4)
 
     def _Set_algorithm(self, elemType: ElemType) -> None:
-        """Set the mesh algorithm.\n
+        """Set the meshing algorithm.\n
         Mesh.Algorithm
             2D mesh algorithm (1: MeshAdapt, 2: Automatic, 3: Initial mesh only, 5: Delaunay, 6: Frontal-Delaunay, 7: BAMG, 8: Frontal-Delaunay for Quads, 9: Packing of Parallelograms, 11: Quasi-structured Quad)
             Default value: 6
@@ -1223,8 +1223,8 @@ class Interface_Gmsh:
 
     def _Meshing(self, dim: int, elemType: str,
                  crackLines:int=None, crackSurfaces:int=None, openPoints:int=None, openLines:int=None,
-                 folder="", filename="mesh"):
-        """Construction of gmsh mesh from geometry that has been built or imported.
+                 folder="", filename="mesh") -> None:
+        """Mesh using Gmsh with the available model that has been built or imported.
 
         Parameters
         ----------
@@ -1245,10 +1245,9 @@ class Interface_Gmsh:
         filename : str, optional
             saving file filename.msh, by default mesh
         """
-        # TODO make sure that physical groups have been created
         
         self._Set_algorithm(elemType)
-        self.factory.synchronize()
+        self._factory.synchronize()
 
         tic = Tic()
 
@@ -1287,7 +1286,7 @@ class Interface_Gmsh:
 
         if folder != "":
             # gmsh.write(Dossier.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
-            self.factory.synchronize()
+            self._factory.synchronize()
 
             if not os.path.exists(folder):
                 os.makedirs(folder)
@@ -1296,21 +1295,22 @@ class Interface_Gmsh:
             tic.Tac("Mesh","Saving .msh", self.__verbosity)
 
     def _Construct_Mesh(self, coef=1) -> Mesh:
-        """Recovering the built mesh"""
-
-        # Old method was boggling
-        # The bugs have been fixed because I didn't properly organize the nodes when I created them
-        # https://gitlab.onelab.info/gmsh/gmsh/-/issues/1926
+        """Construct the mesh object from the available Gmsh mesh."""
         
         tic = Tic()
 
-        dict_groupElem = {}
+        dict_groupElem: dict[ElemType, GroupElem] = {}
         meshDim = gmsh.model.getDimension()
         elementTypes = gmsh.model.mesh.getElementTypes()
         nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
         
         nodes = np.array(nodes, dtype=int) - 1 # node numbers
         Nn = nodes.shape[0] # Number of nodes
+
+        # Old method was boggling
+        # The bugs have been fixed because I didn't properly organize the nodes when I created them
+        # https://gitlab.onelab.info/gmsh/gmsh/-/issues/1926
+        # thats why there is now 'changes' array because jumps in nodes may append when there is a open crack in the mesh
 
         # Organize nodes from smallest to largest
         sortedIdx = np.argsort(nodes)
@@ -1342,8 +1342,8 @@ class Interface_Gmsh:
                                         
             # Retrieves element numbers and connection matrix
             elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)
-            elementTags = np.array(elementTags, dtype=int) - 1 # tags for each elements
-            nodeTags = np.array(nodeTags, dtype=int) - 1 # connection matrix in shape (e * nPe)
+            elementTags = np.asarray(elementTags, dtype=int) - 1 # tags for each elements
+            nodeTags = np.asarray(nodeTags, dtype=int) - 1 # connection matrix in shape (e * nPe)
 
             nodeTags: np.ndarray = changes[nodeTags] # Apply changes to correct jumps in nodes
             
@@ -1353,7 +1353,7 @@ class Interface_Gmsh:
             connect: np.ndarray = nodeTags.reshape(Ne, nPe) # Builds connect matrix
 
             # Nodes            
-            nodes = np.unique(nodeTags) 
+            nodes = np.unique(nodeTags)
             Nmax = nodes.max() # Check that max node numbers can be reached in coordo
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
 
@@ -1454,7 +1454,7 @@ class Interface_Gmsh:
         return list_mesh2D
 
     @staticmethod
-    def Construct_3D_meshes(L=130, h=13, b=13, taille=7.5, useImport3D=False):
+    def Construct_3D_meshes(L=130, h=13, b=13, taille=7.5, useImport3D=False) -> list[Mesh]:
         """3D mesh generation."""        
 
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=taille)
@@ -1493,9 +1493,31 @@ class Interface_Gmsh:
 
         return list_mesh3D
     
-    def Save_Simu(self, simu: _Simu, results: list[str]=[], details=False,
-                  edgeColor='black', plotMesh=True, showAxes=False, folder: str=""):
+    def Save_Simu(self, simu, results: list[str]=[], details=False,
+                  edgeColor='black', plotMesh=True, showAxes=False, folder: str="") -> None:
+        """Save the simulation in gmsh.pos format using gmsh.view
 
+        Parameters
+        ----------
+        simu : _Simu
+            simulation
+        results : list[str], optional
+            list of simulation avalabel simulation result that you want to plot, by default []
+        details : bool, optional
+            get default result values with details or not simu.Results_nodesField_elementsField(details), by default False
+        edgeColor : str, optional
+            color used to plot the edges, by default 'black'
+        plotMesh : bool, optional
+            plot the mesh, by default True
+        showAxes : bool, optional
+            show the axes, by default False
+        folder : str, optional
+            folder used to save .pos file, by default ""
+        """
+
+        from Simulations import _Simu
+        assert isinstance(simu, _Simu), 'simu must be a simu object'
+        
         assert isinstance(results, list), 'results must be a list'
         
         self._init_gmsh()

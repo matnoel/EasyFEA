@@ -1,6 +1,7 @@
 import unittest
 import os
 
+import matplotlib.pyplot as plt
 import numpy as np
 from Geom import *
 
@@ -142,9 +143,9 @@ class Test_Geom(unittest.TestCase):
 
 
             ax.legend()
-            pass
-
-        Display.plt.close('all')
+            pass        
+        
+        plt.close('all')
 
 
         

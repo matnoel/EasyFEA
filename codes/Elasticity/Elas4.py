@@ -59,7 +59,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     interf = Interface_Gmsh()
-    fact = interf.factory
+    fact = interf._factory
     surfaces = interf._Surfaces(section, [], elemType)[0]
 
     layers = [50]

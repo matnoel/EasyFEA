@@ -56,6 +56,8 @@ class IModel(ABC):
     def needUpdate(self) -> bool:
         """The model needs to be updated"""
         return self.__needUpdate
+    
+    # TODO add an observer !!!
 
     def Need_Update(self, value=True):
         """Indicates whether the model needs to be updated"""

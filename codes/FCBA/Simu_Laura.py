@@ -44,7 +44,7 @@ def DoMesh(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float, t:fl
             mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,t], [4], ElemType.TETRA4, refineGeoms=[refineGeom])
         else:
             interf = Interface_Gmsh(False, False)
-            fact = interf.factory
+            fact = interf._factory
 
             # Box and cylinder
             surf1 = interf._Surfaces(contour, [circle])[0]

@@ -45,7 +45,7 @@ if __name__ == '__main__':
     # Mesh
     # --------------------------------------------------------------------------------------------
     interface = Interface_Gmsh(False, True, True)
-    factory = interface.factory
+    factory = interface._factory
     
 
     contours1: list[Contour] = []
