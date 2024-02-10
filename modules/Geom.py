@@ -3,10 +3,9 @@
 from typing import Union
 import numpy as np
 import copy
-
+import matplotlib.pyplot as plt
 from numpy import ndarray
 from scipy.optimize import minimize
-import Display
 from abc import ABC, abstractmethod
 
 class Point:
@@ -163,7 +162,6 @@ class Point:
     def copy(self):
         return copy.deepcopy(self)
 
-
 class Geom(ABC):
 
     def __init__(self, points: list[Point], meshSize: float, name: str, isHollow: bool, isOpen: bool):
@@ -275,20 +273,14 @@ class Geom(ABC):
         [point.translate(*dec[p]) for p, point in enumerate(self.points)]
 
 
-    def Plot(self, ax: Display.plt.Axes=None, color:str="", name:str="", plotPoints=True) -> Display.plt.Axes:
+    def Plot(self, ax: plt.Axes=None, color:str="", name:str="", plotPoints=True) -> plt.Axes:
+
+        import Display
 
         if ax is None:
-            fig, ax = Display.plt.subplots(subplot_kw=dict(projection='3d'))
-            ax.set_xlabel('x')
-            ax.set_ylabel('y')
-            ax.set_zlabel('z')
-            ax.view_init(elev=105, azim=-90)
-            inDim = 3
-        else:
-            if ax.name == '3d':
-                inDim = 3
-            else:
-                inDim = 2
+            ax = Display.init_Axes(3)
+            
+        inDim = 3 if ax.name == '3d' else 2
 
         lines, points = self.coordoPlot()
         if color != "":
@@ -303,12 +295,14 @@ class Geom(ABC):
             oldBounds = np.array([xlim, ylim, zlim]).T
             lines = np.concatenate((lines, oldBounds), 0)
             Display._Axis_equal_3D(ax, lines)
+        else:
+            ax.axis('equal')
 
         return ax
     
     @staticmethod
-    def Plot_Geoms(geoms: list, ax: Display.plt.Axes=None,
-                   color:str="", name:str="", plotPoints=True) -> Display.plt.Axes:
+    def Plot_Geoms(geoms: list, ax: plt.Axes=None,
+                   color:str="", name:str="", plotPoints=True) -> plt.Axes:
         geoms: list[Geom] = geoms
         for g, geom in enumerate(geoms):
             if g == 0 and ax == None:
@@ -1002,7 +996,7 @@ def JacobianMatrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
     return F
 
 def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Calculation of point coordinates to create a radius in a corner.\n
+    """Calculation of point coordinates to create a radius in a corner P0.\n
     return A, B, C
 
     Parameters
