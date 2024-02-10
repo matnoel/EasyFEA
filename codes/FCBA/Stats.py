@@ -20,7 +20,6 @@ if __name__ == '__main__':
     Display.Section("FEMU")
 
     df = Functions.dfParams.copy()
-    # df = pd.read_excel(Folder.Join(folder, "_params_allSamples.xlsx"))
 
     # print(df)
 
