@@ -15,7 +15,7 @@ from BoundaryCondition import BoundaryCondition, LagrangeCondition
 import Materials
 from Materials import ModelType, IModel, _Displacement_Model, Beam_Structure, PhaseField_Model, Thermal_Model, Reshape_variable
 from TicTac import Tic
-from Interface_Solvers import ResolutionType, AlgoType, Solve, _Solve_Axb, Solvers
+from Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
 import Folder
 from Display import myPrint, myPrintError
 
@@ -290,7 +290,7 @@ class _Simu(ABC):
 
         # Solver used for solving
         self.__solver = "scipy"  # Initialized just in case
-        solvers = Solvers()  # Available solvers
+        solvers = _Available_Solvers()  # Available solvers
         if "pypardiso" in solvers:
             self.solver = "pypardiso"
         elif "petsc" in solvers and useIterativeSolvers:
@@ -392,7 +392,7 @@ class _Simu(ABC):
     def solver(self, value: str):
 
         # Retrieve usable solvers
-        solvers = Solvers()
+        solvers = _Available_Solvers()
 
         if self.problemType != "damage":
             solvers.remove("BoundConstrain")
@@ -650,11 +650,11 @@ class _Simu(ABC):
 
         if len(self.Bc_Lagrange) > 0:
             # Lagrange conditions are applied.
-            resolution = ResolutionType.r2
-            x, lagrange = Solve(self, problemType, resolution)
+            resolution = ResolType.r2
+            x, lagrange = _Solve(self, problemType, resolution)
         else:
-            resolution = ResolutionType.r1
-            x = Solve(self, problemType, resolution)            
+            resolution = ResolType.r1
+            x = _Solve(self, problemType, resolution)            
 
         if algo == AlgoType.elliptic:
             u_np1 = x
@@ -778,7 +778,7 @@ class _Simu(ABC):
 
         return b
 
-    def _Solver_Apply_Dirichlet(self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolutionType) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
+    def _Solver_Apply_Dirichlet(self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolType) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
         """Apply Dirichlet conditions by constructing A and x from A x = b.
 
         Parameters
@@ -836,7 +836,7 @@ class _Simu(ABC):
 
         return A, x
 
-    def __Solver_Get_Dirichlet_A_x(self, problemType: ModelType, resolution: ResolutionType, A: sparse.csr_matrix, b: sparse.csr_matrix, dofsValues: np.ndarray):
+    def __Solver_Get_Dirichlet_A_x(self, problemType: ModelType, resolution: ResolType, A: sparse.csr_matrix, b: sparse.csr_matrix, dofsValues: np.ndarray):
         """Resize the matrix system according to known degrees of freedom and resolution type.
 
         Parameters
@@ -862,14 +862,14 @@ class _Simu(ABC):
         dofs = self.Bc_dofs_Dirichlet(problemType)
         size = self.mesh.Nn * self.Get_dof_n(problemType)
 
-        if resolution in [ResolutionType.r1, ResolutionType.r2]:
+        if resolution in [ResolType.r1, ResolType.r2]:
 
             # Here we return the solution with the known ddls
             x = sparse.csr_matrix((dofsValues, (dofs, np.zeros(len(dofs)))), shape=(size, 1), dtype=np.float64)
 
             return A, x
 
-        elif resolution == ResolutionType.r3:
+        elif resolution == ResolType.r3:
             # Penalization
 
             A = A.tolil()

@@ -57,7 +57,7 @@ class AlgoType(str, Enum):
     hyperbolic = "hyperbolic"
     """Solve K u + C v + M a = F"""
 
-class ResolutionType(str, Enum):
+class ResolType(str, Enum):
     r1 = "1"
     """ui = inv(Aii) * (bi - Aic * xc)"""
     r2 = "2"
@@ -65,7 +65,7 @@ class ResolutionType(str, Enum):
     r3 = "3"
     """Penalty"""
 
-def Solvers():
+def _Available_Solvers():
     """Available solvers."""
 
     solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
@@ -230,13 +230,13 @@ def __Check_solveurLibrary(solveur: str) -> str:
     else:
         return solveur
 
-def Solve(simu, problemType: str, resol: ResolutionType):
+def _Solve(simu, problemType: str, resol: ResolType):
     """Solving the problem according to the resolution type"""
-    if resol == ResolutionType.r1:
+    if resol == ResolType.r1:
         return __Solver_1(simu, problemType)
-    elif resol == ResolutionType.r2:
+    elif resol == ResolType.r2:
         return __Solver_2(simu, problemType)
-    elif resol == ResolutionType.r3:
+    elif resol == ResolType.r3:
         return __Solver_3(simu, problemType)
 
 def __Solver_1(simu, problemType: str) -> np.ndarray:
@@ -250,7 +250,7 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
 
     # Builds the matrix system
     b = simu._Solver_Apply_Neumann(problemType)
-    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolutionType.r1)
+    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r1)
 
     # Recovers ddls
     dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknow(problemType)
@@ -289,7 +289,7 @@ def __Solver_2(simu, problemType: str):
 
     # Builds the penalized matrix system
     b = simu._Solver_Apply_Neumann(problemType)
-    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolutionType.r2)
+    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r2)
     alpha = A.data.max()
 
     tic = Tic()
@@ -356,7 +356,7 @@ def __Solver_3(simu, problemType: str):
 
     # Builds the penalized matrix system
     b = simu._Solver_Apply_Neumann(problemType)
-    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolutionType.r3)
+    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
 
     # Solving the penalized matrix system
     x = _Solve_Axb(simu, problemType, A, b, [], [], [])
