@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh
-from Geom import Point, PointsList, Line, Domain, Circle, normalize_vect
+from Geoms import Point, PointsList, Line, Domain, Circle, Normalize_vect
 import Materials
 import Simulations
 import Folder

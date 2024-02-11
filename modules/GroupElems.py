@@ -6,7 +6,7 @@ from scipy.optimize import least_squares
 import numpy as np
 import scipy.sparse as sparse
 
-from Geom import *
+from Geoms import *
 from Gauss import Gauss
 
 class ElemType(str, Enum):
@@ -65,7 +65,7 @@ class MatrixType(str, Enum):
     def get_types() -> list[str]:
         return [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
 
-class GroupElem(ABC):
+class _GroupElem(ABC):
 
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
         """Building an element group
@@ -83,7 +83,7 @@ class GroupElem(ABC):
         """
 
         self.__gmshId = gmshId
-        self.__elemType, self.__nPe, self.__dim, self.__order, self.__nbFaces, self.__nbCorners = GroupElem_Factory.Get_ElemInFos(gmshId)
+        self.__elemType, self.__nPe, self.__dim, self.__order, self.__nbFaces, self.__nbCorners = _GroupElem_Factory.Get_ElemInFos(gmshId)
         
         # Elements
         self.__connect = connect
@@ -960,7 +960,7 @@ class GroupElem(ABC):
 
         Ntild = self._Ntild()
         gauss = self.Get_gauss(matrixType)
-        N_pg = GroupElem._Evaluates_Functions(Ntild, gauss.coord)
+        N_pg = _GroupElem._Evaluates_Functions(Ntild, gauss.coord)
 
         return N_pg
 
@@ -984,7 +984,7 @@ class GroupElem(ABC):
         dNtild = self._dNtild()
 
         gauss = self.Get_gauss(matrixType)
-        dN_pg = GroupElem._Evaluates_Functions(dNtild, gauss.coord)
+        dN_pg = _GroupElem._Evaluates_Functions(dNtild, gauss.coord)
 
         return dN_pg    
 
@@ -1008,7 +1008,7 @@ class GroupElem(ABC):
         ddNtild = self._ddNtild()
 
         gauss = self.Get_gauss(matrixType)
-        ddN_pg = GroupElem._Evaluates_Functions(ddNtild, gauss.coord)
+        ddN_pg = _GroupElem._Evaluates_Functions(ddNtild, gauss.coord)
 
         return ddN_pg
 
@@ -1032,7 +1032,7 @@ class GroupElem(ABC):
         dddNtild = self._dddNtild()
 
         gauss = self.Get_gauss(matrixType)
-        dddN_pg = GroupElem._Evaluates_Functions(dddNtild, gauss.coord)
+        dddN_pg = _GroupElem._Evaluates_Functions(dddNtild, gauss.coord)
 
         return dddN_pg
 
@@ -1058,7 +1058,7 @@ class GroupElem(ABC):
         ddddNtild = self._ddddNtild()
 
         gauss = self.Get_gauss(matrixType)
-        ddddN_pg = GroupElem._Evaluates_Functions(ddddNtild, gauss.coord)
+        ddddN_pg = _GroupElem._Evaluates_Functions(ddddNtild, gauss.coord)
 
         return ddddN_pg
 
@@ -1082,7 +1082,7 @@ class GroupElem(ABC):
         Nvtild = self._Nvtild()
 
         gauss = self.Get_gauss(matrixType)
-        Nv_pg = GroupElem._Evaluates_Functions(Nvtild, gauss.coord)
+        Nv_pg = _GroupElem._Evaluates_Functions(Nvtild, gauss.coord)
 
         return Nv_pg
     
@@ -1103,7 +1103,7 @@ class GroupElem(ABC):
         dNvtild = self.dNvtild()
 
         gauss = self.Get_gauss(matrixType)
-        dNv_pg = GroupElem._Evaluates_Functions(dNvtild, gauss.coord)
+        dNv_pg = _GroupElem._Evaluates_Functions(dNvtild, gauss.coord)
 
         return dNv_pg
     
@@ -1124,7 +1124,7 @@ class GroupElem(ABC):
         ddNvtild = self._ddNvtild()
 
         gauss = self.Get_gauss(matrixType)
-        ddNv_pg = GroupElem._Evaluates_Functions(ddNvtild, gauss.coord)
+        ddNv_pg = _GroupElem._Evaluates_Functions(ddNvtild, gauss.coord)
 
         return ddNv_pg
 
@@ -1283,12 +1283,12 @@ class GroupElem(ABC):
         if np.linalg.norm(rotAxis) <= 1e-12:
             # n == direction
             i = (circle.pt1 - circle.center).coordo
-            J = JacobianMatrix(i,direction)
+            J = Jacobian_Matrix(i,direction)
         else:
             # n != direction
             # Change base (rotAxis, j, direction)
             R = circle.diam/2
-            J = JacobianMatrix(rotAxis, direction)
+            J = Jacobian_Matrix(rotAxis, direction)
             coordN = np.einsum('ij,nj->ni', np.linalg.inv(J), circle.coordo - circle.center.coordo)
             # Change base (rotAxis, j*cj, direction)
             cj = (R - coordN[:,1].max())/R
@@ -1642,7 +1642,7 @@ class GroupElem(ABC):
             if useIterative:
                 
                 def Eval(ksi: np.ndarray, xP):
-                    dN = GroupElem._Evaluates_Functions(dN_tild, ksi.reshape(1, -1))
+                    dN = _GroupElem._Evaluates_Functions(dN_tild, ksi.reshape(1, -1))
                     F = dN[0] @ coordoElemBase[:,:dim]                    
                     J = x0 - xP + (ksi - ksi0) @ F
                     return J
@@ -1710,7 +1710,7 @@ class GroupElem(ABC):
         """List of indexes to form the faces that make up the element"""
         pass    
 
-class GroupElem_Factory:
+class _GroupElem_Factory:
 
     @staticmethod
     def Get_ElemInFos(gmshId: int) -> tuple:
@@ -2018,7 +2018,7 @@ class GroupElem_Factory:
         return elemType, nPe, dim, order, nbFaces, nbCorners
     
     @staticmethod
-    def Create_GroupElem(gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray) -> GroupElem:
+    def Create_GroupElem(gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray) -> _GroupElem:
         """Create an element group
         
         Parameters
@@ -2040,7 +2040,7 @@ class GroupElem_Factory:
 
         params = (gmshId, connect, coordoGlob, nodes)
 
-        elemType = GroupElem_Factory.Get_ElemInFos(gmshId)[0]
+        elemType = _GroupElem_Factory.Get_ElemInFos(gmshId)[0]
         
         if elemType == ElemType.POINT:
             return POINT(*params)
@@ -2078,7 +2078,7 @@ class GroupElem_Factory:
             raise Exception("Element type unknown")
 
 
-class POINT(GroupElem):
+class POINT(_GroupElem):
     
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
 
@@ -2113,7 +2113,7 @@ class POINT(GroupElem):
 
     
 
-class SEG2(GroupElem):    
+class SEG2(_GroupElem):    
     #       v
     #       ^
     #       |
@@ -2196,7 +2196,7 @@ class SEG2(GroupElem):
 
         return ddNvtild
 
-class SEG3(GroupElem):
+class SEG3(_GroupElem):
     #       v
     #       ^
     #       |
@@ -2294,7 +2294,7 @@ class SEG3(GroupElem):
 
         return ddNvtild
 
-class SEG4(GroupElem):
+class SEG4(_GroupElem):
     #        v
     #        ^
     #        |
@@ -2409,7 +2409,7 @@ class SEG4(GroupElem):
 
         return ddNvtild
 
-class TRI3(GroupElem):
+class TRI3(_GroupElem):
     # v
     # ^
     # |
@@ -2467,7 +2467,7 @@ class TRI3(GroupElem):
         return super()._ddddNtild()
 
 
-class TRI6(GroupElem):
+class TRI6(_GroupElem):
     # v
     # ^
     # |
@@ -2548,7 +2548,7 @@ class TRI6(GroupElem):
     def _ddNvtild(self) -> np.ndarray:
         return super()._ddNvtild()
 
-class TRI10(GroupElem):
+class TRI10(_GroupElem):
     # v
     # ^
     # |
@@ -2715,7 +2715,7 @@ class TRI10(GroupElem):
 
     
 
-class TRI15(GroupElem):
+class TRI15(_GroupElem):
     # 
     # 2
     # | \
@@ -2990,7 +2990,7 @@ class TRI15(GroupElem):
 
         return ddddNtild
 
-class QUAD4(GroupElem):
+class QUAD4(_GroupElem):
     #       v
     #       ^
     #       |
@@ -3051,7 +3051,7 @@ class QUAD4(GroupElem):
 
     
 
-class QUAD8(GroupElem):
+class QUAD8(_GroupElem):
     #       v
     #       ^
     #       |
@@ -3139,7 +3139,7 @@ class QUAD8(GroupElem):
     def _ddNvtild(self) -> np.ndarray:
         return super()._ddNvtild()
 
-class TETRA4(GroupElem):
+class TETRA4(_GroupElem):
     #                    v
     #                  .
     #                ,/
@@ -3212,7 +3212,7 @@ class TETRA4(GroupElem):
 
     
 
-class TETRA10(GroupElem):
+class TETRA10(_GroupElem):
     #                    v
     #                  .
     #                ,/
@@ -3312,7 +3312,7 @@ class TETRA10(GroupElem):
 
     
 
-class HEXA8(GroupElem):
+class HEXA8(_GroupElem):
     #        v
     # 3----------2
     # |\     ^   |\
@@ -3387,7 +3387,7 @@ class HEXA8(GroupElem):
 
     
 
-class HEXA20(GroupElem):
+class HEXA20(_GroupElem):
     #        v
     # 3----13----2
     # |\     ^   |\
@@ -3555,7 +3555,7 @@ class HEXA20(GroupElem):
 
     
 
-class PRISM6(GroupElem):
+class PRISM6(_GroupElem):
     #            w
     #            ^
     #            |
@@ -3636,7 +3636,7 @@ class PRISM6(GroupElem):
 
     
 
-class PRISM15(GroupElem):
+class PRISM15(_GroupElem):
     #            w
     #            ^
     #            |

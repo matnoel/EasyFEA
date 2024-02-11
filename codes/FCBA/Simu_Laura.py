@@ -1,5 +1,5 @@
 import Display
-from Geom import Point, PointsList, Circle, Domain, normalize_vect, Line
+from Geoms import Point, PointsList, Circle, Domain, Normalize_vect, Line
 from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
 import Materials
 import Simulations

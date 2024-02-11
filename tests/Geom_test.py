@@ -3,7 +3,8 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-from Geom import *
+from Geoms import *
+from Geoms import _Geom
 
 class Test_Geom(unittest.TestCase):
     
@@ -109,7 +110,7 @@ class Test_Geom(unittest.TestCase):
 
         dec = (10,0,0)
 
-        geoms: list[Geom] = [line, points, domain, circle, circleArc, contour1, points2, contour2]
+        geoms: list[_Geom] = [line, points, domain, circle, circleArc, contour1, points2, contour2]
 
         for geom in geoms:
 

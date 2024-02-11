@@ -1,7 +1,6 @@
 """Interface module with gmsh (https://gmsh.info/).
-This module lets you manipulate Geom objects to create meshes."""
+This module lets you manipulate _Geom objects to create meshes."""
 
-from typing import cast
 import gmsh
 import sys
 import os
@@ -9,8 +8,9 @@ import numpy as np
 import matplotlib
 
 import Folder
-from Geom import *
-from GroupElem import GroupElem_Factory, GroupElem, ElemType
+from Geoms import *
+from Geoms import _Geom
+from GroupElems import ElemType, _GroupElem, _GroupElem_Factory
 from Mesh import Mesh
 from TicTac import Tic
 from Materials import _Beam_Model
@@ -242,16 +242,16 @@ class Interface_Gmsh:
         surface = self._factory.addPlaneSurface(loops)
         return surface
     
-    def _Surfaces(self, contour: Geom, inclusions: list[Geom]=[],
+    def _Surfaces(self, contour: _Geom, inclusions: list[_Geom]=[],
                   elemType=ElemType.TRI3, isOrganised=False) -> tuple[list[int],list[int],list[int]]:
         """Create surfaces. Must be plane surfaces otherwse use 'factory.addSurfaceFilling' \n
         return surfaces, lines, points
 
         Parameters
         ----------
-        contour : Geom
+        contour : _Geom
             the object that creates the surface area
-        inclusions : list[Geom]
+        inclusions : list[_Geom]
             objects that create hollow or filled surfaces in the first surface.\n
             CAUTION : all inclusions must be contained within the contour and do not cross
         elemType : ElemType, optional
@@ -418,7 +418,7 @@ class Interface_Gmsh:
         entities = [(2,s) for s in surfaces]
 
         p0 = axis.pt1.coordo
-        a0 = normalize_vect(axis.pt2.coordo - p0)
+        a0 = Normalize_vect(axis.pt2.coordo - p0)
 
         # Create new entites for revolution
         revol = factory.revolve(entities, *p0, *a0, angle, layers, recombine=recombine)
@@ -807,7 +807,7 @@ class Interface_Gmsh:
 
         return mesh
 
-    def __Get_hollow_And_filled_Loops(self, inclusions: list[Geom]) -> tuple[list[int], list[int]]:
+    def __Get_hollow_And_filled_Loops(self, inclusions: list[_Geom]) -> tuple[list[int], list[int]]:
         """Creation of hollow and filled loops
 
         Parameters
@@ -833,14 +833,14 @@ class Interface_Gmsh:
 
         return hollowLoops, filledLoops    
 
-    def Mesh_2D(self, contour: Geom, inclusions: list[Geom]=[], elemType=ElemType.TRI3,
-                cracks:list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
-                isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[], folder="") -> Mesh:
+    def Mesh_2D(self, contour: _Geom, inclusions: list[_Geom]=[], elemType=ElemType.TRI3,
+                cracks:list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
+                isOrganised=False, surfaces:list[tuple[_Geom, list[_Geom]]]=[], folder="") -> Mesh:
         """Build the 2D mesh from a contour and inclusions that must form a closed surface.
 
         Parameters
         ----------
-        contour : Geom
+        contour : _Geom
             geometry that builds the contour
         inclusions : list[Domain, Circle, PointsList, Contour], optional
             list of hollow and non-hollow objects inside the domain 
@@ -852,7 +852,7 @@ class Interface_Gmsh:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        surfaces : list[tuple[Geom, list[Geom]]]
+        surfaces : list[tuple[_Geom, list[_Geom]]]
             additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
         folder : str, optional
             mesh save folder mesh.msh, by default ""
@@ -900,15 +900,15 @@ class Interface_Gmsh:
 
         return self._Construct_Mesh()
 
-    def Mesh_3D(self, contour: Geom, inclusions: list[Geom]=[],
+    def Mesh_3D(self, contour: _Geom, inclusions: list[_Geom]=[],
                 extrude=[0,0,1], layers:list[int]=[], elemType=ElemType.TETRA4,
-                cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
-                isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[], folder="") -> Mesh:
+                cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
+                isOrganised=False, surfaces:list[tuple[_Geom, list[_Geom]]]=[], folder="") -> Mesh:
         """Build the 3D mesh by extruding a surface constructed from a contour and inclusions.
 
         Parameters
         ----------
-        contour : Geom
+        contour : _Geom
             geometry that builds the contour
         inclusions : list[Domain, Circle, PointsList, Contour], optional
             list of hollow and non-hollow objects inside the domain
@@ -924,7 +924,7 @@ class Interface_Gmsh:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        surfaces : list[tuple[Geom, list[Geom]]]
+        surfaces : list[tuple[_Geom, list[_Geom]]]
             additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
         folder : str, optional
             mesh.msh backup folder, by default ""
@@ -973,15 +973,15 @@ class Interface_Gmsh:
         
         return self._Construct_Mesh()
     
-    def Mesh_Revolve(self, contour: Geom, inclusions: list[Geom]=[],
+    def Mesh_Revolve(self, contour: _Geom, inclusions: list[_Geom]=[],
                      axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, layers:list[int]=[30], elemType=ElemType.TETRA4,
-                     cracks: list[Geom]=[], refineGeoms: list[Union[Geom,str]]=[],
-                     isOrganised=False, surfaces:list[tuple[Geom, list[Geom]]]=[],  folder="") -> Mesh:
+                     cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
+                     isOrganised=False, surfaces:list[tuple[_Geom, list[_Geom]]]=[],  folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
 
         Parameters
         ----------
-        contour : Geom
+        contour : _Geom
             geometry that builds the contour
         inclusions : list[Domain, Circle, PointsList, Contour], optional
             list of hollow and non-hollow objects inside the domain
@@ -999,7 +999,7 @@ class Interface_Gmsh:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        surfaces : list[tuple[Geom, list[Geom]]]
+        surfaces : list[tuple[_Geom, list[_Geom]]]
             additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
         folder : str, optional
             mesh.msh backup folder, by default ""
@@ -1299,7 +1299,7 @@ class Interface_Gmsh:
         
         tic = Tic()
 
-        dict_groupElem: dict[ElemType, GroupElem] = {}
+        dict_groupElem: dict[ElemType, _GroupElem] = {}
         meshDim = gmsh.model.getDimension()
         elementTypes = gmsh.model.mesh.getElementTypes()
         nodes, coord, parametricCoord = gmsh.model.mesh.getNodes()
@@ -1349,7 +1349,7 @@ class Interface_Gmsh:
             
             # Elements
             Ne = elementTags.shape[0] # number of elements
-            nPe = GroupElem_Factory.Get_ElemInFos(gmshId)[1] # nodes per element
+            nPe = _GroupElem_Factory.Get_ElemInFos(gmshId)[1] # nodes per element
             connect: np.ndarray = nodeTags.reshape(Ne, nPe) # Builds connect matrix
 
             # Nodes            
@@ -1358,7 +1358,7 @@ class Interface_Gmsh:
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
 
             # Element group creation
-            groupElem = GroupElem_Factory.Create_GroupElem(gmshId, connect, coordo, nodes)
+            groupElem = _GroupElem_Factory.Create_GroupElem(gmshId, connect, coordo, nodes)
             
             # We add the element group to the dictionary containing all groups
             dict_groupElem[groupElem.elemType] = groupElem

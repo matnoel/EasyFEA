@@ -3,7 +3,7 @@
 import Folder
 import Materials
 from Interface_Gmsh import Interface_Gmsh, Mesh, ElemType
-from Geom import Point, Domain, Circle
+from Geoms import Point, Domain, Circle
 import Display
 
 import pandas as pd

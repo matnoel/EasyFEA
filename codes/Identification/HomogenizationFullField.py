@@ -1,5 +1,5 @@
 from Interface_Gmsh import Interface_Gmsh, ElemType
-import Geom
+import Geoms
 import Display
 import Simulations
 import BoundaryCondition
@@ -41,12 +41,12 @@ if __name__ == '__main__':
     elemType = ElemType.TRI3
     meshSize = h/20
 
-    pt1 = Geom.Point()
-    pt2 = Geom.Point(L,0)
-    pt3 = Geom.Point(L,h)
-    pt4 = Geom.Point(0,h)
+    pt1 = Geoms.Point()
+    pt2 = Geoms.Point(L,0)
+    pt3 = Geoms.Point(L,h)
+    pt4 = Geoms.Point(0,h)
 
-    domain = Geom.Domain(pt1, pt2, meshSize)
+    domain = Geoms.Domain(pt1, pt2, meshSize)
 
     inclusions = []
     for i in range(nL):
@@ -54,19 +54,19 @@ if __name__ == '__main__':
         for j in range(nH):
             y = cH + cH*(2*j)
 
-            ptd1 = Geom.Point(x-cL/2, y-cH/2)
-            ptd2 = Geom.Point(x+cL/2, y+cH/2)
+            ptd1 = Geoms.Point(x-cL/2, y-cH/2)
+            ptd2 = Geoms.Point(x+cL/2, y+cH/2)
 
-            inclusion = Geom.Domain(ptd1, ptd2, meshSize, isHollow)
+            inclusion = Geoms.Domain(ptd1, ptd2, meshSize, isHollow)
 
             inclusions.append(inclusion)
 
     interfaceGmsh = Interface_Gmsh(False)
 
-    inclusion = Geom.Domain(ptd1, ptd2, meshSize)
+    inclusion = Geoms.Domain(ptd1, ptd2, meshSize)
     area_inclusion = interfaceGmsh.Mesh_2D(inclusion).area
 
-    points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
+    points = Geoms.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
     # mesh with inclusions
     mesh_inclusions = interfaceGmsh.Mesh_2D(points, inclusions, elemType)
@@ -74,14 +74,14 @@ if __name__ == '__main__':
     # mesh without inclusions
     mesh = interfaceGmsh.Mesh_2D(points, [], elemType)
 
-    ptI1 = Geom.Point(-cL,-cH)
-    ptI2 = Geom.Point(cL,-cH)
-    ptI3 = Geom.Point(cL, cH)
-    ptI4 = Geom.Point(-cL, cH)
+    ptI1 = Geoms.Point(-cL,-cH)
+    ptI2 = Geoms.Point(cL,-cH)
+    ptI3 = Geoms.Point(cL, cH)
+    ptI4 = Geoms.Point(-cL, cH)
 
-    pointsI = Geom.PointsList([ptI1, ptI2, ptI3, ptI4], meshSize/4)
+    pointsI = Geoms.PointsList([ptI1, ptI2, ptI3, ptI4], meshSize/4)
 
-    mesh_VER = interfaceGmsh.Mesh_2D(pointsI, [Geom.Domain(Geom.Point(-cL/2,-cH/2), Geom.Point(cL/2, cH/2),
+    mesh_VER = interfaceGmsh.Mesh_2D(pointsI, [Geoms.Domain(Geoms.Point(-cL/2,-cH/2), Geoms.Point(cL/2, cH/2),
                                                         meshSize/4, isHollow)], elemType)
     area_VER = mesh_VER.area
 
@@ -249,7 +249,7 @@ if __name__ == '__main__':
         Display.Plot_Result(simu, "uy", title=f"{title} uy")
         # Display.Plot_Result(simu, "Eyy")
 
-        print(f"{title}: dy = {np.max(simu.Result('uy')[simu.mesh.Nodes_Point(Geom.Point(L,0))]):.3f}")
+        print(f"{title}: dy = {np.max(simu.Result('uy')[simu.mesh.Nodes_Point(Geoms.Point(L,0))]):.3f}")
 
     Simulation(simu_inclusions, "inclusions")
     Simulation(simu, "non hom")

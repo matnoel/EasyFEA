@@ -6,10 +6,10 @@ from enum import Enum
 import numpy as np
 
 from TicTac import Tic
-from Mesh import Mesh, GroupElem
+from Mesh import Mesh, _GroupElem
 import CalcNumba
 import Display as Display
-from Geom import Line, Point, normalize_vect
+from Geoms import Line, Point, Normalize_vect
 
 from scipy.linalg import sqrtm
 
@@ -967,19 +967,19 @@ class _Beam_Model(IModel):
 
         # set y axis
         xAxis = self.xAxis
-        yAxis = normalize_vect(Point._getCoord(value))
+        yAxis = Normalize_vect(Point._getCoord(value))
 
         # check that the yaxis is not colinear to the fiber axis
         crossProd = np.cross(xAxis, yAxis)
         if np.linalg.norm(crossProd) <= 1e-12:
             # Choose x-axis
-            yAxis = normalize_vect(np.cross([0,0,1], xAxis))
+            yAxis = Normalize_vect(np.cross([0,0,1], xAxis))
             print(f"The beam's vertical axis has been selected incorrectly (collinear with the beam x-axis).\nAxis {np.array_str(yAxis, precision=3)} has been assigned for {self.name}.")
         else:
             # get the horizontal direction of the beam
-            zAxis = normalize_vect(np.cross(xAxis, yAxis))
+            zAxis = Normalize_vect(np.cross(xAxis, yAxis))
             # then make sure that x,y,z are orthogonal
-            yAxis = normalize_vect(np.cross(zAxis, xAxis))
+            yAxis = Normalize_vect(np.cross(zAxis, xAxis))
 
         self.__yAxis: np.ndarray = yAxis
     
@@ -1025,7 +1025,7 @@ class _Beam_Model(IModel):
         
         i = line.unitVector
         j = self.yAxis
-        k = normalize_vect(np.cross(i,j))
+        k = Normalize_vect(np.cross(i,j))
 
         J = np.array([i,j,k]).T
         return J
@@ -1162,7 +1162,7 @@ class Beam_Structure(IModel):
         """
         return self.__dof_n        
 
-    def Calc_D_e_pg(self, groupElem: GroupElem) -> np.ndarray:
+    def Calc_D_e_pg(self, groupElem: _GroupElem) -> np.ndarray:
 
         if groupElem.dim != 1: return
 
@@ -1185,7 +1185,7 @@ class Beam_Structure(IModel):
 
         return D_e_pg
     
-    def Get_axis_e(self, groupElem: GroupElem) -> tuple[np.ndarray, np.ndarray]:
+    def Get_axis_e(self, groupElem: _GroupElem) -> tuple[np.ndarray, np.ndarray]:
         """Get the fiber and cross bar vertical axis on every elements.\n
         return xAxis_e, yAxis_e"""
 

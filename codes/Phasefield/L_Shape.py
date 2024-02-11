@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import Point, PointsList, Line, Domain, Circle, normalize_vect
+from Geoms import Point, PointsList, Line, Domain, Circle, Normalize_vect
 import Materials
 import Simulations
 import Folder
@@ -125,10 +125,10 @@ if __name__ == '__main__':
                 newCoordo = simu.mesh.coordo + dep
 
                 vectBord = newCoordo[node4] - newCoordo[node3]
-                vectBord = normalize_vect(vectBord)
+                vectBord = Normalize_vect(vectBord)
 
                 vectDep = np.cross([0,0,1], vectBord)
-                vectDep = normalize_vect(vectDep)
+                vectDep = Normalize_vect(vectDep)
 
                 displ = ud * vectDep[0,:2]
 

@@ -1,5 +1,5 @@
 from Interface_Gmsh import gmsh, Interface_Gmsh, ElemType
-from Geom import Point, PointsList, Contour, CircleArc, Line
+from Geoms import Point, PointsList, Contour, CircleArc, Line
 import Display
 import Folder
 import Simulations

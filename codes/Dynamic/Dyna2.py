@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import Simulations
 import Materials
-from Geom import Domain, Point, Circle, Line
+from Geoms import Domain, Point, Circle, Line
 from Interface_Gmsh import Interface_Gmsh, ElemType
 import Display
 import PostProcessing

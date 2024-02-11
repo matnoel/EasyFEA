@@ -3,7 +3,7 @@ import Display
 import PostProcessing
 import Folder
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import Circle, Domain, Line, Point
+from Geoms import Circle, Domain, Line, Point
 import Materials
 import Simulations
 import numpy as np

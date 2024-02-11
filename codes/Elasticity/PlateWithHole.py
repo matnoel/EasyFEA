@@ -2,7 +2,7 @@ import Display
 import Materials
 import Simulations
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import Point, PointsList, Domain, Circle
+from Geoms import Point, PointsList, Domain, Circle
 
 if __name__ == '__main__':
 

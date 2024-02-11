@@ -10,7 +10,7 @@ import Simulations
 import Display
 from Interface_Gmsh import Interface_Gmsh
 import Materials
-import Geom
+import Geoms
 import Folder
 
 if __name__ == '__main__':
@@ -47,20 +47,20 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
-    pt1 = Geom.Point(-L/2, -H/2)
-    pt2 = Geom.Point(L/2, H/2)
-    domain = Geom.Domain(pt1, pt2, meshSize)
-    pC = Geom.Point(0, 0)
-    circle = Geom.Circle(pC, diam, meshSize, isHollow=True)
+    pt1 = Geoms.Point(-L/2, -H/2)
+    pt2 = Geoms.Point(L/2, H/2)
+    domain = Geoms.Domain(pt1, pt2, meshSize)
+    pC = Geoms.Point(0, 0)
+    circle = Geoms.Circle(pC, diam, meshSize, isHollow=True)
 
     pZone = pC + [diam/2,diam/2]
-    circleZone = Geom.Circle(pZone, diam*1.2, meshSize)
+    circleZone = Geoms.Circle(pZone, diam*1.2, meshSize)
 
-    coordInter = Geom.Points_IntersectCircles(circle, circleZone)
+    coordInter = Geoms.Points_IntersectCircles(circle, circleZone)
 
-    pt1 = Geom.Point(*coordInter[0, :])
-    pt2 = Geom.Point(*coordInter[1, :])
-    circleArc1 = Geom.CircleArc(pt1, pt2, pZone, meshSize=meshSize, coef=-1)
+    pt1 = Geoms.Point(*coordInter[0, :])
+    pt2 = Geoms.Point(*coordInter[1, :])
+    circleArc1 = Geoms.CircleArc(pt1, pt2, pZone, meshSize=meshSize, coef=-1)
 
     mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", cracks=[circleArc1])
     xn = mesh.coordo[:,0]

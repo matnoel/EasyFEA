@@ -3,7 +3,7 @@ import Simulations
 import Materials
 import Display
 import PostProcessing
-from Geom import np, Point, Domain, Circle, PointsList, Line
+from Geoms import np, Point, Domain, Circle, PointsList, Line
 import Folder
 
 plt = Display.plt

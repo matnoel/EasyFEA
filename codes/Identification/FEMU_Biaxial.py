@@ -2,7 +2,7 @@ from scipy.optimize import least_squares
 import pandas as pd
 
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import Point, PointsList, Circle
+from Geoms import Point, PointsList, Circle
 import Display
 import Materials
 import Simulations

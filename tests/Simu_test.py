@@ -1,6 +1,6 @@
 import unittest
 import Materials
-from Geom import Domain, Circle, Point, Line
+from Geoms import Domain, Circle, Point, Line
 import numpy as np
 import Display as Display
 from Interface_Gmsh import Interface_Gmsh, Mesh, ElemType

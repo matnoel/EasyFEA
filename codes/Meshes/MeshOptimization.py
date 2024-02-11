@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import Folder
 import PostProcessing
 import Display
-from Geom import *
+from Geoms import *
 import Materials
 from Mesh import Mesh, Calc_projector, Calc_New_meshSize_n
 from Interface_Gmsh import Interface_Gmsh, ElemType

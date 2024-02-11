@@ -1,4 +1,4 @@
-from Geom import Domain, Point
+from Geoms import Domain, Point
 from Mesh import Mesh
 import Materials
 from Interface_Gmsh import Interface_Gmsh, ElemType

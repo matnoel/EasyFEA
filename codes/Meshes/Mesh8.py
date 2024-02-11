@@ -1,5 +1,5 @@
 from Interface_Gmsh import gmsh, Interface_Gmsh, ElemType
-from Geom import Point, Circle, Domain, PointsList, Line, CircleArc, Contour
+from Geoms import Point, Circle, Domain, PointsList, Line, CircleArc, Contour
 import Display
 import Folder
 import numpy as np

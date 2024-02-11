@@ -1,6 +1,6 @@
 from TicTac import Tic
 import Materials
-from Geom import *
+from Geoms import *
 import Display
 import Interface_Gmsh
 import Simulations

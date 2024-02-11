@@ -1,6 +1,6 @@
 import Folder
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import normalize_vect, Point, PointsList, Line, Circle
+from Geoms import Normalize_vect, Point, PointsList, Line, Circle
 import Display
 import Materials
 import Simulations
@@ -193,7 +193,7 @@ if __name__ == '__main__':
 
             line = next_corner.coordo - corner.coordo # construct line between 2 corners
             lineLength = np.linalg.norm(line) # length of the line
-            vect = normalize_vect(line) # normalized vector between the edge corners
+            vect = Normalize_vect(line) # normalized vector between the edge corners
             vect_i = coordo - corner.coordo # vector coordinates from the first corner of the edge
             scalarProduct = np.einsum('ni,i', vect_i, vect, optimize="optimal")
             crossProduct = np.cross(vect_i, vect)

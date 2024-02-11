@@ -8,7 +8,7 @@ import Folder
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
 import Materials
-import Geom
+import Geoms
 
 if __name__ == '__main__':
 
@@ -42,13 +42,13 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
-    pt1 = Geom.Point()
-    pt2 = Geom.Point(l, 0)
-    pt3 = Geom.Point(l, h)
-    pt4 = Geom.Point(0, h)
-    points = Geom.PointsList([pt1, pt2, pt3, pt4], meshSize)
+    pt1 = Geoms.Point()
+    pt2 = Geoms.Point(l, 0)
+    pt3 = Geoms.Point(l, h)
+    pt4 = Geoms.Point(0, h)
+    points = Geoms.PointsList([pt1, pt2, pt3, pt4], meshSize)
 
-    circle = Geom.Circle(Geom.Point(l/2, h/2), d, meshSize, isHollow=True)
+    circle = Geoms.Circle(Geoms.Point(l/2, h/2), d, meshSize, isHollow=True)
 
     mesh = Interface_Gmsh().Mesh_2D(points, [circle], elemType)
 

@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import Point, Line, Circle, PointsList, Domain
+from Geoms import Point, Line, Circle, PointsList, Domain
 
 if __name__ == '__main__':
 

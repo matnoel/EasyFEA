@@ -1,4 +1,4 @@
-"""Module for creating geometric objects."""
+"""Module used to create geometric objects."""
 
 from typing import Union
 import numpy as np
@@ -162,7 +162,7 @@ class Point:
     def copy(self):
         return copy.deepcopy(self)
 
-class Geom(ABC):
+class _Geom(ABC):
 
     def __init__(self, points: list[Point], meshSize: float, name: str, isHollow: bool, isOpen: bool):
         """Builds a geometric object.
@@ -303,7 +303,7 @@ class Geom(ABC):
     @staticmethod
     def Plot_Geoms(geoms: list, ax: plt.Axes=None,
                    color:str="", name:str="", plotPoints=True) -> plt.Axes:
-        geoms: list[Geom] = geoms
+        geoms: list[_Geom] = geoms
         for g, geom in enumerate(geoms):
             if g == 0 and ax == None:
                 ax = geom.Plot(color=color, name=name, plotPoints=plotPoints)
@@ -314,7 +314,7 @@ class Geom(ABC):
 
         return ax
 
-class PointsList(Geom):
+class PointsList(_Geom):
 
     __nbPointsList = 0
 
@@ -355,8 +355,8 @@ class PointsList(Geom):
         # TODO Permettre d'ajouter des congés ?
 
         # Get corners
-        corners: list[Geom] = []
-        geoms: list[Geom] = []
+        corners: list[_Geom] = []
+        geoms: list[_Geom] = []
 
 
         def Link(idx1: int, idx2: int):
@@ -426,7 +426,7 @@ class PointsList(Geom):
         lenght = np.sum(lenght)
         return lenght
 
-class Line(Geom):
+class Line(_Geom):
 
     __nbLine = 0
 
@@ -462,7 +462,7 @@ class Line(Geom):
 
         Line.__nbLine += 1
         name = f"Line{Line.__nbLine}"
-        Geom.__init__(self, [pt1, pt2], meshSize, name, False, isOpen)
+        _Geom.__init__(self, [pt1, pt2], meshSize, name, False, isOpen)
     
     @property
     def unitVector(self) -> np.ndarray:
@@ -477,7 +477,7 @@ class Line(Geom):
     def coordoPlot(self) -> tuple[np.ndarray,np.ndarray]:
         return super().coordoPlot()
 
-class Domain(Geom):
+class Domain(_Geom):
 
     __nbDomain = 0
 
@@ -501,7 +501,7 @@ class Domain(Geom):
         Domain.__nbDomain += 1
         name = f"Domain{Domain.__nbDomain}"
         # a domain can't be open
-        Geom.__init__(self, [pt1, pt2], meshSize, name, isHollow, False)
+        _Geom.__init__(self, [pt1, pt2], meshSize, name, isHollow, False)
 
     def coordoPlot(self) -> tuple[np.ndarray,np.ndarray]:
 
@@ -523,7 +523,7 @@ class Domain(Geom):
 
         return lines, points
 
-class Circle(Geom):
+class Circle(_Geom):
 
     __nbCircle = 0
 
@@ -566,22 +566,22 @@ class Circle(Geom):
 
         Circle.__nbCircle += 1
         name = f"Circle{Circle.__nbCircle}"
-        Geom.__init__(self, [center, self.pt1, self.pt2, self.pt3, self.pt4], meshSize, name, isHollow, isOpen)
+        _Geom.__init__(self, [center, self.pt1, self.pt2, self.pt3, self.pt4], meshSize, name, isHollow, isOpen)
 
         # rotatate if necessary
         zAxis = np.array([0,0,1])
-        n = normalize_vect(Point._getCoord(n))
+        n = Normalize_vect(Point._getCoord(n))
         rotAxis = np.cross(n, zAxis)
         # theta = AngleBetween_a_b(zAxis, n)
         
         # then we rotate along i
         if np.linalg.norm(rotAxis) == 0:
             # n and zAxis are collinear
-            i = normalize_vect((self.pt1 - center).coordo) # i = p1 - center
+            i = Normalize_vect((self.pt1 - center).coordo) # i = p1 - center
         else:
             i = rotAxis
 
-        mat = JacobianMatrix(i,n)
+        mat = Jacobian_Matrix(i,n)
 
         coordo = np.einsum('ij,nj->ni', mat, self.coordo - center.coordo) + center.coordo
 
@@ -598,9 +598,9 @@ class Circle(Geom):
     @property
     def n(self) -> np.ndarray:
         """axis normal to the circle"""
-        i = normalize_vect((self.pt1 - self.center).coordo)
-        j = normalize_vect((self.pt2 - self.center).coordo)
-        n: np.ndarray = normalize_vect(np.cross(i,j))
+        i = Normalize_vect((self.pt1 - self.center).coordo)
+        j = Normalize_vect((self.pt2 - self.center).coordo)
+        n: np.ndarray = Normalize_vect(np.cross(i,j))
         return n
 
     def coordoPlot(self) -> tuple[np.ndarray,np.ndarray]:        
@@ -619,7 +619,7 @@ class Circle(Geom):
         # construct jacobian matrix
         i = (self.pt1 - self.center).coordo
         n = self.n
-        mat = JacobianMatrix(i, n)
+        mat = Jacobian_Matrix(i, n)
 
         # change base
         lines = np.einsum('ij,nj->ni', mat, lines) + pC.coordo
@@ -631,7 +631,7 @@ class Circle(Geom):
         """circle perimeter"""
         return np.pi * self.diam
 
-class CircleArc(Geom):
+class CircleArc(_Geom):
 
     __nbCircleArc = 0
 
@@ -704,11 +704,11 @@ class CircleArc(Geom):
         # construction of the passage matrix
         k = np.array([0,0,1])
         if collinear:
-            vect = normalize_vect(i2-i1)
+            vect = Normalize_vect(i2-i1)
             i = np.cross(k,vect)
         else:
-            i = normalize_vect((i1+i2)/2)
-            k = normalize_vect(np.cross(i1, i2))
+            i = Normalize_vect((i1+i2)/2)
+            k = Normalize_vect(np.cross(i1, i2))
         j = np.cross(k, i)
 
         mat = np.array([i,j,k]).T
@@ -722,17 +722,17 @@ class CircleArc(Geom):
 
         CircleArc.__nbCircleArc += 1
         name = f"CircleArc{CircleArc.__nbCircleArc}"
-        Geom.__init__(self, [pt1, center, self.pt3, pt2], meshSize, name, False, isOpen)
+        _Geom.__init__(self, [pt1, center, self.pt3, pt2], meshSize, name, False, isOpen)
 
     @property
     def n(self) -> np.ndarray:
         """axis normal to the circle arc"""
-        i = normalize_vect((self.pt1 - self.center).coordo)        
+        i = Normalize_vect((self.pt1 - self.center).coordo)        
         if self.angle in [0, np.pi]:            
-            j = normalize_vect((self.pt3 - self.center).coordo)
+            j = Normalize_vect((self.pt3 - self.center).coordo)
         else:
-            j = normalize_vect((self.pt2 - self.center).coordo)
-        n = normalize_vect(np.cross(i,j))
+            j = Normalize_vect((self.pt2 - self.center).coordo)
+        n = Normalize_vect(np.cross(i,j))
         return n
     
     @property
@@ -769,14 +769,14 @@ class CircleArc(Geom):
         i = (self.pt1 - self.center).coordo        
         n = self.n
         
-        mat = JacobianMatrix(i,n)
+        mat = Jacobian_Matrix(i,n)
 
         # transform coordinates
         lines = np.einsum('ij,nj->ni', mat, lines) + pC.coordo
 
         return lines, points[[0,-1]]
 
-class Contour(Geom):
+class Contour(_Geom):
 
     __nbContour = 0
 
@@ -824,7 +824,7 @@ class Contour(Geom):
         Contour.__nbContour += 1
         name = f"Contour{Contour.__nbContour}"
         meshSize = np.mean([geom.meshSize for geom in geoms])
-        Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
+        _Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
 
     def coordoPlot(self) -> tuple[np.ndarray,np.ndarray]:
 
@@ -847,7 +847,7 @@ class Contour(Geom):
 
 # Functions for calculating distances, angles, etc.
 
-def normalize_vect(vect: np.ndarray) -> np.ndarray:
+def Normalize_vect(vect: np.ndarray) -> np.ndarray:
     """Returns the normalized vector."""
     vect = np.asarray(vect)
     if len(vect.shape) == 1:
@@ -857,12 +857,12 @@ def normalize_vect(vect: np.ndarray) -> np.ndarray:
     else:
         raise Exception("The vector is the wrong size")
 
-def rotation_matrix(vect: np.ndarray, theta: float) -> np.ndarray:
+def Rotation_matrix(vect: np.ndarray, theta: float) -> np.ndarray:
     """Gets the rotation matrix for turning along an axis with theta angle (rad).\n
     p(x,y) = matrice • p(i,j)\n
     https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle"""
 
-    x, y, z = normalize_vect(vect)
+    x, y, z = Normalize_vect(vect)
     
     c = np.cos(theta)
     s = np.sin(theta)
@@ -881,7 +881,7 @@ def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
     a = Point._getCoord(a)
     b = Point._getCoord(b)
 
-    proj = normalize_vect(a) @ normalize_vect(b)    
+    proj = Normalize_vect(a) @ Normalize_vect(b)    
 
     if np.abs(proj) == 1:
         # a and b are colinear
@@ -929,7 +929,7 @@ def Rotate_coordo(coordo: np.ndarray, theta: float, center: tuple=(0,0,0), direc
     direction = Point._getCoord(direction)
 
     # rotation matrix
-    rotMat = rotation_matrix(direction, theta)
+    rotMat = Rotation_matrix(direction, theta)
 
     oldCoordo = np.reshape(coordo, (-1,3))
     
@@ -956,7 +956,7 @@ def Symmetry_coordo(coordo: np.ndarray, point=(0,0,0), n=(1,0,0)) -> np.ndarray:
     """
 
     point = Point._getCoord(point)
-    n = normalize_vect(Point._getCoord(n))
+    n = Normalize_vect(Point._getCoord(n))
 
     oldCoordo = np.reshape(coordo, (-1,3))
 
@@ -966,7 +966,7 @@ def Symmetry_coordo(coordo: np.ndarray, point=(0,0,0), n=(1,0,0)) -> np.ndarray:
 
     return newCoord
 
-def JacobianMatrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
+def Jacobian_Matrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
     """Compute the Jacobian matrix to transform local coordinates (i,j,k) to global (x,y,z) coordinates.\n
     p(x,y,z) = J • p(i,j,k) and p(i,j,k) = inv(J) • p(x,y,z)\n\n
     ix jx kx\n
@@ -981,11 +981,11 @@ def JacobianMatrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
         k vector
     """        
 
-    i = normalize_vect(i)
-    k = normalize_vect(k)
+    i = Normalize_vect(i)
+    k = Normalize_vect(k)
     
     j = np.cross(k, i)
-    j = normalize_vect(j)
+    j = Normalize_vect(j)
 
     F = np.zeros((3,3))
 
@@ -1030,13 +1030,13 @@ def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tu
 
         d *= np.sign(betha)
 
-        A = JacobianMatrix(i, n) @ np.array([d,0,0]) + P0
-        B = JacobianMatrix(j, n) @ np.array([d,0,0]) + P0
-        C = JacobianMatrix(i, n) @ np.array([d,r,0]) + P0
+        A = Jacobian_Matrix(i, n) @ np.array([d,0,0]) + P0
+        B = Jacobian_Matrix(j, n) @ np.array([d,0,0]) + P0
+        C = Jacobian_Matrix(i, n) @ np.array([d,r,0]) + P0
     else:
         d = np.abs(r)
-        A = JacobianMatrix(i, n) @ np.array([d,0,0]) + P0
-        B = JacobianMatrix(j, n) @ np.array([d,0,0]) + P0
+        A = Jacobian_Matrix(i, n) @ np.array([d,0,0]) + P0
+        B = Jacobian_Matrix(j, n) @ np.array([d,0,0]) + P0
         C = P0
 
     return A, B, C
@@ -1136,7 +1136,7 @@ def Points_IntersectCircles(circle1: Circle, circle2: Circle) -> np.ndarray:
         return p3.reshape(1, 3)
     else:
 
-        i = normalize_vect(p2-p1)
+        i = Normalize_vect(p2-p1)
         k = np.array([0,0,1])
         j = np.cross(k, i)
 

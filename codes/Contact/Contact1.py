@@ -3,7 +3,7 @@
 
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
-from Geom import Point, Domain, Circle, PointsList, Geom
+from Geoms import Point, Domain, Circle, PointsList
 import Materials
 import Simulations
 
@@ -18,6 +18,7 @@ if __name__ == '__main__':
     # Configuration
     # --------------------------------------------------------------------------------------------
     dim = 2
+    pltIter = True; result = 'uy'
 
     R = 10
     height = R
@@ -67,14 +68,14 @@ if __name__ == '__main__':
     else:
         nodes_master = mesh_master.Nodes_Tags(['S1','S2'])
 
-    # plot meshes
-    ax = Display.Plot_Mesh(mesh_master, alpha=0)
-    Display.Plot_Mesh(mesh_slave, ax=ax, alpha=0)
-    # add nodes interface
-    ax.scatter(*mesh_slave.coordo[nodes_slave,:dim].T, label='slave nodes')
-    ax.scatter(*mesh_master.coordo[nodes_master,:dim].T, label='master nodes')
-    ax.legend()
-    ax.set_title('Contact nodes')
+    # # plot meshes
+    # ax = Display.Plot_Mesh(mesh_master, alpha=0)
+    # Display.Plot_Mesh(mesh_slave, ax=ax, alpha=0)
+    # # add nodes interface
+    # ax.scatter(*mesh_slave.coordo[nodes_slave,:dim].T, label='slave nodes')
+    # ax.scatter(*mesh_master.coordo[nodes_master,:dim].T, label='master nodes')
+    # ax.legend()
+    # ax.set_title('Contact nodes')
 
     # --------------------------------------------------------------------------------------------
     # Simulation
@@ -84,7 +85,8 @@ if __name__ == '__main__':
 
     list_mesh_master = [mesh_master]
 
-    fig, ax, cb = Display.Plot_Result(simu, 'uy', deformFactor=1)
+    if pltIter:
+        fig, ax, cb = Display.Plot_Result(simu, result, deformFactor=1)
 
     for i in range(N):
 
@@ -123,27 +125,26 @@ if __name__ == '__main__':
 
         print(f"Eps max = {simu.Result('Strain').max()*100:3.2f} %")
         
-        cb.remove()
-        _,ax,cb = Display.Plot_Result(simu, 'uy', plotMesh=True, deformFactor=1, ax=ax)
-        Display.Plot_Mesh(mesh_master, alpha=0, ax=ax)
-        ax.set_title('uy')
-        if dim == 3:
-            Display._Axis_equal_3D(ax, np.concatenate((mesh_master.coordo, mesh_slave.coordo), 0))
+        if pltIter:
+            cb.remove()
+            _,ax,cb = Display.Plot_Result(simu, result, plotMesh=True, deformFactor=1, ax=ax)
+            Display.Plot_Mesh(mesh_master, alpha=0, ax=ax)
+            ax.set_title(result)
+            if dim == 3:
+                Display._Axis_equal_3D(ax, np.concatenate((mesh_master.coordo, mesh_slave.coordo), 0))
         
-        # # Plot arrows
-        # if nodes.size >0:
-        #     # get the nodes coordinates on the interface
-        #     coordinates = groupMaster.Get_GaussCoordinates_e_p('mass').reshape(-1,3)
-        #     ax.scatter(*coordinates[:,:dim].T)
+            # # Plot arrows
+            # if nodes.size >0:
+            #     # get the nodes coordinates on the interface
+            #     coordinates = groupMaster.Get_GaussCoordinates_e_p('mass').reshape(-1,3)
+            #     ax.scatter(*coordinates[:,:dim].T)
 
-        #     coordo_new = simu.Results_displacement_matrix() + simu.mesh.coordo
-        #     ax.scatter(*coordo_old[nodes,:dim].T)
-        #     incU = coordo_new - coordo_old
-        #     [ax.arrow(*coordo_old[node, :dim], *incU[node,:dim],length_includes_head=True) for node in nodes]
+            #     coordo_new = simu.Results_displacement_matrix() + simu.mesh.coordo
+            #     ax.scatter(*coordo_old[nodes,:dim].T)
+            #     incU = coordo_new - coordo_old
+            #     [ax.arrow(*coordo_old[node, :dim], *incU[node,:dim],length_includes_head=True) for node in nodes]
 
-        plt.pause(1e-12)
-        
-        pass
+            plt.pause(1e-12)
 
     # --------------------------------------------------------------------------------------------
     # PostProcessing

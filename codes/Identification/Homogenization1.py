@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh
-from Geom import *
+from Geoms import *
 import Materials
 import Simulations
 from BoundaryCondition import LagrangeCondition

@@ -3,7 +3,7 @@
 import numpy as np
 
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import Point, PointsList
+from Geoms import Point, PointsList
 import Display
 import Simulations
 import Materials

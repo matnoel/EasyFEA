@@ -4,8 +4,8 @@ import numpy as np
 import scipy.sparse as sp
 import copy
 
-from Geom import *
-from GroupElem import GroupElem, ElemType, MatrixType
+from Geoms import *
+from GroupElems import _GroupElem, ElemType, MatrixType
 import TicTac
 
 class Mesh:
@@ -16,7 +16,7 @@ class Mesh:
     - HEXA8 (dim=3)
     """
 
-    def __init__(self, dict_groupElem: dict[ElemType, GroupElem], verbosity=True):
+    def __init__(self, dict_groupElem: dict[ElemType, _GroupElem], verbosity=True):
         """Setup the mesh.
 
         Parameters
@@ -67,7 +67,7 @@ class Mesh:
         text += f"\nNe = {self.Ne}, Nn = {self.Nn}, dof = {self.Nn * self.__dim}"
         return text
 
-    def Get_list_groupElem(self, dim=None) -> list[GroupElem]:
+    def Get_list_groupElem(self, dim=None) -> list[_GroupElem]:
         """Get the list of mesh element groups.
 
         Parameters
@@ -98,12 +98,12 @@ class Mesh:
             return self.__orphanNodes    
 
     @property
-    def dict_groupElem(self) -> dict[ElemType, GroupElem]:
+    def dict_groupElem(self) -> dict[ElemType, _GroupElem]:
         """dictionary containing all the element groups in the mesh"""
         return self.__dict_groupElem
 
     @property
-    def groupElem(self) -> GroupElem:
+    def groupElem(self) -> _GroupElem:
         """Main mesh element group"""
         return self.__groupElem
 

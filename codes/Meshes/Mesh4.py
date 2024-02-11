@@ -1,7 +1,7 @@
 
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geom import Point, PointsList, Circle, Line
+from Geoms import Point, PointsList, Circle, Line
 import numpy as np
 
 if __name__ == '__main__':

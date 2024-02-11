@@ -4,7 +4,7 @@ import os
 from Interface_Gmsh import Interface_Gmsh
 import numpy as np
 
-from Geom import *
+from Geoms import *
 import Display as Display
 import matplotlib.pyplot as plt
 

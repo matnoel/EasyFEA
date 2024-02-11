@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import ElemType, Interface_Gmsh
-from Geom import Point, PointsList, Domain
+from Geoms import Point, PointsList, Domain
 import Materials
 import Simulations
 
@@ -13,8 +13,8 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-
     dim = 2
+    pltIter = True; result = 'uy'
 
     e = 10
     L = 3*e
@@ -70,8 +70,8 @@ if __name__ == '__main__':
         
     nodes_master = master_mesh.Nodes_Conditions(lambda x,y,z: y==0)
 
-    ax = Display.Plot_Mesh(mesh)
-    Display.Plot_Mesh(master_mesh, alpha=0.1, ax=ax)
+    # ax = Display.Plot_Mesh(mesh)
+    # Display.Plot_Mesh(master_mesh, alpha=0.1, ax=ax)
 
     # --------------------------------------------------------------------------------------------
     # Simu
@@ -83,8 +83,8 @@ if __name__ == '__main__':
 
     displacements = np.linspace(0, t*2, 20)    
 
-    result = 'uy'
-    fig, ax, cb = Display.Plot_Result(simu, result, 1, plotMesh=True)
+    if pltIter:
+        fig, ax, cb = Display.Plot_Result(simu, result, 1, plotMesh=True)
 
     for d, du in enumerate(displacements):
 
@@ -99,12 +99,13 @@ if __name__ == '__main__':
 
         simu.Save_Iter()
 
-        cb.remove()
-        fig, ax, cb = Display.Plot_Result(simu, result, 1, plotMesh=False, ax=ax)
-        Display.Plot_Mesh(master_mesh, ax=ax, title='', alpha=0)
-        ax.set_title(result)
+        if pltIter:
+            cb.remove()
+            fig, ax, cb = Display.Plot_Result(simu, result, 1, plotMesh=False, ax=ax)
+            Display.Plot_Mesh(master_mesh, ax=ax, title='', alpha=0)
+            ax.set_title(result)
 
-        plt.pause(1e-12)
+            plt.pause(1e-12)
 
     # --------------------------------------------------------------------------------------------
     # Plot
