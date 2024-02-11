@@ -2,7 +2,7 @@
 
 ## Overview
 
-EasyFEA is a user-friendly Python library that simplifies finite element simulations. It is flexible and supports different types of simulation without requiring users to handle complex PDE formulations. The library currently supports four specific types of simulation:
+EasyFEA is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. The library currently supports four specific types of simulation:
 
 1. **Elastic (static and dynamic):** Examples in `/codes/Elasticity` and `/codes/Dynamic`.
 2. **Beam structure (static Euler-Bernoulli):** Examples in `/codes/Beam`.
