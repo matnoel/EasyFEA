@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     meshSize = 1/30
 
-    contour = PointsList(pts, meshSize)
+    contour = Points(pts, meshSize)
 
     f = 0.4
 

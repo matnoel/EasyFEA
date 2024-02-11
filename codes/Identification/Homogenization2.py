@@ -1,6 +1,6 @@
 import Folder
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Normalize_vect, Point, PointsList, Line, Circle
+from Geoms import Normalize_vect, Point, Points, Line, Circle
 import Display
 import Materials
 import Simulations
@@ -49,7 +49,7 @@ if __name__ == '__main__':
         s = Line(p0,p1).length
         area = 3*np.sqrt(3)/2*s**2
 
-        contour = PointsList([p0,p1,p2,p3,p4,p5], s/N)
+        contour = Points([p0,p1,p2,p3,p4,p5], s/N)
         corners = contour.points
 
         # Creates the inclusion
@@ -59,7 +59,7 @@ if __name__ == '__main__':
         p9 = Point(0, -(R-r))
         p10 = Point(cos_phi*(R-r), -sin_phi*(R-r))
         p11 = Point(cos_phi*(R-r), sin_phi*(R-r))
-        inclusions = [PointsList([p6,p7,p8,p9,p10,p11], s/N, hollowInclusion)]    
+        inclusions = [Points([p6,p7,p8,p9,p10,p11], s/N, hollowInclusion)]    
 
     elif geom == 'D2':
 
@@ -74,7 +74,7 @@ if __name__ == '__main__':
         p1 = Point(-a/2, -b/2)
         p2 = Point(a/2, -b/2)
         p3 = Point(a/2, b/2)
-        contour = PointsList([p0,p1,p2,p3], meshSize)
+        contour = Points([p0,p1,p2,p3], meshSize)
         corners = contour.points
 
         # Creates the inclusion geometry
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         p5 = p1 + [e, e]
         p6 = p2 + [-e, e]
         p7 = p3 + [-e, -e]
-        inclusions = [PointsList([p4,p5,p6,p7], meshSize, hollowInclusion)]
+        inclusions = [Points([p4,p5,p6,p7], meshSize, hollowInclusion)]
 
     elif geom  == 'D6':
 
@@ -155,7 +155,7 @@ if __name__ == '__main__':
         
         hollowInclusion = True
 
-        contour = PointsList(rotate_points, e/N*2)
+        contour = Points(rotate_points, e/N*2)
 
         inclusions = []
 

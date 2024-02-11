@@ -3,7 +3,7 @@
 import numpy as np
 
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, PointsList
+from Geoms import Point, Points
 import Display
 import Simulations
 import Materials
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     p7 = Point(2*L-w,2*L)
     p8 = Point(0,2*L)
 
-    contour = PointsList([p1,p2,p3,p4,p5,p6,p7,p8], meshSize)
+    contour = Points([p1,p2,p3,p4,p5,p6,p7,p8], meshSize)
 
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI6)

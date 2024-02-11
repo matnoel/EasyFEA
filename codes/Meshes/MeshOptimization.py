@@ -83,7 +83,7 @@ if __name__ == '__main__':
         pt6 = Point(y=L)
         pt7 = Point(x=h, y=h)
 
-        points = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
+        points = Points([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
 
         inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize, isHollow=True) for i in range(3)]
 
@@ -113,7 +113,7 @@ if __name__ == '__main__':
         pt11 = Point(e,h)
         pt12 = Point(0,h)
 
-        points = PointsList([pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, pt9, pt10, pt11, pt12], meshSize)    
+        points = Points([pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, pt9, pt10, pt11, pt12], meshSize)    
         inclusions = []
 
     else:
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         pt3 = Point(L, h)
         pt4 = Point(0, h)
 
-        points = PointsList([pt1, pt2, pt3, pt4], meshSize)    
+        points = Points([pt1, pt2, pt3, pt4], meshSize)    
 
         inclusions = []
         nL = 20

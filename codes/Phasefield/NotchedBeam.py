@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh
-from Geoms import Point, PointsList, Line, Domain, Circle, Normalize_vect
+from Geoms import Point, Points, Line, Domain, Circle, Normalize_vect
 import Materials
 import Simulations
 import Folder
@@ -121,10 +121,10 @@ if __name__ == '__main__':
         # hD = 0.2*unit # 8 * hC -> 0.025*unit/2 * 8
 
     if useNotchCrack:
-        contour = PointsList([p0,p1,p2,p3,pC1,pC2,pC3,pC4,p4,p5,p6], hD)
+        contour = Points([p0,p1,p2,p3,pC1,pC2,pC3,pC4,p4,p5,p6], hD)
         cracks = []
     else:
-        contour = PointsList([p0,p1,p2,p3,p4,p5,p6], hD)
+        contour = Points([p0,p1,p2,p3,p4,p5,p6], hD)
         cracks = [Line(Point(-e1,0, isOpen=True), Point(-e1,e2), hC, True)]
 
     inclusions = [c1, c2, c3]

@@ -1,5 +1,5 @@
 from Interface_Gmsh import gmsh, Interface_Gmsh, ElemType
-from Geoms import Point, PointsList, Contour, CircleArc, Line
+from Geoms import Point, Points, Contour, CircleArc, Line
 import Display
 import Folder
 import Simulations
@@ -112,10 +112,10 @@ if __name__ == '__main__':
         split1, split2 = np.reshape(points, (2,-1))
 
         idxM = len(split1)//2
-        spline1 = PointsList(split1[:idxM+1], mS)
-        spline2 = PointsList(split1[idxM:], mS)
-        spline3 = PointsList(split2[:idxM+1], mS)
-        spline4 = PointsList(split2[idxM:], mS)
+        spline1 = Points(split1[:idxM+1], mS)
+        spline2 = Points(split1[idxM:], mS)
+        spline3 = Points(split2[:idxM+1], mS)
+        spline4 = Points(split2[idxM:], mS)
         
         # construct contour
         contour = Contour([spline1, spline2, spline3, spline4])
@@ -170,7 +170,7 @@ if __name__ == '__main__':
         C2 = Point(0,y1,0)
 
         L1 = CircleArc(P1,P2,C1, meshSize=mS)
-        L2 = PointsList([Point(*co) for co in coord], mS)
+        L2 = Points([Point(*co) for co in coord], mS)
         L3 = CircleArc(P3,P4,C2, meshSize=mS)
         L4 = Line(P4,P1, mS)
         

@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, PointsList, Line, Domain, Circle, Normalize_vect
+from Geoms import Point, Points, Line, Domain, Circle, Normalize_vect
 import Materials
 import Simulations
 import Folder
@@ -83,7 +83,7 @@ if __name__ == '__main__':
         refineDomain = None
         hD = hC
 
-    contour = PointsList([p1,p2,p3,p4,p5,p6,p7], hD)
+    contour = Points([p1,p2,p3,p4,p5,p6,p7], hD)
 
     circle = Circle(p5, 100)
 

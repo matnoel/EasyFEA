@@ -1,5 +1,5 @@
 import Display
-from Geoms import Point, PointsList, Circle, Domain, Normalize_vect, Line
+from Geoms import Point, Points, Circle, Domain, Normalize_vect, Line
 from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
 import Materials
 import Simulations
@@ -32,7 +32,7 @@ def DoMesh(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float, t:fl
     p2 = Point(L/2+D2/2, p1.y+D2/2, p1.z)
     p3 = Point(p2.x, H, p1.z)
     p4 = p3 - [D2/2]        
-    hole = PointsList([p1,p2,p3,p4])
+    hole = Points([p1,p2,p3,p4])
     axis = Line(p1,p4)
     # hole.Plot_Geoms([contour, circle, hole, axis])
 

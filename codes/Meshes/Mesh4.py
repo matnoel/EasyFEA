@@ -1,7 +1,7 @@
 
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, PointsList, Circle, Line
+from Geoms import Point, Points, Circle, Line
 import numpy as np
 
 if __name__ == '__main__':
@@ -19,7 +19,7 @@ if __name__ == '__main__':
     pt3 = Point(radius+width, height, r=-width/3)
     pt4 = Point(radius, height, r=-width/3)
 
-    contour = PointsList([pt1, pt2, pt3, pt4], meshSize)
+    contour = Points([pt1, pt2, pt3, pt4], meshSize)
 
     circle1 = Circle(Point(width/2+radius, height*1/4), width/3, width/10)
     circle2 = Circle(Point(width/2+radius, height*3/4), width/3, width/10)

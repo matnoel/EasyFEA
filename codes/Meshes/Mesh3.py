@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, Line, Circle, PointsList, Domain
+from Geoms import Point, Line, Circle, Points, Domain
 
 if __name__ == '__main__':
 
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
 
-    contour = PointsList([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
+    contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
     inclusions = [Circle(Point(x=h / 2, y=h * (i + 1)), h / 4, meshSize=h / N, isHollow=True) for i in range(3)]
     inclusions.extend([Domain(Point(x=h, y=h / 2 - h * 0.1), Point(x=h * 2.1, y=h / 2 + h * 0.1), isHollow=False, meshSize=h / N)])
 

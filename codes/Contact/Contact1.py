@@ -3,7 +3,7 @@
 
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
-from Geoms import Point, Domain, Circle, PointsList
+from Geoms import Point, Domain, Circle, Points
 import Materials
 import Simulations
 
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     p1 = Point(R/2, height, r=r)
     p2 = Point(R/2, height+R)
     p3 = Point(-R/2, height+R)
-    contour_master = PointsList([p0,p1,p2,p3])
+    contour_master = Points([p0,p1,p2,p3])
     yMax = height+np.abs(r)
     if dim == 2:
         mesh_master = Interface_Gmsh().Mesh_2D(contour_master, [], ElemType.TRI3)

@@ -1,5 +1,5 @@
 from Interface_Gmsh import gmsh, Interface_Gmsh, ElemType
-from Geoms import Point, Circle, Domain, PointsList, Line, CircleArc, Contour
+from Geoms import Point, Circle, Domain, Points, Line, CircleArc, Contour
 import Display
 import Folder
 import numpy as np
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     P2 = Point(L,0)
     P3 = Point(L,H)
     P4 = Point(0,H)
-    contour1 = PointsList([(P3+P2)/2,P3,(P3+P4)/2,
+    contour1 = Points([(P3+P2)/2,P3,(P3+P4)/2,
                            P4,(P4+P1)/2,P1,
                            (P1+P2)/2,P2,(P3+P2)/2], mS)
 

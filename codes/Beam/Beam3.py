@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from Interface_Gmsh import Interface_Gmsh, ElemType, Line, Point, PointsList
+from Interface_Gmsh import Interface_Gmsh, ElemType, Line, Point, Points
 import Display
 import Materials
 import Simulations
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     p10 = DoSym(p5,(1,0))
     p11 = DoSym(p4,(1,0))
     p12 = DoSym(p3,(1,0))
-    contour = PointsList([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12],e/6)    
+    contour = Points([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12],e/6)    
     section = Interface_Gmsh().Mesh_2D(contour)
     
     ax = Display.Plot_Mesh(section)

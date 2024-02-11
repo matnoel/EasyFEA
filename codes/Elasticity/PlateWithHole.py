@@ -2,7 +2,7 @@ import Display
 import Materials
 import Simulations
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, PointsList, Domain, Circle
+from Geoms import Point, Points, Domain, Circle
 
 if __name__ == '__main__':
 
@@ -29,7 +29,7 @@ if __name__ == '__main__':
         p1 = Point(l, 0)
         p2 = Point(l, h)
         p3 = Point(0, h)
-        contour = PointsList([p0, p1, p2, p3], meshSize)
+        contour = Points([p0, p1, p2, p3], meshSize)
         inclusions = []
     else:
         p0 = Point(-l, -h)

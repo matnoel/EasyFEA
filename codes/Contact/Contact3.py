@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import ElemType, Interface_Gmsh
-from Geoms import Point, PointsList, Domain
+from Geoms import Point, Points, Domain
 import Materials
 import Simulations
 
@@ -37,13 +37,13 @@ if __name__ == '__main__':
     p5 = Point(L/2, r=r)
     p6 = Point(L/2+e)
 
-    line1 = PointsList([p1,p2,p3,p4,p5,p6])
+    line1 = Points([p1,p2,p3,p4,p5,p6])
     line2 = line1.copy(); line2.translate(dy=t)
 
     points = line1.points
     points.extend(line2.points[::-1])
 
-    contour = PointsList(points, mS)
+    contour = Points(points, mS)
 
     enca = Domain(p1 - [e, 5*t], p6 + [e])
 

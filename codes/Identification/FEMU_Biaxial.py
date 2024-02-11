@@ -2,7 +2,7 @@ from scipy.optimize import least_squares
 import pandas as pd
 
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, PointsList, Circle
+from Geoms import Point, Points, Circle
 import Display
 import Materials
 import Simulations
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     pt3 = Point(L/2, L/2, r=r)
     pt4 = Point(-L/2, L/2, r=r)
 
-    contour = PointsList([pt1,pt2,pt3,pt4], meshSize)
+    contour = Points([pt1,pt2,pt3,pt4], meshSize)
 
     circle = Circle(Point(h/3, h/3), 10, meshSize, isHollow)
 

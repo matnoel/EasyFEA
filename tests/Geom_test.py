@@ -87,7 +87,7 @@ class Test_Geom(unittest.TestCase):
         x = np.linspace(0, 5, 10)
         y = np.sin(x)        
 
-        points = PointsList([Point(x[i],y[i]) for i in range(x.size)])
+        points = Points([Point(x[i],y[i]) for i in range(x.size)])
 
         domain = Domain(Point(), Point(1,1,1))
 
@@ -105,7 +105,7 @@ class Test_Geom(unittest.TestCase):
         
         self.assertTrue(contour1.geoms[1].center.Check((0,0,0)))
         
-        points2 = PointsList([Point(), Point(5,0), Point(5,5,r=2), Point(0,5,r=-3)])
+        points2 = Points([Point(), Point(5,0), Point(5,5,r=2), Point(0,5,r=-3)])
         contour2 = points2.Get_Contour()
 
         dec = (10,0,0)

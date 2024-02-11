@@ -46,7 +46,7 @@ if __name__ == '__main__':
     pt2 = Geoms.Point(l, 0)
     pt3 = Geoms.Point(l, h)
     pt4 = Geoms.Point(0, h)
-    points = Geoms.PointsList([pt1, pt2, pt3, pt4], meshSize)
+    points = Geoms.Points([pt1, pt2, pt3, pt4], meshSize)
 
     circle = Geoms.Circle(Geoms.Point(l/2, h/2), d, meshSize, isHollow=True)
 

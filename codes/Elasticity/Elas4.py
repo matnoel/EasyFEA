@@ -2,7 +2,7 @@
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Point, PointsList, Circle, Domain, Line
+from Interface_Gmsh import Interface_Gmsh, ElemType, Point, Points, Circle, Domain, Line
 import Simulations
 import Materials
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     p10 = DoSym(p5,(1,0))
     p11 = DoSym(p4,(1,0))
     p12 = DoSym(p3,(1,0))
-    section = PointsList([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12], meshSize)    
+    section = Points([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12], meshSize)    
     meshSection = Interface_Gmsh().Mesh_2D(section)
     
     section.Get_Contour().Plot()

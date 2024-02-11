@@ -1,4 +1,4 @@
-from Interface_Gmsh import gmsh, Interface_Gmsh, Point, Circle, Domain, ElemType, PointsList, Line
+from Interface_Gmsh import gmsh, Interface_Gmsh, Point, Circle, Domain, ElemType, Points, Line
 import Display
 import Folder
 import numpy as np
@@ -63,7 +63,7 @@ if __name__ == '__main__':
         p2 = Point(R, 0, e)
         p3 = Point(R,0, e*4)
         p4 = Point(R-e/2, 0, e*4, r=e/4)
-        contour = PointsList([p1, p2, p3, p4])    
+        contour = Points([p1, p2, p3, p4])    
         surf = interface._Surfaces(contour, [])[0][0]
 
         rev1 = factory.revolve([(2, surf)], 0,0,0,0,0,R,np.pi)

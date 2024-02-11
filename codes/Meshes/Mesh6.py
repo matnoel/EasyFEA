@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, Line, Circle, PointsList, Domain, Contour
+from Geoms import Point, Line, Circle, Points, Domain, Contour
 import Materials
 import Simulations
 

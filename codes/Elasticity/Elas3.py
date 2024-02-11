@@ -2,7 +2,7 @@
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Point, PointsList, Circle, Domain
+from Interface_Gmsh import Interface_Gmsh, ElemType, Point, Points, Circle, Domain
 import Simulations
 import Materials
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     pt1 = Point()
     pt2 = Point(x=h)
     pt3 = Point(y=h)
-    contour = PointsList([pt1, pt2, pt3], h/N)
+    contour = Points([pt1, pt2, pt3], h/N)
 
     if dim == 2:
         mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI6)

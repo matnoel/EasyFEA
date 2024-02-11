@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, Line, Circle, PointsList, Domain, Contour
+from Geoms import Point, Line, Circle, Points, Domain, Contour
 import Simulations
 import Materials
 
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     crack2 = Line(Point(0,L/3, isOpen=openCrack), Point(L/2,L/3), isOpen=openCrack)
     crack3 = Line(Point(0,2*L/3, isOpen=openCrack), Point(L/2,2*L/3), isOpen=openCrack)
     crack4 = Line(Point(0,4*L/5), Point(L,4*L/5), isOpen=False)
-    crack5 = PointsList([Point(L/2,L/5),
+    crack5 = Points([Point(L/2,L/5),
                         Point(2*L/3,L/5),
                         Point(L,L/10, isOpen=True)], isOpen=True)
 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     line2 = Line(line1.pt2, line1.pt2+[0,0.25,L])
     line3 = Line(line2.pt2, line1.pt1+[0,0.25,L], isOpen=openCrack)
     line4 = Line(line3.pt2, line1.pt1)
-    crack1 = PointsList([Point(L/2,L/5,L),
+    crack1 = Points([Point(L/2,L/5,L),
                         Point(2*L/3,L/5,L),
                         Point(L,L/2,L, isOpen=True)], isOpen=True)
 

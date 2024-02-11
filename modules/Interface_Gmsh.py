@@ -66,7 +66,7 @@ class Interface_Gmsh:
         else:
             raise Exception("Unknow factory")
         
-    def _Loop_From_Geom(self, geom: Union[Circle, Domain, PointsList, Contour]) -> tuple[int, list[int], list[int]]:
+    def _Loop_From_Geom(self, geom: Union[Circle, Domain, Points, Contour]) -> tuple[int, list[int], list[int]]:
         """Creation of a loop based on the geometric object.\n
         return loop, lines, points"""        
 
@@ -74,7 +74,7 @@ class Interface_Gmsh:
             loop, lines, points = self._Loop_From_Circle(geom)[:3]
         elif isinstance(geom, Domain):
             loop, lines, points = self._Loop_From_Domain(geom)[:3]
-        elif isinstance(geom, PointsList):
+        elif isinstance(geom, Points):
             contour = geom.Get_Contour()            
             loop, lines, points = self._Loop_From_Contour(contour)[:3]
         elif isinstance(geom, Contour):
@@ -85,7 +85,7 @@ class Interface_Gmsh:
         return loop, lines, points
     
     def _Loop_From_Contour(self, contour: Contour) -> tuple[int, list[int], list[int], list[int], list[int]]:
-        """Create a loop associated with a list of 1D objects (Line, CircleArc, PointsList).\n
+        """Create a loop associated with a list of 1D objects (Line, CircleArc, Points).\n
         return loop, lines, points, openLines, openPoints
         """
 
@@ -101,7 +101,7 @@ class Interface_Gmsh:
 
         for i, geom in enumerate(contour.geoms):
 
-            assert isinstance(geom, (Line, CircleArc, PointsList)), "Must be a Line, CircleArc or PointsList"
+            assert isinstance(geom, (Line, CircleArc, Points)), "Must be a Line, CircleArc or Points"
 
             if i == 0:
                 p1 = factory.addPoint(*geom.pt1.coordo, geom.meshSize)
@@ -151,7 +151,7 @@ class Interface_Gmsh:
                 factory.remove([(0,pC)])
                 factory.remove([(0,p3)])
 
-            elif isinstance(geom, PointsList):
+            elif isinstance(geom, Points):
                 
                 # get points to construct the spline
                 splinePoints = [factory.addPoint(*p.coordo, geom.meshSize) for p in geom.points[1:-1]]                
@@ -305,12 +305,12 @@ class Interface_Gmsh:
                 # https://onelab.info/pipermail/gmsh/2010/005359.html
                 gmsh.model.mesh.setRecombine(2, surf)
     
-    def _Spline_From_Points(self, pointsList: PointsList) -> tuple[int, list[int]]:
+    def _Spline_From_Points(self, Points: Points) -> tuple[int, list[int]]:
         """Construct a spline from points.\n
         return spline, points"""
 
-        meshSize = pointsList.meshSize
-        gmshPoints = [self._factory.addPoint(*p.coordo, meshSize) for p in pointsList.points]        
+        meshSize = Points.meshSize
+        gmshPoints = [self._factory.addPoint(*p.coordo, meshSize) for p in Points.points]        
         
         spline = self._factory.addSpline(gmshPoints)
         # remove all points except the first and the last points
@@ -676,7 +676,7 @@ class Interface_Gmsh:
                     if pt1.isOpen: openPoints.append(p1)                        
                     if pt2.isOpen: openPoints.append(p2)
 
-            elif isinstance(crack, PointsList):  # 1D CRACK
+            elif isinstance(crack, Points):  # 1D CRACK
 
                 line, points = self._Spline_From_Points(crack)
                 
@@ -727,7 +727,7 @@ class Interface_Gmsh:
 
             else:
 
-                raise Exception("crack must be a Line, PointsList, Contour or CircleArc")            
+                raise Exception("crack must be a Line, Points, Contour or CircleArc")            
 
         newEntities = [(0, point) for point in entities0D]
         newEntities.extend([(1, line) for line in entities1D])
@@ -812,7 +812,7 @@ class Interface_Gmsh:
 
         Parameters
         ----------
-        inclusions : Circle | Domain | PointsList | Contour
+        inclusions : Circle | Domain | Points | Contour
             List of geometric objects contained in the domain
 
         Returns
@@ -842,18 +842,18 @@ class Interface_Gmsh:
         ----------
         contour : _Geom
             geometry that builds the contour
-        inclusions : list[Domain, Circle, PointsList, Contour], optional
+        inclusions : list[Domain, Circle, Points, Contour], optional
             list of hollow and non-hollow objects inside the domain 
         elemType : str, optional
             element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
-        cracks : list[Line | PointsList | Countour]
+        cracks : list[Line | Points | Countour]
             list of object used to create cracks        
         refineGeoms : list[Domain|Circle|str], optional
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
         surfaces : list[tuple[_Geom, list[_Geom]]]
-            additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
+            additional surfaces. Ex = [(Domain, [Circle, Contour, Points])]
         folder : str, optional
             mesh save folder mesh.msh, by default ""
 
@@ -910,7 +910,7 @@ class Interface_Gmsh:
         ----------
         contour : _Geom
             geometry that builds the contour
-        inclusions : list[Domain, Circle, PointsList, Contour], optional
+        inclusions : list[Domain, Circle, Points, Contour], optional
             list of hollow and non-hollow objects inside the domain
         extrude : list, optional
             extrusion, by default [0,0,1]
@@ -918,14 +918,14 @@ class Interface_Gmsh:
             layers in extrusion, by default []
         elemType : str, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
-        cracks : list[Line | PointsList | Countour]
+        cracks : list[Line | Points | Countour]
             list of object used to create cracks
         refineGeoms : list[Domain|Circle|str], optional
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
         surfaces : list[tuple[_Geom, list[_Geom]]]
-            additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
+            additional surfaces. Ex = [(Domain, [Circle, Contour, Points])]
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -983,7 +983,7 @@ class Interface_Gmsh:
         ----------
         contour : _Geom
             geometry that builds the contour
-        inclusions : list[Domain, Circle, PointsList, Contour], optional
+        inclusions : list[Domain, Circle, Points, Contour], optional
             list of hollow and non-hollow objects inside the domain
         axis : Line, optional
             revolution axis, by default Line(Point(), Point(0,1))
@@ -993,14 +993,14 @@ class Interface_Gmsh:
             layers in extrusion, by default [30]
         elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
-        cracks : list[Line | PointsList | Countour]
+        cracks : list[Line | Points | Countour]
             list of object used to create cracks
         refineGeoms : list[Domain|Circle|str], optional
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
         surfaces : list[tuple[_Geom, list[_Geom]]]
-            additional surfaces. Ex = [(Domain, [Circle, Contour, PointsList])]
+            additional surfaces. Ex = [(Domain, [Circle, Contour, Points])]
         folder : str, optional
             mesh.msh backup folder, by default ""
 

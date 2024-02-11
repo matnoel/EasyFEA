@@ -2,7 +2,7 @@
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Point, PointsList, Circle, Domain
+from Interface_Gmsh import Interface_Gmsh, ElemType, Point, Points, Circle, Domain
 import Simulations
 import Materials
 

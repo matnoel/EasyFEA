@@ -3,7 +3,7 @@ import Simulations
 import Materials
 import Display
 import PostProcessing
-from Geoms import np, Point, Domain, Circle, PointsList, Line
+from Geoms import np, Point, Domain, Circle, Points, Line
 import Folder
 
 plt = Display.plt
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     else:
         points = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15]
         cracks = []
-    points = PointsList(points, clD)
+    points = Points(points, clD)
 
     diam = 5
     r = diam/2

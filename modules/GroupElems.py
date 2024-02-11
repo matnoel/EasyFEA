@@ -1300,8 +1300,8 @@ class _GroupElem(ABC):
 
         return self.__nodes[idx]
     
-    # TODO Get_Nodes_PointsList
-    # use pointsList.contour also give a normal
+    # TODO Get_Nodes_Points
+    # use Points.contour also give a normal
     # get all geom contour exept le last one
     # Line -> Plane equation
     # CircleArc -> Cylinder do something like Get_Nodes_Cylinder

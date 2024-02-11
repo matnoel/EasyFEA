@@ -314,9 +314,9 @@ class _Geom(ABC):
 
         return ax
 
-class PointsList(_Geom):
+class Points(_Geom):
 
-    __nbPointsList = 0
+    __nbPoints = 0
 
     def __init__(self, points: list[Point], meshSize=0.0, isHollow=True, isOpen=False):
         """Builds a point list. Can be used to construct a closed surface or a spline.
@@ -340,8 +340,8 @@ class PointsList(_Geom):
         self.pt2 = points[-1]
         """Last point"""
 
-        PointsList.__nbPointsList += 1
-        name = f"PointsList{PointsList.__nbPointsList}"
+        Points.__nbPoints += 1
+        name = f"Points{Points.__nbPoints}"
         super().__init__(points, meshSize, name, isHollow, isOpen)
 
     def Get_Contour(self):
@@ -780,12 +780,12 @@ class Contour(_Geom):
 
     __nbContour = 0
 
-    def __init__(self, geoms: list[Union[Line,CircleArc,PointsList]], isHollow=True, isOpen=False):
+    def __init__(self, geoms: list[Union[Line,CircleArc,Points]], isHollow=True, isOpen=False):
         """Create a contour from a list of lines or arcs.
 
         Parameters
         ----------
-        geoms : list[Line | CircleArc | PointsList]
+        geoms : list[Line | CircleArc | Points]
             list of objects used to build the contour
         isHollow : bool, optional
             the formed domain is hollow/empty, by default True
@@ -800,7 +800,7 @@ class Contour(_Geom):
 
         for i, geom in enumerate(geoms):
 
-            assert isinstance(geom, (Line, CircleArc, PointsList)), "Must give a list of lines and arcs or points."
+            assert isinstance(geom, (Line, CircleArc, Points)), "Must give a list of lines and arcs or points."
 
             if i == 0:
                 ecart = tol

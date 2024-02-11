@@ -1,6 +1,6 @@
 import Display
 from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, Line, Circle, PointsList, Domain
+from Geoms import Point, Line, Circle, Points, Domain
 
 if __name__ == '__main__':
 
@@ -13,7 +13,7 @@ if __name__ == '__main__':
     pt2 = Point(x=h)
     pt3 = Point(y=h)
 
-    contour = PointsList([pt1, pt2, pt3], h / N)
+    contour = Points([pt1, pt2, pt3], h / N)
 
     def DoMesh(dim, elemType):
         if dim == 2:

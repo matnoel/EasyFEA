@@ -74,7 +74,7 @@ def DoMesh(split: str) -> Mesh:
     pt2 = Point(L)
     pt3 = Point(L,L)
     pt4 = Point(0,L)
-    contour = PointsList([pt1, pt2, pt3, pt4], clD)
+    contour = Points([pt1, pt2, pt3, pt4], clD)
 
     if dim == 2:
         ptC1 = Point(0,L/2, isOpen=openCrack)
