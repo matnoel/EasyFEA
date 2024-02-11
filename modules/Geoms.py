@@ -838,7 +838,7 @@ class Contour(_Geom):
 # --------------------------------------------------------------------------------------------
     
 def As_Coordinates(value) -> np.ndarray:
-    """Return value as a 3D vector"""
+    """Returns value as a 3D vector"""
     if isinstance(value, Point):
         coordo = value.coordo        
     elif isinstance(value, (list, tuple, np.ndarray)):
