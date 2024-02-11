@@ -57,9 +57,14 @@ class ElemType(str, Enum):
         return liste3D
 
 class MatrixType(str, Enum):
+    """Order used for integration over elements (determines the number of integration points)."""
+
     rigi = "rigi"
+    """dN*dN type"""
     mass = "mass"
+    """N*N type"""
     beam = "beam"
+    """ddNv*ddNv type"""
 
     @staticmethod
     def get_types() -> list[str]:

@@ -3,7 +3,7 @@ import Materials
 from Display import plt, np
 import Folder
 
-from Materials import TensorProduct as tensProd
+from Materials import Tensor_Product as tensProd
 from Materials import Project_Kelvin as projKelvin
 
 import pandas as pd

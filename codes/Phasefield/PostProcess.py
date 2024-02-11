@@ -1,6 +1,6 @@
 import pandas as pd
 
-import PostProcessing as PostProcessing
+import PostProcessing
 import Display as Display
 import Folder
 import numpy as np

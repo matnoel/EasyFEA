@@ -1,28 +1,31 @@
 """Module for creating behavior models. Such as elastic models or damage models."""
 
 from abc import ABC, abstractmethod, abstractproperty
-from typing import List, Union
+from typing import Union
 from enum import Enum
 import numpy as np
+from scipy.linalg import sqrtm
 
 from TicTac import Tic
 from Mesh import Mesh, _GroupElem
 import CalcNumba
-import Display as Display
 from Geoms import Line, Normalize_vect, As_Coordinates
 
-from scipy.linalg import sqrtm
+# --------------------------------------------------------------------------------------------
+# Types
+# --------------------------------------------------------------------------------------------
 
 class ModelType(str, Enum):
-    """Physical models available"""
+    """Model types"""
 
     displacement = "displacement"
     damage = "damage"
     thermal = "thermal"
     beam = "beam"
 
-class IModel(ABC):
-    """Model interface"""
+class _IModel(ABC):
+    """Model interface.
+    """
 
     @abstractproperty
     def modelType(self) -> ModelType:
@@ -84,9 +87,13 @@ class IModel(ABC):
         if isinstance(value, np.ndarray):
             assert value.min() > bInf and value.max() < bSup, errorText
 
-class _Displacement_Model(IModel, ABC):
-    """Class of elastic behavior laws
-    (Elas_Isot, Elas_IsotTrans, Elas_Anisot ...)
+# --------------------------------------------------------------------------------------------
+# Displacement
+# --------------------------------------------------------------------------------------------
+
+class _Displacement_Model(_IModel, ABC):
+    """Displacement class model.\n
+    Elas_Isot, Elas_IsotTrans and Elas_Anisot inherit from _Displacement_Model
     """
     def __init__(self, dim: int, thickness: float, planeStress: bool):
         
@@ -152,7 +159,7 @@ class _Displacement_Model(IModel, ABC):
 
     # Model
     @staticmethod
-    def get_behaviorLaws():
+    def Available_Laws():
         laws = [Elas_Isot, Elas_IsotTrans, Elas_Anisot]
         return laws
 
@@ -241,10 +248,7 @@ class Elas_Isot(_Displacement_Model):
         self._Update()
 
     def _Update(self):
-        try:
-            C, S = self._Behavior(self.dim)
-        except ValueError:
-            raise Exception(str(_erroDim))
+        C, S = self._Behavior(self.dim)
         self.C = C
         self.S = S
 
@@ -386,7 +390,7 @@ class Elas_Isot(_Displacement_Model):
         Ivect = np.array([1,1,1,0,0,0])
         Isym = np.eye(6)
 
-        E1 = 1/3 * TensorProduct(Ivect, Ivect)
+        E1 = 1/3 * Tensor_Product(Ivect, Ivect)
         E2 = Isym - E1
 
         if not self.isHeterogeneous:
@@ -567,10 +571,6 @@ class Elas_IsotTrans(_Displacement_Model):
 
     def _Update(self) -> None:
         C, S = self._Behavior(self.dim)
-        # try:
-        #     C, S = self._Behavior(self.dim)
-        # except ValueError:
-        #     raise Exception(str(_erroDim))
         self.C = C
         self.S = S
 
@@ -694,15 +694,15 @@ class Elas_IsotTrans(_Displacement_Model):
         c5 = 2*Gl
 
         n = self.axis_l
-        p = TensorProduct(n,n)
+        p = Tensor_Product(n,n)
         q = np.eye(3) - p
         
-        E1 = Project_Kelvin(TensorProduct(p,p))
-        E2 = Project_Kelvin(1/2 * TensorProduct(q,q))
-        E3 = Project_Kelvin(1/np.sqrt(2) * TensorProduct(p,q))
-        E4 = Project_Kelvin(1/np.sqrt(2) * TensorProduct(q,p))
-        E5 = Project_Kelvin(TensorProduct(q,q,True) - 1/2*TensorProduct(q,q))
-        I = Project_Kelvin(TensorProduct(np.eye(3),np.eye(3),True))
+        E1 = Project_Kelvin(Tensor_Product(p,p))
+        E2 = Project_Kelvin(1/2 * Tensor_Product(q,q))
+        E3 = Project_Kelvin(1/np.sqrt(2) * Tensor_Product(p,q))
+        E4 = Project_Kelvin(1/np.sqrt(2) * Tensor_Product(q,p))
+        E5 = Project_Kelvin(Tensor_Product(q,q,True) - 1/2*Tensor_Product(q,q))
+        I = Project_Kelvin(Tensor_Product(np.eye(3),np.eye(3),True))
         E6 = I - E1 - E2 - E5
 
         if not self.isHeterogeneous:
@@ -863,7 +863,12 @@ class Elas_Anisot(_Displacement_Model):
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
         return super().Walpole_Decomposition()
 
-class _Beam_Model(IModel):
+# --------------------------------------------------------------------------------------------
+# Beam
+# --------------------------------------------------------------------------------------------
+
+class _Beam_Model(_IModel):
+    """Beam class model"""
 
     # Number of beams createds
     __nBeam = -1
@@ -1053,10 +1058,10 @@ class Beam_Elas_Isot(_Beam_Model):
 
         _Beam_Model.__init__(self, dim, line, section, yAxis)
         
-        IModel._Test_Sup0(E)        
+        _IModel._Test_Sup0(E)        
         self.__E = E
 
-        IModel._Test_In(v, -1, 0.5)
+        _IModel._Test_In(v, -1, 0.5)
         self.__v = v
 
     @property
@@ -1099,7 +1104,7 @@ class Beam_Elas_Isot(_Beam_Model):
 
         return D
 
-class Beam_Structure(IModel):
+class Beam_Structure(_IModel):
 
     @property
     def modelType(self) -> ModelType:
@@ -1123,9 +1128,9 @@ class Beam_Structure(IModel):
     @property
     def areas(self) -> list[float]:
         """beams areas"""
-        return [beam.area for beam in self.__listBeam]
+        return [beam.area for beam in self.__beams]
 
-    def __init__(self, listBeam: list[_Beam_Model]) -> None:
+    def __init__(self, beams: list[_Beam_Model]) -> None:
         """Construct a beam structure
 
         Parameters
@@ -1134,24 +1139,24 @@ class Beam_Structure(IModel):
             Beam list
         """
 
-        dims = [beam.dim for beam in listBeam]        
+        dims = [beam.dim for beam in beams]        
 
-        assert np.unique(dims, return_counts=True)[1] == len(listBeam), "The structure must use identical beams dimensions."
+        assert np.unique(dims, return_counts=True)[1] == len(beams), "The structure must use identical beams dimensions."
 
         self.__dim: int = dims[0]
 
-        self.__listBeam: list[_Beam_Model] = listBeam
+        self.__beams: list[_Beam_Model] = beams
 
-        self.__dof_n = listBeam[0].dof_n
+        self.__dof_n = beams[0].dof_n
 
     @property
-    def listBeam(self) -> list[_Beam_Model]:
-        return self.__listBeam
+    def beams(self) -> list[_Beam_Model]:
+        return self.__beams
     
     @property
     def nBeam(self) -> int:
         """Number of beams in the structure"""
-        return len(self.__listBeam)
+        return len(self.__beams)
     
     @property
     def dof_n(self) -> int:
@@ -1166,7 +1171,7 @@ class Beam_Structure(IModel):
 
         if groupElem.dim != 1: return
 
-        listBeam = self.__listBeam
+        listBeam = self.__beams
         list_D = [beam.Get_D() for beam in listBeam]
 
         matrixType = 'beam'
@@ -1191,7 +1196,7 @@ class Beam_Structure(IModel):
 
         if groupElem.dim != 1: return
 
-        beams = self.__listBeam
+        beams = self.__beams
 
         Ne = groupElem.Ne
 
@@ -1205,15 +1210,19 @@ class Beam_Structure(IModel):
 
         return xAxis_e, yAxis_e
 
-class PhaseField_Model(IModel):
+# --------------------------------------------------------------------------------------------
+# Phase field
+# --------------------------------------------------------------------------------------------
 
-    class RegularizationType(str, Enum):
-        """Crack regularization"""
+class PhaseField_Model(_IModel):
+
+    class ReguType(str, Enum):
+        """Available crack regularization"""
         AT1 = "AT1"
         AT2 = "AT2"
 
     class SplitType(str, Enum):
-        """Usable splits"""
+        """Available splits"""
 
         # Isotropic
         Bourdin = "Bourdin" # [Bourdin 2000] DOI : 10.1016/S0022-5096(99)00028-9
@@ -1250,7 +1259,7 @@ class PhaseField_Model(IModel):
         BoundConstrain = "BoundConstrain"
 
 
-    def __init__(self, material: _Displacement_Model, split: SplitType, regularization: RegularizationType, Gc: Union[float,np.ndarray], l0: Union[float,np.ndarray], solver=SolverType.History, A=None):
+    def __init__(self, material: _Displacement_Model, split: SplitType, regularization: ReguType, Gc: Union[float,np.ndarray], l0: Union[float,np.ndarray], solver=SolverType.History, A=None):
         """Creation of a gradient damage model
 
         Parameters
@@ -1331,18 +1340,18 @@ class PhaseField_Model(IModel):
         return isinstance(self.Gc, np.ndarray)
     
     @staticmethod
-    def get_splits() -> List[SplitType]:
+    def get_splits() -> list[SplitType]:
         """splits available"""
         return list(PhaseField_Model.SplitType)    
     
     @staticmethod
-    def get_regularisations() -> List[RegularizationType]:
+    def get_regularisations() -> list[ReguType]:
         """regularizations available"""
-        __regularizations = list(PhaseField_Model.RegularizationType)
+        __regularizations = list(PhaseField_Model.ReguType)
         return __regularizations    
 
     @staticmethod
-    def get_solvers() -> List[SolverType]:
+    def get_solvers() -> list[SolverType]:
         """Available solvers used to manage crack irreversibility"""
         __solveurs = list(PhaseField_Model.SolverType)
         return __solveurs
@@ -1355,9 +1364,9 @@ class PhaseField_Model(IModel):
         l0 = self.__l0
         
         # J/m
-        if self.__regularization == self.RegularizationType.AT1:
+        if self.__regularization == self.ReguType.AT1:
             k = 3/4 * Gc * l0 
-        elif self.__regularization == self.RegularizationType.AT2:
+        elif self.__regularization == self.ReguType.AT2:
             k = Gc * l0        
 
         return k
@@ -1369,9 +1378,9 @@ class PhaseField_Model(IModel):
         l0 = self.__l0
 
         # J/m3
-        if self.__regularization == self.RegularizationType.AT1:
+        if self.__regularization == self.ReguType.AT1:
             r = 2 * PsiP_e_pg
-        elif self.__regularization == self.RegularizationType.AT2:
+        elif self.__regularization == self.ReguType.AT2:
             r = 2 * PsiP_e_pg + (Gc/l0)
         
         return r
@@ -1383,11 +1392,11 @@ class PhaseField_Model(IModel):
         l0 = self.__l0
         
         # J/m3
-        if self.__regularization == self.RegularizationType.AT1:
+        if self.__regularization == self.ReguType.AT1:
             f = 2 * PsiP_e_pg - ( (3*Gc) / (8*l0) )            
             absF = np.abs(f)
             f = (f+absF)/2
-        elif self.__regularization == self.RegularizationType.AT2:
+        elif self.__regularization == self.ReguType.AT2:
             f = 2 * PsiP_e_pg
         
         return f
@@ -1454,9 +1463,9 @@ class PhaseField_Model(IModel):
     @property
     def c0(self):
         """Scaling parameter for accurate dissipation of crack energy"""
-        if self.__regularization == self.RegularizationType.AT1:
+        if self.__regularization == self.ReguType.AT1:
             c0 = 8/3
-        elif self.__regularization == self.RegularizationType.AT2:
+        elif self.__regularization == self.ReguType.AT2:
             c0 = 2
         return c0
     
@@ -2474,7 +2483,11 @@ class PhaseField_Model(IModel):
             
         return projP, projM
 
-class Thermal_Model(IModel):
+# --------------------------------------------------------------------------------------------
+# Thermal
+# --------------------------------------------------------------------------------------------
+
+class Thermal_Model(_IModel):
 
     __modelType = ModelType.thermal
 
@@ -2538,12 +2551,11 @@ class Thermal_Model(IModel):
     def isHeterogeneous(self) -> bool:
         return isinstance(self.k, np.ndarray) or isinstance(self.c, np.ndarray)
 
-
 # --------------------------------------------------------------------------------------------
-# FUNCTIONS
+# Functions
 # --------------------------------------------------------------------------------------------
     
-_erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
+__erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
 
 def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int):
     """Reshape the variable so that it is in the form ep.."""
@@ -2613,7 +2625,7 @@ def Heterogeneous_Array(array: np.ndarray):
 
     return newArray
 
-def TensorProduct(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
+def Tensor_Product(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
     """Do the tensor product.
 
     Parameters

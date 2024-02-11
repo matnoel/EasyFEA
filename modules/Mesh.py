@@ -5,7 +5,7 @@ import scipy.sparse as sp
 import copy
 
 from Geoms import *
-from GroupElems import _GroupElem, ElemType, MatrixType
+from GroupElem import _GroupElem, ElemType, MatrixType
 import TicTac
 
 class Mesh:

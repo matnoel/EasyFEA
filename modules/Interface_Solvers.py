@@ -1,6 +1,9 @@
 """Interface module with various solvers available on python for solving linear systems of type A x = b.
 Interface with PETsC, pypardiso and others ..."""
 
+# I would like to rename Interface_Solvers to Solvers, but old damage simulations cannot be read if I change it.
+# For now, I'll keep the module name as it is. After my thesis concludes, I plan to update the naming.
+
 import sys
 from enum import Enum
 import numpy as np

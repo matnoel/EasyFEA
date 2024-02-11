@@ -13,9 +13,9 @@ from scipy import sparse
 from Mesh import Mesh, MatrixType, ElemType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 import Materials
-from Materials import ModelType, IModel, _Displacement_Model, Beam_Structure, PhaseField_Model, Thermal_Model, Reshape_variable
+from Materials import ModelType, _IModel, _Displacement_Model, Beam_Structure, PhaseField_Model, Thermal_Model, Reshape_variable
 from TicTac import Tic
-from Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
+from Interface_Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
 import Folder
 from Display import myPrint, myPrintError
 
@@ -39,7 +39,9 @@ def Load_Simu(folder: str, verbosity=False):
     assert Folder.Exists(path_simu), error
 
     with open(path_simu, 'rb') as file:
-        simu = pickle.load(file)
+        import Interface_Solvers
+        Interface_Solvers = Interface_Solvers
+        simu = pickle.load(file)    
 
     assert isinstance(simu, _Simu), 'Must be a simu object'
 
@@ -238,7 +240,7 @@ class _Simu(ABC):
 
         return text
 
-    def __init__(self, mesh: Mesh, model: IModel, verbosity=True, useNumba=True, useIterativeSolvers=True):
+    def __init__(self, mesh: Mesh, model: _IModel, verbosity=True, useNumba=True, useIterativeSolvers=True):
         """
         Creates a simulation.
 
@@ -263,7 +265,7 @@ class _Simu(ABC):
         if len(mesh.orphanNodes) > 0:
             raise Exception("The simulation cannot be created because orphan nodes have been detected in the mesh.")
 
-        self.__model: IModel = model
+        self.__model: _IModel = model
 
         self.__dim: int = model.dim
         """Simulation dimension."""
@@ -310,7 +312,7 @@ class _Simu(ABC):
         self.Need_Update()
 
     @property
-    def model(self) -> IModel:
+    def model(self) -> _IModel:
         """Model used."""
         return self.__model
 
@@ -321,7 +323,7 @@ class _Simu(ABC):
 
     @rho.setter
     def rho(self, value: Union[float, np.ndarray]):
-        IModel._Test_Sup0(value)
+        _IModel._Test_Sup0(value)
         self.__rho = value
         """Mass density"""
 
@@ -3179,7 +3181,7 @@ class Simu_Beam(_Simu):
 
         area_e = np.zeros(mesh.Ne)
 
-        for beam in self.structure.listBeam:
+        for beam in self.structure.beams:
 
             elements = mesh.Elements_Tags(beam.name)
 
@@ -3208,7 +3210,7 @@ class Simu_Beam(_Simu):
         mass = self.mass
 
         area_e = np.zeros(mesh.Ne)
-        for beam in self.structure.listBeam:
+        for beam in self.structure.beams:
             elements = mesh.Elements_Tags(beam.name)
             area_e[elements] = beam.area
 
@@ -3312,7 +3314,7 @@ class Simu_Beam(_Simu):
         if dim > 1:
             # Construct the matrix used to change the matrix coordinates 
             P = np.zeros((self.mesh.Ne, 3, 3), dtype=float)
-            for beam in struct.listBeam:
+            for beam in struct.beams:
                 elems = self.mesh.Elements_Tags([beam.name])
                 P[elems] = beam._Calc_P()
 
@@ -3412,7 +3414,7 @@ class Simu_Beam(_Simu):
         if dim > 1:
             # Construct the matrix used to change the matrix coordinates 
             P = np.zeros((self.mesh.Ne, 3, 3), dtype=float)
-            for beam in struct.listBeam:
+            for beam in struct.beams:
                 elems = self.mesh.Elements_Tags([beam.name])
                 P[elems] = beam._Calc_P()
 
@@ -3724,7 +3726,7 @@ class Simu_Beam(_Simu):
         Iz_e_pg = np.zeros_like(S_e_pg)
         J_e_pg = np.zeros_like(S_e_pg)
         mu_e_pg = np.zeros_like(S_e_pg)
-        for beam in self.structure.listBeam:
+        for beam in self.structure.beams:
             elems = self.mesh.Elements_Tags([beam.name])
             S_e_pg[elems] = beam.area
             Iy_e_pg[elems] = beam.Iy

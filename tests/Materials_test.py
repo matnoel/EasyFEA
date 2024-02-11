@@ -13,7 +13,7 @@ class Test_Materials(unittest.TestCase):
         v = 0.3
         self.comportements2D = []
         self.comportements3D = []
-        for comp in _Displacement_Model.get_behaviorLaws():
+        for comp in _Displacement_Model.Available_Laws():
             if comp == Elas_Isot:
                 self.comportements2D.append(
                     Elas_Isot(2, E=E, v=v, planeStress=True)

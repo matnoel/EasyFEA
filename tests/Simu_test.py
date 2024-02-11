@@ -283,7 +283,7 @@ class Test_Simu(unittest.TestCase):
         material = Materials.Elas_Isot(2, E=210000, v=0.3, planeStress=True, thickness=1)
 
         splits = list(Materials.PhaseField_Model.SplitType)
-        regularizations = list(Materials.PhaseField_Model.RegularizationType)
+        regularizations = list(Materials.PhaseField_Model.ReguType)
 
         for split in splits: 
             for regu in regularizations:
