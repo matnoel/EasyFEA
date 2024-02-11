@@ -8,6 +8,10 @@ from numpy import ndarray
 from scipy.optimize import minimize
 from abc import ABC, abstractmethod
 
+# --------------------------------------------------------------------------------------------
+# Geom objects
+# --------------------------------------------------------------------------------------------
+
 class Point:
 
     def __init__(self, x=0.0, y=0.0, z=0.0, isOpen=False, r=0.0):
@@ -57,7 +61,7 @@ class Point:
     
     @coordo.setter
     def coordo(self, value) -> None:
-        coord = self._getCoord(value)
+        coord = As_Coordinates(value)
         self.__coordo = coord
 
     @property
@@ -67,27 +71,11 @@ class Point:
     
     def Check(self, coord) -> bool:
         """Check if coordinates are identical"""
-        coord = self._getCoord(coord)
+        coord = As_Coordinates(coord)
         n = np.linalg.norm(self.coordo)
         n = 1 if n == 0 else n
         diff = np.linalg.norm(self.coordo - coord)/n
         return diff <= 1e-12
-    
-    @staticmethod
-    def _getCoord(value) -> np.ndarray:
-        if isinstance(value, Point):
-            coordo = value.coordo        
-        elif isinstance(value, (list, tuple, np.ndarray)):
-            coordo = np.zeros(3)
-            val = np.asarray(value, dtype=float)
-            assert val.size <= 3, 'must not exceed size 3'
-            coordo[:val.size] = val
-        elif isinstance(value, (float, int)):            
-            coordo = np.asarray([value]*3)
-        else:
-            raise Exception(f'{type(value)} is not supported. Must be (Point | float, int list | tuple | dict | set | np.ndarray)')
-        
-        return coordo
     
     def translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
         """translate the point"""
@@ -123,7 +111,7 @@ class Point:
         return self.__add__(value)
 
     def __add__(self, value):
-        coordo = self._getCoord(value)        
+        coordo = As_Coordinates(value)        
         newCoordo: np.ndarray = self.coordo + coordo
         return Point(*newCoordo, self.isOpen, self.r)
 
@@ -131,7 +119,7 @@ class Point:
         return self.__add__(value)
     
     def __sub__(self, value):
-        coordo = self._getCoord(value)        
+        coordo = As_Coordinates(value)        
         newCoordo: np.ndarray = self.coordo - coordo
         return Point(*newCoordo, self.isOpen, self.r)
     
@@ -139,7 +127,7 @@ class Point:
         return self.__mul__(value)
 
     def __mul__(self, value):
-        coordo = self._getCoord(value)
+        coordo = As_Coordinates(value)
         newCoordo: np.ndarray = self.coordo * coordo
         return Point(*newCoordo, self.isOpen, self.r)
     
@@ -147,7 +135,7 @@ class Point:
         return self.__truediv__(value)
 
     def __truediv__(self, value):
-        coordo = self._getCoord(value)
+        coordo = As_Coordinates(value)
         newCoordo: np.ndarray = self.coordo / coordo
         return Point(*newCoordo, self.isOpen, self.r)
     
@@ -155,7 +143,7 @@ class Point:
         return self.__floordiv__(value)
 
     def __floordiv__(self, value):
-        coordo = self._getCoord(value)
+        coordo = As_Coordinates(value)
         newCoordo: np.ndarray = self.coordo // coordo
         return Point(*newCoordo, self.isOpen, self.r)
     
@@ -570,7 +558,7 @@ class Circle(_Geom):
 
         # rotatate if necessary
         zAxis = np.array([0,0,1])
-        n = Normalize_vect(Point._getCoord(n))
+        n = Normalize_vect(As_Coordinates(n))
         rotAxis = np.cross(n, zAxis)
         # theta = AngleBetween_a_b(zAxis, n)
         
@@ -845,7 +833,25 @@ class Contour(_Geom):
     def length(self) -> float:
         return np.sum([geom.length for geom in self.geoms])
 
-# Functions for calculating distances, angles, etc.
+# --------------------------------------------------------------------------------------------
+# Functions
+# --------------------------------------------------------------------------------------------
+    
+def As_Coordinates(value) -> np.ndarray:
+    """Return value as a 3D vector"""
+    if isinstance(value, Point):
+        coordo = value.coordo        
+    elif isinstance(value, (list, tuple, np.ndarray)):
+        coordo = np.zeros(3)
+        val = np.asarray(value, dtype=float)
+        assert val.size <= 3, 'must not exceed size 3'
+        coordo[:val.size] = val
+    elif isinstance(value, (float, int)):            
+        coordo = np.asarray([value]*3)
+    else:
+        raise Exception(f'{type(value)} is not supported. Must be (Point | float, int list | tuple | dict | set | np.ndarray)')
+    
+    return coordo
 
 def Normalize_vect(vect: np.ndarray) -> np.ndarray:
     """Returns the normalized vector."""
@@ -878,8 +884,8 @@ def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
     """Calculates the angle between vector a and vector b.
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors"""
 
-    a = Point._getCoord(a)
-    b = Point._getCoord(b)
+    a = As_Coordinates(a)
+    b = As_Coordinates(b)
 
     proj = Normalize_vect(a) @ Normalize_vect(b)    
 
@@ -899,7 +905,7 @@ def Translate_coordo(coordo: np.ndarray, dx: float=0.0, dy: float=0.0, dz: float
 
     oldCoordo = np.reshape(coordo, (-1, 3))
 
-    dec = Point._getCoord([dx, dy, dz])
+    dec = As_Coordinates([dx, dy, dz])
 
     newCoord = oldCoordo + dec
 
@@ -925,8 +931,8 @@ def Rotate_coordo(coordo: np.ndarray, theta: float, center: tuple=(0,0,0), direc
         rotated coordinates
     """
 
-    center = Point._getCoord(center)
-    direction = Point._getCoord(direction)
+    center = As_Coordinates(center)
+    direction = As_Coordinates(direction)
 
     # rotation matrix
     rotMat = Rotation_matrix(direction, theta)
@@ -955,8 +961,8 @@ def Symmetry_coordo(coordo: np.ndarray, point=(0,0,0), n=(1,0,0)) -> np.ndarray:
         the new coordinates
     """
 
-    point = Point._getCoord(point)
-    n = Normalize_vect(Point._getCoord(n))
+    point = As_Coordinates(point)
+    n = Normalize_vect(As_Coordinates(n))
 
     oldCoordo = np.reshape(coordo, (-1,3))
 
@@ -1048,9 +1054,9 @@ def Circle_Triangle(p1, p2, p3) -> np.ndarray:
 
     # https://math.stackexchange.com/questions/1076177/3d-coordinates-of-circle-center-given-three-point-on-the-circle
 
-    p1 = Point._getCoord(p1)
-    p2 = Point._getCoord(p2)
-    p3 = Point._getCoord(p3)
+    p1 = As_Coordinates(p1)
+    p2 = As_Coordinates(p2)
+    p3 = As_Coordinates(p3)
 
     v1 = p2-p1
     v2 = p3-p1
@@ -1078,7 +1084,7 @@ def Circle_Coordo(coordo: np.ndarray, R: float, n: np.ndarray) -> np.ndarray:
 
     assert coordo.shape[0] >= 2, 'must give at least 2 points'
     
-    n = Point._getCoord(n)
+    n = As_Coordinates(n)
 
     p0 = np.mean(coordo, 0)
     x0, y0, z0 = coordo[0]        

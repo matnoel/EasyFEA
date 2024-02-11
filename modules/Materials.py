@@ -9,7 +9,7 @@ from TicTac import Tic
 from Mesh import Mesh, _GroupElem
 import CalcNumba
 import Display as Display
-from Geoms import Line, Point, Normalize_vect
+from Geoms import Line, Normalize_vect, As_Coordinates
 
 from scipy.linalg import sqrtm
 
@@ -967,7 +967,7 @@ class _Beam_Model(IModel):
 
         # set y axis
         xAxis = self.xAxis
-        yAxis = Normalize_vect(Point._getCoord(value))
+        yAxis = Normalize_vect(As_Coordinates(value))
 
         # check that the yaxis is not colinear to the fiber axis
         crossProd = np.cross(xAxis, yAxis)
