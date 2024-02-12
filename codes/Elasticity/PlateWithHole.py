@@ -1,3 +1,5 @@
+"""Plate with hole in traction."""
+
 import Display
 import Materials
 import Simulations
@@ -66,7 +68,7 @@ if __name__ == '__main__':
     simu.Solve()
 
     # --------------------------------------------------------------------------------------------
-    # PostProcessing
+    # Results
     # --------------------------------------------------------------------------------------------
     Display.Plot_Mesh(simu)
     Display.Plot_BoundaryConditions(simu)

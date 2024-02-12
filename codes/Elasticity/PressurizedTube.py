@@ -1,3 +1,5 @@
+"""A tube subjected to uniform pressure."""
+
 import Display
 import Materials
 import Simulations
@@ -103,7 +105,7 @@ if __name__ == '__main__':
     simu.Save_Iter()
 
     # --------------------------------------------------------------------------------------------
-    # PostProcessing
+    # Results
     # --------------------------------------------------------------------------------------------
     factorDef = r/5 / simu.Result('displacement_norm').max()
     # factorDef = 1

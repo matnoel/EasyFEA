@@ -1,4 +1,7 @@
-# WARNING : implementation not validated
+"""Attempt to code hyperelasticity with an Eulerian framework. 
+At every loading iteration, I update the mesh nodes coordinates.
+WARNING : implementation not validated
+"""
 
 import numpy as np
 
@@ -19,7 +22,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     dim = 2
     makeParaview = False
-    useHyperElastic = True # reactualized lagrangian
+    useHyperElastic = True # eulerian approch
     calcE = dim == 2  # calculate green lagrange deformation if dim == s2
 
     folder = Folder.New_File(f"HyperElasticity{dim}D", results=True)
@@ -92,9 +95,8 @@ if __name__ == '__main__':
             pass
 
     # --------------------------------------------------------------------------------------------
-    # PostProcessing
+    # Results
     # --------------------------------------------------------------------------------------------
-
     if calcE:
         #  WARNING : unverified implementation
 

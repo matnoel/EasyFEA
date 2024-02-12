@@ -1,4 +1,4 @@
-"""I Beam"""
+"""I Bi-fixed beam"""
 
 import Folder
 import Display

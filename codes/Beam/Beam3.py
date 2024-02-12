@@ -1,4 +1,4 @@
-"""Bi fixed beam"""
+"""Bi-fixed beam"""
 
 import matplotlib.pyplot as plt
 import numpy as np
