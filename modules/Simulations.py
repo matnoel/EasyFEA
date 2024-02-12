@@ -15,7 +15,8 @@ from BoundaryCondition import BoundaryCondition, LagrangeCondition
 import Materials
 from Materials import ModelType, _IModel, Reshape_variable
 from TicTac import Tic
-from Interface_Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
+# from Interface_Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
+from Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
 import Folder
 from Display import myPrint, myPrintError
 
