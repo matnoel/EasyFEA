@@ -3,7 +3,7 @@
 import Folder
 from TicTac import Tic
 
-from typing import cast, Union
+from typing import Union
 import os
 import numpy as np
 import pandas as pd
@@ -15,6 +15,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection, LineCollection
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable # use to do colorbarIsClose
+# from PostProcessing import Make_Paraview, Make_Movie
+
+# --------------------------------------------------------------------------------------------
+# Matplotlib: https://matplotlib.org/
+# --------------------------------------------------------------------------------------------
 
 def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, nodeValues=True, 
                 plotMesh=False, edgecolor='black', folder="", filename="", title="",
@@ -65,7 +70,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     
     tic = Tic()
 
-    simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
+    simu, mesh, coordo, inDim = _init_obj(obj, deformFactor)
     plotDim = mesh.dim # plot dimension
 
     # I dont know how to display nodal values on lines
@@ -89,7 +94,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
             raise Exception("Must be an array of dimension Nn or Ne")
         if size == mesh.Ne and nodeValues:
             # calculate nodal values for element values
-            values = simu.Results_Exract_Node_Values(mesh, result)
+            values = mesh.Get_Node_Values(result)
         elif size == mesh.Nn and not nodeValues:
             values_e = mesh.Locates_sol_e(result)
             values = np.mean(values_e, 1)        
@@ -144,14 +149,14 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         if mesh.Ne == len(values):
             if mesh.dim == 1:
                 pc = LineCollection(elements_coordinates, lw=1.5, cmap=cmap)
-            else:                
-                pc = PolyCollection(elements_coordinates, lw=0.5, cmap=cmap)                
+            else:
+                pc = PolyCollection(elements_coordinates, lw=0.5, cmap=cmap)
             pc.set_clim(min, max)
             pc.set_array(values)
             ax.add_collection(pc)
 
         # Plot node values
-        elif mesh.Nn == len(values):            
+        elif mesh.Nn == len(values):
             # retrieve triangles from each face to use the trisurf function
             triangles = mesh.groupElem.triangles
             connectTri = np.reshape(mesh.connect[:, triangles], (-1,3))
@@ -305,7 +310,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
     
     tic = Tic()
 
-    simu, mesh, coordo, inDim = __init_obj(obj, deformFactor)
+    simu, mesh, coordo, inDim = _init_obj(obj, deformFactor)
 
     if ax != None:
         inDim = 3 if ax.name == '3d' else inDim
@@ -450,7 +455,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
     tic = Tic()
     
     from Mesh import Mesh
-    mesh = cast(Mesh, mesh)
+    mesh: Mesh = mesh
 
     inDim = mesh.inDim
 
@@ -513,7 +518,7 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     tic = Tic()
 
     from Mesh import Mesh
-    mesh = cast(Mesh, mesh)
+    mesh: Mesh = mesh
 
     inDim = mesh.inDim
 
@@ -568,6 +573,11 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
             [ax.text(*center_e[element], element, zorder=25, ha='center', va='center') for element in elements]
 
     tic.Tac("Display","Plot_Elements")
+
+    if inDim < 3:
+        ax.axis('equal')
+    else:
+        _Axis_equal_3D(ax, mesh.coordo)
     
     if folder != "":
         Save_fig(folder, "noeuds")
@@ -595,7 +605,7 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
 
     from Simulations import _Simu
 
-    simu = cast(_Simu, simu)
+    simu: _Simu = simu
     coordo = simu.mesh.coordoGlob
 
     # get dirichlet and neumann boundary conditions
@@ -665,8 +675,21 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
 
     return ax
 
+__colors = {
+    1 : 'tab:blue',
+    2 : 'tab:orange',
+    3 : 'tab:green',
+    4 : 'tab:red',
+    5 : 'tab:purple',
+    6 : 'tab:brown',
+    7 : 'tab:pink',
+    8 : 'tab:gray',
+    9 : 'tab:olive',
+    10 : 'tab:cyan'
+}
+
 def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
-    """Plot the model tags.
+    """Plot the model tags from 2d elements to points. Do not plot the 3d tags.
 
     Parameters
     ----------    
@@ -688,7 +711,13 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
 
     tic = Tic()
 
-    simu, mesh, coordo, inDim = __init_obj(obj, 0.0)
+    simu, mesh, coordo, inDim = _init_obj(obj, 0.0)
+
+    # check if there is available tags in the mesh
+    nTtags = [np.max([len(groupElem.nodeTags), len(groupElem.elementTags)]) for groupElem in mesh.dict_groupElem.values()]
+    if np.max(nTtags) == 0:
+        myPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Interface_Gmsh'.")
+        return
 
     if ax == None:
         if mesh.inDim <= 2:
@@ -928,7 +957,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     
     Niter = len(listIter)
 
-    list_dict_Energy = cast(list[dict[str, float]], [])
+    list_dict_Energy: list[dict[str, float]] = []
     listTemps = []
     if plotSolMax : listSolMax = []
 
@@ -1045,47 +1074,6 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
 
     if folder != "":
         Save_fig(folder, "resumeConvergence")
-
-__colors = {
-    1 : 'tab:blue',
-    2 : 'tab:orange',
-    3 : 'tab:green',
-    4 : 'tab:red',
-    5 : 'tab:purple',
-    6 : 'tab:brown',
-    7 : 'tab:pink',
-    8 : 'tab:gray',
-    9 : 'tab:olive',
-    10 : 'tab:cyan'
-}
-
-def _Axis_equal_3D(ax, coordo: np.ndarray) -> None:
-    """Change axis size for 3D display
-    Will center the part and make the axes the right size
-    Parameters
-    ----------
-    ax : plt.Axes
-        Axes in which figure will be created
-    coordo : np.ndarray
-        mesh coordinates
-    """
-
-    # Change axis size
-    xmin = np.min(coordo[:,0]); xmax = np.max(coordo[:,0])
-    ymin = np.min(coordo[:,1]); ymax = np.max(coordo[:,1])
-    zmin = np.min(coordo[:,2]); zmax = np.max(coordo[:,2])
-    
-    maxRange = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
-    maxRange = maxRange*0.55
-
-    xmid = (xmax + xmin)/2
-    ymid = (ymax + ymin)/2
-    zmid = (zmax + zmin)/2
-
-    ax.set_xlim([xmid-maxRange, xmid+maxRange])
-    ax.set_ylim([ymid-maxRange, ymid+maxRange])
-    ax.set_zlim([zmid-maxRange, zmid+maxRange])
-    ax.set_box_aspect([1,1,1])
         
 def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi='figure') -> None:
     """Save the current figure.
@@ -1119,6 +1107,109 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
     plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches='tight')
 
     tic.Tac("Display","Save figure")
+
+def _init_obj(obj, deformFactor: float=0.0):
+    """Return (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu or a Mesh object.
+    
+    Parameters
+    ----------
+    obj : _Simu | Mesh
+        An object that contain the mesh
+    deformFactor : float, optional
+        the factor used to deform the mesh, by default 0.0
+
+    Returns
+    -------
+    tuple[_Simu|None, Mesh, ndarray, int]
+        (simu, mesh, coordo, inDim)
+    """
+
+    from Simulations import _Simu, Mesh
+
+    # here we detect the nature of the object
+    if isinstance(obj, _Simu):
+        simu = obj
+        mesh = simu.mesh
+        u = simu.Results_displacement_matrix()
+        coordo: np.ndarray = mesh.coordoGlob + u * np.abs(deformFactor)
+        inDim: int = np.max([simu.model.dim, mesh.inDim])
+    elif isinstance(obj, Mesh):
+        simu = None
+        mesh = obj
+        coordo = mesh.coordoGlob
+        inDim = mesh.inDim
+    else:
+        raise Exception("Must be a simulation or a mesh")
+    
+    return simu, mesh, coordo, inDim
+
+def _get_list_faces(mesh, dimElem:int) -> list[list[int]]:
+    """Construct a list of faces for each element group of dimension dimElem.\n
+    Faces is a list of index used to construct/plot a faces.\n
+    You can go check their values for each groupElem in /modules/GroupElem.py"""
+    
+    from Mesh import Mesh, ElemType
+    assert isinstance(mesh, Mesh), "mesh must be a Mesh object"
+
+    list_faces: list[list[int]] = [] # list of faces
+    list_len: list[int] = [] # list that store the size for each faces    
+
+    # get faces and nodes per element for each element group
+    for groupElem in mesh.Get_list_groupElem(dimElem):
+        list_faces.append(groupElem.faces)
+        list_len.append(len(groupElem.faces))
+
+    # make sure that faces in list_faces are at the same length
+    max_len = np.max(list_len)
+    # this loop make sure that faces in list_faces get the same length
+    for f, faces in enumerate(list_faces.copy()):
+        repeat = max_len-len(faces)
+        if repeat > 0:
+            faces.extend([faces[0]]*repeat)
+            list_faces[f] = faces
+
+    return list_faces
+
+def init_Axes(dim: int, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
+    if dim == 2:
+        ax = plt.subplots()[1]
+    elif dim == 3:
+        fig = plt.figure()
+        ax: Axes3D = fig.add_subplot(projection="3d")
+        ax.view_init(elev=elev, azim=azim)
+    return ax
+
+def _Axis_equal_3D(ax, coordo: np.ndarray) -> None:
+    """Change axis size for 3D display
+    Will center the part and make the axes the right size
+    Parameters
+    ----------
+    ax : plt.Axes
+        Axes in which figure will be created
+    coordo : np.ndarray
+        mesh coordinates
+    """
+
+    # Change axis size
+    xmin = np.min(coordo[:,0]); xmax = np.max(coordo[:,0])
+    ymin = np.min(coordo[:,1]); ymax = np.max(coordo[:,1])
+    zmin = np.min(coordo[:,2]); zmax = np.max(coordo[:,2])
+    
+    maxRange = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
+    maxRange = maxRange*0.55
+
+    xmid = (xmax + xmin)/2
+    ymid = (ymax + ymin)/2
+    zmid = (zmax + zmin)/2
+
+    ax.set_xlim([xmid-maxRange, xmid+maxRange])
+    ax.set_ylim([ymid-maxRange, ymid+maxRange])
+    ax.set_zlim([zmid-maxRange, zmid+maxRange])
+    ax.set_box_aspect([1,1,1])
+
+# --------------------------------------------------------------------------------------------
+# Print in terminal
+# --------------------------------------------------------------------------------------------
 
 class __Colors(str, Enum):
     blue = '\033[34m'
@@ -1183,60 +1274,3 @@ def Clear() -> None:
         os.system("clear")
     elif syst == "Windows":
         os.system("cls")
-
-def __init_obj(obj, deformFactor: float=0.0):
-
-    from Simulations import _Simu, Mesh
-
-    # here we detect the nature of the object
-    if isinstance(obj, _Simu):
-        simu = obj
-        mesh = simu.mesh
-        u = simu.Results_displacement_matrix()
-        coordo = mesh.coordoGlob + u * np.abs(deformFactor)
-        inDim = np.max([simu.model.dim, mesh.inDim])
-    elif isinstance(obj, Mesh):
-        simu = None
-        mesh = obj
-        coordo = mesh.coordoGlob
-        inDim = mesh.inDim
-    else:
-        raise Exception("Must be a simulation or mesh")
-    
-    return simu, mesh, coordo, inDim
-
-def init_Axes(dim: int, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
-    if dim == 2:
-        ax = plt.subplots()[1]
-    elif dim == 3:
-        fig = plt.figure()
-        ax: Axes3D = fig.add_subplot(projection="3d")
-        ax.view_init(elev=elev, azim=azim)
-    return ax
-
-def _get_list_faces(mesh, dimElem:int) -> list[list[int]]:
-    """Construct a list of faces for each element group of dimension dimElem.\n
-    Faces is a list of index used to construct/plot a faces.\n
-    You can go check their values for each groupElem in /modules/GroupElem.py"""
-    
-    from Mesh import Mesh, ElemType
-    assert isinstance(mesh, Mesh), "mesh must be a Mesh object"
-
-    list_faces: list[list[int]] = [] # list of faces
-    list_len: list[int] = [] # list that store the size for each faces    
-
-    # get faces and nodes per element for each element group
-    for groupElem in mesh.Get_list_groupElem(dimElem):
-        list_faces.append(groupElem.faces)
-        list_len.append(len(groupElem.faces))
-
-    # make sure that faces in list_faces are at the same length
-    max_len = np.max(list_len)
-    # this loop make sure that faces in list_faces get the same length
-    for f, faces in enumerate(list_faces.copy()):
-        repeat = max_len-len(faces)
-        if repeat > 0:
-            faces.extend([faces[0]]*repeat)
-            list_faces[f] = faces
-
-    return list_faces
