@@ -2,7 +2,7 @@
 
 import Display
 from Geoms import Point, Points, Circle, Domain, Line
-from GmshInterface import Mesher, ElemType, Mesh, Normalize_vect
+from Gmsh_Interface import Mesher, ElemType, Mesh, Normalize_vect
 import Materials
 import Simulations
 import Folder

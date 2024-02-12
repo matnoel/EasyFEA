@@ -2,7 +2,7 @@
 
 import Folder
 import Display
-from GmshInterface import Mesher, ElemType, Point, Domain
+from Gmsh_Interface import Mesher, ElemType, Point, Domain
 import Simulations
 import Materials
 

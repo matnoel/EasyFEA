@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import Display
 import PostProcessing
 import Folder
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Circle, Domain, Point
 import Materials
 import Simulations

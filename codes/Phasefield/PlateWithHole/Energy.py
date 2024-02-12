@@ -2,7 +2,7 @@ from TicTac import Tic
 import Materials
 from Geoms import *
 import Display as Display
-import GmshInterface as GmshInterface
+import Gmsh_Interface as Gmsh_Interface
 import Simulations
 import Folder
 import pandas as pd
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     domain = Domain(point, Point(x=L, y=h), clD)
     circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
-    interfaceGmsh = GmshInterface.Mesher(openGmsh=False)
+    interfaceGmsh = Gmsh_Interface.Mesher(openGmsh=False)
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
     # Nodes

@@ -1,7 +1,7 @@
 """Perform homogenization on several VER"""
 
 import Folder
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Normalize_vect, Point, Points, Line, Circle
 import Display
 import Materials

@@ -8,7 +8,7 @@ import numpy as np
 import Simulations
 import Materials
 from Geoms import Domain, Point, Circle, Line
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 import Display
 import PostProcessing
 import Folder

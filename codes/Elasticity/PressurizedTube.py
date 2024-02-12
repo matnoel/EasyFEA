@@ -3,7 +3,7 @@
 import Display
 import Materials
 import Simulations
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Line, Circle, CircleArc, Contour
 import Folder
 np = Display.np

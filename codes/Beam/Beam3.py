@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from GmshInterface import Mesher, ElemType, Line, Point, Points
+from Gmsh_Interface import Mesher, ElemType, Line, Point, Points
 import Display
 import Materials
 import Simulations

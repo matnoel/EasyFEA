@@ -11,7 +11,7 @@ import pandas as pd
 
 import Simulations
 import Display
-from GmshInterface import Mesher
+from Gmsh_Interface import Mesher
 import Materials
 import Geoms
 import Folder

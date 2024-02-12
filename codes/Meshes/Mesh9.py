@@ -1,4 +1,4 @@
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Points, Contour, CircleArc, Line
 import Display
 import Folder

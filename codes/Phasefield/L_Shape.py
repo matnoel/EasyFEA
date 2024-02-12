@@ -1,5 +1,5 @@
 import Display
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Points, Domain, Circle, Normalize_vect
 import Materials
 import Simulations

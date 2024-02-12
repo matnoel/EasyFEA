@@ -2,7 +2,7 @@ from TicTac import Tic
 import Materials
 from Geoms import *
 import Display
-import GmshInterface
+import Gmsh_Interface
 import Simulations
 import Folder
 
@@ -71,7 +71,7 @@ if __name__ == '__main__':
         domain = Domain(point, Point(x=L, y=H), clD)
         circle = Circle(Point(x=L/2, y=H-H/2), diam, clC)
 
-        interfaceGmsh = GmshInterface.Mesher(openGmsh=False, verbosity=False)
+        interfaceGmsh = Gmsh_Interface.Mesher(openGmsh=False, verbosity=False)
         mesh = interfaceGmsh.Mesh_2D(domain, [circle], "QUAD4")
 
         # Display.Plot_Mesh(mesh)

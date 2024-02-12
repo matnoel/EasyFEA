@@ -5,7 +5,7 @@ WARNING : implementation not validated
 
 import numpy as np
 
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Points
 import Display
 import Simulations

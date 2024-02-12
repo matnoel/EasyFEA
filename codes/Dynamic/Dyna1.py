@@ -8,7 +8,7 @@ import PostProcessing
 import Display
 from Geoms import *
 import Materials
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 import Simulations
 from TicTac import Tic
 

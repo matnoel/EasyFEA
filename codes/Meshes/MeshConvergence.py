@@ -1,6 +1,6 @@
 from Geoms import Domain, Point
 import Materials
-from GmshInterface import Mesher, ElemType, Mesh
+from Gmsh_Interface import Mesher, ElemType, Mesh
 import Simulations
 import Display
 from TicTac import Tic

@@ -1,4 +1,4 @@
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 import Simulations
 import Materials
 import Display

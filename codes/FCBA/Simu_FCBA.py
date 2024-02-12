@@ -9,7 +9,7 @@ import os
 
 import Folder
 import Display
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Domain, Circle
 import Materials
 import Simulations

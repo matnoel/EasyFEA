@@ -5,7 +5,7 @@ WARNING: The assumption of small displacements is more than questionable for thi
 """
 
 import Display
-from GmshInterface import ElemType, Mesher
+from Gmsh_Interface import ElemType, Mesher
 from Geoms import Point, Points, Domain
 import Materials
 import Simulations

@@ -1,6 +1,6 @@
 """Modal analysis on a "wall" structure"""
 
-from GmshInterface import Mesher, Point, Domain, ElemType
+from Gmsh_Interface import Mesher, Point, Domain, ElemType
 import Display
 import Folder
 import Simulations

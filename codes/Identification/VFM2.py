@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import Simulations
 import Display
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 import Materials
 import Geoms
 

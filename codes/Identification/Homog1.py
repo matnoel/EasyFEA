@@ -4,7 +4,7 @@ Section 4.7 with values on page 89 (Erratum).
 """
 
 import Display
-from GmshInterface import Mesher
+from Gmsh_Interface import Mesher
 from Geoms import *
 import Materials
 import Simulations

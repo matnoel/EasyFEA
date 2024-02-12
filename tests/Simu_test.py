@@ -1,7 +1,7 @@
 import Materials
 from Geoms import Domain, Circle, Point, Line
 import Display as Display
-from GmshInterface import Mesher, Mesh, ElemType
+from Gmsh_Interface import Mesher, Mesh, ElemType
 import Simulations
 from TicTac import Tic
 

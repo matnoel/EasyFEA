@@ -1,6 +1,6 @@
 """Modal analysis on a structure. For now there is just the structure because `scipy.sparse.linalg.eigs` is very slow and i dont know why."""
 
-from GmshInterface import Mesher, gmsh, Mesh
+from Gmsh_Interface import Mesher, gmsh, Mesh
 import Display
 import Folder
 import Simulations

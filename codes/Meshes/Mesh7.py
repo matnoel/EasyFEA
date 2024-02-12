@@ -1,4 +1,4 @@
-from GmshInterface import Mesher, Point, Circle, ElemType, Points, gmsh
+from Gmsh_Interface import Mesher, Point, Circle, ElemType, Points, gmsh
 import Display
 import Folder
 

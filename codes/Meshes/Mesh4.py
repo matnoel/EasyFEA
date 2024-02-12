@@ -1,6 +1,6 @@
 
 import Display
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Points, Circle, Line
 
 import numpy as np

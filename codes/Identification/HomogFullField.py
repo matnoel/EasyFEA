@@ -1,6 +1,6 @@
 """Perform a full field homogenization"""
 
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 import Geoms
 import Display
 import Simulations

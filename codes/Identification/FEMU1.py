@@ -1,6 +1,6 @@
 """Identify material properties in a biaxial test with a modified FEMU."""
 
-from GmshInterface import Mesher, ElemType
+from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Points, Circle
 import Display
 import Materials
