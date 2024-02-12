@@ -1,3 +1,5 @@
+"""Modal analysis on a "wall" structure"""
+
 from GmshInterface import Mesher, Point, Domain, ElemType
 import Display
 import Folder
@@ -18,81 +20,76 @@ if __name__ == '__main__':
 
     folderSave = Folder.New_File("ModalAnalysis",results=True)
     if not os.path.exists(folderSave): os.makedirs(folderSave)
-
+    
     dim = 3
-
     isFixed = True
 
-    if __name__ == '__main__':
+    # --------------------------------------------------------------------------------------------
+    # Mesh
+    # --------------------------------------------------------------------------------------------
+    contour = Domain(Point(), Point(1,1))
+    thickness = 1/10
 
-        Display.Clear()
+    if dim == 2:
+        mesh = Mesher().Mesh_2D(contour, [], ElemType.QUAD4, isOrganised=True)
+    else:
+        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,-thickness], [2], ElemType.HEXA8, isOrganised=True)
+    nodesY0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+    nodesSupY0 = mesh.Nodes_Conditions(lambda x,y,z: y>0)
 
-        contour = Domain(Point(), Point(1,1))
-        thickness = 1/10
+    Display.Plot_Mesh(mesh)
 
-        if dim == 2:
-            mesh = Mesher().Mesh_2D(contour, [], ElemType.QUAD4, isOrganised=True)
-        else:
-            mesh = Mesher().Mesh_Extrude(contour, [], [0,0,-thickness], [2], ElemType.HEXA8, isOrganised=True)
-        nodesY0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-        nodesSupY0 = mesh.Nodes_Conditions(lambda x,y,z: y>0)
+    # --------------------------------------------------------------------------------------------
+    # Simulation
+    # --------------------------------------------------------------------------------------------
+    material = Materials.Elas_Isot(dim, planeStress=True, thickness=thickness)
 
-        Display.Plot_Mesh(mesh)
+    simu = Simulations.Simu_Displacement(mesh, material)
 
-        material = Materials.Elas_Isot(dim, planeStress=True, thickness=thickness)
+    simu.Solver_Set_Newton_Raphson_Algorithm(0.1)
 
-        simu = Simulations.Simu_Displacement(mesh, material)
+    K, C, M, F = simu.Get_K_C_M_F()
+    
+    if isFixed:
+        simu.add_dirichlet(nodesY0, [0]*dim, simu.Get_directions())
+        known, unknown = simu.Bc_dofs_known_unknow(simu.problemType)
+        K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
+        M_t = M[unknown, :].tocsc()[:, unknown].tocsr()
 
-        simu.Solver_Set_Newton_Raphson_Algorithm(0.1)
+    else:        
+        K_t = K + K.min() * eye(K.shape[0]) * 1e-12
+        M_t = M
 
-        K, C, M, F = simu.Get_K_C_M_F()
-        
+    eigenValues, eigenVectors = linalg.eigs(K_t, 10, M_t, which="SM")
+
+    eigenValues = np.array(eigenValues, dtype=float)
+    eigenVectors = np.array(eigenVectors, dtype=float)
+
+    freq_t = np.sqrt(eigenValues.real)/2/np.pi
+
+    # --------------------------------------------------------------------------------------------
+    # Plot modes
+    # --------------------------------------------------------------------------------------------
+    for n in range(eigenValues.size):
+
         if isFixed:
-            simu.add_dirichlet(nodesY0, [0]*dim, simu.Get_directions())
-            known, unknown = simu.Bc_dofs_known_unknow(simu.problemType)
-            K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
-            M_t = M[unknown, :].tocsc()[:, unknown].tocsr()
+            mode = np.zeros((mesh.Nn, dim))
+            mode[nodesSupY0,:] = np.reshape(eigenVectors[:,n], (-1, dim))
+        else:
+            mode = np.reshape(eigenVectors[:,n], (-1, dim))
 
-        else:        
-            K_t = K + K.min() * eye(K.shape[0]) * 1e-12
-            M_t = M
+        simu.set_u_n(simu.problemType, mode.reshape(-1))
+        simu.Save_Iter()        
 
-        eigenValues, eigenVectors = linalg.eigs(K_t, 10, M_t, which="SM")
+        sol = np.linalg.norm(mode, axis=1)
+        deformFactor = 1/5/np.abs(sol).max() 
+        Display.Plot_Mesh(simu, deformFactor, title=f'mode {n+1}')
+        # Display.Plot_Result(simu, sol, deformFactor, title=f"mode {n}", plotMesh=True)
+        pass
 
-        eigenValues = np.array(eigenValues, dtype=float)
-        eigenVectors = np.array(eigenVectors, dtype=float)
+    axModes = Display.init_Axes(2)
+    axModes.plot(np.arange(eigenValues.size), freq_t, ls='', marker='.')
+    axModes.set_xlabel('modes')
+    axModes.set_ylabel('freq [Hz]')
 
-        freq_t = np.sqrt(eigenValues.real)/2/np.pi
-
-        num = 0
-
-        for n in range(eigenValues.size):
-
-            if isFixed:
-                mode = np.zeros((mesh.Nn, dim))
-                mode[nodesSupY0,:] = np.reshape(eigenVectors[:,n], (-1, dim))
-            else:
-                mode = np.reshape(eigenVectors[:,n], (-1, dim))
-
-            simu.set_u_n(simu.problemType, mode.reshape(-1))
-            simu.Save_Iter()        
-
-            sol = np.linalg.norm(mode, axis=1)
-            deformFactor = 1/5/np.abs(sol).max() 
-            Display.Plot_Mesh(simu, deformFactor, title=f'mode {n+1}')
-            # Display.Plot_Result(simu, sol, deformFactor, title=f"mode {n}", plotMesh=True)
-            pass
-
-        axModes = Display.plt.subplots()[1]
-        axModes.plot(np.arange(eigenValues.size), freq_t, ls='', marker='.')
-        axModes.set_xlabel('modes')
-        axModes.set_ylabel('freq [Hz]')
-
-        # PostProcessing.Make_Paraview(folderSave, simu)
-        
-
-
-
-        # Display.Plot_Mesh(mesh)
-
-        Display.plt.show()
+    Display.plt.show()

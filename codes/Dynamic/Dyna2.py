@@ -1,5 +1,10 @@
+"""Wave propagation
+TODO: Compare with analytical values.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
+
 import Simulations
 import Materials
 from Geoms import Domain, Point, Circle, Line
@@ -62,7 +67,6 @@ if __name__ == '__main__':
 
     # Get nodes for boundary conditions and loading
     nodesBorders = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-    # nodesLoad = mesh.Nodes_Line(line)
     nodesLoad = mesh.Nodes_Point(Point())
 
     # --------------------------------------------------------------------------------------------

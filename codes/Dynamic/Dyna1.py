@@ -1,3 +1,5 @@
+"""Bending beam"""
+
 import os
 import matplotlib.pyplot as plt
 
@@ -43,21 +45,14 @@ if __name__ == '__main__':
     b = 13
 
     # --------------------------------------------------------------------------------------------
-    # Meshing
+    # Mesh
     # --------------------------------------------------------------------------------------------
-    # meshSize = h/1
-    # meshSize = L/2
     meshSize = h/5
 
     interfaceGmsh = Mesher(False)
     if dim == 2:
         elemType = ElemType.QUAD4 # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8
         domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), meshSize)
-        Line0 = Line(Point(y=-h/2), Point(y=h/2))
-        LineL = Line(Point(x=L,y=-h/2), Point(x=L, y=h/2))
-        LineH = Line(Point(y=h/2),Point(x=L, y=h/2))
-        circle = Circle(Point(x=L/2, y=0), h*0.2, isHollow=False)
-
         mesh = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
         area = mesh.area - L*h
     elif dim == 3:
