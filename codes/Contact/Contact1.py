@@ -1,4 +1,5 @@
 """Perform a "Hertz contact problem" with frictionless contact assumption.
+The master mesh is assumed to be non-deformable.
 TODO: Compare with analytical values.
 WARNING: The assumption of small displacements is more than questionable for this simulation.
 """
