@@ -120,10 +120,10 @@ class Test_Geom(unittest.TestCase):
 
             geom.Plot(ax)
 
-            geom.rotate(np.pi/2)
+            geom.rotate(90)
             geom.Plot(ax)
 
-            geom.rotate(np.pi/2, direction=(1,0,0))
+            geom.rotate(90, direction=(1,0,0))
             geom.Plot(ax)
 
             cop = geom.copy()

@@ -160,7 +160,7 @@ class Mesh:
         Parameters
         ----------        
         theta : float
-            rotation angle [rad] 
+            rotation angle [deg] 
         center : tuple, optional
             rotation center, by default (0,0,0)
         direction : tuple, optional

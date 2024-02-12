@@ -41,8 +41,8 @@ if __name__  == '__main__':
     else:        
         mesh = Mesher().Mesh_Extrude(contour, [], [0,0,e], [3], isOrganised=True, elemType='HEXA8', surfaces=surfaces)
 
-    mesh.rotate(-np.pi/4, mesh.center)
-    mesh.rotate(np.pi/4, mesh.center, (1,0))
+    mesh.rotate(-45, mesh.center)
+    mesh.rotate(45, mesh.center, (1,0))
 
     Display.Plot_Mesh(mesh)
 

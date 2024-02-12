@@ -231,7 +231,7 @@ class _Geom(ABC):
         Parameters
         ----------        
         theta : float
-            rotation angle [rad] 
+            rotation angle in [deg] 
         center : tuple, optional
             rotation center, by default (0,0,0)
         direction : tuple, optional
@@ -919,7 +919,7 @@ def Rotate_coordo(coordo: np.ndarray, theta: float, center: tuple=(0,0,0), direc
     coordo : np.ndarray
         coordinates to rotate (n,3)
     theta : float
-        rotation angle [rad] 
+        rotation angle [deg] 
     center : tuple, optional
         rotation center, by default (0,0,0)
     direction : tuple, optional
@@ -933,6 +933,8 @@ def Rotate_coordo(coordo: np.ndarray, theta: float, center: tuple=(0,0,0), direc
 
     center = As_Coordinates(center)
     direction = As_Coordinates(direction)
+
+    theta *= np.pi/180
 
     # rotation matrix
     rotMat = Rotation_matrix(direction, theta)

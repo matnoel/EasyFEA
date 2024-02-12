@@ -52,7 +52,7 @@ if __name__ == '__main__':
     
     section.Get_Contour().Plot()
     
-    section.rotate(-np.pi/2, direction=(0,1))    
+    section.rotate(-90, direction=(0,1))    
 
     # --------------------------------------------------------------------------------------------
     # Mesh
