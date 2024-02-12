@@ -5,7 +5,7 @@ import scipy.sparse as sp
 import copy
 
 from Geoms import *
-from GroupElem import _GroupElem, ElemType, MatrixType
+from GroupElems import _GroupElem, ElemType, MatrixType
 import TicTac
 
 class Mesh:
@@ -21,7 +21,7 @@ class Mesh:
 
         Parameters
         ----------
-        dict_groupElem : dict[ElemType, GroupElem]
+        dict_groupElem : dict[ElemType, _GroupElem]
             element group dictionary
         verbosity : bool, optional
             can write in terminal, by default True
@@ -77,8 +77,8 @@ class Mesh:
 
         Returns
         -------
-        list[GroupElem]
-            A list of GroupElem objects with the specified dimension.
+        list[_GroupElem]
+            A list of _GroupElem objects with the specified dimension.
         """
         if dim is None:
             dim = self.__dim

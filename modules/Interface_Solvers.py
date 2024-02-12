@@ -1,7 +1,7 @@
 """
-I considered renaming 'Interface_Solvers' to 'Solvers,' but encountered issues with loading old damage simulations.
-As a workaround, I've created this module to act as a redirect, allowing seamless access to the new module while preserving compatibility with the old one.
+I considered renaming 'Interface_Solvers.py' to 'Solvers.py', but faced issues with loading old damage simulations.
+As a temporary solution, I've created this module to serve as a redirect, ensuring smooth access to the new module while maintaining compatibility with the old one. TODO: Delete this module at the end of the thesis.
 """
 from Display import myPrintError
-myPrintError("Link Interface_Solvers.py to Solvers.py\n(YOU SHOULD NOT USE IT)")
-from Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
+myPrintError("Link Interface_Solvers.py to Solvers.py (DO NOT USE IT)")
+from Solvers import *

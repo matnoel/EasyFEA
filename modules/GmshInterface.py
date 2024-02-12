@@ -10,7 +10,7 @@ import matplotlib
 import Folder
 from Geoms import *
 from Geoms import _Geom
-from GroupElem import ElemType, _GroupElem, _GroupElem_Factory
+from GroupElems import ElemType, _GroupElem, _GroupElem_Factory
 from Mesh import Mesh
 from TicTac import Tic
 from Materials import _Beam_Model

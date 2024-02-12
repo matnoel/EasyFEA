@@ -233,7 +233,7 @@ class Gauss:
         """Calculation of integration points according to element and matrix type
         """
 
-        from GroupElem import _GroupElem, ElemType, MatrixType
+        from GroupElems import _GroupElem, ElemType, MatrixType
 
         assert matrixType in MatrixType.get_types()
 
