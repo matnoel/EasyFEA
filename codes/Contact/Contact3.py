@@ -1,5 +1,8 @@
-# Frictionless contact assumption
-# WARNING : the assumption of small displacements is more than questionable for this simulation
+"""Perform a contact problem with frictionless contact assumption.
+The master mesh is assumed to be non-deformable.
+TODO: Compare with analytical values.
+WARNING: The assumption of small displacements is more than questionable for this simulation.
+"""
 
 import Display
 from GmshInterface import ElemType, Mesher

@@ -1,5 +1,7 @@
-# Frictionless contact assumption
-# WARNING : the assumption of small displacements is more than questionable for this simulation
+"""Perform a "Hertz contact problem" with frictionless contact assumption.
+TODO: Compare with analytical values.
+WARNING: The assumption of small displacements is more than questionable for this simulation.
+"""
 
 import Display
 from GmshInterface import Mesher, ElemType
@@ -17,7 +19,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 2
+    dim = 3
     pltIter = True; result = 'uy'
 
     R = 10
@@ -57,6 +59,10 @@ if __name__ == '__main__':
         mesh_master = Mesher().Mesh_2D(contour_master, [], ElemType.TRI3)
     else:    
         mesh_master = Mesher().Mesh_Extrude(contour_master, [], [0,0,-thickness-2], [4], ElemType.TETRA4)
+        groupMaster = mesh_master.Get_list_groupElem(dim-1)[0]
+        if len(mesh_master.Get_list_groupElem(dim-1)) > 1:
+            Display.myPrintError(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
+        
     mesh_master.translate(dz=-(mesh_master.center[2]-mesh_slave.center[2]))
 
     # Display.Plot_Model(mesh_master, alpha=0.1, showId=True)
@@ -94,10 +100,6 @@ if __name__ == '__main__':
         mesh_master.translate(cx*inc, cy*inc)
 
         list_mesh_master.append(mesh_master)
-
-        groupMaster = mesh_master.Get_list_groupElem(dim-1)[0]
-        if dim == 3 and i == 0 and len(mesh_master.Get_list_groupElem(dim-1)) > 1:
-            Display.myPrintError(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
 
         convergence=False
 
