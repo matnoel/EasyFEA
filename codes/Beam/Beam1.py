@@ -37,8 +37,8 @@ if __name__ == '__main__':
     beamDim = 1
 
     # Create a section object for the beam mesh
-    interfGmsh = Mesher()
-    section = interfGmsh.Mesh_2D(Domain(Point(), Point(b, h)))
+    mesher = Mesher()
+    section = mesher.Mesh_2D(Domain(Point(), Point(b, h)))
 
     point1 = Point()
     point2 = Point(x=L / 2)
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     beam2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
     beams = [beam1, beam2]
 
-    mesh = interfGmsh.Mesh_Beams(beams=beams, elemType=elemType)
+    mesh = mesher.Mesh_Beams(beams=beams, elemType=elemType)
 
     # --------------------------------------------------------------------------------------------
     # Simulation

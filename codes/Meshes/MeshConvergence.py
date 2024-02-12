@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     # elemTypes = [elem.name for elem in elemTypes.copy()]
 
-    interfaceGmsh = Mesher()
+    mesher = Mesher()
 
     for e, elemType in enumerate(elemTypes):
         
@@ -84,10 +84,10 @@ if __name__ == '__main__':
 
             # Generate the mesh using Gmsh
             if dim == 2:
-                mesh = interfaceGmsh.Mesh_2D(domain, [], elemType, isOrganised=isOrganised)
+                mesh = mesher.Mesh_2D(domain, [], elemType, isOrganised=isOrganised)
                 volume = mesh.area * material.thickness
             else:
-                mesh = interfaceGmsh.Mesh_Extrude(domain, [], elemType=elemType, extrude=[0, 0, b], layers=[4], isOrganised=isOrganised)
+                mesh = mesher.Mesh_Extrude(domain, [], elemType=elemType, extrude=[0, 0, b], layers=[4], isOrganised=isOrganised)
                 volume = mesh.volume
             # Ensure that the volume matches the expected value (L * h * b)
             assert np.abs(volume - (L * h * b)) / volume <= 1e-10

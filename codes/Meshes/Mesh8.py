@@ -45,8 +45,8 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
-    interface = Mesher(False, True, True)
-    factory = interface._factory
+    mesher = Mesher(False, True, True)
+    factory = mesher._factory
     
 
     contours1: list[Contour] = []
@@ -64,18 +64,18 @@ if __name__ == '__main__':
                             Line(p1,p2),
                             Line(p2,pc3),
                             CircleArc(pc3,pc1,pc)])
-        loop1, lines1, points1 = interface._Loop_From_Geom(cont1)
+        loop1, lines1, points1 = mesher._Loop_From_Geom(cont1)
 
         cont2 = Contour([Line(pc3, p2),
                             Line(p2,p3),
                             Line(p3,pc2),
                             CircleArc(pc2,pc3,pc)])
-        loop2, lines2, points2 = interface._Loop_From_Geom(cont2)
+        loop2, lines2, points2 = mesher._Loop_From_Geom(cont2)
 
         surf1 = factory.addSurfaceFilling(loop1)
         surf2 = factory.addSurfaceFilling(loop2)
 
-        interface._OrganiseSurfaces([surf1, surf2], elemType, True, [N]*4)
+        mesher._OrganiseSurfaces([surf1, surf2], elemType, True, [N]*4)
 
         contours1.extend([cont1, cont2])
     
@@ -87,13 +87,13 @@ if __name__ == '__main__':
             cont2 = cont1.copy()
             cont2.translate(dz=e)
             # cont2.rotate(np.pi/8, PC.coordo)
-            interface._Link_Contours(cont1, cont2, elemType, 3, [N]*4)
+            mesher._Link_Contours(cont1, cont2, elemType, 3, [N]*4)
 
-    interface._Set_PhysicalGroups()
+    mesher._Set_PhysicalGroups()
     
-    interface._Meshing(dim, elemType)
+    mesher._Meshing(dim, elemType)
 
-    mesh = interface._Construct_Mesh()
+    mesh = mesher._Construct_Mesh()
 
     if len(mesh.orphanNodes) > 0:
         ax = Display.Plot_Nodes(mesh, mesh.orphanNodes)

@@ -152,14 +152,14 @@ if __name__ == '__main__':
         inclusions = []
 
     # Create an instance of the Gmsh interface
-    interfaceGmsh = Mesher()
+    mesher = Mesher()
 
     def DoMesh(refineGeoms=[]) -> Mesh:
         """Function used for mesh generation"""
         if dim == 2:
-            return interfaceGmsh.Mesh_2D(points, inclusions, elemType, [], refineGeoms)
+            return mesher.Mesh_2D(points, inclusions, elemType, [], refineGeoms)
         else:
-            return interfaceGmsh.Mesh_Extrude(points, inclusions, [0,0,b], [5], elemType, [], refineGeoms)
+            return mesher.Mesh_Extrude(points, inclusions, [0,0,b], [5], elemType, [], refineGeoms)
 
     # Construct the initial mesh
     mesh = DoMesh()
@@ -202,7 +202,7 @@ if __name__ == '__main__':
         if plotError:
             Display.Plot_Result(simu, error_e*100, nodeValues=True, title="error %", plotMesh=True)
 
-        path = interfaceGmsh.Create_posFile(simu.mesh.coordo, meshSize_n, folder, f"simu{i}")
+        path = mesher.Create_posFile(simu.mesh.coordo, meshSize_n, folder, f"simu{i}")
 
         return path, error
 

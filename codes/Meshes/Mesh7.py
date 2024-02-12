@@ -34,14 +34,14 @@ if __name__ == '__main__':
     # Mesh
     # ----------------------------------------------
 
-    interface = Mesher(False, False)
+    mesher = Mesher(False, False)
     # dim, elemType = 2, ElemType.TRI3
     dim, elemType = 3, ElemType.TETRA4
+    
+    factory = mesher._factory
 
-    factory = interface._init_gmsh('occ')
-
-    surfaces = interface._Surfaces(circle_ext, [circle_int])[0]
-    interface._Extrude(surfaces, [0,0,R], elemType)
+    surfaces = mesher._Surfaces(circle_ext, [circle_int])[0]
+    mesher._Extrude(surfaces, [0,0,R], elemType)
     vol1 = factory.getEntities(3)    
 
     factory.synchronize()    
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         p3 = Point(R,0, e*4)
         p4 = Point(R-e/2, 0, e*4, r=e/4)
         contour = Points([p1, p2, p3, p4])    
-        surf = interface._Surfaces(contour, [])[0][0]
+        surf = mesher._Surfaces(contour, [])[0][0]
 
         rev1 = factory.revolve([(2, surf)], 0,0,0,0,0,R,np.pi)
         rev2 = factory.revolve([(2, surf)], 0,0,0,0,0,R,-np.pi)
@@ -75,13 +75,13 @@ if __name__ == '__main__':
     factory.synchronize()
 
     if meshSize > 0:
-        interface.Set_meshSize(meshSize)
+        mesher.Set_meshSize(meshSize)
 
-    interface._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
+    mesher._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
     
-    interface._Meshing(dim, elemType)
+    mesher._Meshing(dim, elemType)
 
-    mesh = interface._Construct_Mesh()
+    mesh = mesher._Construct_Mesh()
 
     print(mesh)
 

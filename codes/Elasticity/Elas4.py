@@ -58,19 +58,19 @@ if __name__ == '__main__':
     # Mesh
     # --------------------------------------------------------------------------------------------
 
-    interf = Mesher()
-    fact = interf._factory
-    surfaces = interf._Surfaces(section, [], elemType)[0]
+    mesher = Mesher()
+    fact = mesher._factory
+    surfaces = mesher._Surfaces(section, [], elemType)[0]
 
     layers = [50]
     # layers = [2*L/meshSize/10]
 
-    interf._Extrude(surfaces, [-L/2,0,0], elemType, layers)
-    interf._Extrude(surfaces, [L/2,0,0], elemType, layers)
+    mesher._Extrude(surfaces, [-L/2,0,0], elemType, layers)
+    mesher._Extrude(surfaces, [L/2,0,0], elemType, layers)
         
-    interf._Set_PhysicalGroups()
-    interf._Meshing(3, elemType)
-    mesh = interf._Construct_Mesh()
+    mesher._Set_PhysicalGroups()
+    mesher._Meshing(3, elemType)
+    mesh = mesher._Construct_Mesh()
 
     nodes_fixed = mesh.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2))
     nodes_load = mesh.Nodes_Line(Line(p7,p8))

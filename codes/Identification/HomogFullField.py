@@ -63,18 +63,18 @@ if __name__ == '__main__':
 
             inclusions.append(inclusion)
 
-    interfaceGmsh = Mesher(False)
+    mesher = Mesher(False)
 
     inclusion = Geoms.Domain(ptd1, ptd2, meshSize)
-    area_inclusion = interfaceGmsh.Mesh_2D(inclusion).area
+    area_inclusion = mesher.Mesh_2D(inclusion).area
 
     points = Geoms.Points([pt1, pt2, pt3, pt4], meshSize)
 
     # mesh with inclusions
-    mesh_inclusions = interfaceGmsh.Mesh_2D(points, inclusions, elemType)
+    mesh_inclusions = mesher.Mesh_2D(points, inclusions, elemType)
 
     # mesh without inclusions
-    mesh = interfaceGmsh.Mesh_2D(points, [], elemType)
+    mesh = mesher.Mesh_2D(points, [], elemType)
 
     ptI1 = Geoms.Point(-cL,-cH)
     ptI2 = Geoms.Point(cL,-cH)
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
     pointsI = Geoms.Points([ptI1, ptI2, ptI3, ptI4], meshSize/4)
 
-    mesh_VER = interfaceGmsh.Mesh_2D(pointsI, [Geoms.Domain(Geoms.Point(-cL/2,-cH/2), Geoms.Point(cL/2, cH/2),
+    mesh_VER = mesher.Mesh_2D(pointsI, [Geoms.Domain(Geoms.Point(-cL/2,-cH/2), Geoms.Point(cL/2, cH/2),
                                                         meshSize/4, isHollow)], elemType)
     area_VER = mesh_VER.area
 

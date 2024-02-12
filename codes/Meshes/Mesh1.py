@@ -8,8 +8,6 @@ if __name__ == '__main__':
 
     contour = Domain(Point(), Point(1,1,1))
 
-    Mesher.Mesh_Extrude
-
     def DoMesh(dim, elemType):
         if dim == 2:
             mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)

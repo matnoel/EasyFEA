@@ -45,27 +45,27 @@ def DoMesh_FCBA(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float,
         if D2 == 0:
             mesh = Mesher().Mesh_Extrude(contour, [circle], [0,0,t], [4], ElemType.TETRA4, refineGeoms=[refineGeom])
         else:
-            interf = Mesher(False, False)
-            fact = interf._factory
+            mesher = Mesher(False, False)
+            fact = mesher._factory
 
             # Box and cylinder
-            surf1 = interf._Surfaces(contour, [circle])[0]
-            vol1 = interf._Extrude(surf1, [0,0,t])
+            surf1 = mesher._Surfaces(contour, [circle])[0]
+            vol1 = mesher._Extrude(surf1, [0,0,t])
             # Hole
-            surf2 = interf._Surfaces(hole)[0]
-            vol2 = interf._Revolve(surf2, axis)
+            surf2 = mesher._Surfaces(hole)[0]
+            vol2 = mesher._Revolve(surf2, axis)
             
             fact.cut(vol1, [(ent) for ent in vol2 if ent[0] == 3])
 
-            interf.Set_meshSize(clD)
+            mesher.Set_meshSize(clD)
 
-            interf._RefineMesh([refineGeom], clD)
+            mesher._RefineMesh([refineGeom], clD)
 
-            interf._Set_PhysicalGroups()
+            mesher._Set_PhysicalGroups()
 
-            interf._Meshing(3, ElemType.TETRA4)
+            mesher._Meshing(3, ElemType.TETRA4)
 
-            mesh = interf._Construct_Mesh()
+            mesh = mesher._Construct_Mesh()
 
     return mesh
 

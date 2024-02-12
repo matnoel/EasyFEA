@@ -40,9 +40,7 @@ if __name__ == '__main__':
 
     inclusion = Circle(Point(), 2*r, meshSize, isHollow=False)
 
-    gmshInterface = Mesher()
-
-    mesh = gmshInterface.Mesh_2D(contour, [inclusion], "TRI6")
+    mesh = Mesher().Mesh_2D(contour, [inclusion], "TRI6")
 
     coordo = mesh.coordoGlob
 

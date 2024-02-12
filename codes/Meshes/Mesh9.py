@@ -25,8 +25,8 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    interface = Mesher(False, True, True)
-    factory = interface._factory
+    mesher = Mesher(False, True, True)
+    factory = mesher._factory
 
     # --------------------------------------------------------------------------------------------
     # Geom
@@ -184,7 +184,7 @@ if __name__ == '__main__':
             contour1, contour2, nLayers, numElems = vol
             contour1 = contour1.copy(); contour1.rotate(rot, direction=(0,1,0))
             contour2 = contour2.copy(); contour2.rotate(rot, direction=(0,1,0))
-            ents = interface._Link_Contours(contour1, contour2, elemType, nLayers, numElems)
+            ents = mesher._Link_Contours(contour1, contour2, elemType, nLayers, numElems)
 
             allEntities.extend(ents)
 
@@ -260,7 +260,7 @@ if __name__ == '__main__':
     factory.synchronize()
 
 
-    interface._Set_algorithm(elemType)
+    mesher._Set_algorithm(elemType)
 
     parts = factory.getEntities()
 
@@ -274,11 +274,11 @@ if __name__ == '__main__':
 
     factory.synchronize()
 
-    interface._Set_PhysicalGroups(setPoints=False)
+    mesher._Set_PhysicalGroups(setPoints=False)
     
-    interface._Meshing(3, elemType, folder=folder, filename='blade')
+    mesher._Meshing(3, elemType, folder=folder, filename='blade')
 
-    mesh = interface._Construct_Mesh()
+    mesh = mesher._Construct_Mesh()
 
     Display.Plot_Tags(mesh, alpha=0.1, showId=False)
 
