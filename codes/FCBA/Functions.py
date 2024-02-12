@@ -1,4 +1,4 @@
-"""Functions for importing samples data"""
+"""Module used to assist with experimental data manipulation."""
 
 import Folder
 import Materials

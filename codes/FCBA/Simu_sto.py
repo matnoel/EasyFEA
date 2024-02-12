@@ -1,3 +1,5 @@
+"""Code used to perform stochastic phase field simulations."""
+
 import Display
 import Folder
 import Simulations
@@ -97,6 +99,8 @@ inc0 = 5e-3
 inc1 = 1e-3
 
 def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list, float]:
+    """Do the simulation for the s sample\n
+    return (s, list_du, list_f, list_d, time)"""
 
     tic = Tic()
 
@@ -232,25 +236,8 @@ if __name__ == '__main__':
     print(df)    
 
     # --------------------------------------------------------------------------------------------
-    # Plot
+    # Post process
     # --------------------------------------------------------------------------------------------
-
-    # # Make sure that we get the same results using useParallel or not
-    # # see Test/0_20_He_AT1_tolConv1e-02_conv2_nL100_optimMesh
-    # # Test/0_10_He_AT1_tolConv1e-02_conv2_nL100_optimMesh
-    # # Test/0_5_He_AT1_tolConv1e-02_conv2_nL100_optimMesh
-    # df1: pd.DataFrame = pd.read_pickle(Folder.Join(folder_save, '_data_par.pickle'))
-    # df2: pd.DataFrame = pd.read_pickle(Folder.Join(folder_save, '_data.pickle'))
-
-    # diff_u = df1[label_u].values - df2[label_u].values
-    # diff_f = df1[label_f].values - df2[label_f].values
-    # print(diff_u)
-    # print(diff_f)
-    # ax = plt.subplots()[1]
-    # for i in range(N):
-    #     ax.plot(df1[label_u][i], df1[label_f][i], c='blue')
-    #     ax.plot(df2[label_u][i], df2[label_f][i], c='red')
-
     if doPlot:
 
         # get u, f and d for each simulations
@@ -281,12 +268,6 @@ if __name__ == '__main__':
         axHs[1].plot(ff, stats.norm.pdf(ff,mu, sig), label=f"$\mu = {mu:.2f}, \sigma = {sig:.2f}$")
         axHs[1].legend(); axHs[1].set_xlabel('f [kN]'); axHs[1].set_title('pdf'); axHs[1].grid()
         # Display.Save_fig(folder_save, 'pdf de f')
-
-
-
-
-
-
 
         # get back the forces and displacements curve for each test
         list_forces = []
@@ -326,8 +307,9 @@ if __name__ == '__main__':
             list_forces.append(forces)
             list_fcrit.append(fcrit)
 
-        
-
+        # --------------------------------------------------------------------------------------------
+        # Plot
+        # --------------------------------------------------------------------------------------------
         ax = plt.subplots()[1]
         ax.set_xlabel(r"$\Delta u \ [mm]$")
         ax.set_ylabel(r"$f \ [kN]$")

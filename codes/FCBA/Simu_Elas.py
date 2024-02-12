@@ -1,6 +1,8 @@
+"""Code used to perform elastic simulations with FCBA samples"""
+
 import Display
 from Geoms import Point, Points, Circle, Domain, Line
-from GmshInterface import Mesher, ElemType, Mesh
+from GmshInterface import Mesher, ElemType, Mesh, Normalize_vect
 import Materials
 import Simulations
 import Folder
@@ -14,7 +16,7 @@ Display.Clear()
 folder_FCBA = Folder.New_File("FCBA",results=True)
 folder = Folder.Join(folder_FCBA, "Compression_Laura")
 
-def DoMesh(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float, t:float, l0:float, test:bool, optimMesh:bool) -> Mesh:
+def DoMesh_FCBA(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float, t:float, l0:float, test:bool, optimMesh:bool) -> Mesh:
 
     clC = l0 if test else l0/2
     clD = clC*3 if optimMesh else clC
@@ -72,11 +74,11 @@ if __name__  == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 3
+    dim = 2
 
     test = True
     optimMesh = True
-    loadInHole = True
+    loadInHole = True; pltLoadInHole=False
     makeParaview = False
 
     # geom
@@ -95,9 +97,8 @@ if __name__  == '__main__':
 
     # --------------------------------------------------------------------------------------------
     # Mesh
-    # --------------------------------------------------------------------------------------------
-    
-    mesh = DoMesh(dim, L, H, D, h, D2, h2, t, l0, test, optimMesh)
+    # --------------------------------------------------------------------------------------------    
+    mesh = DoMesh_FCBA(dim, L, H, D, h, D2, h2, t, l0, test, optimMesh)
 
     Display.Plot_Mesh(mesh)
     print(mesh)
@@ -105,7 +106,6 @@ if __name__  == '__main__':
     # --------------------------------------------------------------------------------------------
     # Material
     # --------------------------------------------------------------------------------------------
-
     # Properties for test 4
     Gc = 0.075 # mJ/mm2
 
@@ -134,6 +134,9 @@ if __name__  == '__main__':
 
     nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 
+    # --------------------------------------------------------------------------------------------
+    # Loading
+    # --------------------------------------------------------------------------------------------
     if loadInHole:
 
         surf = np.pi * D/2 * t
@@ -176,45 +179,47 @@ if __name__  == '__main__':
         EvalX = lambda x,y,z: Eval(x,y,z)[:,:,0]
         EvalY = lambda x,y,z: Eval(x,y,z)[:,:,1]    
         
-        # ax = plt.subplots()[1]
-        # ax.axis('equal')
-        # angle = np.linspace(0, np.pi*2, 360)
-        # ax.scatter(0,0,marker='+', c='black')
-        # ax.plot(d/2*np.cos(angle),d/2*np.sin(angle), c="black")
-        
-        # sig = d/2
-        # angle = np.linspace(0, np.pi, 21)
+        if pltLoadInHole:
+            ax = plt.subplots()[1]
+            ax.axis('equal')
+            angle = np.linspace(0, np.pi*2, 360)
+            ax.scatter(0,0,marker='+', c='black')
+            ax.plot(D/2*np.cos(angle),D/2*np.sin(angle), c="black")
+            
+            sig = D/2
+            angle = np.linspace(0, np.pi, 21)
 
-        # x = - d/2 * np.cos(angle)
-        # y = - d/2 * np.sin(angle)
+            x = - D/2 * np.cos(angle)
+            y = - D/2 * np.sin(angle)
 
-        # coord = np.zeros((x.size,2))
-        # coord[:,0] = x; coord[:,1] = y
-        # # ax.plot(x,y, c="red")
+            coord = np.zeros((x.size,2))
+            coord[:,0] = x; coord[:,1] = y
+            # ax.plot(x,y, c="red")
 
-        # vectN = normalize_vect(coord)
+            vectN = Normalize_vect(coord)
 
-        # f = sig * np.einsum("n,ni->ni", np.sin(angle)**2, vectN)
-        # f[np.abs(f)<=1e-12] = 0
+            f = sig * np.einsum("n,ni->ni", np.sin(angle)**2, vectN)
+            f[np.abs(f)<=1e-12] = 0
 
-        # [ax.arrow(x[i], y[i], f[i,0], f[i,1], color='red', head_width=1e-1*2, length_includes_head=True) for i in range(angle.size)]
-        # ax.plot((coord+f)[:,0], (coord+f)[:,1], c='red')
-        # ax.set_axis_off()
+            [ax.arrow(x[i], y[i], f[i,0], f[i,1], color='red', head_width=1e-1*2, length_includes_head=True) for i in range(angle.size)]
+            ax.plot((coord+f)[:,0], (coord+f)[:,1], c='red')
+            ax.set_axis_off()
 
-        # Display.Save_fig(folder, 'illustration')
+            # Display.Save_fig(folder, 'illustration')
 
-        # # ax.annotate("$x$",xy=(1,0),xytext=(0,0),arrowprops=dict(arrowstyle="->"), c='black')    
+            # ax.annotate("$x$",xy=(1,0),xytext=(0,0),arrowprops=dict(arrowstyle="->"), c='black')
 
     else:
         surf = t * L
         nodesLoad = mesh.Nodes_Conditions(lambda x,y,z: y==H)
 
-    # simu.Solve()
-
+    # --------------------------------------------------------------------------------------------
+    # Simulation
+    # --------------------------------------------------------------------------------------------
     array_f = np.linspace(0, 4, 10)*1000
     # array_f = np.array([2000])
 
-    list_psiP = []
+    list_psiP: list[float] = []
 
     for f in array_f:
 
@@ -240,7 +245,7 @@ if __name__  == '__main__':
         print(f"f = {f/1000:.3f} kN -> psiP/psiC = {list_psiP[-1]/psiC:.2e}")
 
     # --------------------------------------------------------------------------------------------
-    # PostProcessing
+    # Results
     # --------------------------------------------------------------------------------------------
     if len(list_psiP) > 1:
         axLoad = plt.subplots()[1]
@@ -255,15 +260,16 @@ if __name__  == '__main__':
         Display.Save_fig(folder, "Load")
 
     Display.Plot_Mesh(mesh)
-    ax = Display.Plot_BoundaryConditions(simu, folder=folder)
-    # if dim == 2:    
-    #     f_v = simu.Get_K_C_M_F()[0] @ simu.displacement
-    #     f_m = f_v.reshape(-1,2)
-    #     f_m *= 1
-    #     nodes = np.concatenate([nodesLoad, nodesLower])
-    #     xn,yn,zn = mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2]
-    #     # ax.quiver(xn[nodes], yn[nodes], f_m[nodes,0], f_m[nodes,1], color='red', width=1e-3, scale=1e3)
-    #     ax.quiver(xn, yn, f_m[:,0], f_m[:,1], color='red', width=1e-3, scale=1e4)
+    
+    if dim == 2 and pltLoadInHole:
+        ax = Display.Plot_BoundaryConditions(simu, folder=folder)
+        f_v = simu.Get_K_C_M_F()[0] @ simu.displacement
+        f_m = f_v.reshape(-1,2)
+        f_m *= 1
+        nodes = np.concatenate([nodesLoad, nodesLower])
+        xn,yn,zn = mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2]
+        # ax.quiver(xn[nodes], yn[nodes], f_m[nodes,0], f_m[nodes,1], color='red', width=1e-3, scale=1e3)
+        ax.quiver(xn, yn, f_m[:,0], f_m[:,1], color='red', width=1e-3, scale=1e4)
 
     Display.Plot_Result(simu, psiP_e, title="$\psi^+$", nodeValues=False)
     ax = Display.Plot_Result(simu, psiP_e/psiC, nodeValues=True, title="$\psi^+ \ / \ \psi_c$", colorbarIsClose=False)[1]

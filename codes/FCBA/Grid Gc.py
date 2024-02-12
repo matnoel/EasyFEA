@@ -1,3 +1,5 @@
+"""Code used to plot the cost function as a function of gc and l on a grid."""
+
 import numpy as np
 import pandas as pd
 import pickle
@@ -137,6 +139,9 @@ if __name__ == "__main__":
 
         path = Folder.New_File("data.pickle", folder_save)
 
+        # --------------------------------------------------------------------------------------------
+        # Simulation
+        # --------------------------------------------------------------------------------------------
         if doSimulation:
 
             L0, GC = np.meshgrid(l0_array, Gc_array)
@@ -144,6 +149,7 @@ if __name__ == "__main__":
             results = np.zeros((N, N), dtype=float)
 
             if useParallel:
+                # get the value in parralel
                 items = [(idxEssai,g,l) for g in range(N) for l in range(N)]
                 with multiprocessing.Pool(nProcs) as pool:
                     for res in pool.starmap(DoSimu, items):
@@ -174,7 +180,7 @@ if __name__ == "__main__":
         results = results**2
 
         # --------------------------------------------------------------------------------------------
-        # Post-Processing
+        # Results
         # --------------------------------------------------------------------------------------------                
         lMax = L0.max()
         cols = np.where(L0[0] <= lMax)[0]

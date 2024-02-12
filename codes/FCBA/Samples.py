@@ -1,3 +1,5 @@
+"""Code used to generate the samples."""
+
 import Display
 import Folder
 import Materials
@@ -18,6 +20,8 @@ if __name__ == '__main__':
     N = int(1e6)
     saveFig = True
 
+    # Check if there is not already an existing file
+
     samplesFile = Folder.Join(folder_save, 'samples.pickle')
 
     if Folder.Exists(samplesFile):
@@ -37,9 +41,8 @@ if __name__ == '__main__':
     if makeSamples:
 
         # --------------------------------------------------------------------------------------------
-        # Import
+        # Import experimental data with the identified hyper parameters
         # --------------------------------------------------------------------------------------------
-
         dfParams = Functions.dfParams.copy()
         n = dfParams.shape[0]
         EL_exp: np.ndarray = dfParams["El"].values * 1e-3 # GPa
@@ -75,26 +78,22 @@ if __name__ == '__main__':
         # --------------------------------------------------------------------------------------------
         # Make samples
         # --------------------------------------------------------------------------------------------
-        
         gc_s = stats.gamma.rvs(a_gc, scale=b_gc, size=N)
         c4_s = stats.gamma.rvs(a4, scale=b4, size=N)
         c5_s = stats.gamma.rvs(a5, scale=b5, size=N)
-
-        # t = stats.gamma.interval(0.95, a_gc, scale=b_gc)
 
         coef = .2 # coef to multiply cov
         cov = 1/l * np.array([[-m_c1_d**2, -m_c3_d**2, -m_c1_d*m_c3_d],
                             [-m_c3_d**2, -m_c2_d**2, -m_c2_d*m_c3_d],
                             [-m_c1_d*m_c3_d, -m_c2_d*m_c3_d, -(m_c3_d**2 + m_c1_d*m_c2_d)/2]])
             
-        def p_C(c: np.ndarray):
+        def p_C123(c: np.ndarray):
             """Function to samples in"""
             c1, c2, c3 = tuple(c[:3])
             p = (c1*c2-c3**2)**-l * np.exp(-l1*c1 -l2*c2 -l3*c3)
             return p
 
-        def Metropolis_Hastings_C(c_0: np.ndarray, burn_in: int, nSamples: int):
-            # in this function we use a normal distribution as our guess function
+        def Metropolis_Hastings_C123(c_0: np.ndarray, burn_in: int, nSamples: int):
 
             # pdf multivariate normal with mean t0 and covariance cov evaluated in t1    
             q = lambda c_t1, c_t0: stats.multivariate_normal.pdf(c_t1, c_t0, cov)
@@ -113,7 +112,7 @@ if __name__ == '__main__':
                 c_tp1 = stats.multivariate_normal.rvs(c_t, cov*coef)
 
                 # accept ratio
-                a = p_C(c_tp1)/p_C(c_t)
+                a = p_C123(c_tp1)/p_C123(c_t)
                 # a = (p_C(c_tp1) * q(c_t, c_tp1))/(p_C(c_t) * q(c_tp1, c_t))
                 # test = q(c_t, c_tp1)/q(c_tp1, c_t) # = 1 if the guess function is symmetric
                 # assert test == 1
@@ -130,10 +129,9 @@ if __name__ == '__main__':
 
             rejectRatio: float = 1 - len(samples)/nSamples
 
-            return np.array(samples), rejectRatio
+            return np.asarray(samples), rejectRatio
 
-        c1c2c3_s, rejectRatio = Metropolis_Hastings_C(m_c_d[:3], 0, N)
-        
+        c1c2c3_s, rejectRatio = Metropolis_Hastings_C123(m_c_d[:3], 0, N)
 
         print(f'\nrejectRatio {rejectRatio*100:3.1f} %') # [20 25] is good modify coef -> cov*coef
 
@@ -162,9 +160,8 @@ if __name__ == '__main__':
             samples: np.ndarray = pickle.load(f)
 
     # --------------------------------------------------------------------------------------------
-    # Make samples
+    # Plot the generated samples
     # --------------------------------------------------------------------------------------------
-
     n = samples.shape[0]
 
     params = ['c1','c2','c3','c4','c5','gc']

@@ -1,3 +1,5 @@
+"""Post process the experimental data."""
+
 import Display
 import Folder
 
@@ -15,9 +17,9 @@ folder_iden = Folder.New_File(Folder.Join("FCBA", "Identification"), results=Tru
 if __name__ == '__main__':
 
     # --------------------------------------------------------------------------------------------
-    # FEMU
+    # FEMU Elas
     # --------------------------------------------------------------------------------------------
-    Display.Section("FEMU")
+    Display.Section("FEMU Elas")
 
     df = Functions.dfParams.copy()
 

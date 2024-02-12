@@ -1,3 +1,5 @@
+"""Code used for conducting the identification of damage properties."""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -36,7 +38,6 @@ GcMax = 2
 lb = [1e-12] if not detectL0 else [1e-12, 1e-12]
 ub = [GcMax] if not detectL0 else [GcMax, L/20]
 x0 = [Gc_init] if not detectL0 else [Gc_init, l0_init]
-
 
 # solver -> solver used to minimize
 # (0, least_squares), (1, minimize)
@@ -132,7 +133,9 @@ if __name__ == '__main__':
 
     for idxEssai in np.arange(0,9):
 
-        # folder to save in
+        # --------------------------------------------------------------------------------------------
+        # Folder
+        # --------------------------------------------------------------------------------------------
         add = "0" if idxEssai < 10 else ""
         essai = f"Essai{add}{idxEssai}"
         folder_essai = Folder.Join(folder, essai)
@@ -149,7 +152,7 @@ if __name__ == '__main__':
         print(folder_save.replace(folder, ''))
 
         # --------------------------------------------------------------------------------------------
-        # Datas
+        # Datas and Mesh
         # --------------------------------------------------------------------------------------------
         forces, deplacements, f_crit = Functions.Get_loads_informations(idxEssai, useRedim=True)
         print(f"fcrit = {f_crit}")
@@ -237,7 +240,7 @@ if __name__ == '__main__':
             simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder_save)
         
         # --------------------------------------------------------------------------------------------
-        # PostProcessing
+        # Results
         # --------------------------------------------------------------------------------------------
         deplacementsIdentif = []
         forcesIdentif = []

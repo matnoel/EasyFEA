@@ -1,3 +1,5 @@
+"""Code used to perform phase field simulations with FCBA samples"""
+
 from typing import cast
 import numpy as np
 import pandas as pd
@@ -13,7 +15,6 @@ import Materials
 import Simulations
 import PostProcessing
 import Functions
-from Simu_Laura import DoMesh as DoMesh_Laura
 
 Display.Clear()
 
@@ -21,22 +22,13 @@ folder_file = Folder.Get_Path(__file__)
 
 if __name__  == '__main__':
 
-    dim = 3
-    idxEssai = 10
-    model = 1 # 0 -> essai Matthieu et 1 -> essai Laura
-
-    # phase field
-    split = "He" # he, Zhang, AnisotStress
-    regu = "AT1"
-    tolConv = 1e-0 # 1e-0, 1e-1, 1e-2
-    convOption = 2
-    # (0, bourdin)
-    # (1, crack energy)
-    # (2, crack + strain energy)
-
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
+
+    dim = 3
+    idxEssai = 10
+    model = 1 # 0 -> essai Matthieu et 1 -> essai Laura
 
     test = True
     solve = True
@@ -49,6 +41,15 @@ if __name__  == '__main__':
     pltContact = True
     makeParaview = False
     makeMovie = False
+
+    # phase field
+    split = "He" # he, Zhang, AnisotStress
+    regu = "AT1"
+    tolConv = 1e-0 # 1e-0, 1e-1, 1e-2
+    convOption = 2
+    # (0, bourdin)
+    # (1, crack energy)
+    # (2, crack + strain energy)
 
     folderName = 'FCBA'
     if model == 1:
@@ -65,9 +66,8 @@ if __name__  == '__main__':
         folder_essai = Folder.Join(folder_essai, 'Contact')
 
     # --------------------------------------------------------------------------------------------
-    # Geom
-    # --------------------------------------------------------------------------------------------
-    
+    # Geometry
+    # --------------------------------------------------------------------------------------------    
     if model == 0:    
         # geom
         H = 90
@@ -110,16 +110,14 @@ if __name__  == '__main__':
         simu = Simulations.Load_Simu(folder_save)
         simu = cast(Simulations.Simu_PhaseField, simu)
 
-    
-
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
-
     if model == 0:
         mesh = Functions.DoMesh(dim,L,H,D,thickness,l0,test, optimMesh)
     else:
-        mesh = DoMesh_Laura(dim,L,H,D,h,D2,h2,thickness,l0,test,optimMesh)
+        from codes.FCBA.Simu_Elas import DoMesh_FCBA
+        mesh = DoMesh_FCBA(dim,L,H,D,h,D2,h2,thickness,l0,test,optimMesh)
 
     nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
@@ -128,10 +126,7 @@ if __name__  == '__main__':
 
     dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(dim, 'displacement', nodes_upper, ['y'])
 
-    axMesh = Display.Plot_Mesh(mesh)
-
     if useContact:
-
         # width = 5
         # master = Domain(Point(-width, h), Point(l+width, h+width), (l+2*width)/20)
         # master_mesh = Interface_Gmsh().Mesh_2D(master, [], ElemType.QUAD4, isOrganised=True)
@@ -153,9 +148,10 @@ if __name__  == '__main__':
 
         dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(dim, 'displacement', slaveNodes, ['y'])
         
-        Display.Plot_Mesh(master_mesh, ax=axMesh)
-        Display.Plot_Nodes(mesh, slaveNodes, ax=axMesh)
-        Display._Axis_equal_3D(axMesh, mesh.coordo)
+        # axMesh = Display.Plot_Mesh(mesh)
+        # Display.Plot_Mesh(master_mesh, ax=axMesh)
+        # Display.Plot_Nodes(mesh, slaveNodes, ax=axMesh)
+        # Display._Axis_equal_3D(axMesh, mesh.coordo)
 
     # --------------------------------------------------------------------------------------------
     # Import Loading
@@ -187,7 +183,6 @@ if __name__  == '__main__':
     Betha = material.El/material.Et
     Betha = 0
     A = np.eye(dim) + Betha * (np.eye(dim) - M)
-
 
     pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0, A=A)
 
@@ -246,6 +241,9 @@ if __name__  == '__main__':
             axLoad.grid()
             Display.Save_fig(folder_save, "load")
 
+        # --------------------------------------------------------------------------------------------
+        # Simulation
+        # --------------------------------------------------------------------------------------------
         dep = -inc0
         fr = 0
         i = -1
@@ -322,15 +320,13 @@ if __name__  == '__main__':
                     factorDef = 1 if pltContact else 0
                     _, axIter, cbIter = Display.Plot_Result(simu, "damage", ax=axIter, deformFactor=factorDef)
 
-                title = axIter.get_title()
-
+                # title = axIter.get_title()
                 # if pltContact and useContact:
                 #     # Display.Plot_Mesh(master_mesh, alpha=0, ax=axIter)
                 #     if nodes_cU.size > 0:
                 #         Display.Plot_Nodes(mesh, nodes_cU, ax=axIter)
                 #         Display._ScaleChange(axIter, mesh.coordo)
-
-                title = axIter.set_title(title)
+                # title = axIter.set_title(title)
 
                 plt.figure(axIter.figure)        
                 
@@ -340,6 +336,9 @@ if __name__  == '__main__':
                 print("\nPas de convergence")
                 break
 
+        # --------------------------------------------------------------------------------------------
+        # Save
+        # --------------------------------------------------------------------------------------------
         damageMax = np.array(damageMax)
         list_fr = np.array(list_fr)
         list_dep = np.array(list_dep)
@@ -356,6 +355,9 @@ if __name__  == '__main__':
 
         simu.Save(folder_save)
 
+    # --------------------------------------------------------------------------------------------
+    # Results
+    # --------------------------------------------------------------------------------------------
     Display.Plot_Result(simu, 'damage', folder=folder_save, colorbarIsClose=True)
 
     if makeParaview:
