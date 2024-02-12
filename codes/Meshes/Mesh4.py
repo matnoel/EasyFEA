@@ -30,9 +30,9 @@ if __name__ == '__main__':
     axis = Line(Point(), Point(radius/3,height))
     axis.name = 'rot axis'
 
-    angle = np.pi * 2 * 4/6
+    angle = 360 * 4/6
 
-    perimeter = angle * radius
+    perimeter = angle * np.pi/180 * radius
 
     layers = [perimeter // meshSize]
 

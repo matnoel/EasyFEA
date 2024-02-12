@@ -381,7 +381,7 @@ class Mesher:
 
         return extruEntities
     
-    def _Revolve(self, surfaces: list[int], axis: Line, angle: float= np.pi*2, elemType: ElemType=ElemType.TETRA4, layers:list[int]=[30]) -> list[tuple[int, int]]:
+    def _Revolve(self, surfaces: list[int], axis: Line, angle: float= 360, elemType: ElemType=ElemType.TETRA4, layers:list[int]=[30]) -> list[tuple[int, int]]:
         """Function that revolves multiple surfaces and returns revolved entities.
 
         Parameters
@@ -391,7 +391,7 @@ class Mesher:
         axis : Line
             revolution axis
         angle: float, optional
-            revolution angle, by default 2*pi
+            revolution angle in deg, by default 2*pi
         elemType : ElemType, optional
             element type used
         layers: list[int], optional
@@ -399,6 +399,8 @@ class Mesher:
         """
         
         factory = self._factory
+
+        angle = angle * np.pi/180
 
         angleIs2PI = np.abs(angle) == 2 * np.pi
 
@@ -974,7 +976,7 @@ class Mesher:
         return self._Construct_Mesh()
     
     def Mesh_Revolve(self, contour: _Geom, inclusions: list[_Geom]=[],
-                     axis: Line=Line(Point(), Point(0,1)), angle=2*np.pi, layers:list[int]=[30], elemType=ElemType.TETRA4,
+                     axis: Line=Line(Point(), Point(0,1)), angle=360, layers:list[int]=[30], elemType=ElemType.TETRA4,
                      cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
                      isOrganised=False, surfaces:list[tuple[_Geom, list[_Geom]]]=[],  folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
@@ -987,8 +989,8 @@ class Mesher:
             list of hollow and non-hollow objects inside the domain
         axis : Line, optional
             revolution axis, by default Line(Point(), Point(0,1))
-        angle : _type_, optional
-            revolution angle, by default 2*np.pi
+        angle : float|int, optional
+            revolution angle in [deg], by default 360
         layers: list[int], optional
             layers in extrusion, by default [30]
         elemType : ElemType, optional
