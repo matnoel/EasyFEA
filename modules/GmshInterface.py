@@ -1,5 +1,5 @@
-"""Interface module with gmsh (https://gmsh.info/).
-This module lets you manipulate _Geom objects to create meshes."""
+"""Module providing an interface with Gmsh (https://gmsh.info/).\n
+This module facilitates the manipulation of _Geom objects to create meshes through Gmsh with ease."""
 
 import gmsh
 import sys
