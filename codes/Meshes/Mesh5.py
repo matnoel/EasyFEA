@@ -1,6 +1,6 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, Line, Circle, Points, Domain, Contour
+from Interface_Gmsh import Mesher, ElemType
+from Geoms import Point, Line, Points, Domain, Contour
 import Simulations
 import Materials
 
@@ -15,12 +15,12 @@ if __name__ == '__main__':
 
     def DoMesh(dim, elemType, cracks=[]):
         if dim == 2:
-            mesh = Interface_Gmsh().Mesh_2D(contour, [], elemType, cracks)
+            mesh = Mesher().Mesh_2D(contour, [], elemType, cracks)
         elif dim == 3:
             # WARNING :
             # only works with TETRA4 and TETRA10
             # only works with nLayers = []            
-            mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, L], [], elemType, cracks)
+            mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, L], [], elemType, cracks)
 
 
         material = Materials.Elas_Isot(dim)

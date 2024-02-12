@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import Display
 import PostProcessing
 import Folder
-from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Circle, Domain, Line, Point
+from Interface_Gmsh import Mesher, ElemType
+from Geoms import Circle, Domain, Point
 import Materials
 import Simulations
 import numpy as np
@@ -38,9 +38,9 @@ if __name__ == '__main__':
 
     # Generate the mesh based on the specified dimension
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3)
+        mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0, 0, -a], [4], ElemType.PRISM6)
+        mesh = Mesher().Mesh_Extrude(domain, [circle], [0, 0, -a], [4], ElemType.PRISM6)
 
     noeudsX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     noeudsXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)

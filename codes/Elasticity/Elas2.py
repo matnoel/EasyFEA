@@ -2,7 +2,7 @@
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Point, Points, Circle, Domain
+from Interface_Gmsh import Mesher, ElemType, Point, Points, Circle, Domain
 import Simulations
 import Materials
 
@@ -44,9 +44,9 @@ if __name__ == '__main__':
     inclusions.extend([Domain(Point(x=h, y=h/2 - h*0.1), Point(x=h*2.1, y=h/2 + h*0.1), isHollow=False, meshSize=h/N)])
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, ElemType.TRI3)
+        mesh = Mesher().Mesh_2D(contour, inclusions, ElemType.TRI3)
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0, 0, -h], [4], elemType=ElemType.TETRA4)
+        mesh = Mesher().Mesh_Extrude(contour, inclusions, [0, 0, -h], [4], elemType=ElemType.TETRA4)
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)

@@ -1,7 +1,7 @@
 from scipy.optimize import least_squares
 import pandas as pd
 
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Point, Points, Circle
 import Display
 import Materials
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
     circle = Circle(Point(h/3, h/3), 10, meshSize, isHollow)
 
-    mesh = Interface_Gmsh(False, False).Mesh_2D(contour, [circle], ElemType.TRI3)
+    mesh = Mesher(False, False).Mesh_2D(contour, [circle], ElemType.TRI3)
 
     if pltMesh:
         Display.Plot_Mesh(mesh)

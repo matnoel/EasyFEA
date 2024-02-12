@@ -8,7 +8,7 @@ import pandas as pd
 
 import Simulations
 import Display
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Mesher
 import Materials
 import Geoms
 import Folder
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     pt2 = Geoms.Point(*coordInter[1, :])
     circleArc1 = Geoms.CircleArc(pt1, pt2, pZone, meshSize=meshSize, coef=-1)
 
-    mesh = Interface_Gmsh().Mesh_2D(domain, [circle], "TRI3", cracks=[circleArc1])
+    mesh = Mesher().Mesh_2D(domain, [circle], "TRI3", cracks=[circleArc1])
     xn = mesh.coordo[:,0]
     yn = mesh.coordo[:,1]
 

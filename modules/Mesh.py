@@ -497,6 +497,59 @@ class Mesh:
     def Locates_sol_e(self, sol: np.ndarray) -> np.ndarray:
         """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol)
+    
+    def Get_Node_Values(self, result_e: np.ndarray) -> np.ndarray:
+        """Get node values from element values.\n
+        The value of a node is calculated by averaging the values of the surrounding elements.
+
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        result_e : np.ndarray
+            element values (Ne, i)
+
+        Returns
+        -------
+        np.ndarray
+            nodes values (Nn, i)
+        """
+
+        assert self.Ne == result_e.shape[0], "Must be of size (Ne,i)"
+
+        tic = TicTac.Tic()
+
+        Ne = self.Ne
+        Nn = self.Nn
+
+        if len(result_e.shape) == 1:
+            # In this case it is a 1d vector
+            # we need to reshape as
+            result_e = result_e.reshape(Ne,1)
+            isDim1 = True
+        else:
+            isDim1 = False
+        
+        nCols = result_e.shape[1]
+
+        result_n = np.zeros((Nn, nCols), dtype=float)
+
+        # connectivity of the nodes
+        connect_n_e = self.Get_connect_n_e()
+        # get elements per ndoes
+        elements_n = np.reshape(np.sum(connect_n_e, axis=1), (Nn, 1))
+
+        for c in range(nCols):
+            values_e = result_e[:, c].reshape(Ne,1)
+            values_n = (connect_n_e @ values_e) * 1/elements_n
+            result_n[:,c] = values_n.reshape(-1)
+
+        tic.Tac("PostProcessing","Element to nodes values", False)
+
+        if isDim1:
+            return result_n.reshape(-1)
+        else:
+            return result_n
 
 def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarray:
     """Returns the scalar field (at nodes) to be used to refine the mesh.
@@ -523,9 +576,8 @@ def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarr
     h_e = mesh.Get_meshSize()
 
     meshSize_e = (coef - 1) / error_e.max() * error_e + 1
-
-    import Simulations
-    meshSize_n = Simulations._Simu.Results_Exract_Node_Values(mesh, meshSize_e * h_e)
+    
+    meshSize_n = mesh.Get_Node_Values(meshSize_e * h_e)
 
     return meshSize_n
 

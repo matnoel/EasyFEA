@@ -1,6 +1,6 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, Line, Circle, Points, Domain
+from Interface_Gmsh import Mesher, ElemType
+from Geoms import Point, Domain
 
 if __name__ == '__main__':
 
@@ -8,11 +8,13 @@ if __name__ == '__main__':
 
     contour = Domain(Point(), Point(1,1,1))
 
+    Mesher.Mesh_Extrude
+
     def DoMesh(dim, elemType):
         if dim == 2:
-            mesh = Interface_Gmsh().Mesh_2D(contour, [], elemType, isOrganised=True)
+            mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
         elif dim == 3:
-            mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, 1], [10], elemType=elemType, isOrganised=True)
+            mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, 1], [10], elemType=elemType, isOrganised=True)
 
         Display.Plot_Mesh(mesh)
 

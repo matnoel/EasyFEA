@@ -1,7 +1,8 @@
-from Interface_Gmsh import gmsh, Interface_Gmsh, ElemType
-from Geoms import Point, Circle, Domain, Points, Line, CircleArc, Contour
+from Interface_Gmsh import Mesher, ElemType, gmsh
+from Geoms import Point, Circle, Points, Line, CircleArc, Contour
 import Display
 import Folder
+
 import numpy as np
 
 folder = Folder.Get_Path(__file__)
@@ -44,7 +45,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
-    interface = Interface_Gmsh(False, True, True)
+    interface = Mesher(False, True, True)
     factory = interface._factory
     
 

@@ -53,7 +53,7 @@ if __name__ == '__main__':
     domain = Domain(point, Point(x=L, y=h), clD)
     circle = Circle(Point(x=L/2, y=h/2), diam, clC)
 
-    interfaceGmsh = Interface_Gmsh.Interface_Gmsh(openGmsh=False)
+    interfaceGmsh = Interface_Gmsh.Mesher(openGmsh=False)
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], "TRI3")
 
     # Nodes

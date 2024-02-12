@@ -1,5 +1,5 @@
 import Folder
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Normalize_vect, Point, Points, Line, Circle
 import Display
 import Materials
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     else:
         raise Exception('Unknown geom')
 
-    mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType)
+    mesh = Mesher().Mesh_2D(contour, inclusions, elemType)
 
     Display.Plot_Mesh(mesh)
     Display.Plot_Tags(mesh)

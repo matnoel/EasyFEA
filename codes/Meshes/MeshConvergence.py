@@ -1,12 +1,12 @@
 from Geoms import Domain, Point
-from Mesh import Mesh
 import Materials
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType, Mesh
 import Simulations
-import Display as Display
+import Display
 from TicTac import Tic
 import Folder
 import PostProcessing
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     # elemTypes = [elem.name for elem in elemTypes.copy()]
 
-    interfaceGmsh = Interface_Gmsh()
+    interfaceGmsh = Mesher()
 
     for e, elemType in enumerate(elemTypes):
         
@@ -87,7 +87,7 @@ if __name__ == '__main__':
                 mesh = interfaceGmsh.Mesh_2D(domain, [], elemType, isOrganised=isOrganised)
                 volume = mesh.area * material.thickness
             else:
-                mesh = interfaceGmsh.Mesh_3D(domain, [], elemType=elemType, extrude=[0, 0, b], layers=[4], isOrganised=isOrganised)
+                mesh = interfaceGmsh.Mesh_Extrude(domain, [], elemType=elemType, extrude=[0, 0, b], layers=[4], isOrganised=isOrganised)
                 volume = mesh.volume
             # Ensure that the volume matches the expected value (L * h * b)
             assert np.abs(volume - (L * h * b)) / volume <= 1e-10

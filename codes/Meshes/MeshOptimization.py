@@ -1,15 +1,15 @@
-import os
-import matplotlib.pyplot as plt
-
 import Folder
 import PostProcessing
 import Display
 from Geoms import *
 import Materials
 from Mesh import Mesh, Calc_projector, Calc_New_meshSize_n
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 import Simulations
 from TicTac import Tic
+
+import os
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
@@ -152,14 +152,14 @@ if __name__ == '__main__':
         inclusions = []
 
     # Create an instance of the Gmsh interface
-    interfaceGmsh = Interface_Gmsh()
+    interfaceGmsh = Mesher()
 
     def DoMesh(refineGeoms=[]) -> Mesh:
         """Function used for mesh generation"""
         if dim == 2:
             return interfaceGmsh.Mesh_2D(points, inclusions, elemType, [], refineGeoms)
         else:
-            return interfaceGmsh.Mesh_3D(points, inclusions, [0,0,b], [5], elemType, [], refineGeoms)
+            return interfaceGmsh.Mesh_Extrude(points, inclusions, [0,0,b], [5], elemType, [], refineGeoms)
 
     # Construct the initial mesh
     mesh = DoMesh()

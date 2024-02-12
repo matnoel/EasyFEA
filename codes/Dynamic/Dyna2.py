@@ -3,7 +3,7 @@ import numpy as np
 import Simulations
 import Materials
 from Geoms import Domain, Point, Circle, Line
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 import Display
 import PostProcessing
 import Folder
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     domain = Domain(Point(x=-a / 2, y=-a / 2), Point(x=a / 2, y=a / 2), meshSize)
     circle = Circle(Point(), diam, meshSize, isHollow=False)
     line = Line(Point(), Point(diam / 4))
-    interfaceGmsh = Interface_Gmsh(False)
+    interfaceGmsh = Mesher(False)
     mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.TRI3, cracks=[line])
 
     # Plot the model if specified

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import Display
 import PostProcessing
 import Folder
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Circle, Domain, Line, Point
 import Materials
 import Simulations
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     # Generate the mesh based on the specified dimension
     angle = 2*np.pi*3/4
-    mesh = Interface_Gmsh().Mesh_Revolve(domain, [], axis, angle, [angle*R/domain.meshSize], elemType=ElemType.HEXA8, isOrganised=True)
+    mesh = Mesher().Mesh_Revolve(domain, [], axis, angle, [angle*R/domain.meshSize], elemType=ElemType.HEXA8, isOrganised=True)
 
     noeudsY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     noeudsYH = mesh.Nodes_Conditions(lambda x, y, z: y == h)

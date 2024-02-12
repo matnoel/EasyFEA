@@ -5,7 +5,7 @@ import os
 import pickle
 from datetime import datetime
 from types import LambdaType
-from typing import Union, cast
+from typing import Union
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -13,7 +13,7 @@ from scipy import sparse
 from Mesh import Mesh, MatrixType, ElemType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 import Materials
-from Materials import ModelType, _IModel, _Displacement_Model, Beam_Structure, PhaseField_Model, Thermal_Model, Reshape_variable
+from Materials import ModelType, _IModel, Reshape_variable
 from TicTac import Tic
 from Interface_Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
 import Folder
@@ -39,8 +39,6 @@ def Load_Simu(folder: str, verbosity=False):
     assert Folder.Exists(path_simu), error
 
     with open(path_simu, 'rb') as file:
-        import Interface_Solvers
-        Interface_Solvers = Interface_Solvers
         simu = pickle.load(file)    
 
     assert isinstance(simu, _Simu), 'Must be a simu object'
@@ -409,14 +407,14 @@ class _Simu(ABC):
         # Empty matrices in element groups
         self.mesh._ResetMatrix()
 
-        folder_PythonEF = Folder.Get_Path(Folder.Get_Path()) # path the PythonEF folder
+        folder_EasyFEA = Folder.Get_Path(Folder.Get_Path()) # path the EasyFEA folder
         # this path will be removed in print
 
         # Save simulation
         path_simu = Folder.New_File("simulation.pickle", folder)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        myPrint(f'\n{path_simu.replace(folder_PythonEF,"")} (saved)', 'green')
+        myPrint(f'\n{path_simu.replace(folder_EasyFEA,"")} (saved)', 'green')
         
         # Save simulation summary
         path_summary = Folder.New_File("summary.txt", folder)
@@ -424,7 +422,7 @@ class _Simu(ABC):
         summary += str(self)        
         with open(path_summary, 'w', encoding='utf8') as file:
             file.write(summary)
-        myPrint(f'{path_summary.replace(folder_PythonEF,"")} (saved)', 'green')
+        myPrint(f'{path_summary.replace(folder_EasyFEA,"")} (saved)', 'green')
 
     # TODO Enable simulation creation from the variational formulation ?
 
@@ -520,7 +518,7 @@ class _Simu(ABC):
     def mesh(self, mesh: Mesh):        
         if isinstance(mesh, Mesh):
             # For all old meshes, delete the matrices
-            listMesh = cast(list[Mesh], self.__listMesh)
+            listMesh: list[Mesh] = self.__listMesh
             [m._ResetMatrix() for m in listMesh]
 
             self.__indexMesh += 1
@@ -1474,8 +1472,6 @@ class _Simu(ABC):
     
     # ------------------------------------------- Results ------------------------------------------- 
 
-    # TODO jusque ici
-
     def _Results_Check_Available(self, result: str) -> bool:
         """Check that the result is available"""
         availableResults = self.Results_Available()
@@ -1500,60 +1496,6 @@ class _Simu(ABC):
     def Results_Get_Bc_Summary(self) -> str:
         """Simulation loading summary"""
         return "Unknown load"
-        
-    @staticmethod
-    def Results_Exract_Node_Values(mesh: Mesh, result_e: np.ndarray) -> np.ndarray:
-        """Get node values from element values.\n
-        The value of a node is calculated by averaging the values of the surrounding elements.
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        result_e : np.ndarray
-            element values (Ne, i)
-
-        Returns
-        -------
-        np.ndarray
-            nodes values (Nn, i)
-        """
-
-        assert mesh.Ne == result_e.shape[0], "Must be of size (Ne,i)"
-
-        tic = Tic()
-
-        Ne = mesh.Ne
-        Nn = mesh.Nn
-
-        if len(result_e.shape) == 1:
-            # In this case it is a 1d vector
-            # we need to reshape as
-            result_e = result_e.reshape(Ne,1)
-            isDim1 = True
-        else:
-            isDim1 = False
-        
-        nCols = result_e.shape[1]
-
-        result_n = np.zeros((Nn, nCols), dtype=float)
-
-        # connectivity of the nodes
-        connect_n_e = mesh.Get_connect_n_e()
-        # get elements per ndoes
-        elements_n = np.reshape(np.sum(connect_n_e, axis=1), (mesh.Nn, 1))
-
-        for c in range(nCols):
-            values_e = result_e[:, c].reshape(mesh.Ne,1)
-            values_n = (connect_n_e @ values_e) * 1/elements_n
-            result_n[:,c] = values_n.reshape(-1)
-
-        tic.Tac("PostProcessing","Element to nodes values", False)
-
-        if isDim1:
-            return result_n.reshape(-1)
-        else:
-            return result_n
         
     def Results_Reshape_values(self, values: np.ndarray, nodeValues: bool) -> np.ndarray:
         """
@@ -1594,7 +1536,7 @@ class _Simu(ABC):
                 # values stored at elements
                 values_e = values.reshape(Ne, -1)
                 # get node values from element values
-                values_n = self.Results_Exract_Node_Values(mesh, values_e)
+                values_n = self.mesh.Get_Node_Values(values_e)
                 return values_n.reshape(shape)
         else:
             shape = -1 if is1d else (Ne, -1)
@@ -1616,7 +1558,7 @@ class _Simu(ABC):
 
 class Simu_Displacement(_Simu):
 
-    def __init__(self, mesh: Mesh, model: _Displacement_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(self, mesh: Mesh, model: Materials._Displacement_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
         Creates a displacement simulation.
 
@@ -1663,7 +1605,7 @@ class Simu_Displacement(_Simu):
         return self.dim
 
     @property
-    def material(self) -> _Displacement_Model:
+    def material(self) -> Materials._Displacement_Model:
         """Elastic behavior."""
         return self.model
 
@@ -1955,11 +1897,13 @@ class Simu_Displacement(_Simu):
         tic = Tic()
         
         sol_u  = self.displacement
+
+        mesh = self.mesh
         
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
-        jacobian_e_pg = self.mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = self.mesh.Get_weight_pg(matrixType)
-        N_pg = self.mesh.Get_N_pg(matrixType)
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = mesh.Get_weight_pg(matrixType)
+        N_pg = mesh.Get_N_pg(matrixType)
 
         if self.dim == 2:
             ep = self.material.thickness
@@ -1969,9 +1913,9 @@ class Simu_Displacement(_Simu):
         Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg, matrixType)
 
         if smoothedStress:
-            Sigma_n = self.Results_Exract_Node_Values(self.mesh, np.mean(Sigma_e_pg, 1))
+            Sigma_n = mesh.Get_Node_Values(np.mean(Sigma_e_pg, 1))
 
-            Sigma_n_e = self.mesh.Locates_sol_e(Sigma_n)
+            Sigma_n_e = mesh.Locates_sol_e(Sigma_n)
             Sigma_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
 
         if returnScalar:
@@ -2142,7 +2086,7 @@ class Simu_Displacement(_Simu):
 
 class Simu_PhaseField(_Simu):
 
-    def __init__(self, mesh: Mesh, model: PhaseField_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(self, mesh: Mesh, model: Materials.PhaseField_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
         Creates a damage simulation.
 
@@ -2212,7 +2156,7 @@ class Simu_PhaseField(_Simu):
             return self.dim
 
     @property
-    def phaseFieldModel(self) -> PhaseField_Model:
+    def phaseFieldModel(self) -> Materials.PhaseField_Model:
         """Damage model"""
         return self.model
 
@@ -2372,7 +2316,7 @@ class Simu_PhaseField(_Simu):
             else:
                 convergence = convIter <= tolConv
                 
-        solverTypes = PhaseField_Model.SolverType
+        solverTypes = Materials.PhaseField_Model.SolverType
 
         if solver in [solverTypes.History, solverTypes.BoundConstrain]:
             d_np1 = d_np1            
@@ -2624,7 +2568,7 @@ class Simu_PhaseField(_Simu):
         iter["timeIter"] = self.__timeIter
         iter["convIter"] = self.__convIter
     
-        if self.phaseFieldModel.solver == PhaseField_Model.SolverType.History:
+        if self.phaseFieldModel.solver == Materials.PhaseField_Model.SolverType.History:
             # update old history field for next resolution
             self.__old_psiP_e_pg = self.__psiP_e_pg
             
@@ -2970,7 +2914,7 @@ class Simu_PhaseField(_Simu):
 
 class Simu_Beam(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Beam_Structure, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(self, mesh: Mesh, model: Materials.Beam_Structure, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
         Creates a Euler-Bernoulli beam simulation.
 
@@ -3015,7 +2959,7 @@ class Simu_Beam(_Simu):
         return [ModelType.beam]
 
     @property
-    def structure(self) -> Beam_Structure:
+    def structure(self) -> Materials.Beam_Structure:
         """Beam structure."""
         return self.model
 
@@ -3830,7 +3774,7 @@ class Simu_Beam(_Simu):
 
 class Simu_Thermal(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Thermal_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(self, mesh: Mesh, model: Materials.Thermal_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
         Creates a thermal simulation.
 
@@ -3869,7 +3813,7 @@ class Simu_Thermal(_Simu):
         return [ModelType.thermal]
 
     @property
-    def thermalModel(self) -> Thermal_Model:
+    def thermalModel(self) -> Materials.Thermal_Model:
         """Thermal simulation model."""
         return self.model
 

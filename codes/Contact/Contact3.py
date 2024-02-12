@@ -1,5 +1,8 @@
+# Frictionless contact assumption
+# WARNING : the assumption of small displacements is more than questionable for this simulation
+
 import Display
-from Interface_Gmsh import ElemType, Interface_Gmsh
+from Interface_Gmsh import ElemType, Mesher
 from Geoms import Point, Points, Domain
 import Materials
 import Simulations
@@ -48,11 +51,11 @@ if __name__ == '__main__':
     enca = Domain(p1 - [e, 5*t], p6 + [e])
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, elemType=ElemType.TRI3)
-        master_mesh = Interface_Gmsh().Mesh_2D(enca, elemType=ElemType.QUAD4, isOrganised=True)
+        mesh = Mesher().Mesh_2D(contour, elemType=ElemType.TRI3)
+        master_mesh = Mesher().Mesh_2D(enca, elemType=ElemType.QUAD4, isOrganised=True)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], [thickness//mS])
-        master_mesh = Interface_Gmsh().Mesh_3D(enca, [], [0,0,4*thickness], [thickness//mS], elemType=ElemType.HEXA8, isOrganised=True)
+        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,thickness], [thickness//mS])
+        master_mesh = Mesher().Mesh_Extrude(enca, [], [0,0,4*thickness], [thickness//mS], elemType=ElemType.HEXA8, isOrganised=True)
 
         mesh.translate(dz=-thickness/2)
         master_mesh.translate(dz=-4*thickness/2)

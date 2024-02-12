@@ -2,8 +2,8 @@
 # WARNING : the assumption of small displacements is more than questionable for this simulation
 
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
-from Geoms import Point, Domain, Circle, Points
+from Interface_Gmsh import Mesher, ElemType
+from Geoms import Point, Domain, Points
 import Materials
 import Simulations
 
@@ -37,9 +37,9 @@ if __name__ == '__main__':
     # slave mesh
     contour_slave = Domain(Point(-R/2,0), Point(R/2,height), meshSize)
     if dim == 2:
-        mesh_slave = Interface_Gmsh().Mesh_2D(contour_slave, [], ElemType.QUAD4, isOrganised=True)
+        mesh_slave = Mesher().Mesh_2D(contour_slave, [], ElemType.QUAD4, isOrganised=True)
     else:
-        mesh_slave = Interface_Gmsh().Mesh_3D(contour_slave, [], [0,0,-thickness], [4], ElemType.HEXA8, isOrganised=True)
+        mesh_slave = Mesher().Mesh_Extrude(contour_slave, [], [0,0,-thickness], [4], ElemType.HEXA8, isOrganised=True)
 
     nodes_slave = mesh_slave.Get_list_groupElem(dim-1)[0].nodes
     nodes_y0 = mesh_slave.Nodes_Conditions(lambda x,y,z: y==0)
@@ -57,9 +57,9 @@ if __name__ == '__main__':
         contour_master.translate(-R, -2, 1)
     yMax = height+np.abs(r)
     if dim == 2:
-        mesh_master = Interface_Gmsh().Mesh_2D(contour_master, [], ElemType.TRI3)
+        mesh_master = Mesher().Mesh_2D(contour_master, [], ElemType.TRI3)
     else:    
-        mesh_master = Interface_Gmsh().Mesh_3D(contour_master, [], [0,0,-thickness-2], [4], ElemType.TETRA4)
+        mesh_master = Mesher().Mesh_Extrude(contour_master, [], [0,0,-thickness-2], [4], ElemType.TETRA4)
     mesh_master.translate(dz=-(mesh_master.center[2]-mesh_slave.center[2]))
 
     # get master nodes

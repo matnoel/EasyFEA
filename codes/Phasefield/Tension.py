@@ -3,7 +3,7 @@ import PostProcessing
 import Folder
 import Materials
 from Geoms import *
-from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
+from Interface_Gmsh import Mesher, ElemType, Mesh
 import Simulations
 from TicTac import Tic
 
@@ -102,9 +102,9 @@ def DoMesh(materialType: str= "Elas_Isot") -> Mesh:
         cracks = [Contour([l1, l2, l3, l4])]
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
+        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,thickness], [3], ElemType.TETRA4, cracks, [refineDomain])
+        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,thickness], [3], ElemType.TETRA4, cracks, [refineDomain])
 
     return mesh
 

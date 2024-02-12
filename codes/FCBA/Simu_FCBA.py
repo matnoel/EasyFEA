@@ -7,7 +7,7 @@ import os
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Point, Domain, Circle
 import Materials
 import Simulations
@@ -143,10 +143,10 @@ if __name__  == '__main__':
             master = Circle(Point(L/2, H-h), D)
 
         if dim == 2:
-            master_mesh = Interface_Gmsh().Mesh_2D(master, [], ElemType.TRI3)
+            master_mesh = Mesher().Mesh_2D(master, [], ElemType.TRI3)
             slaveNodes = mesh.Nodes_Circle(master)
         elif dim == 3:
-            master_mesh = Interface_Gmsh().Mesh_3D(master, [], [0,0,thickness], [], ElemType.TETRA4)
+            master_mesh = Mesher().Mesh_Extrude(master, [], [0,0,thickness], [], ElemType.TETRA4)
             slaveNodes = mesh.Nodes_Cylinder(master, [0,0,thickness])
 
         # slaveNodes = slaveNodes[mesh.coordo[slaveNodes,1]<=(master.center.y-D/5)]

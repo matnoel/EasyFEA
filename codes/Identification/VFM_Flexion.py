@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 import Simulations
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 import Materials
 import Geoms
 
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     pt2 = Geoms.Point(L, h/2)
     domain = Geoms.Domain(pt1, pt2, meshSize)
 
-    mesh = Interface_Gmsh().Mesh_2D(domain,[],ElemType.TRI10)
+    mesh = Mesher().Mesh_2D(domain,[],ElemType.TRI10)
     xn = mesh.coordo[:,0]
     yn = mesh.coordo[:,1]
 

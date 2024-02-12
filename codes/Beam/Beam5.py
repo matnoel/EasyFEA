@@ -2,7 +2,8 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from Interface_Gmsh import Interface_Gmsh, ElemType, Domain, Line, Point
+
+from Interface_Gmsh import Mesher, ElemType, Domain, Line, Point
 import Display
 import Materials
 import Simulations
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     line6 = Line(pB, pE)
     listLine = [line1, line2, line3, line4, line5, line6]
 
-    section = Interface_Gmsh().Mesh_2D(Domain(Point(-4/2, -8/2), Point(4/2, 8/2)))
+    section = Mesher().Mesh_2D(Domain(Point(-4/2, -8/2), Point(4/2, 8/2)))
     Display.Plot_Mesh(section, title='Cross section')
     
     E = 276 # MPa
@@ -45,7 +46,7 @@ if __name__ == '__main__':
     beams = [Materials.Beam_Elas_Isot(dim, line, section, E, v) for line in listLine]
     structure = Materials.Beam_Structure(beams)
 
-    mesh = Interface_Gmsh().Mesh_Beams(beams, elemType)
+    mesh = Mesher().Mesh_Beams(beams, elemType)
     # Display.Plot_Mesh(mesh)
     # Display.Plot_Model(mesh)
 

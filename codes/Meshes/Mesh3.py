@@ -1,6 +1,6 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
-from Geoms import Point, Line, Circle, Points, Domain
+from Interface_Gmsh import Mesher, ElemType
+from Geoms import Point, Circle, Points, Domain
 
 if __name__ == '__main__':
 
@@ -24,9 +24,9 @@ if __name__ == '__main__':
 
     def DoMesh(dim, elemType):
         if dim == 2:
-            mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType)
+            mesh = Mesher().Mesh_2D(contour, inclusions, elemType)
         elif dim == 3:
-            mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0, 0, -h], [3], elemType=elemType)
+            mesh = Mesher().Mesh_Extrude(contour, inclusions, [0, 0, -h], [3], elemType=elemType)
 
         Display.Plot_Mesh(mesh)
 

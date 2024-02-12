@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Point, Domain, Circle
 import Materials
 import Simulations
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     domain = Domain(Point(-1/2,-1/2), Point(1/2, 1/2), clC)
     inclusion = Circle(Point(), h, clC, isHollow=False)
 
-    mesh = Interface_Gmsh().Mesh_2D(domain, [inclusion], ElemType.TRI3)
+    mesh = Mesher().Mesh_2D(domain, [inclusion], ElemType.TRI3)
 
     nodesLeftRight = mesh.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2))
     nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==-L/2)

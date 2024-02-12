@@ -1,5 +1,6 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, Point, Line, CircleArc, Contour, Domain
+from Interface_Gmsh import Mesher, Point, Line, CircleArc, Contour, Domain
+
 import numpy as np
 
 if __name__  == '__main__':
@@ -36,9 +37,9 @@ if __name__  == '__main__':
     contour3.Plot(ax)
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, isOrganised=True, elemType='QUAD4', surfaces=surfaces)
+        mesh = Mesher().Mesh_2D(contour, isOrganised=True, elemType='QUAD4', surfaces=surfaces)
     else:        
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0,0,e], [3], isOrganised=True, elemType='HEXA8', surfaces=surfaces)
+        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,e], [3], isOrganised=True, elemType='HEXA8', surfaces=surfaces)
 
     mesh.rotate(-np.pi/4, mesh.center)
     mesh.rotate(np.pi/4, mesh.center, (1,0))

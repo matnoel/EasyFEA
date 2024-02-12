@@ -2,7 +2,8 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from Interface_Gmsh import Interface_Gmsh, ElemType, Line, Point, Points
+
+from Interface_Gmsh import Mesher, ElemType, Line, Point, Points
 import Display
 import Materials
 import Simulations
@@ -48,7 +49,7 @@ if __name__ == '__main__':
     p11 = DoSym(p4,(1,0))
     p12 = DoSym(p3,(1,0))
     contour = Points([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12],e/6)    
-    section = Interface_Gmsh().Mesh_2D(contour)
+    section = Mesher().Mesh_2D(contour)
     
     ax = Display.Plot_Mesh(section)
     ax.set_title('Section')
@@ -70,7 +71,7 @@ if __name__ == '__main__':
     beam2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
     beams = [beam1, beam2]
 
-    mesh = Interface_Gmsh().Mesh_Beams(beams=beams, elemType=elemType)
+    mesh = Mesher().Mesh_Beams(beams=beams, elemType=elemType)
 
     # --------------------------------------------------------------------------------------------
     # Simulation

@@ -2,7 +2,7 @@
 
 import Folder
 import Materials
-from Interface_Gmsh import Interface_Gmsh, Mesh, ElemType
+from Interface_Gmsh import Mesher, Mesh, ElemType
 from Geoms import Point, Domain, Circle
 import Display
 
@@ -108,9 +108,9 @@ def DoMesh(dim: int, L: float, H: float, D: float, t:float, l0: float, test: boo
     circle = Circle(Point(L/2, H/2), D, meshSize)
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
+        mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,t], [4], ElemType.TRI3, refineGeoms=[refineGeom])
+        mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,t], [4], ElemType.TRI3, refineGeoms=[refineGeom])
 
     return mesh
 

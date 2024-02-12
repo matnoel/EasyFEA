@@ -1,6 +1,6 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh
-from Geoms import Point, Points, Line, Domain, Circle, Normalize_vect
+from Interface_Gmsh import Mesher
+from Geoms import Point, Points, Line, Domain, Circle
 import Materials
 import Simulations
 import Folder
@@ -134,9 +134,9 @@ if __name__ == '__main__':
     circlePos3 = Circle(p0, e2)
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, "TRI3", refineGeoms=[refineDomain], cracks=cracks)
+        mesh = Mesher().Mesh_2D(contour, inclusions, "TRI3", refineGeoms=[refineDomain], cracks=cracks)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,ep], [3], "HEXA8", refineGeoms=[refineDomain], cracks=cracks)
+        mesh = Mesher().Mesh_Extrude(contour, inclusions, [0,0,ep], [3], "HEXA8", refineGeoms=[refineDomain], cracks=cracks)
 
     Display.Plot_Mesh(mesh)
     # Display.Plot_Model(mesh)

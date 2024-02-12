@@ -6,7 +6,7 @@ import PostProcessing
 import Display
 from Geoms import *
 import Materials
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 import Simulations
 from TicTac import Tic
 
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     # meshSize = L/2
     meshSize = h/5
 
-    interfaceGmsh = Interface_Gmsh(False)
+    interfaceGmsh = Mesher(False)
     if dim == 2:
         elemType = ElemType.QUAD4 # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8
         domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), meshSize)
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     elif dim == 3:
         elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
-        mesh = interfaceGmsh.Mesh_3D(domain, [], [0,0,b], elemType=elemType, layers=[3], isOrganised=True)
+        mesh = interfaceGmsh.Mesh_Extrude(domain, [], [0,0,b], elemType=elemType, layers=[3], isOrganised=True)
 
         volume = mesh.volume - L*b*h
         area = mesh.area - (L*h*4 + 2*b*h)

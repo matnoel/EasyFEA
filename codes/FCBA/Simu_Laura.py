@@ -1,6 +1,6 @@
 import Display
-from Geoms import Point, Points, Circle, Domain, Normalize_vect, Line
-from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
+from Geoms import Point, Points, Circle, Domain, Line
+from Interface_Gmsh import Mesher, ElemType, Mesh
 import Materials
 import Simulations
 import Folder
@@ -37,13 +37,13 @@ def DoMesh(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float, t:fl
     # hole.Plot_Geoms([contour, circle, hole, axis])
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
+        mesh = Mesher().Mesh_2D(contour, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
         
     elif dim == 3:
         if D2 == 0:
-            mesh = Interface_Gmsh().Mesh_3D(contour, [circle], [0,0,t], [4], ElemType.TETRA4, refineGeoms=[refineGeom])
+            mesh = Mesher().Mesh_Extrude(contour, [circle], [0,0,t], [4], ElemType.TETRA4, refineGeoms=[refineGeom])
         else:
-            interf = Interface_Gmsh(False, False)
+            interf = Mesher(False, False)
             fact = interf._factory
 
             # Box and cylinder

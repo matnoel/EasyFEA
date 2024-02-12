@@ -8,10 +8,10 @@ class Test_GroupElem(unittest.TestCase):
         self.elements = []
     
     def test_creation2D(self):
-        from Interface_Gmsh import Interface_Gmsh
+        from Interface_Gmsh import Mesher
         from Mesh import Mesh
 
-        list_mesh2D = Interface_Gmsh.Construct_2D_meshes(L=1, h=1, taille=0.5)
+        list_mesh2D = Mesher.Construct_2D_meshes(L=1, h=1, meshSize=0.5)
 
         for mesh in list_mesh2D:
             

@@ -1,6 +1,7 @@
-from Interface_Gmsh import gmsh, Interface_Gmsh, Point, Circle, Domain, ElemType, Points, Line
+from Interface_Gmsh import Mesher, Point, Circle, ElemType, Points, gmsh
 import Display
 import Folder
+
 import numpy as np
 
 folder = Folder.Get_Path(__file__)
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     # Mesh
     # ----------------------------------------------
 
-    interface = Interface_Gmsh(False, False)
+    interface = Mesher(False, False)
     # dim, elemType = 2, ElemType.TRI3
     dim, elemType = 3, ElemType.TETRA4
 

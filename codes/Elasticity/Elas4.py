@@ -2,7 +2,7 @@
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Point, Points, Circle, Domain, Line
+from Interface_Gmsh import Mesher, ElemType, Point, Points, Circle, Domain, Line
 import Simulations
 import Materials
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     p11 = DoSym(p4,(1,0))
     p12 = DoSym(p3,(1,0))
     section = Points([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12], meshSize)    
-    meshSection = Interface_Gmsh().Mesh_2D(section)
+    meshSection = Mesher().Mesh_2D(section)
     
     section.Get_Contour().Plot()
     
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     # Mesh
     # --------------------------------------------------------------------------------------------
 
-    interf = Interface_Gmsh()
+    interf = Mesher()
     fact = interf._factory
     surfaces = interf._Surfaces(section, [], elemType)[0]
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
     beam = Materials.Beam_Elas_Isot(2, Line(Point(-L/2), Point(L/2), L/10), meshSection, E, v)
 
-    mesh_beam = Interface_Gmsh().Mesh_Beams([beam], ElemType.SEG3)
+    mesh_beam = Mesher().Mesh_Beams([beam], ElemType.SEG3)
 
     beams = Materials.Beam_Structure([beam])
     simu_beam = Simulations.Simu_Beam(mesh_beam, beams)

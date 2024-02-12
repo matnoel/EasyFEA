@@ -1,4 +1,4 @@
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 import Simulations
 import Materials
 import Display
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     zone = 5
     # refineDomain = Domain(Point(crackLength-zone, -zone), Point(L, zone), meshSize=clC)
     refineDomain = Circle(Point(crackLength), 20, clC)
-    mesh = Interface_Gmsh().Mesh_2D(points, inclusions, ElemType.TRI3, cracks, refineGeoms=[refineDomain])
+    mesh = Mesher().Mesh_2D(points, inclusions, ElemType.TRI3, cracks, refineGeoms=[refineDomain])
 
     Display.Plot_Tags(mesh)
     Display.Plot_Mesh(mesh)

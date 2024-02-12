@@ -1,18 +1,19 @@
-import unittest
 import Materials
 from Geoms import Domain, Circle, Point, Line
-import numpy as np
 import Display as Display
-from Interface_Gmsh import Interface_Gmsh, Mesh, ElemType
+from Interface_Gmsh import Mesher, Mesh, ElemType
 import Simulations
 from TicTac import Tic
+
+import unittest
+import numpy as np
 import matplotlib.pyplot as plt
 
 class Test_Simu(unittest.TestCase):
     
     def test_Beam(self):
         
-        interfaceGmsh = Interface_Gmsh()
+        interfaceGmsh = Mesher()
 
         listProblem = ["Flexion","Traction","BiEnca"]
         listElemType = ["SEG2","SEG3","SEG4"]
@@ -199,8 +200,8 @@ class Test_Simu(unittest.TestCase):
         domain = Domain(Point(0, 0), Point(a, a), a/10)
         inclusions = [Circle(Point(a/2, a/2), a/3, a/10)]
 
-        doMesh2D = lambda elemType: Interface_Gmsh().Mesh_2D(domain, inclusions, elemType)
-        doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], [3], elemType)
+        doMesh2D = lambda elemType: Mesher().Mesh_2D(domain, inclusions, elemType)
+        doMesh3D = lambda elemType: Mesher().Mesh_Extrude(domain, inclusions, [0,0,-a], [3], elemType)
 
         listMesh = [doMesh2D(elemType) for elemType in ElemType.get_2D()]
         [listMesh.append(doMesh3D(elemType)) for elemType in ElemType.get_3D()]
@@ -240,8 +241,8 @@ class Test_Simu(unittest.TestCase):
         domain = Domain(Point(0, 0), Point(a, a), a/10)
         inclusions = [Circle(Point(a/2, a/2), a/3, a/10)]
 
-        doMesh2D = lambda elemType: Interface_Gmsh().Mesh_2D(domain, inclusions, elemType)
-        doMesh3D = lambda elemType: Interface_Gmsh().Mesh_3D(domain, inclusions, [0,0,-a], [3], elemType)
+        doMesh2D = lambda elemType: Mesher().Mesh_2D(domain, inclusions, elemType)
+        doMesh3D = lambda elemType: Mesher().Mesh_Extrude(domain, inclusions, [0,0,-a], [3], elemType)
 
         listMesh = [doMesh2D(elemType) for elemType in ElemType.get_2D()]
         [listMesh.append(doMesh3D(elemType)) for elemType in ElemType.get_3D()]
@@ -275,7 +276,7 @@ class Test_Simu(unittest.TestCase):
         a = 1
         l0 = a/10
         meshSize = l0/2
-        mesh = Interface_Gmsh.Construct_2D_meshes(L=a, h=a, taille=meshSize)[5] # take the first mesh
+        mesh = Mesher.Construct_2D_meshes(L=a, h=a, meshSize=meshSize)[5] # take the first mesh
 
         nodes_0 = mesh.Nodes_Conditions(lambda x,y,z: x==0)
         nodes_a = mesh.Nodes_Conditions(lambda x,y,z: x==a)

@@ -1,4 +1,4 @@
-from Interface_Gmsh import gmsh, Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Point, Points, Contour, CircleArc, Line
 import Display
 import Folder
@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    interface = Interface_Gmsh(False, True, True)
+    interface = Mesher(False, True, True)
     factory = interface._factory
 
     # --------------------------------------------------------------------------------------------

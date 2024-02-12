@@ -2,7 +2,7 @@
 
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Point, Points, Circle, Domain
+from Interface_Gmsh import Mesher, ElemType, Point, Points
 import Simulations
 import Materials
 
@@ -38,10 +38,10 @@ if __name__ == '__main__':
     contour = Points([pt1, pt2, pt3], h/N)
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, [], ElemType.TRI6)
+        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI6)
         print(f"err area = {np.abs(mesh.area - h**2/2):.3e}")
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(contour, [], [0, 0, -thickness], [3], ElemType.PRISM15)
+        mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, -thickness], [3], ElemType.PRISM15)
         print(f"error volume = {np.abs(mesh.volume - h**2/2 * thickness):.3e}")
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)

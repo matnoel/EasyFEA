@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
+from Interface_Gmsh import Mesher, ElemType, Mesh
 from Mesh import Calc_projector
 from Geoms import Point, Domain, Line, Circle
 import Materials
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     refineMesh = None
 
     def DoMesh(refineGeoms: list) -> Mesh:
-        return Interface_Gmsh().Mesh_2D(contour, [circle], ElemType.TRI3, [], refineGeoms)
+        return Mesher().Mesh_2D(contour, [circle], ElemType.TRI3, [], refineGeoms)
 
     mesh = DoMesh([refineDomain, refineMesh])
 
@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
             # Display.Plot_Result(simu, meshSize_n)
 
-            refineMesh = Interface_Gmsh().Create_posFile(simu.mesh.coordo[filter], meshSize_n[filter], folder)
+            refineMesh = Mesher().Create_posFile(simu.mesh.coordo[filter], meshSize_n[filter], folder)
 
             newMesh = DoMesh([refineDomain, refineMesh])
 

@@ -1,4 +1,4 @@
-from Interface_Gmsh import Interface_Gmsh, gmsh, Mesh
+from Interface_Gmsh import Mesher, gmsh, Mesh
 import Display
 import Folder
 import Simulations
@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
         gmsh.finalize()
 
-        mesh = Interface_Gmsh().Mesh_Import_mesh(msh, True)
+        mesh = Mesher().Mesh_Import_mesh(msh, True)
 
         # Folder.os.remove(msh)
 

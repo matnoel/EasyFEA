@@ -1,10 +1,10 @@
 from TicTac import Tic
 import Materials
 from Geoms import *
-import Display as Display
-from Interface_Gmsh import Interface_Gmsh, ElemType, Mesh
+import Display
+from Interface_Gmsh import Mesher, ElemType, Mesh
 import Simulations
-import PostProcessing as PostProcessing
+import PostProcessing
 import Folder
 
 import matplotlib.pyplot as plt
@@ -75,9 +75,9 @@ def DoMesh(L: float, h: float, diam: float, thickness: float, l0: float, split: 
     circle = Circle(Point(L/2, h/2), diam, clD, isHollow=True)
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
+        mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
     elif dim == 3:
-        mesh = Interface_Gmsh().Mesh_3D(domain, [circle], [0,0,thickness], [4], ElemType.HEXA8,refineGeoms=[refineGeom])
+        mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,thickness], [4], ElemType.HEXA8,refineGeoms=[refineGeom])
 
     return mesh
 

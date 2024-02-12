@@ -1,7 +1,8 @@
 
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Point, Points, Circle, Line
+
 import numpy as np
 
 if __name__ == '__main__':
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     layers = [perimeter // meshSize]
 
     def DoMesh(dim, elemType):
-        mesh = Interface_Gmsh().Mesh_Revolve(contour, inclusions, axis, angle, layers, elemType)
+        mesh = Mesher().Mesh_Revolve(contour, inclusions, axis, angle, layers, elemType)
         Display.Plot_Mesh(mesh)
 
     [DoMesh(3, elemType) for elemType in ElemType.get_3D()]

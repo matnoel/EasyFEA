@@ -1,7 +1,7 @@
 import unittest
 import os
 
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Mesher
 import numpy as np
 
 from Geoms import *
@@ -12,7 +12,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
 
     def test_Construct_2D(self):
         """Builds all 2D meshes"""
-        list_mesh2D = Interface_Gmsh.Construct_2D_meshes()
+        list_mesh2D = Mesher.Construct_2D_meshes()
         nbMesh = len(list_mesh2D)
         nrows = 3
         ncols = 10
@@ -37,7 +37,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
     
     def test_Construct_3D(self):
         """Builds all 3D meshes"""
-        list_mesh3D = Interface_Gmsh.Construct_3D_meshes()
+        list_mesh3D = Mesher.Construct_3D_meshes()
         for mesh3D in list_mesh3D:
             ax = Display.Plot_Mesh(mesh3D)
             Display.Plot_Nodes(mesh3D, showId=False, ax=ax, c='black')

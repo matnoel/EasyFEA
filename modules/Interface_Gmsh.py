@@ -15,7 +15,7 @@ from Mesh import Mesh
 from TicTac import Tic
 from Materials import _Beam_Model
 
-class Interface_Gmsh:
+class Mesher:
 
     def __init__(self, openGmsh=False, gmshVerbosity=False, verbosity=False):
         """Building an interface that can interact with gmsh.
@@ -44,7 +44,7 @@ class Interface_Gmsh:
             Display.Section("Init interface GMSH")
 
     def __CheckType(self, dim: int, elemType: str) -> None:
-        """Check that the element type is usable."""
+        """Check that the element type is available."""
         if dim == 1:
             assert elemType in ElemType.get_1D(), f"Must be in {ElemType.get_1D()}"
         if dim == 2:
@@ -900,7 +900,7 @@ class Interface_Gmsh:
 
         return self._Construct_Mesh()
 
-    def Mesh_3D(self, contour: _Geom, inclusions: list[_Geom]=[],
+    def Mesh_Extrude(self, contour: _Geom, inclusions: list[_Geom]=[],
                 extrude=[0,0,1], layers:list[int]=[], elemType=ElemType.TETRA4,
                 cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
                 isOrganised=False, surfaces:list[tuple[_Geom, list[_Geom]]]=[], folder="") -> Mesh:
@@ -1254,7 +1254,7 @@ class Interface_Gmsh:
         gmsh.model.mesh.generate(dim)
         
         # set mest order
-        Interface_Gmsh._Set_mesh_order(elemType)
+        Mesher._Set_mesh_order(elemType)
 
         if dim > 1:
             # remove all duplicated nodes and elements
@@ -1406,18 +1406,18 @@ class Interface_Gmsh:
         return mesh
     
     @staticmethod
-    def Construct_2D_meshes(L=10, h=10, taille=3) -> list[Mesh]:
+    def Construct_2D_meshes(L=10, h=10, meshSize=3) -> list[Mesh]:
         """2D mesh generation."""
 
-        interfaceGmsh = Interface_Gmsh(openGmsh=False, verbosity=False)
+        interfaceGmsh = Mesher(openGmsh=False, verbosity=False)
 
         list_mesh2D = []
         
-        domain = Domain(Point(0,0,0), Point(L, h, 0), meshSize=taille)
-        line = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), meshSize=taille, isOpen=False)
-        lineOpen = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), meshSize=taille, isOpen=True)
-        circle = Circle(Point(x=L/2, y=h/2), L/3, meshSize=taille, isHollow=True)
-        circleClose = Circle(Point(x=L/2, y=h/2), L/3, meshSize=taille, isHollow=False)
+        domain = Domain(Point(0,0,0), Point(L, h, 0), meshSize=meshSize)
+        line = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), meshSize=meshSize, isOpen=False)
+        lineOpen = Line(Point(x=0, y=h/2, isOpen=True), Point(x=L/2, y=h/2), meshSize=meshSize, isOpen=True)
+        circle = Circle(Point(x=L/2, y=h/2), L/3, meshSize=meshSize, isHollow=True)
+        circleClose = Circle(Point(x=L/2, y=h/2), L/3, meshSize=meshSize, isHollow=False)
 
         aireDomain = L*h
         aireCircle = np.pi * (circleClose.diam/2)**2
@@ -1454,12 +1454,12 @@ class Interface_Gmsh:
         return list_mesh2D
 
     @staticmethod
-    def Construct_3D_meshes(L=130, h=13, b=13, taille=7.5, useImport3D=False) -> list[Mesh]:
+    def Construct_3D_meshes(L=130, h=13, b=13, meshSize=7.5, useImport3D=False) -> list[Mesh]:
         """3D mesh generation."""        
 
-        domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=taille)
-        circleCreux = Circle(Point(x=L/2, y=0,z=-b/2), h*0.7, meshSize=taille, isHollow=True)
-        circle = Circle(Point(x=L/2, y=0 ,z=-b/2), h*0.7, meshSize=taille, isHollow=False)
+        domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
+        circleCreux = Circle(Point(x=L/2, y=0,z=-b/2), h*0.7, meshSize=meshSize, isHollow=True)
+        circle = Circle(Point(x=L/2, y=0 ,z=-b/2), h*0.7, meshSize=meshSize, isHollow=False)
         axis = Line(domain.pt1+[-1,0], domain.pt1+[-1,h])
 
         volume = L*h*b
@@ -1470,24 +1470,24 @@ class Interface_Gmsh:
         folder = Folder.Get_Path()        
         partPath = Folder.Join(folder,"3Dmodels","beam.stp")
 
-        interfaceGmsh = Interface_Gmsh()
+        interfaceGmsh = Mesher()
 
         list_mesh3D = []
         # For each type of 3D element
         for t, elemType in enumerate(ElemType.get_3D()):
             
             if useImport3D and elemType in ["TETRA4","TETRA10"]:
-                meshPart = interfaceGmsh.Mesh_Import_part(partPath, 3, meshSize=taille, elemType=elemType)
+                meshPart = interfaceGmsh.Mesh_Import_part(partPath, 3, meshSize=meshSize, elemType=elemType)
                 list_mesh3D.append(meshPart)
 
-            mesh1 = interfaceGmsh.Mesh_3D(domain, [], [0,0,-b], [3], elemType=elemType)
+            mesh1 = interfaceGmsh.Mesh_Extrude(domain, [], [0,0,-b], [3], elemType=elemType)
             list_mesh3D.append(mesh1)
             testVolume(mesh1.volume)                
 
-            mesh2 = interfaceGmsh.Mesh_3D(domain, [circleCreux], [0,0,-b], [3], elemType)
+            mesh2 = interfaceGmsh.Mesh_Extrude(domain, [circleCreux], [0,0,-b], [3], elemType)
             list_mesh3D.append(mesh2)            
 
-            mesh3 = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,-b], [3], elemType)
+            mesh3 = interfaceGmsh.Mesh_Extrude(domain, [circle], [0,0,-b], [3], elemType)
             list_mesh3D.append(mesh3)
             testVolume(mesh3.volume)
 

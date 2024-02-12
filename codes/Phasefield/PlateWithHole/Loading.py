@@ -1,11 +1,11 @@
 from TicTac import Tic
 import Materials
 from Geoms import *
-import Display as Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
+import Display
+from Interface_Gmsh import Mesher, ElemType
 import Simulations
 import Folder
-import PostProcessing as PostProcessing
+import PostProcessing
 
 import matplotlib.pyplot as plt
 
@@ -53,11 +53,11 @@ if __name__ == '__main__':
     circle = Circle(Point(x=L/2, y=H-h), diam, clC, isHollow=True)
     val = diam*2
 
-    interfaceGmsh = Interface_Gmsh(openGmsh=False, verbosity=False)
+    interfaceGmsh = Mesher(openGmsh=False, verbosity=False)
     if dim == 2:
         mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.QUAD8)
     else:
-        mesh = interfaceGmsh.Mesh_3D(domain, [circle], [0,0,10*unit], [4], ElemType.HEXA8)
+        mesh = interfaceGmsh.Mesh_Extrude(domain, [circle], [0,0,10*unit], [4], ElemType.HEXA8)
 
     # get nodes
     nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)

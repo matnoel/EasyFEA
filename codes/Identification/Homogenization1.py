@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Interface_Gmsh
+from Interface_Gmsh import Mesher
 from Geoms import *
 import Materials
 import Simulations
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     inclusion = Circle(Point(), 2*r, meshSize, isHollow=False)
 
-    gmshInterface = Interface_Gmsh()
+    gmshInterface = Mesher()
 
     mesh = gmshInterface.Mesh_2D(contour, [inclusion], "TRI6")
 

@@ -1,7 +1,7 @@
 import Display
 import Materials
 import Simulations
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Point, Line, Circle, CircleArc, Contour
 import Folder
 np = Display.np
@@ -60,9 +60,9 @@ if __name__ == '__main__':
     crack = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType=ElemType.TRI6, cracks=[crack])
+        mesh = Mesher().Mesh_2D(contour, inclusions, elemType=ElemType.TRI6, cracks=[crack])
     else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, extrude, [10], ElemType.PRISM6, cracks=[crack])
+        mesh = Mesher().Mesh_Extrude(contour, inclusions, extrude, [10], ElemType.PRISM6, cracks=[crack])
 
     # --------------------------------------------------------------------------------------------
     # Simulation

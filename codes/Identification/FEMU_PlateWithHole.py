@@ -6,7 +6,7 @@ import pandas as pd
 import Simulations
 import Folder
 import Display
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 import Materials
 import Geoms
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     circle = Geoms.Circle(Geoms.Point(l/2, h/2), d, meshSize, isHollow=True)
 
-    mesh = Interface_Gmsh().Mesh_2D(points, [circle], elemType)
+    mesh = Mesher().Mesh_2D(points, [circle], elemType)
 
     nodes_contact = mesh.Nodes_Tags(["L0", "L2"])
     nodes_p0 = mesh.Nodes_Tags(["P0"])

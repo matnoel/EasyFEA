@@ -1,7 +1,7 @@
 import Display
 import Materials
 import Simulations
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 from Geoms import Point, Points, Domain, Circle
 
 if __name__ == '__main__':
@@ -38,9 +38,9 @@ if __name__ == '__main__':
         inclusions = [Circle(Point(), 2*a, meshSize, isHollow=True)]
 
     if dim == 2:
-        mesh = Interface_Gmsh().Mesh_2D(contour, inclusions, elemType=ElemType.TRI3)
+        mesh = Mesher().Mesh_2D(contour, inclusions, elemType=ElemType.TRI3)
     else:
-        mesh = Interface_Gmsh().Mesh_3D(contour, inclusions, [0,0,thickness], [4], ElemType.PRISM6)
+        mesh = Mesher().Mesh_Extrude(contour, inclusions, [0,0,thickness], [4], ElemType.PRISM6)
 
     # --------------------------------------------------------------------------------------------
     # Simu

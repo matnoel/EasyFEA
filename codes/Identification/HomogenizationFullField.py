@@ -1,4 +1,4 @@
-from Interface_Gmsh import Interface_Gmsh, ElemType
+from Interface_Gmsh import Mesher, ElemType
 import Geoms
 import Display
 import Simulations
@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
             inclusions.append(inclusion)
 
-    interfaceGmsh = Interface_Gmsh(False)
+    interfaceGmsh = Mesher(False)
 
     inclusion = Geoms.Domain(ptd1, ptd2, meshSize)
     area_inclusion = interfaceGmsh.Mesh_2D(inclusion).area
