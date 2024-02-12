@@ -41,7 +41,7 @@ class Mesher:
 
         if verbosity:
             import Display
-            Display.Section("Init interface GMSH")
+            Display.Section("Init GMSH interface")
 
     def __CheckType(self, dim: int, elemType: str) -> None:
         """Check that the element type is available."""
