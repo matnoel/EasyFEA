@@ -1,6 +1,6 @@
 import Display
 from Geoms import Point, Points, Circle, Domain, Line
-from Interface_Gmsh import Mesher, ElemType, Mesh
+from GmshInterface import Mesher, ElemType, Mesh
 import Materials
 import Simulations
 import Folder

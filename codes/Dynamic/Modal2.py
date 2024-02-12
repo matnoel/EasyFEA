@@ -1,4 +1,4 @@
-from Interface_Gmsh import Mesher, gmsh, Mesh
+from GmshInterface import Mesher, gmsh, Mesh
 import Display
 import Folder
 import Simulations

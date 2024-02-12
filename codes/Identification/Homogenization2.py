@@ -1,5 +1,5 @@
 import Folder
-from Interface_Gmsh import Mesher, ElemType
+from GmshInterface import Mesher, ElemType
 from Geoms import Normalize_vect, Point, Points, Line, Circle
 import Display
 import Materials

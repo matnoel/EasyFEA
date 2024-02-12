@@ -3,7 +3,7 @@ import PostProcessing
 import Folder
 import Materials
 from Geoms import *
-from Interface_Gmsh import Mesher, ElemType, Mesh
+from GmshInterface import Mesher, ElemType, Mesh
 import Simulations
 from TicTac import Tic
 

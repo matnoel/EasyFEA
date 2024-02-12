@@ -1,7 +1,7 @@
 import unittest
 import os
 
-from Interface_Gmsh import Mesher
+from GmshInterface import Mesher
 import numpy as np
 
 from Geoms import *

@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Mesher, Point, Line, CircleArc, Contour, Domain
+from GmshInterface import Mesher, Point, Line, CircleArc, Contour, Domain
 
 import numpy as np
 

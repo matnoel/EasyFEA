@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from Interface_Gmsh import Mesher, ElemType
+from GmshInterface import Mesher, ElemType
 from Geoms import Point, Points
 import Display
 import Simulations

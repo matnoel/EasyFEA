@@ -1,7 +1,7 @@
 import Display
 import Materials
 import Simulations
-from Interface_Gmsh import Mesher, ElemType
+from GmshInterface import Mesher, ElemType
 from Geoms import Point, Points, Domain, Circle
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ import pandas as pd
 
 import Simulations
 import Display
-from Interface_Gmsh import Mesher, ElemType
+from GmshInterface import Mesher, ElemType
 import Materials
 import Geoms
 

@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Mesher
+from GmshInterface import Mesher
 from Geoms import *
 import Materials
 import Simulations

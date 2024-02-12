@@ -1,7 +1,7 @@
 from scipy.optimize import least_squares
 import pandas as pd
 
-from Interface_Gmsh import Mesher, ElemType
+from GmshInterface import Mesher, ElemType
 from Geoms import Point, Points, Circle
 import Display
 import Materials

@@ -9,7 +9,7 @@ import Display
 class Test_Mesh(unittest.TestCase):
 
     def test_Matrix(self):
-        from Interface_Gmsh import Mesher
+        from GmshInterface import Mesher
         list_Mesh = Mesher.Construct_2D_meshes()
         for mesh in list_Mesh:
             self.__Construct_B_e_pg(mesh)

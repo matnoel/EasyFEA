@@ -1,5 +1,5 @@
 import Display
-from Interface_Gmsh import Mesher, ElemType, Mesh
+from GmshInterface import Mesher, ElemType, Mesh
 from Mesh import Calc_projector
 from Geoms import Point, Domain, Line, Circle
 import Materials

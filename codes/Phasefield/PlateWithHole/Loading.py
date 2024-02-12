@@ -2,7 +2,7 @@ from TicTac import Tic
 import Materials
 from Geoms import *
 import Display
-from Interface_Gmsh import Mesher, ElemType
+from GmshInterface import Mesher, ElemType
 import Simulations
 import Folder
 import PostProcessing

@@ -4,7 +4,7 @@ import Display
 from Geoms import *
 import Materials
 from Mesh import Mesh, Calc_projector, Calc_New_meshSize_n
-from Interface_Gmsh import Mesher, ElemType
+from GmshInterface import Mesher, ElemType
 import Simulations
 from TicTac import Tic
 

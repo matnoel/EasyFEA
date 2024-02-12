@@ -1,4 +1,4 @@
-from Interface_Gmsh import Mesher, Point, Domain, ElemType
+from GmshInterface import Mesher, Point, Domain, ElemType
 import Display
 import Folder
 import Simulations
