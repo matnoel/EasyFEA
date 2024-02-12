@@ -54,30 +54,30 @@ class Test_Geom(unittest.TestCase):
         # rotate
         pR1 = Point(1)
 
-        pR1.rotate(np.pi/2, (0,0,0), (0,0,1))
+        pR1.rotate(90, (0,0,0), (0,0,1))
         self.assertTrue(pR1.Check((0,1,0)))
 
-        pR1.rotate(-np.pi/2, (0,0,0), (0,0,1))
+        pR1.rotate(-90, (0,0,0), (0,0,1))
         self.assertTrue(pR1.Check((1,0,0)))
 
-        pR1.rotate(np.pi, (0,0,0), (0,0,1))
+        pR1.rotate(180, (0,0,0), (0,0,1))
         self.assertTrue(pR1.Check((-1,0,0)))
 
-        pR1.rotate(-np.pi, (0,0,0), (0,0,1))
+        pR1.rotate(-180, (0,0,0), (0,0,1))
         self.assertTrue(pR1.Check((1,0,0)))
 
-        pR1.rotate(np.pi/2, (0,0,0), (0,-1,0))
+        pR1.rotate(90, (0,0,0), (0,-1,0))
         self.assertTrue(pR1.Check((0,0,1)))
 
-        pR1.rotate(np.pi/2, (0,0,0), (1,0,0))
+        pR1.rotate(90, (0,0,0), (1,0,0))
         self.assertTrue(pR1.Check((0,-1,0)))
 
         pR2 = Point(1)
-        pR2.rotate(np.pi, (0,0,0), (1,0,1))
+        pR2.rotate(180, (0,0,0), (1,0,1))
         self.assertTrue(pR2.Check((0,0,1)))
 
         pR3 = Point(1)
-        pR3.rotate(np.pi/2, (-1,0,0), (0,-1,0))
+        pR3.rotate(90, (-1,0,0), (0,-1,0))
         # self.assertTrue(pR3.Check((-1,0,2)))
 
     def test_Geoms(self):
@@ -130,18 +130,14 @@ class Test_Geom(unittest.TestCase):
             cop.translate(-10)
             cop.Plot(ax)
 
-
             cop.symmetry()
             cop.Plot(ax)
-
 
             cop.symmetry(cop.points[0],(0,0,1))
             cop.Plot(ax)
 
-            cop.symmetry(n=(0,np.cos(np.pi/6),np.sin(np.pi/6)))
+            cop.symmetry(n=(0,np.cos(180/6),np.sin(180/6)))
             cop.Plot(ax)
-
-
 
             ax.legend()
             pass        
