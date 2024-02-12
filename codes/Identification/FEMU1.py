@@ -1,5 +1,4 @@
-from scipy.optimize import least_squares
-import pandas as pd
+"""Identify material properties in a biaxial test with a modified FEMU."""
 
 from GmshInterface import Mesher, ElemType
 from Geoms import Point, Points, Circle
@@ -8,6 +7,8 @@ import Materials
 import Simulations
 import Folder
 
+from scipy.optimize import least_squares
+import pandas as pd
 np = Materials.np
 plt = Display.plt
 
@@ -17,9 +18,9 @@ if __name__ == '__main__':
 
     folder = Folder.New_File(Folder.Join("Identification","Biaxial"), results=True)
 
-    # --------------------------------------
+    # ----------------------------------------------------------------------------
     # Configuration
-    # --------------------------------------
+    # ----------------------------------------------------------------------------
     useRescale = True
     noises = np.linspace(0, 0.02, 4)
     nRuns = 10
@@ -35,9 +36,9 @@ if __name__ == '__main__':
 
     pltMesh = True
 
-    # --------------------------------------
+    # ----------------------------------------------------------------------------
     # Mesh
-    # --------------------------------------
+    # ----------------------------------------------------------------------------
     pt1 = Point(-L/2, -L/2, r=r)
     pt2 = Point(L/2, -L/2, r=r)
     pt3 = Point(L/2, L/2, r=r)
@@ -47,7 +48,7 @@ if __name__ == '__main__':
 
     circle = Circle(Point(h/3, h/3), 10, meshSize, isHollow)
 
-    mesh = Mesher(False, False).Mesh_2D(contour, [circle], ElemType.TRI3)
+    mesh = Mesher().Mesh_2D(contour, [circle], ElemType.TRI3)
 
     if pltMesh:
         Display.Plot_Mesh(mesh)
@@ -57,53 +58,46 @@ if __name__ == '__main__':
     nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==L/2)
     nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==-L/2)
 
-    # --------------------------------------
+    # ----------------------------------------------------------------------------
     # Material
-    # --------------------------------------
+    # ----------------------------------------------------------------------------
     tol0 = 1e-6
     bSup = np.inf
 
-    El = 3000
-    Et = 6000
-    Gl = 1500
-    vl = 0.25
-    vt = 0.4
+    EL = 3000
+    ET = 6000
+    GL = 1500
+    vL = 0.25
+    vT = 0.4
 
     axisL = np.array([0,1,0])
     axisT = np.array([1,0,0])
 
     dict_param = {
-        "El" : El,
-        "Gl" : Gl,
-        "Et" : Et,
-        "vl" : vl
+        "EL" : EL,
+        "GL" : GL,
+        "ET" : ET,
+        "vL" : vL
     }
 
-    El0 = El * 10
-    Gl0 = Gl * 10
-    Et0 = Et * 10
-    vl0 = vl
+    El0 = EL * 10
+    Gl0 = GL * 10
+    Et0 = ET * 10
+    vl0 = vL
 
     lb = [tol0]*4
     ub = (bSup, bSup, bSup, 0.5-tol0)
     bounds = (lb, ub)
     x0 = [El0, Gl0, Et0, vl0]
 
-    material = Materials.Elas_IsotTrans(2, El, Et, Gl, vl, vt, axisL, axisT, True, ep)
+    material = Materials.Elas_IsotTrans(2, EL, ET, GL, vL, vT, axisL, axisT, True, ep)
 
-    material_FEMU = Materials.Elas_IsotTrans(2, El0, Et0, Gl0, vl0, vt, axisL, axisT, True, ep)
+    material_FEMU = Materials.Elas_IsotTrans(2, El0, Et0, Gl0, vl0, vT, axisL, axisT, True, ep)
 
-    # --------------------------------------
+    # ----------------------------------------------------------------------------
     # Simulation
-    # --------------------------------------
+    # ----------------------------------------------------------------------------
     simu = Simulations.Simu_Displacement(mesh, material)
-
-    # dep = 1 # mm
-    # simu.add_dirichlet(nodesLeft, [-dep], ['x'])
-    # simu.add_dirichlet(nodesRight, [dep], ['x'])
-    # simu.add_dirichlet(nodesUpper, [dep], ['y'])
-    # simu.add_dirichlet(nodesLower, [-dep], ['y'])
-
 
     fexp = 1 # N
     simu.add_lineLoad(nodes_left, [-fexp/h], ['x'])
@@ -123,16 +117,15 @@ if __name__ == '__main__':
     # Display.Plot_Result(simu, "Sxy")
     # Display.Plot_Result(simu, "Svm")
 
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------
     # Identification
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------
     Display.Section("Identification")
 
     # WARNING: Identification does not work if the simulation uses an iterative solver !
     simu_FEMU = Simulations.Simu_Displacement(mesh, material_FEMU, useIterativeSolvers=False)
 
     def func(x):
-        # Fonction coût
 
         # x0 = [EL0, GL0, ET0, vL0]
         material_FEMU.El = x[0]
@@ -167,7 +160,7 @@ if __name__ == '__main__':
 
     for noise in noises:
 
-        print(f"\nnoise = {noise}")
+        print(f"\nnoise = {noise:.2e}")
 
         list_dict_run = []
 
@@ -187,28 +180,49 @@ if __name__ == '__main__':
 
             simu_FEMU.Bc_Init()
 
-            Add_Dirichlet(nodes_lower, ['x','y'])
-            Add_Dirichlet(nodes_upper, ['x', 'y'])
-            # Add_Dirichlet(nodes_left, ['x','y'])
-            # Add_Dirichlet(nodes_right, ['x','y'])
+            Add_Dirichlet(nodes_left, ['x','y'])
+            Add_Dirichlet(nodes_lower, ['x','y'])            
             
-            # simuIdentif.add_lineLoad(nodes_lower, [-fexp/h], ['y'])
-            # simuIdentif.add_lineLoad(nodes_upper, [fexp/h], ['y'])
-            simu_FEMU.add_lineLoad(nodes_left, [-fexp/h], ['x'])
-            simu_FEMU.add_lineLoad(nodes_right, [fexp/h], ['x'])
+            # Add_Dirichlet(nodes_upper, ['x','y'])
+            simu_FEMU.add_lineLoad(nodes_upper, [fexp/h], ["y"])
+
+            # Add_Dirichlet(nodes_right, ['x','y'])
+            simu_FEMU.add_lineLoad(nodes_right, [fexp/h], ["x"])
+
+            if useRescale:
+                # first solve the the simulation
+                sol = simu_FEMU.Solve()
+                K = simu_FEMU.Get_K_C_M_F()[0]
+                # get the forces along x for nodes_right
+                dofsX_right = simu.Bc_dofs_nodes(nodes_right, ['x'])
+                fx_rigth = K[dofsX_right] @ sol
+                # get the forces along y for nodes_upper
+                dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ['y'])
+                fy_upper = K[dofsY_upper] @ sol
+                # calculate the scale factor along x y
+                fxScale = np.sum(fx_rigth) / fexp
+                fyScale = np.sum(fy_upper) / fexp
+                # modified femu
+                simu_FEMU.Bc_Init()
+                Add_Dirichlet(nodes_left, ['x','y'])
+                Add_Dirichlet(nodes_lower, ['x','y'])
+                simu_FEMU.add_neumann(nodes_right, [fx_rigth*fxScale], ['x'])
+                simu_FEMU.add_neumann(nodes_upper, [fy_upper*fyScale], ['y'])
 
             dofsKnown, dofsUnknow = simu_FEMU.Bc_dofs_known_unknow(simu_FEMU.problemType)        
 
             # res = least_squares(func, x0, bounds=bounds, verbose=2, ftol=tol, gtol=tol, xtol=tol, jac='3-point')
             res = least_squares(func, x0, bounds=bounds, verbose=0, ftol=tol, gtol=tol, xtol=tol)
 
+            assert res.success, "Must converge"
+
             dict_run = {
                 "run" : run
             }
-            dict_run["El"]=res.x[0]
-            dict_run["Gl"]=res.x[1]
-            dict_run["Et"]=res.x[2]
-            dict_run["vl"]=res.x[3]
+            dict_run["EL"]=res.x[0]
+            dict_run["GL"]=res.x[1]
+            dict_run["ET"]=res.x[2]
+            dict_run["vL"]=res.x[3]
 
             list_dict_run.append(dict_run)
 
@@ -217,10 +231,10 @@ if __name__ == '__main__':
         dict_noise = {
             "noise" : noise,
         }
-        dict_noise["El"] = df_run["El"].values
-        dict_noise["Gl"] = df_run["Gl"].values
-        dict_noise["Et"] = df_run["Et"].values
-        dict_noise["vl"] = df_run["vl"].values        
+        dict_noise["EL"] = df_run["EL"].values
+        dict_noise["GL"] = df_run["GL"].values
+        dict_noise["ET"] = df_run["ET"].values
+        dict_noise["vL"] = df_run["vL"].values        
 
         list_dict_noise.append(dict_noise)
         
@@ -228,10 +242,10 @@ if __name__ == '__main__':
 
     df_noise = pd.DataFrame(list_dict_noise)
 
-    # --------------------------------------------------------------------------------------------
-    # Display
-    # --------------------------------------------------------------------------------------------
-    params = ["El", "Gl", "Et", "vl"]
+    # ----------------------------------------------------------------------------
+    # Dislay
+    # ----------------------------------------------------------------------------
+    params = ["EL", "GL", "ET", "vL"]
 
     borne = 0.95
     bInf = 0.5 - (0.95/2)
@@ -271,11 +285,11 @@ if __name__ == '__main__':
 
     diff_n = np.reshape(simu_FEMU.displacement - u_exp, (mesh.Nn, 2))
 
-    # err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp.reshape((mesh.Nn,2)), axis=1)
-    err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp)
+    err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp.reshape((mesh.Nn,2)), axis=1)
+    # err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp)
     # err_n = np.linalg.norm(diff_n, axis=1)
 
-    Display.Plot_Result(simu_FEMU, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")
+    Display.Plot_Result(simu_FEMU, err_n, title=r"$\dfrac{\Vert u(p) - u^{exp} \Vert^2}{\Vert u^{exp} \Vert^2}$")
 
     # print(np.linalg.norm(diff_n)/np.linalg.norm(u_exp))
 

@@ -1,8 +1,10 @@
+"""Perform a full field homogenization"""
+
 from GmshInterface import Mesher, ElemType
 import Geoms
 import Display
 import Simulations
-import BoundaryCondition
+from BoundaryCondition import LagrangeCondition
 import Materials
 
 np = Materials.np
@@ -85,56 +87,9 @@ if __name__ == '__main__':
                                                         meshSize/4, isHollow)], elemType)
     area_VER = mesh_VER.area
 
-    Display.Plot_Mesh(mesh_inclusions)
-    Display.Plot_Mesh(mesh)
-    axVer = Display.Plot_Mesh(mesh_VER)
-
-    n1 = mesh_VER.Nodes_Point(ptI1)
-    n2 = mesh_VER.Nodes_Point(ptI2)
-    n3 = mesh_VER.Nodes_Point(ptI3)
-    n4 = mesh_VER.Nodes_Point(ptI4)
-
-    coins = [mesh_VER.coordo[n].reshape(-1) for n in [n1, n2, n3, n4]]
-
-    calc_vect = lambda n0, n1: (mesh_VER.coordo[n1, :] - mesh_VER.coordo[n0, :]).reshape(-1)
-    vect_i = np.array([calc_vect(n1, n2), calc_vect(n2, n3), calc_vect(n3, n4), calc_vect(n4, n1)])
-
-    nodes_edges = []
-
-    for l, line in enumerate(["L0", "L1", "L2", "L3"]):
-
-        nodes = mesh_VER.Nodes_Tags([line])
-
-        vect_j = mesh_VER.coordo[nodes] - coins[l]
-
-        proj = vect_j @ vect_i[l]
-
-        idxSort = np.argsort(proj)
-
-        nodes = nodes[idxSort]
-
-        if l >= 2:
-            nodes = nodes[::-1]
-
-        nodes = nodes[1:-1]
-
-        # [axVer.scatter(mesh_VER.coordo[n, 0], mesh_VER.coordo[n, 1], c='black') for n in nodes]
-
-        nodes_edges.append(nodes)
-
-    list_pairedNodes = []
-
-    # pour chaque pair de bord on assemble dans un tuple
-    for p in range(2):
-
-        pairedNodes = (nodes_edges[p], nodes_edges[p+1*2])
-
-        # [axVer.scatter(mesh_VER.coordo[n, 0], mesh_VER.coordo[n, 1], c='black') for n in pairedNodes[0]]
-        # [axVer.scatter(mesh_VER.coordo[n, 0], mesh_VER.coordo[n, 1], c='black') for n in pairedNodes[1]]
-
-        list_pairedNodes.append(pairedNodes)
-
-    # plt.show()
+    Display.Plot_Mesh(mesh_inclusions, title='non hom')
+    Display.Plot_Mesh(mesh_VER, title='VER')
+    Display.Plot_Mesh(mesh, title='hom')
 
     # --------------------------------------------------------------------------------------------
     # Material
@@ -162,6 +117,7 @@ if __name__ == '__main__':
 
     if usePER:
         nodes_border = mesh_VER.Nodes_Tags(["P0","P1","P2","P3"])
+        paired_nodes = mesh_VER.Get_Paired_Nodes(nodes_border, True)
     else:
         nodes_border = mesh_VER.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
@@ -175,24 +131,20 @@ if __name__ == '__main__':
 
         if usePER:
 
-            for pairedNodes in list_pairedNodes:
+            coordo = mesh_VER.coordo
 
-                for n0, n1 in zip(pairedNodes[0], pairedNodes[1]):
+            for n0, n1 in paired_nodes:
                     
-                    nodes = np.array([n0, n1])
+                nodes = np.array([n0, n1])
 
-                    axVer.scatter(mesh_VER.coordo[nodes, 0],mesh_VER.coordo[nodes, 1], marker='+', c='red')
+                for direction in ["x", "y"]:
+                    dofs = simu_VER.Bc_dofs_nodes(nodes, [direction])
+                    
+                    values = Ekl @ [coordo[n0,0]-coordo[n1,0], coordo[n0,1]-coordo[n1,1]]
+                    value = values[0] if direction == "x" else values[1]
 
-                    for direction in ["x", "y"]:
-                        dofs = simu_VER.Bc_dofs_nodes(nodes, [direction])
-                        
-                        values = Ekl @ [mesh_VER.coordo[n0,0]-mesh_VER.coordo[n1,0], mesh_VER.coordo[n0,1]-mesh_VER.coordo[n1,1]]
-                        value = values[0] if direction == "x" else values[1]
-
-                        # value = 0
-
-                        condition = BoundaryCondition.LagrangeCondition("displacement", nodes, dofs, [direction], [value], [1, -1])
-                        simu_VER._Bc_Add_Lagrange(condition)
+                    condition = LagrangeCondition("displacement", nodes, dofs, [direction], [value], [1, -1])
+                    simu_VER._Bc_Add_Lagrange(condition)
 
         ukl = simu_VER.Solve()
 

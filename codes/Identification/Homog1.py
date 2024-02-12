@@ -1,3 +1,8 @@
+"""Perform homogenization using an example available in 'Computational Homogenization of Heterogeneous Materials with Finite Elements'.\n
+Reference: http://link.springer.com/10.1007/978-3-030-18383-7\n
+Section 4.7 with values on page 89 (Erratum).
+"""
+
 import Display
 from GmshInterface import Mesher
 from Geoms import *
@@ -7,16 +12,14 @@ from BoundaryCondition import LagrangeCondition
 
 plt = Display.plt
 
-# Example from : Computational Homogenization of Heterogeneous Materials with Finite Elements
-# http://link.springer.com/10.1007/978-3-030-18383-7
-# SECTION 4.7
+# Example from : 
 
 if __name__ == '__main__':
 
     Display.Clear()
 
     # use Periodic boundary conditions ?
-    usePER = True 
+    usePER = True # FALSE mean KUBC
 
     # ----------------------------------------------------------------------------
     # Mesh
@@ -43,32 +46,11 @@ if __name__ == '__main__':
 
     coordo = mesh.coordoGlob
 
-    Display.Plot_Mesh(mesh)
-    Display.Plot_Tags(mesh)
-
-    nodes_left = mesh.Nodes_Conditions(lambda x,y,z: x==-1/2)
-    # sort by y and exclude first and last nodes
-    nodes_left = nodes_left[np.argsort(coordo[nodes_left,1])][1:-1]
-
-    nodes_right = mesh.Nodes_Conditions(lambda x,y,z: x==1/2)
-    # sort by y and exclude first and last nodes
-    nodes_right = nodes_right[np.argsort(coordo[nodes_right,1])][1:-1]
-
-    nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==1/2)
-    # sort by x and exclude first and last nodes
-    nodes_upper = nodes_upper[np.argsort(coordo[nodes_upper,0])][1:-1]
-
-    nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==-1/2)
-    # sort by x and exclude first and last nodes
-    nodes_lower = nodes_lower[np.argsort(coordo[nodes_lower,0])][1:-1]
-
-    nodes_b0 = np.concatenate((nodes_lower, nodes_left))
-    nodes_b1 = np.concatenate((nodes_upper, nodes_right))
-
-    assert nodes_b0.size == nodes_b1.size, 'Edges must contain the same number of nodes.'
+    Display.Plot_Mesh(mesh, title='VER')
 
     if usePER:
         nodes_border = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
+        paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
     else:
         nodes_border = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
@@ -115,12 +97,10 @@ if __name__ == '__main__':
             
             # requires the u field to have zero mean
             useMean0 = False
-
-            for n0, n1 in zip(nodes_b0, nodes_b1):
+            
+            for n0, n1 in paired_nodes:
                     
                 nodes = np.array([n0, n1])
-
-                # plt.gca().scatter(coordo[nodes, 0],coordo[nodes, 1], marker='+', c='red')
 
                 for direction in ["x", "y"]:
                     dofs = simu.Bc_dofs_nodes(nodes, [direction])
@@ -144,14 +124,9 @@ if __name__ == '__main__':
                 # sum v_i / Nn = 0
                 dofs = simu.Bc_dofs_nodes(nodes, ["y"])
                 condition = LagrangeCondition("displacement", nodes, dofs, ["y"], [0], [vect])
-                simu._Bc_Add_Lagrange(condition)            
+                simu._Bc_Add_Lagrange(condition)
 
-        # Display.Plot_BoundaryConditions(simu)
-
-        ukl = simu.Solve()
-
-        # print(np.mean(simu.Get_Resultat("ux")))
-        # print(np.mean(simu.Get_Resultat("uy")))
+        ukl = simu.Solve()       
 
         simu.Save_Iter()
 

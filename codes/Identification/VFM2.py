@@ -1,3 +1,6 @@
+"""Identify material properties in a flexion test with the virtual field methods (VFM).\n
+WARNING: The current implementation has not been validated."""
+
 import numpy as np
 import matplotlib.pyplot as plt
 

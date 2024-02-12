@@ -550,6 +550,115 @@ class Mesh:
             return result_n.reshape(-1)
         else:
             return result_n
+        
+    def Get_Paired_Nodes(self, corners: np.ndarray, plot=False) -> np.ndarray:
+        """Get the paired nodes used to construct periodic boundary conditions.
+
+        Parameters
+        ----------
+        corners : np.ndarray
+            Either nodes or nodes coordinates.
+
+        plot : bool, optional
+            Set whether to plot the link between nodes; defaults to False.
+
+        Returns
+        -------
+        np.ndarray
+            Paired nodes, a 2-column matrix storing the paired nodes (n, 2).
+        """
+
+        corners = np.asarray(corners)
+
+        if corners.ndim == 1:
+            # corners are nodes
+            # corners become the corners coordinates
+            corners: np.ndarray = self.coordoGlob[corners]
+        
+
+        nCorners = len(corners) # number of corners
+        nEdges = nCorners//2 # number of edges
+
+        nodes1: list[int] = []
+        nodes2: list[int] = []
+        nNodes: list[int] = []
+
+        coordo = self.coordo
+
+        for c, corner in enumerate(corners):
+
+            # here corner and next_corner are coordinates
+            
+            if c+1 == nCorners:
+                next_corner = corners[0]                
+            else:
+                next_corner = corners[c+1]
+
+            line = next_corner - corner # construct line between 2 corners
+            lineLength = np.linalg.norm(line) # length of the line
+            vect = Normalize_vect(line) # normalized vector between the edge corners
+            vect_i = coordo - corner # vector coordinates from the first corner of the edge
+            scalarProduct = np.einsum('ni,i', vect_i, vect, optimize="optimal")
+            crossProduct = np.cross(vect_i, vect)
+            norm = np.linalg.norm(crossProduct, axis=1)
+
+            eps=1e-12
+            nodes = np.where((norm<eps) & (scalarProduct>=-eps) & (scalarProduct<=lineLength+eps))[0]
+            # norm<eps : must be on the line formed by corner and next corner
+            # scalarProduct>=-eps : points must belong to the line
+            # scalarProduct<=lineLength+eps : points must belong to the line
+
+            # sort the nodes along the lines and take
+            # remove the first and the last nodes with [1:-1]
+            nodes: np.ndarray = nodes[np.argsort(scalarProduct[nodes])][1:-1]
+
+            if c+1 > nEdges:
+                # revert the nodes order
+                nodes = nodes[::-1]
+                nodes2.extend(nodes)
+            else:
+                nodes1.extend(nodes)
+                if nodes.size > 0:
+                    nNodes.append(nodes.size)
+
+        assert len(nodes1) != 0 and len(nodes2) != 0, "No nodes detected"
+
+        assert len(nodes1) == len(nodes2), 'Edges must contain the same number of nodes.'
+
+        paired_nodes = np.array([nodes1, nodes2]).T
+
+        if plot:
+            import Display            
+            inDim = self.inDim
+
+            if inDim == 3:
+                from mpl_toolkits.mplot3d.art3d import Line3DCollection
+            else:
+                from matplotlib.collections import LineCollection
+
+            ax = Display.Plot_Mesh(self, alpha=0, title='Periodic boundary conditions')
+
+            # nEdges = np.min([len(nNodes)//2, nEdges])
+
+            start = 0
+            
+            for edge in range(len(nNodes)):
+
+                start += 0 if edge == 0 else nNodes[edge-1]
+
+                edge_node = paired_nodes[start:start+nNodes[edge]]
+
+                lines = coordo[edge_node, :inDim]
+                if inDim == 3:
+                    pc = ax.scatter(lines[:,:,0], lines[:,:,1], lines[:,:,2], label=f'edges{edge}')
+                    ax.add_collection3d(Line3DCollection(lines, edgecolor=pc.get_edgecolor()))
+                else:
+                    pc = ax.scatter(lines[:,:,0], lines[:,:,1], label=f'edges{edge}')
+                    ax.add_collection(LineCollection(lines, edgecolor=pc.get_edgecolor()))
+                
+            ax.legend()
+
+        return paired_nodes
 
 def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarray:
     """Returns the scalar field (at nodes) to be used to refine the mesh.

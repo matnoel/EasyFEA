@@ -1,3 +1,5 @@
+"""Perform homogenization on several VER"""
+
 import Folder
 from GmshInterface import Mesher, ElemType
 from Geoms import Normalize_vect, Point, Points, Line, Circle
@@ -153,7 +155,7 @@ if __name__ == '__main__':
         
         corners = [rotate_points[p] for p in [0,1,4,5,7,8,11,12]]
         
-        hollowInclusion = True
+        hollowInclusion = True # dont change
 
         contour = Points(rotate_points, e/N*2)
 
@@ -164,8 +166,8 @@ if __name__ == '__main__':
 
     mesh = Mesher().Mesh_2D(contour, inclusions, elemType)
 
-    Display.Plot_Mesh(mesh)
-    Display.Plot_Tags(mesh)
+    Display.Plot_Mesh(mesh, title='VER')
+    # Display.Plot_Tags(mesh)
     coordo = mesh.coordo
 
     nodes_matrix = mesh.Nodes_Tags(['S0'])
@@ -180,51 +182,7 @@ if __name__ == '__main__':
 
     if usePER:
         nodes_border = np.unique([mesh.Nodes_Point(point) for point in corners])
-
-        group_nodes1 = []; list_nodes1 = []
-        group_nodes2 = []; list_nodes2 = []
-
-        for c, corner in enumerate(corners):
-            
-            if c+1 == nCorners:
-                next_corner = corners[0]
-            else:
-                next_corner = corners[c+1]
-
-            line = next_corner.coordo - corner.coordo # construct line between 2 corners
-            lineLength = np.linalg.norm(line) # length of the line
-            vect = Normalize_vect(line) # normalized vector between the edge corners
-            vect_i = coordo - corner.coordo # vector coordinates from the first corner of the edge
-            scalarProduct = np.einsum('ni,i', vect_i, vect, optimize="optimal")
-            crossProduct = np.cross(vect_i, vect)
-            norm = np.linalg.norm(crossProduct, axis=1)
-
-            eps=1e-12
-            nodes = np.where((norm<eps) & (scalarProduct>=-eps) & (scalarProduct<=lineLength+eps))[0]
-            # sort the nodes along the lines and take and remove the first and the last nodes
-            nodes = nodes[np.argsort(scalarProduct[nodes])][1:-1]
-
-            if c+1 > nEdges:
-                nodes = nodes[::-1]
-                group_nodes2.append(nodes)
-                list_nodes2.extend(nodes)
-            else:
-                group_nodes1.append(nodes)
-                list_nodes1.extend(nodes)
-
-        group_nodes1 = [group_nodes1[p] for p in range(nEdges) if group_nodes1[p].size > 0]
-        group_nodes2 = [group_nodes2[p] for p in range(nEdges) if group_nodes2[p].size > 0]
-
-        ax = Display.Plot_Mesh(mesh, alpha=0, title='Periodic boundary conditions')
-        from matplotlib.collections import LineCollection
-        for n, (nodes1, nodes2) in enumerate(zip(group_nodes1, group_nodes2)):
-
-            paired_nodes = np.concatenate((nodes1.reshape(-1,1), nodes2.reshape(-1,1)), axis=1)
-            lines = coordo[paired_nodes, :2]
-
-            pc = ax.scatter(lines[:,:,0], lines[:,:,1], label=f'edges{n}')
-            ax.add_collection(LineCollection(lines, edgecolor=pc.get_edgecolor()))    
-        ax.legend()
+        paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
     else:
         nodes_border = mesh.Nodes_Tags([f'L{i}' for i in range(6)])
 
@@ -266,7 +224,7 @@ if __name__ == '__main__':
             # requires the u field to have zero mean
             useMean0 = True        
 
-            for n1, n2 in zip(list_nodes1, list_nodes2):
+            for n1, n2 in paired_nodes:
                     
                 nodes = np.array([n1, n2])
 

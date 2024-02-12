@@ -1,3 +1,5 @@
+"""Identify material properties in a compression test with a modified FEMU."""
+
 from scipy.optimize import least_squares
 import numpy as np
 import matplotlib.pyplot as plt
@@ -193,7 +195,7 @@ if __name__ == '__main__':
 
     for noise in noises:
 
-        print(f"\nnoise = {noise}")
+        print(f"\nnoise = {noise:.2e}")
 
         list_dict_run = []
 
@@ -356,8 +358,8 @@ if __name__ == '__main__':
 
     diff_n = np.reshape(simu_FEMU.displacement - u_exp, (mesh.Nn, 2))
 
-    # err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp.reshape((mesh.Nn,2)), axis=1)
-    err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp)
+    err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp.reshape((mesh.Nn,2)), axis=1)
+    # err_n = np.linalg.norm(diff_n, axis=1)/np.linalg.norm(u_exp)
     # err_n = np.linalg.norm(diff_n, axis=1)
 
     Display.Plot_Result(simu_FEMU, err_n, title=r"$\dfrac{\Vert u(p) - u_{exp} \Vert^2}{\Vert u_{exp} \Vert^2}$")

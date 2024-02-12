@@ -1,3 +1,6 @@
+"""Identify material properties in a compression test with the virtual field methods (VFM).\n
+WARNING: The current implementation has not been validated."""
+
 import numpy as np
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
