@@ -60,7 +60,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
     show_grid : bool, optionnal
         Show the grid, by default False
     **kwargs:
-        Evertything that can goes in https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
+        Everything that can goes in add_mesh function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
 
     Returns
     -------
@@ -71,30 +71,30 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
     # initiate the obj to construct the grid
     if isinstance(obj, (pv.MultiBlock, pv.PolyData, pv.UnstructuredGrid)):
         inDim = 3
-        mesh = obj        
-        result = result if result in mesh.array_names else None
+        pvMesh = obj        
+        result = result if result in pvMesh.array_names else None
     else:
-        mesh = _pvMesh(obj, result, deformFactor, nodeValues)
+        pvMesh = _pvMesh(obj, result, deformFactor, nodeValues)
         inDim = _init_obj(obj)[-1]
 
-    if mesh is None:
+    if pvMesh is None:
         # something do not work during the grid creation≠
         return
 
     if plotter is None:        
-        plotter = _initPlotter()        
+        plotter = _initPlotter()
     
     if show_grid:
         plotter.show_grid()
 
     # apply coef to the array
     name = "array" if isinstance(result, np.ndarray) else result
-    name = None if mesh.n_arrays == 0 else name
+    name = None if pvMesh.n_arrays == 0 else name
     if name != None:
-        mesh[name] *= coef
+        pvMesh[name] *= coef
 
     # plot the mesh    
-    plotter.add_mesh(mesh, scalars=name,
+    plotter.add_mesh(pvMesh, scalars=name,
                      color=color,
                      show_edges=show_edges, edge_color=edge_color, line_width=line_width,
                      show_vertices=show_vertices, point_size=point_size,
@@ -166,7 +166,7 @@ def _pvMesh(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
     
     connect = mesh.connect[:, order]
 
-    grid = pv.UnstructuredGrid({cellType: connect}, coordo)
+    pvMesh = pv.UnstructuredGrid({cellType: connect}, coordo)
 
     # Add the result    
     if isinstance(result, str) and result != "":
@@ -183,8 +183,8 @@ def _pvMesh(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
                     values = np.reshape(values, (Nn, -1))
                 elif size % Ne == 0:
                     values = np.reshape(values, (Ne, -1))
-                grid[result] = values
-                grid.set_active_scalars(result)            
+                pvMesh[result] = values
+                pvMesh.set_active_scalars(result)            
         else:
             myPrintError("obj must be a simulation object or result should be nodes or elements values.")
 
@@ -206,8 +206,8 @@ def _pvMesh(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
                 # nodes values that we want to plot on elements
                 values: np.ndarray = np.mean(values[connect], 1)
             
-            grid[name] = values
-            grid.set_active_scalars(name)
+            pvMesh[name] = values
+            pvMesh.set_active_scalars(name)
 
-    return grid
+    return pvMesh
 
