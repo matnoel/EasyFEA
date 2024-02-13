@@ -22,9 +22,9 @@ folder = Folder.Join(Folder.New_File("FCBA",results=True), "Identification")
 # Configuration
 # --------------------------------------------------------------------------------------------
 test = False
-doSimulation = False
+doSimulation = True
 detectL0 = False
-optimMesh = True
+optimMesh = False
 
 H = 90
 L = 45
@@ -52,7 +52,7 @@ split = "He" # He, Zhang, AnisotStress
 regu = "AT1" # AT1, AT2
 
 # tolConv -> phase field tol convergence
-tolConv = 1e-2 # 1e-0, 1e-2 1e-3
+tolConv = 1e-0 # 1e-0, 1e-2 1e-3
 
 # convOption -> convergence option for phasefield
 # (0, bourdin), (1, energie crack), (2, energie tot)
@@ -131,7 +131,7 @@ def DoSimu(x: np.ndarray, mesh: Mesh, idxEssai: int) -> float:
 
 if __name__ == '__main__':
 
-    for idxEssai in np.arange(0,9):
+    for idxEssai in np.arange(0,17):
 
         # --------------------------------------------------------------------------------------------
         # Folder
@@ -236,7 +236,7 @@ if __name__ == '__main__':
             df.to_excel(pathData, index=False)
 
         else:
-            # charge la simulation
+            # load simu
             simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder_save)
         
         # --------------------------------------------------------------------------------------------
