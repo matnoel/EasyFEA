@@ -628,9 +628,7 @@ class _Simu(ABC):
         -------
         np.ndarray
             The solution of the simulation.
-        """
-        if self.needUpdate:
-            self.Assembly()
+        """        
 
         self._Solver_Solve(self.problemType)
 
@@ -1671,48 +1669,44 @@ class Simu_Displacement(_Simu):
         return Ku_e, Mu_e
 
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        if problemType==None:
-            problemType = self.problemType
-        if self.needUpdate: self.Assembly()
+        if self.needUpdate:
+            self.Assembly()
+            self.Need_Update(False)
         return self.__Ku.copy(), self.Get_Rayleigh_Damping(), self.__Mu.copy(), self.__Fu.copy()
  
     def Assembly(self) -> None:
 
-        if self.needUpdate:
+        # Data
+        mesh = self.mesh        
+        nDof = mesh.Nn*self.dim
 
-            # Data
-            mesh = self.mesh        
-            nDof = mesh.Nn*self.dim
+        # Additional dimension linked to the use of lagrange coefficients
+        nDof += self._Bc_Lagrange_dim(self.problemType)
+                        
+        Ku_e, Mu_e = self.__Construct_Local_Matrix()
+        
+        tic = Tic()
 
-            # Additional dimension linked to the use of lagrange coefficients
-            nDof += self._Bc_Lagrange_dim(self.problemType)
-                            
-            Ku_e, Mu_e = self.__Construct_Local_Matrix()
-            
-            tic = Tic()
+        linesVector_e = mesh.linesVector_e.reshape(-1)
+        columnsVector_e = mesh.columnsVector_e.reshape(-1)
 
-            linesVector_e = mesh.linesVector_e.reshape(-1)
-            columnsVector_e = mesh.columnsVector_e.reshape(-1)
+        # Assembly
+        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
+        """Kglob matrix for the displacement problem (nDof, nDof)"""
 
-            # Assembly
-            self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
-            """Kglob matrix for the displacement problem (nDof, nDof)"""
+        # Here I'm initializing Fu because I'd have to calculate the volumetric forces in __Construct_Local_Matrix.
+        self.__Fu = sparse.csr_matrix((nDof, 1))
+        """Fglob vector for the displacement problem (nDof, 1)"""
 
-            # Here I'm initializing Fu because I'd have to calculate the volumetric forces in __Construct_Local_Matrix.
-            self.__Fu = sparse.csr_matrix((nDof, 1))
-            """Fglob vector for the displacement problem (nDof, 1)"""
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.spy(self.__Ku)
+        # plt.show()
 
-            # import matplotlib.pyplot as plt
-            # plt.figure()
-            # plt.spy(self.__Ku)
-            # plt.show()
+        self.__Mu = sparse.csr_matrix((Mu_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
+        """Mglob matrix for the displacement problem (Nn*dim, Nn*dim)"""
 
-            self.__Mu = sparse.csr_matrix((Mu_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
-            """Mglob matrix for the displacement problem (Nn*dim, Nn*dim)"""
-
-            tic.Tac("Matrix","Assembly Ku, Mu and Fu", self._verbosity)
-
-            self.Need_Update(False)
+        tic.Tac("Matrix","Assembly Ku, Mu and Fu", self._verbosity)
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         """Set damping coefficients."""
@@ -2112,6 +2106,11 @@ class Simu_PhaseField(_Simu):
         self.__old_psiP_e_pg = [] # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
         self.Solver_Set_Elliptic_Algorithm()
 
+        self.__updatedDamage = False
+        """The matrix system associated with the damage problem is updated."""
+        self.__updatedDisplacement = False
+        """The matrix system associated with the displacement problem is updated."""
+
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         if details:
             nodesField = ["displacement_matrix", "damage"]
@@ -2196,20 +2195,17 @@ class Simu_PhaseField(_Simu):
         size = self.mesh.Nn * self.Get_dof_n(problemType)
         initcsr = sparse.csr_matrix((size, size))
 
-        if self.needUpdate:
-            if problemType == ModelType.displacement:
+        # here always update to the last state
+        if problemType == ModelType.displacement:
+            if not self.__updatedDisplacement:
                 self.__Assembly_displacement()
-            else:
+                self.__updatedDisplacement = True
+            return self.__Ku.copy(), initcsr, initcsr, self.__Fu.copy()
+        else:
+            if not self.__updatedDamage:
                 self.__Assembly_damage()
-
-        try:    
-            if problemType == ModelType.damage:            
-                return self.__Kd.copy(), initcsr, initcsr, self.__Fd.copy()
-            elif problemType == ModelType.displacement:            
-                return self.__Ku.copy(), initcsr, initcsr, self.__Fu.copy()
-        except AttributeError:
-            myPrintError("System not yet assembled")
-            return initcsr, initcsr, initcsr, initcsr
+                self.__updatedDamage = True
+            return self.__Kd.copy(), initcsr, initcsr, self.__Fd.copy()
 
     def Get_x0(self, problemType=None):
         
@@ -2224,7 +2220,7 @@ class Simu_PhaseField(_Simu):
             else:
                 return self.displacement
 
-    def Assembly(self):
+    def Assembly(self) -> None:
         self.__Assembly_damage()
         self.__Assembly_displacement()
     
@@ -2280,12 +2276,12 @@ class Simu_PhaseField(_Simu):
                 u_n = self.displacement
 
             # Damage
-            self.__Assembly_damage()
             d_np1 = self.__Solve_damage()
+            self.__updatedDisplacement = False # new damage -> new displacement matrices
 
-            # Displacement
-            Kglob = self.__Assembly_displacement()
+            # Displacement            
             u_np1 = self.__Solve_displacement()
+            self.__updatedDamage = False # new displacement -> new damage matrices
 
             if convOption == 0:                
                 convIter = np.max(np.abs(d_np1 - d_n))
@@ -2334,6 +2330,8 @@ class Simu_PhaseField(_Simu):
         self.__Niter = Niter
         self.__convIter = convIter
         self.__timeIter = timeIter
+
+        Kglob = self.__Ku.copy()
             
         return u_np1, d_np1, Kglob, convergence
 
@@ -2567,8 +2565,8 @@ class Simu_PhaseField(_Simu):
         iter["Niter"] = self.__Niter
         iter["timeIter"] = self.__timeIter
         iter["convIter"] = self.__convIter
-    
-        if self.phaseFieldModel.solver == Materials.PhaseField_Model.SolverType.History:
+        
+        if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
             # update old history field for next resolution
             self.__old_psiP_e_pg = self.__psiP_e_pg
             
@@ -2583,14 +2581,20 @@ class Simu_PhaseField(_Simu):
 
         if results is None: return
 
-        self.Need_Update() # damage field will change thats why we need to update the assembled matrices
-        self.__old_psiP_e_pg = [] # It's really useful to do this otherwise when we calculate psiP there will be a problem
-
         damageType = ModelType.damage
         self.set_u_n(damageType, results[damageType])
 
         displacementType = ModelType.displacement
         self.set_u_n(displacementType, results[displacementType])
+
+        # damage and displacement field will change thats why we need to update the assembled matrices
+        self.__updatedDamage = False
+        self.__updatedDisplacement = False
+
+        if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
+            # It's really useful to do this otherwise when we calculate psiP there will be a problem
+            self.__old_psiP_e_pg = []
+            self.__old_psiP_e_pg = self.__Calc_psiPlus_e_pg() # update psi+ with the current state
 
         return results
 
@@ -2710,8 +2714,7 @@ class Simu_PhaseField(_Simu):
         tic = Tic()
 
         u = self.displacement.reshape(-1,1)
-        Ku = self.__Assembly_displacement()
-        
+        Ku = self.Get_K_C_M_F(ModelType.displacement)[0]
         Wdef = 1/2 * float(u.T @ Ku @ u)
 
         tic.Tac("PostProcessing","Calc Psi Elas",False)
@@ -2723,8 +2726,8 @@ class Simu_PhaseField(_Simu):
 
         tic = Tic()
         
-        d = self.damage.reshape(-1,1)
-        Kd = self.__Assembly_damage()[0]
+        d = self.damage.reshape(-1,1)        
+        Kd = self.Get_K_C_M_F(ModelType.damage)[0]
         Psi_Crack = 1/2 * float(d.T @ Kd @ d)
 
         tic.Tac("PostProcessing","Calc Psi Crack",False)
@@ -3376,45 +3379,43 @@ class Simu_Beam(_Simu):
 
         return B_beam_e_pg
 
-    def Assembly(self):
+    def Assembly(self) -> None:
 
-        if self.needUpdate:
+        # Data
+        mesh = self.mesh
 
-            # Data
-            mesh = self.mesh
+        model = self.structure
 
-            model = self.structure
+        nDof = mesh.Nn * model.dof_n
 
-            nDof = mesh.Nn * model.dof_n
+        Ku_beam = self.__Construct_Beam_Matrix()
 
-            Ku_beam = self.__Construct_Beam_Matrix()
+        # Additional dimension linked to the use of lagrange coefficients
+        nDof += self._Bc_Lagrange_dim(self.problemType)
+        
+        tic = Tic()
 
-            # Additional dimension linked to the use of lagrange coefficients
-            nDof += self._Bc_Lagrange_dim(self.problemType)
-            
-            tic = Tic()
+        lignesVector_e = mesh.Get_linesVector_e(model.dof_n).reshape(-1)
+        colonnesVector_e = mesh.Get_columnsVector_e(model.dof_n).reshape(-1)
 
-            lignesVector_e = mesh.Get_linesVector_e(model.dof_n).reshape(-1)
-            colonnesVector_e = mesh.Get_columnsVector_e(model.dof_n).reshape(-1)
+        # Assembly
+        self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e, colonnesVector_e)), shape=(nDof, nDof))
+        """Kglob matrix for beam problem (nDof, nDof)"""
 
-            # Assembly
-            self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e, colonnesVector_e)), shape=(nDof, nDof))
-            """Kglob matrix for beam problem (nDof, nDof)"""
+        self.__Fbeam = sparse.csr_matrix((nDof, 1))
+        """Fglob vector for beam problem (nDof, 1)"""
 
-            self.__Fbeam = sparse.csr_matrix((nDof, 1))
-            """Fglob vector for beam problem (nDof, 1)"""
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.spy(self.__Ku)
+        # plt.show()
 
-            # import matplotlib.pyplot as plt
-            # plt.figure()
-            # plt.spy(self.__Ku)
-            # plt.show()
-
-            self.Need_Update(False)
-
-            tic.Tac("Matrix","Assembly Kbeam and Fbeam", self._verbosity)
+        tic.Tac("Matrix","Assembly Kbeam and Fbeam", self._verbosity)
 
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        if self.needUpdate: self.Assembly()
+        if self.needUpdate:
+            self.Assembly()
+            self.Need_Update(False)
         size = self.mesh.Nn * self.Get_dof_n(problemType)
         initcsr = sparse.csr_matrix((size, size))
         return self.__Kbeam.copy(), initcsr.copy(), initcsr.copy(), self.__Fbeam.copy()
@@ -3836,7 +3837,9 @@ class Simu_Thermal(_Simu):
             return self.thermal
 
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        if self.needUpdate: self.Assembly()
+        if self.needUpdate:
+            self.Assembly()
+            self.Need_Update(False)
         size = self.mesh.Nn * self.Get_dof_n(problemType)
         initcsr = sparse.csr_matrix((size, size))
         return self.__Kt.copy(), self.__Ct.copy(), initcsr, self.__Ft.copy()
@@ -3880,34 +3883,30 @@ class Simu_Thermal(_Simu):
     def Assembly(self) -> None:
         """Construct the matrix system for the thermal problem in stationary or transient regime."""
 
-        if self.needUpdate:
-       
-            # Data
-            mesh = self.mesh
-            nDof = mesh.Nn
-            linesScalar_e = mesh.linesScalar_e.reshape(-1)
-            columnsScalar_e = mesh.columnsScalar_e.reshape(-1)
+        # Data
+        mesh = self.mesh
+        nDof = mesh.Nn
+        linesScalar_e = mesh.linesScalar_e.reshape(-1)
+        columnsScalar_e = mesh.columnsScalar_e.reshape(-1)
 
-            # Additional dimension linked to the use of lagrange coefficients
-            nDof += self._Bc_Lagrange_dim(self.problemType)
-            
-            # Calculating elementary matrices
-            Kt_e, Mt_e = self.__Construct_Thermal_Matrix()
-            
-            tic = Tic()
+        # Additional dimension linked to the use of lagrange coefficients
+        nDof += self._Bc_Lagrange_dim(self.problemType)
+        
+        # Calculating elementary matrices
+        Kt_e, Mt_e = self.__Construct_Thermal_Matrix()
+        
+        tic = Tic()
 
-            self.__Kt = sparse.csr_matrix((Kt_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
-            """Kglob for thermal problem (Nn, Nn)"""
-            
-            self.__Ft = sparse.csr_matrix((nDof, 1))
-            """Fglob vector for thermal problem (Nn, 1)."""
+        self.__Kt = sparse.csr_matrix((Kt_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
+        """Kglob for thermal problem (Nn, Nn)"""
+        
+        self.__Ft = sparse.csr_matrix((nDof, 1))
+        """Fglob vector for thermal problem (Nn, 1)."""
 
-            self.__Ct = sparse.csr_matrix((Mt_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
-            """Mglob for thermal problem (Nn, Nn)"""
+        self.__Ct = sparse.csr_matrix((Mt_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
+        """Mglob for thermal problem (Nn, Nn)"""
 
-            tic.Tac("Matrix","Assembly Kt, Mt and Ft", self._verbosity)
-
-            self.Need_Update(False)
+        tic.Tac("Matrix","Assembly Kt, Mt and Ft", self._verbosity)
 
     def Save_Iter(self):
 
