@@ -1227,7 +1227,7 @@ class __Sytles(str, Enum):
     UNDERLINE = '\033[4m'
     RESET = '\33[0m'
 
-def myPrint(text: str, color='blue', bold=False, italic=False, underLine=False, end:str=None) -> None:
+def myPrint(text: str, color='cyan', bold=False, italic=False, underLine=False, end:str=None) -> None:
 
     dct = dict(map(lambda item: (item.name, item.value), __Colors))
 
