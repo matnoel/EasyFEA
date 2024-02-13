@@ -88,7 +88,15 @@ class _GroupElem(ABC):
         """
 
         self.__gmshId = gmshId
-        self.__elemType, self.__nPe, self.__dim, self.__order, self.__nbFaces, self.__nbCorners = _GroupElem_Factory.Get_ElemInFos(gmshId)
+
+        elemType, nPe, dim, order, nbFaces, nbCorners = _GroupElem_Factory.Get_ElemInFos(gmshId)
+
+        self.__elemType = elemType
+        self.__nPe = nPe
+        self.__dim = dim
+        self.__order = order
+        self.__nbFaces = nbFaces
+        self.__nbCorners = nbCorners 
         
         # Elements
         self.__connect = connect
@@ -941,7 +949,7 @@ class _GroupElem(ABC):
         if self.dim == 1 and self.order < order:
             fonctions = np.array([lambda x: 0]*self.nPe)
         elif self.dim == 2 and self.order < order:
-            fonctions = np.array([lambda ksi,eta: 0, lambda ksi,eta: 0]*self.nPe)
+            fonctions = np.array([lambda xi,eta: 0, lambda xi,eta: 0]*self.nPe)
         elif self.dim == 3 and self.order < order:
             fonctions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
         return fonctions
@@ -972,7 +980,7 @@ class _GroupElem(ABC):
     @abstractmethod
     def _dNtild(self) -> np.ndarray:
         """Shape functions first derivatives in the local coordinates.\n
-        [Ni,ksi . . . Nn,ksi\n
+        [Ni,xi . . . Nn,xi\n
         Ni,eta ... Nn,eta]\n
         (dim, nPe)
         """
@@ -980,7 +988,7 @@ class _GroupElem(ABC):
     
     def Get_dN_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluate shape functions first derivatives in the local coordinates.\n
-        [Ni,ksi . . . Nn,ksi\n
+        [Ni,xi . . . Nn,xi\n
         Ni,eta ... Nn,eta]\n
         (pg, dim, nPe)
         """
@@ -996,16 +1004,16 @@ class _GroupElem(ABC):
     @abstractmethod
     def _ddNtild(self) -> np.ndarray:
         """Shape functions second derivatives in the local coordinates.\n
-        [Ni,ksi ksi . . . Nn,ksi ksi\n
-        Ni,eta eta . . . Nn,eta eta]\n
+        [Ni,xi2 . . . Nn,xi2\n
+        Ni,eta2 . . . Nn,eta eta]\n
         (dim, nPe)
         """
         return self.__Init_Functions(2)
 
     def Get_ddN_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluate shape functions second derivatives in the local coordinates.\n
-        [Ni,ksi ksi . . . Nn,ksi ksi\n
-        Ni,eta eta . . . Nn,eta eta]\n
+        [Ni,xi2 . . . Nn,xi2\n
+        Ni,eta2 . . . Nn,eta2]\n
         (pg, dim, nPe)
         """
         if self.dim == 0: return
@@ -1020,16 +1028,16 @@ class _GroupElem(ABC):
     @abstractmethod
     def _dddNtild(self) -> np.ndarray:
         """Shape functions third derivatives in the local coordinates.\n
-        [Ni,ksi ksi ksi . . . Nn,ksi ksi ksi\n
-        Ni,eta eta eta . . . Nn,eta eta eta]\n
+        [Ni,xi3 . . . Nn,xi3\n
+        Ni,eta3 . . . Nn,eta3]\n
         (dim, nPe)
         """
         return self.__Init_Functions(3)
 
     def Get_dddN_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluate shape functions third derivatives in the local coordinates.\n
-        [Ni,ksi ksi ksi . . . Nn,ksi ksi ksi\n
-        Ni,eta eta eta . . . Nn,eta eta eta]\n
+        [Ni,xi3 . . . Nn,xi3\n
+        Ni,eta3 . . . Nn,eta3]\n
         (pg, dim, nPe)
         """
         if self.elemType == 0: return
@@ -1044,8 +1052,8 @@ class _GroupElem(ABC):
     @abstractmethod
     def _ddddNtild(self) -> np.ndarray:
         """Shape functions fourth derivatives in the local coordinates.\n
-        [Ni,ksi ksi ksi ksi . . . Nn,ksi ksi ksi ksi\n
-        Ni,eta eta eta eta . . . Nn,eta eta eta eta]
+        [Ni,xi4 . . . Nn,xi4\n
+        Ni,eta4 . . . Nn,eta4]
         \n
         (dim, nPe)
         """
@@ -1053,8 +1061,8 @@ class _GroupElem(ABC):
 
     def Get_ddddN_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluate shape functions fourth derivatives in the local coordinates.\n
-        [Ni,ksi ksi ksi ksi . . . Nn,ksi ksi ksi ksi\n
-        Ni,eta eta eta eta . . . Nn,eta eta eta eta]
+        [Ni,xi4 . . . Nn,xi4\n
+        Ni,eta4 . . . Nn,eta4]
         \n
         (pg, dim, nPe)
         """
@@ -1093,14 +1101,14 @@ class _GroupElem(ABC):
     
     def dNvtild(self) -> np.ndarray:
         """Beam shape functions first derivatives in the local coordinates.\n
-        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
+        [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
         (nPe*2)
         """
         pass
 
     def Get_dNv_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluate beam shape functions first derivatives in the local coordinates.\n
-        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
+        [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
         (pg, nPe*2)
         """
         if self.dim != 1: return
@@ -1114,14 +1122,14 @@ class _GroupElem(ABC):
     
     def _ddNvtild(self) -> np.ndarray:
         """Beam shape functions second derivatives in the local coordinates.\n
-        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
+        [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 psi_n,xi2]\n
         (nPe*2)
         """
         return 
     
     def Get_ddNv_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluate beam shape functions second derivatives in the local coordinates.\n
-        [phi_i,x x psi_i,x x . . . phi_n,x x psi_n,x x]\n
+        [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 x psi_n,xi2]\n
         (pg, nPe*2)
         """
         if self.dim != 1: return
@@ -1522,7 +1530,7 @@ class _GroupElem(ABC):
             return idx
 
     def Get_Mapping(self, coordinates: np.ndarray, elements=None):
-        """Function to return the nodes in the elements, the connectivity and the coordinates (ksi, eta) of the points.
+        """Function to return the nodes in the elements, the connectivity and the coordinates (xi, eta) of the points.
         return nodes, connect_e_n, coordoInElem_n"""
         
         if elements is None:
@@ -1638,7 +1646,7 @@ class _GroupElem(ABC):
                 coordinatesBase_n = coordinatesBase_n @ sysCoord_e[e]
             
             # now we want to know the coordinates of the nodes in the reference element
-            ksi0 = self.origin # origin of the reference element (ksi, eta)            
+            xiOrigin = self.origin # origin of the reference element (xi, eta)            
             x0  = coordoElemBase[0,:dim] # orign of the real element (x,y)
             # xPs = coordinates_n[nodesInElement,:dim] # points coordinates
             xPs = coordinatesBase_n[:,:dim] # points coordinates            
@@ -1646,23 +1654,23 @@ class _GroupElem(ABC):
             # points coordinates in the reference base
             if useIterative:
                 
-                def Eval(ksi: np.ndarray, xP):
-                    dN = _GroupElem._Evaluates_Functions(dN_tild, ksi.reshape(1, -1))
+                def Eval(xi: np.ndarray, xP):
+                    dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
                     F = dN[0] @ coordoElemBase[:,:dim]                    
-                    J = x0 - xP + (ksi - ksi0) @ F
+                    J = x0 - xP + (xi - xiOrigin) @ F
                     return J
 
-                ksiP = []
+                xiP = []
                 for xP in xPs:
                     res = least_squares(Eval, 0*xP, args=(xP,))
                     tes = Eval(res.x, xP)
-                    ksiP.append(res.x)
+                    xiP.append(res.x)
 
-                ksiP = np.array(ksiP)
+                xiP = np.array(xiP)
             else:
                 if nPg == 1:
                     # invF_e_pg is constant in the element
-                    ksiP: np.ndarray = ksi0 + (xPs - x0) @ invF_e_pg[e,0]
+                    xiP: np.ndarray = xiOrigin + (xPs - x0) @ invF_e_pg[e,0]
 
                 else:
                     # If the element have more than 1 integration point, it is necessary to choose the closest integration points. Because invF_e_pg is not constant in the element
@@ -1673,10 +1681,10 @@ class _GroupElem(ABC):
                         dist[:,p] = np.linalg.norm(xPs - gaussCoord_e_pg[e, p, :dim], axis=1)
                     invMin = invF_e_pg[e, np.argmin(dist, axis=1)]
 
-                    ksiP: np.ndarray = ksi0 + np.einsum('ni,nij->nj',(xPs - x0), invMin, optimize='optimal')
+                    xiP: np.ndarray = xiOrigin + np.einsum('ni,nij->nj',(xPs - x0), invMin, optimize='optimal')
             
             connect_e_n.append(nodesInElement)
-            coordoInElem_n[nodesInElement,:] = ksiP.copy()
+            coordoInElem_n[nodesInElement,:] = xiP.copy()
             nodes.extend(nodesInElement)
 
         [ResearchFunction(e) for e in elements_e]
@@ -1718,312 +1726,62 @@ class _GroupElem(ABC):
 class _GroupElem_Factory:
 
     @staticmethod
-    def Get_ElemInFos(gmshId: int) -> tuple:
-        """return elemType, nPe, dim, order, nbFaces associated with the gmsh id.
+    def Get_ElemInFos(gmshId: int) -> tuple[ElemType, int, int, int, int, int]:
+        """return elemType, nPe, dim, order, nbFaces, nbCorners\n
+        associated with the gmsh id.
         """
+        # could be clearer with match but only available with python 3.10
         if gmshId == 15:
             elemType = ElemType.POINT; nPe = 1; dim = 0; order = 0; nbFaces = 0; nbCorners = 0
         elif gmshId == 1:
             elemType = ElemType.SEG2; nPe = 2; dim = 1; order = 1; nbFaces = 0; nbCorners = 2
-            #       v
-            #       ^
-            #       |
-            #       |
-            #  0----+----1 --> u
         elif gmshId == 8:
             elemType = ElemType.SEG3; nPe = 3; dim = 1; order = 2; nbFaces = 0; nbCorners = 2
-            #       v
-            #       ^
-            #       |
-            #       |
-            #  0----2----1 --> u
         elif gmshId == 26:
             elemType = ElemType.SEG4; nPe = 4; dim = 1; order = 3; nbFaces = 0; nbCorners = 2
-            #        v
-            #        ^
-            #        |
-            #        |
-            #  0---2-+-3---1 --> u
         # elif gmshId == 27:
         #     elemType = ElemType.SEG5; nPe = 5; dim = 1; order = 4; nbFaces = 0; nbCorners = 2
-        #     #          v
-        #     #          ^
-        #     #          |
-        #     #          |
-        #     #  0---2---3---4---1 --> u            
         elif gmshId == 2:
             elemType = ElemType.TRI3; nPe = 3; dim = 2; order = 2; nbFaces = 1; nbCorners = 3
-            # v
-            # ^
-            # |
-            # 2
-            # |`\
-            # |  `\
-            # |    `\
-            # |      `\
-            # |        `\
-            # 0----------1 --> u
         elif gmshId == 9:
             elemType = ElemType.TRI6; nPe = 6; dim = 2; order = 2; nbFaces = 1; nbCorners = 3
-            # v
-            # ^
-            # |
-            # 2
-            # |`\
-            # |  `\
-            # 5    `4
-            # |      `\
-            # |        `\
-            # 0----3-----1 --> u
         elif gmshId == 21:
             elemType = ElemType.TRI10; nPe = 10; dim = 2; order = 3; nbFaces = 1; nbCorners = 3
-            # v
-            # ^
-            # |
-            # 2
-            # | \
-            # 7   6
-            # |     \
-            # 8  (9)  5
-            # |         \
-            # 0---3---4---1
         # elif gmshId == 23:
         #     elemType = ElemType.TRI15; nPe = 15; dim = 2; order = 4; nbFaces = 1; nbCorners = 3
-        #     # 
-        #     # 2
-        #     # | \
-        #     # 9   8
-        #     # |     \
-        #     # 10 (14)  7
-        #     # |         \
-        #     # 11 (12) (13) 6
-        #     # |             \
-        #     # 0---3---4---5---1
         elif gmshId == 3:
             elemType = ElemType.QUAD4; nPe = 4; dim = 2; order = 1; nbFaces = 1; nbCorners = 4
-            #       v
-            #       ^
-            #       |
-            # 3-----------2
-            # |     |     |
-            # |     |     |
-            # |     +---- | --> u
-            # |           |
-            # |           |
-            # 0-----------1
         elif gmshId == 16:
             elemType = ElemType.QUAD8; nPe = 8; dim = 2; order = 2; nbFaces = 1; nbCorners = 4
-            #       v
-            #       ^
-            #       |
-            # 3-----6-----2
-            # |     |     |
-            # |     |     |
-            # 7     +---- 5 --> u
-            # |           |
-            # |           |
-            # 0-----4-----1
         # elif gmshId == 10:
         #     elemType = ElemType.QUAD9; nPe = 9; dim = 2; order = 3; nbFaces = 1; nbCorners = 4
-        #     #       v
-        #     #       ^
-        #     #       |
-        #     # 3-----6-----2
-        #     # |     |     |
-        #     # |     |     |
-        #     # 7     8---- 5 --> u
-        #     # |           |
-        #     # |           |
-        #     # 0-----4-----1
         elif gmshId == 4:
             elemType = ElemType.TETRA4; nPe = 4; dim = 3; order = 1; nbFaces = 4; nbCorners = 4
-            #                    v
-            #                  .
-            #                ,/
-            #               /
-            #            2
-            #          ,/|`\
-            #        ,/  |  `\
-            #      ,/    '.   `\
-            #    ,/       |     `\
-            #  ,/         |       `\
-            # 0-----------'.--------1 --> u
-            #  `\.         |      ,/
-            #     `\.      |    ,/
-            #        `\.   '. ,/
-            #           `\. |/
-            #              `3
-            #                 `\.
-            #                    ` w
         elif gmshId == 11:
             elemType = ElemType.TETRA10; nPe = 10; dim = 3; order = 2; nbFaces = 4; nbCorners = 4
-            #                    v
-            #                  .
-            #                ,/
-            #               /
-            #            2
-            #          ,/|`\
-            #        ,/  |  `\
-            #      ,6    '.   `5
-            #    ,/       8     `\
-            #  ,/         |       `\
-            # 0--------4--'.--------1 --> u
-            #  `\.         |      ,/
-            #     `\.      |    ,9
-            #        `7.   '. ,/
-            #           `\. |/
-            #              `3
-            #                 `\.
-            #                    ` w
         elif gmshId == 5:
             elemType = ElemType.HEXA8; nPe = 8; dim = 3; order = 1; nbFaces = 6; nbCorners = 8
-            #        v
-            # 3----------2
-            # |\     ^   |\
-            # | \    |   | \
-            # |  \   |   |  \
-            # |   7------+---6
-            # |   |  +-- |-- | -> u
-            # 0---+---\--1   |
-            #  \  |    \  \  |
-            #   \ |     \  \ |
-            #    \|      w  \|
-            #     4----------5
         elif gmshId == 17:
             elemType = ElemType.HEXA20; nPe = 20; dim = 3; order = 2; nbFaces = 6; nbCorners = 8
-            #        v
-            # 3----13----2
-            # |\     ^   |\
-            # | 15   |   | 14
-            # 9  \   |   11 \
-            # |   7----19+---6
-            # |   |  +-- |-- | -> u
-            # 0---+-8-\--1   |
-            #  \  17   \  \  18
-            #  10 |     \  12|
-            #    \|      w  \|
-            #     4----16----5
         elif gmshId == 6:
             elemType = ElemType.PRISM6; nPe = 6; dim = 3; order = 1; nbFaces = 5; nbCorners = 6
-            #            w
-            #            ^
-            #            |
-            #            3
-            #          ,/|`\
-            #        ,/  |  `\
-            #      ,/    |    `\
-            #     4------+------5
-            #     |      |      |
-            #     |    ,/|`\    |
-            #     |  ,/  |  `\  |
-            #     |,/    |    `\|
-            #    ,|      |      |\
-            #  ,/ |      0      | `\
-            # u   |    ,/ `\    |    v
-            #     |  ,/     `\  |
-            #     |,/         `\|
-            #     1-------------2
         elif gmshId == 18:
             elemType = ElemType.PRISM15; nPe = 15; dim = 3; order = 2; nbFaces = 5; nbCorners = 6
-            #            w
-            #            ^
-            #            |
-            #            3
-            #          ,/|`\
-            #        12  |  13
-            #      ,/    |    `\
-            #     4------14-----5
-            #     |      8      |
-            #     |    ,/|`\    |
-            #     |  ,/  |  `\  |
-            #     |,/    |    `\|
-            #    ,10      |     11
-            #  ,/ |      0      | \
-            # u   |    ,/ `\    |   v
-            #     |  ,6     `7  |
-            #     |,/         `\|
-            #     1------9------2
-        elif gmshId == 13:
-            elemType = ElemType.PRISM18; nPe = 18; dim = 3; order = 2; nbFaces = 5; nbCorners = 6
-            #            w
-            #            ^
-            #            |
-            #            3
-            #          ,/|`\
-            #        12  |  13
-            #      ,/    |    `\
-            #     4------14-----5
-            #     |      8      |
-            #     |    ,/|`\    |
-            #     |  15  |  16  |
-            #     |,/    |    `\|
-            #    ,10-----17-----11
-            #  ,/ |      0      | `\
-            # u   |    ,/ `\    |    v
-            #     |  ,6     `7  |
-            #     |,/         `\|
-            #     1------9------2
+        # elif gmshId == 13:
+        #     elemType = ElemType.PRISM18; nPe = 18; dim = 3; order = 2; nbFaces = 5; nbCorners = 6
         # elif gmshId == 7:
         #     elemType = ElemType.PYRA5; nPe = 5; dim = 3; order = 1; nbFaces = 5; nbCorners = 5
-        #     #                4
-        #     #              ,/|\
-        #     #            ,/ .'|\
-        #     #          ,/   | | \
-        #     #        ,/    .' | `.
-        #     #      ,/      |  '.  \
-        #     #    ,/       .' w |   \
-        #     #  ,/         |  ^ |    \
-        #     # 0----------.'--|-3    `.
-        #     #  `\        |   |  `\    \
-        #     #    `\     .'   +----`\ - \ -> v
-        #     #      `\   |    `\     `\  \
-        #     #        `\.'      `\     `\`
-        #     #           1----------------2
-        #     #                     `\
-        #     #                       u
         # elif gmshId == 19:
         #     elemType = ElemType.PYRA13; nPe = 13; dim = 3; order = 2; nbFaces = 5; nbCorners = 5
-        #     #                4
-        #     #              ,/|\
-        #     #            ,/ .'|\
-        #     #          ,/   | | \
-        #     #        ,/    .' | `.
-        #     #      ,7      |  12  \
-        #     #    ,/       .' w |   \
-        #     #  ,/         9  ^ |    11
-        #     # 0--------6-.'--|-3    `.
-        #     #  `\        |   |  `\    \
-        #     #    `5     .'   +----10 - \ -> v
-        #     #      `\   |    `\     `\  \
-        #     #        `\.'      `\       `\`
-        #     #           1--------8-------2
-        #     #                     `\
-        #     #                       u
         # elif gmshId == 14:
         #     elemType = ElemType.PYRA14; nPe = 14; dim = 3; order = 2; nbFaces = 5; nbCorners = 5
-        #     #                4
-        #     #              ,/|\
-        #     #            ,/ .'|\
-        #     #          ,/   | | \
-        #     #        ,/    .' | `.
-        #     #      ,7      |  12  \
-        #     #    ,/       .' w |   \
-        #     #  ,/         9  ^ |    11
-        #     # 0--------6-.'--|-3    `.
-        #     #  `\        |   |  `\    \
-        #     #    `5     .'   13---10 - \ -> v
-        #     #      `\   |    `\     `\  \
-        #     #        `\.'      `\     `\`
-        #     #           1--------8-------2
-        #     #                     `\
-        #     #                       u
         else: 
             raise Exception("Element type unknown")
             
         return elemType, nPe, dim, order, nbFaces, nbCorners
     
     @staticmethod
-    def Create_GroupElem(gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray) -> _GroupElem:
+    def Create(gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray) -> _GroupElem:
         """Create an element group
         
         Parameters
@@ -2055,8 +1813,6 @@ class _GroupElem_Factory:
             return SEG3(*params)
         elif elemType == ElemType.SEG4:
             return SEG4(*params)
-        # elif elemType == ElemType.SEG5:
-        #     return SEG5(*params)
         elif elemType == ElemType.TRI3:
             return TRI3(*params)
         elif elemType == ElemType.TRI6:
@@ -2116,14 +1872,12 @@ class POINT(_GroupElem):
     def _ddddNtild(self) -> np.ndarray:
         pass
 
-    
-
 class SEG2(_GroupElem):    
-    #       v
-    #       ^
-    #       |
-    #       |
-    #  0----+----1 --> u
+    #      v
+    #      ^
+    #      |
+    #      |
+    # 0----+----1 --> u
 
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
 
@@ -2202,11 +1956,11 @@ class SEG2(_GroupElem):
         return ddNvtild
 
 class SEG3(_GroupElem):
-    #       v
-    #       ^
-    #       |
-    #       |
-    #  0----2----1 --> u
+    #      v
+    #      ^
+    #      |
+    #      |
+    # 0----2----1 --> u
 
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
 
@@ -2300,11 +2054,11 @@ class SEG3(_GroupElem):
         return ddNvtild
 
 class SEG4(_GroupElem):
-    #        v
-    #        ^
-    #        |
-    #        |
-    #  0---2-+-3---1 --> u
+    #       v
+    #       ^
+    #       |
+    #       |
+    # 0---2-+-3---1 --> u
 
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
 
@@ -2444,9 +2198,9 @@ class TRI3(_GroupElem):
 
     def _Ntild(self) -> np.ndarray:
 
-        N1t = lambda ksi,eta: 1-ksi-eta
-        N2t = lambda ksi,eta: ksi
-        N3t = lambda ksi,eta: eta
+        N1t = lambda xi,eta: 1-xi-eta
+        N2t = lambda xi,eta: xi
+        N3t = lambda xi,eta: eta
         
         Ntild = np.array([N1t, N2t, N3t]).reshape(-1,1)
 
@@ -2454,9 +2208,9 @@ class TRI3(_GroupElem):
 
     def _dNtild(self) -> np.ndarray:
 
-        dN1t = [lambda ksi,eta: -1, lambda ksi,eta: -1]
-        dN2t = [lambda ksi,eta: 1,  lambda ksi,eta: 0]
-        dN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 1]
+        dN1t = [lambda xi,eta: -1, lambda xi,eta: -1]
+        dN2t = [lambda xi,eta: 1,  lambda xi,eta: 0]
+        dN3t = [lambda xi,eta: 0,  lambda xi,eta: 1]
 
         dNtild = np.array([dN1t, dN2t, dN3t])
 
@@ -2502,12 +2256,12 @@ class TRI6(_GroupElem):
 
     def _Ntild(self) -> np.ndarray:
 
-        N1t = lambda ksi,eta: -(1-ksi-eta)*(1-2*(1-ksi-eta))
-        N2t = lambda ksi,eta: -ksi*(1-2*ksi)
-        N3t = lambda ksi,eta: -eta*(1-2*eta)
-        N4t = lambda ksi,eta: 4*ksi*(1-ksi-eta)
-        N5t = lambda ksi,eta: 4*ksi*eta
-        N6t = lambda ksi,eta: 4*eta*(1-ksi-eta)
+        N1t = lambda xi,eta: -(1-xi-eta)*(1-2*(1-xi-eta))
+        N2t = lambda xi,eta: -xi*(1-2*xi)
+        N3t = lambda xi,eta: -eta*(1-2*eta)
+        N4t = lambda xi,eta: 4*xi*(1-xi-eta)
+        N5t = lambda xi,eta: 4*xi*eta
+        N6t = lambda xi,eta: 4*eta*(1-xi-eta)
         
         Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t]).reshape(-1, 1)
 
@@ -2515,24 +2269,24 @@ class TRI6(_GroupElem):
 
     def _dNtild(self) -> np.ndarray:
 
-        dN1t = [lambda ksi,eta: 4*ksi+4*eta-3,  lambda ksi,eta: 4*ksi+4*eta-3]
-        dN2t = [lambda ksi,eta: 4*ksi-1,        lambda ksi,eta: 0]
-        dN3t = [lambda ksi,eta: 0,              lambda ksi,eta: 4*eta-1]
-        dN4t = [lambda ksi,eta: 4-8*ksi-4*eta,  lambda ksi,eta: -4*ksi]
-        dN5t = [lambda ksi,eta: 4*eta,          lambda ksi,eta: 4*ksi]
-        dN6t = [lambda ksi,eta: -4*eta,         lambda ksi,eta: 4-4*ksi-8*eta]
+        dN1t = [lambda xi,eta: 4*xi+4*eta-3,  lambda xi,eta: 4*xi+4*eta-3]
+        dN2t = [lambda xi,eta: 4*xi-1,        lambda xi,eta: 0]
+        dN3t = [lambda xi,eta: 0,              lambda xi,eta: 4*eta-1]
+        dN4t = [lambda xi,eta: 4-8*xi-4*eta,  lambda xi,eta: -4*xi]
+        dN5t = [lambda xi,eta: 4*eta,          lambda xi,eta: 4*xi]
+        dN6t = [lambda xi,eta: -4*eta,         lambda xi,eta: 4-4*xi-8*eta]
         
         dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
 
         return dNtild
 
     def _ddNtild(self) -> np.ndarray:
-        ddN1t = [lambda ksi,eta: 4,  lambda ksi,eta: 4]
-        ddN2t = [lambda ksi,eta: 4,  lambda ksi,eta: 0]
-        ddN3t = [lambda ksi,eta: 0,  lambda ksi,eta: 4]
-        ddN4t = [lambda ksi,eta: -8, lambda ksi,eta: 0]
-        ddN5t = [lambda ksi,eta: 0,  lambda ksi,eta: 0]
-        ddN6t = [lambda ksi,eta: 0,  lambda ksi,eta: -8]
+        ddN1t = [lambda xi,eta: 4,  lambda xi,eta: 4]
+        ddN2t = [lambda xi,eta: 4,  lambda xi,eta: 0]
+        ddN3t = [lambda xi,eta: 0,  lambda xi,eta: 4]
+        ddN4t = [lambda xi,eta: -8, lambda xi,eta: 0]
+        ddN5t = [lambda xi,eta: 0,  lambda xi,eta: 0]
+        ddN6t = [lambda xi,eta: 0,  lambda xi,eta: -8]
         
         ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t])
 
@@ -2583,16 +2337,16 @@ class TRI10(_GroupElem):
 
     def _Ntild(self) -> np.ndarray:
 
-        N1t = lambda ksi, eta : -4.5*ksi**3 + -4.5*eta**3 + -13.5*ksi**2*eta + -13.5*ksi*eta**2 + 9.0*ksi**2 + 9.0*eta**2 + 18.0*ksi*eta + -5.5*ksi + -5.5*eta + 1.0
-        N2t = lambda ksi, eta : 4.5*ksi**3 + 0.0*eta**3 + -1.093e-15*ksi**2*eta + -8.119e-16*ksi*eta**2 + -4.5*ksi**2 + 0.0*eta**2 + 1.124e-15*ksi*eta + 1.0*ksi + 0.0*eta + 0.0
-        N3t = lambda ksi, eta : 0.0*ksi**3 + 4.5*eta**3 + -3.747e-16*ksi**2*eta + 2.998e-15*ksi*eta**2 + 0.0*ksi**2 + -4.5*eta**2 + -7.494e-16*ksi*eta + 0.0*ksi + 1.0*eta + 0.0
-        N4t = lambda ksi, eta : 13.5*ksi**3 + 0.0*eta**3 + 27.0*ksi**2*eta + 13.5*ksi*eta**2 + -22.5*ksi**2 + 0.0*eta**2 + -22.5*ksi*eta + 9.0*ksi + 0.0*eta + 0.0
-        N5t = lambda ksi, eta : -13.5*ksi**3 + 0.0*eta**3 + -13.5*ksi**2*eta + -4.247e-15*ksi*eta**2 + 18.0*ksi**2 + 0.0*eta**2 + 4.5*ksi*eta + -4.5*ksi + 0.0*eta + 0.0
-        N6t = lambda ksi, eta : 0.0*ksi**3 + 0.0*eta**3 + 13.5*ksi**2*eta + 1.049e-14*ksi*eta**2 + 0.0*ksi**2 + 0.0*eta**2 + -4.5*ksi*eta + 0.0*ksi + 0.0*eta + 0.0
-        N7t = lambda ksi, eta : 0.0*ksi**3 + 0.0*eta**3 + 0.0*ksi**2*eta + 13.5*ksi*eta**2 + 0.0*ksi**2 + 0.0*eta**2 + -4.5*ksi*eta + 0.0*ksi + 0.0*eta + 0.0
-        N8t = lambda ksi, eta : 0.0*ksi**3 + -13.5*eta**3 + -1.499e-15*ksi**2*eta + -13.5*ksi*eta**2 + 0.0*ksi**2 + 18.0*eta**2 + 4.5*ksi*eta + 0.0*ksi + -4.5*eta + 0.0
-        N9t = lambda ksi, eta : 0.0*ksi**3 + 13.5*eta**3 + 13.5*ksi**2*eta + 27.0*ksi*eta**2 + 0.0*ksi**2 + -22.5*eta**2 + -22.5*ksi*eta + 0.0*ksi + 9.0*eta + 0.0
-        N10t = lambda ksi, eta : 0.0*ksi**3 + 0.0*eta**3 + -27.0*ksi**2*eta + -27.0*ksi*eta**2 + 0.0*ksi**2 + 0.0*eta**2 + 27.0*ksi*eta + 0.0*ksi + 0.0*eta + 0.0
+        N1t = lambda xi, eta : -4.5*xi**3 + -4.5*eta**3 + -13.5*xi**2*eta + -13.5*xi*eta**2 + 9.0*xi**2 + 9.0*eta**2 + 18.0*xi*eta + -5.5*xi + -5.5*eta + 1.0
+        N2t = lambda xi, eta : 4.5*xi**3 + 0.0*eta**3 + -1.093e-15*xi**2*eta + -8.119e-16*xi*eta**2 + -4.5*xi**2 + 0.0*eta**2 + 1.124e-15*xi*eta + 1.0*xi + 0.0*eta + 0.0
+        N3t = lambda xi, eta : 0.0*xi**3 + 4.5*eta**3 + -3.747e-16*xi**2*eta + 2.998e-15*xi*eta**2 + 0.0*xi**2 + -4.5*eta**2 + -7.494e-16*xi*eta + 0.0*xi + 1.0*eta + 0.0
+        N4t = lambda xi, eta : 13.5*xi**3 + 0.0*eta**3 + 27.0*xi**2*eta + 13.5*xi*eta**2 + -22.5*xi**2 + 0.0*eta**2 + -22.5*xi*eta + 9.0*xi + 0.0*eta + 0.0
+        N5t = lambda xi, eta : -13.5*xi**3 + 0.0*eta**3 + -13.5*xi**2*eta + -4.247e-15*xi*eta**2 + 18.0*xi**2 + 0.0*eta**2 + 4.5*xi*eta + -4.5*xi + 0.0*eta + 0.0
+        N6t = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + 13.5*xi**2*eta + 1.049e-14*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + -4.5*xi*eta + 0.0*xi + 0.0*eta + 0.0
+        N7t = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + 0.0*xi**2*eta + 13.5*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + -4.5*xi*eta + 0.0*xi + 0.0*eta + 0.0
+        N8t = lambda xi, eta : 0.0*xi**3 + -13.5*eta**3 + -1.499e-15*xi**2*eta + -13.5*xi*eta**2 + 0.0*xi**2 + 18.0*eta**2 + 4.5*xi*eta + 0.0*xi + -4.5*eta + 0.0
+        N9t = lambda xi, eta : 0.0*xi**3 + 13.5*eta**3 + 13.5*xi**2*eta + 27.0*xi*eta**2 + 0.0*xi**2 + -22.5*eta**2 + -22.5*xi*eta + 0.0*xi + 9.0*eta + 0.0
+        N10t = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + -27.0*xi**2*eta + -27.0*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + 27.0*xi*eta + 0.0*xi + 0.0*eta + 0.0
         
         Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t, N9t, N10t]).reshape(-1, 1)
 
@@ -2600,38 +2354,38 @@ class TRI10(_GroupElem):
 
     def _dNtild(self) -> np.ndarray:
 
-        N1_ksi = lambda ksi, eta : -13.5*ksi**2 + -27.0*ksi*eta + -13.5*eta**2 + 18.0*ksi + 18.0*eta + -5.5
-        N2_ksi = lambda ksi, eta : 13.5*ksi**2 + -2.186e-15*ksi*eta + -8.119e-16*eta**2 + -9.0*ksi + 1.124e-15*eta + 1.0
-        N3_ksi = lambda ksi, eta : 0.0*ksi**2 + -7.494e-16*ksi*eta + 2.998e-15*eta**2 + 0.0*ksi + -7.494e-16*eta + 0.0
-        N4_ksi = lambda ksi, eta : 40.5*ksi**2 + 54.0*ksi*eta + 13.5*eta**2 + -45.0*ksi + -22.5*eta + 9.0
-        N5_ksi = lambda ksi, eta : -40.5*ksi**2 + -27.0*ksi*eta + -4.247e-15*eta**2 + 36.0*ksi + 4.5*eta + -4.5
-        N6_ksi = lambda ksi, eta : 0.0*ksi**2 + 27.0*ksi*eta + 1.049e-14*eta**2 + 0.0*ksi + -4.5*eta + 0.0
-        N7_ksi = lambda ksi, eta : 0.0*ksi**2 + 0.0*ksi*eta + 13.5*eta**2 + 0.0*ksi + -4.5*eta + 0.0
-        N8_ksi = lambda ksi, eta : 0.0*ksi**2 + -2.998e-15*ksi*eta + -13.5*eta**2 + 0.0*ksi + 4.5*eta + 0.0
-        N9_ksi = lambda ksi, eta : 0.0*ksi**2 + 27.0*ksi*eta + 27.0*eta**2 + 0.0*ksi + -22.5*eta + 0.0
-        N10_ksi = lambda ksi, eta : 0.0*ksi**2 + -54.0*ksi*eta + -27.0*eta**2 + 0.0*ksi + 27.0*eta + 0.0
+        N1_xi = lambda xi, eta : -13.5*xi**2 + -27.0*xi*eta + -13.5*eta**2 + 18.0*xi + 18.0*eta + -5.5
+        N2_xi = lambda xi, eta : 13.5*xi**2 + -2.186e-15*xi*eta + -8.119e-16*eta**2 + -9.0*xi + 1.124e-15*eta + 1.0
+        N3_xi = lambda xi, eta : 0.0*xi**2 + -7.494e-16*xi*eta + 2.998e-15*eta**2 + 0.0*xi + -7.494e-16*eta + 0.0
+        N4_xi = lambda xi, eta : 40.5*xi**2 + 54.0*xi*eta + 13.5*eta**2 + -45.0*xi + -22.5*eta + 9.0
+        N5_xi = lambda xi, eta : -40.5*xi**2 + -27.0*xi*eta + -4.247e-15*eta**2 + 36.0*xi + 4.5*eta + -4.5
+        N6_xi = lambda xi, eta : 0.0*xi**2 + 27.0*xi*eta + 1.049e-14*eta**2 + 0.0*xi + -4.5*eta + 0.0
+        N7_xi = lambda xi, eta : 0.0*xi**2 + 0.0*xi*eta + 13.5*eta**2 + 0.0*xi + -4.5*eta + 0.0
+        N8_xi = lambda xi, eta : 0.0*xi**2 + -2.998e-15*xi*eta + -13.5*eta**2 + 0.0*xi + 4.5*eta + 0.0
+        N9_xi = lambda xi, eta : 0.0*xi**2 + 27.0*xi*eta + 27.0*eta**2 + 0.0*xi + -22.5*eta + 0.0
+        N10_xi = lambda xi, eta : 0.0*xi**2 + -54.0*xi*eta + -27.0*eta**2 + 0.0*xi + 27.0*eta + 0.0
 
-        N1_eta = lambda ksi, eta : -13.5*eta**2 + -13.5*ksi**2 + -27.0*ksi*eta + 18.0*eta + 18.0*ksi + -5.5
-        N2_eta = lambda ksi, eta : 0.0*eta**2 + -1.093e-15*ksi**2 + -1.624e-15*ksi*eta + 0.0*eta + 1.124e-15*ksi + 0.0
-        N3_eta = lambda ksi, eta : 13.5*eta**2 + -3.747e-16*ksi**2 + 5.995e-15*ksi*eta + -9.0*eta + -7.494e-16*ksi + 1.0
-        N4_eta = lambda ksi, eta : 0.0*eta**2 + 27.0*ksi**2 + 27.0*ksi*eta + 0.0*eta + -22.5*ksi + 0.0
-        N5_eta = lambda ksi, eta : 0.0*eta**2 + -13.5*ksi**2 + -8.493e-15*ksi*eta + 0.0*eta + 4.5*ksi + 0.0
-        N6_eta = lambda ksi, eta : 0.0*eta**2 + 13.5*ksi**2 + 2.098e-14*ksi*eta + 0.0*eta + -4.5*ksi + 0.0
-        N7_eta = lambda ksi, eta : 0.0*eta**2 + 0.0*ksi**2 + 27.0*ksi*eta + 0.0*eta + -4.5*ksi + 0.0
-        N8_eta = lambda ksi, eta : -40.5*eta**2 + -1.499e-15*ksi**2 + -27.0*ksi*eta + 36.0*eta + 4.5*ksi + -4.5
-        N9_eta = lambda ksi, eta : 40.5*eta**2 + 13.5*ksi**2 + 54.0*ksi*eta + -45.0*eta + -22.5*ksi + 9.0
-        N10_eta = lambda ksi, eta : 0.0*eta**2 + -27.0*ksi**2 + -54.0*ksi*eta + 0.0*eta + 27.0*ksi + 0.0
+        N1_eta = lambda xi, eta : -13.5*eta**2 + -13.5*xi**2 + -27.0*xi*eta + 18.0*eta + 18.0*xi + -5.5
+        N2_eta = lambda xi, eta : 0.0*eta**2 + -1.093e-15*xi**2 + -1.624e-15*xi*eta + 0.0*eta + 1.124e-15*xi + 0.0
+        N3_eta = lambda xi, eta : 13.5*eta**2 + -3.747e-16*xi**2 + 5.995e-15*xi*eta + -9.0*eta + -7.494e-16*xi + 1.0
+        N4_eta = lambda xi, eta : 0.0*eta**2 + 27.0*xi**2 + 27.0*xi*eta + 0.0*eta + -22.5*xi + 0.0
+        N5_eta = lambda xi, eta : 0.0*eta**2 + -13.5*xi**2 + -8.493e-15*xi*eta + 0.0*eta + 4.5*xi + 0.0
+        N6_eta = lambda xi, eta : 0.0*eta**2 + 13.5*xi**2 + 2.098e-14*xi*eta + 0.0*eta + -4.5*xi + 0.0
+        N7_eta = lambda xi, eta : 0.0*eta**2 + 0.0*xi**2 + 27.0*xi*eta + 0.0*eta + -4.5*xi + 0.0
+        N8_eta = lambda xi, eta : -40.5*eta**2 + -1.499e-15*xi**2 + -27.0*xi*eta + 36.0*eta + 4.5*xi + -4.5
+        N9_eta = lambda xi, eta : 40.5*eta**2 + 13.5*xi**2 + 54.0*xi*eta + -45.0*eta + -22.5*xi + 9.0
+        N10_eta = lambda xi, eta : 0.0*eta**2 + -27.0*xi**2 + -54.0*xi*eta + 0.0*eta + 27.0*xi + 0.0
 
-        dN1t = [N1_ksi, N1_eta]
-        dN2t = [N2_ksi, N2_eta]
-        dN3t = [N3_ksi, N3_eta]
-        dN4t = [N4_ksi, N4_eta]
-        dN5t = [N5_ksi, N5_eta]
-        dN6t = [N6_ksi, N6_eta]
-        dN7t = [N7_ksi, N7_eta]
-        dN8t = [N8_ksi, N8_eta]
-        dN9t = [N9_ksi, N9_eta]
-        dN10t = [N10_ksi, N10_eta]
+        dN1t = [N1_xi, N1_eta]
+        dN2t = [N2_xi, N2_eta]
+        dN3t = [N3_xi, N3_eta]
+        dN4t = [N4_xi, N4_eta]
+        dN5t = [N5_xi, N5_eta]
+        dN6t = [N6_xi, N6_eta]
+        dN7t = [N7_xi, N7_eta]
+        dN8t = [N8_xi, N8_eta]
+        dN9t = [N9_xi, N9_eta]
+        dN10t = [N10_xi, N10_eta]
 
         dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t, dN9t, dN10t])
 
@@ -2639,38 +2393,38 @@ class TRI10(_GroupElem):
 
     def _ddNtild(self) -> np.ndarray:
 
-        N1_ksi2 = lambda ksi, eta : -27.0*ksi + -27.0*eta + 18.0
-        N2_ksi2 = lambda ksi, eta : 27.0*ksi + -2.186e-15*eta + -9.0
-        N3_ksi2 = lambda ksi, eta : 0.0*ksi + -7.494e-16*eta + 0.0
-        N4_ksi2 = lambda ksi, eta : 81.0*ksi + 54.0*eta + -45.0
-        N5_ksi2 = lambda ksi, eta : -81.0*ksi + -27.0*eta + 36.0
-        N6_ksi2 = lambda ksi, eta : 0.0*ksi + 27.0*eta + 0.0
-        N7_ksi2 = lambda ksi, eta : 0.0*ksi + 0.0*eta + 0.0
-        N8_ksi2 = lambda ksi, eta : 0.0*ksi + -2.998e-15*eta + 0.0
-        N9_ksi2 = lambda ksi, eta : 0.0*ksi + 27.0*eta + 0.0
-        N10_ksi2 = lambda ksi, eta : 0.0*ksi + -54.0*eta + 0.0
+        N1_xi2 = lambda xi, eta : -27.0*xi + -27.0*eta + 18.0
+        N2_xi2 = lambda xi, eta : 27.0*xi + -2.186e-15*eta + -9.0
+        N3_xi2 = lambda xi, eta : 0.0*xi + -7.494e-16*eta + 0.0
+        N4_xi2 = lambda xi, eta : 81.0*xi + 54.0*eta + -45.0
+        N5_xi2 = lambda xi, eta : -81.0*xi + -27.0*eta + 36.0
+        N6_xi2 = lambda xi, eta : 0.0*xi + 27.0*eta + 0.0
+        N7_xi2 = lambda xi, eta : 0.0*xi + 0.0*eta + 0.0
+        N8_xi2 = lambda xi, eta : 0.0*xi + -2.998e-15*eta + 0.0
+        N9_xi2 = lambda xi, eta : 0.0*xi + 27.0*eta + 0.0
+        N10_xi2 = lambda xi, eta : 0.0*xi + -54.0*eta + 0.0
 
-        N1_eta2 = lambda ksi, eta : -27.0*eta + -27.0*ksi + 18.0
-        N2_eta2 = lambda ksi, eta : 0.0*eta + -1.624e-15*ksi + 0.0
-        N3_eta2 = lambda ksi, eta : 27.0*eta + 5.995e-15*ksi + -9.0
-        N4_eta2 = lambda ksi, eta : 0.0*eta + 27.0*ksi + 0.0
-        N5_eta2 = lambda ksi, eta : 0.0*eta + -8.493e-15*ksi + 0.0
-        N6_eta2 = lambda ksi, eta : 0.0*eta + 2.098e-14*ksi + 0.0
-        N7_eta2 = lambda ksi, eta : 0.0*eta + 27.0*ksi + 0.0
-        N8_eta2 = lambda ksi, eta : -81.0*eta + -27.0*ksi + 36.0
-        N9_eta2 = lambda ksi, eta : 81.0*eta + 54.0*ksi + -45.0
-        N10_eta2 = lambda ksi, eta : 0.0*eta + -54.0*ksi + 0.0
+        N1_eta2 = lambda xi, eta : -27.0*eta + -27.0*xi + 18.0
+        N2_eta2 = lambda xi, eta : 0.0*eta + -1.624e-15*xi + 0.0
+        N3_eta2 = lambda xi, eta : 27.0*eta + 5.995e-15*xi + -9.0
+        N4_eta2 = lambda xi, eta : 0.0*eta + 27.0*xi + 0.0
+        N5_eta2 = lambda xi, eta : 0.0*eta + -8.493e-15*xi + 0.0
+        N6_eta2 = lambda xi, eta : 0.0*eta + 2.098e-14*xi + 0.0
+        N7_eta2 = lambda xi, eta : 0.0*eta + 27.0*xi + 0.0
+        N8_eta2 = lambda xi, eta : -81.0*eta + -27.0*xi + 36.0
+        N9_eta2 = lambda xi, eta : 81.0*eta + 54.0*xi + -45.0
+        N10_eta2 = lambda xi, eta : 0.0*eta + -54.0*xi + 0.0
 
-        ddN1t = [N1_ksi2, N1_eta2]
-        ddN2t = [N2_ksi2, N2_eta2]
-        ddN3t = [N3_ksi2, N3_eta2]
-        ddN4t = [N4_ksi2, N4_eta2]
-        ddN5t = [N5_ksi2, N5_eta2]
-        ddN6t = [N6_ksi2, N6_eta2]
-        ddN7t = [N7_ksi2, N7_eta2]
-        ddN8t = [N8_ksi2, N8_eta2]
-        ddN9t = [N9_ksi2, N9_eta2]
-        ddN10t = [N10_ksi2, N10_eta2]
+        ddN1t = [N1_xi2, N1_eta2]
+        ddN2t = [N2_xi2, N2_eta2]
+        ddN3t = [N3_xi2, N3_eta2]
+        ddN4t = [N4_xi2, N4_eta2]
+        ddN5t = [N5_xi2, N5_eta2]
+        ddN6t = [N6_xi2, N6_eta2]
+        ddN7t = [N7_xi2, N7_eta2]
+        ddN8t = [N8_xi2, N8_eta2]
+        ddN9t = [N9_xi2, N9_eta2]
+        ddN10t = [N10_xi2, N10_eta2]
 
         ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t, ddN9t, ddN10t])
 
@@ -2678,38 +2432,38 @@ class TRI10(_GroupElem):
 
     def _dddNtild(self) -> np.ndarray:
         
-        N1_ksi3 = lambda ksi, eta : -27.0
-        N2_ksi3 = lambda ksi, eta : 27.0
-        N3_ksi3 = lambda ksi, eta : 0.0
-        N4_ksi3 = lambda ksi, eta : 81.0
-        N5_ksi3 = lambda ksi, eta : -81.0
-        N6_ksi3 = lambda ksi, eta : 0.0
-        N7_ksi3 = lambda ksi, eta : 0.0
-        N8_ksi3 = lambda ksi, eta : 0.0
-        N9_ksi3 = lambda ksi, eta : 0.0
-        N10_ksi3 = lambda ksi, eta : 0.0
+        N1_xi3 = lambda xi, eta : -27.0
+        N2_xi3 = lambda xi, eta : 27.0
+        N3_xi3 = lambda xi, eta : 0.0
+        N4_xi3 = lambda xi, eta : 81.0
+        N5_xi3 = lambda xi, eta : -81.0
+        N6_xi3 = lambda xi, eta : 0.0
+        N7_xi3 = lambda xi, eta : 0.0
+        N8_xi3 = lambda xi, eta : 0.0
+        N9_xi3 = lambda xi, eta : 0.0
+        N10_xi3 = lambda xi, eta : 0.0
 
-        N1_eta3 = lambda ksi, eta : -27.0
-        N2_eta3 = lambda ksi, eta : 0.0
-        N3_eta3 = lambda ksi, eta : 27.0
-        N4_eta3 = lambda ksi, eta : 0.0
-        N5_eta3 = lambda ksi, eta : 0.0
-        N6_eta3 = lambda ksi, eta : 0.0
-        N7_eta3 = lambda ksi, eta : 0.0
-        N8_eta3 = lambda ksi, eta : -81.0
-        N9_eta3 = lambda ksi, eta : 81.0
-        N10_eta3 = lambda ksi, eta : 0.0
+        N1_eta3 = lambda xi, eta : -27.0
+        N2_eta3 = lambda xi, eta : 0.0
+        N3_eta3 = lambda xi, eta : 27.0
+        N4_eta3 = lambda xi, eta : 0.0
+        N5_eta3 = lambda xi, eta : 0.0
+        N6_eta3 = lambda xi, eta : 0.0
+        N7_eta3 = lambda xi, eta : 0.0
+        N8_eta3 = lambda xi, eta : -81.0
+        N9_eta3 = lambda xi, eta : 81.0
+        N10_eta3 = lambda xi, eta : 0.0
 
-        dddN1t = [N1_ksi3, N1_eta3]
-        dddN2t = [N2_ksi3, N2_eta3]
-        dddN3t = [N3_ksi3, N3_eta3]
-        dddN4t = [N4_ksi3, N4_eta3]
-        dddN5t = [N5_ksi3, N5_eta3]
-        dddN6t = [N6_ksi3, N6_eta3]
-        dddN7t = [N7_ksi3, N7_eta3]
-        dddN8t = [N8_ksi3, N8_eta3]
-        dddN9t = [N9_ksi3, N9_eta3]
-        dddN10t = [N10_ksi3, N10_eta3]
+        dddN1t = [N1_xi3, N1_eta3]
+        dddN2t = [N2_xi3, N2_eta3]
+        dddN3t = [N3_xi3, N3_eta3]
+        dddN4t = [N4_xi3, N4_eta3]
+        dddN5t = [N5_xi3, N5_eta3]
+        dddN6t = [N6_xi3, N6_eta3]
+        dddN7t = [N7_xi3, N7_eta3]
+        dddN8t = [N8_xi3, N8_eta3]
+        dddN9t = [N9_xi3, N9_eta3]
+        dddN10t = [N10_xi3, N10_eta3]
 
         dddNtild = np.array([dddN1t, dddN2t, dddN3t, dddN4t, dddN5t, dddN6t, dddN7t, dddN8t, dddN9t, dddN10t])
 
@@ -2717,283 +2471,6 @@ class TRI10(_GroupElem):
 
     def _ddddNtild(self) -> np.ndarray:
         return super()._ddddNtild()
-
-    
-
-class TRI15(_GroupElem):
-    # 
-    # 2
-    # | \
-    # 9   8
-    # |     \
-    # 10 (14)  7
-    # |         \
-    # 11 (12) (13) 6
-    # |             \
-    # 0---3---4---5---1 --> u
-
-    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
-
-        super().__init__(gmshId, connect, coordoGlob, nodes)
-
-    @property
-    def origin(self) -> list[int]:
-        return super().origin
-
-    @property
-    def triangles(self) -> list[int]:
-        return list(np.array([1,4,13,4,5,14,5,6,14,6,7,14,2,6,7,4,13,14,1,12,13,11,12,13,11,13,15,13,14,15,8,14,15,7,8,14,10,11,15,8,9,15,9,10,15,3,9,10])-1)
-
-    @property
-    def faces(self) -> list[int]:
-        return [0,3,4,5,1,6,7,8,2,9,10,11,0]
-
-    def _Ntild(self) -> np.ndarray:
-
-        N1t = lambda ksi, eta : 10.67*ksi**4 + 42.67*ksi**3*eta + 64.0*ksi**2**eta**2 + 42.67*ksi*eta**3 + 10.67*eta**4 + -26.67*ksi**3 + -80.0*ksi**2*eta + -80.0*ksi*eta**2 + -26.67*eta**3 + 23.33*ksi**2 + 46.67*ksi*eta + 23.33*eta**2 + -8.333*ksi + -8.333*eta + 1.0
-        N2t = lambda ksi, eta : 10.67*ksi**4 + -5.222e-15*ksi**3*eta + -2.665e-15*ksi**2**eta**2 + -1.85e-15*ksi*eta**3 + 0.0*eta**4 + -16.0*ksi**3 + 7.401e-15*ksi**2*eta + 4.737e-15*ksi*eta**2 + 0.0*eta**3 + 7.333*ksi**2 + -3.331e-15*ksi*eta + 0.0*eta**2 + -1.0*ksi + 0.0*eta + 0.0
-        N3t = lambda ksi, eta : 0.0*ksi**4 + 6.513e-15*ksi**3*eta + 3.138e-14*ksi**2**eta**2 + 2.842e-14*ksi*eta**3 + 10.67*eta**4 + 0.0*ksi**3 + -1.342e-14*ksi**2*eta + -3.257e-14*ksi*eta**2 + -16.0*eta**3 + 0.0*ksi**2 + 6.661e-15*ksi*eta + 7.333*eta**2 + 0.0*ksi + -1.0*eta + 0.0
-        N4t = lambda ksi, eta : -42.67*ksi**4 + -128.0*ksi**3*eta + -128.0*ksi**2**eta**2 + -42.67*ksi*eta**3 + 0.0*eta**4 + 96.0*ksi**3 + 192.0*ksi**2*eta + 96.0*ksi*eta**2 + 0.0*eta**3 + -69.33*ksi**2 + -69.33*ksi*eta + 0.0*eta**2 + 16.0*ksi + 0.0*eta + 0.0
-        N5t = lambda ksi, eta : 64.0*ksi**4 + 128.0*ksi**3*eta + 64.0*ksi**2**eta**2 + -7.638e-14*ksi*eta**3 + 0.0*eta**4 + -128.0*ksi**3 + -144.0*ksi**2*eta + -16.0*ksi*eta**2 + 0.0*eta**3 + 76.0*ksi**2 + 28.0*ksi*eta + 0.0*eta**2 + -12.0*ksi + 0.0*eta + 0.0
-        N6t = lambda ksi, eta : -42.67*ksi**4 + -42.67*ksi**3*eta + -1.54e-14*ksi**2**eta**2 + 2.22e-14*ksi*eta**3 + 0.0*eta**4 + 74.67*ksi**3 + 32.0*ksi**2*eta + -2.724e-14*ksi*eta**2 + 0.0*eta**3 + -37.33*ksi**2 + -5.333*ksi*eta + 0.0*eta**2 + 5.333*ksi + 0.0*eta + 0.0
-        N7t = lambda ksi, eta : 0.0*ksi**4 + 42.67*ksi**3*eta + 4.855e-14*ksi**2**eta**2 + -2.043e-14*ksi*eta**3 + 0.0*eta**4 + 0.0*ksi**3 + -32.0*ksi**2*eta + 7.105e-15*ksi*eta**2 + 0.0*eta**3 + 0.0*ksi**2 + 5.333*ksi*eta + 0.0*eta**2 + 0.0*ksi + 0.0*eta + 0.0
-        N8t = lambda ksi, eta : 0.0*ksi**4 + 0.0*ksi**3*eta + 64.0*ksi**2**eta**2 + 2.842e-14*ksi*eta**3 + 0.0*eta**4 + 0.0*ksi**3 + -16.0*ksi**2*eta + -16.0*ksi*eta**2 + 0.0*eta**3 + 0.0*ksi**2 + 4.0*ksi*eta + 0.0*eta**2 + 0.0*ksi + 0.0*eta + 0.0
-        N9t = lambda ksi, eta : 0.0*ksi**4 + 1.118e-14*ksi**3*eta + 1.066e-14*ksi**2**eta**2 + 42.67*ksi*eta**3 + 0.0*eta**4 + 0.0*ksi**3 + -1.421e-14*ksi**2*eta + -32.0*ksi*eta**2 + 0.0*eta**3 + 0.0*ksi**2 + 5.333*ksi*eta + 0.0*eta**2 + 0.0*ksi + 0.0*eta + 0.0
-        N10t = lambda ksi, eta : 0.0*ksi**4 + -2.053e-14*ksi**3*eta + -2.132e-13*ksi**2**eta**2 + -42.67*ksi*eta**3 + -42.67*eta**4 + 0.0*ksi**3 + 7.816e-14*ksi**2*eta + 32.0*ksi*eta**2 + 74.67*eta**3 + 0.0*ksi**2 + -5.333*ksi*eta + -37.33*eta**2 + 0.0*ksi + 5.333*eta + 0.0
-        N11t = lambda ksi, eta : 0.0*ksi**4 + 8.421e-14*ksi**3*eta + 64.0*ksi**2**eta**2 + 128.0*ksi*eta**3 + 64.0*eta**4 + 0.0*ksi**3 + -16.0*ksi**2*eta + -144.0*ksi*eta**2 + -128.0*eta**3 + 0.0*ksi**2 + 28.0*ksi*eta + 76.0*eta**2 + 0.0*ksi + -12.0*eta + 0.0
-        N12t = lambda ksi, eta : 0.0*ksi**4 + -42.67*ksi**3*eta + -128.0*ksi**2**eta**2 + -128.0*ksi*eta**3 + -42.67*eta**4 + 0.0*ksi**3 + 96.0*ksi**2*eta + 192.0*ksi*eta**2 + 96.0*eta**3 + 0.0*ksi**2 + -69.33*ksi*eta + -69.33*eta**2 + 0.0*ksi + 16.0*eta + 0.0
-        N13t = lambda ksi, eta : 0.0*ksi**4 + 128.0*ksi**3*eta + 256.0*ksi**2**eta**2 + 128.0*ksi*eta**3 + 0.0*eta**4 + 0.0*ksi**3 + -224.0*ksi**2*eta + -224.0*ksi*eta**2 + 0.0*eta**3 + 0.0*ksi**2 + 96.0*ksi*eta + 0.0*eta**2 + 0.0*ksi + 0.0*eta + 0.0
-        N14t = lambda ksi, eta : 0.0*ksi**4 + -128.0*ksi**3*eta + -128.0*ksi**2**eta**2 + 4.974e-14*ksi*eta**3 + 0.0*eta**4 + 0.0*ksi**3 + 160.0*ksi**2*eta + 32.0*ksi*eta**2 + 0.0*eta**3 + 0.0*ksi**2 + -32.0*ksi*eta + 0.0*eta**2 + 0.0*ksi + 0.0*eta + 0.0
-        N15t = lambda ksi, eta : 0.0*ksi**4 + -6.737e-14*ksi**3*eta + -128.0*ksi**2**eta**2 + -128.0*ksi*eta**3 + 0.0*eta**4 + 0.0*ksi**3 + 32.0*ksi**2*eta + 160.0*ksi*eta**2 + 0.0*eta**3 + 0.0*ksi**2 + -32.0*ksi*eta + 0.0*eta**2 + 0.0*ksi + 0.0*eta + 0.0
-
-        Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t, N9t, N10t, N11t, N12t, N13t, N14t, N15t]).reshape(-1, 1)
-
-        return Ntild
-
-    def _dNtild(self) -> np.ndarray:
-
-        N1_ksi = lambda ksi, eta: 42.67*ksi**3 + 128.0*ksi**2*eta + 128.0*ksi*eta**2 + 42.67*eta**3 + -80.0*ksi**2 + -160.0*ksi*eta + -80.0*eta**2 + 46.67*ksi + 46.67*eta + -8.333
-        N2_ksi = lambda ksi, eta: 42.67*ksi**3 + -1.567e-14*ksi**2*eta + -5.329e-15*ksi*eta**2 + -1.85e-15*eta**3 + -48.0*ksi**2 + 1.48e-14*ksi*eta + 4.737e-15*eta**2 + 14.67*ksi + -3.331e-15*eta + -1.0
-        N3_ksi = lambda ksi, eta: 0.0*ksi**3 + 1.954e-14*ksi**2*eta + 6.276e-14*ksi*eta**2 + 2.842e-14*eta**3 + 0.0*ksi**2 + -2.683e-14*ksi*eta + -3.257e-14*eta**2 + 0.0*ksi + 6.661e-15*eta + 0.0
-        N4_ksi = lambda ksi, eta: -170.7*ksi**3 + -384.0*ksi**2*eta + -256.0*ksi*eta**2 + -42.67*eta**3 + 288.0*ksi**2 + 384.0*ksi*eta + 96.0*eta**2 + -138.7*ksi + -69.33*eta + 16.0
-        N5_ksi = lambda ksi, eta: 256.0*ksi**3 + 384.0*ksi**2*eta + 128.0*ksi*eta**2 + -7.638e-14*eta**3 + -384.0*ksi**2 + -288.0*ksi*eta + -16.0*eta**2 + 152.0*ksi + 28.0*eta + -12.0
-        N6_ksi = lambda ksi, eta: -170.7*ksi**3 + -128.0*ksi**2*eta + -3.079e-14*ksi*eta**2 + 2.22e-14*eta**3 + 224.0*ksi**2 + 64.0*ksi*eta + -2.724e-14*eta**2 + -74.67*ksi + -5.333*eta + 5.333
-        N7_ksi = lambda ksi, eta: 0.0*ksi**3 + 128.0*ksi**2*eta + 9.711e-14*ksi*eta**2 + -2.043e-14*eta**3 + 0.0*ksi**2 + -64.0*ksi*eta + 7.105e-15*eta**2 + 0.0*ksi + 5.333*eta + 0.0
-        N8_ksi = lambda ksi, eta: 0.0*ksi**3 + 0.0*ksi**2*eta + 128.0*ksi*eta**2 + 2.842e-14*eta**3 + 0.0*ksi**2 + -32.0*ksi*eta + -16.0*eta**2 + 0.0*ksi + 4.0*eta + 0.0
-        N9_ksi = lambda ksi, eta: 0.0*ksi**3 + 3.355e-14*ksi**2*eta + 2.132e-14*ksi*eta**2 + 42.67*eta**3 + 0.0*ksi**2 + -2.842e-14*ksi*eta + -32.0*eta**2 + 0.0*ksi + 5.333*eta + 0.0
-        N10_ksi = lambda ksi, eta: 0.0*ksi**3 + -6.158e-14*ksi**2*eta + -4.263e-13*ksi*eta**2 + -42.67*eta**3 + 0.0*ksi**2 + 1.563e-13*ksi*eta + 32.0*eta**2 + 0.0*ksi + -5.333*eta + 0.0
-        N11_ksi = lambda ksi, eta: 0.0*ksi**3 + 2.526e-13*ksi**2*eta + 128.0*ksi*eta**2 + 128.0*eta**3 + 0.0*ksi**2 + -32.0*ksi*eta + -144.0*eta**2 + 0.0*ksi + 28.0*eta + 0.0
-        N12_ksi = lambda ksi, eta: 0.0*ksi**3 + -128.0*ksi**2*eta + -256.0*ksi*eta**2 + -128.0*eta**3 + 0.0*ksi**2 + 192.0*ksi*eta + 192.0*eta**2 + 0.0*ksi + -69.33*eta + 0.0
-        N13_ksi = lambda ksi, eta: 0.0*ksi**3 + 384.0*ksi**2*eta + 512.0*ksi*eta**2 + 128.0*eta**3 + 0.0*ksi**2 + -448.0*ksi*eta + -224.0*eta**2 + 0.0*ksi + 96.0*eta + 0.0
-        N14_ksi = lambda ksi, eta: 0.0*ksi**3 + -384.0*ksi**2*eta + -256.0*ksi*eta**2 + 4.974e-14*eta**3 + 0.0*ksi**2 + 320.0*ksi*eta + 32.0*eta**2 + 0.0*ksi + -32.0*eta + 0.0
-        N15_ksi = lambda ksi, eta: 0.0*ksi**3 + -2.021e-13*ksi**2*eta + -256.0*ksi*eta**2 + -128.0*eta**3 + 0.0*ksi**2 + 64.0*ksi*eta + 160.0*eta**2 + 0.0*ksi + -32.0*eta + 0.0
-
-        N1_eta = lambda ksi, eta: 42.67*ksi**3 + 128.0*ksi**2*eta + 128.0*ksi*eta**2 + 42.67*eta**3 + -80.0*ksi**2 + -160.0*ksi*eta + -80.0*eta**2 + 46.67*ksi + 46.67*eta + -8.333
-        N2_eta = lambda ksi, eta: -5.222e-15*ksi**3 + -5.329e-15*ksi**2*eta + -5.551e-15*ksi*eta**2 + 0.0*eta**3 + 7.401e-15*ksi**2 + 9.474e-15*ksi*eta + 0.0*eta**2 + -3.331e-15*ksi + 0.0*eta + 0.0
-        N3_eta = lambda ksi, eta: 6.513e-15*ksi**3 + 6.276e-14*ksi**2*eta + 8.527e-14*ksi*eta**2 + 42.67*eta**3 + -1.342e-14*ksi**2 + -6.513e-14*ksi*eta + -48.0*eta**2 + 6.661e-15*ksi + 14.67*eta + -1.0
-        N4_eta = lambda ksi, eta: -128.0*ksi**3 + -256.0*ksi**2*eta + -128.0*ksi*eta**2 + 0.0*eta**3 + 192.0*ksi**2 + 192.0*ksi*eta + 0.0*eta**2 + -69.33*ksi + 0.0*eta + 0.0
-        N5_eta = lambda ksi, eta: 128.0*ksi**3 + 128.0*ksi**2*eta + -2.292e-13*ksi*eta**2 + 0.0*eta**3 + -144.0*ksi**2 + -32.0*ksi*eta + 0.0*eta**2 + 28.0*ksi + 0.0*eta + 0.0
-        N6_eta = lambda ksi, eta: -42.67*ksi**3 + -3.079e-14*ksi**2*eta + 6.661e-14*ksi*eta**2 + 0.0*eta**3 + 32.0*ksi**2 + -5.447e-14*ksi*eta + 0.0*eta**2 + -5.333*ksi + 0.0*eta + 0.0
-        N7_eta = lambda ksi, eta: 42.67*ksi**3 + 9.711e-14*ksi**2*eta + -6.128e-14*ksi*eta**2 + 0.0*eta**3 + -32.0*ksi**2 + 1.421e-14*ksi*eta + 0.0*eta**2 + 5.333*ksi + 0.0*eta + 0.0
-        N8_eta = lambda ksi, eta: 0.0*ksi**3 + 128.0*ksi**2*eta + 8.527e-14*ksi*eta**2 + 0.0*eta**3 + -16.0*ksi**2 + -32.0*ksi*eta + 0.0*eta**2 + 4.0*ksi + 0.0*eta + 0.0
-        N9_eta = lambda ksi, eta: 1.118e-14*ksi**3 + 2.132e-14*ksi**2*eta + 128.0*ksi*eta**2 + 0.0*eta**3 + -1.421e-14*ksi**2 + -64.0*ksi*eta + 0.0*eta**2 + 5.333*ksi + 0.0*eta + 0.0
-        N10_eta = lambda ksi, eta: -2.053e-14*ksi**3 + -4.263e-13*ksi**2*eta + -128.0*ksi*eta**2 + -170.7*eta**3 + 7.816e-14*ksi**2 + 64.0*ksi*eta + 224.0*eta**2 + -5.333*ksi + -74.67*eta + 5.333
-        N11_eta = lambda ksi, eta: 8.421e-14*ksi**3 + 128.0*ksi**2*eta + 384.0*ksi*eta**2 + 256.0*eta**3 + -16.0*ksi**2 + -288.0*ksi*eta + -384.0*eta**2 + 28.0*ksi + 152.0*eta + -12.0
-        N12_eta = lambda ksi, eta: -42.67*ksi**3 + -256.0*ksi**2*eta + -384.0*ksi*eta**2 + -170.7*eta**3 + 96.0*ksi**2 + 384.0*ksi*eta + 288.0*eta**2 + -69.33*ksi + -138.7*eta + 16.0
-        N13_eta = lambda ksi, eta: 128.0*ksi**3 + 512.0*ksi**2*eta + 384.0*ksi*eta**2 + 0.0*eta**3 + -224.0*ksi**2 + -448.0*ksi*eta + 0.0*eta**2 + 96.0*ksi + 0.0*eta + 0.0
-        N14_eta = lambda ksi, eta: -128.0*ksi**3 + -256.0*ksi**2*eta + 1.492e-13*ksi*eta**2 + 0.0*eta**3 + 160.0*ksi**2 + 64.0*ksi*eta + 0.0*eta**2 + -32.0*ksi + 0.0*eta + 0.0
-        N15_eta = lambda ksi, eta: -6.737e-14*ksi**3 + -256.0*ksi**2*eta + -384.0*ksi*eta**2 + 0.0*eta**3 + 32.0*ksi**2 + 320.0*ksi*eta + 0.0*eta**2 + -32.0*ksi + 0.0*eta + 0.0
-
-
-        dN1t = [N1_ksi, N1_eta]
-        dN2t = [N2_ksi, N2_eta]
-        dN3t = [N3_ksi, N3_eta]
-        dN4t = [N4_ksi, N4_eta]
-        dN5t = [N5_ksi, N5_eta]
-        dN6t = [N6_ksi, N6_eta]
-        dN7t = [N7_ksi, N7_eta]
-        dN8t = [N8_ksi, N8_eta]
-        dN9t = [N9_ksi, N9_eta]
-        dN10t = [N10_ksi, N10_eta]
-        dN11t = [N11_ksi, N11_eta]
-        dN12t = [N12_ksi, N12_eta]
-        dN13t = [N13_ksi, N13_eta]
-        dN14t = [N14_ksi, N14_eta]
-        dN15t = [N15_ksi, N15_eta]
-
-
-        dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t, dN9t, dN10t, dN11t, dN12t, dN13t, dN14t, dN15t])
-
-        return dNtild
-
-    def _ddNtild(self) -> np.ndarray:
-
-        N1_ksi2 = lambda ksi, eta: 128.0*ksi**2 + 256.0*ksi*eta + 128.0*eta**2 + -160.0*ksi + -160.0*eta + 46.67
-        N2_ksi2 = lambda ksi, eta: 128.0*ksi**2 + -3.133e-14*ksi*eta + -5.329e-15*eta**2 + -96.0*ksi + 1.48e-14*eta + 14.67
-        N3_ksi2 = lambda ksi, eta: 0.0*ksi**2 + 3.908e-14*ksi*eta + 6.276e-14*eta**2 + 0.0*ksi + -2.683e-14*eta + 0.0
-        N4_ksi2 = lambda ksi, eta: -512.0*ksi**2 + -768.0*ksi*eta + -256.0*eta**2 + 576.0*ksi + 384.0*eta + -138.7
-        N5_ksi2 = lambda ksi, eta: 768.0*ksi**2 + 768.0*ksi*eta + 128.0*eta**2 + -768.0*ksi + -288.0*eta + 152.0
-        N6_ksi2 = lambda ksi, eta: -512.0*ksi**2 + -256.0*ksi*eta + -3.079e-14*eta**2 + 448.0*ksi + 64.0*eta + -74.67
-        N7_ksi2 = lambda ksi, eta: 0.0*ksi**2 + 256.0*ksi*eta + 9.711e-14*eta**2 + 0.0*ksi + -64.0*eta + 0.0
-        N8_ksi2 = lambda ksi, eta: 0.0*ksi**2 + 0.0*ksi*eta + 128.0*eta**2 + 0.0*ksi + -32.0*eta + 0.0
-        N9_ksi2 = lambda ksi, eta: 0.0*ksi**2 + 6.711e-14*ksi*eta + 2.132e-14*eta**2 + 0.0*ksi + -2.842e-14*eta + 0.0
-        N10_ksi2 = lambda ksi, eta: 0.0*ksi**2 + -1.232e-13*ksi*eta + -4.263e-13*eta**2 + 0.0*ksi + 1.563e-13*eta + 0.0
-        N11_ksi2 = lambda ksi, eta: 0.0*ksi**2 + 5.053e-13*ksi*eta + 128.0*eta**2 + 0.0*ksi + -32.0*eta + 0.0
-        N12_ksi2 = lambda ksi, eta: 0.0*ksi**2 + -256.0*ksi*eta + -256.0*eta**2 + 0.0*ksi + 192.0*eta + 0.0
-        N13_ksi2 = lambda ksi, eta: 0.0*ksi**2 + 768.0*ksi*eta + 512.0*eta**2 + 0.0*ksi + -448.0*eta + 0.0
-        N14_ksi2 = lambda ksi, eta: 0.0*ksi**2 + -768.0*ksi*eta + -256.0*eta**2 + 0.0*ksi + 320.0*eta + 0.0
-        N15_ksi2 = lambda ksi, eta: 0.0*ksi**2 + -4.042e-13*ksi*eta + -256.0*eta**2 + 0.0*ksi + 64.0*eta + 0.0
-
-
-        N1_eta2 = lambda ksi, eta: 128.0*ksi**2 + 256.0*ksi*eta + 128.0*eta**2 + -160.0*ksi + -160.0*eta + 46.67
-        N2_eta2 = lambda ksi, eta: -5.329e-15*ksi**2 + -1.11e-14*ksi*eta + 0.0*eta**2 + 9.474e-15*ksi + 0.0*eta + 0.0
-        N3_eta2 = lambda ksi, eta: 6.276e-14*ksi**2 + 1.705e-13*ksi*eta + 128.0*eta**2 + -6.513e-14*ksi + -96.0*eta + 14.67
-        N4_eta2 = lambda ksi, eta: -256.0*ksi**2 + -256.0*ksi*eta + 0.0*eta**2 + 192.0*ksi + 0.0*eta + 0.0
-        N5_eta2 = lambda ksi, eta: 128.0*ksi**2 + -4.583e-13*ksi*eta + 0.0*eta**2 + -32.0*ksi + 0.0*eta + 0.0
-        N6_eta2 = lambda ksi, eta: -3.079e-14*ksi**2 + 1.332e-13*ksi*eta + 0.0*eta**2 + -5.447e-14*ksi + 0.0*eta + 0.0
-        N7_eta2 = lambda ksi, eta: 9.711e-14*ksi**2 + -1.226e-13*ksi*eta + 0.0*eta**2 + 1.421e-14*ksi + 0.0*eta + 0.0
-        N8_eta2 = lambda ksi, eta: 128.0*ksi**2 + 1.705e-13*ksi*eta + 0.0*eta**2 + -32.0*ksi + 0.0*eta + 0.0
-        N9_eta2 = lambda ksi, eta: 2.132e-14*ksi**2 + 256.0*ksi*eta + 0.0*eta**2 + -64.0*ksi + 0.0*eta + 0.0
-        N10_eta2 = lambda ksi, eta: -4.263e-13*ksi**2 + -256.0*ksi*eta + -512.0*eta**2 + 64.0*ksi + 448.0*eta + -74.67
-        N11_eta2 = lambda ksi, eta: 128.0*ksi**2 + 768.0*ksi*eta + 768.0*eta**2 + -288.0*ksi + -768.0*eta + 152.0
-        N12_eta2 = lambda ksi, eta: -256.0*ksi**2 + -768.0*ksi*eta + -512.0*eta**2 + 384.0*ksi + 576.0*eta + -138.7
-        N13_eta2 = lambda ksi, eta: 512.0*ksi**2 + 768.0*ksi*eta + 0.0*eta**2 + -448.0*ksi + 0.0*eta + 0.0
-        N14_eta2 = lambda ksi, eta: -256.0*ksi**2 + 2.984e-13*ksi*eta + 0.0*eta**2 + 64.0*ksi + 0.0*eta + 0.0
-        N15_eta2 = lambda ksi, eta: -256.0*ksi**2 + -768.0*ksi*eta + 0.0*eta**2 + 320.0*ksi + 0.0*eta + 0.0
-
-        ddN1t = [N1_ksi2, N1_eta2]
-        ddN2t = [N2_ksi2, N2_eta2]
-        ddN3t = [N3_ksi2, N3_eta2]
-        ddN4t = [N4_ksi2, N4_eta2]
-        ddN5t = [N5_ksi2, N5_eta2]
-        ddN6t = [N6_ksi2, N6_eta2]
-        ddN7t = [N7_ksi2, N7_eta2]
-        ddN8t = [N8_ksi2, N8_eta2]
-        ddN9t = [N9_ksi2, N9_eta2]
-        ddN10t = [N10_ksi2, N10_eta2]
-        ddN11t = [N11_ksi2, N11_eta2]
-        ddN12t = [N12_ksi2, N12_eta2]
-        ddN13t = [N13_ksi2, N13_eta2]
-        ddN14t = [N14_ksi2, N14_eta2]
-        ddN15t = [N15_ksi2, N15_eta2]
-
-
-        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t, ddN9t, ddN10t, ddN11t, ddN12t, ddN13t, ddN14t, ddN15t])
-
-        return ddNtild
-
-    def _dddNtild(self) -> np.ndarray:
-
-        N1_ksi3 = lambda ksi, eta: 256.0*ksi + 256.0*eta + -160.0
-        N2_ksi3 = lambda ksi, eta: 256.0*ksi + -3.133e-14*eta + -96.0
-        N3_ksi3 = lambda ksi, eta: 0.0*ksi + 3.908e-14*eta + 0.0
-        N4_ksi3 = lambda ksi, eta: -1.024e+03*ksi + -768.0*eta + 576.0
-        N5_ksi3 = lambda ksi, eta: 1.536e+03*ksi + 768.0*eta + -768.0
-        N6_ksi3 = lambda ksi, eta: -1.024e+03*ksi + -256.0*eta + 448.0
-        N7_ksi3 = lambda ksi, eta: 0.0*ksi + 256.0*eta + 0.0
-        N8_ksi3 = lambda ksi, eta: 0.0*ksi + 0.0*eta + 0.0
-        N9_ksi3 = lambda ksi, eta: 0.0*ksi + 6.711e-14*eta + 0.0
-        N10_ksi3 = lambda ksi, eta: 0.0*ksi + -1.232e-13*eta + 0.0
-        N11_ksi3 = lambda ksi, eta: 0.0*ksi + 5.053e-13*eta + 0.0
-        N12_ksi3 = lambda ksi, eta: 0.0*ksi + -256.0*eta + 0.0
-        N13_ksi3 = lambda ksi, eta: 0.0*ksi + 768.0*eta + 0.0
-        N14_ksi3 = lambda ksi, eta: 0.0*ksi + -768.0*eta + 0.0
-        N15_ksi3 = lambda ksi, eta: 0.0*ksi + -4.042e-13*eta + 0.0
-
-
-        N1_eta3 = lambda ksi, eta: 256.0*ksi + 256.0*eta + -160.0
-        N2_eta3 = lambda ksi, eta: -1.11e-14*ksi + 0.0*eta + 0.0
-        N3_eta3 = lambda ksi, eta: 1.705e-13*ksi + 256.0*eta + -96.0
-        N4_eta3 = lambda ksi, eta: -256.0*ksi + 0.0*eta + 0.0
-        N5_eta3 = lambda ksi, eta: -4.583e-13*ksi + 0.0*eta + 0.0
-        N6_eta3 = lambda ksi, eta: 1.332e-13*ksi + 0.0*eta + 0.0
-        N7_eta3 = lambda ksi, eta: -1.226e-13*ksi + 0.0*eta + 0.0
-        N8_eta3 = lambda ksi, eta: 1.705e-13*ksi + 0.0*eta + 0.0
-        N9_eta3 = lambda ksi, eta: 256.0*ksi + 0.0*eta + 0.0
-        N10_eta3 = lambda ksi, eta: -256.0*ksi + -1.024e+03*eta + 448.0
-        N11_eta3 = lambda ksi, eta: 768.0*ksi + 1.536e+03*eta + -768.0
-        N12_eta3 = lambda ksi, eta: -768.0*ksi + -1.024e+03*eta + 576.0
-        N13_eta3 = lambda ksi, eta: 768.0*ksi + 0.0*eta + 0.0
-        N14_eta3 = lambda ksi, eta: 2.984e-13*ksi + 0.0*eta + 0.0
-        N15_eta3 = lambda ksi, eta: -768.0*ksi + 0.0*eta + 0.0
-
-
-        dddN1t = [N1_ksi3, N1_eta3]
-        dddN2t = [N2_ksi3, N2_eta3]
-        dddN3t = [N3_ksi3, N3_eta3]
-        dddN4t = [N4_ksi3, N4_eta3]
-        dddN5t = [N5_ksi3, N5_eta3]
-        dddN6t = [N6_ksi3, N6_eta3]
-        dddN7t = [N7_ksi3, N7_eta3]
-        dddN8t = [N8_ksi3, N8_eta3]
-        dddN9t = [N9_ksi3, N9_eta3]
-        dddN10t = [N10_ksi3, N10_eta3]
-        dddN11t = [N11_ksi3, N11_eta3]
-        dddN12t = [N12_ksi3, N12_eta3]
-        dddN13t = [N13_ksi3, N13_eta3]
-        dddN14t = [N14_ksi3, N14_eta3]
-        dddN15t = [N15_ksi3, N15_eta3]
-
-
-        dddNtild = np.array([dddN1t, dddN2t, dddN3t, dddN4t, dddN5t, dddN6t, dddN7t, dddN8t, dddN9t, dddN10t, dddN11t, dddN12t, dddN13t, dddN14t, dddN15t])
-
-        return dddNtild
-
-    def _ddddNtild(self) -> np.ndarray:
-        N1_ksi4 = lambda ksi, eta: 256.0
-        N2_ksi4 = lambda ksi, eta: 256.0
-        N3_ksi4 = lambda ksi, eta: 0.0
-        N4_ksi4 = lambda ksi, eta: -1.024e+03
-        N5_ksi4 = lambda ksi, eta: 1.536e+03
-        N6_ksi4 = lambda ksi, eta: -1.024e+03
-        N7_ksi4 = lambda ksi, eta: 0.0
-        N8_ksi4 = lambda ksi, eta: 0.0
-        N9_ksi4 = lambda ksi, eta: 0.0
-        N10_ksi4 = lambda ksi, eta: 0.0
-        N11_ksi4 = lambda ksi, eta: 0.0
-        N12_ksi4 = lambda ksi, eta: 0.0
-        N13_ksi4 = lambda ksi, eta: 0.0
-        N14_ksi4 = lambda ksi, eta: 0.0
-        N15_ksi4 = lambda ksi, eta: 0.0
-
-
-        N1_eta4 = lambda ksi, eta: 256.0
-        N2_eta4 = lambda ksi, eta: 0.0
-        N3_eta4 = lambda ksi, eta: 256.0
-        N4_eta4 = lambda ksi, eta: 0.0
-        N5_eta4 = lambda ksi, eta: 0.0
-        N6_eta4 = lambda ksi, eta: 0.0
-        N7_eta4 = lambda ksi, eta: 0.0
-        N8_eta4 = lambda ksi, eta: 0.0
-        N9_eta4 = lambda ksi, eta: 0.0
-        N10_eta4 = lambda ksi, eta: -1.024e+03
-        N11_eta4 = lambda ksi, eta: 1.536e+03
-        N12_eta4 = lambda ksi, eta: -1.024e+03
-        N13_eta4 = lambda ksi, eta: 0.0
-        N14_eta4 = lambda ksi, eta: 0.0
-        N15_eta4 = lambda ksi, eta: 0.0
-
-
-        ddddN1t = [N1_ksi4, N1_eta4]
-        ddddN2t = [N2_ksi4, N2_eta4]
-        ddddN3t = [N3_ksi4, N3_eta4]
-        ddddN4t = [N4_ksi4, N4_eta4]
-        ddddN5t = [N5_ksi4, N5_eta4]
-        ddddN6t = [N6_ksi4, N6_eta4]
-        ddddN7t = [N7_ksi4, N7_eta4]
-        ddddN8t = [N8_ksi4, N8_eta4]
-        ddddN9t = [N9_ksi4, N9_eta4]
-        ddddN10t = [N10_ksi4, N10_eta4]
-        ddddN11t = [N11_ksi4, N11_eta4]
-        ddddN12t = [N12_ksi4, N12_eta4]
-        ddddN13t = [N13_ksi4, N13_eta4]
-        ddddN14t = [N14_ksi4, N14_eta4]
-        ddddN15t = [N15_ksi4, N15_eta4]
-
-
-        ddddNtild = np.array([ddddN1t, ddddN2t, ddddN3t, ddddN4t, ddddN5t, ddddN6t, ddddN7t, ddddN8t, ddddN9t, ddddN10t, ddddN11t, ddddN12t, ddddN13t, ddddN14t, ddddN15t])
-
-        return ddddNtild
 
 class QUAD4(_GroupElem):
     #       v
@@ -3025,10 +2502,10 @@ class QUAD4(_GroupElem):
 
     def _Ntild(self) -> np.ndarray:
 
-        N1t = lambda ksi,eta: (1-ksi)*(1-eta)/4
-        N2t = lambda ksi,eta: (1+ksi)*(1-eta)/4
-        N3t = lambda ksi,eta: (1+ksi)*(1+eta)/4
-        N4t = lambda ksi,eta: (1-ksi)*(1+eta)/4
+        N1t = lambda xi,eta: (1-xi)*(1-eta)/4
+        N2t = lambda xi,eta: (1+xi)*(1-eta)/4
+        N3t = lambda xi,eta: (1+xi)*(1+eta)/4
+        N4t = lambda xi,eta: (1-xi)*(1+eta)/4
         
         Ntild = np.array([N1t, N2t, N3t, N4t]).reshape(-1, 1)
 
@@ -3036,10 +2513,10 @@ class QUAD4(_GroupElem):
 
     def _dNtild(self) -> np.ndarray:
 
-        dN1t = [lambda ksi,eta: (eta-1)/4,  lambda ksi,eta: (ksi-1)/4]
-        dN2t = [lambda ksi,eta: (1-eta)/4,  lambda ksi,eta: (-ksi-1)/4]
-        dN3t = [lambda ksi,eta: (1+eta)/4,  lambda ksi,eta: (1+ksi)/4]
-        dN4t = [lambda ksi,eta: (-eta-1)/4, lambda ksi,eta: (1-ksi)/4]
+        dN1t = [lambda xi,eta: (eta-1)/4,  lambda xi,eta: (xi-1)/4]
+        dN2t = [lambda xi,eta: (1-eta)/4,  lambda xi,eta: (-xi-1)/4]
+        dN3t = [lambda xi,eta: (1+eta)/4,  lambda xi,eta: (1+xi)/4]
+        dN4t = [lambda xi,eta: (-eta-1)/4, lambda xi,eta: (1-xi)/4]
         
         dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
 
@@ -3086,14 +2563,14 @@ class QUAD8(_GroupElem):
 
     def _Ntild(self) -> np.ndarray:
 
-        N1t = lambda ksi,eta: (1-ksi)*(1-eta)*(-1-ksi-eta)/4
-        N2t = lambda ksi,eta: (1+ksi)*(1-eta)*(-1+ksi-eta)/4
-        N3t = lambda ksi,eta: (1+ksi)*(1+eta)*(-1+ksi+eta)/4
-        N4t = lambda ksi,eta: (1-ksi)*(1+eta)*(-1-ksi+eta)/4
-        N5t = lambda ksi,eta: (1-ksi**2)*(1-eta)/2
-        N6t = lambda ksi,eta: (1+ksi)*(1-eta**2)/2
-        N7t = lambda ksi,eta: (1-ksi**2)*(1+eta)/2
-        N8t = lambda ksi,eta: (1-ksi)*(1-eta**2)/2
+        N1t = lambda xi,eta: (1-xi)*(1-eta)*(-1-xi-eta)/4
+        N2t = lambda xi,eta: (1+xi)*(1-eta)*(-1+xi-eta)/4
+        N3t = lambda xi,eta: (1+xi)*(1+eta)*(-1+xi+eta)/4
+        N4t = lambda xi,eta: (1-xi)*(1+eta)*(-1-xi+eta)/4
+        N5t = lambda xi,eta: (1-xi**2)*(1-eta)/2
+        N6t = lambda xi,eta: (1+xi)*(1-eta**2)/2
+        N7t = lambda xi,eta: (1-xi**2)*(1+eta)/2
+        N8t = lambda xi,eta: (1-xi)*(1-eta**2)/2
         
         Ntild =  np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t]).reshape(-1, 1)
 
@@ -3101,14 +2578,14 @@ class QUAD8(_GroupElem):
     
     def _dNtild(self) -> np.ndarray:
 
-        dN1t = [lambda ksi,eta: (1-eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1-ksi)*(ksi+2*eta)/4]
-        dN2t = [lambda ksi,eta: (1-eta)*(2*ksi-eta)/4,      lambda ksi,eta: -(1+ksi)*(ksi-2*eta)/4]
-        dN3t = [lambda ksi,eta: (1+eta)*(2*ksi+eta)/4,      lambda ksi,eta: (1+ksi)*(ksi+2*eta)/4]
-        dN4t = [lambda ksi,eta: -(1+eta)*(-2*ksi+eta)/4,    lambda ksi,eta: (1-ksi)*(-ksi+2*eta)/4]
-        dN5t = [lambda ksi,eta: -ksi*(1-eta),               lambda ksi,eta: -(1-ksi**2)/2]
-        dN6t = [lambda ksi,eta: (1-eta**2)/2,               lambda ksi,eta: -eta*(1+ksi)]
-        dN7t = [lambda ksi,eta: -ksi*(1+eta),               lambda ksi,eta: (1-ksi**2)/2]
-        dN8t = [lambda ksi,eta: -(1-eta**2)/2,              lambda ksi,eta: -eta*(1-ksi)]
+        dN1t = [lambda xi,eta: (1-eta)*(2*xi+eta)/4,      lambda xi,eta: (1-xi)*(xi+2*eta)/4]
+        dN2t = [lambda xi,eta: (1-eta)*(2*xi-eta)/4,      lambda xi,eta: -(1+xi)*(xi-2*eta)/4]
+        dN3t = [lambda xi,eta: (1+eta)*(2*xi+eta)/4,      lambda xi,eta: (1+xi)*(xi+2*eta)/4]
+        dN4t = [lambda xi,eta: -(1+eta)*(-2*xi+eta)/4,    lambda xi,eta: (1-xi)*(-xi+2*eta)/4]
+        dN5t = [lambda xi,eta: -xi*(1-eta),               lambda xi,eta: -(1-xi**2)/2]
+        dN6t = [lambda xi,eta: (1-eta**2)/2,               lambda xi,eta: -eta*(1+xi)]
+        dN7t = [lambda xi,eta: -xi*(1+eta),               lambda xi,eta: (1-xi**2)/2]
+        dN8t = [lambda xi,eta: -(1-eta**2)/2,              lambda xi,eta: -eta*(1-xi)]
                         
         dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t])
 
@@ -3116,14 +2593,14 @@ class QUAD8(_GroupElem):
 
     def _ddNtild(self) -> np.ndarray:
 
-        ddN1t = [lambda ksi,eta: (1-eta)/2,  lambda ksi,eta: (1-ksi)/2]
-        ddN2t = [lambda ksi,eta: (1-eta)/2,  lambda ksi,eta: (1+ksi)/2]
-        ddN3t = [lambda ksi,eta: (1+eta)/2,  lambda ksi,eta: (1+ksi)/2]
-        ddN4t = [lambda ksi,eta: (1+eta)/2,  lambda ksi,eta: (1-ksi)/2]
-        ddN5t = [lambda ksi,eta: -1+eta,     lambda ksi,eta: 0]
-        ddN6t = [lambda ksi,eta: 0,          lambda ksi,eta: -1-ksi]
-        ddN7t = [lambda ksi,eta: -1-eta,     lambda ksi,eta: 0]
-        ddN8t = [lambda ksi,eta: 0,          lambda ksi,eta: -1+ksi]
+        ddN1t = [lambda xi,eta: (1-eta)/2,  lambda xi,eta: (1-xi)/2]
+        ddN2t = [lambda xi,eta: (1-eta)/2,  lambda xi,eta: (1+xi)/2]
+        ddN3t = [lambda xi,eta: (1+eta)/2,  lambda xi,eta: (1+xi)/2]
+        ddN4t = [lambda xi,eta: (1+eta)/2,  lambda xi,eta: (1-xi)/2]
+        ddN5t = [lambda xi,eta: -1+eta,     lambda xi,eta: 0]
+        ddN6t = [lambda xi,eta: 0,          lambda xi,eta: -1-xi]
+        ddN7t = [lambda xi,eta: -1-eta,     lambda xi,eta: 0]
+        ddN8t = [lambda xi,eta: 0,          lambda xi,eta: -1+xi]
                         
         ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t])
 
@@ -3638,8 +3115,6 @@ class PRISM6(_GroupElem):
     
     def _ddddNtild(self) -> np.ndarray:
         return super()._ddddNtild()
-
-    
 
 class PRISM15(_GroupElem):
     #            w

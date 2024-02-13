@@ -1360,7 +1360,7 @@ class Mesher:
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
 
             # Element group creation
-            groupElem = _GroupElem_Factory.Create_GroupElem(gmshId, connect, coordo, nodes)
+            groupElem = _GroupElem_Factory.Create(gmshId, connect, coordo, nodes)
             
             # We add the element group to the dictionary containing all groups
             dict_groupElem[groupElem.elemType] = groupElem
