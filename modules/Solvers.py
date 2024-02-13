@@ -151,9 +151,9 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
             if problemType == 'damage':
                 pcType = 'ilu'
             else:                
+                pcType = 'none'
                 # ilu decomposition doesn't seem to work for the displacement problem in a damage simulation
-                # pcType = 'none'
-                pcType = 'ilu'
+                
         else:
             pcType = __pc_default # 'ilu' by default
             # if mesh.dim = 3, errors may occurs if we use ilu
