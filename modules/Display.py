@@ -1113,7 +1113,7 @@ def _init_obj(obj, deformFactor: float=0.0):
     
     Parameters
     ----------
-    obj : _Simu | Mesh
+    obj : _Simu | Mesh | _GroupElem
         An object that contain the mesh
     deformFactor : float, optional
         the factor used to deform the mesh, by default 0.0
@@ -1125,6 +1125,7 @@ def _init_obj(obj, deformFactor: float=0.0):
     """
 
     from Simulations import _Simu, Mesh
+    from GroupElems import _GroupElem
 
     # here we detect the nature of the object
     if isinstance(obj, _Simu):
@@ -1136,6 +1137,11 @@ def _init_obj(obj, deformFactor: float=0.0):
     elif isinstance(obj, Mesh):
         simu = None
         mesh = obj
+        coordo = mesh.coordoGlob
+        inDim = mesh.inDim
+    elif isinstance(obj, _GroupElem):
+        simu = None
+        mesh = Mesh({obj.elemType: obj})
         coordo = mesh.coordoGlob
         inDim = mesh.inDim
     else:

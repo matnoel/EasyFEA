@@ -2,22 +2,20 @@
 https://docs.pyvista.org/version/stable/
 """
 
-from typing import Union, Any
+from typing import Union, Any, Callable
 import pyvista as pv
 import numpy as np
 
-
 from Display import myPrintError, _init_obj
+import Folder
 
-# pv.global_theme.colorbar_orientation = 'horizontal'
-# pv.global_theme.colorbar_orientation = 'vertical'
 # pv.global_theme.allow_empty_mesh = True
 
 def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, nodeValues=True, 
                 color=None, show_edges=False, edge_color='k', line_width=None,
                 show_vertices=False, point_size=None, opacity=1.0,
                 style='surface', cmap="jet", n_colors=256, clim=None,
-                plotter: pv.Plotter=None, show_grid=False, **kwargs):
+                plotter: pv.Plotter=None, show_grid=False, verticalColobar=True, **kwargs):
     """Plot the object obj that can be either a simu, mesh, MultiBlock, PolyData. If you want to plot the solution use plotter.show().
 
     Parameters
@@ -59,6 +57,8 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         The pyvista plotter, by default None and create a new Plotter instance
     show_grid : bool, optionnal
         Show the grid, by default False
+    verticalColobar : bool, optionnal
+        color bar is vertical, by default True
     **kwargs:
         Everything that can goes in add_mesh function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
 
@@ -66,7 +66,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
     -------
     pv.Plotter
         The pyvista plotter
-    """
+    """    
     
     # initiate the obj to construct the grid
     if isinstance(obj, (pv.MultiBlock, pv.PolyData, pv.UnstructuredGrid)):
@@ -85,7 +85,14 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         plotter = _initPlotter()
     
     if show_grid:
-        plotter.show_grid()
+        plotter.show_grid()    
+
+    if verticalColobar:
+        pos = 'position_x'
+        val = 0.85
+    else:
+        pos = 'position_y'
+        val = 0.025
 
     # apply coef to the array
     name = "array" if isinstance(result, np.ndarray) else result
@@ -99,7 +106,8 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
                      show_edges=show_edges, edge_color=edge_color, line_width=line_width,
                      show_vertices=show_vertices, point_size=point_size,
                      opacity=opacity,
-                     style=style, cmap=cmap, n_colors=n_colors, clim=clim, scalar_bar_args={'title': name},
+                     style=style, cmap=cmap, n_colors=n_colors, clim=clim,
+                     scalar_bar_args={'title': name, 'vertical': verticalColobar, pos: val},
                      **kwargs)
 
     plotter.camera_position = 'xy'
@@ -109,6 +117,84 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         plotter.camera.reset_clipping_range()
 
     return plotter
+
+# --------------------------------------------------------------------------------------------
+# Movie
+# --------------------------------------------------------------------------------------------
+
+def Movie_simu(simu, result: str, folder: str, videoName='video.gif',
+          deformFactor=0.0, coef=1.0, nodeValues=True, **kwargs) -> None:
+    """Generate a movie from a simu object and a result that you want to plot.
+
+    Parameters
+    ----------
+    simu : _Simu
+        simulation
+    result : str
+        result that you want to plot
+    folder : str
+        folder where you want to save the video
+    videoName : str, optional
+        filename of the video with the extension (gif, mp4), by default 'video.gif'
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
+    coef : float, optional
+        Coef to apply to the solution, by default 1.0
+    nodeValues : bool, optional
+        Displays result to nodes otherwise displays it to elements, by default True
+    """
+    
+    simu, mesh, coordo, inDim = _init_obj(simu)
+
+    if simu is None:
+        myPrintError("Must give a simulation.")
+        return
+
+    N = len(simu.results)
+
+    def DoAnim(plotter, n):
+        simu.Set_Iter(n)
+        Plot(simu, result, deformFactor, coef, nodeValues, plotter=plotter, **kwargs)
+
+    Movie_func(DoAnim, N, folder, videoName)
+
+def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, videoName='video.gif'):
+    """Make the movie for the specified function. This function will peform a loop in range(N) and plot in pyvista with func()
+
+    Parameters
+    ----------
+    func : Callable[[pv.Plotter, int], None]
+        The functiion that will use in first argument the plotter and in second argument the iter step. def func(plotter, n)
+    N : int
+        number of iteration
+    folder : str
+        folder where you want to save the video
+    videoName : str, optional
+        filename of the video with the extension (gif, mp4), by default 'video.gif'
+    """
+
+    plotter = _initPlotter(True)
+    
+    videoName = Folder.Join(folder, videoName)
+
+    if '.gif' in videoName:
+        plotter.open_gif(videoName)
+    else:
+        plotter.open_movie(videoName)
+
+    for n in range(N):
+
+        plotter.clear()
+
+        func(plotter, n)
+
+        plotter.write_frame()
+
+    plotter.close()
+
+# --------------------------------------------------------------------------------------------
+# Functions
+# --------------------------------------------------------------------------------------------
 
 __dictCellTypes: dict[str, pv.CellType] = {
     "SEG2": pv.CellType.LINE,

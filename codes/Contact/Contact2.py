@@ -1,10 +1,11 @@
-"""Perform a contact problem with frictionless contact assumption.
+"""Perform a "Hertz contact problem" with frictionless contact assumption.
 The master mesh is assumed to be non-deformable.
-TODO: Compare with analytical values.
 WARNING: The assumption of small displacements is more than questionable for this simulation.
 """
 
+import Folder
 import Display
+from PyVista_Interface import Plot, Movie_func
 from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Domain, Points
 import Materials
@@ -13,6 +14,8 @@ import Simulations
 plt = Display.plt
 np = Display.np
 
+folder = Folder.New_File('Contact', results=True)
+
 if __name__ == '__main__':
 
     Display.Clear()
@@ -20,18 +23,19 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 2
+    dim = 3
     pltIter = True; result = 'uy'
+    makeMovie = True
 
     R = 10
     height = R
     meshSize = R/20
     thickness = R/3
 
-    N = 30   
+    N = 30
 
-    inc = 2*R/N
-    cx, cy = 1, 0
+    inc = 1e-0/N
+    cx, cy = 0, -1
 
     # --------------------------------------------------------------------------------------------
     # Meshes
@@ -39,34 +43,45 @@ if __name__ == '__main__':
 
     # slave mesh
     contour_slave = Domain(Point(-R/2,0), Point(R/2,height), meshSize)
+
+    
+
+
     if dim == 2:
         mesh_slave = Mesher().Mesh_2D(contour_slave, [], ElemType.QUAD4, isOrganised=True)
     else:
         mesh_slave = Mesher().Mesh_Extrude(contour_slave, [], [0,0,-thickness], [4], ElemType.HEXA8, isOrganised=True)
 
-    nodes_slave = mesh_slave.Get_list_groupElem(dim-1)[0].nodes
+    # nodes_slave = mesh_slave.Get_list_groupElem(dim-1)[0].nodes
+    nodes_slave = mesh_slave.Nodes_Conditions(lambda x,y,z: y==height)
     nodes_y0 = mesh_slave.Nodes_Conditions(lambda x,y,z: y==0)
 
-    # master mesh    
-    r = R/2
+    # master mesh
+    r = R/4
     p0 = Point(-R/2, height, r=r)
     p1 = Point(R/2, height, r=r)
     p2 = Point(R/2, height+R)
     p3 = Point(-R/2, height+R)
     contour_master = Points([p0,p1,p2,p3])
-    if dim == 2:
-        contour_master.translate(-R, -2)
-    else:
-        contour_master.translate(-R, -2, 1)
+
     yMax = height+np.abs(r)
     if dim == 2:
         mesh_master = Mesher().Mesh_2D(contour_master, [], ElemType.TRI3)
     else:    
         mesh_master = Mesher().Mesh_Extrude(contour_master, [], [0,0,-thickness-2], [4], ElemType.TETRA4)
+        groupMaster = mesh_master.Get_list_groupElem(dim-1)[0]
+        if len(mesh_master.Get_list_groupElem(dim-1)) > 1:
+            Display.myPrintError(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
     mesh_master.translate(dz=-(mesh_master.center[2]-mesh_slave.center[2]))
 
+    # Display.Plot_Model(mesh_master, alpha=0.1, showId=True)
+
     # get master nodes
-    nodes_master = mesh_master.Get_list_groupElem(dim-1)[0].nodes
+    # nodes_master = mesh_master.Get_list_groupElem(dim-1)[0].nodes
+    if dim == 2:
+        nodes_master = mesh_master.Nodes_Tags(['L0','L1'])
+    else:
+        nodes_master = mesh_master.Nodes_Tags(['S1','S2'])
 
     # # plot meshes
     # ax = Display.Plot_Mesh(mesh_master, alpha=0)
@@ -95,10 +110,6 @@ if __name__ == '__main__':
 
         list_mesh_master.append(mesh_master)
 
-        groupMaster = mesh_master.Get_list_groupElem(dim-1)[0]
-        if dim == 3 and i == 0 and len(mesh_master.Get_list_groupElem(dim-1)) > 1:
-            Display.myPrintError(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
-
         convergence=False
 
         coordo_old = simu.Results_displacement_matrix() + simu.mesh.coordo
@@ -111,15 +122,14 @@ if __name__ == '__main__':
 
             nodes, newU = simu.Get_contact(mesh_master, nodes_slave, nodes_master)
 
-            if nodes.size > 0:        
+            if nodes.size > 0:
                 simu.add_dirichlet(nodes, [newU[:,0], newU[:,1]], ['x','y'])
 
             simu.Solve()
 
             # check if there is no new nodes in the master mesh
             oldSize = nodes.size
-            nodes, _ = simu.Get_contact(mesh_master, nodes_slave)
-
+            nodes, __ = simu.Get_contact(mesh_master, nodes_slave, nodes_master)
             convergence = oldSize == nodes.size
 
         simu.Save_Iter()
@@ -133,7 +143,7 @@ if __name__ == '__main__':
             ax.set_title(result)
             if dim == 3:
                 Display._Axis_equal_3D(ax, np.concatenate((mesh_master.coordo, mesh_slave.coordo), 0))
-            
+        
             # # Plot arrows
             # if nodes.size >0:
             #     # get the nodes coordinates on the interface
@@ -142,12 +152,12 @@ if __name__ == '__main__':
 
             #     coordo_new = simu.Results_displacement_matrix() + simu.mesh.coordo
             #     ax.scatter(*coordo_old[nodes,:dim].T)
-            #     incU = coordo_new - coordo_old
+            #     incU = coordo_new - coordo_oldq
             #     [ax.arrow(*coordo_old[node, :dim], *incU[node,:dim],length_includes_head=True) for node in nodes]
 
             plt.pause(1e-12)
-        
-        pass
+
+    print(simu)
 
     # --------------------------------------------------------------------------------------------
     # PostProcessing
@@ -158,6 +168,13 @@ if __name__ == '__main__':
 
     Simulations.Tic.Plot_History(details=True)
 
-    print(simu)
+    if makeMovie:
+
+        def DoAnim(plotter, n):
+            simu.Set_Iter(n)
+            Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10, show_grid=True)
+            Plot(list_mesh_master[n], plotter=plotter, show_edges=True, opacity=0.2)
+
+        Movie_func(DoAnim, N, folder=folder, videoName='Contact2.gif')
 
     plt.show()

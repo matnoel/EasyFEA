@@ -16,7 +16,7 @@ class Mesh:
     - HEXA8 (dim=3)
     """
 
-    def __init__(self, dict_groupElem: dict[ElemType, _GroupElem], verbosity=True):
+    def __init__(self, dict_groupElem: dict[ElemType, _GroupElem], verbosity=False):
         """Setup the mesh.
 
         Parameters
@@ -53,7 +53,7 @@ class Mesh:
         nodes = set(list(range(Nn)))
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
-        if len(orphanNodes) > 0:
+        if len(orphanNodes) > 0 and verbosity:
             import Display
             Display.myPrintError("WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes).")
 

@@ -4,7 +4,9 @@ TODO: Compare with analytical values.
 WARNING: The assumption of small displacements is more than questionable for this simulation.
 """
 
+import Folder
 import Display
+from PyVista_Interface import Plot, Movie_func
 from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Domain, Points
 import Materials
@@ -12,6 +14,8 @@ import Simulations
 
 plt = Display.plt
 np = Display.np
+
+folder = Folder.New_File('Contact', results=True)
 
 if __name__ == '__main__':
 
@@ -22,6 +26,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     dim = 3
     pltIter = True; result = 'uy'
+    makeMovie = True
 
     R = 10
     height = R
@@ -39,6 +44,10 @@ if __name__ == '__main__':
 
     # slave mesh
     contour_slave = Domain(Point(-R/2,0), Point(R/2,height), meshSize)
+
+    
+
+
     if dim == 2:
         mesh_slave = Mesher().Mesh_2D(contour_slave, [], ElemType.QUAD4, isOrganised=True)
     else:
@@ -55,6 +64,7 @@ if __name__ == '__main__':
     p2 = Point(R/2, height+R)
     p3 = Point(-R/2, height+R)
     contour_master = Points([p0,p1,p2,p3])
+
     yMax = height+np.abs(r)
     if dim == 2:
         mesh_master = Mesher().Mesh_2D(contour_master, [], ElemType.TRI3)
@@ -63,7 +73,6 @@ if __name__ == '__main__':
         groupMaster = mesh_master.Get_list_groupElem(dim-1)[0]
         if len(mesh_master.Get_list_groupElem(dim-1)) > 1:
             Display.myPrintError(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
-        
     mesh_master.translate(dz=-(mesh_master.center[2]-mesh_slave.center[2]))
 
     # Display.Plot_Model(mesh_master, alpha=0.1, showId=True)
@@ -144,10 +153,12 @@ if __name__ == '__main__':
 
             #     coordo_new = simu.Results_displacement_matrix() + simu.mesh.coordo
             #     ax.scatter(*coordo_old[nodes,:dim].T)
-            #     incU = coordo_new - coordo_old
+            #     incU = coordo_new - coordo_oldq
             #     [ax.arrow(*coordo_old[node, :dim], *incU[node,:dim],length_includes_head=True) for node in nodes]
 
             plt.pause(1e-12)
+
+    print(simu)
 
     # --------------------------------------------------------------------------------------------
     # PostProcessing
@@ -158,14 +169,15 @@ if __name__ == '__main__':
 
     Simulations.Tic.Plot_History(details=True)
 
-    # import Folder
-    # import PostProcessing
-    # folder = Folder.New_File('Contact', results=True)
-    # PostProcessing.Make_Paraview(folder, simu)
-    # # TODO how to plot the two meshes ?
-    # TODO bending 3 pts
-    # TODO create a contact folder
+    if makeMovie:
 
-    print(simu)
+        def DoAnim(plotter, n):
+            simu.Set_Iter(n)
+            Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10, show_grid=True)
+            Plot(list_mesh_master[n], plotter=plotter, show_edges=True, opacity=0.2)
+
+        Movie_func(DoAnim, N, folder=folder, videoName='Contact1.gif')
+    
+    # TODO bending 3 pts
 
     plt.show()

@@ -1,16 +1,19 @@
 """Perform a contact problem with frictionless contact assumption.
 The master mesh is assumed to be non-deformable.
-TODO: Compare with analytical values.
 WARNING: The assumption of small displacements is more than questionable for this simulation.
 """
 
+import Folder
 import Display
+from PyVista_Interface import Plot, Movie_func
 from Gmsh_Interface import ElemType, Mesher
 from Geoms import Point, Points, Domain
 import Materials
 import Simulations
 
 from Display import np, plt
+
+folder = Folder.New_File('Contact', results=True)
 
 if __name__ == '__main__':
 
@@ -19,8 +22,11 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 2
+    dim = 3
     pltIter = True; result = 'uy'
+    makeMovie = True
+
+    N = 20
 
     e = 10
     L = 3*e
@@ -87,7 +93,7 @@ if __name__ == '__main__':
 
     simu = Simulations.Simu_Displacement(mesh, material)
 
-    displacements = np.linspace(0, t*2, 20)    
+    displacements = np.linspace(0, t*2, N)    
 
     if pltIter:
         fig, ax, cb = Display.Plot_Result(simu, result, 1, plotMesh=True)
@@ -113,15 +119,25 @@ if __name__ == '__main__':
 
             plt.pause(1e-12)
 
+    print(simu)
+
     # --------------------------------------------------------------------------------------------
     # Plot
-    # --------------------------------------------------------------------------------------------
-        
-    print(simu)
+    # --------------------------------------------------------------------------------------------        
 
     ax = Display.Plot_Mesh(mesh)
     Display.Plot_Mesh(master_mesh, alpha=0.1, ax=ax)
     Display.Plot_BoundaryConditions(simu, ax=ax)
     ax.set_title('')
+
+    if makeMovie:
+
+        def DoAnim(plotter, n):
+            simu.Set_Iter(n)
+            Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10,
+                 show_grid=True, verticalColobar=False)
+            Plot(master_mesh, plotter=plotter, show_edges=True, opacity=.8)
+
+        Movie_func(DoAnim, N, folder=folder, videoName='Contact3.mp4')
 
     plt.show()

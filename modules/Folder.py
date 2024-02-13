@@ -4,10 +4,10 @@ import os
 from typing import List
 
 def Get_Path(filename="") -> str:
-    """Returns the folder containing the file. Otherwise returns the PythonEF folder."""
+    """Returns the folder containing the file. Otherwise returns the EasyFEA folder."""
     
     if filename == "":
-        # Returns the path to PythonEF
+        # Returns the path to EasyFEA
         path = os.path.dirname(__file__)
         path = os.path.dirname(path)
     else:
@@ -24,7 +24,7 @@ def New_File(filename: str, folder=Get_Path(), results=False) -> str:
     filename : str
         file or folder name
     folder : str, optional
-        folder to use, default Get_Path() -> PythonEF
+        folder to use, default Get_Path() -> EasyFEA
     results : bool, optional
         saves in folder/results/filename or folder/filename, default False
     """
@@ -33,8 +33,8 @@ def New_File(filename: str, folder=Get_Path(), results=False) -> str:
         folder = Join(folder, "results")
     filename = Join(folder, filename)
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    if not os.path.exists(filename):
+        os.makedirs(filename)
             
     return filename
 
