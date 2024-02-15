@@ -474,7 +474,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
         ax.plot(*coordo[nodes,:2].T, ls='', marker=marker, c=c, zorder=2.5)
         if showId:            
             [ax.text(*coordo[noeud,:2].T, str(noeud), c=c) for noeud in nodes]
-        ax.axis('auto')
+        ax.axis('equal')
     elif inDim == 3:            
         ax.plot(*coordo[nodes].T, ls='', marker=marker, c=c, zorder=2.5)
         if showId:
