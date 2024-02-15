@@ -325,6 +325,19 @@ class Test_Simu(unittest.TestCase):
         DoTest(simu)
         matIsot.planeStress = not matIsot.planeStress
         DoTest(simu)
+        try:
+            matIsot.E = -10
+            # must return an error
+        except AssertionError:
+            self.assertTrue(simu.needUpdate == False)
+        try:
+            matIsot.v = 10
+            # must return an error
+        except AssertionError:
+            self.assertTrue(simu.needUpdate == False)
+        matIsot.planeStress = 10            
+        self.assertTrue(simu.needUpdate == False)
+
 
         matElasIsotTrans = Materials.Elas_IsotTrans(2, 10,10,10,0.1,0.1)
         # El, Et, Gl, vl, vt, planeStress
@@ -450,6 +463,48 @@ class Test_Simu(unittest.TestCase):
         DoTest(simu)
         pfm.A = np.eye(2)*3
         DoTest(simu)
+
+    def test_Update_Mesh(self):
+
+        def DoTest(simu: Simulations._Simu)-> None:
+            self.assertTrue(simu.needUpdate == True) # should trigger the event
+            simu.Need_Update(False) # init
+
+        mesh = Mesher().Mesh_2D(Domain(Point(), Point(1,1)))
+
+        thermal = Materials.Thermal_Model(2, 1, 1)
+        # k, c
+
+        simu = Simulations.Simu_Thermal(mesh, thermal)
+        simu.Get_K_C_M_F()
+        self.assertTrue(simu.needUpdate == False) # check that need update is now set to false once Get_K_C_M_F() get called
+
+        mesh.rotate(45, mesh.center)
+        DoTest(simu)
+
+        mesh.translate(dy=-10)
+        DoTest(simu)
+
+        mesh.symmetry(mesh.center, (1,0))
+        DoTest(simu)
+
+        try:
+            mesh.rotate(45, mesh.center, direction=(1,0))
+            # must return an error
+        except AssertionError:
+            self.assertTrue(simu.needUpdate == False)
+
+        try:
+            mesh.translate(dz=20)
+            # must return an error
+        except AssertionError:
+            self.assertTrue(simu.needUpdate == False)
+
+        simu.mesh = mesh.copy()
+        DoTest(simu)
+        pass
+
+
 
 
         

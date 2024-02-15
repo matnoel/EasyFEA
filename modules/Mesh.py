@@ -8,7 +8,9 @@ from Geoms import *
 from GroupElems import _GroupElem, ElemType, MatrixType
 import TicTac
 
-class Mesh:
+from Observers import Observable
+
+class Mesh(Observable):
     """A mesh uses several groups of elements. For example, a mesh with cubes (HEXA8) uses :
     - POINT (dim=0)
     - SEG2 (dim=1)
@@ -146,13 +148,15 @@ class Mesh:
     def copy(self):
         newMesh = copy.deepcopy(self)
         return newMesh
-    
+
     def translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
         """Translate the mesh coordinates."""
         oldCoord = self.coordoGlob
         newCoord = oldCoord + np.array([dx, dy, dz])
         for grp in self.dict_groupElem.values():
             grp.coordoGlob = newCoord
+        self._notify('The mesh has been modified')
+
     
     def rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:        
         """Rotate the mesh coordinates around an axis.
@@ -171,6 +175,7 @@ class Mesh:
         newCoord = Rotate_coordo(oldCoord, theta, center, direction)
         for grp in self.dict_groupElem.values():
             grp.coordoGlob = newCoord
+        self._notify('The mesh has been modified')
 
     def symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
         """Symmetrise the mesh coordinates with a plane.
@@ -187,6 +192,7 @@ class Mesh:
         newCoord = Symmetry_coordo(oldCoord, point, n)
         for grp in self.dict_groupElem.values():
             grp.coordoGlob = newCoord
+        self._notify('The mesh has been modified')
 
     @property
     def nodes(self) -> np.ndarray:
@@ -413,7 +419,7 @@ class Mesh:
         """
         return self.groupElem.Get_SourcePart_e_pg(matrixType)
 
-    # Node recovery
+    # Nodes recovery
 
     def Nodes_Conditions(self, func) -> np.ndarray:
         """Returns nodes that meet the specified conditions.

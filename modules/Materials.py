@@ -64,8 +64,7 @@ class _IModel(ABC, Observable):
     def Need_Update(self, value=True) -> None:
         """Indicates whether the model needs to be updated"""
         self.__needUpdate = value
-
-        if value: self._notify('The model has been modified')            
+        if value: self._notify('The model has been modified')
     
     @property
     def isHeterogeneous(self) -> bool:

@@ -207,8 +207,9 @@ class _Simu(_IObserver, ABC):
         assert problemType in self.Get_problemTypes(), f"This type of problem is not available in this simulation ({self.Get_problemTypes()})"
 
     def _Check_dim_mesh_material(self) -> None:
-        """Checks that the material size matches the mesh size."""
-        assert self.__model.dim == self.__mesh.dim, "The material must have the same dimensions as the mesh."
+        """Checks that the material dim matches the mesh dim."""
+        dim = self.__model.dim
+        assert dim == self.__mesh.dim and dim == self.__mesh.inDim, "Material and mesh must share the same dimensions and belong to the same space."
 
     def __str__(self) -> str:
         """
@@ -310,6 +311,7 @@ class _Simu(_IObserver, ABC):
         
         # simulation will look for material modifications
         model._add_observer(self)
+        mesh._add_observer(self)
 
 
     @property
@@ -573,6 +575,12 @@ class _Simu(_IObserver, ABC):
         if isinstance(observable, _IModel):
             if event == 'The model has been modified' and not self.needUpdate:
                 self.Need_Update()
+        elif isinstance(observable, Mesh):
+            if event == 'The mesh has been modified':
+                self._Check_dim_mesh_material()
+                self.Need_Update()
+        else:
+            myPrintError("Notification not yet implemented")
 
     def Need_Update(self, value=True) -> None:
         """Set whether the simulation needs to reconstruct matrices K, C, M and F.
@@ -2212,6 +2220,12 @@ class Simu_PhaseField(_Simu):
             if isinstance(observable, Materials._Displacement_Model):
                 # Here, the elastic properties have been updated, so we need to reconstruct cP and cM.
                 self.phaseFieldModel.Need_Split_Update()
+        elif isinstance(observable, Mesh):
+            if event == 'The mesh has been modified':
+                self._Check_dim_mesh_material()
+                self.Need_Update()
+        else:
+            myPrintError("Notification not yet implemented")
 
     @property
     def needUpdate(self) -> bool:

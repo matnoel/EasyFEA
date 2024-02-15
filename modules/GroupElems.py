@@ -106,6 +106,7 @@ class _GroupElem(ABC):
         self.__nodes = nodes
         self.__coordoGlob = coordoGlob
 
+        # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags = {}
         self.__dict_elements_tags = {}        
         self._InitMatrix()
@@ -789,9 +790,7 @@ class _GroupElem(ABC):
         if self.dim == 0: return
         if matrixType not in self.__dict_F_e_pg.keys():
 
-            coordo_n = self.coordoGlob[:]
-
-            coordo_e: np.ndarray = coordo_n[self.__connect]
+            coordo_e: np.ndarray = self.coordoGlob[self.__connect]
 
             nodesBase = coordo_e.copy()
             if self.dim != self.inDim:
@@ -1141,6 +1140,8 @@ class _GroupElem(ABC):
         ddNv_pg = _GroupElem._Evaluates_Functions(ddNvtild, gauss.coord)
 
         return ddNv_pg
+
+    # find elements
 
     def Get_Elements_Nodes(self, nodes: np.ndarray, exclusively=True) -> np.ndarray:
         """Returns elements that exclusively or not use the specified nodes."""
@@ -1591,7 +1592,8 @@ class _GroupElem(ABC):
         return idx
 
     def __Get_Mapping(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
-        """This function locates coordinates in elements.
+        """This function locates coordinates in elements.\n
+        return nodes, connect_e_n, coordoInElem_n\n
         We return the detected coordinates, the connectivity matrix between element and coordinates and the coordinates of these nodes in the reference elements, so that we can evaluate the shape functions."""
         
         # retrieves informations from element group
