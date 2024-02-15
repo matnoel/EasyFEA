@@ -4,8 +4,7 @@ from abc import ABC, abstractmethod
 import os
 import pickle
 from datetime import datetime
-from types import LambdaType
-from typing import Union
+from typing import Union, Callable
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -18,6 +17,8 @@ from TicTac import Tic
 from Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType 
 import Folder
 from Display import myPrint, myPrintError
+
+from Observers import Observable, _IObserver
 
 def Load_Simu(folder: str, verbosity=False):
     """
@@ -49,7 +50,7 @@ def Load_Simu(folder: str, verbosity=False):
         print(simu.model)
     return simu
 
-class _Simu(ABC):
+class _Simu(_IObserver, ABC):
     """
     The following classes inherit from the parent class _Simu:
         - Simu_Displacement
@@ -306,8 +307,10 @@ class _Simu(ABC):
 
         # Initialize Boundary conditions
         self.Bc_Init()
+        
+        # simulation will look for material modifications
+        model._add_observer(self)
 
-        self.Need_Update()
 
     @property
     def model(self) -> _IModel:
@@ -564,12 +567,17 @@ class _Simu(ABC):
     def needUpdate(self) -> bool:
         """The simulation needs to reconstruct matrices K, C, and M.
         """
-        return self.__matricesUpdated
+        return self.__needUpdate
+    
+    def update(self, observable: Observable, event: str) -> None:
+        if isinstance(observable, _IModel):
+            if event == 'The model has been modified' and not self.needUpdate:
+                self.Need_Update()
 
     def Need_Update(self, value=True) -> None:
-        """Set whether the simulation needs to reconstruct matrices K, C, and M.
+        """Set whether the simulation needs to reconstruct matrices K, C, M and F.
         """
-        self.__matricesUpdated = value
+        self.__needUpdate = value
 
     # ================================================ Solver ================================================
 
@@ -920,7 +928,7 @@ class _Simu(ABC):
         """Add Lagrange conditions."""
         assert isinstance(newBc, LagrangeCondition)
         self.__Bc_Lagrange.append(newBc)
-        # triger the update cause when we use lagrange multiplier we need to update the matrix system
+        # triger the update because when we use lagrange multiplier we need to update the matrix system
         self.Need_Update()
 
     def _Bc_Lagrange_dim(self, problemType=None) -> int:
@@ -1025,15 +1033,13 @@ class _Simu(ABC):
         elif option == "gauss":
             values_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
         
-        if isinstance(values, LambdaType):
+        if callable(values):
             # Evaluates function at coordinates   
-            try:
-                if option == "nodes":
-                    values_eval[:] = values(coordo[:,0], coordo[:,1], coordo[:,2])
-                elif option == "gauss":
-                    values_eval[:,:] = values(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
-            except:
-                raise Exception("Must provide a lambda function of the form\n lambda x,y,z, : f(x,y,z)")
+            if option == "nodes":
+                values_eval[:] = values(coordo[:,0], coordo[:,1], coordo[:,2])
+            elif option == "gauss":
+                values_eval[:,:] = values(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
+            
         else:            
             if option == "nodes":
                 values_eval[:] = values
@@ -2092,16 +2098,15 @@ class Simu_PhaseField(_Simu):
 
         assert model.modelType == ModelType.damage, "The material must be damage model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
-
-        # init résultats
+        
+        # Init internal variable
         self.__psiP_e_pg = []
         self.__old_psiP_e_pg = [] # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
         self.Solver_Set_Elliptic_Algorithm()
 
-        self.__updatedDamage = False
-        """The matrix system associated with the damage problem is updated."""
-        self.__updatedDisplacement = False
-        """The matrix system associated with the displacement problem is updated."""
+        self.Need_Update()
+
+        self.phaseFieldModel.material._add_observer(self)
 
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         if details:
@@ -2184,20 +2189,40 @@ class Simu_PhaseField(_Simu):
         if problemType==None:
             problemType = ModelType.displacement
 
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
-        initcsr = sparse.csr_matrix((size, size))
-
         # here always update to the last state
         if problemType == ModelType.displacement:
             if not self.__updatedDisplacement:
                 self.__Assembly_displacement()
                 self.__updatedDisplacement = True
+            size = self.__Ku.shape[0]
+            initcsr = sparse.csr_matrix((size, size))
             return self.__Ku.copy(), initcsr, initcsr, self.__Fu.copy()
         else:
             if not self.__updatedDamage:
                 self.__Assembly_damage()
                 self.__updatedDamage = True
+            size = self.__Kd.shape[0]
+            initcsr = sparse.csr_matrix((size, size))
             return self.__Kd.copy(), initcsr, initcsr, self.__Fd.copy()
+
+    def update(self, observable: Observable, event: str) -> None:
+        if isinstance(observable, _IModel):
+            if event == 'The model has been modified' and not self.needUpdate:
+                self.Need_Update()
+            if isinstance(observable, Materials._Displacement_Model):
+                # Here, the elastic properties have been updated, so we need to reconstruct cP and cM.
+                self.phaseFieldModel.Need_Split_Update()
+
+    @property
+    def needUpdate(self) -> bool:
+        return not self.__updatedDamage or not self.__updatedDisplacement
+
+    def Need_Update(self, value=True) -> None:        
+        # the following functions help to avoid assembling matrices too many times
+        self.__updatedDamage = not value
+        """The matrix system associated with the damage problem is updated."""
+        self.__updatedDisplacement = not value
+        """The matrix system associated with the displacement problem is updated."""
 
     def Get_x0(self, problemType=None):
         
@@ -2409,7 +2434,7 @@ class Simu_PhaseField(_Simu):
             
         self._Solver_Solve(ModelType.displacement)
 
-        # Split need to be update
+        # Split need to be update because there is a new displacement solution -> Eps will change
         self.phaseFieldModel.Need_Split_Update()
        
         return self.displacement
@@ -2932,7 +2957,10 @@ class Simu_Beam(_Simu):
 
         # init
         self.Solver_Set_Elliptic_Algorithm()
-
+        
+        # turn beams into observable objects
+        [beam._add_observer(self) for beam in model.beams]
+        
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         if details:
             nodesField = ["displacement_matrix"]
@@ -3408,7 +3436,7 @@ class Simu_Beam(_Simu):
         if self.needUpdate:
             self.Assembly()
             self.Need_Update(False)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        size = self.__Kbeam.shape[0]
         initcsr = sparse.csr_matrix((size, size))
         return self.__Kbeam.copy(), initcsr.copy(), initcsr.copy(), self.__Fbeam.copy()
 
@@ -3832,7 +3860,7 @@ class Simu_Thermal(_Simu):
         if self.needUpdate:
             self.Assembly()
             self.Need_Update(False)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        size = self.__Kt.shape[0]
         initcsr = sparse.csr_matrix((size, size))
         return self.__Kt.copy(), self.__Ct.copy(), initcsr, self.__Ft.copy()
 

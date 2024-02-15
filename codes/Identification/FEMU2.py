@@ -168,8 +168,6 @@ if __name__ == '__main__':
             material_FEMU.Et = x[2]
             material_FEMU.vl = x[3]
 
-        simu_FEMU.Need_Update()
-
         u = simu_FEMU.Solve()
         
         diff = u - u_exp_noise
@@ -215,8 +213,7 @@ if __name__ == '__main__':
                 material_FEMU.Gl = GL0
                 material_FEMU.Et = ET0
                 material_FEMU.vl = vL0
-
-            simu_FEMU.Need_Update()
+            
             simu_FEMU.Bc_Init()
             
             if useRescale:

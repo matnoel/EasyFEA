@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # Configuration
     # --------------------------------------------------------------------------------------------
     # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
-    simulation = "PlateWithHole_Benchmark"
+    simulation = "Shear_Benchmark"
 
     test = False
     loadSimu = True
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     # list_split = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
     # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
     # list_split = ["He","AnisotStrain","AnisotStress", "Zhang"]
-    list_split = ["AnisotStress"]
+    list_split = ["AnisotStrain"]
 
     # listOptimMesh=[True, False] # [True, False]
     listOptimMesh=[True] # [True, False]
@@ -135,6 +135,8 @@ if __name__ == '__main__':
             # Load simulation
             try:
                 simu = Simulations.Load_Simu(foldername, False)
+                tt = simu.model.useNumba
+                tt = simu.Bc_Display
                 results = pd.DataFrame(simu.results)
                 temps = results["timeIter"].values.sum()
                 temps_str, unite = TicTac.Tic.Get_time_unity(temps)

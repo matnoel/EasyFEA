@@ -109,7 +109,7 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list, float]:
     C = c1*E1 + c2*E2 + c3*E3 + c4*E4 + c5*E5 # GPa
     C *= 1e3 # MPa
 
-    material = Materials.Elas_Anisot(2, C, False, planeStress=True, thickness=t)
+    material = Materials.Elas_Anisot(2, C, False, thickness=t)
 
     pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)    
 

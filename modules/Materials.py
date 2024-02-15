@@ -10,6 +10,7 @@ from TicTac import Tic
 from Mesh import Mesh, _GroupElem
 import CalcNumba
 from Geoms import Line, Normalize_vect, As_Coordinates
+from Observers import Observable
 
 # --------------------------------------------------------------------------------------------
 # Types
@@ -23,7 +24,7 @@ class ModelType(str, Enum):
     thermal = "thermal"
     beam = "beam"
 
-class _IModel(ABC):
+class _IModel(ABC, Observable):
     """Model interface.
     """
 
@@ -59,12 +60,12 @@ class _IModel(ABC):
     def needUpdate(self) -> bool:
         """The model needs to be updated"""
         return self.__needUpdate
-    
-    # TODO add an observer !!!
 
-    def Need_Update(self, value=True):
+    def Need_Update(self, value=True) -> None:
         """Indicates whether the model needs to be updated"""
         self.__needUpdate = value
+
+        if value: self._notify('The model has been modified')            
     
     @property
     def isHeterogeneous(self) -> bool:
@@ -72,7 +73,7 @@ class _IModel(ABC):
         return False
     
     @staticmethod
-    def _Test_Sup0(value: Union[float,np.ndarray]):
+    def _Test_Sup0(value: Union[float,np.ndarray]) -> None:
         errorText = "Must be > 0!"
         if isinstance(value, (float, int)):
             assert value > 0.0, errorText
@@ -80,7 +81,7 @@ class _IModel(ABC):
             assert value.min() > 0.0, errorText
 
     @staticmethod
-    def _Test_In(value: Union[float,np.ndarray], bInf=-1, bSup=0.5):
+    def _Test_In(value: Union[float,np.ndarray], bInf=-1, bSup=0.5) -> None:
         errorText = f"Must be between ]{bInf};{bSup}["
         if isinstance(value, (float, int)):
             assert value > bInf and value < bSup, errorText
@@ -106,8 +107,6 @@ class _Displacement_Model(_IModel, ABC):
         self.__planeStress = planeStress if dim == 2 else False
         """2D simplification type"""
 
-        self.Need_Update()
-
     @property
     def modelType(self) -> ModelType:
         return ModelType.displacement
@@ -126,6 +125,7 @@ class _Displacement_Model(_IModel, ABC):
     @property
     def planeStress(self) -> bool:
         """The model uses plane stress simplification"""
+        return self.__planeStress
         try:
             return self.__planeStress
         except AttributeError:
@@ -141,7 +141,8 @@ class _Displacement_Model(_IModel, ABC):
     @planeStress.setter
     def planeStress(self, value: bool) -> None:
         if isinstance(value, bool):
-            if self.__planeStress == value: self.Need_Update()
+            if self.__planeStress != value:
+                self.Need_Update()
             self.__planeStress = value
 
     @property
@@ -153,7 +154,7 @@ class _Displacement_Model(_IModel, ABC):
             return "3D"
 
     @abstractmethod
-    def _Update(self):
+    def _Update(self) -> None:
         """Update the C and S behavior law"""
         pass
 
@@ -181,11 +182,14 @@ class _Displacement_Model(_IModel, ABC):
 
     @C.setter
     def C(self, array: np.ndarray):
+        assert isinstance(array, np.ndarray), "must be an array"
+        shape = (3, 3) if self.dim == 2 else (6, 6)
+        assert array.shape[-2:] == shape, f"With dim = {self.dim} array must be a {shape} matrix"
         self.__C = array
 
     @property
     def isHeterogeneous(self) -> bool:
-        return len(self.__C.shape) > 2
+        return len(self.C.shape) > 2
 
     @property
     def S(self) -> np.ndarray:
@@ -200,6 +204,9 @@ class _Displacement_Model(_IModel, ABC):
     
     @S.setter
     def S(self, array: np.ndarray):
+        assert isinstance(array, np.ndarray), "must be an array"
+        shape = (3, 3) if self.dim == 2 else (6, 6)
+        assert array.shape[-2:] == shape, f"With dim = {self.dim} array must be a {shape} matrix"
         self.__S = array
 
     @abstractmethod
@@ -245,9 +252,7 @@ class Elas_Isot(_Displacement_Model):
 
         _Displacement_Model.__init__(self, dim, thickness, planeStress)
 
-        self._Update()
-
-    def _Update(self):
+    def _Update(self) -> None:
         C, S = self._Behavior(self.dim)
         self.C = C
         self.S = S
@@ -448,15 +453,14 @@ class Elas_IsotTrans(_Displacement_Model):
         assert dim in [2,3], "Must be dimension 2 or 3"
         self.__dim = dim
 
-        self.El=El        
-        self.Et=Et        
+        self.El=El
+        self.Et=Et
         self.Gl=Gl
-        
-        self.vl=vl        
+        self.vl=vl
         self.vt=vt
 
-        axis_l = np.asarray(axis_l)
-        axis_t = np.asarray(axis_t)
+        axis_l = As_Coordinates(axis_l)
+        axis_t = As_Coordinates(axis_t)
         assert axis_l.size == 3 and len(axis_l.shape) == 1, 'axis_l must be a 3D vector'
         assert axis_t.size == 3 and len(axis_t.shape) == 1, 'axis_t must be a 3D vector'
         assert axis_l @ axis_t <= 1e-12, 'axis1 and axis2 must be perpendicular'
@@ -464,8 +468,6 @@ class Elas_IsotTrans(_Displacement_Model):
         self.__axis_t = axis_t
 
         _Displacement_Model.__init__(self, dim, thickness, planeStress)
-
-        self._Update()
 
     @property
     def Gt(self) -> Union[float,np.ndarray]:
@@ -730,7 +732,7 @@ class Elas_Anisot(_Displacement_Model):
             text += f"\nthickness = {self.thickness:.2e}"
         return text
 
-    def __init__(self, dim: int, C: np.ndarray, useVoigtNotation:bool, axis1: np.ndarray=(1,0,0), axis2: np.ndarray=(0,1,0), planeStress=True, thickness=1.0):
+    def __init__(self, dim: int, C: np.ndarray, useVoigtNotation:bool, axis1: np.ndarray=(1,0,0), axis2: np.ndarray=(0,1,0), thickness=1.0):
         """Anisotropic elastic material.
 
         Parameters
@@ -745,8 +747,6 @@ class Elas_Anisot(_Displacement_Model):
             axis1 vector, by default (1,0,0)
         axis2 : np.ndarray
             axis2 vector, by default (0,1,0)
-        planeStress : bool, optional
-            2D simplification, by default True
         thickness: float, optional
             material thickness, by default 1.0
 
@@ -760,19 +760,20 @@ class Elas_Anisot(_Displacement_Model):
         assert dim in [2,3], "Must be dimension 2 or 3"
         self.__dim = dim
 
-        axis1 = np.asarray(axis1)
-        axis2 = np.asarray(axis2)
+        axis1 = As_Coordinates(axis1)
+        axis2 = As_Coordinates(axis2)
         assert axis1.size == 3 and len(axis1.shape) == 1, 'axis1 must be a 3D vector'
         assert axis2.size == 3 and len(axis2.shape) == 1, 'axis2 must be a 3D vector'
         assert axis1 @ axis2 <= 1e-12, 'axis1 and axis2 must be perpendicular'
         self.__axis1 = axis1
         self.__axis2 = axis2
 
-        _Displacement_Model.__init__(self, dim, thickness, planeStress)
+        # here planeStress is set to False because we just know the C matrix
+        _Displacement_Model.__init__(self, dim, thickness, False)
 
         self.Set_C(C, useVoigtNotation)
 
-    def _Update(self):
+    def _Update(self) -> None:
         # doesn't do anything here, because we use Set_C to update the laws.
         return super()._Update()
 
@@ -788,6 +789,8 @@ class Elas_Anisot(_Displacement_Model):
         update_S : bool, optional
             Updates the compliance matrix, by default True
         """
+
+        self.Need_Update()
 
         dim = 2 if C.shape[0] == 3 else 3
         
@@ -938,12 +941,7 @@ class _Beam_Model(_IModel):
         self.__dim: int = dim
         self.__line: Line = line
 
-        assert section.inDim == 2, 'The cross-beam section must be contained in the (x,y) plane.'
-        # make sure that the section is centered in (0,0)
-        section.translate(*-section.center)
-        Iyz = section.groupElem.Integrate_e(lambda x,y,z: x*y).sum()
-        assert np.abs(Iyz) <= 1e-9, 'The section must have at least 1 symetry axis'
-        self.__section: Mesh = section
+        self.section = section
 
         self.yAxis = yAxis
 
@@ -956,6 +954,16 @@ class _Beam_Model(_IModel):
     def section(self) -> Mesh:
         """Beam cross-section in (x,y) plane"""
         return self.__section
+    
+    @section.setter
+    def section(self, section: Mesh) -> None:        
+        assert section.inDim == 2, 'The cross-beam section must be contained in the (x,y) plane.'
+        # make sure that the section is centered in (0,0)
+        section.translate(*-section.center)
+        Iyz = section.groupElem.Integrate_e(lambda x,y,z: x*y).sum()
+        assert np.abs(Iyz) <= 1e-9, 'The section must have at least 1 symetry axis'
+        self.Need_Update()
+        self.__section: Mesh = section
     
     @property
     def xAxis(self) -> np.ndarray:
@@ -985,6 +993,8 @@ class _Beam_Model(_IModel):
             zAxis = Normalize_vect(np.cross(xAxis, yAxis))
             # then make sure that x,y,z are orthogonal
             yAxis = Normalize_vect(np.cross(zAxis, xAxis))
+
+        self.Need_Update()
 
         self.__yAxis: np.ndarray = yAxis
     
@@ -1058,21 +1068,30 @@ class Beam_Elas_Isot(_Beam_Model):
 
         _Beam_Model.__init__(self, dim, line, section, yAxis)
         
-        _IModel._Test_Sup0(E)        
-        self.__E = E
-
-        _IModel._Test_In(v, -1, 0.5)
-        self.__v = v
+        self.E = E
+        self.v = v
 
     @property
     def E(self) -> float:
         """Young modulus"""
         return self.__E
+    
+    @E.setter
+    def E(self, value: float) -> None:
+        self._Test_Sup0(value)
+        self.Need_Update()
+        self.__E = value
 
     @property
     def v(self) -> float:
         """Poisson ratio"""
         return self.__v
+    
+    @v.setter
+    def v(self, value: float):
+        self._Test_In(value)
+        self.Need_Update()
+        self.__v = value
     
     @property
     def mu(self) -> float:
@@ -1135,12 +1154,11 @@ class Beam_Structure(_IModel):
 
         Parameters
         ----------
-        listBeam : list[_Beam_Model]
+        beams : list[_Beam_Model]
             Beam list
         """
 
-        dims = [beam.dim for beam in beams]        
-
+        dims = [beam.dim for beam in beams]
         assert np.unique(dims, return_counts=True)[1] == len(beams), "The structure must use identical beams dimensions."
 
         self.__dim: int = dims[0]
@@ -1258,8 +1276,7 @@ class PhaseField_Model(_IModel):
         HistoryDamage = "HistoryDamage"
         BoundConstrain = "BoundConstrain"
 
-
-    def __init__(self, material: _Displacement_Model, split: SplitType, regularization: ReguType, Gc: Union[float,np.ndarray], l0: Union[float,np.ndarray], solver=SolverType.History, A=None):
+    def __init__(self, material: _Displacement_Model, split: SplitType, regularization: ReguType, Gc: Union[float,np.ndarray], l0: float, solver=SolverType.History, A=None):
         """Creation of a gradient damage model
 
         Parameters
@@ -1279,38 +1296,22 @@ class PhaseField_Model(_IModel):
         A : np.ndarray, optional
             Matrix characterizing the direction of model anisotropy for crack energy
         """
-    
-        assert isinstance(material, _Displacement_Model), "Must be a model of displacement"
+
+        assert isinstance(material, _Displacement_Model), "Must be a displacement model (Elas_Isot, Elas_IsotTrans, Elas_Anisot)"
+        # Material object cannot be changed by another _Displacement_Model object
         self.__material = material
 
-        assert split in PhaseField_Model.get_splits(), f"Must be included in {PhaseField_Model.get_splits()}"
-        if not isinstance(material, Elas_Isot):
-            assert not split in PhaseField_Model.__splits_Isot, "These splits are only implemented for Elas_Isot"
-        self.__split =  split
-        """Split of elastic energy density"""
+        self.split = split
         
-        assert regularization in PhaseField_Model.get_regularisations(), f"Must be included in {PhaseField_Model.get_regularisations()}"
-        self.__regularization = regularization
-        """Crack regularization model ["AT1", "AT2"]"""
+        self.regularization = regularization
         
         self.Gc = Gc
 
-        assert l0 > 0, "Must be greater than 0"
-        self.__l0 = l0
-        """Half crack width"""
+        self.l0 = l0        
 
-        self.__solver = solver
-        """Solver used to manage crack irreversibility"""
+        self.solver = solver
 
-        if not isinstance(A, np.ndarray):
-            self.__A = np.eye(self.dim)
-        else:
-            dim = self.dim
-            assert A.shape[-2] == dim and A.shape[-1] == dim, "Wrong dimension"
-            self.__A = A
-
-        self.__useNumba = True
-        """Whether or not to use numba functions"""
+        self.A = A
 
         self.Need_Split_Update()
 
@@ -1409,8 +1410,8 @@ class PhaseField_Model(_IModel):
 
         d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize='optimal')        
 
-        if self.__regularization in PhaseField_Model.get_regularisations():
-            g_e_pg = (1-d_e_pg)**2 + k_residu
+        if self.__regularization in self.get_regularisations():
+            g_e_pg: np.ndarray = (1-d_e_pg)**2 + k_residu
         else:
             raise Exception("Not implemented")
 
@@ -1423,16 +1424,43 @@ class PhaseField_Model(_IModel):
     def A(self) -> np.ndarray:
         """Matrix characterizing the direction of model anisotropy for crack energy"""
         return self.__A
+    
+    @A.setter
+    def A(self, array: np.ndarray) -> None:
+        dim = self.dim
+        if not isinstance(array, np.ndarray):
+            array = np.eye(dim)
+        shape = (dim, dim)
+        assert array.shape[-2:] == shape, f"Must an array of dimension {shape}"
+        self.Need_Update()
+        self.__A = array
 
     @property
     def split(self) -> str:
         """Split of elastic energy density"""
         return self.__split
+    
+    @split.setter
+    def split(self, value: str) -> None:
+        splits = self.get_splits()
+        assert value in splits, f"Must be included in {splits}"
+        if not isinstance(self.material, Elas_Isot):
+            # check that if the material is not a isotropic material you cant pick a isotoprpic split
+            assert not value in PhaseField_Model.__splits_Isot, "These splits are only implemented for Elas_Isot material"
+        self.Need_Update()
+        self.__split =  value
 
     @property
     def regularization(self) -> str:
         """Crack regularization model ["AT1", "AT2"]"""
         return self.__regularization
+    
+    @regularization.setter
+    def regularization(self, value: str) -> None:
+        types = self.get_regularisations()
+        assert value in types, f"Must be included in {types}"
+        self.Need_Update()
+        self.__regularization = value
     
     @property
     def material(self) -> _Displacement_Model:
@@ -1443,6 +1471,13 @@ class PhaseField_Model(_IModel):
     def solver(self):
         """Solver used to manage crack irreversibility"""
         return self.__solver
+    
+    @solver.setter
+    def solver(self, value: str):        
+        solvers = self.get_solvers()
+        assert value in solvers, f"Must be included in {solvers}"
+        self.Need_Update()
+        self.__solver = value
 
     @property
     def Gc(self) -> Union[float, np.ndarray]:
@@ -1456,9 +1491,16 @@ class PhaseField_Model(_IModel):
         self.__Gc = value
 
     @property
-    def l0(self):
+    def l0(self) -> float:
         """Half crack width"""
         return self.__l0
+    
+    @l0.setter
+    def l0(self, value: float):
+        self._Test_Sup0(value)
+        assert isinstance(value, (int, float)), 'l0 must be a homogeneous parameter'
+        self.Need_Update()
+        self.__l0 = value
 
     @property
     def c0(self):
@@ -1468,14 +1510,6 @@ class PhaseField_Model(_IModel):
         elif self.__regularization == self.ReguType.AT2:
             c0 = 2
         return c0
-    
-    @property
-    def useNumba(self) -> bool:
-        return self.__useNumba
-    
-    @useNumba.setter
-    def useNumba(self, val: bool):
-        self.__useNumba = val
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
         """Calculation of elastic energy density\n
@@ -1561,9 +1595,9 @@ class PhaseField_Model(_IModel):
 
         if key in self.__dict_cP_e_pg_And_cM_e_pg:
             # If the key is filled in, the stored solution is retrieved
+            # Useful when you want to access the result several times per iteration.
 
-            cP_e_pg = self.__dict_cP_e_pg_And_cM_e_pg[key][0]
-            cM_e_pg = self.__dict_cP_e_pg_And_cM_e_pg[key][1]
+            cP_e_pg, cM_e_pg = self.__dict_cP_e_pg_And_cM_e_pg[key]
         
         else:
 
@@ -1583,7 +1617,7 @@ class PhaseField_Model(_IModel):
                 cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
             
             else: 
-                raise Exception("Split inconnue")
+                raise Exception("Split unknown")
 
             self.__dict_cP_e_pg_And_cM_e_pg[key] = (cP_e_pg, cM_e_pg)
 
@@ -1680,7 +1714,7 @@ class PhaseField_Model(_IModel):
         """[Miehe 2010] DOI : 10.1016/j.cma.2010.04.011"""
 
         dim = self.__material.dim
-        useNumba = self.__useNumba
+        useNumba = self.useNumba
 
         projP_e_pg, projM_e_pg = self.__Spectral_Decomposition(Epsilon_e_pg, verif)
 
@@ -1849,7 +1883,7 @@ class PhaseField_Model(_IModel):
                 sP_e_pg = funcMult(1/(2*mu), projP_e_pg, ind) - funcMult(v/E, RpIxI_e_pg) 
                 sM_e_pg = funcMult(1/(2*mu), projM_e_pg, ind) - funcMult(v/E, RmIxI_e_pg) 
             
-            useNumba = self.__useNumba
+            useNumba = self.useNumba
             if useNumba and not isHeterogene:
                 # Faster
                 cP_e_pg, cM_e_pg = CalcNumba.Get_Cp_Cm_Stress(c, sP_e_pg, sM_e_pg)
@@ -1878,7 +1912,7 @@ class PhaseField_Model(_IModel):
             else:
                 # Builds Cp and Cm
                 S = material.S
-                if self.__useNumba and not isHeterogene:
+                if self.useNumba and not isHeterogene:
                     # Faster
                     Cpp, Cpm, Cmp, Cmm = CalcNumba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
                 else:
@@ -2297,7 +2331,7 @@ class PhaseField_Model(_IModel):
         returns projP, projM
         """
 
-        useNumba = self.__useNumba        
+        useNumba = self.useNumba        
 
         dim = self.__material.dim        
 
@@ -2526,11 +2560,11 @@ class Thermal_Model(_IModel):
         assert dim in [1,2,3]
         self.__dim = dim
 
-        self.__k = k
+        self.k = k
 
         # ThermalModel Anisot with different diffusion coefficients for each direction! k becomes a matrix
 
-        self.__c = c
+        self.c = c
         
         assert thickness > 0, "Must be greater than 0"
         self.__thickness = thickness
@@ -2541,11 +2575,23 @@ class Thermal_Model(_IModel):
     def k(self) -> Union[float,np.ndarray]:
         """thermal conduction [W m^-1]"""
         return self.__k
+    
+    @k.setter
+    def k(self, value: Union[float,np.ndarray]) -> None:
+        self._Test_Sup0(value)
+        self.Need_Update()
+        self.__k = value
 
     @property
     def c(self) -> Union[float,np.ndarray]:
         """specific heat capacity [J K^-1 kg^-1]"""
         return self.__c
+    
+    @c.setter
+    def c(self, value: Union[float,np.ndarray]) -> None:
+        self._Test_Sup0(value)
+        self.Need_Update()
+        self.__c = value
     
     @property
     def isHeterogeneous(self) -> bool:

@@ -5,6 +5,7 @@ from enum import Enum
 from scipy.optimize import least_squares
 import numpy as np
 import scipy.sparse as sparse
+from typing import Callable
 
 from Geoms import *
 from Gauss import Gauss
@@ -1180,7 +1181,7 @@ class _GroupElem(ABC):
 
         return elements
 
-    def Get_Nodes_Conditions(self, func) -> np.ndarray:
+    def Get_Nodes_Conditions(self, func: Callable) -> np.ndarray:
         """Returns nodes that meet the specified conditions.
 
         Parameters
@@ -1203,7 +1204,9 @@ class _GroupElem(ABC):
 
         xn = coordo[:,0]
         yn = coordo[:,1]
-        zn = coordo[:,2]        
+        zn = coordo[:,2]
+
+        from Display import myPrintError
 
         try:
             arrayTest = np.asarray(func(xn, yn, zn))
@@ -1211,9 +1214,9 @@ class _GroupElem(ABC):
                 idx = np.where(arrayTest)[0]
                 return self.__nodes[idx].copy()
             else:
-                print("The function must return a Boolean.")
+                myPrintError("The function must return a Boolean.")
         except TypeError:
-            print("Must provide a 3-parameter function of type lambda x,y,z: ...")
+            myPrintError("Must provide a 3-parameter function of type lambda x,y,z: ...")
     
     def Get_Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""

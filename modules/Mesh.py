@@ -54,8 +54,8 @@ class Mesh:
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
         if len(orphanNodes) > 0 and verbosity:
-            import Display
-            Display.myPrintError("WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes).")
+            from Display import myPrintError
+            myPrintError("WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes).")
 
     def _ResetMatrix(self) -> None:
         """Reset matrix for each groupElem"""

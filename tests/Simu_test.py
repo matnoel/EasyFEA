@@ -190,7 +190,7 @@ class Test_Simu(unittest.TestCase):
     def test_Elasticity(self):
         # For each type of mesh one simulates
         
-        dim = 2        
+        dim = 2
 
         # Load to apply
         P = -800 #N
@@ -304,6 +304,155 @@ class Test_Simu(unittest.TestCase):
                     simu.Solve()
                     simu.Save_Iter()
 
+    def test_Update_Displacement(self):
+        """Function use to check that modifications on elastic material activate the update of the simulation"""
+
+        def DoTest(simu: Simulations._Simu)-> None:
+            self.assertTrue(simu.needUpdate == True) # should trigger the event
+            simu.Need_Update(False) # init
+
+        mesh = Mesher().Mesh_2D(Domain(Point(), Point(1,1)))
+
+        matIsot = Materials.Elas_Isot(2)
+        # E, v, planeStress
+
+        simu = Simulations.Simu_Displacement(mesh, matIsot)
+        simu.Get_K_C_M_F()
+        self.assertTrue(simu.needUpdate == False) # check that need update is now set to false once Get_K_C_M_F() get called
+        matIsot.E *= 2
+        DoTest(simu)
+        matIsot.v = 0.2
+        DoTest(simu)
+        matIsot.planeStress = not matIsot.planeStress
+        DoTest(simu)
+
+        matElasIsotTrans = Materials.Elas_IsotTrans(2, 10,10,10,0.1,0.1)
+        # El, Et, Gl, vl, vt, planeStress
+        simu = Simulations.Simu_Displacement(mesh, matElasIsotTrans)
+        simu.Get_K_C_M_F()
+        self.assertTrue(simu.needUpdate == False)
+        matElasIsotTrans.El *= 2
+        DoTest(simu)
+        matElasIsotTrans.Et *= 2
+        DoTest(simu)
+        matElasIsotTrans.Gl *= 2
+        DoTest(simu)
+        matElasIsotTrans.vl = .2
+        DoTest(simu)
+        matElasIsotTrans.vt = .4
+        DoTest(simu)
+        matElasIsotTrans.planeStress = not matElasIsotTrans.planeStress
+        DoTest(simu)
+
+        matAnisot = Materials.Elas_Anisot(2, matElasIsotTrans.C, False, (0,1), (-1,0))
+        # Set_C, 
+        simu = Simulations.Simu_Displacement(mesh, matAnisot)
+        simu.Get_K_C_M_F()
+        self.assertTrue(simu.needUpdate == False)
+        matAnisot.Set_C(matIsot.C, False)
+        DoTest(simu)
+
+    def test_Update_Thermal(self):
+        """Function use to check that modifications on thermal material activate the update of the simulation"""
+
+        def DoTest(simu: Simulations._Simu)-> None:
+            self.assertTrue(simu.needUpdate == True) # should trigger the event
+            simu.Need_Update(False) # init
+
+        mesh = Mesher().Mesh_2D(Domain(Point(), Point(1,1)))
+
+        thermal = Materials.Thermal_Model(2, 1, 1)
+        # k, c
+
+        simu = Simulations.Simu_Thermal(mesh, thermal)
+        simu.Get_K_C_M_F()
+        self.assertTrue(simu.needUpdate == False) # check that need update is now set to false once Get_K_C_M_F() get called
+        thermal.k *= 2
+        DoTest(simu)
+        thermal.c *= 0.2
+        DoTest(simu)
+
+    
+    def test_Update_Beam(self):
+        """Function use to check that modifications on Beam material activate the update of the simulation"""
+
+        def DoTest(simu: Simulations._Simu)-> None:
+            self.assertTrue(simu.needUpdate == True) # should trigger the event
+            simu.Need_Update(False) # init
+
+        sect1 = Mesher().Mesh_2D(Domain(Point(), Point(.01,.01)))
+        
+        sect2 = sect1.copy()
+        sect2.rotate(30, sect2.center)
+
+        sect3 = sect2.copy()
+        sect3.rotate(30, sect3.center)
+
+
+        beam1 = Materials.Beam_Elas_Isot(2, Line(Point(), Point(5)), sect1, 210e9, v=.1)
+        beam2 = Materials.Beam_Elas_Isot(2, Line(Point(5), Point(10)), sect2, 210e9, v=.1)
+
+        beams = [beam1, beam2]
+
+        structure = Materials.Beam_Structure(beams)
+
+        mesh = Mesher().Mesh_Beams(beams)
+
+        simu = Simulations.Simu_Beam(mesh, structure)
+        simu.Get_K_C_M_F()
+        self.assertTrue(simu.needUpdate == False) # check that need update is now set to false once Get_K_C_M_F() get called
+
+        for beam in beams:
+            beam.E *= 2
+            DoTest(simu)
+            beam.v = .4
+            DoTest(simu)
+            beam.section = sect3
+            DoTest(simu)
+
+    def test_Update_PhaseField(self):
+        """Function use to check that modifications on phase field material activate the update of the simulation"""
+
+        def DoTest(simu: Simulations._Simu)-> None:
+            self.assertTrue(simu.needUpdate == True) # should trigger the event
+            simu.Need_Update(False) # init
+
+        mesh = Mesher().Mesh_2D(Domain(Point(), Point(1,1)))
+
+        matIsot = Materials.Elas_Isot(2)
+        # E, v, planeStress
+
+        pfm = Materials.PhaseField_Model(matIsot, 'He', 'AT1', 1, .01)
+        # split, regu, split, Gc, l0, solver, A
+
+        simu = Simulations.Simu_PhaseField(mesh, pfm)
+
+        simu.Get_K_C_M_F('displacement')
+        self.assertTrue(simu.needUpdate == True)
+        simu.Get_K_C_M_F('damage')
+        self.assertTrue(simu.needUpdate == False)
+        # matrices are updated once damage and displacement matrices are build
+
+        matIsot.E *= 2
+        DoTest(simu)
+        matIsot.v = .1
+        DoTest(simu)
+
+        pfm.split = "Miehe"
+        DoTest(simu)
+        pfm.regularization = "AT2"
+        DoTest(simu)
+        pfm.Gc = 10
+        DoTest(simu)
+        pfm.l0 = 1
+        DoTest(simu)
+        pfm.solver = pfm.SolverType.BoundConstrain
+        DoTest(simu)
+        pfm.A = np.eye(2)*3
+        DoTest(simu)
+
+
+        
 if __name__ == '__main__':        
     try:
         Display.Clear()

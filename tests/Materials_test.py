@@ -50,17 +50,17 @@ class Test_Materials(unittest.TestCase):
                 axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
 
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1, planeStress=True)
+                    Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
                     )
 
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1, planeStress=False)
+                    Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
                 )
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2, planeStress=True)
+                    Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
                     )
                 self.comportements2D.append(
-                    Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2, planeStress=False)
+                    Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
                     )
         
         # phasefieldModel
@@ -133,14 +133,14 @@ class Test_Materials(unittest.TestCase):
         axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
         axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
 
-        comportement2D_CP_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1, planeStress=True)
-        comportement2D_DP_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1, planeStress=False)
+        comportement2D_CP_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
+        comportement2D_DP_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
         
-        comportement2D_CP_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2, planeStress=True)
-        comportement2D_DP_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2, planeStress=False)
+        comportement2D_CP_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
+        comportement2D_DP_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
 
-        comportement2D_CP_3 = Elas_Anisot(2, C_voigt2D, True, planeStress=True)
-        comportement2D_DP_3 = Elas_Anisot(2, C_voigt2D, True, planeStress=False)
+        comportement2D_CP_3 = Elas_Anisot(2, C_voigt2D, True)
+        comportement2D_DP_3 = Elas_Anisot(2, C_voigt2D, True)
         
         comportement3D_1 = Elas_Anisot(3, C_voigt3D, True, axis1_1, axis2_1)
         comportement3D_2 = Elas_Anisot(3, C_voigt3D, True, axis1_2, axis2_2)

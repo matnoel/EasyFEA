@@ -190,8 +190,6 @@ if __name__ == '__main__':
 
         simu.Bc_Init()
 
-        simu.Need_Update()
-
         simu.add_dirichlet(simu.mesh.Nodes_Tags(['L3']), [0,0], ['x', 'y'])
         simu.add_surfLoad(simu.mesh.Nodes_Tags(['L1']), [-load/(b*h)], ['y'])
 

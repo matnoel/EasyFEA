@@ -131,12 +131,10 @@ if __name__ == '__main__':
         material_FEMU.El = x[0]
         material_FEMU.Gl = x[1]
         material_FEMU.Et = x[2]
-        material_FEMU.vl = x[3]        
-
-        simu_FEMU.Need_Update()
+        material_FEMU.vl = x[3]
 
         u = simu_FEMU.Solve()
-        
+                
         diff = u - u_exp_noise
         diff = diff[dofsUnknow]
 
