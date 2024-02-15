@@ -229,7 +229,7 @@ class Gauss:
         return x, y, z, poids
 
     @staticmethod
-    def __calc_gauss(elemType: str, matrixType: str):
+    def __calc_gauss(elemType: str, matrixType: str) -> tuple[np.ndarray, np.ndarray]:
         """Calculation of integration points according to element and matrix type
         """
 

@@ -91,7 +91,7 @@ class DIC_Analysis:
 
         self.Compute_L_M(imgRef)
 
-    def __init__roi(self):
+    def __init__roi(self) -> None:
         """ROI initialization."""
 
         tic = TicTac.Tic()
@@ -122,7 +122,7 @@ class DIC_Analysis:
 
         tic.Tac("DIC", "ROI", self._verbosity)
     
-    def __init__Phi_opLap(self):
+    def __init__Phi_opLap(self) -> None:
         """Initializing shape functions and the Laplacian operator."""
         
         mesh = self._mesh 
@@ -217,7 +217,7 @@ class DIC_Analysis:
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)
 
-    def __Get_ldic(self):
+    def __Get_ldic(self) -> float:
         """Calculation ldic the characteristic length of the mesh, i.e. 8 x the average length of the edges of the elements."""
 
         indexReord = np.append(np.arange(1, self._mesh.nPe), 0)
@@ -231,7 +231,7 @@ class DIC_Analysis:
         
         return ldic
 
-    def __Get_v(self):
+    def __Get_v(self) -> np.ndarray:
         """Returns characteristic sinusoidal displacement corresponding to element size."""
 
         ldic = self.__ldic
@@ -245,7 +245,7 @@ class DIC_Analysis:
 
         return v
 
-    def Compute_L_M(self, img: np.ndarray, lr=None):
+    def Compute_L_M(self, img: np.ndarray, lr=None) -> None:
         """Updating matrix to produce for DIC with TIKONOV."""
 
         tic = TicTac.Tic()
@@ -311,7 +311,7 @@ class DIC_Analysis:
 
         return DofValues
 
-    def __Test_img(self, img: np.ndarray):
+    def __Test_img(self, img: np.ndarray) -> None:
         """Function to test whether the image is the right size."""
 
         assert img.shape == self.__shapeImages, f"The image entered is the wrong size. Must be {self.__shapeImages}"
@@ -427,7 +427,7 @@ class DIC_Analysis:
 
         return r_dic
 
-    def Set_meshCoef_coef(self, mesh: Mesh, imgScale: float):
+    def Set_meshCoef_coef(self, mesh: Mesh, imgScale: float) -> None:
         """Set mesh size and scaling factor
 
         Parameters
@@ -442,7 +442,7 @@ class DIC_Analysis:
         self._coef = imgScale
 
 
-    def __Calc_pixelDisplacement(self, u: np.ndarray):
+    def __Calc_pixelDisplacement(self, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Calculates pixel displacement from mesh node displacement using shape functions."""        
 
         ux_p = u @ self._Phi_x
@@ -450,7 +450,7 @@ class DIC_Analysis:
         
         return ux_p, uy_p
 
-    def Add_Result(self, idx: int, u_exp: np.ndarray, img: np.ndarray):
+    def Add_Result(self, idx: int, u_exp: np.ndarray, img: np.ndarray) -> None:
         """Adds the calculated displacement field.
 
         Parameters
@@ -473,7 +473,7 @@ class DIC_Analysis:
             self._list_u_exp.append(u_exp)
             self._list_img_exp.append(img)
 
-    def Save(self, pathname: str):
+    def Save(self, pathname: str) -> None:
         with open(pathname, 'wb') as file:
             self.__Op_LU = None
             self._M_LU = None
@@ -531,7 +531,7 @@ def Calc_Energy(deplacements: np.ndarray, forces: np.ndarray, ax=None) -> float:
 
     return energie
 
-def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0):
+def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0) -> tuple[float, float, float]:
     """Recovers the circle in the image.
 
     Parameters
