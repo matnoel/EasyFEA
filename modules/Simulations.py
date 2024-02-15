@@ -1672,7 +1672,10 @@ class Simu_Displacement(_Simu):
         if self.needUpdate:
             self.Assembly()
             self.Need_Update(False)
-        return self.__Ku.copy(), self.Get_Rayleigh_Damping(), self.__Mu.copy(), self.__Fu.copy()
+
+        Cu = self.__coefK * self.__Ku + self.__coefM * self.__Mu
+        
+        return self.__Ku.copy(), Cu, self.__Mu.copy(), self.__Fu.copy()
  
     def Assembly(self) -> None:
 
@@ -1711,18 +1714,7 @@ class Simu_Displacement(_Simu):
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         """Set damping coefficients."""
         self.__coefM = coefM
-        self.__coefK = coefK
-
-    def Get_Rayleigh_Damping(self) -> sparse.csr_matrix:
-        """Get damping matrix C."""
-        if self.problemType == ModelType.displacement:
-            try:
-                return self.__coefM * self.__Mu + self.__coefK * self.__Ku
-            except:
-                # "Mu n'a pas été calculé"
-                return None
-        else:
-            return None
+        self.__coefK = coefK    
 
     def Get_x0(self, problemType=None):
         algo = self.algo
