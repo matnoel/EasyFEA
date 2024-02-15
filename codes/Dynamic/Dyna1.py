@@ -19,8 +19,8 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 2
-    folder = Folder.New_File(f"Dynamics{dim}D", results=True)
+    dim = 3
+    folder = Folder.New_File(f"Dynamics", results=True)
     plotResult = True
     
     initSimu = True
