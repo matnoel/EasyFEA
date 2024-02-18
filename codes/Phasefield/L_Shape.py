@@ -16,17 +16,17 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    solve = False
+    solve = True
     test = True
     optimMesh = True
 
-    pltIter = True
-    pltLoad = True
+    pltIter = False
+    pltLoad = False
     makeMovie = False
     makeParaview = False
 
     # geom
-    dim = 2
+    dim = 3
     L = 250 # mm
     ep = 100
     l0 = 5
@@ -36,15 +36,15 @@ if __name__ == '__main__':
     v = 0.18
 
     # phase field
-    split = "AnisotStress"
-    regu = "AT2"
+    split = "He"
+    regu = "AT1"
     Gc = 130 # J/m2
     Gc *= 1000/1e6 #mJ/mm2
     tolConv = 1e-2
     convOption = 2
 
     # loading
-    adaptLoad = True
+    adaptLoad = False
     uMax = 1.2 # mm
     inc0 = 1.2/200
     inc1 = inc0/2
