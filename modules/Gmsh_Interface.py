@@ -492,12 +492,9 @@ class Mesher:
         # create linking between every points belonging to points1 and points2
         linkingLines = [factory.addLine(pi,pj) for pi, pj in zip(points1, points2)]
 
-        lines.extend(linkingLines)
+        lines.extend(linkingLines)        
 
-        if nLayers > 0:
-            # specifies the number of elements in the lines
-            factory.synchronize()
-            [gmsh.model.mesh.setTransfiniteCurve(l, nLayers+1) for l in linkingLines]
+        corners: list[tuple[int, int, int, int]] = []
 
         # def CreateLinkingSurface(i: int):
         for i in range(nP):
@@ -516,23 +513,29 @@ class Mesher:
             # create the surface and add it to linking surfaces
             surf = factory.addSurfaceFilling(loop)
             surfaces.append(surf)
-            
-            if nLayers > 0:
-                factory.synchronize()
-                # surf must be transfinite to have a strucutred surfaces during the extrusion
-                gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[p1,p2,p3,p4])
 
-            if recombineLinkingSurf:
-                if nLayers == 0: factory.synchronize()
-                # must recombine the surface in case we use PRISM or HEXA elements
-                gmsh.model.mesh.setRecombine(2, surf)
+            corners.append((p1,p2,p3,p4))
         
         vol = factory.addSurfaceLoop(surfaces)
         factory.addVolume([vol])
 
+        factory.synchronize()
+        
         if useTransfinite:
-            factory.synchronize()
             gmsh.model.mesh.setTransfiniteVolume(vol, points)
+
+        if nLayers > 0:
+            [gmsh.model.mesh.setTransfiniteCurve(l, nLayers+1) for l in linkingLines]
+            
+            # surf must be transfinite to have a strucutred surfaces during the extrusion
+            for s, surf in enumerate(surfaces[2:]):
+                p1,p2,p3,p4 = corners[s]
+                gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[p1,p2,p3,p4])
+
+                if recombineLinkingSurf:
+                    # if nLayers == 0: factory.synchronize()
+                    # must recombine the surface in case we use PRISM or HEXA elements
+                    gmsh.model.mesh.setRecombine(2, surf)
 
         tic.Tac("Mesh","Link contours", self.__verbosity)
 

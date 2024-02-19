@@ -15,13 +15,13 @@ if __name__ == '__main__':
 
     N=10 # elements in the blade lenght l
     addCylinder = True
-    repeat = True
+    repeat = False
     angleRev = 2*np.pi/10 # rad
     saveToMatlab = False
 
     # elemType = ElemType.TETRA4
-    # elemType = ElemType.PRISM6
-    elemType = ElemType.HEXA8
+    elemType = ElemType.PRISM6
+    # elemType = ElemType.HEXA8
 
     Display.Clear()
 
@@ -285,11 +285,11 @@ if __name__ == '__main__':
     ax = Display.Plot_Mesh(mesh)
 
 
-    # from PyVista_Interface import Plot
+    from PyVista_Interface import Plot
 
-    # p = Plot(mesh, show_edges=True)
-    # p.save_graphic(Folder.Join(folder, 'mesh.pdf'))
-    # p.show()
+    p = Plot(mesh, show_edges=True)
+    p.save_graphic(Folder.Join(folder, 'mesh.pdf'))
+    p.show()
 
 
 
