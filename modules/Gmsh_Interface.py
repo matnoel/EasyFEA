@@ -181,7 +181,7 @@ class Mesher:
 
                     nextP = pointss[p+1]
 
-                    tangeants.extend(point.coordo)
+                    # tangeants.extend(point.coordo)
 
                     ax, ay, az = nextP.coordo - point.coordo 
 
