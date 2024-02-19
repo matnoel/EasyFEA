@@ -183,7 +183,7 @@ class Mesher:
 
                     # tangeants.extend(point.coordo)
 
-                    ax, ay, az = nextP.coordo - point.coordo 
+                    ax, ay, az = Normalize_vect(nextP.coordo - point.coordo)
 
                     tangeants.extend((ax,ay,az))
                 
