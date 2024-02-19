@@ -13,10 +13,10 @@ if __name__ == '__main__':
 
     folder = Folder.New_File('Meshes', results=True)
 
-    N=10 # elements in the blade lenght l
+    N=20 # elements in the blade lenght l
     addCylinder = True
-    repeat = False
-    angleRev = 2*np.pi/24 # rad
+    repeat = True
+    angleRev = 2*np.pi/10 # rad
     saveToMatlab = False
 
     # elemType = ElemType.TETRA4
@@ -181,6 +181,8 @@ if __name__ == '__main__':
         return contour
 
     def LinkEveryone(vols: list[tuple[Contour, Contour, list[int]]], rot=0.0) -> list[tuple]:
+        """contour1, contour2, nLayers, numElems
+        return created entities"""
         allEntities = []
         for vol in vols:
             contour1, contour2, nLayers, numElems = vol
@@ -208,6 +210,7 @@ if __name__ == '__main__':
 
     elems = [N/2] * 4 # number of elements for each lines for blades
     
+    # contour1, contour2, nLayers, numElems
     vols.append((bladeInf, bladeSup, e/mS, elems))
     vols.append((bladeSup, blade1, H1/mS, elems))
     vols.append((blade1, blade2, H2/mS, elems))
