@@ -15,8 +15,8 @@ if __name__ == '__main__':
 
     N=10 # elements in the blade lenght l
     addCylinder = True
-    repeat = False
-    angleRev = 2*np.pi/10 # rad
+    repeat = True
+    angleRev = 2*np.pi/24 # rad
     saveToMatlab = False
 
     # elemType = ElemType.TETRA4
@@ -257,12 +257,10 @@ if __name__ == '__main__':
 
     firstPart = LinkEveryone(vols)
 
-    factory.synchronize()
-
-
     mesher._Set_algorithm(elemType)
 
-    parts = factory.getEntities()
+    # mesher._synchronize()
+    # parts = factory.getEntities()
 
     if repeat:
 
@@ -272,7 +270,10 @@ if __name__ == '__main__':
             print(f"{(i+1)/(na-1)*100:2.0f} %")
             LinkEveryone(vols, angleRev*(i+1)*180/np.pi)
 
-    factory.synchronize()
+            # # dont work
+            # partsC = factory.copy(parts)
+            # factory.rotate(partsC, 0,0,0,0,0,1, angleRev*(i+1))
+    
 
     mesher._Set_PhysicalGroups(setPoints=False)
     
@@ -288,11 +289,8 @@ if __name__ == '__main__':
     from PyVista_Interface import Plot
 
     p = Plot(mesh, show_edges=True)
-    p.save_graphic(Folder.Join(folder, 'mesh.pdf'))
+    # p.save_graphic(Folder.Join(folder, 'mesh.pdf'))
     p.show()
-
-
-
 
     nodesCircle = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+1e-2)
     nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z>=mesh.coordoGlob[:,2].max()-1e-2)

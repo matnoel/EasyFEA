@@ -44,7 +44,7 @@ if __name__ == '__main__':
     mesher._Extrude(surfaces, [0,0,R], elemType)
     vol1 = factory.getEntities(3)    
 
-    factory.synchronize()    
+    mesher._synchronize()    
 
     if useFillet:
         surfs = gmsh.model.getBoundary(vol1)
@@ -72,7 +72,7 @@ if __name__ == '__main__':
         factory.cut(factory.getEntities(3), [rev1[1], rev2[1]])
 
     
-    factory.synchronize()
+    mesher._synchronize()
 
     if meshSize > 0:
         mesher.Set_meshSize(meshSize)

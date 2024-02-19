@@ -718,7 +718,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
     # check if there is available tags in the mesh
     nTtags = [np.max([len(groupElem.nodeTags), len(groupElem.elementTags)]) for groupElem in mesh.dict_groupElem.values()]
     if np.max(nTtags) == 0:
-        myPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Interface_Gmsh'.")
+        myPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
         return
 
     if ax == None:

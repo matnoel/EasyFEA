@@ -477,6 +477,12 @@ class Mesh(Observable):
         dict_nodes = {}
         [dict_nodes.update(grp._dict_nodes_tags) for grp in self.dict_groupElem.values()]
         # add nodes belonging to the tags
+
+        if len(dict_nodes) == 0:
+            from Display import myPrintError
+            myPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
+            return np.asarray([])
+
         [nodes.extend(dict_nodes[tag]) for tag in tags]
         # make sure that that the list is unique
         nodes = np.array(list(set().union(nodes)))
@@ -493,6 +499,12 @@ class Mesh(Observable):
         # get dictionnary linking tags to elements
         dict_elements = {}
         [dict_elements.update(grp._dict_elements_tags) for grp in self.dict_groupElem.values()]
+
+        if len(dict_elements) == 0:
+            from Display import myPrintError
+            myPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
+            return np.asarray([])
+
         # add elements belonging to the tags
         [elements.extend(dict_elements[tag]) for tag in tags]
         # make sure that that the list is unique

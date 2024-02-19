@@ -66,6 +66,21 @@ class Mesher:
         else:
             raise Exception("Unknow factory")
         
+    def _synchronize(self) -> None:
+        """Synchronizes the geometric entities created"""
+
+        factory = self._factory
+
+        if factory == gmsh.model.occ:
+            # If occ is used, checks whether objects have already been synchronized.
+            ents1 = factory.getEntities()
+            ents2 = gmsh.model.getEntities()            
+            if len(ents1) != len(ents2):
+                # Entities are not up to date
+                factory.synchronize()
+        else:
+            factory.synchronize()
+        
     def _Loop_From_Geom(self, geom: Union[Circle, Domain, Points, Contour]) -> tuple[int, list[int], list[int]]:
         """Creation of a loop based on the geometric object.\n
         return loop, lines, points"""        
@@ -169,8 +184,6 @@ class Mesher:
                 firstPoint = p1
 
         loop = factory.addCurveLoop(lines)
-
-        self._factory.synchronize()
 
         return loop, lines, points, openLines, openPoints
 
@@ -284,7 +297,7 @@ class Mesher:
     def _OrganiseSurfaces(self, surfaces: list[int], elemType: ElemType,
                            isOrganised=False, numElems:list[int]=[]) -> None:
 
-        self._factory.synchronize()
+        self._synchronize() # mandatory
 
         setRecombine = elemType in [ElemType.QUAD4, ElemType.QUAD8,
                                     ElemType.HEXA8, ElemType.HEXA20]
@@ -329,9 +342,11 @@ class Mesher:
 
     def _Set_PhysicalGroups(self, setPoints=True, setLines=True, setSurfaces=True, setVolumes=True) -> None:
         """Create physical groups based on model entities."""
-        self._factory.synchronize()        
-        entities = np.asarray(gmsh.model.getEntities())
+        
+        self._synchronize() # mandatory
 
+        entities = np.asarray(self._factory.getEntities(), dtype=int)
+        
         if entities.size == 0: return
         
         listDim = []
@@ -476,12 +491,6 @@ class Mesher:
         lines = lines1.copy(); lines.extend(lines2)
         surfaces = [surf1, surf2]
 
-        if useTransfinite:
-            if len(numElems) == 0:                
-                numElems = [int(geom.length / geom.meshSize) for geom in contour1.geoms]            
-                assert len(numElems) == len(lines1)
-        self._OrganiseSurfaces(surfaces, elemType, canBeOrganised, numElems)
-
         # check that the given entities are linkable
         assert len(lines1) == len(lines2), "Must provide same number of lines."
         nP, nL = len(points1), len(lines1)
@@ -492,7 +501,7 @@ class Mesher:
         # create linking between every points belonging to points1 and points2
         linkingLines = [factory.addLine(pi,pj) for pi, pj in zip(points1, points2)]
 
-        lines.extend(linkingLines)        
+        lines.extend(linkingLines)
 
         corners: list[tuple[int, int, int, int]] = []
 
@@ -519,12 +528,18 @@ class Mesher:
         vol = factory.addSurfaceLoop(surfaces)
         factory.addVolume([vol])
 
-        factory.synchronize()
-        
+        # organize the mesh generation
+
+        # organize or not the first 2 surfaces
         if useTransfinite:
-            gmsh.model.mesh.setTransfiniteVolume(vol, points)
+            if len(numElems) == 0:                
+                numElems = [int(geom.length / geom.meshSize) for geom in contour1.geoms]            
+                assert len(numElems) == len(lines1)
+        # here the function below will cal synchronize
+        self._OrganiseSurfaces([surf1, surf2], elemType, canBeOrganised, numElems)        
 
         if nLayers > 0:
+            # organize the transfinite lines
             [gmsh.model.mesh.setTransfiniteCurve(l, nLayers+1) for l in linkingLines]
             
             # surf must be transfinite to have a strucutred surfaces during the extrusion
@@ -532,10 +547,12 @@ class Mesher:
                 p1,p2,p3,p4 = corners[s]
                 gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[p1,p2,p3,p4])
 
-                if recombineLinkingSurf:
-                    # if nLayers == 0: factory.synchronize()
+                if recombineLinkingSurf:                    
                     # must recombine the surface in case we use PRISM or HEXA elements
                     gmsh.model.mesh.setRecombine(2, surf)
+
+        if useTransfinite:
+            gmsh.model.mesh.setTransfiniteVolume(vol, points)
 
         tic.Tac("Mesh","Link contours", self.__verbosity)
 
@@ -650,7 +667,6 @@ class Mesher:
         """
 
         factory = self._factory
-        factory.synchronize()
 
         if len(cracks) == 0:
             return None, None, None, None
@@ -728,7 +744,7 @@ class Mesher:
                     if crack.pt2.isOpen: openPoints.append(p2)
                     if crack.pt3.isOpen: openPoints.append(p3)
                 
-                factory.remove([(0,pC)], False)                
+                factory.remove([(0,pC)], False)
 
             else:
 
@@ -741,7 +757,7 @@ class Mesher:
         if factory == gmsh.model.occ:
             o, m = gmsh.model.occ.fragment(entities, newEntities)
 
-        factory.synchronize()
+        self._synchronize() # mandatory
 
         crackLines = gmsh.model.addPhysicalGroup(1, crack1D) if len(crack1D) > 0 else None
         crackSurfaces = gmsh.model.addPhysicalGroup(2, crack2D) if len(crack2D) > 0 else None
@@ -756,7 +772,7 @@ class Mesher:
 
         Parameters
         beams
-        listBeam : list[_Beam_Model]
+        beams : list[_Beam_Model]
             list of Beams
         elemType : str, optional
             element type, by default "SEG2" ["SEG2", "SEG3", "SEG4"]
@@ -791,9 +807,8 @@ class Mesher:
             points.append(p2)
 
             line = factory.addLine(p1, p2)
-            lines.append(line)
+            lines.append(line)        
         
-        factory.synchronize()
         self._Set_PhysicalGroups(setLines=False)
 
         tic.Tac("Mesh","Beam mesh construction", self.__verbosity)
@@ -868,7 +883,8 @@ class Mesher:
             2D mesh
         """
 
-        self._init_gmsh()
+        # this function only work for occ factory (# .fragment() & .getEntities())
+        self._init_gmsh('occ')
         self.__CheckType(2, elemType)
 
         tic = Tic()
@@ -878,14 +894,12 @@ class Mesher:
         self._Surfaces(contour, inclusions, elemType, isOrganised)
 
         for surface in surfaces:
-            factory.synchronize()
             ents = factory.getEntities(2)
             newSurfaces = self._Surfaces(surface[0], surface[1], elemType, isOrganised)[0]
             factory.fragment(ents, [(2, surf) for surf in newSurfaces])        
 
         # Recovers 2D entities
-        factory.synchronize()
-        entities2D = gmsh.model.getEntities(2)
+        entities2D = factory.getEntities(2)
 
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities2D)
@@ -940,6 +954,7 @@ class Mesher:
             3D mesh
         """
         
+        # this function only work for occ factory (# .fragment() & .getEntities())
         self._init_gmsh()
         self.__CheckType(3, elemType)
         
@@ -949,21 +964,18 @@ class Mesher:
 
         self._Surfaces(contour, inclusions)
         for surface in surfaces:
-            factory.synchronize()
             ents = factory.getEntities(2)
             newSurfaces = self._Surfaces(surface[0], surface[1])[0]
             factory.fragment(ents, [(2, surf) for surf in newSurfaces])
 
-        # get created surfaces
-        factory.synchronize()
+        # get created surfaces        
         surfaces = [entity[1] for entity in factory.getEntities(2)]
         self._OrganiseSurfaces(surfaces, elemType, isOrganised)
 
         self._Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, layers=layers)
 
         # Recovers 3D entities
-        factory.synchronize()
-        entities3D = gmsh.model.getEntities(3)
+        entities3D = factory.getEntities(3)
 
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
@@ -1015,6 +1027,7 @@ class Mesher:
             3D mesh
         """
 
+        # this function only work for occ factory (# .fragment() & .getEntities())
         self._init_gmsh()
         self.__CheckType(3, elemType)
         
@@ -1024,21 +1037,18 @@ class Mesher:
 
         self._Surfaces(contour, inclusions)
         for surface in surfaces:
-            factory.synchronize()
             ents = factory.getEntities(2)
             newSurfaces = self._Surfaces(surface[0], surface[1])[0]
             factory.fragment(ents, [(2, surf) for surf in newSurfaces])
 
         # get created surfaces
-        factory.synchronize()
         surfaces = [entity[1] for entity in factory.getEntities(2)]
         self._OrganiseSurfaces(surfaces, elemType, isOrganised)
         
         self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, layers=layers)
 
         # Recovers 3D entities
-        self._factory.synchronize()
-        entities3D = gmsh.model.getEntities(3)
+        entities3D = factory.getEntities(3)
 
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
@@ -1094,7 +1104,7 @@ class Mesher:
     
     def Set_meshSize(self, meshSize:float) -> None:
         """Sets the mesh size"""
-        self._factory.synchronize()
+        self._synchronize() # mandatory
         gmsh.model.mesh.setSize(self._factory.getEntities(0), meshSize)
     
     def _RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float) -> None:
@@ -1252,7 +1262,12 @@ class Mesher:
         """
         
         self._Set_algorithm(elemType)
-        self._factory.synchronize()
+        self._synchronize() # mandatory
+
+        ennt = self._factory.getEntities()
+        ennnt = gmsh.model.getEntities()
+
+
 
         tic = Tic()
 
@@ -1291,7 +1306,7 @@ class Mesher:
 
         if folder != "":
             # gmsh.write(Dossier.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
-            self._factory.synchronize()
+            self._synchronize()
 
             if not os.path.exists(folder):
                 os.makedirs(folder)
