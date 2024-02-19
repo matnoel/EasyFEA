@@ -173,7 +173,26 @@ class Mesher:
                 splinePoints.insert(0,p1)
                 splinePoints.append(p2)
 
-                line = factory.addSpline(splinePoints)
+                # Lines = []
+
+                tangeants = []
+                pointss: list[Point] = geom.points
+                for p, point in enumerate(pointss[:-1]):
+
+                    nextP = pointss[p+1]
+
+                    tangeants.extend(point.coordo)
+
+                    ax, ay, az = nextP.coordo - point.coordo 
+
+                    tangeants.extend((ax,ay,az))
+                # pass
+                    
+                # line = self._factory.addWire(Lines)
+
+                # line = factory.addBSpline(splinePoints)
+                line = factory.addSpline(splinePoints, tangents=tangeants)
+
                 lines.append(line)
                 if geom.isOpen:
                     openLines.append(line)
@@ -183,6 +202,8 @@ class Mesher:
             if i == 0:
                 firstPoint = p1
 
+        # factory.loo
+        
         loop = factory.addCurveLoop(lines)
 
         return loop, lines, points, openLines, openPoints
@@ -323,9 +344,19 @@ class Mesher:
         return spline, points"""
 
         meshSize = Points.meshSize
-        gmshPoints = [self._factory.addPoint(*p.coordo, meshSize) for p in Points.points]        
-        
-        spline = self._factory.addSpline(gmshPoints)
+        gmshPoints = [self._factory.addPoint(*p.coordo, meshSize) for p in Points.points]
+
+
+        lines = []
+        for p,point in enumerate(points):
+
+            next = points[p+1] if p < len(points) else points[0]
+
+            lines.append(self._factory.addLine(point, next))            
+
+        spline = self._factory.addWire(lines)
+
+        # spline = self._factory.addSpline(gmshPoints)
         # remove all points except the first and the last points
         self._factory.remove([(0,p) for p in gmshPoints[1:-1]])
 
