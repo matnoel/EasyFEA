@@ -15,9 +15,9 @@ if __name__ == '__main__':
 
     N=10 # elements in the blade lenght l
     addCylinder = True
-    repeat = False
+    repeat = True
     angleRev = 2*np.pi/10 # rad
-    saveToMatlab = True
+    saveToMatlab = False
 
     # elemType = ElemType.TETRA4
     # elemType = ElemType.PRISM6
@@ -270,7 +270,7 @@ if __name__ == '__main__':
 
         for i in range(na-1):
             print(f"{(i+1)/(na-1)*100:2.0f} %")
-            LinkEveryone(vols, angleRev*(i+1))
+            LinkEveryone(vols, angleRev*(i+1)*180/np.pi)
 
     factory.synchronize()
 
@@ -283,6 +283,16 @@ if __name__ == '__main__':
     Display.Plot_Tags(mesh, alpha=0.1, showId=False)
 
     ax = Display.Plot_Mesh(mesh)
+
+
+    # from PyVista_Interface import Plot
+
+    # p = Plot(mesh, show_edges=True)
+    # p.save_graphic(Folder.Join(folder, 'mesh.pdf'))
+    # p.show()
+
+
+
 
     nodesCircle = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+1e-2)
     nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z>=mesh.coordoGlob[:,2].max()-1e-2)
