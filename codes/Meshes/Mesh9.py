@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     N=10 # elements in the blade lenght l
     addCylinder = True
-    repeat = True
+    repeat = False
     angleRev = 2*np.pi/24 # rad
     saveToMatlab = False
 
@@ -120,6 +120,8 @@ if __name__ == '__main__':
         # construct contour
         contour = Contour([spline1, spline2, spline3, spline4])
 
+        # contour.Plot()
+
         return contour, np.asarray(coord)
     
     def Cylinder(R, angleRev: float, coord: np.ndarray, y1: float) -> tuple[Contour, Contour]:
@@ -213,7 +215,7 @@ if __name__ == '__main__':
     
     if addCylinder:
 
-        elems = [N, l/2/mS] * 2
+        elems = [N, l/2/mS] * 2        
         
         # cylinder y=-l
         cylinInf1_l, cylinInf1_r = Cylinder(R, angleRev, coordInfL, -l)

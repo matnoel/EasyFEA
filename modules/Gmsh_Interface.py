@@ -171,30 +171,10 @@ class Mesher:
                 # get points to construct the spline
                 splinePoints = [factory.addPoint(*p.coordo, geom.meshSize) for p in geom.points[1:-1]]                
                 splinePoints.insert(0,p1)
-                splinePoints.append(p2)
-
-                # Lines = []
-
-                tangeants = []
-                pointss: list[Point] = geom.points
-                for p, point in enumerate(pointss[:-1]):
-
-                    nextP = pointss[p+1]
-
-                    # tangeants.extend(point.coordo)
-
-                    ax, ay, az = Normalize_vect(nextP.coordo - point.coordo)
-
-                    tangeants.extend((ax,ay,az))
-                
-                tangeants.extend(tangeants[-6:])
+                splinePoints.append(p2)                
                 
                 # pass
-                    
-                # line = self._factory.addWire(Lines)
-
-                # line = factory.addBSpline(splinePoints)
-                line = factory.addSpline(splinePoints, tangents=tangeants)
+                line = factory.addSpline(splinePoints)
 
                 lines.append(line)
                 if geom.isOpen:
@@ -277,6 +257,7 @@ class Mesher:
         """
         # must form a plane surface
         surface = self._factory.addPlaneSurface(loops)
+
         return surface
     
     def _Surfaces(self, contour: _Geom, inclusions: list[_Geom]=[],
@@ -349,17 +330,7 @@ class Mesher:
         meshSize = Points.meshSize
         gmshPoints = [self._factory.addPoint(*p.coordo, meshSize) for p in Points.points]
 
-
-        lines = []
-        for p,point in enumerate(points):
-
-            next = points[p+1] if p < len(points) else points[0]
-
-            lines.append(self._factory.addLine(point, next))            
-
-        spline = self._factory.addWire(lines)
-
-        # spline = self._factory.addSpline(gmshPoints)
+        spline = self._factory.addSpline(gmshPoints)
         # remove all points except the first and the last points
         self._factory.remove([(0,p) for p in gmshPoints[1:-1]])
 
