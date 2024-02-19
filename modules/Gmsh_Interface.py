@@ -186,6 +186,9 @@ class Mesher:
                     ax, ay, az = nextP.coordo - point.coordo 
 
                     tangeants.extend((ax,ay,az))
+                
+                tangeants.extend(tangeants[-6:])
+                
                 # pass
                     
                 # line = self._factory.addWire(Lines)
