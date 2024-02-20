@@ -619,7 +619,7 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
     BoundaryConditions.extend(displays)
 
     if ax == None:
-        ax = Plot_Mesh(simu, alpha=0)
+        ax = Plot_Elements(simu.mesh, dimElem=1, c='k')
         ax.set_title('Boundary conditions')
 
     for bc in BoundaryConditions:

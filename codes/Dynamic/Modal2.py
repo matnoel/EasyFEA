@@ -11,17 +11,15 @@ import sys
 import os
 import numpy as np
 from scipy.sparse import linalg, eye
+from scipy.linalg import eig
 
 def Construct_struct(L: float,e: float,t: float, meshSize: float = 0.0, openGmsh=False, verbosity=False) -> Mesh:
 
-    gmsh.initialize()
-
-    if not verbosity:
-        gmsh.option.setNumber('General.Verbosity', 0)
+    mesher = Mesher()
 
     h = L-e-t
 
-    factory = gmsh.model.occ
+    factory = mesher._factory
 
     # create the pilars
     pilar1 = [(3, factory.addBox(0,0,0,e,e,h))]
@@ -44,25 +42,14 @@ def Construct_struct(L: float,e: float,t: float, meshSize: float = 0.0, openGmsh
     # creates the structure (table + cuve)
     struct, __ = factory.fragment(table, cuve)
 
-    factory.synchronize()
-
     if meshSize > 0:
-        gmsh.model.mesh.setSize(factory.getEntities(0), meshSize)
+        mesher.Set_meshSize(meshSize)
+    
+    mesher._Set_PhysicalGroups()
 
-    factory.synchronize()
-
-    gmsh.model.mesh.generate(3)
-
-    msh = Folder.Join(folderSave, 'mesh.msh')
-    gmsh.write(msh)
-
-    if openGmsh: gmsh.fltk.run()
-
-    gmsh.finalize()
-
-    mesh = Mesher().Mesh_Import_mesh(msh, True)
-
-    # Folder.os.remove(msh)
+    mesher._Meshing(3, 'TETRA4')
+    
+    mesh = mesher._Construct_Mesh()
 
     return mesh    
 
@@ -125,30 +112,65 @@ if __name__ == '__main__':
 
     simu.Solver_Set_Newton_Raphson_Algorithm(0.1)
 
-    K, C, M, F = simu.Get_K_C_M_F()    
+    Display.Plot_BoundaryConditions(simu)
 
-    if isFixed:
-        K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
-        M_t = M[unknown, :].tocsc()[:, unknown].tocsr()
-    else:
-        K_t = K + K.min() * eye(K.shape[0]) * 1e-12
-        M_t = M
+    # K, C, M, F = simu.Get_K_C_M_F()    
+
+    # if isFixed:
+    #     K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
+    #     M_t = M[unknown, :].tocsc()[:, unknown].tocsr()
+    # else:
+    #     K_t = K + K.min() * eye(K.shape[0]) * 1e-12
+    #     M_t = M
+
+
+    # eigenValues, eigenVectors = linalg.eigs(K_t, mesh.Nn, M_t)
+    # cov = np.cov(M_t.toarray())
+    
+    # # eigenValues, eigenVectors = linalg.eigs(K_t, mesh.Nn)
+    # # cov = np.cov(K_t.toarray())
+
+    # # eigenValues = np.real(eigenValues)
+
+
+    # # cov = np.cov(M_t.toarray())
+    # tt = np.trace(cov)
+    # # print(np.max(eigenValues))
+    # # print(np.min(eigenValues))
+
+    # err = [1 - np.sum(eigenValues[:i])/np.trace(cov) for i in range(mesh.Nn)]
+
+    # # err = lambda m:  1 - np.sum(eigenValues[:m])/np.trace(cov)
+
+
+
+    # ax = Display.init_Axes(2)
+
+    # ax.plot(range(mesh.Nn), err)
 
     # # TODO this is very slow !!!!
+        
+    # linalg.eigsh
 
-    # # eigenValues, eigenVectors = linalg.eigsh(K_t, mesh.Nn, M_t)
-    # eigenValues, eigenVectors = linalg.eigs(K_t, 3, M_t, which="SM")
-    # # eigenValues, eigenVectors = linalg.eigs(K_t, 10, M_t)
+    # eigenValues, eigenVectors = eig(K_t.toarray(), M_t.toarray())
+    
+    # M_t = (M_t.T+M_t)/2
 
-    # eigenValues = np.array(eigenValues, dtype=float)
-    # eigenVectors = np.array(eigenVectors, dtype=float)
+    # eigenValues, eigenVectors = linalg.eigsh(K_t, 3, M_t, which="SM")
+    # # eigenValues, eigenVectors = linalg.eigs(K_t, mesh.Nn, M_t)
+    # # eigenValues, eigenVectors = eig(K_t.toarray(), M_t.toarray())
+    
+    # pass
+
+    # # eigenValues = np.array(eigenValues, dtype=float)
+    # # eigenVectors = np.array(eigenVectors, dtype=float)
 
     # freq_t = np.sqrt(eigenValues.real)/2/np.pi
 
     # # --------------------------------------------------------------------------------------------
     # # Plot modes
     # # --------------------------------------------------------------------------------------------
-    # for n, eigenValue in enumerate(eigenValues[:3]):
+    # for n, eigenValue in enumerate(eigenValues[:3]):    
 
     #     if isFixed:
     #         mode = np.zeros((mesh.Nn, 3))
@@ -170,4 +192,4 @@ if __name__ == '__main__':
     # axModes.set_xlabel('modes')
     # axModes.set_ylabel('freq [Hz]')
 
-    # Display.plt.show()
+    Display.plt.show()
