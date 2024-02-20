@@ -142,8 +142,6 @@ if __name__ == '__main__':
 
     # # err = lambda m:  1 - np.sum(eigenValues[:m])/np.trace(cov)
 
-
-
     # ax = Display.init_Axes(2)
 
     # ax.plot(range(mesh.Nn), err)
