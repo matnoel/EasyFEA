@@ -73,7 +73,7 @@ if __name__ == '__main__':
     disp1 = np.linspace(0, inc0*Nt0, Nt0)
     start = disp1[-1]
     disp2 = np.linspace(start, start+inc1*Nt1, Nt1)
-    displacement = np.unique(np.concatenate([disp1, disp2]))
+    displacement = list(set(np.concatenate([disp1, disp2])))
 
     name = "NotchedBeam_Benchmark"
     if dim == 3:

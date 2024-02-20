@@ -181,7 +181,7 @@ if __name__ == '__main__':
     nEdges = nCorners//2
 
     if usePER:
-        nodes_border = np.unique([mesh.Nodes_Point(point) for point in corners])
+        nodes_border = list(set(np.ravel([mesh.Nodes_Point(point) for point in corners])))
         paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
     else:
         nodes_border = mesh.Nodes_Tags([f'L{i}' for i in range(6)])

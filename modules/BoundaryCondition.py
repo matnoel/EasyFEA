@@ -26,6 +26,7 @@ class BoundaryCondition:
         self.__directions = directions
         self.__nodes = np.asarray(nodes, dtype=int)
         self.__dofs = np.asarray(dofs, dtype=int)
+        assert self.dofs.size % self.nodes.size == 0, f"dofs.size must be a multiple of {self.nodes.size}"
         self.__dofsValues = np.asarray(dofsValues, dtype=float)
         self.description = description
 

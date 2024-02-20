@@ -1156,9 +1156,9 @@ class Beam_Structure(_IModel):
         beams : list[_Beam_Model]
             Beam list
         """
-
+        
         dims = [beam.dim for beam in beams]
-        assert np.unique(dims, return_counts=True)[1] == len(beams), "The structure must use identical beams dimensions."
+        assert len(set(dims)) == 1, "The structure must use identical beams dimensions."
 
         self.__dim: int = dims[0]
 
@@ -2163,10 +2163,10 @@ class PhaseField_Model(_IModel):
                 phi = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
 
                 filtreNot0 = h != 0
-                elemsNot0 = np.unique(np.where(filtreNot0)[0])
+                elemsNot0 = list(set(np.ravel(np.where(filtreNot0)[0])))
 
-                elemsMin = np.unique(np.where(arg == 1)[0]) # positions of double minimum eigenvalue            
-                elemsMax = np.unique(np.where(arg == -1)[0]) # positions of double maximum eigenvalue
+                elemsMin = list(set(np.ravel(np.where(arg == 1)[0]))) # positions of double minimum eigenvalue            
+                elemsMax = list(set(np.ravel(np.where(arg == -1)[0]))) # positions of double maximum eigenvalue
 
                 elemsNot0 = np.setdiff1d(elemsNot0, elemsMin)
                 elemsNot0 = np.setdiff1d(elemsNot0, elemsMax)                
@@ -2199,21 +2199,21 @@ class PhaseField_Model(_IModel):
                 # 2. Two maximum eigenvalues
                 # 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
                 
-                elems2 = np.unique(np.where(filtreNot0 & (E1<E2) & (E2==E3))[0])
+                elems2 = list(set(np.ravel(np.where(filtreNot0 & (E1<E2) & (E2==E3))[0])))
                 M1[elems2] = ((I_rg[elems2] - matrix_e_pg[elems2])/racine_h_ij[elems2])
                 M2[elems2] = M3[elems2] = (eye3[elems2] - M1[elems2])/2
 
                 # 3. Two minimum eigenvalues
                 # 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
                 
-                elems3 = np.unique(np.where(filtreNot0 & (E1==E2) & (E2<E3))[0])
+                elems3 = list(set(np.ravel(np.where(filtreNot0 & (E1==E2) & (E2<E3))[0])))
                 M3[elems3] = ((matrix_e_pg[elems3] - I_rg[elems3])/racine_h_ij[elems3])
                 M1[elems3] = M2[elems3] = (eye3[elems3] - M3[elems3])/2
 
                 # 1. Three distinct eigenvalues
                 # 𝜖1 < 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 ≠ 0, 𝜃 ≠ 𝜋∕3.
                 
-                elems1 = np.unique(np.where(filtreNot0 & (E1<E2) & (E2<E3))[0])                
+                elems1 = list(set(np.ravel(np.where(filtreNot0 & (E1<E2) & (E2<E3))[0])))
 
                 E1_ij = E1.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
                 E2_ij = E2.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]

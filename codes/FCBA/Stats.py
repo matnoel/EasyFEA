@@ -59,7 +59,7 @@ if __name__ == '__main__':
         # errors.extend(essais[values_disp>=seuil])
 
     # 
-    errors = np.unique(errors)
+    errors = list(set(errors))
     notErrors = [essai for essai in essais if essai not in errors]
     print(f"errors = {errors}")
 

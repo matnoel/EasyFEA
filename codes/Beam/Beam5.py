@@ -55,10 +55,6 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     simu = Simulations.Simu_Beam(mesh, structure)
 
-    nodesToLink = []
-    [nodesToLink.extend(mesh.Nodes_Point(point)) for point in [pA, pB, pC, pE]]
-    nodesToLink = np.unique(nodesToLink)
-
     nodesRigi = mesh.Nodes_Point(pE)
     nodesRigi = np.append(nodesRigi, mesh.Nodes_Point(pD))
     nodesA = mesh.Nodes_Point(pA)

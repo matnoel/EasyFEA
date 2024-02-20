@@ -239,8 +239,8 @@ if __name__ == '__main__':
                 pos_Aij = np.arange(sizeA)
                 pos_Bij = np.arange(sizeA, sizeA+sizeB)
 
-                lignes = []        
-                colonnes = []
+                lines = []        
+                columns = []
                 values = []
                 vectCond = []
 
@@ -255,8 +255,8 @@ if __name__ == '__main__':
                         for i in range(m+1):
                             for j in range(n+1):
                                 c += 1
-                                lignes.append(l)
-                                colonnes.append(pos_Aij[c])
+                                lines.append(l)
+                                columns.append(pos_Aij[c])
                                 # values.append(xn[noeud]**i * yn[noeud]**j)                    
                                 values.append((xn[node]/L)**i * (yn[node]/h)**j)
                         vectCond.append(condU)
@@ -267,8 +267,8 @@ if __name__ == '__main__':
                         for i in range(p+1):
                             for j in range(q+1):
                                 c += 1
-                                lignes.append(l)
-                                colonnes.append(pos_Bij[c])
+                                lines.append(l)
+                                columns.append(pos_Bij[c])
                                 # values.append(xn[noeud]**i * yn[noeud]**j)                    
                                 values.append((xn[node]/L)**i * (yn[node]/h)**j)
                         vectCond.append(condV)
@@ -281,7 +281,7 @@ if __name__ == '__main__':
                 const = H
                 lastLine = Add_Conditions(nodes_upper, 0, const, lastLine)
 
-                condNodes = np.unique(lignes).size
+                condNodes = len(list(set(lines)))
                 
                 # deformation conditions
                 coord_e_p = mesh.groupElem.Get_GaussCoordinates_e_p(matrixType)
@@ -303,19 +303,19 @@ if __name__ == '__main__':
                         dy_ij_e_p = (xn_e_g/l)**i * j*(yn_e_g**(j-1)/h**j)
 
                         if i > -1:
-                            lignes.append(lastLine + 1)
-                            colonnes.append(pos_Aij[c])
+                            lines.append(lastLine + 1)
+                            columns.append(pos_Aij[c])
                             cond1_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E11_exp * dx_ij_e_p)
                             values.append(cond1_A)
 
-                            lignes.append(lastLine + 3)
-                            colonnes.append(pos_Aij[c])
+                            lines.append(lastLine + 3)
+                            columns.append(pos_Aij[c])
                             cond3_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E22_exp * dx_ij_e_p)
                             values.append(cond3_A)
 
                         if j > -1:
-                            lignes.append(lastLine + 4)
-                            colonnes.append(pos_Aij[c])
+                            lines.append(lastLine + 4)
+                            columns.append(pos_Aij[c])
                             cond4_A = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E12_exp * dy_ij_e_p) * np.sqrt(2)/2
                             values.append(cond4_A)
 
@@ -334,24 +334,24 @@ if __name__ == '__main__':
                         dy_ij_e_p = (xn_e_g/l)**i * j*(yn_e_g**(j-1)/h**j)
 
                         if j > -1:
-                            lignes.append(lastLine + 2)
-                            colonnes.append(pos_Bij[c])
+                            lines.append(lastLine + 2)
+                            columns.append(pos_Bij[c])
                             cond2_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E22_exp * dy_ij_e_p)
                             values.append(cond2_B)
 
-                            lignes.append(lastLine + 3)
-                            colonnes.append(pos_Bij[c])
+                            lines.append(lastLine + 3)
+                            columns.append(pos_Bij[c])
                             cond3_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E11_exp * dy_ij_e_p)
                             values.append(cond3_B)  
 
                         if i > -1:
-                            lignes.append(lastLine + 4)
-                            colonnes.append(pos_Bij[c])
+                            lines.append(lastLine + 4)
+                            columns.append(pos_Bij[c])
                             cond4_B = b * np.einsum('ep,p,ep->', jacob2D_e_pg, weight2D_pg, E12_exp * dx_ij_e_p) * np.sqrt(2)/2
                             values.append(cond4_B)
 
                 
-                matt = sparse.csr_matrix((values, (lignes, colonnes)), (condNodes + 4, sizeA+sizeB))
+                matt = sparse.csr_matrix((values, (lines, columns)), (condNodes + 4, sizeA+sizeB))
                 # print(matt.shape)
 
                 # plt.spy(matt.toarray())

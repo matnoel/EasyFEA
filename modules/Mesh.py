@@ -29,8 +29,7 @@ class Mesh(Observable):
             can write in terminal, by default True
         """
 
-        list_GroupElem = []
-        usedNodes = set()
+        list_GroupElem = []        
         dim = 0
         for grp in dict_groupElem.values():
             if grp.dim > dim:
@@ -38,8 +37,6 @@ class Mesh(Observable):
                 dim = grp.dim
                 self.__groupElem = grp
             list_GroupElem.append(grp)
-            if grp.dim > 0:
-                usedNodes = usedNodes.union(grp.connect.reshape(-1))
 
         self.__dim = self.__groupElem.dim
         self.__dict_groupElem = dict_groupElem
@@ -51,8 +48,8 @@ class Mesh(Observable):
             print(self)
         
         Nn = self.coordoGlob.shape[0]
-        usedNodes = set(self.groupElem.connect.reshape(-1))
-        nodes = set(list(range(Nn)))
+        usedNodes = set(self.connect.reshape(-1))
+        nodes = set(range(Nn))
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
         if len(orphanNodes) > 0 and verbosity:
@@ -485,7 +482,7 @@ class Mesh(Observable):
 
         [nodes.extend(dict_nodes[tag]) for tag in tags]
         # make sure that that the list is unique
-        nodes = np.array(list(set().union(nodes)))
+        nodes = np.asarray(list(set(nodes)), dtype=int)
 
         return nodes
 
@@ -508,7 +505,7 @@ class Mesh(Observable):
         # add elements belonging to the tags
         [elements.extend(dict_elements[tag]) for tag in tags]
         # make sure that that the list is unique
-        elements = np.array(list(set().union(elements)))
+        elements = np.asarray(list(set(elements)), dtype=int)
 
         return elements
 
@@ -759,6 +756,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         print("ERROR in PROJ")
 
     # Here we detect whether nodes appear more than once
+    # can't be change for the moment
     counts = np.unique(nodes, return_counts=True)[1]
     nodesSup1 = np.where(counts > 1)[0]
     if nodesSup1.size > 0:

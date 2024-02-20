@@ -1378,7 +1378,7 @@ class Mesher:
             connect: np.ndarray = nodeTags.reshape(Ne, nPe) # Builds connect matrix
 
             # Nodes            
-            nodes = np.unique(nodeTags)
+            nodes = np.asarray(list(set(nodeTags)), dtype=int)
             Nmax = nodes.max() # Check that max node numbers can be reached in coordo
             assert Nmax <= (coordo.shape[0]-1), f"Nodes {Nmax} doesn't exist in coordo"
 

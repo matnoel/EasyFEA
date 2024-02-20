@@ -1158,29 +1158,28 @@ class _GroupElem(ABC):
             indexNoeudsSansDepassement = np.where(nodes < self.Nn)[0]
             nodes = nodes[indexNoeudsSansDepassement]
         
-        lignes, colonnes, valeurs = sparse.find(connect_n_e[nodes])
+        lines, columns, values = sparse.find(connect_n_e[nodes])
 
-        elements, counts = np.unique(colonnes, return_counts=True)
+        elements =  list(set(columns))
         
         if exclusively:
             # Checks if elements exclusively use nodes in the node list
             
             # retrieve nodes used by elements
-            nodesElem = np.unique(connect[elements])
+            nodesElem = set(connect[elements].reshape(-1))
 
             # detects nodes used by elements that are not in the nodes specified
-            nodesIntru = list(set(nodesElem) - set(nodes))
+            nodesIntru = list(nodesElem - set(nodes))
 
             # We detect the list of elements associated with unused nodes
-            elemIntru = sparse.find(connect_n_e[nodesIntru])[1]
-            elementsIntru = np.unique(elemIntru)
+            cols = sparse.find(connect_n_e[nodesIntru])[1]
+            elementsIntru = list(set(cols))
 
-            if elementsIntru.size > 0:
+            if len(elementsIntru) > 0:
                 # Remove detected elements
                 elements = list(set(elements) - set(elementsIntru))
-                elements = np.array(elements)
 
-        return elements
+        return np.asarray(elements, dtype=int)
 
     def Get_Nodes_Conditions(self, func: Callable) -> np.ndarray:
         """Returns nodes that meet the specified conditions.
