@@ -13,7 +13,7 @@ import multiprocessing
 
 # Display.Clear()
 
-useParallel = True
+useParallel = False
 nProcs = 4 # number of processes in parallel
 
 # --------------------------------------------------------------------------------------------
@@ -21,7 +21,7 @@ nProcs = 4 # number of processes in parallel
 # --------------------------------------------------------------------------------------------
 dim = 2
 test = False
-solve = False
+solve = True
 
 # Mesh
 openCrack = True
@@ -38,7 +38,7 @@ pfmSolver = Materials.PhaseField_Model.SolverType.History
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Amor"]
+splits = ["Miehe"]
 
 regus = ["AT1"] # "AT1", "AT2"
 # regus = ["AT1", "AT2"]
