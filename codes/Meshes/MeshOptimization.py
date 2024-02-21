@@ -168,7 +168,7 @@ if __name__ == '__main__':
     # Material and Simulation
     # ----------------------------------------------
     material = Materials.Elas_Isot(dim, E=210000, v=0.3, thickness=b)
-    simu = Simulations.Simu_Displacement(mesh, material, verbosity=False)
+    simu = Simulations.Displacement(mesh, material, verbosity=False)
     simu.rho = 8100*1e-9
 
     def DoSimu(i=0):    

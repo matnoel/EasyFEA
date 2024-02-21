@@ -59,7 +59,7 @@ if __name__ == '__main__':
     E_exp, v_exp = 210000, 0.3 
     material = Materials.Elas_Isot(2, thickness=b, E=E_exp, v=v_exp)
 
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     simu.add_dirichlet(nodesX0, [0,0], ["x","y"])
     simu.add_surfLoad(nodesXL, [-p/b/h], ["y"])

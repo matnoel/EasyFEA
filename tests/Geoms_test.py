@@ -143,13 +143,6 @@ class Test_Geom(unittest.TestCase):
             pass        
         
         plt.close('all')
-
-
         
-if __name__ == '__main__':        
-    try:
-        import Display
-        Display.Clear()
-        unittest.main(verbosity=2)
-    except:
-        print("")
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

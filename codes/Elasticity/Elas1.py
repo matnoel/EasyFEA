@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     material = Materials.Elas_Isot(dim, E, v, planeStress=True, thickness=h)
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     simu.add_dirichlet(nodesX0, [0]*dim, simu.Get_directions())
     simu.add_surfLoad(nodesXL, [-load/h**2], ["y"])

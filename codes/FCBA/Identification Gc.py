@@ -62,7 +62,7 @@ convOption = 2
 # Simu
 # --------------------------------------------------------------------------------------------
 evals = []
-simus: list[Simulations.Simu_PhaseField] = []
+simus: list[Simulations.PhaseField] = []
 
 def DoSimu(x: np.ndarray, mesh: Mesh, idxEssai: int) -> float:
 
@@ -86,7 +86,7 @@ def DoSimu(x: np.ndarray, mesh: Mesh, idxEssai: int) -> float:
     nodes0 = mesh.Nodes_Tags(["P0"])    
     
     pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0)    
-    simu = Simulations.Simu_PhaseField(mesh, pfm)
+    simu = Simulations.PhaseField(mesh, pfm)
     simus.clear(); simus.append(simu)
 
     dofsY_Upper = simu.Bc_dofs_nodes(nodes_Upper, ["y"])
@@ -241,7 +241,7 @@ if __name__ == '__main__':
 
         else:
             # load simu
-            simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder_save)
+            simu: Simulations.PhaseField = Simulations.Load_Simu(folder_save)
         
         # --------------------------------------------------------------------------------------------
         # Results

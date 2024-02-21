@@ -138,7 +138,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
+    simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
 
     nodes_upper = mesh.Nodes_Circle(c4)
     nodes_upper = nodes_upper[np.where(mesh.coordoGlob[nodes_upper,1]>=c4.center.y)] 

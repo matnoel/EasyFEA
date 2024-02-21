@@ -131,7 +131,7 @@ if __name__  == '__main__':
     # --------------------------------------------------------------------------------------------
     # Simulation
     # --------------------------------------------------------------------------------------------
-    simu = Simulations.Simu_Displacement(mesh, comp)
+    simu = Simulations.Displacement(mesh, comp)
 
     nodesLower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 

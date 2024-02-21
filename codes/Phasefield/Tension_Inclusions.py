@@ -69,7 +69,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Simulation
     # --------------------------------------------------------------------------------------------
-    simu = Simulations.Simu_PhaseField(mesh, pfm)
+    simu = Simulations.PhaseField(mesh, pfm)
 
     dofsY_Upper = simu.Bc_dofs_nodes(nodesUpper, ["y"])
 

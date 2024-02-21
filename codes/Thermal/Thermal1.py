@@ -50,7 +50,7 @@ if __name__ == '__main__':
     # Simulation
     # --------------------------------------------------------------------------------------------
     thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, thickness=1)
-    simu = Simulations.Simu_Thermal(mesh, thermalModel, False)
+    simu = Simulations.Thermal(mesh, thermalModel, False)
 
     # Set the density of the material
     simu.rho = 1

@@ -78,7 +78,7 @@ def DoSimu(idxEssai: int, g: int, l: int) -> tuple[int, int, int, float]:
     
     # construct phase field simulation
     pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0)    
-    simu = Simulations.Simu_PhaseField(mesh, pfm)
+    simu = Simulations.PhaseField(mesh, pfm)
     # simu.solver = "cg" 
 
     # boundary conditions

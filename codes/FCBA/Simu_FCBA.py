@@ -108,7 +108,7 @@ if __name__  == '__main__':
     inc1 = 2e-3/2
 
     if not solve:
-        simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder_save)
+        simu: Simulations.PhaseField = Simulations.Load_Simu(folder_save)
 
     # --------------------------------------------------------------------------------------------
     # Mesh
@@ -181,7 +181,7 @@ if __name__  == '__main__':
     pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0, A=A)
 
     if solve:
-        simu = Simulations.Simu_PhaseField(mesh, pfm)    
+        simu = Simulations.PhaseField(mesh, pfm)    
     else:
         pfm = simu.phaseFieldModel
         material = pfm.material
@@ -201,7 +201,7 @@ if __name__  == '__main__':
         if pltLoad:
 
             # Numerical slope calculation
-            simuElas = Simulations.Simu_Displacement(mesh, material)
+            simuElas = Simulations.Displacement(mesh, material)
             simuElas.add_dirichlet(nodes_lower, [0]*dim, simu.Get_directions())
             simuElas.add_surfLoad(nodes_upper, [-f_crit*1000/L/thickness], ["y"])
             u_num = simuElas.Solve()

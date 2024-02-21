@@ -115,7 +115,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Simulation
     # --------------------------------------------------------------------------------------------
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     simu.add_dirichlet(nodes_lower, [0], ["y"])
     simu.add_dirichlet(nodes_p0, [0], ["x"])
@@ -149,7 +149,7 @@ if __name__ == '__main__':
     Display.Section("Identification")
 
     # WARNING: Identification does not work if the simulation uses an iterative solver !
-    simu_FEMU = Simulations.Simu_Displacement(mesh, material_FEMU, useIterativeSolvers=False)
+    simu_FEMU = Simulations.Displacement(mesh, material_FEMU, useIterativeSolvers=False)
 
     def func(x):
         # Fonction coût

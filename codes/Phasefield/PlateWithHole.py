@@ -195,7 +195,7 @@ def DoSimu(split: str, regu: str):
         # Simulation
         # --------------------------------------------------------------------------------------------
         pfm = Materials.PhaseField_Model(material, split, regu, gc, l0, solver=solver)
-        simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
+        simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
         
         # --------------------------------------------------------------------------------------------
         # Boundary conditions
@@ -284,7 +284,7 @@ def DoSimu(split: str, regu: str):
         # --------------------------------------------------------------------------------------------
         # Load
         # --------------------------------------------------------------------------------------------
-        simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder)
+        simu: Simulations.PhaseField = Simulations.Load_Simu(folder)
         loads, displacements = PostProcessing.Load_Load_Displacement(folder)
 
     # --------------------------------------------------------------------------------------------

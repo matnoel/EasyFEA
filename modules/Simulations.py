@@ -39,8 +39,12 @@ def Load_Simu(folder: str, verbosity=False):
     error = "The file simulation.pickle cannot be found."
     assert Folder.Exists(path_simu), error
 
-    with open(path_simu, 'rb') as file:
-        simu = pickle.load(file)    
+    try:
+        with open(path_simu, 'rb') as file:
+            simu = pickle.load(file)
+    except EOFError:
+        myPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
+        return None
 
     assert isinstance(simu, _Simu), 'Must be a simu object'
 
@@ -234,9 +238,11 @@ class _Simu(_IObserver, ABC):
 
         text += Display.Section("Results", False)
         text += '\n' + self.Results_Get_Iteration_Summary()
-
+        
         text += Display.Section("TicTac", False)
-        text += Tic.Resume(False)
+        
+        if Tic.nTic() > 0:
+            text += Tic.Resume(False)
 
         return text
 
@@ -953,12 +959,7 @@ class _Simu(_IObserver, ABC):
     @property
     def Bc_Display(self) -> list[LagrangeCondition]:
         """Returns a copy of the boundary conditions for display."""
-        try:
-            return self.__Bc_Display.copy()
-        except AttributeError:
-            # the simu object is old and dont have self.__Bc_Display variable
-            self.__Bc_Display = []
-            return []
+        return self.__Bc_Display.copy()
 
     def Bc_dofs_Dirichlet(self, problemType=None) -> list[int]:
         """Returns dofs related to Dirichlet conditions."""
@@ -1569,7 +1570,7 @@ class _Simu(_IObserver, ABC):
 
 ###################################################################################################
 
-class Simu_Displacement(_Simu):
+class Displacement(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials._Displacement_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
@@ -2085,7 +2086,7 @@ class Simu_Displacement(_Simu):
 
 ###################################################################################################
 
-class Simu_PhaseField(_Simu):
+class PhaseField(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials.PhaseField_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
@@ -2844,10 +2845,7 @@ class Simu_PhaseField(_Simu):
         return self.__resumeChargement
 
     def Results_Get_Bc_Summary(self) -> str:
-        try:
-            return self.__resumeChargement
-        except AttributeError:
-            return ""
+        return self.__resumeChargement
 
     def Results_Set_Iteration_Summary(self, iter: int, load: float, uniteLoad: str, percentage=0.0, remove=False) -> str:
         """Builds the iteration summary for the damage problem
@@ -2893,7 +2891,7 @@ class Simu_PhaseField(_Simu):
 
         self.__resumeIter = summaryIter
 
-    def Results_Get_Iteration_Summary(self) -> str:        
+    def Results_Get_Iteration_Summary(self) -> str: 
         return self.__resumeIter
 
     def Results_dict_Energy(self) -> dict[str, float]:
@@ -2947,7 +2945,7 @@ class Simu_PhaseField(_Simu):
 
 ###################################################################################################
 
-class Simu_Beam(_Simu):
+class Beam(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials.Beam_Structure, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
@@ -3808,7 +3806,7 @@ class Simu_Beam(_Simu):
 
 ###################################################################################################
 
-class Simu_Thermal(_Simu):
+class Thermal(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials.Thermal_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """

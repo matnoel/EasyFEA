@@ -74,7 +74,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     material = Materials.Elas_Isot(dim, thickness=b)
-    simu = Simulations.Simu_Displacement(mesh, material, useIterativeSolvers=initSimu)    
+    simu = Simulations.Displacement(mesh, material, useIterativeSolvers=initSimu)    
     simu.rho = 8100*1e-9
 
     if initSimu:

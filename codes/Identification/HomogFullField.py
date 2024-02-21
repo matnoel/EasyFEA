@@ -106,9 +106,9 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Homogenization
     # --------------------------------------------------------------------------------------------
-    simu_inclusions = Simulations.Simu_Displacement(mesh_inclusions, material_inclsuion)
-    simu_VER = Simulations.Simu_Displacement(mesh_VER, material_inclsuion)
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu_inclusions = Simulations.Displacement(mesh_inclusions, material_inclsuion)
+    simu_VER = Simulations.Displacement(mesh_VER, material_inclsuion)
+    simu = Simulations.Displacement(mesh, material)
 
     r2 = np.sqrt(2)
     E11 = np.array([[1, 0],[0, 0]])

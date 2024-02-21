@@ -23,10 +23,5 @@ class Test_GroupElem(unittest.TestCase):
             mesh.Get_N_pg("rigi")
             mesh.Get_N_vector_pg("rigi")
 
-if __name__ == '__main__' or __file__ == '__file__':
-    try:
-        import Display
-        Display.Clear()
-        unittest.main(verbosity=2)    
-    except:
-        print("")
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

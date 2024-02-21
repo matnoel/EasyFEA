@@ -201,7 +201,7 @@ if __name__ == '__main__':
 
     material = Materials.Elas_Isot(2, E, v, planeStress=False)
 
-    simu = Simulations.Simu_Displacement(mesh, material, useIterativeSolvers=False)
+    simu = Simulations.Displacement(mesh, material, useIterativeSolvers=False)
 
     # ----------------------------------------------------------------------------
     # Homogenization

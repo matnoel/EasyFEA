@@ -90,11 +90,7 @@ class Mesh(Observable):
     @property
     def orphanNodes(self) -> list[int]:
         """Nodes not connected to the main mesh element group"""
-        try:
-            return self.__orphanNodes
-        except AttributeError:
-            self.__orphanNodes = []
-            return self.__orphanNodes    
+        return self.__orphanNodes
 
     @property
     def dict_groupElem(self) -> dict[ElemType, _GroupElem]:

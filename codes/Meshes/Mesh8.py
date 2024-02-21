@@ -108,7 +108,7 @@ if __name__ == '__main__':
     import Materials
 
     mat = Materials.Elas_Isot(mesh.dim)
-    simu = Simulations.Simu_Displacement(mesh, mat)
+    simu = Simulations.Displacement(mesh, mat)
 
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*mesh.dim, simu.Get_directions())
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==H), [4], ['y'])    

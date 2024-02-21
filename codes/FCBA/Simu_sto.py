@@ -112,7 +112,7 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list, float]:
 
     pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)    
 
-    simu = Simulations.Simu_PhaseField(mesh, pfm, useNumba=not useParallel)
+    simu = Simulations.PhaseField(mesh, pfm, useNumba=not useParallel)
 
     dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ['y'])
 
@@ -290,7 +290,7 @@ if __name__ == '__main__':
 
             forces, displacements, fcrit = Functions.Get_loads_informations(i, useRedim=True)
 
-            simu = Simulations.Simu_Displacement(mesh, mat)
+            simu = Simulations.Displacement(mesh, mat)
 
             dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ['y'])
 

@@ -166,7 +166,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     if solve:
 
-        simu = Simulations.Simu_PhaseField(mesh, pfm)
+        simu = Simulations.PhaseField(mesh, pfm)
         dofsY_load = simu.Bc_dofs_nodes(nodes_load, ['y'])
         
         if pltIter:

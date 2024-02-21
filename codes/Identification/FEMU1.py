@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # ----------------------------------------------------------------------------
     # Simulation
     # ----------------------------------------------------------------------------
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     fexp = 1 # N
     simu.add_lineLoad(nodes_left, [-fexp/h], ['x'])
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     Display.Section("Identification")
 
     # WARNING: Identification does not work if the simulation uses an iterative solver !
-    simu_FEMU = Simulations.Simu_Displacement(mesh, material_FEMU, useIterativeSolvers=False)
+    simu_FEMU = Simulations.Displacement(mesh, material_FEMU, useIterativeSolvers=False)
 
     def func(x):
 

@@ -95,7 +95,7 @@ class Test_Simu(unittest.TestCase):
 
             # Simulation
 
-            simu = Simulations.Simu_Beam(mesh, beamStruct, verbosity=False)
+            simu = Simulations.Beam(mesh, beamStruct, verbosity=False)
 
             simu.rho = ro
 
@@ -213,7 +213,7 @@ class Test_Simu(unittest.TestCase):
 
             comportement = Materials.Elas_Isot(dim, thickness=a)
             
-            simu = Simulations.Simu_Displacement(mesh, comportement, verbosity=False)
+            simu = Simulations.Displacement(mesh, comportement, verbosity=False)
 
             noeuds_en_0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
             noeuds_en_L = mesh.Nodes_Conditions(lambda x,y,z: x == a)
@@ -257,7 +257,7 @@ class Test_Simu(unittest.TestCase):
 
             thermalModel = Materials.Thermal_Model(dim=dim, k=1, c=1, thickness=a)
 
-            simu = Simulations.Simu_Thermal(mesh , thermalModel, False)            
+            simu = Simulations.Thermal(mesh , thermalModel, False)            
 
             noeuds0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x,y,z: x == a)
@@ -293,7 +293,7 @@ class Test_Simu(unittest.TestCase):
 
                 print(f"{split} {regu}")
 
-                simu = Simulations.Simu_PhaseField(mesh, pfm)
+                simu = Simulations.PhaseField(mesh, pfm)
 
                 for ud in np.linspace(0, 5e-8*400, 3):
 
@@ -316,7 +316,7 @@ class Test_Simu(unittest.TestCase):
         matIsot = Materials.Elas_Isot(2)
         # E, v, planeStress
 
-        simu = Simulations.Simu_Displacement(mesh, matIsot)
+        simu = Simulations.Displacement(mesh, matIsot)
         simu.Get_K_C_M_F()
         self.assertTrue(simu.needUpdate == False) # check that need update is now set to false once Get_K_C_M_F() get called
         matIsot.E *= 2
@@ -326,13 +326,13 @@ class Test_Simu(unittest.TestCase):
         matIsot.planeStress = not matIsot.planeStress
         DoTest(simu)
         try:
-            matIsot.E = -10
             # must return an error
+            matIsot.E = -10
         except AssertionError:
             self.assertTrue(simu.needUpdate == False)
         try:
-            matIsot.v = 10
             # must return an error
+            matIsot.v = 10
         except AssertionError:
             self.assertTrue(simu.needUpdate == False)
         matIsot.planeStress = 10            
@@ -341,7 +341,7 @@ class Test_Simu(unittest.TestCase):
 
         matElasIsotTrans = Materials.Elas_IsotTrans(2, 10,10,10,0.1,0.1)
         # El, Et, Gl, vl, vt, planeStress
-        simu = Simulations.Simu_Displacement(mesh, matElasIsotTrans)
+        simu = Simulations.Displacement(mesh, matElasIsotTrans)
         simu.Get_K_C_M_F()
         self.assertTrue(simu.needUpdate == False)
         matElasIsotTrans.El *= 2
@@ -359,7 +359,7 @@ class Test_Simu(unittest.TestCase):
 
         matAnisot = Materials.Elas_Anisot(2, matElasIsotTrans.C, False, (0,1), (-1,0))
         # Set_C, 
-        simu = Simulations.Simu_Displacement(mesh, matAnisot)
+        simu = Simulations.Displacement(mesh, matAnisot)
         simu.Get_K_C_M_F()
         self.assertTrue(simu.needUpdate == False)
         matAnisot.Set_C(matIsot.C, False)
@@ -377,7 +377,7 @@ class Test_Simu(unittest.TestCase):
         thermal = Materials.Thermal_Model(2, 1, 1)
         # k, c
 
-        simu = Simulations.Simu_Thermal(mesh, thermal)
+        simu = Simulations.Thermal(mesh, thermal)
         simu.Get_K_C_M_F()
         self.assertTrue(simu.needUpdate == False) # check that need update is now set to false once Get_K_C_M_F() get called
         thermal.k *= 2
@@ -411,7 +411,7 @@ class Test_Simu(unittest.TestCase):
 
         mesh = Mesher().Mesh_Beams(beams)
 
-        simu = Simulations.Simu_Beam(mesh, structure)
+        simu = Simulations.Beam(mesh, structure)
         simu.Get_K_C_M_F()
         self.assertTrue(simu.needUpdate == False) # check that need update is now set to false once Get_K_C_M_F() get called
 
@@ -438,7 +438,7 @@ class Test_Simu(unittest.TestCase):
         pfm = Materials.PhaseField_Model(matIsot, 'He', 'AT1', 1, .01)
         # split, regu, split, Gc, l0, solver, A
 
-        simu = Simulations.Simu_PhaseField(mesh, pfm)
+        simu = Simulations.PhaseField(mesh, pfm)
 
         simu.Get_K_C_M_F('displacement')
         self.assertTrue(simu.needUpdate == True)
@@ -475,7 +475,7 @@ class Test_Simu(unittest.TestCase):
         thermal = Materials.Thermal_Model(2, 1, 1)
         # k, c
 
-        simu = Simulations.Simu_Thermal(mesh, thermal)
+        simu = Simulations.Thermal(mesh, thermal)
         simu.Get_K_C_M_F()
         self.assertTrue(simu.needUpdate == False) # check that need update is now set to false once Get_K_C_M_F() get called
 
@@ -489,28 +489,19 @@ class Test_Simu(unittest.TestCase):
         DoTest(simu)
 
         try:
-            mesh.rotate(45, mesh.center, direction=(1,0))
             # must return an error
+            mesh.rotate(45, mesh.center, direction=(1,0))
         except AssertionError:
             self.assertTrue(simu.needUpdate == False)
 
         try:
-            mesh.translate(dz=20)
             # must return an error
+            mesh.translate(dz=20)
         except AssertionError:
             self.assertTrue(simu.needUpdate == False)
 
         simu.mesh = mesh.copy()
-        DoTest(simu)
-        pass
-
-
-
-
+        DoTest(simu)        
         
-if __name__ == '__main__':        
-    try:
-        Display.Clear()
-        unittest.main(verbosity=2)    
-    except:
-        print("")   
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

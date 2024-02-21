@@ -41,7 +41,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     material = Materials.Elas_Isot(dim, planeStress=True, thickness=thickness)
 
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     simu.Solver_Set_Newton_Raphson_Algorithm(0.1)
 

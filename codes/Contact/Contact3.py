@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     material = Materials.Elas_Isot(dim, planeStress=True, thickness=thickness)
 
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     displacements = np.linspace(0, t*2, N)    
 

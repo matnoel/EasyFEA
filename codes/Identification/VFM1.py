@@ -122,7 +122,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Simulation
     # --------------------------------------------------------------------------------------------
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     simu.add_dirichlet(nodes_lower, [0], ["y"])
     simu.add_dirichlet(mesh.Nodes_Tags((["P0"])), [0], ["x"])

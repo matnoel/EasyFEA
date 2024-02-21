@@ -84,7 +84,7 @@ if __name__ == '__main__':
     mesh_beam = Mesher().Mesh_Beams([beam], ElemType.SEG3)
 
     beams = Materials.Beam_Structure([beam])
-    simu_beam = Simulations.Simu_Beam(mesh_beam, beams)
+    simu_beam = Simulations.Beam(mesh_beam, beams)
 
     simu_beam.add_dirichlet(mesh_beam.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2)),
                             [0]*simu_beam.Get_dof_n(), simu_beam.Get_directions())
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     material = Materials.Elas_Isot(3, E, v)
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     simu.add_dirichlet(nodes_fixed, [0]*3, simu.Get_directions())
     simu.add_lineLoad(nodes_load, [-load/hx], ["y"])

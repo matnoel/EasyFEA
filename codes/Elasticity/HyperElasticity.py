@@ -64,7 +64,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     material = Materials.Elas_Isot(dim, E=210000, v=0.25, planeStress=True, thickness=thickness)
 
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     N = 20
     iter = 0

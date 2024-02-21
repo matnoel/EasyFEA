@@ -48,7 +48,7 @@ if __name__ == '__main__':
     # Simu
     # --------------------------------------------------------------------------------------------
     material = Materials.Elas_Isot(dim, E=210000, v=0.3, planeStress=True, thickness=thickness)
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     if isSymmetric:
         nodes_x0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)

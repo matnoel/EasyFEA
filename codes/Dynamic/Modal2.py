@@ -101,7 +101,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Simulation
     # --------------------------------------------------------------------------------------------
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
     simu.rho = 7860 # kg/m3
 
     simu.add_dirichlet(nodesZ0, [0]*3, simu.Get_directions())

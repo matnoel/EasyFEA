@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
             # Create or update the simulation object with the current mesh        
             if e == 0 and N == list_N[0]:
-                simu = Simulations.Simu_Displacement(mesh, material, useIterativeSolvers=False)
+                simu = Simulations.Displacement(mesh, material, useIterativeSolvers=False)
             else:
                 simu.Bc_Init()
                 simu.mesh = mesh

@@ -221,7 +221,7 @@ def DoSimu(split: str, regu: str):
         # --------------------------------------------------------------------------------------------
         # Simulation
         # --------------------------------------------------------------------------------------------
-        simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
+        simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
         simu.Results_Set_Bc_Summary(0.0,listInc, listThreshold, optionTreshold)
 
         dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
@@ -286,7 +286,7 @@ def DoSimu(split: str, regu: str):
         # --------------------------------------------------------------------------------------------
         # Loading
         # ---------------------------------------------
-        simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder)
+        simu: Simulations.PhaseField = Simulations.Load_Simu(folder)
         loads, displacements = PostProcessing.Load_Load_Displacement(folder)
 
     # --------------------------------------------------------------------------------------------

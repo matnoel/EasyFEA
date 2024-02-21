@@ -46,11 +46,7 @@ class _IModel(ABC, Observable):
     @property
     def useNumba(self) -> bool:
         """Returns whether the model can use numba functions"""
-        try:
-            return self.__useNumba
-        except AttributeError:
-            self.__useNumba = False
-            return self.__useNumba
+        return self.__useNumba
 
     @useNumba.setter
     def useNumba(self, value: bool):
@@ -106,6 +102,8 @@ class _Displacement_Model(_IModel, ABC):
         self.__planeStress = planeStress if dim == 2 else False
         """2D simplification type"""
 
+        self.useNumba = False
+
     @property
     def modelType(self) -> ModelType:
         return ModelType.displacement
@@ -125,17 +123,6 @@ class _Displacement_Model(_IModel, ABC):
     def planeStress(self) -> bool:
         """The model uses plane stress simplification"""
         return self.__planeStress
-        try:
-            return self.__planeStress
-        except AttributeError:
-            # do this in case the object was created in old instances
-            if isinstance(self, Elas_Isot):
-                self.__planeStress = self._Elas_Isot__planeStress
-            elif isinstance(self, Elas_IsotTrans):
-                self.__planeStress = self._Elas_IsotTrans__planeStress
-            elif isinstance(self, Elas_Anisot):
-                self.__planeStress = self._Elas_Anisot__planeStress
-            return self.__planeStress
     
     @planeStress.setter
     def planeStress(self, value: bool) -> None:
@@ -414,8 +401,8 @@ class Elas_IsotTrans(_Displacement_Model):
         text = f"{type(self).__name__}:"
         text += f"\nEl = {self.El:.2e}, Et = {self.Et:.2e}, Gl = {self.Gl:.2e}"
         text += f"\nvl = {self.vl}, vt = {self.vt}"
-        text += f"\naxis_l = {np.array_str(self.__axis_l, precision=3)}"
-        text += f"\naxis_t = {np.array_str(self.__axis_t, precision=3)}"
+        text += f"\naxis_l = {np.array_str(self.axis_l, precision=3)}"
+        text += f"\naxis_t = {np.array_str(self.axis_t, precision=3)}"
         if self.__dim == 2:
             text += f"\nplaneStress = {self.planeStress}"
             text += f"\nthickness = {self.thickness:.2e}"
@@ -944,6 +931,8 @@ class _Beam_Model(_IModel):
 
         self.yAxis = yAxis
 
+        self.useNumba = False
+
     @property
     def line(self) -> Line:
         """Average fiber line of the beam."""
@@ -1313,6 +1302,8 @@ class PhaseField_Model(_IModel):
         self.A = A
 
         self.Need_Split_Update()
+
+        self.useNumba = False
 
     @property
     def modelType(self) -> ModelType:
@@ -2570,6 +2561,8 @@ class Thermal_Model(_IModel):
         self.__thickness = thickness
 
         self.Need_Update()
+
+        self.useNumba = False
 
     @property
     def k(self) -> Union[float,np.ndarray]:

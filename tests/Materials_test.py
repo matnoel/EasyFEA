@@ -380,12 +380,5 @@ class Test_Materials(unittest.TestCase):
             if np.linalg.norm(energiec)>0:
                 self.assertTrue(np.abs(verifEnergie) <= tol)
 
-
-
 if __name__ == '__main__':
-    try:
-        import Display
-        Display.Clear()
-        unittest.main(verbosity=2)
-    except:
-        print("")
+    unittest.main(verbosity=2)

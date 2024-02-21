@@ -35,7 +35,7 @@ pfmSolver = Materials.PhaseField_Model.SolverType.History
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Amor"]
+splits = ["Miehe"]
 
 regus = ["AT1", "AT2"]
 # regus = ["AT2"] # "AT1", "AT2" 
@@ -164,7 +164,7 @@ def DoSimu(split: str, regu: str):
         # --------------------------------------------------------------------------------------------
         # Simulation
         # --------------------------------------------------------------------------------------------
-        simu = Simulations.Simu_PhaseField(mesh, pfm, verbosity=False)
+        simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
         simu.Results_Set_Bc_Summary(loadings[-1],listInc, listThreshold, optionTreshold)
 
         dofsX_upper = simu.Bc_dofs_nodes(nodes_upper, ["x"])
@@ -214,7 +214,7 @@ def DoSimu(split: str, regu: str):
         loads = np.array(loads)
         displacements = np.array(displacements)
     else:
-        simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder)
+        simu: Simulations.PhaseField = Simulations.Load_Simu(folder)
         loads, displacements = PostProcessing.Load_Load_Displacement(folder)
 
     # --------------------------------------------------------------------------------------------

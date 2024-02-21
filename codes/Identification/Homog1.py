@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     material = Materials.Elas_Isot(2, E, v, planeStress=False)
 
-    simu = Simulations.Simu_Displacement(mesh, material, useNumba=True)
+    simu = Simulations.Displacement(mesh, material, useNumba=True)
 
     Display.Plot_Result(simu, E, nodeValues=False, title="E [MPa]")
     Display.Plot_Result(simu, v, nodeValues=False, title="v")

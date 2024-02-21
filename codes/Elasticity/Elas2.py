@@ -56,7 +56,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     material = Materials.Elas_Isot(dim, E, v, planeStress=True, thickness=h)
-    simu = Simulations.Simu_Displacement(mesh, material)
+    simu = Simulations.Displacement(mesh, material)
 
     if dim == 2:
         simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])

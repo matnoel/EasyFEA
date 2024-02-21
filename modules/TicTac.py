@@ -70,6 +70,10 @@ class Tic:
     
     __History = {}
     """history = { category: list( [text, time] ) }"""
+
+    @staticmethod
+    def nTic() -> int:
+        return len(Tic.__History)
        
     @staticmethod
     def Resume(verbosity=True) -> str:

@@ -90,7 +90,7 @@ if __name__ == '__main__':
         comportement = Materials.Elas_Isot(2, E=E, v=v, planeStress=True, thickness=ep)
         phaseFieldModel = Materials.PhaseField_Model(comportement, split, regu, gc, l0)
 
-        simu = Simulations.Simu_PhaseField(mesh, phaseFieldModel, verbosity=False)
+        simu = Simulations.PhaseField(mesh, phaseFieldModel, verbosity=False)
 
         simu.add_dirichlet(nodes0, [0], ["y"])
         simu.add_dirichlet(node00, [0], ["x"])
