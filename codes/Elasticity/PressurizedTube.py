@@ -5,7 +5,6 @@ import Materials
 import Simulations
 from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Line, Circle, CircleArc, Contour
-import Folder
 np = Display.np
 
 if __name__ == '__main__':
@@ -17,9 +16,6 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     dim = 2
     isSymmetric = True
-
-    folder = Folder.New_File(f"PressurizedTube{dim}D", results=True)
-
     openCrack = True
 
     r = 10

@@ -21,7 +21,6 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    folder = Folder.New_File("Waves", results=True) # Create a folder for the simulation results
 
     # Define geometric parameters
     a = 1
@@ -45,9 +44,6 @@ if __name__ == '__main__':
 
     # Specify the result to plot (speed_norm in this case)
     result = "speed_norm"
-
-    # Define whether to create a movie
-    makeMovie = False
 
     # --------------------------------------------------------------------------------------------
     # Mesh
@@ -123,12 +119,5 @@ if __name__ == '__main__':
             plt.pause(1e-12)
 
         t += dt
-
-    # --------------------------------------------------------------------------------------------
-    # PostProcessing
-    # --------------------------------------------------------------------------------------------
-    # Make a movie if specified
-    if makeMovie:
-        PostProcessing.Make_Movie(folder, result, simu)
 
     plt.show()

@@ -142,7 +142,11 @@ if __name__ == '__main__':
         if test:
             folder_essai = Folder.Join(folder_essai, "Test")
         
-        simu_name = f"{split} {regu} tolConv{tolConv} optimMesh{optimMesh} ftol{ftol}"    
+        if optimMesh:
+            simu_name = f"{split} {regu} tolConv{tolConv} optimMesh ftol{ftol}"
+        else:
+            simu_name = f"{split} {regu} tolConv{tolConv} ftol{ftol}"
+
         if not detectL0:
             simu_name += f" nL{nL}"
 

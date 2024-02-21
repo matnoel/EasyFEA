@@ -108,7 +108,7 @@ if __name__ == '__main__':
     # PostProcessing
     # --------------------------------------------------------------------------------------------
     # Display the final thermal distribution
-    Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True)
+    Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True, folder=folder)
 
     # Save simulation results in Paraview format
     # PostProcessing.Make_Paraview(folder, simu)

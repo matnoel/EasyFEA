@@ -28,7 +28,9 @@ if __name__  == '__main__':
 
     dim = 3
     idxEssai = 10
-    model = 1 # 0 -> essai Matthieu et 1 -> essai Laura
+    model = 0
+    # (0, essai Matthieu)
+    # (1 -> Chevalier2022)
 
     test = True
     solve = True
@@ -50,17 +52,16 @@ if __name__  == '__main__':
     # (0, bourdin)
     # (1, crack energy)
     # (2, crack + strain energy)
-
-    folderName = 'FCBA'
+    
+    simuName = "Simu"
     if model == 1:
         pltLoad = False
-        folderName += ' Laura'
+        simuName += 'Chevalier2022'
 
-    simuName = "Simu"
     if dim == 3:
-        simuName += ' 3D'
+        simuName += '3D'
 
-    folder_essai = Folder.New_File(Folder.Join(folderName, simuName, f"Essai{idxEssai}"), results=True)
+    folder_essai = Folder.New_File(Folder.Join('FCBA', simuName, f"Essai{idxEssai}"), results=True)
 
     if useContact:
         folder_essai = Folder.Join(folder_essai, 'Contact')

@@ -59,9 +59,6 @@ if __name__ == '__main__':
 
     folder = Folder.Get_Path(__file__)
 
-    folderSave = Folder.New_File("ModalAnalysis",results=True)
-    if not os.path.exists(folderSave): os.makedirs(folderSave)
-
     isFixed = True
 
     # --------------------------------------------------------------------------------------------

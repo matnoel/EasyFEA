@@ -1,6 +1,7 @@
 """Code used to perform elastic simulations with FCBA samples"""
 
 import Display
+import PyVista_Interface as pvi
 from Geoms import Point, Points, Circle, Domain, Line
 from Gmsh_Interface import Mesher, ElemType, Mesh, Normalize_vect
 import Materials
@@ -14,7 +15,7 @@ import numpy as np
 Display.Clear()
 
 folder_FCBA = Folder.New_File("FCBA",results=True)
-folder = Folder.Join(folder_FCBA, "Compression_Laura")
+folder = Folder.Join(folder_FCBA, "Elas")
 
 def DoMesh_FCBA(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float, t:float, l0:float, test:bool, optimMesh:bool) -> Mesh:
 
@@ -177,37 +178,7 @@ if __name__  == '__main__':
             return loads
 
         EvalX = lambda x,y,z: Eval(x,y,z)[:,:,0]
-        EvalY = lambda x,y,z: Eval(x,y,z)[:,:,1]    
-        
-        if pltLoadInHole:
-            ax = plt.subplots()[1]
-            ax.axis('equal')
-            angle = np.linspace(0, np.pi*2, 360)
-            ax.scatter(0,0,marker='+', c='black')
-            ax.plot(D/2*np.cos(angle),D/2*np.sin(angle), c="black")
-            
-            sig = D/2
-            angle = np.linspace(0, np.pi, 21)
-
-            x = - D/2 * np.cos(angle)
-            y = - D/2 * np.sin(angle)
-
-            coord = np.zeros((x.size,2))
-            coord[:,0] = x; coord[:,1] = y
-            # ax.plot(x,y, c="red")
-
-            vectN = Normalize_vect(coord)
-
-            f = sig * np.einsum("n,ni->ni", np.sin(angle)**2, vectN)
-            f[np.abs(f)<=1e-12] = 0
-
-            [ax.arrow(x[i], y[i], f[i,0], f[i,1], color='red', head_width=1e-1*2, length_includes_head=True) for i in range(angle.size)]
-            ax.plot((coord+f)[:,0], (coord+f)[:,1], c='red')
-            ax.set_axis_off()
-
-            # Display.Save_fig(folder, 'illustration')
-
-            # ax.annotate("$x$",xy=(1,0),xytext=(0,0),arrowprops=dict(arrowstyle="->"), c='black')
+        EvalY = lambda x,y,z: Eval(x,y,z)[:,:,1]
 
     else:
         surf = t * L
@@ -226,8 +197,10 @@ if __name__  == '__main__':
         simu.Bc_Init()
         simu.add_dirichlet(nodesLower, [0]*dim, simu.Get_directions())
         if loadInHole:
+            # label = r"$\mathbf{q}(\theta) = \sigma \ sin^2(\theta) \ \mathbf{n}(\theta)$"
+            label = ""
             simu.add_surfLoad(nodesLoad, [EvalX, EvalY], ["x","y"],
-                            description=r"$\mathbf{q}(\theta) = \sigma \ sin^2(\theta) \ \mathbf{n}(\theta)$")
+                            description=label)
         else:
             simu.add_surfLoad(nodesLoad, [-f/surf], ['y'])
         
@@ -247,6 +220,10 @@ if __name__  == '__main__':
     # --------------------------------------------------------------------------------------------
     # Results
     # --------------------------------------------------------------------------------------------
+
+    if pltLoadInHole:
+        pvi.Plot_BoundaryConditions(simu).show()    
+
     if len(list_psiP) > 1:
         axLoad = plt.subplots()[1]
         axLoad.set_xlabel("$f \ [kN]$"); axLoad.set_ylabel("$\psi^+ \ / \ \psi_c$")

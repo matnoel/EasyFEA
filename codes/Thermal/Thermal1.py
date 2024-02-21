@@ -114,7 +114,7 @@ if __name__ == '__main__':
     # PostProcessing
     # --------------------------------------------------------------------------------------------
     # Display the final thermal distribution
-    Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True)
+    Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True, folder=folder)
 
     # Calculate and display the volume of the mesh if it's a 3D simulation
     if dim == 3:
