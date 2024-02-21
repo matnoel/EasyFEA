@@ -5,7 +5,7 @@ WARNING: The assumption of small displacements is more than questionable for thi
 
 import Folder
 import Display
-from PyVista_Interface import Plot, Movie_func
+import PyVista_Interface as pvi
 from Gmsh_Interface import ElemType, Mesher
 from Geoms import Point, Points, Domain
 import Materials

@@ -1,6 +1,7 @@
 from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Points, Contour, CircleArc, Line
 import Display
+import PyVista_Interface as pvi
 import Folder
 import Simulations
 import Materials
@@ -351,8 +352,7 @@ if __name__ == '__main__':
             'cylindreElems': np.asarray(mesh.Elements_Nodes(nodesCyl) + 1, dtype=float),
         }
         scipy.io.savemat(matFile, msh)
-
-    import PyVista_Interface as pvi
+    
     pvi.Plot_Mesh(mesh).show()
 
     Display.plt.show()

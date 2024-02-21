@@ -5,7 +5,7 @@ WARNING: The assumption of small displacements is more than questionable for thi
 
 import Folder
 import Display
-from PyVista_Interface import Plot, Movie_func
+import PyVista_Interface as pvi
 from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Domain, Points
 import Materials
@@ -172,9 +172,9 @@ if __name__ == '__main__':
 
         def DoAnim(plotter, n):
             simu.Set_Iter(n)
-            Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10, show_grid=True)
-            Plot(list_mesh_master[n], plotter=plotter, show_edges=True, opacity=0.2)
+            pvi.Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10, show_grid=True)
+            pvi.Plot(list_mesh_master[n], plotter=plotter, show_edges=True, opacity=0.2)
 
-        Movie_func(DoAnim, N, folder=folder, videoName='Contact2.gif')
+        pvi.Movie_func(DoAnim, N, folder=folder, videoName='Contact2.gif')
 
     plt.show()
