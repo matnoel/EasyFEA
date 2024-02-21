@@ -1,6 +1,5 @@
 """Code used to perform phase field simulations with FCBA samples"""
 
-from typing import cast
 import numpy as np
 import pandas as pd
 import pickle

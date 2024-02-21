@@ -1,4 +1,3 @@
-from typing import cast
 import unittest
 import os
 
@@ -15,7 +14,7 @@ class Test_GroupElem(unittest.TestCase):
 
         for mesh in list_mesh2D:
             
-            mesh = cast(Mesh, mesh)
+            mesh: Mesh = mesh
             
             mesh.assembly_e
             mesh.columnsScalar_e

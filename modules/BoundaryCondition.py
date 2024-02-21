@@ -136,7 +136,6 @@ class BoundaryCondition:
             Degrees of freedom.
         """
         
-        # TODO enlever les cast() du codes
         # TODO reshape(-1) -> ravel
 
         nodes = np.asarray(nodes, dtype=int).ravel()
