@@ -79,7 +79,7 @@ class Point:
     
     def translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
         """translate the point"""
-        self.__coordo = Translate_coordo(self.__coordo, dx, dy, dz).reshape(-1)
+        self.__coordo = Translate_coordo(self.__coordo, dx, dy, dz).ravel()
 
     def rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:
         """Rotate the point with around an axis.
@@ -93,7 +93,7 @@ class Point:
         direction : tuple, optional
             rotation direction, by default (0,0,1)
         """
-        self.__coordo = Rotate_coordo(self.__coordo, theta, center, direction).reshape(-1)
+        self.__coordo = Rotate_coordo(self.__coordo, theta, center, direction).ravel()
 
     def symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
         """Symmetrise the point coordinates with a plane.
@@ -105,7 +105,7 @@ class Point:
         n : tuple, optional
             normal to the plane, by default (1,0,0)
         """
-        self.__coordo = Symmetry_coordo(self.__coordo, point, n).reshape(-1)
+        self.__coordo = Symmetry_coordo(self.__coordo, point, n).ravel()
     
     def __radd__(self, value):
         return self.__add__(value)
@@ -821,8 +821,8 @@ class Contour(_Geom):
 
         for geom in self.geoms:
             l, p = geom.coordoPlot()
-            lines.extend(l.reshape(-1))
-            points.extend(p.reshape(-1))
+            lines.extend(l.ravel())
+            points.extend(p.ravel())
 
         lines = np.reshape(lines, (-1,3))
         points = np.reshape(points, (-1,3))

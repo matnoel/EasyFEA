@@ -100,8 +100,8 @@ class DIC_Analysis:
         mesh = self._mesh
 
         # recovery of pixel coordinates
-        coordPx = np.arange(imgRef.shape[1]).reshape((1,-1)).repeat(imgRef.shape[0], 0).reshape(-1)
-        coordPy = np.arange(imgRef.shape[0]).reshape((-1,1)).repeat(imgRef.shape[1]).reshape(-1)
+        coordPx = np.arange(imgRef.shape[1]).reshape((1,-1)).repeat(imgRef.shape[0], 0).ravel()
+        coordPy = np.arange(imgRef.shape[0]).reshape((-1,1)).repeat(imgRef.shape[1]).ravel()
         coordPixel = np.zeros((coordPx.shape[0], 3), dtype=int);  coordPixel[:,0] = coordPx;  coordPixel[:,1] = coordPy
 
         # recovery of pixels used in elements with their coordinates
@@ -166,7 +166,7 @@ class DIC_Analysis:
             linesX = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
             linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
             # construction of columns in which to place values
-            colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).reshape(-1)            
+            colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()            
 
             lignes_x.extend(linesX)
             lignes_y.extend(linesY)
@@ -205,14 +205,14 @@ class DIC_Analysis:
         # Retrieve rows and columns or apply 0s
         lignes0 = np.arange(mesh.nPe*dim).repeat(mesh.nPe)
         ddlsX = np.arange(0, mesh.nPe*dim, dim)
-        colonnes0 = np.concatenate((ddlsX+1, ddlsX)).reshape(1,-1).repeat(mesh.nPe, axis=0).reshape(-1)
+        colonnes0 = np.concatenate((ddlsX+1, ddlsX)).reshape(1,-1).repeat(mesh.nPe, axis=0).ravel()
 
         B_e[:,lignes0, colonnes0] = 0
 
         lignesB = mesh.linesVector_e
         colonnesB = mesh.columnsVector_e        
 
-        self._opLap = sparse.csr_matrix((B_e.reshape(-1), (lignesB.reshape(-1), colonnesB.reshape(-1))), (nDof, nDof))  
+        self._opLap = sparse.csr_matrix((B_e.ravel(), (lignesB.ravel(), colonnesB.ravel())), (nDof, nDof))  
         """Laplacian operator"""      
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)
@@ -258,8 +258,8 @@ class DIC_Analysis:
         
         # Recover image gradient
         grid_Gradfy, grid_Gradfx = np.gradient(img)
-        gradY = grid_Gradfy.reshape(-1)
-        gradX = grid_Gradfx.reshape(-1)        
+        gradY = grid_Gradfy.ravel()
+        gradX = grid_Gradfx.ravel()        
         
         roi = self._roi
 
@@ -356,11 +356,11 @@ class DIC_Analysis:
 
         # Recovery of image pixel coordinates
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
-        coordX, coordY = gridX.reshape(-1), gridY.reshape(-1)
+        coordX, coordY = gridX.ravel(), gridY.ravel()
 
         img_fct = interpolate.RectBivariateSpline(np.arange(img.shape[0]),np.arange(img.shape[1]),img)
         roi = self._roi
-        f = imgRef.reshape(-1)[roi] # reference image as a vector and retrieving pixels in the roi
+        f = imgRef.ravel()[roi] # reference image as a vector and retrieving pixels in the roi
         
         # Here the small displacement hypothesis is used
         # The gradient of the two images is assumed to be identical
@@ -412,11 +412,11 @@ class DIC_Analysis:
 
         # Recover image pixel coordinates
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
-        coordX, coordY = gridX.reshape(-1), gridY.reshape(-1)
+        coordX, coordY = gridX.ravel(), gridY.ravel()
 
         img_fct = interpolate.RectBivariateSpline(np.arange(img.shape[0]),np.arange(img.shape[1]),img)
 
-        f = imgRef.reshape(-1) # reference image as a vector and retrieving pixels in the roi
+        f = imgRef.ravel() # reference image as a vector and retrieving pixels in the roi
 
         ux_p, uy_p = self.__Calc_pixelDisplacement(u)
 

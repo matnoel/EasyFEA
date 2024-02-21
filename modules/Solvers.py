@@ -194,7 +194,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
     elif solveur == "umfpack":
         # lu = umfpack.splu(A)
-        # x = lu.solve(b).reshape(-1)
+        # x = lu.solve(b).ravel()
         x = umfpackSpsolve(A, b)
 
     elif solveur == "mumps":
@@ -211,8 +211,8 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     tic.Tac("Solver",f"Solve {problemType} ({solveur})", simu._verbosity)
 
     # # A x - b = 0
-    # residu = np.linalg.norm(A.dot(x)-b.toarray().reshape(-1))
-    # print(residu/np.linalg.norm(b.toarray().reshape(-1)))
+    # residu = np.linalg.norm(A.dot(x)-b.toarray().ravel())
+    # print(residu/np.linalg.norm(b.toarray().ravel()))
 
     return np.array(x)
 
@@ -461,7 +461,7 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
         # superlu : https://portal.nersc.gov/project/sparse/superlu/
         # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
         lu = sla.splu(A.tocsc(), permc_spec=permute)
-        x = lu.solve(b.toarray()).reshape(-1)
+        x = lu.solve(b.toarray()).ravel()
 
     return x
 
@@ -471,7 +471,7 @@ def _BoundConstrain(A, b, lb: np.ndarray, ub: np.ndarray):
     
     # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
 
-    b = b.toarray().reshape(-1)
+    b = b.toarray().ravel()
     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)
     tol = 1e-10
     x = optimize.lsq_linear(A, b, bounds=(lb,ub), tol=tol, method='trf', verbose=0)                    

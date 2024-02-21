@@ -147,7 +147,7 @@ if __name__ == '__main__':
         result = np.zeros((mesh.Nn, 2))
         result[nodes,0] = virtualX(xn[nodes], yn[nodes])
         result[nodes,1] = virtualY(xn[nodes], yn[nodes])
-        u_n = result.reshape(-1)
+        u_n = result.ravel()
         simu.set_u_n("displacement", u_n)
 
         # Calculates deformations associated with virtual fields.
@@ -548,7 +548,7 @@ if __name__ == '__main__':
             #     result = np.zeros((mesh.Nn, 2))
             #     result[:,0] = u(xn, yn)
             #     result[:,1] = v(xn, yn)
-            #     u_n = result.reshape(-1)
+            #     u_n = result.ravel()
 
             #     simu.set_u_n("displacement", u_n)
                 

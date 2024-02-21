@@ -277,7 +277,7 @@ if __name__  == '__main__':
     # # plot damage nodes
     # elemtsDamage = np.where(psiP_e >= psiC)[0]
     # if elemtsDamage.size > 0:
-    #     nodes = list(set(np.reshape(mesh.connect[elemtsDamage],-1)))
+    #     nodes = list(set(mesh.connect[elemtsDamage].ravel()))
     #     # Display.Plot_Elements(mesh, nodes, alpha=0.2, edgecolor='black', ax=ax)
         
     Display.Save_fig(folder, "psiPpsiC")

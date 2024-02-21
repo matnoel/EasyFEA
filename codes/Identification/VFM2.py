@@ -68,7 +68,7 @@ if __name__ == '__main__':
     # Display.Plot_BoundaryConditions(simu)
 
     u_exp = simu.Solve()
-    f_exp = simu._Solver_Apply_Neumann("displacement").toarray().reshape(-1)
+    f_exp = simu._Solver_Apply_Neumann("displacement").toarray().ravel()
 
     forceR = np.sum(f_exp)
 
@@ -103,7 +103,7 @@ if __name__ == '__main__':
         result = np.zeros((mesh.Nn, 2))
         result[:,0] = virtualX(xn, yn)
         result[:,1] = virtualY(xn, yn)
-        u_n = result.reshape(-1)
+        u_n = result.ravel()
         simu.set_u_n("displacement", u_n)
 
         # Calculates deformations associated with virtual fields.

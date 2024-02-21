@@ -1089,9 +1089,9 @@ class _Simu(_IObserver, ABC):
 
         for d, dir in enumerate(directions):
             eval_n = self.__Bc_evaluate(coordo_n, values[d], option="nodes")
-            dofsValues_dir[:,d] = eval_n.reshape(-1)
+            dofsValues_dir[:,d] = eval_n.ravel()
         
-        dofsValues = dofsValues_dir.reshape(-1)
+        dofsValues = dofsValues_dir.ravel()
         
         dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
 
@@ -1251,9 +1251,9 @@ class _Simu(_IObserver, ABC):
             eval_n = self.__Bc_evaluate(coordo_n, values[d], option="nodes")
             if problemType == ModelType.beam:
                 eval_n /= len(nodes)
-            valeurs_ddl_dir[:,d] = eval_n.reshape(-1)
+            valeurs_ddl_dir[:,d] = eval_n.ravel()
         
-        dofsValues = valeurs_ddl_dir.reshape(-1)
+        dofsValues = valeurs_ddl_dir.ravel()
 
         dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
 
@@ -1307,13 +1307,13 @@ class _Simu(_IObserver, ABC):
                 # sum over integration points
                 values_e = np.sum(values_e_p, axis=1)
                 # sets calculated values and dofs
-                values_dofs_dir[:,d] = values_e.reshape(-1)
-                new_dofs[:,d] = self.Bc_dofs_nodes(connect.reshape(-1), [dir], problemType)
+                values_dofs_dir[:,d] = values_e.ravel()
+                new_dofs[:,d] = self.Bc_dofs_nodes(connect.ravel(), [dir], problemType)
 
-            new_values_dofs = values_dofs_dir.reshape(-1) # Put in vector form
+            new_values_dofs = values_dofs_dir.ravel() # Put in vector form
             dofsValues = np.append(dofsValues, new_values_dofs)
             
-            new_dofs = new_dofs.reshape(-1) # Put in vector form
+            new_dofs = new_dofs.ravel() # Put in vector form
             dofs = np.append(dofs, new_dofs)
 
         return dofsValues, dofs, Nodes
@@ -1542,7 +1542,7 @@ class _Simu(_IObserver, ABC):
             if values.size % Nn == 0:
                 # values stored at nodes
                 if is1d:
-                    return values.reshape(-1)
+                    return values.ravel()
                 else:
                     return values.reshape(Nn,-1)
             elif values.size % Ne == 0:
@@ -1705,11 +1705,11 @@ class Simu_Displacement(_Simu):
         
         tic = Tic()
 
-        linesVector_e = mesh.linesVector_e.reshape(-1)
-        columnsVector_e = mesh.columnsVector_e.reshape(-1)
+        linesVector_e = mesh.linesVector_e.ravel()
+        columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly
-        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
+        self.__Ku = sparse.csr_matrix((Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
         """Kglob matrix for the displacement problem (nDof, nDof)"""
 
         # Here I'm initializing Fu because I'd have to calculate the volumetric forces in __Construct_Local_Matrix.
@@ -1721,7 +1721,7 @@ class Simu_Displacement(_Simu):
         # plt.spy(self.__Ku)
         # plt.show()
 
-        self.__Mu = sparse.csr_matrix((Mu_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
+        self.__Mu = sparse.csr_matrix((Mu_e.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
         """Mglob matrix for the displacement problem (Nn*dim, Nn*dim)"""
 
         tic.Tac("Matrix","Assembly Ku, Mu and Fu", self._verbosity)
@@ -1948,7 +1948,7 @@ class Simu_Displacement(_Simu):
         WdefLisse_e = self._Calc_Psi_Elas(False, True)
         WdefLisse = np.sum(WdefLisse_e)
 
-        error_e: np.nd = np.abs(WdefLisse_e-Wdef_e).reshape(-1)/Wdef
+        error_e: np.nd = np.abs(WdefLisse_e-Wdef_e).ravel()/Wdef
 
         error: float = np.abs(Wdef-WdefLisse)/Wdef
 
@@ -2423,11 +2423,11 @@ class Simu_PhaseField(_Simu):
 
         tic = Tic()
 
-        linesVector_e = mesh.linesVector_e.reshape(-1)
-        columnsVector_e = mesh.columnsVector_e.reshape(-1)
+        linesVector_e = mesh.linesVector_e.ravel()
+        columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly
-        self.__Ku = sparse.csr_matrix((Ku_e.reshape(-1), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
+        self.__Ku = sparse.csr_matrix((Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
         """Kglob matrix for the displacement problem (nDof, nDof)"""
         
         self.__Fu = sparse.csr_matrix((nDof, 1))
@@ -2556,8 +2556,8 @@ class Simu_PhaseField(_Simu):
         # Data
         mesh = self.mesh
         nDof = mesh.Nn
-        linesScalar_e = mesh.linesScalar_e.reshape(-1)
-        columnsScalar_e = mesh.columnsScalar_e.reshape(-1)
+        linesScalar_e = mesh.linesScalar_e.ravel()
+        columnsScalar_e = mesh.columnsScalar_e.ravel()
 
         # Additional dimension linked to the use of lagrange coefficients        
         nDof += self._Bc_Lagrange_dim(ModelType.damage)
@@ -2568,11 +2568,11 @@ class Simu_PhaseField(_Simu):
         # Assemblage
         tic = Tic()        
 
-        self.__Kd = sparse.csr_matrix((Kd_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
+        self.__Kd = sparse.csr_matrix((Kd_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
         """Kglob for damage problem (Nn, Nn)"""
         
-        lignes = mesh.connect.reshape(-1)
-        self.__Fd = sparse.csr_matrix((Fd_e.reshape(-1), (lignes,np.zeros(len(lignes)))), shape = (nDof,1))
+        lignes = mesh.connect.ravel()
+        self.__Fd = sparse.csr_matrix((Fd_e.ravel(), (lignes,np.zeros(len(lignes)))), shape = (nDof,1))
         """Fglob for damage problem (Nn, 1)"""        
 
         tic.Tac("Matrix","Assembly Kd and Fd", self._verbosity)
@@ -3430,11 +3430,11 @@ class Simu_Beam(_Simu):
         
         tic = Tic()
 
-        lignesVector_e = mesh.Get_linesVector_e(model.dof_n).reshape(-1)
-        colonnesVector_e = mesh.Get_columnsVector_e(model.dof_n).reshape(-1)
+        lignesVector_e = mesh.Get_linesVector_e(model.dof_n).ravel()
+        colonnesVector_e = mesh.Get_columnsVector_e(model.dof_n).ravel()
 
         # Assembly
-        self.__Kbeam = sparse.csr_matrix((Ku_beam.reshape(-1), (lignesVector_e, colonnesVector_e)), shape=(nDof, nDof))
+        self.__Kbeam = sparse.csr_matrix((Ku_beam.ravel(), (lignesVector_e, colonnesVector_e)), shape=(nDof, nDof))
         """Kglob matrix for beam problem (nDof, nDof)"""
 
         self.__Fbeam = sparse.csr_matrix((nDof, 1))
@@ -3921,8 +3921,8 @@ class Simu_Thermal(_Simu):
         # Data
         mesh = self.mesh
         nDof = mesh.Nn
-        linesScalar_e = mesh.linesScalar_e.reshape(-1)
-        columnsScalar_e = mesh.columnsScalar_e.reshape(-1)
+        linesScalar_e = mesh.linesScalar_e.ravel()
+        columnsScalar_e = mesh.columnsScalar_e.ravel()
 
         # Additional dimension linked to the use of lagrange coefficients
         nDof += self._Bc_Lagrange_dim(self.problemType)
@@ -3932,13 +3932,13 @@ class Simu_Thermal(_Simu):
         
         tic = Tic()
 
-        self.__Kt = sparse.csr_matrix((Kt_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
+        self.__Kt = sparse.csr_matrix((Kt_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
         """Kglob for thermal problem (Nn, Nn)"""
         
         self.__Ft = sparse.csr_matrix((nDof, 1))
         """Fglob vector for thermal problem (Nn, 1)."""
 
-        self.__Ct = sparse.csr_matrix((Mt_e.reshape(-1), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
+        self.__Ct = sparse.csr_matrix((Mt_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
         """Mglob for thermal problem (Nn, Nn)"""
 
         tic.Tac("Matrix","Assembly Kt, Mt and Ft", self._verbosity)

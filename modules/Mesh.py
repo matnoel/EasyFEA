@@ -48,7 +48,7 @@ class Mesh(Observable):
             print(self)
         
         Nn = self.coordoGlob.shape[0]
-        usedNodes = set(self.connect.reshape(-1))
+        usedNodes = set(self.connect.ravel())
         nodes = set(range(Nn))
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
@@ -557,12 +557,12 @@ class Mesh(Observable):
         for c in range(nCols):
             values_e = result_e[:, c].reshape(Ne,1)
             values_n = (connect_n_e @ values_e) * 1/elements_n
-            result_n[:,c] = values_n.reshape(-1)
+            result_n[:,c] = values_n.ravel()
 
         tic.Tac("PostProcessing","Element to nodes values", False)
 
         if isDim1:
-            return result_n.reshape(-1)
+            return result_n.ravel()
         else:
             return result_n
         
@@ -773,7 +773,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     nodesElem = []
     def FuncExtend_Proj(e: int, nodes: np.ndarray):
         nodesElem.extend(nodes)
-        values.extend(phi_n_nPe[nodes].reshape(-1))
+        values.extend(phi_n_nPe[nodes].ravel())
         lines.extend(np.repeat(nodes, nPe))
         columns.extend(np.asarray(list(connect_e[e]) * nodes.size))
 

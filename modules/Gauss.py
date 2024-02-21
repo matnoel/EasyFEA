@@ -283,7 +283,7 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 3
-            ksis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
+            xis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
 
         elif elemType == ElemType.TRI6:
             dim = 2            
@@ -291,12 +291,12 @@ class Gauss:
                 nPg = 3
             elif matrixType == MatrixType.mass:
                 nPg = 6
-            ksis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
+            xis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
 
         elif elemType == ElemType.TRI10:
             dim = 2            
             nPg = 6
-            ksis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
+            xis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
 
         # elif elemType == ElemType.TRI15:
         #     dim = 2            
@@ -309,7 +309,7 @@ class Gauss:
         elif elemType == ElemType.QUAD4:
             dim = 2            
             nPg = 4
-            ksis, etas, weights = Gauss.__CoordoPoidsGaussQuad(nPg)
+            xis, etas, weights = Gauss.__CoordoPoidsGaussQuad(nPg)
             
         elif elemType == ElemType.QUAD8:
             dim = 2            
@@ -317,7 +317,7 @@ class Gauss:
                 nPg = 4
             elif matrixType == MatrixType.mass:
                 nPg = 9
-            ksis, etas, weights = Gauss.__CoordoPoidsGaussQuad(nPg)
+            xis, etas, weights = Gauss.__CoordoPoidsGaussQuad(nPg)
                     
         elif elemType == ElemType.TETRA4:
             dim = 3            
@@ -365,7 +365,7 @@ class Gauss:
         if dim == 1:
             coord = np.array([x]).T.reshape((nPg,1))
         elif dim == 2:
-            coord = np.array([ksis, etas]).T.reshape((nPg,2))
+            coord = np.array([xis, etas]).T.reshape((nPg,2))
         elif dim == 3:
             coord = np.array([x, y, z]).T.reshape((nPg,3))
 

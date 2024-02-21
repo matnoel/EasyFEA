@@ -135,8 +135,6 @@ class BoundaryCondition:
         np.ndarray
             Degrees of freedom.
         """
-        
-        # TODO reshape(-1) -> ravel
 
         nodes = np.asarray(nodes, dtype=int).ravel()
         dim = len(availableDirections)

@@ -231,7 +231,7 @@ class _GroupElem(ABC):
         nPe = self.nPe
         listElem = np.arange(Ne)
 
-        lines = self.connect.reshape(-1)
+        lines = self.connect.ravel()
 
         Nn = int(lines.max()+1)
         columns = np.repeat(listElem, nPe)
@@ -1166,7 +1166,7 @@ class _GroupElem(ABC):
             # Checks if elements exclusively use nodes in the node list
             
             # retrieve nodes used by elements
-            nodesElem = set(connect[elements].reshape(-1))
+            nodesElem = set(connect[elements].ravel())
 
             # detects nodes used by elements that are not in the nodes specified
             nodesIntru = list(nodesElem - set(nodes))

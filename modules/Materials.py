@@ -2455,7 +2455,7 @@ class PhaseField_Model(_IModel):
                     listK = [0,1,2,1,0,0]*6
                     listL = [0,1,2,2,2,1]*6
                     
-                    colonnes = np.arange(0,6, dtype=int).reshape((1,6)).repeat(6,axis=0).reshape(-1)
+                    colonnes = np.arange(0,6, dtype=int).reshape((1,6)).repeat(6,axis=0).ravel()
                     lignes = np.sort(colonnes)
 
                     # # ici je construit une matrice pour verfier que les numéros sont bons

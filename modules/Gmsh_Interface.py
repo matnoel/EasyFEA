@@ -1099,7 +1099,7 @@ class Mesher:
 
         view = gmsh.view.add("scalar points")
 
-        gmsh.view.addListData(view, "SP", coordo.shape[0], data.reshape(-1))
+        gmsh.view.addListData(view, "SP", coordo.shape[0], data.ravel())
 
         path = Folder.New_File(f"{filename}.pos", folder)
 
@@ -1638,7 +1638,7 @@ class Mesher:
 
             res = np.concatenate((elements_e, values_e), 1)
 
-            gmsh.view.addListData(view, vt+gmshType, Ne, res.reshape(-1))
+            gmsh.view.addListData(view, vt+gmshType, Ne, res.ravel())
             
             if folder != "":
                 gmsh.view.write(view, Folder.Join(folder, "simu.pos"), True)

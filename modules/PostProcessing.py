@@ -352,10 +352,10 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
     
     types = np.ones(Ne, dtype=int)*paraviewType
 
-    nodes = coordo.reshape(-1)
+    nodes = coordo.ravel()
     """coordinates of nodes in lines"""
 
-    connectivity = connect.reshape(-1)
+    connectivity = connect.ravel()
 
     offsets = np.arange(nPe,nPe*Ne+1,nPe, dtype=np.int32)-3
 
@@ -382,7 +382,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         list_values_n: list[np.ndarray] = [] # list of nodes values
         for result_n in nodesField:
 
-            values_n = simu.Result(result_n, nodeValues=True).reshape(-1)
+            values_n = simu.Result(result_n, nodeValues=True).ravel()
             list_values_n.append(values_n)
 
             dof_n = values_n.size // Nn # 1 ou 3
@@ -397,7 +397,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
         list_values_e: list[np.ndarray] = []
         for result_e in elementsField:
 
-            values_e = simu.Result(result_e, nodeValues=False).reshape(-1)
+            values_e = simu.Result(result_e, nodeValues=False).ravel()
             list_values_e.append(values_e)
 
             dof_e = values_e.size // Ne

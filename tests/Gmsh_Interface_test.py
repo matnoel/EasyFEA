@@ -19,7 +19,7 @@ class Test_InterfaceGmsh(unittest.TestCase):
         # assert nbMesh == nrows*ncols , "Not enough space"
         fig, ax = plt.subplots(nrows, ncols)
         lignes = np.repeat(np.arange(nrows), ncols)
-        colonnes = np.repeat(np.arange(ncols).reshape(1,-1), nrows, axis=0).reshape(-1)
+        colonnes = np.repeat(np.arange(ncols).reshape(1,-1), nrows, axis=0).ravel()
         for m, mesh2D in enumerate(list_mesh2D):
             axx = ax[lignes[m],colonnes[m]]
             Display.Plot_Mesh(mesh2D, ax= axx)
