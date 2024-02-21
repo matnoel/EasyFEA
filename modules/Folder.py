@@ -34,7 +34,10 @@ def New_File(filename: str, folder=Get_Path(), results=False) -> str:
     filename = Join(folder, filename)
 
     if not os.path.exists(filename):
-        os.makedirs(filename)
+        if "." in filename:
+            os.makedirs(folder, exist_ok=True)
+        else:
+            os.makedirs(filename)
             
     return filename
 

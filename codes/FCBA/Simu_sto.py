@@ -249,6 +249,9 @@ if __name__ == '__main__':
         # f = [f_min, f_mid, f_max]
         # d = [d_min, d_mid, d_max]
 
+        uMax = u[:,-1]
+        fMax = f[:,-1]
+
         # y = a x + b
         a = (f[:,1] - f[:,0])/(u[:,1] - u[:,0])
         b = 0
@@ -316,13 +319,9 @@ if __name__ == '__main__':
         ax.set_xlabel(r"$\Delta u \ [mm]$")
         ax.set_ylabel(r"$f \ [kN]$")
 
-        ax.grid()        
+        ax.grid()
 
-        # [ax.plot(u_array, f_arrays[i],c='gray', alpha=.3) for i in range(N)]
-        # [ax.plot(df[label_u][i], df[label_f][i],c='gray', alpha=.3) for i in range(N)]
-        # [ax.plot(df[label_u][i], df[label_f][i], alpha=.3) for i in range(N)]
-        
-        ax.plot(u[:,-1], f[:,-1], c='red', ls='', marker='.', label=f"{np.mean(f[:,2]):.2f} kN")
+        ax.plot(uMax, fMax, c='red', ls='', marker='.', label=f"{np.mean(fMax):.2f} kN")
 
         a_lower, a_upper = np.quantile(a, (0.025, 0.975))
 

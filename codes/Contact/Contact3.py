@@ -134,10 +134,10 @@ if __name__ == '__main__':
 
         def DoAnim(plotter, n):
             simu.Set_Iter(n)
-            Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10,
+            pvi.Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10,
                  show_grid=True, verticalColobar=False)
-            Plot(master_mesh, plotter=plotter, show_edges=True, opacity=.8)
+            pvi.Plot(master_mesh, plotter=plotter, show_edges=True, opacity=.8)
 
-        Movie_func(DoAnim, N, folder=folder, videoName='Contact3.mp4')
+        pvi.Movie_func(DoAnim, N, folder=folder, videoName='Contact3.mp4')
 
     plt.show()

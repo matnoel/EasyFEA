@@ -12,7 +12,7 @@ import scipy.io
 
 if __name__ == '__main__':
 
-    folder = Folder.New_File('Meshes', results=True)
+    folder = Folder.New_File('Meshes', 'Blade', results=True)
 
     N=10 # elements in the blade lenght l
     addCylinder = True

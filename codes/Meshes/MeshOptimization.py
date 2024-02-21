@@ -26,14 +26,14 @@ if __name__ == '__main__':
     # part = "other"
 
     # Creating a folder to store the results
-    folder = Folder.New_File(f"OptimMesh{dim}D", results=True)
+    folder = Folder.New_File(Folder.Join('Meshes', f'Optim{dim}D'), results=True)
     if not os.path.exists(folder):
         os.makedirs(folder)
 
     # Options for plotting the results
     plotResult = True
     plotError = False
-    plotProj = True
+    plotProj = False
     makeMovie = False
     makeParaview = False
 
@@ -266,15 +266,15 @@ if __name__ == '__main__':
         # Display.Plot_Mesh(simu, deformation=True, folder=folder)
         Display.Plot_Result(simu, "ux", nodeValues=False)        
         Display.Plot_Result(simu, "Svm", plotMesh=True, nodeValues=False)
-        Display.Plot_Result(simu, "ZZ1", plotMesh=True)
+        Display.Plot_Result(simu, "ZZ1_e", plotMesh=True)
         # Display.Plot_Mesh(mesh, alpha=0, edgecolor='white', ax=plt.gca())
         # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
 
     if makeParaview:
-        PostProcessing.Make_Paraview(folder, simu, nodesResult=["ZZ1"])
+        PostProcessing.Make_Paraview(folder, simu, nodesResult=["ZZ1_e"])
 
     if makeMovie:
-        PostProcessing.Make_Movie(folder, "ZZ1", simu, plotMesh=True, fps=1, nodeValues=True)
+        PostProcessing.Make_Movie(folder, "ZZ1_e", simu, plotMesh=True, fps=1, nodeValues=True)
 
     Tic.Plot_History(details=True)
     plt.show()

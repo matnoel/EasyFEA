@@ -41,8 +41,11 @@ if __name__  == '__main__':
     else:        
         mesh = Mesher().Mesh_Extrude(contour, [], [0,0,e], [3], isOrganised=True, elemType='HEXA8', surfaces=surfaces)
 
+    oldArea = mesh.area
     mesh.rotate(-45, mesh.center)
+    assert np.abs(mesh.area - oldArea)/oldArea <= 1e-12
     mesh.rotate(45, mesh.center, (1,0))
+    assert np.abs(mesh.area - oldArea)/oldArea <= 1e-12
 
     Display.Plot_Mesh(mesh)
 

@@ -1,5 +1,6 @@
 from Gmsh_Interface import Mesher, Point, Circle, ElemType, Points, gmsh
 import Display
+import PyVista_Interface as pvi
 import Folder
 
 import numpy as np
@@ -18,7 +19,7 @@ if __name__ == '__main__':
     r = R-e
     h = R * 2/3
 
-    meshSize = e/2
+    meshSize = e/3
 
     center = Point()
 
@@ -70,7 +71,6 @@ if __name__ == '__main__':
         rev1 = factory.revolve([(2, surf)], 0,0,0,0,0,R,np.pi)
         rev2 = factory.revolve([(2, surf)], 0,0,0,0,0,R,-np.pi)
         factory.cut(factory.getEntities(3), [rev1[1], rev2[1]])
-
     
     mesher._synchronize()
 
@@ -88,6 +88,4 @@ if __name__ == '__main__':
     if dim == 3:
         print(f'volume = {mesh.volume:.3f}')
 
-    Display.Plot_Mesh(mesh)
-
-    Display.plt.show()
+    pvi.Plot_Mesh(mesh).show()
