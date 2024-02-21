@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     folder = Folder.New_File('Meshes', results=True)
 
-    N=20 # elements in the blade lenght l
+    N=10 # elements in the blade lenght l
     addCylinder = True
     repeat = True
     angleRev = 2*np.pi/10 # rad
@@ -290,13 +290,6 @@ if __name__ == '__main__':
 
     ax = Display.Plot_Mesh(mesh)
 
-
-    from PyVista_Interface import Plot
-
-    p = Plot(mesh, show_edges=True)
-    # p.save_graphic(Folder.Join(folder, 'mesh.pdf'))
-    p.show()
-
     nodesCircle = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+1e-2)
     nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z>=mesh.coordoGlob[:,2].max()-1e-2)
 
@@ -305,6 +298,8 @@ if __name__ == '__main__':
 
     mesh.groupElem.Set_Nodes_Tag(nodesCircle, 'blades')
     mesh.groupElem.Set_Nodes_Tag(nodesCyl, 'cylindre')
+    
+    # pvi.Plot_Elements(mesh, nodesCircle, 2, False, color='blue', edge_color='green', opacity=.5).show()
 
     # --------------------------------------------------------------------------------------------
     # Simu
@@ -357,5 +352,7 @@ if __name__ == '__main__':
         }
         scipy.io.savemat(matFile, msh)
 
+    import PyVista_Interface as pvi
+    pvi.Plot_Mesh(mesh).show()
 
     Display.plt.show()

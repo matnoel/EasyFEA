@@ -58,7 +58,6 @@ mesh = Functions.DoMesh(2,L,H,D,t,l0,test,optimMesh)
 nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
 nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
 nodes_corner = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
-dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, 'displacement', nodes_upper, ['y'])
 # Display.Plot_Mesh(mesh)
 
 # --------------------------------------------------------------------------------------------
@@ -114,6 +113,8 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list, float]:
     pfm = Materials.PhaseField_Model(material, split, regu, gc, l0)    
 
     simu = Simulations.Simu_PhaseField(mesh, pfm, useNumba=not useParallel)
+
+    dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ['y'])
 
     list_du: list[float] = []
     list_f: list[float] = []
@@ -279,7 +280,6 @@ if __name__ == '__main__':
         nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
         nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
         nodes_corner = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
-        dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(2, 'displacement', nodes_upper, ['y'])
 
         for i in range(17):
 
@@ -288,6 +288,8 @@ if __name__ == '__main__':
             forces, displacements, fcrit = Functions.Get_loads_informations(i, useRedim=True)
 
             simu = Simulations.Simu_Displacement(mesh, mat)
+
+            dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ['y'])
 
             simu.add_dirichlet(nodes_lower, [0], ['y'])
             simu.add_dirichlet(nodes_corner, [0], ['x'])

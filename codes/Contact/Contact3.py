@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     dim = 3
     pltIter = True; result = 'uy'
-    makeMovie = True
+    makeMovie = False
 
     N = 20
 

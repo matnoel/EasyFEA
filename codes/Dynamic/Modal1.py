@@ -62,8 +62,8 @@ if __name__ == '__main__':
 
     eigenValues, eigenVectors = linalg.eigs(K_t, 10, M_t, which="SM")
 
-    eigenValues = np.array(eigenValues, dtype=float)
-    eigenVectors = np.array(eigenVectors, dtype=float)
+    eigenValues = np.array(eigenValues.real, dtype=float)
+    eigenVectors = np.array(eigenVectors.real, dtype=float)
 
     freq_t = np.sqrt(eigenValues.real)/2/np.pi
 

@@ -118,18 +118,16 @@ class BoundaryCondition:
         return values
 
     @staticmethod
-    def Get_dofs_nodes(param: int, problemType: str, nodes: np.ndarray, directions: list[str]) -> np.ndarray:
-        """Get degrees of freedom associated with nodes based on the problem and directions.
+    def Get_dofs_nodes(availableDirections: list[str], nodes: np.ndarray, directions: list[str]) -> np.ndarray:
+        """Get degrees of freedom (dofs) associated with the nodes.
 
         Parameters
         ----------
-        param : int
-            Problem parameter, beam -> nbddl_e, otherwise dim.
-        problemType : str
-            Problem type.
+        availableDirections : list[str]
+            Directions available in the form of a string list. Must be a unique string list.
         nodes : np.ndarray
             Nodes.
-        directions : list
+        directions : list[str]
             Directions.
 
         Returns
@@ -137,76 +135,29 @@ class BoundaryCondition:
         np.ndarray
             Degrees of freedom.
         """
-        from Simulations import ModelType
+        
+        # TODO enlever les cast() du codes
+        # TODO reshape(-1) -> ravel
 
-        if problemType in [ModelType.damage, ModelType.thermal]:
-            return nodes.reshape(-1)
-        elif problemType == ModelType.displacement:
-            ddls_dir = np.zeros((nodes.shape[0], len(directions)), dtype=int)
-            dim = param
-            for d, direction in enumerate(directions):
-                if direction == "x":
-                    index = 0
-                elif direction == "y":
-                    index = 1
-                elif direction == "z":
-                    assert dim == 3, "A 2D study does not allow forces to be applied along z"
-                    index = 2
-                else:
-                    "Unknown direction"
-                ddls_dir[:, d] = nodes * dim + index
-            return ddls_dir.reshape(-1)
+        nodes = np.asarray(nodes, dtype=int).ravel()
+        dim = len(availableDirections)
+        nDir = len(directions)
+        
+        from Display import myPrintError
 
-        elif problemType == ModelType.beam:
-            ddls_dir = np.zeros((nodes.shape[0], len(directions)), dtype=int)
+        dofs_d = np.zeros((nodes.size, nDir), dtype=int)
 
-            nbddl_e = param
+        for d, direction in enumerate(directions):
 
-            if nbddl_e == 1:
-                dimModel = "1D"
-            elif nbddl_e == 3:
-                dimModel = "2D"
-            elif nbddl_e == 6:
-                dimModel = "3D"
+            if direction not in availableDirections:
+                myPrintError(f"direction ({direction}) must be in {availableDirections}.")
+                continue
+            
+            idx = availableDirections.index(direction)
 
-            for d, direction in enumerate(directions):
-                if direction == "x":
-                    index = 0
-                elif direction == "y":
-                    if dimModel in ["2D", "3D"]:
-                        index = 1
-                    else:
-                        raise Exception("A 2D or 3D Beam Study is required to access the following dofs y")
-                elif direction == "z":
-                    assert dimModel == "3D", "A 3D Beam Study is required to access the following dofs z"
-                    index = 2
-                elif direction == "rx":
-                    if dimModel == "3D":
-                        # 3D beam model
-                        index = 3
-                    else:
-                        raise Exception("A 3D beam study is required to access the rx dofs.")
-                elif direction == "ry":
-                    if dimModel == "3D":
-                        # 3D beam model
-                        index = 4
-                    else:
-                        raise Exception("A 3D beam study is required to access the ry dofs.")
-                elif direction == "rz":
-                    if dimModel == "2D":
-                        # 2D beam model
-                        index = 2
-                    elif dimModel == "3D":
-                        # 3D beam model
-                        index = 5
-                    else:
-                        raise Exception("A 2D or 3D beam study is required to access the rz dofs.")
-                else:
-                    raise Exception("Unknown direction")
-                ddls_dir[:, d] = nodes * nbddl_e + index
-            return ddls_dir.reshape(-1)
-        else:
-            print("Unknown problem")
+            dofs_d[:,d] = nodes * dim + idx
+
+        return dofs_d.ravel()
 
 class LagrangeCondition(BoundaryCondition):
     def __init__(self, problemType: str, nodes: np.ndarray, dofs: np.ndarray, directions: np.ndarray, dofsValues: np.ndarray, lagrangeCoefs: np.ndarray, description=""):

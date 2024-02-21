@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     dim = 3
     pltIter = True; result = 'uy'
-    makeMovie = True
+    makeMovie = False
 
     R = 10
     height = R

@@ -163,8 +163,8 @@ class DIC_Analysis:
             phi = phi_n_pixels[:,pixels]
 
             # line construction
-            linesX = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
-            linesY = BoundaryCondition.Get_dofs_nodes(2, "displacement", nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
+            linesX = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
+            linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
             # construction of columns in which to place values
             colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).reshape(-1)            
 

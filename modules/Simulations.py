@@ -1019,15 +1019,11 @@ class _Simu(_IObserver, ABC):
 
         self.__Check_ProblemTypes(problemType)
         
-        assert len(nodes) > 0, "Empty node list"
-        nodes = np.asarray(nodes)
+        assert len(nodes) > 0, "Empty node list" 
 
-        if isinstance(directions, str):
-            directions = [directions]
-
-        dof_n = self.Get_dof_n(problemType)
-
-        return BoundaryCondition.Get_dofs_nodes(dof_n, problemType, nodes, directions)
+        availableDirections = self.Get_directions(problemType)
+        
+        return BoundaryCondition.Get_dofs_nodes(availableDirections, nodes, directions)
 
     def __Bc_evaluate(self, coordo: np.ndarray, values, option="nodes") -> np.ndarray:
         """Evaluates values at nodes or gauss points."""
@@ -1239,6 +1235,8 @@ class _Simu(_IObserver, ABC):
 
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
     
+    # TODO add_pressure
+
     def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
         """Apply a point load."""
 

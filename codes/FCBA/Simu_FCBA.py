@@ -13,6 +13,7 @@ from Gmsh_Interface import Mesher, ElemType
 from Geoms import Point, Domain, Circle
 import Materials
 import Simulations
+from BoundaryCondition import BoundaryCondition
 import PostProcessing
 import Functions
 
@@ -107,8 +108,7 @@ if __name__  == '__main__':
     inc1 = 2e-3/2
 
     if not solve:
-        simu = Simulations.Load_Simu(folder_save)
-        simu = cast(Simulations.Simu_PhaseField, simu)
+        simu: Simulations.Simu_PhaseField = Simulations.Load_Simu(folder_save)
 
     # --------------------------------------------------------------------------------------------
     # Mesh
@@ -123,8 +123,6 @@ if __name__  == '__main__':
     nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
     nodes0 = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
     nodes_edges = mesh.Nodes_Conditions(lambda x,y,z: (x==0) | (y==0) | (x==L) | (y==H))
-
-    dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(dim, 'displacement', nodes_upper, ['y'])
 
     if useContact:
         # width = 5
@@ -143,10 +141,6 @@ if __name__  == '__main__':
         elif dim == 3:
             master_mesh = Mesher().Mesh_Extrude(master, [], [0,0,thickness], [], ElemType.TETRA4)
             slaveNodes = mesh.Nodes_Cylinder(master, [0,0,thickness])
-
-        # slaveNodes = slaveNodes[mesh.coordo[slaveNodes,1]<=(master.center.y-D/5)]
-
-        dofsY_upper = Simulations.BoundaryCondition.Get_dofs_nodes(dim, 'displacement', slaveNodes, ['y'])
         
         # axMesh = Display.Plot_Mesh(mesh)
         # Display.Plot_Mesh(master_mesh, ax=axMesh)
@@ -191,6 +185,12 @@ if __name__  == '__main__':
     else:
         pfm = simu.phaseFieldModel
         material = pfm.material
+    
+    if useContact:
+        dofsY_upper = simu.Bc_dofs_nodes(slaveNodes, ['y'])
+    else:
+        dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ['y'])
+
 
     damageMax = []
     list_fr = []

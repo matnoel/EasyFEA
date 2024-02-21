@@ -274,10 +274,12 @@ if __name__  == '__main__':
     Display.Plot_Result(simu, psiP_e, title="$\psi^+$", nodeValues=False)
     ax = Display.Plot_Result(simu, psiP_e/psiC, nodeValues=True, title="$\psi^+ \ / \ \psi_c$", colorbarIsClose=False)[1]
 
-    elemtsDamage = np.where(psiP_e >= psiC)[0]
-    if elemtsDamage.size > 0:
-        nodes = np.unique(mesh.connect[elemtsDamage])
-        # Display.Plot_Elements(mesh, nodes, alpha=0.2, edgecolor='black', ax=ax)
+    # # plot damage nodes
+    # elemtsDamage = np.where(psiP_e >= psiC)[0]
+    # if elemtsDamage.size > 0:
+    #     nodes = list(set(np.reshape(mesh.connect[elemtsDamage],-1)))
+    #     # Display.Plot_Elements(mesh, nodes, alpha=0.2, edgecolor='black', ax=ax)
+        
     Display.Save_fig(folder, "psiPpsiC")
 
     Display.Plot_Result(simu, "Sxx", plotMesh=False)

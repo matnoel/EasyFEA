@@ -2177,9 +2177,10 @@ class PhaseField_Model(_IModel):
                 E3 = I1_e_pg/3 + 2/3 * racine_h * np.cos(phi)
 
                 val_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
-                val_e_pg[elemsNot0, :, 0] = E1[elemsNot0]
-                val_e_pg[elemsNot0, :, 1] = E2[elemsNot0]
-                val_e_pg[elemsNot0, :, 2] = E3[elemsNot0]
+                if elemsNot0.size > 0:
+                    val_e_pg[elemsNot0, :, 0] = E1[elemsNot0]
+                    val_e_pg[elemsNot0, :, 1] = E2[elemsNot0]
+                    val_e_pg[elemsNot0, :, 2] = E3[elemsNot0]
 
                 tic.Tac("Split", "Eigenvalues", False)
 
