@@ -388,6 +388,9 @@ class Mesher:
 
         extruEntities = []
 
+        if isinstance(layers, int):
+            layers = [layers]
+
         if "TETRA" in elemType:
             recombine = False
         else:

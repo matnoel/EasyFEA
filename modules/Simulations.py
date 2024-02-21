@@ -57,13 +57,13 @@ def Load_Simu(folder: str, verbosity=False):
 class _Simu(_IObserver, ABC):
     """
     The following classes inherit from the parent class _Simu:
-        - Simu_Displacement
-        - Simu_Damage
-        - Simu_Beam
-        - Simu_Thermal
+        - Displacement
+        - Damage
+        - Beam
+        - Thermal
 
     To create new simulations, take inspiration from existing classes. You'll need to respect the interface with _Simu.
-    The Simu_Thermal class is simple enough to understand the implementation.
+    The Thermal class is simple enough to understand the implementation.
 
     To use the interface/inheritance, 14 methods need to be defined.
 
@@ -1589,7 +1589,8 @@ class Displacement(_Simu):
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
-        assert model.modelType == ModelType.displacement, "The material must be displacement model"
+
+        assert isinstance(model, Materials._Displacement_Model), "model must be a displacement model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
@@ -2106,7 +2107,7 @@ class PhaseField(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert model.modelType == ModelType.damage, "The material must be damage model"
+        assert isinstance(model, Materials.PhaseField_Model), "model must be a phase field model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
         
         # Init internal variable
@@ -2965,7 +2966,12 @@ class Beam(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
         
-        assert model.modelType == ModelType.beam, "The material must be beam model"
+
+        if isinstance(model, Materials._Beam_Model):
+            # change the beam model as a beam structure
+            model = Materials.Beam_Structure([model])
+
+        assert isinstance(model, Materials.Beam_Structure), "model must be a beam model or a beam structure"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
@@ -3826,7 +3832,7 @@ class Thermal(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert model.modelType == ModelType.thermal, "The material must be thermal model"
+        assert isinstance(model, Materials.Thermal_Model), "model must be a thermal model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
