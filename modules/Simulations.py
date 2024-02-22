@@ -2130,7 +2130,7 @@ class PhaseField(_Simu):
 
     def Get_directions(self, problemType=None) -> list[str]:        
         if problemType == ModelType.damage:
-            return [""]
+            return ["d"]
         elif problemType in [ModelType.displacement, None]:
             _dict_dim_directions_displacement = {
                 2 : ["x", "y"],
@@ -3839,7 +3839,7 @@ class Thermal(_Simu):
         self.Solver_Set_Elliptic_Algorithm()
     
     def Get_directions(self, problemType=None) -> list[str]:
-        return [""]
+        return ["t"]
     
     def Get_dof_n(self, problemType=None) -> int:
         return 1

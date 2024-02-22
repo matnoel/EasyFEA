@@ -59,10 +59,10 @@ if __name__ == '__main__':
         
         simu.Bc_Init()    
 
-        # simu.add_dirichlet(noeudsY0, [40], [""])
-        # simu.add_dirichlet(noeudsYH, [40], [""])
-        simu.add_surfLoad(noeudsY0, [5], [""])
-        simu.add_surfLoad(noeudsYH, [5], [""])
+        # simu.add_dirichlet(noeudsY0, [40], ["t"])
+        # simu.add_dirichlet(noeudsYH, [40], ["t"])
+        simu.add_surfLoad(noeudsY0, [5], ["t"])
+        simu.add_surfLoad(noeudsYH, [5], ["t"])
         
         thermal = simu.Solve()
         simu.Save_Iter()

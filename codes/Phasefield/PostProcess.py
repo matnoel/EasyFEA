@@ -19,7 +19,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    # "PlateWithHole_Benchmark", "PlateWithHole_CompressionFCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
+    # "PlateWithHole_Benchmark", "PlateWithHole_FCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
     simulation = "Shear_Benchmark"
 
     test = False
@@ -41,21 +41,22 @@ if __name__ == '__main__':
     list_mat = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 
     # list_regu = ["AT1", "AT2"] # ["AT1", "AT2"]
-    list_regu = ["AT1"] # ["AT1", "AT2"]
+    list_regu = ["AT2"] # ["AT1", "AT2"]
 
     list_simpli2D = ["DP"] # ["CP","DP"]
     list_solver = ["History"]
 
     # list_split = ["Bourdin","Amor","Miehe","He","Zhang"]
     # list_split = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
-    list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
+    # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
     # list_split = ["He","AnisotStrain","AnisotStress", "Zhang"]
-    # list_split = ["AnisotStrain"]
+    list_split = ["Miehe"]
 
-    # listOptimMesh=[True, False] # [True, False]
-    listOptimMesh=[True] # [True, False]
+    listOptimMesh=[True, False] # [True, False]
+    # listOptimMesh=[True] # [True, False]
 
     # listTol = [1e-0, 1e-1, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+    # listTol = [1e-0, 1e-2]
     listTol = [1e-0]
 
     # listnL = [100] # [100] [100, 120, 140, 180, 200]

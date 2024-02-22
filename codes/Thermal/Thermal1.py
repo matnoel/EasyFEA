@@ -61,13 +61,13 @@ if __name__ == '__main__':
         simu.Bc_Init()
 
         # Apply Dirichlet boundary conditions to specific nodes
-        simu.add_dirichlet(noeudsX0, [0], [""])
-        simu.add_dirichlet(noeudsXa, [40], [""])
+        simu.add_dirichlet(noeudsX0, [0], ["t"])
+        simu.add_dirichlet(noeudsXa, [40], ["t"])
 
         # Uncomment and modify the following lines to apply additional boundary conditions
-        # simu.add_dirichlet(nodesCircle, [10], [""])
-        # simu.add_dirichlet(nodesCircle, [10], [""])
-        # simu.add_surfLoad(nodesCircle, [1], [""])
+        # simu.add_dirichlet(nodesCircle, [10], ["t"])
+        # simu.add_dirichlet(nodesCircle, [10], ["t"])
+        # simu.add_surfLoad(nodesCircle, [1], ["t"])
 
         # Solve the thermal simulation for the current iteration
         thermal = simu.Solve()
