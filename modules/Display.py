@@ -461,12 +461,14 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
 
     if ax == None:
         ax = init_Axes(inDim)
+        ax.set_title("")
     else:        
         inDim = 3 if ax.name == '3d' else inDim
-    ax.set_title("")
     
     if len(nodes) == 0:
-        nodes = mesh.nodes    
+        nodes = mesh.nodes
+    else:
+        nodes = np.asarray(list(set(np.ravel(nodes))))
     
     coordo = mesh.coordoGlob
 
