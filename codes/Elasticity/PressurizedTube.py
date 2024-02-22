@@ -23,7 +23,7 @@ if __name__ == '__main__':
     e = 5
 
     sig = 5 # bar
-    sig *= 1e-1 # 1 bar = 0.1 MPa 
+    sig *= 1e-1 # 1 bar = 0.1 MPa
 
     meshSize = e/5
     thickness = 100
@@ -74,30 +74,12 @@ if __name__ == '__main__':
         nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y == 0)
         simu.add_dirichlet(nodes_x0, [0], ['x'])
         simu.add_dirichlet(nodes_y0, [0], ['y'])
-
-    def Eval(x: np.ndarray, y: np.ndarray, z: np.ndarray):
-        """Evaluation of the sig vect_n function\n
-        x,y,z (ep)"""
-
-        # Gauss point coordinates in form (Ne, nPg, 3)
-        coord = np.zeros((x.shape[0], x.shape[1], 3))
-        coord[:,:,0] = x
-        coord[:,:,1] = y
-        coord[:,:,2] = 0
-
-        # Construction of the normal vector to the inner surface
-        vect = coord - center.coordo
-        vectN = np.einsum('npi,np->npi', vect, 1/np.linalg.norm(vect, axis=2))
     
-        loads = sig * vectN
-
-        return loads
-
-    EvalX = lambda x,y,z: Eval(x,y,z)[:,:,0]
-    EvalY = lambda x,y,z: Eval(x,y,z)[:,:,1]
     nodes_load = mesh.Nodes_Cylinder(Circle(center, r*2), extrude)
 
-    # simu.add_surfLoad(nodes_load, [EvalX, EvalY], ['x','y'])
+    if dim == 2 and not isSymmetric:
+        sig *= -1
+
     simu.add_pressureLoad(nodes_load, sig)
 
     simu.Solve()
