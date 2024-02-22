@@ -262,8 +262,8 @@ class Test_Simu(unittest.TestCase):
             noeuds0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x,y,z: x == a)
 
-            simu.add_dirichlet(noeuds0, [0], [""])
-            simu.add_dirichlet(noeudsL, [40], [""])
+            simu.add_dirichlet(noeuds0, [0], ["t"])
+            simu.add_dirichlet(noeudsL, [40], ["t"])
             simu.Solve()
             simu.Save_Iter()
 
