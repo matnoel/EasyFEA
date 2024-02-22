@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     dim = 3
     pltIter = True; result = 'uy'
-    makeMovie = False
+    makeMovie = True
 
     N = 20
 
@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
         def DoAnim(plotter, n):
             simu.Set_Iter(n)
-            pvi.Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10,
+            pvi.Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter,
                  show_grid=True, verticalColobar=False)
             pvi.Plot(master_mesh, plotter=plotter, show_edges=True, opacity=.8)
 

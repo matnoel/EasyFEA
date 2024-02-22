@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 import Display
-import PostProcessing
 import Folder
 from Gmsh_Interface import Mesher, ElemType
 from Geoms import Circle, Domain, Point
 import Materials
 import Simulations
 import numpy as np
+import PyVista_Interface as pvi
 
 if __name__ == '__main__':
 
@@ -120,12 +120,9 @@ if __name__ == '__main__':
     if dim == 3:
         print(f"Volume: {mesh.volume:.3}")
 
-    # Save simulation results in Paraview format
-    # PostProcessing.Make_Paraview(folder, simu)
-
     # Create a movie of the simulation if pltMovie is True
     if makeMovie:
-        PostProcessing.Make_Movie(folder, resultIter, simu, NMovie, plotMesh=True)
+        pvi.Movie_simu(simu, "thermal", folder, f"thermal{dim}D.mp4", show_edges=True)
 
     # Print the minimum temperature achieved in the simulation
     print(thermal.min())
