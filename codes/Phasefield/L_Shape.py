@@ -37,16 +37,18 @@ if __name__ == '__main__':
 
     # phase field
     split = "He"
+    # split = "AnisotStress"
     regu = "AT1"
     Gc = 130 # J/m2
     Gc *= 1000/1e6 #mJ/mm2
-    tolConv = 1e-2
+    tolConv = 1e-0
     convOption = 2
 
     # loading
     adaptLoad = False
-    uMax = 1.2 # mm
-    inc0 = 1.2/200
+    # uMax = 1.2 # mm
+    uMax = 2 # mm
+    inc0 = uMax/200
     inc1 = inc0/2
 
     # folder
@@ -92,8 +94,10 @@ if __name__ == '__main__':
     else:
         mesh = Mesher().Mesh_Extrude(contour, [], [0,0,-ep], [3], ElemType.HEXA8, refineGeoms=[refineDomain])
 
-    Display.Plot_Mesh(mesh)
+    # Display.Plot_Mesh(mesh)
     # Display.Plot_Model(mesh)
+    # import PyVista_Interface as pvi
+    # pvi.Plot_Mesh(mesh).show()
 
     nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     nodes_load = mesh.Nodes_Conditions(lambda x,y,z: (y==L) & (x>=2*L-30))

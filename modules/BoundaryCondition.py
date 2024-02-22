@@ -92,7 +92,7 @@ class BoundaryCondition:
             Degrees of freedom.
         """
         list_Bc_Condition: list[BoundaryCondition] = list_Bc_Condition
-        dofs = []
+        dofs: list[int] = []
         [dofs.extend(bc.dofs) for bc in list_Bc_Condition if bc.problemType == problemType]
         return dofs
 
@@ -113,7 +113,7 @@ class BoundaryCondition:
             Values of degrees of freedom.
         """
         list_Bc_Condition: list[BoundaryCondition] = list_Bc_Condition
-        values = []
+        values: list[float] = []
         [values.extend(bc.dofsValues) for bc in list_Bc_Condition if bc.problemType == problemType]
         return values
 
