@@ -1,4 +1,5 @@
 import Display
+import PyVista_Interface as pvi
 import PostProcessing
 import Folder
 import Materials
@@ -19,13 +20,13 @@ nProcs = 4 # number of processes in parallel
 # --------------------------------------------------------------------------------------------
 # Configurations
 # --------------------------------------------------------------------------------------------
-dim = 2
+dim = 3
 test = True
 solve = True
 
 # Mesh
 openCrack = True
-optimMesh = False
+optimMesh = True
 
 # phasefield
 maxIter = 1000
@@ -35,10 +36,10 @@ pfmSolver = Materials.PhaseField_Model.SolverType.History
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Miehe"]
+splits = ["Amor","Miehe"]
 
-regus = ["AT1", "AT2"]
-# regus = ["AT2"] # "AT1", "AT2" 
+# regus = ["AT1", "AT2"]
+regus = ["AT1"] # "AT1", "AT2" 
 
 # PostProcessing
 plotResult = True
@@ -90,12 +91,12 @@ def DoMesh(split: str) -> Mesh:
         l2 = Line(ptC2, ptC3, meshSize, False)
         l3 = Line(ptC3, ptC4, meshSize, openCrack)
         l4 = Line(ptC4, ptC1, meshSize, openCrack)            
-        cracks = [Contour([l1, l2, l3, l4])]
+        cracks = [Contour([l1, l2, l3, l4], isOpen=openCrack)]
     
     if dim == 2:
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,thickness], [3], ElemType.TETRA4, cracks, [refineDomain])
+        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,thickness], [], ElemType.TETRA4, cracks, [refineDomain])
 
     return mesh
 
