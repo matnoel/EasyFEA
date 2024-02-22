@@ -1099,6 +1099,8 @@ class _Simu(_IObserver, ABC):
 
         self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
 
+    # TODO add a displacement normal to the faces
+
     def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Point force
 
