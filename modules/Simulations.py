@@ -2119,6 +2119,8 @@ class PhaseField(_Simu):
 
         self.phaseFieldModel.material._add_observer(self)
 
+        self.__resumeLoading = ""
+
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
         if details:
             nodesField = ["displacement_matrix", "damage"]
@@ -2841,12 +2843,12 @@ class PhaseField(_Simu):
 
             resumeChargement += f'\n\tinc = {inc} -> {option} < {treshold:.4e}'
         
-        self.__resumeChargement = resumeChargement
+        self.__resumeLoading = resumeChargement
 
-        return self.__resumeChargement
+        return self.__resumeLoading
 
     def Results_Get_Bc_Summary(self) -> str:
-        return self.__resumeChargement
+        return self.__resumeLoading
 
     def Results_Set_Iteration_Summary(self, iter: int, load: float, uniteLoad: str, percentage=0.0, remove=False) -> str:
         """Builds the iteration summary for the damage problem
