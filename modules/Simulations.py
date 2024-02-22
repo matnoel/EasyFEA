@@ -1099,10 +1099,6 @@ class _Simu(_IObserver, ABC):
 
         self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
 
-    # TODO add a displacement normal to the faces
-    # il suffit de creer une fonction du maillage qui renvoie la normal aux noeuds.
-    # cette fonction est déja ecrite dans __Bc_pressureload    
-
     def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Point force
 
