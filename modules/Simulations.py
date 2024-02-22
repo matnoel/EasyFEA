@@ -1237,7 +1237,39 @@ class _Simu(_IObserver, ABC):
 
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
     
-    # TODO add_pressure
+    def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=None, description="") -> None:
+        """Apply a pressure.
+
+        Parameters
+        ----------
+        nodes : np.ndarray
+            nodes
+        magnitude : float
+            pressure magnitude
+        problemType : str, optional
+            problem type, if not specified, we take the basic problem of the problem
+        description : str, optional
+            Description of the condition, by default "".
+        """
+
+        if problemType is None:
+            problemType = self.problemType
+
+        self.__Check_ProblemTypes(problemType)
+
+        if self.dim == 1:
+            myPrintError("Cant apply pressure on 1D mesh.")
+            return
+
+        if len(self.Get_directions(problemType)) == 0:
+            myPrintError("Cant apply pressure on scalar problems.")
+            return
+
+        dofsValues, dofs, nodes = self.__Bc_pressureload(problemType, nodes, magnitude)
+
+        directions = self.Get_directions(problemType)[:self.mesh.inDim]
+
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
         """Apply a point load."""
@@ -1266,15 +1298,15 @@ class _Simu(_IObserver, ABC):
 
         dofsValues = np.array([])
         dofs = np.array([], dtype=int)
-        Nodes = np.array([], dtype=int) # Nodes the nodes used by the elements
+        Nodes = np.array([], dtype=int) # Nodes used by the elements
         # nodes != Nodes dont remove
-
-        listGroupElemDim = self.mesh.Get_list_groupElem(dim)
 
         dof_n = self.Get_dof_n(problemType)
 
+        Nn = self.mesh.Nn
+
         # For each group element
-        for groupElem in listGroupElemDim:
+        for groupElem in self.mesh.Get_list_groupElem(dim):
 
             # Retrieves elements that exclusively use nodes
             elements = groupElem.Get_Elements_Nodes(nodes, exclusively=True)
@@ -1302,10 +1334,21 @@ class _Simu(_IObserver, ABC):
 
             # Integrated in every direction
             for d, dir in enumerate(directions):
-                # evaluates values
-                eval_e_p = self.__Bc_evaluate(coordo_e_p, values[d], option="gauss")
-                # integrates the elements
-                values_e_p = np.einsum('ep,p,ep,pij->epij', jacobian_e_pg, weight_pg, eval_e_p, N_pg, optimize='optimal')
+
+                if isinstance(values[d], (int, float)) or callable(values[d]):
+                    # evaluates values on gauss points
+                    eval_e_p = self.__Bc_evaluate(coordo_e_p, values[d], option="gauss")
+                    # integrates the elements
+                    values_e_p = np.einsum('ep,p,ep,pij->epij', jacobian_e_pg, weight_pg, eval_e_p, N_pg, optimize='optimal')
+
+                else:
+                    eval_n = np.zeros(Nn, dtype=float)
+                    eval_n[nodes] = values[d]
+                    eval_e = eval_n[groupElem.connect[elements]]
+
+                    # integrates the elements
+                    values_e_p = np.einsum('ep,p,ej,pij->epij', jacobian_e_pg, weight_pg, eval_e, N_pg, optimize='optimal')
+
                 # sum over integration points
                 values_e = np.sum(values_e_p, axis=1)
                 # sets calculated values and dofs
@@ -1347,6 +1390,65 @@ class _Simu(_IObserver, ABC):
         self._Check_Directions(problemType, directions)
 
         dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=3, problemType=problemType, nodes=nodes, values=values, directions=directions)
+
+        return dofsValues, dofs, nodes
+    
+    def __Bc_pressureload(self, problemType: ModelType, nodes: np.ndarray, value: float) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+        """Apply a pressure force.\n
+        return dofsValues, dofs, nodes"""
+        
+        # here we need to get the normal vector
+
+        mesh = self.mesh
+        dim = mesh.dim
+        inDim = mesh.inDim
+
+        idx_n = 2 if dim == 3 else 1
+
+        if dim == 2:
+            # will use 1D elements
+            value *= self.model.thickness
+        else:
+            value *= -1
+
+        vectors: list[np.ndarray] = []
+        Nodes: list[int] = []
+
+        # for each elements on the boundary
+        for groupElem in mesh.Get_list_groupElem(dim-1):
+
+            elements = groupElem.Get_Elements_Nodes(nodes, True)
+
+            if elements.size == 0: continue
+
+            usedNodes = np.asarray(list(set(np.ravel(groupElem.connect[elements]))), dtype=int)
+
+            if usedNodes.size == 0: continue
+
+            # get the normal vectors on used elements
+            n_e = groupElem.sysCoord_e[elements, :, idx_n]
+            # multiply by the magnitude
+            n_e *= value
+
+            # here we want to get the normal vector on the nodes
+            # need to get the nodes connectivity
+            connect_n_e = groupElem.Get_connect_n_e()[usedNodes, :].tocsc()[:, elements].tocsr()
+            # get the number of elements per nodes
+            sum = np.ravel(connect_n_e.sum(1))            
+            # get the normal vector on normal
+            normal_n = np.einsum('ni,n->ni',connect_n_e @ n_e, 1/sum, optimize='optimal')
+
+            # append the values on each direction and add nodes
+            vectors.append(normal_n)
+            Nodes.extend(usedNodes)
+
+        vectors: np.ndarray = np.concatenate(vectors, 0, dtype=float)[:, :inDim]
+
+        values = [val for val in vectors.T]
+
+        directions = self.Get_directions(problemType)[:inDim]
+
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim-1, problemType=problemType, nodes=Nodes, values=values, directions=directions)
 
         return dofsValues, dofs, nodes
     
@@ -2194,6 +2296,9 @@ class PhaseField(_Simu):
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=ModelType.displacement, description=""):
         return super().add_surfLoad(nodes, values, directions, problemType, description)
+    
+    def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=ModelType.displacement, description="") -> None:
+        return super().add_pressureLoad(nodes, magnitude, problemType, description)
         
     def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=ModelType.displacement, description=""):
         return super().add_neumann(nodes, values, directions, problemType, description)
@@ -2968,7 +3073,6 @@ class Beam(_Simu):
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
-        
 
         if isinstance(model, Materials._Beam_Model):
             # change the beam model as a beam structure
@@ -3025,7 +3129,7 @@ class Beam(_Simu):
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
         myPrintError("It is impossible to apply a surface load in a beam problem.")
-        return
+        return        
 
     def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
         myPrintError("It is impossible to apply a volumetric load to a beam problem.")

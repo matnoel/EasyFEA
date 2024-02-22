@@ -1,6 +1,7 @@
 """A tube subjected to uniform pressure."""
 
 import Display
+import PyVista_Interface as pvi
 import Materials
 import Simulations
 from Gmsh_Interface import Mesher, ElemType
@@ -95,7 +96,9 @@ if __name__ == '__main__':
     EvalX = lambda x,y,z: Eval(x,y,z)[:,:,0]
     EvalY = lambda x,y,z: Eval(x,y,z)[:,:,1]
     nodes_load = mesh.Nodes_Cylinder(Circle(center, r*2), extrude)
-    simu.add_surfLoad(nodes_load, [EvalX, EvalY], ['x','y'])
+
+    # simu.add_surfLoad(nodes_load, [EvalX, EvalY], ['x','y'])
+    simu.add_pressureLoad(nodes_load, sig)
 
     simu.Solve()
     simu.Save_Iter()
@@ -105,12 +108,13 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     factorDef = r/5 / simu.Result('displacement_norm').max()
     # factorDef = 1
-    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, deformFactor=factorDef)
     Display.Plot_Result(simu, 'ux', nColors=10, nodeValues=True)
     Display.Plot_Result(simu, 'uy', nColors=10, nodeValues=True)
     Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True)
 
     print(simu)
+
+    pvi.Plot_BoundaryConditions(simu).show()
 
     Display.plt.show()
