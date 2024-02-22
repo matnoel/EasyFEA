@@ -1100,6 +1100,8 @@ class _Simu(_IObserver, ABC):
         self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
 
     # TODO add a displacement normal to the faces
+    # il suffit de creer une fonction du maillage qui renvoie la normal aux noeuds.
+    # cette fonction est déja ecrite dans __Bc_pressureload    
 
     def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Point force
@@ -1202,6 +1204,40 @@ class _Simu(_IObserver, ABC):
 
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
+    def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=None, description="") -> None:
+        """Apply a pressure.
+
+        Parameters
+        ----------
+        nodes : np.ndarray
+            nodes. (must belong to the edge of the mesh.)
+        magnitude : float
+            pressure magnitude
+        problemType : str, optional
+            problem type, if not specified, we take the basic problem of the problem
+        description : str, optional
+            Description of the condition, by default "".
+        """
+
+        if problemType is None:
+            problemType = self.problemType
+
+        self.__Check_ProblemTypes(problemType)
+
+        if self.dim == 1:
+            myPrintError("Cant apply pressure on 1D mesh.")
+            return
+
+        if len(self.Get_directions(problemType)) == 0:
+            myPrintError("Cant apply pressure on scalar problems.")
+            return
+
+        dofsValues, dofs, nodes = self.__Bc_pressureload(problemType, nodes, magnitude)
+
+        directions = self.Get_directions(problemType)[:self.mesh.inDim]
+
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+
     def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
         """Apply a volumetric force.
         
@@ -1236,40 +1272,6 @@ class _Simu(_IObserver, ABC):
             dofsValues = dofsValues*self.model.thickness
         elif self.__dim == 3:
             dofsValues, dofs, nodes = self.__Bc_volumeload(problemType, nodes, values, directions)
-
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
-    
-    def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=None, description="") -> None:
-        """Apply a pressure.
-
-        Parameters
-        ----------
-        nodes : np.ndarray
-            nodes
-        magnitude : float
-            pressure magnitude
-        problemType : str, optional
-            problem type, if not specified, we take the basic problem of the problem
-        description : str, optional
-            Description of the condition, by default "".
-        """
-
-        if problemType is None:
-            problemType = self.problemType
-
-        self.__Check_ProblemTypes(problemType)
-
-        if self.dim == 1:
-            myPrintError("Cant apply pressure on 1D mesh.")
-            return
-
-        if len(self.Get_directions(problemType)) == 0:
-            myPrintError("Cant apply pressure on scalar problems.")
-            return
-
-        dofsValues, dofs, nodes = self.__Bc_pressureload(problemType, nodes, magnitude)
-
-        directions = self.Get_directions(problemType)[:self.mesh.inDim]
 
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
@@ -1395,7 +1397,7 @@ class _Simu(_IObserver, ABC):
 
         return dofsValues, dofs, nodes
     
-    def __Bc_pressureload(self, problemType: ModelType, nodes: np.ndarray, value: float) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+    def __Bc_pressureload(self, problemType: ModelType, nodes: np.ndarray, magnitude: float) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
         """Apply a pressure force.\n
         return dofsValues, dofs, nodes"""
         
@@ -1405,52 +1407,19 @@ class _Simu(_IObserver, ABC):
         dim = mesh.dim
         inDim = mesh.inDim
 
-        idx_n = 2 if dim == 3 else 1
-
         if dim == 2:
             # will use 1D elements
-            value *= self.model.thickness
+            magnitude *= self.model.thickness
         else:
-            value *= -1
+            magnitude *= -1
 
-        vectors: list[np.ndarray] = []
-        Nodes: list[int] = []
+        normals, nodes = mesh.Get_normals(nodes)
 
-        # for each elements on the boundary
-        for groupElem in mesh.Get_list_groupElem(dim-1):
-
-            elements = groupElem.Get_Elements_Nodes(nodes, True)
-
-            if elements.size == 0: continue
-
-            usedNodes = np.asarray(list(set(np.ravel(groupElem.connect[elements]))), dtype=int)
-
-            if usedNodes.size == 0: continue
-
-            # get the normal vectors on used elements
-            n_e = groupElem.sysCoord_e[elements, :, idx_n]
-            # multiply by the magnitude
-            n_e *= value
-
-            # here we want to get the normal vector on the nodes
-            # need to get the nodes connectivity
-            connect_n_e = groupElem.Get_connect_n_e()[usedNodes, :].tocsc()[:, elements].tocsr()
-            # get the number of elements per nodes
-            sum = np.ravel(connect_n_e.sum(1))            
-            # get the normal vector on normal
-            normal_n = np.einsum('ni,n->ni',connect_n_e @ n_e, 1/sum, optimize='optimal')
-
-            # append the values on each direction and add nodes
-            vectors.append(normal_n)
-            Nodes.extend(usedNodes)
-
-        vectors: np.ndarray = np.concatenate(vectors, 0, dtype=float)[:, :inDim]
-
-        values = [val for val in vectors.T]
+        values = [val*magnitude for val in normals[:,:inDim].T]
 
         directions = self.Get_directions(problemType)[:inDim]
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim-1, problemType=problemType, nodes=Nodes, values=values, directions=directions)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim-1, problemType=problemType, nodes=nodes, values=values, directions=directions)
 
         return dofsValues, dofs, nodes
     

@@ -322,6 +322,54 @@ class Mesh(Observable):
             return np.mean(h_e_s, axis=1)
         else:
             return h_e_s
+        
+    def Get_normals(self, nodes: np.ndarray=None) -> np.ndarray:
+        """Get normal vectors and the nodes belonging to the edge of the mesh.\n
+        return normals, nodes."""
+
+        if nodes is None:
+            nodes = self.nodes
+
+        assert nodes.max() <= self.Nn
+
+        dim = self.dim
+        idx = 2 if dim == 3 else 1 # normal vectors position in sysCoord_e
+
+        list_normals = []
+        list_nodes: list[int] = [] # used nodes in nodes
+
+        # for each elements on the boundary
+        for groupElem in self.Get_list_groupElem(dim-1):
+
+            elements = groupElem.Get_Elements_Nodes(nodes, True)
+
+            if elements.size == 0: continue
+
+            elementsNodes = np.ravel(groupElem.connect[elements])
+
+            usedNodes = np.asarray(list(set(elementsNodes)), dtype=int)
+
+            if usedNodes.size == 0: continue
+
+            # get the normal vectors for elements
+            n_e = groupElem.sysCoord_e[elements, :, idx]
+
+            # here we want to get the normal vector on the nodes
+            # need to get the nodes connectivity
+            connect_n_e = groupElem.Get_connect_n_e()[usedNodes, :].tocsc()[:, elements].tocsr()
+            # get the number of elements per nodes
+            sum = np.ravel(connect_n_e.sum(1))            
+            # get the normal vector on normal
+            normal_n = np.einsum('ni,n->ni',connect_n_e @ n_e, 1/sum, optimize='optimal')
+
+            # append the values on each direction and add nodes
+            list_normals.append(normal_n)
+            list_nodes.extend(usedNodes)
+
+        nodes = np.asarray(list_nodes, dtype=int)
+        normals = np.concatenate(list_normals, 0, dtype=float)
+
+        return normals, nodes
 
     # Construction of elementary matrices
 

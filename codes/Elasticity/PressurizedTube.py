@@ -55,13 +55,20 @@ if __name__ == '__main__':
     p = r+e/2
     alpha = np.pi/3
     pc1 = Point((p-l/2)*np.cos(alpha), (p-l/2)*np.sin(alpha))
-    pc2 = Point((p+l/2)*np.cos(alpha), (p+l/2)*np.sin(alpha))
-    crack = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
+    pc2 = Point((p+l/2)*np.cos(alpha), (p+l/2)*np.sin(alpha))    
 
     if dim == 2:
+        crack = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
         mesh = Mesher().Mesh_2D(contour, inclusions, elemType=ElemType.TRI6, cracks=[crack])
     else:
-        mesh = Mesher().Mesh_Extrude(contour, inclusions, extrude, [10], ElemType.PRISM6, cracks=[crack])
+        pc3 = pc2.copy(); pc3.translate(*extrude)
+        pc4 = pc1.copy(); pc4.translate(*extrude)
+        l1 = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
+        l2 = Line(pc2, pc3, meshSize/6)
+        l3 = Line(pc3, pc4, meshSize/6, isOpen=openCrack)
+        l4 = Line(pc4, pc1, meshSize/6)
+        crack = Contour([l1, l2, l3, l4], isOpen=openCrack)
+        mesh = Mesher().Mesh_Extrude(contour, inclusions, extrude, [], ElemType.TETRA4, cracks=[crack])
 
     # --------------------------------------------------------------------------------------------
     # Simulation
