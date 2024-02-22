@@ -729,8 +729,7 @@ class _Simu(_IObserver, ABC):
         sparse.csr_matrix
             The b vector as a csr_matrix.
         """
-        tic = Tic()
-
+        
         algo = self.algo
         dofs = BoundaryCondition.Get_dofs(problemType, self.__Bc_Neumann)
         dofsValues = BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
@@ -742,6 +741,8 @@ class _Simu(_IObserver, ABC):
         b = sparse.csr_matrix((dofsValues, (dofs, np.zeros(len(dofs)))), shape=(nDof, 1))
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
+
+        tic = Tic()
 
         u_n = self.get_u_n(problemType)
         v_n = self.get_v_n(problemType)
