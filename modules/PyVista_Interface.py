@@ -213,7 +213,7 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
 
     return plotter
 
-def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, deformFactor=0, opacity=1.0, color='red', edge_color='black', plotter: pv.Plotter=None, **kwargs):
+def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, deformFactor=0, opacity=1.0, color='red', edge_color='black', line_width=None, plotter: pv.Plotter=None, **kwargs):
     """Display mesh elements from given nodes.
 
     Parameters
@@ -234,6 +234,8 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
         color used to display faces, by default 'red
     edge_color : str, optional
         color used to display segments, by default 'black'    
+    line_width : float, optional
+        Thickness of lines, by default None
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance
     **kwargs:
@@ -258,7 +260,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
             return
 
     if plotter == None:
-        plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color=edge_color)
+        plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color=edge_color, line_width=line_width)
 
     from GroupElems import _GroupElem_Factory
     
@@ -277,7 +279,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
 
         pvGroup = _pvMesh(newGroupElem)
 
-        Plot(pvGroup, opacity=opacity, color=color, edge_color=edge_color, plotter=plotter, **kwargs)
+        Plot(pvGroup, opacity=opacity, color=color, edge_color=edge_color, plotter=plotter, **kwargs, line_width=line_width)
 
         if showId:
             centers = np.mean(coordo[groupElem.connect[elements]], axis=1)
@@ -399,7 +401,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None, **
             center = np.mean(coordo, 0)
             dist = np.linalg.norm(coordo-center, axis=1).max()
             # use thise distance to apply a magnitude to the vectors
-            factor = 1 if dist == 0 else dist*.05
+            factor = 1 if dist == 0 else dist*.1
 
             if dofs.size/nDir > simu.mesh.Nn:
                 # values are applied on every nodes of the mesh
