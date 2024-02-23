@@ -517,7 +517,7 @@ def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, vid
 
     plotter.close()
 
-    tic.Tac("Pyvista_Interface","Movie")
+    tic.Tac("PyVista_Interface","Movie")
 
 # --------------------------------------------------------------------------------------------
 # Functions
