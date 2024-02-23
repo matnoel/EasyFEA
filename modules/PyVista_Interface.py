@@ -574,6 +574,8 @@ def _pvMesh(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
         order = [0,1,2,3,4,5,6,7,8,11,13,9,16,18,19,17,10,12,14,15] # dont change here
     elif elemType == "PRISM15":
         order = [0,1,2,3,4,5,6,9,7,12,14,13,8,10,11]  # dont change here
+    elif elemType == "TETRA10":
+        order = [0,1,2,3,4,5,6,7,9,8]  # nodes 8 and 9 are switch
     else:
         order = np.arange(mesh.nPe)
     
