@@ -374,9 +374,10 @@ class _GroupElem(ABC):
 
             invF_e_pg = self.Get_invF_e_pg(matrixType)
 
-            ddN_pg = self.Get_ddN_pg(matrixType)
+            invF_e_pg = invF_e_pg @ invF_e_pg
 
-            # Derivé des fonctions de formes dans la base réele
+            ddN_pg = self.Get_ddN_pg(matrixType)
+            
             ddN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, ddN_pg, optimize='optimal'))
             self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
 
