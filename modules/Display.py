@@ -843,7 +843,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
     else:
         _Axis_equal_3D(ax, coordo)
 
-    tic.Tac("Display","Plot_Model")
+    tic.Tac("Display","Plot_Tags")
     
     if folder != "":
         Save_fig(folder, "geom")
