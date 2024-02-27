@@ -16,6 +16,7 @@ from TicTac import Tic
 from Materials import _Beam_Model
 
 class Mesher:
+    """The mesher used to build the mesh."""
 
     def __init__(self, openGmsh=False, gmshVerbosity=False, verbosity=False):
         """Building an interface that can interact with gmsh.
