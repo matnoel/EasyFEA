@@ -948,12 +948,13 @@ class _GroupElem(ABC):
     def __Init_Functions(self, order: int) -> np.ndarray:
         """Methods for initializing functions to be evaluated at gauss points."""
         if self.dim == 1 and self.order < order:
-            fonctions = np.array([lambda x: 0]*self.nPe)
+            functions = np.array([lambda x: 0]*self.nPe)
         elif self.dim == 2 and self.order < order:
-            fonctions = np.array([lambda xi,eta: 0, lambda xi,eta: 0]*self.nPe)
+            functions = np.array([lambda xi,eta: 0, lambda xi,eta: 0]*self.nPe)
         elif self.dim == 3 and self.order < order:
-            fonctions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
-        return fonctions
+            functions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
+        functions = np.reshape(functions, (self.nPe, -1))
+        return functions
 
     # Here we use legendre polynomials
 
@@ -1747,7 +1748,7 @@ class _GroupElem_Factory:
         # elif gmshId == 27:
         #     elemType = ElemType.SEG5; nPe = 5; dim = 1; order = 4; nbFaces = 0; nbCorners = 2
         elif gmshId == 2:
-            elemType = ElemType.TRI3; nPe = 3; dim = 2; order = 2; nbFaces = 1; nbCorners = 3
+            elemType = ElemType.TRI3; nPe = 3; dim = 2; order = 1; nbFaces = 1; nbCorners = 3
         elif gmshId == 9:
             elemType = ElemType.TRI6; nPe = 6; dim = 2; order = 2; nbFaces = 1; nbCorners = 3
         elif gmshId == 21:

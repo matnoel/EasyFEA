@@ -276,7 +276,7 @@ class Test_Simu(unittest.TestCase):
         a = 1
         l0 = a/10
         meshSize = l0/2
-        mesh = Mesher.Construct_2D_meshes(L=a, h=a, meshSize=meshSize)[5] # take the first mesh
+        mesh = Mesher._Construct_2D_meshes(L=a, h=a, meshSize=meshSize)[5] # take the first mesh
 
         nodes_0 = mesh.Nodes_Conditions(lambda x,y,z: x==0)
         nodes_a = mesh.Nodes_Conditions(lambda x,y,z: x==a)

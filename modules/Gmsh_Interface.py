@@ -1435,10 +1435,10 @@ class Mesher:
         return mesh
     
     @staticmethod
-    def Construct_2D_meshes(L=10, h=10, meshSize=3) -> list[Mesh]:
+    def _Construct_2D_meshes(L=10, h=10, meshSize=3) -> list[Mesh]:
         """2D mesh generation."""
 
-        interfaceGmsh = Mesher(openGmsh=False, verbosity=False)
+        mesher = Mesher(openGmsh=False, verbosity=False)
 
         list_mesh2D = []
         
@@ -1451,31 +1451,31 @@ class Mesher:
         aireDomain = L*h
         aireCircle = np.pi * (circleClose.diam/2)**2
 
-        def testAire(aire):
-            assert np.abs(aireDomain-aire)/aireDomain <= 1e-6, "Incorrect surface"
+        def testArea(aire):
+            assert np.abs(aireDomain-aire)/aireDomain <= 1e-10, "Incorrect surface"
 
         # For each type of 2D element
-        for t, elemType in enumerate(ElemType.get_2D()):
+        for elemType in ElemType.get_2D():
 
             print(elemType)
 
-            mesh1 = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=False)
-            testAire(mesh1.area)
+            mesh1 = mesher.Mesh_2D(domain, elemType=elemType, isOrganised=False)
+            testArea(mesh1.area)
             
-            mesh2 = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
-            testAire(mesh2.area)
+            mesh2 = mesher.Mesh_2D(domain, elemType=elemType, isOrganised=True)
+            testArea(mesh2.area)
 
-            mesh3 = interfaceGmsh.Mesh_2D(domain, [circle], elemType)
+            mesh3 = mesher.Mesh_2D(domain, [circle], elemType)
             # Here we don't check because there are too few elements to properly represent the hole
 
-            mesh4 = interfaceGmsh.Mesh_2D(domain, [circleClose], elemType)
-            testAire(mesh4.area)
+            mesh4 = mesher.Mesh_2D(domain, [circleClose], elemType)
+            testArea(mesh4.area)
 
-            mesh5 = interfaceGmsh.Mesh_2D(domain, cracks=[line], elemType=elemType)
-            testAire(mesh5.area)
+            mesh5 = mesher.Mesh_2D(domain, cracks=[line], elemType=elemType)
+            testArea(mesh5.area)
 
-            mesh6 = interfaceGmsh.Mesh_2D(domain, cracks=[lineOpen], elemType=elemType)
-            testAire(mesh6.area)
+            mesh6 = mesher.Mesh_2D(domain, cracks=[lineOpen], elemType=elemType)
+            testArea(mesh6.area)
 
             for m in [mesh1, mesh2, mesh3, mesh4, mesh5, mesh6]:
                 list_mesh2D.append(m)
@@ -1483,7 +1483,7 @@ class Mesher:
         return list_mesh2D
 
     @staticmethod
-    def Construct_3D_meshes(L=130, h=13, b=13, meshSize=7.5, useImport3D=False) -> list[Mesh]:
+    def _Construct_3D_meshes(L=130, h=13, b=13, meshSize=7.5, useImport3D=False) -> list[Mesh]:
         """3D mesh generation."""        
 
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
@@ -1494,29 +1494,29 @@ class Mesher:
         volume = L*h*b
 
         def testVolume(val):
-            assert np.abs(volume-val)/volume <= 1e-6, "Incorrect volume"
+            assert np.abs(volume-val)/volume <= 1e-10, "Incorrect volume"
 
         folder = Folder.Get_Path()        
-        partPath = Folder.Join(folder,"3Dmodels","beam.stp")
+        partPath = Folder.Join(folder,"codes","_parts","beam.stp")
 
-        interfaceGmsh = Mesher()
+        mesher = Mesher()
 
         list_mesh3D = []
         # For each type of 3D element
-        for t, elemType in enumerate(ElemType.get_3D()):
+        for elemType in ElemType.get_3D():
             
-            if useImport3D and elemType in ["TETRA4","TETRA10"]:
-                meshPart = interfaceGmsh.Mesh_Import_part(partPath, 3, meshSize=meshSize, elemType=elemType)
+            if useImport3D and elemType in [ElemType.TETRA4,ElemType.TETRA10]:
+                meshPart = mesher.Mesh_Import_part(partPath, 3, meshSize=meshSize, elemType=elemType)
                 list_mesh3D.append(meshPart)
 
-            mesh1 = interfaceGmsh.Mesh_Extrude(domain, [], [0,0,-b], [3], elemType=elemType)
+            mesh1 = mesher.Mesh_Extrude(domain, [], [0,0,-b], [3], elemType=elemType)
             list_mesh3D.append(mesh1)
-            testVolume(mesh1.volume)                
+            testVolume(mesh1.volume)
 
-            mesh2 = interfaceGmsh.Mesh_Extrude(domain, [circleCreux], [0,0,-b], [3], elemType)
-            list_mesh3D.append(mesh2)            
+            mesh2 = mesher.Mesh_Extrude(domain, [circleCreux], [0,0,-b], [3], elemType)
+            list_mesh3D.append(mesh2)
 
-            mesh3 = interfaceGmsh.Mesh_Extrude(domain, [circle], [0,0,-b], [3], elemType)
+            mesh3 = mesher.Mesh_Extrude(domain, [circle], [0,0,-b], [3], elemType)
             list_mesh3D.append(mesh3)
             testVolume(mesh3.volume)
 

@@ -7,34 +7,31 @@ import numpy as np
 
 class Test_Materials(unittest.TestCase):
     def setUp(self):
-
-        # Isotropic Elastic Behavior
-        E = 210e9
-        v = 0.3
-        self.comportements2D = []
-        self.comportements3D = []
+        
+        comportements: list[_Displacement_Model] = []
+        
         for comp in _Displacement_Model.Available_Laws():
             if comp == Elas_Isot:
-                self.comportements2D.append(
-                    Elas_Isot(2, E=E, v=v, planeStress=True)
+                comportements.append(
+                    Elas_Isot(2, E=210e9, v=0.3, planeStress=True)
                     )
-                self.comportements2D.append(
-                    Elas_Isot(2, E=E, v=v, planeStress=False)
+                comportements.append(
+                    Elas_Isot(2, E=210e9, v=0.3, planeStress=False)
                     )
-                self.comportements3D.append(
-                    Elas_Isot(3, E=E, v=v)
+                comportements.append(
+                    Elas_Isot(3, E=210e9, v=0.3)
                     )
             elif comp == Elas_IsotTrans:
-                self.comportements3D.append(
+                comportements.append(
                     Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, axis_l=[1,0,0], axis_t=[0,1,0])
                     )
-                self.comportements3D.append(
+                comportements.append(
                     Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,axis_l=[0,1,0], axis_t=[1,0,0])
                     )
-                self.comportements2D.append(
+                comportements.append(
                     Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=True)
                     )
-                self.comportements2D.append(
+                comportements.append(
                     Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=False))
 
             elif comp == Elas_Anisot:
@@ -49,17 +46,17 @@ class Test_Materials(unittest.TestCase):
                 axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
                 axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
 
-                self.comportements2D.append(
+                comportements.append(
                     Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
                     )
 
-                self.comportements2D.append(
+                comportements.append(
                     Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
                 )
-                self.comportements2D.append(
+                comportements.append(
                     Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
                     )
-                self.comportements2D.append(
+                comportements.append(
                     Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
                     )
         
@@ -70,8 +67,7 @@ class Test_Materials(unittest.TestCase):
 
         splits_Isot = [PhaseField_Model.SplitType.Amor, PhaseField_Model.SplitType.Miehe, PhaseField_Model.SplitType.Stress]
 
-        comportements = self.comportements2D
-        comportements.extend(self.comportements3D)
+        self.comportements = comportements
 
         for c in comportements:
             for s in self.splits:
@@ -86,7 +82,7 @@ class Test_Materials(unittest.TestCase):
 
     def test_Elas_Isot(self):
 
-        for comp in self.comportements3D:
+        for comp in self.comportements:
             self.assertIsInstance(comp, _Displacement_Model)
             if isinstance(comp, Elas_Isot):
                 E = comp.E

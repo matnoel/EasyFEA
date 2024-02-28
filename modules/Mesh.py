@@ -277,7 +277,7 @@ class Mesh(Observable):
 
     @property
     def length(self) -> float:
-        """Calculate the total area of the mesh."""
+        """Calculate the total length of the mesh."""
         if self.dim < 1:
             return None
         lengths = [group1D.length for group1D in self.Get_list_groupElem(1)]
@@ -305,7 +305,8 @@ class Mesh(Observable):
         return self.groupElem.center
 
     def Get_meshSize(self, doMean=True) -> np.ndarray:
-        """Returns the mesh size for each element."""
+        """Returns the mesh size for each element or for each element and each segment.\n
+        return meshSize_e if doMean else meshSize_e_s"""
         # recovery of the physical group and coordinates
         groupElem = self.groupElem
         coordo = groupElem.coordo

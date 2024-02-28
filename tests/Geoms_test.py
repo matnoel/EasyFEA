@@ -85,7 +85,7 @@ class Test_Geom(unittest.TestCase):
         line = Line(Point(), Point(5,1))
 
         x = np.linspace(0, 5, 10)
-        y = np.sin(x)        
+        y = np.sin(x)
 
         points = Points([Point(x[i],y[i]) for i in range(x.size)])
 
