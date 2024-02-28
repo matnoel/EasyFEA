@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from enum import Enum
 
+import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from mpl_toolkits.mplot3d import Axes3D
@@ -23,7 +24,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable # use to do colorbarIsCl
 
 def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, nodeValues=True, 
                 plotMesh=False, edgecolor='black', folder="", filename="", title="",
-                cmap="jet", nColors=255, max=None, min=None, colorbarIsClose=False, ax: plt.Axes=None):
+                cmap="jet", ncolors=256, clim=(None, None), colorbarIsClose=False, ax: plt.Axes=None):
     """Display a simulation result.
 
     Parameters
@@ -51,12 +52,10 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     cmap: str, optional
         the color map used near the figure, by default "jet" \n
         ["jet", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
-    nColors : int, optional
+    ncolors : int, optional
         number of colors for colorbar
-    max: float, optional
-        maximum value in the colorbar, by default None
-    min: float, optional
-        minimum value in the colorbar, by default None
+    clim : sequence[float], optional
+        Two item color bar range for scalars. Defaults to minimum and maximum of scalars array. Example: (-1, 2), by default (None, None)
     colorbarIsClose : bool, optional
         color bar is displayed close to figure, by default False
     ax: axis, optional
@@ -104,6 +103,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     values *= coef # Apply coef to values
 
     # Builds boundary markers for the colorbar
+    min, max = clim
     if isinstance(result, str) and result == "damage":
         min = values.min()-1e-12
         max = np.max([values.max()+1e-12, 1])
@@ -112,7 +112,11 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         max = np.max(values)+1e-12 if max == None else max
         min = np.min(values)-1e-12 if min == None else min
         ticks = np.linspace(min,max,11)
-    levels = np.linspace(min, max, nColors)
+    levels = np.linspace(min, max, ncolors)
+    if ncolors != 256:
+        norm = colors.BoundaryNorm(boundaries=np.linspace(min, max, ncolors), ncolors=256)
+    else:
+        norm = None
 
     if ax is not None:
         ax.clear()
@@ -148,12 +152,13 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # Plot element values
         if mesh.Ne == len(values):
             if mesh.dim == 1:
-                pc = LineCollection(elements_coordinates, lw=1.5, cmap=cmap)
+                pc = LineCollection(elements_coordinates, lw=1.5, cmap=cmap, norm=norm)
             else:
-                pc = PolyCollection(elements_coordinates, lw=0.5, cmap=cmap)
+                pc = PolyCollection(elements_coordinates, lw=0.5, cmap=cmap, norm=norm)
             pc.set_clim(min, max)
             pc.set_array(values)
             ax.add_collection(pc)
+            ticks = None if ncolors != 11 else ticks
 
         # Plot node values
         elif mesh.Nn == len(values):
@@ -221,14 +226,14 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         if plotMesh:
             if plotDim == 1:
                 ax.plot(*mesh.coordoGlob.T, c='black', lw=0.1, marker='.', ls='')
-                pc = Line3DCollection(elements_coordinates, cmap=cmap, zorder=0)
+                pc = Line3DCollection(elements_coordinates, cmap=cmap, zorder=0, norm=norm)
             elif plotDim == 2:
-                pc = Poly3DCollection(elements_coordinates, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0)
+                pc = Poly3DCollection(elements_coordinates, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0, norm=norm)
         else:
             if plotDim == 1:
-                pc = Line3DCollection(elements_coordinates, cmap=cmap, zorder=0)
+                pc = Line3DCollection(elements_coordinates, cmap=cmap, zorder=0, norm=norm)
             if plotDim == 2:
-                pc = Poly3DCollection(elements_coordinates, cmap=cmap, zorder=0)
+                pc = Poly3DCollection(elements_coordinates, cmap=cmap, zorder=0, norm=norm)
 
         # Colors are applied to the faces
         pc.set_array(facesValues)

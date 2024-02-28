@@ -290,7 +290,7 @@ class _Geom(ABC):
     
     @staticmethod
     def Plot_Geoms(geoms: list, ax: plt.Axes=None,
-                   color:str="", name:str="", plotPoints=True) -> plt.Axes:
+                   color:str="", name:str="", plotPoints=True, plotLegend=True) -> plt.Axes:
         geoms: list[_Geom] = geoms
         for g, geom in enumerate(geoms):
             if g == 0 and ax == None:
@@ -298,7 +298,8 @@ class _Geom(ABC):
             else:
                 geom.Plot(ax, color, name, plotPoints=plotPoints)
 
-        ax.legend()
+        if plotLegend:
+            ax.legend()
 
         return ax
 
@@ -842,10 +843,14 @@ def As_Coordinates(value) -> np.ndarray:
     if isinstance(value, Point):
         coordo = value.coordo        
     elif isinstance(value, (list, tuple, np.ndarray)):
-        coordo = np.zeros(3)
         val = np.asarray(value, dtype=float)
-        assert val.size <= 3, 'must not exceed size 3'
-        coordo[:val.size] = val
+        if len(val.shape) == 2:
+            assert val.shape[-1] <= 3, 'must be 3d vector or vectors'
+            coordo = val
+        else:
+            coordo = np.zeros(3)
+            assert val.size <= 3, 'must not exceed size 3'
+            coordo[:val.size] = val
     elif isinstance(value, (float, int)):            
         coordo = np.asarray([value]*3)
     else:
@@ -881,22 +886,27 @@ def Rotation_matrix(vect: np.ndarray, theta: float) -> np.ndarray:
 
 
 def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
-    """Calculates the angle between vector a and vector b.
+    """Calculates the angle between vector a and vector b in radian.
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors"""
 
     a = As_Coordinates(a)
-    b = As_Coordinates(b)
+    b = As_Coordinates(b)    
+    
+    ida = 'ni' if len(a.shape) == 2 else 'i'
+    idb = 'ni' if len(b.shape) == 2 else 'i'
+    id = 'n' if (len(a.shape) == 2 or len(b.shape) == 2) else ''
+    
+    proj = np.einsum(f'{ida},{idb}->{id}', Normalize_vect(a), Normalize_vect(b), optimize='optimal')
 
-    proj = Normalize_vect(a) @ Normalize_vect(b)    
-
-    if np.abs(proj) == 1:
+    if np.max(np.abs(proj)) == 1:
         # a and b are colinear
         angle = 0 if proj == 1 else np.pi
 
     else:    
-        norm_a = np.linalg.norm(a)
-        norm_b = np.linalg.norm(b)        
-        angle = np.arccos((a @ b)/(norm_a*norm_b))
+        norm_a = np.linalg.norm(a, axis=-1)
+        norm_b = np.linalg.norm(b, axis=-1)
+        proj = np.einsum(f'{ida},{idb}->{id}', a, b, optimize='optimal')
+        angle = np.arccos(proj/(norm_a*norm_b))
     
     return angle
 

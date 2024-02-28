@@ -303,26 +303,6 @@ class Mesh(Observable):
     def center(self) -> np.ndarray:
         """Center of mass / barycenter / inertia center"""
         return self.groupElem.center
-
-    def Get_meshSize(self, doMean=True) -> np.ndarray:
-        """Returns the mesh size for each element or for each element and each segment.\n
-        return meshSize_e if doMean else meshSize_e_s"""
-        # recovery of the physical group and coordinates
-        groupElem = self.groupElem
-        coordo = groupElem.coordo
-
-        # indexes to access segments of each element
-        segments = groupElem.segments
-        segments_e = groupElem.connect[:, segments]
-
-        # Calculates the length of each segment (s) of the mesh elements (e).
-        h_e_s = np.linalg.norm(coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2)
-
-        if doMean:
-            # average segment size per element        
-            return np.mean(h_e_s, axis=1)
-        else:
-            return h_e_s
         
     def Get_normals(self, nodes: np.ndarray=None) -> np.ndarray:
         """Get normal vectors and the nodes belonging to the edge of the mesh.\n
@@ -720,35 +700,148 @@ class Mesh(Observable):
 
         return paired_nodes
 
-def Calc_New_meshSize_n(mesh: Mesh, error_e: np.ndarray, coef=1 / 2) -> np.ndarray:
-    """Returns the scalar field (at nodes) to be used to refine the mesh.
+    def Get_meshSize(self, doMean=True) -> np.ndarray:
+        """Returns the mesh size for each element or for each element and each segment.\n
+        return meshSize_e if doMean else meshSize_e_s"""
+        # recovery of the physical group and coordinates
+        groupElem = self.groupElem
+        coordo = groupElem.coordo
 
-    meshSize = (coef - 1) * err / max(err) + 1
+        # indexes to access segments of each element
+        segments = groupElem.segments
+        segments_e = groupElem.connect[:, segments]
 
-    Parameters
-    ----------
-    mesh : Mesh
-        support mesh
-    error_e : np.ndarray
-        error evaluated on elements
-    coef : float, optional
-        mesh size division ratio, by default 1/2
+        # Calculates the length of each segment (s) of the mesh elements (e).
+        h_e_s = np.linalg.norm(coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2)
 
-    Returns
-    -------
-    np.ndarray
-        meshSize_n, new mesh size at nodes (Nn)
-    """
+        if doMean:
+            # average segment size per element        
+            return np.mean(h_e_s, axis=1)
+        else:
+            return h_e_s
+        
+    def Get_Quality(self, criteria: str ='aspect', nodeValues=False) -> np.ndarray:
+        """Calculates mesh quality [0, 1] (bad, good).
 
-    assert mesh.Ne == error_e.size, "error_e must be an array of dim Ne"
+        Parameters
+        ----------
+        criteria : str, optional
+            criterion used, by default 'aspect'\n
+            - "aspect": hMin / hMax, ratio between minimum and maximum element length\n
+            - "angular": angleMin / angleMax, ratio between the minimum and maximum angle of an element\n
+            - "gamma": 2 rci/rcc, ratio between the radius of the inscribed circle and the circumscribed circle multiplied by 2. Useful for triangular elements.\n
+            - "jacobian": jMax / jMin, ratio between the maximum jacobian and the minimum jacobian. Useful for higher-order elements.
 
-    h_e = mesh.Get_meshSize()
+        nodeValues : bool, optional
+            Calculates values on nodes, by default False
 
-    meshSize_e = (coef - 1) / error_e.max() * error_e + 1
-    
-    meshSize_n = mesh.Get_Node_Values(meshSize_e * h_e)
+        Returns
+        -------
+        np.ndarray
+            Mesh quality between 0 and 1.
+        """
 
-    return meshSize_n
+        from Display import myPrintError 
+
+        groupElem = self.groupElem
+        coordo = groupElem.coordoGlob
+        connect = groupElem.connect
+
+        # length of each segments
+        h_e_s = self.Get_meshSize(False)
+
+        # perimeter
+        p_e = np.sum(h_e_s, -1)
+        
+        # area
+        area_e = groupElem.area_e
+        
+        if groupElem.dim == 2:
+            # calculate the angle in each corners of 2d elements
+            angle_e_s = np.zeros((groupElem.Ne, groupElem.nbCorners), float)
+
+            for c in range(groupElem.nbCorners):
+                
+                next = c+1 if c+1 < groupElem.nbCorners else 0
+                prev = -1 if c == 0 else c-1
+                
+                p0_e = coordo[connect[:, c]]
+                p1_e = coordo[connect[:, next]]
+                p2_e = coordo[connect[:, prev]]
+
+                angle_e = AngleBetween_a_b(p1_e-p0_e, p2_e-p0_e)
+
+                angle_e_s[:,c] = np.abs(angle_e)
+
+        if criteria == 'gamma':
+            # only available for triangular elements
+
+            if groupElem.elemType not in [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10]:
+                myPrintError("The gamma criterion is only available for triangular elements.")
+                return None
+
+            # inscribed circle
+            # https://fr.wikipedia.org/wiki/Cercles_inscrit_et_exinscrits_d%27un_triangle
+            rci_e = 2*area_e/p_e
+            # circumscribed circle
+            # https://fr.wikipedia.org/wiki/Cercle_circonscrit_%C3%A0_un_triangle
+            rcc_e = p_e/2/np.sum(np.sin(angle_e_s), 1)
+
+            values_e = rci_e/rcc_e * 2
+
+        elif criteria == "aspect":
+            # hMin / hMax
+            values_e = np.min(h_e_s, 1) / np.max(h_e_s, 1)
+
+        elif criteria == "angular":
+            # only available for 2d elements
+            if groupElem.dim != 2:
+                myPrintError("The angular criterion is only available for 2D elements.")
+                return None
+
+            # min(angle) / max(angle)
+            values_e = np.min(angle_e_s, 1) / np.max(angle_e_s, 1)
+
+        elif criteria == "jacobian":
+            # jMin / jMax
+            jacobian_e_pg = groupElem.Get_jacobian_e_pg(MatrixType.mass)
+            values_e = np.max(jacobian_e_pg, 1) / np.min(jacobian_e_pg, 1)
+
+        else:
+            myPrintError(f"The criterion ({criteria}) is not implemented")
+
+        if nodeValues:
+            return self.Get_Node_Values(values_e)
+        else:
+            return np.asarray(values_e)
+
+    def Get_New_meshSize_n(self, error_e: np.ndarray, coef=1/2) -> np.ndarray:
+        """Returns the scalar field (at nodes) to be used to refine the mesh.
+
+        meshSize = (coef - 1) * err / max(err) + 1
+
+        Parameters
+        ----------
+        error_e : np.ndarray
+            error evaluated on elements
+        coef : float, optional
+            mesh size division ratio, by default 1/2
+
+        Returns
+        -------
+        np.ndarray
+            meshSize_n, new mesh size at nodes (Nn)
+        """
+
+        assert self.Ne == error_e.size, "error_e must be an array of dim Ne"
+
+        h_e = self.Get_meshSize()
+
+        meshSize_e = (coef - 1) / error_e.max() * error_e + 1
+        
+        meshSize_n = self.Get_Node_Values(meshSize_e * h_e)
+
+        return meshSize_n
 
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     """Builds the matrix used to project the solution from the old mesh to the new mesh.

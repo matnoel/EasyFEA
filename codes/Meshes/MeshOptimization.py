@@ -3,7 +3,7 @@ import PostProcessing
 import Display
 from Geoms import *
 import Materials
-from Mesh import Mesh, Calc_projector, Calc_New_meshSize_n
+from Mesh import Mesh, Calc_projector
 from Gmsh_Interface import Mesher, ElemType
 import Simulations
 from TicTac import Tic
@@ -197,7 +197,7 @@ if __name__ == '__main__':
         # ----------------------------------------------
         # Refine mesh
         # ----------------------------------------------
-        meshSize_n = Calc_New_meshSize_n(simu.mesh, error_e, coef)
+        meshSize_n = simu.mesh.Get_New_meshSize_n(error_e, coef)
 
         if plotError:
             Display.Plot_Result(simu, error_e*100, nodeValues=True, title="error %", plotMesh=True)

@@ -73,9 +73,9 @@ if __name__ == '__main__':
     Display.Plot_Mesh(simu)
     Display.Plot_BoundaryConditions(simu)
 
-    Display.Plot_Result(simu, 'ux', nColors=10, nodeValues=True)
-    Display.Plot_Result(simu, 'uy', nColors=10, nodeValues=True)
-    Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=True)
+    Display.Plot_Result(simu, 'ux', ncolors=10, nodeValues=True)
+    Display.Plot_Result(simu, 'uy', ncolors=10, nodeValues=True)
+    Display.Plot_Result(simu, 'Svm', ncolors=10, nodeValues=True)
 
     print(simu)
 

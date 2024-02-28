@@ -98,9 +98,9 @@ if __name__ == '__main__':
     factorDef = r/5 / simu.Result('displacement_norm').max()
     # factorDef = 1
     Display.Plot_Mesh(simu, deformFactor=factorDef)
-    Display.Plot_Result(simu, 'ux', nColors=10, nodeValues=True)
-    Display.Plot_Result(simu, 'uy', nColors=10, nodeValues=True)
-    Display.Plot_Result(simu, 'Svm', nColors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True)
+    Display.Plot_Result(simu, 'ux', ncolors=10, nodeValues=True)
+    Display.Plot_Result(simu, 'uy', ncolors=10, nodeValues=True)
+    Display.Plot_Result(simu, 'Svm', ncolors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True)
 
     print(simu)
 
