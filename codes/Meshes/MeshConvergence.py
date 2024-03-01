@@ -23,8 +23,8 @@ if __name__ == '__main__':
 
     # List of mesh sizes (number of elements) to investigate convergence
     if dim == 2:
-        # list_N = np.arange(1, 16, 1)
-        list_N = np.arange(1, 30, 1)
+        list_N = np.arange(1, 16, 1)
+        # list_N = np.arange(1, 30, 1)
     else:
         list_N = np.arange(1, 8, 2)
 
