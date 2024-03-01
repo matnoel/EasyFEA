@@ -100,9 +100,12 @@ if __name__  == '__main__':
     # Mesh
     # --------------------------------------------------------------------------------------------    
     mesh = DoMesh_FCBA(dim, L, H, D, h, D2, h2, t, l0, test, optimMesh)
+    # mesh = DoMesh_FCBA(dim, L, H, D, H/2, D2, h2, t, l0, test, optimMesh)
 
-    Display.Plot_Mesh(mesh)
+    # Display.Plot_Mesh(mesh)
+
     print(mesh)
+    # pvi.Plot_Mesh(mesh, opacity=1).show()
 
     # --------------------------------------------------------------------------------------------
     # Material
@@ -115,17 +118,18 @@ if __name__  == '__main__':
     El = 15716.16722094732 
     Et = 232.6981580878141
     Gl = 557.3231495541391
-    vl = 0.02
+    vl = 0.3
     vt = 0.44
 
     rot = 90 * np.pi/180
     axis_l = np.array([np.cos(rot), np.sin(rot), 0])
-    axis_t = np.cross(np.array([0,0,1]), axis_l)
+    axis_t = np.cross([0,0,1], axis_l)
 
-    split = "AnisotStress"
+    split = "He"
     regu = "AT1"
 
     comp = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt, axis_l, axis_t, True, t)
+    comp = Materials.Elas_Isot(dim, thickness=t)
     pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0)
 
     # --------------------------------------------------------------------------------------------
@@ -219,10 +223,11 @@ if __name__  == '__main__':
 
     # --------------------------------------------------------------------------------------------
     # Results
-    # --------------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------------    
 
-    if pltLoadInHole:
-        pvi.Plot_BoundaryConditions(simu).show()    
+    # pvi.Plot_BoundaryConditions(simu).show()    
+    # if pltLoadInHole:
+    #     pvi.Plot_BoundaryConditions(simu).show()    
 
     if len(list_psiP) > 1:
         axLoad = plt.subplots()[1]
