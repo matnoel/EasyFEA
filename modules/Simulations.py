@@ -453,8 +453,8 @@ class _Simu(_IObserver, ABC):
         self.__dict_v_n = {}
         self.__dict_a_n = {}
         for problemType in self.Get_problemTypes():
-            taille = self.mesh.Nn * self.Get_dof_n(problemType)
-            vectInit = np.zeros(taille, dtype=float)
+            size = self.mesh.Nn * self.Get_dof_n(problemType)
+            vectInit = np.zeros(size, dtype=float)
             self.__dict_u_n[problemType] = vectInit
             self.__dict_v_n[problemType] = vectInit
             self.__dict_a_n[problemType] = vectInit
@@ -540,6 +540,8 @@ class _Simu(_IObserver, ABC):
             self.Need_Update()
             # Initialize boundary conditions
             self.Bc_Init()
+            # initialize the solutions
+            self.__Init_Sols_n()
 
     @property
     def dim(self) -> int:

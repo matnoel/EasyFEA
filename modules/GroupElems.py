@@ -1422,6 +1422,7 @@ class _GroupElem(ABC):
         dim = self.__dim        
 
         tol = 1e-12
+        # tol = 1e-6
 
         if dim == 0:
 
@@ -1535,8 +1536,14 @@ class _GroupElem(ABC):
             return idx
 
     def Get_Mapping(self, coordinates: np.ndarray, elements=None):
-        """Function to return the nodes in the elements, the connectivity and the coordinates (xi, eta) of the points.
-        return nodes, connect_e_n, coordoInElem_n"""
+        """This function locates coordinates in elements.\n
+        return detectedNodes, connect_e_n, detectedElements_e, coordoInElem_n\n
+        - detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e\n
+        - detectedElements_e (e) are the elements for which we have detected the nodes\n
+        - connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element\n
+            ? means that the table does not have the same dimension on axis 1\n        
+        - coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element.
+        """
         
         if elements is None:
             elements = np.arange(self.Ne, dtype=int)
@@ -1583,8 +1590,8 @@ class _GroupElem(ABC):
         
         else:
 
-            xn, yn, zn = tuple(coordinates_n.T)
-            xe, ye, ze = tuple(coordElem.T)
+            xn, yn, zn = coordinates_n.T
+            xe, ye, ze = coordElem.T
             
             idx = np.where((xn >= np.min(xe)) & (xn <= np.max(xe)) &
                             (yn >= np.min(ye)) & (yn <= np.max(ye)) & 
@@ -1594,8 +1601,13 @@ class _GroupElem(ABC):
 
     def __Get_Mapping(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
         """This function locates coordinates in elements.\n
-        return nodes, connect_e_n, coordoInElem_n\n
-        We return the detected coordinates, the connectivity matrix between element and coordinates and the coordinates of these nodes in the reference elements, so that we can evaluate the shape functions."""
+        return detectedNodes, connect_e_n, detectedElements_e, coordoInElem_n\n
+        - detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e\n
+        - detectedElements_e (e) are the elements for which we have detected the nodes\n
+        - connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element\n
+            ? means that the table does not have the same dimension on axis 1\n        
+        - coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element.
+        """
         
         # retrieves informations from element group
         dim = self.dim
@@ -1619,9 +1631,10 @@ class _GroupElem(ABC):
         # connection matrix containing the nodes used by the elements
         connect_e_n: list[list[int]] = []
         # node coordinates in the element's reference base
-        coordoInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
-        # nodes identified
-        nodes: list[int] = []
+        coordInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
+        # Elements where nodes have been identified
+        detectedElements_e: list[int] = []
+        detectedNodes: list[int] = []
 
         # Calculates the number of times a coordinate appears
         # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image
@@ -1638,8 +1651,10 @@ class _GroupElem(ABC):
             # Returns the index of nodes around the element that meet all conditions
             idxInElem = self.Get_pointsInElem(coordinates_n[idxNearElem], e)
 
-            if idxInElem.size == 0: return
-
+            if idxInElem.size == 0:
+                # here no nodes have been detected in the element
+                return
+                    
             # nodes that meet all conditions (nodes in the element e)
             nodesInElement = idxNearElem[idxInElem]
 
@@ -1654,8 +1669,7 @@ class _GroupElem(ABC):
             # now we want to know the coordinates of the nodes in the reference element
             xiOrigin = self.origin # origin of the reference element (xi, eta)            
             x0  = coordoElemBase[0,:dim] # orign of the real element (x,y)
-            # xPs = coordinates_n[nodesInElement,:dim] # points coordinates
-            xPs = coordinatesBase_n[:,:dim] # points coordinates            
+            xPs = coordinatesBase_n[:,:dim] # points coordinates (x,y)
             
             # points coordinates in the reference base
             if useIterative:
@@ -1688,17 +1702,16 @@ class _GroupElem(ABC):
 
                     xiP: np.ndarray = xiOrigin + np.einsum('ni,nij->nj',(xPs - x0), invMin, optimize='optimal')
             
+            detectedNodes.extend(nodesInElement)
             connect_e_n.append(nodesInElement)
-            coordoInElem_n[nodesInElement,:] = xiP.copy()
-            nodes.extend(nodesInElement)
+            detectedElements_e.append(e)            
+            coordInElem_n[nodesInElement,:] = xiP.copy()
 
         [ResearchFunction(e) for e in elements_e]
-        
-        connect_e_n: np.ndarray = np.array(connect_e_n, dtype=object)
 
-        nodes: np.ndarray = np.asarray(nodes)
+        assert len(detectedElements_e) == len(connect_e_n), "The number of elements detected must be the same as the number of connect_e_n lines."
 
-        return nodes, connect_e_n, coordoInElem_n
+        return np.asarray(detectedNodes,dtype=int), np.asarray(detectedElements_e,dtype=int), np.asarray(connect_e_n,dtype=object), coordInElem_n
     
     @abstractproperty
     def origin(self) -> list[int]:
