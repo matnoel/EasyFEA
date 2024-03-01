@@ -79,7 +79,7 @@ EL_exp: np.ndarray = dfParams["El"].values * 1e-3
 n = EL_exp.size
 ET_exp: np.ndarray = dfParams["Et"].values * 1e-3
 GL_exp: np.ndarray = dfParams["Gl"].values * 1e-3
-vL_exp = 0.01+0.1*np.random.rand(n) # artificial data for vL varying from 0.01 to 0.11
+vL_exp: np.ndarray = dfParams["vl"].values
 vT_exp = 0.1+0.2*np.random.rand(n); # artificial data for vT varying from 0.1 to 0.3        
     
 mat = Materials.Elas_IsotTrans(2,EL_exp.mean(),ET_exp.mean(),GL_exp.mean(),vL_exp.mean(),vT_exp.mean())
