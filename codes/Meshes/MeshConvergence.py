@@ -23,7 +23,8 @@ if __name__ == '__main__':
 
     # List of mesh sizes (number of elements) to investigate convergence
     if dim == 2:
-        list_N = np.arange(1, 16, 1)
+        # list_N = np.arange(1, 16, 1)
+        list_N = np.arange(1, 30, 1)
     else:
         list_N = np.arange(1, 8, 2)
 
@@ -61,7 +62,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     # Loop over each element type for both 2D and 3D simulations
-    elemTypes = ElemType.get_2D() if dim == 2 else ElemType.get_3D()
+    elemTypes = ElemType.get_2D()[:] if dim == 2 else ElemType.get_3D()
 
     # elemTypes = [elem.name for elem in elemTypes.copy()]
 
@@ -146,8 +147,7 @@ if __name__ == '__main__':
     ax_times = plt.subplots()[1]
     ax_zz1 = plt.subplots()[1]
 
-    WdefRefArray = np.ones_like(dofs_elem_N[0]) * WdefRef
-    WdefRefArray5 = WdefRefArray * 0.95
+    
 
     print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 
@@ -171,12 +171,17 @@ if __name__ == '__main__':
         # ax_zz1.loglog(dofs_elem_N[e], erreur)
         # pass
 
+    WdefRefArray = np.ones_like(dofs_elem_N[0]) * WdefRef
+    WdefRefArray5 = WdefRefArray * 0.95
+    # WdefRefArray5 = WdefRefArray * 1
+
     # Deformation energy
     ax_Wdef.grid()
     ax_Wdef.set_xlim([-10, 8000])
     ax_Wdef.set_xlabel('Degrees of Freedom (DOF)')
-    ax_Wdef.set_ylabel('Strain energy (Wdef) [mJ]')
+    ax_Wdef.set_ylabel('Strain energy W [mJ]')
     ax_Wdef.legend(elemTypes)
+    # ax_Wdef.fill_between(dofs_N, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
     ax_Wdef.fill_between(dofs_N, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
     plt.figure(ax_Wdef.figure)
     Display.Save_fig(folder, 'Energy')
@@ -184,7 +189,7 @@ if __name__ == '__main__':
     # Error in deformation energy
     ax_error.grid()
     ax_error.set_xlabel('Degrees of Freedom (DOF)')
-    ax_error.set_ylabel('Error Wdef [%]')
+    ax_error.set_ylabel('Error W [%]')
     ax_error.legend(elemTypes)
     plt.figure(ax_error.figure)
     Display.Save_fig(folder, 'Error')
@@ -206,7 +211,7 @@ if __name__ == '__main__':
     Display.Save_fig(folder, 'Time')
 
     # Plot the von Mises stress result using 20 color levels
-    Display.Plot_Result(simu, "Svm", nColors=20)
+    Display.Plot_Result(simu, "Svm", ncolors=20)
 
     if makeParaview:
         # Generate Paraview files for visualization
