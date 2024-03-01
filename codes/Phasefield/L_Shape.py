@@ -5,6 +5,7 @@ import Materials
 import Simulations
 import Folder
 import PostProcessing
+import PyVista_Interface as pvi
 
 plt = Display.plt
 np = Display.np
@@ -16,9 +17,9 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    solve = True
+    solve = False
     test = True
-    optimMesh = True
+    optimMesh = False
 
     pltIter = False
     pltLoad = False
@@ -36,8 +37,8 @@ if __name__ == '__main__':
     v = 0.18
 
     # phase field
-    split = "He"
-    # split = "AnisotStress"
+    # split = "He"
+    split = "AnisotStress"
     regu = "AT1"
     Gc = 130 # J/m2
     Gc *= 1000/1e6 #mJ/mm2
@@ -234,8 +235,8 @@ if __name__ == '__main__':
 
     if makeMovie:
         depMax = simu.Result("displacement_norm").max()
-        facteur = 10*depMax
-        PostProcessing.Make_Movie(folderSimu, 'damage', simu, deformation=True, factorDef=facteur, plotMesh=False)
+        deformFactor = L*.1/depMax
+        pvi.Movie_simu(simu, 'damage', folderSimu, 'damage.mp4', show_edges=True, deformFactor=deformFactor, clim=(0,1))
 
     if makeParaview:
         PostProcessing.Make_Paraview(folderSimu, simu)

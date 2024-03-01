@@ -21,8 +21,8 @@ nProcs = 4 # number of processes in parallel
 # Configurations
 # --------------------------------------------------------------------------------------------
 dim = 3
-test = True
-solve = True
+test = False
+solve = False
 
 # Mesh
 openCrack = True
@@ -42,9 +42,9 @@ splits = ["Amor","Miehe"]
 regus = ["AT1"] # "AT1", "AT2" 
 
 # PostProcessing
-plotResult = True
+plotResult = False
 showResult = False
-plotMesh = False
+plotMesh = True
 plotEnergy = False
 saveParaview = False; Nparaview=400
 makeMovie = False
@@ -229,13 +229,34 @@ def DoSimu(split: str, regu: str):
         # Display.Plot_Result(simu, "uy", folder=folder, deformation=True)
 
     if plotMesh:
-        Display.Plot_Mesh(simu.mesh)            
+        # pvi.Plot_Mesh(simu.mesh).show()
+        # pvi.Plot(simu, "ux", show_edges=True).show()
+        Display.Plot_Mesh(simu.mesh)
             
     if saveParaview:
         PostProcessing.Make_Paraview(folder, simu, Nparaview)
 
     if makeMovie:
-        PostProcessing.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
+        # pvi.Plot_Mesh(simu.mesh).show()
+        simu.Set_Iter(-1)
+        nodes_upper = simu.mesh.Nodes_Conditions(lambda x,y,z: y==L)
+        depMax = simu.Result('displacement_norm')[nodes_upper].max()
+        deformFactor = L*.1/depMax
+        
+        def Func(plotter, n):
+
+            simu.Set_Iter(n)
+
+            grid = pvi._pvMesh(simu, 'damage', deformFactor)
+
+            tresh = grid.threshold((0,0.8))
+        
+            pvi.Plot(tresh, 'damage', deformFactor, show_edges=True, plotter=plotter, clim=(0,1))
+        
+        pvi.Movie_func(Func, len(simu.results), folder, 'damage.mp4')
+
+        # pvi.Movie_simu(simu, 'damage', folder, 'damage.mp4', deformFactor=deformFactor, show_edges=True).show()
+        # PostProcessing.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
             
     if plotEnergy:
         Display.Plot_Energy(simu, Niter=400, folder=folder)

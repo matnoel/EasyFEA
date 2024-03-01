@@ -12,7 +12,7 @@ import multiprocessing
 
 # Display.Clear()
 
-useParallel = True
+useParallel = False
 nProcs = 4 # number of processes in parallel
 
 # --------------------------------------------------------------------------------------------
@@ -21,16 +21,16 @@ nProcs = 4 # number of processes in parallel
 dim = 2
 problem = "Benchmark" # ["Benchmark", "FCBA"]
 
-test = False
-solve = False
+test = True
+solve = True
 optimMesh = True
 
 # Post processing
 plotMesh = False
-plotIter = False
+plotIter = True
 plotResult = True
 plotEnergy = False
-showFig = False
+showFig = True
 
 saveParaview = False; NParaview=300
 makeMovie = False; NMovie = 200
@@ -39,17 +39,17 @@ makeMovie = False; NMovie = 200
 materialType = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
 solver = Materials.PhaseField_Model.SolverType.History # ["History", "HistoryDamage", "BoundConstrain"]
 maxIter = 1000
-tolConv = 1e-2
+tolConv = 1e-0
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 # splits = ["Zhang"]
 # splits = ["AnisotStrain","AnisotStress","Zhang"]
-splits = ["AnisotStrain"]
+splits = ["Miehe"]
 
-# regus = ["AT2"] # ["AT1", "AT2"]
-regus = ["AT1", "AT2"]
+regus = ["AT2"] # ["AT1", "AT2"]
+# regus = ["AT1", "AT2"]
 
 # --------------------------------------------------------------------------------------------
 # Mesh
@@ -266,7 +266,7 @@ def DoSimu(split: str, regu: str):
                 plt.pause(1e-12)
 
                 arrayDisplacement, arrayLoad = np.array(displacements), np.array(loads)
-                axLoad = Display.Plot_Load_Displacement(arrayDisplacement*unit, arrayLoad/unit, f'ud [{unitU}]', f'f [{unitF}]')[1]
+                Display.Plot_Load_Displacement(arrayDisplacement*unit, arrayLoad/unit, f'ud [{unitU}]', f'f [{unitF}]', ax=axLoad)[1]
                 plt.figure(axLoad.figure)
                 plt.pause(1e-12)
 
