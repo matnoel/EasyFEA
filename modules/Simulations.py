@@ -2295,9 +2295,6 @@ class PhaseField(_Simu):
         if isinstance(observable, _IModel):
             if event == 'The model has been modified' and not self.needUpdate:
                 self.Need_Update()
-            if isinstance(observable, Materials._Displacement_Model):
-                # Here, the elastic properties have been updated, so we need to reconstruct cP and cM.
-                self.phaseFieldModel.Need_Split_Update()
         elif isinstance(observable, Mesh):
             if event == 'The mesh has been modified':
                 self._Check_dim_mesh_material()
@@ -2525,9 +2522,6 @@ class PhaseField(_Simu):
         """Solving the displacement problem."""
             
         self._Solver_Solve(ModelType.displacement)
-
-        # Split need to be update because there is a new displacement solution -> Eps will change
-        self.phaseFieldModel.Need_Split_Update()
        
         return self.displacement
 

@@ -1301,8 +1301,6 @@ class PhaseField_Model(_IModel):
 
         self.A = A
 
-        self.Need_Split_Update()
-
         self.useNumba = False
 
     @property
@@ -1538,9 +1536,7 @@ class PhaseField_Model(_IModel):
             SigmaP_e_pg, SigmaM_e_pg : les contraintes stockées aux elements et Points de Gauss
         """       
 
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
-        dim = Epsilon_e_pg.shape[2]
+        Ne, nPg, dim = Epsilon_e_pg.shape[:3]
         
         cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
 
@@ -1554,10 +1550,6 @@ class PhaseField_Model(_IModel):
         tic.Tac("Matrix", "SigmaP_e_pg et SigmaM_e_pg", False)
 
         return SigmaP_e_pg, SigmaM_e_pg
-
-    def Need_Split_Update(self):
-        """Initialize the dictionary that stores the decomposition of the behavior law"""
-        self.__dict_cP_e_pg_And_cM_e_pg = {}
     
     def Calc_C(self, Epsilon_e_pg: np.ndarray, verif=False):
         """Calculating the behavior law.
@@ -1573,43 +1565,22 @@ class PhaseField_Model(_IModel):
             Returns cP_e_pg, cM_e_pg
         """
 
-        # Here we make sure that we only go through 1 iteration to avoid making the calculations several times.
-        # As it happens, this doesn't work - the damage doesn't evolve
-        # Here we run 2 iterations
-        # Once to calculate the energy (psiP), i.e. to build a mass matrix, and once to calculate K_u, i.e. a rigi matrix, so we have to go through it twice
+        Ne, nPg = Epsilon_e_pg.shape[:2]
 
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
+        if self.__split == self.SplitType.Bourdin:
+            cP_e_pg, cM_e_pg = self.__Split_Bourdin(Ne, nPg)
 
-        key = f"({Ne}, {nPg})"
+        elif self.__split == self.SplitType.Amor:
+            cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
-        if key in self.__dict_cP_e_pg_And_cM_e_pg:
-            # If the key is filled in, the stored solution is retrieved
-            # Useful when you want to access the result several times per iteration.
-
-            cP_e_pg, cM_e_pg = self.__dict_cP_e_pg_And_cM_e_pg[key]
+        elif self.__split == self.SplitType.Miehe or "Strain" in self.__split:
+            cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
         
-        else:
+        elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
+            cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
 
-            if self.__split == self.SplitType.Bourdin:
-                cP_e_pg, cM_e_pg = self.__Split_Bourdin(Ne, nPg)
-
-            elif self.__split == self.SplitType.Amor:
-                cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
-
-            elif self.__split == self.SplitType.Miehe or "Strain" in self.__split:
-                cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
-            
-            elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
-                cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
-
-            elif self.__split == self.SplitType.He:
-                cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
-            
-            else: 
-                raise Exception("Split unknown")
-
-            self.__dict_cP_e_pg_And_cM_e_pg[key] = (cP_e_pg, cM_e_pg)
+        elif self.__split == self.SplitType.He:
+            cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
 
         return cP_e_pg, cM_e_pg
 
@@ -1635,8 +1606,7 @@ class PhaseField_Model(_IModel):
         
         material = self.__material
         
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
+        Ne, nPg = Epsilon_e_pg.shape[:2]
 
         bulk = material.get_bulk()
         mu = material.get_mu()
@@ -1683,8 +1653,7 @@ class PhaseField_Model(_IModel):
     def __Rp_Rm(self, vecteur_e_pg: np.ndarray):
         """Returns Rp_e_pg, Rm_e_pg"""
 
-        Ne = vecteur_e_pg.shape[0]
-        nPg = vecteur_e_pg.shape[1]
+        Ne, nPg = vecteur_e_pg.shape[:2]
 
         dim = self.__material.dim
 
@@ -1708,8 +1677,7 @@ class PhaseField_Model(_IModel):
 
         projP_e_pg, projM_e_pg = self.__Spectral_Decomposition(Epsilon_e_pg, verif)
 
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
+        Ne, nPg = Epsilon_e_pg.shape[:2]
 
         isHeterogene = self.__material.isHeterogeneous
 
@@ -1807,8 +1775,7 @@ class PhaseField_Model(_IModel):
 
         shape_c = len(c.shape)
 
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
+        Ne, nPg = Epsilon_e_pg.shape[:2]
 
         isHeterogene = material.isHeterogeneous
 
@@ -2027,8 +1994,7 @@ class PhaseField_Model(_IModel):
         dim = self.__material.dim
 
         coef = self.__material.coef
-        Ne = vecteur_e_pg.shape[0]
-        nPg = vecteur_e_pg.shape[1]
+        Ne, nPg = vecteur_e_pg.shape[:2]
 
         tic = Tic()
 
@@ -2326,8 +2292,7 @@ class PhaseField_Model(_IModel):
 
         dim = self.__material.dim        
 
-        Ne = vector_e_pg.shape[0]
-        nPg = vector_e_pg.shape[1]
+        Ne, nPg = vector_e_pg.shape[:2]
         
         # recovery of eigenvalues, eigenvectors and eigenprojectors
         val_e_pg, list_m, list_M = self.__Eigen_values_vectors_projectors(vector_e_pg, verif)
