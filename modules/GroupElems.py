@@ -1617,11 +1617,11 @@ class _GroupElem(ABC):
         useIterative = np.max(error_e) > 1e-12        
         
         # connection matrix containing the nodes used by the elements
-        connect_e_n = []
+        connect_e_n: list[list[int]] = []
         # node coordinates in the element's reference base
         coordoInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
         # nodes identified
-        nodes = []
+        nodes: list[int] = []
 
         # Calculates the number of times a coordinate appears
         # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image
@@ -1669,7 +1669,6 @@ class _GroupElem(ABC):
                 xiP = []
                 for xP in xPs:
                     res = least_squares(Eval, 0*xP, args=(xP,))
-                    tes = Eval(res.x, xP)
                     xiP.append(res.x)
 
                 xiP = np.array(xiP)
@@ -1695,9 +1694,9 @@ class _GroupElem(ABC):
 
         [ResearchFunction(e) for e in elements_e]
         
-        connect_e_n = np.array(connect_e_n, dtype=object)
+        connect_e_n: np.ndarray = np.array(connect_e_n, dtype=object)
 
-        nodes = np.asarray(nodes)
+        nodes: np.ndarray = np.asarray(nodes)
 
         return nodes, connect_e_n, coordoInElem_n
     
