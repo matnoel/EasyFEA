@@ -7,6 +7,7 @@ from Mesh import Mesh, Calc_projector
 from Gmsh_Interface import Mesher, ElemType
 import Simulations
 from TicTac import Tic
+import PyVista_Interface as pvi
 
 import os
 import matplotlib.pyplot as plt
@@ -15,9 +16,9 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Configuration
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     dim = 2 # Dimension of the problem (2D or 3D)
 
     # Choosing the part type (you can uncomment one of the parts)
@@ -33,14 +34,14 @@ if __name__ == '__main__':
     # Options for plotting the results
     plotResult = True
     plotError = False
-    plotProj = False
+    plotProj = True
     makeMovie = False
     makeParaview = False
 
     # Scaling coefficient for the optimization process
     coef = 1/10
     # Target error for the optimization process
-    cible = 1/100 if dim == 2 else 0.04
+    treshold = 1/100 if dim == 2 else 0.04
     # Maximum number of iterations for the optimization process
     iterMax = 20
 
@@ -59,11 +60,11 @@ if __name__ == '__main__':
     if dim == 2:
         elemType = ElemType.TRI3 # TRI3, TRI6, TRI10, QUAD4, QUAD8
     else:
-        elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
+        elemType = ElemType.TETRA4 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Meshing
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
 
     # Define the geometry based on the chosen part type
     if part == "equerre":
@@ -72,7 +73,7 @@ if __name__ == '__main__':
         h = L * 0.3
         b = h
 
-        N = 5
+        N = 2
         meshSize = h/N
 
         pt1 = Point(isOpen=True, r=-10)
@@ -94,7 +95,7 @@ if __name__ == '__main__':
         L = 120
         h = L * 2/3
         b = h
-        r = h/(2+1e-3)
+        r = h/(2+1e-2)
         e = (L - 2*r)/2
 
         meshSize = h/10
@@ -116,40 +117,52 @@ if __name__ == '__main__':
         points = Points([pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, pt9, pt10, pt11, pt12], meshSize)    
         inclusions = []
 
-    else:
+    else:  
+        
 
-        meshSize = h/3
+        L = 80
+        h1 = L/4
+        e1 = h1*.1
+        h2 = (h1-e1)*.95
+        e2 = (h1-e1-h2)/2
+        r = h2/4
+        l = L/2
+        b = h1
 
-        pt1 = Point(0, 0, isOpen=True)
-        pt2 = Point(L, 0)
-        pt3 = Point(L, h)
-        pt4 = Point(0, h)
+        meshSize = r/3
 
-        points = Points([pt1, pt2, pt3, pt4], meshSize)    
+        F = 1e-3 # 5g
+        surfLoad = F/(h1-e1)/b # 1g
 
-        inclusions = []
-        nL = 20
-        nH = 3
-        cL = L/(2*nL)
-        cH = h/(2*nH)
-        for i in range(nL):
-            x = cL + cL*(2*i)
-            for j in range(nH):
-                y = cH + cH*(2*j)
+        pt1 = Point()
+        pt2 = Point(L-h1)
+        pt3 = pt2 + [e1,-e1]
+        pt4 = Point(L,-e1)
+        pt5 = pt4 + [0,h1]
+        pt6 = Point(h1, h1-e1)
+        pt7 = pt6 + [-e1,e1]
+        pt8 = pt1 + [0,h1]
 
-                ptd1 = Point(x-cL/2, y-cH/2)
-                ptd2 = Point(x+cL/2, y+cH/2)
-                
-                isHollow = True
-                
-                if (i+j)//2 % 2 == 1:
-                    inclusion = Domain(ptd1, ptd2, meshSize, isHollow=isHollow)
-                else:
-                    # obj = Domain(ptd1, ptd2, meshSize, isHollow=isHollow)
-                    inclusion = Circle(Point(x, y), cH, meshSize, isHollow=isHollow)
+        points = Points([pt1,pt2,pt3,pt4,pt5,pt6,pt7,pt8], meshSize)
 
-                inclusions.append(inclusion)
-        inclusions = []
+        p1 = Point(L/2-l/2,e2, r=r)
+        p2 = Point(L/2-l/2+2*r,e2, r=r)
+        p3 = Point(L/2-l/2+2*r,e2+r)
+        p4 = p3.copy(); p4.symmetry((L/2, (h1-e1)/2), (1,0))
+        p5 = p2.copy(); p5.symmetry((L/2, (h1-e1)/2), (1,0))
+        p6 = p1.copy(); p6.symmetry((L/2, (h1-e1)/2), (1,0))
+        p7 = p6.copy(); p7.symmetry((L/2, (h1-e1)/2), (0,1))
+        p8 = p5.copy(); p8.symmetry((L/2, (h1-e1)/2), (0,1))
+        p9 = p4.copy(); p9.symmetry((L/2, (h1-e1)/2), (0,1))
+        p10 = p3.copy(); p10.symmetry((L/2, (h1-e1)/2), (0,1))
+        p11 = p2.copy(); p11.symmetry((L/2, (h1-e1)/2), (0,1))
+        p12 = p1.copy(); p12.symmetry((L/2, (h1-e1)/2), (0,1))
+
+        inclusion = Points([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12], meshSize, True)
+        inclusions = [inclusion]
+
+        # ax = points.Get_Contour().Plot()
+        # inclusion.Get_Contour().Plot(ax)
 
     # Create an instance of the Gmsh interface
     mesher = Mesher()
@@ -159,44 +172,48 @@ if __name__ == '__main__':
         if dim == 2:
             return mesher.Mesh_2D(points, inclusions, elemType, [], refineGeoms)
         else:
-            return mesher.Mesh_Extrude(points, inclusions, [0,0,b], [5], elemType, [], refineGeoms)
+            return mesher.Mesh_Extrude(points, inclusions, [0,0,b], [], elemType, [], refineGeoms)
 
     # Construct the initial mesh
     mesh = DoMesh()
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Material and Simulation
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     material = Materials.Elas_Isot(dim, E=210000, v=0.3, thickness=b)
-    simu = Simulations.Displacement(mesh, material, verbosity=False)
+    simu = Simulations.Displacement(mesh, material)
     simu.rho = 8100*1e-9
 
-    def DoSimu(i=0):    
-        
-        nodes_x0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
-        nodes_xL = mesh.Nodes_Conditions(lambda x,y,z: x == L)
+    def DoSimu(i=0):
+
+        if part in ["equerre","lmt"]:        
+            nodes_Fixed = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
+            nodes_Load = mesh.Nodes_Conditions(lambda x,y,z: x == L)
+        else:
+            nodes_Fixed = mesh.Nodes_Conditions(lambda x,y,z: y == -e1)
+            nodes_Load = mesh.Nodes_Conditions(lambda x,y,z: y == h1)
         
         simu.Bc_Init()
-        if dim == 2:
-            simu.add_dirichlet(nodes_x0, [0, 0], ["x","y"], description="Encastrement")
-        elif dim == 3:
-            simu.add_dirichlet(nodes_x0, [0, 0, 0], ["x","y","z"], description="Encastrement")
-
-        simu.add_surfLoad(nodes_xL, [-surfLoad], ["y"])
+        simu.add_dirichlet(nodes_Fixed, [0]*dim, simu.Get_directions(), description="Fixed")
+        simu.add_surfLoad(nodes_Load, [-surfLoad], ["y"])
         # simu.add_surfLoad(noeuds_en_L, [surfLoad], ["x"])
 
         simu.Solve()
 
         simu.Save_Iter()
 
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         # Calc ZZ1
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         error, error_e = simu._Calc_ZZ1()
 
-        # ----------------------------------------------
+        # deformFactor = mesh.coordo.mean()*.1/simu.Result('displacement_norm').max()
+        # plotter = pvi.Plot_BoundaryConditions(simu).show()
+        # # pvi.Plot(simu, None, deformFactor, show_edges=True, plotter=plotter, opacity=.5).show()
+
+        # --------------------------------------------------------------------------------------------
         # Refine mesh
-        # ----------------------------------------------
+        # --------------------------------------------------------------------------------------------
         meshSize_n = simu.mesh.Get_New_meshSize_n(error_e, coef)
 
         if plotError:
@@ -206,47 +223,49 @@ if __name__ == '__main__':
 
         return path, error
 
+    # --------------------------------------------------------------------------------------------
+    # Optimization
+    # --------------------------------------------------------------------------------------------
     path = None
     error = 1
     i = -1
-    while error >= cible and i < iterMax:
+    while error >= treshold and i < iterMax:
 
         i += 1
 
-        if i > 0:
-            oldMesh = simu.mesh
-            oldU = simu.displacement
+        # save previous mesh
+        oldMesh = simu.mesh
+        oldU_d = simu.displacement.reshape((oldMesh.Nn,-1))
+        oldW = simu._Calc_Psi_Elas()
 
         mesh = DoMesh([path])    
 
         simu.mesh = mesh
 
         if i > 0:
+            
             os.remove(path)
 
-            if plotProj:
+            if plotProj and i == 1:
                 
-                proj = Calc_projector(oldMesh, mesh)
-
-                newDofs = simu.Bc_dofs_nodes(mesh.nodes, ["x"])
-                oldDofs = simu.Bc_dofs_nodes(oldMesh.nodes, ["x"])
-                uproj = np.zeros(mesh.Nn*dim)        
+                # constructs a projector to pass nodes values from the old mesh to the new one
+                proj = Calc_projector(oldMesh, mesh)                
+                newU_d = np.zeros((mesh.Nn, dim), dtype=float)
                 for d in range(dim):
-                    uproj[newDofs+d] = proj @ oldU[oldDofs+d]
+                    newU_d[:,d] = proj @ oldU_d[:,d]
 
-                simu.set_u_n("displacement", uproj)
+                simu.set_u_n("displacement", newU_d.reshape(-1))
+                newW = simu._Calc_Psi_Elas()
 
-                ax1 = Display.Plot_Result(oldMesh, oldU.reshape(-1,dim)[:,1], plotMesh=True, title="old uy")[1]
-                ax2 = Display.Plot_Result(simu, "uy", plotMesh=True, title="uy proj")[1]
-                if dim == 2:
-                    ax1.scatter(mesh.coordo[:,0], mesh.coordo[:,1], marker='+', c='black')
-                else:
-                    ax1.scatter(mesh.coordo[:,0], mesh.coordo[:,1], mesh.coordo[:,2], marker='+', c='black')
+                axOld = Display.Plot_Result(oldMesh, oldU_d[:,0], plotMesh=True, title="old")[1]
+                axOld.scatter(*mesh.coordo[:,:dim].T, marker='+', c='black', label='new nodes')
+                axOld.legend()
 
-                pass
+                axNew = Display.Plot_Result(simu, "ux", plotMesh=True, title="new")[1]
 
-                plt.close(ax1.figure)
-                plt.close(ax2.figure)
+                # pass
+                # plt.close(axOld.figure)
+                # plt.close(axNew.figure)
 
 
         path, error = DoSimu(i)
@@ -256,9 +275,9 @@ if __name__ == '__main__':
     if i > 0:
         os.remove(path)
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # PostProcessing
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # folder=""
     if plotResult:
         tic = Tic()    
@@ -274,7 +293,22 @@ if __name__ == '__main__':
         PostProcessing.Make_Paraview(folder, simu, nodesResult=["ZZ1_e"])
 
     if makeMovie:
-        PostProcessing.Make_Movie(folder, "ZZ1_e", simu, plotMesh=True, fps=1, nodeValues=True)
+
+
+        def func(plotter, n):
+
+            simu.Set_Iter(n)
+
+            pvi.Plot(simu, 'ZZ1_e', show_edges=True, edge_color='grey', plotter=plotter, clim=(0, error), verticalColobar=False)
+            # pvi.Plot_BoundaryConditions(simu, plotter=plotter)
+
+            zz1 = simu._Calc_ZZ1()[0]
+
+            plotter.add_title(f'ZZ1 = {zz1*100:.2f} %')
+
+        pvi.Movie_func(func, len(simu.results), folder, f'{part}.gif')
+
+        # PostProcessing.Make_Movie(folder, "ZZ1_e", simu, plotMesh=True, fps=1, nodeValues=True)
 
     Tic.Plot_History(details=True)
     plt.show()
