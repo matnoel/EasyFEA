@@ -5,6 +5,7 @@ https://docs.pyvista.org/version/stable/
 from typing import Union, Any, Callable
 import pyvista as pv
 import numpy as np
+from cycler import cycler
 
 from Display import myPrintError, _init_obj
 import Folder
@@ -444,13 +445,15 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None, **
 
     return plotter
 
-def Plot_Geoms(geoms: list, line_width=2, plotter: pv.Plotter=None, **kwargs) -> pv.Plotter:
+def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=None, **kwargs) -> pv.Plotter:
     """Plot geom object
 
     Parameters
     ----------
     geoms : list
         list of geom object
+    plotLegend : bool,
+        plot the legend, by default True
     line_width : float, optional
         Thickness of lines, by default 2
     plotter : pv.Plotter, optional
@@ -474,8 +477,12 @@ def Plot_Geoms(geoms: list, line_width=2, plotter: pv.Plotter=None, **kwargs) ->
 
     geoms: list[Geoms._Geom] = geoms
 
-    pv.global_theme.color_cycler = 'default' # same as matplotlib
-    color_cycler = pv.global_theme.color_cycler
+    if not "color" in kwargs.keys():
+        pv.global_theme.color_cycler = 'default' # same as matplotlib
+        color_cycler = pv.global_theme.color_cycler
+    else:        
+        color_cycler = cycler(color=[kwargs['color']])
+        kwargs.pop('color')
 
     for geom, cycle in zip(geoms, color_cycler):
 
@@ -487,18 +494,16 @@ def Plot_Geoms(geoms: list, line_width=2, plotter: pv.Plotter=None, **kwargs) ->
             continue
 
         if isinstance(dataSet, list):
-
             for d, data in enumerate(dataSet):
-
                 label = geom.name if d == 0 else None
                 Plot(data, plotter=plotter, label=label, color=color, line_width=line_width, **kwargs)
-
         else:
             Plot(dataSet, plotter=plotter, label=geom.name, color=color, line_width=line_width, **kwargs)
 
     pv.global_theme.color_cycler = None
 
-    plotter.add_legend(bcolor='white',face="o")
+    if plotLegend:
+        plotter.add_legend(bcolor='white',face="o")
 
     return plotter
 
@@ -717,7 +722,7 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
             elif isinstance(geom, Geoms.CircleArc):
                 dataSets.append(__CircleArc(geom))
             elif isinstance(geom, Geoms.Points):
-                dataSets.extend(__DoGeoms(geom.Get_Contour()[:-1]))
+                dataSets.extend(__DoGeoms(geom.Get_Contour().geoms[:-1]))
 
         return dataSets
 

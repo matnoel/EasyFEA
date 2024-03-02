@@ -174,9 +174,18 @@ class Mesher:
                 splinePoints.insert(0,p1)
                 splinePoints.append(p2)                
                 
-                # pass
-                line = factory.addSpline(splinePoints)
+                # list_line = []
+                # for p in range(len(splinePoints)-1):
+                #     list_line.append(factory.addLine(splinePoints[p], splinePoints[p+1]))                
+                # lines.extend(list_line)
+                # if geom.isOpen:
+                #     openLines.extend(list_line)
 
+                # last = points[-1]
+                # points.pop(-1)
+                # points.extend(splinePoints[1:])
+                
+                line = factory.addSpline(splinePoints)
                 lines.append(line)
                 if geom.isOpen:
                     openLines.append(line)
@@ -487,7 +496,8 @@ class Mesher:
         canBeOrganised = len(contour1.geoms) == 4
         # specifies if it is necessary to recombine bonding surfaces
         recombineLinkingSurf = 'HEXA' in elemType or 'PRISM' in elemType
-        useTransfinite = canBeOrganised and recombineLinkingSurf
+        # useTransfinite = canBeOrganised and recombineLinkingSurf
+        useTransfinite = recombineLinkingSurf
         
         loop1, lines1, points1 = self._Loop_From_Geom(contour1)
         loop2, lines2, points2 = self._Loop_From_Geom(contour2)

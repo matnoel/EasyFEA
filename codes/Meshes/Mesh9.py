@@ -12,12 +12,12 @@ import scipy.io
 
 if __name__ == '__main__':
 
-    folder = Folder.New_File('Meshes', 'Blade', results=True)
+    folder = Folder.New_File(Folder.Join('Meshes', 'Blade'), results=True)
 
-    N=10 # elements in the blade lenght l
+    N=20 # elements in the blade lenght l
     addCylinder = True
     repeat = True
-    angleRev = 2*np.pi/10 # rad
+    angleRev = 2*np.pi/20 # rad
     saveToMatlab = False
 
     # elemType = ElemType.TETRA4
@@ -249,17 +249,14 @@ if __name__ == '__main__':
         
         vols.append((contourInf, contourSup, e/mS, elems))
         vols.append((contourInf_c, contourSup_c, e/mS, elems))
-
-
-    for v, vol in enumerate(vols):
-        # color = ''
-        color = 'blue'
-        if v==0:
-            ax = vol[0].Plot(color=color)
-        else:
-            vol[0].Plot(ax, color=color)
-        vol[1].Plot(ax, color=color)
-        # ax.legend()
+    
+    # axGeom = Display.init_Axes(3)
+    # axGeom.axis('off')
+    # for v, vol in enumerate(vols):        
+    #     color = 'blue'        
+    #     vol[0].Plot(axGeom, color=color)
+    #     vol[1].Plot(axGeom, color=color)        
+    #     # ax.legend()
 
     firstPart = LinkEveryone(vols)
 
@@ -280,16 +277,9 @@ if __name__ == '__main__':
             # partsC = factory.copy(parts)
             # factory.rotate(partsC, 0,0,0,0,0,1, angleRev*(i+1))
     
-
-    mesher._Set_PhysicalGroups(setPoints=False)
-    
     mesher._Meshing(3, elemType, folder=folder, filename='blade')
 
     mesh = mesher._Construct_Mesh()
-
-    Display.Plot_Tags(mesh, alpha=0.1, showId=False)
-
-    ax = Display.Plot_Mesh(mesh)
 
     nodesCircle = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+1e-2)
     nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z>=mesh.coordoGlob[:,2].max()-1e-2)
@@ -299,47 +289,6 @@ if __name__ == '__main__':
 
     mesh.groupElem.Set_Nodes_Tag(nodesCircle, 'blades')
     mesh.groupElem.Set_Nodes_Tag(nodesCyl, 'cylindre')
-    
-    # pvi.Plot_Elements(mesh, nodesCircle, 2, False, color='blue', edge_color='green', opacity=.5).show()
-
-    # --------------------------------------------------------------------------------------------
-    # Simu
-    # --------------------------------------------------------------------------------------------
-
-    # material = Materials.Elas_Isot(mesh.dim)
-
-    # simu = Simulations.Simu_Displacement(mesh, material)
-
-    # uz = 1e-1
-    # simu.add_dirichlet(nodesCircle, [0]*mesh.dim, simu.Get_directions())
-    # simu.add_dirichlet(nodesUpper, [uz], ["z"])    
-    # simu.Solve()
-    # simu.Save_Iter()
-
-    # Interface_Gmsh(True).Save_Simu(simu, ['ux','uy','uz','Svm','Stress'])
-    # Interface_Gmsh(True).Save_Simu(simu, ['Sxx','Stress','Svm','energy'], folder=folder)
-
-    # --------------------------------------------------------------------------------------------
-    # Results
-    # --------------------------------------------------------------------------------------------
-
-    # deformFactor = uz / uz
-
-    # Display.Plot_Result(simu, 'uz', deformFactor)
-    
-    # Display.Plot_Result(simu, 'Svm', deformFactor)
-
-    # Display.Plot_Mesh(simu, deformFactor)
-
-    # Display.Plot_BoundaryConditions(simu)
-
-    # ax = Display.Plot_Elements(mesh, nodesCyl, c='green')
-    # Display.Plot_Elements(mesh, nodesBlades, c='grey', ax=ax)
-    # ax.legend()
-
-    # PostProcessing.Make_Paraview(folder, simu)
-
-    # print(simu)
 
     if saveToMatlab:
         matFile = Folder.Join(folder, 'blade.mat')
@@ -352,7 +301,14 @@ if __name__ == '__main__':
             'cylindreElems': np.asarray(mesh.Elements_Nodes(nodesCyl) + 1, dtype=float),
         }
         scipy.io.savemat(matFile, msh)
-    
+
+    # --------------------------------------------------------------------------------------------
+    # Plot
+    # --------------------------------------------------------------------------------------------
+        
     pvi.Plot_Mesh(mesh).show()
+
+    qual = mesh.Get_Quality('aspect')
+    pvi.Plot(mesh, qual, nodeValues=False, show_edges=True, cmap='viridis', clim=(0,1), n_colors=11).show()
 
     Display.plt.show()

@@ -11,9 +11,9 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Geom
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     R = 10
     e = 2
     r = R-e
@@ -31,9 +31,9 @@ if __name__ == '__main__':
     addBox = True
     addRevolve = True
 
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
     # Mesh
-    # ----------------------------------------------
+    # --------------------------------------------------------------------------------------------
 
     mesher = Mesher(False, False)
     # dim, elemType = 2, ElemType.TRI3
@@ -83,9 +83,21 @@ if __name__ == '__main__':
 
     mesh = mesher._Construct_Mesh()
 
+    # --------------------------------------------------------------------------------------------
+    # Plot
+    # --------------------------------------------------------------------------------------------
+
     print(mesh)
 
     if dim == 3:
         print(f'volume = {mesh.volume:.3f}')
 
-    pvi.Plot_Mesh(mesh).show()
+    plotter = pvi._Plotter(shape=(1,2))
+
+    pvi.Plot_Mesh(mesh, plotter=plotter)
+
+    plotter.subplot(0,1)
+    plotter.add_title('aspect ratio')
+    qual = mesh.Get_Quality()
+    pvi.Plot_Elements(mesh, dimElem=1, plotter=plotter, color='k')
+    pvi.Plot(mesh, qual, nodeValues=False, cmap='viridis', clim=(0,1), show_edges=True, plotter=plotter).show()
