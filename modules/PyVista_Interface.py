@@ -606,11 +606,12 @@ __dictCellTypes: dict[str, pv.CellType] = {
     "PRISM15": pv.CellType.QUADRATIC_WEDGE,
 }
 
-def _Plotter(off_screen=False, add_axes=True, shape=(1,1)):
+def _Plotter(off_screen=False, add_axes=True, shape=(1,1), linkViews=True):
     plotter = pv.Plotter(off_screen=off_screen, shape=shape)
     if add_axes:
         plotter.add_axes()
-    plotter.link_views()
+    if linkViews:
+        plotter.link_views()
     plotter.subplot(0,0)
     return plotter
 
@@ -665,15 +666,16 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
 
             if values is None:
                 pass
-            elif size % Nn == 1 or size % Ne == 1:
-                myPrintError("Must return nodes or elements values")
-            else:             
+            elif size % Nn == 0 or size % Ne == 0:
                 if size % Nn == 0:
                     values = np.reshape(values, (Nn, -1))
                 elif size % Ne == 0:
                     values = np.reshape(values, (Ne, -1))
                 pvMesh[result] = values
-                pvMesh.set_active_scalars(result)            
+                pvMesh.set_active_scalars(result)
+            else:
+                myPrintError("Must return nodes or elements values")
+                
         else:
             myPrintError("obj must be a simulation object or result should be nodes or elements values.")
 

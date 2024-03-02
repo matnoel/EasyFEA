@@ -5,6 +5,7 @@ import Display
 from Gmsh_Interface import Mesher, ElemType, Point, Points, Circle, Domain, Line
 import Simulations
 import Materials
+import PyVista_Interface as pvi
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -117,14 +118,14 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Results
     # --------------------------------------------------------------------------------------------
-    
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Mesh(simu, hx/2/np.abs(sol).max())
-    Display.Plot_Result(simu, "uy", coef=1/coef, ncolors=20)
-    Display.Plot_Result(simu, "ux", coef=1/coef, ncolors=20, plotMesh=True)
+
+    plotter = pvi._Plotter(shape=(2,1))
+    pvi.Plot(simu, 'ux', coef=1/coef, n_colors=20, show_edges=True, plotter=plotter, verticalColobar=False)
+    pvi.Plot_BoundaryConditions(simu, plotter=plotter)
+    plotter.subplot(1,0)    
+    pvi.Plot(simu, 'uy', coef=1/coef, n_colors=20, plotter=plotter, verticalColobar=False)
+    plotter.show()
 
     Simulations.Tic.Plot_History(details=False)
-
-    # Interface_Gmsh(True).Save_Simu(simu)
 
     plt.show()
