@@ -907,11 +907,11 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     proj = sp.csr_matrix((values, (lines, columns)), (newMesh.Nn, oldMesh.Nn), dtype=float)
 
-    proj = proj.tolil()
-
     # Here we'll impose the exact values of overlapping nodes (which have the same coordinate) on the nodes.
-
+    proj = proj.tolil()
+    
     # get back the corners to link nodes
+    # here we assume that the points are identical
     newCorners = newMesh.Get_list_groupElem(0)[0].nodes
     oldCorners = oldMesh.Get_list_groupElem(0)[0].nodes
     # link nodes

@@ -44,10 +44,6 @@ if __name__ == '__main__':
 
     # slave mesh
     contour_slave = Domain(Point(-R/2,0), Point(R/2,height), meshSize)
-
-    
-
-
     if dim == 2:
         mesh_slave = Mesher().Mesh_2D(contour_slave, [], ElemType.QUAD4, isOrganised=True)
     else:

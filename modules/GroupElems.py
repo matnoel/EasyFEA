@@ -1535,22 +1535,159 @@ class _GroupElem(ABC):
 
             return idx
 
-    def Get_Mapping(self, coordinates: np.ndarray, elements=None):
+    def Get_Mapping(self, coordinates_n: np.ndarray, elements_e=None, needCoordinates=True):
         """This function locates coordinates in elements.\n
         return detectedNodes, connect_e_n, detectedElements_e, coordoInElem_n\n
         - detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e\n
         - detectedElements_e (e) are the elements for which we have detected the nodes\n
         - connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element\n
             ? means that the table does not have the same dimension on axis 1\n        
-        - coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element.
+        - coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element (needCoordinates must be True).
         """
         
-        if elements is None:
-            elements = np.arange(self.Ne, dtype=int)
+        if elements_e is None:
+            elements_e = np.arange(self.Ne, dtype=int)
 
-        assert coordinates.shape[1] == 3, "Must be of dimension (n, 3)."
+        assert coordinates_n.shape[1] == 3, "Must be of dimension (n, 3)."
 
-        return self.__Get_Mapping(coordinates, elements)
+        return self.__Get_Mapping(coordinates_n, elements_e, needCoordinates)
+
+    def __Get_Mapping(self, coordinates_n: np.ndarray, elements_e: np.ndarray, needCoordinates=True):
+        """This function locates coordinates in elements.\n
+        return detectedNodes, connect_e_n, detectedElements_e, coordoInElem_n\n
+        - detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e\n
+        - detectedElements_e (e) are the elements for which we have detected the nodes\n
+        - connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element\n
+            ? means that the table does not have the same dimension on axis 1\n        
+        - coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element (needCoordinates must be True). 
+        """
+        
+        # retrieves informations from element group
+        dim = self.dim
+        connect = self.connect
+        coordo = self.coordo
+        
+        # Initialize lists of interest
+        detectedNodes: list[int] = []
+        # Elements where nodes have been identified
+        detectedElements_e: list[int] = []
+        # connection matrix containing the nodes used by the elements
+        connect_e_n: list[list[int]] = []
+
+        # Calculates the number of times a coordinate appears
+        # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image
+        # If the coordinates come from an image, the _Get_coordoNear function will be faster.
+        dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1
+
+        if needCoordinates:
+            # Here we want to know the coordinates of the nodes in the reference element
+            # node coordinates in the element's reference base (xi, eta)
+            coordInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
+
+            # Calculating coordinates in the reference element
+            # get groupElem datas
+            inDim = self.inDim
+            sysCoord_e = self.sysCoord_e # base change matrix for each element
+            matrixType = MatrixType.rigi
+            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
+            invF_e_pg = self.Get_invF_e_pg(matrixType)
+            dN_tild = self._dNtild()
+            nPg = invF_e_pg.shape[1]
+            gaussCoord_e_pg = self.Get_GaussCoordinates_e_p(matrixType)
+            xiOrigin = self.origin # origin of the reference element (xi, eta)        
+
+            useIterative = False            
+            # # Check whether iterative resolution is required
+            # # calculates the ratio between jacob min and max to detect if the element is distorted 
+            # diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
+            # error_e = 1 - diff_e # a perfect element has an error max <= 1e-12
+            # # a distorted element has a max error greater than 0
+            # useIterative = np.max(error_e) > 1e-12
+        else:
+            coordInElem_n = None
+
+        def ResearchFunction(e: int):
+    
+            # Retrieve element node coordinates
+            coordoElem: np.ndarray = coordo[connect[e]]
+
+            # Retrieves indexes in coordinates_n that are within the element's bounds
+            idxNearElem = self.__Get_coordoNear(coordinates_n, coordoElem, dims)
+
+            # Returns the index of nodes around the element that meet all conditions
+            idxInElem = self.Get_pointsInElem(coordinates_n[idxNearElem], e)
+
+            if idxInElem.size == 0:
+                # here no nodes have been detected in the element
+                return
+                                
+            # nodes that meet all conditions (nodes in the element e)
+            nodesInElement = idxNearElem[idxInElem]
+
+            # Save de detected nodes elements and connectivity matrix
+            detectedNodes.extend(nodesInElement)
+            connect_e_n.append(nodesInElement)
+            detectedElements_e.append(e)
+
+            if needCoordinates:
+                # here, inverse mapping is required
+                #   i.e. to know the position in the reference element (xi, eta) from the physical element (x,y).
+                # If the element has several integration points (QUAD4 TRI6 and others)
+                #   i.e. all elements that can be desorbed and have a Jacobian criterion other than 1. This can also happen for higher-order elements.s
+
+                # project coordinates in the basis of the element if dim != inDim
+                # its the case when a 2D mesh is in 3D space
+                coordoElemBase = coordoElem.copy()
+                coordinatesBase_n: np.ndarray = coordinates_n[nodesInElement].copy()
+                if dim != inDim:
+                    # Here we're talking about a 2d oriented mesh in 3D space, for example.
+                    coordoElemBase = coordoElemBase @ sysCoord_e[e]
+                    coordinatesBase_n = coordinatesBase_n @ sysCoord_e[e]
+                        
+                x0  = coordoElemBase[0,:dim] # orign of the real element (x,y)
+                xPs = coordinatesBase_n[:,:dim] # points coordinates (x,y)
+                
+                # the fastest way, but may lead to shape functions that give values outside [0,1].
+                xiP: np.ndarray = xiOrigin + (xPs - x0) @ np.mean(invF_e_pg[e], 0)
+
+                # if not useIterative:
+                #     if nPg == 1:
+                #         # invF_e_pg is constant in the element
+                #         xiP: np.ndarray = xiOrigin + (xPs - x0) @ invF_e_pg[e,0]
+                #     else:
+                #         # If the element have more than 1 integration point, it is necessary to choose the closest integration points. Because invF_e_pg is not constant in the element
+                #         # for each node detected, we'll calculate its distance from all integration points and see where it's closest
+                #         dist = np.zeros((xPs.shape[0], nPg))
+                #         for p in range(nPg):
+                #             dist[:,p] = np.linalg.norm(xPs - gaussCoord_e_pg[e, p, :dim], axis=1)
+                #         invMin = invF_e_pg[e, np.argmin(dist, axis=1)]                
+                #         xiP: np.ndarray = xiOrigin + (xPs - x0) @ invMin                    
+                # else:
+                #     # Here we need to construct the Jacobian matrices. This is the longest method here
+                #     def Eval(xi: np.ndarray, xP):
+                #         dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
+                #         F = dN[0] @ coordoElemBase[:,:dim] # jacobian matrix                   
+                #         J = x0 - xP + (xi - xiOrigin) @ F # cost function
+                #         return J
+
+                #     xiP = []
+                #     for xP in xPs:
+                #         res = least_squares(Eval, 0*xP, args=(xP,))
+                #         xiP.append(res.x)
+
+                #     xiP = np.array(xiP)
+
+                coordInElem_n[nodesInElement,:] = xiP.copy()
+
+        [ResearchFunction(e) for e in elements_e]
+
+        assert len(detectedElements_e) == len(connect_e_n), "The number of elements detected must be the same as the number of connect_e_n lines."
+
+        ar_detectedNodes = np.asarray(detectedNodes,dtype=int)
+        ar_detectedElements_e = np.asarray(detectedElements_e,dtype=int)
+        ar_connect_e_n = np.asarray(connect_e_n,dtype=object)
+
+        return ar_detectedNodes, ar_detectedElements_e, ar_connect_e_n, coordInElem_n
     
     def __Get_coordoNear(self, coordinates_n: np.ndarray, coordElem: np.ndarray, dims: np.ndarray) -> np.ndarray:
         """Retrieves indexes in coordinates_n that are within the coordElem's bounds.
@@ -1574,9 +1711,9 @@ class _GroupElem(ABC):
         
         # If all the coordinates appear the same number of times and the coordinates are of type int, we are on a grid/image.
         testShape = nX * nY - coordinates_n.shape[0] == 0
-        usePixel = coordinates_n.dtype==int and testShape and nZ == 1
+        coordinatesInImage = coordinates_n.dtype==int and testShape and nZ == 1
 
-        if usePixel:
+        if coordinatesInImage:
             # here coordinates_n are pixels
 
             xe = np.arange(np.floor(coordElem[:,0].min()), np.ceil(coordElem[:,0].max()), dtype=int)
@@ -1598,120 +1735,6 @@ class _GroupElem(ABC):
                             (zn >= np.min(ze)) & (zn <= np.max(ze)))[0]
 
         return idx
-
-    def __Get_Mapping(self, coordinates_n: np.ndarray, elements_e: np.ndarray):
-        """This function locates coordinates in elements.\n
-        return detectedNodes, connect_e_n, detectedElements_e, coordoInElem_n\n
-        - detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e\n
-        - detectedElements_e (e) are the elements for which we have detected the nodes\n
-        - connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element\n
-            ? means that the table does not have the same dimension on axis 1\n        
-        - coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element.
-        """
-        
-        # retrieves informations from element group
-        dim = self.dim
-        inDim = self.inDim
-        coordo = self.coordo
-        connect = self.connect
-        sysCoord_e = self.sysCoord_e # base change matrix for each element
-        matrixType = MatrixType.rigi
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
-        nPg = invF_e_pg.shape[1]
-        dN_tild = self._dNtild()
-        gaussCoord_e_pg = self.Get_GaussCoordinates_e_p(matrixType)
-
-        # calculates the ratio between jacob min and max to detect if the element is distorted 
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
-        diff_e = jacobian_e_pg.min(1) * 1/jacobian_e_pg.max(1)
-        error_e = 1 - diff_e # a perfect element has an error max <= 1e-12
-        # a distorted element has a max error greater than 0
-        useIterative = np.max(error_e) > 1e-12        
-        
-        # connection matrix containing the nodes used by the elements
-        connect_e_n: list[list[int]] = []
-        # node coordinates in the element's reference base
-        coordInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
-        # Elements where nodes have been identified
-        detectedElements_e: list[int] = []
-        detectedNodes: list[int] = []
-
-        # Calculates the number of times a coordinate appears
-        # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image
-        dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1 # faster
-
-        def ResearchFunction(e: int):
-    
-            # Retrieve element node coordinates
-            coordoElem: np.ndarray = coordo[connect[e]]
-
-            # Retrieves indexes in coordinates_n that are within the element's bounds
-            idxNearElem = self.__Get_coordoNear(coordinates_n, coordoElem, dims)
-
-            # Returns the index of nodes around the element that meet all conditions
-            idxInElem = self.Get_pointsInElem(coordinates_n[idxNearElem], e)
-
-            if idxInElem.size == 0:
-                # here no nodes have been detected in the element
-                return
-                    
-            # nodes that meet all conditions (nodes in the element e)
-            nodesInElement = idxNearElem[idxInElem]
-
-            # project coordinates in the basis of the element if dim != inDim
-            # its the case when a 2D mesh is in 3D space
-            coordoElemBase = coordoElem.copy()
-            coordinatesBase_n: np.ndarray = coordinates_n[nodesInElement].copy()
-            if dim != inDim:            
-                coordoElemBase = coordoElemBase @ sysCoord_e[e]
-                coordinatesBase_n = coordinatesBase_n @ sysCoord_e[e]
-            
-            # now we want to know the coordinates of the nodes in the reference element
-            xiOrigin = self.origin # origin of the reference element (xi, eta)            
-            x0  = coordoElemBase[0,:dim] # orign of the real element (x,y)
-            xPs = coordinatesBase_n[:,:dim] # points coordinates (x,y)
-            
-            # points coordinates in the reference base
-            if useIterative:
-                
-                def Eval(xi: np.ndarray, xP):
-                    dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
-                    F = dN[0] @ coordoElemBase[:,:dim]                    
-                    J = x0 - xP + (xi - xiOrigin) @ F
-                    return J
-
-                xiP = []
-                for xP in xPs:
-                    res = least_squares(Eval, 0*xP, args=(xP,))
-                    xiP.append(res.x)
-
-                xiP = np.array(xiP)
-            else:
-                if nPg == 1:
-                    # invF_e_pg is constant in the element
-                    xiP: np.ndarray = xiOrigin + (xPs - x0) @ invF_e_pg[e,0]
-
-                else:
-                    # If the element have more than 1 integration point, it is necessary to choose the closest integration points. Because invF_e_pg is not constant in the element
-
-                    # for each node detected, we'll calculate its distance from all integration points and see where it's closest
-                    dist = np.zeros((xPs.shape[0], nPg))
-                    for p in range(nPg):
-                        dist[:,p] = np.linalg.norm(xPs - gaussCoord_e_pg[e, p, :dim], axis=1)
-                    invMin = invF_e_pg[e, np.argmin(dist, axis=1)]
-
-                    xiP: np.ndarray = xiOrigin + np.einsum('ni,nij->nj',(xPs - x0), invMin, optimize='optimal')
-            
-            detectedNodes.extend(nodesInElement)
-            connect_e_n.append(nodesInElement)
-            detectedElements_e.append(e)            
-            coordInElem_n[nodesInElement,:] = xiP.copy()
-
-        [ResearchFunction(e) for e in elements_e]
-
-        assert len(detectedElements_e) == len(connect_e_n), "The number of elements detected must be the same as the number of connect_e_n lines."
-
-        return np.asarray(detectedNodes,dtype=int), np.asarray(detectedElements_e,dtype=int), np.asarray(connect_e_n,dtype=object), coordInElem_n
     
     @abstractproperty
     def origin(self) -> list[int]:

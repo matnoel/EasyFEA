@@ -1503,7 +1503,7 @@ class _Simu(_IObserver, ABC):
         newCoordo = self.Results_displacement_matrix() + self.mesh.coordo
         
         # check nodes in master mesh
-        idx = masterMesh.groupElem.Get_Mapping(newCoordo[slaveNodes], elements)[0]        
+        idx = masterMesh.groupElem.Get_Mapping(newCoordo[slaveNodes], elements, False)[0]        
         idx = np.asarray(list(set(idx)), dtype=int)
 
         tic.Tac("PostProcessing","Get slave nodes in master mesh")
