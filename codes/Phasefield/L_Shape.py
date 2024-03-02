@@ -17,9 +17,9 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    solve = False
+    solve = True
     test = True
-    optimMesh = False
+    optimMesh = True
 
     pltIter = False
     pltLoad = False
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     makeParaview = False
 
     # geom
-    dim = 3
+    dim = 2
     L = 250 # mm
     ep = 100
     l0 = 5
@@ -37,8 +37,8 @@ if __name__ == '__main__':
     v = 0.18
 
     # phase field
-    # split = "He"
-    split = "AnisotStress"
+    split = "Miehe"
+    # split = "AnisotStress"
     regu = "AT1"
     Gc = 130 # J/m2
     Gc *= 1000/1e6 #mJ/mm2
@@ -46,9 +46,9 @@ if __name__ == '__main__':
     convOption = 2
 
     # loading
-    adaptLoad = False
+    adaptLoad = True
     # uMax = 1.2 # mm
-    uMax = 2 # mm
+    uMax = 1 # mm
     inc0 = uMax/200
     inc1 = inc0/2
 
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     nodes_load = mesh.Nodes_Conditions(lambda x,y,z: (y==L) & (x>=2*L-30))
     node3 = mesh.Nodes_Point(p3); node4 = mesh.Nodes_Point(p4)
     nodes_circle = mesh.Nodes_Cylinder(circle, [0,0,ep])
-    nodes_edges = mesh.Nodes_Conditions(lambda x,y,z: (x==0) | (y==L)| (y==0))
+    nodes_edges = mesh.Nodes_Conditions(lambda x,y,z: (x==0) | (y==0))
 
     # --------------------------------------------------------------------------------------------
     # Simulation
@@ -119,33 +119,11 @@ if __name__ == '__main__':
         simu = Simulations.PhaseField(mesh, pfm)
         
         dofsY_load = simu.Bc_dofs_nodes(nodes_load, ['y'])
-
-        if adaptLoad:
-            def Add_Dep(x,y,z):
-                """Function that projects displacement in the right direction to adapt movement to surface inclination."""
-                
-                # recovers displacement
-                dep = simu.Results_displacement_matrix()
-                # new mesh coordinates
-                newCoordo = simu.mesh.coordo + dep
-
-                vectBord = newCoordo[node4] - newCoordo[node3]
-                vectBord = Normalize_vect(vectBord)
-
-                vectDep = np.cross([0,0,1], vectBord)
-                vectDep = Normalize_vect(vectDep)
-
-                displ = ud * vectDep[0,:2]
-
-                return displ
-            
-            loadX = lambda x,y,z: Add_Dep(x,y,z)[0]
-            loadY = lambda x,y,z: Add_Dep(x,y,z)[1]
         
         if pltIter:
             __, axIter, cb = Display.Plot_Result(simu, 'damage')
 
-            axLoad = plt.subplots()[1]
+            axLoad: Display.Axes = plt.subplots()[1]
             axLoad.set_xlabel('displacement [mm]')
             axLoad.set_ylabel('load [kN]')
 
@@ -163,16 +141,11 @@ if __name__ == '__main__':
             # update boundary conditions
             simu.Bc_Init()
             simu.add_dirichlet(nodes_circle, [0], ['d'], "damage")
-            simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_directions())       
-            
-            if adaptLoad:
-                simu.add_dirichlet(nodes_load, [loadX, loadY], ['x','y'])
-            else:            
-                simu.add_dirichlet(nodes_load, [ud], ['y'])
+            simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_directions())
+            simu.add_dirichlet(nodes_load, [ud], ['y'])
 
             # solve
             u, d, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
-
             # calc load
             fr = np.sum(Kglob[dofsY_load,:] @ u)
 
