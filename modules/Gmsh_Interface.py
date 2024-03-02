@@ -708,15 +708,17 @@ class Mesher:
 
             elif isinstance(crack, Points):  # 1D CRACK
 
-                line, points = self._Spline_From_Points(crack)
+                loop, lines, points, openLns, openPts = self._Loop_From_Contour(crack.Get_Contour())
+
+                self._factory.remove([(1,loop),(1,lines[-1])])
                 
                 entities0D.extend(points)
-                entities1D.append(line)
-                
+                entities1D.extend(lines[:-1])                
+
                 if crack.isOpen:
-                    crack1D.append(line)                    
-                    if crack.pt1.isOpen: openPoints.append(points[0])
-                    if crack.pt2.isOpen: openPoints.append(points[1])
+                    crack1D.extend(lines[:-1])
+                    openLines.extend(openLns)                    
+                    openPoints.extend(openPts)
 
             elif isinstance(crack, Contour):  # 2D CRACK
 
