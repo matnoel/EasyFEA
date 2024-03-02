@@ -602,10 +602,15 @@ class _GroupElem(ABC):
         
         return self.__dict_SourcePart_e_pg[matrixType].copy()
     
-    def __Get_sysCoord_e(self):
+    def _Get_sysCoord_e(self, displacementMatrix:np.ndarray=None):
         """Base change matrix for elements (Ne,3,3)"""
 
         coordo = self.coordoGlob
+
+        if displacementMatrix is not None:
+            displacementMatrix = np.asarray(displacementMatrix, dtype=float)
+            assert displacementMatrix.shape == coordo.shape, f'displacmentMatrix must be of size {coordo.shape}'
+            coordo += displacementMatrix
 
         if self.dim in [0,3]:
             sysCoord_e = np.eye(3)
@@ -691,7 +696,7 @@ class _GroupElem(ABC):
         
         coordo_e * sysCoord_e -> coordinates of nodes in element base.
         """
-        return self.__Get_sysCoord_e()
+        return self._Get_sysCoord_e()
     
     def Integrate_e(self, func=lambda x,y,z: 1) -> np.ndarray:
         """Integrates the function over elements.

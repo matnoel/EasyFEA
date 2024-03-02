@@ -304,7 +304,7 @@ class Mesh(Observable):
         """Center of mass / barycenter / inertia center"""
         return self.groupElem.center
         
-    def Get_normals(self, nodes: np.ndarray=None) -> np.ndarray:
+    def Get_normals(self, nodes: np.ndarray=None, displacementMatrix:np.ndarray=None) -> np.ndarray:
         """Get normal vectors and the nodes belonging to the edge of the mesh.\n
         return normals, nodes."""
 
@@ -333,7 +333,7 @@ class Mesh(Observable):
             if usedNodes.size == 0: continue
 
             # get the normal vectors for elements
-            n_e = groupElem.sysCoord_e[elements, :, idx]
+            n_e = groupElem._Get_sysCoord_e(displacementMatrix)[elements, :, idx]
 
             # here we want to get the normal vector on the nodes
             # need to get the nodes connectivity
