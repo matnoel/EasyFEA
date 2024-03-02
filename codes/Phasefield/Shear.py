@@ -247,7 +247,7 @@ def DoSimu(split: str, regu: str):
 
             simu.Set_Iter(n)
 
-            grid = pvi._pvMesh(simu, 'damage', deformFactor)
+            grid = pvi._pvGrid(simu, 'damage', deformFactor)
 
             tresh = grid.threshold((0,0.8))
         

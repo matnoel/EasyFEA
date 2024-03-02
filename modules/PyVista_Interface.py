@@ -69,7 +69,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         The pyvista plotter
     """
     
-    tic = Tic()
+    tic = Tic()    
     
     # initiate the obj to construct the grid
     if isinstance(obj, (pv.MultiBlock, pv.PolyData, pv.UnstructuredGrid)):
@@ -77,7 +77,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         pvMesh = obj        
         result = result if result in pvMesh.array_names else None
     else:
-        pvMesh = _pvMesh(obj, result, deformFactor, nodeValues)
+        pvMesh = _pvGrid(obj, result, deformFactor, nodeValues)
         inDim = _init_obj(obj)[-1]
 
     if pvMesh is None:
@@ -91,7 +91,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         pvMesh[name] *= coef
 
     if plotter is None:        
-        plotter = _initPlotter()
+        plotter = _Plotter()
     
     if show_grid:
         plotter.show_grid()    
@@ -103,15 +103,19 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         pos = 'position_y'
         val = 0.025
 
-    # plot the mesh    
-    plotter.add_mesh(pvMesh, scalars=name,
-                     color=color,
-                     show_edges=show_edges, edge_color=edge_color, line_width=line_width,
-                     show_vertices=show_vertices, point_size=point_size,
-                     opacity=opacity,
-                     style=style, cmap=cmap, n_colors=n_colors, clim=clim,
-                     scalar_bar_args={'title': name, 'vertical': verticalColobar, pos: val},
-                     **kwargs)
+    # plot the mesh
+    if not isinstance(pvMesh, list):
+        pvMeshs = [pvMesh]
+
+    for pvMesh in pvMeshs:
+        plotter.add_mesh(pvMesh, scalars=name,
+                        color=color,
+                        show_edges=show_edges, edge_color=edge_color, line_width=line_width,
+                        show_vertices=show_vertices, point_size=point_size,
+                        opacity=opacity,
+                        style=style, cmap=cmap, n_colors=n_colors, clim=clim,
+                        scalar_bar_args={'title': name, 'vertical': verticalColobar, pos: val},
+                        **kwargs)
 
     _setCameraPosition(plotter, inDim)
 
@@ -277,7 +281,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
         nodes = groupElem.nodes
         newGroupElem = _GroupElem_Factory.Create(gmshId, connect, coordo, nodes)
 
-        pvGroup = _pvMesh(newGroupElem)
+        pvGroup = _pvGrid(newGroupElem)
 
         Plot(pvGroup, opacity=opacity, color=color, edge_color=edge_color, plotter=plotter, **kwargs, line_width=line_width)
 
@@ -328,7 +332,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None, **
     BoundaryConditions.extend(displays)
 
     if plotter == None:
-        plotter = _initPlotter()    
+        plotter = _Plotter()    
         Plot_Elements(simu, None, 1, False, deformFactor, plotter=plotter, color='k')
         # Plot(simu, deformFactor=deformFactor, plotter=plotter, color='k', style='wireframe')
         plotter.add_title('Boundary conditions')
@@ -440,6 +444,63 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None, **
 
     return plotter
 
+def Plot_Geoms(geoms: list, line_width=2, plotter: pv.Plotter=None, **kwargs) -> pv.Plotter:
+    """Plot geom object
+
+    Parameters
+    ----------
+    geoms : list
+        list of geom object
+    line_width : float, optional
+        Thickness of lines, by default 2
+    plotter : pv.Plotter, optional
+        The pyvista plotter, by default None and create a new Plotter instance    
+    **kwargs:
+        Everything that can goes in Plot() and add_mesh function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
+
+    Returns
+    -------
+    pv.Plotter
+        The pyvista plotter
+    """
+
+    if not isinstance(geoms, list):
+        geoms = [geoms]
+
+    if plotter is None:
+        plotter = _Plotter()
+
+    import Geoms
+
+    geoms: list[Geoms._Geom] = geoms
+
+    pv.global_theme.color_cycler = 'default' # same as matplotlib
+    color_cycler = pv.global_theme.color_cycler
+
+    for geom, cycle in zip(geoms, color_cycler):
+
+        color = cycle["color"]
+
+        dataSet = _pvGeom(geom)
+
+        if dataSet is None:
+            continue
+
+        if isinstance(dataSet, list):
+
+            for d, data in enumerate(dataSet):
+
+                label = geom.name if d == 0 else None
+                Plot(data, plotter=plotter, label=label, color=color, line_width=line_width, **kwargs)
+
+        else:
+            Plot(dataSet, plotter=plotter, label=geom.name, color=color, line_width=line_width, **kwargs)
+
+    pv.global_theme.color_cycler = None
+
+    plotter.add_legend(bcolor='white',face="o")
+
+    return plotter
 
 # --------------------------------------------------------------------------------------------
 # Movie
@@ -498,7 +559,7 @@ def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, vid
 
     tic = Tic()
 
-    plotter = _initPlotter(True)
+    plotter = _Plotter(True)
     
     videoName = Folder.Join(folder, videoName)
 
@@ -540,18 +601,26 @@ __dictCellTypes: dict[str, pv.CellType] = {
     "PRISM15": pv.CellType.QUADRATIC_WEDGE,
 }
 
-def _initPlotter(off_screen=False,add_axes=True):
-    plotter = pv.Plotter(off_screen=off_screen)
+def _Plotter(off_screen=False, add_axes=True, shape=(1,1)):
+    plotter = pv.Plotter(off_screen=off_screen, shape=shape)
     if add_axes:
         plotter.add_axes()
+    plotter.link_views()
+    plotter.subplot(0,0)
     return plotter
 
-def _pvMesh(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValues=True) -> pv.UnstructuredGrid:
-    """Construct the pyvista mesh from obj (_Simu or Mesh)"""
+def _setCameraPosition(plotter: pv.Plotter, inDim: int):
+    plotter.camera_position = 'xy'
+    if inDim == 3:        
+        plotter.camera.elevation += 25
+        plotter.camera.azimuth += 10
+        plotter.camera.reset_clipping_range()
+
+def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValues=True) -> pv.UnstructuredGrid:
+    """Construct the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""
 
     simu, mesh, coordo, inDim = _init_obj(obj, deformFactor)
 
-    groupElem = mesh.groupElem
     elemType = mesh.elemType
     Nn = mesh.Nn
     Ne = mesh.Ne
@@ -608,8 +677,6 @@ def _pvMesh(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
         size = result.size
         name = 'array' # here result is an array
 
-        tt = result.size % Nn
-
         if size % Nn == 1 or size % Ne == 1:
             myPrintError("Must be nodes or elements values")
         else:
@@ -626,9 +693,63 @@ def _pvMesh(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
 
     return pvMesh
 
-def _setCameraPosition(plotter: pv.Plotter, inDim: int):
-    plotter.camera_position = 'xy'
-    if inDim == 3:        
-        plotter.camera.elevation += 25
-        plotter.camera.azimuth += 10
-        plotter.camera.reset_clipping_range()
+def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
+
+    import Geoms
+
+    if not isinstance(geom, (Geoms.Point, Geoms._Geom)):
+        myPrintError("Must be a point or a geometric object.")
+        return None
+    
+    def __Line(line: Geoms.Line):
+        return pv.Line(line.pt1.coordo, line.pt2.coordo)        
+    
+    def __CircleArc(circleArc: Geoms.CircleArc):
+        dataSet = pv.CircularArc(circleArc.pt1.coordo, circleArc.pt2.coordo,
+                                 circleArc.center.coordo, negative=circleArc.coef==-1)
+        return dataSet
+    
+    def __DoGeoms(geoms: list[Geoms._Geom]):
+        dataSets: list[pv.DataSet] = []
+        for geom in geoms:
+            if isinstance(geom, Geoms.Line):
+                dataSets.append(__Line(geom))
+            elif isinstance(geom, Geoms.CircleArc):
+                dataSets.append(__CircleArc(geom))
+            elif isinstance(geom, Geoms.Points):
+                dataSets.extend(__DoGeoms(geom.Get_Contour()[:-1]))
+
+        return dataSets
+
+    if isinstance(geom, Geoms.Point):
+        dataSet = pv.PolyData(geom.coordo)
+
+    elif isinstance(geom, Geoms.Line):
+        dataSet = __Line(geom)
+
+    elif isinstance(geom, Geoms.Domain):
+        xMin, xMax = geom.pt1.x, geom.pt2.x
+        yMin, yMax = geom.pt1.y, geom.pt2.y
+        zMin, zMax = geom.pt1.z, geom.pt2.z
+        dataSet = pv.Box((xMin,xMax,yMin,yMax,zMin,zMax)).outline()
+
+    elif isinstance(geom, Geoms.Circle):
+        arc1 = pv.CircularArc(geom.pt1.coordo, geom.pt3.coordo, geom.center.coordo)
+        arc2 = pv.CircularArc(geom.pt1.coordo, geom.pt3.coordo, geom.center.coordo, negative=True)
+        dataSet = [arc1, arc2]
+
+    elif isinstance(geom, Geoms.CircleArc):
+        dataSet = __CircleArc(geom)
+
+    elif isinstance(geom, (Geoms.Points,Geoms.Contour)):
+        if isinstance(geom, Geoms.Points):
+            geoms = geom.Get_Contour().geoms
+            if geom.isOpen:
+                geoms = geoms[:-1]
+        else:
+            geoms = geom.geoms
+        dataSet = __DoGeoms(geoms)
+    else:
+        myPrintError("obj must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]")
+
+    return dataSet

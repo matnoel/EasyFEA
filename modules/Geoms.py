@@ -347,7 +347,6 @@ class Points(_Geom):
         corners: list[_Geom] = []
         geoms: list[_Geom] = []
 
-
         def Link(idx1: int, idx2: int):
             # this function make the link between corners[idx1] and corners[idx2]
             
@@ -666,10 +665,8 @@ class CircleArc(_Geom):
         elif R != None:            
             coordo = np.array([pt1.coordo, pt2.coordo])
             center = Circle_Coordo(coordo, R, n)
-            center = Point(*center)
-            
+            center = Point(*center)            
         else:
-
             raise Exception('must give P, center or R')
         
         r1 = np.linalg.norm((pt1-center).coordo)
@@ -688,11 +685,9 @@ class CircleArc(_Geom):
         i1 = (pt1-center).coordo
         i2 = (pt2-center).coordo
 
-        collinear = np.linalg.norm(np.cross(i1, i2)) <= 1e-12
-
         # construction of the passage matrix
         k = np.array([0,0,1])
-        if collinear:
+        if np.linalg.norm(np.cross(i1, i2)) <= 1e-12:
             vect = Normalize_vect(i2-i1)
             i = np.cross(k,vect)
         else:
@@ -708,6 +703,8 @@ class CircleArc(_Geom):
 
         self.pt3 = Point(*pt3)
         """Midpoint of the circular arc."""
+
+        self.coef = coef
 
         CircleArc.__nbCircleArc += 1
         name = f"CircleArc{CircleArc.__nbCircleArc}"
