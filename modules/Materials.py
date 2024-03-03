@@ -2495,8 +2495,8 @@ class Thermal_Model(_IModel):
     
     def __str__(self) -> str:
         text = f'\n{type(self).__name__} :'
-        text += f'\nconduction thermique (k)  : {self.__k}'
-        text += f'\ncapacité thermique massique (c) : {self.__c}'
+        text += f'\nthermal conduction (k)  : {self.__k}'
+        text += f'\nthermal mass capacity (c) : {self.__c}'
         return text
 
     def __init__(self, dim:int, k: float, c=0.0, thickness=1.0):

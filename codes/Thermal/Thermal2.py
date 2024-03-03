@@ -54,32 +54,13 @@ if __name__ == '__main__':
     # Set the density of the material
     simu.rho = 1
 
-    def Iteration(steadyState: bool):
-        """Function to perform one iteration of the simulation"""
-        
-        simu.Bc_Init()    
-
-        # simu.add_dirichlet(noeudsY0, [40], ["t"])
-        # simu.add_dirichlet(noeudsYH, [40], ["t"])
-        simu.add_surfLoad(noeudsY0, [5], ["t"])
-        simu.add_surfLoad(noeudsYH, [5], ["t"])
-        
-        thermal = simu.Solve()
-        simu.Save_Iter()
-
-        return thermal
+    simu.add_surfLoad(noeudsY0, [5], ["t"])
+    simu.add_surfLoad(noeudsYH, [5], ["t"])
 
     # Set the parabolic algorithm for the solver
     simu.Solver_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
 
     simu.set_u_n(simu.problemType, np.ones(mesh.Nn)*-10)
-
-    # Check if it's a steady-state simulation or a time-dependent simulation
-    if Tmax == 0:
-        steadyState = True
-        plotIter = False
-    else:
-        steadyState = False
 
     # If plotIter is True, create a figure for result visualization
     if plotIter:
@@ -90,7 +71,8 @@ if __name__ == '__main__':
     # Main loop for time-dependent simulation
     while t < Tmax:
         # Perform one iteration of the simulation
-        thermal = Iteration(False)
+        simu.Solve()
+        simu.Save_Iter()
 
         # Increment time
         t += dt
@@ -102,7 +84,7 @@ if __name__ == '__main__':
             plt.pause(1e-12)
 
         # Print the current simulation time
-        print(f"{np.round(t)} s", end='\r')
+        print(f"{t:.3f} s", end='\r')
 
     # --------------------------------------------------------------------------------------------
     # PostProcessing
@@ -110,14 +92,11 @@ if __name__ == '__main__':
     # Display the final thermal distribution
     Display.Plot_Result(simu, "thermal", plotMesh=True, nodeValues=True, folder=folder)
 
-    # Save simulation results in Paraview format
-    # PostProcessing.Make_Paraview(folder, simu)
-
     # Create a movie of the simulation if pltMovie is True
     if makeMovie:
         pvi.Movie_simu(simu, "thermal", folder, f"thermal.mp4", show_edges=True)
 
     # Print the minimum temperature achieved in the simulation
-    print(thermal.min())
+    print(simu)
 
     plt.show()

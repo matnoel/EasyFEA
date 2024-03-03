@@ -32,6 +32,8 @@ if __name__ == '__main__':
     N = 50  # Number of time steps
     dt = Tmax / N  # Time step size
 
+    plotIter = False if N == 1 else plotIter
+
     # --------------------------------------------------------------------------------------------
     # Mesh
     # --------------------------------------------------------------------------------------------
@@ -55,37 +57,12 @@ if __name__ == '__main__':
     # Set the density of the material
     simu.rho = 1
 
-    def Iteration(steadyState: bool):
-        """Function to perform one iteration of the simulation"""
-        # Initialize the boundary conditions for the current iteration
-        simu.Bc_Init()
-
-        # Apply Dirichlet boundary conditions to specific nodes
-        simu.add_dirichlet(noeudsX0, [0], ["t"])
-        simu.add_dirichlet(noeudsXa, [40], ["t"])
-
-        # Uncomment and modify the following lines to apply additional boundary conditions
-        # simu.add_dirichlet(nodesCircle, [10], ["t"])
-        # simu.add_dirichlet(nodesCircle, [10], ["t"])
-        # simu.add_surfLoad(nodesCircle, [1], ["t"])
-
-        # Solve the thermal simulation for the current iteration
-        thermal = simu.Solve()
-
-        # Save the results of the current iteration
-        simu.Save_Iter()
-
-        return thermal
+    # Apply Dirichlet boundary conditions to specific nodes
+    simu.add_dirichlet(noeudsX0, [0], ["t"])
+    simu.add_dirichlet(noeudsXa, [40], ["t"])
 
     # Set the parabolic algorithm for the solver
     simu.Solver_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
-
-    # Check if it's a steady-state simulation or a time-dependent simulation
-    if Tmax == 0:
-        steadyState = True
-        plotIter = False
-    else:
-        steadyState = False
 
     # If plotIter is True, create a figure for result visualization
     if plotIter:
@@ -94,10 +71,11 @@ if __name__ == '__main__':
     print()
     t = 0  # init time
     # Main loop for time-dependent simulation
-    while t < Tmax:
-        # Perform one iteration of the simulation
-        thermal = Iteration(False)
-
+    while t < Tmax:        
+        
+        simu.Solve()
+        simu.Save_Iter()
+        
         # Increment time
         t += dt
 
@@ -108,7 +86,7 @@ if __name__ == '__main__':
             plt.pause(1e-12)
 
         # Print the current simulation time
-        print(f"{np.round(t)} s", end='\r')
+        print(f"{t:.3f} s", end='\r')
 
     # --------------------------------------------------------------------------------------------
     # PostProcessing
@@ -125,6 +103,6 @@ if __name__ == '__main__':
         pvi.Movie_simu(simu, "thermal", folder, f"thermal{dim}D.mp4", show_edges=True)
 
     # Print the minimum temperature achieved in the simulation
-    print(thermal.min())
+    print(simu)
 
     plt.show()
