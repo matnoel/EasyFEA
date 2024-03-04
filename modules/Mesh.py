@@ -3,6 +3,7 @@
 import numpy as np
 import scipy.sparse as sp
 import copy
+from typing import Callable
 
 from Geoms import *
 from GroupElems import _GroupElem, ElemType, MatrixType
@@ -941,3 +942,82 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     tic.Tac("Mesh", "Projector construction", False)
 
     return proj.tocsr()
+
+def MeshOptim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect', quality=.8, ratio: float=0.7, iterMax=20, coef:float=1/2) -> tuple[Mesh, float]:
+    """Optimize the mesh using the given criterion.
+
+    Parameters
+    ----------
+    DoMesh : Callable[[str], Mesh]
+        Function that constructs the mesh and takes a .pos file as argument for mesh optimization. The function must return a Mesh.
+    folder : str
+        Folder in which .pos files are created and then deleted.
+    criteria : str, optional
+        criterion used, by default 'aspect'\n
+        - "aspect": hMin / hMax, ratio between minimum and maximum element length\n
+        - "angular": angleMin / angleMax, ratio between the minimum and maximum angle of an element\n
+        - "gamma": 2 rci/rcc, ratio between the radius of the inscribed circle and the circumscribed circle multiplied by 2. Useful for triangular elements.\n
+        - "jacobian": jMax / jMin, ratio between the maximum jacobian and the minimum jacobian. Useful for higher-order elements.
+    quality : float, optional
+        Target quality, by default .8
+    ratio : float, optional
+        The target ratio of mesh elements that must respect the specified quality, by default 0.7 (must be in [0,1])
+    iterMax : int, optional
+        Maximum number of iterations, by default 20
+    coef : float, optional
+        mesh size division ratio, by default 1/2
+
+    Returns
+    -------
+    tuple[Mesh, float]
+        optimized mesh size and ratio
+    """
+
+    from Gmsh_Interface import Mesher
+    import Folder
+
+    targetRatio = ratio
+    assert targetRatio > 0 and targetRatio <= 1, "targetRatio must be in ]0, 1]"
+
+    i = -1
+    ratio = 0
+    optimGeom = None
+    # max=1
+    while ratio <= targetRatio and i <= iterMax:
+
+        i += 1
+
+        mesh = DoMesh(optimGeom)
+
+        if i > 0:
+            # remove previous .pos file
+            Folder.os.remove(optimGeom)        
+        
+        # mesh quality calculation
+        qual_e = mesh.Get_Quality(criteria, False)
+
+        # the element ratio that respects quality
+        ratio = np.where(qual_e >= quality)[0].size / mesh.Ne
+
+        if ratio == 1:
+            return mesh, ratio
+
+        print(f'ratio = {ratio*100:.3f} %')
+        
+        # # assigns max quality for elements that exceed quality
+        # qual_e[qual_e >= quality] = quality
+        
+        # calculates the relative error between element quality and desired quality
+        error_e = np.abs(qual_e-quality)/quality
+
+        # calculates the new mesh size for the associated error
+        meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
+
+        # builds the .pos file that will be used to refine the mesh
+        optimGeom = Mesher().Create_posFile(mesh.coordo, meshSize_n, folder, f"pos{i}")
+
+    if Folder.Exists(optimGeom):
+        # remove last .pos file
+        Folder.os.remove(optimGeom)
+
+    return mesh, ratio

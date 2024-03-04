@@ -2019,10 +2019,10 @@ class Displacement(_Simu):
         Wdef_e = self._Calc_Psi_Elas(False)
         Wdef = np.sum(Wdef_e)
 
-        WdefLisse_e = self._Calc_Psi_Elas(False, True)
-        WdefLisse = np.sum(WdefLisse_e)
+        WdefLisse_e: np.ndarray = self._Calc_Psi_Elas(False, True)
+        WdefLisse: float = np.sum(WdefLisse_e)
 
-        error_e: np.nd = np.abs(WdefLisse_e-Wdef_e).ravel()/Wdef
+        error_e: np.ndarray = np.abs(WdefLisse_e-Wdef_e).ravel()/Wdef
 
         error: float = np.abs(Wdef-WdefLisse)/Wdef
 
@@ -4078,3 +4078,62 @@ class Thermal(_Simu):
     
     def Results_displacement_matrix(self) -> np.ndarray:
         return super().Results_displacement_matrix()
+    
+def MeshOptim_ZZ1(DoSimu: Callable[[str], Displacement], folder: str, treshold: float=1e-2, iterMax=20, coef:float=1/2) -> Displacement:
+    """Optimize mesh using ZZ1 error criterion
+
+    Parameters
+    ----------
+    DoSimu : Callable[[str], Displacement]
+        Function that runs a simulation and takes a .pos file as argument for mesh optimization. The function must return a Displacement simulation.
+    folder : str
+        Folder in which .pos files are created and then deleted.
+    treshold : float, optional
+        targeted error, by default 1e-2
+    iterMax : int, optional
+        Maximum number of iterations, by default 20
+    coef : float, optional
+        mesh size division ratio, by default 1/2
+
+    Returns
+    -------
+    Displacement
+        Displacement simulation
+    """
+
+    from Gmsh_Interface import Mesher
+
+    i = -1
+    error = 1
+    optimGeom = None
+    # max=1
+    while error >= treshold and i <= iterMax:
+
+        i += 1
+
+        # performs the simulation
+        simu = DoSimu(optimGeom)
+        assert isinstance(simu, Displacement), 'DoSimu function must return a Displacement simulation'
+        # get the current mesh
+        mesh = simu.mesh
+
+        if i > 0:
+            # remove previous .pos file
+            Folder.os.remove(optimGeom)
+        
+        # Calculating the error with the ZZ1 method
+        error, error_e = simu._Calc_ZZ1()
+
+        print(f'error = {error*100:.3f} %')
+
+        # calculates the new mesh size for the associated error
+        meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
+
+        # builds the .pos file that will be used to refine the mesh
+        optimGeom = Mesher().Create_posFile(mesh.coordo, meshSize_n, folder, f"pos{i}")
+        
+    if Folder.Exists(optimGeom):
+        # remove last .pos file
+        Folder.os.remove(optimGeom)
+
+    return simu
