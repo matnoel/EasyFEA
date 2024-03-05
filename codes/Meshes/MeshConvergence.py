@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
     # List of mesh sizes (number of elements) to investigate convergence
     if dim == 2:
-        list_N = np.arange(1, 16, 1)
+        list_N = np.arange(1, 20, 1)
         # list_N = np.arange(1, 30, 1)
     else:
         list_N = np.arange(1, 8, 2)
@@ -142,12 +142,10 @@ if __name__ == '__main__':
     # PostProcessing
     # --------------------------------------------------------------------------------------------
     # Display the convergence of deformation energy
-    ax_Wdef = plt.subplots()[1]
-    ax_error = plt.subplots()[1]
-    ax_times = plt.subplots()[1]
-    ax_zz1 = plt.subplots()[1]
-
-    
+    ax_Wdef = Display.init_Axes(2)
+    ax_error = Display.init_Axes(2)
+    ax_times = Display.init_Axes(2)
+    ax_zz1 = Display.init_Axes(2)    
 
     print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 
@@ -166,10 +164,9 @@ if __name__ == '__main__':
         # ax_Times.set_xscale('log')
 
         # ZZ1
-        # ax_zz1.loglog(dofs_elem_N[e], zz1_elem_N[e])
-        ax_zz1.loglog(dofs_elem_N[e], zz1_elem_N[e])
-        # ax_zz1.loglog(dofs_elem_N[e], erreur)
-        # pass
+        if elemType in [ElemType.TRI3, ElemType.TRI6, ElemType.QUAD4]:
+            last = ax_zz1.loglog(dofs_elem_N[e], erreur, label=f'{elemType}')
+            ax_zz1.loglog(dofs_elem_N[e], zz1_elem_N[e], ls='--', color=last[0]._color, label=f'{elemType} (ZZ1)')
 
     WdefRefArray = np.ones_like(dofs_elem_N[0]) * WdefRef
     WdefRefArray5 = WdefRefArray * 0.95
@@ -177,7 +174,7 @@ if __name__ == '__main__':
 
     # Deformation energy
     ax_Wdef.grid()
-    ax_Wdef.set_xlim([-10, 8000])
+    ax_Wdef.set_xlim([-10, 10000])
     ax_Wdef.set_xlabel('Degrees of Freedom (DOF)')
     ax_Wdef.set_ylabel('Strain energy W [mJ]')
     ax_Wdef.legend(elemTypes)
@@ -197,9 +194,9 @@ if __name__ == '__main__':
     # Error in deformation energy
     ax_zz1.grid()
     ax_zz1.set_xlabel('Degrees of Freedom (DOF)')
-    ax_zz1.set_ylabel('Error ZZ1 [%]')
-    ax_zz1.legend(elemTypes)
-    plt.figure(ax_error.figure)
+    ax_zz1.set_ylabel('Error [%]')
+    ax_zz1.legend()
+    plt.figure(ax_zz1.figure)
     Display.Save_fig(folder, 'Error ZZ1')
 
     # Computation time
