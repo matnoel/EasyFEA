@@ -260,7 +260,6 @@ class _Geom(ABC):
         dec = newCoord - oldCoord
         [point.translate(*dec[p]) for p, point in enumerate(self.points)]
 
-
     def Plot(self, ax: plt.Axes=None, color:str="", name:str="", plotPoints=True) -> plt.Axes:
 
         import Display
