@@ -13,11 +13,13 @@ from Display import plt, np
 import pandas as pd
 import multiprocessing
 from datetime import datetime
+from scipy.interpolate import interp1d
+from scipy import stats
 
 doSimulation = False
 doPlot = True
 
-useParallel = True
+useParallel = False
 nProcs = 15 # None means every processors
 
 folder = Folder.Get_Path(__file__)
@@ -25,7 +27,7 @@ folder_Sto = Folder.New_File(Folder.Join('FCBA','Sto'), results=True)
 
 # simulations [start, start+N]
 start = 0
-N = 3000 # N simulations
+N = 1000 # N simulations
 
 # mesh
 nL = 100
@@ -148,11 +150,14 @@ def DoSimu(s: int, sample: np.ndarray) -> tuple[int, list, list, list, float]:
 
     return (s, list_du, list_f, list_d, time)
 
-# --------------------------------------------------------------------------------------------
-# Simulations
-# --------------------------------------------------------------------------------------------
+
 
 if __name__ == '__main__':
+
+    # --------------------------------------------------------------------------------------------
+    # Simulations
+    # --------------------------------------------------------------------------------------------
+    # Performs all simulations
 
     config = Functions.Config(start, N, test,
                               split, regu,
@@ -236,54 +241,96 @@ if __name__ == '__main__':
 
     print(df)    
 
-    # --------------------------------------------------------------------------------------------
-    # Post process
-    # --------------------------------------------------------------------------------------------
-    if doPlot:
+    
+    if doPlot:        
 
+        # --------------------------------------------------------------------------------------------
+        # Plot histograms
+        # --------------------------------------------------------------------------------------------
+        # here we want to know the distribution for different levels of damage
+        # here constructs an array N rows and damges.size columns
+        __, axs  = plt.subplots(2, 1, sharex=True)
+
+        axHist: Display.Axes = axs[0]
+        axD: Display.Axes = axs[1]
+        axD.set_xlabel('forces')
+        axD.set_ylabel('damage')
+        axHist.set_ylabel('pdf')
+
+        list_res = []
+        damages = np.linspace(0, 1, 11)
+        def add_res(i):
+
+            f: np.ndarray = df[label_f][i]
+            d: np.ndarray = df[label_d][i]
+
+            interpFunc = interp1d(f, d)
+            arrayF = np.linspace(f.min(), f.max(), 3000)
+            arrayD = interpFunc(arrayF)
+
+            # # here dont work
+            # interpFunc = interp1d(d, f)
+            # arrayD = np.linspace(0, d.max(), 3000)
+            # arrayF = interpFunc(arrayD)
+
+            res = [arrayF[np.where(arrayD > damages[i])[0][0]] for i in range(damages.size)]
+
+            list_res.append(res)
+
+            axD.plot(arrayF, arrayD, color='grey', alpha=.1)
+
+        [add_res(i) for i in range(N)]
+
+        array_res = np.asarray(list_res, dtype=float)        
+
+        arrayF = np.linspace(0, array_res.max()*1.5, 4000)
+        for d in range(damages.size):
+
+            f = array_res[:,d]
+
+            mu, sig = stats.norm.fit(f)
+
+            axHist.plot(arrayF, stats.norm.pdf(arrayF, mu, sig), label=fr"$\phi$ = {damages[d]:.1f}")
+
+            axD.plot(arrayF, damages[d]*np.ones_like(arrayF))
+
+        
+        axHist.legend(ncol=2)
+
+        # stats.norm.cdf
+
+        # --------------------------------------------------------------------------------------------
+        # Get datas
+        # --------------------------------------------------------------------------------------------
+        # recovers force-displacement and damage data for all samples and all tests
+        
         # get u, f and d for each simulations
         labels = [label_u, label_f, label_d]
         vals = [[df[label][i][[0, df[label][i].size//2 ,-1]] for label in labels] for i in range(N)]
-        u, f, d = np.asarray(vals).transpose((1,0,2))
-        # u = [u_min, u_mid, u_max]
-        # f = [f_min, f_mid, f_max]
-        # d = [d_min, d_mid, d_max]
+        u_samples, f_samples, d_samples = np.asarray(vals).transpose((1,0,2))
+        # u_samples = [u_min, u_mid, u_max]
+        # f_samples = [f_min, f_mid, f_max]
+        # d_samples = [d_min, d_mid, d_max]
 
-        uMax = u[:,-1]
-        fMax = f[:,-1]
+        uMax = u_samples[:,-1]
+        fMax = f_samples[:,-1]        
 
         # y = a x + b
-        a = (f[:,1] - f[:,0])/(u[:,1] - u[:,0])
+        a = (f_samples[:,1] - f_samples[:,0])/(u_samples[:,1] - u_samples[:,0])
         b = 0
-
-        u_array = np.linspace(0, np.max(u), 1000)
+        u_array = np.linspace(0, np.max(u_samples), 1000)
         f_arrays = np.einsum('n,i->ni', a, u_array)
-        
-        from scipy import stats
 
-        mu, sig = stats.norm.fit(f[:,-1])
-
-        ff = np.linspace(f[:,-1].min(), f[:,-1].max(), 1000)
-
-        axHs: list[plt.Axes] = plt.subplots(nrows=2, sharex=True)[1]
-        axHs[0].plot(ff, stats.norm.cdf(ff, mu, sig))
-        axHs[0].set_title('cdf'); axHs[0].grid()
-        axHs[1].hist(f[:,-1], bins='auto', histtype='bar', density=True)
-        axHs[1].plot(ff, stats.norm.pdf(ff,mu, sig), label=f"$\mu = {mu:.2f}, \sigma = {sig:.2f}$")
-        axHs[1].legend(); axHs[1].set_xlabel('f [kN]'); axHs[1].set_title('pdf'); axHs[1].grid()
-        # Display.Save_fig(folder_save, 'pdf de f')
-
+        # get the data for each samples        
+        mesh = Functions.DoMesh(2,L,H,D,t,l0,True, True)
+        nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
+        nodes_corner = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
         # get back the forces and displacements curve for each test
         list_forces = []
         list_displacements = []
         list_fcrit = []
         list_k_montage = []
-
-        mesh = Functions.DoMesh(2,L,H,D,t,l0,True, False)
-        nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-        nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==H)
-        nodes_corner = mesh.Nodes_Conditions(lambda x,y,z: (x==0) & (y==0))
-
         for i in range(17):
 
             mat = Functions.Get_material(i, t, 2)
@@ -313,9 +360,9 @@ if __name__ == '__main__':
             list_fcrit.append(fcrit)
 
         # --------------------------------------------------------------------------------------------
-        # Plot
+        # Plot samples
         # --------------------------------------------------------------------------------------------
-        ax = plt.subplots()[1]
+        ax = Display.init_Axes(2)
         ax.set_xlabel(r"$\Delta u \ [mm]$")
         ax.set_ylabel(r"$f \ [kN]$")
 
