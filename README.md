@@ -70,7 +70,7 @@ The following libraries are required:
 - `numpy`
 - `scipy`
 - `matplotlib`
-- `pyvista`
+- `pyvista` (`imageio`, `imageio[ffmpeg]` for gif or mp4 videos)
 - `gmsh` >= 4.12.0
 - `numba` (3.5.x <= Python < 3.12)
 - `pandas` (3.9 <= Python <= 3.12)
