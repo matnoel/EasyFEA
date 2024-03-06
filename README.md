@@ -4,12 +4,14 @@
 
 EasyFEA is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. The library currently supports four specific types of simulation:
 
-1. **Elastic (static and dynamic):** Examples in `/codes/Elasticity` and `/codes/Dynamic`.
-2. **Beam structure (static Euler-Bernoulli):** Examples in `/codes/Beam`.
-3. **Thermal (stationary and transient):** Examples in `/codes/Thermal`.
-4. **Damage (quasi-static phase field):** Examples in `/codes/PhaseField`.
+1. **Displacement (static and dynamic):** Examples in `/examples/Elasticity`, `/examples/Dynamic` and `/examples/Contact`.
+2. **Beam (static Euler-Bernoulli):** Examples in `/examples/Beam`.
+3. **Thermal (stationary and transient):** Examples in `/examples/Thermal`.
+4. **PhaseField (quasi-static phase field):** Examples in `/examples/PhaseField`.
 
 For each simulation, users create a mesh and a model. Once the simulation is set up, defining boundary conditions, solving the problem, and visualizing the results is straightforward.
+
+Many examples for creating meshes are available in the folder `examples/Meshes`.
 
 ## Installation
 
