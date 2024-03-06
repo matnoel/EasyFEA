@@ -1287,18 +1287,23 @@ class _GroupElem(ABC):
         
         return self.__nodes[idx].copy()
 
-    def Get_Nodes_Circle(self, circle: Circle) -> np.ndarray:
+    def Get_Nodes_Circle(self, circle: Circle, onlyOnEdge=False) -> np.ndarray:
         """Returns the nodes in the circle."""
 
         coordo = self.coordo
 
         eps = 1e-12
 
-        idx = np.where(np.sqrt((coordo[:,0]-circle.center.x)**2+(coordo[:,1]-circle.center.y)**2+(coordo[:,2]-circle.center.z)**2)<=circle.diam/2+eps)
+        vals = np.linalg.norm(coordo - circle.center.coordo, axis=1)
+
+        if onlyOnEdge:
+            idx = np.where((vals <= circle.diam/2+eps) & (vals >= circle.diam/2-eps))
+        else:
+            idx = np.where(vals <= circle.diam/2+eps)    
 
         return self.__nodes[idx]
 
-    def Get_Nodes_Cylinder(self, circle: Circle, direction=[0,0,1]) -> np.ndarray:
+    def Get_Nodes_Cylinder(self, circle: Circle, direction=[0,0,1], onlyOnEdge=False) -> np.ndarray:
         """Returns the nodes in the cylinder."""
 
         coordo = self.coordo
@@ -1319,7 +1324,12 @@ class _GroupElem(ABC):
         
         eps = 1e-12
         coordo = np.einsum('ij,nj->ni', np.linalg.inv(J), coordo - circle.center.coordo)
-        idx = np.where(np.linalg.norm(coordo[:,:2], axis=1) <= circle.diam/2+eps)[0]
+
+        vals = np.linalg.norm(coordo[:,:2], axis=1)
+        if onlyOnEdge:
+            idx = np.where((vals <= circle.diam/2+eps) & (vals >= circle.diam/2-eps))
+        else:
+            idx = np.where(vals <= circle.diam/2+eps)    
 
         return self.__nodes[idx]
     

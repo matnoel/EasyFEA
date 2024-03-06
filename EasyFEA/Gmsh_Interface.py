@@ -1001,7 +1001,7 @@ class Mesher:
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
 
-        self._RefineMesh(refineGeoms, contour.meshSize)
+        self._RefineMesh(refineGeoms, contour.meshSize, extrude=extrude)
 
         self._Set_PhysicalGroups()
 
@@ -1128,7 +1128,7 @@ class Mesher:
         self._synchronize() # mandatory
         gmsh.model.mesh.setSize(self._factory.getEntities(0), meshSize)
     
-    def _RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float) -> None:
+    def _RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float, extrude=[0,0,1]) -> None:
         """Sets a background mesh
 
         Parameters
@@ -1171,7 +1171,10 @@ class Mesher:
                 gmsh.model.mesh.field.setNumber(field, "Radius", geom.diam/2)
                 gmsh.model.mesh.field.setNumber(field, "XCenter", pC.x)
                 gmsh.model.mesh.field.setNumber(field, "YCenter", pC.y)
-                gmsh.model.mesh.field.setNumber(field, "ZCenter", pC.z)
+                gmsh.model.mesh.field.setNumber(field, "ZCenter", pC.z)                
+                gmsh.model.mesh.field.setNumber(field, "XAxis", extrude[0])
+                gmsh.model.mesh.field.setNumber(field, "YAxis", extrude[1])
+                gmsh.model.mesh.field.setNumber(field, "ZAxis", extrude[2])
 
             elif isinstance(geom, str):
 

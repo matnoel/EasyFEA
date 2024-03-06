@@ -476,17 +476,27 @@ class Mesh(Observable):
         """Returns nodes in the domain."""
         return self.groupElem.Get_Nodes_Domain(domain)
 
-    def Nodes_Circle(self, circle: Circle) -> np.ndarray:
+    def Nodes_Circle(self, circle: Circle, onlyOnCircle=False) -> np.ndarray:
         """Returns the nodes in the circle."""
-        return self.groupElem.Get_Nodes_Circle(circle)
+        return self.groupElem.Get_Nodes_Circle(circle, onlyOnCircle)
 
-    def Nodes_Cylinder(self, circle: Circle, direction=[0, 0, 1]) -> np.ndarray:
+    def Nodes_Cylinder(self, circle: Circle, direction=[0, 0, 1], onlyOnEdge=False) -> np.ndarray:
         """Returns the nodes in the cylinder."""
-        return self.groupElem.Get_Nodes_Cylinder(circle, direction)
+        return self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
 
-    def Elements_Nodes(self, nodes: np.ndarray, exclusively=True):
+    def Elements_Nodes(self, nodes: np.ndarray, exclusively=True, neighborLayer:int=1):
         """Returns elements that exclusively or not use the specified nodes."""
-        elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusively=exclusively)
+        # elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusively=exclusively)
+        
+        for i in range(neighborLayer):
+            elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusively=exclusively)
+            nodes = list(set(np.ravel(self.connect[elements])))
+
+            if neighborLayer > 1 and elements.size == self.Ne:
+                from Display import myPrint
+                myPrint("All the neighbors have been found.")
+                break
+
         return elements
 
     def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
