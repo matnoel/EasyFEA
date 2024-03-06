@@ -11,7 +11,53 @@ EasyFEA is a user-friendly Python library that simplifies finite element analysi
 
 For each simulation, users create a mesh and a model. Once the simulation is set up, defining boundary conditions, solving the problem, and visualizing the results is straightforward.
 
-Many examples for creating meshes are available in the folder `examples/Meshes`.
+Many examples of creating meshes are available in the folder `examples/Meshes`.
+
+The simplest and fastest introduction is shown below and is available in `examples/HelloWorld.py`.
+
+```python
+import Display
+from Geoms import Point, Domain
+from Gmsh_Interface import Mesher, ElemType
+import Materials
+import Simulations
+
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
+L = 120 # mm
+h = 13
+F = -800 # N
+
+domain = Domain(Point(), Point(L,h), h/5)
+mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
+
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
+E = 210000 # MPa
+v = .3
+mat = Materials.Elas_Isot(2, E, v, planeStress=True, thickness=h)
+
+simu = Simulations.Displacement(mesh, mat)
+
+nodesX0 = mesh.Nodes_Conditions(lambda x,y,z: x==0)
+nodesXL = mesh.Nodes_Conditions(lambda x,y,z: x==L)
+
+simu.add_dirichlet(nodesX0, [0]*2, ["x","y"])
+simu.add_surfLoad(nodesXL, [F/h/h], ["y"])
+
+simu.Solve()
+
+# ----------------------------------------------
+# Results
+# ----------------------------------------------
+Display.Plot_Mesh(mesh)
+Display.Plot_Result(simu, 'uy', plotMesh=True)
+Display.Plot_Result(simu, 'Svm', plotMesh=True)
+
+Display.plt.show()
+```
 
 ## Installation
 
@@ -35,28 +81,25 @@ Optional Libraries (Recommended for improved resolution time):
 
 - `pypardiso` (Python > 3.8 & Intel oneAPI)
 - `petsc` and `petsc4py`
-- `mumps` and `mpi4py`
-- `scikit-umfpack` (Python >= 3.9)
-- `scikits-sparse` (3.6 <= Python <= 3.12)
 
 ### Step 2 - Add the EasyFEA Modules to Python Path:
 
 #### On macOS:
 
 ```bash
-export PYTHONPATH="$PYTHONPATH:folder/EasyFEA/modules"  # Add this to .zprofile
+export PYTHONPATH="$PYTHONPATH:folder/EasyFEA/EasyFEA"  # Add this to .zprofile
 ```
 
 #### On Linux:
 
 ```bash
-export PYTHONPATH=$PYTHONPATH:folder/EasyFEA/modules  # Add this to .bash_aliases
+export PYTHONPATH=$PYTHONPATH:folder/EasyFEA/EasyFEA  # Add this to .bash_aliases
 ```
 
 #### On Windows:
 
 - Modify system variables -> environment variables -> user variables
-- Add `folder/EasyFEA/modules` to PYTHONPATH.
+- Add `folder/EasyFEA/EasyFEA` to PYTHONPATH.
 
 Note: Replace "folder" with the directory where EasyFEA is installed.
 
