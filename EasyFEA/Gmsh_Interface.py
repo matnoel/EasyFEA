@@ -1509,7 +1509,7 @@ class Mesher:
             assert np.abs(volume-val)/volume <= 1e-10, "Incorrect volume"
 
         folder = Folder.Get_Path()        
-        partPath = Folder.Join(folder,"codes","_parts","beam.stp")
+        partPath = Folder.Join(folder,"examples","_parts","beam.stp")
 
         mesher = Mesher()
 
