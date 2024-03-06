@@ -116,7 +116,7 @@ if __name__  == '__main__':
     if model == 0:
         mesh = Functions.DoMesh(dim,L,H,D,thickness,l0,test, optimMesh)
     else:
-        from codes.FCBA.Simu_Elas import DoMesh_FCBA
+        from examples.FCBA.Simu_Elas import DoMesh_FCBA
         mesh = DoMesh_FCBA(dim,L,H,D,h,D2,h2,thickness,l0,test,optimMesh)
 
     nodes_lower = mesh.Nodes_Conditions(lambda x,y,z: y==0)
