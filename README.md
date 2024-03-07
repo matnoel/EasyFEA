@@ -70,10 +70,11 @@ The following libraries are required:
 - `numpy`
 - `scipy`
 - `matplotlib`
-- `pyvista` (`imageio`, `imageio[ffmpeg]` for gif or mp4 videos)
+- `pyvista`
 - `gmsh` >= 4.12.0
 - `numba` (3.5.x <= Python < 3.12)
 - `pandas` (3.9 <= Python <= 3.12)
+- `imageio` and `imageio[ffmpeg]` (for gif or mp4 videos)
 
 For detailed information on installing `numba`, refer to the [Numba Installation Guide](https://numba.readthedocs.io/en/stable/user/installing.html#numba-support-info).
 
