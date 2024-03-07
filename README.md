@@ -2,18 +2,18 @@
 
 ## Overview
 
-EasyFEA is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. The library currently supports four specific types of simulation:
+EasyFEA is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulation without requiring users to handle complex PDE formulations. The library currently supports four specific simulation types:
 
 1. **Displacement (static and dynamic):** Examples in `/examples/Elasticity`, `/examples/Dynamic` and `/examples/Contact`.
 2. **Beam (static Euler-Bernoulli):** Examples in `/examples/Beam`.
 3. **Thermal (stationary and transient):** Examples in `/examples/Thermal`.
 4. **PhaseField (quasi-static phase field):** Examples in `/examples/PhaseField`.
 
-For each simulation, users create a mesh and a model. Once the simulation is set up, defining boundary conditions, solving the problem, and visualizing the results is straightforward.
+For each simulation, users create a mesh and a model. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 
-Many examples of creating meshes are available in the folder `examples/Meshes`.
+Numerous examples of mesh creation are available in the `examples/Meshes` folder.
 
-The simplest and fastest introduction is shown below and is available in `examples/HelloWorld.py`.
+The simplest and quickest introduction is shown below and is available in `examples/HelloWorld.py`.
 
 ```python
 import Display
@@ -63,7 +63,7 @@ Display.plt.show()
 
 ### Step 1 - Install Python Libraries:
 
-Ensure that your Python version is between 3.9 and 3.11.
+Make sure your Python version is between 3.9 and 3.11.
 
 The following libraries are required:
 
@@ -77,7 +77,7 @@ The following libraries are required:
 
 For detailed information on installing `numba`, refer to the [Numba Installation Guide](https://numba.readthedocs.io/en/stable/user/installing.html#numba-support-info).
 
-Optional Libraries (Recommended for improved resolution time):
+Optional libraries (recommended to speed up resolution time):
 
 - `pypardiso` (Python > 3.8 & Intel oneAPI)
 - `petsc` and `petsc4py`
