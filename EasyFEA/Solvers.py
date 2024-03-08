@@ -1,12 +1,9 @@
-"""Interface module with various solvers available on python for solving linear systems of type A x = b.
-Interface with PETsC, pypardiso and others ..."""
+"""Interface module to various solvers available on python for solving linear systems of type [A](x) = (b)."""
 
 import sys
 from enum import Enum
 import numpy as np
 import scipy.sparse as sparse
-
-# Solveurs
 import scipy.optimize as optimize
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla

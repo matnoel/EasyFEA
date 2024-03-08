@@ -4,7 +4,7 @@ from Geoms import *
 import Display
 from Gmsh_Interface import Mesher, ElemType, Mesh
 import Simulations
-import PostProcessing
+import Paraview_Interface
 import Folder
 
 import matplotlib.pyplot as plt
@@ -32,8 +32,8 @@ plotResult = True
 plotEnergy = False
 showFig = True
 
-saveParaview = False; NParaview=300
-makeMovie = False; NMovie = 200
+saveParaview = False
+makeMovie = False
 
 # Material
 materialType = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
@@ -215,17 +215,18 @@ def DoSimu(split: str, regu: str):
                 simu.add_dirichlet(nodes_y0z0, [0], ["z"])
         
         # INIT
-        displacements = []
-        loads = []
+        displacement = []
+        force = []
         ud = -uinc0
         iter = 0
         nDetect = 0
 
         if plotIter:
-            figIter, axIter, cb = Display.Plot_Result(simu, "damage", nodeValues=True)
+            axIter = Display.Plot_Result(simu, "damage", nodeValues=True)
 
-            arrayDisplacement, arrayLoad = np.array(displacements), np.array(loads)
-            figLoad, axLoad = Display.Plot_Load_Displacement(arrayDisplacement*unit, arrayLoad/unit, f'ud [{unitU}]', f'f [{unitF}]')
+            force = np.asarray(force)
+            displacement = np.asarray(displacement)
+            figLoad, axLoad = Display.Plot_Force_Displacement(force/unit, displacement*unit, f'ud [{unitU}]', f'f [{unitF}]')
 
         while ud <= u_max:
 
@@ -256,28 +257,28 @@ def DoSimu(split: str, regu: str):
                 if nDetect == 10:                    
                     break
 
-            displacements.append(ud)
-            loads.append(f)
+            displacement.append(ud)
+            force.append(f)
 
             if plotIter:
-                cb.remove()
-                figIter, axIter, cb = Display.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
-                plt.figure(figIter)
+                Display.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
+                plt.figure(axIter.figure)
                 plt.pause(1e-12)
 
-                arrayDisplacement, arrayLoad = np.array(displacements), np.array(loads)
-                Display.Plot_Load_Displacement(arrayDisplacement*unit, arrayLoad/unit, f'ud [{unitU}]', f'f [{unitF}]', ax=axLoad)[1]
+                force = np.asarray(force)
+                displacement = np.asarray(displacement)
+                Display.Plot_Force_Displacement(force/unit, displacement*unit, f'ud [{unitU}]', f'f [{unitF}]', ax=axLoad)[1]
                 plt.figure(axLoad.figure)
                 plt.pause(1e-12)
 
-        loads = np.array(loads)
-        displacements = np.array(displacements)
+        force = np.asarray(force)
+        displacement = np.asarray(displacement)
 
         # --------------------------------------------------------------------------------------------
         # Saving
         # --------------------------------------------------------------------------------------------
         print()
-        PostProcessing.Save_Load_Displacement(loads, displacements, folder)
+        Simulations.Save_Force_Displacement(force, displacement, folder)
         simu.Save(folder)
             
     else:
@@ -285,28 +286,28 @@ def DoSimu(split: str, regu: str):
         # Load
         # --------------------------------------------------------------------------------------------
         simu: Simulations.PhaseField = Simulations.Load_Simu(folder)
-        loads, displacements = PostProcessing.Load_Load_Displacement(folder)
+        force, displacement = Simulations.Load_Force_Displacement(folder)
 
     # --------------------------------------------------------------------------------------------
     # Post processing
     # ---------------------------------------------
     if plotEnergy:
-        Display.Plot_Energy(simu, loads, displacements, Niter=400, folder=folder)
+        Display.Plot_Energy(simu, force, displacement, N=400, folder=folder)
 
     if plotResult:
         Display.Plot_BoundaryConditions(simu)
         Display.Plot_Iter_Summary(simu, folder, None, None)
-        Display.Plot_Load_Displacement(displacements*unit, loads/unit, f'ud [{unitU}]', f'f [{unitF}]', folder)
+        Display.Plot_Force_Displacement(force/unit, displacement*unit, f'ud [{unitU}]', f'f [{unitF}]', folder)
         Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename="damage")
 
     if plotMesh:
         Display.Plot_Mesh(mesh)
 
     if saveParaview:
-        PostProcessing.Make_Paraview(folder, simu, Niter=NParaview)        
+        Paraview_Interface.Make_Paraview(simu, folder)
 
     if makeMovie:        
-        PostProcessing.Make_Movie(folder, "damage", simu, Niter=NMovie, plotMesh=False, deformation=False, NiterFin=0, factorDef=1.5)
+        Display.Movie_Simu(folder, "damage", simu, Niter=200, plotMesh=False, NiterFin=0, deformFactor=1.5)
 
     if solve:
         Tic.Plot_History(folder, details=False)

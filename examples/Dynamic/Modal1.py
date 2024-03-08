@@ -5,10 +5,7 @@ import Display
 import Folder
 import Simulations
 import Materials
-import PostProcessing
 
-import sys
-import os
 from scipy.sparse import linalg, eye
 import numpy as np
 

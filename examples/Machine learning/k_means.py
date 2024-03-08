@@ -21,11 +21,11 @@ if __name__ == '__main__':
 
     clusters = kmeans.fit_predict(data)
 
-    ax = plt.subplots()[1]    
+    ax = Display.init_Axes(2)
     ax.plot(*data.T, 'bo')
     ax.set_title('data')
 
-    ax_c = plt.subplots()[1]
+    ax_c = Display.init_Axes(2)
     for k in range(K):
         idx = np.where(clusters == k)
         ax_c.plot(*data[idx].T, 'o')
@@ -46,11 +46,11 @@ if __name__ == '__main__':
         sse.append(kmeans.inertia_)
         sil_score.append(silhouette_score(data, clusters))
 
-    a_sse = plt.subplots()[1]    
+    a_sse = Display.init_Axes(2)
     a_sse.plot(array_k, sse)
     a_sse.set_title('sse')
 
-    a_sil = plt.subplots()[1]    
+    a_sil = Display.init_Axes(2)
     a_sil.plot(array_k, sil_score)
     a_sil.set_title('silhouette score')
 

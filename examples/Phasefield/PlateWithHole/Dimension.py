@@ -107,7 +107,7 @@ if __name__ == '__main__':
         list_SxyB.append(simu.Result("Sxy", True)[nodeB])
 
     # --------------------------------------------------------------------------------------------
-    # PosProcessing
+    # Plot
     # --------------------------------------------------------------------------------------------
     paramName=''
     if param1/H != 1: paramName += "H "
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", filename='Syy')
     Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", filename='Sxy')
 
-    fig, ax = plt.subplots()
+    ax = Display.init_Axes(2)
 
     list_cc = [list_cc[i] for i in range(len(list_SxxA))]
 

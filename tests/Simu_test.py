@@ -154,7 +154,7 @@ class Test_Simu(unittest.TestCase):
 
                 self.assertTrue((np.abs(flecheanalytique + v.min())/flecheanalytique) <= erreurMaxAnalytique)
 
-                fig, ax = plt.subplots()
+                ax = Display.init_Axes(2)
                 ax.plot(listX, v_x, label='Analytique', c='blue')
                 ax.scatter(mesh.coordo[:,0], v, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$v(x)$")
@@ -165,7 +165,7 @@ class Test_Simu(unittest.TestCase):
                 rotalytique = -charge*L**2/(2*E*Iz)
                 self.assertTrue((np.abs(rotalytique + rz.min())/rotalytique) <= erreurMaxAnalytique)
 
-                fig, ax = plt.subplots()
+                ax = Display.init_Axes(2)
                 ax.plot(listX, rz_x, label='Analytique', c='blue')
                 ax.scatter(mesh.coordo[:,0], rz, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$r_z(x)$")
@@ -176,7 +176,7 @@ class Test_Simu(unittest.TestCase):
 
                 self.assertTrue((np.abs(u_x[-1] - u.max())/u_x[-1]) <= erreurMaxAnalytique)
 
-                fig, ax = plt.subplots()
+                ax = Display.init_Axes(2)
                 ax.plot(listX, u_x, label='Analytique', c='blue')
                 ax.scatter(mesh.coordo[:,0], u, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$u(x)$")
@@ -225,9 +225,9 @@ class Test_Simu(unittest.TestCase):
             simu.Save_Iter()
 
             # static
-            fig, ax, cb = Display.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
+            ax = Display.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
             plt.pause(1e-12)
-            plt.close(fig)
+            plt.close(ax.figure)
 
             # dynamic      
             simu.Solver_Set_Newton_Raphson_Algorithm(dt=0.1)
@@ -267,9 +267,9 @@ class Test_Simu(unittest.TestCase):
             simu.Solve()
             simu.Save_Iter()
 
-            fig, ax, cb = Display.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
+            ax = Display.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
             plt.pause(1e-12)
-            plt.close(fig)
+            plt.close(ax.figure)
 
     def test_PhaseField(self):
         

@@ -4,8 +4,8 @@ from Geoms import Point, Points, Domain, Circle, Normalize_vect
 import Materials
 import Simulations
 import Folder
-import PostProcessing
 import PyVista_Interface as pvi
+import Paraview_Interface
 
 plt = Display.plt
 np = Display.np
@@ -121,14 +121,14 @@ if __name__ == '__main__':
         dofsY_load = simu.Bc_dofs_nodes(nodes_load, ['y'])
         
         if pltIter:
-            __, axIter, cb = Display.Plot_Result(simu, 'damage')
+            axIter = Display.Plot_Result(simu, 'damage')
 
-            axLoad: Display.Axes = plt.subplots()[1]
+            axLoad = Display.init_Axes(2)
             axLoad.set_xlabel('displacement [mm]')
             axLoad.set_ylabel('load [kN]')
 
         displacement = []
-        load = []
+        force = []
         ud = - inc0
         iter = -1
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
             # save load and displacement
             displacement.append(ud)
-            load.append(fr)
+            force.append(fr)
 
             # print iter
             simu.Results_Set_Iteration_Summary(iter, ud, "mm", ud/uMax, True)
@@ -161,8 +161,7 @@ if __name__ == '__main__':
 
             if pltIter:
                 plt.figure(axIter.figure)
-                cb.remove()
-                cb = Display.Plot_Result(simu, 'damage', ax=axIter)[2]
+                Display.Plot_Result(simu, 'damage', ax=axIter)
                 plt.pause(1e-12)
 
                 plt.figure(axLoad.figure)
@@ -174,21 +173,21 @@ if __name__ == '__main__':
                 break
         
         # save load and displacement
-        displacement = np.array(displacement)
-        load = np.array(load)
-        PostProcessing.Save_Load_Displacement(load, displacement, folderSimu)
+        displacement = np.asarray(displacement)
+        force = np.asarray(force)
+        Simulations.Save_Force_Displacement(force, displacement, folderSimu)
 
         # save the simulation
         simu.Save(folderSimu)
 
-        PostProcessing.Tic.Plot_History(folderSimu, True)    
+        Paraview_Interface.Tic.Plot_History(folderSimu, True)    
 
     else:
 
         simu = Simulations.Load_Simu(folderSimu)
         mesh = simu.mesh
 
-    load, displacement = PostProcessing.Load_Load_Displacement(folderSimu)
+    force, displacement = Simulations.Load_Force_Displacement(folderSimu)
 
     # --------------------------------------------------------------------------------------------
     # PostProcessing
@@ -198,10 +197,10 @@ if __name__ == '__main__':
     Display.Plot_Result(simu, 'damage', folder=folderSimu)
 
 
-    axLoad = plt.subplots()[1]
+    axLoad = Display.init_Axes(2)
     axLoad.set_xlabel('displacement [mm]')
     axLoad.set_ylabel('load [kN]')
-    axLoad.plot(displacement, load/1000, c="blue")
+    axLoad.plot(displacement, force/1000, c="blue")
     Display.Save_fig(folderSimu, "forcedep")
 
     Display.Plot_Iter_Summary(simu, folderSimu)
@@ -212,6 +211,6 @@ if __name__ == '__main__':
         pvi.Movie_simu(simu, 'damage', folderSimu, 'damage.mp4', show_edges=True, deformFactor=deformFactor, clim=(0,1))
 
     if makeParaview:
-        PostProcessing.Make_Paraview(folderSimu, simu)
+        Paraview_Interface.Make_Paraview(simu, folderSimu)
 
     plt.show()

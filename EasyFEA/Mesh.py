@@ -1,4 +1,6 @@
-"""Mesh module. Allows you to manipulate different element groups. These element groups are used to construct finite element matrix."""
+"""Module containing the mesh class.
+This class allows you to manipulate different groups of elements.
+These element groups are used to construct finite element matrices."""
 
 import numpy as np
 import scipy.sparse as sp

@@ -1,7 +1,6 @@
-"""Module for creating simulations."""
+"""This module contains all the simulation classes"""
 
 from abc import ABC, abstractmethod
-import os
 import pickle
 from datetime import datetime
 from typing import Union, Callable
@@ -9,7 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from Mesh import Mesh, MatrixType, ElemType
+from Mesh import Mesh, MatrixType
 from BoundaryCondition import BoundaryCondition, LagrangeCondition
 import Materials
 from Materials import ModelType, _IModel, Reshape_variable
@@ -20,40 +19,9 @@ from Display import myPrint, myPrintError
 
 from Observers import Observable, _IObserver
 
-def Load_Simu(folder: str, verbosity=False):
-    """
-    Load the simulation from the specified folder.
-
-    Parameters
-    ----------
-    folder : str
-        The name of the folder where the simulation is saved.
-
-    Returns
-    -------
-    Simu
-        The loaded simulation.
-    """
-
-    path_simu = Folder.Join(folder, "simulation.pickle")
-    error = "The file simulation.pickle cannot be found."
-    assert Folder.Exists(path_simu), error
-
-    try:
-        with open(path_simu, 'rb') as file:
-            simu = pickle.load(file)
-    except EOFError:
-        myPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
-        return None
-
-    assert isinstance(simu, _Simu), 'Must be a simu object'
-
-    if verbosity:
-        myPrint(f'\nLoading:\n{path_simu}\n', 'green')
-        print(simu.mesh)
-        print(simu.model)
-    return simu
-
+# ----------------------------------------------
+# _Simu
+# ----------------------------------------------
 class _Simu(_IObserver, ABC):
     """
     The following classes inherit from the parent class _Simu:
@@ -104,8 +72,9 @@ class _Simu(_IObserver, ABC):
         - def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
     """
 
-    # ================================================ ABSTRACT METHOD ================================================
-    #
+    # ----------------------------------------------
+    # Abstract method
+    # ----------------------------------------------
     @abstractmethod
     def Get_problemTypes(self) -> list[ModelType]:
         """Returns the problem types available through the simulation."""
@@ -198,7 +167,9 @@ class _Simu(_IObserver, ABC):
         """Returns lists of nodesFields and elementsFields displayed in paraview."""
         return [], []
 
-    # ================================================ SIMU ================================================
+    # ----------------------------------------------
+    # core functions
+    # ----------------------------------------------
 
     def _Check_Directions(self, problemType: ModelType, directions: list) -> None:
         """Checks whether the specified directions are available for the problem."""
@@ -233,7 +204,7 @@ class _Simu(_IObserver, ABC):
         text += Display.Section("Model", False)
         text += '\n' + str(self.model)
 
-        text += Display.Section("Loading", False)
+        text += Display.Section("Boundary Conditions", False)
         text += '\n' + self.Results_Get_Bc_Summary()
 
         text += Display.Section("Results", False)
@@ -389,29 +360,9 @@ class _Simu(_IObserver, ABC):
 
         return center
 
-    @property
-    def useIterativeSolvers(self) -> bool:
-        """Iterative solvers can be used."""
-        return self.__useIterativeSolvers
-
-    @property
-    def solver(self) -> str:
-        """Solver used to solve Ax=b."""
-        return self.__solver
-
-    @solver.setter
-    def solver(self, value: str):
-
-        # Retrieve usable solvers
-        solvers = _Available_Solvers()
-
-        if self.problemType != "damage":
-            solvers.remove("BoundConstrain")
-
-        if value in solvers:
-            self.__solver = value
-        else:
-            myPrintError(f"The solver {value} cannot be used. The solver must be in {solvers}")
+    # ----------------------------------------------
+    # Solutions
+    # ----------------------------------------------
 
     def Save(self, folder: str) -> None:
         """Saves the simulation and its summary in the folder."""
@@ -425,7 +376,7 @@ class _Simu(_IObserver, ABC):
         path_simu = Folder.New_File("simulation.pickle", folder)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        myPrint(f'\n{path_simu.replace(folder_EasyFEA,"")} (saved)', 'green')
+        myPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', 'green')
         
         # Save simulation summary
         path_summary = Folder.New_File("summary.txt", folder)
@@ -433,7 +384,7 @@ class _Simu(_IObserver, ABC):
         summary += str(self)        
         with open(path_summary, 'w', encoding='utf8') as file:
             file.write(summary)
-        myPrint(f'{path_summary.replace(folder_EasyFEA,"")} (saved)', 'green')
+        myPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', 'green')
 
     # TODO Enable simulation creation from the variational formulation ?
 
@@ -595,7 +546,33 @@ class _Simu(_IObserver, ABC):
         """
         self.__needUpdate = value
 
-    # ================================================ Solver ================================================
+    # ----------------------------------------------
+    # Solver
+    # ----------------------------------------------
+
+    @property
+    def useIterativeSolvers(self) -> bool:
+        """Iterative solvers can be used."""
+        return self.__useIterativeSolvers
+
+    @property
+    def solver(self) -> str:
+        """Solver used to solve Ax=b."""
+        return self.__solver
+
+    @solver.setter
+    def solver(self, value: str):
+
+        # Retrieve usable solvers
+        solvers = _Available_Solvers()
+
+        if self.problemType != "damage":
+            solvers.remove("BoundConstrain")
+
+        if value in solvers:
+            self.__solver = value
+        else:
+            myPrintError(f"The solver {value} cannot be used. The solver must be in {solvers}")
 
     def Solver_Set_Elliptic_Algorithm(self) -> None:
         """Set the algorithm's resolution properties for an elliptic problem.
@@ -907,10 +884,10 @@ class _Simu(_IObserver, ABC):
 
             # Here we return A penalized
             return A.tocsr(), b.tocsr()
-
     
-    # ------------------------------------------- BOUNDARY CONDITIONS -------------------------------------------
-    # Functions for setting simulation boundary conditions
+    # ----------------------------------------------
+    # Boundary conditions
+    # ----------------------------------------------
     
     def Bc_Init(self) -> None:
         """Initializes Dirichlet, Neumann and Lagrange boundary conditions"""
@@ -1556,7 +1533,9 @@ class _Simu(_IObserver, ABC):
         
         return nodes, displacementMatrix
     
-    # ------------------------------------------- Results ------------------------------------------- 
+    # ----------------------------------------------
+    # Results
+    # ----------------------------------------------
 
     def _Results_Check_Available(self, result: str) -> bool:
         """Check that the result is available"""
@@ -1640,8 +1619,9 @@ class _Simu(_IObserver, ABC):
         # We should never reach this line of code if no unexpected conditions occurs
         raise Exception("Unexpected conditions occurred during the calculation.")
 
-###################################################################################################
-
+# ----------------------------------------------
+# Displacement
+# ----------------------------------------------
 class Displacement(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials._Displacement_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
@@ -2157,8 +2137,9 @@ class Displacement(_Simu):
 
         return coordo
 
-###################################################################################################
-
+# ----------------------------------------------
+# PhaseField
+# ----------------------------------------------
 class PhaseField(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials.PhaseField_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
@@ -2952,12 +2933,10 @@ class PhaseField(_Simu):
             end=''
 
         if percentage > 0:
-            timeLeft = (1/percentage-1)*timeIter*iter
-            
+            timeLeft = (1/percentage-1)*timeIter*iter            
             timeCoef, unite = Tic.Get_time_unity(timeLeft)
-
             # Adds percentage and estimated time remaining
-            summaryIter = summaryIter+f"{np.round(percentage*100,2):3.2f} % -> {timeCoef:4.2f} {unite}  "
+            summaryIter = summaryIter + f"{percentage*100:3.2f} % -> {timeCoef:3.2f} {unite}  "
 
         myPrint(summaryIter, end=end)
 
@@ -3013,10 +2992,10 @@ class PhaseField(_Simu):
             coordo = np.append(coordo, np.zeros((Nn,1)), axis=1)
 
         return coordo
-    
 
-###################################################################################################
-
+# ----------------------------------------------
+# Beam
+# ----------------------------------------------
 class Beam(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials.Beam_Structure, verbosity=False, useNumba=True, useIterativeSolvers=True):
@@ -3880,8 +3859,9 @@ class Beam(_Simu):
 
         return summary
 
-###################################################################################################
-
+# ----------------------------------------------
+# Thermal
+# ----------------------------------------------
 class Thermal(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials.Thermal_Model, verbosity=False, useNumba=True, useIterativeSolvers=True):
@@ -4078,7 +4058,95 @@ class Thermal(_Simu):
     
     def Results_displacement_matrix(self) -> np.ndarray:
         return super().Results_displacement_matrix()
+
+# ----------------------------------------------
+# Saving / Loading functions
+# ----------------------------------------------
+def Load_Simu(folder: str):
+    """
+    Load the simulation from the specified folder.
+
+    Parameters
+    ----------
+    folder : str
+        The name of the folder where the simulation is saved.
+
+    Returns
+    -------
+    Simu
+        The loaded simulation.
+    """
+
+    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
+    path_simu = Folder.Join(folder, "simulation.pickle")
+    error = "The file simulation.pickle cannot be found."
+    assert Folder.Exists(path_simu), error
+
+    try:
+        with open(path_simu, 'rb') as file:
+            simu = pickle.load(file)
+    except EOFError:
+        myPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
+        return None
+
+    assert isinstance(simu, _Simu), 'Must be a simu object'
     
+    myPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', 'green')
+
+    return simu
+
+def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:str):
+    """Save the values of load and displacements in the folder"""
+    
+    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
+    filename = Folder.Join(folder, "force-displacement.pickle")
+
+    if not Folder.os.path.exists(folder):
+        Folder.os(folder)
+
+    values = {
+        'force': force,
+        'displacement' : displacement
+    }
+
+    with open(filename, "wb") as file:
+        pickle.dump(values, file)
+    
+    from Display import myPrint
+    myPrint(f'Saved:\n{filename.replace(folder_PythonEF,"")}\n','green')
+    
+def Load_Force_Displacement(folder:str):
+    """Load forces and displacements
+
+    Parameters
+    ----------
+    folder : str
+        name of the folder in which the "force-displacement.pickle" file is saved
+
+    return force, displacement
+    """
+
+    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
+
+    filename = Folder.Join(folder, "force-displacement.pickle")
+    shortName = filename.replace(folder_PythonEF,'') 
+    error = f"{shortName} does not exist"
+    assert Folder.Exists(filename), error
+
+    with open(filename, 'rb') as file:
+        values = pickle.load(file)
+    
+    force = np.array(values['force'])
+    displacement = np.array(values['displacement'])
+    
+    from Display import myPrint
+    myPrint(f'Loaded:\n{shortName}\n','green')
+
+    return force, displacement
+
+# ----------------------------------------------
+# Other functions
+# ----------------------------------------------
 def MeshOptim_ZZ1(DoSimu: Callable[[str], Displacement], folder: str, treshold: float=1e-2, iterMax=20, coef:float=1/2) -> Displacement:
     """Optimize mesh using ZZ1 error criterion
 

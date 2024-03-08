@@ -167,7 +167,7 @@ if __name__ == '__main__':
     params = ['c1','c2','c3','c4','c5','gc']
     for i in range(6):
 
-        ax = plt.subplots()[1]
+        ax = Display.init_Axes(2)
         ax.plot(range(n), samples[:,i], ls='',marker='.', c='blue', label='samples')
         unit = ' [mJ/mm2]' if 'g' in params[i] else ' [GPa]'
         mean = np.mean(samples[:,i])

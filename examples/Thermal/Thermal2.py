@@ -19,7 +19,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
 
     plotIter = True; resultIter = "thermal"
-    makeMovie = False; NMovie = 300
+    makeMovie = False
 
     R = 10
     e = 2
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     # If plotIter is True, create a figure for result visualization
     if plotIter:
-        fig, ax, cb = Display.Plot_Result(simu, resultIter, nodeValues=True, plotMesh=True)
+        ax = Display.Plot_Result(simu, resultIter, nodeValues=True, plotMesh=True)
 
     print()
     t = 0  # init time
@@ -79,8 +79,7 @@ if __name__ == '__main__':
 
         # If plotIter is True, update the result visualization
         if plotIter:
-            cb.remove()
-            fig, ax, cb = Display.Plot_Result(simu, resultIter, nodeValues=True, plotMesh=True, ax=ax)
+            Display.Plot_Result(simu, resultIter, nodeValues=True, plotMesh=True, ax=ax)
             plt.pause(1e-12)
 
         # Print the current simulation time

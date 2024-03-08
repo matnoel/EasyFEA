@@ -552,27 +552,27 @@ if __name__ == '__main__':
 
             #     simu.set_u_n("displacement", u_n)
                 
-            #     ax = Display.Plot_Result(simu, "ux",title=" ", colorbarIsClose=True)[1]
+            #     ax = Display.Plot_Result(simu, "ux",title=" ", colorbarIsClose=True)
             #     ax.axis("off")
             #     ax.set_title("$u_x^{" + f"*({cc+1})" + "}$")
             #     Display.Save_fig(folder, f"VFM_ux{cc+1}{opt}")
 
-            #     ax = Display.Plot_Result(simu, "uy",title=" ", colorbarIsClose=True)[1]
+            #     ax = Display.Plot_Result(simu, "uy",title=" ", colorbarIsClose=True)
             #     ax.axis("off")
             #     ax.set_title("$u_y^{" + f"*({cc+1})" + "}$")
             #     Display.Save_fig(folder, f"VFM_uy{cc+1}{opt}")
 
-            #     ax = Display.Plot_Result(simu, "Exx",title=" ", colorbarIsClose=True)[1]
+            #     ax = Display.Plot_Result(simu, "Exx",title=" ", colorbarIsClose=True)
             #     ax.axis("off")
             #     ax.set_title("$\epsilon_{xx}^{" + f"*({cc+1})" + "}$")
             #     Display.Save_fig(folder, f"VFM_Exx{cc+1}{opt}")
 
-            #     ax = Display.Plot_Result(simu, "Eyy", title=" ", colorbarIsClose=True)[1]
+            #     ax = Display.Plot_Result(simu, "Eyy", title=" ", colorbarIsClose=True)
             #     ax.axis("off")
             #     ax.set_title("$\epsilon_{yy}^{" + f"*({cc+1})" + "}$")
             #     Display.Save_fig(folder, f"VFM_Eyy{cc+1}{opt}")
 
-            #     ax = Display.Plot_Result(simu, "Exy",title=" ", colorbarIsClose=True)[1]
+            #     ax = Display.Plot_Result(simu, "Exy",title=" ", colorbarIsClose=True)
             #     ax.axis("off")
             #     ax.set_title("$\epsilon_{xy}^{" + f"*({cc+1})" + "}$")
             #     Display.Save_fig(folder, f"VFM_Exy{cc+1}{opt}")
@@ -675,7 +675,7 @@ if __name__ == '__main__':
 
     for param in params:
 
-        axParam = plt.subplots()[1]
+        axParam = Display.init_Axes(2)
         
         paramExp = dict_param[param]
 

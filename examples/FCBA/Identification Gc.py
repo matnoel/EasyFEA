@@ -8,7 +8,6 @@ from scipy.optimize import least_squares, minimize
 import Folder
 import Display
 import Simulations
-import PostProcessing
 import Materials
 from Mesh import Mesh
 
@@ -193,7 +192,7 @@ if __name__ == '__main__':
             # --------------------------------------------------------------------------------------------
             
             # save iterations
-            ax_J = plt.subplots()[1]
+            ax_J = Display.init_Axes(2)
             ax_J.set_xlabel("$N$"); ax_J.set_ylabel("$J$")
             ax_J.grid()
             ax_J.scatter(np.arange(len(evals)), evals, c='black', zorder=4)
@@ -259,7 +258,7 @@ if __name__ == '__main__':
 
         deplacementsIdentif = np.asarray(deplacementsIdentif)
         forcesIdentif = np.asarray(forcesIdentif)
-        PostProcessing.Save_Load_Displacement(forcesIdentif, deplacementsIdentif, folder_save)        
+        Simulations.Save_Force_Displacement(forcesIdentif, deplacementsIdentif, folder_save)        
 
         k_exp, __ = Functions.Calc_a_b(forces, deplacements, 15)
         k_mat, __ = Functions.Calc_a_b(forcesIdentif, deplacementsIdentif, 15)
@@ -267,7 +266,7 @@ if __name__ == '__main__':
         deplacements = deplacements-forces/k_montage
 
         # plot loads displacements
-        axLoad = plt.subplots()[1]
+        axLoad = Display.init_Axes(2)
         axLoad.set_xlabel("x [mm]"); axLoad.set_ylabel("f [kN]"); axLoad.grid()
         axLoad.plot(deplacements, forces, label="exp")
         idx_crit = np.where(forces >= f_crit)[0][0]

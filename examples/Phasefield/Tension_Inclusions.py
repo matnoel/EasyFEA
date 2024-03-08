@@ -76,9 +76,9 @@ if __name__ == '__main__':
     N = 300
     displacements = np.linspace(0, 5e-4, N)
 
-    axLoad = plt.subplots()[1]
+    axLoad = Display.init_Axes(2)
     axLoad.set_xlabel('u [mm]'); axLoad.set_ylabel('f [N/mm]')
-    __, axDamage, cb = Display.Plot_Result(simu, 'damage')
+    axDamage = Display.Plot_Result(simu, 'damage')
 
     forces = []
 
@@ -109,8 +109,7 @@ if __name__ == '__main__':
         plt.pause(1e-12)
 
         # plot damage
-        cb.remove()
-        cb = Display.Plot_Result(simu, 'damage', ax=axDamage)[2]
+        Display.Plot_Result(simu, 'damage', ax=axDamage)
         plt.figure(axDamage.figure)
         plt.pause(1e-12)
 

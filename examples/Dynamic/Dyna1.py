@@ -1,16 +1,15 @@
 """Bending beam"""
 
-import os
 import matplotlib.pyplot as plt
 
 import Folder
-import PostProcessing
 import Display
 from Geoms import *
 import Materials
 from Gmsh_Interface import Mesher, ElemType
 import Simulations
 from TicTac import Tic
+import Paraview_Interface
 
 if __name__ == '__main__':
 
@@ -19,7 +18,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 3
+    dim = 2
     folder = Folder.New_File(f"Dynamics", results=True)
     plotResult = True
     
@@ -27,8 +26,8 @@ if __name__ == '__main__':
     depInit = -7
     load = -800 # N
 
-    makeParaview = False; NParaview = 500
-    makeMovie = False; NMovie = 400
+    makeParaview = True
+    makeMovie = True
     plotIter = True; resultToPlot = "uy"
 
     # Dumping
@@ -86,7 +85,7 @@ if __name__ == '__main__':
 
     factorDef = 1
     if plotIter:
-        fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, deformFactor=factorDef)
+        ax = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, deformFactor=factorDef)
 
     Tmax = 0.5
     N = 100
@@ -108,8 +107,7 @@ if __name__ == '__main__':
         simu.Save_Iter()
 
         if plotIter:
-            cb.remove()
-            fig, ax, cb = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, ax=ax, deformFactor=factorDef)
+            ax = Display.Plot_Result(simu, resultToPlot, nodeValues=True, plotMesh=True, ax=ax, deformFactor=factorDef)
             plt.pause(1e-12)
 
 
@@ -127,20 +125,17 @@ if __name__ == '__main__':
     # folder=""
 
     if makeParaview:
-        PostProcessing.Make_Paraview(folder, simu,Niter=NParaview)
+        Paraview_Interface.Make_Paraview(simu, folder)
 
     if makeMovie:
-        PostProcessing.Make_Movie(folder, resultToPlot, simu, plotMesh=True, Niter=NMovie, deformation=True, nodeValues=True, factorDef=1)
+        Display.Movie_Simu(simu, resultToPlot, folder, f"{resultToPlot}.mp4", deformFactor=1, plotMesh=True, N=400, nodeValues=True)
 
     if plotResult:
 
         tic = Tic()
-        print(simu)
-        # Display.Plot_Result(simu, "displacement_norm")
-        # Display.Plot_Mesh(simu, deformation=True, folder=folder)
+        print(simu)        
         Display.Plot_Result(simu, "uy", deformFactor=factorDef, nodeValues=False)        
         Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=False)
-        # Display.Plot_Result(simu, "Svm", deformation=True, nodeValues=False, plotMesh=False, folder=folder)
         
         tic.Tac("Display","Results", plotResult)
 

@@ -11,7 +11,7 @@ import Display
 import Simulations
 import Materials
 import Folder
-import PostProcessing
+import Paraview_Interface
 
 if __name__ == '__main__':
 
@@ -142,6 +142,6 @@ if __name__ == '__main__':
     print(simu)
 
     if makeParaview:
-        PostProcessing.Make_Paraview(folder, simu, elementsResult=['Strain'])
+        Paraview_Interface.Make_Paraview(simu, folder, elementsField=['Strain'])
 
     Display.plt.show()

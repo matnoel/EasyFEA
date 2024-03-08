@@ -1,4 +1,4 @@
-"""Module for timing operations."""
+"""Module containing the Tic class for timing tasks."""
 
 import time
 import numpy as np
@@ -37,6 +37,16 @@ class Tic:
             coef = 1
 
         return time*coef, unite
+
+    @staticmethod
+    def Get_Remaining_Time(i:int, N:int, time:float) -> str:
+        
+        if i == 0:
+            return ""
+        else:
+            timeLeft = (N - i) * time
+            timeLeft, unit = Tic.Get_time_unity(timeLeft)
+            return f"({i/N*100:3.2f} %) {timeLeft:3.2f} {unit}"
 
     def Tac(self, category="", text="", verbosity=False) -> float:
         """Get time from previous tic or tac."""

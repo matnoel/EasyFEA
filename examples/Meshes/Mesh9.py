@@ -3,9 +3,6 @@ from Geoms import Point, Points, Contour, CircleArc, Line
 import Display
 import PyVista_Interface as pvi
 import Folder
-import Simulations
-import Materials
-import PostProcessing
 
 import numpy as np
 import scipy.io

@@ -524,11 +524,6 @@ def Calc_Energy(deplacements: np.ndarray, forces: np.ndarray, ax=None) -> float:
         if canPlot:
             ax.fill_between(deplacements[idxs], forces[idxs], color='red')
 
-            # if idx0 > 0:
-            #     sc.remove()
-            # sc = ax.scatter(deplacements[idxs[1]], forces[idxs[1]], c='black')
-            # plt.pause(1e-12)
-
     return energie
 
 def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0) -> tuple[float, float, float]:

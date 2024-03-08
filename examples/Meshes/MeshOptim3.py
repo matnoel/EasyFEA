@@ -1,7 +1,6 @@
 """Mesh optimization with ZZ1 criterion."""
 
 import Folder
-import PostProcessing
 import Display
 from Geoms import *
 import Materials
@@ -10,6 +9,7 @@ from Gmsh_Interface import Mesher, ElemType
 import Simulations
 from TicTac import Tic
 import PyVista_Interface as pvi
+import Paraview_Interface
 
 import os
 import matplotlib.pyplot as plt
@@ -150,14 +150,14 @@ if __name__ == '__main__':
         for d in range(dim):
             uProj[:,d] = proj @ u0[:,d]
         
-        ax = Display.Plot_Result(mesh0, np.linalg.norm(u0, axis=1), plotMesh=True, title='u0')[1]
+        ax = Display.Plot_Result(mesh0, np.linalg.norm(u0, axis=1), plotMesh=True, title='u0')
         ax.plot(*mesh1.coordo[:,:dim].T, ls='', marker='+', c='k', label='new nodes')
         ax.legend()
         Display.Plot_Result(mesh1, np.linalg.norm(uProj, axis=1), plotMesh=True, title='uProj')
 
 
     if makeParaview:
-        PostProcessing.Make_Paraview(folder, simu, nodesResult=["ZZ1_e"])
+        Paraview_Interface.Make_Paraview(simu, folder, nodesField=["ZZ1_e"])
     
     if makeMovie:
         def func(plotter, n):

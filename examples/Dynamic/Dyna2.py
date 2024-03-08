@@ -10,8 +10,6 @@ import Materials
 from Geoms import Domain, Point, Circle, Line
 from Gmsh_Interface import Mesher, ElemType
 import Display
-import PostProcessing
-import Folder
 import TicTac
 
 if __name__ == '__main__':
@@ -93,7 +91,7 @@ if __name__ == '__main__':
 
     # Plot the result at the initial iteration if specified
     if plotIter:
-        fig, ax, cb = Display.Plot_Result(simu, result, nodeValues=True)
+        ax = Display.Plot_Result(simu, result, nodeValues=True)
 
     # Create a timer object
     tic = TicTac.Tic()
@@ -114,8 +112,7 @@ if __name__ == '__main__':
 
         # Update the plot at each iteration if specified
         if plotIter:
-            cb.remove()
-            fig, ax, cb = Display.Plot_Result(simu, result, nodeValues=True, ax=ax)
+            ax = Display.Plot_Result(simu, result, nodeValues=True, ax=ax)
             plt.pause(1e-12)
 
         t += dt

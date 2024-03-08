@@ -1,7 +1,6 @@
-"""Folder and file creation module."""
+"""Module containing functions used to facilitate folder and file creation using (os)."""
 
 import os
-from typing import List
 
 def Get_Path(filename="") -> str:
     """Returns the folder containing the file. Otherwise returns the EasyFEA folder."""

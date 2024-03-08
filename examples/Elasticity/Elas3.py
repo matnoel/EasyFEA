@@ -1,6 +1,5 @@
 """Hydraulic dam"""
 
-import Folder
 import Display
 from Gmsh_Interface import Mesher, ElemType, Point, Points
 import Simulations

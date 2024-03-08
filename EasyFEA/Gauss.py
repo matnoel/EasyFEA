@@ -1,4 +1,4 @@
-"""Module used to create integration / Gauss points."""
+"""Module containing the Gauss class used to determine the coordinates and weights of integration points."""
 
 import numpy as np
 

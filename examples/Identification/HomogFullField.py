@@ -149,9 +149,6 @@ if __name__ == '__main__':
         ukl = simu_VER.Solve()
 
         simu_VER.Save_Iter()
-
-        # Display.Plot_Result(simu_VER, "ux", deformation=False)
-        # Display.Plot_Result(simu_VER, "uy", deformation=False)
         # Display.Plot_Result(simu_VER, "Exx")
         # Display.Plot_Result(simu_VER, "Eyy")
         # Display.Plot_Result(simu_VER, "Exy")
@@ -212,7 +209,7 @@ if __name__ == '__main__':
     material.Set_C(C_hom, False)
     Simulation(simu, "hom")
 
-    # ax = Display.Plot_Result(simu, "uy")[1]
+    # ax = Display.Plot_Result(simu, "uy")
     # Display.Plot_Result(simuInclusions, "uy", ax=ax)
 
     plt.show()

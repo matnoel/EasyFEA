@@ -5,7 +5,7 @@ import Simulations
 import Display
 from TicTac import Tic
 import Folder
-import PostProcessing
+import Paraview_Interface
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     # Define whether to plot the results
     plotResult = True
-    makeParaview = False
+    makeParaview = True
 
     # Define geometry parameters
     L = 120  # mm
@@ -212,7 +212,7 @@ if __name__ == '__main__':
 
     if makeParaview:
         # Generate Paraview files for visualization
-        PostProcessing.Make_Paraview(folder, simu, details=True)
+        Paraview_Interface.Make_Paraview(simu, folder, details=True)
 
     # Show the total computation time
     print()

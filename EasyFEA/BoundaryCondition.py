@@ -1,6 +1,5 @@
-"""Module for creating boundary conditions."""
+"""Module containing classes used to create boundary conditions."""
 
-from typing import cast
 import numpy as np
 
 class BoundaryCondition:

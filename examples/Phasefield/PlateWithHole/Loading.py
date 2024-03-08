@@ -4,8 +4,6 @@ from Geoms import *
 import Display
 from Gmsh_Interface import Mesher, ElemType
 import Simulations
-import Folder
-import PostProcessing
 
 import matplotlib.pyplot as plt
 

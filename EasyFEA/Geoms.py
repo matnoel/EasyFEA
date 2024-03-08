@@ -1,4 +1,4 @@
-"""Module used to create geometric objects."""
+"""Module containing the geometric classes used to build meshes."""
 
 from typing import Union
 import numpy as np

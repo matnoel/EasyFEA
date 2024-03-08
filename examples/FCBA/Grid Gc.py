@@ -1,7 +1,6 @@
 """Code used to plot the cost function as a function of gc and l on a grid."""
 
 import numpy as np
-import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
 import multiprocessing
@@ -9,7 +8,6 @@ import multiprocessing
 import Display
 import Materials
 import Simulations
-import PostProcessing
 import Folder
 import Functions
 
@@ -206,7 +204,7 @@ if __name__ == "__main__":
 
         Display.Save_fig(folder_save, "J surface")
 
-        ax2 = plt.subplots()[1]        
+        ax2 = Display.init_Axes(2)
         cc = ax2.contourf(GC, L0, results,levels,  cmap='jet')
         ax2.set_xlabel(axeX, fontsize=14)
         ax2.set_ylabel(axeY, fontsize=14)

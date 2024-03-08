@@ -1,6 +1,5 @@
 """Bending part"""
 
-import Folder
 import Display
 from Gmsh_Interface import Mesher, ElemType, Point, Points, Circle, Domain
 import Simulations

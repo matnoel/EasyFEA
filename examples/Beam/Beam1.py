@@ -87,7 +87,7 @@ if __name__ == '__main__':
     Display.myPrint(f"err ux: {err_ux*100:.2e} %")
 
     # Plot the analytical and finite element solutions for displacement (u)
-    fig, ax = plt.subplots()
+    ax = Display.init_Axes(2)
     ax.plot(x_array, u_x, label='Analytical', c='blue')
     ax.scatter(mesh.coordo[:, 0], ux, label='EF', c='red', marker='x', zorder=2)
     ax.set_title(fr"$u_x(x)$")

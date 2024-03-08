@@ -110,7 +110,7 @@ def DoMesh(dim: int, L: float, H: float, D: float, t:float, l0: float, test: boo
     if dim == 2:
         mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,t], [4], ElemType.TRI3, refineGeoms=[refineGeom])
+        mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,t], [4], ElemType.TETRA4, refineGeoms=[refineGeom])
 
     return mesh
 

@@ -1,11 +1,11 @@
-"""Module for using numba functions."""
+"""Numba functions to speed up calculations."""
 
 import numpy as np
 from numba import njit, prange, jit
 
 __useCache = True
 __useParallel = True
-__useFastmath = True
+__useFastmath = False
 
 @njit(cache=__useCache, parallel=__useParallel, fastmath=__useFastmath)
 def Get_Anisot_C(Cp_e_pg: np.ndarray, mat: np.ndarray, Cm_e_pg: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

@@ -1,6 +1,6 @@
 import pandas as pd
 
-import PostProcessing
+import Paraview_Interface
 import Display as Display
 import Folder
 import numpy as np
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Loads all simulations
     # --------------------------------------------------------------------------------------------
-    fig, ax_load = plt.subplots() # superposition axis of force-displacement curves
+    ax_load = Display.init_Axes(2) # superposition axis of force-displacement curves
 
     missingSimulations = []
 
@@ -122,7 +122,7 @@ if __name__ == '__main__':
 
         # Loads force and displacement
         if Folder.Exists(fileForceDep):
-            load, displacement = PostProcessing.Load_Load_Displacement(foldername, False)
+            load, displacement = Simulations.Load_Force_Displacement(foldername, False)
             
             if depMax == 0:
                 depMax = displacement[-1]
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     ax_load.set_ylabel("load")
     ax_load.grid()
     ax_load.legend()
-    plt.figure(fig)
+    plt.figure(ax_load.figure)
     Display.Save_fig(folder_save, "load displacement")
 
     print('\n Missing Simulations :')

@@ -1,5 +1,5 @@
 import Display
-import PostProcessing
+import Paraview_Interface
 import Folder
 import Materials
 from Geoms import *
@@ -230,8 +230,8 @@ def DoSimu(split: str, regu: str):
         
         # INIT
         nDetect = 0
-        displacements=[]
-        loads=[]
+        displacement=[]
+        force=[]
 
         dep = -uinc0
         iter = -1
@@ -262,8 +262,8 @@ def DoSimu(split: str, regu: str):
             # resulting force on upper edge
             f = np.sum(Kglob[dofsY_upper, :] @ u)
 
-            displacements.append(dep)
-            loads.append(f)
+            displacement.append(dep)
+            force.append(f)
 
             # check for damaged edges
             if np.any(simu.damage[nodes_edges] >= 0.98):
@@ -276,18 +276,18 @@ def DoSimu(split: str, regu: str):
         # Saving
         # --------------------------------------------------------------------------------------------
         print()
-        PostProcessing.Save_Load_Displacement(loads, displacements, folder)
+        Simulations.Save_Force_Displacement(force, displacement, folder)
         simu.Save(folder)        
 
-        loads = np.array(loads)
-        displacements = np.array(displacements)
+        force = np.asarray(force)
+        displacement = np.asarray(displacement)
 
     else:
         # --------------------------------------------------------------------------------------------
         # Loading
         # ---------------------------------------------
         simu: Simulations.PhaseField = Simulations.Load_Simu(folder)
-        loads, displacements = PostProcessing.Load_Load_Displacement(folder)
+        force, displacement = Simulations.Load_Force_Displacement(folder)
 
     # --------------------------------------------------------------------------------------------
     # PostProcessing
@@ -295,21 +295,20 @@ def DoSimu(split: str, regu: str):
     if plotResult:
         Display.Plot_Iter_Summary(simu, folder, None, None)
         Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Load_Displacement(displacements*1e6, loads*1e-6, 'ud [µm]', 'f [kN/mm]', folder)
+        Display.Plot_Force_Displacement(force*1e-6, displacement*1e6, 'ud [µm]', 'f [kN/mm]', folder)
         Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder, filename="damage")
-        # Display.Plot_Result(simu, "uy", folder=folder, deformation=True)
             
     if saveParaview:
-        PostProcessing.Make_Paraview(folder, simu, Nparaview)
+        Paraview_Interface.Make_Paraview(simu, folder, Nparaview)
 
     if makeMovie:
-        PostProcessing.Make_Movie(folder, "damage", simu, deformation=True, NiterFin=0)
+        Display.Movie_Simu(folder, "damage", simu, NiterFin=0)
 
     if plotMesh:
         Display.Plot_Mesh(simu.mesh)
             
     if plotEnergy:
-        Display.Plot_Energy(simu, Niter=400, folder=folder)
+        Display.Plot_Energy(simu, N=400, folder=folder)
 
     Tic.Resume()
 

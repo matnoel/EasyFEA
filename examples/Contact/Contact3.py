@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     dim = 3
     pltIter = True; result = 'uy'
-    makeMovie = True
+    makeMovie = False
 
     N = 20
 
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     displacements = np.linspace(0, t*2, N)    
 
     if pltIter:
-        fig, ax, cb = Display.Plot_Result(simu, result, 1, plotMesh=True)
+        ax = Display.Plot_Result(simu, result, 1, plotMesh=True)
 
     for d, du in enumerate(displacements):
 
@@ -112,8 +112,7 @@ if __name__ == '__main__':
         simu.Save_Iter()
 
         if pltIter:
-            cb.remove()
-            fig, ax, cb = Display.Plot_Result(simu, result, 1, plotMesh=False, ax=ax)
+            ax = Display.Plot_Result(simu, result, 1, plotMesh=False, ax=ax)
             Display.Plot_Mesh(master_mesh, ax=ax, title='', alpha=0)
             ax.set_title(result)
 
@@ -138,6 +137,6 @@ if __name__ == '__main__':
                  show_grid=True, verticalColobar=False)
             pvi.Plot(master_mesh, plotter=plotter, show_edges=True, opacity=.8)
 
-        pvi.Movie_func(DoAnim, N, folder=folder, videoName='Contact3.mp4')
+        pvi.Movie_func(DoAnim, N, folder=folder, filename='Contact3.mp4')
 
     plt.show()

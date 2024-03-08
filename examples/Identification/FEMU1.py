@@ -253,7 +253,7 @@ if __name__ == '__main__':
 
     for param in params:
 
-        axParam = plt.subplots()[1]
+        axParam = Display.init_Axes(2)
         
         paramExp = dict_param[param]    
 

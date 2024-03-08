@@ -7,7 +7,7 @@ from Gmsh_Interface import Mesher, ElemType, Mesh, Normalize_vect
 import Materials
 import Simulations
 import Folder
-import PostProcessing
+import Paraview_Interface
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,7 +23,8 @@ def DoMesh_FCBA(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float,
     clD = clC*3 if optimMesh else clC
 
     if optimMesh:
-        refineGeom = Domain(Point(L/2-D, 0, 0), Point(L/2+D, H, t), clC)
+        # refineGeom = Domain(Point(L/2-D, 0, 0), Point(L/2+D, H, t), clC)
+        refineGeom = Circle(Point(L/2, H-h), 2*D, clC)
     else:
         refineGeom = None
 
@@ -60,7 +61,7 @@ def DoMesh_FCBA(dim:int, L:float, H:float, D:float, h:float, D2:float, h2:float,
 
             mesher.Set_meshSize(clD)
 
-            mesher._RefineMesh([refineGeom], clD)
+            mesher._RefineMesh([refineGeom], clD, extrude=[0,0,t*1.2])
 
             mesher._Set_PhysicalGroups()
 
@@ -79,6 +80,8 @@ if __name__  == '__main__':
 
     test = True
     optimMesh = True
+    
+    useContact = True
     loadInHole = True; pltLoadInHole=False
     makeParaview = False
 
@@ -102,9 +105,9 @@ if __name__  == '__main__':
     mesh = DoMesh_FCBA(dim, L, H, D, h, D2, h2, t, l0, test, optimMesh)
     # mesh = DoMesh_FCBA(dim, L, H, D, H/2, D2, h2, t, l0, test, optimMesh)
 
-    # Display.Plot_Mesh(mesh)
 
     print(mesh)
+    # Display.Plot_Mesh(mesh)
     # pvi.Plot_Mesh(mesh, opacity=1).show()
 
     # --------------------------------------------------------------------------------------------
@@ -129,7 +132,6 @@ if __name__  == '__main__':
     regu = "AT1"
 
     comp = Materials.Elas_IsotTrans(dim, El, Et, Gl, vl, vt, axis_l, axis_t, True, t)
-    comp = Materials.Elas_Isot(dim, thickness=t)
     pfm = Materials.PhaseField_Model(comp, split, regu, Gc, l0)
 
     # --------------------------------------------------------------------------------------------
@@ -142,7 +144,23 @@ if __name__  == '__main__':
     # --------------------------------------------------------------------------------------------
     # Loading
     # --------------------------------------------------------------------------------------------
-    if loadInHole:
+
+    if useContact:
+
+        circle = Circle(Point(L/2, H-h), D*.95)
+
+        if dim == 2:
+            masterMesh = Mesher().Mesh_2D(circle)
+        else:
+            masterMesh = Mesher().Mesh_Extrude(circle, [], [0,0,t+2])
+            masterMesh.translate(dz=mesh.center[2]-masterMesh.center[2])
+
+        list_masterMesh: list[Mesh] = []
+        
+        nodesMaster =  masterMesh.Nodes_Cylinder(Circle(Point(L/2, H-h), D), [0,0,-t])
+        nodesLoad = mesh.Nodes_Cylinder(Circle(Point(L/2, H-h), D), [0,0,-t])
+
+    elif loadInHole:
 
         surf = np.pi * D/2 * t
         nodesLoad = mesh.Nodes_Cylinder(Circle(Point(L/2,H-h), D), [0,0,-t])
@@ -191,8 +209,13 @@ if __name__  == '__main__':
     # --------------------------------------------------------------------------------------------
     # Simulation
     # --------------------------------------------------------------------------------------------
-    array_f = np.linspace(0, 4, 10)*1000
-    # array_f = np.array([2000])
+    if useContact:
+        n = 4
+        array_f = - np.ones(n) * .5/n   # mm        
+
+    else:
+        array_f = np.linspace(0, 4, 10)*1000
+        # array_f = np.array([2000])
 
     list_psiP: list[float] = []
 
@@ -200,7 +223,18 @@ if __name__  == '__main__':
 
         simu.Bc_Init()
         simu.add_dirichlet(nodesLower, [0]*dim, simu.Get_directions())
-        if loadInHole:
+        if useContact:
+
+            masterMesh = masterMesh.copy()
+            masterMesh.translate(dy=f)
+            list_masterMesh.append(masterMesh)            
+
+            nodes, newU = simu.Get_contact(masterMesh, nodesLoad, nodesMaster)
+
+            if nodes.size > 0:
+                simu.add_dirichlet(nodes, [newU[:,0], newU[:,1]], ["x","y"])
+
+        elif loadInHole:
             # label = r"$\mathbf{q}(\theta) = \sigma \ sin^2(\theta) \ \mathbf{n}(\theta)$"
             label = ""
             simu.add_surfLoad(nodesLoad, [EvalX, EvalY], ["x","y"],
@@ -224,13 +258,16 @@ if __name__  == '__main__':
     # --------------------------------------------------------------------------------------------
     # Results
     # --------------------------------------------------------------------------------------------    
+        
+    plotter = pvi.Plot(simu, psiP_e, deformFactor=1, show_edges=True)
+    pvi.Plot(masterMesh, color='grey', plotter=plotter, show_edges=True, opacity=.5).show()
 
     # pvi.Plot_BoundaryConditions(simu).show()    
     # if pltLoadInHole:
     #     pvi.Plot_BoundaryConditions(simu).show()    
 
     if len(list_psiP) > 1:
-        axLoad = plt.subplots()[1]
+        axLoad = Display.init_Axes(2)
         axLoad.set_xlabel("$f \ [kN]$"); axLoad.set_ylabel("$\psi^+ \ / \ \psi_c$")
         axLoad.grid() 
 
@@ -244,7 +281,7 @@ if __name__  == '__main__':
     Display.Plot_Mesh(mesh)
     
     if dim == 2 and pltLoadInHole:
-        ax = Display.Plot_BoundaryConditions(simu, folder=folder)
+        ax = Display.Plot_BoundaryConditions(simu)
         f_v = simu.Get_K_C_M_F()[0] @ simu.displacement
         f_m = f_v.reshape(-1,2)
         f_m *= 1
@@ -271,6 +308,6 @@ if __name__  == '__main__':
     print(simu)
 
     if makeParaview:
-        PostProcessing.Make_Paraview(folder, simu)
+        Paraview_Interface.Make_Paraview(simu, folder)
 
     plt.show()

@@ -141,7 +141,7 @@ if __name__ == '__main__':
                         [0,0,1]])
         
         rotate_points = []
-        ax = Display.plt.subplots()[1]
+        ax = Display.init_Axes(2)
         for p, point in enumerate([p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13]):
 
             assert isinstance(point, Point)

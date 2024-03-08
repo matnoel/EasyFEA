@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------------------------
     # Configuration
     # --------------------------------------------------------------------------------------------
-    dim = 3
+    dim = 3  
     pltIter = True; result = 'uy'
     makeMovie = False
 
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     list_mesh_master = [mesh_master]
 
     if pltIter:
-        fig, ax, cb = Display.Plot_Result(simu, result, deformFactor=1)
+        ax = Display.Plot_Result(simu, result, deformFactor=1)
 
     for i in range(N):
 
@@ -134,8 +134,7 @@ if __name__ == '__main__':
         print(f"Eps max = {simu.Result('Strain').max()*100:3.2f} %")
         
         if pltIter:
-            cb.remove()
-            _,ax,cb = Display.Plot_Result(simu, result, plotMesh=True, deformFactor=1, ax=ax)
+            Display.Plot_Result(simu, result, plotMesh=True, deformFactor=1, ax=ax)
             Display.Plot_Mesh(mesh_master, alpha=0, ax=ax)
             ax.set_title(result)
             if dim == 3:
@@ -172,7 +171,7 @@ if __name__ == '__main__':
             pvi.Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter, n_colors=10, show_grid=True)
             pvi.Plot(list_mesh_master[n], plotter=plotter, show_edges=True, opacity=0.2)
 
-        pvi.Movie_func(DoAnim, N, folder=folder, videoName='Contact1.gif')
+        pvi.Movie_func(DoAnim, N, folder=folder, filename='Contact1.gif')
     
     # TODO bending 3 pts
 

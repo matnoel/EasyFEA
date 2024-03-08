@@ -1,4 +1,6 @@
-"""Module for creating element groups. A mesh uses several groups of elements. For example, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
+"""Element group creation module.
+A mesh uses several element groups.
+For instance, a TRI3 mesh uses the elements POINT, SEG2 and TRI3."""
 
 from abc import ABC, abstractmethod, abstractproperty
 from enum import Enum

@@ -2,7 +2,7 @@ from Gmsh_Interface import Mesher, ElemType
 import Simulations
 import Materials
 import Display
-import PostProcessing
+import Paraview_Interface
 from Geoms import np, Point, Domain, Circle, Points, Line
 import Folder
 
@@ -177,7 +177,7 @@ if __name__ == '__main__':
     Display.Plot_BoundaryConditions(simu)
     # plt.show()
 
-    fig_Damage, ax_Damage, cb_Damage = Display.Plot_Result(simu, "damage")
+    ax_Damage = Display.Plot_Result(simu, "damage")
     nf = 100
     for iter, force in enumerate(np.linspace(0, 35, nf)):
 
@@ -199,14 +199,13 @@ if __name__ == '__main__':
         pourcent = iter/nf
 
         simu.Results_Set_Iteration_Summary(iter, force, "N", pourcent, True)
-
-        cb_Damage.remove()
-        fig_Damage, ax_Damage, cb_Damage = Display.Plot_Result(simu, "damage", ax=ax_Damage)
+        
+        Display.Plot_Result(simu, "damage", ax=ax_Damage)
         plt.pause(1e-12)
 
         if np.max(simu.damage[nodes_edges]) >= 0.95:
             break
     if makeParaview:
-        PostProcessing.Make_Paraview(folder, simu)
+        Paraview_Interface.Make_Paraview(simu, folder)
 
     plt.show()

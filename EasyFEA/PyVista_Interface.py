@@ -1,17 +1,14 @@
-"""This module is an interface to Pyvista\n
-https://docs.pyvista.org/version/stable/
-"""
+"""Module providing an interface with PyVista (https://docs.pyvista.org/version/stable/)."""
 
-from typing import Union, Any, Callable
+from typing import Union, Callable
 import pyvista as pv
 import numpy as np
 from cycler import cycler
 
-from Display import myPrintError, _init_obj
+from Display import myPrintError, _init_obj, myPrint
 import Folder
 from TicTac import Tic
 from scipy.sparse import csr_matrix
-# pv.global_theme.allow_empty_mesh = True
 
 def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, nodeValues=True, 
                 color=None, show_edges=False, edge_color='k', line_width=None,
@@ -125,7 +122,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
     return plotter
 
 def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='black', line_width=0.5,
-              plotter: pv.Plotter=None, **kwargs):
+              plotter: pv.Plotter=None):
     """Plot the mesh.
 
     Parameters
@@ -144,8 +141,6 @@ def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='blac
         line width, default 0.5
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance
-    **kwargs:
-        Everything that can goes in Plot() and add_mesh() function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
 
     Returns
     -------
@@ -153,12 +148,12 @@ def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='blac
         The pyvista plotter
     """
 
-    plotter = Plot(obj, deformFactor=deformFactor, opacity=opacity, color=color, edge_color=edge_color, line_width=line_width, plotter=plotter, show_edges=True, **kwargs)
+    plotter = Plot(obj, deformFactor=deformFactor, opacity=opacity, color=color, edge_color=edge_color, line_width=line_width, plotter=plotter, show_edges=True)
 
     return plotter
 
 def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color='red',
-               folder="", plotter: pv.Plotter=None, **kwargs):
+               folder="", plotter: pv.Plotter=None):
     """Plot mesh nodes.
 
     Parameters
@@ -175,8 +170,6 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
         color, default 'red'    
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance
-    **kwargs:
-        Everything that can goes in Plot() and add_mesh() function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
 
     Returns
     -------
@@ -295,7 +288,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
 
     return plotter
 
-def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None, **kwargs):
+def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
     """Plot boundary conditions.
 
     Parameters
@@ -306,8 +299,6 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None, **
         Factor used to display the deformed solution (0 means no deformations), default 0.0  
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance
-    **kwargs:
-        Everything that can goes in Plot() and add_mesh() function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
 
     Returns
     -------
@@ -510,8 +501,7 @@ def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=N
 # --------------------------------------------------------------------------------------------
 # Movie
 # --------------------------------------------------------------------------------------------
-
-def Movie_simu(simu, result: str, folder: str, videoName='video.gif',
+def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
           deformFactor=0.0, coef=1.0, nodeValues=True, **kwargs) -> None:
     """Generate a movie from a simu object and a result that you want to plot.
 
@@ -523,8 +513,10 @@ def Movie_simu(simu, result: str, folder: str, videoName='video.gif',
         result that you want to plot
     folder : str
         folder where you want to save the video
-    videoName : str, optional
+    filename : str, optional
         filename of the video with the extension (gif, mp4), by default 'video.gif'
+    N : int, optional
+        Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
     coef : float, optional
@@ -533,57 +525,66 @@ def Movie_simu(simu, result: str, folder: str, videoName='video.gif',
         Displays result to nodes otherwise displays it to elements, by default True
     """
     
-    simu, mesh, coordo, inDim = _init_obj(simu)
+    simu = _init_obj(simu)[0]
 
     if simu is None:
         myPrintError("Must give a simulation.")
         return
 
-    N = len(simu.results)
+    Niter = len(simu.results)
+    step = np.max([1, Niter//N])
+    iterations: np.ndarray = np.arange(0, Niter, step)
 
-    def DoAnim(plotter, n):
-        simu.Set_Iter(n)
+    def DoAnim(plotter, i):        
+        simu.Set_Iter(iterations[i])
         Plot(simu, result, deformFactor, coef, nodeValues, plotter=plotter, **kwargs)
 
-    Movie_func(DoAnim, N, folder, videoName)
+    Movie_func(DoAnim, iterations.size, folder, filename)
 
-def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, videoName='video.gif'):
+def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, filename='video.gif'):
     """Make the movie for the specified function. This function will peform a loop in range(N) and plot in pyvista with func()
 
     Parameters
     ----------
     func : Callable[[pv.Plotter, int], None]
-        The functiion that will use in first argument the plotter and in second argument the iter step. def func(plotter, n)
+        The functiion that will use in first argument the plotter and in second argument the iter step.\n
+        def func(plotter, i) -> None
     N : int
         number of iteration
     folder : str
         folder where you want to save the video
-    videoName : str, optional
+    filename : str, optional
         filename of the video with the extension (gif, mp4), by default 'video.gif'
     """
 
-    tic = Tic()
-
     plotter = _Plotter(True)
     
-    videoName = Folder.Join(folder, videoName)
+    filename = Folder.Join(folder, filename)
 
-    if '.gif' in videoName:
-        plotter.open_gif(videoName)
+    if '.gif' in filename:
+        plotter.open_gif(filename)
     else:
-        plotter.open_movie(videoName)
+        plotter.open_movie(filename)
 
-    for n in range(N):
+    tic = Tic()
+    print()
+
+    for i in range(N):
 
         plotter.clear()
 
-        func(plotter, n)
+        func(plotter, i)
 
         plotter.write_frame()
 
-    plotter.close()
+        time = tic.Tac("PyVista_Interface",f"Movie_func", False)        
 
-    tic.Tac("PyVista_Interface","Movie")
+        rmTime = Tic.Get_Remaining_Time(i, N-1, time)
+
+        myPrint(f"Movie_func {i}/{N-1} {rmTime}    ", end='\r')
+
+    print()
+    plotter.close()    
 
 # --------------------------------------------------------------------------------------------
 # Functions

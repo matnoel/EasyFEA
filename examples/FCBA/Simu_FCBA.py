@@ -13,7 +13,7 @@ from Geoms import Point, Domain, Circle
 import Materials
 import Simulations
 from BoundaryCondition import BoundaryCondition
-import PostProcessing
+import Paraview_Interface
 import Functions
 
 Display.Clear()
@@ -26,7 +26,7 @@ if __name__  == '__main__':
     # Configuration
     # --------------------------------------------------------------------------------------------
 
-    dim = 3
+    dim = 2
     idxEssai = 10
     model = 0
     # (0, essai Matthieu)
@@ -214,7 +214,7 @@ if __name__  == '__main__':
             # --------------------------------------------------------------------------------------------
             # Plot
             # --------------------------------------------------------------------------------------------
-            axLoad = plt.subplots()[1]
+            axLoad = Display.init_Axes(2)
             # axLoad.plot(deplacements, forces, label="exp")
             axLoad.set_xlabel("x [mm]")
             axLoad.set_ylabel("f [kN]")
@@ -314,11 +314,10 @@ if __name__  == '__main__':
 
             if pltIter:
                 if i == 0:
-                    _, axIter, cbIter = Display.Plot_Result(simu, "damage")
+                    axIter = Display.Plot_Result(simu, "damage")
                 else:
-                    cbIter.remove()
                     factorDef = 1 if pltContact else 0
-                    _, axIter, cbIter = Display.Plot_Result(simu, "damage", ax=axIter, deformFactor=factorDef)
+                    axIter = Display.Plot_Result(simu, "damage", ax=axIter, deformFactor=factorDef)
 
                 # title = axIter.get_title()
                 # if pltContact and useContact:
@@ -343,7 +342,7 @@ if __name__  == '__main__':
         list_fr = np.array(list_fr)
         list_dep = np.array(list_dep)
 
-        PostProcessing.Save_Load_Displacement(list_fr, list_dep, folder_save)
+        Simulations.Save_Force_Displacement(list_fr, list_dep, folder_save)
 
         fDamageSimu = list_fr[np.where(damageMax >= 0.95)[0][0]]
         
@@ -361,9 +360,9 @@ if __name__  == '__main__':
     Display.Plot_Result(simu, 'damage', folder=folder_save, colorbarIsClose=True)
 
     if makeParaview:
-        PostProcessing.Make_Paraview(folder_save, simu)
+        Paraview_Interface.Make_Paraview(simu, folder_save)
 
     if makeMovie:
-        PostProcessing.Make_Movie(folder_save, "damage", simu)
+        Display.Movie_Simu(folder_save, "damage", simu)
 
     plt.show()

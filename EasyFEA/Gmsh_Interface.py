@@ -555,7 +555,7 @@ class Mesher:
                 numElems = [int(geom.length / geom.meshSize) for geom in contour1.geoms]            
                 assert len(numElems) == len(lines1)
         # here the function below will cal synchronize
-        self._OrganiseSurfaces([surf1, surf2], elemType, canBeOrganised, numElems)        
+        self._OrganiseSurfaces([surf1, surf2], elemType, canBeOrganised, numElems)
 
         if nLayers > 0:
             # organize the transfinite lines

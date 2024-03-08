@@ -10,8 +10,7 @@ import GroupElems
 import Materials
 import Mesh
 # import Observers
-import PostProcessing
-import PostProcessing
+import Paraview_Interface
 import Simulations
 import Solvers
 import TicTac

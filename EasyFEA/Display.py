@@ -1,9 +1,9 @@
-"""Display module for simulations and meshes."""
+"""Module containing functions used to display simulations and meshes with matplotlib (https://matplotlib.org/)."""
 
 import Folder
 from TicTac import Tic
 
-from typing import Union
+from typing import Union, Callable
 import os
 import numpy as np
 import pandas as pd
@@ -11,20 +11,22 @@ from enum import Enum
 
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection, LineCollection
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable # use to do colorbarIsClose
-# from PostProcessing import Make_Paraview, Make_Movie
+import matplotlib.animation as animation
 
-# --------------------------------------------------------------------------------------------
 # Matplotlib: https://matplotlib.org/
-# --------------------------------------------------------------------------------------------
+# Ideas: https://www.python-graph-gallery.com/
 
+# --------------------------------------------------------------------------------------------
+# Plot Simu or Mesh 
+# --------------------------------------------------------------------------------------------
 def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, nodeValues=True, 
-                plotMesh=False, edgecolor='black', folder="", filename="", title="",
-                cmap="jet", ncolors=256, clim=(None, None), colorbarIsClose=False, ax: plt.Axes=None):
+                plotMesh=False, edgecolor='black', title="",
+                cmap="jet", ncolors=256, clim=(None, None), colorbarIsClose=False, colorbarLabel="",
+                ax: plt.Axes=None, folder="", filename="") -> plt.Axes:
     """Display a simulation result.
 
     Parameters
@@ -42,24 +44,26 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     plotMesh : bool, optional
         displays mesh, by default False
     edgecolor : str, optional
-        Color used to plot the mesh, by default 'black'
-    folder : str, optional
-        save folder, by default "".
-    filename : str, optional
-        filename, by default ""
+        Color used to plot the mesh, by default 'black'    
     title: str, optional
         figure title, by default ""
     cmap: str, optional
         the color map used near the figure, by default "jet" \n
-        ["jet", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
+        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
     ncolors : int, optional
-        number of colors for colorbar
+        number of colors for colorbar, by default 256
     clim : sequence[float], optional
         Two item color bar range for scalars. Defaults to minimum and maximum of scalars array. Example: (-1, 2), by default (None, None)
     colorbarIsClose : bool, optional
         color bar is displayed close to figure, by default False
+    colorbarLabel: str, optional
+        colorbar label, by default ""
     ax: axis, optional
-        Axis to use, default None, by default None    
+        Axis to use, default None, by default None
+    folder : str, optional
+        save folder, by default "".
+    filename : str, optional
+        filename, by default ""
 
     Returns
     -------
@@ -119,6 +123,9 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         norm = None
 
     if ax is not None:
+        [collection.colorbar.remove()
+         for collection in ax.collections
+         if collection.colorbar is not None]
         ax.clear()
         fig = ax.figure
         # change the plot dimentsion if the given axes is in 3d
@@ -245,6 +252,8 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # Change axis scale
         _Axis_equal_3D(ax, mesh.coordoGlob)
 
+    cb.set_label(colorbarLabel)
+
     # Title
     # if no title has been entered, the constructed title is used
     if title == "" and isinstance(result, str):
@@ -281,10 +290,10 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         Save_fig(folder, filename, transparent=False)
 
     # Returns figure, axis and colorbar
-    return fig, ax, cb
+    return ax
     
 def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black', lw=0.5,
-              folder="", title="", ax: plt.Axes=None) -> plt.Axes:
+              ax: plt.Axes=None, folder="", title="") -> plt.Axes:
     """Plot the mesh.
 
     Parameters
@@ -301,12 +310,12 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
         edgecolor, default 'black'
     lw: float, optional
         line width, default 0.5    
+    ax: plt.Axes, optional
+        Axis to use, default None
     folder : str, optional
         save folder, default "".
     title: str, optional
         backup file name, default "".
-    ax: plt.Axes, optional
-        Axis to use, default None
 
     Returns
     -------
@@ -431,8 +440,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
     return ax
 
-def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
-               folder="", ax: plt.Axes=None) -> plt.Axes:
+def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', ax: plt.Axes=None) -> plt.Axes:
     """Plot mesh nodes.
 
     Parameters
@@ -447,8 +455,6 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
         marker type (matplotlib.markers), default '.'
     c : str, optional
         color, default 'red'
-    folder : str, optional
-        save folder, default "".
     ax : plt.Axes, optional
         Axis to use, default None, default None
 
@@ -489,13 +495,10 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red',
         _Axis_equal_3D(ax, coordo)
 
     tic.Tac("Display","Plot_Nodes")
-    
-    if folder != "":
-        Save_fig(folder, "nodes")
 
     return ax
 
-def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c='red', edgecolor='black', folder="", ax: plt.Axes=None) -> plt.Axes:
+def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c='red', edgecolor='black', ax: plt.Axes=None) -> plt.Axes:
     """Display mesh elements from given nodes.
 
     Parameters
@@ -514,8 +517,6 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
         color used to display faces, by default 'red
     edgecolor : str, optional
         color used to display segments, by default 'black'
-    folder : str, optional
-        save folder, by default ""
     ax : plt.Axes, optional
         Axis to use, default None
 
@@ -587,21 +588,16 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
         ax.axis('equal')
     else:
         _Axis_equal_3D(ax, mesh.coordo)
-    
-    if folder != "":
-        Save_fig(folder, "noeuds")
 
     return ax
 
-def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
+def Plot_BoundaryConditions(simu, ax: plt.Axes=None) -> plt.Axes:
     """Plot boundary conditions.
 
     Parameters
     ----------
     simu : Simu
         simulation
-    folder : str, optional
-        save folder, by default ""
     ax : plt.Axes, optional
         Axis to use, default None
 
@@ -678,9 +674,6 @@ def Plot_BoundaryConditions(simu, folder="", ax: plt.Axes=None) -> plt.Axes:
     ax.legend()
 
     tic.Tac("Display","Plot_BoundaryConditions")
-
-    if folder != "":
-        Save_fig(folder, "Boundary conditions")
 
     return ax
 
@@ -876,15 +869,18 @@ def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
-def Plot_Load_Displacement(displacement: np.ndarray, forces: np.ndarray, xlabel='u', ylabel='f', folder="", ax: plt.Axes=None) -> tuple[plt.Figure, plt.Axes]:
-    """Plot the forces displacement curve.
+# --------------------------------------------------------------------------------------------
+# Plot 1D
+# --------------------------------------------------------------------------------------------
+def Plot_Force_Displacement(force: np.ndarray, displacement: np.ndarray, xlabel='u', ylabel='f', folder="", ax: plt.Axes=None) -> tuple[plt.Figure, plt.Axes]:
+    """Plot the force displacement curve.
 
     Parameters
     ----------
-    displacements : np.ndarray
+    force : np.ndarray
+        array of values for force
+    displacement : np.ndarray
         array of values for displacements
-    forces : np.ndarray
-        array of values for forces
     xlabel : str, optional
         x-axis title, by default 'u'.
     ylabel : str, optional
@@ -907,17 +903,17 @@ def Plot_Load_Displacement(displacement: np.ndarray, forces: np.ndarray, xlabel=
         ax = init_Axes(2)
         fig = ax.figure
 
-    ax.plot(np.abs(displacement), np.abs(forces), c='blue')
+    ax.plot(np.abs(displacement), np.abs(force), c='blue')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid()
 
     if folder != "":
-        Save_fig(folder, "load_displacement")
+        Save_fig(folder, "force-displacement")
 
     return fig, ax
     
-def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=True, Niter=200, NiterFin=100, folder="") -> None:
+def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=True, N=200, folder="") -> None:
     """Plot the energy for each iteration.
 
     Parameters
@@ -930,17 +926,15 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         array of values, by default np.array([])
     plotSolMax : bool, optional
         displays the evolution of the maximul solution over iterations. (max damage for damage simulation), by default True
-    Niter : int, optional
+    N : int, optional
         number of iterations for which energy will be calculated, by default 200
-    NiterFin : int, optional
-        number of iterations before end, by default 100
     folder : str, optional        
         save folder, by default ""
     """
 
     from Simulations import _Simu
     from TicTac import Tic
-    import PostProcessing as PostProcessing 
+    import Paraview_Interface as Paraview_Interface 
 
     assert isinstance(simu, _Simu)
 
@@ -956,21 +950,19 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     tic = Tic()
     
     # recovers simulation results
-    results =  simu.results
-    N = len(results)
+    Niter = len(simu.results)    
     if len(load) > 0:
-        ecart = np.abs(len(results) - len(load))
+        ecart = np.abs(Niter - len(load))
         if ecart != 0:
-            N -= ecart
-    listIter = PostProcessing.Make_listIter(NiterMax=N-1, NiterFin=NiterFin, NiterCyble=Niter)
-    
-    Niter = len(listIter)
+            Niter -= ecart
+    step = np.max([1, Niter//N])
+    iterations: np.ndarray = np.arange(0, Niter, step)
 
     list_dict_Energy: list[dict[str, float]] = []
-    listTemps = []
+    times = []
     if plotSolMax : listSolMax = []
 
-    for i, iteration in enumerate(listIter):
+    for i, iteration in enumerate(iterations):
 
         # Update simulation at iteration i
         simu.Set_Iter(iteration)
@@ -979,12 +971,12 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
 
         list_dict_Energy.append(simu.Results_dict_Energy())
 
-        temps = tic.Tac("PostProcessing","Calc Energy", False)
-        listTemps.append(temps)
+        time = tic.Tac("PostProcessing","Calc Energy", False)
+        times.append(time)
 
-        pourcentageEtTempsRestant = PostProcessing._RemainingTime(listIter, listTemps, i)
+        rmTime = Tic.Get_Remaining_Time(i, iterations.size-1, time)
 
-        print(f"Calc Energy {iteration+1}/{N} {pourcentageEtTempsRestant}    ", end='\r')
+        print(f"Calc Energy {i}/{iterations.size-1} {rmTime}     ", end='\r')
     print('\n')
 
     # Figure construction
@@ -993,16 +985,16 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         nrows += 1
     if pltLoad:
         nrows += 1
-    fig, ax = plt.subplots(nrows, 1, sharex=True)
+    axs: list[plt.Axes] = plt.subplots(nrows, 1, sharex=True)[1]
 
     iter_rows = iter(np.arange(nrows))
 
     # Retrieves the axis to be used for x-axes
     if len(displacement)>0:
-        listX = displacement[listIter] 
+        listX = displacement[iterations] 
         xlabel = "displacement"
     else:
-        listX = listIter 
+        listX = iterations 
         xlabel = "iter"    
 
     # Transforms list_dict_Energie into a dataframe
@@ -1013,25 +1005,25 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     # For each energy, we plot the values
     for energie_str in df.columns:
         valeurs = df[energie_str].values
-        ax[row].plot(listX, valeurs, label=energie_str)    
-    ax[row].legend()
-    ax[row].grid()
+        axs[row].plot(listX, valeurs, label=energie_str)    
+    axs[row].legend()
+    axs[row].grid()
 
     if plotSolMax:
         # plot max solution
         row = next(iter_rows)
-        ax[row].plot(listX, listSolMax)
-        ax[row].set_ylabel(r"$max(u_n)$")
-        ax[row].grid()
+        axs[row].plot(listX, listSolMax)
+        axs[row].set_ylabel(r"$max(u_n)$")
+        axs[row].grid()
 
     if pltLoad:
         # plot the loading
         row = next(iter_rows)
-        ax[row].plot(listX, np.abs(load[listIter])*1e-3)
-        ax[row].set_ylabel("load")
-        ax[row].grid()        
+        axs[row].plot(listX, np.abs(load[iterations])*1e-3)
+        axs[row].set_ylabel("load")
+        axs[row].grid()        
     
-    ax[-1].set_xlabel(xlabel)
+    axs[-1].set_xlabel(xlabel)
 
     if folder != "":        
         Save_fig(folder, "Energy")
@@ -1083,6 +1075,106 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
 
     if folder != "":
         Save_fig(folder, "resumeConvergence")
+
+# --------------------------------------------------------------------------------------------
+# Animation
+# --------------------------------------------------------------------------------------------
+def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
+               deformFactor=0.0, coef=1.0, nodeValues=True,
+               plotMesh=False, edgecolor='black', fps=30) -> None:
+    """Make a movie from a simulation on matplotlib
+
+    Parameters
+    ----------
+    simu : _Simu
+        simulation
+    result : str
+        result that you want to plot
+    folder : str
+        folder where you want to save the video
+    filename : str, optional
+        filename of the video with the extension (gif, mp4), by default 'video.gif'
+    N : int, optional
+        Maximal number of iterations displayed, by default 200
+    deformFactor : int, optional
+        deformation factor, by default 0.0
+    coef : float, optional
+        Coef to apply to the solution, by default 1.0
+    nodeValues : bool, optional
+        Displays result to nodes otherwise displays it to elements, by default True
+    plotMesh : bool, optional
+        Plot the mesh, by default False
+    edgecolor : str, optional
+        Color used to plot the mesh, by default 'black'
+    fps : int, optional
+        frames per second, by default 30
+    """
+
+    simu = _init_obj(simu)[0]
+
+    if simu is None:
+        myPrintError("Must give a simulation.")
+        return
+
+    Niter = len(simu.results)
+    step = np.max([1, Niter//N])
+    iterations: np.ndarray = np.arange(0, Niter, step)
+
+    ax = init_Axes(simu.mesh.inDim)
+    fig = ax.figure
+
+    def DoAnim(fig: plt.Figure, i):
+        simu.Set_Iter(iterations[i])
+        ax = fig.axes[0]
+        Plot_Result(simu, result, deformFactor, coef, nodeValues, plotMesh, edgecolor, ax=ax)
+        ax.set_title(f"{result} {iterations[i]:d}/{Niter-1:d}")
+
+    Movie_func(DoAnim, fig, iterations.size, folder, filename, fps)
+
+def Movie_func(func: Callable[[plt.Axes, int], None], fig: plt.Figure, N: int,
+               folder: str, filename='video.gif', fps=30):
+    """Make the movie for the specified function. This function will peform a loop in range(N) and plot in matplotlib with func()
+
+    Parameters
+    ----------
+    func : Callable[[plt.Axes, int], tuple]
+        The functiion that will use in first argument the plotter and in second argument the iter step.\n
+        def func(ax, i) -> None
+    fig : Figure
+        Figure used to make the video
+    N : int
+        number of iteration
+    folder : str
+        folder where you want to save the video
+    filename : str, optional
+        filename of the video with the extension (gif, mp4), by default 'video.gif'
+    fps : int, optional
+        frames per second, by default 30
+    """
+    
+    # Name of the video in the folder where the folder is communicated
+    filename = Folder.Join(folder, filename)
+    
+    writer = animation.FFMpegWriter(fps)
+    with writer.saving(fig, filename, 200):
+        tic = Tic()
+        for i in range(N):
+            
+            func(fig, i)
+
+            plt.pause(1e-12)
+
+            writer.grab_frame()
+
+            time = tic.Tac("Display","Movie_func", False)            
+
+            rmTime = Tic.Get_Remaining_Time(i, N-1, time)
+
+            print(f"Make_Movie {i}/{N-1} {rmTime}    ", end='\r')
+
+# --------------------------------------------------------------------------------------------
+# Functions
+# --------------------------------------------------------------------------------------------
         
 def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi='figure') -> None:
     """Save the current figure.
@@ -1186,7 +1278,7 @@ def _get_list_faces(mesh, dimElem:int) -> list[list[int]]:
     return list_faces
 
 def init_Axes(dim: int, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
-    if dim == 2:
+    if dim == 1 or dim == 2:
         ax = plt.subplots()[1]
     elif dim == 3:
         fig = plt.figure()
@@ -1194,7 +1286,7 @@ def init_Axes(dim: int, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
         ax.view_init(elev=elev, azim=azim)
     return ax
 
-def _Axis_equal_3D(ax, coordo: np.ndarray) -> None:
+def _Axis_equal_3D(ax: Axes3D, coordo: np.ndarray) -> None:
     """Change axis size for 3D display
     Will center the part and make the axes the right size
     Parameters

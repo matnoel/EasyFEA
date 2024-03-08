@@ -1,6 +1,5 @@
 """I Bi-fixed beam"""
 
-import Folder
 import Display
 from Gmsh_Interface import Mesher, ElemType, Point, Points, Circle, Domain, Line
 import Simulations
