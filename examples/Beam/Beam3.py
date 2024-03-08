@@ -7,8 +7,6 @@ from Gmsh_Interface import Mesher, ElemType, Line, Point, Points
 import Display
 import Materials
 import Simulations
-import Folder
-import PostProcessing
 
 if __name__ == '__main__':
 
