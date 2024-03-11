@@ -11,7 +11,6 @@ from TicTac import Tic
 import PyVista_Interface as pvi
 import Paraview_Interface
 
-import os
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
@@ -40,8 +39,8 @@ if __name__ == '__main__':
 
     # Creating a folder to store the results
     folder = Folder.New_File(Folder.Join('Meshes', f'Optim{dim}D'), results=True)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    if not Folder.Exists(folder):
+        Folder.os.makedirs(folder)
 
     # --------------------------------------------------------------------------------------------
     # Meshing

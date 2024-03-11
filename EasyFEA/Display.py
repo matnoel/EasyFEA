@@ -4,7 +4,6 @@ import Folder
 from TicTac import Tic
 
 from typing import Union, Callable
-import os
 import numpy as np
 import pandas as pd
 from enum import Enum
@@ -1154,6 +1153,9 @@ def Movie_func(func: Callable[[plt.Axes, int], None], fig: plt.Figure, N: int,
     
     # Name of the video in the folder where the folder is communicated
     filename = Folder.Join(folder, filename)
+
+    if not Folder.Exists(folder):
+        Folder.os.makedirs(filename)
     
     writer = animation.FFMpegWriter(fps)
     with writer.saving(fig, filename, 200):
@@ -1200,8 +1202,8 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
 
     path = Folder.Join(folder, filename+'.'+extension)
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    if not Folder.Exists(folder):
+        Folder.os.makedirs(folder)
     
     tic = Tic()
 
@@ -1378,6 +1380,6 @@ def Clear() -> None:
     import platform
     syst = platform.system()
     if syst in ["Linux","Darwin"]:
-        os.system("clear")
+        Folder.os.system("clear")
     elif syst == "Windows":
-        os.system("cls")
+        Folder.os.system("cls")

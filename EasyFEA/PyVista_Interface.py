@@ -561,6 +561,9 @@ def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, fil
     
     filename = Folder.Join(folder, filename)
 
+    if not Folder.Exists(folder):
+        Folder.os.makedirs(filename)
+
     if '.gif' in filename:
         plotter.open_gif(filename)
     else:

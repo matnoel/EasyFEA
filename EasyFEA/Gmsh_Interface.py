@@ -1332,7 +1332,7 @@ class Mesher:
             # gmsh.write(Dossier.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
             self._synchronize()
 
-            if not os.path.exists(folder):
+            if not Folder.Exists(folder):
                 os.makedirs(folder)
             msh = Folder.Join(folder, f"{filename}.msh")
             gmsh.write(msh)
