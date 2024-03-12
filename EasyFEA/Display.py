@@ -19,9 +19,9 @@ import matplotlib.animation as animation
 # Matplotlib: https://matplotlib.org/
 # Ideas: https://www.python-graph-gallery.com/
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Plot Simu or Mesh 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, nodeValues=True, 
                 plotMesh=False, edgecolor='black', title="",
                 cmap="jet", ncolors=256, clim=(None, None), colorbarIsClose=False, colorbarLabel="",
@@ -868,9 +868,9 @@ def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Plot 1D
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 def Plot_Force_Displacement(force: np.ndarray, displacement: np.ndarray, xlabel='u', ylabel='f', folder="", ax: plt.Axes=None) -> tuple[plt.Figure, plt.Axes]:
     """Plot the force displacement curve.
 
@@ -1075,9 +1075,9 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     if folder != "":
         Save_fig(folder, "resumeConvergence")
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Animation
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
                deformFactor=0.0, coef=1.0, nodeValues=True,
                plotMesh=False, edgecolor='black', fps=30) -> None:
@@ -1174,9 +1174,9 @@ def Movie_func(func: Callable[[plt.Axes, int], None], fig: plt.Figure, N: int,
 
             print(f"Make_Movie {i}/{N-1} {rmTime}    ", end='\r')
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Functions
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
         
 def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi='figure') -> None:
     """Save the current figure.
@@ -1316,9 +1316,9 @@ def _Axis_equal_3D(ax: Axes3D, coordo: np.ndarray) -> None:
     ax.set_zlim([zmid-maxRange, zmid+maxRange])
     ax.set_box_aspect([1,1,1])
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Print in terminal
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 
 class __Colors(str, Enum):
     blue = '\033[34m'

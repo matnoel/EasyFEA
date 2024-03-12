@@ -498,9 +498,9 @@ def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=N
 
     return plotter
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Movie
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
           deformFactor=0.0, coef=1.0, nodeValues=True, **kwargs) -> None:
     """Generate a movie from a simu object and a result that you want to plot.
@@ -589,9 +589,9 @@ def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, fil
     print()
     plotter.close()    
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Functions
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 
 __dictCellTypes: dict[str, pv.CellType] = {
     "SEG2": pv.CellType.LINE,

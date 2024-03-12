@@ -6,16 +6,15 @@ from Geoms import *
 from Mesh import Mesh, MeshOptim
 from Gmsh_Interface import Mesher, ElemType
 
-import os
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
     Display.Clear()
 
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------
     # Configuration
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------
     dim = 2
     criteria = 'angular'
     quality = 0.8 if dim == 2 else .6 # lower bound of the target quality
@@ -31,12 +30,12 @@ if __name__ == '__main__':
 
     # Creating a folder to store the results
     folder = Folder.New_File(Folder.Join('Meshes', f'Optim{dim}D'), results=True)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    if not Folder.Exists(folder):
+        Folder.os.makedirs(folder)
 
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------
     # Meshing
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------
         
     D = 1
     r = D * 1/4 
@@ -77,9 +76,9 @@ if __name__ == '__main__':
 
     mesh, ratio = MeshOptim(DoMesh, folder, criteria, quality, ratio)
     
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------
     # Plot
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------
 
     qual_e = mesh.Get_Quality(criteria, False)
 

@@ -6,9 +6,9 @@ import Folder
 from TicTac import Tic
 import numpy as np
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Paraview
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 def Make_Paraview(simu: Simulations._Simu, folder: str, N=200, details=False, nodesField=[], elementsField=[]):
     """Saving the simulation on paraview
 
@@ -103,9 +103,9 @@ __dictParaviewTypes = {
         "PRISM15": 13
     } # look https://github.com/Kitware/VTK/blob/master/Common/DataModel/vtkCellType.h    
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Functions
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
     """Create the .vtu (as a binary files) which can be read on paraview
     """

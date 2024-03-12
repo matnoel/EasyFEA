@@ -17,9 +17,9 @@ import multiprocessing
 useParallel = False
 nProcs = 4 # number of processes in parallel
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Configurations
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 dim = 2
 test = True
 solve = True
@@ -49,9 +49,9 @@ plotEnergy = False
 saveParaview = False; Nparaview=400
 makeMovie = False
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Mesh
-# --------------------------------------------------------------------------------------------    
+# ----------------------------------------------    
 L = 1e-3;  #m
 l0 = 1e-5
 thickness = 1 if dim == 2 else 0.1/1000
@@ -100,9 +100,9 @@ def DoMesh(split: str) -> Mesh:
 
     return mesh
 
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 # Simu
-# --------------------------------------------------------------------------------------------
+# ----------------------------------------------
 def DoSimu(split: str, regu: str):
 
     # Builds the path to the folder based on the problem data
@@ -128,17 +128,17 @@ def DoSimu(split: str, regu: str):
         for nodes in [nodes_lower,nodes_right,nodes_upper]:
             nodes_edges.extend(nodes)
 
-        # --------------------------------------------------------------------------------------------
+        # ----------------------------------------------
         # Material
-        # --------------------------------------------------------------------------------------------
+        # ----------------------------------------------
         material = Materials.Elas_Isot(dim, E=210e9, v=0.3,
                                         planeStress=False, thickness=thickness)
         Gc = 2.7e3 # J/m2
         pfm = Materials.PhaseField_Model(material, split, regu, Gc, l0, pfmSolver)
 
-        # --------------------------------------------------------------------------------------------
+        # ----------------------------------------------
         # Boundary conditions
-        # --------------------------------------------------------------------------------------------
+        # ----------------------------------------------
         u_inc = 5e-8 if test else 1e-8
         N = 400 if test else 2000
 
@@ -162,9 +162,9 @@ def DoSimu(split: str, regu: str):
             simu.add_dirichlet(nodes_upper, [dep,0], ["x","y"])
             simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_directions())
 
-        # --------------------------------------------------------------------------------------------
+        # ----------------------------------------------
         # Simulation
-        # --------------------------------------------------------------------------------------------
+        # ----------------------------------------------
         simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
         simu.Results_Set_Bc_Summary(loadings[-1],listInc, listThreshold, optionTreshold)
 
@@ -205,9 +205,9 @@ def DoSimu(split: str, regu: str):
                     # If the edge has been touched 10 times, stop the simulation
                     break
 
-        # --------------------------------------------------------------------------------------------
+        # ----------------------------------------------
         # Saving
-        # --------------------------------------------------------------------------------------------
+        # ----------------------------------------------
         print()
         Simulations.Save_Force_Displacement(force, displacement, folder)
         simu.Save(folder)        
@@ -218,7 +218,7 @@ def DoSimu(split: str, regu: str):
         simu: Simulations.PhaseField = Simulations.Load_Simu(folder)
         force, displacement = Simulations.Load_Force_Displacement(folder)
 
-    # --------------------------------------------------------------------------------------------
+    # ----------------------------------------------
     # PostProcessing
     # ---------------------------------------------
     if plotResult:
