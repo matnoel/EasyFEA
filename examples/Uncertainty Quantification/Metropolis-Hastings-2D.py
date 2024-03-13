@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # normalization constant
     k_num, error = integrate.dblquad(pZ, z1_array.min(), z1_array.max(), z2_array.min(), z2_array.max())
 
-    ax1 = Display.init_Axes(2)
+    ax1 = Display.init_Axes()
     ax1.contourf(Z1, Z2, pZ(Z1,Z2))
     ax1.set_xlabel("z1"); ax1.set_ylabel("z2"); ax1.set_title('pdf')
 
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
     # [20, 25] is a good rejectRatio
 
-    ax2 = Display.init_Axes(2)
+    ax2 = Display.init_Axes()
     ax2.contourf(Z1, Z2, pZ(Z1,Z2))
     ax2.scatter(*samples.T,c='red',marker='.')
     ax2.set_xlabel("z1"); ax2.set_ylabel("z2"); ax2.set_title('samples')

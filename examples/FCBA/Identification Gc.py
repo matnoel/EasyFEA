@@ -192,7 +192,7 @@ if __name__ == '__main__':
             # ----------------------------------------------
             
             # save iterations
-            ax_J = Display.init_Axes(2)
+            ax_J = Display.init_Axes()
             ax_J.set_xlabel("$N$"); ax_J.set_ylabel("$J$")
             ax_J.grid()
             ax_J.scatter(np.arange(len(evals)), evals, c='black', zorder=4)
@@ -266,7 +266,7 @@ if __name__ == '__main__':
         deplacements = deplacements-forces/k_montage
 
         # plot loads displacements
-        axLoad = Display.init_Axes(2)
+        axLoad = Display.init_Axes()
         axLoad.set_xlabel("x [mm]"); axLoad.set_ylabel("f [kN]"); axLoad.grid()
         axLoad.plot(deplacements, forces, label="exp")
         idx_crit = np.where(forces >= f_crit)[0][0]

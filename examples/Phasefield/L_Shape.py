@@ -123,7 +123,7 @@ if __name__ == '__main__':
         if pltIter:
             axIter = Display.Plot_Result(simu, 'damage')
 
-            axLoad = Display.init_Axes(2)
+            axLoad = Display.init_Axes()
             axLoad.set_xlabel('displacement [mm]')
             axLoad.set_ylabel('load [kN]')
 
@@ -197,7 +197,7 @@ if __name__ == '__main__':
     Display.Plot_Result(simu, 'damage', folder=folderSimu)
 
 
-    axLoad = Display.init_Axes(2)
+    axLoad = Display.init_Axes()
     axLoad.set_xlabel('displacement [mm]')
     axLoad.set_ylabel('load [kN]')
     axLoad.plot(displacement, force/1000, c="blue")

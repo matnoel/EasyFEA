@@ -124,7 +124,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Plot
     # ----------------------------------------------
-    ax = Display.init_Axes(2)
+    ax = Display.init_Axes()
     ax.set_title('pdf')
     ax.set_xlabel('$G_c$')
     ax.grid()

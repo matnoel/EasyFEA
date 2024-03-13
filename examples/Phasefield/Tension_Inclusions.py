@@ -76,7 +76,7 @@ if __name__ == '__main__':
     N = 300
     displacements = np.linspace(0, 5e-4, N)
 
-    axLoad = Display.init_Axes(2)
+    axLoad = Display.init_Axes()
     axLoad.set_xlabel('u [mm]'); axLoad.set_ylabel('f [N/mm]')
     axDamage = Display.Plot_Result(simu, 'damage')
 

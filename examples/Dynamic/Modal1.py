@@ -81,7 +81,7 @@ if __name__ == '__main__':
         # Display.Plot_Result(simu, sol, deformFactor, title=f"mode {n}", plotMesh=True)
         pass
 
-    axModes = Display.init_Axes(2)
+    axModes = Display.init_Axes()
     axModes.plot(np.arange(eigenValues.size), freq_t, ls='', marker='.')
     axModes.set_xlabel('modes')
     axModes.set_ylabel('freq [Hz]')

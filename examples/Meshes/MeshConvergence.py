@@ -142,10 +142,10 @@ if __name__ == '__main__':
     # PostProcessing
     # ----------------------------------------------
     # Display the convergence of deformation energy
-    ax_Wdef = Display.init_Axes(2)
-    ax_error = Display.init_Axes(2)
-    ax_times = Display.init_Axes(2)
-    ax_zz1 = Display.init_Axes(2)    
+    ax_Wdef = Display.init_Axes()
+    ax_error = Display.init_Axes()
+    ax_times = Display.init_Axes()
+    ax_zz1 = Display.init_Axes()    
 
     print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 

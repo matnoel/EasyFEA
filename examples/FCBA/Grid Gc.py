@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
         Display.Save_fig(folder_save, "J surface")
 
-        ax2 = Display.init_Axes(2)
+        ax2 = Display.init_Axes()
         cc = ax2.contourf(GC, L0, results,levels,  cmap='jet')
         ax2.set_xlabel(axeX, fontsize=14)
         ax2.set_ylabel(axeY, fontsize=14)

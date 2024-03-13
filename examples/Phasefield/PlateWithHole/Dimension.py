@@ -119,7 +119,7 @@ if __name__ == '__main__':
     Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", filename='Syy')
     Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", filename='Sxy')
 
-    ax = Display.init_Axes(2)
+    ax = Display.init_Axes()
 
     list_cc = [list_cc[i] for i in range(len(list_SxxA))]
 

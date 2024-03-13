@@ -91,7 +91,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Loads all simulations
     # ----------------------------------------------
-    ax_load = Display.init_Axes(2) # superposition axis of force-displacement curves
+    ax_load = Display.init_Axes() # superposition axis of force-displacement curves
 
     missingSimulations = []
 

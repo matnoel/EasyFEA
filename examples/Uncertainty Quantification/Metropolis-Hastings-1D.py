@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     y_array = pX(x_array)
 
-    ax1 = Display.init_Axes(2)
+    ax1 = Display.init_Axes()
     ax1.plot(x_array, y_array, label='p(x)')
     ax1.legend()
 
@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
 
 
-    ax2 = Display.init_Axes(2)
+    ax2 = Display.init_Axes()
     ax2.plot(x_array, y_array/k_num, label='p(x)/k')
     ax2.hist(samples, bins=x_array.size//2, histtype='bar', density=True, label='bins')
     ax2.legend()

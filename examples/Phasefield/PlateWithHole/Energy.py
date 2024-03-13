@@ -147,7 +147,7 @@ if __name__ == '__main__':
         Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy} / \sigma$", filename='Syy', colorbarIsClose=True)
         Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy} / \sigma$", filename='Sxy', colorbarIsClose=True)
 
-    axp = Display.init_Axes(2)
+    axp = Display.init_Axes()
 
     list_v = np.arange(0, 0.5,0.0005)
 
@@ -222,7 +222,7 @@ if __name__ == '__main__':
         list_Stress_psiP_A.append(Stress_psiP_A)
         list_Stress_psiP_B.append(Miehe_psiP_B)
 
-    ax1 = Display.init_Axes(2)
+    ax1 = Display.init_Axes()
 
     ax1.plot(list_v, np.array(list_Miehe_psiP_A)*E/SIG**2, label='A')
     ax1.plot(list_v, np.array(list_Miehe_psiP_B)*E/SIG**2, label='B')
@@ -235,7 +235,7 @@ if __name__ == '__main__':
     ax1.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
     ax1.set_title(r'Split sur $\varepsilon$ num',fontsize=14)
 
-    ax2 = Display.init_Axes(2)
+    ax2 = Display.init_Axes()
 
     stressA = lambda v: 1/E*(SxxA**2+SyyA**2-2*SxxA*SyyA*v)
 
@@ -252,7 +252,7 @@ if __name__ == '__main__':
     ax2.set_ylabel("$\psi_{0}^+\ E / \sigma^2$",fontsize=14)
     ax2.set_title('Split sur $\sigma$ num',fontsize=14)
 
-    ax3 = Display.init_Axes(2)
+    ax3 = Display.init_Axes()
 
     ax3.plot(list_v, np.array(list_Amor_psiP_A)*E/SIG**2, label='A')
     ax3.plot(list_v, np.array(list_Amor_psiP_B)*E/SIG**2, label='B')

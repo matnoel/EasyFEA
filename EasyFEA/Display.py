@@ -135,7 +135,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # Only designed for one element group!
 
         if ax == None:
-            ax = init_Axes(2)
+            ax = init_Axes()
             fig = ax.figure
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
@@ -355,7 +355,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
         # in 2d space
 
         if ax == None:
-            ax = init_Axes(2)
+            ax = init_Axes()
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
             ax.set_title(title)
@@ -722,7 +722,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
 
     if ax == None:
         if mesh.inDim <= 2:
-            ax = init_Axes(2)
+            ax = init_Axes()
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
         else:
@@ -899,7 +899,7 @@ def Plot_Force_Displacement(force: np.ndarray, displacement: np.ndarray, xlabel=
         fig = ax.figure
         ax.clear()
     else:        
-        ax = init_Axes(2)
+        ax = init_Axes()
         fig = ax.figure
 
     ax.plot(np.abs(displacement), np.abs(force), c='blue')
@@ -1130,15 +1130,15 @@ def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
 
     Movie_func(DoAnim, fig, iterations.size, folder, filename, fps)
 
-def Movie_func(func: Callable[[plt.Axes, int], None], fig: plt.Figure, N: int,
-               folder: str, filename='video.gif', fps=30):
+def Movie_func(func: Callable[[plt.Figure, int], None], fig: plt.Figure, N: int,
+               folder: str, filename='video.gif', fps=30, dpi=200, show=True):
     """Make the movie for the specified function. This function will peform a loop in range(N) and plot in matplotlib with func()
 
     Parameters
     ----------
-    func : Callable[[plt.Axes, int], tuple]
+    func : Callable[[plt.Figure, int], None]
         The functiion that will use in first argument the plotter and in second argument the iter step.\n
-        def func(ax, i) -> None
+        def func(fig, i) -> None
     fig : Figure
         Figure used to make the video
     N : int
@@ -1149,6 +1149,10 @@ def Movie_func(func: Callable[[plt.Axes, int], None], fig: plt.Figure, N: int,
         filename of the video with the extension (gif, mp4), by default 'video.gif'
     fps : int, optional
         frames per second, by default 30
+    dpi: int, optional
+        Dots per Inch, by default 200
+    show: bool, optional
+        show the movie, by default True    
     """
     
     # Name of the video in the folder where the folder is communicated
@@ -1158,13 +1162,14 @@ def Movie_func(func: Callable[[plt.Axes, int], None], fig: plt.Figure, N: int,
         Folder.os.makedirs(filename)
     
     writer = animation.FFMpegWriter(fps)
-    with writer.saving(fig, filename, 200):
+    with writer.saving(fig, filename, dpi):
         tic = Tic()
         for i in range(N):
             
             func(fig, i)
 
-            plt.pause(1e-12)
+            if show:
+                plt.pause(1e-12)
 
             writer.grab_frame()
 
@@ -1190,7 +1195,7 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
     transparent : bool, optional
         transparent, by default False
     extension : str, optional
-        extension, by default 'pdf', [pdf, png, tex]
+        extension, by default 'pdf', [pdf, png]
     dpi : str, optional
         dpi, by default 'figure'
     """
@@ -1279,7 +1284,7 @@ def _get_list_faces(mesh, dimElem:int) -> list[list[int]]:
 
     return list_faces
 
-def init_Axes(dim: int, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
+def init_Axes(dim: int=2, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
     if dim == 1 or dim == 2:
         ax = plt.subplots()[1]
     elif dim == 3:

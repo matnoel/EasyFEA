@@ -267,7 +267,7 @@ if __name__  == '__main__':
     #     pvi.Plot_BoundaryConditions(simu).show()    
 
     if len(list_psiP) > 1:
-        axLoad = Display.init_Axes(2)
+        axLoad = Display.init_Axes()
         axLoad.set_xlabel("$f \ [kN]$"); axLoad.set_ylabel("$\psi^+ \ / \ \psi_c$")
         axLoad.grid() 
 

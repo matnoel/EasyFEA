@@ -113,7 +113,7 @@ if __name__ == '__main__':
         ax_join_pdf.set_title('joint pdf')
 
         # c1 pdf 
-        ax_c1 = Display.init_Axes(2)
+        ax_c1 = Display.init_Axes()
         # ax_c1.plot(c1_array,gamma_pdf(c1_array, a1_exp, b1_exp), label="exp")
         ax_c1.plot(c1_array,c1_pdf, label="num")
         ax_c1.scatter(c1_exp, pdfFunc(c1_exp, a1, b1), marker='+', c='red', label='samples',zorder=3)
@@ -122,7 +122,7 @@ if __name__ == '__main__':
         ax_c1.set_title(r"$p_{\bf{C1}}(c1)$")
 
         # c2 pdf
-        ax_c2 = Display.init_Axes(2)
+        ax_c2 = Display.init_Axes()
         # ax_c2.plot(c2_array,gamma_pdf(c2_array, a2_exp, b2_exp), label="exp")
         ax_c2.plot(c2_array,c2_pdf, label="num")
         ax_c2.scatter(c2_exp, pdfFunc(c2_exp, a2, b2), marker='+', c='red', label='samples',zorder=3)

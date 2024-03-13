@@ -214,7 +214,7 @@ if __name__  == '__main__':
             # ----------------------------------------------
             # Plot
             # ----------------------------------------------
-            axLoad = Display.init_Axes(2)
+            axLoad = Display.init_Axes()
             # axLoad.plot(deplacements, forces, label="exp")
             axLoad.set_xlabel("x [mm]")
             axLoad.set_ylabel("f [kN]")

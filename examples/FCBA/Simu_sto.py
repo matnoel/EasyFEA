@@ -362,7 +362,7 @@ if __name__ == '__main__':
         # ----------------------------------------------
         # Plot samples
         # ----------------------------------------------
-        ax = Display.init_Axes(2)
+        ax = Display.init_Axes()
         ax.set_xlabel(r"$\Delta u \ [mm]$")
         ax.set_ylabel(r"$f \ [kN]$")
 

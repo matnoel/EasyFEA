@@ -42,7 +42,7 @@ if __name__ == '__main__':
         values_disp = values_std / values_mean
 
         # plot
-        ax = Display.init_Axes(2)
+        ax = Display.init_Axes()
         ax.bar(essais[notErrors], values_mean[notErrors],
             align='center', yerr=values_std[notErrors], capsize=5)
         unite = " [MPa]" if param in ["El","Et","Gl"] else ""    
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     print(f"std Gc = {dfGc['Gc'].std():.3f}")
     print(f"disp Gc = {dfGc['Gc'].std()/dfGc['Gc'].mean()*100:.2f} %")
 
-    axFc = Display.init_Axes(2)
+    axFc = Display.init_Axes()
     axFc.bar(dfGc.index, dfGc["f_crit"].values)
     axFc.set_xticks(dfGc.index)
     axFc.set_xlabel("Essais")
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     # plt.xlim([0, None])
     # plt.ylim([0, y_max])
 
-    axGc = Display.init_Axes(2)
+    axGc = Display.init_Axes()
     axGc.bar(dfGc.index, dfGc["Gc"].values)
     axGc.set_xticks(dfGc.index)
     # axGc.set_xlabel("Essais", fontsize=14)
@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
     dfGc.drop(errors, axis=0, inplace=True)
 
-    ax_fit = Display.init_Axes(2)
+    ax_fit = Display.init_Axes()
     ax_fit.set_xlabel('$G_c$')
     ax_fit.set_ylabel('Crack initiation forces')
 
