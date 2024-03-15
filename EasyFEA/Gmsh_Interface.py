@@ -305,7 +305,26 @@ class Mesher:
         # For each filled object, it is necessary to create a surface
         [surfaces.append(factory.addPlaneSurface([loop])) for loop in filledLoops]
 
-        self._OrganiseSurfaces(surfaces, elemType, isOrganised)
+        # Here we calculate the number of elements per line to organize the surface if it can be organized.
+        if not isOrganised or isinstance(contour, (Domain, Circle)) or len(inclusions) > 0:
+            # Cannot be organized if there are inclusions.
+            # It is not necessary to impose a number of elements for circles and domains.
+            numElems = []
+        else:
+            # get geoms from contour or points
+            if isinstance(contour, Contour):
+                geoms = contour.geoms
+            if isinstance(contour, Points):
+                geoms = contour.Get_Contour().geoms
+            N = len(geoms) # number of geom in contour            
+            if N % 2 == 0:
+                # i N is odd
+                numElems = [int(geom.length / geom.meshSize) for geom in geoms[:N//2]]
+                numElems = numElems*2
+            else:
+                numElems = [int(geom.length / geom.meshSize) for geom in geoms]
+
+        self._OrganiseSurfaces(surfaces, elemType, isOrganised, numElems)
 
         return surfaces, lines, points
     
@@ -324,9 +343,9 @@ class Mesher:
                 [gmsh.model.mesh.setTransfiniteCurve(l[1], int(n+1))
                     for l, n in zip(lines, numElems)]
 
-            if isOrganised:
-                if len(lines) == 4:
-                    # only works if the surface is formed by 4 lines
+            if isOrganised:                
+                if len(lines) in [3, 4]:
+                    # only works if the surface is formed by 3 or 4 lines
                     gmsh.model.mesh.setTransfiniteSurface(surf)
 
             if setRecombine:
