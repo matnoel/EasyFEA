@@ -15,7 +15,7 @@ import Folder
 class DIC_Analysis:
 
     def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray,
-                 loads: np.ndarray=None, displacements: np.ndarray=None, lr=0.0, verbosity=False):
+                 forces: np.ndarray=None, displacements: np.ndarray=None, lr=0.0, verbosity=False):
         """DIC Analysys.
 
         Parameters
@@ -26,7 +26,7 @@ class DIC_Analysis:
             index of reference image in forces
         imgRef : np.ndarray
             reference image
-        loads : np.ndarray, optional
+        forces : np.ndarray, optional
             force vectors, by default None
         displacements : np.ndarray, optional
             displacement vectors, by default None
@@ -41,7 +41,7 @@ class DIC_Analysis:
             Object for image correlation
         """
 
-        self._loads = loads
+        self._forces = forces
         """forces measured during the tests."""
 
         self._displacements = displacements
@@ -327,7 +327,7 @@ class DIC_Analysis:
 
         return imgRef
 
-    def Solve(self, img: np.ndarray, iterMax=1000, tolConv=1e-6, imgRef=None, verbosity=True) -> tuple[np.ndarray, int]:
+    def Solve(self, img: np.ndarray, iterMax=1000, tolConv=1e-6, imgRef=None, verbosity=True) -> np.ndarray:
         """Displacement field between the img and the imgRef.
 
         Parameters
@@ -337,7 +337,7 @@ class DIC_Analysis:
         iterMax : int, optional
             maximum number of iterations, by default 1000
         tolConv : float, optional
-            convergence tolerance, by default 1e-6
+            convergence tolerance (converged once ||b|| <= tolConv), by default 1e-6
         imgRef : np.ndarray, optional
             reference image to use, by default None
         verbosity : bool, optional
@@ -345,8 +345,8 @@ class DIC_Analysis:
 
         Returns
         -------
-        u, iter
-            displacement field and number of iterations for convergence
+        u
+            displacement field
         """
 
         self.__Test_img(img)
@@ -379,17 +379,21 @@ class DIC_Analysis:
             du = self._M_LU.solve(b)
             u += du
             
+            norm_b = np.linalg.norm(b)
+
             if verbosity:
-                print(f"Iter {iter+1:2d} ||b|| {np.linalg.norm(b):.3}     ", end='\r')
-            if iter == 0:
-                b0 = np.linalg.norm(b)
-            elif np.linalg.norm(b) < b0 * tolConv:
+                print(f"Iter {iter+1:2d} ||b|| {norm_b:.3}     ", end='\r')             
+            
+            if norm_b <= tolConv:
                 break
 
-        return u, iter
+        if iter+1 > iterMax:
+            raise Exception("Image correlation analysis did not converge.")
 
-    def Residu(self, u: np.ndarray, img: np.ndarray, imgRef=None) -> np.ndarray:
-        """Residual calculation between images.
+        return u
+
+    def Residual(self, u: np.ndarray, img: np.ndarray, imgRef=None) -> np.ndarray:
+        """Residual calculation between images (f-g).
 
         Parameters
         ----------
