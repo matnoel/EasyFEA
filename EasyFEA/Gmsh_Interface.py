@@ -1288,11 +1288,6 @@ class Mesher:
         self._Set_algorithm(elemType)
         self._synchronize() # mandatory
 
-        ennt = self._factory.getEntities()
-        ennnt = gmsh.model.getEntities()
-
-
-
         tic = Tic()
 
         gmsh.model.mesh.generate(dim)
