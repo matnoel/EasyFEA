@@ -27,9 +27,8 @@ import Simulations
 # ----------------------------------------------
 L = 120 # mm
 h = 13
-F = -800 # N
 
-domain = Domain(Point(), Point(L,h), h/5)
+domain = Domain(Point(), Point(L,h), h/6)
 mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
 
 # ----------------------------------------------
@@ -37,6 +36,8 @@ mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
 # ----------------------------------------------
 E = 210000 # MPa
 v = .3
+F = -800 # N
+
 mat = Materials.Elas_Isot(2, E, v, planeStress=True, thickness=h)
 
 simu = Simulations.Displacement(mesh, mat)
