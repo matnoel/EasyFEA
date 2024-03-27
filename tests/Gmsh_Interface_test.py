@@ -52,7 +52,7 @@ class Test_Gmsh_Interface(unittest.TestCase):
 
         # plt.show()
             
-    def test_MooveMesh(self):
+    def test_MoveMesh(self):
         """Check that if you move the mesh the properties remain the same."""
 
         meshes = Mesher._Construct_2D_meshes()
