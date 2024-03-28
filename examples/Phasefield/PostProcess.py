@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # Configuration
     # ----------------------------------------------
     # "PlateWithHole_Benchmark", "PlateWithHole_FCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
-    simulation = "Shear_Benchmark"
+    simulation = "PlateWithHole_Benchmark"
 
     test = False
     loadSimu = True
@@ -50,14 +50,14 @@ if __name__ == '__main__':
     # list_split = ["Bourdin","Amor","Miehe","He","Stress","AnisotStrain","AnisotStress","Zhang"]
     # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
     # list_split = ["He","AnisotStrain","AnisotStress", "Zhang"]
-    list_split = ["Miehe"]
+    list_split = ["He"]
 
-    listOptimMesh=[True, False] # [True, False]
-    # listOptimMesh=[True] # [True, False]
+    # listOptimMesh=[True, False] # [True, False]
+    listOptimMesh=[True] # [True, False]
 
-    # listTol = [1e-0, 1e-1, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+    listTol = [1e-0, 1e-1, 1e-2] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
     # listTol = [1e-0, 1e-2]
-    listTol = [1e-0]
+    # listTol = [1e-0]
 
     # listnL = [100] # [100] [100, 120, 140, 180, 200]
     listnL = [0]
@@ -69,8 +69,8 @@ if __name__ == '__main__':
     # snapshot = [24.6]
     snapshots = []
 
-    # depMax = 80000 # µm 35 ou 80
-    depMax = 80000
+    # depMax = 20e-5
+    depMax = 2.5e-5
 
     # Génération des configurations
     listConfig = []
@@ -111,7 +111,7 @@ if __name__ == '__main__':
 
         foldername = Folder.PhaseField_Folder(folder, material=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solver=solveur, test=test, optimMesh=optimMesh, closeCrack=False, nL=nL, theta=theta)
 
-        fileForceDep = Folder.Join(foldername, "load and displacement.pickle")
+        fileForceDep = Folder.Join(foldername, "force-displacement.pickle")
         fileSimu = Folder.Join(foldername, "simulation.pickle")
 
         nomSimu = foldername.split(comp+'_')[-1]
@@ -122,7 +122,7 @@ if __name__ == '__main__':
 
         # Loads force and displacement
         if Folder.Exists(fileForceDep):
-            load, displacement = Simulations.Load_Force_Displacement(foldername, False)
+            load, displacement = Simulations.Load_Force_Displacement(foldername)
             
             if depMax == 0:
                 depMax = displacement[-1]
@@ -137,7 +137,7 @@ if __name__ == '__main__':
 
         if (loadSimu or plotDamage) and Folder.Exists(fileSimu):
             # Load simulation
-            simu = Simulations.Load_Simu(foldername, False)
+            simu = Simulations.Load_Simu(foldername)
             results = pd.DataFrame(simu.results)
             temps = results["timeIter"].values.sum()
             temps_str, unite = TicTac.Tic.Get_time_unity(temps)
@@ -148,6 +148,8 @@ if __name__ == '__main__':
             Display.myPrintError("Simu is not available:\n"+fileForceDep)
 
         if plotDamage and Folder.Exists(fileSimu):
+
+            # Display.Plot_Mesh(simu.mesh)
 
             if simulation == "PlateWithHole_Benchmark":
                 colorBarIsClose = True
