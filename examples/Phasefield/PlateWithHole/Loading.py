@@ -66,7 +66,7 @@ if __name__ == '__main__':
     else:
         nodes_circle = mesh.Nodes_Cylinder(circle,[0,0,1])
     # get lower nodes
-    nodes_circle = nodes_circle[np.where(mesh.coordo[nodes_circle,1]<=circle.center.y)]
+    nodes_circle = nodes_circle[np.where(mesh.coord[nodes_circle,1]<=circle.center.y)]
 
     # ----------------------------------------------
     # Simulation

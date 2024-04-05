@@ -35,8 +35,8 @@ if __name__ == '__main__':
     domain = Geoms.Domain(pt1, pt2, meshSize)
 
     mesh = Mesher().Mesh_2D(domain,[],ElemType.TRI10)
-    xn = mesh.coordo[:,0]
-    yn = mesh.coordo[:,1]
+    xn = mesh.coord[:,0]
+    yn = mesh.coord[:,1]
 
     nodesEdge = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
     nodesX0 = mesh.Nodes_Tags(["L3"])

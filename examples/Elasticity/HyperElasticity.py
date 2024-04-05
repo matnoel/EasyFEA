@@ -88,7 +88,7 @@ if __name__ == '__main__':
             # update the nodes coordinates
 
             newMesh = simu.mesh.copy()        
-            newMesh.coordoGlob += simu.Results_displacement_matrix()
+            newMesh.coordGlob += simu.Results_displacement_matrix()
 
             simu.mesh = newMesh
 

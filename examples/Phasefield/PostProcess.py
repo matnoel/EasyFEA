@@ -138,6 +138,7 @@ if __name__ == '__main__':
         if (loadSimu or plotDamage) and Folder.Exists(fileSimu):
             # Load simulation
             simu = Simulations.Load_Simu(foldername)
+            simu.mesh.groupElem.coord
             results = pd.DataFrame(simu.results)
             temps = results["timeIter"].values.sum()
             temps_str, unite = TicTac.Tic.Get_time_unity(temps)

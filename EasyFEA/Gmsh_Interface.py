@@ -1598,7 +1598,7 @@ class Mesher:
         Ne = mesh.Ne
         nbCorners = mesh.groupElem.nbCorners # do this because it is not working for quadratic elements
         connect_e = mesh.connect[:,:nbCorners]
-        elements_e = reshape(mesh.coordo)
+        elements_e = reshape(mesh.coord)
 
         def types(elemType: str):
             """get gmsh type associated with elemType"""

@@ -66,8 +66,8 @@ if __name__ == '__main__':
     circleArc1 = Geoms.CircleArc(pt1, pt2, pZone, meshSize=meshSize, coef=-1)
 
     mesh = Mesher().Mesh_2D(domain, [circle], "TRI3", cracks=[circleArc1])
-    xn = mesh.coordo[:,0]
-    yn = mesh.coordo[:,1]
+    xn = mesh.coord[:,0]
+    yn = mesh.coord[:,1]
 
     Display.Plot_Tags(mesh)
     ax = Display.Plot_Mesh(mesh)
@@ -403,7 +403,7 @@ if __name__ == '__main__':
                 u3, v3 = Get_u_v([0,0,1,0])
                 u4, v4 = Get_u_v([0,0,0,1])
 
-                coord_e_n = np.mean(mesh.coordoGlob[mesh.connect], axis=1)
+                coord_e_n = np.mean(mesh.coordGlob[mesh.connect], axis=1)
                 x_e_n, y_e_n = coord_e_n[:,0], coord_e_n[:,1]
 
                 ff = None

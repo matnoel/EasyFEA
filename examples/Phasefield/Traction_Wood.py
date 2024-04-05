@@ -141,10 +141,10 @@ if __name__ == '__main__':
     simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
 
     nodes_upper = mesh.Nodes_Circle(c4)
-    nodes_upper = nodes_upper[np.where(mesh.coordoGlob[nodes_upper,1]>=c4.center.y)] 
+    nodes_upper = nodes_upper[np.where(mesh.coordGlob[nodes_upper,1]>=c4.center.y)] 
 
     nodes_lower = mesh.Nodes_Circle(c1)
-    nodes_lower = nodes_lower[np.where(mesh.coordoGlob[nodes_lower,1]<=c1.center.y)]
+    nodes_lower = nodes_lower[np.where(mesh.coordGlob[nodes_lower,1]<=c1.center.y)]
 
     noeudPoint = mesh.Nodes_Point(c1.center - [0, diam/2])
 

@@ -1062,7 +1062,7 @@ class _Simu(_IObserver, ABC):
         nodes = np.asarray(nodes)
 
         Nn = nodes.shape[0]
-        coordo = self.mesh.coordo
+        coordo = self.mesh.coord
         coordo_n = coordo[nodes]
 
         # initializes the value vector for each nodes
@@ -1254,7 +1254,7 @@ class _Simu(_IObserver, ABC):
         """Apply a point load."""
 
         Nn = nodes.shape[0]
-        coordo = self.mesh.coordoGlob
+        coordo = self.mesh.coordGlob
         coordo_n = coordo[nodes]
 
         # initializes the value vector for each node
@@ -1477,7 +1477,7 @@ class _Simu(_IObserver, ABC):
             slaveNodes = slaveGroup.nodes
 
         # update nodes coordinates
-        newCoordo = self.Results_displacement_matrix() + self.mesh.coordo
+        newCoordo = self.Results_displacement_matrix() + self.mesh.coord
         
         # check nodes in master mesh
         idx = masterMesh.groupElem.Get_Mapping(newCoordo[slaveNodes], elements, False)[0]        
@@ -4198,7 +4198,7 @@ def MeshOptim_ZZ1(DoSimu: Callable[[str], Displacement], folder: str, treshold: 
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
 
         # builds the .pos file that will be used to refine the mesh
-        optimGeom = Mesher().Create_posFile(mesh.coordo, meshSize_n, folder, f"pos{i}")
+        optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
         
     if Folder.Exists(optimGeom):
         # remove last .pos file

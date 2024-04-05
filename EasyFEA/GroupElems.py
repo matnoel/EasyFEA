@@ -75,7 +75,7 @@ class MatrixType(str, Enum):
 
 class _GroupElem(ABC):
 
-    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
+    def __init__(self, gmshId: int, connect: np.ndarray, coordGlob: np.ndarray, nodes: np.ndarray):
         """Building an element group
 
         Parameters
@@ -84,7 +84,7 @@ class _GroupElem(ABC):
             gmsh id
         connect : np.ndarray
             connectivity matrix        
-        coordoGlob : np.ndarray
+        coordGlob : np.ndarray
             coordinate matrix (contains all mesh coordinates)
         nodes : np.ndarray
             nodes used by element group
@@ -106,7 +106,7 @@ class _GroupElem(ABC):
 
         # Nodes
         self.__nodes = nodes
-        self.__coordoGlob = coordoGlob
+        self.__coordGlob = coordGlob
 
         # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags = {}
@@ -160,7 +160,7 @@ class _GroupElem(ABC):
         if self.elemType in ElemType.get_3D():
             return 3
         else:
-            x,y,z = np.abs(self.coordo.T)
+            x,y,z = np.abs(self.coord.T)
             if np.max(y)==0 and np.max(z)==0:
                 inDim = 1
             if np.max(z)==0:
@@ -190,20 +190,26 @@ class _GroupElem(ABC):
         return self.__nodes.size
 
     @property
-    def coordo(self) -> np.ndarray:
+    def coord(self) -> np.ndarray:
         """This matrix contains the element group coordinates (Nn, 3)"""
-        coordo: np.ndarray = self.__coordoGlob[self.__nodes]
-        return coordo.copy()
+        coord: np.ndarray = self.coordGlob[self.__nodes]
+        return coord
 
     @property
-    def coordoGlob(self) -> np.ndarray:
+    def coordGlob(self) -> np.ndarray:
         """This matrix contains all the mesh coordinates (mesh.Nn, 3)"""
-        return self.__coordoGlob.copy()
+        try:
+            return self.__coordGlob.copy()
+        except AttributeError:
+            # This may trigger an error, as I changed __coordoGlob to __coordGlob on April 5, 2024.
+            # TODO: to be removed when I no longer need to load old phasefield simulations
+            self.__coordGlob = self.__coordoGlob.copy()            
+            return self.__coordGlob.copy()
     
-    @coordoGlob.setter
-    def coordoGlob(self, coordo: np.ndarray) -> None:
-        if coordo.shape == self.__coordoGlob.shape:
-            self.__coordoGlob = coordo
+    @coordGlob.setter
+    def coordGlob(self, coord: np.ndarray) -> None:
+        if coord.shape == self.__coordGlob.shape:
+            self.__coordGlob = coord
             self._InitMatrix()
 
     @property
@@ -231,12 +237,12 @@ class _GroupElem(ABC):
         # Then just divide by the number of times the node appears in the line        
         Ne = self.Ne
         nPe = self.nPe
-        listElem = np.arange(Ne)
+        elems = np.arange(Ne)
 
         lines = self.connect.ravel()
 
         Nn = int(lines.max()+1)
-        columns = np.repeat(listElem, nPe)
+        columns = np.repeat(elems, nPe)
 
         return sparse.csr_matrix((np.ones(nPe*Ne),(lines, columns)),shape=(Nn,Ne))
 
@@ -292,7 +298,7 @@ class _GroupElem(ABC):
         N_scalar = self.Get_N_pg(matrixType)
 
         # retrieves node coordinates
-        coordo = self.__coordoGlob
+        coordo = self.coordGlob
 
         # node coordinates for each element
         if elements.size == 0:
@@ -607,7 +613,7 @@ class _GroupElem(ABC):
     def _Get_sysCoord_e(self, displacementMatrix:np.ndarray=None):
         """Base change matrix for elements (Ne,3,3)"""
 
-        coordo = self.coordoGlob
+        coordo = self.coordGlob
 
         if displacementMatrix is not None:
             displacementMatrix = np.asarray(displacementMatrix, dtype=float)
@@ -798,7 +804,7 @@ class _GroupElem(ABC):
         if self.dim == 0: return
         if matrixType not in self.__dict_F_e_pg.keys():
 
-            coordo_e: np.ndarray = self.coordoGlob[self.__connect]
+            coordo_e: np.ndarray = self.coordGlob[self.__connect]
 
             nodesBase = coordo_e.copy()
             if self.dim != self.inDim:
@@ -1209,7 +1215,7 @@ class _GroupElem(ABC):
             nodes that meet conditions
         """
 
-        coordo = self.coordo
+        coordo = self.coord
 
         xn = coordo[:,0]
         yn = coordo[:,1]
@@ -1230,7 +1236,7 @@ class _GroupElem(ABC):
     def Get_Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""
 
-        coordo = self.coordo
+        coordo = self.coord
 
         idx = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]        
 
@@ -1262,7 +1268,7 @@ class _GroupElem(ABC):
         
         vectUnitaire = line.unitVector
 
-        coordo = self.coordo
+        coordo = self.coord
 
         vect = coordo-line.coordo[0]
 
@@ -1279,7 +1285,7 @@ class _GroupElem(ABC):
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Returns nodes in the domain."""
 
-        coordo = self.coordo
+        coordo = self.coord
 
         eps = 1e-12
 
@@ -1292,7 +1298,7 @@ class _GroupElem(ABC):
     def Get_Nodes_Circle(self, circle: Circle, onlyOnEdge=False) -> np.ndarray:
         """Returns the nodes in the circle."""
 
-        coordo = self.coordo
+        coordo = self.coord
 
         eps = 1e-12
 
@@ -1308,7 +1314,7 @@ class _GroupElem(ABC):
     def Get_Nodes_Cylinder(self, circle: Circle, direction=[0,0,1], onlyOnEdge=False) -> np.ndarray:
         """Returns the nodes in the cylinder."""
 
-        coordo = self.coordo
+        coordo = self.coord
         rotAxis = np.cross(circle.n, direction)
         if np.linalg.norm(rotAxis) <= 1e-12:
             # n == direction
@@ -1443,7 +1449,7 @@ class _GroupElem(ABC):
 
         if dim == 0:
 
-            coordo = self.coordo[self.__connect[elem,0]]
+            coordo = self.coord[self.__connect[elem,0]]
 
             idx = np.where((coordinates[:,0] == coordo[0]) & (coordinates[:,1] == coordo[1]) & (coordinates[:,2] == coordo[2]))[0]
 
@@ -1451,7 +1457,7 @@ class _GroupElem(ABC):
 
         elif dim == 1:
 
-            coordo = self.coordo
+            coordo = self.coord
 
             p1 = self.__connect[elem,0]
             p2 = self.__connect[elem,1]
@@ -1473,7 +1479,7 @@ class _GroupElem(ABC):
         
         elif dim == 2:            
             
-            coordo = self.coordo
+            coordo = self.coord
             faces = self.faces[:-1]
             nPe = len(faces)
             connectMesh = self.connect[elem, faces]
@@ -1508,7 +1514,7 @@ class _GroupElem(ABC):
         
             faces = self.faces
             nbFaces = self.nbFaces
-            coordo = self.coordo[self.__connect[elem]]
+            coordo = self.coord[self.__connect[elem]]
 
             if isinstance(self, PRISM6):
                 faces = np.array(faces)
@@ -1582,7 +1588,7 @@ class _GroupElem(ABC):
         # retrieves informations from element group
         dim = self.dim
         connect = self.connect
-        coordo = self.coordo
+        coordo = self.coord
         
         # Initialize lists of interest
         detectedNodes: list[int] = []

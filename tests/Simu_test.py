@@ -156,7 +156,7 @@ class Test_Simu(unittest.TestCase):
 
                 ax = Display.init_Axes()
                 ax.plot(listX, v_x, label='Analytique', c='blue')
-                ax.scatter(mesh.coordo[:,0], v, label='EF', c='red', marker='x', zorder=2)
+                ax.scatter(mesh.coord[:,0], v, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$v(x)$")
                 ax.legend()
                 PlotAndDelete()
@@ -167,7 +167,7 @@ class Test_Simu(unittest.TestCase):
 
                 ax = Display.init_Axes()
                 ax.plot(listX, rz_x, label='Analytique', c='blue')
-                ax.scatter(mesh.coordo[:,0], rz, label='EF', c='red', marker='x', zorder=2)
+                ax.scatter(mesh.coord[:,0], rz, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$r_z(x)$")
                 ax.legend()
                 PlotAndDelete()
@@ -178,7 +178,7 @@ class Test_Simu(unittest.TestCase):
 
                 ax = Display.init_Axes()
                 ax.plot(listX, u_x, label='Analytique', c='blue')
-                ax.scatter(mesh.coordo[:,0], u, label='EF', c='red', marker='x', zorder=2)
+                ax.scatter(mesh.coord[:,0], u, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$u(x)$")
                 ax.legend()
                 PlotAndDelete()

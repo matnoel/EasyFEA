@@ -149,7 +149,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         if plotMesh:
             if mesh.dim == 1:
                 # mesh for 1D elements are points                
-                ax.plot(*mesh.coordo[:,:inDim].T, c=edgecolor, lw=0.1, marker='.', ls='')
+                ax.plot(*mesh.coord[:,:inDim].T, c=edgecolor, lw=0.1, marker='.', ls='')
             else:
                 # mesh for 2D elements are lines / segments
                 pc = LineCollection(elements_coordinates, edgecolor=edgecolor, lw=0.5)
@@ -231,7 +231,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # Display result with or without mesh display
         if plotMesh:
             if plotDim == 1:
-                ax.plot(*mesh.coordoGlob.T, c='black', lw=0.1, marker='.', ls='')
+                ax.plot(*mesh.coordGlob.T, c='black', lw=0.1, marker='.', ls='')
                 pc = Line3DCollection(elements_coordinates, cmap=cmap, zorder=0, norm=norm)
             elif plotDim == 2:
                 pc = Poly3DCollection(elements_coordinates, edgecolor='black', linewidths=0.5, cmap=cmap, zorder=0, norm=norm)
@@ -249,7 +249,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         cb = fig.colorbar(pc, ax=ax, ticks=ticks)
         
         # Change axis scale
-        _Axis_equal_3D(ax, mesh.coordoGlob)
+        _Axis_equal_3D(ax, mesh.coordGlob)
 
     cb.set_label(colorbarLabel)
 
@@ -345,7 +345,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
     # faces coordinates
     coordFacesDef: np.ndarray = coordo[connectFaces, :inDim]
-    coordFaces = mesh.coordoGlob[connectFaces, :inDim]
+    coordFaces = mesh.coordGlob[connectFaces, :inDim]
 
     if title == "":
         title = f"{mesh.elemType} : Ne = {mesh.Ne}, Nn = {mesh.Nn}"
@@ -378,7 +378,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
         if mesh.dim == 1:
             # nodes
-            ax.plot(*mesh.coordoGlob[:,:2].T, c='black', lw=lw, marker='.', ls='')
+            ax.plot(*mesh.coordGlob[:,:2].T, c='black', lw=lw, marker='.', ls='')
             if deformFactor > 0:
                 ax.plot(*coordo[:,:2].T, c='red', lw=lw, marker='.', ls='')
         
@@ -417,7 +417,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
                 pc = Line3DCollection(coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0)
                 ax.add_collection3d(pc)
                 # nodes
-                ax.plot(*mesh.coordoGlob.T, c='black', lw=lw, marker='.', ls='')
+                ax.plot(*mesh.coordGlob.T, c='black', lw=lw, marker='.', ls='')
                 ax.plot(*coordo.T, c='red', lw=lw, marker='.', ls='')
 
         else:
@@ -480,7 +480,7 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', ax: plt.Axes=N
     else:
         nodes = np.asarray(list(set(np.ravel(nodes))))
     
-    coordo = mesh.coordoGlob
+    coordo = mesh.coordGlob
 
     if inDim == 2:
         ax.plot(*coordo[nodes,:2].T, ls='', marker=marker, c=c, zorder=2.5)
@@ -556,7 +556,7 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
 
         # Construct the faces coordinates
         connect_e = groupElem.connect # connect
-        coord_n = groupElem.coordoGlob[:,:mesh.inDim] # global coordinates
+        coord_n = groupElem.coordGlob[:,:mesh.inDim] # global coordinates
         faces = groupElem.faces # faces indexes
         coordFaces_e = coord_n[connect_e[:, faces]] # faces coordinates
         coordFaces = coordFaces_e[elements]
@@ -586,7 +586,7 @@ def Plot_Elements(mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c=
     if inDim < 3:
         ax.axis('equal')
     else:
-        _Axis_equal_3D(ax, mesh.coordo)
+        _Axis_equal_3D(ax, mesh.coord)
 
     return ax
 
@@ -610,7 +610,7 @@ def Plot_BoundaryConditions(simu, ax: plt.Axes=None) -> plt.Axes:
     from Simulations import _Simu
 
     simu: _Simu = simu
-    coordo = simu.mesh.coordoGlob
+    coordo = simu.mesh.coordGlob
 
     # get dirichlet and neumann boundary conditions
     dirchlets = simu.Bc_Dirichlet
@@ -747,7 +747,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
         # Tags available by element group
         tags_e = groupElem.elementTags
         dim = groupElem.dim
-        coordo = groupElem.coordoGlob[:, :inDim]
+        coordo = groupElem.coordGlob[:, :inDim]
         center_e: np.ndarray = np.mean(coordo[groupElem.connect], axis=1) # center of each elements
         faces_coordinates = coordo[groupElem.connect[:,groupElem.faces]]
 
@@ -1240,17 +1240,17 @@ def _init_obj(obj, deformFactor: float=0.0):
         simu = obj
         mesh = simu.mesh
         u = simu.Results_displacement_matrix()
-        coordo: np.ndarray = mesh.coordoGlob + u * np.abs(deformFactor)
+        coordo: np.ndarray = mesh.coordGlob + u * np.abs(deformFactor)
         inDim: int = np.max([simu.model.dim, mesh.inDim])
     elif isinstance(obj, Mesh):
         simu = None
         mesh = obj
-        coordo = mesh.coordoGlob
+        coordo = mesh.coordGlob
         inDim = mesh.inDim
     elif isinstance(obj, _GroupElem):
         simu = None
         mesh = Mesh({obj.elemType: obj})
-        coordo = mesh.coordoGlob
+        coordo = mesh.coordGlob
         inDim = mesh.inDim
     else:
         raise Exception("Must be a simulation or a mesh")

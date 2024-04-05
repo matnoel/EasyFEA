@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     mesh = Mesher().Mesh_2D(contour, [inclusion], "TRI6")
 
-    coordo = mesh.coordoGlob
+    coordo = mesh.coordGlob
 
     Display.Plot_Mesh(mesh, title='VER')
 

@@ -130,7 +130,7 @@ if __name__ == '__main__':
             uProj[:,d] = proj @ u0[:,d]
         
         ax = Display.Plot_Result(mesh0, np.linalg.norm(u0, axis=1), plotMesh=True, title='u0')
-        ax.plot(*mesh1.coordo[:,:dim].T, ls='', marker='+', c='k', label='new nodes')
+        ax.plot(*mesh1.coord[:,:dim].T, ls='', marker='+', c='k', label='new nodes')
         ax.legend()
         Display.Plot_Result(mesh1, np.linalg.norm(uProj, axis=1), plotMesh=True, title='uProj')
 

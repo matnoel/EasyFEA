@@ -221,7 +221,7 @@ class DIC_Analysis:
         """Calculation ldic the characteristic length of the mesh, i.e. 8 x the average length of the edges of the elements."""
 
         indexReord = np.append(np.arange(1, self._mesh.nPe), 0)
-        coord = self._mesh.coordo
+        coord = self._mesh.coord
         connect = self._mesh.connect        
 
         # Calculation of average element size
@@ -236,8 +236,8 @@ class DIC_Analysis:
 
         ldic = self.__ldic
 
-        coordX = self._mesh.coordo[:,0]
-        coordY = self._mesh.coordo[:,1]
+        coordX = self._mesh.coord[:,0]
+        coordY = self._mesh.coord[:,1]
         
         v = np.cos(2*np.pi*coordX/ldic) * np.sin(2*np.pi*coordY/ldic)
 

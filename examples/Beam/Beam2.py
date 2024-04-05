@@ -92,7 +92,7 @@ if __name__ == '__main__':
     # Plot the analytical and finite element solutions for vertical displacement (v)
     axUy = Display.init_Axes()
     axUy.plot(x, uy_x, label='Analytique', c='blue')
-    axUy.scatter(mesh.coordo[:, 0], uy, label='EF', c='red', marker='x', zorder=2)
+    axUy.scatter(mesh.coord[:, 0], uy, label='EF', c='red', marker='x', zorder=2)
     axUy.set_title(fr"$u_y(x)$")
     axUy.legend()
 
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     # Plot the analytical and finite element solutions for rotation (rz)
     axRz = Display.init_Axes()
     axRz.plot(x, rz_x, label='Analytique', c='blue')
-    axRz.scatter(mesh.coordo[:, 0], rz, label='EF', c='red', marker='x', zorder=2)
+    axRz.scatter(mesh.coord[:, 0], rz, label='EF', c='red', marker='x', zorder=2)
     axRz.set_title(fr"$r_z(x)$")
     axRz.legend()
 

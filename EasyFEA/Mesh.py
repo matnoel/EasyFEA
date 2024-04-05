@@ -50,7 +50,7 @@ class Mesh(Observable):
         if self.__verbosity:
             print(self)
         
-        Nn = self.coordoGlob.shape[0]
+        Nn = self.coordGlob.shape[0]
         usedNodes = set(self.connect.ravel())
         nodes = set(range(Nn))
         orphanNodes = list(nodes - usedNodes)
@@ -137,9 +137,9 @@ class Mesh(Observable):
         return self.groupElem.nPe
 
     @property
-    def coordo(self) -> np.ndarray:
+    def coord(self) -> np.ndarray:
         """Node coordinates matrix (Nn,3) for the main groupElem"""
-        return self.groupElem.coordo
+        return self.groupElem.coord
     
     def copy(self):
         newMesh = copy.deepcopy(self)
@@ -147,10 +147,10 @@ class Mesh(Observable):
 
     def translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
         """Translate the mesh coordinates."""
-        oldCoord = self.coordoGlob
+        oldCoord = self.coordGlob
         newCoord = oldCoord + np.array([dx, dy, dz])
         for grp in self.dict_groupElem.values():
-            grp.coordoGlob = newCoord
+            grp.coordGlob = newCoord
         self._notify('The mesh has been modified')
 
     
@@ -167,10 +167,10 @@ class Mesh(Observable):
             rotation direction, by default (0,0,1)
         """
 
-        oldCoord = self.coordo
+        oldCoord = self.coord
         newCoord = Rotate_coordo(oldCoord, theta, center, direction)
         for grp in self.dict_groupElem.values():
-            grp.coordoGlob = newCoord
+            grp.coordGlob = newCoord
         self._notify('The mesh has been modified')
 
     def symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
@@ -184,10 +184,10 @@ class Mesh(Observable):
             normal to the plane, by default (1,0,0)
         """
 
-        oldCoord = self.coordo
+        oldCoord = self.coord
         newCoord = Symmetry_coordo(oldCoord, point, n)
         for grp in self.dict_groupElem.values():
-            grp.coordoGlob = newCoord
+            grp.coordGlob = newCoord
         self._notify('The mesh has been modified')
 
     @property
@@ -196,16 +196,16 @@ class Mesh(Observable):
         return self.groupElem.nodes
 
     @property
-    def coordoGlob(self) -> np.ndarray:
+    def coordGlob(self) -> np.ndarray:
         """Global mesh coordinate matrix (mesh.Nn, 3)\n
         Contains all mesh coordinates"""
-        return self.groupElem.coordoGlob
+        return self.groupElem.coordGlob
     
-    @coordoGlob.setter
-    def coordoGlob(self, coordo: np.ndarray) -> None:
-        if coordo.shape == self.coordoGlob.shape:
+    @coordGlob.setter
+    def coordGlob(self, coordo: np.ndarray) -> None:
+        if coordo.shape == self.coordGlob.shape:
             for grp in self.dict_groupElem.values():
-                grp.coordoGlob = coordo
+                grp.coordGlob = coordo
 
     @property
     def connect(self) -> np.ndarray:
@@ -626,7 +626,7 @@ class Mesh(Observable):
         if corners.ndim == 1:
             # corners are nodes
             # corners become the corners coordinates
-            corners: np.ndarray = self.coordoGlob[corners]
+            corners: np.ndarray = self.coordGlob[corners]
         
 
         nCorners = len(corners) # number of corners
@@ -636,7 +636,7 @@ class Mesh(Observable):
         nodes2: list[int] = []
         nNodes: list[int] = []
 
-        coordo = self.coordo
+        coordo = self.coord
 
         for c, corner in enumerate(corners):
 
@@ -718,7 +718,7 @@ class Mesh(Observable):
         return meshSize_e if doMean else meshSize_e_s"""
         # recovery of the physical group and coordinates
         groupElem = self.groupElem
-        coordo = groupElem.coordo
+        coordo = groupElem.coord
 
         # indexes to access segments of each element
         segments = groupElem.segments
@@ -757,7 +757,7 @@ class Mesh(Observable):
         from Display import myPrintError 
 
         groupElem = self.groupElem
-        coordo = groupElem.coordoGlob
+        coordo = groupElem.coordGlob
         connect = groupElem.connect
 
         # length of each segments
@@ -875,7 +875,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     tic = TicTac.Tic()
     
-    detectedNodes, detectedElements_e, connect_e_n, coordo_n = oldMesh.groupElem.Get_Mapping(newMesh.coordo)
+    detectedNodes, detectedElements_e, connect_e_n, coordo_n = oldMesh.groupElem.Get_Mapping(newMesh.coord)
     # detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e
     # detectedElements_e (e) are the elements for which we have detected the nodes
     # connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element
@@ -938,7 +938,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     nodesExact = list(set(nodesExact) - set(newCorners))
     for node in nodesExact:
-        oldNode = oldMesh.Nodes_Point(Point(*newMesh.coordo[node]))
+        oldNode = oldMesh.Nodes_Point(Point(*newMesh.coord[node]))
         if oldNode.size == 0: continue
         proj[node,:] = 0
         proj[node, oldNode] = 1
@@ -1026,7 +1026,7 @@ def MeshOptim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect',
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
 
         # builds the .pos file that will be used to refine the mesh
-        optimGeom = Mesher().Create_posFile(mesh.coordo, meshSize_n, folder, f"pos{i}")
+        optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
 
     if Folder.Exists(optimGeom):
         # remove last .pos file

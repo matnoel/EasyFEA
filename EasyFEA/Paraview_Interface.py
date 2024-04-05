@@ -121,7 +121,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
             return
 
     connect = simu.mesh.connect
-    coordo = simu.mesh.coordo
+    coordo = simu.mesh.coord
     Ne = simu.mesh.Ne
     Nn = simu.mesh.Nn
     nPe = simu.mesh.groupElem.nPe    

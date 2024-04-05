@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
     Display.Plot_Mesh(mesh, title='VER')
     # Display.Plot_Tags(mesh)
-    coordo = mesh.coordo
+    coordo = mesh.coord
 
     nodes_matrix = mesh.Nodes_Tags(['S0'])
     elements_matrix = mesh.Elements_Nodes(nodes_matrix)

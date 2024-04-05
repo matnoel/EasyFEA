@@ -61,7 +61,7 @@ if __name__ == '__main__':
     nodesUpper = mesh.Nodes_Line(B_upper)
     node00 = mesh.Nodes_Point(Point())
     nodesCircle = mesh.Nodes_Circle(circle)
-    nodesCircle = nodesCircle[np.where(mesh.coordo[nodesCircle,1]<= circle.center.y)]
+    nodesCircle = nodesCircle[np.where(mesh.coord[nodesCircle,1]<= circle.center.y)]
 
     # Nodes in A and B
     nodeA = mesh.Nodes_Point(Point(x=L/2, y=h/2+r))

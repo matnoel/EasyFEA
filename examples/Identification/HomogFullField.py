@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
         if usePER:
 
-            coordo = mesh_VER.coordo
+            coordo = mesh_VER.coord
 
             for n0, n1 in paired_nodes:
                     

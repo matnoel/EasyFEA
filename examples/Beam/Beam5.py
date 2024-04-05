@@ -94,7 +94,7 @@ if __name__ == '__main__':
     fx, fy, cz = simu.Result('fx'), simu.Result('fy'), simu.Result('cz')
     
     for i in range(5):
-        print(f"\nNode {i} at {simu.mesh.coordo[i]}")
+        print(f"\nNode {i} at {simu.mesh.coord[i]}")
         print(f"  ux={ux[i]:.2e} mm, uy={uy[i]:.2e} mm, rz={rz[i]:.2e} rad")
         print(f"  fx={fx[i]:.2e} N, fy={fy[i]:.2e} N, cz={cz[i]:.2e} N.mm")
 

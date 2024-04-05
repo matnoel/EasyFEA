@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
         convergence=False
 
-        coordo_old = simu.Results_displacement_matrix() + simu.mesh.coordo
+        coordo_old = simu.Results_displacement_matrix() + simu.mesh.coord
 
         while not convergence:
 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
             Display.Plot_Mesh(mesh_master, alpha=0, ax=ax)
             ax.set_title(result)
             if dim == 3:
-                Display._Axis_equal_3D(ax, np.concatenate((mesh_master.coordo, mesh_slave.coordo), 0))
+                Display._Axis_equal_3D(ax, np.concatenate((mesh_master.coord, mesh_slave.coord), 0))
         
             # # Plot arrows
             # if nodes.size >0:
