@@ -267,14 +267,14 @@ class _GroupElem(ABC):
         """
 
         nPe = self.nPe
-        taille = dof_n*nPe
+        ndof = dof_n*nPe
 
-        assembly = np.zeros((self.Ne, taille), dtype=np.int64)
+        assembly = np.zeros((self.Ne, ndof), dtype=np.int64)
         connect = self.connect
 
         for d in range(dof_n):
-            colonnes = np.arange(d, taille, dof_n)
-            assembly[:, colonnes] = np.array(connect) * dof_n + d
+            columns = np.arange(d, ndof, dof_n)
+            assembly[:, columns] = np.array(connect) * dof_n + d
 
         return assembly    
 
@@ -598,7 +598,7 @@ class _GroupElem(ABC):
             weight_pg = self.Get_gauss(matrixType).weights
             N_pg = self.Get_N_pg_rep(matrixType, 1)
 
-            SourcePart_e_pg = np.einsum('ep,p,pij->epji', jacobian_e_pg, weight_pg, N_pg, optimize='optimal') #le ji a son importance pour la transposé
+            SourcePart_e_pg = np.einsum('ep,p,pij->epji', jacobian_e_pg, weight_pg, N_pg, optimize='optimal') # the ji is important for the transposition
 
             self.__dict_SourcePart_e_pg[matrixType] = SourcePart_e_pg
         
@@ -1164,8 +1164,8 @@ class _GroupElem(ABC):
         # It is possible that the nodes entered do not belong to the group
         if connect_n_e.shape[0] < nodes.max():
             # Remove all excess nodes
-            indexNoeudsSansDepassement = np.where(nodes < self.Nn)[0]
-            nodes = nodes[indexNoeudsSansDepassement]
+            availableNodes = np.where(nodes < self.Nn)[0]
+            nodes = nodes[availableNodes]
         
         lines, columns, values = sparse.find(connect_n_e[nodes])
 
@@ -1457,8 +1457,8 @@ class _GroupElem(ABC):
             p2 = self.__connect[elem,1]
 
             vect_i = coordo[p2] - coordo[p1]
-            longueur = np.linalg.norm(vect_i)
-            vect_i = vect_i / longueur # without normalized doesn't work
+            length = np.linalg.norm(vect_i)
+            vect_i = vect_i / length # without normalized doesn't work
 
             vect_j_n = coordinates - coordo[p1]
 
@@ -1467,7 +1467,7 @@ class _GroupElem(ABC):
 
             dot_n = vect_j_n @ vect_i
             
-            idx = np.where((norm_n <= tol) & (dot_n >= -tol) & (dot_n <= longueur+tol))[0]
+            idx = np.where((norm_n <= tol) & (dot_n >= -tol) & (dot_n <= length+tol))[0]
 
             return idx
         

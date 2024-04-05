@@ -114,7 +114,7 @@ def __Make_vtu(simu: Simulations._Simu, iter: int, filename: str, nodesField: li
    
     simu.Set_Iter(iter)
 
-    # Verification if the results list is compatible with the simulation
+    # Checking the compatibility of the results list with the simulation
     for option in options:
         resultat = simu.Result(option)
         if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):

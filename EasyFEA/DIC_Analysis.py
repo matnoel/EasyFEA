@@ -143,9 +143,9 @@ class DIC_Analysis:
         # ----------------------------------------------
         # Construction of shape function matrix for pixels
         # ----------------------------------------------
-        lignes_x = []
-        lignes_y = []
-        colonnes_Phi = []
+        lines_x = []
+        lines_y = []
+        columns_Phi = []
         values_phi = []
 
         # Evaluation of shape functions for the pixels used        
@@ -168,14 +168,14 @@ class DIC_Analysis:
             # construction of columns in which to place values
             colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()            
 
-            lignes_x.extend(linesX)
-            lignes_y.extend(linesY)
-            colonnes_Phi.extend(colonnes)
+            lines_x.extend(linesX)
+            lines_y.extend(linesY)
+            columns_Phi.extend(colonnes)
             values_phi.extend(np.reshape(phi, -1))        
 
-        self._Phi_x = sparse.csr_matrix((values_phi, (lignes_x, colonnes_Phi)), (nDof, coordInElem.shape[0]))
+        self._Phi_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (nDof, coordInElem.shape[0]))
         """Shape function matrix x (nDof, nPixels)"""
-        self._Phi_y = sparse.csr_matrix((values_phi, (lignes_y, colonnes_Phi)), (nDof, coordInElem.shape[0]))
+        self._Phi_y = sparse.csr_matrix((values_phi, (lines_y, columns_Phi)), (nDof, coordInElem.shape[0]))
         """Shape function matrix y (nDof, nPixels)"""
 
         Op = self._Phi_x @ self._Phi_x.T + self._Phi_y @ self._Phi_y.T
@@ -209,10 +209,10 @@ class DIC_Analysis:
 
         B_e[:,lignes0, colonnes0] = 0
 
-        lignesB = mesh.linesVector_e
-        colonnesB = mesh.columnsVector_e        
+        linesB = mesh.linesVector_e
+        columnsB = mesh.columnsVector_e        
 
-        self._opLap = sparse.csr_matrix((B_e.ravel(), (lignesB.ravel(), colonnesB.ravel())), (nDof, nDof))  
+        self._opLap = sparse.csr_matrix((B_e.ravel(), (linesB.ravel(), columnsB.ravel())), (nDof, nDof))  
         """Laplacian operator"""      
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)
@@ -497,20 +497,20 @@ def Load(path: str) -> DIC_Analysis:
 
     return analyseDic
 
-def Calc_Energy(deplacements: np.ndarray, forces: np.ndarray, ax=None) -> float:
+def Calc_Energy(displacements: np.ndarray, forces: np.ndarray, ax=None) -> float:
     """Function that calculates the energy under the curve."""
 
     if isinstance(ax, plt.Axes):
-        ax.plot(deplacements, forces)
+        ax.plot(displacements, forces)
         canPlot = True
     else:
         canPlot = False
 
     energie = 0
 
-    listIndexes = np.arange(deplacements.shape[0]-1)
+    indexes = np.arange(displacements.shape[0]-1)
 
-    for idx0 in listIndexes:
+    for idx0 in indexes:
 
         idx1 = idx0+1
 
@@ -518,15 +518,15 @@ def Calc_Energy(deplacements: np.ndarray, forces: np.ndarray, ax=None) -> float:
 
         ff = forces[idxs]
 
-        largeur = deplacements[idx1]-deplacements[idx0]
-        hauteurRectangle = np.min(ff)
+        width = displacements[idx1]-displacements[idx0]
+        heightRectangle = np.min(ff)
 
-        hauteurTriangle = np.max(ff)-np.min(ff)
+        heightTriangle = np.max(ff)-np.min(ff)
 
-        energie += largeur * (hauteurRectangle + hauteurTriangle/2)
+        energie += width * (heightRectangle + heightTriangle/2)
 
         if canPlot:
-            ax.fill_between(deplacements[idxs], forces[idxs], color='red')
+            ax.fill_between(displacements[idxs], forces[idxs], color='red')
 
     return energie
 
@@ -564,20 +564,20 @@ def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0) 
 
     filtre = np.where((xColor>=xMin) & (xColor<=xMax) & (yColor>=yMin) & (yColor<=yMax))[0]
 
-    coordoSeuil = np.zeros((filtre.size, 2))
-    coordoSeuil[:,0] = xColor[filtre]
-    coordoSeuil[:,1] = yColor[filtre]
+    coordoTresh = np.zeros((filtre.size, 2))
+    coordoTresh[:,0] = xColor[filtre]
+    coordoTresh[:,1] = yColor[filtre]
 
-    XC: float = np.mean(coordoSeuil[:,0])
-    YC: float = np.mean(coordoSeuil[:,1])
+    XC: float = np.mean(coordoTresh[:,0])
+    YC: float = np.mean(coordoTresh[:,1])
 
-    rayons = np.linalg.norm(coordoSeuil - [XC,YC],axis=1)
-    rayon: float = np.max(rayons)
+    rays = np.linalg.norm(coordoTresh - [XC,YC],axis=1)
+    radius: float = np.max(rays) * radiusCoef
 
-    # rayons = [np.max(coordoSeuil[:,0]) - XC]
-    # rayons.append(XC - np.min(coordoSeuil[:,0]))
-    # rayons.append(YC - np.min(coordoSeuil[:,1]))
-    # rayons.append(np.max(coordoSeuil[:,1]) - YC)    
-    # rayon = np.max(rayons) * radiusCoef
+    # rays = [np.max(coordoSeuil[:,0]) - XC]
+    # rays.append(XC - np.min(coordoSeuil[:,0]))
+    # rays.append(YC - np.min(coordoSeuil[:,1]))
+    # rays.append(np.max(coordoSeuil[:,1]) - YC)    
+    # radius = np.max(rayons) * radiusCoef
 
-    return XC, YC, rayon
+    return XC, YC, radius

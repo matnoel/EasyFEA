@@ -211,7 +211,7 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
 
     return plotter
 
-def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, deformFactor=0, opacity=1.0, color='red', edge_color='black', line_width=None, plotter: pv.Plotter=None, **kwargs):
+def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, deformFactor=0, opacity=1.0, color='red', edge_color='black', line_width=None, plotter: pv.Plotter=None):
     """Display mesh elements from given nodes.
 
     Parameters
@@ -236,8 +236,6 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
         Thickness of lines, by default None
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance
-    **kwargs:
-        Everything that can goes in Plot() and add_mesh() function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
 
     Returns
     -------

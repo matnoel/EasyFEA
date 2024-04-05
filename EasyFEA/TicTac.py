@@ -94,17 +94,17 @@ class Tic:
         resume = ""
 
         for categorie in Tic.__History:
-            histoCategorie = np.array(np.array(Tic.__History[categorie])[:,1] , dtype=np.float64)
-            tempsCatégorie = np.sum(histoCategorie)
-            tempsCatégorie, unite = Tic.Get_time_unity(tempsCatégorie)
-            resumeCatégorie = f"{categorie} : {tempsCatégorie:.3f} {unite}"
-            if verbosity: print(resumeCatégorie)
-            resume += '\n' + resumeCatégorie
+            histCategory = np.array(np.array(Tic.__History[categorie])[:,1] , dtype=np.float64)
+            timesCategory = np.sum(histCategory)
+            timesCategory, unite = Tic.Get_time_unity(timesCategory)
+            resumeCategory = f"{categorie} : {timesCategory:.3f} {unite}"
+            if verbosity: print(resumeCategory)
+            resume += '\n' + resumeCategory
 
         return resume            
 
     @staticmethod
-    def __plotBar(ax: plt.Axes, categories: list, temps: list, reps: int, titre: str) -> None:        
+    def __plotBar(ax: plt.Axes, categories: list, times: list, reps: int, title: str) -> None:        
 
         # Axis parameters
         ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
@@ -118,38 +118,38 @@ class Tic:
 
         ax.grid(axis = "x", lw=1.2)
 
-        tempsMax = np.max(temps)
+        tempsMax = np.max(times)
 
         # I want to display the text on the right if the time represents < 0.5 timeTotal
         # Otherwise, we'll display it on the left
 
-        for i, (texte, tmps, rep) in enumerate(zip(categories, temps, reps)):
+        for i, (texte, time, rep) in enumerate(zip(categories, times, reps)):
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)            
-            ax.barh(i, tmps, align="center", label=texte)
+            ax.barh(i, time, align="center", label=texte)
             
             # We add a space at the end of the text
-            espace = " "
+            space = " "
 
-            temps, unite = Tic.Get_time_unity(tmps/rep)
+            unitTime, unit = Tic.Get_time_unity(time/rep)
 
             
             if rep > 1:
-                repTemps = f" ({rep} x {np.round(temps,2)} {unite})"
+                repTemps = f" ({rep} x {np.round(unitTime,2)} {unit})"
             else:
-                repTemps = f" ({np.round(temps,2)} {unite})"
+                repTemps = f" ({np.round(unitTime,2)} {unit})"
 
-            texte = espace + texte + repTemps + espace
+            texte = space + texte + repTemps + space
 
-            if tmps/tempsMax < 0.6:
-                ax.text(tmps, i, texte, color='black',
+            if time/tempsMax < 0.6:
+                ax.text(time, i, texte, color='black',
                 verticalalignment='center', horizontalalignment='left')
             else:
-                ax.text(tmps, i, texte, color='white',
+                ax.text(time, i, texte, color='white',
                 verticalalignment='center', horizontalalignment='right')
 
         # plt.legend()
-        ax.set_title(titre)
+        ax.set_title(title)
 
     @staticmethod 
     def Plot_History(folder="", details=False) -> None:
@@ -199,14 +199,14 @@ class Tic:
                 if folder != "":                        
                     Display.Save_fig(folder, f"TicTac{i}_{c}")
 
-        # On construit un tableau pour les sommé sur les sous catégories
-        dfCategorie = pd.DataFrame({'categories' : categories, 'time': totalTime})
-        dfCategorie = dfCategorie.groupby(['categories']).sum()
-        dfCategorie = dfCategorie.sort_values(by='time')
-        categories = dfCategorie.index.tolist()
+        # We build a table to sum them over the sub-categories
+        dfCategory = pd.DataFrame({'categories' : categories, 'time': totalTime})
+        dfCategory = dfCategory.groupby(['categories']).sum()
+        dfCategory = dfCategory.sort_values(by='time')
+        categories = dfCategory.index.tolist()
         
         fig, ax = plt.subplots()
-        Tic.__plotBar(ax, categories, dfCategorie['time'], [1]*dfCategorie.shape[0], "Summary")
+        Tic.__plotBar(ax, categories, dfCategory['time'], [1]*dfCategory.shape[0], "Summary")
 
         if folder != "":            
             Display.Save_fig(folder, "TicTac_Summary")

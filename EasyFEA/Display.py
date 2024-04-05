@@ -858,12 +858,12 @@ def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None
             toolbar = ax.figure.canvas.toolbar
             coordo = ax.format_coord(event.xdata, event.ydata)
             toolbar.set_message(f"{collection.get_label()} : {coordo}")
-            # TODO Caculer également la surface ou la longeur ?
-            # Changer le titre à la place ?
+            # TODO get surface or length ?
+            # change the title instead the toolbar message ?
     
     def hover(event):
         if event.inaxes == ax:
-            # TODO existe til un moyen d'acceder direct a la collection qui contient levent ?
+            # TODO is there a way to access the collection containing the event directly?
             [Set_Message(collection, event) for collection in collections]
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
@@ -1366,15 +1366,15 @@ def myPrintError(text: str) -> str:
 
 def Section(text: str, verbosity=True) -> None:
     """New section."""    
-    bord = "======================="
+    edges = "======================="
 
-    longeurTexte = len(text)
+    lengthText = len(text)
 
-    longeurMax = 45
+    lengthTot = 45
 
-    bord = "="*int((longeurMax - longeurTexte)/2)
+    edges = "="*int((lengthTot - lengthText)/2)
 
-    section = f"\n\n{bord} {text} {bord}\n"
+    section = f"\n\n{edges} {text} {edges}\n"
 
     if verbosity: myPrint(section)
 

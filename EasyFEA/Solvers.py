@@ -92,15 +92,15 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     problemType : ModelType
         Specify the problemType because a simulation can have several physcal models (such as a damage simulation).
     A : sparse.csr_matrix
-        Matrice A
+        matrix A
     b : sparse.csr_matrix
-        vecteur b
+        vector b
     x0 : np.ndarray
-        solution initiale pour les solveurs itératifs
+        initial solution for iterative solvers
     lb : np.ndarray
-        lowerBoundary de la solution
+        lowerBoundary of the solution
     ub : np.ndarray
-        upperBoundary de la solution    
+        upperBoundary of the solution
 
     Returns
     -------
@@ -316,7 +316,7 @@ def __Solver_2(simu, problemType: str):
 
     tic.Tac("Solver",f"Lagrange ({problemType}) Dirichlet", simu._verbosity)
 
-    # Pour chaque condition de lagrange on va rajouter un coef dans la matrice
+    # For each lagrange condition we will add a coef to the matrix
     if len(list_Bc_Lagrange) > 0:
         from Simulations import LagrangeCondition
 
@@ -399,22 +399,22 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     dimI = A.shape[0]
     dimJ = A.shape[1]
 
-    matrice = PETSc.Mat()
+    matrix = PETSc.Mat()
     csr = (A.indptr, A.indices, A.data)    
-    matrice.createAIJ([dimI, dimJ], comm=__comm, csr=csr)
+    matrix.createAIJ([dimI, dimJ], comm=__comm, csr=csr)
 
-    vectb = matrice.createVecLeft()
+    vectb = matrix.createVecLeft()
 
     lines, _, values = sparse.find(b)    
 
     vectb.array[lines] = values
 
-    x = matrice.createVecRight()
+    x = matrix.createVecRight()
     if len(x0) > 0:
         x.array[:] = x0
 
     ksp = PETSc.KSP().create()
-    ksp.setOperators(matrice)
+    ksp.setOperators(matrix)
     ksp.setType(kspType)
     
     pc = ksp.getPC()    
@@ -436,9 +436,9 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
 
 def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
     # https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
-    # décomposition Lu derrière https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
+    # LU decomposition behind https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
 
-    hideFacto = False # Cache la décomposition
+    hideFacto = False # Hide decomposition
     # permute = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
     
     # if A_isSymetric:
@@ -463,9 +463,9 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
 
 def _BoundConstrain(A, b, lb: np.ndarray, ub: np.ndarray):
 
-    assert len(lb) == len(ub), "Doit être de la même taille"
+    assert len(lb) == len(ub), "Must be the same size"
     
-    # minim sous contraintes : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
+    # constrained minimization : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
 
     b = b.toarray().ravel()
     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)

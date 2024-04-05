@@ -2886,14 +2886,14 @@ class PhaseField(_Simu):
     def Results_Set_Bc_Summary(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):
         assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Must be the same dimension."
         
-        resumeChargement = 'Chargement :'
-        resumeChargement += f'\n\tload max = {loadMax:.3}'
+        resume = 'Loading :'
+        resume += f'\n\tload max = {loadMax:.3}'
 
         for inc, treshold, option in zip(listInc, listTreshold, listOption):
 
-            resumeChargement += f'\n\tinc = {inc} -> {option} < {treshold:.4e}'
+            resume += f'\n\tinc = {inc} -> {option} < {treshold:.4e}'
         
-        self.__resumeLoading = resumeChargement
+        self.__resumeLoading = resume
 
         return self.__resumeLoading
 
@@ -3260,13 +3260,13 @@ class Beam(_Simu):
     def _Get_N_beam_e_pg(self):
         """Euleur-Bernoulli BEAM"""
 
-        # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_N.m
+        # Example matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_N.m
         
         tic = Tic()
 
         matrixType = MatrixType.beam
 
-        # Récupération du maodel poutre
+        # Recovering the beam model
         struct = self.structure
         dim = struct.dim
         dof_n = struct.dof_n
@@ -3376,7 +3376,7 @@ class Beam(_Simu):
 
         matrixType = MatrixType.beam
 
-        # Récupération du maodel poutre
+        # Recovering the beam model
         struct = self.structure
         dim = struct.dim
         dof_n = struct.dof_n
@@ -3842,7 +3842,7 @@ class Beam(_Simu):
 
         # TODO to improve
 
-        # Affichage des déplacements
+        # Displacement display
         dx = self.Result("ux", nodeValues=True)
         summary += f"\n\nUx max = {dx.max():.2e}"
         summary += f"\nUx min = {dx.min():.2e}"
