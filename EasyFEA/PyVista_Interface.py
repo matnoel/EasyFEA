@@ -275,7 +275,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
 
         pvGroup = _pvGrid(newGroupElem)
 
-        Plot(pvGroup, opacity=opacity, color=color, edge_color=edge_color, plotter=plotter, **kwargs, line_width=line_width)
+        Plot(pvGroup, opacity=opacity, color=color, edge_color=edge_color, plotter=plotter, line_width=line_width)
 
         if showId:
             centers = np.mean(coordo[groupElem.connect[elements]], axis=1)
