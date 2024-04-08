@@ -1935,29 +1935,23 @@ class PhaseField_Model(_IModel):
         # Calculates projectors
         projPt_e_pg, projMt_e_pg = self.__Spectral_Decomposition(Epsilont_e_pg, verif)
 
-        tic = Tic()        
-
-        projPt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projPt_e_pg, sqrtC, optimize='optimal')
-        projMt_e_pg_x_sqrtC = np.einsum('epij,jk->epik', projMt_e_pg, sqrtC, optimize='optimal')
-        
-        projP_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projPt_e_pg_x_sqrtC, optimize='optimal')
-        projM_e_pg = np.einsum('ij,epjk->epik', inv_sqrtC, projMt_e_pg_x_sqrtC, optimize='optimal')
-
-        projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
-        projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
-
-        cP_e_pg = np.einsum('epij,jk,epkl->epil', projPT_e_pg, C, projP_e_pg, optimize='optimal')
-        cM_e_pg = np.einsum('epij,jk,epkl->epil', projMT_e_pg, C, projM_e_pg, optimize='optimal')
+        tic = Tic()
 
         # projP_e_pg = inv_sqrtC @ (projPt_e_pg @ sqrtC)
         # projM_e_pg = inv_sqrtC @ (projMt_e_pg @ sqrtC)
         
-        # projPT_e_pg =  np.transpose(projP_e_pg, (0,1,3,2))
-        # projMT_e_pg = np.transpose(projM_e_pg, (0,1,3,2))
+        # faster
+        projP_e_pg = np.einsum('ij,epjk,kl->epil', inv_sqrtC, projPt_e_pg, sqrtC, optimize='optimal')
+        projM_e_pg = np.einsum('ij,epjk,kl->epil', inv_sqrtC, projMt_e_pg, sqrtC, optimize='optimal')
 
-        # cP_e_pg = projPT_e_pg @ C @ projP_e_pg
-        # cM_e_pg = projMT_e_pg @ C @ projM_e_pg
+        tic.Tac("Split",f"proj Tild to proj", False)
 
+        # cP_e_pg = np.einsum('epji,jk,epkl->epil', projP_e_pg, C, projP_e_pg, optimize='optimal')
+        # cM_e_pg = np.einsum('epji,jk,epkl->epil', projM_e_pg, C, projM_e_pg, optimize='optimal')
+
+        # faster
+        cP_e_pg = np.transpose(projP_e_pg, (0,1,3,2)) @ C @ projP_e_pg
+        cM_e_pg = np.transpose(projM_e_pg, (0,1,3,2)) @ C @ projM_e_pg
 
         tic.Tac("Split",f"cP_e_pg and cM_e_pg", False)
 
@@ -1988,35 +1982,35 @@ class PhaseField_Model(_IModel):
 
         return cP_e_pg, cM_e_pg
 
-    def __Eigen_values_vectors_projectors(self, vecteur_e_pg: np.ndarray, verif=False) -> tuple[np.ndarray, list[np.ndarray], list[np.ndarray]]:
+    def __Eigen_values_vectors_projectors(self, vector_e_pg: np.ndarray, verif=False) -> tuple[np.ndarray, list[np.ndarray], list[np.ndarray]]:
 
         dim = self.__material.dim
 
         coef = self.__material.coef
-        Ne, nPg = vecteur_e_pg.shape[:2]
+        Ne, nPg = vector_e_pg.shape[:2]
 
         tic = Tic()
 
         # Reconstructs the strain tensor [e,pg,dim,dim]
         matrix_e_pg = np.zeros((Ne,nPg,dim,dim))
         for d in range(dim):
-            matrix_e_pg[:,:,d,d] = vecteur_e_pg[:,:,d]
+            matrix_e_pg[:,:,d,d] = vector_e_pg[:,:,d]
         if dim == 2:
             # [x, y, xy]
             # xy
-            matrix_e_pg[:,:,0,1] = vecteur_e_pg[:,:,2]/coef
-            matrix_e_pg[:,:,1,0] = vecteur_e_pg[:,:,2]/coef
+            matrix_e_pg[:,:,0,1] = vector_e_pg[:,:,2]/coef
+            matrix_e_pg[:,:,1,0] = vector_e_pg[:,:,2]/coef
         else:
             # [x, y, z, yz, xz, xy]
             # yz
-            matrix_e_pg[:,:,1,2] = vecteur_e_pg[:,:,3]/coef
-            matrix_e_pg[:,:,2,1] = vecteur_e_pg[:,:,3]/coef
+            matrix_e_pg[:,:,1,2] = vector_e_pg[:,:,3]/coef
+            matrix_e_pg[:,:,2,1] = vector_e_pg[:,:,3]/coef
             # xz
-            matrix_e_pg[:,:,0,2] = vecteur_e_pg[:,:,4]/coef
-            matrix_e_pg[:,:,2,0] = vecteur_e_pg[:,:,4]/coef
+            matrix_e_pg[:,:,0,2] = vector_e_pg[:,:,4]/coef
+            matrix_e_pg[:,:,2,0] = vector_e_pg[:,:,4]/coef
             # xy
-            matrix_e_pg[:,:,0,1] = vecteur_e_pg[:,:,5]/coef
-            matrix_e_pg[:,:,1,0] = vecteur_e_pg[:,:,5]/coef
+            matrix_e_pg[:,:,0,1] = vector_e_pg[:,:,5]/coef
+            matrix_e_pg[:,:,1,0] = vector_e_pg[:,:,5]/coef
 
         tic.Tac("Split", "vector_e_pg -> matrix_e_pg", False)
 
