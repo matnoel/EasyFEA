@@ -3,6 +3,8 @@
 .DS_Store
 results/
 *.egg-info/
+build/
+dist/
 
 # extensions to ignore
 *.pyc
