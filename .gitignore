@@ -1,0 +1,16 @@
+# files to ignore
+.vscode/
+.DS_Store
+results/
+*.egg-info/
+
+# extensions to ignore
+*.pyc
+*.HEIC
+*.tif
+*.mp4
+*.out
+*.pos
+*.bak
+*.json
+*__pycache__

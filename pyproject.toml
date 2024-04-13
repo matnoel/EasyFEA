@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "EasyFEA"
+version = "1.0.0"
+description = "User-friendly Python library that simplifies finite element analysis."
+authors = [
+    {name = "Matthieu Noel", email = "matthieu.noel7@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["finite-element-analysis", "phase-field", "python", "easy", "fem"]
+license = {file = "LICENSE.txt"}
+classifiers = [    
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "License :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: :: OS Independent",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy",
+    "gmsh>=4.12",
+    "scipy",
+    "matplotlib",
+    "pyvista",
+    "numba",
+    "pandas",
+    "imageio",
+    "imageio[ffmpeg]",
+]
+
+[project.optional-dependencies]
+fast = [
+    "pypardiso",
+    "petsc",
+    "petsc4py",
+]
+cv = [
+    "opencv-python"
+]
+
+[project.urls]
+"Source Code" = "https://github.com/matnoel/EasyFEA"
+
+[tool.setuptools.packages.find]
+include = [
+    "EasyFEA",
+    "EasyFEA.*"
+]
