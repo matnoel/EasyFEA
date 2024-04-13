@@ -63,7 +63,7 @@ All examples are available [here](https://github.com/matnoel/EasyFEA/tree/master
 
 ## Installation
 
-EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.9 through 3.11:
+EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.9 through 3.12:
 
 ```
 pip install EasyFEA
@@ -78,7 +78,7 @@ EasyFEA uses several libraries such as NumPy and Gmsh - as such, the following p
 + [`scipy`](https://pypi.org/project/scipy/) - Fundamental package for scientific computing in Python.
 + [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
 + [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
-+ [`numba`](https://pypi.org/project/numba/) (3.5.x <= Python < 3.12) - Compiling Python code using LLVM.
++ [`numba`](https://pypi.org/project/numba/) - Compiling Python code using LLVM.
 + [`pandas`](https://pypi.org/project/pandas/) (3.9 <= Python <= 3.12) - Powerful data structures for data analysis.
 + [`imageio`](https://pypi.org/project/imageio/) and [`imageio[ffmpeg]`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading and writing a wide range of image, video, scientific, and volumetric data formats.
 
