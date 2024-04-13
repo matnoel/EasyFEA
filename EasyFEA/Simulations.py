@@ -31,4 +31,8 @@ from .simulations._thermal import ThermalSimu
 # DIC
 # ----------------------------------------------
 
-from .simulations._dic import DIC
+try:
+    from .simulations._dic import DIC, Get_Circle
+except ModuleNotFoundError:
+    # you must install opencv-python
+    pass
