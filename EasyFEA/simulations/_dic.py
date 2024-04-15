@@ -482,7 +482,7 @@ class DIC:
         with open(path_dic, 'wb') as file:
             self.__Op_LU = None
             self._M_LU = None
-            pickle.dump(path_dic, file)
+            pickle.dump(self, file)
 
 # ----------------------------------------------
 # DIC Functions
