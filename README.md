@@ -90,7 +90,7 @@ EasyFEA includes a few optional dependencies for reducing resolution time or for
 
 + [`pypardiso`](https://pypi.org/project/pypardiso/) (Python > 3.8 & Intel oneAPI)  - Library for solving large systems of sparse linear equations.
 + [`petsc`](https://pypi.org/project/petsc/) and [`petsc4py`](https://pypi.org/project/petsc4py/) - Python bindings for PETSc.
-+ [opencv-python](https://pypi.org/project/opencv-python/) - Computer Vision package.
++ [`opencv-python`](https://pypi.org/project/opencv-python/) - Computer Vision package.
 
 # Naming conventions
 
