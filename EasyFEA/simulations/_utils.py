@@ -1,44 +1,11 @@
 from ..utilities import Folder, Display
 import numpy as np
-from ._simu import _Simu
 
 import pickle
 
 # ----------------------------------------------
-# Saving / Loading functions
+# Saving / Loading force-displacement.pickle
 # ----------------------------------------------
-def Load_Simu(folder: str):
-    """
-    Load the simulation from the specified folder.
-
-    Parameters
-    ----------
-    folder : str
-        The name of the folder where the simulation is saved.
-
-    Returns
-    -------
-    Simu
-        The loaded simulation.
-    """
-
-    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
-    path_simu = Folder.Join(folder, "simulation.pickle")
-    error = "The file simulation.pickle cannot be found."
-    assert Folder.Exists(path_simu), error
-
-    try:
-        with open(path_simu, 'rb') as file:
-            simu = pickle.load(file)
-    except EOFError:
-        Display.myPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
-        return None
-
-    assert isinstance(simu, _Simu), 'Must be a simu object'
-    
-    Display.myPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', 'green')
-
-    return simu
 
 def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:str):
     """Save the values of load and displacements in the folder"""

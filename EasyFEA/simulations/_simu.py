@@ -364,30 +364,7 @@ class _Simu(_IObserver, ABC):
 
     # ----------------------------------------------
     # Solutions
-    # ----------------------------------------------
-
-    def Save(self, folder: str) -> None:
-        """Saves the simulation and its summary in the folder."""
-        # Empty matrices in element groups
-        self.mesh._ResetMatrix()
-
-        folder_EasyFEA = Folder.Get_Path(Folder.Get_Path()) # path the EasyFEA folder
-        # this path will be removed in print
-
-        # Save simulation
-        path_simu = Folder.New_File("simulation.pickle", folder)
-        with open(path_simu, "wb") as file:
-            pickle.dump(self, file)
-        Display.myPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', 'green')
-        
-        # Save simulation summary
-        path_summary = Folder.New_File("summary.txt", folder)
-        summary = f"Simulation completed on: {datetime.now()}\n"
-        summary += f"version: {__version__}"
-        summary += str(self)        
-        with open(path_summary, 'w', encoding='utf8') as file:
-            file.write(summary)
-        Display.myPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', 'green')
+    # ----------------------------------------------    
 
     # TODO Enable simulation creation from the variational formulation ?
 
@@ -1621,3 +1598,62 @@ class _Simu(_IObserver, ABC):
 
         # We should never reach this line of code if no unexpected conditions occurs
         raise Exception("Unexpected conditions occurred during the calculation.")
+    
+    def Save(self, folder: str, filename: str="simulation") -> None:
+        """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
+        # Empty matrices in element groups
+        self.mesh._ResetMatrix()
+
+        folder_EasyFEA = Folder.Get_Path(Folder.Get_Path()) # path the EasyFEA folder
+        # this path will be removed in print
+
+        # Save simulation
+        path_simu = Folder.New_File(f"{filename}.pickle", folder)
+        with open(path_simu, "wb") as file:
+            pickle.dump(self, file)
+        Display.myPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', 'green')
+        
+        # Save simulation summary
+        path_summary = Folder.New_File("summary.txt", folder)
+        summary = f"Simulation completed on: {datetime.now()}\n"
+        summary += f"version: {__version__}"
+        summary += str(self)        
+        with open(path_summary, 'w', encoding='utf8') as file:
+            file.write(summary)
+        Display.myPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', 'green')
+
+# ----------------------------------------------
+# _Simu Functions
+# ----------------------------------------------
+
+def Load_Simu(folder: str, filename: str="simulation") -> _Simu:
+    """
+    Load the simulation from the specified folder.
+
+    Parameters
+    ----------
+    folder : str
+        The name of the folder where the simulation is saved.
+    filename : str, optional
+        The simualtion name, by default "simulation".
+
+    Returns
+    -------
+    _Simu
+        The loaded simulation.
+    """
+
+    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
+    path_simu = Folder.Join(folder, f"{filename}.pickle")
+    assert Folder.Exists(path_simu), f"The file {filename}.pickle cannot be found."
+
+    try:
+        with open(path_simu, 'rb') as file:
+            simu: _Simu = pickle.load(file)
+    except EOFError:
+        Display.myPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
+        return None    
+    
+    Display.myPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', 'green')
+
+    return simu

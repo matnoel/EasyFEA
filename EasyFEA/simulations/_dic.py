@@ -3,12 +3,11 @@
 import numpy as np
 from scipy import interpolate, sparse
 from scipy.sparse.linalg import splu
-import matplotlib.pyplot as plt
 import pickle
 import cv2 # need opencv-python library
 
 # utilities
-from ..utilities import Folder, Tic
+from ..utilities import Tic, Folder
 # fem
 from ..fem import Mesh, BoundaryCondition
 
@@ -477,57 +476,41 @@ class DIC:
             self._list_u_exp.append(u_exp)
             self._list_img_exp.append(img)
 
-    def Save(self, pathname: str) -> None:
-        with open(pathname, 'wb') as file:
+    def Save(self, folder: str, filename: str="dic") -> None:
+        """Saves the dic analysis as 'filename.pickle'."""
+        path_dic = Folder.New_File(f"{filename}.pickle", folder)
+        with open(path_dic, 'wb') as file:
             self.__Op_LU = None
             self._M_LU = None
-            pickle.dump(self, file)
+            pickle.dump(path_dic, file)
 
-def Load(path: str) -> DIC:
-    """Loading procedure"""
+# ----------------------------------------------
+# DIC Functions
+# ----------------------------------------------
 
-    if not Folder.Exists(path):
-        raise Exception(f"The analysis does not exist in {path}")
+def Load_DIC(folder: str, filename: str="dic") -> DIC:
+    """Load the dic analysis from the specified folder.
 
-    with open(path, 'rb') as file:
-        analyseDic = pickle.load(file)
+    Parameters
+    ----------
+    folder : str
+        The name of the folder where the simulation is saved.
+    filename : str, optional
+        The simualtion name, by default "dic".
 
-    assert isinstance(analyseDic, DIC)
+    Returns
+    -------
+    DIC
+        The loaded dic analysis."""
+    
+    path_dic = Folder.Join(folder, f"{filename}.pickle")
+    if not Folder.Exists(path_dic):
+        raise Exception(f"The dic analysis does not exist in {path_dic}")
 
-    return analyseDic
+    with open(path_dic, 'rb') as file:
+        dic: DIC = pickle.load(file)
 
-def Calc_Energy(displacements: np.ndarray, forces: np.ndarray, ax=None) -> float:
-    """Function that calculates the energy under the curve."""
-
-    if isinstance(ax, plt.Axes):
-        ax.plot(displacements, forces)
-        canPlot = True
-    else:
-        canPlot = False
-
-    energie = 0
-
-    indexes = np.arange(displacements.shape[0]-1)
-
-    for idx0 in indexes:
-
-        idx1 = idx0+1
-
-        idxs = [idx0, idx1]
-
-        ff = forces[idxs]
-
-        width = displacements[idx1]-displacements[idx0]
-        heightRectangle = np.min(ff)
-
-        heightTriangle = np.max(ff)-np.min(ff)
-
-        energie += width * (heightRectangle + heightTriangle/2)
-
-        if canPlot:
-            ax.fill_between(displacements[idxs], forces[idxs], color='red')
-
-    return energie
+    return dic
 
 def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0) -> tuple[float, float, float]:
     """Recovers the circle in the image.

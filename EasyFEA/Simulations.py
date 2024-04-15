@@ -1,7 +1,7 @@
 """This module contains all available simulation classes."""
 
-from .simulations._simu import _Simu
-from .simulations._utils import Load_Simu, Save_Force_Displacement, Load_Force_Displacement
+from .simulations._simu import _Simu, Load_Simu
+from .simulations._utils import Save_Force_Displacement, Load_Force_Displacement
 
 # ----------------------------------------------
 # Elastic
@@ -32,7 +32,7 @@ from .simulations._thermal import ThermalSimu
 # ----------------------------------------------
 
 try:
-    from .simulations._dic import DIC, Get_Circle
+    from .simulations._dic import DIC, Load_DIC, Get_Circle
 except ModuleNotFoundError:
     # you must install opencv-python
     pass
