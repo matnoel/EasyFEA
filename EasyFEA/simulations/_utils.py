@@ -47,7 +47,7 @@ def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:
     filename = Folder.Join(folder, "force-displacement.pickle")
 
     if not Folder.os.path.exists(folder):
-        Folder.os.mkdir(folder)
+        Folder.os.makedirs(folder)
 
     values = {
         'force': force,
