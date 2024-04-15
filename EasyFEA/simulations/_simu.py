@@ -382,7 +382,7 @@ class _Simu(_IObserver, ABC):
         
         # Save simulation summary
         path_summary = Folder.New_File("summary.txt", folder)
-        summary = f"Simulation completed on: {datetime.now()}"
+        summary = f"Simulation completed on: {datetime.now()}\n"
         summary += f"version: {__version__}"
         summary += str(self)        
         with open(path_summary, 'w', encoding='utf8') as file:
