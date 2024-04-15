@@ -1599,7 +1599,7 @@ class _Simu(_IObserver, ABC):
         # We should never reach this line of code if no unexpected conditions occurs
         raise Exception("Unexpected conditions occurred during the calculation.")
     
-    def Save(self, folder: str, filename: str="simulation") -> None:
+    def Save(self, folder: str, filename: str="simulation", additionalInfos:str="") -> None:
         """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
         # Empty matrices in element groups
         self.mesh._ResetMatrix()
@@ -1617,7 +1617,11 @@ class _Simu(_IObserver, ABC):
         path_summary = Folder.New_File("summary.txt", folder)
         summary = f"Simulation completed on: {datetime.now()}\n"
         summary += f"version: {__version__}"
-        summary += str(self)        
+        summary += str(self)
+        if str(additionalInfos) != "":
+            summary += Display.Section("Additional information", False)
+            summary += '\n' + str(additionalInfos)
+
         with open(path_summary, 'w', encoding='utf8') as file:
             file.write(summary)
         Display.myPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', 'green')
