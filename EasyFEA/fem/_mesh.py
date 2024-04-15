@@ -68,7 +68,7 @@ class Mesh(Observable):
 
     def __str__(self) -> str:
         """Return a string representation of the mesh."""
-        text = f"\nElement type : {self.elemType}"
+        text = f"\nElement type: {self.elemType}"
         text += f"\nNe = {self.Ne}, Nn = {self.Nn}, dof = {self.Nn * self.__dim}"
         return text
 
