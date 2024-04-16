@@ -126,7 +126,7 @@ class PhaseField(_IModel):
         text = str(self.__material)
         text += f'\n\n{type(self).__name__} :'
         text += f'\nsplit : {self.__split}'
-        text += f'\nregularisation : {self.__regularization}'
+        text += f'\nregularization : {self.__regularization}'
         text += f'\nGc : {self.__Gc:.4e}'
         text += f'\nl0 : {self.__l0:.4e}'
         return text
