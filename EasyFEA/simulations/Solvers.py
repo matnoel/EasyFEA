@@ -425,7 +425,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     ksp.solve(vectb, x)
     x = x.array
 
-    converg = ksp.converged and not ksp.diverged    
+    converg = ksp.is_converged and not ksp.is_diverged    
 
     # PETSc._finalize()
 
