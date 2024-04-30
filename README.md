@@ -9,6 +9,8 @@
 3. **ThermalSimu** (stationary and transient): Examples in `/examples/Thermal`.
 4. **PhaseFieldSimu:** (quasi-static phase field) Examples in `/examples/PhaseField`.
 
+All examples are available [here](https://github.com/matnoel/EasyFEA/tree/master/examples).
+
 For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 
 Numerous examples of mesh creation are available in the `examples/Meshes` folder.
@@ -58,8 +60,6 @@ Display.Plot_Result(simu, 'Svm', plotMesh=True, ncolors=11)
 
 Display.plt.show()
 ```
-
-All examples are available [here](https://github.com/matnoel/EasyFEA/tree/master/examples).
 
 ## Installation
 
@@ -117,10 +117,14 @@ In editable mode (`-e`), code completion functionality may be compromised in you
 
 For example, in Visual Studio Code (VS Code), you can achieve this by adding `<folder>/EasyFEA/` to "Python > Analysis: **Extra Paths**" in the Pylance extension settings. Here, `<folder>` indicates the path to the directory containing `EasyFEA/`.
 
-To develop a new feature **new feature**, start by creating a new branch in the project via the `git branch my_new_feature` command. Then, after implementing and validating your changes with **tests** (see `EasyFEA/tests/` for tips), start initiating a pull request to integrate your changes.
+To develop a **new feature**, start by creating a new branch in the project via the `git branch my_new_feature` command. Then, after implementing and validating your changes with **tests** (see `EasyFEA/tests/` for tips), start initiating a pull request to integrate your changes.
 
 **EasyFEA** is an emerging project with a strong commitment to growth and improvement. Your input and ideas are invaluable to me. I welcome your comments and advice with open arms, encouraging a culture of respect and kindness in our collaborative journey towards improvement.
 
+# Developments
+
+This code was initially developed by [Matthieu Noel](https://www.linkedin.com/in/matthieu-no%C3%ABl/) as part of a PhD thesis carried out at the [MSME](https://msme.univ-gustave-eiffel.fr/) laboratory and in collaboration with the furniture division of the [FCBA](https://www.fcba.fr/) technology institute.
+
 # License
 
-EasyFEA is copyright (C) 2021-2024 M. Noel, and is distributed under the terms of the GNU General Public License, Version 3 or later, see LICENSE.txt and CREDITS.txt for more information.
+**EasyFEA** is distributed under the terms of the GNU General Public License, Version 3 or later, see LICENSE.txt and CREDITS.txt for more information.
