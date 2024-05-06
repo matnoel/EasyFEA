@@ -118,31 +118,28 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
     # Choose the solver
     if len(lb) > 0 and len(lb) > 0:        
-        solveur = "BoundConstrain"
+        solver = "BoundConstrain"
     else:
         if len(simu.Bc_Lagrange) > 0:
             # if lagrange multiplier are found we cannot use iterative solvers
-            solveur = "scipy"
+            solver = "scipy"
         else:
-            solveur = simu.solver
+            solver = simu.solver
 
     # import matplotlib.pyplot as plt
     # plt.figure()
     # plt.spy(A, marker='.')
-    testSymetric = sla.norm(A-A.transpose())/sla.norm(A)
-    A_isSymetric = testSymetric <= 1e-12
-    useCholesky = True if simu.problemType == 'elastic' else False
 
-    solveur = __Check_solveurLibrary(solveur)
-    
+    solver = __Check_solverLibrary(solver)
+
     tic = Tic()
 
     sla.use_solver(useUmfpack=__canUseUmfpack)
     
-    if solveur == "pypardiso":
+    if solver == "pypardiso":
         x = pypardiso.spsolve(A, b.toarray())
 
-    elif solveur == "petsc":
+    elif solver == "petsc":
         global __pc_default
         # TODO find the best for damage problem
         kspType = 'cg'
@@ -168,33 +165,35 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
             x, option, converg = _PETSc(A, b, x0, kspType, 'none')
             assert converg, 'petsc didnt converge 2 times. check for kspType and pcType'
 
-        solveur += option
+        solver += option
     
-    elif solveur == "scipy":
+    elif solver == "scipy":
+        testSymetric = sla.norm(A-A.transpose())/sla.norm(A)
+        A_isSymetric = testSymetric <= 1e-12
         x = _ScipyLinearDirect(A, b, A_isSymetric)
     
-    elif solveur == "BoundConstrain":
+    elif solver == "BoundConstrain":
         x = _BoundConstrain(A, b , lb, ub)
 
-    elif solveur == "cg":
+    elif solver == "cg":
         x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
 
-    elif solveur == "bicg":
+    elif solver == "bicg":
         x, output = sla.bicg(A, b.toarray(), x0, maxiter=None)
 
-    elif solveur == "gmres":
+    elif solver == "gmres":
         x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
 
-    elif solveur == "lgmres":
+    elif solver == "lgmres":
         x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
         print(output)
 
-    elif solveur == "umfpack":
+    elif solver == "umfpack":
         # lu = umfpack.splu(A)
         # x = lu.solve(b).ravel()
         x = umfpackSpsolve(A, b)
 
-    elif solveur == "mumps":
+    elif solver == "mumps":
         # # TODO dont work yet
         # ctx = DMumpsContext()
         # if ctx.myid == 0:
@@ -205,7 +204,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
         # ctx.destroy() # Cleanup
         x = mumps.spsolve(A,b)
             
-    tic.Tac("Solver",f"Solve {problemType} ({solveur})", simu._verbosity)
+    tic.Tac("Solver",f"Solve {problemType} ({solver})", simu._verbosity)
 
     # # A x - b = 0
     # residu = np.linalg.norm(A.dot(x)-b.toarray().ravel())
@@ -213,7 +212,7 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
 
     return np.array(x)
 
-def __Check_solveurLibrary(solveur: str) -> str:
+def __Check_solverLibrary(solveur: str) -> str:
     """Checks whether the selected solver library is available
     If not, returns the solver usable in all cases (scipy)."""
     solveurDeBase="scipy"
@@ -392,15 +391,22 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     # __comm = MPI.COMM_WORLD
     # nprocs = __comm.Get_size()
     # rank   = __comm.Get_rank()
+
+    if not A.has_canonical_format:
+        # Using sla.norm(A) ensures that A has a cononic format. 
+        # Canonical Format means:
+        # - Within each row, indices are sorted by column.
+        # - There are no duplicate entries.
+        sla.norm(A)
     
     __comm = None
     petsc4py.init(sys.argv, comm=__comm)
 
     dimI = A.shape[0]
-    dimJ = A.shape[1]
+    dimJ = A.shape[1]    
 
     matrix = PETSc.Mat()
-    csr = (A.indptr, A.indices, A.data)    
+    csr = (A.indptr, A.indices, A.data)
     matrix.createAIJ([dimI, dimJ], comm=__comm, csr=csr)
 
     vectb = matrix.createVecLeft()
@@ -425,7 +431,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     ksp.solve(vectb, x)
     x = x.array
 
-    converg = ksp.is_converged and not ksp.is_diverged    
+    converg = ksp.is_converged
 
     # PETSc._finalize()
 
