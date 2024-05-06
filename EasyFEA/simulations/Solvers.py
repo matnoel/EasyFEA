@@ -130,6 +130,13 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     # plt.figure()
     # plt.spy(A, marker='.')
 
+    if not A.has_canonical_format:
+        # Using sla.norm(A) ensures that A has a cononic format. 
+        # Canonical Format means:
+        # - Within each row, indices are sorted by column.
+        # - There are no duplicate entries.
+        sla.norm(A)
+
     solver = __Check_solverLibrary(solver)
 
     tic = Tic()
@@ -391,13 +398,6 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     # __comm = MPI.COMM_WORLD
     # nprocs = __comm.Get_size()
     # rank   = __comm.Get_rank()
-
-    if not A.has_canonical_format:
-        # Using sla.norm(A) ensures that A has a cononic format. 
-        # Canonical Format means:
-        # - Within each row, indices are sorted by column.
-        # - There are no duplicate entries.
-        sla.norm(A)
     
     __comm = None
     petsc4py.init(sys.argv, comm=__comm)
