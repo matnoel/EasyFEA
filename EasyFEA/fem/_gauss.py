@@ -18,7 +18,7 @@ class Gauss:
             [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
         """
 
-        coord, weights = Gauss.__gauss_factory(elemType, matrixType)
+        coord, weights = Gauss._Gauss_factory(elemType, matrixType)
 
         self.__coord = coord
         self.__weights = weights
@@ -39,8 +39,9 @@ class Gauss:
         return self.__weights.size
 
     @staticmethod
-    def __Triangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """available [1, 3, 6, 7, 12]"""
+    def _Triangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """available [1, 3, 6, 7, 12]\n
+        order = [1, 2, 3, 4, 5]"""
         if nPg == 1:
             ksis = 1/3
             etas = 1/3
@@ -92,8 +93,9 @@ class Gauss:
         return ksis, etas, weights
 
     @staticmethod
-    def __Quadrangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """available [4, 9]"""
+    def _Quadrangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """available [4, 9]\n
+        order = [1, 2]"""
         if nPg == 4:
             a = 1/np.sqrt(3)
             ksis = [-a, a, a, -a]
@@ -110,8 +112,10 @@ class Gauss:
         return ksis, etas, weights
 
     @staticmethod
-    def __Tetrahedron(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """available [1, 4, 5, 15]"""
+    def _Tetrahedron(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """available [1, 4, 5, 15]\n
+        order = [1, 2, 3, 5]"""
+        
         if nPg == 1:            
 
             x = 1/4
@@ -165,8 +169,10 @@ class Gauss:
         return x, y, z, weights
     
     @staticmethod
-    def __Hexahedron(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """available [8]"""
+    def _Hexahedron(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """available [8, 27]\n
+        order = [3, 5]"""
+        
         if nPg == 8:            
 
             a = 1/np.sqrt(3)
@@ -198,8 +204,11 @@ class Gauss:
         return x, y, z, weights
     
     @staticmethod
-    def __Prism(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """available [6, 8]"""
+    def _Prism(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """available [6, 8]\n
+        orderX = [3, 3]\n
+        orderYZ = [2, 3]"""
+        
 
         # X, Y, Z -> base code aster
         # z, x, y -> gmsh        
@@ -232,7 +241,7 @@ class Gauss:
         return x, y, z, weights
 
     @staticmethod
-    def __gauss_factory(elemType: str, matrixType: str) -> tuple[np.ndarray, np.ndarray]:
+    def _Gauss_factory(elemType: str, matrixType: str) -> tuple[np.ndarray, np.ndarray]:
         """Calculation of integration points according to element and matrix type
         """
 
@@ -284,7 +293,7 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 3
-            xis, etas, weights = Gauss.__Triangle(nPg)
+            xis, etas, weights = Gauss._Triangle(nPg)
 
         elif elemType == ElemType.TRI6:
             dim = 2            
@@ -292,12 +301,12 @@ class Gauss:
                 nPg = 3
             elif matrixType == MatrixType.mass:
                 nPg = 6
-            xis, etas, weights = Gauss.__Triangle(nPg)
+            xis, etas, weights = Gauss._Triangle(nPg)
 
         elif elemType == ElemType.TRI10:
             dim = 2            
             nPg = 6
-            xis, etas, weights = Gauss.__Triangle(nPg)
+            xis, etas, weights = Gauss._Triangle(nPg)
 
         # elif elemType == ElemType.TRI15:
         #     dim = 2            
@@ -310,7 +319,7 @@ class Gauss:
         elif elemType == ElemType.QUAD4:
             dim = 2            
             nPg = 4
-            xis, etas, weights = Gauss.__Quadrangle(nPg)
+            xis, etas, weights = Gauss._Quadrangle(nPg)
             
         elif elemType == ElemType.QUAD8:
             dim = 2            
@@ -318,7 +327,7 @@ class Gauss:
                 nPg = 4
             elif matrixType == MatrixType.mass:
                 nPg = 9
-            xis, etas, weights = Gauss.__Quadrangle(nPg)
+            xis, etas, weights = Gauss._Quadrangle(nPg)
                     
         elif elemType == ElemType.TETRA4:
             dim = 3            
@@ -326,50 +335,50 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 4            
-            x, y, z, weights = Gauss.__Tetrahedron(nPg)
+            x, y, z, weights = Gauss._Tetrahedron(nPg)
 
         elif elemType == ElemType.TETRA10:
             dim = 3            
             nPg = 4
-            x, y, z, weights = Gauss.__Tetrahedron(nPg)
+            x, y, z, weights = Gauss._Tetrahedron(nPg)
 
         elif elemType == ElemType.HEXA8:
             dim = 3            
             if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 8
-                x, y, z, weights = Gauss.__Hexahedron(nPg)
+                x, y, z, weights = Gauss._Hexahedron(nPg)
 
         elif elemType == ElemType.HEXA20:
             dim = 3
             if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 8
                 # nPg = 27
-                x, y, z, weights = Gauss.__Hexahedron(nPg)
+                x, y, z, weights = Gauss._Hexahedron(nPg)
 
         elif elemType == ElemType.PRISM6:
             dim = 3            
             if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 6
 
-                x, y, z, weights = Gauss.__Prism(nPg)
+                x, y, z, weights = Gauss._Prism(nPg)
 
         elif elemType == ElemType.PRISM15:
             dim = 3            
             if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 6
 
-                x, y, z, weights = Gauss.__Prism(nPg)
+                x, y, z, weights = Gauss._Prism(nPg)
 
         else:
             raise Exception("Element not implemented")
 
         if dim == 1:
-            coord = np.array([x]).T.reshape((nPg,1))
+            coord = np.asarray([x]).T.reshape((nPg,1))
         elif dim == 2:
-            coord = np.array([xis, etas]).T.reshape((nPg,2))
+            coord = np.asarray([xis, etas]).T.reshape((nPg,2))
         elif dim == 3:
-            coord = np.array([x, y, z]).T.reshape((nPg,3))
+            coord = np.asarray([x, y, z]).T.reshape((nPg,3))
 
-        weights = np.array(weights).reshape(nPg)
+        weights = np.asarray(weights).reshape(nPg)
 
         return coord, weights
