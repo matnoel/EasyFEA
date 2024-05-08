@@ -111,7 +111,7 @@ if __name__ == '__main__':
         list_SyyB.append(simu.Result("Syy", True)[nodeB])
         list_SxyB.append(simu.Result("Sxy", True)[nodeB])
 
-    ax = Display.init_Axes()
+    ax = Display.Init_Axes()
     ax = domain.Plot_Geoms([domain, circle], ax=ax, plotPoints=False, color='k')
     ax.plot(*pA.coord[:2], label='pA', ls='', marker='s', lw='10')
     ax.plot(*pB.coord[:2], label='pB', ls='', marker='s', lw='10')
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     Display.Plot_Result(simu, "Syy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{yy}/\sigma$", filename='Syy')
     Display.Plot_Result(simu, "Sxy", nodeValues=True, coef=1/SIG, title=r"$\sigma_{xy}/\sigma$", filename='Sxy')
 
-    ax = Display.init_Axes()
+    ax = Display.Init_Axes()
 
     list_coef = [list_coef[i] for i in range(len(list_SxxA))]
 

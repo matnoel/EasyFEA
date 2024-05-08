@@ -154,7 +154,7 @@ class Test_Simu(unittest.TestCase):
 
                 self.assertTrue((np.abs(flecheanalytique + v.min())/flecheanalytique) <= erreurMaxAnalytique)
 
-                ax = Display.init_Axes()
+                ax = Display.Init_Axes()
                 ax.plot(listX, v_x, label='Analytique', c='blue')
                 ax.scatter(mesh.coord[:,0], v, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$v(x)$")
@@ -165,7 +165,7 @@ class Test_Simu(unittest.TestCase):
                 rotalytique = -charge*L**2/(2*E*Iz)
                 self.assertTrue((np.abs(rotalytique + rz.min())/rotalytique) <= erreurMaxAnalytique)
 
-                ax = Display.init_Axes()
+                ax = Display.Init_Axes()
                 ax.plot(listX, rz_x, label='Analytique', c='blue')
                 ax.scatter(mesh.coord[:,0], rz, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$r_z(x)$")
@@ -176,7 +176,7 @@ class Test_Simu(unittest.TestCase):
 
                 self.assertTrue((np.abs(u_x[-1] - u.max())/u_x[-1]) <= erreurMaxAnalytique)
 
-                ax = Display.init_Axes()
+                ax = Display.Init_Axes()
                 ax.plot(listX, u_x, label='Analytique', c='blue')
                 ax.scatter(mesh.coord[:,0], u, label='EF', c='red', marker='x', zorder=2)
                 ax.set_title(fr"$u(x)$")

@@ -67,7 +67,7 @@ if __name__ == '__main__':
         mesh_master = Mesher().Mesh_Extrude(contour_master, [], [0,0,-thickness-2], [4], ElemType.TETRA4)
         groupMaster = mesh_master.Get_list_groupElem(dim-1)[0]
         if len(mesh_master.Get_list_groupElem(dim-1)) > 1:
-            Display.myPrintError(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
+            Display.MyPrintError(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
     mesh_master.translate(dz=-(mesh_master.center[2]-mesh_slave.center[2]))
 
     # Display.Plot_Tags(mesh_master, alpha=0.1, showId=True)

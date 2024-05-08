@@ -11,7 +11,7 @@ import pyvista as pv
 import numpy as np
 
 # utilities
-from .Display import myPrintError, _init_obj, myPrint
+from .Display import MyPrintError, _Init_obj, MyPrint
 from . import Folder, Tic
 # fem
 from ..fem import GroupElemFactory
@@ -82,7 +82,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         result = result if result in pvMesh.array_names else None
     else:
         pvMesh = _pvGrid(obj, result, deformFactor, nodeValues)
-        inDim = _init_obj(obj)[-1]
+        inDim = _Init_obj(obj)[-1]
 
     if pvMesh is None:
         # something do not work during the grid creation≠
@@ -183,7 +183,7 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
         The pyvista plotter
     """
 
-    simu, mesh, coordo, inDim = _init_obj(obj, deformFactor)   
+    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)   
 
     if nodes is None:
         nodes = mesh.nodes
@@ -193,14 +193,14 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
 
         if nodes.ndim == 1:
             if nodes.size > mesh.Nn:
-                myPrintError("The list of nodes must be of size <= mesh.Nn")
+                MyPrintError("The list of nodes must be of size <= mesh.Nn")
                 return
             else:
                 coordo = coordo[nodes]
         elif nodes.ndim == 2 and nodes.shape[1] == 3:
             coordo = nodes
         else:
-            myPrintError("Nodes must be either a list of nodes or a matrix of 3D vectors of dimension (n, 3).")
+            MyPrintError("Nodes must be either a list of nodes or a matrix of 3D vectors of dimension (n, 3).")
             return
 
     if plotter == None:
@@ -249,7 +249,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
         The pyvista plotter
     """
 
-    simu, mesh, coordo, inDim = _init_obj(obj, deformFactor)
+    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
     
     dimElem = mesh.dim if dimElem == None else dimElem
 
@@ -258,7 +258,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
     else:
         nodes = np.asarray(nodes)
         if nodes.ndim != 1 or nodes.size > mesh.Nn:
-            myPrintError("Nodes must be a list of nodes of size <= mesh.Nn.")
+            MyPrintError("Nodes must be a list of nodes of size <= mesh.Nn.")
             return
 
     if plotter == None:
@@ -313,10 +313,10 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
     tic = Tic()
 
     
-    simu, mesh, coordo, inDim = _init_obj(simu, deformFactor)
+    simu, mesh, coordo, inDim = _Init_obj(simu, deformFactor)
 
     if simu is None:
-        myPrintError('simu must be a _Simu object')
+        MyPrintError('simu must be a _Simu object')
         return
 
     # get dirichlet and neumann boundary conditions
@@ -529,10 +529,10 @@ def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
         Displays result to nodes otherwise displays it to elements, by default True
     """
     
-    simu = _init_obj(simu)[0]
+    simu = _Init_obj(simu)[0]
 
     if simu is None:
-        myPrintError("Must give a simulation.")
+        MyPrintError("Must give a simulation.")
         return
 
     Niter = len(simu.results)
@@ -588,7 +588,7 @@ def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, fil
 
         rmTime = Tic.Get_Remaining_Time(i, N-1, time)
 
-        myPrint(f"Movie_func {i}/{N-1} {rmTime}    ", end='\r')
+        MyPrint(f"Movie_func {i}/{N-1} {rmTime}    ", end='\r')
 
     print()
     plotter.close()    
@@ -633,14 +633,14 @@ def _setCameraPosition(plotter: pv.Plotter, inDim: int):
 def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValues=True) -> pv.UnstructuredGrid:
     """Construct the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""
 
-    simu, mesh, coordo, inDim = _init_obj(obj, deformFactor)
+    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
 
     elemType = mesh.elemType
     Nn = mesh.Nn
     Ne = mesh.Ne
 
     if elemType not in __dictCellTypes.keys():
-        myPrintError(f"{elemType} is not implemented yet.")
+        MyPrintError(f"{elemType} is not implemented yet.")
         return
     
     cellType = __dictCellTypes[elemType]
@@ -682,10 +682,10 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
                 pvMesh[result] = values
                 pvMesh.set_active_scalars(result)
             else:
-                myPrintError("Must return nodes or elements values")
+                MyPrintError("Must return nodes or elements values")
                 
         else:
-            myPrintError("obj must be a simulation object or result should be nodes or elements values.")
+            MyPrintError("obj must be a simulation object or result should be nodes or elements values.")
 
     elif isinstance(result, np.ndarray):
         values = result
@@ -693,7 +693,7 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
         name = 'array' # here result is an array
 
         if size % Nn == 1 or size % Ne == 1:
-            myPrintError("Must be nodes or elements values")
+            MyPrintError("Must be nodes or elements values")
         else:
             if size % Ne == 0 and nodeValues:
                 # elements values that we want to plot on nodes
@@ -713,7 +713,7 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
     import Geoms
 
     if not isinstance(geom, (Geoms.Point, Geoms._Geom)):
-        myPrintError("Must be a point or a geometric object.")
+        MyPrintError("Must be a point or a geometric object.")
         return None
     
     def __Line(line: Geoms.Line):
@@ -765,6 +765,6 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
             geoms = geom.geoms
         dataSet = __DoGeoms(geoms)
     else:
-        myPrintError("obj must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]")
+        MyPrintError("obj must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]")
 
     return dataSet

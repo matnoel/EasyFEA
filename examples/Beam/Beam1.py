@@ -85,10 +85,10 @@ if __name__ == '__main__':
     x_array = np.linspace(0, L, 100)
     u_x = (load * x_array / (E * (section.area))) + (ro * g * x_array / 2 / E * (2 * L - x_array))
     err_ux = np.abs(u_x[-1] - ux.max()) / ux.max()
-    Display.myPrint(f"err ux: {err_ux*100:.2e} %")
+    Display.MyPrint(f"err ux: {err_ux*100:.2e} %")
 
     # Plot the analytical and finite element solutions for displacement (u)
-    ax = Display.init_Axes()
+    ax = Display.Init_Axes()
     ax.plot(x_array, u_x, label='Analytical', c='blue')
     ax.scatter(mesh.coord[:, 0], ux, label='EF', c='red', marker='x', zorder=2)
     ax.set_title(fr"$u_x(x)$")

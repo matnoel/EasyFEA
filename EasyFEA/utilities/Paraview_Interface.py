@@ -34,7 +34,7 @@ def Make_Paraview(simu, folder: str, N=200, details=False, nodesField=[], elemen
 
     vtuFiles: list[str] = []
 
-    simu = Display._init_obj(simu)[0]
+    simu = Display._Init_obj(simu)[0]
 
     results = simu.results
 
@@ -61,7 +61,7 @@ def Make_Paraview(simu, folder: str, N=200, details=False, nodesField=[], elemen
      if simu._Results_Check_Available(e) and e not in elementsField]
 
     if len(nodesField) == 0 and len(elementsField) == 0:
-        Display.myPrintError("The simulation has no solution fields to display in paraview.")
+        Display.MyPrintError("The simulation has no solution fields to display in paraview.")
 
     for i, iter in enumerate(iterations):
 
@@ -76,7 +76,7 @@ def Make_Paraview(simu, folder: str, N=200, details=False, nodesField=[], elemen
 
         rmTime = Tic.Get_Remaining_Time(i, iterations.size-1, times[-1])
 
-        Display.myPrint(f"SaveParaview {i}/{iterations.size-1} {rmTime}     ", end='\r')
+        Display.MyPrint(f"SaveParaview {i}/{iterations.size-1} {rmTime}     ", end='\r')
     
     print('\n')
 
@@ -115,7 +115,7 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
     """Create the .vtu (as a binary files) which can be read on paraview
     """
 
-    simu = Display._init_obj(simu)[0]
+    simu = Display._Init_obj(simu)[0]
 
     options = nodesField+elementsField
    

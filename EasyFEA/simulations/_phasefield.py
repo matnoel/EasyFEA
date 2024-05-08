@@ -161,7 +161,7 @@ class PhaseFieldSimu(_Simu):
                 self._Check_dim_mesh_material()
                 self.Need_Update()
         else:
-            Display.myPrintError("Notification not yet implemented")
+            Display.MyPrintError("Notification not yet implemented")
 
     @property
     def needUpdate(self) -> bool:
@@ -652,7 +652,7 @@ class PhaseFieldSimu(_Simu):
             values = Result_in_Strain_or_Stress_field(val_e, res, coef)
 
         if not isinstance(values, np.ndarray):
-            Display.myPrintError("This result option is not implemented yet.")
+            Display.MyPrintError("This result option is not implemented yet.")
             return
 
         # end cases ----------------------------------------------------
@@ -816,7 +816,7 @@ class PhaseFieldSimu(_Simu):
             # Adds percentage and estimated time remaining
             summaryIter = summaryIter + f"{percentage*100:3.2f} % -> {timeCoef:3.2f} {unite}  "
 
-        Display.myPrint(summaryIter, end=end)
+        Display.MyPrint(summaryIter, end=end)
 
         self.__resumeIter = summaryIter
 

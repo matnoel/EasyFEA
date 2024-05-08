@@ -21,8 +21,8 @@ class Observable:
         """Add observer."""
 
         if not isinstance(observer, _IObserver):
-            from .Display import myPrintError
-            myPrintError(f'observer must be an {_IObserver.__name__}')
+            from .Display import MyPrintError
+            MyPrintError(f'observer must be an {_IObserver.__name__}')
             return
         
         if observer not in self.observers:

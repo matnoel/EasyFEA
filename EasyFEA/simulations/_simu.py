@@ -523,7 +523,7 @@ class _Simu(_IObserver, ABC):
                 self._Check_dim_mesh_material()
                 self.Need_Update()
         else:
-            Display.myPrintError("Notification not yet implemented")
+            Display.MyPrintError("Notification not yet implemented")
 
     def Need_Update(self, value=True) -> None:
         """Set whether the simulation needs to reconstruct matrices K, C, M and F.
@@ -556,7 +556,7 @@ class _Simu(_IObserver, ABC):
         if value in solvers:
             self.__solver = value
         else:
-            Display.myPrintError(f"The solver {value} cannot be used. The solver must be in {solvers}")
+            Display.MyPrintError(f"The solver {value} cannot be used. The solver must be in {solvers}")
 
     def Solver_Set_Elliptic_Algorithm(self) -> None:
         """Set the algorithm's resolution properties for an elliptic problem.
@@ -1184,11 +1184,11 @@ class _Simu(_IObserver, ABC):
         self.__Check_problemTypes(problemType)
 
         if self.dim == 1:
-            Display.myPrintError("Cant apply pressure on 1D mesh.")
+            Display.MyPrintError("Cant apply pressure on 1D mesh.")
             return
 
         if len(self.Get_dofs(problemType)) == 0:
-            Display.myPrintError("Cant apply pressure on scalar problems.")
+            Display.MyPrintError("Cant apply pressure on scalar problems.")
             return
 
         dofsValues, dofs, nodes = self.__Bc_pressureload(problemType, nodes, magnitude)
@@ -1527,7 +1527,7 @@ class _Simu(_IObserver, ABC):
         if result in availableResults:
             return True
         else:
-            Display.myPrintError(f"\nFor a {self.problemType} problem result must be in : \n {availableResults}")
+            Display.MyPrintError(f"\nFor a {self.problemType} problem result must be in : \n {availableResults}")
             return False
 
     def Results_Set_Iteration_Summary(self) -> None:
@@ -1615,7 +1615,7 @@ class _Simu(_IObserver, ABC):
         path_simu = Folder.New_File(f"{filename}.pickle", folder)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        Display.myPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', 'green')
+        Display.MyPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', 'green')
         
         # Save simulation summary
         path_summary = Folder.New_File("summary.txt", folder)
@@ -1628,7 +1628,7 @@ class _Simu(_IObserver, ABC):
 
         with open(path_summary, 'w', encoding='utf8') as file:
             file.write(summary)
-        Display.myPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', 'green')
+        Display.MyPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', 'green')
 
 # ----------------------------------------------
 # _Simu Functions
@@ -1659,9 +1659,9 @@ def Load_Simu(folder: str, filename: str="simulation") -> _Simu:
         with open(path_simu, 'rb') as file:
             simu: _Simu = pickle.load(file)
     except EOFError:
-        Display.myPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
+        Display.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
         return None    
     
-    Display.myPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', 'green')
+    Display.MyPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', 'green')
 
     return simu

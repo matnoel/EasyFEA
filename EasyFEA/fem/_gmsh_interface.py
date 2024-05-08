@@ -675,10 +675,10 @@ class Mesher:
         if elemType is None:
             elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
         elif elemType in __doesNotWork:
-            from ..utilities.Display import myPrintError
-            myPrintError(f"It is not possible to mesh an imported part with the following elements: {__doesNotWork}")
+            from ..utilities.Display import MyPrintError
+            MyPrintError(f"It is not possible to mesh an imported part with the following elements: {__doesNotWork}")
             elemType = ElemType.TETRA4 if elemType in [ElemType.HEXA8, ElemType.HEXA20] else ElemType.TETRA10
-            myPrintError(f"\nThe part will be meshed with {elemType} elements.")
+            MyPrintError(f"\nThe part will be meshed with {elemType} elements.")
 
         self._Init_gmsh() # Only work with occ !! Do not change
 

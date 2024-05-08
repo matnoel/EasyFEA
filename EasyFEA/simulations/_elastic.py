@@ -333,7 +333,7 @@ class ElasticSimu(_Simu):
             values = Result_in_Strain_or_Stress_field(val_e, res, coef)
 
         if not isinstance(values, np.ndarray):
-            Display.myPrintError("This result option is not implemented yet.")
+            Display.MyPrintError("This result option is not implemented yet.")
             return
 
         # end cases ----------------------------------------------------

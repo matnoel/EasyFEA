@@ -252,7 +252,7 @@ if __name__ == '__main__':
 
     for param in params:
 
-        axParam = Display.init_Axes()
+        axParam = Display.Init_Axes()
         
         paramExp = dict_param[param]    
 

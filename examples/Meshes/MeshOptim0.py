@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     Display.Plot_Result(mesh, qual_e, nodeValues=False, plotMesh=True, clim=(0,quality), cmap='viridis', title=criteria)
 
-    axHist = Display.init_Axes()
+    axHist = Display.Init_Axes()
 
     axHist.hist(qual_e, 11, (0,1))
     axHist.set_xlabel("quality")

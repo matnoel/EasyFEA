@@ -85,7 +85,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Loads all simulations
     # ----------------------------------------------
-    ax_load = Display.init_Axes() # superposition axis of force-displacement curves
+    ax_load = Display.Init_Axes() # superposition axis of force-displacement curves
 
     missingSimulations = []
 
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
         else:
             if nomSimu not in missingSimulations: missingSimulations.append(nomSimu)
-            Display.myPrintError("Data are not available:\n"+fileForceDep)
+            Display.MyPrintError("Data are not available:\n"+fileForceDep)
 
         if (loadSimu or plotDamage) and Folder.Exists(fileSimu):
             # Load simulation
@@ -140,7 +140,7 @@ if __name__ == '__main__':
             
         else:            
             if nomSimu not in missingSimulations: missingSimulations.append(nomSimu)
-            Display.myPrintError("Simu is not available:\n"+fileForceDep)
+            Display.MyPrintError("Simu is not available:\n"+fileForceDep)
 
         if plotDamage and Folder.Exists(fileSimu):
 

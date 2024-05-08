@@ -1172,9 +1172,9 @@ class _GroupElem(ABC):
                 idx = np.where(arrayTest)[0]
                 return self.__nodes[idx].copy()
             else:
-                Display.myPrintError("The function must return a Boolean.")
+                Display.MyPrintError("The function must return a Boolean.")
         except TypeError:
-            Display.myPrintError("Must provide a 3-parameter function of type lambda x,y,z: ...")
+            Display.MyPrintError("Must provide a 3-parameter function of type lambda x,y,z: ...")
     
     def Get_Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""

@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
     uy_1d = np.abs(simu.Result('uy').min())
 
-    Display.myPrint(f"err uy : {np.abs(u_an-uy_1d)/u_an*100:.2e} %")
+    Display.MyPrint(f"err uy : {np.abs(u_an-uy_1d)/u_an*100:.2e} %")
 
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, L/20/sol.min())

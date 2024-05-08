@@ -90,11 +90,11 @@ class BeamSimu(_Simu):
         return self._Get_u_n(self.problemType)
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
-        Display.myPrintError("It is impossible to apply a surface load in a beam problem.")
+        Display.MyPrintError("It is impossible to apply a surface load in a beam problem.")
         return        
 
     def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
-        Display.myPrintError("It is impossible to apply a volumetric load to a beam problem.")
+        Display.MyPrintError("It is impossible to apply a volumetric load to a beam problem.")
         return
 
     def add_connection_fixed(self, nodes: np.ndarray, description="Fixed"):

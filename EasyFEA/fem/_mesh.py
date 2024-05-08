@@ -64,7 +64,7 @@ class Mesh(Observable):
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
         if len(orphanNodes) > 0 and verbosity:            
-            Display.myPrintError("WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes).")
+            Display.MyPrintError("WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes).")
 
     def _ResetMatrix(self) -> None:
         """Reset matrix for each groupElem"""
@@ -502,7 +502,7 @@ class Mesh(Observable):
             nodes = list(set(np.ravel(self.connect[elements])))
 
             if neighborLayer > 1 and elements.size == self.Ne:                
-                Display.myPrint("All the neighbors have been found.")
+                Display.MyPrint("All the neighbors have been found.")
                 break
 
         return elements
@@ -520,7 +520,7 @@ class Mesh(Observable):
         # add nodes belonging to the tags
 
         if len(dict_nodes) == 0:
-            Display.myPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
+            Display.MyPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
             return np.asarray([])
 
         [nodes.extend(dict_nodes[tag]) for tag in tags]
@@ -541,7 +541,7 @@ class Mesh(Observable):
         [dict_elements.update(grp._dict_elements_tags) for grp in self.dict_groupElem.values()]
 
         if len(dict_elements) == 0:            
-            Display.myPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
+            Display.MyPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
             return np.asarray([])
 
         # add elements belonging to the tags
@@ -791,7 +791,7 @@ class Mesh(Observable):
             # only available for triangular elements
 
             if groupElem.elemType not in [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10]:
-                Display.myPrintError("The gamma criterion is only available for triangular elements.")
+                Display.MyPrintError("The gamma criterion is only available for triangular elements.")
                 return None
 
             # inscribed circle
@@ -810,7 +810,7 @@ class Mesh(Observable):
         elif criteria == "angular":
             # only available for 2d elements
             if groupElem.dim != 2:
-                Display.myPrintError("The angular criterion is only available for 2D elements.")
+                Display.MyPrintError("The angular criterion is only available for 2D elements.")
                 return None
 
             # min(angle) / max(angle)
@@ -822,7 +822,7 @@ class Mesh(Observable):
             values_e = np.max(jacobian_e_pg, 1) / np.min(jacobian_e_pg, 1)
 
         else:
-            Display.myPrintError(f"The criterion ({criteria}) is not implemented")
+            Display.MyPrintError(f"The criterion ({criteria}) is not implemented")
 
         if nodeValues:
             return self.Get_Node_Values(values_e)

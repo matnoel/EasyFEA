@@ -88,10 +88,10 @@ if __name__ == '__main__':
 
     flecheanalytique = load * L ** 3 / (3 * E * Iz)
     err_uy = np.abs(flecheanalytique + uy.min()) / flecheanalytique
-    Display.myPrint(f"err uy: {err_uy*100:.2e} %")
+    Display.MyPrint(f"err uy: {err_uy*100:.2e} %")
 
     # Plot the analytical and finite element solutions for vertical displacement (v)
-    axUy = Display.init_Axes()
+    axUy = Display.Init_Axes()
     axUy.plot(x, uy_x, label='Analytique', c='blue')
     axUy.scatter(mesh.coord[:, 0], uy, label='EF', c='red', marker='x', zorder=2)
     axUy.set_title(fr"$u_y(x)$")
@@ -100,11 +100,11 @@ if __name__ == '__main__':
     rz_x = load / E / Iz * (x ** 2 / 2 - L * x)
     rotalytique = load * L ** 2 / (2 * E * Iz)
     err_rz = np.abs(rotalytique + rz.min()) / rotalytique
-    Display.myPrint(f"err rz: {err_rz*100:.2e} %")
+    Display.MyPrint(f"err rz: {err_rz*100:.2e} %")
 
 
     # Plot the analytical and finite element solutions for rotation (rz)
-    axRz = Display.init_Axes()
+    axRz = Display.Init_Axes()
     axRz.plot(x, rz_x, label='Analytique', c='blue')
     axRz.scatter(mesh.coord[:, 0], rz, label='EF', c='red', marker='x', zorder=2)
     axRz.set_title(fr"$r_z(x)$")

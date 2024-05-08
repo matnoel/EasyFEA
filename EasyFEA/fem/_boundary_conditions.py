@@ -151,7 +151,7 @@ class BoundaryCondition:
         for d, direction in enumerate(directions):
 
             if direction not in availableDirections:
-                Display.myPrintError(f"direction ({direction}) must be in {availableDirections}.")
+                Display.MyPrintError(f"direction ({direction}) must be in {availableDirections}.")
                 continue
             
             idx = availableDirections.index(direction)

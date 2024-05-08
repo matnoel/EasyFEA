@@ -268,7 +268,7 @@ class _Geom(ABC):
         from EasyFEA import Display
 
         if ax is None:
-            ax = Display.init_Axes(3)
+            ax = Display.Init_Axes(3)
             
         inDim = 3 if ax.name == '3d' else 2
 

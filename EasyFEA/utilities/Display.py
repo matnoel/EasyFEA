@@ -81,7 +81,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _init_obj(obj, deformFactor)
+    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
     plotDim = mesh.dim # plot dimension
 
     # I dont know how to display nodal values on lines
@@ -144,7 +144,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # Only designed for one element group!
 
         if ax == None:
-            ax = init_Axes()
+            ax = Init_Axes()
             fig = ax.figure
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
@@ -205,7 +205,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         plotDim = 2 if plotDim == 3 else plotDim
 
         if ax == None:
-            ax = init_Axes(3)
+            ax = Init_Axes(3)
             fig = ax.figure
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
@@ -214,7 +214,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         # constructs the face connection matrix
         connectFaces = []
         groupElems = mesh.Get_list_groupElem(plotDim)
-        list_faces = _get_list_faces(mesh, plotDim)
+        list_faces = _Get_list_faces(mesh, plotDim)
         for groupElem, faces in zip(groupElems, list_faces):            
             connectFaces.extend(groupElem.connect[:,faces])
         connectFaces = np.asarray(connectFaces, dtype=int)
@@ -332,7 +332,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
     
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _init_obj(obj, deformFactor)
+    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
 
     if ax != None:
         inDim = 3 if ax.name == '3d' else inDim
@@ -346,7 +346,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
     
     # constructs the connection matrix for the faces
     list_groupElem = mesh.Get_list_groupElem(dimElem)
-    list_faces = _get_list_faces(mesh, dimElem)
+    list_faces = _Get_list_faces(mesh, dimElem)
     connectFaces = []
     for groupElem, faces in zip(list_groupElem, list_faces):
         connectFaces.extend(groupElem.connect[:,faces])
@@ -364,7 +364,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
         # in 2d space
 
         if ax == None:
-            ax = init_Axes()
+            ax = Init_Axes()
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
             ax.set_title(title)
@@ -399,7 +399,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
         # in 3d space
 
         if ax == None:
-            ax = init_Axes(3)
+            ax = Init_Axes(3)
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
             ax.set_zlabel(r"$z$")
@@ -473,12 +473,12 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', ax: plt.Axes=N
     
     tic = Tic()
     
-    mesh = _init_obj(mesh)[1]
+    mesh = _Init_obj(mesh)[1]
 
     inDim = mesh.inDim
 
     if ax == None:
-        ax = init_Axes(inDim)
+        ax = Init_Axes(inDim)
         ax.set_title("")
     else:        
         inDim = 3 if ax.name == '3d' else inDim
@@ -544,7 +544,7 @@ def Plot_Elements(mesh: Mesh, nodes=[], dimElem: int=None, showId=False, alpha=1
     if len(list_groupElem) == 0: return
 
     if ax == None:
-        ax = init_Axes(inDim)
+        ax = Init_Axes(inDim)
     else:        
         inDim = 3 if ax.name == '3d' else inDim
 
@@ -714,21 +714,21 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
 
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _init_obj(obj, 0.0)
+    simu, mesh, coordo, inDim = _Init_obj(obj, 0.0)
 
     # check if there is available tags in the mesh
     nTtags = [np.max([len(groupElem.nodeTags), len(groupElem.elementTags)]) for groupElem in mesh.dict_groupElem.values()]
     if np.max(nTtags) == 0:
-        myPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
+        MyPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
         return
 
     if ax == None:
         if mesh.inDim <= 2:
-            ax = init_Axes()
+            ax = Init_Axes()
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
         else:
-            ax = init_Axes(3)
+            ax = Init_Axes(3)
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
             ax.set_zlabel(r"$z$")
@@ -901,7 +901,7 @@ def Plot_Force_Displacement(force: np.ndarray, displacement: np.ndarray, xlabel=
         fig = ax.figure
         ax.clear()
     else:        
-        ax = init_Axes()
+        ax = Init_Axes()
         fig = ax.figure
 
     ax.plot(np.abs(displacement), np.abs(force), c='blue')
@@ -998,7 +998,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     df = pd.DataFrame(list_dict_Energy)
 
     # Affiche les energies
-    row = next(iter_rows)
+    row: int = next(iter_rows)
     # For each energy, we plot the values
     for energie_str in df.columns:
         valeurs = df[energie_str].values
@@ -1057,7 +1057,7 @@ def Plot_Iter_Summary(simu: _Simu, folder="", iterMin=None, iterMax=None) -> Non
 
     iterations = iterations[selectionIndex]
 
-    fig, axs = plt.subplots(nrows=nbGraph, sharex=True)
+    axs: list[plt.Axes] = plt.subplots(nrows=nbGraph, sharex=True)[1]
     
     for ax, label_values in zip(axs, list_label_values):
         ax.grid()
@@ -1103,17 +1103,17 @@ def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
         frames per second, by default 30
     """
 
-    simu = _init_obj(simu)[0]
+    simu = _Init_obj(simu)[0]
 
     if simu is None:
-        myPrintError("Must give a simulation.")
+        MyPrintError("Must give a simulation.")
         return
 
     Niter = len(simu.results)
     step = np.max([1, Niter//N])
     iterations: np.ndarray = np.arange(0, Niter, step)
 
-    ax = init_Axes(simu.mesh.inDim)
+    ax = Init_Axes(simu.mesh.inDim)
     fig = ax.figure
 
     def DoAnim(fig: plt.Figure, i):
@@ -1210,9 +1210,7 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
 
     tic.Tac("Display","Save figure")
 
-# TODO TO Upper case
-
-def _init_obj(obj, deformFactor: float=0.0):
+def _Init_obj(obj, deformFactor: float=0.0):
     """Return (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu or a Mesh object.
     
     Parameters
@@ -1250,7 +1248,7 @@ def _init_obj(obj, deformFactor: float=0.0):
     
     return simu, mesh, coordo, inDim
 
-def _get_list_faces(mesh: Mesh, dimElem:int) -> list[list[int]]:
+def _Get_list_faces(mesh: Mesh, dimElem:int) -> list[list[int]]:
     """Construct a list of faces for each element group of dimension dimElem.\n
     Faces is a list of index used to construct/plot a faces.\n
     You can go check their values for each groupElem in /fem/elems/"""
@@ -1276,7 +1274,7 @@ def _get_list_faces(mesh: Mesh, dimElem:int) -> list[list[int]]:
 
     return list_faces
 
-def init_Axes(dim: int=2, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
+def Init_Axes(dim: int=2, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
     if dim == 1 or dim == 2:
         ax = plt.subplots()[1]
     elif dim == 3:
@@ -1333,12 +1331,12 @@ class __Sytles(str, Enum):
     UNDERLINE = '\033[4m'
     RESET = '\33[0m'
 
-def myPrint(text: str, color='cyan', bold=False, italic=False, underLine=False, end:str=None) -> None:
+def MyPrint(text: str, color='cyan', bold=False, italic=False, underLine=False, end:str=None) -> None:
 
     dct = dict(map(lambda item: (item.name, item.value), __Colors))
 
     if color not in dct:
-        myPrint(f"Color must be in {dct.keys()}", 'red')
+        MyPrint(f"Color must be in {dct.keys()}", 'red')
     
     else:    
         formatedText = ""
@@ -1353,8 +1351,8 @@ def myPrint(text: str, color='cyan', bold=False, italic=False, underLine=False, 
 
         print(formatedText, end=end)
     
-def myPrintError(text: str) -> str:
-    return myPrint(text, 'red')
+def MyPrintError(text: str) -> str:
+    return MyPrint(text, 'red')
 
 def Section(text: str, verbosity=True) -> None:
     """New section."""    
@@ -1368,7 +1366,7 @@ def Section(text: str, verbosity=True) -> None:
 
     section = f"\n\n{edges} {text} {edges}\n"
 
-    if verbosity: myPrint(section)
+    if verbosity: MyPrint(section)
 
     return section
 

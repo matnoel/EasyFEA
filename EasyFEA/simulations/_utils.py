@@ -28,7 +28,7 @@ def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:
     with open(filename, "wb") as file:
         pickle.dump(values, file)    
     
-    Display.myPrint(f'Saved:\n{filename.replace(folder_PythonEF,"")}\n','green')
+    Display.MyPrint(f'Saved:\n{filename.replace(folder_PythonEF,"")}\n','green')
     
 def Load_Force_Displacement(folder:str):
     """Load forces and displacements
@@ -54,6 +54,6 @@ def Load_Force_Displacement(folder:str):
     force = np.array(values['force'])
     displacement = np.array(values['displacement'])
     
-    Display.myPrint(f'Loaded:\n{shortName}\n','green')
+    Display.MyPrint(f'Loaded:\n{shortName}\n','green')
 
     return force, displacement
