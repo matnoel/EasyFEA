@@ -147,13 +147,7 @@ class _GroupElem(ABC):
     @property
     def coordGlob(self) -> np.ndarray:
         """This matrix contains all the mesh coordinates (mesh.Nn, 3)"""
-        try:
-            return self.__coordGlob.copy()
-        except AttributeError:
-            # This may trigger an error, as I changed __coordoGlob to __coordGlob on April 5, 2024.
-            # TODO: to be removed when I no longer need to load old phasefield simulations
-            self.__coordGlob = self.__coordoGlob.copy()            
-            return self.__coordGlob.copy()
+        return self.__coordGlob.copy()
     
     @coordGlob.setter
     def coordGlob(self, coord: np.ndarray) -> None:
