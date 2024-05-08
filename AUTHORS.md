@@ -1,0 +1,1 @@
+This code was initially developed by [Matthieu Noel](https://www.linkedin.com/in/matthieu-no%C3%ABl/) as part of a PhD thesis carried out at the [MSME](https://msme.univ-gustave-eiffel.fr/) laboratory and in collaboration with the furniture division of the [FCBA](https://www.fcba.fr/) technology institute.
