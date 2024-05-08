@@ -105,21 +105,9 @@ In this library, objects can contain both **public** and **private** properties 
 
 # Contributing
 
-Contributors are welcome! To contribute please use the following commands.
-
-```
-git clone https://github.com/matnoel/EasyFEA.git
-cd EasyFEA
-python -m pip install -e .
-```
-
-In editable mode (`-e`), code completion functionality may be compromised in your integrated development environment ([IDE](https://fr.wikipedia.org/wiki/Environnement_de_d%C3%A9veloppement)). To enable code completion, it is necessary to include the **EasyFEA** directory path in the additional resolution paths for the import search.
-
-For example, in Visual Studio Code (VS Code), you can achieve this by adding `<folder>/EasyFEA/` to "Python > Analysis: **Extra Paths**" in the Pylance extension settings. Here, `<folder>` indicates the path to the directory containing `EasyFEA/`.
-
-To develop a **new feature**, start by creating a new branch in the project via the `git branch my_new_feature` command. Then, after implementing and validating your changes with **tests** (see `EasyFEA/tests/` for tips), start initiating a pull request to integrate your changes.
-
 **EasyFEA** is an emerging project with a strong commitment to growth and improvement. Your input and ideas are invaluable to me. I welcome your comments and advice with open arms, encouraging a culture of respect and kindness in our collaborative journey towards improvement.
+
+To learn more about contributing to EasyFEA, please consult the [Contributing Guide](https://github.com/matnoel/EasyFEA/blob/main/CONTRIBUTING.md).
 
 # Developments
 
