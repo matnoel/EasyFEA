@@ -1,3 +1,7 @@
+# Copyright (C) 2021-2024 Université Gustave Eiffel. All rights reserved.
+# This file is part of the EasyFEA project.
+# EasyFEA is distributed under the terms of the GNU General Public License, Version 3 or later, see LICENSE.txt and CREDITS.txt for more information.
+
 """Mesh optimization using the ZZ1 criterion for a letter weigher."""
 
 from EasyFEA import (Display, Folder, Tic, plt, np,

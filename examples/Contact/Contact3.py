@@ -1,3 +1,7 @@
+# Copyright (C) 2021-2024 Université Gustave Eiffel. All rights reserved.
+# This file is part of the EasyFEA project.
+# EasyFEA is distributed under the terms of the GNU General Public License, Version 3 or later, see LICENSE.txt and CREDITS.txt for more information.
+
 """Performing a contact problem simulation with the assumption of frictionless contact.
 The master mesh is presumed to be non-deformable.
 WARNING: The assumption of small displacements is highly questionable for this simulation.
