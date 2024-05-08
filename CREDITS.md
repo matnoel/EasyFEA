@@ -1,8 +1,6 @@
 **EasyFEA** Credits
 
-Thank you to the creators and maintainers of these libraries for their valuable contributions to EasyFEA.
-
-This project uses the following third-party libraries, each governed by its respective license. Please refer to the documentation of each library for more details on their licensing terms.
+This project uses the following third-party libraries, each governed by its respective license. Please refer to each library's documentation for details of their license conditions.
 
 Third-Party Libraries:
 - [NumPY](https://numpy.org/) - [BSD license](https://github.com/numpy/numpy/blob/main/LICENSE.txt)
