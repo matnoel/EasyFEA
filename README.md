@@ -109,10 +109,6 @@ In this library, objects can contain both **public** and **private** properties 
 
 To learn more about contributing to EasyFEA, please consult the [Contributing Guide](https://github.com/matnoel/EasyFEA/blob/main/CONTRIBUTING.md).
 
-# Developments
-
-This code was initially developed by [Matthieu Noel](https://www.linkedin.com/in/matthieu-no%C3%ABl/) as part of a PhD thesis carried out at the [MSME](https://msme.univ-gustave-eiffel.fr/) laboratory and in collaboration with the furniture division of the [FCBA](https://www.fcba.fr/) technology institute.
-
 # License
 
 Copyright (C) 2021-2024 Université Gustave Eiffel. All rights reserved.
