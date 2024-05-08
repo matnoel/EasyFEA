@@ -22,6 +22,9 @@ class ModelType(str, Enum):
     thermal = "thermal"
     beam = "beam"
 
+    def __str__(self) -> str:
+        return self.name
+
 class _IModel(ABC, Observable):
     """Model interface.
     """

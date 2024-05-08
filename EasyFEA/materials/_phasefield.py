@@ -38,6 +38,9 @@ class PhaseField(_IModel):
         AT1 = "AT1"
         AT2 = "AT2"
 
+        def __str__(self) -> str:
+            return self.name
+
     class SplitType(str, Enum):
         """Available splits"""
 
@@ -63,9 +66,11 @@ class PhaseField(_IModel):
         AnisotStress_MP = "AnisotStress_MP"
         AnisotStress_NoCross = "AnisotStress_NoCross"
 
-    # Phase field
+        def __str__(self) -> str:
+            return self.name
+
     __SPLITS_ISOT = [SplitType.Amor, SplitType.Miehe, SplitType.Stress]
-    __SPLIT_ANISOT = [SplitType.Bourdin, SplitType.He, SplitType.Zhang,
+    __SPLITS_ANISOT = [SplitType.Bourdin, SplitType.He, SplitType.Zhang,
                     SplitType.AnisotStrain, SplitType.AnisotStrain_PM, SplitType.AnisotStrain_MP, SplitType.AnisotStrain_NoCross,
                     SplitType.AnisotStress, SplitType.AnisotStress_PM, SplitType.AnisotStress_MP, SplitType.AnisotStress_NoCross]
     
@@ -74,6 +79,9 @@ class PhaseField(_IModel):
         History = "History"
         HistoryDamage = "HistoryDamage"
         BoundConstrain = "BoundConstrain"
+
+        def __str__(self) -> str:
+            return self.name
 
     def __init__(self, material: _Elas, split: SplitType, regularization: ReguType, Gc: Union[float,np.ndarray], l0: float, solver=SolverType.History, A=None):
         """Creation of a gradient damage model

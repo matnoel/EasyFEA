@@ -61,6 +61,9 @@ class AlgoType(str, Enum):
     hyperbolic = "hyperbolic"
     """Solve K u + C v + M a = F"""
 
+    def __str__(self) -> str:
+        return self.name
+
 class ResolType(str, Enum):
     r1 = "1"
     """ui = inv(Aii) * (bi - Aic * xc)"""
@@ -68,6 +71,9 @@ class ResolType(str, Enum):
     """Lagrange multiplier"""
     r3 = "3"
     """Penalty"""
+
+    def __str__(self) -> str:
+        return self.name
 
 def _Available_Solvers():
     """Available solvers."""

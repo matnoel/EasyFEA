@@ -61,6 +61,9 @@ class MatrixType(str, Enum):
     beam = "beam"
     """ddNv*ddNv type"""
 
+    def __str__(self) -> str:
+        return self.name
+
     @staticmethod
     def Get_types() -> list[str]:
         return [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
