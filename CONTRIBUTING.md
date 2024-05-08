@@ -18,7 +18,7 @@ Contributors are welcome! To contribute please use the following steps.
 
 4. Add new and changed files with ```git add ...``` and commit the changes with ```git commit -m "Update ..."```.
 
-5. After implementing and validating your changes with **tests** (see `EasyFEA/tests/` for tips) you can push the branch to your fork for the first time with ```git push -u origin my_new_feature``` , then just use ```git push```.
+5. After implementing and validating your changes with **tests** (see `EasyFEA/tests/` for tips) you can push the branch to your fork for the first time with ```git push -u origin my_new_feature```, then just use ```git push```.
 
 6. Carry out some additional work, then repeat steps **4** and **5.**
 
