@@ -2,4 +2,16 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License, Version 3 or later, see LICENSE.txt and CREDITS.txt for more information.
 
-__version__ = "1.0.2"
+try:
+    # Python 3.8+
+    from importlib import metadata
+except ImportError:
+    try:
+        import importlib_metadata as metadata
+    except ImportError:
+        __version__ = "unknown"
+
+try:
+    __version__ = metadata.version("EasyFEA")
+except Exception:
+    __version__ = "unknown"
