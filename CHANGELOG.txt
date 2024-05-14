@@ -1,3 +1,0 @@
-1.0.1 (April 13, 2024): Update library dependencies.
-
-1.0.0 (April 13, 2024): First version.
