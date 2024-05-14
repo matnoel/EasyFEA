@@ -10,7 +10,7 @@ This document describes the changes made to the project.
 - Implemented minor refinements in Solvers.py to ensure correct canonical values of matrix A in Ax=b equations, thus avoiding potential bugs when using PETSc or pypardiso.
 - Renamed functions in fem/_gauss.py to improve clarity and consistency.
 - Updated function names in Display.py to improve readability.
-- Updated copyright information to reflect latest changes.
+- Updated copyright information to reflect the latest changes.
 - Added a contribution guide to facilitate community participation and collaboration.
 - Creation of a citation file.
 
