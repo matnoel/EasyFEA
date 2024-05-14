@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "EasyFEA"
-version = "1.0.2"
 description = "User-friendly Python library that simplifies finite element analysis."
 authors = [
     {name = "Matthieu Noel", email = "matthieu.noel7@gmail.com"}
@@ -13,7 +12,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 keywords = ["finite-element-analysis", "phase-field", "python", "easy", "fem"]
 license = {file = "LICENSE.txt"}
-classifiers = [    
+classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
@@ -49,6 +48,9 @@ cv = [
 
 [project.urls]
 "Source Code" = "https://github.com/matnoel/EasyFEA"
+
+[tool.setuptools.dynamic]
+version = {attr = 'EasyFEA.__about__.__version__'}
 
 [tool.setuptools.packages.find]
 include = [
