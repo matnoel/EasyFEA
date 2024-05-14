@@ -3,7 +3,7 @@
 This project uses the following third-party libraries, each governed by its respective license. Please refer to each library's documentation for details of their license conditions.
 
 Third-Party Libraries:
-- [NumPY](https://numpy.org/) - [BSD license](https://github.com/numpy/numpy/blob/main/LICENSE.txt)
+- [NumPy](https://numpy.org/) - [BSD license](https://github.com/numpy/numpy/blob/main/LICENSE.txt)
 - [Gmsh](https://gmsh.info/) - [GNU General Public License v2.0 or later](https://gmsh.info/LICENSE.txt)
 - [Matplotlib](https://matplotlib.org/) - [Python Software Foundation License (PSF)](https://matplotlib.org/stable/users/project/license.html)
 - [Scipy](https://scipy.org/) - [BSD-3-Clause license](https://github.com/scipy/scipy/blob/main/LICENSE.txt)
