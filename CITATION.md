@@ -2,7 +2,7 @@
 
 If you are using EasyFEA as part of your scientific research, please contribute to the scientific visibility of the project by citing it as follows.
 
-> Matthieu Noel. EasyFEA: a user-friendly Python library that simplifies finite element analysis. 2024, ⟨swh:1:dir:ffb0e56fe2ce8a344ed27df7baf8f5f1b58700b5;origin=https://github.com/matnoel/EasyFEA;visit=swh:1:snp:88527adbdb363d97ebaee858943a02d98fc5c23c;anchor=swh:1:rev:ee2a09258bfd7fd60886ad9334b0893f4989cf35⟩. ⟨hal-04571962⟩ 
+> Matthieu Noel. EasyFEA: a user-friendly Python library that simplifies finite element analysis. 2024, https://hal.science/hal-04571962
 
 Bibtex:
 
