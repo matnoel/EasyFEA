@@ -11,11 +11,11 @@ class Observable:
     def observers(self):
         """Oberservers looking for the observable obect"""
         try:
-            return self.__observers
+            return self.__observers.copy()
         except AttributeError:
             # here self.__observers has not been created yet
             self.__observers: list[_IObserver] = []
-            return self.__observers
+            return self.__observers.copy()
     
     def _Add_observer(self, observer) -> None:
         """Add observer."""
