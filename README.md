@@ -92,7 +92,7 @@ EasyFEA includes a few optional dependencies for reducing resolution time or for
 + [`petsc`](https://pypi.org/project/petsc/) and [`petsc4py`](https://pypi.org/project/petsc4py/) - Python bindings for PETSc.
 + [`opencv-python`](https://pypi.org/project/opencv-python/) - Computer Vision package.
 
-# Naming conventions
+## Naming conventions
 
 **EasyFEA** uses Object-Oriented Programming ([OOP](https://en.wikipedia.org/wiki/Object-oriented_programming)) with the following naming conventions:
 + `PascalCasing` for classes
@@ -103,13 +103,13 @@ In this library, objects can contain both **public** and **private** properties 
 
 **Private** parameters or functions are designated by a double underscore, such as `__privateParam`. In addition, parameters or functions beginning with an underscore, such as `_My_Function` are accessible to advanced users, but should be used with caution.
 
-# Contributing
+## Contributing
 
 **EasyFEA** is an emerging project with a strong commitment to growth and improvement. Your input and ideas are invaluable to me. I welcome your comments and advice with open arms, encouraging a culture of respect and kindness in our collaborative journey towards improvement.
 
 To learn more about contributing to EasyFEA, please consult the [Contributing Guide](https://github.com/matnoel/EasyFEA/blob/main/CONTRIBUTING.md).
 
-# Citing EasyFEA
+## Citing EasyFEA
 
 If you are using EasyFEA as part of your scientific research, please contribute to the scientific visibility of the project by citing it as follows.
 
@@ -135,7 +135,7 @@ Bibtex:
 }
 ```
 
-# License
+## License
 
 Copyright (C) 2021-2024 Université Gustave Eiffel. All rights reserved.
 
