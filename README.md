@@ -139,4 +139,4 @@ Bibtex:
 
 Copyright (C) 2021-2024 Université Gustave Eiffel. All rights reserved.
 
-EasyFEA is distributed under the terms of the GNU General Public License, Version 3 or later, see LICENSE.txt and CREDITS.txt for more information.
+EasyFEA is distributed under the terms of the [GNU General Public License v3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html), see LICENSE.txt and CREDITS.txt for more information.
