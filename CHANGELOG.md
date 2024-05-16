@@ -2,6 +2,10 @@
 
 This document describes the changes made to the project.
 
+## 1.0.3 (May 16, 2024):
+
+- Minor adjustments to README.md
+
 ## 1.0.2 (May 14, 2024):
 
 - Minor adjustments to object printing.
