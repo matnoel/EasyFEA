@@ -66,8 +66,8 @@ if __name__ == '__main__':
         mesh = Mesher().Mesh_Extrude(contour, [], [0,0,thickness], [thickness//mS])
         master_mesh = Mesher().Mesh_Extrude(enca, [], [0,0,4*thickness], [thickness//mS], elemType=ElemType.HEXA8, isOrganised=True)
 
-        mesh.translate(dz=-thickness/2)
-        master_mesh.translate(dz=-4*thickness/2)
+        mesh.Translate(dz=-thickness/2)
+        master_mesh.Translate(dz=-4*thickness/2)
 
     nodes_upper = mesh.Nodes_Conditions(lambda x,y,z: y==h)
 

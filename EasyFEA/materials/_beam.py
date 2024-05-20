@@ -109,7 +109,7 @@ class _Beam(_IModel):
     def section(self, section: Mesh) -> None:        
         assert section.inDim == 2, 'The cross-beam section must be contained in the (x,y) plane.'
         # make sure that the section is centered in (0,0)
-        section.translate(*-section.center)
+        section.Translate(*-section.center)
         Iyz = section.groupElem.Integrate_e(lambda x,y,z: x*y).sum()
         assert np.abs(Iyz) <= 1e-9, 'The section must have at least 1 symetry axis'
         self.Need_Update()

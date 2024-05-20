@@ -478,7 +478,7 @@ class Test_Simu(unittest.TestCase):
         mesh.Rotate(45, mesh.center)
         DoTest(simu)
 
-        mesh.translate(dy=-10)
+        mesh.Translate(dy=-10)
         DoTest(simu)
 
         mesh.Symmetry(mesh.center, (1,0))
@@ -492,7 +492,7 @@ class Test_Simu(unittest.TestCase):
 
         try:
             # must return an error
-            mesh.translate(dz=20)
+            mesh.Translate(dz=20)
         except AssertionError:
             self.assertTrue(simu.needUpdate == False)
 

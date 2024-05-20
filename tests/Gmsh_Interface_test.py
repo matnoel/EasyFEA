@@ -85,7 +85,7 @@ class Test_Gmsh_Interface(unittest.TestCase):
             # Translate
             meshTranslate = mesh.copy()
             dec = np.random.rand(3)
-            meshTranslate.translate(*dec)            
+            meshTranslate.Translate(*dec)            
             testSame(meshTranslate.center, mesh.center+dec) # same center
             testSameMesh(meshTranslate, mesh)
 

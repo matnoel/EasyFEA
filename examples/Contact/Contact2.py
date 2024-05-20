@@ -68,7 +68,7 @@ if __name__ == '__main__':
         groupMaster = mesh_master.Get_list_groupElem(dim-1)[0]
         if len(mesh_master.Get_list_groupElem(dim-1)) > 1:
             Display.MyPrintError(f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended.")
-    mesh_master.translate(dz=-(mesh_master.center[2]-mesh_slave.center[2]))
+    mesh_master.Translate(dz=-(mesh_master.center[2]-mesh_slave.center[2]))
 
     # Display.Plot_Tags(mesh_master, alpha=0.1, showId=True)
 
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     for i in range(N):
 
         mesh_master = mesh_master.copy()
-        mesh_master.translate(cx*inc, cy*inc)
+        mesh_master.Translate(cx*inc, cy*inc)
 
         list_mesh_master.append(mesh_master)
 

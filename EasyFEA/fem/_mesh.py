@@ -152,7 +152,7 @@ class Mesh(Observable):
         newMesh = copy.deepcopy(self)
         return newMesh
 
-    def translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
+    def Translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
         """Translate the mesh coordinates."""
         oldCoord = self.coordGlob
         newCoord = oldCoord + np.array([dx, dy, dz])
