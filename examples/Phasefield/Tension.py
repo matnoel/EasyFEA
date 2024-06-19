@@ -303,7 +303,7 @@ def DoSimu(split: str, regu: str):
         Paraview_Interface.Make_Paraview(simu, folder, Nparaview)
 
     if makeMovie:
-        Display.Movie_Simu(folder, "damage", simu, NiterFin=0)
+        Display.Movie_Simu(simu, "damage", folder, "damage.mp4", N=200)
 
     if plotMesh:
         Display.Plot_Mesh(simu.mesh)

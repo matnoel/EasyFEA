@@ -23,13 +23,13 @@ nProcs = 4 # number of processes in parallel
 dim = 2
 problem = "Benchmark" # ["Benchmark", "FCBA"]
 
-test = True
-solve = True
+test = False
+solve = False
 optimMesh = True
 
 # Post processing
 plotMesh = False
-plotIter = True
+plotIter = False
 plotResult = True
 plotEnergy = False
 showFig = True
@@ -48,9 +48,9 @@ tolConv = 1e-0
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 # splits = ["Zhang"]
 # splits = ["AnisotStrain","AnisotStress","Zhang"]
-splits = ["Miehe"]
+splits = ["AnisotStress"]
 
-regus = ["AT2"] # ["AT1", "AT2"]
+regus = ["AT1"] # ["AT1", "AT2"]
 # regus = ["AT1", "AT2"]
 
 # ----------------------------------------------
@@ -309,7 +309,7 @@ def DoSimu(split: str, regu: str):
         Paraview_Interface.Make_Paraview(simu, folder)
 
     if makeMovie:        
-        Display.Movie_Simu(folder, "damage", simu, Niter=200, plotMesh=False, NiterFin=0, deformFactor=1.5)
+        Display.Movie_Simu(simu, "damage", folder, "damage.mp4", N=200, plotMesh=False, deformFactor=1.5)
 
     if solve:
         Tic.Plot_History(folder, details=False)
