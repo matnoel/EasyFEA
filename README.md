@@ -75,6 +75,8 @@ EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) u
 pip install EasyFEA
 ```
 
+You can also install EasyFEA with the [source code](https://github.com/matnoel/EasyFEA) using the `pip install .` command in the downloaded EasyFEA folder.
+
 ### Dependencies
 
 EasyFEA uses several libraries such as NumPy and Gmsh - as such, the following projects are required dependencies of EasyFEA:
