@@ -312,13 +312,13 @@ class Mesher:
         # Here we calculate the number of elements per line to organize the surface if it can be organized.
         if not isOrganised or isinstance(contour, (Domain, Circle)) or len(inclusions) > 0:
             # Cannot be organized if there are inclusions.
-            # It is not necessary to impose a number of elements for circles and domains.
+            # It is not necessary to impose a number of elements for circles and domains!
             numElems = []
         else:
             # get geoms from contour or points
             if isinstance(contour, Contour):
                 geoms = contour.geoms
-            if isinstance(contour, Points):
+            elif isinstance(contour, Points):
                 geoms = contour.Get_Contour().geoms
             N = len(geoms) # number of geom in contour            
             if N % 2 == 0:
@@ -356,6 +356,63 @@ class Mesher:
                 # https://onelab.info/pipermail/gmsh/2010/005359.html
                 gmsh.model.mesh.setRecombine(2, surf)
     
+    def _Additional_Surfaces(self, dim: int, surfaces:list[_Geom], elemType, isOrganised):
+        """Adds surfaces to existing dim entities.
+
+        Parameters
+        ----------
+        dim : int
+            dimension (dim >= 2)
+        surfaces : list[_Geom]
+            surfaces
+        elemType : ElemType
+            element type used
+        isOrganised : bool
+            mesh is organized
+        """
+        
+        assert dim >= 2
+
+        factory = self._factory
+
+        for surface in surfaces:
+            ents = factory.getEntities(dim)
+            newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]
+            if surface.isHollow:
+                factory.cut(ents, [(2, surf) for surf in newSurfaces])
+            else:
+                factory.fragment(ents, [(2, surf) for surf in newSurfaces], removeTool=False)
+
+    def _Additional_Lines(self, dim: int, lines:list[Union[Line, CircleArc]]):
+        """Adds lines to existing dim entities.
+
+        Parameters
+        ----------
+        dim : int
+            dimension (dim >= 1)
+        lines : list[Union[Line, CircleArc]]
+            lines
+        """
+        
+        assert dim >= 1
+
+        factory = self._factory
+
+        for line in lines:
+            ents = factory.getEntities(dim)
+            if isinstance(line, Line):
+                p1 = factory.addPoint(*line.pt1.coord, line.meshSize)
+                p2 = factory.addPoint(*line.pt2.coord, line.meshSize)
+                geom_line = factory.addLine(p1, p2)
+            elif isinstance(line, CircleArc):
+                p1 = factory.addPoint(*line.pt1.coord, line.meshSize) # start
+                p2 = factory.addPoint(*line.pt2.coord, line.meshSize) # end
+                p3 = factory.addPoint(*line.pt3.coord, line.meshSize) # mid
+                geom_line = factory.addCircleArc(p1, p3, p2)
+            else:
+                raise "You need to give lines or arcs."            
+            factory.fragment(ents, [(1, geom_line)], removeTool=False)                
+
     def _Spline_From_Points(self, Points: Points) -> tuple[int, list[int]]:
         """Construct a spline from points.\n
         return spline, points"""
@@ -910,7 +967,7 @@ class Mesher:
 
     def Mesh_2D(self, contour: _Geom, inclusions: list[_Geom]=[], elemType=ElemType.TRI3,
                 cracks:list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
-                isOrganised=False, surfaces:list[tuple[_Geom, list[_Geom]]]=[], folder="") -> Mesh:
+                isOrganised=False, additionalSurfaces:list[Union[Line,CircleArc]]=[], additionalLines:list[_Geom]=[], folder="") -> Mesh:
         """Build the 2D mesh from a contour and inclusions that must form a closed surface.
 
         Parameters
@@ -927,8 +984,10 @@ class Mesher:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        surfaces : list[tuple[_Geom, list[_Geom]]]
-            additional surfaces. Ex = [(Domain, [Circle, Contour, Points])]
+        additionalSurfaces : list[_Geom]
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. Ex = [Domain, Circle, Contour, Points]
+        additionalLines : list[Union[Line,CircleArc]]
+            additional lines that will be added to the surfaces created by the contour and the inclusions. Ex = [Domain, Circle, Contour, Points]
         folder : str, optional
             mesh save folder mesh.msh, by default ""
 
@@ -948,10 +1007,8 @@ class Mesher:
 
         self._Surfaces(contour, inclusions, elemType, isOrganised)
 
-        for surface in surfaces:
-            ents = factory.getEntities(2)
-            newSurfaces = self._Surfaces(surface[0], surface[1], elemType, isOrganised)[0]
-            factory.fragment(ents, [(2, surf) for surf in newSurfaces])        
+        self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)        
+        self._Additional_Lines(2, additionalLines)
 
         # Recovers 2D entities
         entities2D = factory.getEntities(2)
@@ -959,7 +1016,7 @@ class Mesher:
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities2D)
 
-        if (len(cracks) > 0 and 'QUAD' in elemType) or len(surfaces) > 0:
+        if (len(cracks) > 0 and 'QUAD' in elemType) or len(additionalSurfaces) > 0:
             # dont delete
             surfaceTags = [s[1] for s in gmsh.model.getEntities(2)]
             self._OrganiseSurfaces(surfaceTags, elemType, isOrganised)
@@ -977,7 +1034,8 @@ class Mesher:
     def Mesh_Extrude(self, contour: _Geom, inclusions: list[_Geom]=[],
                 extrude=[0,0,1], layers:list[int]=[], elemType=ElemType.TETRA4,
                 cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
-                isOrganised=False, surfaces:list[tuple[_Geom, list[_Geom]]]=[], folder="") -> Mesh:
+                isOrganised=False, additionalSurfaces:list[_Geom]=[],
+                additionalLines:list[_Geom]=[], folder="") -> Mesh:
         """Build the 3D mesh by extruding a surface constructed from a contour and inclusions.
 
         Parameters
@@ -998,8 +1056,10 @@ class Mesher:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        surfaces : list[tuple[_Geom, list[_Geom]]]
-            additional surfaces. Ex = [(Domain, [Circle, Contour, Points])]
+        additionalSurfaces : list[_Geom]
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. Ex = [Domain, Circle, Contour, Points]
+        additionalLines : list[Union[Line,CircleArc]]
+            additional lines that will be added to the surfaces created by the contour and the inclusions. Ex = [Domain, Circle, Contour, Points]
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -1018,10 +1078,9 @@ class Mesher:
         factory = self._factory
 
         self._Surfaces(contour, inclusions)
-        for surface in surfaces:
-            ents = factory.getEntities(2)
-            newSurfaces = self._Surfaces(surface[0], surface[1])[0]
-            factory.fragment(ents, [(2, surf) for surf in newSurfaces])
+        
+        self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
+        self._Additional_Lines(2, additionalLines)
 
         # get created surfaces        
         surfaces = [entity[1] for entity in factory.getEntities(2)]
@@ -1048,7 +1107,8 @@ class Mesher:
     def Mesh_Revolve(self, contour: _Geom, inclusions: list[_Geom]=[],
                      axis: Line=Line(Point(), Point(0,1)), angle=360, layers:list[int]=[30], elemType=ElemType.TETRA4,
                      cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
-                     isOrganised=False, surfaces:list[tuple[_Geom, list[_Geom]]]=[],  folder="") -> Mesh:
+                     isOrganised=False, additionalSurfaces:list[_Geom]=[],
+                     additionalLines:list[_Geom]=[],  folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
 
         Parameters
@@ -1071,8 +1131,10 @@ class Mesher:
             geometric objects for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        surfaces : list[tuple[_Geom, list[_Geom]]]
-            additional surfaces. Ex = [(Domain, [Circle, Contour, Points])]
+        additionalSurfaces : list[_Geom]
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. Ex = [Domain, Circle, Contour, Points]
+        additionalLines : list[Union[Line,CircleArc]]
+            additional lines that will be added to the surfaces created by the contour and the inclusions. Ex = [Domain, Circle, Contour, Points]
         folder : str, optional
             mesh.msh backup folder, by default ""
 
@@ -1091,10 +1153,9 @@ class Mesher:
         factory = self._factory
 
         self._Surfaces(contour, inclusions)
-        for surface in surfaces:
-            ents = factory.getEntities(2)
-            newSurfaces = self._Surfaces(surface[0], surface[1])[0]
-            factory.fragment(ents, [(2, surf) for surf in newSurfaces])
+        
+        self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
+        self._Additional_Lines(2, additionalLines)
 
         # get created surfaces
         surfaces = [entity[1] for entity in factory.getEntities(2)]
