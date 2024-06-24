@@ -1153,7 +1153,7 @@ def Movie_func(func: Callable[[plt.Figure, int], None], fig: plt.Figure, N: int,
     filename = Folder.Join(folder, filename)
 
     if not Folder.Exists(folder):
-        Folder.os.makedirs(filename)
+        Folder.os.makedirs(folder)
     
     writer = animation.FFMpegWriter(fps)
     with writer.saving(fig, filename, dpi):
