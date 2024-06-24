@@ -16,6 +16,7 @@ Display.Clear()
 # ----------------------------------------------
 
 L = 1
+elemType = ElemType.TRI3
 meshSize = L/40
 
 # ----------------------------------------------
@@ -84,7 +85,8 @@ circle1 = Create_Circle((L/4, L/4), L/10)
 circle2 = Create_Circle((3*L/4, L/4), L/8)
 circle3 = Create_Circle((3*L/4, 3*L/4), L/6)
 circle4 = Create_Circle((L/4, 3*L/4), L/5)
-circle5 = Create_Circle((L/2, L/2), L/3)
+circle5 = Create_Circle((L/2, L/2), L/3, isHollow=True)
+circle6 = Create_Circle((L, L), L/6, isHollow=True)
 
 inclusions = [circle1, circle2, circle3, circle4, circle5]
 
@@ -96,7 +98,8 @@ crack3 = Create_Crack((8*L/10, 5*L/10), (8*L/10+L/20, 5*L/10+L/20))
 cracks = [crack1, crack2, crack3]
 
 # mesh
-mesh = Mesher().Mesh_2D(contour, inclusions, ElemType.TRI3, cracks)
+mesh = Mesher(True).Mesh_2D(contour, inclusions, elemType, cracks, additionalSurfaces=[circle6])
+
 
 # ----------------------------------------------
 # Simu
