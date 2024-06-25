@@ -114,8 +114,8 @@ else:
 # pvi.Plot_Mesh(mesh).show()
 # pvi.Plot_Nodes(mesh, mesh.orphanNodes).show()
 
-nodes_1 = mesh.Nodes_Circle(circle1) 
-nodes_2 = mesh.Nodes_Circle(circle2)
+nodes_1 = mesh.Nodes_Cylinder(circle1)
+nodes_2 = mesh.Nodes_Cylinder(circle2)
 
 nodes_xL = mesh.Nodes_Conditions(lambda x,y,z: x==L)
 
@@ -146,6 +146,8 @@ if doSimu:
         else:
             simu.add_dirichlet(nodes_1, [0,-dep, 0], ["x", "y", "z"])
             simu.add_dirichlet(nodes_2, [0,dep, 0], ["x", "y", "z"])
+
+        # pvi.Plot_BoundaryConditions(simu).show()
 
         u, d, K, converg = simu.Solve()
         
