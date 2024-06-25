@@ -33,9 +33,9 @@ class Point:
         r : float, optional
             radius used for fillet
         """
-        self.__r = r
-        self.__coord = np.array([x, y, z], dtype=float)
-        self.__isOpen = isOpen
+        self.r = r
+        self.coord = np.array([x, y, z], dtype=float)
+        self.isOpen = isOpen
 
     @property
     def x(self) -> float:
@@ -179,12 +179,15 @@ class _Geom(ABC):
             Indicates whether the the formed domain is hollow/empty
         isOpen : bool
             Indicates whether the object can open to represent an open crack (openCrack)
-        """
-        assert meshSize >= 0, "meshSize must be >= 0"
-        self.__meshSize: float = meshSize
+        """        
+        self.meshSize: float = meshSize
+        assert isinstance(points, list) and isinstance(points[0], Point), "points must be a list of points."
         self.__points: list[Point] = points
-        self.__name: str = name
+        assert isinstance(name, str), "must be a string"
+        self.__name = name
+        assert isinstance(isHollow, bool), "must be a boolean"
         self.__isHollow: bool = isHollow
+        assert isinstance(isOpen, bool), "must be a boolean"
         self.__isOpen: bool = isOpen
 
     @property
@@ -195,8 +198,9 @@ class _Geom(ABC):
     @meshSize.setter
     def meshSize(self, value) -> None:        
         assert value >= 0, "meshSize must be >= 0"
-        return self.__meshSize
+        self.__meshSize = value
 
+    # points doesn't have a public setter for safety
     @property
     def points(self) -> list[Point]:
         """Points used to build the object."""
@@ -225,6 +229,7 @@ class _Geom(ABC):
     
     @name.setter
     def name(self, val: str) -> None:
+        assert isinstance(val, str), "must be a string"
         self.__name = val
     
     @property
@@ -234,7 +239,7 @@ class _Geom(ABC):
     
     @isHollow.setter
     def isOpen(self, value: bool) -> None:
-        assert isinstance(value, bool)
+        assert isinstance(value, bool), "must be a boolean"
         self.__isHollow = value
     
     @property
@@ -244,7 +249,7 @@ class _Geom(ABC):
     
     @isOpen.setter
     def isOpen(self, value: bool) -> None:
-        assert isinstance(value, bool)
+        assert isinstance(value, bool), "must be a boolean"
         self.__isOpen = value
     
     def Translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
@@ -349,7 +354,7 @@ class Points(_Geom):
             the spline formed by the points list can be opened (openCrack), by default False
         """
 
-        assert len(points) > 1
+        assert isinstance(points, list) and isinstance(points[0], Point), "points must be a list of points."
 
         self.pt1 = points[0]
         """First point"""
@@ -472,7 +477,10 @@ class Line(_Geom):
         isOpen : bool, optional
             line can be opened (openCrack), by default False
         """
+
+        assert isinstance(pt1, Point), "must be a point"
         self.pt1 = pt1
+        assert isinstance(pt2, Point), "must be a point"
         self.pt2 = pt2
 
         Line.__nbLine += 1
@@ -510,7 +518,10 @@ class Domain(_Geom):
         isHollow : bool, optional
             the formed domain is hollow/empty, by default True
         """
+
+        assert isinstance(pt1, Point), "must be a point"
         self.pt1 = pt1
+        assert isinstance(pt2, Point), "must be a point"
         self.pt2 = pt2
 
         Domain.__nbDomain += 1
@@ -561,7 +572,8 @@ class Circle(_Geom):
             normal direction to the circle, by default (0,0,1)
         """
         
-        assert diam > 0.0        
+        assert diam > 0.0
+        assert isinstance(center, Point), "must be a point"
 
         r = diam/2        
 
@@ -679,15 +691,18 @@ class CircleArc(_Geom):
             Change direction, by default 1 or -1
         """
 
+        assert isinstance(pt1, Point), "must be a point"
+        assert isinstance(pt2, Point), "must be a point"
+
         # first check that pt1 and pt2 dont share the same coordinates
-        assert not pt1.Check(pt2), 'pt1 and pt2 are on the same coordinates'        
+        assert not pt1.Check(pt2), 'pt1 and pt2 are on the same coordinates'
 
         if P != None:
             center = Circle_Triangle(pt1, pt2, P)
             center = Point(*center)
 
         elif center != None:
-            assert not pt1.Check(center), 'pt1 and center are on the same coordinates'            
+            assert not pt1.Check(center), 'pt1 and center are on the same coordinates'
 
         elif R != None:            
             coord = np.array([pt1.coord, pt2.coord])
