@@ -50,7 +50,7 @@ if __name__ == '__main__':
     p6 = Point(L/2+e)
 
     line1 = Points([p1,p2,p3,p4,p5,p6])
-    line2 = line1.Copy(); line2.Translate(dy=t)
+    line2 = line1.copy(); line2.Translate(dy=t)
 
     points = line1.points
     points.extend(line2.points[::-1])

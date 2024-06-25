@@ -88,7 +88,7 @@ if __name__ == '__main__':
     if dim == 3:
         
         for cont1 in contours1:
-            cont2 = cont1.Copy()
+            cont2 = cont1.copy()
             cont2.Translate(dz=e)
             # cont2.rotate(np.pi/8, PC.coordo)
             mesher._Link_Contours(cont1, cont2, elemType, 3, [N]*4)

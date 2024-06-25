@@ -213,7 +213,6 @@ class Mesher:
         factory = self._factory
 
         center = circle.center
-        rayon = circle.diam/2
 
         # Circle points                
         p0 = factory.addPoint(*center.coord, circle.meshSize) # center

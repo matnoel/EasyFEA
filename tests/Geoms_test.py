@@ -45,7 +45,7 @@ class Test_Geom(unittest.TestCase):
 
         # copy
         pC1 = Point()
-        pC2 = pC1.Copy()        
+        pC2 = pC1.copy()        
         self.assertTrue(pC1 is not pC2)
 
         # translate
@@ -128,7 +128,7 @@ class Test_Geom(unittest.TestCase):
             geom.Rotate(90, direction=(1,0,0))
             geom.Plot(ax)
 
-            cop = geom.Copy()
+            cop = geom.copy()
             cop.Translate(-10)
             cop.Plot(ax)
 

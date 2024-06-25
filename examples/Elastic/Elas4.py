@@ -32,7 +32,7 @@ if __name__ == '__main__':
     elemType = ElemType.TETRA4
 
     def DoSym(p: Point, n: np.ndarray) -> Point:
-        pc = p.Copy()
+        pc = p.copy()
         pc.Symmetry(n=n)
         return pc
 

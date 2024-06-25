@@ -63,8 +63,8 @@ if __name__ == '__main__':
         crack = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
         mesh = Mesher().Mesh_2D(contour, inclusions, elemType=ElemType.TRI6, cracks=[crack])
     else:
-        pc3 = pc2.Copy(); pc3.Translate(*extrude)
-        pc4 = pc1.Copy(); pc4.Translate(*extrude)
+        pc3 = pc2.copy(); pc3.Translate(*extrude)
+        pc4 = pc1.copy(); pc4.Translate(*extrude)
         l1 = Line(pc1, pc2, meshSize/6, isOpen=openCrack)
         l2 = Line(pc2, pc3, meshSize/6)
         l3 = Line(pc3, pc4, meshSize/6, isOpen=openCrack)

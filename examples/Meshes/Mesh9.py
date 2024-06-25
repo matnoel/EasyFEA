@@ -188,8 +188,8 @@ if __name__ == '__main__':
         allEntities = []
         for vol in vols:
             contour1, contour2, nLayers, numElems = vol
-            contour1 = contour1.Copy(); contour1.Rotate(rot, direction=(0,1,0))
-            contour2 = contour2.Copy(); contour2.Rotate(rot, direction=(0,1,0))
+            contour1 = contour1.copy(); contour1.Rotate(rot, direction=(0,1,0))
+            contour2 = contour2.copy(); contour2.Rotate(rot, direction=(0,1,0))
             ents = mesher._Link_Contours(contour1, contour2, elemType, nLayers, numElems)
 
             allEntities.extend(ents)

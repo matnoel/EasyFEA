@@ -56,11 +56,15 @@ class Point:
     def r(self) -> float:
         """radius used for fillet"""
         return self.__r
+    
+    @r.setter
+    def r(self, value) -> None:
+        self.__r = value
 
     @property
     def coord(self) -> np.ndarray:
         """[x,y,z] coordinates"""
-        return self.__coord
+        return self.__coord.copy()
     
     @coord.setter
     def coord(self, value) -> None:
@@ -72,6 +76,11 @@ class Point:
         """point is open"""
         return self.__isOpen
     
+    @isOpen.setter
+    def isOpen(self, value: bool) -> None:
+        assert isinstance(value, bool)
+        self.__isOpen = value
+    
     def Check(self, coord) -> bool:
         """Check if coordinates are identical"""
         coord = As_Coordinates(coord)
@@ -81,7 +90,7 @@ class Point:
         return diff <= 1e-12
     
     def Translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
-        """translate the point"""
+        """Translate the point."""
         self.__coord = Translate_coord(self.__coord, dx, dy, dz).ravel()
 
     def Rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:
@@ -150,7 +159,7 @@ class Point:
         newCoord: np.ndarray = self.coord // coord
         return Point(*newCoord, self.isOpen, self.r)
     
-    def Copy(self):
+    def copy(self):
         return copy.deepcopy(self)
 
 class _Geom(ABC):
@@ -171,7 +180,7 @@ class _Geom(ABC):
         isOpen : bool
             Indicates whether the object can open to represent an open crack (openCrack)
         """
-        assert meshSize >= 0
+        assert meshSize >= 0, "meshSize must be >= 0"
         self.__meshSize: float = meshSize
         self.__points: list[Point] = points
         self.__name: str = name
@@ -182,10 +191,15 @@ class _Geom(ABC):
     def meshSize(self) -> float:
         """Element size used for meshing"""
         return self.__meshSize
+    
+    @meshSize.setter
+    def meshSize(self, value) -> None:        
+        assert value >= 0, "meshSize must be >= 0"
+        return self.__meshSize
 
     @property
     def points(self) -> list[Point]:
-        """Points used to build the object"""
+        """Points used to build the object."""
         return self.__points
     
     @property
@@ -194,12 +208,12 @@ class _Geom(ABC):
     
     @abstractmethod
     def Get_coord_for_plot(self) -> tuple[np.ndarray,np.ndarray]:
-        """returns coordinates for constructing lines and points"""
+        """Returns coordinates for constructing lines and points."""
         lines = self.coord
         points = lines[[0,-1]]
         return lines, points    
     
-    def Copy(self):
+    def copy(self):
         new = copy.deepcopy(self)
         new.name = new.name +'_copy'        
         return new
@@ -215,16 +229,26 @@ class _Geom(ABC):
     
     @property
     def isHollow(self) -> bool:
-        """Indicates whether the the formed domain is hollow/empty"""
+        """Indicates whether the the formed domain is hollow/empty."""
         return self.__isHollow
+    
+    @isHollow.setter
+    def isOpen(self, value: bool) -> None:
+        assert isinstance(value, bool)
+        self.__isHollow = value
     
     @property
     def isOpen(self) -> bool:
-        """Indicates whether the object can open to represent an open crack"""
+        """Indicates whether the object can open to represent an open crack."""
         return self.__isOpen
     
+    @isOpen.setter
+    def isOpen(self, value: bool) -> None:
+        assert isinstance(value, bool)
+        self.__isOpen = value
+    
     def Translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
-        """translate the object"""
+        """Translate the object."""
         # to translate an object, all you have to do is move these points
         [p.Translate(dx,dy,dz) for p in self.__points]
     
@@ -401,7 +425,7 @@ class Points(_Geom):
                 
         Link(-1, 0)
 
-        contour = Contour(geoms, self.isHollow, self.isOpen).Copy()
+        contour = Contour(geoms, self.isHollow, self.isOpen).copy()
         contour.name = self.name + '_contour'
         # do the copy to unlink the points connexion with the list of points
         

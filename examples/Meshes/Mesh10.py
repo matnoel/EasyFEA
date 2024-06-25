@@ -30,7 +30,7 @@ if __name__  == '__main__':
 
     contour = Contour([l1,l2,l3,l4])
     contour2 = Domain(p1-[0,H/2], p2, isHollow=False)
-    contour3 = contour2.Copy(); contour3.Translate(dy=H+H/2)
+    contour3 = contour2.copy(); contour3.Translate(dy=H+H/2)
 
     surfaces = [contour2, contour3]
 
