@@ -23,11 +23,11 @@ nProcs = 4 # number of processes in parallel
 # ----------------------------------------------
 dim = 2
 test = True
-solve = True
+doSimu = False
 
 # Mesh
 openCrack = True
-optimMesh = False
+optimMesh = True
 
 # phasefield
 maxIter = 1000
@@ -45,7 +45,7 @@ regus = ["AT1"] # "AT1", "AT2"
 # PostProcessing
 plotResult = False
 showResult = False
-plotMesh = True
+plotMesh = False
 plotEnergy = False
 saveParaview = False; Nparaview=400
 makeMovie = False
@@ -97,7 +97,7 @@ def DoMesh(split: str) -> Mesh:
     if dim == 2:
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,thickness], [], ElemType.TETRA4, cracks, [refineDomain])
+        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,thickness], [4], ElemType.PRISM6, cracks, [refineDomain], additionalLines=[l1])
 
     return mesh
 
@@ -113,9 +113,9 @@ def DoSimu(split: str, regu: str):
     folder = Folder.PhaseField_Folder(folderName, "Elas_Isot", split, regu, 'DP',
                                     tolConv, pfmSolver, test, optimMesh, not openCrack)
 
-    if solve:
+    if doSimu:
         
-        mesh = DoMesh(split)        
+        mesh = DoMesh(split)
 
         # Nodes recovery
         nodes_crack = mesh.Nodes_Conditions(lambda x,y,z: (y==L/2) & (x<=L/2))
@@ -170,8 +170,6 @@ def DoSimu(split: str, regu: str):
         simu.Results_Set_Bc_Summary(loadings[-1],listInc, listThreshold, optionTreshold)
 
         dofsX_upper = simu.Bc_dofs_nodes(nodes_upper, ["x"])
-
-        tic = Tic()
         
         # INIT
         N = len(loadings)
@@ -261,7 +259,7 @@ def DoSimu(split: str, regu: str):
 
     Tic.Resume()
 
-    if solve:
+    if doSimu:
         Tic.Plot_History(folder, False)
 
     if showResult:
