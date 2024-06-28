@@ -5,6 +5,7 @@
 """Module containing the geometric classes used to build meshes."""
 
 from typing import Union
+from collections.abc import Iterable
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
@@ -181,7 +182,7 @@ class _Geom(ABC):
             Indicates whether the object can open to represent an open crack (openCrack)
         """        
         self.meshSize: float = meshSize
-        assert isinstance(points, list) and isinstance(points[0], Point), "points must be a list of points."
+        assert isinstance(points, Iterable) and isinstance(points[0], Point), "points must be a list of points."
         self.__points: list[Point] = points
         assert isinstance(name, str), "must be a string"
         self.__name = name
@@ -354,7 +355,7 @@ class Points(_Geom):
             the spline formed by the points list can be opened (openCrack), by default False
         """
 
-        assert isinstance(points, list) and isinstance(points[0], Point), "points must be a list of points."
+        assert isinstance(points, Iterable) and isinstance(points[0], Point), "points must be a list of points."
 
         self.pt1 = points[0]
         """First point"""
