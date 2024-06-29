@@ -2,7 +2,7 @@
 
 This document describes the changes made to the project.
 
-## 1.0.4 (Jun 29, 2024):
+## 1.0.4 (June 29, 2024):
 
 - Updated gmsh interface functions.
 - Added controls when calling certain functions.
