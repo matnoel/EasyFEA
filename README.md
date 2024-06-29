@@ -1,8 +1,10 @@
-# EasyFEA - Easy Finite Element Analysis
+
+<!-- ![EasyFEA_banner](./docs/_static/EasyFEA_banner.jpg) -->
+![EasyFEA_banner](https://github.com/matnoel/EasyFEA/blob/dev/docs/_static/EasyFEA_banner.jpg)
 
 ## Overview
 
-**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulation without requiring users to handle complex PDE formulations. The library currently supports four specific simulation types:
+**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulation without requiring users to handle complex PDE formulations. The library currently supports **four** specific simulation types:
 
 1. **ElasticSimu** (static and dynamic): Examples in `/examples/Elastic`, `/examples/Dynamic` and `/examples/Contact`.
 2. **BeamSimu** (static Euler-Bernoulli): Examples in `/examples/Beam`.
@@ -75,7 +77,7 @@ EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) u
 pip install EasyFEA
 ```
 
-You can also install EasyFEA with the [source code](https://github.com/matnoel/EasyFEA) using the `pip install .` command in the downloaded EasyFEA folder.
+You can also install EasyFEA with the [source code](https://github.com/matnoel/EasyFEA) using the `pip install .` command in the downloaded or cloned EasyFEA `folder`.
 
 ### Dependencies
 
