@@ -1164,7 +1164,7 @@ class _GroupElem(ABC):
         yn = coordo[:,1]
         zn = coordo[:,2]
 
-        from EasyFEA import Display
+        from ..utilities.Display import MyPrintError
 
         try:
             arrayTest = np.asarray(func(xn, yn, zn))
@@ -1172,12 +1172,14 @@ class _GroupElem(ABC):
                 idx = np.where(arrayTest)[0]
                 return self.__nodes[idx].copy()
             else:
-                Display.MyPrintError("The function must return a Boolean.")
+                MyPrintError("The function must return a Boolean.")
         except TypeError:
-            Display.MyPrintError("Must provide a 3-parameter function of type lambda x,y,z: ...")
+            MyPrintError("Must provide a 3-parameter function of type lambda x,y,z: ...")
     
     def Get_Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""
+
+        assert isinstance(point, Point)
 
         coordo = self.coord
 
@@ -1208,6 +1210,8 @@ class _GroupElem(ABC):
 
     def Get_Nodes_Line(self, line: Line) -> np.ndarray:
         """Returns the nodes on the line."""
+
+        assert isinstance(line, Line)
         
         vectUnitaire = line.unitVector
 
@@ -1228,6 +1232,8 @@ class _GroupElem(ABC):
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Returns nodes in the domain."""
 
+        assert isinstance(circle, Domain)
+
         coordo = self.coord
 
         eps = 1e-12
@@ -1240,6 +1246,8 @@ class _GroupElem(ABC):
 
     def Get_Nodes_Circle(self, circle: Circle, onlyOnEdge=False) -> np.ndarray:
         """Returns the nodes in the circle."""
+
+        assert isinstance(circle, Circle)
 
         coordo = self.coord
 
@@ -1256,6 +1264,8 @@ class _GroupElem(ABC):
 
     def Get_Nodes_Cylinder(self, circle: Circle, direction=[0,0,1], onlyOnEdge=False) -> np.ndarray:
         """Returns the nodes in the cylinder."""
+
+        assert isinstance(circle, Circle)
 
         coordo = self.coord
         rotAxis = np.cross(circle.n, direction)
