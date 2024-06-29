@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
     mesher._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
     
-    mesher._Meshing(dim, elemType)
+    mesher._Generate_Mesh(dim, elemType)
 
     mesh = mesher._Construct_Mesh()
 

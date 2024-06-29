@@ -261,7 +261,7 @@ if __name__ == '__main__':
 
     firstPart = LinkEveryone(vols)
 
-    mesher._Set_algorithm(elemType)
+    mesher._Set_mesh_algorithm(elemType)
 
     # mesher._synchronize()
     # parts = factory.getEntities()
@@ -278,7 +278,7 @@ if __name__ == '__main__':
             # partsC = factory.copy(parts)
             # factory.rotate(partsC, 0,0,0,0,0,1, angleRev*(i+1))
     
-    mesher._Meshing(3, elemType, folder=folder, filename='blade')
+    mesher._Generate_Mesh(3, elemType, folder=folder, filename='blade')
 
     mesh = mesher._Construct_Mesh()
 

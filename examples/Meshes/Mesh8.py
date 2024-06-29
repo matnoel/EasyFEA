@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
     mesher._Set_PhysicalGroups()
     
-    mesher._Meshing(dim, elemType)
+    mesher._Generate_Mesh(dim, elemType)
 
     mesh = mesher._Construct_Mesh()
 

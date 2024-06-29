@@ -5,6 +5,8 @@
 """Module providing an interface with Gmsh (https://gmsh.info/).\n
 This module facilitates the manipulation of _Geom objects to create meshes through Gmsh with ease."""
 
+# TODO: Mesh_2D and others add tuples to additionalSurfaces [geom1, (geom2, [geom3])]
+
 import gmsh
 import sys
 import os
@@ -291,6 +293,9 @@ class Mesher:
             mesh is organized, by default False
         """
 
+        assert isinstance(contour, _Geom), "The contour must be a geometric object."
+        assert isinstance(inclusions, Iterable), "inclusions must be a list of geometric objects."
+
         factory = self._factory
 
         # Create contour surface
@@ -369,14 +374,24 @@ class Mesher:
         isOrganised : bool
             mesh is organized
         """
+
+        assert isinstance(surfaces, Iterable), "surfaces must be a list of geometric objects."
         
         assert dim >= 2
 
         factory = self._factory
 
         for surface in surfaces:
+            # Retrieves old entities
             ents = factory.getEntities(dim)
-            newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]
+            # Creates new surfaces
+            if isinstance(surface, Union[Iterable, tuple]):
+                # surface is a combination of a contour + inclusions
+                newSurfaces = self._Surfaces(surface[0], surface[1], elemType, isOrganised)[0]
+            else:
+                # surface is just a contour
+                newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]
+            # Deletes or adds created entities to the current geometry.
             if surface.isHollow:
                 factory.cut(ents, [(2, surf) for surf in newSurfaces])
             else:
@@ -753,7 +768,7 @@ class Mesher:
         if meshSize > 0:
             self.Set_meshSize(meshSize)
 
-        self._RefineMesh(refineGeoms, meshSize)
+        self._Refine_Mesh(refineGeoms, meshSize)
 
         self._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
 
@@ -762,14 +777,16 @@ class Mesher:
 
         tic.Tac("Mesh","File import", self.__verbosity)
 
-        self._Meshing(dim, elemType, folder=folder)
+        self._Generate_Mesh(dim, elemType, folder=folder)
 
         return self._Construct_Mesh()
 
-    def _Cracks_SetPhysicalGroups(self, cracks: list, entities: list[tuple]) -> tuple[int, int, int, int]:
+    def _Cracks_SetPhysicalGroups(self, cracks: list[Union[Line,Points,Contour,CircleArc]], entities: list[tuple]) -> tuple[int, int, int, int]:
         """Creation of physical groups associated with cracks embeded in entities.\n
         return crackLines, crackSurfaces, openPoints, openLines
         """
+
+        assert isinstance(cracks, Iterable), "cracks must be a list of geometric objects."
 
         factory = self._factory
 
@@ -819,7 +836,10 @@ class Mesher:
             elif isinstance(crack, Contour):  # 2D CRACK
 
                 loop, lines, points, openLns, openPts = self._Loop_From_Contour(crack)
-                surf = self._Surface_From_Loops([loop])
+                try:
+                    surf = self._Surface_From_Loops([loop])
+                except Exception:
+                    surf = self._factory.addSurfaceFilling(loop)
                 
                 entities0D.extend(points)
                 entities1D.extend(lines)
@@ -896,6 +916,8 @@ class Mesher:
         from ..materials._beam import _Beam
         beams: list[_Beam] = beams
 
+        assert isinstance(beams, Iterable), "beams must be a list of beams."
+
         self._Init_gmsh()
         self.__CheckType(1, elemType)
 
@@ -924,7 +946,7 @@ class Mesher:
 
         tic.Tac("Mesh","Beam mesh construction", self.__verbosity)
 
-        self._Meshing(1, elemType, folder=folder)
+        self._Generate_Mesh(1, elemType, folder=folder)
 
         mesh = self._Construct_Mesh()
 
@@ -966,8 +988,9 @@ class Mesher:
 
     def Mesh_2D(self, contour: _Geom, inclusions: list[_Geom]=[], elemType=ElemType.TRI3,
                 cracks:list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
-                isOrganised=False, additionalSurfaces:list[Union[Line,CircleArc]]=[], additionalLines:list[_Geom]=[], folder="") -> Mesh:
-        """Build the 2D mesh from a contour and inclusions that must form a closed surface.
+                isOrganised=False, additionalSurfaces:list[_Geom]=[],
+                additionalLines:list[Union[Line,CircleArc]]=[], folder="") -> Mesh:
+        """Build the 2D mesh from a contour and inclusions that must form a closed plane surface.
 
         Parameters
         ----------
@@ -1005,7 +1028,6 @@ class Mesher:
         factory = self._factory
 
         self._Surfaces(contour, inclusions, elemType, isOrganised)
-
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)        
         self._Additional_Lines(2, additionalLines)
 
@@ -1020,13 +1042,13 @@ class Mesher:
             surfaceTags = [s[1] for s in gmsh.model.getEntities(2)]
             self._OrganiseSurfaces(surfaceTags, elemType, isOrganised)
 
-        self._RefineMesh(refineGeoms, contour.meshSize)
+        self._Refine_Mesh(refineGeoms, contour.meshSize)
 
         self._Set_PhysicalGroups()
 
         tic.Tac("Mesh","Geometry", self.__verbosity)
 
-        self._Meshing(2, elemType, crackLines=crackLines, openPoints=openPoints, folder=folder)
+        self._Generate_Mesh(2, elemType, crackLines=crackLines, openPoints=openPoints, folder=folder)
 
         return self._Construct_Mesh()
 
@@ -1034,7 +1056,7 @@ class Mesher:
                 extrude=[0,0,1], layers:list[int]=[], elemType=ElemType.TETRA4,
                 cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
                 isOrganised=False, additionalSurfaces:list[_Geom]=[],
-                additionalLines:list[_Geom]=[], folder="") -> Mesh:
+                additionalLines:list[Union[Line,CircleArc]]=[], folder="") -> Mesh:
         """Build the 3D mesh by extruding a surface constructed from a contour and inclusions.
 
         Parameters
@@ -1077,7 +1099,6 @@ class Mesher:
         factory = self._factory
 
         self._Surfaces(contour, inclusions)
-        
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
 
@@ -1093,13 +1114,13 @@ class Mesher:
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
 
-        self._RefineMesh(refineGeoms, contour.meshSize, extrude=extrude)
+        self._Refine_Mesh(refineGeoms, contour.meshSize, extrude=extrude)
 
         self._Set_PhysicalGroups()
 
         tic.Tac("Mesh","Geometry", self.__verbosity)
 
-        self._Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
+        self._Generate_Mesh(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
         
         return self._Construct_Mesh()
     
@@ -1107,7 +1128,7 @@ class Mesher:
                      axis: Line=Line(Point(), Point(0,1)), angle=360, layers:list[int]=[30], elemType=ElemType.TETRA4,
                      cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
                      isOrganised=False, additionalSurfaces:list[_Geom]=[],
-                     additionalLines:list[_Geom]=[],  folder="") -> Mesh:
+                     additionalLines:list[Union[Line,CircleArc]]=[],  folder="") -> Mesh:
         """Builds a 3D mesh by rotating a surface along an axis.
 
         Parameters
@@ -1152,7 +1173,6 @@ class Mesher:
         factory = self._factory
 
         self._Surfaces(contour, inclusions)
-        
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
 
@@ -1168,13 +1188,13 @@ class Mesher:
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
 
-        self._RefineMesh(refineGeoms, contour.meshSize)
+        self._Refine_Mesh(refineGeoms, contour.meshSize)
 
         self._Set_PhysicalGroups()
 
         tic.Tac("Mesh","Geometry", self.__verbosity)
 
-        self._Meshing(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
+        self._Generate_Mesh(3, elemType, folder=folder, crackLines=crackLines, crackSurfaces=crackSurfaces, openPoints=openPoints, openLines=openLines)
 
         return self._Construct_Mesh()
     
@@ -1222,7 +1242,7 @@ class Mesher:
         self._Synchronize() # mandatory
         gmsh.model.mesh.setSize(self._factory.getEntities(0), meshSize)
     
-    def _RefineMesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float, extrude=[0,0,1]) -> None:
+    def _Refine_Mesh(self, refineGeoms: list[Union[Domain,Circle,str]], meshSize: float, extrude=[0,0,1]) -> None:
         """Sets a background mesh
 
         Parameters
@@ -1235,6 +1255,8 @@ class Mesher:
 
         # See t10.py in the gmsh tutorials
         # https://gitlab.onelab.info/gmsh/gmsh/blob/master/tutorials/python/t10.py
+
+        assert isinstance(refineGeoms, Iterable), "refineGeoms must be a list of geometric objects."
 
         if refineGeoms is None or len(refineGeoms) == 0: return
 
@@ -1320,7 +1342,7 @@ class Mesher:
         elif elemType in ["SEG5", "TRI15"]:
             gmsh.model.mesh.set_order(4)
 
-    def _Set_algorithm(self, elemType: ElemType) -> None:
+    def _Set_mesh_algorithm(self, elemType: ElemType) -> None:
         """Set the meshing algorithm.\n
         Mesh.Algorithm
             2D mesh algorithm (1: MeshAdapt, 2: Automatic, 3: Initial mesh only, 5: Delaunay, 6: Frontal-Delaunay, 7: BAMG, 8: Frontal-Delaunay for Quads, 9: Packing of Parallelograms, 11: Quasi-structured Quad)
@@ -1354,10 +1376,10 @@ class Mesher:
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
 
-    def _Meshing(self, dim: int, elemType: str,
+    def _Generate_Mesh(self, dim: int, elemType: str,
                  crackLines:int=None, crackSurfaces:int=None, openPoints:int=None, openLines:int=None,
                  folder="", filename="mesh") -> None:
-        """Mesh using Gmsh with the available model that has been built or imported.
+        """Generates the mesh with the available model that has been built or imported.
 
         Parameters
         ----------
@@ -1379,7 +1401,7 @@ class Mesher:
             saving file filename.msh, by default mesh
         """
         
-        self._Set_algorithm(elemType)
+        self._Set_mesh_algorithm(elemType)
         self._Synchronize() # mandatory
 
         tic = Tic()
@@ -1455,7 +1477,6 @@ class Mesher:
         # Here we will detect the jump between 6 and 8.
         # diff = [0 0 0 0 0 0 0 1]
         diff = sortedNodes - np.arange(Nn)
-        jumpInNodes = np.max(diff) > 0 # detect if there is a jump in the nodes
 
         # Array that stores the changes        
         # For example below -> Changes = [0 1 2 3 4 5 6 0 7]
@@ -1552,11 +1573,10 @@ class Mesher:
         circle = Circle(Point(x=L/2, y=h/2), L/3, meshSize=meshSize, isHollow=True)
         circleClose = Circle(Point(x=L/2, y=h/2), L/3, meshSize=meshSize, isHollow=False)
 
-        aireDomain = L*h
-        aireCircle = np.pi * (circleClose.diam/2)**2
+        domain_area = L*h
 
-        def testArea(aire):
-            assert np.abs(aireDomain-aire)/aireDomain <= 1e-10, "Incorrect surface"
+        def testArea(area):
+            assert np.abs(domain_area-area)/domain_area <= 1e-10, "Incorrect surface"
 
         # For each type of 2D element
         for elemType in ElemType.Get_2D():
@@ -1648,7 +1668,7 @@ class Mesher:
             folder used to save .pos file, by default ""
         """
 
-        from Simulations import _Simu
+        from ..Simulations import _Simu
         assert isinstance(simu, _Simu), 'simu must be a simu object'
         
         assert isinstance(results, list), 'results must be a list'
