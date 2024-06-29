@@ -16,7 +16,7 @@ if __name__ == '__main__':
     # "PlateWithHole_Benchmark", "PlateWithHole_FCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
     simulation = "PlateWithHole_Benchmark"
 
-    test = False
+    meshTest = False
     loadSimu = True
 
     plotDamage = True
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     folder = Folder.New_File(simulation, results=True)
 
     if savefig:
-        if test:
+        if meshTest:
             folder_save = Folder.Join(folder, "Test", "_Post processing")
         else:
             folder_save = Folder.Join(folder, "_Post processing")
@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
         tic = Tic()
 
-        foldername = Folder.PhaseField_Folder(folder, material=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solver=solveur, test=test, optimMesh=optimMesh, closeCrack=False, nL=nL, theta=theta)
+        foldername = Folder.PhaseField_Folder(folder, material=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solver=solveur, test=meshTest, optimMesh=optimMesh, closeCrack=False, nL=nL, theta=theta)
 
         fileForceDep = Folder.Join(foldername, "force-displacement.pickle")
         fileSimu = Folder.Join(foldername, "simulation.pickle")

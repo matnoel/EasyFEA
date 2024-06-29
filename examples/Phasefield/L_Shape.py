@@ -18,8 +18,8 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
-    solve = True
-    test = True
+    doSimu = True
+    meshTest = True
     optimMesh = True
 
     pltIter = False
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     nL = L//l0
 
-    if test:
+    if meshTest:
         hC = l0/2
     else:
         hC = 0.5
@@ -113,9 +113,9 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(dim, E, v, True, ep)
     pfm = Materials.PhaseField(material, split, regu, Gc, l0)
 
-    folderSimu = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization, "CP", tolConv, "", test, optimMesh, nL=nL)
+    folderSimu = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization, "CP", tolConv, "", meshTest, optimMesh, nL=nL)
 
-    if solve:
+    if doSimu:
 
         simu = Simulations.PhaseFieldSimu(mesh, pfm)
         

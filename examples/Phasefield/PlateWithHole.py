@@ -23,8 +23,8 @@ nProcs = 4 # number of processes in parallel
 dim = 2
 problem = "Benchmark" # ["Benchmark", "FCBA"]
 
-test = False
-solve = False
+doSimu = True
+meshTest = True
 optimMesh = True
 
 # Post processing
@@ -58,7 +58,7 @@ regus = ["AT1"] # ["AT1", "AT2"]
 # ----------------------------------------------
 def DoMesh(L: float, h: float, diam: float, thickness: float, l0: float, split: str) -> Mesh:
 
-    clC = l0 if test else l0/2
+    clC = l0 if meshTest else l0/2
     if optimMesh:
         clD = l0*4
         
@@ -69,7 +69,7 @@ def DoMesh(L: float, h: float, diam: float, thickness: float, l0: float, split: 
             refineGeom = Domain(Point(L/2-refineZone, 0), Point(L/2+refineZone, h), clC)
     else:
         # clD = l0*2 if test else l0/2
-        clD = l0 if test else l0/2
+        clD = l0 if meshTest else l0/2
         refineGeom = None
 
     point = Point()
@@ -160,9 +160,9 @@ def DoSimu(split: str, regu: str):
     if dim == 3:
         folderName += "_3D"
     simpli2D = "CP" if planeStress else "DP"
-    folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, simpli2D, tolConv, solver, test, optimMesh, nL=nL)    
+    folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, simpli2D, tolConv, solver, meshTest, optimMesh, nL=nL)    
     
-    if solve:
+    if doSimu:
 
         mesh = DoMesh(L, h, diam, thickness, l0, split)
 
@@ -311,7 +311,7 @@ def DoSimu(split: str, regu: str):
     if makeMovie:        
         Display.Movie_Simu(simu, "damage", folder, "damage.mp4", N=200, plotMesh=False, deformFactor=1.5)
 
-    if solve:
+    if doSimu:
         Tic.Plot_History(folder, details=False)
 
     if showFig:

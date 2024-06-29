@@ -22,10 +22,10 @@ nProcs = 4 # number of processes in parallel
 # Configuration
 # ----------------------------------------------
 dim = 2
-test = True
-doSimu = False
 
+doSimu = False
 # Mesh
+meshTest = True
 openCrack = True
 optimMesh = True
 
@@ -59,7 +59,7 @@ thickness = 1 if dim == 2 else 0.1/1000
 
 def DoMesh(split: str) -> Mesh:
     # meshSize
-    clC = l0 if test else l0/2
+    clC = l0 if meshTest else l0/2
     if optimMesh:
         # a coarser mesh can be used outside the refined zone
         clD = clC * 3
@@ -111,7 +111,7 @@ def DoSimu(split: str, regu: str):
     if dim == 3:
         folderName += "_3D"
     folder = Folder.PhaseField_Folder(folderName, "Elas_Isot", split, regu, 'DP',
-                                    tolConv, pfmSolver, test, optimMesh, not openCrack)
+                                    tolConv, pfmSolver, meshTest, optimMesh, not openCrack)
 
     if doSimu:
         
@@ -140,8 +140,8 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Boundary conditions
         # ----------------------------------------------
-        u_inc = 5e-8 if test else 1e-8
-        N = 400 if test else 2000
+        u_inc = 5e-8 if meshTest else 1e-8
+        N = 400 if meshTest else 2000
 
         loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
         

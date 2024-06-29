@@ -22,7 +22,7 @@ folder = Folder.Get_Path(__file__)
 dim = 2
 
 doSimu = True
-test = True
+meshTest = True
 optimMesh = True
 plotGeom = False
 plotIter = False
@@ -43,7 +43,7 @@ Gc = 100
 nL = 100
 l0 = L/nL
 
-clC = l0 if test else l0/2 # meshSize on the crack
+clC = l0 if meshTest else l0/2 # meshSize on the crack
 clD = l0*2 if optimMesh else clC
 
 mS = l0/2 
@@ -51,7 +51,7 @@ mS = l0/2
 split = "Miehe"
 regu = "AT1"
 
-folder_save = Folder.PhaseField_Folder(f"CT_{dim}D", "Isot", split, regu, "", 1, "", test, optimMesh, nL=nL)
+folder_save = Folder.PhaseField_Folder(f"CT_{dim}D", "Isot", split, regu, "", 1, "", meshTest, optimMesh, nL=nL)
 
 # ----------------------------------------------
 # Geom

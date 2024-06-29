@@ -21,10 +21,10 @@ nProcs = 4 # number of processes in parallel
 # Configurations
 # ----------------------------------------------
 dim = 2
-test = True
-solve = True
 
+doSimu = True
 # Mesh
+meshTest = True
 openCrack = True
 optimMesh = True
 
@@ -65,7 +65,7 @@ thickness = 1 if dim == 2 else 0.1/1000
 def DoMesh(materialType: str= "Elas_Isot") -> Mesh:
 
     # meshSize
-    clC = l0 if test else l0/2
+    clC = l0 if meshTest else l0/2
     if optimMesh:
         # a coarser mesh can be used outside the refined zone
         clD = clC * 3
@@ -120,10 +120,10 @@ def DoSimu(split: str, regu: str):
     if dim == 3:
         folderName += "_3D"
     folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, 'DP',
-                                      tolConv, pfmSolver, test, optimMesh, not openCrack,
+                                      tolConv, pfmSolver, meshTest, optimMesh, not openCrack,
                                       theta=theta)
             
-    if solve:
+    if doSimu:
 
         mesh = DoMesh(materialType)
 
@@ -179,13 +179,13 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         if materialType == "Elas_Isot":
             # load < treshold
-            uinc0 = 1e-7 if test else 1e-8
-            N0 = 40 if test else 400
+            uinc0 = 1e-7 if meshTest else 1e-8
+            N0 = 40 if meshTest else 400
             dep0 = uinc0*N0
 
             # load >= treshold
-            uinc1 = 1e-8 if test else 1e-9
-            N1 = 400 if test else 4000
+            uinc1 = 1e-8 if meshTest else 1e-9
+            N1 = 400 if meshTest else 4000
             dep1 = dep0 + uinc1*N1
 
             treshold = uinc0*N0
@@ -195,9 +195,9 @@ def DoSimu(split: str, regu: str):
             optionTreshold = ["displacement"]*2
         else:
             # load < treshold
-            uinc0 = 12e-8 if test else 6e-8
+            uinc0 = 12e-8 if meshTest else 6e-8
             # load >= treshold
-            uinc1 = 4e-8 if test else 2e-8
+            uinc1 = 4e-8 if meshTest else 2e-8
 
             treshold = 0.6
 
@@ -313,7 +313,7 @@ def DoSimu(split: str, regu: str):
 
     Tic.Resume()
 
-    if solve:
+    if doSimu:
         Tic.Plot_History(folder, False)
 
     if showResult:
