@@ -5,8 +5,6 @@
 """Module providing an interface with Gmsh (https://gmsh.info/).\n
 This module facilitates the manipulation of _Geom objects to create meshes through Gmsh with ease."""
 
-# TODO: Mesh_2D and others add tuples to additionalSurfaces [geom1, (geom2, [geom3])]
-
 import gmsh
 import sys
 import os
