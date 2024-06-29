@@ -2,6 +2,14 @@
 
 This document describes the changes made to the project.
 
+## 1.0.4 (Jun 29, 2024):
+
+- Updated gmsh interface functions.
+- Added controls when calling certain functions.
+- Updated geometric objects to modify parameters after creation.
+- Added a banner to the project.
+- Added CT.py damage simulation.
+
 ## 1.0.3 (May 16, 2024):
 
 - Minor adjustments to README.md
