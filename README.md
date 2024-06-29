@@ -1,4 +1,4 @@
-![EasyFEA_banner](https://github.com/matnoel/EasyFEA/blob/main/docs/_static/EasyFEA_banner.jpg)
+![EasyFEA_banner](https://github.com/matnoel/EasyFEA/blob/main/docs/_static/EasyFEA_banner.jpg?raw=True)
 
 ## Overview
 
