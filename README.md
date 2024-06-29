@@ -1,6 +1,4 @@
-
-<!-- ![EasyFEA_banner](./docs/_static/EasyFEA_banner.jpg) -->
-![EasyFEA_banner](https://github.com/matnoel/EasyFEA/blob/dev/docs/_static/EasyFEA_banner.jpg)
+![EasyFEA_banner](https://github.com/matnoel/EasyFEA/blob/main/docs/_static/EasyFEA_banner.jpg)
 
 ## Overview
 
