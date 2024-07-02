@@ -542,7 +542,7 @@ class BeamSimu(_Simu):
             
         self._results.append(iter)
 
-    def Set_Iter(self, iter=-1) -> list[dict]:
+    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
         
         results = super().Set_Iter(iter)
 

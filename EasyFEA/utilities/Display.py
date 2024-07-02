@@ -959,6 +959,9 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     times = []
     if plotSolMax : listSolMax = []
 
+    # activates the first iteration
+    simu.Set_Iter(0, resetAll=True)
+
     for i, iteration in enumerate(iterations):
 
         # Update simulation at iteration i
@@ -1115,6 +1118,9 @@ def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
 
     ax = Init_Axes(simu.mesh.inDim)
     fig = ax.figure
+
+    # activates the first iteration
+    simu.Set_Iter(0, resetAll=True)
 
     def DoAnim(fig: plt.Figure, i):
         simu.Set_Iter(iterations[i])
