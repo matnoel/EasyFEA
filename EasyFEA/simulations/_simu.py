@@ -130,8 +130,10 @@ class _Simu(_IObserver, ABC):
         return iter
 
     @abstractmethod
-    def Set_Iter(self, iter: int=-1) -> list[dict]:
-        """Sets the simulation to the specified iteration (usually the last one) and returns the list of dictionary."""
+    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
+        """Sets the simulation to the specified iteration (usually the last one) and then reset the required variables if necessary (resetAll).\n
+        Returns the simulation results dictionary."""
+        
         iter = int(iter)
         assert isinstance(iter, int), "Must provide an integer."
 

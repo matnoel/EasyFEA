@@ -539,7 +539,7 @@ class PhaseFieldSimu(_Simu):
 
         self._results.append(iter)
 
-    def Set_Iter(self, iter=-1) -> list[dict]:
+    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
 
         results = super().Set_Iter(iter)
 
@@ -555,7 +555,7 @@ class PhaseFieldSimu(_Simu):
         self.__updatedDamage = False
         self.__updatedDisplacement = False
 
-        if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
+        if resetAll and self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
             # It's really useful to do this otherwise when we calculate psiP there will be a problem
             self.__old_psiP_e_pg = []
             self.__old_psiP_e_pg = self.__Calc_psiPlus_e_pg() # update psi+ with the current state

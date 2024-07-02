@@ -63,6 +63,9 @@ def Make_Paraview(simu, folder: str, N=200, details=False, nodesField=[], elemen
     if len(nodesField) == 0 and len(elementsField) == 0:
         Display.MyPrintError("The simulation has no solution fields to display in paraview.")
 
+    # activates the first iteration
+    simu.Set_Iter(0, resetAll=True)
+
     for i, iter in enumerate(iterations):
 
         f = Folder.Join(folder,f'solution_{iter}.vtu')
