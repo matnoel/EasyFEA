@@ -67,7 +67,7 @@ class Test_Materials(unittest.TestCase):
         # phasefieldModel
         self.splits = PhaseField.Get_splits()
         self.regularizations = PhaseField.Get_regularisations()
-        self.phaseFieldModels = []
+        self.phaseFieldModels: list[PhaseField] = []
 
         splits_Isot = [PhaseField.SplitType.Amor, PhaseField.SplitType.Miehe, PhaseField.SplitType.Stress]
 
@@ -338,39 +338,32 @@ class Test_Materials(unittest.TestCase):
 
         for pfm in self.phaseFieldModels:
             
-            assert isinstance(pfm, PhaseField)
-
-            comportement = pfm.material
+            mat: _Elas = pfm.material
+            c = mat.C                
             
-            if isinstance(comportement, _Elas):
-                c = comportement.C
-            
-            print(f"{type(comportement).__name__} {comportement.simplification} {pfm.split} {pfm.regularization}")
+            print(f"{type(mat).__name__} {mat.simplification} {pfm.split} {pfm.regularization}")
 
-            if comportement.dim == 2:
+            if mat.dim == 2:
                 Epsilon_e_pg = Epsilon2D_e_pg
-            elif comportement.dim == 3:
+            elif mat.dim == 3:
                 Epsilon_e_pg = Epsilon3D_e_pg
 
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
 
             # Test that cP + cM = c
-            cpm = cP_e_pg+cM_e_pg
-            decompC = c-cpm
-            verifC = np.linalg.norm(decompC)/np.linalg.norm(c)
-            if pfm.split != "He":
-                self.assertTrue(np.abs(verifC) <= tol)
+            cpm = cP_e_pg + cM_e_pg
+            decompC = c - cpm
+            verifC = np.linalg.norm(decompC, axis=(-2,-1))/np.linalg.norm(c, axis=(-2,-1))
+            self.assertTrue(np.max(verifC) <= tol)
 
             # Test that SigP + SigM = Sig
             Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
-            
             SigP = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal')
             SigM = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal') 
             decompSig = Sig_e_pg-(SigP+SigM)           
-            verifSig = np.linalg.norm(decompSig)/np.linalg.norm(Sig_e_pg)
+            verifSig = np.linalg.norm(decompSig, axis=(-2,-1))/np.linalg.norm(Sig_e_pg, axis=(-2,-1))
             if np.linalg.norm(Sig_e_pg)>0:                
-                self.assertTrue(np.abs(verifSig) <= tol)
-            
+                self.assertTrue(np.max(verifSig) <= tol)            
             
             # Test that Eps:C:Eps = Eps:(cP+cM):Eps
             energiec = np.einsum('epj,ij,epi->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
@@ -378,7 +371,7 @@ class Test_Materials(unittest.TestCase):
             energiecM = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
             verifEnergie = np.linalg.norm(energiec-(energiecP+energiecM))/np.linalg.norm(energiec)
             if np.linalg.norm(energiec)>0:
-                self.assertTrue(np.abs(verifEnergie) <= tol)
+                self.assertTrue(np.max(verifEnergie) <= tol)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
