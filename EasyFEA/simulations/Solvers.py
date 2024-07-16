@@ -408,6 +408,9 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     # __comm = MPI.COMM_WORLD
     # nprocs = __comm.Get_size()
     # rank   = __comm.Get_rank()
+
+    # TODO add bound constrain
+    # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.SNES.html ?
     
     __comm = None
     petsc4py.init(sys.argv, comm=__comm)
