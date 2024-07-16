@@ -743,7 +743,7 @@ class PhaseField(_IModel):
         
         if verif :
             # Verif C^1/2 * C^1/2 = C
-            testC = np.dot(sqrtC, sqrtC) - C
+            testC = sqrtC @ sqrtC - C
             assert np.linalg.norm(testC)/np.linalg.norm(C) < 1e-12
 
         inv_sqrtC = np.linalg.inv(sqrtC)
@@ -769,8 +769,15 @@ class PhaseField(_IModel):
         # cM_e_pg = np.einsum('epji,jk,epkl->epil', projM_e_pg, C, projM_e_pg, optimize='optimal')
 
         # faster
-        cP_e_pg = np.transpose(projP_e_pg, (0,1,3,2)) @ C @ projP_e_pg
-        cM_e_pg = np.transpose(projM_e_pg, (0,1,3,2)) @ C @ projM_e_pg
+        # cP_e_pg = np.transpose(projP_e_pg, (0,1,3,2)) @ C @ projP_e_pg
+        # cM_e_pg = np.transpose(projM_e_pg, (0,1,3,2)) @ C @ projM_e_pg
+
+        # TODO simu pour comparer
+        cP_e_pg = C @ projP_e_pg
+        cM_e_pg = C @ projM_e_pg
+        
+        # cP_e_pg = projP_e_pg @ C
+        # cM_e_pg = projM_e_pg @ C
 
         tic.Tac("Split",f"cP_e_pg and cM_e_pg", False)
 
@@ -1269,18 +1276,20 @@ class PhaseField(_IModel):
             
             # Decomposition vector_e_pg = vectorP_e_pg + vectorM_e_pg
             decomp = vector_e_pg-(vectorP + vectorM)
-            if np.linalg.norm(vector_e_pg) > 0:                
-                verifDecomp = np.linalg.norm(decomp)/np.linalg.norm(vector_e_pg)
-                assert verifDecomp <= 1e-12, "vector_e_pg != vectorP_e_pg + vectorM_e_pg"
+            if np.linalg.norm(vector_e_pg) > 0:
+                # verif_decomp = np.linalg.norm(decomp,axis=-1)/np.linalg.norm(vector_e_pg,axis=-1)
+                # assert np.max(verif_decomp) <= 1e-11, "vector_e_pg != vectorP_e_pg + vectorM_e_pg"
+                verif_decomp = np.linalg.norm(decomp)/np.linalg.norm(vector_e_pg)
+                assert verif_decomp <= 1e-12, "vector_e_pg != vectorP_e_pg + vectorM_e_pg"
 
             # Orthogonality
-            ortho_vP_vM = np.abs(np.einsum('epi,epi->ep',vectorP, vectorM, optimize='optimal'))
-            ortho_vM_vP = np.abs(np.einsum('epi,epi->ep',vectorM, vectorP, optimize='optimal'))
+            ortho_vP_vM = np.abs(np.einsum('epi,epi->ep', vectorP, vectorM, optimize='optimal'))
+            ortho_vM_vP = np.abs(np.einsum('epi,epi->ep', vectorM, vectorP, optimize='optimal'))
             ortho_v_v = np.abs(np.einsum('epi,epi->ep', vector_e_pg, vector_e_pg, optimize='optimal'))
             if ortho_v_v.min() > 0:
-                vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
-                assert vertifOrthoEpsPM <= 1e-12
-                vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
-                assert vertifOrthoEpsMP <= 1e-12
+                verif_PM = np.max(ortho_vP_vM/ortho_v_v)
+                assert verif_PM <= 1e-12
+                verif_MP = np.max(ortho_vM_vP/ortho_v_v)
+                assert verif_MP <= 1e-12
             
         return projP, projM

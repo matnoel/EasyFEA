@@ -363,15 +363,15 @@ class Test_Materials(unittest.TestCase):
             decompSig = Sig_e_pg-(SigP+SigM)           
             verifSig = np.linalg.norm(decompSig, axis=(-2,-1))/np.linalg.norm(Sig_e_pg, axis=(-2,-1))
             if np.linalg.norm(Sig_e_pg)>0:                
-                self.assertTrue(np.max(verifSig) <= tol)            
-            
+                self.assertTrue(np.max(verifSig) <= tol)
+                
             # Test that Eps:C:Eps = Eps:(cP+cM):Eps
-            energiec = np.einsum('epj,ij,epi->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
-            energiecP = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cP_e_pg, Epsilon_e_pg, optimize='optimal')
-            energiecM = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
-            verifEnergie = np.linalg.norm(energiec-(energiecP+energiecM))/np.linalg.norm(energiec)
-            if np.linalg.norm(energiec)>0:
-                self.assertTrue(np.max(verifEnergie) <= tol)
+            energy_c = np.einsum('epj,ij,epi->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
+            energy_cP = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cP_e_pg, Epsilon_e_pg, optimize='optimal')
+            energy_cM = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
+            verifEnergy = np.linalg.norm(energy_c-(energy_cP+energy_cM))/np.linalg.norm(energy_c)
+            if np.linalg.norm(energy_c)>0:
+                self.assertTrue(np.max(verifEnergy) <= tol)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

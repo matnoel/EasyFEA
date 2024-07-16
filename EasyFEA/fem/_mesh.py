@@ -157,7 +157,7 @@ class Mesh(Observable):
         oldCoord = self.coordGlob
         newCoord = oldCoord + np.array([dx, dy, dz])
         for grp in self.dict_groupElem.values():
-            grp.coordGlob = newCoord
+            grp.coordGlob = newCoord        
         self._Notify('The mesh has been modified')
 
     
@@ -429,23 +429,23 @@ class Mesh(Observable):
 
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the reaction term (scalar).
-        ReactionPart_e_pg = jacobian_e_pg * weight_pg * r_e_pg * N_pg' * N_pg\n
+        ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
 
         Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
         """
         return self.groupElem.Get_ReactionPart_e_pg(matrixType)
 
-    def Get_DiffusePart_e_pg(self, matrixType: MatrixType, A: np.ndarray) -> np.ndarray:
+    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the diffusion term (scalar).
-        DiffusePart_e_pg = jacobian_e_pg * weight_pg * k * dN_e_pg' * A * dN_e_pg\n
+        DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
 
-        Returns -> jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg
+        Returns -> jacobian_e_pg * weight_pg * dN_e_pg'
         """
-        return self.groupElem.Get_DiffusePart_e_pg(matrixType, A)
+        return self.groupElem.Get_DiffusePart_e_pg(matrixType)
 
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the source term (scalar).
-        SourcePart_e_pg = jacobian_e_pg, weight_pg, f_e_pg, N_pg'\n
+        SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
 
         Returns -> jacobian_e_pg, weight_pg, N_pg'
         """

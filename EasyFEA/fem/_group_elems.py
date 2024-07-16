@@ -152,7 +152,7 @@ class _GroupElem(ABC):
     @coordGlob.setter
     def coordGlob(self, coord: np.ndarray) -> None:
         if coord.shape == self.__coordGlob.shape:
-            self.__coordGlob = coord
+            self.__coordGlob = coord            
             self._InitMatrix()
 
     @property
@@ -490,7 +490,7 @@ class _GroupElem(ABC):
     
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the reaction term (scalar).
-        ReactionPart_e_pg = jacobian_e_pg * weight_pg * r_e_pg * N_pg' * N_pg\n
+        ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
         
         Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
         """
@@ -509,24 +509,22 @@ class _GroupElem(ABC):
         
         return self.__dict_phaseField_ReactionPart_e_pg[matrixType].copy()
     
-    def Get_DiffusePart_e_pg(self, matrixType: MatrixType, A: np.ndarray) -> np.ndarray:
+    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the diffusion term (scalar).
-        DiffusePart_e_pg = jacobian_e_pg * weight_pg * k * dN_e_pg' * A * dN_e_pg\n
+        DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
         
-        Returns -> jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg
+        Returns -> jacobian_e_pg * weight_pg * dN_e_pg'
         """
 
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_DiffusePart_e_pg.keys():
 
-            assert len(A.shape) == 2, "A must be a 2D array."
-
             jacobien_e_pg = self.Get_jacobian_e_pg(matrixType)
             weight_pg = self.Get_gauss(matrixType).weights
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
-            DiffusePart_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, weight_pg, dN_e_pg, A, dN_e_pg, optimize='optimal')
+            DiffusePart_e_pg = np.einsum('ep,p,epij->epji', jacobien_e_pg, weight_pg, dN_e_pg, optimize='optimal')
 
             self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
         
@@ -534,7 +532,7 @@ class _GroupElem(ABC):
 
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the source term (scalar).
-        SourcePart_e_pg = jacobian_e_pg, weight_pg, f_e_pg, N_pg'\n
+        SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
         
         Returns -> jacobian_e_pg, weight_pg, N_pg'
         """
