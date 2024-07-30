@@ -116,24 +116,28 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
 
     # Builds boundary markers for the colorbar
     min, max = clim
-    if isinstance(result, str) and result == "damage":
-        min = values.min()-1e-12
-        max = np.max([values.max()+1e-12, 1])
-        ticks = np.linspace(0,1,11) # ticks colorbar
+    if min == None and max == None:
+        if isinstance(result, str) and result == "damage":
+            min = values.min()-1e-12
+            max = np.max([values.max()+1e-12, 1])
+            ticks = np.linspace(min,max,11)
+            # ticks = np.linspace(0,1,11) # ticks colorbar
+        else:
+            max = np.max(values)+1e-12 if max == None else max
+            min = np.min(values)-1e-12 if min == None else min
+            ticks = np.linspace(min,max,11)
+        levels = np.linspace(min, max, ncolors)
     else:
-        max = np.max(values)+1e-12 if max == None else max
-        min = np.min(values)-1e-12 if min == None else min
-        ticks = np.linspace(min,max,11)
-    levels = np.linspace(min, max, ncolors)
+        ticks = np.linspace(min, max, 11)
+        levels = np.linspace(min, max, ncolors)
+    
     if ncolors != 256:
         norm = colors.BoundaryNorm(boundaries=np.linspace(min, max, ncolors), ncolors=256)
     else:
         norm = None
 
     if ax is not None:
-        [collection.colorbar.remove()
-         for collection in ax.collections
-         if collection.colorbar is not None]
+        _Remove_colorbar(ax)
         ax.clear()
         fig = ax.figure
         # change the plot dimentsion if the given axes is in 3d
@@ -1279,6 +1283,12 @@ def _Get_list_faces(mesh: Mesh, dimElem:int) -> list[list[int]]:
             list_faces[f] = faces
 
     return list_faces
+
+def _Remove_colorbar(ax: plt.Axes) -> None:
+    [collection.colorbar.remove()
+    for collection in ax.collections
+    if collection.colorbar is not None]
+
 
 def Init_Axes(dim: int=2, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
     if dim == 1 or dim == 2:
