@@ -435,13 +435,13 @@ class PhaseField(_IModel):
         dim = material.dim
 
         if dim == 2:
-            Ivect = np.array([1,1,0]).reshape((3,1))
+            I = np.array([1,1,0]).reshape((3,1))
             size = 3
         else:
-            Ivect = np.array([1,1,1,0,0,0]).reshape((6,1))
+            I = np.array([1,1,1,0,0,0]).reshape((6,1))
             size = 6
 
-        IxI = np.array(Ivect.dot(Ivect.T))
+        IxI = I @ I.T
 
         spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
         spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
@@ -514,7 +514,7 @@ class PhaseField(_IModel):
                 I = np.array([1,1,0]).reshape((3,1))
             elif dim == 3:
                 I = np.array([1,1,1,0,0,0]).reshape((6,1))
-            IxI = I.dot(I.T)
+            IxI = I @ I.T
 
             # Calculation of spherical part
             spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
@@ -739,6 +739,7 @@ class PhaseField(_IModel):
         
         assert not material.isHeterogeneous, "He decomposition has not been implemented for heterogeneous materials"
         # for heterogeneous materials how to make sqrtm ?
+        # TODO obtain the eigenvalues and eigenvectors of the 2D case with the 3D spectral decomposition?
         sqrtC = sqrtm(C)
         
         if verif :
