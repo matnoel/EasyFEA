@@ -136,12 +136,8 @@ class DIC:
         coordInElem = self.__coordPixelInElem        
         
         # Initializing shape functions and the Laplacian operator
-        matrixType="mass"
+        matrixType = "mass"
         Ntild = mesh.groupElem._Ntild()
-        dN_pg = mesh.groupElem.Get_dN_pg(matrixType)
-        invF_e_pg = mesh.groupElem.Get_invF_e_pg(matrixType)
-        jacobien_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        poid_pg = mesh.Get_weight_pg(matrixType)        
 
         # ----------------------------------------------
         # Construction of shape function matrix for pixels
@@ -151,12 +147,15 @@ class DIC:
         columns_Phi = []
         values_phi = []
 
-        # Evaluation of shape functions for the pixels used        
-        phi_n_pixels = np.array([np.reshape([Ntild[n,0](coordInElem[:,0], coordInElem[:,1])], -1) for n in range(mesh.nPe)])
+        # Evaluating shape functions for the pixels used
+        x_p, y_p = coordInElem[:,0], coordInElem[:,1]
+        phi_n_pixels = np.array([np.reshape([Ntild[n,0](x_p, y_p)], -1) for n in range(mesh.nPe)])
          
         tic = Tic()
-
-        # TODO possible without the loop?
+        
+        # Possible without the loop?
+        # No, it is not possible without the loop because connectPixel doesn't have the same number of columns in each row.
+        # In addition, if you remove it, you'll have to make several list comprehension.
         for e in range(mesh.Ne):
 
             # Retrieve element nodes and pixels
@@ -167,14 +166,16 @@ class DIC:
 
             # line construction
             linesX = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
-            linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
+            # linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size) 
+            # same as
+            linesY = linesX + 1            
             # construction of columns in which to place values
             colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()            
 
             lines_x.extend(linesX)
             lines_y.extend(linesY)
             columns_Phi.extend(colonnes)
-            values_phi.extend(np.reshape(phi, -1))        
+            values_phi.extend(np.reshape(phi, -1))    
 
         self._Phi_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (nDof, coordInElem.shape[0]))
         """Shape function matrix x (nDof, nPixels)"""
@@ -189,34 +190,68 @@ class DIC:
         # ----------------------------------------------
         # Construction of the Laplacian operator
         # ----------------------------------------------
+        dN_pg = mesh.groupElem.Get_dN_pg(matrixType)
+        invF_e_pg = mesh.groupElem.Get_invF_e_pg(matrixType)
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = mesh.Get_weight_pg(matrixType)
         
+        # (e, p, dim, nPe)
         dN_e_pg = np.array(np.einsum('epki,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
-
-        dNxdx = dN_e_pg[:,:,0]
-        dNydy = dN_e_pg[:,:,1]
+        dNdx = dN_e_pg[:,:,0]
+        dNdy = dN_e_pg[:,:,1]
 
         ind_x = np.arange(0, mesh.nPe*dim, dim)
-        ind_y = ind_x + 1        
+        ind_y = ind_x + 1
 
-        dN_vector = np.zeros((dN_e_pg.shape[0], dN_e_pg.shape[1], 3, mesh.nPe*dim))            
-        dN_vector[:,:,0,ind_x] = dNxdx
-        dN_vector[:,:,1,ind_y] = dNydy            
-        dN_vector[:,:,2,ind_x] = dNydy; dN_vector[:,:,2,ind_y] = dNxdx
+        dN_x = np.zeros((mesh.Ne, weight_pg.size, 2, 2*mesh.nPe))
+        dN_y = np.zeros_like(dN_x)
 
-        B_e = np.einsum('ep,p,epji,epjk->eik', jacobien_e_pg, poid_pg, dN_vector, dN_vector, optimize='optimal')
+        dN_x[:,:,0,ind_x] = dNdx
+        dN_x[:,:,1,ind_y] = dNdx
+        Bx_e = np.einsum('ep,p,epdi,epdj->eij', jacobian_e_pg, weight_pg, dN_x, dN_x, optimize='optimal')
+
+        dN_y[:,:,0,ind_x] = dNdy
+        dN_y[:,:,1,ind_y] = dNdy
+        By_e = np.einsum('ep,p,epdi,epdj->eij', jacobian_e_pg, weight_pg, dN_y, dN_y, optimize='optimal')
+
+        B_e = Bx_e + By_e
+
+        lines = mesh.linesVector_e.ravel()
+        columns = mesh.columnsVector_e.ravel()
+
+        self._opLap = sparse.csr_matrix((B_e.ravel(), (lines, columns)), (nDof, nDof))
+        """Laplacian operator"""
+
+        # # dNdx_dNdx_e = j w dNdx * dNdx^T -> (e, nPe, nPe)
+        # dNdx_dNdx_e = np.einsum('ep,p,epi,epj->eij', jacobian_e_pg, weight_pg, dNdx, dNdx, optimize='optimal')
+        # # dNdx_dNdx_e = np.einsum('epi,epj->eij', dNdx, dNdx, optimize='optimal')
+        # dNdx_dNdx = np.ravel(dNdx_dNdx_e)
+        # # dNdy_dNdy_e = j w dNdy * dNdy^T -> (e, nPe, nPe)
+        # dNdy_dNdy_e = np.einsum('ep,p,epi,epj->eij', jacobian_e_pg, weight_pg, dNdy, dNdy, optimize='optimal')
+        # # dNdy_dNdy_e = np.einsum('epi,epj->eij', dNdy, dNdy, optimize='optimal')
+        # dNdy_dNdy = np.ravel(dNdy_dNdy_e)
         
-        # Retrieve rows and columns or apply 0s
-        lignes0 = np.arange(mesh.nPe*dim).repeat(mesh.nPe)
-        ddlsX = np.arange(0, mesh.nPe*dim, dim)
-        colonnes0 = np.concatenate((ddlsX+1, ddlsX)).reshape(1,-1).repeat(mesh.nPe, axis=0).ravel()
+        # #                on x dofs               on y dofs
+        # # opLap = dNdx_dNdx + dNdy_dNdy + dNdx_dNdx + dNdy_dNdy
+        # # opLap = op1 + op2 + op3 + op4        
+        # assembly_e = mesh.assembly_e
 
-        B_e[:,lignes0, colonnes0] = 0
+        # lines_x = np.repeat(assembly_e[:,ind_x], mesh.nPe, axis=1).ravel()
+        # lines_y = np.repeat(assembly_e[:,ind_y], mesh.nPe, axis=1).ravel()
+        # columns_x = np.repeat(assembly_e[:,ind_x], mesh.nPe, axis=0).ravel()
+        # columns_y = np.repeat(assembly_e[:,ind_y], mesh.nPe, axis=0).ravel()
+        
+        # # op1 = dNdx_dNdx on x dofs
+        # op1 = sparse.csr_matrix((dNdx_dNdx, (lines_x, columns_x)), (nDof, nDof))
+        # # op2 = dNdy_dNdy on x dofs
+        # op2 = sparse.csr_matrix((dNdy_dNdy, (lines_x, columns_x)), (nDof, nDof))
+        # # op3 = dNdx_dNdx on y dofs
+        # op3 = sparse.csr_matrix((dNdx_dNdx, (lines_y, columns_y)), (nDof, nDof))
+        # # op4 = dNdy_dNdy on y dofs
+        # op4 = sparse.csr_matrix((dNdy_dNdy, (lines_y, columns_y)), (nDof, nDof))
 
-        linesB = mesh.linesVector_e
-        columnsB = mesh.columnsVector_e        
-
-        self._opLap = sparse.csr_matrix((B_e.ravel(), (linesB.ravel(), columnsB.ravel())), (nDof, nDof))  
-        """Laplacian operator"""      
+        # self._opLap = op1 + op2 + op3 + op4
+        # """Laplacian operator"""
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)
 
