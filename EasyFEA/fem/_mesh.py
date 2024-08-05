@@ -875,6 +875,10 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     assert oldMesh.dim == newMesh.dim, "Mesh dimensions must be the same."
 
     tic = Tic()
+
+    distoredMesh = np.max(np.abs(1 - oldMesh.Get_Quality('jacobian'))) > 1e-12
+    if distoredMesh:
+        Display.MyPrintError("Warning: distorted elements have been detected in the mesh.\nThey may lead to projection errors!")
     
     detectedNodes, detectedElements_e, connect_e_n, coordo_n = oldMesh.groupElem.Get_Mapping(newMesh.coord)
     # detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e
