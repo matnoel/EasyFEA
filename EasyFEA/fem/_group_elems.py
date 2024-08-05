@@ -308,7 +308,7 @@ class _GroupElem(ABC):
             dN_pg = self.Get_dN_pg(matrixType)
 
             # Derivation of shape functions in the real base
-            dN_e_pg: np.ndarray = np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize='optimal')
+            dN_e_pg: np.ndarray = np.einsum('epdk,pkn->epdn', invF_e_pg, dN_pg, optimize='optimal')
             self.__dict_dN_e_pg[matrixType] = dN_e_pg
 
         return self.__dict_dN_e_pg[matrixType].copy()
@@ -329,7 +329,7 @@ class _GroupElem(ABC):
 
             ddN_pg = self.Get_ddN_pg(matrixType)
             
-            ddN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, ddN_pg, optimize='optimal'))
+            ddN_e_pg = np.array(np.einsum('epdk,pkn->epdn', invF_e_pg, ddN_pg, optimize='optimal'))
             self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
 
         return self.__dict_ddN_e_pg[matrixType].copy()
@@ -345,11 +345,7 @@ class _GroupElem(ABC):
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
         Nv_pg = self.Get_Nv_pg(matrixType)
-
-        Ne = self.Ne
         nPe = self.nPe
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        pg = self.Get_gauss(matrixType)
         
         Nv_e_pg = invF_e_pg @ Nv_pg
         
@@ -372,11 +368,7 @@ class _GroupElem(ABC):
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
         dNv_pg = self.Get_dNv_pg(matrixType)
-
-        Ne = self.Ne
         nPe = self.nPe
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        pg = self.Get_gauss(matrixType)
         
         dNv_e_pg = invF_e_pg @ dNv_pg
         
@@ -398,12 +390,8 @@ class _GroupElem(ABC):
         matrixType = MatrixType.beam        
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
-        ddNv_pg = self.Get_ddNv_pg(matrixType)
-
-        Ne = self.Ne
+        ddNv_pg = self.Get_ddNv_pg(matrixType)        
         nPe = self.nPe
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        pg = self.Get_gauss(matrixType)
         
         ddNv_e_pg = invF_e_pg @ invF_e_pg @ ddNv_pg
         
@@ -1230,7 +1218,7 @@ class _GroupElem(ABC):
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Returns nodes in the domain."""
 
-        assert isinstance(circle, Domain)
+        assert isinstance(domain, Domain)
 
         coordo = self.coord
 
@@ -1562,7 +1550,7 @@ class _GroupElem(ABC):
             # get groupElem datas
             inDim = self.inDim
             sysCoord_e = self.sysCoord_e # base change matrix for each element
-            matrixType = MatrixType.rigi
+            matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
             invF_e_pg = self.Get_invF_e_pg(matrixType)
             dN_tild = self._dNtild()
@@ -1570,13 +1558,13 @@ class _GroupElem(ABC):
             gaussCoord_e_pg = self.Get_GaussCoordinates_e_p(matrixType)
             xiOrigin = self.origin # origin of the reference element (xi, eta)        
 
-            useIterative = False            
-            # # Check whether iterative resolution is required
-            # # calculates the ratio between jacob min and max to detect if the element is distorted 
-            # diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
-            # error_e = 1 - diff_e # a perfect element has an error max <= 1e-12
-            # # a distorted element has a max error greater than 0
-            # useIterative = np.max(error_e) > 1e-12
+            # useIterative = False
+            # Check whether iterative resolution is required
+            # calculates the ratio between jacob min and max to detect if the element is distorted
+            diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
+            error_e = np.abs(1 - diff_e) # a perfect element has an error max <= 1e-12
+            # a distorted element has a max error greater than 0
+            useIterative = np.max(error_e) > 1e-12
         else:
             coordInElem_n = None
 
@@ -1620,36 +1608,27 @@ class _GroupElem(ABC):
                         
                 x0  = coordoElemBase[0,:dim] # orign of the real element (x,y)
                 xPs = coordinatesBase_n[:,:dim] # points coordinates (x,y)
-                
-                # the fastest way, but may lead to shape functions that give values outside [0,1].
-                xiP: np.ndarray = xiOrigin + (xPs - x0) @ np.mean(invF_e_pg[e], 0)
 
-                # if not useIterative:
-                #     if nPg == 1:
-                #         # invF_e_pg is constant in the element
-                #         xiP: np.ndarray = xiOrigin + (xPs - x0) @ invF_e_pg[e,0]
-                #     else:
-                #         # If the element have more than 1 integration point, it is necessary to choose the closest integration points. Because invF_e_pg is not constant in the element
-                #         # for each node detected, we'll calculate its distance from all integration points and see where it's closest
-                #         dist = np.zeros((xPs.shape[0], nPg))
-                #         for p in range(nPg):
-                #             dist[:,p] = np.linalg.norm(xPs - gaussCoord_e_pg[e, p, :dim], axis=1)
-                #         invMin = invF_e_pg[e, np.argmin(dist, axis=1)]                
-                #         xiP: np.ndarray = xiOrigin + (xPs - x0) @ invMin                    
-                # else:
-                #     # Here we need to construct the Jacobian matrices. This is the longest method here
-                #     def Eval(xi: np.ndarray, xP):
-                #         dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
-                #         F = dN[0] @ coordoElemBase[:,:dim] # jacobian matrix                   
-                #         J = x0 - xP + (xi - xiOrigin) @ F # cost function
-                #         return J
+                if not useIterative:
+                    # the fastest way
+                    # available only for undistorted meshes !
+                    # always valid for TRI3 and structured meshes.
+                    xiP: np.ndarray = xiOrigin + (xPs - x0) @ invF_e_pg[e,0]
+                         
+                else:
+                    # Here we need to construct the Jacobian matrices. This is the longest method here
+                    def Eval(xi: np.ndarray, xP):
+                        dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
+                        F = dN[0] @ coordoElemBase[:,:dim] # jacobian matrix                   
+                        J = x0 - xP + (xi - xiOrigin) @ F # cost function
+                        return J
 
-                #     xiP = []
-                #     for xP in xPs:
-                #         res = least_squares(Eval, 0*xP, args=(xP,))
-                #         xiP.append(res.x)
+                    xiP = []
+                    for xP in xPs:
+                        res = least_squares(Eval, 0*xP, args=(xP,))
+                        xiP.append(res.x)
 
-                #     xiP = np.array(xiP)
+                    xiP = np.array(xiP)
 
                 coordInElem_n[nodesInElement,:] = xiP.copy()
 
