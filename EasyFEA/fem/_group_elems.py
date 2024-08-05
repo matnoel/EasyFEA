@@ -1619,7 +1619,7 @@ class _GroupElem(ABC):
                     def Eval(xi: np.ndarray, xP):
                         dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
                         F = dN[0] @ coordoElemBase[:,:dim] # jacobian matrix                   
-                        J = x0 - xP + (xi - xiOrigin) @ F # cost function
+                        J = x0 + (xi - xiOrigin) @ F - xP # cost function
                         return J
 
                     xiP = []
