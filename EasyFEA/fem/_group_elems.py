@@ -1428,7 +1428,7 @@ class _GroupElem(ABC):
             indexReord = np.append(np.arange(1, nPe), 0)
             # Vectors i for edge segments
             vect_i_b = coordo[connectMesh[indexReord]] - coordo[connectMesh]
-            # vect_i_b = np.einsum("ni,n->ni", vect_i_b, 1/np.linalg.norm(vect_i_b, axis=1), optimize="optimal")
+            vect_i_b = np.einsum("ni,n->ni", vect_i_b, 1/np.linalg.norm(vect_i_b, axis=1), optimize="optimal")
 
             # normal vector to element face
             vect_n = np.cross(vect_i_b[0], -vect_i_b[-1])
@@ -1554,8 +1554,6 @@ class _GroupElem(ABC):
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
             invF_e_pg = self.Get_invF_e_pg(matrixType)
             dN_tild = self._dNtild()
-            nPg = invF_e_pg.shape[1]
-            gaussCoord_e_pg = self.Get_GaussCoordinates_e_p(matrixType)
             xiOrigin = self.origin # origin of the reference element (xi, eta)        
 
             # useIterative = False
@@ -1564,7 +1562,8 @@ class _GroupElem(ABC):
             diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
             error_e = np.abs(1 - diff_e) # a perfect element has an error max <= 1e-12
             # a distorted element has a max error greater than 0
-            useIterative = np.max(error_e) > 1e-12
+            useIterative_e = error_e > 1e-12
+            # useIterative = np.max(error_e) > 1e-12
         else:
             coordInElem_n = None
 
@@ -1609,7 +1608,7 @@ class _GroupElem(ABC):
                 x0  = coordoElemBase[0,:dim] # orign of the real element (x,y)
                 xPs = coordinatesBase_n[:,:dim] # points coordinates (x,y)
 
-                if not useIterative:
+                if not useIterative_e[e]:
                     # the fastest way
                     # available only for undistorted meshes !
                     # always valid for TRI3 and structured meshes.
