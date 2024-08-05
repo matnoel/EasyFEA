@@ -62,7 +62,7 @@ class DIC:
         self.__Nn: int = mesh.Nn
         self.__dim: int = mesh.dim
         self.__nDof: int = self.__Nn * self.__dim
-        self.__ldic: float = self.__Get_ldic()
+        self.__ldic: float = self._Get_ldic()
 
         self._idxImgRef: int = idxImgRef
         """Reference image index in _loads."""
@@ -138,9 +138,12 @@ class DIC:
         # Initializing shape functions and the Laplacian operator
         matrixType = "mass"
         Ntild = mesh.groupElem._Ntild()
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType) # (e, p)
+        weight_pg = mesh.Get_weight_pg(matrixType) # (p)        
+        dN_e_pg = mesh.groupElem.Get_dN_e_pg(matrixType) # (e, p, dim, nPe)
 
         # ----------------------------------------------
-        # Construction of shape function matrix for pixels
+        # Construction of shape function matrix for pixels (N)
         # ----------------------------------------------
         lines_x = []
         lines_y = []
@@ -177,26 +180,20 @@ class DIC:
             columns_Phi.extend(colonnes)
             values_phi.extend(np.reshape(phi, -1))    
 
-        self._Phi_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (nDof, coordInElem.shape[0]))
+        self._N_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (nDof, coordInElem.shape[0]))
         """Shape function matrix x (nDof, nPixels)"""
-        self._Phi_y = sparse.csr_matrix((values_phi, (lines_y, columns_Phi)), (nDof, coordInElem.shape[0]))
+        self._N_y = sparse.csr_matrix((values_phi, (lines_y, columns_Phi)), (nDof, coordInElem.shape[0]))
         """Shape function matrix y (nDof, nPixels)"""
 
-        Op = self._Phi_x @ self._Phi_x.T + self._Phi_y @ self._Phi_y.T
+        Op = self._N_x @ self._N_x.T + self._N_y @ self._N_y.T
+
         self.__Op_LU = splu(Op.tocsc())
         
         tic.Tac("DIC", "Phi_x and Phi_y", self._verbosity)
 
         # ----------------------------------------------
-        # Construction of the Laplacian operator
+        # Construction of the Laplacian operator (R)
         # ----------------------------------------------
-        dN_pg = mesh.groupElem.Get_dN_pg(matrixType)
-        invF_e_pg = mesh.groupElem.Get_invF_e_pg(matrixType)
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = mesh.Get_weight_pg(matrixType)
-        
-        # (e, p, dim, nPe)
-        dN_e_pg = np.array(np.einsum('epki,pkj->epij', invF_e_pg, dN_pg, optimize='optimal'))
         dNdx = dN_e_pg[:,:,0]
         dNdy = dN_e_pg[:,:,1]
 
@@ -219,57 +216,20 @@ class DIC:
         lines = mesh.linesVector_e.ravel()
         columns = mesh.columnsVector_e.ravel()
 
-        self._opLap = sparse.csr_matrix((B_e.ravel(), (lines, columns)), (nDof, nDof))
+        self._R = sparse.csr_matrix((B_e.ravel(), (lines, columns)), (nDof, nDof))
         """Laplacian operator"""
-
-        # # dNdx_dNdx_e = j w dNdx * dNdx^T -> (e, nPe, nPe)
-        # dNdx_dNdx_e = np.einsum('ep,p,epi,epj->eij', jacobian_e_pg, weight_pg, dNdx, dNdx, optimize='optimal')
-        # # dNdx_dNdx_e = np.einsum('epi,epj->eij', dNdx, dNdx, optimize='optimal')
-        # dNdx_dNdx = np.ravel(dNdx_dNdx_e)
-        # # dNdy_dNdy_e = j w dNdy * dNdy^T -> (e, nPe, nPe)
-        # dNdy_dNdy_e = np.einsum('ep,p,epi,epj->eij', jacobian_e_pg, weight_pg, dNdy, dNdy, optimize='optimal')
-        # # dNdy_dNdy_e = np.einsum('epi,epj->eij', dNdy, dNdy, optimize='optimal')
-        # dNdy_dNdy = np.ravel(dNdy_dNdy_e)
-        
-        # #                on x dofs               on y dofs
-        # # opLap = dNdx_dNdx + dNdy_dNdy + dNdx_dNdx + dNdy_dNdy
-        # # opLap = op1 + op2 + op3 + op4        
-        # assembly_e = mesh.assembly_e
-
-        # lines_x = np.repeat(assembly_e[:,ind_x], mesh.nPe, axis=1).ravel()
-        # lines_y = np.repeat(assembly_e[:,ind_y], mesh.nPe, axis=1).ravel()
-        # columns_x = np.repeat(assembly_e[:,ind_x], mesh.nPe, axis=0).ravel()
-        # columns_y = np.repeat(assembly_e[:,ind_y], mesh.nPe, axis=0).ravel()
-        
-        # # op1 = dNdx_dNdx on x dofs
-        # op1 = sparse.csr_matrix((dNdx_dNdx, (lines_x, columns_x)), (nDof, nDof))
-        # # op2 = dNdy_dNdy on x dofs
-        # op2 = sparse.csr_matrix((dNdy_dNdy, (lines_x, columns_x)), (nDof, nDof))
-        # # op3 = dNdx_dNdx on y dofs
-        # op3 = sparse.csr_matrix((dNdx_dNdx, (lines_y, columns_y)), (nDof, nDof))
-        # # op4 = dNdy_dNdy on y dofs
-        # op4 = sparse.csr_matrix((dNdy_dNdy, (lines_y, columns_y)), (nDof, nDof))
-
-        # self._opLap = op1 + op2 + op3 + op4
-        # """Laplacian operator"""
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)
 
-    def __Get_ldic(self) -> float:
+    def _Get_ldic(self) -> float:
         """Calculation ldic the characteristic length of the mesh, i.e. 8 x the average length of the edges of the elements."""
 
-        indexReord = np.append(np.arange(1, self._mesh.nPe), 0)
-        coord = self._mesh.coord
-        connect = self._mesh.connect        
-
         # Calculation of average element size
-        bords_e_b_c = coord[connect[:,indexReord]] - coord[connect] # edge vectors
-        h_e_b = np.sqrt(np.sum(bords_e_b_c**2, 2)) # edge lengths
-        ldic = 8 * np.mean(h_e_b)
-        
+        ldic = 8 * self._mesh.Get_meshSize(False).mean()
+
         return ldic
 
-    def __Get_v(self) -> np.ndarray:
+    def _Get_w(self) -> np.ndarray:
         """Returns characteristic sinusoidal displacement corresponding to element size."""
 
         ldic = self.__ldic
@@ -277,11 +237,11 @@ class DIC:
         coordX = self._mesh.coord[:,0]
         coordY = self._mesh.coord[:,1]
         
-        v = np.cos(2*np.pi*coordX/ldic) * np.sin(2*np.pi*coordY/ldic)
+        w = np.cos(2*np.pi*coordX/ldic) * np.sin(2*np.pi*coordY/ldic)
 
-        v = v.repeat(2)
+        w = w.repeat(2)
 
-        return v
+        return w
 
     def Compute_L_M(self, img: np.ndarray, lr=None) -> None:
         """Updating matrix to produce for DIC with TIKONOV."""
@@ -301,53 +261,52 @@ class DIC:
         
         roi = self._roi
 
-        self.L = self._Phi_x @ sparse.diags(gradX) + self._Phi_y @ sparse.diags(gradY)
+        self.L = self._N_x @ sparse.diags(gradX) + self._N_y @ sparse.diags(gradY)
 
-        self.M_Dic = self.L[:,roi] @ self.L[:,roi].T
+        self.M_dic = self.L[:,roi] @ self.L[:,roi].T
 
-        v = self.__Get_v()
         # plane wave
-
-        coef_M_Dic = v.T @ self.M_Dic @ v
-        coef_Op = v.T @ self._opLap @ v
-        
-        self.__coef_M_Dic = coef_M_Dic
-        self.__coef_opLap = coef_Op
+        w = self._Get_w()
+        # coefs
+        w_M = w.T @ self.M_dic @ w
+        w_R = w.T @ self._R @ w        
+        self.__w_M = w_M
+        self.__w_R = w_R
         
         if lr == 0.0:
             self.__alpha = 0
         else:
             self.__alpha = (self.__ldic/lr)**2
 
-        self._M = self.M_Dic / coef_M_Dic + self.__alpha * self._opLap / coef_Op 
+        self._M = 1/w_M * self.M_dic + self.__alpha/w_R * self._R  
         
         # self._M_LU = splu(self._M.tocsc(), permc_spec="MMD_AT_PLUS_A")
         self._M_LU = splu(self._M.tocsc())
 
         tic.Tac("DIC", "Construct L and M", self._verbosity)
 
-    def __Get_u_from_images(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
+    def _Get_u_from_images(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
         """Use open cv to calculate displacements between images."""
         
-        DIS = cv2.DISOpticalFlow_create()        
+        DIS = cv2.DISOpticalFlow_create()
         IMG1_uint8 = np.uint8(img1*2**(8-round(np.log2(img1.max()))))
         IMG2_uint8 = np.uint8(img2*2**(8-round(np.log2(img1.max()))))
         Flow = DIS.calc(IMG1_uint8,IMG2_uint8,None)
 
-        # Project these displacements onto the mesh nodes
-        mapx = Flow[:,:,0]
-        mapy = Flow[:,:,1]
+        # Project these displacements onto the pixels
+        ux_p = Flow[:,:,0]
+        uy_p = Flow[:,:,1]
 
-        Phix = self._Phi_x
-        Phiy = self._Phi_y
+        N_x = self._N_x
+        N_y = self._N_y
 
         Op_LU = self.__Op_LU
 
-        b = Phix @ mapx.ravel() + Phiy @ mapy.ravel()
+        b = N_x @ ux_p.ravel() + N_y @ uy_p.ravel()
 
-        DofValues = Op_LU.solve(b)
+        u0 = Op_LU.solve(b)
 
-        return DofValues
+        return u0
 
     def __Test_img(self, img: np.ndarray) -> None:
         """Function to test whether the image is the right size."""
@@ -389,8 +348,9 @@ class DIC:
 
         self.__Test_img(img)
         imgRef = self.__Get_imgRef(imgRef)
-        # initalization of displacement vector
-        u = self.__Get_u_from_images(imgRef, img)
+        # initial displacement vector
+        u0 = self._Get_u_from_images(imgRef, img)
+        u = u0.copy()
 
         # Recovery of image pixel coordinates
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
@@ -403,17 +363,19 @@ class DIC:
         # Here the small displacement hypothesis is used
         # The gradient of the two images is assumed to be identical
         # For large displacements, the matrices would have to be recalculated using Compute_L_M
-        opLapReg = self.__alpha * self._opLap / self.__coef_opLap # operator laplacian regularized
-        Lcoef = self.L[:,roi] / self.__coef_M_Dic
+        R_reg = self.__alpha * self._R / self.__w_R # operator laplacian regularized
+        Lcoef = self.L[:,roi] / self.__w_M
 
         for iter in range(iterMax):
 
-            ux_p, uy_p = self.__Calc_pixelDisplacement(u)
+            ux_p, uy_p = self._Calc_pixelDisplacement(u)
 
             g = img_fct.ev((coordY + uy_p)[roi], (coordX + ux_p)[roi])
             r = f - g
 
-            b = Lcoef @ r - opLapReg @ u
+            # b = Lcoef @ r - R_reg @ u # previous implementation with an error
+            # b = Lcoef @ r + R_reg @ (u0*0 - u) # previous implementation with an error (using the new formalism)
+            b = Lcoef @ r + R_reg @ (u0 - u) # add static equilibrium error
             du = self._M_LU.solve(b)
             u += du
             
@@ -422,7 +384,10 @@ class DIC:
             if verbosity:
                 print(f"Iter {iter+1:2d} ||b|| {norm_b:.3}     ", end='\r')             
             
-            if norm_b <= tolConv:
+            # if iter == 0:
+            #     b0 = norm_b.copy()
+            # if norm_b < b0*tolConv:
+            if norm_b < tolConv:
                 break
 
         if iter+1 > iterMax:
@@ -460,7 +425,7 @@ class DIC:
 
         f = imgRef.ravel() # reference image as a vector and retrieving pixels in the roi
 
-        ux_p, uy_p = self.__Calc_pixelDisplacement(u)
+        ux_p, uy_p = self._Calc_pixelDisplacement(u)
 
         g = img_fct.ev((coordY + uy_p), (coordX + ux_p))
         r = f - g
@@ -484,11 +449,11 @@ class DIC:
         self._coef = imgScale
 
 
-    def __Calc_pixelDisplacement(self, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _Calc_pixelDisplacement(self, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Calculates pixel displacement from mesh node displacement using shape functions."""        
 
-        ux_p = u @ self._Phi_x
-        uy_p = u @ self._Phi_y
+        ux_p = u @ self._N_x
+        uy_p = u @ self._N_y
         
         return ux_p, uy_p
 
