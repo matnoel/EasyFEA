@@ -11,14 +11,16 @@ import pickle
 import cv2 # need opencv-python library
 
 # utilities
-from ..utilities import Tic, Folder
+from ..utilities import Tic, Folder, Display
+from ..utilities._observers import Observable, _IObserver
 # fem
 from ..fem import Mesh, BoundaryCondition
 
-class DIC:
+class DIC(_IObserver):
 
     def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray,
-                 forces: np.ndarray=None, displacements: np.ndarray=None, lr=0.0, verbosity=False):
+                 forces: np.ndarray=None, displacements: np.ndarray=None,
+                 lr=0.0, v0: np.ndarray=None, verbosity=False):
         """Creates a DIC analysis.
 
         Parameters
@@ -35,6 +37,9 @@ class DIC:
             displacement vectors, by default None
         lr : float, optional
             regularization length, by default 0.0
+        v0 : np.ndarray, optional
+            regularized displacement field, by default None\n
+            If v0 == None, the field is initialized with np.zeros(2*mesh.Nn)
         verbosity : bool, optional
             analysis can write to console, by default False
 
@@ -44,25 +49,21 @@ class DIC:
             Object for image correlation
         """
 
-        self._forces = forces
-        """forces measured during the tests."""
-
-        self._displacements = displacements
-        """displacements measured during the tests."""
-
-        self._mesh: Mesh = mesh
-        """pixel-based mesh used for image correlation."""
         assert mesh.dim == 2, "Must be a 2D mesh."
-
-        self._meshCoef = None
-        """scaled mesh."""
+        self.__mesh: Mesh = mesh
+        mesh._Add_observer(self)
         self._coef = 1.0
-        """scaling coef (image scale [mm/px])."""
 
         self.__Nn: int = mesh.Nn
         self.__dim: int = mesh.dim
         self.__nDof: int = self.__Nn * self.__dim
         self.__ldic: float = self._Get_ldic()
+
+        self._forces = forces
+        """forces measured during the tests."""
+
+        self._displacements = displacements
+        """displacements measured during the tests."""
 
         self._idxImgRef: int = idxImgRef
         """Reference image index in _loads."""
@@ -81,9 +82,10 @@ class DIC:
 
         self._list_img_exp: list[np.ndarray] = []
         """List containing images for which the displacement field has been calculated."""
-
-        self.__lr: float = lr
-        """regulation length."""
+        
+        # regul
+        self._lr = lr
+        self._v0 = v0
 
         self._verbosity: bool = verbosity
 
@@ -93,6 +95,67 @@ class DIC:
         self.__init__Phi_opLap()        
 
         self.Compute_L_M(imgRef)
+
+    @property
+    def _mesh(self) -> Mesh:
+        """pixel-based mesh used for image correlation."""
+        return self.__mesh
+    
+    @property
+    def _coef(self) -> float:
+        """scaling coef (image scale [mm/px])."""
+        return self.__coef
+    
+    @_coef.setter
+    def _coef(self, value: float) -> None:
+        assert value != 0.0
+        self.__coef = value
+ 
+    @property
+    def _meshCoef(self) -> Mesh:
+        """scaled mesh."""
+        meshC = self.__mesh.copy()
+        meshC._ResetMatrix()
+        meshC.coordGlob = meshC.coordGlob * self._coef
+        return meshC
+
+    @property
+    def _lr(self) -> float:
+        """regulation length."""
+        return self.__lr
+
+    @_lr.setter
+    def _lr(self, value: float) -> None:
+        """# Warning!\n
+        Changing this parameter does not automatically update the matrices. To update the matrices you must use the Compute_L_M function!"""
+        assert value >= 0.0, "lr must be >= 0.0"
+        self.__lr = value
+
+    @property
+    def _alpha(self) -> float:
+        if self._lr == 0.0:
+            return 0
+        else:
+            return (self.__ldic/self._lr)**2
+
+    @property
+    def _v0(self) -> np.ndarray:
+        """regularized displacement field."""
+        return self.__v0.copy()
+    
+    @_v0.setter
+    def _v0(self, array: np.ndarray) -> None:
+        if array is None:
+            array = np.zeros((self.__Nn * self.__dim), dtype=float)
+        else:
+            assert array.size == self.__Nn * self.__dim, "v0 must be a vector of dimension (Nn*2, 1)"
+        self.__v0 = array
+
+    def _Update(self, observable: Observable, event: str) -> None:
+        if isinstance(observable, Mesh):
+            raise Exception("The current implementation does not allow you to make any modifications to the mesh.")
+        else:
+            Display.MyPrintError("Notification not yet implemented")
 
     def __init__roi(self) -> None:
         """ROI initialization."""
@@ -116,15 +179,22 @@ class DIC:
         """pixel coordinates in the reference element."""
         
         # ROI creation
-        self._roi: np.ndarray = np.zeros(coordPx.shape[0])
-        self._roi[pixels] = 1
-        self._roi = np.asarray(self._roi == 1, dtype=bool)
-        """vector filter for accessing the pixels contained in the mesh."""
-        self._ROI: np.ndarray = self._roi.reshape(self.__shapeImages)
-        """matrix filter for accessing the pixels contained in the mesh."""
+        roi: np.ndarray = np.zeros(coordPx.shape[0])
+        roi[pixels] = 1
+        self.__roi = np.asarray(roi == 1, dtype=bool)
 
         tic.Tac("DIC", "ROI", self._verbosity)
     
+    @property
+    def _roi(self) -> np.ndarray[bool]:
+        """roi as a vector."""
+        return self.__roi.copy()
+
+    @property
+    def _ROI(self) -> np.ndarray[bool]:
+        """roi as a matrix."""
+        return self._roi.reshape(self.__shapeImages)
+
     def __init__Phi_opLap(self) -> None:
         """Initializing shape functions and the Laplacian operator."""
         
@@ -185,7 +255,7 @@ class DIC:
         self._N_y = sparse.csr_matrix((values_phi, (lines_y, columns_Phi)), (nDof, coordInElem.shape[0]))
         """Shape function matrix y (nDof, nPixels)"""
 
-        Op = self._N_x @ self._N_x.T + self._N_y @ self._N_y.T
+        Op: sparse.csr_matrix = self._N_x @ self._N_x.T + self._N_y @ self._N_y.T
 
         self.__Op_LU = splu(Op.tocsc())
         
@@ -219,7 +289,7 @@ class DIC:
         self._R = sparse.csr_matrix((B_e.ravel(), (lines, columns)), (nDof, nDof))
         """Laplacian operator"""
 
-        tic.Tac("DIC", "Laplacian operator", self._verbosity)
+        tic.Tac("DIC", "Laplacian operator", self._verbosity)    
 
     def _Get_ldic(self) -> float:
         """Calculation ldic the characteristic length of the mesh, i.e. 8 x the average length of the edges of the elements."""
@@ -234,10 +304,10 @@ class DIC:
 
         ldic = self.__ldic
 
-        coordX = self._mesh.coord[:,0]
-        coordY = self._mesh.coord[:,1]
+        x_n = self._mesh.coord[:,0]
+        y_n = self._mesh.coord[:,1]
         
-        w = np.cos(2*np.pi*coordX/ldic) * np.sin(2*np.pi*coordY/ldic)
+        w = np.cos(2*np.pi*x_n/ldic) * np.sin(2*np.pi*y_n/ldic)
 
         w = w.repeat(2)
 
@@ -251,8 +321,7 @@ class DIC:
         if lr is None:
             lr = self.__lr
         else:
-            assert lr >= 0.0, "lr must be >= 0"
-            self.__lr = lr
+            self._lr = lr
         
         # Recover image gradient
         grid_Gradfy, grid_Gradfx = np.gradient(img)
@@ -263,7 +332,7 @@ class DIC:
 
         self.L = self._N_x @ sparse.diags(gradX) + self._N_y @ sparse.diags(gradY)
 
-        self.M_dic = self.L[:,roi] @ self.L[:,roi].T
+        self.M_dic: sparse.csr_matrix = self.L[:,roi] @ self.L[:,roi].T
 
         # plane wave
         w = self._Get_w()
@@ -272,13 +341,8 @@ class DIC:
         w_R = w.T @ self._R @ w        
         self.__w_M = w_M
         self.__w_R = w_R
-        
-        if lr == 0.0:
-            self.__alpha = 0
-        else:
-            self.__alpha = (self.__ldic/lr)**2
 
-        self._M = 1/w_M * self.M_dic + self.__alpha/w_R * self._R  
+        self._M: sparse.csr_matrix = 1/w_M * self.M_dic + self._alpha/w_R * self._R  
         
         # self._M_LU = splu(self._M.tocsc(), permc_spec="MMD_AT_PLUS_A")
         self._M_LU = splu(self._M.tocsc())
@@ -324,13 +388,16 @@ class DIC:
 
         return imgRef
 
-    def Solve(self, img: np.ndarray, iterMax=1000, tolConv=1e-6, imgRef=None, verbosity=True) -> np.ndarray:
+    def Solve(self, img: np.ndarray, u0: np.ndarray=None, iterMax=1000, tolConv=1e-6, imgRef=None, verbosity=True) -> np.ndarray:
         """Displacement field between the img and the imgRef.
 
         Parameters
         ----------
         img : np.ndarray
             image used for calculation
+        u0 : np.ndarray, optional
+            initial displacement field, by default None\n
+            If u0 == None, the field is initialized with _Get_u_from_images(imgRef, img)
         iterMax : int, optional
             maximum number of iterations, by default 1000
         tolConv : float, optional
@@ -348,8 +415,12 @@ class DIC:
 
         self.__Test_img(img)
         imgRef = self.__Get_imgRef(imgRef)
+
         # initial displacement vector
-        u0 = self._Get_u_from_images(imgRef, img)
+        if u0 is None:
+            u0 = self._Get_u_from_images(imgRef, img)
+        else:
+            assert u0.size == self._mesh.Nn * 2, "u0 must be a vector of dimension (Nn*2, 1)"
         u = u0.copy()
 
         # Recovery of image pixel coordinates
@@ -363,8 +434,9 @@ class DIC:
         # Here the small displacement hypothesis is used
         # The gradient of the two images is assumed to be identical
         # For large displacements, the matrices would have to be recalculated using Compute_L_M
-        R_reg = self.__alpha * self._R / self.__w_R # operator laplacian regularized
+        R_reg = self._alpha * self._R / self.__w_R # operator laplacian regularized
         Lcoef = self.L[:,roi] / self.__w_M
+        v0 = self._v0
 
         for iter in range(iterMax):
 
@@ -374,8 +446,8 @@ class DIC:
             r = f - g
 
             # b = Lcoef @ r - R_reg @ u # previous implementation with an error
-            # b = Lcoef @ r + R_reg @ (u0*0 - u) # previous implementation with an error (using the new formalism)
-            b = Lcoef @ r + R_reg @ (u0 - u) # add static equilibrium error
+            # b = Lcoef @ r + R_reg @ (v0*0 - u) # previous implementation with an error (using the new formalism)
+            b = Lcoef @ r + R_reg @ (v0 - u) # add static equilibrium error
             du = self._M_LU.solve(b)
             u += du
             
@@ -433,21 +505,6 @@ class DIC:
         r_dic = np.reshape(r, self.__shapeImages)
 
         return r_dic
-
-    def Set_meshCoef_coef(self, mesh: Mesh, imgScale: float) -> None:
-        """Set mesh size and scaling factor
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        imgScale : float
-            scaling coefficient [mm/px]
-        """
-        assert isinstance(mesh, Mesh) and mesh.dim == 2, "Must be a 2D mesh."
-        self._meshCoef = mesh
-        self._coef = imgScale
-
 
     def _Calc_pixelDisplacement(self, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Calculates pixel displacement from mesh node displacement using shape functions."""        
