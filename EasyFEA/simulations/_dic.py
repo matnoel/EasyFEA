@@ -20,7 +20,7 @@ class DIC(_IObserver):
 
     def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray,
                  forces: np.ndarray=None, displacements: np.ndarray=None,
-                 lr=0.0, v0: np.ndarray=None, verbosity=False):
+                 lr=0.0, verbosity=False):
         """Creates a DIC analysis.
 
         Parameters
@@ -37,9 +37,6 @@ class DIC(_IObserver):
             displacement vectors, by default None
         lr : float, optional
             regularization length, by default 0.0
-        v0 : np.ndarray, optional
-            regularized displacement field, by default None\n
-            If v0 == None, the field is initialized with np.zeros(2*mesh.Nn)
         verbosity : bool, optional
             analysis can write to console, by default False
 
@@ -49,15 +46,21 @@ class DIC(_IObserver):
             Object for image correlation
         """
 
+        # mesh
         assert mesh.dim == 2, "Must be a 2D mesh."
-        self.__mesh: Mesh = mesh
+        # self.__mesh: Mesh = mesh # TODO Remove comments identified by #[uncom] after the end of the thesis.
+        # also remove the uncommented lines #[rm]
+        # For now, comments are not removed because I need to exploit saved correlation results that are not compatible with the commented code!
         mesh._Add_observer(self)
+        self._mesh = mesh
         self._coef = 1.0
 
-        self.__Nn: int = mesh.Nn
-        self.__dim: int = mesh.dim
-        self.__nDof: int = self.__Nn * self.__dim
-        self.__ldic: float = self._Get_ldic()
+        meshC = mesh.copy() #[rm]
+        meshC._ResetMatrix() #[rm]
+        meshC.coordGlob = meshC.coordGlob * self._coef #[rm]
+        self._meshCoef = meshC #[rm]
+
+        # solutions
 
         self._forces = forces
         """forces measured during the tests."""
@@ -65,59 +68,103 @@ class DIC(_IObserver):
         self._displacements = displacements
         """displacements measured during the tests."""
 
-        self._idxImgRef: int = idxImgRef
+        self._idxImgRef = idxImgRef #[rm]
+        # self.__idxImgRef: int = idxImgRef #[uncom]
         """Reference image index in _loads."""
 
-        self._imgRef: np.ndarray = imgRef        
-        """Image used as reference."""
+        self._imgRef = imgRef #[rm]
+        # self.__imgRef: np.ndarray = imgRef #[uncom]
+        """Image used as reference."""        
 
-        self.__shapeImages: tuple[int, int] = imgRef.shape
-        """Shape of images to be used for analysis."""
-
-        self._list_u_exp: list[np.ndarray] = []
-        """List containing calculated displacement fields."""
-
-        self._list_idx_exp: list[int] = []
+        self._list_idx_exp: list[int] = [] #[rm]
+        # self.__list_idx_exp: list[int] = [] #[uncom]
         """List containing indexes for which the displacement field has been calculated."""
 
-        self._list_img_exp: list[np.ndarray] = []
+        self._list_u_exp: list[np.ndarray] = [] #[rm]
+        # self.__list_u_exp: list[np.ndarray] = [] #[uncom]
+        """List containing calculated displacement fields."""
+
+        self._list_img_exp: list[np.ndarray] = [] #[rm]
+        # self.__list_img_exp: list[np.ndarray] = [] #[uncom]
         """List containing images for which the displacement field has been calculated."""
         
-        # regul
-        self._lr = lr
-        self._v0 = v0
-
         self._verbosity: bool = verbosity
 
         # initialize ROI and shape functions and shape function derivatives        
-        self.__init__roi()       
+        self.__init__roi()
+        self.__init__Phi_opLap()
+        
+        # regul
+        self.__lr = 0.0
+        self._lr = lr
+        # Updating self._lr will automatically update the matrices
+        # That's why we can comment on the following line
+        # self.Compute_L_M(imgRef)
 
-        self.__init__Phi_opLap()        
+    # mesh properties
 
-        self.Compute_L_M(imgRef)
-
-    @property
-    def _mesh(self) -> Mesh:
-        """pixel-based mesh used for image correlation."""
-        return self.__mesh
+    # @property #[uncom]
+    # def _mesh(self) -> Mesh:
+    #     """pixel-based mesh used for image correlation."""
+    #     return self.__mesh
     
     @property
-    def _coef(self) -> float:
-        """scaling coef (image scale [mm/px])."""
-        return self.__coef
+    def dim(self) -> int:
+        """mesh dim."""
+        return self._mesh.dim #[rm]
+        # return self.__mesh.dim #[uncom]
     
-    @_coef.setter
-    def _coef(self, value: float) -> None:
-        assert value != 0.0
-        self.__coef = value
+    @property
+    def Nn(self) -> int:
+        return self._mesh.Nn #[rm]
+        # return self.__mesh.Nn #[uncom]
+    
+    @property
+    def Ndof(self) -> int:
+        return self.Nn * self.dim
+    
+    @property
+    def ldic(self) -> float:
+        """8 * mean(meshSize)"""
+        return self._Get_ldic()
+    
+    # @property #[uncom]
+    # def _coef(self) -> float:
+    #     """scaling coef (image scale [mm/px])."""
+    #     return self.__coef    
+    
+    # @_coef.setter #[uncom]
+    # def _coef(self, value: float) -> None:
+    #     assert value != 0.0
+    #     self.__coef = value
  
+    # @property #[uncom]
+    # def _meshCoef(self) -> Mesh:
+    #     """scaled mesh."""
+    #     meshC = self.__mesh.copy()
+    #     meshC._ResetMatrix()
+    #     meshC.coordGlob = meshC.coordGlob * self._coef
+    #     return meshC
+    
+    # image properties
+
+    # @property #[uncom]
+    # def _idxImgRef(self) -> int:
+    #     """Reference image index in _loads (or in the folder)."""
+    #     return self.__idxImgRef
+
+    # @property
+    # def _imgRef(self) -> np.ndarray:
+    #     """Image used as reference."""
+    #     return self.__imgRef.copy()
+    
     @property
-    def _meshCoef(self) -> Mesh:
-        """scaled mesh."""
-        meshC = self.__mesh.copy()
-        meshC._ResetMatrix()
-        meshC.coordGlob = meshC.coordGlob * self._coef
-        return meshC
+    def _shapeImages(self) -> tuple[int, int]:        
+        """Image dimension required"""
+        return self._imgRef.shape
+        # return self.__imgRef.shape
+
+    # regularisation properties
 
     @property
     def _lr(self) -> float:
@@ -127,29 +174,34 @@ class DIC(_IObserver):
     @_lr.setter
     def _lr(self, value: float) -> None:
         """# Warning!\n
-        Changing this parameter does not automatically update the matrices. To update the matrices you must use the Compute_L_M function!"""
+        Changing this parameter will automatically update the matrices with Compute_L_M function!"""
         assert value >= 0.0, "lr must be >= 0.0"
         self.__lr = value
+        self.Compute_L_M(self._imgRef)
 
     @property
     def _alpha(self) -> float:
         if self._lr == 0.0:
             return 0
         else:
-            return (self.__ldic/self._lr)**2
+            return (self.ldic/self._lr)**2
 
-    @property
-    def _v0(self) -> np.ndarray:
-        """regularized displacement field."""
-        return self.__v0.copy()
+    # solution properties
     
-    @_v0.setter
-    def _v0(self, array: np.ndarray) -> None:
-        if array is None:
-            array = np.zeros((self.__Nn * self.__dim), dtype=float)
-        else:
-            assert array.size == self.__Nn * self.__dim, "v0 must be a vector of dimension (Nn*2, 1)"
-        self.__v0 = array
+    # @property
+    # def _list_idx_exp(self) -> list[int]:
+    #     """Copy of the list containing indexes for which the displacement field has been calculated."""
+    #     return self.__list_idx_exp.copy()
+
+    # @property
+    # def _list_u_exp(self) -> list[np.ndarray]:
+    #     """Copy of the list containing the calculated displacement fields."""
+    #     return self.__list_u_exp.copy()
+    
+    # @property #[uncom]
+    # def _list_img_exp(self) -> list[np.ndarray]:
+    #     """Copy of the list containing images for which the displacement field has been calculated."""
+    #     return self.__list_img_exp.copy()
 
     def _Update(self, observable: Observable, event: str) -> None:
         if isinstance(observable, Mesh):
@@ -193,14 +245,14 @@ class DIC(_IObserver):
     @property
     def _ROI(self) -> np.ndarray[bool]:
         """roi as a matrix."""
-        return self._roi.reshape(self.__shapeImages)
+        return self._roi.reshape(self._shapeImages)
 
     def __init__Phi_opLap(self) -> None:
         """Initializing shape functions and the Laplacian operator."""
         
         mesh = self._mesh 
-        dim = self.__dim       
-        nDof = self.__nDof
+        dim = self.dim       
+        Ndof = self.Ndof
 
         connectPixel = self.__connectPixel
         coordInElem = self.__coordPixelInElem        
@@ -250,9 +302,9 @@ class DIC(_IObserver):
             columns_Phi.extend(colonnes)
             values_phi.extend(np.reshape(phi, -1))    
 
-        self._N_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (nDof, coordInElem.shape[0]))
+        self._N_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (Ndof, coordInElem.shape[0]))
         """Shape function matrix x (nDof, nPixels)"""
-        self._N_y = sparse.csr_matrix((values_phi, (lines_y, columns_Phi)), (nDof, coordInElem.shape[0]))
+        self._N_y = sparse.csr_matrix((values_phi, (lines_y, columns_Phi)), (Ndof, coordInElem.shape[0]))
         """Shape function matrix y (nDof, nPixels)"""
 
         Op: sparse.csr_matrix = self._N_x @ self._N_x.T + self._N_y @ self._N_y.T
@@ -286,14 +338,15 @@ class DIC(_IObserver):
         lines = mesh.linesVector_e.ravel()
         columns = mesh.columnsVector_e.ravel()
 
-        self._R = sparse.csr_matrix((B_e.ravel(), (lines, columns)), (nDof, nDof))
+        self._R = sparse.csr_matrix((B_e.ravel(), (lines, columns)), (Ndof, Ndof))
         """Laplacian operator"""
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)    
 
-    def _Get_ldic(self) -> float:
+    def _Get_ldic(self, coef=8) -> float:
         """Calculation ldic the characteristic length of the mesh, i.e. 8 x the average length of the edges of the elements."""
 
+        assert coef > 0
         # Calculation of average element size
         ldic = 8 * self._mesh.Get_meshSize(False).mean()
 
@@ -302,7 +355,7 @@ class DIC(_IObserver):
     def _Get_w(self) -> np.ndarray:
         """Returns characteristic sinusoidal displacement corresponding to element size."""
 
-        ldic = self.__ldic
+        ldic = self.ldic
 
         x_n = self._mesh.coord[:,0]
         y_n = self._mesh.coord[:,1]
@@ -313,15 +366,10 @@ class DIC(_IObserver):
 
         return w
 
-    def Compute_L_M(self, img: np.ndarray, lr=None) -> None:
+    def Compute_L_M(self, img: np.ndarray) -> None:
         """Updating matrix to produce for DIC with TIKONOV."""
 
         tic = Tic()
-
-        if lr is None:
-            lr = self.__lr
-        else:
-            self._lr = lr
         
         # Recover image gradient
         grid_Gradfy, grid_Gradfx = np.gradient(img)
@@ -342,10 +390,10 @@ class DIC(_IObserver):
         self.__w_M = w_M
         self.__w_R = w_R
 
-        self._M: sparse.csr_matrix = 1/w_M * self.M_dic + self._alpha/w_R * self._R  
+        self._M_reg: sparse.csr_matrix = 1/w_M * self.M_dic + self._alpha/w_R * self._R  
         
-        # self._M_LU = splu(self._M.tocsc(), permc_spec="MMD_AT_PLUS_A")
-        self._M_LU = splu(self._M.tocsc())
+        # self._M_reg_LU = splu(self._M.tocsc(), permc_spec="MMD_AT_PLUS_A")
+        self._M_reg_LU = splu(self._M_reg.tocsc())
 
         tic.Tac("DIC", "Construct L and M", self._verbosity)
 
@@ -361,21 +409,16 @@ class DIC(_IObserver):
         ux_p = Flow[:,:,0]
         uy_p = Flow[:,:,1]
 
-        N_x = self._N_x
-        N_y = self._N_y
+        b =  self._N_x @ ux_p.ravel() + self._N_y @ uy_p.ravel()
 
-        Op_LU = self.__Op_LU
-
-        b = N_x @ ux_p.ravel() + N_y @ uy_p.ravel()
-
-        u0 = Op_LU.solve(b)
+        u0 = self.__Op_LU.solve(b)
 
         return u0
 
     def __Test_img(self, img: np.ndarray) -> None:
         """Function to test whether the image is the right size."""
 
-        assert img.shape == self.__shapeImages, f"The image entered is the wrong size. Must be {self.__shapeImages}"
+        assert img.shape == self._shapeImages, f"The image entered is the wrong size. Must be {self._shapeImages}"
 
     def __Get_imgRef(self, imgRef) -> np.ndarray:
         """Function that returns the reference image or checks whether the image entered is the correct size."""
@@ -384,7 +427,7 @@ class DIC(_IObserver):
             imgRef = self._imgRef
         else:
             assert isinstance(imgRef, np.ndarray), "The reference image must be an numpy array."
-            assert imgRef.size == self._roi.size, f"The reference image entered is the wrong size. Must be {self.__shapeImages}"
+            assert imgRef.size == self._roi.size, f"The reference image entered is the wrong size. Must be {self._shapeImages}"
 
         return imgRef
 
@@ -436,7 +479,6 @@ class DIC(_IObserver):
         # For large displacements, the matrices would have to be recalculated using Compute_L_M
         R_reg = self._alpha * self._R / self.__w_R # operator laplacian regularized
         Lcoef = self.L[:,roi] / self.__w_M
-        v0 = self._v0
 
         for iter in range(iterMax):
 
@@ -445,10 +487,8 @@ class DIC(_IObserver):
             g = img_fct.ev((coordY + uy_p)[roi], (coordX + ux_p)[roi])
             r = f - g
 
-            # b = Lcoef @ r - R_reg @ u # previous implementation with an error
-            # b = Lcoef @ r + R_reg @ (v0*0 - u) # previous implementation with an error (using the new formalism)
-            b = Lcoef @ r + R_reg @ (v0 - u) # add static equilibrium error
-            du = self._M_LU.solve(b)
+            b = Lcoef @ r - R_reg @ u
+            du = self._M_reg_LU.solve(b)
             u += du
             
             norm_b = np.linalg.norm(b)
@@ -502,7 +542,7 @@ class DIC(_IObserver):
         g = img_fct.ev((coordY + uy_p), (coordX + ux_p))
         r = f - g
 
-        r_dic = np.reshape(r, self.__shapeImages)
+        r_dic = np.reshape(r, self._shapeImages)
 
         return r_dic
 
@@ -529,8 +569,8 @@ class DIC(_IObserver):
         if idx not in self._list_idx_exp:
             
             self.__Test_img(img)
-            if u_exp.size != self.__nDof:
-                print(f"The displacement vector field is the wrong dimension. Must be of dimension {self.__nDof}")
+            if u_exp.size != self.Ndof:
+                print(f"The displacement vector field is the wrong dimension. Must be of dimension {self.Ndof}")
                 return
 
             self._list_idx_exp.append(idx)
@@ -542,7 +582,7 @@ class DIC(_IObserver):
         path_dic = Folder.New_File(f"{filename}.pickle", folder)
         with open(path_dic, 'wb') as file:
             self.__Op_LU = None
-            self._M_LU = None
+            self._M_reg_LU = None
             pickle.dump(self, file)
 
 # ----------------------------------------------
