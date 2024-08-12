@@ -18,7 +18,7 @@ from ..fem import Mesh, BoundaryCondition
 
 class DIC(_IObserver):
 
-    def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray,
+    def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray, coef: float=1.0,
                  forces: np.ndarray=None, displacements: np.ndarray=None,
                  lr=0.0, verbosity=False):
         """Creates a DIC analysis.
@@ -31,6 +31,8 @@ class DIC(_IObserver):
             index of reference image in forces
         imgRef : np.ndarray
             reference image
+        coef : float, optional
+            scaling coef (image scale [mm/px]) or pixel size, by default 1.0
         forces : np.ndarray, optional
             force vectors, by default None
         displacements : np.ndarray, optional
@@ -48,12 +50,16 @@ class DIC(_IObserver):
 
         # mesh
         assert mesh.dim == 2, "Must be a 2D mesh."
+        mesh._Add_observer(self)
+        
+        self._mesh = mesh #[rm]
+        # self.__mesh = mesh #[uncom]
+
         # self.__mesh: Mesh = mesh # TODO Remove comments identified by #[uncom] after the end of the thesis.
         # also remove the uncommented lines #[rm]
         # For now, comments are not removed because I need to exploit saved correlation results that are not compatible with the commented code!
-        mesh._Add_observer(self)
-        self._mesh = mesh
-        self._coef = 1.0
+        assert coef >= 0
+        self._coef = coef
 
         meshC = mesh.copy() #[rm]
         meshC._ResetMatrix() #[rm]
@@ -130,7 +136,7 @@ class DIC(_IObserver):
     
     # @property #[uncom]
     # def _coef(self) -> float:
-    #     """scaling coef (image scale [mm/px])."""
+    #     """scaling coef (image scale [mm/px]) or pixel size."""
     #     return self.__coef    
     
     # @_coef.setter #[uncom]
@@ -161,8 +167,8 @@ class DIC(_IObserver):
     @property
     def _shapeImages(self) -> tuple[int, int]:        
         """Image dimension required"""
-        return self._imgRef.shape
-        # return self.__imgRef.shape
+        return self._imgRef.shape #[rm]
+        # return self.__imgRef.shape #[uncom]
 
     # regularisation properties
 
@@ -177,7 +183,7 @@ class DIC(_IObserver):
         Changing this parameter will automatically update the matrices with Compute_L_M function!"""
         assert value >= 0.0, "lr must be >= 0.0"
         self.__lr = value
-        self.Compute_L_M(self._imgRef)
+        self._Compute_L_M(self._imgRef)
 
     @property
     def _alpha(self) -> float:
@@ -188,12 +194,12 @@ class DIC(_IObserver):
 
     # solution properties
     
-    # @property
+    # @property #[uncom]
     # def _list_idx_exp(self) -> list[int]:
     #     """Copy of the list containing indexes for which the displacement field has been calculated."""
     #     return self.__list_idx_exp.copy()
 
-    # @property
+    # @property #[uncom]
     # def _list_u_exp(self) -> list[np.ndarray]:
     #     """Copy of the list containing the calculated displacement fields."""
     #     return self.__list_u_exp.copy()
@@ -224,6 +230,7 @@ class DIC(_IObserver):
 
         # recovery of pixels used in elements with their coordinates
         pixels, __, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(coordPixel)
+        # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])
 
         self.__connectPixel: np.ndarray = connectPixel
         """connectivity matrix which links the pixels used for each element."""
@@ -366,7 +373,7 @@ class DIC(_IObserver):
 
         return w
 
-    def Compute_L_M(self, img: np.ndarray) -> None:
+    def _Compute_L_M(self, img: np.ndarray) -> None:
         """Updating matrix to produce for DIC with TIKONOV."""
 
         tic = Tic()
@@ -498,11 +505,11 @@ class DIC(_IObserver):
             
             # if iter == 0:
             #     b0 = norm_b.copy()
-            # if norm_b < b0*tolConv:
+            # if norm_b < b0*tolConv:            
             if norm_b < tolConv:
                 break
 
-        if iter+1 > iterMax:
+        if iter+1 == iterMax:
             raise Exception("Image correlation analysis did not converge.")
 
         return u
