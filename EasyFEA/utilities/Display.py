@@ -1195,7 +1195,7 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
     folder : str
         save folder
     filename : str
-        filenemae
+        filename
     transparent : bool, optional
         transparent, by default False
     extension : str, optional
