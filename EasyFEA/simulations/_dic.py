@@ -444,7 +444,7 @@ class DIC(_IObserver):
             norm_b = np.linalg.norm(b)
 
             if verbosity:
-                print(f"Iter {iter+1:2d} ||b|| {norm_b:.3}     ", end='\r')             
+                print(f"Iter {iter+1:2d} ||b|| {norm_b:.1e}     ", end='\r')             
             
             # if iter == 0:
             #     b0 = norm_b.copy()
