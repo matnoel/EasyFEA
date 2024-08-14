@@ -25,19 +25,19 @@ class DIC(_IObserver):
         Parameters
         ----------
         mesh : Mesh
-            Mesh used to construct the roi
+            mesh used to construct the roi
         idxImgRef : int
-            index of reference image in forces
+            reference image index in _forces (or in the folder).
         imgRef : np.ndarray
             reference image
         lr : float, optional
             regularization length, by default 0.0
         forces : np.ndarray, optional
-            force vectors, by default None
+            forces measured during the tests, by default None
         displacements : np.ndarray, optional
-            displacement vectors, by default None
+            displacements measured during the tests, by default None
         verbosity : bool, optional
-            analysis can write to console, by default False
+            can write in the terminal, by default False
 
         Returns
         -------
@@ -100,7 +100,7 @@ class DIC(_IObserver):
     # image properties
     @property
     def idxImgRef(self) -> int:
-        """Reference image index in _loads (or in the folder)."""
+        """Reference image index in _forces (or in the folder)."""
         return self.__idxImgRef
 
     @property
@@ -416,7 +416,7 @@ class DIC(_IObserver):
             assert u0.size == self.__mesh.Nn * 2, "u0 must be a vector of dimension (Nn*2, 1)"
         u = u0.copy()
 
-        # Recovery of image pixel coordinates
+        # Retrieves image pixel coordinates
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
         coordX, coordY = gridX.ravel(), gridY.ravel()
 
@@ -426,7 +426,6 @@ class DIC(_IObserver):
         
         # Here the small displacement hypothesis is used
         # The gradient of the two images is assumed to be identical
-        # For large displacements, the matrices would have to be recalculated using Compute_L_M
         R_reg = self.alpha * self._R / self.__w_R
         Lcoef = self.L[:,roi] / self.__w_M
 
