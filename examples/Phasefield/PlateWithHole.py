@@ -35,7 +35,7 @@ plotEnergy = False
 showFig = True
 
 saveParaview = False
-makeMovie = False
+makeMovie = True
 
 # Material
 materialType = "Elas_Isot" # ["Elas_Isot", "Elas_IsotTrans"]
@@ -48,7 +48,7 @@ tolConv = 1e-0
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
 # splits = ["Zhang"]
 # splits = ["AnisotStrain","AnisotStress","Zhang"]
-splits = ["AnisotStress"]
+splits = ["Miehe"]
 
 regus = ["AT1"] # ["AT1", "AT2"]
 # regus = ["AT1", "AT2"]
@@ -76,10 +76,24 @@ def DoMesh(L: float, h: float, diam: float, thickness: float, l0: float, split: 
     domain = Domain(point, Point(L, h), clD)
     circle = Circle(Point(L/2, h/2), diam, clD, isHollow=True)
 
+    folder = Folder.New_File("",results=True)
+    ax = Display.Init_Axes()
+    domain.Plot(ax, color='k', plotPoints=False)
+    circle.Plot(ax, color='k', plotPoints=False)
+    # if refineGeom != None:
+    #     refineGeom.Plot(ax, color='k', plotPoints=False)
+    # ax.scatter(((L+diam)/2, L/2), (h/2, (h+diam)/2), c='k')
+    ax.axis('off')
+    Display.Save_fig(folder,"sample",True)
+
     if dim == 2:
         mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
     elif dim == 3:
         mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,thickness], [4], ElemType.HEXA8,refineGeoms=[refineGeom])
+
+    ax = Display.Plot_Mesh(mesh, lw=0.3, facecolors='white')
+    ax.axis('off'); ax.set_title("")
+    Display.Save_fig(folder, "mesh", transparent=True)
 
     return mesh
 
@@ -308,8 +322,47 @@ def DoSimu(split: str, regu: str):
     if saveParaview:
         Paraview_Interface.Make_Paraview(simu, folder)
 
-    if makeMovie:        
-        Display.Movie_Simu(simu, "damage", folder, "damage.mp4", N=200, plotMesh=False, deformFactor=1.5)
+    if makeMovie:
+
+        from EasyFEA import PyVista_Interface as pvi
+
+        iterations = np.arange(0, len(simu.results)-30, 1)
+
+        simu.Set_Iter(-1)
+        nodes_upper = simu.mesh.Nodes_Conditions(lambda x,y,z: y==h)
+        depMax = simu.Result('displacement_norm')[nodes_upper].max()
+        deformFactor = L*.05/depMax
+
+        K = simu.Get_K_C_M_F()[-1]
+
+        nodes = list(set(simu.mesh.nodes) - set(simu.mesh.Nodes_Cylinder(Circle(Point(L/2,h/2), diam))))
+
+        def Func(plotter, n):
+
+            simu.Set_Iter(iterations[n])
+
+            grid = pvi._pvGrid(simu, 'damage', deformFactor)
+
+            tresh = grid.threshold((0,0.8))
+
+            # pvi.Plot_Elements(simu.mesh, nodes, dimElem=1, color='k', plotter=plotter, line_width=2)
+            pvi.Plot(tresh, 'damage', deformFactor, show_edges=False, plotter=plotter, clim=(0,1))
+
+            pvi.Plot_BoundaryConditions()
+
+
+            # _, _, coord, _ = pvi._Init_obj(simu, deformFactor)
+            # posY = coord[nodes_upper, 1].mean()
+            # b = thickness/2
+            # cyl1 = pvi.pv.Cylinder((L/2, -b/2, thickness/2), (0,-1,0), h/2, b)
+            # cyl2 = pvi.pv.Cylinder((L/2, posY+b/2, thickness/2), (0,1,0), h/2, b)
+            # pvi.Plot(cyl1, opacity=0.5, show_edges=True, color='grey', plotter=plotter)
+            # pvi.Plot(cyl2, opacity=0.5, show_edges=True, color='grey', plotter=plotter)
+        
+        pvi.Movie_func(Func, iterations.size, folder, 'damage.mp4')
+
+
+        # Display.Movie_Simu(simu, "damage", folder, "damage.mp4", N=200, plotMesh=False, deformFactor=1.5)
 
     if doSimu:
         Tic.Plot_History(folder, details=False)
