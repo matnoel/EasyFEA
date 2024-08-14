@@ -772,11 +772,10 @@ class PhaseField(_IModel):
         # faster
         # cP_e_pg = np.transpose(projP_e_pg, (0,1,3,2)) @ C @ projP_e_pg
         # cM_e_pg = np.transpose(projM_e_pg, (0,1,3,2)) @ C @ projM_e_pg
-
-        # TODO simu pour comparer
+        
         cP_e_pg = C @ projP_e_pg
         cM_e_pg = C @ projM_e_pg
-        
+                
         # cP_e_pg = projP_e_pg @ C
         # cM_e_pg = projM_e_pg @ C
 
