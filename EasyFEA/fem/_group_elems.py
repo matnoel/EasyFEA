@@ -152,7 +152,7 @@ class _GroupElem(ABC):
     @coordGlob.setter
     def coordGlob(self, coord: np.ndarray) -> None:
         if coord.shape == self.__coordGlob.shape:
-            self.__coordGlob = coord
+            self.__coordGlob = coord            
             self._InitMatrix()
 
     @property
@@ -308,7 +308,7 @@ class _GroupElem(ABC):
             dN_pg = self.Get_dN_pg(matrixType)
 
             # Derivation of shape functions in the real base
-            dN_e_pg: np.ndarray = np.einsum('epik,pkj->epij', invF_e_pg, dN_pg, optimize='optimal')
+            dN_e_pg: np.ndarray = np.einsum('epdk,pkn->epdn', invF_e_pg, dN_pg, optimize='optimal')
             self.__dict_dN_e_pg[matrixType] = dN_e_pg
 
         return self.__dict_dN_e_pg[matrixType].copy()
@@ -329,7 +329,7 @@ class _GroupElem(ABC):
 
             ddN_pg = self.Get_ddN_pg(matrixType)
             
-            ddN_e_pg = np.array(np.einsum('epik,pkj->epij', invF_e_pg, ddN_pg, optimize='optimal'))
+            ddN_e_pg = np.array(np.einsum('epdk,pkn->epdn', invF_e_pg, ddN_pg, optimize='optimal'))
             self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
 
         return self.__dict_ddN_e_pg[matrixType].copy()
@@ -345,11 +345,7 @@ class _GroupElem(ABC):
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
         Nv_pg = self.Get_Nv_pg(matrixType)
-
-        Ne = self.Ne
         nPe = self.nPe
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        pg = self.Get_gauss(matrixType)
         
         Nv_e_pg = invF_e_pg @ Nv_pg
         
@@ -372,11 +368,7 @@ class _GroupElem(ABC):
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
         dNv_pg = self.Get_dNv_pg(matrixType)
-
-        Ne = self.Ne
         nPe = self.nPe
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        pg = self.Get_gauss(matrixType)
         
         dNv_e_pg = invF_e_pg @ dNv_pg
         
@@ -398,12 +390,8 @@ class _GroupElem(ABC):
         matrixType = MatrixType.beam        
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
-        ddNv_pg = self.Get_ddNv_pg(matrixType)
-
-        Ne = self.Ne
+        ddNv_pg = self.Get_ddNv_pg(matrixType)        
         nPe = self.nPe
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        pg = self.Get_gauss(matrixType)
         
         ddNv_e_pg = invF_e_pg @ invF_e_pg @ ddNv_pg
         
@@ -490,7 +478,7 @@ class _GroupElem(ABC):
     
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the reaction term (scalar).
-        ReactionPart_e_pg = jacobian_e_pg * weight_pg * r_e_pg * N_pg' * N_pg\n
+        ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
         
         Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
         """
@@ -509,24 +497,22 @@ class _GroupElem(ABC):
         
         return self.__dict_phaseField_ReactionPart_e_pg[matrixType].copy()
     
-    def Get_DiffusePart_e_pg(self, matrixType: MatrixType, A: np.ndarray) -> np.ndarray:
+    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the diffusion term (scalar).
-        DiffusePart_e_pg = jacobian_e_pg * weight_pg * k * dN_e_pg' * A * dN_e_pg\n
+        DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
         
-        Returns -> jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg
+        Returns -> jacobian_e_pg * weight_pg * dN_e_pg'
         """
 
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_DiffusePart_e_pg.keys():
 
-            assert len(A.shape) == 2, "A must be a 2D array."
-
             jacobien_e_pg = self.Get_jacobian_e_pg(matrixType)
             weight_pg = self.Get_gauss(matrixType).weights
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
-            DiffusePart_e_pg = np.einsum('ep,p,epki,kl,eplj->epij', jacobien_e_pg, weight_pg, dN_e_pg, A, dN_e_pg, optimize='optimal')
+            DiffusePart_e_pg = np.einsum('ep,p,epij->epji', jacobien_e_pg, weight_pg, dN_e_pg, optimize='optimal')
 
             self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
         
@@ -534,7 +520,7 @@ class _GroupElem(ABC):
 
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the part that builds the source term (scalar).
-        SourcePart_e_pg = jacobian_e_pg, weight_pg, f_e_pg, N_pg'\n
+        SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
         
         Returns -> jacobian_e_pg, weight_pg, N_pg'
         """
@@ -1232,7 +1218,7 @@ class _GroupElem(ABC):
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Returns nodes in the domain."""
 
-        assert isinstance(circle, Domain)
+        assert isinstance(domain, Domain)
 
         coordo = self.coord
 
@@ -1442,7 +1428,7 @@ class _GroupElem(ABC):
             indexReord = np.append(np.arange(1, nPe), 0)
             # Vectors i for edge segments
             vect_i_b = coordo[connectMesh[indexReord]] - coordo[connectMesh]
-            # vect_i_b = np.einsum("ni,n->ni", vect_i_b, 1/np.linalg.norm(vect_i_b, axis=1), optimize="optimal")
+            vect_i_b = np.einsum("ni,n->ni", vect_i_b, 1/np.linalg.norm(vect_i_b, axis=1), optimize="optimal")
 
             # normal vector to element face
             vect_n = np.cross(vect_i_b[0], -vect_i_b[-1])
@@ -1564,20 +1550,19 @@ class _GroupElem(ABC):
             # get groupElem datas
             inDim = self.inDim
             sysCoord_e = self.sysCoord_e # base change matrix for each element
-            matrixType = MatrixType.rigi
+            matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
             invF_e_pg = self.Get_invF_e_pg(matrixType)
             dN_tild = self._dNtild()
-            nPg = invF_e_pg.shape[1]
-            gaussCoord_e_pg = self.Get_GaussCoordinates_e_p(matrixType)
             xiOrigin = self.origin # origin of the reference element (xi, eta)        
 
-            useIterative = False            
-            # # Check whether iterative resolution is required
-            # # calculates the ratio between jacob min and max to detect if the element is distorted 
-            # diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
-            # error_e = 1 - diff_e # a perfect element has an error max <= 1e-12
-            # # a distorted element has a max error greater than 0
+            # useIterative = False
+            # Check whether iterative resolution is required
+            # calculates the ratio between jacob min and max to detect if the element is distorted
+            diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
+            error_e = np.abs(1 - diff_e) # a perfect element has an error max <= 1e-12
+            # a distorted element has a max error greater than 0
+            useIterative_e = error_e > 1e-12
             # useIterative = np.max(error_e) > 1e-12
         else:
             coordInElem_n = None
@@ -1622,36 +1607,27 @@ class _GroupElem(ABC):
                         
                 x0  = coordoElemBase[0,:dim] # orign of the real element (x,y)
                 xPs = coordinatesBase_n[:,:dim] # points coordinates (x,y)
-                
-                # the fastest way, but may lead to shape functions that give values outside [0,1].
-                xiP: np.ndarray = xiOrigin + (xPs - x0) @ np.mean(invF_e_pg[e], 0)
 
-                # if not useIterative:
-                #     if nPg == 1:
-                #         # invF_e_pg is constant in the element
-                #         xiP: np.ndarray = xiOrigin + (xPs - x0) @ invF_e_pg[e,0]
-                #     else:
-                #         # If the element have more than 1 integration point, it is necessary to choose the closest integration points. Because invF_e_pg is not constant in the element
-                #         # for each node detected, we'll calculate its distance from all integration points and see where it's closest
-                #         dist = np.zeros((xPs.shape[0], nPg))
-                #         for p in range(nPg):
-                #             dist[:,p] = np.linalg.norm(xPs - gaussCoord_e_pg[e, p, :dim], axis=1)
-                #         invMin = invF_e_pg[e, np.argmin(dist, axis=1)]                
-                #         xiP: np.ndarray = xiOrigin + (xPs - x0) @ invMin                    
-                # else:
-                #     # Here we need to construct the Jacobian matrices. This is the longest method here
-                #     def Eval(xi: np.ndarray, xP):
-                #         dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
-                #         F = dN[0] @ coordoElemBase[:,:dim] # jacobian matrix                   
-                #         J = x0 - xP + (xi - xiOrigin) @ F # cost function
-                #         return J
+                if not useIterative_e[e]:
+                    # the fastest way
+                    # available only for undistorted meshes !
+                    # always valid for TRI3 and structured meshes.
+                    xiP: np.ndarray = xiOrigin + (xPs - x0) @ invF_e_pg[e,0]
+                         
+                else:
+                    # Here we need to construct the Jacobian matrices. This is the longest method here
+                    def Eval(xi: np.ndarray, xP):
+                        dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
+                        F = dN[0] @ coordoElemBase[:,:dim] # jacobian matrix                   
+                        J = x0 + (xi - xiOrigin) @ F - xP # cost function
+                        return J
 
-                #     xiP = []
-                #     for xP in xPs:
-                #         res = least_squares(Eval, 0*xP, args=(xP,))
-                #         xiP.append(res.x)
+                    xiP = []
+                    for xP in xPs:
+                        res = least_squares(Eval, 0*xP, args=(xP,))
+                        xiP.append(res.x)
 
-                #     xiP = np.array(xiP)
+                    xiP = np.array(xiP)
 
                 coordInElem_n[nodesInElement,:] = xiP.copy()
 

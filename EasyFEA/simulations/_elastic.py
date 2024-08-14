@@ -103,7 +103,7 @@ class ElasticSimu(_Simu):
         weight_pg = mesh.Get_weight_pg(matrixType)
         nPg = weight_pg.size
 
-        N_vecteur_pg = mesh.Get_N_vector_pg(matrixType)
+        N_pg = mesh.Get_N_vector_pg(matrixType)
         rho = self.rho
         
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
@@ -121,7 +121,7 @@ class ElasticSimu(_Simu):
         
         # Mass
         rho_e_pg = Reshape_variable(rho, Ne, nPg)
-        Mu_e = np.einsum(f'ep,p,pki,ep,pkj->eij', jacobian_e_pg, weight_pg, N_vecteur_pg, rho_e_pg, N_vecteur_pg, optimize="optimal")
+        Mu_e = np.einsum(f'ep,p,pdi,ep,pdj->eij', jacobian_e_pg, weight_pg, N_pg, rho_e_pg, N_pg, optimize="optimal")
 
         if self.dim == 2:
             thickness = self.material.thickness
@@ -200,7 +200,7 @@ class ElasticSimu(_Simu):
 
         self._results.append(iter)
     
-    def Set_Iter(self, iter= -1) -> list[dict]:
+    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
         
         results = super().Set_Iter(iter)
 

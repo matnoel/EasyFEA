@@ -439,42 +439,44 @@ class PhaseFieldSimu(_Simu):
     def __Construct_Damage_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
         """Construct the elementary matrices for the damage problem."""
 
-        phaseFieldModel = self.phaseFieldModel
+        pfm = self.phaseFieldModel
 
         # Data
-        k = phaseFieldModel.k
+        k = pfm.k
+        A = pfm.A
         PsiP_e_pg = self.__Calc_psiPlus_e_pg()
-        r_e_pg = phaseFieldModel.get_r_e_pg(PsiP_e_pg)
-        f_e_pg = phaseFieldModel.get_f_e_pg(PsiP_e_pg)
+        r_e_pg = pfm.get_r_e_pg(PsiP_e_pg)
+        f_e_pg = pfm.get_f_e_pg(PsiP_e_pg)
 
-        matrixType=MatrixType.mass
+        matrixType = MatrixType.mass
 
         mesh = self.mesh
         Ne = mesh.Ne
         nPg = r_e_pg.shape[1]
+        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
 
         # K * Laplacien(d) + r * d = F        
-        ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType) # -> jacobian_e_pg * weight_pg * Nd_pg' * Nd_pg
-        DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType, phaseFieldModel.A) # -> jacobian_e_pg, weight_pg, Bd_e_pg', A, Bd_e_pg
-        SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType) # -> jacobian_e_pg, weight_pg, Nd_pg'
+        ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType) # -> jacobian_e_pg * weight_pg * N_pg' * N_pg
+        DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType) # -> jacobian_e_pg * weight_pg * dN_e_pg'
+        SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType) # -> jacobian_e_pg, weight_pg, N_pg'
         
         tic = Tic()
 
-        # Part that involves the reaction term r ->  jacobian_e_pg * weight_pg * r_e_pg * Nd_pg' * Nd_pg
+        # Part that involves the reaction term r -> r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg
         K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
 
-        # The part that involves diffusion K -> jacobian_e_pg, weight_pg, k, Bd_e_pg', Bd_e_pg
+        # The part that involves diffusion K -> k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg
         k_e_pg = Reshape_variable(k, Ne, nPg)
-        K_K_e = np.einsum('ep,epij->eij', k_e_pg, DiffusePart_e_pg, optimize='optimal')
+        K_K_e = np.einsum('ep,epij,jk,epkl->eil', k_e_pg, DiffusePart_e_pg, A, dN_e_pg, optimize='optimal')
         
-        # Source part Fd_e -> jacobian_e_pg, weight_pg, f_e_pg, Nd_pg'
+        # Source part Fd_e -> f_e_pg * jacobian_e_pg, weight_pg, N_pg'
         Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal')
     
         Kd_e = K_r_e + K_K_e
 
         if self.dim == 2:
             # THICKNESS not used in femobject !
-            thickness = phaseFieldModel.thickness
+            thickness = pfm.thickness
             Kd_e *= thickness
             Fd_e *= thickness
         
@@ -539,7 +541,7 @@ class PhaseFieldSimu(_Simu):
 
         self._results.append(iter)
 
-    def Set_Iter(self, iter=-1) -> list[dict]:
+    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
 
         results = super().Set_Iter(iter)
 
@@ -555,7 +557,7 @@ class PhaseFieldSimu(_Simu):
         self.__updatedDamage = False
         self.__updatedDisplacement = False
 
-        if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
+        if resetAll and self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
             # It's really useful to do this otherwise when we calculate psiP there will be a problem
             self.__old_psiP_e_pg = []
             self.__old_psiP_e_pg = self.__Calc_psiPlus_e_pg() # update psi+ with the current state

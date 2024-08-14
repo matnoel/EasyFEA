@@ -293,7 +293,7 @@ class _Geom(ABC):
         dec = newCoord - oldCoord
         [point.Translate(*dec[p]) for p, point in enumerate(self.points)]
 
-    def Plot(self, ax: plt.Axes=None, color:str="", name:str="", plotPoints=True) -> plt.Axes:
+    def Plot(self, ax: plt.Axes=None, color:str="", name:str="", lw=None, ls=None, plotPoints=True) -> plt.Axes:
 
         from EasyFEA import Display
 
@@ -304,9 +304,9 @@ class _Geom(ABC):
 
         lines, points = self.Get_coord_for_plot()
         if color != "":
-            ax.plot(*lines[:,:inDim].T, color=color, label=self.name)
+            ax.plot(*lines[:,:inDim].T, color=color, label=self.name, lw=lw, ls=ls)
         else:
-            ax.plot(*lines[:,:inDim].T, label=self.name)
+            ax.plot(*lines[:,:inDim].T, label=self.name, lw=lw, ls=ls)
         if plotPoints:
             ax.plot(*points[:,:inDim].T, ls='', marker='.',c='black')
 

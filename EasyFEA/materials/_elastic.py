@@ -560,8 +560,9 @@ class Elas_IsotTrans(_Elas):
         
         material_cM = Heterogeneous_Array(material_cM)
 
-        # # Verify that C = S^-1#
-        # assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10        
+        # # Verify that S = C^-1
+        # assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10
+        # # Verify that C = S^-1
         # assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
 
         # Performs a base change to orient the material in space

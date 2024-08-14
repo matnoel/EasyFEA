@@ -539,6 +539,9 @@ def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
     step = np.max([1, Niter//N])
     iterations: np.ndarray = np.arange(0, Niter, step)
 
+    # activates the first iteration
+    simu.Set_Iter(0, resetAll=True)
+
     def DoAnim(plotter, i):        
         simu.Set_Iter(iterations[i])
         Plot(simu, result, deformFactor, coef, nodeValues, plotter=plotter, **kwargs)
@@ -625,10 +628,14 @@ def _Plotter(off_screen=False, add_axes=True, shape=(1,1), linkViews=True):
 
 def _setCameraPosition(plotter: pv.Plotter, inDim: int):
     plotter.camera_position = 'xy'
-    if inDim == 3:        
+    if inDim == 3:
         plotter.camera.elevation += 25
         plotter.camera.azimuth += 10
         plotter.camera.reset_clipping_range()
+    # if inDim == 3:        
+    #     plotter.camera.elevation += 15
+    #     plotter.camera.azimuth += 5
+    #     plotter.camera.reset_clipping_range()
 
 def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValues=True) -> pv.UnstructuredGrid:
     """Construct the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""

@@ -1035,10 +1035,14 @@ class Mesher:
         # Crack creation
         crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities2D)
 
-        if (len(cracks) > 0 and 'QUAD' in elemType) or len(additionalSurfaces) > 0:
-            # dont delete
-            surfaceTags = [s[1] for s in gmsh.model.getEntities(2)]
-            self._OrganiseSurfaces(surfaceTags, elemType, isOrganised)
+        # get created surfaces        
+        surfaces = [entity[1] for entity in factory.getEntities(2)]
+        self._OrganiseSurfaces(surfaces, elemType, isOrganised)
+        # if (len(cracks) > 0 and 'QUAD' in elemType) or len(additionalSurfaces) > 0:
+        #     # dont delete
+        #     self._Synchronize()
+        #     surfaceTags = [s[1] for s in gmsh.model.getEntities(2)]
+        #     self._OrganiseSurfaces(surfaceTags, elemType, isOrganised)
 
         self._Refine_Mesh(refineGeoms, contour.meshSize)
 
@@ -1720,6 +1724,9 @@ class Mesher:
         [results.append(result) for result in (nodesField + elementsField) if result not in results]
 
         dict_results: dict[str, list[np.ndarray]] = {result: [] for result in results}
+
+        # activates the first iteration
+        simu.Set_Iter(0, resetAll=True)
 
         for i in range(simu.Niter):
             simu.Set_Iter(i)

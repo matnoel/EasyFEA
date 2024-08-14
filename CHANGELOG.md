@@ -2,6 +2,17 @@
 
 This document describes the changes made to the project.
 
+## 1.2.0 (August 14, 2024):
+
+- Added the resetAll option in Set_Iter() to simplify the update process after iteration activation.
+- Enhanced clarity in phase field functions, including both simulation and material aspects.
+- Improved display options for geometric objects.
+- Improved display functions.
+- Provided clearer functionality in mesh and group element.
+- Updated the interface with Gmsh.
+- Improved phasefield examples.
+- Enhanced the Digital Image Correlation (DIC) analysis module.
+
 ## 1.1.0 (June 29, 2024):
 
 - Updated gmsh interface functions.

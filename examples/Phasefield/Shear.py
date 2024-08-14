@@ -23,7 +23,7 @@ nProcs = 4 # number of processes in parallel
 # ----------------------------------------------
 dim = 2
 
-doSimu = False
+doSimu = True
 # Mesh
 meshTest = True
 openCrack = True
@@ -37,14 +37,14 @@ pfmSolver = Materials.PhaseField.SolverType.History
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Amor","Miehe"]
+splits = ["Bourdin","Miehe"]
 
 # regus = ["AT1", "AT2"]
-regus = ["AT1"] # "AT1", "AT2" 
+regus = ["AT2"] # "AT1", "AT2" 
 
 # PostProcessing
-plotResult = False
-showResult = False
+plotResult = True
+showResult = True
 plotMesh = False
 plotEnergy = False
 saveParaview = False; Nparaview=400
@@ -93,7 +93,16 @@ def DoMesh(split: str) -> Mesh:
         l3 = Line(ptC3, ptC4, meshSize, openCrack)
         l4 = Line(ptC4, ptC1, meshSize, openCrack)            
         cracks = [Contour([l1, l2, l3, l4], isOpen=openCrack)]
-    
+
+    # folder = Folder.New_File("",results=True)
+    # ax = Display.Init_Axes()
+    # contour.Get_Contour().Plot(ax, color='k', plotPoints=False)
+    # cracks[0].Plot(ax, color='k', plotPoints=False)
+    # # if refineDomain != None:
+    # #     refineDomain.Plot(ax, color='k', plotPoints=False)
+    # ax.axis('off')
+    # Display.Save_fig(folder,"sample",True)
+
     if dim == 2:
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
     elif dim == 3:
@@ -224,12 +233,24 @@ def DoSimu(split: str, regu: str):
         Display.Plot_Iter_Summary(simu, folder, None, None)
         Display.Plot_BoundaryConditions(simu)
         Display.Plot_Force_Displacement(force*1e-6, displacement*1e6, 'ud [µm]', 'f [kN/mm]', folder)
-        Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder, filename="damage")
+        ax = Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder, filename="damage", ncolors=25, clim=(0,1))
+
+
+
+        # ax = Display.Plot_Result(simu, "damage", 1.5, ncolors=21, clim=(0,0.9))
+        # ax.axis('off'); ax.set_title("")
+        # Display.Save_fig(folder, "deform damage")
+
+
+        pass
 
     if plotMesh:
         # pvi.Plot_Mesh(simu.mesh).show()
         # pvi.Plot(simu, "ux", show_edges=True).show()
-        Display.Plot_Mesh(simu.mesh)
+        ax = Display.Plot_Mesh(simu.mesh, lw=0.3, facecolors='white')
+        ax.axis('off'); ax.set_title("")
+        Display.Save_fig(folder, "mesh", transparent=True)
+        
             
     if saveParaview:
         Paraview_Interface.Make_Paraview(simu, folder, Nparaview)
