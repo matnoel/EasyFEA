@@ -173,7 +173,7 @@ class DIC(_IObserver):
 
         # recovery of pixels used in elements with their coordinates
         pixels, __, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(coordPixel)
-        # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])
+        # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])s
 
         self.__connectPixel: np.ndarray = connectPixel
         """connectivity matrix which links the pixels used for each element."""
@@ -241,16 +241,16 @@ class DIC(_IObserver):
 
             # line construction
             linesX = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["x"]).reshape(-1,1).repeat(pixels.size)
-            # linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size) 
+            # linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
             # same as
-            linesY = linesX + 1            
+            linesY = linesX + 1
             # construction of columns in which to place values
-            colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()            
+            colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()
 
             lines_x.extend(linesX)
             lines_y.extend(linesY)
             columns_Phi.extend(colonnes)
-            values_phi.extend(np.reshape(phi, -1))    
+            values_phi.extend(np.reshape(phi, -1))
 
         self._N_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (Ndof, coordInElem.shape[0]))
         """Shape function matrix x (Ndof, nPixels)"""
