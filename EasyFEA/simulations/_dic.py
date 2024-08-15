@@ -98,6 +98,7 @@ class DIC(_IObserver):
         return meshC
     
     # image properties
+    
     @property
     def idxImgRef(self) -> int:
         """Reference image index in _forces (or in the folder)."""
@@ -113,7 +114,7 @@ class DIC(_IObserver):
         """Image shapes required"""
         return self.__imgRef.shape
 
-    # regularisation properties
+    # regularization properties
 
     @property
     def _lr(self) -> float:
@@ -176,7 +177,7 @@ class DIC(_IObserver):
         # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])s
 
         self.__connectPixel: np.ndarray = connectPixel
-        """connectivity matrix which links the pixels used for each element."""
+        """connectivity matrix linking the pixels used for each element."""
         self.__coordPixelInElem: np.ndarray = coordPixelInElem
         """pixel coordinates in the reference element."""
         
@@ -215,7 +216,7 @@ class DIC(_IObserver):
         dN_e_pg = mesh.groupElem.Get_dN_e_pg(matrixType) # (e, p, dim, nPe)
 
         # ----------------------------------------------
-        # Construction of shape function matrix for pixels (N)
+        # Builds the shape function matrix for pixels (N)
         # ----------------------------------------------
         lines_x = []
         lines_y = []
@@ -264,7 +265,7 @@ class DIC(_IObserver):
         tic.Tac("DIC", "Phi_x and Phi_y", self._verbosity)
 
         # ----------------------------------------------
-        # Construction of the Laplacian operator (R)
+        # Builds the Laplacian operator (R)
         # ----------------------------------------------
         dNdx = dN_e_pg[:,:,0]
         dNdy = dN_e_pg[:,:,1]
@@ -303,7 +304,7 @@ class DIC(_IObserver):
         return ldic
 
     def Get_w(self) -> np.ndarray:
-        """Returns characteristic sinusoidal displacement corresponding to element size."""
+        """Returns the 2D periodic displacement vector field."""
 
         ldic = self.ldic
 
@@ -328,9 +329,9 @@ class DIC(_IObserver):
         
         roi = self.roi
 
-        self.L = self._N_x @ sparse.diags(gradX) + self._N_y @ sparse.diags(gradY)
+        self._L = self._N_x @ sparse.diags(gradX) + self._N_y @ sparse.diags(gradY)
 
-        self._M_dic: sparse.csr_matrix = self.L[:,roi] @ self.L[:,roi].T
+        self._M_dic: sparse.csr_matrix = self._L[:,roi] @ self._L[:,roi].T
 
         # plane wave
         w = self.Get_w()
@@ -387,7 +388,7 @@ class DIC(_IObserver):
         Parameters
         ----------
         img : np.ndarray
-            image used for calculation
+            deformed image
         u0 : np.ndarray, optional
             initial displacement field, by default None\n
             If u0 == None, the field is initialized with _Get_u_from_images(imgRef, img)
@@ -396,7 +397,7 @@ class DIC(_IObserver):
         tolConv : float, optional
             convergence tolerance (converged once ||b|| <= tolConv), by default 1e-6
         imgRef : np.ndarray, optional
-            reference image to use, by default None
+            reference image, by default None
         verbosity : bool, optional
             display iterations, by default True
 
@@ -427,7 +428,7 @@ class DIC(_IObserver):
         # Here the small displacement hypothesis is used
         # The gradient of the two images is assumed to be identical
         R_reg = self.alpha * self._R / self.__w_R
-        Lcoef = self.L[:,roi] / self.__w_M
+        Lcoef = self._L[:,roi] / self.__w_M
 
         for iter in range(iterMax):
 
@@ -457,7 +458,7 @@ class DIC(_IObserver):
         return u
 
     def Calc_r_dic(self, u: np.ndarray, img: np.ndarray, imgRef=None) -> np.ndarray:
-        """Residual correlation between images\n
+        """Correlation residual between images\n
         f(x) - g(x + u)
 
         Parameters
@@ -465,14 +466,14 @@ class DIC(_IObserver):
         u : np.ndarray
             displacement field (Ndof)
         img : np.ndarray
-            image used for calculation
+            deformed image
         imgRef : np.ndarray, optional
-            reference image to use, by default None
+            reference image, by default None
 
         Returns
         -------
         np.ndarray
-            residual between images
+            correlation residual between images
         """
         
         self.__Test_img(img)
@@ -485,14 +486,14 @@ class DIC(_IObserver):
 
         img_fct = interpolate.RectBivariateSpline(np.arange(img.shape[0]),np.arange(img.shape[1]),img)
 
-        f = imgRef.ravel() # reference image as a vector and retrieving pixels in the roi
+        f = imgRef.ravel() # reference image as a vector
 
         ux_p, uy_p = self.Calc_pixelDisplacement(u)
 
         g = img_fct.ev((coordY + uy_p), (coordX + ux_p))
         r = f - g
 
-        r_dic = np.reshape(r, self.shape)
+        r_dic = np.reshape(r, self.shape) # reference image as a matrix
 
         return r_dic
 
