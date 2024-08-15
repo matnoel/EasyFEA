@@ -98,7 +98,7 @@ class DIC(_IObserver):
         return meshC
     
     # image properties
-    
+
     @property
     def idxImgRef(self) -> int:
         """Reference image index in _forces (or in the folder)."""
@@ -118,7 +118,7 @@ class DIC(_IObserver):
 
     @property
     def _lr(self) -> float:
-        """regulation length."""
+        """regularization length."""
         return self.__lr
 
     @_lr.setter
