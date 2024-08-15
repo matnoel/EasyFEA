@@ -493,7 +493,7 @@ class DIC(_IObserver):
         g = img_fct.ev((coordY + uy_p), (coordX + ux_p))
         r = f - g
 
-        r_dic = np.reshape(r, self.shape) # reference image as a matrix
+        r_dic = np.reshape(r, self.shape) # as a matrix
 
         return r_dic
 
