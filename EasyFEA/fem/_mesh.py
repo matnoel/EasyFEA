@@ -2,9 +2,14 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Module containing the mesh class.
-This class allows you to manipulate different groups of elements.
-These element groups are used to construct finite element matrices."""
+"""Mesh module.\n
+This class allows you to manipulate different groups of elements.\n
+These element groups are used to construct finite element matrices.\n
+A hexahedral mesh (HEXA8) uses :\n
+- POINT (dim=0)
+- SEG2 (dim=1)
+- QUAD4 (dim=2)
+- HEXA8 (dim=3)"""
 
 import numpy as np
 import scipy.sparse as sp
@@ -22,29 +27,24 @@ from ._group_elems import _GroupElem
 from ..Geoms import *
 
 class Mesh(Observable):
-    """A mesh uses several groups of elements. For example, a mesh with cubes (HEXA8) uses :
-    - POINT (dim=0)
-    - SEG2 (dim=1)
-    - QUAD4 (dim=2)
-    - HEXA8 (dim=3)
-    """
+    """Mesh class."""
 
     def __init__(self, dict_groupElem: dict[ElemType, _GroupElem], verbosity=False):
-        """Setup the mesh.
+        """Creates the mesh.
 
         Parameters
         ----------
         dict_groupElem : dict[ElemType, _GroupElem]
-            element group dictionary
+            dictionary of element group
         verbosity : bool, optional
-            can write in terminal, by default True
+            the mesh can write in the terminal, by default True
         """
 
         list_GroupElem = []        
         dim = 0
         for grp in dict_groupElem.values():
             if grp.dim > dim:
-                # Here we guarantee that the mesh element used is the one with the largest dimension
+                # Here we make sure that the mesh element used is the one with the largest dimension.
                 dim = grp.dim
                 self.__groupElem = grp
             list_GroupElem.append(grp)
@@ -53,7 +53,7 @@ class Mesh(Observable):
         self.__dict_groupElem = dict_groupElem
 
         self.__verbosity = verbosity
-        """The mesh can write to the console"""
+        """the mesh can write in the terminal"""
 
         if self.__verbosity:
             print(self)
@@ -64,20 +64,20 @@ class Mesh(Observable):
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
         if len(orphanNodes) > 0 and verbosity:            
-            Display.MyPrintError("WARNING: Orphan nodes have been detected (stored in mesh.orphanNodes).")
+            Display.MyPrintError("WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes).")
 
     def _ResetMatrix(self) -> None:
-        """Reset matrix for each groupElem"""
+        """Resets matrix for each groupElem"""
         [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]
 
     def __str__(self) -> str:
-        """Return a string representation of the mesh."""
+        """Returns a string representation of the mesh."""
         text = f"\nElement type: {self.elemType}"
         text += f"\nNe = {self.Ne}, Nn = {self.Nn}, dof = {self.Nn * self.__dim}"
         return text
 
     def Get_list_groupElem(self, dim=None) -> list[_GroupElem]:
-        """Get the list of mesh element groups.
+        """Returns the list of mesh element groups.
 
         Parameters
         ----------
@@ -93,13 +93,13 @@ class Mesh(Observable):
             dim = self.__dim
 
         list_groupElem = [grp for grp in self.__dict_groupElem.values() if grp.dim == dim]
-        list_groupElem.reverse()  # reverse the list
+        list_groupElem.reverse() # reverse the list
 
         return list_groupElem
     
     @property
     def orphanNodes(self) -> list[int]:
-        """Nodes not connected to the main mesh element group"""
+        """nodes not connected to any mesh elements"""
         return self.__orphanNodes
 
     @property
@@ -109,43 +109,43 @@ class Mesh(Observable):
 
     @property
     def groupElem(self) -> _GroupElem:
-        """Main mesh element group"""
+        """main group eleme"""
         return self.__groupElem
 
     @property
     def elemType(self) -> ElemType:
-        """Element type used for meshing"""
+        """mesh element type"""
         return self.groupElem.elemType
 
     @property
     def Ne(self) -> int:
-        """Number of elements in the mesh"""
+        """number of elements in the mesh"""
         return self.groupElem.Ne
 
     @property
     def Nn(self, dim=None) -> int:
-        """Number of nodes in the mesh"""
+        """number of nodes in the mesh"""
         return self.groupElem.Nn
 
     @property
     def dim(self):
-        """Mesh dimension"""
+        """mesh dimension"""
         return self.__dim
 
     @property
     def inDim(self):
-        """Dimension in which the mesh is located.\n
-        A 2D mesh can be oriented in space"""
+        """dimension in which the mesh lies.\n
+        A 2D mesh can be oriented in a 3D space."""
         return self.__groupElem.inDim
 
     @property
     def nPe(self) -> int:
-        """Nodes per element"""
+        """nodes per element"""
         return self.groupElem.nPe
 
     @property
     def coord(self) -> np.ndarray:
-        """Node coordinates matrix (Nn,3) for the main groupElem"""
+        """node coordinates matrix (Nn,3) for the main groupElem"""
         return self.groupElem.coord
     
     def copy(self):
@@ -153,7 +153,7 @@ class Mesh(Observable):
         return newMesh
 
     def Translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
-        """Translate the mesh coordinates."""
+        """Translates the mesh coordinates."""
         oldCoord = self.coordGlob
         newCoord = oldCoord + np.array([dx, dy, dz])
         for grp in self.dict_groupElem.values():
@@ -162,7 +162,7 @@ class Mesh(Observable):
 
     
     def Rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:        
-        """Rotate the mesh coordinates around an axis.
+        """Rotates the mesh coordinates around an axis.
 
         Parameters
         ----------        
@@ -181,7 +181,7 @@ class Mesh(Observable):
         self._Notify('The mesh has been modified')
 
     def Symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
-        """Symmetrise the mesh coordinates with a plane.
+        """Symmetrize the mesh coordinates with respect to a specified plane.
 
         Parameters
         ----------
@@ -199,12 +199,12 @@ class Mesh(Observable):
 
     @property
     def nodes(self) -> np.ndarray:
-        """Mesh nodes"""
+        """mesh nodes"""
         return self.groupElem.nodes
 
     @property
     def coordGlob(self) -> np.ndarray:
-        """Global mesh coordinate matrix (mesh.Nn, 3)\n
+        """global mesh coordinates matrix (Nn, 3)\n
         Contains all mesh coordinates"""
         return self.groupElem.coordGlob
     
@@ -216,18 +216,17 @@ class Mesh(Observable):
 
     @property
     def connect(self) -> np.ndarray:
-        """Connectivity matrix (Ne, nPe)"""
+        """connectivity matrix (Ne, nPe)"""
         return self.groupElem.connect
     
     @property
     def verbosity(self) -> bool:
-        """The mesh can write to the console"""
+        """the mesh can write in the terminal"""
         return self.__verbosity
 
     def Get_connect_n_e(self) -> sp.csr_matrix:
-        """Sparse matrix of zeros and ones with ones when the node has the element either
-        such that: values_n = connect_n_e * values_e
-
+        """Sparse matrix (Nn, Ne) of zeros and ones with ones when the node has the element such that:\n
+        values_n = connect_n_e * values_e\n
         (Nn,1) = (Nn,Ne) * (Ne,1)
         """
         return self.groupElem.Get_connect_n_e()
@@ -235,21 +234,20 @@ class Mesh(Observable):
     @property
     def assembly_e(self) -> np.ndarray:
         """assembly matrix (Ne, nPe*dim)\n
-        Allows rigi matrix to be positioned in the global matrix"""
+        Allows rigi matrix to be positioned in the global matrix."""
         return self.groupElem.assembly_e
 
     def Get_assembly_e(self, dof_n: int) -> np.ndarray:
-        """Assembly matrix for specified dof_n (Ne, nPe*dof_n)
-        Used to position matrices in the global matrix"""
+        """Returns assembly matrix for specified dof_n (Ne, nPe*dof_n)"""
         return self.groupElem.Get_assembly_e(dof_n)
 
     @property
     def linesVector_e(self) -> np.ndarray:
-        """lines to fill the assembly matrix in vector (displacement)"""
+        """lines to fill the assembly matrix in vector (e.g elastic problem)"""
         return self.Get_linesVector_e(self.__dim)
 
     def Get_linesVector_e(self, dof_n: int) -> np.ndarray:
-        """lines to fill the assembly matrix in vector"""
+        """Returns lines to fill the assembly matrix in vector (e.g elastic problem)"""
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
         Ne = self.Ne
@@ -258,11 +256,11 @@ class Mesh(Observable):
 
     @property
     def columnsVector_e(self) -> np.ndarray:
-        """columns to fill the assembly matrix in vector (displacement)"""
+        """columns to fill the assembly matrix in vector (e.g elastic problem)"""
         return self.Get_columnsVector_e(self.__dim)
 
     def Get_columnsVector_e(self, dof_n: int) -> np.ndarray:
-        """columns to fill the vector assembly matrix"""
+        """Returns columns to fill the vector assembly matrix"""
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
         Ne = self.Ne
@@ -271,7 +269,7 @@ class Mesh(Observable):
 
     @property
     def linesScalar_e(self) -> np.ndarray:
-        """lines to fill the assembly matrix in scalar form (damage or thermal)"""
+        """lines to fill the assembly matrix in scalar form (damage or thermal problems)"""
         connect = self.connect
         nPe = self.nPe
         Ne = self.Ne
@@ -279,7 +277,7 @@ class Mesh(Observable):
 
     @property
     def columnsScalar_e(self) -> np.ndarray:
-        """columns to fill the assembly matrix in scalar form (damage or thermal)"""
+        """columns to fill the assembly matrix in scalar form (damage or thermal problems)"""
         connect = self.connect
         nPe = self.nPe
         Ne = self.Ne
@@ -287,7 +285,7 @@ class Mesh(Observable):
 
     @property
     def length(self) -> float:
-        """Calculate the total length of the mesh."""
+        """total length of the mesh."""
         if self.dim < 1:
             return None
         lengths = [group1D.length for group1D in self.Get_list_groupElem(1)]
@@ -295,7 +293,7 @@ class Mesh(Observable):
     
     @property
     def area(self) -> float:
-        """Calculate the total area of the mesh."""
+        """total area of the mesh."""
         if self.dim < 2:
             return None
         areas = [group2D.area for group2D in self.Get_list_groupElem(2)]
@@ -303,7 +301,7 @@ class Mesh(Observable):
 
     @property
     def volume(self) -> float:
-        """Calculate the total volume of the mesh."""
+        """total volume of the mesh."""
         if self.dim != 3:
             return None
         volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
@@ -311,12 +309,12 @@ class Mesh(Observable):
     
     @property
     def center(self) -> np.ndarray:
-        """Center of mass / barycenter / inertia center"""
+        """center of mass / barycenter / inertia center"""
         return self.groupElem.center
         
     def Get_normals(self, nodes: np.ndarray=None, displacementMatrix:np.ndarray=None) -> np.ndarray:
-        """Get normal vectors and the nodes belonging to the edge of the mesh.\n
-        return normals, nodes."""
+        """Returns normal vectors and nodes belonging to the edge of the mesh.\n
+        returns normals, nodes."""
 
         if nodes is None:
             nodes = self.nodes
@@ -362,14 +360,14 @@ class Mesh(Observable):
 
         return normals, nodes
 
-    # Construction of elementary matrices
+    # Construction of elementary matrices used in FEM
 
     def Get_nPg(self, matrixType: MatrixType) -> np.ndarray:
-        """number of integration points"""
+        """Returns integration points according to the matrix type."""
         return self.groupElem.Get_gauss(matrixType).nPg
 
     def Get_weight_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """integration point weights"""
+        """Returns integration points according to the matrix type."""
         return self.groupElem.Get_gauss(matrixType).weights
 
     def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> np.ndarray:
@@ -379,14 +377,14 @@ class Mesh(Observable):
         return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluate shape functions in local coordinates.\n
+        """Evaluates shape functions in local coordinates.\n
         [N1, N2, . . . ,Nn]\n
         (pg, nPe)
         """
         return self.groupElem.Get_N_pg(matrixType)
 
     def Get_N_vector_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Matrix of shape functions in local coordinates\n
+        """Returns shape functions matrix in local coordinates\n
         [N1 0 N2 0 Nn 0 \n
         0 N1 0 N2 0 Nn]\n
         (pg, dim, npe*dim)
@@ -394,7 +392,7 @@ class Mesh(Observable):
         return self.groupElem.Get_N_pg_rep(matrixType, self.__dim)
 
     def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluate shape functions first derivatives in the global coordinates.\n
+        """Evaluates shape functions first derivatives in the global coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y ... Nn,y]\n
         (e, pg, dim, nPe)\n
@@ -402,7 +400,7 @@ class Mesh(Observable):
         return self.groupElem.Get_dN_e_pg(matrixType)
 
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluate shape functions second derivatives in the global coordinates.\n
+        """Evaluates shape functions second derivatives in the global coordinates.\n
         [Ni,xx . . . Nn,xx\n
         Ni,yy ... Nn,yy]\n
         (e, pg, dim, nPe)\n
@@ -410,7 +408,7 @@ class Mesh(Observable):
         return self.groupElem.Get_ddN_e_pg(matrixType)
 
     def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Construct the matrix used to calculate deformations from displacements.\n
+        """Get the matrix used to calculate deformations from displacements.\n
         WARNING: Use Kelvin Mandel Notation\n
         [N1,x 0 N2,x 0 Nn,x 0\n
         0 N1,y 0 N2,y 0 Nn,y\n
@@ -420,7 +418,7 @@ class Mesh(Observable):
         return self.groupElem.Get_B_e_pg(matrixType)
 
     def Get_leftDispPart(self, matrixType: MatrixType) -> np.ndarray:
-        """Left side of local displacement matrices\n
+        """Get the left side of local displacement matrices.\n
         Ku_e = jacobian_e_pg * weight_pg * B_e_pg' * c_e_pg * B_e_pg\n
 
         Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'.
@@ -428,7 +426,7 @@ class Mesh(Observable):
         return self.groupElem.Get_leftDispPart(matrixType)
 
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns the part that builds the reaction term (scalar).
+        """Get the part that builds the reaction term (scalar).\n
         ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
 
         Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
@@ -436,7 +434,7 @@ class Mesh(Observable):
         return self.groupElem.Get_ReactionPart_e_pg(matrixType)
 
     def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns the part that builds the diffusion term (scalar).
+        """Get the part that builds the diffusion term (scalar).\n
         DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
 
         Returns -> jacobian_e_pg * weight_pg * dN_e_pg'
@@ -444,7 +442,7 @@ class Mesh(Observable):
         return self.groupElem.Get_DiffusePart_e_pg(matrixType)
 
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns the part that builds the source term (scalar).
+        """Get the part that builds the source term (scalar).\n
         SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
 
         Returns -> jacobian_e_pg, weight_pg, N_pg'
@@ -508,7 +506,7 @@ class Mesh(Observable):
         return elements
 
     def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
-        """Returns node associated with the tag."""
+        """Returns nodes associated with the tag."""
         nodes = []
 
         if isinstance(tags, str):
@@ -645,13 +643,12 @@ class Mesh(Observable):
         for c, corner in enumerate(corners):
 
             # here corner and next_corner are coordinates
-            
             if c+1 == nCorners:
                 next_corner = corners[0]                
             else:
                 next_corner = corners[c+1]
 
-            line = next_corner - corner # construct line between 2 corners
+            line = next_corner - corner # constructs line between 2 corners
             lineLength = np.linalg.norm(line) # length of the line
             vect = Normalize_vect(line) # normalized vector between the edge corners
             vect_i = coordo - corner # vector coordinates from the first corner of the edge
@@ -665,12 +662,12 @@ class Mesh(Observable):
             # scalarProduct>=-eps : points must belong to the line
             # scalarProduct<=lineLength+eps : points must belong to the line
 
-            # sort the nodes along the lines and take
+            # sort the nodes along the lines and
             # remove the first and the last nodes with [1:-1]
             nodes: np.ndarray = nodes[np.argsort(scalarProduct[nodes])][1:-1]
 
             if c+1 > nEdges:
-                # revert the nodes order
+                # reverses the nodes order
                 nodes = nodes[::-1]
                 nodes2.extend(nodes)
             else:
@@ -687,11 +684,6 @@ class Mesh(Observable):
         if plot:
             inDim = self.inDim
 
-            if inDim == 3:
-                from mpl_toolkits.mplot3d.art3d import Line3DCollection
-            else:
-                from matplotlib.collections import LineCollection
-
             ax = Display.Plot_Mesh(self, alpha=0, title='Periodic boundary conditions')
 
             # nEdges = np.min([len(nNodes)//2, nEdges])
@@ -707,19 +699,19 @@ class Mesh(Observable):
                 lines = coordo[edge_node, :inDim]
                 if inDim == 3:
                     pc = ax.scatter(lines[:,:,0], lines[:,:,1], lines[:,:,2], label=f'edges{edge}')
-                    ax.add_collection3d(Line3DCollection(lines, edgecolor=pc.get_edgecolor()))
+                    ax.add_collection3d(Display.Line3DCollection(lines, edgecolor=pc.get_edgecolor()))
                 else:
                     pc = ax.scatter(lines[:,:,0], lines[:,:,1], label=f'edges{edge}')
-                    ax.add_collection(LineCollection(lines, edgecolor=pc.get_edgecolor()))
+                    ax.add_collection(Display.LineCollection(lines, edgecolor=pc.get_edgecolor()))
                 
             ax.legend()
 
         return paired_nodes
 
     def Get_meshSize(self, doMean=True) -> np.ndarray:
-        """Returns the mesh size for each element or for each element and each segment.\n
-        return meshSize_e if doMean else meshSize_e_s"""
-        # recovery of the physical group and coordinates
+        """Returns the mesh size of the mesh.\n
+        returns meshSize_e if doMean else meshSize_e_s"""
+        # recovers the physical group and coordinates
         groupElem = self.groupElem
         coordo = groupElem.coord
 
@@ -727,11 +719,12 @@ class Mesh(Observable):
         segments = groupElem.segments
         segments_e = groupElem.connect[:, segments]
 
-        # Calculates the length of each segment (s) of the mesh elements (e).
+        # for each elements (e)
+        # calculates the length of each segment (s)
         h_e_s = np.linalg.norm(coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2)
 
         if doMean:
-            # average segment size per element        
+            # average segment size per element
             return np.mean(h_e_s, axis=1)
         else:
             return h_e_s
@@ -749,12 +742,12 @@ class Mesh(Observable):
             - "jacobian": jMax / jMin, ratio between the maximum jacobian and the minimum jacobian. Useful for higher-order elements.
 
         nodeValues : bool, optional
-            Calculates values on nodes, by default False
+            calculates values on nodes, by default False
 
         Returns
         -------
         np.ndarray
-            Mesh quality between 0 and 1.
+            mesh quality
         """
 
         groupElem = self.groupElem
@@ -771,7 +764,7 @@ class Mesh(Observable):
         area_e = groupElem.area_e
         
         if groupElem.dim == 2:
-            # calculate the angle in each corners of 2d elements
+            # calculates the angle in each corners of 2d elements
             angle_e_s = np.zeros((groupElem.Ne, groupElem.nbCorners), float)
 
             for c in range(groupElem.nbCorners):
@@ -817,7 +810,7 @@ class Mesh(Observable):
             values_e = np.min(angle_e_s, 1) / np.max(angle_e_s, 1)
 
         elif criteria == "jacobian":
-            # jMin / jMax
+            # jMax / jMin
             jacobian_e_pg = groupElem.Get_jacobian_e_pg(MatrixType.mass)
             values_e = np.max(jacobian_e_pg, 1) / np.min(jacobian_e_pg, 1)
 
@@ -830,9 +823,9 @@ class Mesh(Observable):
             return np.asarray(values_e)
 
     def Get_New_meshSize_n(self, error_e: np.ndarray, coef=1/2) -> np.ndarray:
-        """Returns the scalar field (at nodes) to be used to refine the mesh.
+        """Returns the scalar field (at nodes) used to refine the mesh.\n
 
-        meshSize = (coef - 1) * err / max(err) + 1
+        meshSize = (coef - 1) / error_e.max() * error_e + 1
 
         Parameters
         ----------
@@ -858,9 +851,10 @@ class Mesh(Observable):
         return meshSize_n
 
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
-    """Builds the matrix used to project the solution from the old mesh to the new mesh.
+    """Get the matrix used to project the solution from the old mesh to the new mesh such that:\n
     newU = proj * oldU\n
-    (newNn) = (newNn x oldNn) (oldNn)
+    (newNn) = (newNn x oldNn) (oldNn)\n
+
     Parameters
     ----------
     oldMesh : Mesh
@@ -870,7 +864,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     Returns
     -------
     sp.csr_matrix
-        dimensional projection matrix (newMesh.Nn, oldMesh.Nn)
+        projection matrix (newMesh.Nn, oldMesh.Nn)
     """
     assert oldMesh.dim == newMesh.dim, "Mesh dimensions must be the same."
 
@@ -896,7 +890,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         # *coordo_n.T give a list for every direction *(xis, etas, ..)
         phi_n_nPe[:,n] = Ntild[n,0](*coordo_n.T)
 
-    # Check that the sum of the shape functions is 1  
+    # Checks that the sum of the shape functions is 1  
     testSum1 = (np.sum(phi_n_nPe) - phi_n_nPe.size)/phi_n_nPe.size <= 1e-12
     assert testSum1
 
@@ -910,7 +904,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         # Its like doing an average on shapes functions
         phi_n_nPe[nodesSup1] = np.einsum("ni,n->ni", phi_n_nPe[nodesSup1], 1/counts[nodesSup1], optimize="optimal")
 
-    # Building the projector
+    # Builds the projector
     # This projector is a hollow matrix of dimension (newMesh.Nn, oldMesh.Nn)
     connect_e = oldMesh.connect
     lines: list[int] = []
@@ -939,7 +933,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     nodesExact = np.where((phi_n_nPe >= 1-1e-12) & (phi_n_nPe <= 1+1e-12))[0]
     # nodesExact nodes exact are nodes for which a shape function has detected 1.
-    #   These are the nodes detected in an element corner.
+    #   (nodes detected in an mesh corner).
 
     nodesExact = list(set(nodesExact) - set(newCorners))
     for node in nodesExact:
@@ -966,9 +960,10 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
     Parameters
     ----------
     DoMesh : Callable[[str], Mesh]
-        Function that constructs the mesh and takes a .pos file as argument for mesh optimization. The function must return a Mesh.
+        Function that constructs the mesh and takes a *.pos file as argument for mesh optimization.\n
+        The function must return a Mesh.
     folder : str
-        Folder in which .pos files are created and then deleted.
+        Folder in which *.pos files are created and then deleted.
     criteria : str, optional
         criterion used, by default 'aspect'\n
         - "aspect": hMin / hMax, ratio between minimum and maximum element length\n
@@ -976,9 +971,9 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
         - "gamma": 2 rci/rcc, ratio between the radius of the inscribed circle and the circumscribed circle multiplied by 2. Useful for triangular elements.\n
         - "jacobian": jMax / jMin, ratio between the maximum jacobian and the minimum jacobian. Useful for higher-order elements.
     quality : float, optional
-        Target quality, by default .8
+        quality target, by default .8
     ratio : float, optional
-        The target ratio of mesh elements that must respect the specified quality, by default 0.7 (must be in [0,1])
+        target ratio of mesh elements that must respect the specified quality, by default 0.7 (must be in [0,1])
     iterMax : int, optional
         Maximum number of iterations, by default 20
     coef : float, optional
@@ -1006,7 +1001,7 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
         mesh = DoMesh(optimGeom)
 
         if i > 0:
-            # remove previous .pos file
+            # removes previous .pos file
             Folder.os.remove(optimGeom)        
         
         # mesh quality calculation

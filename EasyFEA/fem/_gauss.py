@@ -12,14 +12,14 @@ from ._utils import ElemType, MatrixType
 class Gauss:
 
     def __init__(self, elemType: str, matrixType: str):
-        """Integration point construction
+        """Creates integration points.
 
         Parameters
         ----------
         elemType : str
-            element type
+            element type.
         matrixType : str
-            [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
+            matrix type (e.g [MatrixType.rigi, MatrixType.mass, MatrixType.beam])
         """
 
         coord, weights = Gauss._Gauss_factory(elemType, matrixType)
@@ -374,7 +374,7 @@ class Gauss:
                 x, y, z, weights = Gauss._Prism(nPg)
 
         else:
-            raise Exception("Element not implemented")
+            raise Exception("Element not implemented.")
 
         if dim == 1:
             coord = np.asarray([x]).T.reshape((nPg,1))
