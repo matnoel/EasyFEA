@@ -70,8 +70,8 @@ if __name__ == '__main__':
     mesher._Extrude(surfaces, [L/2,0,0], elemType, layers)
         
     mesher._Set_PhysicalGroups()
-    mesher._Generate_Mesh(3, elemType)
-    mesh = mesher._Construct_Mesh()
+    mesher._Mesh_Generate(3, elemType)
+    mesh = mesher._Mesh_Get_Mesh()
 
     nodes_fixed = mesh.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2))
     nodes_load = mesh.Nodes_Line(Line(p7,p8))

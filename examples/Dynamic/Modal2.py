@@ -47,9 +47,9 @@ def Construct_struct(L: float,e: float,t: float, meshSize: float = 0.0, openGmsh
     
     mesher._Set_PhysicalGroups()
 
-    mesher._Generate_Mesh(3, 'TETRA4')
+    mesher._Mesh_Generate(3, 'TETRA4')
     
-    mesh = mesher._Construct_Mesh()
+    mesh = mesher._Mesh_Get_Mesh()
 
     return mesh    
 
