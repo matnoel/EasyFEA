@@ -14,6 +14,7 @@ from ._utils import _IModel, ModelType
 # ----------------------------------------------
 
 class Thermal(_IModel):
+    """Thermal class."""
 
     __modelType = ModelType.thermal
 
@@ -36,7 +37,7 @@ class Thermal(_IModel):
         return text
 
     def __init__(self, dim:int, k: float, c=0.0, thickness=1.0):
-        """Building a thermal model
+        """Creates a thermal model.
 
         Parameters
         ----------
@@ -78,7 +79,7 @@ class Thermal(_IModel):
 
     @property
     def c(self) -> Union[float,np.ndarray]:
-        """specific heat capacity [J K^-1 kg^-1]"""
+        """mass heat capacity [J K^-1 kg^-1]"""
         return self.__c
     
     @c.setter
