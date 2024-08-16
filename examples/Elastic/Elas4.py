@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
     mesh_beam = Mesher().Mesh_Beams([beam], ElemType.SEG3)
 
-    beams = Materials.Beam_Structure([beam])
+    beams = Materials.BeamStructure([beam])
     simu_beam = Simulations.BeamSimu(mesh_beam, beams)
 
     simu_beam.add_dirichlet(mesh_beam.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2)),

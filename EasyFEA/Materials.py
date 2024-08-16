@@ -22,7 +22,7 @@ from .materials._phasefield import PhaseField
 # Beam
 # ----------------------------------------------
 
-from .materials._beam import _Beam, Beam_Structure, Beam_Elas_Isot
+from .materials._beam import _Beam, BeamStructure, Beam_Elas_Isot
 
 # ----------------------------------------------
 # Thermal

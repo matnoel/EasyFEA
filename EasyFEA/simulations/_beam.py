@@ -18,7 +18,7 @@ from ._simu import _Simu
 
 class BeamSimu(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Materials.Beam_Structure, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(self, mesh: Mesh, model: Materials.BeamStructure, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """
         Creates a Euler-Bernoulli beam simulation.
 
@@ -38,9 +38,9 @@ class BeamSimu(_Simu):
 
         if isinstance(model, Materials._Beam):
             # change the beam model as a beam structure
-            model = Materials.Beam_Structure([model])
+            model = Materials.BeamStructure([model])
 
-        assert isinstance(model, Materials.Beam_Structure), "model must be a beam model or a beam structure"
+        assert isinstance(model, Materials.BeamStructure), "model must be a beam model or a beam structure"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
@@ -70,7 +70,7 @@ class BeamSimu(_Simu):
         return [ModelType.beam]
 
     @property
-    def structure(self) -> Materials.Beam_Structure:
+    def structure(self) -> Materials.BeamStructure:
         """Beam structure."""
         return self.model
 

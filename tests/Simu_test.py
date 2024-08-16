@@ -91,7 +91,7 @@ class Test_Simu(unittest.TestCase):
 
             # Modele poutre
 
-            beamStruct = Materials.Beam_Structure(listePoutre)
+            beamStruct = Materials.BeamStructure(listePoutre)
 
             # Simulation
 
@@ -403,7 +403,7 @@ class Test_Simu(unittest.TestCase):
 
         beams = [beam1, beam2]
 
-        structure = Materials.Beam_Structure(beams)
+        structure = Materials.BeamStructure(beams)
 
         mesh = Mesher().Mesh_Beams(beams)
 
