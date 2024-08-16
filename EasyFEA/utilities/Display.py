@@ -1081,7 +1081,7 @@ def Plot_Iter_Summary(simu: _Simu, folder="", iterMin=None, iterMax=None) -> Non
 # ----------------------------------------------
 def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
                deformFactor=0.0, coef=1.0, nodeValues=True,
-               plotMesh=False, edgecolor='black', fps=30) -> None:
+               plotMesh=False, edgecolor='black', fps=30, **kwargs) -> None:
     """Make a movie from a simulation on matplotlib
 
     Parameters
@@ -1129,7 +1129,7 @@ def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
     def DoAnim(fig: plt.Figure, i):
         simu.Set_Iter(iterations[i])
         ax = fig.axes[0]
-        Plot_Result(simu, result, deformFactor, coef, nodeValues, plotMesh, edgecolor, ax=ax)
+        Plot_Result(simu, result, deformFactor, coef, nodeValues, plotMesh, edgecolor, ax=ax, **kwargs)
         ax.set_title(f"{result} {iterations[i]:d}/{Niter-1:d}")
 
     Movie_func(DoAnim, fig, iterations.size, folder, filename, fps)
