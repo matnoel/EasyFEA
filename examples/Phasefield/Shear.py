@@ -15,7 +15,7 @@ import multiprocessing
 
 # Display.Clear()
 
-useParallel = False
+useParallel = True
 nProcs = 4 # number of processes in parallel
 
 # ----------------------------------------------
@@ -25,26 +25,33 @@ dim = 2
 
 doSimu = True
 # Mesh
-meshTest = True
+meshTest = False
 openCrack = True
 optimMesh = True
 
 # phasefield
 maxIter = 1000
+
 tolConv = 1e-0 # 1e-1, 1e-2, 1e-3
+tolConv = 1e-1
+tolConv = 1e-2
+tolConv = 1e-3
+tolConv = 1e-4
+tolConv = 1e-5
+
 pfmSolver = Materials.PhaseField.SolverType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Bourdin","Miehe"]
+splits = ["Amor"]
 
 # regus = ["AT1", "AT2"]
-regus = ["AT2"] # "AT1", "AT2" 
+regus = ["AT1"] # "AT1", "AT2" 
 
 # PostProcessing
-plotResult = True
-showResult = True
+plotResult = False
+showResult = False
 plotMesh = False
 plotEnergy = False
 saveParaview = False; Nparaview=400
@@ -191,7 +198,7 @@ def DoSimu(split: str, regu: str):
             Loading(dep)
 
             # solve and save iter
-            u, d, Kglob, converg = simu.Solve(tolConv, maxIter, convOption=1)
+            u, _, Kglob, converg = simu.Solve(tolConv, maxIter, convOption=2)
             simu.Save_Iter()
 
             # print iter solution
