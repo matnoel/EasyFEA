@@ -67,7 +67,7 @@ class Mesh(Observable):
             Display.MyPrintError("WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes).")
 
     def _ResetMatrix(self) -> None:
-        """Resets matrix for each groupElem"""
+        """Resets matrices for each groupElem"""
         [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]
 
     def __str__(self) -> str:

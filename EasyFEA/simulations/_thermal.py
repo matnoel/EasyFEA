@@ -20,8 +20,7 @@ from .Solvers import AlgoType
 class ThermalSimu(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials.Thermal, verbosity=False, useNumba=True, useIterativeSolvers=True):
-        """
-        Creates a thermal simulation.
+        """Creates a thermal simulation.
 
         Parameters
         ----------
@@ -30,7 +29,7 @@ class ThermalSimu(_Simu):
         model : IModel
             The model used.
         verbosity : bool, optional
-            If True, the simulation can write to the console. Defaults to False.
+            If True, the simulation can write in the terminal. Defaults to False.
         useNumba : bool, optional
             If True, numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
@@ -129,26 +128,26 @@ class ThermalSimu(_Simu):
 
         # Data
         mesh = self.mesh
-        nDof = mesh.Nn
+        Ndof = mesh.Nn
         linesScalar_e = mesh.linesScalar_e.ravel()
         columnsScalar_e = mesh.columnsScalar_e.ravel()
 
         # Additional dimension linked to the use of lagrange coefficients
-        nDof += self._Bc_Lagrange_dim(self.problemType)
+        Ndof += self._Bc_Lagrange_dim(self.problemType)
         
         # Calculating elementary matrices
         Kt_e, Ct_e = self.__Construct_Thermal_Matrix()
         
         tic = Tic()
 
-        self.__Kt = sparse.csr_matrix((Kt_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
-        """Kglob for thermal problem (Nn, Nn)"""
+        self.__Kt = sparse.csr_matrix((Kt_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (Ndof, Ndof))
+        """Kglob for thermal problem (Ndof, Ndof)"""
         
-        self.__Ft = sparse.csr_matrix((nDof, 1))
-        """Fglob vector for thermal problem (Nn, 1)."""
+        self.__Ft = sparse.csr_matrix((Ndof, 1))
+        """Fglob vector for thermal problem (Ndof, 1)."""
 
-        self.__Ct = sparse.csr_matrix((Ct_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
-        """Mglob for thermal problem (Nn, Nn)"""
+        self.__Ct = sparse.csr_matrix((Ct_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (Ndof, Ndof))
+        """Mglob for thermal problem (Ndof, Ndof)"""
 
         tic.Tac("Matrix","Assembly Kt, Mt and Ft", self._verbosity)
 

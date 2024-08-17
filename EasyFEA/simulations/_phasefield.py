@@ -21,8 +21,7 @@ from ._simu import _Simu
 class PhaseFieldSimu(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials.PhaseField, verbosity=False, useNumba=True, useIterativeSolvers=True):
-        """
-        Creates a damage simulation.
+        """Creates a damage simulation.
 
         Parameters
         ----------
@@ -31,7 +30,7 @@ class PhaseFieldSimu(_Simu):
         model : PhaseField
             The model used.
         verbosity : bool, optional
-            If True, the simulation can write to the console. Defaults to False.
+            If True, the simulation can write in the terminal. Defaults to False.
         useNumba : bool, optional
             If True, numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
@@ -97,7 +96,7 @@ class PhaseFieldSimu(_Simu):
 
     @property
     def phaseFieldModel(self) -> Materials.PhaseField:
-        """Damage model"""
+        """damage model"""
         return self.model
 
     @property
@@ -139,7 +138,7 @@ class PhaseFieldSimu(_Simu):
         # here always update to the last state
         if problemType == ModelType.elastic:
             if not self.__updatedDisplacement:
-                self.__Assembly_displacement()
+                self.__Assembly_elastic()
                 self.__updatedDisplacement = True
             size = self.__Ku.shape[0]
             initcsr = sparse.csr_matrix((size, size))
@@ -168,7 +167,7 @@ class PhaseFieldSimu(_Simu):
         return not self.__updatedDamage or not self.__updatedDisplacement
 
     def Need_Update(self, value=True) -> None:        
-        # the following functions help to avoid assembling matrices too many times
+        # the following functions help you avoid having to assemble matrices too often
         self.__updatedDamage = not value
         """The matrix system associated with the damage problem is updated."""
         self.__updatedDisplacement = not value
@@ -189,32 +188,33 @@ class PhaseFieldSimu(_Simu):
 
     def Assembly(self) -> None:
         self.__Assembly_damage()
-        self.__Assembly_displacement()
+        self.__Assembly_elastic()
     
     def Solve(self, tolConv=1.0, maxIter=500, convOption=2) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
-        """Solving the damage problem with the staggered scheme.
+        """Solves the iterative damage problem using the staggered scheme.
 
         Parameters
         ----------
         tolConv : float, optional
-            tolerance between old and new damage, by default 1.0
+            threshold (𝜖), by default 1.0
         maxIter : int, optional
-            Maximum number of iterations to reach convergence, by default 500
+            Maximum iterations for convergence, by default 500
         convOption : int, optional
-            0 -> convergence on damage np.max(np.abs(d_kp1-dk)) equivalent normInf(d_kp1-dk)\n
-            1 -> convergence on crack energy np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_kp1 \n
-            2 -> convergence on total energy np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_kp1
+            - 0 -> convergence on damage np.max(np.abs(d_kp1-dk)) equivalent normInf(d_kp1-dk)\n
+            - 1 -> convergence on crack energy np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_kp1 \n
+            - 2 -> convergence on total energy np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_kp1\n
+            - 3 -> eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
 
         Returns
         -------
-        np.ndarray, np.ndarray, int, float
+        np.ndarray, np.ndarray, csr_matrix, bool
             u_np1, d_np1, Kglob, convergence
 
-            such that :\n
-            u_np1 : displacement vector field
-            d_np1 : damage scalar field
-            Kglob : displacement stiffness matrix
-            convergence: the solution has converged
+            such that:\n
+            - u_np1: displacement vector field\n
+            - d_np1: damage scalar field\n
+            - Kglob: displacement stiffness matrix\n
+            - convergence: the solution has converged\n
         """
 
         assert tolConv > 0 and tolConv <= 1 , "tolConv must be between 0 and 1."
@@ -247,7 +247,7 @@ class PhaseFieldSimu(_Simu):
             self.__updatedDisplacement = False # new damage -> new displacement matrices
 
             # Displacement            
-            u_np1 = self.__Solve_displacement()
+            u_np1 = self.__Solve_elastic()
             self.__updatedDamage = False # new displacement -> new damage matrices
 
             if convOption == 0:                
@@ -271,7 +271,7 @@ class PhaseFieldSimu(_Simu):
                 convD = np.sum(diffD)
                 convIter = np.max([convD, convU])
 
-            # Convergence condition
+            # checks convergence
             if tolConv == 1:
                 convergence = True
             elif convOption == 3:
@@ -290,10 +290,11 @@ class PhaseFieldSimu(_Simu):
             d_np1 = np.max(oldAndNewDamage, 1)
 
         else:
-            raise Exception("Solveur phase field unknown")
+            raise Exception("Unknown phase field solver.")
 
         timeIter = tic.Tac("Resolution phase field", "Phase Field iteration", False)
 
+        # saves iter parameters
         self.__Niter = Niter
         self.__convIter = convIter
         self.__timeIter = timeIter
@@ -303,8 +304,8 @@ class PhaseFieldSimu(_Simu):
         return u_np1, d_np1, Kglob, convergence
 
 
-    def __Construct_Displacement_Matrix(self) -> np.ndarray:
-        """Construct the elementary stiffness matrices for the displacement problem."""
+    def __Construct_Elastic_Matrix(self) -> np.ndarray:
+        """Computes the elementary stiffness matrices for the elastic problem."""
 
         matrixType=MatrixType.rigi
 
@@ -320,21 +321,20 @@ class PhaseFieldSimu(_Simu):
 
         phaseFieldModel = self.phaseFieldModel
         
-        # Calculates the deformation required for the split
+        # computes strain field
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, matrixType)
 
-        # Split of the behavior law
+        # computes the splited stifness matrices for the given strain field.
         cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
 
         tic = Tic()
         
-        # Damage : c = g(d) * cP + cM
+        # comutes c such that: c = g(d) * cP + cM
         g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matrixType)
         cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
-
         c_e_pg = cP_e_pg + cM_e_pg
         
-        # Elemental stiffness matrix
+        # stiffness matrix for each element
         Ku_e = np.sum(leftDepPart @ c_e_pg @ B_dep_e_pg, axis=1)
 
         if self.dim == 2:
@@ -345,16 +345,16 @@ class PhaseFieldSimu(_Simu):
 
         return Ku_e
  
-    def __Assembly_displacement(self) -> sparse.csr_matrix:
-        """Construct the displacement problem."""
+    def __Assembly_elastic(self) -> sparse.csr_matrix:
+        """Assembly the elastic problem."""
 
         # Data
         mesh = self.mesh        
-        nDof = mesh.Nn*self.dim
+        Ndof = mesh.Nn * self.dim
         
-        nDof += self._Bc_Lagrange_dim(ModelType.elastic)
+        Ndof += self._Bc_Lagrange_dim(ModelType.elastic)
 
-        Ku_e = self.__Construct_Displacement_Matrix()
+        Ku_e = self.__Construct_Elastic_Matrix()
 
         tic = Tic()
 
@@ -362,11 +362,11 @@ class PhaseFieldSimu(_Simu):
         columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly
-        self.__Ku = sparse.csr_matrix((Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
-        """Kglob matrix for the displacement problem (nDof, nDof)"""
+        self.__Ku = sparse.csr_matrix((Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof))
+        """Kglob matrix for the displacement problem (Ndof, Ndof)"""
         
-        self.__Fu = sparse.csr_matrix((nDof, 1))
-        """Fglob vector for the displacement problem (nDof, 1)"""
+        self.__Fu = sparse.csr_matrix((Ndof, 1))
+        """Fglob vector for the displacement problem (Ndof, 1)"""
 
         # import matplotlib.pyplot as plt
         # plt.figure()
@@ -374,13 +374,12 @@ class PhaseFieldSimu(_Simu):
         # plt.show()        
 
         tic.Tac("Matrix","Assembly Ku and Fu", self._verbosity)
+        # We ensure the matrices are always updated with the latest damage or displacement results.
+        # Therefore, we don't specify that the matrices have been updated.
         return self.__Ku
 
-        # # Here, we always want the matrices to be updated with the latest damage or displacement results.
-        # # That's why we don't say the matrices have been updated
-
-    def __Solve_displacement(self) -> np.ndarray:
-        """Solving the displacement problem."""
+    def __Solve_elastic(self) -> np.ndarray:
+        """Computes the displacement field."""
             
         self._Solver_Solve(ModelType.elastic)
        
@@ -389,8 +388,7 @@ class PhaseFieldSimu(_Simu):
     # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
 
     def __Calc_psiPlus_e_pg(self):
-        """Calculation of the positive energy density.
-        For each gauss point of all mesh elements, we calculate psi+.
+        """Computes the positive energy density psi^+ (e, p).\n
         """
 
         phaseFieldModel = self.phaseFieldModel
@@ -406,7 +404,7 @@ class PhaseFieldSimu(_Simu):
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, MatrixType.mass)
         # here the mass term is important otherwise we under-integrate
 
-        # Energy calculation
+        # Computes the elastic energy densities.
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
         if phaseFieldModel.solver == "History":
@@ -419,7 +417,7 @@ class PhaseFieldSimu(_Simu):
             
             if old_psiPlus_e_pg.shape != psiP_e_pg.shape:
                 # the mesh has been changed, the value must be recalculated
-                # here I do nothing
+                # here do nothing
                 old_psiPlus_e_pg = np.zeros_like(psiP_e_pg)
 
             inc_H = psiP_e_pg - old_psiPlus_e_pg
@@ -437,7 +435,7 @@ class PhaseFieldSimu(_Simu):
         return self.__psiP_e_pg
     
     def __Construct_Damage_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
-        """Construct the elementary matrices for the damage problem."""
+        """Computes the elementary matrices for the damage problem."""
 
         pfm = self.phaseFieldModel
 
@@ -480,7 +478,7 @@ class PhaseFieldSimu(_Simu):
             Kd_e *= thickness
             Fd_e *= thickness
         
-        tic.Tac("Matrix","Construc Kd_e and Fd_e", self._verbosity)        
+        tic.Tac("Matrix","Construct Kd_e and Fd_e", self._verbosity)        
 
         return Kd_e, Fd_e
 
@@ -489,12 +487,12 @@ class PhaseFieldSimu(_Simu):
        
         # Data
         mesh = self.mesh
-        nDof = mesh.Nn
+        Ndof = mesh.Nn
         linesScalar_e = mesh.linesScalar_e.ravel()
         columnsScalar_e = mesh.columnsScalar_e.ravel()
 
         # Additional dimension linked to the use of lagrange coefficients        
-        nDof += self._Bc_Lagrange_dim(ModelType.damage)
+        Ndof += self._Bc_Lagrange_dim(ModelType.damage)
         
         # Calculating elementary matrix
         Kd_e, Fd_e = self.__Construct_Damage_Matrix()
@@ -502,22 +500,20 @@ class PhaseFieldSimu(_Simu):
         # Assemblage
         tic = Tic()        
 
-        self.__Kd = sparse.csr_matrix((Kd_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (nDof, nDof))
-        """Kglob for damage problem (Nn, Nn)"""
+        self.__Kd = sparse.csr_matrix((Kd_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (Ndof, Ndof))
+        """Kglob for damage problem (Ndof, Ndof)"""
         
         lignes = mesh.connect.ravel()
-        self.__Fd = sparse.csr_matrix((Fd_e.ravel(), (lignes,np.zeros(len(lignes)))), shape = (nDof,1))
-        """Fglob for damage problem (Nn, 1)"""        
+        self.__Fd = sparse.csr_matrix((Fd_e.ravel(), (lignes, np.zeros(len(lignes)))), shape = (Ndof, 1))
+        """Fglob for damage problem (Ndof, 1)"""        
 
         tic.Tac("Matrix","Assembly Kd and Fd", self._verbosity)
-
-        # # Here, we always want the matrices to be updated with the latest damage or displacement results.
-        # # That's why we don't say the matrices have been updated
-
+        # We ensure the matrices are always updated with the latest damage or displacement results.
+        # Therefore, we don't specify that the matrices have been updated.
         return self.__Kd, self.__Fd
     
     def __Solve_damage(self) -> np.ndarray:
-        """Solving the damage problem."""
+        """Computes the damage field."""
         
         self._Solver_Solve(ModelType.damage)
 
@@ -527,13 +523,13 @@ class PhaseFieldSimu(_Simu):
 
         iter = super().Save_Iter()
 
-        # convergence information        
+        # convergence informations
         iter["Niter"] = self.__Niter
         iter["timeIter"] = self.__timeIter
         iter["convIter"] = self.__convIter
         
         if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
-            # update old history field for next resolution
+            # updates old history field for next resolution
             self.__old_psiP_e_pg = self.__psiP_e_pg
             
         iter["displacement"] = self.displacement
@@ -674,8 +670,8 @@ class PhaseFieldSimu(_Simu):
                 return 1
 
     def _Calc_Psi_Elas(self) -> float:
-        """Calculation of the kinematically admissible deformation energy, damaged or not.
-        Wdef = 1/2 int_Omega jacobian * weight * Sig : Eps dOmega thickness"""
+        """Computes of the kinematically admissible damaged deformation energy.\n
+        Wdef = 1/2 int_Ω Sig : Eps dΩ"""
 
         tic = Tic()
 
@@ -688,7 +684,7 @@ class PhaseFieldSimu(_Simu):
         return Wdef
 
     def _Calc_Psi_Crack(self) -> float:
-        """Calculating crack energy."""
+        """Computes crack's energy."""
 
         tic = Tic()
         
@@ -701,7 +697,7 @@ class PhaseFieldSimu(_Simu):
         return Psi_Crack
 
     def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi):
-        """Builds epsilon for each element and each gauss point.\n
+        """Computes strain field (Ne,pg,(3 or 6)).\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
 
@@ -713,7 +709,7 @@ class PhaseFieldSimu(_Simu):
         Returns
         -------
         np.ndarray
-            Deformations stored at elements and gauss points (Ne,pg,(3 or 6))
+            Computed strain field (Ne,pg,(3 or 6))
         """
         
         tic = Tic()        
@@ -726,19 +722,19 @@ class PhaseFieldSimu(_Simu):
         return Epsilon_e_pg
 
     def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
-        """Calculating stresses from strains.\n
+        """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
 
         Parameters
         ----------
         Epsilon_e_pg : np.ndarray
-            Deformations stored at elements and gauss points (Ne,pg,(3 or 6))
+            Strain field (Ne,pg,(3 or 6))
 
         Returns
         -------
         np.ndarray
-            Returns damaged or undamaged constraints (Ne,pg,(3 or 6))
+            Computed damaged stress field.
         """
 
         assert Epsilon_e_pg.shape[0] == self.mesh.Ne
@@ -750,13 +746,11 @@ class PhaseFieldSimu(_Simu):
 
         SigmaP_e_pg, SigmaM_e_pg = phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
         
-        # Damage : Sig = g(d) * SigP + SigM
-        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matrixType)
-        
         tic = Tic()
         
+        # computes Sig such that: Sig = g(d) * SigP + SigM
+        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matrixType)        
         SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
-
         Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
             
         tic.Tac("Matrix", "Sigma_e_pg", False)
@@ -781,7 +775,7 @@ class PhaseFieldSimu(_Simu):
         return self.__resumeLoading
 
     def Results_Set_Iteration_Summary(self, iter: int, load: float, uniteLoad: str, percentage=0.0, remove=False) -> str:
-        """Builds the iteration summary for the damage problem
+        """Builds the iteration summary for the damage problem.
 
         Parameters
         ----------

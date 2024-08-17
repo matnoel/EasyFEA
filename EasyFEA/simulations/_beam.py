@@ -28,7 +28,7 @@ class BeamSimu(_Simu):
         model : Beam_Structure | _Beam
             the model used.
         verbosity : bool, optional
-            If True, the simulation can write to the console. Defaults to False.
+            If True, the simulation can write in the terminal. Defaults to False.
         useNumba : bool, optional
             If True, numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional

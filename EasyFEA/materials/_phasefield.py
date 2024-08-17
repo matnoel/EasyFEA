@@ -221,7 +221,7 @@ class PhaseField(_IModel):
         if self.__regularization in self.Get_regularisations():
             g_e_pg: np.ndarray = (1-d_e_pg)**2 + k_residu
         else:
-            raise Exception("Not implemented")
+            raise Exception("Not implemented.")
 
         assert mesh.Ne == g_e_pg.shape[0]
         assert mesh.Get_nPg(matrixType) == g_e_pg.shape[1]
@@ -320,7 +320,7 @@ class PhaseField(_IModel):
         return c_w
             
     def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
-        """Calculates the elastic energy densities.\n
+        """Computes the elastic energy densities.\n
 
         psiP_e_pg = 1/2 SigmaP_e_pg * Epsilon_e_pg\n
         psiM_e_pg = 1/2 SigmaM_e_pg * Epsilon_e_pg\n
@@ -383,7 +383,7 @@ class PhaseField(_IModel):
         Returns
         -------
         np.ndarray
-            cP_e_pg, cM_e_pg: positive and negative stifness matrix (e, p, D, D)
+            cP_e_pg, cM_e_pg: positive and negative stifness matrices (e, p, D, D)
         """
 
         Ne, nPg = Epsilon_e_pg.shape[:2]
