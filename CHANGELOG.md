@@ -2,6 +2,10 @@
 
 This document describes the changes made to the project.
 
+## 1.2.1 (August 17, 2024):
+
+- Updated docstrings.
+
 ## 1.2.0 (August 14, 2024):
 
 - Added the resetAll option in Set_Iter() to simplify the update process after iteration activation.
