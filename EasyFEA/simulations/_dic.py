@@ -25,7 +25,7 @@ class DIC(_IObserver):
         Parameters
         ----------
         mesh : Mesh
-            mesh used to construct the roi
+            pixel-based mesh used for dic.
         idxImgRef : int
             reference image index in _forces (or in the folder).
         imgRef : np.ndarray
@@ -82,12 +82,12 @@ class DIC(_IObserver):
 
     @property
     def mesh(self) -> Mesh:
-        """pixel-based mesh used for image correlation."""
+        """pixel-based mesh used for dic."""
         return self.__mesh
     
     @property
     def ldic(self) -> float:
-        """8 * mean(meshSize)"""
+        """8 * mean(meshSize) (set Get_ldic())"""
         return self.Get_ldic()
     
     def Get_scaled_mesh(self, imgScale=1.0) -> Mesh:
@@ -101,30 +101,30 @@ class DIC(_IObserver):
 
     @property
     def idxImgRef(self) -> int:
-        """Reference image index in _forces (or in the folder)."""
+        """reference image index in _forces (or in the folder)."""
         return self.__idxImgRef
 
     @property
     def imgRef(self) -> np.ndarray:
-        """Image used as reference."""
+        """reference image (f)"""
         return self.__imgRef.copy()
     
     @property
     def shape(self) -> tuple[int, int]:        
-        """Image shapes required"""
+        """reference image shape"""
         return self.__imgRef.shape
 
     # regularization properties
 
     @property
     def _lr(self) -> float:
-        """regularization length."""
+        """regularization length"""
         return self.__lr
 
     @_lr.setter
     def _lr(self, value: float) -> None:
         """# Warning!\n
-        Changing this parameter will automatically update the matrices with the Compute_L_M function!"""
+        Changing this parameter will automatically update the matrices with the _Compute_L_M() function!"""
         assert value >= 0.0, "lr must be >= 0.0"
         self.__lr = value
         self._Compute_L_M(self.__imgRef)
@@ -140,17 +140,17 @@ class DIC(_IObserver):
     
     @property
     def list_idx(self) -> list[int]:
-        """Copy of the list containing indexes for which the displacement field has been calculated."""
+        """copy of the list containing indexes for which the displacement field has been calculated."""
         return self.__list_idx.copy()
 
     @property
     def list_u(self) -> list[np.ndarray]:
-        """Copy of the list containing the calculated displacement fields."""
+        """copy of the list containing the calculated displacement fields."""
         return self.__list_u.copy()
     
     @property
     def list_img(self) -> list[np.ndarray]:
-        """Copy of the list containing images for which the displacement field has been calculated."""
+        """copy of the list containing images for which the displacement field has been calculated."""
         return self.__list_img.copy()
 
     def _Update(self, observable: Observable, event: str) -> None:
@@ -160,28 +160,28 @@ class DIC(_IObserver):
             Display.MyPrintError("Notification not yet implemented")
 
     def __init__roi(self) -> None:
-        """ROI initialization."""
+        """Initializes the Region of Interest (ROI)"""
 
         tic = Tic()
 
         imgRef = self.__imgRef
         mesh = self.__mesh
 
-        # recovery of pixel coordinates
+        # get pixel coordinates
         coordPx = np.arange(imgRef.shape[1]).reshape((1,-1)).repeat(imgRef.shape[0], 0).ravel()
         coordPy = np.arange(imgRef.shape[0]).reshape((-1,1)).repeat(imgRef.shape[1]).ravel()
         coordPixel = np.zeros((coordPx.shape[0], 3), dtype=int);  coordPixel[:,0] = coordPx;  coordPixel[:,1] = coordPy
 
-        # recovery of pixels used in elements with their coordinates
+        # get pixels used in elements with their coordinates
         pixels, __, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(coordPixel)
         # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])s
 
         self.__connectPixel: np.ndarray = connectPixel
         """connectivity matrix linking the pixels used for each element."""
         self.__coordPixelInElem: np.ndarray = coordPixelInElem
-        """pixel coordinates in the reference element."""
+        """pixel coordinates in the reference element (xi, eta)."""
         
-        # ROI creation
+        # creates roi (as a vector)
         roi: np.ndarray = np.zeros(coordPx.shape[0])
         roi[pixels] = 1
         self.__roi = np.asarray(roi == 1, dtype=bool)
@@ -199,7 +199,7 @@ class DIC(_IObserver):
         return self.roi.reshape(self.shape)
 
     def __init__Phi_opLap(self) -> None:
-        """Initializing shape functions and the Laplacian operator."""
+        """Initializes shape functions and the Laplacian operator."""
         
         mesh = self.__mesh
         dim = 2
@@ -208,12 +208,8 @@ class DIC(_IObserver):
         connectPixel = self.__connectPixel
         coordInElem = self.__coordPixelInElem        
         
-        # Initializing shape functions and the Laplacian operator
-        matrixType = "mass"
-        Ntild = mesh.groupElem._Ntild()
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType) # (e, p)
-        weight_pg = mesh.Get_weight_pg(matrixType) # (p)        
-        dN_e_pg = mesh.groupElem.Get_dN_e_pg(matrixType) # (e, p, dim, nPe)
+        # Initializes shape functions and the Laplacian operator
+        Ntild = mesh.groupElem._Ntild()        
 
         # ----------------------------------------------
         # Builds the shape function matrix for pixels (N)
@@ -223,7 +219,7 @@ class DIC(_IObserver):
         columns_Phi = []
         values_phi = []
 
-        # Evaluating shape functions for the pixels used
+        # Evaluates shape functions for each pixels' coordinates
         x_p, y_p = coordInElem[:,0], coordInElem[:,1]
         phi_n_pixels = np.array([np.reshape([Ntild[n,0](x_p, y_p)], -1) for n in range(mesh.nPe)])
          
@@ -234,7 +230,7 @@ class DIC(_IObserver):
         # In addition, if you remove it, you'll have to make several list comprehension.
         for e in range(mesh.Ne):
 
-            # Retrieve element nodes and pixels
+            # get the nodes and pixels used by the element
             nodes = mesh.connect[e]            
             pixels: np.ndarray = connectPixel[e]
             # Retrieves evaluated functions
@@ -245,28 +241,33 @@ class DIC(_IObserver):
             # linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
             # same as
             linesY = linesX + 1
-            # construction of columns in which to place values
-            colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()
+            # get columns in which for placing values
+            columns = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()
 
             lines_x.extend(linesX)
             lines_y.extend(linesY)
-            columns_Phi.extend(colonnes)
+            columns_Phi.extend(columns)
             values_phi.extend(np.reshape(phi, -1))
 
         self._N_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (Ndof, coordInElem.shape[0]))
-        """Shape function matrix x (Ndof, nPixels)"""
+        """Shape function matrix Nx (Ndof, nPixels)"""
         self._N_y = sparse.csr_matrix((values_phi, (lines_y, columns_Phi)), (Ndof, coordInElem.shape[0]))
-        """Shape function matrix y (Ndof, nPixels)"""
+        """Shape function matrix Ny (Ndof, nPixels)"""
 
         Op: sparse.csr_matrix = self._N_x @ self._N_x.T + self._N_y @ self._N_y.T
 
         self.__Op_LU = splu(Op.tocsc())
         
-        tic.Tac("DIC", "Phi_x and Phi_y", self._verbosity)
+        tic.Tac("DIC", "N_x and N_y", self._verbosity)
 
         # ----------------------------------------------
         # Builds the Laplacian operator (R)
         # ----------------------------------------------
+        matrixType = "mass"
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType) # (e, p)
+        weight_pg = mesh.Get_weight_pg(matrixType) # (p)
+        dN_e_pg = mesh.groupElem.Get_dN_e_pg(matrixType) # (e, p, dim, nPe)
+
         dNdx = dN_e_pg[:,:,0]
         dNdy = dN_e_pg[:,:,1]
 

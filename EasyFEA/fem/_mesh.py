@@ -392,7 +392,7 @@ class Mesh(Observable):
         return self.groupElem.Get_N_pg_rep(matrixType, self.__dim)
 
     def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions first derivatives in the global coordinates.\n
+        """Evaluates the first-order derivatives of shape functions in global coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y ... Nn,y]\n
         (e, pg, dim, nPe)\n
@@ -400,7 +400,7 @@ class Mesh(Observable):
         return self.groupElem.Get_dN_e_pg(matrixType)
 
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions second derivatives in the global coordinates.\n
+        """Evaluates the second-order derivatives of shape functions in global coordinates.\n
         [Ni,xx . . . Nn,xx\n
         Ni,yy ... Nn,yy]\n
         (e, pg, dim, nPe)\n

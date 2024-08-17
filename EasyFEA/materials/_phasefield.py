@@ -821,7 +821,7 @@ class PhaseField(_IModel):
 
         tic = Tic()
 
-        # Initialize the second-order tensor [e,pg,dim,dim]
+        # Initializes the second-order tensor [e,pg,dim,dim]
         matrix_e_pg = np.zeros((Ne,nPg,dim,dim))
         for d in range(dim):
             matrix_e_pg[:,:,d,d] = vector_e_pg[:,:,d]

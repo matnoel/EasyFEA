@@ -58,7 +58,7 @@ class Mesher:
             assert elemType in ElemType.Get_3D(), f"Must be in {ElemType.Get_3D()}"
     
     def _Init_gmsh(self, factory: str= 'occ') -> None:
-        """Initialize gmsh."""
+        """Initializes gmsh."""
         if not gmsh.isInitialized():
             gmsh.initialize()
         if self.__gmshVerbosity == False:

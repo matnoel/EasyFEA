@@ -293,7 +293,7 @@ class _Simu(_IObserver, ABC):
 
         self.__useIterativeSolvers: bool = useIterativeSolvers
 
-        # Initialize Boundary conditions
+        # Initializes Boundary conditions
         self.Bc_Init()
         
         # simulation will look for material modifications
@@ -475,7 +475,7 @@ class _Simu(_IObserver, ABC):
 
             # The mesh changes, so the matrices must be reconstructed
             self.Need_Update()
-            # Initialize boundary conditions
+            # Initializes boundary conditions
             self.Bc_Init()
             # initialize the solutions
             self.__Init_Sols_n()

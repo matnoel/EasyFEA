@@ -55,7 +55,7 @@ if __name__ == '__main__':
     Iy = beam1.Iy
     Iz = beam1.Iz
 
-    # Initialize the beam structure with the defined beam segments
+    # Initializes the beam structure with the defined beam segments
     beamStructure = Materials.BeamStructure(beams)
 
     # Create the beam simulation

@@ -63,7 +63,7 @@ class _GroupElem(ABC):
         self._InitMatrix()
     
     def _InitMatrix(self) -> None:
-        """Initialize matrix dictionaries for finite element construction"""
+        """Initializes matrix dictionaries for finite element construction"""
         # Dictionaries for each matrix type
         self.__dict_dN_e_pg: dict[MatrixType, np.ndarray] = {}
         self.__dict_ddN_e_pg: dict[MatrixType, np.ndarray] = {}
@@ -255,7 +255,7 @@ class _GroupElem(ABC):
         return np.array(coordo_e_p)
     
     def Get_N_pg_rep(self, matrixType: MatrixType, repeat=1) -> np.ndarray:
-        """Repeat shape functions in the local coordinates.
+        """Repeats shape functions in the local coordinates.
 
         Parameters
         ----------
@@ -294,7 +294,7 @@ class _GroupElem(ABC):
             return N_vect_pg
     
     def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions first derivatives in the global coordinates.\n
+        """Evaluates the first-order derivatives of shape functions in global coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y ... Nn,y]\n
         (e, pg, dim, nPe)\n
@@ -314,7 +314,7 @@ class _GroupElem(ABC):
         return self.__dict_dN_e_pg[matrixType].copy()
     
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions second derivatives in the global coordinates.\n
+        """Evaluates the second-order derivatives of shape functions in global coordinates.\n
         [Ni,xx . . . Nn,xx\n
         Ni,yy ... Nn,yy]\n
         (e, pg, dim, nPe)\n
@@ -335,7 +335,7 @@ class _GroupElem(ABC):
         return self.__dict_ddN_e_pg[matrixType].copy()
     
     def Get_Nv_e_pg(self) -> np.ndarray:
-        """Evaluates beam shape functions in the global coordinates.\n
+        """Evaluates beam shape functions in global coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (e, pg, 1, nPe*2)
         """
@@ -358,7 +358,7 @@ class _GroupElem(ABC):
         return Nv_e_pg
 
     def Get_dNv_e_pg(self) -> np.ndarray:
-        """Evaluates beam shape functions first derivatives in the global coordinates.\n
+        """Evaluates the first-order derivatives of beam shape functions in global coordinates.\n
         [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
         (e, pg, 1, nPe*2)
         """
@@ -381,7 +381,7 @@ class _GroupElem(ABC):
         return dNv_e_pg
 
     def Get_ddNv_e_pg(self) -> np.ndarray:
-        """Evaluates beam shape functions second derivatives in the global coordinates.\n
+        """Evaluates the second-order derivatives of beam shape functions in global coordinates.\n
         [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
         (e, pg, 1, nPe*2)
         """
@@ -888,7 +888,7 @@ class _GroupElem(ABC):
         return evalFunctions
     
     def __Init_Functions(self, order: int) -> np.ndarray:
-        """Initialize functions to be evaluated at gauss points."""
+        """Initializes functions to be evaluated at gauss points."""
         if self.dim == 1 and self.order < order:
             functions = np.array([lambda x: 0]*self.nPe)
         elif self.dim == 2 and self.order < order:
@@ -1529,7 +1529,7 @@ class _GroupElem(ABC):
         connect = self.connect
         coord = self.coord
         
-        # Initialize lists of interest
+        # Initializes lists of interest
         detectedNodes: list[int] = []
         # Elements where nodes have been identified
         detectedElements_e: list[int] = []
