@@ -13,6 +13,7 @@ import numpy as np
 # utilities
 from .Display import MyPrintError, _Init_obj, MyPrint
 from . import Folder, Tic
+from .. import Geoms
 # fem
 from ..fem import GroupElemFactory
 
@@ -21,7 +22,8 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
                 show_vertices=False, point_size=None, opacity=1.0,
                 style='surface', cmap="jet", n_colors=256, clim=None,
                 plotter: pv.Plotter=None, show_grid=False, verticalColobar=True, **kwargs):
-    """Plot the object obj that can be either a simu, mesh, MultiBlock, PolyData. If you want to plot the solution use plotter.show().
+    """Plots the object obj that can be either a simu, mesh, MultiBlock, PolyData.\n
+    If you want to plot the solution use plotter.show().
 
     Parameters
     ----------
@@ -75,7 +77,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
     
     tic = Tic()    
     
-    # initiate the obj to construct the grid
+    # initilize the obj to construct the grid
     if isinstance(obj, (pv.MultiBlock, pv.PolyData, pv.UnstructuredGrid)):
         inDim = 3
         pvMesh = obj        
@@ -129,7 +131,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
 
 def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='black', line_width=0.5,
               plotter: pv.Plotter=None):
-    """Plot the mesh.
+    """Plots the mesh.
 
     Parameters
     ----------
@@ -160,7 +162,7 @@ def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='blac
 
 def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color='red',
                folder="", plotter: pv.Plotter=None):
-    """Plot mesh nodes.
+    """Plots mesh's nodes.
 
     Parameters
     ----------
@@ -218,7 +220,7 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
     return plotter
 
 def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, deformFactor=0, opacity=1.0, color='red', edge_color='black', line_width=None, plotter: pv.Plotter=None):
-    """Display mesh elements from given nodes.
+    """Plots the mesh elements corresponding to the given nodes.
 
     Parameters
     ----------
@@ -249,7 +251,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
         The pyvista plotter
     """
 
-    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
+    __, mesh, coordo, __ = _Init_obj(obj, deformFactor)
     
     dimElem = mesh.dim if dimElem == None else dimElem
 
@@ -263,8 +265,6 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
 
     if plotter == None:
         plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color=edge_color, line_width=line_width)
-
-    
     
     for groupElem in mesh.Get_list_groupElem(dimElem):
 
@@ -293,7 +293,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
     return plotter
 
 def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
-    """Plot boundary conditions.
+    """Plots simulation's boundary conditions.
 
     Parameters
     ----------
@@ -358,13 +358,10 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
 
         nodes = np.asarray(list(set(nodes)), dtype=int)
 
-        # ici continuer en construisant
-        # un vecteur sparse !!!!!!!!
-
         rotDirections = ["rx","ry","rz"]
 
         if nDof == mesh.Nn:
-            # plot points 
+            # plots points 
             plotter.add_mesh(pv.PolyData(coordo[nodes]), render_points_as_spheres=False, label=label, color=color)
 
         else:
@@ -411,7 +408,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
                 vector = np.mean(vector, 0)
                 vectorRot = np.mean(vectorRot, 0)
             
-            # plot vector
+            # plots vector
             if normVector == 0:
                 # vector is a matrix of zeros
                 pvData = pv.PolyData(coordo[nodes])
@@ -441,11 +438,11 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
     return plotter
 
 def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=None, **kwargs) -> pv.Plotter:
-    """Plot geom object
+    """Plots _Geom objects
 
     Parameters
     ----------
-    geoms : list
+    geoms : list[_Geom]
         list of geom object
     plotLegend : bool,
         plot the legend, by default True
@@ -467,8 +464,6 @@ def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=N
 
     if plotter is None:
         plotter = _Plotter()
-
-    import Geoms
 
     geoms: list[Geoms._Geom] = geoms
 
@@ -507,7 +502,7 @@ def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=N
 # ----------------------------------------------
 def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
           deformFactor=0.0, coef=1.0, nodeValues=True, **kwargs) -> None:
-    """Generate a movie from a simu object and a result that you want to plot.
+    """Generates a movie from a simulation's result.
 
     Parameters
     ----------
@@ -549,12 +544,13 @@ def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
     Movie_func(DoAnim, iterations.size, folder, filename)
 
 def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, filename='video.gif'):
-    """Make the movie for the specified function. This function will peform a loop in range(N) and plot in pyvista with func()
+    """Generates the movie for the specified function.\n
+    This function will peform a loop in range(N).
 
     Parameters
     ----------
     func : Callable[[pv.Plotter, int], None]
-        The functiion that will use in first argument the plotter and in second argument the iter step.\n
+        The function that will use in first argument the plotter and in second argument the iter step such that.\n
         def func(plotter, i) -> None
     N : int
         number of iteration
@@ -638,9 +634,9 @@ def _setCameraPosition(plotter: pv.Plotter, inDim: int):
     #     plotter.camera.reset_clipping_range()
 
 def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValues=True) -> pv.UnstructuredGrid:
-    """Construct the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""
+    """Creates the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""
 
-    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
+    simu, mesh, coordo, __ = _Init_obj(obj, deformFactor)
 
     elemType = mesh.elemType
     Nn = mesh.Nn
@@ -652,7 +648,7 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
     
     cellType = __dictCellTypes[elemType]
     
-    # reorganize the connectivity order 
+    # reorganizes the connectivity order 
     # because some elements in gmsh don't have the same numbering order as in vtk
     # pyvista -> https://docs.pyvista.org/version/stable/api/core/_autosummary/pyvista.UnstructuredGrid.celltypes.html
     # vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
@@ -716,8 +712,6 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
     return pvMesh
 
 def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
-
-    import Geoms
 
     if not isinstance(geom, (Geoms.Point, Geoms._Geom)):
         MyPrintError("Must be a point or a geometric object.")

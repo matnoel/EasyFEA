@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""This module allows you to save a simulation on Paraview (https://www.paraview.org/)."""
+"""This module allows you to save a simulation's results on Paraview (https://www.paraview.org/)."""
 
 import numpy as np
 
@@ -13,7 +13,7 @@ from . import Display, Folder, Tic
 # Paraview
 # ----------------------------------------------
 def Make_Paraview(simu, folder: str, N=200, details=False, nodesField=[], elementsField=[]):
-    """Saving the simulation on paraview
+    """Generates the paraview (*.pvd and *.pvu files).
 
     Parameters
     ----------
@@ -24,7 +24,7 @@ def Make_Paraview(simu, folder: str, N=200, details=False, nodesField=[], elemen
     N : int, optional
         Maximal number of iterations displayed, by default 200
     details: bool, optional
-        details of nodesField and elementsField used in the .vtu
+        details of nodesField and elementsField used in the *.vtu
     nodesField: list, optional
         Additional nodesField, by default []
     elementsField: list, optional
@@ -115,7 +115,7 @@ __dictParaviewTypes = {
 # Functions
 # ----------------------------------------------
 def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]):
-    """Create the .vtu (as a binary files) which can be read on paraview
+    """Generates the *.vtu files in binary format.
     """
 
     simu = Display._Init_obj(simu)[0]
@@ -124,14 +124,14 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
    
     simu.Set_Iter(iter)
 
-    # Checking the compatibility of the results list with the simulation
+    # checks the compatibility of the available results
     for option in options:
         resultat = simu.Result(option)
         if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
             return
 
     connect = simu.mesh.connect
-    coordo = simu.mesh.coord
+    coord = simu.mesh.coord
     Ne = simu.mesh.Ne
     Nn = simu.mesh.Nn
     nPe = simu.mesh.groupElem.nPe    
@@ -140,9 +140,9 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
     
     types = np.ones(Ne, dtype=int)*paraviewType
 
-    nodes = coordo.ravel()
-    """coordinates of nodes in lines"""
-
+    # coordinates as a vector (e.g (x1, y1, y2,..., xn, yn, yn))
+    nodes = coord.ravel()
+    # connect as a vector (e.g (n1^1, n2^1, n3^1, ..., n1^e, n2^e, n3^e))
     connectivity = connect.ravel()
 
     offsets = np.arange(nPe,nPe*Ne+1,nPe, dtype=np.int32)-3
@@ -258,6 +258,7 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
     return vtuFile
 
 def __Make_pvd(filename: str, vtuFiles=[]):
+    """Makes *.pvd file to link the *.vtu files."""
 
     tic = Tic()
 
@@ -281,7 +282,7 @@ def __Make_pvd(filename: str, vtuFiles=[]):
     t = tic.Tac("Paraview","Make pvd", False)
 
 def __WriteBinary(value, type: str, file):
-    """Convert value (int of array) to Binary"""
+    """Converts value (int of array) to Binary"""
 
     if type not in ['uint32','float32','int32','int8']:
         raise Exception("Type not implemented")
