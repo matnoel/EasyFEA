@@ -673,26 +673,28 @@ class PhaseFieldSimu(_Simu):
         """Computes of the kinematically admissible damaged deformation energy.\n
         Wdef = 1/2 int_Ω Sig : Eps dΩ"""
 
+        Ku = self.Get_K_C_M_F(ModelType.elastic)[0]
+
         tic = Tic()
 
         u = self.displacement.reshape(-1,1)
-        Ku = self.Get_K_C_M_F(ModelType.elastic)[0]
         Wdef = 1/2 * float(u.T @ Ku @ u)
 
-        tic.Tac("PostProcessing","Calc Psi Elas",False)
+        tic.Tac("PostProcessing", "Calc Psi Elas", False)
         
         return Wdef
 
     def _Calc_Psi_Crack(self) -> float:
         """Computes crack's energy."""
 
-        tic = Tic()
-        
-        d = self.damage.reshape(-1,1)        
         Kd = self.Get_K_C_M_F(ModelType.damage)[0]
+        
+        tic = Tic()
+
+        d = self.damage.reshape(-1,1)
         Psi_Crack = 1/2 * float(d.T @ Kd @ d)
 
-        tic.Tac("PostProcessing","Calc Psi Crack",False)
+        tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
         return Psi_Crack
 
