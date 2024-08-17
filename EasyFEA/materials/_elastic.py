@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from typing import Union
 
 # utilities
@@ -21,8 +21,8 @@ from ._utils import (_IModel, ModelType,
 # ----------------------------------------------
 
 class _Elas(_IModel, ABC):
-    """Displacement class model.\n
-    Elas_Isot, Elas_IsotTrans and Elas_Anisot inherit from _Elas
+    """Elastic class model.\n
+    Elas_Isot, Elas_IsotTrans and Elas_Anisot inherit from _Elas class.
     """
     def __init__(self, dim: int, thickness: float, planeStress: bool):
         
@@ -54,7 +54,7 @@ class _Elas(_IModel, ABC):
 
     @property
     def planeStress(self) -> bool:
-        """The model uses plane stress simplification"""
+        """the model uses plane stress simplification"""
         return self.__planeStress
     
     @planeStress.setter
@@ -66,7 +66,7 @@ class _Elas(_IModel, ABC):
 
     @property
     def simplification(self) -> str:
-        """Simplification used for the model"""
+        """simplification used for the model"""
         if self.__dim == 2:
             return "Plane Stress" if self.planeStress else "Plane Strain"
         else:
@@ -74,7 +74,7 @@ class _Elas(_IModel, ABC):
 
     @abstractmethod
     def _Update(self) -> None:
-        """Update the C and S behavior law"""
+        """Updates the constitutives laws by updating the C stiffness and S compliance matrices. in Kelvin Mandel notation"""
         pass
 
     # Model
@@ -85,14 +85,15 @@ class _Elas(_IModel, ABC):
 
     @property
     def coef(self) -> float:
-        """Coef linked to kelvin mandel -> sqrt(2)"""
+        """kelvin mandel coef -> sqrt(2)"""
         return np.sqrt(2)
 
     @property
     def C(self) -> np.ndarray:
-        """Behaviour for Lame's law in Kelvin Mandel\n
+        """Stifness matrix in Kelvin Mandel notation such that:\n
         In 2D: C -> C: Epsilon = Sigma [Sxx, Syy, sqrt(2)*Sxy]\n
-        In 3D: C -> C: Epsilon = Sigma [Sxx, Syy, Szz, sqrt(2)*Syz, sqrt(2)*Sxz, sqrt(2)*Sxy].
+        In 3D: C -> C: Epsilon = Sigma [Sxx, Syy, Szz, sqrt(2)*Syz, sqrt(2)*Sxz, sqrt(2)*Sxy].\n
+        (Lame's law)
         """
         if self.needUpdate:
             self._Update()
@@ -112,9 +113,10 @@ class _Elas(_IModel, ABC):
 
     @property
     def S(self) -> np.ndarray:
-        """Behaviour for Hooke's law in Kelvin Mandel\n
+        """Compliance matrix in Kelvin Mandel notation such that:\n
         In 2D: S -> S : Sigma = Epsilon [Exx, Eyy, sqrt(2)*Exy]\n
-        In 3D: S -> S: Sigma = Epsilon [Exx, Eyy, Ezz, sqrt(2)*Eyz, sqrt(2)*Exz, sqrt(2)*Exy].
+        In 3D: S -> S: Sigma = Epsilon [Exx, Eyy, Ezz, sqrt(2)*Eyz, sqrt(2)*Exz, sqrt(2)*Exy].\n
+        (Hooke's law)
         """
         if self.needUpdate:
             self._Update()
@@ -130,9 +132,9 @@ class _Elas(_IModel, ABC):
 
     @abstractmethod
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
-        """Walpole's decomposition such as C = sum(ci * Ei).\n
-        # Use Kelvin mandel notation ! \n
-        return ci, Ei"""
+        """Walpole's decomposition in Kelvin Mandel notation such that:\n
+        C = sum(ci * Ei).\n        
+        returns ci, Ei"""
         return np.array([]), np.array([])
 
 # ----------------------------------------------
@@ -140,6 +142,7 @@ class _Elas(_IModel, ABC):
 # ----------------------------------------------
 
 class Elas_Isot(_Elas):
+    """Isotropic Linear Elastic class."""
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
@@ -150,21 +153,21 @@ class Elas_Isot(_Elas):
         return text
 
     def __init__(self, dim: int, E=210000.0, v=0.3, planeStress=True, thickness=1.0):
-        """Isotropic elastic material.
+        """Creates an Isotropic Linear Elastic material.
 
         Parameters
         ----------
         dim : int
-            Dimension of 2D or 3D simulation
+            dimension (e.g 2 or 3)
         E : float|np.ndarray, optional
-            Young modulus
+            Young's modulus
         v : float|np.ndarray, optional
-            Poisson ratio ]-1;0.5]
+            Poisson's ratio ]-1;0.5]
         planeStress : bool, optional
-            Plane Stress, by default True
+            uses plane stress assumption, by default True
         thickness : float, optional
             thickness, by default 1.0
-        """       
+        """
 
         # Checking values
         assert dim in [2,3], "Must be dimension 2 or 3"
@@ -182,7 +185,7 @@ class Elas_Isot(_Elas):
 
     @property
     def E(self) -> Union[float,np.ndarray]:
-        """Young modulus"""
+        """Young's modulus"""
         return self.__E
     
     @E.setter
@@ -193,7 +196,7 @@ class Elas_Isot(_Elas):
 
     @property
     def v(self) -> Union[float,np.ndarray]:
-        """Poisson coefficient"""
+        """Poisson's ratio"""
         return self.__v
     
     @v.setter
@@ -238,7 +241,7 @@ class Elas_Isot(_Elas):
         return bulk
 
     def _Behavior(self, dim:int=None):
-        """"Builds behavior matrices in kelvin mandel\n
+        """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
         
         In 2D:
         -----
@@ -269,7 +272,7 @@ class Elas_Isot(_Elas):
 
         if dim == 2:
 
-            # Careful here because lambda changes according to 2D simplification.
+            # Caution: lambda changes according to 2D simplification.
 
             cVoigt = np.array([ [l + 2*mu, l, 0],
                                 [l, l + 2*mu, 0],
@@ -337,6 +340,7 @@ class Elas_Isot(_Elas):
 # ----------------------------------------------
 
 class Elas_IsotTrans(_Elas):
+    """Transversely Isotropic Linear Elastic class."""
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
@@ -349,29 +353,32 @@ class Elas_IsotTrans(_Elas):
             text += f"\nthickness = {self.thickness:.2e}"
         return text
 
-    def __init__(self, dim: int, El: float, Et: float, Gl: float, vl: float, vt: float, axis_l=[1,0,0], axis_t=[0,1,0], planeStress=True, thickness=1.0):
-        """Transverse isotropic elastic material. More details Torquato 2002 13.3.2 (iii) : http://link.springer.com/10.1007/978-1-4757-6355-3
+    def __init__(self, dim: int, El: float, Et: float, Gl: float,
+                 vl: float, vt: float,
+                 axis_l=[1,0,0], axis_t=[0,1,0], planeStress=True, thickness=1.0):
+        """Creates and Transversely Isotropic Linear Elastic material.\n
+        More details Torquato 2002 13.3.2 (iii) http://link.springer.com/10.1007/978-1-4757-6355-3
 
         Parameters
         ----------
         dim : int
             Dimension of 2D or 3D simulation
         El : float
-            Longitudinal Young modulus
+            Longitudinal Young's modulus 
         Et : float
-            Transverse Young modulus
+            Transverse Young's modulus (T, R) plane
         Gl : float
             Longitudinal shear modulus
         vl : float
             Longitudinal Poisson ratio
         vt : float
-            Transverse Poisson ratio
+            Transverse Poisson ratio (T, R) plane
         axis_l : np.ndarray, optional
             Longitudinal axis, by default np.array([1,0,0])
         axis_t : np.ndarray, optional
             Transverse axis, by default np.array([0,1,0])
         planeStress : bool, optional
-            Plane Stress, by default True
+            uses plane stress assumption, by default True
         thickness : float, optional
             thickness, by default 1.0
         """
@@ -398,7 +405,7 @@ class Elas_IsotTrans(_Elas):
 
     @property
     def Gt(self) -> Union[float,np.ndarray]:
-        """Transverse shear modulus"""
+        """Transverse shear modulus."""
         
         Et = self.Et
         vt = self.vt
@@ -409,7 +416,7 @@ class Elas_IsotTrans(_Elas):
 
     @property
     def El(self) -> Union[float,np.ndarray]:
-        """Longitudinal Young modulus"""
+        """Longitudinal Young's modulus."""
         return self.__El
 
     @El.setter
@@ -420,7 +427,7 @@ class Elas_IsotTrans(_Elas):
 
     @property
     def Et(self) -> Union[float,np.ndarray]:
-        """Transverse Young modulus"""
+        """Transverse Young's modulus."""
         return self.__Et
     
     @Et.setter
@@ -431,7 +438,7 @@ class Elas_IsotTrans(_Elas):
 
     @property
     def Gl(self) -> Union[float,np.ndarray]:
-        """Longitudinal shear modulus"""
+        """Longitudinal shear modulus."""
         return self.__Gl
 
     @Gl.setter
@@ -442,7 +449,7 @@ class Elas_IsotTrans(_Elas):
 
     @property
     def vl(self) -> Union[float,np.ndarray]:
-        """Longitudinal Poisson ratio"""
+        """Longitudinal Poisson's ratio."""
         return self.__vl
 
     @vl.setter
@@ -504,7 +511,7 @@ class Elas_IsotTrans(_Elas):
         self.S = S
 
     def _Behavior(self, dim: int=None, P: np.ndarray=None):
-        """"Constructs behavior matrices in kelvin mandel\n
+        """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
         
         In 2D:
         -----
@@ -560,20 +567,20 @@ class Elas_IsotTrans(_Elas):
         
         material_cM = Heterogeneous_Array(material_cM)
 
-        # # Verify that S = C^-1
+        # # checks that S = C^-1
         # assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10
-        # # Verify that C = S^-1
+        # # checks that C = S^-1
         # assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
 
         # Performs a base change to orient the material in space
         global_sM = Apply_Pmat(P, material_sM)
         global_cM = Apply_Pmat(P, material_cM)
         
-        # verification that if the axes do not change, the same behavior law is obtained
+        # checks that if the axes does not change, the same behavior law is obtained
         test_diff_c = global_cM - material_cM
         if useSameAxis: assert(np.linalg.norm(test_diff_c)<1e-12)
 
-        # verification that if the axes do not change, the same behavior law is obtained
+        # checks that if the axes does not change, the same behavior law is obtained
         test_diff_s = global_sM - material_sM
         if useSameAxis: assert np.linalg.norm(test_diff_s) < 1e-12
         
@@ -653,6 +660,7 @@ class Elas_IsotTrans(_Elas):
 # ----------------------------------------------
 
 class Elas_Anisot(_Elas):
+    """Anisotropic Linear Elastic class."""
     
     def __str__(self) -> str:
         text = f"\n{type(self).__name__}):"
@@ -665,7 +673,7 @@ class Elas_Anisot(_Elas):
         return text
 
     def __init__(self, dim: int, C: np.ndarray, useVoigtNotation:bool, axis1: np.ndarray=(1,0,0), axis2: np.ndarray=(0,1,0), thickness=1.0):
-        """Anisotropic elastic material.
+        """Creates an Anisotropic Linear Elastic class.
 
         Parameters
         ----------
@@ -710,21 +718,19 @@ class Elas_Anisot(_Elas):
         return super()._Update()
 
     def Set_C(self, C: np.ndarray, useVoigtNotation=True, update_S=True):
-        """Update C and S behavior law
+        """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         Parameters
         ----------
         C : np.ndarray
-           Behavior law for Lamé's law
+           Stifness matrix (Lamé's law)
         useVoigtNotation : bool, optional
-            Behavior law uses Kevin Mandel's notation, by default True
+            uses Kevin Mandel's notation, by default True
         update_S : bool, optional
-            Updates the compliance matrix, by default True
+            updates the compliance matrix (Hooke's law), by default True
         """
 
         self.Need_Update()
-
-        dim = 2 if C.shape[0] == 3 else 3
         
         C_mandelP = self._Behavior(C, useVoigtNotation)
         self.C = C_mandelP
@@ -741,13 +747,12 @@ class Elas_Anisot(_Elas):
         testSym = np.linalg.norm(C.T - C)/np.linalg.norm(C)
         assert testSym <= 1e-12, "The matrix is not symmetrical."
 
-        # Application of coef if necessary
         if useVoigtNotation:
             C_mandel = KelvinMandel_Matrix(dim, C)
         else:
             C_mandel = C.copy()
 
-        # set to 3D
+        # sets to 3D
         idx = np.array([0,1,5])
         if dim == 2:
             if len(shape)==2:

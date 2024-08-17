@@ -18,18 +18,17 @@ from ._simu import _Simu
 
 class BeamSimu(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Materials.Beam_Structure, verbosity=False, useNumba=True, useIterativeSolvers=True):
-        """
-        Creates a Euler-Bernoulli beam simulation.
+    def __init__(self, mesh: Mesh, model: Materials.BeamStructure, verbosity=False, useNumba=True, useIterativeSolvers=True):
+        """Creates a Euler-Bernoulli beam simulation.
 
         Parameters
         ----------
         mesh : Mesh
-            The mesh used.
+            the mesh used.
         model : Beam_Structure | _Beam
-            The model used.
+            the model used.
         verbosity : bool, optional
-            If True, the simulation can write to the console. Defaults to False.
+            If True, the simulation can write in the terminal. Defaults to False.
         useNumba : bool, optional
             If True, numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
@@ -37,16 +36,16 @@ class BeamSimu(_Simu):
         """
 
         if isinstance(model, Materials._Beam):
-            # change the beam model as a beam structure
-            model = Materials.Beam_Structure([model])
+            # changes the beam model as a beam structure
+            model = Materials.BeamStructure([model])
 
-        assert isinstance(model, Materials.Beam_Structure), "model must be a beam model or a beam structure"
+        assert isinstance(model, Materials.BeamStructure), "model must be a beam model or a beam structure"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
         self.Solver_Set_Elliptic_Algorithm()
         
-        # turn beams into observable objects
+        # turns beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]
         
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
@@ -70,7 +69,7 @@ class BeamSimu(_Simu):
         return [ModelType.beam]
 
     @property
-    def structure(self) -> Materials.Beam_Structure:
+    def structure(self) -> Materials.BeamStructure:
         """Beam structure."""
         return self.model
 
@@ -90,11 +89,11 @@ class BeamSimu(_Simu):
         return self._Get_u_n(self.problemType)
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
-        Display.MyPrintError("It is impossible to apply a surface load in a beam problem.")
+        Display.MyPrintError("Surface loads cannot be applied in beam problems.")
         return        
 
     def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
-        Display.MyPrintError("It is impossible to apply a volumetric load to a beam problem.")
+        Display.MyPrintError("Volumetric loads cannot be applied in beam problems.")
         return
 
     def add_connection_fixed(self, nodes: np.ndarray, description="Fixed"):
@@ -156,7 +155,7 @@ class BeamSimu(_Simu):
         self.add_connection(nodes, directions, description)
 
     def add_connection(self, nodes: np.ndarray, directions: list[str], description: str):
-        """Connects beams together in the specified directions
+        """Connects beams together in the specified directions.
 
         Parameters
         ----------
@@ -190,7 +189,7 @@ class BeamSimu(_Simu):
         self._Bc_Add_Display(nodes, directions, description, problemType)
 
     def __Construct_Beam_Matrix(self) -> np.ndarray:
-        """Construct the elementary stiffness matrices for the beam problem."""
+        """Constructs the elementary stiffness matrices for the beam problem."""
 
         # Data
         mesh = self.mesh
@@ -278,7 +277,7 @@ class BeamSimu(_Simu):
         return center
 
     def _Get_N_beam_e_pg(self):
-        """Euleur-Bernoulli BEAM"""
+        """Euleur-Bernoulli BEAM shape functions"""
 
         # Example matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_N.m
         
@@ -286,7 +285,7 @@ class BeamSimu(_Simu):
 
         matrixType = MatrixType.beam
 
-        # Recovering the beam model
+        # get the beam model
         struct = self.structure
         dim = struct.dim
         dof_n = struct.dof_n
@@ -300,7 +299,7 @@ class BeamSimu(_Simu):
         Ne = jacobian_e_pg.shape[0]
         nPg = jacobian_e_pg.shape[1]
 
-        # Recovers matrices to work with
+        # get matrices to work with
         N_pg = mesh.Get_N_pg(matrixType)        
         if struct.dim > 1:
             Nv_e_pg = mesh.groupElem.Get_Nv_e_pg()
@@ -388,7 +387,7 @@ class BeamSimu(_Simu):
         return N_beam_e_pg
 
     def _Get_B_beam_e_pg(self):
-        """Euleur-Bernoulli BEAM"""
+        """Euleur-Bernoulli BEAM shape functions derivatives"""
 
         # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_B.m
         

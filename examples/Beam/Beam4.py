@@ -50,8 +50,8 @@ if __name__ == '__main__':
     # Simulation
     # ----------------------------------------------
 
-    # Initialize the beam structure with the defined beam segments
-    beamStructure = Materials.Beam_Structure(beams)
+    # Initializes the beam structure with the defined beam segments
+    beamStructure = Materials.BeamStructure(beams)
 
     # Create the beam simulation
     simu = Simulations.BeamSimu(mesh, beamStructure)

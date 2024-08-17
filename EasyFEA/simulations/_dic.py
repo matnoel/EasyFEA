@@ -18,26 +18,26 @@ from ..fem import Mesh, BoundaryCondition
 
 class DIC(_IObserver):
 
-    def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray, lr=0.0,
+    def __init__(self, mesh: Mesh, idxImgRef: int, imgRef: np.ndarray, lr: float=0.0,
                  forces: np.ndarray=None, displacements: np.ndarray=None, verbosity=False):
         """Creates a DIC analysis.
 
         Parameters
         ----------
         mesh : Mesh
-            Mesh used to construct the roi
+            pixel-based mesh used for dic.
         idxImgRef : int
-            index of reference image in forces
+            reference image index in _forces (or in the folder).
         imgRef : np.ndarray
-            reference image
-        lr : float, optional
+            reference image (f)
+        lr : float | int, optional
             regularization length, by default 0.0
         forces : np.ndarray, optional
-            force vectors, by default None
+            forces measured during the tests, by default None
         displacements : np.ndarray, optional
-            displacement vectors, by default None
+            displacements measured during the tests, by default None
         verbosity : bool, optional
-            analysis can write to console, by default False
+            can write in the terminal, by default False
 
         Returns
         -------
@@ -82,15 +82,15 @@ class DIC(_IObserver):
 
     @property
     def mesh(self) -> Mesh:
-        """pixel-based mesh used for image correlation."""
+        """pixel-based mesh used for dic."""
         return self.__mesh
     
     @property
     def ldic(self) -> float:
-        """8 * mean(meshSize)"""
+        """8 * mean(meshSize) (set Get_ldic())"""
         return self.Get_ldic()
     
-    def Get_scaled_mesh(self, imgScale=1.0) -> Mesh:
+    def Get_scaled_mesh(self, imgScale: float=1.0) -> Mesh:
         assert imgScale != 0.0
         meshC = self.__mesh.copy()
         [meshC._Remove_observer(observer) for observer in meshC.observers.copy()]
@@ -98,32 +98,33 @@ class DIC(_IObserver):
         return meshC
     
     # image properties
+
     @property
     def idxImgRef(self) -> int:
-        """Reference image index in _loads (or in the folder)."""
+        """reference image index in _forces (or in the folder)."""
         return self.__idxImgRef
 
     @property
     def imgRef(self) -> np.ndarray:
-        """Image used as reference."""
+        """reference image (f)"""
         return self.__imgRef.copy()
     
     @property
     def shape(self) -> tuple[int, int]:        
-        """Image shapes required"""
+        """reference image shape"""
         return self.__imgRef.shape
 
-    # regularisation properties
+    # regularization properties
 
     @property
     def _lr(self) -> float:
-        """regulation length."""
+        """regularization length"""
         return self.__lr
 
     @_lr.setter
     def _lr(self, value: float) -> None:
         """# Warning!\n
-        Changing this parameter will automatically update the matrices with the Compute_L_M function!"""
+        Changing this parameter will automatically update the matrices with the _Compute_L_M() function!"""
         assert value >= 0.0, "lr must be >= 0.0"
         self.__lr = value
         self._Compute_L_M(self.__imgRef)
@@ -139,17 +140,17 @@ class DIC(_IObserver):
     
     @property
     def list_idx(self) -> list[int]:
-        """Copy of the list containing indexes for which the displacement field has been calculated."""
+        """copy of the list containing indexes for which the displacement field has been calculated."""
         return self.__list_idx.copy()
 
     @property
     def list_u(self) -> list[np.ndarray]:
-        """Copy of the list containing the calculated displacement fields."""
+        """copy of the list containing the calculated displacement fields."""
         return self.__list_u.copy()
     
     @property
     def list_img(self) -> list[np.ndarray]:
-        """Copy of the list containing images for which the displacement field has been calculated."""
+        """copy of the list containing images for which the displacement field has been calculated."""
         return self.__list_img.copy()
 
     def _Update(self, observable: Observable, event: str) -> None:
@@ -159,28 +160,28 @@ class DIC(_IObserver):
             Display.MyPrintError("Notification not yet implemented")
 
     def __init__roi(self) -> None:
-        """ROI initialization."""
+        """Initializes the Region of Interest (ROI)"""
 
         tic = Tic()
 
         imgRef = self.__imgRef
         mesh = self.__mesh
 
-        # recovery of pixel coordinates
+        # get pixel coordinates
         coordPx = np.arange(imgRef.shape[1]).reshape((1,-1)).repeat(imgRef.shape[0], 0).ravel()
         coordPy = np.arange(imgRef.shape[0]).reshape((-1,1)).repeat(imgRef.shape[1]).ravel()
         coordPixel = np.zeros((coordPx.shape[0], 3), dtype=int);  coordPixel[:,0] = coordPx;  coordPixel[:,1] = coordPy
 
-        # recovery of pixels used in elements with their coordinates
+        # get pixels used in elements with their coordinates
         pixels, __, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(coordPixel)
         # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])s
 
         self.__connectPixel: np.ndarray = connectPixel
-        """connectivity matrix which links the pixels used for each element."""
+        """connectivity matrix linking the pixels used for each element."""
         self.__coordPixelInElem: np.ndarray = coordPixelInElem
-        """pixel coordinates in the reference element."""
+        """pixel coordinates in the reference element (xi, eta)."""
         
-        # ROI creation
+        # creates roi (as a vector)
         roi: np.ndarray = np.zeros(coordPx.shape[0])
         roi[pixels] = 1
         self.__roi = np.asarray(roi == 1, dtype=bool)
@@ -198,7 +199,7 @@ class DIC(_IObserver):
         return self.roi.reshape(self.shape)
 
     def __init__Phi_opLap(self) -> None:
-        """Initializing shape functions and the Laplacian operator."""
+        """Initializes shape functions and the Laplacian operator."""
         
         mesh = self.__mesh
         dim = 2
@@ -207,22 +208,18 @@ class DIC(_IObserver):
         connectPixel = self.__connectPixel
         coordInElem = self.__coordPixelInElem        
         
-        # Initializing shape functions and the Laplacian operator
-        matrixType = "mass"
-        Ntild = mesh.groupElem._Ntild()
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType) # (e, p)
-        weight_pg = mesh.Get_weight_pg(matrixType) # (p)        
-        dN_e_pg = mesh.groupElem.Get_dN_e_pg(matrixType) # (e, p, dim, nPe)
+        # Initializes shape functions and the Laplacian operator
+        Ntild = mesh.groupElem._Ntild()        
 
         # ----------------------------------------------
-        # Construction of shape function matrix for pixels (N)
+        # Builds the shape function matrix for pixels (N)
         # ----------------------------------------------
         lines_x = []
         lines_y = []
         columns_Phi = []
         values_phi = []
 
-        # Evaluating shape functions for the pixels used
+        # Evaluates shape functions for each pixels' coordinates
         x_p, y_p = coordInElem[:,0], coordInElem[:,1]
         phi_n_pixels = np.array([np.reshape([Ntild[n,0](x_p, y_p)], -1) for n in range(mesh.nPe)])
          
@@ -233,7 +230,7 @@ class DIC(_IObserver):
         # In addition, if you remove it, you'll have to make several list comprehension.
         for e in range(mesh.Ne):
 
-            # Retrieve element nodes and pixels
+            # get the nodes and pixels used by the element
             nodes = mesh.connect[e]            
             pixels: np.ndarray = connectPixel[e]
             # Retrieves evaluated functions
@@ -244,28 +241,33 @@ class DIC(_IObserver):
             # linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
             # same as
             linesY = linesX + 1
-            # construction of columns in which to place values
-            colonnes = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()
+            # get columns in which for placing values
+            columns = pixels.reshape(1,-1).repeat(mesh.nPe, 0).ravel()
 
             lines_x.extend(linesX)
             lines_y.extend(linesY)
-            columns_Phi.extend(colonnes)
+            columns_Phi.extend(columns)
             values_phi.extend(np.reshape(phi, -1))
 
         self._N_x = sparse.csr_matrix((values_phi, (lines_x, columns_Phi)), (Ndof, coordInElem.shape[0]))
-        """Shape function matrix x (Ndof, nPixels)"""
+        """Shape function matrix Nx (Ndof, nPixels)"""
         self._N_y = sparse.csr_matrix((values_phi, (lines_y, columns_Phi)), (Ndof, coordInElem.shape[0]))
-        """Shape function matrix y (Ndof, nPixels)"""
+        """Shape function matrix Ny (Ndof, nPixels)"""
 
         Op: sparse.csr_matrix = self._N_x @ self._N_x.T + self._N_y @ self._N_y.T
 
         self.__Op_LU = splu(Op.tocsc())
         
-        tic.Tac("DIC", "Phi_x and Phi_y", self._verbosity)
+        tic.Tac("DIC", "N_x and N_y", self._verbosity)
 
         # ----------------------------------------------
-        # Construction of the Laplacian operator (R)
+        # Builds the Laplacian operator (R)
         # ----------------------------------------------
+        matrixType = "mass"
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType) # (e, p)
+        weight_pg = mesh.Get_weight_pg(matrixType) # (p)
+        dN_e_pg = mesh.groupElem.Get_dN_e_pg(matrixType) # (e, p, dim, nPe)
+
         dNdx = dN_e_pg[:,:,0]
         dNdy = dN_e_pg[:,:,1]
 
@@ -293,8 +295,8 @@ class DIC(_IObserver):
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)    
 
-    def Get_ldic(self, coef=8) -> float:
-        """Get the characteristic length of the mesh, i.e. 8 x the average length of the edges of the elements."""
+    def Get_ldic(self, coef: float=8.0) -> float:
+        """Get the characteristic length of the mesh, i.e. coef * the average length of the edges of the elements."""
 
         assert coef > 0
         # Calculation of average element size
@@ -303,7 +305,7 @@ class DIC(_IObserver):
         return ldic
 
     def Get_w(self) -> np.ndarray:
-        """Returns characteristic sinusoidal displacement corresponding to element size."""
+        """Returns the 2D periodic vector field."""
 
         ldic = self.ldic
 
@@ -317,20 +319,20 @@ class DIC(_IObserver):
         return w
 
     def _Compute_L_M(self, img: np.ndarray) -> None:
-        """Updating DIC matrices."""
+        """Computes DIC matrices."""
 
         tic = Tic()
         
-        # Recover image gradient
+        # get image gradient
         grid_Gradfy, grid_Gradfx = np.gradient(img)
         gradY = grid_Gradfy.ravel()
         gradX = grid_Gradfx.ravel()        
         
         roi = self.roi
 
-        self.L = self._N_x @ sparse.diags(gradX) + self._N_y @ sparse.diags(gradY)
+        self._L = self._N_x @ sparse.diags(gradX) + self._N_y @ sparse.diags(gradY)
 
-        self._M_dic: sparse.csr_matrix = self.L[:,roi] @ self.L[:,roi].T
+        self._M_dic: sparse.csr_matrix = self._L[:,roi] @ self._L[:,roi].T
 
         # plane wave
         w = self.Get_w()
@@ -350,15 +352,16 @@ class DIC(_IObserver):
     def _Get_u_from_images(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
         """Use open cv to calculate displacements between images."""
         
+        # get the optical flow
         DIS = cv2.DISOpticalFlow_create()
         IMG1_uint8 = np.uint8(img1*2**(8-round(np.log2(img1.max()))))
         IMG2_uint8 = np.uint8(img2*2**(8-round(np.log2(img1.max()))))
+        # optical flow
         Flow = DIS.calc(IMG1_uint8,IMG2_uint8,None)
 
         # Project these displacements onto the pixels
         ux_p = Flow[:,:,0]
         uy_p = Flow[:,:,1]
-
         b =  self._N_x @ ux_p.ravel() + self._N_y @ uy_p.ravel()
 
         u0 = self.__Op_LU.solve(b)
@@ -366,12 +369,12 @@ class DIC(_IObserver):
         return u0
 
     def __Test_img(self, img: np.ndarray) -> None:
-        """Function to test whether the image is the right size."""
+        """Checks whether the image is in the right shape."""
 
         assert img.shape == self.shape, f"Wrong shape, must be {self.shape}"
 
     def __Get_imgRef(self, imgRef) -> np.ndarray:
-        """Function that returns the reference image or checks whether the image entered is the correct size."""
+        """Returns the reference image or checks whether the image entered is the correct shape."""
 
         if imgRef is None:
             imgRef = self.__imgRef
@@ -381,29 +384,29 @@ class DIC(_IObserver):
 
         return imgRef
 
-    def Solve(self, img: np.ndarray, u0: np.ndarray=None, iterMax=1000, tolConv=1e-6, imgRef=None, verbosity=True) -> np.ndarray:
-        """Displacement field between the img and the imgRef.
+    def Solve(self, img: np.ndarray, u0: np.ndarray=None, iterMax: int=1000, tolConv: float=1e-6, imgRef: np.ndarray=None, verbosity=True) -> np.ndarray:
+        """Computes the displacement field between the two images.
 
         Parameters
         ----------
         img : np.ndarray
-            image used for calculation
+            deformed image (g)
         u0 : np.ndarray, optional
             initial displacement field, by default None\n
-            If u0 == None, the field is initialized with _Get_u_from_images(imgRef, img)
+            If u0 == None, the field is initialized with _Get_u_from_images(imgRef, img) function
         iterMax : int, optional
             maximum number of iterations, by default 1000
         tolConv : float, optional
             convergence tolerance (converged once ||b|| <= tolConv), by default 1e-6
         imgRef : np.ndarray, optional
-            reference image to use, by default None
+            reference image (f), by default None
         verbosity : bool, optional
             display iterations, by default True
 
         Returns
         -------
-        u
-            displacement field
+        np.ndarray
+            computed displacement field (Ndof)
         """
 
         self.__Test_img(img)
@@ -416,19 +419,17 @@ class DIC(_IObserver):
             assert u0.size == self.__mesh.Nn * 2, "u0 must be a vector of dimension (Nn*2, 1)"
         u = u0.copy()
 
-        # Recovery of image pixel coordinates
+        # get pixels' coordinates
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
         coordX, coordY = gridX.ravel(), gridY.ravel()
 
         img_fct = interpolate.RectBivariateSpline(np.arange(img.shape[0]),np.arange(img.shape[1]),img)
-        roi = self.roi
-        f = imgRef.ravel()[roi] # reference image as a vector and retrieving pixels in the roi
+        roi = self.roi # reference image 
+        f = imgRef.ravel()[roi] # as a vector within the roi
         
-        # Here the small displacement hypothesis is used
-        # The gradient of the two images is assumed to be identical
-        # For large displacements, the matrices would have to be recalculated using Compute_L_M
+        # Assumes both images have identical gradients
         R_reg = self.alpha * self._R / self.__w_R
-        Lcoef = self.L[:,roi] / self.__w_M
+        Lcoef = self._L[:,roi] / self.__w_M
 
         for iter in range(iterMax):
 
@@ -457,23 +458,23 @@ class DIC(_IObserver):
 
         return u
 
-    def Calc_r_dic(self, u: np.ndarray, img: np.ndarray, imgRef=None) -> np.ndarray:
-        """Residual correlation between images\n
+    def Calc_r_dic(self, u: np.ndarray, img: np.ndarray, imgRef: np.ndarray=None) -> np.ndarray:
+        """Computes the dic residual between images (as a Np x Np matrix).\n
         f(x) - g(x + u)
 
         Parameters
         ----------
         u : np.ndarray
-            displacement field (Ndof)
+            finite element displacement field (Ndof)
         img : np.ndarray
-            image used for calculation
+            deformed image
         imgRef : np.ndarray, optional
-            reference image to use, by default None
+            reference image, by default None
 
         Returns
         -------
         np.ndarray
-            residual between images
+            the dic residual between images (as a Np x Np matrix)
         """
         
         self.__Test_img(img)
@@ -486,21 +487,21 @@ class DIC(_IObserver):
 
         img_fct = interpolate.RectBivariateSpline(np.arange(img.shape[0]),np.arange(img.shape[1]),img)
 
-        f = imgRef.ravel() # reference image as a vector and retrieving pixels in the roi
+        f = imgRef.ravel() # reference image as a vector
 
         ux_p, uy_p = self.Calc_pixelDisplacement(u)
 
         g = img_fct.ev((coordY + uy_p), (coordX + ux_p))
         r = f - g
 
-        r_dic = np.reshape(r, self.shape)
+        r_dic = np.reshape(r, self.shape) # as a matrix
 
         return r_dic
 
     def Calc_pixelDisplacement(self, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Calculates pixel displacement from mesh node displacement using shape functions."""
+        """Computes pixel displacements based on the finite element displacement field."""
         
-        assert u.size == self.__mesh.Nn * 2, f"The displacement vector field is the wrong dimension. Must be of dimension {self.__mesh.Nn * 2}"
+        assert u.size == self.__mesh.Nn * 2, f"The displacement vector field has the wrong size. It must be of size {self.__mesh.Nn * 2}"
 
         ux_p = u @ self._N_x
         uy_p = u @ self._N_y
@@ -508,14 +509,14 @@ class DIC(_IObserver):
         return ux_p, uy_p
 
     def Add_Result(self, idx: int, u_exp: np.ndarray, img: np.ndarray) -> None:
-        """Adds the calculated displacement field.
+        """Adds the computed dic results.
 
         Parameters
         ----------
         idx : int
             image index
         u_exp : np.ndarray
-            displacement field
+            finite element displacement field (Ndof)
         img : np.ndarray
             image used
         """
@@ -525,7 +526,7 @@ class DIC(_IObserver):
             
             self.__Test_img(img)
             if u_exp.size != Ndof:
-                print(f"The displacement vector field is the wrong dimension. Must be of dimension {Ndof}")
+                print(f"The displacement vector field has the wrong size. It must be of size  {Ndof}")
                 return
 
             self.__list_idx.append(idx)
@@ -533,7 +534,7 @@ class DIC(_IObserver):
             self.__list_img.append(img)
 
     def Save(self, folder: str, filename: str="dic") -> None:
-        """Saves the dic analysis as 'filename.pickle'."""
+        """Saves the dic analysis in folder as 'filename.pickle'."""
         path_dic = Folder.New_File(f"{filename}.pickle", folder)
         with open(path_dic, 'wb') as file:
             # don't remove
@@ -546,14 +547,14 @@ class DIC(_IObserver):
 # ----------------------------------------------
 
 def Load_DIC(folder: str, filename: str="dic") -> DIC:
-    """Load the dic analysis from the specified folder.
+    """Loads the dic analysis from the specified folder.
 
     Parameters
     ----------
     folder : str
-        The name of the folder where the simulation is saved.
+        The name of the folder where the dic analysis is saved.
     filename : str, optional
-        The simualtion name, by default "dic".
+        The dic's file name, by default "dic".
 
     Returns
     -------
@@ -570,7 +571,7 @@ def Load_DIC(folder: str, filename: str="dic") -> DIC:
     return dic
 
 def Get_Circle(img:np.ndarray, threshold: float, boundary=None, radiusCoef=1.0) -> tuple[float, float, float]:
-    """Recovers the circle in the image.
+    """Returns the circle properties in the image.
 
     Parameters
     ----------

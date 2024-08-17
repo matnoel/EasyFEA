@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Module containing material behavior. Such as elastic, damage, thermal and beam materials."""
+"""Module containing constitutive laws for materials, including elastic, damage, thermal, and beam materials."""
 
 from .materials import Reshape_variable
 
@@ -22,7 +22,7 @@ from .materials._phasefield import PhaseField
 # Beam
 # ----------------------------------------------
 
-from .materials._beam import _Beam, Beam_Structure, Beam_Elas_Isot
+from .materials._beam import _Beam, BeamStructure, Beam_Elas_Isot
 
 # ----------------------------------------------
 # Thermal

@@ -278,9 +278,9 @@ if __name__ == '__main__':
             # partsC = factory.copy(parts)
             # factory.rotate(partsC, 0,0,0,0,0,1, angleRev*(i+1))
     
-    mesher._Generate_Mesh(3, elemType, folder=folder, filename='blade')
+    mesher._Mesh_Generate(3, elemType, folder=folder, filename='blade')
 
-    mesh = mesher._Construct_Mesh()
+    mesh = mesher._Mesh_Get_Mesh()
 
     nodesCircle = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+1e-2)
     nodesUpper = mesh.Nodes_Conditions(lambda x,y,z: z>=mesh.coordGlob[:,2].max()-1e-2)

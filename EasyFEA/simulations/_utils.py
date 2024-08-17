@@ -31,7 +31,7 @@ def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:
     Display.MyPrint(f'Saved:\n{filename.replace(folder_PythonEF,"")}\n','green')
     
 def Load_Force_Displacement(folder:str):
-    """Load forces and displacements
+    """Loads forces and displacements.
 
     Parameters
     ----------

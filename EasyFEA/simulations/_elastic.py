@@ -20,17 +20,16 @@ from .Solvers import AlgoType
 class ElasticSimu(_Simu):
 
     def __init__(self, mesh: Mesh, model: Materials._Elas, verbosity=False, useNumba=True, useIterativeSolvers=True):
-        """
-        Creates a elastic simulation.
+        """Creates a elastic simulation.
 
         Parameters
         ----------
         mesh : Mesh
             The mesh used.
         model : _Elas
-            The model used.
+            The elastic model (or material) used.
         verbosity : bool, optional
-            If True, the simulation can write to the console. Defaults to False.
+            If True, the simulation can write in the terminal. Defaults to False.
         useNumba : bool, optional
             If True, numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
@@ -68,7 +67,7 @@ class ElasticSimu(_Simu):
 
     @property
     def material(self) -> Materials._Elas:
-        """Elastic behavior."""
+        """elastic material"""
         return self.model
 
     @property
@@ -93,7 +92,7 @@ class ElasticSimu(_Simu):
         return self._Get_a_n(self.problemType)
 
     def __Construct_Local_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
-        """Construct the elementary stiffness matrices for the displacement problem."""
+        """Computes the elementary stiffness matrices for the elastic problem."""
 
         matrixType=MatrixType.rigi
 
@@ -109,11 +108,11 @@ class ElasticSimu(_Simu):
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
         leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobian_e_pg * weight_pg * B_dep_e_pg'
 
-        comportement = self.material
+        mat = self.material
 
         tic = Tic()
         
-        matC = comportement.C
+        matC = mat.C
 
         # Stifness
         matC = Reshape_variable(matC, Ne, nPg)
@@ -145,10 +144,10 @@ class ElasticSimu(_Simu):
 
         # Data
         mesh = self.mesh        
-        nDof = mesh.Nn*self.dim
+        Ndof = mesh.Nn*self.dim
 
         # Additional dimension linked to the use of lagrange coefficients
-        nDof += self._Bc_Lagrange_dim(self.problemType)
+        Ndof += self._Bc_Lagrange_dim(self.problemType)
                         
         Ku_e, Mu_e = self.__Construct_Local_Matrix()
         
@@ -158,25 +157,25 @@ class ElasticSimu(_Simu):
         columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly
-        self.__Ku = sparse.csr_matrix((Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
-        """Kglob matrix for the displacement problem (nDof, nDof)"""
+        self.__Ku = sparse.csr_matrix((Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof))
+        """Kglob matrix for the displacement problem (Ndof, Ndof)"""
 
         # Here I'm initializing Fu because I'd have to calculate the volumetric forces in __Construct_Local_Matrix.
-        self.__Fu = sparse.csr_matrix((nDof, 1))
-        """Fglob vector for the displacement problem (nDof, 1)"""
+        self.__Fu = sparse.csr_matrix((Ndof, 1))
+        """Fglob vector for the displacement problem (Ndof, 1)"""
 
         # import matplotlib.pyplot as plt
         # plt.figure()
         # plt.spy(self.__Ku)
         # plt.show()
 
-        self.__Mu = sparse.csr_matrix((Mu_e.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
-        """Mglob matrix for the displacement problem (Nn*dim, Nn*dim)"""
+        self.__Mu = sparse.csr_matrix((Mu_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof))
+        """Mglob matrix for the displacement problem (Ndof, Ndof)"""
 
         tic.Tac("Matrix","Assembly Ku, Mu and Fu", self._verbosity)
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
-        """Set damping coefficients."""
+        """Sets damping coefficients."""
         self.__coefM = coefM
         self.__coefK = coefK    
 
@@ -341,8 +340,8 @@ class ElasticSimu(_Simu):
         return self.Results_Reshape_values(values, nodeValues)
 
     def _Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False, matrixType=MatrixType.rigi) -> float:
-        """Calculation of the kinematically admissible deformation energy, damaged or not.
-        Wdef = 1/2 int_Omega jacobian * weight * Sig : Eps dOmega thickness"""
+        """Computes the kinematically admissible deformation energy.
+        Wdef = 1/2 int_Ω Sig : Eps dΩ"""
 
         tic = Tic()
         
@@ -382,8 +381,8 @@ class ElasticSimu(_Simu):
         return Wdef
     
     def _Calc_ZZ1(self) -> tuple[float, np.ndarray]:
-        """Calculation of ZZ1 error. For more details, see
-        [F.Pled, Vers une stratégie robuste ... ingénierie mécanique] page 20/21
+        """Computes the ZZ1 error.\n
+        For more details, [F.Pled, Vers une stratégie robuste ... ingénierie mécanique] page 20/21\n
         Returns the global error and the error on each element.
 
         Returns
@@ -403,24 +402,24 @@ class ElasticSimu(_Simu):
 
         return error, error_e
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
-        """Builds epsilon for each element and each gauss point.\n
+    def _Calc_Epsilon_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+        """Computes strain field from the displacement vector field.\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
 
         Parameters
         ----------
-        sol : np.ndarray
-            Displacement vector
+        u : np.ndarray
+            displacement vector (Ndof)
 
         Returns
         -------
         np.ndarray
-            Deformations stored at elements and gauss points (Ne,pg,(3 or 6))
+            Computed strain field (Ne,pg,(3 or 6))
         """
 
         tic = Tic()        
-        u_e = sol[self.mesh.assembly_e]
+        u_e = u[self.mesh.assembly_e]
         B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg: np.ndarray = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
         
@@ -429,19 +428,19 @@ class ElasticSimu(_Simu):
         return Epsilon_e_pg
                     
     def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
-        """Calculating stresses from strains.\n
+        """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
 
         Parameters
         ----------
         Epsilon_e_pg : np.ndarray
-            Deformations stored at elements and gauss points (Ne,pg,(3 or 6))
+            Strain field (Ne,pg,(3 or 6))
 
         Returns
         -------
         np.ndarray
-            Returns damaged or undamaged constraints (Ne,pg,(3 or 6))
+            Computed stress field (Ne,pg,(3 or 6))
         """
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
@@ -463,9 +462,7 @@ class ElasticSimu(_Simu):
         return Sigma_e_pg
 
     def __indexResult(self, result: str) -> int:
-
-        dim = self.dim
-
+        
         if len(result) <= 2:
             "Case were ui, vi or ai"
             if "x" in result:
@@ -535,16 +532,16 @@ class ElasticSimu(_Simu):
 # ----------------------------------------------
 # Other functions
 # ----------------------------------------------
-def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, treshold: float=1e-2, iterMax=20, coef:float=1/2) -> ElasticSimu:
-    """Optimize mesh using ZZ1 error criterion
+def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, threshold: float=1e-2, iterMax: int=20, coef: float=1/2) -> ElasticSimu:
+    """Optimizes the mesh using ZZ1 error criterion.
 
     Parameters
     ----------
     DoSimu : Callable[[str], Displacement]
-        Function that runs a simulation and takes a .pos file as argument for mesh optimization. The function must return a Displacement simulation.
+        Function that runs a simulation and takes a *.pos file as argument for mesh optimization. The function must return a Displacement simulation.
     folder : str
         Folder in which .pos files are created and then deleted.
-    treshold : float, optional
+    threshold : float, optional
         targeted error, by default 1e-2
     iterMax : int, optional
         Maximum number of iterations, by default 20
@@ -561,7 +558,7 @@ def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, treshold: 
     error = 1
     optimGeom = None
     # max=1
-    while error >= treshold and i <= iterMax:
+    while error >= threshold and i <= iterMax:
 
         i += 1
 
@@ -572,7 +569,7 @@ def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, treshold: 
         mesh = simu.mesh
 
         if i > 0:
-            # remove previous .pos file
+            # remove previous *.pos file
             Folder.os.remove(optimGeom)
         
         # Calculating the error with the ZZ1 method
@@ -583,11 +580,11 @@ def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, treshold: 
         # calculates the new mesh size for the associated error
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
 
-        # builds the .pos file that will be used to refine the mesh
+        # builds the *.pos file that will be used to refine the mesh
         optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
         
     if Folder.Exists(optimGeom):
-        # remove last .pos file
+        # remove last *.pos file
         Folder.os.remove(optimGeom)
 
     return simu

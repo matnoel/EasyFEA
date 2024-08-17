@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 class Point:
 
     def __init__(self, x=0.0, y=0.0, z=0.0, isOpen=False, r=0.0):
-        """Build a point.
+        """Creates a point.
 
         Parameters
         ----------
@@ -83,7 +83,7 @@ class Point:
         self.__isOpen = value
     
     def Check(self, coord) -> bool:
-        """Check if coordinates are identical"""
+        """Checks if coordinates are identical"""
         coord = As_Coordinates(coord)
         n = np.linalg.norm(self.coord)
         n = 1 if n == 0 else n
@@ -91,11 +91,11 @@ class Point:
         return diff <= 1e-12
     
     def Translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
-        """Translate the point."""
+        """Translates the point."""
         self.__coord = Translate_coord(self.__coord, dx, dy, dz).ravel()
 
     def Rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:
-        """Rotate the point with around an axis.
+        """Rotates the point with around an axis.
 
         Parameters
         ----------
@@ -109,7 +109,7 @@ class Point:
         self.__coord = Rotate_coord(self.__coord, theta, center, direction).ravel()
 
     def Symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
-        """Symmetrise the point coordinates with a plane.
+        """Symmetrizes the point coordinates with a plane.
 
         Parameters
         ----------
@@ -166,7 +166,7 @@ class Point:
 class _Geom(ABC):
 
     def __init__(self, points: list[Point], meshSize: float, name: str, isHollow: bool, isOpen: bool):
-        """Builds a geometric object.
+        """Creates a geometric object.
 
         Parameters
         ----------
@@ -193,7 +193,7 @@ class _Geom(ABC):
 
     @property
     def meshSize(self) -> float:
-        """Element size used for meshing"""
+        """element size used for meshing"""
         return self.__meshSize
     
     @meshSize.setter
@@ -235,7 +235,7 @@ class _Geom(ABC):
     
     @property
     def isHollow(self) -> bool:
-        """Indicates whether the the formed domain is hollow/empty."""
+        """Indicates whether the the formed domain is hollow/filled."""
         return self.__isHollow
     
     @isHollow.setter
@@ -254,12 +254,12 @@ class _Geom(ABC):
         self.__isOpen = value
     
     def Translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
-        """Translate the object."""
+        """Translates the object."""
         # to translate an object, all you have to do is move these points
         [p.Translate(dx,dy,dz) for p in self.__points]
     
     def Rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:        
-        """Rotate the object coordinates around an axis.
+        """Rotates the object coordinates around an axis.
 
         Parameters
         ----------        
@@ -277,7 +277,7 @@ class _Geom(ABC):
         [point.Translate(*dec[p]) for p, point in enumerate(self.points)]
 
     def Symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
-        """Symmetrise the object coordinates with a plane.
+        """Symmetrizes the object coordinates with a plane.
 
         Parameters
         ----------
@@ -295,18 +295,20 @@ class _Geom(ABC):
 
     def Plot(self, ax: plt.Axes=None, color:str="", name:str="", lw=None, ls=None, plotPoints=True) -> plt.Axes:
 
-        from EasyFEA import Display
+        from .utilities import Display
 
         if ax is None:
             ax = Display.Init_Axes(3)
             
         inDim = 3 if ax.name == '3d' else 2
 
+        name = self.name if name == "" else name
+
         lines, points = self.Get_coord_for_plot()
         if color != "":
-            ax.plot(*lines[:,:inDim].T, color=color, label=self.name, lw=lw, ls=ls)
+            ax.plot(*lines[:,:inDim].T, color=color, label=name, lw=lw, ls=ls)
         else:
-            ax.plot(*lines[:,:inDim].T, label=self.name, lw=lw, ls=ls)
+            ax.plot(*lines[:,:inDim].T, label=name, lw=lw, ls=ls)
         if plotPoints:
             ax.plot(*points[:,:inDim].T, ls='', marker='.',c='black')
 
@@ -341,7 +343,8 @@ class Points(_Geom):
     __nbPoints = 0
 
     def __init__(self, points: list[Point], meshSize=0.0, isHollow=True, isOpen=False):
-        """Builds a point list. Can be used to construct a closed surface or a spline.
+        """Creates points (list of point).\n
+        Can be used to construct a closed surface or a spline.
 
         Parameters
         ----------
@@ -367,21 +370,21 @@ class Points(_Geom):
         super().__init__(points, meshSize, name, isHollow, isOpen)
 
     def Get_Contour(self):
-        """Builds a contour from the point list.\n
-        Pass a fillet if a point has a radius which is not 0."""
+        """Creates a contour from the points.\n
+        Creates a fillet if a point has a radius which is not 0."""
 
         coordinates = self.coord
         N = coordinates.shape[0]
         mS = self.meshSize
 
-        # TODO Permettre d'ajouter des congés ?
+        # TODO Allows the addition of chamfers?
 
         # Get corners
         corners: list[_Geom] = []
         geoms: list[_Geom] = []
 
         def Link(idx1: int, idx2: int):
-            # this function make the link between corners[idx1] and corners[idx2]
+            # this function makes the link between corners[idx1] and corners[idx2]
             
             # get the last point associated with idx1
             if isinstance(corners[idx1], Point):
@@ -453,19 +456,19 @@ class Line(_Geom):
 
     @staticmethod
     def distance(pt1: Point, pt2: Point) -> float:
-        """Calculate the distance between two points."""
+        """Computes the distance between two points."""
         length = np.sqrt((pt1.x-pt2.x)**2 + (pt1.y-pt2.y)**2 + (pt1.z-pt2.z)**2)
         return np.abs(length)
     
     @staticmethod
     def get_unitVector(pt1: Point, pt2: Point) -> np.ndarray:
-        """Construct the unit vector between two points."""
+        """Creates the unit vector between two points."""
         length = Line.distance(pt1, pt2)        
         v = np.array([pt2.x-pt1.x, pt2.y-pt1.y, pt2.z-pt1.z])/length
         return v   
 
     def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isOpen=False):
-        """Builds a line.
+        """Creates a line.
 
         Parameters
         ----------
@@ -495,7 +498,7 @@ class Line(_Geom):
 
     @property
     def length(self) -> float:
-        """Calculate the distance between the two points on the line"""
+        """distance between the two points of the line"""
         return Line.distance(self.pt1, self.pt2)
     
     def Get_coord_for_plot(self) -> tuple[np.ndarray,np.ndarray]:
@@ -506,7 +509,7 @@ class Domain(_Geom):
     __nbDomain = 0
 
     def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isHollow=True):
-        """Builds a domain
+        """Creates a 2d or 3d domain.
 
         Parameters
         ----------
@@ -555,7 +558,7 @@ class Circle(_Geom):
     __nbCircle = 0
 
     def __init__(self, center: Point, diam: float, meshSize=0.0, isHollow=True, isOpen=False, n=(0,0,1)):
-        """Constructing a circle according to its center, diameter and the normal vector
+        """Creates a circle according to its center, diameter and the normal vector.
 
         Parameters
         ----------
@@ -589,7 +592,7 @@ class Circle(_Geom):
         circleArc2 = CircleArc(self.pt2, self.pt3, center=center, meshSize=meshSize, isOpen=isOpen)
         circleArc3 = CircleArc(self.pt3, self.pt4, center=center, meshSize=meshSize, isOpen=isOpen)
         circleArc4 = CircleArc(self.pt4, self.pt1, center=center, meshSize=meshSize, isOpen=isOpen)
-        # create the contour object associated with the circle
+        # creates the contour object associated with the circle
         self.contour = Contour([circleArc1, circleArc2, circleArc3, circleArc4], isHollow, isOpen)
 
         Circle.__nbCircle += 1
@@ -618,7 +621,7 @@ class Circle(_Geom):
 
     @property
     def diam(self) -> float:
-        """circle diameter"""
+        """circle's diameter"""
         p1 = self.pt1.coord
         pC = self.center.coord
         return np.linalg.norm(p1-pC) * 2
@@ -664,11 +667,12 @@ class CircleArc(_Geom):
     __nbCircleArc = 0
 
     def __init__(self, pt1: Point, pt2: Point, center:Point=None, R:float=None, P:Point=None, meshSize=0.0, n=(0,0,1), isOpen=False, coef=1):
-        """Construct a circular arc using several methods:
-            1: with 2 points, a radius R and a normal vector n.
-            2: with 2 points and a center
-            3: with 2 points and a point P belonging to the circle\n
-            The methods are chosen in the following order 3 2 1. This means that if you enter P, the other methods will not be used.
+        """Creates a circular arc using several methods:\n
+        - 1: with 2 points, a radius R and a normal vector.\n
+        - 2: with 2 points and a center.\n
+        - 3: with 2 points and a point P belonging to the circle.\n
+        The methods are chosen in the following order 3 2 1.\n
+        This means that if you enter P, the other methods will not be used.
 
         Parameters
         ----------        
@@ -695,7 +699,7 @@ class CircleArc(_Geom):
         assert isinstance(pt1, Point), "must be a point"
         assert isinstance(pt2, Point), "must be a point"
 
-        # first check that pt1 and pt2 dont share the same coordinates
+        # checks that pt1 and pt2 dont share the same coordinates
         assert not pt1.Check(pt2), 'pt1 and pt2 are on the same coordinates'
 
         if P != None:
@@ -723,7 +727,7 @@ class CircleArc(_Geom):
         self.pt2 = pt2
         """Ending point of the arc."""
 
-        # Here we'll create an intermediate point, because in gmsh, circular arcs are limited to an angle pi.
+        # Here we'll create an intermediate point, because in gmsh, circular arcs are limited to an pi angle.
 
         i1 = (pt1-center).coord
         i2 = (pt2-center).coord
@@ -810,7 +814,7 @@ class Contour(_Geom):
     __nbContour = 0
 
     def __init__(self, geoms: list[Union[Line,CircleArc,Points]], isHollow=True, isOpen=False):
-        """Create a contour from a list of lines or arcs.
+        """Creates a contour from a list of line circleArc and points.
 
         Parameters
         ----------
@@ -910,7 +914,7 @@ def Normalize_vect(vect: np.ndarray) -> np.ndarray:
 
 def Rotation_matrix(vect: np.ndarray, theta: float) -> np.ndarray:
     """Gets the rotation matrix for turning along an axis with theta angle (rad).\n
-    p(x,y) = matrice • p(i,j)\n
+    p(x,y) = mat • p(i,j)\n
     https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle"""
 
     x, y, z = Normalize_vect(vect)
@@ -925,7 +929,7 @@ def Rotation_matrix(vect: np.ndarray, theta: float) -> np.ndarray:
     return mat
 
 def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
-    """Calculates the angle between vector a and vector b in radian.
+    """Computes the angle between vectors a and b (rad).
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors"""
 
     a = As_Coordinates(a)
@@ -950,7 +954,7 @@ def AngleBetween_a_b(a: np.ndarray, b: np.ndarray) -> float:
     return angle
 
 def Translate_coord(coord: np.ndarray, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> np.ndarray:
-    """Translate the coordinates."""
+    """Translates the coordinates."""
 
     oldCoord = np.reshape(coord, (-1, 3))
 
@@ -961,7 +965,7 @@ def Translate_coord(coord: np.ndarray, dx: float=0.0, dy: float=0.0, dz: float=0
     return newCoord
 
 def Rotate_coord(coord: np.ndarray, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> np.ndarray:
-    """Rotate the coordinates arround a specified center and axis.
+    """Rotates the coordinates arround a specified center and axis.
 
     Parameters
     ----------
@@ -995,7 +999,7 @@ def Rotate_coord(coord: np.ndarray, theta: float, center: tuple=(0,0,0), directi
     return newCoord
 
 def Symmetry_coord(coord: np.ndarray, point=(0,0,0), n=(1,0,0)) -> np.ndarray:
-    """Symmetrise coordinates with a plane.
+    """Symmetrizes coordinates with a plane.
 
     Parameters
     ----------
@@ -1024,8 +1028,9 @@ def Symmetry_coord(coord: np.ndarray, point=(0,0,0), n=(1,0,0)) -> np.ndarray:
     return newCoord
 
 def Jacobian_Matrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
-    """Compute the Jacobian matrix to transform local coordinates (i,j,k) to global (x,y,z) coordinates.\n
+    """Computes the Jacobian matrix to transform local coordinates (i,j,k) to global (x,y,z) coordinates.\n
     p(x,y,z) = J • p(i,j,k) and p(i,j,k) = inv(J) • p(x,y,z)\n\n
+
     ix jx kx\n
     iy jy ky\n
     iz jz kz
@@ -1053,8 +1058,8 @@ def Jacobian_Matrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
     return F
 
 def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Calculation of point coordinates to create a radius in a corner P0.\n
-    return A, B, C
+    """Computes fillet in a corner P0.\n
+    returns A, B, C
 
     Parameters
     ----------
@@ -1065,7 +1070,7 @@ def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tu
     P2 : np.ndarray
         coordinates after P0 coordinates
     r : float
-        radius at point P0
+        radius (or fillet) at point P0
 
     Returns
     -------
@@ -1099,8 +1104,8 @@ def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tu
     return A, B, C
 
 def Circle_Triangle(p1, p2, p3) -> np.ndarray:
-    """Return center and radius for the circumcicular arc formed by 3 points.\n
-    return center, R
+    """Returns triangle's center for the circumcicular arc formed by 3 points.\n
+    returns center
     """
 
     # https://math.stackexchange.com/questions/1076177/3d-coordinates-of-circle-center-given-three-point-on-the-circle
@@ -1125,7 +1130,7 @@ def Circle_Triangle(p1, p2, p3) -> np.ndarray:
     return center
 
 def Circle_Coord(coord: np.ndarray, R: float, n: np.ndarray) -> np.ndarray:
-    """Return center from coordinates a radius and and a vector normal to the circle.\n
+    """Returns center from coordinates a radius and and a vector normal to the circle.\n
     return center
     """
 
@@ -1156,7 +1161,8 @@ def Circle_Coord(coord: np.ndarray, R: float, n: np.ndarray) -> np.ndarray:
     return center
 
 def Points_Intersect_Circles(circle1: Circle, circle2: Circle) -> np.ndarray:
-    """Calculates the coordinates at the intersection of the two circles (i,3). This only works if they're on the same plane.
+    """Computes the coordinates at the intersection of the two circles (i,3).\n
+    This only works if they're on the same plane.
 
     Parameters
     ----------
@@ -1192,7 +1198,6 @@ def Points_Intersect_Circles(circle1: Circle, circle2: Circle) -> np.ndarray:
     if d == r1 + r2:
         return p3.reshape(1, 3)
     else:
-
         i = Normalize_vect(p2-p1)
         k = np.array([0,0,1])
         j = np.cross(k, i)

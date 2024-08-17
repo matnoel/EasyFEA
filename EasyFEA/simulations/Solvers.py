@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Interface module to various solvers available on python for solving linear systems of type [A](x) = (b)."""
+"""Interface module to various solvers available in Python for solving linear systems (A x = b)."""
 
 import sys
 from enum import Enum
@@ -66,9 +66,9 @@ class AlgoType(str, Enum):
 
 class ResolType(str, Enum):
     r1 = "1"
-    """ui = inv(Aii) * (bi - Aic * xc)"""
+    """xi = inv(Aii) * (bi - Aic * xc)"""
     r2 = "2"
-    """Lagrange multiplier"""
+    """Lagrange multipliers"""
     r3 = "3"
     """Penalty"""
 
@@ -88,15 +88,15 @@ def _Available_Solvers():
     return solvers
 
 def __Cast_Simu(simu):
-    """cast the simu as a Simulations.Simu"""
-
+    """casts the simu as a Simulations.Simu"""
     from ._simu import _Simu
-
     if isinstance(simu, _Simu):
         return simu
 
-def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray) -> np.ndarray:
-    """Solve A x = b
+def _Solve_Axb(simu, problemType: str,
+               A: sparse.csr_matrix, b: sparse.csr_matrix,
+               x0: np.ndarray, lb: np.ndarray, ub: np.ndarray) -> np.ndarray:
+    """Solves the linear system A x = b
 
     Parameters
     ----------
@@ -118,10 +118,10 @@ def _Solve_Axb(simu, problemType: str, A: sparse.csr_matrix, b: sparse.csr_matri
     Returns
     -------
     np.ndarray
-        x : solution of A x = b
+        comuted x solution of A x = b
     """
 
-    # check types
+    # checks types
     simu = __Cast_Simu(simu)
     assert isinstance(A, sparse.csr_matrix)
     assert isinstance(b, sparse.csr_matrix)
@@ -258,7 +258,7 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
     # | Aii Aic |  | xi |   | bi |    
     # | Aci Acc |  | xc | = | bc | 
     # --       --  --  --   --  --
-    # ui = inv(Aii) * (bi - Aic * xc)
+    # xi = inv(Aii) * (bi - Aic * xc)
 
     simu = __Cast_Simu(simu)
 
@@ -266,12 +266,12 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
     b = simu._Solver_Apply_Neumann(problemType)
     A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r1)
 
-    # Recovers ddls
+    # Recovers dofs
     dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknow(problemType)
 
     tic = Tic()
-    # Decomposition of the matrix system into known and unknowns
-    # Solve : Aii * ui = bi - Aic * xc
+    # split of the matrix system into known and unknown dofs
+    # Solve : Aii * xi = bi - Aic * xc
     Ai = A[dofsUnknown, :].tocsc()
     Aii = Ai[:, dofsUnknown].tocsr()
     Aic = Ai[:, dofsKnown].tocsr()
@@ -296,7 +296,7 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
     return x
 
 def __Solver_2(simu, problemType: str):
-    # Solving with the Lagrange multiplier method
+    # Lagrange multiplier method
 
     simu = __Cast_Simu(simu)
     size = simu.mesh.Nn * simu.Get_dof_n(problemType)
@@ -361,9 +361,10 @@ def __Solver_2(simu, problemType: str):
 def __Solver_3(simu, problemType: str):
     # Resolution using the penalty method
 
-    # This method does not give preference to dirichlet conditions over neumann conditions. This means that if a dof is applied in Neumann and in Dirichlet, it will be privileged over the dof applied in Neumann.
+    # This method does not give preference to dirichlet conditions over neumann conditions.
+    # This means that if a dof is applied in Neumann and in Dirichlet, it will be privileged over the dof applied in Neumann.
 
-    # Normally, this method is never used. It is just implemented as an example
+    # This method is never used. It is just implemented as an example
 
     simu = __Cast_Simu(simu)
 
@@ -377,7 +378,7 @@ def __Solver_3(simu, problemType: str):
     return x
 
 def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='cg', pcType='ilu') -> np.ndarray:
-    """PETSc insterface to solve A x = b
+    """PETSc insterface to solve the linear system A x = b
 
     Parameters
     ----------

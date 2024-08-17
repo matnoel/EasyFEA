@@ -79,7 +79,7 @@ if __name__ == '__main__':
         surf1 = factory.addSurfaceFilling(loop1)
         surf2 = factory.addSurfaceFilling(loop2)
 
-        mesher._OrganiseSurfaces([surf1, surf2], elemType, True, [N]*4)
+        mesher._Surfaces_Organize([surf1, surf2], elemType, True, [N]*4)
 
         contours1.extend([cont1, cont2])
     
@@ -95,9 +95,9 @@ if __name__ == '__main__':
 
     mesher._Set_PhysicalGroups()
     
-    mesher._Generate_Mesh(dim, elemType)
+    mesher._Mesh_Generate(dim, elemType)
 
-    mesh = mesher._Construct_Mesh()
+    mesh = mesher._Mesh_Get_Mesh()
 
     if len(mesh.orphanNodes) > 0:
         ax = Display.Plot_Nodes(mesh, mesh.orphanNodes)

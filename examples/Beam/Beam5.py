@@ -43,7 +43,7 @@ if __name__ == '__main__':
     v = 0.3
 
     beams = [Materials.Beam_Elas_Isot(dim, line, section, E, v) for line in listLine]
-    structure = Materials.Beam_Structure(beams)
+    structure = Materials.BeamStructure(beams)
 
     mesh = Mesher().Mesh_Beams(beams, elemType)
     # Display.Plot_Mesh(mesh)

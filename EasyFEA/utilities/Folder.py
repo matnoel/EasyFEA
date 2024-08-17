@@ -7,7 +7,9 @@
 import os
 
 def Get_Path(filename="") -> str:
-    """Returns the folder containing the file. Otherwise returns the EasyFEA folder."""
+    """Returns the folder containing the file.\n
+    Otherwise returns the EasyFEA directory.
+    """
     
     if filename == "":
         # Returns the path to EasyFEA
@@ -26,7 +28,8 @@ def Get_Path(filename="") -> str:
 PATH_EASYFEA = Get_Path()
 
 def New_File(filename: str, folder=Get_Path(), results=False) -> str:
-    """Returns the path to the file/folder (filename can be a file or a folder). If the path does not exist, the function will create directories.
+    """Returns the path to the file/folder (filename can be a file or a folder).\n
+    The function will create the path if it does not exist.
 
     Parameters
     ----------
@@ -51,15 +54,20 @@ def New_File(filename: str, folder=Get_Path(), results=False) -> str:
     return filename
 
 def Join(*args: str) -> str:
-    """Builds the path based on a list of str."""
+    """Joins two or more pathname components."""
     return os.path.join(*args)
 
 def Exists(path: str) -> bool:
-    """Test whether a path exists. Returns False for broken symbolic links"""
+    """Checks whether a path exists.\n
+    Returns False for broken symbolic links."""
     return os.path.exists(path)
 
-def PhaseField_Folder(folder: str, material: str, split: str, regu: str, simpli2D: str, tolConv: float, solver: str, test: bool, optimMesh=False, closeCrack=False, nL=0, theta=0.0) -> str:
-    """Create a phase field folder based on the specified arguments."""
+def PhaseField_Folder(folder: str, material: str,
+                      split: str, regu: str, simpli2D: str,
+                      tolConv: float, solver: str,
+                      test: bool, optimMesh=False, closeCrack=False,
+                      nL=0, theta=0.0) -> str:
+    """Creates a phase field folder based on the specified arguments."""
 
     from EasyFEA import Materials    
 

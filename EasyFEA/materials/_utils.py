@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from typing import Union
 from enum import Enum
 
@@ -15,7 +15,7 @@ from .. import np
 # ----------------------------------------------
 
 class ModelType(str, Enum):
-    """Model types"""
+    """Model types."""
 
     elastic = "elastic"
     damage = "damage"
@@ -28,25 +28,28 @@ class ModelType(str, Enum):
 class _IModel(ABC, Observable):
     """Model interface.
     """
-
-    @abstractproperty
+    
+    @property
+    @abstractmethod
     def modelType(self) -> ModelType:
-        """Model type"""
+        """model type"""
         pass
     
-    @abstractproperty
+    @property
+    @abstractmethod
     def dim(self) -> int:
         """model dimension"""
         pass
     
-    @abstractproperty
+    @property
+    @abstractmethod
     def thickness(self) -> float:
-        """thickness to be used in the model"""
+        """thickness used in the model"""
         pass
 
     @property
     def useNumba(self) -> bool:
-        """Returns whether the model can use numba functions"""
+        """the model can use numba functions"""
         return self.__useNumba
 
     @useNumba.setter
@@ -55,17 +58,17 @@ class _IModel(ABC, Observable):
 
     @property
     def needUpdate(self) -> bool:
-        """The model needs to be updated"""
+        """the model needs to be updated"""
         return self.__needUpdate
 
     def Need_Update(self, value=True) -> None:
-        """Indicates whether the model needs to be updated"""
+        """Indicates whether the model needs to be updated."""
         self.__needUpdate = value
         if value: self._Notify('The model has been modified')
     
     @property
     def isHeterogeneous(self) -> bool:
-        """Indicates whether the model has heterogeneous parameters"""
+        """indicates whether the model has heterogeneous parameters"""
         return False
     
     @staticmethod
@@ -91,7 +94,7 @@ class _IModel(ABC, Observable):
 __erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
 
 def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int):
-    """Reshape the variable so that it is in the form ep.."""
+    """Resizes variable to (Ne, nPg) shape."""
 
     if isinstance(variable, (int,float)):
         return np.ones((Ne, nPg)) * variable
@@ -128,7 +131,7 @@ def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int):
                 raise Exception("The variable entered must be of dimension (eij) or (pij)")
 
 def Heterogeneous_Array(array: np.ndarray):
-    """Build a heterogeneous array"""
+    """Builds a heterogeneous array."""
 
     dimI, dimJ = array.shape
     
@@ -159,7 +162,7 @@ def Heterogeneous_Array(array: np.ndarray):
     return newArray
 
 def Tensor_Product(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
-    """Do the tensor product.
+    """Computes tensor product.
 
     Parameters
     ----------
@@ -200,16 +203,19 @@ def Tensor_Product(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
     
     return res
 
-def KelvinMandel_Matrix(dim: int, Matrix: np.ndarray) -> np.ndarray:
-    """Apply these coefficients to the matrix.
-    \nif 2D:
-    \n
-    [1,1,r2]\n
-    [1,1,r2]\n
+def KelvinMandel_Matrix(dim: int, M: np.ndarray) -> np.ndarray:
+    """Apply Kelvin Mandel coefficient to constitutive laws.
+    
+    In 2D:
+    ------
+
+    [1, 1, r2]\n
+    [1, 1, r2]\n
     [r2, r2, 2]]\n
 
-    \nif 3D:
-    \n
+    In 3D:
+    ------
+
     [1,1,1,r2,r2,r2]\n
     [1,1,1,r2,r2,r2]\n
     [1,1,1,r2,r2,r2]\n
@@ -234,17 +240,17 @@ def KelvinMandel_Matrix(dim: int, Matrix: np.ndarray) -> np.ndarray:
     else:
         raise Exception("Not implemented")
 
-    newMatrix = Matrix * transform
+    newM = M * transform
 
-    return newMatrix
+    return newM
 
 def Project_Kelvin(A: np.ndarray) -> np.ndarray:
-    """Project the tensor A in Kelvin Mandel notation.
+    """Projects the tensor A in Kelvin Mandel notation.
 
     Parameters
     ----------
     A : np.ndarray
-        tensor A
+        tensor A (2 or 4 order tensor)
 
     Returns
     -------
@@ -284,7 +290,7 @@ def Project_Kelvin(A: np.ndarray) -> np.ndarray:
         res = A_IJ
 
     else:
-        raise "Not implemented"
+        raise Exception("Not implemented.")
 
     return res
 
@@ -373,29 +379,33 @@ def Result_in_Strain_or_Stress_field(field_e: np.ndarray, result:str, coef=np.sq
     return result_e
 
 def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
-    """Construct Pmat to pass from the material coordinates (x,y,z) to the global coordinate (X,Y,Z) such that:\n
+    """Constructs Pmat to pass from the material coordinates (x,y,z) to the global coordinate (X,Y,Z) such that:\n
 
     if useMandel:\n
         return [Pm]\n
     else:\n
         return [Ps], [Pe]\n
     
-    In mandel's notation\n
+    In Kelvin Mandel notation:
+    --------------------------
+    
         Sig & Eps en [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]\n
-        [C_global] = [Pm] * [C_material] * [Pm]' & [C_material] = [Pm]' * [C_global] * [Pm]\n
-        [S_global] = [Pm] * [S_material] * [Pm]' & [S_material] = [Pm]' * [S_global] * [Pm]\n
-        Sig_global = [Pm] * Sig_material & Sig_material = [Pm]' * Sig_global\n
-        Eps_global = [Pm] * Eps_material & Eps_material = [Pm]' * Eps_global\n
+        [C_global] = [Pm] * [C_material] * [Pm]^T & [C_material] = [Pm]^T * [C_global] * [Pm]\n
+        [S_global] = [Pm] * [S_material] * [Pm]^T & [S_material] = [Pm]^T * [S_global] * [Pm]\n
+        Sig_global = [Pm] * Sig_material & Sig_material = [Pm]^T * Sig_global\n
+        Eps_global = [Pm] * Eps_material & Eps_material = [Pm]^T * Eps_global\n
 
-    Or in voigt's notation
+    In Voigt's notation:
+    --------------------
+
         Sig [S11, S22, S33, S23, S13, S12]\n
         Eps [E11, E22, E33, 2*E23, 2*E13, 2*E12]\n
-        [C_global] = [Ps] * [C_material] * [Ps]' & [C_material] = [Pe]' * [C_global] * [Pe]\n
-        S_global = [Pe] * [S_material] * [Pe]' & [S_material] = [Ps]' * S_global * [Ps]\n
-        Sig_global = [Ps] * Sig_material & Sig_material = [Pe]' * Sig_global\n
-        Eps_global = [Pe] * Eps_material & Eps_material = [Ps]' * Eps_global\n
+        [C_global] = [Ps] * [C_material] * [Ps]^T & [C_material] = [Pe]^T * [C_global] * [Pe]\n
+        S_global = [Pe] * [S_material] * [Pe]^T & [S_material] = [Ps]^T * S_global * [Ps]\n
+        Sig_global = [Ps] * Sig_material & Sig_material = [Pe]^T * Sig_global\n
+        Eps_global = [Pe] * Eps_material & Eps_material = [Ps]^T * Eps_global \n
 
-    P matrices are orhogonal -> inv(P) = transpose(P)\n
+    P matrices are orhogonal such that: inv([P]) = [P]^T\n
 
     Here we use "Chevalier 1988 : Comportements élastique et viscoélastique des composites"
     """
@@ -430,7 +440,7 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
     axis_1 = np.einsum(f'i{id},{id}->i{id}', axis_1, np.linalg.norm(axis_1, axis=0), optimize='optimal')
     axis_2 = np.einsum(f'i{id},{id}->i{id}', axis_2, np.linalg.norm(axis_2, axis=0), optimize='optimal')
 
-    # Detection of whether the 2 vectors are perpendicular
+    # Checks whether the two vectors are perpendicular
     dotProd = np.einsum(f'i{id},i{id}->{id}', axis_1, axis_2, optimize='optimal')    
     assert np.linalg.norm(dotProd) <= 1e-12, 'Must give perpendicular axes'    
     
@@ -438,7 +448,7 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
         p11, p12 = axis_1
         p21, p22 = axis_2
     elif dim == 3:
-        # construct z-axis
+        # constructs z-axis
         axis_3 = np.cross(axis_1, axis_2, axis=0)
         p11, p12, p13 = axis_1
         p21, p22, p23 = axis_2
@@ -498,18 +508,16 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
         
         return Ps, Pe
 
-def Apply_Pmat(P: np.ndarray, Matrix: np.ndarray, toGlobal=True) -> np.ndarray:
+def Apply_Pmat(P: np.ndarray, M: np.ndarray, toGlobal=True) -> np.ndarray:
     """Apply change base matrix.\n
-    WARNING: P must be in Kelvin mandel notation
+    Caution: P must be in Kelvin mandel notation
 
     Parameters
     ----------
     P : np.ndarray
-        P in mandel notation obtained with get_Pmat
-    Matrix : np.ndarray
+        P in mandel notation obtained with Get_Pmat
+    M : np.ndarray
         3x3 or 6x6 matrix
-    toGlobal : bool, optional
-        sets wheter matrix is C or S, by default True\n
     toGlobal : bool, optional
         sets wheter you want to get matrix in global or material coordinates, by default True\n
         if toGlobal:\n
@@ -522,8 +530,8 @@ def Apply_Pmat(P: np.ndarray, Matrix: np.ndarray, toGlobal=True) -> np.ndarray:
     np.ndarray
         new matrix
     """    
-    assert isinstance(Matrix, np.ndarray), 'Matrix must be an array'
-    assert Matrix.shape[-2:] == P.shape[-2:], 'Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)'
+    assert isinstance(M, np.ndarray), 'Matrix must be an array'
+    assert M.shape[-2:] == P.shape[-2:], 'Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)'
             
     # Get P indices
     pDim = P.ndim
@@ -543,7 +551,7 @@ def Apply_Pmat(P: np.ndarray, Matrix: np.ndarray, toGlobal=True) -> np.ndarray:
         id2 = 'kl'
 
     # Get matrix indices
-    matDim = Matrix.ndim
+    matDim = M.ndim
     if matDim == 2:
         mi = ''            
     elif matDim == 3:
@@ -551,9 +559,9 @@ def Apply_Pmat(P: np.ndarray, Matrix: np.ndarray, toGlobal=True) -> np.ndarray:
     elif matDim == 4:
         mi = 'ep'
     else:
-        raise Exception("The matrix must be of dimension (ij) or (eij) or (epij)")
+        raise Exception("The matrix must be of dimension (ij) or (eij) or (epij).")
     
     ii = mi if matDim > pDim else pi
-    matrice_P = np.einsum(f'{pi}{i1},{mi}jk,{pi}{id2}->{ii}il',P, Matrix, P, optimize='optimal')
+    newM = np.einsum(f'{pi}{i1},{mi}jk,{pi}{id2}->{ii}il',P, M, P, optimize='optimal')
     
-    return matrice_P
+    return newM

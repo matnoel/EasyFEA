@@ -31,22 +31,25 @@ class _Simu(_IObserver, ABC):
         - BeamSimu
         - ThermalSimu
 
-    To create new simulation classes, take inspiration from existing classes. You'll need to respect the _Simu interface.
-    The ThermalSimu class is quite simple to understand, see `simulations/_thermal.py`.
+    To create new simulation classes, take inspiration from existing classes.\n
+    You'll need to respect the _Simu interface.\n
+    The ThermalSimu class is quite simple to understand, see `simulations/_thermal.py`.\n
 
     To use the interface/inheritance, 14 methods need to be defined.
 
     General:
-
+    --------
+    
         - def Get_problemTypes(self) -> list[ModelType]:
 
         - def Get_directions(self, problemType=None) -> list[str]:
 
         - def Get_dof_n(self, problemType=None) -> int:
 
-        These functions provide access to the available degrees of freedom.
+        These functions provides access to the available degrees of freedom (dofs).
 
     Solvers:
+    --------
 
         - def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
 
@@ -54,9 +57,10 @@ class _Simu(_IObserver, ABC):
 
         - def Assembly(self):
 
-        These functions are used to assemble the matrix system.
+        These functions assemble the matrix system K u + C v + M a = F.
 
     Iterations:
+    -----------
 
         - def Save_Iter(self) -> None:
 
@@ -65,6 +69,7 @@ class _Simu(_IObserver, ABC):
         These functions are used to save or load iterations.
 
     Results:
+    --------
 
         - def Results_Available(self) -> list[str]:
 
@@ -121,7 +126,7 @@ class _Simu(_IObserver, ABC):
 
     @abstractmethod
     def Save_Iter(self) -> None:
-        """Saves iteration results in results."""
+        """Saves iteration results in _results."""
         iter = {}
 
         iter["indexMesh"] = self.__indexMesh
@@ -200,8 +205,7 @@ class _Simu(_IObserver, ABC):
         assert dim == self.__mesh.dim and dim == self.__mesh.inDim, "Material and mesh must share the same dimensions and belong to the same space."
 
     def __str__(self) -> str:
-        """
-        Returns a string representation of the simulation.
+        """Returns a string representation of the simulation.
 
         Returns
         -------
@@ -229,8 +233,7 @@ class _Simu(_IObserver, ABC):
         return text
 
     def __init__(self, mesh: Mesh, model: _IModel, verbosity=True, useNumba=True, useIterativeSolvers=True):
-        """
-        Creates a simulation.
+        """Creates a simulation.
 
         Parameters
         ----------
@@ -239,18 +242,18 @@ class _Simu(_IObserver, ABC):
         model : _IModel
             The model used.
         verbosity : bool, optional
-            If True, the simulation can write to the console. Defaults to True.
+            If True, the simulation can write in the terminal. Defaults to True.
         useNumba : bool, optional
-            If True and numba is installed numba can be used . Defaults to True.
+            If True and numba is installed numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
-
+    
         if verbosity:
             Display.Section("Simulation")
 
         if len(mesh.orphanNodes) > 0:
-            raise Exception("The simulation cannot be created because orphan nodes have been detected in the mesh.")
+            raise Exception("The simulation cannot be created because orphan nodes have been detected in the mesh.\n See `Display.Plot_Nodes(mesh, mesh.orphanNodes)`")
 
         self.__model: _IModel = model
 
@@ -271,7 +274,7 @@ class _Simu(_IObserver, ABC):
         self._Check_dim_mesh_material()
 
         self._verbosity = verbosity
-        """The simulation can write to the console"""
+        """The simulation can write in the terminal"""
 
         self.__algo = AlgoType.elliptic
         """System resolution algorithm during simulation."""
@@ -293,29 +296,28 @@ class _Simu(_IObserver, ABC):
 
         self.__useIterativeSolvers: bool = useIterativeSolvers
 
-        # Initialize Boundary conditions
+        # Initializes Boundary conditions
         self.Bc_Init()
         
         # simulation will look for material modifications
         model._Add_observer(self)
         mesh._Add_observer(self)
 
-
     @property
     def model(self) -> _IModel:
-        """Model used."""
+        """model used"""
         return self.__model
 
     @property
     def rho(self) -> Union[float, np.ndarray]:
-        """Mass density."""
+        """mass density"""
         return self.__rho
 
     @rho.setter
     def rho(self, value: Union[float, np.ndarray]):
         _IModel._Test_Sup0(value)
         self.__rho = value
-        """Mass density"""
+        """mass density"""
 
     @property
     def mass(self) -> float:
@@ -377,7 +379,7 @@ class _Simu(_IObserver, ABC):
     # Solutions
     @property
     def results(self) -> list[dict]:
-        """Returns a copy of the dictionary list containing the results of each iteration."""
+        """Returns a copy of the list of dictionary containing the results from each iteration."""
         return self._results.copy()
     
     @property
@@ -437,29 +439,25 @@ class _Simu(_IObserver, ABC):
     # Properties
     @property
     def problemType(self) -> ModelType:
-        """Get the simulation problem type.
-
-        Returns
-        -------
-        ModelType
-            The type of simulation problem.
-        """
+        """Get the simulation problem type."""
         return self.__model.modelType
 
     @property
     def algo(self) -> AlgoType:
         """The algorithm used to solve the problem.\n
         (elliptic, parabolic, hyperbolic) see:\n
-        - self.Solver_Set_Elliptic_Algorithm()
-        - self.Solver_Set_Parabolic_Algorithm()
-        - self.Solver_Set_Newton_Raphson_Algorithm()
+        - Solver_Set_Elliptic_Algorithm()\n
+        K u = F
+        - Solver_Set_Parabolic_Algorithm()\n
+        K u + C v = F
+        - Solver_Set_Newton_Raphson_Algorithm()\n
+        K u + C v + M a = F
         """        
         return self.__algo
 
     @property
     def mesh(self) -> Mesh:
-        """The simulation's mesh.
-        """
+        """simulation's mesh."""
         return self.__mesh
 
     @mesh.setter
@@ -475,21 +473,19 @@ class _Simu(_IObserver, ABC):
 
             # The mesh changes, so the matrices must be reconstructed
             self.Need_Update()
-            # Initialize boundary conditions
+            # Initializes boundary conditions
             self.Bc_Init()
             # initialize the solutions
             self.__Init_Sols_n()
 
     @property
     def dim(self) -> int:
-        """The simulation dimension.
-        """
+        """simulation's dimension"""
         return self.__dim
 
     @property
     def useNumba(self) -> bool:
-        """The simulation can use numba functions.
-        """
+        """the simulation can use numba functions"""
         return self.__useNumba
 
     @useNumba.setter
@@ -499,7 +495,7 @@ class _Simu(_IObserver, ABC):
         self.__useNumba = value
 
     def __Update_mesh(self, iter: int) -> None:
-        """Updates the mesh with the specified iteration.
+        """Updates the mesh for the specified iteration.
 
         Parameters
         ----------
@@ -512,8 +508,7 @@ class _Simu(_IObserver, ABC):
 
     @property
     def needUpdate(self) -> bool:
-        """The simulation needs to reconstruct matrices K, C, and M.
-        """
+        """The simulation needs to reconstruct matrices K, C, and M."""
         return self.__needUpdate
     
     def _Update(self, observable: Observable, event: str) -> None:
@@ -528,8 +523,7 @@ class _Simu(_IObserver, ABC):
             Display.MyPrintError("Notification not yet implemented")
 
     def Need_Update(self, value=True) -> None:
-        """Set whether the simulation needs to reconstruct matrices K, C, M and F.
-        """
+        """Sets whether the simulation needs to reconstruct matrices K, C, M and F."""
         self.__needUpdate = value
 
     # ----------------------------------------------
@@ -543,7 +537,7 @@ class _Simu(_IObserver, ABC):
 
     @property
     def solver(self) -> str:
-        """Solver used to solve Ax=b."""
+        """Solver used to solve the simulation."""
         return self.__solver
 
     @solver.setter
@@ -561,14 +555,14 @@ class _Simu(_IObserver, ABC):
             Display.MyPrintError(f"The solver {value} cannot be used. The solver must be in {solvers}")
 
     def Solver_Set_Elliptic_Algorithm(self) -> None:
-        """Set the algorithm's resolution properties for an elliptic problem.
+        """Sets the algorithm's resolution properties for an elliptic problem.
 
         Used to solve K u = F.
         """
         self.__algo = AlgoType.elliptic
 
     def Solver_Set_Parabolic_Algorithm(self, dt: float, alpha=1/2) -> None:
-        """Set the algorithm's resolution properties for a parabolic problem.
+        """Sets the algorithm's resolution properties for a parabolic problem.
 
         Used to solve K u + C v = F.
 
@@ -577,7 +571,10 @@ class _Simu(_IObserver, ABC):
         dt : float
             The time increment.
         alpha : float, optional
-            The alpha criterion [0 -> Forward Euler, 1 -> Backward Euler, 1/2 -> midpoint], by default 1/2.
+            The alpha criterion, by default 1/2\n
+            - 0 -> Forward Euler
+            - 1 -> Backward Euler
+            - 1/2 -> midpoint
         """
         self.__algo = AlgoType.parabolic
 
@@ -587,7 +584,7 @@ class _Simu(_IObserver, ABC):
         self.dt = dt
 
     def Solver_Set_Newton_Raphson_Algorithm(self, dt: float, betha=1/4, gamma=1/2) -> None:
-        """Set the algorithm's resolution properties for a Newton-Raphson problem.
+        """Sets the algorithm's resolution properties for a Newton-Raphson problem.
 
         Used to solve K u + C v + M a = F.
 
@@ -609,7 +606,7 @@ class _Simu(_IObserver, ABC):
         self.dt = dt
 
     def Solve(self) -> np.ndarray:
-        """Solve the simulation for the current boundary conditions.
+        """Computes the solution field for the current boundary conditions.
 
         Returns
         -------
@@ -622,8 +619,8 @@ class _Simu(_IObserver, ABC):
         return self._Get_u_n(self.problemType)
 
     def _Solver_Solve(self, problemType: ModelType) -> None:
-        """Solve the problem.
-        """
+        """Solves the problem."""
+
         # Here you need to specify the type of problem because a simulation can have several physical models
 
         algo = self.__algo
@@ -682,12 +679,12 @@ class _Simu(_IObserver, ABC):
             self._Set_a_n(problemType, a_np1)
 
     def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
-        """Fill in the Neumann boundary conditions by constructing b of A x = b.
+        """Fill in the Neumann boundary conditions by constructing b from A x = b.
 
         Parameters
         ----------
         problemType : ModelType
-            The type of problem.
+            problem type
 
         Returns
         -------
@@ -698,12 +695,12 @@ class _Simu(_IObserver, ABC):
         algo = self.algo
         dofs = BoundaryCondition.Get_dofs(problemType, self.__Bc_Neumann)
         dofsValues = BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
-        nDof = self.mesh.Nn * self.Get_dof_n(problemType)
+        Ndof = self.mesh.Nn * self.Get_dof_n(problemType)
 
         # Additional dimension associated with the lagrangian multipliers
-        nDof += self._Bc_Lagrange_dim(problemType)
+        Ndof += self._Bc_Lagrange_dim(problemType)
 
-        b = sparse.csr_matrix((dofsValues, (dofs, np.zeros(len(dofs)))), shape=(nDof, 1))
+        b = sparse.csr_matrix((dofsValues, (dofs, np.zeros(len(dofs)))), shape=(Ndof, 1))
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
@@ -730,11 +727,11 @@ class _Simu(_IObserver, ABC):
 
             if len(self.results) == 0 and (b.max() != 0 or b.min() != 0):
                 # Initializes accel
-                dofsKnown, dofsUnknown = self.Bc_dofs_known_unknow(problemType)
+                __, dofsUnknown = self.Bc_dofs_known_unknow(problemType)
 
+                # don't change
                 bb = b - K.dot(sparse.csr_matrix(u_n.reshape(-1, 1)))
-
-                bb -= C.dot(sparse.csr_matrix(v_n.reshape(-1, 1)))
+                bb -= C.dot(sparse.csr_matrix(v_n.reshape(-1, 1)))                
 
                 bbi = bb[dofsUnknown]
                 Aii = M[dofsUnknown, :].tocsc()[:, dofsUnknown].tocsr()
@@ -756,6 +753,7 @@ class _Simu(_IObserver, ABC):
             uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1 - 2 * betha) * a_n
             vTild_np1 = v_n + (1 - gamma) * dt * a_n
 
+            # dont change
             b -= K.dot(uTild_np1.reshape(-1, 1))
             b -= C.dot(vTild_np1.reshape(-1, 1))
             b = sparse.csr_matrix(b)
@@ -765,7 +763,7 @@ class _Simu(_IObserver, ABC):
         return b
 
     def _Solver_Apply_Dirichlet(self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolType) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
-        """Apply Dirichlet conditions by constructing A and x from A x = b.
+        """Fill in the Dirichlet conditions by constructing A and x from A x = b.
 
         Parameters
         ----------
@@ -823,7 +821,7 @@ class _Simu(_IObserver, ABC):
         return A, x
 
     def __Solver_Get_Dirichlet_A_x(self, problemType: ModelType, resolution: ResolType, A: sparse.csr_matrix, b: sparse.csr_matrix, dofsValues: np.ndarray):
-        """Resize the matrix system according to known degrees of freedom and resolution type.
+        """Resizes the matrix system according to known degrees of freedom and resolution type.
 
         Parameters
         ----------
@@ -905,7 +903,7 @@ class _Simu(_IObserver, ABC):
         return self.__Bc_Lagrange.copy()
     
     def _Bc_Add_Lagrange(self, newBc: LagrangeCondition):
-        """Add Lagrange conditions."""
+        """Adds Lagrange conditions."""
         assert isinstance(newBc, LagrangeCondition)
         self.__Bc_Lagrange.append(newBc)
         # triger the update because when we use lagrange multiplier we need to update the matrix system
@@ -940,7 +938,7 @@ class _Simu(_IObserver, ABC):
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
 
     def Bc_dofs_known_unknow(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
-        """Retrieves known and unknown dofs."""
+        """Returns known and unknown dofs."""
         tic = Tic()
 
         # Builds known dofs
@@ -964,14 +962,14 @@ class _Simu(_IObserver, ABC):
         return dofsKnown, dofsUnknown
 
     def Bc_dofs_nodes(self, nodes: np.ndarray, directions: list[str], problemType=None) -> np.ndarray:
-        """Get degrees of freedom associated with nodes based on the problem and directions.
+        """Returns degrees of freedom associated with the nodes, based on the problem type and directions.
 
         Parameters
         ----------
         nodes : np.ndarray
-            Nodes.
+            nodes.
         directions : list
-            Directions.        
+            directions (e.g ["x","y","rz"])
         problemType : str
             Problem type.
 
@@ -1017,20 +1015,19 @@ class _Simu(_IObserver, ABC):
         return values_eval
     
     def add_dirichlet(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
-        """Add dirichlet conditions.
+        """Adds Dirichlet's boundary conditions.
 
         Parameters
         ----------
         nodes : np.ndarray
             nodes
         values : list
-            list of values that can contain floats, arrays or functions or lambda functions
-            ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
-            The functions use the x, y and z nodes coordinates. \n
+            list of values that can contains floats, arrays or functions or functions.\n
+            e.g [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray]\n
+            The functions use the x, y and z nodes coordinates.\n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
-            directions where values will be applied
-            ex = ['y', 'x']
+            directions where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
@@ -1065,20 +1062,19 @@ class _Simu(_IObserver, ABC):
         self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
-        """Point force
+        """Adds Neumann's boundary conditions.
 
         Parameters
         ----------
         nodes : np.ndarray
             nodes
         values : list
-            list of values that can contain floats, arrays or functions or lambda functions
-            ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
+            list of values that can contains floats, arrays or functions or functions.\n
+            e.g [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray]\n
             The functions use the x, y and z nodes coordinates.\n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
-            directions where values will be applied
-            ex = ['y', 'x']
+            directions where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
@@ -1097,20 +1093,19 @@ class _Simu(_IObserver, ABC):
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
         
     def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
-        """Apply a linear force.
+        """Adds a linear load.
 
         Parameters
         ----------
         nodes : np.ndarray
             nodes
         values : list
-            list of values that can contain floats, arrays or functions or lambda functions
-            ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
+            list of values that can contain floats, arrays or functions or lambda functions.\n
+            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
-            directions where values will be applied
-            ex = ['y', 'x']
+            directions where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
@@ -1129,20 +1124,19 @@ class _Simu(_IObserver, ABC):
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
-        """Apply a surface force
+        """Adds a surface load.
         
         Parameters
         ----------
         nodes : np.ndarray
             nodes
         values : list
-            list of values that can contain floats, arrays or functions or lambda functions
-            ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
+            list of values that can contain floats, arrays or functions or lambda functions.\n
+            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
-            directions where values will be applied
-            ex = ['y', 'x']
+            directions where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
@@ -1166,7 +1160,7 @@ class _Simu(_IObserver, ABC):
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=None, description="") -> None:
-        """Apply a pressure.
+        """Adds a pressure.
 
         Parameters
         ----------
@@ -1200,20 +1194,19 @@ class _Simu(_IObserver, ABC):
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
-        """Apply a volumetric force.
+        """Adds a volumetric load.
         
         Parameters
         ----------
         nodes : np.ndarray
             nodes
         values : list
-            list of values that can contain floats, arrays or functions or lambda functions
-            ex = [10, lambda x,y,z : 10*x - 20*y + x*z, np.ndarray] \n
+            list of values that can contain floats, arrays or functions or lambda functions.\n
+            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         directions : list[str]
-            directions where values will be applied
-            ex = ['y', 'x']
+            directions where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
@@ -1237,7 +1230,7 @@ class _Simu(_IObserver, ABC):
         self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
 
     def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
-        """Apply a point load."""
+        """Adds a point load."""
 
         Nn = nodes.shape[0]
         coordo = self.mesh.coordGlob
@@ -1259,7 +1252,7 @@ class _Simu(_IObserver, ABC):
         return dofsValues, dofs
 
     def __Bc_Integration_Dim(self, dim: int, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
-        """Integrating on elements for the specified dimension."""
+        """Integrates on elements for the specified dimension."""
 
         dofsValues = np.array([])
         dofs = np.array([], dtype=int)
@@ -1280,10 +1273,9 @@ class _Simu(_IObserver, ABC):
             Ne = elements.shape[0]
             Nodes = np.append(Nodes, np.reshape(connect, -1))
 
-            # retrieves the coordinates of the Gauss points if you need to devaluate the function
+            # get the coordinates of the Gauss points if you need to devaluate the function
             matrixType = MatrixType.mass
             coordo_e_p = groupElem.Get_GaussCoordinates_e_p(matrixType, elements)
-            nPg = coordo_e_p.shape[1]
 
             N_pg = groupElem.Get_N_pg(matrixType)
 
@@ -1329,8 +1321,8 @@ class _Simu(_IObserver, ABC):
         return dofsValues, dofs, Nodes
 
     def __Bc_lineLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
-        """Apply a linear force.\n
-        return dofsValues, dofs, nodes"""
+        """Adds a linear load.\n
+        returns dofsValues, dofs, nodes"""
         
         self._Check_dofs(problemType, directions)
 
@@ -1340,7 +1332,7 @@ class _Simu(_IObserver, ABC):
     
     def __Bc_surfload(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
         """Apply a surface force.\n
-        return dofsValues, dofs, nodes"""
+        returns dofsValues, dofs, nodes"""
         
         self._Check_dofs(problemType, directions)
 
@@ -1349,8 +1341,8 @@ class _Simu(_IObserver, ABC):
         return dofsValues, dofs, nodes
 
     def __Bc_volumeload(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
-        """Apply a volumetric force.\n
-        return dofsValues, dofs, nodes"""
+        """Adds a volumetric load.\n
+        returns dofsValues, dofs, nodes"""
         
         self._Check_dofs(problemType, directions)
 
@@ -1359,8 +1351,8 @@ class _Simu(_IObserver, ABC):
         return dofsValues, dofs, nodes
     
     def __Bc_pressureload(self, problemType: ModelType, nodes: np.ndarray, magnitude: float) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
-        """Apply a pressure force.\n
-        return dofsValues, dofs, nodes"""
+        """Adds a pressure load.\n
+        returns dofsValues, dofs, nodes"""
         
         # here we need to get the normal vector
 
@@ -1385,7 +1377,7 @@ class _Simu(_IObserver, ABC):
         return dofsValues, dofs, nodes
     
     def __Bc_Add_Neumann(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, directions: list, description="") -> None:
-        """Add Neumann conditions.\n
+        """Adds Neumann's boundary conditions.\n
         If a neumann condition is already applied to the dof, the condition will not be taken into account for the dof."""
 
         tic = Tic()
@@ -1398,7 +1390,7 @@ class _Simu(_IObserver, ABC):
         tic.Tac("Boundary Conditions","Add Neumann condition ", self._verbosity)   
      
     def __Bc_Add_Dirichlet(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, directions: list, description="") -> None:
-        """Add Dirichlet conditions.\n
+        """Adds Dirichlet's boundary conditions.\n
         If a Dirichlet's dof is entered more than once, the conditions are added together."""
 
         tic = Tic()
@@ -1414,7 +1406,7 @@ class _Simu(_IObserver, ABC):
     # Functions to create links between degrees of freedom
 
     def _Bc_Add_Display(self, nodes: np.ndarray, directions: list[str], description: str, problemType=None) -> None:
-        """Add condition for display"""
+        """Adds a display condition."""
 
         if problemType is None:
             problemType = self.problemType
@@ -1429,7 +1421,7 @@ class _Simu(_IObserver, ABC):
         self.__Bc_Display.append(new_Bc)
 
     def Get_contact(self, masterMesh: Mesh, slaveNodes: np.ndarray=None, masterNodes: np.ndarray=None) -> tuple[np.ndarray, np.ndarray]:
-        """Retrieves the simulation nodes detected in the master mesh with the associated displacement matrix to the interface.
+        """Returns the simulation nodes detected in the master mesh with the associated displacement matrix to the interface.
 
         Parameters
         ----------
@@ -1452,7 +1444,7 @@ class _Simu(_IObserver, ABC):
 
         # Here the first element group is selected. Regardless of whether there are several group of the same dimension.
         masterGroup = masterMesh.Get_list_groupElem(masterMesh.dim-1)[0]
-        # retrieve bounndary elements
+        # retrieves bounndary elements
         if masterNodes is None:
             elements = masterMesh.Elements_Nodes(masterGroup.nodes, False)
         else:
@@ -1462,10 +1454,10 @@ class _Simu(_IObserver, ABC):
             slaveGroup = self.mesh.Get_list_groupElem(masterMesh.dim-1)[0]
             slaveNodes = slaveGroup.nodes
 
-        # update nodes coordinates
+        # updates nodes coordinates
         newCoord = self.Results_displacement_matrix() + self.mesh.coord
         
-        # check nodes in master mesh
+        # get nodes in master mesh
         idx = masterMesh.groupElem.Get_Mapping(newCoord[slaveNodes], elements, False)[0]        
         idx = np.asarray(list(set(idx)), dtype=int)
 
@@ -1549,8 +1541,7 @@ class _Simu(_IObserver, ABC):
         return "Unknown load"
         
     def Results_Reshape_values(self, values: np.ndarray, nodeValues: bool) -> np.ndarray:
-        """
-        Reshapes input values based on whether they are stored at nodes or elements.
+        """Reshapes input values based on whether they are stored at nodes or elements.
 
         Parameters
         ----------
@@ -1619,7 +1610,7 @@ class _Simu(_IObserver, ABC):
             pickle.dump(self, file)
         Display.MyPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', 'green')
         
-        # Save simulation summary
+        # Saves simulation summary
         path_summary = Folder.New_File("summary.txt", folder)
         summary = f"Simulation completed on: {datetime.now()}\n"
         summary += f"version: {__version__}"
@@ -1637,15 +1628,14 @@ class _Simu(_IObserver, ABC):
 # ----------------------------------------------
 
 def Load_Simu(folder: str, filename: str="simulation") -> _Simu:
-    """
-    Load the simulation from the specified folder.
+    """Loads the simulation from the specified folder.
 
     Parameters
     ----------
     folder : str
-        The name of the folder where the simulation is saved.
+        simulation's folder.
     filename : str, optional
-        The simualtion name, by default "simulation".
+        The simualtion's name, by default "simulation".
 
     Returns
     -------

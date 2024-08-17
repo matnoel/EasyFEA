@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Module containing the Tic class for timing tasks."""
+"""Module containing the Tic class for timing tasks (code profiling)."""
 
 import time
 import numpy as np
@@ -44,6 +44,7 @@ class Tic:
 
     @staticmethod
     def Get_Remaining_Time(i:int, N:int, time:float) -> str:
+        """Returns remaining time asssuming that time is in s."""
         
         if i == 0:
             return ""
@@ -53,7 +54,7 @@ class Tic:
             return f"({i/N*100:3.2f} %) {timeLeft:3.2f} {unit}"
 
     def Tac(self, category="", text="", verbosity=False) -> float:
-        """Get time from previous tic or tac."""
+        """Returns the time elapsed since the last `Tic` or `Tac`."""
 
         tf = np.abs(self.__start - time.time())
 
@@ -79,7 +80,7 @@ class Tic:
     
     @staticmethod
     def Clear() -> None:
-        """Delete history"""
+        """Deletes history."""
         Tic.__History = {}
     
     __History = {}
@@ -91,7 +92,7 @@ class Tic:
        
     @staticmethod
     def Resume(verbosity=True) -> str:
-        """Builds the TicTac summary"""
+        """Returns the TicTac summary"""
 
         if Tic.__History == {}: return
 
@@ -157,7 +158,7 @@ class Tic:
 
     @staticmethod 
     def Plot_History(folder="", details=False) -> None:
-        """Display history.
+        """Plots history.
 
         Parameters
         ----------

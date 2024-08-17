@@ -83,9 +83,9 @@ if __name__ == '__main__':
 
     mesher._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
     
-    mesher._Generate_Mesh(dim, elemType)
+    mesher._Mesh_Generate(dim, elemType)
 
-    mesh = mesher._Construct_Mesh()
+    mesh = mesher._Mesh_Get_Mesh()
 
     # ----------------------------------------------
     # Plot

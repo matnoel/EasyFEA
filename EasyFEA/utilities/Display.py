@@ -31,20 +31,21 @@ from ..fem import Mesh, _GroupElem
 # ----------------------------------------------
 # Plot Simu or Mesh 
 # ----------------------------------------------
-def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, nodeValues=True, 
-                plotMesh=False, edgecolor='black', title="",
+def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
+                nodeValues=True, plotMesh=False, edgecolor='black', title="",
                 cmap="jet", ncolors=256, clim=(None, None), colorbarIsClose=False, colorbarLabel="",
                 ax: plt.Axes=None, folder="", filename="") -> plt.Axes:
-    """Display a simulation result.
+    """Plots a simulation's result.
 
     Parameters
     ----------
     obj : Simu or Mesh
         object containing the mesh
     result : str or np.ndarray
-        result you want to display. Must be included in simu.Get_Results()
+        result you want to display.\n
+        Must be included in simu.Get_Results() or be a numpy array of size of (Ne, Ne).
     deformFactor : float, optional
-        Factor used to display the deformed solution (0 means no deformations), default 0.0
+        factor used to display the deformed solution (0 means no deformations), default 0.0
     coef : float, optional
         coef to apply to the solution, by default 1.0
     nodeValues : bool, optional
@@ -52,18 +53,18 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     plotMesh : bool, optional
         displays mesh, by default False
     edgecolor : str, optional
-        Color used to plot the mesh, by default 'black'    
+        Color used to plot the mesh, by default 'black'
     title: str, optional
         figure title, by default ""
     cmap: str, optional
         the color map used near the figure, by default "jet" \n
         ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
     ncolors : int, optional
-        number of colors for colorbar, by default 256
+        number of colors for colorbar, by default 21
     clim : sequence[float], optional
         Two item color bar range for scalars. Defaults to minimum and maximum of scalars array. Example: (-1, 2), by default (None, None)
     colorbarIsClose : bool, optional
-        color bar is displayed close to figure, by default False
+        color bar is displayed close to the figure, by default False
     colorbarLabel: str, optional
         colorbar label, by default ""
     ax: axis, optional
@@ -84,14 +85,14 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
     plotDim = mesh.dim # plot dimension
 
-    # I dont know how to display nodal values on lines
+    # don't know how to display nodal values on lines
     nodeValues = False if plotDim == 1 else nodeValues
 
     # When mesh use 3D elements, results are displayed only on 2D elements.
     # To display values on 2D elements, we first need to know the values at 3D nodes.
     nodeValues = True if plotDim == 3 else nodeValues # do not modify
 
-    # Retrieve values that will be displayed
+    # Retrieves values that will be displayed
     if isinstance(result, str):
         if simu == None:
             raise Exception("obj is a mesh, so the result must be an array of dimension Nn or Ne")
@@ -132,7 +133,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         levels = np.linspace(min, max, ncolors)
     
     if ncolors != 256:
-        norm = colors.BoundaryNorm(boundaries=np.linspace(min, max, ncolors), ncolors=256)
+        norm = colors.BoundaryNorm(boundaries=np.linspace(min, max, 11), ncolors=256)
     else:
         norm = None
 
@@ -158,7 +159,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         connectFaces = mesh.connect[:,faces]
         elements_coordinates = coordo[connectFaces,:2]
 
-        # Plot the mesh
+        # Plots the mesh
         if plotMesh:
             if mesh.dim == 1:
                 # mesh for 1D elements are points                
@@ -168,7 +169,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
                 pc = LineCollection(elements_coordinates, edgecolor=edgecolor, lw=0.5)
                 ax.add_collection(pc)
 
-        # Plot element values
+        # Plots element values
         if mesh.Ne == len(values):
             if mesh.dim == 1:
                 pc = LineCollection(elements_coordinates, lw=1.5, cmap=cmap, norm=norm)
@@ -179,9 +180,9 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
             ax.add_collection(pc)
             ticks = None if ncolors != 11 else ticks
 
-        # Plot node values
+        # Plots node values
         elif mesh.Nn == len(values):
-            # retrieve triangles from each face to use the trisurf function
+            # retrieves triangles from each face to use the trisurf function
             triangles = mesh.groupElem.triangles
             connectTri = np.reshape(mesh.connect[:, triangles], (-1,3))
             # tripcolor, tricontour, tricontourf
@@ -237,11 +238,11 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
         else:
             facesValues = values
 
-        # update max and min
+        # updates max and min
         max = np.max([facesValues.max(), max])
         min = np.min([facesValues.min(), min])
 
-        # Display result with or without mesh display
+        # Displays result with or without the mesh
         if plotMesh:
             if plotDim == 1:
                 ax.plot(*mesh.coordGlob.T, c='black', lw=0.1, marker='.', ls='')
@@ -304,9 +305,10 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0, 
     # Returns figure, axis and colorbar
     return ax
     
-def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black', lw=0.5,
+def Plot_Mesh(obj, deformFactor=0.0,
+              alpha=1.0, facecolors='c', edgecolor='black', lw=0.5,
               ax: plt.Axes=None, folder="", title="") -> plt.Axes:
-    """Plot the mesh.
+    """Plots the mesh.
 
     Parameters
     ----------
@@ -327,7 +329,7 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
     folder : str, optional
         save folder, default "".
     title: str, optional
-        backup file name, default "".
+        figure title, by default ""
 
     Returns
     -------
@@ -362,7 +364,6 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
     if title == "":
         title = f"{mesh.elemType} : Ne = {mesh.Ne}, Nn = {mesh.Nn}"
-    
         
     if inDim in [1,2]:
         # in 2d space
@@ -452,8 +453,9 @@ def Plot_Mesh(obj, deformFactor=0.0, alpha=1.0, facecolors='c', edgecolor='black
 
     return ax
 
-def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', ax: plt.Axes=None) -> plt.Axes:
-    """Plot mesh nodes.
+def Plot_Nodes(mesh, nodes=[],
+               showId=False, marker='.', c='red', ax: plt.Axes=None) -> plt.Axes:
+    """Plots the mesh's nodes.
 
     Parameters
     ----------
@@ -509,8 +511,9 @@ def Plot_Nodes(mesh, nodes=[], showId=False, marker='.', c='red', ax: plt.Axes=N
 
     return ax
 
-def Plot_Elements(mesh: Mesh, nodes=[], dimElem: int=None, showId=False, alpha=1.0, c='red', edgecolor='black', ax: plt.Axes=None) -> plt.Axes:
-    """Display mesh elements from given nodes.
+def Plot_Elements(mesh: Mesh, nodes=[], dimElem: int=None,
+                  showId=False, alpha=1.0, c='red', edgecolor='black', ax: plt.Axes=None) -> plt.Axes:
+    """Plots the mesh's elements corresponding to the given nodes.
 
     Parameters
     ----------
@@ -600,7 +603,7 @@ def Plot_Elements(mesh: Mesh, nodes=[], dimElem: int=None, showId=False, alpha=1
     return ax
 
 def Plot_BoundaryConditions(simu: _Simu, ax: plt.Axes=None) -> plt.Axes:
-    """Plot boundary conditions.
+    """Plots simulation's boundary conditions.
 
     Parameters
     ----------
@@ -618,7 +621,7 @@ def Plot_BoundaryConditions(simu: _Simu, ax: plt.Axes=None) -> plt.Axes:
     
     coord = simu.mesh.coordGlob
 
-    # get dirichlet and neumann boundary conditions
+    # get Dirichlet and Neumann boundary conditions
     dirchlets = simu.Bc_Dirichlet
     BoundaryConditions = dirchlets
     neumanns = simu.Bc_Neuman
@@ -696,16 +699,16 @@ __colors = {
 }
 
 def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
-    """Plot the model tags from 2d elements to points. Do not plot the 3d tags.
+    """Plots the mesh's tags (from 2d elements to points) but do not plot the 3d tags.
 
     Parameters
     ----------    
     obj : Simu or Mesh
         object containing the mesh
     showId : bool, optional
-        show tags, by default False
+        shows tags, by default False
     folder : str, optional
-        save folder, by default ""
+        saves folder, by default ""
     alpha : float, optional
         transparency, by default 1.0
     ax : plt.Axes, optional
@@ -718,7 +721,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
 
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _Init_obj(obj, 0.0)
+    __, mesh, coordo, inDim = _Init_obj(obj, 0.0)
 
     # check if there is available tags in the mesh
     nTtags = [np.max([len(groupElem.nodeTags), len(groupElem.elementTags)]) for groupElem in mesh.dict_groupElem.values()]
@@ -736,9 +739,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
             ax.set_zlabel(r"$z$")
-        fig = ax.figure
     else:
-        fig = ax.figure
         inDim = 3 if ax.name == '3d' else inDim
 
     # get the group of elements for dimension 2 to 0
@@ -764,9 +765,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
             elements = groupElem.Get_Elements_Tag(tag_e)
             if len(elements) == 0: continue
 
-            coordo_faces = faces_coordinates[elements]
-
-            needPlot = True
+            coord_faces = faces_coordinates[elements]
             
             # Assigns color
             if 'L' in tag_e:
@@ -801,18 +800,18 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
                         collections.append(ax.plot(x_n, y_n, c='black', marker='.', zorder=2, label=tag_e, lw=2, ls=''))
                     elif dim == 1:
                         # plot lines
-                        pc = LineCollection(coordo_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
+                        pc = LineCollection(coord_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
                         collections.append(ax.add_collection(pc))
                     else:
                         # plot surfaces
-                        pc = PolyCollection(coordo_faces, facecolors=color, label=tag_e, edgecolor=color, alpha=alpha)
+                        pc = PolyCollection(coord_faces, facecolors=color, label=tag_e, edgecolor=color, alpha=alpha)
                         collections.append(ax.add_collection(pc))
                 else:
                     # points
                     ax.plot(x_n, y_n, c='black', marker='.', zorder=2, ls='')
                     
                 if showId:
-                    # plot the tag on the center of the element
+                    # plots the tag on the center of the element
                     ax.text(x_e, y_e, tag_e, zorder=25)
                 
             else:
@@ -820,16 +819,16 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
                 if len(nodes) > 0:
                     # lines or surfaces
                     if dim == 0:
-                        # plot points
+                        # plots points
                         collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e, lw=2, zdir='z'))
                     elif dim == 1:
-                        # plot lines
-                        pc = Line3DCollection(coordo_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
+                        # plots lines
+                        pc = Line3DCollection(coord_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
                         # collections.append(ax.add_collection3d(pc, zs=z_e, zdir='z'))
                         collections.append(ax.add_collection3d(pc, zdir='z'))
                     elif dim == 2:
-                        # plot surfaces
-                        pc = Poly3DCollection(coordo_faces, lw=0, alpha=alpha, facecolors=color, label=tag_e)
+                        # plots surfaces
+                        pc = Poly3DCollection(coord_faces, lw=0, alpha=alpha, facecolors=color, label=tag_e)
                         pc._facecolors2d = color
                         pc._edgecolors2d = color                        
                         collections.append(ax.add_collection3d(pc, zdir='z'))                    
@@ -856,7 +855,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
     return ax
 
 def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None:
-    """Create an event to display the element tag currently active under the mouse (at the bottom of the figure)."""
+    """Creates an event to display the element tag currently active under the mouse at the bottom of the figure."""
     
     def Set_Message(collection, event):
         if isinstance(collection, list): return
@@ -878,7 +877,7 @@ def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None
 # Plot 1D
 # ----------------------------------------------
 def Plot_Force_Displacement(force: np.ndarray, displacement: np.ndarray, xlabel='u', ylabel='f', folder="", ax: plt.Axes=None) -> tuple[plt.Figure, plt.Axes]:
-    """Plot the force displacement curve.
+    """Plots the force displacement curve.
 
     Parameters
     ----------
@@ -919,7 +918,7 @@ def Plot_Force_Displacement(force: np.ndarray, displacement: np.ndarray, xlabel=
     return fig, ax
     
 def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=True, N=200, folder="") -> None:
-    """Plot the energy for each iteration.
+    """Plots the energy for each iteration.
 
     Parameters
     ----------
@@ -944,7 +943,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         print("This simulation don't calculate energies.")
         return
 
-    # Check whether it is possible to plot the force-displacement curve
+    # Checks whether it is possible to plot the force-displacement curve
     pltLoad = len(load) == len(displacement) and len(load) > 0    
         
     # For each displacement increment we calculate the energy
@@ -968,7 +967,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
 
     for i, iteration in enumerate(iterations):
 
-        # Update simulation at iteration i
+        # Updates simulation at iteration i
         simu.Set_Iter(iteration)
 
         if plotSolMax : listSolMax.append(simu._Get_u_n(simu.problemType).max())
@@ -1035,7 +1034,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     tic.Tac("PostProcessing","Calc Energy", False)
 
 def Plot_Iter_Summary(simu: _Simu, folder="", iterMin=None, iterMax=None) -> None:
-    """Display summary of iterations between iterMin and iterMax.
+    """Plots a summary of iterations between iterMin and iterMax.
 
     Parameters
     ----------
@@ -1081,8 +1080,8 @@ def Plot_Iter_Summary(simu: _Simu, folder="", iterMin=None, iterMax=None) -> Non
 # ----------------------------------------------
 def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
                deformFactor=0.0, coef=1.0, nodeValues=True,
-               plotMesh=False, edgecolor='black', fps=30) -> None:
-    """Make a movie from a simulation on matplotlib
+               plotMesh=False, edgecolor='black', fps=30, **kwargs) -> None:
+    """Generates a movie from a simulation's result.
 
     Parameters
     ----------
@@ -1129,19 +1128,20 @@ def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
     def DoAnim(fig: plt.Figure, i):
         simu.Set_Iter(iterations[i])
         ax = fig.axes[0]
-        Plot_Result(simu, result, deformFactor, coef, nodeValues, plotMesh, edgecolor, ax=ax)
+        Plot_Result(simu, result, deformFactor, coef, nodeValues, plotMesh, edgecolor, ax=ax, **kwargs)
         ax.set_title(f"{result} {iterations[i]:d}/{Niter-1:d}")
 
     Movie_func(DoAnim, fig, iterations.size, folder, filename, fps)
 
 def Movie_func(func: Callable[[plt.Figure, int], None], fig: plt.Figure, N: int,
                folder: str, filename='video.gif', fps=30, dpi=200, show=True):
-    """Make the movie for the specified function. This function will peform a loop in range(N) and plot in matplotlib with func()
+    """Generates the movie for the specified function.\n
+    This function will peform a loop in range(N).
 
     Parameters
     ----------
     func : Callable[[plt.Figure, int], None]
-        The functiion that will use in first argument the plotter and in second argument the iter step.\n
+        The function that will use in first argument the plotter and in second argument the iter step such that.\n
         def func(fig, i) -> None
     fig : Figure
         Figure used to make the video
@@ -1150,13 +1150,13 @@ def Movie_func(func: Callable[[plt.Figure, int], None], fig: plt.Figure, N: int,
     folder : str
         folder where you want to save the video
     filename : str, optional
-        filename of the video with the extension (gif, mp4), by default 'video.gif'
+        filename of the video with the extension (eg. *.gif, *.mp4), by default 'video.gif'
     fps : int, optional
         frames per second, by default 30
     dpi: int, optional
         Dots per Inch, by default 200
     show: bool, optional
-        show the movie, by default True    
+        shows the movie, by default True    
     """
     
     # Name of the video in the folder where the folder is communicated
@@ -1188,16 +1188,16 @@ def Movie_func(func: Callable[[plt.Figure, int], None], fig: plt.Figure, N: int,
 # ----------------------------------------------
         
 def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi='figure') -> None:
-    """Save the current figure.
+    """Saves the current figure.
 
     Parameters
     ----------
     folder : str
         save folder
     filename : str
-        filenemae
+        filename
     transparent : bool, optional
-        transparent, by default False
+        transparent background, by default False
     extension : str, optional
         extension, by default 'pdf', [pdf, png]
     dpi : str, optional
@@ -1221,7 +1221,7 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
     tic.Tac("Display","Save figure")
 
 def _Init_obj(obj, deformFactor: float=0.0):
-    """Return (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu or a Mesh object.
+    """Returns (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu or a Mesh object.
     
     Parameters
     ----------
@@ -1254,14 +1254,14 @@ def _Init_obj(obj, deformFactor: float=0.0):
         coordo = mesh.coordGlob
         inDim = mesh.inDim
     else:
-        raise Exception("Must be a simulation or a mesh")
+        raise Exception("Must be a simulation or a mesh.")
     
     return simu, mesh, coordo, inDim
 
 def _Get_list_faces(mesh: Mesh, dimElem:int) -> list[list[int]]:
-    """Construct a list of faces for each element group of dimension dimElem.\n
+    """Returns a list of faces for each element group of dimension dimElem.\n
     Faces is a list of index used to construct/plot a faces.\n
-    You can go check their values for each groupElem in /fem/elems/"""
+    You can go check their values for each groupElem in `EasyFEA/fem/elems/` folder"""
     
     assert isinstance(mesh, Mesh), "mesh must be a Mesh object"
 
@@ -1285,12 +1285,14 @@ def _Get_list_faces(mesh: Mesh, dimElem:int) -> list[list[int]]:
     return list_faces
 
 def _Remove_colorbar(ax: plt.Axes) -> None:
+    """Removes the current colorbar from the axis."""
     [collection.colorbar.remove()
     for collection in ax.collections
     if collection.colorbar is not None]
 
 
 def Init_Axes(dim: int=2, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
+    """Initialize 2d or 3d axes."""
     if dim == 1 or dim == 2:
         ax = plt.subplots()[1]
     elif dim == 3:
@@ -1299,9 +1301,10 @@ def Init_Axes(dim: int=2, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
         ax.view_init(elev=elev, azim=azim)
     return ax
 
-def _Axis_equal_3D(ax: Axes3D, coordo: np.ndarray) -> None:
-    """Change axis size for 3D display
-    Will center the part and make the axes the right size
+def _Axis_equal_3D(ax: Axes3D, coord: np.ndarray) -> None:
+    """Changes axis size for 3D display.\n
+    Center the part and make the axes the right size.
+
     Parameters
     ----------
     ax : plt.Axes
@@ -1311,9 +1314,9 @@ def _Axis_equal_3D(ax: Axes3D, coordo: np.ndarray) -> None:
     """
 
     # Change axis size
-    xmin = np.min(coordo[:,0]); xmax = np.max(coordo[:,0])
-    ymin = np.min(coordo[:,1]); ymax = np.max(coordo[:,1])
-    zmin = np.min(coordo[:,2]); zmax = np.max(coordo[:,2])
+    xmin = np.min(coord[:,0]); xmax = np.max(coord[:,0])
+    ymin = np.min(coord[:,1]); ymax = np.max(coord[:,1])
+    zmin = np.min(coord[:,2]); zmax = np.max(coord[:,2])
     
     maxRange = np.max(np.abs([xmin - xmax, ymin - ymax, zmin - zmax]))
     maxRange = maxRange*0.55
@@ -1371,7 +1374,7 @@ def MyPrintError(text: str) -> str:
     return MyPrint(text, 'red')
 
 def Section(text: str, verbosity=True) -> None:
-    """New section."""    
+    """Creates a new section in the terminal."""    
     edges = "======================="
 
     lengthText = len(text)
@@ -1387,7 +1390,7 @@ def Section(text: str, verbosity=True) -> None:
     return section
 
 def Clear() -> None:
-    """Clear the terminal."""
+    """Clears the terminal."""
     syst = platform.system()
     if syst in ["Linux","Darwin"]:
         Folder.os.system("clear")
