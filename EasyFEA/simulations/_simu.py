@@ -1526,6 +1526,18 @@ class _Simu(_IObserver, ABC):
 
     def Results_Set_Iteration_Summary(self) -> None:
         """Sets the iteration summary."""
+        # TODO Add a configuration text
+        # e.g
+        # config = f"""
+        # u_inc = {u_inc:.1e}
+        # N = {N}
+        # loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
+
+        # tolConv = {tolConv:.1e}
+        # convOption = {convOption}
+        # maxIter = {maxIter}        
+        # """        
+        # """multi-line string"""
         pass
 
     def Results_Get_Iteration_Summary(self) -> str:
