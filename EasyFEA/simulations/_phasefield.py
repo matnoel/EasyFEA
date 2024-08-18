@@ -272,7 +272,7 @@ class PhaseFieldSimu(_Simu):
                 convIter = np.max([convD, convU])
 
             # checks convergence
-            if tolConv == 1:
+            if tolConv == 1 or d_np1.max() == 0:
                 convergence = True
             elif convOption == 3:
                 convergence = (convD <= tolConv) and (convU <= tolConv*0.999)
@@ -298,6 +298,7 @@ class PhaseFieldSimu(_Simu):
         self.__Niter = Niter
         self.__convIter = convIter
         self.__timeIter = timeIter
+        self.__convOption = convOption
 
         Kglob = self.__Ku.copy()
             
