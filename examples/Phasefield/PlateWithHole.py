@@ -123,7 +123,7 @@ def DoSimu(split: str, regu: str):
         l0 = 0.12e-3
 
         # loading
-        treshold = 0.6
+        threshold = 0.6
         if materialType == "Elas_Isot":
             # u_max = 25e-6
             u_max = 35e-6
@@ -131,9 +131,7 @@ def DoSimu(split: str, regu: str):
             u_max = 80e-6
         
         uinc0 = 8e-8; uinc1 = 2e-8
-        listInc = [uinc0, uinc1]
-        listTresh = [0, treshold]
-        listOption = ["damage"]*len(listTresh)
+
     elif "FCBA" in problem:
         unitU = 'mm'
         unitF = 'kN'
@@ -161,13 +159,16 @@ def DoSimu(split: str, regu: str):
         l0 = L/nL
 
         # loading
-        treshold = 0.2
+        threshold = 0.2
         u_max = 1e-3
-        
         uinc0 = 8e-6; uinc1 = 2e-6
-        listInc = [uinc0, uinc1]
-        listTresh = [0, treshold]
-        listOption = ["damage"]*2
+
+    config = f"""
+    uinc0 = {uinc0:.1e} (simu.damage.max() < {threshold})
+    uinc1 = {uinc1:.1e}
+
+    u_max = {u_max}
+    """
 
     # folder name
     folderName = "PlateWithHole_" + problem    
@@ -216,9 +217,10 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Boundary conditions
         # ----------------------------------------------
-        dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
+        simu.Results_Set_Bc_Summary(config)
 
-        simu.Results_Set_Bc_Summary(u_max, listInc, listTresh, listOption)
+        dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])       
+        
 
         def Loading(ud: float):
             """Boundary conditions"""            
@@ -247,7 +249,7 @@ def DoSimu(split: str, regu: str):
         while ud <= u_max:
 
             iter += 1
-            if simu.damage.max() < treshold:
+            if simu.damage.max() < threshold:
                 ud += uinc0
             else:
                 ud += uinc1
@@ -343,10 +345,10 @@ def DoSimu(split: str, regu: str):
 
             grid = pvi._pvGrid(simu, 'damage', deformFactor)
 
-            tresh = grid.threshold((0,0.8))
+            thresh = grid.threshold((0,0.8))
 
             # pvi.Plot_Elements(simu.mesh, nodes, dimElem=1, color='k', plotter=plotter, line_width=2)
-            pvi.Plot(tresh, 'damage', deformFactor, show_edges=False, plotter=plotter, clim=(0,1))
+            pvi.Plot(thresh, 'damage', deformFactor, show_edges=False, plotter=plotter, clim=(0,1))
 
             pvi.Plot_BoundaryConditions()
 

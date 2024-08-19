@@ -178,32 +178,39 @@ def DoSimu(split: str, regu: str):
         # Boundary conditions
         # ----------------------------------------------
         if materialType == "Elas_Isot":
-            # load < treshold
+            # load < threshold
             uinc0 = 1e-7 if meshTest else 1e-8
             N0 = 40 if meshTest else 400
             dep0 = uinc0*N0
 
-            # load >= treshold
+            # load >= threshold
             uinc1 = 1e-8 if meshTest else 1e-9
             N1 = 400 if meshTest else 4000
             dep1 = dep0 + uinc1*N1
 
-            treshold = uinc0*N0
-            
-            listInc = [uinc0, uinc1]
-            listThreshold = [dep0, dep1]
-            optionTreshold = ["displacement"]*2
+            threshold = uinc0*N0
+
+            config = f"""
+            uinc0 = {uinc0:.1e};  N0 = {N0};  dep0 = uinc0*N0 = {dep0}
+            uinc1 = {uinc1:.1e};  N0 = {N1};  dep1 = dep0 + uinc1*N1 = {dep1}
+
+            threshold = uinc0*N0 = {threshold}
+
+            dep += uinc0 if dep < threshold else uinc1
+            """
+
         else:
-            # load < treshold
+            # load < threshold
             uinc0 = 12e-8 if meshTest else 6e-8
-            # load >= treshold
+            # load >= threshold
             uinc1 = 4e-8 if meshTest else 2e-8
 
-            treshold = 0.6
+            threshold = 0.6
 
-            listInc = [uinc0, uinc1]
-            listThreshold = [0, treshold]
-            optionTreshold = ["damage"]*2
+            config = f"""
+            uinc0 = {uinc0:.1e} (simu.damage.max() < {threshold})
+            uinc1 = {uinc1:.1e}
+            """
 
         def Loading(dep):
             """Boundary conditions"""
@@ -223,11 +230,9 @@ def DoSimu(split: str, regu: str):
         # Simulation
         # ----------------------------------------------
         simu = Simulations.PhaseFieldSimu(mesh, pfm, verbosity=False)
-        simu.Results_Set_Bc_Summary(0.0,listInc, listThreshold, optionTreshold)
+        simu.Results_Set_Bc_Summary(config)
 
         dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
-
-        tic = Tic()
         
         # INIT
         nDetect = 0
@@ -240,9 +245,9 @@ def DoSimu(split: str, regu: str):
             
             iter += 1
             if materialType == 'Elas_Isot':
-                dep += uinc0 if dep < treshold else uinc1
+                dep += uinc0 if dep < threshold else uinc1
             else:
-                if np.max( simu.damage[nodes_detect]) < treshold:
+                if np.max( simu.damage[nodes_detect]) < threshold:
                     dep += uinc0
                 else:
                     dep += uinc1

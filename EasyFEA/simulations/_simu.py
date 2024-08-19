@@ -1525,32 +1525,20 @@ class _Simu(_IObserver, ABC):
             return False
 
     def Results_Set_Iteration_Summary(self) -> None:
-        """Sets the iteration summary."""
-        # TODO Add a configuration text
-        # e.g
-        # config = f"""
-        # u_inc = {u_inc:.1e}
-        # N = {N}
-        # loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
-
-        # tolConv = {tolConv:.1e}
-        # convOption = {convOption}
-        # maxIter = {maxIter}        
-        # """        
-        # """multi-line string"""
+        """Sets the iteration's summary."""
         pass
 
     def Results_Get_Iteration_Summary(self) -> str:
-        """Iteration's summary."""
-        return "Unknown"
+        """Returns the iteration's summary."""
+        return "Unspecified."
 
     def Results_Set_Bc_Summary(self) -> None:
-        """Simulation loading information"""
+        """Sets the simulation loading summary."""
         pass
 
     def Results_Get_Bc_Summary(self) -> str:
-        """Simulation loading summary"""
-        return "Unknown load"
+        """Returns the simulation loading summary."""
+        return "Unspecified."
         
     def Results_Reshape_values(self, values: np.ndarray, nodeValues: bool) -> np.ndarray:
         """Reshapes input values based on whether they are stored at nodes or elements.

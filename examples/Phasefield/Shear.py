@@ -25,7 +25,7 @@ dim = 2
 
 doSimu = True
 # Mesh
-meshTest = False
+meshTest = True
 openCrack = True
 optimMesh = True
 
@@ -160,10 +160,12 @@ def DoSimu(split: str, regu: str):
         N = 400 if meshTest else 2000
 
         loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
-        
-        listInc = [u_inc]
-        listThreshold = [loadings[-1]]
-        optionTreshold = ["displacement"]
+
+        config = f"""
+        u_inc = {u_inc:.1e}
+        N = {N}
+        loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)       
+        """        
 
         def Loading(dep):
             """Boundary conditions"""
@@ -182,8 +184,8 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Simulation
         # ----------------------------------------------
-        simu = Simulations.PhaseFieldSimu(mesh, pfm, verbosity=False)
-        simu.Results_Set_Bc_Summary(loadings[-1],listInc, listThreshold, optionTreshold)
+        simu = Simulations.PhaseFieldSimu(mesh, pfm, verbosity=False)        
+        simu.Results_Set_Bc_Summary(config)
 
         dofsX_upper = simu.Bc_dofs_nodes(nodes_upper, ["x"])
         

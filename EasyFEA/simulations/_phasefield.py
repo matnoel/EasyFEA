@@ -769,25 +769,16 @@ class PhaseFieldSimu(_Simu):
 
         return Sigma_e_pg
 
-    def Results_Set_Bc_Summary(self, loadMax: float, listInc: list, listTreshold: list, listOption: list):
-        assert len(listInc) == len(listTreshold) and len(listInc) == len(listOption), "Must be the same dimension."
-        
-        resume = 'Loading :'
-        resume += f'\n\tload max = {loadMax:.3}'
-
-        for inc, treshold, option in zip(listInc, listTreshold, listOption):
-
-            resume += f'\n\tinc = {inc} -> {option} < {treshold:.4e}'
-        
-        self.__resumeLoading = resume
-
+    def Results_Set_Bc_Summary(self, config: str):
+        assert isinstance(config, str)
+        self.__resumeLoading = config
         return self.__resumeLoading
 
     def Results_Get_Bc_Summary(self) -> str:
         return self.__resumeLoading
 
     def Results_Set_Iteration_Summary(self, iter: int, load: float, unitLoad: str, percentage=0.0, remove=False) -> str:
-        """Builds the iteration summary for the damage problem.
+        """Creates the iteration summary for the damage problem.
 
         Parameters
         ----------
