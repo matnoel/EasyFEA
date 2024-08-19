@@ -201,9 +201,11 @@ class PhaseFieldSimu(_Simu):
             Maximum iterations for convergence, by default 500
         convOption : int, optional
             - 0 -> convergence on damage np.max(np.abs(d_np1-dk)) equivalent normInf(d_np1-dk)\n
-            - 1 -> convergence on crack energy np.abs(psi_crack_n - psi_crack_np1)/psi_crack_np1 \n
+            - 1 -> convergence on crack energy np.abs(psi_crack_n - psi_crack_np1)/psi_crack_np1\n
             - 2 -> convergence on total energy np.abs(psi_tot_n - psi_tot_np1)/psi_tot_np1\n
-            - 3 -> eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
+            eq (39) Ambati 2015 10.1007/s00466-014-1109-y\n
+            - 3 -> (convD <= tolConv) and (convU <= tolConv*0.999)\n
+            eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
 
         Returns
         -------
@@ -246,7 +248,7 @@ class PhaseFieldSimu(_Simu):
 
             # Computes damage field
             d_np1 = self.__Solve_damage()
-             # new damage -> new displacement matrices
+            # new damage -> new displacement matrices
             self.__updatedDisplacement = False
 
             # Computes displacement field
@@ -259,7 +261,8 @@ class PhaseFieldSimu(_Simu):
 
             elif convOption in [1,2]:
                 psi_np1 = self._Calc_Psi_Crack()
-                if convOption == 2:
+                if convOption == 2:                                      
+                   # eq (39) Ambati 2015 10.1007/s00466-014-1109-y
                    psi_np1 += self._Calc_Psi_Elas()
 
                 if psi_np1 == 0:
@@ -356,7 +359,7 @@ class PhaseFieldSimu(_Simu):
         return Ku_e
  
     def __Assembly_elastic(self) -> sparse.csr_matrix:
-        """Assembly the elastic problem."""
+        """Assemble the elastic problem."""
 
         # Data
         mesh = self.mesh        
@@ -398,8 +401,7 @@ class PhaseFieldSimu(_Simu):
     # ------------------------------------------- Damage problem -------------------------------------------
 
     def __Calc_psiPlus_e_pg(self):
-        """Computes the positive energy density psi^+ (e, p).\n
-        """
+        """Computes the positive energy density psi^+ (e, p)."""
 
         phaseFieldModel = self.phaseFieldModel
         
@@ -493,7 +495,7 @@ class PhaseFieldSimu(_Simu):
         return Kd_e, Fd_e
 
     def __Assembly_damage(self) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
-        """Construct the damage problem."""
+        """Assemble the elastic problem."""
        
         # Data
         mesh = self.mesh
