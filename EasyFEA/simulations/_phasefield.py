@@ -210,27 +210,27 @@ class PhaseFieldSimu(_Simu):
         Returns
         -------
         np.ndarray, np.ndarray, csr_matrix, bool
-            u_np1, d_np1, Kglob, convergence
+            u_np1, d_np1, Kglob, converged
 
             such that:\n
             - u_np1: displacement vector field\n
             - d_np1: damage scalar field\n
             - Kglob: displacement stiffness matrix\n
-            - convergence: the solution has converged\n
+            - converged: the solution has converged\n
         """
 
         assert tolConv > 0 and tolConv <= 1 , "tolConv must be between 0 and 1."
         assert maxIter > 1 , "Must be > 1."
 
         Niter = 0
-        convergence = False
+        converged = False
         dn = self.damage
 
         solver = self.phaseFieldModel.solver
 
         tic = Tic()
 
-        while not convergence and Niter < maxIter:
+        while not converged and Niter < maxIter:
                     
             Niter += 1
             if convOption == 0:
@@ -280,11 +280,11 @@ class PhaseFieldSimu(_Simu):
 
             # checks convergence
             if tolConv == 1 or d_np1.max() == 0:
-                convergence = True
+                converged = True
             elif convOption == 3:
-                convergence = (convD <= tolConv) and (convU <= tolConv*0.999)
+                converged = (convD <= tolConv) and (convU <= tolConv*0.999)
             else:
-                convergence = convIter <= tolConv
+                converged = convIter <= tolConv
                 
         solverTypes = Materials.PhaseField.SolverType
 
@@ -313,7 +313,7 @@ class PhaseFieldSimu(_Simu):
 
         Kglob = self.__Ku.copy()
             
-        return u_np1, d_np1, Kglob, convergence
+        return u_np1, d_np1, Kglob, converged
 
     # ------------------------------------------- Elastic problem -------------------------------------------
 
