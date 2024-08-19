@@ -1365,13 +1365,13 @@ class _GroupElem(ABC):
         
         return sol_e
     
-    def Get_pointsInElem(self, coordinates: np.ndarray, elem: int) -> np.ndarray:
+    def Get_pointsInElem(self, coordinates_n: np.ndarray, elem: int) -> np.ndarray:
         """Returns the indexes of the coordinates contained in the element.
 
         Parameters
         ----------
-        coordinates : np.ndarray
-            coordinates
+        coordinates_n : np.ndarray
+            coordinates (n, 3)
         elem : int
             element
 
@@ -1381,7 +1381,10 @@ class _GroupElem(ABC):
             indexes of coordinates contained in element
         """
 
-        dim = self.__dim        
+        if coordinates_n.size == 0:
+            return np.array([])
+
+        dim = self.__dim
 
         tol = 1e-12
         # tol = 1e-6
@@ -1390,7 +1393,7 @@ class _GroupElem(ABC):
 
             coordo = self.coord[self.__connect[elem,0]]
 
-            idx = np.where((coordinates[:,0] == coordo[0]) & (coordinates[:,1] == coordo[1]) & (coordinates[:,2] == coordo[2]))[0]
+            idx = np.where((coordinates_n[:,0] == coordo[0]) & (coordinates_n[:,1] == coordo[1]) & (coordinates_n[:,2] == coordo[2]))[0]
 
             return idx
 
@@ -1401,49 +1404,52 @@ class _GroupElem(ABC):
             p1 = self.__connect[elem,0]
             p2 = self.__connect[elem,1]
 
-            vect_i = coordo[p2] - coordo[p1]
-            length = np.linalg.norm(vect_i)
-            vect_i = vect_i / length # without normalized doesn't work
+            # vector between the points of the segment
+            vect = coordo[p2] - coordo[p1]
+            length = np.linalg.norm(vect)
+            vect = vect / length
 
-            vect_j_n = coordinates - coordo[p1]
+            # vectors starting from the first point of the element
+            p_n = coordinates_n - coordo[p1]
 
-            cross_n = np.cross(vect_i, vect_j_n, 0, 1)
+            cross_n = np.cross(e_i, p_n, axisa=0, axisb=1)
             norm_n = np.linalg.norm(cross_n, axis=1)
 
-            dot_n = vect_j_n @ vect_i
+            dot_n = p_n @ vect
             
             idx = np.where((norm_n <= tol) & (dot_n >= -tol) & (dot_n <= length+tol))[0]
 
             return idx
         
-        elif dim == 2:            
+        elif dim == 2:
+            # coordinates_n (n,3)
+            # points n
+            # corners i [1, nPe]
             
             coordo = self.coord
             faces = self.faces[:-1]
             nPe = len(faces)
             connectMesh = self.connect[elem, faces]
-            coordConnect = coordo[connectMesh]
+            corners_i = coordo[connectMesh]
 
             # vector calculation
             indexReord = np.append(np.arange(1, nPe), 0)
-            # Vectors i for edge segments
-            vect_i_b = coordo[connectMesh[indexReord]] - coordo[connectMesh]
-            vect_i_b = np.einsum("ni,n->ni", vect_i_b, 1/np.linalg.norm(vect_i_b, axis=1), optimize="optimal")
+            # Vectors e_i for edge segments (nPe, 3)
+            e_i = coordo[connectMesh[indexReord]] - corners_i
+            e_i = np.einsum("id,i->id", e_i, 1/np.linalg.norm(e_i, axis=1), optimize="optimal")
 
             # normal vector to element face
-            vect_n = np.cross(vect_i_b[0], -vect_i_b[-1])
+            vect_n = np.cross(e_i[0], -e_i[-1])
 
-            coordinates_n_b = coordinates[:, np.newaxis].repeat(nPe, 1)
+            # (n, i, 3)
+            coordinates_n_i = coordinates_n[:, np.newaxis].repeat(nPe, 1)
 
-            # Construct v vectors from corners
-            vectv_n_b = coordinates_n_b - coordConnect
-
-            cross_n_b = np.cross(vect_i_b, vectv_n_b, 1, 2)
-
-            test_n_b = cross_n_b @ vect_n >= -tol
-
-            filtre = np.sum(test_n_b, 1)
-
+            # Construct p vectors from corners
+            p_n_i = coordinates_n_i - corners_i
+            
+            cross_n_i = np.cross(e_i, p_n_i, axisa=1, axisb=2)
+            test_n_i = cross_n_i @ vect_n >= -tol
+            filtre = np.sum(test_n_i, 1)
             # Returns the index of nodes around the element that meet all conditions
             idx = np.where(filtre == nPe)[0]
 
@@ -1485,9 +1491,9 @@ class _GroupElem(ABC):
             n_f = np.cross(i_f, j_f, 1, 1)
             n_f = np.einsum("ni,n->ni", n_f, 1/np.linalg.norm(n_f, axis=1), optimize="optimal")
 
-            coordinates_n_b = coordinates[:, np.newaxis].repeat(nbFaces, 1)
+            coordinates_n_i = coordinates_n[:, np.newaxis].repeat(nbFaces, 1)
 
-            v_f = coordinates_n_b - coordo[p0_f]
+            v_f = coordinates_n_i - coordo[p0_f]
 
             t_f = np.einsum("nfi,fi->nf", v_f, n_f, optimize="optimal") >= -tol
 
