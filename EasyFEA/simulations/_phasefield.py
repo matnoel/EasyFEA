@@ -200,11 +200,11 @@ class PhaseFieldSimu(_Simu):
         maxIter : int, optional
             Maximum iterations for convergence, by default 500
         convOption : int, optional
-            - 0 -> convergence on damage np.max(np.abs(d_np1-dk)) equivalent normInf(d_np1-dk)\n
-            - 1 -> convergence on crack energy np.abs(psi_crack_n - psi_crack_np1)/psi_crack_np1\n
-            - 2 -> convergence on total energy np.abs(psi_tot_n - psi_tot_np1)/psi_tot_np1\n
-            eq (39) Ambati 2015 10.1007/s00466-014-1109-y\n
-            - 3 -> (convD <= tolConv) and (convU <= tolConv*0.999)\n
+            - 0 -> convergence on damage np.max(np.abs(d_np1-dk)) equivalent normInf(d_np1-dk)  \n
+            - 1 -> convergence on crack energy np.abs(psi_crack_n - psi_crack_np1)/psi_crack_np1    \n
+            - 2 -> convergence on total energy np.abs(psi_tot_n - psi_tot_np1)/psi_tot_np1  \n
+            eq (39) Ambati 2015 10.1007/s00466-014-1109-y   \n
+            - 3 -> (convD <= tolConv) and (convU <= tolConv*0.999)  \n
             eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
 
         Returns
