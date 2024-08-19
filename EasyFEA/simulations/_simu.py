@@ -299,7 +299,7 @@ class _Simu(_IObserver, ABC):
         # Initializes Boundary conditions
         self.Bc_Init()
         
-        # simulation will look for material modifications
+        # simulation will look for material and mesh modifications
         model._Add_observer(self)
         mesh._Add_observer(self)
 
