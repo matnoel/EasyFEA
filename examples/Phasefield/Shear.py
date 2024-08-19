@@ -15,7 +15,7 @@ import multiprocessing
 
 # Display.Clear()
 
-useParallel = True
+useParallel = False
 nProcs = 4 # number of processes in parallel
 
 # ----------------------------------------------
@@ -25,7 +25,7 @@ dim = 2
 
 doSimu = True
 # Mesh
-meshTest = True
+meshTest = False
 openCrack = True
 optimMesh = True
 
@@ -164,18 +164,15 @@ def DoSimu(split: str, regu: str):
         config = f"""
         u_inc = {u_inc:.1e}
         N = {N}
+
         loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)       
         """        
 
         def Loading(dep):
             """Boundary conditions"""
-
             simu.Bc_Init()
-
             if not openCrack:
-                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")            
-            
-            # Left and right travel conditions
+                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
             simu.add_dirichlet(nodes_left, [0],["y"])
             simu.add_dirichlet(nodes_right, [0],["y"])
             simu.add_dirichlet(nodes_upper, [dep,0], ["x","y"])
