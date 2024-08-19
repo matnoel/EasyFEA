@@ -200,9 +200,9 @@ class PhaseFieldSimu(_Simu):
         maxIter : int, optional
             Maximum iterations for convergence, by default 500
         convOption : int, optional
-            - 0 -> convergence on damage np.max(np.abs(d_kp1-dk)) equivalent normInf(d_kp1-dk)\n
-            - 1 -> convergence on crack energy np.abs(psi_crack_kp1 - psi_crack_k)/psi_crack_kp1 \n
-            - 2 -> convergence on total energy np.abs(psi_tot_kp1 - psi_tot_k)/psi_tot_kp1\n
+            - 0 -> convergence on damage np.max(np.abs(d_np1-dk)) equivalent normInf(d_np1-dk)\n
+            - 1 -> convergence on crack energy np.abs(psi_crack_n - psi_crack_np1)/psi_crack_np1 \n
+            - 2 -> convergence on total energy np.abs(psi_tot_n - psi_tot_np1)/psi_tot_np1\n
             - 3 -> eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
 
         Returns
@@ -225,30 +225,34 @@ class PhaseFieldSimu(_Simu):
         dn = self.damage
 
         solver = self.phaseFieldModel.solver
-        regu = self.phaseFieldModel.regularization
 
         tic = Tic()
 
-        while not convergence and Niter <= maxIter:
+        while not convergence and Niter < maxIter:
                     
             Niter += 1
-            if convOption == 0:                    
+            if convOption == 0:
                 d_n = self.damage
+
             elif convOption == 1:
                 psi_n = self._Calc_Psi_Crack()
+
             elif convOption == 2:
                 psi_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
+
             elif convOption == 3:
                 d_n = self.damage
                 u_n = self.displacement
 
-            # Damage
+            # Computes damage field
             d_np1 = self.__Solve_damage()
-            self.__updatedDisplacement = False # new damage -> new displacement matrices
+             # new damage -> new displacement matrices
+            self.__updatedDisplacement = False
 
-            # Displacement            
+            # Computes displacement field
             u_np1 = self.__Solve_elastic()
-            self.__updatedDamage = False # new displacement -> new damage matrices
+            # new displacement -> new damage matrices
+            self.__updatedDamage = False
 
             if convOption == 0:                
                 convIter = np.max(np.abs(d_np1 - d_n))
@@ -259,9 +263,9 @@ class PhaseFieldSimu(_Simu):
                    psi_np1 += self._Calc_Psi_Elas()
 
                 if psi_np1 == 0:
-                    convIter = np.abs(psi_np1 - psi_n)
+                    convIter = np.abs(psi_n - psi_np1)
                 else:
-                    convIter = np.abs(psi_np1 - psi_n)/psi_np1
+                    convIter = np.abs(psi_n - psi_np1)/psi_np1
 
             elif convOption == 3:
                 # eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
@@ -282,7 +286,8 @@ class PhaseFieldSimu(_Simu):
         solverTypes = Materials.PhaseField.SolverType
 
         if solver in [solverTypes.History, solverTypes.BoundConstrain]:
-            d_np1 = d_np1            
+            d_np1 = d_np1
+            
         elif solver == solverTypes.HistoryDamage:
             oldAndNewDamage = np.zeros((d_np1.shape[0], 2))
             oldAndNewDamage[:, 0] = dn
@@ -294,16 +299,20 @@ class PhaseFieldSimu(_Simu):
 
         timeIter = tic.Tac("Resolution phase field", "Phase Field iteration", False)
 
+        # saves solve config
+        self.__tolConv = tolConv
+        self.__convOption = convOption
+        self.__maxIter = maxIter
         # saves iter parameters
         self.__Niter = Niter
         self.__convIter = convIter
         self.__timeIter = timeIter
-        self.__convOption = convOption
 
         Kglob = self.__Ku.copy()
             
         return u_np1, d_np1, Kglob, convergence
 
+    # ------------------------------------------- Elastic problem -------------------------------------------
 
     def __Construct_Elastic_Matrix(self) -> np.ndarray:
         """Computes the elementary stiffness matrices for the elastic problem."""
@@ -386,7 +395,7 @@ class PhaseFieldSimu(_Simu):
        
         return self.displacement
 
-    # ------------------------------------------- PROBLEME ENDOMMAGEMENT ------------------------------------------- 
+    # ------------------------------------------- Damage problem -------------------------------------------
 
     def __Calc_psiPlus_e_pg(self):
         """Computes the positive energy density psi^+ (e, p).\n
@@ -777,7 +786,7 @@ class PhaseFieldSimu(_Simu):
     def Results_Get_Bc_Summary(self) -> str:
         return self.__resumeLoading
 
-    def Results_Set_Iteration_Summary(self, iter: int, load: float, uniteLoad: str, percentage=0.0, remove=False) -> str:
+    def Results_Set_Iteration_Summary(self, iter: int, load: float, unitLoad: str, percentage=0.0, remove=False) -> str:
         """Builds the iteration summary for the damage problem.
 
         Parameters
@@ -786,7 +795,7 @@ class PhaseFieldSimu(_Simu):
             iteration
         load : float
             loading
-        uniteLoad : str
+        unitLoad : str
             loading unit
         percentage : float, optional
             percentage of simualtion performed, by default 0.0
@@ -796,13 +805,13 @@ class PhaseFieldSimu(_Simu):
 
         d = self.damage
 
-        nombreIter = self.__Niter
+        Niter = self.__Niter
         dincMax = self.__convIter
         timeIter = self.__timeIter
 
         min_d = d.min()
         max_d = d.max()
-        summaryIter = f"{iter:4} : {load:4.3f} {uniteLoad}, [{min_d:.2e}; {max_d:.2e}], {nombreIter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
+        summaryIter = f"{iter:4} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
         
         if remove:
             end='\r'
@@ -820,7 +829,19 @@ class PhaseFieldSimu(_Simu):
         self.__resumeIter = summaryIter
 
     def Results_Get_Iteration_Summary(self) -> str: 
-        return self.__resumeIter
+
+        try:
+            resumeIter = f"""
+            tolConv = {self.__tolConv:.1e}
+            maxIter = {self.__maxIter}
+            convOption = {self.__convOption}\n\n
+            """
+        except AttributeError:
+            resumeIter = ""
+
+        resumeIter += self.__resumeIter
+
+        return resumeIter
 
     def Results_dict_Energy(self) -> dict[str, float]:
         PsiElas = self._Calc_Psi_Elas()
