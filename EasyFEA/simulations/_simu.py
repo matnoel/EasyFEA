@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Union
 import numpy as np
 from scipy import sparse
+import textwrap
 
 from ..__about__ import __version__
 # utilities
@@ -220,10 +221,10 @@ class _Simu(_IObserver, ABC):
         text += '\n' + str(self.model)
 
         text += Display.Section("Boundary Conditions", False)
-        text += '\n' + self.Results_Get_Bc_Summary()
+        text += '\n' + textwrap.dedent(self.Results_Get_Bc_Summary())
 
-        text += Display.Section("Results", False)
-        text += '\n' + self.Results_Get_Iteration_Summary()
+        text += Display.Section("Results", False)        
+        text += '\n' + textwrap.dedent(self.Results_Get_Iteration_Summary())
         
         text += Display.Section("TicTac", False)
         
