@@ -164,10 +164,19 @@ def DoSimu(split: str, regu: str):
         uinc0 = 8e-6; uinc1 = 2e-6
 
     config = f"""
+    while ud <= u_max:
+    
+    ud += uinc0 if simu.damage.max() < threshold else uinc1
+
+    u_max = {u_max}
     uinc0 = {uinc0:.1e} (simu.damage.max() < {threshold})
     uinc1 = {uinc1:.1e}
 
-    u_max = {u_max}
+    simu.add_dirichlet(nodes_lower, [0], ["y"])
+    simu.add_dirichlet(nodes_x0y0, [0], ["x"])
+    simu.add_dirichlet(nodes_upper, [-ud], ["y"])
+    if dim == 3:
+        simu.add_dirichlet(nodes_y0z0, [0], ["z"])
     """
 
     # folder name
@@ -219,8 +228,7 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         simu.Results_Set_Bc_Summary(config)
 
-        dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])       
-        
+        dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])        
 
         def Loading(ud: float):
             """Boundary conditions"""            
@@ -249,10 +257,7 @@ def DoSimu(split: str, regu: str):
         while ud <= u_max:
 
             iter += 1
-            if simu.damage.max() < threshold:
-                ud += uinc0
-            else:
-                ud += uinc1
+            ud += uinc0 if simu.damage.max() < threshold else uinc1
 
             if dim == 3 and iter > 1500:
                 break
