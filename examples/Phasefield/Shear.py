@@ -23,7 +23,7 @@ nProcs = 4 # number of processes in parallel
 # ----------------------------------------------
 dim = 2
 
-doSimu = True
+doSimu = False
 # Mesh
 meshTest = False
 openCrack = True
@@ -34,10 +34,10 @@ maxIter = 1000
 
 tolConv = 1e-0 # 1e-1, 1e-2, 1e-3
 tolConv = 1e-1
-tolConv = 1e-2
-tolConv = 1e-3
-tolConv = 1e-4
-tolConv = 1e-5
+# tolConv = 1e-2
+# tolConv = 1e-3
+# tolConv = 1e-4
+# tolConv = 1e-5
 
 pfmSolver = Materials.PhaseField.SolverType.History
 
@@ -50,8 +50,8 @@ splits = ["Amor"]
 regus = ["AT1"] # "AT1", "AT2" 
 
 # PostProcessing
-plotResult = False
-showResult = False
+plotResult = True
+showResult = True
 plotMesh = False
 plotEnergy = False
 saveParaview = False; Nparaview=400
@@ -165,7 +165,14 @@ def DoSimu(split: str, regu: str):
         u_inc = {u_inc:.1e}
         N = {N}
 
-        loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)       
+        loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
+
+        if not openCrack:
+            simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
+        simu.add_dirichlet(nodes_left, [0], ["y"])
+        simu.add_dirichlet(nodes_right, [0], ["y"])
+        simu.add_dirichlet(nodes_upper, [dep,0], ["x","y"])
+        simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_dofs())
         """        
 
         def Loading(dep):
@@ -173,8 +180,8 @@ def DoSimu(split: str, regu: str):
             simu.Bc_Init()
             if not openCrack:
                 simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
-            simu.add_dirichlet(nodes_left, [0],["y"])
-            simu.add_dirichlet(nodes_right, [0],["y"])
+            simu.add_dirichlet(nodes_left, [0], ["y"])
+            simu.add_dirichlet(nodes_right, [0], ["y"])
             simu.add_dirichlet(nodes_upper, [dep,0], ["x","y"])
             simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_dofs())
 
