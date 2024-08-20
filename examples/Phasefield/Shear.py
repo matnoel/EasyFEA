@@ -165,6 +165,8 @@ def DoSimu(split: str, regu: str):
         u_inc = {u_inc:.1e}
         N = {N}
 
+        for iter, dep in enumerate(loadings):
+
         loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
 
         if not openCrack:
