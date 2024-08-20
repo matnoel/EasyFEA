@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # "PlateWithHole_Benchmark", "PlateWithHole_FCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
     # simulation = "Shear_Benchmark"
-    simulation = "Shear_Benchmark"
+    simulation = "PlateWithHole_Benchmark"
 
     meshTest = False
     loadSimu = True
@@ -34,8 +34,8 @@ if __name__ == '__main__':
 
     list_mat = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 
-    list_regu = ["AT2", "AT1"] # ["AT1", "AT2"]
-    # list_regu = ["AT2"] # ["AT1", "AT2"]
+    # list_regu = ["AT2", "AT1"] # ["AT1", "AT2"]
+    list_regu = ["AT2"] # ["AT1", "AT2"]
 
     list_simpli2D = ["DP"] # ["CP","DP"]
     list_solver = ["History"]
@@ -43,13 +43,13 @@ if __name__ == '__main__':
     # list_split = ["Bourdin","Amor","Miehe","He","Zhang"]
     # list_split = ["Bourdin","Amor","Miehe","He","AnisotStrain","AnisotStress","Zhang"]
     # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
-    list_split = ["AnisotStrain","AnisotStress", "He", "Zhang"]
-    # list_split = ["AnisotStress", "He"]
+    # list_split = ["AnisotStrain","AnisotStress", "He", "Zhang"]
+    list_split = ["AnisotStress", "He"]
     # list_split = ["Bourdin","Amor","Miehe"]
-    # list_split = ["AnisotStress"]
+    # list_split = ["He"]
 
     # listOptimMesh=[False, True] # [True, False]
-    listOptimMesh=[False] # [True, False]
+    listOptimMesh=[True] # [True, False]
 
     # listTol = [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
     # listTol = [1e-0, 1e-2]
@@ -67,9 +67,10 @@ if __name__ == '__main__':
     # snapshots = [24.6, 25]
     snapshots = []
 
-    depMax = 20e-5
+    # depMax = 20e-5
     # depMax = 2.5e-5
-    # depMax = 3.5e-5
+    # depMax = 2.46e-5
+    depMax = 3.5e-5
 
     # Génération des configurations
     listConfig = []
@@ -139,6 +140,9 @@ if __name__ == '__main__':
             if nomSimu not in missingSimulations: missingSimulations.append(nomSimu)
             Display.MyPrintError("Simu is not available:\n"+fileForceDep)
         
+        # ----------------------------------------------
+        # Plot loads
+        # ----------------------------------------------
 
         # Loads force and displacement
         if Folder.Exists(fileForceDep):
@@ -160,13 +164,17 @@ if __name__ == '__main__':
             ls = '--' if regu == "AT1" else None
             c = ax_load.get_lines()[-1].get_color() if regu == "AT1" else None
 
-            ax_load.plot(displacement[indexLim]*1e3, np.abs(force[indexLim])*1e-6, c=c, label=text, ls=ls)
+            ax_load.plot(displacement[indexLim]*1e6, np.abs(force[indexLim])*1e-6, c=c, label=text, ls=ls)
 
 
         else:
             if nomSimu not in missingSimulations: missingSimulations.append(nomSimu)
             Display.MyPrintError("Data are not available:\n"+fileForceDep)
-        
+
+
+        # ----------------------------------------------
+        # Plot loads
+        # ----------------------------------------------    
 
         if plotDamage and Folder.Exists(fileSimu):
 
@@ -180,7 +188,7 @@ if __name__ == '__main__':
             # Displays last damage
             filename = foldername.replace(Folder.Get_Path(foldername), "")[1:]
 
-            ax = Display.Plot_Result(simu, "damage", ncolors=21, colorbarIsClose=False)
+            ax = Display.Plot_Result(simu, "damage", ncolors=21, colorbarIsClose=True)
             ax.axis('off'); ax.set_title("")            
             Display.Save_fig(folder_save, f"{filename} last")
 
@@ -196,7 +204,7 @@ if __name__ == '__main__':
                 # ax_load_2.set_xlabel("Déplacement [mm]")
                 # ax_load_2.set_ylabel("Force [kN/mm]")
 
-                for d, dep in enumerate(snapshots):                
+                for d, dep in enumerate(snapshots):
                     
                     try:
                         i = np.where(displacement*1e6>=dep)[0][0]
@@ -224,12 +232,14 @@ if __name__ == '__main__':
                 # Display.Save_fig(folder_save, f"load displacement {filename}")
                 
         
-        
         # text = text.replace("AnisotStrain","Spectral")
         tic.Tac("PostProcessing", split, False)
 
-    ax_load.set_xlabel("Déplacement [mm]")
+    ax_load.set_xlabel("Déplacement [µm]")
     ax_load.set_ylabel("Force [kN/mm]")
+    # ax_load.set_xlabel("Déplacement [mm]")
+    # ax_load.set_ylabel("Force [kN/mm]")
+    
     # ax_load.set_xlabel("displacement [µm]")
     # ax_load.set_ylabel("load [kN/mm]")
     # ax_load.set_xlabel("displacement")
