@@ -47,11 +47,25 @@ if __name__ == '__main__':
     convOption = 2
 
     # loading
-    adaptLoad = True
     # uMax = 1.2 # mm
     uMax = 1 # mm
     inc0 = uMax/200
     inc1 = inc0/2
+
+    config = f"""
+    uMax = {uMax}
+
+    inc0 = {inc0}
+    inc1 = {inc1}
+
+    while ud <= uMax:
+    
+    ud += inc0 if simu.damage.max() < 0.6 else inc1
+
+    simu.add_dirichlet(nodes_circle, [0], ['d'], "damage")
+    simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
+    simu.add_dirichlet(nodes_load, [ud], ['y'])
+    """
 
     # folder
     name = "L_Shape_Benchmark"
@@ -77,7 +91,6 @@ if __name__ == '__main__':
     p5 = Point(2*L,L)
     p6 = Point(2*L,2*L)
     p7 = Point(0,2*L)
-
     if optimMesh:
         # hauteur zone rafinée
         h = 100
@@ -118,6 +131,7 @@ if __name__ == '__main__':
     if doSimu:
 
         simu = Simulations.PhaseFieldSimu(mesh, pfm)
+        simu.Results_Set_Bc_Summary(config)
         
         dofsY_load = simu.Bc_dofs_nodes(nodes_load, ['y'])
         
@@ -150,14 +164,14 @@ if __name__ == '__main__':
             # calc load
             fr = np.sum(Kglob[dofsY_load,:] @ u)
 
-            # save load and displacement
+            # saves load and displacement
             displacement.append(ud)
             force.append(fr)
 
             # print iter
             simu.Results_Set_Iteration_Summary(iter, ud, "mm", ud/uMax, True)
 
-            # save iteration
+            # saves iteration
             simu.Save_Iter()
 
             if pltIter:
@@ -170,15 +184,15 @@ if __name__ == '__main__':
                 plt.pause(1e-12)
 
             if not convergence or np.max(d[nodes_edges]) >= 1:
-                # stop simulation if damage occurs on edges or convergence has not been reached
+                # stops simulation if damage occurs on edges or convergence has not been reached
                 break
         
-        # save load and displacement
+        # saves load and displacement
         displacement = np.asarray(displacement)
         force = np.asarray(force)
         Simulations.Save_Force_Displacement(force, displacement, folderSimu)
 
-        # save the simulation
+        # saves the simulation
         simu.Save(folderSimu)
 
         Tic.Plot_History(folderSimu, True)    
