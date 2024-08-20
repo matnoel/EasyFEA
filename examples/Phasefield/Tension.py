@@ -191,12 +191,22 @@ def DoSimu(split: str, regu: str):
             threshold = uinc0*N0
 
             config = f"""
+            while True: # simu until break
+
             uinc0 = {uinc0:.1e};  N0 = {N0};  dep0 = uinc0*N0 = {dep0}
             uinc1 = {uinc1:.1e};  N0 = {N1};  dep1 = dep0 + uinc1*N1 = {dep1}
 
             threshold = uinc0*N0 = {threshold}
 
             dep += uinc0 if dep < threshold else uinc1
+
+            if not openCrack:
+                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")            
+            if dim == 2:
+                simu.add_dirichlet(nodes_upper, [0,dep], ["x","y"])
+            elif dim == 3:
+                simu.add_dirichlet(nodes_upper, [0,dep,0], ["x","y","z"])
+            simu.add_dirichlet(nodes_lower, [0],["y"])
             """
 
         else:
@@ -208,8 +218,18 @@ def DoSimu(split: str, regu: str):
             threshold = 0.6
 
             config = f"""
+            while True: # simu until break
+
             uinc0 = {uinc0:.1e} (simu.damage.max() < {threshold})
             uinc1 = {uinc1:.1e}
+
+            if not openCrack:
+                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")            
+            if dim == 2:
+                simu.add_dirichlet(nodes_upper, [0,dep], ["x","y"])
+            elif dim == 3:
+                simu.add_dirichlet(nodes_upper, [0,dep,0], ["x","y","z"])
+            simu.add_dirichlet(nodes_lower, [0],["y"])
             """
 
         def Loading(dep):
@@ -247,7 +267,7 @@ def DoSimu(split: str, regu: str):
             if materialType == 'Elas_Isot':
                 dep += uinc0 if dep < threshold else uinc1
             else:
-                if np.max( simu.damage[nodes_detect]) < threshold:
+                if np.max(simu.damage[nodes_detect]) < threshold:
                     dep += uinc0
                 else:
                     dep += uinc1
@@ -256,7 +276,7 @@ def DoSimu(split: str, regu: str):
             Loading(dep)
 
             # solve and save iter
-            u, d, Kglob, converg = simu.Solve(tolConv, maxIter, convOption=1)
+            u, _, Kglob, converg = simu.Solve(tolConv, maxIter, convOption=1)
             simu.Save_Iter()
 
             # print iter solution
