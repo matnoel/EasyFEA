@@ -128,15 +128,29 @@ mat = Materials.Elas_Isot(dim, thickness=thickness, planeStress=True)
 pfm = Materials.PhaseField(mat, split, regu, Gc, l0)
 
 if doSimu:
+    
+    displacements = np.linspace(0, L/40, 50)
+
+    config = f"""
+    displacements = np.linspace(0, L/40, 50)
+
+    for i, dep in enumerate(displacements):
+
+    if dim == 2:
+        simu.add_dirichlet(nodes_1, [0,-dep], ["x","y"])
+        simu.add_dirichlet(nodes_2, [0,dep], ["x","y"])
+    else:
+        simu.add_dirichlet(nodes_1, [0,-dep, 0], ["x", "y", "z"])
+        simu.add_dirichlet(nodes_2, [0,dep, 0], ["x", "y", "z"])
+    """
 
     simu = Simulations.PhaseFieldSimu(mesh, pfm)
-
-    deplacements = np.linspace(0, L/40, 50)
+    simu.Results_Set_Bc_Summary(config)
 
     if plotIter:
         ax = Display.Plot_Result(simu, "damage", 1, plotMesh=True)
 
-    for i, dep in enumerate(deplacements):
+    for i, dep in enumerate(displacements):
 
         simu.Bc_Init()    
 
@@ -151,7 +165,7 @@ if doSimu:
 
         u, d, K, converg = simu.Solve()
         
-        simu.Results_Set_Iteration_Summary(i, dep, "mm", i/deplacements.size, remove=True)
+        simu.Results_Set_Iteration_Summary(i, dep, "mm", i/displacements.size, remove=True)
 
         assert converg
 
