@@ -898,7 +898,7 @@ class _GroupElem(ABC):
         functions = np.reshape(functions, (self.nPe, -1))
         return functions
 
-    # Here we use legendre polynomials
+    # Here we use lagrange polynomials
 
     @abstractmethod
     def _Ntild(self) -> np.ndarray:
