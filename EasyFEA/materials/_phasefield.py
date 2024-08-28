@@ -231,7 +231,7 @@ class PhaseField(_IModel):
     @property
     def A(self) -> np.ndarray:
         """matrix characterizing the weak anisotropy in the crack surface density function"""
-        return self.__A
+        return self.__A.copy()
     
     @A.setter
     def A(self, array: np.ndarray) -> None:
