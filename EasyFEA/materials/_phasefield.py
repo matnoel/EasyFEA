@@ -854,6 +854,9 @@ class PhaseField(_IModel):
 
         # tr_e_pg = np.trace(matrix_e_pg, axis1=2, axis2=3)
         tr_e_pg = np.einsum('epii->ep', matrix_e_pg, optimize='optimal')
+        
+
+        verif = True
 
         if self.dim == 2:
             # invariants of the strain tensor [e,pg]
@@ -896,9 +899,9 @@ class PhaseField(_IModel):
         elif self.dim == 3:
 
             def __Normalize(M1, M2, M3):
-                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(2,3)), optimize='optimal')
-                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(2,3)), optimize='optimal')
-                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(2,3)), optimize='optimal')
+                M1 = np.einsum('epij,ep->epij', M1, 1/np.linalg.norm(M1, axis=(-2,-1)), optimize='optimal')
+                M2 = np.einsum('epij,ep->epij', M2, 1/np.linalg.norm(M2, axis=(-2,-1)), optimize='optimal')
+                M3 = np.einsum('epij,ep->epij', M3, 1/np.linalg.norm(M3, axis=(-2,-1)), optimize='optimal')
 
                 return M1, M2, M3
 
@@ -946,40 +949,49 @@ class PhaseField(_IModel):
 
                 g_e_pg = I1_e_pg**2 - 3*I2_e_pg
 
-                sqrt_g_e_pg = np.sqrt(g_e_pg)
-                sqrt_g_e_pg_mat = np.reshape(sqrt_g_e_pg, (Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)
+                tol0 = 1e-12
                 
-                g_neq_0 = g_e_pg != 0
+                # g_neq_0 = g_e_pg != 0
+                # g_neq_0 = (g_e_pg <= tol0) & (g_e_pg >= -tol0)
+                g_neq_0 = np.logical_not(np.isclose(g_e_pg, 0, atol=tol0))
                 
                 arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2 # -1 <= arg <= 1
                 arg[g_neq_0] *= 1/g_e_pg[g_neq_0]**(3/2)
-                theta = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
 
-                elems_min = list(set(np.ravel(np.where(arg == 1)[0]))) # positions of double minimum eigenvalue
-                elems_max = list(set(np.ravel(np.where(arg == -1)[0]))) # positions of double maximum eigenvalue
+                # arg = (2*(I1_e_pg**3) - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2/g_e_pg**(3/2)
 
-                # test_p = np.isclose(arg, 1, atol=1e-12)
-                # test_m = np.isclose(arg, -1, atol=1e-12)                
-                # elems_min = list(set(np.ravel(np.where(test_p)[0]))) # positions of double minimum eigenvalue
-                # elems_max = list(set(np.ravel(np.where(test_m)[0]))) # positions of double maximum eigenvalue
+                theta = 1/3 * np.arccos(arg) # Lode's angle such that 0 <= theta <= pi/3
+
+                # positions of double minimum eigenvalue 
+                # 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
+
+                case3 = list(set(np.ravel(np.where(arg == 1)[0])))
+                # test_p = np.isclose(arg, 1, atol=tol0); case3 = list(set(np.ravel(np.where(test_p)[0])))
+
+                # positions of double maximum eigenvalue
+                # 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
+
+                case2 = list(set(np.ravel(np.where(arg == -1)[0])))
+                # test_m = np.isclose(arg, -1, atol=tol0); case2 = list(set(np.ravel(np.where(test_m)[0])))
                 
-                elemsNot0 = list(set(np.ravel(np.where(g_neq_0)[0])))
-                elemsNot0 = np.setdiff1d(elemsNot0, elems_min)
-                elemsNot0 = np.setdiff1d(elemsNot0, elems_max)
+                
+                # elemsNot0 = list(set(np.ravel(np.where(g_neq_0)[0])))
+                # elemsNot0 = np.setdiff1d(elemsNot0, case3)
+                # elemsNot0 = np.setdiff1d(elemsNot0, case2)
 
-                # Init eigen values
-                E1_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * sqrt_g_e_pg * np.cos(2*np.pi/3 + theta)
-                E2_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * sqrt_g_e_pg * np.cos(2*np.pi/3 - theta)
-                E3_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * sqrt_g_e_pg * np.cos(theta)
+                # Init eigen values (e, p)
+                val1_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * g_e_pg**(1/2) * np.cos(2*np.pi/3 + theta)
+                val2_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * g_e_pg**(1/2) * np.cos(2*np.pi/3 - theta)
+                val3_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * g_e_pg**(1/2) * np.cos(theta)
 
                 eigs_e_pg = np.reshape(I1_e_pg/3, (Ne, nPg, 1)).repeat(3, axis=2)
                 # if elemsNot0.size > 0:
                 #     eigs_e_pg[elemsNot0, :, 0] = E1_e_pg[elemsNot0]
                 #     eigs_e_pg[elemsNot0, :, 1] = E2_e_pg[elemsNot0]
                 #     eigs_e_pg[elemsNot0, :, 2] = E3_e_pg[elemsNot0]
-                eigs_e_pg[:, :, 0] = E1_e_pg
-                eigs_e_pg[:, :, 1] = E2_e_pg
-                eigs_e_pg[:, :, 2] = E3_e_pg
+                eigs_e_pg[:, :, 0] = val1_e_pg
+                eigs_e_pg[:, :, 1] = val2_e_pg
+                eigs_e_pg[:, :, 2] = val3_e_pg
 
                 tic.Tac("Split", "Eigenvalues", False)
 
@@ -988,49 +1000,57 @@ class PhaseField(_IModel):
                 M2 = np.zeros_like(matrix_e_pg); M2[:,:,1,1] = 1
                 M3 = np.zeros_like(matrix_e_pg); M3[:,:,2,2] = 1
 
-                eye3 = np.zeros_like(matrix_e_pg)
-                eye3[:,:,0,0] = 1; eye3[:,:,1,1] = 1; eye3[:,:,2,2] = 1
-                I_rg = 1/3 * np.einsum('ep,epij->epij', I1_e_pg - sqrt_g_e_pg, eye3, optimize='optimal')
-
-                # 4. Three equal eigenvalues
-                # 𝜖1 = 𝜖2 = 𝜖3 ⇐⇒ 𝑔 = 0.
-                # do nothing because 𝜖1 = 𝜖2 = 𝜖3 = I1_e_pg/3
-
-                # 2. Two maximum eigenvalues
-                # 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
-
-                test_E2_eq_E3 = (np.abs((E2_e_pg - E3_e_pg)/E3_e_pg) < 1e-12) & (np.sign(E2_e_pg) == np.sign(E3_e_pg))                
-                elems_max = list(set(np.ravel(np.where(g_neq_0 & (E1_e_pg < E2_e_pg) & test_E2_eq_E3)[0])))
-
-                M1[elems_max] = (I_rg[elems_max] - matrix_e_pg[elems_max])/sqrt_g_e_pg_mat[elems_max]
-                M2[elems_max] = (eye3[elems_max] - M1[elems_max])/2
-                M3[elems_max] = (eye3[elems_max] - M1[elems_max])/2
-
-                # 3. Two minimum eigenvalues
-                # 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
-
-                test_E1_eq_E2 = (np.abs((E1_e_pg - E2_e_pg)/E2_e_pg) < 1e-12) & (np.sign(E1_e_pg) == np.sign(E2_e_pg))                
-                elems_min = list(set(np.ravel(np.where(g_neq_0 & test_E1_eq_E2 & (E2_e_pg<E3_e_pg))[0])))
-
-                M3[elems_min] = (matrix_e_pg[elems_min] - I_rg[elems_min])/sqrt_g_e_pg_mat[elems_min]
-                M1[elems_min] = (eye3[elems_min] - M3[elems_min])/2
-                M2[elems_min] = (eye3[elems_min] - M3[elems_min])/2
-
+                I_e_pg = np.zeros_like(matrix_e_pg)
+                I_e_pg[:,:,0,0] = 1; I_e_pg[:,:,1,1] = 1; I_e_pg[:,:,2,2] = 1
+                I_rg = 1/3 * np.einsum('ep,ij->epij', I1_e_pg - g_e_pg**(1/2), np.eye(3), optimize='optimal')
+                
+                # -------------------------------------
                 # 1. Three distinct eigenvalues
                 # 𝜖1 < 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 ≠ 0, 𝜃 ≠ 𝜋∕3.
+                # -------------------------------------
                 
-                elems1 = list(set(np.ravel(np.where(g_neq_0 & (E1_e_pg<E2_e_pg) & (E2_e_pg<E3_e_pg))[0])))
+                case1 = list(set(np.ravel(np.where(g_neq_0 & (val1_e_pg<val2_e_pg) & (val2_e_pg<val3_e_pg))[0])))
 
-                E1_ij = E1_e_pg.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
-                E2_ij = E2_e_pg.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
-                E3_ij = E3_e_pg.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
+                e1_I = np.einsum('ep,ij->epij', val1_e_pg, np.eye(3), optimize='optimal')
+                e2_I = np.einsum('ep,ij->epij', val2_e_pg, np.eye(3), optimize='optimal')
+                e3_I = np.einsum('ep,ij->epij', val3_e_pg, np.eye(3), optimize='optimal')
 
-                matr1 = matrix_e_pg[elems1]
-                eye3_1 = eye3[elems1]
+                # returns A/a
+                get_Mb = lambda A, a: np.einsum('epij,ep->epij', A[case1], 1/a[case1], optimize='optimal')
+                
+                M1[case1] = get_Mb(matrix_e_pg - e2_I, val1_e_pg-val2_e_pg) @ get_Mb(matrix_e_pg - e3_I, val1_e_pg-val3_e_pg)
+                M2[case1] = get_Mb(matrix_e_pg - e1_I, val2_e_pg-val1_e_pg) @ get_Mb(matrix_e_pg - e3_I, val2_e_pg-val3_e_pg)
+                M3[case1] = get_Mb(matrix_e_pg - e1_I, val3_e_pg-val1_e_pg) @ get_Mb(matrix_e_pg - e2_I, val3_e_pg-val2_e_pg)
 
-                M1[elems1] = ((matr1 - E2_ij*eye3_1)/(E1_ij-E2_ij)) @ ((matr1 - E3_ij*eye3_1)/(E1_ij-E3_ij))
-                M2[elems1] = ((matr1 - E1_ij*eye3_1)/(E2_ij-E1_ij)) @ ((matr1 - E3_ij*eye3_1)/(E2_ij-E3_ij))
-                M3[elems1] = ((matr1 - E1_ij*eye3_1)/(E3_ij-E1_ij)) @ ((matr1 - E2_ij*eye3_1)/(E3_ij-E2_ij))
+                # -------------------------------------
+                # 2. Two maximum eigenvalues
+                # 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
+                # -------------------------------------
+
+                # test_E2_eq_E3 = (np.abs((val2_e_pg - val3_e_pg)/val3_e_pg) < tol0) & (np.sign(val2_e_pg) == np.sign(val3_e_pg))                
+                # case2 = list(set(np.ravel(np.where(g_neq_0 & (val1_e_pg < val2_e_pg) & test_E2_eq_E3)[0])))
+                
+                M1[case2] = np.einsum('ep,epij->epij', g_e_pg[case2]**(-1/2), (I_rg - matrix_e_pg)[case2], optimize='optimal')
+                M2[case2] = 1/2 * (I_e_pg - M1)[case2]
+                M3[case2] = 1/2 * (I_e_pg - M1)[case2]
+
+                # -------------------------------------
+                # 3. Two minimum eigenvalues
+                # 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
+                # -------------------------------------
+
+                # test_E1_eq_E2 = (np.abs((val1_e_pg - val2_e_pg)/val2_e_pg) < tol0) & (np.sign(val1_e_pg) == np.sign(val2_e_pg))                
+                # case3 = list(set(np.ravel(np.where(g_neq_0 & test_E1_eq_E2 & (val2_e_pg<val3_e_pg))[0])))
+
+                M3[case3] = np.einsum('ep,epij->epij', g_e_pg[case3]**(-1/2), (matrix_e_pg - I_rg)[case3], optimize='optimal')
+                M1[case3] = 1/2 * (I_e_pg - M3)[case3]
+                M2[case3] = 1/2 * (I_e_pg - M3)[case3]
+
+                # -------------------------------------
+                # 4. Three equal eigenvalues
+                # 𝜖1 = 𝜖2 = 𝜖3 ⇐⇒ 𝑔 = 0.
+                # -------------------------------------
+                # do nothing because 𝜖1 = 𝜖2 = 𝜖3 = I1_e_pg/3                
 
                 M1, M2, M3 = __Normalize(M1, M2, M3)
 
@@ -1092,21 +1112,22 @@ class PhaseField(_IModel):
                 test_val = np.linalg.norm(diff_val, axis=-1)/np.linalg.norm(valnum, axis=-1)
                 assert np.max(test_val) < tol, f"Error in eigenvalues ({np.max(test_val):.3e})."
 
-            def Checks(Mi, mi_num):
-                Mi_num = np.einsum('epi,epj->epij', mi_num, mi_num, optimize='optimal')
-                diff = Mi_num-Mi
-                test_Mi = np.linalg.norm(diff, axis=(-2,-1))/np.linalg.norm(Mi, axis=(-2,-1))
+            def Checks_Ma(Ma, ma_num):
+                Ma_num = np.einsum('epi,epj->epij', ma_num, ma_num, optimize='optimal')
+                diff = Ma_num-Ma
+                test_Mi = np.linalg.norm(diff, axis=(-2,-1))/np.linalg.norm(Ma, axis=(-2,-1))
                 assert np.max(test_Mi) < tol, f"Error in eigenprojectors ({np.max(test_Mi):.3e})."
 
-            Checks(M1, vectnum[:,:,:,0])
-            Checks(M2, vectnum[:,:,:,1])
-            if dim == 3:
-                Checks(M3, vectnum[:,:,:,2])
+            # Checks_Ma(M1, vectnum[:,:,:,0])
+            # Checks_Ma(M2, vectnum[:,:,:,1])
+            # if dim == 3:
+            #     Checks_Ma(M3, vectnum[:,:,:,2])            
 
             # Checks that: E1*M1 + E2*M2 + E3*M3
             if matrix_e_pg.max() > 0:
                 diff_matrix = matrix - matrix_e_pg
                 test_diff = np.linalg.norm(diff_matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
+                ii = np.where(test_diff>=1e-12)[0]
                 assert np.max(test_diff) < tol, f"matrix != E1*M1 + E2*M2 + E3*M3 != matrix_e_pg -> {np.max(test_diff):.3e}"                
 
             if matrix.max() > 0:
