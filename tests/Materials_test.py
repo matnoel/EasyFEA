@@ -5,37 +5,39 @@
 import unittest
 
 from EasyFEA import np
+from EasyFEA import Geoms, Mesher, Simulations
 # materials
 from EasyFEA.Materials import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot,  PhaseField
 from EasyFEA.materials import Get_Pmat, Apply_Pmat, KelvinMandel_Matrix
 
 class Test_Materials(unittest.TestCase):
+    
     def setUp(self):
         
-        comportements: list[_Elas] = []
+        elasticMaterials: list[_Elas] = []
         
         for comp in _Elas.Available_Laws():
             if comp == Elas_Isot:
-                comportements.append(
+                elasticMaterials.append(
                     Elas_Isot(2, E=210e9, v=0.3, planeStress=True)
                     )
-                comportements.append(
+                elasticMaterials.append(
                     Elas_Isot(2, E=210e9, v=0.3, planeStress=False)
                     )
-                comportements.append(
+                elasticMaterials.append(
                     Elas_Isot(3, E=210e9, v=0.3)
                     )
             elif comp == Elas_IsotTrans:
-                comportements.append(
+                elasticMaterials.append(
                     Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, axis_l=[1,0,0], axis_t=[0,1,0])
                     )
-                comportements.append(
+                elasticMaterials.append(
                     Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,axis_l=[0,1,0], axis_t=[1,0,0])
                     )
-                comportements.append(
+                elasticMaterials.append(
                     Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=True)
                     )
-                comportements.append(
+                elasticMaterials.append(
                     Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=False))
 
             elif comp == Elas_Anisot:
@@ -50,30 +52,29 @@ class Test_Materials(unittest.TestCase):
                 axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
                 axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
 
-                comportements.append(
+                elasticMaterials.append(
                     Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
                     )
 
-                comportements.append(
+                elasticMaterials.append(
                     Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
                 )
-                comportements.append(
+                elasticMaterials.append(
                     Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
                     )
-                comportements.append(
+                elasticMaterials.append(
                     Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
                     )
         
-        # phasefieldModel
         self.splits = PhaseField.Get_splits()
         self.regularizations = PhaseField.Get_regularisations()
         self.phaseFieldModels: list[PhaseField] = []
 
         splits_Isot = [PhaseField.SplitType.Amor, PhaseField.SplitType.Miehe, PhaseField.SplitType.Stress]
 
-        self.comportements = comportements
+        self.elasticMaterials = elasticMaterials
 
-        for c in comportements:
+        for c in elasticMaterials:
             for s in self.splits:
                 for r in self.regularizations:
                         
@@ -82,17 +83,16 @@ class Test_Materials(unittest.TestCase):
 
                     pfm = PhaseField(c,s,r,1,1)
                     self.phaseFieldModels.append(pfm)
-            
 
     def test_Elas_Isot(self):
 
-        for comp in self.comportements:
-            self.assertIsInstance(comp, _Elas)
-            if isinstance(comp, Elas_Isot):
-                E = comp.E
-                v = comp.v
-                if comp.dim == 2:
-                    if comp.planeStress:
+        for mat in self.elasticMaterials:
+            self.assertIsInstance(mat, _Elas)
+            if isinstance(mat, Elas_Isot):
+                E = mat.E
+                v = mat.v
+                if mat.dim == 2:
+                    if mat.planeStress:
                         C_voigt = E/(1-v**2) * np.array([   [1, v, 0],
                                                             [v, 1, 0],
                                                             [0, 0, (1-v)/2]])
@@ -108,10 +108,10 @@ class Test_Materials(unittest.TestCase):
                                                                 [0, 0, 0, 0, (1-2*v)/2, 0],
                                                                 [0, 0, 0, 0, 0, (1-2*v)/2]  ])
                 
-                c = KelvinMandel_Matrix(comp.dim, C_voigt)
+                c = KelvinMandel_Matrix(mat.dim, C_voigt)
                     
-                verifC = np.linalg.norm(c-comp.C)/np.linalg.norm(c)
-                self.assertTrue(verifC < 1e-12)
+                test_C = np.linalg.norm(c-mat.C)/np.linalg.norm(c)
+                self.assertTrue(test_C < 1e-12, f"test_C = {test_C:.3e}")
 
     def test_Elas_Anisot(self):
 
@@ -129,31 +129,27 @@ class Test_Materials(unittest.TestCase):
         axis1_1 = np.array([1,0,0])
         axis2_1 = np.array([0,1,0])
 
-        tetha = 30*np.pi/130
-        axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
-        axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
+        a = 30*np.pi/130
+        axis1_2 = np.array([np.cos(a),np.sin(a),0])
+        axis2_2 = np.array([-np.sin(a),np.cos(a),0])
 
-        comportement2D_CP_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
-        comportement2D_DP_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
+        mat_2D_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
         
-        comportement2D_CP_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
-        comportement2D_DP_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
+        mat_2D_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)        
 
-        comportement2D_CP_3 = Elas_Anisot(2, C_voigt2D, True)
-        comportement2D_DP_3 = Elas_Anisot(2, C_voigt2D, True)
+        mat_2D_3 = Elas_Anisot(2, C_voigt2D, True)        
         
-        comportement3D_1 = Elas_Anisot(3, C_voigt3D, True, axis1_1, axis2_1)
-        comportement3D_2 = Elas_Anisot(3, C_voigt3D, True, axis1_2, axis2_2)
+        mat_3D_1 = Elas_Anisot(3, C_voigt3D, True, axis1_1, axis2_1)
+        mat_3D_2 = Elas_Anisot(3, C_voigt3D, True, axis1_2, axis2_2)
 
-        listComp = [comportement2D_CP_1, comportement2D_DP_1, comportement2D_CP_2, comportement2D_DP_2, comportement3D_1, comportement3D_2]
+        listComp = [mat_2D_1, mat_2D_2, mat_2D_3, mat_3D_1, mat_3D_2]
 
         for comp in listComp: 
             matC = comp.C
-            testSymetry = np.linalg.norm(matC.T - matC)
-            assert testSymetry <= 1e-12
+            test_Symetry = np.linalg.norm(matC.T - matC)
+            assert test_Symetry <= 1e-12
     
-    def test_ElasIsotTrans(self):
-        # Here we check that when we change the axes it works well
+    def test_Elas_IsotTrans(self):
 
         El=11580
         Et=500
@@ -168,24 +164,24 @@ class Test_Materials(unittest.TestCase):
         #               [0, 0, 0, 0, 2*Gl, 0],
         #               [0, 0, 0, 0, 0, 2*Gl]])
 
-        # Verif1 axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
-        compElasIsotTrans1 = Elas_IsotTrans(2,
+        # axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
+        mat1 = Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     planeStress=False,
                     axis_l=np.array([1,0,0]), axis_t=np.array([0,1,0]))
 
-        Gt = compElasIsotTrans1.Gt
-        kt = compElasIsotTrans1.kt
+        Gt = mat1.Gt
+        kt = mat1.kt
 
         c1 = np.array([[El+4*vl**2*kt, 2*kt*vl, 0],
                       [2*kt*vl, kt+Gt, 0],
                       [0, 0, 2*Gl]])
 
-        verifc1 = np.linalg.norm(c1 - compElasIsotTrans1.C)/np.linalg.norm(c1)
-        self.assertTrue(verifc1 < 1e-12)
+        test_c1 = np.linalg.norm(c1 - mat1.C)/np.linalg.norm(c1)
+        self.assertTrue(test_c1 < 1e-12, f"test_c1 = {test_c1:.3e}")
 
-        # Verif2 axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
-        compElasIsotTrans2 = Elas_IsotTrans(2,
+        # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
+        mat2 = Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     planeStress=False,
                     axis_l=np.array([0,1,0]), axis_t=np.array([1,0,0]))
@@ -194,16 +190,11 @@ class Test_Materials(unittest.TestCase):
                       [2*kt*vl, El+4*vl**2*kt, 0],
                       [0, 0, 2*Gl]])
 
-        verifc2 = np.linalg.norm(c2 - compElasIsotTrans2.C)/np.linalg.norm(c2)
-        self.assertTrue(verifc2 < 1e-12)
+        test_c2 = np.linalg.norm(c2 - mat2.C)/np.linalg.norm(c2)
+        self.assertTrue(test_c2 < 1e-12, f"test_c2 = {test_c2:.3e}")
 
-        # # Verif3 axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
-        # compElasIsotTrans3 = Elas_IsotTrans(2,
-        #             El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
-        #             planeStress=False,
-        #             axis_l=[0,0,1], axis_t=[1,0,0])
-        
-        compElasIsotTrans3 = Elas_IsotTrans(2,
+        # axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
+        mat = Elas_IsotTrans(2,
                     El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,
                     planeStress=False,
                     axis_l=[0,0,1], axis_t=[1,0,0])
@@ -212,11 +203,10 @@ class Test_Materials(unittest.TestCase):
                       [kt-Gt, kt+Gt, 0],
                       [0, 0, 2*Gt]])
 
-        verifc3 = np.linalg.norm(c3 - compElasIsotTrans3.C)/np.linalg.norm(c3)
-        self.assertTrue(verifc3 < 1e-12)
+        test_c3 = np.linalg.norm(c3 - mat.C)/np.linalg.norm(c3)
+        self.assertTrue(test_c3 < 1e-12, f"test_c3 = {test_c3:.3e}")
 
     def test_getPmat(self):
-        """Test the way we construct Pmat and apply it"""
 
         Ne = 10
         p = 3
@@ -256,33 +246,32 @@ class Test_Materials(unittest.TestCase):
                 for ax1, ax2 in [(axis1, axis2),(axis1_e, axis2_e),(axis1_e_p, axis2_e_p)]:                
                     Pmat = Get_Pmat(ax1, ax2)
                     
-                    # test mat to global coordo
+                    # checks mat to global coord
                     Cglob = Apply_Pmat(Pmat, C)
                     Sglob = Apply_Pmat(Pmat, S)    
-                    self.__checkInvariants(Cglob, C)
-                    self.__checkInvariants(Sglob, S)
+                    self.__check_invariants(Cglob, C)
+                    self.__check_invariants(Sglob, S)
 
-                    # test global to mat coordo
+                    # checks global to mat coord
                     Cmat = Apply_Pmat(Pmat, Cglob, toGlobal=False)
                     Smat = Apply_Pmat(Pmat, Sglob, toGlobal=False)
-                    self.__checkInvariants(Cmat, C, True)
-                    self.__checkInvariants(Smat, S, True)
+                    self.__check_invariants(Cmat, C, True)
+                    self.__check_invariants(Smat, S, True)
 
-                    # test Ps, Pe
+                    # checks Ps, Pe
                     Ps, Pe = Get_Pmat(ax1, ax2, False)
                     transp = np.arange(Ps.ndim)
                     transp[-1], transp[-2] = transp[-2], transp[-1]
-                    # inv(Ps) = Pe'
+                    # checks inv(Ps) = Pe'
                     testPs = np.linalg.norm(np.linalg.inv(Ps) - Pe.transpose(transp))/np.linalg.norm(Pe.transpose(transp))
-                    assert testPs <= 1e-12, "inv(Ps) != Pe'"
-                    # inv(Pe) = Ps'
+                    assert testPs <= 1e-12, f"inv(Ps) != Pe' -> {testPs:.3e}"
+                    # checks inv(Pe) = Ps'
                     testPe = np.linalg.norm(np.linalg.inv(Pe) - Ps.transpose(transp))/np.linalg.norm(Ps.transpose(transp))
-                    assert testPe <= 1e-12, "inv(Pe) = Ps'"
+                    assert testPe <= 1e-12, f"inv(Pe) = Ps' -> {testPe:.3e}"
 
-
-    def __checkInvariants(self, mat1: np.ndarray, mat2: np.ndarray, checkSame=False):
-        # We check that the tensor invariants do not change!
-        # first we need to reshape Matrix
+    def __check_invariants(self, mat1: np.ndarray, mat2: np.ndarray, checkSame=False):
+        
+        tol = 1e-12
 
         shape1, dim1 = mat1.shape, mat1.ndim
         shape2, dim2 = mat2.shape, mat2.ndim
@@ -306,40 +295,63 @@ class Test_Materials(unittest.TestCase):
         tr2 = np.trace(mat2, axis1=-2, axis2=-1)
         trErr = (tr1 - tr2)/tr2
         test_trace = np.linalg.norm(trErr)
-        assert test_trace <= 1e-12, "The trace is not preserved during the process"            
+        assert test_trace <= tol, f"The trace is not preserved during the process (test_trace = {test_trace:.3e})"
         
         det1 = np.linalg.det(mat1)
         det2 = np.linalg.det(mat2)
         detErr = (det1 - det2)/det2
         test_det = np.linalg.norm(detErr)
-        assert test_det <= 1e-12, "The determinant is not preserved during the process"
+        assert test_det <= tol, f"The determinant is not preserved during the process (test_det = {test_det:.3e})"
 
         if checkSame:
             matErr = (mat1 - mat2)
-            # test_mat = np.linalg.norm(matErr)
-            test_mat = np.linalg.norm((mat1 - mat2))/np.linalg.norm(mat2)
-            assert test_mat <= 1e-12, "mat1 != mat2"
+            test_mat = np.linalg.norm(matErr)/np.linalg.norm(mat2)
+            assert test_mat <= tol, "mat1 != mat2"
     
+    def __cal_eps(self, dim) -> np.ndarray:
+
+        mat = Elas_Isot(dim)
+
+        L = 2
+        H = 1
+        domain = Geoms.Domain(Geoms.Point(), Geoms.Point(L, H), L/20)
+        circle = Geoms.Circle(Geoms.Point(L/2, H/2), H/4, L/20)
+        
+        if dim == 2:
+            mesh = Mesher().Mesh_2D(domain, [circle])
+        else:            
+            mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,H/3])
+
+        simu = Simulations.ElasticSimu(mesh, mat)
+        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0]*simu.Get_dof_n(), simu.Get_dofs())
+        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==L), [L*1e-5], ["x"])
+        u = simu.Solve()
+
+        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u)
+
+        return Epsilon_e_pg
+
     def test_split_phaseField(self):
-        """Function that allows you to test all energy decomposition models"""
+        
         print()
-        Ne = 50
-        nPg = 2
 
-        np.random.seed(3)
+        Ne = 1000
+        nPg = 3
 
-        # Creation of any 2 2D spilons
-        Epsilon2D_e_pg = np.random.randn(Ne,nPg,3)
+        # Creates 2D random strain field
+        Epsilon2D_e_pg = self.__cal_eps(2)
+        # Epsilon2D_e_pg = np.random.rand(Ne,nPg,3) * 1e-3
 
-        # Creation of any 2 3D spilons
-        Epsilon3D_e_pg = np.random.randn(Ne,nPg,6)
-                
-        tol = 1e-11
+        # Creates 3D random strain field
+        Epsilon3D_e_pg = self.__cal_eps(3)        
+        # Epsilon3D_e_pg = np.random.rand(Ne,nPg,6) * 1e-3
 
-        for pfm in self.phaseFieldModels:
-            
+        for p, pfm in enumerate(self.phaseFieldModels):            
+
             mat: _Elas = pfm.material
-            c = mat.C                
+            c = mat.C
+
+            tol = 1e-12 if mat.dim == 2 else 1e-12
             
             print(f"{type(mat).__name__} {mat.simplification} {pfm.split} {pfm.regularization}")
 
@@ -350,28 +362,30 @@ class Test_Materials(unittest.TestCase):
 
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
 
-            # Test that cP + cM = c
+            # Checks that cP + cM = c
             cpm = cP_e_pg + cM_e_pg
-            decompC = c - cpm
-            verifC = np.linalg.norm(decompC, axis=(-2,-1))/np.linalg.norm(c, axis=(-2,-1))
-            self.assertTrue(np.max(verifC) <= tol)
+            decomp_C = c - cpm
+            test_C = np.max(np.linalg.norm(decomp_C, axis=(-2,-1))/np.linalg.norm(c, axis=(-2,-1)))
+            if test_C >= tol:
+                pass
+            self.assertTrue(test_C <= tol, f"test_C = {test_C:.3e}")
 
-            # Test that SigP + SigM = Sig
+            # Checks that SigP + SigM = Sig
             Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
             SigP = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal')
             SigM = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal') 
-            decompSig = Sig_e_pg-(SigP+SigM)           
-            verifSig = np.linalg.norm(decompSig, axis=(-2,-1))/np.linalg.norm(Sig_e_pg, axis=(-2,-1))
+            decomp_Sig = Sig_e_pg - (SigP+SigM)           
+            test_Sig = np.max(np.linalg.norm(decomp_Sig, axis=-1)/np.linalg.norm(Sig_e_pg, axis=-1))
             if np.linalg.norm(Sig_e_pg)>0:                
-                self.assertTrue(np.max(verifSig) <= tol)
+                self.assertTrue(test_Sig <= tol, f"test_Sig = {test_Sig:.3e}")
                 
-            # Test that Eps:C:Eps = Eps:(cP+cM):Eps
-            energy_c = np.einsum('epj,ij,epi->ep', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
-            energy_cP = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cP_e_pg, Epsilon_e_pg, optimize='optimal')
-            energy_cM = np.einsum('epj,epij,epi->ep', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
-            verifEnergy = np.linalg.norm(energy_c-(energy_cP+energy_cM))/np.linalg.norm(energy_c)
-            if np.linalg.norm(energy_c)>0:
-                self.assertTrue(np.max(verifEnergy) <= tol)
+            # Checks that Eps:C:Eps = Eps:(cP+cM):Eps
+            psi = 1/2 * np.einsum('epi,ij,epj->', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
+            psi_P = 1/2 * np.einsum('epi,epij,epj->', Epsilon_e_pg, cP_e_pg, Epsilon_e_pg, optimize='optimal')
+            psi_M = 1/2 * np.einsum('epi,epij,epj->', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
+            test_psi = np.abs(psi-(psi_P+psi_M))/psi
+            if np.linalg.norm(psi)>0:
+                self.assertTrue(np.max(test_psi) <= tol, f"test_psi = {test_psi:.3e}")
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
