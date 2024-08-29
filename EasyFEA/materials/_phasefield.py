@@ -289,7 +289,7 @@ class PhaseField(_IModel):
 
     @property
     def Gc(self) -> Union[float, np.ndarray]:
-        """critical energy release rate (e.g J/m^2)"""
+        """critical energy release rate (e.g. J/m^2)"""
         return self.__Gc
     
     @Gc.setter
@@ -769,15 +769,23 @@ class PhaseField(_IModel):
 
         tic.Tac("Split",f"proj Tild to proj", False)
 
+        cP_e_pg = sqrtC @ (projPt_e_pg @ sqrtC)
+        cM_e_pg = sqrtC @ (projMt_e_pg @ sqrtC)
+
+        tP = C @ projP_e_pg - cP_e_pg
+        tM = C @ projM_e_pg - cM_e_pg
+        pass
+
+        # cP_e_pg = C @ projP_e_pg
+        # cM_e_pg = C @ projM_e_pg
+
         # cP_e_pg = np.einsum('epji,jk,epkl->epil', projP_e_pg, C, projP_e_pg, optimize='optimal')
         # cM_e_pg = np.einsum('epji,jk,epkl->epil', projM_e_pg, C, projM_e_pg, optimize='optimal')
 
-        # faster
+        # # faster
         # cP_e_pg = np.transpose(projP_e_pg, (0,1,3,2)) @ C @ projP_e_pg
         # cM_e_pg = np.transpose(projM_e_pg, (0,1,3,2)) @ C @ projM_e_pg
         
-        cP_e_pg = C @ projP_e_pg
-        cM_e_pg = C @ projM_e_pg
                 
         # cP_e_pg = projP_e_pg @ C
         # cM_e_pg = projM_e_pg @ C
@@ -898,6 +906,8 @@ class PhaseField(_IModel):
 
             if version == 'eigh':
 
+                # valnum, vectnum = np.linalg.eig(matrix_e_pg)
+
                 valnum, vectnum = np.linalg.eigh(matrix_e_pg)
 
                 tic.Tac("Split", "np.linalg.eigh", False)
@@ -920,47 +930,56 @@ class PhaseField(_IModel):
                 a21_e_pg = matrix_e_pg[:,:,1,0]; a22_e_pg = matrix_e_pg[:,:,1,1]; a23_e_pg = matrix_e_pg[:,:,1,2]
                 a31_e_pg = matrix_e_pg[:,:,2,0]; a32_e_pg = matrix_e_pg[:,:,2,1]; a33_e_pg = matrix_e_pg[:,:,2,2]
 
-                det_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))            
+                det_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))
+                # test_det = det_e_pg - np.linalg.det(matrix_e_pg) 
 
                 # Invariants
                 I1_e_pg = tr_e_pg
                 # mat_mat = np.einsum('epij,epjk->epik', matrice_e_pg, matrice_e_pg, optimize='optimal')
                 mat_mat = matrix_e_pg @ matrix_e_pg
-                trace_mat_mat = np.einsum('epii->ep', mat_mat, optimize='optimal')
+                trace_mat_mat = np.trace(mat_mat, axis1=-2, axis2=-1)
+                # test_trace = np.einsum('epii->ep', mat_mat, optimize='optimal') - trace_mat_mat
                 I2_e_pg = (tr_e_pg**2 - trace_mat_mat)/2
                 I3_e_pg = det_e_pg
 
                 tic.Tac("Split", "Invariants", False)
 
-                h = I1_e_pg**2 - 3*I2_e_pg                
+                g_e_pg = I1_e_pg**2 - 3*I2_e_pg
 
-                racine_h = np.sqrt(h)
-                racine_h_ij = racine_h.reshape((Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)            
+                sqrt_g_e_pg = np.sqrt(g_e_pg)
+                sqrt_g_e_pg_mat = np.reshape(sqrt_g_e_pg, (Ne, nPg, 1, 1)).repeat(3, axis=2).repeat(3, axis=3)
+                
+                g_neq_0 = g_e_pg != 0
                 
                 arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg)/2 # -1 <= arg <= 1
-                arg[h != 0] *= 1/h[h != 0]**(3/2)
+                arg[g_neq_0] *= 1/g_e_pg[g_neq_0]**(3/2)
+                theta = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
 
-                phi = np.arccos(arg)/3 # Lode's angle such that 0 <= theta <= pi/3
+                elems_min = list(set(np.ravel(np.where(arg == 1)[0]))) # positions of double minimum eigenvalue
+                elems_max = list(set(np.ravel(np.where(arg == -1)[0]))) # positions of double maximum eigenvalue
 
-                filtreNot0 = h != 0
-                elemsNot0 = list(set(np.ravel(np.where(filtreNot0)[0])))
-
-                elemsMin = list(set(np.ravel(np.where(arg == 1)[0]))) # positions of double minimum eigenvalue            
-                elemsMax = list(set(np.ravel(np.where(arg == -1)[0]))) # positions of double maximum eigenvalue
-
-                elemsNot0 = np.setdiff1d(elemsNot0, elemsMin)
-                elemsNot0 = np.setdiff1d(elemsNot0, elemsMax)                
+                # test_p = np.isclose(arg, 1, atol=1e-12)
+                # test_m = np.isclose(arg, -1, atol=1e-12)                
+                # elems_min = list(set(np.ravel(np.where(test_p)[0]))) # positions of double minimum eigenvalue
+                # elems_max = list(set(np.ravel(np.where(test_m)[0]))) # positions of double maximum eigenvalue
+                
+                elemsNot0 = list(set(np.ravel(np.where(g_neq_0)[0])))
+                elemsNot0 = np.setdiff1d(elemsNot0, elems_min)
+                elemsNot0 = np.setdiff1d(elemsNot0, elems_max)
 
                 # Init eigen values
-                E1_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * racine_h * np.cos(2*np.pi/3 + phi)
-                E2_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * racine_h * np.cos(2*np.pi/3 - phi)
-                E3_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * racine_h * np.cos(phi)
+                E1_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * sqrt_g_e_pg * np.cos(2*np.pi/3 + theta)
+                E2_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * sqrt_g_e_pg * np.cos(2*np.pi/3 - theta)
+                E3_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * sqrt_g_e_pg * np.cos(theta)
 
-                eigs_e_pg = (I1_e_pg/3).reshape((Ne, nPg, 1)).repeat(3, axis=2)
-                if elemsNot0.size > 0:
-                    eigs_e_pg[elemsNot0, :, 0] = E1_e_pg[elemsNot0]
-                    eigs_e_pg[elemsNot0, :, 1] = E2_e_pg[elemsNot0]
-                    eigs_e_pg[elemsNot0, :, 2] = E3_e_pg[elemsNot0]
+                eigs_e_pg = np.reshape(I1_e_pg/3, (Ne, nPg, 1)).repeat(3, axis=2)
+                # if elemsNot0.size > 0:
+                #     eigs_e_pg[elemsNot0, :, 0] = E1_e_pg[elemsNot0]
+                #     eigs_e_pg[elemsNot0, :, 1] = E2_e_pg[elemsNot0]
+                #     eigs_e_pg[elemsNot0, :, 2] = E3_e_pg[elemsNot0]
+                eigs_e_pg[:, :, 0] = E1_e_pg
+                eigs_e_pg[:, :, 1] = E2_e_pg
+                eigs_e_pg[:, :, 2] = E3_e_pg
 
                 tic.Tac("Split", "Eigenvalues", False)
 
@@ -971,7 +990,7 @@ class PhaseField(_IModel):
 
                 eye3 = np.zeros_like(matrix_e_pg)
                 eye3[:,:,0,0] = 1; eye3[:,:,1,1] = 1; eye3[:,:,2,2] = 1
-                I_rg = np.einsum('ep,epij->epij', I1_e_pg - racine_h, eye3/3, optimize='optimal')
+                I_rg = 1/3 * np.einsum('ep,epij->epij', I1_e_pg - sqrt_g_e_pg, eye3, optimize='optimal')
 
                 # 4. Three equal eigenvalues
                 # 𝜖1 = 𝜖2 = 𝜖3 ⇐⇒ 𝑔 = 0.
@@ -979,22 +998,28 @@ class PhaseField(_IModel):
 
                 # 2. Two maximum eigenvalues
                 # 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
-                
-                elems2 = list(set(np.ravel(np.where(filtreNot0 & (E1_e_pg<E2_e_pg) & (E2_e_pg==E3_e_pg))[0])))
-                M1[elems2] = ((I_rg[elems2] - matrix_e_pg[elems2])/racine_h_ij[elems2])
-                M2[elems2] = M3[elems2] = (eye3[elems2] - M1[elems2])/2
+
+                test_E2_eq_E3 = (np.abs((E2_e_pg - E3_e_pg)/E3_e_pg) < 1e-12) & (np.sign(E2_e_pg) == np.sign(E3_e_pg))                
+                elems_max = list(set(np.ravel(np.where(g_neq_0 & (E1_e_pg < E2_e_pg) & test_E2_eq_E3)[0])))
+
+                M1[elems_max] = (I_rg[elems_max] - matrix_e_pg[elems_max])/sqrt_g_e_pg_mat[elems_max]
+                M2[elems_max] = (eye3[elems_max] - M1[elems_max])/2
+                M3[elems_max] = (eye3[elems_max] - M1[elems_max])/2
 
                 # 3. Two minimum eigenvalues
                 # 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
-                
-                elems3 = list(set(np.ravel(np.where(filtreNot0 & (E1_e_pg==E2_e_pg) & (E2_e_pg<E3_e_pg))[0])))
-                M3[elems3] = ((matrix_e_pg[elems3] - I_rg[elems3])/racine_h_ij[elems3])
-                M1[elems3] = M2[elems3] = (eye3[elems3] - M3[elems3])/2
+
+                test_E1_eq_E2 = (np.abs((E1_e_pg - E2_e_pg)/E2_e_pg) < 1e-12) & (np.sign(E1_e_pg) == np.sign(E2_e_pg))                
+                elems_min = list(set(np.ravel(np.where(g_neq_0 & test_E1_eq_E2 & (E2_e_pg<E3_e_pg))[0])))
+
+                M3[elems_min] = (matrix_e_pg[elems_min] - I_rg[elems_min])/sqrt_g_e_pg_mat[elems_min]
+                M1[elems_min] = (eye3[elems_min] - M3[elems_min])/2
+                M2[elems_min] = (eye3[elems_min] - M3[elems_min])/2
 
                 # 1. Three distinct eigenvalues
                 # 𝜖1 < 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 ≠ 0, 𝜃 ≠ 𝜋∕3.
                 
-                elems1 = list(set(np.ravel(np.where(filtreNot0 & (E1_e_pg<E2_e_pg) & (E2_e_pg<E3_e_pg))[0])))
+                elems1 = list(set(np.ravel(np.where(g_neq_0 & (E1_e_pg<E2_e_pg) & (E2_e_pg<E3_e_pg))[0])))
 
                 E1_ij = E1_e_pg.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
                 E2_ij = E2_e_pg.reshape((Ne,nPg,1,1)).repeat(3, axis=2).repeat(3, axis=3)[elems1]
@@ -1026,13 +1051,13 @@ class PhaseField(_IModel):
         elif dim == 3:
             # [x, y, z, yz, xz, xy]
             m1 = np.zeros((Ne,nPg,6)); m2 = np.zeros_like(m1);  m3 = np.zeros_like(m1)
-            m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]; m3[:,:,0] = M3[:,:,0,0]
-            m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]; m3[:,:,1] = M3[:,:,1,1]
-            m1[:,:,2] = M1[:,:,2,2];   m2[:,:,2] = M2[:,:,2,2]; m3[:,:,2] = M3[:,:,2,2]
+            m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]; m3[:,:,0] = M3[:,:,0,0] # x
+            m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]; m3[:,:,1] = M3[:,:,1,1] # y
+            m1[:,:,2] = M1[:,:,2,2];   m2[:,:,2] = M2[:,:,2,2]; m3[:,:,2] = M3[:,:,2,2] # z
             
-            m1[:,:,3] = M1[:,:,1,2]*coef;   m2[:,:,3] = M2[:,:,1,2]*coef;   m3[:,:,3] = M3[:,:,1,2]*coef
-            m1[:,:,4] = M1[:,:,0,2]*coef;   m2[:,:,4] = M2[:,:,0,2]*coef;   m3[:,:,4] = M3[:,:,0,2]*coef
-            m1[:,:,5] = M1[:,:,0,1]*coef;   m2[:,:,5] = M2[:,:,0,1]*coef;   m3[:,:,5] = M3[:,:,0,1]*coef
+            m1[:,:,3] = M1[:,:,1,2]*coef;   m2[:,:,3] = M2[:,:,1,2]*coef;   m3[:,:,3] = M3[:,:,1,2]*coef # yz
+            m1[:,:,4] = M1[:,:,0,2]*coef;   m2[:,:,4] = M2[:,:,0,2]*coef;   m3[:,:,4] = M3[:,:,0,2]*coef # xz
+            m1[:,:,5] = M1[:,:,0,1]*coef;   m2[:,:,5] = M2[:,:,0,1]*coef;   m3[:,:,5] = M3[:,:,0,1]*coef # xy
 
             list_m = [m1, m2, m3]
 
@@ -1041,6 +1066,8 @@ class PhaseField(_IModel):
         tic.Tac("Split", "Eigenvectors", False)        
         
         if verif:
+
+            tol = 1e-12 if dim == 2 else 1e-12
             
             valnum, vectnum = np.linalg.eigh(matrix_e_pg)
 
@@ -1061,15 +1088,15 @@ class PhaseField(_IModel):
 
             # checks if the default values are correct
             if valnum.max() > 0:
-                ecartVal = eigs_e_pg - valnum                    
-                testval = np.linalg.norm(ecartVal)/np.linalg.norm(valnum)
-                assert testval <= 1e-12, "Error in the calculation of eigenvalues."
+                diff_val = eigs_e_pg - valnum                    
+                test_val = np.linalg.norm(diff_val, axis=-1)/np.linalg.norm(valnum, axis=-1)
+                assert np.max(test_val) < tol, f"Error in eigenvalues ({np.max(test_val):.3e})."
 
             def Checks(Mi, mi_num):
                 Mi_num = np.einsum('epi,epj->epij', mi_num, mi_num, optimize='optimal')
-                ecart = Mi_num-Mi
-                erreur = np.linalg.norm(ecart)/np.linalg.norm(Mi)
-                assert erreur <= 1e-10, "Error in the calculation of eigenprojectors."
+                diff = Mi_num-Mi
+                test_Mi = np.linalg.norm(diff, axis=(-2,-1))/np.linalg.norm(Mi, axis=(-2,-1))
+                assert np.max(test_Mi) < tol, f"Error in eigenprojectors ({np.max(test_Mi):.3e})."
 
             Checks(M1, vectnum[:,:,:,0])
             Checks(M2, vectnum[:,:,:,1])
@@ -1078,26 +1105,25 @@ class PhaseField(_IModel):
 
             # Checks that: E1*M1 + E2*M2 + E3*M3
             if matrix_e_pg.max() > 0:
-                ecart_matrix = matrix - matrix_e_pg
-                errorMatrix = np.linalg.norm(ecart_matrix)/np.linalg.norm(matrix_e_pg)
-                assert errorMatrix <= 1e-10, "matrice != E1*M1 + E2*M2 + E3*M3 != matrix_e_pg"                
+                diff_matrix = matrix - matrix_e_pg
+                test_diff = np.linalg.norm(diff_matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
+                assert np.max(test_diff) < tol, f"matrix != E1*M1 + E2*M2 + E3*M3 != matrix_e_pg -> {np.max(test_diff):.3e}"                
 
             if matrix.max() > 0:
-                erreurMatriceNumMatrice = np.linalg.norm(matrix_eig - matrix)/np.linalg.norm(matrix)
-                assert erreurMatriceNumMatrice <= 1e-10, "matrice != matrice_num"
+                test_eig = np.linalg.norm(matrix_eig - matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
+                assert np.max(test_eig) < tol, f"matrix != matrix_eig -> {np.max(test_eig):.3e}"
 
             # checks orthogonality between M1 and M2
-            verifOrtho_M1M2 = np.einsum('epij,epij->ep', M1, M2, optimize='optimal')
-            textTest = "Orthogonality not verified"
-            assert np.abs(verifOrtho_M1M2).max() <= 1e-9, textTest
+            test_M1_M2 = np.abs(np.einsum('epij,epij->ep', M1, M2, optimize='optimal'))
+            assert np.max(test_M1_M2) < tol, f"Orthogonality M1 : M2 not verified -> {np.max(test_M1_M2):.3e}"
 
             if dim == 3:
                 # checks orthogonality between M1 and M3
-                verifOrtho_M1M3 = np.einsum('epij,epij->ep', M1, M3, optimize='optimal')
-                assert np.abs(verifOrtho_M1M3).max() <= 1e-9, textTest
+                test_M1_M3 = np.abs(np.einsum('epij,epij->ep', M1, M3, optimize='optimal'))
+                assert np.max(test_M1_M3) < tol, f"Orthogonality M1 : M3 not verified -> {np.max(test_M1_M3):.3e}"
                 # checks orthogonality between M2 and M3
-                verifOrtho_M2M3 = np.einsum('epij,epij->ep', M2, M3, optimize='optimal')
-                assert np.abs(verifOrtho_M2M3).max() <= 1e-9, textTest
+                test_M2_M3 = np.abs(np.einsum('epij,epij->ep', M2, M3, optimize='optimal'))
+                assert np.max(test_M2_M3) < tol, f"Orthogonality M2 : M3 not verified -> {np.max(test_M2_M3):.3e}"
 
         return eigs_e_pg, list_m, list_M
     
@@ -1286,6 +1312,9 @@ class PhaseField(_IModel):
             tic.Tac("Split", "projP and projM", False)
 
         if verif:
+
+            tol = 1e-11 if dim == 2 else 1e-12
+
             # checks orthogonality
             vectorP = np.einsum('epij,epj->epi', projP, vector_e_pg, optimize='optimal')
             vectorM = np.einsum('epij,epj->epi', projM, vector_e_pg, optimize='optimal')
@@ -1293,10 +1322,11 @@ class PhaseField(_IModel):
             # checks that: vector_e_pg = vectorP_e_pg + vectorM_e_pg
             decomp = vector_e_pg-(vectorP + vectorM)
             if np.linalg.norm(vector_e_pg) > 0:
-                # verif_decomp = np.linalg.norm(decomp,axis=-1)/np.linalg.norm(vector_e_pg,axis=-1)
-                # assert np.max(verif_decomp) <= 1e-11, "vector_e_pg != vectorP_e_pg + vectorM_e_pg"
+                verif_decomp = np.max(np.linalg.norm(decomp,axis=-1)/np.linalg.norm(vector_e_pg,axis=-1))
                 verif_decomp = np.linalg.norm(decomp)/np.linalg.norm(vector_e_pg)
-                assert verif_decomp <= 1e-12, "vector_e_pg != vectorP_e_pg + vectorM_e_pg"
+                if verif_decomp >= tol:
+                    pass
+                assert verif_decomp <= tol, f"vector_e_pg != vectorP_e_pg + vectorM_e_pg -> {verif_decomp:.3e}"
 
             # checks orthogonality
             ortho_vP_vM = np.abs(np.einsum('epi,epi->ep', vectorP, vectorM, optimize='optimal'))
@@ -1304,8 +1334,8 @@ class PhaseField(_IModel):
             ortho_v_v = np.abs(np.einsum('epi,epi->ep', vector_e_pg, vector_e_pg, optimize='optimal'))
             if ortho_v_v.min() > 0:
                 verif_PM = np.max(ortho_vP_vM/ortho_v_v)
-                assert verif_PM <= 1e-12
+                assert verif_PM <= tol, f"{verif_PM:.3e}"
                 verif_MP = np.max(ortho_vM_vP/ortho_v_v)
-                assert verif_MP <= 1e-12
+                assert verif_MP <= tol, f"{verif_MP:.3e}"
             
         return projP, projM
