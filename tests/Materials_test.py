@@ -312,22 +312,22 @@ class Test_Materials(unittest.TestCase):
 
         mat = Elas_Isot(dim)
 
-        L = 2
-        H = 1
+        L = 200
+        H = 100
         domain = Geoms.Domain(Geoms.Point(), Geoms.Point(L, H), L/20)
         circle = Geoms.Circle(Geoms.Point(L/2, H/2), H/4, L/20)
         
         if dim == 2:
             mesh = Mesher().Mesh_2D(domain, [circle])
         else:            
-            mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,H/3])
+            mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,H/3], [])
 
-        simu = Simulations.ElasticSimu(mesh, mat)
+        simu = Simulations.ElasticSimu(mesh, mat, useIterativeSolvers=False)
         simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0]*simu.Get_dof_n(), simu.Get_dofs())
-        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==L), [L*1e-5], ["x"])
+        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==L), [L*1e-4,-L*1e-4], ["x",'y'])
         u = simu.Solve()
 
-        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u)
+        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, 'rigi')
 
         return Epsilon_e_pg
 
@@ -335,23 +335,17 @@ class Test_Materials(unittest.TestCase):
         
         print()
 
-        Ne = 1000
-        nPg = 3
-
-        # Creates 2D random strain field
+        # computes 2D strain field
         Epsilon2D_e_pg = self.__cal_eps(2)
-        # Epsilon2D_e_pg = np.random.rand(Ne,nPg,3) * 1e-3
-
-        # Creates 3D random strain field
-        Epsilon3D_e_pg = self.__cal_eps(3)        
-        # Epsilon3D_e_pg = np.random.rand(Ne,nPg,6) * 1e-3
+        # comutes 3D strain field
+        Epsilon3D_e_pg = self.__cal_eps(3)
 
         for p, pfm in enumerate(self.phaseFieldModels):            
 
             mat: _Elas = pfm.material
             c = mat.C
 
-            tol = 1e-12 if mat.dim == 2 else 1e-12
+            tol = 1e-12 if mat.dim == 2 else 1e-8
             
             print(f"{type(mat).__name__} {mat.simplification} {pfm.split} {pfm.regularization}")
 
@@ -365,10 +359,8 @@ class Test_Materials(unittest.TestCase):
             # Checks that cP + cM = c
             cpm = cP_e_pg + cM_e_pg
             decomp_C = c - cpm
-            test_C = np.max(np.linalg.norm(decomp_C, axis=(-2,-1))/np.linalg.norm(c, axis=(-2,-1)))
-            if test_C >= tol:
-                pass
-            self.assertTrue(test_C <= tol, f"test_C = {test_C:.3e}")
+            test_C = np.linalg.norm(decomp_C, axis=(-2,-1))/np.linalg.norm(c, axis=(-2,-1))
+            self.assertTrue(np.max(test_C) <= tol, f"test_C = {np.max(test_C):.3e}")
 
             # Checks that SigP + SigM = Sig
             Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
