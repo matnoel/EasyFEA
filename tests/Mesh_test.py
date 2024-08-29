@@ -21,8 +21,6 @@ class Test_Mesh(unittest.TestCase):
             dim = mesh.dim
             connect = mesh.connect
             elements = range(mesh.Ne)
-            pgs = np.arange(mesh.Get_nPg("rigi"))
-            nPe = connect.shape[1]
 
             # Verification assembly
             assembly_e_test = np.array([[int(n * dim + d)for n in connect[e] for d in range(dim)] for e in elements])
