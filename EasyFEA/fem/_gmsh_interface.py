@@ -436,7 +436,30 @@ class Mesher:
                 geom_line = factory.addCircleArc(p1, p3, p2)
             else:
                 raise Exception("You need to give lines or arcs.")
-            factory.fragment(ents, [(1, geom_line)], removeTool=False)                
+            factory.fragment(ents, [(1, geom_line)], removeTool=False)
+
+    def _Additional_Points(self, dim: int, points:list[Point]) -> None:
+        """Adds points to existing dim entities.
+
+        Parameters
+        ----------
+        dim : int
+            dimension (dim >= 1)
+        points : list[Point]
+            points
+        """
+        
+        assert dim >= 1
+
+        factory = self._factory
+
+        for point in points:
+            ents = factory.getEntities(dim)
+            if isinstance(point, Point):
+                p = factory.addPoint(*point.coord)
+            else:
+                raise Exception("You need to give lines or arcs.")
+            factory.fragment(ents, [(0, p)], removeTool=False)
 
     def _Spline_From_Points(self, points: Points) -> tuple[int, list[int]]:
         """Creates a gmsh spline from points.\n
@@ -904,7 +927,7 @@ class Mesher:
 
         return crackLines, crackSurfaces, openPoints, openLines
 
-    def Mesh_Beams(self, beams: list, elemType=ElemType.SEG2, folder="") -> Mesh:
+    def Mesh_Beams(self, beams: list, elemType=ElemType.SEG2, additionalPoints:list[Point]=[], folder="") -> Mesh:
         """Creates a beam mesh.
 
         Parameters
@@ -921,6 +944,8 @@ class Mesher:
         Mesh
             Created mesh
         """
+
+        # TODO Update docstrings
 
         # materials
         from ..materials._beam import _Beam
@@ -950,7 +975,9 @@ class Mesher:
             points.append(p2)
 
             line = factory.addLine(p1, p2)
-            lines.append(line)        
+            lines.append(line)
+
+        self._Additional_Points(1, additionalPoints)
         
         self._Set_PhysicalGroups(setLines=False)
 
@@ -999,7 +1026,7 @@ class Mesher:
     def Mesh_2D(self, contour: _Geom, inclusions: list[_Geom]=[], elemType=ElemType.TRI3,
                 cracks:list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
                 isOrganised=False, additionalSurfaces:list[_Geom]=[],
-                additionalLines:list[Union[Line,CircleArc]]=[], folder="") -> Mesh:
+                additionalLines:list[Union[Line,CircleArc]]=[], additionalPoints: list[Point]=[], folder="") -> Mesh:
         """Creates a 2D mesh from a contour and inclusions that must form a closed plane surface.
 
         Parameters
@@ -1020,6 +1047,8 @@ class Mesher:
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+        additionalPoints : list[Point]
+            additional points that will be added to the surfaces created by the contour and the inclusions.
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
 
@@ -1040,6 +1069,7 @@ class Mesher:
         self._Surfaces(contour, inclusions, elemType, isOrganised)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)        
         self._Additional_Lines(2, additionalLines)
+        self._Additional_Points(2, additionalPoints)
 
         # Recovers 2D entities
         entities2D = factory.getEntities(2)
@@ -1065,7 +1095,7 @@ class Mesher:
                 extrude=[0,0,1], layers:list[int]=[], elemType=ElemType.TETRA4,
                 cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
                 isOrganised=False, additionalSurfaces:list[_Geom]=[],
-                additionalLines:list[Union[Line,CircleArc]]=[], folder="") -> Mesh:
+                additionalLines:list[Union[Line,CircleArc]]=[], additionalPoints: list[Point]=[], folder="") -> Mesh:
         """Creates a 3D mesh by extruding a surface constructed from a contour and inclusions.
 
         Parameters
@@ -1090,6 +1120,8 @@ class Mesher:
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+        additionalPoints : list[Point]
+            additional points that will be added to the surfaces created by the contour and the inclusions.
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
 
@@ -1110,6 +1142,7 @@ class Mesher:
         self._Surfaces(contour, inclusions)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
+        self._Additional_Points(2, additionalPoints)
 
         # get created surfaces        
         surfaces = [entity[1] for entity in factory.getEntities(2)]
@@ -1137,7 +1170,7 @@ class Mesher:
                      axis: Line=Line(Point(), Point(0,1)), angle=360, layers:list[int]=[30], elemType=ElemType.TETRA4,
                      cracks: list[_Geom]=[], refineGeoms: list[Union[_Geom,str]]=[],
                      isOrganised=False, additionalSurfaces:list[_Geom]=[],
-                     additionalLines:list[Union[Line,CircleArc]]=[],  folder="") -> Mesh:
+                     additionalLines:list[Union[Line,CircleArc]]=[], additionalPoints: list[Point]=[], folder="") -> Mesh:
         """Creates a 3D mesh by rotating a surface along an axis.
 
         Parameters
@@ -1164,6 +1197,8 @@ class Mesher:
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+        additionalPoints : list[Point]
+            additional points that will be added to the surfaces created by the contour and the inclusions.
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
 
@@ -1184,6 +1219,7 @@ class Mesher:
         self._Surfaces(contour, inclusions)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
+        self._Additional_Points(2, additionalPoints)
 
         # get created surfaces
         surfaces = [entity[1] for entity in factory.getEntities(2)]
