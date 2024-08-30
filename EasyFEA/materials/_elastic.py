@@ -8,7 +8,7 @@ from typing import Union
 # utilities
 from .. import np
 # others
-from ..Geoms import As_Coordinates
+from ..Geoms import As_Coordinates, Normalize_vect
 from ._utils import (_IModel, ModelType,
                      Reshape_variable, Heterogeneous_Array,
                      Tensor_Product,
@@ -398,8 +398,8 @@ class Elas_IsotTrans(_Elas):
         assert axis_l.size == 3 and len(axis_l.shape) == 1, 'axis_l must be a 3D vector'
         assert axis_t.size == 3 and len(axis_t.shape) == 1, 'axis_t must be a 3D vector'
         assert axis_l @ axis_t <= 1e-12, 'axis1 and axis2 must be perpendicular'
-        self.__axis_l = axis_l
-        self.__axis_t = axis_t
+        self.__axis_l = Normalize_vect(axis_l)
+        self.__axis_t = Normalize_vect(axis_t)
 
         _Elas.__init__(self, dim, thickness, planeStress)
 
@@ -567,22 +567,25 @@ class Elas_IsotTrans(_Elas):
         
         material_cM = Heterogeneous_Array(material_cM)
 
-        # # checks that S = C^-1
-        # assert np.linalg.norm(material_sM - np.linalg.inv(material_cM)) < 1e-10
-        # # checks that C = S^-1
-        # assert np.linalg.norm(material_cM - np.linalg.inv(material_sM)) < 1e-10
+        if len(material_cM.shape) == 2:
+            # checks that S = C^-1
+            diff_S = np.linalg.norm(material_sM - np.linalg.inv(material_cM), axis=(-2,-1))/np.linalg.norm(material_sM, axis=(-2,-1))
+            assert np.max(diff_S) < 1e-12
+            # checks that C = S^-1
+            diff_C = np.linalg.norm(material_cM - np.linalg.inv(material_sM), axis=(-2,-1))/np.linalg.norm(material_cM, axis=(-2,-1))
+            assert np.max(diff_C) < 1e-12
 
         # Performs a base change to orient the material in space
         global_sM = Apply_Pmat(P, material_sM)
         global_cM = Apply_Pmat(P, material_cM)
         
-        # checks that if the axes does not change, the same behavior law is obtained
-        test_diff_c = global_cM - material_cM
-        if useSameAxis: assert(np.linalg.norm(test_diff_c)<1e-12)
-
-        # checks that if the axes does not change, the same behavior law is obtained
-        test_diff_s = global_sM - material_sM
-        if useSameAxis: assert np.linalg.norm(test_diff_s) < 1e-12
+        if useSameAxis:            
+            # checks that if the axes does not change, the same constitutive law is obtained
+            test_diff_c = np.linalg.norm(global_cM - material_cM, axis=(-2,-1))/np.linalg.norm(material_cM, axis=(-2,-1))
+            assert np.max(test_diff_c) < 1e-12
+            
+            test_diff_s = np.linalg.norm(global_sM - material_sM, axis=(-2,-1))/np.linalg.norm(material_sM, axis=(-2,-1))
+            assert np.max(test_diff_s) < 1e-12
         
         c = global_cM
         s = global_sM
@@ -705,8 +708,8 @@ class Elas_Anisot(_Elas):
         assert axis1.size == 3 and len(axis1.shape) == 1, 'axis1 must be a 3D vector'
         assert axis2.size == 3 and len(axis2.shape) == 1, 'axis2 must be a 3D vector'
         assert axis1 @ axis2 <= 1e-12, 'axis1 and axis2 must be perpendicular'
-        self.__axis1 = axis1
-        self.__axis2 = axis2
+        self.__axis1 = Normalize_vect(axis1)
+        self.__axis2 = Normalize_vect(axis2)
 
         # here planeStress is set to False because we just know the C matrix
         _Elas.__init__(self, dim, thickness, False)
