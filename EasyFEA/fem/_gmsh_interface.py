@@ -938,14 +938,14 @@ class Mesher:
             element type, by default "SEG2" ["SEG2", "SEG3", "SEG4"]
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
+        additionalPoints : list[Point]
+            additional points that will be added to the surfaces created by the contour and the inclusions.
 
         Returns
         -------
         Mesh
             Created mesh
         """
-
-        # TODO Update docstrings
 
         # materials
         from ..materials._beam import _Beam
