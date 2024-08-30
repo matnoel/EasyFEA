@@ -28,8 +28,9 @@ class Test_Materials(unittest.TestCase):
                     Elas_Isot(3, E=210e9, v=0.3)
                     )
             elif comp == Elas_IsotTrans:
+                c = np.sqrt(2)/2
                 elasticMaterials.append(
-                    Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, axis_l=[1,0,0], axis_t=[0,1,0])
+                    Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, axis_l=[c,c,0], axis_t=[c,-c,0])
                     )
                 elasticMaterials.append(
                     Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,axis_l=[0,1,0], axis_t=[1,0,0])
@@ -314,20 +315,20 @@ class Test_Materials(unittest.TestCase):
 
         L = 200
         H = 100
-        domain = Geoms.Domain(Geoms.Point(), Geoms.Point(L, H), L/20)
-        circle = Geoms.Circle(Geoms.Point(L/2, H/2), H/4, L/20)
+        domain = Geoms.Domain(Geoms.Point(), Geoms.Point(L, H))
+        circle = Geoms.Circle(Geoms.Point(L/2, H/2), H/4)
         
         if dim == 2:
-            mesh = Mesher().Mesh_2D(domain, [circle])
+            mesh = Mesher().Mesh_2D(domain, [circle], "TRI3")
         else:            
-            mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,H/3], [])
+            mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,H/3], [4], "PRISM6")
 
         simu = Simulations.ElasticSimu(mesh, mat, useIterativeSolvers=False)
         simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0]*simu.Get_dof_n(), simu.Get_dofs())
         simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==L), [L*1e-4,-L*1e-4], ["x",'y'])
         u = simu.Solve()
 
-        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, 'rigi')
+        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, 'mass')
 
         return Epsilon_e_pg
 
@@ -340,12 +341,10 @@ class Test_Materials(unittest.TestCase):
         # comutes 3D strain field
         Epsilon3D_e_pg = self.__cal_eps(3)
 
-        for p, pfm in enumerate(self.phaseFieldModels):            
+        for pfm in self.phaseFieldModels:
 
             mat: _Elas = pfm.material
             c = mat.C
-
-            tol = 1e-12 if mat.dim == 2 else 1e-8
             
             print(f"{type(mat).__name__} {mat.simplification} {pfm.split} {pfm.regularization}")
 
@@ -355,6 +354,9 @@ class Test_Materials(unittest.TestCase):
                 Epsilon_e_pg = Epsilon3D_e_pg
 
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
+
+            # Rounding errors in the construction of 3D eigen projectors see [Remark M] in EasyFEA/materials/_phaseField.py
+            tol = 1e-12 if mat.dim == 2 else 1e-10
 
             # Checks that cP + cM = c
             cpm = cP_e_pg + cM_e_pg
@@ -367,17 +369,17 @@ class Test_Materials(unittest.TestCase):
             SigP = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal')
             SigM = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal') 
             decomp_Sig = Sig_e_pg - (SigP+SigM)           
-            test_Sig = np.max(np.linalg.norm(decomp_Sig, axis=-1)/np.linalg.norm(Sig_e_pg, axis=-1))
-            if np.linalg.norm(Sig_e_pg)>0:                
-                self.assertTrue(test_Sig <= tol, f"test_Sig = {test_Sig:.3e}")
+            test_Sig = np.linalg.norm(decomp_Sig, axis=-1)/np.linalg.norm(Sig_e_pg, axis=-1)
+            if np.min(np.linalg.norm(Sig_e_pg, axis=-1)) > 0:
+                self.assertTrue(np.max(test_Sig) < tol, f"test_Sig = {np.max(test_Sig):.3e}")
                 
             # Checks that Eps:C:Eps = Eps:(cP+cM):Eps
-            psi = 1/2 * np.einsum('epi,ij,epj->', Epsilon_e_pg, c, Epsilon_e_pg, optimize='optimal')
-            psi_P = 1/2 * np.einsum('epi,epij,epj->', Epsilon_e_pg, cP_e_pg, Epsilon_e_pg, optimize='optimal')
-            psi_M = 1/2 * np.einsum('epi,epij,epj->', Epsilon_e_pg, cM_e_pg, Epsilon_e_pg, optimize='optimal')
+            psi = 1/2 * np.einsum('epi,epi->', Sig_e_pg, Epsilon_e_pg, optimize='optimal')
+            psi_P = 1/2 * np.einsum('epi,epi->', SigP, Epsilon_e_pg, optimize='optimal')
+            psi_M = 1/2 * np.einsum('epi,epi->', SigM, Epsilon_e_pg, optimize='optimal')
             test_psi = np.abs(psi-(psi_P+psi_M))/psi
-            if np.linalg.norm(psi)>0:
-                self.assertTrue(np.max(test_psi) <= tol, f"test_psi = {test_psi:.3e}")
+            if psi > 0:
+                self.assertTrue(test_psi < tol, f"test_psi = {test_psi:.3e}")
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
