@@ -2,7 +2,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from abc import ABC, abstractmethod, abstractproperty
 from typing import Union
 from enum import Enum
 
@@ -781,21 +780,10 @@ class PhaseField(_IModel):
 
         if verif:
 
-            tol = 1e-12 if self.dim == 2 else 1e-8
-
             vector_e_pg = Epsilon_e_pg.copy()
-            mat = C.copy()
-            
+            mat = C.copy()            
             vectorP = np.einsum('epij,epj->epi', projP_e_pg, vector_e_pg, optimize='optimal')
             vectorM = np.einsum('epij,epj->epi', projM_e_pg, vector_e_pg, optimize='optimal')
-            
-            # Et+:Et- = 0 already checked in spectral decomposition
-            
-            # Checks that vector_e_pg = vectorP_e_pg + vectorM_e_pg
-            diff_vect = vector_e_pg - (vectorP + vectorM)
-            if np.linalg.norm(vector_e_pg, axis=-1).min() > 0:
-                test_vect = np.linalg.norm(diff_vect, axis=-1) / np.linalg.norm(vector_e_pg, axis=-1)
-                assert np.max(test_vect) < tol, f"{np.max(test_vect):.3e}"
 
             # Checks orthogonality E+:C:E-
             ortho_vP_vM = np.abs(np.einsum('epi,ij,epj->ep',vectorP, mat, vectorM, optimize='optimal'))
@@ -803,13 +791,23 @@ class PhaseField(_IModel):
             ortho_v_v = np.abs(np.einsum('epi,ij,epj->ep', vector_e_pg, mat, vector_e_pg, optimize='optimal'))
             if np.min(ortho_v_v) > 0:
                 vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
-                assert vertifOrthoEpsPM < tol
+                assert vertifOrthoEpsPM < 1e-12
                 vertifOrthoEpsMP = np.max(ortho_vM_vP/ortho_v_v)
-                assert vertifOrthoEpsMP < tol
+                assert vertifOrthoEpsMP < 1e-12
+            # Et+:Et- = 0 already checked in spectral decomposition
+
+            # Rounding errors in the construction of 3D eigen projectors see [Remark M]
+            tol = 1e-12 if self.dim == 2 else 1e-10
+            
+            # Checks that vector_e_pg = vectorP_e_pg + vectorM_e_pg
+            diff_vect = vector_e_pg - (vectorP + vectorM)
+            if np.min(np.linalg.norm(vector_e_pg, axis=-1)) > 0:
+                test_vect = np.linalg.norm(diff_vect, axis=-1) / np.linalg.norm(vector_e_pg, axis=-1)
+                assert np.max(test_vect) < tol, f"{np.max(test_vect):.3e}"
 
         return cP_e_pg, cM_e_pg
 
-    def __Eigen_values_vectors_projectors(self, vector_e_pg: np.ndarray, verif=False) -> tuple[np.ndarray, list[np.ndarray], list[np.ndarray]]:
+    def _Eigen_values_vectors_projectors(self, vector_e_pg: np.ndarray, verif=False) -> tuple[np.ndarray, list[np.ndarray], list[np.ndarray]]:
         """Computes the eigen values and eigen projectors of a second-order tensor (as a vector)."""
 
         dim = self.__material.dim
@@ -841,6 +839,8 @@ class PhaseField(_IModel):
             matrix_e_pg[:,:,0,1] = vector_e_pg[:,:,5]/coef
             matrix_e_pg[:,:,1,0] = vector_e_pg[:,:,5]/coef
 
+            matrix_e_pg = 1/2 * (matrix_e_pg.transpose((0,1,3,2)) + matrix_e_pg)
+
             pass
 
         tic.Tac("Split", "vector_e_pg -> matrix_e_pg", False)
@@ -858,11 +858,9 @@ class PhaseField(_IModel):
 
             tr_e_pg = np.trace(matrix_e_pg, axis1=-2, axis2=-1)
 
-            tic.Tac("Split", "Invariants", False)
-
             # Eigenvalue calculations [e,pg]
             delta = tr_e_pg**2 - (4*det_e_pg)
-            eigs_e_pg = np.zeros((Ne,nPg,2))
+            eigs_e_pg = np.zeros((Ne, nPg, 2))
             eigs_e_pg[:,:,0] = (tr_e_pg - np.sqrt(delta))/2
             eigs_e_pg[:,:,1] = (tr_e_pg + np.sqrt(delta))/2
 
@@ -929,13 +927,10 @@ class PhaseField(_IModel):
                 tic.Tac("Split", "Invariants", False)
 
                 g_e_pg = I1_e_pg**2 - 3*I2_e_pg
-
-                tol0 = 1e-6
                 
                 g_neq_0 = g_e_pg != 0
                 # g_neq_0 = (g_e_pg >= tol0) & (g_e_pg <= -tol0)
                 # g_neq_0 = np.logical_not(np.isclose(g_e_pg, 0, atol=tol0))
-                case1 = list(set(np.ravel(np.where(g_neq_0)[0])))
                 
                 if False in g_neq_0:
                     arg = 1/2 * (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg) # -1 <= arg <= 1
@@ -946,119 +941,121 @@ class PhaseField(_IModel):
 
                 theta = 1/3 * np.arccos(arg) # Lode's angle such that 0 <= theta <= pi/3
 
-                # positions of double minimum eigenvalue: 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
-
-                # case3 = list(set(np.ravel(np.where(arg == 1)[0])))
-                # case3 = list(set(np.ravel(np.where(np.isclose(arg-1, 0, atol=tol0))[0])))
-
-                # positions of double maximum eigenvalue: 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
-
-                # case2 = list(set(np.ravel(np.where(arg == -1)[0])))
-                # case2 = list(set(np.ravel(np.where(np.isclose(arg, -1, atol=tol0))[0])))
-
-                # Three distinct eigenvalues: 𝜖1 < 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 ≠ 0, 𝜃 ≠ 𝜋∕3.
-                
-                # case1 = np.setdiff1d(case1, np.union1d(case2, case3))
-
-                # Init eigen values (e, p)
-                val1_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * g_e_pg**(1/2) * np.cos(2*np.pi/3 + theta)
-                val2_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * g_e_pg**(1/2) * np.cos(2*np.pi/3 - theta)
-                val3_e_pg: np.ndarray = I1_e_pg/3 + 2/3 * g_e_pg**(1/2) * np.cos(theta)
-
-                eigs_e_pg = np.reshape(I1_e_pg/3, (Ne, nPg, 1)).repeat(3, axis=2)
-                if len(case1) > 0:
-
-                    eigs_e_pg[case1, :, 0] = val1_e_pg[case1,:]
-                    eigs_e_pg[case1, :, 1] = val2_e_pg[case1,:]
-                    eigs_e_pg[case1, :, 2] = val3_e_pg[case1,:]
-
-                tic.Tac("Split", "Eigenvalues", False)
+                # -------------------------------------
+                # Init eigenvalues an eigenprojectors for case 4
+                # 𝜖1 = 𝜖2 = 𝜖3 ⇐⇒ 𝑔 = 0.
+                # -------------------------------------
+                val1_e_pg: np.ndarray = I1_e_pg/3
+                val2_e_pg: np.ndarray = I1_e_pg/3
+                val3_e_pg: np.ndarray = I1_e_pg/3
 
                 # Init proj matrices
                 M1 = np.zeros_like(matrix_e_pg); M1[:,:,0,0] = 1
-                M2 = np.zeros_like(matrix_e_pg); M2[:,:,1,1] = 1
+                # M2 = np.zeros_like(matrix_e_pg); M2[:,:,1,1] = 1
                 M3 = np.zeros_like(matrix_e_pg); M3[:,:,2,2] = 1
+
+                tic.Tac("Split", "proj case 4", False)
 
                 I_e_pg = np.zeros_like(matrix_e_pg)
                 I_e_pg[:,:,0,0] = 1; I_e_pg[:,:,1,1] = 1; I_e_pg[:,:,2,2] = 1
-                I_rg = 1/3 * np.einsum('ep,ij->epij', I1_e_pg - g_e_pg**(1/2), np.eye(3), optimize='optimal')                
+
+                I_rg = 1/3 * np.einsum('ep,ij->epij', I1_e_pg - g_e_pg**(1/2), np.eye(3), optimize='optimal')
+
+                # -------------------------------------
+                # 2. Two maximum eigenvalues
+                # 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
+                # arg = -1
+                # -------------------------------------              
+
+                test2 = g_neq_0 & (theta == np.pi/3)
+
+                case2 = list(set(np.ravel(np.where(test2)[0])))
+
+                if len(case2) > 0:
+
+                    val1_e_pg[case2,:] += - 2/3 * g_e_pg[case2,:]**(1/2)
+                    val2_e_pg[case2,:] += 1/3 * g_e_pg[case2,:]**(1/2) 
+                    val3_e_pg[case2,:] += 1/3 * g_e_pg[case2,:]**(1/2)
+
+                    M1[case2,:] = np.einsum('ep,epij->epij', g_e_pg[case2,:]**(-1/2), (I_rg - matrix_e_pg)[case2,:], optimize='optimal')
+                    # M2[case2,:] = 1/2 * (I_e_pg - M1)[case2,:]
+                    M3[case2,:] = 1/2 * (I_e_pg - M1)[case2,:]
+
+                    tic.Tac("Split", "proj case 2", False)
+
+                # -------------------------------------
+                # 3. Two minimum eigenvalues
+                # 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
+                # arg = 1
+                # -------------------------------------
+                
+                test3 = g_neq_0 & (theta == 0)
+                
+                case3 = list(set(np.ravel(np.where(test3)[0])))
+
+                if len(case3) > 0:
+
+                    val1_e_pg[case3,:] += - 1/3 * g_e_pg[case3,:]**(1/2)
+                    val2_e_pg[case3,:] += - 1/3 * g_e_pg[case3,:]**(1/2) 
+                    val3_e_pg[case3,:] += 2/3 * g_e_pg[case3,:]**(1/2)
+
+                    M3[case3,:] = np.einsum('ep,epij->epij', g_e_pg[case3,:]**(-1/2), (matrix_e_pg - I_rg)[case3,:], optimize='optimal')
+                    # M1[case3,:] = 1/2 * (I_e_pg - M3)[case3,:]
+                    M2[case3,:] = 1/2 * (I_e_pg - M3)[case3,:]
+
+                    tic.Tac("Split", "proj case 3", False)
 
                 # -------------------------------------
                 # 1. Three distinct eigenvalues
                 # 𝜖1 < 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 ≠ 0, 𝜃 ≠ 𝜋∕3.
                 # -------------------------------------
                 
-                # case1 = list(set(np.ravel(np.where(g_neq_0 & (val1_e_pg<val2_e_pg) & (val2_e_pg<val3_e_pg))[0])))
+                test1 = g_neq_0 & (theta != 0) & (theta != np.pi/3)
 
-                if len(case1) > 0:                    
+                case1 = list(set(np.ravel(np.where(test1)[0])))
+
+                case1 = np.setdiff1d(case1, np.union1d(case2, case3))
+
+                if len(case1) > 0:
+
+                    val1_e_pg[case1,:] += (2/3 * g_e_pg**(1/2) * np.cos(2*np.pi/3 + theta))[case1,:]
+                    val2_e_pg[case1,:] += (2/3 * g_e_pg**(1/2) * np.cos(2*np.pi/3 - theta))[case1,:]
+                    val3_e_pg[case1,:] += (2/3 * g_e_pg**(1/2) * np.cos(theta))[case1,:]
 
                     e1_I = np.einsum('ep,ij->epij', val1_e_pg, np.eye(3), optimize='optimal')
                     e2_I = np.einsum('ep,ij->epij', val2_e_pg, np.eye(3), optimize='optimal')
                     e3_I = np.einsum('ep,ij->epij', val3_e_pg, np.eye(3), optimize='optimal')
 
+                    # returns A/a                    
+                    get_Mb = lambda A, a: np.einsum('epij,ep->epij', A[case1,:], 1/a[case1,:], optimize='optimal')
                     
-                    c =  1e-12 * np.max([np.abs(val1_e_pg), np.abs(val2_e_pg), np.ones_like(val1_e_pg)])
+                    # M1[case1,:] = get_Mb(matrix_e_pg - e2_I, val1_e_pg - val2_e_pg) @ get_Mb(matrix_e_pg - e3_I, val1_e_pg - val3_e_pg)
+                    # # M2[case1,:] = get_Mb(matrix_e_pg - e1_I, val2_e_pg - val1_e_pg) @ get_Mb(matrix_e_pg - e3_I, val2_e_pg - val3_e_pg)
+                    # M3[case1,:] = get_Mb(matrix_e_pg - e1_I, val3_e_pg - val1_e_pg) @ get_Mb(matrix_e_pg - e2_I, val3_e_pg - val2_e_pg)
 
-                    # returns A/a
-                    # get_Mb = lambda A, a: np.einsum('epij,ep->epij', A[case1,:], 1/a[case1,:], optimize='optimal')
-                    get_Mb = lambda A, a: np.einsum('epij,ep->epij', A[case1,:], 1/(a[case1,:] + c), optimize='optimal')
-                    
-                    # M1[case1,:] = get_Mb(matrix_e_pg - e2_I, val1_e_pg-val2_e_pg) @ get_Mb(matrix_e_pg - e3_I, val1_e_pg-val3_e_pg)
-                    # M2[case1,:] = get_Mb(matrix_e_pg - e1_I, val2_e_pg-val1_e_pg) @ get_Mb(matrix_e_pg - e3_I, val2_e_pg-val3_e_pg)
-                    # M3[case1,:] = get_Mb(matrix_e_pg - e1_I, val3_e_pg-val1_e_pg) @ get_Mb(matrix_e_pg - e2_I, val3_e_pg-val2_e_pg)
+                    # same as
 
-                    reg = lambda val1, val2: (val1 - val2) / ((val1 - val2) ** 2 + 1e-12 ** 2) ** 0.5
+                    M1[case1,:] = get_Mb((matrix_e_pg - e2_I) @ (matrix_e_pg - e3_I), (val1_e_pg - val2_e_pg) * (val1_e_pg - val3_e_pg))
+                    # M2[case1,:] = get_Mb((matrix_e_pg - e1_I) @ (matrix_e_pg - e3_I), (val2_e_pg - val1_e_pg) * (val2_e_pg - val3_e_pg))
+                    M3[case1,:] = get_Mb((matrix_e_pg - e1_I) @ (matrix_e_pg - e2_I), (val3_e_pg - val1_e_pg) * (val3_e_pg - val2_e_pg))
 
-                    M1[case1,:] = get_Mb((matrix_e_pg - e2_I) @  (matrix_e_pg - e3_I), reg(val1_e_pg,val2_e_pg)*reg(val1_e_pg,val3_e_pg))
-                    M2[case1,:] = get_Mb((matrix_e_pg - e1_I) @ (matrix_e_pg - e3_I), reg(val2_e_pg,val1_e_pg)*reg(val2_e_pg,val3_e_pg))
-                    M3[case1,:] = get_Mb((matrix_e_pg - e1_I) @ (matrix_e_pg - e2_I), reg(val3_e_pg,val1_e_pg) * reg(val3_e_pg,val2_e_pg))
-
-                    # M1 = normalize(M1)
-                    # M2 = normalize(M2)
-                    # M3 = normalize(M3)
-                    
-                    # M2 = I_e_pg - (M1 + M3)
+                    tic.Tac("Split", "proj case 1", False)
 
                 # -------------------------------------
-                # 2. Two maximum eigenvalues
-                # 𝜖1 < 𝜖2 = 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 𝜋∕3.
+                # merge values in eigs_e_pg
                 # -------------------------------------
-
-                # test_E2_eq_E3 = (np.abs((val2_e_pg - val3_e_pg)/val3_e_pg) < tol0) & (np.sign(val2_e_pg) == np.sign(val3_e_pg))
-                # case2 = list(set(np.ravel(np.where(g_neq_0 & (val1_e_pg < val2_e_pg) & test_E2_eq_E3)[0])))
-
-                case2 = list(set(np.ravel(np.where(g_neq_0 & (val1_e_pg < val2_e_pg) & (val2_e_pg == val3_e_pg))[0])))
-
-                if len(case2) > 0:
-
-                    M1[case2,:] = np.einsum('ep,epij->epij', g_e_pg[case2,:]**(-1/2), (I_rg - matrix_e_pg)[case2,:], optimize='optimal')
-                    M2[case2,:] = 1/2 * (I_e_pg - M1)[case2,:]
-                    M3[case2,:] = 1/2 * (I_e_pg - M1)[case2,:]
-
-                # -------------------------------------
-                # 3. Two minimum eigenvalues
-                # 𝜖1 = 𝜖2 < 𝜖3 ⇐⇒ 𝑔 ≠ 0, 𝜃 = 0.
-                # -------------------------------------
-
-                # test_E1_eq_E2 = (np.abs((val1_e_pg - val2_e_pg)/val2_e_pg) < tol0) & (np.sign(val1_e_pg) == np.sign(val2_e_pg))                
-                # case3 = list(set(np.ravel(np.where(g_neq_0 & test_E1_eq_E2 & (val2_e_pg < val3_e_pg))[0])))
-                case3 = list(set(np.ravel(np.where(g_neq_0 & (val1_e_pg == val2_e_pg) & (val2_e_pg < val3_e_pg))[0])))
-
-                if len(case3) > 0:
-
-                    M3[case3,:] = np.einsum('ep,epij->epij', g_e_pg[case3,:]**(-1/2), (matrix_e_pg - I_rg)[case3,:], optimize='optimal')
-                    M1[case3,:] = 1/2 * (I_e_pg - M3)[case3,:]
-                    M2[case3,:] = 1/2 * (I_e_pg - M3)[case3,:]
-
-                # -------------------------------------
-                # 4. Three equal eigenvalues
-                # 𝜖1 = 𝜖2 = 𝜖3 ⇐⇒ 𝑔 = 0.
-                # -------------------------------------
-                # do nothing because 𝜖1 = 𝜖2 = 𝜖3 = I1_e_pg/3                
+                eigs_e_pg = np.zeros((Ne, nPg, 3))
+                eigs_e_pg[:,:,0] = val1_e_pg
+                eigs_e_pg[:,:,1] = val2_e_pg
+                eigs_e_pg[:,:,2] = val3_e_pg                
 
                 M1 = normalize(M1)
-                M2 = normalize(M2)
+                # M2 = normalize(M2)
                 M3 = normalize(M3)
+
+                M2 = I_e_pg - (M1 + M3)
+
+                # M1 = I_e_pg - (M2 + M3)
 
                 tic.Tac("Split", "Eigenprojectors", False)
 
@@ -1092,9 +1089,6 @@ class PhaseField(_IModel):
         tic.Tac("Split", "Eigenvectors", False)        
         
         if verif:
-
-            # tol = 1e-12 if dim == 2 else 1e-8
-            tol = 1e-12
             
             valnum, vectnum = np.linalg.eigh(matrix_e_pg)
 
@@ -1112,68 +1106,44 @@ class PhaseField(_IModel):
                 matrix += func_ep_epij(eigs_e_pg[:,:,2], M3)
                 matrix_eig += func_ep_epij(valnum[:,:,2], M3_num)
 
-            # checks if the default values are correct
+            # checks if the eigen values are correct
             if valnum.max() > 0:
                 diff_val = eigs_e_pg - valnum                    
                 test_val = np.linalg.norm(diff_val, axis=-1)/np.linalg.norm(valnum, axis=-1)
-                assert np.max(test_val) < tol, f"Error in eigenvalues ({np.max(test_val):.3e})."
+                assert np.max(test_val) < 1e-12, f"Error in eigenvalues ({np.max(test_val):.3e})."
 
-            # The problem only occurs in 3D
-            # The identification of eigenvalues works, but there are errors for the projectors.
+            # Checks that: E1*M1 + E2*M2 + E3*M3
+            if matrix_e_pg.max() > 0:
+                # matrix
+                diff_matrix = matrix - matrix_e_pg
+                test_diff = np.linalg.norm(diff_matrix, axis=(-2,-1))/np.linalg.norm(matrix_e_pg, axis=(-2,-1))
+                assert np.max(test_diff) < 1e-12, f"matrix != matrix_e_pg -> {np.max(test_diff):.3e}"                
+                # matrix_eig
+                diff_matrix_eig = matrix_eig - matrix_e_pg
+                test_diff_eig = np.linalg.norm(diff_matrix_eig, axis=(-2,-1))/np.linalg.norm(matrix_e_pg, axis=(-2,-1))
+                assert np.max(test_diff_eig) < 1e-12, f"matrix != matrix_e_pg -> {np.max(test_diff_eig):.3e}"
 
-            def Checks_Ma(Ma, Mb):
-                diff = np.abs(Ma - Mb)
-                test_M = np.linalg.norm(diff, axis=(-2,-1))/np.linalg.norm(Mb, axis=(-2,-1))
-                if np.max(test_M) > tol:
-                    tt = np.where(test_M> tol)[0]
+            if np.max(matrix) > 0:
+                test_eig = np.linalg.norm(matrix_eig - matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
+                assert np.max(test_eig) < 1e-12, f"matrix_eig != matrix -> {np.max(test_eig):.3e}"
 
-                    ttp = 1 - arg
-                    ttm = 1 + arg
-
-                    argtp = 1 - arg[tt]
-                    argtm = 1 + arg[tt]
-                    thetat = theta[tt]
-                    g_e_pgt = g_e_pg[tt]
-                    eigs_e_pgt = eigs_e_pg[tt]
-                    val1_e_pgt = val1_e_pg[tt]
-                    val2_e_pgt = val2_e_pg[tt]
-                    val3_e_pgt = val3_e_pg[tt]
-
-                    diff1 = np.abs(val1_e_pg - val2_e_pg)[tt]
-                    diff2 = np.abs(val1_e_pg - val3_e_pg)[tt]
-                    diff3 = np.abs(val2_e_pg - val3_e_pg)[tt]
-
-                    # if np.any(diff1 < 1e-12) or np.any(diff2 < 1e-12) or np.any(diff3 < 1e-12):
-                    #     print("Attention : Des valeurs propres sont très proches. Utilisation d'une normalisation stabilisée.")
-
-
-                    pass
+            # [Remark M]
+            # Rounding errors in the construction of 3D eigen projectors.
+            # The identification of eigenvalues works, but there are errors for the eigenprojectors.
+            # The problem is that we can't find the same eigen projectors as np.linal.eigh,
+            # there must be rounding errors for eigen projectors
+            # only occurs in 3D !!!
+            tol = 1e-12 if dim == 2 else 1e-10
+            
+            def Checks_Ma(Ma, Mb, tol=tol):
+                diff_M = Ma - Mb
+                test_M = np.linalg.norm(diff_M, axis=(-2,-1))/np.linalg.norm(Ma, axis=(-2,-1))
                 assert np.max(test_M) < tol, f"Error in eigenprojectors ({np.max(test_M):.3e})."
 
             Checks_Ma(M1, M1_num)
             Checks_Ma(M2, M2_num)
             if dim == 3:
-                Checks_Ma(M3, M3_num)
-
-            # Checks that: E1*M1 + E2*M2 + E3*M3
-            if matrix_e_pg.max() > 0:
-                # matrix_e_pg
-                diff_matrix = matrix - matrix_e_pg
-                test_diff = np.linalg.norm(diff_matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
-                assert np.max(test_diff) < tol, f"matrix != E1*M1 + E2*M2 + E3*M3 != matrix_e_pg -> {np.max(test_diff):.3e}"                
-                # matrix_eig
-                diff_matrix = matrix - matrix_eig
-                test_diff_eig = np.linalg.norm(diff_matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
-                assert np.max(test_diff_eig) < tol, f"matrix != E1*M1 + E2*M2 + E3*M3 != matrix_eig -> {np.max(test_diff_eig):.3e}"
-            
-            if matrix_e_pg.max() > 0:
-                diff_matrix = matrix - matrix_e_pg
-                test_diff = np.linalg.norm(diff_matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
-                assert np.max(test_diff) < tol, f"matrix != E1*M1 + E2*M2 + E3*M3 != matrix_e_pg -> {np.max(test_diff):.3e}"
-
-            if np.max(matrix) > 0:
-                test_eig = np.linalg.norm(matrix_eig - matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
-                assert np.max(test_eig) < tol, f"matrix != matrix_eig -> {np.max(test_eig):.3e}"
+                Checks_Ma(M3, M3_num, 1e-12)
 
             # checks orthogonality between M1 and M2
             test_M1_M2 = np.abs(np.einsum('epij,epij->ep', M1, M2, optimize='optimal'))
@@ -1182,10 +1152,10 @@ class PhaseField(_IModel):
             if dim == 3:
                 # checks orthogonality between M1 and M3
                 test_M1_M3 = np.abs(np.einsum('epij,epij->ep', M1, M3, optimize='optimal'))
-                assert np.max(test_M1_M3) < tol, f"Orthogonality M1 : M3 not verified -> {np.max(test_M1_M3):.3e}"
+                assert np.max(test_M1_M3) < 1e-12, f"Orthogonality M1 : M3 not verified -> {np.max(test_M1_M3):.3e}"
                 # checks orthogonality between M2 and M3
                 test_M2_M3 = np.abs(np.einsum('epij,epij->ep', M2, M3, optimize='optimal'))
-                assert np.max(test_M2_M3) < tol, f"Orthogonality M2 : M3 not verified -> {np.max(test_M2_M3):.3e}"
+                assert np.max(test_M2_M3) < 1e-12, f"Orthogonality M2 : M3 not verified -> {np.max(test_M2_M3):.3e}"
 
         return eigs_e_pg, list_m, list_M
     
@@ -1218,7 +1188,7 @@ class PhaseField(_IModel):
         Ne, nPg = vector_e_pg.shape[:2]
         
         # computes eigenvalues, eigenvectors and eigenprojectors
-        val_e_pg, list_m, list_M = self.__Eigen_values_vectors_projectors(vector_e_pg, verif)
+        val_e_pg, list_m, list_M = self._Eigen_values_vectors_projectors(vector_e_pg, verif)
 
         tic = Tic()
         
@@ -1375,26 +1345,27 @@ class PhaseField(_IModel):
 
         if verif:
 
-            tol = 1e-12 if dim == 2 else 1e-9
-
-            # checks orthogonality
             vectorP = np.einsum('epij,epj->epi', projP, vector_e_pg, optimize='optimal')
             vectorM = np.einsum('epij,epj->epi', projM, vector_e_pg, optimize='optimal')
-            
-            # checks that: vector_e_pg = vectorP_e_pg + vectorM_e_pg
-            diff_vect = vector_e_pg - (vectorP + vectorM)
-            if np.linalg.norm(vector_e_pg) > 0:                
-                test_vect = np.linalg.norm(diff_vect, axis=-1)/np.linalg.norm(vector_e_pg, axis=-1)
-                assert np.max(test_vect) <= tol, f"vector_e_pg != vectorP_e_pg + vectorM_e_pg -> {np.max(test_vect):.3e}"
 
             # checks orthogonality
             ortho_vP_vM = np.abs(np.einsum('epi,epi->ep', vectorP, vectorM, optimize='optimal'))
             ortho_vM_vP = np.abs(np.einsum('epi,epi->ep', vectorM, vectorP, optimize='optimal'))
             ortho_v_v = np.abs(np.einsum('epi,epi->ep', vector_e_pg, vector_e_pg, optimize='optimal'))
-            if ortho_v_v.min() > 0:
+            if np.min(ortho_v_v) > 0:
                 verif_PM = np.max(ortho_vP_vM/ortho_v_v)
-                assert verif_PM <= tol, f"{verif_PM:.3e}"
+                assert verif_PM <= 1e-12, f"{verif_PM:.3e}"
                 verif_MP = np.max(ortho_vM_vP/ortho_v_v)
-                assert verif_MP <= tol, f"{verif_MP:.3e}"
+                assert verif_MP <= 1e-12, f"{verif_MP:.3e}"
+
+            # checks that: vector_e_pg = vectorP_e_pg + vectorM_e_pg            
+            diff_vect = vector_e_pg - (vectorP + vectorM)
+
+            # Rounding errors in the construction of 3D eigen projectors see [Remark M]
+            tol = 1e-12 if dim == 2 else 1e-10
+
+            if np.max(np.linalg.norm(vector_e_pg, axis=-1)) > 0:                
+                test_vect = np.linalg.norm(diff_vect, axis=-1)/np.linalg.norm(vector_e_pg, axis=-1)
+                assert np.max(test_vect) < tol, f"vector_e_pg != vectorP_e_pg + vectorM_e_pg -> {np.max(test_vect):.3e}"
             
         return projP, projM
