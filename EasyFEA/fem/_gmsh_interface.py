@@ -941,7 +941,7 @@ class Mesher:
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
         additionalPoints : list[Point]
-            additional points that will be added to the surfaces created by the contour and the inclusions.
+            additional points that will be added to the mesh.
 
         Returns
         -------
