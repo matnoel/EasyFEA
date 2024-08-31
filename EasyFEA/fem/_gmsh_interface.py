@@ -438,7 +438,7 @@ class Mesher:
                 raise Exception("You need to give lines or arcs.")
             factory.fragment(ents, [(1, geom_line)], removeTool=False)
 
-    def _Additional_Points(self, dim: int, points:list[Point]) -> None:
+    def _Additional_Points(self, dim: int, points:list[Point], meshSize: float=0.0) -> None:
         """Adds points to existing dim entities.
 
         Parameters
@@ -447,6 +447,8 @@ class Mesher:
             dimension (dim >= 1)
         points : list[Point]
             points
+        meshSize : float
+            meshSize
         """
         
         assert dim >= 1
@@ -456,9 +458,9 @@ class Mesher:
         for point in points:
             ents = factory.getEntities(dim)
             if isinstance(point, Point):
-                p = factory.addPoint(*point.coord)
+                p = factory.addPoint(*point.coord, meshSize)
             else:
-                raise Exception("You need to give lines or arcs.")
+                raise Exception("You need to give a list of point.")
             factory.fragment(ents, [(0, p)], removeTool=False)
 
     def _Spline_From_Points(self, points: Points) -> tuple[int, list[int]]:
@@ -962,10 +964,12 @@ class Mesher:
 
         points = [] 
         lines = []
+        list_meshSize = []
 
         for beam in beams:
             line = beam.line
-            
+            list_meshSize.append(line.meshSize)
+
             pt1 = line.pt1; x1 = pt1.x; y1 = pt1.y; z1 = pt1.z
             pt2 = line.pt2; x2 = pt2.x; y2 = pt2.y; z2 = pt2.z
 
@@ -977,7 +981,10 @@ class Mesher:
             line = factory.addLine(p1, p2)
             lines.append(line)
 
-        self._Additional_Points(1, additionalPoints)
+        # removes meshSize = 0
+        list_meshSize = [m for m in list_meshSize if m>0]
+        mS = np.min(list_meshSize) if len(list_meshSize) > 0 else 0
+        self._Additional_Points(1, additionalPoints, mS)
         
         self._Set_PhysicalGroups(setLines=False)
 
