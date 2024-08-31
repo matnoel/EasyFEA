@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     L = 120
     h = L * 0.3
-    N = 20
+    N = 4
 
     pt1 = Point(isOpen=True, r=-10)
     pt2 = Point(x=L)
