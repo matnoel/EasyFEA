@@ -1297,6 +1297,7 @@ class _GroupElem(ABC):
             tag used
         """
         if nodes.size == 0: return
+        assert isinstance(tag, str), 'must be a string'
         self.__dict_nodes_tags[tag] = nodes
 
     @property
