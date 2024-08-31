@@ -1077,6 +1077,10 @@ class Mesher:
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)        
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints)
+        # TODO: add contour to refineGeoms by default when adding surfaces, lines or points
+        # additionalSurfaces, additionalLines, additionalPoints
+        # adding these lines, points or surfaces will probably break the old mesh size conditions.
+        # adding contour to refineGeoms ensures that the mesh size is correct.
 
         # Recovers 2D entities
         entities2D = factory.getEntities(2)
