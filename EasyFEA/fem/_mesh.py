@@ -470,10 +470,17 @@ class Mesh(Observable):
             nodes that meet the specified conditions.
         """
         return self.groupElem.Get_Nodes_Conditions(func)
-
+    
     def Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""
         return self.groupElem.Get_Nodes_Point(point)
+    
+    def Nodes_Points(self, points: list[Point]) -> np.ndarray:
+        """Returns nodes on points."""
+        nodes = set()
+        for point in points:
+            nodes = nodes.union(self.groupElem.Get_Nodes_Point(point))
+        return np.asarray(list(nodes))
 
     def Nodes_Line(self, line: Line) -> np.ndarray:
         """Returns the nodes on the line."""
@@ -493,7 +500,6 @@ class Mesh(Observable):
 
     def Elements_Nodes(self, nodes: np.ndarray, exclusively=True, neighborLayer:int=1):
         """Returns elements that exclusively or not use the specified nodes."""
-        # elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusively=exclusively)
         
         for i in range(neighborLayer):
             elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusively=exclusively)
