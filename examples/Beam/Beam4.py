@@ -37,14 +37,15 @@ if __name__ == '__main__':
 
     point1 = Point()
     point2 = Point(y=L)
-    point3 = Point(y=L, x=L / 2)
-    line1 = Line(point1, point2, L / nL)
-    line2 = Line(point2, point3, L / nL)
+    point3 = Point(y=L, x=L/2)
+    line1 = Line(point1, point2, L/nL)
+    line2 = Line(point2, point3, L/nL)
     beam1 = Materials.Beam_Elas_Isot(3, line1, section, E, v)
     beam2 = Materials.Beam_Elas_Isot(3, line2, section, E, v)
     beams = [beam1, beam2]
 
-    mesh = mesher.Mesh_Beams(beams=beams, elemType=elemType)
+    newPoint = Point(L/2 * 0.8, L)
+    mesh = mesher.Mesh_Beams(beams=beams, elemType=elemType, additionalPoints=[newPoint])    
 
     # ----------------------------------------------
     # Simulation
@@ -74,7 +75,7 @@ if __name__ == '__main__':
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, L/10/sol.max())
     Display.Plot_Result(simu, "ux", L/10/sol.max())
-    Display.Plot_Result(simu, "uy", L/10/sol.max())    
+    Display.Plot_Result(simu, "uy", L/10/sol.max())
 
     print(simu)
 
