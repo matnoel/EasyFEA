@@ -295,11 +295,6 @@ class Mesher:
 
         factory = self._factory
 
-        if elemType.startswith(("QUAD", "HEXA")):
-            contour.meshSize *= 2
-            for incl in inclusions:
-                incl.meshSize *= 2
-
         # Creates a contour surface
         loopContour, lines, points = self._Loop_From_Geom(contour)
 
@@ -354,6 +349,13 @@ class Mesher:
         self._Synchronize() # mandatory
 
         setRecombine = elemType.startswith(("QUAD","HEXA"))
+        if setRecombine:
+            # simply multiplies the mesh size by 2 because
+            # setRecombine recombines triangles into quadrangles
+            points = np.asarray(gmsh.model.getEntities(0))
+            sizes = gmsh.model.mesh.getSizes(points)
+            unique = list(set(sizes))
+            [gmsh.model.mesh.setSize(points[np.where(sizes==val)[0]], val*2) for val in unique]
         
         for surf in surfaces:
 
@@ -1150,7 +1152,7 @@ class Mesher:
 
         factory = self._factory
 
-        self._Surfaces(contour, inclusions)
+        self._Surfaces(contour, inclusions, elemType)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints)
@@ -1227,7 +1229,7 @@ class Mesher:
         
         factory = self._factory
 
-        self._Surfaces(contour, inclusions)
+        self._Surfaces(contour, inclusions, elemType)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints)
