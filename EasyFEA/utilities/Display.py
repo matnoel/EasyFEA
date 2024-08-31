@@ -699,7 +699,7 @@ __colors = {
 }
 
 def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
-    """Plots the mesh's tags (from 2d elements to points) but do not plot the 3d tags.
+    """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
     Parameters
     ----------    
@@ -726,7 +726,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
     # check if there is available tags in the mesh
     nTtags = [np.max([len(groupElem.nodeTags), len(groupElem.elementTags)]) for groupElem in mesh.dict_groupElem.values()]
     if np.max(nTtags) == 0:
-        MyPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
+        MyPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with in the gmsh interface.")
         return
 
     if ax == None:
