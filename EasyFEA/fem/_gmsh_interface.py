@@ -43,6 +43,11 @@ class Mesher:
         self.__verbosity = verbosity
         """the mesher can write in terminal"""
 
+        # TODO Add debug config to print exceptions and errors 
+        # use geom.Plot() to display the error
+        # catch the exception and print it
+        # create a Mesher Exception ?
+
         self._Init_gmsh()
 
         if verbosity:
