@@ -212,7 +212,6 @@ class Gauss:
         """available [6, 8]\n
         orderX = [3, 3]\n
         orderYZ = [2, 3]"""
-        
 
         # X, Y, Z -> base code aster
         # z, x, y -> gmsh        
