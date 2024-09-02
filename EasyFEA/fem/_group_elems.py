@@ -236,14 +236,14 @@ class _GroupElem(ABC):
         return Gauss(self.elemType, matrixType).weights
     
     def Get_GaussCoordinates_e_p(self, matrixType: MatrixType, elements=np.array([])) -> np.ndarray:
-        """Returns integration point coordinates for each element (Ne, p, 3) in the (x,y,z) base."""
+        """Returns integration point coordinates for each element (Ne, p, 3) in the (x,y,z) coordinates."""
 
         N_scalar = self.Get_N_pg(matrixType)
 
         # retrieves node coordinates
         coordo = self.coordGlob
 
-        # node coordinates for each element
+        # nodes coordinates for each element
         if elements.size == 0:
             coordo_e = coordo[self.__connect]
         else:
@@ -255,7 +255,7 @@ class _GroupElem(ABC):
         return np.array(coordo_e_p)
     
     def Get_N_pg_rep(self, matrixType: MatrixType, repeat=1) -> np.ndarray:
-        """Repeats shape functions in the local coordinates.
+        """Repeats shape functions in the (ξ,η,ζ) coordinates.
 
         Parameters
         ----------
@@ -294,7 +294,7 @@ class _GroupElem(ABC):
             return N_vect_pg
     
     def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the first-order derivatives of shape functions in global coordinates.\n
+        """Evaluates the first-order derivatives of shape functions in (x,y,z) coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y ... Nn,y]\n
         (e, pg, dim, nPe)\n
@@ -307,14 +307,14 @@ class _GroupElem(ABC):
 
             dN_pg = self.Get_dN_pg(matrixType)
 
-            # Derivation of shape functions in the real base
+            # Derivation of shape functions in the (x,y,z) coordinates
             dN_e_pg: np.ndarray = np.einsum('epdk,pkn->epdn', invF_e_pg, dN_pg, optimize='optimal')
             self.__dict_dN_e_pg[matrixType] = dN_e_pg
 
         return self.__dict_dN_e_pg[matrixType].copy()
     
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the second-order derivatives of shape functions in global coordinates.\n
+        """Evaluates the second-order derivatives of shape functions in (x,y,z) coordinates.\n
         [Ni,xx . . . Nn,xx\n
         Ni,yy ... Nn,yy]\n
         (e, pg, dim, nPe)\n
@@ -335,7 +335,7 @@ class _GroupElem(ABC):
         return self.__dict_ddN_e_pg[matrixType].copy()
     
     def Get_Nv_e_pg(self) -> np.ndarray:
-        """Evaluates beam shape functions in global coordinates.\n
+        """Evaluates beam shape functions in (x,y,z) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (e, pg, 1, nPe*2)
         """
@@ -358,7 +358,7 @@ class _GroupElem(ABC):
         return Nv_e_pg
 
     def Get_dNv_e_pg(self) -> np.ndarray:
-        """Evaluates the first-order derivatives of beam shape functions in global coordinates.\n
+        """Evaluates the first-order derivatives of beam shape functions in (x,y,z) coordinates.\n
         [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
         (e, pg, 1, nPe*2)
         """
@@ -381,7 +381,7 @@ class _GroupElem(ABC):
         return dNv_e_pg
 
     def Get_ddNv_e_pg(self) -> np.ndarray:
-        """Evaluates the second-order derivatives of beam shape functions in global coordinates.\n
+        """Evaluates the second-order derivatives of beam shape functions in (x,y,z) coordinates.\n
         [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
         (e, pg, 1, nPe*2)
         """
@@ -540,7 +540,8 @@ class _GroupElem(ABC):
         return self.__dict_SourcePart_e_pg[matrixType].copy()
     
     def _Get_sysCoord_e(self, displacementMatrix:np.ndarray=None):
-        """Get the base change matrix for elements (Ne,3,3)."""
+        """Get the basis transformation matrix (Ne,3,3).\n
+        This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system."""
 
         coordo = self.coordGlob
 
@@ -626,12 +627,13 @@ class _GroupElem(ABC):
         
     @property
     def sysCoord_e(self) -> np.ndarray:
-        """base change matrix for each element (3D)\n
+        """the basis transformation matrix (Ne, 3, 3)\n
         [ix, jx, kx\n
         iy, jy, ky\n
         iz, jz, kz]\n
         
-        coordo_e * sysCoord_e -> coordinates of nodes in element base.
+        This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.\n
+        coordo_e * sysCoord_e -> coordinates in element's (i, j, k) coordinate system.
         """
         return self._Get_sysCoord_e()
     
@@ -727,8 +729,9 @@ class _GroupElem(ABC):
         return center
 
     def Get_F_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns the Jacobian matrix.\n
-        This matrix describes the variations of the axes from the reference element to the real element."""
+        """Returns the Jacobian matrix.\n        
+        This matrix describes the transformation of the (ξ,η,ζ) axes from the reference element to the (x,y,z) coordinate system of the actual element.\n
+        """
         if self.dim == 0: return
         if matrixType not in self.__dict_F_e_pg.keys():
 
@@ -736,8 +739,9 @@ class _GroupElem(ABC):
 
             nodesBase = coordo_e.copy()
             if self.dim != self.inDim:
-                sysCoord_e = self.sysCoord_e # base change matrix for each element
-                nodesBase = coordo_e @ sysCoord_e #node coordinates in the elements base
+                sysCoord_e = self.sysCoord_e # basis transformation matrix for each element
+                # This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.
+                nodesBase = coordo_e @ sysCoord_e # nodes coordinates in the element's (i, j, k) coordinate system.
 
             nodesBaseDim = nodesBase[:,:,range(self.dim)]
 
@@ -751,7 +755,7 @@ class _GroupElem(ABC):
     
     def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> np.ndarray:
         """Returns the jacobians.\n
-        variation in size (length, area or volume) between the reference element and the real element
+        variation in size (length, area or volume) between the reference element and the actual element
         """
         if self.dim == 0: return
         if matrixType not in self.__dict_jacobian_e_pg.keys():
@@ -789,7 +793,7 @@ class _GroupElem(ABC):
     
     def Get_invF_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the inverse of the Jacobian matrix.\n
-        Used to obtain the derivative of the dN_e_pg shape functions in the real element
+        Used to obtain the derivative of the dN_e_pg shape functions in the actual element
         dN_e_pg = invF_e_pg • dN_pg
         """
         if self.dim == 0: return 
@@ -902,14 +906,14 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _Ntild(self) -> np.ndarray:
-        """Shape functions in local coordinates.\n
+        """Shape functions in (ξ,η,ζ) coordinates.\n
         [N1, N2, . . . ,Nn]\n
         (nPe)
         """
         pass
 
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions in local coordinates.\n
+        """Evaluates shape functions in (ξ,η,ζ) coordinates.\n
         [N1, N2, . . . ,Nn]\n
         (pg, nPe)
         """
@@ -923,7 +927,7 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _dNtild(self) -> np.ndarray:
-        """Shape functions first derivatives in the local coordinates.\n
+        """Shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi . . . Nn,xi\n
         Ni,eta ... Nn,eta]\n
         (dim, nPe)
@@ -931,7 +935,7 @@ class _GroupElem(ABC):
         return self.__Init_Functions(1)
     
     def Get_dN_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions first derivatives in the local coordinates.\n
+        """Evaluates shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi . . . Nn,xi\n
         Ni,eta ... Nn,eta]\n
         (pg, dim, nPe)
@@ -947,7 +951,7 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _ddNtild(self) -> np.ndarray:
-        """Shape functions second derivatives in the local coordinates.\n
+        """Shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi2 . . . Nn,xi2\n
         Ni,eta2 . . . Nn,eta eta]\n
         (dim, nPe)
@@ -955,7 +959,7 @@ class _GroupElem(ABC):
         return self.__Init_Functions(2)
 
     def Get_ddN_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions second derivatives in the local coordinates.\n
+        """Evaluates shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi2 . . . Nn,xi2\n
         Ni,eta2 . . . Nn,eta2]\n
         (pg, dim, nPe)
@@ -971,7 +975,7 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _dddNtild(self) -> np.ndarray:
-        """Shape functions third derivatives in the local coordinates.\n
+        """Shape functions third derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi3 . . . Nn,xi3\n
         Ni,eta3 . . . Nn,eta3]\n
         (dim, nPe)
@@ -979,7 +983,7 @@ class _GroupElem(ABC):
         return self.__Init_Functions(3)
 
     def Get_dddN_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions third derivatives in the local coordinates.\n
+        """Evaluates shape functions third derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi3 . . . Nn,xi3\n
         Ni,eta3 . . . Nn,eta3]\n
         (pg, dim, nPe)
@@ -995,7 +999,7 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _ddddNtild(self) -> np.ndarray:
-        """Shape functions fourth derivatives in the local coordinates.\n
+        """Shape functions fourth derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi4 . . . Nn,xi4\n
         Ni,eta4 . . . Nn,eta4]
         \n
@@ -1004,7 +1008,7 @@ class _GroupElem(ABC):
         return self.__Init_Functions(4)
 
     def Get_ddddN_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions fourth derivatives in the local coordinates.\n
+        """Evaluates shape functions fourth derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi4 . . . Nn,xi4\n
         Ni,eta4 . . . Nn,eta4]
         \n
@@ -1023,14 +1027,14 @@ class _GroupElem(ABC):
     # Use hermitian shape functions
     
     def _Nvtild(self) -> np.ndarray:
-        """Beam shape functions in the local coordinates.\n
+        """Beam shape functions in the (ξ,η,ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (nPe*2)
         """
         pass
 
     def Get_Nv_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates beam shape functions in the local coordinates.\n
+        """Evaluates beam shape functions in the (ξ,η,ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n        
         (pg, nPe*2)
         """
@@ -1044,14 +1048,14 @@ class _GroupElem(ABC):
         return Nv_pg
     
     def dNvtild(self) -> np.ndarray:
-        """Beam shape functions first derivatives in the local coordinates.\n
+        """Beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
         (nPe*2)
         """
         pass
 
     def Get_dNv_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates beam shape functions first derivatives in the local coordinates.\n
+        """Evaluates beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
         (pg, nPe*2)
         """
@@ -1065,14 +1069,14 @@ class _GroupElem(ABC):
         return dNv_pg
     
     def _ddNvtild(self) -> np.ndarray:
-        """Beam shape functions second derivatives in the local coordinates.\n
+        """Beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 psi_n,xi2]\n
         (nPe*2)
         """
         return 
     
     def Get_ddNv_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates beam shape functions second derivatives in the local coordinates.\n
+        """Evaluates beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 x psi_n,xi2]\n
         (pg, nPe*2)
         """
@@ -1261,11 +1265,11 @@ class _GroupElem(ABC):
             J = Jacobian_Matrix(i,direction)
         else:
             # n != direction
-            # Change base (rotAxis, j, direction)
+            # (rotAxis, j, direction)
             R = circle.diam/2
             J = Jacobian_Matrix(rotAxis, direction)
             coordN = np.einsum('ij,nj->ni', np.linalg.inv(J), circle.coord - circle.center.coord)
-            # Change base (rotAxis, j*cj, direction)
+            # (rotAxis, j*cj, direction)
             cj = (R - coordN[:,1].max())/R
             J[:,1] *= cj
         
@@ -1505,13 +1509,17 @@ class _GroupElem(ABC):
             return idx
 
     def Get_Mapping(self, coordinates_n: np.ndarray, elements_e=None, needCoordinates=True):
-        """Locates coordinates in elements.\n
-        returns detectedNodes, connect_e_n, detectedElements_e, coordoInElem_n\n
-        - detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e\n
-        - detectedElements_e (e) are the elements for which we have detected the nodes\n
-        - connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element\n
-            ? means that the table does not have the same dimension on axis 1\n        
-        - coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element (needCoordinates must be True).
+        """Locates coordinates within elements.
+
+        Returns
+        -------
+
+            - detectedNodes : The nodes that have been identified within the detected elements with shape=(Nn,).
+            - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
+            - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
+                The "?" indicates that the array may have varying dimensions along the first axis (axis=1).
+            - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ,η,ζ) coordinate system.
+                This is applicable only if needCoordinates is set to True.
         """
         
         if elements_e is None:
@@ -1522,74 +1530,76 @@ class _GroupElem(ABC):
         return self.__Get_Mapping(coordinates_n, elements_e, needCoordinates)
 
     def __Get_Mapping(self, coordinates_n: np.ndarray, elements_e: np.ndarray, needCoordinates=True):
-        """Locates coordinates in elements.\n
-        returns detectedNodes, connect_e_n, detectedElements_e, coordoInElem_n\n
-        - detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e\n
-        - detectedElements_e (e) are the elements for which we have detected the nodes\n
-        - connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element\n
-            ? means that the table does not have the same dimension on axis 1\n        
-        - coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element (needCoordinates must be True). 
+        """Locates coordinates within elements.
+
+        Returns
+        -------
+
+            - detectedNodes : The nodes that have been identified within the detected elements with shape=(Nn,).
+            - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
+            - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
+                The "?" indicates that the array may have varying dimensions along the first axis (axis=1).
+            - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ,η,ζ) coordinate system.
+                This is applicable only if needCoordinates is set to True.
         """
         
-        # retrieves informations from element group
         dim = self.dim
         connect = self.connect
         coord = self.coord
         
-        # Initializes lists of interest
+        # Initializes lists
         detectedNodes: list[int] = []
         # Elements where nodes have been identified
         detectedElements_e: list[int] = []
-        # connection matrix containing the nodes used by the elements
+        # connectivity matrix containing the nodes used by the elements
         connect_e_n: list[list[int]] = []
 
         # Calculates the number of times a coordinate appears
-        # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image
-        # If the coordinates come from an image, the _Get_coordoNear function will be faster.
         dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1
+        # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image/grid
+        # If the coordinates come from an image/grid, the _Get_coordoNear function will be faster.
 
         if needCoordinates:
-            # Here we want to know the coordinates of the nodes in the reference element
-            # node coordinates in the element's reference base (xi, eta)
+            # Here we want to know the coordinates of the nodes in
+            # the reference element's (ξ,η) coordinate system.
             coordInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
 
             # get coordinates in the reference element
             # get groupElem datas
             inDim = self.inDim
-            sysCoord_e = self.sysCoord_e # base change matrix for each element
+            sysCoord_e = self.sysCoord_e # basis transformation matrix for each element
+            # This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.
             matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
             invF_e_pg = self.Get_invF_e_pg(matrixType)
             dN_tild = self._dNtild()
-            xiOrigin = self.origin # origin of the reference element (xi, eta)        
-
-            # useIterative = False
+            xiOrigin = self.origin # origin of the reference element (ξ0,η0)
+            
             # Checks whether iterative resolution is required
             # calculates the ratio between jacob min and max to detect if the element is distorted
             diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
             error_e = np.abs(1 - diff_e) # a perfect element has an error max <= 1e-12
-            # a distorted element has a max error greater than 0
+            # A distorted element exhibits a maximum error greater than zero.
             useIterative_e = error_e > 1e-12
-            # useIterative = np.max(error_e) > 1e-12
         else:
             coordInElem_n = None
 
         def ResearchFunction(e: int):
     
-            # get element node coordinates
+            # get element's node coordinates (x, y, z)
             coordElem: np.ndarray = coord[connect[e]]
 
             # Retrieves indexes in coordinates_n that are within the element's bounds
             idxNearElem = self.__Get_coordoNear(coordinates_n, coordElem, dims)
 
-            # Returns the index of nodes around the element that meet all conditions
+            # Returns the index of idxNearElem that satisfies all the specified conditions.
             idxInElem = self.Get_pointsInElem(coordinates_n[idxNearElem], e)
 
             if idxInElem.size == 0:
                 # here no nodes have been detected in the element
                 return
                                 
-            # nodes that meet all conditions (nodes in the element e)
+            # Nodes contained within element e.
             nodesInElement = idxNearElem[idxInElem]
 
             # Save de detected nodes elements and connectivity matrix
@@ -1598,49 +1608,50 @@ class _GroupElem(ABC):
             detectedElements_e.append(e)
 
             if needCoordinates:
-                # here, inverse mapping is required
-                #   i.e. to know the position in the reference element (xi, eta) from the physical element (x,y).
-                # If the element has several integration points (QUAD4 TRI6 and others)
-                #   i.e. all elements that can be desorbed and have a Jacobian criterion other than 1. This can also happen for higher-order elements.s
+                # Inverse mapping is required here,
+                # i.e., to determine the position in the reference element (ξ, η) from the physical coordinates (x, y).
+                # This is particularly relevant for elements with multiple integration points (e.g., QUAD4, TRI6, TRI10, ..),
+                # i.e., all elements that can be distorted and have a Jacobian ratio different from 1.
 
-                # projects coordinates in the basis of the element if dim != inDim
+                # Projects (x, y, z) coordinates into the element's (i, j, k) coordinate system if dim != inDim.
                 # its the case when a 2D mesh is in 3D space
                 coordElemBase = coordElem.copy()
                 coordinatesBase_n: np.ndarray = coordinates_n[nodesInElement].copy()
                 if dim != inDim:
-                    # Here we're talking about a 2d oriented mesh in 3D space, for example.
                     coordElemBase = coordElemBase @ sysCoord_e[e]
                     coordinatesBase_n = coordinatesBase_n @ sysCoord_e[e]
-                        
-                x0  = coordElemBase[0,:dim] # orign of the real element (x,y)
-                xPs = coordinatesBase_n[:,:dim] # points coordinates (x,y)
+                
+                # Origin of the element in (x, y, z) coordinates.
+                x0  = coordElemBase[0,:dim]
+                # Coordinates of the n points in (x, y, z).
+                xP_n = coordinatesBase_n[:,:dim]
 
                 if not useIterative_e[e]:
-                    # the fastest way
-                    # available only for undistorted meshes !
-                    # always valid for TRI3 and structured meshes.
-                    xiP: np.ndarray = xiOrigin + (xPs - x0) @ invF_e_pg[e,0]
+                    # The fastest method, available only for undistorted meshes.
+                    xiP: np.ndarray = xiOrigin + (xP_n - x0) @ invF_e_pg[e,0]
                          
                 else:
-                    # Here we need to construct the Jacobian matrices. This is the longest method here
+                    # This is the most time-consuming method.
+                    # We need to construct the Jacobian matrices here.
                     def Eval(xi: np.ndarray, xP):
                         dN = _GroupElem._Evaluates_Functions(dN_tild, xi.reshape(1, -1))
-                        F = dN[0] @ coordElemBase[:,:dim] # jacobian matrix                   
+                        F = dN[0] @ coordElemBase[:,:dim] # jacobian matrix [J]                  
                         J = x0 + (xi - xiOrigin) @ F - xP # cost function
                         return J
 
                     xiP = []
-                    for xP in xPs:
+                    for xP in xP_n:
                         res = least_squares(Eval, 0*xP, args=(xP,))
                         xiP.append(res.x)
 
                     xiP = np.array(xiP)
 
+                # xiP are the n coordinates of the n points in (ξ,η,ζ).
                 coordInElem_n[nodesInElement,:] = xiP.copy()
 
         [ResearchFunction(e) for e in elements_e]
 
-        assert len(detectedElements_e) == len(connect_e_n), "The number of elements detected must be the same as the number of connect_e_n lines."
+        assert len(detectedElements_e) == len(connect_e_n), "The number of detected elements must match the number of lines in connect_e_n."
 
         ar_detectedNodes = np.asarray(detectedNodes,dtype=int)
         ar_detectedElements_e = np.asarray(detectedElements_e,dtype=int)

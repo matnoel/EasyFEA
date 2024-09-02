@@ -207,6 +207,8 @@ class Test_Materials(unittest.TestCase):
         test_c3 = np.linalg.norm(c3 - mat.C)/np.linalg.norm(c3)
         self.assertTrue(test_c3 < 1e-12, f"test_c3 = {test_c3:.3e}")
 
+        mat.Walpole_Decomposition()
+
     def test_getPmat(self):
 
         Ne = 10

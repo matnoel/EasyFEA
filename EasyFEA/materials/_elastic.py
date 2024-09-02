@@ -546,7 +546,10 @@ class Elas_IsotTrans(_Elas):
         
         dtype = object if isinstance(kt, np.ndarray) else float
 
-        # Mandel softness and stiffness matrix in the material base
+        # Kelvin-Mandel compliance and stiffness matrices in the material's coordinate system.
+        # L = (1, 0, 0)
+        # T = (0, 1, 0)
+        # R = (0, 0, 1)
         # [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]
 
         material_sM = np.array([[1/El, -vl/El, -vl/El, 0, 0, 0],
@@ -575,11 +578,12 @@ class Elas_IsotTrans(_Elas):
             diff_C = np.linalg.norm(material_cM - np.linalg.inv(material_sM), axis=(-2,-1))/np.linalg.norm(material_cM, axis=(-2,-1))
             assert np.max(diff_C) < 1e-12
 
-        # Performs a base change to orient the material in space
+        # Performs a basis transformation from the material's (L,T,R) coordinate system
+        # to the (x,y,z) coordinate system to orient the material in space.
         global_sM = Apply_Pmat(P, material_sM)
         global_cM = Apply_Pmat(P, material_cM)
         
-        if useSameAxis:            
+        if useSameAxis:
             # checks that if the axes does not change, the same constitutive law is obtained
             test_diff_c = np.linalg.norm(global_cM - material_cM, axis=(-2,-1))/np.linalg.norm(material_cM, axis=(-2,-1))
             assert np.max(test_diff_c) < 1e-12
@@ -604,7 +608,8 @@ class Elas_IsotTrans(_Elas):
                     s = global_sM[:,:,x,:][:,:,:,x]
                     
                 c = np.linalg.inv(s)
-            else:                
+
+            else:
                 if len(shape) == 2:
                     c = global_cM[x,:][:,x]
                 elif len(shape) == 3:
@@ -613,25 +618,22 @@ class Elas_IsotTrans(_Elas):
                     c = global_cM[:,:,x,:][:,:,:,x]
                 
                 s = np.linalg.inv(c)
-
-                # testS = np.linalg.norm(s-s2)/np.linalg.norm(s2)            
         
         return c, s
 
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
 
         El = self.El
-        Et = self.Et
         Gl = self.Gl
         vl = self.vl
         kt = self.kt
         Gt = self.Gt
 
-        c1 = El + 4*vl**2*kt
-        c2 = 2*kt
-        c3 = 2*np.sqrt(2)*kt*vl
-        c4 = 2*Gt
-        c5 = 2*Gl
+        c1 = El + 4 * vl**2 * kt
+        c2 = 2 * kt
+        c3 = 2 * np.sqrt(2) * kt * vl
+        c4 = 2 * Gt
+        c5 = 2 * Gl
 
         n = self.axis_l
         p = Tensor_Product(n,n)
@@ -639,22 +641,20 @@ class Elas_IsotTrans(_Elas):
         
         E1 = Project_Kelvin(Tensor_Product(p,p))
         E2 = Project_Kelvin(1/2 * Tensor_Product(q,q))
-        E3 = Project_Kelvin(1/np.sqrt(2) * Tensor_Product(p,q))
-        E4 = Project_Kelvin(1/np.sqrt(2) * Tensor_Product(q,p))
-        E5 = Project_Kelvin(Tensor_Product(q,q,True) - 1/2*Tensor_Product(q,q))
+        E3 = Project_Kelvin(1/np.sqrt(2) * (Tensor_Product(p,q) + Tensor_Product(q,p)))
+        E4 = Project_Kelvin(Tensor_Product(q,q,True) - 1/2*Tensor_Product(q,q))
         I = Project_Kelvin(Tensor_Product(np.eye(3),np.eye(3),True))
-        E6 = I - E1 - E2 - E5
+        E5 = I - E1 - E2 - E4
 
         if not self.isHeterogeneous:
             P = Get_Pmat(self.axis_l, self.axis_t)
             C, S = self._Behavior(3, P)
-            # only test if the material is heterogeneous
-            diff_C = C - (c1*E1 + c2*E2 + c3*(E3+E4) + c4*E5 + c5*E6)
-            test_C = np.linalg.norm(diff_C)/np.linalg.norm(C)
-            assert test_C <= 1e-12
+            diff_C = C - (c1 * E1 + c2 * E2 + c3 * E3 + c4 * E4 + c5 * E5)
+            test_C = np.linalg.norm(diff_C, axis=(-2,-1))/np.linalg.norm(C, axis=(-2,-1))
+            assert test_C < 1e-12
 
         ci = np.array([c1, c2, c3, c4, c5])
-        Ei = np.array([E1, E2, E3+E4, E5, E6])
+        Ei = np.array([E1, E2, E3, E4, E5])
 
         return ci, Ei
 

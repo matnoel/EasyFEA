@@ -377,14 +377,14 @@ class Mesh(Observable):
         return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions in local coordinates.\n
+        """Evaluates shape functions in (ξ,η,ζ) coordinates.\n
         [N1, N2, . . . ,Nn]\n
         (pg, nPe)
         """
         return self.groupElem.Get_N_pg(matrixType)
 
     def Get_N_vector_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns shape functions matrix in local coordinates\n
+        """Returns shape functions matrix in (ξ,η,ζ) coordinates\n
         [N1 0 N2 0 Nn 0 \n
         0 N1 0 N2 0 Nn]\n
         (pg, dim, npe*dim)
@@ -392,7 +392,7 @@ class Mesh(Observable):
         return self.groupElem.Get_N_pg_rep(matrixType, self.__dim)
 
     def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the first-order derivatives of shape functions in global coordinates.\n
+        """Evaluates the first-order derivatives of shape functions in (x,y,z) coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y ... Nn,y]\n
         (e, pg, dim, nPe)\n
@@ -400,7 +400,7 @@ class Mesh(Observable):
         return self.groupElem.Get_dN_e_pg(matrixType)
 
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the second-order derivatives of shape functions in global coordinates.\n
+        """Evaluates the second-order derivatives of shape functions in (x,y,z) coordinates.\n
         [Ni,xx . . . Nn,xx\n
         Ni,yy ... Nn,yy]\n
         (e, pg, dim, nPe)\n
@@ -512,7 +512,7 @@ class Mesh(Observable):
         return elements
 
     def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
-        """Returns nodes associated with the tag."""
+        """Returns nodes associated with the tags."""
         nodes = []
 
         if isinstance(tags, str):
