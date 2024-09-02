@@ -509,7 +509,7 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
         return Ps, Pe
 
 def Apply_Pmat(P: np.ndarray, M: np.ndarray, toGlobal=True) -> np.ndarray:
-    """Apply change base matrix.\n
+    """Performs a basis transformation from the material's coordinate system to the (x,y,z) coordinate system to orient the material in space.\n
     Caution: P must be in Kelvin mandel notation
 
     Parameters
