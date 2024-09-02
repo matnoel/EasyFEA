@@ -884,7 +884,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     # - detectedNodes : The nodes that have been identified within the detected elements with shape=(Nn,).
     # - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
     # - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
-    #     The "?" indicates that the array may have varying dimensions along the first axis (axis=1).
+    #     The "?" indicates that the array may have varying dimensions along axis=1.
     # - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ,η,ζ) coordinate system.
     #     This is applicable only if needCoordinates is set to True.
 

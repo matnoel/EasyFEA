@@ -424,8 +424,8 @@ class DIC(_IObserver):
         coordX, coordY = gridX.ravel(), gridY.ravel()
 
         img_fct = interpolate.RectBivariateSpline(np.arange(img.shape[0]),np.arange(img.shape[1]),img)
-        roi = self.roi # reference image 
-        f = imgRef.ravel()[roi] # as a vector within the roi
+        roi = self.roi 
+        f = imgRef.ravel()[roi] # reference image as a vector within the roi
         
         # Assumes both images have identical gradients
         R_reg = self.alpha * self._R / self.__w_R
