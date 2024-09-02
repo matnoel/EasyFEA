@@ -881,10 +881,12 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         Display.MyPrintError("Warning: distorted elements have been detected in the mesh.\nThey may lead to projection errors!")
     
     detectedNodes, detectedElements_e, connect_e_n, coordo_n = oldMesh.groupElem.Get_Mapping(newMesh.coord)
-    # detectedNodes (size(connect_e_n)) are the nodes detected in detectedElements_e
-    # detectedElements_e (e) are the elements for which we have detected the nodes
-    # connect_e_n (e, ?) is the connectivity matrix containing the nodes detected in each element
-    # coordInElem_n (coordinates.shape[0]) are the coordinates of the nodes detected in the base of the reference element.
+    # - detectedNodes : The nodes that have been identified within the detected elements with shape=(Nn,).
+    # - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
+    # - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
+    #     The "?" indicates that the array may have varying dimensions along the first axis (axis=1).
+    # - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ,η,ζ) coordinate system.
+    #     This is applicable only if needCoordinates is set to True.
 
     tic.Tac("Mesh", "Mapping between meshes", False)
 
