@@ -1,4 +1,7 @@
-![EasyFEA_banner](docs/_static/EasyFEA_banner.jpg?raw=True)
+![EasyFEA_banner](https://github.com/matnoel/EasyFEA/blob/main/docs/_static/EasyFEA_banner.jpg?raw=True)
+
+<!-- Don't do this otherwise PyPi could lose access to the image -->
+<!-- ![EasyFEA_banner](docs/_static/EasyFEA_banner.jpg?raw=True) -->
 
 ## Overview
 
