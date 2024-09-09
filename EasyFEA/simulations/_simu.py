@@ -219,6 +219,8 @@ class _Simu(_IObserver, ABC):
 
         text += Display.Section("Model", False)
         text += '\n' + str(self.model)
+        
+        text += '\n\nsolver : ' + str(self.solver)
 
         text += Display.Section("Boundary Conditions", False)
         text += '\n' + textwrap.dedent(self.Results_Get_Bc_Summary())
