@@ -352,22 +352,23 @@ def DoSimu(split: str, regu: str):
 
             thresh = grid.threshold((0,0.8))
 
-            # pvi.Plot_Elements(simu.mesh, nodes, dimElem=1, color='k', plotter=plotter, line_width=2)
+            pvi.Plot_Elements(simu.mesh, nodes, dimElem=1, color='k', plotter=plotter, line_width=2)
             pvi.Plot(thresh, 'damage', deformFactor, show_edges=False, plotter=plotter, clim=(0,1))
 
-            pvi.Plot_BoundaryConditions()
-
-
-            # _, _, coord, _ = pvi._Init_obj(simu, deformFactor)
-            # posY = coord[nodes_upper, 1].mean()
-            # b = thickness/2
-            # cyl1 = pvi.pv.Cylinder((L/2, -b/2, thickness/2), (0,-1,0), h/2, b)
-            # cyl2 = pvi.pv.Cylinder((L/2, posY+b/2, thickness/2), (0,1,0), h/2, b)
-            # pvi.Plot(cyl1, opacity=0.5, show_edges=True, color='grey', plotter=plotter)
-            # pvi.Plot(cyl2, opacity=0.5, show_edges=True, color='grey', plotter=plotter)
+            _, _, coord, _ = pvi._Init_obj(simu, deformFactor)
+            posY = coord[nodes_upper, 1].mean()
+            b = thickness/2
+            cyl1 = pvi.pv.Cylinder((L/2, -b/2, thickness/2), (0,-1,0), h/2, b)
+            cyl2 = pvi.pv.Cylinder((L/2, posY+b/2, thickness/2), (0,1,0), h/2, b)
+            pvi.Plot(cyl1, opacity=0.5, show_edges=True, color='grey', plotter=plotter)
+            pvi.Plot(cyl2, opacity=0.5, show_edges=True, color='grey', plotter=plotter)
         
-        pvi.Movie_func(Func, iterations.size, folder, 'damage.mp4')
+        # plotter = pvi._Plotter()
+        # Func(plotter,-1)
+        # plotter.show()
+        # plotter.screenshot(Folder.Join(folder, 'screenshot.png'))
 
+        pvi.Movie_func(Func, iterations.size, folder, 'damage.mp4')
 
         # Display.Movie_Simu(simu, "damage", folder, "damage.mp4", N=200, plotMesh=False, deformFactor=1.5)
 
