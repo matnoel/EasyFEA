@@ -189,12 +189,12 @@ class DIC(_IObserver):
         tic.Tac("DIC", "ROI", self._verbosity)
     
     @property
-    def roi(self) -> np.ndarray[bool]:
+    def roi(self) -> np.ndarray:
         """roi as a vector."""
         return self.__roi.copy()
 
     @property
-    def ROI(self) -> np.ndarray[bool]:
+    def ROI(self) -> np.ndarray:
         """roi as a matrix."""
         return self.roi.reshape(self.shape)
 
