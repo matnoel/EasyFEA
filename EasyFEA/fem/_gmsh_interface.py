@@ -359,8 +359,9 @@ class Mesher:
             # setRecombine recombines triangles into quadrangles
             points = np.asarray(gmsh.model.getEntities(0))
             sizes = gmsh.model.mesh.getSizes(points)
-            unique = list(set(sizes))
-            [gmsh.model.mesh.setSize(points[np.where(sizes==val)[0]], val*2) for val in unique]
+            if sizes.max() > 0:
+                unique = list(set(sizes))
+                [gmsh.model.mesh.setSize(points[np.where(sizes==val)[0]], val*2) for val in unique]
         
         for surf in surfaces:
 
