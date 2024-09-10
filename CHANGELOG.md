@@ -2,6 +2,15 @@
 
 This document describes the changes made to the project.
 
+## 1.2.2 (September 10, 2024):
+
+- Updated docstrings.
+- Updated simulations/_phasefield.py solver.
+- Updated Bc Config.
+- Updated tests.
+- Updated _Additional_Points().
+- Updated Mesh_Beams().
+
 ## 1.2.1 (August 17, 2024):
 
 - Updated docstrings.
