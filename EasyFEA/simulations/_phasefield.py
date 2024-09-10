@@ -804,7 +804,7 @@ class PhaseFieldSimu(_Simu):
 
         min_d = d.min()
         max_d = d.max()
-        summaryIter = f"{iter+1:4} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
+        summaryIter = f"{iter+1:4d} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
         
         if remove:
             end='\r'
