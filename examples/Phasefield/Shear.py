@@ -23,9 +23,9 @@ nProcs = 4 # number of processes in parallel
 # ----------------------------------------------
 dim = 2
 
-doSimu = False
+doSimu = True
 # Mesh
-meshTest = False
+meshTest = True
 openCrack = True
 optimMesh = True
 
@@ -33,11 +33,6 @@ optimMesh = True
 maxIter = 1000
 
 tolConv = 1e-0 # 1e-1, 1e-2, 1e-3
-tolConv = 1e-1
-# tolConv = 1e-2
-# tolConv = 1e-3
-# tolConv = 1e-4
-# tolConv = 1e-5
 
 pfmSolver = Materials.PhaseField.SolverType.History
 
@@ -248,9 +243,7 @@ def DoSimu(split: str, regu: str):
         Display.Plot_Iter_Summary(simu, folder, None, None)
         Display.Plot_BoundaryConditions(simu)
         Display.Plot_Force_Displacement(force*1e-6, displacement*1e6, 'ud [µm]', 'f [kN/mm]', folder)
-        ax = Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder, filename="damage", ncolors=25, clim=(0,1))
-
-
+        ax = Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder, filename="damage", ncolors=25)
 
         # ax = Display.Plot_Result(simu, "damage", 1.5, ncolors=21, clim=(0,0.9))
         # ax.axis('off'); ax.set_title("")
