@@ -43,7 +43,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
         object containing the mesh
     result : str or np.ndarray
         result you want to display.\n
-        Must be included in simu.Get_Results() or be a numpy array of size of (Ne, Ne).
+        Must be included in simu.Get_Results() or be a numpy array of size of (Nn, Ne).
     deformFactor : float, optional
         factor used to display the deformed solution (0 means no deformations), default 0.0
     coef : float, optional
