@@ -2,6 +2,10 @@
 
 This document describes the changes made to the project.
 
+## 1.2.3 (September 11, 2024):
+
+- Ensures compatibility with python 3.9 and 3.10.
+
 ## 1.2.2 (September 10, 2024):
 
 - Updated docstrings.
