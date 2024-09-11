@@ -133,7 +133,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
         levels = np.linspace(min, max, ncolors)
     
     if ncolors != 256:
-        norm = colors.BoundaryNorm(boundaries=np.linspace(min, max, 11), ncolors=256)
+        norm = colors.BoundaryNorm(boundaries=levels, ncolors=256)
     else:
         norm = None
 
@@ -178,7 +178,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
             pc.set_clim(min, max)
             pc.set_array(values)
             ax.add_collection(pc)
-            ticks = None if ncolors != 11 else ticks
+            # ticks = None if ncolors != 11 else ticks
 
         # Plots node values
         elif mesh.Nn == len(values):
