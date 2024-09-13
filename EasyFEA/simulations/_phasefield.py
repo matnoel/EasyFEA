@@ -210,12 +210,12 @@ class PhaseFieldSimu(_Simu):
         Returns
         -------
         np.ndarray, np.ndarray, csr_matrix, bool
-            u_np1, d_np1, Kglob, converged
+            u_np1, d_np1, Ku, converged
 
             such that:\n
             - u_np1: displacement vector field\n
             - d_np1: damage scalar field\n
-            - Kglob: displacement stiffness matrix\n
+            - Ku: displacement stiffness matrix\n
             - converged: the solution has converged\n
         """
 
@@ -311,9 +311,9 @@ class PhaseFieldSimu(_Simu):
         self.__convIter = convIter
         self.__timeIter = timeIter
 
-        Kglob = self.__Ku.copy()
+        Ku = self.__Ku.copy()
             
-        return u_np1, d_np1, Kglob, converged
+        return u_np1, d_np1, Ku, converged
 
     # ------------------------------------------- Elastic problem -------------------------------------------
 
@@ -509,7 +509,7 @@ class PhaseFieldSimu(_Simu):
         # Calculating elementary matrix
         Kd_e, Fd_e = self.__Construct_Damage_Matrix()
 
-        # Assemblage
+        # Assembly
         tic = Tic()        
 
         self.__Kd = sparse.csr_matrix((Kd_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (Ndof, Ndof))
@@ -669,16 +669,16 @@ class PhaseFieldSimu(_Simu):
         
         return self.Results_Reshape_values(values, nodeValues)
 
-    def __indexResult(self, resultat: str) -> int:
+    def __indexResult(self, result: str) -> int:
 
         dim = self.dim
 
-        if len(resultat) <= 2:
-            if "x" in resultat:
+        if len(result) <= 2:
+            if "x" in result:
                 return 0
-            elif "y" in resultat:
+            elif "y" in result:
                 return 1
-            elif "z" in resultat:
+            elif "z" in result:
                 return 1
 
     def _Calc_Psi_Elas(self) -> float:
