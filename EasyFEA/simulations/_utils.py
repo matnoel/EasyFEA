@@ -12,7 +12,7 @@ import pickle
 # ----------------------------------------------
 
 def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:str):
-    """Save the values of load and displacements in the folder"""
+    """Saves the values of force and displacement in the folder"""
     
     folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
     filename = Folder.Join(folder, "force-displacement.pickle")
@@ -31,7 +31,7 @@ def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:
     Display.MyPrint(f'Saved:\n{filename.replace(folder_PythonEF,"")}\n','green')
     
 def Load_Force_Displacement(folder:str):
-    """Loads forces and displacements.
+    """Loads force and displacement.
 
     Parameters
     ----------
@@ -57,3 +57,40 @@ def Load_Force_Displacement(folder:str):
     Display.MyPrint(f'Loaded:\n{shortName}\n','green')
 
     return force, displacement
+
+# ----------------------------------------------
+# Save obj in pickle file
+# ----------------------------------------------
+
+def Save_pickle(obj, folder: str, filename: str) -> None:
+    """Saves the object in folder/filename.pickle."""
+    
+    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
+    
+    file = Folder.Join(folder, f"{filename}.pickle")
+
+    if not Folder.os.path.exists(folder):
+        Folder.os.makedirs(folder)
+
+    with open(file, "wb") as f:
+        pickle.dump(obj, f)
+    
+    Display.MyPrint(f'Saved:\n{file.replace(folder_PythonEF,"")}\n','green')
+
+def Load_pickle(folder:str, filename: str):
+    """Returns folder/filename.pickle object."""
+
+    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
+
+    file = Folder.Join(folder, f"{filename}.pickle")
+
+    shortName = file.replace(folder_PythonEF,'') 
+    error = f"{shortName} does not exist"
+    assert Folder.Exists(file), error
+
+    with open(file, 'rb') as f:
+        obj = pickle.load(f)
+    
+    Display.MyPrint(f'Loaded:\n{shortName}\n','green')
+
+    return obj

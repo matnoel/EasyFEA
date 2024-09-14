@@ -5,7 +5,7 @@
 """This module contains all available simulation classes."""
 
 from .simulations._simu import _Simu, Load_Simu
-from .simulations._utils import Save_Force_Displacement, Load_Force_Displacement
+from .simulations._utils import Save_Force_Displacement, Load_Force_Displacement, Save_pickle, Load_pickle
 
 # ----------------------------------------------
 # Elastic
