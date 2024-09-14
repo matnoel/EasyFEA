@@ -264,7 +264,8 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
             return
 
     if plotter == None:
-        plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color=edge_color, line_width=line_width)
+        # plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color=edge_color, line_width=line_width)
+        plotter = _Plotter()
     
     for groupElem in mesh.Get_list_groupElem(dimElem):
 
