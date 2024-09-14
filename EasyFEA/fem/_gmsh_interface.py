@@ -1315,6 +1315,8 @@ class Mesher:
             Geometric objects to refine de background mesh
         meshSize : float
             size of elements outside the domain
+        extrude : list[float]
+            extrusion vector, by default [0,0,1]
         """
 
         # See t10.py in the gmsh tutorials
@@ -1323,8 +1325,8 @@ class Mesher:
         assert isinstance(refineGeoms, Iterable), "refineGeoms must be a list of geometric objects."
 
         if refineGeoms is None or len(refineGeoms) == 0: return
-
-        fields = []
+        
+        fields = list(gmsh.model.mesh.field.list())
 
         for geom in refineGeoms:
 
