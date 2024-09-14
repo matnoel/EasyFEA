@@ -5,8 +5,6 @@
 from typing import Union
 from enum import Enum
 
-from scipy.linalg import sqrtm
-
 # utilities
 from .. import np
 from ..utilities import Tic, Numba_Interface
@@ -737,22 +735,28 @@ class PhaseField(_IModel):
         # Here the material is supposed to be homogeneous
         material = self.__material
 
-        C = material.C        
-        
-        assert not material.isHeterogeneous, "He decomposition has not been implemented for heterogeneous materials"
-        # for heterogeneous materials how to make sqrtm ?
-        # TODO obtain the eigenvalues and eigenvectors of the 2D case with the 3D spectral decomposition?
-        sqrtC = sqrtm(C)
-        
-        if verif :
-            # checks that C^1/2 * C^1/2 = C
-            testC = sqrtC @ sqrtC - C
-            assert np.linalg.norm(testC)/np.linalg.norm(C) < 1e-12
+        C = material.C
 
-        inv_sqrtC = np.linalg.inv(sqrtC)
+        tic = Tic()
+        sqrtC, inv_sqrtC = material.Get_sqrt_C_S()
+        # inv(sqrtC) = sqrtS
+        tic.Tac("Split",f"sqrt C and S", False)
+        
+        if verif:
+            # checks that C^1/2 * C^1/2 = C
+            diff_C = sqrtC @ sqrtC - C
+            test_C = np.linalg.norm(diff_C, axis=(-2,-1))/np.linalg.norm(C, axis=(-2,-1))
+            assert np.max(test_C) < 1e-12
 
         # computes new "strain" field
-        Epsilont_e_pg = np.einsum('ij,epj->epi', sqrtC, Epsilon_e_pg, optimize='optimal')
+        
+        ind = ""
+        if len(C.shape) == 3:
+            ind = 'e'
+        elif len(C.shape) == 4:
+            ind = 'ep'
+
+        Epsilont_e_pg = np.einsum(f'{ind}ij,epj->epi', sqrtC, Epsilon_e_pg, optimize='optimal')
 
         # Computes projectors
         projPt_e_pg, projMt_e_pg = self.__Spectral_Decomposition(Epsilont_e_pg, verif)
@@ -763,18 +767,23 @@ class PhaseField(_IModel):
         # projM_e_pg = inv_sqrtC @ (projMt_e_pg @ sqrtC)
         
         # faster
-        projP_e_pg = np.einsum('ij,epjk,kl->epil', inv_sqrtC, projPt_e_pg, sqrtC, optimize='optimal')
-        projM_e_pg = np.einsum('ij,epjk,kl->epil', inv_sqrtC, projMt_e_pg, sqrtC, optimize='optimal')
+        projP_e_pg = np.einsum(f'{ind}ij,epjk,{ind}kl->epil', inv_sqrtC, projPt_e_pg, sqrtC, optimize='optimal')
+        projM_e_pg = np.einsum(f'{ind}ij,epjk,{ind}kl->epil', inv_sqrtC, projMt_e_pg, sqrtC, optimize='optimal')
 
         tic.Tac("Split",f"proj Tild to proj", False)
 
-        cP_e_pg = sqrtC @ (projPt_e_pg @ sqrtC)
-        cM_e_pg = sqrtC @ (projMt_e_pg @ sqrtC)
-        # cP_e_pg = C @ projP_e_pg
-        # cM_e_pg = C @ projM_e_pg
+        if material.isHeterogeneous:
+            cP_e_pg = np.einsum(f'{ind}ij,epjk->epik', C, projP_e_pg, optimize='optimal')
+            cM_e_pg = np.einsum(f'{ind}ij,epjk->epik', C, projM_e_pg, optimize='optimal')
 
-        # test_cP = sqrtC @ (projPt_e_pg @ sqrtC) - C @ projP_e_pg
-        # test_cP = sqrtC @ (projMt_e_pg @ sqrtC) - C @ projM_e_pg
+        else:
+            # cP_e_pg = sqrtC @ (projPt_e_pg @ sqrtC)
+            # cM_e_pg = sqrtC @ (projMt_e_pg @ sqrtC)
+            cP_e_pg = C @ projP_e_pg
+            cM_e_pg = C @ projM_e_pg
+
+            # test_cP = sqrtC @ (projPt_e_pg @ sqrtC) - C @ projP_e_pg
+            # test_cP = sqrtC @ (projMt_e_pg @ sqrtC) - C @ projM_e_pg
 
         tic.Tac("Split",f"cP_e_pg and cM_e_pg", False)
 

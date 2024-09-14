@@ -4,6 +4,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Union
+from scipy.linalg import sqrtm
 
 # utilities
 from .. import np
@@ -106,6 +107,7 @@ class _Elas(_IModel, ABC):
         shape = (3, 3) if self.dim == 2 else (6, 6)
         assert array.shape[-2:] == shape, f"With dim = {self.dim} array must be a {shape} matrix"
         self.__C = array
+        self.__sqrt_C = None
 
     @property
     def isHeterogeneous(self) -> bool:
@@ -129,6 +131,7 @@ class _Elas(_IModel, ABC):
         shape = (3, 3) if self.dim == 2 else (6, 6)
         assert array.shape[-2:] == shape, f"With dim = {self.dim} array must be a {shape} matrix"
         self.__S = array
+        self.__sqrt_S = None
 
     @abstractmethod
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
@@ -136,6 +139,61 @@ class _Elas(_IModel, ABC):
         C = sum(ci * Ei).\n        
         returns ci, Ei"""
         return np.array([]), np.array([])
+    
+    def Get_sqrt_C_S(self) -> tuple[np.ndarray, np.ndarray]:
+        """Returns the Matrix square root of C and S."""
+
+        C = self.C
+
+        try:
+            self.__sqrt_C is None
+            self.__sqrt_S is None
+        except AttributeError:
+            self.__sqrt_C = None
+            self.__sqrt_S = None
+
+        if self.__sqrt_C is None:
+
+            if self.isHeterogeneous:
+
+                shape = C.shape
+                
+                assert len(shape) == 3, "This function is not currently implemented for heterogeneous matrices where material properties are defined on Gauss points."
+                
+                uniq_C, inverse = np.unique(C, return_inverse=True, axis=0)
+
+                sqrtC = np.zeros_like(C, dtype=float)
+                sqrtS = np.zeros_like(C, dtype=float)
+
+                for i, C in enumerate(uniq_C):
+
+                    elems = np.where(inverse == i)[0]
+
+                    sqrtmC = sqrtm(C)
+                    sqrtC[elems] = sqrtmC
+
+                    sqrtmS = np.linalg.inv(sqrtmC)
+                    sqrtS[elems] = sqrtmS
+                
+            else:
+                sqrtC = sqrtm(C)
+                
+                sqrtS = np.linalg.inv(sqrtC) # faster than sqrtm(self.S)
+                # sqrtS = sqrtm(self.S)
+
+                # # give the same results !!!
+                # test = np.linalg.norm(sqrtS - sqrtm(self.S))/np.linalg.norm(sqrtS)
+                # assert test < 1e-12
+
+            self.__sqrt_C = sqrtC
+            self.__sqrt_S = sqrtS
+        
+        else:
+
+            sqrtC = self.__sqrt_C.copy()
+            sqrtS = self.__sqrt_S.copy()
+
+        return sqrtC, sqrtS
 
 # ----------------------------------------------
 # Isotropic
@@ -747,8 +805,17 @@ class Elas_Anisot(_Elas):
         shape = C.shape
         assert (shape[-2], shape[-1]) in [(3,3), (6,6)], 'C must be a (3,3) or (6,6) matrix'        
         dim = 3 if C.shape[-1] == 6 else 2
-        testSym = np.linalg.norm(C.T - C)/np.linalg.norm(C)
-        assert testSym <= 1e-12, "The matrix is not symmetrical."
+        if len(C.shape) == 2:
+            Ct = C.T
+        elif len(C.shape) == 3:
+            Ct = np.transpose(C, (0,2,1))
+        elif len(C.shape) == 4:
+            Ct = np.transpose(C, (0,1,3,2))
+        else:
+            raise ValueError("This matrix must be of dimensions (dim, dim), (Ne, dim, dim) or (Ne, nPg, dim, dim).")
+
+        testSym = np.linalg.norm(Ct - C, axis=(-2, -1))/np.linalg.norm(C, axis=(-2, -1))
+        assert np.max(testSym) <= 1e-12, "The matrix is not symmetrical."
 
         if useVoigtNotation:
             C_mandel = KelvinMandel_Matrix(dim, C)
