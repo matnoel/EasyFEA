@@ -147,6 +147,7 @@ class _Elas(_IModel, ABC):
             self.__sqrt_C is None
             self.__sqrt_S is None
         except AttributeError:
+            # init
             self.__sqrt_C = None
             self.__sqrt_S = None
 
