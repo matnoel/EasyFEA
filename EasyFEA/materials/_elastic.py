@@ -107,7 +107,6 @@ class _Elas(_IModel, ABC):
         shape = (3, 3) if self.dim == 2 else (6, 6)
         assert array.shape[-2:] == shape, f"With dim = {self.dim} array must be a {shape} matrix"
         self.__C = array
-        self.__sqrt_C = None
 
     @property
     def isHeterogeneous(self) -> bool:
@@ -131,7 +130,6 @@ class _Elas(_IModel, ABC):
         shape = (3, 3) if self.dim == 2 else (6, 6)
         assert array.shape[-2:] == shape, f"With dim = {self.dim} array must be a {shape} matrix"
         self.__S = array
-        self.__sqrt_S = None
 
     @abstractmethod
     def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
