@@ -161,7 +161,7 @@ def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='blac
     return plotter
 
 def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color='red',
-               folder="", plotter: pv.Plotter=None):
+               folder="", label=None, plotter: pv.Plotter=None):
     """Plots mesh's nodes.
 
     Parameters
@@ -175,7 +175,9 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
     color : str, optional
-        color, default 'red'    
+        color, default 'red'
+    label : str, optional
+        label, by default None
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance
 
@@ -215,11 +217,13 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
         pvData["myLabels"] = myLabels
         plotter.add_point_labels(pvData, "myLabels", point_color=color, render_points_as_spheres=True)
     else:
-        plotter.add_mesh(pvData, color=color, render_points_as_spheres=True)
+        plotter.add_mesh(pvData, color=color, label=label, render_points_as_spheres=True)
 
     return plotter
 
-def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, deformFactor=0, opacity=1.0, color='red', edge_color='black', line_width=None, plotter: pv.Plotter=None):
+def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False,
+                  deformFactor=0, opacity=1.0, color='red', edge_color='black',
+                  line_width=None, label=None, plotter: pv.Plotter=None):
     """Plots the mesh elements corresponding to the given nodes.
 
     Parameters
@@ -242,6 +246,8 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
         color used to display segments, by default 'black'    
     line_width : float, optional
         Thickness of lines, by default None
+    label : str, optional
+        label, by default None
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance
 
@@ -282,7 +288,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False, 
 
         pvGroup = _pvGrid(newGroupElem)
 
-        Plot(pvGroup, opacity=opacity, color=color, edge_color=edge_color, plotter=plotter, line_width=line_width)
+        Plot(pvGroup, opacity=opacity, color=color, edge_color=edge_color, plotter=plotter, line_width=line_width, label=label)
 
         if showId:
             centers = np.mean(coordo[groupElem.connect[elements]], axis=1)
