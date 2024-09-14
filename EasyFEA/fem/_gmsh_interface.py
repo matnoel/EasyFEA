@@ -441,7 +441,7 @@ class Mesher:
                 p1 = factory.addPoint(*line.pt1.coord, line.meshSize) # start
                 p2 = factory.addPoint(*line.pt2.coord, line.meshSize) # end
                 p3 = factory.addPoint(*line.pt3.coord, line.meshSize) # mid
-                geom_line = factory.addCircleArc(p1, p3, p2)
+                geom_line = factory.addCircleArc(p1, p3, p2, center=False)
             else:
                 raise Exception("You need to give lines or arcs.")
             factory.fragment(ents, [(1, geom_line)], removeTool=False)
@@ -879,6 +879,7 @@ class Mesher:
             elif isinstance(crack, Contour):  # 2D CRACK
 
                 loop, lines, points, openLns, openPts = self._Loop_From_Contour(crack)
+                
                 try:
                     surf = self._Surface_From_Loops([loop])
                 except Exception:
@@ -925,7 +926,7 @@ class Mesher:
         newEntities.extend([(2, surf) for surf in entities2D])
 
         if factory == gmsh.model.occ:
-            o, m = gmsh.model.occ.fragment(entities, newEntities)
+            o, m = gmsh.model.occ.fragment(entities, newEntities, removeTool=False)
 
         self._Synchronize() # mandatory
 
