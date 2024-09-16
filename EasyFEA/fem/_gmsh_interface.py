@@ -1469,6 +1469,7 @@ class Mesher:
         """
         
         self._Set_mesh_algorithm(elemType)
+        # self._factory.removeAllDuplicates()
         self._Synchronize() # mandatory
 
         tic = Tic()
