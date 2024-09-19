@@ -2,7 +2,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Module providing an interface with PyVista (https://docs.pyvista.org/version/stable/)."""
+"""Module providing an interface with PyVista (https://docs.pyvista.org/version/stable/).\n
+https://docs.pyvista.org/api/plotting/plotting.html"""
 
 from typing import Union, Callable
 from cycler import cycler
@@ -21,7 +22,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
                 color=None, show_edges=False, edge_color='k', line_width=None,
                 show_vertices=False, point_size=None, opacity=1.0,
                 style='surface', cmap="jet", n_colors=256, clim=None,
-                plotter: pv.Plotter=None, show_grid=False, verticalColobar=True, **kwargs):
+                plotter: pv.Plotter=None, show_grid=False, colorbarTitle=None, verticalColobar=True, **kwargs):
     """Plots the object obj that can be either a simu, mesh, MultiBlock, PolyData.\n
     If you want to plot the solution use plotter.show().
 
@@ -64,6 +65,8 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         The pyvista plotter, by default None and create a new Plotter instance
     show_grid : bool, optionnal
         Show the grid, by default False
+    colorbarTitle: str, optionnal
+        colorbar title, by default None
     verticalColobar : bool, optionnal
         color bar is vertical, by default True
     **kwargs:
@@ -95,6 +98,8 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
     name = None if pvMesh.n_arrays == 0 else name
     if name != None:
         pvMesh[name] *= coef
+    
+    colorbarTitle = name if colorbarTitle is None else colorbarTitle
 
     if plotter is None:        
         plotter = _Plotter()
@@ -120,7 +125,7 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
                         show_vertices=show_vertices, point_size=point_size,
                         opacity=opacity,
                         style=style, cmap=cmap, n_colors=n_colors, clim=clim,
-                        scalar_bar_args={'title': name, 'vertical': verticalColobar, pos: val},
+                        scalar_bar_args={'title': colorbarTitle, 'vertical': verticalColobar, pos: val},
                         **kwargs)
 
     _setCameraPosition(plotter, inDim)
@@ -629,11 +634,11 @@ def _Plotter(off_screen=False, add_axes=True, shape=(1,1), linkViews=True):
     plotter.subplot(0,0)
     return plotter
 
-def _setCameraPosition(plotter: pv.Plotter, inDim: int):
+def _setCameraPosition(plotter: pv.Plotter, inDim: int, elevation=25, azimuth=10):
     plotter.camera_position = 'xy'
     if inDim == 3:
-        plotter.camera.elevation += 25
-        plotter.camera.azimuth += 10
+        plotter.camera.elevation = elevation
+        plotter.camera.azimuth = azimuth
         plotter.camera.reset_clipping_range()
     # if inDim == 3:        
     #     plotter.camera.elevation += 15
