@@ -104,7 +104,10 @@ def PhaseField_Folder(folder: str, material: str,
 
     if nL != 0:
         assert nL > 0
-        name = f"{name} nL={nL}"
+        if isinstance(nL, float):
+            name = f"{name} nL={nL:.2f}"
+        else:
+            name = f"{name} nL={nL}"
 
     workFolder = New_File(folder, results=True)
     path = workFolder.split(folder)[0]
