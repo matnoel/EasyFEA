@@ -53,6 +53,8 @@ regu = "AT1"
 
 folder_save = Folder.PhaseField_Folder(f"CT_{dim}D", "Isot", split, regu, "", 1, "", meshTest, optimMesh, nL=nL)
 
+Display.MyPrint(folder_save, 'green')
+
 # ----------------------------------------------
 # Geom
 # ----------------------------------------------

@@ -126,7 +126,10 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(dim, E, v, True, ep)
     pfm = Materials.PhaseField(material, split, regu, Gc, l0)
 
-    folderSimu = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization, "CP", tolConv, "", meshTest, optimMesh, nL=nL)
+    folder_save = Folder.PhaseField_Folder(folder, "", pfm.split, pfm.regularization,
+                                          "CP", tolConv, "", meshTest, optimMesh, nL=nL)
+
+    Display.MyPrint(folder_save, 'green')
 
     if doSimu:
 
@@ -190,41 +193,41 @@ if __name__ == '__main__':
         # saves load and displacement
         displacement = np.asarray(displacement)
         force = np.asarray(force)
-        Simulations.Save_Force_Displacement(force, displacement, folderSimu)
+        Simulations.Save_Force_Displacement(force, displacement, folder_save)
 
         # saves the simulation
-        simu.Save(folderSimu)
+        simu.Save(folder_save)
 
-        Tic.Plot_History(folderSimu, True)    
+        Tic.Plot_History(folder_save, True)    
 
     else:
 
-        simu = Simulations.Load_Simu(folderSimu)
+        simu = Simulations.Load_Simu(folder_save)
         mesh = simu.mesh
 
-    force, displacement = Simulations.Load_Force_Displacement(folderSimu)
+    force, displacement = Simulations.Load_Force_Displacement(folder_save)
 
     # ----------------------------------------------
     # PostProcessing
     # ----------------------------------------------
     Display.Plot_BoundaryConditions(simu)
 
-    Display.Plot_Result(simu, 'damage', folder=folderSimu)
+    Display.Plot_Result(simu, 'damage', folder=folder_save)
 
     axLoad = Display.Init_Axes()
     axLoad.set_xlabel('displacement [mm]')
     axLoad.set_ylabel('load [kN]')
     axLoad.plot(displacement, force/1000, c="blue")
-    Display.Save_fig(folderSimu, "forcedep")
+    Display.Save_fig(folder_save, "forcedep")
 
-    Display.Plot_Iter_Summary(simu, folderSimu)
+    Display.Plot_Iter_Summary(simu, folder_save)
 
     if makeMovie:
         depMax = simu.Result("displacement_norm").max()
         deformFactor = L*.1/depMax
-        pvi.Movie_simu(simu, 'damage', folderSimu, 'damage.mp4', show_edges=True, deformFactor=deformFactor, clim=(0,1))
+        pvi.Movie_simu(simu, 'damage', folder_save, 'damage.mp4', show_edges=True, deformFactor=deformFactor, clim=(0,1))
 
     if makeParaview:
-        Paraview_Interface.Make_Paraview(simu, folderSimu)
+        Paraview_Interface.Make_Paraview(simu, folder_save)
 
     plt.show()

@@ -119,9 +119,11 @@ def DoSimu(split: str, regu: str):
     folderName = "Tension_Benchmark"
     if dim == 3:
         folderName += "_3D"
-    folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, 'DP',
+    folder_save = Folder.PhaseField_Folder(folderName, materialType, split, regu, 'DP',
                                       tolConv, pfmSolver, meshTest, optimMesh, not openCrack,
                                       theta=theta)
+    
+    Display.MyPrint(folder_save, 'green')
             
     if doSimu:
 
@@ -302,8 +304,8 @@ def DoSimu(split: str, regu: str):
         # Saving
         # ----------------------------------------------
         print()
-        Simulations.Save_Force_Displacement(force, displacement, folder)
-        simu.Save(folder)        
+        Simulations.Save_Force_Displacement(force, displacement, folder_save)
+        simu.Save(folder_save)        
 
         force = np.asarray(force)
         displacement = np.asarray(displacement)
@@ -312,34 +314,34 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Loading
         # ---------------------------------------------
-        simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder)
-        force, displacement = Simulations.Load_Force_Displacement(folder)
+        simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder_save)
+        force, displacement = Simulations.Load_Force_Displacement(folder_save)
 
     # ----------------------------------------------
     # PostProcessing
     # ---------------------------------------------
     if plotResult:
-        Display.Plot_Iter_Summary(simu, folder, None, None)
+        Display.Plot_Iter_Summary(simu, folder_save, None, None)
         Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Force_Displacement(force*1e-6, displacement*1e6, 'ud [µm]', 'f [kN/mm]', folder)
-        Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder, filename="damage")
+        Display.Plot_Force_Displacement(force*1e-6, displacement*1e6, 'ud [µm]', 'f [kN/mm]', folder_save)
+        Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder_save, filename="damage")
             
     if saveParaview:
-        Paraview_Interface.Make_Paraview(simu, folder, Nparaview)
+        Paraview_Interface.Make_Paraview(simu, folder_save, Nparaview)
 
     if makeMovie:
-        Display.Movie_Simu(simu, "damage", folder, "damage.mp4", N=200)
+        Display.Movie_Simu(simu, "damage", folder_save, "damage.mp4", N=200)
 
     if plotMesh:
         Display.Plot_Mesh(simu.mesh)
             
     if plotEnergy:
-        Display.Plot_Energy(simu, N=400, folder=folder)
+        Display.Plot_Energy(simu, N=400, folder=folder_save)
 
     Tic.Resume()
 
     if doSimu:
-        Tic.Plot_History(folder, False)
+        Tic.Plot_History(folder_save, False)
 
     if showResult:
         plt.show()

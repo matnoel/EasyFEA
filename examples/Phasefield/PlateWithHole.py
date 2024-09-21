@@ -184,7 +184,11 @@ def DoSimu(split: str, regu: str):
     if dim == 3:
         folderName += "_3D"
     simpli2D = "CP" if planeStress else "DP"
-    folder = Folder.PhaseField_Folder(folderName, materialType, split, regu, simpli2D, tolConv, solver, meshTest, optimMesh, nL=nL)    
+    
+    folder_save = Folder.PhaseField_Folder(folderName, materialType, split, regu, simpli2D,
+                                           tolConv, solver, meshTest, optimMesh, nL=nL)    
+
+    Display.MyPrint(folder_save, 'green')
     
     if doSimu:
 
@@ -301,33 +305,33 @@ def DoSimu(split: str, regu: str):
         # Saving
         # ----------------------------------------------
         print()
-        Simulations.Save_Force_Displacement(force, displacement, folder)
-        simu.Save(folder)
+        Simulations.Save_Force_Displacement(force, displacement, folder_save)
+        simu.Save(folder_save)
             
     else:
         # ----------------------------------------------
         # Load
         # ----------------------------------------------
-        simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder)
-        force, displacement = Simulations.Load_Force_Displacement(folder)
+        simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder_save)
+        force, displacement = Simulations.Load_Force_Displacement(folder_save)
 
     # ----------------------------------------------
     # Post processing
     # ---------------------------------------------
     if plotEnergy:
-        Display.Plot_Energy(simu, force, displacement, N=400, folder=folder)
+        Display.Plot_Energy(simu, force, displacement, N=400, folder=folder_save)
 
     if plotResult:
         Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Iter_Summary(simu, folder, None, None)
-        Display.Plot_Force_Displacement(force/unit, displacement*unit, f'ud [{unitU}]', f'f [{unitF}]', folder)
-        Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder, filename="damage")
+        Display.Plot_Iter_Summary(simu, folder_save, None, None)
+        Display.Plot_Force_Displacement(force/unit, displacement*unit, f'ud [{unitU}]', f'f [{unitF}]', folder_save)
+        Display.Plot_Result(simu, "damage", nodeValues=True, colorbarIsClose=True, folder=folder_save, filename="damage")
 
     if plotMesh:
         Display.Plot_Mesh(mesh)
 
     if saveParaview:
-        Paraview_Interface.Make_Paraview(simu, folder)
+        Paraview_Interface.Make_Paraview(simu, folder_save)
 
     if makeMovie:
 
@@ -368,12 +372,12 @@ def DoSimu(split: str, regu: str):
         # plotter.show()
         # plotter.screenshot(Folder.Join(folder, 'screenshot.png'))
 
-        pvi.Movie_func(Func, iterations.size, folder, 'damage.mp4')
+        pvi.Movie_func(Func, iterations.size, folder_save, 'damage.mp4')
 
         # Display.Movie_Simu(simu, "damage", folder, "damage.mp4", N=200, plotMesh=False, deformFactor=1.5)
 
     if doSimu:
-        Tic.Plot_History(folder, details=False)
+        Tic.Plot_History(folder_save, details=False)
 
     if showFig:
         plt.show()

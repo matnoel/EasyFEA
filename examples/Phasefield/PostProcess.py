@@ -109,7 +109,8 @@ if __name__ == '__main__':
 
         tic = Tic()
 
-        foldername = Folder.PhaseField_Folder(folder_results, material=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv, solver=solveur, test=meshTest, optimMesh=optimMesh, closeCrack=False, nL=nL, theta=theta)
+        foldername = Folder.PhaseField_Folder(folder_results, material=comp,  split=split, regu=regu, simpli2D=simpli2D, tolConv=tolConv,
+                                              solver=solveur, test=meshTest, optimMesh=optimMesh, closeCrack=False, nL=nL, theta=theta)
 
         fileForceDep = Folder.Join(foldername, "force-displacement.pickle")
         fileSimu = Folder.Join(foldername, "simulation.pickle")

@@ -121,8 +121,10 @@ def DoSimu(split: str, regu: str):
     folderName = "Shear_Benchmark"
     if dim == 3:
         folderName += "_3D"
-    folder = Folder.PhaseField_Folder(folderName, "Elas_Isot", split, regu, 'DP',
+    folder_save = Folder.PhaseField_Folder(folderName, "Elas_Isot", split, regu, 'DP',
                                     tolConv, pfmSolver, meshTest, optimMesh, not openCrack)
+    
+    Display.MyPrint(folder_save, 'green')
 
     if doSimu:
         
@@ -227,23 +229,23 @@ def DoSimu(split: str, regu: str):
         # Saving
         # ----------------------------------------------
         print()
-        Simulations.Save_Force_Displacement(force, displacement, folder)
-        simu.Save(folder)        
+        Simulations.Save_Force_Displacement(force, displacement, folder_save)
+        simu.Save(folder_save)        
 
         force = np.asarray(force)
         displacement = np.asarray(displacement)
     else:
-        simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder)
-        force, displacement = Simulations.Load_Force_Displacement(folder)
+        simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder_save)
+        force, displacement = Simulations.Load_Force_Displacement(folder_save)
 
     # ----------------------------------------------
     # PostProcessing
     # ---------------------------------------------
     if plotResult:
-        Display.Plot_Iter_Summary(simu, folder, None, None)
+        Display.Plot_Iter_Summary(simu, folder_save, None, None)
         Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Force_Displacement(force*1e-6, displacement*1e6, 'ud [µm]', 'f [kN/mm]', folder)
-        ax = Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder, filename="damage", ncolors=25)
+        Display.Plot_Force_Displacement(force*1e-6, displacement*1e6, 'ud [µm]', 'f [kN/mm]', folder_save)
+        ax = Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder_save, filename="damage", ncolors=25)
 
         # ax = Display.Plot_Result(simu, "damage", 1.5, ncolors=21, clim=(0,0.9))
         # ax.axis('off'); ax.set_title("")
@@ -257,11 +259,11 @@ def DoSimu(split: str, regu: str):
         # pvi.Plot(simu, "ux", show_edges=True).show()
         ax = Display.Plot_Mesh(simu.mesh, lw=0.3, facecolors='white')
         ax.axis('off'); ax.set_title("")
-        Display.Save_fig(folder, "mesh", transparent=True)
+        Display.Save_fig(folder_save, "mesh", transparent=True)
         
             
     if saveParaview:
-        Paraview_Interface.Make_Paraview(simu, folder, Nparaview)
+        Paraview_Interface.Make_Paraview(simu, folder_save, Nparaview)
 
     if makeMovie:
         # pvi.Plot_Mesh(simu.mesh).show()
@@ -280,16 +282,16 @@ def DoSimu(split: str, regu: str):
         
             pvi.Plot(tresh, 'damage', deformFactor, show_edges=True, plotter=plotter, clim=(0,1))
         
-        pvi.Movie_func(Func, len(simu.results), folder, 'damage.mp4')
+        pvi.Movie_func(Func, len(simu.results), folder_save, 'damage.mp4')
         
             
     if plotEnergy:
-        Display.Plot_Energy(simu, N=400, folder=folder)
+        Display.Plot_Energy(simu, N=400, folder=folder_save)
 
     Tic.Resume()
 
     if doSimu:
-        Tic.Plot_History(folder, False)
+        Tic.Plot_History(folder_save, False)
 
     if showResult:
         plt.show()
