@@ -2,6 +2,17 @@
 
 This document describes the changes made to the project.
 
+## 1.2.4 (September 22, 2024):
+
+- Updated docstrings.
+- Updated Display functions.
+- Updated PyVista_Interface functions.
+- Added _Elas.Get_sqrt_C_S() function.
+- Updated He split for heterogeneous material properties.
+- Added Save_pickle() and Load_pickle() functions.
+- Updated Gmsh_Interface for cracks.
+- Updated Folder functions.
+
 ## 1.2.3 (September 11, 2024):
 
 - Ensures compatibility with python 3.9 and 3.10.
