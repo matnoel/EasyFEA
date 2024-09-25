@@ -230,6 +230,10 @@ class PhaseFieldSimu(_Simu):
 
         tic = Tic()
 
+        if convOption == 2:            
+            f_u = self._Solver_Apply_Neumann(ModelType.elastic).toarray().ravel()
+            # Zero vector when no external body and surface forces are applied.
+
         while not converged and Niter < maxIter:
                     
             Niter += 1
@@ -237,10 +241,10 @@ class PhaseFieldSimu(_Simu):
                 d_n = self.damage
 
             elif convOption == 1:
-                psi_n = self._Calc_Psi_Crack()
+                E_n = self._Calc_Psi_Crack()
 
             elif convOption == 2:
-                psi_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
+                E_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
 
             elif convOption == 3:
                 d_n = self.damage
@@ -256,19 +260,20 @@ class PhaseFieldSimu(_Simu):
             # new displacement -> new damage matrices
             self.__updatedDamage = False
 
-            if convOption == 0:                
+            if convOption == 0:
                 convIter = np.max(np.abs(d_np1 - d_n))
 
             elif convOption in [1,2]:
-                psi_np1 = self._Calc_Psi_Crack()
-                if convOption == 2:                                      
+                E_np1 = self._Calc_Psi_Crack()
+                if convOption == 2:
                    # eq (39) Ambati 2015 10.1007/s00466-014-1109-y
-                   psi_np1 += self._Calc_Psi_Elas()
+                   # The work of external body and surface forces are added to remain as general as possible.
+                   E_np1 += self._Calc_Psi_Elas() - u_n @ f_u
 
-                if psi_np1 == 0:
-                    convIter = np.abs(psi_n - psi_np1)
+                if E_np1 == 0:
+                    convIter = np.abs(E_n - E_np1)
                 else:
-                    convIter = np.abs(psi_n - psi_np1)/psi_np1
+                    convIter = np.abs(E_n - E_np1)/E_np1
 
             elif convOption == 3:
                 # eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
