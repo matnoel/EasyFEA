@@ -196,7 +196,7 @@ class PhaseFieldSimu(_Simu):
         Parameters
         ----------
         tolConv : float, optional
-            threshold (𝜖), by default 1.0
+            threshold used to check convergence (𝜖), by default 1.0
         maxIter : int, optional
             Maximum iterations for convergence, by default 500
         convOption : int, optional
@@ -224,7 +224,7 @@ class PhaseFieldSimu(_Simu):
 
         Niter = 0
         converged = False
-        dn = self.damage
+        old_damage = self.damage
 
         solver = self.phaseFieldModel.solver
 
@@ -232,7 +232,7 @@ class PhaseFieldSimu(_Simu):
 
         if convOption == 2:            
             f_u = self._Solver_Apply_Neumann(ModelType.elastic).toarray().ravel()
-            # Zero vector when no external body and surface forces are applied.
+            # A vector of zeros when no external body and surface forces are applied.
 
         while not converged and Niter < maxIter:
                     
@@ -244,18 +244,20 @@ class PhaseFieldSimu(_Simu):
                 E_n = self._Calc_Psi_Crack()
 
             elif convOption == 2:
-                E_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas()
+                # eq (39) Ambati 2015 10.1007/s00466-014-1109-y
+                # The work of external body and surface forces are added to remain as general as possible.
+                E_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas() - self.displacement @ f_u
 
             elif convOption == 3:
                 d_n = self.damage
                 u_n = self.displacement
 
-            # Computes damage field
+            # Compute damage field
             d_np1 = self.__Solve_damage()
             # new damage -> new displacement matrices
             self.__updatedDisplacement = False
 
-            # Computes displacement field
+            # Compute displacement field
             u_np1 = self.__Solve_elastic()
             # new displacement -> new damage matrices
             self.__updatedDamage = False
@@ -266,14 +268,12 @@ class PhaseFieldSimu(_Simu):
             elif convOption in [1,2]:
                 E_np1 = self._Calc_Psi_Crack()
                 if convOption == 2:
-                   # eq (39) Ambati 2015 10.1007/s00466-014-1109-y
-                   # The work of external body and surface forces are added to remain as general as possible.
-                   E_np1 += self._Calc_Psi_Elas() - u_n @ f_u
+                   E_np1 += self._Calc_Psi_Elas() - u_np1 @ f_u
 
                 if E_np1 == 0:
                     convIter = np.abs(E_n - E_np1)
                 else:
-                    convIter = np.abs(E_n - E_np1)/E_np1
+                    convIter = np.abs((E_n - E_np1)/E_np1)
 
             elif convOption == 3:
                 # eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
@@ -283,7 +283,7 @@ class PhaseFieldSimu(_Simu):
                 convD = np.sum(diffD)
                 convIter = np.max([convD, convU])
 
-            # checks convergence
+            # check convergence
             if tolConv == 1 or d_np1.max() == 0:
                 converged = True
             elif convOption == 3:
@@ -298,7 +298,7 @@ class PhaseFieldSimu(_Simu):
             
         elif solver == solverTypes.HistoryDamage:
             oldAndNewDamage = np.zeros((d_np1.shape[0], 2))
-            oldAndNewDamage[:, 0] = dn
+            oldAndNewDamage[:, 0] = old_damage
             oldAndNewDamage[:, 1] = d_np1
             d_np1 = np.max(oldAndNewDamage, 1)
 
@@ -307,11 +307,11 @@ class PhaseFieldSimu(_Simu):
 
         timeIter = tic.Tac("Resolution phase field", "Phase Field iteration", False)
 
-        # saves solve config
+        # save solve config
         self.__tolConv = tolConv
         self.__convOption = convOption
         self.__maxIter = maxIter
-        # saves iter parameters
+        # save iter parameters
         self.__Niter = Niter
         self.__convIter = convIter
         self.__timeIter = timeIter
