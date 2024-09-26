@@ -173,7 +173,7 @@ if doSimu:
 
         simu.Save_Iter()
 
-        if d[nodes_xL].max() >= 0.99:
+        if np.any(d[nodes_xL] >= 1):
             break
 
         if plotIter:        

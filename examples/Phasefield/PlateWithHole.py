@@ -279,7 +279,7 @@ def DoSimu(split: str, regu: str):
             simu.Results_Set_Iteration_Summary(iter, ud*unit, unitU, ud/u_max, True)
 
             # Detection if the edges has been touched
-            if np.any(d[nodes_edges] >= 0.98):
+            if np.any(d[nodes_edges] >= 1):
                 nDetect += 1
                 if nDetect == 10:                    
                     break

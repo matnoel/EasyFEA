@@ -294,7 +294,7 @@ def DoSimu(split: str, regu: str):
             force.append(f)
 
             # check for damaged edges
-            if np.any(simu.damage[nodes_edges] >= 0.98):
+            if np.any(simu.damage[nodes_edges] >= 1):
                 nDetect +=1
                 if nDetect == 10:
                     # If the edge has been touched 10 times, stop the simulation

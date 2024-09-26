@@ -115,7 +115,7 @@ if __name__ == '__main__':
         plt.figure(axDamage.figure)
         plt.pause(1e-12)
 
-        if simu.damage[nodesLeftRight].max() >= 0.95:
+        if simu.damage[nodesLeftRight].max() >= 1:
             nDetect += 1
 
         if nDetect==10:

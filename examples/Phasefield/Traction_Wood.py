@@ -188,7 +188,7 @@ if __name__ == '__main__':
         Display.Plot_Result(simu, "damage", ax=ax_Damage)
         plt.pause(1e-12)
 
-        if np.max(simu.damage[nodes_edges]) >= 0.95:
+        if np.max(simu.damage[nodes_edges]) >= 1:
             break
     if makeParaview:
         Paraview_Interface.Make_Paraview(simu, folder)
