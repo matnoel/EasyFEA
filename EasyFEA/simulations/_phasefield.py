@@ -228,29 +228,26 @@ class PhaseFieldSimu(_Simu):
 
         solver = self.phaseFieldModel.solver
 
-        tic = Tic()
-
-        if convOption == 2:            
-            f_u = self._Solver_Apply_Neumann(ModelType.elastic).toarray().ravel()
+        if convOption == 2:
+            fu = self._Solver_Apply_Neumann(ModelType.elastic).toarray().ravel()
             # A vector of zeros when no external body and surface forces are applied.
+
+        tic = Tic()
 
         while not converged and Niter < maxIter:
                     
             Niter += 1
-            if convOption == 0:
-                d_n = self.damage
 
-            elif convOption == 1:
+            d_n = self.damage
+            u_n = self.displacement
+
+            if convOption == 1:
                 E_n = self._Calc_Psi_Crack()
 
             elif convOption == 2:
                 # eq (39) Ambati 2015 10.1007/s00466-014-1109-y
                 # The work of external body and surface forces are added to remain as general as possible.
-                E_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas() - self.displacement @ f_u
-
-            elif convOption == 3:
-                d_n = self.damage
-                u_n = self.displacement
+                E_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas() - u_n @ fu
 
             # Compute damage field
             d_np1 = self.__Solve_damage()
@@ -268,7 +265,7 @@ class PhaseFieldSimu(_Simu):
             elif convOption in [1,2]:
                 E_np1 = self._Calc_Psi_Crack()
                 if convOption == 2:
-                   E_np1 += self._Calc_Psi_Elas() - u_np1 @ f_u
+                   E_np1 += self._Calc_Psi_Elas() - u_np1 @ fu
 
                 if E_np1 == 0:
                     convIter = np.abs(E_n - E_np1)
