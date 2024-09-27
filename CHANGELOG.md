@@ -2,6 +2,10 @@
 
 This document describes the changes made to the project.
 
+## 1.2.5 (September 27, 2024):
+
+- Updated phase field solver.
+
 ## 1.2.4 (September 22, 2024):
 
 - Updated docstrings.
