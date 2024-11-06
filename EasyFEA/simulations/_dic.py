@@ -131,10 +131,7 @@ class DIC(_IObserver):
 
     @property
     def alpha(self) -> float:
-        if self._lr == 0.0:
-            return 0
-        else:
-            return (self.ldic/self._lr)**2
+        return (self._lr/self.ldic)**2
 
     # solution properties
     
