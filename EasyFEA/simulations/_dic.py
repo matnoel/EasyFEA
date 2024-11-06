@@ -297,7 +297,7 @@ class DIC(_IObserver):
 
         assert coef > 0
         # Calculation of average element size
-        ldic = 8 * self.__mesh.Get_meshSize(False).mean()
+        ldic = coef * self.__mesh.Get_meshSize(False).mean()
 
         return ldic
 
