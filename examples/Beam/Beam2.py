@@ -14,7 +14,7 @@ if __name__ == '__main__':
     Display.Clear()
 
     # ----------------------------------------------
-    # Dimensions
+    # Configuration
     # ----------------------------------------------
 
     L = 120
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     Iy = beam1.Iy
     Iz = beam1.Iz
 
-    # Initializes the beam structure with the defined beam segments
+    # Initialize the beam structure with the defined beam segments
     beamStructure = Materials.BeamStructure(beams)
 
     # Create the beam simulation
