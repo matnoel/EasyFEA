@@ -390,15 +390,15 @@ class ElasticSimu(_Simu):
         error, error_e
         """
 
-        Wdef_e = self._Calc_Psi_Elas(False)
-        Wdef = np.sum(Wdef_e)
+        W_e = self._Calc_Psi_Elas(False)
+        Welas = np.sum(W_e)
 
-        WdefLisse_e: np.ndarray = self._Calc_Psi_Elas(False, True)
-        WdefLisse: float = np.sum(WdefLisse_e)
+        Ws_e: np.ndarray = self._Calc_Psi_Elas(False, True)
+        WdefLisse: float = np.sum(Ws_e)
 
-        error_e: np.ndarray = np.abs(WdefLisse_e-Wdef_e).ravel()/Wdef
+        error_e: np.ndarray = np.abs(Ws_e-W_e).ravel()/Welas
 
-        error: float = np.abs(Wdef-WdefLisse)/Wdef
+        error: float = np.abs(Welas-WdefLisse)/Welas
 
         return error, error_e
 
