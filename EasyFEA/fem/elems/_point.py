@@ -4,7 +4,7 @@
 
 """Point element module."""
 
-from ... import np, plt
+import numpy as np
 
 from .._group_elems import _GroupElem
 

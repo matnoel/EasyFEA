@@ -4,7 +4,7 @@
 
 """Tetra element module."""
 
-from ... import np, plt
+import numpy as np
 
 from .._group_elems import _GroupElem
 
@@ -42,7 +42,10 @@ class TETRA4(_GroupElem):
 
     @property
     def faces(self) -> list[int]:
-        return [0,1,2,0,3,1,0,2,3,1,3,2]
+        return [0,1,2,
+                0,3,1,
+                0,2,3,
+                1,3,2]
     
     @property
     def segments(self) -> np.ndarray:
@@ -113,7 +116,10 @@ class TETRA10(_GroupElem):
 
     @property
     def faces(self) -> list[int]:        
-        return [0,4,1,5,2,6,0,7,3,9,1,4,0,6,2,8,3,7,1,9,3,8,2,5]
+        return [0,4,1,5,2,6,
+                0,7,3,9,1,4,
+                0,6,2,8,3,7,
+                1,9,3,8,2,5]
     
     @property
     def segments(self) -> np.ndarray:

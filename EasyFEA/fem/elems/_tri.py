@@ -4,7 +4,7 @@
 
 """Tri element module."""
 
-from ... import np, plt
+import numpy as np
 
 from .._group_elems import _GroupElem
 
@@ -87,7 +87,10 @@ class TRI6(_GroupElem):
 
     @property
     def triangles(self) -> list[int]:
-        return [0,3,5,3,1,4,5,4,2,3,4,5]
+        return [0,3,5,
+                3,1,4,
+                5,4,2,
+                3,4,5]
 
     @property
     def faces(self) -> list[int]:
@@ -168,7 +171,15 @@ class TRI10(_GroupElem):
 
     @property
     def triangles(self) -> list[int]:
-        return list(np.array([10,1,4,10,4,5,10,5,6,10,6,7,10,7,8,10,8,9,10,9,1,2,5,6,3,7,8])-1)
+        return [0,3,8,
+                3,4,9,
+                4,1,5,
+                4,5,9,
+                3,9,8,
+                8,9,7,
+                9,5,6,
+                9,6,7,
+                7,6,2]
     
     @property
     def faces(self) -> list[int]:

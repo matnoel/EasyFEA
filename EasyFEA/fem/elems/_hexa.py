@@ -4,7 +4,7 @@
 
 """Hexa element module."""
 
-from ... import np, plt
+import numpy as np
 
 from .._group_elems import _GroupElem
 
@@ -36,7 +36,12 @@ class HEXA8(_GroupElem):
 
     @property
     def faces(self) -> list[int]:
-        return [0,1,2,3,0,4,5,1,0,3,7,4,6,7,3,2,6,2,1,5,6,5,4,7]
+        return [0,1,2,3,
+                0,4,5,1,
+                0,3,7,4,
+                6,7,3,2,
+                6,2,1,5,
+                6,5,4,7]
     
     @property
     def segments(self) -> np.ndarray:
