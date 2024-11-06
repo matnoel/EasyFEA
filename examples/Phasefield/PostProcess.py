@@ -14,12 +14,12 @@ if __name__ == '__main__':
     # Configuration
     # ----------------------------------------------
     # "PlateWithHole_Benchmark", "PlateWithHole_FCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
-    # simulation = "Shear_Benchmark"
-    simulation = "PlateWithHole_Benchmark"
+    simulation = "Shear_Benchmark"
+    # simulation = "PlateWithHole_Benchmark"
 
     meshTest = False
     loadSimu = True
-    plotDamage = True
+    plotDamage = False
     savefig = True
 
     folder_results = Folder.New_File(simulation, results=True)
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     list_mat = ["Elas_Isot"] # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
 
     # list_regu = ["AT2", "AT1"] # ["AT1", "AT2"]
-    list_regu = ["AT2"] # ["AT1", "AT2"]
+    list_regu = ["AT1"] # ["AT1", "AT2"]
 
     list_simpli2D = ["DP"] # ["CP","DP"]
     list_solver = ["History"]
@@ -44,16 +44,16 @@ if __name__ == '__main__':
     # list_split = ["Bourdin","Amor","Miehe","He","AnisotStrain","AnisotStress","Zhang"]
     # list_split = ["Bourdin","He","AnisotStrain","AnisotStress","Zhang"]
     # list_split = ["AnisotStrain","AnisotStress", "He", "Zhang"]
-    list_split = ["AnisotStress", "He"]
+    # list_split = ["AnisotStress", "He"]
     # list_split = ["Bourdin","Amor","Miehe"]
-    # list_split = ["He"]
+    list_split = ["Amor"]
 
     # listOptimMesh=[False, True] # [True, False]
     listOptimMesh=[True] # [True, False]
 
-    # listTol = [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
+    listTol = [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5] # [1e-0, 1e-1, 1e-2, 1e-3, 1e-4]
     # listTol = [1e-0, 1e-2]
-    listTol = [1e-0]
+    # listTol = [1e-0]
 
     # listnL = [100] # [100] [100, 120, 140, 180, 200]
     listnL = [0]
@@ -71,6 +71,7 @@ if __name__ == '__main__':
     # depMax = 2.5e-5
     # depMax = 2.46e-5
     depMax = 3.5e-5
+    # depMax = 2.5e-5
 
     # Génération des configurations
     listConfig = []
@@ -120,13 +121,15 @@ if __name__ == '__main__':
         # text = nomSimu
         # text = split
         # text = f"{split}_{regu}_tol{tolConv:1.0e}"
-        # text = f"{tolConv:1.0e}"
+        text = f"{tolConv:1.0e}"
         # text = f"{split}_{regu}"        
         # text = foldername.replace(Folder.Get_Path(foldername), "")[1:]
 
-        text = f"{split} {regu}"
+        # text = f"{split} {regu}"
         # if optimMesh:
         #     text += f" optim"
+        # else:
+        #     text += f" unif"
 
         if (loadSimu or plotDamage) and Folder.Exists(fileSimu):
             # Load simulation
@@ -145,9 +148,19 @@ if __name__ == '__main__':
         # Plot loads
         # ----------------------------------------------
 
+        pltCrack = True
+
         # Loads force and displacement
         if Folder.Exists(fileForceDep):
             force, displacement = Simulations.Load_Force_Displacement(foldername)
+
+            if pltCrack:
+                damage = np.asarray([simu.Result("damage", iter=i).max() for i in range(len(simu.results))])
+                i_crack = np.where(damage >= 1-1e-12)[0][0]
+
+                fc = np.abs(force[i_crack]*1e-3); print(f"fc = {fc:.2f} N/mm")
+                uc = displacement[i_crack]*1e6; print(f"uc = {uc:.2f} µm")
+                # print(f"{displacement[-1]*1e6:.2f} µm")
             
             if depMax == 0:
                 depMax = displacement[-1]
@@ -162,10 +175,12 @@ if __name__ == '__main__':
             # ls = '--' if optimMesh else None
             # c = ax_load.get_lines()[-1].get_color() if optimMesh else None
             
-            ls = '--' if regu == "AT1" else None
-            c = ax_load.get_lines()[-1].get_color() if regu == "AT1" else None
+            # ls = '--' if regu == "AT1" else None
+            # c = ax_load.get_lines()[-1].get_color() if regu == "AT1" else None
 
             ax_load.plot(displacement[indexLim]*1e6, np.abs(force[indexLim])*1e-6, c=c, label=text, ls=ls)
+            if pltCrack:
+                ax_load.scatter(displacement[i_crack]*1e6, np.abs(force[i_crack])*1e-6, c=c, marker='+', s=80, label=f"{fc:.2f} N/mm")
 
 
         else:
@@ -246,7 +261,15 @@ if __name__ == '__main__':
     # ax_load.set_xlabel("displacement")
     # ax_load.set_ylabel("load")
     ax_load.grid()
-    ax_load.legend()
+
+    if pltCrack:
+        handles, labels = ax_load.get_legend_handles_labels()
+        handles = np.concatenate((handles[::2],handles[1::2]),axis=0)
+        labels = np.concatenate((labels[::2],labels[1::2]),axis=0)
+        ax_load.legend(handles, labels, ncols=2)
+    else:
+        ax_load.legend()
+    
     plt.figure(ax_load.figure)
     Display.Save_fig(folder_save, "load displacement")
 
