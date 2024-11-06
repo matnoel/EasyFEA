@@ -36,20 +36,20 @@ class ElemType(str, Enum):
     @staticmethod
     def Get_1D() -> list[str]:
         """Returns 1D element types."""        
-        liste1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4]
-        return liste1D
+        elems_1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4]
+        return elems_1D
     
     @staticmethod
     def Get_2D() -> list[str]:
         """Returns 2D element types."""
-        liste2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8]
-        return liste2D
+        elems_2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8]
+        return elems_2D
     
     @staticmethod
     def Get_3D() -> list[str]:
         """Returns 3D element types."""
-        liste3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.HEXA20, ElemType.PRISM6, ElemType.PRISM15]
-        return liste3D
+        elems_3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.HEXA20, ElemType.PRISM6, ElemType.PRISM15]
+        return elems_3D
 
 class MatrixType(str, Enum):
     """Order used for integration over elements, which determines the number of integration points."""
