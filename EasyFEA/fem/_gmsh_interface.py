@@ -300,10 +300,10 @@ class Mesher:
 
         factory = self._factory
 
-        # Creates a contour surface
+        # Create a contour surface
         loopContour, lines, points = self._Loop_From_Geom(contour)
 
-        # Creates all hollow and filled loops associated with inclusions
+        # Create all hollow and filled loops associated with inclusions
         hollowLoops, filledLoops = self.__Get_hollow_And_filled_Loops(inclusions)
         
         loops = [loopContour] # contour loop
@@ -337,7 +337,7 @@ class Mesher:
     
     def _Surfaces_Organize(self, surfaces: list[int], elemType: ElemType,
                            isOrganised=False, numElems:list[int]=[]) -> None:
-        """Organize surfaces.
+        """Organizes surfaces.
 
         Parameters
         ----------
@@ -403,14 +403,14 @@ class Mesher:
         for surface in surfaces:
             # get old entities
             ents = factory.getEntities(dim)
-            # Creates new surfaces
+            # Create new surfaces
             if isinstance(surface, Union[Iterable, tuple]):
                 # surface is a combination of a contour + inclusions
                 newSurfaces = self._Surfaces(surface[0], surface[1], elemType, isOrganised)[0]
             else:
                 # surface is just a contour
                 newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]
-            # Deletes or adds created entities to the current geometry.
+            # Delete or add created entities to the current geometry.
             if surface.isHollow:
                 factory.cut(ents, [(2, surf) for surf in newSurfaces])
             else:
@@ -594,7 +594,7 @@ class Mesher:
         p0 = axis.pt1.coord
         a0 = Normalize_vect(axis.pt2.coord - p0)
 
-        # Creates new entites
+        # Create new entites
         revol = factory.revolve(entities, *p0, *a0, angle, layers, recombine=recombine)
         revolEntities.extend(revol)
 
@@ -606,7 +606,7 @@ class Mesher:
     
     def _Link_Contours(self, contour1: Contour, contour2: Contour, elemType: ElemType,
                       nLayers:int=0, numElems:list[int]=[]) -> list[tuple[int, int]]:
-        """Link 2 contours and create a volume.\n
+        """Links 2 contours and create a volume.\n
         Contours must be connectable, i.e. they must have the same number of points and lines.
 
         Parameters
@@ -632,9 +632,9 @@ class Mesher:
 
         factory = self._factory
         
-        # specifies whether contour surfaces can be organized
+        # specify whether contour surfaces can be organized
         canBeOrganised = len(contour1.geoms) == 4
-        # specifies if it is necessary to recombine bonding surfaces
+        # specify if it is necessary to recombine bonding surfaces
         recombineLinkingSurf = 'HEXA' in elemType or 'PRISM' in elemType
         # useTransfinite = canBeOrganised and recombineLinkingSurf
         useTransfinite = recombineLinkingSurf
@@ -650,14 +650,14 @@ class Mesher:
         lines = lines1.copy(); lines.extend(lines2)
         surfaces = [surf1, surf2]
 
-        # checks that the given entities are linkable
+        # check that the given entities are linkable
         assert len(lines1) == len(lines2), "Must provide same number of lines."
         nP, nL = len(points1), len(lines1)
         assert nP == nL, "Must provide the same number of points as lines."
 
         nLayers = int(nLayers)
 
-        # creates link between every points belonging to points1 and points2
+        # create link between every points belonging to points1 and points2
         linkingLines = [factory.addLine(pi,pj) for pi, pj in zip(points1, points2)]
 
         lines.extend(linkingLines)
@@ -677,7 +677,7 @@ class Mesher:
             p3, p4 = points2[i], points2[j]
             # loop to create the surface (- are optionnal)
             loop = factory.addCurveLoop([l1,l2,-l3,-l4])
-            # creates the surface and add it to linking surfaces
+            # create the surface and add it to linking surfaces
             surf = factory.addSurfaceFilling(loop)
             surfaces.append(surf)
 
@@ -837,28 +837,28 @@ class Mesher:
             return None, None, None, None
         
         # lists containing open entities
-        crack1D = []; openPoints = []
-        crack2D = []; openLines = []
+        cracks_1D = []; openPoints = []
+        cracks_2D = []; openLines = []
 
-        entities0D = []
-        entities1D = []
-        entities2D = []
+        entities_0D = []
+        entities_1D = []
+        entities_2D = []
 
         for crack in cracks:
             if isinstance(crack, Line): # 1D CRACK
-                # Creates points
+                # Create points
                 pt1 = crack.pt1
                 p1 = factory.addPoint(pt1.x, pt1.y, pt1.z, crack.meshSize)
                 pt2 = crack.pt2
                 p2 = factory.addPoint(pt2.x, pt2.y, pt2.z, crack.meshSize)
-                entities0D.extend([p1,p2])
+                entities_0D.extend([p1,p2])
 
-                # Creates line
+                # Create line
                 line = factory.addLine(p1, p2)
-                entities1D.append(line)
+                entities_1D.append(line)
 
                 if crack.isOpen:
-                    crack1D.append(line)                
+                    cracks_1D.append(line)                
                     if pt1.isOpen: openPoints.append(p1)                        
                     if pt2.isOpen: openPoints.append(p2)
 
@@ -868,11 +868,11 @@ class Mesher:
 
                 self._factory.remove([(1,loop),(1,lines[-1])])
                 
-                entities0D.extend(points)
-                entities1D.extend(lines[:-1])                
+                entities_0D.extend(points)
+                entities_1D.extend(lines[:-1])                
 
                 if crack.isOpen:
-                    crack1D.extend(lines[:-1])
+                    cracks_1D.extend(lines[:-1])
                     openLines.extend(openLns)                    
                     openPoints.extend(openPts)
 
@@ -885,12 +885,12 @@ class Mesher:
                 except Exception:
                     surf = self._factory.addSurfaceFilling(loop)
                 
-                entities0D.extend(points)
-                entities1D.extend(lines)
-                entities2D.append(surf)
+                entities_0D.extend(points)
+                entities_1D.extend(lines)
+                entities_2D.append(surf)
 
                 if crack.isOpen:
-                    crack2D.append(surf)
+                    cracks_2D.append(surf)
                     openLines.extend(openLns)                    
                     openPoints.extend(openPts)
 
@@ -901,16 +901,16 @@ class Mesher:
                 p1 = factory.addPoint(*crack.pt1.coord, crack.meshSize)
                 p2 = factory.addPoint(*crack.pt2.coord, crack.meshSize)
                 p3 = factory.addPoint(*crack.pt3.coord, crack.meshSize)
-                entities0D.extend([p1,p2,p3])
+                entities_0D.extend([p1,p2,p3])
 
                 # add lines
                 line1 = factory.addCircleArc(p1, pC, p3)
                 line2 = factory.addCircleArc(p3, pC, p2)
                 lines = [line1, line2]
-                entities1D.extend(lines)
+                entities_1D.extend(lines)
 
                 if crack.isOpen:
-                    crack1D.extend(lines)
+                    cracks_1D.extend(lines)
                     if crack.pt1.isOpen: openPoints.append(p1)
                     if crack.pt2.isOpen: openPoints.append(p2)
                     if crack.pt3.isOpen: openPoints.append(p3)
@@ -921,17 +921,17 @@ class Mesher:
 
                 raise Exception("Cracks must be Line, Points, Contour or CircleArc")            
 
-        newEntities = [(0, point) for point in entities0D]
-        newEntities.extend([(1, line) for line in entities1D])
-        newEntities.extend([(2, surf) for surf in entities2D])
+        newEntities = [(0, point) for point in entities_0D]
+        newEntities.extend([(1, line) for line in entities_1D])
+        newEntities.extend([(2, surf) for surf in entities_2D])
 
         if factory == gmsh.model.occ:
             o, m = gmsh.model.occ.fragment(entities, newEntities, removeTool=False)
 
         self._Synchronize() # mandatory
 
-        crackLines = gmsh.model.addPhysicalGroup(1, crack1D) if len(crack1D) > 0 else None
-        crackSurfaces = gmsh.model.addPhysicalGroup(2, crack2D) if len(crack2D) > 0 else None
+        crackLines = gmsh.model.addPhysicalGroup(1, cracks_1D) if len(cracks_1D) > 0 else None
+        crackSurfaces = gmsh.model.addPhysicalGroup(2, cracks_2D) if len(cracks_2D) > 0 else None
 
         openPoints = gmsh.model.addPhysicalGroup(0, openPoints) if len(openPoints) > 0 else None
         openLines = gmsh.model.addPhysicalGroup(1, openLines) if len(openLines) > 0 else None
@@ -990,7 +990,7 @@ class Mesher:
             line = factory.addLine(p1, p2)
             lines.append(line)
 
-        # removes meshSize = 0
+        # remove meshSize = 0
         list_meshSize = [m for m in list_meshSize if m>0]
         mS = np.min(list_meshSize) if len(list_meshSize) > 0 else 0
         self._Additional_Points(1, additionalPoints, mS)
@@ -1091,11 +1091,11 @@ class Mesher:
         # adding these lines, points or surfaces will probably break the old mesh size conditions.
         # adding contour to refineGeoms ensures that the mesh size is correct.
 
-        # Recovers 2D entities
-        entities2D = factory.getEntities(2)
+        # Recover 2D entities
+        entities_2D = factory.getEntities(2)
 
         # Crack creation
-        crackLines, __, openPoints, __ = self._Cracks_SetPhysicalGroups(cracks, entities2D)
+        crackLines, __, openPoints, __ = self._Cracks_SetPhysicalGroups(cracks, entities_2D)
 
         # get created surfaces
         surfaces = [entity[1] for entity in factory.getEntities(2)]
@@ -1171,10 +1171,10 @@ class Mesher:
         self._Extrude(surfaces=surfaces, extrude=extrude, elemType=elemType, layers=layers)
 
         # get 3D entities
-        entities3D = factory.getEntities(3)
+        entities_3D = factory.getEntities(3)
 
-        # creates cracks
-        crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
+        # create cracks
+        crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities_3D)
 
         self._Mesh_Refine(refineGeoms, contour.meshSize, extrude=extrude)
 
@@ -1248,10 +1248,10 @@ class Mesher:
         self._Revolve(surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, layers=layers)
 
         # get 3D entities
-        entities3D = factory.getEntities(3)
+        entities_3D = factory.getEntities(3)
 
-        # creates crack
-        crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities3D)
+        # create crack
+        crackLines, crackSurfaces, openPoints, openLines = self._Cracks_SetPhysicalGroups(cracks, entities_3D)
 
         self._Mesh_Refine(refineGeoms, contour.meshSize)
 
@@ -1476,7 +1476,7 @@ class Mesher:
 
         gmsh.model.mesh.generate(dim)
         
-        # sets mesh order
+        # set mesh order
         Mesher._Set_mesh_order(elemType)
 
         if dim > 1:
