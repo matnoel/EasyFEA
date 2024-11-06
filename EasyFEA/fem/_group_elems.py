@@ -627,7 +627,7 @@ class _GroupElem(ABC):
         
     @property
     def sysCoord_e(self) -> np.ndarray:
-        """the basis transformation matrix (Ne, 3, 3)\n
+        """Basis transformation matrix (Ne, 3, 3)\n
         [ix, jx, kx\n
         iy, jy, ky\n
         iz, jz, kz]\n
@@ -1111,12 +1111,12 @@ class _GroupElem(ABC):
         elements =  list(set(columns))
         
         if exclusively:
-            # Checks if elements exclusively use nodes in the node list
+            # Check whether elements use only nodes in the node list
             
             # get nodes used by elements
             nodesElem = set(connect[elements].ravel())
 
-            # detects nodes used by elements that are not in the nodes specified
+            # detect nodes used by elements that are not in the nodes specified
             nodesIntru = list(nodesElem - set(nodes))
 
             # We detect the list of elements associated with unused nodes
@@ -1414,7 +1414,7 @@ class _GroupElem(ABC):
             length = np.linalg.norm(vect)
             vect = vect / length
 
-            # vectors starting from the first point of the element
+            # vector starting from the first point of the element
             p_n = coordinates_n - coordo[p1]
 
             cross_n = np.cross(e_i, p_n, axisa=0, axisb=1)
@@ -1455,7 +1455,7 @@ class _GroupElem(ABC):
             cross_n_i = np.cross(e_i, p_n_i, axisa=1, axisb=2)
             test_n_i = cross_n_i @ vect_n >= -tol
             filtre = np.sum(test_n_i, 1)
-            # Returns the index of nodes around the element that meet all conditions
+            # Return the index of nodes around the element that meet all conditions
             idx = np.where(filtre == nPe)[0]
 
             return idx
@@ -1547,14 +1547,14 @@ class _GroupElem(ABC):
         connect = self.connect
         coord = self.coord
         
-        # Initializes lists
+        # Initialize lists
         detectedNodes: list[int] = []
         # Elements where nodes have been identified
         detectedElements_e: list[int] = []
         # connectivity matrix containing the nodes used by the elements
         connect_e_n: list[list[int]] = []
 
-        # Calculates the number of times a coordinate appears
+        # Calculate the number of times a coordinate appears
         dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1
         # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image/grid
         # If the coordinates come from an image/grid, the _Get_coordoNear function will be faster.
@@ -1575,8 +1575,8 @@ class _GroupElem(ABC):
             dN_tild = self._dNtild()
             xiOrigin = self.origin # origin of the reference element (ξ0,η0)
             
-            # Checks whether iterative resolution is required
-            # calculates the ratio between jacob min and max to detect if the element is distorted
+            # Check whether iterative resolution is required
+            # calculate the ratio between jacob min and max to detect if the element is distorted
             diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
             error_e = np.abs(1 - diff_e) # a perfect element has an error max <= 1e-12
             # A distorted element exhibits a maximum error greater than zero.
@@ -1589,10 +1589,10 @@ class _GroupElem(ABC):
             # get element's node coordinates (x, y, z)
             coordElem: np.ndarray = coord[connect[e]]
 
-            # Retrieves indexes in coordinates_n that are within the element's bounds
+            # Retrieve indexes in coordinates_n that are within the element's bounds
             idxNearElem = self.__Get_coordoNear(coordinates_n, coordElem, dims)
 
-            # Returns the index of idxNearElem that satisfies all the specified conditions.
+            # Return the index of idxNearElem that satisfies all the specified conditions.
             idxInElem = self.Get_pointsInElem(coordinates_n[idxNearElem], e)
 
             if idxInElem.size == 0:
@@ -1613,7 +1613,7 @@ class _GroupElem(ABC):
                 # This is particularly relevant for elements with multiple integration points (e.g., QUAD4, TRI6, TRI10, ..),
                 # i.e., all elements that can be distorted and have a Jacobian ratio different from 1.
 
-                # Projects (x, y, z) coordinates into the element's (i, j, k) coordinate system if dim != inDim.
+                # Project (x, y, z) coordinates into the element's (i, j, k) coordinate system if dim != inDim.
                 # its the case when a 2D mesh is in 3D space
                 coordElemBase = coordElem.copy()
                 coordinatesBase_n: np.ndarray = coordinates_n[nodesInElement].copy()
