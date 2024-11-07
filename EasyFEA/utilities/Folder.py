@@ -12,7 +12,7 @@ def Get_Path(filename="") -> str:
     """
     
     if filename == "":
-        # Returns the path to EasyFEA
+        # Return the path to EasyFEA
         normPath = os.path.normpath(__file__)
         path = os.path.dirname(normPath) # utilities
         # path = os.getcwd() # utilities
@@ -20,7 +20,7 @@ def Get_Path(filename="") -> str:
         path = os.path.dirname(path) # EasyFEA (folder)
     else:
         normPath = os.path.normpath(filename)
-        # Returns the path to the file
+        # Return the path to the file
         path = os.path.dirname(normPath)
 
     return path
