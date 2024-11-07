@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
         if usePER:        
             
-            # requires the u field to have zero mean
+            # require the u field to have zero mean
             useMean0 = False
             
             for n0, n1 in paired_nodes:

@@ -40,7 +40,7 @@ if __name__ == '__main__':
         cos_phi = np.cos(phi)
         sin_phi = np.sin(phi)
 
-        # Creates the contour geometrie
+        # Create the contour geometrie
         p0 = Point(0, R)
         p1 = Point(-cos_phi*R, sin_phi*R)
         p2 = Point(-cos_phi*R, -sin_phi*R)
@@ -54,7 +54,7 @@ if __name__ == '__main__':
         contour = Points([p0,p1,p2,p3,p4,p5], s/N)
         corners = contour.points
 
-        # Creates the inclusion
+        # Create the inclusion
         p6 = Point(0, (R-r))
         p7 = Point(-cos_phi*(R-r), sin_phi*(R-r))
         p8 = Point(-cos_phi*(R-r), -sin_phi*(R-r))
@@ -71,7 +71,7 @@ if __name__ == '__main__':
         area = a*b
         meshSize = e/N*2
         
-        # Creates the contour geometry
+        # Create the contour geometry
         p0 = Point(-a/2, b/2)
         p1 = Point(-a/2, -b/2)
         p2 = Point(a/2, -b/2)
@@ -79,7 +79,7 @@ if __name__ == '__main__':
         contour = Points([p0,p1,p2,p3], meshSize)
         corners = contour.points
 
-        # Creates the inclusion geometry
+        # Create the inclusion geometry
         p4 = p0 + [e, -e]
         p5 = p1 + [e, e]
         p6 = p2 + [-e, e]
