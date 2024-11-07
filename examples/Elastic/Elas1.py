@@ -43,8 +43,8 @@ if __name__ == '__main__':
     else:
         mesh = Mesher().Mesh_Extrude(domain, [], [0,0,-h], [4], ElemType.HEXA8, isOrganised=True)
 
-    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
     # ----------------------------------------------
     # Simulation
@@ -53,8 +53,8 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(dim, E, v, planeStress=True, thickness=h)
     simu = Simulations.ElasticSimu(mesh, material)
 
-    simu.add_dirichlet(nodesX0, [0]*dim, simu.Get_dofs())
-    simu.add_surfLoad(nodesXL, [-load/h**2], ["y"])
+    simu.add_dirichlet(nodes_x0, [0]*dim, simu.Get_dofs())
+    simu.add_surfLoad(nodes_xL, [-load/h**2], ["y"])
 
     sol = simu.Solve()
     simu.Save_Iter()
@@ -73,8 +73,6 @@ if __name__ == '__main__':
 
     print(f"err uy : {np.abs(uy_an-uy_num)/uy_an*100:.2f} %")
 
-
-    Display.Plot_Tags(mesh)
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, h/2/np.abs(sol).max())
     Display.Plot_Result(simu, "uy", nodeValues=True, coef=1/coef, ncolors=20)

@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Tic, plt, np,
                      Mesher, ElemType,
                      Materials, Simulations)
-from EasyFEA.Geoms import Point, Points, Circle, Domain
+from EasyFEA.Geoms import Point, Points
 
 if __name__ == '__main__':
 
@@ -40,16 +40,13 @@ if __name__ == '__main__':
     pt7 = Point(x=h, y=h)
     contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
 
-    inclusions = [Circle(Point(x=h/2, y=h*(i + 1)), h/4, meshSize=h/N, isHollow=True) for i in range(3)]
-    inclusions.extend([Domain(Point(x=h, y=h/2 - h*0.1), Point(x=h*2.1, y=h/2 + h*0.1), isHollow=False, meshSize=h/N)])
-
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, inclusions, ElemType.TRI3)
+        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(contour, inclusions, [0, 0, -h], [4], elemType=ElemType.TETRA4)
+        mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, -h], [4], elemType=ElemType.TETRA4)
 
-    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
     # ----------------------------------------------
     # Simulation
@@ -58,12 +55,8 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(dim, E, v, planeStress=True, thickness=h)
     simu = Simulations.ElasticSimu(mesh, material)
 
-    if dim == 2:
-        simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
-        simu.add_lineLoad(nodesXL, [-800/h], ["y"])
-    else:
-        simu.add_dirichlet(nodesX0, [0, 0, 0], ["x", "y", "z"])
-        simu.add_surfLoad(nodesXL, [-800/(h*h)], ["y"])
+    simu.add_dirichlet(nodes_x0, [0]*dim, simu.Get_dofs())
+    simu.add_surfLoad(nodes_xL, [-800/(h*h)], ["y"])
 
     sol = simu.Solve()
     simu.Save_Iter()
@@ -73,7 +66,6 @@ if __name__ == '__main__':
     # ----------------------------------------------
     print(simu)
 
-    Display.Plot_Tags(mesh)
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, h/2/np.abs(sol).max())
     Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1/coef, ncolors=20)

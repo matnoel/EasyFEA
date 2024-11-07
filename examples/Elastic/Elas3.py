@@ -39,13 +39,13 @@ if __name__ == '__main__':
 
     if dim == 2:
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI6)
-        print(f"err area = {np.abs(mesh.area - h**2/2):.3e}")
+        print(f"err area = {np.abs(mesh.area - h**2/2)/mesh.area:.3e}")
     elif dim == 3:
         mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, -thickness], [3], ElemType.PRISM15)
-        print(f"error volume = {np.abs(mesh.volume - h**2/2 * thickness):.3e}")
+        print(f"error volume = {np.abs(mesh.volume - h**2/2 * thickness)/mesh.volume:.3e}")
 
-    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodes_y0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
 
     # ----------------------------------------------
     # Simulation
@@ -54,8 +54,8 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(dim, E, v, planeStress=False, thickness=thickness)
     simu = Simulations.ElasticSimu(mesh, material)
 
-    simu.add_dirichlet(nodesY0, [0]*dim, simu.Get_dofs())
-    simu.add_surfLoad(nodesX0, [lambda x, y, z: w*g*(h - y)], ["x"], description="[w*g*(h-y)]")
+    simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
+    simu.add_surfLoad(nodes_x0, [lambda x, y, z: w*g*(h - y)], ["x"], description="[w*g*(h-y)]")
     simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
 
     sol = simu.Solve()
