@@ -21,7 +21,7 @@ from ._utils import _IModel, ModelType
 class _Beam(_IModel):
     """Beam class model."""
 
-    # number of beams created
+    # number of created beams
     __nBeam = -1
 
     @property
@@ -134,16 +134,16 @@ class _Beam(_IModel):
         xAxis = self.xAxis
         yAxis = Normalize_vect(As_Coordinates(value))
 
-        # checks that the yaxis is not colinear to the fiber axis
+        # check that the yaxis is not colinear to the fiber axis
         crossProd = np.cross(xAxis, yAxis)
         if np.linalg.norm(crossProd) <= 1e-12:
-            # creates a new y-axis
+            # create a new y-axis
             yAxis = Normalize_vect(np.cross([0,0,1], xAxis))
             print(f"The beam's vertical axis has been selected incorrectly (collinear with the beam x-axis).\nAxis {np.array_str(yAxis, precision=3)} has been assigned for {self.name}.")
         else:
             # get the horizontal direction of the beam
             zAxis = Normalize_vect(np.cross(xAxis, yAxis))
-            # makes sure that x,y,z are orthogonal
+            # make sure that x,y,z are orthogonal
             yAxis = Normalize_vect(np.cross(zAxis, xAxis))
 
         self.Need_Update()
@@ -186,7 +186,7 @@ class _Beam(_IModel):
         [ix, jx, kx\n
         iy, jy, ky\n
         iz, jz, kz]\n
-        coordo(x,y,z) = P • coordo(i,j,k)
+        coord(x,y,z) = P • coord(i,j,k)
         """
         line = self.line
         
@@ -351,13 +351,13 @@ class BeamStructure(_IModel):
 
         Ne = groupElem.Ne
         nPg = groupElem.Get_gauss(matrixType).nPg
-        # Initializes D_e_pg :
+        # Initialize D_e_pg :
         D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))                
         
         # For each beam, we will construct the law of behavior on the associated nodes.
         for beam, D in zip(listBeam, list_D):
             
-            # recovers elements
+            # recover elements
             elems = groupElem.Get_Elements_Tag(beam.name)
             D_e_pg[elems] = D
 
