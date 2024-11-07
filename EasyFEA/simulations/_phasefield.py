@@ -327,7 +327,6 @@ class PhaseFieldSimu(_Simu):
         # Data
         mesh = self.mesh
         
-        # Recovers matrices to work with        
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
         leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobian_e_pg * weight_pg * B_dep_e_pg'
 
@@ -336,15 +335,15 @@ class PhaseFieldSimu(_Simu):
 
         phaseFieldModel = self.phaseFieldModel
         
-        # computes strain field
+        # compute strain field
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, matrixType)
 
-        # computes the splited stifness matrices for the given strain field.
+        # compute the splited stifness matrices for the given strain field.
         cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
 
         tic = Tic()
         
-        # comutes c such that: c = g(d) * cP + cM
+        # compute c such that: c = g(d) * cP + cM
         g_e_pg = phaseFieldModel.Get_g_e_pg(d, mesh, matrixType)
         cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
         c_e_pg = cP_e_pg + cM_e_pg
@@ -418,7 +417,7 @@ class PhaseFieldSimu(_Simu):
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, MatrixType.mass)
         # here the mass term is important otherwise we under-integrate
 
-        # Computes the elastic energy densities.
+        # Compute the elastic energy densities.
         psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
         if phaseFieldModel.solver == "History":
@@ -442,7 +441,7 @@ class PhaseFieldSimu(_Simu):
 
             # new = np.linalg.norm(psiP_e_pg)
             # old = np.linalg.norm(self.__old_psiP_e_pg)
-            # assert new >= old, "Erreur"
+            # assert new >= old, "Error"
             
         self.__psiP_e_pg = psiP_e_pg
 
@@ -487,7 +486,6 @@ class PhaseFieldSimu(_Simu):
         Kd_e = K_r_e + K_K_e
 
         if self.dim == 2:
-            # THICKNESS not used in femobject !
             thickness = pfm.thickness
             Kd_e *= thickness
             Fd_e *= thickness
@@ -543,7 +541,7 @@ class PhaseFieldSimu(_Simu):
         iter["convIter"] = self.__convIter
         
         if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
-            # updates old history field for next resolution
+            # update old history field for next resolution
             self.__old_psiP_e_pg = self.__psiP_e_pg
             
         iter["displacement"] = self.displacement
@@ -673,8 +671,6 @@ class PhaseFieldSimu(_Simu):
 
     def __indexResult(self, result: str) -> int:
 
-        dim = self.dim
-
         if len(result) <= 2:
             if "x" in result:
                 return 0
@@ -685,18 +681,18 @@ class PhaseFieldSimu(_Simu):
 
     def _Calc_Psi_Elas(self) -> float:
         """Computes of the kinematically admissible damaged deformation energy.\n
-        Wdef = 1/2 int_Ω Sig : Eps dΩ"""
+        Psi_Elas = 1/2 int_Ω Sig : Eps dΩ"""
 
         Ku = self.Get_K_C_M_F(ModelType.elastic)[0]
 
         tic = Tic()
 
         u = self.displacement.reshape(-1,1)
-        Wdef = 1/2 * float(u.T @ Ku @ u)
+        Psi_Elas = 1/2 * float(u.T @ Ku @ u)
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
         
-        return Wdef
+        return Psi_Elas
 
     def _Calc_Psi_Crack(self) -> float:
         """Computes crack's energy."""
@@ -764,7 +760,7 @@ class PhaseFieldSimu(_Simu):
         
         tic = Tic()
         
-        # computes Sig such that: Sig = g(d) * SigP + SigM
+        # compute Sig such that: Sig = g(d) * SigP + SigM
         g_e_pg = phaseFieldModel.Get_g_e_pg(d, self.mesh, matrixType)        
         SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
         Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
@@ -839,14 +835,14 @@ class PhaseFieldSimu(_Simu):
         return resumeIter
 
     def Results_dict_Energy(self) -> dict[str, float]:
-        PsiElas = self._Calc_Psi_Elas()
-        PsiCrack = self._Calc_Psi_Crack()
-        dict_Energie = {
-            r"$\Psi_{elas}$": PsiElas,
-            r"$\Psi_{crack}$": PsiCrack,
-            r"$\Psi_{tot}$": PsiCrack+PsiElas
+        Psi_Elas = self._Calc_Psi_Elas()
+        Psi_Crack = self._Calc_Psi_Crack()
+        dict_energy = {
+            r"$\Psi_{elas}$": Psi_Elas,
+            r"$\Psi_{crack}$": Psi_Crack,
+            r"$\Psi_{tot}$": Psi_Crack+Psi_Elas
             }
-        return dict_Energie
+        return dict_energy
 
     def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
         
@@ -859,8 +855,8 @@ class PhaseFieldSimu(_Simu):
         damageMaxIter = np.array([np.max(damage) for damage in df["damage"].values])
         list_label_values.append((r"$\phi$", damageMaxIter))
 
-        tolConvergence = df["convIter"].values
-        list_label_values.append(("converg", tolConvergence))
+        convIter = df["convIter"].values
+        list_label_values.append(("convIter", convIter))
 
         nombreIter = df["Niter"].values
         list_label_values.append(("Niter", nombreIter))
