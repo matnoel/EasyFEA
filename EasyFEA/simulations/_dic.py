@@ -164,7 +164,7 @@ class DIC(_IObserver):
         imgRef = self.__imgRef
         mesh = self.__mesh
 
-        # get pixel coordinates
+        # get pixels' coordinates
         coordPx = np.arange(imgRef.shape[1]).reshape((1,-1)).repeat(imgRef.shape[0], 0).ravel()
         coordPy = np.arange(imgRef.shape[0]).reshape((-1,1)).repeat(imgRef.shape[1]).ravel()
         coordPixel = np.zeros((coordPx.shape[0], 3), dtype=int);  coordPixel[:,0] = coordPx;  coordPixel[:,1] = coordPy
