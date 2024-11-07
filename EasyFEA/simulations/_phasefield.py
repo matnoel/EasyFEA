@@ -506,7 +506,7 @@ class PhaseFieldSimu(_Simu):
         # Additional dimension linked to the use of lagrange coefficients        
         Ndof += self._Bc_Lagrange_dim(ModelType.damage)
         
-        # Calculating elementary matrix
+        # Calculate elementary matrix
         Kd_e, Fd_e = self.__Construct_Damage_Matrix()
 
         # Assembly
