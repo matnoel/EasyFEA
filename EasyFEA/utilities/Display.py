@@ -92,7 +92,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
     # To display values on 2D elements, we first need to know the values at 3D nodes.
     nodeValues = True if plotDim == 3 else nodeValues # do not modify
 
-    # Retrieves values that will be displayed
+    # Retrieve values that will be displayed
     if isinstance(result, str):
         if simu == None:
             raise Exception("obj is a mesh, so the result must be an array of dimension Nn or Ne")
@@ -159,7 +159,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
         connectFaces = mesh.connect[:,faces]
         elements_coordinates = coordo[connectFaces,:2]
 
-        # Plots the mesh
+        # Plot the mesh
         if plotMesh:
             if mesh.dim == 1:
                 # mesh for 1D elements are points                
@@ -169,7 +169,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
                 pc = LineCollection(elements_coordinates, edgecolor=edgecolor, lw=0.5)
                 ax.add_collection(pc)
 
-        # Plots element values
+        # Plot element values
         if mesh.Ne == len(values):
             if mesh.dim == 1:
                 pc = LineCollection(elements_coordinates, lw=1.5, cmap=cmap, norm=norm)
@@ -180,7 +180,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
             ax.add_collection(pc)
             # ticks = None if ncolors != 11 else ticks
 
-        # Plots node values
+        # Plot node values
         elif mesh.Nn == len(values):
             # retrieves triangles from each face to use the trisurf function
             triangles = mesh.groupElem.triangles
@@ -216,7 +216,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
             ax.set_ylabel(r"$y$")
             ax.set_zlabel(r"$z$")
 
-        # constructs the face connection matrix
+        # construct the face connection matrix
         connectFaces = []
         groupElems = mesh.Get_list_groupElem(plotDim)
         list_faces = _Get_list_faces(mesh, plotDim)
@@ -238,11 +238,11 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
         else:
             facesValues = values
 
-        # updates max and min
+        # update max and min
         max = np.max([facesValues.max(), max])
         min = np.min([facesValues.min(), min])
 
-        # Displays result with or without the mesh
+        # Display result with or without the mesh
         if plotMesh:
             if plotDim == 1:
                 ax.plot(*mesh.coordGlob.T, c='black', lw=0.1, marker='.', ls='')
@@ -302,7 +302,6 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
             filename = result
         Save_fig(folder, filename, transparent=False)
 
-    # Returns figure, axis and colorbar
     return ax
     
 def Plot_Mesh(obj, deformFactor=0.0,
@@ -350,7 +349,7 @@ def Plot_Mesh(obj, deformFactor=0.0,
     # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.    
     if dimElem == 3: dimElem = 2
     
-    # constructs the connection matrix for the faces
+    # construct the connection matrix for the faces
     list_groupElem = mesh.Get_list_groupElem(dimElem)
     list_faces = _Get_list_faces(mesh, dimElem)
     connectFaces = []
@@ -639,7 +638,7 @@ def Plot_BoundaryConditions(simu: _Simu, ax: plt.Axes=None) -> plt.Axes:
         dofsValues = bc.dofsValues
         directions = bc.directions
         nDir = len(directions)
-        nodes = bc.nodes
+        nodes = list(set(list(bc.nodes)))
         description = bc.description
 
         if problemType in ["damage","thermal"]:
@@ -677,7 +676,10 @@ def Plot_BoundaryConditions(simu: _Simu, ax: plt.Axes=None) -> plt.Axes:
         title = f"{description} {directions_str}"
 
         lw=0
-        ax.plot(*coord[nodes,:simu.mesh.inDim].T, marker=marker, lw=lw, label=title, zorder=2.5, ls='')
+        if len(nodes) == simu.mesh.Nn:
+            ax.plot(*coord[:,:simu.mesh.inDim].mean(0).T, marker=marker, lw=lw*5, label=title, zorder=2.5, ls='')
+        else:            
+            ax.plot(*coord[nodes,:simu.mesh.inDim].T, marker=marker, lw=lw, label=title, zorder=2.5, ls='')
     
     ax.legend()
 
@@ -811,7 +813,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
                     ax.plot(x_n, y_n, c='black', marker='.', zorder=2, ls='')
                     
                 if showId:
-                    # plots the tag on the center of the element
+                    # plot the tag on the center of the element
                     ax.text(x_e, y_e, tag_e, zorder=25)
                 
             else:
@@ -819,15 +821,15 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
                 if len(nodes) > 0:
                     # lines or surfaces
                     if dim == 0:
-                        # plots points
+                        # plot points
                         collections.append(ax.scatter(x_n, y_n, z_n, c='black', marker='.', zorder=2, label=tag_e, lw=2, zdir='z'))
                     elif dim == 1:
-                        # plots lines
+                        # plot lines
                         pc = Line3DCollection(coord_faces, lw=1.5, edgecolor='black', alpha=1, label=tag_e)
                         # collections.append(ax.add_collection3d(pc, zs=z_e, zdir='z'))
                         collections.append(ax.add_collection3d(pc, zdir='z'))
                     elif dim == 2:
-                        # plots surfaces
+                        # plot surfaces
                         pc = Poly3DCollection(coord_faces, lw=0, alpha=alpha, facecolors=color, label=tag_e)
                         pc._facecolors2d = color
                         pc._edgecolors2d = color                        
@@ -943,13 +945,13 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         print("This simulation don't calculate energies.")
         return
 
-    # Checks whether it is possible to plot the force-displacement curve
+    # Check whether it is possible to plot the force-displacement curve
     pltLoad = len(load) == len(displacement) and len(load) > 0    
         
     # For each displacement increment we calculate the energy
     tic = Tic()
     
-    # recovers simulation results
+    # recover simulation results
     Niter = len(simu.results)    
     if len(load) > 0:
         ecart = np.abs(Niter - len(load))
@@ -962,12 +964,12 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
     times = []
     if plotSolMax : listSolMax = []
 
-    # activates the first iteration
+    # activate the first iteration
     simu.Set_Iter(0, resetAll=True)
 
     for i, iteration in enumerate(iterations):
 
-        # Updates simulation at iteration i
+        # Update simulation at iteration i
         simu.Set_Iter(iteration)
 
         if plotSolMax : listSolMax.append(simu._Get_u_n(simu.problemType).max())
@@ -992,7 +994,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
 
     iter_rows = iter(np.arange(nrows))
 
-    # Retrieves the axis to be used for x-axes
+    # Retrieve the axis to be used for x-axes
     if len(displacement)>0:
         listX = displacement[iterations] 
         xlabel = "displacement"
@@ -1000,10 +1002,9 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         listX = iterations 
         xlabel = "iter"    
 
-    # Transforms list_dict_Energie into a dataframe
+    # Transform list_dict_energy into a dataframe
     df = pd.DataFrame(list_dict_Energy)
-
-    # Affiche les energies
+    
     row: int = next(iter_rows)
     # For each energy, we plot the values
     for energie_str in df.columns:
@@ -1048,7 +1049,7 @@ def Plot_Iter_Summary(simu: _Simu, folder="", iterMin=None, iterMax=None) -> Non
         upper bound, by default None
     """
 
-    # Recovers simulation results
+    # Recover simulation results
     iterations, list_label_values = simu.Results_Iter_Summary()
 
     if iterMax == None:
@@ -1122,7 +1123,7 @@ def Movie_Simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
     ax = Init_Axes(simu.mesh.inDim)
     fig = ax.figure
 
-    # activates the first iteration
+    # activate the first iteration
     simu.Set_Iter(0, resetAll=True)
 
     def DoAnim(fig: plt.Figure, i):
