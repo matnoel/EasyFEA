@@ -1137,7 +1137,7 @@ class _GroupElem(ABC):
         func
             Function using x, y and z nodes coordinates and returning boolean values.
 
-            examples :
+            examples :\n
             \t lambda x, y, z: (x < 40) & (x > 20) & (y<10) \n
             \t lambda x, y, z: (x == 40) | (x == 50) \n
             \t lambda x, y, z: x >= 0
