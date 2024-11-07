@@ -171,7 +171,7 @@ class DIC(_IObserver):
 
         # get pixels used in elements with their coordinates
         pixels, __, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(coordPixel)
-        # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])s
+        # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])
 
         self.__connectPixel: np.ndarray = connectPixel
         """connectivity matrix linking the pixels used for each element."""
@@ -411,7 +411,7 @@ class DIC(_IObserver):
         if u0 is None:
             u0 = self._Get_u_from_images(imgRef, img)
         else:
-            assert u0.size == self.__mesh.Nn * 2, "u0 must be a vector of dimension (Nn*2, 1)"
+            assert u0.size == self.__mesh.Nn * 2, "u0 must be a vector of dimension (2*Nn, 1)"
         u = u0.copy()
 
         # get pixels' coordinates
@@ -451,8 +451,8 @@ class DIC(_IObserver):
         return u
 
     def Calc_r_dic(self, u: np.ndarray, img: np.ndarray, imgRef: np.ndarray=None) -> np.ndarray:
-        """Computes the dic residual between images (as a Np x Np matrix).\n
-        f(x) - g(x + u)
+        """Computes the dic residual between img and imgRef (as a Np x Np matrix).\n
+        r_dic = f(x) - g(x + u(x))
 
         Parameters
         ----------
