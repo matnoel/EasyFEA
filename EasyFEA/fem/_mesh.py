@@ -109,7 +109,7 @@ class Mesh(Observable):
 
     @property
     def groupElem(self) -> _GroupElem:
-        """main group eleme"""
+        """main group element"""
         return self.__groupElem
 
     @property
@@ -123,7 +123,7 @@ class Mesh(Observable):
         return self.groupElem.Ne
 
     @property
-    def Nn(self, dim=None) -> int:
+    def Nn(self) -> int:
         """number of nodes in the mesh"""
         return self.groupElem.Nn
 
@@ -145,7 +145,7 @@ class Mesh(Observable):
 
     @property
     def coord(self) -> np.ndarray:
-        """node coordinates matrix (Nn,3) for the main groupElem"""
+        """nodes coordinates matrix (Nn,3) for the main groupElem"""
         return self.groupElem.coord
     
     def copy(self):
@@ -181,7 +181,7 @@ class Mesh(Observable):
         self._Notify('The mesh has been modified')
 
     def Symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
-        """Symmetrize the mesh coordinates with respect to a specified plane.
+        """Symmetrizes the mesh coordinates with respect to a specified plane.
 
         Parameters
         ----------
@@ -204,8 +204,8 @@ class Mesh(Observable):
 
     @property
     def coordGlob(self) -> np.ndarray:
-        """global mesh coordinates matrix (Nn, 3)\n
-        Contains all mesh coordinates"""
+        """global nodes coordinates matrix (Nn, 3)\n
+        Contains all nodes coordinates"""
         return self.groupElem.coordGlob
     
     @coordGlob.setter
@@ -234,7 +234,7 @@ class Mesh(Observable):
     @property
     def assembly_e(self) -> np.ndarray:
         """assembly matrix (Ne, nPe*dim)\n
-        Allows rigi matrix to be positioned in the global matrix."""
+        Used to position the rigi matrix in the global matrix."""
         return self.groupElem.assembly_e
 
     def Get_assembly_e(self, dof_n: int) -> np.ndarray:
@@ -324,7 +324,7 @@ class Mesh(Observable):
         dim = self.dim
         idx = 2 if dim == 3 else 1 # normal vectors position in sysCoord_e
 
-        list_normals = []
+        list_normal = []
         list_nodes: list[int] = [] # used nodes in nodes
 
         # for each elements on the boundary
@@ -352,11 +352,11 @@ class Mesh(Observable):
             normal_n = np.einsum('ni,n->ni',connect_n_e @ n_e, 1/sum, optimize='optimal')
 
             # append the values on each direction and add nodes
-            list_normals.append(normal_n)
+            list_normal.append(normal_n)
             list_nodes.extend(usedNodes)
 
         nodes = np.asarray(list_nodes, dtype=int)
-        normals = np.concatenate(list_normals, 0, dtype=float)
+        normals = np.concatenate(list_normal, 0, dtype=float)
 
         return normals, nodes
 
@@ -459,7 +459,7 @@ class Mesh(Observable):
         func : function 
             Function using the x, y and z nodes coordinates and returning boolean values.
 
-            examples :
+            examples :\n
             \t lambda x, y, z: (x < 40) & (x > 20) & (y<10) \n
             \t lambda x, y, z: (x == 40) | (x == 50) \n
             \t lambda x, y, z: x >= 0
@@ -635,7 +635,6 @@ class Mesh(Observable):
             # corners are nodes
             # corners become the corners coordinates
             corners: np.ndarray = self.coordGlob[corners]
-        
 
         nCorners = len(corners) # number of corners
         nEdges = nCorners//2 # number of edges
@@ -717,7 +716,7 @@ class Mesh(Observable):
     def Get_meshSize(self, doMean=True) -> np.ndarray:
         """Returns the mesh size of the mesh.\n
         returns meshSize_e if doMean else meshSize_e_s"""
-        # recovers the physical group and coordinates
+        # recover the physical group and coordinates
         groupElem = self.groupElem
         coordo = groupElem.coord
 
@@ -726,7 +725,7 @@ class Mesh(Observable):
         segments_e = groupElem.connect[:, segments]
 
         # for each elements (e)
-        # calculates the length of each segment (s)
+        # calculate the length of each segment (s)
         h_e_s = np.linalg.norm(coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2)
 
         if doMean:
@@ -770,7 +769,7 @@ class Mesh(Observable):
         area_e = groupElem.area_e
         
         if groupElem.dim == 2:
-            # calculates the angle in each corners of 2d elements
+            # calculate the angle in each corners of 2d elements
             angle_e_s = np.zeros((groupElem.Ne, groupElem.nbCorners), float)
 
             for c in range(groupElem.nbCorners):
@@ -898,7 +897,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         # *coordo_n.T give a list for every direction *(xis, etas, ..)
         phi_n_nPe[:,n] = Ntild[n,0](*coordo_n.T)
 
-    # Checks that the sum of the shape functions is 1  
+    # Check that the sum of the shape functions is 1  
     testSum1 = (np.sum(phi_n_nPe) - phi_n_nPe.size)/phi_n_nPe.size <= 1e-12
     assert testSum1
 
@@ -993,7 +992,8 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
         optimized mesh size and ratio
     """
     
-    from EasyFEA import Folder, Mesher
+    from ..utilities import Folder
+    from . import Mesher
 
     targetRatio = ratio
     assert targetRatio > 0 and targetRatio <= 1, "targetRatio must be in ]0, 1]"
@@ -1009,7 +1009,7 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
         mesh = DoMesh(optimGeom)
 
         if i > 0:
-            # removes previous .pos file
+            # remove previous .pos file
             Folder.os.remove(optimGeom)        
         
         # mesh quality calculation
@@ -1023,16 +1023,16 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
 
         print(f'ratio = {ratio*100:.3f} %')
         
-        # # assigns max quality for elements that exceed quality
+        # # assign max quality for elements that exceed quality
         # qual_e[qual_e >= quality] = quality
         
-        # calculates the relative error between element quality and desired quality
+        # calculate the relative error between element quality and desired quality
         error_e = np.abs(qual_e-quality)/quality
 
-        # calculates the new mesh size for the associated error
+        # calculate the new mesh size for the associated error
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
 
-        # builds the .pos file that will be used to refine the mesh
+        # build the .pos file that will be used to refine the mesh
         optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
 
     if Folder.Exists(optimGeom):
