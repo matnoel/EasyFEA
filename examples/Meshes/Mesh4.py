@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Meshing a part in revolution."""
+"""Meshing a 3D part in revolution."""
 
 from EasyFEA import Display, Mesher, ElemType, np
 from EasyFEA.Geoms import Point, Points, Circle, Line
@@ -32,21 +32,18 @@ if __name__ == '__main__':
     axis = Line(Point(), Point(radius/3,height))
     axis.name = 'rot axis'
 
+    geoms = [contour.Get_Contour()]
+    geoms.extend([circle1, circle2, circle3])
+    geoms.append(axis)
+    contour.Plot_Geoms(geoms)
+
     angle = 360 * 4/6
 
     perimeter = angle * np.pi/180 * radius
 
     layers = [perimeter // meshSize]
 
-    def DoMesh(dim, elemType):
-        mesh = Mesher().Mesh_Revolve(contour, inclusions, axis, angle, layers, elemType)
-        Display.Plot_Mesh(mesh)
-
-    [DoMesh(3, elemType) for elemType in ElemType.Get_3D()]
-
-    geoms = [contour.Get_Contour()]
-    geoms.extend([circle1, circle2, circle3])
-    geoms.append(axis)
-    contour.Plot_Geoms(geoms)
+    mesh = Mesher().Mesh_Revolve(contour, inclusions, axis, angle, layers, ElemType.PRISM6)
+    Display.Plot_Mesh(mesh)
 
     Display.plt.show()

@@ -17,22 +17,18 @@ if __name__ == '__main__':
 
     # ----------------------------------------------
     # Configuration
-    # ----------------------------------------------
-    dim = 2
-    criteria = 'angular'
-    quality = 0.8 if dim == 2 else .6 # lower bound of the target quality
+    # ----------------------------------------------    
+    criteria = 'aspect'
+    quality = 0.8 # lower bound of the target quality
     ratio = .6 # the ratio of mesh elements that must satisfy the target    
     iterMax = 20 # Maximum number of iterations
     coef = 1/2 # Scaling coefficient for the optimization process
 
     # Selecting the element type for the mesh
-    if dim == 2:
-        elemType = ElemType.TRI3 # TRI3, TRI6, TRI10, QUAD4, QUAD8
-    else:
-        elemType = ElemType.TETRA4 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
+    elemType = ElemType.TRI3 # TRI3, TRI6, TRI10, QUAD4, QUAD8
 
     # Creating a folder to store the results
-    folder = Folder.New_File(Folder.Join('Meshes', f'Optim{dim}D'), results=True)
+    folder = Folder.New_File(Folder.Join('Meshes', f'Optim2D'), results=True)
     if not Folder.Exists(folder):
         Folder.os.makedirs(folder)
 
@@ -69,13 +65,10 @@ if __name__ == '__main__':
 
     def DoMesh(refineGeom=None) -> Mesh:
         """Function used for mesh generation"""
-        if dim == 2:
-            return Mesher().Mesh_2D(circle, inclusions, elemType, [], [refineGeom])
-        else:
-            return Mesher().Mesh_Extrude(circle, inclusions, [0,0,b], [], elemType, [], [refineGeom])
+        return Mesher().Mesh_2D(circle, inclusions, elemType, [], [refineGeom])
 
     # Construct the initial mesh
-    mesh = DoMesh()  
+    mesh = DoMesh()
 
     mesh, ratio = Mesh_Optim(DoMesh, folder, criteria, quality, ratio)
     

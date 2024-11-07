@@ -155,5 +155,5 @@ if __name__ == '__main__':
 
         pvi.Movie_func(func, len(simu.results), folder, f'lmt.gif')
 
-    Tic.Plot_History(details=True)
+    Tic.Plot_History(details=False)
     plt.show()

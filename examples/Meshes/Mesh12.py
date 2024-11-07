@@ -98,8 +98,7 @@ crack3 = Create_Crack((8*L/10, 5*L/10), (8*L/10+L/20, 5*L/10+L/20))
 cracks = [crack1, crack2, crack3]
 
 # mesh
-mesh = Mesher(True).Mesh_2D(contour, inclusions, elemType, cracks, additionalSurfaces=[circle6])
-
+mesh = Mesher().Mesh_2D(contour, inclusions, elemType, cracks, additionalSurfaces=[circle6])
 
 # ----------------------------------------------
 # Simu

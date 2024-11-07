@@ -22,7 +22,7 @@ if __name__ == '__main__':
     dim = 2
 
     # Options for plotting the results
-    plotProj = True
+    plotProj = False
     makeMovie = False
     makeParaview = False   
     
@@ -171,5 +171,5 @@ if __name__ == '__main__':
 
         pvi.Movie_func(func, len(simu.results), folder, f'letterWeigher.gif')
 
-    Tic.Plot_History(details=True)
+    Tic.Plot_History(details=False)
     plt.show()

@@ -9,7 +9,7 @@ from EasyFEA import (Display, Folder, Tic, plt, np,
                      Materials, Simulations,
                      Paraview_Interface,
                      PyVista_Interface as pvi)
-from EasyFEA.Geoms import Point, Points, Circle, Domain
+from EasyFEA.Geoms import Point, Points
 from EasyFEA.fem import Mesh, Calc_projector
 
 if __name__ == '__main__':
@@ -61,17 +61,13 @@ if __name__ == '__main__':
     pt7 = Point(x=h, y=h)
 
     points = Points([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
-
-    inclusions = [Circle(Point(x=h/2, y=h*(i+1)), h/4, meshSize, isHollow=True) for i in range(3)]
-
-    inclusions.extend([Domain(Point(x=h,y=h/2-h*0.1), Point(x=h*2.1,y=h/2+h*0.1), meshSize, False)])
-
+    
     def DoMesh(refineGeom=None) -> Mesh:
         """Function used to generate the mesh."""
         if dim == 2:
-            return Mesher().Mesh_2D(points, inclusions, elemType, [], [refineGeom])
+            return Mesher().Mesh_2D(points, [], elemType, [], [refineGeom])
         else:
-            return Mesher().Mesh_Extrude(points, inclusions, [0,0,b], [], elemType, [], [refineGeom])
+            return Mesher().Mesh_Extrude(points, [], [0,0,b], [], elemType, [], [refineGeom])
 
     # Construct the initial mesh
     mesh = DoMesh()
@@ -151,5 +147,5 @@ if __name__ == '__main__':
 
         pvi.Movie_func(func, len(simu.results), folder, f'bracket.gif')
 
-    Tic.Plot_History(details=True)
+    Tic.Plot_History(details=False)
     plt.show()

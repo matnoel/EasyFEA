@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Refined mesh in zones."""
+"""Refined 2D mesh in zones."""
 
 from EasyFEA import Display, Mesher, ElemType
 from EasyFEA.Geoms import Point, Circle, Domain
@@ -23,19 +23,10 @@ if __name__ == '__main__':
     refine3 = Circle(Point(), L/2, meshSize/8)
     refineGeoms = [refine1, refine2, refine3]
 
-    def DoMesh(dim, elemType):
-        if dim == 2:
-            mesh = Mesher().Mesh_2D(contour, inclusions, elemType, refineGeoms=refineGeoms)
-        elif dim == 3:
-            mesh = Mesher().Mesh_Extrude(contour, inclusions, [0, 0, -L], [3], elemType, refineGeoms=refineGeoms)
-
-        Display.Plot_Mesh(mesh)
-
-    [DoMesh(2, elemType) for elemType in ElemType.Get_2D()]
-
-    [DoMesh(3, elemType) for elemType in ElemType.Get_3D()]
-
     geoms = [contour, circle, refine1, refine2, refine3]
     contour.Plot_Geoms(geoms)
+
+    mesh = Mesher().Mesh_2D(contour, inclusions, ElemType.QUAD4, refineGeoms=refineGeoms)
+    Display.Plot_Mesh(mesh)
 
     Display.plt.show()
