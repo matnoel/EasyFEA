@@ -192,7 +192,7 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
         The pyvista plotter
     """
 
-    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)   
+    _, mesh, coordo, _ = _Init_obj(obj, deformFactor)   
 
     if nodes is None:
         nodes = mesh.nodes
@@ -262,7 +262,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False,
         The pyvista plotter
     """
 
-    __, mesh, coordo, __ = _Init_obj(obj, deformFactor)
+    _, mesh, coordo, _ = _Init_obj(obj, deformFactor)
     
     dimElem = mesh.dim if dimElem == None else dimElem
 
@@ -372,7 +372,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
         rotDirections = ["rx","ry","rz"]
 
         if nDof == mesh.Nn:
-            # plots points 
+            # plot points 
             plotter.add_mesh(pv.PolyData(coordo[nodes]), render_points_as_spheres=False, label=label, color=color)
 
         else:
@@ -419,7 +419,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
                 vector = np.mean(vector, 0)
                 vectorRot = np.mean(vectorRot, 0)
             
-            # plots vector
+            # plot vector
             if normVector == 0:
                 # vector is a matrix of zeros
                 pvData = pv.PolyData(coordo[nodes])
@@ -659,7 +659,7 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
     
     cellType = __dictCellTypes[elemType]
     
-    # reorganizes the connectivity order 
+    # reorganize the connectivity order 
     # because some elements in gmsh don't have the same numbering order as in vtk
     # pyvista -> https://docs.pyvista.org/version/stable/api/core/_autosummary/pyvista.UnstructuredGrid.celltypes.html
     # vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
