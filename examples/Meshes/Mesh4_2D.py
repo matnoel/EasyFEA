@@ -27,7 +27,7 @@ if __name__ == '__main__':
     contour.Get_Contour().Plot()
 
     # "TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"
-    elemType = "TRI3"
+    elemType = "TRI10"
     mesh = Mesher().Mesh_2D(contour, [], elemType)
     Display.Plot_Mesh(mesh)
 

@@ -2,123 +2,106 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Meshing of a perforated plate with a structured mesh."""
+"""Meshing of a grooved 3D part with calculation of element quality."""
 
 from EasyFEA import (Display, Folder, np,
-                     Mesher, ElemType, 
-                     Materials, Simulations)
-from EasyFEA.Geoms import Point, Circle, Points, Line, CircleArc, Contour
+                     Mesher, ElemType, gmsh,
+                     PyVista_Interface as pvi,)
+from EasyFEA.Geoms import Point, Circle, Points
 
 folder = Folder.Get_Path(__file__)
 
 if __name__ == '__main__':
-
-    dim = 2
-
-    if dim == 2:
-        elemType =  ElemType.QUAD4
-    else:
-        elemType =  ElemType.HEXA8
 
     Display.Clear()
 
     # ----------------------------------------------
     # Geom
     # ----------------------------------------------
-    H = 90
-    L = 45
-    D = 10
-    e = 20
+    R = 10
+    e = 2
+    r = R-e
+    h = R * 2/3
 
-    N = 5
-    mS = (np.pi/4 * D/2) / N    
+    meshSize = e/3
 
-    # PI for Points
-    # pi for gmsh points
-    PC = Point(L/2, H/2, 0)
-    circle = Circle(PC, D, mS)
+    center = Point()
 
-    P1 = Point()
-    P2 = Point(L,0)
-    P3 = Point(L,H)
-    P4 = Point(0,H)
-    contour1 = Points([(P3+P2)/2,P3,(P3+P4)/2,
-                           P4,(P4+P1)/2,P1,
-                           (P1+P2)/2,P2,(P3+P2)/2], mS)
+    circle_ext = Circle(center, R*2, meshSize)
+    circle_int = Circle(center, r*2, meshSize, True)
+
+    useFillet = circle_int.isHollow
+    addCylinder = True
+    addBox = True
+    addRevolve = True
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    mesher = Mesher(False, True, True)
+
+    mesher = Mesher(False, False)
+    # dim, elemType = 2, ElemType.TRI3
+    dim, elemType = 3, ElemType.TETRA4
+    
     factory = mesher._factory
+
+    surfaces = mesher._Surfaces(circle_ext, [circle_int])[0]
+    mesher._Extrude(surfaces, [0,0,R], elemType)
+    vol1 = factory.getEntities(3)    
+
+    mesher._Synchronize()    
+
+    if useFillet:
+        surfs = gmsh.model.getBoundary(vol1)
+        lines = gmsh.model.getBoundary(surfs, False)        
+        gmsh.model.occ.fillet([vol1[0][1]], [abs(line[1]) for line in lines], [e/3])
     
+    if addCylinder:
+        cylinder = factory.addCylinder(R+e,0,h,-2*R-e,0,0,e)
+        factory.cut(vol1, [(3, cylinder)])
 
-    contours1: list[Contour] = []
+    if addBox:
+        box = factory.addBox(-R/4,-R-e,R/2, R/2, 2*R+e, R/2)
+        factory.cut(factory.getEntities(3), [(3, box)])
+
+    if addRevolve:
+        p1 = Point(R-e/2, 0, e, r=e/4)
+        p2 = Point(R, 0, e)
+        p3 = Point(R,0, e*4)
+        p4 = Point(R-e/2, 0, e*4, r=e/4)
+        contour = Points([p1, p2, p3, p4])    
+        surf = mesher._Surfaces(contour, [])[0][0]
+
+        rev1 = factory.revolve([(2, surf)], 0,0,0,0,0,R,np.pi)
+        rev2 = factory.revolve([(2, surf)], 0,0,0,0,0,R,-np.pi)
+        factory.cut(factory.getEntities(3), [rev1[1], rev2[1]])
     
-    for c in range(4):
+    mesher._Synchronize()
 
-        pc = circle.center
-        pc1 = circle.contour.geoms[c].pt1
-        pc2 = circle.contour.geoms[c].pt2
-        pc3 = circle.contour.geoms[c].pt3
-        
-        p1,p2,p3 = contour1.points[c*2:c*2+3]
+    if meshSize > 0:
+        mesher.Set_meshSize(meshSize)
 
-        cont1 = Contour([Line(pc1, p1), 
-                            Line(p1,p2),
-                            Line(p2,pc3),
-                            CircleArc(pc3,pc1,pc)])
-        loop1, lines1, points1 = mesher._Loop_From_Geom(cont1)
-
-        cont2 = Contour([Line(pc3, p2),
-                            Line(p2,p3),
-                            Line(p3,pc2),
-                            CircleArc(pc2,pc3,pc)])
-        loop2, lines2, points2 = mesher._Loop_From_Geom(cont2)
-
-        surf1 = factory.addSurfaceFilling(loop1)
-        surf2 = factory.addSurfaceFilling(loop2)
-
-        mesher._Surfaces_Organize([surf1, surf2], elemType, True, [N]*4)
-
-        contours1.extend([cont1, cont2])
-    
-    cont1.Plot_Geoms(contours1)
-
-    if dim == 3:
-        
-        for cont1 in contours1:
-            cont2 = cont1.copy()
-            cont2.Translate(dz=e)
-            # cont2.rotate(np.pi/8, PC.coordo)
-            mesher._Link_Contours(cont1, cont2, elemType, 3, [N]*4)
-
-    mesher._Set_PhysicalGroups()
+    mesher._Set_PhysicalGroups(setPoints=False, setLines=True, setSurfaces=True, setVolumes=False)
     
     mesher._Mesh_Generate(dim, elemType)
 
     mesh = mesher._Mesh_Get_Mesh()
 
-    if len(mesh.orphanNodes) > 0:
-        ax = Display.Plot_Nodes(mesh, mesh.orphanNodes)
-        ax.set_title("Orphan nodes detected")
-        Display.plt.show()
-
     # ----------------------------------------------
-    # Simulation
+    # Plot
     # ----------------------------------------------
 
-    mat = Materials.Elas_Isot(mesh.dim)
-    simu = Simulations.ElasticSimu(mesh, mat)
+    print(mesh)
 
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*mesh.dim, simu.Get_dofs())
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==H), [4], ['y'])    
-    simu.Solve()
-        
-    Display.Plot_Tags(mesh, alpha=0.1, showId=False)
-    Display.Plot_Mesh(simu, 1)
-    Display.Plot_Result(simu, 'uy', 1, plotMesh=True)
+    if dim == 3:
+        print(f'volume = {mesh.volume:.3f}')
 
-    print(simu)
+    plotter = pvi._Plotter(shape=(1,2))
 
-    Display.plt.show()
+    pvi.Plot_Mesh(mesh, plotter=plotter)
+
+    plotter.subplot(0,1)
+    plotter.add_title('aspect ratio')
+    qual = mesh.Get_Quality()
+    pvi.Plot_Elements(mesh, dimElem=1, plotter=plotter, color='k')
+    pvi.Plot(mesh, qual, nodeValues=False, cmap='viridis', clim=(0,1), show_edges=True, plotter=plotter).show()

@@ -16,7 +16,7 @@ if __name__ == '__main__':
     contour.Plot()
 
     # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"
-    elemType = "TETRA4"
+    elemType = "PRISM15"
     mesh = Mesher().Mesh_Extrude(contour, [circle], [0,0,0.5], 3, elemType, isOrganised=True)
     Display.Plot_Mesh(mesh)
 
