@@ -240,7 +240,7 @@ class _GroupElem(ABC):
 
         N_scalar = self.Get_N_pg(matrixType)
 
-        # retrieves node coordinates
+        # retrieve node coordinates
         coordo = self.coordGlob
 
         # nodes coordinates for each element
@@ -470,9 +470,9 @@ class _GroupElem(ABC):
             weight_pg = self.Get_gauss(matrixType).weights
             B_e_pg = self.Get_B_e_pg(matrixType)
 
-            leftDepPart = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, B_e_pg, optimize='optimal')
+            leftDispPart = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, B_e_pg, optimize='optimal')
 
-            self.__dict_leftDispPart[matrixType] = leftDepPart
+            self.__dict_leftDispPart[matrixType] = leftDispPart
 
         return self.__dict_leftDispPart[matrixType].copy()
     
@@ -508,11 +508,11 @@ class _GroupElem(ABC):
 
         if matrixType not in self.__dict_DiffusePart_e_pg.keys():
 
-            jacobien_e_pg = self.Get_jacobian_e_pg(matrixType)
+            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
             weight_pg = self.Get_gauss(matrixType).weights
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
-            DiffusePart_e_pg = np.einsum('ep,p,epij->epji', jacobien_e_pg, weight_pg, dN_e_pg, optimize='optimal')
+            DiffusePart_e_pg = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, dN_e_pg, optimize='optimal')
 
             self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
         
@@ -1147,14 +1147,8 @@ class _GroupElem(ABC):
         np.ndarray
             nodes that meet conditions
         """
-
-        coordo = self.coord
-
-        xn = coordo[:,0]
-        yn = coordo[:,1]
-        zn = coordo[:,2]
-
-        from ..utilities.Display import MyPrintError
+        
+        xn, yn, zn = self.coord.T
 
         try:
             arrayTest = np.asarray(func(xn, yn, zn))
@@ -1162,18 +1156,18 @@ class _GroupElem(ABC):
                 idx = np.where(arrayTest)[0]
                 return self.__nodes[idx].copy()
             else:
-                MyPrintError("The function must return a Boolean.")
+                print("The function must return a Boolean.")
         except TypeError:
-            MyPrintError("Must provide a 3-parameter function of type lambda x,y,z: ...")
+            print("Must provide a 3-parameter function of type lambda x,y,z: ...")
     
     def Get_Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""
 
         assert isinstance(point, Point)
 
-        coordo = self.coord
+        xn, yn, zn = self.coord.T
 
-        idx = np.where((coordo[:,0] == point.x) & (coordo[:,1] == point.y) & (coordo[:,2] == point.z))[0]        
+        idx = np.where((xn == point.x) & (yn == point.y) & (zn == point.z))[0]        
 
         if len(idx) == 0:
             # the previous condition may be too restrictive
@@ -1181,18 +1175,18 @@ class _GroupElem(ABC):
             
             # we make sure there is no coordinates = 0
             dec = 10
-            decX = np.abs(coordo[:,0].min()) + dec
-            decY = np.abs(coordo[:,1].min()) + dec
-            decZ = np.abs(coordo[:,2].min()) + dec
+            decX = np.abs(xn.min()) + dec
+            decY = np.abs(yn.min()) + dec
+            decZ = np.abs(zn.min()) + dec
             x = point.x + decX
             y = point.y + decY
             z = point.z + decZ
             coordo = coordo + [decX, decY, decZ]
             
             # get errors between coordinates
-            errorX = np.abs((coordo[:,0]-x)/coordo[:,0])
-            errorY = np.abs((coordo[:,1]-y)/coordo[:,1])
-            errorZ = np.abs((coordo[:,2]-z)/coordo[:,2])
+            errorX = np.abs((xn-x)/xn)
+            errorY = np.abs((yn-y)/yn)
+            errorZ = np.abs((zn-z)/zn)
             
             idx = np.where((errorX <= tolerance) & (errorY <= tolerance) & (errorZ <= tolerance))[0]
 
@@ -1203,19 +1197,17 @@ class _GroupElem(ABC):
 
         assert isinstance(line, Line)
         
-        vectUnitaire = line.unitVector
+        unitVector = line.unitVector
 
-        coordo = self.coord
+        vect = self.coord-line.coord[0]
 
-        vect = coordo-line.coord[0]
-
-        prodScalaire = np.einsum('i,ni-> n', vectUnitaire, vect, optimize='optimal')
-        prodVecteur = np.cross(vect, vectUnitaire)
-        norm = np.linalg.norm(prodVecteur, axis=1)
+        scalarProd = np.einsum('i,ni-> n', unitVector, vect, optimize='optimal')
+        crossProd = np.cross(vect, unitVector)
+        norm = np.linalg.norm(crossProd, axis=1)
 
         eps = 1e-12
 
-        idx = np.where((norm<eps) & (prodScalaire>=-eps) & (prodScalaire<=line.length+eps))[0]
+        idx = np.where((norm<eps) & (scalarProd>=-eps) & (scalarProd<=line.length+eps))[0]
 
         return self.__nodes[idx].copy()
     
@@ -1224,13 +1216,13 @@ class _GroupElem(ABC):
 
         assert isinstance(domain, Domain)
 
-        coordo = self.coord
+        xn, yn, zn = self.coord.T
 
         eps = 1e-12
 
-        idx = np.where( (coordo[:,0] >= domain.pt1.x-eps) & (coordo[:,0] <= domain.pt2.x+eps) &
-                        (coordo[:,1] >= domain.pt1.y-eps) & (coordo[:,1] <= domain.pt2.y+eps) &
-                        (coordo[:,2] >= domain.pt1.z-eps) & (coordo[:,2] <= domain.pt2.z+eps))[0]
+        idx = np.where( (xn >= domain.pt1.x-eps) & (xn <= domain.pt2.x+eps) &
+                        (yn >= domain.pt1.y-eps) & (yn <= domain.pt2.y+eps) &
+                        (zn >= domain.pt1.z-eps) & (zn <= domain.pt2.z+eps))[0]
         
         return self.__nodes[idx].copy()
 
@@ -1239,11 +1231,9 @@ class _GroupElem(ABC):
 
         assert isinstance(circle, Circle)
 
-        coordo = self.coord
-
         eps = 1e-12
 
-        vals = np.linalg.norm(coordo - circle.center.coord, axis=1)
+        vals = np.linalg.norm(self.coord - circle.center.coord, axis=1)
 
         if onlyOnEdge:
             idx = np.where((vals <= circle.diam/2+eps) & (vals >= circle.diam/2-eps))
@@ -1256,8 +1246,7 @@ class _GroupElem(ABC):
         """Returns nodes in the cylinder."""
 
         assert isinstance(circle, Circle)
-
-        coordo = self.coord
+        
         rotAxis = np.cross(circle.n, direction)
         if np.linalg.norm(rotAxis) <= 1e-12:
             # n == direction
@@ -1274,9 +1263,9 @@ class _GroupElem(ABC):
             J[:,1] *= cj
         
         eps = 1e-12
-        coordo = np.einsum('ij,nj->ni', np.linalg.inv(J), coordo - circle.center.coord)
+        coord = np.einsum('ij,nj->ni', np.linalg.inv(J), self.coord - circle.center.coord)
 
-        vals = np.linalg.norm(coordo[:,:2], axis=1)
+        vals = np.linalg.norm(coord[:,:2], axis=1)
         if onlyOnEdge:
             idx = np.where((vals <= circle.diam/2+eps) & (vals >= circle.diam/2-eps))
         else:
@@ -1327,7 +1316,7 @@ class _GroupElem(ABC):
 
         if nodes.size == 0: return
 
-        # Retrieves elements associated with nodes
+        # Retrieve elements associated with nodes
         elements = self.Get_Elements_Nodes(nodes=nodes, exclusively=True)
 
         self.__dict_elements_tags[tag] = elements
@@ -1396,26 +1385,26 @@ class _GroupElem(ABC):
 
         if dim == 0:
 
-            coordo = self.coord[self.__connect[elem,0]]
+            coord = self.coord[self.__connect[elem,0]]
 
-            idx = np.where((coordinates_n[:,0] == coordo[0]) & (coordinates_n[:,1] == coordo[1]) & (coordinates_n[:,2] == coordo[2]))[0]
+            idx = np.where((coordinates_n[:,0] == coord[0]) & (coordinates_n[:,1] == coord[1]) & (coordinates_n[:,2] == coord[2]))[0]
 
             return idx
 
         elif dim == 1:
 
-            coordo = self.coord
+            coord = self.coord
 
             p1 = self.__connect[elem,0]
             p2 = self.__connect[elem,1]
 
             # vector between the points of the segment
-            vect = coordo[p2] - coordo[p1]
+            vect = coord[p2] - coord[p1]
             length = np.linalg.norm(vect)
             vect = vect / length
 
             # vector starting from the first point of the element
-            p_n = coordinates_n - coordo[p1]
+            p_n = coordinates_n - coord[p1]
 
             cross_n = np.cross(e_i, p_n, axisa=0, axisb=1)
             norm_n = np.linalg.norm(cross_n, axis=1)
@@ -1431,20 +1420,19 @@ class _GroupElem(ABC):
             # points n
             # corners i [1, nPe]
             
-            coordo = self.coord
+            coord = self.coord
             faces = self.faces[:-1]
             nPe = len(faces)
-            connectMesh = self.connect[elem, faces]
-            corners_i = coordo[connectMesh]
-
-            # vector calculation
-            indexReord = np.append(np.arange(1, nPe), 0)
+            connect_e = self.connect[elem, faces]
+            corners_i = coord[connect_e]
+            
             # Vectors e_i for edge segments (nPe, 3)
-            e_i = coordo[connectMesh[indexReord]] - corners_i
+            indexReord = np.append(np.arange(1, nPe), 0)
+            e_i = coord[connect_e[indexReord]] - corners_i
             e_i = np.einsum("id,i->id", e_i, 1/np.linalg.norm(e_i, axis=1), optimize="optimal")
 
             # normal vector to element face
-            vect_n = np.cross(e_i[0], -e_i[-1])
+            n_i = np.cross(e_i[0], -e_i[-1])
 
             # (n, i, 3)
             coordinates_n_i = coordinates_n[:, np.newaxis].repeat(nPe, 1)
@@ -1453,10 +1441,10 @@ class _GroupElem(ABC):
             p_n_i = coordinates_n_i - corners_i
             
             cross_n_i = np.cross(e_i, p_n_i, axisa=1, axisb=2)
-            test_n_i = cross_n_i @ vect_n >= -tol
-            filtre = np.sum(test_n_i, 1)
+            test_n_i = cross_n_i @ n_i >= -tol
             # Return the index of nodes around the element that meet all conditions
-            idx = np.where(filtre == nPe)[0]
+            test_n = np.sum(test_n_i, 1)
+            idx = np.where(test_n == nPe)[0]
 
             return idx
         
@@ -1464,7 +1452,7 @@ class _GroupElem(ABC):
         
             faces = self.faces
             nbFaces = self.nbFaces
-            coordo = self.coord[self.__connect[elem]]
+            coord = self.coord[self.__connect[elem]]
 
             if self.elemType is ElemType.PRISM6:
                 faces = np.array(faces)
@@ -1487,10 +1475,10 @@ class _GroupElem(ABC):
             p1_f = [f[1] for f in faces]
             p2_f = [f[-1] for f in faces]
 
-            i_f = coordo[p1_f]-coordo[p0_f]
+            i_f = coord[p1_f]-coord[p0_f]
             i_f = np.einsum("ni,n->ni", i_f, 1/np.linalg.norm(i_f, axis=1), optimize="optimal")
 
-            j_f = coordo[p2_f]-coordo[p0_f]
+            j_f = coord[p2_f]-coord[p0_f]
             j_f = np.einsum("ni,n->ni", j_f, 1/np.linalg.norm(j_f, axis=1), optimize="optimal")
 
             n_f = np.cross(i_f, j_f, 1, 1)
@@ -1498,7 +1486,7 @@ class _GroupElem(ABC):
 
             coordinates_n_i = coordinates_n[:, np.newaxis].repeat(nbFaces, 1)
 
-            v_f = coordinates_n_i - coordo[p0_f]
+            v_f = coordinates_n_i - coord[p0_f]
 
             t_f = np.einsum("nfi,fi->nf", v_f, n_f, optimize="optimal") >= -tol
 
@@ -1576,7 +1564,7 @@ class _GroupElem(ABC):
             xiOrigin = self.origin # origin of the reference element (ξ0,η0)
             
             # Check whether iterative resolution is required
-            # calculate the ratio between jacob min and max to detect if the element is distorted
+            # calculate the ratio between jacob max and min to detect if the element is distorted
             diff_e = jacobian_e_pg.max(1) * 1/jacobian_e_pg.min(1)
             error_e = np.abs(1 - diff_e) # a perfect element has an error max <= 1e-12
             # A distorted element exhibits a maximum error greater than zero.
