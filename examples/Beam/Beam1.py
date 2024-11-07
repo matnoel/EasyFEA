@@ -84,7 +84,7 @@ if __name__ == '__main__':
     # Plot the analytical and finite element solutions for displacement (u)
     ax = Display.Init_Axes()
     ax.plot(x_array, u_x, label='Analytical', c='blue')
-    ax.scatter(mesh.coord[:, 0], ux, label='EF', c='red', marker='x', zorder=2)
+    ax.scatter(mesh.coord[:, 0], ux, label='FE', c='red', marker='x', zorder=2)
     ax.set_title(fr"$u_x(x)$")
     ax.legend()
 

@@ -60,35 +60,29 @@ if __name__ == '__main__':
     elemType = ElemType.SEG2
     beamDim = 2 # must be >= 2
 
-    point1 = Point()
-    point2 = Point(x=L / 2)
-    point3 = Point(x=L)
-    line1 = Line(point1, point2, L / nL)
-    line2 = Line(point2, point3, L / nL)
-    line = Line(point1, point3)
-    beam1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, v)
-    beam2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, v)
-    beams = [beam1, beam2]
+    p1 = Point()
+    pL = Point(x=L/2)
+    p2 = Point(x=L)
+    line = Line(p1, p2, L/nL)
+    beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
 
-    mesh = Mesher().Mesh_Beams(beams=beams, elemType=elemType)
+    mesh = Mesher().Mesh_Beams([beam], additionalPoints=[pL], elemType=elemType)
 
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
 
     # Initialize the beam structure with the defined beam segments
-    beamStructure = Materials.BeamStructure(beams)
+    beamStructure = Materials.BeamStructure([beam])
 
     # Create the beam simulation
     simu = Simulations.BeamSimu(mesh, beamStructure)
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(point1), [0]*dof_n, simu.Get_dofs())
-    simu.add_dirichlet(mesh.Nodes_Point(point3), [0]*dof_n, simu.Get_dofs())
-    simu.add_neumann(mesh.Nodes_Point(point2), [-load], ["y"])
-    if beamStructure.nBeam > 1:
-        simu.add_connection_fixed(mesh.Nodes_Point(point2))
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_dofs())
+    simu.add_dirichlet(mesh.Nodes_Point(p2), [0]*dof_n, simu.Get_dofs())
+    simu.add_neumann(mesh.Nodes_Point(pL), [-load], ["y"])
 
     # Solve the beam problem and get displacement results
     sol = simu.Solve()
@@ -98,7 +92,7 @@ if __name__ == '__main__':
     # Results
     # ----------------------------------------------
 
-    u_an = load * L**3 / (192*E*beam1.Iz)
+    u_an = load * L**3 / (192*E*beam.Iz)
 
     uy_1d = np.abs(simu.Result('uy').min())
 

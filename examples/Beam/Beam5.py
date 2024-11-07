@@ -34,7 +34,7 @@ if __name__ == '__main__':
     line4 = Line(pC, pE)
     line5 = Line(pB, pD)
     line6 = Line(pB, pE)
-    listLine = [line1, line2, line3, line4, line5, line6]
+    lines = [line1, line2, line3, line4, line5, line6]
 
     section = Mesher().Mesh_2D(Domain(Point(-4/2, -8/2), Point(4/2, 8/2)))
     Display.Plot_Mesh(section, title='Cross section')
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     E = 276 # MPa
     v = 0.3
 
-    beams = [Materials.Beam_Elas_Isot(dim, line, section, E, v) for line in listLine]
+    beams = [Materials.Beam_Elas_Isot(dim, line, section, E, v) for line in lines]
     structure = Materials.BeamStructure(beams)
 
     mesh = Mesher().Mesh_Beams(beams, elemType)

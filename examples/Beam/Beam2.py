@@ -36,37 +36,30 @@ if __name__ == '__main__':
     mesher = Mesher()
     section = mesher.Mesh_2D(Domain(Point(), Point(b, h)))
 
-    point1 = Point()
-    point2 = Point(x=L / 2)
-    point3 = Point(x=L)
-    line1 = Line(point1, point2, L / nL)
-    line2 = Line(point2, point3, L / nL)
-    line = Line(point1, point3)
-    beam1 = Materials.Beam_Elas_Isot(beamDim, line1, section, E, uy)
-    beam2 = Materials.Beam_Elas_Isot(beamDim, line2, section, E, uy)
-    beams = [beam1, beam2]
+    p1 = Point()    
+    p2 = Point(x=L)
+    line = Line(p1, p2, L/nL)    
+    beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, uy)    
 
-    mesh = mesher.Mesh_Beams(beams=beams, elemType=elemType)
+    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
 
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
 
-    Iy = beam1.Iy
-    Iz = beam1.Iz
+    Iy = beam.Iy
+    Iz = beam.Iz
 
     # Initialize the beam structure with the defined beam segments
-    beamStructure = Materials.BeamStructure(beams)
+    beamStructure = Materials.BeamStructure([beam])
 
     # Create the beam simulation
     simu = Simulations.BeamSimu(mesh, beamStructure)
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(point1), [0]*dof_n, simu.Get_dofs())
-    simu.add_neumann(mesh.Nodes_Point(point3), [-load], ["y"])
-    if beamStructure.nBeam > 1:
-        simu.add_connection_fixed(mesh.Nodes_Point(point2))
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_dofs())
+    simu.add_neumann(mesh.Nodes_Point(p2), [-load], ["y"])
 
     # Solve the beam problem and get displacement results
     sol = simu.Solve()
@@ -92,8 +85,8 @@ if __name__ == '__main__':
 
     # Plot the analytical and finite element solutions for vertical displacement (v)
     axUy = Display.Init_Axes()
-    axUy.plot(x, uy_x, label='Analytique', c='blue')
-    axUy.scatter(mesh.coord[:, 0], uy, label='EF', c='red', marker='x', zorder=2)
+    axUy.plot(x, uy_x, label='Analytical', c='blue')
+    axUy.scatter(mesh.coord[:, 0], uy, label='FE', c='red', marker='x', zorder=2)
     axUy.set_title(fr"$u_y(x)$")
     axUy.legend()
 
@@ -105,8 +98,8 @@ if __name__ == '__main__':
 
     # Plot the analytical and finite element solutions for rotation (rz)
     axRz = Display.Init_Axes()
-    axRz.plot(x, rz_x, label='Analytique', c='blue')
-    axRz.scatter(mesh.coord[:, 0], rz, label='EF', c='red', marker='x', zorder=2)
+    axRz.plot(x, rz_x, label='Analytical', c='blue')
+    axRz.scatter(mesh.coord[:, 0], rz, label='FE', c='red', marker='x', zorder=2)
     axRz.set_title(fr"$r_z(x)$")
     axRz.legend()
 

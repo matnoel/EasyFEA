@@ -35,17 +35,16 @@ if __name__ == '__main__':
     mesher = Mesher()
     section = mesher.Mesh_2D(Domain(Point(), Point(b, h)))
 
-    point1 = Point()
-    point2 = Point(y=L)
-    point3 = Point(y=L, x=L/2)
-    line1 = Line(point1, point2, L/nL)
-    line2 = Line(point2, point3, L/nL)
+    p1 = Point()
+    p2 = Point(y=L)
+    p3 = Point(y=L, x=L/2)
+    line1 = Line(p1, p2, L/nL)
+    line2 = Line(p2, p3, L/nL)
     beam1 = Materials.Beam_Elas_Isot(3, line1, section, E, v)
     beam2 = Materials.Beam_Elas_Isot(3, line2, section, E, v)
     beams = [beam1, beam2]
 
-    newPoint = Point(L/2 * 0.8, L)
-    mesh = mesher.Mesh_Beams(beams=beams, elemType=elemType, additionalPoints=[newPoint])    
+    mesh = mesher.Mesh_Beams(beams=beams, elemType=elemType)
 
     # ----------------------------------------------
     # Simulation
@@ -59,10 +58,10 @@ if __name__ == '__main__':
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(point1), [0]*dof_n, simu.Get_dofs())
-    simu.add_neumann(mesh.Nodes_Point(point3), [-load, load], ["y", "z"])
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_dofs())
+    simu.add_neumann(mesh.Nodes_Point(p3), [-load, load], ["y", "z"])
     if beamStructure.nBeam > 1:
-        simu.add_connection_fixed(mesh.Nodes_Point(point2))
+        simu.add_connection_fixed(mesh.Nodes_Point(p2))
 
     # Solve the beam problem and get displacement results
     sol = simu.Solve()
