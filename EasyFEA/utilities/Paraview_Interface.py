@@ -63,7 +63,7 @@ def Make_Paraview(simu, folder: str, N=200, details=False, nodesField=[], elemen
     if len(nodesField) == 0 and len(elementsField) == 0:
         Display.MyPrintError("The simulation has no solution fields to display in paraview.")
 
-    # activates the first iteration
+    # activate the first iteration
     simu.Set_Iter(0, resetAll=True)
 
     for i, iter in enumerate(iterations):
@@ -124,7 +124,7 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
    
     simu.Set_Iter(iter)
 
-    # checks the compatibility of the available results
+    # check the compatibility of the available results
     for option in options:
         resultat = simu.Result(option)
         if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
@@ -154,7 +154,7 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
 
     with open(filename, "w") as file:
         
-        # Specifies the mesh
+        # Specify the mesh
         file.write('<?pickle version="1.0" ?>\n')
         
         file.write(f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n')
@@ -162,7 +162,7 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
         file.write('\t<UnstructuredGrid>\n')
         file.write(f'\t\t<Piece NumberOfPoints="{Nn}" NumberOfCells="{Ne}">\n')
 
-        # Specifies the nodes values
+        # Specify the nodes values
         file.write('\t\t\t<PointData scalars="scalar"> \n')
         offset=0
         list_values_n: list[np.ndarray] = [] # list of nodes values
@@ -178,7 +178,7 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
 
         file.write('\t\t\t</PointData> \n')
 
-        # Specifies the elements values
+        # Specify the elements values
         file.write('\t\t\t<CellData> \n')
         list_values_e: list[np.ndarray] = []
         for result_e in elementsField:
