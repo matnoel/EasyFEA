@@ -45,7 +45,7 @@ class BeamSimu(_Simu):
         # init
         self.Solver_Set_Elliptic_Algorithm()
         
-        # turns beams into observable objects
+        # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]
         
     def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
@@ -225,8 +225,6 @@ class BeamSimu(_Simu):
 
         group = mesh.groupElem
 
-        coordo_e_p = group.Get_GaussCoordinates_e_p(matrixType)
-
         jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
         
         weight_p = group.Get_weight_pg(matrixType)        
@@ -294,7 +292,6 @@ class BeamSimu(_Simu):
         mesh = self.mesh
         jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
         groupElem = mesh.groupElem
-        elemType = groupElem.elemType
         nPe = groupElem.nPe
         Ne = jacobian_e_pg.shape[0]
         nPg = jacobian_e_pg.shape[1]
@@ -404,12 +401,11 @@ class BeamSimu(_Simu):
         mesh = self.mesh
         jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
         groupElem = mesh.groupElem
-        elemType = groupElem.elemType
         nPe = groupElem.nPe
         Ne = jacobian_e_pg.shape[0]
         nPg = jacobian_e_pg.shape[1]
 
-        # Recovers matrices to work with
+        # Recover matrices to work with
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
         if struct.dim > 1:
             ddNv_e_pg = mesh.groupElem.Get_ddNv_e_pg()
@@ -502,11 +498,11 @@ class BeamSimu(_Simu):
         
         tic = Tic()
 
-        lignesVector_e = mesh.Get_linesVector_e(model.dof_n).ravel()
-        colonnesVector_e = mesh.Get_columnsVector_e(model.dof_n).ravel()
+        linesVector_e = mesh.Get_linesVector_e(model.dof_n).ravel()
+        columnsVector_e = mesh.Get_columnsVector_e(model.dof_n).ravel()
 
         # Assembly
-        self.__Kbeam = sparse.csr_matrix((Ku_beam.ravel(), (lignesVector_e, colonnesVector_e)), shape=(nDof, nDof))
+        self.__Kbeam = sparse.csr_matrix((Ku_beam.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
         """Kglob matrix for beam problem (nDof, nDof)"""
 
         self.__Fbeam = sparse.csr_matrix((nDof, 1))
