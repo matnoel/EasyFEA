@@ -135,7 +135,7 @@ class ThermalSimu(_Simu):
         # Additional dimension linked to the use of lagrange coefficients
         Ndof += self._Bc_Lagrange_dim(self.problemType)
         
-        # Calculating elementary matrices
+        # Calculate elementary matrices
         Kt_e, Ct_e = self.__Construct_Thermal_Matrix()
         
         tic = Tic()
